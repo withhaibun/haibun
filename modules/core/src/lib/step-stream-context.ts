@@ -1,34 +1,33 @@
 /**
- * Per-request streaming side-channel for step-dispatch.
+ * Per-request streaming side-channel for step dispatch.
  *
- * Some step actions (a consumer's chat turn among them) want to emit
- * progress chunks while still going through `dispatchStep`, so that the
- * step's lifecycle events (start, end, error) stay bound to the caller's
- * seqPath, not delivered out-of-band.
+ * Some step actions (a consumer's chat turn among them) emit progress
+ * chunks during `dispatchStep`. The step still runs through `dispatchStep`,
+ * so its lifecycle events (start, end, error) carry the caller's seqPath.
  *
  * The streaming transport (NDJSON over /rpc/:method when `stream: true`)
- * opens the response, builds an emit callback that writes NDJSON chunks,
- * and runs the dispatcher inside `streamContext.run({emit, signal, end}, …)`.
- * Step actions read `streamContext.getStore()?.emit` to push chunks; if
- * the store is absent the action falls back to buffering and returning
- * the full text as products.
+ * opens the response and builds an emit callback that writes NDJSON chunks.
+ * It runs the dispatcher inside `streamContext.run(streamOver(emit, …), …)`.
+ * Step actions read `streamContext.getStore()?.emit` to send chunks. An
+ * action buffers the text and returns it in full as products where
+ * `streamContext.getStore()` returns undefined.
  *
- * AsyncLocalStorage isolates the context per async chain, so concurrent
- * requests never see each other's emit callback.
+ * AsyncLocalStorage isolates the context per async chain, so a request
+ * doesn't receive the emit callback of a concurrent request.
  */
 
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { TIndividualAddress } from "./typed-links.js";
 import type { TCalled } from "./called.js";
 
-/** A call a step made for its caller that what the step holds did not allow: the step it named, and the action that step
- *  requires, which the caller may hold and allow. */
+/** A call that a step made for its caller and that the authority the step holds didn't allow. It holds the called step and the
+ *  action that step requires. The caller may hold that action and allow the call. */
 export type TRefusedCall = { step: string; action: string };
 
-/** One streamed step chunk: how the step is progressing, a line of what it sends on its caller's behalf, a call it made, a
- *  text fragment, an individual the step just recorded, a call it was refused, a message in the protocol the call carries
- *  for its caller to act on, and/or a terminal error. The same shape is serialized to NDJSON/SSE by the transport and
- *  consumed by the shu client. */
+/** One streamed step chunk. It holds any of the step's progress status, a line of what the step sends on its caller's
+ *  behalf, a call the step made, a text fragment, an individual the step recorded, a call the step was refused, a message
+ *  in the call's protocol for the caller to act on, and a terminal error. The transport serializes this shape to NDJSON
+ *  or SSE, and the shu client reads it. */
 export type TStreamChunk = {
 	status?: string;
 	context?: string;
@@ -43,14 +42,15 @@ export type TStreamChunk = {
 type TStreamCtx = {
 	emit: (chunk: TStreamChunk) => void;
 	signal: AbortSignal;
-	/** End the call from the server's side, telling its caller why: the stream's last chunk is the reason, as an error,
+	/** End the call from the server's side. `end` emits the reason to the caller as an error in the stream's last chunk,
 	 *  and `signal` aborts. */
 	end: (reason: string) => void;
 };
 
 export const streamContext = new AsyncLocalStorage<TStreamCtx>();
 
-/** A stream over `emit`, stopped through `stopped`: ending it states the reason as its last chunk, an error, and stops it. */
+/** Returns a stream context over `emit` with the signal of `stopped`. `end` emits the reason as an error in the last chunk
+ *  and aborts `stopped`. A second `end` doesn't emit. */
 export function streamOver(emit: (chunk: TStreamChunk) => void, stopped = new AbortController()): TStreamCtx {
 	const end = (reason: string) => {
 		if (stopped.signal.aborted) return;

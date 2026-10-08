@@ -21,17 +21,17 @@ import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 
 const ECHOED_LABEL = "test-echoed-label";
-/** Two domains, and their union, which a parameter takes. */
+/** Two domains whose union a parameter takes. */
 const PICKS = ["test-pick-by-name", "test-pick-by-id"];
 const DOMAIN_PICK = asDomainKey(PICKS);
 
-/** The id the host states for itself, which the proxy names its steps under. */
+/** The id the host states for itself. The proxy prefixes the host's steps with it. */
 const HOST = 7;
-/** What the host's refusing step states. */
+/** The reason the host's refusing step returns. */
 const REFUSED = "the host refused";
 
 class EchoStepper extends AStepper {
-	description = "Steps that echo a message and answer a protected ping, served by a remote host.";
+	description = "Steps on a remote host that echo a message and respond to a protected ping.";
 	cycles = {
 		getConcerns: () => ({
 			domains: [
@@ -68,7 +68,7 @@ describe("RemoteStepperProxy", () => {
 	let server: ReturnType<typeof serve>;
 	let port: number;
 	let world: TWorld;
-	/** The host's step, by its name in the echo stepper, as the proxy registers it under the host's name for it. */
+	/** Returns the proxy's tool for an echo stepper step. The proxy registers it under the host-scoped method name. */
 	const hostTool = async (step: string) => {
 		const proxy = new RemoteStepperProxy(`http://localhost:${port}`);
 		await proxy.setWorld(world, []);
@@ -78,17 +78,17 @@ describe("RemoteStepperProxy", () => {
 		if (!tool) throw new Error(`the proxy doesn't hold the host's step ${step}`);
 		return tool;
 	};
-	/** What each call to the host presented, by the method it called. */
+	/** The capability-invocation header each call to the host presented, keyed by method. */
 	const presented = new Map<string, string | undefined>();
 
 	beforeAll(async () => {
 		// Start a minimal RPC server with EchoStepper
 		world = getDefaultWorld() as TWorld;
-		// Every step the host serves requires an action, so the proxy signs each call to one as the holder it presents.
+		// Every step the host serves requires an action, so the proxy signs each call to a step as the holder it presents.
 		const authority = new SessionAuthority();
 		authority.registerInvoker(new FakeInvoker("proxy"));
 		(world.runtime.keys ??= {})[AUTHORITY_KEY] = authority;
-		// The host serves its declarations through the show steps step, dispatched like any other.
+		// The host serves its declarations through the show steps step and dispatches that step like any other.
 		const hosted = [new EchoStepper(), new Haibun()];
 		for (const stepper of hosted) await stepper.setWorld(world, hosted);
 		addStepperConcerns(world, hosted);
@@ -105,7 +105,7 @@ describe("RemoteStepperProxy", () => {
 			if (!tool) return c.json({ error: `not found: ${data.method}` }, 422);
 			try {
 				const featureStep = buildFeatureStepForTransport(tool, data.params ?? {}, [0, 1]);
-				// The host grants the proxy every step it serves, so what the proxy is shown and may call is all of it.
+				// The host grants the proxy every step it serves, so the proxy is shown every step and may call every step.
 				const result = await runAuthorizedWith(RUN_AUTHORITY, () => tool.handler(featureStep, world));
 				if (result.ok) return c.json(result.products ?? ANSWERED_WITHOUT_PRODUCTS);
 				return c.json(callFailed(data.method, result.errorMessage), 422);
@@ -122,7 +122,7 @@ describe("RemoteStepperProxy", () => {
 		server?.close();
 	});
 
-	it("fetches step descriptors from remote host", async () => {
+	it("fetches step descriptors from the remote host", async () => {
 		const proxy = new RemoteStepperProxy(`http://localhost:${port}`);
 		await proxy.setWorld(world, []);
 		expect(proxy.descriptors.length).toBeGreaterThan(0);
@@ -137,16 +137,16 @@ describe("RemoteStepperProxy", () => {
 		const registry = new StepRegistry([], world);
 		proxy.injectInto(registry);
 
-		// Prefixed key reflects the remote's hostId so it can't collide with
-		// local tools or other hosts' tools of the same method name.
+		// The key's prefix is the remote's hostId, so the key doesn't collide with local tools or other hosts' tools of the
+		// same method name.
 		const tool = registry.get("host7_EchoStepper-echo");
 		if (!tool) throw new Error("Expected prefixed tool to be registered");
-		// Bare name (local form) must NOT be registered, prefixing is total.
+		// The bare local name isn't registered. Every remote tool is prefixed.
 		expect(registry.get("EchoStepper-echo")).toBeUndefined();
-		expect(tool.descriptor, "the host's description of the step, under the host's name for it and with the host it runs at").toMatchObject({
+		expect(tool.descriptor, "the host's step descriptor under its host-scoped method name, with the host's origin").toMatchObject({
 			method: "host7_EchoStepper-echo",
 			stepperName: "EchoStepper",
-			stepperDescription: "Steps that echo a message and answer a protected ping, served by a remote host.",
+			stepperDescription: "Steps on a remote host that echo a message and respond to a protected ping.",
 			pattern: `echo {message: ${DOMAIN_TEXT}}`,
 			remoteOrigin: `http://localhost:${port}`,
 			paramDomains: { message: DOMAIN_TEXT },
@@ -161,7 +161,7 @@ describe("RemoteStepperProxy", () => {
 		expect(result.products).toMatchObject({ echoed: "hello" });
 	});
 
-	it("doesn't return products for a step that doesn't declare them, whatever the host's answer carries in their place", async () => {
+	it("doesn't return products for a step that doesn't declare them, whatever the host's response carries in their place", async () => {
 		const tool = await hostTool("acts");
 		expect(await tool.handler(buildFeatureStepForTransport(tool, {}, [0, 1]), world)).toEqual({ ok: true });
 	});
@@ -190,18 +190,18 @@ describe("RemoteStepperProxy", () => {
 		expect(result.products).toMatchObject({ echoed: "alpha" });
 	});
 
-	it("states a step's failure on the host as the host states it, naming the step once", async () => {
+	it("states a step's failure on the host as the host states it and names the step once", async () => {
 		const tool = await hostTool("refuses");
 		const result = await tool.handler(buildFeatureStepForTransport(tool, {}, [0, 1]), world);
 		expect(result.ok ? undefined : result.errorMessage).toBe(callFailed(stepMethodName(EchoStepper.name, "refuses"), REFUSED).error);
 	});
 
-	it("preserves capability metadata from remote", async () => {
+	it("preserves capability metadata from the remote host", async () => {
 		const tool = await hostTool("protectedPing");
 		expect(tool.descriptor.capability).toBe("EchoStepper:admin");
 	});
 
-	it("signs a call to a step for the action it requires, its own name where it doesn't declare one, and reading what the host offers as a public read", async () => {
+	it("signs each call for the step's declared action, for the step's own name where it doesn't declare one, and for a public read of the step list", async () => {
 		const proxy = new RemoteStepperProxy(`http://localhost:${port}`);
 		await proxy.setWorld(world, []);
 		const registry = new StepRegistry([], world);

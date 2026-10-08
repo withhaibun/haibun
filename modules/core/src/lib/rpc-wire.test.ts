@@ -1,7 +1,8 @@
 /**
- * A call to a host's `/rpc`, built once for every caller: its address under the host's base, its envelope, and the
- * headers its proof makes over the request as it is sent, the request's `host` among them. A call that doesn't carry a proof is
- * sent with those headers as they are.
+ * Tests the RPC wire: the call that buildRpcCall builds, a host's parse of a call, and the protocol version. buildRpcCall
+ * builds the call to a host's `/rpc` for every caller. The call holds its URL under the host's base, its envelope, and
+ * the headers that `prove` computes over the request as it is sent. Those headers include the request's `host`. A call
+ * that doesn't carry a proof is sent with those headers unchanged.
  */
 import { describe, expect, it } from "vitest";
 import {
@@ -35,7 +36,7 @@ const METHOD = "Stepper-act";
 const ACTUALITY = newActualityId();
 
 describe("a call to a host's rpc", () => {
-	it("is addressed under the host's base, carries its envelope, and is sent with the headers its proof makes over it", async () => {
+	it("is addressed under the host's base, carries its envelope, and is sent with the proof headers computed over it", async () => {
 		const proven: Parameters<TProveRequest>[0][] = [];
 		const prove: TProveRequest = (request) => (proven.push(request), Promise.resolve({ ...request.headers, proof: "signed" }));
 		const call = await buildRpcCall(BASE, { id: "call-1", actualityId: ACTUALITY, method: METHOD, params: { what: 1 }, seqPath: [0, 1] }, prove);
@@ -49,32 +50,32 @@ describe("a call to a host's rpc", () => {
 			params: { what: 1 },
 			seqPath: [0, 1],
 		});
-		expect(proven, "the proof covers the request as it is sent, its host included").toEqual([
+		expect(proven, "the proof covers the request as it is sent, including its host").toEqual([
 			{ url: call.url, method: "POST", headers: { "content-type": "application/json", host: "site.test:8123" }, body: call.init.body },
 		]);
 		expect(call.init.headers).toEqual({ "content-type": "application/json", host: "site.test:8123", proof: "signed" });
 	});
 
-	it("without a proof, is sent with its headers as they are", async () => {
+	it("is sent with its headers unchanged where it doesn't carry a proof", async () => {
 		const call = await buildRpcCall(BASE, { id: "call-2", actualityId: ACTUALITY, method: METHOD, params: {} }, provesNothing);
 		expect(call.init.headers).toEqual({ "content-type": "application/json", host: "site.test:8123" });
 	});
 
-	it("carries the sign-in this process holds for the host beside its proof, which doesn't cover it, until it lets it go", async () => {
+	it("carries the sign-in this process holds for the host outside its proof until the process releases it", async () => {
 		const proven: Parameters<TProveRequest>[0][] = [];
 		const prove: TProveRequest = (request) => (proven.push(request), Promise.resolve({ ...request.headers, proof: "signed" }));
 		holdSignIn(BASE, { username: "reader", password: "a password" });
 		const signedIn = await buildRpcCall(BASE, { id: "call-3", actualityId: ACTUALITY, method: METHOD, params: {} }, prove);
 		releaseSignIn(BASE);
-		expect(proven[0]?.headers, "the proof covers the call, not the sign-in").toEqual({ "content-type": "application/json", host: "site.test:8123" });
+		expect(proven[0]?.headers, "the proof covers the call and doesn't cover the sign-in").toEqual({ "content-type": "application/json", host: "site.test:8123" });
 		expect(signedIn.init.headers).toEqual({ "content-type": "application/json", host: "site.test:8123", proof: "signed", authorization: `Basic ${btoa("reader:a password")}` });
 		expect(
 			(await buildRpcCall("http://elsewhere.test", { id: "call-4", actualityId: ACTUALITY, method: METHOD, params: {} }, provesNothing)).init.headers,
-			"another host isn't sent it",
+			"a call to another host doesn't carry the sign-in",
 		).not.toHaveProperty("authorization");
 		expect(
 			(await buildRpcCall(BASE, { id: "call-5", actualityId: ACTUALITY, method: METHOD, params: {} }, provesNothing)).init.headers,
-			"nor this host once it is let go",
+			"a call to this host doesn't carry the sign-in after its release",
 		).not.toHaveProperty("authorization");
 	});
 });
@@ -86,11 +87,11 @@ describe("a call a host parses", () => {
 		return parsed.success ? undefined : parsed.refusal;
 	};
 
-	it("is read where it states the actuality the host holds", () => {
+	it("is parsed where it states the actuality the host holds", () => {
 		expect(refusal({ actualityId: held })).toBeUndefined();
 	});
 
-	it("is refused where it states another actuality, and offers reading the actuality the host holds", () => {
+	it("is refused where it states another actuality, with a remedy that reads the host's actuality", () => {
 		const other = newActualityId();
 		const refused = refusal({ actualityId: other });
 		const expected = actualityRefusal(other, held);
@@ -98,9 +99,9 @@ describe("a call a host parses", () => {
 		expect(refused?.remedy).toEqual(RELOAD.actuality);
 	});
 
-	it("is refused where its client speaks another version of the protocol, before anything else of it is read", () => {
-		expect(refusal({ protocol: undefined }), "a client from before versions were stated").toEqual(protocolRefusal(undefined, RPC_PROTOCOL));
-		expect(refusal({ protocol: RPC_PROTOCOL - 1, actualityId: newActualityId() }), "an older client, whatever actuality it reads").toEqual(
+	it("is refused for another protocol version before the rest of the call is parsed", () => {
+		expect(refusal({ protocol: undefined }), "a client that doesn't state a version").toEqual(protocolRefusal(undefined, RPC_PROTOCOL));
+		expect(refusal({ protocol: RPC_PROTOCOL - 1, actualityId: newActualityId() }), "an older client is refused for its version whatever actuality it reads").toEqual(
 			protocolRefusal(RPC_PROTOCOL - 1, RPC_PROTOCOL),
 		);
 		expect(refusal({})?.remedy, "a call at this version that doesn't name an actuality is malformed").toBeUndefined();
@@ -110,19 +111,19 @@ describe("a call a host parses", () => {
 		expect(refusal({ actualityId: held, params: "not an object" })?.remedy).toBeUndefined();
 	});
 
-	it("carries its refusal through a throw, and reads with its remedy where it isn't offered as a control", () => {
+	it("carries its refusal when thrown, and its message includes the remedy as text", () => {
 		const refused = new RefusedCall({ error: "refused", remedy: { do: "sign-in", at: "https://site.example" } });
 		expect(refused.refusal.remedy).toEqual({ do: "sign-in", at: "https://site.example" });
 		expect(refused.message).toBe("refused (sign in at https://site.example)");
-		expect(refusalCarried(refused), "read by its name, as another bundle's copy of the class is").toEqual(refused.refusal);
+		expect(refusalCarried(refused), "matched by its name, so another bundle's copy of the class matches too").toEqual(refused.refusal);
 		expect(refusalCarried(new Error("refused")), "a failure that isn't a refused call doesn't carry one").toBeUndefined();
 		expect(authorityFailed({ error: "revoked", remedy: RELOAD.authority })).toBe(true);
 		expect(authorityFailed(refused.refusal)).toBe(false);
 	});
 });
 
-/** The wire's shape at each version of the protocol: a change to what a call, the handshake or an answer holds raises
- *  RPC_PROTOCOL, and records the shape it has at the new version here. */
+/** The wire's shape at each protocol version. A change to the fields of a call, a response, a stream chunk, a refusal or
+ *  the handshake response requires a higher RPC_PROTOCOL. Record the new shape here under the new version. */
 const WIRE_AT: Record<number, string> = { 1: "8779e89c5a24b9f7" };
 const wireShape = (): string =>
 	createHash("sha256")
@@ -135,23 +136,23 @@ const wireShape = (): string =>
 		.slice(0, 16);
 
 describe("the RPC protocol", () => {
-	it("is at the version the wire's shape was recorded at", () => {
-		expect(wireShape(), "the wire changed: raise RPC_PROTOCOL and record the shape it has at the new version").toBe(WIRE_AT[RPC_PROTOCOL]);
+	it("has the wire shape recorded for its version", () => {
+		expect(wireShape(), "the wire's shape changed: raise RPC_PROTOCOL and record the new shape under the new version").toBe(WIRE_AT[RPC_PROTOCOL]);
 	});
 
-	it("tells a client and an instance which of them is older, and offers reloading a client that is", () => {
+	it("states which of a client and an instance is older, and offers a reload to an older client", () => {
 		expect(protocolRefusal(RPC_PROTOCOL, RPC_PROTOCOL)).toBeUndefined();
 		expect(protocolRefusal(undefined, 2)).toEqual({
-			error: "This client is older than the instance: the client speaks the RPC protocol at a version from before versions were stated, and the instance at version 2.",
+			error: "This client is older than the instance. The client's RPC protocol is a version from before versions were stated. The instance's RPC protocol is version 2.",
 			remedy: RELOAD.client,
 		});
 		expect(protocolRefusal(2, 1)).toEqual({
-			error: "The instance is older than this client: the client speaks the RPC protocol at version 2, and the instance at version 1.",
+			error: "The instance is older than this client. The client's RPC protocol is version 2. The instance's RPC protocol is version 1.",
 			remedy: undefined,
 		});
 	});
 
-	it("refuses, at the handshake, an instance that speaks another version", async () => {
+	it("refuses a handshake response from an instance at another version", async () => {
 		const answering =
 			(protocol: unknown): typeof fetch =>
 			() =>

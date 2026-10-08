@@ -19,7 +19,7 @@ describe("EventLogger", () => {
 	});
 
 	describe("obscure secret values", () => {
-		// Use 'as TFeatureStep' to bypass full type checking for test mock
+		// The mock is partial, so it is cast through unknown to TFeatureStep.
 		const mockFeatureStep = {
 			source: { path: "/test/feature.ts", lineNumber: 1 },
 			in: 'set password to "secret123"',
@@ -63,7 +63,7 @@ describe("EventLogger", () => {
 			expect(event.stepValuesMap?.count?.value).toBe("42");
 		});
 
-		it("should not obscure when isSecretFn returns false for all", () => {
+		it("should not obscure a value when isSecretFn returns false for every name", () => {
 			const emitted: unknown[] = [];
 			logger.subscribe((event) => emitted.push(event));
 
@@ -79,7 +79,7 @@ describe("EventLogger", () => {
 			expect(event.stepValuesMap?.password?.value).toBe("secret123");
 		});
 
-		it("should handle null stepValuesMap", () => {
+		it("should handle an undefined stepValuesMap", () => {
 			const emitted: unknown[] = [];
 			logger.subscribe((event) => emitted.push(event));
 
@@ -105,10 +105,10 @@ describe("EventLogger", () => {
 		});
 	});
 
-	describe("what a step that did not fail reports about errors", () => {
+	describe("the error a step's end event states", () => {
 		const step = { source: { path: "/test/feature.ts", lineNumber: 1 }, in: "set count to 1", seqPath: [1, 1, 1] } as unknown as TFeatureStep;
 
-		it("doesn't state an error, so a reader downstream doesn't show one where it didn't occur", () => {
+		it("doesn't state an error for a step that didn't fail, so a view doesn't show one", () => {
 			const emitted: unknown[] = [];
 			logger.subscribe((event) => emitted.push(event));
 
@@ -116,18 +116,18 @@ describe("EventLogger", () => {
 
 			const event = emitted[0] as { status?: string; error?: unknown };
 			expect(event.status).toBe("completed");
-			expect(event.error, "describing an absent error produces the word `undefined`, which reads as an error").toBeUndefined();
+			expect(event.error, "errorDetail(undefined) returns the string `undefined`, which a view would show as an error").toBeUndefined();
 		});
 
-		it("logs what went wrong when something did", () => {
+		it("states the error of a step that failed", () => {
 			const emitted: unknown[] = [];
 			logger.subscribe((event) => emitted.push(event));
 
-			logger.stepEnd(step, "VariablesStepper", "set", "failed", new Error("no such variable"), {}, undefined, undefined);
+			logger.stepEnd(step, "VariablesStepper", "set", "failed", new Error("the variable isn't set"), {}, undefined, undefined);
 
 			const event = emitted[0] as { status?: string; error?: unknown };
 			expect(event.status).toBe("failed");
-			expect(event.error).toBe("no such variable");
+			expect(event.error).toBe("the variable isn't set");
 		});
 	});
 
@@ -144,7 +144,7 @@ describe("EventLogger", () => {
 			expect(emitted.length).toBe(1);
 		});
 
-		it("should count a repeated subscription once removed, keeping per-kind counts exact", () => {
+		it("should remove every count of a repeated subscription on one unsubscribe, so per-kind counts stay correct", () => {
 			const callback = () => undefined;
 			logger.subscribe(callback);
 			logger.subscribe(callback);
@@ -175,16 +175,16 @@ describe("EventLogger", () => {
 	describe("kinds delivery", () => {
 		const blip = (name = "haibun.test.blip") => BlipEvent.parse({ id: "0.1.blip", timestamp: Date.now(), kind: "blip", level: "trace", emitter: "test", name });
 
-		it("delivers narration to a bare subscriber, and never a blip", () => {
+		it("delivers narration to a subscriber without options, and never a blip", () => {
 			const emitted: unknown[] = [];
 			logger.subscribe((event) => emitted.push(event));
-			logger.subscribe(() => undefined, { kinds: ["blip"] }); // so the blip emit is not short-circuited
+			logger.subscribe(() => undefined, { kinds: ["blip"] }); // so emit doesn't return early for the blip
 			logger.emit(blip());
 			logger.info("narration");
 			expect(emitted.map((e) => (e as { kind: string }).kind)).toEqual(["log"]);
 		});
 
-		it("delivers exactly the named kinds to a kinds subscriber, the only way to receive blips", () => {
+		it("delivers only the listed kinds to a subscriber that lists kinds, and only such a subscriber receives blips", () => {
 			const emitted: unknown[] = [];
 			logger.subscribe((event) => emitted.push(event), { kinds: ["blip"] });
 			logger.emit(blip());
@@ -197,22 +197,22 @@ describe("EventLogger", () => {
 			logger.subscribe((event) => emitted.push(event), { kinds: ["blip"], names: ["haibun.http", "haibun.shu.view.scroll_adjust"] });
 			logger.emit(blip("haibun.http.request")); // namespace match
 			logger.emit(blip("haibun.shu.view.scroll_adjust")); // exact match
-			logger.emit(blip("haibun.httpx.request")); // a sibling name is not in the haibun.http namespace
+			logger.emit(blip("haibun.httpx.request")); // a name that starts with the text haibun.http isn't in the haibun.http namespace
 			logger.emit(blip("haibun.shu.view.scroll_adjust_other"));
 			expect(emitted.map((e) => (e as { name: string }).name)).toEqual(["haibun.http.request", "haibun.shu.view.scroll_adjust"]);
 		});
 
-		it("answers hasSubscribers per name, so an unwatched blip is skipped at the recording site", () => {
+		it("evaluates hasSubscribers per name, so the recording site skips a blip without a matching subscriber", () => {
 			logger.subscribe(() => undefined, { kinds: ["blip"], names: ["haibun.http"] });
 			expect(logger.hasSubscribers("blip", "haibun.http.request")).toBe(true);
 			expect(logger.hasSubscribers("blip", "haibun.shu.view.scroll_adjust")).toBe(false);
-			logger.subscribe(() => undefined, { kinds: ["blip"] }); // an unfiltered blip subscriber wants every name
+			logger.subscribe(() => undefined, { kinds: ["blip"] }); // a blip subscriber without names receives a blip of every name
 			expect(logger.hasSubscribers("blip", "haibun.shu.view.scroll_adjust")).toBe(true);
 		});
 
-		it("counts subscribers per kind, so a hot path can skip recording with one check", () => {
+		it("counts subscribers per kind, so a recording site can skip recording with one check", () => {
 			expect(logger.hasSubscribers("blip")).toBe(false);
-			logger.subscribe(() => undefined); // a bare subscriber is not a blip audience
+			logger.subscribe(() => undefined); // a subscriber without options doesn't receive blips
 			expect(logger.hasSubscribers("blip")).toBe(false);
 			expect(logger.hasSubscribers("log")).toBe(true);
 			const cb = () => undefined;
@@ -222,7 +222,7 @@ describe("EventLogger", () => {
 			expect(logger.hasSubscribers("blip")).toBe(false);
 		});
 
-		it("never narrates a blip to the console", () => {
+		it("never prints a blip to the console", () => {
 			const consoleLog = vi.spyOn(console, "log").mockImplementation(() => undefined);
 			try {
 				logger.suppressConsole = false;
@@ -236,7 +236,7 @@ describe("EventLogger", () => {
 			}
 		});
 	});
-	describe("how prominently a statement reports", () => {
+	describe("the level of a log statement", () => {
 		/** A step that reports at trace, as a call made into a running instance does. */
 		const DURING_A_TRACE_STEP = { seqPath: "0.1", reportsAt: "trace" as const };
 		const said = (): Array<Record<string, unknown>> => {
@@ -245,25 +245,25 @@ describe("EventLogger", () => {
 			return heard;
 		};
 
-		it("reports at its own level while a step reports at its own", () => {
+		it("reports at its own level outside a step", () => {
 			const heard = said();
 			logger.info("actuality reports something");
 			expect(itemAt(heard, 0).level).toBe("info");
 		});
 
-		it("reports no more prominently than the step it is logged during, so a call into a running instance stays out of actuality's history", () => {
+		it("reports at most at the level of the step in flight, so a call into a running instance stays out of actuality's history", () => {
 			const heard = said();
 			runInStep(DURING_A_TRACE_STEP, () => logger.info("what the caller's own step logged"));
 			expect(itemAt(heard, 0).level, "logged during a step that reports at trace").toBe("trace");
 		});
 
-		it("leaves a statement quieter than the step where it is", () => {
+		it("keeps the level of a statement quieter than its step", () => {
 			const heard = said();
 			runInStep(DURING_A_TRACE_STEP, () => logger.debug("quieter than the step"));
 			expect(itemAt(heard, 0).level).toBe("debug");
 		});
 
-		it("reports a warning and a fault as themselves, since a quiet step isn't a reason to be quiet about a fault", () => {
+		it("reports a warning and an error at their own levels during a quieter step", () => {
 			const heard = said();
 			runInStep(DURING_A_TRACE_STEP, () => {
 				logger.warn("something is wrong");
@@ -274,20 +274,20 @@ describe("EventLogger", () => {
 	});
 });
 
-describe("what a produced thing reports at", () => {
-	it("reports at the level its producer parsed it at, whether the step that produced it is a substep or not", () => {
+describe("the level of an artifact", () => {
+	it("keeps the level its schema sets, whether its step is a substep or not", () => {
 		const emitted: Array<{ level?: string }> = [];
 		const logger = new EventLogger();
 		logger.suppressConsole = true;
 		logger.subscribe((event) => emitted.push(event as { level?: string }), { kinds: ["artifact"] });
 		const step = (isSubStep: boolean): TFeatureStep =>
 			({ in: "take a screenshot", seqPath: [0, 1, 2], action: { stepperName: "S", actionName: "a", stepValuesMap: {} }, isSubStep }) as unknown as TFeatureStep;
-		// Parsed the way every producer parses one, which is what decides the level a produced thing carries.
+		// A producer parses an artifact with its schema, which sets the level to info by default.
 		logger.artifact(step(true), ImageArtifact.parse({ kind: "artifact", artifactType: "image", path: "a.png", id: "x", timestamp: 1 }) as never);
 		logger.artifact(step(false), ImageArtifact.parse({ kind: "artifact", artifactType: "image", path: "b.png", id: "y", timestamp: 2 }) as never);
 		expect(
 			emitted.map((e) => (e as { level?: string }).level),
-			"what a run produced is read at every level, so the step's own level does not decide this",
+			"an artifact isn't capped at its step's level",
 		).toEqual(["info", "info"]);
 	});
 });
@@ -295,7 +295,7 @@ describe("what a produced thing reports at", () => {
 describe("the level an event states", () => {
 	const said = (message: string) => LogEvent.parse({ id: message, timestamp: 0, kind: "log", level: "info", message });
 
-	it("is the read level of the call that emitted it: a call bounded to public reads announces at public, actuality's own at private", async () => {
+	it("is a level stated at emit, or else the read level of the call that emitted it: public for a call bounded to public reads, private for actuality's own event", async () => {
 		const logger = new EventLogger();
 		logger.suppressConsole = true;
 		const levels: Record<string, unknown> = {};
@@ -306,7 +306,7 @@ describe("the level an event states", () => {
 		expect(levels).toEqual({ bounded: Access.public, "actuality's own": Access.private, stated: Access.opened });
 	});
 
-	it("is refused where it is more public than what the call read, and the call doesn't hold a write at that level", async () => {
+	it("is rejected where it is more public than the call's read level and the call doesn't hold that level's write action", async () => {
 		const logger = new EventLogger();
 		logger.suppressConsole = true;
 		const reader = [readAction(Access.private)];

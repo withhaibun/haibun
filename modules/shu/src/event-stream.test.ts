@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 /**
- * The accessor every view reads the stream through: what it does without a stream installed, and what it answers with
- * one. What a stream tells a subscriber is one specification both implementations run against
- * (`event-stream.conformance.test.ts`).
+ * Tests the `eventStream()` accessor with and without an installed stream. Every view reads the stream through this
+ * accessor. `test/event-stream-conformance.ts` holds the one specification of what a stream sends a subscriber.
+ * `event-stream.conformance.test.ts` runs both implementations against it.
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import { eventStream, setEventStream, SerializedEventStream } from "./event-stream.js";
@@ -13,7 +13,7 @@ beforeEach(() => {
 });
 
 describe("eventStream accessor", () => {
-	it("throws with a precise message when an EventStream hasn't been installed", () => {
+	it("throws with a message that names the fix when an EventStream isn't installed", () => {
 		expect(() => eventStream()).toThrow(/an EventStream isn't installed/);
 	});
 

@@ -1,11 +1,12 @@
 /**
- * The active-record machine, held to its rules.
+ * Tests the active-record machine against its rules.
  *
- * Each event is asserted on its own, then the rules a reader relies on are asserted as sequences: closing a scope
- * returns to the scope activated before it, opening it again returns to its own entry unless another scope was
- * activated since, and an update never takes the lead. Random event sequences, seeded so a failure replays, then
- * assert against a second statement of the rule, written here as the activation history rather than read from the
- * module, so the two have to agree whatever order things happen in.
+ * Each event is asserted on its own. The rules a reader relies on are then asserted as sequences. Closing a scope
+ * makes the scope activated before it active again. Opening it again makes its own entry active unless another scope
+ * was activated since. An update doesn't make its scope active over a scope that was activated. Random event sequences
+ * are then checked against a second statement of the rule. The sequences are seeded, so a failed sequence can be
+ * replayed. This test computes that statement as an activation history instead of reading it from the module. The
+ * module and the history must select the same active entry for any order of events.
  */
 import { describe, expect, it } from "vitest";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
@@ -78,11 +79,11 @@ describe("each event", () => {
 		expect(scopeEntry(closed, SCOPE.actionsBar), "kept for the next open").toEqual(ANSWER);
 	});
 
-	it("clear removes the scope's entry and stamp, so the open scope activated before it leads, and an update after it is the oldest", () => {
+	it("clear removes the scope's entry and stamp, so the open scope activated before it is active, and an update after it is the oldest", () => {
 		const cleared = run(activate(SCOPE.page, EMAIL), open(SCOPE.actionsBar), activate(SCOPE.actionsBar, ANSWER), { type: "clear", scope: SCOPE.actionsBar });
 		expect(scopeEntry(cleared, SCOPE.actionsBar)).toBeNull();
-		expect(currentSubject(cleared), "a new conversation leaves the page's record leading").toEqual(EMAIL.record);
-		expect(currentSubject(transition(cleared, update(SCOPE.actionsBar, ANSWER))), "a session restored after it does not take the lead").toEqual(EMAIL.record);
+		expect(currentSubject(cleared), "a new conversation leaves the page's record active").toEqual(EMAIL.record);
+		expect(currentSubject(transition(cleared, update(SCOPE.actionsBar, ANSWER))), "a session restored after it doesn't become active").toEqual(EMAIL.record);
 		expect(transition(INITIAL_SUBJECT, { type: "clear", scope: SCOPE.actionsBar }), "a scope without an entry is unchanged").toBe(INITIAL_SUBJECT);
 	});
 
@@ -116,7 +117,7 @@ describe("the active entry", () => {
 
 	it("follows a comment the conversation records while the bar is closed only once the bar opens", () => {
 		const closed = run(activate(SCOPE.page, EMAIL), activate(SCOPE.actionsBar, ANSWER));
-		expect(currentSubject(closed), "a closed scope never leads").toEqual(EMAIL.record);
+		expect(currentSubject(closed), "a closed scope is never active").toEqual(EMAIL.record);
 		expect(currentSubject(transition(closed, open(SCOPE.actionsBar)))).toEqual(ANSWER.record);
 	});
 
@@ -128,7 +129,7 @@ describe("the active entry", () => {
 
 	it("does not move to a scope that is updated, such as a column closing or a session restored", () => {
 		const state = run(activate(SCOPE.page, EMAIL), open(SCOPE.actionsBar), update(SCOPE.actionsBar, ANSWER));
-		expect(currentSubject(state), "a restored session does not take the lead").toEqual(EMAIL.record);
+		expect(currentSubject(state), "a restored session doesn't become active").toEqual(EMAIL.record);
 		expect(currentSubject(transition(state, update(SCOPE.page, OTHER))), "an update to the active scope shows its new record").toEqual(OTHER.record);
 	});
 
@@ -141,8 +142,8 @@ describe("any sequence of events", () => {
 	const SCOPES = [SCOPE.page, SCOPE.actionsBar, "another-panel"];
 	const ENTRIES = [EMAIL, OTHER, QUESTION, ANSWER, NOTHING];
 
-	it("keeps the active entry that of the open scope activated last, else the open scope updated", () => {
-		// The rule stated again: the open scopes, the order scopes were activated in, and each scope's latest entry.
+	it("selects the entry of the open scope activated last, else of the first open scope that was only updated", () => {
+		// The rule stated again: the open scopes, the activation order and each scope's latest entry.
 		runSequences(
 			() => ({ state: INITIAL_SUBJECT, opened: new Set<string>([SCOPE.page]), activations: [] as string[], entries: new Map<string, TEntry>() }),
 			(context, random, label) => {

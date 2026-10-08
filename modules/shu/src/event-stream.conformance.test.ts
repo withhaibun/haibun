@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// Both implementations of the page's event stream, held to one specification: the live one over the host's stream, and
-// the serialized one a report and a scripted scenario drive.
+// Runs one specification against both implementations of the page's event stream. The live one reads the host's stream.
+// A report and a scripted scenario drive the serialized one.
 import { PAGE_ACTUALITY, hydrate } from "./test-setup.js";
 import { vi, expect } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
@@ -16,9 +16,9 @@ describeEventStream("a log the page carries", () => {
 });
 
 /**
- * The host's stream as the case drives it: each connection the page asks for is answered with a body the case writes
- * messages to, a break closes the body the page is reading, and the page's asking again is held until the case restores
- * the stream, so a case can look at the stream while it is down.
+ * Stubs the host's stream for the case. Each connection the page requests receives a response body. The case writes
+ * messages to that body. A break closes the body the page reads. The page's next request is held until the case restores
+ * the stream, so a case can inspect the stream while it is down.
  */
 describeEventStream("a live connection", async () => {
 	const hydration = hydrate({ actualityId: PAGE_ACTUALITY, settings: { streamReconnectAfterMs: 1 } });
@@ -30,7 +30,7 @@ describeEventStream("a live connection", async () => {
 			const connection = { body: undefined as unknown as ReadableStreamDefaultController<Uint8Array>, read: true };
 			const body = new ReadableStream<Uint8Array>({ start: (controller) => void (connection.body = controller) });
 			bodies.push(connection);
-			// A page that stops reading, as a closed stream does, doesn't read more of this connection.
+			// The stream's `close` aborts the request. The page doesn't read this connection after the abort.
 			init?.signal?.addEventListener("abort", () => void (connection.read = false));
 			return new Response(body, { status: 200 });
 		};
@@ -55,7 +55,7 @@ describeEventStream("a live connection", async () => {
 			const broken = breaks;
 			newest().body.close();
 			await vi.waitFor(() => expect(breaks).toBe(broken + 1));
-			await vi.waitFor(() => expect(held).toHaveLength(1)); // the page asks again, and waits for the host
+			await vi.waitFor(() => expect(held).toHaveLength(1)); // the page requests the stream again and waits for the host
 		},
 		restore: async () => {
 			const opened = opens;

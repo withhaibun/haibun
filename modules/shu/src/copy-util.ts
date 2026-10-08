@@ -1,7 +1,7 @@
 /**
- * Copy text to the clipboard. The async Clipboard API is unavailable or blocked in non-secure contexts : a
- * serialized report opened from `file://` \u2014 so fall back to a hidden-textarea `execCommand("copy")`. Returns whether
- * the copy succeeded so callers can show a result instead of failing silently.
+ * Copies text to the clipboard. The async Clipboard API is unavailable or blocked in a non-secure context, such as a
+ * serialized report opened from `file://`. The function then falls back to `execCommand("copy")` on a hidden textarea.
+ * Returns whether the copy succeeded, so a caller can show the result.
  */
 export async function copyText(text: string): Promise<boolean> {
 	try {
@@ -10,7 +10,7 @@ export async function copyText(text: string): Promise<boolean> {
 			return true;
 		}
 	} catch {
-		/* blocked (e.g. file://) \u2014 fall back below */
+		/* blocked in a non-secure context, such as file://: fall back below */
 	}
 	try {
 		const ta = document.createElement("textarea");

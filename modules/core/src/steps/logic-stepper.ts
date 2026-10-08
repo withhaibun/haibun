@@ -8,11 +8,10 @@ import { FlowRunner } from "../lib/core/flow-runner.js";
 import { DOMAIN_NUMBER, DOMAIN_STATEMENT, DOMAIN_STRING } from "../lib/domains.js";
 import { OBSERVATION_GRAPH, queryFacts } from "../lib/working-memory.js";
 
-// Built-in observation sources read step-execution counts from the quad store under
-// the observation/step-usage named graph. Step names are sanitized (dots → underscores)
-// to avoid variable name conflicts with the "observed in {source}" quantifier output.
+// The built-in observation sources read step-execution counts from the quad store, in the observation/step-usage
+// named graph. Each count's subject is `stepperName.actionName`.
 
-/** What a statement run as a maybe ended with, which doesn't fail a step whether or not it passed. */
+/** The outcome of a statement run as `maybe`. A failed outcome doesn't fail the step. */
 const MaybeOutcomeSchema = z.object({ outcome: z.looseObject({ ok: z.boolean() }) });
 const DOMAIN_MAYBE_OUTCOME = "maybe-outcome";
 
@@ -58,7 +57,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 		await super.setWorld(world, steppers);
 		this.held = new FlowRunner(world, steppers);
 
-		// Collect observation sources from other steppers
+		// Collects observation sources from other steppers.
 		for (const stepper of steppers) {
 			if (hasCycles(stepper)) {
 				const concerns = stepper.cycles.getConcerns?.();
@@ -72,7 +71,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 	cycles: IStepperCycles = {
 		getConcerns: () => ({
 			sources: builtInSources,
-			domains: [{ selectors: [DOMAIN_MAYBE_OUTCOME], schema: MaybeOutcomeSchema, description: "What a statement run as a maybe ended with" }],
+			domains: [{ selectors: [DOMAIN_MAYBE_OUTCOME], schema: MaybeOutcomeSchema, description: "The outcome of a statement run as maybe" }],
 		}),
 	};
 
@@ -80,8 +79,8 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 		return this.sources.find((s) => s.name.toLowerCase() === name.toLowerCase());
 	}
 
-	/** Bind a quantifier's variable to one item, and each of the item's metrics under the variable's name
-	 *  (`request/status`), so a metric term never carries an item's dots or slashes. */
+	/** Binds a quantifier's variable to one item, and each of the item's metrics under the variable's name
+	 *  (`request/status`), so a metric term doesn't carry an item's dots or slashes. */
 	private async bindItem(what: string, item: string, metrics: Record<string, unknown> | undefined, featureStep: TFeatureStep): Promise<void> {
 		const at = { in: featureStep.in, seq: featureStep.seqPath };
 		await this.getWorld().shared.set({ term: what, value: String(item), domain: DOMAIN_STRING, origin: Origin.var }, { ...at, when: "quantifier" });
@@ -99,11 +98,11 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 	}
 
 	/**
-	 * Get values and metrics for iteration - handles both domains and observation sources.
+	 * Returns the values and metrics of a quantifier's iteration, from a domain or an observation source.
 	 * Syntax: "in {domain}" or "observed in {source}"
 	 */
 	private async getIterationValues(phrase: string): Promise<{ values: string[]; metrics?: Record<string, Record<string, unknown>>; error?: string }> {
-		// Check for "observed in {source}" pattern
+		// Matches the "observed in {source}" pattern.
 		const observedMatch = phrase.match(/^observed in (.+)$/i);
 		if (observedMatch) {
 			const sourceName = itemAt(observedMatch, 1).trim();
@@ -113,7 +112,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			return { values: items, metrics };
 		}
 
-		// Otherwise treat as domain name
+		// Otherwise the phrase is a domain name.
 		const domainName = this.stripQuotes(phrase);
 		const result = await this.getWorld().shared.getDomainValues(domainName);
 		return { values: (result.values as string[]) || [], error: result.error };
@@ -121,13 +120,13 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 
 	steps = {
 		// -------------------------------------------------------------------------
-		// CONTROL FLOW (The Gates)
+		// CONTROL FLOW
 		// -------------------------------------------------------------------------
 
 		// RECURRENCE: While(Condition) { Action }
 		whenever: {
 			gwta: "whenever {condition:statement}, {action:statement}",
-			description: "Executes the statements repeatedtly as long as the condition holds true.",
+			description: "Executes the statements repeatedly while the condition holds true.",
 			action: async ({ condition, action }: { condition: TFeatureStep[]; action: TFeatureStep[] }, featureStep: TFeatureStep): Promise<TActionResult> => {
 				let loopCount = 0;
 				const MAX_LOOPS = 1000;
@@ -136,7 +135,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 
 				// eslint-disable-next-line no-constant-condition
 				while (true) {
-					if (loopCount++ > MAX_LOOPS) return actionNotOK("whenever: infinite loop detected");
+					if (loopCount++ > MAX_LOOPS) return actionNotOK("whenever: the condition still held after the maximum number of loops. Make the action change the condition.");
 
 					const check = await this.runner.runSteps(condition, { intent: { mode: "speculative", usage }, parentStep: featureStep });
 
@@ -216,7 +215,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 		},
 
 		// -------------------------------------------------------------------------
-		// QUANTIFIERS (The Iterators)
+		// QUANTIFIERS
 		// Supports both: "in {domain}" and "observed in {source}"
 		// -------------------------------------------------------------------------
 
@@ -230,8 +229,8 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 				const match = featureStep.in.match(/^some (.*?) (in|observed in) (.*?) is (.*)/);
 				if (!match) return actionNotOK("some: invalid syntax");
 				const [what, connector, sourceOrDomain, quotedStatement] = [itemAt(match, 1), itemAt(match, 2), itemAt(match, 3), itemAt(match, 4)] as const;
-				// A quoted inner statement is the written form; without stripping, the quotes reach the resolver, a gwta
-				// doesn't match, and it resolves as prose that always passes, so the quantifier doesn't check the statement.
+				// stripQuotes removes the quotes around a quoted inner statement. A quoted statement doesn't match a gwta. It
+				// resolves as prose, and prose always passes, so the quantifier wouldn't check the statement.
 				const statementStr = this.stripQuotes(quotedStatement.trim());
 
 				const phrase = connector === "observed in" ? `observed in ${sourceOrDomain}` : sourceOrDomain;
@@ -252,7 +251,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 						break;
 					}
 				}
-				return found ? OK : actionNotOK(`No ${what} in ${sourceOrDomain} satisfied the condition`);
+				return found ? OK : actionNotOK(`some: every ${what} in ${sourceOrDomain} failed the condition`);
 			},
 		},
 

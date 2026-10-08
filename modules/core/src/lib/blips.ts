@@ -1,24 +1,24 @@
 /**
- * Blips: fine-grained occurrences, recorded for observation and never retained by actuality.
+ * Blips record fine-grained occurrences for observation, and actuality doesn't retain them.
  *
- * The event log is retained (the monitor, the document, the report and an agent all read it), so anything recorded per
- * frame or per row would grow it without bound.
+ * Actuality retains the event log, and the monitor, the document, the report and an agent read it. A record per frame or
+ * per row would grow that log without bound.
  *
- * A blip is emitted on the same event bus as `kind: "blip"` and delivered only to subscribers that name that kind:
+ * A blip is an event of `kind: "blip"` on the event bus. The bus delivers it only to a subscriber that names that kind:
  * `subscribe(cb, { kinds: ["blip"] })`. `{ names }` narrows to declared names or dotted namespaces (`haibun.http`
  * matches `haibun.http.request`). A subscriber that doesn't name kinds never receives one, and the console never prints
- * one. Where a subscriber doesn't watch the name, `recordBlip` returns after one check, so it is safe to call at any rate.
+ * one. `recordBlip` returns after one check where the name doesn't have a subscriber, so a caller can call it at any rate.
  *
- * Names are declared before use: an undeclared name throws. `dimensions` lists the attributes that may become metric
- * labels, bounding label cardinality. A blip carries the seqPath it was recorded under, so an exporter can attach it
- * to that step without any context passed at the call site.
+ * Names are declared before use. `recordBlip` throws on an undeclared name that a subscriber watches. `dimensions` lists
+ * the attributes that may become metric labels, and so bounds label cardinality. A blip carries the seqPath of the step in
+ * flight when it is recorded, so an exporter attaches it to that step without context passed at the call site.
  */
 import { z } from "zod";
 import type { THaibunEvent, TBlipEvent } from "../schema/protocol.js";
 import type { IEventLogger } from "./EventLogger.js";
 
-/** How a blip maps onto an OpenTelemetry signal: a discrete occurrence is a span event, a rate or distribution is a
- *  metric instrument. Traces give order and identity; metrics give frequency. */
+/** How a blip maps onto an OpenTelemetry signal. A discrete occurrence maps to a span event, and a rate or distribution
+ *  maps to a metric instrument. Traces give order and identity, and metrics give frequency. */
 type TBlipInstrument = "span-event" | "counter" | "histogram" | "gauge";
 
 /** What may be recorded under a name: its instrument, what it measures, and the shape of every attribute it carries. */
@@ -30,13 +30,15 @@ export type TBlipDeclaration = {
 	description: string;
 	/** UCUM unit for a measured value (`px`, `ms`, `1` for a count); omitted when a blip doesn't carry a value. */
 	unit?: string;
-	/** The attributes a recording carries. Validated on every record, so a stray key cannot reach an exporter. */
+	/** The attributes a recording carries. Validated on every record, so a key the schema doesn't declare can't reach an
+	 *  exporter. */
 	attributes?: z.ZodType<Record<string, unknown>>;
-	/** Attributes that may become metric labels. All others stay on the span event, where cardinality does not matter.
-	 *  Unbounded metric label cardinality overwhelms a metrics backend. */
+	/** Attributes that may become metric labels. All others stay on the span event, where cardinality doesn't matter. A
+	 *  metrics backend stores one series per label combination, so unbounded label cardinality grows its storage without
+	 *  bound. */
 	dimensions?: readonly string[];
-	/** Store the declaring `path:line`, so an occurrence name can be traced to its code. Read once at declaration,
-	 *  never per recording. */
+	/** Store the declaring `path:line`, so an occurrence name can be traced to its code. `declareBlips` reads the stack once
+	 *  per call, and a recording doesn't read it. */
 	origin?: boolean;
 };
 
@@ -56,13 +58,14 @@ function declaringSite(): string | undefined {
 	return undefined;
 }
 
-/** A declaration minus its attribute schema, in fixed order, so two declarations compare by content not key order. */
+/** A declaration minus its attribute schema, in fixed order, so two declarations compare by content and don't depend on
+ *  key order. */
 const shapeOf = (d: TBlipDeclaration) => JSON.stringify([d.instrument, d.description, d.unit, d.dimensions]);
 
 /**
  * Whether two attribute schemas are the same. Identical references match; otherwise they are compared as JSON Schema.
- * A schema JSON Schema cannot represent (a transform, a custom type) counts as different, so redeclaring it throws
- * rather than replacing a schema other modules record against.
+ * A schema that JSON Schema can't represent (a transform, a custom type) counts as different, so redeclaring it throws
+ * and doesn't replace the schema other modules' recordings use.
  */
 function sameAttributes(held: z.ZodType | undefined, incoming: z.ZodType | undefined): boolean {
 	if (held === incoming) return true;
@@ -75,9 +78,9 @@ function sameAttributes(held: z.ZodType | undefined, incoming: z.ZodType | undef
 }
 
 /**
- * Declare what may be recorded under a name. Redeclaring a name with a different instrument, unit, dimensions or
- * attribute schema throws. Replacing a stored declaration would silently strip attributes an earlier caller sends
- * (zod drops unknown keys), or make its recordings throw at a call site that is correct.
+ * Declares what may be recorded under a name. Redeclaring a name with a different instrument, description, unit,
+ * dimensions or attribute schema throws. Replacing a stored declaration would remove attributes an earlier caller sends,
+ * or make its recordings throw at a correct call site. Zod drops keys a schema doesn't declare.
  */
 export function declareBlips(...decls: TBlipDeclaration[]): void {
 	// One stack read per call: declarations in one call come from one module.
@@ -85,33 +88,33 @@ export function declareBlips(...decls: TBlipDeclaration[]): void {
 	for (const d of decls) {
 		const held = declarations.get(d.name);
 		if (held && (shapeOf(held) !== shapeOf(d) || !sameAttributes(held.attributes, d.attributes)))
-			throw new Error(`declareBlips: "${d.name}" is already declared with a different shape, record under a different name, or reconcile the two declarations`);
-		// The same declaration again keeps what is held, including where it was first declared.
+			throw new Error(`declareBlips: "${d.name}" is already declared with a different shape. Record under a different name, or make the two declarations the same.`);
+		// Declaring the same declaration again keeps the held declaration and its `declaredAt`.
 		if (!held) declarations.set(d.name, d.origin ? { ...d, declaredAt } : d);
 	}
 }
 
-/** The declaration a name was declared with, or undefined where it was not declared. */
+/** Returns the held declaration of a name, or undefined where the name isn't declared. */
 export function blipDeclared(name: string): THeldBlipDeclaration | undefined {
 	return declarations.get(name);
 }
 
-/** Every declaration, for an exporter building its instruments and for a reader discovering what a run can record. */
+/** Every declaration, for an exporter that builds its instruments and for a reader that lists what actuality can record. */
 export function blipDeclarations(): readonly THeldBlipDeclaration[] {
 	return [...declarations.values()];
 }
 
 /**
- * Counts occurrences per name, for callers that cannot consume blips at their recorded rate: a feature assertion, the
- * monitor, an agent. Memory is one counter per declared name. `blips-stepper` attaches it for actuality, clears it per
- * feature, and serves it as the `blips` observation source, read with `observed in`.
+ * Counts occurrences per name, for callers that can't read blips at their recorded rate: a feature assertion, the
+ * monitor, an agent. Memory is one counter per recorded name. `blips-stepper` attaches it for actuality, clears it per
+ * feature, and serves it as the `blips` observation source. A feature reads that source with `observed in`.
  */
 export class BlipRollup {
 	private counts = new Map<string, number>();
 	private detachFn: (() => void) | undefined;
 
-	/** Subscribes to the given logger, unsubscribing from any earlier one and clearing counts. An execution that ends
-	 *  without detaching must not leave the next one subscribed to a discarded logger. */
+	/** Subscribes to `eventLogger`. It first unsubscribes from any earlier logger and clears the counts, so an execution
+	 *  that ends without detaching doesn't leave the next one subscribed to a discarded logger. */
 	attach(eventLogger: IEventLogger): void {
 		this.detach();
 		this.counts.clear();
@@ -139,19 +142,19 @@ export class BlipRollup {
 	}
 }
 
-/** The one rollup a run reads, attached and cleared by the blips stepper's cycles. */
+/** The one rollup actuality reads. The blips stepper's cycles attach and clear it. */
 export const blipRollup = new BlipRollup();
 
-/** How many occurrences a watch holds. A fixed ring, so the window cannot grow: the same property that lets a hot path
- *  record forever. What falls out is counted, never silently dropped. */
+/** How many occurrences a watch holds. The window is a fixed ring, so it can't grow, and a caller can record on every
+ *  frame indefinitely. An occurrence the ring overwrites still counts toward `seen` and the series totals. */
 export const WATCH_WINDOW = 200;
 
-/** One series of a watch: a name, and a value of each dimension its declaration names, with how many occurrences it
- *  had and, where they carry a value, their total and the largest of them. */
+/** One series of a watch. It holds a name, a value of each dimension its declaration names, and the series' occurrence
+ *  count. It also holds the sum and the maximum of the values its occurrences carry. */
 export type TBlipSeries = { name: string; labels: Record<string, string>; count: number; sum?: number; max?: number };
 
-/** The series an occurrence counts toward: its name and its values of the declared dimensions, whose cardinality the
- *  declaration bounds, so the series a watch keeps cannot grow past what its names declare. */
+/** Returns the series key, name and labels of an occurrence. The labels are its values of the declared dimensions. The
+ *  declaration bounds their cardinality, so the series a watch keeps can't grow past what its names declare. */
 function seriesOf(blip: TBlipEvent): { key: string; name: string; labels: Record<string, string> } {
 	const labels: Record<string, string> = {};
 	for (const dimension of declarations.get(blip.name)?.dimensions ?? []) {
@@ -162,12 +165,13 @@ function seriesOf(blip: TBlipEvent): { key: string; name: string; labels: Record
 }
 
 /**
- * A focused, ordered window over named blips. The rollup answers how many; this answers in what order, which is the
- * question a fine-grained occurrence exists to settle and the one a count destroys. Subscribing by name is what keeps
- * the window to read: a single per-frame name would otherwise flood out everything else it holds.
+ * An ordered window over named blips. The rollup counts occurrences per name. The watch holds their order. A
+ * count loses that order, and a fine-grained occurrence is recorded to show it. The watch subscribes by name, so the
+ * window holds only the named blips. A single per-frame name would otherwise replace every other occurrence in the
+ * window.
  *
- * This is what an agent asked to watch something receives. It is bounded, so handing it to a model or a feature takes
- * a known amount however long actuality goes on.
+ * An agent requested to watch something receives this window. The window is bounded, so a model or a feature receives
+ * at most `WATCH_WINDOW` occurrences however long actuality runs.
  */
 class BlipWatch {
 	private ring: TBlipEvent[] = [];
@@ -177,7 +181,7 @@ class BlipWatch {
 	private series = new Map<string, TBlipSeries>();
 	private detachFn: (() => void) | undefined;
 
-	/** Start collecting the named blips, replacing any earlier watch and its window. */
+	/** Starts collecting the named blips, and replaces any earlier watch and its window. */
 	start(eventLogger: IEventLogger, names: readonly string[]): void {
 		this.stop();
 		this.ring = [];
@@ -197,17 +201,17 @@ class BlipWatch {
 		this.detachFn = undefined;
 	}
 
-	/** The names being watched, empty when a name isn't being watched. */
+	/** The names passed to the last `start`. It is empty before the first `start`, and `stop` doesn't clear it. */
 	get names(): readonly string[] {
 		return this.named;
 	}
 
-	/** Every occurrence recorded since the watch started, including any the window has since dropped. */
+	/** The number of occurrences recorded since the watch started, including those the ring overwrote. */
 	get seen(): number {
 		return this.recorded;
 	}
 
-	/** Every series the watch counted, over every occurrence it recorded, including those the window no longer holds. */
+	/** Returns every series the watch counted. The counts include the occurrences the ring overwrote. */
 	totals(): readonly TBlipSeries[] {
 		return [...this.series.values()];
 	}
@@ -240,5 +244,5 @@ class BlipWatch {
 	}
 }
 
-/** The one watch a run holds, started and stopped by the blips stepper's steps. */
+/** The one watch actuality holds. The blips stepper's steps start and stop it. */
 export const blipWatch = new BlipWatch();

@@ -8,25 +8,26 @@ import { itemAt } from "../lib/util/item-at.js";
 import { DOMAIN_STATEMENT } from "../lib/domains.js";
 import { expandLine } from "../lib/features.js";
 
-/** A line written as a sentence: a capital first letter and a final `.`, `!`, `?`, `:` or `;`. */
+/** Matches a line written as a sentence. A sentence starts with a capital letter and ends with `.`, `!`, `?`, `:` or `;`. */
 const SENTENCE = /^[A-Z].*[.!?:;]$/;
-/** A line that starts with a character other than a letter, such as a heading, a list item, a table row or a link. */
+/** Matches a line that starts with a character other than a letter. A heading, a list item, a table row and a link start this way. */
 const STARTS_WITH_NON_LETTER = /^[^a-zA-Z]/;
-/** Whether a step's pattern starts with a capital, as a heading's does. */
+/** Returns whether a step's pattern starts with a capital letter. The pattern of the `Scenario:` heading step starts with one. */
 const writtenCapitalized = (step: TStepperStep) => /^[A-Z]/.test(step.gwta ?? step.exact ?? "");
 
 export class Resolver {
 	public backgroundWarnings: { path: string; line: string; error: string }[] = [];
 
 	/**
-	 * @param offers which steps a line may resolve to, where a caller holds only some: undefined, every step.
+	 * @param offers returns whether a line may resolve to a step. A caller that holds only some steps passes it. A line may
+	 * resolve to every step when offers is undefined.
 	 */
 	constructor(
 		private steppers: AStepper[],
 		private backgrounds: TFeatures = [],
 		private offers?: (stepperName: string, actionName: string, step: TStepperStep) => boolean,
 	) {
-		// Process backgrounds to allow steppers to register metadata (e.g., waypoint statements)
+		// Resolves each background line so steppers register their metadata. A waypoint statement is one kind of metadata.
 		for (const background of backgrounds) {
 			const lines = background.content.split("\n");
 			const actualSourcePath = background.base && background.path ? background.base + background.path : undefined;
@@ -39,7 +40,7 @@ export class Resolver {
 					try {
 						this.findSingleStepAction(actionable);
 					} catch (e) {
-						// Collect as a warning rather than throwing, for LSP tolerance
+						// Collects a warning instead of throwing, so the LSP logs a background line that doesn't resolve and continues.
 						this.backgroundWarnings.push({ path: background.path, line, error: errorDetail(e) });
 					}
 				}
@@ -64,7 +65,7 @@ export class Resolver {
 	public async resolveStepsFromFeatures(features: TExpandedFeature[]) {
 		const steps: TResolvedFeature[] = [];
 		for (const feature of features) {
-			// Notify steppers to clear feature-scoped steps before resolving each feature
+			// Steppers clear feature-scoped steps before each feature resolves.
 			this.startFeatureResolution(feature.path);
 			const featureSteps = await this.findFeatureSteps(feature);
 			const { expanded: _expanded, ...resolved } = feature;
@@ -73,7 +74,8 @@ export class Resolver {
 		return steps;
 	}
 
-	/** Notify steppers that a new feature is being resolved, letting them clear feature-scoped steps that must not leak between features. */
+	/** Calls each stepper's startFeatureResolution before a feature resolves, so a stepper clears its feature-scoped steps. A
+	 *  feature-scoped step must not resolve in another feature. */
 	private startFeatureResolution(path: string) {
 		for (const stepper of this.steppers) {
 			if (typeof stepper.startFeatureResolution === "function") {
@@ -145,7 +147,7 @@ export class Resolver {
 							this.callResolveFeatureLine(rawVal, feature.path);
 							this.findSingleStepAction(rawVal);
 						} catch (e) {
-							throw Error(`statement '${rawVal}' invalid: ${errorDetail(e)}`);
+							throw Error(`statement '${rawVal}' doesn't resolve: ${errorDetail(e)}`);
 						}
 					}
 				}
@@ -159,11 +161,12 @@ export class Resolver {
 		return { steps, errors };
 	}
 	/**
-	 * The one step a line resolves to. How a line is written decides whether it is prose: a sentence is prose, but for a
-	 * step whose pattern starts with a capital, such as a heading whose title ends with punctuation. A line that starts
-	 * with a character other than a letter is prose where the steps' patterns don't match it. A pattern reads a line after
-	 * `dePolite` removes its leading articles, so without this rule a sentence such as "A type is a view." would match
-	 * `type {text}`.
+	 * Returns the one step a line resolves to. The form of a line determines whether it is prose. A sentence matches only a
+	 * step whose pattern starts with a capital letter. The sentence `Scenario: Sign in.` matches the `Scenario:` heading
+	 * step. A sentence that doesn't match such a step resolves to a prose step. A line that starts with a character other
+	 * than a letter resolves to a prose step when it doesn't match a step. A pattern matches a line after `dePolite`
+	 * removes the line's leading words such as `a`, `the` and `given`. The sentence "A type is a view." would match
+	 * `type {text}` if a sentence could match a pattern that starts with a lowercase letter.
 	 */
 	findSingleStepAction(line: string): TStepAction {
 		const sentence = SENTENCE.test(line);
@@ -173,13 +176,14 @@ export class Resolver {
 	}
 
 	/**
-	 * A statement a line passes in quotes is matched without them. A statement that starts and ends with a quoted term,
-	 * such as `"Le Artiste" has "signed"`, is matched the same way and loses the quotes of its own terms. Where the text
-	 * without the quotes doesn't match a step and the text with them does, the statement keeps them.
+	 * Restores the outer quotes of a statement where its quoted text matches a step. A statement that a line passes in
+	 * quotes is matched without the quotes. A statement that starts and ends with a quoted term loses the quotes of its own
+	 * terms in the same way. `"Le Artiste" has "signed"` is such a statement. The statement keeps its outer quotes when its
+	 * text without them doesn't match a step and its text with them does.
 	 */
 	private withStatementsAsWritten(action: TStepAction): TStepAction {
 		for (const value of Object.values(action.stepValuesMap ?? {})) {
-			// Only a statement with a quote inside it can have lost the quotes of its own terms, so others aren't matched again.
+			// Only a statement that contains a quote can lose the quotes of its own terms, so other statements aren't matched again.
 			if (value.domain !== DOMAIN_STATEMENT || value.origin !== Origin.quoted || !value.term?.includes('"')) continue;
 			const written = `"${value.term}"`;
 			if (!this.matchesAStep(value.term) && this.matchesAStep(written)) value.term = written;
@@ -187,7 +191,9 @@ export class Resolver {
 		return action;
 	}
 
-	/** The one step of those a line matched: a unique step, then any but a fallback, then any a match doesn't preclude. */
+	/** Selects one step from the steps a line matched. It returns the unique step when exactly one candidate is unique.
+	 *  Otherwise it removes fallback steps when a non-fallback step remains. It then removes each step that another
+	 *  candidate precludes. It throws unless exactly one step remains. */
 	private selectStep(line: string, candidates: TStepAction[]): TStepAction {
 		let stepActions = candidates;
 		if (stepActions.length > 1) {
@@ -195,18 +201,18 @@ export class Resolver {
 			if (unique.length === 1) {
 				return itemAt(unique, 0);
 			}
-			// Filter out fallback steps if there are non-fallback alternatives
+			// Removes fallback steps when a non-fallback step remains.
 			const nonFallback = stepActions.filter((a) => !a.step.fallback);
 			if (nonFallback.length > 0) {
 				stepActions = nonFallback;
 			}
-			// If still multiple matches, use precludes
+			// Removes each step that another candidate precludes when several candidates remain.
 			if (stepActions.length > 1) {
 				const precludes = stepActions.flatMap((a) => a.step.precludes ?? []);
 				stepActions = stepActions.filter((a) => !precludes.includes(`${a.stepperName}.${a.actionName}`));
 			}
 			if (stepActions.length !== 1) {
-				throw Error(`not one step found for "${line}": ${JSON.stringify(stepActions.map((a) => a.actionName))}`);
+				throw Error(`"${line}" doesn't resolve to one step. Candidate steps: ${JSON.stringify(stepActions.map((a) => a.actionName))}`);
 			}
 		} else if (stepActions.length < 1) {
 			throw Error(`"${line}" doesn't match a step`);
@@ -215,14 +221,14 @@ export class Resolver {
 	}
 
 	getFeatureStep(featureLine: TExpandedLine, seq: number, action: TStepAction): TFeatureStep {
-		// For virtual steps (like waypoints), use the step's source location if available
+		// A virtual step uses its own source location when it has one. A waypoint is a virtual step.
 		const step = action.step;
 		const lineNumber = step?.source?.lineNumber ?? featureLine.lineNumber;
 		const path = step?.source?.path ?? featureLine.feature.base + featureLine.feature.path;
 		return { source: { path, lineNumber }, in: featureLine.line, seqPath: [seq], action };
 	}
 
-	/** Each step a caller is offered, with the stepper that declares it. */
+	/** Returns each step that `offers` allows and the stepper that declares it. */
 	private offeredSteps(): TStepAction[] {
 		return this.steppers.flatMap((stepper) => {
 			const stepperName = constructorName(stepper);
@@ -240,7 +246,7 @@ export class Resolver {
 		return this.offeredSteps().flatMap(({ step, actionName, stepperName }) => this.stepApplies(step, actionable, actionName, stepperName) ?? []);
 	}
 
-	/** The steps a prose line resolves to, which declare `prose` in place of a pattern. */
+	/** Returns the steps that declare `prose` in place of a pattern. A prose line resolves to one of them. */
 	private proseSteps(): TStepAction[] {
 		return this.offeredSteps().filter(({ step }) => step.prose);
 	}
@@ -248,9 +254,9 @@ export class Resolver {
 	private stepApplies(step: TStepperStep, actionable: string, actionName: string, stepperName: string) {
 		const curt = dePolite(actionable);
 		if (step.gwta) {
-			// Enforce that if the input starts with Uppercase, the GWTA must also start with Uppercase.
-			// This distinguishes "Prose" (Uppercase) from "steps" (Lowercase).
-			// Exception: patterns starting with {variable} placeholders can match any input.
+			// A line that starts with an uppercase letter after dePolite matches only a gwta that starts with an uppercase letter.
+			// Prose starts with an uppercase letter and a step starts with a lowercase letter, so this check separates them.
+			// A gwta that starts with a {variable} placeholder can match a line that starts with an uppercase letter.
 			const startsWithUpper = /^[A-Z]/.test(curt);
 			const gwtaStartsUpper = /^[A-Z]/.test(step.gwta);
 			const gwtaStartsWithPlaceholder = step.gwta.startsWith("{");
@@ -280,15 +286,15 @@ function getActionableStatement(steppers: AStepper[], statement: string, path: s
 export function findFeatureStepsFromStatement(statement: string, steppers: AStepper[], world: TWorld, base: string | undefined, seqStart: number[], inc = 1): TFeatureStep[] {
 	const featureSteps: TFeatureStep[] = [];
 	if (!world.runtime.backgrounds) {
-		throw new Error("runtime.backgrounds is undefined; cannot expand inline Backgrounds");
+		throw new Error("runtime.backgrounds is undefined, so an inline Backgrounds: line can't expand. Set world.runtime.backgrounds before resolving a statement.");
 	}
-	// expandLine needs a feature context: a Backgrounds: directive ignores it and uses the actual
-	// background files, while a regular statement uses this feature's path. `base` is the full path,
-	// so it goes in feature.base with feature.path left empty.
-	// A statement a step called over RPC or MCP states doesn't have a source file, so its lines don't have a base path.
+	// expandLine requires a feature context. A Backgrounds: line ignores the context and reads the named backgrounds from
+	// world.runtime.backgrounds. A regular statement takes its source path from the context. The `base` argument holds the
+	// full path. contextFeature.base holds that path, and contextFeature.path is empty. A statement passed to a step called
+	// over RPC or MCP doesn't have a source file, so its base path is empty.
 	const contextFeature: TFeature = { path: "", base: base ?? "", name: "statement-context", content: statement };
 	const expanded = expandLine(statement, undefined, world.runtime.backgrounds, contextFeature);
-	// Increment the last segment of seqStart by inc for each expanded step
+	// Increments the last segment of seqStart by inc for each expanded line that resolves to a step.
 	const prefix = seqStart.slice(0, -1);
 	let latest = itemAt(seqStart, seqStart.length - 1);
 	for (const x of expanded) {
@@ -304,7 +310,8 @@ export function findFeatureStepsFromStatement(statement: string, steppers: AStep
 				source: { path: fullPath, lineNumber: x.lineNumber },
 				in: x.line,
 				seqPath,
-				// The line didn't resolve to a step, so it stands as a step a registry doesn't hold, and its miss states why.
+				// The line didn't resolve to a step, so it becomes a Resolver error step. The registry doesn't hold that step. Its
+				// action returns the resolution error.
 				action: { actionName: "error", stepperName: "Resolver", step: { description: why, action: async () => actionNotOK(why) } },
 			});
 		}

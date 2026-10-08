@@ -7,12 +7,12 @@ import MonitorStepper from "./monitor-stepper.js";
 import ShuStepper from "./shu-stepper.js";
 
 describe("parseAffordanceProduct", () => {
-	it("returns kind:none for empty product", () => {
+	it("returns kind:none for an empty product", () => {
 		expect(parseAffordanceProduct(undefined)).toEqual({ kind: "none" });
 		expect(parseAffordanceProduct({})).toEqual({ kind: "none" });
 	});
 
-	it("recognises a singleton component product (e.g. `show graph view`) using `view` as the id when `id` is absent", () => {
+	it("parses a singleton component product with `view` as the id when `id` is absent (e.g. `show graph view`)", () => {
 		const product = { [HYPERMEDIA.TYPE]: "view", [HYPERMEDIA.SUMMARY]: "Graph view", _component: "shu-polymorphic-graph-view", view: "graph" };
 		expect(parseAffordanceProduct(product)).toEqual({ kind: "open-component", view: "graph", component: "shu-polymorphic-graph-view", label: "Graph view", products: product });
 	});
@@ -34,7 +34,7 @@ describe("parseAffordanceProduct", () => {
 		});
 	});
 
-	it("recognises a view-collection product (`show views`)", () => {
+	it("parses a view-collection product (`show views`)", () => {
 		const product = {
 			[HYPERMEDIA.TYPE]: SHU_TYPE.VIEW_COLLECTION,
 			[HYPERMEDIA.SUMMARY]: "Available Views",
@@ -52,9 +52,9 @@ describe("parseAffordanceProduct", () => {
 		expect(action.views[0]).toEqual({ id: "graph", description: "Graph view", component: "shu-polymorphic-graph-view" });
 	});
 
-	it("is not an affordance just because it is a record: a bare individual states what it is, not what to open", () => {
-		// Every projected record carries a type and an identifier, so reading those as an instruction made every step
-		// that answered with a record open a column, including the reads a view makes to render itself.
+	it("returns kind:none for a bare individual, since its type and id don't name a view to open", () => {
+		// Every projected record holds a type and an id. Reading them as an instruction would open a column for every step
+		// that returns a record, including each read a view makes to render itself.
 		const product = { [HYPERMEDIA.TYPE]: "Email", id: "email-42", [HYPERMEDIA.SUMMARY]: "Inbox: Subject" };
 		expect(parseAffordanceProduct(product)).toEqual({ kind: "none" });
 	});
@@ -72,25 +72,18 @@ describe("parseAffordanceProduct", () => {
 });
 
 /**
- * Each `show <view>` step in MonitorStepper must produce a product that the
- * parser converts into a well-formed `open-component` action. The per-instance flow
- * works the same way (per-instance id), so passing the same shape contract
- * here guarantees one parser path covers both built-in and external views.
- *
- * If a future change adds a `show*` step with a different product shape, this
- * test fails until the new shape is either fixed or the contract is broadened
- * with a new action kind. That's the point: these are the SPA's view-opening
- * affordances, and any drift here means the SPA can't open them.
+ * Checks that the listed view-opening `show` steps of MonitorStepper and ShuStepper declare a `productsDomain`. A
+ * per-instance product parses through the same path as a singleton product, so one parser path parses the products of
+ * built-in and external views. The SPA opens a component view from a step's products only where they parse to an
+ * `open-component` action. A new `show` step is checked only after it is added to `cases`.
  */
-describe("show* steps declare a productsDomain whose ui.component opens the view consistently", () => {
+describe("show* steps declare the productsDomain whose ui.component names their view's component", () => {
 	const stepper = new MonitorStepper();
 	const shu = new ShuStepper();
 
-	// Every view-opening step declares a `productsDomain`. The dispatcher injects
-	// the hypermedia markers (`_type`, `_component`, `_summary`, `id`, `view`) from
-	// the domain's `ui.component` at runtime, so every view opens through one path.
-	// The step's action body returns plain `{}` products; this test verifies the contract
-	// at the step-definition layer.
+	// The step's action returns plain `{}` products. augmentViewHypermedia adds the hypermedia markers from the domain's
+	// `ui` declaration. It adds `_component`, `id` and `view` only for a domain that declares `ui.component`. These cases
+	// check the `productsDomain` of each step definition.
 	const cases: Array<{ name: string; productsDomain: string; steps: Record<string, unknown> }> = [
 		{ name: "showPolymorphicGraphView", productsDomain: "shu-polymorphic-graph-view", steps: shu.steps },
 		{ name: "showMonitor", productsDomain: "shu-monitor-column", steps: stepper.steps },
@@ -98,13 +91,13 @@ describe("show* steps declare a productsDomain whose ui.component opens the view
 	];
 
 	for (const { name, productsDomain, steps } of cases) {
-		it(`${name} declares productsDomain "${productsDomain}" for dispatcher view-marker injection`, () => {
+		it(`${name} declares productsDomain "${productsDomain}"`, () => {
 			const step = steps[name] as { productsDomain?: string };
 			expect(step.productsDomain).toBe(productsDomain);
 		});
 	}
 
-	it("a per-instance product (per-instance-style with `id = <component>:<uuid>`) parses through the same path", () => {
+	it("a per-instance product with `id = <component>:<uuid>` parses through the same path", () => {
 		const product = {
 			[HYPERMEDIA.TYPE]: "x-clustered-viewer",
 			[HYPERMEDIA.SUMMARY]: "Clustered 3D view",

@@ -1,22 +1,22 @@
 /**
- * Domain-chain lint, boot-time consistency checks over the typed step graph.
+ * Domain-chain lint: consistency checks over the typed step graph at boot.
  *
- * Reports each way the graph is incomplete. A run refuses to start with a blocking finding (`BLOCKING_FINDINGS`), and
- * reports the rest. The lint doesn't report a step
- * whose products another step doesn't take. Its products answer whoever asked: the page, a feature that captures them,
- * or a model. The graph shows such a step as a leaf.
+ * The lint reports each way the graph is incomplete. A blocking finding (`BLOCKING_FINDINGS`) stops actuality from
+ * starting. The report holds the other findings. The lint doesn't report a step whose products another step doesn't
+ * take. Its products are returned to the caller: the page, a feature that captures them, or a model. The graph shows
+ * such a step as a leaf.
  *
  *   - unsupplied-step: a step that consumes a thing another step doesn't produce. A thing is a persisted type or a
  *     reference to one. A value its caller writes in the line doesn't need a producer (`isWrittenByCaller`).
- *   - unreachable-domain: a registered value domain that a step doesn't consume or produce. The domain is dead. The
- *     store reads and writes each record type by type, whoever writes it, and the page reaches a view by presenting its
- *     component, so the lint doesn't judge either by the steps alone.
+ *   - unreachable-domain: a registered value domain that a step doesn't consume or produce. The domain is unused. The
+ *     store reads and writes every record by its type, whatever writes it. The page presents a view through its
+ *     component. So the lint doesn't report a persisted type or a domain with a ui component as unreachable.
  *   - unproduced-domain: a thing a step consumes and another step doesn't declare as an output. It is the domain-level
  *     form of unsupplied-step.
+ *   - string-param: a parameter whose domain is `string` or a union with it.
  *
- * Pure projection over the domain-chain graph plus the domain registry. It doesn't perform I/O.
- * Drift detection: callers persist a snapshot of findings and diff against a new
- * snapshot to detect graph-shape regressions across boots.
+ * The lint is a pure projection of the domain-chain graph and the domain registry. It doesn't perform I/O. Each module's
+ * step graph test (`test/step-graph-baseline.ts`) compares the findings with a baseline file.
  */
 import { z } from "zod";
 import { isPersisted, type TRegisteredDomain } from "./resources.js";
@@ -25,12 +25,12 @@ import type { AStepper } from "./astepper.js";
 import { DOMAIN_STRING, domainParts, fieldRangesOf, isPrimitiveDomain, isWrittenByCaller, refTargetOf } from "./domains.js";
 import { DOMAIN_INDIVIDUAL_ADDRESS } from "./typed-links.js";
 
-/** The kinds of finding, each a way the typed step graph is incomplete. */
+/** The kinds of finding. Each names a way the typed step graph is incomplete. */
 export const LINT_FINDING = {
 	UNSUPPLIED_STEP: "unsupplied-step",
 	UNREACHABLE_DOMAIN: "unreachable-domain",
 	UNPRODUCED_DOMAIN: "unproduced-domain",
-	/** A parameter whose domain is `string`, or a union with it, which doesn't name what the value is. */
+	/** A parameter whose domain is `string` or a union with it. Such a domain doesn't name what the value is. */
 	STRING_PARAM: "string-param",
 } as const;
 
@@ -48,17 +48,18 @@ export const LintSummarySchema = z.object(Object.fromEntries(Object.values(LINT_
 
 type TDomainChainLintReport = {
 	findings: TLintFinding[];
-	/** Counts per kind for quick inspection. */
+	/** The number of findings of each kind. */
 	summary: Record<TLintKind, number>;
 };
 
-/** The kinds of finding a run refuses to start with: a parameter whose domain doesn't state what its value is. A step's
- *  declaration decides it, whatever else actuality loads. An unsupplied step and an unproduced domain depend on the
- *  steppers a run loads and on records written outside steps, such as the site's Principal, so a run reports them, and
- *  each module's step graph test holds them to its baseline with every stepper the module declares. */
+/** The kinds of finding that stop actuality from starting: a parameter whose domain doesn't state what its value is. A
+ *  step's declaration determines this finding, whatever other steppers actuality loads. An unsupplied step and an
+ *  unproduced domain depend on the steppers actuality loads. They also depend on records written outside steps, such as
+ *  the site's Principal. So actuality reports them and starts. Each module's step graph test compares them with its
+ *  baseline, with every stepper the module declares. */
 const BLOCKING_FINDINGS: readonly TLintKind[] = [LINT_FINDING.STRING_PARAM];
 
-/** A finding as one line: its kind, then the step or domain it is about. */
+/** Returns a finding as one line: its kind, then the step or domain that the finding names. */
 export function lintFindingLine(finding: TLintFinding): string {
 	switch (finding.kind) {
 		case LINT_FINDING.UNSUPPLIED_STEP:
@@ -80,14 +81,14 @@ export function lintDomainChain(graph: TDomainChainGraph, domains: Record<string
 		for (const d of step.outputDomains) producedDomains.add(d);
 		for (const d of step.inputDomains) consumedDomains.add(d);
 	}
-	// A step taking a union takes each of its parts, and one taking a composite takes what the composite's fields name.
+	// A step that takes a union takes each of its parts. A step that takes a composite takes the domains its fields name.
 	for (const key of [...consumedDomains]) for (const part of domainParts(key)) consumedDomains.add(part);
 	for (const key of [...consumedDomains]) for (const named of fieldRangesOf(domains[key], domains)) consumedDomains.add(named);
-	// An individual address names its type beside its id, so a step answering with one, as a create of any declared type
-	// does, supplies a record of every persisted type.
+	// An individual address holds its type and its id. So a step that returns one supplies a record of every persisted
+	// type. A create of any declared type returns one.
 	if (producedDomains.has(DOMAIN_INDIVIDUAL_ADDRESS)) for (const [key, domain] of Object.entries(domains)) if (isPersisted(domain.topology)) producedDomains.add(key);
-	// A reference to a record is supplied wherever a record of its type is produced, as the goal resolver chains it, and a
-	// step answering with a reference supplies the record it refers to. A step taking the reference takes that record.
+	// A reference to a record is supplied wherever a record of its type is produced, as the goal resolver chains it. A
+	// step that returns a reference supplies the record it references. A step that takes the reference takes that record.
 	for (const [key, domain] of Object.entries(domains)) {
 		const target = refTargetOf(domain, domains);
 		if (target === undefined) continue;
@@ -108,8 +109,8 @@ export function lintDomainChain(graph: TDomainChainGraph, domains: Record<string
 		}
 	}
 
-	// Domain-level findings. A caller supplies a primitive domain, and it isn't a node of the graph. The store and the page
-	// reach a record type and a view beyond the steps (see unreachable-domain above).
+	// Domain-level findings. The loop skips a primitive domain, because a caller supplies its value and it isn't a node of
+	// the graph. The store and the page reach a record type and a view beyond the steps (see unreachable-domain above).
 	for (const [key, domain] of Object.entries(domains).filter(([k]) => !isPrimitiveDomain(k))) {
 		const reachedBeyondSteps = isPersisted(domain.topology) || typeof domain.ui?.component === "string";
 		if (!reachedBeyondSteps && !consumedDomains.has(key) && !producedDomains.has(key)) findings.push({ kind: LINT_FINDING.UNREACHABLE_DOMAIN, domain: key });
@@ -122,10 +123,10 @@ export function lintDomainChain(graph: TDomainChainGraph, domains: Record<string
 	return { findings, summary };
 }
 
-/** The id of the artifact that reports a run's step graph lint at boot. */
+/** The id of the artifact that holds the step graph lint report at boot. */
 export const DOMAIN_CHAIN_LINT_ARTIFACT = "domain-chain.lint.startup";
 
-/** Lints the step graph of a run's steppers, and refuses the run where a finding blocks it, naming each such finding. */
+/** Lints the step graph of the loaded steppers. Throws on a blocking finding, and the error names each blocking finding. */
 export function lintRunStepGraph(steppers: AStepper[], domains: Record<string, TRegisteredDomain>): TDomainChainLintReport {
 	const report = lintDomainChain(buildDomainChain(steppers, domains), domains);
 	const blocking = report.findings.filter((finding) => BLOCKING_FINDINGS.includes(finding.kind));

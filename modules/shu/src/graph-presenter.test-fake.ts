@@ -1,7 +1,7 @@
 /**
- * The site's graph presenter as a view that embeds one meets it in a test: declared as the site's "graph" presenter,
- * recording what its host gives it, and reporting a node a reader opens as the presenter does. The one fake for the
- * presenter boundary, shared by every embedding view's test.
+ * Provides a fake of the site's graph presenter for tests of a view that embeds one. `declareFakeGraphPresenter`
+ * declares it as the site's "graph" presenter. The fake records what its host gives it, and reports a node a reader
+ * opens as the presenter does. Every embedding view's test imports this one fake for the presenter boundary.
  */
 import { vi } from "vitest";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
@@ -31,15 +31,15 @@ export class FakeGraphPresenter extends HTMLElement implements TGraphPresenter {
 	summarizeForKihan(): TLinkedData | null {
 		return { "@id": "view:fake-graph", subjects: [...new Set(this.quads.map((quad) => quad.subject))] };
 	}
-	/** A reader opening a node, reported to the host as the presenter reports it. */
+	/** Reports a reader opening a node to the host, as the presenter reports it. */
 	openNode(nodeId: string): void {
 		const detail: TPresenterNodeClick = { nodeId };
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.GRAPH_NODE_CLICK, { detail, bubbles: true, composed: true }));
 	}
 }
 
-/** Declare the fake as the site's graph presenter, in a site whose other declarations are empty but for the `ui` a case
- *  gives, by domain. */
+/** Declares the fake as the site's graph presenter. The site's other declarations are empty, except for the `ui`
+ *  entries a case gives, keyed by domain. */
 export function declareFakeGraphPresenter(ui: Record<string, Record<string, unknown>> = {}): void {
 	if (!customElements.get(FAKE_PRESENTER_TAG)) customElements.define(FAKE_PRESENTER_TAG, FakeGraphPresenter);
 	setSiteMetadata({
@@ -56,7 +56,7 @@ export function declareFakeGraphPresenter(ui: Record<string, Record<string, unkn
 	});
 }
 
-/** The presenter a host holds in a slot, once its mount has resolved. */
+/** Returns the presenter a host holds in a slot once its mount has resolved. */
 export async function mountedPresenter(host: HTMLElement, slot: string): Promise<FakeGraphPresenter> {
 	return (await vi.waitUntil(() => presenterIn(host, slot))) as FakeGraphPresenter;
 }

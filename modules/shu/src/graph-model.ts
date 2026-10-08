@@ -4,13 +4,13 @@ type GraphNode = { id: string; type: string; isCluster?: boolean; omittedCount?:
 type GraphEdge = { from: string; to: string; predicate: string; graph: string };
 export type GraphModel = { nodes: GraphNode[]; edges: GraphEdge[] };
 
-/** Node property carrying the resolved HypermediaRole: the id of the party (a `prov:Agent`/Principal) the node is attributed to. Reduced from the node's role edges (see `roleRels`); the polymorphic view's role grouping axis reads it. */
+/** Names the node property that holds the resolved HypermediaRole. The value is the id of the party (a `prov:Agent`/Principal) to which the node is attributed. `buildGraphModelFromQuads` reduces it from the node's role edges (see `roleRels`). The polymorphic view's role grouping axis reads it. */
 export const HYPERMEDIA_ROLE_KEY = "hypermediaRole";
 
-/** Node property carrying a party's own role predicate: the highest-priority role rel (a `fromActor`/`toActor`, see `roleRels`) by which other nodes attribute to it. A party is one node; the role it plays is relational (it is the target of a role edge), so this reads from the incoming role edges, not the node's `@type`. A display site maps this predicate to the party's role designation. */
+/** Names the node property that holds a party's own role predicate. The value is the highest-priority role rel (a `fromActor`/`toActor`, see `roleRels`) among the role edges that target the party. A party is one node. Its role is relational because the party is the target of a role edge, so the value comes from the incoming role edges and not from the node's `@type`. A display site maps this predicate to the party's role designation. */
 export const HYPERMEDIA_ROLE_REL_KEY = "hypermediaRoleRel";
 
-/** Node property carrying the site principal of the instance whose store SERVED the node: a read-time store fact stamped at the federation merge, never persisted data (and distinct from HAIBUN_SITE_KEY, the env override for this instance's OWN principal). The polymorphic's site grouping axis reads it. */
+/** Names the node property that holds the site principal of the instance whose store served the node. The value is a read-time store fact stamped at the federation merge and is never persisted. HAIBUN_SITE_KEY is a different key: it holds the env override for this instance's own principal. The polymorphic view's site grouping axis reads this property. */
 export const SITE_KEY = "site";
 
 type BuildGraphModelOptions = {
@@ -18,9 +18,9 @@ type BuildGraphModelOptions = {
 	requireObjectSubject?: boolean;
 	requireObjectType?: boolean;
 	clusters?: TCluster[];
-	/** Predicates (priority order) whose target is the node's HypermediaRole. When set, each node's role is merged onto `properties[HYPERMEDIA_ROLE_KEY]` so a pure group-key selector can read it without re-walking edges. */
+	/** Lists the predicates, in priority order, whose target is the node's HypermediaRole. The build merges each node's role onto `properties[HYPERMEDIA_ROLE_KEY]` where this is set, so a pure group-key selector reads the role without walking the edges again. */
 	roleRels?: readonly string[];
-	/** The responding instance's site principal: the serving site of every node a cluster's `sites` doesn't override. When set, each node's serving site is merged onto `properties[SITE_KEY]`. */
+	/** Names the responding instance's site principal. It is the serving site of every node that a cluster's `sites` doesn't override. The build merges each node's serving site onto `properties[SITE_KEY]` where this is set. */
 	site?: string;
 };
 
@@ -36,17 +36,13 @@ function clusterId(type: string): string {
 	return `cluster:${type}`;
 }
 
-/**
- * Build a normalized graph model from quads. When `clusters` are provided,
- * a cluster node is emitted per type with `omittedCount > 0`, plus a
- * `clusterOf` edge from the cluster node to each sampled sibling so the
- * cluster sits inside its type's neighborhood under force layout.
- */
-/** Whether a quad DRAWS as an edge, independent of which nodes are in hand. An edge is a TYPED reference: the quad
- *  carries `objectType`: the JSON-LD range of its target. A plain-string property (without an objectType) is never an edge,
- *  even if its value coincidentally matches a node id. This is the same rule the overview's property classifier applies
- *  ("declared by the range, never guessed from the id"); guessing is what mis-linked string properties like `account`
- *  onto whatever node shared their value. THE rule, so a chip legend offers exactly the predicates the graph draws. */
+/** Returns whether a quad draws as an edge, independent of which nodes the model holds. An edge is a typed reference.
+ *  The quad carries `objectType`, which is the JSON-LD range of its target. A plain-string property without an
+ *  `objectType` is never an edge, even where its value matches a node id. The overview's property classifier applies
+ *  the same rule ("declared by the range, never guessed from the id"). Guessing from the id would link a string property
+ *  such as `account` to any node that shares its value. A quad whose subject is its object doesn't draw as an edge.
+ *  With the default options, a predicate that starts with `_` doesn't draw as an edge either. The chip legend reads this
+ *  rule, so it offers the predicates the graph draws. */
 export function isEdgeQuad(
 	q: TQuad,
 	opts: { requireObjectType?: boolean; ignoreInternalPredicates?: boolean } = { requireObjectType: true, ignoreInternalPredicates: true },
@@ -58,6 +54,11 @@ export function isEdgeQuad(
 	return true;
 }
 
+/**
+ * Builds a normalized graph model from quads. Where `clusters` are given, the model holds a cluster node for each type
+ * with `omittedCount > 0`. A `clusterOf` edge connects the cluster node to each sampled subject the model holds, so force
+ * layout places the cluster inside its type's neighbourhood.
+ */
 export function buildGraphModelFromQuads(quads: TQuad[], options: BuildGraphModelOptions = {}): GraphModel {
 	const opts = { ...DEFAULT_OPTIONS, ...options };
 	const nodeMap = new Map<string, GraphNode>();
@@ -68,9 +69,10 @@ export function buildGraphModelFromQuads(quads: TQuad[], options: BuildGraphMode
 			node = { id: q.subject, type: q.namedGraph };
 			nodeMap.set(q.subject, node);
 		}
-		// Carry the node's LITERAL properties (a value, not a typed edge, not an internal/JSON-LD key) so paints can read
-		// per-node data (image, dates, coordinates, …) the renderer-agnostic edge model otherwise drops. Edges (objectType
-		// set) and internal/@ keys are excluded; the last value for a repeated predicate wins.
+		// Copies the node's literal properties onto the node, so paints read per-node data (image, dates, coordinates, …)
+		// that the renderer-agnostic edge model would otherwise drop. A literal property has a value and isn't a typed edge
+		// (objectType set), an internal `_` key or a JSON-LD `@` key. The last value of a repeated predicate replaces the
+		// earlier ones.
 		if (q.objectType === undefined && typeof q.object !== "object" && q.object != null && !q.predicate.startsWith("_") && !q.predicate.startsWith("@")) {
 			(node.properties ??= {})[q.predicate] = q.object;
 		}
@@ -90,7 +92,7 @@ export function buildGraphModelFromQuads(quads: TQuad[], options: BuildGraphMode
 			for (const [subject, label] of Object.entries(c.displayLabels)) {
 				const node = nodeMap.get(subject);
 				if (!node) continue;
-				// `label === subject` is composeDisplayLabel's id-fallback (the cluster @type doesn't have a NAME/CONTENT/body/weak rel, e.g. a name-less Principal sharing a named node's @id). Never let it clobber a real headline already set by another cluster for the same collapsed node. Order-independent: a real name beats the bare id regardless of cluster iteration order.
+				// `label === subject` is composeDisplayLabel's id fallback. composeDisplayLabel falls back to the id where the cluster's @type doesn't have a NAME/CONTENT/body/weak rel, such as a Principal without a name that shares a named node's @id. The id fallback doesn't replace a title another cluster set for the same collapsed node. A name takes precedence over the bare id in any cluster order.
 				if (label === subject && node.displayLabel !== undefined && node.displayLabel !== subject) continue;
 				node.displayLabel = label;
 			}
@@ -107,24 +109,24 @@ export function buildGraphModelFromQuads(quads: TQuad[], options: BuildGraphMode
 	}
 
 	if (opts.site !== undefined) {
-		// Merge each node's SERVING site (read-time store fact): a federated subject keeps the stamp its peer set
-		// (cluster.sites), everything else was served by this response's own site. Overwrites a same-named literal
-		// property, same as the role merge: the stamp is authoritative for the axis.
+		// Merges each node's serving site onto the node. The serving site is a read-time store fact. A federated subject
+		// keeps the stamp its peer set (`cluster.sites`). This response's own site served every other node. The stamp
+		// replaces a literal property of the same name, as the role merge does, because the stamp determines the site axis.
 		const siteBySubject = new Map<string, string>();
 		for (const c of options.clusters ?? []) if (c.sites) for (const [s, v] of Object.entries(c.sites)) siteBySubject.set(s, v);
 		for (const node of nodeMap.values()) (node.properties ??= {})[SITE_KEY] = siteBySubject.get(node.id) ?? opts.site;
 	}
 
 	if (opts.roleRels?.length) {
-		// Merge each node's HypermediaRole onto the node so the role grouping axis is a pure node read (single-source).
-		// A node's role is the target of its highest-priority role edge; a node that IS a party, something is attributed
-		// to it, i.e. it is a role-edge target, is its own role, so it lands in its own container, not "unattributed".
+		// Merges each node's HypermediaRole onto the node, so the role grouping axis reads only the node. A node's role is
+		// the target of its highest-priority role edge. A party is a node that a role edge targets. A party without a role
+		// edge of its own is its own role, so it groups in its own container instead of "unattributed".
 		const roleRelSet = new Set(opts.roleRels);
 		const roleRank = new Map(opts.roleRels.map((r, i) => [r, i]));
 		const outByFrom = new Map<string, GraphEdge[]>();
 		const parties = new Set<string>();
-		// A party's own role predicate: the highest-priority role rel by which anything attributes to it. Relational, so it
-		// is read from the incoming role edges (a party is a role-edge target), not the party's `@type`.
+		// Holds each party's own role predicate, which is the highest-priority role rel among the role edges that target
+		// it. The role is relational, so it comes from the incoming role edges and not from the party's `@type`.
 		const partyRoleRel = new Map<string, string>();
 		for (const e of edges) {
 			const list = outByFrom.get(e.from);
@@ -138,11 +140,11 @@ export function buildGraphModelFromQuads(quads: TQuad[], options: BuildGraphMode
 		}
 		for (const node of nodeMap.values()) {
 			const out = outByFrom.get(node.id);
-			// Record the agent at EACH actor predicate on the node, so a "group by <predicate>" axis reads a plain property
-			// (properties[predicate]) without code enumerating the predicates: a rel declared subPropertyOf inRoleOf is
-			// groupable the moment it appears.
+			// Records the agent of each actor predicate on the node as `properties[predicate]`. A "group by <predicate>" axis
+			// reads that plain property, so code doesn't enumerate the predicates. A rel declared subPropertyOf inRoleOf can
+			// group as soon as it appears.
 			if (out) for (const e of out) if (roleRelSet.has(e.predicate)) (node.properties ??= {})[e.predicate] = e.to;
-			// The "role" axis: the single highest-priority actor (ROLE_PRIORITY order, via opts.roleRels).
+			// The "role" axis reads the highest-priority actor, in ROLE_PRIORITY order through `opts.roleRels`.
 			let role: string | undefined;
 			if (out)
 				for (const rel of opts.roleRels) {

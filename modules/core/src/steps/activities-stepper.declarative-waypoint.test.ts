@@ -2,10 +2,10 @@
  * Acceptance test for declarative waypoints with goal resolution.
  *
  * The test exercises:
- *   - `waypoint Outcome resolves DOMAIN_X` declarative form
- *   - `ensure Outcome` routes to `resolveGoal(DOMAIN_X)` when the waypoint is declarative
- *   - findings: "satisfied" | "michi" | "unreachable" | "refused"
- *   - capability gating via `step.capability` filtered into the resolver's producer set
+ *   - the declarative form `waypoint Outcome resolves DOMAIN_X`
+ *   - `ensure Outcome`, which calls `resolveGoal(DOMAIN_X)` for a declarative waypoint
+ *   - the findings "satisfied", "michi" and "unreachable"
+ *   - `ensure Outcome` for a caller that doesn't hold `ensure` or the producer's `step.capability`
  */
 import { describe, it, expect } from "vitest";
 
@@ -19,17 +19,17 @@ import { actionOK, actionOKWithProducts } from "../lib/util/index.js";
 import { z } from "zod";
 import { DOMAIN_USER_NAME } from "../lib/domains.js";
 
-// Domain key registered for the test by the `getConcerns` block below.
+// The `getConcerns` blocks of the steppers below declare this domain key.
 const DOMAIN_AUTH_SESSION = "domain-auth-session";
 
 const AuthSessionSchema = z.object({ id: z.string(), subject: z.string(), issuedAt: z.coerce.date() });
 
 /**
- * Test stepper that produces DOMAIN_AUTH_SESSION when its `signIn` step fires.
- * `productsDomain: DOMAIN_AUTH_SESSION` is the declared postcondition.
+ * A test stepper whose `signIn` step produces a DOMAIN_AUTH_SESSION product.
+ * `productsDomain: DOMAIN_AUTH_SESSION` declares the step's postcondition.
  */
 class AuthStepper extends AStepper implements IHasCycles {
-	description = "Signs in and shows the current session.";
+	description = "Provides a sign-in step that produces a session and a no-op `show current session` step.";
 	cycles: IStepperCycles = {
 		getConcerns: () => ({ domains: [{ selectors: [DOMAIN_AUTH_SESSION], schema: AuthSessionSchema, description: "An authenticated session for a subject" }] }),
 	};
@@ -40,7 +40,7 @@ class AuthStepper extends AStepper implements IHasCycles {
 			productsDomain: DOMAIN_AUTH_SESSION,
 			action: ({ subject }: { subject: string }) => Promise.resolve(actionOKWithProducts({ id: `session:${subject}:${Date.now()}`, subject, issuedAt: new Date() })),
 		},
-		// A no-op terminal step the feature can call after `ensure` to assert state.
+		// A no-op step that the feature calls after `ensure`.
 		showSession: { gwta: "show current session", action: () => Promise.resolve(actionOK()) },
 	};
 }
@@ -48,10 +48,10 @@ class AuthStepper extends AStepper implements IHasCycles {
 describe("ActivitiesStepper, declarative waypoint with goal resolution", () => {
 	const steppers = [VariablesStepper, ActivitiesStepper, Haibun, AuthStepper];
 
-	// (1a) Without any prior fact, `ensure Logged in` runs the activity (resolver returns
-	//      finding: "michi" with the activity's signIn step), the activity asserts a
-	//      DOMAIN_AUTH_SESSION fact, and `show var current_session` finds it.
-	it("(1a) ensure runs the activity when a prior fact doesn't exist, michi finding produced", async () => {
+	// (1a) Working memory doesn't hold a DOMAIN_AUTH_SESSION fact, so the resolver returns the finding "michi" and
+	//      `ensure Logged in` runs the activity. Step dispatch asserts the product of the activity's signIn step as a
+	//      DOMAIN_AUTH_SESSION fact, and the goal check after the activity finds that fact.
+	it("(1a) ensure runs the activity on a michi finding when a prior fact doesn't exist", async () => {
 		const feature = {
 			path: "/features/declarative-waypoint.feature",
 			content: `Activity: Sign in
@@ -66,9 +66,9 @@ show current session`,
 		expect(result.ok).toBe(true);
 	});
 
-	// (1b) On a second `ensure Logged in` in the same feature, the resolver returns
-	//      finding: "satisfied" and the activity is skipped (without a second signIn).
-	it("(1b) second ensure finds satisfied; activity is skipped", async () => {
+	// (1b) The resolver returns the finding "satisfied" for a second `ensure Logged in` in the same feature,
+	//      so the activity doesn't run again.
+	it("(1b) a second ensure finds the goal satisfied and skips the activity", async () => {
 		const feature = {
 			path: "/features/declarative-waypoint-twice.feature",
 			content: `Activity: Sign in
@@ -81,15 +81,15 @@ ensure Logged in`,
 
 		const result = await passWithDefaults([feature], steppers);
 		expect(result.ok).toBe(true);
-		// stronger assertion: only one signIn dispatched (step-execution count for AuthStepper-signIn == 1).
+		// This test doesn't count AuthStepper-signIn step executions, so it doesn't assert that signIn ran once.
 	});
 
-	// (1c) Removing the producer step (so a path to DOMAIN_AUTH_SESSION doesn't exist) makes the resolver
-	//      return finding: "unreachable" and `ensure Logged in` fails with a typed error.
-	it("(1c) unreachable finding when a producer doesn't exist; ensure fails", async () => {
-		// Without AuthStepper, the auth-session domain isn't registered AND a producer
-		// step doesn't exist. A permissive ad-hoc domain is registered via a minimal stepper so
-		// the waypoint declares a known domain key whose chain doesn't have a producer.
+	// (1c) The resolver returns the finding "unreachable" where a step doesn't produce DOMAIN_AUTH_SESSION.
+	//      `ensure Logged in` fails with a message that names the domain and "unreachable".
+	it("(1c) ensure fails on an unreachable finding when a producer doesn't exist", async () => {
+		// This test's steppers don't include AuthStepper, so a step doesn't produce the auth-session domain.
+		// DomainOnlyStepper declares the domain without a producer, so the waypoint names a known domain key
+		// that a step doesn't produce.
 		class DomainOnlyStepper extends AStepper implements IHasCycles {
 			description = "Declares the session domain without a step that produces it.";
 			cycles: IStepperCycles = { getConcerns: () => ({ domains: [{ selectors: [DOMAIN_AUTH_SESSION], schema: AuthSessionSchema, description: "Authenticated session" }] }) };
@@ -111,14 +111,12 @@ ensure Logged in`,
 		expect(errors.some((e) => typeof e === "string" && e.includes(DOMAIN_AUTH_SESSION) && e.includes("unreachable"))).toBe(true);
 	});
 
-	// (1d) Capability gating: when the producer step requires a capability the caller
-	//      doesn't have, the resolver filters it from the producer set. Without other
-	//      producers, the goal becomes unreachable: the step lacking capability cannot
-	//      be invoked, so it cannot satisfy the waypoint. A run's own feature holds the
-	//      run's authority, so the caller lacking it is stated: one holding only another action.
-	it("(1d) capability gating: producer requiring an unheld capability is filtered, goal becomes unreachable", async () => {
+	// (1d) A feature holds actuality's authority, so `holding only` states a caller that holds only "auth:read".
+	//      That caller doesn't hold ActivitiesStepper:ensure either, so the gate refuses the `ensure` step before
+	//      the resolver runs. The assertion accepts that refusal, which names a capability.
+	it("(1d) ensure fails for a caller that doesn't hold ensure or the producer's capability", async () => {
 		class GatedAuthStepper extends AStepper implements IHasCycles {
-			description = "Signs in behind a capability.";
+			description = "Signs in with a step that requires a capability.";
 			cycles: IStepperCycles = { getConcerns: () => ({ domains: [{ selectors: [DOMAIN_AUTH_SESSION], schema: AuthSessionSchema, description: "Authenticated session" }] }) };
 			steps: TStepperSteps = {
 				signIn: {

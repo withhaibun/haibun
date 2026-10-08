@@ -1,10 +1,10 @@
 /**
- * The request a turn this page asks runs on, as the adapter that raises the conversation's events for it.
+ * Sends a turn's streaming request from this page and raises the conversation's events from the streamed chunks.
  *
- * Actuality records the question first, and that record names the turn. A stop is an event like any other, and its
- * request's rejection ends the turn as stopped. A turn stopped before its request is sent is aborted at once. A turn
- * stopped after is aborted once actuality has recorded its question: aborted between, actuality can record a question the
- * page never hears of, which asking again would record a second time.
+ * Actuality records the question first, and that record names the turn. A stop is a conversation event, and the rejection
+ * of its request ends the turn as stopped. A turn stopped before its request is sent is aborted at once. A turn stopped
+ * after that is aborted once actuality has recorded its question. An abort between the two can leave a recorded question
+ * that the page doesn't receive. If the person asks the question again, actuality records it a second time.
  */
 import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import type { TCalled } from "@haibun/core/lib/called.js";
@@ -22,21 +22,22 @@ import { ASK_STEP, OPEN_TURN_STEP, askRefusal, conversationState, dispatchConver
 import { TurnEnvelopeSchema, type TTurnEnvelope } from "./schemas.js";
 import { appAccessLevel } from "./util.js";
 
-/** What a turn sends: its prompt, the envelope that states what it is about and what it replies to, and the model asked. */
+/** What a turn sends: its prompt, the envelope that states its subject and the turn it replies to, and the target model. */
 type TTurnRequest = { prompt: string; envelope: TTurnEnvelope; target: string };
 
-/** What the next question is made of: the active entry, whose bundle it carries, and the turn it replies to. The turn
- *  is the actions bar's entry where that entry names one, and the transcript shows the branch that ends at it. */
+/** Returns the parts of the next question: the active entry, whose bundle the question carries, and the turn it replies
+ *  to. The question replies to the actions bar's entry where that entry names a turn. The transcript shows the branch
+ *  that ends at that turn. */
 export function nextQuestion(state: TSubjectState): { carries: TEntry | null; repliesTo: TEntry | null } {
 	const conversation = scopeEntry(state, SCOPE.actionsBar);
 	return { carries: activeEntry(state), repliesTo: conversation?.turn ? conversation : null };
 }
 
 /**
- * What a turn this page asks may do, as the delegation the page signs to the turn's key: reading at the level the page
- * asks at, no wider than the page reads, and each action the page holds of those the instance names for a turn and those
- * the reader allowed its turns. Undefined where the deployment doesn't verify a delegation, where a turn holds what the
- * deployment allows without one.
+ * Returns the delegation the page signs to the turn's key, which states what a turn from this page may do. It grants a
+ * read at the page's access level, capped at the page's read ceiling. It grants each action the page holds from two lists:
+ * the actions the instance names for a turn, and the actions the reader allowed its turns. Returns undefined where the
+ * deployment doesn't verify a delegation. There a turn holds what the deployment allows without one.
  */
 async function turnDelegation(): Promise<Record<string, unknown> | undefined> {
 	if (!deploymentVerifiesDelegations()) return undefined;
@@ -46,10 +47,10 @@ async function turnDelegation(): Promise<Record<string, unknown> | undefined> {
 	return await delegateFromPage({ controller: turn.controller, wanted: [readAction(reads), ...given], expires: turn.expires, target: location.origin });
 }
 
-/** The events a turn's streamed chunks carry. Text, context lines and calls are raised at most once a frame, so a stream
- *  faster than the page draws moves the turn once per drawn frame. Any other chunk raises the context lines and calls held
- *  first, so a record the turn reached is activated in the order the stream carried, and `flush` raises what is held
- *  before the turn ends. */
+/** Raises the conversation events a turn's streamed chunks carry. Text, context lines and calls are raised at most once a
+ *  frame, so a stream faster than the page draws updates the turn once per drawn frame. Any other chunk first raises the
+ *  held context lines and calls, so the records the turn reached are activated in stream order. `flush` raises what is
+ *  held before the turn ends. */
 class ChunkEvents {
 	#text = "";
 	#context: string[] = [];
@@ -67,7 +68,7 @@ class ChunkEvents {
 		if (chunk.text || chunk.context || chunk.called) this.#frame ??= requestAnimationFrame(this.flush);
 	};
 
-	/** Raise the context lines and calls held. */
+	/** Raises the held context lines and calls. */
 	private raiseStated(): void {
 		if (this.#context.length) dispatchConversationEvent({ type: "context", lines: this.#context.splice(0) });
 		if (this.#calls.length) dispatchConversationEvent({ type: "called", calls: this.#calls.splice(0) });
@@ -83,15 +84,15 @@ class ChunkEvents {
 }
 
 /**
- * Ask a turn over the request stream, or throw the refusal where the conversation refuses a question now. The promise
- * resolves with the turn as it ended. A turn that does not complete is reported to actuality, so actuality's log holds the
- * error it shows. A turn is asked at the level the page reads at now, which the address may have narrowed since the
- * records it is about were activated.
+ * Sends a turn's question over the request stream. Throws the conversation's refusal where the conversation refuses a
+ * new question. The promise resolves with the turn's final state. A turn that doesn't complete is reported to actuality,
+ * so actuality's log holds the error the turn shows. A turn is sent at the page's current access level. The address can
+ * have narrowed that level after the turn's records were activated.
  */
 export async function startTurn({ prompt, envelope, target }: TTurnRequest): Promise<TAskedTurn> {
 	const refusal = askRefusal(conversationState.get());
 	if (refusal) throw new Error(refusal);
-	// Stated before the turn is asked, so an envelope that does not serialize is refused and doesn't leave a turn in flight.
+	// Parses the envelope before the `ask` event, so an envelope that fails the schema throws and doesn't leave a turn in flight.
 	const delegation = await turnDelegation();
 	const stated = TurnEnvelopeSchema.parse({ ...envelope, ...(delegation ? { delegation } : {}) });
 	const context = JSON.stringify(stated);
@@ -104,7 +105,7 @@ export async function startTurn({ prompt, envelope, target }: TTurnRequest): Pro
 	const chunks = new ChunkEvents();
 	try {
 		await conduit().followStream(acts(requireStep(ASK_STEP), { prompt, context, accessLevel: appAccessLevel(), target }), chunks.raise, {
-			why: "chat-turn: stream the turn's answer",
+			why: "chat-turn: stream the turn's response",
 			signal: abort.signal,
 			onStart: () => dispatchConversationEvent({ type: "started" }),
 		});
@@ -117,7 +118,7 @@ export async function startTurn({ prompt, envelope, target }: TTurnRequest): Pro
 		unsubscribe();
 	}
 	const ended = conversationState.get().asked;
-	if (!ended) throw new Error("the conversation doesn't hold the turn this page asked: it was cleared while the turn ran");
+	if (!ended) throw new Error("the conversation doesn't hold the turn this page started, because the turn was cleared while it ran. Ask the question again.");
 	if (ended.status === "failed" || ended.status === "stopped") reportToRun("error", "chat-turn", `chat turn ${ended.status}: ${ended.error}`);
 	return ended;
 }

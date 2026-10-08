@@ -16,7 +16,7 @@ describe("dispatchAffordanceFromResponse", () => {
 		document.body.innerHTML = "";
 		setConduit(
 			new TestConduit(() => {
-				throw new Error("affordance-dispatch test: no dispatch expected");
+				throw new Error("affordance-dispatch test: the conduit received a call, and this test doesn't define a fixture for one");
 			}),
 		);
 		ShuElement.pushHash("#?");
@@ -60,7 +60,7 @@ describe("dispatchAffordanceFromResponse", () => {
 		if (!customElements.get("shu-affordances-panel")) customElements.define("shu-affordances-panel", class extends HTMLElement {});
 		const strip = document.createElement("shu-column-strip");
 		document.body.appendChild(strip);
-		// biome-ignore lint/suspicious/noExplicitAny: test-only, strip facade is narrower than real ShuColumnStrip.
+		// biome-ignore lint/suspicious/noExplicitAny: the test's strip implements a subset of ShuColumnStrip.
 		PaneState.init(strip as any);
 	});
 

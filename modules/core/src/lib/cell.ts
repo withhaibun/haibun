@@ -1,13 +1,13 @@
 /**
- * A value and the readers that follow it. Each follower is told the value and the value it replaced, and a value set
- * again unchanged doesn't tell a follower.
+ * A value and the followers subscribed to it. `set` calls each follower with the new value and the value it replaced.
+ * Setting the same value again doesn't call a follower.
  */
 
-/** What a cell holds and tells: shu's shared signal implements it across bundles. */
+/** The interface of a cell: its value, a setter and change subscriptions. shu's shared signal implements it across bundles. */
 export interface ICell<T> {
 	get(): T;
 	set(value: T): void;
-	/** Follow each change until the returned function is called. */
+	/** Calls `onChange` on each change until the returned function is called. */
 	subscribe(onChange: (value: T, before: T) => void): () => void;
 }
 

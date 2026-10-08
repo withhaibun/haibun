@@ -1,40 +1,40 @@
-# Logic in Haibun: Claims, Rules, and Derived Answers
+# Logic in Haibun: Claims, Rules, and Derived Facts
 
-This document describes a plan to add a reasoner to haibun and a surface for stating logical claims and rules in feature prose. The reasoner derives answers from those claims and reports the chain of reasoning behind each answer. The framing is First-Order Logic; the closer ancestor for the typed-data side is the Description Logic family that underlies RDF Schema, OWL, and JSON-LD's `@context`.
+This document describes a plan to add a reasoner to haibun and a surface for stating logical claims and rules in feature prose. The reasoner derives conclusions from those claims. It reports the proof of each conclusion. The plan uses the terms of First-Order Logic. The typed-data side follows the Description Logic family more closely. RDF Schema, OWL and JSON-LD's `@context` build on Description Logic.
 
-The reasoner takes input from two streams: typed-data documents (like JSON-LD, whose triples enter as facts), and the step prose that authors write in feature files. The same prose declares predicates and rules, asserts facts, requests proofs, and reads answers back.
+The reasoner reads input from two sources. The first is typed-data documents such as JSON-LD. Their triples enter working memory as facts. The second is the step prose that authors write in feature files. The same prose declares predicates and rules, asserts facts, requests proofs and reads the results.
 
-A working application has three artefacts that ordinarily live apart: a specification, an implementation, and a test suite. The lines in a logical description serve all three. The lines that state what holds are the lines the reasoner checks for truth. The reasoner that runs the application is the same one that derives its conclusions. Instructions a person can follow to use the system, an explanation of why a particular result occurred, and the criterion the tests check against all read from the same description.
+Most applications have three separate artifacts: a specification, an implementation and a test suite. The lines of a logical description serve as all three. The lines that state what holds are the lines the reasoner checks for truth. The reasoner that runs the application is the same one that derives its conclusions. The same description provides the instructions a person follows to use the system, the explanation of a particular result, and the criterion the tests check.
 
-Outside-world steps, network calls, signing, storage, user-agent interaction, stay imperative. Their results enter the reasoner as facts whose predicate they declare. The boundary between imperative action and logical derivation is explicit.
+Steps that act on the outside world stay imperative. Such steps make network calls, sign, store and interact with a user agent. Their results enter the reasoner as facts under the predicate each step declares. The boundary between imperative action and logical derivation is explicit.
 
 ## Vocabulary
 
-First-Order Logic has a vocabulary; haibun has another for some of the same things. Where the two diverge, haibun's term is preferred below.
+First-Order Logic and haibun use different terms for some of the same things. This document uses haibun's term where the two differ.
 
-An **individual** is a particular thing the system reasons about. It is referred to by a reference: a URI, a DID, a vertex id, a JSON-LD `@id`. The system does not handle a thing directly; it handles a reference and what someone has recorded under it. Two parties may refer to the same individual under different references. Equality between individuals is equality between what their references resolve to, not byte-level identity.
+An **individual** is a particular thing that facts and rules describe. A reference identifies it: a URI, a DID, a vertex id or a JSON-LD `@id`. The system doesn't handle a thing directly. It handles a reference and the records stored under that reference. Two parties may refer to the same individual with different references. Two individuals are equal when their references resolve to the same thing. Equality doesn't require byte-identical references.
 
-A **domain** (FOL: *sort*) is a named category. `set of meal is ["dinner", "lunch", "breakfast"]` declares one. A reference is read under a domain to fix which facets the rules speak about. The domain does not claim to capture the referent in full; it declares the properties, relationships, and states the rules attend to.
+A **domain** (FOL: *sort*) is a named category. `set of meal is ["dinner", "lunch", "breakfast"]` declares one. A reference is read under a domain. The domain fixes which facets of the referent the rules use. A domain doesn't describe the referent in full. It declares the properties, relationships and states that the rules use.
 
-A **predicate** is a named relationship with typed parts. `signed_by(VerifiableCredential, Issuer)` has two parts; `Ready(Meal)` has one. Each part has a declared domain that states what kind of individual can go there. Predicate names are themselves references, IRIs in JSON-LD, declared names in haibun that map to IRIs. A predicate becomes a **fact** when its parts are specific individuals: `signed_by(credential-7, did:web:tethys.osf)`. A fact is a triple of references, subject, predicate, object, each of which can be looked up.
+A **predicate** is a named relationship with typed parts. `signed_by(VerifiableCredential, Issuer)` has two parts. `Ready(Meal)` has one. Each part has a declared domain. The domain states the kind of individual the part accepts. A predicate name is itself a reference. In JSON-LD it is an IRI. In haibun it is a declared name that maps to an IRI. A predicate becomes a **fact** when its parts are specific individuals: `signed_by(credential-7, did:web:tethys.osf)`. A fact is a triple of references: subject, predicate and object. Each reference can be resolved.
 
-A **variable** stands for any individual: `x`, `y`. In haibun a variable is a step placeholder `{x}`. Variables allow a single statement to speak about every individual without naming each.
+A **variable** stands for any individual: `x`, `y`. In haibun a variable is a step placeholder `{x}`. A variable lets one statement apply to every individual without naming each one.
 
 The set of asserted facts is the **ABox** (assertion box, from Description Logic). In haibun it is the working memory stored in `FACT_GRAPH`.
 
-The declared vocabulary, domains, predicates, rules, is the **TBox** (terminological box) or *signature*. Haibun doesn't have a native term for the whole TBox; the closest published form is the `ConcernCatalog` the show steps step returns.
+The declared vocabulary is the **TBox** (terminological box) or *signature*. It contains the domains, predicates and rules. Haibun doesn't have its own term for the whole TBox. The closest published form is the `ConcernCatalog`. A definition-detail result of the show steps step holds the catalog's matching concerns.
 
-A **rule** has a head and a body. The body's facts together let the head be derived: `Ready(m) ← Cooked(m) ∧ Plated(m)`. In haibun, a rule is a `waypoint` with a goal-shaped proof inside an `Activity:` block.
+A **rule** has a head and a body. The head is derived when the body's facts hold: `Ready(m) ← Cooked(m) ∧ Plated(m)`. A haibun rule is a `waypoint` with a goal-shaped proof inside an `Activity:` block.
 
-Inference happens in two directions. **Backward chaining** starts from a goal and searches the rules for facts that support it, binding variables along the way. **Forward chaining** starts from facts and rules and derives every new fact those entail. The substitution that makes a rule's head match a goal is a **unifier**.
+Inference runs in two directions. **Backward chaining** starts from a goal and searches the rules for facts that support it. It binds variables as it searches. **Forward chaining** starts from facts and rules and derives every new fact those entail. The substitution that makes a rule's head match a goal is a **unifier**.
 
-The result of a successful inference is a **proof tree**: the goal at the root, the rule applied at each interior node, the unifier at that node, the supporting facts at the leaves. A failed inference returns a partial tree pointing at the first sub-goal that could not be proved.
+The result of a successful inference is a **proof tree**: the goal at the root, the rule applied at each interior node, the unifier at that node, the supporting facts at the leaves. A failed inference returns a partial tree. The partial tree marks the first sub-goal that couldn't be proved.
 
 ## Haibun steps
 
-A step in haibun is a single line in a feature file that matches a gwta pattern. Every step evaluates to true or false: success returns `OK`, failure returns `actionNotOK`. A scenario passes if every step in it is true.
+A step in haibun is a single line in a feature file that matches a gwta pattern. Every step evaluates to true or false. A step that succeeds returns `OK`. A step that fails returns `actionNotOK`. A scenario passes when every step in it is true.
 
-Steps carry several logical roles depending on what the line is:
+A step's line determines its logical role:
 
 | Step                                        | Role                                            |
 | ------------------------------------------- | ----------------------------------------------- |
@@ -43,16 +43,16 @@ Steps carry several logical roles depending on what the line is:
 | `ensure …`, `resolve …`                     | goal-directed proof search                      |
 | `every {x} in D is …`, `some {x} in D is …` | quantification                                  |
 | `not …`, `where …`, `any of …`              | connective                                      |
-| navigate, sign, fetch, ingest, click        | outside-world action; facts arrive as a result  |
+| navigate, sign, fetch, ingest, click        | outside-world action; results enter as facts    |
 | capital-letter sentence ending in `.`       | narrative prose, dispatched as a no-op          |
 
-A query step's truth value is whether the fact holds. An `ensure` step's truth value is whether the goal is provable. A `not` step's truth value is the inverse of its inner result. Every step receives a `seqPath`; every fact a step asserts carries that `seqPath` as provenance.
+A query step's truth value is whether the fact holds. An `ensure` step's truth value is whether the goal is provable. A `not` step's truth value is the inverse of its inner result. Every step receives a `seqPath`. Every fact a step asserts carries that `seqPath` as provenance.
 
-Working memory is populated from more than authored steps. Triples can be read in bulk from typed-data sources: a JSON-LD document under the predicates its `@context` declares, a hypermedia response under predicates that name its links and attributes, an HTTP observation stream as one triple per request. The dispatcher's existing `productsDomain` auto-assertion is the same channel applied to a step's own output. All resulting triples live in `FACT_GRAPH` and are queryable by any rule.
+Sources other than authored steps add triples to working memory. Triples can be read in bulk from typed-data sources: a JSON-LD document under the predicates its `@context` declares, a hypermedia response under predicates that name its links and attributes, an HTTP observation stream as one triple per request. The dispatcher asserts a step's retained products as facts under the step's `productsDomain` or `productsDomains`. `FACT_GRAPH` stores all the resulting triples. Any rule can query them.
 
 ## The signature in feature prose
 
-A domain is declared with `set of D is [values]`, `ordered set of D is [values]`, or `set of D as superdomain is [values]`. The first lists allowed values; the second adds an order for comparison; the third subordinates one domain to another.
+A domain is declared with `set of D is [values]`, `ordered set of D is [values]` or `set of D as [superdomains]`. The first lists the allowed values. The second lists the values in order for comparison. The third declares a domain whose values are those of the listed superdomains.
 
 A predicate is declared with `predicate {pattern}`:
 
@@ -61,28 +61,28 @@ predicate {x:meal} is {state:meal-state}
 predicate {issuer:Issuer} delegates to {p:Person} for {a:Action} at {v:Venue}
 ```
 
-The verb in a using line decides assert versus query. `assert dinner is "ready"` writes the fact. The bare `dinner is "ready"` queries it.
+The verb in a line that uses the predicate determines whether the line asserts or queries. `assert dinner is "ready"` writes the fact. The bare `dinner is "ready"` queries it.
 
-A rule is a parameterised waypoint with a goal-shaped proof:
+A rule is a parameterized waypoint with a goal-shaped proof:
 
 ```
 Activity: Get a meal ready
 waypoint {m:meal} is "ready" with {m} is "cooked" and {m} is "plated"
 ```
 
-Read as logic this is `Ready(m) ← Cooked(m) ∧ Plated(m)` for any `m` of domain `meal`. The activity body is run by the reasoner when the proof fails: its steps extend working memory until the proof can be re-checked.
+This rule reads as `Ready(m) ← Cooked(m) ∧ Plated(m)` for any `m` of domain `meal`. The reasoner runs the activity body when the proof fails. The body's steps add facts to working memory. The reasoner rechecks the proof after those steps.
 
-A universal as a rule is declared with `for every {x:D} where {body}, {head}`:
+A universal rule is declared with `for every {x:D} where {body}, {head}`:
 
 ```
 for every {x:meal} where {x} is "cooked", assert {x} is "edible"
 ```
 
-The reasoner adds an `edible` fact whenever a matching `cooked` fact is asserted, and uses the same rule to answer `edible` goals by looking for the matching `cooked` fact.
+The reasoner adds an `edible` fact whenever a matching `cooked` fact is asserted. The reasoner uses the same rule to prove an `edible` goal from the matching `cooked` fact.
 
 ## Facts about individuals
 
-Facts are stored as triples in `FACT_GRAPH`. The subject is the individual the fact is about. The predicate is the relation. The object is the value or related individual.
+Facts are stored as triples in `FACT_GRAPH`. The subject is the individual that the fact describes. The predicate is the relation. The object is the value or related individual.
 
 ```
 assert dinner is "ready"
@@ -91,11 +91,11 @@ fact dinner is "ready"
 not fact dinner is "raw"
 ```
 
-Each fact carries its provenance as a quad property: the `seqPath` of the step that asserted it, the rule (if any) whose firing derived it, the parent goal (if any) that prompted that derivation. A proof tree is reconstructable from working memory.
+Each fact carries its provenance as a quad property: the `seqPath` of the step that asserted it, the rule (if any) whose firing derived it, the parent goal (if any) that led to that derivation. A proof tree can be rebuilt from working memory.
 
 ## Goals and proofs
 
-A goal is a predicate application possibly containing variables: `Ready(dinner)`, `Ready(x)`, `Owns(alice, ?)`.
+A goal is a predicate application that may contain variables: `Ready(dinner)`, `Ready(x)`, `Owns(alice, ?)`.
 
 ```
 ensure dinner is "ready"
@@ -104,7 +104,7 @@ some {x:meal} is "ready"
 every {x:meal} where {x} is "cooked", {x} is "edible"
 ```
 
-`ensure` is backward chaining combined with the option of running an activity body to make a failed proof succeed on retry. `resolve` is backward chaining as a query and returns a tree. `some` and `every` quantify, either as bounded iteration or, when the head is a fact-shaped statement, as a rule the reasoner uses in both directions.
+`ensure` runs backward chaining. It runs the activity body when the proof fails and retries the proof afterward. `resolve` runs backward chaining as a query and returns a tree. `some` and `every` quantify over a domain. A quantifier whose head is a fact-shaped statement registers a rule that the reasoner uses in both directions. Any other quantifier runs as bounded iteration.
 
 A proof tree renders as:
 
@@ -119,23 +119,23 @@ The monitor renders the same tree. An RPC `derive "{goal}"` returns it.
 
 ## The hypermedia surface
 
-The show steps step (`Haibun-showSteps`) returns the registered steps and a `ConcernCatalog`. The catalog includes a `predicates` section listing each declared predicate by name, the domain of each part, and a sample step. The SPA's affordances panel uses the catalog to render predicates as advertised next moves. An MCP client uses it as a tool inventory. An LLM caller binds to it as typed tool definitions.
+The show steps step (`Haibun-showSteps`) returns the steps and domains that match a text. Its definition-detail result holds the matching concerns of the `ConcernCatalog` as well. The plan adds a `predicates` section to the catalog. The section lists each declared predicate's name, the domain of each part and a sample step. The SPA's affordances panel reads the catalog and renders the predicates as affordances. An MCP client reads it as a list of tools. An LLM caller reads it as typed tool definitions.
 
-`signature.list` returns the full signature: domains, predicates, rules, functions. `derive "{goal}"` returns a proof tree or a partial tree pointing at the unprovable sub-goal.
+`signature.list` returns the full signature: domains, predicates, rules, functions. `derive "{goal}"` returns a proof tree, or a partial tree that marks the unprovable sub-goal.
 
 ## Negation, equality, functions
 
-`not {statement}` is negation as failure: if the statement fails to prove, the negation succeeds.
+`not {statement}` is negation as failure. The negation succeeds when the statement can't be proved.
 
-`absent {statement}` is the closed-world counterpart: an authored assertion that the statement is known to be false. Used where "a proof doesn't exist" must be distinguished from "a proof of falsity".
+`absent {statement}` is the closed-world counterpart. It is an authored assertion that the statement is false. It separates the case where a proof doesn't exist from the case where a proof of falsity exists.
 
-`{a} is the same as {b}` declares equality between two individuals; the reasoner treats them as one. A DID alias whose two strings resolve to the same key is the common case.
+`{a} is the same as {b}` declares equality between two individuals. The reasoner treats them as one. A DID alias whose two strings resolve to the same key is the common case.
 
-A function declaration `function {name}({parts}) → D` registers a domain-typed projection. Functions are evaluated during proof search and their results substitute for the application. A function is sugar over a predicate whose final part is the result.
+A function declaration `function {name}({parts}) → D` registers a domain-typed projection. The reasoner evaluates functions during proof search. A function's result replaces its application. A function is shorthand for a predicate whose final part is the result.
 
 ## Surface syntax
 
-`✓` marks a step that exists in haibun. The unmarked lines are added by the phases below.
+`✓` marks a step that exists in haibun. The phases below add the unmarked lines.
 
 ```
 ✓ set of D is [values]
@@ -176,18 +176,18 @@ Every line follows haibun's step format. The format doesn't require an additiona
 
 ## Phases
 
-The system is delivered in phases. Each phase keeps the surface authored before it functional.
+The plan delivers the system in phases. Each phase keeps the steps of earlier phases working.
 
 ### Phase 0, Per-subject facts
 
-Two steps for direct ABox assertion and query:
+Two steps assert and query ABox facts directly:
 
 ```
 assert {subject:string} {predicate:string} {value:string}
 fact {subject:string} {predicate:string} {value:string}
 ```
 
-The first writes a `(subject, predicate, value)` quad into `FACT_GRAPH`. The second succeeds if the quad exists. Provenance, the asserting `seqPath`, is a property on the quad. Later phases read and write here.
+The first writes a `(subject, predicate, value)` quad into `FACT_GRAPH`. The second succeeds when the quad exists. The quad holds its provenance as a property. The provenance is the `seqPath` of the asserting step. Later phases read and write the same graph.
 
 ### Phase 1, Predicates as declarations
 
@@ -197,21 +197,21 @@ A declarative line registers a predicate with named, domain-typed parts:
 predicate {subject:meal} is {state:meal-state}
 ```
 
-The parser builds a predicate descriptor `(name, arg-domains)`. The verb in a using line decides assert versus query. The show steps catalog gains a `predicates` section.
+The parser builds a predicate descriptor `(name, arg-domains)`. The verb in a line that uses the predicate determines whether the line asserts or queries. The catalog that show steps returns gains a `predicates` section.
 
 ### Phase 2, Unification in the resolver
 
-Goals and rule heads become predicate applications possibly containing variables. The resolver finds a most-general unifier between goal and head; the unifier propagates through the body's conjuncts.
+Goals and rule heads become predicate applications that may contain variables. The resolver computes a most-general unifier of the goal and the head. The resolver applies the unifier to the body's conjuncts.
 
-`ensure dinner is "ready"` finds the rule `{m} is "ready" with …` by binding `m ↦ dinner`. The body's `{m}` references resolve to `dinner`.
+`ensure dinner is "ready"` selects the rule `{m} is "ready" with …` and binds `m ↦ dinner`. The body's `{m}` references resolve to `dinner`.
 
 ### Phase 3, Rule chaining
 
-`ensure`'s proof check re-solves goal-shaped proofs recursively. A predicate application that matches another rule's head triggers a sub-derivation. Recursion is bounded by a depth limit and a cycle guard.
+`ensure`'s proof check re-solves goal-shaped proofs recursively. A predicate application that matches another rule's head triggers a sub-derivation. A depth limit and a cycle guard bound the recursion.
 
 ### Phase 4, Proof objects
 
-Every successful `ensure` and `resolve` returns a proof tree. Failures return a partial tree marking the first unprovable sub-goal. The monitor renders trees. The affordances panel surfaces a `show derivation` action per reachable goal. The RPC surface exposes `derive` for external callers.
+Every successful `ensure` and `resolve` returns a proof tree. A failure returns a partial tree that marks the first unprovable sub-goal. The monitor renders trees. The affordances panel shows a `show derivation` action for each reachable goal. The RPC surface exposes `derive` to external callers.
 
 ### Phase 5, Universals as rules
 
@@ -219,11 +219,11 @@ Every successful `ensure` and `resolve` returns a proof tree. Failures return a 
 
 ### Phase 6, Equality and classical negation
 
-`{a} is the same as {b}` registers equality with congruence; queries normalise to canonical representatives. `absent {statement}` adds a closed-world falsity assertion separate from negation as failure.
+`{a} is the same as {b}` registers equality with congruence. Queries normalize each individual to its canonical representative. `absent {statement}` adds a closed-world falsity assertion separate from negation as failure.
 
 ### Phase 7, Functions
 
-`function {name}({args}) → D` registers a domain-typed projection. Function applications evaluate during proof search.
+`function {name}({args}) → D` registers a domain-typed projection. The reasoner evaluates function applications during proof search.
 
 ## Worked example: cooking
 
@@ -240,7 +240,7 @@ ensure dinner is "ready"
 fact dinner is "ready"
 ```
 
-`is(dinner, ready)` unifies with the waypoint head, binding `m ↦ dinner`. The sub-goal `is(dinner, cooked)` is in working memory. The sub-goal `is(dinner, plated)` is not, and the rule heads don't match it; the activity body runs and asserts it. Re-check passes.
+`is(dinner, ready)` unifies with the waypoint head and binds `m ↦ dinner`. The sub-goal `is(dinner, cooked)` is in working memory. The sub-goal `is(dinner, plated)` isn't in working memory. A rule head doesn't match it either. The activity body runs and asserts it. The second check passes.
 
 ```
 is(dinner, ready)
@@ -262,7 +262,7 @@ waypoint {c:VerifiableCredential} is valid with {c} is signed by {i} and {i} con
 ensure credential is valid
 ```
 
-If validation fails, the partial tree names the unmet conjunct, for example "the signature did not verify under did:web:tethys.osf#key-1".
+The partial tree of a failed validation names the unmet conjunct. An example is "the signature did not verify under did:web:tethys.osf#key-1".
 
 ## Worked example: capability delegation
 
@@ -277,7 +277,7 @@ waypoint {p:Person} may {a:Action} at {v:Venue} with {p} holds a capability gran
 ensure "child" may "swim" at "pool"
 ```
 
-The reasoner walks the delegation chain backward. The chain is the tree.
+The reasoner follows the delegation chain backward. The proof tree is the delegation chain.
 
 ## Worked example: observation + rule
 
@@ -289,30 +289,30 @@ for every {req} where {req} is "broken", assert pipeline is "degraded"
 ensure pipeline is "healthy"
 ```
 
-Runtime observations become facts. Facts trigger rules that derive further facts. The pipeline goal's answer reflects the cumulative state.
+Runtime observations become facts. Facts trigger rules that derive further facts. The result of the pipeline goal reflects the accumulated facts.
 
 ## Scope
 
-Steppers act on the world. The reasoner reasons about goals, rules, and facts. The two are separate.
+Steppers act on the world. The reasoner evaluates goals against rules and facts. Steppers and the reasoner are separate components.
 
-Inference uses goal-directed backward search through the rule set. The surface is haibun feature prose.
+Proof search runs backward from each goal through the rule set. A universal rule runs forward on each new matching fact as well. The surface is haibun feature prose.
 
-Finite domains, depth limits, and cycle guards bound proof search.
+Finite domains, depth limits and cycle guards bound proof search.
 
-The system targets multi-step plans, capability checks, declarative validation, and entailment from runtime observations. Deterministic one-shot flows continue to be written as plain step sequences.
+The system targets multi-step plans, capability checks, declarative validation and entailment from runtime observations. Deterministic single-pass flows stay plain step sequences.
 
 ## Open questions
 
-How a predicate's per-subject key is derived from a `productsDomain` payload, fall back to `seqPath` when an `idField` isn't declared.
+How is a predicate's per-subject key derived from a `productsDomain` payload? The proposal is to read the declared `idField`, or the `seqPath` when an `idField` isn't declared.
 
-How higher-arity predicates store in a quad store, reify into anonymous individuals carrying the tuple, with the relation as type.
+How does a quad store hold a predicate with more than two parts? The proposal is to reify each tuple as an anonymous individual whose type is the relation.
 
-Where the reasoner runs, in-process per feature first, with a `derive` RPC for clients; an out-of-process inference service later if needed.
+Where does the reasoner run? The proposal is to run it in-process for each feature, with a `derive` RPC for clients. An out-of-process inference service can follow if needed.
 
-Whether `signature.list` and `derive` belong on the existing show steps step or a new namespace.
+Should `signature.list` and `derive` extend the existing show steps step, or should a new namespace declare them?
 
-How existing `productsDomain` declarations migrate, auto-derive a one-part predicate per declaration; let authors opt into richer signatures over time.
+How do existing `productsDomain` declarations migrate? The proposal is to derive a one-part predicate from each declaration. Authors can declare richer signatures afterward.
 
 ## Summary
 
-A signature: domains, predicates, rules. A working memory of per-subject facts. A reasoner that runs in both directions. Proof trees that record why each answer holds. A hypermedia surface that publishes the signature to every client. All written in haibun's step prose.
+The plan has five parts. A signature declares domains, predicates and rules. A working memory holds per-subject facts. A reasoner runs in both directions. A proof tree records why each conclusion holds. A hypermedia surface publishes the signature to every client. Feature authors write all of it in haibun's step prose.

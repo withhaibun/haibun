@@ -1,14 +1,11 @@
 /**
- * hostId: a stable non-negative integer identifying the haibun instance
- * within a deployment. Prepended to every seqPath root so observations from
- * different hosts cannot collide even when running identical features.
+ * hostId is a stable non-negative integer that identifies a haibun instance within a deployment. It prefixes every
+ * seqPath root, so observations from different hosts don't collide when the hosts execute identical features.
  *
- * Single-host deployments keep hostId = 0 (the default) and don't see a change.
- * Multi-host deployments set HAIBUN_HOST_ID per instance; assigning ids is
- * an operator concern (config, supervisor, orchestration).
+ * A single-host deployment keeps the default hostId 0. A multi-host deployment sets HAIBUN_HOST_ID per instance. An
+ * operator assigns the ids through config, a supervisor or orchestration.
  *
- * Aligns with OpenTelemetry's `service.instance.id` convention: a haibun
- * instance is a service instance.
+ * hostId follows OpenTelemetry's `service.instance.id` convention. A haibun instance is a service instance.
  */
 export const HAIBUN_HOST_ID_ENV = "HAIBUN_HOST_ID";
 export const DEFAULT_HOST_ID = 0;
@@ -17,9 +14,8 @@ export const DEFAULT_HOST_ID = 0;
 export const SYNTHETIC_FEATURE_NUM = -1;
 
 /**
- * Resolve hostId from environment. Returns DEFAULT_HOST_ID when the env var
- * is absent. Throws on non-integer or negative values: a misconfigured
- * hostId would silently break global uniqueness, so fail fast at startup.
+ * Reads hostId from the environment. Returns DEFAULT_HOST_ID when the variable is absent or empty. Throws on a
+ * non-integer or negative value, since a misconfigured hostId would make seqPaths collide across hosts without an error.
  */
 export function resolveHostId(env: Record<string, string | undefined> = process.env): number {
 	const raw = env[HAIBUN_HOST_ID_ENV];
@@ -34,7 +30,7 @@ export function resolveHostId(env: Record<string, string | undefined> = process.
 export const HAIBUN_SITE_KEY_ENV = "HAIBUN_SITE_KEY";
 export const SITE_DID_PREFIX = "did:site:";
 
-/** The default identity this instance acts as. Defaults to `did:site:<hostId>`; HAIBUN_SITE_KEY overrides (bare → `did:site:<key>`, already-`did:` → used as-is). */
+/** Returns this instance's default identity. That identity is `did:site:<hostId>` unless HAIBUN_SITE_KEY is set. A bare key becomes `did:site:<key>`, and a key that starts with `did:` is used as-is. */
 export function resolveSitePrincipal(env: Record<string, string | undefined> = process.env): string {
 	const raw = env[HAIBUN_SITE_KEY_ENV];
 	if (raw && raw.startsWith("did:")) return raw;
@@ -42,15 +38,15 @@ export function resolveSitePrincipal(env: Record<string, string | undefined> = p
 	return `${SITE_DID_PREFIX}${resolveHostId(env)}`;
 }
 
-/** Runtime key holding an ADOPTED site principal, assigned by a peer at federation time (see adoptSitePrincipal). */
+/** Runtime key for the site principal a peer assigns at federation time (see adoptSitePrincipal). */
 const ADOPTED_SITE_PRINCIPAL = "sitePrincipal";
 
 type TSitePrincipalWorld = { runtime: { keys?: Record<string, unknown> } };
 
 /**
- * This instance's site principal (its identity DID) as seen by a federation: an adopted one when a peer has
- * named it, else the env-resolved default. Distinct from the acting principal (principal.ts): a statement under a
- * capability changes who is ACTING; the site a store fact is served by never changes mid-run.
+ * Returns the DID that identifies this instance in a federation. That DID is the principal a peer assigned, or the
+ * env-resolved default when a peer hasn't assigned one. The site principal differs from the acting principal in principal.ts. A statement under a
+ * capability changes the acting principal. It doesn't change the site principal that serves a store fact.
  */
 export function activeSitePrincipal(world: TSitePrincipalWorld, env: Record<string, string | undefined> = process.env): string {
 	const adopted = world.runtime.keys?.[ADOPTED_SITE_PRINCIPAL];
@@ -63,9 +59,11 @@ export function hasDefaultSitePrincipal(world: TSitePrincipalWorld, env: Record<
 }
 
 /**
- * Adopt a peer-assigned site principal: site principals must be unique within a federation, and the default
- * `did:site:0` is valid only in isolation: a default-identified instance asks the site it connects to what
- * it should be called, and adopts the answer for this run. An operator-set principal is never overwritten.
+ * Stores a site principal that a peer assigned. Site principals must be unique within a federation, and the default
+ * `did:site:0` is valid only for an isolated instance. `federate graph reads from {where}` requests a name from the peer
+ * when this instance's default principal matches the peer's principal. adoptSitePrincipal stores that name in the
+ * world's runtime keys. A caller calls adoptSitePrincipal only when hasDefaultSitePrincipal is true, so an operator-set
+ * principal isn't overwritten.
  */
 export function adoptSitePrincipal(world: TSitePrincipalWorld, principal: string): void {
 	if (!principal.startsWith("did:")) throw new Error(`adoptSitePrincipal: expected a DID, got "${principal}"`);
@@ -73,20 +71,18 @@ export function adoptSitePrincipal(world: TSitePrincipalWorld, principal: string
 }
 
 /**
- * Synthetic seqPath for calls not tied to a feature step, ad-hoc RPC,
- * MCP tool invocations. Uses SYNTHETIC_FEATURE_NUM
- * (-1) in the featureNum slot so these paths sort distinctly from any
- * feature path and cannot collide with a running feature.
+ * Builds the seqPath for a call that isn't tied to a feature step, such as an ad-hoc RPC or an MCP tool invocation.
+ * SYNTHETIC_FEATURE_NUM (-1) in the featureNum slot sorts these paths apart from every feature path, so they don't
+ * collide with an executing feature.
  */
 export function syntheticSeqPath(hostId: number, adHocSeq: number): number[] {
 	return [hostId, SYNTHETIC_FEATURE_NUM, adHocSeq];
 }
 
 /**
- * Allocate the next synthetic seqPath for the given world. Bumps the
- * world's `adHocSeq` counter and returns a path rooted on the world's
- * hostId. Used by every external-protocol entry point (RPC, MCP,
- * MCP) so the bump-then-build invariant lives in one place.
+ * Allocates the next synthetic seqPath for a world. Increments the world's `adHocSeq` counter and returns a path rooted
+ * at the world's hostId. Every external-protocol entry point (RPC, MCP) calls it, so one function increments the
+ * counter and builds the path.
  */
 export function allocateSyntheticSeqPath(world: { tag: { hostId: number }; runtime: { adHocSeq?: number } }): number[] {
 	world.runtime.adHocSeq = (world.runtime.adHocSeq ?? 0) + 1;

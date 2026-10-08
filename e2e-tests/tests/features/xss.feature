@@ -11,5 +11,5 @@ Scenario: Check against URI xss exploit
 
     compose exploit with {xss}?;alert('hi')
     go to the exploit webpage
-    Playwright auto accepts dialogs, so we cannot check this.
+    The exploit webpage opens a dialog. The `accept next dialog` step accepts each dialog the page opens. This feature doesn't check the message of that dialog.
     ;; dialog "clicked" message states "hi"

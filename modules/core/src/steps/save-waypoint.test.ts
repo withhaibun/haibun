@@ -1,6 +1,6 @@
 /**
- * A waypoint saved during a run: registered as a step the run offers at once, whose activity is the lines it was saved
- * with, and refused where a line doesn't resolve to a step or the outcome is already registered.
+ * A waypoint that `save waypoint` saves. Actuality registers it as a step at once, and its activity runs the saved lines.
+ * Saving is refused where a line doesn't resolve to a step or the outcome is already registered with other lines.
  */
 import { describe, it, expect } from "vitest";
 import { failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
@@ -20,7 +20,7 @@ const SAVE = `save waypoint "${OUTCOME}" doing [${JSON.stringify(KNOCK_LINE)}]`;
 const RUN = ACTIVITIES_ACTIONS.runSavedWaypoint;
 const SET = requiredAction(VariablesStepper.name, "set", {});
 
-/** Whether actuality offered the saved waypoint, and whether calling it as a transport does succeeded. */
+/** Holds whether actuality offered the saved waypoint, and whether a transport-style call to it passed. */
 const seen = { offered: false, ran: false };
 
 /** Calls the saved waypoint as a transport does. */
@@ -45,8 +45,8 @@ class SavedWaypointProbe extends AStepper {
 }
 const STEPPERS = [ActivitiesStepper, VariablesStepper, AuthorityStepper, SavedWaypointProbe];
 
-describe("a waypoint saved during a run", () => {
-	it("is offered as a step at once, and runs the lines it was saved with", async () => {
+describe("a waypoint a step saves", () => {
+	it("is offered as a step at once, and runs its saved lines", async () => {
 		expect(ActivitiesStepper.name, "the stepper is named as its actions name it").toBe(ACTIVITIES_STEPPER);
 		await passWithDefaults(`${SAVE}\ncall the saved waypoint\nvariable knocks is "2"\n`, STEPPERS);
 		expect(seen.offered, "actuality offers the outcome without a restart").toBe(true);
@@ -62,7 +62,7 @@ describe("a waypoint saved during a run", () => {
 		const holding = (actions: string[]) => `holding only "${actions.join(",")}", run the saved waypoint "${OUTCOME}"`;
 		expect((await passWithDefaults(`${SAVE}\n${holding([RUN, SET])}\nvariable knocks is "2"\n`, STEPPERS)).ok, "a caller holding both").toBe(true);
 		const withoutRun = await failWithDefaults(`${SAVE}\n${holding([SET])}\n`, STEPPERS);
-		expect(JSON.stringify(withoutRun.featureResults?.[0]?.stepResults), "a caller that doesn't hold running a saved waypoint").toContain(RUN);
+		expect(JSON.stringify(withoutRun.featureResults?.[0]?.stepResults), "a caller that doesn't hold the action that runs a saved waypoint").toContain(RUN);
 		const withoutLine = await failWithDefaults(`${SAVE}\n${holding([RUN])}\n`, STEPPERS);
 		expect(JSON.stringify(withoutLine.featureResults?.[0]?.stepResults), "a caller that doesn't hold a line's action").toContain(SET);
 	});

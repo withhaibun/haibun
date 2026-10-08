@@ -30,17 +30,17 @@ import { doStepperCycle, doStepperCycleSync } from "../lib/stepper-cycles.js";
 import { basename } from "path";
 
 /**
- * What a run keeps of a feature it has moved on from. A passing step's products, artifacts and traces are read while
- * that feature is the one running, and by a caller that has just received its result; once actuality has moved to
- * another feature, a reader doesn't read them again, and holding them holds every graph slice, response body and rendered
- * document actuality has produced. That is what made a nineteen-feature run exhaust the heap and be killed rather than
- * fail. A failed step keeps everything, since the verdict is made of it.
+ * Releases the payloads of a finished feature's passing steps. A reader reads a passing step's products, artifact, traces
+ * and protocol while its feature executes. The caller that receives the feature's result reads them too. A reader doesn't
+ * read them after actuality starts another feature. Holding them would hold every graph slice, response body and rendered
+ * document that actuality produces. Over many features the process then exhausts the heap and exits without reporting a
+ * failure. releasePayload doesn't clear a failed step, because the onFailure cycle and the verdict read it.
  */
 export function releasePayloads(featureResult: TFeatureResult): void {
 	for (const step of featureResult.stepResults) releasePayload(step);
 }
 
-/** Let go of what one finished step produced, unless it failed. */
+/** Clears a passing step's payload fields. */
 function releasePayload(step: TStepResult): void {
 	if (!step.ok) return;
 	step.products = undefined;
@@ -49,28 +49,26 @@ function releasePayload(step: TStepResult): void {
 	step.protocol = undefined;
 }
 
-/** Whether actuality keeps serving once its features end, as `HAIBUN_STAY` states: always, or after a failure. */
+/** Returns whether actuality keeps serving after its features end. `HAIBUN_STAY` selects always or only after a failure. */
 export function staysAfterExecution(stay: unknown, ok: boolean): boolean {
 	return stay === STAY_ALWAYS || (stay === STAY_FAILURE && !ok);
 }
 
-/** Whether a feature's server closes as it ends: it does unless it is the last to run and actuality stays. */
+/** Returns whether steppers close a feature's resources when the feature ends. They close them unless the feature is the last to execute and actuality stays. */
 export function calculateShouldClose({ thisFeatureOK, isLast, continueAfterError, stay }: { thisFeatureOK: boolean; isLast: boolean; continueAfterError: boolean; stay: unknown }) {
 	const effectivelyLast = isLast || (!thisFeatureOK && !continueAfterError);
 	return !effectivelyLast || !staysAfterExecution(stay, thisFeatureOK);
 }
 
 function initExecutionRuntime(_world: TWorld): void {
-	// Working-memory observations live in the quad store under the observation/* named
-	// graphs; the store is created with the world, so this function doesn't initialize a store.
+	// The quad store holds working-memory observations under the observation/* named graphs. The world's FeatureVariables
+	// creates the store, so this function doesn't initialize one.
 }
 
 async function initFeatureRuntime(world: TWorld): Promise<void> {
-	// Clear transient graphs between features so cross-feature state doesn't leak:
-	//   - observation/*, runtime metrics and counters
-	//   - facts, step-product assertions (auto-asserted by dispatchStep)
-	// Variables (SHARED_GRAPH) survive intentionally, features can carry named
-	// state forward through the feature-variables layer.
+	// Clears the transient graphs between features, so a feature doesn't read another feature's state. The observation/*
+	// graphs hold runtime metrics and counters. The facts graph holds the step-product assertions that dispatchStep writes.
+	// This function doesn't clear SHARED_GRAPH, so the feature variables in the store remain.
 	const store = world.shared.getStore();
 	const allQuads = await store.all();
 	const transientGraphs = new Set(allQuads.filter((q) => q.namedGraph.startsWith("observation/") || q.namedGraph === "facts").map((q) => q.namedGraph));
@@ -78,10 +76,10 @@ async function initFeatureRuntime(world: TWorld): Promise<void> {
 }
 
 /**
- * Duck-typed attach() on every stepper that implements a transport (has `attach` and `detach` methods), called once the
- * Executor opens the run's registry, so every transport is live before the first feature runs. A pure-client config (an
- * agent with a `{remote}` entry and without a webserver) is covered too. A stepper transport doesn't read a webserver when it
- * attaches.
+ * Calls attach() on every stepper that implements a transport. A transport is a stepper with `attach` and `detach`
+ * methods. The Executor calls this after it opens actuality's registry, so every transport attaches before the first
+ * feature executes. This function passes attach() only the registry, so a config that doesn't have a webserver attaches
+ * its transports too. An agent config that has a `{remote}` entry and doesn't have a webserver is one such config.
  */
 function attachTransportsToRegistry(steppers: AStepper[], registry: StepRegistry): void {
 	for (const s of steppers) if ("attach" in s && typeof s.attach === "function" && "detach" in s && typeof s.detach === "function") s.attach(registry);
@@ -92,9 +90,11 @@ export class Executor {
 		const firstFailedFeature = featureResults.find((fr) => !fr.ok);
 		if (!firstFailedFeature) return undefined;
 
-		// The verdict names an accountable feature step. A synthetic dispatch (a negative seqPath segment: a model's
-		// tool call, an RPC) can fail and be recovered from inside its parent step; naming it here reported a recovered
-		// tool call as actuality's failure while the step that failed the feature went unmentioned.
+		// The verdict names the feature step that failed the feature. foldStep stores the first failed feature step in
+		// `steps.failed` in place of an earlier failed synthetic dispatch or speculative step. A synthetic dispatch has a
+		// negative seqPath segment. A model's tool call and an RPC dispatch are synthetic dispatches. The parent step can
+		// recover from a failed synthetic dispatch, so naming the dispatch would report a recovered tool call as actuality's
+		// failure.
 		const failedStep = firstFailedFeature.steps.failed;
 		if (!failedStep) return undefined;
 
@@ -103,8 +103,9 @@ export class Executor {
 		return { stage: "Execute", error: { message: errorMessage, details: { step: failedStep.in, path: failedStep.path, seqPath: failedStep.seqPath } } };
 	}
 
-	/** Run the features as actuality itself: every line, cycle and finalizer is the instance's own act, and holds its authority.
-	 *  A caller from outside reaches a step only through a transport, which states what that caller holds. */
+	/** Executes the features under RUN_AUTHORITY. Every line, cycle and finalizer executes as the instance and holds its authority.
+	 *  An outside caller reaches a step only through a transport. The transport passes the caller's invoked action and held
+	 *  actions to dispatchStep. */
 	static executeFeatures(steppers: AStepper[], world: TWorld, features: TResolvedFeature[]): Promise<TExecutorResult> {
 		return runAuthorizedWith(RUN_AUTHORITY, () => Executor.runFeatures(steppers, world, features));
 	}
@@ -113,8 +114,8 @@ export class Executor {
 		initExecutionRuntime(world);
 		world.runtime.steppers = steppers;
 		const stepRegistry = openRunRegistry(world, steppers);
-		// Every transport attaches to actuality's one registry now: a remote proxy injects its host's steps, and MCP reads the
-		// registry each time it lists or dispatches.
+		// Every transport attaches to actuality's one registry. A remote proxy injects the remote host's steps into the
+		// registry. The MCP stepper reads the registry each time it lists or dispatches a step.
 		attachTransportsToRegistry(steppers, stepRegistry);
 
 		const onEventHandler = (event: THaibunEvent) => {
@@ -147,7 +148,8 @@ export class Executor {
 			const isLast = featureNum === features.length;
 
 			world.runtime.exhaustionError = undefined;
-			// `feature.name` is the per-Feature key from a kireji split or the basename for raw .feature files.
+			// `feature.name` holds the per-Feature key of a kireji split. A feature that doesn't have a name takes its file's
+			// basename without its extensions.
 			const featureName = feature.name || basename(feature.path).replace(/\..*$/, "");
 			const newWorld = { ...world, tag: { ...world.tag, featureNum, featureName } };
 
@@ -172,8 +174,8 @@ export class Executor {
 				await doStepperCycle(steppers, "onFailure", { featureResult, failedStep });
 			}
 			okSoFar = okSoFar && thisFeatureOK;
-			// The feature just finished keeps what it produced for whoever receives this result; the one before it
-			// doesn't have a reader left, so actuality stops holding what that one produced.
+			// The feature that finished keeps its payloads for the caller that receives this result. The previous feature's
+			// payloads don't have a reader, so releasePayloads clears its passing steps' payloads.
 			const previous = featureResults[featureResults.length - 1];
 			if (previous) releasePayloads(previous);
 			featureResults.push(featureResult);
@@ -193,8 +195,8 @@ export class Executor {
 			LifecycleEvent.parse({ id: `execution-end`, timestamp: Date.now(), kind: "lifecycle", type: "execution", stage: "end", status: okSoFar ? "completed" : "failed" }),
 		);
 
-		// Stay mode keeps the process serving requests after execute() returns; unsubscribing here would stop
-		// routing events to live consumers while the server is still emitting them. Keep it while staying.
+		// HAIBUN_STAY keeps the process serving requests after executeFeatures returns. Unsubscribing would stop routing
+		// events to consumers while the server emits them, so the handler stays subscribed while actuality stays.
 		const stays = staysAfterExecution(world.options[STAY], okSoFar);
 		await doStepperCycle(steppers, "endExecution", <TEndExecution>{ ...results, stays });
 		if (!stays) world.eventLogger.unsubscribe(onEventHandler);
@@ -202,7 +204,7 @@ export class Executor {
 	}
 }
 
-/** The SHA-256 of the text of a feature's declared steps, joined by newlines in the order they are declared. */
+/** Joins a feature's declared step lines with newlines in declaration order and returns their SHA-256 hex digest. */
 function hashDeclaredStepText(featureSteps: readonly TFeatureStep[]): string {
 	return createHash("sha256")
 		.update(featureSteps.map((step) => step.in).join("\n"))
@@ -273,9 +275,9 @@ export class FeatureExecutor {
 
 			const augmentedStep = {
 				...step,
-				// Root on [hostId, featureNum, scenarioNum, ...resolverStepSeq] so
-				// observations from different haibun instances can never collide
-				// and a multi-host cross-host join can union by seqPath safely.
+				// The seqPath is [hostId, featureNum, scenarioNum, ...resolverStepSeq]. A multi-host deployment sets a hostId
+				// for each instance, so observations from different instances don't collide. A cross-host join can union them
+				// by seqPath.
 				seqPath: [world.tag.hostId, world.tag.featureNum, currentScenario + 1, ...step.seqPath],
 			};
 
@@ -321,10 +323,10 @@ export const addStepperConcerns = (world: TWorld, steppers: AStepper[]) => {
 };
 
 // SeqPath conventions:
-// - Normal feature execution uses [feature, scenario, step, ...].
-// - Feature-scoped synthetic work uses [feature, 0, ordinal].
-// - Speculative/debug branches extend a real step path with negative suffixes.
-// - Top-level ad hoc transport calls use [0, ordinal].
+// - Feature execution uses [hostId, feature, scenario, step, ...].
+// - Feature-scoped synthetic work uses [hostId, feature, 0, ordinal].
+// - A speculative or debug branch extends its parent step's path with a negative segment.
+// - An ad hoc transport call uses [hostId, SYNTHETIC_FEATURE_NUM, adHocSeq] (host-id.ts).
 export function syntheticSeqPathDirection(speculative = false): 1 | -1 {
 	return speculative ? -1 : 1;
 }
@@ -342,16 +344,14 @@ export function advanceSyntheticSeqPath(seqPath: TSeqPath, dir: 1 | -1 = 1): TSe
 }
 
 /**
- * The next path under a parent step, in the direction the parent's steps are numbered in.
+ * Returns the next path under a parent step in the given direction.
  *
- * A path is allocated from a count held per parent rather than searched for among the results a feature has produced.
- * Searching takes the feature so far on every step, and the feature so far grows: a run that services requests for
- * weeks allocates every path by reading every result it has ever produced. The count answers in constant time and
- * holds only the parents allocated under.
+ * nextSeqPath allocates the path from a count held per parent and direction. A search of a feature's results would read
+ * every result on every step. Actuality can service requests for weeks, so the number of results grows for weeks.
+ * nextSeqPath returns in constant time. world.runtime.seqPaths holds one entry for each parent and direction.
  *
- * The count only advances, so a path this hands out is never handed out again, and an allocation that a step doesn't go on to
- * use leaves a gap in the numbering. Readers read the numbering only for order and identity, both of which a
- * gap preserves.
+ * The count only advances, so a path is never allocated twice. An allocation that a step doesn't use leaves a gap in the
+ * numbering. Readers read the numbering only for order and identity. A gap preserves both.
  */
 export function nextSeqPath(world: TWorld, parent: TSeqPath, dir = 1): TSeqPath {
 	const held = (world.runtime.seqPaths ??= new Map<string, number>());

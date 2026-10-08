@@ -6,12 +6,13 @@ import { TAnyFixme } from "../fixme.js";
 import { IHasOptions, AStepper, CStepper, TFeatureStep } from "../astepper.js";
 import { TArtifactEvent, type TJsonArtifact } from "../../schema/protocol.js";
 
-// Helper to get term from stepValuesMap with null safety
-/** Truncate to at most `max` characters, ellipsizing, so every producer truncates identically. */
+/** Returns `s` where it fits in `max` characters. Otherwise returns its first `max - 1` characters and an ellipsis.
+ *  Callers truncate with this function so each truncation has the same form. */
 export function ellipsize(s: string, max: number): string {
 	return s.length > max ? `${s.slice(0, max - 1)}\u2026` : s;
 }
 
+/** Returns the term of the value at `key` in the step's stepValuesMap. Returns undefined where stepValuesMap doesn't contain `key`. */
 export function getStepTerm(featureStep: TFeatureStep, key: string): string | undefined {
 	return featureStep?.action?.stepValuesMap?.[key]?.term;
 }
@@ -20,9 +21,9 @@ export const basesFrom = (s: string | undefined): string[] => (s === undefined ?
 
 export function actionNotOK(errorMessage: string, w?: { artifact?: TArtifactEvent; controlSignal?: TDebugSignal }): TActionResult {
 	const { artifact, controlSignal } = w || {};
-	// Callers sometimes pass a caught Error (the param is typed string, but TS can't enforce that at the throw site).
-	// Coerce to the message string so errorMessage is always a string: the failure text is preserved, and string-typed
-	// consumers (the event-log schema) validate it instead of rejecting a non-string and reporting that in place of the real error.
+	// The parameter is typed string. A caller can pass a caught Error through a cast or an `any` value.
+	// This converts an Error to its message and converts any other non-string with String().
+	// TActionResult declares errorMessage as a string, so each reader of a step's result reads a string.
 	const raw = errorMessage as unknown;
 	const message = typeof raw === "string" ? raw : raw instanceof Error ? raw.message : String(raw);
 	return { ok: false, errorMessage: message, artifact, controlSignal };
@@ -57,9 +58,9 @@ export function createSteppers(steppers: CStepper[]): AStepper[] {
 	return allSteppers;
 }
 
-/** A gwta/exact starting with a dePolite stopword can never match: the resolver dePolites the feature line but the step
- *  pattern keeps its prefix, so the step is silently dead ("doesn't match a step" at resolve, without a hint why). Fail at stepper
- *  creation instead, naming the step and the prefix to drop. */
+/** Throws where a step's gwta or exact pattern starts with a prefix that dePolite removes. The resolver applies dePolite to each
+ *  feature line and not to step patterns, so such a pattern doesn't match a feature line. The resolver then throws "doesn't match
+ *  a step" and doesn't state the cause. The error at stepper creation names the step and the prefix to remove. */
 export function checkNoPoliteStepPrefixes(stepper: AStepper): void {
 	for (const [name, def] of Object.entries(stepper.steps)) {
 		const pattern = def.gwta ?? def.exact;
@@ -67,7 +68,7 @@ export function checkNoPoliteStepPrefixes(stepper: AStepper): void {
 		const curt = dePolite(pattern);
 		if (curt !== pattern) {
 			throw Error(
-				`${constructorName(stepper)}.${name}: step pattern "${pattern}" starts with the polite prefix "${pattern.slice(0, pattern.length - curt.length).trim()}", which dePolite strips from feature lines, so it could never match. Start the pattern at "${curt}".`,
+				`${constructorName(stepper)}.${name}: step pattern "${pattern}" starts with the polite prefix "${pattern.slice(0, pattern.length - curt.length).trim()}". dePolite removes that prefix from each feature line, so the pattern could never match. Start the pattern at "${curt}".`,
 			);
 		}
 	}
@@ -82,7 +83,7 @@ export function getActionable(value: string) {
 }
 
 export function constructorName(stepper: AStepper) {
-	// Strip the trailing "2" that vitest/esbuild keepNames appends to class names.
+	// Removes the trailing "2" that vitest/esbuild keepNames appends to class names.
 	return stepper.constructor.name.replace(/2$/, "");
 }
 
@@ -93,7 +94,8 @@ export function isLowerCase(str: string) {
 
 export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Serialize an unknown thrown value to a full diagnostic string, including error code and cause chain. */
+/** Returns a diagnostic string for a thrown value. The string for a ZodError lists each issue with its path. The string for an Error contains its
+ *  message, its code where set and its cause chain. The string for another value is String(value). */
 export function errorDetail(err: unknown): string {
 	if (err instanceof z.ZodError) return err.issues.map((issue) => (issue.path.length ? `${issue.path.join(".")}: ${issue.message}` : issue.message)).join("; ");
 	if (!(err instanceof Error)) return String(err);
@@ -110,17 +112,17 @@ export function verifyExtraOptions(inExtraOptions: TModuleOptions, csteppers: CS
 		const foundStepperParseResult = getStepperOptionValue(option, value, csteppers);
 
 		if (foundStepperParseResult === undefined) {
-			console.warn(`ignoring option ${option}, stepper not found`);
+			console.warn(`ignoring option ${option}: its prefix doesn't name a loaded stepper. Load that stepper or remove the option.`);
 			delete moduleOptions[option];
 			return;
 		} else if (foundStepperParseResult.parseError) {
-			throw Error(`wrong option ${option} from ${JSON.stringify(moduleOptions)}: ${foundStepperParseResult.parseError}`);
+			throw Error(`the value of option ${option} in ${JSON.stringify(moduleOptions)} doesn't parse: ${foundStepperParseResult.parseError}. Correct the value.`);
 		}
 		delete moduleOptions[option];
 	});
 
 	if (Object.keys(moduleOptions).length > 0) {
-		throw Error(`the loaded steppers don't take the options ${JSON.stringify(moduleOptions)}`);
+		throw Error(`the loaded steppers don't declare the options ${JSON.stringify(moduleOptions)}. Remove them or load the steppers that declare them.`);
 	}
 	return;
 }
@@ -141,7 +143,8 @@ export function getPre(stepper: AStepper) {
 }
 
 /**
- * Find a stepper by option value from a list of steppers
+ * Parses `value` with the option parser of the first stepper in `csteppers` whose option prefix starts `key`.
+ * Returns undefined where `key` doesn't start with the option prefix of any stepper in `csteppers`. Throws where that stepper doesn't declare the option.
  */
 export function getStepperOptionValue(key: string, value: string, csteppers: CStepper[]) {
 	for (const cstepper of csteppers) {
@@ -151,13 +154,13 @@ export function getStepperOptionValue(key: string, value: string, csteppers: CSt
 
 		if (key.startsWith(pre)) {
 			if (!ao.options) {
-				throw Error(`${cstepper.name} doesn't declare options`);
+				throw Error(`${cstepper.name} doesn't declare options. Remove the options that start with its prefix.`);
 			}
 
 			if (ao.options[name]) {
 				return ao.options[name].parse(value);
 			} else {
-				throw Error(`${cstepper.name} doesn't declare the option ${name}`);
+				throw Error(`${cstepper.name} doesn't declare the option ${name}. Correct the option name or remove the option.`);
 			}
 		}
 	}
@@ -175,7 +178,7 @@ export function verifyRequiredOptions(steppers: CStepper[], options: TModuleOpti
 		}
 	}
 	if (requiredMissing.length) {
-		throw Error(`missing required options ${requiredMissing}`);
+		throw Error(`the required options ${requiredMissing} aren't set. Set each one in the config or as an environment variable.`);
 	}
 }
 
@@ -187,10 +190,11 @@ export function getStepperOptionName(stepper: AStepper | CStepper, name: string)
 }
 
 /**
- * The environment names of every option declared as belonging to one process, across the steppers given.
+ * Returns the environment names of the given steppers' options that declare `perProcess`.
  *
- * A process that starts another strips these from the child's environment: the child takes its own port, its own
- * identity. The declaration is the option's, so this reads it rather than naming options here.
+ * A process that starts another process removes these names from the child's environment. The child process then takes its own
+ * value of each option. A listening port and an identity are such options. An option declares `perProcess` in its own definition,
+ * so this function reads the definitions and doesn't list option names.
  */
 export function perProcessOptionNames(steppers: AStepper[]): string[] {
 	const names: string[] = [];
@@ -220,14 +224,16 @@ export function findStepperFromOption<Type>(steppers: AStepper[], stepper: AStep
 }
 
 function stepperOptionNotFoundError(stepper: AStepper, optionNames: string[], moduleOptions: TModuleOptions): string {
-	return `Cannot find single ${optionNames.map((o) => getStepperOptionName(stepper, o)).join(" or ")} in your ${constructorName(
+	return `option ${optionNames.map((o) => getStepperOptionName(stepper, o)).join(" or ")} isn't set in the ${constructorName(
 		stepper,
 	)} options ${JSON.stringify(Object.keys(moduleOptions).filter((k) => k.startsWith(getPre(stepper))))}`;
 }
 
 /**
- * Find a stepper by option value; absent an option, fall back to the single stepper whose kind matches the first optionName.
- * Throws if multiple steppers match that kind and an option isn't specified.
+ * Returns the stepper that the first set option of `optionNames` names.
+ * Where the options aren't set, returns the one stepper whose kind equals the first option name.
+ * Throws where the options aren't set and the loaded steppers include several steppers of that kind or don't include one.
+ * Throws where the set option names a stepper that isn't loaded.
  */
 export function findStepperFromOptionOrKind<Type>(steppers: AStepper[], stepper: AStepper, moduleOptions: TModuleOptions, ...optionNames: [string, ...string[]]): Type {
 	const val = optionNames.reduce<string | undefined>((v, n) => {
@@ -239,12 +245,12 @@ export function findStepperFromOptionOrKind<Type>(steppers: AStepper[], stepper:
 		return findStepper(steppers, val);
 	}
 
-	// Fall back: find any single stepper of the given kind
+	// The options aren't set, so this selects the one stepper whose kind equals the first option name.
 	const kind = optionNames[0];
 	const matchingSteppers = steppers.filter((s) => s.kind === kind);
 
 	if (matchingSteppers.length === 0) {
-		throw Error(stepperOptionNotFoundError(stepper, optionNames, moduleOptions) + ` and the loaded steppers don't include one of kind ${kind}`);
+		throw Error(stepperOptionNotFoundError(stepper, optionNames, moduleOptions) + `, and the loaded steppers don't include one of kind ${kind}. Set the option or load one.`);
 	}
 
 	if (matchingSteppers.length > 1) {
@@ -261,11 +267,11 @@ export function findStepper<Type>(steppers: AStepper[], name: string): Type {
 	const stepper = <Type>(steppers.find((s) => constructorName(s) === name) as TAnyFixme);
 	if (!stepper) {
 		throw Error(
-			`Cannot find stepper ${name} from ${JSON.stringify(
+			`stepper ${name} isn't loaded. Load it or name one of the loaded steppers ${JSON.stringify(
 				steppers.map((s) => constructorName(s)),
 				null,
 				2,
-			)} `,
+			)}.`,
 		);
 	}
 	return stepper;
@@ -356,13 +362,13 @@ export function formattedSteppers(steppers: AStepper[]) {
 const TRUNCATE_AT = 78;
 const MAX_TRUNCATE_DEPTH = 10;
 
-/** Truncate a string for display, showing remaining length if truncated. */
+/** Returns `s` where it fits in TRUNCATE_AT characters. Otherwise returns its first TRUNCATE_AT characters and `[+Nc]`. N is the number of removed characters. */
 export function truncateForDisplay(s: string): string {
 	if (s.length <= TRUNCATE_AT) return s;
 	return `${s.slice(0, TRUNCATE_AT)}[+${s.length - TRUNCATE_AT}c]`;
 }
 
-/** Deep-truncate an object for logging: truncates any string values that exceed the limit. */
+/** Returns a copy of a value for logging. truncateForDisplay truncates each string in the copy. A value nested deeper than MAX_TRUNCATE_DEPTH becomes "[truncated at depth]". */
 export function truncateForLog(obj: unknown, depth = 0): unknown {
 	if (depth > MAX_TRUNCATE_DEPTH) return "[truncated at depth]";
 	if (typeof obj === "string") return truncateForDisplay(obj);

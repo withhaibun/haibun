@@ -1,7 +1,8 @@
 /**
- * The principal: the identity acting now (a comment's author, an artifact's creator). Read from
- * the active context, never passed by callers. Established by the credential/delegation layer
- * (which runs a statement as a principal through `runActingAs`); core stays crypto-free.
+ * The principal is the identity that performs the current action, such as a comment's author or an artifact's creator.
+ * These functions read it from the active context, and callers don't pass it. The credential and delegation layer
+ * establishes it by running a statement as a principal through `runActingAs`. Core doesn't implement credential signing
+ * or verification.
  */
 import type { TWorld } from "./world.js";
 import { actingAs } from "./capability-context.js";
@@ -9,8 +10,9 @@ import { activeSitePrincipal } from "./host-id.js";
 
 const PRINCIPAL = "principal";
 
-/** Whoever is acting: the one who proved themselves at the boundary this call came through, and otherwise whoever the
- *  run itself is acting as. A proof is about the call that carried it, so it states who is acting inside that call. */
+/** Returns the principal this call acts as. A boundary sets it from the proof it verified, and a tick sets the
+ *  principal that started its ticker. Otherwise returns the principal setPrincipal stored in the world, or undefined. A
+ *  proof applies only to the call that carried it, so the async context scopes the principal to that call. */
 export function currentPrincipal(world: TWorld): string | undefined {
 	const proven = actingAs();
 	if (proven) return proven;
@@ -18,15 +20,15 @@ export function currentPrincipal(world: TWorld): string | undefined {
 	return typeof p === "string" && p.length > 0 ? p : undefined;
 }
 
-/** Whoever is acting, and otherwise the site this instance acts as: the party a record written now is attributed to. */
+/** Returns the acting principal, else the site principal this instance acts as. A caller attributes a record it writes now to the returned principal. */
 export function actingPrincipal(world: TWorld): string {
 	return currentPrincipal(world) ?? activeSitePrincipal(world);
 }
 
-/** The active principal, or throw: an authored action requires an acting principal. */
+/** Returns the acting principal, and throws when one isn't established. An authored action requires an acting principal. */
 export function requirePrincipal(world: TWorld): string {
 	const p = currentPrincipal(world);
-	if (!p) throw new Error("an acting principal isn't established, and an authored action requires one");
+	if (!p) throw new Error("an acting principal isn't established, and an authored action requires one. Run the action through runActingAs, or set a principal with setPrincipal");
 	return p;
 }
 

@@ -1,10 +1,9 @@
 /**
- * Artifact: something a run produced, as a graph individual.
+ * Artifact: a graph individual for something a step of actuality produced beside its own outcome.
  *
- * A screenshot, a recording, a page's HTML, a trace of a call: what a step produced beside its own outcome. The record
- * carries where it is and what it is rather than what it holds, since an artifact is usually already a file and a
- * record of it is a pointer to that file. It points back at the step that produced it, so what a run produced is read
- * the same way as what a run did.
+ * An artifact can be a screenshot, a recording, a page's HTML or a trace of a call. The record holds the artifact's
+ * location and kind, and doesn't hold its content. An artifact is usually already a file, so its record references that
+ * file. The record references the step that produced it, so actuality's artifacts are read the same way as its steps.
  */
 import { z } from "zod";
 import { HAIBUN_LOG_LEVELS } from "../schema/protocol.js";
@@ -13,28 +12,28 @@ import { LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefin
 
 const RUN_ARTIFACT_DOMAIN = "run-artifact";
 
-/** Where actuality serves the artifacts its steps captured: an artifact's path is under it. */
+/** The route under which actuality serves the artifacts its steps captured. */
 export const ARTIFACTS_ROUTE = "/artifacts";
 
-/** The address actuality serves an artifact at, from its path under actuality's artifacts. */
+/** Returns the address of the artifact at `path` under ARTIFACTS_ROUTE. */
 export const artifactAddress = (path: string): string => `${ARTIFACTS_ROUTE}/${path}`;
 export const RUN_ARTIFACT_LABEL = "Artifact";
 
-/** Artifact field names, shared by the schema, the topology and whatever writes one. */
+/** Artifact field names. The schema, the topology and each writer of an artifact read them. */
 export const RUN_ARTIFACT_FIELD = {
 	id: "id",
-	/** What kind of thing it is, as actuality named it: an image, a recording, a trace. */
+	/** The artifact's kind as actuality names it, such as an image, a recording or a trace. */
 	artifactType: "artifactType",
-	/** Where it is, as actuality serves it. */
+	/** The path under which actuality serves it. */
 	path: "path",
-	/** Where it is relative to the feature's own directory, which is how a saved record of actuality reaches it. */
+	/** Its path relative to the feature's directory. A saved record of actuality references the artifact by this path. */
 	featureRelativePath: "featureRelativePath",
 	mediaType: "mediaType",
-	/** How prominently it reports: what a run produced as its work is shown where its steps are, a trace of the run's
-	 *  own machinery under them. */
+	/** The artifact's log level. An artifact of actuality's work has the level of its steps. A trace of actuality's
+	 *  internal operations has a lower level. */
 	level: "level",
 	generatedAtTime: "generatedAtTime",
-	/** The actuality that produced it. */
+	/** The execution that produced it. */
 	execution: EXECUTION_FIELD,
 	/** When this record was written. */
 	recordedAtTime: RECORDED_AT_TIME_FIELD,
@@ -62,16 +61,17 @@ export const runArtifactDomainDefinition: TDomainDefinition = {
 	selectors: [RUN_ARTIFACT_DOMAIN],
 	schema: RunArtifactSchema,
 	description:
-		"Something a run produced beside a step's outcome: an image, a recording, a page, a trace. The record states where it is and what it is; it points back at the step that produced it.",
+		"Something a step of actuality produced beside its outcome, such as an image, a recording, a page or a trace. The record states where the artifact is and what kind it is. It references the step that produced it.",
 	topology: {
 		persistedAs: RUN_ARTIFACT_LABEL,
 		id: RUN_ARTIFACT_FIELD.id,
 		instrumentation: true,
-		// A reader is told a run produced something by the run producing it. This record is the durable copy of that.
+		// A reader receives an artifact as the artifact event a step emits. This record is the durable copy of that event, so
+		// announcing the write would report the artifact a second time.
 		announceWrites: false,
 		properties: {
 			[RUN_ARTIFACT_FIELD.id]: LinkRelations.IDENTIFIER.rel,
-			// Grouped-as, so "the images this run produced" is a filter the type offers rather than a condition to write.
+			// The type offers each artifact type as a filter because this field is `groupedAs`. A reader doesn't write a condition for it.
 			[RUN_ARTIFACT_FIELD.artifactType]: LinkRelations.CONTEXT.rel,
 			[RUN_ARTIFACT_FIELD.path]: LinkRelations.SOURCE_PATH.rel,
 			[RUN_ARTIFACT_FIELD.featureRelativePath]: LinkRelations.SOURCE_PATH.rel,

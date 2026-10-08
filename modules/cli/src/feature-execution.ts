@@ -1,18 +1,21 @@
 /**
- * A FEATURE EXECUTION as an individual: which features ran, where from, how it ended, and where to look.
+ * A FeatureExecution individual records one test run: its feature filter, the directory that holds the features, its
+ * status, its counts and the path of its report.
  *
- * A finding is about something. A Comment doesn't have a target without a record for the run, so a report
- * would have to name the run in its text and a reader would have to match strings. With a record, a finding's
- * `hasTarget` names the run, the sequence view shows the finding beside it, and a later run of the same features is a
- * second individual rather than an overwrite, which is what makes "did the change fix it" answerable from the graph.
+ * A finding about a test run references this record through `hasTarget`. A Comment about a test run doesn't have a
+ * target without this record. A report would then name the test run in its text. A reader would match strings to find
+ * the test run. The sequence view shows a finding beside the record it targets. A later test run of the same features
+ * writes a second individual and doesn't overwrite the first. The graph then shows whether a change fixed a failure.
  *
- * A run is attributed to the principal controlling the capability it ran under, so the graph answers who started it:
- * a site principal for a run started by a feature line, and a delegated subkey for a run started during one session
- * of one agent.
+ * A test run is attributed to the principal that its call's boundary verified, so the graph shows who started it. A
+ * test run started by a statement under `holding capability` is attributed to the principal the verifier returns, or
+ * else to the capability's controller. A test run started during one agent session is attributed to that session's
+ * delegated subkey. A test run started without a verified principal is attributed to the test runner agent.
  *
- * The endpoint is how a run is probed once its features have finished: a run given a port is left standing, so that
- * port answers until it is stopped. It is a fact about the run, not a side channel. A run not given a port doesn't have an
- * endpoint; it ran its features on the ports they declare and ended when they did.
+ * `endpoint` holds the origin of a standing test run. A caller reads it from the record to probe the test run after its
+ * features finish. A standing test run holds its port until it is stopped. TestRunnerStepper's RUN_STANDS option leaves
+ * a test run standing. A standing test run requires a RUN_PORT above zero. RUN_PORT alone doesn't leave a test run
+ * standing. A test run that isn't left standing doesn't have an endpoint. It ends when its features end.
  */
 import { z } from "zod";
 import { COMMENT_LABEL, LinkRelations, PRINCIPAL_LABEL, type TDomainDefinition } from "@haibun/core/lib/resources.js";
@@ -20,36 +23,39 @@ import { COMMENT_LABEL, LinkRelations, PRINCIPAL_LABEL, type TDomainDefinition }
 export const FEATURE_EXECUTION_LABEL = "FeatureExecution";
 export const FEATURE_EXECUTION_DOMAIN = "feature-execution";
 
-/** How a run stands: started and still going, or ended as its exit code reports, or stopped before it finished. */
+/** A test run's status. The exit code determines `running`, `passed` and `failed`. A standing test run's failed step
+ *  count determines `passed` and `failed`. stopTestRun writes `stopped`. A start that failed is recorded as `not started`. */
 export const RUN_STATUS = { running: "running", passed: "passed", failed: "failed", stopped: "stopped", notStarted: "not started" } as const;
 export type TRunStatus = (typeof RUN_STATUS)[keyof typeof RUN_STATUS];
 
 const FeatureExecutionSchema = z.object({
 	id: z.string(),
-	/** The directory of features the run was started from, and the filter that chose which of them ran. */
+	/** The directory that holds the features, and the filter that selects which of them ran. */
 	where: z.string(),
 	filter: z.string(),
 	status: z.enum([RUN_STATUS.running, RUN_STATUS.passed, RUN_STATUS.failed, RUN_STATUS.stopped, RUN_STATUS.notStarted]),
-	/** Why the run did not start, where it didn't. */
+	/** Why a test run didn't start. Present only on a record whose status is `not started`. */
 	why: z.string().optional(),
-	/** Where the run answers while it stands, so probing it needs only the run. Absent for a run left to its
-	 *  own ports, which ends rather than standing. */
+	/** The origin at which a standing test run responds. A caller probes the test run from this record alone. A test run
+	 *  that isn't left standing doesn't have an endpoint, even with RUN_PORT set. */
 	endpoint: z.string().optional(),
 	startedAt: z.string(),
 	endedAt: z.string().optional(),
-	/** The run's own report, as the run wrote it: a path, never a copy of its contents. */
+	/** The path of the report a test run wrote. The record doesn't copy the report's contents. */
 	report: z.string().optional(),
-	/** What the run did, from its own events: how many features and steps it ran, and how many steps failed. */
+	/** Counts read from a test run's events: the features and steps it ran, and the steps that failed. */
 	features: z.number().optional(),
 	steps: z.number().optional(),
 	failed: z.number().optional(),
-	/** The first step that failed, as the seqPath it failed at and what it logged. Absent when the run's steps didn't fail. */
+	/** The first failed step, as its seqPath, its step text and its failure message. Absent when every step passed. */
 	firstFailure: z.string().optional(),
-	/** The principal that started the run, which is the controller of the capability it ran under. */
+	/** The principal that started a test run. It is the principal that the call's boundary verified, or the test runner
+	 *  agent where the call didn't carry a verified principal. */
 	attributedTo: z.string().optional(),
-	/** The ask the run was started under, when a model started it: the id of that ask's Comment. */
+	/** The id of the Comment that holds the ask under which a test run started. Absent where the call didn't run under an
+	 *  ask. */
 	inReplyTo: z.string().optional(),
-	/** The host the run answers as while it stands, which is how its own steps are addressed. */
+	/** The host id a standing test run takes. A caller addresses its steps as `on host {host}, <step>`. */
 	host: z.number().optional(),
 	generatedAtTime: z.string(),
 	accessLevel: z.string().optional(),
@@ -57,11 +63,11 @@ const FeatureExecutionSchema = z.object({
 
 export type TFeatureExecution = z.infer<typeof FeatureExecutionSchema>;
 
-/** The run as a hypermedia domain: a record like any other, so it lists, links and reads with the rest. */
+/** The FeatureExecution hypermedia domain. Its records are listed, linked and read as any other domain's records are. */
 export const featureExecutionDomainDefinition: TDomainDefinition = {
 	selectors: [FEATURE_EXECUTION_DOMAIN],
 	schema: FeatureExecutionSchema,
-	description: "One run of named features: what was run, where it answers while it stands, and how it ended. It is the record a finding about that run names.",
+	description: "One test run of named features: its feature filter, the endpoint of a standing test run, and its status. A finding about a test run targets this record.",
 	topology: {
 		persistedAs: FEATURE_EXECUTION_LABEL,
 		id: "id",
@@ -72,8 +78,8 @@ export const featureExecutionDomainDefinition: TDomainDefinition = {
 			filter: LinkRelations.NAME.rel,
 			status: LinkRelations.OUTCOME_REASON.rel,
 			endpoint: LinkRelations.TAG.rel,
-			// One field carries the record's time (GENERATED_AT_TIME); a second declaring the same rel is two answers
-			// to "when". The run's own start and end are its span, tagged and sorted on as themselves.
+			// Only generatedAtTime carries the GENERATED_AT_TIME rel, which holds the record's time. A second field with that rel
+			// would give the record two times. startedAt and endedAt hold a test run's span as tags. Each has a sort column.
 			startedAt: LinkRelations.TAG.rel,
 			endedAt: LinkRelations.TAG.rel,
 			report: LinkRelations.TAG.rel,
@@ -84,15 +90,14 @@ export const featureExecutionDomainDefinition: TDomainDefinition = {
 			why: LinkRelations.TAG.rel,
 			host: LinkRelations.TAG.rel,
 		},
-		// Every queryable field needs a column to be queried through: a run is looked up by what ran, how it ended,
-		// and when it started.
+		// Each queryable field needs a column for the store to query. A query selects a test run through these columns.
 		sortColumns: { filter: "TEXT", status: "TEXT", startedAt: "TEXT", endedAt: "TEXT", where: "TEXT", endpoint: "TEXT", report: "TEXT" },
-		// Who started it and what asked for it are EDGES, with the types they range over, as every other attributed
-		// record declares them. Declared as plain properties they name a principal without an edge to follow, so
-		// the run never stands on the lifeline of whoever started it and is missing from any reading built from actors.
+		// attributedTo and inReplyTo are edges with the types they range over, as every other attributed record declares
+		// them. As plain properties they would name a principal or a Comment without an edge to follow. A test run would
+		// then be absent from the lifeline of the principal that started it and from every view built from actors.
 		edges: { attributedTo: { rel: LinkRelations.ATTRIBUTED_TO.rel, range: PRINCIPAL_LABEL }, inReplyTo: { rel: LinkRelations.IN_REPLY_TO.rel, range: COMMENT_LABEL } },
 	},
 };
 
-/** What a run's exit code shows about it. A null code means it is still running. */
+/** The status a test run's exit code determines. A null code means its process is still running. */
 export const statusOfExit = (exitCode: number | null): TRunStatus => (exitCode === null ? RUN_STATUS.running : exitCode === 0 ? RUN_STATUS.passed : RUN_STATUS.failed);

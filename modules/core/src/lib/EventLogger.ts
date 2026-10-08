@@ -15,20 +15,21 @@ type TEventSubscriber = (event: THaibunEvent) => void;
 
 type TSubscribeOptions = {
 	kinds?: readonly TEventKind[];
-	/** Delivers only blips whose declared name matches an entry, exactly or as a dotted prefix (`haibun.http` matches
-	 *  `haibun.http.request`). Requires `kinds` to include `"blip"`: it filters within the blip audience. */
+	/** Delivers only blips whose declared name matches an entry, in full or as a dotted prefix (`haibun.http` matches
+	 *  `haibun.http.request`). Requires `kinds` to include `"blip"`, because it filters blips only. */
 	names?: readonly string[];
 };
 
-/** Actuality's own story: what the console prints and what a bare subscribe(cb) receives. A blip is not narration; only a
- *  subscriber that names its kind receives it, so a per-frame channel cannot reach the monitor's buffer or SSE by accident. */
+/** The narrated kinds. The console prints them, and a subscribe(cb) without options receives them. A blip isn't
+ *  narrated. Only a subscriber that lists the blip kind receives a blip, so the monitor's buffer and SSE receive
+ *  per-frame blips only where they list that kind. */
 const NARRATED_KINDS: ReadonlySet<TEventKind> = new Set<TEventKind>(["lifecycle", "log", "artifact", "control"]);
 
 const matchesName = (names: readonly string[], name: string) => names.some((n) => name === n || name.startsWith(`${n}.`));
 
 export interface IEventLogger {
 	suppressConsole?: boolean;
-	/** Whether this run was asked for its events as NDJSON, which outranks a monitor's console suppression. */
+	/** Whether NDJSON output of events was requested. It takes precedence over a monitor's console suppression. */
 	readonly ndjsonForced?: boolean;
 	subscribe(callback: TEventSubscriber, options?: TSubscribeOptions): void;
 	unsubscribe(callback: TEventSubscriber): void;
@@ -62,7 +63,7 @@ export interface IEventLogger {
 }
 
 /**
- * Get caller info for the emitter field (e.g., "Executor:238")
+ * Returns the caller's file, function and line for the emitter field, such as "Executor.doFeatureStep:287".
  */
 function getEmitter(): string {
 	const stack = Error().stack?.split("\n");
@@ -91,16 +92,16 @@ export class EventLogger implements IEventLogger {
 	private kindCounts = new Map<TEventKind, number>();
 	public suppressConsole: boolean = false;
 
-	/** `ndjsonForced` is set when the run was asked for its events as NDJSON. A caller reading this run's output, rather
-	 *  than a person watching it, needs the events whatever else is formatting the console, so it outranks the monitor's
+	/** `ndjsonForced` is true when NDJSON output of events was requested. A process reads that output, and it requires
+	 *  every event while a monitor formats the console. So ndjsonForced takes precedence over the monitor's console
 	 *  suppression. */
 	constructor(
 		private isSecretFn: TIsSecretFn = () => false,
 		public readonly ndjsonForced = false,
 	) {}
 
-	/** Without options, delivers everything actuality narrates and never blips; `{ kinds }` delivers exactly those kinds
-	 *  and is the only way to receive `"blip"`; `{ names }` narrows the blips to a declared name or dotted namespace. */
+	/** Without options, delivers every narrated kind and never a blip. `{ kinds }` delivers those kinds only, and is the
+	 *  only way to receive `"blip"`. `{ names }` narrows the blips to a declared name or dotted namespace. */
 	subscribe(callback: TEventSubscriber, options?: TSubscribeOptions): void {
 		if (options?.names && !options.kinds?.includes("blip")) throw new Error(`subscribe: names filters blips; include kinds: ["blip"]`);
 		const kinds = options?.kinds ? new Set(options.kinds) : undefined;
@@ -123,8 +124,8 @@ export class EventLogger implements IEventLogger {
 		return !sub.names || name === undefined || matchesName(sub.names, name);
 	}
 
-	/** One check for a hot path: whether anything at all would receive an event of this kind, and with a blip's declared
-	 *  name, whether any subscriber's filter matches it. */
+	/** Returns whether a subscriber would receive an event of this kind. With a blip's declared name, it also checks that a
+	 *  subscriber's filter matches the name. recordBlip calls it first and returns where it is false. */
 	hasSubscribers(kind: TEventKind, name?: string): boolean {
 		if (!this.kindCounts.has(kind)) return false;
 		return name === undefined || this.subscribers.some((s) => this.wouldReceive(s, kind, name));
@@ -134,8 +135,10 @@ export class EventLogger implements IEventLogger {
 		const narrated = NARRATED_KINDS.has(event.kind);
 		if (!narrated && !this.kindCounts.has(event.kind)) return;
 		const name = event.kind === "blip" ? event.name : undefined;
-		// Every event states the level of what it may reveal, so a follower is sent only what it may read. An event is
-		// written as a record is, and one that doesn't state a level is actuality's own and private.
+		// Every event states the access level of what it reveals, so a follower receives only the events it may read.
+		// writtenAt determines an event's level, as it does a record's. An event that doesn't state a level takes the read
+		// ceiling of the call that emits it. Outside a bounded call, such an event is actuality's own and private. An event
+		// that states a level more public than the ceiling throws, unless the call holds that level's write action.
 		const eventWithEmitter = { ...event, emitter: event.emitter || getEmitter(), accessLevel: writtenAt(event.accessLevel, Access.private, accessBound()) };
 
 		for (const sub of this.subscribers) {
@@ -144,9 +147,8 @@ export class EventLogger implements IEventLogger {
 			try {
 				callback(eventWithEmitter);
 			} catch (e) {
-				// Same fan-out isolation as SseSubscriber.dispatch: one broken
-				// subscriber must not silence the others. DEV throws so the bug
-				// surfaces; PROD logs and continues.
+				// failFastOrLog logs a subscriber's error in PROD, so delivery to the other subscribers continues, as in
+				// StreamListeners.dispatch. In DEV it re-throws the error.
 				failFastOrLog("EventLogger subscriber error:", e);
 			}
 		}
@@ -159,7 +161,7 @@ export class EventLogger implements IEventLogger {
 		this.emit(LogEvent.parse({ id: formatSeqPath(featureStep.seqPath), timestamp: Date.now(), kind: "log", level: this.reportedAt(level), message, attributes }));
 	}
 
-	// Convenience methods for logging without a featureStep (for cycles, helpers, etc.)
+	// Convenience methods for logging without a featureStep, such as from cycles and helpers.
 	info(message: string, attributes?: Record<string, unknown>): void {
 		this.emitLog("info", message, attributes);
 	}
@@ -182,9 +184,9 @@ export class EventLogger implements IEventLogger {
 		this.emit(LogEvent.parse({ id, timestamp: Date.now(), kind: "log", level: this.reportedAt(level), message, attributes }));
 	}
 
-	/** The level a statement reports at: its own, held to the level of the step it is logged during. A warning and a
-	 *  fault report as themselves, since a step reporting quietly is not a reason to be quiet about a fault, and a call
-	 *  made into a running instance does not put the caller's own narration into actuality's history. */
+	/** Returns the level of a log statement: its own level, capped at the level of the step in flight. A warning or an
+	 *  error keeps its own level, so a view shows a fault during a quieter step. The cap keeps a call made into a running
+	 *  instance from putting the caller's narration into actuality's history. */
 	private reportedAt(level: THaibunLogLevel): THaibunLogLevel {
 		const ceiling = stepInFlight()?.reportsAt;
 		if (ceiling === undefined || HAIBUN_LOG_LEVELS.indexOf(level) >= HAIBUN_LOG_LEVELS.indexOf("warn")) return level;
@@ -233,8 +235,8 @@ export class EventLogger implements IEventLogger {
 		stepValuesMap: Record<string, unknown> | undefined,
 		products: Record<string, unknown> | undefined,
 	): void {
-		// A step that did not fail doesn't have an error, and stating so is leaving the field out. Describing `undefined` produces
-		// the string "undefined", which reads as an error to anything that shows one.
+		// The event leaves out the error field where error is undefined. errorDetail(undefined) returns the string
+		// "undefined", which a view would show as an error.
 		const errorMessage = error === undefined ? undefined : errorDetail(error);
 		const safeStepValuesMap = stepValuesMap ? sanitizeObjectSecrets(stepValuesMap, this.isSecretFn) : undefined;
 		this.emit(
@@ -260,12 +262,13 @@ export class EventLogger implements IEventLogger {
 	}
 
 	/**
-	 * Emit an artifact event. The artifact should already be a valid TArtifactEvent
-	 * (parsed via the appropriate Zod schema like ImageArtifact.parse()).
+	 * Emits an artifact event. The caller parses the TArtifactEvent with its Zod schema, such as ImageArtifact, before it
+	 * passes the event.
 	 */
 	artifact(featureStep: TFeatureStep, artifact: TArtifactEvent): void {
-		// What a run produced is read at every level, because it is shown by the row of the step that produced it: a
-		// reader reading a run's steps sees the shot on the step that took it, whatever level that step reports at.
+		// An artifact keeps the level it carries, which its schema sets to info by default. Its step's level doesn't cap it,
+		// as it caps a log statement. A view shows an artifact on the row of the step that produced it, so a person reading
+		// actuality's steps sees a screenshot on the step that took it, whatever the level of that step.
 		const event: TArtifactEvent = { ...artifact, id: artifact.id || `${formatSeqPath(featureStep.seqPath)}.artifact`, timestamp: artifact.timestamp || Date.now() };
 		this.emit(event);
 	}

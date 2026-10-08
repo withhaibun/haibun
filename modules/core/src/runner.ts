@@ -23,10 +23,11 @@ export class Runner {
 
 			await phaseRunner.tryPhase("WorldsAndDomains", () => setStepperWorldsAndDomains(this.steppers, this.world));
 
-			// Collect domain concerns before Expand so domains are available during resolution
+			// The StepGraph phase and execution read the domains that addStepperConcerns registers.
 			await phaseRunner.tryPhase("Concerns", () => addStepperConcerns(this.world, this.steppers));
 
-			// A run refuses to start with a blocking finding in its step graph, and reports the rest.
+			// A blocking finding in the step graph prevents execution. lintRunStepGraph throws on it.
+			// The phase emits the report of non-blocking findings as a debug artifact.
 			await phaseRunner.tryPhase("StepGraph", () => {
 				const report = lintRunStepGraph(this.steppers, this.world.domains);
 				this.world.eventLogger.emit({
@@ -41,13 +42,13 @@ export class Runner {
 				});
 			});
 
-			// A monitor formats the console for a person, so the raw event stream is suppressed for it. A run asked for
-			// NDJSON is being read by another process, which doesn't have another stream to read, so that request outranks it.
+			// The phase sets suppressConsole when a monitor stepper is loaded. The event logger doesn't write NDJSON events to the console while suppressConsole is set.
+			// The phase doesn't set suppressConsole when ndjsonForced is true. The NDJSON option sets ndjsonForced for a calling process that reads the events.
 			await phaseRunner.tryPhase("Options", () => {
 				if (this.steppers.some((s) => s.kind === StepperKinds.MONITOR) && this.world.eventLogger && !this.world.eventLogger.ndjsonForced) {
 					this.world.eventLogger.suppressConsole = true;
 				}
-				// Make backgrounds available at runtime for inline `Backgrounds:` expansion
+				// findFeatureStepsFromStatement reads runtime.backgrounds to expand an inline `Backgrounds:` line during execution.
 				this.world.runtime.backgrounds = featuresBackgrounds.backgrounds;
 			});
 

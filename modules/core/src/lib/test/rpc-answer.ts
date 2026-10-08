@@ -1,12 +1,12 @@
 import { ACTION_BEGIN, RPC_PROTOCOL, RPC_ROUTE, newActualityId, type THandshake } from "../rpc-wire.js";
 
-/** A host's answer as actuality sends one: JSON, with the status that states whether it served the call. */
+/** Returns a host response as actuality sends one. The body is JSON, and `status` reports whether the host served the call. */
 export const rpcAnswer = (body: unknown, status: number): Response => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
 
-/** Where a host a test stands in for answers the handshake. */
+/** The path where a stand-in host responds to the handshake. */
 export const HANDSHAKE_PATH = `${RPC_ROUTE}${ACTION_BEGIN}`;
 
-/** What a host a test stands in for answers the handshake with, as host `hostId` of `site`. */
+/** Returns the handshake a stand-in host sends as host `hostId` of `site`. */
 export const hostHandshake = (hostId: number, site: string): THandshake & { seqPath: number[] } => ({
 	seqPath: [hostId, -1, 1],
 	protocol: RPC_PROTOCOL,
@@ -16,10 +16,10 @@ export const hostHandshake = (hostId: number, site: string): THandshake & { seqP
 	serving: true,
 });
 
-/** The actuality of the records a host a test stands in for holds. */
+/** The actuality id that a stand-in host's handshake reports. */
 export const HOST_ACTUALITY = newActualityId();
 
-/** `fetchImpl`, answering the handshake as a host a test stands in for does and every other request as `fetchImpl` does. */
+/** Wraps `fetchImpl`. The wrapper returns a stand-in host's handshake for a handshake request and passes every other request to `fetchImpl`. */
 export const answeringTheHandshake =
 	(fetchImpl: typeof fetch): typeof fetch =>
 	(input, init) =>

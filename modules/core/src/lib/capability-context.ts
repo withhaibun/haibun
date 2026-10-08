@@ -1,17 +1,18 @@
 /**
- * The capability the step now running was authorized with, for the length of that step.
+ * Holds the capability that authorized the running step, for the duration of that step.
  *
- * A step that dispatches another step must run it under the same capability it was itself authorized with; otherwise
- * the same action would be allowed or refused depending on the route taken to it. The capability is held in an
- * AsyncLocalStorage store rather than on `world.runtime`, for two reasons: the async chain scopes it exactly to the
- * dispatch that set it, so concurrent dispatches never read each other's; and it is not a mutable field that
- * unrelated code can assign, so a step cannot change what it is authorized with by writing to the world.
+ * A step that dispatches another step runs it under its own capability. Otherwise the route to an action would
+ * determine whether the action is allowed or refused. An AsyncLocalStorage store holds the capability instead of
+ * `world.runtime`, for two reasons. The async chain scopes the capability to the dispatch that set it, so concurrent
+ * dispatches don't read each other's capability. The store isn't a mutable field that unrelated code can assign, so a step can't
+ * change its authorization by writing to the world.
  *
- * This is the same pattern step-stream-context uses for the streaming side-channel.
+ * The step-stream-context module uses the same pattern for the streaming side-channel.
  *
- * What this does NOT defend against: code running in this process can import this module and call `run` itself. The
- * capability check exists for callers that reach a step over a transport (RPC, MCP, a model's tool call), which
- * cannot execute code here; a stepper registered in the configuration is already inside the process.
+ * This module doesn't defend against code in this process. Such code can import this module and call
+ * `runAuthorizedWith` or `runInvoking` itself. The capability check applies to callers that reach a step over a
+ * transport (RPC, MCP, a model's tool call). Those callers can't execute code here. A stepper registered in the
+ * configuration already executes inside the process.
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 import { Access, narrowerCeiling, type AccessLevel } from "./resources.js";
@@ -22,45 +23,49 @@ import type { THaibunLogLevel } from "../schema/protocol.js";
 const capabilityStore = new AsyncLocalStorage<TCallAuthority>();
 
 /**
- * Run `within` with `capability` as the authorization of every step it dispatches, held in this process: a holder of a
- * delegation, as actuality's own feature or a turn holding its asker's delegation is, invokes for each step the action it
- * holds that allows it, so what it may invoke and what it holds are one list.
+ * Runs `within` with `capability` as the authorization of every step it dispatches in this process. `capability` is both
+ * what the call invokes and what it holds. A delegation holder invokes the held action that allows each step, so what
+ * it may invoke and what it holds are one list. Actuality's own feature and a turn that holds its asker's delegation
+ * are such holders.
  */
 export function runAuthorizedWith<T>(capability: string | string[] | undefined, within: () => Promise<T>): Promise<T> {
 	return capabilityStore.run({ invoked: capability, held: capability }, within);
 }
 
 /**
- * Run `within` as a call a caller outside the process invoked: ZCAP-LD's invocation names one action, which is all the
- * call is authorized for, and the chain it presents proves what its caller holds, which bounds what the call reads and is shown.
+ * Runs `within` as a call that a caller outside the process invoked. A ZCAP-LD invocation names one action, and the
+ * call is authorized for that action alone. The chain the caller presents proves what the caller holds. What the
+ * caller holds bounds what the call reads and is shown.
  */
 export function runInvoking<T>(authority: TCallAuthority, within: () => Promise<T>): Promise<T> {
 	return capabilityStore.run(authority, within);
 }
 
-/** What a run's own feature holds: the run acts for the instance itself, so a step its features state is the
- *  instance's own act. A narrower authority for part of a feature is stated by the statement that narrows it. */
+/** The authority that actuality's own features hold. Actuality acts for the instance itself, so a step that its features
+ *  state is the instance's own act. A statement that narrows the authority for part of a feature states the narrower one. */
 export const RUN_AUTHORITY = [EVERY_ACTION];
 
-/** What the calling step was authorized with, or undefined outside any dispatch. */
+/** Returns the capability that authorized the calling step, or undefined outside a dispatch. */
 export function authorizedWith(): string | string[] | undefined {
 	return capabilityStore.getStore()?.invoked;
 }
 
-/** What the calling step's caller holds, which bounds what the step reads, writes and is shown, or undefined outside any dispatch. */
+/** Returns what the calling step's caller holds, or undefined outside a dispatch. What the caller holds bounds what the
+ *  step reads, writes and is shown. */
 export function callerHolds(): string | string[] | undefined {
 	return capabilityStore.getStore()?.held;
 }
 
 const shownStore = new AsyncLocalStorage<string | string[] | undefined>();
 
-/** Run `within` showing every listing of steps it makes what `held` allows: a caller that acts for another is shown what
- *  that other holds, and calls only what it holds itself, so a call it may not make is one the other may allow. */
+/** Runs `within` so that each listing of steps it makes shows what `held` allows. A caller that acts for another is shown
+ *  what the other holds. It calls only what it holds itself, so a listed step it may not call is one the other may allow. */
 export function runShowing<T>(held: string | string[] | undefined, within: () => Promise<T>): Promise<T> {
 	return shownStore.run(held, within);
 }
 
-/** What a listing of steps shows the calling step: what the caller it acts for holds, or else what it holds. */
+/** Returns what a listing of steps shows the calling step. That is what the caller it acts for holds, else what its own
+ *  caller holds. */
 export function shownTo(): string | string[] | undefined {
 	return shownStore.getStore() ?? callerHolds();
 }
@@ -68,17 +73,18 @@ export function shownTo(): string | string[] | undefined {
 const askStore = new AsyncLocalStorage<string | undefined>();
 
 /**
- * The ask a step is running under: the exchange that called it, for a step that records what it did.
+ * Holds the id of the ask a step runs under. The ask is the exchange that called the step. A step that records what it
+ * did reads the id.
  *
- * It is scoped the same way and for the same reason as the capability. On the world it would be one value for the
- * whole process, so a second ask in flight would read or clear the first one's; in the async context it belongs to
- * the call that set it.
+ * The id is scoped like the capability, for the same reason. A world field would hold one value for the whole process,
+ * so a second ask in flight would read or clear the first ask's id. The async context scopes the id to the call that
+ * set it.
  */
 export function runAsking<T>(askId: string | undefined, within: () => Promise<T>): Promise<T> {
 	return askStore.run(askId, within);
 }
 
-/** The ask this step is answering, or undefined when a caller didn't ask for it. */
+/** Returns the id of the ask the calling step runs under, or undefined where a caller didn't set one. */
 export function askedIn(): string | undefined {
 	return askStore.getStore();
 }
@@ -86,55 +92,59 @@ export function askedIn(): string | undefined {
 const actingStore = new AsyncLocalStorage<{ principal: string | undefined; restsOn: TRestsOn | undefined }>();
 
 /**
- * Who a call proved itself to be, for the length of that call.
+ * Holds the principal a call proved, for the duration of that call.
  *
- * A boundary that checks a proof learns who made it, and what is done under that proof is done by them. Held here
- * rather than on the world for the reason the capability is: the world has one value for the whole process, so two
- * requests in flight would be recorded as each other, and this belongs to the call that proved it. The call is one of its
- * own, not part of the step it arrived during, as a request a server receives isn't part of the step that started the
- * server, so the steps it runs begin a chain of their own.
+ * A boundary that checks a proof determines the principal that made it. An act done under that proof is that
+ * principal's act. The async context holds the principal instead of the world, for the same reason as the capability.
+ * A world field would hold one value for the whole process, so each of two requests in flight would be recorded as the
+ * other. The async context scopes the principal to the call that proved it. `runActingAs` exits the step context, so
+ * the call isn't part of the step during which it arrived. A request a server receives isn't part of the step that
+ * started the server either. The first step the call runs is the outermost step of the call.
  */
 export function runActingAs<T>(principal: string | undefined, within: () => Promise<T>, restsOn?: TRestsOn): Promise<T> {
 	return actingStore.run({ principal, restsOn }, () => stepStore.exit(within));
 }
 
-/** Who proved themselves at the boundary this call came through, or undefined where a caller didn't. */
+/** Returns the principal this call acts as, or undefined where the call doesn't act as a principal. A boundary sets the
+ *  principal it verified, and a tick sets the principal that started its ticker. */
 export function actingAs(): string | undefined {
 	return actingStore.getStore()?.principal;
 }
 
-/** What the proof this call came through rests on: the capabilities it descends through and when the first expires, or
- *  undefined where the call didn't present one, as actuality's own statements don't. */
+/** Returns what this call's proof rests on: the capabilities of its delegation chain and the time the first expires.
+ *  Returns undefined where the call didn't present a proof. Actuality's own statements don't present one. */
 export function restingOn(): TRestsOn | undefined {
 	return actingStore.getStore()?.restsOn;
 }
 
-/** Who an act of the authority is done for: the root, where the call holds every action, as actuality's own features and
- *  its owner do; else the key the caller proved, which acts only within what it was delegated; else undefined. */
+/** Returns the principal of an authority act. It returns the root where the calling step's authorization
+ *  allows every action. Actuality's own features and its owner hold that authorization. Else it returns the key the
+ *  caller proved. That key acts only within its delegation. Else it returns undefined. */
 export function actingFor(): TActingFor | undefined {
 	if (capabilityAllows(authorizedWith(), EVERY_ACTION)) return { root: true };
 	const controller = actingAs();
 	return controller ? { root: false, controller } : undefined;
 }
 
-/** The step running: its seqPath, how prominently what is logged while it runs reports, and the seqPath of the outermost
- *  step of the call it is part of, which is its own where no step dispatched it. */
+/** The running step. It holds the step's seqPath, the log level at which the step's logs report, and the seqPath of the
+ *  outermost step of its call. A step that another step didn't dispatch is its own outermost step. */
 type TStepInFlight = { seqPath: string; reportsAt: THaibunLogLevel | undefined; outermost: string };
 
 const stepStore = new AsyncLocalStorage<TStepInFlight | undefined>();
 
 /**
- * The step a call is part of, for the length of the step's dispatch.
+ * Holds the step a call is part of, for the duration of the step's dispatch.
  *
- * What a step writes, logs and records names the step it was done in. Held on the world, the step was one value for the
- * whole process: two steps in flight, as two readers' calls into one run are, each named the step dispatched last, and a
- * step that dispatched another named the inner step until it ended. Held here, each call reads the step it belongs to.
+ * Each write, log and record of a step names that step. A world field would hold one step for the whole process. Two
+ * readers' calls into actuality are two steps in flight, and each would name the step dispatched last. A step that
+ * dispatched another would name the inner step until the inner step ended. Each call reads its own step from the
+ * async context.
  */
 export function runInStep<T>(step: Omit<TStepInFlight, "outermost">, within: () => T): T {
 	return stepStore.run({ ...step, outermost: stepStore.getStore()?.outermost ?? step.seqPath }, within);
 }
 
-/** The step this call is part of, or undefined outside any dispatch. */
+/** Returns the step this call is part of, or undefined outside a dispatch. */
 export function stepInFlight(): TStepInFlight | undefined {
 	return stepStore.getStore();
 }
@@ -142,29 +152,29 @@ export function stepInFlight(): TStepInFlight | undefined {
 const readCeilingStore = new AsyncLocalStorage<AccessLevel | undefined>();
 
 /**
- * The most a read may see, for the length of the call that entered here.
+ * Holds the broadest level a read may see, for the duration of the call that set it.
  *
- * A ceiling each read opts into is not a ceiling: a store scoped by whoever happens to query it is bounded only where
- * someone remembered to bound it. So the boundary a call arrives at states what that caller may see, once, and every
- * read inside it is bounded by that whether or not it states anything about access. A read that names a level of its own
- * still cannot exceed this one; it can only ask for less.
+ * An opt-in ceiling would leave each read that omitted it unbounded. The boundary that receives a call sets
+ * the caller's ceiling once. That ceiling bounds every read inside the call, whether or not the read states an access
+ * level. A read that names its own level reads at the narrower of that level and the ceiling.
  *
- * Scoped like the capability, and for the same reasons: the async chain bounds it to the call that set it, and it is
- * not a field on the world that later code can widen. A scope set inside another meets the ceiling already in force,
- * narrower winning, so a call inside a boundary, such as a model turn reading at the level its context resolved at,
- * never reads above what the boundary allowed.
+ * The ceiling is scoped like the capability, for the same reasons. The async chain bounds it to the call that set it.
+ * It isn't a world field that later code can widen. A scope set inside another takes the narrower of its own level and
+ * the ceiling in force. A call inside a boundary therefore doesn't read above the boundary's ceiling. A model turn that
+ * reads at its context's resolved level is such a call.
  */
 export function runReadingAt<T>(ceiling: AccessLevel | undefined, within: () => Promise<T>): Promise<T> {
 	return readCeilingStore.run(narrowerCeiling(readCeilingStore.getStore(), ceiling), within);
 }
 
-/** The ceiling in force, or undefined where a ceiling didn't bound the caller (a feature line in its own run). */
+/** Returns the ceiling in force, or undefined where a ceiling doesn't bound the caller. A line of actuality's own
+ *  features isn't bounded by a ceiling. */
 export function readingAt(): AccessLevel | undefined {
 	return readCeilingStore.getStore();
 }
 
-/** The level of what the call in progress may have read: its ceiling, or private for actuality's own statements, which
- *  read without one. */
+/** Returns the level of what the call in progress may have read. That level is the call's ceiling, or private for
+ *  actuality's own statements. Actuality's own statements read without a ceiling. */
 export function readLevel(): AccessLevel {
 	return readingAt() ?? Access.private;
 }
@@ -172,37 +182,40 @@ export function readLevel(): AccessLevel {
 const statedAtStore = new AsyncLocalStorage<{ ceiling: AccessLevel | undefined }>();
 
 /**
- * Run `within` as the step a statement states, where the statement was stated at `ceiling`: the ceiling in force where it
- * was dispatched, before the step's own authority narrows it. A statement's arguments are its author's, so they are read
- * at the ceiling the author reads at, while the step reads at its own.
+ * Runs `within` as the step a statement states, and holds `ceiling` as the statement's ceiling. `ceiling` is the
+ * ceiling in force at dispatch, before the step's own authority narrows it. A statement's arguments are its author's,
+ * so `readingAsStated` reads them at the author's ceiling. The step reads at its own ceiling.
  */
 export function runStatedAt<T>(ceiling: AccessLevel | undefined, within: () => Promise<T>): Promise<T> {
 	return statedAtStore.run({ ceiling }, within);
 }
 
-/** Read a statement's arguments at the ceiling it was stated at, or at the ceiling in force outside any dispatch. */
+/** Runs `within` at the ceiling of the dispatched statement, so `within` reads the statement's arguments at that
+ *  ceiling. Outside a dispatch it runs `within` at the ceiling in force. */
 export function readingAsStated<T>(within: () => Promise<T>): Promise<T> {
 	const stated = statedAtStore.getStore();
 	return stated ? readCeilingStore.run(stated.ceiling, within) : within();
 }
 
-/** What bounds the call in progress, which every store writes and reads by: its ceiling and what it holds. */
+/** Returns the bound of the call in progress: its ceiling and what its caller holds. Every store reads and writes within
+ *  this bound. */
 export function accessBound(): TAccessBound {
 	return { ceiling: readingAt(), held: callerHolds() };
 }
 
 /**
- * Run `within` reading as the instance itself, without the ceiling of the call it is part of. For the authority's own
- * decisions and acts alone: checking a chain a caller presents, answering a key what was delegated to it, and delegating,
- * invoking and revoking for a caller that holds the action each takes. Each reads the instance's records to decide, and
- * returns the decision, what the key it answers already holds, or what the act made.
+ * Runs `within` as the instance itself, without the ceiling of the call it is part of. Only the authority's own
+ * operations call it. They verify a chain a caller presents, return the delegations of a key, and delegate, invoke or
+ * revoke for a caller that holds the action each act requires. Each reads the instance's records and returns the
+ * verdict, the delegations the key already holds, or the act's result.
  */
 export function runReadingAsTheInstance<T>(within: () => Promise<T>): Promise<T> {
 	return readCeilingStore.run(undefined, within);
 }
 
-/** Run `within` as a tick: holding `needs` and nothing more, reading at the ceiling they grant, and acting for whoever
- *  started its ticker under the proof that start rested on. For work that outlives the step that started it. */
+/** Runs `within` as a tick, for work that outlives the step that started it. The tick holds only `needs` and reads at the
+ *  broadest level `needs` allows, else at public. It acts as `startedBy` under `restsOn`. `startedBy` is the principal
+ *  that started the ticker, and `restsOn` is what that start's proof rests on. */
 export function runAsTicking<T>(needs: readonly string[], startedBy: string | undefined, restsOn: TRestsOn | undefined, within: () => Promise<T>): Promise<T> {
 	const held = [...needs];
 	return runAuthorizedWith(held, () => readCeilingStore.run(readCeilingOf(held) ?? Access.public, () => runActingAs(startedBy, within, restsOn)));

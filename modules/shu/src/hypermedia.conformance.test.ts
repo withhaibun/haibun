@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// Both implementations of the page's conduit, held to one specification: the live one over /rpc, and the one a test
-// installs to answer from its own function.
+// Runs one specification against both implementations of the page's conduit. LiveConduit sends each call over /rpc.
+// TestConduit returns results from a function the test supplies.
 import { ACTION_BEGIN } from "@haibun/core/lib/rpc-wire.js";
 import { hostHandshake } from "@haibun/core/lib/test/rpc-answer.js";
 import { LiveConduit, type TStreamChunk } from "./hypermedia.js";
@@ -10,7 +10,7 @@ import { rpcAnswer } from "@haibun/core/lib/test/rpc-answer.js";
 
 type TArranged = { answer?: unknown; failure?: string; chunks?: TStreamChunk[] };
 
-/** What a case arranged, by method, and what the steps were asked: the part both harnesses share. */
+/** Holds the result a case arranged for each method, and records each call made to a step. Both harnesses share it. */
 function arrangements(): {
 	of: (method: string) => TArranged;
 	asked: () => Array<{ method: string; params: Record<string, unknown> }>;
@@ -31,7 +31,7 @@ function arrangements(): {
 	};
 }
 
-describeConduit("answering from a test's own function", () => {
+describeConduit("returning results from a test's own function", () => {
 	const arranged = arrangements();
 	const conduit = new TestConduit((method, params) => {
 		arranged.record(method, params);

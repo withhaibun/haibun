@@ -181,7 +181,7 @@ describe("typedLinkFacts", () => {
 		expect(typedLinkFacts("See [the introduction](#introduction).", vocab)).toEqual([]);
 	});
 	it("fails when a typed link doesn't name a record here", () => {
-		expect(() => typedLinkFacts("[that section:cites](#introduction)", vocab)).toThrow(/a record here, named #Type:id/);
+		expect(() => typedLinkFacts("[that section:cites](#introduction)", vocab)).toThrow(/a fact's target is a record\. Write the href as #Type:id/);
 	});
 	it("doesn't state a fact when a word that happens to be a term points at a page anchor", () => {
 		expect(typedLinkFacts("as [verified](#dfn-verify) defines it", vocab)).toEqual([]);
@@ -199,6 +199,6 @@ describe("typedLinkFacts", () => {
 	it("doesn't state a fact for a path or a web address; a typed link to one fails", () => {
 		expect(typedLinkFacts("as [the W3C model](https://www.w3.org/TR/annotation-model/) puts it", vocab)).toEqual([]);
 		expect(typedLinkFacts("see [the design](./architecture.md) beside it", vocab)).toEqual([]);
-		expect(() => typedLinkFacts("[the W3C model:cites](https://www.w3.org/TR/annotation-model/)", vocab)).toThrow(/a record here, named #Type:id/);
+		expect(() => typedLinkFacts("[the W3C model:cites](https://www.w3.org/TR/annotation-model/)", vocab)).toThrow(/a fact's target is a record\. Write the href as #Type:id/);
 	});
 });

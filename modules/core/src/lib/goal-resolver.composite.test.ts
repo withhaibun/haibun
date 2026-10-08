@@ -7,12 +7,9 @@ import type { TRegisteredDomain } from "./resources.js";
 import { RUN_AUTHORITY } from "./capability-context.js";
 
 /**
- * Resolver-composite tests.
- *
- * Verify that when `compositeDecomposition: true` is set and an input domain
- * has registered `topology.ranges`, the resolver recurses into its fields and
- * emits a `kind: "composite"` binding whose `fields[]` are independently
- * satisfied (fact, argument, or nested composite).
+ * Tests the resolver's composite decomposition. The resolver recurses into the fields of an input domain that registers
+ * `topology.ranges` where `compositeDecomposition` is true. It emits a `kind: "composite"` binding. A fact, an argument
+ * or a nested composite satisfies each entry of its `fields[]` independently.
  */
 
 const IssuerSchema = z.object({ did: z.string(), name: z.string().optional() });
@@ -37,8 +34,8 @@ function makeDomains(): Record<string, TRegisteredDomain> {
 }
 
 function graphIssuingCredential(): TDomainChainGraph {
-	// One step that produces verifiable-credential from vc.
-	// vc doesn't have a producer: it's a composite leaf the resolver should decompose.
+	// One step produces verifiable-credential from vc. vc doesn't have a producer. The resolver decomposes vc as a
+	// composite leaf where composite decomposition is on.
 	return {
 		domains: [
 			{ key: "vc", hasTopology: true },
@@ -64,7 +61,7 @@ function withComposite(inputs: TResolverInputs): TResolverInputs {
 }
 
 describe("resolveGoal, composite decomposition", () => {
-	it("emits a flat `argument` binding for the composite when decomposition is disabled (back-compat)", () => {
+	it("emits a flat `argument` binding for the composite when decomposition isn't enabled", () => {
 		const graph = graphIssuingCredential();
 		const result = resolveGoal("verifiable-credential", { graph, facts: [], held: RUN_AUTHORITY });
 		if (result.finding !== GOAL_FINDING.MICHI) throw new Error(`expected MICHI, got ${result.finding}`);
@@ -73,7 +70,7 @@ describe("resolveGoal, composite decomposition", () => {
 		expect(m.bindings[0]).toMatchObject({ kind: "argument", domain: "vc" });
 	});
 
-	it("emits a composite binding whose primitive-only fields each become a field-argument", () => {
+	it("emits a composite binding with an `argument` field binding for each field without a range", () => {
 		const graph = graphIssuingCredential();
 		const result = resolveGoal("verifiable-credential", withComposite({ graph, facts: [], held: RUN_AUTHORITY }));
 		if (result.finding !== GOAL_FINDING.MICHI) throw new Error(`expected MICHI, got ${result.finding}`);
@@ -83,7 +80,7 @@ describe("resolveGoal, composite decomposition", () => {
 		expect(subject).toMatchObject({ kind: "argument", fieldDomain: "" });
 	});
 
-	it("uses an existing fact for a ranged field instead of asking for an argument", () => {
+	it("binds an existing fact to a ranged field instead of an argument", () => {
 		const graph = graphIssuingCredential();
 		const issuerFact: TQuad = { subject: "fact-issuer-1", predicate: "issuer", object: { did: "did:example:alice" }, namedGraph: "facts", timestamp: 1 };
 		const result = resolveGoal("verifiable-credential", withComposite({ graph, facts: [issuerFact], held: RUN_AUTHORITY }));
@@ -93,7 +90,7 @@ describe("resolveGoal, composite decomposition", () => {
 		expect(issuer).toMatchObject({ kind: "fact", factId: "fact-issuer-1", fieldDomain: "issuer" });
 	});
 
-	it("respects compositeMaxDepth: a deep recursion is cut off so the resolver stays bounded", () => {
+	it("respects compositeMaxDepth: recursion stops at the maximum depth, so the resolver terminates", () => {
 		// Self-referential composite: deep.next ranges over deep itself.
 		const SelfSchema = z.object({ next: z.string() });
 		const domains: Record<string, TRegisteredDomain> = {
@@ -109,14 +106,13 @@ describe("resolveGoal, composite decomposition", () => {
 			edges: [{ from: "deep", to: "leaf", stepperName: "S", stepName: "f" }],
 		};
 		const result = resolveGoal("leaf", { graph, facts: [], held: RUN_AUTHORITY, domains, compositeDecomposition: true, compositeMaxDepth: 2 });
-		// Must terminate with some finding, without hanging or producing infinite michi.
+		// The resolver returns a finding without hanging or producing infinite michi.
 		expect(result.finding === GOAL_FINDING.MICHI || result.finding === GOAL_FINDING.UNREACHABLE).toBe(true);
 	});
 
-	it("emits exactly one michi for a step whose multiple inputs share the same domain (without per-edge duplication)", () => {
-		// `verify credential {id: string} as {verifierId: string}`: both inputs land at
-		// the products domain via two graph edges. The resolver must enumerate the step
-		// once, not once per edge, and the resulting michi must carry both bindings.
+	it("emits one michi for a step whose inputs share a domain, not one per edge", () => {
+		// Each input of `verify credential {id: string} as {verifierId: string}` has its own graph edge to the products
+		// domain. The resolver enumerates the step once, not once per edge, and the michi carries both bindings.
 		const graph: TDomainChainGraph = {
 			domains: [
 				{ key: "string", hasTopology: false },
@@ -144,7 +140,7 @@ describe("resolveGoal, composite decomposition", () => {
 		expect(result.michi[0].bindings.length).toBeGreaterThanOrEqual(1);
 	});
 
-	it("falls back to flat argument when domains map is missing even though the flag is on", () => {
+	it("emits a flat argument binding when the domains map is missing, even with the flag on", () => {
 		const graph = graphIssuingCredential();
 		const result = resolveGoal("verifiable-credential", { graph, facts: [], held: RUN_AUTHORITY, compositeDecomposition: true });
 		if (result.finding !== GOAL_FINDING.MICHI) throw new Error(`expected MICHI, got ${result.finding}`);

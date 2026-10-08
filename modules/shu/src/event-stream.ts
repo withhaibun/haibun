@@ -1,18 +1,15 @@
 /**
- * EventStream: shu's single contract for inbound server-pushed events
- * (lifecycle, log, time-sync). One file holds the interface, both
- * implementations, and the accessor. Components and infrastructure subscribe
- * via `eventStream()`; other code doesn't touch `SseSubscriber`.
+ * EventStream is shu's one contract for the events a server pushes (lifecycle, log, time-sync). This file holds the
+ * interface, both implementations and the accessor. Components and infrastructure subscribe through `eventStream()`.
+ * Other shu modules don't construct an `SseSubscriber`.
  *
- * `LiveEventStream` wraps the shared `SseSubscriber` connection, which the
- * page asks for signed, since following actuality takes a private read.
- * Subscribers registered after connect receive what the page received before
- * they subscribed, then live events.
+ * `LiveEventStream` wraps an `SseSubscriber` connection. The page signs its request for that connection where it holds a
+ * delegation for `FOLLOWS_THE_RUN`. Following actuality requires that public read. A subscriber registered after
+ * `connect` first receives the events in the replay buffer, then live events.
  *
- * `SerializedEventStream` powers tests and the offline shu.html report. The
- * caller provides events via `emit(event)`; subscribers registered before or
- * after the emit see them in order. Tests drive scripted scenarios by calling
- * `emit` between assertions, and `reconnect` to report the stream came back.
+ * `SerializedEventStream` serves tests and the offline shu.html report. The caller supplies events through `emit(event)`.
+ * Subscribers registered before or after an `emit` receive the events in order. Tests drive scripted scenarios by calling
+ * `emit` between assertions, `disconnect` to report a break and `reconnect` to report that the stream reopened.
  */
 
 import { SseSubscriber, StreamListeners } from "@haibun/core/lib/sse-subscriber.js";
@@ -25,43 +22,44 @@ export type TEvent = Record<string, unknown>;
 type TEventHandler = (event: TEvent) => void;
 export type TEventFilter = (event: TEvent) => boolean;
 
-/** The single contract for subscribing to server-pushed events. Live and serialized implementations share this surface so components are unaware which is installed. */
+/** The one contract for subscribing to server-pushed events. The live and serialized implementations share this interface, so a component's code doesn't depend on which one is installed. */
 export interface EventStream {
-	/** Register a handler. `filter` (if given) is consulted per-event; only matching events reach the handler. Returns an unsubscribe function. New subscribers immediately receive any buffered history before the next live event arrives. */
+	/** Registers a handler. A given `filter` runs per event. Only matching events reach the handler. Returns an unsubscribe function. A new subscriber receives the buffered history during `subscribe`, before the next live event arrives. */
 	subscribe(handler: TEventHandler, filter?: TEventFilter): () => void;
 
-	/** Open the stream now, before any view subscribes. The server announces from the moment a page connects and
-	 *  doesn't replay what it sent before, so a page that connects only when its first view is ready loses what happened while it booted;
-	 *  what arrives before a view subscribes is held for it. */
+	/** Opens the stream. App boot calls it before any view subscribes. The server sends events from the moment a page
+	 *  connects and doesn't replay earlier events. A page that connects only when its first view is ready would lose the
+	 *  events sent while it booted. The stream holds the events that arrive before a view subscribes and replays them to the
+	 *  view. */
 	connect(): void;
 
-	/** Be told the stream is open: at once for a stream open now, and each time it opens after. From then on, what actuality
-	 *  announces reaches the handlers. Returns an unsubscribe. */
+	/** Registers `fn` to run when the stream opens. It runs at once for an open stream, and each time the stream opens
+	 *  again. The events actuality sends reach the handlers while the stream is open. Returns an unsubscribe. */
 	opened(fn: () => void): () => void;
 
-	/** Be told the stream has come back after a break in it. What happened during the break doesn't reach a handler, so a
-	 *  view following actuality reads again on this through the path it already reads on. Returns an unsubscribe. */
+	/** Registers `fn` to run when the stream reopens after a break. The events sent during the break don't reach a handler.
+	 *  A view that follows actuality reads again through its usual read path when `fn` runs. Returns an unsubscribe. */
 	reconnected(fn: () => void): () => void;
 
-	/** Be told the stream has broken: from then until it comes back, a view following actuality cannot report its reading
-	 *  is current, since what actuality does reaches it no more. A stream already down reports so at once, as `subscribe`
-	 *  replays what it holds, so a view that starts listening after the break is not left believing it is current.
-	 *  Returns an unsubscribe. */
+	/** Registers `fn` to run when the stream breaks. A view that follows actuality can't report its reading as current until
+	 *  the stream reopens, because actuality's events don't reach it. `fn` runs at once for a stream already down, in the
+	 *  way `subscribe` replays the events it holds. A view that subscribes after the break then doesn't show a stale reading
+	 *  as current. Returns an unsubscribe. */
 	disconnected(fn: () => void): () => void;
 
-	/** Total events ever recorded (including ones the replay buffer has since dropped). Used by the timeline to label the slider knob `current / count / total`. */
+	/** Returns the count of events ever recorded, including events the replay buffer has since dropped. The conformance cases read it to confirm a delivery. */
 	totalRecorded(): number;
 
-	/** Cleanup: close the underlying transport and drop all subscriptions. After `close`, `subscribe` may continue to work against a no-op transport but should be treated as a programming error in production. */
+	/** Closes the underlying transport and removes all subscriptions. A `subscribe` call after `close` is a programming error in production, although it may still work against a no-op transport. */
 	close(): void;
 }
 
 // ─── LiveEventStream ─────────────────────────────────────────────────────────
 
-/** What the page asks for actuality's stream with: signed under a delegation that allows following actuality. */
+/** Returns the headers of the page's request for actuality's stream. They carry a signature under a delegation that allows following actuality where the page holds one. They are empty where the page doesn't hold one. */
 const followingHeaders = (url: string): Promise<Record<string, string>> => readingHeaders(url, FOLLOWS_THE_RUN);
 
-/** `EventStream` over a real `/sse` connection. One shared `SseSubscriber` regardless of how many `LiveEventStream` instances exist; constructed lazily on first `subscribe`, and opened only by `connect`, once the page knows it may follow actuality. */
+/** `EventStream` over a real `/sse` connection. An instance constructs its `SseSubscriber` on the first `subscribe`, `connect`, `opened`, `reconnected` or `disconnected` call. Only `connect` opens it. App boot installs one instance per page and calls `connect` after it reads the reader's authority and the available steps. */
 export class LiveEventStream implements EventStream {
 	private subscriber: SseSubscriber | null = null;
 
@@ -98,7 +96,7 @@ export class LiveEventStream implements EventStream {
 
 	private ensure(): SseSubscriber {
 		if (!this.subscriber) {
-			// How long after a break the connection opens again: what the deployment set, else the subscriber's own.
+			// The delay before the connection reopens after a break. The deployment's `streamReconnectAfterMs` sets it, else the subscriber's default applies.
 			const reconnectDelayMs = deploymentMs("streamReconnectAfterMs");
 			this.subscriber = new SseSubscriber({
 				url: this.url,
@@ -113,9 +111,9 @@ export class LiveEventStream implements EventStream {
 
 // ─── SerializedEventStream ───────────────────────────────────────────────────
 
-/** `EventStream` backed by an in-memory event log. New subscribers first receive every event already emitted, then new ones, the contract the live subscriber has, so consumer code is unaware of the source. */
+/** `EventStream` backed by an in-memory event log. A new subscriber first receives every event already emitted, then new ones. The live subscriber has the same contract, so consumer code doesn't depend on the source. */
 export class SerializedEventStream implements EventStream {
-	/** A log keeps everything it was given, and is open from the start: it is all there is. */
+	/** The log keeps every event it is given. It is open from construction, because it holds the whole record. */
 	private readonly followers = new StreamListeners<TEvent>("SerializedEventStream", Number.POSITIVE_INFINITY, true);
 
 	subscribe(handler: TEventHandler, filter?: TEventFilter): () => void {
@@ -123,7 +121,7 @@ export class SerializedEventStream implements EventStream {
 	}
 
 	connect(): void {
-		// A log that is all there is is open already.
+		// The log is open from construction, so `connect` doesn't change its state.
 	}
 
 	opened(fn: () => void): () => void {
@@ -138,18 +136,18 @@ export class SerializedEventStream implements EventStream {
 		return this.followers.disconnected(fn);
 	}
 
-	/** Report that the stream broke, so a scripted scenario drives a view's reading the way a break does. An offline reading
-	 *  never calls it: a log that is all there never breaks. */
+	/** Reports a break in the stream, so a scripted scenario drives a view's reading as a break does. An offline report
+	 *  doesn't call it, because a log that holds the whole record doesn't break. */
 	disconnect(): void {
 		this.followers.broke();
 	}
 
-	/** Report that the stream came back after a break, so a scripted scenario drives a view's catch-up the way it drives arrivals. */
+	/** Reports that the stream reopened after a break, so a scripted scenario drives a view's catch-up as it drives arrivals. */
 	reconnect(): void {
 		this.followers.becameOpen();
 	}
 
-	/** Append an event to the log and dispatch it to every matching subscriber. */
+	/** Appends an event to the log and dispatches it to every matching subscriber. */
 	emit(event: TEvent): void {
 		this.followers.dispatch(event);
 	}
@@ -165,22 +163,22 @@ export class SerializedEventStream implements EventStream {
 
 // ─── Accessor ────────────────────────────────────────────────────────────────
 
-/** The active EventStream is the page's, so independently-bundled components (e.g. esbuild emits per-slot-extension bundles) share one installation instead of each carrying its own module-level cell. Without this, `setEventStream` in the SPA bundle wouldn't be visible to a slot-extension component bundle, and its `eventStream()` would throw at first use. */
+/** The page pins the active EventStream, so independently bundled components share one installation instead of a module-level cell each. esbuild emits a bundle per slot extension, for example. A slot-extension component bundle wouldn't see the SPA bundle's `setEventStream` without the pin. Its `eventStream()` would then throw at first use. */
 const EVENT_STREAM_KEY = "__SHU_EVENT_STREAM__";
 const installedStream = (): { stream?: EventStream } => pagePinned(EVENT_STREAM_KEY, () => ({}));
 
-/** SPA boot installs one EventStream (live or serialized); every component and infrastructure module reads via `eventStream()`. */
+/** Installs the page's live or serialized EventStream. SPA boot installs one. Every component and infrastructure module reads it through `eventStream()`. */
 export function setEventStream(s: EventStream): void {
 	installedStream().stream = s;
 }
 
-/** Whether a live EventStream is installed. A static context (offline report bundle, a unit test that doesn't drive
- *  live events) legitimately doesn't have one: a component checks this before subscribing rather than forcing a stream. */
+/** Returns whether an EventStream is installed. A static context may not install one, as in a unit test that doesn't
+ *  drive events. A component checks this before subscribing rather than force a stream. */
 export function hasEventStream(): boolean {
 	return installedStream().stream !== undefined;
 }
 
-/** Returns the active EventStream. Throws if boot didn't install one: the only way this happens in production is a programming error in `app.ts`; in tests every `beforeEach` calls `setupShuTest`, so a forgotten setup throws with a precise message. */
+/** Returns the active EventStream. Throws where boot didn't install one. In production that is a programming error in `app.ts`. The thrown message names the fix for a test that doesn't call `setupShuTest`. */
 export function eventStream(): EventStream {
 	const active = installedStream().stream;
 	if (!active) {
@@ -189,10 +187,11 @@ export function eventStream(): EventStream {
 	return active;
 }
 
-/** Subscribe to the stream, coalescing every event arriving between paints into one `onBatch` call inside an animation
- *  frame. Returns an unsubscribe. The `this`-free form shared by `ShuElement.subscribeBatched` and the data controllers;
- *  a caller doesn't construct an `SseSubscriber` directly. `onReconnect` fires when the stream comes back after a
- *  break: the same reason to read again as an arrival, on the same path. */
+/** Subscribes to the stream and coalesces the events that arrive between paints into one `onBatch` call inside an
+ *  animation frame. Returns an unsubscribe. `ShuElement.subscribeBatched` calls this `this`-free form. The entity store,
+ *  `conversation.ts` and `app.ts` call it directly. A caller doesn't construct an `SseSubscriber`. `onReconnect` runs when
+ *  the stream reopens after a break. The caller reads again through the same path it uses for an arrival. `onDisconnect`
+ *  runs when the stream breaks. */
 export function subscribeBatchedEvents(opts: { onBatch: (events: TEvent[]) => void; filter?: TEventFilter; onReconnect?: () => void; onDisconnect?: () => void }): () => void {
 	let pending: TEvent[] = [];
 	let scheduled = false;

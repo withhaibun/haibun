@@ -2,25 +2,23 @@ import { type TKirejiExport } from "@haibun/core/kireji/withAction.js";
 import { OBSCURED_VALUE } from "@haibun/core/lib/feature-variables.js";
 import { SECRETS } from "./shu-self-test.feature.ts";
 
-// The negative assertion below references the full secret value (TEST_PASSWORD) rather
-// than the bare fragment (SECRETS.FRAGMENT) because haibun loads every feature source
-// up front and includes it in standalone-report events. The redaction pass replaces
-// every occurrence of each known secret value with OBSCURED_VALUE everywhere in the
-// rendered HTML, so the full secret string ALSO disappears from this assertion's own
-// step text once redacted, but the bare fragment ("ISECRET_") would remain literal
-// here and trigger a false-positive leak. Checking the full value is the right level
-// of strictness: a real leak would surface as the value, not as the fragment alone.
+// The negative assertion below checks the full secret value (SECRETS.TEST_PASSWORD) and not the bare fragment
+// (SECRETS.FRAGMENT, "ISECRET"). Haibun loads every feature source at the start and includes the sources in the
+// standalone report's events. The redaction pass replaces each occurrence of each secret value with OBSCURED_VALUE in
+// the report's payload, so it also redacts the full value in this assertion's own step text. The bare fragment would
+// stay in that step text, and the check would fail although the secret didn't leak. A leak shows the full value, so
+// the full value is the string to check.
 export const features: TKirejiExport = {
 	"Verify Shu Standalone Output Doesn't Hold Secrets": [
 		`Scenario: Check the standalone output obscures secrets
     storage entry "/tmp/shu-audit.html" exists
 
-    The file must be the one this run wrote rather than one left by an earlier run, which is what its age shows. The window covers a run rather than a moment: the self-test writes this copy part way through and goes on for several minutes after, so a window measured in seconds would report a growing feature as a stale file.
+    The file's age shows that the current test run wrote it. A file that an earlier test run left fails the check. The window spans a test run, not a moment. The self-test writes this copy part way through its steps and runs for minutes afterwards. A window measured in seconds would report this file as stale while the feature continues.
     file "/tmp/shu-audit.html" is recent within 10 minutes
 
-    The obscured marker must be present first: it proves a secret was found and redacted, so the next check is not passing merely because a secret wasn't there.
+    The first check requires the obscured marker. The marker shows that the report holds an obscured secret. The next check alone would also pass on a report that didn't hold a secret.
     text at "/tmp/shu-audit.html" contains "${OBSCURED_VALUE}"
-    And the raw secret value must be absent from the output.
+    The output must not hold the raw secret value.
     not text at "/tmp/shu-audit.html" contains "${SECRETS.TEST_PASSWORD}"
     `,
 	],

@@ -1,7 +1,8 @@
 /**
- * What shu and the page embedding it post each other. The embedding page posts the page the reader is on, which the ask
- * pane sends as a turn's view, and a delegation to the key shu signs as, which shu asks for by posting that key. shu reads
- * a message only from the window that embeds it, at the origin the deployment names, and reads each by its schema.
+ * Defines the messages shu and its embedding page post to each other. The embedding page posts the page the reader has
+ * open. The ask pane sends that page as a turn's view. The embedding page also posts a delegation to shu's page key.
+ * shu requests that delegation by posting the key. shu reads a message only from the window that embeds it and only at the
+ * origin the deployment names. shu parses each message by its schema.
  */
 import { z } from "zod";
 import { QuoteAnchorSchema } from "@haibun/core/lib/resources.js";
@@ -13,24 +14,25 @@ import { reportToRun } from "./client-log.js";
 import { holdGiven } from "./page-key.js";
 import { responseTimeoutMs } from "./rpc-registry.js";
 
-/** The ActivityStreams type of the page the reader is on. */
+/** The ActivityStreams type of the page the reader has open. */
 export const EMBEDDED_PAGE_TYPE = "as:Page";
-/** The source a refused message is reported under. */
+/** The source that each report from this module to actuality names. */
 const EMBEDDER_SOURCE = "embedder";
 
-/** A passage the reader selected on the page: a Web Annotation SpecificResource, located by quoting it. */
+/** A passage the reader selected on the page. The schema holds the passage as a Web Annotation SpecificResource. The
+ *  resource's TextQuoteSelector quotes the passage's exact text with an optional prefix and suffix. */
 const SelectionSchema = z
 	.object({ "@type": z.literal("oa:SpecificResource"), source: z.url(), selector: QuoteAnchorSchema.extend({ "@type": z.literal("oa:TextQuoteSelector") }).strict() })
 	.strict();
 
-/** The page the reader is on, as the embedding page posts it: its address, its title, the passage the reader selected,
- *  and the call that reads the page, which the embedding page states once the page's tab is attached. */
+/** The page the reader has open, as the embedding page posts it. It holds the page's address, its title and any passage
+ *  the reader selected. The embedding page adds the call that reads the page once the page's tab is attached. */
 const EmbeddedPageViewSchema = z
 	.object({ "@id": z.url(), "@type": z.literal(EMBEDDED_PAGE_TYPE), name: z.string(), selection: SelectionSchema.optional(), [PAGE_TERMS.next]: CallLinkSchema.optional() })
 	.strict();
 export type TEmbeddedPageView = z.infer<typeof EmbeddedPageViewSchema>;
 
-/** A zcap-LD delegation as the embedding page signs one: to a key, from a capability, over a target, until it expires. */
+/** A zcap-LD delegation as the embedding page signs it. It names the controller key, the parent capability, the invocation target and the expiry. */
 const GivenDelegationSchema = z.looseObject({
 	id: z.string(),
 	controller: z.string(),
@@ -40,33 +42,35 @@ const GivenDelegationSchema = z.looseObject({
 	proof: z.looseObject({}),
 });
 
-/** The kinds of message shu and the page embedding it post each other. */
+/** The kinds of message that shu and its embedding page post to each other. */
 export const EMBED_MESSAGE = { pageView: "page-view", delegation: "delegation", pageKey: "page-key" } as const;
 
-/** A message the embedding page posts: the page the reader is on, or null where the reader isn't on a page; or a
- *  delegation to the key shu signs as. */
+/** A message the embedding page posts. A page-view message holds the page the reader has open, or null where the reader
+ *  doesn't have a page open. A delegation message holds a delegation to shu's page key. */
 export const EmbedderMessageSchema = z.discriminatedUnion("kind", [
 	z.object({ kind: z.literal(EMBED_MESSAGE.pageView), view: EmbeddedPageViewSchema.nullable() }).strict(),
 	z.object({ kind: z.literal(EMBED_MESSAGE.delegation), delegation: GivenDelegationSchema }).strict(),
 ]);
 export type TEmbedderMessage = z.infer<typeof EmbedderMessageSchema>;
 
-/** A message shu posts to the page embedding it: the key shu signs as, which that page delegates to. */
+/** A message shu posts to its embedding page. It holds shu's page key. The embedding page delegates to that key. */
 export const FrameMessageSchema = z.object({ kind: z.literal(EMBED_MESSAGE.pageKey), controller: z.string() }).strict();
 type TFrameMessage = z.infer<typeof FrameMessageSchema>;
 
-/** The page the reader is on, as the embedding page last posted it. */
+/** The page the reader has open, as the embedding page last posted it. */
 export const embeddedPageView = new SharedSignal<TEmbeddedPageView | null>("embeddedPageView", null);
 
-/** The delegation the embedding page last gave the key shu signs as, which shu holds. */
+/** The delegation that the embedding page last gave to shu's page key. shu holds this delegation. */
 export const givenDelegation = new SharedSignal<TDelegation | null>("givenDelegation", null);
 
-/** The window a frame receives messages in, and the window that embeds it. */
+/** The part of a frame's window that receives messages and references the embedding window (`parent`). */
 type TFrameWindow = Pick<Window, "parent" | "addEventListener" | "removeEventListener">;
 
 /**
- * Receives what the embedding page posts. A message from the embedding window at another origin is refused and reported
- * to actuality, and a message from any other window isn't addressed to shu. Returns the function that stops receiving.
+ * Receives the messages the embedding page posts. Refuses a message from the embedding window at another origin and
+ * reports it to actuality. Ignores a message from any other window, because that message isn't addressed to shu. Refuses and
+ * reports a message that fails its schema and a delegation that `holdGiven` rejects. Returns the function that stops
+ * receiving.
  */
 export function receiveFromEmbedder(embedderOrigin: string, frame: TFrameWindow = window): () => void {
 	const onMessage = (e: MessageEvent): void => {
@@ -88,8 +92,9 @@ export function receiveFromEmbedder(embedderOrigin: string, frame: TFrameWindow 
 }
 
 /**
- * Ask the embedding page to delegate to the key shu signs as, by posting the key, and wait until shu holds the delegation.
- * A page that isn't given one within `waitMs` goes on with what it holds, and actuality is told.
+ * Posts shu's page key to the embedding page to request a delegation to that key. Resolves once shu holds a new
+ * delegation. Reports a warning to actuality and resolves where the embedding page doesn't give one within `waitMs`. The
+ * caller then continues with the delegations shu already holds.
  */
 export function askEmbedderToDelegate(embedderOrigin: string, controller: string, frame: Pick<Window, "parent"> = window, waitMs = responseTimeoutMs()): Promise<void> {
 	return new Promise((resolve) => {
@@ -107,7 +112,7 @@ export function askEmbedderToDelegate(embedderOrigin: string, controller: string
 	});
 }
 
-/** The posted page, as a block of a turn's view. */
+/** Returns the posted page as a block of a turn's view, or an empty list where `embeddedPageView` holds null. */
 export const embeddedViewLd = (): TEmbeddedPageView[] => {
 	const view = embeddedPageView.get();
 	return view ? [view] : [];

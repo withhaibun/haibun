@@ -1,5 +1,6 @@
-// A step action gets validated params, not its request. The transport runs the dispatcher inside runWithRequestContext
-// so an action can read the request host via currentRequestBaseIri(); AsyncLocalStorage isolates it per async chain.
+// A step action receives validated params and doesn't receive its request. The transport runs the dispatcher inside
+// runWithRequestContext, so an action can read the request host through currentRequestBaseIri(). AsyncLocalStorage
+// isolates the context per async chain.
 
 import { AsyncLocalStorage } from "node:async_hooks";
 import { haibunNsForHost } from "./resources.js";
@@ -16,7 +17,7 @@ export function currentRequestBaseIri(): string | undefined {
 	return requestContext.getStore()?.baseIri;
 }
 
-/** The haibun namespace for the current request's host (out of the request context), or the canonical stem when off-request. */
+/** Returns the haibun namespace for the current request's host from the request context. Outside a request it returns the canonical stem. */
 export function requestHaibunNs(): string {
 	return haibunNsForHost(currentRequestBaseIri());
 }
@@ -25,21 +26,21 @@ type TRequestHeaders = Record<string, string | undefined>;
 
 const firstOf = (value?: string): string | undefined => value?.split(",")[0]?.trim() || undefined;
 
-/** The host a request arrived on: the one a reverse proxy forwards, else its own Host header. A caller that reaches the
- *  server directly writes either header, so neither is read as proof of anything. */
+/** Returns the host a request arrived on. It reads the host a reverse proxy forwards, else the request's own Host header.
+ *  A caller that reaches the server directly can write either header, so the value doesn't prove where a request came from. */
 const requestHost = (headers: TRequestHeaders): string | undefined => firstOf(headers["x-forwarded-host"]) ?? firstOf(headers.host);
 
-/** The absolute origin (scheme://host[:port]) a request arrived on, from its host and forwarding headers. Undefined when
- *  a host header isn't present. */
+/** Returns the absolute origin (scheme://host[:port]) a request arrived on, read from its host and forwarding headers.
+ *  Returns undefined when a host header isn't present. */
 export function requestBaseIri(headers?: TRequestHeaders): string | undefined {
 	const host = headers && requestHost(headers);
 	if (!headers || !host) return undefined;
 	return `${firstOf(headers["x-forwarded-proto"]) ?? "http"}://${host}`;
 }
 
-/** Whether a browser sent this request for a page of another site: it states an `Origin` whose host isn't the host the
- *  request arrived on. A request that doesn't state an `Origin` wasn't sent across sites by a browser, and a browser
- *  doesn't let a page write the host or forwarding headers. */
+/** Returns whether a browser sent this request for a page of another site. Such a request states an `Origin` whose host
+ *  isn't the host the request arrived on, or an `Origin` that doesn't parse. A request that doesn't state an `Origin`
+ *  wasn't sent across sites by a browser. A browser doesn't let a page write the host or forwarding headers. */
 export function sentByAnotherSite(headers?: TRequestHeaders): boolean {
 	const origin = headers?.origin;
 	if (!headers || origin === undefined) return false;

@@ -12,20 +12,20 @@ describe("SessionAuthority", () => {
 	describe("evidence from outside this process", () => {
 		const evidence: TAuthorityEvidence = { kind: "document", document: { id: "urn:cap:1" }, action: "read", target: "urn:res:1", presenter: { root: true } };
 
-		it("refuses it when a verifier isn't registered to decide it, rather than deciding it here", async () => {
+		it("refuses evidence when a verifier isn't registered, and doesn't verify it in this process", async () => {
 			const authority = new SessionAuthority();
 			const result = await authority.verifyEvidence(evidence);
-			expect(result).toMatchObject({ ok: false, error: "a verifier isn't registered to decide this evidence" });
+			expect(result).toMatchObject({ ok: false, error: "a verifier isn't registered to verify this evidence" });
 		});
 
-		it("hands it to the registered verifier, and states who it proved was acting", async () => {
+		it("passes evidence to the registered verifier and returns the principal the verifier proved", async () => {
 			const authority = new SessionAuthority();
 			authority.registerVerifier(stubVerifier({ verify: async () => ({ ok: true, principal: "did:example:holder" }) }));
 			const result = await authority.verifyEvidence(evidence);
 			expect(result).toEqual({ ok: true, principal: "did:example:holder" });
 		});
 
-		it("decides as the instance, reading its own records whatever the call it is part of may read", async () => {
+		it("verifies evidence and reads delegations without the read ceiling of the enclosing call", async () => {
 			const authority = new SessionAuthority();
 			const readAt: unknown[] = [];
 			authority.registerVerifier(
@@ -38,14 +38,14 @@ describe("SessionAuthority", () => {
 				await authority.verifyEvidence(evidence);
 				await authority.delegationsTo("did:key:zHolder");
 			});
-			expect(readAt, "a chain it checks and the delegations it answers a key are read from every record").toEqual(["unbounded", "unbounded"]);
+			expect(readAt, "the verifier reads a chain and a key's delegations without a read ceiling").toEqual(["unbounded", "unbounded"]);
 		});
 	});
 
 	describe("recording and revoking a delegation", () => {
 		const AT = "2026-09-24T00:00:00.000Z";
 		const UNRECORDED = "urn:cap:unrecorded";
-		/** A verifier that records who each act was done for, and the level it read at. */
+		/** A verifier that records each act with its principal and its read level. */
 		const recording = () => {
 			const acts: Array<{ act: string; by: TActingFor; readAt: unknown }> = [];
 			const verifier: IAuthorityVerifier = {
@@ -59,7 +59,7 @@ describe("SessionAuthority", () => {
 			return { authority, acts };
 		};
 
-		it("acts for the root where the call holds every action, and for the key a caller proved where it holds less, reading as the instance", async () => {
+		it("acts for the root where the call holds every action and for the proved key where the call holds less, and reads as the instance", async () => {
 			const { authority, acts } = recording();
 			await runAuthorizedWith([EVERY_ACTION], () => authority.recordDelegation({ id: "urn:cap:owner" }));
 			await runAuthorizedWith([AUTHORITY_CAPABILITIES.revoke, readAction(Access.public)], () =>
@@ -85,7 +85,7 @@ describe("SessionAuthority", () => {
 	describe("a call held open", () => {
 		afterEach(() => vi.useRealTimers());
 
-		it("ends when a capability it rests on is revoked, stating which, and a call resting on others holds", () => {
+		it("ends when a capability it rests on is revoked and names that capability, and a call that rests on others stays open", () => {
 			const authority = new SessionAuthority();
 			const delegated = authority.holdWhile({ capabilities: ["urn:root", "urn:cap:extension"] });
 			const other = authority.holdWhile({ capabilities: ["urn:root", "urn:cap:page"] });
@@ -97,7 +97,7 @@ describe("SessionAuthority", () => {
 			expect(other.signal.reason, "and on a revoked ancestor").toBe("urn:root was revoked");
 		});
 
-		it("ends when its authority expires, beyond the longest delay a timer takes", () => {
+		it("ends when its authority expires after more than the longest setTimeout delay", () => {
 			vi.useFakeTimers({ now: Date.parse("2026-01-01T00:00:00Z") });
 			const authority = new SessionAuthority();
 			const expires = "2026-02-01T00:00:00.000Z";
@@ -109,26 +109,26 @@ describe("SessionAuthority", () => {
 			expect(authority.holdWhile({ capabilities: ["urn:cap:1"], expires }).signal.aborted, "one already expired ends at once").toBe(true);
 		});
 
-		it("is no longer watched once released, and refuses an expiry that is not a time", () => {
+		it("doesn't end on a revocation after its release, and refuses an expiry that isn't a time", () => {
 			const authority = new SessionAuthority();
 			const held = authority.holdWhile({ capabilities: ["urn:cap:1"] });
 			held.release();
 			authority.revoked("urn:cap:1");
 			expect(held.signal.aborted).toBe(false);
-			expect(() => authority.holdWhile({ capabilities: ["urn:cap:1"], expires: "soon" })).toThrow("a held call rests on authority whose expiry, soon, is not a time");
+			expect(() => authority.holdWhile({ capabilities: ["urn:cap:1"], expires: "soon" })).toThrow("a held call rests on authority with an expiry that isn't a time: soon");
 		});
 	});
 
 	describe("authority this process presents elsewhere", () => {
 		const request: TOutgoingRequest = { method: "POST", url: "http://peer.example/rpc/m", headers: { "content-type": "application/json" }, body: "{}" };
 
-		it("refuses to sign when a signer isn't registered, naming the action and where", () => {
+		it("refuses to sign when a signer isn't registered, and names the action and the URL", () => {
 			expect(() => new SessionAuthority().signRequest(request, "Peer:act")).toThrow(
 				"a signer isn't registered, so this process can't invoke Peer:act at http://peer.example/rpc/m",
 			);
 		});
 
-		it("hands the request and the action to the registered invoker", async () => {
+		it("passes the request and the action to the registered invoker", async () => {
 			const authority = new SessionAuthority();
 			authority.registerInvoker({ sign: (signed, action) => Promise.resolve({ ...signed.headers, "capability-invocation": `signed action="${action}"` }) });
 			expect(await authority.signRequest(request, "Peer:act")).toEqual({ "content-type": "application/json", "capability-invocation": 'signed action="Peer:act"' });

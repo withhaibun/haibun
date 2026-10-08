@@ -1,14 +1,11 @@
 /**
- * executor-rpc.feature.ts
+ * Verifies the path a feature step takes:
+ * feature text → Collector → Expand → Resolver → Executor → dispatchStep → StepRegistry → handler → products
  *
- * Verifies the unified RPC executor path:
- * feature text → Collector → Expand → Resolver → Executor → executeStep → StepRegistry → handler → products
- *
- * All step dispatch goes through StepRegistry. This feature exercises:
- * - plain ok steps
- * - steps with products (variables)
- * - step failure and halt
- * - seqPath preservation across scenarios
+ * An RPC call enters the same path at dispatchStep. dispatchStep reads every step's handler from StepRegistry. The scenarios exercise:
+ * - a step that sets a variable and a step that reads it
+ * - two variables that separate steps set and read
+ * - an activity on the same executor path
  */
 import type { TKirejiExport } from "@haibun/core/kireji/withAction.js";
 import { withAction } from "@haibun/core/kireji/withAction.js";
@@ -23,14 +20,14 @@ const { activity, ensure } = withAction(new ActivitiesStepper());
 export const features: TKirejiExport = {
 	"Executor RPC dispatch": [
 		feature({ feature: "Executor dispatches steps via StepRegistry" }),
-		`Steps produce products that are accessible as variables.
-		Since seqPath is preserved across scenarios, all dispatch goes through StepRegistry.`,
+		`Steps set variables that later steps read.
+		The executor calls dispatchStep for each step. The dispatchStep function reads the step's handler from StepRegistry.`,
 
-		scenario({ scenario: "Steps produce products accessible as variables" }),
+		scenario({ scenario: "Steps set variables that later steps read" }),
 		set({ what: "greeting", value: '"hello"' }),
 		is({ what: "greeting", value: '"hello"' }),
 
-		scenario({ scenario: "Variables compose via products" }),
+		scenario({ scenario: "Two variables keep separate values" }),
 		set({ what: "first", value: '"foo"' }),
 		set({ what: "second", value: '"bar"' }),
 		is({ what: "first", value: '"foo"' }),

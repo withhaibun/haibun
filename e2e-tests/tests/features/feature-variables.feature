@@ -1,8 +1,8 @@
 
-We set up outside, feature and scenario level variables to check scope.
+This feature sets variables outside a feature, at the feature level and at the scenario level. It checks the scope of each.
 
 
-This variable should carry through at all levels (though it can be overriden within a scope, it is restored after the scope ends).
+Every level reads this variable. A scenario can override it. The override holds for the rest of the feature. The next feature reads the original value.
 set outsideVariable to "outsideValue"
 
 Feature: First feature
@@ -15,7 +15,7 @@ Scenario: Check the variable and set it
 variable outsideVariable is "outsideValue"
 variable featureVariable is "f1value"
 
-We override it at the scenario level.
+This scenario overrides the feature and outside variables. It sets a scenario variable as well.
 
 set featureVariable to "f1s1value"
 set scenarioVariable to "s1value"
@@ -29,7 +29,7 @@ variable outsideVariable is "f1s1overridden"
 
 Feature: Second feature
 
-We are in a new feature, verify that all variables are reset to outside, feature or undefined.
+A new feature restores the variables to their values before the first scenario. The outside and feature variables hold the values their levels set. The scenario variable doesn't exist.
 
 variable outsideVariable is "outsideValue"
 variable featureVariable is "f1value"

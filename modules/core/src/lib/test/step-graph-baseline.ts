@@ -1,9 +1,10 @@
 /**
- * The typed step graph a set of steppers declares, held to the findings a baseline file records. Each parameter names
- * the domain of what its value is and each step names the domain of its products, and the chain lint reports where
- * they don't. A finding the file doesn't record fails, naming it and what fixes it; a finding the file records that is
- * gone fails too, naming it, so the file is edited to record the improvement. The graph only improves, and the file
- * states where it stands. A stepper in the source that the test doesn't hold to its file fails as well, naming it.
+ * Compares the typed step graph that a set of steppers declares with the findings a baseline file records. The chain
+ * lint reports each way the graph is incomplete as a finding (`LINT_FINDING`). A finding that the file doesn't record
+ * fails the test, and the error names the finding and its fix. A recorded finding that the graph doesn't have fails the
+ * test too. That error names the finding. Removing it from the file records the improvement. The file holds the graph's
+ * current findings, and the test rejects a new one. A stepper class in the source that `owned` and `unloaded` don't
+ * list fails the test, and the error names it.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
@@ -17,28 +18,29 @@ import { LINT_FINDING, lintDomainChain, lintFindingLine, type TLintFinding } fro
 
 /** What fixes each kind of finding. */
 const FIX: Record<TLintFinding["kind"], string> = {
-	[LINT_FINDING.STRING_PARAM]: "name the domain of what the value is in the step's phrase",
+	[LINT_FINDING.STRING_PARAM]: "name the value's domain in the step's phrase",
 	[LINT_FINDING.UNSUPPLIED_STEP]: "declare the step that produces the domain",
 	[LINT_FINDING.UNREACHABLE_DOMAIN]: "declare a step that consumes or produces the domain, or remove it",
 	[LINT_FINDING.UNPRODUCED_DOMAIN]: "declare the step that produces the domain",
 };
 
 type TStepGraphBaseline = {
-	/** The steppers held to the file: every stepper class the source declares. */
+	/** The steppers whose findings the file records. They and `unloaded` list every stepper class the source declares. */
 	owned: CStepper[];
-	/** Steppers loaded beside them, whose domains they use, and whose findings belong to another file. */
+	/** Steppers loaded beside `owned` that declare domains `owned` uses. The test excludes their findings. The baseline
+	 *  file of their own module records those findings. */
 	alongside?: CStepper[];
-	/** Stepper classes the source declares that a run doesn't load as they are, each with why. Such a class may take
-	 *  constructor arguments. */
+	/** Stepper classes the source declares that actuality doesn't load from a stepper list. `why` states the reason for
+	 *  each. Such a class may take constructor arguments. The test doesn't lint them. */
 	unloaded?: { stepper: new (...args: never[]) => AStepper; why: string }[];
 	moduleOptions?: Record<string, string>;
-	/** The JSON array of finding lines the steppers' graph is held to. */
+	/** The path of a JSON file that holds the expected finding lines as an array. */
 	baselineFile: string;
-	/** Where the owned steppers' source is, read for stepper classes the test doesn't hold. */
+	/** The directory of the owned steppers' source. The test reads it for stepper classes that `owned` and `unloaded` don't list. */
 	sourceDir: string;
 };
 
-/** The chain lint's findings about `owned`, set up beside `alongside` as a run sets its steppers up, each as a line, sorted. */
+/** Returns the chain lint's findings about `owned` as sorted lines. It sets up `owned` beside `alongside` as actuality sets up its steppers. */
 async function stepGraphFindings({ owned, alongside = [], moduleOptions = {} }: Omit<TStepGraphBaseline, "baselineFile" | "sourceDir" | "unloaded">): Promise<string[]> {
 	const world = getTestWorldWithOptions({ ...DEF_PROTO_OPTIONS, moduleOptions });
 	const steppers = createSteppers([...alongside, ...owned]);
@@ -53,15 +55,16 @@ async function stepGraphFindings({ owned, alongside = [], moduleOptions = {} }: 
 		.sort();
 }
 
-/** Hold the step graph of `owned` to what `baselineFile` records, and every stepper class under `sourceDir` to it. */
+/** Throws when `owned` and `unloaded` don't list a stepper class under `sourceDir`. Throws when `baselineFile` doesn't exist.
+ *  Throws when the findings about `owned` differ from the lines `baselineFile` records. */
 export async function expectStepGraphAsRecorded(baseline: TStepGraphBaseline): Promise<void> {
 	const held = [...baseline.owned, ...(baseline.unloaded ?? []).map(({ stepper }) => stepper)];
 	const unheld = stepperClassesIn(baseline.sourceDir).filter((name) => !held.some((stepper) => stepper.name === name));
-	if (unheld.length > 0) throw new Error(`steppers under ${baseline.sourceDir} aren't held to ${baseline.baselineFile}: add ${unheld.join(", ")} to the test's owned steppers`);
+	if (unheld.length > 0) throw new Error(`${baseline.sourceDir} holds steppers the test of ${baseline.baselineFile} doesn't list: add ${unheld.join(", ")} to owned or unloaded`);
 	const findings = await stepGraphFindings(baseline);
 	if (!existsSync(baseline.baselineFile)) {
 		throw new Error(
-			`no baseline at ${baseline.baselineFile}: it records the step graph's findings as a JSON array of lines, which are now:\n${JSON.stringify(findings, null, "\t")}`,
+			`${baseline.baselineFile} doesn't exist. Create it with the step graph's current findings as a JSON array of finding lines:\n${JSON.stringify(findings, null, "\t")}`,
 		);
 	}
 	const recorded = JSON.parse(readFileSync(baseline.baselineFile, "utf-8")) as string[];
@@ -76,7 +79,7 @@ export async function expectStepGraphAsRecorded(baseline: TStepGraphBaseline): P
 				: []),
 			...(gone.length > 0
 				? [
-						`The typed step graph no longer has findings ${baseline.baselineFile} records. Remove them from the file, which then records the improvement:`,
+						`${baseline.baselineFile} records findings that the typed step graph doesn't have. Remove them from the file to record the improvement:`,
 						...gone.map((line) => `  - ${line}`),
 					]
 				: []),
@@ -84,7 +87,8 @@ export async function expectStepGraphAsRecorded(baseline: TStepGraphBaseline): P
 	);
 }
 
-/** The stepper classes a source directory declares, outside its tests. */
+/** Returns the names of the classes under `dir` that extend AStepper or AStorage. It skips `test` and `node_modules`
+ *  directories, test files, test fakes and declaration files. */
 function stepperClassesIn(dir: string): string[] {
 	const classes: string[] = [];
 	for (const entry of readdirSync(dir)) {

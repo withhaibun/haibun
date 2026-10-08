@@ -16,7 +16,7 @@ describe("JSON-RPC 2.0 schema compliance", () => {
 		expect(result.success).toBe(true);
 	});
 
-	it("rejects old-format request with type field", () => {
+	it("rejects a request with a `type` field in place of `jsonrpc`", () => {
 		const result = RpcRequestSchema.safeParse({ type: "rpc", id: "1", method: "RemoteSteps-getLabelRels", params: { label: "Email" } });
 		expect(result.success).toBe(false);
 	});
@@ -30,13 +30,13 @@ describe("JSON-RPC 2.0 schema compliance", () => {
 		expect(parseRpcRequest({ type: "rpc", id: "1", method: "test" }, ACTUALITY).success).toBe(false);
 	});
 
-	it("parses a call stating the actuality the host holds, and the handshake, which states none", () => {
+	it("parses a call that states the actuality the host holds, and a handshake that doesn't state an actuality", () => {
 		const parsed = parseRpcRequest({ jsonrpc: "2.0", protocol: RPC_PROTOCOL, id: "1", method: "test", actualityId: ACTUALITY }, ACTUALITY);
 		expect(parsed.success && parsed.data.method).toBe("test");
 		expect(parseRpcRequest({ jsonrpc: "2.0", protocol: RPC_PROTOCOL, id: "1", method: ACTION_BEGIN }, ACTUALITY).success).toBe(true);
 	});
 
-	it("refuses a call that doesn't state the actuality the host holds, naming the one it holds", () => {
+	it("refuses a call that doesn't state the host's actuality, with a refusal that names the host's actuality", () => {
 		expect(parseRpcRequest({ jsonrpc: "2.0", protocol: RPC_PROTOCOL, id: "1", method: "test" }, ACTUALITY).success, "a call that doesn't state one").toBe(false);
 		const stated = crypto.randomUUID();
 		const other = parseRpcRequest({ jsonrpc: "2.0", protocol: RPC_PROTOCOL, id: "1", method: "test", actualityId: stated }, ACTUALITY);

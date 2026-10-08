@@ -14,7 +14,7 @@ const ProductSchema = z.looseObject({
 
 const ProductWithViewSchema = ProductSchema.extend({ [PRODUCT_KEY.VIEW]: z.string() });
 
-/** Envelope subtype for payloads that carry products containing a concrete view. */
+/** Parses a `{ products }` envelope whose products contain an affordance product with a string `view`. */
 const HasProductsWithViewSchema = z.looseObject({ [PRODUCT_KEY.PRODUCTS]: z.unknown() }).transform((value, ctx) => {
 	const rec = findAffordanceRecord(value[PRODUCT_KEY.PRODUCTS]);
 	const parsed = ProductWithViewSchema.safeParse(rec);
@@ -32,7 +32,7 @@ type TAffordanceProductAction =
 	| { kind: "open-component"; view: string; component: string; label: string; products: Record<string, unknown> }
 	| { kind: "show-views"; views: TAffordanceView[]; label: string };
 
-/** A product, or an object or array a product is nested in, read by its fields. */
+/** True for a non-null object or array. The parser reads the fields of each one. */
 const isFields = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object";
 const asRecord = (value: unknown): Record<string, unknown> | undefined => (isFields(value) ? value : undefined);
 
@@ -41,10 +41,10 @@ const requiredString = (value: unknown, message: string): string => {
 	return value;
 };
 
-/** What makes a product an instruction to open something: it names the view or the component to open, or it is one of
- *  the declared affordance types. A record's own `@type` is what the record IS, never an instruction about it, read
- *  as one, every step that answered with a record opened a column, including the reads a view makes to render itself,
- *  so a reader could not close what their own view kept re-opening. */
+/** True where a product is an instruction to open a view: it has a string `view` or `_component`, or its `_type` is the
+ *  view-collection type. Any other `_type` states what a record is and isn't an instruction. Reading it as one would
+ *  open a column for every step that returns a record, including each read a view makes to render itself. A reader
+ *  then couldn't close a column that their own view reopens. */
 const hasAffordanceMarkers = (value: Record<string, unknown>): boolean => {
 	const typeStr = value[HYPERMEDIA.TYPE];
 	return typeof value[PRODUCT_KEY.VIEW] === "string" || typeof value[PRODUCT_KEY.COMPONENT] === "string" || typeStr === SHU_TYPE.VIEW_COLLECTION;
@@ -62,7 +62,8 @@ const findAffordanceRecord = (value: unknown, depth = 0): Record<string, unknown
 	return undefined;
 };
 
-/** Parse product shapes relevant to affordance open actions. */
+/** Parses a product into its affordance action: `open-component`, `show-views` or `none`. Throws on a malformed
+ *  affordance product. */
 export function parseAffordanceProduct(product: unknown): TAffordanceProductAction {
 	const envelope = HasProductsWithViewSchema.safeParse(product);
 	const candidate = (envelope.success ? envelope.data[PRODUCT_KEY.PRODUCTS] : findAffordanceRecord(product)) ?? asRecord(product);
@@ -86,15 +87,14 @@ export function parseAffordanceProduct(product: unknown): TAffordanceProductActi
 	}
 	if (typeof parsed[PRODUCT_KEY.COMPONENT] === "string") {
 		const component = requiredString(parsed[PRODUCT_KEY.COMPONENT], "Affordance component product requires string _component");
-		// `id` carries a per-instance identity for multi-pane components (e.g. a clustered viewer uses
-		// `<component>:<uuid>`). Singleton views (graph, monitor, sequence) only set `view`.
-		// Either form is sufficient, prefer `id`, fall back to `view`.
+		// A multi-pane component's product holds a per-instance identity in `id`. A clustered viewer's `id` is
+		// `<component>:<uuid>`. A product without `id` uses `view` as the id.
 		const idOrView = parsed[PRODUCT_KEY.ID] ?? parsed[PRODUCT_KEY.VIEW];
 		const view = requiredString(idOrView, "Affordance component product requires string id or view");
 		const summary = parsed[HYPERMEDIA.SUMMARY];
 		const label = typeof summary === "string" ? summary : component;
 		return { kind: "open-component", view, component, label, products: candidate };
 	}
-	if (typeof parsed[PRODUCT_KEY.VIEW] === "string") throw new Error(`Unexpected view-only product shape: ${parsed[PRODUCT_KEY.VIEW]}`);
+	if (typeof parsed[PRODUCT_KEY.VIEW] === "string") throw new Error(`Affordance product with view ${parsed[PRODUCT_KEY.VIEW]} requires string _component`);
 	return { kind: "none" };
 }

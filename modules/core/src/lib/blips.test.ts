@@ -21,18 +21,18 @@ const SCROLL = {
 	dimensions: ["view"] as const,
 };
 
-describe("blips: fine-grained occurrences, never retained", () => {
-	it("doesn't emit an event when a subscriber doesn't watch the kind: a hot path can record unconditionally", () => {
+describe("blips: fine-grained occurrences that actuality doesn't retain", () => {
+	it("doesn't emit an event where the blip kind doesn't have a subscriber, so a caller can record on every frame", () => {
 		declareBlips(SCROLL);
 		const { world, eventLogger } = make();
 		const narrated: THaibunEvent[] = [];
-		// A bare subscriber narrates actuality; it is not a blip audience, so recording still returns before any lookup.
+		// A subscriber without a kinds filter receives actuality's narration. It isn't a blip subscriber, so recording returns before any lookup.
 		eventLogger.subscribe((e) => narrated.push(e));
 		expect(() => recordBlip(world, "haibun.test.never.declared", 1)).not.toThrow();
 		expect(narrated).toHaveLength(0);
 	});
 
-	it("hands a recording to every blip subscriber, with the step it happened under", () => {
+	it("delivers a recording to every blip subscriber with the seqPath of the step in flight", () => {
 		declareBlips(SCROLL);
 		const { world, eventLogger } = make();
 		const seen: THaibunEvent[] = [];
@@ -42,7 +42,7 @@ describe("blips: fine-grained occurrences, never retained", () => {
 		expect(seen[0]).toMatchObject({ kind: "blip", name: SCROLL.name, seqPath: "0.1.2.3", value: 1, attributes: { view: "shu-document-column" } });
 	});
 
-	it("never reaches a bare subscriber: blips share the transport, not the audience", () => {
+	it("doesn't reach a subscriber without a kinds filter, since blips share the event bus and not its subscribers", () => {
 		declareBlips(SCROLL);
 		const { world, eventLogger } = make();
 		const narrated: THaibunEvent[] = [];
@@ -55,7 +55,7 @@ describe("blips: fine-grained occurrences, never retained", () => {
 		expect(narrated.map((e) => e.kind)).toEqual(["log"]);
 	});
 
-	it("delivers only the names a subscriber filtered to, exact or by dotted namespace", () => {
+	it("delivers only the names a subscriber's filter matches, by exact name or by dotted namespace", () => {
 		const HTTP = { name: "haibun.test.http.request", instrument: "span-event" as const, description: "An observed request completed." };
 		declareBlips(SCROLL, HTTP);
 		const { world, eventLogger } = make();
@@ -66,32 +66,32 @@ describe("blips: fine-grained occurrences, never retained", () => {
 		expect(seen.map((e) => (e.kind === "blip" ? e.name : e.kind))).toEqual([HTTP.name]);
 	});
 
-	it("returns before any lookup when a filter doesn't match the name, so an unwatched hot path still is one check", () => {
+	it("returns before any lookup where a filter doesn't match the name, so recording an unwatched name runs one check", () => {
 		const { world, eventLogger } = make();
 		eventLogger.subscribe(() => undefined, { kinds: ["blip"], names: ["haibun.test.http"] });
-		// Undeclared and mismatched: where a subscriber filter doesn't match, recording never reaches the declaration check.
+		// The name is undeclared and doesn't match the filter, so recording returns before the declaration check.
 		expect(() => recordBlip(world, "haibun.test.never.declared", 1)).not.toThrow();
 	});
 
-	it("refuses a names filter without the blip kind, rather than silently never delivering", () => {
+	it("refuses a names filter without the blip kind, since that subscriber wouldn't receive a blip", () => {
 		const { eventLogger } = make();
 		expect(() => eventLogger.subscribe(() => undefined, { names: ["haibun.test.http"] })).toThrow(/kinds/);
 	});
 
-	it("refuses a name that isn't declared, rather than letting a vocabulary grow at the call site", () => {
+	it("refuses a name that isn't declared, so a call site doesn't add a name to the vocabulary", () => {
 		const { world, eventLogger } = make();
 		eventLogger.subscribe(() => undefined, { kinds: ["blip"] });
 		expect(() => recordBlip(world, "haibun.test.undeclared", 1)).toThrow(/not declared/);
 	});
 
-	it("refuses attributes that do not match the declaration, so a stray key never reaches an exporter", () => {
+	it("refuses attributes that don't match the declaration, so a misspelled attribute name fails at the call site", () => {
 		declareBlips(SCROLL);
 		const { world, eventLogger } = make();
 		eventLogger.subscribe(() => undefined, { kinds: ["blip"] });
 		expect(() => recordBlip(world, SCROLL.name, 1, { viewe: "typo" })).toThrow();
 	});
 
-	it("emits only the attributes the declaration names, so a stray key cannot ride along", () => {
+	it("emits only the attributes the declaration names, so an undeclared key doesn't reach a subscriber", () => {
 		declareBlips(SCROLL);
 		const { world, eventLogger } = make();
 		const seen: THaibunEvent[] = [];
@@ -108,48 +108,48 @@ describe("blips: fine-grained occurrences, never retained", () => {
 		expect(() => recordBlip(world, SCROLL.name, 1)).toThrow();
 	});
 
-	it("refuses to redeclare one name as two different things", () => {
+	it("refuses to redeclare one name as two different declarations", () => {
 		declareBlips(SCROLL);
 		expect(() => declareBlips({ ...SCROLL, instrument: "counter", unit: "1" })).toThrow(/already declared/);
 		expect(() => declareBlips(SCROLL)).not.toThrow(); // the same shape again is the same declaration
 	});
 
-	it("refuses a second attribute schema under one name, which would strip or reject the first caller's recordings", () => {
+	it("refuses a second attribute schema under one name, since that schema would drop or reject the first caller's attributes", () => {
 		declareBlips(SCROLL);
-		// Everything a reader can see matches; only the schema differs, which is the part that decides what is emitted.
+		// Every other field matches. Only the schema differs, and the schema determines which attributes are emitted.
 		expect(() => declareBlips({ ...SCROLL, attributes: z.object({ view: z.string(), extra: z.string() }) })).toThrow(/already declared/);
 	});
 
-	it("accepts an equivalent schema written twice, since the two are provably the same", () => {
+	it("accepts an equivalent schema written twice, since the two produce the same JSON Schema", () => {
 		declareBlips(SCROLL);
 		expect(() => declareBlips({ ...SCROLL, attributes: z.object({ view: z.string() }) })).not.toThrow();
 	});
 
-	it("refuses a schema it cannot compare, rather than assuming two unprovable declarations agree", () => {
+	it("refuses a second schema that JSON Schema can't represent, since the two declarations can't be compared", () => {
 		const opaque = { ...SCROLL, name: "haibun.test.opaque", attributes: z.string().transform((s) => ({ length: s.length })) };
 		declareBlips(opaque);
 		expect(() => declareBlips({ ...opaque, attributes: z.string().transform((s) => ({ length: s.length })) })).toThrow(/already declared/);
 		expect(() => declareBlips(opaque)).not.toThrow(); // the same schema is still the same declaration
 	});
 
-	it("publishes its declarations, so an exporter builds instruments and a reader discovers what a run records", () => {
+	it("publishes its declarations, so an exporter builds instruments and a reader lists what actuality records", () => {
 		declareBlips(SCROLL);
 		const found = blipDeclarations().find((d) => d.name === SCROLL.name);
 		expect(found).toMatchObject({ instrument: "span-event", unit: "px", dimensions: ["view"] });
 	});
 
-	it("carries where a name was declared when it opted in, and keeps that through a same-shape redeclaration", () => {
+	it("carries the declaring site of a declaration that sets origin, and keeps it through a same-shape redeclaration", () => {
 		declareBlips({ ...SCROLL, name: "haibun.test.with.origin", origin: true });
 		declareBlips(SCROLL);
 		const traced = blipDeclarations().find((d) => d.name === "haibun.test.with.origin");
-		// The declaring site is this test file: the path a reader hands to a source tool.
+		// The declaring site is this test file, and a reader passes that path to a source tool.
 		expect(traced?.declaredAt).toMatch(/blips\.test\.[jt]s:\d+$/);
 		declareBlips({ ...SCROLL, name: "haibun.test.with.origin", origin: true });
 		expect(blipDeclarations().find((d) => d.name === "haibun.test.with.origin")?.declaredAt).toBe(traced?.declaredAt);
 		expect(blipDeclarations().find((d) => d.name === SCROLL.name)?.declaredAt).toBeUndefined();
 	});
 
-	it("stops recording once a subscriber detaches", () => {
+	it("stops delivering to a subscriber once it detaches", () => {
 		declareBlips(SCROLL);
 		const { world, eventLogger } = make();
 		const seen: THaibunEvent[] = [];
@@ -179,22 +179,22 @@ describe("blip rollup: the aggregating listener", () => {
 		expect(metrics[HTTP.name]).toEqual({ count: 1 });
 	});
 
-	it("rebinds to the logger it is given, so an execution that never detached cannot deafen the next one", () => {
+	it("subscribes to the logger it is given and unsubscribes from the earlier one, so an execution that didn't detach doesn't stop the next one's counts", () => {
 		declareBlips(SCROLL);
 		const first = make();
 		const rollup = new BlipRollup();
 		rollup.attach(first.eventLogger);
 		recordBlip(first.world, SCROLL.name, 1, { view: "a" });
-		// The execution ends without detaching, as a throw escaping the feature loop would leave it.
+		// The execution ends without detaching, as a throw out of the feature loop would leave it.
 		const second = make();
 		rollup.attach(second.eventLogger);
 		expect(first.eventLogger.hasSubscribers("blip")).toBe(false);
-		expect(rollup.observe().items).toEqual([]); // a clean window, not the previous execution's counts
+		expect(rollup.observe().items).toEqual([]); // the counts start empty and don't include the previous execution's counts
 		recordBlip(second.world, SCROLL.name, 1, { view: "a" });
 		expect(rollup.observe().metrics[SCROLL.name]).toEqual({ count: 1 });
 	});
 
-	it("clears on reset and stops counting on detach, restoring the no-subscriber fast path", () => {
+	it("clears on reset and stops counting on detach, so recording returns after one check again", () => {
 		declareBlips(SCROLL);
 		const { world, eventLogger } = make();
 		const rollup = new BlipRollup();

@@ -5,15 +5,15 @@ import { activePane } from "./signals.js";
 
 type TView = HTMLElement & { summarizeForKihan(): unknown | null };
 
-/** A duck-typed view: the harvester recognises the method, never the class (cross-bundle identity). */
+/** A duck-typed view. The harvester checks for the method and not the class, since each bundle defines its own classes. */
 function view(tag: string, summary: unknown | null): TView {
 	const el = document.createElement(tag) as TView;
 	el.summarizeForKihan = () => summary;
 	return el;
 }
 
-/** A pane whose `label` doubles as its columnKey (its identity in the `activePane` signal), so a test marks it active
- *  by `activePane.set(label)`: the one source of truth the harvester reads, mirroring the real strip. */
+/** A pane whose `label` is also its columnKey. The `activePane` signal holds a pane's columnKey, so a test marks the pane
+ *  active by `activePane.set(label)`. The harvester reads the active pane from that signal alone, as with the real strip. */
 function pane(label: string | null, ...children: Element[]): HTMLElement {
 	const p = document.createElement("shu-column-pane");
 	if (label) {
@@ -36,7 +36,7 @@ describe("harvestChatViewLd: the active pane's linked data plus the pane manifes
 		document.body.appendChild(strip);
 	}
 
-	it("harvests the pane marked [active], never a positional index, and appends the manifest of every pane", () => {
+	it("harvests the pane the activePane signal names, not a pane by position, and appends the manifest of every pane", () => {
 		const a = pane("first", view("shu-entity-column", { "@id": "e1" }));
 		const b = pane("second", view("shu-document-column", { "@id": "d1" }));
 		activePane.set("second");
@@ -63,7 +63,7 @@ describe("harvestChatViewLd: the active pane's linked data plus the pane manifes
 		activePane.set("graph");
 		mount(p);
 		const blocks = harvestChatViewLd();
-		// The host's summary only: the nested scene is the host's own concern.
+		// The harvest carries only the host's summary. The host's summary covers its nested scene.
 		expect(blocks.filter((b) => (b as { "@id"?: string })["@id"] === "graph")).toHaveLength(1);
 		expect(blocks.filter((b) => (b as { "@id"?: string })["@id"] === "scene")).toHaveLength(0);
 	});
@@ -77,7 +77,7 @@ describe("harvestChatViewLd: the active pane's linked data plus the pane manifes
 		expect((blocks[0] as { items: unknown[] }).items).toHaveLength(1);
 	});
 
-	it("leaves out of the manifest a pane whose view the reader acts on other views through", () => {
+	it("omits a pane from the manifest when the reader acts on other views through its view", () => {
 		const column = pane("first", view("shu-entity-column", { "@id": "e1" }));
 		const actions = Object.assign(pane("Actions", view("shu-actions-bar", null)), { activates: false });
 		activePane.set("first");
@@ -87,13 +87,13 @@ describe("harvestChatViewLd: the active pane's linked data plus the pane manifes
 		expect(manifest.totalItems).toBe(1);
 	});
 
-	it("harvests a pane the reader acts on other views through when the reader is on it", () => {
+	it("harvests the active pane when the reader acts on other views through it", () => {
 		const column = pane("first", view("shu-entity-column", { "@id": "e1" }));
 		const actions = Object.assign(pane("Actions", view("shu-actions-bar", { "@id": "a1", exchanges: [{ "@id": "x1" }] })), { activates: false });
 		activePane.set("Actions");
 		mount(column, actions);
 		const blocks = harvestChatViewLd();
-		// The bar's summary is carried (the pane the reader is on), and the manifest still lists only the columns.
+		// The harvest carries the bar's summary, since the bar's pane is active. The manifest lists only the columns.
 		expect(blocks.some((b) => (b as { "@id"?: string })["@id"] === "a1")).toBe(true);
 		const manifest = blocks.at(-1) as { totalItems: number; items: Array<{ name: string }> };
 		expect(manifest.items.map((item) => item.name)).toEqual(["first"]);
@@ -106,16 +106,16 @@ describe("harvestChatViewLd: the active pane's linked data plus the pane manifes
 });
 
 /**
- * Reported: the Ask pane reports a pane isn't selected while a column view is plainly selected on screen.
+ * Fault case: the Ask pane shows a response stating that a pane isn't selected while a column view is selected on screen.
  *
- * The harvester resolves the active pane by matching `activePane` against each pane's key. When the signal holds a key
- * that the open panes don't have, never set for this strip, or naming a pane that has since closed, the panes don't match it.
- * Harvesting anyway produced a manifest with every pane inactive and without content, which is what the model reported. With panes
- * open one of them is the pane you are on, so this is a fault in the signal and it reports so, naming what it holds and
- * what was open.
+ * The harvester resolves the active pane by matching `activePane` against each pane's key. The signal can hold a key that
+ * doesn't match an open pane: a key never set for this strip, or the key of a closed pane. A harvest with that key would
+ * produce a manifest with every pane inactive and without content, and the model's response would state that a pane isn't
+ * selected. With panes open, one of them is the active pane. A key that doesn't match one is a fault in the signal, so the
+ * harvester throws an error that names the key and the open panes.
  */
 
-describe("harvestChatViewLd: an active pane the signal cannot resolve", () => {
+describe("harvestChatViewLd: an activePane key that doesn't match an open pane", () => {
 	beforeEach(() => {
 		document.body.innerHTML = "";
 		activePane.set(null);
@@ -130,14 +130,14 @@ describe("harvestChatViewLd: an active pane the signal cannot resolve", () => {
 	it("names the signal's value and every open pane's key when it doesn't match one of them", () => {
 		const a = pane("first", view("shu-entity-column", { "@id": "e1" }));
 		const b = pane("second", view("shu-document-column", { "@id": "d1" }));
-		// A pane that was closed, or a key from a previous strip: it doesn't match a pane now.
+		// The key of a closed pane, or a key from a previous strip, doesn't match an open pane.
 		activePane.set("a-pane-that-closed");
 		mount(a, b);
-		// Detail enough to find the writer that set it: what it holds, and what was open.
+		// The error names the key and the open panes, so a developer can find the writer that set the key.
 		expect(() => harvestChatViewLd()).toThrow(/"a-pane-that-closed".*isn't one of the 2 open pane\(s\).*"first", "second"/s);
 	});
 
-	it("throws when the signal was never set, rather than telling a model that a pane isn't selected", () => {
+	it("throws when the signal was never set, so a model's prompt doesn't state that a pane isn't selected", () => {
 		mount(pane("first", view("shu-entity-column", { "@id": "e1" })));
 		expect(() => harvestChatViewLd()).toThrow(/activePane is null/);
 	});

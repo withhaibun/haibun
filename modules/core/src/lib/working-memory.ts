@@ -1,8 +1,9 @@
 /**
- * Working memory, typed fact assertions backed by the world's quad store.
+ * Working memory: typed fact assertions in the world's quad store.
  *
- * One fact carrier for the runtime. Every fact lives in the quad store under a
- * named graph; the predicate field types it. `assertFact` writes; `queryFacts` reads.
+ * This module writes and reads the runtime's facts. The quad store holds every fact under
+ * a named graph, and the predicate field types the fact. `assertFact` writes a fact.
+ * `queryFacts` and `getFact` read facts.
  *
  * Named-graph convention:
  *
@@ -10,10 +11,10 @@
  *   variables               feature-variables (see SHARED_GRAPH in feature-variables.ts)
  *   <persistedAs>           domain-registered topology graphs (e.g. "Email", "Person")
  *
- * Sub-named-graphs introduced by this module:
+ * Sub-named-graphs this module defines:
  *   observation/step-usage     step-execution counts keyed by stepperName.actionName
  *   observation/runtime-flag   boolean/scalar runtime flags keyed by flag name
- *   observation/event          eventLogger emissions, predicate = event domain
+ *   observation/event          named for eventLogger emissions. The eventLogger doesn't write this graph.
  */
 import type { TWorld } from "./world.js";
 import type { IQuadStore, TQuad, TQuadPattern } from "./quad-types.js";
@@ -21,19 +22,20 @@ import type { IQuadStore, TQuad, TQuadPattern } from "./quad-types.js";
 export const OBSERVATION_GRAPH = { STEP_USAGE: "observation/step-usage", RUNTIME_FLAG: "observation/runtime-flag", EVENT: "observation/event" } as const;
 
 /**
- * Named graph holding step-product assertions auto-asserted by the dispatcher
- * when a step declares `productsDomain` or `productsDomains`. Each fact's predicate is
- * the domain key; subject is the step's seqPath; object is the product value.
+ * The named graph that holds step products. The dispatcher asserts a product when a step
+ * declares `productsDomain` or `productsDomains`. Each fact's predicate is the domain key,
+ * and its object is the product value. Its subject is the id that `factIdOf` builds from the
+ * step's seqPath and, under `productsDomains`, the product's field.
  */
 export const FACT_GRAPH = "facts";
 
 /**
- * Assert a single typed fact into a named graph.
+ * Asserts one typed fact into a named graph.
  *
- * Maps to a quad write:  `subject=identity, predicate=domain, object=object, namedGraph`.
- * The named graph types the bucket (e.g. `observation/step-usage`); the domain (predicate)
- * is the structural attribute within it (e.g. `count`); the identity is the observed
- * entity's stable id.
+ * It writes the quad `subject=identity, predicate=domain, object=object, namedGraph`.
+ * The named graph types the facts it holds (e.g. `observation/step-usage`). The domain is
+ * the predicate. It names a structural attribute within that graph (e.g. `count`). The
+ * identity is the observed entity's stable id.
  */
 export async function assertFact(world: TWorld, domain: string, identity: string, object: unknown, namedGraph: string): Promise<void> {
 	const store: IQuadStore = world.shared.getStore();
@@ -41,8 +43,8 @@ export async function assertFact(world: TWorld, domain: string, identity: string
 }
 
 /**
- * Query facts of a domain. Returns the matching quads. Pass an explicit `pattern`
- * to narrow further (subject prefix, etc.), forwarded to the underlying store.
+ * Queries the facts of a domain in a named graph and returns the matching quads. A `pattern`
+ * narrows the query to an exact subject, an exact object or both.
  */
 export function queryFacts(world: TWorld, domain: string, namedGraph: string, pattern?: Omit<TQuadPattern, "predicate" | "namedGraph">): Promise<TQuad[]> {
 	const store: IQuadStore = world.shared.getStore();
@@ -50,7 +52,8 @@ export function queryFacts(world: TWorld, domain: string, namedGraph: string, pa
 }
 
 /**
- * Read a single fact's most recent value for a (domain, identity) pair, or undefined.
+ * Returns the most recent value of the fact for a (domain, identity) pair in a named graph, or
+ * undefined where the store doesn't hold one.
  */
 export function getFact(world: TWorld, domain: string, identity: string, namedGraph: string): Promise<unknown | undefined> {
 	const store: IQuadStore = world.shared.getStore();

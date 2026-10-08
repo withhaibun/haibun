@@ -1,11 +1,9 @@
 // @vitest-environment jsdom
 /**
- * Locks the wire-shape contract for `hypermedia.ts`: type guards, link
- * resolution semantics, the `Conduit` accessor's not-installed failure mode,
- * and the conduit a test installs. `LiveConduit`-against-real-RPC is
- * exercised by the component integration tests; this covers the pure-logic
- * and in-memory surface so regressions in the contract fail immediately and
- * unambiguously.
+ * Tests the wire-shape contract of `hypermedia.ts`: the type guards, link resolution, the `Conduit` accessor's failure
+ * where a conduit isn't installed, and the conduit a test installs. It also tests `LiveConduit` against a replaced
+ * `fetch`: a server that doesn't respond, the timeout, the retry interval and refusals. A regression in the contract
+ * fails in this file. The component integration tests exercise `LiveConduit` against a running RPC service.
  */
 import "fake-indexeddb/auto";
 import { authorityRefusal, notFromActuality, REFUSED_INVOCATION } from "@haibun/core/lib/rpc-wire.js";
@@ -32,7 +30,7 @@ beforeEach(() => {
 	endPage();
 });
 
-/** The page's own hydration, as a deployment serves it. */
+/** Sets the page's own hydration, as a deployment serves it. */
 function setHydration(payload: Record<string, unknown>): void {
 	document.head.innerHTML = "";
 	hydrate({ actualityId: PAGE_ACTUALITY, ...payload });
@@ -42,17 +40,17 @@ import { hydrateFromDom } from "./rpc-registry.js";
 import { rpcAnswer, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
 import { endPage, pagePinned } from "./page-pinned.js";
 
-/** The copy of this module another bundle on the page loads. */
+/** The specifier of the copy of hypermedia.js that another bundle on the page loads. */
 const BUNDLE_COPY = "./hypermedia.js?bundle=graph-view";
 
-describe("what a link asks of a run", () => {
-	// A page cannot read a run through a step whose answer the run would record, and cannot forget to state which it
-	// wants: a link carries what it asks, so the two constructors are the only ways to make one. A bare object is not a
-	// link, which the compiler states rather than a run discovering it while a page follows.
-	it("states reading, and states acting, and cannot be made without stating one", () => {
+describe("whether a link reads or acts", () => {
+	// A page can't read actuality through a step whose result actuality would record. Each link's required `asks` field
+	// states whether the link reads or acts, so the constructors `reads` and `acts` are the only ways to make a link. The
+	// compiler rejects a bare object as a link, so the error appears at build time instead of while a page follows it.
+	it("states reading or acting, and can't be made without stating one", () => {
 		expect(reads("SomeStepper-showThings")).toEqual({ method: "SomeStepper-showThings", params: undefined, summary: undefined, asks: "read" });
 		expect(acts("SomeStepper-doThing", { id: "a" })).toMatchObject({ method: "SomeStepper-doThing", params: { id: "a" }, asks: "act" });
-		// @ts-expect-error a bare method is not a link: it doesn't state what it asks of actuality
+		// @ts-expect-error a bare method isn't a link, because it doesn't state whether it reads or acts
 		const unstated: TLink = { method: "SomeStepper-showThings" };
 		expect(unstated.asks).toBeUndefined();
 	});
@@ -90,22 +88,22 @@ describe("getLink", () => {
 		expect(link.params).toEqual({ seqPath: "0.1.2.3" });
 	});
 
-	it("throws with a precise message when the rel isn't in _links, listing the rels that are", () => {
+	it("throws a message that lists the rels in _links when the requested rel isn't one of them", () => {
 		expect(() => getLink(rep, "unknown-rel")).toThrow(/rel not in _links \(have: trace\)/);
 	});
 
-	it("throws with `<none>` when _links is absent so the diagnostic doesn't lie about availability", () => {
+	it("throws `Representation has no _links` when _links is absent", () => {
 		expect(() => getLink({ _type: "Email" }, "trace")).toThrow(/Representation has no _links/);
 	});
 
-	it("throws on malformed link entries (missing method), callers never get a half-formed link", () => {
+	it("throws on a malformed link entry (missing method), so a caller never receives a partial link", () => {
 		const bad: TRepresentation = { _links: { x: { params: {} } as unknown as TLink } };
 		expect(() => getLink(bad, "x")).toThrow(/rel not in _links/);
 	});
 });
 
 describe("conduit accessor", () => {
-	it("throws with a precise message when a Conduit hasn't been installed", () => {
+	it("throws a message stating that a Conduit isn't installed when one hasn't been installed", () => {
 		expect(() => conduit()).toThrow(/a Conduit isn't installed/);
 	});
 
@@ -123,16 +121,16 @@ describe("conduit accessor", () => {
 });
 
 describe("a server that does not respond", () => {
-	// Whether the site has answered, and whether it was found silent, is what a page holds about it: each case states
-	// the situation it is about, from a page that doesn't hold either.
+	// A page holds when the site last responded and whether a timeout marked the site unreachable. Each case starts from
+	// a page that holds neither, and arranges its own situation.
 	beforeEach(() => {
 		endPage();
 		document.head.innerHTML = "";
 		serveThePage();
 	});
 
-	// A request that never gets a response doesn't indicate a fault in what it asked: the page reports it and reads what it caches.
-	// Every other failure, including an error the server itself returns, stays a fault to fail on.
+	// A request without a response doesn't indicate a fault in the request. The page reports the server as unreachable
+	// and reads what the device holds. Every other failure, including an error the server returns, remains a fault.
 	it("raises ServerUnreachable when the request cannot be made, and isServerUnreachable finds it through a chain of causes", async () => {
 		const fetchWas = globalThis.fetch;
 		globalThis.fetch = () => Promise.reject(new TypeError("Failed to fetch"));
@@ -151,15 +149,15 @@ describe("a server that does not respond", () => {
 		}
 	});
 
-	it("finds the server not responding in a failure another bundle's copy of the conduit raised", async () => {
-		// A second bundle loads its own copy of this module, so its conduit fails with its own ServerUnreachable class.
+	it("detects the server not responding in a failure from another bundle's copy of the conduit", async () => {
+		// A second bundle loads its own copy of hypermedia.js, so its conduit throws its own ServerUnreachable class.
 		const otherBundle: typeof import("./hypermedia.js") = await import(/* @vite-ignore */ BUNDLE_COPY);
 		expect(otherBundle.ServerUnreachable).not.toBe(ServerUnreachable);
 		expect(isServerUnreachable(new Error("wrapped", { cause: new otherBundle.ServerUnreachable(HANDSHAKE_PATH, new TypeError("Failed to fetch")) }))).toBe(true);
 		expect(isServerUnreachable(new Error("refused"))).toBe(false);
 	});
 
-	it("fails a call a path the server does not serve answered as text, with the status and what it sent, and reads a refusal actuality states", async () => {
+	it("fails a call to a path the server doesn't serve with the server's status and text, and throws the error of a refusal actuality returns", async () => {
 		const fetchWas = globalThis.fetch;
 		try {
 			globalThis.fetch = () => Promise.resolve(new Response("404 Not Found", { status: 404, headers: { "Content-Type": "text/plain; charset=UTF-8" } }));
@@ -173,20 +171,20 @@ describe("a server that does not respond", () => {
 		}
 	});
 
-	it("lets go of the page's authority where actuality refuses it as failing verification, as one revoked", async () => {
+	it("releases the page's authority where actuality refuses it for failing verification, as for a revoked authority", async () => {
 		const fetchWas = globalThis.fetch;
 		const HELD = "Stepper:held";
 		await openPageAuthority(undefined, [HELD]);
 		try {
 			globalThis.fetch = () => Promise.resolve(rpcAnswer(authorityRefusal("the presented authority failed verification: revoked"), REFUSED_INVOCATION));
 			await expect(new LiveConduit("").follow(reads(SHOW_STEPS_METHOD), "test")).rejects.toThrow("revoked");
-			expect(pageMay(HELD), "the page doesn't hold what it was refused").toBe(false);
+			expect(pageMay(HELD), "the page doesn't hold the authority actuality refused").toBe(false);
 		} finally {
 			globalThis.fetch = fetchWas;
 		}
 	});
 
-	it("records when the server last responded, and doesn't record a time when it never did", async () => {
+	it("records when the server last responded, and doesn't record a time where the server never responded", async () => {
 		const fetchWas = globalThis.fetch;
 		endPage();
 		serveThePage();
@@ -194,11 +192,10 @@ describe("a server that does not respond", () => {
 		try {
 			await new LiveConduit("").follow(acts(SHOW_STEPS_METHOD), "test").catch(() => undefined);
 			expect(serverLastRespondedAt(), "a page that hasn't reached a server doesn't hold such a time").toBeUndefined();
-			// A page that has just found the site silent reads what it holds instead of calling again, and this is about
-			// the call after that span rather than within it.
+			// The second part starts a new page, so the state the first part left doesn't affect it.
 			endPage();
 			serveThePage();
-			// An error the server returns is still the server responding: what a reader is told is that it was reached.
+			// An error the server returns still counts as a response, so a reader sees that the page reached the server.
 			globalThis.fetch = () => Promise.resolve(rpcAnswer({ error: "no such step" }, 422));
 			const before = Date.now();
 			await new LiveConduit("").follow(acts(SHOW_STEPS_METHOD), "test").catch(() => undefined);
@@ -210,15 +207,16 @@ describe("a server that does not respond", () => {
 	});
 
 	it("reports a server that accepts a request without responding as unreachable, at the timeout", async () => {
-		// The failure this bounds: a call that wasn't answered or refused left the view that made it empty, and the view didn't
-		// state why, so the reading never fell back to what the device holds.
+		// A call that receives neither a response nor a refusal would leave the calling view empty without a reason, and the
+		// reading wouldn't fall back to what the device holds. The timeout bounds that call.
 		const fetchWas = globalThis.fetch;
 		setHydration({ settings: { responseTimeoutMs: 40 } });
 		hydrateFromDom();
 		let taken = 0;
 		globalThis.fetch = ((_url: string, init?: { signal?: AbortSignal }) => {
 			taken += 1;
-			// Taken and left, as a site that has stopped answering leaves it: it settles only when the bound aborts it.
+			// The fake accepts the call and doesn't respond, as a stopped site does. The promise settles only when the timeout
+			// aborts it.
 			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "TimeoutError")), { once: true }));
 		}) as unknown as typeof globalThis.fetch;
 		try {
@@ -228,17 +226,17 @@ describe("a server that does not respond", () => {
 				(e: unknown) => e,
 			);
 			expect(taken, "the call was made").toBeGreaterThan(0);
-			expect(err, "and reported as the site not answering, which is what a reading falls back on").toBeInstanceOf(ServerUnreachable);
-			expect(Date.now() - began, "within the bound the deployment set, rather than never").toBeLessThan(4000);
+			expect(err, "and reported as the site not responding, so a reading falls back to what the device holds").toBeInstanceOf(ServerUnreachable);
+			expect(Date.now() - began, "within the timeout the deployment set, instead of never").toBeLessThan(4000);
 		} finally {
 			globalThis.fetch = fetchWas;
 			document.head.innerHTML = "";
 		}
 	});
 
-	it("reports a server whose answer stalls after its headers as unreachable, since the timeout bounds the whole response", async () => {
-		// The failure this bounds: a timeout that fired while the body was still arriving left the read as an aborted request,
-		// which a page reports as a fault, where a timeout before the headers was reported as the server not responding.
+	it("reports a server whose response stalls after its headers as unreachable, since the timeout bounds the whole response", async () => {
+		// A timeout while the body arrives reports the server as not responding, as a timeout before the headers does. An
+		// aborted request would otherwise reach the page as a fault.
 		const fetchWas = globalThis.fetch;
 		setHydration({ settings: { responseTimeoutMs: 40 } });
 		hydrateFromDom();
@@ -253,7 +251,7 @@ describe("a server that does not respond", () => {
 				() => undefined,
 				(e: unknown) => e,
 			);
-			expect(err, "the stalled answer is the server not responding").toBeInstanceOf(ServerUnreachable);
+			expect(err, "a stalled response reports the server as not responding").toBeInstanceOf(ServerUnreachable);
 		} finally {
 			globalThis.fetch = fetchWas;
 			document.head.innerHTML = "";
@@ -271,15 +269,15 @@ describe("a server that does not respond", () => {
 			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("timed out", "TimeoutError")), { once: true }));
 		}) as unknown as typeof globalThis.fetch;
 		try {
-			await new LiveConduit("").follow(acts(SHOW_STEPS_METHOD), "a read the page waits on").catch(() => undefined);
-			expect(bounds.at(-1), "a read the page waits on carries a bound").toBe(true);
-			// The call that opens an action is a call like any other, so this is about a page that has not just found the
-			// site silent.
+			await new LiveConduit("").follow(acts(SHOW_STEPS_METHOD), "a read the page awaits").catch(() => undefined);
+			expect(bounds.at(-1), "a read the page awaits carries a timeout").toBe(true);
+			// The call that opens an action carries a timeout like any other awaited call. This part starts a page that
+			// hasn't found the site unreachable.
 			endPage();
 			serveThePage();
 			const streaming = new LiveConduit("").followStream(acts(SHOW_STEPS_METHOD), () => undefined, { why: "actuality's own stream" }).catch(() => undefined);
 			await new Promise((r) => setTimeout(r, 60));
-			expect(bounds.at(-1), "and a stream doesn't carry one, so it is not closed under a run still writing to it").toBe(false);
+			expect(bounds.at(-1), "and a stream doesn't carry one, so a timeout doesn't close it while actuality writes to it").toBe(false);
 			void streaming;
 		} finally {
 			globalThis.fetch = fetchWas;
@@ -303,8 +301,8 @@ describe("a server that does not respond", () => {
 			const afterFirst = made;
 			const began = Date.now();
 			await Promise.all(Array.from({ length: 8 }, () => conduit.follow(reads(SHOW_STEPS_METHOD), "a view reading").catch(() => undefined)));
-			expect(made, "the reads that followed took the answer the first one got").toBe(afterFirst);
-			expect(Date.now() - began, "so they didn't wait the bound out again").toBeLessThan(60);
+			expect(made, "the following reads didn't call fetch, since the first read's timeout stands for them").toBe(afterFirst);
+			expect(Date.now() - began, "so they didn't wait for the timeout again").toBeLessThan(60);
 		} finally {
 			globalThis.fetch = fetchWas;
 			endPage();
@@ -318,7 +316,7 @@ describe("a server that does not respond", () => {
 		setHydration({ settings: { responseTimeoutMs: 40 } });
 		hydrateFromDom();
 		let made = 0;
-		// A site that takes the call and never answers it, which is what the page remembers as silent.
+		// The fake accepts the call and doesn't respond, so the timeout marks the site unreachable.
 		globalThis.fetch = ((_url: string, init?: { signal?: AbortSignal }) => {
 			made += 1;
 			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("timed out", "TimeoutError")), { once: true }));
@@ -328,10 +326,10 @@ describe("a server that does not respond", () => {
 			await conduit.follow(reads(SHOW_STEPS_METHOD), "the first read").catch(() => undefined);
 			expect(made).toBe(1);
 			await conduit.follow(reads(SHOW_STEPS_METHOD), "a read within the span").catch(() => undefined);
-			expect(made, "within the span, the answer the first call got stands").toBe(1);
+			expect(made, "the page doesn't call the site within the span, since the first call's timeout stands for it").toBe(1);
 			pagePinned<{ unreachableUntil: number }>("__SHU_SERVER_RESPONDED__", () => ({ unreachableUntil: 0 })).unreachableUntil = Date.now() - 1;
 			await conduit.follow(reads(SHOW_STEPS_METHOD), "a read after it").catch(() => undefined);
-			expect(made, "and after it the site is called again").toBe(2);
+			expect(made, "and the page calls the site again after the span").toBe(2);
 		} finally {
 			globalThis.fetch = fetchWas;
 			endPage();
@@ -339,9 +337,9 @@ describe("a server that does not respond", () => {
 		}
 	});
 
-	it("issues an act within that span, since a reader asked for it and a read's timeout is not its answer", async () => {
-		// The failure this bounds: a question typed into the ask pane wasn't sent because a view's read had timed out a
-		// moment earlier, so the page refused to carry what the reader asked for.
+	it("issues an act within that span, since a reader requested the act and a read's timeout isn't its result", async () => {
+		// A question a reader types into the ask pane reaches the server even where a view's read timed out a moment
+		// before. The page would otherwise refuse to send the reader's question.
 		const fetchWas = globalThis.fetch;
 		endPage();
 		setHydration({ settings: { responseTimeoutMs: 40 } });
@@ -356,8 +354,8 @@ describe("a server that does not respond", () => {
 			const conduit = new LiveConduit("");
 			await conduit.follow(reads(SHOW_STEPS_METHOD), "a view reading").catch(() => undefined);
 			const afterRead = asked.length;
-			await conduit.follow(acts("chatWithContext"), "what the reader asked for").catch(() => undefined);
-			expect(asked.slice(afterRead), "the act was carried to the server, beginning with its place in actuality").toContain(HANDSHAKE_PATH);
+			await conduit.follow(acts("chatWithContext"), "the reader's question").catch(() => undefined);
+			expect(asked.slice(afterRead), "the page sent the act to the server, starting with the handshake that places it in actuality").toContain(HANDSHAKE_PATH);
 			expect(asked.slice(afterRead), "and then the act itself").toContain("/rpc/chatWithContext");
 		} finally {
 			globalThis.fetch = fetchWas;
@@ -377,7 +375,7 @@ describe("a server that does not respond", () => {
 			const conduit = new LiveConduit("");
 			await conduit.follow(acts(SHOW_STEPS_METHOD), "the first read").catch(() => undefined);
 			await conduit.follow(acts(SHOW_STEPS_METHOD), "the read after it").catch(() => undefined);
-			expect(made, "each read asked, since the answer came back at once").toBeGreaterThan(1);
+			expect(made, "each call reached fetch, since the network refusal returned at once").toBeGreaterThan(1);
 		} finally {
 			globalThis.fetch = fetchWas;
 			endPage();
@@ -389,8 +387,8 @@ describe("a server that does not respond", () => {
 		setHydration({ settings: {} });
 		hydrateFromDom();
 		globalThis.fetch = ((url: string, init?: { signal?: AbortSignal }) => {
-			// The site answers the call that opens an action, and takes the streamed read without answering it, so what
-			// settles that read is the reader stopping it.
+			// The fake responds to the call that opens an action. It accepts the streamed read and doesn't respond, so only
+			// the reader's abort settles that read.
 			if (String(url).endsWith(HANDSHAKE_PATH)) return Promise.resolve(rpcAnswer({ seqPath: [0, 1] }, 200));
 			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("stopped", "AbortError")), { once: true }));
 		}) as unknown as typeof globalThis.fetch;
@@ -405,14 +403,14 @@ describe("a server that does not respond", () => {
 			await new Promise((r) => setTimeout(r, 5));
 			stopping.abort();
 			const err = await following;
-			expect(err, "a reader who stopped reading doesn't show whether the site answers").not.toBeInstanceOf(ServerUnreachable);
+			expect(err, "a reader's abort doesn't show whether the site responds").not.toBeInstanceOf(ServerUnreachable);
 		} finally {
 			globalThis.fetch = fetchWas;
 			document.head.innerHTML = "";
 		}
 	});
 
-	it("an error the server returns is not unreachability", async () => {
+	it("an error the server returns isn't unreachability", async () => {
 		const fetchWas = globalThis.fetch;
 		globalThis.fetch = () => Promise.resolve(rpcAnswer({ error: "no such step" }, 422));
 		try {

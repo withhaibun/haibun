@@ -36,8 +36,8 @@ import { mapDefinitionsToDomains } from "./domains.js";
 import { itemAt } from "./util/item-at.js";
 
 describe("LinkRelations extensions", () => {
-	// The vocabulary is not restated here. A copy of it made every addition a two-file edit and stated only that the
-	// copy matched, so what is asserted is what must hold of EVERY entry, including ones not written yet.
+	// These tests don't restate the vocabulary. A copy would make every addition a two-file edit and would assert only
+	// that the copy matches. The tests assert what must hold of every entry, including entries added later.
 	it("every rel parses as a rel", () => {
 		for (const entry of Object.values(LinkRelations)) expect(() => RelSchema.parse(entry.rel)).not.toThrow();
 	});
@@ -51,11 +51,11 @@ describe("LinkRelations extensions", () => {
 		}
 	});
 
-	it("two rels don't claim the same name, and two don't share a uri except where the standard has one term for both", () => {
+	it("two rels don't use the same name, and two rels don't share a uri except where the standard has one term for both", () => {
 		const rels = Object.values(LinkRelations).map((e) => e.rel);
 		expect(new Set(rels).size).toBe(rels.length);
-		// Web Annotation states `oa:hasBody` both for a note's content and for what a linking annotation refers to, so
-		// `content`/`hasBody` and `linksTo` land on one term. Every other shared uri is two names for one thing.
+		// Web Annotation uses `oa:hasBody` both for a note's body and for a linking annotation's target, so `hasBody` and
+		// `linksTo` map to one term. Any other shared uri would be two names for one thing.
 		const byUri = new Map<string, string[]>();
 		for (const e of Object.values(LinkRelations)) byUri.set(e.uri, [...(byUri.get(e.uri) ?? []), e.rel]);
 		const shared = [...byUri.entries()].filter(([, names]) => names.length > 1).map(([uri, names]) => `${uri}: ${names.join(", ")}`);
@@ -85,7 +85,7 @@ describe("LinkRelations extensions", () => {
 		expect(isReplyEdge(LinkRelations.ACCESS_LEVEL.rel)).toBe(false);
 	});
 
-	it("isSubPropertyOf walks transitively to an indirect ancestor, not just the direct parent", () => {
+	it("isSubPropertyOf walks transitively to an indirect ancestor, not only the direct parent", () => {
 		// wasAttributedTo → fromActor → inRoleOf: the walk must reach the grandparent, not stop at the direct parent.
 		expect(isSubPropertyOf(LinkRelations.WAS_ATTRIBUTED_TO.rel, LinkRelations.FROM_ACTOR.rel)).toBe(true); // direct parent
 		expect(isSubPropertyOf(LinkRelations.WAS_ATTRIBUTED_TO.rel, LinkRelations.IN_ROLE_OF.rel)).toBe(true); // two hops up
@@ -93,7 +93,7 @@ describe("LinkRelations extensions", () => {
 		expect(isSubPropertyOf(LinkRelations.ENDED_AT_TIME.rel, LinkRelations.GANTT_END.rel)).toBe(true);
 	});
 
-	it("isSubPropertyOf does not reach an unrelated concept (a sibling parent is not a path to everything)", () => {
+	it("isSubPropertyOf doesn't reach an unrelated concept through a sibling parent", () => {
 		expect(isSubPropertyOf(LinkRelations.STARTED_AT_TIME.rel, LinkRelations.GANTT_END.rel)).toBe(false);
 		expect(isSubPropertyOf(LinkRelations.STARTED_AT_TIME.rel, LinkRelations.IN_REPLY_TO.rel)).toBe(false);
 	});
@@ -131,33 +131,33 @@ describe("LinkRelations extensions", () => {
 	});
 });
 
-describe("LinkRelations self-consistency: a class can never render as a super-property (§1b)", () => {
+describe("LinkRelations self-consistency: a class doesn't render as a super-property (§1b)", () => {
 	const entries = Object.values(LinkRelations);
 	const declaredRels = new Set(entries.map((e) => e.rel));
 
-	it("every subPropertyOf target names a declared property rel (without a dangling super-property)", () => {
+	it("every subPropertyOf target names a declared property rel", () => {
 		for (const e of entries) {
 			const sp = (e as { subPropertyOf?: string | string[] }).subPropertyOf;
 			for (const parent of sp === undefined ? [] : Array.isArray(sp) ? sp : [sp]) expect(declaredRels, `${e.rel} subPropertyOf ${parent}`).toContain(parent);
 		}
 	});
 
-	it("every rel's URI is a PROPERTY, not a class (lowercase local name): the temporalInstant category error stays out", () => {
+	it("every rel's URI names a property with a lowercase local name and not a class, which excludes the temporalInstant category error", () => {
 		for (const e of entries) {
 			const local = e.uri.split(/[:#/]/).pop() ?? "";
-			if (local) expect(local, `${e.rel} → ${e.uri} must be a property (lowercase local name), never a class`).toBe(local.charAt(0).toLowerCase() + local.slice(1));
+			if (local) expect(local, `${e.rel} → ${e.uri} must be a property (lowercase local name) and not a class`).toBe(local.charAt(0).toLowerCase() + local.slice(1));
 		}
 	});
 });
 
-describe("EdgePredicates additions", () => {
-	it("resolves new edge rels via edgeRel()", () => {
+describe("EdgePredicates PROV and SOSA entries", () => {
+	it("resolves PROV and SOSA edge rels through edgeRel()", () => {
 		expect(edgeRel("wasInformedBy")).toBe("wasInformedBy");
 		expect(edgeRel("invalidated")).toBe("invalidated");
 		expect(edgeRel("madeBySensor")).toBe("madeBySensor");
 	});
 
-	it("each new EdgePredicate key exists in the exported object", () => {
+	it("each PROV and SOSA EdgePredicate key exists in the exported object", () => {
 		expect(EdgePredicates.wasInformedBy).toBeDefined();
 		expect(EdgePredicates.invalidated).toBeDefined();
 		expect(EdgePredicates.madeBySensor).toBeDefined();
@@ -165,7 +165,7 @@ describe("EdgePredicates additions", () => {
 });
 
 describe("getJsonLdContext prefix declarations", () => {
-	it("declares all new vocabulary prefixes", () => {
+	it("declares the prov, sosa, schema, otel and hbn prefixes", () => {
 		const out = getJsonLdContext({}) as { "@context": Record<string, unknown> };
 		const ctx = out["@context"];
 		expect(ctx.prov).toBe("https://www.w3.org/ns/prov#");
@@ -175,7 +175,7 @@ describe("getJsonLdContext prefix declarations", () => {
 		expect(ctx.hbn).toBe(HAIBUN_NS);
 	});
 
-	it("preserves pre-existing prefixes unchanged", () => {
+	it("declares the as, foaf and dcterms prefixes and doesn't declare a haibun prefix", () => {
 		const out = getJsonLdContext({}) as { "@context": Record<string, unknown> };
 		const ctx = out["@context"];
 		expect(ctx.as).toBe("https://www.w3.org/ns/activitystreams#");
@@ -184,12 +184,12 @@ describe("getJsonLdContext prefix declarations", () => {
 		expect(ctx.haibun).toBeUndefined();
 	});
 
-	it("binds hbn under a given host, defaulting to the canonical stem", () => {
+	it("binds hbn under a given host, or under the canonical stem without one", () => {
 		expect((getJsonLdContext({}, haibunNsForHost("https://192.0.2.9:8223"))["@context"] as Record<string, unknown>).hbn).toBe("https://192.0.2.9:8223/ns/");
 		expect((getJsonLdContext({})["@context"] as Record<string, unknown>).hbn).toBe(HAIBUN_NS);
 	});
 
-	it("DOESN'T declare a consumer vocabulary: a consumer's prefixes (e.g. a credentials suite's) arrive via topology.namespaces", () => {
+	it("doesn't declare a consumer vocabulary, because a consumer declares its prefixes in topology.namespaces", () => {
 		const out = getJsonLdContext({}) as { "@context": Record<string, unknown> };
 		const ctx = out["@context"];
 		expect(ctx.cred).toBeUndefined();
@@ -204,7 +204,7 @@ describe("getJsonLdContext prefix declarations", () => {
 		expect(withConsumer.exv).toBe("https://vocab.example/ns#");
 	});
 
-	it("maps a property/edge to its declared genuine IRI, overriding the rel's default", () => {
+	it("maps a property or edge to its declared IRI in place of the rel's default", () => {
 		const domains = {
 			c: {
 				topology: {
@@ -248,7 +248,7 @@ describe("getJsonLdContext top-level term fallback", () => {
 		schema: { parse: (v: unknown) => v },
 	});
 
-	it("emits a top-level term when every domain agrees on its @id", () => {
+	it("emits a top-level term when every domain maps it to the same @id", () => {
 		const domains = {
 			a: persistedDomain("A", "ex:A", { name: LinkRelations.NAME.rel }),
 			b: persistedDomain("B", "ex:B", { name: LinkRelations.NAME.rel }),
@@ -263,14 +263,14 @@ describe("getJsonLdContext top-level term fallback", () => {
 		} as unknown as Parameters<typeof getJsonLdContext>[0];
 		const ctx = (getJsonLdContext(domains) as { "@context": Record<string, unknown> })["@context"];
 		expect(ctx.author).toBeUndefined();
-		// still resolvable under each type's scoped @context
+		// each type's scoped @context still resolves it
 		expect(ctx.Article).toMatchObject({ "@context": { author: { "@id": LinkRelations.AUTHOR.uri } } });
 		expect(ctx.TrustedList).toMatchObject({ "@context": { author: { "@id": LinkRelations.TAG.uri } } });
 	});
 });
 
-describe("getJsonLdContext ontology @graph, rdfs:subClassOf as a real RDF statement, not a @context keyword", () => {
-	it("states the type's subclass on its class node in @graph; the @context term stays a pure IRI mapping", () => {
+describe("getJsonLdContext ontology @graph: rdfs:subClassOf as an RDF statement, not a @context keyword", () => {
+	it("states the type's subclass on its class node in @graph, and the @context term stays only an IRI mapping", () => {
 		const domains = {
 			p: {
 				topology: { persistedAs: "P", type: "sec:Controller", subClassOf: "prov:Agent", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel } },
@@ -313,27 +313,27 @@ describe("roleRels: the ontology-derived role-attribution predicate set", () => 
 		expect(set.has(LinkRelations.IN_REPLY_TO.rel)).toBe(false); // a reply rel is not a role attribution
 	});
 
-	it("DOESN'T name a consumer vocabulary, consumer actor edges classify via their declared upper-ontology rel, not entries here", () => {
+	it("doesn't name a consumer vocabulary, because consumer actor edges classify through their declared upper-ontology rel", () => {
 		for (const rel of ["issuer", "holder", "credentialSubject", "verifier", "registeredIn", "presentedTo", "resolvedIssuer", "verifiableCredential"]) {
 			expect(getRelRange(rel)).toBeUndefined();
 		}
 	});
 
-	it("treats prov:wasAttributedTo as a SUB-property of inRoleOf, not the reverse (a role target need not be a prov:Agent)", () => {
+	it("treats prov:wasAttributedTo as a sub-property of inRoleOf and not the reverse, because a role target need not be a prov:Agent", () => {
 		expect(isSubPropertyOf(LinkRelations.WAS_ATTRIBUTED_TO.rel, LinkRelations.IN_ROLE_OF.rel)).toBe(true);
 		expect(isSubPropertyOf(LinkRelations.IN_ROLE_OF.rel, LinkRelations.WAS_ATTRIBUTED_TO.rel)).toBe(false);
 	});
 });
 
 describe("fromActor / toActor: the directional actor split under inRoleOf", () => {
-	it("a concrete actor rel reaches inRoleOf TRANSITIVELY through its direction (performedBy → fromActor → inRoleOf)", () => {
+	it("a concrete actor rel reaches inRoleOf transitively through its direction (performedBy → fromActor → inRoleOf)", () => {
 		expect(isSubPropertyOf(LinkRelations.PERFORMED_BY.rel, LinkRelations.FROM_ACTOR.rel)).toBe(true);
 		expect(isSubPropertyOf(LinkRelations.FROM_ACTOR.rel, LinkRelations.IN_ROLE_OF.rel)).toBe(true);
 		expect(isSubPropertyOf(LinkRelations.PERFORMED_BY.rel, LinkRelations.IN_ROLE_OF.rel)).toBe(true); // so it is still a role rel
 		expect(isSubPropertyOf(LinkRelations.TO_ACTOR.rel, LinkRelations.IN_ROLE_OF.rel)).toBe(true);
 	});
 
-	it("the split only ADDS direction, roleRels membership is unchanged (every actor rel is still a role)", () => {
+	it("the split adds direction and keeps roleRels membership: every actor rel is still a role", () => {
 		const roles = roleRels();
 		for (const r of [...fromActorRels(), ...toActorRels()]) expect(roles.has(r)).toBe(true);
 	});
@@ -342,20 +342,20 @@ describe("fromActor / toActor: the directional actor split under inRoleOf", () =
 		const from = fromActorRels();
 		for (const r of [LinkRelations.AUTHOR.rel, LinkRelations.PERFORMED_BY.rel, LinkRelations.ATTRIBUTED_TO.rel, LinkRelations.WAS_ATTRIBUTED_TO.rel])
 			expect(from.has(r)).toBe(true);
-		// the ranked fallback order rides declared rolePriority, not a hand-kept list
+		// declared rolePriority sets the ranked order, and a hand-kept list doesn't
 		expect(LinkRelations.PERFORMED_BY.rolePriority).toBeGreaterThan(LinkRelations.AUTHOR.rolePriority);
 		expect(LinkRelations.AUTHOR.rolePriority).toBeGreaterThan(LinkRelations.WAS_ATTRIBUTED_TO.rolePriority);
 		expect(LinkRelations.WAS_ATTRIBUTED_TO.rolePriority).toBeGreaterThan(LinkRelations.ATTRIBUTED_TO.rolePriority);
 	});
 
-	it("excludes the abstract concepts themselves from every derived set (they classify, never an edge label)", () => {
+	it("excludes the abstract concepts from every derived set, because they classify and are never an edge label", () => {
 		for (const set of [roleRels(), fromActorRels(), toActorRels()])
 			for (const abstractRel of [LinkRelations.IN_ROLE_OF.rel, LinkRelations.FROM_ACTOR.rel, LinkRelations.TO_ACTOR.rel]) expect(set.has(abstractRel)).toBe(false);
 	});
 });
 
-describe("getJsonLdContext ontology @graph, rdfs:subPropertyOf as a real RDF statement, not a @context keyword", () => {
-	it("states a role edge's super-property on its property node in @graph; the scoped @context term stays a pure IRI mapping", () => {
+describe("getJsonLdContext ontology @graph: rdfs:subPropertyOf as an RDF statement, not a @context keyword", () => {
+	it("states a role edge's super-property on its property node in @graph, and the scoped @context term stays only an IRI mapping", () => {
 		const domains = {
 			c: {
 				topology: {
@@ -369,7 +369,7 @@ describe("getJsonLdContext ontology @graph, rdfs:subPropertyOf as a real RDF sta
 		} as unknown as Parameters<typeof getJsonLdContext>[0];
 		const out = getJsonLdContext(domains) as { "@context": Record<string, { "@context"?: Record<string, Record<string, unknown>> }>; "@graph": Array<Record<string, unknown>> };
 		expect(out["@context"].C?.["@context"]?.performedBy).not.toHaveProperty("rdfs:subPropertyOf"); // an ontology keyword would make the term definition invalid
-		// performedBy declares under the directional fromActor super-property (itself subPropertyOf inRoleOf), stated on its property node.
+		// performedBy declares fromActor as its parent on its property node. fromActor is a sub-property of inRoleOf.
 		const performedByNode = out["@graph"].find((n) => n["@id"] === REL_CONTEXT[LinkRelations.PERFORMED_BY.rel]);
 		expect(performedByNode?.["@type"]).toBe("rdf:Property");
 		expect(performedByNode?.["rdfs:subPropertyOf"]).toEqual({ "@id": REL_CONTEXT[LinkRelations.FROM_ACTOR.rel] });
@@ -390,7 +390,7 @@ describe("getJsonLdContext ontology @graph, rdfs:subPropertyOf as a real RDF sta
 		} as unknown as Parameters<typeof getJsonLdContext>[0];
 		const out = getJsonLdContext(domains) as { "@context": Record<string, { "@context"?: Record<string, Record<string, unknown>> }> };
 		const scoped = out["@context"].C?.["@context"];
-		expect(scoped?.issuer?.["@id"]).toBe("ex:issuer"); // the consumer's genuine term, not the upper pointer's IRI
+		expect(scoped?.issuer?.["@id"]).toBe("ex:issuer"); // the consumer's own term, not the upper pointer's IRI
 		expect((out["@context"] as Record<string, unknown>).ex).toBe("https://vocab.example/ns#");
 	});
 
@@ -425,7 +425,7 @@ describe("Discourse rels", () => {
 		}
 	});
 
-	it("DISCOURSE_RELS contains exactly the 9 kept speech acts", () => {
+	it("DISCOURSE_RELS contains the 9 speech acts and not suggest, report, apply or revert", () => {
 		expect(DISCOURSE_RELS).toContain("measure");
 		expect(DISCOURSE_RELS).toContain("narrate");
 		expect(DISCOURSE_RELS).toContain("question");
@@ -445,7 +445,7 @@ describe("Discourse rels", () => {
 describe("CommentSchema", () => {
 	const baseComment = { id: "c1", body: "hello", generatedAtTime: new Date().toISOString() };
 
-	it("accepts a minimal valid Comment without discourse property", () => {
+	it("accepts a minimal valid Comment without a discourse property", () => {
 		expect(() => CommentSchema.parse({ id: "c1", author: "stepper:llm", generatedAtTime: new Date().toISOString() })).not.toThrow();
 	});
 
@@ -461,7 +461,7 @@ describe("CommentSchema", () => {
 });
 
 describe("commentDomainDefinition", () => {
-	it("has the expected topology shape without discourse property", () => {
+	it("has the expected topology shape without a discourse property", () => {
 		const t = commentDomainDefinition.topology;
 		if (!isPersisted(t)) throw new Error("commentDomainDefinition must declare a persisted topology");
 		expect(t.persistedAs).toBe(COMMENT_LABEL);
@@ -484,7 +484,7 @@ describe("commentDomainDefinition", () => {
 });
 
 describe("Web Annotation rels (oa:)", () => {
-	it("declares the target-anchoring rels with genuine oa IRIs", () => {
+	it("declares the target-anchoring rels with oa IRIs", () => {
 		expect(LinkRelations.HAS_SOURCE.uri).toBe("oa:hasSource");
 		expect(LinkRelations.HAS_SELECTOR.uri).toBe("oa:hasSelector");
 		expect(LinkRelations.EXACT.uri).toBe("oa:exact");
@@ -500,7 +500,7 @@ describe("Web Annotation rels (oa:)", () => {
 		expect(getRelRange("suffix")).toBe("literal");
 	});
 
-	it("resolves the new edge predicates via edgeRel()", () => {
+	it("resolves the Web Annotation edge predicates through edgeRel()", () => {
 		expect(edgeRel("hasSource")).toBe("hasSource");
 		expect(edgeRel("hasSelector")).toBe("hasSelector");
 	});
@@ -660,7 +660,7 @@ describe("getPropertyDefinitions", () => {
 		expect(audience?.subPropertyOf).toBe("toActor");
 	});
 
-	it("includes the new RDFS rels themselves (subPropertyOf, label, range, icon, presentation)", () => {
+	it("includes the RDFS rels themselves (subPropertyOf, label, range, icon, presentation)", () => {
 		const defs = getPropertyDefinitions();
 		const ids = new Set(defs.map((r) => r.id));
 		expect(ids.has("subPropertyOf")).toBe(true);
@@ -671,10 +671,10 @@ describe("getPropertyDefinitions", () => {
 	});
 });
 
-/** A note whose text doesn't state a link doesn't need an ontology: this asserts the annotation shape alone, not what a note's own links state. */
+/** A link vocabulary that doesn't type a link. These tests assert the annotation shape alone and not the facts a note's links state. */
 const noLinkVocabulary = { relRange: () => undefined, isType: () => false };
 
-/** A minimal in-memory quad store without createEdge, so the discourse helpers must fall back to plain `add` quads. */
+/** A minimal in-memory quad store without createEdge, so the discourse helpers write edges as `add` quads. */
 function memStore() {
 	const quads: Array<{ subject: string; predicate: string; object: unknown; namedGraph: string }> = [];
 	const nodes = new Map<string, Record<string, unknown>>();
@@ -726,13 +726,13 @@ describe("assertCommentGrounded: every comment is grounded", () => {
 	it("passes for an attachment edge", async () => {
 		await expect(assertCommentGrounded(withEdges([LinkRelations.ATTACHMENT.rel]), "c1")).resolves.toBeUndefined();
 	});
-	it("throws when only hasBody/seqPath are present, content + position do not make a comment about anything", async () => {
+	it("throws when only hasBody and seqPath are present, because content and position don't ground a comment in a subject", async () => {
 		await expect(assertCommentGrounded(withEdges([LinkRelations.HAS_BODY.rel, LinkRelations.SEQ_PATH.rel]), "c1")).rejects.toThrow(/not grounded/);
 	});
 });
 
 describe("writeAnnotation, self-contained on a plain quad store (without createEdge)", () => {
-	it("builds Comment, hasTarget→ SpecificResource, hasSource→ doc /, hasSelector→ TextQuoteSelector, grounded, without editing the doc", async () => {
+	it("writes a grounded Comment, hasTarget→ SpecificResource, hasSource→ doc and hasSelector→ TextQuoteSelector without editing the doc", async () => {
 		const { store, quads, nodes } = memStore();
 		const { commentId, specificResourceId } = await writeAnnotation(store, noLinkVocabulary, "did:site:0", {
 			label: "File",

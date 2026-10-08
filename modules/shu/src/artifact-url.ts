@@ -1,7 +1,7 @@
 /**
- * Where an artifact of actuality is read from. A served page reads it from actuality's artifact route; a page opened as a
- * file reads it beside itself, since the report is written into the feature's own directory. One rule, so a view that
- * shows an artifact states what to show and not where a page came from.
+ * Determines the address of an artifact of actuality. A served page reads it from actuality's artifact route. A page
+ * opened as a file reads it from the file's own directory, since the report is written into the feature's directory. A
+ * view that shows an artifact passes its record or address. This module determines the address for either kind of page.
  */
 import { nothing } from "lit";
 import { until } from "lit/directives/until.js";
@@ -13,47 +13,50 @@ import { reportToRun } from "./client-log.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { isWebAddress } from "@haibun/core/lib/document-content.js";
 
-/** An address a record supplied, where a page may follow it: a path, or a web address. An address of another scheme,
- *  as `javascript:` or `data:`, would run in the page or stand for a document the record wrote. */
+/** Returns a record's address if it is a path or a web address, and undefined for any other scheme. A `javascript:`
+ *  address runs in the page. A `data:` address holds a document the record wrote. */
 const followable = (address: unknown): string | undefined => (typeof address === "string" && (!URL.canParse(address) || isWebAddress(address)) ? address : undefined);
 
-/** The address of one artifact, from what the event recorded of it: its own URL, its path under actuality, or the path
- *  relative to the feature's directory that a report is written into. */
+/** Returns the address of one artifact from the event's record of it: its own URL, its path under actuality, or its
+ *  path relative to the feature's directory. A report is written into the feature's directory. */
 export function artifactUrl(artifact: { url?: unknown; path?: unknown; featureRelativePath?: unknown }): string | undefined {
 	const url = followable(artifact.url);
 	const base = artifact.path ? String(artifact.path).replace(/^\.?\//, "") : undefined;
-	// A report sits in the feature's directory, so an artifact of that feature is beside it: the leading `featn-N/` of
-	// the run-relative path is what the report's own directory already is.
+	// A report is written into its feature's directory. The path's leading `featn-N/` segment names that directory, so
+	// removing it gives the artifact's address relative to the report.
 	const besideTheFile = base ? `./${base.split("/").slice(1).join("/")}` : undefined;
 	if (isOffline()) return followable(artifact.featureRelativePath) ?? url ?? besideTheFile;
 	return url ?? (base ? artifactAddress(base) : undefined);
 }
 
-/** Actuality's artifacts this page has read, by address, as the object URLs a view shows them at. */
+/** Maps each artifact address to its read from actuality. A read resolves to the object URL a view shows. */
 const shown = new Map<string, Promise<string>>();
 
 /**
- * The address a view shows an artifact at. Actuality serves its artifacts only to a caller holding a private read, so an
- * artifact actuality serves is read under the page's delegation and shown at an object URL of what it read. A page opened
- * as a file reads its artifacts beside itself, and any other address is shown as it is.
+ * Returns the address where a view shows an artifact. Actuality serves its artifacts only to a caller that holds a
+ * private read. It reads an address on actuality's artifact route with the page's delegation and returns an object URL of
+ * the content. A later call for that address returns the same object URL. It returns the address unchanged for a page
+ * opened as a file and for an address outside the artifact route.
  */
 export function shownArtifact(url: string): Promise<string> {
 	if (isOffline() || !url.startsWith(`${ARTIFACTS_ROUTE}/`)) return Promise.resolve(url);
 	const reading = shown.get(url) ?? readArtifact(url);
 	shown.set(url, reading);
-	// A read that failed is read again when a view next shows the artifact.
+	// A failed read is deleted from `shown`, so the next shownArtifact call reads the artifact again.
 	reading.catch(() => shown.delete(url));
 	return reading;
 }
 
-/** The address a view shows an artifact at, or undefined once actuality is told why the artifact couldn't be read. */
+/** Returns the address where a view shows an artifact. It reports the reason for a failed read to actuality and returns
+ *  undefined. */
 export const shownOrReported = (url: string, source: string): Promise<string | undefined> =>
 	shownArtifact(url).catch((err: unknown) => {
 		reportToRun("warn", source, `an artifact couldn't be shown: ${errorDetail(err)}`, { url });
 		return undefined;
 	});
 
-/** An artifact's address as a view binds it, once the page has read it: lit's `nothing` until then, or where it couldn't be read. */
+/** Returns a lit directive that binds an artifact's address once the page has read it. It renders lit's `nothing` while
+ *  the read is pending and after a failed read. */
 export const artifactAt = (url: string, source: string) =>
 	until(
 		shownOrReported(url, source).then((at) => at ?? nothing),

@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import TuiMonitorStepper from "./index.js";
 import { TWorld } from "@haibun/core/lib/world.js";
 
-// Mock ink render to avoid actual TUI output during tests
+// vi.mock replaces ink, so the tests don't write TUI output.
 vi.mock("ink", () => {
 	return {
 		render: vi.fn(() => ({ rerender: vi.fn(), unmount: vi.fn(), waitUntilExit: vi.fn(), cleanup: vi.fn() })),
@@ -30,12 +30,10 @@ describe("TuiMonitorStepper", () => {
 	it("handles prompt and resolve", async () => {
 		const prompt = { id: "p1", message: "test prompt" };
 
-		// Start the execution cycle to initialize the renderer (which sets up promptResolver logic indirectly via component update)
-		// However, in our class implementation, prompt() sets promptResolver directly.
+		// prompt() sets promptResolver. resolve() doesn't depend on the ink render that startExecution creates.
 
 		const promptPromise = stepper.prompt(prompt);
 
-		// Resolve it
 		stepper.resolve("p1", "choice");
 
 		const result = await promptPromise;

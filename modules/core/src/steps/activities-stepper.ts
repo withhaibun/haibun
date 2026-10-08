@@ -21,7 +21,7 @@ import { LinkRelations, PersistedVertexSchema, type TDomainDefinition } from "..
 import { refDomainKey, type TIndividualRef } from "../lib/domains.js";
 import { ACTIVITIES_ACTIONS } from "./activities-actions.js";
 
-// need this type because some steps are dynamically generated (e.g. waypoints)
+// The steps this stepper always has. The stepper adds a step for each waypoint a feature declares and for each saved waypoint.
 type TActivitiesFixedSteps = {
 	saveWaypoint: TStepperStep;
 	registerSavedWaypoints: TStepperStep;
@@ -34,25 +34,27 @@ type TActivitiesFixedSteps = {
 
 type TActivitiesStepperSteps = TStepperSteps & TActivitiesFixedSteps;
 
-/** Where a waypoint saved outside any feature line was saved from. */
+/** The source path a saved waypoint holds where the step that saves it doesn't have a source path. The statement that runs a
+ *  saved waypoint also has this source path. */
 const SAVED_WAYPOINT_SOURCE = "a saved waypoint";
 
 export const SAVED_WAYPOINT_LABEL = "SavedWaypoint";
 const SAVED_WAYPOINT_DOMAIN = "saved-waypoint";
 const SavedWaypointSchema = PersistedVertexSchema.extend({
-	/** The waypoint's outcome, which names it. */
+	/** The waypoint's outcome. The outcome is the waypoint's name. */
 	id: z.string(),
 	lines: z.array(z.string()),
 	source: z.string(),
 	generatedAtTime: z.string(),
 });
 type TSavedWaypoint = z.infer<typeof SavedWaypointSchema>;
-/** A waypoint saved while actuality ran, as a record: its outcome, which names it, the lines of its activity in order, and
- *  where it was saved from, so actuality offers it again after a restart. A schema.org HowTo, whose steps are the lines. */
+/** A saved waypoint's record. It holds the outcome, the lines of the activity in order, and the source path. The outcome is the
+ *  waypoint's name. `register the saved waypoints` reads these records after a restart. The type is a schema.org HowTo
+ *  whose steps are the lines. */
 export const savedWaypointDomainDefinition: TDomainDefinition = {
 	selectors: [SAVED_WAYPOINT_DOMAIN],
 	schema: SavedWaypointSchema,
-	description: "A waypoint saved while actuality ran: its outcome and the lines its activity runs, offered again after a restart.",
+	description: "A saved waypoint's outcome and the lines its activity runs. `register the saved waypoints` registers the waypoint again after a restart.",
 	topology: {
 		persistedAs: SAVED_WAYPOINT_LABEL,
 		type: "schema:HowTo",
@@ -64,8 +66,8 @@ export const savedWaypointDomainDefinition: TDomainDefinition = {
 };
 
 /**
- * Stepper that dynamically builds virtual steps from `waypoint` statements.
- * implements this logic: P ∨ (¬P ∧ [A]P)
+ * Builds virtual steps from `waypoint` statements and saved waypoints. Each step implements P ∨ (¬P ∧ [A]P). Either the
+ * proof P holds, or the activity A runs and then P holds.
  */
 export class ActivitiesStepper extends AStepper implements IHasCycles {
 	description = "Define and reuse activities with waypoints and proofs";
@@ -111,7 +113,6 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					this.steps[outcome] = step;
 				}
 			}
-			// Always reload background steps
 			for (const [outcome, step] of Object.entries(this.backgroundSteps)) {
 				this.steps[outcome] = step;
 			}
@@ -131,12 +132,12 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	cyclesWhen = { startExecution: CycleWhen.FIRST, startFeature: CycleWhen.FIRST };
 
 	/**
-	 * Called during resolution phase to clear feature-scoped steps.
-	 * This prevents activity patterns from leaking between features during resolution.
+	 * The resolver calls this before each feature resolves. It removes the previous feature's waypoint steps, so a feature's
+	 * lines don't resolve to another feature's outcomes. It adds the current feature's waypoint steps and the background
+	 * waypoint steps.
 	 */
 	startFeatureResolution(path: string): void {
 		this.inActivityBlock = false;
-		// Clear steps from previous feature (resolution phase)
 		if (this.lastResolutionPath && this.lastResolutionPath !== path) {
 			const previousSteps = this.featureSteps.get(this.lastResolutionPath);
 			if (previousSteps) {
@@ -146,7 +147,6 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			}
 		}
 
-		// Reload current feature's steps if already registered
 		const currentSteps = this.featureSteps.get(path);
 		if (currentSteps) {
 			for (const [outcome, step] of Object.entries(currentSteps)) {
@@ -154,7 +154,6 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			}
 		}
 
-		// Always reload background steps
 		for (const [outcome, step] of Object.entries(this.backgroundSteps)) {
 			this.steps[outcome] = step;
 		}
@@ -170,7 +169,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	readonly baseSteps = {
 		saveWaypoint: {
 			description:
-				"Registers a waypoint whose activity is these lines, as a step actuality offers from then on. A line that doesn't resolve to one step, and an outcome already registered, are refused before anything is registered.",
+				"Registers a waypoint whose activity is these lines. Actuality offers the waypoint as a step after this step runs. The step refuses a line that doesn't resolve to one step and an outcome that is already registered, before it registers a waypoint. Saving an outcome again with the same lines returns the existing record.",
 			gwta: `save waypoint {outcome: ${DOMAIN_TITLE}} doing {statements: ${DOMAIN_STATEMENT_LINES}}`,
 			capability: ACTIVITIES_ACTIONS.saveWaypoint,
 			productsDomain: SAVED_WAYPOINT_DOMAIN,
@@ -178,7 +177,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				actionOKWithProducts(await this.saveWaypoint(outcome, statements, featureStep.source?.path ?? SAVED_WAYPOINT_SOURCE)),
 		},
 		registerSavedWaypoints: {
-			description: "Registers each waypoint saved before, as its record holds it, so a waypoint saved before a restart is offered again.",
+			description: "Registers each saved waypoint from its record, so actuality offers a waypoint saved before a restart again.",
 			gwta: "register the saved waypoints",
 			action: async () => {
 				const saved = await this.getWorld().shared.getStore().queryIndividuals(SAVED_WAYPOINT_LABEL);
@@ -188,11 +187,11 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		},
 		runSavedWaypoint: {
 			description:
-				"Runs a waypoint saved while actuality ran, by its outcome, as calling its step does: for a line written before the waypoint was saved, or resolved where it isn't registered, as a line another host runs.",
+				"Runs a saved waypoint by its outcome, as calling its step does. A line written before the waypoint was saved uses this step in place of the waypoint's step. A line resolved on a host where the waypoint isn't registered uses this step in the same way.",
 			gwta: `run the saved waypoint {waypoint: ${refDomainKey(SAVED_WAYPOINT_DOMAIN)}}`,
 			capability: ACTIVITIES_ACTIONS.runSavedWaypoint,
 			action: async ({ waypoint }: { waypoint: TIndividualRef }, featureStep: TFeatureStep) => {
-				// A saved waypoint's step is the one an outcome registers with the action every saved waypoint requires.
+				// Every saved waypoint's step requires ACTIVITIES_ACTIONS.runSavedWaypoint, and other outcomes' steps don't.
 				if (this.steps[waypoint.id]?.capability !== ACTIVITIES_ACTIONS.runSavedWaypoint) return actionNotOK(`"${waypoint.id}" isn't a waypoint saved here`);
 				const ran = await this.runner.runStatements([{ in: waypoint.id, source: { path: SAVED_WAYPOINT_SOURCE } }], { parentStep: featureStep });
 				return ran.ok ? OK : actionNotOK(ran.errorMessage);
@@ -216,7 +215,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					}
 
 					if (line.match(/^waypoint\s+/i)) {
-						// Use actualSourcePath for VSCode linking, path for registration
+						// resolveWaypointCommon registers the outcome under path and sets the step's source path to actualSourcePath.
 						this.resolveWaypointCommon(line, path, allLines, lineIndex, line.includes(" with "), actualSourcePath);
 
 						let hasMoreWaypoints = false;
@@ -268,7 +267,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 
 		ensure: {
 			description:
-				"Ensure a waypoint condition by always running the proof. If proof passes, waypoint is already satisfied. If proof fails, run the full activity, then try the proof again",
+				"Runs a waypoint's proof, and on a failure runs the waypoint's activity and then the proof again. The step passes where a proof passes. The step checks working memory for a fact of a declarative waypoint's goal domain in place of a proof.",
 			gwta: `ensure {outcome:${DOMAIN_STATEMENT}}`,
 			unique: true,
 			action: async ({ outcome }: { outcome: TFeatureStep[] }, featureStep: TFeatureStep) => {
@@ -285,7 +284,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					return actionNotOK(`ensure: max attempts exceeded for waypoint "${outcomeKey}"`);
 				}
 
-				// Emit ensure start for monitors
+				// Emits the ensure start event for monitors.
 				this.getWorld().eventLogger.emit(
 					LifecycleEvent.parse({
 						id: formatSeqPath(featureStep.seqPath) + ".ensure",
@@ -315,22 +314,21 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				}
 
 				if (metadata.resolvesDomain) {
-					// P ∨ (¬P ∧ [A]P) for declarative goals:
-					//   1. Already satisfied? skip activity.
-					//   2. Otherwise run the imperative activity (which provides parameter
-					//      bindings the goal-resolver itself can't infer); the activity's
-					//      step(s) auto-assert their outputDomain product as a fact.
-					//   3. Re-check the goal.
+					// P ∨ (¬P ∧ [A]P) for a declarative goal:
+					//   1. Ensure skips the activity where the goal is satisfied.
+					//   2. Ensure runs the imperative activity where the goal isn't satisfied. Its lines supply the parameter
+					//      values that the goal resolver doesn't compute. Step dispatch asserts each activity step's product as
+					//      a fact of the step's productsDomain.
+					//   3. Ensure checks the goal again.
 					const initial = await this.checkDeclarativeGoal(metadata.resolvesDomain);
 					if (initial.refused) {
-						// Resolver refused (e.g. anonymous outputs present). Fall through to
-						// imperative proof if one was also declared, otherwise bail.
+						// The resolver refuses where callerHolds() returns undefined. Ensure continues to the imperative proof
+						// below and fails where the waypoint doesn't declare a proof.
 					} else if (initial.satisfied) {
 						this.emitEnsureEnd(featureStep, outcomeKey, true);
 						this.ensureAttempts.delete(attemptKey);
 						return actionOK();
 					} else if (metadata.activityBlockSteps && metadata.activityBlockSteps.length > 0) {
-						// Run the activity body imperatively.
 						try {
 							const activityResult = await this.runner.runStatements(metadata.activityBlockSteps, {
 								intent: { mode: "authoritative", usage: featureStep.intent?.usage },
@@ -352,11 +350,11 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 							return actionOK();
 						}
 						this.emitEnsureEnd(featureStep, outcomeKey, false, `goal ${metadata.resolvesDomain} not asserted after activity`);
-						return actionNotOK(`ensure: waypoint "${outcomeKey}", activity ran but goal "${metadata.resolvesDomain}" was not asserted as a fact.`);
+						return actionNotOK(`ensure: the activity of waypoint "${outcomeKey}" didn't assert goal "${metadata.resolvesDomain}" as a fact. Add a step that produces the goal.`);
 					} else {
-						// The waypoint doesn't have an imperative activity body. Try running the resolver's plan as a
-						// fallback (with the limitations on parameter binding noted in the
-						// resolver: this works for parameterless producers).
+						// The waypoint doesn't have an imperative activity body, so ensure runs the resolver's plan. A plan
+						// step runs without parameter values, so the plan completes only for producers that don't take a
+						// parameter (see runDeclarativeEnsure).
 						const planOutcome = await this.runDeclarativeEnsure(metadata.resolvesDomain, featureStep);
 						this.emitEnsureEnd(featureStep, outcomeKey, planOutcome.ok, planOutcome.errorMessage);
 						this.ensureAttempts.delete(attemptKey);
@@ -394,10 +392,10 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		},
 	} as const satisfies TActivitiesFixedSteps;
 
-	/** Contribute the registered waypoints to the affordances snapshot (the ProvidesWaypoints capability).
-	 *  A declarative waypoint is ensured when its goal domain is satisfied; an imperative one re-verifies its proof
-	 *  speculatively only after it has been ensured: a speculative re-run for waypoints that never executed
-	 *  doesn't have variable bindings in scope and produces cryptic "<term> is not set" errors. */
+	/** Returns the registered waypoints for the affordances snapshot (the ProvidesWaypoints capability). A declarative
+	 *  waypoint is ensured where its goal domain is satisfied. The proof of an imperative waypoint runs speculatively only
+	 *  after `ensure` passed for the waypoint in the current feature. A waypoint that wasn't ensured doesn't have its
+	 *  variables bound, so a speculative proof would fail with "<term> is not set". */
 	async waypointEntries(featureStep: TFeatureStep, satisfiedDomains: Set<string>): Promise<TWaypointEntry[]> {
 		const waypoints: TWaypointEntry[] = [];
 		for (const [outcome, metadata] of this.registeredOutcomeMetadata.entries()) {
@@ -445,13 +443,14 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	}
 
 	/**
-	 * Register a waypoint whose activity is `lines`, for the whole of actuality, as a feature's waypoint is registered, keep it
-	 * as a record, and refresh actuality's registry, which announces the new step. `source` names where it was saved from.
+	 * Registers a background waypoint whose activity is `lines`, so every feature has its step. Writes the waypoint as a
+	 * record. Refreshes actuality's registry, which calls its change listeners where the steps changed. `source` is the
+	 * source path the record holds.
 	 */
 	async saveWaypoint(outcome: string, lines: string[], source: string): Promise<TSavedWaypoint> {
 		const store = this.getWorld().shared.getStore();
-		// The record makes a waypoint saved: one saved already with the same lines is kept, and any other outcome registered
-		// already is refused.
+		// The store holds a record for each saved waypoint. Saving an outcome again with the same lines returns the existing
+		// record. registerSavedWaypoints throws for every other outcome that is already registered.
 		const kept = await store.getIndividual(SAVED_WAYPOINT_LABEL, outcome);
 		if (kept) {
 			const held = SavedWaypointSchema.parse(kept);
@@ -463,10 +462,10 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		return saved;
 	}
 
-	/** Register saved waypoints, as `saveWaypoint` does, without keeping them again, and refresh actuality's registry once.
-	 *  Each step requires the one action every saved waypoint requires, since a delegation is made before the waypoint is
-	 *  saved and can't name an action of its own. A line that doesn't resolve to one step, and an outcome registered
-	 *  already, are refused before anything is registered. */
+	/** Registers saved waypoints as `saveWaypoint` does, without writing their records again, and refreshes actuality's
+	 *  registry once. Each step requires ACTIVITIES_ACTIONS.runSavedWaypoint. A delegation is made before the waypoint is
+	 *  saved, so a delegation can't name an action specific to one waypoint. Throws before it registers any waypoint where
+	 *  a line doesn't resolve to one step or an outcome is already registered. */
 	private registerSavedWaypoints(saved: Pick<TSavedWaypoint, "id" | "lines" | "source">[]): void {
 		const world = this.getWorld();
 		const steppers = runSteppers(world);
@@ -489,9 +488,8 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	}
 
 	/**
-	 * Check whether the declarative goal is already satisfied in working memory.
-	 * Returns satisfied=true if a fact of the goal domain exists. The resolver's
-	 * `refused` finding is surfaced too so the caller can decide to fall through.
+	 * Checks whether working memory holds a fact of the goal domain. Returns `satisfied: true` where one exists. Returns
+	 * the reason and detail of the resolver's `refused` finding in `refused`.
 	 */
 	private async checkDeclarativeGoal(domainKey: string): Promise<{ satisfied: boolean; refused?: string }> {
 		const world = this.getWorld();
@@ -504,11 +502,10 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	}
 
 	/**
-	 * Run a declarative-ensure via the goal resolver: invoke the resolver, and if it
-	 * returns a plan, dispatch each plan step. Used only when an imperative activity
-	 * body doesn't exist for the waypoint. Limited utility, plan steps run with empty
-	 * stepValuesMap (without parameter binding from facts to step args). Useful for
-	 * parameterless producers; for parameterized ones, declare an imperative activity.
+	 * Ensures a declarative waypoint through the goal resolver. Runs each step of the first michi the resolver returns.
+	 * Ensure calls this only where the waypoint doesn't have an imperative activity body. A plan step runs with an empty
+	 * stepValuesMap, because facts don't bind to step arguments. Declare an imperative activity for a producer that takes
+	 * a parameter.
 	 */
 	private async runDeclarativeEnsure(domainKey: string, featureStep: TFeatureStep): Promise<{ handled: boolean; ok: boolean; errorMessage?: string }> {
 		const world = this.getWorld();
@@ -523,9 +520,9 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			return { handled: true, ok: false, errorMessage: `goal-unreachable: ${domainKey} (missing: ${resolution.missing.join(", ")})` };
 		}
 
-		// The resolver returns multiple michi (paths). The declarative waypoint always runs the first, and runs it
-		// straight through, so it reaches only a path whose steps don't need a supplied value. A path that needs something
-		// from a person gets walked instead, through `walk toward` and `advance the walk`.
+		// The resolver returns a list of michi. This method runs every step of the first michi without stopping, so it
+		// completes only a michi whose steps don't take a supplied value. A michi that takes a value from a person runs
+		// through `walk toward` and `advance the walk`.
 		const registry = runRegistry(world);
 		const firstMichi = resolution.michi[0];
 		if (!firstMichi) return { handled: true, ok: false, errorMessage: `goal-unreachable: ${domainKey} (the resolver didn't return a michi)` };
@@ -593,7 +590,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			);
 		}
 
-		// Normalize activity steps and proofs to ensure they carry source location
+		// Gives each activity and proof line a source path where the line doesn't have one.
 		const sourcePath = actualSourcePath || proofPath;
 		const normalizedActivitySteps: TStepInput[] =
 			activityBlockSteps?.map((s) => {

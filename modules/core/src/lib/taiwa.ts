@@ -1,11 +1,10 @@
 /**
- * taiwa: contract for a stepper that responds to ask, plus runtime discovery
- * via `StepperKinds.TAIWA`. A stepper qualifies when `kind === StepperKinds.TAIWA`
- * and `ask(prompt, opts?)` is defined.
+ * taiwa: the contract for a stepper that implements `ask`, and its runtime discovery
+ * through `StepperKinds.TAIWA`. A stepper qualifies when `kind === StepperKinds.TAIWA`
+ * and it implements `ask(prompt, opts?)` and `isLocal()`.
  *
- * One schema at the boundary: AskOptionsSchema, the per-call options a caller may state. What a selectable target
- * IS, and what a streamed chunk carries, are declared where they are persisted and streamed: a second copy here
- * described the same wire in fewer fields and the code didn't parse with it.
+ * AskOptionsSchema is the one schema at this boundary. It holds the per-call options a caller may state. A selectable
+ * target and a streamed chunk are declared where they are persisted and streamed, so this module doesn't copy them.
  */
 
 import { z } from "zod";
@@ -16,7 +15,7 @@ const AskOptionsSchema = z.object({
 	system: z.string().optional(),
 	limit: z.number().optional(),
 	timeoutMs: z.number().optional(),
-	/** Per-call ceiling on chained tool dispatches the router provider may run. Router providers honour it; others ignore. Range 0-99. */
+	/** The per-call maximum of chained tool dispatches a router provider may run. Router providers apply it, and other providers ignore it. Range 0-99. */
 	maxToolCalls: z.number().int().min(0).max(99).optional(),
 });
 export type TAskOptions = z.infer<typeof AskOptionsSchema> & { signal?: AbortSignal };
@@ -24,19 +23,18 @@ export type TAskOptions = z.infer<typeof AskOptionsSchema> & { signal?: AbortSig
 export interface ITaiwa {
 	ask(prompt: string, opts?: TAskOptions): Promise<string>;
 	/**
-	 * True iff the currently-active provider/model runs without leaving the host
-	 * the local-provider allow-list. The autonomic loop and any other callers
-	 * that gate private content on locality consult this; it MUST be implemented.
+	 * True iff the local-provider allow-list names the active provider, so content sent
+	 * to it stays on the host. A caller that gates private content on locality reads this.
+	 * A consumer's autonomic loop is one such caller. findTaiwa throws for a taiwa stepper without it.
 	 */
 	isLocal(): boolean;
 }
 
 /**
- * Return the single taiwa-bridge among `steppers`, or undefined if one isn't loaded.
- * Throws when more than one taiwa stepper is loaded (ambiguity must be
- * resolved explicitly) or when the TAIWA-kinded stepper doesn't fully
- * implement the contract: every required method is verified up front so
- * downstream callers don't have to defend against missing methods.
+ * Return the one taiwa-bridge among `steppers`, or undefined if one isn't loaded.
+ * Throws when more than one taiwa stepper is loaded, since a deployment must pick one.
+ * Also throws when the TAIWA-kinded stepper doesn't implement every method of the
+ * contract. The check runs at discovery, so a caller doesn't check for a missing method.
  */
 export function findTaiwa(steppers: AStepper[]): ITaiwa | undefined {
 	const matches = steppers.filter((s) => s.kind === StepperKinds.TAIWA);
@@ -50,7 +48,7 @@ export function findTaiwa(steppers: AStepper[]): ITaiwa | undefined {
 	return match;
 }
 
-/** A stepper of the TAIWA kind implements the contract: it throws naming the method the stepper doesn't implement. */
+/** Throws unless a stepper of the TAIWA kind implements the contract. The error names the method the stepper doesn't implement. */
 function assertTaiwa(stepper: AStepper): asserts stepper is AStepper & ITaiwa {
 	const name = stepper.constructor.name;
 	if (!("ask" in stepper) || typeof stepper.ask !== "function" || stepper.ask.length < 1) {

@@ -31,7 +31,7 @@ import { findHaibunWorkspace, loadBackgroundsFromPath, countFeatures } from "@ha
 import { constructorName, errorDetail } from "@haibun/core/lib/util/index.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
-// Semantic token types - indices matter for the legend
+// The legend lists the token types in TOKEN_TYPES order. Each token encodes its type as an index into that order.
 const tokenTypes = [...TOKEN_TYPES];
 const tokenModifiers: string[] = [];
 const legend: SemanticTokensLegend = { tokenTypes, tokenModifiers };
@@ -42,10 +42,6 @@ interface LCachedStep {
 	length?: number;
 }
 
-/**
- * Language Server Protocol stepper for Haibun IDE integration.
- * Provides autocomplete, hover, diagnostics, and semantic highlighting.
- */
 interface ExecuteToolParams {
 	name: string;
 	arguments: Record<string, unknown>;
@@ -56,17 +52,21 @@ interface IMcpStepper {
 	executeTool?(name: string, args: Record<string, unknown>): Promise<unknown>;
 }
 
+/**
+ * Implements the Language Server Protocol for haibun features in an IDE.
+ * It provides completion, hover, diagnostics and semantic highlighting.
+ */
 export default class LspStepper extends AStepper {
-	description = "IDE integration with autocomplete, hover, diagnostics, and semantic highlighting";
+	description = "Provides completion, hover, diagnostics and semantic highlighting for haibun features in an IDE.";
 
 	private connection: ReturnType<typeof createConnection> | null = null;
 	private documents = new TextDocuments(TextDocument);
 	private steppers: AStepper[] = [];
 	private backgrounds: TFeature[] = [];
 
-	// Cache of workspace-specific backgrounds: base path -> backgrounds
+	// Maps each workspace base path to the backgrounds loaded from that workspace.
 	private workspaceBackgrounds: Map<string, TFeature[]> = new Map();
-	// Track current workspace info for VS Code status panel
+	// Holds the workspace info that sendWorkspaceInfo sends to the client. The VS Code extension shows it in its status bar and configuration panel.
 	private currentWorkspace: { base: string; config: string | null; backgroundCount: number; featureCount?: number } | null = null;
 
 	constructor(connection?: Connection, steppers?: AStepper[], backgrounds?: TFeatures) {
@@ -90,7 +90,7 @@ export default class LspStepper extends AStepper {
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
-		// Ensure authoritative steppers list
+		// The steppers passed to setWorld replace the constructor's steppers.
 		this.steppers = steppers;
 
 		if (this.connection) return;
@@ -116,10 +116,10 @@ export default class LspStepper extends AStepper {
 			}),
 		);
 
-		// Validate documents when they change
+		// Validates a document each time its content changes.
 		this.documents.onDidChangeContent((change) => this.processDocument(change.document));
 
-		// Autocomplete offers the lines a feature writes: the steps of this run's steppers, and not a step another process runs.
+		// The completion handler lists each local step in actuality's step registry. It doesn't list a step that another process runs.
 		this.connection.onCompletion(() =>
 			runRegistry(this.getWorld())
 				.list()
@@ -129,25 +129,22 @@ export default class LspStepper extends AStepper {
 
 		this.connection.onCompletionResolve((item: CompletionItem): CompletionItem => item);
 
-		// Hover - use cached feature steps
+		// The hover handler reads the document's cached feature steps.
 		this.connection.onHover((params): Hover | null => {
 			const uri = this.normalizePath(params.textDocument.uri);
 			const cached = this.documentCache.get(uri);
 			if (!cached) return null;
 
 			const lineNum = params.position.line;
-			// Use s.step to access the TFeatureStep
-			// For .feature.ts files, the column range may need checking too.
-			// For now, if multiple steps on line, picking first match for line is consistent with .feature behavior
-			// The column is checked for a better result.
+			// Selects the first cached step on the hovered line.
+			// A step from a TypeScript document holds a column range. The hovered column must be within that range.
 			const stepItem = cached.featureSteps.find((s) => {
 				if (s.step.source?.lineNumber !== lineNum + 1) return false;
-				// Optimistic: if range info is present, check it
 				if (s.startOffset !== undefined && s.length !== undefined) {
 					const char = params.position.character;
 					return char >= s.startOffset && char <= s.startOffset + s.length;
 				}
-				return true; // Fallback for whole-line steps
+				return true; // A step without a column range spans its whole line.
 			});
 
 			if (stepItem) {
@@ -156,7 +153,7 @@ export default class LspStepper extends AStepper {
 				const paramInfo =
 					Object.entries(stepValuesMap)
 						.map(([name, val]) => {
-							// Safe access to val and val.term
+							// Reads the term of a TStepValue, else the value itself.
 							const term = val && typeof val === "object" && "term" in val ? (val as TStepValue).term : val;
 							return `- **${name}**: \`${term}\``;
 						})
@@ -171,7 +168,7 @@ export default class LspStepper extends AStepper {
 			return null;
 		});
 
-		// Semantic tokens - use cached feature steps
+		// The semantic tokens handler reads the document's text and its cached feature steps.
 		this.connection.languages.semanticTokens.on((params: SemanticTokensParams): SemanticTokens => {
 			const doc = this.documents.get(params.textDocument.uri);
 			if (!doc) return { data: [] };
@@ -189,7 +186,7 @@ export default class LspStepper extends AStepper {
 			try {
 				resolver = new Resolver(this.steppers, this.backgrounds);
 			} catch (e) {
-				console.error(`[LspStepper] semanticTokens: Failed to create resolver: ${e}`);
+				console.error(`[LspStepper] semanticTokens: Failed to create resolver: ${e}. Nested statements are highlighted as plain arguments until this error is fixed.`);
 			}
 
 			const tokens = classifyDocument({
@@ -212,14 +209,14 @@ export default class LspStepper extends AStepper {
 
 		this.documents.listen(this.connection);
 		this.connection.listen();
-		// this.getWorld().eventLogger.info('LSP Stepper: Listening on stdio');
 	}
 
-	// Cache for resolved feature steps per document
+	// Holds each document's resolved feature steps and errors, keyed by normalized path.
 	private documentCache = new Map<string, { featureSteps: LCachedStep[]; errors: { lineNumber: number; message: string }[] }>();
 
 	private ensureStepperContext(uri: string) {
-		// Ensure steppers are aware of the current feature context (for dynamic steps like waypoints)
+		// Calls startFeatureResolution with the document path on each stepper that implements it.
+		// ActivitiesStepper then removes the previous document's waypoints and adds this document's and the backgrounds' waypoints.
 		interface IStepperWithResolution extends AStepper {
 			startFeatureResolution(path: string): void;
 		}
@@ -242,25 +239,25 @@ export default class LspStepper extends AStepper {
 		const content = doc.getText();
 		const normUri = this.normalizePath(uri);
 
-		// Check if it's a background file by matching ActivitiesStepper logic (folder-based)
+		// A file in a backgrounds/ folder is a background. ActivitiesStepper applies the same rule.
 		const isBgFile = normUri.includes("/backgrounds/");
 
-		// Check for a matching existing entry
-		// match normalized paths
+		// Finds a loaded background with the document's normalized path. Either path may be a suffix of the other.
 		const existingIndex = this.backgrounds.findIndex((b) => this.normalizePath(b.path) === normUri || b.path.endsWith(normUri) || normUri.endsWith(b.path));
 
 		if (isBgFile || existingIndex !== -1) {
-			// Remove ALL matching entries to avoid duplicates/stale versions
+			// Removes every background with a matching path. The list then holds one current version of this file.
 			this.backgrounds = this.backgrounds.filter((b) => {
 				const bNorm = this.normalizePath(b.path);
 				return !(bNorm === normUri || normUri.endsWith(bNorm) || bNorm.endsWith(normUri));
 			});
 
-			// Create authoritative new entry
+			// Adds the document's current content as the background.
 			const name = normUri.split("/").pop() || "background";
 			this.backgrounds.push({ name, path: normUri, content } as TFeature);
 
-			// Wholesale update: clear ALL background steps and re-register ALL backgrounds
+			// Clears the background steps of each stepper that implements clearAllBackgroundSteps.
+			// The loop below registers each background's waypoints again.
 			interface IActivitiesStepper extends AStepper {
 				clearAllBackgroundSteps(): void;
 			}
@@ -270,16 +267,15 @@ export default class LspStepper extends AStepper {
 				}
 			}
 
-			// Re-parse ALL backgrounds to ensure consistency
-			// They are processed sequentially to ensure dependency order (if any) or just deterministic registration
+			// Parses each background again in list order. Each parse registers that background's waypoints.
 			const resolver = new Resolver(this.steppers, []);
 			for (const bg of this.backgrounds) {
 				try {
 					const expanded = await expand({ features: [bg], backgrounds: [] });
 					await resolver.findFeatureStepsTolerant(itemAt(expanded, 0));
 				} catch (e) {
-					// Error logged to stderr (safe for LSP)
-					console.error(`[LspStepper] Failed to re-parse background ${bg.name}:`, e);
+					// console.error writes to stderr. The LSP connection uses stdout.
+					console.error(`[LspStepper] Failed to parse background ${bg.name}. Its waypoints aren't registered until this error is fixed:`, e);
 				}
 			}
 
@@ -289,75 +285,69 @@ export default class LspStepper extends AStepper {
 	}
 
 	/**
-	 * Get backgrounds for a document's workspace.
-	 * Discovers workspace by walking up from the feature file to find features/ parent.
+	 * Returns the backgrounds of a document's workspace and sends the workspace info to the client.
+	 * findHaibunWorkspace takes the parent of the nearest features/ or backgrounds/ folder in the file's path as the workspace base.
 	 */
 	private async getWorkspaceBackgrounds(uri: string): Promise<TFeature[]> {
-		// Convert file:// URI to path
 		const filePath = uri.startsWith("file://") ? uri.slice(7) : uri;
 
-		// Try to find the workspace for this document
 		const workspace = findHaibunWorkspace(filePath);
 
-		// Default to initial backgrounds/config if a workspace isn't found
+		// A document outside a workspace uses this.backgrounds. It holds the backgrounds from the constructor or setWorld and each background document processed since.
 		if (!workspace) {
 			this.currentWorkspace = { base: "Default", config: null, backgroundCount: this.backgrounds.length };
 			this.sendWorkspaceInfo();
 			return this.backgrounds;
 		}
 
-		// Always update status with discovered workspace info
-		// Even without backgrounds or config, the base is reported
+		// The status shows the workspace base even when the workspace doesn't have backgrounds or a config.
 		this.currentWorkspace = {
 			base: workspace.base,
 			config: workspace.configPath,
-			backgroundCount: 0, // Updated if they load
+			backgroundCount: 0, // Each branch below sets the count. It stays 0 when loading fails.
 		};
 
-		// If the workspace doesn't have a backgrounds path, just return default backgrounds but keep workspace info
+		// A workspace without a backgrounds/ folder uses this.backgrounds.
 		if (!workspace.backgroundsPath) {
 			this.currentWorkspace.backgroundCount = this.backgrounds.length;
 			try {
 				this.currentWorkspace.featureCount = await countFeatures(workspace.base);
 			} catch (e) {
-				console.error("Error counting features", e);
+				console.error("[LspStepper] Failed to count features. The workspace status doesn't show a feature count:", e);
 			}
 			this.sendWorkspaceInfo();
 			return this.backgrounds;
 		}
 
-		// Check cache first
+		// Returns the cached backgrounds of a workspace read earlier.
 		if (this.workspaceBackgrounds.has(workspace.base)) {
 			const bgs = this.workspaceBackgrounds.get(workspace.base) || [];
 			this.currentWorkspace.backgroundCount = bgs.length;
 			try {
 				this.currentWorkspace.featureCount = await countFeatures(workspace.base);
 			} catch (e) {
-				console.error("Error counting features", e);
+				console.error("[LspStepper] Failed to count features. The workspace status doesn't show a feature count:", e);
 			}
 			this.sendWorkspaceInfo();
 			return bgs;
 		}
 
-		// Load backgrounds from the discovered workspace
+		// Loads and caches the workspace's backgrounds, then counts its features.
 		try {
 			const backgrounds = await loadBackgroundsFromPath(workspace.backgroundsPath);
 
-			// Cache for future use
 			this.workspaceBackgrounds.set(workspace.base, backgrounds);
 
-			// Update info with actual count
 			this.currentWorkspace.backgroundCount = backgrounds.length;
 
-			// Count features (new)
 			this.currentWorkspace.featureCount = await countFeatures(workspace.base);
 
 			this.sendWorkspaceInfo();
 
 			return backgrounds;
 		} catch (e) {
-			console.error(`[LspStepper] Failed to load workspace backgrounds:`, e);
-			// On error, send info with 0 count or error state?
+			console.error(`[LspStepper] Failed to load the workspace backgrounds or count its features. The document resolves against the default backgrounds:`, e);
+			// The status shows a background count of 0 when loadBackgroundsFromPath fails.
 			this.sendWorkspaceInfo();
 			return this.backgrounds;
 		}
@@ -381,7 +371,7 @@ export default class LspStepper extends AStepper {
 		if (this.connection.onRequest) {
 			this.connection.onRequest("haibun/executeTool", async (params: ExecuteToolParams) => {
 				if (!mcpStepper || !mcpStepper.executeTool) {
-					throw new Error("MCP Stepper not found or tools execution not supported");
+					throw new Error("McpStepper isn't loaded or doesn't implement executeTool. Load an McpStepper that implements executeTool to run a tool.");
 				}
 				return await mcpStepper.executeTool(params.name, params.arguments);
 			});
@@ -389,14 +379,14 @@ export default class LspStepper extends AStepper {
 	}
 
 	/**
-	 * Process the document using Resolver.findFeatureStepsTolerant for full validation
+	 * Validates a document and sends its diagnostics.
+	 * Resolver.findFeatureStepsTolerant resolves a feature document. processTypeScriptDocument handles a TypeScript document.
 	 */
 	private async processDocument(doc: TextDocument): Promise<void> {
 		const content = doc.getText();
-		// Use normalizePath for consistency
 		const uri = this.normalizePath(doc.uri);
 
-		// Aggressively identify TypeScript/Kireji files
+		// Treats a document as TypeScript when its language id is typescript or typescriptreact, its path ends in .ts, or its text contains a Kireji type name.
 		const isTs =
 			doc.languageId === "typescript" ||
 			doc.languageId === "typescriptreact" ||
@@ -409,11 +399,11 @@ export default class LspStepper extends AStepper {
 			return;
 		}
 
-		// Check if this is a background file update
+		// Updates the backgrounds when the document is a background file.
 		const isBg = await this.updateBackgrounds(doc, uri);
 		if (isBg) {
-			// If background changed, revalidate all other open documents
-			// setTimeout avoids blocking the current processing or creating infinite loops if logic is flawed
+			// Revalidates every other open document after a background changes.
+			// setTimeout schedules the revalidation in a later task. The revalidation doesn't recurse within this call.
 			setTimeout(() => {
 				this.documents.all().forEach((d) => {
 					if (this.normalizePath(d.uri) !== uri) {
@@ -423,27 +413,25 @@ export default class LspStepper extends AStepper {
 			}, 0);
 		}
 
-		// Create pseudo-feature
+		// Wraps the document text as a feature.
 		const feature: TFeature = { base: "", path: uri, name: uri, content };
 
-		// If a background file is being processed, do not apply backgrounds to it
-		// This prevents recursive application (applying a background to itself) which causes "Duplicate definition" errors
-		// and shifts line numbers. Backgrounds should be parsed as standalone lists of steps.
-		// For non-background files, use workspace-relative backgrounds discovered from the file's location
+		// A background file expands and resolves without backgrounds. updateBackgrounds registered its waypoints from its current content.
+		// Every other file uses the backgrounds that getWorkspaceBackgrounds returns.
 		const backgroundsToApply = isBg ? [] : await this.getWorkspaceBackgrounds(uri);
 
-		// Expand feature to handle compound statements
-		// Wrap in try-catch to handle missing background includes gracefully
+		// Replaces each Backgrounds: line with the lines of the backgrounds it names.
 		let expandedFeatures;
 		const expansionErrors: Diagnostic[] = [];
 
 		try {
 			expandedFeatures = await expand({ features: [feature], backgrounds: backgroundsToApply });
 		} catch (e) {
-			// Report the expansion error as a diagnostic (e.g., missing Backgrounds: include)
+			// Records a warning diagnostic. Only a Backgrounds: line fails the expansion.
+			// The line fails when a name in it doesn't match exactly one background.
 			const errorMessage = errorDetail(e);
 
-			// Try to find the line with the Backgrounds: directive that caused the issue
+			// Places the warning on the first Backgrounds: line, else on the first line.
 			const lines = content.split("\n");
 			const bgLineNum = Math.max(
 				0,
@@ -453,21 +441,21 @@ export default class LspStepper extends AStepper {
 			expansionErrors.push({
 				severity: DiagnosticSeverity.Warning,
 				range: { start: { line: bgLineNum, character: 0 }, end: { line: bgLineNum, character: lines[bgLineNum]?.length || 0 } },
-				message: `Background not found (steps may be missing): ${errorMessage}`,
+				message: `Background not found: ${errorMessage}. Change the Backgrounds: line to name an existing background.`,
 				source: "haibun",
 			});
 
-			// Retry without backgrounds so the known steps can still be processed
+			// Expands again without backgrounds. A Backgrounds: line fails this expansion too.
 			try {
 				expandedFeatures = await expand({ features: [feature], backgrounds: [] });
 			} catch (e2) {
-				// If even that fails, the error is reported without a further retry
+				// Sends one error diagnostic on the first line and discards the warning. Removes the document's cached steps.
 				const errorMessage2 = errorDetail(e2);
 				const diagnostics: Diagnostic[] = [
 					{
 						severity: DiagnosticSeverity.Error,
 						range: { start: { line: 0, character: 0 }, end: { line: 0, character: 1 } },
-						message: `Failed to parse feature: ${errorMessage2}`,
+						message: `Failed to parse feature: ${errorMessage2}. Change the Backgrounds: line to name an existing background.`,
 						source: "haibun",
 					},
 				];
@@ -481,21 +469,17 @@ export default class LspStepper extends AStepper {
 
 		this.ensureStepperContext(uri);
 
-		// Create a fresh resolver with backgrounds (to register waypoints from backgrounds)
-		// Resolver is now tolerant - it collects warnings instead of throwing
+		// A new Resolver registers the waypoints that the backgrounds declare.
+		// A background line that doesn't resolve becomes an entry in resolver.backgroundWarnings.
 		const resolver = new Resolver(this.steppers, backgroundsToApply);
 
-		// Log any background warnings (for debugging)
 		if (resolver.backgroundWarnings.length > 0) {
 			console.error(`[LspStepper] Background warnings:`, resolver.backgroundWarnings);
 		}
 
-		// Use tolerant resolution to get all valid steps and errors
+		// Resolves every valid step and collects each error without throwing.
 		const { steps, errors } = await resolver.findFeatureStepsTolerant(pseudoFeature);
 
-		// Debug removed: stdout is reserved for LSP JSON-RPC protocol
-
-		// Map errors to diagnostics
 		const diagnostics: Diagnostic[] = errors.map(({ featureLine, error }) => {
 			const lineNum = (featureLine.lineNumber || 1) - 1;
 			const lineText = featureLine.line;
@@ -507,22 +491,19 @@ export default class LspStepper extends AStepper {
 			};
 		});
 
-		// Cache valid steps for highlighting/hover
-		// Wrap in LCachedStep
+		// Caches the valid steps for semantic tokens and hover.
 		this.documentCache.set(uri, {
 			featureSteps: steps.map((s) => ({ step: s })),
 			errors: errors.map((e) => ({ lineNumber: e.featureLine.lineNumber || 0, message: e.error.message })),
 		});
 
-		// Debug removed: stdout is reserved for LSP JSON-RPC protocol
-
-		// Publish diagnostics (including any expansion errors like missing backgrounds)
+		// Sends the expansion warnings and the resolution errors as diagnostics.
 		this.connection?.sendDiagnostics({ uri: doc.uri, diagnostics: [...expansionErrors, ...diagnostics] });
 	}
 
 	private processTypeScriptDocument(doc: TextDocument, uri: string): Promise<void> {
 		const fullText = doc.getText();
-		// Quick check to avoid parsing irrelevant files
+		// A file without a Kireji type name isn't parsed. Its diagnostics are cleared.
 		if (!fullText.includes("TKirejiStep") && !fullText.includes("TKirejiExport")) {
 			this.connection?.sendDiagnostics({ uri: doc.uri, diagnostics: [] });
 			return Promise.resolve();
@@ -533,7 +514,6 @@ export default class LspStepper extends AStepper {
 		this.ensureStepperContext(uri);
 		const resolver = new Resolver(this.steppers, []);
 
-		// Parse AST using TypeScript
 		const sourceFile = ts.createSourceFile(uri, fullText, ts.ScriptTarget.Latest, true);
 
 		const processString = (node: ts.StringLiteral | ts.NoSubstitutionTemplateLiteral | ts.TemplateExpression) => {
@@ -541,11 +521,11 @@ export default class LspStepper extends AStepper {
 			const text = node.getText(sourceFile);
 			if (text.length < 2) return;
 
-			// Content inside quotes
+			// Removes the literal's opening and closing quotes.
 			const rawContent = text.slice(1, -1);
 			const contentStartOffset = start + 1;
 
-			// Split logic for multiline steps
+			// Resolves each line of the literal as a separate step. An empty line and a line that starts with # are skipped.
 			const lines = rawContent.split(/\r?\n/);
 			let currentOffsetInString = 0;
 
@@ -570,15 +550,15 @@ export default class LspStepper extends AStepper {
 							const step: TFeatureStep = { action: match, source: { lineNumber: pos.line + 1, path: uri }, in: trimmed, seqPath: [0] };
 							featureSteps.push({ step, startOffset: pos.character, length: trimmed.length });
 						} else {
-							// Should not happen if a missing match throws
+							// findSingleStepAction throws for a line that doesn't resolve to one step. This branch doesn't run.
 						}
 					} catch (_e) {
-						// Collect diagnostic/error
-						diagnostics.push({ severity: DiagnosticSeverity.Error, range: { start: pos, end: endPos }, message: `Step '${trimmed}' is not defined`, source: "haibun" });
+						// A line that doesn't resolve to one step becomes an error diagnostic.
+						diagnostics.push({ severity: DiagnosticSeverity.Error, range: { start: pos, end: endPos }, message: `'${trimmed}' doesn't resolve to one step.`, source: "haibun" });
 					}
 				}
 
-				// Advance offset including newline
+				// Advances the offset past the line and its line ending.
 				currentOffsetInString += line.length;
 				if (currentOffsetInString < rawContent.length) {
 					if (rawContent.slice(currentOffsetInString, currentOffsetInString + 2) === "\r\n") {
@@ -615,7 +595,8 @@ export default class LspStepper extends AStepper {
 		};
 
 		const visit = (node: ts.Node) => {
-			// Check for variables typed as TKirejiStep, TKirejiStep[] or TKirejiExport
+			// Selects a variable whose declared type is a reference to TKirejiStep or TKirejiExport.
+			// This check skips a variable typed TKirejiStep[]. TypeScript parses that type as an array type, not a type reference.
 			if (ts.isVariableDeclaration(node) && node.type && ts.isTypeReferenceNode(node.type) && node.initializer) {
 				const typeName = node.type.typeName.getText(sourceFile);
 				this.connection?.console.log(`[LSP] Found variable ${node.name.getText(sourceFile)} of type ${typeName}`);
@@ -629,7 +610,7 @@ export default class LspStepper extends AStepper {
 				}
 			}
 
-			// Check for casts: ... as TKirejiStep or ... as TKirejiStep[]
+			// Selects a cast to TKirejiStep or TKirejiStep[].
 			if (ts.isAsExpression(node) && node.type) {
 				const typeText = node.type.getText(sourceFile);
 				if (typeText.includes("TKirejiStep")) {
@@ -643,22 +624,24 @@ export default class LspStepper extends AStepper {
 
 		visit(sourceFile);
 
-		// Cache the found steps and errors
+		// Caches the steps and errors for semantic tokens and hover.
 		this.documentCache.set(uri, { featureSteps, errors: diagnostics.map((e) => ({ lineNumber: e.range.start.line + 1, message: e.message })) });
 
-		// Send diagnostics
 		this.connection?.sendDiagnostics({ uri: doc.uri, diagnostics });
 		return Promise.resolve();
 	}
 }
 
-/** A step's pattern as an LSP snippet, each placeholder a numbered tab-stop: `{name}` and `{name: number}` become `${1:name}`. */
+/** Converts a step's pattern to an LSP snippet. Each placeholder becomes a numbered tab stop: `{name}` and `{name: number}` become `${1:name}`. */
 export function patternToSnippet(pattern: string): string {
 	let i = 1;
 	return pattern.replace(/\{(\w+)(?::\s*\w+)?\}/g, (_, name) => `\${${i++}:${name}}`);
 }
 
-/** A step as a completion: its pattern as the label and as a snippet, and the stepper and step it belongs to. */
+/**
+ * Converts a step to a completion item. The label is the step's pattern. The insert text is the pattern as a snippet.
+ * The detail names the step's stepper. The documentation names the step.
+ */
 export function completionItem(step: TStepDescriptor): CompletionItem {
 	return {
 		label: step.pattern,

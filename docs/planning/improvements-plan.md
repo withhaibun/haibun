@@ -1,19 +1,19 @@
 # Haibun Improvements Plan
 
-This document outlines the strategic roadmap for the next phase of Haibun development. The core philosophy is to create a **transparent, self-revealing system** where a single stream of structured events serves all stakeholders, and where the architecture is simplified by adopting standard interfaces and a reliable upper ontology.
+This document outlines the next stage of Haibun development. The aim is a **transparent system that describes itself**. One stream of structured events supplies every view. Standard interfaces and an upper ontology simplify the architecture.
 
 ## 1. Unified Observability & Message System
-**Goal:** Create a transparent, self-revealing system where all "views" are derived from a single, immutable stream of structured messages using generalized `is-a` relationships.
+**Goal:** Derive every view from one immutable stream of structured messages. A view selects messages by generalized `is-a` relationships.
 
 ### 1.1. Ontology-Driven Views
-Instead of hardcoded "Developer" or "User" logs, views are projections based on the event hierarchy in the Upper Ontology.
--   **Mechanism:** The system emits a linear stream of events. Views **filter** this stream based on abstract types defined in the ontology.
-    -   **System User View:** Filters for `SystemUserEvent`. Any event that *is-a* `SystemUserEvent` (e.g., `PatientAdmitted`, `PaymentProcessed`) appears here.
-    -   **Debug View:** Filters for `ExecutionEvent`. Includes `TraceEvent`, `StateChange`, and `Error`.
-    -   **Machine View:** Consumes the raw stream (`Root` type) for analysis.
+Views are projections over the event hierarchy in the Upper Ontology. They replace hardcoded "Developer" and "User" logs.
+-   **Mechanism:** The system emits a linear stream of events. Views **filter** this stream by abstract types the ontology defines.
+    -   **System User View:** Filters for `SystemUserEvent`. Any event that *is-a* `SystemUserEvent` (e.g., `PatientAdmitted`, `PaymentProcessed`) appears in this view.
+    -   **Debug View:** Filters for `ExecutionEvent`. `ExecutionEvent` includes `TraceEvent`, `StateChange` and `Error`.
+    -   **Machine View:** Reads the raw stream (`Root` type) for analysis.
 
 ### 1.2. Consistent Identifiers
-**Critical:** All events and updates must use the same consistent identifiers to reference execution elements.
+**Requirement:** All events and updates reference execution elements by the same identifiers.
 -   **seqPath:** The `seqPath` (Sequence Path) is the canonical identifier for any step or block in the execution tree.
 -   **Message Erasure/Updates:** Updates (like progress bars or status changes) must reference the `seqPath` of the originating step.
     -   *Example:* `UpdateEvent { subject: seqPath(1.2.3), status: "Running" }`
@@ -21,42 +21,42 @@ Instead of hardcoded "Developer" or "User" logs, views are projections based on 
 ## 2. Architectural Simplification
 
 ### 2.1. MCP/JSON-RPC as the Core Interface
-**Goal:** Simplify the codebase by making the `Executor` natively speak a standard protocol.
+**Goal:** Simplify the codebase by implementing a standard protocol in the `Executor` directly.
 -   **Standard Interface:** The `Executor` implements a JSON-RPC / MCP interface.
 -   **Simplification:** CLI/Test Runner and Agents use this same API.
 -   **Rationalized State:** Executor flags are refactored into a typed configuration object passed via RPC.
 -   **Support LSP interface** (for code completion, etc.)
 
 ### 2.2. Static Resolution (Resolve Time)
-**Goal:** All steps, including compound statements and activities, must be fully resolved *before* execution begins.
+**Goal:** Every step is fully resolved *before* execution begins. Compound statements and activities are resolved too.
 -   **Resolve Phase:** A distinct phase where the parser expands all `activities`, `waypoints`, and compound steps (`whenever`, `anyOf`) into a static execution tree.
--   **Determinism:** This ensures that the entire execution path (including potential branches) is known and validatable before a single step runs.
--   **Logic Isn't "Hidden":** Activities are not "found" at runtime; they are linked during the resolution phase.
+-   **Determinism:** The resolve phase determines the whole execution path before any step runs. The path includes every possible branch and can be validated in advance.
+-   **Logic Isn't Hidden:** The resolve phase links activities. Execution doesn't search for them at runtime.
 
 ### 2.3. Unified Parsing & Cycles
--   **Unified Parser:** Standardize on a single argument parsing mechanism.
+-   **Unified Parser:** Use one argument parsing mechanism.
 -   **Cycle-Based Lifecycle:** Centralize lifecycle logic in `IStepperCycles`.
 
 ## 3. Upper Ontology & Schema Definitions
-**Goal:** Enable sophisticated reasoning using `is-a` relationships defined via idiomatic Haibun syntax.
+**Goal:** Reason over `is-a` relationships declared in Haibun step syntax.
 
 ### 3.1. Schema-Driven Variables
-Types are defined using Haibun compound statements and sets, rather than raw JSON.
+Types are defined with Haibun compound statements and sets in place of raw JSON.
 -   **Definition:**
     ```gherkin
     Define type Sentient Being with property name
     Define type Human is a Sentient Being
     ```
-    *(Note: The system automatically generates the underlying IDs and schema)*
+    *(Note: The system generates the IDs and schema automatically.)*
 -   **Usage:**
     -   Step: `ensure some Sentient Being is present`
-    -   Resolution: The system queries the variable store for any object where `type` *is-a* `SentientBeing`. It finds "Dr. Kildare" (Human) because `Human` *is-a* `SentientBeing`.
+    -   Resolution: The system queries the variable store for any object where `type` *is-a* `SentientBeing`. The query returns "Dr. Kildare" (Human) because `Human` *is-a* `SentientBeing`.
 
 ## 4. Readability and Developer Experience
 
 ### 4.1. Human-Readable Steps
-**Problem:** Compound statements need to be tied together more clearly without breaking the core parser.
-**Solution:** Use `depolite` stopwords and `aliases` to make steps flow like natural language.
+**Problem:** Compound statements need clearer connecting words. The change must keep the core parser working.
+**Solution:** Use `dePolite` stopwords and `aliases` so that steps read as natural language.
 
 #### Examples of Improvements:
 
@@ -65,7 +65,7 @@ Types are defined using Haibun compound statements and sets, rather than raw JSO
 *   *Improved:* `whenever it is not that variable "Privacy" status is "Pending"`
 *   *Mechanism:*
     *   Stopwords: [it](file:///home/vid/Private/D/dev/withhaibun/haibun.zod/modules/core/src/lib/domain-types.ts#39-40), [is](file:///home/vid/Private/D/dev/withhaibun/haibun.zod/modules/core/src/steps/variables-stepper.ts#41-47), `that`
-    *   Core Step remains: `not variable ...` (The [not](file:///home/vid/Private/D/dev/withhaibun/haibun.zod/e2e-tests/tests/features/haibun-overview.feature.not) stepper is functional).
+    *   The core step stays `not variable ...`. The [not](file:///home/vid/Private/D/dev/withhaibun/haibun.zod/e2e-tests/tests/features/haibun-overview.feature.not) step performs the negation.
     *   **Aliases:** Use `stepper.aliases` to map [not](file:///home/vid/Private/D/dev/withhaibun/haibun.zod/e2e-tests/tests/features/haibun-overview.feature.not) to `isn't`.
         *   *Result:* `whenever variable "Privacy" status isn't "Pending"`
 
@@ -80,34 +80,34 @@ Types are defined using Haibun compound statements and sets, rather than raw JSO
 *   *Improved:* `whenever it is not that variable "Room 101" status is "Clean", then ensure that the Cleanup Crew is dispatched to Room 101`
 *   *Mechanism:*
     *   Stopwords: [it](file:///home/vid/Private/D/dev/withhaibun/haibun.zod/modules/core/src/lib/domain-types.ts#39-40), [is](file:///home/vid/Private/D/dev/withhaibun/haibun.zod/modules/core/src/steps/variables-stepper.ts#41-47), [not](file:///home/vid/Private/D/dev/withhaibun/haibun.zod/e2e-tests/tests/features/haibun-overview.feature.not), `that`, `then`
-    *   (Note: [not](file:///home/vid/Private/D/dev/withhaibun/haibun.zod/e2e-tests/tests/features/haibun-overview.feature.not) is preserved as the functional operator).
+    *   (Note: [not](file:///home/vid/Private/D/dev/withhaibun/haibun.zod/e2e-tests/tests/features/haibun-overview.feature.not) stays the functional operator.)
 
 ### 4.2. Self-Description Plan
 **Goal:** Haibun should describe itself.
 **Plan:**
-1.  **Foundation:** Ensure [LogicStepper](file:///home/vid/Private/D/dev/withhaibun/haibun.zod/modules/core/src/steps/logic-stepper.ts#7-153) and [ActivitiesStepper](file:///home/vid/Private/D/dev/withhaibun/haibun.zod/modules/core/src/steps/activities-stepper.ts#24-456) are supported by a core of thoroughly unit-tested code.
+1.  **Foundation:** Ensure that unit tests cover the core code of [LogicStepper](file:///home/vid/Private/D/dev/withhaibun/haibun.zod/modules/core/src/steps/logic-stepper.ts#7-153) and [ActivitiesStepper](file:///home/vid/Private/D/dev/withhaibun/haibun.zod/modules/core/src/steps/activities-stepper.ts#24-456).
 2.  **Core Logic Feature:** Create `features/self/logic.feature`.
     -   Scenario: "Testing the `whenever` loop"
     -   Steps: Define a variable, run a `whenever` loop that increments it, verify it stops.
 3.  **Activity Feature:** Create `features/self/activities.feature`.
     -   Scenario: "Resolving a waypoint"
     -   Steps: Define an activity in a background, trigger it via `ensure` in the feature, verify the activity ran.
-4.  **Execution:** These features become the primary CI gate.
+4.  **Execution:** These features become the primary CI check.
 
 ## 5. General Maintenance
 -   **Declarative & Deterministic:** Ensure all execution paths are resolvable statically.
--   **Mermaid Diagrams:** Generated from the *resolved* static tree, accurately reflecting all paths.
+-   **Mermaid Diagrams:** Generate diagrams from the *resolved* static tree. Each diagram shows every path.
     -   **Animation:** The diagram view should support animation to visualize the execution flow step-by-step.
--   **Terminology:** Avoid overly generalized terms. Use specific terms like `executionScope`, `schemaDefinition`, and `subject`.
+-   **Terminology:** Avoid generic terms. Use specific terms like `executionScope`, `schemaDefinition`, and `subject`.
 
 ## 6. Support Markdown
 **Goal:** Enable "Literate Testing" by allowing feature files to be written in Markdown (`.md`).
 -   **Mechanism:** The feature collector should accept `.md` files in addition to `.feature` files.
 -   **Parsing:**
     -   Extract Gherkin content from fenced code blocks (e.g., ```gherkin or ```feature).
-    -   Optionally, treat the entire file as a feature if it follows a specific structure (e.g., starts with `# Feature:`).
+    -   Treat the whole file as a feature when it has a specific structure (e.g., it starts with `# Feature:`). This is optional.
 -   **Benefits:**
-    -   Allows rich documentation alongside tests.
+    -   Documentation and tests can share one file.
     -   Enables "executable specifications" that are easy to read and maintain.
 -   **Compatibility:** Existing `.feature` files must continue to work without modification.
--   **User Experience:** The process should be transparent to the user. `haibun-cli` should automatically detect and process `.md` files in the feature directory.
+-   **User Experience:** The user doesn't need to do anything different for Markdown files. `haibun-cli` should detect and process `.md` files in the feature directory automatically.

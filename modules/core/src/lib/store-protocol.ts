@@ -1,10 +1,10 @@
 /**
- * store-protocol: the delegated store surface, shared by server (an `/rpc` method family) and client
- * (RemoteQuadStore). Serves the IQuadStore methods as `store.<method>` protocol calls so a sibling
- * instance can keep its records in this instance's store. DELEGATED, never public: every call requires
- * a capability, `store.read` or `store.write` by method: this surface is full store access for a trusted
- * delegate, distinct from the accessLevel-gated hypermedia surface.
- * Responses use a `{ result }` envelope so an undefined result survives JSON intact.
+ * store-protocol: the delegated store surface. The server (an `/rpc` method family) and the client
+ * (RemoteQuadStore) share it. It serves the IQuadStore methods as `store.<method>` protocol calls, so a
+ * sibling instance can keep its records in this instance's store. The surface is delegated and never
+ * public. Each method requires the `store.read` or the `store.write` capability. The surface gives a
+ * trusted delegate full store access, and it is distinct from the accessLevel-gated hypermedia surface.
+ * Responses use a `{ result }` envelope, so a response with an undefined result serializes to JSON.
  */
 import { DensityQuerySchema } from "./quad-types.js";
 import { z } from "zod";
@@ -28,7 +28,7 @@ const QuadInputSchema = z.object({
 
 const PatternSchema = z.object({ subject: z.string().optional(), predicate: z.string().optional(), object: z.unknown().optional(), namedGraph: z.string().optional() });
 
-/** Param schema + read/write classification per method: the single wire contract. */
+/** Each method's param schema and read/write classification. This map is the one wire contract. */
 const STORE_METHODS = {
 	set: { write: true, params: QuadInputSchema },
 	add: { write: true, params: z.object({ quad: QuadInputSchema }) },
@@ -63,8 +63,8 @@ export function isStoreMethod(method: string): boolean {
 	return method.startsWith(STORE_METHOD_PREFIX) && method.slice(STORE_METHOD_PREFIX.length) in STORE_METHODS;
 }
 
-/** The store surface as an `/rpc` method family: each method gated by the action `requiredStoreCapability` names, and
- *  answered against the store `getStore` returns when the call arrives. */
+/** The store surface as an `/rpc` method family. Each method requires the action that `requiredStoreCapability` names.
+ *  Each call runs against the store that `getStore` returns when the call arrives. */
 export function storeMethods(getStore: () => IQuadStore): Record<string, TRpcMethod> {
 	return Object.fromEntries(
 		Object.keys(STORE_METHODS).map((name) => {
@@ -74,7 +74,8 @@ export function storeMethods(getStore: () => IQuadStore): Record<string, TRpcMet
 	);
 }
 
-/** The capability a caller must hold for a store call, store.write for anything that changes the store, store.read otherwise. */
+/** The capability a caller must hold for a store call. A call that changes the store requires store.write, and any other
+ *  call requires store.read. */
 export function requiredStoreCapability(method: string): string {
 	const name = method.slice(STORE_METHOD_PREFIX.length) as TStoreMethod;
 	const def = STORE_METHODS[name];
@@ -83,9 +84,9 @@ export function requiredStoreCapability(method: string): string {
 }
 
 /**
- * Execute one store call against `store`, validating params against the wire contract (fail fast on shape).
- * `createEdge` honours the IQuadStore contract on the caller's behalf: a store without the edge primitive
- * gets the documented `add` fallback here, so a remote caller sees one behaviour.
+ * Execute one store call against `store`. Params are validated against the wire contract, and an invalid shape throws.
+ * `createEdge` implements the IQuadStore contract for the caller. It calls the documented `add` fallback for a store
+ * without `createEdge`, so a remote caller receives the same behaviour from every store.
  */
 export async function handleStoreCall(store: IQuadStore, method: string, rawParams: unknown): Promise<{ result: unknown }> {
 	const name = method.slice(STORE_METHOD_PREFIX.length) as TStoreMethod;

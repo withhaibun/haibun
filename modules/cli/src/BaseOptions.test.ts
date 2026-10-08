@@ -11,10 +11,10 @@ describe("apply ENV", () => {
 		expect(res.parseError).not.toBeDefined();
 		expect(res.env).toEqual({ ...defaultEnv, a: "1" });
 	});
-	it("prevents collision", () => {
+	it("refuses a variable that is already defined", () => {
 		const p = { a: "1" };
 		const res = BaseOptions.options.ENV.parse("a=1", p);
-		expect(res.parseError).toBe("ENV a already defined");
+		expect(res.parseError).toBe("ENV a is already defined: define each variable once");
 	});
 	it("refuses a variable without a value", () => {
 		expect(BaseOptions.options.ENV.parse("a", {}).parseError).toBe("ENV a doesn't have a value: write a=value");

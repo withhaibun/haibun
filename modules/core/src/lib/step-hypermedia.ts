@@ -9,20 +9,19 @@ import { constructorName } from "./util/index.js";
 import { normalizeDomainKey } from "./domains.js";
 
 /**
- * Inject hypermedia markers (`_type`, `_summary`, and where applicable `_component`,
- * `id`, `view`) into a step's products. The single source of truth is the registered
- * domain: every step with a `productsDomain` gets markers; their values come from the
- * domain's `ui` configuration. Actions never emit `_type` / `_summary` themselves.
+ * Adds hypermedia markers to a step's products. Every step with a `productsDomain` receives them. The registered
+ * domain's declaration supplies their values, and the registered steps supply `_links`. Actions don't emit `_type` or
+ * `_summary`.
  *
- * - `_type` is the registered `ui.component` if set, else the domain key.
- * - `_summary` is `ui.summary`: either a string template or a function taking the
- *   products object. Falls back to the domain key.
- * - `_component`, `id`, `view` are injected only when the domain has `ui.component`,
- *   because those markers exist for the SPA's pane-opener and are meaningless for
- *   diagnostic/data-only domains.
+ * - `_type` is the domain's `ui.component` where the domain declares one, else the domain key.
+ * - `_summary` is `ui.summary` where it is a string, or its result where it is a function of the products. Without
+ *   `ui.summary` it is the domain key.
+ * - `_description` is the domain's description, where it declares one.
+ * - `_component`, `id` and `view` are added only for a domain with `ui.component`. The SPA's pane opener reads them, and
+ *   a diagnostic or data-only domain doesn't open a pane.
+ * - `_links` lists the steps that take the product's domain, where at least one does.
  *
- * If `_component` is already present in products (a step explicitly setting its own),
- * the entire augmentation is skipped to preserve the action's intent.
+ * Products that already carry a `_component` string are returned unchanged, so a step that sets its own keeps it.
  */
 export function augmentViewHypermedia(world: TWorld, step: TStepperStep, actionResult: TActionResult, steppers: AStepper[]): TActionResult {
 	if (!actionResult.ok || !actionResult.products) return actionResult;
@@ -39,44 +38,37 @@ export function augmentViewHypermedia(world: TWorld, step: TStepperStep, actionR
 	else if (typeof rawSummary === "string") summary = rawSummary;
 	else summary = productsDomain;
 	const markers: Record<string, unknown> = { [HYPERMEDIA.TYPE]: component ?? productsDomain, [HYPERMEDIA.SUMMARY]: summary };
-	// The producing domain's own description, surfaced inline so a consumer (human, LLM, agent) can interpret the result
-	// without a round-trip to the show steps step: the description travels with the data. It is the SAME text the type's view
-	// shows (buildConcernCatalog reads this field too): a domain describes itself once, and a second description on its
-	// schema would be a second answer to one question, free to drift from the one a reader is shown.
+	// The products domain's description, added to the products so a person, a model or an agent can interpret the result
+	// without calling show steps. buildConcernCatalog reads the same field for the type's view. A domain has one
+	// description, and a second description on its schema could differ from the one a reader is shown.
 	if (domain?.description) markers[HYPERMEDIA.DESCRIPTION] = domain.description;
 	if (component) {
 		markers[HYPERMEDIA.COMPONENT] = component;
 		markers.id = productsDomain;
 		markers.view = productsDomain;
 	}
-	// Next-action affordances: enumerate every other step whose paramDomains accept this product's productsDomain as input. The consumer (SPA row menu, an LLM looking at "what can I do with this", agent navigation) reads `_links` to discover follow-on verbs without reading the show steps step themselves. Same `{method, params?}` shape every other `_links` entry uses; rels are keyed by the unprefixed stepName so each affordance is named by intent rather than by step-method address.
+	// Next-action affordances: every step whose parameter domains take this product's domain. The SPA row menu, a model or an agent reads `_links` to find follow-on steps without calling show steps. Each entry has the `{method, params?}` shape of every other `_links` entry. Each rel is the step name without its stepper prefix, so it names the action rather than the method address.
 	const links = deriveActionLinks(productsDomain, products, steppers, world);
 	if (Object.keys(links).length > 0) markers[HYPERMEDIA.LINKS] = links;
 	return { ...actionResult, products: { ...products, ...markers } };
 }
 
 /**
- * Walk every registered step's gwta param domains and return a `_links` map of the
- * verbs that accept this product's domain as one of their inputs. One entry per
- * matching step, keyed by the step's bare name (without a stepperName prefix) so the
- * affordance is named by intent, not by method address.
+ * Returns a `_links` map of the steps whose gwta parameter domains take the product's domain. Each matching step has one
+ * entry, keyed by its step name without the stepper prefix, so the entry names the action rather than the method address.
  *
- * Matching is in two layers:
- *   1. direct: a step's param domain equals the product's domain.
- *   2. ref→individual: a step's param domain is a ref domain whose
- *      `topology.ranges.id` points at the product's domain. This is how
- *      `individualRefDomain(refKey, targetKey)` declares "this ref's id ranges
- *      over a targetKey individual"; the affordance derivation follows that
- *      declared range so revoke/suspend/recover (which accept the ref) link
- *      to individuals produced by issue (which produces the target).
+ * A parameter matches in one of two ways:
+ *   1. Direct: the parameter's domain is the product's domain.
+ *   2. Reference: the parameter's domain is a ref domain whose `topology.ranges.id` names the product's domain.
+ *      `individualRefDomain(refKey, targetKey)` declares this range for a reference to a targetKey individual. The
+ *      derivation follows the range, so a product links each step that takes a reference to it. Revoke, suspend and
+ *      recover take a reference to the individual that issue produces.
  *
- * The params skeleton: if the product carries a top-level `id`, populate the
- * matching parameter with `{ id: <product.id> }` (the convention every individual
- * ref domain uses today, `{record: {id}}`, `{label, id}` for getIndividual,
- * etc.). Otherwise pass an empty object: the consumer fills the rest from the
- * step's own inputSchema (already in what show steps returns).
+ * The params skeleton: each matching parameter receives `{ id: <product.id> }` where the product has a top-level string
+ * `id`. Every individual ref domain takes this shape, as in `{record: {id}}` and in `{label, id}` for getIndividual.
+ * Otherwise the entry omits `params`, and the consumer fills them from the step's inputSchema, which show steps returns.
  *
- * H1: a single derivation; it doesn't need per-step authoring.
+ * H1: one derivation serves every step, and a step doesn't declare its own links.
  */
 function deriveActionLinks(
 	productsDomain: string,
@@ -88,7 +80,7 @@ function deriveActionLinks(
 	const productId = typeof products.id === "string" ? products.id : undefined;
 	const matchesProduct = (paramDomain: string): boolean => {
 		if (paramDomain === productsDomain) return true;
-		// Some gwta params declare a union domain (e.g. a page target, any way a page is searched): those don't carry a single-domain topology to follow, so skip them. normalizeDomainKey throws on misordered unions; guard with try/catch so a single quirky param doesn't break affordance derivation for every product the step produces.
+		// A gwta parameter can declare a union domain, such as a page target. A union domain doesn't declare a single-domain topology, so it doesn't match. normalizeDomainKey throws on a misordered union, and the catch returns false, so one such parameter doesn't stop link derivation for every product.
 		let refDomain: { topology?: { ranges?: { id?: string } } } | undefined;
 		try {
 			refDomain = world.domains?.[normalizeDomainKey(paramDomain)];
@@ -121,19 +113,19 @@ function deriveActionLinks(
 }
 
 /**
- * A domain that exists only to render a view (its schema is empty, its `ui.component`
- * names the pane to open) doesn't carry data to chain on. Asserting such a
- * "fact" creates a loop: each affordances refresh sees the asserted view, includes
- * it in the snapshot, and the SPA re-opens the pane, accumulating duplicates.
+ * Whether a domain only renders a view. Such a domain's schema is empty, and its `ui.component` names the pane to open.
+ * It doesn't carry data for another step to take. Asserting its products as a fact creates a loop. Each affordances
+ * refresh reads the asserted view and includes it in the snapshot, and the SPA opens the pane again, so the panes
+ * accumulate.
  *
- * A domain is view-only iff it declares `ui.component` AND its registered schema
- * doesn't have fields. Real product-bearing domains (DOMAIN_AFFORDANCES, DOMAIN_CHAIN_LINT,
- * domain-key, etc.) carry data even if they ALSO map to a view, and stay assertable.
+ * A domain is view-only if and only if it declares `ui.component` and its registered schema is an object without fields.
+ * DOMAIN_AFFORDANCES and DOMAIN_CHAIN_LINT declare a view, and their schemas have fields. They carry data, and their
+ * products are asserted.
  */
 export function isViewOnlyDomain(world: TWorld, domainKey: string): boolean {
 	const domain = world.domains[normalizeDomainKey(domainKey)];
 	if (!domain?.ui?.component || typeof domain.ui.component !== "string") return false;
-	// unrepresentable:"any" keeps the presence check working for a schema carrying a date (z.coerce.date doesn't have a JSON Schema form), only whether it has fields matters, not to represent them.
+	// z.coerce.date doesn't have a JSON Schema form. `unrepresentable: "any"` lets the check read a schema with a date field, since the check reads only whether the schema has fields.
 	const jsonSchema = jsonSchemaOf(domain.schema, "fields", () => z.toJSONSchema(domain.schema, { unrepresentable: "any" })) as {
 		properties?: Record<string, unknown>;
 		type?: string;

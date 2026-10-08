@@ -1,28 +1,29 @@
 /**
- * Chain instances, durable per-walk state for the chain-walker.
+ * A chain instance holds the state of one walk for the chain-walker.
  *
- * A chain instance records one user's walk through a resolver michi: which
+ * A chain instance records one walk through a resolver michi: which
  * goal it targets, which michi (path) was chosen, the current step index,
  * the args supplied for each step, and the seqPaths of the facts each step
- * has produced. The instance lives in the working-memory quad store under
- * the `CHAIN_INSTANCE_GRAPH` named graph so the SPA can subscribe to its
- * state the same way it reads every other fact.
+ * has produced. The working-memory quad store holds the instance in the
+ * `CHAIN_INSTANCE_GRAPH` named graph. A quad store query reads the
+ * instance's state the same way as every other fact.
  *
- * Each step within an instance dispatches with a derived seqPath
- *   `[chain, <instanceId>, <stepIndex>]`
- * so the auto-asserted product facts carry their position in the walk and
- * don't collide with each other or with facts produced by ad-hoc step runs.
+ * The chain-walker dispatches each step of an instance through
+ * `callStepByName`. That call allocates a synthetic seqPath, and the instance
+ * records it as the step's fact id. Dispatch derives the ids of the step's
+ * product facts from that seqPath, so they don't collide with facts of other
+ * calls.
  *
- * One instance is one quad-subject; each field is one predicate. Reading an
- * instance back means fetching every quad with that subject in the chain
- * named graph and assembling them into a `TChainInstance`.
+ * One instance is one quad subject, and each field is one predicate.
+ * `getChainInstance` reads each predicate of that subject in the chain named
+ * graph and assembles a `TChainInstance`.
  */
 import type { TWorld } from "./world.js";
 import type { IQuadStore } from "./quad-types.js";
 import type { TMichi } from "./goal-resolver.js";
 import { actingAs } from "./capability-context.js";
 
-/** Named graph that carries chain-instance facts. */
+/** The named graph that holds chain-instance facts. */
 export const CHAIN_INSTANCE_GRAPH = "chain/instance";
 
 /** Predicates used inside the chain-instance named graph. */
@@ -35,28 +36,28 @@ const CHAIN_INSTANCE_PREDICATE = {
 	STEP_FACT_IDS: "stepFactIds",
 	CREATED_AT: "createdAt",
 	UPDATED_AT: "updatedAt",
-	/** Who began the walk. A walk is one reader's, and only they may advance it. */
+	/** The principal that began the walk. Only that principal may advance the walk. */
 	OWNER: "owner",
 } as const;
 
 export const CHAIN_INSTANCE_STATUS = {
-	/** Instance created; waiting for the first step to run. */
+	/** The next step hasn't run yet. */
 	PENDING: "pending",
-	/** A step is currently dispatched and hasn't yet emitted its product. */
+	/** A step is dispatched and hasn't returned its result yet. */
 	RUNNING: "running",
-	/** All steps in the chosen michi have produced facts; the walk is done. */
+	/** Every step in the chosen michi passed, and the walk is complete. */
 	COMPLETED: "completed",
-	/** A step failed; the walk halts at the current step index. */
+	/** The step isn't registered, its arguments failed validation, or the step failed. The walk stops at the current step index. */
 	FAILED: "failed",
 } as const;
 
 type TChainInstanceStatus = (typeof CHAIN_INSTANCE_STATUS)[keyof typeof CHAIN_INSTANCE_STATUS];
 
 /**
- * In-memory shape of a chain instance, assembled from the quads under one
- * subject. `stepArgs[i]` carries the argument map supplied for step `i`;
- * `stepFactIds[i]` carries the seqPaths of the facts that step's product
- * was asserted under (one per declared output domain).
+ * The in-memory shape of a chain instance. `getChainInstance` assembles it
+ * from the quads under one subject. `stepArgs[i]` holds the argument map
+ * supplied for step `i`. `stepFactIds[i]` holds the seqPath from which
+ * dispatch derived the ids of step `i`'s product facts.
  */
 export type TChainInstance = {
 	id: string;
@@ -68,8 +69,8 @@ export type TChainInstance = {
 	stepFactIds: string[][];
 	createdAt: number;
 	updatedAt: number;
-	/** Who began the walk, where anyone was acting. A run without a principal begins a walk that doesn't have an owner, which is
-	 *  what a feature walking toward a goal is. */
+	/** The principal that began the walk, where a principal was acting. A call without a principal begins a walk without an
+	 *  owner. A feature that walks toward a goal begins such a walk. */
 	owner?: string;
 };
 
@@ -77,7 +78,7 @@ function nowMs(): number {
 	return Date.now();
 }
 
-/** Generate a chain-instance id. Stable enough for one runtime; not a UUID. */
+/** Generates a chain-instance id from the time and a random suffix. It isn't a UUID. */
 function newChainInstanceId(): string {
 	return `ci_${nowMs().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -87,16 +88,16 @@ async function writePredicate(store: IQuadStore, instanceId: string, predicate: 
 }
 
 /**
- * Create a new chain instance for the given goal + michi. Allocates an id,
- * persists every predicate of the seed state, and returns the assembled
- * `TChainInstance` so the caller can drive the first step immediately.
+ * Creates a chain instance for the given goal and michi. It allocates an id,
+ * writes every predicate of the initial state, and returns the assembled
+ * `TChainInstance`.
  */
 export async function createChainInstance(world: TWorld, goal: string, michi: TMichi): Promise<TChainInstance> {
 	const store: IQuadStore = world.shared.getStore();
 	const id = newChainInstanceId();
 	const createdAt = nowMs();
-	// A walk is begun by whoever is acting, and it records that rather than being handed it: a caller that had to
-	// remember to state who it was could forget, and an unowned walk is one anyone may advance.
+	// The owner is read from the acting principal instead of a parameter. A parameter would let a caller omit the owner,
+	// and any caller without a principal may advance a walk without an owner.
 	const owner = actingAs();
 	const inst: TChainInstance = {
 		id,
@@ -123,9 +124,9 @@ export async function createChainInstance(world: TWorld, goal: string, michi: TM
 }
 
 /**
- * Load a chain instance by id. Returns `undefined` if the instance doesn't exist.
- * Throws if the instance is partially written: a missing predicate other than
- * the optional ones indicates corrupted store state, not a missing instance.
+ * Loads a chain instance by id. Returns `undefined` if the instance doesn't exist.
+ * Throws if the instance is partially written. A missing required predicate
+ * indicates corrupted store state, not a missing instance.
  */
 export async function getChainInstance(world: TWorld, id: string): Promise<TChainInstance | undefined> {
 	const store: IQuadStore = world.shared.getStore();
@@ -148,15 +149,15 @@ export async function getChainInstance(world: TWorld, id: string): Promise<TChai
 		createdAt === undefined ||
 		updatedAt === undefined
 	) {
-		throw new Error(`chain instance ${id} is partially written: missing one or more required predicates in ${CHAIN_INSTANCE_GRAPH}`);
+		throw new Error(`chain instance ${id} is partially written in ${CHAIN_INSTANCE_GRAPH}: one or more required predicates are missing. Begin a new walk toward its goal.`);
 	}
 	return { id, goal: goal as string, michi, stepIndex, status, stepArgs, stepFactIds, createdAt, updatedAt, ...(owner === undefined ? {} : { owner }) };
 }
 
 /**
- * Persist a mutation to an existing chain instance. Only the supplied fields
- * are written; `updatedAt` is refreshed on every call. The dispatcher uses
- * this after each step run to advance `stepIndex` and append produced fact ids.
+ * Writes the supplied fields of an existing chain instance. Every call also
+ * writes `updatedAt`. The chain-walker calls it to set the status before and
+ * after each step, to advance `stepIndex` and to append the produced fact ids.
  */
 export async function updateChainInstance(world: TWorld, id: string, patch: Partial<Omit<TChainInstance, "id" | "createdAt">>): Promise<void> {
 	const store: IQuadStore = world.shared.getStore();
@@ -171,8 +172,8 @@ export async function updateChainInstance(world: TWorld, id: string, patch: Part
 }
 
 /**
- * Enumerate every chain instance currently in the quad store. The result is
- * unsorted; callers that need recency can sort by `updatedAt`.
+ * Returns every chain instance in the quad store, unsorted. A caller that
+ * needs recency sorts by `updatedAt`.
  */
 export async function listChainInstances(world: TWorld): Promise<TChainInstance[]> {
 	const store: IQuadStore = world.shared.getStore();
@@ -185,7 +186,7 @@ export async function listChainInstances(world: TWorld): Promise<TChainInstance[
 	return out;
 }
 
-/** Remove a chain instance and every predicate it owns. Useful for test cleanup and explicit user cancellation. */
+/** Removes a chain instance and every predicate of its subject. */
 export async function deleteChainInstance(world: TWorld, id: string): Promise<void> {
 	const store: IQuadStore = world.shared.getStore();
 	await store.remove({ subject: id, namedGraph: CHAIN_INSTANCE_GRAPH });

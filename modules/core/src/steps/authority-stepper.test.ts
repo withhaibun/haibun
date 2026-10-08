@@ -1,6 +1,7 @@
 /**
- * `holding only {actions}, {what}`: a statement runs with the listed actions its caller holds and without another action, as the
- * same caller. It narrows and never widens, so a feature states a caller holding some actions and not others.
+ * Tests `holding only {actions}, {what}`. The statement runs as the same caller with only those of the listed actions that
+ * its caller holds. The step narrows what a caller holds and never widens it, so a feature can state a caller that holds
+ * some actions and not others. The file also tests `show held calls` and `delegations to the caller`.
  */
 import { describe, expect, it } from "vitest";
 import { getDefaultWorld, passWithDefaults } from "../lib/test/lib.js";
@@ -19,10 +20,10 @@ import { addStepperConcerns } from "../phases/Executor.js";
 import { DOMAIN_TEXT } from "../lib/domains.js";
 
 class PingStepper extends AStepper {
-	description = "A step that takes Ping:protected, for tests of narrowing what a statement holds.";
+	description = "Provides the steps that these tests run.";
 	steps = {
 		protectedPing: { exact: "protected ping", capability: "Ping:protected", action: () => Promise.resolve(OK) },
-		readsPublicOnly: { exact: "reads public only", action: () => Promise.resolve(readingAt() === "public" ? OK : actionNotOK(`reads at ${readingAt() ?? "no ceiling"}`)) },
+		readsPublicOnly: { exact: "reads public only", action: () => Promise.resolve(readingAt() === "public" ? OK : actionNotOK(`reads at ${readingAt() ?? "every level"}`)) },
 		repeats: { gwta: `repeats {said: ${DOMAIN_TEXT}}`, action: ({ said }: { said: string }) => Promise.resolve(said === KEPT ? OK : actionNotOK(`was given ${said}`)) },
 		holdsACall: {
 			exact: "holds a call",
@@ -43,7 +44,7 @@ class PingStepper extends AStepper {
 /** The capability a held call rests on. */
 const HELD_ON = "urn:uuid:held-on";
 
-/** A variable actuality sets, which a statement it narrows names. */
+/** A variable that actuality sets. A narrowed statement names this variable. */
 const [KEPT_NAME, KEPT] = ["kept", "actuality's"];
 
 const holds = async (content: string) =>
@@ -67,12 +68,12 @@ describe("holding only", () => {
 describe("holding only a read", () => {
 	it("bounds what the statement reads to the level listed", async () => {
 		expect(await holds(`holding only "PingStepper:readsPublicOnly,Read:public", reads public only`)).toBe(true);
-		expect(await holds(`reads public only`), "where actuality itself reads everything").toBe(false);
+		expect(await holds(`reads public only`), "actuality outside a narrowed statement reads at every level").toBe(false);
 	});
 });
 
 describe("what a narrowed statement reads", () => {
-	it("reads its arguments as the actuality that stated them, and the step reads only within what it holds", async () => {
+	it("resolves its arguments with what actuality holds, and its step reads only within what the statement holds", async () => {
 		expect(await holds(`set ${KEPT_NAME} to "${KEPT}"\nholding only "PingStepper:repeats", repeats ${KEPT_NAME}`)).toBe(true);
 		expect(await holds(`set ${KEPT_NAME} to "${KEPT}"\nholding only "PingStepper:readsKept", reads kept`)).toBe(true);
 	});
@@ -89,7 +90,7 @@ describe("delegations to the caller", () => {
 	const delegation = { id: "urn:uuid:pool", controller: "did:key:zSwimmer", allowedAction: ["Pool:enter"] };
 	const records = { [delegation.id]: { persistedAs: "Capability", accessLevel: "private" as const } };
 	const verifier = stubVerifier({
-		verify: () => Promise.resolve({ ok: false as const, error: "the stand-in refuses every proof" }),
+		verify: () => Promise.resolve({ ok: false as const, error: "the stub verifier refuses every proof" }),
 		delegationsTo: (controller) => Promise.resolve({ delegations: controller === delegation.controller ? [delegation] : [], records }),
 	});
 	const opened = async () => {
@@ -100,24 +101,24 @@ describe("delegations to the caller", () => {
 		return { world, stepper, readAs: (controller?: string) => runActingAs(controller, () => stepper.steps.delegationsTo.action()) };
 	};
 
-	it("requires what only a key's own root grants, under the method a page and a launched instance call it by", async () => {
+	it("requires the action that only a key's own root grants, under the method that pages and launched instances call", async () => {
 		const { world, stepper } = await opened();
 		expect(buildStepRegistry([stepper], world).get(DELEGATIONS_READ_METHOD)?.descriptor.capability).toBe(DELEGATIONS_READ_ACTION);
 	});
 
-	it("answers the key the call proved, from the registered verifier, and with an empty list where a verifier isn't registered", async () => {
+	it("returns the registered verifier's delegations to the key the call proved, and an empty list where a verifier isn't registered", async () => {
 		const { world, readAs } = await opened();
-		expect((await readAs(delegation.controller)).products, "without a registered verifier, a delegation isn't returned").toEqual({ delegations: [] });
+		expect((await readAs(delegation.controller)).products, "a delegation isn't returned without a registered verifier").toEqual({ delegations: [] });
 		getAuthority(world.runtime)?.registerVerifier(verifier);
 		expect((await readAs(delegation.controller)).products).toEqual({ delegations: [delegation], records });
-		expect((await readAs("did:key:zStranger")).products, "another key is answered its own").toEqual({ delegations: [], records });
+		expect((await readAs("did:key:zStranger")).products, "another key's own delegations are returned").toEqual({ delegations: [], records });
 	});
 
-	it("refuses a call that doesn't prove a key, since it doesn't hold a key to answer", async () => {
+	it("refuses a call that doesn't prove a key, since the read returns only the delegations to the calling key", async () => {
 		const { world, readAs } = await opened();
 		getAuthority(world.runtime)?.registerVerifier(verifier);
 		const refused = await readAs(undefined);
 		expect(refused.ok).toBe(false);
-		expect(refused.ok === false && refused.errorMessage).toBe("the delegation read answers the key that signs the call, and this call doesn't prove a key");
+		expect(refused.ok === false && refused.errorMessage).toBe("the call doesn't prove a key, and the delegation read returns only the signing key's delegations. Sign the call.");
 	});
 });

@@ -1,21 +1,23 @@
 /**
- * Turn actuality document's generated HTML into a list of self-contained blocks, so the document column can virtualize them
- * (render only the visible window) instead of holding the whole run as one live innerHTML blob. `generateDocumentMarkdown`
- * already emits one top-level element per event (a header, a step line, a prose block, or an artifact placeholder), so a
- * split is exact; `finalizeBlocks` then does what the old imperative post-process + thumbnail grouping did, but as a pure
- * transform over block HTML strings: fill each artifact placeholder from a resolver, add the `doc-row` classes, and
- * collapse a run of consecutive image thumbnails into one wrapping `.thumb-row` strip. Everything here is pure and DOM-only
- * through a detached `<template>`, so it is testable without a live column and never touches the page.
+ * Splits the generated HTML of actuality's document into self-contained blocks. The document column virtualizes the
+ * blocks and renders only the visible window, instead of holding the whole document as one innerHTML string.
+ * `generateDocumentMarkdown` emits one top-level element per event: a header, a step line, a prose block or an artifact
+ * placeholder. A split by top-level element is therefore exact. `finalizeBlocks` transforms the block HTML strings. It
+ * fills each artifact placeholder from a resolver, adds the `doc-row` classes, and wraps each sequence of consecutive
+ * image thumbnails in one `.thumb-row` strip. The functions parse through a detached `<template>` and don't modify the
+ * page, so a test runs them without a live column.
  */
 import { headingAnchor } from "@haibun/core/lib/document-content.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
-/** One document block: its final HTML, the event id it came from (for jump-to and product embedding), and the raw time
- *  (offset from the column's global start) for time-cursor dimming. `id`/`rawTime` are empty/0 for spacers and strips. */
+/** One document block: its final HTML, the event id it came from, and its raw time. Jump-to and product embedding read
+ *  the id. Time-cursor dimming reads the raw time, which is the offset from the column's start. A spacer has an empty
+ *  `id` and a zero `rawTime`. A thumbnail strip carries the `id` and `rawTime` of its first block. */
 export type TDocBlock = { html: string; id: string; rawTime: number };
 
-/** Resolve an artifact placeholder's `data-id(s)` to its rendered HTML (an `<shu-artifact-frame>…`), or "" if unknown.
- *  The column supplies this from its event log; a test supplies a stub. */
+/** Resolves one id from an artifact placeholder's `data-id` or `data-ids` to its rendered `<shu-artifact-frame>` HTML.
+ *  Returns "" for an unknown id or an artifact that doesn't render. The column supplies the resolver from its event log,
+ *  and a test supplies a stub. */
 export type TArtifactResolver = (id: string) => string;
 
 const parse = (html: string): HTMLTemplateElement => {
@@ -29,7 +31,7 @@ const attrOf = (el: Element, name: string): string => el.getAttribute(name) ?? e
 /** Returns a block's text content. */
 export const blockText = (block: TDocBlock): string => parse(block.html).content.textContent?.trim() ?? "";
 
-/** Split generated document HTML into one block per top-level element, in order. */
+/** Splits generated document HTML into one block per top-level element, in order. */
 export function splitDocumentBlocks(html: string): TDocBlock[] {
 	const blocks: TDocBlock[] = [];
 	for (const el of Array.from(parse(html).content.children)) {
@@ -38,22 +40,22 @@ export function splitDocumentBlocks(html: string): TDocBlock[] {
 	return blocks;
 }
 
-// The block taxonomy, in one place: the step-like rows a thumbnail belongs to, and the artifact placeholder holders.
+// The block selectors: the step-like rows that get the `doc-row` class, and the artifact placeholder holders.
 const STEP_ROW_SELECTOR = ".header-block, .prose-block, .log-row";
 const ARTIFACT_HOLDER_SELECTOR = ".feature-artifacts, .standalone-artifact";
 
-/** The thumbnail frames of a filled block, when the block is PURELY thumbnails (every frame in it carries the `thumb`
- *  class and there is at least one): those flow as grid tiles. A block mixing a thumbnail with another artifact frame
- *  (a step that saved an image and a json) caches its own layout. */
+/** Returns the thumbnail frames of a filled block where the block holds at least one frame and every frame carries the
+ *  `thumb` class. Those frames render as grid tiles. Returns an empty list for any other block. A block that mixes a
+ *  thumbnail with another artifact frame keeps its own layout. A step that saved an image and a json file produces such
+ *  a block. */
 function thumbFrames(blockEl: Element): Element[] {
 	const frames = Array.from(blockEl.querySelectorAll("shu-artifact-frame"));
 	return frames.length > 0 && frames.every((f) => f.classList.contains("thumb")) ? frames : [];
 }
 
-/** Fill artifact placeholders, add the reader classes, and group consecutive thumbnails: the pure equivalent of what the
- *  column's imperative post-process and thumbnail grouping used to do (artifact filling, reader classes, thumbnail strips).
- *  Product-view embedding stays in the
- *  column (it needs live event products and a mounted element); it is not a block-HTML concern. */
+/** Fills artifact placeholders, drops artifact blocks that render empty, adds the reader classes, and groups
+ *  consecutive thumbnails. The column implements product-view embedding, since it needs live event products and a
+ *  mounted element. */
 export function finalizeBlocks(blocks: TDocBlock[], resolveArtifact: TArtifactResolver, frameOrdinalPrefix = ""): TDocBlock[] {
 	type TFilled = { el: Element; id: string; rawTime: number };
 	const filled = blocks
@@ -61,16 +63,16 @@ export function finalizeBlocks(blocks: TDocBlock[], resolveArtifact: TArtifactRe
 			const tpl = parse(b.html);
 			const el = tpl.content.firstElementChild;
 			if (!el) return null;
-			// Fill artifact placeholders from their ids (feature-artifacts carries data-ids, standalone-artifact data-id).
+			// Fills artifact placeholders from their ids. A feature-artifacts holder carries data-ids, and a standalone-artifact holder carries data-id.
 			for (const holder of Array.from(el.matches(ARTIFACT_HOLDER_SELECTOR) ? [el] : el.querySelectorAll(ARTIFACT_HOLDER_SELECTOR))) {
 				const ids = (holder.getAttribute("data-ids") || holder.getAttribute("data-id") || "").split(",").filter(Boolean);
 				holder.innerHTML = ids.map((id) => resolveArtifact(id)).join("");
 			}
-			// An artifact block whose every artifact renders "" (a dispatch trace, an unresolvable id) is empty: emitting it
-			// would waste a virtualized row and, worse, split a run of screenshots so they stack instead of flowing as tiles.
+			// An artifact block whose every artifact renders "" is empty, as for a dispatch trace or an unresolvable id. The block
+			// is dropped, since it would take a virtualized row and split a sequence of screenshots into stacked frames.
 			if (el.matches(ARTIFACT_HOLDER_SELECTOR) && el.childElementCount === 0 && !el.textContent?.trim()) return null;
-			// The reader classes the old post-process added: every content block is a clickable doc-row; log rows carry their
-			// nesting/connector state from data attributes.
+			// The reader classes: every header, prose and log block is a clickable doc-row. A log row gets its `nested` and
+			// `show-connector` classes from data attributes.
 			if (el.matches(STEP_ROW_SELECTOR)) el.classList.add("doc-row");
 			if (el.classList.contains("log-row")) {
 				if (el.getAttribute("data-nested") === "true") el.classList.add("nested");
@@ -80,13 +82,13 @@ export function finalizeBlocks(blocks: TDocBlock[], resolveArtifact: TArtifactRe
 		})
 		.filter((b): b is TFilled => b !== null);
 
-	// Collect every run of consecutive thumbnail blocks into one `.thumb-row` grid whose children are the FRAMES themselves
-	// (extracted from their placeholder holders: a holder as the grid child would nest a step's several frames into one
-	// cell), so per-step screenshots flow as equal tiles that take the column width. A lone thumbnail is wrapped too (a
-	// single full-width tile); a run ends at the next non-thumbnail block, so thumbnails split by a step never share a row.
-	// Each frame is stamped with its ordinal among these blocks, under the caller's prefix (the document generates a page
-	// of actuality at a time, and names the page). ←/→ navigation reads it, since under virtualization a frame can't see its
-	// off-window siblings. The column sets each frame's data-step-id when it renders the artifact.
+	// Collects each sequence of consecutive thumbnail blocks into one `.thumb-row` grid whose children are the frames. The
+	// frames are taken out of their placeholder holders, since a holder as the grid child would nest a step's frames in one
+	// cell. Each step's screenshots render as equal tiles across the column width. A lone thumbnail is wrapped too, as a
+	// single tile. A sequence ends at the next non-thumbnail block, so thumbnails separated by a step don't share a row.
+	// Each frame is stamped with its ordinal among these blocks, under the caller's prefix. The document generates one page
+	// of actuality at a time, and the prefix names the page. ←/→ navigation reads the ordinal, since under virtualization a
+	// frame's off-window siblings aren't in the DOM. The column sets each frame's data-step-id when it renders the artifact.
 	const out: TDocBlock[] = [];
 	let run: { frames: Element[]; id: string; rawTime: number }[] = [];
 	let ordinal = 0;
@@ -111,9 +113,9 @@ export function finalizeBlocks(blocks: TDocBlock[], resolveArtifact: TArtifactRe
 	return out;
 }
 
-/** Stamp every markdown heading the renderer produces with its own name as a link anchor (`data-heading`), the same
- *  handle actuality's scenario headings carry: a prose block's "## Contents" becomes reachable as `#contents`. The name
- *  comes through the one anchor rule (core's headingAnchor), so a heading and a link to it can never disagree. */
+/** Stamps every markdown heading the renderer produces with its name as a link anchor in `data-heading`. Core's
+ *  headingAnchor computes the anchor from the heading text, as it does for actuality's scenario headings. A prose
+ *  block's "## Contents" is then reachable as `#contents`. */
 export function withHeadingAnchors(md: { renderer: { rules: Record<string, unknown>; renderToken(tokens: unknown[], idx: number, options: unknown): string } }): void {
 	md.renderer.rules.heading_open = (tokens: Array<{ attrSet(name: string, value: string): void }>, idx: number, options: unknown) => {
 		const inline = (tokens as Array<{ type?: string; content?: string }>)[idx + 1];
@@ -122,18 +124,20 @@ export function withHeadingAnchors(md: { renderer: { rules: Record<string, unkno
 	};
 }
 
-/** Which block carries the heading a link names, or -1 when this document doesn't have one. The heading's own name is stamped
- *  on its block when the document is built (headingAnchor), which is the only handle a feature author has: the block
- *  ids beside it are assigned while actuality happens. */
+/** Returns the index of the block that carries the heading a link names, or -1 when this document doesn't contain that
+ *  heading. The document build stamps the heading's name on its block through headingAnchor. That name is the only
+ *  anchor a feature author can write, since block ids are assigned during actuality. */
 export function blockIndexForHeading(blocks: readonly TDocBlock[], anchor: string): number {
 	if (anchor === "") return -1;
 	return blocks.findIndex((b) => b.html.includes(`data-heading="${anchor}"`));
 }
 
-/** Give the blocks generated for a run of events to the event each came from, in order: a block carrying an id belongs
- *  to the next event from the last one matched whose id it is (a step's start, never its end, which shares the id and
- *  comes later), and a block that doesn't carry one (a spacer, a strip of thumbnails) stays with the event before it. The
- *  document renders one row per event of actuality, so each event must own exactly the blocks it produced. */
+/** Assigns the blocks generated for a sequence of events to the event each came from, in order. A block with an id is
+ *  assigned to the first event that carries its id, from the event last matched onward. A step's start and its later
+ *  end carry the same id, so the block is assigned to the start. A spacer or any other block without an id is assigned
+ *  to the event last matched. A block whose id the later events don't carry is also assigned to the event last matched.
+ *  Blocks before the first match are assigned to the first event. The document renders one row per event of actuality,
+ *  so each event holds the blocks it produced. */
 export function blocksByEvent(events: readonly { id?: unknown }[], blocks: readonly TDocBlock[]): TDocBlock[][] {
 	const out: TDocBlock[][] = events.map(() => []);
 	if (events.length === 0) return out;

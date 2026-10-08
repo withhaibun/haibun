@@ -14,7 +14,7 @@ import { LinkRelations, isPersisted } from "./resources.js";
 import { EXECUTION_MODES } from "../schema/protocol.js";
 import { queryableFields } from "./hypermedia.js";
 
-/** The topology a step's record declares, which persists it. */
+/** Returns the persisted topology a step's record declares. */
 const seqPathTopology = () => {
 	const { topology } = seqPathDomainDefinition;
 	if (!isPersisted(topology)) throw new Error("the step's record doesn't declare a persisted topology");
@@ -34,9 +34,9 @@ describe("parseSeqPath", () => {
 		expect(parseSeqPath("")).toBeNull();
 	});
 
-	it("refuses an empty segment rather than reading it as a zero", () => {
-		// A second reader treated `1..2` as [1, 0, 2], because Number("") is 0: a step that does not exist, named
-		// confidently. An absent segment is not a step number.
+	it("returns null for an empty segment and doesn't read it as a zero", () => {
+		// Number("") is 0, so a reader that splits on dots reads `1..2` as [1, 0, 2]. That path names a step that doesn't
+		// exist. An empty segment isn't a step number.
 		expect(parseSeqPath("1..2")).toBeNull();
 		expect(parseSeqPath(".1")).toBeNull();
 		expect(parseSeqPath("1.")).toBeNull();
@@ -59,60 +59,60 @@ describe("compareSeqPath", () => {
 		expect(compareSeqPath([0, 1, 2, 5], [0, 1, 2, 5])).toBe(0);
 	});
 
-	it("treats negative segments (e.g. run-root sentinels like -1) as numerically less than positives", () => {
+	it("orders a synthetic seqPath's negative segment before a non-negative segment", () => {
 		expect(compareSeqPath([0, -1, 5], [0, 0, 5])).toBe(-1);
 	});
 });
 
 describe("extractSeqPathPrefix", () => {
-	it("returns the input verbatim when it is already a bare seqPath", () => {
+	it("returns a bare seqPath unchanged", () => {
 		expect(extractSeqPathPrefix("0.1.5.3")).toBe("0.1.5.3");
 	});
 
-	it("strips an event-id suffix like .artifact.0 or .lifecycle.42", () => {
+	it("removes an event-id suffix such as .artifact.0 or .lifecycle.42", () => {
 		expect(extractSeqPathPrefix("0.1.5.3.artifact.0")).toBe("0.1.5.3");
 		expect(extractSeqPathPrefix("0.1.5.3.lifecycle.42")).toBe("0.1.5.3");
 	});
 
-	it("preserves the auxiliary-prefix segment (negative integers stay)", () => {
+	it("keeps a synthetic seqPath's negative segment", () => {
 		expect(extractSeqPathPrefix("0.-1.13.1")).toBe("0.-1.13.1");
 		expect(extractSeqPathPrefix("0.-1.13.1.artifact")).toBe("0.-1.13.1");
 	});
 
-	it("returns null for ids that do not start with a dot-joined integer prefix", () => {
+	it("returns null for an id that doesn't start with a dot-joined integer prefix", () => {
 		expect(extractSeqPathPrefix("foo.bar")).toBe(null);
 		expect(extractSeqPathPrefix("")).toBe(null);
 	});
 });
 
-describe("the mode a step ran under", () => {
-	// A speculative step's failure is expected and a prose step doesn't run an action, so a reader looking for what went
-	// wrong wants the authoritative ones. That is a distinction they can draw only if the mode is on the record, and
-	// only offered as a choice beside the type if it is declared as something the type is grouped by.
-	it("is offered as a sub-filter, which is what grouped-as declares", () => {
+describe("a step's execution mode", () => {
+	// A speculative step's failure is expected, so a person looking for a failure selects the authoritative steps. That
+	// selection requires the mode on each step's record. The type offers each mode as a sub-filter only where its topology
+	// declares the mode `groupedAs`.
+	it("is offered as a sub-filter because the topology declares it groupedAs", () => {
 		expect(seqPathTopology().properties[SEQ_PATH_FIELD.mode]).toBe(LinkRelations.CONTEXT.rel);
 	});
 
-	it("accepts every mode a run can be, and doesn't accept another", () => {
+	it("accepts every execution mode and rejects any other value", () => {
 		for (const mode of EXECUTION_MODES) {
 			expect(SeqPathSchema.safeParse({ id: "0.1", stepText: "a step", actionStatus: "passed", generatedAtTime: "now", mode }).success, mode).toBe(true);
 		}
 		expect(SeqPathSchema.safeParse({ id: "0.1", stepText: "a step", actionStatus: "passed", generatedAtTime: "now", mode: "invented" }).success).toBe(false);
 	});
 
-	it("names speculative among them, since telling it apart is what the filter is for", () => {
+	it("includes speculative, so the filter can separate speculative steps from authoritative steps", () => {
 		expect(EXECUTION_MODES).toContain("speculative");
 	});
 });
 
-describe("what names a record of a run", () => {
-	it("is one form: the execution it belongs to, the step path within it, and which of that step's it is", () => {
+describe("the name of an execution's record", () => {
+	it("has one form: its execution, the step path within that execution, and the record's ordinal within that step", () => {
 		expect(formatRecordName({ execution: "1700000000000-4", path: [0, 1, 2] })).toBe("1700000000000-4.0.1.2");
 		expect(formatRecordName({ execution: "1700000000000-4", path: [0, 1, 2], ordinal: 3 })).toBe("1700000000000-4.0.1.2@3");
-		expect(formatRecordName({ execution: "1700000000000-4", path: [] }), "what a run logged outside every step").toBe("1700000000000-4");
+		expect(formatRecordName({ execution: "1700000000000-4", path: [] }), "what an execution logged outside every step").toBe("1700000000000-4");
 	});
 
-	it("reads back exactly what was written", () => {
+	it("parses a formatted name back to the same name", () => {
 		for (const name of [
 			{ execution: "1700000000000-4", path: [0, 1, 2] },
 			{ execution: "1700000000000-4", path: [0, -1, 5], ordinal: 0 },
@@ -121,20 +121,20 @@ describe("what names a record of a run", () => {
 			expect(parseRecordName(formatRecordName(name))).toEqual(name);
 	});
 
-	it("doesn't name a record where the id is not one, rather than reading it as something else", () => {
+	it("returns undefined for an id that doesn't name a record", () => {
 		expect(parseRecordName("0.1.2"), "a step path on its own doesn't name an execution").toBeUndefined();
 		expect(parseRecordName("log.1700000000000")).toBeUndefined();
 		expect(parseRecordName("")).toBeUndefined();
 	});
 
-	it("is strict about what a name holds, so a second shape cannot creep in", () => {
+	it("rejects a name with an extra field or a malformed execution", () => {
 		expect(RecordNameSchema.safeParse({ execution: "1700000000000-4", path: [0], suffix: "x" }).success).toBe(false);
 		expect(RecordNameSchema.safeParse({ execution: "[0.1]", path: [0] }).success).toBe(false);
 	});
 });
 
 describe("what a step offers as a filter", () => {
-	it("includes when the step ended, so a follower can ask for the steps that ended after its last read", () => {
+	it("includes endedAtTime, so a follower can request the steps that ended after its last read", () => {
 		expect(queryableFields({ schema: seqPathDomainDefinition.schema, topology: seqPathTopology() })).toContain("endedAtTime");
 	});
 });

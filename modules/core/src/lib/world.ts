@@ -26,8 +26,8 @@ export type TWorld = {
 };
 
 export type TRuntime = {
-	/** The actuality the records actuality's store holds belong to, which every call to this instance states. A store
-	 *  that keeps its records across processes replaces it with the one it keeps them under. */
+	/** The id of the actuality that owns the records in the store. Each call to this instance after the handshake states
+	 *  this id. A stepper whose store keeps its records across processes replaces this id with the id that the store holds. */
 	actualityId: TActualityId;
 	/** Generic keyed store for subsystem runtime state. */
 	keys?: Record<string, unknown>;
@@ -38,41 +38,42 @@ export type TRuntime = {
 	currentFeaturePath?: string;
 	/** The steps a reader can still read in full: the most recent the feature has run. */
 	stepResults: TStepResult[];
-	/** What the feature's steps have come to so far, reduced as they run. */
+	/** The reduction of the feature's steps so far: the count, the first start, the last end and the failed step. It is
+	 *  updated as each step runs. */
 	steps?: TFeatureSteps;
-	/** The last index allocated under each parent path, per direction: what the next path under it counts from. */
+	/** The last index allocated under each parent path, per direction. The next path under that parent counts from it. */
 	seqPaths?: Map<string, number>;
 	/** Active steppers for this execution. Set by Executor, used by populateActionArgs / domain coercion. */
 	steppers?: AStepper[];
 	/** Shared step registry. Set by Executor, used for dynamic step registration. */
 	stepRegistry?: StepRegistry;
-	/** If non-empty, execution was aborted due to exhaustion (description explains why). */
+	/** The cause of an exhaustion: a step depth or an ensure attempt count over its limit. While it is set, each dispatch
+	 *  fails with this cause. */
 	exhaustionError?: string;
 	/**
-	 * Monotonic counter for synthetic seqPaths produced by external-protocol
-	 * entry points (MCP) that don't have a caller seqPath to thread. See
-	 * `syntheticSeqPath(hostId, adHocSeq)` in host-id.ts, synthetic paths
-	 * are [hostId, SYNTHETIC_FEATURE_NUM, adHocSeq] so they sort distinctly
-	 * from any feature path. Internal dispatches (RPC, MCP) now
-	 * require the caller's seqPath instead of producing a synthetic.
+	 * Monotonic counter for synthetic seqPaths. `allocateSyntheticSeqPath` in host-id.ts
+	 * increments it for a call that doesn't carry a caller seqPath: an MCP tool call, an
+	 * RPC without a seqPath, a step called by name, and an urakata registration.
+	 * A synthetic path is [hostId, SYNTHETIC_FEATURE_NUM, adHocSeq], so it sorts apart from
+	 * every feature path.
 	 */
 	adHocSeq?: number;
 	[name: string]: TAnyFixme;
 };
 
-/** The steppers the run executes with. The Executor sets them before a step runs. */
+/** Returns the steppers that execute actuality's steps. The Executor sets them before a step runs. */
 export function runSteppers(world: TWorld): AStepper[] {
-	if (!world.runtime.steppers) throw new Error("world.runtime.steppers is unset: the Executor sets it before a step runs");
+	if (!world.runtime.steppers) throw new Error("world.runtime.steppers is unset. The Executor sets it when it starts executing features, so call runSteppers after that.");
 	return world.runtime.steppers;
 }
 
-/** The environment variables the run declares. A run that doesn't declare one doesn't have one. */
+/** Returns the environment variables actuality declares, or an empty record where it doesn't declare any. */
 export function runEnvVariables(world: TWorld): TEnvVariables {
 	return world.options.envVariables ?? {};
 }
 
-/** A run's base options, as the environment states them. Strict, so an option the cli declares and this doesn't is refused
- *  rather than dropped. */
+/** Actuality's base options from the environment. The schema is strict, so it rejects an option the cli declares and this
+ *  schema doesn't, rather than dropping it. */
 export const BaseOptionsSchema = z.strictObject({
 	DEST: z.string(),
 	KEY: z.string().optional(),

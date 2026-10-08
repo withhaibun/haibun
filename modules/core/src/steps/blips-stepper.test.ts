@@ -17,7 +17,7 @@ import { itemAt } from "../lib/util/item-at.js";
 const SCROLL = {
 	name: "haibun.test.view.scroll_adjust",
 	instrument: "span-event" as const,
-	description: "A view moved by itself.",
+	description: "A view adjusted its scroll position without input.",
 	unit: "px",
 	attributes: z.object({ view: z.string() }),
 };
@@ -53,7 +53,7 @@ describe("a watch: which occurrences, in what order", () => {
 		expect(blipWatch.occurrences().map((b) => b.name)).toEqual([REQUEST.name]);
 	});
 
-	it("keeps the most recent window and counts what fell out, so a truncation never reads as the whole", () => {
+	it("keeps the most recent window, counts the occurrences it dropped, and marks the rendered window as truncated", () => {
 		declareBlips(REQUEST);
 		const { world, eventLogger } = make();
 		blipWatch.start(eventLogger, [REQUEST.name]);
@@ -62,13 +62,13 @@ describe("a watch: which occurrences, in what order", () => {
 		const held = blipWatch.occurrences();
 		expect(held).toHaveLength(WATCH_WINDOW);
 		expect(blipWatch.seen).toBe(over);
-		// Oldest first, and the oldest kept is the one just past what the window dropped.
+		// Occurrences are oldest first. The oldest held occurrence follows the last one the window dropped.
 		expect(itemAt(held, 0).value).toBe(over - WATCH_WINDOW);
 		expect(itemAt(held, held.length - 1).value).toBe(over - 1);
 		expect(renderWatch(held, blipWatch.seen, blipWatch.totals())).toContain(`showing the most recent ${WATCH_WINDOW}`);
 	});
 
-	it("carries the step each occurrence happened under, which is what ties it back to actuality", () => {
+	it("carries the running step's seqPath with each occurrence, so the occurrence links to actuality's step", () => {
 		declareBlips(SCROLL);
 		const { world, eventLogger } = make();
 		blipWatch.start(eventLogger, [SCROLL.name]);
@@ -76,7 +76,7 @@ describe("a watch: which occurrences, in what order", () => {
 		expect(renderWatch(blipWatch.occurrences(), blipWatch.seen, blipWatch.totals())).toContain("step=0.2.3");
 	});
 
-	it("stops collecting when stopped, and restores the no-subscriber fast path", () => {
+	it("stops collecting when stopped, and removes its subscription, so recordBlip returns after one check", () => {
 		declareBlips(SCROLL);
 		const { world, eventLogger } = make();
 		blipWatch.start(eventLogger, [SCROLL.name]);
@@ -87,7 +87,7 @@ describe("a watch: which occurrences, in what order", () => {
 		expect(blipWatch.occurrences().map((b) => b.value)).toEqual([1]);
 	});
 
-	it("starts a fresh window on a new watch, rather than mixing two questions", () => {
+	it("starts an empty window on a new watch, so two watches don't mix their occurrences", () => {
 		declareBlips(SCROLL);
 		const { world, eventLogger } = make();
 		blipWatch.start(eventLogger, [SCROLL.name]);
@@ -99,7 +99,7 @@ describe("a watch: which occurrences, in what order", () => {
 		expect(blipWatch.occurrences().map((b) => b.value)).toEqual([2]);
 	});
 
-	it("reports so plainly when the watch didn't record an occurrence", () => {
+	it("renders that the watch didn't record an occurrence", () => {
 		expect(renderWatch([], 0, [])).toMatch(/didn't record an occurrence/);
 	});
 
@@ -115,7 +115,9 @@ describe("a watch: which occurrences, in what order", () => {
 			{ name: MEASURED.name, labels: { view: "b" }, count: 1, sum: 7, max: 7 },
 		]);
 		const text = renderWatch(blipWatch.occurrences(), blipWatch.seen, blipWatch.totals());
-		expect(text, "the window dropped one of view a, and its total did not").toContain(`${MEASURED.name} view=a: ${WATCH_WINDOW}, ${2 * WATCH_WINDOW} px in all, largest 2 px`);
+		expect(text, "the window dropped an occurrence of view a, and the total for view a counts it").toContain(
+			`${MEASURED.name} view=a: ${WATCH_WINDOW}, ${2 * WATCH_WINDOW} px in all, largest 2 px`,
+		);
 		expect(text).toContain(`${MEASURED.name} view=b: 1, 7 px in all, largest 7 px`);
 	});
 
@@ -129,7 +131,7 @@ describe("a watch: which occurrences, in what order", () => {
 	});
 });
 
-/** A stepper that records occurrences on demand, standing in for a real emitter so the run-facing path can be tested whole. */
+/** A stepper whose `view scrolls` step records a scroll occurrence. These tests use it in place of a real emitter. */
 class Emitter extends AStepper {
 	description = "Records a scroll blip.";
 	steps = {
@@ -146,12 +148,12 @@ class Emitter extends AStepper {
 
 const STEPPERS = [Haibun, BlipsStepper, LogicStepper, VariablesStepper, Emitter];
 
-describe("the run-facing path: ask to watch, do the work, read what arrived", () => {
+describe("the feature steps: watch blips, record occurrences, and read the watch", () => {
 	beforeEach(() => {
 		blipWatch.stop();
 	});
 
-	it("watches a name, then reports the occurrences in order with the step each happened under", async () => {
+	it("watches a name, then returns each occurrence in order with its step", async () => {
 		const feature = {
 			path: "/features/test.feature",
 			content: `view scrolls 0
@@ -163,12 +165,12 @@ some occurrence observed in watched blips is "variable occurrence/value is 7"
 set held from show watched blips
 variable held.seen is "2"`,
 		};
-		// The first scroll happens before the watch and must not be held; the two after it must, in order.
+		// The watch doesn't hold the first scroll, which happens before the watch starts. The watch holds the next two scrolls in order.
 		const result = await passWithDefaults([feature], STEPPERS);
 		expect(result.ok).toBe(true);
 	});
 
-	it("refuses to watch a name that isn't declared, rather than reporting an empty window as an answer", async () => {
+	it("refuses to watch a name that isn't declared, and doesn't return an empty window for it", async () => {
 		const feature = { path: "/features/test.feature", content: `watch blips "haibun.test.nothing.declares.this"` };
 		const result = await failWithDefaults([feature], STEPPERS);
 		expect(result.ok).toBe(false);
@@ -189,7 +191,7 @@ variable held.seen is "1"`,
 		expect(result.ok).toBe(true);
 	});
 
-	it("lists what a run can record, so what is to watch can be discovered rather than guessed", async () => {
+	it("lists the blips actuality can record, so a feature can find a name to watch", async () => {
 		const feature = {
 			path: "/features/test.feature",
 			content: `view scrolls 1

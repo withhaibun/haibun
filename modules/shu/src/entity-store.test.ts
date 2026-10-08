@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 /**
- * The entity store's resolution ladder and freshness, driven through the real interfaces: the conduit dispatch answers the
- * `getIndividualWithEdges` and `annotations` steps, and emitted events drive the live-quad path.
+ * Tests the entity store's resolution order and freshness through the real interfaces. The conduit dispatch returns the
+ * results of the `getIndividualWithEdges` and `annotations` steps. Emitted events drive the live-quad path.
  *
- * The `offline` provenance (a copy served from the persisted browser store when the fetch cannot reach the server) is
- * not reachable here: jsdom doesn't ship IndexedDB, so the store reads as empty and resolution lands on `error` instead.
- * That branch is exercised by the e2e suites against a real browser, as with the rest of the IndexedDB surface.
+ * `setupShuTest` hydrates a served page through `serveThePage`. `isOffline` then returns false, so these tests don't reach
+ * the `offline` provenance. That provenance applies to a page that carries its own actuality record. The e2e suites
+ * exercise that branch against a real browser.
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { openEntity, refreshAnnotations, getEntityView, subscribeEntities } from "./entity-store.js";
@@ -29,7 +29,7 @@ const quadEvent = (namedGraph: string, subject: string, predicate: string, objec
 		json: { quadObservation: { subject, predicate, object, namedGraph, ...(objectType ? { objectType } : {}), timestamp: 1 } },
 	}) as unknown as TEvent;
 
-/** A dispatch over the two steps the store calls, counting them and letting a test script per-call answers. */
+/** Returns a dispatch for the two steps the store calls. It counts each call. A test can supply each step's result. */
 function stubDispatch(over: { entity?: () => unknown; annotations?: () => unknown } = {}) {
 	const calls = { entity: 0, annotations: 0 };
 	const dispatch = makeEntityDispatch({
@@ -55,7 +55,7 @@ describe("entity-store resolution", () => {
 		expect(getEntityView("Email", "e1")).toEqual({ status: "loading", annotations: [], bodies: {} });
 	});
 
-	it("serves a fetched individual and the annotations anchored in it, marked as resolved live", async () => {
+	it("serves a fetched individual and its anchored annotations with `live` provenance", async () => {
 		const { dispatch } = stubDispatch({ annotations: () => ({ annotations: [note("c1", "first note")] }) });
 		handle = setupShuTest({ dispatch });
 		await openEntity("Email", "e1", "private");
@@ -66,7 +66,7 @@ describe("entity-store resolution", () => {
 		expect(view.annotations.map((a) => a.body)).toEqual(["first note"]);
 	});
 
-	it("serves an already-resolved individual from the session copy, without refetching it", async () => {
+	it("serves an already-resolved individual from the session copy without refetching it", async () => {
 		const { dispatch, calls } = stubDispatch();
 		handle = setupShuTest({ dispatch });
 		await openEntity("Email", "e1", "private");
@@ -76,7 +76,7 @@ describe("entity-store resolution", () => {
 		expect(getEntityView("Email", "e1").provenance).toBe("cache");
 	});
 
-	it("reports the server's error when the individual cannot be fetched and a stored copy doesn't answer", async () => {
+	it("reports the server's error when the server rejects the read of the individual", async () => {
 		const { dispatch } = stubDispatch({
 			entity: () => {
 				throw new Error("Issuer not found: did:example:pookie");
@@ -125,7 +125,7 @@ describe("entity-store annotations", () => {
 		expect(getEntityView("Email", "e1").annotations.map((a) => a.body)).toEqual(["written elsewhere"]);
 	});
 
-	it("keeps the annotations it holds when a re-resolve cannot reach the server, rather than reporting an empty list", async () => {
+	it("keeps the annotations it holds when a re-resolve fails rather than reporting an empty list", async () => {
 		let round = 0;
 		const { dispatch } = stubDispatch({
 			annotations: () => {
@@ -141,7 +141,7 @@ describe("entity-store annotations", () => {
 		expect(getEntityView("Email", "e1").annotations.map((a) => a.body)).toEqual(["first note"]);
 	});
 
-	it("doesn't read annotations for an individual that has not resolved: the store doesn't hold a record to anchor against", async () => {
+	it("doesn't read annotations for an individual that hasn't resolved, since the store doesn't hold its record", async () => {
 		const { dispatch, calls } = stubDispatch();
 		handle = setupShuTest({ dispatch });
 		await refreshAnnotations("Email", "never-opened");
@@ -154,7 +154,7 @@ describe("entity-store freshness", () => {
 	afterEach(() => handle.teardown());
 	beforeEach(endPage);
 
-	it("applies a live property change in place, and notifies without a refetch", async () => {
+	it("applies a live property change in place and notifies without a refetch", async () => {
 		const { dispatch, calls } = stubDispatch();
 		handle = setupShuTest({ dispatch });
 		await openEntity("Email", "e1", "private");
@@ -168,7 +168,7 @@ describe("entity-store freshness", () => {
 		expect(calls.entity).toBe(1);
 	});
 
-	it("leaves edge quads to a full reopen, not merged as a field", async () => {
+	it("leaves an edge quad to a full reopen rather than merging it as a field", async () => {
 		const { dispatch } = stubDispatch();
 		handle = setupShuTest({ dispatch });
 		await openEntity("Email", "e1", "private");
@@ -177,7 +177,7 @@ describe("entity-store freshness", () => {
 		expect(getEntityView("Email", "e1").entity?.vertex.inReplyTo).toBeUndefined();
 	});
 
-	it("leaves an unheld individual unfetched when a live change names it", async () => {
+	it("doesn't fetch an individual the store doesn't hold when a live change names it", async () => {
 		const { dispatch } = stubDispatch();
 		handle = setupShuTest({ dispatch });
 		await openEntity("Email", "e1", "private");

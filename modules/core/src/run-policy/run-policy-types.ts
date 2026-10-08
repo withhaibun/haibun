@@ -8,19 +8,19 @@ import { itemAt } from "../lib/util/item-at.js";
 /** CLI option name for run-policy */
 export const OPTION_RUN_POLICY = "--run-policy";
 
-/** CLI option for dry-run mode (preview which features pass/fail actuality policy) */
+/** CLI option that lists the features that a run policy and a feature filter select. The process then exits without executing them. */
 export const OPTION_DRY_RUN = "--dry-run";
 
-/** Environment variable for run-policy (format: "place dir:access[,dir:access]") */
+/** Environment variable that holds a run policy as "place dir:access[,dir:access]" */
 export const HAIBUN_RUN_POLICY = "HAIBUN_RUN_POLICY";
 
-/** What a run may do to the place it runs against, forming a strict hierarchy: read ⊂ act ⊂ write. Named apart from
- *  the storage access levels (`private`/`public`/`opened`), which decide who may see a record: one name meant both,
- *  and a call site reading the wrong one type-checked. */
+/** Run access levels name the operations a feature may perform on the place that a run targets. They form a strict hierarchy: read ⊂ act ⊂ write.
+ *  They are distinct from the storage access levels (`private`/`public`/`opened`). A storage access level determines who may read a record.
+ *  The name RUN_ACCESS_LEVELS differs from the storage names `AccessLevel` and `Access`, so each import names the kind of level it reads. */
 export const RUN_ACCESS_LEVELS = ["r", "a", "w"] as const;
 
 // ============================================================================
-// Zod Schemas, types are inferred, parsing via transforms
+// Zod schemas: transforms parse the input strings
 // ============================================================================
 
 // Basic types
@@ -38,7 +38,10 @@ const DirFilterSchema = z
 	.transform((val, ctx) => {
 		const parts = val.split(":");
 		if (parts.length !== 2) {
-			ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Invalid filter format "${val}". Expected "dir:access"` });
+			ctx.addIssue({
+				code: z.ZodIssueCode.custom,
+				message: `Dir filter "${val}" doesn't have the form "dir:access". Write a directory, a colon and an access level, such as "smoke:r".`,
+			});
 			return z.NEVER;
 		}
 		return { dir: parts[0], access: parts[1] };
@@ -62,7 +65,7 @@ const RunPolicyConfigSchema = z
 	});
 
 // ============================================================================
-// Parsing: thin wrappers delegating to Zod
+// Parsing: functions that call the Zod schemas
 // ============================================================================
 
 /** Parse --run-policy arguments: place dir:access[,dir:access] */
@@ -72,7 +75,7 @@ export function parseRunPolicyArgs(place: string, dirAccessStr: string): TRunPol
 	} catch (e) {
 		if (e instanceof z.ZodError) {
 			const detail = e.issues.map((i) => `  • ${i.path.join(".")}: ${i.message}`).join("\n");
-			throw new Error(`Run policy configuration failed:\n${detail}`);
+			throw new Error(`Run policy parsing failed:\n${detail}\nWrite a run policy as "place dir:access[,dir:access]", such as "prod smoke:r".`);
 		}
 		throw e;
 	}
@@ -82,13 +85,15 @@ export function parseRunPolicyArgs(place: string, dirAccessStr: string): TRunPol
 export function parseRunPolicyEnv(envVar: string): TRunPolicyConfig {
 	const parts = envVar.trim().split(/\s+/);
 	if (parts.length !== 2) {
-		throw new Error(`Invalid format. Expected "place dir:access"`);
+		throw new Error(
+			`HAIBUN_RUN_POLICY doesn't have the form "place dir:access[,dir:access]". Write the place and the dir filters with a space between them, such as "prod smoke:r".`,
+		);
 	}
 	return parseRunPolicyArgs(itemAt(parts, 0), itemAt(parts, 1));
 }
 
 // ============================================================================
-// Access Level Logic, minimal procedural (pure domain logic)
+// Run access levels: comparison and feature filename prefixes
 // ============================================================================
 
 /** Numeric rank for hierarchy comparison: r=0, a=1, w=2 */
@@ -108,12 +113,14 @@ export function getFeatureAccessPrefix(filename: string): TRunAccess | undefined
 }
 
 // ============================================================================
-// Feature Matching, runtime matching (must be procedural)
+// Feature matching against dir filters
 // ============================================================================
 
 /**
- * Determine if a feature file should run given the active dir filters.
- * Exclusive: only features with a recognized prefix in a listed directory pass.
+ * Returns whether the dir filters select the feature file.
+ * A selected filename starts with a run access prefix: `r_`, `a_` or `w_`.
+ * The filter for the feature's top-level directory applies. The `*` filter applies when the dir filters don't list that directory.
+ * The applied filter grants the prefix's access level or a higher one.
  */
 export function featureMatchesFilter(featurePath: string, dirFilters: TDirFilter[]): boolean {
 	const parts = featurePath.replace(/^\//, "").split("/");

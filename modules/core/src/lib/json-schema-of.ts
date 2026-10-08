@@ -1,13 +1,13 @@
 /**
- * One memo for turning a Zod schema into JSON Schema.
+ * The memo for converting a Zod schema to JSON Schema.
  *
- * A conversion walks the whole schema and allocates as it goes, and the same schemas are converted again on every
- * registry build: registering a run's steppers converts every typed parameter's domain, and the walk allocates as it
- * goes. A schema is a module-level constant and a conversion of one is a function of the schema, so it is computed
- * once per process and read back after.
+ * A conversion walks the whole schema and allocates objects during the walk. Every registry build converts the same schemas again,
+ * since registering steppers converts the domain of every typed parameter. A schema is a module-level constant, and its
+ * conversion depends only on the schema. The memo computes each conversion once per process and returns the held
+ * result after that.
  *
- * A caller names its conversion, since one schema converts differently for what a caller must supply than for what a
- * step answers with. A conversion that throws isn't held, so the next caller is told the same thing.
+ * A caller names its conversion, because one schema converts differently for a caller's input than for a step's
+ * output. The memo doesn't hold a conversion that throws, so the next caller receives the same error.
  */
 import { z } from "zod";
 import { zodTypeLabel } from "./composite-domain.js";
@@ -28,8 +28,9 @@ export function jsonSchemaOf(schema: z.ZodType, conversion: string, convert: () 
 }
 
 /**
- * A schema as JSON Schema, for discovery, MCP and forms: what a caller supplies, or what a step answers. A date is an ISO
- * date-time string, and a type without a JSON Schema form is refused at registration, naming `subject`, what declares it.
+ * Returns a schema as JSON Schema for discovery, MCP and forms. `io` selects the input a caller supplies or the output a
+ * step returns. A date converts to an ISO date-time string. A field type without a JSON Schema form throws an error at
+ * registration, and the error message names `subject` as the field's declaration.
  */
 export function jsonSchemaFor(subject: string, schema: z.ZodType, io: "input" | "output"): Record<string, unknown> {
 	return jsonSchemaOf(schema, io, () =>
@@ -44,13 +45,13 @@ export function jsonSchemaFor(subject: string, schema: z.ZodType, io: "input" | 
 					return;
 				}
 				if (nodeType && UNREPRESENTABLE_ZOD_TYPES.has(nodeType)) {
-					throw new Error(`${subject} declares a "${nodeType}" field, which doesn't have a JSON Schema form; declare a representable type`);
+					throw new Error(`${subject} declares a "${nodeType}" field. JSON Schema doesn't represent that type; declare the field with a type that JSON Schema represents`);
 				}
 			},
 		}),
 	);
 }
 
-/** Zod types without a JSON Schema representation (dates excepted: they surface as string/date-time). A domain
- * declaring one of these doesn't have a form or a client-side validation surface, so registration throws. */
+/** Zod types without a JSON Schema representation. A date isn't listed, since it converts to a date-time string. A
+ * domain that declares one of these types can't have a form or client-side validation, so registration throws. */
 const UNREPRESENTABLE_ZOD_TYPES = new Set(["bigint", "symbol", "undefined", "void", "never", "function", "map", "set", "promise", "custom", "file"]);

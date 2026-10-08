@@ -1,7 +1,8 @@
 /**
- * SessionAuthority: actuality's one capability authority. It holds what a consumer registers for the specification its
- * deployment uses: a verifier for evidence presented to this run, and an invoker for authority this run presents
- * elsewhere. haibun-core stays crypto-free, so it doesn't read a proof or sign a request itself.
+ * SessionAuthority is actuality's one capability authority. It holds the verifier and the invoker that a consumer
+ * registers for the specification its deployment uses. The verifier verifies evidence presented to actuality. The
+ * invoker signs each request in which actuality presents its authority to another host. haibun-core doesn't contain
+ * cryptography, so it doesn't read a proof or sign a request itself.
  */
 import type { TRuntime } from "./world.js";
 import { actingFor, runReadingAsTheInstance } from "./capability-context.js";
@@ -22,13 +23,13 @@ import type {
 
 export const AUTHORITY_KEY = "authority";
 
-/** The longest delay a timer takes; a longer one fires at once. */
+/** The longest delay setTimeout accepts. A longer delay fires at once. */
 const LONGEST_TIMER_MS = 2 ** 31 - 1;
 
 export class SessionAuthority implements IAuthority {
 	private verifier?: IAuthorityVerifier;
 	private invoker?: IAuthorityInvoker;
-	/** The held calls resting on each capability, by its id. */
+	/** The held calls that rest on each capability, keyed by the capability's id. */
 	private held = new Map<string, Set<AbortController>>();
 
 	registerVerifier(verifier: IAuthorityVerifier): void {
@@ -40,7 +41,7 @@ export class SessionAuthority implements IAuthority {
 	}
 
 	delegationsTo(controller: string): Promise<TDelegations> {
-		// Where a verifier isn't registered to verify a delegation, this process didn't delegate through one.
+		// The list of delegations is empty where a verifier isn't registered, since this process doesn't delegate without one.
 		const verifier = this.verifier;
 		return verifier ? runReadingAsTheInstance(() => verifier.delegationsTo(controller)) : Promise.resolve({ delegations: [] });
 	}
@@ -56,8 +57,8 @@ export class SessionAuthority implements IAuthority {
 
 	verifyEvidence(evidence: TAuthorityEvidence): Promise<TVerdict> {
 		const verifier = this.verifier;
-		if (!verifier) return Promise.resolve({ ok: false, error: "a verifier isn't registered to decide this evidence" });
-		// A chain is checked against the instance's own records, whatever the call presenting it may read.
+		if (!verifier) return Promise.resolve({ ok: false, error: "a verifier isn't registered to verify this evidence" });
+		// The verifier checks a chain against the instance's records without the read ceiling of the presenting call.
 		return runReadingAsTheInstance(() => verifier.verify(evidence));
 	}
 
@@ -69,8 +70,8 @@ export class SessionAuthority implements IAuthority {
 		return this.act((verifier, by) => verifier.revoke(capabilityId, by));
 	}
 
-	/** An act of the authority for the call in progress, decided against the instance's own records whatever the call may
-	 *  read. */
+	/** Runs an act of the authority for the principal that `actingFor` returns. The act reads the instance's records
+	 *  without the read ceiling of the call. */
 	private act(done: (verifier: IAuthorityVerifier, by: TActingFor) => Promise<TAuthorityAct>): Promise<TAuthorityAct> {
 		const verifier = this.verifier;
 		if (!verifier) return Promise.resolve({ ok: false, error: "a verifier isn't registered to record or revoke a delegation" });
@@ -92,7 +93,7 @@ export class SessionAuthority implements IAuthority {
 		for (const id of capabilities) this.held.set(id, (this.held.get(id) ?? new Set()).add(call));
 		let timer: ReturnType<typeof setTimeout> | undefined;
 		const until = expires === undefined ? undefined : Date.parse(expires);
-		if (Number.isNaN(until)) throw new Error(`a held call rests on authority whose expiry, ${expires}, is not a time`);
+		if (Number.isNaN(until)) throw new Error(`a held call rests on authority with an expiry that isn't a time: ${expires}`);
 		const expiring = () => {
 			const left = (until as number) - Date.now();
 			if (left <= 0) call.abort(`the authority it rests on expired at ${expires}`);
@@ -121,15 +122,16 @@ export function getAuthority(runtime: TRuntime): IAuthority | undefined {
 	return runtime.keys?.[AUTHORITY_KEY] as IAuthority | undefined;
 }
 
-/** The run's authority, which `need` requires. A run that doesn't hold one is refused, naming what required it. */
+/** Returns actuality's authority. Throws where actuality doesn't hold one, and the error names `need` as the operation
+ *  that requires it. */
 export function heldAuthority(runtime: TRuntime, need: string): IAuthority {
 	const authority = getAuthority(runtime);
 	if (!authority) throw new Error(`actuality doesn't hold an authority, which ${need} requires`);
 	return authority;
 }
 
-/** How a client in this process signs what it invokes elsewhere: through whatever invoker actuality's authority holds when
- *  the call is made, so a client made before the invoker was registered still signs with it. */
+/** Returns the signer a client in this process uses for its requests to other hosts. The signer reads actuality's
+ *  authority at each call, so a client created before the invoker's registration still signs with that invoker. */
 export function requestSigner(runtime: TRuntime): TRequestSigner {
 	return (request, action) => heldAuthority(runtime, `invoking ${action} at ${request.url}`).signRequest(request, action);
 }

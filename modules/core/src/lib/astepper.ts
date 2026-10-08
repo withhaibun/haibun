@@ -20,7 +20,7 @@ export const StepperKinds = {
 type TStepperKind = keyof typeof StepperKinds;
 
 export abstract class AStepper {
-	/** What the stepper's steps do, as a caller discovering actuality reads it beside the stepper's name. */
+	/** What the stepper's steps do. A caller that discovers actuality's steppers reads it beside the stepper's name. */
 	abstract description: string;
 	world?: TWorld;
 	kind?: TStepperKind;
@@ -32,37 +32,37 @@ export abstract class AStepper {
 	abstract steps: TStepperSteps;
 	getWorld() {
 		if (!this.world) {
-			throw Error(`stepper without world ${constructorName(this)}`);
+			throw Error(`${constructorName(this)} doesn't have a world. Call setWorld before getWorld.`);
 		}
 
 		return this.world;
 	}
 
-	/** A value this stepper makes when its world is set, such as a runner or the storage an option names. Reading it
-	 *  before then is a fault. */
+	/** Returns `value`, or throws where it is undefined. This stepper creates the value when setWorld runs. A flow runner
+	 *  and the storage an option names are such values. */
 	madeWithWorld<T>(value: T | undefined, what: string): T {
-		if (value === undefined) throw new Error(`${constructorName(this)} reads its ${what} once its world is set, and it isn't set`);
+		if (value === undefined) throw new Error(`${constructorName(this)} creates its ${what} when setWorld runs, and setWorld hasn't run. Read the value after setWorld.`);
 		return value;
 	}
 
 	/**
-	 * Called by Resolver before resolving each feature.
-	 * Steppers can override to clear feature-scoped steps that shouldn't leak between features.
+	 * The Resolver calls this before it resolves each feature. A stepper implements it to clear feature-scoped steps, so a
+	 * step that one feature defines doesn't resolve in the next feature.
 	 */
 	startFeatureResolution?(_path: string): void;
 }
 
 export type TStepperSteps = { [key: string]: TStepperStep };
 
-/** One stepper option declaration: the small, non-tunable shape every stepper has used. */
+/** One stepper option declaration. Every stepper declares its options in this shape. */
 export type TStepperOption = {
 	required?: boolean;
 	altSource?: string;
 	default?: string;
 	/**
-	 * Set when the option belongs to one process rather than to a run: a port it listens on, an identity it takes.
-	 * A process that starts another does not pass these on, since the child would then take what the parent holds.
-	 * The option declares it, so other code doesn't have to name the option to read it.
+	 * Set where each process takes its own value of the option. A listening port and an identity are such options. A
+	 * process that starts another doesn't pass these options to the child, since the child would then take what the parent
+	 * holds. The option declares this, so other code reads it without naming the option.
 	 */
 	perProcess?: boolean;
 	desc: string;
@@ -95,19 +95,18 @@ export type TFeatureStep = {
 	action: TStepAction;
 	source?: TSourceLocation["source"];
 	isSubStep?: boolean;
-	/** True if this step was triggered by an afterEvery hook (prevents recursive afterEvery) */
+	/** True where an afterEvery hook triggered this step. It prevents a recursive afterEvery. */
 	isAfterEveryStep?: boolean;
 	intent?: ExecutionIntent;
-	/** Runtime args for variable binding in nested quantifier calls */
+	/** Runtime args for variable binding in nested quantifier calls. */
 	runtimeArgs?: Record<string, string>;
 	/**
-	 * Routing hint: when set, dispatch resolves the tool via the
-	 * hostId-prefixed registry key (`${targetHostId}:${method}`): the
-	 * step runs against that remote host. Set by composition verbs like
-	 * `on host {hostId} {statement}` in haibun.ts.
+	 * A routing hint. Dispatch resolves the tool of a step that sets it by the hostId-prefixed registry key
+	 * `${targetHostId}:${method}`, and the step runs against that remote host. The composition step
+	 * `on host {hostId}, {statement}` in haibun.ts sets it.
 	 */
 	targetHostId?: number;
-	/** True for dispatches that did not run a feature for a human, RPC and MCP. Lifecycle hooks that would otherwise call `world.prompter.prompt()` skip when this is set. */
+	/** True for a dispatch that doesn't run a feature for a person. `buildFeatureStepForTransport` sets it for an RPC or MCP call. A lifecycle hook that would call `world.prompter.prompt()` skips the prompt where this is set. */
 	programmatic?: boolean;
 };
 
@@ -124,82 +123,89 @@ type TStepperStepBase = {
 	precludes?: string[];
 	unique?: boolean;
 	fallback?: boolean;
-	/** A step that reads actuality's records and doesn't change one. Invoked from outside actuality, through
-	 *  a call into a running instance, it is answered and not recorded: it doesn't leave a step record, an announcement, a usage
-	 *  count or a kept result. Reading a run is not an act of the run, and an instance read for a year is not made to
-	 *  write a year of records of being read. From within a feature it is a step like any other. */
+	/** A step that reads actuality's records and doesn't change one. A call into a running instance from outside actuality
+	 *  runs it and doesn't record it: it doesn't leave a step record, an announcement, a usage count or a kept result.
+	 *  Reading actuality isn't a step of actuality, so an instance read for a year doesn't write a year of records of those
+	 *  reads. A feature runs it as it runs any other step. */
 	read?: boolean;
-	/** The action a caller must hold to run this step, where it is not the step's own: a group of steps declares one
-	 *  action so a delegation can name them together. A step that doesn't declare one requires `Read:public` if it declares
-	 *  itself a read, and otherwise its own name (actions.ts). */
+	/** The action a caller must hold to run this step, where it differs from the step's own name. A group of steps declares
+	 *  one action, so a delegation can name them together. A read step that doesn't declare one requires a read at its
+	 *  `readsAt` level, or `Read:private` where it doesn't state one. Any other step that doesn't declare one requires its
+	 *  own name (`requiredAction` in actions.ts). */
 	capability?: string;
-	/** The level of what the step reads, where it reads more than records the caller's read bounds: a step reading a
-	 *  person's own page reads at private. A caller whose read is narrower is refused the step. */
+	/** The level of the content the step reads, for a step that reads more than the records the caller's read level
+	 *  bounds. A step that reads a person's own page reads at private. A gate refuses the step to a caller whose read level
+	 *  is narrower. */
 	readsAt?: AccessLevel;
-	/** A step whose result answers the turn that called it, so that turn ends with it rather than asking its model
-	 *  again. A caller reads this from the step's definition, so which steps end a turn is known without running one. */
+	/** A step whose result is the response of the turn that called it. That turn ends with the result and doesn't send its
+	 *  model another request. A caller reads this flag from the step's definition, so it determines which steps end a turn
+	 *  without running one. */
 	answersTheTurn?: boolean;
-	/** The read, a step of the same stepper, that answers a caller who reads what this step changed: a model's tool call is
-	 *  answered with it once the step passes, so it doesn't make that read next. */
+	/** The read step that returns what this step changed. It is a step of the same stepper. A model's tool call returns that
+	 *  read's result after this step runs, so the model doesn't request the read next. `answeredFor` in call-step.ts states
+	 *  how a failed step combines with the read. */
 	answeredBy?: string;
-	/** Offer this step to a model before it discovers anything. A model is offered a small set at first, so that a
-	 *  request doesn't carry the whole manifest; a step marked here joins that set, because the question it answers is one
-	 *  an operator can open with. Reserve it for steps that are the only way to do what they do. A predicate reports
-	 *  whether there is anything for it to answer right now: a step offered when it can only refuse is among the few a
-	 *  model can see, so it is what the model reaches for, and the turn goes on refusing. */
+	/** Offers this step to a model before the model requests discovery. A request to a model lists a small set of steps
+	 *  first, so it doesn't carry the whole manifest. A step marked here is in that set, because it serves a request that can
+	 *  open a conversation. Mark only a step that is the only way to perform its operation. A predicate returns whether
+	 *  the step has work to do at that moment. A step offered where it can only refuse is one of the few
+	 *  steps a model reads, so the model calls it and the turn keeps receiving refusals. */
 	offeredBeforeDiscovery?: boolean | (() => boolean);
 	virtual?: boolean;
-	/** For dynamically generated steps (like waypoints): source location metadata */
+	/** Source location metadata for a generated step, such as a waypoint. */
 	source?: { path: string; lineNumber?: number };
 	match?: RegExp;
 	gwta?: string;
 	exact?: string;
-	/** A prose line resolves to this step, which doesn't declare a pattern: a line written as a sentence, or a line that starts
-	 *  with a character other than a letter and that the steps' patterns don't match (Resolver.findSingleStepAction). */
+	/** A prose line resolves to this step. The step doesn't declare a pattern. A line is prose where a step's pattern
+	 *  doesn't match it and the line is a sentence or starts with a character other than a letter
+	 *  (Resolver.findSingleStepAction). */
 	prose?: boolean;
 	resolveFeatureLine?(line: string, path: string, stepper: AStepper, backgrounds: TFeatures, allLines?: string[], lineIndex?: number, actualSourcePath?: string): boolean | void;
 	/**
-	 * Single-product postcondition. The step's action must return products matching
-	 * the named domain's schema. The dispatcher auto-asserts the product as a typed
-	 * fact, registers a producer edge in the resolver graph, and exposes the JSON
-	 * Schema for discovery. A step that returns products names their domain here or in
-	 * `productsDomains`, and dispatch refuses products whose domain it doesn't name.
+	 * Single-product postcondition. The step's action must return products that match the named domain's schema. The
+	 * dispatcher asserts the product as a typed fact, registers a producer edge in the resolver graph, and exposes the
+	 * JSON Schema for discovery. A step that returns products names their domain here or in `productsDomains`, and
+	 * dispatch refuses products whose domain the step doesn't name.
 	 */
 	productsDomain?: string;
 	/**
-	 * Multi-product postconditions, keyed by product field. Each field's value must
-	 * match its declared domain's schema. The dispatcher auto-asserts each as a typed
-	 * fact and registers producer edges per field. Mutually exclusive with `productsDomain`.
+	 * Multi-product postconditions, keyed by product field. Each field's value must match its declared domain's schema.
+	 * The dispatcher asserts each as a typed fact and registers a producer edge per field. Mutually exclusive with
+	 * `productsDomain`.
 	 */
 	productsDomains?: Record<string, string>;
 	/**
-	 * The statement parameter whose products the step answers with, for a step that runs a statement and passes on what
-	 * it answered. Their domain is the one that statement's last step names, as each line resolves it, so the step doesn't name
-	 * one of its own. Mutually exclusive with `productsDomain` and `productsDomains`.
+	 * The statement parameter whose products the step returns, for a step that runs a statement and returns that
+	 * statement's products. Each line resolves its statement, and the products take the domain that the statement's last
+	 * step names. The step doesn't name a domain of its own. Mutually exclusive with `productsDomain` and `productsDomains`.
 	 */
 	productsOf?: string;
 	/**
-	 * Each parameter naming a record by its id (`record-id`), with the parameter naming the record's type
-	 * (`persisted-type` or `domain-key`): `{ id: "label" }` for `get {label} {id}`. A step taking two records names both.
+	 * Maps each parameter that names a record by its id (`record-id`) to the parameter that names the record's type
+	 * (`persisted-type` or `domain-key`). `get {label} {id}` declares `{ id: "label" }`. A step that takes two records
+	 * names both.
 	 */
 	recordIds?: Record<string, string>;
 	/**
-	 * Each parameter taking the fields of a record, with the parameter naming the record's type: `{ data: "label" }` for
-	 * `create {label} {data}`. The fields are those the named type's schema states, so a form asks for them.
+	 * Maps each parameter that takes a record's fields to the parameter that names the record's type.
+	 * `create {label} {data}` declares `{ data: "label" }`. The fields are those the named type's schema states, so a
+	 * form renders an input for each field.
 	 */
 	recordData?: Record<string, string>;
 	/**
-	 * Which of the step's products are kept on its lifecycle event. Default (absent/true): all. `false`: the event doesn't keep them, for a step
-	 * whose products are bulk payload consumed via the action result or a separate fetch (a query's rows, a captured page's
-	 * HTML), which would otherwise bloat the in-memory event stream. A function: the subset it returns, for a product that
-	 * mixes a small render descriptor (keep, so a view re-mounts on replay) with bulk payload (drop, retrieved live via the
-	 * reference); return undefined so the event doesn't keep one.
+	 * Which of the step's products its lifecycle event keeps. Absent or true keeps all of them. With `false` the event
+	 * doesn't keep them. Set `false` for a step whose products are bulk payload that a caller reads from the action result
+	 * or a separate fetch. A query's rows and a captured page's HTML are bulk payload. Keeping that payload would enlarge
+	 * the in-memory event stream. A function keeps the subset it returns, for a product that mixes a small render
+	 * descriptor with bulk payload. The event keeps the descriptor, so a view mounts again on replay, and a view reads the payload live
+	 * through the reference. A function that returns undefined doesn't keep a product.
 	 */
 	retainProducts?: boolean | ((products: Record<string, unknown>) => Record<string, unknown> | undefined);
 };
 
 export type TStepperStep = TStepperStepBase & {
-	/** Dispatch calls every action with the step it runs as. */
+	/** Dispatch passes every action its arguments and the feature step being run. */
 	action(args: TStepArgs, featureStep: TFeatureStep): Promise<TActionResult> | TActionResult;
 };
 
@@ -224,11 +230,10 @@ export const CycleWhen = { FIRST: -999, LAST: 999 };
 // ============================================================================
 
 /**
- * Observation source for the 'observed in' quantifier pattern.
- * Provides ephemeral iteration over runtime metrics.
+ * An observation source for the `observed in` quantifier pattern. It provides runtime metrics for one iteration and
+ * doesn't store them.
  *
- * Implementations may read from the quad store via `queryFacts` (async). The
- * `observe` method is async to allow that.
+ * An implementation can read the quad store through `queryFacts`, so `observe` is async.
  */
 export interface IObservationSource {
 	name: string;
@@ -243,7 +248,7 @@ export interface IStepperConcerns {
 
 export interface IStepperCycles {
 	getConcerns?(): IStepperConcerns;
-	/** Return registered outcome definitions for artifact emission. Used by ActivitiesStepper. */
+	/** Returns registered outcome definitions for artifact emission. ActivitiesStepper calls it. */
 	getRegisteredOutcomes?(): Record<string, unknown>;
 	startExecution?(features: TStartExecution): Promise<void> | void;
 	startFeature?(startFeature: TStartFeature): Promise<void> | void;
@@ -260,7 +265,8 @@ export interface IStepperCycles {
 
 export type TStartExecution = TResolvedFeature[];
 export type TEndFeature = { featurePath: string; shouldClose: boolean; isLast: boolean; okSoFar: boolean; continueAfterError: boolean; thisFeatureOK: boolean };
-/** Actuality's result as its features end, and whether it keeps serving after them, as `HAIBUN_STAY` states. */
+/** Actuality's result when its features end. `stays` is true where actuality keeps serving after them.
+ *  `staysAfterExecution` computes it from `HAIBUN_STAY`. */
 export type TEndExecution = TExecutorResult & { stays: boolean };
 export type TStartFeature = { resolvedFeature: TResolvedFeature; index: number };
 export type TStartScenario = { scopedVars: FeatureVariables };
@@ -268,7 +274,8 @@ export type TBeforeStep = { featureStep: TFeatureStep };
 export type TAfterStep = { featureStep: TFeatureStep; actionResult: TActionResult };
 /** A failed feature, and the step that failed where one did: a feature also fails on an error outside its steps. */
 export type TFailureArgs = { featureResult: TFeatureResult; failedStep?: TStepResult };
-/** What an afterStep cycle decides of a step: to run it again, to move on past its failure, or to fail it, stating why. */
+/** The outcome an afterStep cycle returns for a step. `rerunStep` runs the step again, `nextStep` continues past its failure,
+ *  and `failed` fails the step with the reason it holds. */
 export type TAfterStepResult = { rerunStep?: boolean; nextStep?: boolean; failed?: string };
 
 export type StepperMethodArgs = {

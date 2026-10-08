@@ -30,10 +30,12 @@ const OPTION_CONFIG = "--config";
 const OPTION_HELP = "--help";
 const OPTION_SHOW_STEPPERS = "--show-steppers";
 const OPTION_WITH_STEPPERS = "--with-steppers";
-/** Run statements given on the command line instead of collecting feature files. Repeatable; each is one line. */
+/** Gives a statement on the command line. Each statement becomes one line of a feature. The option can be repeated.
+ *  Statements run after any filtered features, or alone against the base's backgrounds. */
 const OPTION_STATEMENT = "--statement";
-/** Run a group only when one of its dependencies changed since the group last passed. Every whole run records how it
- *  went and the state of its dependencies; this option is what reads that record. */
+/** Skips a group whose last run under the same conditions passed against the present dependency state. A run of
+ *  features records its outcome against its dependency state whether or not this option is given. The CLI reads that
+ *  record when this option or HAIBUN_ONCE is given. */
 const OPTION_ONCE = "--once";
 
 type TEnv = { [name: string]: string | undefined };
@@ -61,8 +63,8 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 		const policyConfig = resolveRunPolicy(parsed.policyConfig, env, protoOptions, specl);
 		const featureFilter = parsed.params[1] ? parsed.params[1].split(",") : undefined;
 
-		// What this run is verified against, where it is a run of features rather than of statements or a rehearsal.
-		// A run that has passed against the state its dependencies have now would answer what that run answered.
+		// Holds the record file, the conditions key and the present dependency state of a run of features. It is undefined
+		// for a run of statements, a rehearsal, or a run whose dependency state can't be read.
 		verification =
 			parsed.statements.length === 0 && !parsed.dryRun
 				? verificationOf({
@@ -80,11 +82,11 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 		if (runsOnce(parsed, protoOptions.options)) {
 			if (!verification)
 				console.info(
-					`${OPTION_ONCE}: this run doesn't have dependencies to record a pass against (${parsed.dryRun ? "a rehearsal" : parsed.statements.length ? "a run of statements" : "features outside a repository"}), so it runs`,
+					`${OPTION_ONCE}: ${parsed.dryRun ? "a rehearsal" : parsed.statements.length ? "a run of statements" : "a run of features that depends on an untracked directory"} doesn't record a pass against its dependencies, so it runs`,
 				);
-			// A group that passed and whose dependencies haven't changed since would pass again. A group that failed runs again: what a person
-			// does with a failure is retry it, and a run that fails for a reason outside the sources is one they must be
-			// able to retry without changing anything.
+			// A group whose last run passed against the present dependency state would pass again, so it exits as passed
+			// without running. A group whose last run failed runs again, so a person can retry a failure whose cause is
+			// outside the sources without changing anything.
 			else if (outcomeAgainst(verification)?.outcome === "passed") return verifiedExit(bases);
 		}
 
@@ -102,11 +104,11 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 
 		const runner = new Runner(world);
 		const result = await runner.runFeaturesAndBackgrounds(csteppers, featuresBackgrounds);
-		// A run that didn't reach its features isn't evidence about them: what stopped it was before them.
+		// A run without a feature result isn't evidence about the dependency state, so its entry in the record is deleted.
 		if (verification && result.featureResults.length === 0) forgetOutcome(verification);
 		else if (verification) recordOutcome(verification, result.ok ? "passed" : "failed", result.featureResults.length);
-		// What a run of features took, kept with the code: the file's history is what each feature takes, change by change.
-		// A measurement rather than a decision, so it is written whether or not the run is verified against anything.
+		// Writes each feature's duration to timings.json beside the config. The file's git history holds the durations at
+		// each commit. Timings measure durations and don't verify a state, so they are written whether or not a run is verified.
 		if (parsed.statements.length === 0 && result.featureResults.length > 0) {
 			const variances = recordTimings(path.dirname(path.resolve(configFileFrom(configBases))), result, featureFilter !== undefined);
 			for (const variance of variances) console.info(`timings: ${varianceLine(variance)}`);
@@ -114,9 +116,9 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 
 		await reportAndExit(result, world, protoOptions);
 	} catch (error) {
-		// Final Error "Nothing" Branch
+		// A PhaseBailError carries a result to report. Any other error ends the process with exit code 1.
 		if (error instanceof PhaseBailError) {
-			// A run that did not get as far as its features isn't evidence about the state they depend on.
+			// A run that stopped before its features isn't evidence about the dependency state.
 			if (verification) forgetOutcome(verification);
 			if (!world || !protoOptions) {
 				const failure = error.result.failure;
@@ -130,11 +132,11 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 
 		const message = PhaseRunner.formatError(error);
 
-		// Vitest mocks process.exit as throwing an error. Let it bubble so tests pass.
+		// Tests mock process.exit to throw `exit with code N`. This branch rethrows that error to the test.
 		if (message.startsWith("exit with code ")) throw error;
 
-		// A run that ended in an error it did not report as a result isn't evidence about the state, and what stood
-		// before it is not left standing over it.
+		// A run that ended in an error without a result isn't evidence about the dependency state. Deleting its entry in
+		// the record keeps a later --once run from skipping the group.
 		if (verification) forgetOutcome(verification);
 		console.error(`\n${CHECK_NO} ${message}`);
 		process.exit(1);
@@ -145,7 +147,7 @@ async function showSteppersAndExit(specl: TSpecl) {
 	const allSteppers = await getAllSteppers(specl);
 	console.info("Steppers:", JSON.stringify(allSteppers, null, 2));
 	console.info(
-		'Use the full text version for steps. {vars} should be enclosed in " for literals, or defined by Set or env commands.\nWrite comments using normal sentence punctuation, ending with [.,!?]. ',
+		"Write each step as the text after its name. Quote a literal for a {placeholder}, or name a variable that a set step or the environment defines.\nStart a prose line with a capital letter and end it with one of [.!?:;]. ",
 	);
 	process.exit(0);
 }
@@ -172,7 +174,7 @@ export function resolveRunPolicy(cliPolicyConfig: TRunPolicyConfig | undefined, 
 	return policyConfig;
 }
 
-/** Reports the pass and exits as one, for a group that passed and whose dependencies haven't changed since then. */
+/** Reports the recorded pass and exits with 0, for a group whose dependencies haven't changed since it passed. */
 function verifiedExit(bases: TBase): never {
 	console.info(`\n${CHECK_YES} ${bases.join(",")} passed, and its dependencies haven't changed since then, so it did not run. Run without ${OPTION_ONCE} to run it anyway.\n`);
 	process.exit(0);
@@ -269,21 +271,22 @@ export async function usage(specl: TSpecl, message?: string) {
 
 	const ret = [
 		"",
-		`usage: ${process.argv[1]} [${OPTION_CONFIG} path/to/specific/config.json] [--cwd working_directory] [${OPTION_HELP}] [${OPTION_SHOW_STEPPERS}] [${OPTION_WITH_STEPPERS} stepper[,stepper]] [${OPTION_RUN_POLICY} place dir:access[,dir:access]] [${OPTION_STATEMENT} "a haibun statement" (repeatable; runs after any filtered features, or alone)] [${OPTION_DRY_RUN}] [${OPTION_ONCE} (run only if a dependency changed since the group passed)] <project base[,project base]> <[filter,filter]>`,
+		`usage: ${process.argv[1]} [${OPTION_CONFIG} path/to/specific/config.json] [--cwd working_directory] [${OPTION_HELP}] [${OPTION_SHOW_STEPPERS}] [${OPTION_WITH_STEPPERS} stepper[,stepper]] [${OPTION_RUN_POLICY} place dir:access[,dir:access]] [${OPTION_STATEMENT} "a haibun statement" (repeatable; runs after any filtered features, or alone)] [${OPTION_DRY_RUN}] [${OPTION_ONCE} (skip a group whose last run passed against unchanged dependencies)] <project base[,project base]> <[filter,filter]>`,
 		message || "",
-		"If config.json is not found in project bases, the root directory will be used.\n",
-		"Set these environmental variables to control options:\n",
+		"The working directory's config.json is used when the project bases don't contain a config.json.\n",
+		"Set these environment variables to control options:\n",
 		...Object.entries(BaseOptions.options).map(([k, v]) => `${BASE_PREFIX}${String(k).padEnd(55)} ${v.desc}`),
 		`${HAIBUN_RUN_POLICY.padEnd(63)} run policy: "place dir:access[,dir:access]"`,
 	];
 	if (Object.keys(a).length) {
-		ret.push("\nThese variables are available for extensions selected in config.js\n", ...Object.entries(a).map(([k, v]) => `${k.padEnd(55)} ${v.desc}`));
+		ret.push("\nThese variables set options of the steppers that config.json lists:\n", ...Object.entries(a).map(([k, v]) => `${k.padEnd(55)} ${v.desc}`));
 	}
 	return [...ret, ""].join("\n");
 }
 
-/** A run's options: base options from the environment, and module options from the base's config with the environment
- *  stating an option over it. */
+/** Returns a run's options. A base option takes its default unless the environment sets it. A module option takes the
+ *  base config's value unless an environment variable sets it. Throws where an environment value doesn't parse or
+ *  doesn't name an option. */
 export function processBaseEnvToOptionsAndErrors(env: TEnv, specl: TSpecl): TProtoOptions {
 	const options: Record<string, unknown> = { DEST: DEFAULT_DEST };
 	const moduleOptions: TModuleOptions = { ...specl.moduleOptions };
@@ -325,23 +328,24 @@ export function processBaseEnvToOptionsAndErrors(env: TEnv, specl: TSpecl): TPro
 	return { options: BaseOptionsSchema.parse(options), moduleOptions };
 }
 
-/**
- * What a run executes: the collected features, statements given on the command line, or both.
- *
- * With a filter AND statements, the filtered features run FIRST and the statements after them, in the same run, so
- * the features are the precedent the statements act on. That is what a probe usually needs: whatever a feature
- * already sets up (a store, a served app, seeded data), then the lines being tried, without copying the setup into
- * the command or writing a throwaway feature file. Statements alone run against the base's backgrounds.
- */
-/** A filter that a feature path can't hold, so a collect returns the base's backgrounds without its features. */
+/** A filter that a feature path can't contain. Collecting with it returns the base's backgrounds without its features. */
 const NO_FEATURE_MATCHES = "\u0000no-feature-matches";
 
-/** A base that doesn't hold features or backgrounds is not an error when only statements are being run. */
+/** Returns empty features and backgrounds for a base that doesn't hold either, since statements run without them. Any
+ *  other error is rethrown. */
 const emptyIfNoFeatures = (e: unknown): TFeaturesBackgrounds => {
 	if (!String((e as Error)?.message ?? e).includes(BASE_WITHOUT_FEATURES)) throw e;
 	return { features: [], backgrounds: [] };
 };
 
+/**
+ * Collects what a run executes: the base's features, statements given on the command line, or both.
+ *
+ * The filtered features run before the statements in the same run when a filter and statements are both given. The
+ * statements act on the state the features set up, such as a store, a served app or seeded data. A probe uses this
+ * order to try lines without copying the setup into the command or writing a temporary feature file. Statements alone
+ * run against the base's backgrounds.
+ */
 export async function collect(bases: TBase, featureFilter: string[] | undefined, statements: string[], policyConfig?: TRunPolicyConfig): Promise<TFeaturesBackgrounds> {
 	if (statements.length === 0) return await getFeaturesAndBackgrounds(bases, featureFilter, policyConfig);
 	const statementFeature = withName(bases[0] ?? ".", "statement.feature", statements.join("\n"));
@@ -349,16 +353,15 @@ export async function collect(bases: TBase, featureFilter: string[] | undefined,
 		const collected = await getFeaturesAndBackgrounds(bases, featureFilter, policyConfig);
 		return { features: [...collected.features, statementFeature], backgrounds: collected.backgrounds };
 	}
-	// The base's backgrounds, without its features: a filter that doesn't match a feature collects the backgrounds alone. A
-	// base that doesn't hold either is a base a statement can still run against, and only that case is passed over; anything
-	// else the collector refuses is the caller's to hear about.
+	// A filter that doesn't match a feature collects the base's backgrounds alone. Statements still run against a base
+	// that doesn't exist or doesn't hold features or backgrounds. emptyIfNoFeatures rethrows any other collector error.
 	const holdsNothing = !nodeFS.existsSync(bases[0] ?? ".");
 	const backgrounds = holdsNothing ? [] : (await getFeaturesAndBackgrounds(bases, [NO_FEATURE_MATCHES], policyConfig).catch(emptyIfNoFeatures)).backgrounds;
 	return { features: [statementFeature], backgrounds };
 }
 
-/** Whether a run is verified against its last pass: asked for on the command line, or by `HAIBUN_ONCE` for every run a
- *  script chains. */
+/** Returns whether the CLI reads the record of a group's last run before it runs the group. `--once` sets this for one
+ *  run. `HAIBUN_ONCE` sets it for every run a script chains. */
 export function runsOnce(parsed: { once: boolean }, options: TBaseOptions): boolean {
 	return parsed.once || options.ONCE === true;
 }
@@ -387,7 +390,7 @@ export function processArgs(args: string[]) {
 		} else if (cur === OPTION_SHOW_STEPPERS) {
 			showSteppers = true;
 		} else if (cur === OPTION_WITH_STEPPERS || cur?.startsWith(OPTION_WITH_STEPPERS + "=")) {
-			// Support both --with-steppers value and --with-steppers=value
+			// Accepts both --with-steppers value and --with-steppers=value.
 			let stepperList: string | undefined;
 			if (cur?.includes("=")) {
 				stepperList = cur.split("=")[1];
@@ -411,7 +414,7 @@ export function processArgs(args: string[]) {
 		} else if (cur === OPTION_ONCE) {
 			once = true;
 		} else if (cur === "--stdio" || cur === "--node-ipc" || cur?.startsWith("--socket=")) {
-			// Ignore LSP transport arguments (added by vscode-languageclient)
+			// Ignores the LSP transport arguments that vscode-languageclient adds.
 		} else {
 			params.push(cur);
 		}
@@ -419,8 +422,8 @@ export function processArgs(args: string[]) {
 	return { params, configLoc, showHelp, showSteppers, withSteppers, policyConfig, dryRun, once, statements };
 }
 
-/** The configuration file a run reads: a base that names the file, else the one whose directory holds config.json,
- *  else the working directory's. */
+/** Returns the configuration file a run reads. The first base that is an existing JSON file or a directory that
+ *  contains config.json gives that file. The working directory's config.json is the fallback. */
 function configFileFrom(bases: TBase, fs: TFileSystem = nodeFS): string {
 	const found = bases?.filter((b) => (b.endsWith("json") && fs.existsSync(b)) || fs.existsSync(`${b}/config.json`));
 	const configCandidate = (found && found[0]) || ".";
@@ -428,7 +431,7 @@ function configFileFrom(bases: TBase, fs: TFileSystem = nodeFS): string {
 }
 
 export function getConfigFromBase(bases: TBase, fs: TFileSystem = nodeFS): TSpecl | null {
-	// accept either full path with exact config filename or a directory that contains config.json
+	// Accepts a path to a JSON config file or a directory that contains config.json.
 	const found = bases?.filter((b) => (b.endsWith("json") && fs.existsSync(b)) || fs.existsSync(`${b}/config.json`));
 	if (found?.length > 1) {
 		console.error(`Found multiple config.json files: ${found.join(", ")}. Use --config to specify one.`);

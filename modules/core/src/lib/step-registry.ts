@@ -27,41 +27,42 @@ import {
 } from "./step-discovery.js";
 
 /**
- * A registered step tool: the unit of dispatch for any transport (RPC, MCP, a model's turn).
+ * A registered step tool. Every transport (RPC, MCP, a model's turn) dispatches a step through one.
  */
 export type StepTool = {
 	/** The step as every caller discovers it. */
 	descriptor: TStepDescriptor;
-	/** The domain each parameter takes, keyed by parameter name. A call is validated by each domain as registered when it
-	 *  arrives, so a domain a feature declared since the registry was built is taken. */
+	/** The domain key of each parameter, keyed by parameter name. Validation reads each domain when a call arrives, so it
+	 *  reads a domain that a feature declared after the registry was built. */
 	paramDomainKeys: Map<string, string>;
-	/** The registered stepper-step definition. Absent for proxy tools (RemoteStepperProxy), which dispatch out of process. */
+	/** The registered stepper-step definition. A proxy tool (RemoteStepperProxy) doesn't have one, since it dispatches out of process. */
 	stepDef?: TStepperStep;
 	/** Where the step runs: in this process or at a remote host. */
 	transport: "local" | "remote";
-	/** True if the step action is an async function (observable execution time). */
+	/** True if the step action is an async function. The step start event carries it, since an async action's execution time is observable. */
 	isAsync: boolean;
 	handler: (featureStep: TFeatureStep, world: TWorld) => Promise<TActionResult>;
 };
 
 /**
- * Live-refreshable step registry. Single source of truth for all transports (SSE, MCP).
- * Call refresh() to rebuild in-place when steppers change without restarting.
+ * A step registry that refresh() rebuilds in place. Every transport (SSE, MCP) reads its steps from it.
+ * Call refresh() when the steppers change, without a restart.
  */
 export class StepRegistry {
 	private tools = new Map<string, StepTool>();
-	/** Names injected via inject(), which survive refresh() so transports (RemoteStepperProxy) register once and stay live across per-feature rebuilds. */
+	/** The names of the tools inject() added. refresh() keeps these tools, so a transport (RemoteStepperProxy) registers them
+	 *  once and they stay registered across per-feature rebuilds. */
 	private injectedNames = new Set<string>();
-	/** Every step's description as one text, which a change to the registry is compared by. */
+	/** Every step's descriptor as one JSON text. replace() compares the next registry's text with it to detect a change. */
 	private described = "";
-	/** What is told when the registry's steps change. */
+	/** The listeners that replace() calls when the registry's steps change. */
 	private changeListeners = new Set<() => void>();
 
 	constructor(steppers: AStepper[], world: TWorld) {
 		this.refresh(steppers, world);
 	}
 
-	/** Rebuild stepper-owned entries in-place. Injected tools are preserved. */
+	/** Rebuild the entries of the given steppers in place. refresh() keeps the injected tools. */
 	refresh(steppers: AStepper[], world: TWorld): void {
 		const next = buildStepRegistry(steppers, world);
 		for (const name of this.injectedNames) {
@@ -71,7 +72,7 @@ export class StepRegistry {
 		this.replace(next);
 	}
 
-	/** Add or replace the steps a transport reaches in another process, which survive refresh(). */
+	/** Add or replace the steps that a transport dispatches to another process. refresh() keeps these steps. */
 	inject(tools: StepTool[]): void {
 		const next = new Map(this.tools);
 		for (const tool of tools) {
@@ -81,8 +82,8 @@ export class StepRegistry {
 		this.replace(next);
 	}
 
-	/** Hold the tools given, and announce them where they describe the steps differently. A change that describes every
-	 *  step as it was is not announced. */
+	/** Hold the given tools. Call each change listener when their descriptors differ from the previous descriptors. A
+	 *  replacement with the same descriptors doesn't call the listeners. */
 	private replace(next: Map<string, StepTool>): void {
 		this.tools = next;
 		const described = JSON.stringify(this.descriptors());
@@ -91,8 +92,8 @@ export class StepRegistry {
 		for (const listener of this.changeListeners) listener();
 	}
 
-	/** Tell `listener` each time the registry's steps change, until the returned function is called. A caller that lists
-	 *  the steps to its own clients lists them again, as an MCP server tells its clients the tool list changed. */
+	/** Call `listener` each time the registry's steps change, until the returned function is called. A caller that lists
+	 *  the steps to its own clients lists them again, as an MCP server sends its clients a tool list change notification. */
 	onChange(listener: () => void): () => void {
 		this.changeListeners.add(listener);
 		return () => this.changeListeners.delete(listener);
@@ -102,10 +103,10 @@ export class StepRegistry {
 		return this.tools.get(name);
 	}
 
-	/** The step `name` names. A step actuality doesn't register is refused. */
+	/** The step `name` names. Throws for a step that actuality doesn't register. */
 	named(name: string): StepTool {
 		const tool = this.tools.get(name);
-		if (!tool) throw new Error(`"${name}" isn't a step this run registers; show steps lists the method names it does`);
+		if (!tool) throw new Error(`"${name}" isn't a step actuality registers; show steps lists the method names actuality registers`);
 		return tool;
 	}
 
@@ -117,8 +118,8 @@ export class StepRegistry {
 		return this.list().map((tool) => tool.descriptor);
 	}
 
-	/** The steps a caller holding `held` is shown: those it holds what they require for. Every listing of a run's steps to
-	 *  a caller reads this, so a caller learns what it may call and doesn't learn a step it may not. */
+	/** The steps whose required action `held` holds. Every listing of actuality's steps to a caller reads this, so a listing
+	 *  shows a caller only the steps it may call. */
 	heldBy(held: string | string[] | undefined): TStepDescriptor[] {
 		return this.descriptors().filter((step) => mayCall(held, step));
 	}
@@ -132,8 +133,8 @@ export class StepRegistry {
 	}
 }
 
-/** Open actuality's step registry over actuality's steppers. Actuality signals on its stream each time the registry's steps
- *  change, and a page that read them reads them again. */
+/** Open actuality's step registry over actuality's steppers. The registry's change listener emits a STEPS_CHANGED control
+ *  event on actuality's stream for each change to its steps. A page that read the steps reads them again on that event. */
 export function openRunRegistry(world: TWorld, steppers: AStepper[]): StepRegistry {
 	const registry = new StepRegistry(steppers, world);
 	world.runtime.stepRegistry = registry;
@@ -144,8 +145,8 @@ export function openRunRegistry(world: TWorld, steppers: AStepper[]): StepRegist
 	return registry;
 }
 
-/** Actuality's step registry, which holds every step actuality declares and every step its transports injected. Every caller
- *  of actuality dispatches and discovers against it. */
+/** Actuality's step registry. It holds every step actuality declares and every step its transports injected. Every caller
+ *  of actuality dispatches and discovers steps against it. */
 export function runRegistry(world: TWorld): StepRegistry {
 	if (!world.runtime.stepRegistry) throw new Error("actuality doesn't hold a step registry");
 	return world.runtime.stepRegistry;
@@ -153,23 +154,23 @@ export function runRegistry(world: TWorld): StepRegistry {
 
 const HOST_SCOPE = /^host(\d+)_/;
 
-/** The host a registry key belongs to, or undefined for a step of this process's own. */
+/** The host id a registry key names, or undefined for a step of this process. */
 export function hostOfMethodName(name: string): number | undefined {
 	const at = name.match(HOST_SCOPE);
 	return at ? Number(at[1]) : undefined;
 }
 
-/** A host-scoped key under the name its own host knows it by, which is what a caller of that host writes. */
+/** A host-scoped key without its host prefix. Its own host registers the step under this name, and a caller of that host
+ *  writes this name. */
 export function bareMethodName(name: string): string {
 	return name.replace(HOST_SCOPE, "");
 }
 
 /**
- * Registry key for a step routed at a specific hostId: `host{hostId}_{method}`.
+ * Registry key for a step routed to a specific hostId: `host{hostId}_{method}`.
  *
- * The key is also the name a caller uses, and a model's tool name may hold only letters, digits, underscores and
- * hyphens, so it is written without the punctuation a prefix would otherwise use. `host` in front keeps it
- * a name rather than something beginning with a digit.
+ * A caller also uses the key as the step's name. A model's tool name may hold only letters, digits, underscores and
+ * hyphens, so the prefix doesn't use other punctuation. The `host` prefix keeps the key from beginning with a digit.
  */
 export function hostScopedMethodName(hostId: number, bareMethod: string): string {
 	return `host${hostId}_${bareMethod}`;
@@ -228,11 +229,11 @@ export function createStepTool(stepper: AStepper, stepName: string, stepDef: TSt
 	};
 }
 
-/** The domains a parameter naming a record's type takes. */
+/** The domains of a parameter that names a record's type. */
 const TYPE_NAMING_DOMAINS: readonly string[] = [DOMAIN_PERSISTED_TYPE, DOMAIN_DOMAIN_KEY];
 
-/** Each `record-id` parameter is paired with a parameter naming its record's type, each pairing names such parameters, and
- *  each parameter taking a record's fields is paired with a parameter naming its type. */
+/** Throws unless the step's record pairings hold. recordIds pairs each `record-id` parameter with a parameter that names
+ *  its record's type. recordData pairs a parameter the phrase takes with a parameter that names its record's type. */
 function assertRecordIds(step: string, stepDef: TStepperStep, paramDomainKeys: Map<string, string>): void {
 	for (const [id, type] of Object.entries(stepDef.recordIds ?? {})) {
 		if (paramDomainKeys.get(id) !== DOMAIN_RECORD_ID) throw new Error(`${step}: recordIds names {${id}}, which isn't a ${DOMAIN_RECORD_ID} its phrase takes`);
@@ -270,37 +271,39 @@ export function createStepHandler(stepperName: string, stepName: string, stepDef
 		try {
 			const args = await populateActionArgs(featureStep, world, runSteppers(world));
 			const result = await stepDef.action(args, featureStep);
-			// A failure states why; a result that doesn't, from code the types don't reach, is refused naming the step.
+			// A failed result states its reason in errorMessage. Code that the types don't check can omit it, and that failure
+			// is replaced by one that names the step.
 			if (!result.ok && typeof result.errorMessage !== "string") throw new Error(`${stepperName}.${stepName} failed without stating why`);
-			// Checked where the arguments were resolved, since a statement the step ran names the domain of what it passes on.
+			// Products are validated here, where args is resolved, since a statement the step ran names the domain of the
+			// products the step passes on.
 			const productsError = result.ok ? validateProducts(stepperName, stepName, stepDef, world, result.products, args) : undefined;
 			return productsError ? actionNotOK(productsError) : result;
 		} catch (caught) {
-			// A step that throws fails as a step that refuses does: with what it returned. Whoever presents the failure names the
-			// step, as an RPC answer names its method.
+			// A thrown error becomes a failed result that carries the error's message, as a returned failure carries its
+			// errorMessage. The code that presents the failure names the step, as an RPC response names its method.
 			return actionNotOK(caught instanceof Error ? caught.message : String(caught));
 		}
 	};
 }
 
 /**
- * Build a TFeatureStep for a transport-originated call (RPC, MCP).
- * Feature-file dispatch already has one; transports construct it from the tool +
- * raw input. Uses the same registered stepDef so downstream dispatch (augment,
- * autoAssert, preconditions) sees the identical shape both paths produce.
+ * Build a TFeatureStep for a call from a transport (RPC, MCP).
+ * Feature-file dispatch already holds one. This function constructs it from the tool and
+ * the raw input. It uses the registered stepDef, so dispatch (augment, autoAssert,
+ * preconditions) receives the same shape from both paths.
  */
 export function buildFeatureStepForTransport(tool: StepTool, input: Record<string, unknown>, seqPath: TSeqPath): TFeatureStep {
-	// Proxy tools (RemoteStepperProxy) dispatch out-of-process and don't have a
-	// local stepDef. Construct a carrier with just the description so the handler can run.
+	// A proxy tool (RemoteStepperProxy) dispatches out of process and doesn't have a local stepDef. The carrier holds the
+	// step's pattern and an action that returns a failure, so the handler can run.
 	const { descriptor } = tool;
 	const step = tool.stepDef ?? ({ gwta: descriptor.pattern, action: () => actionNotOK(`${descriptor.method} doesn't have an in-process stepDef`) } as TStepperStep);
-	// A tool of another host is registered under that host and named for it, while its stepper and step names are the
-	// ones that host knows. Dispatch resolves a step by those names, so without the host here a call by name of a
-	// remote tool finds the local step of the same name and answers from this process.
+	// A tool of another host is registered under a host-scoped name. Its stepper and step names are the names that host
+	// registers. Dispatch resolves a step by those names. A call to a remote tool without targetHostId resolves the local
+	// step of the same name and runs it in this process.
 	const targetHostId = hostOfMethodName(descriptor.method);
 	return {
 		...(targetHostId === undefined ? {} : { targetHostId }),
-		// The line a feature would state for this call, so the record of a call from outside the run is a line that runs.
+		// `in` holds the feature line that states this call, so the record of a call from outside actuality is a line a feature can run.
 		in: renderStepLine(descriptor.pattern, Object.fromEntries(Object.entries(input).map(([name, value]) => [name, literalTerm(value, descriptor.paramDomains[name])]))),
 		action: { stepperName: descriptor.stepperName, actionName: descriptor.stepName, step, stepValuesMap: mapInputToStepValues(input, descriptor.pattern) },
 		seqPath,
@@ -309,8 +312,8 @@ export function buildFeatureStepForTransport(tool: StepTool, input: Record<strin
 }
 
 /**
- * The domain of each parameter a step's phrase names, by parameter: `{name: domain}`, or `string` where the phrase doesn't
- * name one. The one reading of a step's input domains, which its schemas, the typed step graph and dispatch all take.
+ * The domain of each parameter that a step's phrase names, as `{name: domain}`. A parameter whose domain the phrase doesn't
+ * name takes `string`. A step's schemas, the typed step graph and dispatch all read its input domains through this function.
  */
 export function stepParamDomains(stepDef: TStepperStep): Map<string, string> {
 	const domains = new Map<string, string>();
@@ -322,10 +325,10 @@ export function stepParamDomains(stepDef: TStepperStep): Map<string, string> {
 }
 
 /**
- * Build a JSON Schema and Zod param schemas for a step's input parameters.
- * Uses z.toJSONSchema() to convert Zod domain schemas into full JSON Schema
- * (enums, object structures, descriptions, etc.) for MCP and SSE consumers.
- * Returns both the JSON Schema (for documentation/discovery) and the Zod schemas (for runtime validation).
+ * Build the JSON Schema of a step's input parameters for discovery.
+ * jsonSchemaFor converts each Zod domain schema into a full JSON Schema
+ * (enums, object structures, descriptions) for MCP and SSE consumers.
+ * Returns the JSON Schema and each parameter's domain key. Validation reads each domain by its key at call time.
  */
 function buildInputSchema(stepperName: string, stepName: string, stepDef: TStepperStep, world: TWorld): { inputSchema: TInputSchema; paramDomainKeys: Map<string, string> } {
 	const properties: TInputSchema["properties"] = {};
@@ -343,30 +346,33 @@ function buildInputSchema(stepperName: string, stepName: string, stepDef: TStepp
 	return { inputSchema: { type: "object" as const, properties, required }, paramDomainKeys };
 }
 
-/** Refuse a call its caller may not make: one whose action, or whose read at the level the step reads at, the caller
- *  doesn't hold, or one made where the read in force is narrower than what the step reads. */
+/** Refuse a call that its caller may not make. A call is refused where it didn't invoke the step's action, or where its
+ *  caller doesn't hold a read at the step's `readsAt` level. A call is also refused where the read in force is narrower
+ *  than the step's `readsAt` level. */
 export function authorizeToolCapability(step: Pick<TStepDescriptor, "method" | "capability" | "readsAt">, call: TCallAuthority, readsIn?: AccessLevel): void {
 	const lacked = lackedByCall(call, step);
 	if (lacked) throw new Error(namedRefusal(step.method, lacked));
 	if (step.readsAt && readsIn && !withinAccess(step.readsAt, readsIn)) throw new Error(`${step.method} reads at ${step.readsAt}, and this call reads at ${readsIn}`);
 }
 
-/** A refusal naming the action the step requires, which a caller can ask a holder for. */
+/** A refusal that names the action the step requires. A caller can request that action from a holder. */
 const namedRefusal = (method: string, required: string): string => `${method}: capability ${required} required`;
 
 /**
- * What a caller from outside actuality is told when its call is refused. A caller that proved a key is told the action the
- * step requires, or that such a step doesn't exist, since it can ask a holder for what it lacks. A caller that didn't prove one is
- * told only that it may not make the call, alike whether the step exists or not, so a refusal doesn't map actuality for it.
+ * The refusal that a caller from outside actuality receives. A caller that proved a key receives a refusal that names the
+ * action the step requires, or states that the step doesn't exist, since that caller can request the action from a
+ * holder. A caller that didn't prove a key receives only a statement that it may not make the call. That refusal is the
+ * same whether the step exists or not, so it doesn't reveal which steps actuality registers.
  */
 export function refusal(method: string, required: string | undefined, principal: string | undefined): string {
 	if (!principal) return `${method}: not a call this caller may make`;
 	return required ? namedRefusal(method, required) : `${method}: unknown step method`;
 }
 
-/** Each stepper the steps name, in the order the steps name them, with its description, the number of its steps among
- *  them and the read of the summaries of its steps. A stepper another host declares is named with that host's prefix.
- *  Every step of a registry names every stepper of actuality, which a caller is told before it asks for anything. */
+/** Each stepper that the steps name, in the order the steps name them. Each entry holds the stepper's description, the
+ *  number of its steps in `steps` and the link that reads the summaries of its steps. A stepper that another host declares
+ *  is named with that host's prefix. steppersOf returns every stepper of actuality when it reads every step of a
+ *  registry. discoverSteps returns this list with the steps that matched. */
 export function steppersOf(steps: TStepDescriptor[]): TStepperSummary[] {
 	const byStepper = new Map<string, TStepperSummary>();
 	for (const step of steps) {
@@ -380,14 +386,14 @@ export function steppersOf(steps: TStepDescriptor[]): TStepperSummary[] {
 }
 
 /**
- * What a run declares to a caller: each step it holds and each domain whose text contains the query's text, compared
- * without regard to case, and the steppers of the steps that matched. A step's texts are its method, its pattern and its
- * description, so a stepper's name and a hyphen read that stepper's steps; a domain's texts are its name and its
- * description.
+ * What actuality declares to a caller. The result holds each step and each domain whose text contains the query's text,
+ * compared without regard to case. It also holds the steppers of the matched steps. A step's texts are its method, its
+ * pattern and its description, so a stepper's name and a hyphen match that stepper's steps. A domain's texts are its
+ * name and its description.
  *
- * A step is shown only to a caller holding what it requires, so a caller learns what it may call and doesn't learn a step it may not.
- * Every domain is shown, since a record can't be read without the declaration of its type. The registry is actuality's,
- * which holds the steps a transport injected.
+ * A step is shown only to a caller that holds the action it requires, so a caller isn't shown a step it may not call.
+ * Every matching domain is shown whatever the caller holds, since a record can't be read without the declaration of its
+ * type. The registry is actuality's registry, which holds the steps a transport injected.
  */
 export function discoverSteps(
 	world: TWorld,
@@ -427,8 +433,9 @@ export function discoverSteps(world: TWorld, registry: StepRegistry, query: TSte
 	};
 }
 
-/** A registered domain as a read of a run's declarations states it: its enum values where its schema states them, and
- *  how it presents itself without the component's source, which a client loads from the URL the domain names. */
+/** A registered domain as a read of actuality's declarations states it. It holds the domain's enum values where its schema
+ *  states them. It holds the domain's ui without the component's source. A client loads the source from the URL the
+ *  domain names. */
 function domainDiscoveryInfo(key: string, domain: TWorld["domains"][string]): TDomainDiscoveryInfo {
 	const enumerated = domain.values ? undefined : jsonSchemaFor(`domain "${key}"`, domain.schema, "input").enum;
 	const values = domain.values ?? (Array.isArray(enumerated) ? (enumerated as string[]) : undefined);

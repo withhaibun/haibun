@@ -1,20 +1,21 @@
 /**
- * Calling a registered step BY NAME, with its arguments as data rather than as a written line.
+ * Calls a registered step by name, with its arguments as data instead of a written line.
  *
- * Every caller that runs a step without a feature file, whether an external protocol, a chain, a goal, or an agent
- * acting on a granted proposal, needs the same four things: the tool from the registry, a synthetic seqPath, a feature step
- * built for transport, and dispatch. Doing them here means one place decides what a data-borne call looks like, so
- * such a call is indistinguishable from a written one to the step's own gate, cycles and record.
+ * A caller that runs a step without a feature file needs four things: the tool from the registry, a synthetic seqPath,
+ * a feature step built for transport, and dispatch. External protocols, chains, goals and agents that act on a granted
+ * proposal are such callers. This module performs all four, so one module defines the shape of a call by name. The
+ * step's gate, cycles and record treat such a call the same as a written line.
  *
- * A name that is not registered is answered, not thrown: each caller defines what the missing step means in its own
- * terms, and the seqPath is returned because a caller that records what it ran needs the identity of the call.
+ * `StepRegistry.named` throws for a name that isn't registered, before dispatch. A caller that handles a missing step
+ * calls `named` itself and catches the error. `callStepByName` returns the seqPath because a caller that records the call
+ * needs its identity.
  */
 import { buildFeatureStepForTransport, runRegistry, stepMethodName, type StepTool } from "./step-registry.js";
 import { dispatchStep, type DispatchContext } from "./step-dispatch.js";
 import { allocateSyntheticSeqPath } from "./host-id.js";
 import type { TSeqPath, TStepResult } from "../schema/protocol.js";
 
-/** What a call by name answers: the step is not registered here, or it ran and this is what it produced. */
+/** The result of a call by name: the call's synthetic seqPath and the step's result. */
 type TStepCall = { seqPath: TSeqPath; result: TStepResult };
 
 export async function callStepByName(ctx: DispatchContext, method: string, input: Record<string, unknown> = {}): Promise<TStepCall> {
@@ -25,9 +26,10 @@ export async function callStepByName(ctx: DispatchContext, method: string, input
 }
 
 /**
- * The same call from a stepper, which holds its world and the steppers it was set up with, but doesn't hold a registry.
+ * Calls a step by name from a stepper. A stepper holds its world and its steppers but doesn't hold a registry.
  *
- * Actuality's own registry is used: a registry built again lacks the tools a transport put on actuality's.
+ * The call reads actuality's registry through `runRegistry`. A new registry lacks the tools a transport added to
+ * actuality's registry.
  */
 export async function callStepFrom(
 	from: { getWorld: () => DispatchContext["world"]; steppers?: DispatchContext["steppers"] },
@@ -40,10 +42,11 @@ export async function callStepFrom(
 	return await callStepByName({ registry, world, steppers }, method, input);
 }
 
-/** What a call to `tool` answers a caller who reads what the step changed: the read its step names, whether the step passed
- *  or failed, since a step that fails may have changed what it acted on, as a navigation that reaches its page and fails
- *  waiting for it. A failed step's answer keeps its failure and carries the read's products. A read that doesn't pass
- *  leaves the step's own answer. */
+/** Returns the result of `tool` for a caller that reads what the step changed. It calls the read step that the
+ *  descriptor's `answeredBy` names, whether the step passed or failed. A failed step may still have changed its target: a
+ *  navigation can reach its page and fail while it waits for that page. It returns the read's result for a passed step.
+ *  It returns a failed step's failure with the read's products. It returns the step's own result where the read fails or
+ *  the descriptor doesn't name a read step. */
 export async function answeredFor(ctx: DispatchContext, tool: StepTool, result: TStepResult): Promise<TStepResult> {
 	const { answeredBy, stepperName } = tool.descriptor;
 	if (!answeredBy) return result;

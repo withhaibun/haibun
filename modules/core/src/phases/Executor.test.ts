@@ -29,15 +29,15 @@ describe("syntheticSeqPathDirection", () => {
 });
 
 describe("featureSyntheticSeqPath", () => {
-	it("creates a feature-scoped synthetic branch rooted on hostId 0 by default", () => {
+	it("creates a feature-scoped synthetic branch that starts with hostId 0 by default", () => {
 		expect(featureSyntheticSeqPath(3, 2)).toEqual([0, 3, 0, 2]);
 	});
 
-	it("allows a non-default synthetic branch when needed", () => {
+	it("accepts a non-default synthetic branch", () => {
 		expect(featureSyntheticSeqPath(3, 2, -1)).toEqual([0, 3, -1, 2]);
 	});
 
-	it("accepts an explicit hostId so multi-host synthetics cannot collide", () => {
+	it("accepts an explicit hostId, so synthetic paths from different hosts don't collide", () => {
 		expect(featureSyntheticSeqPath(3, 2, 0, 7)).toEqual([7, 3, 0, 2]);
 	});
 });
@@ -65,44 +65,44 @@ describe("advanceSyntheticSeqPath", () => {
 describe("the path allocated under a parent step", () => {
 	const aWorld = () => ({ runtime: {} }) as unknown as Parameters<typeof nextSeqPath>[0];
 
-	it("counts from one under a parent, and on from what it last gave", () => {
+	it("starts at one under a parent and advances by one for each allocation", () => {
 		const world = aWorld();
 		expect(nextSeqPath(world, [1, 2])).toEqual([1, 2, 1]);
 		expect(nextSeqPath(world, [1, 2])).toEqual([1, 2, 2]);
 		expect(nextSeqPath(world, [1, 2])).toEqual([1, 2, 3]);
 	});
 
-	it("counts each parent on its own", () => {
+	it("counts each parent separately", () => {
 		const world = aWorld();
 		expect(nextSeqPath(world, [1])).toEqual([1, 1]);
 		expect(nextSeqPath(world, [2])).toEqual([2, 1]);
 		expect(nextSeqPath(world, [1])).toEqual([1, 2]);
 	});
 
-	it("counts a synthetic step the other way, so what a step ran is told from what a feature asked for", () => {
+	it("counts a speculative substep in the negative direction", () => {
 		const world = aWorld();
 		expect(nextSeqPath(world, [1, 2], -1)).toEqual([1, 2, -1]);
 		expect(nextSeqPath(world, [1, 2], -1)).toEqual([1, 2, -2]);
 	});
 
-	it("counts the two directions under one parent apart", () => {
+	it("counts each direction under one parent separately", () => {
 		const world = aWorld();
 		expect(nextSeqPath(world, [3], 1)).toEqual([3, 1]);
 		expect(nextSeqPath(world, [3], -1)).toEqual([3, -1]);
 		expect(nextSeqPath(world, [3], 1)).toEqual([3, 2]);
 	});
 
-	it("takes the same however many steps the feature has run, since it counts rather than searches", () => {
+	it("takes constant time however many steps the feature has executed, because it counts instead of searching", () => {
 		const world = aWorld();
 		for (let i = 0; i < 20000; i++) nextSeqPath(world, [1, i % 50]);
 		const began = performance.now();
 		for (let i = 0; i < 1000; i++) nextSeqPath(world, [1, i % 50]);
-		expect(performance.now() - began, "a thousand allocations against twenty thousand already made").toBeLessThan(50);
+		expect(performance.now() - began, "a thousand allocations after twenty thousand allocations").toBeLessThan(50);
 	});
 });
 
 describe("staysAfterExecution", () => {
-	it("stays always, and after a failure where it stays on failure", () => {
+	it("stays under STAY_ALWAYS, and under STAY_FAILURE only after a failure", () => {
 		expect([
 			staysAfterExecution(STAY_ALWAYS, true),
 			staysAfterExecution(STAY_ALWAYS, false),
@@ -114,82 +114,82 @@ describe("staysAfterExecution", () => {
 });
 
 describe("calculateShouldClose", () => {
-	// Default test values - feature OK, not last, without special flags
+	// The defaults describe a passing feature that isn't last, without continueAfterError or stay.
 	const defaults = { thisFeatureOK: true, isLast: false, continueAfterError: false, stay: undefined };
 
-	describe("non-last feature (more features to run)", () => {
-		it("closes after successful feature to start fresh for next", () => {
+	describe("a feature that isn't last (more features follow)", () => {
+		it("closes after a passing feature", () => {
 			const result = calculateShouldClose({ ...defaults, thisFeatureOK: true, isLast: false });
-			expect(result).toBe(true); // close
+			expect(result).toBe(true);
 		});
 
-		it("closes after failed feature when continueAfterError is true", () => {
+		it("closes after a failed feature when continueAfterError is true", () => {
 			const result = calculateShouldClose({ ...defaults, thisFeatureOK: false, isLast: false, continueAfterError: true });
-			expect(result).toBe(true); // close - more features to run
+			expect(result).toBe(true);
 		});
 	});
 
-	describe("effectively last feature (another feature won't run)", () => {
-		it("closes after successful last feature by default", () => {
+	describe("an effectively last feature (a later feature doesn't execute)", () => {
+		it("closes after a passing last feature by default", () => {
 			const result = calculateShouldClose({ ...defaults, thisFeatureOK: true, isLast: true });
-			expect(result).toBe(true); // close
+			expect(result).toBe(true);
 		});
 
-		it("closes after failed non-last feature when NOT continuing after error", () => {
-			// "Effectively last": execution stops on failure
+		it("closes after a failed feature that isn't last when continueAfterError is false", () => {
+			// Execution stops on the failure, so the feature is effectively last.
 			const result = calculateShouldClose({ ...defaults, thisFeatureOK: false, isLast: false, continueAfterError: false });
-			expect(result).toBe(true); // close by default
+			expect(result).toBe(true);
 		});
 
-		it("stays open on failed last feature when actuality stays on failure", () => {
+		it("stays open on a failed last feature when actuality stays on failure", () => {
 			const result = calculateShouldClose({ ...defaults, thisFeatureOK: false, isLast: true, stay: STAY_FAILURE });
-			expect(result).toBe(false); // stay open for debugging
+			expect(result).toBe(false); // stays open for debugging
 		});
 
-		it("stays open on failed non-last feature when actuality stays on failure and NOT continuing", () => {
-			// "Effectively last": execution stops on failure
+		it("stays open on a failed feature that isn't last when actuality stays on failure and continueAfterError is false", () => {
+			// Execution stops on the failure, so the feature is effectively last.
 			const result = calculateShouldClose({ ...defaults, thisFeatureOK: false, isLast: false, continueAfterError: false, stay: STAY_FAILURE });
-			expect(result).toBe(false); // stay open for debugging
+			expect(result).toBe(false); // stays open for debugging
 		});
 	});
 
 	describe("staying always", () => {
-		it("stays open on last successful feature when actuality always stays", () => {
+		it("stays open on a passing last feature when actuality always stays", () => {
 			const result = calculateShouldClose({ ...defaults, thisFeatureOK: true, isLast: true, stay: STAY_ALWAYS });
-			expect(result).toBe(false); // stay open
+			expect(result).toBe(false);
 		});
 
-		it("stays open on last failed feature when actuality always stays", () => {
+		it("stays open on a failed last feature when actuality always stays", () => {
 			const result = calculateShouldClose({ ...defaults, thisFeatureOK: false, isLast: true, stay: STAY_ALWAYS });
-			expect(result).toBe(false); // stay open
+			expect(result).toBe(false);
 		});
 
-		it("closes non-last feature even when actuality always stays", () => {
-			// Staying applies only to "effectively last" features
+		it("closes a feature that isn't last when actuality always stays", () => {
+			// Staying applies only to an effectively last feature.
 			const result = calculateShouldClose({ ...defaults, thisFeatureOK: true, isLast: false, stay: STAY_ALWAYS });
-			expect(result).toBe(true); // close - more features to run
+			expect(result).toBe(true);
 		});
 	});
 });
 
 describe("createExecutionFailure", () => {
 	const step = (seqPath: number[], ok: boolean, errorMessage?: string) => ({ ok, errorMessage, in: `step ${seqPath.join(".")}`, seqPath }) as unknown as TStepResult;
-	// A feature's steps come to a verdict as they run, which is how actuality itself arrives at one.
+	// The helper reduces each step result with foldStep. dispatchStep calls foldStep in actuality.
 	const feature = (stepResults: TStepResult[]) => {
 		const steps: TFeatureSteps = { count: 0 };
 		for (const result of stepResults) foldStep(steps, result);
 		return [{ path: "/features/test.feature", ok: false, steps, stepResults }] as unknown as TFeatureResult[];
 	};
 
-	it("names the feature step that failed, not a synthetic dispatch the step recovered from", () => {
-		// A model's tool call and an RPC dispatch carry a negative seqPath segment; either can fail and be handled
-		// inside the step that made it, so they don't fail actuality.
+	it("names the failed feature step instead of an earlier failed synthetic dispatch", () => {
+		// A synthetic dispatch carries a negative seqPath segment. A model's tool call and an RPC dispatch are synthetic
+		// dispatches. The step that made the dispatch can handle its failure. A handled failure doesn't fail actuality.
 		const failure = Executor.createExecutionFailure(feature([step([0, -1, 1], false, "tool call failed"), step([0, 2, 4], false, "the real failure")]));
 		expect(failure?.error.message).toBe("the real failure");
 		expect(failure?.error.details.seqPath).toEqual([0, 2, 4]);
 	});
 
-	it("falls back to a synthetic dispatch when another step didn't fail, rather than not reporting a failure", () => {
+	it("names a failed synthetic dispatch when a feature step didn't fail, so actuality still reports a failure", () => {
 		const failure = Executor.createExecutionFailure(feature([step([0, -1, 1], false, "only this failed")]));
 		expect(failure?.error.message).toBe("only this failed");
 	});
@@ -214,7 +214,7 @@ describe("the hash of a feature's declared step text", () => {
 		expect(await hashOf("note one\nnote two\nnote three")).not.toBe(twice);
 	});
 
-	it("covers the steps a feature declares after a step that failed, though they never ran", async () => {
+	it("covers the steps a feature declares after a failed step, though they don't execute", async () => {
 		const hashAfterRefusal = async (last: string) =>
 			itemAt((await failWithDefaults([{ path: "/features/refused.feature", content: `note one\nrefuse here\n${last}` }], [NotingStepper])).featureResults, 0).declaredStepTextHash;
 		expect(await hashAfterRefusal("note three")).not.toBe(await hashAfterRefusal("note four"));

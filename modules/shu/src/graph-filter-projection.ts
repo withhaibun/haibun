@@ -1,28 +1,21 @@
 /**
- * graph-filter-projection: shared cluster derivation used by every graph
- * view that hosts a `<shu-graph-filter>`.
+ * Derives the filter clusters of every graph view that hosts a `<shu-graph-filter>`.
  *
- * The filter chips show one entry per node type with a count. Two regimes
- * matter:
+ * The filter chips show one entry per node type with a count. The derivation has two cases:
  *
- *   - Without a time cursor: the server snapshot's `TCluster` records are
- *     authoritative: each carries `totalCount`, `sampledCount`, and
- *     `omittedCount` so the legend can show `(sampled/total)` when the server
- *     truncated. Any namedGraph that appears only in live (post-snapshot)
- *     quads is appended with zero counts so the legend matches what the
- *     diagram renders.
+ *   - Without a time cursor: the server snapshot's `TCluster` records hold the counts. Each carries `totalCount`,
+ *     `sampledCount` and `omittedCount`, so the legend can show `(sampled/total)` where the server truncated. A
+ *     namedGraph that appears only in live (post-snapshot) quads gets a cluster with zero counts, so the legend
+ *     matches what the diagram renders.
  *
- *   - Time cursor pinned: the snapshot counts diverge from what the view
- *     shows. Derive clusters directly from `visibleQuads` (already filtered
- *     by `ShuElement.filterByTime`): one cluster per `namedGraph`, count =
- *     unique subjects seen at or before the cursor. Types without visible
- *     subjects at T drop from the legend, so `Kihan (7)` becomes `Kihan (3)`
- *     at one point in the timeline and disappears entirely before the first
- *     Kihan node arrives.
+ *   - With a time cursor pinned: the snapshot counts differ from what the view shows. The projection derives the
+ *     clusters from `visibleQuads`, which `ShuElement.filterByTime` has filtered. It returns one cluster per
+ *     `namedGraph` and counts the unique subjects seen at or before the cursor. A type without visible subjects at
+ *     the cursor drops from the legend. `Kihan (7)` becomes `Kihan (3)` at one point in the timeline and leaves the
+ *     legend before the first Kihan node arrives.
  *
- * Hosts (graph-view and external viewers) keep their own `knownClusters` map and quads;
- * this projection is a pure function so each view's render can call it and
- * hand the result straight to `filterEl.setClusters(...)`.
+ * Each host (graph-view and external viewers) holds its own `knownClusters` map and quads, and passes them to
+ * `filterEl.setSource(...)`. The filter's render calls this pure function with them.
  */
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { isInstrumentationGraph } from "@haibun/core/lib/instrumentation-graphs.js";
@@ -57,7 +50,7 @@ export function projectFilterClusters(opts: { knownClusters: Map<string, TCluste
 	const clusters: TCluster[] = [];
 	for (const [type, subs] of subjectsByType) {
 		const sampledSubjects = [...subs];
-		// Carry over the source cluster's labels for the still-visible subjects.
+		// Copies the source cluster's labels for the subjects still visible.
 		const sourceLabels = opts.knownClusters.get(type)?.displayLabels ?? {};
 		const displayLabels: Record<string, string> = {};
 		for (const s of sampledSubjects) if (sourceLabels[s] !== undefined) displayLabels[s] = sourceLabels[s];
@@ -67,17 +60,19 @@ export function projectFilterClusters(opts: { knownClusters: Map<string, TCluste
 }
 
 /**
- * The effective hidden-type set: the user's explicit override wins; absent an override, the engine's own instrumentation
- * defaults hidden and everything else visible. Instrumentation is a type that declares it (`isInstrumentationType`) or a
- * named graph without a type (observation/*, facts, variables, `isInstrumentationGraph`).
- * `overrides[type]`: true = shown, false = hidden, absent = the predicate decides. The ONE place the default and the
- * overrides combine, shared by the filter (chip state), the host views (which graphs render), and the offline-report
- * serialization: so the rule is identical everywhere AND stable for types that arrive only via the live stream: the rule doesn't
- * keep a per-cluster flag to lose, just the stable predicate over the type name. The persisted overrides hold only the user's
- * deliberate choices, never a fixed default, so a change to what counts as instrumentation re-applies on the next load.
+ * Returns the effective hidden-type set. A person's explicit override takes precedence. Without an override,
+ * instrumentation and the schema types (`isSchemaType`) are hidden by default, and every other type is visible.
+ * Instrumentation is a type that declares it (`isInstrumentationType`) or a named graph without a type (observation/*,
+ * facts, variables, `isInstrumentationGraph`).
+ * `overrides[type]`: true = shown, false = hidden, absent = the predicate determines it. This function is the one place
+ * that combines the default with the overrides. The filter (chip state) and the host views (which graphs render) call it,
+ * so a live page and an offline report hide the same types. The rule applies the same way to a type that arrives only
+ * through the live stream. It doesn't keep a per-cluster flag, and reads a predicate over the type name instead. The
+ * persisted overrides hold only a person's explicit choices and never a fixed default. A change to what counts as
+ * instrumentation therefore applies on the next load.
  *
- * A domain type is never default-hidden for being hard to title: a type declares the property type that labels it
- * (`topology.displayLabel`), so it draws with a real title rather than being excluded for showing an id.
+ * A domain type isn't hidden by default because its title is hard to compute. A type names the property or edge that
+ * titles it (`topology.displayLabel`), so it draws with a title instead of its id.
  */
 export function effectiveHiddenTypes(types: Iterable<string>, overrides: Record<string, boolean>): string[] {
 	const hidden = new Set<string>();
@@ -85,15 +80,15 @@ export function effectiveHiddenTypes(types: Iterable<string>, overrides: Record<
 		const choice = overrides[type];
 		if (choice === undefined ? isInstrumentationGraph(type) || isInstrumentationType(type) || isSchemaType(type) : !choice) hidden.add(type);
 	}
-	// An explicit hide applies even before its type appears in the set (e.g. a control-product hide of a type without
-	// data yet); an explicit show of an unknown type is a no-op until it arrives (it then follows the show).
+	// An explicit hide applies before its type appears in `types`, such as a control-product hide of a type without data.
+	// An explicit show of an absent type has no effect until the type arrives, and the type then shows.
 	for (const type of explicitlyHidden(overrides)) hidden.add(type);
 	return [...hidden];
 }
 
-/** The edge predicates in `quads`, with the number of edges each draws, counted by the graph model's OWN rule
- *  (`isEdgeQuad`), so the property chips offer exactly the predicates the graph draws and never a predicate whose
- *  unticking wouldn't change the graph. */
+/** Returns the edge predicates in `quads` in predicate order, with the number of edges each draws. The count applies
+ *  the graph model's own edge rule (`isEdgeQuad`), so the property chips offer the predicates the graph draws. A chip
+ *  doesn't offer a predicate whose unticking wouldn't change the graph. */
 export function derivePredicates(quads: Iterable<TQuad>): Array<{ predicate: string; count: number }> {
 	const counts = new Map<string, number>();
 	for (const q of quads) {
@@ -103,8 +98,9 @@ export function derivePredicates(quads: Iterable<TQuad>): Array<{ predicate: str
 	return [...counts].sort(([a], [b]) => a.localeCompare(b)).map(([predicate, count]) => ({ predicate, count }));
 }
 
-/** The facets a reader explicitly turned OFF: the entries whose override states "hidden". The counterpart of
- *  `effectiveHiddenTypes` for facets without a declared default: a predicate is shown unless it was unticked. */
+/** Returns the facets a reader turned off. An override of false marks a facet as turned off. This function is the
+ *  counterpart of `effectiveHiddenTypes` for facets without a declared default: a predicate shows unless a reader
+ *  unticked it. */
 export function explicitlyHidden(overrides: Record<string, boolean>): string[] {
 	return Object.entries(overrides)
 		.filter(([, shown]) => !shown)

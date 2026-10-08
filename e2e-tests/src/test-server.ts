@@ -21,13 +21,13 @@ const TALLY = "tally";
 
 const setTally = (value: number) => ({ term: TALLY, value: String(value), domain: DOMAIN_STRING, origin: Origin.var });
 
-/** Who signs a call and for which action, where a call is signed at all. */
+/** The holder that signs a call and the action that the call invokes. `post` sends the call unsigned when the signer is undefined. */
 type TSigner = { holder: string; action: string } | undefined;
 
-/** A call of `method` at `url`, stating the actuality the host at `url` holds. */
+/** Builds an RPC message that calls `method` with empty params. The message carries the actuality id that a handshake with the origin of `url` returns. */
 const rpcCall = async (url: string, id: string, method: string) => ({ protocol: RPC_PROTOCOL, id, method, params: {}, actualityId: await actualityAt(new URL(url).origin) });
 
-/** A JSON-RPC call to `url`, signed by the stand-in authority where a signer is named. */
+/** Posts a JSON-RPC message to `url`. FakeInvoker signs the request when `signer` is defined. */
 async function post(url: string, message: Record<string, unknown>, signer: TSigner): Promise<Response> {
 	const body = JSON.stringify({ jsonrpc: "2.0", ...message });
 	const headers = { "content-type": "application/json", accept: "application/json, text/event-stream" };
@@ -50,11 +50,11 @@ async function mcpListTools(url: string): Promise<Array<{ name?: string }>> {
 	return (response.result as { tools?: Array<{ name?: string }> } | undefined)?.tools ?? [];
 }
 
-/** The steps shown for `text` over MCP to `holder`, which signs for the public read showing them requires. */
+/** Calls the SHOW_STEPS_METHOD tool over MCP with `text` at summary detail. `holder` signs the call for SHOW_STEPS_ACTION. Returns the method of each step in the response. */
 async function mcpShownSteps(url: string, text: string, holder: string): Promise<string[]> {
 	const response = await mcpRpc(url, 3, "tools/call", { name: SHOW_STEPS_METHOD, arguments: { text, detail: STEP_DETAIL.summary } }, { holder, action: SHOW_STEPS_ACTION });
 	const returned = mcpToolResult(response).content?.[0]?.type === "text" ? (mcpToolResult(response).content?.[0]?.text ?? "") : "";
-	if (!returned) throw new Error(`${SHOW_STEPS_METHOD} returned nothing: ${JSON.stringify(response)}`);
+	if (!returned) throw new Error(`${SHOW_STEPS_METHOD} didn't return text: ${JSON.stringify(response)}`);
 	return readShownSteps(JSON.parse(returned), STEP_DETAIL.summary).steps.map((step) => step.method);
 }
 
@@ -63,13 +63,13 @@ async function mcpCallTool(url: string, toolName: string, signer?: TSigner): Pro
 	return await mcpRpc(url, 4, "tools/call", { name: toolName, arguments: {} }, signer);
 }
 
-/** What a tool call answered, as text. */
+/** Returns the text of the first content item in a tool call response. Returns an empty string when that item isn't text. */
 const mcpText = (response: Record<string, unknown>): string => {
 	const content = mcpToolResult(response).content?.[0];
 	return content?.type === "text" ? (content.text ?? "") : "";
 };
 
-/** A call denied for want of `capability`, or the reason it wasn't. */
+/** Returns OK when the status is 422 and the error includes `capability ${capability} required`. Returns a failure with the status and the error otherwise. */
 const deniedFor = (status: number, error: unknown, capability: string) =>
 	status === 422 && typeof error === "string" && error.includes(`capability ${capability} required`)
 		? actionOK()
@@ -97,22 +97,21 @@ const cycles = (ts: TestServer): IStepperCycles => ({
 			{ id: 2, name: "Include 2" },
 			{ id: 3, name: "Include 3" },
 		];
-		// Reset auth state for each feature
 		ts.currentAuthScheme = undefined;
 		ts.authSchemeHandler = undefined;
 	},
 });
 
 class TestServer extends AStepper {
-	description = "Serves the pages, routes and protected calls the e2e features test, and checks RPC and MCP calls against them.";
+	description = "Adds test routes to the web server and declares capability-protected steps. Its RPC and MCP steps call steps at a URL and check each response.";
 	cycles = cycles(this);
 	toDelete: { [name: string]: string } = {};
 
-	/** Currently active auth scheme type - set at runtime */
+	/** The auth scheme that the dynamic auth middleware applies to protected routes. The `make auth scheme` step sets it. The middleware responds 401 without a scheme. */
 	currentAuthScheme?: TSchemeType;
-	/** Current auth scheme handler for logout */
+	/** The handler of the current auth scheme. The logout route calls its logout. */
 	authSchemeHandler?: AuthSchemeLogout;
-	/** Dynamic auth middleware - created once, checks scheme at request time */
+	/** Auth middleware created once. It reads currentAuthScheme on each request. */
 	private dynamicAuthMiddleware?: ReturnType<typeof createDynamicAuthMiddleware>;
 
 	authToken: string | undefined;
@@ -130,10 +129,7 @@ class TestServer extends AStepper {
 		}
 	}
 
-	/**
-	 * Get or create the dynamic auth middleware.
-	 * This middleware checks currentAuthScheme at request time.
-	 */
+	/** Creates the dynamic auth middleware on the first call and returns it. */
 	private getDynamicAuthMiddleware() {
 		if (!this.dynamicAuthMiddleware) {
 			this.dynamicAuthMiddleware = createDynamicAuthMiddleware(this);
@@ -141,9 +137,7 @@ class TestServer extends AStepper {
 		return this.dynamicAuthMiddleware;
 	}
 
-	/**
-	 * Add a route without auth middleware
-	 */
+	/** Returns a step action that adds `route` at `loc` without auth middleware. */
 	addRoute = (route: TRequestHandler, method: "get" | "post" | "delete" = "get") => {
 		return (args: TStepArgs, vstep: TFeatureStep) => {
 			const { loc } = args as { loc: string };
@@ -160,17 +154,13 @@ class TestServer extends AStepper {
 		};
 	};
 
-	/**
-	 * Add a route protected by auth middleware.
-	 * Uses dynamic middleware that checks currentAuthScheme at request time.
-	 */
+	/** Returns a step action that applies the dynamic auth middleware at `loc` and adds `route` there. */
 	addAuthRoute = (route: TRequestHandler, method: "get" | "post" | "delete" = "get") => {
 		return (args: TStepArgs, vstep: TFeatureStep) => {
 			const { loc } = args as { loc: string };
 			const webserver: IWebServer = getFromRuntime(this.getWorld().runtime, WEBSERVER);
 
 			try {
-				// Apply dynamic auth middleware that checks scheme at request time
 				webserver.app.use(loc, this.getDynamicAuthMiddleware());
 				webserver.addRoute(method, loc, { description: `e2e test server auth-protected route ${method.toUpperCase()} ${loc}` }, route);
 			} catch (error) {
@@ -195,7 +185,7 @@ class TestServer extends AStepper {
 
 	download: TRequestHandler = (c: Context): Promise<Response> => {
 		if (!this.toDelete.uploaded) {
-			return Promise.resolve(c.text("no file to download", 404));
+			return Promise.resolve(c.text("A file hasn't been uploaded. Upload a file before downloading it.", 404));
 		}
 
 		this.toDelete.downloaded = "/tmp/test-downloaded.jpg";
@@ -211,7 +201,7 @@ class TestServer extends AStepper {
 		const uploaded = body["upload"];
 
 		if (!uploaded || !(uploaded instanceof File)) {
-			return c.text("No files were uploaded.", 400);
+			return c.text("The request didn't include a file in the upload field. Send a file in that field.", 400);
 		}
 
 		const uploadPath = `/tmp/upload-${Date.now()}.${uploaded.name}.uploaded`;
@@ -260,7 +250,7 @@ class TestServer extends AStepper {
 				const response = await mcpCallTool(String(url), String(toolName), { holder: String(holder), action: String(action) });
 				if (mcpToolResult(response).isError) return actionNotOK(`Expected MCP success, got ${JSON.stringify(response)}`);
 				const parsed = JSON.parse(mcpText(response) || "{}") as { pong?: boolean };
-				return parsed.pong === true ? actionOK() : actionNotOK(`Expected the protected ping answered, got ${mcpText(response)}`);
+				return parsed.pong === true ? actionOK() : actionNotOK(`Expected the protected ping to return { pong: true }, got ${mcpText(response)}`);
 			},
 		},
 		rpcRefused: {
@@ -295,7 +285,7 @@ class TestServer extends AStepper {
 				const data = (await response.json()) as { error?: unknown };
 				return response.status === REFUSED_INVOCATION
 					? actionOK()
-					: actionNotOK(`Expected the call refused with ${REFUSED_INVOCATION}, got ${response.status} ${JSON.stringify(data)}`);
+					: actionNotOK(`Expected the server to refuse the call with status ${REFUSED_INVOCATION}, got ${response.status} ${JSON.stringify(data)}`);
 			},
 		},
 		addTallyRoute: { gwta: `start tally route at {loc: ${DOMAIN_ROUTE}}`, action: this.addRoute(this.tally) },
@@ -324,7 +314,7 @@ class TestServer extends AStepper {
 				return actionOK();
 			},
 		},
-		// Protected routes - use dynamic auth middleware
+		// The check and resource steps apply the dynamic auth middleware to their routes. The login and logout steps don't.
 		addCheckAuthTokenRoute: { gwta: `start check auth route at {loc: ${DOMAIN_ROUTE}}`, action: this.addAuthRoute(restRoutes(this).checkAuth) },
 		addLogin: { gwta: `start auth login route at {loc: ${DOMAIN_ROUTE}}`, action: this.addRoute(restRoutes(this).logIn, "post") },
 		addLogoutRoute: { gwta: `start logout auth route at {loc: ${DOMAIN_ROUTE}}`, action: this.addRoute(restRoutes(this).logOut) },
@@ -335,7 +325,6 @@ class TestServer extends AStepper {
 			gwta: `make auth scheme {scheme: ${DOMAIN_AUTH_SCHEME}}`,
 			action: (args: TStepArgs, _vstep: TFeatureStep) => {
 				const { scheme } = args as { scheme: string };
-				// Set the current scheme - this is checked at request time by dynamic middleware
 				this.currentAuthScheme = scheme as TSchemeType;
 				this.authSchemeHandler = authSchemes[scheme as TSchemeType](this);
 				return OK;

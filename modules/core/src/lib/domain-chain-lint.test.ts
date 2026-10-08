@@ -75,21 +75,21 @@ describe("lintDomainChain", () => {
 
 	it("doesn't report unsupplied-step for a value its caller writes in the line, since a value domain doesn't name a thing", () => {
 		class Greets extends AStepper {
-			description = "Says a greeting and produces an email.";
+			description = "Takes a greeting and produces an email.";
 			steps: TStepperSteps = { greet: { gwta: `say {what: ${GREETING}}`, productsDomain: EMAIL, action: () => actionOKWithProducts({ id: "e1" }) } };
 		}
 		const report = lintDomainChain(buildDomainChain([new Greets()], domains()), domains());
 		expect(report.findings.filter((f) => f.kind === "unsupplied-step" || f.kind === "unproduced-domain")).toEqual([]);
 	});
 
-	it("takes a reference as supplied where its type is produced or a step answers with one, and its taker as taking the type", () => {
+	it("reads a reference as supplied where its type is produced or a step returns one, and a step that takes it as taking the type", () => {
 		const EMAIL_REF = refDomainKey(EMAIL);
 		class RemovesEmail extends AStepper {
 			description = "Removes an email by reference.";
 			steps: TStepperSteps = { remove: { gwta: `remove {email: ${EMAIL_REF}}`, action: () => OK } };
 		}
 		class FindsEmail extends AStepper {
-			description = "Finds an email and answers with a reference to it.";
+			description = "Finds an email and returns a reference to the email.";
 			steps: TStepperSteps = { find: { gwta: "find an email", productsDomain: EMAIL_REF, action: () => actionOKWithProducts({ id: "e1" }) } };
 		}
 		const findings = (steppers: AStepper[]) => {
@@ -99,17 +99,17 @@ describe("lintDomainChain", () => {
 		const unsupplied = (steppers: AStepper[], stepName: string) => findings(steppers).filter((f) => f.kind === LINT_FINDING.UNSUPPLIED_STEP && f.stepName === stepName);
 		expect(unsupplied([new RemovesEmail()], "remove"), "the steps don't produce an email").toHaveLength(1);
 		expect(unsupplied([new RemovesEmail(), new EmailFromPerson()], "remove"), "a step issuing an email supplies a reference to one").toEqual([]);
-		expect(unsupplied([new ArchiveEmail(), new FindsEmail()], "archive"), "a step answering with a reference supplies the email it refers to").toEqual([]);
+		expect(unsupplied([new ArchiveEmail(), new FindsEmail()], "archive"), "a step returning a reference supplies the email it references").toEqual([]);
 		expect(findings([new RemovesEmail()]).map(lintFindingLine), "a step taking a reference to an email takes an email").toContain(`unproduced-domain ${EMAIL}`);
 	});
 
-	it("takes a step answering with an individual address as supplying a record of every persisted type and a reference to one", () => {
+	it("reads a step returning an individual address as supplying a record of every persisted type and a reference to one", () => {
 		class RemovesEmail extends AStepper {
 			description = "Removes an email by reference.";
 			steps: TStepperSteps = { remove: { gwta: `remove {email: ${refDomainKey(EMAIL)}}`, action: () => OK } };
 		}
 		class CreatesAnyType extends AStepper {
-			description = "Creates a record of any type and answers with its address.";
+			description = "Creates a record of any type and returns its address.";
 			steps: TStepperSteps = {
 				create: { gwta: "create a record", productsDomain: DOMAIN_INDIVIDUAL_ADDRESS, action: () => actionOKWithProducts({ persistedAs: EMAIL, id: "e1" }) },
 			};
@@ -117,7 +117,7 @@ describe("lintDomainChain", () => {
 		const withRefs = { ...deriveNamingDomains(domains()), ...getCoreDomains(getDefaultWorld()) };
 		const unsupplied = (steppers: AStepper[]) => lintDomainChain(buildDomainChain(steppers, withRefs), withRefs).findings.filter((f) => f.kind === LINT_FINDING.UNSUPPLIED_STEP);
 		expect(unsupplied([new RemovesEmail()]), "the steps don't produce an email").toHaveLength(1);
-		expect(unsupplied([new RemovesEmail(), new CreatesAnyType()]), "a step answering with an address supplies an email").toEqual([]);
+		expect(unsupplied([new RemovesEmail(), new CreatesAnyType()]), "a step returning an address supplies an email").toEqual([]);
 	});
 
 	it("reads a step that takes a union as taking each part, so it doesn't report a part unreachable", () => {
@@ -135,11 +135,11 @@ describe("lintDomainChain", () => {
 		expect(unreachable([new FindsEither()])).toEqual([]);
 	});
 
-	it("takes a composite a step takes as written by its caller, and what its fields name as taken", () => {
+	it("reads a composite a step takes as written by its caller, and the domains its fields name as taken", () => {
 		const REQUEST = "email-request";
 		const withRequest = mapDefinitionsToDomains([
 			thing(PERSON, "person"),
-			{ selectors: [REQUEST], schema: z.object({ from: z.string() }), description: "what an email is asked with", topology: { ranges: { from: PERSON } } },
+			{ selectors: [REQUEST], schema: z.object({ from: z.string() }), description: "a request to send an email", topology: { ranges: { from: PERSON } } },
 		]);
 		class SendsEmail extends AStepper {
 			description = "Sends an email from a request.";
@@ -165,14 +165,14 @@ describe("lintDomainChain", () => {
 		expect(unreachable).toContain("dead-registered");
 	});
 
-	it("reports unproduced-domain for a domain referenced as input but the steps don't produce it", () => {
+	it("reports unproduced-domain for an input domain that the steps don't produce", () => {
 		const graph = buildDomainChain([new EmailFromPerson()], domains());
 		const report = lintDomainChain(graph, domains());
 		const unproduced = report.findings.filter((f) => f.kind === "unproduced-domain").map((f) => (f.kind === "unproduced-domain" ? f.domain : ""));
 		expect(unproduced).toContain(PERSON);
 	});
 
-	it("summary counts match findings counts", () => {
+	it("counts each kind of finding in the summary", () => {
 		const graph = buildDomainChain([new EmailFromPerson(), new ArchiveEmail()], domains());
 		const report = lintDomainChain(graph, domains());
 		const calculated = Object.fromEntries(Object.values(LINT_FINDING).map((kind) => [kind, report.findings.filter((f) => f.kind === kind).length]));
@@ -217,7 +217,7 @@ describe("a run's step graph", () => {
 		steps: TStepperSteps = { take: { gwta: `take {what: ${DOMAIN_TEXT}}`, action: () => OK } };
 	}
 
-	it("refuses to start a run whose step takes a string parameter, naming the step and the parameter", async () => {
+	it("doesn't start a run whose step takes a string parameter, and the error names the step and the parameter", async () => {
 		const refused = await failWithDefaults([feature], [Untyped]);
 		expect(refused.failure?.error.message).toMatch(/the step graph is incomplete: string-param .*take \{what: string\}/);
 	});

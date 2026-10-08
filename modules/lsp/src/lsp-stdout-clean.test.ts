@@ -6,16 +6,16 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { OK } from "@haibun/core/schema/protocol.js";
 
 /**
- * Tests to ensure LSP server never writes raw output to stdout.
+ * Checks that the LSP server doesn't write raw output to stdout.
  *
- * The LSP protocol uses stdout for JSON-RPC messages with Content-Length headers.
- * Any raw console.log() calls corrupt the protocol and cause:
- * "Header must provide a Content-Length property" errors in VS Code.
+ * The LSP server sends JSON-RPC messages with Content-Length headers on stdout.
+ * A raw console.log() call corrupts that message stream.
+ * VS Code then reports the error "Header must provide a Content-Length property".
  *
- * All debug output MUST go to stderr, not stdout.
+ * The server writes debug output to stderr.
  */
 
-// Mock connection that captures all output
+// Each connection method is a vi.fn that records its calls.
 const createMockConnection = () => ({
 	onInitialize: vi.fn(),
 	onDidChangeContent: vi.fn(),
@@ -50,7 +50,7 @@ const mockWorld = {
 };
 
 class TestStepper extends AStepper {
-	description = "A step with one parameter, for the language server to resolve.";
+	description = "Defines one step with one parameter for the language server to resolve.";
 	steps = { testStep: { gwta: "test step with {param}", action: async () => OK } };
 }
 
@@ -59,7 +59,7 @@ describe("LSP stdout cleanliness", () => {
 	let stderrSpy: MockInstance;
 
 	beforeEach(() => {
-		// Spy on process.stdout.write to catch any raw output
+		// Records each write to stdout and stderr and doesn't print it.
 		stdoutSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
 		stderrSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
 	});
@@ -80,7 +80,6 @@ describe("LSP stdout cleanliness", () => {
 		// biome-ignore lint/suspicious/noExplicitAny: private
 		await (lsp as any).processDocument(doc);
 
-		// Check that raw output didn't go to stdout
 		const stdoutCalls = stdoutSpy.mock.calls;
 		expect(stdoutCalls.length).toBe(0);
 	});
@@ -96,25 +95,23 @@ describe("LSP stdout cleanliness", () => {
 		// biome-ignore lint/suspicious/noExplicitAny: mock
 		const lsp = new LspStepper(mockConnection as any, steppers, []);
 
-		// Get the semantic tokens handler
+		// LspStepper registers the handler as the first argument of its first call to semanticTokens.on.
 		const semanticTokensHandler = (mockConnection.languages.semanticTokens.on as unknown as MockInstance).mock.calls[0]?.[0];
 		if (!semanticTokensHandler) {
-			throw new Error("Semantic tokens handler not registered");
+			throw new Error("LspStepper didn't register a semantic tokens handler. Check the call to connection.languages.semanticTokens.on in setupLsp.");
 		}
 
 		const doc = TextDocument.create("file:///test/feature.feature", "haibun", 1, 'set foo to "bar"');
 
-		// Process document first to populate cache
+		// Replaces documents with a stub whose get returns doc. The document cache stays empty.
 		(lsp as unknown as { processDocument: (d: TextDocument) => Promise<void>; documents: unknown }).documents = { get: () => doc };
 
-		// Reset spy counts after document processing
+		// Clears the writes recorded during setup.
 		stdoutSpy.mockClear();
 
-		// Now call semantic tokens
 		const params = { textDocument: { uri: "file:///test/feature.feature" } };
 		semanticTokensHandler(params);
 
-		// Check that raw output didn't go to stdout
 		const stdoutCalls = stdoutSpy.mock.calls;
 		expect(stdoutCalls.length).toBe(0);
 	});
@@ -134,7 +131,6 @@ describe("LSP stdout cleanliness", () => {
 
 		await (lsp as unknown as { processDocument: (d: TextDocument) => Promise<void> }).processDocument(bgDoc);
 
-		// Check that raw output didn't go to stdout
 		const stdoutCalls = stdoutSpy.mock.calls;
 		expect(stdoutCalls.length).toBe(0);
 	});

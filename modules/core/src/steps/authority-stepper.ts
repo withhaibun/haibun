@@ -20,18 +20,18 @@ const authorityActionSchema = z
 	.regex(/^\S+$/, "action must not contain whitespace")
 	.describe("Allowed action label such as GraphStepper:read, comment.grant, or Namespace:*.");
 
-/** What holding authority over this run's own authority means: stating and delegating it, revoking what it granted, and
- *  naming the sites that connect to it. */
+/** The actions on actuality's own authority. `delegate` permits stating and delegating the authority. `revoke` permits
+ *  revoking a capability the authority granted. `name` permits naming the sites that connect to this instance. */
 export const AUTHORITY_CAPABILITIES = { delegate: "Authority:delegate", revoke: "Authority:revoke", name: "Authority:name" } as const;
 
-/** The domains of the site a connecting instance is named, and the delegations a key holds here. */
+/** The domain of the delegations this instance recorded to a key. */
 const DOMAIN_DELEGATIONS = "delegations";
 const delegationsSchema = z.object({
 	delegations: z.array(z.record(z.string(), z.unknown())),
 	records: z.record(z.string(), z.object({ persistedAs: z.string(), accessLevel: AccessLevelSchema })).optional(),
 });
 
-/** The inline signed-capability document presented to `holding capability …`. Must carry a controller and a Data Integrity proof; verification is delegated to the registered IAuthorityVerifier. */
+/** The inline signed-capability document that `holding capability …` takes. The schema requires a controller and a Data Integrity proof. The registered IAuthorityVerifier verifies the document. */
 const signedCapabilitySchema = z.looseObject({
 	id: z.string().min(1, "capability id is required"),
 	controller: z.string().min(1, "capability controller is required"),
@@ -50,9 +50,9 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
 		this.steppers = steppers;
-		// The authority exists before any stepper's feature begins, since a stepper that registers a verifier or an
-		// issuer does so when its own feature begins, and which of them runs first is the order a deployment happened to
-		// list them in. What a deployment can decide should not depend on that.
+		// setWorld creates the authority before any feature starts. A stepper registers a verifier or an issuer in its
+		// startFeature cycle, and the startFeature cycles run in the order a deployment lists the steppers. The authority
+		// exists before every startFeature cycle, so registration doesn't depend on that order.
 		this.authority = new SessionAuthority();
 		(world.runtime.keys ??= {})[AUTHORITY_KEY] = this.authority;
 	}
@@ -80,15 +80,16 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			exact: "name a connecting site",
 			capability: AUTHORITY_CAPABILITIES.name,
 			productsDomains: { site: DOMAIN_PRINCIPAL_REF },
-			// Site principals must be unique within a federation. A default-identified instance (did:site:0 to itself)
-			// asks the site it connects to what it should be called; this end assigns `did:site:<mine>.<n>`, unique
-			// under this site's own principal, and durably records the assignment as a Principal individual, so `n`
-			// never repeats. Called over RPC by the connecting site (see the federate step's collision handling).
+			// Site principals are unique within a federation. An instance with the default identity (did:site:0) requests a
+			// name from the site it connects to where the two principals collide. This step assigns `did:site:<mine>.<n>`,
+			// which is unique under this site's own principal. It writes this site's principal and the assigned principal to
+			// the store as Principal individuals, so `n` doesn't repeat. The connecting site calls this step over RPC (see the
+			// federate step's collision handling).
 			action: async () => {
 				const world = this.getWorld();
 				const store = world.shared?.getStore();
 				if (!store) {
-					return actionNotOK("naming a connecting site requires a store: a namer must durably record the principals it assigns");
+					return actionNotOK("naming a connecting site requires a store, because the step stores each principal it assigns. Run the step on an instance that has a store.");
 				}
 				const myId = activeSitePrincipal(world);
 				const local = myId.startsWith(SITE_DID_PREFIX) ? myId.slice(SITE_DID_PREFIX.length) : myId.replace(/^did:/, "").replace(/:/g, ".");
@@ -108,19 +109,19 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			gwta: "delegations to the caller",
 			productsDomain: DOMAIN_DELEGATIONS,
 			description:
-				"The signed delegations this instance recorded to the key that signs the call and hasn't revoked, as the documents a holder presents: how a key finds what it may do here. A key reads its own delegations and doesn't read another key's.",
+				"Returns the signed delegations that this instance recorded to the key that signs the call, as the documents a holder presents. The step omits a revoked delegation. A key's holder reads the delegations to determine what the key may do here. The step returns only the calling key's delegations.",
 			action: async () => {
 				const controller = actingAs();
-				if (!controller) return actionNotOK("the delegation read answers the key that signs the call, and this call doesn't prove a key");
+				if (!controller) return actionNotOK("the call doesn't prove a key, and the delegation read returns only the signing key's delegations. Sign the call.");
 				return actionOKWithProducts(await this.getAuthority().delegationsTo(controller));
 			},
 		},
 		showHeldCalls: {
-			// Which calls rest on which capability is who is connected under what, which is private.
+			// The held calls show which callers are connected under which capability, so reading them requires the private read action.
 			read: true,
 			capability: readAction(Access.private),
 			gwta: "show held calls",
-			description: "The calls held open at this instance, by the capability each rests on: what revoking that capability ends.",
+			description: "Returns the calls held open at this instance, by the capability each rests on. Revoking a capability ends the calls that rest on it.",
 			productsDomain: DOMAIN_HELD_CALLS,
 			action: () => Promise.resolve(actionOKWithProducts(this.getAuthority().heldCalls())),
 		},
@@ -128,7 +129,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			gwta: `holding only {actions: ${DOMAIN_ACTIONS}}, {what: statement}`,
 			productsOf: "what",
 			description:
-				"Run a statement with only the listed actions, comma-separated, of those its caller holds, as the same caller. A statement can do less than its caller and never more, so a feature states a caller that holds some actions and not others, and a refusal names the action the caller lacks.",
+				"Runs a statement as the same caller with only those of the listed actions that its caller holds. The actions are comma-separated. A statement can do less than its caller and never more, so a feature can state a caller that holds some actions and not others. A refusal names the action the caller lacks.",
 			action: ({ actions, what }: { actions: string[]; what: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				const held = callerHolds();
 				return runAuthorizedWith(
@@ -145,29 +146,31 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 	} as const satisfies TStepperSteps;
 
 	/**
-	 * Run `what` as the controller of a signed capability, with what it allows, after verifying it through the registered
-	 * IAuthorityVerifier. haibun-core stays crypto-free: verification is delegated; on `ok` the capability's controller
-	 * becomes the principal.
+	 * Runs `what` under a signed capability after the registered IAuthorityVerifier verifies the capability. haibun-core
+	 * doesn't implement cryptography, so verification depends on the registered verifier.
 	 */
 	private async runUnderCapability(cap: unknown, target: string, what: TFeatureStep[], featureStep: TFeatureStep) {
-		// A variable keeps its own domain, so a document kept as JSON text, as a record keeps a signed document, arrives as
-		// the text: read as the document it spells.
+		// A variable keeps its own domain. A record stores a signed document as JSON text, so `cap` can hold that text.
+		// fromJsonText parses the text as the document.
 		const parsed = fromJsonText(signedCapabilitySchema).safeParse(cap);
 		if (!parsed.success) {
 			return actionNotOK(`holding capability: invalid signed capability, ${parsed.error.issues.map((i) => i.message).join("; ")}`);
 		}
 		const capability = parsed.data;
-		// The registered verifier reads the document, checked for everything it allows, and holds its presenter to its
-		// controller, since a copy doesn't carry the key it names. The framework doesn't hold a key or implement a specification.
+		// The registered verifier checks the document for every action the document allows. It checks the presenter against
+		// the document's controller, since a copy of the document doesn't carry the key it names. The framework doesn't hold
+		// a key or implement a specification.
 		const presenter = actingFor();
-		if (!presenter) return actionNotOK("holding capability: a capability is presented by a caller that proves who it is, and this caller doesn't");
+		if (!presenter)
+			return actionNotOK("holding capability: the caller isn't the root and doesn't prove a key, so the verifier can't check who presents the capability. Sign the call.");
 		const verified = await this.getAuthority().verifyEvidence({ kind: "document", document: capability, target, presenter });
 		if (!verified.ok) {
 			return actionNotOK(`holding capability: the evidence was refused, ${verified.error}`);
 		}
 		const runner = new FlowRunner(this.getWorld(), this.steppers);
 		const run = () => runner.runSteps(what, { parentStep: featureStep });
-		// What the capability allows is all its statements may do, and its controller is who does it.
+		// The statements run with the actions the verifier allows, or the capability's delegated actions where the verifier
+		// doesn't list them. They run as the principal the verifier returns, or as the capability's controller.
 		return await runAuthorizedWith(verified.allowedAction ?? delegatedActions(capability), () => runActingAs(verified.principal ?? capability.controller, run, verified.restsOn));
 	}
 

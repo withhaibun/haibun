@@ -5,7 +5,7 @@ import { intOrError } from "./util/index.js";
 import { itemAt } from "./util/item-at.js";
 
 class PlainStepper extends AStepper {
-	description = "no tunables declared";
+	description = "doesn't declare tunables";
 	steps: TStepperSteps = {};
 }
 
@@ -39,7 +39,7 @@ class TunableMixed extends AStepper implements IHasTunables {
 }
 
 class TunableEmpty extends AStepper implements IHasTunables {
-	description = "implements IHasTunables but declares none (tunables property absent)";
+	description = "implements IHasTunables without a tunables property";
 	declare tunables?: IHasTunables["tunables"];
 	steps: TStepperSteps = {};
 }
@@ -81,9 +81,9 @@ describe("getTunableOptions", () => {
 		expect(names).toEqual(new Set(["TunableA", "TunableMixed"]));
 	});
 
-	it("discovery is duck-typed on the `tunables` property, not an instanceof check", () => {
-		// Mirrors how CLI --help walks options / cycles: introspect the property,
-		// it doesn't check instanceof of some ATunableStepper base class.
+	it("discovery reads the `tunables` property and doesn't check instanceof", () => {
+		// getTunableOptions reads the property, as the CLI's usage text reads a stepper's `options`.
+		// It doesn't check instanceof against a stepper base class.
 		class NotDeclared extends AStepper {
 			description = "has a tunables field without declaring IHasTunables in its types";
 			steps: TStepperSteps = {};

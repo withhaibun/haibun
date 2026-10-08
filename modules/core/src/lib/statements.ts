@@ -1,23 +1,25 @@
 /**
- * Statements: reading the graph as the statements it holds, with where each one came from.
+ * Reads the statements the graph holds and the provenance of each.
  *
- * A statement is a subject, a predicate, and an object. This reads them back for a given predicate and answers, for
- * each, which reading asserted it, in which run step, and how that step ended. Every party in a row is a REFERENCE
- * (`@id` + `@type`), never a copied display string, so a view renders each cell as something to open: the subject,
- * the passage, the reading, actuality.
+ * A statement is a subject, a predicate and an object. statementsWith reads the statements of one predicate. It returns
+ * each statement with the reading that asserted it, the outermost recorded step that contains the reading's step, and
+ * that outermost step's status. Each party in a row is a reference (`@id` + `@type`) and not a copied display string.
+ * A view renders each cell as a link: the subject, the passage, the reading and the step of actuality.
  *
- * This module doesn't store a record: this is a projection of what the store already holds, shaped as RDF reification
- * (`rdf:Statement`, subject / predicate / object) plus provenance. A coverage table, which requirements a run
- * evidenced, and whether it passed, is this read with the citation predicate, not a report of its own.
+ * This module doesn't store a record. It projects what the store holds as RDF reification (`rdf:Statement`, subject,
+ * predicate, object) with provenance. A coverage table is this read with the citation predicate and not a separate
+ * report. Each row of the table holds a cited requirement and the status of the outermost step that contains the
+ * citing step.
  */
 import { READING_LABEL, LinkRelations, SEQ_PATH_LABEL, StatedRecordSchema, type TDiscourseStore } from "./resources.js";
 import { fromJsonText } from "./json-text.js";
 import { SEQ_PATH_FIELD, SEQ_PATH_EDGE, type TSeqPath } from "./seq-path.js";
 
-/** A reference to an individual, as JSON-LD names one: what to open, and what kind of thing it is. */
+/** A JSON-LD reference to an individual: its `@id` and its `@type`. */
 export type TReference = { "@id": string; "@type": string };
 
-/** One statement and its provenance. `assertedBy` is actuality step that made it; `outcome` is how that step's run ended. */
+/** One statement and its provenance. `assertedBy` is the outermost recorded step that contains the step of the
+ *  asserting reading. `outcome` is that outermost step's status. */
 export type TStatementRow = {
 	"@type": "rdf:Statement";
 	subject: TReference;
@@ -28,7 +30,7 @@ export type TStatementRow = {
 	outcome?: string;
 };
 
-/** The store surface this read needs: quads by pattern, and individuals by id. */
+/** The store methods this read calls: quads by pattern, an individual by id, and individuals by label. */
 type TStatementStore = Pick<TDiscourseStore, "query" | "getIndividual"> & {
 	queryIndividuals<T = Record<string, unknown>>(label: string, filters?: Record<string, unknown>, options?: { limit?: number; offset?: number }): Promise<T[]>;
 };
@@ -36,7 +38,8 @@ type TStatementStore = Pick<TDiscourseStore, "query" | "getIndividual"> & {
 /** A quad as the stores return it: the subject's type is its named graph, and an edge names its target's type. */
 type TEdgeQuad = { subject: string; predicate: string; object: unknown; namedGraph?: string; objectType?: string };
 
-/** Which reading asserted which statement, keyed by what the statement states: the readings' own record, read back. */
+/** Maps the subject, predicate and object of each edge a reading states to that reading. It reads the `stated` records
+ *  of each reading. */
 async function readingsByStatement(store: TStatementStore): Promise<Map<string, string>> {
 	const byStatement = new Map<string, string>();
 	for (const reading of await store.queryIndividuals<{ id: string; stated?: unknown }>(READING_LABEL)) {
@@ -48,7 +51,8 @@ async function readingsByStatement(store: TStatementStore): Promise<Map<string, 
 	return byStatement;
 }
 
-/** The actuality a step belongs to: its outermost ancestor, whose status is actuality's own. One walk, cycle-guarded by depth. */
+/** Returns the outermost recorded ancestor of a step, or the step where a recorded parent doesn't exist. A walk over a
+ *  cycle of `isPartOf` edges stops at a depth of 100. */
 async function runOf(store: TStatementStore, seqPathId: string): Promise<TSeqPath | undefined> {
 	let current = await store.getIndividual<TSeqPath>(SEQ_PATH_LABEL, seqPathId);
 	for (let depth = 0; current && depth < 100; depth++) {
@@ -62,8 +66,10 @@ async function runOf(store: TStatementStore, seqPathId: string): Promise<TSeqPat
 }
 
 /**
- * Every statement made with `predicate`, newest reading first, each with the reading that asserted it and how that
- * run ended. A statement that a reading doesn't claim (asserted by hand) is still a row: it doesn't name a reading.
+ * Returns each edge made with `predicate` as a statement, in the order the store returns its quads. A row references
+ * the reading that asserted the statement and the outermost recorded step that contains the reading's step. It holds
+ * that outermost step's status as `outcome`. A reading's `stated` records don't hold a statement asserted by hand. That
+ * statement is still a row, and the row doesn't reference a reading.
  */
 export async function statementsWith(store: TStatementStore, predicate: string): Promise<TStatementRow[]> {
 	const quads = (await store.query({ predicate })) as TEdgeQuad[];
@@ -71,7 +77,7 @@ export async function statementsWith(store: TStatementStore, predicate: string):
 	const rows: TStatementRow[] = [];
 	for (const quad of quads) {
 		const objectType = quad.objectType;
-		// A quad without a target type is a literal property, not a statement about another individual.
+		// A quad without a target type is a literal property and doesn't relate the subject to another individual.
 		if (!objectType) continue;
 		const row: TStatementRow = {
 			"@type": "rdf:Statement",
@@ -95,7 +101,8 @@ export async function statementsWith(store: TStatementStore, predicate: string):
 	return rows;
 }
 
-/** Every rel a statement was made with, so a reader picks one rather than guessing. Derived from what the store holds, not from a list. */
+/** Returns every rel in LinkRelations whose range is an IRI and that isn't abstract. A reader picks a predicate from
+ *  this list and doesn't guess one. */
 export function statementPredicates(): string[] {
 	return Object.values(LinkRelations)
 		.filter((entry) => entry.range === "iri" && !(entry as { abstract?: boolean }).abstract)

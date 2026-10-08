@@ -1,21 +1,21 @@
 /**
  * The one walk through zod's wrapper types.
  *
- * `optional`, `nullable` and `default` each wrap the type they qualify, and a preprocess wraps the type it reads its
- * input into, so every reader that wants the underlying type has to walk through them. Written three times, two of
- * them reached different private zod internals, `_zod.def` and `_def.innerType`, so a zod version that moves one
- * leaves the other returning an unpeeled type without reporting it. One walk, one place to correct when the
- * library moves.
+ * `optional`, `nullable` and `default` each wrap the type they qualify. A preprocess wraps the type that parses its
+ * transformed input. A reader of the underlying type walks through these wrappers. The walk reads zod's private
+ * `_zod.def`. A zod version may move it, and this module is the one place to correct when the library changes.
  */
 import type { z } from "zod";
 
 type TWrapperDef = { type?: string; innerType?: z.ZodType; in?: z.ZodType; out?: z.ZodType };
 
-/** The wrapper definition zod holds for a type, or undefined where the type is not a wrapper. */
+/** Returns the definition zod holds in `_zod.def` for every type, including a type that isn't a wrapper. Returns undefined
+ *  where the type doesn't carry `_zod.def`. */
 const wrapperDef = (t: z.ZodType): TWrapperDef | undefined => (t as { _zod?: { def?: TWrapperDef } })._zod?.def;
 
-/** Strip optional / nullable / default / preprocess wrappers to reveal the underlying type, returning whether any made it
- *  optional. A preprocess is a pipe from a transform into the type its value takes. */
+/** Walks through optional, nullable, default and preprocess wrappers and returns the underlying type. It also returns
+ *  whether an optional or nullable wrapper is present. A preprocess is a pipe from a transform into the type its value
+ *  takes. */
 export function unwrap(zodType: z.ZodType): { inner: z.ZodType; optional: boolean } {
 	let current: z.ZodType = zodType;
 	let optional = false;
@@ -41,13 +41,13 @@ export function unwrap(zodType: z.ZodType): { inner: z.ZodType; optional: boolea
 	}
 }
 
-/** The object type a type is once unwrapped, or null where it is not an object. */
+/** The object type under a type's wrappers, or null where it isn't an object. */
 export function unwrapToObject(zodType: z.ZodType): z.ZodObject | null {
 	const { inner } = unwrap(zodType);
 	return wrapperDef(inner)?.type === "object" ? (inner as z.ZodObject) : null;
 }
 
-/** The object shape a type carries once unwrapped, or null where it is not an object. */
+/** The shape of the object under a type's wrappers, or null where it isn't an object. */
 export function unwrapToShape(zodType: z.ZodType): Record<string, z.ZodType> | null {
 	return unwrapToObject(zodType)?.shape ?? null;
 }

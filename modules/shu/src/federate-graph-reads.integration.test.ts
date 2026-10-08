@@ -17,10 +17,11 @@ import GraphSourceStepper from "./graph-source-stepper.js";
 import ShuStepper from "./shu-stepper.js";
 
 /**
- * Live federation over real RPC, in the rpc-dispatch.test pattern: one world serves the web server and
- * federates to its own endpoint. Degenerate as a topology, complete as a mechanism: the handshake, the
- * site-principal collision, the naming call over the wire, the adoption, the registration, and the merged
- * stamped read all run against a real HTTP server; scope "own" is what keeps the cycle from recursing.
+ * Tests live federation over real RPC, as web-server-hono's rpc-dispatch.test.ts does. The first case's world serves the
+ * web server and federates to its own endpoint. That case has one instance and runs the complete mechanism. The
+ * handshake, the site-principal collision, the naming call over RPC, the adoption, the registration and the merged stamped
+ * read all run against a real HTTP server. Scope "own" keeps the cycle from recursing. The second case federates a
+ * separate instance that a haibun step starts.
  */
 let captured: TClusteredQuads | undefined;
 let adoptedDuringRun: string | undefined;
@@ -30,7 +31,7 @@ function resetCaptures(): void {
 }
 
 class FederationVerifyStepper extends AStepper {
-	description = "Captures a clustered read federated from another instance, for the federation test.";
+	description = "Captures a clustered read federated from another instance for the federation test.";
 	steps = {
 		captureFederatedRead: {
 			gwta: "capture the federated clustered read",
@@ -45,7 +46,7 @@ class FederationVerifyStepper extends AStepper {
 }
 
 describe("federate graph reads over live RPC", () => {
-	it("handshakes, de-collides by asking the peer for a name, and merges the peer's own reads with every subject site-stamped", async () => {
+	it("handshakes with the peer, requests a name from it on a site-principal collision and merges the peer's own reads with every subject site-stamped", async () => {
 		const port = 8246;
 		const world = getTestWorldWithOptions({ ...DEF_PROTO_OPTIONS, moduleOptions: { [getStepperOptionName(WebServerStepper, "PORT")]: String(port) } });
 		const feature = {
@@ -66,18 +67,18 @@ capture the federated clustered read
 		);
 		if (!result.ok) throw new Error(JSON.stringify({ failure: result.failure, steps: result.featureResults?.map((f) => f.stepResults.map((s) => [s.in, s.ok])) }, null, 2));
 
-		// Both ends booted as did:site:0: the connecting side asked the peer (over the wire) what it should be called and adopted the answer.
+		// Both ends booted as did:site:0. The connecting side requested a name from the peer over RPC and adopted the returned name.
 		expect(adoptedDuringRun).toBe("did:site:0.1");
-		// The namer durably recorded the assignment as a Principal individual.
+		// The naming side persisted the assignment as a Principal individual.
 		const store = world.shared.getStore();
 		expect((await store.getIndividual<TPrincipal>(PRINCIPAL_LABEL, "did:site:0.1"))?.controller).toBe("did:site:0.1");
-		// The merged view came back (without recursion) with the peer's subjects present and EVERY one stamped with its serving site.
+		// The merged read returned without recursion. It holds the peer's subjects. Each subject is stamped with its serving site.
 		const principals = captured?.clusters.find((c) => c.type === PRINCIPAL_LABEL);
 		expect(principals?.sampledSubjects.length).toBeGreaterThan(0);
 		for (const s of principals?.sampledSubjects ?? []) expect(principals?.sites?.[s]).toBe("did:site:0.1");
 	});
 
-	it("federates a separate instance, started the haibun way, and the merged view carries BOTH sites", { timeout: 60_000 }, async () => {
+	it("federates a separate instance that a haibun step starts without a site collision and stamps each peer subject with the peer's site", { timeout: 60_000 }, async () => {
 		resetCaptures();
 		const port = 8248;
 		const peerPort = 8249;
@@ -111,10 +112,10 @@ capture the federated clustered read
 		);
 		if (!result.ok) throw new Error(JSON.stringify({ failure: result.failure, steps: result.featureResults?.map((f) => f.stepResults.map((s) => [s.in, s.ok])) }, null, 2));
 
-		// Distinct hostIds → distinct site principals → they don't collide, and this instance doesn't adopt an identity: it stays did:site:0.
+		// Distinct hostIds give distinct site principals, so the sites don't collide. This instance doesn't adopt an identity and stays did:site:0.
 		expect(adoptedDuringRun).toBe("did:site:0");
-		// The peer's own Principals (its serve feature ran `name a connecting site`, persisting did:site:7 + did:site:7.1)
-		// arrive in the merged view, every subject stamped with the SERVING site: the data group-by-site separates on.
+		// The peer's serve feature runs `name a connecting site`. That step persists did:site:7 and did:site:7.1. The merged view
+		// holds those Principals. Each subject is stamped with the serving site. Group-by-site separates subjects by that stamp.
 		const principals = captured?.clusters.find((c) => c.type === PRINCIPAL_LABEL);
 		expect(principals?.sampledSubjects).toContain("did:site:7");
 		expect(principals?.sampledSubjects).toContain("did:site:7.1");

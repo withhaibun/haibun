@@ -6,9 +6,8 @@ import type { TOutgoingRequest, TRequestSigner } from "./authority-types.js";
 import { itemAt } from "./util/item-at.js";
 
 /**
- * Build a fake fetch that records calls and returns scripted responses.
- * Responses is an array; each call pops the next one. If exhausted, the
- * fake throws: that surfaces unexpected extra calls as a clear failure.
+ * Builds a fake fetch that records calls and returns scripted responses. Each call takes the next response from the
+ * array. The fake throws once the array is exhausted, so an unexpected extra call fails the test.
  */
 type Scripted = Partial<Response> & { bodyText?: string; bodyStream?: string[]; throwError?: Error };
 
@@ -16,7 +15,7 @@ function makeFakeFetch(responses: Scripted[]): { fetchImpl: typeof fetch; calls:
 	const calls: Array<{ url: string; init?: RequestInit }> = [];
 	let idx = 0;
 	const fetchImpl: typeof fetch = async (input, init) => {
-		await Promise.resolve(); // await for lint; also ensures the handler is a microtask, closer to real fetch semantics
+		await Promise.resolve(); // satisfies lint and runs the handler as a microtask, as a real fetch does
 		const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : (input as Request).url;
 		calls.push({ url, init });
 		if (idx >= responses.length) throw new Error(`fake fetch exhausted after ${idx} calls`);
@@ -70,7 +69,7 @@ describe("RpcClient.call", () => {
 
 	it("sends a call that doesn't invoke an action unsigned", async () => {
 		const { fetchImpl, calls } = makeFakeFetch([{ ok: true, bodyText: "{}" }]);
-		const sign: TRequestSigner = () => Promise.reject(new Error("a call invoking nothing is not signed"));
+		const sign: TRequestSigner = () => Promise.reject(new Error("a call that doesn't invoke an action isn't signed"));
 		const client = new RpcClient({ baseUrl: "http://host", sign, fetchImpl });
 		await client.call("m", {}, [0]);
 		expect(itemAt(calls, 0).init?.headers).toEqual({ "content-type": "application/json", host: "host" });
@@ -79,23 +78,23 @@ describe("RpcClient.call", () => {
 	it("refuses a call invoking an action when it doesn't hold a signer, before sending a request", async () => {
 		const { fetchImpl, calls } = makeFakeFetch([{ ok: true, bodyText: "{}" }]);
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl });
-		await expect(client.call("m", {}, [0], { action: "Stepper:act" })).rejects.toThrow("a call invoking Stepper:act is signed, and this client doesn't hold a signer");
+		await expect(client.call("m", {}, [0], { action: "Stepper:act" })).rejects.toThrow("a call invoking Stepper:act must be signed, and this client doesn't hold a signer");
 		expect(calls).toEqual([]);
 	});
 
-	it("refuses a call its signer refuses, once, without retrying it as a network fault", async () => {
+	it("refuses a call its signer refuses after one signing attempt and doesn't retry it as a network fault", async () => {
 		const { fetchImpl, calls } = makeFakeFetch([{ ok: true, bodyText: "{}" }]);
 		let asked = 0;
 		const sign: TRequestSigner = () => {
 			asked++;
-			return Promise.reject(new Error("no delegation allows Stepper:act"));
+			return Promise.reject(new Error("the signer doesn't hold a delegation that allows Stepper:act"));
 		};
 		const client = new RpcClient({ baseUrl: "http://host", sign, fetchImpl, retry: { maxAttempts: 3, baseDelayMs: 0 } });
-		await expect(client.call("m", {}, [0], { action: "Stepper:act" })).rejects.toThrow("no delegation allows Stepper:act");
+		await expect(client.call("m", {}, [0], { action: "Stepper:act" })).rejects.toThrow("the signer doesn't hold a delegation that allows Stepper:act");
 		expect([asked, calls.length]).toEqual([1, 0]);
 	});
 
-	it("refuses an answer that is not JSON with its status and what the server sent, as a path it does not serve answers", async () => {
+	it("refuses the text response a server returns for a path it doesn't serve and names its status and body", async () => {
 		const fetchImpl: typeof fetch = () => Promise.resolve(new Response("404 Not Found", { status: 404, headers: { "Content-Type": "text/plain" } }));
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl: answeringTheHandshake(fetchImpl) });
 		await expect(client.call("Stepper-echo", {}, [0])).rejects.toThrow(
@@ -103,12 +102,12 @@ describe("RpcClient.call", () => {
 		);
 	});
 
-	it("surfaces application errors (HTTP 422 with error body) intact", async () => {
+	it("throws an application error (HTTP 422 with an error body) unchanged", async () => {
 		const { fetchImpl } = makeFakeFetch([{ ok: false, status: 422, bodyText: JSON.stringify({ error: "capability Foo required" }) }]);
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl, retry: { maxAttempts: 1 } });
 		const refused = client.call("m", {}, [0]);
 		await expect(refused).rejects.toThrow(new RpcCallFailed("m", "http://host", "capability Foo required", true));
-		await expect(refused, "the host answered with the refusal").rejects.toMatchObject({ answered: true });
+		await expect(refused, "the host responded with the refusal").rejects.toMatchObject({ answered: true });
 	});
 
 	it("retries on network error and succeeds on a later attempt", async () => {
@@ -119,12 +118,12 @@ describe("RpcClient.call", () => {
 		expect(calls.length).toBe(2);
 	});
 
-	it("throws RpcCallFailed, naming the attempts, once every retry fails", async () => {
+	it("throws an RpcCallFailed that names the attempt count once every retry fails", async () => {
 		const { fetchImpl, calls } = makeFakeFetch([{ throwError: new Error("boom") }, { throwError: new Error("boom") }]);
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl, retry: { maxAttempts: 2, baseDelayMs: 0 } });
 		const failed = client.call("m", {}, [0]);
 		await expect(failed).rejects.toThrow(/m at http:\/\/host: rpc failed after 2 attempts/);
-		await expect(failed, "the far side didn't answer, so the message names the call and the host").rejects.toMatchObject({ answered: false });
+		await expect(failed, "the host didn't respond, so the message names the call and the host").rejects.toMatchObject({ answered: false });
 		expect(calls.length).toBe(2);
 	});
 
@@ -135,7 +134,7 @@ describe("RpcClient.call", () => {
 		expect(itemAt(calls, 0).url).toMatch(/Stepper%2Fodd%20name/);
 	});
 
-	it("strips a trailing slash from baseUrl", async () => {
+	it("removes a trailing slash from baseUrl", async () => {
 		const { fetchImpl, calls } = makeFakeFetch([{ ok: true, bodyText: "{}" }]);
 		const client = new RpcClient({ baseUrl: "http://host/", fetchImpl });
 		await client.call("m", {}, [0]);
@@ -152,7 +151,7 @@ describe("RpcClient.stream", () => {
 		expect(out).toEqual([{ chunk: 1 }, { chunk: 2 }, { chunk: 3 }]);
 	});
 
-	it("yields a final chunk missing a trailing newline", async () => {
+	it("yields a final chunk that doesn't end in a newline", async () => {
 		const { fetchImpl } = makeFakeFetch([{ ok: true, bodyStream: ['{"a":1}\n{"b":2}'] }]);
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl });
 		const out: unknown[] = [];
@@ -171,7 +170,7 @@ describe("RpcClient.stream", () => {
 		expect(body.stream).toBe(true);
 	});
 
-	it("throws with the response status when server returns non-OK", async () => {
+	it("throws with the response status when the server returns a non-OK status", async () => {
 		const { fetchImpl } = makeFakeFetch([{ ok: false, status: 500, bodyStream: [] }]);
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl });
 		await expect(async () => {
@@ -182,9 +181,9 @@ describe("RpcClient.stream", () => {
 		}).rejects.toThrow(/HTTP 500/);
 	});
 
-	// Every line on this wire is written by JSON.stringify, so a line that will not parse is something else writing into
-	// the response. Skipping it silently drops a chunk of an answer without an error; the stream stops instead.
-	it("throws on a malformed line, naming what it read", async () => {
+	// JSON.stringify writes every line on this wire, so a line that doesn't parse comes from another writer. Skipping it
+	// would drop part of a response without an error, so the stream throws instead.
+	it("throws on a malformed line and names the line it read", async () => {
 		const { fetchImpl } = makeFakeFetch([{ ok: true, bodyStream: ['{"ok":1}\n', "not-json\n", '{"ok":2}\n'] }]);
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl });
 		const out: unknown[] = [];
@@ -195,15 +194,15 @@ describe("RpcClient.stream", () => {
 	});
 });
 
-describe("what a caller is told when a call's answer didn't come from actuality", () => {
-	it("reports what answered in front of it, and offers signing in at the site where a sign-in was refused", () => {
+describe("the refusal of a call whose response didn't come from actuality", () => {
+	it("names the status a server in front of actuality returned and offers a sign-in at the site on a 401", () => {
 		expect(notFromActuality("Stepper-echo", 401, "text/plain", "401 Unauthorized\n", "https://site.example")).toEqual({
-			error: "Stepper-echo: this call didn't reach actuality. Something in front of it answered 401 (text/plain): 401 Unauthorized.",
+			error: "Stepper-echo: this call didn't reach actuality. A proxy or server in front of actuality responded with 401 (text/plain): 401 Unauthorized.",
 			remedy: { do: "sign-in", at: "https://site.example" },
 		});
-		expect(notFromActuality("Stepper-echo", 401, "text/plain", "401 Unauthorized").remedy, "where the answer doesn't state the site, it isn't offered").toBeUndefined();
+		expect(notFromActuality("Stepper-echo", 401, "text/plain", "401 Unauthorized").remedy, "the sign-in isn't offered where the caller doesn't pass the site").toBeUndefined();
 		expect(notFromActuality("Stepper-echo", 502, "text/html", "Bad Gateway", "https://site.example")).toEqual({
-			error: "Stepper-echo: this call didn't reach actuality. Something in front of it answered 502 (text/html): Bad Gateway.",
+			error: "Stepper-echo: this call didn't reach actuality. A proxy or server in front of actuality responded with 502 (text/html): Bad Gateway.",
 		});
 	});
 });

@@ -1,16 +1,17 @@
 /**
- * Storage engine for `ShuElement.persistFields`: THE one mechanism for remembering per-component
- * UI options across reloads. Components never touch cookies directly: they declare the state fields
- * to persist (see ShuElement) and this module owns the medium. One cookie per component tag holding
- * `Record<instanceKey, persistedFields>`, so a tag's instances share one entry limit and a swap of
- * storage medium is a change to this file only.
+ * Stores the fields `ShuElement.persistFields` names, so per-component UI options persist across reloads. It is the
+ * only persistence mechanism for those options. Components don't read or write cookies: they declare the state fields
+ * to persist (see ShuElement), and this module implements the storage. Each component tag has one cookie that holds
+ * `Record<instanceKey, persistedFields>`. A tag's instances share one entry limit, and a change of storage medium
+ * changes only this file.
  */
 import { getJsonCookie, setJsonCookie } from "./cookies.js";
 
 const COOKIE_PREFIX = "shu-prefs-";
-/** Per-tag instance cap: oldest-written entries are evicted so per-instance keys (e.g. one per opened column) can't grow a cookie past its ~4KB limit. */
+/** The most instances a tag's cookie holds. A write evicts the oldest-written entries, so per-instance keys such as one
+ *  per opened column don't exceed the cookie's ~4KB limit. */
 const MAX_INSTANCES = 24;
-/** Trailing debounce for writes, absorbs per-frame bursts (a resize drag) into one cookie write. */
+/** Trailing debounce for writes. The debounce combines each burst of per-frame writes into one cookie write. A resize drag produces such a burst. */
 const PERSIST_DEBOUNCE_MS = 150;
 
 type TPrefs = Record<string, Record<string, unknown>>;
@@ -32,7 +33,8 @@ export function writeElementPrefs(tag: string, key: string, fields: Record<strin
 
 const pending = new Map<string, { timer: ReturnType<typeof setTimeout>; write: () => void }>();
 
-/** Debounced write-through. `compute` runs at flush time so the latest state wins. Pending writes flush on pagehide so a reload right after a change can't lose it. */
+/** Debounced write-through. `compute` runs at flush time, so the write holds the latest state. Pending writes flush on
+ *  pagehide, so a change made right before a reload is written. */
 export function schedulePersistWrite(tag: string, key: string, compute: () => Record<string, unknown>): void {
 	const id = JSON.stringify([tag, key]);
 	const prior = pending.get(id);
@@ -44,9 +46,9 @@ export function schedulePersistWrite(tag: string, key: string, compute: () => Re
 	pending.set(id, { timer: setTimeout(write, PERSIST_DEBOUNCE_MS), write });
 }
 
-/** Forget one instance's remembered options, dropping any write still owed for it: a pending write would otherwise
- *  land afterwards and restore them. For a view the reader has CLOSED: the options describe that view, so a later
- *  instance under the same identity opens with the defaults instead of inheriting them. */
+/** Deletes one instance's persisted options and cancels its pending write, which would otherwise restore them. Call it
+ *  for a view the reader closed. The options describe that view, so a later instance under the same key opens with the
+ *  defaults. */
 export function forgetElementPrefs(tag: string, key: string): void {
 	const id = JSON.stringify([tag, key]);
 	const prior = pending.get(id);
@@ -57,7 +59,7 @@ export function forgetElementPrefs(tag: string, key: string): void {
 	writeElementPrefs(tag, key, {});
 }
 
-/** Flush every pending debounced write immediately. pagehide uses it; tests may too. */
+/** Flushes every pending debounced write immediately. The pagehide listener calls it, and tests can call it. */
 export function flushPersistWrites(): void {
 	for (const { timer, write } of [...pending.values()]) {
 		clearTimeout(timer);

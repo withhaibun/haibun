@@ -1,12 +1,13 @@
 /**
- * JSON-LD document loader and processor for haibun core. A conformant JSON-LD processor (jsonld) plus a document loader
- * that resolves @context, DID and key documents from what this process registered, and never from the network: a
- * document a caller presents names its own vocabulary, keys and controllers, so resolving an address it wrote would let
- * it choose what answers for its own proof. An unregistered URL throws.
+ * JSON-LD document loader and processor for haibun core. This module exports a conformant JSON-LD processor (jsonld) and
+ * a document loader. The loader resolves @context, DID and key documents from the documents this process registered. It
+ * never fetches a document from the network. A document a caller presents names its own vocabulary, keys and
+ * controllers. Fetching an address that document names would let the caller supply the documents that verify its own proof.
+ * documentLoader rejects an unregistered URL.
  *
- * Two registries: long-lived `contexts` (bundled vocabulary @context documents, registered once) and ephemeral
- * `keyDocuments` (per-operation DID / key documents, cleared between operations). documentLoader tries keys, then
- * contexts.
+ * The module holds two registries. `contexts` holds long-lived vocabulary @context documents. `keyDocuments` holds
+ * per-operation DID and key documents, and clearKeyDocuments clears them between operations. documentLoader reads
+ * keyDocuments first, then contexts.
  */
 // @ts-expect-error, jsonld ships partial type declarations
 import jsonld from "jsonld";
@@ -20,27 +21,28 @@ interface LoaderResult {
 const contexts = new Map<string, unknown>();
 const keyDocuments = new Map<string, unknown>();
 
-/** Register a long-lived @context (or other vocabulary document) resolved by URL from memory. */
+/** Registers a long-lived @context or other vocabulary document. documentLoader resolves it by URL from memory. */
 export function registerContext(url: string, document: unknown): void {
 	contexts.set(url, document);
 }
 
-/** Register an ephemeral per-operation document (a DID document, a verification key) resolved by URL from memory. */
+/** Registers a per-operation DID document or verification key. documentLoader resolves it by URL from memory. */
 export function registerKeyDocument(url: string, document: unknown): void {
 	keyDocuments.set(url, document);
 }
 
-/** Drop the ephemeral key documents; the long-lived contexts are kept. */
+/** Clears the per-operation key documents. The long-lived contexts stay registered. */
 export function clearKeyDocuments(): void {
 	keyDocuments.clear();
 }
 
-/** What this process holds for a URL: a key document, then a registered context. An unregistered URL throws. */
+/** Returns the key document registered for a URL, else the context registered for it. Rejects an unregistered URL. */
 export function documentLoader(url: string): Promise<LoaderResult> {
 	const held = keyDocuments.get(url) ?? contexts.get(url);
-	if (held === undefined) return Promise.reject(new Error(`a JSON-LD document for ${url} isn't registered`));
+	if (held === undefined)
+		return Promise.reject(new Error(`a JSON-LD document for ${url} isn't registered. Register it with registerContext or registerKeyDocument before loading it`));
 	return Promise.resolve({ contextUrl: null, documentUrl: url, document: held });
 }
 
-/** The jsonld processor (expand / compact / toRDF / processContext), resolving external references through documentLoader. */
+/** The jsonld processor (expand, compact, toRDF, processContext). A caller passes documentLoader in its options to resolve external references. */
 export { jsonld };

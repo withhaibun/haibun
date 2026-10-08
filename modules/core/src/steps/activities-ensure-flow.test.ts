@@ -21,22 +21,22 @@ waypoint Knows about Wikipedia with variable "enWikipedia" exists
 			path: "/features/test.feature",
 			content: `Feature: Test ensure flow
 
-This test demonstrates the ensure flow.
-1. ensure X is called.
-2. Check proof - if it passes, done.
-3. If proof fails, execute activity body (NOT including waypoint line).
-4. Execute proof again to verify.
-5. Success if proof now passes, fail otherwise.
+This test checks the order of the ensure step.
+1. A feature line calls ensure X.
+2. Ensure runs the proof. The step passes where the proof passes.
+3. Ensure runs the activity body where the proof fails. The body doesn't include the waypoint line.
+4. Ensure runs the proof again.
+5. The step passes where the second proof passes. It fails otherwise.
 
-Expected flow.
+The expected order follows.
 - ensure Knows about Wikipedia.
-- Check proof: variable enWikipedia exists → FAILS (not set yet).
-- Execute activity body.
+- The proof "variable enWikipedia exists" fails, since enWikipedia isn't set.
+- Ensure runs the activity body.
   - set enWikipedia to https://en.wikipedia.org/wiki/.
   - set haibunUrl to https://en.wikipedia.org/wiki/Haibun.
-  - Note: waypoint line is NOT in activity body to avoid recursion.
-- Execute proof: variable enWikipedia exists → PASSES (now set).
-- Success.
+  - The activity body excludes the waypoint line, so ensure doesn't recurse.
+- The proof "variable enWikipedia exists" passes, since the body set enWikipedia.
+- The step passes.
 
 Scenario: Ensure executes activity body when proof fails
 ensure Knows about Wikipedia
@@ -51,8 +51,6 @@ variable haibunUrl is "https://en.wikipedia.org/wiki/Haibun"
 	});
 
 	it("should skip activity body when proof already passes", async () => {
-		// When the proof already passes, the activity body is skipped.
-
 		const background = {
 			path: "/backgrounds/test.feature",
 			content: `
@@ -79,8 +77,6 @@ ensure Knows about Wikipedia
 	});
 
 	it("should fail if proof fails after activity body execution", async () => {
-		// This test shows what happens when the activity body runs but proof still fails
-
 		const background = {
 			path: "/backgrounds/test.feature",
 			content: `
@@ -104,10 +100,8 @@ ensure Needs correct variable
 		expect(result.ok).toBe(false);
 	});
 
-	it("should not cause infinite recursion when activity body does NOT include waypoint line", async () => {
-		// Critical test: The waypoint line should NOT be in activityBlockSteps
-		// This prevents infinite recursion
-
+	it("should not recurse when the activity body doesn't include the waypoint line", async () => {
+		// activityBlockSteps excludes the waypoint line, so ensure doesn't recurse.
 		const background = {
 			path: "/backgrounds/test.feature",
 			content: `
@@ -121,7 +115,7 @@ waypoint Knows about Wikipedia with variable enWikipedia exists
 		const feature = {
 			path: "/features/test.feature",
 			content: `
-Feature: Test no infinite recursion
+Feature: Test that ensure doesn't recurse
 Scenario: Ensure does not recurse infinitely
 ensure Knows about Wikipedia
 `,
@@ -129,6 +123,6 @@ ensure Knows about Wikipedia
 
 		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
-		expect(result.world.runtime.exhaustionError).toBeUndefined(); // Exhaustion wasn't hit
+		expect(result.world.runtime.exhaustionError).toBeUndefined();
 	});
 });

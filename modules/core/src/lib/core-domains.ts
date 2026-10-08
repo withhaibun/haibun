@@ -63,7 +63,7 @@ const numberSchema = z.coerce.number({ error: "invalid number" }).refine((value)
 const stringSchema = z.coerce.string({ error: "value is required" });
 const statementSchema = z.string({ error: "statement label is required" }).min(1, "statement cannot be empty");
 const dateSchema = z.coerce.date({ error: "invalid date" });
-/** A step's place read from its dot-joined sequence path, or from an id beginning with one. */
+/** Reads a step's place from its dot-joined sequence path, or from an id that begins with one. */
 const stepPathSchema = z.preprocess((value, ctx) => {
 	if (typeof value !== "string") return value;
 	const prefix = extractSeqPathPrefix(value);
@@ -71,7 +71,7 @@ const stepPathSchema = z.preprocess((value, ctx) => {
 	if (path === null) ctx.addIssue({ code: "custom", message: `${JSON.stringify(value)} doesn't name a step: a step's place is dot-joined integers, such as 0.1.5.3` });
 	return path ?? value;
 }, z.array(z.number().int()).min(1));
-/** A length of time in milliseconds, read from seconds or milliseconds such as `2s` or `30 ms`, or a number of milliseconds. */
+/** Reads a length of time in milliseconds from seconds or milliseconds, such as `2s` or `30 ms`, or from a number of milliseconds. */
 const durationSchema = z.preprocess((value, ctx) => {
 	if (typeof value !== "string") return value;
 	const match = DURATION_TERM.exec(value.trim());
@@ -80,14 +80,12 @@ const durationSchema = z.preprocess((value, ctx) => {
 }, z.number().nonnegative());
 
 /**
- * Per-field binding inside a composite binding. Mirrors `TFieldBinding` in
- * `goal-resolver.ts`. Recursive: a field that ranges over another composite
- * domain emits a nested `kind: "composite"` field-binding, reached through a
- * lazy reference so the union can name itself.
+ * The schema of a per-field binding inside a composite binding. It matches `TFieldBinding` in `goal-resolver.ts`. The
+ * binding of a field that ranges over another composite domain is a nested `kind: "composite"` field-binding. The union
+ * references itself through `z.lazy`.
  *
- * One value, built once. A function called per caller registers a schema of
- * its own for every run, and converting one to JSON Schema walks the
- * recursion, so a conversion of it could never be held.
+ * The schema is a module-level constant. jsonSchemaOf holds one conversion per schema object, so the conversion walks
+ * the recursion once per process.
  */
 const fieldBindingSchema: z.ZodType = z.discriminatedUnion("kind", [
 	z.object({ kind: z.literal("fact"), fieldName: z.string(), fieldDomain: z.string(), fieldType: z.string(), optional: z.boolean(), factId: z.string() }).strict(),
@@ -105,10 +103,9 @@ const fieldBindingSchema: z.ZodType = z.discriminatedUnion("kind", [
 ]);
 
 /**
- * One resolved michi (path) shape used by both `DOMAIN_MICHI` and the
- * `michi` array inside `DOMAIN_GOAL_RESOLUTION`. The composite binding
- * variant lets a single input domain decompose into per-field sub-bindings
- * (haibun's sh:node / rdfs:range channel via `topology.ranges`).
+ * The shape of one resolved michi (path). `DOMAIN_MICHI` and the `michi` array of `DOMAIN_GOAL_RESOLUTION` both use it.
+ * The composite binding variant holds the per-field sub-bindings of one input domain. `topology.ranges` declares the
+ * fields, as sh:node and rdfs:range do.
  */
 const michiSchema: z.ZodType = z
 	.object({
@@ -123,7 +120,7 @@ const michiSchema: z.ZodType = z
 	})
 	.strict();
 
-/** DOMAIN_GOAL_RESOLUTION product shape: the resolver's four findings. Exported so GoalResolutionStepper validates its products against the same schema the domain registers. */
+/** The DOMAIN_GOAL_RESOLUTION product shape holds one of the resolver's four findings. GoalResolutionStepper validates its products against this exported schema, and the domain registers the same schema. */
 export const goalResolutionSchema = z.discriminatedUnion("finding", [
 	z.object({ finding: z.literal("satisfied"), goal: z.string(), factIds: z.array(z.string()), michi: z.array(michiSchema), truncated: z.boolean() }),
 	z.object({ finding: z.literal("michi"), goal: z.string(), michi: z.array(michiSchema), truncated: z.boolean() }),
@@ -132,9 +129,9 @@ export const goalResolutionSchema = z.discriminatedUnion("finding", [
 ]);
 
 /**
- * DOMAIN_CHAIN_WALK product shape: a walk toward a goal, as a reader is shown it. A walk is a resolved path held open
- * one step at a time, so what it reports is where it has got to, what the next step is, and what that step still needs
- * from whoever is walking it.
+ * The DOMAIN_CHAIN_WALK product shape describes a walk toward a goal. A walk runs a resolved path one step per advance,
+ * and its state is held between advances. The shape holds every step of the path, the walk's position, the next step,
+ * and the parameters the next step takes from the caller.
  */
 export const chainWalkSchema = z
 	.object({
@@ -146,15 +143,15 @@ export const chainWalkSchema = z
 		steps: z.array(z.string()),
 		/** The step the next advance runs; absent once the walk is done. */
 		next: z.string().optional(),
-		/** What the next step takes, named as it declares them: what an advance must supply for the walk to go on. */
+		/** The names of the parameters the next step declares. An advance supplies them to continue the walk. */
 		needs: z.array(z.string()),
-		/** What each step that has run asserted. */
+		/** The ids of the facts each completed step asserted. */
 		factIds: z.array(z.string()),
 		error: z.string().optional(),
 	})
 	.strict();
 
-/** DOMAIN_AFFORDANCES product shape, forward-reachable steps and goal-resolution verdicts. Strict: unknown keys throw, surfacing producer drift instead of silently dropping data on the way to the SPA. */
+/** The DOMAIN_AFFORDANCES product shape holds the forward-chaining frontier and the goal-resolution verdicts. The schema is strict, so parsing throws on a key the schema doesn't declare, and doesn't drop the key before the SPA receives it. */
 export const affordancesSchema = z
 	.object({
 		forward: z.array(
@@ -174,9 +171,9 @@ export const affordancesSchema = z
 		goals: z.array(z.object({ domain: z.string(), description: z.string(), resolution: z.unknown() }).strict()),
 		satisfiedDomains: z.array(z.string()).default([]),
 		satisfiedFacts: z.record(z.string(), z.array(z.string())).default({}),
-		// Per-domain composite-field map (haibun's sh:node / rdfs:range equivalent): the registered topology.ranges, so the SPA's chain view can emit synthetic field nodes between composite domains and their components. Absent when the domains don't declare ranges.
+		// Maps each composite domain to its field ranges, from the registered topology.ranges. topology.ranges is haibun's equivalent of sh:node and rdfs:range. The SPA's chain view renders a field node between each field's domain and the composite domain. Absent when the domains don't declare ranges.
 		composites: z.record(z.string(), z.record(z.string(), z.string())).optional(),
-		// Registered waypoints projected as panel entries, contributed to `show affordances` by every stepper with the ProvidesWaypoints capability (e.g. ActivitiesStepper). Each is a virtual step registered with a gwta the SPA's step-caller renders into a parameter form.
+		// Registered waypoints as panel entries. Every stepper with the ProvidesWaypoints capability, such as ActivitiesStepper, adds its waypoints to the affordances snapshot. Each is a virtual step registered with a gwta, and shu-step-caller renders the gwta as a parameter form.
 		waypoints: z
 			.array(
 				z
@@ -195,69 +192,69 @@ export const affordancesSchema = z
 					.strict(),
 			)
 			.optional(),
-		// The actuality whose facts these are, which is where a fact's step is: a fact's id is that step's seqPath.
+		// The id of the execution whose steps asserted these facts. A fact's id is the seqPath of its step within this execution.
 		execution: z.string(),
 	})
 	.strict();
 
-/** DOMAIN_CHAIN_LINT product shape, orphan/unsupplied/unreachable findings plus an optional affordance overlay (forward/goals) the bound Mermaid view renders. */
+/** The DOMAIN_CHAIN_LINT product shape holds the lint findings and their summary, with the affordance snapshot (forward, goals) that the bound view draws as the chain. */
 export const chainLintSchema = z
 	.object({
 		findings: z.array(LintFindingSchema),
 		summary: LintSummarySchema,
-		// Optional graph payload the bound view (shu-domain-chain-view) renders as a Mermaid chain; the view falls back to subscribing to shu:affordances when the producer omits these.
+		// The affordance snapshot that shu-domain-chain-view draws as the chain beside the findings. `show chain lint` includes forward and goals, and the view throws on a report without them.
 		forward: z.array(z.unknown()).optional(),
 		goals: z.array(z.unknown()).optional(),
 		composites: z.record(z.string(), z.record(z.string(), z.string())).optional(),
-		// The actuality whose facts these are, which is where a fact's step is: a fact's id is that step's seqPath.
+		// The id of the execution whose steps asserted these facts. A fact's id is the seqPath of its step within this execution.
 		execution: z.string(),
 	})
 	.strict();
 
 const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
-	{ selectors: [DOMAIN_STRING], schema: stringSchema, description: "Plain string literal captured from feature text." },
+	{ selectors: [DOMAIN_STRING], schema: stringSchema, description: "A plain string literal captured from feature text." },
 	{ selectors: [DOMAIN_TEXT], schema: stringSchema, description: "Free text a person writes: a note, a question, a reason or a passage quoted, read as written." },
 	{
 		selectors: [DOMAIN_VARIABLE_NAME],
 		schema: NameSchema,
 		written: true,
 		filled: true,
-		description: "The name of a variable, as the line writes it, with each {name} in it given the value name resolves to.",
+		description: "The name of a variable, as written in the line. Each {name} in it is replaced by the resolved value of name.",
 	},
-	{ selectors: [DOMAIN_IMAGE_REFERENCE], schema: ImageReferenceSchema, description: "An image: where actuality keeps its bytes, and their media type." },
+	{ selectors: [DOMAIN_IMAGE_REFERENCE], schema: ImageReferenceSchema, description: "An image: the location of its bytes in actuality's storage, and their media type." },
 	{
 		selectors: [DOMAIN_FILE_DATA],
 		schema: FileDataSchema,
 		recordedAs: recordedFileData,
-		description: "A file's bytes, as a data: URL a page reads a file into. A step's record states the file's type and size in place of its bytes.",
+		description: "A file's bytes as a data: URL, as a page reads a file. A step's record states the file's type and size in place of its bytes.",
 	},
-	{ selectors: [DOMAIN_DOMAIN_NAME], schema: NameSchema, written: true, description: "The name a declaration gives a new domain, as the line writes it." },
-	{ selectors: [DOMAIN_GLOB], schema: NameSchema, description: "A pattern in which * stands for any run of characters." },
+	{ selectors: [DOMAIN_DOMAIN_NAME], schema: NameSchema, written: true, description: "The name a declaration gives a new domain, as written in the line." },
+	{ selectors: [DOMAIN_GLOB], schema: NameSchema, description: "A pattern in which * matches any sequence of characters." },
 	{ selectors: [DOMAIN_FILE_PATH], schema: NameSchema, description: "A file or directory's path, as a storage or the file system reads it." },
-	{ selectors: [DOMAIN_TITLE], schema: NameSchema, written: true, description: "The title a feature, scenario, activity or waypoint is given, as the line writes it." },
+	{ selectors: [DOMAIN_TITLE], schema: NameSchema, written: true, description: "The title of a feature, scenario, activity or waypoint, as written in the line." },
 	{
 		selectors: [DOMAIN_WAYPOINT_ARGUMENT],
 		schema: NameSchema,
 		description:
-			"An argument in a call to a waypoint, for a placeholder in the waypoint's outcome pattern: quoted text, or the value of the variable an unquoted name refers to. The activity and the proof read it as a runtime argument.",
+			"An argument in a call to a waypoint, for a placeholder in the waypoint's outcome pattern. It is quoted text, or the value of the variable that an unquoted name references. The activity and the proof read it as a runtime argument.",
 	},
 	{
 		selectors: [DOMAIN_LINE_COMMENT],
 		schema: z.string(),
 		written: true,
-		description: "The text of a line comment, after `;;`, as the feature writes it. Actuality doesn't act on it.",
+		description: "The text of a line comment after `;;`, as written in the feature. Actuality doesn't act on it.",
 	},
-	{ selectors: [DOMAIN_ROUTE], schema: NameSchema, description: "The path a web server serves something at, such as /shu." },
-	{ selectors: [DOMAIN_BEARER_TOKEN], schema: NameSchema, description: "A token whose holder is granted what it grants, sent as `Authorization: Bearer` (RFC 6750)." },
-	{ selectors: [DOMAIN_USER_NAME], schema: NameSchema, description: "The name an account signs in with." },
-	{ selectors: [DOMAIN_PERSISTED_TYPES], schema: listedSchema(NameSchema, "type"), description: "Types records persist as, given as a list or as text separated by commas." },
+	{ selectors: [DOMAIN_ROUTE], schema: NameSchema, description: "The path at which a web server serves a resource, such as /shu." },
+	{ selectors: [DOMAIN_BEARER_TOKEN], schema: NameSchema, description: "A token sent as `Authorization: Bearer` (RFC 6750). It grants its holder the access it carries." },
+	{ selectors: [DOMAIN_USER_NAME], schema: NameSchema, description: "The name that identifies an account at sign-in." },
+	{ selectors: [DOMAIN_PERSISTED_TYPES], schema: listedSchema(NameSchema, "type"), description: "The persisted types of records, given as a list or as text separated by commas." },
 	{
 		selectors: [DOMAIN_BACKGROUND_NAMES],
 		schema: backgroundNamesSchema,
 		written: true,
-		description: "The backgrounds a feature includes, by name, given as a list or as text separated by commas, as the line writes them.",
+		description: "The names of the backgrounds a feature includes, given as a list or as text separated by commas, as written in the line.",
 	},
-	{ selectors: [DOMAIN_PASSWORD], schema: NameSchema, description: "The secret an account signs in with." },
+	{ selectors: [DOMAIN_PASSWORD], schema: NameSchema, description: "The secret that authenticates an account at sign-in." },
 	{
 		selectors: [DOMAIN_STEP_PATH],
 		schema: stepPathSchema,
@@ -267,45 +264,45 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 	{
 		selectors: [DOMAIN_STEP_METHOD],
 		schema: z.string().regex(/^[A-Za-z0-9_]+-[A-Za-z0-9_]+$/, "doesn't name a step: a step is named by its stepper and step joined by a hyphen"),
-		description: "A step as a call names it, its stepper and step joined by a hyphen, such as Haibun-showSteps.",
+		description: "A step's name in a call: its stepper and step joined by a hyphen, such as Haibun-showSteps.",
 	},
-	{ selectors: [DOMAIN_LINK_REL], schema: NameSchema, description: "A link relation, by the name a predicate carries it under, such as cites." },
-	{ selectors: [DOMAIN_WALK_ID], schema: NameSchema, description: "The id of a walk begun toward a goal, which each advance of it names." },
+	{ selectors: [DOMAIN_LINK_REL], schema: NameSchema, description: "A link relation's name, as a statement's predicate uses it, such as cites." },
+	{ selectors: [DOMAIN_WALK_ID], schema: NameSchema, description: "The id of a walk toward a goal. Each advance of the walk names this id." },
 	{
 		selectors: [DOMAIN_VARIABLE_VALUE],
 		schema: z.unknown(),
 		description:
 			"A value to assign to a variable or to compare with a variable's value. The step receives it as a TStepValue with its domain, and the variable's domain coerces it.",
 	},
-	{ selectors: [DOMAIN_TEMPLATE], schema: z.string(), written: true, description: "Text whose #{name} places a composition fills from variables, as the line writes it." },
+	{ selectors: [DOMAIN_TEMPLATE], schema: z.string(), written: true, description: "Text as written in the line. A composition fills each #{name} placeholder from a variable." },
 	{
 		selectors: [DOMAIN_HYPERMEDIA_DECLARATION],
 		schema: z.string().trim().min(1, "the declaration is empty"),
 		written: true,
-		description: "A declared type's hypermedia declaration, as the line writes it: its JSON-LD @context, or prose naming its fields.",
+		description: "A declared type's hypermedia declaration, as written in the line: its JSON-LD @context, or prose naming its fields.",
 	},
-	{ selectors: [DOMAIN_SET_VALUES], schema: setValuesSchema, written: true, description: "The members a bracketed list names, as the line writes them." },
+	{ selectors: [DOMAIN_SET_VALUES], schema: setValuesSchema, written: true, description: "The members of a bracketed list, as written in the line." },
 	{
 		selectors: [DOMAIN_STATEMENT_LINES],
 		schema: fromJsonText(z.array(z.string().min(1)).min(1)),
 		description: "Step lines, in order, as a JSON array: the statements a saved activity runs.",
 	},
-	{ selectors: [DOMAIN_LINK], schema: stringSchema, description: "URI string representing a navigable link." },
+	{ selectors: [DOMAIN_LINK], schema: stringSchema, description: "A URI string for a navigable link." },
 	{
 		selectors: [DOMAIN_NUMBER],
 		schema: numberSchema,
-		description: "Numeric literal coerced with Number().",
+		description: "A numeric literal coerced with Number().",
 		comparator: (value, baseline) => (value as number) - (baseline as number),
 	},
 	{
 		selectors: [DOMAIN_DATE],
 		schema: dateSchema,
-		description: "Date object derived from ISO timestamp, epoch ms, or Date literal.",
+		description: "A Date object coerced from an ISO timestamp, epoch milliseconds or a Date literal.",
 		comparator: (value, baseline) => (value as Date).getTime() - (baseline as Date).getTime(),
 	},
 	{
-		// Declared here, beside the schema it validates with: two steppers each declared this domain from their own
-		// copy of the schema, so which copy validated a query depended on which stepper registered first.
+		// Core declares this domain once, with GraphQuerySchema, so every step that takes a graph query validates it with one
+		// schema. registerDomains keeps the first declaration of a domain key and skips later ones.
 		selectors: [DOMAIN_GRAPH_QUERY],
 		schema: fromJsonText(GraphQuerySchema),
 		description: "A request for records of one type from the graph, with optional filters, sort order, and a result limit.",
@@ -313,48 +310,48 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 	{
 		selectors: [DOMAIN_DENSITY_QUERY],
 		schema: fromJsonText(DensityQuerySchema),
-		description: "A request for how many records of one type fall in each division of a span of time, by how each turned out.",
+		description: "A request for the number of records of one type in each division of a span of time, grouped by a field that states each record's outcome.",
 	},
 	{
 		selectors: [DOMAIN_ACTIONS],
 		schema: listedSchema(z.string().min(1), "action"),
 		description: "The actions a caller holds or a delegation allows, such as `Read:public` or `WebPlaywright:attach`, given as a list or as text separated by commas.",
 	},
-	{ selectors: [DOMAIN_INDIVIDUAL_ADDRESS], schema: IndividualAddressSchema, description: "An individual named by the type it is persisted as and its id." },
+	{ selectors: [DOMAIN_INDIVIDUAL_ADDRESS], schema: IndividualAddressSchema, description: "An individual, by its persisted type and its id." },
 	{ selectors: [DOMAIN_RECORD_ID], schema: recordIdInputSchema, description: "The id of a record, of the type another parameter of the same step names." },
 	{ selectors: [DOMAIN_JSON], schema: fromJsonText(z.json()), description: "A JSON value, given as its text or as the value." },
 	{ selectors: [DOMAIN_JSON_OBJECT], schema: JsonObjectTextSchema, description: "A JSON object, given as its text or as the object." },
-	{ selectors: [DOMAIN_MICHI], schema: michiSchema, description: "One concrete path the resolver found from working memory to a goal: ordered steps plus per-input bindings." },
+	{ selectors: [DOMAIN_MICHI], schema: michiSchema, description: "One path the resolver computed from working memory to a goal: its ordered steps and per-input bindings." },
 	{
 		selectors: [DOMAIN_GOAL_RESOLUTION],
 		schema: goalResolutionSchema,
-		description: "The four findings of the goal resolver: satisfied (existing facts + paths to produce more), michi (enumerated paths), unreachable, refused.",
+		description: "One of the goal resolver's four findings: satisfied (existing facts and paths that produce more), michi (enumerated paths), unreachable or refused.",
 	},
 	{
 		selectors: [DOMAIN_AFFORDANCES],
 		schema: affordancesSchema,
-		description: "What can I do next: forward-reachable steps and goal-resolution verdicts.",
+		description: "The steps the caller may call next, each with whether its inputs are ready, and the goal-resolution verdicts.",
 		ui: { component: "shu-affordances-panel", summary: "Affordances" },
 	},
 	{
 		selectors: [DOMAIN_CHAIN_WALK],
 		schema: chainWalkSchema,
-		description: "A walk toward a goal, held open one step at a time: where it has got to, what runs next, and what that step still needs from whoever is walking it.",
+		description: "A walk toward a goal, run one step per advance: the path's steps, the walk's position, the next step, and the parameters the next step takes from the caller.",
 	},
 	{
 		selectors: [DOMAIN_CHAIN_LINT],
 		schema: chainLintSchema,
-		description: "Domain-chain lint report: orphans, unsupplied steps, unreachable domains.",
+		description: "The domain-chain lint report: unsupplied steps, unreachable domains, unproduced domains and string parameters.",
 		ui: { component: "shu-domain-chain-view" },
 	},
 	{
 		selectors: [DOMAIN_STATEMENT],
 		schema: statementSchema,
 		written: true,
-		description: "Reference to another Haibun statement.",
+		description: "A reference to another Haibun statement.",
 		coerce: (proto: TStepValue, featureStep?: TFeatureStep, steppers?: AStepper[]) => {
 			if (!featureStep || !steppers) {
-				throw new Error("statement domain coercion requires feature context");
+				throw new Error("statement domain coercion requires a feature step and the steppers");
 			}
 			const label = statementSchema.parse(proto.value);
 			const seqStart = featureStep.seqPath;
@@ -363,5 +360,5 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 	},
 ];
 
-// Core domain registry factory. Returns coercion functions for built-in domains.
+// Returns the core domains as registered domains, with the naming domains that deriveNamingDomains adds.
 export const getCoreDomains = (world: TWorld) => deriveNamingDomains(mapDefinitionsToDomains(getCoreDomainDefinitions(world)));

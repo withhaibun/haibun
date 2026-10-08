@@ -1,7 +1,6 @@
 /**
- * Shared document content generation for academic-paper-style rendering.
- * Used by @haibun/shu (vanilla web components) to render actuality document.
- * Pure functions: it doesn't import the DOM.
+ * Generates document content for rendering in the style of an academic paper. The web components of @haibun/shu call
+ * these functions to render actuality's document. The functions are pure and don't import the DOM.
  */
 import { RecordsSchema } from "./json-text.js";
 import { itemAt } from "./util/item-at.js";
@@ -71,34 +70,28 @@ export function buildArtifactIndex(events: THaibunEvent[]): TArtifactIndex {
 	return { artifactsByStep: map, allArtifactIds: allIds };
 }
 
-/** Generate markdown + data-attribute HTML for document view. Returns raw markdown string and set of visible event IDs.
- *
- * `baseTime` is the epoch each row's `data-raw-time` is measured from. It defaults to the first event's timestamp, but a
- * windowed caller (one that renders only a tail slice of a longer log) MUST pass its stable global start so the offsets
- * stay comparable across renders: the document's time-cursor arithmetic adds `data-raw-time` back to that same global
- * start, so a per-slice base would scrub every clicked row to a wrong, earlier instant. */
-/** The name of a heading as it can be written in a link: lower case, with every run of anything else as a single
- *  hyphen. A feature that lists its own scenarios links to them this way, which is the only handle an author has
- *  before actuality exists: the block ids beside it are assigned while running. */
-/** The test id of a heading's block: this prefix and the heading's anchor. */
 /**
- * Text as text, wherever a run's own words are placed in markup. What a run logs is arbitrary: a step's text quotes
- * markup on purpose, and a failure's report quotes the elements it looked at. Placed unescaped, those words become
- * elements: one such report put a list item carrying a test id, and three canvases the rendering library then sized,
- * into the document, where the next run found them and pressed one.
+ * Escapes `&`, `<`, `>` and `"`, so text placed in markup renders as text. Logged text can contain markup: a step's text
+ * can quote markup, and a failure's report quotes elements of the page. Text placed unescaped becomes elements of the
+ * document. A list item or other quoted element with a test id then matches the locator of a later step.
  */
 export function esc(s: string): string {
 	return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-/** The schemes a link a page writes may lead to: a web address, never one that runs script as `javascript:` does. */
+/** The URL schemes a link on a page may use. A `javascript:` URL runs script, so the set excludes it. */
 const WEB_SCHEMES = new Set(["http:", "https:"]);
 
-/** Whether a value is a web address a page may link to. */
+/** Returns whether a value is a URL whose scheme is in WEB_SCHEMES. */
 export const isWebAddress = (value: string): boolean => URL.canParse(value) && WEB_SCHEMES.has(new URL(value).protocol);
 
+/** The test id of a heading's block: this prefix and the heading's anchor. */
 const DOC_HEADING_TEST_ID = "doc-heading-";
 
+/** Returns a heading's anchor for a link: lower case, with each sequence of characters other than a-z and 0-9 replaced by
+ *  one hyphen, and without leading or trailing hyphens. A feature that lists its own scenarios links to them by anchor.
+ *  An author writes an anchor before actuality exists. Actuality assigns block ids during execution, so an author can't
+ *  write them in advance. */
 export function headingAnchor(title: string): string {
 	return title
 		.toLowerCase()
@@ -106,6 +99,15 @@ export function headingAnchor(title: string): string {
 		.replace(/^-+|-+$/g, "");
 }
 
+/**
+ * Generates the markdown and data-attribute HTML of the document view. Returns the markdown string and the set of
+ * visible event ids.
+ *
+ * Each row's `data-raw-time` is an offset from `baseTime`, which defaults to the first event's timestamp. A windowed
+ * caller renders only a tail slice of a longer log, and it must pass the log's stable start time. The document's time
+ * cursor adds `data-raw-time` to that start time, so a per-slice base moves the cursor for a clicked row to an earlier,
+ * wrong time.
+ */
 export function generateDocumentMarkdown(
 	events: THaibunEvent[],
 	artifactsByStep: Map<string, TArtifactEvent[]>,
@@ -142,10 +144,11 @@ export function generateDocumentMarkdown(
 		return "";
 	};
 
-	// Claiming and emitting the holder are ONE act: whatever an event claims must get a holder the renderer fills, or an
-	// artifact whose event arrives after its claimer is claimed and then isn't rendered (the standalone branch skips
-	// claimed ids), making artifact visibility depend on event order. Every claiming branch calls this, never claimArtifacts
-	// alone. Returns { ids, holder } so a branch can also stamp the ids on its own row (the technical log-row does).
+	// Claims a row's artifacts other than video and returns their holder in one call. The renderer fills each holder with
+	// its artifacts. The standalone branch skips claimed ids, so an artifact claimed without a holder isn't rendered. An
+	// artifact whose event follows its claimer's event is claimed before the loop reaches its event, so a view renders it
+	// only in the claimer's holder. Every claiming branch calls this function and doesn't call claimArtifacts alone.
+	// Returns { ids, holder }, so a branch can also stamp the ids on its own row, as the technical log row does.
 	const claimWithHolder = (id: string, nid: string) => {
 		const ids = claimArtifacts(id, ["video"]);
 		return { ids, holder: ids ? `<div class="feature-artifacts" data-ids="${ids}" data-id="${nid}"></div>\n` : "" };
@@ -170,8 +173,8 @@ export function generateDocumentMarkdown(
 			continue;
 		}
 
-		// A step is rendered once, because a step is one thing that happened. What kind of thing it was decides how it
-		// reads: a feature or a scenario is a heading, a technical step a compact row, anything else the prose it states.
+		// A feature, scenario or background renders once, as a heading. A technical step renders as a compact row. Any
+		// other step renders as the prose it states.
 		if (e.kind === "lifecycle") {
 			const le = e as TLifecycleEvent;
 			if (le.type === "feature" || le.type === "scenario" || (le.type as string) === "background") {
@@ -186,8 +189,8 @@ export function generateDocumentMarkdown(
 				const title = le.type === "feature" ? `Feature: ${named}` : le.type === "scenario" ? `Scenario: ${named}` : named;
 				const nid = normalizeId(le.id);
 				visibleIds.add(nid);
-				// Named by its own heading twice over: `data-heading` is what a link in the document resolves to, and the test id is
-				// what a feature waits for to know its heading is on the page: the one handle an author has before actuality exists.
+				// The block carries its heading's anchor twice. A link in the document resolves to `data-heading`. A feature waits
+				// on the test id to detect the heading on the page. An author can write both before actuality exists.
 				md += `\n<div class="header-block" data-raw-time="${rawTime}" data-id="${nid}" data-heading="${headingAnchor(named)}" data-testid="${DOC_HEADING_TEST_ID}${headingAnchor(named)}">\n\n${"#".repeat(headingLevel)} ${title}\n\n</div>\n`;
 				const header = claimWithHolder(le.id, nid);
 				if (header.holder) md += `\n${header.holder}`;
@@ -212,8 +215,8 @@ export function generateDocumentMarkdown(
 						if (next.id && le.id && !next.id.startsWith(le.id)) break;
 					}
 
-					// How deep a step sits is its place in actuality, which is its path within the execution: the execution
-					// leading its id names which run it is, not where in that run it sits.
+					// A step's depth is the length of its path within the execution. The execution id that leads the record
+					// name identifies the execution, so it doesn't count toward the depth.
 					const depth = parseRecordName(String(step.id ?? ""))?.path.length ?? 0;
 					const isNested = depth > 3;
 					const time = ((step.timestamp - baseTime) / 1000).toFixed(3);

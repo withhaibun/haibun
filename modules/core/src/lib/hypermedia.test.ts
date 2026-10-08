@@ -20,14 +20,14 @@ describe("composeDisplayLabel priority: headline → body → weak → id", () =
 		expect(composeDisplayLabel({ rels, getProperty: props({ subject: "RE: Meeting", seqPath: "0.1" }), bodyContents: ["the body"], id: "e1" })).toBe("RE: Meeting");
 	});
 
-	it("uses rdfs:label over the entity's NAME: an explicit display label wins", () => {
+	it("uses rdfs:label over the entity's NAME, since an explicit display label takes precedence", () => {
 		const rels = { label: LinkRelations.LABEL.rel, name: LinkRelations.NAME.rel };
 		expect(composeDisplayLabel({ rels, getProperty: props({ label: "Coastal Fisheries Authority", name: "should-not-win" }), bodyContents: [], id: "did:web:x" })).toBe(
 			"Coastal Fisheries Authority",
 		);
 	});
 
-	it("titles a name-less node (e.g. a Principal/DID) by its rdfs:label instead of falling back to the id", () => {
+	it("titles a node without a name, such as a Principal, by its rdfs:label instead of its id", () => {
 		const rels = { label: LinkRelations.LABEL.rel, controller: LinkRelations.CONTROLLER.rel };
 		expect(composeDisplayLabel({ rels, getProperty: props({ label: "Importer Co.", controller: "did:web:x" }), bodyContents: [], id: "did:web:x" })).toBe("Importer Co.");
 	});
@@ -37,7 +37,7 @@ describe("composeDisplayLabel priority: headline → body → weak → id", () =
 		expect(composeDisplayLabel({ rels, getProperty: props({ text: "inline note" }), bodyContents: [], id: "n1" })).toBe("inline note");
 	});
 
-	it("uses the linked-body preview over a seqPath (the Comment regression)", () => {
+	it("uses the linked-body preview over a seqPath, as a Comment carries both", () => {
 		const rels = { seqPath: LinkRelations.SEQ_PATH.rel, author: LinkRelations.ATTRIBUTED_TO.rel };
 		const label = composeDisplayLabel({ rels, getProperty: props({ seqPath: "0.-1.26", author: "did:x" }), bodyContents: ["Lawrence vouches for this"], id: "cmt-say-0.-1.26" });
 		expect(label).toBe("Lawrence vouches for this");
@@ -55,7 +55,7 @@ describe("composeDisplayLabel priority: headline → body → weak → id", () =
 	});
 
 	it("titles a type by the labeling property its own vocabulary declares, when it doesn't have a shared headline", () => {
-		// oa:exact is a property, so the selector's title is its value, read off the node itself.
+		// oa:exact is a property, so the selector's title is the value the node holds.
 		const rels = { exact: LinkRelations.EXACT.rel, id: LinkRelations.IDENTIFIER.rel };
 		const label = composeDisplayLabel({
 			rels,
@@ -66,50 +66,50 @@ describe("composeDisplayLabel priority: headline → body → weak → id", () =
 		expect(label).toBe("a passage inside the document");
 	});
 
-	it("titles a proxy through the edge it declares, by the title of what it stands for", () => {
-		// oa:hasSelector is an edge: the SpecificResource doesn't have text of its own, so its title is its selector's.
+	it("titles a proxy through its declared edge with the title of the edge's target", () => {
+		// oa:hasSelector is an edge. The SpecificResource doesn't have text of its own, so its title is its selector's title.
 		const rels = { id: LinkRelations.IDENTIFIER.rel };
 		const args = { rels, getProperty: props({ id: "sr-1" }), id: "sr-1" };
 		expect(composeDisplayLabel({ ...args, displayLabel: { key: "hasSelector", through: true, linkedLabel: "a passage inside the document" } })).toBe(
 			"a passage inside the document",
 		);
-		// A far end without a value (an unresolved or access-filtered target) falls through to the id, never to a blank title.
+		// An unresolved or access-filtered edge target doesn't have a title, so the label is the id and not a blank title.
 		expect(composeDisplayLabel({ ...args, displayLabel: { key: "hasSelector", through: true } })).toBe("sr-1");
 		expect(composeDisplayLabel({ ...args, displayLabel: { key: "hasSelector", through: true, linkedLabel: "  " } })).toBe("sr-1");
 	});
 
-	it("an explicit rdfs:label outranks the type's declared labeling property: the reader's title wins", () => {
+	it("an explicit rdfs:label takes precedence over the type's declared labeling property", () => {
 		const rels = { exact: LinkRelations.EXACT.rel, label: LinkRelations.LABEL.rel };
 		const label = composeDisplayLabel({ rels, getProperty: props({ exact: "the quote", label: "What this marks" }), displayLabel: { key: "exact", through: false }, id: "sel-1" });
 		expect(label).toBe("What this marks");
 	});
 
-	it("a declared labeling property outranks the shared headline: the type's own vocabulary is more specific", () => {
+	it("a declared labeling property takes precedence over the shared headline, since the type's own vocabulary is more specific", () => {
 		const rels = { exact: LinkRelations.EXACT.rel, name: LinkRelations.NAME.rel };
 		expect(composeDisplayLabel({ rels, getProperty: props({ exact: "the quote", name: "generic name" }), displayLabel: { key: "exact", through: false }, id: "x" })).toBe(
 			"the quote",
 		);
 	});
 
-	it("titles by a list property's members, and by the title of the record an edge points at", () => {
+	it("titles by a list property's members, and by the title of an edge's target record", () => {
 		const kinds = ["EmployeeCredential", "BadgeCredential"];
 		expect(composeDisplayLabel({ rels: {}, getProperty: props({ type: kinds }), displayLabel: { key: "type", through: false }, id: "x" })).toBe(kinds.join(", "));
 		expect(composeDisplayLabel({ rels: {}, getProperty: props({}), displayLabel: { key: "checkedCredential", through: true, linkedLabel: kinds[0] }, id: "x" })).toBe(kinds[0]);
 	});
 
-	it("the real core types declare a labeling property exactly where the shared headline cannot title them", () => {
+	it("core types declare a labeling property only where the shared headline can't title them", () => {
 		const topologyOf = ({ selectors, topology }: TDomainDefinition) => {
 			if (!isPersisted(topology)) throw new Error(`${selectors.join()} doesn't declare a persisted topology`);
 			return topology;
 		};
 		expect(topologyOf(textQuoteSelectorDomainDefinition).displayLabel).toBe("exact");
 		expect(topologyOf(specificResourceDomainDefinition).displayLabel).toBe("hasSelector");
-		// A Comment states what it is by its own note text (as:name / content): it doesn't need a vocabulary-specific title.
+		// A Comment is titled by its own note text (as:name or content), so it doesn't declare a vocabulary-specific title.
 		expect(topologyOf(commentDomainDefinition).displayLabel).toBeUndefined();
 		expect(topologyOf(principalDomainDefinition).displayLabel).toBeUndefined();
 	});
 
-	it("rejects a declared labeling property the type does not carry: it would silently leave the record untitled", () => {
+	it("rejects a declared labeling property that the type doesn't carry, since the record would display without a title and without an error", () => {
 		const topology: THypermediaTopology = {
 			persistedAs: "Thing",
 			id: "id",
@@ -120,7 +120,7 @@ describe("composeDisplayLabel priority: headline → body → weak → id", () =
 		expect(() => buildConcernCatalog(domains)).toThrow(/displayLabel "exact", which isn't one of its properties or edges/);
 	});
 
-	it("picks the shortest non-empty body: the concise summary, not a blob", () => {
+	it("picks the shortest non-empty body as the concise summary", () => {
 		expect(composeDisplayLabel({ rels: undefined, getProperty: () => undefined, bodyContents: ["x".repeat(300), "short", ""], id: "a" })).toBe("short");
 	});
 
@@ -155,23 +155,23 @@ describe("queryableFields: the one declaration-side derivation of a type's query
 		sortColumns: { receivedAt: "TIMESTAMPTZ" },
 	};
 
-	it("offers declared sortColumns, CONTEXT facets, the record-time field, and bounded primitives, never plain strings or the identifier", () => {
+	it("returns declared sortColumns, CONTEXT facets, the record-time field and bounded primitives, and leaves out plain strings and the identifier", () => {
 		expect(queryableFields({ schema, topology })).toEqual(["flagged", "folder", "generatedAtTime", "receivedAt", "size"]);
 	});
 
-	it("resolves a content-object property def to its rel: a body field never becomes queryable", () => {
+	it("resolves a content-object property def to its rel, so a body field isn't queryable", () => {
 		const withBody: THypermediaTopology = { ...topology, properties: { ...topology.properties, body: { rel: "content", mediaType: "text/html" } } };
 		expect(queryableFields({ schema, topology: withBody })).not.toContain("body");
 	});
 
-	it("derives from a declaration without a schema shape (a `set of {domain}` prose declaration) via its sortColumns", () => {
+	it("derives the fields of a `set of {domain}` prose declaration from its sortColumns when it doesn't have a schema shape", () => {
 		const proseTopology: THypermediaTopology = { persistedAs: "Recipe", id: "name", properties: {}, sortColumns: { servings: "DOUBLE PRECISION" } };
 		expect(queryableFields({ schema: undefined, topology: proseTopology })).toEqual(["servings"]);
 	});
 });
 
-describe("validTimeField: the catalog names the field a type's individuals place in time by", () => {
-	it("is the declared defaultSort (the object's own time) when present, else generatedAtTime (its indexed time)", () => {
+describe("validTimeField: the catalog names the field that places a type's individuals in time", () => {
+	it("is the declared defaultSort when present, and generatedAtTime otherwise", () => {
 		const schema = z.object({ id: z.string(), receivedAt: z.coerce.date(), generatedAtTime: z.coerce.date().default(() => new Date()) });
 		const make = (persistedAs: string, defaultSort?: string) =>
 			({
@@ -193,8 +193,9 @@ describe("validTimeField: the catalog names the field a type's individuals place
 });
 
 /**
- * A type's claim about which standard it belongs to is a declaration, not prose: it must resolve. An unbound prefix
- * still serves, the reader's JSON-LD then doesn't resolve the term to an IRI, so it fails at build, where the rel checks do.
+ * A type's vocabulary prefix is a declaration and not prose, so it must resolve. The server returns the records of a type
+ * with an unbound prefix without an error, and a reader's JSON-LD processor doesn't expand the term to an IRI.
+ * buildConcernCatalog therefore rejects an unbound prefix at build, as it rejects an unknown rel.
  */
 describe("buildConcernCatalog vocabulary binding", () => {
 	const domain = (topology: Partial<THypermediaTopology>) =>
@@ -216,16 +217,16 @@ describe("buildConcernCatalog vocabulary binding", () => {
 		expect(() => buildConcernCatalog(domain({ type: "vcard:Individual" }))).toThrow(/"vcard:" vocabulary is not bound/);
 	});
 
-	it("accepts it once the type declares what the prefix binds to", () => {
+	it("accepts the class once the type declares the prefix's IRI", () => {
 		expect(() => buildConcernCatalog(domain({ type: "vcard:Individual", namespaces: { vcard: "http://www.w3.org/2006/vcard/ns#" } }))).not.toThrow();
 	});
 
-	it("accepts a standard core binds for every domain, undeclared", () => {
+	it("accepts an undeclared prefix that core binds for every domain", () => {
 		expect(() => buildConcernCatalog(domain({ type: "oa:SpecificResource" }))).not.toThrow();
 		expect(() => buildConcernCatalog(domain({ subClassOf: "prov:Agent" }))).not.toThrow();
 	});
 
-	it("holds a superclass, a property's iri, and an edge's iri to the same rule", () => {
+	it("applies the same rule to a superclass, a property's iri and an edge's iri", () => {
 		expect(() => buildConcernCatalog(domain({ subClassOf: "cred:Thing" }))).toThrow(/"cred:" vocabulary is not bound/);
 		expect(() =>
 			buildConcernCatalog(
@@ -235,7 +236,7 @@ describe("buildConcernCatalog vocabulary binding", () => {
 		expect(() => buildConcernCatalog(domain({ edges: { e: { rel: LinkRelations.HAS_BODY.rel, range: "Thing", iri: "zzz:e" } } }))).toThrow(/"zzz:" vocabulary is not bound/);
 	});
 
-	it("leaves an absolute IRI and a bare local name alone: these don't name a vocabulary to bind", () => {
+	it("accepts an absolute IRI and a bare local name, since these don't name a vocabulary to bind", () => {
 		expect(() => buildConcernCatalog(domain({ type: "https://www.w3.org/ns/did#DIDDocument" }))).not.toThrow();
 		expect(() => buildConcernCatalog(domain({ subClassOf: "Thing" }))).not.toThrow();
 	});

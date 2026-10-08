@@ -1,47 +1,48 @@
 /**
- * Harvest the chat-context view payload on demand: the ACTIVE pane's `summarizeForKihan()` linked data plus a
- * manifest of every open column, so the model sees what the person is looking at and knows what else is on
- * screen. One shared primitive: the chat dispatch and the context-status badge must see the identical envelope.
+ * Harvests a turn's view context on demand. The harvest holds the active pane's `summarizeForKihan()` linked data and a
+ * manifest of every open column. The model's context then holds the view the person is looking at and the other columns
+ * on screen. The chat calls the harvest when it starts a turn.
  *
- * The active pane is found by the shared `activePane` signal (its columnKey), the one source of truth the strip also
- * paints from, never by a DOM `active` attribute or a positional index, which could lag or go stale when a pane
- * earlier in the strip closes. Views are recognised by the presence of `summarizeForKihan` (duck-typed, not instanceof:
- * the polymorphic view lives in a separately-built bundle whose ShuElement class identity differs).
+ * The harvester finds the active pane by the shared `activePane` signal, which holds the pane's columnKey. The strip
+ * renders its active pane from the same signal. The harvester doesn't use a DOM `active` attribute or a positional index,
+ * which can lag or become stale when a pane earlier in the strip closes. The harvester recognises a view by its
+ * `summarizeForKihan` method and not by `instanceof`. The polymorphic view is built into a separate bundle, which defines
+ * its own ShuElement class.
  */
 import { activePane } from "./signals.js";
 import { PAGE_TERMS, ViewCollectionSchema, viewCollection, type TLinkedData, type TViewCollection } from "@haibun/core/lib/hypermedia.js";
 
 type TSummarizes = Element & { summarizeForKihan(): TLinkedData | null };
 
-/** A pane's key in the `activePane` signal: its columnKey, or its column-type for the query pane (which doesn't have one). */
+/** A pane's key in the `activePane` signal: its columnKey, or its column-type for the query pane, which doesn't have a columnKey. */
 const paneKeyOf = (pane: Element): string => (pane as HTMLElement).dataset.columnKey ?? pane.getAttribute("column-type") ?? "";
 
 const summarizes = (el: Element): el is TSummarizes => typeof (el as Partial<TSummarizes>).summarizeForKihan === "function";
 
 /**
- * The most members of a view's collection a page carries: a bound on the payload, not on what fits.
- * A view of a graph of twenty thousand statements serialized megabytes into one step argument to deliver kilobytes of
- * it. What a model's window then holds of what arrives is decided by the turn against its own window: it states the
- * members the window held out and the call that reads them, so the page's bound is a safeguard, and the count the view
- * holds and the view's address travel with the members that arrive, so a view the page pages is paged, not lost.
+ * The most members of a view's collection that a page carries. It bounds the payload size, not what a model's window holds.
+ * Without the bound, a view of a graph of twenty thousand statements serializes megabytes into one step argument, and a
+ * model's window holds kilobytes of it. The turn selects what its window holds of the members that arrive. It states the
+ * members the window held out and the call that reads them. The view's count and address accompany the members that
+ * arrive, so a reader can read the members the page leaves out by paging the view.
  */
 export const HARVEST_MEMBERS = 200;
 
 /**
- * A view's summary with its members kept to what a page carries.
+ * Returns a view's summary with at most `holds` members.
  *
- * A view states its members under `items`, and a block stating them is held to the view's collection. Where the view
- * states a count, it stands, so a reader is told how many the view holds rather than how many arrived; where it doesn't
- * state one, the members held are the count the page states. `partOf` names the view the members came from, since the page
- * carrying them doesn't have an address of its own. A view that doesn't state members is carried as it stated itself, and a
- * page doesn't bound it: a view of that shape holds what it projects, as `shu-graph` holds the nodes and edges of one domain
- * chain.
+ * A view states its members under `items`. A summary that states `items` must conform to `ViewCollectionSchema`, else
+ * this function throws. A summary within the bound is returned unchanged. A bounded summary keeps the view's stated count,
+ * so a reader reads how many members the view holds and not how many arrived. Where the view doesn't state a count, the
+ * bounded summary states the number of members the view holds. `partOf` names the view the members came from, since the
+ * page that carries them doesn't have an address of its own. A summary without `items` is returned unchanged and isn't
+ * bounded. A view of that shape holds what it projects, as `shu-graph` holds the nodes and edges of one domain chain.
  */
 export function harvested(summary: TLinkedData, holds = HARVEST_MEMBERS): TLinkedData {
 	if (!Array.isArray(summary.items)) return summary;
 	const collection = ViewCollectionSchema.safeParse(summary);
 	if (!collection.success)
-		throw new Error(`a view's summary that states its members under "items" is held to the view's collection, which it does not meet: ${collection.error.message}`);
+		throw new Error(`a view's summary states "items" but doesn't conform to ViewCollectionSchema: ${collection.error.message}. Return a view collection from summarizeForKihan.`);
 	const { items, totalItems } = collection.data;
 	if (items.length <= holds) return summary;
 	return { ...summary, items: items.slice(0, holds), [PAGE_TERMS.partOf]: collection.data["@id"], totalItems: totalItems ?? items.length };
@@ -49,28 +50,28 @@ export function harvested(summary: TLinkedData, holds = HARVEST_MEMBERS): TLinke
 
 type TPaneManifestEntry = { name: string; component: string; active: boolean };
 
-/** The manifest block appended to every harvest: one member per open column. The model reads this to know the
- *  workspace's shape beyond the active pane, and can pull another pane's subject through the graph steps. */
+/** The manifest block appended to every harvest, with one member per open column. A model reads the workspace's columns
+ *  beyond the active pane from it, and its tool calls can read another pane's subject through the graph steps. */
 type TPaneManifest = TViewCollection & { items: TPaneManifestEntry[] };
 
 export function harvestChatViewLd(root: ParentNode = document): TLinkedData[] {
 	const strip = root.querySelector("shu-column-strip");
 	if (!strip) return [];
-	// A pane whose view the reader acts on another view through, as the actions bar's, isn't a column of the workspace.
+	// A pane whose `activates` is false isn't a column of the workspace. The reader acts on other views through its view,
+	// as through the actions bar's view.
 	const allPanes = Array.from(strip.querySelectorAll("shu-column-pane"));
 	const panes = allPanes.filter((pane) => (pane as Element & { activates?: boolean }).activates !== false);
 	if (panes.length === 0) return [];
 	const activeKey = activePane.get();
-	// The reader is on a pane the router named: it may be a column of the workspace, or a pane whose view acts on
-	// another view through (the actions bar's), which the manifest does not count as a column. Either way the pane is
-	// on screen, so harvest what it shows.
+	// The active pane is the pane the router named. It can be a column of the workspace, or a pane the manifest doesn't
+	// count as a column, such as the actions bar's pane. Either pane is on screen, so the harvest reads its view.
 	const active = allPanes.find((p) => paneKeyOf(p) === activeKey);
-	// With panes open, one of them is the pane you are on: the router sets activePane and is its only writer. A key that
-	// doesn't match one of them means the signal and the strip have gone out of step, and harvesting anyway would tell a
-	// model that the reader hasn't selected a view while a view is plainly on screen.
+	// With panes open, one of them is the active pane. The router is the only writer of activePane. A key that doesn't
+	// match an open pane means the signal and the strip are out of sync. A harvest with that key would produce a prompt
+	// stating that the reader hasn't selected a view while a view is on screen.
 	if (!active)
 		throw new Error(
-			`harvestChatViewLd: activePane is ${JSON.stringify(activeKey)}, which isn't one of the ${panes.length} open pane(s): [${panes.map((p) => JSON.stringify(paneKeyOf(p))).join(", ")}]. The pane router is the only writer of activePane.`,
+			`harvestChatViewLd: activePane is ${JSON.stringify(activeKey)}, which isn't one of the ${panes.length} open pane(s): [${panes.map((p) => JSON.stringify(paneKeyOf(p))).join(", ")}]. The pane router is the only writer of activePane. Check where the router sets it.`,
 		);
 	const blocks: TLinkedData[] = [];
 	for (const el of topSummarizers(active)) {
@@ -79,8 +80,8 @@ export function harvestChatViewLd(root: ParentNode = document): TLinkedData[] {
 		try {
 			blocks.push(harvested(summary));
 		} catch (err) {
-			// A summary the collection refuses is a fault in the view stating it: name the view, so the refusal is
-			// actionable rather than a page that reports the reader hasn't selected a view.
+			// A summary that ViewCollectionSchema rejects is a fault in its view. The error names the view's tag, so a
+			// developer can find the view.
 			throw new Error(`${el.tagName.toLowerCase()}: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	}
@@ -97,8 +98,9 @@ export function harvestChatViewLd(root: ParentNode = document): TLinkedData[] {
 	return blocks;
 }
 
-/** Top-most summarizers in a pane's light DOM: a view may sit inside a wrapper (the query pane's does), and a
- *  composite view (the polymorphic view host over its scene) summarizes for its whole subtree, nested summarizers are its own. */
+/** Returns the top-most summarizers in a pane's light DOM. A wrapper can contain a view, as the query pane's wrapper does.
+ *  A composite view summarizes its whole subtree, so the summarizers nested in it are left out. The polymorphic view host
+ *  is a composite view over its scene. */
 function topSummarizers(pane: Element | undefined): TSummarizes[] {
 	if (!pane) return [];
 	const candidates = Array.from(pane.querySelectorAll("*")).filter(summarizes);

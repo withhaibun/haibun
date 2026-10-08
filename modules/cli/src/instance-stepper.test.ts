@@ -1,13 +1,14 @@
 /**
- * Supervising siblings: restarting an instance, and watching a run.
+ * Tests InstanceStepper's supervision of sibling processes: restarting an instance, and watching a run.
  *
- * What an instance serves comes from its source, so a change to that source takes effect only once it runs again.
- * Restart forks through the same path as start, so a restarted instance is launched exactly as it first was.
+ * An instance serves what its source declares, so a change to that source takes effect when the instance restarts.
+ * Restart forks through the same path as start, so a restarted instance is launched as it was first launched.
  *
- * A run is watched rather than awaited: it is started, read from a cursor while it happens, and stopped. What a
- * watcher relies on is the tail: a cursor that never re-reads, and a count of what fell out of it rather than a
- * silent gap. The tail is tested as itself; the steps are tested for what they refuse, since forking a real cli
- * belongs to the feature tests.
+ * A caller starts a run, reads its output from a cursor while it executes, and stops it. The caller doesn't await a
+ * run. RunTail holds a run's output. A read returns the cursor for the next read, so a reader doesn't re-read output.
+ * RunTail counts the characters it drops. A read returns the number of requested characters that RunTail dropped.
+ * These tests cover RunTail, runEnvironment, verifiedRun and the steps against a held run. The feature tests fork a
+ * real cli.
  */
 import { describe, expect, it } from "vitest";
 import type { z } from "zod";
@@ -23,8 +24,8 @@ import type { ChildProcess } from "child_process";
 import { EventEmitter } from "node:events";
 import type { TSpecl } from "@haibun/core/lib/execution.js";
 
-/** The supervisor, with a way to hold a run without a process: what the reading and stopping steps
- *  answer does not depend on a child, and starting a real one belongs to the feature tests. */
+/** InstanceStepper with a method that holds a run without a process. The products of the listing, reading, waiting and
+ *  stopping steps don't depend on a child process. The feature tests start a real one. */
 class SupervisorWithHeldRun extends InstanceStepper {
 	hold(run: string, said = "", ended: number | null = null) {
 		const tail = new RunTail();
@@ -37,7 +38,8 @@ class SupervisorWithHeldRun extends InstanceStepper {
 			if (!wasFinished && outcome.finished) for (const wake of waiters.splice(0)) wake();
 		};
 		take(said);
-		// A held run stands in for a forked one, so it reports when it ends the way a child does.
+		// A held run replaces a forked run in these tests. Its EventEmitter child emits `exit` when the held run ends, as a
+		// child process does.
 		const child = Object.assign(new EventEmitter(), { kill: () => true }) as unknown as ChildProcess;
 		this.runs.set(run, { child, tail, outcome, ended, waiters });
 		return { say: take, end: (code: number) => this.endHeld(run, code) };
@@ -59,7 +61,7 @@ const read = async (stepper: InstanceStepper, run: string, cursor: number) =>
 const stepper = () => new SupervisorWithHeldRun();
 
 describe("a run's tail", () => {
-	it("reads only what is new: the cursor it returns is where the next read starts", () => {
+	it("returns only the output after the cursor, and returns the cursor where the next read starts", () => {
 		const tail = new RunTail();
 		tail.append("first line\n");
 		const one = tail.since(0);
@@ -68,16 +70,16 @@ describe("a run's tail", () => {
 		expect(tail.since(one.cursor).output, "only what was logged since the last read").toBe("second line\n");
 	});
 
-	it("counts what fell out of the tail, so a reader that missed some of it is told rather than shown a gap", () => {
+	it("counts the output the tail dropped, so a read from before the kept output returns the dropped count", () => {
 		const tail = new RunTail(10);
 		for (const chunk of ["01234", "56789", "ABCDE"]) tail.append(chunk);
 		const read = tail.since(0);
-		expect(read.output, "what is kept is the end of it").toBe("56789ABCDE");
-		expect(read.dropped, "and the five characters no longer kept are counted").toBe(5);
+		expect(read.output, "the tail keeps the most recent output").toBe("56789ABCDE");
+		expect(read.dropped, "and counts the five dropped characters").toBe(5);
 		expect(read.cursor).toBe(15);
 	});
 
-	it("bounds itself against a single chunk longer than the whole tail", () => {
+	it("keeps only the end of a single chunk longer than the whole tail", () => {
 		const tail = new RunTail(10);
 		tail.append("0123456789ABCDE");
 		expect(tail.since(0).output).toBe("56789ABCDE");
@@ -86,7 +88,7 @@ describe("a run's tail", () => {
 });
 
 describe("the instances and runs a process started", () => {
-	it("lists each run with whether it is running or ended", async () => {
+	it("lists each run as running or ended", async () => {
 		const s = stepper();
 		s.hold("a-run");
 		s.hold("an-ended-run", "", 0);
@@ -102,7 +104,7 @@ describe("the instances and runs a process started", () => {
 });
 
 describe("watching a run", () => {
-	it("answers with what the run has logged since the cursor it was given", async () => {
+	it("returns the output logged since the given cursor", async () => {
 		const s = stepper();
 		const { say } = s.hold("a-run", "first line\n");
 		const one = await read(s, "a-run", 0);
@@ -113,7 +115,7 @@ describe("watching a run", () => {
 		expect(two.products?.status).toBe("running");
 	});
 
-	it("reports how a run ended, so a watcher stops watching", async () => {
+	it("returns how a run ended, so a watcher stops watching", async () => {
 		const s = stepper();
 		const { end } = s.hold("a-run", "done\n");
 		end(1);
@@ -122,7 +124,7 @@ describe("watching a run", () => {
 		expect(result.products?.exitCode).toBe(1);
 	});
 
-	it("refuses to start a second run under one name, rather than losing the first", async () => {
+	it("refuses to start a run under the name of a run this process holds", async () => {
 		const s = stepper();
 		s.hold("a-run");
 		const result = (await (s.steps.startRun.action as (a: { where: string; filter: string; port: number; run: string }) => Promise<TResult>)({
@@ -132,12 +134,12 @@ describe("watching a run", () => {
 			run: "a-run",
 		})) as TResult;
 		expect(result.ok).toBe(false);
-		expect(result.errorMessage).toMatch(/already running/);
+		expect(result.errorMessage).toMatch(/already holds a run named "a-run"/);
 	});
 
-	it("refuses a held port by naming what answers there, before a child is forked to fail on it", async () => {
-		// The situation an operator meets after a session ends without its children: something answers on the run's
-		// port, and "address in use" deep in a dead child's output doesn't name the occupant or the recourse.
+	it("refuses a port in use before forking a child, and describes the server on that port", async () => {
+		// An operator finds this state after a session ends and its children keep running. A server responds on the
+		// requested port. An "address in use" error in the exited child's output doesn't name that server or the remedy.
 		const { createServer } = await import("node:http");
 		const { mkdtempSync, writeFileSync } = await import("node:fs");
 		const { tmpdir } = await import("node:os");
@@ -160,11 +162,11 @@ describe("watching a run", () => {
 		})) as TResult;
 		server.close();
 		expect(result.ok).toBe(false);
-		expect(result.errorMessage).toContain(`port ${port} is already answering`);
-		expect(result.errorMessage, "what answers is named, so the refusal is actionable").toContain("not a haibun host");
+		expect(result.errorMessage).toContain(`port ${port} is already in use`);
+		expect(result.errorMessage, "the refusal describes the server on the port").toContain("not a haibun host");
 	});
 
-	it("refuses to read or stop a run it never started, rather than answering for a run that doesn't exist", async () => {
+	it("refuses to read or stop a run this process didn't start, and doesn't return a status for a run that doesn't exist", async () => {
 		const s = stepper();
 		await expect(read(s, "no-such-run", 0)).rejects.toThrow(/didn't start a run "no-such-run"/);
 		await expect((s.steps.stopRun.action as (a: { run: string }) => Promise<TResult>)({ run: "no-such-run" })).rejects.toThrow(/didn't start a run "no-such-run"/);
@@ -172,11 +174,11 @@ describe("watching a run", () => {
 });
 
 describe("restarting an instance", () => {
-	it("refuses a port where this run didn't launch an instance, rather than starting one unasked", async () => {
+	it("refuses a port where this process didn't launch an instance, and doesn't start a new one", async () => {
 		await expect((stepper().steps.restartInstance.action as (a: { port: number }) => Promise<TResult>)({ port: 8299 })).rejects.toThrow(/didn't launch an instance on port 8299/);
 	});
 
-	it("refuses to start from a directory without a config, naming the directory", async () => {
+	it("refuses to start from a directory without a config, and names the directory", async () => {
 		const starting = (stepper().steps.startInstance.action as (a: { where: string; port: number; hostId: number }) => Promise<TResult>)({
 			where: "/nonexistent-instance-dir",
 			port: 8298,
@@ -186,8 +188,8 @@ describe("restarting an instance", () => {
 	});
 });
 
-describe("whether a run would answer what an earlier run answered", () => {
-	/** A group of features in a repository of its own, so its state is its own files. */
+describe("whether a run would repeat the outcome of an earlier run", () => {
+	/** Creates a group of features in its own git repository, so its state depends only on its own files. */
 	const aGroup = () => {
 		const dir = nodeFS.realpathSync(nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-verified-run-")));
 		execFileSync("git", ["init", "-q"], { cwd: dir });
@@ -198,23 +200,23 @@ describe("whether a run would answer what an earlier run answered", () => {
 		return { dir, config };
 	};
 
-	it("starts a run of features that have not run against their present state, and refuses one that has, however it went", () => {
+	it("starts features that haven't run against their present state, and refuses features that have, whether they passed or failed", () => {
 		const { dir, config } = aGroup();
 		const env = runEnvironment({}, 0, false);
 		expect(verifiedRun(config, dir, "", dir, env)).toBeUndefined();
-		// What the child would record, under the conditions the child computes from the same environment.
+		// v() computes the verification that the child would record from the same environment.
 		const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env, getConfigFromBase([dir]) as TSpecl);
 		const v = () => verificationOf({ configPath: config, specl: getConfigFromBase([dir]) as never, bases: [dir], cwd: dir, filter: [], options, moduleOptions }) as never;
 		recordOutcome(v(), "failed", 1);
 		expect(verifiedRun(config, dir, "", dir, env), "a run that failed against this state would fail the same way").toBe("failed");
 		recordOutcome(v(), "passed", 1);
-		expect(verifiedRun(config, dir, "", dir, env), "the same features, the same state, the same conditions").toBe("passed");
-		expect(verifiedRun(config, dir, "a", dir, env), "a run narrowed to some of them is another run").toBeUndefined();
+		expect(verifiedRun(config, dir, "", dir, env), "verifiedRun returns the recorded pass for the same features, state and conditions").toBe("passed");
+		expect(verifiedRun(config, dir, "a", dir, env), "a run narrowed to some of the features is a different run").toBeUndefined();
 		nodeFS.writeFileSync(path.join(dir, "features/a.feature"), "Feature: a, changed\n");
-		expect(verifiedRun(config, dir, "", dir, env), "a change to what they depend on is a state that hasn't been run against").toBeUndefined();
+		expect(verifiedRun(config, dir, "", dir, env), "a changed dependency makes a new state that doesn't have a recorded outcome").toBeUndefined();
 	});
 
-	it("reads the .env of the directory the run is made from, as the run does, so a run given options there is told apart", () => {
+	it("reads the .env file in a run's starting directory as the child does, so an option set there changes the conditions verifiedRun compares", () => {
 		const { dir, config } = aGroup();
 		const env = runEnvironment({}, 0, false);
 		const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env, getConfigFromBase([dir]) as TSpecl);
@@ -225,35 +227,35 @@ describe("whether a run would answer what an earlier run answered", () => {
 		);
 		expect(verifiedRun(config, dir, "", dir, env)).toBe("passed");
 		nodeFS.writeFileSync(path.join(dir, ".env"), "HAIBUN_O_WEBSERVERSTEPPER_PORT=8399\n");
-		expect(verifiedRun(config, dir, "", dir, env), "the run would read that file, so its conditions are other than what was recorded").toBeUndefined();
+		expect(verifiedRun(config, dir, "", dir, env), "the child would read that file, so its conditions differ from the recorded conditions").toBeUndefined();
 	});
 });
 
 describe("what a run is started with", () => {
-	it("asks the run for its events, since this process reads them rather than watching a formatted log", () => {
+	it("requests the child's events as NDJSON, since the supervisor reads events and not a formatted log", () => {
 		expect(runEnvironment({}, 0, false).HAIBUN_NDJSON).toBe("true");
 	});
 
-	it("decides the run's port, its identity, whether it stays up and whether it skips a pass, rather than passing on the supervisor's", () => {
-		// What a child must not inherit is read from the options that declare themselves per-process; the port option
-		// is one, and this stands in for its declaration.
+	it("determines the child's port, host id, stay and once options, and doesn't pass on the supervisor's", () => {
+		// The caller passes runEnvironment the names of the options that declare themselves per-process. The web server's
+		// port option is one of them. `perProcess` holds its name here in place of that declaration.
 		const perProcess = ["HAIBUN_O_WEBSERVERSTEPPER_PORT"];
 		const supervisorEnv = { HAIBUN_O_WEBSERVERSTEPPER_PORT: "8290", HAIBUN_STAY: "always", HAIBUN_HOST_ID: "1", HAIBUN_ONCE: "true", HAIBUN_KEY: "kept" };
 		const reported = { HAIBUN_KEY: "kept", HAIBUN_NDJSON: "true" };
-		expect(runEnvironment(supervisorEnv, 0, false, undefined, perProcess), "a run that ends with its features serves where its features declare").toEqual(reported);
-		expect(runEnvironment(supervisorEnv, 8331, false, undefined, perProcess), "a port of its own is not a reason to keep it running").toEqual({
+		expect(runEnvironment(supervisorEnv, 0, false, undefined, perProcess), "a run that ends with its features serves on the ports its features declare").toEqual(reported);
+		expect(runEnvironment(supervisorEnv, 8331, false, undefined, perProcess), "a port of its own doesn't keep it running").toEqual({
 			...reported,
 			HAIBUN_O_WEBSERVERSTEPPER_PORT: "8331",
 		});
 		expect(
 			runEnvironment({ ...supervisorEnv, HAIBUN_O_MONITORSTEPPER_PORT: "7777" }, 8331, false, undefined, [...perProcess, "HAIBUN_O_MONITORSTEPPER_PORT"]),
-			"another port the supervisor holds for itself, as its monitor's, isn't passed on or given the run's port",
+			"a port the supervisor holds for its monitor isn't passed on or set to the run's port",
 		).toEqual({ ...reported, HAIBUN_O_WEBSERVERSTEPPER_PORT: "8331" });
 		expect(
 			runEnvironment({}, 8331, false).HAIBUN_O_WEBSERVERSTEPPER_PORT,
 			"an instance serves on the port it was given, whether or not the launcher holds a web server of its own",
 		).toBe("8331");
-		expect(runEnvironment(supervisorEnv, 8331, true, 9, perProcess), "a run to be asked about afterwards serves on its port, takes its own id, and stays").toEqual({
+		expect(runEnvironment(supervisorEnv, 8331, true, 9, perProcess), "a standing run serves on its port, takes its own host id, and stays up").toEqual({
 			...reported,
 			HAIBUN_O_WEBSERVERSTEPPER_PORT: "8331",
 			HAIBUN_HOST_ID: "9",
@@ -263,17 +265,17 @@ describe("what a run is started with", () => {
 });
 
 describe("waiting for a run", () => {
-	it("answers the moment the run ends, rather than when it is next asked", async () => {
+	it("returns as soon as a run ends, without a further read", async () => {
 		const s = stepper();
 		const { end } = s.hold("a-run", "working\n");
 		const waited = (s.steps.waitRun.action as (a: { run: string; seconds: number; cursor: number }) => Promise<TRead>)({ run: "a-run", seconds: 30, cursor: 0 });
 		setTimeout(() => end(0), 5);
 		const result = await waited;
-		expect(result.products?.status, "the wait returned because the run ended, not because a timer fired").toBe("ended");
+		expect(result.products?.status, "the wait returned at exit, not at its timeout").toBe("ended");
 		expect(result.products?.exitCode).toBe(0);
 	});
 
-	it("answers with the run still running when the caller's patience runs out, which is not an error", async () => {
+	it("returns a running status without an error when the timeout passes", async () => {
 		const s = stepper();
 		s.hold("a-run", "still going\n");
 		const result = await (s.steps.waitRun.action as (a: { run: string; seconds: number; cursor: number }) => Promise<TRead>)({ run: "a-run", seconds: 0.01, cursor: 0 });
@@ -281,7 +283,7 @@ describe("waiting for a run", () => {
 		expect(result.products?.status).toBe("running");
 	});
 
-	it("refuses to wait for a run it never started", async () => {
+	it("refuses to wait for a run this process didn't start", async () => {
 		const s = stepper();
 		const waiting = (s.steps.waitRun.action as (a: { run: string; seconds: number; cursor: number }) => Promise<TResult>)({ run: "no-such", seconds: 1, cursor: 0 });
 		await expect(waiting).rejects.toThrow(/didn't start a run "no-such"/);
@@ -289,22 +291,22 @@ describe("waiting for a run", () => {
 });
 
 describe("a run left standing", () => {
-	it("is done when its features are, since it will not exit", async () => {
+	it("is finished when its features finish, since its process doesn't exit", async () => {
 		const s = stepper();
 		const { say } = s.hold("standing-run", "");
 		const waited = (s.steps.waitRun.action as (a: { run: string; seconds: number; cursor: number }) => Promise<TRead>)({ run: "standing-run", seconds: 30, cursor: 0 });
 		setTimeout(() => say('{"kind":"lifecycle","stage":"end","status":"completed","type":"execution"}\n'), 5);
 		const result = await waited;
-		expect(result.products?.finished, "the run reported its features were over, and went on serving").toBe(true);
+		expect(result.products?.finished, "the child reported its features finished, and its process kept serving").toBe(true);
 		expect(result.products?.status, "the process didn't exit, so it is still running").toBe("running");
 	});
 });
 
-describe("the features a run runs", () => {
-	it("are named by patterns of their paths, every feature by an empty filter, and a part that isn't a pattern is refused", () => {
+describe("a run's feature filter", () => {
+	it("accepts patterns of feature paths and an empty filter, and refuses a part that isn't a regular expression", () => {
 		const { schema } = featureFilterDomainDefinition;
 		expect(schema.safeParse("graph,a.*b").success).toBe(true);
-		expect(schema.safeParse("").success, "every feature").toBe(true);
-		expect(schema.safeParse("graph,*").error?.issues[0]?.message).toMatch(/isn't a pattern a feature's path is matched against/);
+		expect(schema.safeParse("").success, "an empty filter selects every feature").toBe(true);
+		expect(schema.safeParse("graph,*").error?.issues[0]?.message).toMatch(/has a part that isn't a regular expression/);
 	});
 });

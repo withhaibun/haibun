@@ -2,7 +2,7 @@
  * OpenTelemetry Monitor Stepper for Haibun
  *
  * Exports Haibun events as OpenTelemetry traces and logs to OTLP-compatible backends.
- * Uses core monitor utilities (EventFormatter, THaibunEvent) for consistency.
+ * Reads events as core's THaibunEvent and derives step status with core's EventFormatter.
  */
 
 import { AStepper, IHasCycles, IHasOptions, StepperKinds, IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
@@ -22,11 +22,11 @@ import { LoggerProvider, BatchLogRecordProcessor } from "@opentelemetry/sdk-logs
 import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-http";
 import { logs, SeverityNumber } from "@opentelemetry/api-logs";
 
-/** The name a span a feature starts and ends is known by. */
+/** The name of a custom span for the startSpan and endSpan steps. */
 const DOMAIN_SPAN_NAME = "otel-span-name";
 
 export default class MonitorOtelStepper extends AStepper implements IHasCycles, IHasOptions {
-	description = "Exports a run's features, steps and logs as OpenTelemetry spans and log records, and starts and ends named spans.";
+	description = "Exports actuality's features, steps and artifacts as OpenTelemetry spans and its logs as log records. startSpan and endSpan start and end custom spans.";
 	kind = StepperKinds.MONITOR;
 
 	private tracerProvider: NodeTracerProvider | undefined;
@@ -38,20 +38,20 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 
 	options = {
 		OTEL_ENDPOINT: { desc: "OpenTelemetry OTLP endpoint (default: http://localhost:4318)", parse: stringOrError },
-		SERVICE_NAME: { desc: "Service name for traces (default: haibun)", parse: stringOrError },
+		SERVICE_NAME: { desc: "Service name for traces and logs (default: haibun)", parse: stringOrError },
 	};
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
 
-		// Subscribe to the event logger and forward each event as an OTel span.
+		// Exports feature, step and artifact events as spans and log events as log records.
 		world.eventLogger.subscribe((event: THaibunEvent) => {
 			this.onEvent(event);
 		});
 	}
 
 	private initializeIfNeeded() {
-		if (this.tracerProvider) return; // Already initialized
+		if (this.tracerProvider) return;
 
 		const world = this.getWorld();
 		const endpoint = getStepperOption(this, "OTEL_ENDPOINT", world.moduleOptions) || "http://localhost:4318";
@@ -63,16 +63,15 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 	private initializeOtel(endpoint: string, serviceName: string) {
 		const resource = resourceFromAttributes({ [ATTR_SERVICE_NAME]: serviceName, [ATTR_SERVICE_VERSION]: "1.0.0" });
 
-		// Trace provider - use SimpleSpanProcessor for immediate export
+		// SimpleSpanProcessor exports each span when it ends.
 		const traceExporter = new OTLPTraceExporter({ url: `${endpoint}/v1/traces` });
 		this.tracerProvider = new NodeTracerProvider({ resource, spanProcessors: [new SimpleSpanProcessor(traceExporter)] });
 		this.tracerProvider.register();
 		this.tracer = trace.getTracer("haibun-monitor-otel", "1.0.0");
 
-		// Log provider
 		const logExporter = new OTLPLogExporter({ url: `${endpoint}/v1/logs` });
 		const logProcessor = new BatchLogRecordProcessor(logExporter);
-		// Use 'processors' array as per LoggerProviderConfig interface
+		// LoggerProviderConfig takes its log record processors in the 'processors' array.
 		this.loggerProvider = new LoggerProvider({ resource, processors: [logProcessor] });
 		logs.setGlobalLoggerProvider(this.loggerProvider);
 
@@ -80,14 +79,13 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 	}
 
 	cycles: IStepperCycles = {
-		getConcerns: () => ({ domains: [{ selectors: [DOMAIN_SPAN_NAME], schema: NameSchema, description: "The name a span a feature starts and ends is known by" }] }),
+		getConcerns: () => ({ domains: [{ selectors: [DOMAIN_SPAN_NAME], schema: NameSchema, description: "The name of a custom span for the startSpan and endSpan steps" }] }),
 		startExecution: async () => {
-			// Initialize OTel provider at start of execution
 			await Promise.resolve();
 			this.initializeIfNeeded();
-			// A blip is a fine-grained occurrence actuality never retains; here it becomes a span event on the step it
-			// happened under, so it is queryable in order and in context rather than flooding the event log. Only a
-			// kinds subscription receives blips; the narrated subscription in setWorld never sees one.
+			// Actuality doesn't retain a blip. recordBlip adds each blip as a span event on its step span. A trace backend can
+			// then query the blips in order and by step. Only a subscription that lists the blip kind receives blips. The
+			// subscription in setWorld doesn't list kinds, so it doesn't receive blips.
 			if (!this.detachBlips) {
 				const { eventLogger } = this.getWorld();
 				const onBlip = (event: THaibunEvent) => event.kind === "blip" && this.recordBlip(event);
@@ -101,19 +99,16 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 		},
 		endFeature: async () => {
 			await Promise.resolve();
-			// End feature span
 			if (this.featureSpan) {
 				this.featureSpan.end();
 				this.featureSpan = undefined;
 			}
-			// Clear step spans
 			this.stepSpans.clear();
 		},
 		endExecution: async () => {
 			await Promise.resolve();
 			this.detachBlips?.();
 			this.detachBlips = undefined;
-			// Flush and shutdown
 			await this.shutdown();
 		},
 	};
@@ -129,16 +124,16 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 
 		if (event.kind === "lifecycle") {
 			if (event.type === "feature" && event.stage === "start") {
-				// Start root span for feature
+				// The feature span is the root span of the feature's spans.
 				this.featureSpan = this.tracer.startSpan(`feature: ${event.featurePath || "unknown"}`, { attributes: { "haibun.event.type": "feature", "haibun.event.id": event.id } });
 			} else if (event.type === "step") {
 				if (event.stage === "start") {
-					// Create feature span if not yet created (for when feature events aren't forwarded)
+					// Starts a feature span when this stepper didn't receive a feature start event.
 					if (!this.featureSpan) {
 						this.featureSpan = this.tracer.startSpan("feature: haibun-execution", { attributes: { "haibun.event.type": "feature", "haibun.auto.created": true } });
 					}
 
-					// Start step span as child of feature
+					// Each step span is a child of the feature span.
 					const parentContext = this.featureSpan ? trace.setSpan(context.active(), this.featureSpan) : context.active();
 
 					const stepSpan = this.tracer.startSpan(
@@ -157,10 +152,9 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 
 					this.stepSpans.set(event.id, stepSpan);
 				} else if (event.stage === "end") {
-					// End step span
 					const stepSpan = this.stepSpans.get(event.id);
 					if (stepSpan) {
-						// Use EventFormatter for consistent status indication
+						// getIndication separates a speculative failure from a failure.
 						const indication = EventFormatter.getIndication(event);
 						if (indication === "failure") {
 							stepSpan.setStatus({ code: SpanStatusCode.ERROR, message: event.error });
@@ -175,7 +169,6 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 				}
 			}
 		} else if (event.kind === "log") {
-			// Emit as OTel log record
 			const severityMap: Record<string, SeverityNumber> = {
 				debug: SeverityNumber.DEBUG,
 				trace: SeverityNumber.TRACE,
@@ -184,9 +177,8 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 				error: SeverityNumber.ERROR,
 			};
 
-			// Forward structured event.attributes verbatim, emitters
-			// supply OTel-aligned keys (haibun.* namespace, exception.* for error data) and
-			// expect them to reach the OTel backend as log record attributes.
+			// Copies event.attributes unchanged into the log record attributes. Emitters write OTel-aligned keys: haibun.* for
+			// haibun data and exception.* for error data.
 			logger.emit({
 				severityNumber: severityMap[event.level] || SeverityNumber.INFO,
 				severityText: event.level.toUpperCase(),
@@ -194,7 +186,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 				attributes: { "haibun.event.id": event.id, "haibun.event.kind": "log", ...event.attributes },
 			});
 		} else if (event.kind === "artifact") {
-			// Create artifact span as child of current step span or feature span
+			// The artifact span's parent is its step span or the feature span.
 			const parentSpan = this.getParentSpanForId(event.id) || this.featureSpan;
 			const parentContext = parentSpan ? trace.setSpan(context.active(), parentSpan) : context.active();
 
@@ -214,13 +206,15 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 				parentContext,
 			);
 
-			// End immediately - artifacts are point-in-time events
+			// An artifact is a point-in-time event. Its span ends immediately.
 			artifactSpan.end();
 		}
 	}
 
-	/** A blip as a span event on the step it happened under: actuality's own seqPath is the trace context, so the recording
-	 *  site doesn't thread a span. Falls back to the feature span, and is dropped when the two spans aren't open. */
+	/** Adds a blip as a span event on the open step span for its seqPath or the nearest open ancestor step span. The blip's
+	 *  seqPath is the trace context. The site that emits a blip doesn't pass a span. recordBlip adds the event to the
+	 *  feature span when the blip doesn't carry a seqPath or a matching step span isn't open. It drops the blip when the
+	 *  feature span isn't open either. */
 	private recordBlip(blip: TBlipEvent): void {
 		const span = (blip.seqPath ? this.getParentSpanForId(`${blip.seqPath}.`) : undefined) ?? this.featureSpan;
 		if (!span) return;
@@ -232,8 +226,8 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 	}
 
 	private getParentSpanForId(id: string): Span | undefined {
-		// Try to find the parent step span by matching the ID prefix
-		// e.g., for artifact ID "1.2.3.artifact", find step "1.2.3"
+		// Drops the trailing dotted segments of id one at a time and returns the first open step span that matches.
+		// For the artifact id "1.2.3.artifact", it returns the span of step "1.2.3".
 		const parts = id.split(".");
 		for (let i = parts.length - 1; i >= 0; i--) {
 			const possibleStepId = parts.slice(0, i).join(".");
@@ -244,12 +238,12 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 	}
 
 	private async shutdown() {
-		// Force flush to ensure all spans are sent
+		// forceFlush exports pending spans and log records before each provider shuts down.
 		if (this.tracerProvider) {
 			try {
 				await this.tracerProvider.forceFlush();
 			} catch (e) {
-				console.error("[monitor-otel] Error flushing traces:", e);
+				console.error("[monitor-otel] Flushing traces failed. Check the OTEL_ENDPOINT option:", e);
 			}
 			await this.tracerProvider.shutdown();
 			this.tracerProvider = undefined;
@@ -258,7 +252,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 			try {
 				await this.loggerProvider.forceFlush();
 			} catch (e) {
-				console.error("[monitor-otel] Error flushing logs:", e);
+				console.error("[monitor-otel] Flushing logs failed. Check the OTEL_ENDPOINT option:", e);
 			}
 			await this.loggerProvider.shutdown();
 			this.loggerProvider = undefined;
@@ -267,7 +261,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 	}
 
 	steps = {
-		// Placeholder step - can be extended for manual span creation
+		// A named custom span is a child of the feature span. startSpan doesn't start one when the feature span isn't open.
 		startSpan: {
 			gwta: `start otel span {name: ${DOMAIN_SPAN_NAME}}`,
 			action: async ({ name }: { name: string }) => {

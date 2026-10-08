@@ -1,11 +1,11 @@
 /**
- * How long a run of features took, written beside the group's configuration after every run and meant to be committed
- * with the code: the history of the file is the history of what each feature takes, so a change that makes a feature
- * slower or faster is seen in the same commit that made it.
+ * Records the duration of each feature in a run of features. The CLI writes TIMINGS_FILE beside the group's
+ * configuration after every run of features. The file is committed with the code. Its git history holds each feature's
+ * durations, so the commit that makes a feature slower or faster shows the change.
  *
- * Seconds per feature, rounded to a tenth so a run that took the same time writes the same file; the steps it ran and
- * the hash of the text of the steps it declares, so a feature whose declared steps changed is told apart from a feature
- * that ran the same steps slower.
+ * Each feature's entry holds its seconds rounded to a tenth, so two runs whose durations round to the same tenth write
+ * the same entry. The entry also holds the number of steps the feature ran and the hash of the text of its declared
+ * steps. The hash distinguishes a feature whose declared steps changed from a feature that ran the same steps slower.
  */
 import nodeFS from "node:fs";
 import os from "node:os";
@@ -16,19 +16,19 @@ import { TIMINGS_FILE } from "@haibun/core/lib/util/node/dependency-state.js";
 
 export { TIMINGS_FILE };
 
-/** What one feature took: the seconds from its first step's start to its last step's end, how many steps it ran, and
- *  the SHA-256 of the text of the steps it declares. */
+/** One feature's timing: the seconds from its first step's start to its last step's end, the number of steps it ran,
+ *  and the SHA-256 of the text of the steps it declares. */
 const FeatureTimingSchema = z.object({ seconds: z.number(), steps: z.number().int(), declaredStepTextHash: z.string() });
 const TimingsSchema = z.object({ features: z.record(z.string(), FeatureTimingSchema), steps: z.number().int(), seconds: z.number() });
 type TFeatureTiming = z.infer<typeof FeatureTimingSchema>;
 export type TTimings = z.infer<typeof TimingsSchema>;
 
-/** The file holds one set of timings per machine class: a run on other hardware takes other times, and comparing
+/** The file holds one set of timings per machine class. A run on other hardware has other durations, and a comparison
  *  across machines reports a difference that a change didn't cause. */
 type TTimingsFile = Record<string, unknown>;
 
-/** The class of machine a run was measured on: its processor model, how many cores it has, its architecture and its
- *  platform. It describes the hardware and doesn't name the host or the user. */
+/** Returns a key for the class of this machine: its platform, its architecture, its core count and its processor
+ *  model. The key describes the hardware and doesn't name the host or the user. */
 export function machineKey(): string {
 	const cpus = os.cpus();
 	const model = (cpus[0]?.model ?? "unknown")
@@ -41,14 +41,14 @@ export function machineKey(): string {
 
 const tenth = (ms: number): number => Math.round(ms / 100) / 10;
 
-/** Timings for a set of features, with the whole: every step they ran and the seconds they took, summed in tenths. */
+/** Adds totals to a set of feature timings: the sum of their steps and the sum of their seconds in tenths. */
 function withTotals(features: Record<string, TFeatureTiming>): TTimings {
 	const all = Object.values(features);
 	return { features, steps: all.reduce((sum, f) => sum + f.steps, 0), seconds: Math.round(all.reduce((sum, f) => sum + f.seconds * 10, 0)) / 10 };
 }
 
-/** What a run took, feature by feature, from what every step of each feature came to: a long feature holds only its
- *  most recent step results, and its count, first start and last end still cover every step. */
+/** Computes each feature's timing from its result's step summary and declared step text hash. A long feature's result
+ *  holds only its most recent step results. The step summary's count, first start and last end still cover every step. */
 export function timingsOf(result: TExecutorResult): TTimings {
 	const features: Record<string, TFeatureTiming> = {};
 	for (const feature of result.featureResults ?? []) {
@@ -59,17 +59,20 @@ export function timingsOf(result: TExecutorResult): TTimings {
 	return withTotals(features);
 }
 
-/** The smallest change to report: a feature that ran at least this much longer or shorter than the recorded run,
- *  by both measures. Three runs of one group recorded 6.2, 6.3 and 6.3 seconds for its largest feature, so a fifth is
- *  well clear of the spread between identical runs, and a second holds a short feature below the reporting line. */
+/** The smallest change to report. A feature is reported where its duration differs from the recorded run by at least
+ *  a fifth of the recorded duration and by at least a second. Three runs of one group recorded 6.2, 6.3 and 6.3 seconds
+ *  for its largest feature, so a fifth exceeds the spread between runs of unchanged code. The one-second minimum keeps
+ *  a short feature's small changes out of the report. */
 const CHANGED_FRACTION = 0.2;
 const CHANGED_SECONDS = 1;
 
-/** One feature whose duration differs from the recorded run, with whether its declared steps changed since. */
+/** A feature whose duration differs from the recorded run. declaredStepsChanged is true where the hash of its declared
+ *  step text differs from the recorded hash. */
 type TVariance = { feature: string; seconds: number; was: number; steps: number; wasSteps: number; declaredStepsChanged: boolean };
 
-/** The features whose durations differ from what was recorded, largest difference first. A feature absent from either
- *  run is left out: an added or removed feature is a change in what runs rather than in what a run takes. */
+/** Returns the features whose durations differ from the recorded timings by at least CHANGED_FRACTION of the recorded
+ *  duration and at least CHANGED_SECONDS, largest difference first. It leaves out a feature that only one of the two
+ *  runs holds. An added or removed feature changes what runs, not how long a run takes. */
 export function variancesBetween(recorded: TTimings | undefined, now: TTimings): TVariance[] {
 	if (!recorded) return [];
 	const changed: TVariance[] = [];
@@ -83,15 +86,16 @@ export function variancesBetween(recorded: TTimings | undefined, now: TTimings):
 	return changed.sort((a, b) => Math.abs(b.seconds - b.was) - Math.abs(a.seconds - a.was));
 }
 
-/** How a variance reads: the feature, both durations, the change as a percentage, the step counts where they differ, and
- *  whether the feature's declared steps changed. */
+/** Formats a variance as one line: the feature, both durations, the change as a percentage where the recorded duration
+ *  isn't zero, the step count, the recorded step count where it differs, and a note where the declared steps changed. */
 export function varianceLine(v: TVariance): string {
 	const percent = v.was === 0 ? "" : ` (${v.seconds > v.was ? "+" : "-"}${Math.round((Math.abs(v.seconds - v.was) / v.was) * 100)}%)`;
 	const steps = v.steps === v.wasSteps ? `${v.steps} steps` : `${v.steps} steps, was ${v.wasSteps}`;
 	return `${v.feature} took ${v.seconds}s, was ${v.was}s${percent}, ${steps}${v.declaredStepsChanged ? ", its declared steps changed" : ""}`;
 }
 
-/** Every machine's timings in the file, or an empty record where the file is absent or holds something else. */
+/** Reads every machine's timings from the file. Returns an empty record where the file doesn't exist or doesn't hold a
+ *  JSON object. */
 function recordedIn(file: string): TTimingsFile {
 	if (!nodeFS.existsSync(file)) return {};
 	try {
@@ -103,13 +107,14 @@ function recordedIn(file: string): TTimingsFile {
 }
 
 /**
- * Write what the run took beside its configuration, under the class of machine that measured it, and report every
- * feature whose duration differs from the last run on that same class. The file's history in git is the series; this
- * reports the newest entry in it, so a change that makes a feature slower is named by the run that made it.
+ * Writes a run's timings beside the group's configuration under this machine's class. Returns every feature whose
+ * duration differs from the last run recorded for that class. The file's git history holds the series of runs. This
+ * function compares against the newest entry, so a change that slows a feature shows in the first run after it.
  *
- * A whole run states every feature the group holds, so it replaces what this machine recorded, and a removed feature
- * goes with it. A run filtered to some features states only those, so each replaces its own entry and every other
- * feature stays as recorded. An entry recorded in another form is replaced rather than compared.
+ * An unfiltered run holds every feature of the group, so its timings replace this machine's entry and drop a removed
+ * feature. A run filtered to some features holds only those features. Each of those features replaces its own entry.
+ * Every other feature keeps its recorded timing, and withTotals sums the totals again. An entry that doesn't parse
+ * against TimingsSchema is replaced without a comparison.
  */
 export function recordTimings(configDir: string, result: TExecutorResult, filtered: boolean): TVariance[] {
 	const file = path.join(configDir, TIMINGS_FILE);
@@ -120,8 +125,8 @@ export function recordTimings(configDir: string, result: TExecutorResult, filter
 	const recorded = parsed.success ? parsed.data : undefined;
 	const variances = variancesBetween(recorded, now);
 	const written = filtered && recorded ? withTotals({ ...recorded.features, ...now.features }) : now;
-	// Only this machine's entry is replaced: what another machine measured stays as that machine measured it. The
-	// machines are written in a stable order, so a file changes only when a measurement changes.
+	// Replaces only this machine's entry and keeps every other machine's entry. Machine keys are written in sorted
+	// order, so the file changes only when a measurement changes.
 	const merged: TTimingsFile = { ...held, [machine]: written };
 	const ordered = Object.fromEntries(
 		Object.keys(merged)

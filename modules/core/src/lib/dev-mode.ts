@@ -1,21 +1,16 @@
 /**
- * dev-mode: runtime DEV vs PROD switch and the `failFastOrLog` helper that
- * sits on top of it.
+ * dev-mode: the runtime switch between DEV and PROD, and the `failFastOrLog` helper that depends on it.
  *
- * Some code paths must catch errors that would otherwise interrupt unrelated
- * work: a thrown listener cannot be allowed to silence its siblings, for
- * example. Logging that caught error to the console is the prod-time fallback,
- * but the browser console is easy to miss and silent failures hide bugs.
+ * Some code paths catch an error so that it doesn't interrupt unrelated work. For example, a listener that throws must
+ * not stop the other listeners. In PROD the caught error is logged to the console. A person can miss an error in a
+ * browser console, and the bug then stays unfixed.
  *
- * `failFastOrLog` resolves that tension: in DEV the error is re-thrown so the
- * developer sees the failure immediately; in PROD it is logged and execution
- * continues. Callers wrap whatever they're protecting in the usual try/catch
- * and call this helper from inside the catch.
+ * `failFastOrLog` re-throws the error in DEV, so the developer sees the failure immediately. In PROD it logs the error,
+ * and execution continues. A caller wraps the protected code in a try/catch and calls this helper in the catch.
  *
  * Detection
- *   - Node: `process.env.NODE_ENV !== "production"`.
- *   - Browser: defaults to DEV. A bundler can pin the page to PROD by setting
- *     `globalThis.__HAIBUN_PROD__ = true` at build time.
+ *   - Where `process.env.NODE_ENV` is set: DEV unless it is "production".
+ *   - Elsewhere, such as a browser: DEV unless a bundler sets `globalThis.__HAIBUN_PROD__ = true` at build time.
  */
 
 declare global {
@@ -28,9 +23,8 @@ export function isDev(): boolean {
 }
 
 /**
- * Inside a catch: re-throw in DEV (surface the bug), log + continue in PROD
- * (one bad caller must not silence the rest). Always pass `err` from the
- * surrounding catch: the throw needs to carry the original failure.
+ * Called inside a catch. Re-throws `err` in DEV, so the developer sees the failure. Logs `label` and `err` in PROD and
+ * returns, so the caller continues. Pass the `err` of the surrounding catch, so the re-thrown error is the original failure.
  */
 export function failFastOrLog(label: string, err: unknown): void {
 	if (isDev()) throw err;

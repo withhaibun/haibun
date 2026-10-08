@@ -18,11 +18,11 @@ describe("statementsWith", () => {
 
 	beforeEach(async () => {
 		store = new QuadStore();
-		// A run: the feature's step sits inside the run that ended by passing.
+		// An execution: the feature's step `0.1` is part of the root step `0`. The root step passed.
 		await store.upsertIndividual(SEQ_PATH_LABEL, { [SEQ_PATH_FIELD.id]: "0", [SEQ_PATH_FIELD.actionStatus]: SEQ_PATH_STATUS.passed, [SEQ_PATH_FIELD.stepText]: "a run" });
 		await store.upsertIndividual(SEQ_PATH_LABEL, { [SEQ_PATH_FIELD.id]: "0.1", [SEQ_PATH_FIELD.actionStatus]: SEQ_PATH_STATUS.running, [SEQ_PATH_FIELD.stepText]: "prose" });
 		await store.createEdge(SEQ_PATH_LABEL, "0.1", SEQ_PATH_EDGE.isPartOf, SEQ_PATH_LABEL, "0");
-		// The cited document: a statement is made about a record that exists.
+		// The cited document. The statement references a record that exists.
 		await store.upsertIndividual(REPORT, { id: "spec-1", generatedAtTime: "2026-07-01T00:00:00.000Z" });
 		await readTypedLinks(
 			store,
@@ -33,21 +33,21 @@ describe("statementsWith", () => {
 		);
 	});
 
-	it("reads a statement as its three parts, each a reference to open", async () => {
+	it("reads a statement as its three parts, and the subject and the object are references", async () => {
 		const row = itemAt(await statementsWith(store, LinkRelations.CITES_AS_EVIDENCE.rel), 0);
 		expect(row.subject).toEqual({ "@id": "0.1", "@type": SEQ_PATH_LABEL });
 		expect(row.predicate).toBe(LinkRelations.CITES_AS_EVIDENCE.rel);
 		expect(row.object["@type"]).toBe(SPECIFIC_RESOURCE_LABEL);
 	});
 
-	it("reports which reading asserted it, and how the actuality that made it ended", async () => {
+	it("returns the reading that asserted it, the outermost step that contains the reading's step, and that step's status", async () => {
 		const row = itemAt(await statementsWith(store, LinkRelations.CITES_AS_EVIDENCE.rel), 0);
 		expect(row.reading).toEqual({ "@id": "reading:SeqPath:0.1", "@type": "Reading" });
 		expect(row.assertedBy).toEqual({ "@id": "0", "@type": SEQ_PATH_LABEL });
 		expect(row.outcome).toBe(SEQ_PATH_STATUS.passed);
 	});
 
-	it("reads a hand-made statement that a reading doesn't claim as a row without provenance", async () => {
+	it("reads a statement made by hand as a row without provenance, since a reading's stated records don't hold it", async () => {
 		await store.createEdge(REPORT, "report-2", LinkRelations.CITES_AS_EVIDENCE.rel, REPORT, "spec-1");
 		const rows = await statementsWith(store, LinkRelations.CITES_AS_EVIDENCE.rel);
 		const byHand = rows.find((r) => r.subject["@id"] === "report-2");

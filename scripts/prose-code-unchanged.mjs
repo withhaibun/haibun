@@ -24,6 +24,7 @@ const LITERALS = new Set([
 const isJsDoc = (node) => node.kind >= ts.SyntaxKind.FirstJSDocNode && node.kind <= ts.SyntaxKind.LastJSDocNode;
 
 const TEST_FILE = /\.test(-fake)?\.tsx?$/;
+const CLOSERS = new Set(["CloseParenToken )", "CloseBraceToken }", "CloseBracketToken ]"]);
 
 /** The file's tokens in order, each literal by its kind alone. */
 function codeTokens(text, name) {
@@ -40,7 +41,8 @@ function codeTokens(text, name) {
 		for (const child of children) visit(child);
 	};
 	visit(source);
-	return tokens;
+	// A comma directly before a closing bracket is the formatter's trailing comma, which doesn't change the code.
+	return tokens.filter((token, i) => !(token === "CommaToken ," && CLOSERS.has(tokens[i + 1] ?? "")));
 }
 
 let changed = 0;

@@ -1,10 +1,10 @@
 /**
- * The capability gate on supervising a process, exercised through real dispatch with a real authority.
+ * Tests the capability gate on supervising a process through real dispatch with a real authority.
  *
- * These are the steps that fork a process on this machine, so the interesting cases are the refusals. The steppers
- * here are the real ones. The run is refused before anything is started, and where a call is expected to pass the
- * gate it is aimed at a directory without a config, so what proves authorization is the supervisor's own complaint
- * about the directory rather than a capability error.
+ * The supervisor's steps fork a process on this machine, so these tests cover the refusals. The steppers are the
+ * production steppers. The gate refuses a call before a process starts. A call expected to pass the gate targets a
+ * directory without a config.json. The supervisor's error about that directory shows that the call passed the gate. A
+ * refused call fails with a capability error instead.
  */
 import { describe, expect, it, beforeEach } from "vitest";
 import TestRunnerStepper from "./test-runner-stepper.js";
@@ -21,12 +21,12 @@ import type { TWorld } from "@haibun/core/lib/world.js";
 
 const NOWHERE = "/nonexistent-base-for-capability-tests";
 
-/** A world holding a store, assembled from the defaults rather than asserted into shape. */
+/** Builds a world from getDefaultWorld and gives it a store, without a type assertion. */
 function supervisedWorld(): TWorld {
 	const world = getDefaultWorld();
 	const store = new QuadStore();
 	world.shared.getStore = () => store;
-	// A run registers Principal through a stepper this harness doesn't load.
+	// Actuality registers the Principal domain through a stepper that this harness doesn't load.
 	world.domains = { ...world.domains, ...mapDefinitionsToDomains([principalDomainDefinition]) };
 	return world;
 }
@@ -34,13 +34,15 @@ function supervisedWorld(): TWorld {
 function harness() {
 	const world = supervisedWorld();
 	const steppers = [new TestRunnerStepper(), new InstanceStepper()];
-	// The registry resolves each step's products domain through the world, where a run registers what its steppers declare.
+	// The registry resolves each step's products domain through the world. addStepperConcerns registers the steppers'
+	// declared domains in the world, as Runner does in its Concerns phase.
 	addStepperConcerns(world, steppers);
 	for (const s of steppers) void s.setWorld(world, steppers);
-	// The run's registry, as the executor opens it, which a step calls another step through.
+	// Opens the registry the way the Executor opens it. A step calls another step through this registry.
 	const registry = openRunRegistry(world, steppers);
-	/** Call a step the way anything calls a step: as a caller holding the actions named, as a statement narrowed to them
-	 *  runs, without a capability asserted by the caller. */
+	/** Calls a step by name through callStepByName, as a caller without a feature file does. Held actions authorize the
+	 *  call the way they authorize a statement narrowed to them. A grantedCapability authorizes the call the way an RPC
+	 *  or MCP caller is authorized. */
 	const call = async (method: string, input: Record<string, unknown> = {}, held?: string[], grantedCapability?: string) => {
 		const dispatch = () => callStepByName({ registry, world, steppers, grantedCapability }, method, input);
 		return held ? await runAuthorizedWith(held, dispatch) : await dispatch();
@@ -58,26 +60,26 @@ describe("what a caller must hold to run a test", () => {
 		await expect(h.call("TestRunnerStepper-runTest", { where: NOWHERE, filter: "any" })).rejects.toThrow(new RegExp(`capability ${SUPERVISOR_CAPABILITIES.run} required`));
 	});
 
-	it("allows it to a caller holding exactly that action, and the run is refused for its own reasons rather than for authority", async () => {
+	it("allows a caller that holds only the action that starts a run, and the call fails on the missing base rather than on authority", async () => {
 		const called = await h.call("TestRunnerStepper-runTest", { where: NOWHERE, filter: "any" }, [SUPERVISOR_CAPABILITIES.run]);
 		expect(called.result.ok, "the base doesn't exist").toBe(false);
-		expect(called.result.errorMessage, "the supervisor was reached, which is what authorization means here").toMatch(/doesn't hold a config.json/);
+		expect(called.result.errorMessage, "the call reached the supervisor, so it passed the gate").toMatch(/doesn't hold a config.json/);
 	});
 
-	it("holds one power at a time: reading a run is not starting one", async () => {
+	it("gates each action separately: the read action doesn't allow starting a run", async () => {
 		const reader = [SUPERVISOR_CAPABILITIES.read];
 		await expect(h.call("TestRunnerStepper-runTest", { where: NOWHERE, filter: "any" }, reader)).rejects.toThrow(new RegExp(`capability ${SUPERVISOR_CAPABILITIES.run} required`));
 		const read = await h.call("TestRunnerStepper-readTestRun", {}, reader);
-		expect(read.result.errorMessage, "the read passed the gate and didn't find a run to read").toMatch(/doesn't have a run to read/);
+		expect(read.result.errorMessage, "the read passed the gate and didn't find a test run to read").toMatch(/doesn't have a test run to read/);
 	});
 
-	it("is not reachable through the agent by a capability the agent named for itself: the power gated is the power exercised", async () => {
+	it("refuses a capability the agent names for itself, because the gate requires the supervisor's own action", async () => {
 		await expect(h.call("TestRunnerStepper-runTest", { where: NOWHERE, filter: "any" }, ["TestRunner:run"])).rejects.toThrow(
 			new RegExp(`capability ${SUPERVISOR_CAPABILITIES.run} required`),
 		);
 	});
 
-	it("gates the supervisor's own steps the same way, so calling it directly doesn't bypass the agent's limits", async () => {
+	it("gates the supervisor's own steps the same way, so a direct call to the supervisor doesn't bypass the agent's limits", async () => {
 		await expect(h.call("InstanceStepper-startRun", { where: NOWHERE, filter: "any", port: 0, run: "r" })).rejects.toThrow(
 			new RegExp(`capability ${SUPERVISOR_CAPABILITIES.run} required`),
 		);
@@ -86,17 +88,17 @@ describe("what a caller must hold to run a test", () => {
 		);
 	});
 
-	it("cannot be widened by writing to the world: the authorization of a running step is not a field on it", async () => {
+	it("doesn't widen a caller's authority when capability fields are written to the world, because the gate doesn't read authorization from the world", async () => {
 		Object.assign(h.world.runtime, { activeCapability: "Instance:*", capability: "Instance:*", grantedCapability: "Instance:*" });
 		await expect(h.call("TestRunnerStepper-runTest", { where: NOWHERE, filter: "any" }, [SUPERVISOR_CAPABILITIES.read])).rejects.toThrow(
 			new RegExp(`capability ${SUPERVISOR_CAPABILITIES.run} required`),
 		);
 	});
 
-	it("carries the caller's authority into the step the tool calls through to, so a wrapper doesn't gain or lose it", async () => {
-		// The agent's tool is authorized by an explicit capability, as an RPC or MCP caller reaches it. Its inner call to the
-		// supervisor must run under that same authority.
+	it("carries the caller's authority into the step the tool calls, so a wrapper doesn't gain or lose authority", async () => {
+		// An explicit capability authorizes the agent's tool, as it authorizes an RPC or MCP caller. The tool's inner call to
+		// the supervisor runs under the same authority.
 		const called = await h.call("TestRunnerStepper-runTest", { where: NOWHERE, filter: "any" }, undefined, SUPERVISOR_CAPABILITIES.run);
-		expect(called.result.errorMessage, "the inner call was authorized by what authorized the outer one").toMatch(/doesn't hold a config.json/);
+		expect(called.result.errorMessage, "the outer call's authority authorized the inner call").toMatch(/doesn't hold a config.json/);
 	});
 });

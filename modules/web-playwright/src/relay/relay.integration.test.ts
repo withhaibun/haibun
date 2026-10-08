@@ -1,9 +1,10 @@
 /**
- * A person's browser, attached through their extension and driven by a run's steps. The extension's side is the relay
- * client running against a real Chromium through the chrome.* fake, calling the relay over the instance's `/rpc` and
- * signing as a key that holds what attaching a browser requires. Actuality clicks and enters text in the person's tab;
- * a caller that may not attach, a second extension, and a step without a browser attached are each refused, stating why.
- * The person attaches again after ending an attachment, and withdrawing what the extension holds ends its attachment.
+ * Tests the browser relay with a person's browser that their extension attaches and steps drive. The relay client
+ * implements the extension's side. It drives a real Chromium through the chrome.* fake. It calls the relay over the
+ * instance's `/rpc`, and `signedAs` signs each call as a holder of the stand-in authority. Steps click and enter text
+ * in the person's tab. The relay refuses a caller that may not attach and a second extension. A step that needs the
+ * browser fails while a browser isn't attached. Each refusal states the reason. The person attaches again after ending
+ * an attachment. Withdrawing the extension's grant ends its attachment.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createServer, type Server } from "node:http";
@@ -31,15 +32,17 @@ let chrome: ChromeOverCdp;
 let site: Server;
 let siteUrl: string;
 
-/** Sign each relay call as `holder`, invoking what attaching a browser requires; `nobody` doesn't sign a request. */
+/** Returns a signer that signs each relay call as `holder` for the action that attaching a browser requires. The signer
+ *  leaves a request from `nobody` unsigned. */
 const signedAs =
 	(holder: string): TProveRequest =>
 	(request) =>
 		holder === "nobody" ? Promise.resolve(request.headers) : new FakeInvoker(holder).sign(request, WEB_PLAYWRIGHT_ACTIONS.attach);
 
-/** The extension a person runs: it attaches the tab they have open, and ends its attachment when they say. */
+/** Implements a person's extension for the test. Its steps attach the tab the person has open, check a refused attachment,
+ *  end the attachment and wait for the reason the attachment ended. */
 class PersonsExtension extends AStepper {
-	description = "A person's extension, attaching the tab they have open to an instance's browser relay.";
+	description = "Stands in for a person's extension. It attaches the tab the person has open to an instance's browser relay.";
 	private connection?: RelayConnection;
 	private ended?: Promise<string>;
 	steps = {
@@ -61,9 +64,9 @@ class PersonsExtension extends AStepper {
 			action: async ({ base, holder, why }: TStepArgs) => {
 				try {
 					await openRelayChannel({ base: String(base), sign: signedAs(String(holder)) });
-					return actionNotOK("the relay held it");
+					return actionNotOK("the relay accepted the attachment instead of refusing it");
 				} catch (e) {
-					return errorDetail(e).includes(String(why)) ? OK : actionNotOK(`refused for another reason: ${errorDetail(e)}`);
+					return errorDetail(e).includes(String(why)) ? OK : actionNotOK(`the relay refused the attachment for another reason: ${errorDetail(e)}`);
 				}
 			},
 		},
@@ -77,9 +80,9 @@ class PersonsExtension extends AStepper {
 		toldEnded: {
 			gwta: `person's extension is told its attachment ended because {why: ${DOMAIN_TEXT}}`,
 			action: async ({ why }: TStepArgs) => {
-				if (!this.ended) return actionNotOK("the extension attached nothing");
+				if (!this.ended) return actionNotOK("the extension didn't attach a tab");
 				const reason = await this.ended;
-				return reason.includes(String(why)) ? OK : actionNotOK(`it ended because ${reason}`);
+				return reason.includes(String(why)) ? OK : actionNotOK(`the attachment ended because ${reason}`);
 			},
 		},
 	};
@@ -122,7 +125,7 @@ describe("the browser relay", () => {
 			`accept authority from "another extension" for "${WEB_PLAYWRIGHT_ACTIONS.attach}"`,
 			"serve the browser relay",
 			`an extension attaching at "${base}", signed by "nobody", is refused for "not a call this caller may make"`,
-			`an extension attaching at "${base}", signed by "reader", is refused for "holds no grant for ${WEB_PLAYWRIGHT_ACTIONS.attach}"`,
+			`an extension attaching at "${base}", signed by "reader", is refused for "doesn't hold a grant for ${WEB_PLAYWRIGHT_ACTIONS.attach}"`,
 			`the person's extension attaches their tab at "${base}", signed by "extension"`,
 			`an extension attaching at "${base}", signed by "another extension", is refused for "a browser is already attached"`,
 			`go to the "${siteUrl}" webpage`,
@@ -151,7 +154,7 @@ describe("the browser relay", () => {
 		expect(result.ok, JSON.stringify(result.featureResults?.[0]?.stepResults?.filter((s) => !s.ok))).toBe(true);
 	});
 
-	it("refuses a step that needs the browser while a browser isn't attached, stating so", { timeout: 60_000 }, async () => {
+	it("refuses a step that needs the browser while a browser isn't attached and states why", { timeout: 60_000 }, async () => {
 		const port = await freePort();
 		const feature = ["enable rpc", 'webserver is listening for "relay-detached"', "serve the browser relay", `go to the "${siteUrl}" webpage`].join("\n");
 		const result = await failWithDefaults([{ path: "/features/relay-detached.feature", content: feature }], steppers, options(port));

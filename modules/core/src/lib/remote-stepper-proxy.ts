@@ -1,10 +1,9 @@
 /**
  * remote-stepper-proxy.ts
  *
- * Client-side proxy for a remote haibun host. Reads step descriptors through
- * the host's show steps step, then injects proxy StepTools into
- * the parent registry. Each proxy handler forwards calls over HTTP, signed
- * for the capability the remote step declares, where it declares one.
+ * A client-side proxy for a remote haibun host. It reads step descriptors through the host's show steps step and
+ * injects proxy StepTools into the parent registry. Each proxy handler forwards calls over HTTP. A call is signed for
+ * the capability the remote step declares where the step declares one.
  */
 
 import { RecordSchema } from "./json-text.js";
@@ -24,9 +23,8 @@ export class RemoteStepperProxy extends AStepper {
 	private stepDescriptors: TStepDescriptor[] = [];
 	private rpc: RpcClient;
 	/**
-	 * Remote host's hostId, discovered at setWorld via action.begin.
-	 * Used to prefix registry keys so multiple remotes (and local) don't
-	 * collide on identical method names.
+	 * The remote host's hostId, read at setWorld through action.begin. It prefixes registry keys, so tools from several
+	 * remote hosts and local tools don't collide on one method name.
 	 */
 	private hostId: number | undefined;
 
@@ -44,7 +42,7 @@ export class RemoteStepperProxy extends AStepper {
 		await this.fetchStepDescriptors();
 	}
 
-	/** Read the host id through the handshake every remote surface begins with, so injected tools carry its prefix. */
+	/** Reads the host id through the handshake that begins every remote surface, so injected tools carry its prefix. */
 	private async discoverHostId(): Promise<void> {
 		this.hostId = (await this.rpc.handshake()).hostId;
 	}
@@ -54,20 +52,20 @@ export class RemoteStepperProxy extends AStepper {
 		return this.hostId;
 	}
 
-	/** Read every step the remote host offers this process, through the step every caller reads a run's declarations by:
-	 *  signed like any other call, so the host shows the steps this process holds there and doesn't show others. */
+	/** Reads every step the remote host offers this process through the show steps step. Every caller reads actuality's
+	 *  step declarations through that step. The call is signed like any other, so the host shows the steps this process
+	 *  holds there and doesn't show others. */
 	private async fetchStepDescriptors(): Promise<void> {
 		const result = await this.rpc.call(SHOW_STEPS_METHOD, EVERY_DEFINITION, [], { action: SHOW_STEPS_ACTION });
 		this.stepDescriptors = readShownSteps(result, EVERY_DEFINITION.detail).steps.map(({ _links, ...descriptor }) => descriptor);
 	}
 
 	/**
-	 * Inject proxy StepTools into the parent registry. Remote tools are
-	 * keyed `host{hostId}_{method}` so they never collide with local tools
-	 * (bare method names) or with other remote hosts.
+	 * Injects proxy StepTools into the parent registry. Remote tools are keyed `host{hostId}_{method}`. Local tools use
+	 * bare method names, so the keys don't collide with local tools or with other remote hosts' tools.
 	 */
 	injectInto(registry: StepRegistry): void {
-		if (this.hostId === undefined) throw new Error("RemoteStepperProxy.injectInto called before setWorld discovered the host id");
+		if (this.hostId === undefined) throw new Error("RemoteStepperProxy.injectInto was called before setWorld read the host id. Call setWorld first.");
 		const hostId = this.hostId;
 		const remoteOrigin = new URL(this.remoteUrl).origin;
 		const tools = this.stepDescriptors.map(
@@ -76,21 +74,22 @@ export class RemoteStepperProxy extends AStepper {
 				paramDomainKeys: new Map(),
 				isAsync: true,
 				transport: "remote",
-				// Dispatch over RPC using the un-prefixed method name: the prefix is
-				// a local registry-naming concern, not part of the wire call.
-				// A statement's values are read where it was written, as a local step's are, so the far side is sent values.
+				// The RPC call uses the unprefixed method name. The prefix names the tool in the local registry and isn't part
+				// of the wire call. A statement's values are read where the statement was written, as a local step's are, so
+				// the remote host receives values.
 				handler: async (featureStep, world) => this.call(descriptor, await callInput(featureStep, world, runSteppers(world)), featureStep.seqPath),
 			}),
 		);
 		registry.inject(tools);
 	}
 
-	/** Call a step on the remote host via shared RpcClient, invoking the capability it declares. A step that doesn't declare
-	 *  products doesn't return them, whatever the answer carries in their place. */
+	/** Calls a step on the remote host through the shared RpcClient and invokes the capability the step declares. A step
+	 *  that doesn't declare products doesn't return them, whatever the host's response carries in their place. */
 	private async call(descriptor: TStepDescriptor, params: Record<string, unknown>, seqPath: number[]): Promise<TActionResult> {
 		const { method, capability } = descriptor;
-		// The remote step's refusal is this step's failure: as the host states it, which names the step, or, where the host
-		// didn't answer, naming the step and the host. A call that fails some other way is thrown.
+		// The remote step's refusal is this step's failure. A reason the host returned names the step and is used as the
+		// host states it. The RpcCallFailed message names the step and the host where the host didn't respond. A call that
+		// fails another way throws.
 		const result = await this.rpc.call(method, params, seqPath, { action: capability }).catch((e: unknown) => {
 			if (e instanceof RpcCallFailed) return e;
 			throw e;
@@ -100,12 +99,12 @@ export class RemoteStepperProxy extends AStepper {
 		return answersWithProducts ? { ok: true, products: RecordSchema.parse(result) } : { ok: true };
 	}
 
-	/** IStepTransport.attach: duck-typed, so it doesn't need an import from web-server-hono. */
+	/** Implements IStepTransport.attach. The interface is duck-typed, so this module doesn't import web-server-hono. */
 	attach(registry: StepRegistry, _webserver: unknown): void {
 		this.injectInto(registry);
 	}
 
-	/** IStepTransport.detach: HTTP transport doesn't hold a resource that needs cleanup. */
+	/** Implements IStepTransport.detach. The HTTP transport doesn't hold a resource that needs cleanup. */
 	detach(): void {
 		/* no-op */
 	}

@@ -13,7 +13,7 @@ const { feature, scenario } = withAction(new Haibun());
 export const features: TKirejiExport = {
 	workflow: [
 		feature({ feature: "Workflow" }),
-		`Demonstrate ordered domains, waypoints (proofs) and activities. The background Do work activity increments an effort counter and advances the release phase by one step. ensure() will attempt the proof first and run the activity body only when the proof fails.`,
+		`This feature uses ordered domains, waypoints (proofs) and activities. The background Do work activity increments an effort counter and advances the release phase by one value. An ensure statement attempts the proof first and runs the activity body only when the proof fails.`,
 
 		defineOrderedSet({ domain: Release_domain, values: '["concept" "plan" "dev" "prod"]' }),
 		setAs({ what: "phase", domain: Release_domain, value: '"concept"' }),
@@ -22,19 +22,19 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "Promote to dev using Do work" }),
 
 		ensure({ outcome: `${Release_at} "dev"` }),
-		"After promoting from concept -> plan -> dev two effort increments are expected.",
+		"Promoting from concept to plan to dev increments the effort twice.",
 		is({ what: effort, value: '"2"' }),
 
-		`Check a previous phase, which shouldn't add effort.`,
-		scenario({ scenario: "Went through plan using Do work" }),
+		`Ensuring an earlier phase doesn't add effort.`,
+		scenario({ scenario: "A phase already reached doesn't run Do work" }),
 		ensure({ outcome: `${Release_at} "plan"` }),
-		`After checking plan the work effort is unchanged.`,
+		`Ensuring plan leaves the effort unchanged.`,
 		is({ what: effort, value: '"2"' }),
 
 		"Reach 'prod' by ensuring release is at prod.",
 		scenario({ scenario: "Promote to prod using Do work" }),
 		ensure({ outcome: `${Release_at} "prod"` }),
-		"After promoting to prod the effort is 3.",
+		"Promoting to prod increments the effort to 3.",
 		is({ what: effort, value: '"3"' }),
 
 		scenario({ scenario: "Check final phase variable" }),

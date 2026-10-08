@@ -1,8 +1,8 @@
 /**
- * Shared HTTP observation types and helpers.
+ * HTTP observation types and helpers.
  *
- * Used by any stepper that tracks HTTP activity: PlaywrightEvents for a page's requests, and `trackOutboundRequest` for a
- * request the instance itself makes.
+ * A stepper that tracks HTTP activity calls these helpers. PlaywrightEvents records a page's requests through
+ * `trackHttpRequest`, and `trackOutboundRequest` records a request the instance makes.
  */
 
 import { RPC_ROUTE, SSE_ROUTE } from "./rpc-wire.js";
@@ -14,16 +14,16 @@ import { declareBlips } from "./blips.js";
 import { recordBlip } from "./record-blip.js";
 
 const CLIENT_ID = "client";
-/** The endpoint classes: an own page route, the app's service plumbing (/rpc, /sse), or another host. */
+/** The endpoint classes: a page route of this site, a service route of the app (/rpc, /sse), or another host. */
 export const ENDPOINT_CLASS = { route: "route", service: "service", external: "external" } as const;
-/** Every observed request, as a fine-grained occurrence: the persisted record is what the graph and the sequence read,
- *  while this is what a trace shows in order, under the step that caused it. Recorded on every response, so it leaves
- *  to the blip channel the job of returning early when a subscriber isn't listening. */
+/** The blip for every observed request. The graph and the sequence read the persisted record. A trace shows this blip
+ *  in order, under the step that caused the request. trackHttpRequest records it for every request, and recordBlip
+ *  returns early when the blip doesn't have a subscriber. */
 const HTTP_REQUEST_BLIP = "haibun.http.request";
 declareBlips({
 	name: HTTP_REQUEST_BLIP,
 	instrument: "span-event",
-	description: "An HTTP request completed, as observed by a client this run drives.",
+	description: "An HTTP request completed. This instance or a client that the instance drives made the request.",
 	unit: "ms",
 	attributes: z.object({ method: z.string(), status: z.number(), endpointClass: z.string(), url: z.string() }),
 	dimensions: ["method", "status", "endpointClass"],
@@ -33,16 +33,20 @@ declareBlips({
 /** The site's own host node's display name. */
 const SITE_NAME = "This site";
 
-/** Who made an observed request: the `client` (browser / user agent) for requests the site RECEIVES, or the `site`
- *  itself for requests it MAKES outbound. Fixes the sequence message's source lifeline so it reads with true direction. */
+/** The party that made an observed request. `client` is the browser or user agent that the instance drives. `site` is this
+ *  site, for a request it makes outbound. The origin selects the target of the request's `performedBy` edge. The
+ *  sequence view draws that target as the message's source lifeline, so each message points from requester to
+ *  destination. */
 type THttpOrigin = "client" | "site";
 
 const SERVICE_PATH_PREFIXES = [SSE_ROUTE, RPC_ROUTE] as const;
 
-/** Whether a path is the app's own service plumbing (/rpc, /sse) rather than a page route. */
+/** True when a path is one of the app's service routes (/rpc, /sse) and not a page route. */
 export const isServicePath = (path: string): boolean => SERVICE_PATH_PREFIXES.some((p) => path === p || path.startsWith(p));
 
-/** Classify an HTTP path against registered route paths: its endpoint class and the resolved (possibly parameterized) endpoint path. */
+/** Classifies an HTTP path against registered route paths. Returns the endpoint class and the endpoint path. The endpoint
+ *  path is the registered route the path matches, or the path itself when a registered route doesn't match. A
+ *  registered route can hold parameters such as `:purpose`. */
 export function classifyHttpPath(path: string, registeredPaths: Set<string>): { endpointClass: string; endpointPath: string } {
 	const registered = () => (registeredPaths.has(path) ? path : [...registeredPaths].find((rp) => pathMatchesParameterized(rp, path)));
 	if (isServicePath(path)) return { endpointClass: ENDPOINT_CLASS.service, endpointPath: registered() ?? path };
@@ -50,7 +54,7 @@ export function classifyHttpPath(path: string, registeredPaths: Set<string>): { 
 	return match ? { endpointClass: ENDPOINT_CLASS.route, endpointPath: match } : { endpointClass: ENDPOINT_CLASS.external, endpointPath: path };
 }
 
-/** Check if a concrete path matches a parameterized route (e.g., /status/revocation matches /status/:purpose). */
+/** True when a concrete path matches a parameterized route. For example, /status/revocation matches /status/:purpose. */
 function pathMatchesParameterized(route: string, path: string): boolean {
 	const routeParts = route.split("/");
 	const pathParts = path.split("/");
@@ -58,29 +62,30 @@ function pathMatchesParameterized(route: string, path: string): boolean {
 	return routeParts.every((rp, i) => rp.startsWith(":") || rp === pathParts[i]);
 }
 
-/** Observation data for a single HTTP request. `durationMs` is unknown for some observers (node fetches). */
+/** Observation data for a single HTTP request. `durationMs` is optional, since an observer of a node fetch may not measure it. */
 type THttpRequestObservation = { url: string; status: number; durationMs?: number; method: string };
 
 /** Per-store memo so the per-response path skips work that cannot change: the singleton client node, an already-linked
  *  endpoint, and re-reading a host's requestCount. A scenario's fresh store starts a fresh entry. */
 const trackCache = new WeakMap<object, { ensured: Set<string>; counts: Map<string, number> }>();
 
-/**
- * Track an observed HTTP request as ONE network-interaction record, written through the shared store (the http-trace
- * observation sources and the polymorphic view network sequence read the same records). A request runs client → endpoint/host:
- * the requesting party is the browser (HttpClient), or the site itself for a request it MAKES outbound (origin="site");
- * the destination is the registered Endpoint it hit (the vertex the web server persists at mount), or the external
- * HttpHost. Every endpoint links `isPartOf` to the site's host node, so the graph connects the whole exchange:
- * client → request → endpoint → site, or client/site → request → host.
- */
-/** An outbound request the instance itself makes, without a route table, origin "site". The one call shape for every
- *  outbound observer, so the convention is stated once. */
+/** Records an outbound request the instance makes, with origin "site" and without a route table. Every outbound
+ *  observer calls it, so one function sets that origin and the empty route table. */
 export function trackOutboundRequest(world: TWorld, observation: THttpRequestObservation): Promise<void> {
 	return trackHttpRequest(world, observation, NO_ROUTES, "site");
 }
 
 const NO_ROUTES: Set<string> = new Set();
 
+/**
+ * Records an observed HTTP request in the shared store. It upserts one HttpRequest record per method and path, upserts
+ * the requester and destination records, and writes the edges between them. The http-trace observation sources and the
+ * polymorphic view's network sequence read these records. The requester is the browser (HttpClient), or the site for a
+ * request it makes outbound (origin="site"). The destination is the registered Endpoint the request reached, or the
+ * external HttpHost. The web server persists each Endpoint vertex when it mounts the route. Every endpoint links
+ * `isPartOf` to the site's host node. The graph then connects the whole exchange: client → request → endpoint → site,
+ * or client/site → request → host.
+ */
 export async function trackHttpRequest(world: TWorld, observation: THttpRequestObservation, registeredPaths: Set<string>, origin: THttpOrigin = "client"): Promise<void> {
 	const store = world.shared.getStore();
 	let cache = trackCache.get(store);
@@ -107,7 +112,7 @@ export async function trackHttpRequest(world: TWorld, observation: THttpRequestO
 		await write();
 	};
 
-	// The participants and the request record (independent writes), then its actor edges (which target them).
+	// Writes the participants and the request record in parallel, then the actor edges that target them.
 	await Promise.all([
 		upsertHost(hostId, 1),
 		origin === "client"
@@ -131,11 +136,11 @@ export async function trackHttpRequest(world: TWorld, observation: THttpRequestO
 		writeEdge(store, HTTP_REQUEST_LABEL, requestId, LinkRelations.PERFORMED_BY.rel, sourceLabel, sourceId),
 		external
 			? writeReferenceEdge(store, HTTP_REQUEST_LABEL, requestId, LinkRelations.AS_TARGET.rel, HTTP_HOST_LABEL, hostId)
-			: // The endpoint's own record is written when its route is mounted, which may not have landed when the first
-				// request to it is observed: a reference holds the observation until it does, rather than losing the request.
+			: // The web server writes the endpoint's record when it mounts the route. The first request can arrive before
+				// that write. A reference edge holds the observation until the record exists, so the request isn't lost.
 				writeReferenceEdge(store, HTTP_REQUEST_LABEL, requestId, LinkRelations.AS_TARGET.rel, ENDPOINT_LABEL, endpointPath).then(() =>
 					once(`endpoint:${endpointPath}`, async () => {
-						// The link may already exist from an earlier scenario's carried quads, check the store, once per endpoint.
+						// An earlier scenario's carried quads may already hold the link, so the store is checked once per endpoint.
 						const linked = await store.query({ subject: endpointPath, predicate: LinkRelations.PART_OF.rel, namedGraph: ENDPOINT_LABEL });
 						if (linked.length === 0) await writeEdge(store, ENDPOINT_LABEL, endpointPath, LinkRelations.PART_OF.rel, HTTP_HOST_LABEL, site);
 					}),

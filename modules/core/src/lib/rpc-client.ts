@@ -5,18 +5,18 @@ import { buildRpcCall, handshakeAt, provesNothing, readNdjson, readRpcAnswer, ty
 import type { TRequestSigner } from "./authority-types.js";
 
 /**
- * rpc-client: client for a haibun host's RPC transport (modules/web-server-hono/sse-transport.ts).
+ * rpc-client is the client for a haibun host's RPC transport (modules/web-server-hono/src/sse-transport.ts).
  *
- * Centralises signed invocation, seqPath threading, timeout, retry with backoff, and streaming-NDJSON parsing. A call
- * that invokes an action is signed over the request it sends; a call that doesn't invoke one is sent as it is. Callers that
- * already have a seqPath (feature-step context) pass it; external callers may pass `[]` and the server synthesises a
- * seqPath rooted on its own hostId, matching the MCP dispatch path.
+ * It centralises signed invocation, seqPath threading, timeouts, retry with backoff and streaming NDJSON parsing. A call
+ * that invokes an action is signed over the request it sends. A call that doesn't invoke one is sent unsigned. A caller
+ * in a feature-step context passes its seqPath. An external caller may pass `[]`, and the server then synthesises a
+ * seqPath rooted at its own hostId, as the MCP dispatch path does.
  */
 
 type RpcClientConfig = {
 	/** Base URL of the main host (e.g. "http://localhost:8223"). */
 	baseUrl: string;
-	/** Signs a call that invokes an action, with authority this process holds at the host. */
+	/** Signs a call that invokes an action with the authority this process holds at the host. */
 	sign?: TRequestSigner;
 	/** Per-call timeout in ms before abort. Default 30_000. */
 	timeoutMs?: number;
@@ -29,17 +29,17 @@ type RpcClientConfig = {
 type RpcCallOptions = {
 	/** Abort signal from the caller. Fires in addition to the per-call timeout. */
 	signal?: AbortSignal;
-	/** The action the call invokes at the host, which its signature names. A call that doesn't name one is not signed. */
+	/** The action the call invokes at the host. The call's signature names it. A call that doesn't name an action isn't signed. */
 	action?: string;
 };
 
-/** Why a call failed, and whether the far side answered with it: an answer names the method it refused, and a failure
- *  without an answer doesn't. */
+/** The reason a call failed and whether the host returned that reason. A reason the host returned names the method it
+ *  refused. A failure without a response doesn't name the method. */
 type RpcError = { error: string; answered: boolean };
 
-/** A call another instance refused, or that didn't reach it after every attempt. `answered` states that the far side
- *  returned the reason, which names the method; a reason the far side didn't return names neither the method nor the host,
- *  which the message states. */
+/** A call that another instance refused or that didn't reach the instance after every attempt. `answered` is true when
+ *  the instance returned the reason, which names the method. A reason the instance didn't return doesn't name the method
+ *  or the host, so the message states both. */
 export class RpcCallFailed extends Error {
 	constructor(
 		readonly method: string,
@@ -52,10 +52,9 @@ export class RpcCallFailed extends Error {
 }
 
 /**
- * Every RPC call must thread the caller's seqPath so observations on
- * the target host link back to the invoking context (without synthetic
- * `[0, N]` roots). Callers supply either their current feature-step's
- * seqPath or the seqPath of the observation they are acting on.
+ * Every RPC call carries the caller's seqPath, so observations on the target host link back to the invoking context
+ * without synthetic `[0, N]` roots. A caller passes its current feature step's seqPath or the seqPath of the observation
+ * it acts on.
  */
 export class RpcClient {
 	private readonly baseUrl: string;
@@ -75,12 +74,12 @@ export class RpcClient {
 		this.fetchImpl = config.fetchImpl ?? ((...args) => fetch(...args));
 	}
 
-	/** Blocking JSON-RPC call, returning what the instance answered. A call the instance refuses, or that doesn't reach it
-	 *  after every attempt, throws `RpcCallFailed`. */
+	/** Sends a non-streaming JSON-RPC call and returns the instance's result. A call that the instance refuses or that
+	 *  doesn't reach it after every attempt throws `RpcCallFailed`. */
 	async call<T = unknown>(method: string, params: Record<string, unknown>, seqPath: number[], opts: RpcCallOptions = {}): Promise<T> {
-		// What this caller may see travels with the call, so a host answers no wider than whoever is reading it: the far side
-		// takes the narrower of this and its own ceiling. The call is signed once, before anything is sent: a refusal to sign
-		// is this process's answer, not a fault the network might not repeat, so only sending is retried.
+		// The envelope carries this caller's read ceiling (`readingAt`), so the host doesn't respond wider than the reader may
+		// see. The host reads at the narrower of this ceiling and its own. The call is signed once before the first send. A
+		// signing refusal comes from this process and isn't a network fault, so only the send is retried.
 		const envelope = { id: `rpc-${Date.now()}`, method, params, seqPath, readingAt: readingAt(), actualityId: await this.actualityId() };
 		const call = await buildRpcCall(this.baseUrl, envelope, this.proving(opts.action));
 		const outcome = await this.withRetry(async (signal): Promise<{ answered: T } | RpcError> => {
@@ -92,14 +91,15 @@ export class RpcClient {
 		return outcome.answered;
 	}
 
-	/** The instance's handshake: its hostId, site principal and actualityId, which every call after it states. */
+	/** Performs the instance's handshake and returns its hostId, site principal and actualityId. Every later call states that actualityId. */
 	async handshake(): Promise<THandshake> {
 		const answered = await handshakeAt(this.baseUrl, this.fetchImpl);
 		this.actuality = Promise.resolve(answered.actualityId);
 		return answered;
 	}
 
-	/** The actuality this client's calls state: what the instance's last handshake answered, asked where it hasn't answered one. */
+	/** Returns the actualityId this client's calls state. It reads the instance's last handshake and performs a handshake
+	 *  when one hasn't completed. A failed handshake clears it, so the next call performs another. */
 	private actualityId(): Promise<TActualityId> {
 		this.actuality ??= this.handshake().then(
 			({ actualityId }) => actualityId,
@@ -112,9 +112,8 @@ export class RpcClient {
 	}
 
 	/**
-	 * Streaming JSON-RPC call. Yields chunks as they arrive over NDJSON
-	 * (one JSON object per line). Completes when the stream closes.
-	 * Consumers may `break` early; the underlying connection is aborted.
+	 * Sends a streaming JSON-RPC call. Yields each chunk as it arrives over NDJSON, one JSON object per line. Completes
+	 * when the stream closes. A consumer may `break` early, and the connection is then aborted.
 	 */
 	async *stream<TChunk = unknown>(method: string, params: Record<string, unknown>, seqPath: number[], opts: RpcCallOptions = {}): AsyncGenerator<TChunk, void, unknown> {
 		const prove = this.proving(opts.action);
@@ -138,26 +137,24 @@ export class RpcClient {
 			yield* readNdjson<TChunk>(res.body);
 		} finally {
 			clearTimeout(timeoutHandle);
-			// If the consumer didn't already abort, do so now to ensure
-			// the connection doesn't dangle: this is a no-op if already closed.
+			// Abort the connection so it doesn't stay open after the consumer stops. An abort after close doesn't have an effect.
 			controller.abort();
 		}
 	}
 
-	/** How a call invoking `action` is proven. A client without a signer refuses such a call, since the host
+	/** Returns how a call invoking `action` is proven. A client without a signer refuses such a call because the host
 	 *  would refuse it unsigned. */
 	private proving(action: string | undefined): TProveRequest {
 		if (!action) return provesNothing;
 		const sign = this.sign;
-		if (!sign) throw new Error(`rpc ${this.baseUrl}: a call invoking ${action} is signed, and this client doesn't hold a signer`);
+		if (!sign) throw new Error(`rpc ${this.baseUrl}: a call invoking ${action} must be signed, and this client doesn't hold a signer. Pass sign to RpcClient.`);
 		return (request) => sign(request, action);
 	}
 
 	/**
-	 * Retry `operation` with exponential backoff + jitter. Returns the
-	 * last error as an RpcError when `maxAttempts` is exhausted. Retries
-	 * on fetch network errors; does NOT retry on application errors
-	 * (RpcError with `error` string): those are the server's answer.
+	 * Retries `operation` with exponential backoff and jitter. Returns the last error as an RpcError when `maxAttempts` is
+	 * exhausted. A thrown fetch network error is retried. A returned RpcError with an `error` string isn't retried, because
+	 * it is the server's response.
 	 */
 	private async withRetry<T>(operation: (signal: AbortSignal) => Promise<T | RpcError>, outerSignal?: AbortSignal): Promise<T | RpcError> {
 		let lastErr: unknown;
@@ -191,8 +188,8 @@ export class RpcClient {
 	}
 }
 
-/** A connection to another instance: the client that signs each call there, and the site principal the instance reports
- *  when the connection is made. The site is refused before `connect` completes. */
+/** A connection to another instance. It holds the client that signs each call to the instance and the site principal
+ *  the instance reports when the connection is made. Reading `site` before `connect` completes throws. */
 export class RemoteInstance {
 	readonly rpc: RpcClient;
 	private reported?: string;
@@ -205,14 +202,14 @@ export class RemoteInstance {
 		this.rpc = new RpcClient({ baseUrl: url, sign, fetchImpl });
 	}
 
-	/** The handshake: the instance reports its site principal, which a call made through this connection is made to. */
+	/** Performs the handshake and returns the site principal the instance reports. Calls through this connection address that site. */
 	async connect(): Promise<string> {
 		this.reported = (await this.rpc.handshake()).site;
 		return this.reported;
 	}
 
 	get site(): string {
-		if (!this.reported) throw new Error(`the connection to ${this.url} hasn't completed its handshake, so it doesn't hold the site's principal`);
+		if (!this.reported) throw new Error(`the connection to ${this.url} hasn't completed its handshake, so it doesn't hold the site's principal. Call connect() first.`);
 		return this.reported;
 	}
 }

@@ -2,127 +2,132 @@ import { z } from "zod";
 import type { AccessLevel } from "./resources.js";
 
 /**
- * What authority means here, and no more than that: a step declares the action it requires, a caller presents evidence
- * of authority, and a verifier decides. Any particular authorization specification, and the verifier that reads it, is a
- * consumer's to register.
+ * This module declares only the framework's model of authority. A step declares the action it requires, a caller
+ * presents evidence of authority, and a verifier determines whether the evidence allows the call. A consumer registers
+ * its authorization specification and the verifier that reads it.
  *
- * Naming a specification here would mean the framework had chosen one for every consumer. It has not: what it declares
- * is the shape of a decision.
+ * This module doesn't name a specification, because naming one would select it for every consumer. It declares the
+ * shape of a verification.
  */
 
 /**
- * What a caller presents to act with authority it holds. In this process, that is the document carrying the authority,
- * and what the caller states it lets them do where it names one action; a document presented without one is checked for
- * everything it allows. The document names who controls it, and `presenter` states who presents it: the root, or the
- * key a caller proved. A verifier refuses a document whose controller the presenter doesn't prove it controls, since a
- * document anyone can copy doesn't show who holds it. Over HTTP, the request itself is the presentation: it names what is
- * being asked of what, and carries the proof that the caller may ask it. The verifier registered for the specification
- * the evidence is written in reads it; the framework never reads inside it.
+ * The evidence a caller presents to act with authority it holds. In this process the evidence is the document that
+ * carries the authority. `action` is the one action the caller invokes under it, and is undefined where the caller
+ * doesn't name one. A document presented without an action is checked for every action it allows. The document names its
+ * controller, and `presenter` states who presents it: the root, or the key a caller proved. A verifier refuses a document where the presenter doesn't
+ * prove it is the document's controller, since a document anyone can copy doesn't show who holds it. Over HTTP the
+ * request is the presentation. It names the action and its target, and carries the proof that the caller may invoke that
+ * action. The verifier registered for the evidence's specification reads it, and the framework doesn't read inside it.
  */
 export type TAuthorityEvidence =
 	| { kind: "document"; document: Record<string, unknown>; action?: string; target: string; presenter: TActingFor }
 	| { kind: "request"; method: string; url: string; headers: Record<string, string | undefined>; body?: string };
 
-/** Where a deployment records a delegation: the type of its record and the level the record is kept at, so a view opens
- *  the record only for a reader who may read it. */
+/** How a deployment records a delegation: the record's type and its access level. A view opens the record only for a
+ *  reader who may read that level. */
 export type TDelegationRecord = { persistedAs: string; accessLevel: AccessLevel };
 
 /**
- * What was delegated to a key: the signed documents it presents, as the specification writes them, and the record the
- * deployment keeps of each, by the document's own `id`, so a holder can open what it acts under where it may read it.
+ * The delegations to a key. `delegations` holds the signed documents the key presents, in the specification's form.
+ * `records` maps each document's `id` to the record the deployment keeps of it, so a holder can open the record of a
+ * delegation it acts under where it may read that record.
  */
 export type TDelegations = { delegations: Record<string, unknown>[]; records?: Record<string, TDelegationRecord> };
 
-/** The step a key reads what was delegated to it with: core's AuthorityStepper's `delegationsTo`, which answers the key
- *  that signs the call. */
+/** The RPC method a key calls to read the delegations to it. It is the `delegationsTo` step of core's AuthorityStepper.
+ *  The step returns the delegations to the key that signs the call. */
 export const DELEGATIONS_READ_METHOD = "AuthorityStepper-delegationsTo";
 
 /**
- * What the delegation read requires. A key holds it by invoking its own root, which a verifier resolves as controlled by
- * the key that signs, and doesn't hold another action under that root: all the invocation proves is the key.
+ * The action the delegation read requires. A key holds it by invoking its own root. A verifier resolves that root as
+ * controlled by the signing key. The key doesn't hold another action under that root, since the invocation proves only
+ * the key.
  */
 export const DELEGATIONS_READ_ACTION = "Authority:readOwnDelegations";
 
 /**
- * What a verified proof rests on: the capabilities its chain descends through, root first, and the earliest time any of
- * them expires. A call held open for as long as its caller wants lasts only while each of these holds.
+ * The capabilities on which a verified proof rests. `capabilities` lists the capabilities of its chain from the root
+ * down. `expires` is the earliest expiry among them. A call held open ends once one of these capabilities is revoked or
+ * expires.
  */
 export type TRestsOn = { capabilities: string[]; expires?: string };
 
-/** A verifier's decision: where the evidence holds, who acted, what they may do, and what that rests on; where it
- *  doesn't, why it was refused. */
-/** A verification's verdict: who proved it, the actions the chain allows, and, for an invocation, the one action it invoked. */
+/** A verifier's verdict. An `ok` verdict states the principal that proved the evidence, the actions the chain allows,
+ *  the one action an invocation invoked, and `restsOn`. A verdict that isn't `ok` states why the verifier refused the
+ *  evidence. */
 export type TVerdict = { ok: true; principal?: string; allowedAction?: string[]; invoked?: string; restsOn?: TRestsOn } | { ok: false; error: string };
 
 /**
- * Decides whether evidence supports what it claims, and states what it supports: for a request, everything the delegation
- * it presents allows, the action it invokes among them. It also answers what this deployment delegated to a key and
- * hasn't revoked, which the framework asks only for the key a call proved it holds. A consumer registers one for the specification its
- * deployment uses; the framework doesn't hold a signing key or read a proof itself.
+ * Verifies whether evidence supports what it claims, and returns what it supports. A request's verdict lists every action
+ * the presented delegation allows, and the action the request invokes among them. `delegationsTo` returns what this
+ * deployment delegated to a key and hasn't revoked. The framework calls it only for the key a call proved it holds. A
+ * consumer registers one verifier for the specification its deployment uses. The framework doesn't hold a signing key
+ * and doesn't read a proof.
  */
 export interface IAuthorityVerifier {
 	verify(evidence: TAuthorityEvidence): Promise<TVerdict>;
 	delegationsTo(controller: string): Promise<TDelegations>;
-	/** Record a delegation, so the key it names finds it and a delegator above it can revoke it: one `by` signed from a
-	 *  delegation `by` holds here, or any that verifies for the root. */
+	/** Records a delegation, so the key it names can read it and a delegator above it can revoke it. It records a delegation
+	 *  that `by` signed from a delegation `by` holds here, or any delegation that verifies for the root. */
 	record(document: Record<string, unknown>, by: TActingFor): Promise<TAuthorityAct>;
-	/** Record a capability's revocation: one `by` signed, or one below it, or any for the root. */
+	/** Records a capability's revocation. `by` may revoke a capability it signed or one below it, and the root may revoke
+	 *  any capability. */
 	revoke(capabilityId: string, by: TActingFor): Promise<TAuthorityAct>;
 }
 
-/** Who an act of the authority is done for: the root, for a caller holding every action, or the key a caller proved. */
+/** The principal of an authority act. It is the root where the caller holds every action, or else the key the caller
+ *  proved. */
 export type TActingFor = { root: true } | { root: false; controller: string };
 
-/** What the authority did: the id of what it recorded or revoked and when, or why it refused. */
+/** The result of an authority act: the id of the record or revocation and its time, or the reason the authority refused the act. */
 export type TAuthorityAct = { ok: true; id: string; at: string } | { ok: false; error: string };
 
-/** A request this process makes, as it is sent: what a signature over it covers. A request without a body, such as a GET,
- *  doesn't carry one. */
+/** A request this process sends, in the form a signature covers. A request such as a GET omits `body`. */
 export type TOutgoingRequest = { method: string; url: string; headers: Record<string, string>; body?: string };
 
-/** Signs a request that invokes `action` at the far side, answering the headers the request is sent with. */
+/** Signs a request that invokes `action` at the server that receives it. Returns the headers to send with the request. */
 export type TRequestSigner = (request: TOutgoingRequest, action: string) => Promise<Record<string, string>>;
 
 /**
- * Signs a request this process makes, invoking an action under authority this process holds at the far side. A consumer
- * registers one for the specification its deployment uses, and it chooses what the request presents; the framework
- * doesn't hold a key or make that choice.
+ * Signs a request this process sends. The request invokes an action at the server that receives it, under authority
+ * this process holds. A consumer registers one invoker for the specification its deployment uses. The invoker determines
+ * what the request presents, and the framework doesn't hold a key or determine that.
  */
 export interface IAuthorityInvoker {
 	sign: TRequestSigner;
 }
 
 /**
- * The authority a process holds: whatever verifier a consumer registered for evidence that comes from outside it, and
- * whatever invoker a consumer registered to present authority this process holds elsewhere.
+ * The authority a process holds. It holds the verifier a consumer registered for evidence from outside the process, and
+ * the invoker a consumer registered to present this process's authority elsewhere.
  */
 export interface IAuthority {
 	registerVerifier(verifier: IAuthorityVerifier): void;
 	registerInvoker(invoker: IAuthorityInvoker): void;
-	/** What was delegated here to a key, read as the instance: empty, where a verifier that could verify a
-	 *  delegation isn't registered. */
+	/** Returns the registered verifier's delegations to a key. It reads them as the instance, and returns empty delegations
+	 *  where a verifier isn't registered. */
 	delegationsTo(controller: string): Promise<TDelegations>;
 	signRequest: TRequestSigner;
-	/** Whether anything is registered to decide evidence at all, so a boundary reading a request knows to ask. */
+	/** Returns whether a verifier is registered, so a boundary that reads a request determines whether to verify it. */
 	hasVerifier(): boolean;
 	verifyEvidence(evidence: TAuthorityEvidence): Promise<TVerdict>;
-	/** Record a delegation for the call in progress, read and written as the instance. */
+	/** Records a delegation for the call in progress. It reads and writes as the instance. */
 	recordDelegation(document: Record<string, unknown>): Promise<TAuthorityAct>;
-	/** Revoke a capability for the call in progress, read and written as the instance. */
+	/** Revokes a capability for the call in progress. It reads and writes as the instance. */
 	revoke(capabilityId: string): Promise<TAuthorityAct>;
-	/** Report that a capability was revoked, so every call held open on it ends. Whatever records a revocation reports it. */
+	/** Reports that a capability was revoked, so every call held open on it ends. Each code path that records a revocation calls this. */
 	revoked(capabilityId: string): void;
-	/** A signal that aborts, with the reason, once what a held call rests on lapses: a capability it names is revoked, or
-	 *  its expiry passes. `release` stops watching when the call ends. */
+	/** Returns a signal that aborts with the reason once a held call's `restsOn` lapses. It lapses where a capability it
+	 *  names is revoked or its expiry passes. `release` stops watching, and is called when the call ends. */
 	holdWhile(restsOn: TRestsOn): { signal: AbortSignal; release(): void };
-	/** The calls held open, by the capability each rests on. */
+	/** The number of calls held open on each capability. */
 	heldCalls(): THeldCalls;
 	clear(): void;
 }
 
 /** The domain of the calls an instance holds open. */
 export const DOMAIN_HELD_CALLS = "held-calls";
-/** The calls an instance holds open, by the capability each rests on: what revoking that capability ends. */
+/** The number of calls an instance holds open on each capability. Revoking a capability ends the calls held open on it. */
 export const HeldCallsSchema = z.object({
 	capabilities: z.array(z.object({ capability: z.string().describe("The capability's id."), calls: z.number().describe("How many calls rest on it.") })),
 });

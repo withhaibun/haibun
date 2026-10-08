@@ -23,7 +23,7 @@ const PAGE = {
 	next: { method: "WebPlaywright-readPage", params: {} },
 } as const;
 
-/** A delegation the embedding page signs to `controller`, allowing a private read. */
+/** A delegation the embedding page signs to `controller`. It allows a private read. */
 const delegationTo = (controller: string, id = "urn:uuid:to-the-frame") => ({
 	id,
 	controller,
@@ -34,7 +34,7 @@ const delegationTo = (controller: string, id = "urn:uuid:to-the-frame") => ({
 	proof: { type: "DataIntegrityProof" },
 });
 
-/** A frame whose embedding window is `parent`, which receives what is posted to it. */
+/** A frame whose embedding window is `parent`. The frame receives the messages posted to it. */
 const aFrame = (parent: Window) => Object.assign(new EventTarget(), { parent }) as unknown as Window;
 const post = (frame: Window, data: unknown, origin: string, source: Window) => frame.dispatchEvent(new MessageEvent("message", { data, origin, source }));
 
@@ -80,7 +80,7 @@ describe("what the page embedding shu posts", () => {
 describe("the delegation the page embedding shu gives its key", () => {
 	beforeEach(() => givenDelegation.set(null));
 
-	it("is asked for by posting the key to the embedding page, which shu holds once it answers, in place of the one given before", async () => {
+	it("is requested by posting the key to the embedding page, and each delegation that page posts replaces the one shu held", async () => {
 		const { controller } = await openReportingPage();
 		const posted: Array<{ message: unknown; origin: string }> = [];
 		const parent = { postMessage: (message: unknown, origin: string) => posted.push({ message, origin }) } as unknown as Window;
@@ -97,7 +97,7 @@ describe("the delegation the page embedding shu gives its key", () => {
 		stop();
 	});
 
-	it("refuses a delegation to another key and reports it, and goes on with what it holds when a delegation isn't given in time", async () => {
+	it("refuses a delegation to another key and reports it, and continues without a delegation when one isn't given in time", async () => {
 		const { controller } = await openReportingPage();
 		const parent = { postMessage: () => undefined } as unknown as Window;
 		const frame = aFrame(parent);

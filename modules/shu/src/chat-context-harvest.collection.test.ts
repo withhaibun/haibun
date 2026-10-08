@@ -1,15 +1,16 @@
 // @vitest-environment jsdom
 /**
- * Spec: what a page sends of a view that states many members — the schema is the feature.
+ * Spec: the members a page sends of a view that states many members. `ViewCollectionSchema` defines the block's shape.
  *
- * The page's bound on members is a safeguard on the payload, not the limit of what fits: what a model's window holds
- * of what arrives is the turn's to decide against its own window, and it states the members the window held out and
- * the call that reads them. Capped, a block states the page terms: `partOf` (the page doesn't have an address of its own),
- * the count the collection holds stands against what `items` carries. A block doesn't state a `@type` claim, because a context payload
- * is not a resource persisted and offered on an endpoint; the claim belongs to the boundary. A block that states
- * `items` is held to `ViewCollectionSchema`: a non-conformant summary is rejected loudly, naming the view, never
- * silently trimmed. A view that doesn't state a collection is carried as it stated. A graph that states its nodes and
- * edges under their own names is such a view.
+ * The page's bound on members limits the payload size. It doesn't limit what a model's window holds. The turn selects
+ * what its window holds of the members that arrive. It states the members the window held out and the call that reads them.
+ * A bounded block states the page terms. `partOf` names the view's address, since the page doesn't have an address of its
+ * own. `totalItems` states the count the collection holds beside the members `items` carries. A block doesn't state a
+ * `@type`, because a context payload isn't a resource persisted and served on an endpoint. The boundary that persists or
+ * serves a resource states its type. A block that states `items` must conform to `ViewCollectionSchema`. The harvest
+ * rejects a non-conformant summary with an error that names the view, and doesn't truncate the summary. The harvest
+ * carries a view that doesn't state a collection unchanged. A graph view that states its nodes and edges under their own
+ * names is such a view.
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
@@ -18,7 +19,7 @@ import { activePane } from "./signals.js";
 
 type TView = HTMLElement & { summarizeForKihan(): unknown | null };
 
-/** A duck-typed view: the harvester recognises the method, never the class (cross-bundle identity). */
+/** A duck-typed view. The harvester checks for the method and not the class, since each bundle defines its own classes. */
 const view = (tag: string, summary: unknown | null): TView => {
 	const el = document.createElement(tag) as TView;
 	el.summarizeForKihan = () => summary;
@@ -28,31 +29,31 @@ const view = (tag: string, summary: unknown | null): TView => {
 const collection = (count: number) => ({ "@id": "view:graph", totalItems: count, items: Array.from({ length: count }, (_, at) => ({ at })) });
 
 describe("what a page sends of a view that states many members", () => {
-	it("carries the members the view stated first, and states the page terms", () => {
+	it("carries the view's first members in the view's order, and states the page terms", () => {
 		const carried = harvested(collection(HARVEST_MEMBERS + 50)) as Record<string, unknown>;
 		expect(carried.partOf, "the page doesn't have an address of its own: it pages the collection at the view's address").toBe("view:graph");
 		expect(
 			(carried.items as Array<{ at: number }>).map((m) => m.at),
-			"the view states the order it wants them read",
+			"the page keeps the members in the order the view states",
 		).toEqual(Array.from({ length: HARVEST_MEMBERS }, (_, at) => at));
-		expect(carried.totalItems, "the count the view stated stands, so a reader is told how many the view holds").toBe(HARVEST_MEMBERS + 50);
-		expect("membersCarried" in carried, "what arrived is what items carries; the count standing against it states so").toBe(false);
-		expect(carried["@type"], "a context payload doesn't claim a resource type; the claim belongs to the boundary").toBeUndefined();
+		expect(carried.totalItems, "the page keeps the count the view stated, so a reader reads how many members the view holds").toBe(HARVEST_MEMBERS + 50);
+		expect("membersCarried" in carried, "items holds the members that arrived, and totalItems beside it states the whole count").toBe(false);
+		expect(carried["@type"], "a context payload doesn't state a resource type; the boundary that persists or serves a resource states it").toBeUndefined();
 	});
 
-	it("states the members held as the count when a view doesn't state a count", () => {
+	it("states the number of members the view holds as the count when the view doesn't state a count", () => {
 		const unstated = { "@id": "view:many", items: Array.from({ length: HARVEST_MEMBERS + 1 }, (_, at) => ({ at })) };
 		expect(harvested(unstated).totalItems).toBe(HARVEST_MEMBERS + 1);
 	});
 
-	it("carries a view whose members a page holds as it stated it, without a statement about carrying", () => {
+	it("carries a view unchanged when a page holds all of its members", () => {
 		const whole = collection(3);
 		expect(harvested(whole)).toBe(whole);
 	});
 
-	it("sends a view stating two member sets under their own names as it stated it, without a statement about carrying", () => {
-		// A 2D graph states its nodes and edges under their own names: two member sets, which a collection is not, so
-		// the view states its own shape and a page sends it as it stated it.
+	it("sends a view unchanged when it states two member sets under their own names", () => {
+		// A 2D graph states its nodes and edges under their own names. Two member sets don't form a collection, so a page
+		// sends the view in the shape the view states.
 		const graph = {
 			"@id": "view:graph-2d",
 			name: "a graph of 300 nodes and 400 edges",
@@ -64,25 +65,25 @@ describe("what a page sends of a view that states many members", () => {
 		expect(harvested(graph)).toBe(graph);
 	});
 
-	it("carries a summary without members as it is", () => {
+	it("carries a summary without members unchanged", () => {
 		const stated = { "@id": "view:one", name: "a view of one thing" };
 		expect(harvested(stated)).toBe(stated);
 	});
 
-	it("rejects a block that states items non-conformantly: the schema is the shape, and it is enforced", () => {
+	it("rejects a block whose items don't conform to the schema", () => {
 		const bad = { "@id": "view:bad", totalItems: "many", items: [{ at: 0 }] };
 		expect(() => harvested(bad)).toThrow();
 	});
 });
 
-describe("the harvest rejects a non-conformant summary loudly, naming the view", () => {
+describe("the harvest rejects a non-conformant summary with an error that names the view", () => {
 	beforeEach(() => {
 		document.body.innerHTML = "";
 		activePane.set(null);
 	});
 
-	/** A pane whose `label` doubles as its columnKey (its identity in the `activePane` signal), so a test marks it
-	 *  active by `activePane.set(label)`: the one source of truth the harvester reads, mirroring the real strip. */
+	/** A pane whose `label` is also its columnKey. The `activePane` signal holds a pane's columnKey, so a test marks the
+	 *  pane active by `activePane.set(label)`. The harvester reads the active pane from that signal alone, as with the real strip. */
 	const pane = (label: string, ...children: Element[]): HTMLElement => {
 		const p = document.createElement("shu-column-pane");
 		p.setAttribute("label", label);
@@ -91,7 +92,7 @@ describe("the harvest rejects a non-conformant summary loudly, naming the view",
 		return p;
 	};
 
-	it("names the view whose summary the schema refuses, rather than trimming it silently", () => {
+	it("names the view whose summary the schema rejects, and doesn't truncate the summary", () => {
 		const strip = document.createElement("shu-column-strip");
 		strip.appendChild(pane("bad", view("shu-bad-view", { "@id": "view:bad", totalItems: "many", items: [{ at: 0 }] })));
 		document.body.appendChild(strip);
@@ -99,7 +100,7 @@ describe("the harvest rejects a non-conformant summary loudly, naming the view",
 		expect(() => harvestChatViewLd()).toThrow(/shu-bad-view/);
 	});
 
-	it("is what the harvest sends, so the views don't send more members than a page carries", () => {
+	it("bounds the members a view sends in the harvest to the members a page carries", () => {
 		const strip = document.createElement("shu-column-strip");
 		strip.appendChild(pane("only", view("shu-polymorphic-graph-view", collection(HARVEST_MEMBERS + 10))));
 		document.body.appendChild(strip);

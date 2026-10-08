@@ -15,7 +15,7 @@ describe("parseDirFilters", () => {
 	it("throws on missing access", () => {
 		expect(() => parseDirFilters("smoke")).toThrow();
 	});
-	it("parses invalid access level (deferred validation)", () => {
+	it("keeps an unknown access level for run-policy-schema to validate", () => {
 		expect(parseDirFilters("smoke:x")).toEqual([{ dir: "smoke", access: "x" }]);
 	});
 });
@@ -26,10 +26,10 @@ describe("parseRunPolicyArgs", () => {
 		expect(config.place).toBe("prod");
 		expect(config.dirFilters).toHaveLength(2);
 	});
-	it("throws on missing env", () => {
-		expect(() => parseRunPolicyArgs("", "smoke:r")).toThrow(/Run policy configuration failed/);
+	it("throws on an empty place", () => {
+		expect(() => parseRunPolicyArgs("", "smoke:r")).toThrow(/Run policy parsing failed/);
 	});
-	it("throws on missing dirAccess", () => {
+	it("throws on an empty dir filter string", () => {
 		expect(() => parseRunPolicyArgs("prod", "")).toThrow();
 	});
 });
@@ -41,12 +41,12 @@ describe("parseRunPolicyEnv", () => {
 		expect(config.dirFilters).toHaveLength(2);
 	});
 	it("throws on wrong number of parts", () => {
-		expect(() => parseRunPolicyEnv("local")).toThrow(/Invalid format/);
+		expect(() => parseRunPolicyEnv("local")).toThrow(/HAIBUN_RUN_POLICY doesn't have the form/);
 	});
 });
 
 describe("accessLevelIncludes", () => {
-	// read ⊂ act ⊂ write: a level includes itself and everything below it, and doesn't include a level above.
+	// read ⊂ act ⊂ write: a level includes itself and each lower level. It doesn't include a higher level.
 	it.each([
 		["r", "r", true],
 		["a", "r", true],
@@ -71,7 +71,7 @@ describe("getFeatureAccessPrefix", () => {
 		["health.feature", undefined],
 		["x_bad.feature", undefined],
 		["test.feature.ts", undefined],
-	])("%s reads as %s", (filename, expected) => {
+	])("%s has access prefix %s", (filename, expected) => {
 		expect(getFeatureAccessPrefix(filename)).toBe(expected);
 	});
 });
@@ -82,8 +82,8 @@ describe("featureMatchesFilter", () => {
 		{ dir: "api", access: "a" as const },
 	];
 
-	// A file runs when its directory is listed AND the prefix it declares is within the access that directory grants.
-	// Anything else is skipped: an unprefixed file doesn't declare a prefix, and an unlisted directory doesn't grant access.
+	// A file runs when the filters list its directory with its prefix's access level or a higher one.
+	// A file without a prefix doesn't run. A file outside a listed directory doesn't run. A file whose prefix needs more access than its directory grants doesn't run.
 	it.each([
 		["/smoke/r_health.feature", true],
 		["/api/r_list.feature", true],
@@ -107,7 +107,7 @@ describe("featureMatchesFilter", () => {
 		expect(featureMatchesFilter("/api/a_auth.feature", wildcardFilters)).toBe(false);
 	});
 
-	it("prefers explicit directory rule over wildcard", () => {
+	it("applies the directory filter before the wildcard dir filter", () => {
 		const mixedFilters = [
 			{ dir: "*", access: "r" as const },
 			{ dir: "api", access: "a" as const },

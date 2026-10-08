@@ -1,11 +1,12 @@
 /**
- * One specification, every storage. A stepper writes an artifact, reads a file and walks a directory through `AStorage`
- * and does not know which storage is under it: the filesystem in a run, memory in a test. A difference between them is
- * a test that passes where the code will not run, which is the failure this exists to prevent, so both answer these
- * cases rather than each carrying a suite of its own.
+ * This specification runs against every storage. A stepper writes an artifact, reads a file and lists a directory through
+ * `AStorage`. The stepper doesn't depend on which storage implements `AStorage`. Actuality uses StorageFS, and many tests
+ * use StorageMem. A behaviour that differs between them lets a test pass in memory while the same code fails on the
+ * filesystem. The tests of both storages run these cases, so a difference in a checked behaviour fails at least one of
+ * the two tests.
  *
- * Exported from the module that declares `AStorage`, so an implementation anywhere is held to the same rule by bringing
- * its own factory and a directory it may write in.
+ * `@haibun/domain-storage` declares `AStorage` and exports this specification. A test of any implementation calls
+ * `describeStorage` with its own factory and a writable directory.
  */
 import { describe, it, expect } from "vitest";
 import { CAPTURE, DEFAULT_DEST } from "@haibun/core/schema/protocol.js";
@@ -13,14 +14,16 @@ import { getDefaultWorld, getTestWorldWithOptions } from "@haibun/core/lib/test/
 import type { AStorage } from "../AStorage.js";
 
 /**
- * Run the specification against one storage. `make` returns a storage ready to use, and `root` is a directory it may
- * write in, since a storage over a real filesystem must not be handed the machine's root.
+ * Runs the specification against one storage. Each case calls `make` once and uses the storage it returns. The directory
+ * and file cases create their paths under `root`. The test of StorageFS passes a temporary directory as `root`, and the
+ * test of StorageMem passes `/`. The `ensureCaptureLocation` case creates the capture location under the working
+ * directory.
  */
 export function describeStorage(name: string, make: () => AStorage, root: string): void {
 	const at = (path: string): string => `${root.replace(/\/$/, "")}/${path}`;
 
 	describe(`the storage (${name})`, () => {
-		it("names the capture location a world asks for, and the same one whatever it is asked twice", async () => {
+		it("returns the capture location for a world's tag and returns the same location on a second call", async () => {
 			const storage = make();
 			const world = getDefaultWorld();
 			const asked = world;
@@ -28,41 +31,41 @@ export function describeStorage(name: string, make: () => AStorage, root: string
 			expect(await storage.getCaptureLocation(asked, "test")).toEqual(await storage.getCaptureLocation(asked, "test"));
 		});
 
-		it("names the capture location under the destination a world's options state", async () => {
+		it("returns the capture location under the destination in a world's options", async () => {
 			const world = getTestWorldWithOptions();
 			expect(await make().getCaptureLocation(world, "test")).toEqual(`./${CAPTURE}/${DEFAULT_DEST}/${world.tag.key}/featn-0/test`);
 		});
 
-		it("makes the capture location exist when asked to ensure it", async () => {
+		it("creates the capture location through ensureCaptureLocation and returns that location", async () => {
 			const storage = make();
 			const world = getDefaultWorld();
 			const location = await storage.getCaptureLocation(world, "test");
 			const ensured = await storage.ensureCaptureLocation(world, "test");
-			expect(ensured, "the location it made is the one it named").toEqual(location);
+			expect(ensured, "ensureCaptureLocation returns the location getCaptureLocation returns").toEqual(location);
 			expect(storage.exists(location)).toBe(true);
 		});
 
-		it("creates a directory, with its parents where they are named, and shows which exist", () => {
+		it("creates a directory and a nested directory with its parents and reports that each exists", () => {
 			const storage = make();
-			expect(storage.exists(at("made")), "the directory doesn't exist before it is made").toBe(false);
+			expect(storage.exists(at("made")), "the directory doesn't exist before mkdir creates it").toBe(false);
 			storage.mkdir(at("made"));
 			expect(storage.exists(at("made"))).toBe(true);
 			storage.mkdirp(at("made/under/here"));
 			expect(storage.exists(at("made/under/here"))).toBe(true);
 		});
 
-		it("writes a file and reads back what was written", () => {
+		it("writes a file and reads its contents", () => {
 			const storage = make();
 			storage.mkdirp(at("written"));
 			storage.writeFileBuffer(at("written/one.txt"), Buffer.from("what was written"));
 			expect(storage.readFile(at("written/one.txt"), "utf-8")).toEqual("what was written");
 		});
 
-		it("writes a private file in a directory it makes, and refuses to replace one that exists", () => {
+		it("writes a private file in a new directory and refuses to replace an existing file", () => {
 			const storage = make();
 			storage.writePrivateFile(at("kept/under/here/a.key"), "what is kept");
 			expect(storage.readFile(at("kept/under/here/a.key"), "utf-8")).toEqual("what is kept");
-			expect(() => storage.writePrivateFile(at("kept/under/here/a.key"), "another"), "what is kept there isn't replaced").toThrow();
+			expect(() => storage.writePrivateFile(at("kept/under/here/a.key"), "another"), "writePrivateFile doesn't replace an existing file").toThrow();
 			expect(storage.readFile(at("kept/under/here/a.key"), "utf-8")).toEqual("what is kept");
 		});
 
@@ -72,15 +75,15 @@ export function describeStorage(name: string, make: () => AStorage, root: string
 			expect(await storage.readdir(at("listed"))).toEqual(["within"]);
 		});
 
-		it("reports of a path whether it is a directory or a file, listing or on its own", async () => {
+		it("reports whether a path is a directory or a file through lstatToIFile and readdirStat", async () => {
 			const storage = make();
 			storage.mkdirp(at("walked/within"));
 			storage.writeFileBuffer(at("walked/one.txt"), Buffer.from("a file"));
 			const directory = await storage.lstatToIFile(at("walked/within"));
 			expect(directory.isDirectory).toBe(true);
 			const listed = await storage.readdirStat(at("walked"));
-			expect(listed.find((f) => f.name.endsWith("within"))?.isDirectory, "a directory it listed").toBe(true);
-			expect(listed.find((f) => f.name.endsWith("one.txt"))?.isFile, "and a file it listed").toBe(true);
+			expect(listed.find((f) => f.name.endsWith("within"))?.isDirectory, "readdirStat reports the directory").toBe(true);
+			expect(listed.find((f) => f.name.endsWith("one.txt"))?.isFile, "readdirStat reports the file").toBe(true);
 		});
 	});
 }

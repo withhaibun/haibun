@@ -15,11 +15,11 @@ describe("activities-stepper proof-first execution", () => {
 
 Scenario: Proof fails first time
 
-The variable is not set, so the proof will fail and the activity body should run.
+The variable isn't set, so the proof fails. Ensure runs the activity body.
 
     ensure Knows about data
 
-The activity body should have run and set the variable.
+The activity body set the variable.
 
     variable myVariable is "fromActivity"
 `;
@@ -29,21 +29,21 @@ The activity body should have run and set the variable.
 		expect(result.ok).toBe(true);
 	});
 
-	it("should NOT execute activity body when proof already passes", async () => {
+	it("should not execute activity body when proof already passes", async () => {
 		const feature = `Feature: Proof already passes
 
     Activity: Knows about data
         set myVariable to "fromActivity"
         waypoint Knows about data with variable myVariable is "initialValue"
 
-Scenario: Proof passes so activity body should not run
+Scenario: The activity body doesn't run when the proof passes
 
-The variable is set to match the proof value.
+The feature sets the variable to the value the proof checks.
 
     set myVariable to "initialValue"
 
-Ensure is called and the proof passes at once, so the activity body must NOT run.
-The bug would cause myVariable to change to "fromActivity".
+The proof passes on the first check, so ensure doesn't run the activity body.
+Running the activity body would set myVariable to "fromActivity" and fail the last line.
 
     ensure Knows about data
     variable myVariable is "initialValue"
@@ -54,17 +54,17 @@ The bug would cause myVariable to change to "fromActivity".
 		expect(result.ok).toBe(true);
 	});
 	it("should prevent recursion when activity body contains waypoint", async () => {
-		const feature = `Feature: No recursion when proof passes
+		const feature = `Feature: Ensure doesn't recurse when the activity block contains its waypoint
 
     Activity: Recursive activity
         set counter to "1"
         waypoint Recursive activity with variable counter is "1"
 
-Scenario: Waypoint in activity body should not recurse
+Scenario: A waypoint in its activity block doesn't recurse
 
-The counter variable is not set, so the proof will fail and the activity body will run.
-The activity body sets counter to 1, then hits the waypoint line which registers the outcome.
-When the waypoint line executes, it should NOT trigger another execution of the activity body.
+The counter variable isn't set, so the proof fails. Ensure runs the activity body.
+The activity body sets counter to 1. The body doesn't include the waypoint line, so ensure doesn't run the body again.
+ActivitiesStepper registers the outcome when the waypoint line resolves.
 
     ensure Recursive activity
     variable counter is "1"

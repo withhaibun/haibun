@@ -1,5 +1,5 @@
 /**
- * TuiMonitorStepper - Terminal UI monitor using onEvent cycle.
+ * TuiMonitorStepper renders the events of the onEvent cycle, the running steps and the current prompt in a terminal UI.
  */
 
 import { useState } from "react";
@@ -21,7 +21,7 @@ const RunningPanel = ({ steps, finished, featurePath }: { steps: Map<string, str
 				⏳ {label}
 			</Text>
 		))}
-		{!finished && steps.size === 0 && <Text color="gray">No active steps</Text>}
+		{!finished && steps.size === 0 && <Text color="gray">Steps aren't running</Text>}
 		{finished && (
 			<Text color="blue" bold>
 				Finished
@@ -40,8 +40,8 @@ const TextInput = ({ onSubmit }: { onSubmit: (val: string) => void }) => {
 		} else if (key.backspace || key.delete) {
 			setValue((v) => v.slice(0, -1));
 		} else if (!key.ctrl && !key.meta && !key.upArrow && !key.downArrow && !key.leftArrow && !key.rightArrow) {
-			// Simple toggle to filter out control sequences that might corrupt the buffer
-			// Only accepting printable characters roughly
+			// The handler doesn't append input from arrow keys or from keys pressed with ctrl or meta held.
+			// ink passes the key's character as the input of a ctrl or meta combination. Ctrl+u would append "u" without the filter.
 			setValue((v) => v + input);
 		}
 	});
@@ -82,7 +82,7 @@ const MonitorApp = ({
 );
 
 export default class TuiMonitorStepper extends AStepper implements IHasCycles, IPrompter {
-	description = "Shows a run's steps in the terminal as they run, and prompts the operator there.";
+	description = "Shows actuality's steps in the terminal as they execute. Prompts the operator in the terminal.";
 	kind = StepperKinds.MONITOR;
 	steps = {};
 
@@ -97,9 +97,9 @@ export default class TuiMonitorStepper extends AStepper implements IHasCycles, I
 	private promptRejecter: ((reason?: unknown) => void) | null = null;
 	featurePath?: string;
 
-	/** Whether there is a terminal to draw on. Piped into a file, a screen redrawn per event is escape codes between
-	 *  the lines and a React render per step; the lines alone are what a file wants, printed as the console monitor
-	 *  prints them. */
+	/** True when stdout is a terminal. startExecution doesn't render the ink app when stdout isn't a terminal.
+	 *  onEvent then prints each line with console.log. EventFormatter.formatLine formats the line, as in ConsoleMonitorStepper.
+	 *  A redraw per event would write escape codes between the lines of piped output. Each redraw runs a React render. */
 	private readonly terminal = process.stdout.isTTY === true;
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {

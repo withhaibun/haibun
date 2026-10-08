@@ -1,5 +1,5 @@
 /**
- * What a step requires, and what an action a caller holds allows: every step requires an action, and holding a read at
+ * Tests the action a step requires and what a caller's actions allow. Every step requires an action. Holding a read at
  * one level allows every narrower read.
  */
 import { describe, expect, it } from "vitest";
@@ -27,12 +27,12 @@ describe("what a step requires", () => {
 		expect(requiredAction("Pool", "swim", { capability: "Pool:enter" })).toBe("Pool:enter");
 	});
 
-	it("is a read at the level a read states, and at private for a read that doesn't state one, so it doesn't answer a public reader by default", () => {
+	it("is a read at the level a read states, or at private for a read that doesn't state one, so a gate refuses it to a public reader by default", () => {
 		expect(requiredAction("Pool", "hours", { read: true, readsAt: Access.public })).toBe("Read:public");
 		expect(requiredAction("Pool", "hours", { read: true })).toBe("Read:private");
 	});
 
-	it("is the step's own name for a step that doesn't declare a requirement, so omitting a declaration doesn't leave it open", () => {
+	it("is the step's own name for a step that doesn't declare a requirement, so a gate refuses that step to a caller that doesn't hold its name", () => {
 		expect(requiredAction("Pool", "drain", {})).toBe("Pool:drain");
 	});
 });
@@ -44,7 +44,7 @@ describe("whether a caller may call a step", () => {
 		expect(mayCall(undefined, { capability: "Read:public" }), "and not holding an action doesn't allow a call").toBe(false);
 	});
 
-	it("names the action it lacks: the one the step requires, or else a read at the level the step reads at", () => {
+	it("names the action it lacks: the step's required action, or else a read at the step's level", () => {
 		const readsThePage = { capability: "Pool:look", readsAt: Access.private };
 		expect(lackedAction(["Read:public"], readsThePage)).toBe("Pool:look");
 		expect(lackedAction(["Pool:look", "Read:public"], readsThePage)).toBe(readAction(Access.private));
@@ -54,7 +54,7 @@ describe("whether a caller may call a step", () => {
 });
 
 describe("what an action held allows", () => {
-	it("allows itself, everything for *, and a prefix ending in *", () => {
+	it("allows the action itself, every action for *, and each action a prefix ending in * matches", () => {
 		expect(capabilityAllows("Pool:enter", "Pool:enter")).toBe(true);
 		expect(capabilityAllows(["*"], "Pool:enter")).toBe(true);
 		expect(capabilityAllows(["Pool:*"], "Pool:enter")).toBe(true);
@@ -62,17 +62,17 @@ describe("what an action held allows", () => {
 		expect(capabilityAllows(undefined, "Pool:enter"), "and not holding an action doesn't allow one").toBe(false);
 	});
 
-	it("allows a read at any level no broader than the one held", () => {
+	it("allows a read at the level held and at each narrower level", () => {
 		expect(capabilityAllows([readAction(Access.private)], readAction(Access.public))).toBe(true);
 		expect(capabilityAllows([readAction(Access.private)], readAction(Access.opened))).toBe(true);
 		expect(capabilityAllows([readAction(Access.opened)], readAction(Access.public))).toBe(true);
-		expect(capabilityAllows([readAction(Access.public)], readAction(Access.private)), "never a broader one").toBe(false);
+		expect(capabilityAllows([readAction(Access.public)], readAction(Access.private)), "and doesn't allow a broader one").toBe(false);
 		expect(capabilityAllows([readAction(Access.opened)], readAction(Access.private))).toBe(false);
 		expect(capabilityAllows(["Read:everything"], readAction(Access.public)), "and a level that doesn't exist doesn't allow a read").toBe(false);
 	});
 });
 
-describe("the most a caller reads at", () => {
+describe("the broadest level a caller reads", () => {
 	it("is the broadest read it holds", () => {
 		expect(readCeilingOf(["*"])).toBe(Access.private);
 		expect(readCeilingOf(["Read:*"])).toBe(Access.private);
@@ -89,21 +89,21 @@ describe("the most a caller reads at", () => {
 describe("the action a delegation lets its holder invoke for a call", () => {
 	const delegation = { invocationTarget: "https://pool.example", allowedAction: ["Pool:*", "Read:private"], expires: "2099-01-01T00:00:00Z" };
 
-	it("is one it lists that allows what the call requires, since a delegation is matched on exactly what it names", () => {
+	it("is an action it lists that allows the call's required action, since a delegation is matched on the actions it names", () => {
 		expect(actionUnder(delegation, "Pool:enter", "https://pool.example/rpc/Pool-enter")).toBe("Pool:*");
 		expect(actionUnder(delegation, "Read:public", "https://pool.example/rpc/Pool-hours")).toBe("Read:private");
 		expect(actionUnder(delegation, "Gym:enter", "https://pool.example/rpc/Gym-enter"), "and undefined where it doesn't list an action that allows it").toBeUndefined();
 	});
 
-	it("is undefined at a target outside the one it is over, or once it has lapsed", () => {
+	it("is undefined at a target outside its invocation target, or after it expires", () => {
 		expect(actionUnder(delegation, "Pool:enter", "https://pool.example.net/rpc/Pool-enter")).toBeUndefined();
 		expect(actionUnder({ ...delegation, expires: "2000-01-01T00:00:00Z" }, "Pool:enter", "https://pool.example/rpc/Pool-enter")).toBeUndefined();
-		expect(actionUnder({ ...delegation, expires: undefined }, "Pool:enter", "https://pool.example/rpc/Pool-enter"), "a delegation states when it lapses").toBeUndefined();
+		expect(actionUnder({ ...delegation, expires: undefined }, "Pool:enter", "https://pool.example/rpc/Pool-enter"), "a delegation states when it expires").toBeUndefined();
 	});
 });
 
 describe("what a delegation lists", () => {
-	it("doesn't list an action for every action, and reads a delegation that doesn't list an action as allowing every action", () => {
+	it("omits allowedAction for every action, and a delegation without allowedAction allows every action", () => {
 		expect(allowedActionFor(["*"]), "zcap-LD reads a listed * as an action's name").toBeUndefined();
 		expect(allowedActionFor(["Pool:enter"])).toEqual(["Pool:enter"]);
 		expect(delegatedActions({})).toEqual(["*"]);
@@ -123,60 +123,60 @@ describe("what a holder delegates to another key", () => {
 	const lifeguard = { id: "urn:cap:lifeguard", invocationTarget: target, allowedAction: [POOL, readAction(Access.private)], expires: LIFEGUARD_ENDS };
 	const visitor = { id: "urn:cap:visitor", invocationTarget: target, allowedAction: [readAction(Access.public)], expires: VISITOR_ENDS };
 
-	it("narrows the first delegation that allows every action wanted, listing the actions it lists, and ends no later than it", () => {
+	it("narrows the first delegation that allows every requested action, lists the parent's actions, and ends at the parent's expiry where that is earlier", () => {
 		expect(narrowing([visitor, lifeguard], { wanted: [ENTER_POOL, readAction(Access.public)], expires: ASKED_LATER, target })).toEqual({
 			parent: lifeguard,
 			allowedAction: lifeguard.allowedAction,
 			expires: LIFEGUARD_ENDS,
 		});
-		expect(narrowing([visitor], { wanted: [readAction(Access.public)], expires: ASKED_EARLIER, target })?.expires, "and when it was asked to end, where that is earlier").toBe(
+		expect(narrowing([visitor], { wanted: [readAction(Access.public)], expires: ASKED_EARLIER, target })?.expires, "and at the requested expiry where that is earlier").toBe(
 			ASKED_EARLIER,
 		);
 	});
 
-	it("doesn't find one where the delegations held don't allow an action wanted", () => {
+	it("is undefined where the held delegations don't allow a requested action", () => {
 		expect(narrowing([visitor], { wanted: [ENTER_POOL], expires: VISITOR_ENDS, target })).toBeUndefined();
 	});
 });
 
-describe("the level a record is written at", () => {
+describe("the level of a written record", () => {
 	const [READS_PRIVATE, PUBLISHES] = [readAction(Access.private), writeAction(Access.public)];
 	const run = { ceiling: undefined, held: undefined };
 	const reader = { ceiling: Access.private, held: [READS_PRIVATE] };
 	const publicReader = { ceiling: Access.public, held: [readAction(Access.public)] };
 
-	it("is the level stated, or else the level its type declares, for a write that a ceiling doesn't bound", () => {
+	it("is the stated level or else the type's declared level for a write that a ceiling doesn't bound", () => {
 		expect(writtenAt(Access.opened, Access.public, run)).toBe(Access.opened);
 		expect(writtenAt(undefined, Access.public, run)).toBe(Access.public);
 	});
 
-	it("gives way to the ceiling of a writer that read more than its type shares, where it doesn't hold a write at the type's level", () => {
+	it("is the writer's ceiling where the writer reads at a broader level than the type declares and doesn't hold a write at the type's level", () => {
 		expect(writtenAt(undefined, Access.public, reader)).toBe(Access.private);
-		expect(writtenAt(undefined, Access.public, { ...reader, held: [READS_PRIVATE, PUBLISHES] }), "and is the type's where it holds that write").toBe(Access.public);
+		expect(writtenAt(undefined, Access.public, { ...reader, held: [READS_PRIVATE, PUBLISHES] }), "and is the type's level where the writer holds that write").toBe(Access.public);
 		expect(writtenAt(undefined, Access.public, { ...reader, held: [EVERY_ACTION] }), "as it is for a writer holding every action").toBe(Access.public);
 	});
 
-	it("refuses a stated level more public than the writer's ceiling, naming the action it requires", () => {
+	it("refuses a stated level more public than the writer's ceiling and names the action it requires", () => {
 		expect(() => writtenAt(Access.public, Access.private, reader)).toThrow(PUBLISHES);
 	});
 
-	it("is what the writer sees where its type shares less, so the writer reads back what it wrote, or the more private level it states", () => {
+	it("is the more private level a write states, or else the writer's ceiling where the type's level is more private, so the writer reads back what it wrote", () => {
 		expect(writtenAt(undefined, Access.private, publicReader)).toBe(Access.public);
 		expect(writtenAt(Access.private, Access.private, publicReader)).toBe(Access.private);
 	});
 
-	it("doesn't refuse a level to a writer that a ceiling doesn't bound or that holds every action, so a store doesn't read a level to check either", () => {
+	it("doesn't refuse a level to a writer that a ceiling doesn't bound or that holds every action, so a store doesn't read a record's level for either writer", () => {
 		expect(writesAtEveryLevel(run)).toBe(true);
 		expect(writesAtEveryLevel({ ...reader, held: [EVERY_ACTION] })).toBe(true);
 		expect(writesAtEveryLevel(reader)).toBe(false);
 	});
 });
 
-describe("what a read sees", () => {
-	it("is the level asked for, never more than the caller's ceiling", () => {
+describe("what a read returns", () => {
+	it("is bounded by the requested level narrowed to the caller's ceiling", () => {
 		expect(seenAt(Access.private, Access.opened)).toBe(Access.opened);
 		expect(seenAt(Access.public, Access.private)).toBe(Access.public);
-		expect(seenAt(Access.private, undefined), "and is what was asked where a ceiling doesn't bound the caller").toBe(Access.private);
+		expect(seenAt(Access.private, undefined), "and is the requested level where a ceiling doesn't bound the caller").toBe(Access.private);
 	});
 
 	it("is the records at that level and at each narrower one, so a public reader doesn't read an opened record", () => {
@@ -187,6 +187,6 @@ describe("what a read sees", () => {
 
 	it("refuses a record whose level isn't one of the levels, rather than reading it as within every read", () => {
 		expect(() => withinAccess("Private", Access.public)).toThrow(`a record states the access level "Private", which isn't one of private, opened, public`);
-		expect(withinAccess(undefined, Access.public), "a record that doesn't state a level is left to what served it").toBe(true);
+		expect(withinAccess(undefined, Access.public), "a record that doesn't state a level passes, and the store that returned it determines its visibility").toBe(true);
 	});
 });

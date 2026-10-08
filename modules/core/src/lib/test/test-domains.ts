@@ -4,7 +4,7 @@ import { AccessLevelSchema, type TDomainDefinition } from "../resources.js";
 import { listedSchema } from "../domains.js";
 import { FAKE_HOLDER_DOMAIN } from "./fake-authority.js";
 
-/** The domains test steppers take and answer in, named as every step names the domain of its parameters and products. */
+/** The names of the domains that test steps declare for their parameters and products. */
 export const TEST_DOMAIN = {
 	readAt: "test-read-at",
 	echoed: "test-echoed",
@@ -16,15 +16,15 @@ export const TEST_DOMAIN = {
 } as const;
 
 export const testDomainDefinitions: TDomainDefinition[] = [
-	{ selectors: [TEST_DOMAIN.readAt], schema: z.object({ at: z.string() }).strict(), description: "The level a step read at" },
+	{ selectors: [TEST_DOMAIN.readAt], schema: z.object({ at: z.string() }).strict(), description: "The access level of a step's read" },
 	{ selectors: [TEST_DOMAIN.echoed], schema: z.object({ echoed: z.string() }).strict(), description: "A message a step echoed" },
-	{ selectors: [TEST_DOMAIN.pong], schema: z.object({ pong: z.boolean() }).strict(), description: "A ping a step answered" },
-	{ selectors: [TEST_DOMAIN.count], schema: z.object({ count: z.number() }).strict(), description: "A count a step answered" },
-	{ selectors: [TEST_DOMAIN.accessLevel], schema: AccessLevelSchema, description: "The level a read is expected at" },
-	{ selectors: [TEST_DOMAIN.action], schema: z.string().min(1), description: "The action an invocation is signed for" },
-	{ selectors: [TEST_DOMAIN.accessLevels], schema: listedSchema(AccessLevelSchema, "access level"), description: "The levels a stream is expected to send events at" },
+	{ selectors: [TEST_DOMAIN.pong], schema: z.object({ pong: z.boolean() }).strict(), description: "A step's response to a ping" },
+	{ selectors: [TEST_DOMAIN.count], schema: z.object({ count: z.number() }).strict(), description: "A count a step returned" },
+	{ selectors: [TEST_DOMAIN.accessLevel], schema: AccessLevelSchema, description: "The expected access level of a read" },
+	{ selectors: [TEST_DOMAIN.action], schema: z.string().min(1), description: "The action a signed invocation names" },
+	{ selectors: [TEST_DOMAIN.accessLevels], schema: listedSchema(AccessLevelSchema, "access level"), description: "The expected access levels of a stream's events" },
 	FAKE_HOLDER_DOMAIN,
 ];
 
-/** The cycles of a test stepper whose steps answer in the test domains. */
+/** Returns cycles that declare the test domains as a test stepper's concerns. */
 export const declaresTestDomains = (): IStepperCycles => ({ getConcerns: () => ({ domains: testDomainDefinitions }) });

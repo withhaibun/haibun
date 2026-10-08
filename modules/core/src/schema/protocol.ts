@@ -8,59 +8,63 @@ import { AccessLevelSchema } from "../lib/resources.js";
 export const HAIBUN_LOG_LEVELS = ["debug", "trace", "log", "info", "warn", "error"] as const;
 const HaibunLogLevel = z.enum(HAIBUN_LOG_LEVELS);
 export type THaibunLogLevel = z.infer<typeof HaibunLogLevel>;
-/** The levels from which a monitor shows events: an event's level, or none, which shows no events. */
+/** The values of the `LOG_LEVEL` option. They are the event levels and `none`. A monitor set to `none` doesn't show an event. */
 export const SHOWN_LOG_LEVELS = [...HAIBUN_LOG_LEVELS, "none"] as const;
-/** Actuality's `LOG_LEVEL` option, checked where actuality parses its options. */
+/** The schema of actuality's `LOG_LEVEL` option. BaseOptionsSchema validates the option with it. */
 export const ShownLogLevelSchema = z.enum(SHOWN_LOG_LEVELS);
 export type TShownLogLevel = z.infer<typeof ShownLogLevelSchema>;
-/** The level from which a monitor shows events, as actuality's `LOG_LEVEL` option states it, or info where it isn't set. */
+/** Returns actuality's `LOG_LEVEL` option, or `info` where the option isn't set. A monitor shows each event at or above this level. */
 export const shownLogLevel = (options: { LOG_LEVEL?: TShownLogLevel }): TShownLogLevel => options.LOG_LEVEL ?? "info";
 
 /**
- * Marks, as one related set. Two things vary, and each is carried by one visual property.
+ * The marks form one related set. A mark varies in two visual properties, and each property carries one kind of information.
  *
- * WEIGHT indicates how much a line should interrupt a reader. Emoji-weight marks are for what a reader must not scroll
- * past: an outcome, a warning, a stop. Thin glyphs are for what is frequent and unremarkable, so a log of ordinary
- * activity stays quiet and the exceptional line stands out of it. A thin glyph for something exceptional is the fault
- * this rule exists to prevent.
+ * WEIGHT indicates how much a line should interrupt a reader. Emoji-weight marks indicate an outcome, a warning or an
+ * error. A reader must not miss these lines. Thin glyphs indicate frequent, unremarkable lines. A log of ordinary
+ * activity then shows thin glyphs, and an exceptional line is visible among them. Under this rule an exceptional line
+ * doesn't carry a thin glyph.
  *
- * SHAPE indicates what kind of statement the mark makes. A run's verdicts are the check and cross. A claim the run merely
- * tried carries the modal-logic diamond, which reads as possibility rather than as right or broken: filled where it
- * held, hollow where it did not. A call actuality handed to something else and got an answer from carries the return
- * arrow: the call did not succeed, but actuality is not broken and its caller is expected to act on it. Containers and
- * flow are geometric, since they state structure rather than outcome.
+ * SHAPE indicates what a mark reports: a verdict, a tried claim, a returned call or structure. Actuality's verdicts are
+ * the check and the cross. A claim actuality tried carries the modal-logic diamond. The diamond indicates possibility,
+ * not a pass or a failure. It is filled where the claim held and hollow where the claim didn't hold. A failed call that
+ * actuality handed out carries the return arrow. The call failed, but actuality isn't broken. Actuality returns the
+ * failure to the call's caller. The caller handles the failure. Container and flow marks are geometric because they
+ * indicate structure, not an outcome.
  */
 
-// Verdicts: what actuality concluded. Emoji weight, because a verdict is what a reader is looking for.
+// Verdicts: the outcome actuality determined. A verdict has emoji weight because a reader looks for it.
 export const CHECK_YES = "✅";
 export const CHECK_NO = "❌";
 export const CHECK_YIELD = "🔀";
 
-// Tried, not concluded: `some ... is ...` runs until one matches, `maybe` expects either answer. Either outcome isn't a
-// fault, so these marks aren't verdict marks. Quieter than a verdict on purpose.
+// Tried statements: `some ... is ...` runs until one matches, and `maybe` accepts either outcome. A tried statement's
+// failure isn't a fault, so these marks aren't verdict marks. They carry less weight than a verdict.
 export const MAYBE_CHECK_YES = "◆";
 export const MAYBE_CHECK_NO = "◇";
 
-// Handed out and answered: a tool call a model made, an RPC. A failure here is returned to its caller to act on, and
-// is not actuality failing, so it isn't a verdict or silent.
+// Handed-out calls: a negative seqPath segment marks a call actuality handed out, such as a model's tool call or an RPC.
+// Actuality returns the call's failure to its caller. That failure isn't actuality failing, so its mark isn't a verdict,
+// and the line still shows a mark.
 export const RETURNED_TO_CALLER = "↩️";
 
 // BDD Structure (Geometric Containers)
 export const ICON_FEATURE = "⧇"; // Root container (High visibility)
 export const ICON_SCENARIO = "⬢"; // Concrete logic node (Solid Hex)
 
-// Step Execution Status: the verdict marks, plus flow for a step still running.
+// Step execution status uses the verdict marks. A running step carries a flow mark, and a stopped step carries a square.
 export const ICON_STEP_RUNNING = "⫸"; // Active flow (Clear direction)
 export const ICON_STEP_FAILED = CHECK_NO;
 export const ICON_STEP_STOPPED = "◼";
 
-/** A statement actuality tried speculatively (`maybe`): its failure is actuality trying something, not a fault. */
+/** Returns whether the event's intent mode is `speculative`. A statement under `maybe` runs speculatively, and its failure
+ *  isn't a fault. */
 export function isSpeculativeEvent(event: { intent?: { mode?: string } }): boolean {
 	return event.intent?.mode === "speculative";
 }
 
-/** A call actuality handed out, a model's tool call, an RPC, carried by a negative seqPath segment. Its failure is
- *  returned to that caller, which is expected to act on it, so it is not actuality failing. */
+/** Returns whether the event's id has a negative seqPath segment. A negative segment marks a call actuality handed out,
+ *  such as a model's tool call or an RPC. Actuality returns the call's failure to its caller. The caller handles the
+ *  failure, so the failure isn't actuality failing. */
 export function isHandedOutEvent(event: { id?: string }): boolean {
 	return String(event.id ?? "")
 		.split(".")
@@ -68,8 +72,9 @@ export function isHandedOutEvent(event: { id?: string }): boolean {
 }
 export const ICON_STEP_COMPLETED = CHECK_YES;
 
-// Log Levels: info is frequent, so it stays thin; a warning and an error are exceptional, so they carry weight. The
-// error mark is distinct from the failure verdict, so a line does not show failure twice in two different hands.
+// Log levels: info lines are frequent, so the info mark is a thin glyph. Warning and error lines are exceptional, so their
+// marks have emoji weight. The error mark differs from the failure verdict, so an error log line doesn't show a second
+// failure verdict.
 export const ICON_LOG_INFO = "⊳"; // Data signal/pointer
 export const ICON_LOG_WARN = "⚠️";
 export const ICON_LOG_ERROR = "⛔";
@@ -88,31 +93,34 @@ export type TOrigin = keyof typeof Origin;
 
 export type TDebugSignal = "fail" | "step" | "continue" | "retry" | "next";
 
-/** The level a hidden substep reports at. It is below every level a view shows, so what a substep logs, produces and
- *  shows is infrastructure rather than something a reader asked for. */
+/** The level of a substep's record and lifecycle events. EventLogger also caps a substep's log statements at this level,
+ *  except a warning or an error. The level is below each view's default level, so a view doesn't show a substep's record,
+ *  events, products or capped logs until a reader selects this level or a lower one. That output is infrastructure, not
+ *  something a reader requested. */
 export const SUBSTEP_LEVEL: THaibunLogLevel = "trace";
-/** The level an ordinary step reports at. */
+/** The level of an ordinary step's record and lifecycle events. */
 const STEP_LEVEL: THaibunLogLevel = "info";
 
-/** The level a step reports at. One derivation, so the record of a step, what it logs and what it produces all agree. */
+/** Returns the level of a step's record and lifecycle events. The step's end event carries its products, so the products
+ *  have the same level. */
 export const stepLevel = (isSubStep?: boolean): THaibunLogLevel => (isSubStep ? SUBSTEP_LEVEL : STEP_LEVEL);
 
 export const SCENARIO_START = "scenario";
 export const FEATURE_START = "feature";
 
-/** How a run's own prose declares a feature and a scenario, which is how a reader of it reads their names back. */
+/** The prefixes that declare a feature and a scenario in a feature's text. `declaredName` returns the name after a prefix. */
 export const DECLARES = { feature: "Feature:", scenario: "Scenario:" } as const;
 
-/** Whether a step declared a feature or a scenario: what it called states which, whichever stepper carried it out. */
+/** Returns whether a step declared a feature or a scenario. Each function checks the name of the action the step called, so
+ *  a `feature` or `scenario` action of any stepper counts. */
 export const declaresFeature = (called: string | undefined): boolean => called?.endsWith(`.${FEATURE_START}`) === true;
 export const declaresScenario = (called: string | undefined): boolean => called?.endsWith(`.${SCENARIO_START}`) === true;
 
-/** The name a declaring step gives, which is its own words without the word that declares them. */
+/** Returns the name in a declaring step's text. The name is the trimmed text without its declaring prefix. */
 export const declaredName = (text: string, of: keyof typeof DECLARES): string => text.replace(new RegExp(`^${DECLARES[of]}\\s*`), "").trim();
 
-/** How a lifecycle event indicates a step, feature or execution ended. */
-/** How a lifecycle ends or stands. `stopped` is a step its caller stopped: a reader's decision, not a fault, so it
- *  isn't a failure or a pass. */
+/** The statuses of a lifecycle event. `running` marks a lifecycle in progress, and the others state how it ended. `stopped`
+ *  marks a step whose caller aborted it. A stop isn't a fault, so it doesn't count as a failure or a pass. */
 export const LIFECYCLE_STATUS = { running: "running", completed: "completed", failed: "failed", stopped: "stopped", skipped: "skipped" } as const;
 const LIFECYCLE_STATUS_SCHEMA = z.enum([LIFECYCLE_STATUS.running, LIFECYCLE_STATUS.completed, LIFECYCLE_STATUS.failed, LIFECYCLE_STATUS.stopped, LIFECYCLE_STATUS.skipped]);
 /** How a step ended. */
@@ -121,11 +129,11 @@ export type TStepEnd = typeof LIFECYCLE_STATUS.completed | typeof LIFECYCLE_STAT
 export const STAY_ALWAYS = "always";
 export const STAY_FAILURE = "failure";
 export const STAY = "STAY";
-/** Report events as NDJSON on stdout. Declared here so the option, the env name a launcher writes, and the logger
- *  that reads it all name it once. */
+/** The option that selects actuality's events as NDJSON on stdout. The option, the environment variable a launcher writes
+ *  and the logger that reads the option all use this one constant. */
 export const NDJSON = "NDJSON";
-/** Run a group only when a dependency changed since it last passed: a choice about the chain a script runs, so a run
- *  started by another does not inherit it. */
+/** With this option the CLI runs a group only when a dependency changed since the group last passed. It applies to the
+ *  chain a script runs, so a run that another run starts doesn't inherit it. */
 export const ONCE = "ONCE";
 
 export const STEP_DELAY = "STEP_DELAY";
@@ -135,7 +143,7 @@ export const CONTINUE_AFTER_ERROR = "CONTINUE_AFTER_ERROR";
 
 export const HAIBUN = "HAIBUN";
 export const BASE_PREFIX = `${HAIBUN}_`;
-/** What begins a stepper's option in the environment and in a base's config: then the stepper's name and the option's. */
+/** The prefix of a stepper's option in the environment and in a base's config. The stepper's name and the option's name follow it. */
 export const MODULE_OPTION_PREFIX = `${BASE_PREFIX}O_`;
 export const CAPTURE = "capture";
 
@@ -235,7 +243,7 @@ export class EventFormatter {
 			} else {
 				icon = this.getStatusIcon(event);
 				id = event.id ? `${event.id}` : "";
-				// Step always has 'in', other events (activity, etc) may not
+				// A step event always has `in`. Other lifecycle events, such as activity, may not have it.
 				if (event.type === "step") {
 					message = event.in;
 				} else {
@@ -259,8 +267,7 @@ export class EventFormatter {
 	static formatLine(event: THaibunEvent, lastLevel?: string): string {
 		const { time, emitter, showLevel, icon, id, message } = this.formatLineElements(event, lastLevel);
 		const prefix = showLevel.padStart(8) + ` █ ${time}:${emitter}`.padEnd(40) + ` ｜ `;
-		// A step's path is bracketed where a line shows it, which is a way of reading it rather than a second way of
-		// writing it: an id is one form everywhere it is stored or matched.
+		// The brackets around a step's path are display formatting only. An id has one form wherever it is stored or matched.
 		return prefix + `${icon} ${id ? `[${id}] ` : ""}${message}`;
 	}
 }
@@ -270,12 +277,12 @@ export class EventFormatter {
 // ============================================================================
 
 /**
- * How a statement's outcome is to be taken: actuality asserting something, or a try whose failure is expected and is
- * therefore not actuality failing. One axis with two ends, which is why every reader of it asks only which of the two.
+ * How actuality counts a statement's outcome. In `authoritative` mode a statement's failure is actuality failing. In
+ * `speculative` mode the statement is a try whose failure is expected, so its failure isn't actuality failing. The mode
+ * holds one of these two values, so code that reads it checks only which one it holds.
  *
- * Whether a line is prose at all is a different question, about what the line IS rather than how its outcome counts,
- * and it is answered where that belongs (document-content classifies a line as prose or technical). A prose line doesn't run
- * a step, so it doesn't have an outcome to take either way and never reaches here.
+ * The mode doesn't classify a line as prose. document-content classifies a line as prose or technical. A prose line
+ * doesn't run a step, so it doesn't have an outcome or an execution mode.
  */
 export const EXECUTION_MODES = ["authoritative", "speculative"] as const;
 const ExecutionIntentSchema = z.object({
@@ -297,7 +304,7 @@ export const HYPERMEDIA = {
 	TYPE: "_type",
 	/** Human-readable one-liner for CLI output and document view captions */
 	SUMMARY: "_summary",
-	/** Inline description from the registered domain schema's `.describe()`. Travels with the data so a consumer (human, LLM, agent) can interpret a product without round-tripping to the show steps step. Unset when the producing step's domain doesn't have a description. */
+	/** The `description` of the producing step's products domain. The product carries it, so a person, an LLM or an agent reads the product's description without calling `show steps matching`. Unset where the products domain doesn't have a description. */
 	DESCRIPTION: "_description",
 	/** Web component tag that renders this product (e.g. "shu-monitor-column") */
 	COMPONENT: "_component",
@@ -307,8 +314,9 @@ export const HYPERMEDIA = {
 	UNDO: "_undo",
 } as const;
 
-/** A product's own data, without the trace it carries or the markers dispatch adds to a product of a named domain to
- *  name, summarize, describe and link it: what a reader parses by the product's own schema. */
+/** Returns a product's own data. The result omits the `_seqPath` trace and the `_type`, `_summary`, `_description` and
+ *  `_links` markers that dispatch adds to a product of a named domain. A reader parses the result with the product's own
+ *  schema. */
 export function productData(products: Record<string, unknown>): Record<string, unknown> {
 	const {
 		[TRACE_SEQ_PATH]: _trace,
@@ -333,11 +341,10 @@ export type THypermediaProducts = {
 };
 
 /**
- * The single result type for step execution. Used everywhere:
- * step actions, FlowRunner, feature loop, RPC transports.
+ * The one result type of step execution. Step actions, FlowRunner, the feature loop and RPC transports use it.
  */
 type TActionResultCarries = { products?: THypermediaProducts; controlSignal?: TDebugSignal; artifact?: TArtifactEvent; protocol?: SystemMessage };
-/** A step passed, or failed stating why: a failure carries its message. */
+/** A step passed or failed. A failure carries an `errorMessage` that states the reason. */
 export type TActionResult = (TActionResultCarries & { ok: true; errorMessage?: undefined }) | (TActionResultCarries & { ok: false; errorMessage: string });
 
 export const OK: TActionResult = { ok: true };
@@ -361,7 +368,7 @@ export type TSeqPath = number[];
 export type TStepResult = TActionResult & {
 	name: string;
 	in: string;
-	/** The feature file the step's line is in, which a step called over RPC or MCP doesn't have. */
+	/** The feature file that contains the step's line. A step called over RPC or MCP doesn't have one. */
 	path?: string;
 	lineNumber?: number;
 	seqPath: TSeqPath;
@@ -372,23 +379,23 @@ export type TStepResult = TActionResult & {
 };
 
 /**
- * What a feature's steps came to, as a reduction over them rather than a list of them.
+ * A summary of a feature's steps, computed as a reduction over them instead of a list of them.
  *
- * A feature that services requests for weeks runs more steps than a process can hold, and what a reader of the result
- * asks is how many ran, when they began and ended, and which one failed. Each is answered as the feature runs, so the
- * answer takes the same whether the feature ran ten steps or ten million.
+ * A feature that services requests for weeks runs more steps than a process can hold. A reader of the result reads the
+ * count, the first start, the last end and the failed step. Actuality updates each value as the feature runs, so the
+ * summary takes the same memory for ten steps or ten million.
  */
 export type TFeatureSteps = {
-	/** How many the feature ran. */
+	/** The number of steps the feature ran. */
 	count: number;
-	/** When the first began, and when the last ended. */
+	/** When the first step began and when the last step ended. */
 	firstStart?: number;
 	lastEnd?: number;
 	/**
-	 * The step actuality reports as having failed. A synthetic dispatch (a negative seqPath segment: a model's tool call,
-	 * an RPC) can fail and be recovered from inside the step that made it, and a speculative statement's failure is
-	 * expected, so a feature step that failed is reported ahead of either. Without either, the first failure is what
-	 * there is to report.
+	 * The step that actuality reports as failed. A negative seqPath segment marks a synthetic dispatch, such as a model's
+	 * tool call or an RPC. A synthetic dispatch can fail, and the step that made it can recover. A speculative statement's
+	 * failure is expected. Actuality therefore reports the feature's own failed step ahead of either. Where every failure
+	 * is a synthetic dispatch or a speculative statement, actuality reports the first failure.
 	 */
 	failed?: TStepResult;
 };
@@ -397,15 +404,16 @@ export type TFeatureResult = {
 	skip?: boolean;
 	path: string;
 	ok: boolean;
-	/** What its steps came to. */
+	/** The summary of its steps. */
 	steps: TFeatureSteps;
 	/**
-	 * The SHA-256 of the text of every step the feature declares, in order, with its backgrounds and helpers expanded.
+	 * The SHA-256 of the text of every step the feature declares, in order. The text includes the steps of the feature's
+	 * expanded backgrounds and helpers.
 	 * Two runs that carry the same hash declared the same steps. A step dispatched from outside the feature and a loop that
-	 * repeated a step change what the feature ran, not what it declares, so they leave the hash as it was.
+	 * repeated a step change what the feature ran, not what it declares, so they don't change the hash.
 	 */
 	declaredStepTextHash: string;
-	/** The steps a reader can still read in full: the most recent the feature ran, and no more than that. */
+	/** The full results of the most recent steps the feature ran, up to RESULTS_READ_IN_FULL. `steps` summarizes every step. */
 	stepResults: TStepResult[];
 	failure?: { message: string; error: TAnyFixme; expected?: TAnyFixme };
 };
@@ -437,7 +445,7 @@ const BaseEvent = z.object({
 	emitter: z.string().optional().describe("Code location that emitted the event (e.g. Executor:238)"),
 	level: HaibunLogLevel.default("info").describe("Log level for filtering"),
 	accessLevel: AccessLevelSchema.optional().describe(
-		"The level of what the event may reveal: the read level of the call that emitted it, stated as it is emitted. A follower of actuality is sent it only where it may read at this level.",
+		"The access level of what the event may reveal. An event that doesn't state one takes the read level of the call that emitted it. Actuality sends the event only to a follower that may read at this level.",
 	),
 });
 
@@ -498,11 +506,11 @@ export const LogEvent = BaseEvent.extend({
 // Artifact Events - Base
 const BaseArtifact = BaseEvent.extend({
 	kind: z.literal("artifact"),
-	/** How prominently the run reports it. What a run produced is read at every level, since the row of the step that
-	 *  produced it is what shows it, so this states where it reports rather than whether a reader is shown it. */
+	/** The level of the artifact event. A view shows an artifact on the row of the step that produced it, whatever that
+	 *  step's level. This level doesn't determine whether a reader sees the artifact. */
 	level: HaibunLogLevel.default("info"),
-	// Path relative to the feature dir (e.g. "./image/x.png"). The serialized report's shu.html lives in that dir, so it
-	// references artifacts by this short relative path; `path` carries the base-relative form for the live /artifacts route.
+	// Path relative to the feature dir (e.g. "./image/x.png"). That dir contains the serialized report's shu.html, so the
+	// report references artifacts by this relative path. `path` holds the base-relative form for the live /artifacts route.
 	featureRelativePath: z.string().optional(),
 });
 
@@ -582,7 +590,7 @@ export const ArtifactEvent = z.discriminatedUnion("artifactType", [
 	FileArtifact,
 ]);
 
-/** The signal a run sends when the steps its registry holds change, so a page that read them reads them again. */
+/** The signal actuality sends when the steps its registry holds change. A page that read the steps reads them again. */
 export const STEPS_CHANGED = "steps-changed";
 
 // Control Events
@@ -605,13 +613,14 @@ export const ControlEvent = BaseEvent.extend({
 	args: z.record(z.string(), z.unknown()).optional(),
 });
 
-// Blip Events: one fine-grained occurrence, recorded where it happens and never retained by actuality. A blip shares the
-// event transport but not the audience: it is delivered only to a subscriber that asked for its kind, and it is never
-// narrated (it doesn't write a console line or reach a bare subscriber). Declarations live in lib/blips.ts.
+// Blip events: a blip records one fine-grained occurrence where it happens. Actuality doesn't retain a blip. A blip uses
+// the event transport, but actuality delivers it only to a subscriber that requested its kind. Actuality doesn't narrate a
+// blip, so a blip doesn't write a console line or reach a subscriber that doesn't list kinds. lib/blips.ts contains the
+// declarations.
 export const BlipEvent = BaseEvent.extend({
 	kind: z.literal("blip"),
 	name: z.string().describe("Declared blip name, dotted and namespaced, e.g. haibun.http.request"),
-	seqPath: z.string().optional().describe("The step actuality was executing, so an exporter attaches this to that step's span"),
+	seqPath: z.string().optional().describe("The seqPath of the step actuality was executing. An exporter attaches the blip to that step's span."),
 	value: z.number().optional().describe("The measured value, in the declaration's unit"),
 	attributes: z.record(z.string(), z.unknown()).optional(),
 });

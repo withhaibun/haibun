@@ -3,8 +3,8 @@ import { constructorName } from "./util/index.js";
 import type { TStepperOption } from "./astepper.js";
 
 /**
- * Declarative bound on a tunable option. The four kinds are deliberately
- * narrow: richer validation belongs in the option's own `parse`, not here.
+ * A declarative bound on a tunable option. The four kinds state only simple
+ * bounds. The option's own `parse` holds any further validation.
  */
 type TTunableRange =
 	| { kind: "number"; min?: number; max?: number }
@@ -13,8 +13,8 @@ type TTunableRange =
 	| { kind: "enum"; values: string[] };
 
 /**
- * How often a tunable may be changed. Enforced server-side at the
- * Development-write RPC boundary; a misbehaving client cannot bypass it.
+ * How often a tunable may be changed. getTunableOptions returns it with the
+ * option for a consumer to state or enforce. This module doesn't enforce it.
  */
 type TTunableRateLimit = {
 	maxChangesPerDay: number;
@@ -23,30 +23,28 @@ type TTunableRateLimit = {
 };
 
 /**
- * One tunable option declaration. A superset of TStepperOption, same
- * desc / parse / etc. plus range bounds, an optional rate limit, and an
- * optional capability gate.
+ * One tunable option declaration. It extends TStepperOption (desc, parse and
+ * the rest) with range bounds, an optional rate limit and an optional
+ * capability gate.
  *
- * When `requiresCapability` is omitted, the default capability name is
- * derived from the owning stepper + key via `requiredCapabilityFor`.
- * Prefer the derived name over a hard-coded literal so the gate is not
- * coupled to any particular consumer.
+ * `requiresCapability` names the capability that a change to the option
+ * requires. This module doesn't derive one where it is omitted.
  */
 export type TTunableOption = TStepperOption & { range: TTunableRange; rateLimit?: TTunableRateLimit; requiresCapability?: string };
 
 /**
- * Discovery contract: steppers that expose tunable options, options a
- * caller may propose changes to within their declared bounds, declare
- * them in a `tunables` map parallel to `options`. Non-tunable steppers
- * omit the property.
+ * The discovery contract for tunable options. A caller may propose a change
+ * to a tunable option within its declared bounds. A stepper with tunable
+ * options declares them in a `tunables` map beside `options`. A stepper
+ * without tunable options omits the property.
  */
 export interface IHasTunables {
 	tunables?: { [name: string]: TTunableOption };
 }
 
 /**
- * Enumerate every tunable declared by any stepper in the list. Steppers
- * without a `tunables` property are skipped silently.
+ * Enumerate every tunable that a stepper in the list declares. A stepper
+ * without a `tunables` property is skipped.
  */
 export function getTunableOptions(steppers: AStepper[]): Array<{ stepperName: string; key: string; meta: TTunableOption }> {
 	const out: Array<{ stepperName: string; key: string; meta: TTunableOption }> = [];

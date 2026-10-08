@@ -13,7 +13,7 @@ import { itemAt } from "../lib/util/item-at.js";
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-/** Test stepper that exposes a `start tick` step which registers a ticker that increments a counter. */
+/** The `start tick` step registers a ticker whose tick increments `tickCount`. */
 class TickHarnessStepper extends AStepper {
 	description = "Starts a ticker that counts its ticks.";
 	tickCount = 0;
@@ -40,7 +40,7 @@ class TickHarnessStepper extends AStepper {
 }
 
 describe("urakata-stepper", () => {
-	it("registers a ticker via a peer step, binds the id as a product, then stops it by id", async () => {
+	it("`stop urakata` stops a ticker by the id that another stepper's step returns as a product", async () => {
 		const result = await passWithDefaults(
 			[{ path: "/features/main.feature", content: ["set t from start tick", 'pause for "30 ms"', "stop urakata t.id", 'pause for "30 ms"'].join("\n") }],
 			[VariablesStepper, LogicStepper, Haibun, UrakataStepper, TickHarnessStepper],
@@ -54,7 +54,7 @@ describe("urakata-stepper", () => {
 		expect(harness?.tickCount).toBe(tickedDuringRun);
 	});
 
-	it("forget halts and removes; subsequent stop on the same id throws via stepper failure", async () => {
+	it("`forget urakata` stops the ticker and removes it from the registry", async () => {
 		const result = await passWithDefaults(
 			[{ path: "/features/main.feature", content: ["set t from start tick", "forget urakata t.id"].join("\n") }],
 			[VariablesStepper, LogicStepper, Haibun, UrakataStepper, TickHarnessStepper],
@@ -63,7 +63,7 @@ describe("urakata-stepper", () => {
 		expect(result.ok).toBe(true);
 	});
 
-	it("`show urakata` returns a view product whose `urakata` array matches the registry list", async () => {
+	it("`show urakata` returns `urakata-list` products whose `urakata` array holds the registry list", async () => {
 		const result = await passWithDefaults(
 			[{ path: "/features/main.feature", content: ["set t from start tick", "show urakata"].join("\n") }],
 			[VariablesStepper, LogicStepper, Haibun, UrakataStepper, TickHarnessStepper],
@@ -83,7 +83,7 @@ describe("urakata-stepper", () => {
 		expect(ticker.stoppedAt).toBeUndefined();
 	});
 
-	it("endFeature(shouldClose) halts every registered urakata", async () => {
+	it("endFeature(shouldClose) stops every registered urakata", async () => {
 		const result = await passWithDefaults([{ path: "/features/main.feature", content: "set t from start tick" }], [VariablesStepper, Haibun, UrakataStepper, TickHarnessStepper], {
 			options: { DEST: "default" },
 			moduleOptions: {},

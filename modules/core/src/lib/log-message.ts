@@ -1,12 +1,13 @@
 /**
- * LogMessage: what a run logged, as a graph individual.
+ * A LogMessage individual holds one message that actuality logged.
  *
- * A step writes itself as a SeqPath individual; what it logged while it ran is written here, under the same seqPath it
- * happened during. So one query over these and the SeqPath individuals is actuality, ordered by time and filtered by
- * level, and a second record of it doesn't exist to keep in step.
+ * A step writes itself as a SeqPath individual. Each message the step logs is written as a LogMessage that references
+ * that step's SeqPath through `isPartOf`. One query over LogMessage and SeqPath individuals returns actuality's record.
+ * The query orders it by time and filters it by level. Actuality doesn't hold a second record that has to stay
+ * consistent with this one.
  *
- * The level is declared as context, which is what makes it one of the filters offered beside the type rather than a
- * condition a reader has to write.
+ * The topology declares the level with the context rel. A view offers each context field as a filter beside the type, so a
+ * reader doesn't write a condition for the level.
  */
 import { z } from "zod";
 import { HAIBUN_LOG_LEVELS } from "../schema/protocol.js";
@@ -16,13 +17,13 @@ import { LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefin
 const LOG_MESSAGE_DOMAIN = "log-message";
 export const LOG_MESSAGE_LABEL = "LogMessage";
 
-/** LogMessage field names, shared by the schema, the topology and whatever writes one. */
+/** LogMessage field names. The schema, the topology and each writer of a LogMessage read them. */
 export const LOG_MESSAGE_FIELD = {
 	id: "id",
 	message: "message",
 	level: "level",
 	generatedAtTime: "generatedAtTime",
-	/** The actuality this was logged during. */
+	/** The id of the feature execution that logged this message. */
 	execution: EXECUTION_FIELD,
 	/** When this record was written. */
 	recordedAtTime: RECORDED_AT_TIME_FIELD,
@@ -30,12 +31,12 @@ export const LOG_MESSAGE_FIELD = {
 
 /** LogMessage edge names. */
 export const LOG_MESSAGE_EDGE = {
-	/** The step this was logged during. */
+	/** The SeqPath of the step that logged this message. */
 	isPartOf: "isPartOf",
 } as const;
 
-// Non-strict for the same reason as SeqPath: `isPartOf` is declared as an edge but written in the same upsert as the
-// properties, and strict mode would reject it before the write can route it.
+// Non-strict for the same reason as SeqPathSchema. `isPartOf` is declared as an edge, and the writer sends it in the same
+// upsert as the properties. A strict schema would reject `isPartOf` before upsertIndividual routes it to an edge.
 const LogMessageSchema = PersistedVertexSchema.extend({
 	[LOG_MESSAGE_FIELD.id]: z.string(),
 	[LOG_MESSAGE_FIELD.message]: z.string(),
@@ -47,13 +48,13 @@ const LogMessageSchema = PersistedVertexSchema.extend({
 export const logMessageDomainDefinition: TDomainDefinition = {
 	selectors: [LOG_MESSAGE_DOMAIN],
 	schema: LogMessageSchema,
-	description: "Something a run logged while a step was running: its text, how serious it was, and when. It points back at the step it was logged during.",
+	description: "A message that actuality logged while a step ran. It holds the message text, its level and the time it was generated. It references the step that logged it.",
 	topology: {
 		persistedAs: LOG_MESSAGE_LABEL,
 		id: LOG_MESSAGE_FIELD.id,
 		instrumentation: true,
-		// A reader is told a run logged something by the run logging it. This record is the durable copy of that statement,
-		// so announcing the write would report it a second time, once per field.
+		// A reader receives a logged message as a log event. This record is the durable copy of that event, so announcing
+		// the write would report the message a second time, once per field.
 		announceWrites: false,
 		properties: {
 			[LOG_MESSAGE_FIELD.id]: LinkRelations.IDENTIFIER.rel,

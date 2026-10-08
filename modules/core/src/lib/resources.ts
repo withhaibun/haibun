@@ -1,20 +1,20 @@
 /**
- * Resources: the vocabulary and topology of things stored in a graph.
+ * This module declares the vocabulary and topology of the records a graph stores.
  *
- * Answers "what is a graph resource, how is it typed, how does it link, and how is it governed?"
- * Pure declarative data: zod schemas, type aliases, vocabulary consts, and tiny pure derivations.
- * It doesn't hold runtime behavior or node built-ins, so it is browser-safe.
+ * It defines what a graph resource is, how it is typed, how it links and how access to it is governed. It holds zod
+ * schemas, type aliases, vocabulary consts, small pure derivations and write helpers over a quad store. It doesn't
+ * import node built-ins, so it runs in a browser.
  *
  * Contents:
  *   - Resource identity (id/type), Access levels, Comment vocabulary
  *   - LinkRelations + EdgePredicates: semantic labels for properties and edges (ActivityStreams / JSON-LD)
  *   - TRel / TPropertyDef / TEdgeDef / TDomainTopology: the shape of a node-type declaration
  *   - TDomainDefinition / TRegisteredDomain: how steppers register a domain
- *   - Helpers: getRel, getMediaType, edgeRel, isReplyEdge
+ *   - Helpers: getRelRange, getRelPresentation, edgeRel, isSubPropertyOf, isReplyEdge
  *   - Write helpers over a quad store: comments, annotations, and the facts a text's links state
  *
- * Grounded in JSON-LD / ActivityStreams / RDF, node label is a local handle, `type` is the
- * RDF class URI that JSON-LD emits, `id` is the IRI.
+ * The model follows JSON-LD, ActivityStreams and RDF. A node label is a local handle. `type` is the RDF class URI that
+ * JSON-LD emits. `id` is the IRI.
  */
 import { stripTrailingSlash } from "./local-origin.js";
 import { z } from "zod";
@@ -28,26 +28,26 @@ import { fromJsonText } from "./json-text.js";
 // ============================================================================
 
 /**
- * The universal shape of anything identifiable and typed.
- * `id` is the identifier (IRI in JSON-LD emission), `type` is the RDF class
- * (typically a compact IRI like "as:Document"; mapped to `@type` via JSON-LD context).
+ * The shape of every identifiable, typed record.
+ * `id` is the identifier, emitted as the IRI in JSON-LD. `type` is the RDF class, typically a compact IRI such as
+ * "as:Document", which the JSON-LD context maps to `@type`.
  *
- * Field naming follows W3C JSON-LD-based data models (unquoted `id`/`type`, as in ActivityStreams 2.0); the `@id`/`@type`
- * JSON-LD keywords are produced by the context at serialization time.
+ * Field names follow W3C JSON-LD-based data models, with unquoted `id` and `type` as in ActivityStreams 2.0. The context
+ * produces the `@id` and `@type` JSON-LD keywords at serialization time.
  */
 export const ResourceSchema = z.object({ id: z.string(), type: z.string() });
-/** Root node label: any resource. Use as edge range when the target is polymorphic. */
+/** The root node label. It stands for any resource. Use it as an edge range when the target is polymorphic. */
 export const RESOURCE_LABEL = "Resource";
 
-/** haibun's canonical vocabulary namespace: the fallback base when a serving host isn't known, and the stem a consumer
- *  publishes a sub-vocabulary beneath. A served @context binds `hbn` under the request host instead. */
+/** haibun's canonical vocabulary namespace. It is the base where a request doesn't supply a serving host, and a consumer
+ *  publishes a sub-vocabulary under it. A served @context binds `hbn` under the request host instead. */
 export const HAIBUN_NS = "https://withhaibun.github.io/ns/";
 const HAIBUN_NS_PATH = "/ns/";
 /** The @context prefix bound to the haibun namespace. Any other prefix names a separate vocabulary, not haibun's. */
 export const HAIBUN_PREFIXES = ["hbn"] as const;
 
-/** The haibun namespace under a request origin (`https://192.0.2.9:8223` → `…/ns/`), or the canonical stem when
- *  host-less. Pass to getJsonLdContext's `haibunNs`. */
+/** Returns the haibun namespace under a request origin (`https://192.0.2.9:8223` → `…/ns/`), or the canonical stem
+ *  without an origin. Pass the result to getJsonLdContext's `haibunNs`. */
 export function haibunNsForHost(baseOrigin?: string): string {
 	return baseOrigin ? `${stripTrailingSlash(baseOrigin)}${HAIBUN_NS_PATH}` : HAIBUN_NS;
 }
@@ -57,13 +57,13 @@ export function haibunNsForHost(baseOrigin?: string): string {
 // ============================================================================
 
 /**
- * Visibility policy for stored resources:
+ * The visibility policy for stored resources:
  *   - private: visible only to the resource's owner.
  *   - public: visible to everyone.
- *   - opened: private resource deliberately widened for audit; history preserves the prior state.
+ *   - opened: a private resource widened for audit. History keeps the prior state.
  *
- * Query contexts also accept `all` to mean "do not filter by access level"; this is not
- * a storage value, only a query-time relaxation.
+ * Query contexts also accept `all`, which means "do not filter by access level". `all` isn't a storage value and
+ * applies only at query time.
  */
 const ACCESS_LEVELS = ["private", "public", "opened"] as const;
 const ACCESS_QUERY_LEVELS = [...ACCESS_LEVELS, "all"] as const;
@@ -77,30 +77,31 @@ export type AccessQueryLevel = z.infer<typeof AccessQueryLevelSchema>;
 export const AccessQuery = AccessQueryLevelSchema.enum;
 
 /**
- * The base every type persisted as a vertex in a quad store declares. Every persisted type states `accessLevel`
- * in its schema and its topology, so the level of every row is known at read time: a record that doesn't state a level of
- * its own is classified by its type at write time, never wider than the level the writer sees, and a type that
- * doesn't declare the property cannot classify its records. A store's registration guard enforces the
- * declaration; this base is the declaration.
+ * The base schema that every type persisted as a vertex in a quad store extends. Every persisted type states
+ * `accessLevel` in its schema and its topology, so every row has a level at read time. A record that doesn't state a
+ * level takes its type's level at write time. That level isn't wider than the level the writer sees. A type that
+ * doesn't declare the property can't classify its records. A store's registration guard enforces the declaration, and
+ * this base schema supplies it.
  */
 export const PersistedVertexSchema = z.object({
 	accessLevel: AccessLevelSchema.optional().describe("How widely the record is shared. A record that doesn't state a level is classified by its type at write time."),
 });
-/** How much of the graph each level lets a reader see, so two of them can be compared: a reader at a level sees the
- *  records at that level and at each level narrower than it, so private sees every record and public the public ones. */
+/** Ranks how much of the graph each level lets a reader see, so two levels can be compared. A reader at a level sees
+ *  the records at that level and at each narrower level. A private reader sees every record, and a public reader sees
+ *  the public records. */
 const ACCESS_BREADTH: Record<AccessLevel, number> = { public: 0, opened: 1, private: 2 };
 
-/** Every level, the broadest first. */
+/** Every level, broadest first. */
 export const ACCESS_BROADEST_FIRST = (Object.keys(ACCESS_BREADTH) as AccessLevel[]).sort((a, b) => ACCESS_BREADTH[b] - ACCESS_BREADTH[a]);
 
-/** The narrower of two levels: what holds once something inside a scope asks for a level of its own. */
+/** Returns the narrower of the level in force and a requested level. It applies when code inside a scope requests a level of its own. */
 export function narrowerAccess(inForce: AccessLevel, asked: AccessLevel): AccessLevel {
 	return ACCESS_BREADTH[asked] < ACCESS_BREADTH[inForce] ? asked : inForce;
 }
 
-/** Whether a record at `level` is within what a read at `asked` may see: the one rule every store reads by. A record
- *  that doesn't state a level of its own isn't something the reading can judge, and is left to whatever served it to decide.
- *  A level that isn't one of the levels is refused, since a reading can't tell how widely it was meant to be shared. */
+/** Returns whether a read at `asked` may see a record at `level`. Every store applies this rule. A record that doesn't
+ *  state a level passes, and the source that served it determines its visibility. A level outside the declared levels
+ *  throws, because a read can't determine how widely the record was meant to be shared. */
 export function withinAccess(level: unknown, asked: AccessLevel): boolean {
 	if (level === undefined || level === null) return true;
 	const stated = AccessLevelSchema.safeParse(level);
@@ -108,18 +109,18 @@ export function withinAccess(level: unknown, asked: AccessLevel): boolean {
 	return ACCESS_BREADTH[stated.data] <= ACCESS_BREADTH[asked];
 }
 
-/** The levels a read at `seen` returns records at, for a store that states the rule as a query rather than a test. */
+/** Returns the levels whose records a read at `seen` returns. A store that applies the rule as a query, and not as a per-record test, calls it. */
 export function levelsWithin(seen: AccessLevel): AccessLevel[] {
 	return ACCESS_BROADEST_FIRST.filter((level) => withinAccess(level, seen));
 }
 
-/** The scope a read runs at in a store, from the level it asked for: `all` asks for every level, which a store reads
- *  at its widest. One reading, so two surfaces don't scope the same request differently. */
+/** Returns the scope a store read runs at for a requested level. `all` requests every level, and a store reads it at its
+ *  widest level. Surfaces share this function, so two surfaces don't scope the same request differently. */
 export function storeScopeFor(asked: AccessQueryLevel): AccessLevel {
 	return asked === AccessQuery.all ? Access.private : asked;
 }
 
-/** The narrower of two ceilings, either of which may be absent: absent means "not bounded by a ceiling of its own". */
+/** Returns the narrower of two ceilings. Either may be absent, and an absent ceiling doesn't bound the read. */
 export function narrowerCeiling(inForce: AccessLevel | undefined, asked: AccessLevel | undefined): AccessLevel | undefined {
 	if (!inForce) return asked;
 	if (!asked) return inForce;
@@ -131,56 +132,54 @@ export function narrowerCeiling(inForce: AccessLevel | undefined, asked: AccessL
 // ============================================================================
 
 /**
- * Free-text annotation attached to any Resource. Threads via IN_REPLY_TO.
- * The speech act is expressed as the discourse edge predicate (a sub-property
- * of inReplyTo), not as a bare superproperty. Full Zod schema and domain
- * definition live at the bottom of this file, see `CommentSchema` and
- * `commentDomainDefinition`.
+ * A free-text annotation attached to any Resource. Comments thread through IN_REPLY_TO.
+ * The discourse edge predicate expresses the speech act as a sub-property of inReplyTo and not as the bare
+ * superproperty. `CommentSchema` and `commentDomainDefinition` near the end of this file declare the full Zod schema
+ * and domain definition.
  */
 export const COMMENT_LABEL = "Comment";
 export const COMMENT_DOMAIN = "comment";
 
-/** Web Annotation node labels: the target side of an annotation (a Comment anchored inside a source). Declared here so
- *  the Comment topology can carry a `linksTo` edge to a SpecificResource; the schemas + domain definitions are below. */
+/** Web Annotation node labels for the target side of an annotation (a Comment anchored inside a source). They are
+ *  declared here so the Comment topology can carry a `linksTo` edge to a SpecificResource. Their schemas and domain
+ *  definitions follow below. */
 export const SPECIFIC_RESOURCE_LABEL = "SpecificResource";
 export const TEXT_QUOTE_SELECTOR_LABEL = "TextQuoteSelector";
 export const FRAGMENT_SELECTOR_LABEL = "FragmentSelector";
 
-/** Body: opaque content (text, JSON, anything) typed by `mediaType`. */
+/** A Body holds opaque content of any kind, such as text or JSON, typed by `mediaType`. */
 export const BODY_LABEL = "Body";
 
 const BODY_DOMAIN = "body";
-/** Edge from any resource to a Body sub-resource. */
+/** The edge from any resource to a Body sub-resource. */
 export const HAS_BODY_EDGE = "hasBody";
 
 /**
- * Reading: one reading of a text, asserting what its links state (`prov:Activity`). One per source. It names the
- * source it read (`prov:used`), actuality step that read it, and the statements it made, so reading a rewritten text
- * retracts exactly what the previous reading asserted and doesn't retract a statement a person asserted by hand.
+ * A Reading records one reading of a text that asserts what the text's links state (`prov:Activity`). Each source has
+ * one Reading. It names the source it read (`prov:used`), the step that read it and the statements it made. Reading a
+ * rewritten text then retracts the statements the previous reading asserted and doesn't retract a statement a person
+ * asserted by hand.
  */
 export const READING_LABEL = "Reading";
 const READING_DOMAIN = "reading";
 
 /**
- * SeqPath: the hierarchical step identifier reified as a graph node.
+ * A SeqPath is the hierarchical step identifier reified as a graph node.
  *
- * `featureStep.seqPath: number[]` is the per-execution hierarchical id
- * (e.g. [0,1,2,10] → "0.1.2.10"). Step dispatch emits SeqPath quads on
- * step entry/exit so any structured emission within a step's context can
- * link back to it via LinkRelations.SEQ_PATH.
+ * `featureStep.seqPath: number[]` is the per-execution hierarchical id, such as [0,1,2,10] → "0.1.2.10". Step dispatch
+ * emits SeqPath quads on step entry and exit, so any structured emission within a step's context can link back to it
+ * through LinkRelations.SEQ_PATH.
  */
 export const SEQ_PATH_LABEL = "SeqPath";
 
-/** Status values for a SeqPath node's lifecycle. */
-/** How a step's record states it stands. `stopped` is a step its caller stopped, which is not a failure. */
+/** The status values a step's SeqPath record states. `stopped` marks a step its caller stopped, and a stopped step isn't a failure. */
 export const SEQ_PATH_STATUS = { running: "running", passed: "passed", failed: "failed", stopped: "stopped" } as const;
 export type SeqPathStatus = (typeof SEQ_PATH_STATUS)[keyof typeof SEQ_PATH_STATUS];
 
 /**
- * Discourse rels: each speech act is a sub-property of `inReplyTo`.
- * The discourse value IS the edge predicate: (comment, narrate, parent).
- * Materialized entailment: writing a discourse edge also writes inReplyTo.
- * Canonical set: measure, narrate, question, play, petition, grant, deny, invoke, revoke.
+ * The discourse rels. Each speech act is a sub-property of `inReplyTo`.
+ * The discourse value is the edge predicate, as in (comment, narrate, parent).
+ * Writing a discourse edge also writes inReplyTo, which materializes the entailment.
  */
 export const DISCOURSE_RELS = ["measure", "narrate", "question", "play", "petition", "grant", "deny", "invoke", "revoke"] as const;
 export type TDiscourseRel = (typeof DISCOURSE_RELS)[number];
@@ -190,55 +189,51 @@ export type TDiscourseRel = (typeof DISCOURSE_RELS)[number];
 // ============================================================================
 
 /**
- * Link relation types: the canonical set of semantic rels for node properties and edges.
- * Declaration order determines column display priority in result tables.
+ * Link relation types are the set of semantic rels for node properties and edges.
+ * Declaration order sets column display priority in result tables.
  *
- * `range` is the RDF range of the predicate: what it points at:
- *   - "iri":       points at another resource (an IRI / node id). Renders as a navigable item.
- *   - "literal":   points at a literal value (string, number, date). Renders as a filter.
- *   - "container": points at a multi-valued structure (bag, list, or nested context).
- *                  Renders as a select/select-like control.
+ * `range` is the predicate's RDF range, the kind of value it points at:
+ *   - "iri":       another resource (an IRI or node id). Renders as a navigable item.
+ *   - "literal":   a literal value (string, number, date). Renders as a filter.
+ *   - "container": a multi-valued structure (bag, list or nested context).
+ *                  Renders as a select or select-like control.
  *
- * This is a deliberately small subset of RDFS without a reasoner or subPropertyOf, just enough
- * to let `linkRelFromSemantic` be a one-line lookup instead of a growing chain.
+ * This is a small subset of RDFS without a reasoner. It keeps `linkRelFromSemantic` a one-line lookup and not a
+ * growing chain.
  *
- * Reply/conversation semantics are modeled by per-entry `subPropertyOf: "inReplyTo"`; ancestry checks walk the chain via `isSubPropertyOf`.
+ * Reply and conversation semantics use per-entry `subPropertyOf: "inReplyTo"`, and ancestry checks walk the chain through `isSubPropertyOf`.
  */
 export type TRelRange = "iri" | "literal" | "container";
 
 /**
- * Where a property carrying this rel belongs in a resource's presentation. The
- * rel declares its bucket; renderers consume the bucket. Buckets describe
- * intent, not audience: every accessor (human, agent, LLM) gets all data;
- * the bucket only names where in the layout it goes.
- *   "summary": the resource's primary identification line (top of the card).
- *   "body", main content area; rendered as iframe / prose / structured body.
- *   "governance", control rules about the resource (accessLevel, capability
- *                  bindings). Rendered in a labelled governance section, not
- *                  mixed into content fields.
- * Rels without a presentation default to the regular field table.
+ * The section of a resource's presentation that renders a property carrying this rel. The rel declares its bucket and
+ * renderers read it. A bucket describes intent and not audience: every accessor (person, agent, LLM) receives all data,
+ * and the bucket names only the layout position.
+ *   "summary": the resource's primary identification line, at the top of the card.
+ *   "body": the main content area, rendered as an iframe, prose or a structured body.
+ *   "governance": control rules about the resource, such as accessLevel and capability bindings. They render in a
+ *                  labelled governance section and aren't mixed into content fields.
+ * A rel without a presentation renders in the regular field table.
  */
 type TRelPresentation = "summary" | "body" | "governance";
 
 /**
- * Optional per-rel metadata. RDFS-aligned:
- *   subPropertyOf: names a parent rel; the rel inherits the parent's
- *                   semantics for ancestry walks (rdfs:subPropertyOf).
- *                   Single parent.
- *   label: human-readable display name (rdfs:label). Renderers
- *                   show this in place of the raw rel string when set.
- *   icon: visual badge for the rel. Rendered next to the label
- *                   in references / threads / discourse views.
+ * Optional per-rel metadata, aligned with RDFS:
+ *   subPropertyOf: names one parent rel or several (rdfs:subPropertyOf). The rel inherits each parent's semantics
+ *                   for ancestry walks.
+ *   label: the human-readable display name (rdfs:label). Renderers show it in place of the raw rel string when it
+ *                   is set.
+ *   icon: a visual badge for the rel. Renderers show it next to the label in references, threads and discourse views.
  */
 
 export const LinkRelations = {
 	NAME: { rel: "name", uri: "as:name", range: "literal", presentation: "summary" as TRelPresentation },
-	// schema.org: the steps of a HowTo, in order, as a saved waypoint's activity holds the lines it runs.
+	// schema.org: the ordered steps of a HowTo. A saved waypoint's activity holds the lines it runs in this rel.
 	STEP: { rel: "step", uri: "schema:step", range: "container" },
 	PUBLISHED: { rel: "published", uri: "as:published", range: "literal", subPropertyOf: "ganttStart" },
 	ATTRIBUTED_TO: { rel: "attributedTo", uri: "as:attributedTo", range: "iri", subPropertyOf: "fromActor", rolePriority: 10 },
-	// The addressee of an act: a message's recipients, a question's asked party, a decision's answered party. A
-	// toActor member, so an addressed act reads as a message from its attributed agent to its audience.
+	// The addressee of an act: a message's recipients, a question's addressee, or the requester a decision responds to.
+	// It is a toActor member, so an addressed act reads as a message from its attributed agent to its audience.
 	AUDIENCE: { rel: "audience", uri: "as:to", range: "iri", subPropertyOf: "toActor", rolePriority: 45 },
 	CONTEXT: { rel: "groupedAs", uri: "as:context", range: "container" },
 	UPDATED: { rel: "updated", uri: "as:updated", range: "literal" },
@@ -251,18 +246,19 @@ export const LinkRelations = {
 	TAG: { rel: "tag", uri: "as:tag", range: "literal" },
 	IDENTIFIER: { rel: "identifier", uri: "dcterms:identifier", range: "iri" },
 	URL: { rel: "url", uri: "as:url", range: "literal" },
-	// schema.org: a work references an entity it names but is not about (schema:mentions). The edge a body-bearing
-	// individual (an email, a document) draws to each person, place, organization, or other entity extracted from it.
-	// Also the rel an untyped link states: a link whose text doesn't name a property type still indicates the text refers to what it points at.
+	// schema.org: a work references an entity it names but doesn't describe (schema:mentions). A body-bearing individual,
+	// such as an email or a document, has this edge to each person, place, organization or other entity extracted from it.
+	// An untyped link also states this rel. A link whose text doesn't name a property type still indicates that the text refers to its target.
 	MENTIONS: { rel: "mentions", uri: "schema:mentions", range: "iri" },
-	// CiTO (Citation Typing Ontology): one work citing another, and the refinement that states the citing work offers the
-	// cited passage as evidence for what it claims. A feature citing the requirement it exercises states the latter, so
-	// "which requirements are evidenced" is a query over stored facts rather than a naming convention.
+	// CiTO (Citation Typing Ontology): one work cites another. The refinement states that the citing work offers the cited
+	// passage as evidence for its statements. A feature that cites the requirement it exercises states the refinement, so
+	// "which requirements are evidenced" is a query over stored facts and not a naming convention.
 	CITES: { rel: "cites", uri: "cito:cites", range: "iri" },
 	CITES_AS_EVIDENCE: { rel: "citesAsEvidence", uri: "cito:citesAsEvidence", range: "iri", subPropertyOf: "cites" },
-	// W3C Web Annotation (oa:), anchoring an annotation inside its source. An annotating Comment's hasTarget points at
-	// an oa:SpecificResource, which names the whole document (hasSource) and the anchored segment (hasSelector → a
-	// TextQuoteSelector whose exact/prefix/suffix quote the text, so the anchor survives re-import and re-rendering).
+	// W3C Web Annotation (oa:) anchors an annotation inside its source. An annotating Comment's hasTarget points at an
+	// oa:SpecificResource. The SpecificResource names the whole document (hasSource) and the anchored segment
+	// (hasSelector). The segment is a TextQuoteSelector whose exact, prefix and suffix quote the text, so the anchor
+	// remains valid after re-import and re-rendering.
 	HAS_SOURCE: { rel: "hasSource", uri: "oa:hasSource", range: "iri" },
 	HAS_SELECTOR: { rel: "hasSelector", uri: "oa:hasSelector", range: "iri" },
 	EXACT: { rel: "exact", uri: "oa:exact", range: "literal", presentation: "summary" as TRelPresentation },
@@ -272,28 +268,29 @@ export const LinkRelations = {
 	// specification it names (dcterms:conformsTo) defines: a PDF's page, a span of audio or video, a region of an image.
 	VALUE: { rel: "value", uri: "rdf:value", range: "literal", presentation: "summary" as TRelPresentation },
 	CONFORMS_TO: { rel: "conformsTo", uri: "dcterms:conformsTo", range: "iri" },
-	// A linking annotation (oa:motivation oa:linking): the note anchored at one passage points at another spot in the
-	// same source: a cross-reference. Modeled as an edge from the annotating Comment to the linked SpecificResource, so
-	// a reader following the note jumps to the section it references.
+	// A linking annotation (oa:motivation oa:linking) is a cross-reference. The note anchored at one passage points at
+	// another passage in the same source. It is an edge from the annotating Comment to the linked SpecificResource, so a
+	// reader who follows the note reaches the section it references.
 	LINKS_TO: { rel: "linksTo", uri: "oa:hasBody", range: "iri" },
 	// PROV-O: provenance and lineage
-	// Entity → the responsible Agent (the party a node is attributed to, or its producing instance). The canonical
-	// provenance attribution edge; a role attribution (subPropertyOf inRoleOf: the broad role super-property defined
-	// below), so it is one of the predicates the polymorphic view's HypermediaRole grouping axis derives (see roleRels).
+	// Entity → the responsible Agent: the party a node is attributed to, or the instance that produced it. It is the
+	// provenance attribution edge. It is a role attribution through fromActor, and fromActor is a sub-property of the
+	// broad role super-property inRoleOf below. The polymorphic view's HypermediaRole grouping axis therefore derives it
+	// (see roleRels).
 	WAS_ATTRIBUTED_TO: { rel: "wasAttributedTo", uri: "prov:wasAttributedTo", range: "iri", subPropertyOf: "fromActor", rolePriority: 20 },
 	WAS_GENERATED_BY: { rel: "wasGeneratedBy", uri: "prov:wasGeneratedBy", range: "iri" },
-	// What an activity read to do its work. A Derivation names the text whose links it turned into statements.
+	// What an activity read to do its work. A Reading names the text whose links it turned into statements.
 	USED: { rel: "used", uri: "prov:used", range: "iri" },
-	// The statements a reading asserted, recorded so a later reading of the same source retracts exactly them.
+	// The statements a reading asserted. A later reading of the same source retracts these statements.
 	STATED: { rel: "stated", uri: "hbn:stated", range: "container" },
 	WAS_INFORMED_BY: { rel: "wasInformedBy", uri: "prov:wasInformedBy", range: "iri", subPropertyOf: "inReplyTo" },
 	INVALIDATED: { rel: "invalidated", uri: "prov:invalidated", range: "iri", subPropertyOf: "inReplyTo" },
 	WAS_STARTED_BY: { rel: "wasStartedBy", uri: "prov:wasStartedBy", range: "iri", subPropertyOf: "inReplyTo" },
 	STARTED_AT_TIME: { rel: "startedAtTime", uri: "prov:startedAtTime", range: "literal", subPropertyOf: "ganttStart" },
 	ENDED_AT_TIME: { rel: "endedAtTime", uri: "prov:endedAtTime", range: "literal", subPropertyOf: "ganttEnd" },
-	// When the system generated this entity's representation: the required "when" field on every persisted object (distinct from as:published, which is the content's own time).
+	// The time the system generated this entity's representation. Every persisted object requires it. as:published holds the content's own time.
 	GENERATED_AT_TIME: { rel: "generatedAtTime", uri: "prov:generatedAtTime", range: "literal" },
-	/** When a record was written, or last written again: what a reader following a run asks for what happened by. */
+	/** The time a record was written, or last rewritten. A reader following actuality orders its records by this time. */
 	RECORDED_AT_TIME: { rel: "recordedAtTime", uri: "hbn:recordedAtTime", range: "literal" },
 	// SOSA / W3C SSN, observation and sensing
 	PHENOMENON_TIME: { rel: "phenomenonTime", uri: "sosa:phenomenonTime", range: "literal" },
@@ -304,16 +301,16 @@ export const LinkRelations = {
 	// schema.org: action outcomes
 	SCHEMA_OBJECT: { rel: "schemaObject", uri: "schema:object", range: "literal" },
 	SCHEMA_RESULT: { rel: "schemaResult", uri: "schema:result", range: "literal" },
-	// schema.org: why an action failed, where it failed.
+	// schema.org: the reason an action failed, stated on that action.
 	ERROR: { rel: "error", uri: "schema:error", range: "literal" },
 	REPLACEE: { rel: "replacee", uri: "schema:replacee", range: "literal" },
 	REPLACEMENT: { rel: "replacement", uri: "schema:replacement", range: "literal" },
 	ACTION_STATUS: { rel: "actionStatus", uri: "schema:actionStatus", range: "literal" },
 	PART_OF: { rel: "isPartOf", uri: "schema:isPartOf", range: "iri" },
 	PRECEDED_BY: { rel: "precededBy", uri: "hbn:precededBy", range: "iri" },
-	// Scheduling / Gantt, task timing, effort, and dependencies. Concrete rels declare themselves under the gantt-*
-	// upper concepts, so a paint recognises schedulable data via isSubPropertyOf regardless of which concrete
-	// vocabulary (PROV, schema, hbn) supplied each field.
+	// Scheduling and Gantt rels for task timing, effort and dependencies. Concrete rels declare a gantt-* upper concept as
+	// their parent, so a paint recognises schedulable data through isSubPropertyOf. The concrete vocabulary (PROV, schema,
+	// hbn) that supplied each field doesn't matter.
 	GANTT_START: { rel: "ganttStart", uri: "hbn:ganttStart", range: "literal" },
 	GANTT_END: { rel: "ganttEnd", uri: "hbn:ganttEnd", range: "literal" },
 	GANTT_DURATION: { rel: "ganttDuration", uri: "hbn:ganttDuration", range: "literal" },
@@ -322,7 +319,7 @@ export const LinkRelations = {
 	DURATION: { rel: "duration", uri: "schema:duration", range: "literal", subPropertyOf: "ganttDuration" },
 	EFFORT: { rel: "effort", uri: "hbn:effort", range: "literal", subPropertyOf: "ganttEffort" },
 	DEPENDS_ON: { rel: "dependsOn", uri: "hbn:dependsOn", range: "iri", subPropertyOf: "ganttDepends" },
-	// Haibun native, discourse speech acts, each a sub-property of inReplyTo
+	// haibun-native discourse speech acts. Each is a sub-property of inReplyTo.
 	MEASURE: { rel: "measure", uri: "hbn:measure", range: "iri", subPropertyOf: "inReplyTo", label: "Measure", icon: "📊" },
 	NARRATE: { rel: "narrate", uri: "hbn:narrate", range: "iri", subPropertyOf: "inReplyTo", label: "Narrate", icon: "💬" },
 	QUESTION: { rel: "question", uri: "hbn:question", range: "iri", subPropertyOf: "inReplyTo", label: "Question", icon: "❓" },
@@ -332,33 +329,33 @@ export const LinkRelations = {
 	DENY: { rel: "deny", uri: "hbn:deny", range: "iri", subPropertyOf: "inReplyTo", label: "Deny", icon: "⛔" },
 	INVOKE: { rel: "invoke", uri: "hbn:invoke", range: "iri", subPropertyOf: "inReplyTo", label: "Invoke", icon: "⚡" },
 	REVOKE: { rel: "revoke", uri: "hbn:revoke", range: "iri", subPropertyOf: "inReplyTo", label: "Revoke", icon: "↩️" },
-	// Haibun native, other
+	// Other haibun-native rels
 	SEQ_PATH: { rel: "seqPath", uri: "hbn:seqPath", range: "iri" },
-	// Where a step was written: the feature document it came from, as the path a reader can open. A literal location,
-	// not the step's identity: the identity is its seqPath id, and a second `identifier` on one record stated the
-	// record had two names.
+	// The feature document a step was written in, as a path a reader can open. It is a literal location and not the
+	// step's identity. The step's identity is its seqPath id. A second `identifier` on one record would state that the
+	// record has two names.
 	SOURCE_PATH: { rel: "sourcePath", uri: "hbn:sourcePath", range: "literal" },
-	// What ran for a step: the stepper and action, as `Stepper.action`. Its TEXT states what was asked for; this states what was called.
+	// The stepper and action that ran for a step, as `Stepper.action`. The step's text states the request, and this rel states the call.
 	CALLED: { rel: "called", uri: "hbn:called", range: "literal" },
 	HOST_ID: { rel: "hostId", uri: "hbn:hostId", range: "literal" },
-	/** How a step reached what ran it: in this process or in another host. */
+	/** Whether a step ran in this process or on another host. */
 	RAN_VIA: { rel: "ranVia", uri: "hbn:ranVia", range: "literal" },
-	/** The host that ran a step, where another one did. */
+	/** The host that ran a step when another host ran it. */
 	RAN_ON: { rel: "ranOn", uri: "hbn:ranOn", range: "literal" },
 	ACCESS_LEVEL: { rel: "accessLevel", uri: "hbn:accessLevel", range: "literal", presentation: "governance" as TRelPresentation },
 	MEASUREMENT_KIND: { rel: "measurementKind", uri: "hbn:measurementKind", range: "literal" },
 	SHAPE_DIGEST: { rel: "shapeDigest", uri: "hbn:shapeDigest", range: "container" },
 	OUTCOME_REASON: { rel: "outcomeReason", uri: "hbn:outcomeReason", range: "literal" },
-	// RDFS terminology, used by Property nodes to describe rels themselves.
+	// RDFS terms. Property nodes describe rels with them.
 	SUB_PROPERTY_OF: { rel: "subPropertyOf", uri: "rdfs:subPropertyOf", range: "iri" },
 	LABEL: { rel: "label", uri: "rdfs:label", range: "literal" },
 	RANGE: { rel: "range", uri: "rdfs:range", range: "literal" },
 	ICON: { rel: "icon", uri: "hbn:icon", range: "literal" },
 	PRESENTATION: { rel: "presentation", uri: "hbn:presentation", range: "literal" },
-	// W3C Security (sec:), controllers, delegation, key material, proofs (DID + zcap-LD vocabulary)
+	// W3C Security (sec:): controllers, delegation, key material and proofs (DID and zcap-LD vocabulary)
 	CONTROLLER: { rel: "controller", uri: "sec:controller", range: "iri" },
-	/** An endpoint a principal publishes: what a reader reaches the deployment by, which is how DID Core states the
-	 *  services a controller offers. */
+	/** An endpoint a principal publishes. A reader reaches the deployment through it. DID Core states a controller's
+	 *  services this way. */
 	SERVICE: { rel: "service", uri: "did:service", range: "iri" },
 	ALLOWED_ACTION: { rel: "allowedAction", uri: "sec:allowedAction", range: "literal", presentation: "governance" as TRelPresentation },
 	CAPABILITY_ACTION: { rel: "capabilityAction", uri: "sec:capabilityAction", range: "literal", presentation: "governance" as TRelPresentation },
@@ -366,54 +363,55 @@ export const LinkRelations = {
 	EXPIRES: { rel: "expires", uri: "sec:expiration", range: "literal" },
 	REVOKED: { rel: "revoked", uri: "sec:revoked", range: "literal", presentation: "governance" as TRelPresentation },
 	PROOF: { rel: "proof", uri: "sec:proof", range: "iri" },
-	// A record's validity window, general haibun-native terms (a permit, an offer, a certificate: anything can carry
-	// one). A consumer whose standard names its own validity terms keeps these rels for behaviour and overrides the
-	// served IRI per field (TTermPropertyDef).
+	// A record's validity window in general haibun-native terms. Any record can carry one, such as a permit, an offer or a
+	// certificate. A consumer whose standard names its own validity terms keeps these rels for behaviour and overrides
+	// the served IRI per field (TTermPropertyDef).
 	VALID_FROM: { rel: "validFrom", uri: "hbn:validFrom", range: "literal" },
 	VALID_UNTIL: { rel: "validUntil", uri: "hbn:validUntil", range: "literal" },
-	// Role attribution super-property: the BROAD term that gathers every predicate naming the party a node is attributed
-	// to. Broader than prov:wasAttributedTo: a role target need not be a prov:Agent (an artifact published to a registry
-	// groups under that REGISTRY, a publication target, not an agent), so prov:wasAttributedTo is itself a SUB-property
-	// of this rather than the other way round. The role grouping axis derives its predicate set as "every rel declared
-	// subPropertyOf inRoleOf" (roleRels below) plus every consumer edge declared with an actor rel, ontology-driven,
-	// never a hand-kept array.
+	// The role attribution super-property. It is the broad term over every predicate that names the party a node is
+	// attributed to. It is broader than prov:wasAttributedTo because a role target need not be a prov:Agent. An artifact
+	// published to a registry groups under that registry, which is a publication target and not an agent. So
+	// prov:wasAttributedTo is a sub-property of inRoleOf and not the reverse. The role grouping axis derives its predicate
+	// set from every rel declared subPropertyOf inRoleOf (roleRels below) and every consumer edge declared with an actor
+	// rel. The ontology determines the set, and a hand-kept array doesn't.
 	IN_ROLE_OF: { rel: "inRoleOf", uri: "hbn:inRoleOf", range: "iri", abstract: true },
-	// Directional actor super-properties under inRoleOf: the ORIENTATION the grouping axis doesn't need but a sequence
-	// does. fromActor = the source/origin actor an entity is FROM (its creator/sender/responsible agent); toActor = the
-	// destination/audience actor it is TO (its subject/recipient/registry). Both subPropertyOf inRoleOf, so every concrete
-	// actor rel that declares under one is STILL a role rel (roleRels derives transitively): the split only ADDS direction,
-	// it doesn't remove a role rel. An Actor is a prov:Agent ≡ as:Actor ≡ foaf:Agent. Generic across vocabularies: a sequence reads
-	// any entity carrying a fromActor AND a toActor as a message source→target, without per-type knowledge.
-	// Abstract: never a written edge label, only a classification target (like inRoleOf). These are the UPPER ONTOLOGY
-	// POINTERS a consumer's domain declaration uses: an edge declared `{ rel: "fromActor", iri: "<its own term>" }`
-	// classifies under the pointer while serving its genuine vocabulary IRI, so consumer vocabularies never appear here.
+	// Directional actor super-properties under inRoleOf. A sequence needs the direction, and the grouping axis doesn't.
+	// fromActor is the source actor of an entity: its creator, sender or responsible agent. toActor is the destination
+	// actor: its subject, recipient, audience or registry. Both are sub-properties of inRoleOf, so every concrete actor rel
+	// declared under one is also a role rel, because roleRels derives transitively. The split adds direction and doesn't
+	// remove a role rel. An Actor is a prov:Agent ≡ as:Actor ≡ foaf:Agent. Across vocabularies, a sequence reads any entity
+	// that carries a fromActor and a toActor as a message from source to target, without per-type rules.
+	// Both are abstract. Each is a classification target like inRoleOf and never a written edge label. A consumer's domain
+	// declaration uses them as upper ontology pointers. An edge declared `{ rel: "fromActor", iri: "<its own term>" }`
+	// classifies under the pointer and serves its own vocabulary IRI, so consumer vocabularies don't appear here.
 	FROM_ACTOR: { rel: "fromActor", uri: "hbn:fromActor", range: "iri", subPropertyOf: "inRoleOf", abstract: true },
 	TO_ACTOR: { rel: "toActor", uri: "hbn:toActor", range: "iri", subPropertyOf: "inRoleOf", abstract: true },
-	// Concrete general actor rels. The graph edge LABEL a stepper writes IS the rel string (the role merge matches the
-	// quad predicate = the edge label). Each declares its DIRECTION (fromActor = source, toActor = destination) and its
-	// rolePriority: when a node carries several role edges, the highest-priority one names its container/lane (a VIEW
-	// ordering shared with consumer-declared edges, which carry their own rolePriority in their domain declarations).
+	// Concrete general actor rels. The graph edge label a stepper writes is the rel string, because the role merge
+	// matches the quad predicate against the edge label. Each rel declares its direction (fromActor for the source,
+	// toActor for the destination) and its rolePriority. The highest-priority role edge names a node's container or lane
+	// when the node carries several. Consumer-declared edges share this view ordering and carry their own rolePriority
+	// in their domain declarations.
 	PERFORMED_BY: { rel: "performedBy", uri: "prov:wasAssociatedWith", range: "iri", subPropertyOf: "fromActor", rolePriority: 40 },
 	AUTHOR: { rel: "author", uri: "schema:author", range: "iri", subPropertyOf: "fromActor", rolePriority: 30 },
-	// The generic DESTINATION actor: the party/point an activity is directed to (a request → the endpoint it calls). The
-	// only concrete core `toActor` rel, consumers declare their own (cred:credentialSubject, …); a sequence reads it as
-	// the lifeline a message is directed to.
+	// The general destination actor: the party or point that receives an activity, such as the endpoint a request calls.
+	// Consumers declare their own `toActor` rels (cred:credentialSubject, …). A sequence reads it as the lifeline that
+	// receives a message.
 	AS_TARGET: { rel: "target", uri: "as:target", range: "iri", subPropertyOf: "toActor", rolePriority: 40 },
-	// The direct object of an act: the thing it acted ON (an edit's file), as distinct from who it is addressed to
-	// (audience) and where it is directed (target).
+	// The direct object of an act, such as an edit's file. audience holds the act's addressee and target holds its
+	// destination.
 	AS_OBJECT: { rel: "object", uri: "as:object", range: "iri", subPropertyOf: "toActor", rolePriority: 50 },
 } as const;
 
-/** Every declared relation, keyed by its rel. Built once: a rel is looked up on every projected property of every
- *  record, and each lookup walked the whole vocabulary. */
+/** Every declared relation, keyed by its rel. It is built once because every projected property of every record looks
+ *  up its rel, and a lookup would otherwise scan the whole vocabulary. */
 const RELATION_BY_REL: ReadonlyMap<string, (typeof LinkRelations)[keyof typeof LinkRelations]> = new Map(Object.values(LinkRelations).map((entry) => [entry.rel, entry]));
 
-/** Lookup a rel's RDF range. Returns undefined for unknown rels. */
+/** Returns a rel's RDF range, or undefined for an undeclared rel. */
 export function getRelRange(rel: string): TRelRange | undefined {
 	return RELATION_BY_REL.get(rel)?.range;
 }
 
-/** Lookup a rel's presentation hint, if declared. Clients render `body` / `system` rels outside the default field-table path; everything else is a regular field cell. */
+/** Returns a rel's declared presentation hint. Clients render a rel that declares one outside the default field table. Other rels render as regular field cells. */
 export function getRelPresentation(rel: string): TRelPresentation | undefined {
 	return (RELATION_BY_REL.get(rel) as { presentation?: TRelPresentation } | undefined)?.presentation;
 }
@@ -425,7 +423,7 @@ export const REL_CONTEXT: Record<TRel, string> = Object.fromEntries(Object.value
 
 /**
  * Standard edge predicates for graph nodes.
- * Each carries its LinkRelation rel: the single source of truth for predicate→rel resolution.
+ * Each carries its LinkRelation rel, and predicate→rel resolution reads only this map.
  * Steppers use these as edge keys in getConcerns().edges and in createEdge() calls.
  */
 export const EdgePredicates = {
@@ -456,29 +454,29 @@ export const EdgePredicates = {
 
 type TEdgePredicate = keyof typeof EdgePredicates;
 
-/** Edge predicate name strings, use `EDGE.from` instead of `"from"`. */
+/** Edge predicate name strings. Use `EDGE.from` instead of `"from"`. */
 export const EDGE: { [K in TEdgePredicate]: K } = Object.fromEntries(Object.keys(EdgePredicates).map((k) => [k, k])) as {
 	[K in TEdgePredicate]: K;
 };
 
-/** Resolve a predicate name to its rel. */
+/** Resolves a predicate name to its rel. */
 export function edgeRel(predicate: string): TRel | undefined {
 	return (EdgePredicates as Record<string, { rel: TRel }>)[predicate]?.rel;
 }
 
-/** A rel's declared parents (rdfs:subPropertyOf). A rel may sit under MORE THAN ONE upper concept, so this is a set:
- *  `subPropertyOf` accepts a single rel or an array, and both forms normalise to a list here. Empty when the rel doesn't declare a parent. */
+/** Returns a rel's declared parents (rdfs:subPropertyOf). A rel may declare more than one upper concept as its parent.
+ *  `subPropertyOf` accepts a single rel or an array, and both forms normalise to a list. Returns an empty list when the rel doesn't declare a parent. */
 function superPropertiesOf(rel: string): string[] {
 	const sp = (RELATION_BY_REL.get(rel) as { subPropertyOf?: string | string[] } | undefined)?.subPropertyOf;
 	return sp === undefined ? [] : Array.isArray(sp) ? sp : [sp];
 }
 
 /**
- * RDFS-style ancestry check: returns true if `rel` is `ancestorRel` or transitively reaches it via `subPropertyOf`
- * links. `subPropertyOf` is many-valued (a rel can be a sub-property of several upper concepts at once, e.g. a
- * start-date rel that is both a temporal instant AND a gantt-start), so this walks the parent DAG, not a single chain.
- * Generic: the same machinery serves any rel hierarchy, not just reply semantics. Cycle-guarded: a self-referential
- * or looping `subPropertyOf` graph terminates without recursing forever.
+ * An RDFS-style ancestry check. Returns true if `rel` is `ancestorRel` or reaches it transitively through
+ * `subPropertyOf` links. `subPropertyOf` is many-valued: a rel can be a sub-property of several upper concepts, such as
+ * a start-date rel that is both a temporal instant and a gantt start. This walks the parent DAG and not a single chain.
+ * It applies to any rel hierarchy, not only reply semantics. The `seen` set ends the walk on a self-referential or
+ * cyclic `subPropertyOf` graph.
  */
 export function isSubPropertyOf(rel: string, ancestorRel: string): boolean {
 	const seen = new Set<string>();
@@ -494,9 +492,8 @@ export function isSubPropertyOf(rel: string, ancestorRel: string): boolean {
 }
 
 /**
- * Check if an edge type (predicate name or rel) is a reply-type link.
- * Resolves predicate names via EdgePredicates, then walks the
- * `subPropertyOf` chain to `inReplyTo`.
+ * Returns whether an edge type (predicate name or rel) is a reply-type link. It walks the `subPropertyOf` chain to
+ * `inReplyTo` from the type as a rel, then from the rel that EdgePredicates resolves for the type as a predicate name.
  */
 export function isReplyEdge(edgeType: string): boolean {
 	const target = LinkRelations.IN_REPLY_TO.rel;
@@ -505,20 +502,9 @@ export function isReplyEdge(edgeType: string): boolean {
 	return rel ? isSubPropertyOf(rel, target) : false;
 }
 
-/**
- * The ontology-derived ROLE-ATTRIBUTION predicate set: every CORE rel declared `subPropertyOf` the broad role
- * super-property `inRoleOf` (performedBy, author, wasAttributedTo, attributedTo, …). Declaring a new core role
- * predicate is a single `subPropertyOf: "inRoleOf"` in LinkRelations, and doesn't need an entry here; a CONSUMER's role
- * predicates never appear here: they classify through their domain declarations' edges (rel = an actor upper pointer),
- * merged with this set by the client's rels-cache. The role merge reads the merged set to merge each node's
- * HypermediaRole (the party it is attributed to) and to form the role containers / swimlanes.
- *
- * The set is UNORDERED (a Set); priority for a node carrying several role edges rides each entry's declared rolePriority.
- * `inRoleOf` itself is excluded: it is the abstract super-property, never a written edge label.
- */
-/** The concrete (non-abstract) rels transitively `subPropertyOf` `target`: the ontology-derived predicate set for an
- *  upper concept. Abstract concepts (inRoleOf, fromActor, toActor) are excluded: they classify, they are never a written
- *  edge label. The shared kernel for roleRels / fromActorRels / toActorRels. */
+/** Returns the concrete (non-abstract) rels that are transitively `subPropertyOf` `target`. This is the
+ *  ontology-derived predicate set for an upper concept. Abstract concepts (inRoleOf, fromActor, toActor) are excluded
+ *  because they classify and are never a written edge label. roleRels, fromActorRels and toActorRels call it. */
 function concreteSubRelsOf(target: string): ReadonlySet<string> {
 	const set = new Set<string>();
 	for (const entry of Object.values(LinkRelations)) {
@@ -528,18 +514,30 @@ function concreteSubRelsOf(target: string): ReadonlySet<string> {
 	return set;
 }
 
+/**
+ * Returns the ontology-derived role-attribution predicate set. It holds every core rel that is transitively
+ * `subPropertyOf` the broad role super-property `inRoleOf` (performedBy, author, wasAttributedTo, attributedTo, …). A
+ * new core role predicate declares `subPropertyOf` in LinkRelations and doesn't need an entry here. A consumer's role
+ * predicates don't appear here. They classify through the edges of their domain declarations, whose rel is an actor
+ * upper pointer, and the client's rels-cache merges them with this set. The role merge reads the merged set to assign
+ * each node's HypermediaRole (the party it is attributed to) and to form the role containers and swimlanes.
+ *
+ * The set is unordered. Each entry's declared rolePriority orders a node's role edges when the node carries several.
+ * The abstract `inRoleOf` is excluded because it is never a written edge label.
+ */
 export function roleRels(): ReadonlySet<string> {
 	return concreteSubRelsOf(LinkRelations.IN_ROLE_OF.rel);
 }
 
-/** The SOURCE-side actor rels (issuer/holder/author/performedBy/attributedTo/wasAttributedTo): every concrete rel under
- *  `fromActor`. A sequence reads an entity's fromActor as the lifeline it originates from. */
+/** Returns the source-side core actor rels (author, performedBy, attributedTo, wasAttributedTo): every concrete core
+ *  rel under `fromActor`. Consumer edges such as issuer and holder classify through their domain declarations. A
+ *  sequence reads an entity's fromActor as the lifeline that sends a message. */
 export function fromActorRels(): ReadonlySet<string> {
 	return concreteSubRelsOf(LinkRelations.FROM_ACTOR.rel);
 }
 
-/** The TARGET-side actor rels: every concrete CORE rel under `toActor` (consumer edges classify via their domain
- *  declarations). A sequence reads an entity's toActor as the lifeline a message is directed to. */
+/** Returns the target-side actor rels: every concrete core rel under `toActor`. Consumer edges classify through their
+ *  domain declarations. A sequence reads an entity's toActor as the lifeline that receives a message. */
 export function toActorRels(): ReadonlySet<string> {
 	return concreteSubRelsOf(LinkRelations.TO_ACTOR.rel);
 }
@@ -549,26 +547,24 @@ export function toActorRels(): ReadonlySet<string> {
 // ============================================================================
 
 /**
- * Property definition. The plain-string form (`TRel`) declares a property's
- * rel and that's it. The object form is for content-shaped properties: it
- * declares the rel along with the Body sub-resource's media type (and an
- * optional discriminating `kind`). At upsert time, the writer partitions
- * such fields out of the parent into Body sub-resources linked via hasBody.
+ * A content property definition. The plain-string form (`TRel`) declares only a property's rel. The object form
+ * declares a content-shaped property: its rel, the Body sub-resource's media type and an optional discriminating
+ * `kind`. The writer partitions such fields from the parent into Body sub-resources linked through hasBody at upsert
+ * time.
  *
- * The object form keeps each content field's declaration in one place,
- * matching the JSON-LD model where mediaType is data on the Body resource
- * itself rather than on the parent's stored state.
+ * The object form keeps each content field's declaration in one place. It matches the JSON-LD model, where mediaType
+ * is data on the Body resource and not on the parent's stored state.
  *
- * `kind` distinguishes multiple bodies of the same media type on one parent
- * (e.g. a Proposal carrying both rationale and proposedAction in markdown).
+ * `kind` distinguishes several bodies of one media type on one parent, such as a Proposal that carries both rationale
+ * and proposedAction in markdown.
  */
 type TContentPropertyDef = { rel: "content"; mediaType: string; kind?: string; iri?: string };
 
 /**
- * A property whose genuine vocabulary IRI is not its rel's default. The rel still drives behaviour (sort, facet,
- * presentation), but the served `@context` maps the field to `iri`, so a standards-conformant field carries its real
- * term (e.g. a consumer field `dueDate` → `ex:dueDate` under the consumer's declared prefix) instead of the placeholder
- * IRI a catch-all rel would give it. `iri` is a CURIE whose prefix the context declares (topology.namespaces).
+ * A property whose vocabulary IRI isn't its rel's default. The rel still determines behaviour (sort, facet,
+ * presentation). The served `@context` maps the field to `iri`, so a standards-conformant field carries its own term
+ * instead of the placeholder IRI of a catch-all rel. For example, a consumer field `dueDate` maps to `ex:dueDate` under
+ * the consumer's declared prefix. `iri` is a CURIE whose prefix the context declares (topology.namespaces).
  */
 export type TTermPropertyDef = { rel: TRel; iri: string };
 
@@ -578,74 +574,71 @@ export function isContentPropertyDef(def: TPropertyDef | undefined): def is TCon
 	return typeof def === "object" && def !== null && def.rel === "content";
 }
 
-/** The genuine vocabulary IRI a property declares (TTermPropertyDef), if any, else undefined (its rel's IRI is used). */
+/** Returns the vocabulary IRI a property declares (TTermPropertyDef), or undefined where it doesn't declare one and its rel's IRI applies. */
 export function propertyIriOf(def: TPropertyDef | undefined): string | undefined {
 	return typeof def === "object" && def !== null && "iri" in def ? def.iri : undefined;
 }
 
-/** The types an edge may point at. */
+/** Returns the types an edge's range lists. */
 export const edgeRanges = (edge: { range: string | string[] }): string[] => (Array.isArray(edge.range) ? edge.range : [edge.range]);
 
-/** Edge definition: target node type. The rel is resolved from EdgePredicates[key]; override with explicit rel for
- *  domain-specific edges not in the canonical set. A consumer vocabulary's edge declares an UPPER ONTOLOGY POINTER as
- *  its rel (e.g. `fromActor`/`toActor`) with `iri` carrying its genuine term: the edge KEY is the written edge label,
- *  the rel classifies it, the iri serves it. `rolePriority` orders actor edges when a node carries several (highest
- *  names its container/lane), same scale as the core rels' declared rolePriority. */
+/** An edge definition and its target node type. The rel resolves from EdgePredicates[key]. A domain-specific edge
+ *  outside the standard set states an explicit rel. A consumer vocabulary's edge declares an upper ontology pointer as
+ *  its rel, such as `fromActor` or `toActor`, and `iri` carries its own term. The edge key is the written edge label,
+ *  the rel classifies it and the iri serves it. `rolePriority` orders actor edges when a node carries several, and the
+ *  highest names its container or lane. It uses the same scale as the core rels' declared rolePriority. */
 export type TEdgeDef = {
-	/** The type the edge points at, or each type it may point at where it points at more than one. */
+	/** The edge's target type, or each type it may target where it has more than one. */
 	range: string | string[];
 	rel?: TRel;
 	iri?: string;
 	rolePriority?: number;
 	label?: string;
-	/** The noun a party displays under when it is this edge's TARGET: `X issuer→ P` makes P an "Issuer". A view reads
-	 *  it from the projection, so what a party is CALLED is declared with the edge that makes it one. */
+	/** The noun that names this edge's target party: `X issuer→ P` makes P an "Issuer". A view reads it from the
+	 *  projection, so the edge that gives a party its role also declares the role's name. */
 	roleNoun?: string;
 };
 
 /**
- * Per-property domain ranges. Maps a schema field name to another registered
- * domain key, declaring "values of this field range over instances of that
- * domain." This is the haibun equivalent of SHACL's `sh:node` / RDFS's
- * `rdfs:range`: a structural claim about what kind of thing a property
- * carries, read by the goal resolver to decompose composite inputs into their
- * typed component goals and by the chain view to emit field nodes.
+ * Per-property domain ranges. Each entry maps a schema field name to another registered domain key and declares that
+ * the field's values range over instances of that domain. This is haibun's equivalent of SHACL's `sh:node` and RDFS's
+ * `rdfs:range`. It states the kind of value a property carries. The goal resolver reads it to decompose composite
+ * inputs into their typed component goals, and the chain view reads it to emit field nodes.
  *
- * Distinct from `THypermediaTopology.edges`: edges declare outgoing graph edges
- * keyed by predicate name (with their own rel + range); ranges annotate the
- * scalar / nested-object schema fields already enumerated in `properties`
- * with their declared domain. A field without a ranges entry is treated as
- * primitive by the resolver (resolves to an `argument` binding).
+ * It differs from `THypermediaTopology.edges`. Edges declare outgoing graph edges keyed by predicate name, with their
+ * own rel and range. Ranges annotate the scalar and nested-object schema fields that `properties` lists with their
+ * declared domain. The resolver treats a field without a ranges entry as primitive and resolves it to an `argument`
+ * binding.
  */
 type TDomainRanges = Record<string, string>;
 
 /**
- * Hypermedia topology, fully describes a persisted domain. Required together:
- * `persistedAs`, `id`, `properties`. The hypermedia builder validates these
- * (presence of an identifier rel, a published rel, etc.).
+ * The hypermedia topology that describes a persisted domain. `persistedAs`, `id` and `properties` are required
+ * together. The hypermedia builder validates them, such as the presence of an identifier rel and a published rel.
  */
 export type THypermediaTopology = {
 	persistedAs: string;
 	type?: string;
 	/**
-	 * @context prefix→IRI bindings this type's own vocabulary needs, for any prefix beyond the standards and haibun's own
-	 * that core declares. A consumer whose @type or rel IRI uses `foo:Bar` declares `foo` here; getJsonLdContext merges it
-	 * into the served context.
+	 * The @context prefix→IRI bindings this type's vocabulary needs beyond the standard prefixes and haibun's own that
+	 * core declares. A consumer whose @type or rel IRI uses `foo:Bar` declares `foo` here. getJsonLdContext merges it into
+	 * the served context.
 	 */
 	namespaces?: Record<string, string>;
 	/**
-	 * The published standard @context(s) this type conforms to (absolute URLs of the standard's context document). The served
-	 * type-scoped @context references them as a JSON-LD 1.1 array (URLs first, this type's own field terms last so haibun's
-	 * definitions win on any collision), so the type's full standard vocabulary is expressible; the schema-graph projection
-	 * enumerates their terms to show every property a conforming instance may carry, marking which are absent from the data.
+	 * The published standard @context documents this type conforms to, as absolute URLs. The served type-scoped
+	 * @context references them as a JSON-LD 1.1 array. The URLs come first and this type's own field terms last, so
+	 * haibun's definitions take precedence on a collision and the type's full standard vocabulary is expressible. The
+	 * schema-graph projection enumerates their terms to show every property a conforming instance may carry and marks
+	 * each one that is absent from the data.
 	 */
 	standardContexts?: string[];
 	/**
-	 * rdfs:subClassOf: superclass IRI(s) this type is a kind of, emitted into the served JSON-LD
-	 * `@context` so the type's class entails them. The single-string `@type` carries only the bare
-	 * label (one navigable type), so a second standards class a node must satisfy, e.g. a `sec:Issuer`
-	 * or `sec:Controller` that is the target of `prov:wasAttributedTo` (range `prov:Agent`), is asserted
-	 * here as the genuine RDFS axiom rather than by multi-valuing `@type`.
+	 * rdfs:subClassOf: the superclass IRIs of this type. The served JSON-LD states each on the type's class node in
+	 * `@graph`, so the type's class entails them. The single-string `@type` carries only the bare label, one navigable
+	 * type. A second standards class that a node must satisfy is declared here as an RDFS axiom and doesn't make `@type`
+	 * multi-valued. An example is a `sec:Issuer` or `sec:Controller` that is the target of `prov:wasAttributedTo`
+	 * (range `prov:Agent`).
 	 */
 	subClassOf?: string | string[];
 	id: string;
@@ -655,46 +648,49 @@ export type THypermediaTopology = {
 	ranges?: TDomainRanges;
 	/** DB-specific: which properties to index for fast lookup. */
 	propertyIndexes?: string[];
-	/** DB-specific: default sort columns per property. */
+	/** DB-specific: the sortable columns, each with its SQL type. */
 	sortColumns?: Record<string, string>;
 	/**
-	 * Whether writing a record of this type is announced as an observation of the quads it holds. A type whose records
-	 * ARE the record of something already announced declares false, since announcing the write repeats what the reader
-	 * was told: a message a run logged reaches a reader as the run logging it, and the record of it is the durable copy of
-	 * that same statement rather than a second occurrence. Absent means announced, which is what a record whose writing
-	 * is the only news of it needs.
+	 * Whether writing a record of this type emits an observation of the quads it holds. A type whose records are the
+	 * record of an event already emitted declares false, because emitting the write would repeat that event to the
+	 * reader. A message that actuality logged reaches a reader as the log event. Its record is the durable copy of that
+	 * statement and not a second occurrence. Absent means the write is emitted, which a record needs when its write is
+	 * the only event that reports it.
 	 */
 	announceWrites?: boolean;
 	/**
-	 * Whether the type records actuality's own execution rather than a feature's data, as a step path, a log line or an
-	 * HTTP exchange does. A search for a reader's records doesn't read the type, a conversation isn't about its records,
-	 * and a view hides it until a reader shows it. Absent means a feature's data.
+	 * Whether the type records actuality's own execution and not a feature's data. A step path, a log line and an HTTP
+	 * exchange are examples. A search for a reader's records doesn't read the type. A conversation's context excludes
+	 * its records. A view hides it until a reader shows it. Absent means a feature's data.
 	 */
 	instrumentation?: boolean;
 	/**
-	 * The level records of this type are stored at when a record doesn't state one. A type declares the LEAST sharing its
-	 * records can be read under and still be useful, so a writer forgetting to state doesn't publish a record: what is
-	 * shared more widely states so on the record itself. A type that doesn't declare one stores private, which shares least.
+	 * The level a record of this type is stored at when the record doesn't state one. A type declares the least sharing
+	 * under which its records remain useful, so a writer that omits the level doesn't publish a record. A record shared
+	 * more widely states its level on the record itself. A type that doesn't declare a level stores records as private,
+	 * which shares least.
 	 */
 	accessLevel?: AccessLevel;
-	/** Default sort field when a query doesn't specify one. Must be one of this type's sort columns. Declare it for a type whose meaningful event/content time differs from its record-creation time (e.g. an email's received time vs its import time); otherwise the universal generatedAtTime is used. */
+	/** The default sort field when a query doesn't specify one. It must be one of this type's sort columns. Declare it for a type whose event or content time differs from its record creation time, such as an email's received time and its import time. Queries sort by generatedAtTime where a type doesn't declare it. */
 	defaultSort?: string;
 	/**
-	 * The property or edge of this type that titles it: its vocabulary's labeling property, the way foaf:name or
-	 * dcterms:title labels its own type. Declare it for a type that states what it is through a term of its own vocabulary
-	 * rather than the cross-domain rdfs:label / as:name / content that `DISPLAY_LABEL_HEADLINE` resolves: an
-	 * oa:TextQuoteSelector is the passage it quotes (oa:exact), not a thing with a name.
+	 * The property or edge that titles records of this type. It is the vocabulary's labelling property, as foaf:name or
+	 * dcterms:title labels its own type. Declare it for a type that titles itself through a term of its own vocabulary and
+	 * not through the cross-domain rdfs:label, as:name or content that `DISPLAY_LABEL_SHARED` (hypermedia.ts) resolves.
+	 * An oa:TextQuoteSelector is the passage it quotes (oa:exact) and doesn't have a name.
 	 *
-	 * A property titles the type by its value, a list by its members. An edge titles it by the title of the record it
-	 * points at, which is how a record standing for another is titled: an oa:SpecificResource by the passage its selector
-	 * locates, a verdict by what it checked. A record titled by another titled by a third takes the third's title.
-	 * An explicit rdfs:label on an individual still wins: this is the type's title, not an override of the reader's.
+	 * A property titles the record by its value, and a list by its members. An edge titles the record by the title of its
+	 * target record. A record that stands for another is titled this way: an oa:SpecificResource by the passage its
+	 * selector locates, and a verdict by the record it checked. A record titled through a second record that is titled
+	 * through a third takes the third record's title. An explicit rdfs:label on an individual takes precedence. This field
+	 * sets the type's title and doesn't replace a label a reader gave.
 	 */
 	displayLabel?: string;
 	/**
-	 * The calls each record of this type offers, by the rel a reader names each by: the step's method, the parameter that
-	 * takes the record, and what the call does. The store attaches each to every record it reads as a link, which a reader
-	 * follows as it follows the record's `self`, and offers by what it does.
+	 * The calls each record of this type offers, keyed by the rel that names each call. Each call states the step's
+	 * method, the parameter that takes the record and what the call does. The store attaches each call as a link to every
+	 * record it reads. A reader follows the link as it follows the record's `self`, and a view offers the link by its
+	 * summary.
 	 */
 	links?: Record<string, TOfferedCall>;
 };
@@ -703,10 +699,9 @@ export type THypermediaTopology = {
 export type TOfferedCall = { method: string; param: string; summary: string };
 
 /**
- * Lightweight topology for non-persisted domains, schemas that aren't themselves
- * persisted but whose fields range over registered persisted domains (typical for
- * step *input* composite shapes). Carries only `ranges`; the hypermedia
- * builder skips it; only the resolver reads it.
+ * A lightweight topology for a non-persisted domain whose fields range over registered persisted domains. Step input
+ * composite shapes typically use it. It carries only `ranges`. The hypermedia builder skips it, and only the resolver
+ * reads it.
  */
 type TRangesTopology = {
 	ranges: TDomainRanges;
@@ -715,20 +710,19 @@ type TRangesTopology = {
 };
 
 /**
- * Domain topology, discriminated union of full hypermedia topology and a
- * lightweight ranges-only declaration. A topology must be one or the other;
- * mixing partial persisted fields without a persistedAs is structurally invalid
- * and the type system rejects it.
+ * A domain topology is either a full hypermedia topology or a lightweight ranges-only declaration. Partial persisted
+ * fields without a persistedAs are invalid, and the type system rejects them.
  */
 export type TDomainTopology = THypermediaTopology | TRangesTopology;
 
-/** True when a domain's topology marks it as persisted (presence of persistedAs). */
+/** Returns true when a domain's topology states persistedAs. */
 export function isPersisted(topology: TDomainTopology | undefined): topology is THypermediaTopology {
 	return !!topology && "persistedAs" in topology && typeof topology.persistedAs === "string";
 }
 
-/** The level a type's records are written at where a record doesn't state one: what its topology declares, or private. A name
- *  that isn't a persisted type, such as the graph a run's variables are held in, doesn't declare one. */
+/** Returns the level a type's records are written at when a record doesn't state one. That is the level its topology
+ *  declares, or private. A name that isn't a persisted type doesn't declare one and returns undefined. The graph that
+ *  holds actuality's variables is such a name. */
 export function declaredAccessLevel(domain: TRegisteredDomain & { topology: THypermediaTopology }): AccessLevel;
 export function declaredAccessLevel(domain: TRegisteredDomain | undefined): AccessLevel | undefined;
 export function declaredAccessLevel(domain: TRegisteredDomain | undefined): AccessLevel | undefined {
@@ -736,14 +730,14 @@ export function declaredAccessLevel(domain: TRegisteredDomain | undefined): Acce
 	return isPersisted(topology) ? (topology.accessLevel ?? Access.private) : undefined;
 }
 
-/** Domain name for type labels, auto-populated from registered persisted domains. */
+/** The domain name for type labels. Registered persisted domains populate it. */
 export const DOMAIN_PERSISTED_TYPE = "persisted-type";
 
 // ============================================================================
 // Domain registration shape
 // ============================================================================
 
-/** Coercion function: parse a step value (or other proto) into the domain's native representation. */
+/** Parses a step value, or another proto, into the domain's native representation. */
 type TDomainCoercer = (
 	proto: import("../schema/protocol.js").TStepValue,
 	featureStep?: import("./astepper.js").TFeatureStep,
@@ -759,26 +753,26 @@ export type TDomainDefinition = {
 	coerce?: TDomainCoercer;
 	comparator?: TDomainComparator;
 	values?: string[];
-	/** Whether a word names a member, for a domain whose members are what is registered: too many to list where a step is
-	 *  described, so a bare word is read by this rather than by `values`. */
+	/** Whether a word names a member of a domain whose members are the registered entries. The members are too many to
+	 *  list in a step's description, so this function checks a bare word and `values` doesn't. */
 	names?: (term: string) => boolean;
-	/** Whether its value is the term its line writes, never a variable or an environment value the term names. */
+	/** Whether its value is the term its line writes and not a variable or an environment value the term names. */
 	written?: boolean;
 	/** Whether each `{name}` in its written term is given the value `name` resolves to, as a variable's name is. */
 	filled?: boolean;
-	/** What a record of a step states in place of a value of this domain, for a value too large to repeat in a step's line,
-	 *  its events and its record, such as a file's bytes. */
+	/** Returns what a step's record states in place of a value of this domain. It applies to a value too large to repeat
+	 *  in a step's line, events and record, such as a file's bytes. */
 	recordedAs?: (value: unknown) => string;
 	description: string;
-	/** Stepper that registered this domain (set automatically by registerDomains) */
+	/** The stepper that registered this domain. registerDomains sets it. */
 	stepperName?: string;
-	/** Hypermedia topology, label, id, property rels, edges, indexes. Undefined for non-persisted domains. */
+	/** The hypermedia topology (label, id, property rels, edges, indexes) or a ranges-only topology. Undefined for a domain that doesn't declare a topology. */
 	topology?: TDomainTopology;
-	/** UI metadata: slot, component, JS source, etc. Consumed by hypermedia renderers (e.g. SHU SPA). */
+	/** UI metadata such as slot, component and JS source. Hypermedia renderers such as the SHU SPA read it. */
 	ui?: Record<string, unknown>;
 };
 
-/** A domain as registration holds it: its definition, with the coercer that its schema gives where it doesn't state one. */
+/** A domain as registration holds it. Registration supplies a coercer from the schema where the definition doesn't state one. */
 export type TRegisteredDomain = TDomainDefinition & { coerce: TDomainCoercer };
 
 // ============================================================================
@@ -786,72 +780,69 @@ export type TRegisteredDomain = TDomainDefinition & { coerce: TDomainCoercer };
 // ============================================================================
 
 /**
- * Comment: free-text annotation attached to any Resource. See COMMENT_LABEL /
- * COMMENT_DOMAIN near the top of this file for the vocabulary consts.
+ * A Comment is a free-text annotation attached to any Resource. COMMENT_LABEL and COMMENT_DOMAIN near the top of this
+ * file declare its vocabulary consts.
  *
- * The speech act is expressed as the edge predicate (a discourse rel, sub-property
- * of inReplyTo), not a `discourse` property on the node.
+ * The edge predicate expresses the speech act as a discourse rel (a sub-property of inReplyTo), and the node doesn't
+ * carry a `discourse` property.
  *
- * `author` identifies who made the comment: a required URI string (e.g.
- * "user:alice", "stepper:llm", "llm:gpt-x"); every Comment is attributed.
- * Structured-Actor hydration is a query-time projection, not storage.
+ * `author` identifies who made the comment. It is a required URI string such as "user:alice", "stepper:llm" or
+ * "llm:gpt-x", so every Comment is attributed. Structured-Actor hydration is a query-time projection and isn't stored.
  */
-// Persisted schemas accept passthrough fields: callers attach edge-construction
-// rels (`discourse`, `inReplyTo`, …) that upsertIndividual's partition step
-// routes to edges rather than to the individual properties. Strict mode would
-// reject those before the partition can run.
+// Persisted schemas don't use strict mode, so they accept extra fields. Callers attach edge-construction rels
+// (`discourse`, `inReplyTo`, …) that upsertIndividual's partition step writes as edges and not as the individual's
+// properties. Strict mode would reject those fields before the partition runs.
 export const CommentSchema = PersistedVertexSchema.extend({
 	id: z.string(),
 	author: z.string(),
 	generatedAtTime: z.string(),
-	/** The start of the period the note is ABOUT (a milestone's week, a summarized span), subject time, distinct from
-	 *  `generatedAtTime`, which stays the moment the record was written. Time-placed views (gantt) read this. */
+	/** The start of the period the note describes, such as a milestone's week or a summarized span. This subject time
+	 *  differs from `generatedAtTime`, which holds the time the record was written. Time-placed views such as gantt read it. */
 	startedAtTime: z.string().optional(),
-	/** The end of the period the note is about. With `startedAtTime`, time-placed views read the note as an interval;
-	 *  a start without an end reads as an instant milestone. */
+	/** The end of the period the note describes. Time-placed views read a note with both `startedAtTime` and this field
+	 *  as an interval. A start without an end reads as an instant milestone. */
 	endedAtTime: z.string().optional(),
 	seqPath: z.string().optional(),
 	body: z.string().optional(),
-	/** A short display name: the note's own text (truncated). The body is partitioned into a Body sub-resource, so
-	 *  without this a Comment node would title by its id; `name` lets a graph view show what the note contains. */
+	/** A short display name: the note's own text, truncated. The body is partitioned into a Body sub-resource, so a
+	 *  Comment node without `name` is titled by its id. `name` lets a graph view show the note's text. */
 	name: z.string().optional(),
-	/** The handles the note states that the records it was made from don't hold, as an answer names records it was not
-	 *  sent. A reader of the note reads those records as the note's own rather than as records the graph holds. */
+	/** The handles the note states that its source records don't hold, such as records a model response names that the
+	 *  model wasn't sent. A reader of the note treats those records as the note's own and not as records the graph holds. */
 	unverified: z.array(z.string()).optional(),
 });
 
 export type TComment = z.infer<typeof CommentSchema>;
 
-/**
- * Comment domain definition, register this in a stepper's
- * `getConcerns().domains` to expose Comment as a graph node.
- * Topology uses existing LinkRelations for every property and doesn't
- * introduce new rels here.
- */
-/** A registered route as a graph vertex: persisted at mount by the web server, targeted by observed requests and
- *  published by the principal that serves it. */
+/** A registered route as a graph vertex. The web server persists it at mount. Observed requests target it, and the
+ *  principal that serves it publishes it. */
 export const ENDPOINT_LABEL = "Endpoint";
-/** The one type every observed HTTP request becomes: the single network-interaction record. Its `performedBy`/`target`
- *  edges make it a message on the polymorphic view sequence view. */
+/** The type of every observed HTTP request and the only network-interaction record. Its `performedBy` and `target`
+ *  edges make it a message in the polymorphic view's sequence view. */
 export const HTTP_REQUEST_LABEL = "HttpRequest";
 /** The requesting party: the browser / user agent. A singleton lifeline with id `client`. */
 export const HTTP_CLIENT_LABEL = "HttpClient";
-/** A serving party: the site itself or an external server. One node per host, carrying `requestCount`: how many
- *  requests reached it, a rollup of its HttpRequests, never tracked separately. */
+/** A serving party: the site itself or an external server. Each host has one node that carries `requestCount`.
+ *  `requestCount` counts the requests that reached the host. It is a rollup of the host's HttpRequests and isn't
+ *  tracked separately. */
 export const HTTP_HOST_LABEL = "HttpHost";
 
 export const PRINCIPAL_LABEL = "Principal";
-/** Domain selector, distinct from the runtime "principal" key (see lib/principal.ts) to avoid collision. */
+/** The domain selector. It differs from the runtime "principal" key (see lib/principal.ts) to avoid a collision. */
 export const PRINCIPAL_DOMAIN = "principal-individual";
 
+/**
+ * The Comment domain definition. Register it in a stepper's `getConcerns().domains` to expose Comment as a graph node.
+ * The topology uses existing LinkRelations for every property and doesn't introduce rels.
+ */
 export const commentDomainDefinition: TDomainDefinition = {
 	selectors: [COMMENT_DOMAIN],
 	schema: CommentSchema,
-	description: "A note about another record. It links to what it is about and to any replies, so conversations stay attached to their subject.",
+	description: "A note about another record. It links to its subject and to any replies, so a conversation stays attached to its subject.",
 	topology: {
 		persistedAs: COMMENT_LABEL,
-		// A Comment carries oa:hasBody and oa:hasTarget, the W3C Web Annotation shape, so the class relationship is
-		// asserted as a genuine RDFS axiom rather than by multi-valuing @type.
+		// A Comment carries oa:hasBody and oa:hasTarget in the W3C Web Annotation shape. The class relationship is an
+		// RDFS axiom and doesn't make @type multi-valued.
 		subClassOf: "oa:Annotation",
 		id: "id",
 		properties: {
@@ -866,19 +857,20 @@ export const commentDomainDefinition: TDomainDefinition = {
 		},
 		edges: {
 			[HAS_BODY_EDGE]: { rel: LinkRelations.HAS_BODY.rel, range: BODY_LABEL },
-			// Who wrote it, as a navigable edge to that agent, so a comment connects to the person, service or model
-			// behind it instead of naming it in a string. Ranges over Principal, which is sec:Controller and a
-			// prov:Agent, so any kind of agent an author can be is well-formed against it. The property of the same rel
-			// stays, because author is a sort and filter column.
+			// The author as a navigable edge to that agent. A comment links to the person, service or model that wrote it
+			// and doesn't only name it in a string. The edge ranges over Principal, which is a sec:Controller and a
+			// prov:Agent, so every kind of author is well-formed against it. The property with the same rel remains
+			// because author is a sort and filter column.
 			[LinkRelations.ATTRIBUTED_TO.rel]: { rel: LinkRelations.ATTRIBUTED_TO.rel, range: PRINCIPAL_LABEL },
-			// What the comment is about: any Resource (an entity, or another Comment in a thread).
+			// The comment's subject: any Resource, such as an entity or another Comment in a thread.
 			[LinkRelations.TARGET.rel]: { rel: LinkRelations.TARGET.rel, range: RESOURCE_LABEL },
-			// Who the comment is addressed TO (as:to: the same rel an email's recipients carry): a question at the agent
-			// it asks, an answer at the asker, a decision at the party it answers. With attributedTo this is what reads a
-			// discourse as messages between agents; distinct from oa:hasTarget, which is what the comment is ABOUT.
+			// The comment's addressee (as:to, the rel an email's recipients carry). A question addresses the agent expected
+			// to respond. A response addresses the person who asked. A decision addresses the party that requested it. This
+			// edge and attributedTo let a view read a discourse as messages between agents. oa:hasTarget holds the
+			// comment's subject.
 			[LinkRelations.AUDIENCE.rel]: { rel: LinkRelations.AUDIENCE.rel, range: RESOURCE_LABEL },
-			// What the comment carries: a petition carries the proposal it asks for, a measure carries its observation.
-			// Declared so the record it carries is reachable from it, rather than a quad a view can't follow.
+			// The record the comment carries: a petition carries the proposal it requests, and a measure carries its
+			// observation. The edge is declared so a view can follow it to the carried record.
 			[LinkRelations.ATTACHMENT.rel]: { rel: LinkRelations.ATTACHMENT.rel, range: RESOURCE_LABEL },
 			// A linking annotation's cross-reference: the note points at another SpecificResource (a section) in the source.
 			[LinkRelations.LINKS_TO.rel]: { rel: LinkRelations.LINKS_TO.rel, range: SPECIFIC_RESOURCE_LABEL },
@@ -895,22 +887,21 @@ export const commentDomainDefinition: TDomainDefinition = {
 // ============================================================================
 
 /**
- * Principal: a standards-based identity in the graph (W3C DID + Security `sec:`
- * vocabulary). The acting identity (a Comment's `author`, an artifact's creator) is a
- * DID string; a Principal node is its persisted, public descriptor. What a principal
- * may do is not a property of it: it is what the delegations naming it as controller
- * allow, which a consumer records as capabilities of their own.
+ * A Principal is a standards-based identity in the graph (W3C DID and the Security `sec:` vocabulary). The acting
+ * identity is a DID string, such as a Comment's `author` or an artifact's creator. A Principal node is its persisted
+ * public descriptor. A principal's permissions aren't a property of it. The delegations that name it as controller
+ * grant them, and a consumer records those delegations as its own capabilities.
  *
- * Comment→Principal authorship is by SHARED DID, not an edge: `Comment.author`
- * (a string) equals the `Principal.id`, resolvable via
- * `getIndividual("Principal", comment.author)`.
+ * Comment→Principal authorship uses a shared DID: `Comment.author` (a string) equals `Principal.id`, and
+ * `getIndividual("Principal", comment.author)` resolves it. The Comment topology also declares an attributedTo edge to
+ * the Principal.
  *
- * Only PUBLIC material persists: the schema doesn't have a private-key field, by design.
+ * Only public material persists, and the schema doesn't have a private-key field.
  */
 
 const PrincipalSchema = PersistedVertexSchema.extend({
 	id: z.string(),
-	/** as:name: an optional human name for this Principal (a DID doesn't have one intrinsically). Lets a party be titled by a readable name instead of its DID; resolves as the display headline (rdfs:label → as:name priority). Named `name`, not `label`, so it is a queryable column: `label` is a reserved column name in a graph store. */
+	/** as:name: an optional human-readable name for this Principal, which a DID doesn't carry. It titles a party by a readable name instead of its DID and resolves as the display headline after rdfs:label. The field is `name` and not `label` because `label` is a reserved column name in a graph store, and `name` is a queryable column. */
 	name: z.string().optional(),
 	controller: z.string().optional(),
 	publicKey: z.string().optional(),
@@ -921,27 +912,25 @@ const PrincipalSchema = PersistedVertexSchema.extend({
 export type TPrincipal = z.infer<typeof PrincipalSchema>;
 
 /**
- * Principal domain definition, register in a stepper's `getConcerns().domains`
- * to expose Principal as a graph node. `generatedAtTime` is REQUIRED on
- * purpose: buildConcernCatalog (hypermedia.ts) rejects a persisted domain whose
+ * The Principal domain definition. Register it in a stepper's `getConcerns().domains` to expose Principal as a graph
+ * node. `generatedAtTime` is required because buildConcernCatalog (hypermedia.ts) rejects a persisted domain whose
  * GENERATED_AT_TIME-rel field is optional.
  *
- * `controller` is a plain property: in every persist path `controller === id` (a
- * Principal controls itself), so a self-referential edge doesn't draw a useful link; it
- * stays a scalar in `properties` + `sortColumns`.
+ * `controller` is a plain property. Every persist path sets `controller === id` because a Principal controls itself,
+ * and a self-referential edge doesn't add a useful link. It stays a scalar in `properties` and `sortColumns`.
  */
 export const principalDomainDefinition: TDomainDefinition = {
 	selectors: [PRINCIPAL_DOMAIN],
 	schema: PrincipalSchema,
-	// THE definition of a DID for a reader: a Principal's identity IS one, so this is where the term is explained, and
-	// every other description links the word here rather than explaining it again.
+	// This description defines a DID for a reader because a Principal's identity is a DID. Other descriptions link the
+	// word here and don't explain it again.
 	description:
-		"A person or service that acts in this system: the author behind records, comments, and decisions. Each is identified by a DID: a decentralized identifier, a stable web address of its own (written did:…) that anyone can look up to find the keys it signs with, so a central directory doesn't decide who is who.",
+		"A person or service that acts in this system: the author of records, comments and decisions. Each is identified by a DID. A DID is a decentralized identifier: a stable web address of its own (written did:…) that anyone can look up to find the keys it signs with. A central directory doesn't assign these identities.",
 	topology: {
 		persistedAs: PRINCIPAL_LABEL,
 		type: "sec:Controller",
-		// A Principal IS the responsible agent every persisted node is attributed to (prov:wasAttributedTo, range prov:Agent);
-		// declare sec:Controller a kind of prov:Agent so that attribution is well-formed against the rel's range.
+		// A Principal is the responsible agent every persisted node is attributed to (prov:wasAttributedTo, range
+		// prov:Agent). Declaring sec:Controller a kind of prov:Agent makes that attribution well-formed against the rel's range.
 		subClassOf: "prov:Agent",
 		id: "id",
 		accessLevel: Access.public,
@@ -956,34 +945,34 @@ export const principalDomainDefinition: TDomainDefinition = {
 // ============================================================================
 
 /**
- * Body: opaque content with a declared media type. Linked from any resource
- * via `hasBody`. The canonical hypermedia shape: format is data on the Body,
- * not metadata on the parent resource's topology, so JSON-LD round-trips and
- * graph queries see mediaType as a triple.
+ * A Body holds opaque content with a declared media type. Any resource links it through `hasBody`. The format is data
+ * on the Body and not metadata on the parent resource's topology, so JSON-LD round-trips and graph queries read
+ * mediaType as a triple.
  */
-// Body schema same constraint as Comment: parent nodes supply content
-// fields that the partition step extracts before persistence.
+// The Body schema has the same constraint as Comment: parent nodes supply content fields that the partition step
+// extracts before persistence.
 export const BodySchema = PersistedVertexSchema.extend({ id: z.string(), content: z.string(), mediaType: z.string(), generatedAtTime: z.string() });
 
 export type TBody = z.infer<typeof BodySchema>;
 
-/** The least a caller needs to read one body: fetch that Body individual. */
+/** The minimal store surface that reads one body by fetching its Body individual. */
 type TBodyReader = { getIndividual(label: string, id: string): Promise<unknown> };
 
 /**
- * Which reading of a record to use where it holds several.
+ * The order of preference among a record's readings where it holds several.
  *
- * A record arrives as it was written and is kept that way, and a reading of it is extracted beside the original: an
- * email is stored as html, as plain text, and as markdown taken from the html. One of those is the reading to show a
- * reader or send a model, and it is the same one in both places: markdown carries the structure without the markup,
- * plain text next, the markup itself last.
+ * A record is stored as it was written, and readings of it are extracted beside the original. An email is stored as
+ * html, as plain text and as markdown converted from the html. The preferred reading is both shown to a reader and sent
+ * to a model. Markdown comes first because it carries the structure without the markup. Plain text comes next and the
+ * markup last.
  */
 export const BODY_PREFERENCE: readonly string[] = [MEDIA_TYPE.markdown, MEDIA_TYPE.plain, MEDIA_TYPE.html];
 
 /**
- * The reading to use, by that preference; the first usable body where a record doesn't hold one of them. A body is usable
- * when it states its media type and is not known to be empty. A listing names bodies without their text, which is read
- * on request, so a body whose text has not been read is chosen by its media type like any other.
+ * Returns the preferred body by BODY_PREFERENCE, or the first usable body where a record doesn't hold a preferred media
+ * type. A body is usable when it states its media type and its content isn't the empty string. A listing names bodies
+ * without their text, which is read on request. A body whose text hasn't been read is therefore chosen by its media
+ * type like any other.
  */
 export function pickPreferredBody<T extends { mediaType?: string; content?: string }>(bodies: readonly T[]): T | undefined {
 	const usable = bodies.filter((b) => typeof b.mediaType === "string" && b.content !== "");
@@ -995,9 +984,10 @@ export function pickPreferredBody<T extends { mediaType?: string; content?: stri
 }
 
 /**
- * Read the text of an individual's body in a given media type: the intentional call for it. A record NAMES the bodies
- * it links (id + media type) but never carries their text, since a body is a whole record's content and may be very
- * large; so the matching body is read here, by asking for it. Undefined when the individual doesn't link such a body.
+ * Reads the text of an individual's body in a given media type. A record names the bodies it links by id and media
+ * type and doesn't carry their text, because a body holds a whole record's content and may be large. This function
+ * reads the matching Body individual from the store. Returns undefined when the individual doesn't link a body of that
+ * media type.
  */
 export async function bodyByMediaType(
 	store: TBodyReader,
@@ -1011,9 +1001,9 @@ export async function bodyByMediaType(
 }
 
 /**
- * The markdown text of an individual, however its store holds it: a store that partitions content into a Body
- * sub-resource is read through the `hasBody` link; one that keeps it inline is read off the field. Undefined when the
- * individual doesn't hold markdown.
+ * Returns an individual's markdown text from either store layout. A store that partitions content into a Body
+ * sub-resource is read through the `hasBody` link. A store that keeps content inline is read from the field. Returns
+ * undefined when the individual doesn't hold markdown.
  */
 export async function markdownOf(store: Pick<TDiscourseStore, "getIndividual">, label: string, id: string): Promise<string | undefined> {
 	const individual = (await store.getIndividual(label, id)) as
@@ -1028,13 +1018,13 @@ export async function markdownOf(store: Pick<TDiscourseStore, "getIndividual">, 
 export const bodyDomainDefinition: TDomainDefinition = {
 	selectors: [BODY_DOMAIN],
 	schema: BodySchema,
-	description: "The full content of another record, a message's text, a document's data, stored alongside it so large content loads only when opened.",
+	description: "The full content of another record, such as a message's text or a document's data. It is stored beside the record, so large content loads only when opened.",
 	topology: {
 		persistedAs: BODY_LABEL,
 		id: "id",
 		properties: { id: LinkRelations.IDENTIFIER.rel, content: LinkRelations.CONTENT.rel, mediaType: LinkRelations.MEDIA_TYPE.rel },
-		// Declared query surface for the one-path graph-store: callers can filter
-		// or sort Body rows by mediaType (e.g. "all PDF bodies") or generatedAtTime.
+		// The declared query surface for the one-path graph-store. Callers can filter or sort Body rows by mediaType,
+		// such as "all PDF bodies", or by generatedAtTime.
 		sortColumns: { mediaType: "TEXT", generatedAtTime: "TIMESTAMPTZ" },
 	},
 };
@@ -1044,20 +1034,19 @@ export const bodyDomainDefinition: TDomainDefinition = {
 // ============================================================================
 
 /**
- * TextQuoteSelector: locates a segment of a source document by quoting it (oa:exact),
- * optionally disambiguated by the text immediately before (oa:prefix) and after
- * (oa:suffix). Content-anchored: the anchor survives re-import and re-rendering
- * of the source, which byte offsets would not.
+ * A TextQuoteSelector locates a segment of a source document by quoting it (oa:exact). The text immediately before
+ * (oa:prefix) and after (oa:suffix) optionally disambiguates it. The anchor depends on content, so it remains valid
+ * after re-import and re-rendering of the source, where byte offsets wouldn't.
  */
 const TEXT_QUOTE_SELECTOR_DOMAIN = "text-quote-selector";
 
 /**
- * A passage located by quoting it (a Web Annotation TextQuoteSelector's fields), optionally disambiguated by the text
- * around it. Declared once, as the schema, because the same three fields are parsed from a link, validated in a step,
- * persisted as a selector and read back by the SPA: written out in each place they drift a field at a time.
+ * A passage located by quoting it, with a Web Annotation TextQuoteSelector's fields. The text around it optionally
+ * disambiguates it. The schema declares the three fields once because a link parse, a step's validation, a persisted
+ * selector and the SPA all read them. Separate copies in each place would diverge one field at a time.
  */
 export const QuoteAnchorSchema = z.object({
-	exact: z.string().describe("The verbatim passage this anchors to."),
+	exact: z.string().describe("The verbatim passage the anchor quotes."),
 	prefix: z.string().optional().describe("Verbatim text immediately before the passage, disambiguating a repeated quote."),
 	suffix: z.string().optional().describe("Verbatim text immediately after the passage, disambiguating a repeated quote."),
 });
@@ -1071,14 +1060,14 @@ export const TextQuoteSelectorSchema = QuoteAnchorSchema.extend({ ...PersistedVe
 export const textQuoteSelectorDomainDefinition: TDomainDefinition = {
 	selectors: [TEXT_QUOTE_SELECTOR_DOMAIN],
 	schema: TextQuoteSelectorSchema,
-	description: "The quoted text that pins an annotation to one spot inside a document, with optional surrounding text to make the match unambiguous.",
+	description: "The quoted text that anchors an annotation at one place inside a document, with optional surrounding text that disambiguates the match.",
 	topology: {
 		persistedAs: TEXT_QUOTE_SELECTOR_LABEL,
 		type: "oa:TextQuoteSelector",
 		id: "id",
 		properties: { id: LinkRelations.IDENTIFIER.rel, exact: LinkRelations.EXACT.rel, prefix: LinkRelations.PREFIX.rel, suffix: LinkRelations.SUFFIX.rel },
-		// Named as the labeling property, never remapped to CONTENT.rel: the selector doesn't have content, and asserting the
-		// quote as its content would serialize a false claim.
+		// The quote is the labelling property and isn't mapped to CONTENT.rel. The selector doesn't have content, and
+		// stating the quote as its content would serialize a false statement.
 		displayLabel: "exact",
 		sortColumns: { exact: "TEXT" },
 	},
@@ -1101,31 +1090,29 @@ export const fragmentSelectorDomainDefinition: TDomainDefinition = {
 };
 
 /**
- * SpecificResource: the part of a document an annotation is about (W3C Web Annotation
- * "Specific Resource"): oa:hasSource names the whole document, oa:hasSelector the segment.
- * An annotating Comment's oa:hasTarget points here instead of at the whole document, so
- * the document itself is never edited, annotations attach from outside, and a view
- * resolves the selector against the document's content when rendering.
+ * A SpecificResource is the part of a document an annotation describes (W3C Web Annotation "Specific Resource").
+ * oa:hasSource names the whole document and oa:hasSelector names the segment. An annotating Comment's oa:hasTarget
+ * points at it instead of at the whole document. The document isn't edited, annotations attach from outside, and a view
+ * resolves the selector against the document's content when it renders.
  *
- * It doesn't carry a property of its own to be titled by, which is what the model defines: a proxy standing for a passage,
- * serialized inline and never dereferenced. Its subject id is a storage artifact rather than identity, so it
- * is titled through oa:hasSelector by the passage its selector locates, see `displayLabel` below. It doesn't take a name of
- * its own: the model doesn't give oa:SpecificResource one.
+ * The model defines it as a proxy for a passage that is serialized inline and never dereferenced, and it doesn't give
+ * oa:SpecificResource a title property. Its subject id is a storage artifact and not an identity. It is titled through
+ * oa:hasSelector by the passage its selector locates (see `displayLabel` below) unless it carries an rdfs:label.
  */
 const SPECIFIC_RESOURCE_DOMAIN = "specific-resource";
 
 export const SpecificResourceSchema = PersistedVertexSchema.extend({
 	id: z.string(),
 	generatedAtTime: z.string(),
-	/** `rdfs:label`: what a reader called this passage where it was referred to. The W3C model doesn't give a SpecificResource
-	 *  a title of its own, so it otherwise reads as the bare text it quotes (a clause number, a fragment), which doesn't
-	 *  state what it was cited for. RDFS's labelling property is the standard place for the words that do. */
+	/** `rdfs:label`: the name a reader gave this passage where it was referenced. The W3C model doesn't give a
+	 *  SpecificResource a title of its own. Without a label it reads as the bare text it quotes, such as a clause number or
+	 *  a fragment, which doesn't state the reason for the citation. RDFS's labelling property is the standard place for that text. */
 	label: z.string().optional(),
 });
 export const specificResourceDomainDefinition: TDomainDefinition = {
 	selectors: [SPECIFIC_RESOURCE_DOMAIN],
 	schema: SpecificResourceSchema,
-	description: "A spot inside a document, the document plus the selection that locates the spot, so a note can point at one passage instead of the whole document.",
+	description: "A place inside a document: the document and the selection that locates the place. A note can point at one passage instead of the whole document.",
 	topology: {
 		persistedAs: SPECIFIC_RESOURCE_LABEL,
 		type: "oa:SpecificResource",
@@ -1135,7 +1122,7 @@ export const specificResourceDomainDefinition: TDomainDefinition = {
 			hasSource: { rel: LinkRelations.HAS_SOURCE.rel, range: RESOURCE_LABEL },
 			hasSelector: { rel: LinkRelations.HAS_SELECTOR.rel, range: [TEXT_QUOTE_SELECTOR_LABEL, FRAGMENT_SELECTOR_LABEL] },
 		},
-		// Titled through its selector: the proxy doesn't carry a property of its own a reader could be shown.
+		// Titled through its selector where the individual doesn't carry an rdfs:label.
 		displayLabel: "hasSelector",
 	},
 };
@@ -1149,7 +1136,7 @@ const ReadingSchema = PersistedVertexSchema.extend({
 	id: z.string(),
 	generatedAtTime: z.string(),
 	seqPath: z.string().optional(),
-	/** Each statement this reading asserted, so a later reading retracts exactly them. See `TStatedRecord`. */
+	/** Each statement this reading asserted. A later reading retracts these statements. See `TStatedRecord`. */
 	stated: z.array(z.string()),
 });
 export type TReading = z.infer<typeof ReadingSchema>;
@@ -1157,7 +1144,7 @@ export type TReading = z.infer<typeof ReadingSchema>;
 export const readingDomainDefinition: TDomainDefinition = {
 	selectors: [READING_DOMAIN],
 	schema: ReadingSchema,
-	description: "One reading of a text that turned its links into facts. It names the text it read and the step that read it, so every stated fact states where it came from.",
+	description: "One reading of a text that turned its links into facts. It names the text it read and the step that read it, so every stated fact names its source.",
 	topology: {
 		persistedAs: READING_LABEL,
 		instrumentation: true,
@@ -1174,21 +1161,21 @@ export const readingDomainDefinition: TDomainDefinition = {
 // ============================================================================
 
 /**
- * Scene: a named record of how a view was set up, so a way of looking at the graph can be saved, named, linked to,
- * and restored. What it holds is what the view already remembers across reloads (its durable options), keyed
- * by the element that owns them; the options themselves are opaque here, since only the view knows its own schema and
- * validates them when the scene is applied.
+ * A Scene is a named record of a view's setup, so a way of looking at the graph can be saved, named, linked and
+ * restored. It holds the durable options that the view persists across reloads, keyed by the element that owns them.
+ * The options are opaque here. Only the view holds its own schema, and the view validates the options when the scene is
+ * applied.
  *
- * A scene is an ordinary individual, so `#Scene:name` is a reference like any other: a document can link a requirement
+ * A scene is an ordinary individual, so `#Scene:name` is a reference like any other. A document can link a requirement
  * to the scene that shows it.
  */
 export const SCENE_LABEL = "Scene";
 const SCENE_DOMAIN = "scene";
 
 const SceneSchema = PersistedVertexSchema.extend({
-	id: z.string().describe("The scene's name: what a reader picks it by, and what a link to it names."),
+	id: z.string().describe("The scene's name. A reader selects the scene by this name, and a link to the scene names it."),
 	generatedAtTime: z.string(),
-	/** The views' options as JSON, keyed by element tag: `{"shu-polymorphic-graph-view": {…}}`. Opaque to the graph; each view validates its own on apply. */
+	/** The views' options as JSON, keyed by element tag: `{"shu-polymorphic-graph-view": {…}}`. The graph treats them as opaque, and each view validates its own options on apply. */
 	state: z.string(),
 });
 export type TScene = z.infer<typeof SceneSchema>;
@@ -1196,7 +1183,7 @@ export type TScene = z.infer<typeof SceneSchema>;
 export const sceneDomainDefinition: TDomainDefinition = {
 	selectors: [SCENE_DOMAIN],
 	schema: fromJsonText(SceneSchema),
-	description: "A named way of looking at the graph: which kinds are shown, how they are laid out, and when, saved so it can be returned to and linked to.",
+	description: "A named way of looking at the graph: which kinds are shown, how they are laid out, and when. It is saved so a reader can reopen it and link it.",
 	topology: {
 		persistedAs: SCENE_LABEL,
 		id: "id",
@@ -1207,15 +1194,15 @@ export const sceneDomainDefinition: TDomainDefinition = {
 	},
 };
 
-/** Which side of an annotated quote its context sits on: "preceded by" makes the context the TextQuoteSelector prefix,
- *  "followed by" the suffix, so a short or repeated quote resolves to the intended occurrence. */
+/** The side of an annotated quote that holds its context. "preceded by" makes the context the TextQuoteSelector prefix
+ *  and "followed by" makes it the suffix, so a short or repeated quote resolves to the intended occurrence. */
 export const ANNOTATION_PLACEMENT_DOMAIN = "annotation-placement";
 const AnnotationPlacementSchema = z.enum(["preceded by", "followed by"]);
 export type TAnnotationPlacement = z.infer<typeof AnnotationPlacementSchema>;
 export const annotationPlacementDomainDefinition: TDomainDefinition = {
 	selectors: [ANNOTATION_PLACEMENT_DOMAIN],
 	schema: AnnotationPlacementSchema,
-	description: "Which side of an annotated quote its context sits on: preceded by (the prefix) or followed by (the suffix).",
+	description: "The side of an annotated quote that holds its context: preceded by (the prefix) or followed by (the suffix).",
 };
 
 export const ANNOTATION_NOTE_DOMAIN = "annotation-note";
@@ -1232,13 +1219,16 @@ const AnnotationNoteSchema = z
 			.string()
 			.optional()
 			.describe(
-				"The start (ISO) of the period the note is ABOUT (a milestone's week), carried as startedAtTime, so time-placed views place the note there. The record's own generatedAtTime stays the write time.",
+				"The start (ISO) of the period the note describes, such as a milestone's week. It is stored as startedAtTime, so time-placed views place the note there. The record's own generatedAtTime holds the write time.",
 			),
-		until: z.string().optional().describe("The end (ISO) of the period the note is about, carried as endedAtTime; with `at`, time-placed views read the note as an interval."),
-		links: z.array(QuoteAnchorSchema).optional().describe("Further passages in the same document this note cross-references; each renders as a followable link."),
+		until: z
+			.string()
+			.optional()
+			.describe("The end (ISO) of the period the note describes, stored as endedAtTime. Time-placed views read a note with `at` and `until` as an interval."),
+		links: z.array(QuoteAnchorSchema).optional().describe("Further passages in the same document that this note cross-references. Each renders as a followable link."),
 	})
 	.describe(
-		"The full shape of one W3C Web Annotation: the anchored passage, the note, its meaningful time, and any cross-referenced passages. The prose annotate forms each bind a slice of this; this composite carries all of it at once.",
+		"The full shape of one W3C Web Annotation: the anchored passage, the note, its time and any cross-referenced passages. Each prose annotate form binds a part of this shape, and this composite carries all of it.",
 	);
 export type TAnnotationNote = z.infer<typeof AnnotationNoteSchema>;
 export const annotationNoteDomainDefinition: TDomainDefinition = {
@@ -1251,9 +1241,10 @@ export const annotationNoteDomainDefinition: TDomainDefinition = {
 // Discourse write helpers, comment and annotation acts over a quad store
 // ============================================================================
 
-/** The store surface the discourse write helpers use: node upsert/read/delete, single-property set, quad add/query/remove,
- *  and (property-graph stores only) a navigable createEdge. Every member is an `IQuadStore` member, so every consumer store
- *  already implements it; naming only what these helpers use keeps them store-agnostic. */
+/** The store surface the discourse write helpers call: node upsert, read and delete, single-property set, quad add,
+ *  query and remove, and the navigable createEdge and referenceEdge of a property-graph store. Every member is an
+ *  `IQuadStore` member, so every consumer store implements it. Naming only the members these helpers call keeps them
+ *  store-agnostic. */
 export type TDiscourseStore = {
 	upsertIndividual(label: string, data: unknown): Promise<string>;
 	getIndividual<T = Record<string, unknown>>(label: string, id: string): Promise<T | undefined>;
@@ -1263,36 +1254,37 @@ export type TDiscourseStore = {
 	add(quad: { subject: string; predicate: string; object: unknown; namedGraph: string; objectType?: string }): Promise<void>;
 	remove(pattern: { subject?: string; predicate?: string; object?: unknown; namedGraph?: string }): Promise<void>;
 	createEdge?(fromLabel: string, fromId: string, edgeLabel: string, toLabel: string, toId: string): Promise<void>;
-	/** An edge to something that may not be here yet, such as a document not read or a record not made. A store that keeps edges
-	 *  strictly holds an id-only placeholder until the target arrives; a store that models edges as quads doesn't need the distinction. */
+	/** Writes an edge to a target that may not exist yet, such as a document not yet read or a record not yet written. A
+	 *  store with strict edges holds an id-only placeholder until the target is written. A store that models edges as quads
+	 *  doesn't need the distinction. */
 	referenceEdge?(fromLabel: string, fromId: string, edgeLabel: string, toLabel: string, toId: string): Promise<void>;
 };
 
-/** A Comment's display name: its note text on one line, truncated so a graph view titles by what it contains, not its id. */
+/** The maximum length of a Comment's display name. The name is the note text on one line, truncated, so a graph view titles the Comment by its text and not its id. */
 const COMMENT_NAME_MAX = 60;
 function commentName(text: string): string {
 	const oneLine = text.replace(/\s+/g, " ").trim();
 	return oneLine.length > COMMENT_NAME_MAX ? `${oneLine.slice(0, COMMENT_NAME_MAX - 1)}…` : oneLine;
 }
 
-/** Write a navigable edge: a property-graph store materializes a real, walkable edge; a quad store models it as a quad. */
+/** Writes a navigable edge. A property-graph store creates an edge that traversal follows, and a quad store writes it as a quad. */
 export async function writeEdge(store: TDiscourseStore, fromLabel: string, fromId: string, rel: string, toLabel: string, toId: string): Promise<void> {
 	if (store.createEdge) await store.createEdge(fromLabel, fromId, rel, toLabel, toId);
 	// objectType records the target's type, so the quad reads back as an edge rather than a literal property.
 	else await store.add({ subject: fromId, predicate: rel, object: toId, namedGraph: fromLabel, objectType: toLabel });
 }
 
-/** Write an edge to something that may not be here yet: what a text referring to an unread document states, or an
- *  observation of a request naming an endpoint whose record has not landed. Falls back to the ordinary edge write for a
- *  store that doesn't keep placeholders, where an edge to an absent target is just a quad. */
+/** Writes an edge to a target that may not exist yet. A text that refers to an unread document states one, and so does
+ *  an observation of a request that names an endpoint whose record isn't written yet. A store that doesn't keep
+ *  placeholders receives the ordinary edge write, because an edge to an absent target is a quad there. */
 export async function writeReferenceEdge(store: TDiscourseStore, fromLabel: string, fromId: string, rel: string, toLabel: string, toId: string): Promise<void> {
 	if (store.referenceEdge) await store.referenceEdge(fromLabel, fromId, rel, toLabel, toId);
 	else await writeEdge(store, fromLabel, fromId, rel, toLabel, toId);
 }
 
-/** Create a Comment individual with its markdown body as a Body sub-resource: the shared act behind `comment` and
- *  `annotate`. `name` titles the node by the note text (truncated) rather than its id. The note is markdown, so the
- *  facts its links state are derived from it with the Comment as their subject. */
+/** Creates a Comment individual with its markdown body as a Body sub-resource. The `comment` and `annotate` acts both
+ *  call it. `name` titles the node by the truncated note text and not by its id. The note is markdown, so readTypedLinks
+ *  derives the facts its links state with the Comment as their subject. */
 export async function createComment(
 	store: TDiscourseStore,
 	vocab: TLinkVocabulary,
@@ -1318,8 +1310,8 @@ export async function createComment(
 	return commentId;
 }
 
-/** The selector record that locates a part: a TextQuoteSelector for a passage it quotes, a FragmentSelector for a fragment
- *  of its media, and what the part reads as. */
+/** Returns the selector record that locates a part and the text the part reads as. A quoted passage gets a
+ *  TextQuoteSelector and a media fragment gets a FragmentSelector. */
 const selectorOf = (part: TPart): { label: string; fields: Record<string, string>; reads: string } =>
 	isFragment(part)
 		? { label: FRAGMENT_SELECTOR_LABEL, fields: { conformsTo: part.conformsTo, value: part.value }, reads: part.value }
@@ -1329,26 +1321,28 @@ const selectorOf = (part: TPart): { label: string; fields: Record<string, string
 				reads: part.exact,
 			};
 
-/** Anchor a part inside (sourceLabel, sourceId): the selector that locates it (a quote's optional prefix/suffix context
- *  making a short or repeated quote resolve reliably) plus a SpecificResource naming the source and the selector. Returns
- *  the ids it wrote and the selector's type. The SpecificResource is what a Comment's oa:hasTarget (anchor) or oa:hasBody
- *  linksTo (cross-reference) points at; the selector id lets a caller that owns the anchor retract the pair. */
+/** Anchors a part inside (sourceLabel, sourceId). It writes the selector that locates the part and a SpecificResource
+ *  that names the source and the selector. A quote's optional prefix and suffix let a short or repeated quote resolve to
+ *  one occurrence. Returns the ids it wrote and the selector's type. A Comment's oa:hasTarget (anchor) or oa:hasBody
+ *  linksTo (cross-reference) points at the SpecificResource. The selector id lets a caller that owns the anchor retract
+ *  the pair. */
 async function anchorPart(
 	store: TDiscourseStore,
 	sourceLabel: string,
 	sourceId: string,
 	part: TPart,
 	now: string,
-	/** `sourceMayBeAbsent`: a text can quote a document that hasn't been read (annotating a record in hand does not need it).
-	 *  `label`: what a reader called this part where it was referred to, so it reads as more than its selector. */
+	/** `sourceMayBeAbsent`: a text can quote a document that hasn't been read. Annotating a record already in the store
+	 *  doesn't need it. `label`: the name a reader gave this part where it was referenced, so it reads as more than its
+	 *  selector. */
 	opts?: { sourceMayBeAbsent?: boolean; label?: string },
 ): Promise<{ specificResourceId: string; selectorId: string; selectorLabel: string }> {
 	const selector = selectorOf(part);
 	const selectorId = crypto.randomUUID();
 	await store.upsertIndividual(selector.label, { id: selectorId, ...selector.fields, generatedAtTime: now });
 	const specificResourceId = crypto.randomUUID();
-	// An anchor reads as the part it stands for. Its id is a generated string, and resolving the title through its
-	// selector is a hop through a second proxy, which stops at the id: without a label the node reads as that string.
+	// An anchor reads as the part it stands for. Its id is a generated string. Resolving the title through its selector
+	// is a hop through a second proxy, and that hop ends at the id. A node without a label reads as that string.
 	await store.upsertIndividual(SPECIFIC_RESOURCE_LABEL, { id: specificResourceId, generatedAtTime: now, label: opts?.label ?? selector.reads });
 	const writeSourceEdge = opts?.sourceMayBeAbsent ? writeReferenceEdge : writeEdge;
 	await writeSourceEdge(store, SPECIFIC_RESOURCE_LABEL, specificResourceId, LinkRelations.HAS_SOURCE.rel, sourceLabel, sourceId);
@@ -1356,21 +1350,21 @@ async function anchorPart(
 	return { specificResourceId, selectorId, selectorLabel: selector.label };
 }
 
-/** Rels that ground a Comment in what it concerns: an oa:hasTarget subject or an attachment. Reply-family rels
- *  (inReplyTo and its sub-properties, e.g. narrate) also ground it, checked via isReplyEdge. */
+/** Rels that ground a Comment in its subject: an oa:hasTarget subject or an attachment. Reply-family rels also ground
+ *  it. They are inReplyTo and its sub-properties, such as narrate, and isReplyEdge checks them. */
 const GROUNDING_RELS = new Set<string>([LinkRelations.TARGET.rel, LinkRelations.ATTACHMENT.rel]);
 
-/** Enforce that a Comment references what it is about: an oa:hasTarget subject, an attachment, or (in a thread) the
- *  comment it replies to. Every comment is grounded. A conversation root without a subject is a deliberate general question and
- *  its own origin, callers skip the check there. */
+/** Throws unless a Comment references its subject through an oa:hasTarget subject, an attachment, or the comment it
+ *  replies to in a thread. A conversation root without a subject is a general question and its own origin, so callers
+ *  skip the check there. */
 export async function assertCommentGrounded(store: TDiscourseStore, commentId: string): Promise<void> {
 	const quads = await store.query({ subject: commentId });
 	const grounded = quads.some((q) => GROUNDING_RELS.has(q.predicate) || isReplyEdge(q.predicate));
-	if (!grounded) throw new Error(`Comment "${commentId}" is not grounded: every comment must reference what it is about (hasTarget, attachment, or a reply edge).`);
+	if (!grounded) throw new Error(`Comment "${commentId}" is not grounded: every comment must reference its subject through hasTarget, attachment or a reply edge.`);
 }
 
-/** Walk reply-family edges upward from an individual to its conversation root, so a comment groups under the same root
- *  as what it concerns. Stops at the first individual without a reply parent (a top-level subject is its own root). */
+/** Walks reply-family edges upward from an individual to its conversation root, so a comment groups under the same root
+ *  as its subject. Stops at the first individual without a reply parent, so a top-level subject is its own root. */
 export async function conversationRoot(store: TDiscourseStore, id: string): Promise<string> {
 	let root = id;
 	for (let depth = 0; depth < 100; depth++) {
@@ -1384,21 +1378,21 @@ export async function conversationRoot(store: TDiscourseStore, id: string): Prom
 	return root;
 }
 
-/** Write a W3C Web Annotation anchored in (label, id): the anchor passage (oa:hasTarget), the note, and, for a linking
- *  annotation: a second anchored passage the note cross-references (oa:hasBody linksTo). The quote carries optional
- *  prefix/suffix context so what is annotated is determined reliably. Shared by every annotate variant. */
+/** Writes a W3C Web Annotation anchored in (label, id): the anchor passage (oa:hasTarget), the note and, for a linking
+ *  annotation, each further anchored passage the note cross-references (oa:hasBody linksTo). The quote carries optional
+ *  prefix and suffix context so the annotated passage resolves to one occurrence. Every annotate variant calls it. */
 export async function writeAnnotation(
 	store: TDiscourseStore,
 	vocab: TLinkVocabulary,
 	author: string,
 	a: { label: string; id: string; exact: string; prefix?: string; suffix?: string; text: string; at?: string; until?: string; links?: TQuoteAnchor[] },
 ): Promise<{ commentId: string; specificResourceId: string; linkedSpecificResourceIds?: string[] }> {
-	// `at`/`until` bound the period the note is ABOUT (a milestone's week), subject time, carried as
-	// startedAtTime/endedAtTime so time-placed views (gantt) show the note over its period. `generatedAtTime`
-	// stays the moment the record was written; the two are different facts and never conflated.
+	// `at` and `until` bound the period the note describes, such as a milestone's week. They are stored as
+	// startedAtTime and endedAtTime so time-placed views such as gantt show the note over its period. `generatedAtTime`
+	// holds the time the record was written. The two are different facts.
 	const now = new Date().toISOString();
-	// The pinned passage is titled by what the note STATES about it (the same rule Comment titles itself by), so in any
-	// view the anchor reads as the statement made there, never as the bare quote it happens to pin.
+	// The anchored passage is titled by the note's text, by the same rule that titles a Comment. Every view then shows
+	// the anchor as the note's statement and not as the bare quote.
 	const { specificResourceId } = await anchorPart(store, a.label, a.id, a, now, { label: commentName(a.text) });
 	const commentId = await createComment(store, vocab, author, a.text, now, { start: a.at, end: a.until });
 	await writeEdge(store, COMMENT_LABEL, commentId, LinkRelations.TARGET.rel, SPECIFIC_RESOURCE_LABEL, specificResourceId);
@@ -1416,21 +1410,20 @@ export async function writeAnnotation(
 // Typed-link derivation: turning a text's links into facts
 // ============================================================================
 
-/** What a reading did, so a later reading of the same source can undo exactly that: a statement, or a record it wrote. */
-/** What a reading stated, one record per statement, which undoing the reading, or finding which reading stated an edge,
- *  reads back. */
+/** One record per statement a reading made: an edge it stated or an individual it wrote. A later reading of the same
+ *  source reads these records back to undo the reading, and a lookup reads them to find the reading that stated an edge. */
 export const StatedRecordSchema = z.discriminatedUnion("kind", [
 	z.object({ kind: z.literal("edge"), s: z.string(), sLabel: z.string(), rel: z.string(), o: z.string(), oLabel: z.string() }),
 	z.object({ kind: z.literal("individual"), label: z.string(), id: z.string() }),
 ]);
 type TStatedRecord = z.infer<typeof StatedRecordSchema>;
 
-/** One reading per source: a stable id, so reading again replaces the previous reading rather than accumulating one per run. */
+/** Returns a stable reading id per source, so reading the source again replaces the previous reading and doesn't add one per run. */
 export function readingIdFor(sourceLabel: string, sourceId: string): string {
 	return `reading:${sourceLabel}:${sourceId}`;
 }
 
-/** The statements the previous reading of this source asserted, undone: its statements retracted, the anchors it wrote deleted, and the reading itself removed. */
+/** Undoes the previous reading of this source. It retracts the reading's statements, deletes the anchors it wrote and removes the reading. */
 async function retractReading(store: TDiscourseStore, readingId: string): Promise<void> {
 	const prior = await store.getIndividual<{ stated?: unknown }>(READING_LABEL, readingId);
 	if (!prior) return;
@@ -1446,16 +1439,16 @@ async function retractReading(store: TDiscourseStore, readingId: string): Promis
 }
 
 /**
- * Write the facts a text's links state, with `source` as their subject.
+ * Writes the facts a text's links state, with `source` as their subject.
  *
- * Every statement connects two records of REGISTERED types: the text (already a record, whatever its type) and the
- * individual its link names by `#Type:id`. The persisted-type registry is the articulation, so a receiving type
- * doesn't exist for anything else; a link to something without a record here is prose, or an error when it stated a term.
- * A typed link's part, a passage or a fragment of media, is anchored on the W3C Web Annotation types (`anchorPart`), labelled
- * by its link text.
+ * Every statement connects two records of registered types. One is the text, which is already a record of its own
+ * type. The other is the individual its link names by `#Type:id`. The persisted-type registry defines the link
+ * targets. An untyped link to an absent record is prose and doesn't state a fact. A typed link to an absent record
+ * throws. A typed link's part is a passage or a fragment of media. `anchorPart` anchors it on the W3C Web Annotation
+ * types and labels it with the link text.
  *
- * A `Derivation` records the reading: what it read (`prov:used`), the step that read it, and every statement it made,
- * so re-reading a rewritten text undoes exactly the previous reading and leaves anything asserted by hand alone.
+ * A Reading records what it read (`prov:used`), the step that read it and every statement it made. Reading a rewritten
+ * text then undoes the previous reading and leaves statements asserted by hand unchanged.
  */
 export async function readTypedLinks(
 	store: TDiscourseStore,
@@ -1466,14 +1459,14 @@ export async function readTypedLinks(
 ): Promise<{ readingId: string; statements: number } | undefined> {
 	const readingId = readingIdFor(source.label, source.id);
 	await retractReading(store, readingId);
-	// A caller that already parsed the text hands its facts over, so a prose line parses once.
+	// A caller that already parsed the text passes its facts, so a prose line is parsed once.
 	const facts = provenance?.facts ?? (markdown ? typedLinkFacts(markdown, vocab) : []);
 	if (facts.length === 0) return undefined;
 	const now = new Date().toISOString();
 	const stated: TStatedRecord[] = [];
-	// Written first: everything below points back at it, and a strict store needs the target to exist. Its `stated` list is filled in at the end.
+	// The reading is written first because the records below point at it, and a strict store requires an edge's target to exist. Its `stated` list is set at the end.
 	await store.upsertIndividual(READING_LABEL, { id: readingId, generatedAtTime: now, ...(provenance?.seqPath ? { seqPath: provenance.seqPath } : {}), stated: [] });
-	/** The part inside a record, as an individual an edge can point at: the anchor pair this reading owns. */
+	/** Anchors a part inside a record and returns the SpecificResource an edge can target. This reading owns the anchor pair. */
 	const anchored = async (base: { label: string; id: string }, part: TPart, linkText?: string): Promise<{ label: string; id: string }> => {
 		const { specificResourceId, selectorId, selectorLabel } = await anchorPart(store, base.label, base.id, part, now, linkText ? { label: linkText } : undefined);
 		for (const written of [
@@ -1487,18 +1480,18 @@ export async function readTypedLinks(
 	};
 	for (const fact of facts) {
 		const named = { label: fact.target.persistedAs, id: fact.target.id };
-		// The target must exist. Creating an id-only record to point at would add a node that doesn't hold a property.
+		// The target must exist. Creating an id-only record as the target would add a node that doesn't hold a property.
 		if (!(await store.getIndividual(named.label, named.id))) {
 			if (!fact.typed) continue;
-			throw new Error(`typed link "${fact.linkText ?? fact.rel}" refers to ${named.label} "${named.id}", which is not here; a fact's target is a record that exists`);
+			throw new Error(`typed link "${fact.linkText ?? fact.rel}" refers to ${named.label} "${named.id}", which isn't a record that exists. Write that record first.`);
 		}
-		// Only a typed link anchors its passage. An untyped link derives the record-level edge alone; its passage stays
+		// Only a typed link anchors its passage. An untyped link derives only the record-level edge, and its passage stays
 		// in the link, so plain cross-references don't add anchor records.
 		const target = fact.typed && fact.target.anchor ? await anchored(named, fact.target.anchor, fact.linkText) : named;
 		await writeEdge(store, source.label, source.id, fact.rel, target.label, target.id);
 		stated.push({ kind: "edge", s: source.id, sLabel: source.label, rel: fact.rel, o: target.id, oLabel: target.label });
 	}
-	// The reading's record of what it asserted, completing the individual written before the facts.
+	// Sets the reading's record of its statements on the individual written before the facts.
 	await store.set(
 		readingId,
 		"stated",
@@ -1514,11 +1507,9 @@ export async function readTypedLinks(
 // ============================================================================
 
 /**
- * The runtime shape of a rel definition. `LinkRelations` is the canonical
- * declaration; this is its serialised projection: what travels on the wire
- * to the SPA so renderers can read label / icon / presentation / RDFS
- * ancestry without bundling the const itself. One source of truth and one
- * projection; the graph doesn't store a copy that could diverge.
+ * The runtime shape of a rel definition. `LinkRelations` is the declaration and this is its serialised projection. The
+ * server sends it to the SPA, so renderers read label, icon, presentation and RDFS ancestry without bundling the const.
+ * The graph doesn't store a copy that could diverge.
  */
 type TPropertyDefinition = {
 	id: string;
@@ -1526,18 +1517,17 @@ type TPropertyDefinition = {
 	range: TRelRange;
 	label?: string;
 	icon?: string;
-	/** One or more parent rels (rdfs:subPropertyOf). A rel may sit under several upper concepts at once. */
+	/** One or more parent rels (rdfs:subPropertyOf). A rel may declare several upper concepts as parents. */
 	subPropertyOf?: string | string[];
 	presentation?: TRelPresentation;
-	/** Actor-edge ordering weight (highest wins), see TEdgeDef.rolePriority. */
+	/** The actor-edge ordering weight, where the highest takes precedence. See TEdgeDef.rolePriority. */
 	rolePriority?: number;
 };
 
 /**
- * Project the `LinkRelations` const to a flat list of property definitions.
- * Pure derivation: every call produces the same data. Consumed by the
- * server's site-metadata builder; from there it reaches the SPA's rels
- * cache. The TS const stays canonical; this is its only runtime form.
+ * Projects the `LinkRelations` const to a flat list of property definitions. Every call returns the same data. The
+ * server's site-metadata builder reads it and sends it to the SPA's rels cache. The TS const is the declaration, and
+ * this is its only runtime form.
  */
 export function getPropertyDefinitions(): TPropertyDefinition[] {
 	return Object.values(LinkRelations).map((entry) => {

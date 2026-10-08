@@ -1,16 +1,16 @@
 /**
- * What a run of features depends on, and the state of it: the content every declared and derived dependency has now.
+ * Computes the dependencies of a group of features and a digest of their present content. The digest is the state.
  *
- * A run's steppers name the modules it exercises, so a group's dependencies are derived from the configuration it
- * already has rather than declared a second time: each stepper resolves to a file, the file to the module holding it,
- * a module to the directory its own build configuration states it is built from, and a module to the modules it depends
- * on in turn. An application's configuration names the framework's modules beside its own, so its dependencies span
- * both without declaring so. A group adds paths of its own through `dependsOn`, and names the external environments it
- * uses.
+ * A group's dependencies are derived from its configuration and aren't declared a second time. The steppers a
+ * configuration lists name the modules a run exercises. Each stepper resolves to a file. The file resolves to the module
+ * that contains it. A module resolves to the source directory its tsconfig.json declares. A module also resolves to each
+ * `@haibun/` module in the `dependencies` of its package.json. An application's configuration lists framework modules
+ * and its own modules, so its dependencies include both without a separate declaration. A group adds its own paths
+ * through `dependsOn` and lists the external environments it uses through `environments`.
  *
- * The state is a digest of the content of every file under those paths that its repository tracks or would track:
- * ignored files are derived output and are left out. It is read from the working tree, so what is verified is what is
- * about to run, whether or not it is committed.
+ * The state is a digest of the content of every file under those paths that its repository tracks or would track.
+ * It excludes ignored files. An ignored file is derived output. The state is read from the working tree, so it
+ * includes changes that aren't committed.
  */
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -20,17 +20,18 @@ import type { TSpecl } from "../../execution.js";
 import { getModuleLocation } from "./workspace-lib.js";
 import { itemAt } from "../item-at.js";
 
-/** The file a group's runs are recorded in. It lives among the group's own files and is left out of the state, since
- *  a record of the state is not part of it. */
+/** The name of the file that records the outcomes of a group's runs against the state. The file is written beside the
+ *  group's configuration. The state excludes every file with this name, because the record isn't part of the state. */
 export const VERIFIED_FILE = "verified.json";
-/** The file what a group's runs took is recorded in, beside the same configuration: a measurement of a run, and no
- *  more part of the state than the record of it. */
+/** The name of the file that records the duration of each feature in a group's runs. The file is written beside the
+ *  group's configuration. The state excludes every file with this name, because a measurement of a run isn't part of
+ *  the state. */
 export const TIMINGS_FILE = "timings.json";
-/** What a run writes beside a group's configuration about itself, which the state of the group leaves out. */
+/** The names of the files a run writes about itself beside a group's configuration. The state excludes them. */
 const WRITTEN_BY_A_RUN = new Set([VERIFIED_FILE, TIMINGS_FILE]);
 
-/** The directory of the module a path belongs to: the nearest ancestor holding a package.json. Undefined for a path
- *  that isn't inside a module. */
+/** Returns the directory of the module that contains a path. That directory is the nearest directory at or above the
+ *  path that contains a package.json. Returns undefined for a path that isn't inside a module. */
 export function moduleRootOf(location: string): string | undefined {
 	let dir = nodeFS.existsSync(location) && nodeFS.statSync(location).isDirectory() ? location : path.dirname(location);
 	for (;;) {
@@ -41,9 +42,9 @@ export function moduleRootOf(location: string): string | undefined {
 	}
 }
 
-/** The nearest existing ancestor of a path, resolved through links to where it is. A stepper resolves to a
- *  file named without its extension, so the file may not exist while its directory does; a linked module resolves to
- *  the repository that holds its sources. */
+/** Returns the real path of a location. Where the location doesn't exist, returns the real path of its nearest existing
+ *  ancestor. A stepper resolves to a file named without its extension, so the file can be absent while its directory
+ *  exists. A module linked into node_modules resolves to its directory in the repository that contains its sources. */
 function whereItIs(location: string): string {
 	let at = location;
 	while (!nodeFS.existsSync(at)) {
@@ -54,9 +55,10 @@ function whereItIs(location: string): string {
 	return nodeFS.realpathSync(at);
 }
 
-/** The framework modules a module depends on, each as the directory that holds it: what a change to one of them
- *  reaches. Read from the module's own declaration and resolved through its own node_modules, so the answer is what
- *  the module would load. */
+/** Returns the real directory of each `@haibun/` module in the `dependencies` of a module's package.json. A change in
+ *  one of those directories changes what the module runs. The search for each name starts at the node_modules of the
+ *  module's directory and continues at the node_modules of each ancestor directory. Node.js searches in the same order,
+ *  so each returned directory is the one Node.js loads for the module. Skips a name that isn't installed. */
 function dependedModules(moduleDir: string): string[] {
 	const pkgJson = path.join(moduleDir, "package.json");
 	if (!nodeFS.existsSync(pkgJson)) return [];
@@ -76,9 +78,11 @@ function dependedModules(moduleDir: string): string[] {
 	return found;
 }
 
-/** What a module is built from, where its own build configuration states: a change to the module reaches its sources,
- *  and its tests, its documents and the groups of features it holds are not what a stepper of it runs. A module that
- *  doesn't declare such a directory is depended on whole. */
+/** Returns the real path of the `compilerOptions.rootDir` that a module's tsconfig.json declares. A stepper of the
+ *  module runs code built from that directory. Documents, feature groups and other files outside it don't change what
+ *  the stepper runs. Returns the module directory where the module doesn't have a tsconfig.json or its tsconfig.json
+ *  doesn't declare `rootDir`. Throws where the tsconfig.json can't be read as JSON or the declared directory doesn't
+ *  exist. */
 function sourcesOf(moduleDir: string): string {
 	const tsconfig = path.join(moduleDir, "tsconfig.json");
 	if (!nodeFS.existsSync(tsconfig)) return moduleDir;
@@ -86,21 +90,23 @@ function sourcesOf(moduleDir: string): string {
 	try {
 		declared = JSON.parse(nodeFS.readFileSync(tsconfig, "utf-8"));
 	} catch (err: unknown) {
-		throw new Error(`${tsconfig} could not be read, so what ${moduleDir} is built from is not known: ${(err as Error).message}`);
+		throw new Error(`${tsconfig} could not be read as JSON, so the source directory of ${moduleDir} can't be determined. Correct the file: ${(err as Error).message}`);
 	}
 	const rootDir = declared.compilerOptions?.rootDir;
 	if (!rootDir) return moduleDir;
 	const sources = path.resolve(moduleDir, rootDir);
-	if (!nodeFS.existsSync(sources)) throw new Error(`${tsconfig} states the module is built from ${rootDir}, and ${sources} doesn't exist`);
+	if (!nodeFS.existsSync(sources)) throw new Error(`${tsconfig} declares rootDir ${rootDir}, and ${sources} doesn't exist. Create the directory or correct rootDir.`);
 	return nodeFS.realpathSync(sources);
 }
 
 /**
- * The directories a group's features depend on: the bases the features are read from, the sources of the module of
- * every stepper the configuration names, the sources of every framework module those modules depend on, and the
- * paths the configuration adds. Each once, absolute and real, in a stable order. A stepper named by a relative path is
- * resolved from the directory actuality is made from, as actuality resolves it, so a process deciding for another
- * computes what that other would.
+ * Returns the directories that contain a group's dependencies. They are the feature bases, the source directory of each
+ * listed stepper's module, the source directory of each `@haibun/` module in those modules' `dependencies` transitively,
+ * and each `dependsOn` path. Each directory appears once as an absolute real path, in sorted order. A relative base and a
+ * stepper named by a relative path resolve against `cwd`. A run started in `cwd` resolves a relative stepper path the
+ * same way. A `dependsOn` path resolves against `configDir`. A caller that computes the roots for a run started in
+ * another directory passes that directory as `cwd`. Throws where a `dependsOn` path doesn't exist, where a module's
+ * tsconfig.json isn't valid JSON, or where a declared rootDir doesn't exist.
  */
 export function dependencyRoots(specl: TSpecl, bases: readonly string[], configDir: string, cwd: string): string[] {
 	const roots = new Set<string>();
@@ -113,43 +119,48 @@ export function dependencyRoots(specl: TSpecl, bases: readonly string[], configD
 		for (const depended of dependedModules(moduleDir)) follow(depended);
 	};
 	for (const entry of specl.steppers) {
-		if (typeof entry !== "string") continue; // a remote stepper is another instance's, and that instance verifies its own
+		if (typeof entry !== "string") continue; // A remote stepper runs in another instance. That instance verifies its own dependencies.
 		const root = moduleRootOf(whereItIs(entry.startsWith(".") ? path.resolve(cwd, entry) : getModuleLocation(entry)));
 		if (root !== undefined) follow(root);
 	}
 	for (const dep of specl.dependsOn ?? []) {
 		const at = path.resolve(configDir, dep);
-		if (!nodeFS.existsSync(at)) throw new Error(`dependsOn names ${dep}, and ${at} doesn't exist`);
+		if (!nodeFS.existsSync(at)) throw new Error(`dependsOn names ${dep}, and ${at} doesn't exist. Create the path or remove the entry from dependsOn.`);
 		roots.add(nodeFS.realpathSync(at));
 	}
 	return [...roots].sort();
 }
 
-/** Ask git something in a directory. What it returns on failure is kept, since the failure is what is reported. */
+/** Runs git with the given arguments in a directory and returns its standard output. Standard error is piped rather
+ *  than inherited, so a caller reads it from the thrown error. */
 const git = (dir: string, args: string[], input?: string): string =>
 	execFileSync("git", args, { cwd: dir, encoding: "utf-8", maxBuffer: 64 * 1024 * 1024, stdio: ["pipe", "pipe", "pipe"], ...(input === undefined ? {} : { input }) });
 
-/** The top of the repository a directory is in, or undefined where it isn't in one. Any other failure to ask is a
- *  failure and is reported: a state read with git absent or refused would run every group unverified without a word. */
+/** Returns the top-level directory of the repository that contains a directory. Returns undefined where the directory
+ *  isn't in a repository. Throws on any other git failure. An undefined result for that failure would make every group
+ *  run without consulting its record and wouldn't report the failure. */
 function repositoryTop(dir: string): string | undefined {
 	try {
 		return git(dir, ["rev-parse", "--show-toplevel"]).trim();
 	} catch (err: unknown) {
 		const said = String((err as { stderr?: string }).stderr ?? "").trim();
 		if (said.includes("not a git repository")) return undefined;
-		throw new Error(`could not ask git about ${dir}: ${said || (err as Error).message}`);
+		throw new Error(
+			`git rev-parse --show-toplevel failed in ${dir}, so its dependency state can't be read. Check that the directory exists and that git runs there: ${said || (err as Error).message}`,
+		);
 	}
 }
 
 type TRepositoryFile = { file: string; digest: string };
 
-/** A name `hash-object` cannot be given on a line: it reads one path per line and unquotes a line that begins with a
- *  quotation mark. */
+/** Returns true for a path that `git hash-object --stdin-paths` can't read from a line. That command reads one path per
+ *  line and unquotes a line that begins with a quotation mark. */
 const unnameable = (file: string): boolean => file.includes("\n") || file.startsWith('"');
 
-/** The files under a directory that its repository tracks or would track, each with the digest of its content as it
- *  is in the working tree; a link by what it points at. A directory listed is a nested repository or a submodule, whose
- *  content is its own to verify. Undefined where the directory isn't in a repository. */
+/** Returns the path and the working-tree content digest of each file under a directory that its repository tracks or
+ *  would track. A symbolic link's digest is its target path. A listed directory is a nested repository or a submodule.
+ *  The result skips it, because that directory's own repository holds its content. The result excludes the files a run
+ *  writes about itself. Returns undefined where the directory isn't in a repository. */
 function repositoryFiles(dir: string): TRepositoryFile[] | undefined {
 	const top = repositoryTop(dir);
 	if (top === undefined) return undefined;
@@ -163,7 +174,7 @@ function repositoryFiles(dir: string): TRepositoryFile[] | undefined {
 		try {
 			stat = nodeFS.lstatSync(path.join(top, file));
 		} catch {
-			continue; // listed from the index and gone from the tree: a deletion, which its absence here states
+			continue; // A file in the index and missing from the working tree is a deletion. Its absence from the result records the deletion.
 		}
 		if (stat.isSymbolicLink()) links.push({ file, digest: `link ${nodeFS.readlinkSync(path.join(top, file))}` });
 		else if (stat.isFile()) files.push(file);
@@ -186,12 +197,15 @@ function repositoryFiles(dir: string): TRepositoryFile[] | undefined {
 }
 
 /**
- * One digest of the state of every dependency: the content of every file under every root, and the environments
- * declared. The same state gives the same digest wherever it is computed.
+ * Returns one digest of the content of every file under every root and of the declared environments. The digest
+ * includes each root's absolute path, so the same content under another root path gives another digest. The
+ * environments are sorted, so their order doesn't change the digest. Throws where git fails in a root for a reason
+ * other than a missing repository.
  *
- * Undefined where the state cannot be read, which is an unknown state rather than an empty state: a root
- * that isn't in a repository, or one whose files the repository ignores, as a module installed rather than linked is. A group
- * depending on such a root runs every time rather than never.
+ * Returns undefined where a root's state can't be read. Undefined is an unknown state and differs from an empty state.
+ * A root's state can't be read where the root isn't in a repository or doesn't contain a file its repository tracks or
+ * would track. An installed module that the repository ignores is such a root. A group that depends on such a root
+ * runs every time, rather than never.
  */
 export function dependencyState(roots: readonly string[], environments: readonly string[] = []): string | undefined {
 	const hash = createHash("sha256");

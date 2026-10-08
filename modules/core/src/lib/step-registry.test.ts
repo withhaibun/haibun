@@ -8,7 +8,7 @@ import type { TStepperStep } from "./astepper.js";
 import { EVERY_DEFINITION, STEP_DETAIL, SHOW_STEPS_METHOD, StepDiscoverySchema } from "./step-discovery.js";
 import { RUN_AUTHORITY } from "./capability-context.js";
 
-/** A domain with date fields and a defaulted field: the shape every persisted type carries (generatedAtTime etc.). */
+/** A domain with date fields and a defaulted field. A persisted type's generatedAtTime is a defaulted date field. */
 const RecordSchema = z.object({ subject: z.string(), dateSent: z.coerce.date(), generatedAtTime: z.coerce.date().default(() => new Date()) }).strict();
 
 const worldWith = (schema: z.ZodType): TWorld => ({ domains: { "test-record": { selectors: ["test-record"], schema, description: "A dated test record." } } }) as unknown as TWorld;
@@ -21,7 +21,7 @@ class RecordSteps extends AStepper {
 }
 
 describe("step tool input schemas", () => {
-	it("a domain-typed param surfaces the domain's full JSON Schema with input semantics: dates as string/date-time, defaulted fields optional", () => {
+	it("a domain-typed param's schema is the domain's full JSON Schema for input, with dates as string/date-time and defaulted fields optional", () => {
 		const tool = createStepTool(new RecordSteps(), "createRecord", stepDef, worldWith(RecordSchema));
 		const data = tool.descriptor.inputSchema.properties.data as { properties?: Record<string, { type?: string; format?: string }>; required?: string[] };
 		expect(data.properties?.subject).toMatchObject({ type: "string" });
@@ -30,23 +30,23 @@ describe("step tool input schemas", () => {
 		expect(data.required).not.toContain("generatedAtTime");
 	});
 
-	it("a domain declaring a type without a JSON Schema representation throws at registration, naming the domain and the type", () => {
+	it("registration throws for a domain that declares a type without a JSON Schema form, and the error names the domain and the type", () => {
 		const unrepresentable = z.object({ handle: z.bigint() });
 		expect(() => createStepTool(new RecordSteps(), "createRecord", stepDef, worldWith(unrepresentable))).toThrow(
-			/test-record" declares a "bigint" field, which doesn't have a JSON Schema form/,
+			/test-record" declares a "bigint" field\. JSON Schema doesn't represent that type/,
 		);
 	});
 });
 
 const emptyRegistryWorld = { domains: {}, runtime: {} } as unknown as TWorld;
 
-/** A stepper with one plain step, standing in for what a run registers locally. */
+/** A stepper with one plain step. It stands for the steps actuality registers locally. */
 class LocalSteps extends AStepper {
 	description = "a step that passes";
 	steps = { passes: { gwta: "passes", action: async () => actionOK() } };
 }
 
-/** A step another host declares, as its proxy registers it in this run's registry. */
+/** A step that another host declares, as its proxy registers it in actuality's registry. */
 const remoteTool = (stepName: string, pattern: string, capability = `RemoteSteps:${stepName}`): StepTool => ({
 	descriptor: {
 		method: hostScopedMethodName(9, `RemoteSteps-${stepName}`),
@@ -68,7 +68,8 @@ const remoteTool = (stepName: string, pattern: string, capability = `RemoteSteps
 	handler: async () => actionOK(),
 });
 
-/** What actuality shows its own feature, which holds everything, or a caller holding `held`. */
+/** The definitions shown to a caller holding `held`. `held` defaults to RUN_AUTHORITY. Actuality's own feature holds
+ *  RUN_AUTHORITY, which allows every action. */
 const definitionsOf = (world: TWorld, registry: StepRegistry, text: string, held: string[] = RUN_AUTHORITY) =>
 	discoverSteps(world, registry, { text, detail: STEP_DETAIL.definition }, held);
 const summariesOf = (world: TWorld, registry: StepRegistry, text: string) => discoverSteps(world, registry, { text, detail: STEP_DETAIL.summary }, RUN_AUTHORITY);
@@ -76,7 +77,7 @@ const summariesOf = (world: TWorld, registry: StepRegistry, text: string) => dis
 describe("what a read of actuality's declarations shows", () => {
 	const emptyWorld = { domains: {}, runtime: {} } as unknown as TWorld;
 
-	it("shows a step another host injected under its host-scoped name, with the host it runs at and a stepper that names the host", () => {
+	it("shows an injected step of another host under its host-scoped name, with that host's origin and a stepper name that includes the host", () => {
 		const registry = new StepRegistry([new LocalSteps()], emptyWorld);
 		registry.inject([remoteTool("listTyped", "list {domain: string}")]);
 		const shown = definitionsOf(emptyWorld, registry, "");
@@ -91,7 +92,7 @@ describe("what a read of actuality's declarations shows", () => {
 		expect(shown.steppers.map((entry) => entry.stepper)).toEqual(["LocalSteps", "host9_RemoteSteps"]);
 	});
 
-	it("shows a caller only the steps it holds what they require for, each with that action", () => {
+	it("shows a caller only the steps whose required action it holds, each with that action", () => {
 		const registry = new StepRegistry([new LocalSteps()], emptyWorld);
 		registry.inject([remoteTool("write", "write {data}", "Remote:write"), remoteTool("read", "read {data}", "Read:private")]);
 		expect(
@@ -128,7 +129,7 @@ describe("what a read of actuality's declarations shows", () => {
 			byStepper.steps.map((step) => step.method),
 			"a stepper's name and a hyphen match its steps",
 		).toEqual(["ManySteps-readRecord", "ManySteps-writeRecord"]);
-		expect(byStepper.steppers, "with the stepper whose steps matched, how many matched, and the read of its steps").toEqual([
+		expect(byStepper.steppers, "with the stepper whose steps matched, how many matched, and the link that reads its steps").toEqual([
 			{
 				stepper: "ManySteps",
 				description: "steps that read and write records",
@@ -163,7 +164,7 @@ describe("what a read of actuality's declarations shows", () => {
 		]);
 	});
 
-	it("announces a change once for each injection, and not for a rebuild that describes every step as it was", () => {
+	it("calls its change listeners once for each injection or rebuild that changes the descriptors, and not for one that keeps them", () => {
 		const steppers = [new LocalSteps()];
 		const registry = new StepRegistry(steppers, emptyWorld);
 		let changes = 0;
@@ -175,7 +176,7 @@ describe("what a read of actuality's declarations shows", () => {
 		registry.refresh(steppers, emptyWorld);
 		expect(changes, "and a rebuild of the same steps doesn't either").toBe(1);
 		class MoreSteps extends AStepper {
-			description = "a step that fails";
+			description = "a step that a rebuild adds";
 			steps = { fails: { gwta: "fails", action: async () => actionOK() } };
 		}
 		registry.refresh([...steppers, new MoreSteps()], emptyWorld);
@@ -191,17 +192,17 @@ describe("a call by name of another host's step", () => {
 	it("carries the host, so dispatch resolves that host's step and not the local one of the same name", () => {
 		expect(
 			buildFeatureStepForTransport(remoteTool("listTyped", "list {domain: string}"), { domain: "thing" }, [0, -1, 1]).targetHostId,
-			"the host the tool is registered under",
+			"the host id from the tool's host-scoped name",
 		).toBe(9);
 		const local = new StepRegistry([new LocalSteps()], emptyRegistryWorld).get("LocalSteps-passes");
 		if (!local) throw new Error("the local step is not registered");
-		expect(buildFeatureStepForTransport(local, {}, [0, -1, 2]).targetHostId, "and undefined for a step of this run").toBeUndefined();
+		expect(buildFeatureStepForTransport(local, {}, [0, -1, 2]).targetHostId, "and undefined for a local step").toBeUndefined();
 	});
 });
 
 describe("what the manifest states about a domain", () => {
-	// A domain that presents a component names where its source is served from; the source itself stays on the server,
-	// where the standalone report inlines it. A manifest that carried it would send a bundle to every caller, on every boot.
+	// A domain that presents a component names the URL that serves its source. The source stays on the server, and the
+	// standalone report inlines it. A manifest that carried the source would send a bundle to every caller on every boot.
 	it("carries the component and its URL, never the component's source", () => {
 		const world = {
 			runtime: {},
@@ -219,13 +220,13 @@ describe("what the manifest states about a domain", () => {
 	});
 });
 
-describe("what a refused caller from outside actuality is told", () => {
-	it("tells a caller that didn't prove a key only that it may not make the call, alike whether the step exists", () => {
+describe("the refusal a caller from outside actuality receives", () => {
+	it("states only that a caller without a proven key may not make the call, whether the step exists or not", () => {
 		expect(refusal("Pool-drain", "Pool:drain", undefined)).toBe(refusal("Pool-nowhere", undefined, undefined).replace("Pool-nowhere", "Pool-drain"));
-		expect(refusal("Pool-drain", "Pool:drain", undefined), "and doesn't name an action it could ask for").not.toContain("Pool:drain");
+		expect(refusal("Pool-drain", "Pool:drain", undefined), "and doesn't name an action the caller could request").not.toContain("Pool:drain");
 	});
 
-	it("tells a caller that proved a key the action it lacks, or that such a step doesn't exist, since it can ask a holder", () => {
+	it("names the action a caller with a proven key lacks, or states that the step doesn't exist, since that caller can request the action from a holder", () => {
 		expect(refusal("Pool-drain", "Pool:drain", "did:key:zSwimmer")).toBe("Pool-drain: capability Pool:drain required");
 		expect(refusal("Pool-nowhere", undefined, "did:key:zSwimmer")).toBe("Pool-nowhere: unknown step method");
 	});

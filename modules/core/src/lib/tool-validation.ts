@@ -6,18 +6,20 @@ import { normalizeDomainKey, registeredDomain } from "./domains.js";
 import type { StepTool } from "./step-registry.js";
 import { errorDetail } from "./util/index.js";
 
-/**
- * A call's input as the domain of each parameter takes it: validated by the domain's schema as registered now, then
- * coerced where the domain coerces, as a feature line's value is. Each domain's schema takes the forms of its value a
- * feature line may give, so a call may give them too. Throws naming every parameter refused.
- */
-/** How a refusal states a value it was given: as written, or by its length where it is too long to repeat, such as a file's bytes. */
+/** The maximum length in characters of a value that a refusal repeats as written. A refusal states the length of a longer
+ *  value. A file's bytes are one such value. */
 const STATED_VALUE_CHARS = 200;
 const statedValue = (value: unknown): string => {
 	const written = JSON.stringify(value) ?? String(value);
 	return written.length > STATED_VALUE_CHARS ? `${written.length} characters` : written;
 };
 
+/**
+ * Returns a call's input as the domain of each parameter takes it. Each value is validated by its domain's schema as registered
+ * when the call arrives. A domain that coerces then coerces the value, as it coerces a feature line's value. Each domain's
+ * schema accepts the forms of its value that a feature line may give, so a call may give them too. Throws an error that
+ * names every required parameter the input doesn't hold and every refused value.
+ */
 export function validateToolInput(fromSeqPath: TSeqPath, tool: StepTool, input: Record<string, unknown>, world: TWorld): Record<string, unknown> {
 	const validated: Record<string, unknown> = { ...input };
 	const errors: string[] = [];
@@ -48,7 +50,7 @@ export function validateToolInput(fromSeqPath: TSeqPath, tool: StepTool, input: 
 	return validated;
 }
 
-/** A statement's step as dispatch ran it: its stepper, its action and the step it ran as. */
+/** A statement's step as dispatch ran it. It holds the stepper name, the action name and the step definition dispatch ran. */
 const RanStepSchema = z.object({
 	action: z.object({
 		stepperName: z.string(),
@@ -56,26 +58,30 @@ const RanStepSchema = z.object({
 		step: z.custom<TStepperStep>((step) => typeof step === "object" && step !== null && "action" in step && typeof step.action === "function"),
 	}),
 });
-/** The statements a step ran, of which only the last, whose result is passed on, is read. */
+/** The statements a step ran. Only the last statement is read, since its result is the one passed on. */
 const RanStatementsSchema = z.array(z.unknown()).optional();
 const LastRanStepSchema = RanStepSchema.optional();
 
-/** The step whose domain products are in, and whether it is a statement's step whose products a step passed on. */
+/** The step whose domain the products are in. `passedOn` is true where it is a statement's step whose products another
+ *  step passed on. */
 type TAnsweringStep = { stepperName: string; actionName: string; step: TStepperStep; passedOn: boolean };
 
-/** The step whose domain a step's products are in: the step itself, or, for one answering with what a statement it ran
- *  answered, that statement's last step as `args` resolved it, since the last step's result is the one passed on. */
+/** The step whose domain a step's products are in. That step is the step itself, unless the step declares productsOf. A
+ *  step with productsOf passes on the products of the statement it ran. Its products are in the domain of that statement's
+ *  last step as `args` resolved it, since the last step's result is the one passed on. Returns an error message where
+ *  `args` doesn't hold a statement for productsOf. */
 function answeringStep(stepperName: string, actionName: string, stepDef: TStepperStep, args: TStepArgs): TAnsweringStep | string {
 	if (stepDef.productsOf === undefined) return { stepperName, actionName, step: stepDef, passedOn: false };
 	const ran = LastRanStepSchema.parse(RanStatementsSchema.parse(args[stepDef.productsOf])?.at(-1));
-	if (!ran) return `step ${stepperName}.${actionName} answers with what its {${stepDef.productsOf}} answered, and wasn't given a statement there`;
+	if (!ran) return `step ${stepperName}.${actionName} passes on the products of {${stepDef.productsOf}}, which doesn't hold a statement; state a step in it`;
 	return { stepperName: ran.action.stepperName, actionName: ran.action.actionName, step: ran.action.step, passedOn: true };
 }
 
 /**
- * Validate a step's products against the domain they are in: the one the step names, or, for a step answering with what
- * a statement it ran answered, the one that statement's step names. A step answering with what another such step
- * answered was checked by that step. A step that doesn't name a domain doesn't return products.
+ * Validate a step's products against the domain they are in. That domain is the one the step names. A step with
+ * productsOf takes the domain that the statement's last step names. A step that passes on the products of another
+ * productsOf step doesn't validate them again, since that step validated them. A step that doesn't name a domain fails
+ * validation where it returns products.
  */
 export function validateProducts(
 	stepperName: string,
@@ -88,11 +94,12 @@ export function validateProducts(
 	const answering = answeringStep(stepperName, actionName, stepDef, args);
 	if (typeof answering === "string") return answering;
 	if (answering.passedOn && answering.step.productsOf !== undefined) return undefined;
-	const named = `step ${stepperName}.${actionName}${answering.passedOn ? ` answering as ${answering.stepperName}.${answering.actionName}` : ""}`;
+	const named = `step ${stepperName}.${actionName}${answering.passedOn ? ` passing on ${answering.stepperName}.${answering.actionName}` : ""}`;
 	const schema = resolveOutputSchema(answering.stepperName, answering.actionName, answering.step, world);
 	if (!schema) return products === undefined || products === null ? undefined : `${named} returned products and doesn't name a domain for them`;
 	if (products === undefined || products === null) return `${named} declared an output schema but its action didn't return products`;
-	// What a statement's step answered carries the markers its dispatch added, which aren't part of its domain.
+	// A statement step's products carry the markers its dispatch added. productData removes them, since they aren't part
+	// of the domain.
 	const result = schema.safeParse(answering.passedOn ? productData(products) : products);
 	if (result.success) return undefined;
 	return `${named} products failed schema validation: ${result.error.issues.map((i) => `${i.path.join(".") || "(root)"} ${i.message}`).join("; ")}`;
@@ -100,9 +107,9 @@ export function validateProducts(
 
 /**
  * Resolve a step's output schema from the domains it names. At most one of `productsDomain`, `productsDomains` and
- * `productsOf` may be set: `productsDomain` uses a registered domain's schema, `productsDomains` builds an object schema
- * keyed by field from each, and `productsOf` doesn't have one of its own, since each line's statement names it. A step that doesn't name
- * one doesn't return products.
+ * `productsOf` may be set. `productsDomain` uses a registered domain's schema. `productsDomains` builds an object schema
+ * with one field for each named domain. `productsOf` doesn't resolve a schema of its own, since each line's statement
+ * names its domain. Returns undefined for a step that doesn't name a domain.
  */
 export function resolveOutputSchema(stepperName: string, stepName: string, stepDef: TStepperStep, world: TWorld): z.ZodType | undefined {
 	const declared = [stepDef.productsDomain, stepDef.productsDomains, stepDef.productsOf].filter((d) => d !== undefined);

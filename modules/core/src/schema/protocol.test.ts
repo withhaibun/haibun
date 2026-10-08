@@ -48,17 +48,17 @@ describe("Haibun Event Schemas", () => {
 	});
 });
 
-describe("the level a monitor shows events from", () => {
+describe("the minimum level of the events a monitor shows", () => {
 	const logged = (level: THaibunLogLevel): THaibunEvent => HaibunEvent.parse({ id: `log-${level}`, timestamp: 1, kind: "log", level, message: level });
 
-	it("is the option actuality states, or info where it isn't set, and shows each event at or above it", () => {
+	it("is actuality's LOG_LEVEL option or info where the option isn't set, and a monitor shows each event at or above it", () => {
 		expect(shownLogLevel({})).toBe("info");
 		expect(EventFormatter.shouldDisplay(logged("warn"), shownLogLevel({ LOG_LEVEL: "info" }))).toBe(true);
 		expect(EventFormatter.shouldDisplay(logged("debug"), shownLogLevel({ LOG_LEVEL: "info" }))).toBe(false);
 	});
 
-	it("shows no events at none, and refuses a level it doesn't know", () => {
+	it("a monitor set to `none` doesn't show an event, and actuality's options reject an unlisted level", () => {
 		expect(EventFormatter.shouldDisplay(logged("error"), shownLogLevel({ LOG_LEVEL: "none" }))).toBe(false);
-		expect(BaseOptionsSchema.shape.LOG_LEVEL.safeParse("inof").success, "actuality's options refuse it").toBe(false);
+		expect(BaseOptionsSchema.shape.LOG_LEVEL.safeParse("inof").success, "actuality's options reject it").toBe(false);
 	});
 });

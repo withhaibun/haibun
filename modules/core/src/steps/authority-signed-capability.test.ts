@@ -1,8 +1,9 @@
 /**
- * Signed-capability path of AuthorityStepper: `holding capability {cap} at {target}, {what}`. The principal is
- * proven by a signed capability verified through a registered IAuthorityVerifier (a test double here, haibun-core
- * stays crypto-free; the ZCAP-LD verifier lives in the consumer). On verified, the capability's controller becomes the
- * principal so authored writes are attributed to it.
+ * Tests the signed-capability step of AuthorityStepper: `holding capability {cap} at {target}, {what}`. A signed
+ * capability proves the principal, and a registered IAuthorityVerifier verifies the capability. The verifier in these
+ * tests is a test double. haibun-core doesn't implement cryptography, and the consumer implements the ZCAP-LD verifier.
+ * The stub verifier doesn't return a principal, so the statement runs as the capability's controller, and authored writes
+ * name the controller as author.
  */
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
@@ -32,15 +33,16 @@ class TestNodeStepper extends AStepper implements IHasCycles {
 	steps = {};
 }
 
-/** Captures what the registered verifier was asked to verify, and decides ok/fail. Registered after AuthorityStepper installs the authority. */
+/** Holds the evidence the registered verifier last received, and the result it returns. StubVerifierStepper registers
+ *  the verifier after AuthorityStepper installs the authority. */
 const verifierState: { lastEvidence?: TAuthorityEvidence; ok: boolean; error?: string } = { ok: true };
-/** States what the verifier decides next, and forgets what it was last asked to verify. */
+/** Sets the result the verifier returns next, and clears the evidence it last received. */
 const verifierDecides = (ok: boolean, error?: string) => {
 	Object.assign(verifierState, { ok, error, lastEvidence: undefined });
 };
 
 class StubVerifierStepper extends AStepper implements IHasCycles {
-	description = "Registers a verifier whose verdict and last evidence the tests state and read.";
+	description = "Registers a verifier that returns the result a test sets. The verifier writes the evidence it receives to verifierState.";
 	cycles: IStepperCycles = {
 		startFeature: () => {
 			const verifier = stubVerifier({
@@ -94,14 +96,14 @@ holding capability cap at "urn:res:1", comment on "${TEST_NODE_LABEL}" "node-1" 
 		expect(itemAt(comments, 0).author).toBe(SUBKEY_DID);
 
 		const evidence = verifierState.lastEvidence;
-		if (evidence?.kind !== "document") throw new Error("the verifier wasn't asked to verify a document");
-		expect(evidence.action, "the verifier checks the document for everything it allows, since a single action isn't asked").toBeUndefined();
-		expect(evidence.target, "and what it was asked of").toBe("urn:res:1");
-		expect(evidence.document.id, "and is handed the document itself to read").toBe("urn:zcap:alice-comment");
-		expect(evidence.presenter, "and who presents it, the root here, which the verifier holds to the document's controller").toEqual({ root: true });
+		if (evidence?.kind !== "document") throw new Error("the verifier didn't receive a document to verify");
+		expect(evidence.action, "the evidence doesn't name an action, so the verifier checks the document for every action the document allows").toBeUndefined();
+		expect(evidence.target, "the evidence names the invocation target").toBe("urn:res:1");
+		expect(evidence.document.id, "the evidence holds the parsed document").toBe("urn:zcap:alice-comment");
+		expect(evidence.presenter, "the evidence names the root as the presenter, and a verifier checks the presenter against the document's controller").toEqual({ root: true });
 	});
 
-	it("fails the step (and doesn't write a record) when the registered verifier rejects the signed capability", async () => {
+	it("fails the step and doesn't write a record when the registered verifier rejects the signed capability", async () => {
 		verifierDecides(false, "invalid proof");
 		const world = getDefaultWorld({ HAIBUN_LOG_LEVEL: "none" });
 		world.runtime.keys = { ...world.runtime.keys, principal: resolveSitePrincipal({}) };

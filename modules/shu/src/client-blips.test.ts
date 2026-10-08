@@ -11,25 +11,25 @@ import { CLIENT_LOG_METHOD } from "./client-log.js";
 import { readAction } from "@haibun/core/lib/actions.js";
 import { Access } from "@haibun/core/lib/resources.js";
 
-/** The read a page holds to hand actuality its occurrences. */
+/** The read a page holds to send its occurrences to actuality. */
 const PRIVATE_READ = readAction(Access.private);
 
 type TBatch = { blips: { name: string; value?: number }[]; recorded: number };
-/** Each batch the page handed actuality, by the link it followed. */
+/** The link of each batch the page sent to actuality. */
 const sent: TLink[] = [];
-/** What actuality answers a call with, which a case makes a failure. */
+/** Returns actuality's response to a call. A case replaces it to make a call fail. */
 let delivered: (link: TLink) => unknown = () => ({});
 const sentBatch = (): TBatch => {
 	const last = sent.at(-1);
-	if (!last) throw new Error("nothing was sent");
+	if (!last) throw new Error("the page didn't send a batch");
 	return last.params?.batch as TBatch;
 };
 
-describe("recording in the browser: hold it, hand it over in batches", () => {
-	// A page records from the moment it loads, so each case is a page of its own, which ends with the case.
+describe("recording in the browser: the page holds occurrences and sends them in batches", () => {
+	// A page records from the moment it loads, so each case opens its own page. The page ends with the case.
 	let t: TShuTestHandle;
 	beforeEach(async () => {
-		// Only the flush delay is faked: the page key a case opens is read from an IndexedDB that answers on real tasks.
+		// Only the flush delay is faked. The page key a case opens is read from an IndexedDB that responds on real tasks.
 		vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
 		sent.length = 0;
 		delivered = () => ({});
@@ -47,7 +47,7 @@ describe("recording in the browser: hold it, hand it over in batches", () => {
 		vi.useRealTimers();
 	});
 
-	it("does not send a request per occurrence, which is what makes a per-frame recording sustainable", async () => {
+	it("doesn't send a request per occurrence, so a view can record an occurrence every frame", async () => {
 		for (let i = 0; i < 60; i++) recordClientBlip("haibun.shu.view.thumb_resize", i, { view: "shu-virtual-column" });
 		expect(sent).toEqual([]);
 		await vi.runAllTimersAsync();
@@ -55,7 +55,7 @@ describe("recording in the browser: hold it, hand it over in batches", () => {
 		expect(sentBatch().blips).toHaveLength(60);
 	});
 
-	it("hands a batch over as a read: actuality doesn't retain a blip, so it doesn't record the batch either", async () => {
+	it("sends a batch as a read: actuality doesn't retain a blip, so it doesn't record the batch", async () => {
 		recordClientBlip("haibun.shu.view.scroll", 1, { view: "a" });
 		await vi.runAllTimersAsync();
 		const link = sent.at(-1);
@@ -63,19 +63,19 @@ describe("recording in the browser: hold it, hand it over in batches", () => {
 		expect(link?.asks, "an act is recorded as a step whose events reach the page; a read is not").toBe("read");
 	});
 
-	it("hands them over in the order they happened", async () => {
+	it("sends the occurrences in the order they happened", async () => {
 		recordClientBlip("haibun.shu.view.scroll", 1, { view: "a" });
 		recordClientBlip("haibun.shu.view.scroll", 2, { view: "a" });
 		await vi.runAllTimersAsync();
 		expect(sentBatch().blips.map((b) => b.value)).toEqual([1, 2]);
 	});
 
-	it("doesn't send a batch when a blip isn't recorded, so a quiet page doesn't make a call", async () => {
+	it("doesn't send a batch when the page hasn't recorded a blip, so an idle page doesn't make a call", async () => {
 		await vi.runAllTimersAsync();
 		expect(sent).toEqual([]);
 	});
 
-	it("keeps the most recent occurrences when the buffer fills, and reports how many it saw", async () => {
+	it("keeps the most recent occurrences when the buffer fills, and reports how many it recorded", async () => {
 		const over = CLIENT_RING + 30;
 		for (let i = 0; i < over; i++) recordClientBlip("haibun.shu.view.scroll", i, { view: "a" });
 		await vi.runAllTimersAsync();
@@ -87,7 +87,7 @@ describe("recording in the browser: hold it, hand it over in batches", () => {
 		expect(clientBlipsSent()).toBe(CLIENT_RING);
 	});
 
-	it("starts a fresh buffer after handing one over, rather than sending the same occurrence twice", async () => {
+	it("starts a new buffer after sending one, so it doesn't send an occurrence twice", async () => {
 		recordClientBlip("haibun.shu.view.scroll", 1, { view: "a" });
 		await vi.runAllTimersAsync();
 		recordClientBlip("haibun.shu.view.scroll", 2, { view: "a" });
@@ -96,7 +96,7 @@ describe("recording in the browser: hold it, hand it over in batches", () => {
 		expect(sentBatch().blips.map((b) => b.value)).toEqual([2]);
 	});
 
-	it("holds without sending when the page doesn't reach a run", async () => {
+	it("holds without sending on a page that carries a cached run and doesn't reach a server", async () => {
 		carryARun();
 		recordClientBlip("haibun.shu.view.scroll", 1, { view: "a" });
 		await vi.runAllTimersAsync();
@@ -120,15 +120,15 @@ describe("recording in the browser: hold it, hand it over in batches", () => {
 		expect(sent.filter((link) => link.method !== CLIENT_LOG_METHOD)).toEqual([]);
 	});
 
-	it("keeps the page working when a batch cannot be delivered, and tells the actuality it wasn't", async () => {
+	it("keeps the page working when a batch isn't delivered, and reports the failure to actuality", async () => {
 		delivered = (link) => {
 			if (link.method === CLIENT_LOG_METHOD) return {};
-			throw new Error("no route");
+			throw new Error("offline");
 		};
 		await openReportingPage(undefined, [PRIVATE_READ]);
 		recordClientBlip("haibun.shu.view.scroll", 1, { view: "a" });
 		await expect(flushClientBlips()).resolves.toBeUndefined();
 		const report = sent.find((link) => link.method === CLIENT_LOG_METHOD);
-		expect(report?.params).toMatchObject({ event: { level: "warn", source: "client-blips", message: "a batch holding 1 of the page's occurrences wasn't delivered: no route" } });
+		expect(report?.params).toMatchObject({ event: { level: "warn", source: "client-blips", message: "a batch holding 1 of the page's occurrences wasn't delivered: offline" } });
 	});
 });

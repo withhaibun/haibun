@@ -1,9 +1,11 @@
 /**
- * A stand-in for a consumer's authority at the boundary between processes, for tests of what the framework does with
- * one: an invoker that presents a holder, the action it invokes and a digest of the body, and a verifier that grants a
- * holder the actions it was told to, when they allow the action it invokes, as core reads what an action allows. Each
- * holder's grant is one capability, which what it allows rests on, and withdrawing it is reported as its revocation. It
- * doesn't prove an identity, so code outside a test doesn't register it. Loaded by a launched fixture's config as
+ * Implements a stand-in for a consumer's authority across a process boundary. Tests of how the framework calls an
+ * authority use it. Its invoker signs a request with headers that present a holder and the invoked action. A further
+ * header presents the body's digest where the request has a body. Its verifier rejects a request whose digest doesn't
+ * match its body. It accepts the request when the actions a test granted the holder allow the invoked action. Core's
+ * `capabilityAllows` determines whether a granted action allows the invoked one. Each holder's grant is one capability.
+ * A verdict's `restsOn` names that capability. Withdrawing a grant reports that capability as revoked. The stand-in
+ * doesn't prove an identity, so code outside a test doesn't register it. A launched fixture's config loads it as
  * `@haibun/core/lib/test/fake-authority`.
  */
 import { createHash } from "node:crypto";
@@ -17,19 +19,19 @@ import { capabilityAllows } from "../actions.js";
 import type { IAuthorityInvoker, IAuthorityVerifier, TAuthorityAct, TAuthorityEvidence, TDelegations, TOutgoingRequest, TVerdict } from "../authority-types.js";
 
 const HOLDER_HEADER = "fake-holder";
-/** The name the stand-in authority presents an invocation as and grants actions to. */
+/** The domain of a holder's name. The stand-in invoker presents the name on each request it signs, and a test grants actions to it. */
 export const DOMAIN_FAKE_HOLDER = "fake-authority-holder";
-/** The holder domain's definition, which a fixture taking a holder registers beside the stepper. */
+/** The holder domain's definition. The fake authority stepper declares it, and `testDomainDefinitions` contains it for test steppers whose steps take a holder. */
 export const FAKE_HOLDER_DOMAIN: TDomainDefinition = {
 	selectors: [DOMAIN_FAKE_HOLDER],
 	schema: z.string().min(1),
-	description: "The name the stand-in authority presents an invocation as and grants actions to.",
+	description: "A holder's name. The stand-in invoker presents it on each request it signs, and a test grants actions to it.",
 };
 const INVOCATION_HEADER = "capability-invocation";
 
 const digestOf = (body: string): string => `SHA-256=${createHash("sha256").update(body).digest("base64")}`;
 
-/** The capability a holder's grant is. */
+/** Returns the capability id of a holder's grant. */
 export const fakeGrant = (holder: string): string => `urn:fake-grant:${holder}`;
 
 export class FakeInvoker implements IAuthorityInvoker {
@@ -52,39 +54,39 @@ class FakeVerifier implements IAuthorityVerifier {
 		const headers = Object.fromEntries(Object.entries(evidence.headers).map(([name, value]) => [name.toLowerCase(), value]));
 		const holder = headers[HOLDER_HEADER];
 		const action = headers[INVOCATION_HEADER]?.match(/action="([^"]+)"/)?.[1];
-		if (!holder || !action) return Promise.resolve({ ok: false, error: "the request presents no holder or no action" });
+		if (!holder || !action) return Promise.resolve({ ok: false, error: "the request doesn't present both a holder and an action" });
 		if (headers.digest !== (evidence.body === undefined ? undefined : digestOf(evidence.body)))
 			return Promise.resolve({ ok: false, error: "the presented digest is not of this request's body" });
 		const granted = this.grants.get(holder);
-		if (!capabilityAllows(granted, action)) return Promise.resolve({ ok: false, error: `${holder} holds no grant for ${action}` });
+		if (!capabilityAllows(granted, action)) return Promise.resolve({ ok: false, error: `${holder} doesn't hold a grant for ${action}` });
 		return Promise.resolve({ ok: true, principal: holder, allowedAction: granted, invoked: action, restsOn: { capabilities: [fakeGrant(holder)] } });
 	}
 
 	delegationsTo(): Promise<TDelegations> {
-		// A holder here is granted by name, not by a document it could present.
+		// The fake authority grants by name, so a holder doesn't hold a delegation document.
 		return Promise.resolve({ delegations: [] });
 	}
 
 	record(): Promise<TAuthorityAct> {
-		return Promise.resolve({ ok: false, error: "the fake authority grants by name, and records no delegation document" });
+		return Promise.resolve({ ok: false, error: "the fake authority doesn't record a delegation document because it grants by name" });
 	}
 
 	revoke(): Promise<TAuthorityAct> {
-		return Promise.resolve({ ok: false, error: "the fake authority's grants are withdrawn with `withdraw authority from {holder}`" });
+		return Promise.resolve({ ok: false, error: "the fake authority doesn't revoke a capability: withdraw a grant with `withdraw authority from {holder}`" });
 	}
 }
 
-/** A verifier whose verdicts a test states, holding no delegation and refusing to record or revoke one where the test
- *  doesn't state how it does. */
+/** Returns a verifier built from the methods a test supplies. `verify` is required. `delegationsTo` defaults to an empty
+ *  list. `record` and `revoke` default to a refusal. */
 export const stubVerifier = (stated: Pick<IAuthorityVerifier, "verify"> & Partial<IAuthorityVerifier>): IAuthorityVerifier => ({
 	delegationsTo: () => Promise.resolve({ delegations: [] }),
-	record: () => Promise.resolve({ ok: false, error: "the stub verifier records no delegation" }),
-	revoke: () => Promise.resolve({ ok: false, error: "the stub verifier revokes no capability" }),
+	record: () => Promise.resolve({ ok: false, error: "the stub verifier doesn't record a delegation" }),
+	revoke: () => Promise.resolve({ ok: false, error: "the stub verifier doesn't revoke a capability" }),
 	...stated,
 });
 
 export default class FakeAuthorityStepper extends AStepper {
-	description = "Registers a stand-in authority for tests: a holder this process presents as, and the actions a holder is granted here.";
+	description = "Registers a stand-in authority for tests. Its steps set the holder that this process's requests present, grant actions to a holder and withdraw a holder's grant.";
 	private readonly grants = new Map<string, string[]>();
 
 	cycles: IStepperCycles = { getConcerns: () => ({ domains: [FAKE_HOLDER_DOMAIN] }) };

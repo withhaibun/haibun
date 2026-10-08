@@ -1,5 +1,7 @@
 # Schema and Monitor Redesign Plan
 
+**Status:** This plan dates from December 2025. Its "Current" sections and its progress notes describe the code at that date. Core doesn't define `TMessageContext`, `EExecutionMessageType`, `ILogOutput` or a `Logger` class. The world's `eventLogger` field holds the logger. Its type is `IEventLogger`. The `EventLogger` class implements `IEventLogger`. `modules/core/src/schema/protocol.ts` defines the event schemas and `EventFormatter`. `IStepperCycles` declares `onEvent` in `modules/core/src/lib/astepper.ts`. The `@haibun/monitor-tui` and `@haibun/monitor-otel` modules exist. `@haibun/monitor-core` and `monitor-cli` don't exist.
+
 ## Overview
 
 Transform Haibun's monitoring into an **open-ended, pluggable event system** with:
@@ -11,7 +13,7 @@ Transform Haibun's monitoring into an **open-ended, pluggable event system** wit
 ### Core Concepts
 
 > [!IMPORTANT]
-> **REQUIRED** items are non-negotiable design decisions.
+> **REQUIRED** items are fixed design decisions.
 > **FLEXIBLE** items are implementation guidelines that may change during development.
 
 ---
@@ -33,9 +35,9 @@ Transform Haibun's monitoring into an **open-ended, pluggable event system** wit
 ```
 
 > [!NOTE]
-> **FLEXIBLE**: The exact hook name (`onEvent` vs other) and signature may evolve.
+> **FLEXIBLE**: The hook name (`onEvent` vs other) and signature may change.
 
-They implement `IStepperCycles` hooks to receive events:
+Monitors implement `IStepperCycles` hooks to receive events:
 
 ```typescript
 // How monitors integrate with the execution lifecycle
@@ -59,11 +61,11 @@ interface IStepperCycles {
 #### 2. Event Flow via IStepperCycles
 
 > [!IMPORTANT]
-> **REQUIRED**: Events flow through the stepper cycle system, not a separate Logger subscriber pattern.
+> **REQUIRED**: The stepper cycle system dispatches events, not a separate Logger subscriber pattern.
 
-**Current state:** Logger has separate subscriber pattern (`ILogOutput`)
+**Current state:** Logger has a separate subscriber pattern (`ILogOutput`).
 
-**Target state:** Events flow through `IStepperCycles.onEvent()`:
+**Target state:** `IStepperCycles.onEvent()` dispatches events:
 
 ```
 ┌─────────────┐      ┌─────────────┐      ┌─────────────────────┐
@@ -84,12 +86,12 @@ interface IStepperCycles {
 #### 3. Default Output: NDJSON
 
 > [!IMPORTANT]
-> **REQUIRED**: Default output (when a monitor isn't configured) is NDJSON to stdout.
+> **REQUIRED**: The default output is NDJSON to stdout when a monitor isn't configured.
 
 This enables piping to external monitors: `haibun run | haibun-tui`
 
 > [!NOTE]
-> **FLEXIBLE**: The exact auto-detection logic may change.
+> **FLEXIBLE**: The auto-detection logic may change.
 
 ```typescript
 // In Executor or Runner setup
@@ -104,7 +106,7 @@ if (!steppers.some(s => s.onEvent)) {
 #### 4. Built-In Monitor Steppers
 
 > [!NOTE]
-> **FLEXIBLE**: Package names and exact stepper names may change.
+> **FLEXIBLE**: Package names and stepper names may change.
 
 | Stepper | Package | Use Case |
 |---------|---------|----------|
@@ -125,7 +127,7 @@ if (!steppers.some(s => s.onEvent)) {
 Events use standard OTel fields:
 - `trace_id`, `span_id`, `parent_span_id`, `status`, `links`
 - **Speculative steps** use OTel `links` to connect to decision spans
-- Only `haibun.*` namespace for unique concepts
+- The `haibun.*` namespace holds only Haibun's own concepts
 
 ---
 
@@ -139,13 +141,13 @@ Events use standard OTel fields:
 | **TUI/Browser** | Collapse block | Expand all, highlight |
 | **Console** | Show all with markers | Show all + failure box |
 
-Detection: Spans with `links[]` = speculative.
+Detection: A span with `links[]` is speculative.
 
 ---
 
 ## Current HTML Monitor Features & Migration Path
 
-This section documents the **existing HTML monitor** capabilities in `modules/web-playwright/src/monitor/` and how each feature maps to the target unified event system.
+This section documents the **HTML monitor** in `modules/web-playwright/src/monitor/` as of December 2025. It maps each feature to the target unified event system.
 
 ### Feature Overview
 
@@ -162,7 +164,7 @@ This section documents the **existing HTML monitor** capabilities in `modules/we
 
 ### 1. Serialization to Local File
 
-**Current**: Monitor embeds a JSON island (`<script type="application/json">`) containing all captured log entries. The HTML file is self-contained and works offline.
+**Current**: The monitor embeds a JSON island (`<script type="application/json">`) containing all captured log entries. The HTML file is self-contained and works offline.
 
 ```javascript
 // In monitor.ts - startLazyIngestion()
@@ -172,8 +174,8 @@ const allLogData = JSON.parse(jsonIsland.textContent);
 
 **Target**: Same approach, but with structured events:
 - `HtmlPersister` subscriber collects `THaibunEvent[]`
-- At `onEnd()`, embeds JSON island + broadcast sets (steppers, artifacts) for message efficiency (use keys rather than full objects)
-- HTML template includes monitor.js that consumes events
+- `onEnd()` embeds the JSON island and the broadcast sets (steppers, artifacts). Events reference broadcast-set entries by key in place of full objects.
+- The HTML template includes monitor.js, which reads the events
 
 ```html
 <script type="application/json" id="haibun-events">[...events...]</script>
@@ -182,7 +184,7 @@ const allLogData = JSON.parse(jsonIsland.textContent);
 
 ### 2. Timeline-Linked Video
 
-**Current**: Video scrubs to match timeline position using `recalcVisibility()`:
+**Current**: The video seeks to the timeline position through `recalcVisibility()`:
 
 ```javascript
 // In monitor.ts
@@ -200,14 +202,14 @@ function recalcVisibility(timeMs: number, forceScroll = false) {
 }
 ```
 
-**Target**: Events carry `timestamp`, monitors:
+**Target**: Events carry a `timestamp`. Monitors:
 - Use `timestamp` relative to `startTime` for positioning
 - Video artifact has `duration` field
-- Timeline slider drives `currentTime`, events with `timestamp <= currentTime` are visible
+- The timeline slider sets `currentTime`. Events with `timestamp <= currentTime` are visible
 
 ### 3. Log Level Filtering
 
-**Current**: CSS classes `haibun-level-trace`, `haibun-level-debug`, etc. Dropdown changes dynamic CSS rules.
+**Current**: Each entry has a CSS class such as `haibun-level-trace` or `haibun-level-debug`. A dropdown changes dynamic CSS rules.
 
 ```javascript
 // In controls.ts - updateStyles()
@@ -218,14 +220,14 @@ LOG_LEVELS.forEach((level, index) => {
 });
 ```
 
-**Target**: Already built into unified event model:
-- Every event has `level` field
-- Monitors filter events where `event.level < selectedLevel`
-- Same dropdown UI, but filtering is data-driven
+**Target**: Monitors filter by the `level` field of the unified event model:
+- Every event has a `level` field
+- Monitors hide events where `event.level < selectedLevel`
+- The dropdown stays the same. Filtering reads event data in place of CSS rules
 
 ### 4. Depth Filtering
 
-**Current**: `data-depth` attribute on entries, `applyDepthFilter()` collapses deep entries:
+**Current**: Entries carry a `data-depth` attribute. `applyDepthFilter()` collapses deep entries:
 
 ```javascript
 // In controls.ts
@@ -235,7 +237,7 @@ if (depth > currentMaxDepth) {
 }
 ```
 
-**Target**: Use `parentId` chain to compute depth:
+**Target**: Use the `parentId` chain to compute depth:
 - `depth = countAncestors(event.parentId)`
 - Same filter logic, but derived from event relationships
 - Enables tree view in any monitor
@@ -249,8 +251,8 @@ if (depth > currentMaxDepth) {
 window.HAIBUN_VIEW_MODE?: 'document' | 'timeline'
 ```
 
-**Target**: View mode is a monitor concern, not event concern:
-- Both views consume same event stream
+**Target**: View mode is a monitor concern, not an event concern:
+- Both views read the same event stream
 - Document view groups by `feature` → `scenario` → `step`
 - Timeline view sorts by `timestamp`
 
@@ -268,11 +270,11 @@ switch (artifact.artifactType) {
 }
 ```
 
-**Target**: Artifacts attached via `artifact()` builder, rendered same way:
+**Target**: A log call attaches artifacts through the `artifact()` builder. Monitors render them the same way:
 ```typescript
 world.logger.log('Screenshot taken', artifact({ type: 'image', path }));
 ```
-Monitors have same artifact displayers, consuming `event.artifacts[]`.
+Monitors use the same artifact displayers. The displayers read `event.artifacts[]`.
 
 ### 7. Variable/JSON Introspection (disclosureJson)
 
@@ -287,15 +289,15 @@ export function disclosureJson(jsonObj: TAnyFixme): HTMLElement {
 }
 ```
 
-**Target**: Same pattern, but consuming `event.payload`:
+**Target**: Each monitor applies the same pattern to `event.payload`:
 - HTML Monitor: Use existing `disclosureJson()`
 - Ink TUI: Tree component with expandable nodes  
-- MCP: Rich object via resource read
+- MCP: The full object through a resource read
 - Console: `--verbose` flag for JSON dump
 
 ### 8. Debugger Integration
 
-**Current**: `showPromptControls()` displays buttons (retry/next/fail/step/continue), `haibunResolvePrompt()` sends response:
+**Current**: `showPromptControls()` displays buttons (retry/next/fail/step/continue). `haibunResolvePrompt()` sends the response:
 
 ```javascript
 // In controls.ts
@@ -306,7 +308,7 @@ window.showPromptControls = (promptsJson) => {
 };
 ```
 
-**Target**: `control().break()` event triggers UI, `Prompter.resolve()` sends response:
+**Target**: A `control().break()` event opens the prompt UI. `Prompter.resolve()` sends the response:
 ```typescript
 // Executor emits:
 world.logger.log(control(seqPath).break().message('Step failed'));
@@ -318,7 +320,7 @@ world.logger.log(control(seqPath).break().message('Step failed'));
 
 ### 9. Step Visual States
 
-**Current**: Classes like `haibun-step-start`, `haibun-step-failed`, `disappeared`, `haibun-log-entry-current`:
+**Current**: Entries carry classes such as `haibun-step-start`, `haibun-step-failed`, `disappeared` and `haibun-log-entry-current`:
 
 ```javascript
 // In controls.ts - isVisibleByLevel()
@@ -326,7 +328,7 @@ if (entry.classList.contains('haibun-step-failed')) return true;  // Always show
 if (entry.classList.contains('disappeared')) return false;        // Hide completed
 ```
 
-**Target**: Derived from lifecycle events:
+**Target**: Lifecycle events determine the visual state:
 - `lifecycle.stage === 'start'` → step running (visible)
 - `lifecycle.stage === 'end' && status === 'completed'` → disappeared
 - `lifecycle.stage === 'end' && status === 'failed'` → always visible
@@ -343,7 +345,7 @@ if (entry.classList.contains('disappeared')) return false;        // Hide comple
 **Completed fixes**:
 1. `modules/core/src/lib/core-domains.ts`: Migrated Zod v3 error customization (`invalid_type_error`/`required_error`) to Zod v4's unified `error` parameter.
 2. `modules/core/src/steps/variables-stepper.ts`: Replaced internal `schema._def.typeName` access (Zod v3) with schema description fallback.
-3. `modules/core/src/lib/feature-variables.ts`: Added guard in `resolveVariable` for undefined domain access - fallback to `DOMAIN_STRING` when domain is undefined.
+3. `modules/core/src/lib/feature-variables.ts`: Added a guard in `resolveVariable` for an undefined domain. The guard uses `DOMAIN_STRING` when the domain is undefined.
 4. `modules/core/src/lib/core/protocol.ts`: Updated `z.record()` to Zod v4 two-argument syntax (`z.record(z.string(), z.any())`).
 5. `modules/core/src/schema/events.ts`: Updated `z.record()` calls to Zod v4 two-argument syntax.
 
@@ -351,7 +353,7 @@ if (entry.classList.contains('disappeared')) return false;        // Hide comple
 - Unit tests: 443 passed (1 MCP connection test skipped due to environment)
 - E2E tests: 25 features passed
 
-**Notes**: User removed `zod-to-json-schema` dependency (not compatible with Zod v4, and Zod v4 has built-in `z.toJSONSchema()`).
+**Notes**: The user removed the `zod-to-json-schema` dependency. It isn't compatible with Zod v4. Zod v4 has its own `z.toJSONSchema()`.
 
 ### 2025-12-12: onEvent Hook Infrastructure
 
@@ -362,18 +364,18 @@ if (entry.classList.contains('disappeared')) return false;        // Hide comple
 2. `modules/core/src/lib/EventLogger.ts`: Added `setStepperCallback()` method and re-exported `THaibunEvent` type
 3. `modules/core/src/phases/Executor.ts`: 
    - Added `doStepperCycleSync()` function for synchronous event dispatch
-   - Wired up `setStepperCallback` in `executeFeatures()` to route events to steppers
+   - Connected `setStepperCallback` in `executeFeatures()` to route events to steppers
 4. Created `modules/core/src/steps/on-event-hook.test.ts` to verify infrastructure
 
 **Test results**:
 - Unit tests: 450 passed
 - E2E tests: 25 features passed
 
-**Architecture update**: EventLogger now supports dual output:
+**Architecture update**: EventLogger supports dual output:
 - Always emits to stdout (`console.log(JSON.stringify(event))`) for CLI piping to `monitor-cli`
 - Additionally routes through `doStepperCycleSync('onEvent', event)` for in-process monitors
 
-### 2025-12-12: Phase 5 - Monitor as Stepper
+### 2025-12-12: Phase 5, Monitor as Stepper
 
 **Task**: Create example monitor stepper using `onEvent` pattern.
 
@@ -397,7 +399,7 @@ if (entry.classList.contains('disappeared')) return false;        // Hide comple
      l █ 0.845:doFeatureStep:336       ｜ ✅[1.2.8] not page is accessible...
 ```
 
-### 2025-12-12: Phase 4 - TMessageContext Bridge (Partial)
+### 2025-12-12: Phase 4, TMessageContext Bridge (Partial)
 
 **Task**: Create bridge for TMessageContext → THaibunEvent migration.
 
@@ -417,16 +419,16 @@ if (entry.classList.contains('disappeared')) return false;        // Hide comple
 
 ### 2025-12-13: Monitor Simplification and EventFormatter
 
-**Task**: Simplify monitor architecture, remove dead code, centralize formatting.
+**Task**: Simplify monitor architecture, remove unused code, centralize formatting.
 
 **Completed work**:
 
 1. **Removed 5 unused files** from `modules/core/src/monitor/`:
-   - `event-view.ts` - EventView wrapper class (not used externally)
-   - `filters.ts` - Level/depth filtering (not used externally) 
-   - `speculative-tracker.ts` - Speculative block tracking (not used)
-   - `state.ts` - MonitorState management (not used)
-   - `tree-builder.ts` - Tree hierarchy builder (not used)
+   - `event-view.ts`: EventView wrapper class (not used externally)
+   - `filters.ts`: Level/depth filtering (not used externally) 
+   - `speculative-tracker.ts`: Speculative block tracking (not used)
+   - `state.ts`: MonitorState management (not used)
+   - `tree-builder.ts`: Tree hierarchy builder (not used)
 
 2. **Created `EventFormatter` static class** (`modules/core/src/monitor/formatters.ts`):
    ```typescript
@@ -450,12 +452,12 @@ if (entry.classList.contains('disappeared')) return false;        // Hide comple
 
 5. **Added `--with-steppers` CLI option** (`modules/cli/src/lib.ts`):
    - Syntax: `--with-steppers=stepper1,stepper2` or `--with-steppers stepper1,stepper2`
-   - CLI steppers merged with config.json steppers
+   - CLI steppers are merged with config.json steppers
    - Allows monitor selection without config changes
 
 **Current monitor directory** (`modules/core/src/monitor/`):
-- `formatters.ts` (85 LoC) - `EventFormatter` static class
-- `index.ts` (5 LoC) - exports
+- `formatters.ts` (85 LoC): `EventFormatter` static class
+- `index.ts` (5 LoC): exports
 
 **Display format**:
 ```
@@ -463,7 +465,7 @@ if (entry.classList.contains('disappeared')) return false;        // Hide comple
 scenario █ 1.189:doFeature:223         ｜ 📋 Scenario: Test accessibility
 ```
 
-**Key design decisions**:
+**Design decisions**:
 - Lifecycle `step` events display as level `log` (not `step`)
 - Features use 📄 icon, scenarios use 📋
 - Step events show `[id]` and status icons (✅/❌)
@@ -489,28 +491,28 @@ scenario █ 1.189:doFeature:223         ｜ 📋 Scenario: Test accessibility
 - `HaibunEvent` discriminated union
 
 #### 2. EventLogger (`modules/core/src/lib/EventLogger.ts`)
-✅ **Now integrated with stepper cycles** (as of 2025-12-12):
+✅ **Integrated with stepper cycles** (2025-12-12):
 - Has `emit()`, `log()`, `stepStart()`, `stepEnd()` methods
-- Outputs to both `console.log(JSON.stringify(event))` for CLI piping AND stepper callbacks
-- New `setStepperCallback()` method allows routing events through `IStepperCycles.onEvent()`
-- `Executor.executeFeatures()` wires up the callback to `doStepperCycleSync('onEvent', event)`
+- Outputs to both `console.log(JSON.stringify(event))` for CLI piping and stepper callbacks
+- The `setStepperCallback()` method routes events through `IStepperCycles.onEvent()`
+- `Executor.executeFeatures()` connects the callback to `doStepperCycleSync('onEvent', event)`
 
 #### 3. monitor-cli (`modules/monitor-cli/src/index.tsx`)
-✅ Basic Ink TUI working.
+✅ A basic Ink TUI works.
 - Parses JSON stdin from `EventLogger`
 - Shows completed/running steps with feature/scenario headers
 - Handles speculative vs authoritative intent
 
 #### 4. Executor Integration
-✅ **Event routing now integrated** (as of 2025-12-12):
-- `Executor.executeFeatures()` wires up `eventLogger.setStepperCallback()` 
-- Events flow through `doStepperCycleSync('onEvent', event)` to any stepper implementing `onEvent`
-- ⚠️ **Still uses dual-logging**: `world.logger` (TMessageContext) alongside `world.eventLogger` (THaibunEvent)
+✅ **Event routing integrated** (2025-12-12):
+- `Executor.executeFeatures()` connects `eventLogger.setStepperCallback()`
+- `doStepperCycleSync('onEvent', event)` passes events to every stepper that implements `onEvent`
+- ⚠️ **Uses dual logging**: `world.logger` (TMessageContext) and `world.eventLogger` (THaibunEvent)
 - Migration of existing TMessageContext usages to THaibunEvent is pending
 
 ### What Still Uses TMessageContext
 
- Location | Usage | Migration Path |
+| Location | Usage | Migration Path |
 |----------|-------|----------------|
 | `Executor.ts` | `messageContext` in step results | Convert to `ControlEvent` |
 | `debugger-stepper.ts` | `incidentDetails` for debug signals | Convert to `ControlEvent.signal` |
@@ -521,7 +523,7 @@ scenario █ 1.189:doFeature:223         ｜ 📋 Scenario: Test accessibility
 
 ### The Core Architectural Problem
 
-**Two parallel logging systems exist that need to be unified:**
+**Two parallel logging systems must be unified:**
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -554,12 +556,12 @@ scenario █ 1.189:doFeature:223         ｜ 📋 Scenario: Test accessibility
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-**The debugger-stepper relies on:**
+**The debugger-stepper depends on:**
 1. `IStepperCycles.afterStep` to intercept failures
 2. `world.prompter` to get user input (supports multiple subscribers)
-3. Returns debug signals via `haibun.control` in `THaibunEvent`
+3. `haibun.control` in `THaibunEvent` to return debug signals
 
-**The monitor needs:**
+**The monitor requires:**
 1. Lifecycle events (step start/end) 
 2. Log events  
 3. Control events (to show debug UI, pause, etc.)
@@ -656,8 +658,8 @@ function onEvent(event: THaibunEvent) {
 ```
 
 The TUI subscribes to both:
-1. **Events** (via `onEvent`) - to know when to show prompt UI
-2. **Prompter** (via `prompter.addSubscriber`) - to send responses back
+1. **Events** (via `onEvent`): to determine when to show the prompt UI
+2. **Prompter** (via `prompter.addSubscriber`): to send responses
 
 ---
 
@@ -665,7 +667,7 @@ The TUI subscribes to both:
 
 ### 0. Unified Event Model with Levels
 
-All events should have a `level` field, not just logs. This simplifies the schema:
+Every event should have a `level` field, as logs do. This simplifies the schema:
 
 ```typescript
 // ─── OTel-Aligned Event Schema ───
@@ -733,7 +735,7 @@ Compound statement:  some                    span_id: "1.1"
   Speculative step:  email matches C        span_id: "1.1.3", links: [{ span_id: "1.1" }]
 ```
 
-The `links` field is standard OTel, speculative steps link to their "decision span" (the compound statement). OTel tools can:
+The `links` field is standard OTel. Speculative steps link to their "decision span". The decision span is the compound statement. OTel tools can:
 - Filter by "spans with links" = speculative
 - Follow links to see the decision context
 - Group related spans visually
@@ -742,7 +744,7 @@ The `links` field is standard OTel, speculative steps link to their "decision sp
 
 | Haibun Current | OTel Aligned | Reason |
 |----------------|--------------|--------|
-| `id` (seqPath) | `span_id` | seqPath IS the span_id |
+| `id` (seqPath) | `span_id` | seqPath is the span_id |
 | `traceId` | `trace_id` | Standard OTel term |
 | `parentId` | `parent_span_id` | Standard OTel term |
 | `speculative` | `links` present | OTel native, linked to decision span |
@@ -752,7 +754,7 @@ The `links` field is standard OTel, speculative steps link to their "decision sp
 | `control` | `haibun.control` | Debugger-specific extension |
 | `artifacts` | `haibun.artifacts` | Haibun-specific extension |
 
-### What's Now Pure OTel
+### Concepts OTel Defines
 
 | Concept | Implementation |
 |---------|----------------|
@@ -770,8 +772,8 @@ The `links` field is standard OTel, speculative steps link to their "decision sp
 ### 0.3 Shared Monitor Core Library (`@haibun/monitor-core`)
 
 > [!IMPORTANT]
-> **REQUIRED**: Shared library with high level of code reuse between TUI and browser monitors.
-> Consistent behavior across all monitors (filtering, speculative handling, tree building).
+> **REQUIRED**: The TUI and browser monitors reuse most of their code from a shared library.
+> All monitors behave consistently in filtering, speculative handling and tree building.
 
 All monitors share a common library that provides:
 
@@ -794,7 +796,7 @@ All monitors share a common library that provides:
 └── package.json
 ```
 
-**Key principle:** All display logic lives in `monitor-core`. Individual monitors only handle rendering.
+**Principle:** `monitor-core` contains all display logic. Each monitor handles only rendering.
 
 #### How Monitors Use monitor-core
 
@@ -889,7 +891,7 @@ export class ConsoleMonitorStepper extends AStepper implements IStepperCycles {
 
 #### monitor-core API Surface
 
-The core library provides typed abstractions over `THaibunEvent`, all derived from Zod schemas:
+The core library provides typed abstractions over `THaibunEvent`. Each abstraction derives from a Zod schema:
 
 ```typescript
 // @haibun/monitor-core
@@ -958,14 +960,14 @@ export function filterByDepth(events: THaibunEvent[], maxDepth: number): THaibun
 export function filterSpeculative(events: THaibunEvent[], mode: SpeculativeDisplayMode): THaibunEvent[];
 ```
 
-This ensures all monitors behave consistently and new monitors are easy to create.
+The library keeps all monitors consistent. A new monitor reuses it.
 
 ### 0.4 JIT Schema Wire Format
 
 > [!NOTE]
-> **FLEXIBLE**: Wire format is an optimization. May use simpler NDJSON initially.
+> **FLEXIBLE**: The wire format is an optimization. A first version may use plain NDJSON.
 
-For efficiency, use an **interleaved Just-In-Time schema** approach. Schemas are defined on first use, then referenced by short ID:
+Use an **interleaved Just-In-Time schema** approach to reduce size. The stream defines each schema on first use. Later rows reference it by a short ID:
 
 ```json
 {"_meta": "schema", "id": "lifecycle-v1", "fields": ["id", "stage", "status", "ts", "label"]}
@@ -984,7 +986,7 @@ For efficiency, use an **interleaved Just-In-Time schema** approach. Schemas are
 
 **Benefits:**
 - ~60% smaller than full JSON objects
-- Stream-friendly (doesn't require a header upfront)
+- Streamable (doesn't require a header before the first row)
 - Self-describing (schema embedded in stream)
 - Validates via Zod on parse
 
@@ -1044,9 +1046,9 @@ emitEvent(event: THaibunEvent) {
 ### 0.5 CI Console Output Format
 
 > [!IMPORTANT]
-> **REQUIRED**: Console output must be highly readable. This is critical for CI debugging.
+> **REQUIRED**: Console output must be readable by a person. CI debugging depends on it.
 
-Console output must be **human-readable and debuggable**, not JSON. It should clearly show:
+Console output must be **human-readable and debuggable**, not JSON. It should show:
 - Step hierarchy via indentation
 - Timing information
 - Failure context
@@ -1084,13 +1086,13 @@ Console output must be **human-readable and debuggable**, not JSON. It should cl
 Summary: 1 passed, 1 failed (2.0s total)
 ```
 
-**Key features:**
+**Features:**
 - **seqPath prefix** (`1.1.1`) for cross-reference with logs
 - **Indentation** shows feature → scenario → step hierarchy
 - **Timing** per-step and per-feature
 - **Failure box** with expected/actual, stepper, variable dump
 - **Artifact links** inline for screenshots, videos
-- **Color coding** (✓ green, ✗ red) in TTY environments
+- **Colour coding** (✓ green, ✗ red) in TTY environments
 
 **Console stepper uses monitor-core:**
 
@@ -1117,9 +1119,9 @@ class ConsoleMonitorStepper extends AStepper implements IStepperCycles {
 ### 0.6 Speculative Step Display Strategy
 
 > [!IMPORTANT]
-> This is a **critical consistency requirement** across all monitors.
+> All monitors must display speculative steps by **these rules**.
 
-**Speculative blocks** (e.g., `some`, `not`, `any of`) run steps internally to test conditions. How these display varies by monitor type:
+**Speculative blocks** (e.g., `some`, `not`, `any of`) run steps internally to test conditions. The display of these steps depends on the monitor type:
 
 #### Display Rules by Monitor Type
 
@@ -1145,7 +1147,7 @@ Speculative steps use OTel `links` to point to their decision span:
 }
 ```
 
-**Detection:** `event.links?.length > 0` = speculative, an event without links = authoritative.
+**Detection:** `event.links?.length > 0` marks a speculative event. An event without links is authoritative.
 
 #### Monitor-Core Filter Logic
 
@@ -1195,7 +1197,7 @@ export function filterSpeculative(
 
 #### CI Console Output (Default)
 
-Shows ALL steps in sequence, with speculative blocks marked:
+The CI console shows every step in sequence and marks speculative blocks:
 
 ```
 ✓ Feature: Validation (0.5s)
@@ -1212,7 +1214,7 @@ Shows ALL steps in sequence, with speculative blocks marked:
 
 1. **While running**: Show all speculative steps as they execute
 2. **On pass**: Collapse block to single summary line
-3. **On fail**: Keep ALL steps on screen, highlight failure
+3. **On fail**: Keep every step on screen and highlight the failure
 
 ```
 Interactive mode - after speculative PASS:
@@ -1228,7 +1230,7 @@ Interactive mode - after speculative FAIL:
 
 #### Filter Controls
 
-Beyond level and depth, add speculative filter:
+Add a speculative filter beside the level and depth filters:
 
 | Control | Values | Effect |
 |---------|--------|--------|
@@ -1255,7 +1257,7 @@ function configureDefaultMonitor(steppers: AStepper[]): void {
 
 #### Future: Variable Change Tracking (All Steps)
 
-Track variable changes across **all steps** (authoritative and speculative), enabling:
+Track variable changes across **all authoritative and speculative steps**. The tracking enables:
 
 1. **Step detail view**: Click any step → see what variables it changed
 2. **Variable history**: Click a variable → see all steps that modified it (with timeline)
@@ -1309,11 +1311,11 @@ class VariableTracker {
 
 ### 0.1 Deep Introspection Support
 
-All monitors must support **deep inspection** of event payloads (like `disclosureJson` in the current HTML monitor):
+All monitors must support **deep inspection** of event payloads, as the HTML monitor's `disclosureJson` does:
 
 - **HTML Monitor**: Collapsible `<details>` elements for nested objects (existing pattern)
 - **Ink TUI**: Expandable tree view using Ink primitives 
-- **MCP**: Rich object payloads via MCP resource protocol
+- **MCP**: Structured object payloads through the MCP resource protocol
 - **Console**: JSON pretty-print on demand (e.g., `--verbose`)
 
 Every event can carry a `payload` object for deep inspection:
@@ -1325,11 +1327,11 @@ world.logger.debug('Step resolved',
 );
 ```
 
-Monitors display payload content progressively, collapsed by default, expandable on demand.
+Monitors display payload content collapsed by default. A person expands it on demand.
 
 ### 0.2 Storage Efficiency via References
 
-For storage efficiency, events use **references** instead of duplicating data:
+Events use **references** in place of duplicated data. This reduces storage:
 
 ```typescript
 const HaibunEvent = z.object({
@@ -1365,12 +1367,12 @@ Events reference these by name/id rather than embedding full objects:
 }
 ```
 
-This matches how MCP resources work, catalog of resources, then fetch by URI.
+MCP resources work the same way. A client reads a catalog of resources and then fetches each by URI.
 
 
 ### 1. Level-First API (Doesn't Require `.emit()`)
 
-The **level method IS the emission**. Everything goes through a log level:
+Calling the **level method emits the event**. Every emission uses a log level method:
 
 ```typescript
 // Simple messages (most common - identical to current API)
@@ -1395,7 +1397,7 @@ world.logger.log(control(seqPath).break());
 world.logger.log(control(seqPath).resume());
 ```
 
-**Key insight**: `world.logger.<level>(content...)` - level is the method, content is varargs.
+**Method shape**: The method name of `world.logger.<level>(content...)` is the level. Its varargs are the content.
 
 **Content can be:**
 - `string`: plain message
@@ -1456,11 +1458,11 @@ class Logger {
 }
 ```
 
-### 2. IStepperCycle Integration for Monitors
+### 2. IStepperCycles Integration for Monitors
 
-Monitors integrate via the `IStepperCycles` interface, see [Core Concepts](#1-monitors-are-steppers) for the full interface definition.
+Monitors integrate through the `IStepperCycles` interface. [Core Concepts](#1-monitors-are-steppers) shows the full interface definition.
 
-Key hooks for monitors:
+Monitor hooks:
 - `onEvent(event: THaibunEvent)`: receive all events
 - `onControl(event: TControlEvent)`: for interactive debugging
 
@@ -1495,11 +1497,11 @@ The debugger-stepper's interactive loop works with the `Prompter` subscriber pat
     └── [Executor respects afterStep result]
 ```
 
-The key insight: **Prompter is bidirectional, events are unidirectional.**
+**The Prompter is bidirectional. Events are unidirectional.**
 
 ### 4. Additive Monitor Subscriptions
 
-Monitors are **additive**, not mutually exclusive. Multiple can run simultaneously:
+Monitors are **additive**, not mutually exclusive. Several monitors can run at the same time:
 
 ```bash
 # Default: human-readable console output (CI-friendly)
@@ -1520,19 +1522,19 @@ haibun run features/ --monitor=tui --monitor=html --monitor=mcp   # all three
 | Monitor | Description |
 |---------|-------------|
 | `console` | Human-readable text to stdout (default, always on unless `--silent`) |
-| `tui` | Ink terminal UI (takes over terminal) |
+| `tui` | Ink terminal UI (uses the whole terminal) |
 | `html` | Persists events to self-contained HTML file |
 | `json` | NDJSON to stdout for piping |
 | `mcp` | Exposes events via MCP protocol |
 
 > [!NOTE]
-> `console` and `tui` conflict (both use terminal). If `tui` is specified, `console` is suppressed.
+> `console` and `tui` conflict because both write to the terminal. Specifying `tui` suppresses `console`.
 
 ### 5. Debugger Improvements
 
 #### 5.1 Stack Issue (Multiple Fails Required)
 
-**Problem**: When a step inside `some`/`not`/recursive blocks fails, each layer's `afterStep` triggers debugger. User must type "fail" multiple times.
+**Problem**: A step that fails inside `some`, `not` or recursive blocks triggers the debugger in each layer's `afterStep`. The user must type "fail" once per layer.
 
 **Solution**: Track "handled" state on the failure:
 
@@ -1551,7 +1553,7 @@ Or use a shared context flag `world.runtime.debugHandled`.
 
 #### 5.2 Live Commands (Don't Require a Break)
 
-**Idea**: Allow sending commands while execution is running, not just on breaks.
+**Idea**: Allow sending commands while execution is running, not only on breaks.
 
 ```
 ┌──────────────────────────────────────────────┐
@@ -1563,7 +1565,7 @@ Or use a shared context flag `world.runtime.debugHandled`.
 ```
 
 This requires:
-- The `Prompter` to accept input asynchronously (not just on `await prompt()`)
+- The `Prompter` to accept input asynchronously (not only on `await prompt()`)
 - A command queue processed by the Executor between steps
 - Similar to how REPL debuggers work
 
@@ -1584,7 +1586,7 @@ while (world.runtime.commandQueue.length > 0) {
 
 ### 5. Monitor Steppers with IStepperCycles
 
-Monitors implement `IStepperCycles.onEvent()`, see [monitor-core API](#monitor-core-api-surface) for the `EventView` class and [ConsoleMonitorStepper example](#3-console-monitor-in-haibunmonitor-console).
+Monitors implement `IStepperCycles.onEvent()`. [monitor-core API](#monitor-core-api-surface) describes the `EventView` class. [ConsoleMonitorStepper example](#3-console-monitor-in-haibunmonitor-console) shows a monitor.
 
 **Built-in monitor steppers:**
 
@@ -1619,7 +1621,7 @@ export class SlackMonitorStepper extends AStepper implements IStepperCycles {
 
 ### 5.1 OpenTelemetry Module (`modules/otel`)
 
-A new optional module that exports Haibun events as OpenTelemetry spans:
+An optional module exports Haibun events as OpenTelemetry spans:
 
 ```typescript
 // modules/otel/src/otel-stepper.ts
@@ -1694,15 +1696,15 @@ export class OTelExporterStepper extends AStepper implements IStepperCycles {
 **`EventPersister`** is a subscriber that:
 - Collects all events in memory
 - Optionally streams to `haibun.ndjson` as they arrive
-- At `onEnd()`, embeds events into HTML monitor template
+- Embeds events into the HTML monitor template at `onEnd()`
 
-This is not a physical class yet: it's a design for how persistence fits into the architecture.
+`EventPersister` isn't a class in the code. It is a design for persistence in the architecture.
 
 ### 6. Event Persistence Strategy
 
 Events must be persisted for:
-1. **CI logs** - Raw NDJSON for programmatic consumption
-2. **HTML monitor** - Self-contained replay
+1. **CI logs**: Raw NDJSON for programmatic consumption
+2. **HTML monitor**: Self-contained replay
 
 **Solution: Dual-write from a persistence stepper**
 
@@ -1731,7 +1733,7 @@ class EventPersisterStepper extends AStepper implements IStepperCycles {
 
 ### 7. Migration Strategy: Adapt TMessageContext First
 
-**Simplest first step:** Create an adapter that converts `TMessageContext` → `THaibunEvent`, preserving all current behavior.
+**Simplest first step:** Create an adapter that converts `TMessageContext` → `THaibunEvent`. The adapter keeps all current behaviour.
 
 ```typescript
 // In Logger.ts - bridge old to new
@@ -1757,14 +1759,14 @@ private convertToEvent(level: TLogLevel, args: string, ctx?: TMessageContext): T
 }
 ```
 
-This allows incremental migration while keeping monitors working.
+The adapter allows incremental migration. Monitors keep working during the migration.
 
 ---
 
 ## Next Steps
 
 > [!NOTE]
-> **FLEXIBLE**: These phases are implementation guidelines. Order and exact steps may change as development progresses.
+> **FLEXIBLE**: These phases are implementation guidelines. Their order and steps may change during development.
 
 ### Phase 1: Add onEvent to IStepperCycles
 
@@ -1785,7 +1787,7 @@ This allows incremental migration while keeping monitors working.
    - Auto-registered if another monitor stepper isn't configured
    - Outputs NDJSON to stdout for piping
 
-4. **Deprecate `EventLogger`** – merge its functionality into `Logger`
+4. **Deprecate `EventLogger`**: merge its functionality into `Logger`
 
 ### Phase 2: Migrate TMessageContext Usage
 
@@ -1813,11 +1815,11 @@ This allows incremental migration while keeping monitors working.
 
 3. **Browser monitor in `@haibun/web-playwright`**
    - `BrowserMonitorStepper` replaces `MonitorHandler`
-   - Uses `onEvent` hook, `ButtonPrompter` already works
+   - Uses the `onEvent` hook. `ButtonPrompter` works without change
 
 ### Phase 4: Default Monitor Selection
 
-1. If the config doesn't list a monitor stepper, auto-add `NdjsonOutputStepper`:
+1. Auto-add `NdjsonOutputStepper` when the config doesn't list a monitor stepper:
    ```typescript
    // In Runner setup
    if (!steppers.some(s => s.onEvent)) {
@@ -1827,7 +1829,7 @@ This allows incremental migration while keeping monitors working.
 
 2. This enables piping: `haibun run | haibun-tui`
 
-3. support a tool to output ndjson to any monitor stepper
+3. Support a tool that sends NDJSON to any monitor stepper
 
 ### Phase 5: Complete TMessageContext Removal
 
@@ -1842,12 +1844,12 @@ This allows incremental migration while keeping monitors working.
 
 The transition is to strict **Zod** schemas designed for **External Consistency**.
 
-### Key Design Principles
+### Design Principles
 1.  **`seqPath` as Identity**: The deterministic path (e.g., `"1.2.1"`) is the primary key.
 2.  **Public API Readiness**: Schemas use consistent naming and strict typing.
 3.  **Inspectability**: Logs carry structured payloads for deep inspection.
 
-### Implemented Zod Schemas (in `modules/core/src/schema/events.ts`)
+### Zod Schemas Implemented by December 2025 (in `modules/core/src/schema/events.ts`)
 
 #### Base Protocol
 ```typescript
@@ -1905,19 +1907,19 @@ const ControlEvent = BaseEvent.extend({
 ```
 
 > [!IMPORTANT]
-> **`ControlEvent.signal` needs expansion** for debugger-stepper:
-> - `break` - execution paused, waiting for prompt
-> - `resume` - continue execution  
-> - `step` - execute one step and break again
-> - `fail` - mark step as failed and stop
-> - `retry` - re-run the current step
-> - `next` - skip to next step (ignore failure)
+> **`ControlEvent.signal` requires more values** for debugger-stepper:
+> - `break`: execution paused, waiting for prompt
+> - `resume`: continue execution
+> - `step`: execute one step and break again
+> - `fail`: mark step as failed and stop
+> - `retry`: re-run the current step
+> - `next`: skip to next step (ignore failure)
 
 ---
 
 ## 3. Code Organization & Architecture Cleanup
 
-### A. Centralized "Truth" ✅ (Mostly Done)
+### A. Centralized Schemas ✅ (Mostly Done)
 - `modules/core/src/schema/events.ts` exists with Zod schemas
 - **Remaining**: Remove `TMessageContext` and bridge to new schema
 
@@ -1950,30 +1952,30 @@ const ControlEvent = BaseEvent.extend({
 
 ## Open Questions
 
-1. ~~**Interactive Control Flow**: How should `ControlEvent` responses flow back?~~
-   - ✅ **Resolved**: Keep `Prompter` system. Events are unidirectional (Logger → Monitors), prompts are bidirectional.
+1. ~~**Interactive Control Flow**: How should `ControlEvent` responses return?~~
+   - ✅ **Resolved**: Keep the `Prompter` system. Events are unidirectional (Logger → Monitors). Prompts are bidirectional.
 
 2. ~~**CI Mode Detection**: How to auto-detect non-interactive environment?~~
-   - ✅ **Resolved**: Check `process.stdout.isTTY`. Pipe mode works naturally via NDJSON stdin.
+   - ✅ **Resolved**: Check `process.stdout.isTTY`. Pipe mode works through NDJSON on stdin.
 
 3. ~~**Event Persistence**: Should all events be written to a file for replay?~~
    - ✅ **Resolved**: Yes. `EventPersister` subscriber writes both NDJSON and embedded HTML.
 
 4. **Testing the debugger**: How to make debugger-stepper easy to test?
    - Mock the `Prompter` with scripted responses
-   - Use `IStepperCycle.onEvent` to capture emitted events
+   - Use `IStepperCycles.onEvent` to capture emitted events
    - Test against recorded event fixtures
 
 5. **LSP/Language Server support**: 
    - Added to improvements-plan.md
-   - use for interactive debugging completion
-   - Could use same event stream for real-time feedback
+   - Use it for completion during interactive debugging
+   - It could use the same event stream for real-time feedback
 
 ---
 
 ## Code Analysis: How This Plan Improves the Codebase
 
-### Current Pain Points (With Evidence)
+### Problems in the December 2025 Code (With Evidence)
 
 #### 1. Dual Logging System
 
@@ -1994,7 +1996,7 @@ world.eventLogger.emit(LifecycleEvent.parse({
 ```
 
 **Problem**: Same event (feature start) logged twice through different systems.
-**Impact**: Confusion, wasted bytes, inconsistent data.
+**Impact**: Confusion, duplicated output, inconsistent data.
 
 **Target solution**: Single `world.logger.log(lifecycle(...))` call.
 
@@ -2025,12 +2027,12 @@ export enum EExecutionMessageType {
 }
 ```
 
-**Problem**: 19 enum values that conflate:
+**Problem**: 17 enum values that conflate:
 - Lifecycle events (START/END)
 - Log levels (TRACE, DEBUG)
 - Control signals (ON_FAILURE, GRAPH_LINK)
 
-**Target solution**: 4 event types with clear semantics:
+**Target solution**: 4 event types. Each type covers one concern:
 ```typescript
 type: 'log' | 'lifecycle' | 'artifact' | 'control'
 ```
@@ -2062,8 +2064,8 @@ rl.on('line', (line) => {
 });
 ```
 
-**Problem**: CLI reads from stdin, not integrated with Logger's subscriber pattern.
-**Impact**: Can't run CLI monitor in-process for testing. The CLI doesn't have a bidirectional prompter.
+**Problem**: The CLI reads from stdin. It isn't integrated with the Logger's subscriber pattern.
+**Impact**: A test can't run the CLI monitor in-process. The CLI doesn't have a bidirectional prompter.
 
 **Target solution**: CLI as stepper with `IStepperCycles.onEvent()`:
 ```typescript
@@ -2076,7 +2078,7 @@ class InkMonitorStepper implements IStepperCycles {
 
 ---
 
-#### 4. Awkward Artifact Attachment
+#### 4. Indirect Artifact Attachment
 
 **Evidence** (`Logger.ts` lines 84-96):
 ```typescript
@@ -2094,7 +2096,7 @@ export const topicArtifactLogger = (world: TWorld) => <T extends TArtifact>(
 }
 ```
 
-**Problem**: Workaround function just to attach artifacts to logs.
+**Problem**: A separate function exists only to attach artifacts to logs.
 **Impact**: Non-obvious API, extra indirection.
 
 **Target solution**: Direct attachment via varargs:
@@ -2108,8 +2110,8 @@ world.logger.log('Screenshot captured', artifact({ type: 'image', path }));
 
 | Aspect | Before | After |
 |--------|--------|-------|
-| **Single source of truth** | 2 logging systems | 1 unified Logger |
-| **Event types** | 19-value enum | 4 clear types |
+| **Logging systems** | 2 logging systems | 1 unified Logger |
+| **Event types** | 17-value enum | 4 event types |
 | **Monitor integration** | stdin piping | `IStepperCycles` hooks |
 | **Artifact attachment** | Helper function | Direct varargs |
 | **Shared code** | Not shared | `monitor-core` library |
@@ -2119,10 +2121,10 @@ world.logger.log('Screenshot captured', artifact({ type: 'image', path }));
 
 ### Ease of Reasoning
 
-1. **One way to do things**: Log via `world.logger.<level>(content...)`. A caller doesn't choose between logging methods.
-2. **Events are data**: Zod schemas are inspectable, validatable, serializable.
+1. **One logging call**: Log via `world.logger.<level>(content...)`. A caller doesn't choose between logging methods.
+2. **Event schemas**: A Zod schema can be inspected, validated and serialized.
 3. **Monitors are steppers**: Same lifecycle as all other components.
-4. **Filters are composable**: Level + depth + speculative, all in `monitor-core`.
+4. **Composable filters**: `monitor-core` combines the level, depth and speculative filters.
 
 ### Standard Patterns Used
 

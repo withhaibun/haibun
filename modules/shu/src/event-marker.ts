@@ -1,9 +1,9 @@
 /**
- * How a row of a run marks a timeline: an emoji icon and a colour. The shared vocabulary every view marks by, so a rail
- * and a timeline never disagree about which rows matter or what they look like.
+ * Computes the mark for an event row on a timeline: an emoji icon and a colour. Every view marks rows through this module,
+ * so a rail and a timeline mark the same rows the same way.
  *
- * A row states what actuality recorded, so an outcome here is the outcome a step's record states. Only the fields this
- * understands are read; anything else takes the default.
+ * A row holds what actuality recorded, so an outcome here is the outcome a step's record states. These functions read only
+ * the fields `TPartialEvent` declares and a step's `in`. An event that doesn't match a case gets the default mark.
  */
 import {
 	ICON_FEATURE,
@@ -29,8 +29,9 @@ export type TEventMarkerStyle = { color: string; icon: string };
 
 type TPartialEvent = { kind?: string; type?: string; status?: string; level?: string; stage?: string; id?: string; intent?: { mode?: string } };
 
-/** The mark palette, named by what a mark shows rather than by its hue, so every surface that marks an event reads from
- *  one place. UNDECIDED isn't a fault or a success: a speculative try, or a call actuality handed out. */
+/** The mark palette. Each colour is named by what a mark shows rather than by its hue. Every surface that marks an event
+ *  reads its colours here. `undecided` marks an outcome that isn't a fault or a success: a speculative try, a failed call
+ *  actuality handed out, a stopped step or an event that doesn't match a case. */
 export const MARK_COLOUR = {
 	feature: "#c084fc",
 	scenario: "#60a5fa",
@@ -48,9 +49,8 @@ export function eventMarkerStyle(event: unknown): TEventMarkerStyle {
 		if (e.type === "feature") return { color: MARK_COLOUR.feature, icon: ICON_FEATURE };
 		if (e.type === "scenario") return { color: MARK_COLOUR.scenario, icon: ICON_SCENARIO };
 		if (e.type === "step") {
-			// A speculative statement's failure is expected and a handed-out call's failure belongs to its caller: the
-			// same rule the log renders by (EventFormatter.getStatusIcon), so a mark never reports actuality as failing
-			// where the log does not.
+			// A speculative statement's failure is expected. A handed-out call returns its failure to its caller.
+			// EventFormatter.getStatusIcon applies the same rule, so a mark doesn't show a failure where the log doesn't.
 			if (e.status === SEQ_PATH_STATUS.running) return { color: MARK_COLOUR.pending, icon: ICON_STEP_RUNNING };
 			if (isSpeculativeEvent(e)) return { color: MARK_COLOUR.undecided, icon: e.status === SEQ_PATH_STATUS.failed ? MAYBE_CHECK_NO : MAYBE_CHECK_YES };
 			if (e.status === SEQ_PATH_STATUS.failed)
@@ -72,22 +72,20 @@ export function eventMarkerStyle(event: unknown): TEventMarkerStyle {
 }
 
 /**
- * The mark an event gets, or undefined where it doesn't get one.
+ * Returns the mark for an event, or undefined where the event doesn't get one.
  *
- * This is the one call a surface makes to mark an event: whether it is to mark and what it looks like are
- * decided together, in one place, so a rail, a track and anything else that marks events cannot disagree about which
- * events matter or how they are drawn. What a surface decides for itself is only WHERE the mark goes: a moment along
- * a time axis, a row's place in a log.
+ * A surface calls this to mark an event. This one call determines whether an event gets a mark and what the mark looks
+ * like, so a rail, a track and every other surface mark the same events the same way. A surface determines only the
+ * mark's position: a moment along a time axis or a row's place in a log.
  */
 export function markFor(event: unknown): TEventMarkerStyle | undefined {
 	return shouldMarkEvent(event) ? eventMarkerStyle(event) : undefined;
 }
 
 /**
- * Decide whether an event deserves a slider marker. High-signal events
- * (failures, warnings, artifacts, feature/scenario structure, completed
- * step ends) get markers; low-level start events and internal log noise
- * are dropped so the slider doesn't blur into a wall of dots.
+ * Determines whether an event gets a slider mark. Error and warning logs, artifacts, feature and scenario events, failed
+ * lifecycle events and steps whose text doesn't start with a lowercase letter get a mark. Technical steps, other logs and
+ * other events don't get a mark, so the slider's marks stay distinct.
  */
 function shouldMarkEvent(event: unknown): boolean {
 	const e = event as TPartialEvent & { in?: string };
@@ -96,7 +94,7 @@ function shouldMarkEvent(event: unknown): boolean {
 	if (e.kind === "lifecycle" && (e.type === "feature" || e.type === "scenario")) return true;
 	if (e.kind === "lifecycle" && e.status === SEQ_PATH_STATUS.failed) return true;
 	if (e.kind === "lifecycle" && e.type === "step") {
-		// A step is one row, and a step whose text reads as prose is what a reader is looking for on a rail.
+		// Each step is one row. A technical step's text starts with a lowercase letter. A reader looks for the prose steps on a rail.
 		const isTechnical = /^[a-z]/.test(e.in ?? "");
 		return !isTechnical;
 	}
@@ -104,21 +102,21 @@ function shouldMarkEvent(event: unknown): boolean {
 }
 
 /**
- * The mark a division of actuality gets, given what it holds and how much of each.
+ * Returns the mark for a division of actuality from the events it holds and the count of each.
  *
- * A reader looking at a run of any length is shown its divisions rather than its records, so each division marks as
- * one thing. It marks as a failure where it holds one, which is what keeps a single failure from being averaged away
- * by the successes around it; otherwise it marks as whatever it holds most of. What a failure looks like, and which
- * failures count as one, are `eventMarkerStyle`'s to state, so a division and a row can never disagree.
+ * A view shows actuality of any length as divisions rather than records, so each division gets one mark. A division
+ * that holds an event marked as a fault marks as a fault, so the successes around a single failure don't hide it. Any
+ * other division takes the style of the held entry with the largest count. `eventMarkerStyle` determines the fault style
+ * and which events get it, so a division and a row mark a failure the same way.
  *
- * Undefined for a division that doesn't hold an event, so an empty stretch of actuality draws as empty.
+ * Returns undefined for a division that doesn't hold an event, so an empty stretch of actuality draws as empty.
  */
 export function bucketMarkerStyle(held: ReadonlyArray<{ event: unknown; count: number }>): TEventMarkerStyle | undefined {
 	const styled = held.filter(({ count }) => count > 0).map(({ event, count }) => ({ style: eventMarkerStyle(event), count }));
 	if (styled.length === 0) return undefined;
 	const failing = styled.filter(({ style }) => style.color === MARK_COLOUR.fault);
 	const among = failing.length > 0 ? failing : styled;
-	// Most of what it holds, and where two hold as much, the one actuality's own rule draws first: the same counts mark
-	// the same way whatever order they were read in.
+	// Selects the style of the entry with the largest count. A tie selects the entry whose icon sorts first, so the same
+	// counts give the same mark in any read order.
 	return among.reduce((most, one) => (one.count > most.count || (one.count === most.count && one.style.icon < most.style.icon) ? one : most)).style;
 }

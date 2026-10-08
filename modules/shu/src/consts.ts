@@ -1,34 +1,33 @@
 /** Shared constants for custom events and data attributes across shu components. */
 import { ChatRoleSchema, ChatStatusSchema } from "./schemas.js";
 
-/**
- * Per-row property name that the consumer's graph store stamps with the stored
- * vertex-label handle, then `project()` converts to `@type`. The value is the
- * store's literal label handle and must not change, existing rows are filtered by it.
- * Shared across the consumer → @haibun/shu boundary so the two sides don't spell it inline.
- */
-/** How many occurrences the browser holds between batches, and so the most a batch of them holds. Fixed, so the buffer
- *  cannot grow while a batch is in flight. */
+/** How many occurrences the browser holds between batches, and so the most a batch of them holds. The size is fixed, so
+ *  the buffer doesn't grow while a batch is in flight. */
 export const CLIENT_RING = 240;
 
+/**
+ * The per-row property that the consumer's graph store sets to the stored vertex-label handle. `project()` converts it to
+ * `@type`. The value is the store's literal label handle. It must not change, since existing rows are filtered by it.
+ * The consumer and @haibun/shu both import it, so the name is spelled in one place.
+ */
 export const STORED_TYPE_PROP = "vertexLabel";
 
-/** The hash params an affordance deep-link is carried in: the goal a panel opens, or the waypoint it opens instead.
- *  Written by the chain view and the projection's links, read by the affordances panel and the chain view alike. */
+/** The hash params that carry an affordance deep-link: the goal a panel opens, or the waypoint it opens instead. The
+ *  chain view and the projection's links write them. The affordances panel and the chain view read them. */
 export const AFFORDANCE_PARAM = { GOAL: "aff-goal", WAYPOINT: "aff-waypoint" } as const;
 
-/** The custom property a docked pane sets on its positioning host to the height of its closed strip, which the host
- *  reserves so content doesn't sit behind the closed pane. */
+/** The custom property a docked pane sets on its positioning host to the height of its closed strip. The host reserves
+ *  that height, so the closed pane doesn't cover content. */
 export const DOCK_FOOTPRINT = "--shu-dock-h";
 
-/** The custom property the page strip sets on its positioning host to its height, which a docked pane stands above. */
+/** The custom property the page strip sets on its positioning host to its height. A docked pane is positioned above it. */
 export const PAGE_STRIP_FOOTPRINT = "--shu-page-strip-h";
 
-/** The hash param that addresses the conversation the ask is open on, by its session's seqPath. */
+/** The hash param that addresses the conversation the ask pane shows, by its session's seqPath. */
 export const CONVERSATION_PARAM = "ask";
 
-/** What a deep link into the view state begins with: view state is carried in the hash, which a static document can
- *  link to and a page saved for offline reading still keeps. */
+/** The prefix of a deep link into the view state. The hash carries view state, so a static document can link to it and a
+ *  page saved for offline reading keeps it. */
 export const DEEP_LINK_PREFIX = "#?";
 
 /** Where the site serves its JSON-LD @context: the well-known address, and its alias under the namespace. */
@@ -49,65 +48,65 @@ export const SHU_EVENT = {
 	COLUMN_MINIMIZE: "column-minimize",
 	/** A pane docks along the bottom of the app, or returns to the strip. */
 	COLUMN_DOCK: "column-dock",
-	/** A reader chooses the type the page searches, which the page strip offers. */
+	/** A reader chooses the type the page searches from the types the page strip offers. */
 	TYPE_CHOOSE: "type-choose",
 	CONTEXT_CHANGE: "context-change",
-	/** Return to the live edge and tail it again. Any view that tails answers this; it is the one way the tail is
-	 *  re-engaged after a reader has pressed a rail to a moment, since a press is meant to stay where it was put. */
+	/** Returns a view to the live edge and resumes tailing. A view that tails listens for this event. It is the only way
+	 *  to resume tailing after a reader presses a rail at a moment, since a press keeps its position. */
 	GO_LIVE: "shu-go-live",
 	FILTER_CHANGE: "filter-change",
-	// A recorded search summary was clicked: restore its exact viewQuery snapshot (detail: { query: TViewQuery }).
+	// A reader clicked a recorded search summary, and the app restores its viewQuery snapshot (detail: { query: TViewQuery }).
 	SEARCH_RESTORE: "search-restore",
 	GRAPH_FILTER_CHANGE: "graph-filter-change",
-	// Hovering a type in the filter previews it: views dim every other type so the hovered one stands out. null = preview ended.
+	// Hovering a type in the filter previews it, and views dim every other type. A null type ends the preview.
 	GRAPH_TYPE_PREVIEW: "graph-type-preview",
 	GRAPH_CLUSTER_EXPAND: "graph-cluster-expand",
 	GRAPH_NODE_CLICK: "graph-node-click",
 	GRAPH_NODE_HOVER: "graph-node-hover",
 	GRAPH_NODE_LEAVE: "graph-node-leave",
 	ROW_CLICK: "row-click",
-	// A thumbnail asks its document column to move the global time cursor to the step row it belongs to (the column owns
-	// the start-time → absolute-time mapping). Composed so it crosses the column's shadow boundary from the framed artifact.
+	// A thumbnail requests that its document column move the global time cursor to the thumbnail's step row. The column
+	// holds the start-time → absolute-time mapping. The event is composed, so it crosses the column's shadow boundary from
+	// the framed artifact.
 	CURSOR_TO_ROW: "cursor-to-row",
-	// ←/→ from an expanded thumbnail asks its document column for the previous/next thumbnail IN THE WHOLE RUN. The column
-	// owns navigation because under virtualization only the visible window's frames exist in the DOM: a frame cannot find
-	// its off-screen siblings itself.
+	// ←/→ on an expanded thumbnail requests the previous or next thumbnail from its document column. The column selects
+	// across every thumbnail of actuality, not only the rendered ones. The column handles navigation because virtualization
+	// renders only the visible window's frames in the DOM, so a frame doesn't find its off-screen siblings.
 	FRAME_NAV: "frame-nav",
-	// An annotation was authored from a body view (select text → annotate); the host reloads so it appears anchored.
+	// A reader authored an annotation from a body view (select text → annotate). The host reloads, so the annotation renders at its anchor.
 	ANNOTATION_CREATED: "annotation-created",
 	SORT_CHANGE: "sort-change",
 	STATE_CHANGE: "state-change",
 	SYNC_AVAILABLE: "sync-available",
-	/** A step caller ran its step: it succeeded, or it failed. Both bubble out of the caller's view, which grows in place. */
+	/** A step caller ran its step, and the step succeeded or failed. Both events bubble out of the caller's view. The view expands in place. */
 	STEP_SUCCESS: "step-success",
 	STEP_ERROR: "step-error",
 } as const;
 
-/** The one glyph marking annotation everywhere it appears: the gutter toggle, the rail markers. A text glyph (the
- *  flipped pencil), not an emoji, so CSS `color` tints it (the has-annotations grey-vs-colour treatment). */
+/** The glyph that marks an annotation in the gutter toggle and the rail markers. It is a text glyph (the flipped pencil)
+ *  and not an emoji, so CSS `color` tints it for the has-annotations grey or colour treatment. */
 export const ANNOTATION_GLYPH = "✎";
 
-/** The actions bar's extension slot: a concern whose ui declares this slot (with a js asset) is mounted in the bar's
- *  input line, in every mode. For anything a reader uses to put something INTO that line, dictation among them, which
- *  serves a step and a question alike. The bar owns the slot, so its name is declared here and consumers import it
- *  rather than restating it. */
+/** The actions bar's extension slot. A concern whose ui declares this slot with a js asset is mounted in the bar's input
+ *  line in every mode. The slot holds controls a reader uses to enter text into that line, such as dictation, which
+ *  serves a step and a question alike. The bar defines the slot, so its name is declared here and consumers import it. */
 export const ACTION_BAR_CHAT_SLOT = "action-bar-chat";
-/** The address key the chat writes the place its reader holds on actuality's timeline under, beside the session. */
+/** The address key that holds the chat reader's place on actuality's timeline. The chat writes it beside the session. */
 export const CHAT_VIEW_PARAM = "ask-at";
 
-/** The ask's own extension slot: mounted in the bar's input line under ask mode alone. For anything about the ask
- *  itself, what a question would carry among them, which doesn't concern a reader searching or running a step. */
+/** The `ask` mode's extension slot. It is mounted in the bar's input line in `ask` mode only. It holds controls for the
+ *  question itself, such as what a question carries. Those controls don't concern a reader who searches or runs a step. */
 export const ACTION_BAR_ASK_SLOT = "action-bar-ask";
 
-/** The permissions area's extension slot: a concern whose ui declares this slot (with a js asset) is mounted inside
- *  the access popover, beside what this session may do. For anything a reader decides by authority rather than by
- *  asking, which belongs with the permissions it decides under rather than beside the conversation. */
+/** The permissions area's extension slot. A concern whose ui declares this slot with a js asset is mounted inside the
+ *  access popover, beside what this session may do. It holds controls for decisions a reader makes by authority and not
+ *  by a question. Such a control is placed with the permissions that govern the decision, not beside the conversation. */
 export const PERMISSIONS_SLOT = "permissions";
 
-/** An extension in the permissions area shows how many items await the reader's decision, and where to read them, so
- *  the access indicator can mark that something is waiting without knowing what kind of thing it is. The mark is a
- *  reference, since a notification that does not lead to its cause leaves the reader to go looking.
- *  Detail: `{ count, kind, target }`: the reference kind and link target a `shu-ref` takes. */
+/** An extension in the permissions area dispatches this event with how many items await the reader's decision and
+ *  where to read them. The access indicator marks the waiting items without depending on their kind. The mark is a
+ *  reference, so the reader follows it to the items.
+ *  Detail: `{ count, kind, target }`, with the reference kind and link target a `shu-ref` takes. */
 export const AWAITING_DECISION = "awaiting-decision";
 
 export const SHU_TYPE = { VIEW_COLLECTION: "shu-view-collection" } as const;
@@ -115,18 +114,18 @@ export const SHU_TYPE = { VIEW_COLLECTION: "shu-view-collection" } as const;
 /** Whether a declared ui component is one of the marker types above rather than an element a column can hold. */
 export const isMarkerType = (component: string): boolean => (Object.values(SHU_TYPE) as string[]).includes(component);
 
-/** The column container every view sits in. Named once: a view asks for its hosting column by this. */
-/** Every built-in shu element, by its tag: what the registry defines, a step opens (`productsDomain`), a domain
- *  declares (`ui.component`), a component looks for in its tree and a test looks for on the page. One name each, here,
- *  so a file doesn't spell a tag again; a component that is also a domain exposes its own as `static domainSelector`. */
-/** The element a page carries its hydration in: its settings, and the actuality a record of one carries. */
+/** The element that holds a page's hydration: its settings, and the actuality a record of the page carries. */
 export const HYDRATION_ID = "shu-hydration";
 
+/** Every built-in shu element, by its tag: what the registry defines, a step opens (`productsDomain`), a domain declares
+ *  (`ui.component`), a component selects in its tree and a test selects on the page. Each tag is named once here, so a
+ *  file doesn't spell a tag again. A component that is also a domain exposes its own tag as `static domainSelector`. */
 export const SHU_TAG = {
 	PERMISSIONS: "shu-permissions",
 	PAGE_KEY: "shu-page-key",
 	GRAPH_QUERY: "shu-graph-query",
 	RESULT_TABLE: "shu-result-table",
+	/** The column container that holds every view. A view selects its hosting column by this tag. */
 	COLUMN_PANE: "shu-column-pane",
 	COLUMN_STRIP: "shu-column-strip",
 	ENTITY_COLUMN: "shu-entity-column",
@@ -173,11 +172,11 @@ export const SHU_TAG = {
 	ANNOTATED_BODY: "shu-annotated-body",
 } as const;
 
-/** The index pane's identity: the column every other one is opened from, and the only one the app builds itself. */
+/** The index pane's key. Every other column is opened from the index pane, and the app builds only the index pane itself. */
 export const INDEX_PANE_KEY = "query";
 
-/** The slot a column's spine view is assigned to: what the column shows in the narrow strip it collapses to. A
- *  collapsed pane renders this slot and not the default one, so only one of the two views is ever rendered. */
+/** The slot that holds a column's spine view, which the column shows when it collapses to a narrow strip. A collapsed
+ *  pane renders this slot and not the default one, so only one of the two views is rendered at a time. */
 export const SPINE_SLOT = "spine";
 
 /** The slot the breadcrumb's search entry holds, where the page strip puts the control that names the search. */
@@ -187,8 +186,8 @@ export const SHU_ATTR = {
 	DATA_MINIMIZED: "data-minimized",
 	/** On an image or frame an artifact frame holds: the address of actuality's artifact it shows once the page has read it. */
 	DATA_ARTIFACT: "data-artifact",
-	/** Declared by an overlay while it covers the views beneath it. A framing aims what it frames clear of everything
-	 *  carrying this, and re-aims when one appears or goes, so a reader is never shown a node under a panel. */
+	/** Declared by an overlay while it covers the views beneath it. A framing positions its subject clear of every element
+	 *  that carries this attribute, and repositions when one is added or removed, so a node isn't rendered under a panel. */
 	DATA_COVERS_VIEWS: "data-covers-views",
 	DATA_MAXIMIZED: "data-maximized",
 	/** A pane docked along the bottom of the app, where every other pane is a column in the strip. */
@@ -213,22 +212,22 @@ export const SHU_ATTR = {
 	DATA_RECORD: "data-record",
 } as const;
 
-/** What a transcript's chat message matches, by the attributes it reflects. A selector places one of them in the
- *  transcript (`:nth-child(n of match)`), since a message's tag alone does not tell a question from an answer. Single
- *  quotes let a feature embed a selector in a quoted step argument. */
+/** The selectors a transcript's chat message matches, by the attributes it reflects. A selector places one of them in
+ *  the transcript (`:nth-child(n of match)`), since a message's tag doesn't distinguish a question from a response.
+ *  Single quotes let a feature embed a selector in a quoted step argument. */
 export const CHAT_MESSAGE_MATCH = {
 	QUESTION: `[${SHU_ATTR.DATA_ROLE}='${ChatRoleSchema.enum.user}']`,
 	/** A question on the branch the transcript shows. */
 	SHOWN_QUESTION: `[${SHU_ATTR.DATA_ROLE}='${ChatRoleSchema.enum.user}']:not([hidden])`,
-	/** An answer whose turn completed. */
+	/** A response whose turn completed. */
 	COMPLETED_REPLY: `[${SHU_ATTR.DATA_ROLE}='${ChatRoleSchema.enum.llm}'][${SHU_ATTR.DATA_STATUS}='${ChatStatusSchema.enum.completed}']`,
 } as const;
 
-/** The methods a view names when it asks the service for a run's events or for the whole graph, grouped and clustered.
- *  Named here, with every other repeated literal, because both the caller and the report writer spell them. */
+/** The methods a view names when it requests the service's whole graph grouped into clusters, or the affordances on
+ *  offer. They are named here with every other repeated literal, so a caller doesn't spell them. */
 export const RPC_METHOD = {
 	CLUSTERED_QUADS: "GraphSourceStepper-getClusteredQuads",
-	/** The affordances on offer, as a read: what the panel and the chain view ask for to stay current. */
+	/** The affordances on offer, as a read. The panel and the chain view request it to stay current. */
 	AFFORDANCES_ON_OFFER: "GoalResolutionStepper-affordancesOnOffer",
 	AFFORDANCES_ON_OFFER_AS_OF: "GoalResolutionStepper-affordancesOnOfferAsOf",
 } as const;

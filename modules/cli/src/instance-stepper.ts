@@ -1,23 +1,26 @@
 /**
- * InstanceStepper supervises sibling haibun processes: instances that SERVE, and runs that EXECUTE and exit. `start a haibun instance from {where} on port
- * {port} as host {hostId}` forks the same cli.js an operator runs, against the config directory a real
- * deployment would use; the child serves because ITS feature ends with `this feature runs as a service
- * until stopped`. Readiness is the action.begin handshake (the same one federation and remote steppers
- * use), so the step's products carry the instance's url, site principal, and hostId. Assigning hostIds
- * stays an operator concern: the feature states the id, and the handshake verifies the child took it.
- * Children are terminated at endFeature; a launched instance never outlives the feature that owns it.
+ * InstanceStepper supervises sibling haibun processes of two kinds. An instance serves, and a run executes features.
+ * `start a haibun instance from {where} on port {port} as host {hostId}` forks the cli.js that an operator runs.
+ * The child reads the config directory that a deployment uses.
+ * The child serves because its feature ends with `this feature runs as a service until stopped`.
+ * Readiness is the action.begin handshake. Federation and remote steppers use the same handshake.
+ * The step's products carry the instance's url, site principal and hostId.
+ * The operator assigns hostIds: the feature states the id, and the handshake verifies that the child took it.
+ * endFeature terminates the children when the feature closes. `superviseChild` terminates any remaining child when this process ends.
  *
- * A RUN is the other kind of child: the same cli.js, given a feature filter. It is started rather than awaited so the
- * caller, a person at a terminal or an agent deciding what to do next, can act while it happens, and it is left
- * standing when its features finish so what it produced can still be asked about.
+ * A run is the other kind of child: the same cli.js, forked with a feature filter.
+ * startRun doesn't await a run, so the caller can act while it executes.
+ * The caller is a person at a terminal or an agent that selects its next step.
+ * A run with a host above 0 stays up after its features finish, so a caller can still query what it produced.
  *
- * A run's own events are read here as it produces them: its output arrives as NDJSON, and each chunk accrues into the
- * outcome a caller reads, which features ran, how many steps, what failed first, and whether the run reports it is
- * finished. Beside that outcome the child's PROCESS output is kept as a bounded tail read from a cursor, since a run
- * that fails before it serves doesn't write other output, and a long run cannot be allowed to grow without limit.
- * `SseSubscriber` subscribes to a serving run this process did not fork.
+ * This process reads a run's events as they arrive. A run writes its events as NDJSON on its output.
+ * Each chunk accrues into the outcome a caller reads: the features that ran, the step count, the failures,
+ * and whether the child reports that its features finished.
+ * This process also keeps the child's process output as a bounded tail that a caller reads from a cursor.
+ * That output is the only record of a run that fails before it serves. The bound keeps a long run's output from growing without limit.
+ * `SseSubscriber` subscribes to a serving run that this process didn't fork.
  *
- * Runs are supervised by the same list and torn down by the same rule as instances.
+ * Runs are held in their own map. endFeature terminates runs under the same condition as instances.
  */
 import type { THandshake } from "@haibun/core/lib/rpc-wire.js";
 import { fork, type ChildProcess } from "child_process";
@@ -45,56 +48,57 @@ import { getConfigFromBase, processBaseEnvToOptionsAndErrors } from "./lib.js";
 import { outcomeAgainst, verificationOf, type TOutcome } from "./verified.js";
 import { DOMAIN_FILE_PATH, DOMAIN_NUMBER, NameSchema } from "@haibun/core/lib/domains.js";
 
-/** The environment names of the things a process holds for itself, which core owns: whether it stays up, which host it
- *  is, and whether it skips a group that passed. Everything else per-process is declared by the option that owns it
- *  (see `perProcessOptionNames`). */
+/** Environment names of the per-process options that core owns: whether a process stays up, and whether it skips a group
+ *  that passed. NDJSON_ENV selects NDJSON events on a child's output. `HAIBUN_HOST_ID_ENV` holds a process's host id.
+ *  Each other per-process option declares itself (see `perProcessOptionNames`). */
 const STAY_ENV = `${BASE_PREFIX}${STAY}`;
 const ONCE_ENV = `${BASE_PREFIX}${ONCE}`;
 const NDJSON_ENV = `${BASE_PREFIX}${NDJSON}`;
 
 /**
- * The environment name an instance takes its serving port from. It is the web server's own option, named here because
- * a launcher assigns a port to an instance whose steppers it does not hold: what a launcher promised its caller is the
- * port the instance serves on, so the assignment cannot depend on which steppers the launcher happens to register.
+ * The environment name an instance reads its serving port from. It is the web server's own option.
+ * This file names it because a launcher assigns a port to an instance whose steppers the launcher doesn't hold.
+ * The launcher returns that port to its caller as the instance's serving port, so the assignment can't depend on the
+ * steppers the launcher registers.
  */
 const INSTANCE_PORT_ENV = `${MODULE_OPTION_PREFIX}WEBSERVERSTEPPER_PORT`;
 
 const READY_DEADLINE_MS = 30_000;
-/** How long one handshake attempt is given before the next: a starting child answers late, not slowly. */
+/** The timeout of one handshake attempt. A starting child doesn't respond before it listens. It responds quickly once it listens, so a short attempt suffices. */
 const BEGIN_TIMEOUT_MS = 1_500;
 const READY_POLL_MS = 300;
 const STDERR_TAIL_CHARS = 4_000;
-/** How much of a run's output is kept for reading back. Older output is dropped, and a read that starts before what
- *  is kept reports so, rather than silently returning a gap as if it were the whole story. */
+/** The number of characters of a run's output that RunTail keeps. RunTail drops older output. A read from a cursor
+ *  before the kept output returns the dropped count, so a gap doesn't read as complete output. */
 const RUN_TAIL_CHARS = 200_000;
 
-/** The run variable a launched instance reads to address its launcher: `use store at $LAUNCHED_FROM$ …`. */
+/** The HAIBUN_ENV variable a launched instance reads to address its launcher: `use store at $LAUNCHED_FROM$ …`. */
 const LAUNCHED_FROM = "LAUNCHED_FROM";
 
 /**
  * The capabilities a caller must hold to supervise a process, as ZCAP-LD `allowedAction` values.
  *
- * Each names one action, and each is declared on the step that carries that action out, never on a step that calls
- * another. A step that calls another declares the same action it will call through to, so an action a caller cannot
- * carry out directly is not available to it indirectly. Grants are per action, so "may start runs" and "may stop
- * runs" are separate grants, and either can be revoked while the other stands.
+ * Each value names one action. The step that performs the action declares it.
+ * A step that calls another step declares the action of the step it calls, so a caller can't perform an action through
+ * another step when it can't perform that action directly.
+ * Grants are per action. "May start runs" and "may stop runs" are separate grants, and either can be revoked while the other remains.
  *
- * The check itself is in `dispatchStep`, identically for a feature line, an RPC call, an MCP tool call and a model's
- * tool call; the caller's capability comes from the authority the step runs under, so the steps here don't read one.
+ * `dispatchStep` performs the check in the same way for a feature line, an RPC call, an MCP tool call and a model's tool call.
+ * The caller's capability comes from the authority the step executes under, so the steps here don't read one.
  */
 export const SUPERVISOR_CAPABILITIES = {
 	/** Start a serving instance from a directory of features. */
 	launch: "Instance:launch",
-	/** Start a run of features, which carries out what those features declare on this machine. */
+	/** Start a run of features. A run executes its features' steps on this machine. */
 	run: "Instance:run",
-	/** Read what a run has logged, which is its output verbatim. */
+	/** Read a run's output verbatim, wait for a run, and list the instances and runs this process started. */
 	read: "Instance:read",
 	/** End a run or an instance this process started. */
 	stop: "Instance:stop",
 } as const;
 
 const instanceStartedSchema = z.object({ url: z.string(), site: z.string(), hostId: z.number() });
-/** What starting and reading a run answer with. Exported so a caller parses the products rather than asserting a shape. */
+/** The products that starting a run and reading a run return. Both schemas are exported so a caller parses the products rather than asserting a shape. */
 export const runStartedSchema = z.object({ run: z.string(), where: z.string(), filter: z.string() });
 export const runReadSchema = z.object({
 	run: z.string(),
@@ -103,12 +107,12 @@ export const runReadSchema = z.object({
 	cursor: z.number(),
 	output: z.string(),
 	dropped: z.number(),
-	// What the run has reported about itself so far, counted from every chunk it wrote rather than from the tail that
-	// is still kept: a run that reports more than the tail holds is still counted in full.
+	// The counts a run has reported so far. They accrue from every chunk of its output, not from the kept tail, so they
+	// stay complete when the output exceeds the tail.
 	features: z.number(),
 	steps: z.number(),
-	/** Whether the run's features are over. A run left standing reports this and then keeps serving, so a caller
-	 *  waiting on it waits for this rather than for an exit that will not come. */
+	/** Whether a run's features have finished. A standing run reports this and keeps serving without exiting, so a caller
+	 *  waits on this flag rather than on an exit. */
 	finished: z.boolean(),
 	failed: z.number(),
 	firstFailure: z.string(),
@@ -117,12 +121,12 @@ export const runReadSchema = z.object({
 });
 
 /**
- * A run's output as it is kept: a bounded tail, read from a cursor, with what fell out of the tail counted rather
- * than discarded silently. A reader that asks from further back than what is kept is told how much it missed.
+ * The kept output of a run or an instance. It holds a bounded tail that a reader reads from a cursor, and it counts the characters it drops.
+ * A read from a cursor before the kept output returns the number of requested characters that were dropped.
  */
 export class RunTail {
-	/** What is kept, as it arrived. Joining on a read rather than on every chunk keeps a busy run from copying the
-	 *  whole tail per line it prints. */
+	/** The kept chunks, in arrival order. `since` joins them on a read, so `append` doesn't copy the whole tail for each
+	 *  line a run prints. */
 	private chunks: string[] = [];
 	private keptChars = 0;
 	private droppedChars = 0;
@@ -130,7 +134,7 @@ export class RunTail {
 
 	append(text: string): void {
 		if (text === "") return;
-		// A chunk longer than the whole tail is the one case that has to be cut rather than dropped whole.
+		// Only a chunk longer than the tail is sliced to its end. The loop below drops older chunks whole.
 		if (text.length > this.keep) {
 			this.droppedChars += text.length - this.keep;
 			text = text.slice(-this.keep);
@@ -144,7 +148,7 @@ export class RunTail {
 		}
 	}
 
-	/** What was logged after `cursor`, where to read from next, and how much of what was asked for is gone. */
+	/** Returns the output logged after `cursor`, the cursor to read from next, and the number of requested characters that were dropped. */
 	since(cursor: number): { output: string; cursor: number; dropped: number } {
 		const from = Math.max(0, cursor - this.droppedChars);
 		return { output: this.chunks.join("").slice(from), cursor: this.droppedChars + this.keptChars, dropped: Math.max(0, this.droppedChars - cursor) };
@@ -152,42 +156,43 @@ export class RunTail {
 }
 
 /**
- * The environment a run is started with. The port is where the run's own web server listens, so two runs can go at
- * once; standing is whether it stays up after its features finish. They are separate decisions: a run can be moved
- * off a busy port without being left holding it. Both are set here rather than inherited, since a supervisor that
- * serves, or that stays up itself, would otherwise put its run on its own port and keep it running for ever.
+ * The environment a child process starts with. `port` sets the port the child's web server listens on, so two children
+ * can execute at once. `standing` sets whether the child stays up after its features finish.
+ * The two are independent: a run can take another port and still end when its features finish.
+ * This function sets both rather than letting the child inherit them. An inherited port would put the child on the
+ * supervisor's own port, and an inherited STAY would keep the child up indefinitely when the supervisor stays up.
  */
 export function runEnvironment(inherited: NodeJS.ProcessEnv, port: number, standing: boolean, hostId?: number, perProcess: string[] = []): NodeJS.ProcessEnv {
 	const env = { ...inherited };
-	// What one process holds, a process it starts does not inherit: each option declares so itself.
+	// A child doesn't inherit a per-process option. Each option declares that it is per-process.
 	for (const name of perProcess) delete env[name];
 	delete env[STAY_ENV];
 	delete env[ONCE_ENV];
 	delete env[HAIBUN_HOST_ID_ENV];
-	// The port given is the one the run serves on. Another port a process holds for itself, as a monitor's, stays unset,
-	// since two servers of one run can't share the port.
+	// The child's web server takes the given port. Another per-process port, such as a monitor's, stays unset, since two
+	// servers in one child can't share a port.
 	if (port > 0) env[INSTANCE_PORT_ENV] = String(port);
 	if (standing) env[STAY_ENV] = STAY_ALWAYS;
-	// A run that stays is a host of its own: it takes an id, so its seqPaths show whose work they are and its steps
-	// register under it here.
+	// A child with a host id is a separate host. Its seqPaths identify the host that produced them, and this process
+	// can register its steps under that id.
 	if (hostId !== undefined) env[HAIBUN_HOST_ID_ENV] = String(hostId);
-	// The child is read by this process, not watched by a person, so it reports its events rather than only its
-	// formatted log: what failed, where, and how the whole run ended are on that stream only.
+	// This process reads the child's output, so the child writes its events as well as its formatted log. Only the
+	// events carry the failures, their seqPaths and the final outcome.
 	env[NDJSON_ENV] = "true";
 	return env;
 }
 
-/** The environment a run started in a directory has: what it was given, and what the directory's own .env file adds
- *  where the run doesn't already have a variable of that name, which is how a run reads that file itself. */
+/** Returns the environment of a run started in `cwd`. A variable in `env` takes precedence over the same name in the
+ *  .env file in `cwd`. A run reads its own .env file with the same precedence. */
 function environmentIn(cwd: string, env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
 	const dotenv = path.join(cwd, ".env");
 	if (!existsSync(dotenv)) return env;
 	return { ...parseEnv(readFileSync(dotenv, "utf-8")), ...env };
 }
 
-/** How the features a run would carry out last ran against their present state under the conditions the run would be
- *  given, computed as the run would compute them: from the directory it runs in, with the environment it reads there.
- *  Undefined where the features haven't run against it, or where the state cannot be read, in which case the run runs. */
+/** Returns the recorded outcome of a run's features against their present state, under the conditions a run would receive.
+ *  It computes those conditions as a run does: from `cwd`, with the environment a run reads there.
+ *  Returns undefined when the features haven't executed against that state or when the state can't be read. startRun then forks the child. */
 export function verifiedRun(config: string, dir: string, filter: string, cwd: string, env: NodeJS.ProcessEnv): TOutcome | undefined {
 	const specl = getConfigFromBase([dir]);
 	if (!specl) return undefined;
@@ -196,8 +201,8 @@ export function verifiedRun(config: string, dir: string, filter: string, cwd: st
 	return v === undefined ? undefined : outcomeAgainst(v)?.outcome;
 }
 
-/** The sign-in the web server of a run in `dir` asks for, where its BASIC_AUTH names one, read as the run reads its options:
- *  from the environment it is given, the .env of the directory it runs from and its config. */
+/** Returns the first user that the BASIC_AUTH option lists for the web server of a run in `dir`, or undefined when the option is unset.
+ *  It reads the option as a run does: from `env`, the .env file in `cwd`, and the config. */
 function signInOf(dir: string, cwd: string, env: NodeJS.ProcessEnv): TBasicAuthUser | undefined {
 	const specl = getConfigFromBase([dir]);
 	if (!specl) return undefined;
@@ -205,10 +210,11 @@ function signInOf(dir: string, cwd: string, env: NodeJS.ProcessEnv): TBasicAuthU
 	return listed ? basicAuthUsers(String(listed))[0] : undefined;
 }
 
-/** A supervised run: the child, what it was asked to run, and its output so far. `ended` is null while it runs. */
+/** A supervised run: the child, its output tail, the outcome accrued from its events, its exit code, and the callbacks
+ *  waiting for its features to finish. `ended` is null until the child exits. */
 type TRun = { child: ChildProcess; tail: RunTail; outcome: TRunOutcome; ended: number | null; waiters: Array<() => void> };
 
-/** What a launched instance was launched from, so the same instance can be launched again after it is stopped. */
+/** The arguments an instance was launched with. restartInstance launches the same instance again from them. */
 type TLaunch = { dir: string; config: string; port: number; hostId: number };
 
 /** Whether a run is running or ended. */
@@ -216,11 +222,12 @@ const runStatus = (held: TRun): string => (held.ended === null ? "running" : "en
 
 /** The domain of the instances and runs this process started. */
 const DOMAIN_INSTANCES = "haibun-instances";
-/** The domain of what starting an instance answers with. */
+/** The domain of the products that starting an instance returns. */
 const DOMAIN_INSTANCE_STARTED = "instance-started";
-/** The domains of what starting, reading and stopping a run answer with, which a stand-in for this supervisor declares too. */
+/** The domains of a run's name, its feature filter, and the products that starting, reading and stopping a run return.
+ *  The test double of this supervisor in test-runner-stepper.test.ts declares them too. */
 export const RUN_DOMAIN = { started: "run-started", read: "run-read", stopped: "run-stopped", name: "run-name", featureFilter: "feature-filter" } as const;
-/** Whether a part of a feature filter is a pattern a feature's path is matched against, as haibun-cli matches it. */
+/** Whether a part of a feature filter compiles as a regular expression. haibun-cli matches each part against a feature's path. */
 const isPattern = (part: string): boolean => {
 	try {
 		new RegExp(part);
@@ -229,43 +236,44 @@ const isPattern = (part: string): boolean => {
 		return false;
 	}
 };
-/** The features a run runs, by patterns of their paths, separated by commas, as haibun-cli takes them; empty runs every one. */
+/** The domain of a feature filter: patterns of feature paths separated by commas, as haibun-cli takes them. An empty filter selects every feature. */
 export const featureFilterDomainDefinition: TDomainDefinition = {
 	selectors: [RUN_DOMAIN.featureFilter],
 	schema: z
 		.string()
 		.refine(
 			(filter) => filter.split(",").every(isPattern),
-			"has a part that isn't a pattern a feature's path is matched against, such as * alone; leave it empty to run every feature",
+			"has a part that isn't a regular expression. A lone * isn't a regular expression, and .* matches every path. Correct that part, or leave the filter empty to run every feature",
 		),
-	description: "The features a run runs, by patterns of their paths, such as graph or a.*b, separated by commas, as haibun-cli takes them; an empty filter runs every feature",
+	description:
+		"Comma-separated regular expressions that select the features a run executes by path. haibun-cli takes the same form. Two examples are graph and a.*b. An empty filter runs every feature",
 };
 export const runDomainDefinitions: TDomainDefinition[] = [
-	{ selectors: [RUN_DOMAIN.name], schema: NameSchema, description: "The name a started run is known by, which reading, waiting for and stopping it name" },
+	{ selectors: [RUN_DOMAIN.name], schema: NameSchema, description: "The name of a started run. Reading, waiting for and stopping a run take this name" },
 	featureFilterDomainDefinition,
-	{ selectors: [RUN_DOMAIN.started], schema: runStartedSchema, description: "A run a process started, and what it runs" },
-	{ selectors: [RUN_DOMAIN.read], schema: runReadSchema, description: "What a run logged since a cursor, and how it stands" },
+	{ selectors: [RUN_DOMAIN.started], schema: runStartedSchema, description: "A run a process started, with its directory and feature filter" },
+	{ selectors: [RUN_DOMAIN.read], schema: runReadSchema, description: "A run's output since a cursor, its status, and the outcome accrued from its events" },
 	{ selectors: [RUN_DOMAIN.stopped], schema: z.object({ run: z.string() }), description: "A run a process ended" },
 ];
-/** The instances and runs this process started, which it supervises until they end. */
+/** The instances and runs this process started. It supervises them until they end. */
 const InstancesSchema = z.object({
 	instances: z
 		.array(z.object({ hostId: z.number(), origin: z.string(), label: z.string() }))
-		.describe("Each instance this process launched and still supervises: the host it answers as, where it is reached, and what it was launched from."),
+		.describe("Each instance this process launched and still supervises: its host id, its origin, and the directory it was launched from."),
 	runs: z.array(z.object({ run: z.string(), status: z.string() })).describe("Each run this process started, and whether it is running or ended."),
 });
 
-/** What an instance reports when it begins, or undefined while it doesn't take the call yet: a starting instance refuses or
- *  doesn't answer until it serves, and a caller waiting for it asks again. */
+/** Returns an instance's response to the action.begin handshake, or undefined while the instance doesn't accept the call.
+ *  A starting instance refuses the connection or doesn't respond until it listens, so a caller waiting on it calls again. */
 async function begins(rpc: RpcClient): Promise<THandshake | undefined> {
-	// An answer that isn't a handshake is a fault; one that doesn't come is an instance that doesn't serve yet.
+	// A response that fails the handshake schema is rethrown. Any other failure means the instance doesn't accept calls yet.
 	return await rpc.handshake().catch((e: unknown) => {
 		if (e instanceof z.ZodError) throw e;
 		return undefined;
 	});
 }
 
-/** The config a group directory holds, which a launch reads; a directory that doesn't hold one is refused as `doing` the launch. */
+/** Returns the resolved directory and its config.json. Throws with `doing` as the prefix when the directory doesn't hold a config.json. */
 function configIn(doing: string, where: string): { dir: string; config: string } {
 	const dir = path.resolve(String(where));
 	const config = path.join(dir, "config.json");
@@ -276,9 +284,9 @@ function configIn(doing: string, where: string): { dir: string; config: string }
 export default class InstanceStepper extends AStepper implements IHasCycles {
 	description = "Start and supervise sibling haibun instances (forked cli.js, readiness via action.begin, terminated at endFeature)";
 
-	/** The steppers this run was set up with: what a child must not inherit is read from their own declarations. */
+	/** The steppers this process was set up with. Their declarations name the options a child doesn't inherit. */
 	private steppers: AStepper[] = [];
-	/** The addresses this run holds a sign-in for, let go of when what answers there ends. */
+	/** The origins of the sign-ins this process holds. endFeature releases them when it terminates the children. */
 	private readonly signedInAt = new Set<string>();
 
 	async setWorld(world: TWorld, steppers: AStepper[]): Promise<void> {
@@ -287,29 +295,29 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 	}
 
 	private children: Array<{ child: ChildProcess; label: string; launch: TLaunch }> = [];
-	/** Visible to a subclass so a test can hold a run without a process behind it; code outside the class hierarchy doesn't reach it. */
+	/** Protected so a test subclass can hold a run without a child process. Code outside the class hierarchy can't access it. */
 	protected runs = new Map<string, TRun>();
 
-	/** The run named `run`, which this process started; one it didn't start is refused as `doing` it. */
+	/** Returns the TRun this process holds under the name `run`. Throws with `doing` as the prefix when this process didn't start a run of that name. */
 	private startedRun(doing: string, run: string): TRun {
 		const held = this.runs.get(run);
 		if (!held) throw new Error(`${doing}: this process didn't start a run "${run}"`);
 		return held;
 	}
 
-	/** The instance this run launched on `port`; one it didn't launch is refused as `doing` it. */
+	/** Returns the instance this process launched on `port`. Throws with `doing` as the prefix when this process didn't launch one there. */
 	private launchedInstance(doing: string, port: number): { child: ChildProcess; label: string; launch: TLaunch } {
 		const held = this.children.find((c) => c.launch.port === port);
-		if (!held) throw new Error(`${doing}: this run didn't launch an instance on port ${port}`);
+		if (!held) throw new Error(`${doing}: this process didn't launch an instance on port ${port}`);
 		return held;
 	}
-	/** The host id a standing run took, so its steps are addressable as that host's. */
+	/** getConcerns declares the instance and run domains. endFeature terminates every child and releases the sign-ins when the feature closes. */
 
 	cycles: IStepperCycles = {
 		getConcerns: () => ({
 			domains: [
 				{ selectors: [DOMAIN_INSTANCES], schema: InstancesSchema, description: "The instances and runs a process started" },
-				{ selectors: [DOMAIN_INSTANCE_STARTED], schema: instanceStartedSchema, description: "An instance a process started, where it is reached, and the site it answers as" },
+				{ selectors: [DOMAIN_INSTANCE_STARTED], schema: instanceStartedSchema, description: "An instance a process started, with its url, its site principal and its host id" },
 				...runDomainDefinitions,
 			],
 		}),
@@ -336,7 +344,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			gwta: `restart the haibun instance on port {port: number}`,
 			capability: SUPERVISOR_CAPABILITIES.launch,
 			description:
-				"Stop an instance this run launched and launch it again from what it was launched from, waiting for it to answer. What an instance serves comes from its source, so a change to that source takes effect only once it runs again. The run that restarts an instance is never the instance being restarted.",
+				"Stop an instance this process launched, and launch it again with the same directory, config, port and host id. The step waits until the instance serves. An instance serves its source as it was when the instance started, so a change to that source takes effect after a restart. The process that restarts an instance is never the instance it restarts.",
 			productsDomain: DOMAIN_INSTANCE_STARTED,
 			action: async ({ port }: { port: number }) => {
 				const held = this.launchedInstance("restart instance", port);
@@ -348,7 +356,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		reachInstance: {
 			gwta: `reach the steps of the haibun instance on port {port: number}`,
 			description:
-				"Register the steps an instance this run launched offers this run, under its host id, so asking it something is `on host {id}, <step>`, dispatched and gated as a local step is. What it offers is what this run holds there: reading its steps takes a read, which the instance delegates to its launcher's key. The steps stay registered across a restart, which keeps the instance's port and host.",
+				"Register the steps of an instance this process launched, under the instance's host id. A caller then calls one as `on host {id}, <step>`, and it is dispatched and gated as a local step is. The instance lists only the steps that this process's capabilities at the instance allow. Reading the steps requires a read capability, and the instance delegates that capability to its launcher's key. The steps stay registered across a restart, since a restart keeps the instance's port and host id.",
 			action: async ({ port }: { port: number }) => {
 				this.launchedInstance("reach instance", port);
 				await this.registerHost(localOrigin(port));
@@ -359,22 +367,24 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			gwta: `start a haibun run of {where: ${DOMAIN_FILE_PATH}} matching {filter: ${RUN_DOMAIN.featureFilter}} from {from: ${DOMAIN_FILE_PATH}} on port {port: ${DOMAIN_NUMBER}} as run {run: ${RUN_DOMAIN.name}} host {hostId: ${DOMAIN_NUMBER}}`,
 			capability: SUPERVISOR_CAPABILITIES.run,
 			description:
-				"Run features from a directory, filtered to the ones named, in a child of this process, started rather than awaited, so the caller watches it while it happens (see `read the haibun run`). It runs FROM the directory given, because a config's relative stepper paths and a base's served files are read from where a run is started: for most bases that is the base itself, and for a base run from its parent it is that parent. The port is the one its own web server takes, so two runs can go at once without meeting on a default; port zero leaves it to whatever ports its features declare. Host zero is a run that ends when its features do; a host above zero is a run that stays, takes that id, and has its steps registered here, so asking it something is `on host {id}, <step>` rather than a second way of calling. A run that stays needs a port of its own, since a caller can't ask a run it can't address.",
+				"Run features from a directory in a child of this process. The filter selects the features. The step doesn't await the child, so the caller can watch it while it executes (see `read the haibun run`). The child starts in the `from` directory, because a config's relative stepper paths and a base's served files resolve against the directory a run starts in. That directory is usually the base itself. For a base whose runs start in its parent directory, it is that parent. The child's web server takes the given port, so two runs can execute at once without both taking a default port. Port zero leaves a run on the ports its features declare. With host zero, a run ends when its features finish. With a host above zero, a run stays up and takes that host id, and this process registers its steps. A caller then calls one of those steps as `on host {id}, <step>`, without a second calling mechanism. A run that stays up needs a port of its own, since a caller can't reach a run that doesn't have an address.",
 			productsDomain: RUN_DOMAIN.started,
 			action: async ({ where, filter, from, port, run, hostId }: { where: string; filter: string; from: string; port: number; run: string; hostId: number }) => {
 				const standing = hostId > 0;
-				if (standing && port <= 0) return actionNotOK("start run: a run that stays needs a port of its own, since a caller can't ask a run it can't address");
+				if (standing && port <= 0) return actionNotOK("start run: a run with a host above 0 stays up and needs a port above 0. Pass a port, or use host 0");
 				const started = await this.startRun({ where, filter, from, port, run, standing, hostId: standing ? hostId : undefined });
 				if (!started.ok || !standing) return started;
-				// A standing run exists to be asked, so a run whose steps never registered is an error now, not a
-				// surprise later. The child is ended rather than left holding a port that a caller can't reach.
+				// Callers call a standing run's steps. A standing run whose steps don't register fails at start rather than at a
+				// later call. The child is terminated so it doesn't hold a port that a caller can't reach.
 				const registered = await this.registerRunHost(run, port);
 				if (!registered) {
 					const held = this.runs.get(run);
 					const said = held ? held.tail.since(0).output.slice(-STDERR_TAIL_CHARS) : "";
 					if (held) await terminate(held.child);
 					this.runs.delete(run);
-					return actionNotOK(`start run: "${run}" was to stand as host ${hostId} but never served on port ${port}${said ? `\n${said}` : ""}`);
+					return actionNotOK(
+						`start run: "${run}" didn't complete the handshake as host ${hostId} on port ${port}. This process stopped it. Correct the cause its output reports${said ? `\n${said}` : ""}`,
+					);
 				}
 				return started;
 			},
@@ -384,7 +394,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			capability: SUPERVISOR_CAPABILITIES.read,
 			gwta: "show the haibun instances",
 			description:
-				"The instances this process launched and the runs it started, each as it stands now: an instance by the host it answers as and where it is reached, a run by whether it is running.",
+				"List the instances this process launched and the runs it started. Each instance entry holds its host id, its origin and its label. Each run entry holds its status: running or ended.",
 			productsDomain: DOMAIN_INSTANCES,
 			action: () =>
 				Promise.resolve(
@@ -397,11 +407,11 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		readRun: {
 			gwta: `read the haibun run {run: ${RUN_DOMAIN.name}} since {cursor: number}`,
 			capability: SUPERVISOR_CAPABILITIES.read,
-			// The run's output is what the caller asked for, not something to write again: the event carries how much
-			// was read, and the caller keeps the text.
+			// The caller receives the output in the products. The retained event records the output's length rather than
+			// writing the text again.
 			retainProducts: (products: Record<string, unknown>) => ({ ...products, output: `${String(products.output ?? "").length} chars` }),
 			description:
-				"The run's own process output since a point in it, and whether it is still running. This is the boot-and-crash channel, which is what exists when a run fails before it serves; a serving run's progress is its event stream, which carries seqPaths and outcomes. The cursor returned is where to read from next, so the same output is never read twice.",
+				"A run's process output since a cursor, whether it is still running, and the counts and first failure accrued from its events. The process output is the only record of a run that fails before it serves. A serving run's events carry seqPaths and outcomes. The returned cursor is where the next read starts, so a read doesn't return the same output twice.",
 			productsDomain: RUN_DOMAIN.read,
 			action: ({ run, cursor }: { run: string; cursor: number }) => Promise.resolve(this.readRun(run, cursor)),
 		},
@@ -409,7 +419,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			gwta: `wait for the haibun run {run: ${RUN_DOMAIN.name}} to end within {seconds: number} seconds`,
 			capability: SUPERVISOR_CAPABILITIES.read,
 			description:
-				"Wait for the run to end, then answer, instead of the caller asking repeatedly. This process supervises the child directly and is told the moment it exits, so it answers as soon as that happens. The answer has the same shape as readRun: everything the run logged since the given cursor, and whether it is still running. Reaching the timeout answers the same way, with the run still running; that is not a failure, and the caller decides whether to wait again or stop it.",
+				"Wait until a run exits or reports that its features finished, or until the timeout passes, then return. This process receives the child's exit event and its report that its features finished, so the step returns as soon as either arrives and the caller doesn't poll. The products have the same shape as readRun's. At the timeout the step returns the same products with a status of running. A timeout isn't a failure. The caller then waits again or stops it with `stop the haibun run`.",
 			productsDomain: RUN_DOMAIN.read,
 			action: ({ run, seconds, cursor }: { run: string; seconds: number; cursor: number }) => this.waitRun(run, seconds, cursor),
 		},
@@ -427,7 +437,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		},
 	} as const satisfies TStepperSteps;
 
-	/** Fork the CLI against a feature filter. The child is NOT awaited: it is supervised, and read through readRun. */
+	/** Forks the CLI with a feature filter and doesn't await the child. This process supervises the child, and readRun reads its output. */
 	private async startRun({
 		where,
 		filter,
@@ -445,42 +455,41 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		standing: boolean;
 		hostId?: number;
 	}) {
-		if (this.runs.has(run)) return actionNotOK(`start run: "${run}" is already running; read it, or stop it first`);
+		if (this.runs.has(run)) return actionNotOK(`start run: this process already holds a run named "${run}". Read it, stop it, or choose another name`);
 		const { dir, config } = configIn("start run", where);
-		// A run given a held port would fail at boot with EADDRINUSE deep in its own output. Refusing here instead names
-		// what is answering and the recourse, so the operator is told the situation rather than left to excavate it.
+		// A run given a port in use fails at boot, and its own output holds the EADDRINUSE error. This refusal describes
+		// the process on the port and the remedy instead.
 		if (port > 0) {
 			const answering = await describePortOccupant(port);
-			if (answering) return actionNotOK(`start run: port ${port} is already answering, ${answering}; stop what answers there, or start this run on another port`);
+			if (answering) return actionNotOK(`start run: port ${port} is already in use: ${answering}. Stop the process on that port, or choose another port`);
 		}
 		const cliEntry = createRequire(import.meta.url).resolve("@haibun/cli");
-		// A pinned port is what makes a run addressable, so it is also what leaves the run standing after its features
-		// finish: STAY holds the endpoint up to be asked about. Port 0 is a run that answers with its exit code
-		// only; it keeps whatever port its own features declare, which features that assert a default need,
-		// and it ends when they end.
+		// A port above zero makes a run addressable. A standing run also gets STAY, so its endpoint stays up after its
+		// features finish. Port 0 leaves a run on the ports its features declare. A feature that asserts a default port
+		// needs port 0. A run that isn't standing ends when its features end.
 		const env = runEnvironment(process.env, port, standing, hostId, perProcessOptionNames(this.steppers));
-		// A run that would answer what an earlier run answered is not started. The child records what it passed
-		// against under the conditions it is run with, so those same conditions, computed from the environment it
-		// would be given, are what a pass is looked for under.
-		// Where a run is started from decides what its relative paths mean, so the caller passes it rather than inheriting
-		// this process's directory by accident.
+		// A run whose features have a recorded outcome against their present dependencies isn't started, since it would
+		// repeat that outcome. The child records each outcome with the conditions of its execution. verifiedRun computes
+		// those conditions from the environment the child would receive, and looks up an outcome under them.
+		// A run's starting directory determines how its relative paths resolve, so the caller passes it. An empty `from`
+		// uses this process's directory.
 		const cwd = from ? path.resolve(from) : process.cwd();
-		if (!existsSync(cwd)) return actionNotOK(`start run: the directory ${cwd} to run from doesn't exist`);
+		if (!existsSync(cwd)) return actionNotOK(`start run: the starting directory ${cwd} doesn't exist. Pass an existing starting directory`);
 		const ran = verifiedRun(config, dir, filter, cwd, env);
 		if (ran)
 			return actionNotOK(
-				`start run: ${filter || "every feature"} in ${dir} ${ran}, and its dependencies haven't changed since then, so this run would answer what that run answered. Change a dependency to run it again, or note that the group has changed.`,
+				`start run: ${filter || "every feature"} in ${dir} ${ran} against its present dependencies. A new run would repeat that outcome. Change a dependency to run it again, or note that the group has changed.`,
 			);
 		if (port > 0) this.holdSignInAt(port, signInOf(dir, cwd, env));
 		const child = fork(cliEntry, ["-c", config, dir, filter], { cwd, env, silent: true, execArgv: [] });
-		superviseChild(child); // a standing run may outlive its FEATURE, never its owner process
+		superviseChild(child); // a standing run can outlive its feature, but not this process
 		const held: TRun = { child, tail: new RunTail(), outcome: emptyOutcome(), ended: null, waiters: [] };
 		const take = (data: Buffer): void => {
 			const text = data.toString();
 			held.tail.append(text);
 			const wasFinished = held.outcome.finished;
 			accrueRunOutcome(held.outcome, text);
-			// A run that reports its features are over is done, whether or not it goes on serving.
+			// A run's report that its features finished wakes its waiters, whether or not it keeps serving.
 			if (!wasFinished && held.outcome.finished) for (const wake of held.waiters.splice(0)) wake();
 		};
 		child.stdout?.on("data", take);
@@ -493,12 +502,13 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 	}
 
 	/**
-	 * Register a standing run's own steps here, under its host id, once it answers.
+	 * Registers a standing run's steps in this process under its host id, once it completes the handshake. Returns false
+	 * when it exits or the deadline passes first.
 	 *
-	 * A run that stays is another host, and haibun already reaches another host's steps: the proxy discovers the id
-	 * through the same handshake, fetches that host's step descriptors, and injects them into this registry under
-	 * `{hostId}:{method}`. Asking the run something is then `on host {hostId}, <step>`, dispatched and gated exactly
-	 * as a local step is. A run that never serves doesn't register steps, since it doesn't answer a call.
+	 * A standing run is another host. RemoteStepperProxy reads the host id through the same handshake, fetches the
+	 * host's step descriptors, and injects them into this registry under `{hostId}:{method}`. A caller then calls one of
+	 * its steps as `on host {hostId}, <step>`, and it is dispatched and gated as a local step is. A run that doesn't serve
+	 * doesn't register steps, since it doesn't respond to a call.
 	 */
 	private async registerRunHost(run: string, port: number): Promise<boolean> {
 		const url = localOrigin(port);
@@ -508,7 +518,8 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		return true;
 	}
 
-	/** Hold the sign-in what this run starts on `port` asks for, where its web server's BASIC_AUTH names one. */
+	/** Holds the sign-in of `user` for the origin of `port`, and records the origin for endFeature to release.
+	 *  Returns without holding a sign-in when `user` is undefined. */
 	private holdSignInAt(port: number, user: TBasicAuthUser | undefined): void {
 		if (!user) return;
 		const url = localOrigin(port);
@@ -516,7 +527,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		this.signedInAt.add(url);
 	}
 
-	/** Register the steps the host at `url` offers this run, under the host id it answers with. */
+	/** Registers the steps of the host at `url` in this process, under the host id from its handshake. */
 	private async registerHost(url: string): Promise<void> {
 		const world = this.getWorld();
 		const proxy = new RemoteStepperProxy(url);
@@ -524,8 +535,8 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		proxy.injectInto(runRegistry(world));
 	}
 
-	/** Wait until a child answers the handshake every remote surface begins with, or until it is over. `giveUp` is asked
-	 *  between attempts, so a child that exits while starting is not waited out. */
+	/** Waits until a child responds to the action.begin handshake, or until the deadline passes. Every remote surface
+	 *  begins with that handshake. It calls `giveUp` between attempts, so a child that exits while starting ends the wait. */
 	private async awaitBegin(url: string, giveUp: () => boolean): Promise<boolean> {
 		const rpc = new RpcClient({ baseUrl: url, timeoutMs: BEGIN_TIMEOUT_MS, retry: { maxAttempts: 1 } });
 		const deadline = Date.now() + READY_DEADLINE_MS;
@@ -537,7 +548,8 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		return false;
 	}
 
-	/** Answer when the run ends, or when the caller's patience does. The child's own exit is the signal; this step doesn't poll. */
+	/** Returns when a run exits or reports that its features finished, or after `seconds`. The child's exit event and that
+	 *  report wake the wait, so this step doesn't poll. */
 	private async waitRun(run: string, seconds: number, cursor: number) {
 		const held = this.startedRun("wait for run", run);
 		if (held.ended === null && !held.outcome.finished) {
@@ -550,14 +562,14 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 				};
 				const timer = setTimeout(done, seconds * 1000);
 				held.child.once("exit", done);
-				// A standing run never exits, so it is also woken by the run reporting its features are over.
+				// A standing run doesn't exit, so its report that its features finished also wakes this wait.
 				held.waiters.push(done);
 			});
 		}
 		return this.readRun(run, cursor);
 	}
 
-	/** What a run has logged since `cursor`, and whether it is still going. */
+	/** Returns a run's output since `cursor`, its status, and the outcome accrued from its events. */
 	private readRun(run: string, cursor: number) {
 		const held = this.startedRun("read run", run);
 		const [first] = held.outcome.failures;
@@ -576,29 +588,29 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		});
 	}
 
-	/** Fork the CLI and wait for the action.begin handshake. One path, so a restarted instance is launched exactly as it
-	 *  was first launched. */
+	/** Forks the CLI and waits for the action.begin handshake. startInstance and restartInstance both call it, so a
+	 *  restarted instance is launched as it was first launched. */
 	private async launch({ dir, config, port, hostId }: TLaunch) {
 		const cliEntry = createRequire(import.meta.url).resolve("@haibun/cli");
-		// The child inherits this process's environment with its OWN port, so the launcher's port is not readable from
-		// it. LAUNCHED_FROM is passed as a run variable ($LAUNCHED_FROM$), which is how a launched instance addresses
-		// the run that started it, mounting its store and reporting to it, without naming a port in its own source.
+		// The child inherits this process's environment with its own port, so it can't read the launcher's port from it.
+		// This process passes the launcher's origin as LAUNCHED_FROM in HAIBUN_ENV. A launched instance reads it as
+		// $LAUNCHED_FROM$ to mount the launcher's store and report to the launcher without naming a port in its source.
 		const launcherPort = process.env[INSTANCE_PORT_ENV];
 		const passed = [process.env.HAIBUN_ENV, launcherPort ? `${LAUNCHED_FROM}=${localOrigin(Number(launcherPort))}` : ""].filter(Boolean).join(",");
 		const env = { ...runEnvironment(process.env, port, false, hostId, perProcessOptionNames(this.steppers)), ...(passed ? { HAIBUN_ENV: passed } : {}) };
-		// execArgv: [] keeps the child plain node running the built CLI; it must not inherit a test runner's loader flags.
-		// The child runs in the base it was started from, since what a base's config states is relative to that base: a
-		// launched instance whose steppers resolved against the launcher's directory could not name its own.
+		// execArgv: [] runs the built CLI in plain node, without a test runner's loader flags.
+		// The child's cwd is its base, since a base's config paths are relative to that base. A launched instance whose
+		// stepper paths resolved against the launcher's directory couldn't load its own steppers.
 		const child = fork(cliEntry, ["-c", config, dir], { env, cwd: dir, silent: true, execArgv: [] });
-		superviseChild(child); // owned for the life of THIS process: a staying session that ends by signal takes its children with it
+		superviseChild(child); // the child ends with this process: a staying session that ends by signal terminates its children
 		const stderrTail = new RunTail(STDERR_TAIL_CHARS);
 		child.stderr?.on("data", (data: Buffer) => {
 			process.stderr.write(`[instance:${hostId}] ${data.toString()}`);
 			stderrTail.append(data.toString());
 		});
-		// An instance that never becomes ready has usually logged why on its own output rather than to its error stream,
-		// and a caller told only that it timed out has to go and start it by hand to find out. The tail is kept, not
-		// echoed: it is the instance's event stream, and only its last words are of interest here.
+		// An instance that doesn't become ready usually logs the cause to stdout rather than stderr. Without that output,
+		// a timeout message would leave the caller to start the instance by hand to find the cause. This process keeps
+		// the stdout tail without echoing it, since stdout carries the instance's event stream and the message needs only its last lines.
 		const saidTail = new RunTail(STDERR_TAIL_CHARS);
 		child.stdout?.on("data", (data: Buffer) => saidTail.append(data.toString()));
 		this.children.push({ child, label: `${dir} host ${hostId}`, launch: { dir, config, port, hostId } });
@@ -610,24 +622,28 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		while (Date.now() < deadline) {
 			if (child.exitCode !== null) {
 				const said = stderrTail.since(0).output;
-				return actionNotOK(`instance at ${dir} exited before ready (code ${child.exitCode})${said ? `\n${said}` : ""}`);
+				return actionNotOK(`instance at ${dir} exited with code ${child.exitCode} before it served. Correct the cause its error output reports${said ? `\n${said}` : ""}`);
 			}
 			const begun = await begins(rpc);
 			if (begun) {
-				// Ready means serving: the instance's feature has run everything it sets up. Its port answers earlier, and a
-				// caller that took that as ready would race whatever the feature does after listening.
+				// Ready means serving: the instance's feature has executed every step that sets it up. Its port responds before
+				// then, and a caller that treated that response as ready would race the steps the feature executes after listening.
 				if (begun.serving !== true) {
 					await new Promise((r) => setTimeout(r, READY_POLL_MS));
 					continue;
 				}
-				// The handshake verifies the child took the assigned identity; a silently-wrong hostId would break seqPath and site uniqueness.
-				if (begun.hostId !== hostId) return actionNotOK(`instance at ${url} reports hostId ${begun.hostId}, expected ${hostId}`);
-				if (typeof begun.site !== "string" || begun.site.length === 0) return actionNotOK(`instance at ${url} did not report a site principal`);
+				// The handshake verifies that the child took the assigned host id. An unchecked wrong hostId would break seqPath and site uniqueness.
+				if (begun.hostId !== hostId)
+					return actionNotOK(
+						`instance at ${url} reports hostId ${begun.hostId} instead of the assigned ${hostId}. Another process may hold that port. Stop that process, or choose another port`,
+					);
+				if (typeof begun.site !== "string" || begun.site.length === 0)
+					return actionNotOK(`instance at ${url} didn't return a site principal in its handshake. Another process may hold that port. Stop that process, or choose another port`);
 				return actionOKWithProducts({ url, site: begun.site, hostId });
 			}
 			await new Promise((r) => setTimeout(r, READY_POLL_MS));
 		}
 		const lastSaid = stderrTail.since(0).output || saidTail.since(0).output;
-		return actionNotOK(`instance at ${dir} not ready on ${url} within ${READY_DEADLINE_MS}ms${lastSaid ? `\n${lastSaid}` : ""}`);
+		return actionNotOK(`instance at ${dir} didn't serve on ${url} within ${READY_DEADLINE_MS}ms. Correct the cause its output reports${lastSaid ? `\n${lastSaid}` : ""}`);
 	}
 }

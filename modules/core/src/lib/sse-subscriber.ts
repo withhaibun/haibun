@@ -1,44 +1,46 @@
 /**
- * sse-subscriber: the client shared by every consumer of a haibun host's
- * /sse event stream.
+ * sse-subscriber implements the client that every consumer of a haibun
+ * host's /sse event stream uses.
  *
- * Browser SPAs connect to their own origin's /sse; Node-side peers
- * connect to another host's /sse. Both need the same primitives: open,
- * dispatch parsed events to listeners, reconnect on error with backoff,
- * filter subscriptions, close cleanly. This class centralises that.
+ * A browser SPA connects to its own origin's /sse. A Node-side peer
+ * connects to another host's /sse. Both use the same operations: open,
+ * dispatch parsed events to listeners, reconnect after a fixed delay when
+ * a connection fails or ends, filter subscriptions and close. SseSubscriber
+ * implements them once.
  *
- * The stream is read with fetch rather than EventSource, because a host's
- * stream requires authority and a request proves it in headers an
- * EventSource cannot send. The caller supplies the URL and the headers
- * each connection is asked for with; whether the URL is the same origin
- * or a remote host, and what the headers prove, is the caller's concern.
+ * SseSubscriber reads the stream with fetch and not EventSource. A host's
+ * stream requires authority, and a request proves it in headers that
+ * EventSource can't send. The caller supplies the URL and the headers of
+ * each connection request. The caller determines whether the URL is the
+ * same origin or a remote host, and what the headers prove.
  *
- * The SSE message format this subscriber decodes is the one
- * web-server-hono's SSETransport emits: each `message` event's
- * `data` field is a JSON envelope with `{ type, event, ... }` or a
- * plain event payload. Payloads that don't parse as JSON are passed
- * through verbatim so callers can handle wire-format variants.
+ * This subscriber decodes the SSE message format that web-server-hono's
+ * SSETransport emits. Each message's `data` field holds a JSON envelope
+ * `{ type, event, ... }` or a plain event payload. A payload that doesn't
+ * parse as JSON is dispatched as `{ raw: data }`, so a listener can handle
+ * other wire formats.
  *
- * --- Who follows the stream (`StreamListeners`) ---
- * The listeners, what the stream holds for a listener that starts late,
- * and whether the stream is open are kept by `StreamListeners`, which a
- * stream replayed from a log keeps too, so both answer a listener alike.
- * Every dispatched event is recorded in a fixed-size replay buffer, so a
- * `subscribe()` after the connection opened still sees what this page
- * received before it subscribed.
+ * --- Listeners (`StreamListeners`) ---
+ * `StreamListeners` holds the listeners, the events replayed to a listener
+ * that subscribes late, and whether the stream is open. A stream replayed
+ * from a log uses `StreamListeners` too, so both streams notify a listener
+ * alike. `StreamListeners` records every dispatched event in a fixed-size
+ * replay buffer.
+ * A `subscribe()` after the connection opened receives the buffered events
+ * first.
  *
  * --- Reconnection ---
- * The server doesn't replay events on connect: what happened is in the graph.
- * A stream that breaks and re-opens announces the re-open through
- * `reconnected()`, which is how a consumer following actuality knows to
- * read again for what happened while the stream didn't deliver an event.
+ * The server doesn't replay events on connect. The graph holds actuality's
+ * records. A stream that breaks and re-opens calls each `reconnected()`
+ * listener. A consumer that follows actuality then reads the graph again to
+ * get the records of the events the stream didn't deliver during the break.
  */
 
 import { ACTUALITY_HEADER, type TActualityId } from "./rpc-wire.js";
 import type { THaibunEvent } from "../schema/protocol.js";
 import { failFastOrLog } from "./dev-mode.js";
 
-/** Default cap for the replay buffer. Overrideable via SseSubscriberConfig. */
+/** Default cap for the replay buffer. SseSubscriberConfig.replayBufferLimit overrides it. */
 const REPLAY_BUFFER_LIMIT_DEFAULT = 5000;
 
 /** Fixed-size FIFO of recently dispatched events, replayed to a listener that subscribes after they arrived. */
@@ -70,21 +72,21 @@ class ReplayBuffer<E> {
 }
 
 /**
- * Who follows a stream, what the stream holds for one who starts following late, and whether it is open: what a stream
- * read from a host and a stream replayed from a log both keep, so each tells a listener the same things at the same
- * moments.
+ * Holds a stream's listeners, the events replayed to a listener that subscribes late, and whether the stream is open.
+ * A stream read from a host and a stream replayed from a log both use it, so each notifies a listener of the same
+ * changes at the same moments.
  */
 export class StreamListeners<E> {
 	private readonly listeners: { handler: (event: E) => void; filter?: (event: E) => boolean }[] = [];
 	private readonly openListeners = new Set<() => void>();
 	private readonly reconnectListeners = new Set<() => void>();
 	private readonly disconnectListeners = new Set<() => void>();
-	/** The stream has dropped and not yet re-opened. What happened meanwhile didn't reach a listener, so the re-open is
-	 *  announced to whoever follows actuality: that is when they have something to read again for. */
+	/** True from a break until the stream re-opens. The events sent during the break didn't reach a listener, so the
+	 *  re-open calls the reconnect listeners. */
 	private broken = false;
 	private readonly buffer: ReplayBuffer<E>;
 
-	/** `open` is whether the stream is open from the start, as a log that is all there is is. */
+	/** `open` is true for a stream that is open from construction, such as a complete log. */
 	constructor(
 		private readonly name: string,
 		replayLimit: number,
@@ -104,29 +106,31 @@ export class StreamListeners<E> {
 		};
 	}
 
-	/** Be told the stream is open: at once for a stream open now, and each time it opens after. Returns an unsubscribe. */
+	/** Registers `fn` to run when the stream opens. It runs at once for an open stream, and each time the stream opens
+	 *  again. Returns an unsubscribe. */
 	opened(fn: () => void): () => void {
 		this.openListeners.add(fn);
 		if (this.open) fn();
 		return () => this.openListeners.delete(fn);
 	}
 
-	/** Be told the stream has re-opened after a break in it. What happened during the break doesn't arrive in a dispatch, so a
-	 *  consumer following actuality reads again on this. Never fires on the first open, which doesn't follow a break. */
+	/** Registers `fn` to run when the stream re-opens after a break. The events sent during the break don't arrive in a dispatch,
+	 *  so a consumer that follows actuality reads again when `fn` runs. It doesn't run on the first open, which doesn't
+	 *  follow a break. Returns an unsubscribe. */
 	reconnected(fn: () => void): () => void {
 		this.reconnectListeners.add(fn);
 		return () => this.reconnectListeners.delete(fn);
 	}
 
-	/** Be told the stream has broken: once per break, and at once for a stream already down, so a consumer that starts
-	 *  listening after the break is told what it would have heard. Returns an unsubscribe. */
+	/** Registers `fn` to run when the stream breaks. It runs once per break, and at once for a stream already down, so a
+	 *  consumer that subscribes after the break still receives the notification. Returns an unsubscribe. */
 	disconnected(fn: () => void): () => void {
 		this.disconnectListeners.add(fn);
 		if (this.broken) fn();
 		return () => this.disconnectListeners.delete(fn);
 	}
 
-	/** The stream is open, and after a break, back. */
+	/** Marks the stream open and calls the open listeners. After a break, it also calls the reconnect listeners. */
 	becameOpen(): void {
 		this.open = true;
 		this.notify(this.openListeners, "opening");
@@ -135,8 +139,9 @@ export class StreamListeners<E> {
 		this.notify(this.reconnectListeners, "reconnection");
 	}
 
-	/** The stream broke. The break is announced once, when it happens: a page that cannot hear actuality cannot state its
-	 *  reading is current, and that is a fact of the reading rather than something to infer from the silence. */
+	/** Marks the stream broken and calls the disconnect listeners once per break. A page that doesn't receive actuality's
+	 *  events can't show its reading as current. The call states that fact, so a page doesn't infer it from an absence
+	 *  of events. */
 	broke(): void {
 		const wasOpen = !this.broken;
 		this.broken = true;
@@ -144,8 +149,9 @@ export class StreamListeners<E> {
 		if (wasOpen) this.notify(this.disconnectListeners, "disconnection");
 	}
 
-	/** Record an event and hand it to every listener whose filter takes it. A listener that throws is reported and its
-	 *  siblings are still told; a listener that can't take a replayed event (in `subscribe`) is a fault to surface. */
+	/** Records an event and passes it to every listener whose filter accepts it. failFastOrLog handles a listener that
+	 *  throws. In production it logs the error, and the other listeners still receive the event. A listener that throws on
+	 *  a replayed event in `subscribe` throws to the caller of `subscribe`. */
 	dispatch(event: E): void {
 		this.buffer.record(event);
 		for (const { handler, filter } of this.listeners) {
@@ -163,7 +169,7 @@ export class StreamListeners<E> {
 		return this.buffer.totalRecorded;
 	}
 
-	/** Let every listener go: a stream that closes never opens again, so a message it receives after doesn't reach a listener. */
+	/** Removes every listener. A closed stream never opens again, so a message it receives after closing doesn't reach a listener. */
 	clear(): void {
 		this.listeners.length = 0;
 		this.openListeners.clear();
@@ -171,7 +177,8 @@ export class StreamListeners<E> {
 		this.disconnectListeners.clear();
 	}
 
-	/** Tell each listener of a change to the stream; one that throws is reported and the others are still told. */
+	/** Calls each listener of a change to the stream. failFastOrLog handles a listener that throws. In production it logs
+	 *  the error, and the other listeners still run. */
 	private notify(listeners: Set<() => void>, change: string): void {
 		for (const fn of listeners) {
 			try {
@@ -184,14 +191,14 @@ export class StreamListeners<E> {
 }
 
 type SseSubscriberConfig = {
-	/** Full URL of the SSE endpoint, absolute for remote hosts, relative for same-origin. */
+	/** The SSE endpoint's URL. It is absolute for a remote host and relative for the same origin. */
 	url: string;
-	/** The actuality the stream is followed in, as the host's handshake answers it. */
+	/** The id of the actuality the stream follows, as the host's handshake returns it. */
 	actualityId: TActualityId;
 	/** Reconnect delay on error, in ms. Default 2000. */
 	reconnectDelayMs?: number;
-	/** The headers each connection is asked for with, made anew for each, since a proof covers the one request it is sent
-	 *  with. Absent, the stream is requested without headers. */
+	/** Returns the headers of each connection request. It runs for each request, since a proof covers one request. A
+	 *  request carries only the accept and actuality headers where this is absent. */
 	headers?: (url: string) => Promise<Record<string, string>>;
 	/** The fetch the stream is read with. Defaults to globalThis.fetch. */
 	fetchImpl?: typeof fetch;
@@ -208,7 +215,7 @@ export class SseSubscriber {
 	private readonly headers?: (url: string) => Promise<Record<string, string>>;
 	private readonly fetchImpl: typeof fetch;
 	private readonly clientId: string;
-	/** Stops the connection being read, or null where a connection isn't open or opening. */
+	/** Aborts the connection being read. It is null where a connection isn't open or opening. */
 	private reading: AbortController | null = null;
 	private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 	private closed = false;
@@ -226,7 +233,8 @@ export class SseSubscriber {
 		this.followers = new StreamListeners<THaibunEvent>(`SseSubscriber[${this.clientId}]`, config.replayBufferLimit ?? REPLAY_BUFFER_LIMIT_DEFAULT);
 	}
 
-	/** Open the stream. Subsequent subscribe/close calls operate on this connection. Idempotent. */
+	/** Opens the stream. It doesn't open a second connection while one is open or opening, and it doesn't open one after
+	 *  close(). */
 	connect(): void {
 		if (this.closed || this.reading) return;
 		if (this.connectedAt === null) this.connectedAt = Date.now();
@@ -235,22 +243,23 @@ export class SseSubscriber {
 		void this.read(reading);
 	}
 
-	/** Read one connection until it ends, then treat its end as a break: a host's stream stays open while the host runs. */
+	/** Reads one connection until it ends, and treats its end as a break, since a host's stream stays open while the host runs. */
 	private async read(reading: AbortController): Promise<void> {
 		try {
 			const headers = { accept: "text/event-stream", [ACTUALITY_HEADER]: this.actualityId, ...(await this.headers?.(this.url)) };
 			const res = await this.fetchImpl(this.url, { headers, signal: reading.signal });
-			// A refusal is the host's answer about this caller, which asking again will not change: the stream is down, and
-			// stays down until whoever follows it holds what following it takes, or follows the actuality the host holds.
+			// A refusal is the host's response to this caller, and a repeated request receives the same response. The stream
+			// stays down, and this subscriber doesn't retry. A later connect() requests the stream again. That request
+			// succeeds once the caller holds the authority the stream requires or follows the actuality the host holds.
 			if (res.status === 400 || res.status === 401 || res.status === 403) {
 				this.broke(false);
 				return;
 			}
-			if (!res.ok || !res.body) throw new Error(`the stream at ${this.url} answered ${res.status}`);
+			if (!res.ok || !res.body) throw new Error(`the stream at ${this.url} responded with status ${res.status}`);
 			this.followers.becameOpen();
 			for await (const data of sseData(res.body)) this.received(data);
 		} catch {
-			// What ended the connection is not what a listener acts on: it acts on the stream being down, which it is.
+			// A listener acts on the stream being down and not on the cause, so this catch discards the error.
 		}
 		if (reading.signal.aborted) return;
 		this.broke();
@@ -264,8 +273,8 @@ export class SseSubscriber {
 			this.dispatch({ raw: data } as unknown as THaibunEvent);
 			return;
 		}
-		// web-server-hono wraps events as { type: "event", event: {...} };
-		// un-wrap when present, pass through otherwise. Server-side already validated against the schema.
+		// web-server-hono wraps an event as { type: "event", event: {...} }. This unwraps that envelope and passes any
+		// other message through. The server validates each event against the schema.
 		this.dispatch(msg.type === "event" && msg.event ? (msg.event as THaibunEvent) : (msg as unknown as THaibunEvent));
 	}
 
@@ -314,25 +323,25 @@ export class SseSubscriber {
 		}
 		this.reading?.abort();
 		this.reading = null;
-		// A closed subscriber never opens again, so it doesn't hold a listener: a message arriving on the transport it has let
-		// go reaches a consumer that stopped listening otherwise.
+		// A closed subscriber never opens again. It removes its listeners, so a message that arrives on the aborted transport
+		// doesn't reach a consumer that stopped listening.
 		this.followers.clear();
 	}
 
-	/** Wall-clock time of the last successfully-dispatched event, or null if an event hasn't been dispatched yet. */
+	/** Wall-clock time of the last dispatched event, or null where an event hasn't been dispatched. */
 	getLastEventAt(): number | null {
 		return this.lastEventAt;
 	}
 
-	/** Wall-clock time when connect() was first called, or null if never connected. */
+	/** Wall-clock time when connect() was first called, or null where connect() hasn't been called. */
 	getConnectedAt(): number | null {
 		return this.connectedAt;
 	}
 
 	/**
-	 * Latest known liveness timestamp: lastEventAt if any event has been received,
-	 * otherwise connectedAt. Used by silence detectors so a peer that never emits
-	 * is still distinguished from one that has yet to be subscribed.
+	 * The latest liveness timestamp: lastEventAt where an event has been dispatched,
+	 * else connectedAt. A silence detector reads it to distinguish a peer that doesn't
+	 * emit from one that hasn't connected.
 	 */
 	getLastActivityAt(): number | null {
 		return this.lastEventAt ?? this.connectedAt;
@@ -344,7 +353,8 @@ export class SseSubscriber {
 	}
 }
 
-/** The data of each message a Server-Sent Events body carries, its `data:` lines joined as the format joins them. */
+/** Yields the data of each message in a Server-Sent Events body. A message's `data:` lines are joined with a newline, as
+ *  the format specifies. */
 async function* sseData(body: ReadableStream<Uint8Array>): AsyncGenerator<string> {
 	const reader = body.getReader();
 	const decoder = new TextDecoder();

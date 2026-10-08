@@ -32,9 +32,9 @@ import { Access } from "../lib/resources.js";
 
 /** Whether a line resolves to one step, and the method of that step or why it doesn't resolve to exactly one. */
 const StepValidationSchema = z.discriminatedUnion("valid", [z.object({ valid: z.literal(true), method: z.string() }), z.object({ valid: z.literal(false), error: z.string() })]);
-/** The store a run reads and writes through: the site it answers for, and the types it holds. */
+/** The store `use store at` mounts: the site that serves it, and the types routed to it. */
 const StoreInUseSchema = z.object({ site: z.string(), types: z.array(z.string()) });
-/** The domains of what actuality's own steps answer with. */
+/** Product domains of Haibun's own steps. */
 const DOMAIN_STEP_DISCOVERY = "step-discovery";
 const DOMAIN_STEP_VALIDATION = "step-validation";
 const DOMAIN_STORE_IN_USE = "store-in-use";
@@ -63,27 +63,27 @@ class Haibun extends AStepper implements IHasCycles {
 	cycles: IStepperCycles = {
 		getConcerns: () => ({
 			domains: [
-				{ selectors: [DOMAIN_STEP_DETAIL], schema: StepDetailSchema, description: "How much of each declaration a read of a run's declarations returns." },
-				{ selectors: [DOMAIN_STEP_DISCOVERY], schema: StepDiscoverySchema, description: "The steps, domains and steppers a run declares that a read matched" },
+				{ selectors: [DOMAIN_STEP_DETAIL], schema: StepDetailSchema, description: "How much of each declaration a read of actuality's declarations returns." },
+				{ selectors: [DOMAIN_STEP_DISCOVERY], schema: StepDiscoverySchema, description: "The steps, domains and steppers actuality declares that a read matched" },
 				{ selectors: [DOMAIN_STEP_VALIDATION], schema: StepValidationSchema, description: "Whether a line resolves to exactly one step, and which" },
-				{ selectors: [DOMAIN_STORE_IN_USE], schema: StoreInUseSchema, description: "The store a run reads and writes through, and the types it holds" },
-				createEnumDomainDefinition({ name: DOMAIN_ENDING, values: Object.values(ENDING), description: "How ends with ends a feature: OK, or not OK" }),
+				{ selectors: [DOMAIN_STORE_IN_USE], schema: StoreInUseSchema, description: "The store `use store at` mounts, and the types routed to it" },
+				createEnumDomainDefinition({ name: DOMAIN_ENDING, values: Object.values(ENDING), description: "How `ends with` ends a feature: OK or not OK" }),
 			],
 		}),
 		startFeature: () => {
 			this.afterEverySteps = {};
 		},
 		endFeature: (endFeature?: TEndFeature) => {
-			// A federated source or mounted remote store (use store at / federate graph reads) is bound to a
-			// connection that does not outlive the feature; drop it so the next feature's reads never chase a dead peer.
+			// A federated source or a mounted remote store (`use store at`, `federate graph reads`) holds a connection scoped
+			// to the feature. The world store drops each one when the feature closes, so the next feature's reads don't call a closed peer.
 			if (!endFeature?.shouldClose) return Promise.resolve();
 			const store = this.getWorld().shared?.getStore();
 			if (store instanceof QuadStore) store.dropRemoteConnections();
 			return Promise.resolve();
 		},
 		afterStep: async ({ featureStep }: { featureStep: TFeatureStep }) => {
-			// A step of the feature is what the statement runs after. A substep is part of carrying one out, so running
-			// after each of them would run the statement several times for one step a reader reads.
+			// The after-every statement runs after each step of the feature. A substep is part of one step, so running after
+			// each substep would run the statement several times for one feature line.
 			if (featureStep.isAfterEveryStep || featureStep.isSubStep) {
 				return Promise.resolve({});
 			}
@@ -94,7 +94,7 @@ class Haibun extends AStepper implements IHasCycles {
 
 				if (stepsToRun.length > 0) {
 					const mode = featureStep.intent?.mode ?? "authoritative";
-					// Mark these steps as afterEvery steps to prevent recursion
+					// Marks these steps as afterEvery steps to prevent recursion.
 					const markedSteps = stepsToRun.map((s) => ({ ...s, isAfterEveryStep: true }));
 					const res = await this.runner.runSteps(markedSteps, { intent: { mode }, parentStep: featureStep });
 					if (!res.ok) {
@@ -112,10 +112,10 @@ class Haibun extends AStepper implements IHasCycles {
 		useStoreAt: {
 			gwta: `use store at {where: ${DOMAIN_LINK}} for {types: ${DOMAIN_PERSISTED_TYPES}}`,
 			productsDomain: DOMAIN_STORE_IN_USE,
-			// Mount another instance's store for the given types: writes route through and reads come back over the
-			// capability-gated store surface, so this instance keeps those records in the serving site's store instead
-			// of its own: one store, one custodian. Each call is signed under a delegation the serving site gave this
-			// process, which actuality's invoker presents.
+			// Mounts another instance's store for the given types. RemoteQuadStore sends writes and reads of those types over
+			// the capability-gated store surface, so the serving site's store holds those records instead of this instance's
+			// store. Each record has one store. requestSigner signs each call with actuality's invoker, under a delegation
+			// the serving site issued to this process.
 			action: async ({ where, types: graphs }: { where: string; types: string[] }) => {
 				const store = this.getWorld().shared.getStore();
 				if (!(store instanceof QuadStore)) return actionNotOK("use store at: the world store does not support backing registration");
@@ -180,12 +180,10 @@ class Haibun extends AStepper implements IHasCycles {
 		keepRunning: {
 			exact: "this feature runs as a service until stopped",
 			action: () => {
-				// Service-style features (agent, daemon) end with this step so the
-				// process keeps doing whatever it was doing, receiving SSE events,
-				// holding open server sockets, polling. The action's promise never
-				// resolves; the process exits via signal.
-				// Reaching this step is what makes the instance ready: everything its feature sets up has run. A caller
-				// that waited only for the port would race with the rest of the feature.
+				// A service feature (an agent, a daemon) ends with this step, so the process keeps receiving SSE events,
+				// holding server sockets open and polling. The action's promise doesn't resolve. A signal ends the process.
+				// This step sets SERVING to mark the instance ready, since every earlier step of the feature has run. A caller
+				// that waits only for the port would race the rest of the feature.
 				this.getWorld().runtime[SERVING] = true;
 				return new Promise(() => {
 					// intentionally never resolves
@@ -210,7 +208,7 @@ class Haibun extends AStepper implements IHasCycles {
 			},
 			action: async ({ names }: { names: string[] }, featureStep: TFeatureStep) => {
 				const world = this.getWorld();
-				// Prepend 'Backgrounds: ' so expandLine correctly recognizes this as a background directive
+				// Prepends 'Backgrounds: ' so expandLine reads the line as a background directive.
 				const expanded = findFeatureStepsFromStatement(`Backgrounds: ${names.join(", ")}`, this.steppers, world, featureStep.source?.path, featureStep.seqPath, 1);
 				const mode = featureStep.intent?.mode ?? "authoritative";
 				const result = await this.runner.runSteps(expanded, { intent: { mode }, parentStep: featureStep });

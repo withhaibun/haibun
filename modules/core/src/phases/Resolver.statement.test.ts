@@ -28,6 +28,6 @@ describe("statement variable validation", () => {
 		const features = asExpandedFeatures([{ path: "f1", content: "meta not-an-action" }]);
 		const steppers = createSteppers([StatementStepper]);
 		const resolver = new Resolver(steppers);
-		await expect(resolver.resolveStepsFromFeatures(features)).rejects.toThrow(/statement 'not-an-action' invalid/);
+		await expect(resolver.resolveStepsFromFeatures(features)).rejects.toThrow(/statement 'not-an-action' doesn't resolve/);
 	});
 });

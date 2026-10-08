@@ -17,17 +17,17 @@ export const features: TKirejiExport = {
 	"A group of features runs once per state of what it depends on": [
 		feature({ feature: "A group of features runs once per state of what it depends on" }),
 
-		"A run of features is verified against the content of what the features depend on: the directory they are read from, and the module of every stepper their configuration names. A group runs again only when something it depends on has changed since it passed, because a run over unchanged sources answers what the last run answered. Noting that the group has changed forgets the pass, which is how a caller asks for the run regardless.",
+		"A run of features is verified against the content of its dependencies. The dependencies include the directory that holds the features and the module of every stepper their configuration names. A group that passed doesn't run again against unchanged dependencies while its outcome is recorded. A run over unchanged dependencies would repeat the last run's outcome. Noting that the group has changed deletes the recorded outcome. The next run of the group starts without a change to a dependency.",
 
 		scenario({ scenario: "A run of a group passes and records what it passed against" }),
-		"Whatever an earlier run of this feature recorded is forgotten first, so the scenario starts from the same place every time it runs.",
+		"The first step deletes any outcome recorded for the group, so each run of this scenario starts from the same state.",
 		noteEverythingChanged({ where: GROUP }),
 		RUN_ALL,
 		setFromStatement({ what: '"ended"', statement: WAIT }),
 		is({ what: "ended.status", value: '"passed"' }),
 
 		scenario({ scenario: "A second run against the same state is refused" }),
-		"What the group depends on hasn't changed since it passed, so a run would answer what that run answered, and it is not started.",
+		"The group's dependencies haven't changed since the group passed. A second run would repeat that outcome, so the step that starts a run fails without starting one.",
 		not({ statements: RUN_ALL }),
 
 		scenario({ scenario: "Noting that the group changed lets it run again" }),

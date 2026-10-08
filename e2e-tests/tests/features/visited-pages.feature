@@ -3,7 +3,7 @@ Feature: Visited Pages Tracking
 
 Scenario: All visited pages start with allowed prefix
 
-    This test ensures that during a browsing session, all visited pages belong to known, trusted domains.
+    This scenario checks that every page the browser visits matches an allowed URL pattern.
     
     Backgrounds: int/web-server
     serve files at "/static" from "visited-pages"
@@ -22,7 +22,7 @@ Scenario: All visited pages start with allowed prefix
     
     every page observed in visited pages is some pattern in Allowed patterns is matches {page} with {pattern}
     
-    The feature also verifies that the browser didn't access an external domain.
+    A second check verifies that the browser didn't visit a page on external.com.
     
     set of External patterns as [string]
     set external as External patterns to "https://external.com/*"

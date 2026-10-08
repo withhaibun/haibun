@@ -42,15 +42,15 @@ describe("options", () => {
 	});
 });
 
-/** A base that doesn't state an option of its own. */
+/** A config that doesn't set an option. */
 const NO_CONFIG: TSpecl = { steppers: [] };
 
 describe("processEnv", () => {
-	it("takes the module options a base's config states, and the environment states an option over it", () => {
+	it("takes module options from a base's config, and an environment variable replaces the config's value", () => {
 		const specl = SpeclSchema.parse({ steppers: [], moduleOptions: { [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: "from the config", [OTHER_OPTION]: "kept" } });
 		const { moduleOptions } = lib.processBaseEnvToOptionsAndErrors({ [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: "from the environment" }, specl);
 		expect(moduleOptions).toEqual({ [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: "from the environment", [OTHER_OPTION]: "kept" });
-		expect(() => SpeclSchema.parse({ steppers: [], moduleOptions: { EXISTS: "unnamed" } }), "and refuses an option not named as the environment names it").toThrow(
+		expect(() => SpeclSchema.parse({ steppers: [], moduleOptions: { EXISTS: "unnamed" } }), "and refuses a module option whose name lacks the module option prefix").toThrow(
 			`a module option is named ${MODULE_OPTION_PREFIX}{STEPPER}_{OPTION}`,
 		);
 	});
@@ -65,13 +65,13 @@ describe("processEnv", () => {
 	it("errors for non-boolean value ", () => {
 		expect(() => lib.processBaseEnvToOptionsAndErrors({ HAIBUN_TRACE: "wtw" }, NO_CONFIG)).toThrow();
 	});
-	it("runs once where the environment states so, as the command line option does, for every run a script chains", () => {
+	it("runs once when HAIBUN_ONCE or --once is set, so a script can set HAIBUN_ONCE for every run it chains", () => {
 		const { options } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_ONCE: "true" }, NO_CONFIG);
 		expect(lib.runsOnce({ once: false }, options), "the environment alone").toBe(true);
 		expect(lib.runsOnce({ once: true }, lib.processBaseEnvToOptionsAndErrors({}, NO_CONFIG).options), "the command line alone").toBe(true);
 		expect(lib.runsOnce({ once: false }, lib.processBaseEnvToOptionsAndErrors({}, NO_CONFIG).options), "without either").toBe(false);
-		expect(lib.runsOnce({ once: false }, lib.processBaseEnvToOptionsAndErrors({ HAIBUN_ONCE: "false" }, NO_CONFIG).options), "the environment stating no").toBe(false);
-		expect(() => lib.processBaseEnvToOptionsAndErrors({ HAIBUN_ONCE: "yes" }, NO_CONFIG), "a value that is not true or false").toThrow();
+		expect(lib.runsOnce({ once: false }, lib.processBaseEnvToOptionsAndErrors({ HAIBUN_ONCE: "false" }, NO_CONFIG).options), "the environment set to false").toBe(false);
+		expect(() => lib.processBaseEnvToOptionsAndErrors({ HAIBUN_ONCE: "yes" }, NO_CONFIG), "a value other than true or false").toThrow();
 	});
 	it("assigns int", () => {
 		const { options } = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${STEP_DELAY}`]: "1" }, NO_CONFIG);
@@ -93,21 +93,21 @@ describe("collect", () => {
 		expect(features).toHaveLength(1);
 		expect(itemAt(features, 0)).toMatchObject({ content: "create graph store\nenable rpc" });
 	});
-	it("runs against a base without features of its own", async () => {
+	it("runs the statements against a base that doesn't exist", async () => {
 		const { features, backgrounds } = await lib.collect(["/nonexistent-base"], undefined, ["create graph store"]);
 		expect(itemAt(features, 0).content).toBe("create graph store");
 		expect(backgrounds).toEqual([]);
 	});
-	it("runs filtered features FIRST and the statements after them, so the features are what the statements act on", async () => {
+	it("runs the filtered features before the statements, so the statements act on the state the features leave", async () => {
 		const { features } = await lib.collect([POLICY_BASE], ["health"], ["create graph store"]);
 		expect(features.length).toBeGreaterThan(1);
-		expect(features.at(-1)?.content, "the statements run last, on what the features left standing").toBe("create graph store");
+		expect(features.at(-1)?.content, "the statements run after the features").toBe("create graph store");
 		expect(
 			features.slice(0, -1).every((f) => f.path.includes("health")),
-			"and only the features asked for run before them",
+			"and only the features the filter selects run before them",
 		).toBe(true);
 	});
-	it("collects features as before when a statement isn't given", async () => {
+	it("collects only the filtered features when a statement isn't given", async () => {
 		const { features } = await lib.collect([POLICY_BASE], ["health"], []);
 		expect(features.every((f) => f.path.includes("health"))).toBe(true);
 	});
@@ -131,11 +131,11 @@ describe("processArgs", () => {
 		expect(configLoc).toBe("boo");
 		expect(showHelp).toBe(true);
 	});
-	it("takes a statement, and another, in the order given", () => {
+	it("takes several statements in the order given", () => {
 		const { statements } = lib.processArgs(["--statement", "create graph store", "--statement", "enable rpc"]);
 		expect(statements).toEqual(["create graph store", "enable rpc"]);
 	});
-	it("takes a statement given with an equals, so a shell doesn't need a second word", () => {
+	it("takes a statement joined to the option by an equals sign as one argument", () => {
 		const { statements } = lib.processArgs(["--statement=create graph store"]);
 		expect(statements).toEqual(["create graph store"]);
 	});
@@ -146,7 +146,7 @@ describe("processArgs", () => {
 		const { params } = lib.processArgs(s("foo bar"));
 		expect(params).toEqual(["foo", "bar"]);
 	});
-	it("takes --once, which is not a base", () => {
+	it("takes --once as an option rather than a base", () => {
 		const { once, params } = lib.processArgs(s("--once tests"));
 		expect(once).toBe(true);
 		expect(params).toEqual(["tests"]);
@@ -213,7 +213,7 @@ describe("resolveRunPolicy", () => {
 		const specl = { steppers: [], runPolicy: "test-policy.json", appParameters: { prod: { API_KEY: "secret-123", TIMEOUT: "5000" } } } as TSpecl;
 		const policyConfig = { place: "prod", dirFilters: [] } as TRunPolicyConfig;
 
-		// Mock loadAndValidateRunPolicy to avoid side effects
+		// Mocks loadAndValidateRunPolicy so the test doesn't read test-policy.json.
 		vitest.mock("@haibun/core/run-policy/run-policy-schema.js", () => ({ loadAndValidateRunPolicy: vitest.fn() }));
 
 		lib.resolveRunPolicy(policyConfig, {}, protoOptions, specl);

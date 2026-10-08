@@ -1,9 +1,10 @@
 /**
- * Run-facing steps and observation sources for blips. Recording is in `lib/blips.ts`.
+ * Steps and observation sources for blips. `lib/blips.ts` implements recording.
  *
- * Two readings: the rollup counts per name for the whole run and is always attached; a watch is started by name and
- * holds a bounded window in order. Counts state how many, the window states in what order. Both are observation sources,
- * read with `observed in`.
+ * The rollup counts occurrences per name. The stepper attaches it when an execution starts, clears it at the end of each
+ * feature and detaches it when the execution ends. A watch names blips and holds a bounded window of their occurrences
+ * in order. The counts state how many occurrences each name had. The window states their order. `observed in` reads both
+ * observation sources.
  */
 import { AStepper, type IHasCycles, type IObservationSource, type IStepperCycles, type TStepperSteps } from "../lib/astepper.js";
 import { blipDeclarations, blipDeclared, blipRollup, blipWatch, WATCH_WINDOW, type TBlipSeries } from "../lib/blips.js";
@@ -17,25 +18,25 @@ const WatchSchema = z.object({ watching: z.array(z.string()), window: z.number()
 const SeriesSchema = z.object({ name: z.string(), labels: z.record(z.string(), z.string()), count: z.number(), sum: z.number().optional(), max: z.number().optional() });
 const ShowSchema = z.object({ text: z.string(), held: z.number(), seen: z.number(), watching: z.array(z.string()), totals: z.array(SeriesSchema) });
 const DeclaredSchema = z.object({ text: z.string(), names: z.array(z.string()) });
-/** The domains of what watching and showing blips answer with. */
+/** The product domain of `watch blips`. */
 const DOMAIN_BLIP_WATCH = "blip-watch";
-/** The blips a watch names, given as a list; a dotted namespace names everything under it. */
+/** The blips a watch names, as a list. A dotted namespace names every blip under it. */
 const DOMAIN_BLIP_NAMES = "blip-names";
 const DOMAIN_WATCHED_BLIPS = "watched-blips";
 const DOMAIN_DECLARED_BLIPS = "declared-blips";
 
-/** One occurrence as a line: ordinal, name, value, step, attributes. */
+/** Renders one occurrence as a line: ordinal, name, value, step, attributes. */
 export function renderOccurrence(blip: TBlipEvent, index: number): string {
 	const detail = Object.entries(blip.attributes ?? {}).map(([k, v]) => `${k}=${String(v)}`);
 	const parts = [`${index + 1}`, blip.name, ...(blip.value === undefined ? [] : [`value=${blip.value}`]), ...(blip.seqPath ? [`step=${blip.seqPath}`] : []), ...detail];
 	return parts.join(" ");
 }
 
-/** A value as shown: to a tenth, which is finer than any reading of a total. */
+/** Rounds a shown value to a tenth. A reading of a total doesn't need a finer value. */
 const shown = (value: number) => Number(value.toFixed(1));
 
-/** One series as a line: its name and dimension values, how many, and for measured occurrences their total and the
- *  largest, in the declared unit. */
+/** Renders one series as a line: its name, its dimension values and its count. A measured series adds its total and its
+ *  largest value in the declared unit. */
 function renderSeries(series: TBlipSeries): string {
 	const labels = Object.entries(series.labels).map(([dimension, value]) => ` ${dimension}=${value}`);
 	const unit = blipDeclared(series.name)?.unit;
@@ -44,7 +45,7 @@ function renderSeries(series: TBlipSeries): string {
 	return `${series.name}${labels.join("")}: ${series.count}${measured}`;
 }
 
-/** The watch as text: the total recorded, each series over every occurrence recorded, and the window, oldest first. */
+/** Renders the watch as text: the total recorded, each series over every recorded occurrence, and the window, oldest first. */
 export function renderWatch(occurrences: readonly TBlipEvent[], seen: number, totals: readonly TBlipSeries[]): string {
 	if (seen === 0) return "The watch didn't record an occurrence of a watched name.";
 	const dropped = seen - occurrences.length;
@@ -57,18 +58,18 @@ export function renderWatch(occurrences: readonly TBlipEvent[], seen: number, to
 }
 
 export default class BlipsStepper extends AStepper implements IHasCycles {
-	description = "Fine-grained occurrences a run records but does not retain: per-name counts, and an ordered window over watched names";
+	description = "Fine-grained occurrences actuality records and doesn't retain: per-name counts, and an ordered window over watched names";
 
 	private sources: IObservationSource[] = [
 		{
-			// Counts per name. Always attached; one counter per declared name.
+			// Counts occurrences per name, with one counter per recorded name. The rollup stays attached from startExecution to endExecution.
 			name: "blips",
 			observe: () => Promise.resolve(blipRollup.observe()),
 		},
 		{
-			// Order. Each item is prefixed with its position, so repeated occurrences stay distinct items.
-			// The declared attributes ride along as metrics, so a quantifier binds e.g. occurrence/view and occurrence/reason;
-			// the reserved keys win a collision, since they are what every occurrence answers for.
+			// Returns the watched occurrences in order. Each item starts with its position, so repeated occurrences stay distinct items.
+			// The declared attributes become metrics, so a quantifier binds occurrence/view and occurrence/reason, for example.
+			// A reserved key that the occurrence carries replaces an attribute of the same name.
 			name: "watched blips",
 			observe: () => {
 				const held = blipWatch.occurrences();
@@ -93,14 +94,14 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 		getConcerns: () => ({
 			sources: this.sources,
 			domains: [
-				{ selectors: [DOMAIN_BLIP_WATCH], schema: WatchSchema, description: "The blips a run watches, and over what window" },
+				{ selectors: [DOMAIN_BLIP_WATCH], schema: WatchSchema, description: "The blips a watch names, and the size of its window" },
 				{
 					selectors: [DOMAIN_BLIP_NAMES],
 					schema: listedSchema(z.string().min(1), "blip"),
-					description: "The blips a watch names, given as a list or as text separated by commas; a dotted namespace names everything under it",
+					description: "The blips a watch names, given as a list or as text separated by commas. A dotted namespace names every blip under it",
 				},
-				{ selectors: [DOMAIN_WATCHED_BLIPS], schema: ShowSchema, description: "What the watched blips held and totalled" },
-				{ selectors: [DOMAIN_DECLARED_BLIPS], schema: DeclaredSchema, description: "The blips a run declares" },
+				{ selectors: [DOMAIN_WATCHED_BLIPS], schema: ShowSchema, description: "The occurrences a watch holds, and their totals" },
+				{ selectors: [DOMAIN_DECLARED_BLIPS], schema: DeclaredSchema, description: "The blips actuality declares" },
 			],
 		}),
 		startExecution: async () => {
@@ -122,7 +123,7 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 		watchBlips: {
 			gwta: `watch blips {names: ${DOMAIN_BLIP_NAMES}}`,
 			description:
-				"Start collecting occurrences with the given names, in order. Names are comma separated; a dotted namespace matches everything under it (`haibun.http` matches `haibun.http.request`). Each name must be declared. Replaces any earlier watch. Read with `show watched blips`.",
+				"Start collecting occurrences with the given names, in order. Names are comma separated. A dotted namespace matches every name under it (`haibun.http` matches `haibun.http.request`). Each name must be declared. Replaces any earlier watch. Read with `show watched blips`.",
 			productsDomain: DOMAIN_BLIP_WATCH,
 			action: async ({ names: watching }: { names: string[] }) => {
 				await Promise.resolve();
@@ -148,7 +149,7 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 		showWatchedBlips: {
 			gwta: "show watched blips",
 			description:
-				"The watched occurrences as text. Opens with each name and value of its declared dimensions, counted over every occurrence recorded, with the total and largest of a measured value, then lists the window oldest first, each occurrence with its name, value, step path and attributes. Reports the total recorded and how many the window holds.",
+				"Show the watched occurrences as text. The text states the total recorded, then a count for each name and each value of its declared dimensions over every recorded occurrence. A measured series adds its total and its largest value. The text then lists the window oldest first. Each line holds an occurrence's position, name, value, step path and attributes. The products hold the total recorded and the number of occurrences the window holds.",
 			productsDomain: DOMAIN_WATCHED_BLIPS,
 			action: async () => {
 				await Promise.resolve();
@@ -166,14 +167,14 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 		showDeclaredBlips: {
 			gwta: "show declared blips",
 			description:
-				"Every name this run can record, with its description and, for declarations using `origin`, the `path:line` that declares it. Use it to find what is to watch and where its code is.",
+				"List every blip name actuality can record, with its description. A declaration that uses `origin` adds the `path:line` that declares it. Use it to find a name to watch and the code that declares it.",
 			productsDomain: DOMAIN_DECLARED_BLIPS,
 			action: async () => {
 				await Promise.resolve();
 				const declared = blipDeclarations();
 				const text =
 					declared.length === 0
-						? "This run doesn't declare a blip."
+						? "Actuality doesn't declare a blip."
 						: declared.map((d) => `${d.name}${d.unit ? ` (${d.unit})` : ""}: ${d.description}${d.declaredAt ? ` [declared at ${d.declaredAt}]` : ""}`).join("\n");
 				return actionOKWithProducts({ text, names: declared.map((d) => d.name) });
 			},

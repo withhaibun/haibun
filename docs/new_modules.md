@@ -1,14 +1,14 @@
 # Developing new modules
 
-NB: Normally, you'd use the [[scaffold command](../modules/utils/README.md#scaffolding](https://github.com/withhaibun/haibun/blob/main/modules/utils/README.md#scaffolding)).
+Start a new module with the [scaffold command](https://github.com/withhaibun/haibun/blob/main/modules/utils/README.md#scaffolding).
+It adds Haibun to a new or existing project.
 
-A new Haibun module is created by extending the `AStepper` abstract class from
-@haibun/core (see example below), and adding the module to the testing target
-directory (refer to the e2e-tests files package.json and local/config.json for
-what this should look like).
+A Haibun module defines a stepper class that extends the `AStepper` abstract class from `@haibun/core`.
+The test project lists the module as a dependency in its `package.json`.
+A test base loads each stepper that the `steppers` list of its `config.json` names.
+The e2e-tests [package.json](../e2e-tests/package.json) and [tests/config.json](../e2e-tests/tests/config.json) show both.
 
-For example, to create a new module that verifies files exist, using Haibun's
-abstract storage, you might do the following;
+The following steps create a module that uses Haibun's abstract storage to check whether files exist.
 
 `mkdir haibun-files-exist`
 
@@ -16,14 +16,16 @@ abstract storage, you might do the following;
 
 `npm i @haibun/core @haibun/domain-storage`
 
-Instrument your repository for Typescript and tests as appropriate (see haibun-sarif for an example,
-or use Haibun's scaffolding).
+Configure the repository for TypeScript and tests.
+The haibun-sarif repository shows one configuration.
+Haibun's scaffolding creates one too.
 
-Create an appropriate source file, for example, src/files-exist.ts
+Create a source file, such as `src/files-exist.ts`.
 
-Extend the `AStepper` abstract class, and the appropriate properties and methods.
+Extend the `AStepper` abstract class.
+Add the stepper's options, steps and methods.
 
-Your file might end up looking like this:
+The source file looks like this:
 
 ```typescript
 import { OK, TNamed, AStepper, TWorld } from '@haibun/core/lib/defs.js';
@@ -65,46 +67,62 @@ const FilesExist = class FilesExist extends AStepper implements IHasOptions {
 };
 ```
 
-After compilation, you can now use statements like _file "README.md" exists_ and
-_missing file "missing.md"_ in your features.
-Using your module will require including a storage implementation as well,
-for example, storage-fs,
-or potentially multiple implementations via runtime variables,
-which would be specified via the testing repository's package.json, config.json,
-and a HAIBUN_O_FILESEXIST_STORAGE runtime variable.
+Features can use the statements _file "README.md" exists_ and _missing file "missing.md"_ once the module compiles.
+The module requires a storage implementation, such as `@haibun/storage-fs`.
+The test project lists the implementation as a dependency in its `package.json`.
+A test base names it in the `steppers` list of its `config.json`.
+The `HAIBUN_O_FILESEXIST_STORAGE` environment variable names the storage stepper the module uses, such as `StorageFS`.
+A base can load several storage implementations.
+The variable selects one.
 
 ## gwta statements
 
-`AStepper` steps specify their statements using either `exact`, `match` (regex) or `gwta`.
-`gwta` is most useful, since it supports variable resolution.
-Given, when, then, and are optional in these statements.
+A step declares its statement with `exact`, `match` (a regular expression) or `gwta`.
+Prefer `gwta`.
+Only a `gwta` pattern declares placeholders.
+A placeholder takes a quoted literal, a variable or an environment variable.
+A number or JSON text doesn't need quotes.
+A feature line may start with Given, When, Then or And.
+The resolver removes those words from the start of the line before it matches the line to a `gwta` or `exact` pattern.
+It removes the leading words `should`, `the`, `it`, `I'm`, `I`, `am`, `an` and `a` too.
 
 ### Domain-driven placeholders
 
-Placeholders are declared inside `{}` and have the form `{name[:domain]}`.
+A placeholder has the form `{name[:domain]}`.
 
 Examples:
 
 - `{what}` → domain defaults to `string`.
-- `{ms:number}` → domain is `number` (value will be coerced / validated).
-- `{target:${DOMAIN_PAGE_SELECTOR}}` → domain is `page-selector`.
-- `{when:$DOMAIN_STATEMENT}` → domain is `statement` (an embedded Haibun statement that must itself resolve to a known step).
+- `{ms:number}` → domain is `number`. Its schema coerces and validates the value.
+- `{target:${DOMAIN_PAGE_LOCATOR}}` → domain is `page-locator`.
+- `{when:${DOMAIN_STATEMENT}}` → domain is `statement`. The value is a Haibun statement that must resolve to a step.
 
-Internally every placeholder is represented with a mandatory `domain` field. If you omit `:domain` in the gwta text, the parser assigns `string` – so the domain is still present in the runtime model even when you don't write it explicitly.
+Each parsed placeholder holds a required `domain` field.
+The parser assigns `string` to a placeholder that doesn't name a domain.
 
-#### Built‑in domains
+#### Built-in domains
 
-Current built-ins:
+Core registers these domains, among others:
 
-- `string` – raw text (default)
-- `number` – read as a number; fails if it isn't one
-- `css-selector` – treated as opaque string, but distinguished for tooling / IDEs
-- `json` – parses JSON; fails on invalid syntax
-- `statement` – nested step statement (is parsed & must resolve to an existing step)
+- `string`: a string literal. It is the default domain.
+- `text`: free text a person writes.
+- `link`: a URI.
+- `number`: a number. A value that isn't a finite number fails with `invalid number`.
+- `date`: a `Date` read from an ISO timestamp, epoch milliseconds or a `Date`.
+- `json`: a JSON value. The domain takes JSON text or a JSON value. Text that isn't JSON fails.
+- `statement`: a nested step statement. It must resolve to a step.
+
+`@haibun/web-playwright` registers `page-locator` for Playwright selectors such as `css=` or `text=`.
 
 #### Domain registry
 
-A stepper declares its domains in its cycles' `getConcerns`, each a `TDomainDefinition` with its selectors, a Zod schema and a description. The schema takes each form of the domain's value, as a feature line, a variable or a call gives it, and yields the value the step receives. It parses that value to itself, and its JSON Schema states the form a call sends. A composite takes its JSON text too, through `fromJsonText`:
+A stepper declares its domains in the `getConcerns` function of its `cycles`.
+Each domain is a `TDomainDefinition` with its selectors, a Zod schema and a description.
+The schema parses the domain's value in each form that a feature line, a variable or a call supplies.
+It returns the value the step receives.
+Parsing that value again returns the same value.
+The schema's JSON Schema describes the form a call sends.
+`fromJsonText` makes a composite domain's schema parse the domain's JSON text too:
 
 ```ts
 cycles: IStepperCycles = {
@@ -117,21 +135,27 @@ cycles: IStepperCycles = {
 };
 ```
 
-Only a meta domain whose value depends on the step it fills, such as `statement`, declares a `coerce`.
+A domain declares `coerce` only when its value depends on the step that receives it.
+The `statement` domain declares one.
+Its `coerce` resolves the statement's text to feature steps.
+A domain that doesn't declare `coerce` coerces a value with its schema's `parse`.
 
 #### Validation & errors
 
-- A parameter naming a domain that the loaded steppers don't register is refused when the step registers, naming the step and the domain.
-- A value its parameter's domain refuses fails the step, naming the step, the parameter, the term and the schema's reason. Text that isn't JSON where JSON text is taken is refused at once, with the parser's reason and the text.
-- A variable of another domain fills a parameter only where the parameter's domain is a reference to it: otherwise the step fails, naming both domains.
-- `{x:${DOMAIN_STATEMENT}}` whose inner text does not resolve to a known step → `statement '...' invalid`.
+- Registration refuses a step whose parameter names a domain that the loaded steppers don't register. The error names the step, the parameter and the domain.
+- A value that its parameter's domain refuses fails the step. The failure names the step, the parameter, the term and the schema's reason.
+- `fromJsonText` refuses text that isn't JSON before the schema checks anything else. The refusal states the parser's reason and the text's first 120 characters.
+- A `string` parameter takes a variable of any domain unchanged.
+- A variable of another domain fills a parameter only when the variable's domain is primitive or the parameter's domain references the variable's domain. Any other variable fails the step. The failure names both domains.
+- The resolver refuses a `{x:${DOMAIN_STATEMENT}}` placeholder whose text doesn't resolve to a step. The error message is `statement '<text>' invalid: <reason>`.
 
 #### Authoring guidelines
 
-- Prefer explicit domains when semantic meaning or validation matters (`{ms:number}` over `{ms}`).
-- Use kebab-case for multi-word domain names (`css-selector`).
-- Keep domains narrowly focused; compose behavior in step actions, not schemas.
-- If your step depends on a new data shape, add a domain instead of ad-hoc parsing inside many steps.
+- Name a placeholder's domain where the value has a meaning or needs validation: `{ms:number}`, not `{ms}`.
+- Write a multi-word domain name in kebab-case, such as `page-locator`.
+- Keep each domain to one kind of value.
+- Put behaviour in step actions, not in schemas.
+- Add a domain for a new data shape, so that steps don't each parse it.
 
 #### Example
 
@@ -151,21 +175,17 @@ steps = {
 	conditional: {
 		gwta: `if {when:${DOAIN_STATEMENT}}, {what:${DOAIN_STATEMENT}}`,
 		action: async ({ when, what }) => {
-			/* both are previously resolved statement strings */
+			/* each holds the feature steps its statement resolves to */
 		},
 	},
 };
 ```
 
-### Backwards compatibility note
+## Example modules and tests
 
-Earlier versions referred to `type` on placeholders. This has been replaced with `domain`; the concept is the same, but now all placeholders have a domain internally (defaulting to `string` when omitted) and the runtime registry enables extensibility & validation.
+[haibun sarif](https://github.com/withhaibun/haibun-sarif) is an example module outside the haibun repository.
 
-...
-
-For an example module external to the main haibun project, please refer to [haibun sarif](https://github.com/withhaibun/haibun-sarif).
-
-This repository's [e2e-tests](../e2e-tests) holds running examples of integration tests.
-From that folder, `npm run test:tests` runs the `tests` base, and `npx haibun-cli tests xss` runs its features whose
-names hold `xss`.
-Its [test server stepper](../e2e-tests/src/test-server.ts) adds routes to a running web server.
+This repository's [e2e-tests](../e2e-tests) folder contains example integration tests.
+`npm run test:tests` runs the `tests` base from that folder.
+`npx haibun-cli tests xss` runs the base's features whose paths match `xss`.
+The e2e-tests [test server stepper](../e2e-tests/src/test-server.ts) adds routes to a running web server.

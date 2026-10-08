@@ -1,7 +1,6 @@
 /**
- * Cookie helpers for SPA-side persistence. One-year max-age, path=/, encoded
- * values. JSON variants take a default for parse failures so a corrupt cookie
- * doesn't break the call site, bad JSON falls back instead of throwing.
+ * Cookie helpers for SPA-side persistence. Each cookie these helpers set has a one-year max-age, path=/ and an encoded
+ * value. `getJsonCookie` returns its fallback for a missing cookie or invalid JSON instead of throwing.
  */
 
 import { jsonCarried } from "@haibun/core/lib/json-text.js";
@@ -9,16 +8,17 @@ import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 const ONE_YEAR = 60 * 60 * 24 * 365;
 
-/** Internal: the JSON pair below is how a caller reads and writes a cookie. A component's remembered options go
- *  through `persistFields`, never through here. */
+/** Internal. A caller reads and writes a cookie through the JSON pair below. A component persists its options through
+ *  `persistFields`, not through these functions. */
 function getCookie(name: string): string {
 	if (typeof document === "undefined") return "";
 	const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
 	return match ? decodeURIComponent(itemAt(match, 1)) : "";
 }
 
-/** A page another site frames keeps a cookie only as a partitioned one, which a frame may set and which stays with the
- *  site that frames it, such as an extension's panel. A page shown on its own keeps a first-party cookie. */
+/** A framed page sets a partitioned cookie, since a page in another site's frame can set only a partitioned cookie. The
+ *  browser keys a partitioned cookie to the framing site, such as an extension's panel. A page shown on its own sets a
+ *  first-party cookie. */
 const framedAttributes = (): string => (window.top !== window ? "; SameSite=None; Secure; Partitioned" : "");
 
 function setCookie(name: string, value: string): void {

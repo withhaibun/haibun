@@ -1,4 +1,5 @@
-// The record of what a group has passed against, and the decision it answers.
+// Tests the record of a group's runs against the state of its dependencies. A caller reads the record to determine
+// whether the group runs again.
 import { describe, it, expect } from "vitest";
 import { execFileSync } from "node:child_process";
 import nodeFS from "node:fs";
@@ -6,7 +7,8 @@ import os from "node:os";
 import path from "node:path";
 import { forgetOutcome, forgetOutcomes, outcomeAgainst, recordOutcome, runConditions, verificationOf } from "./verified.js";
 
-/** A group of features in a repository of its own, without steppers, so its only dependency is itself. */
+/** Creates a group of features in its own git repository. The group doesn't load steppers, so its only dependency is
+ *  its own directory. */
 function aGroup(): { dir: string; config: string } {
 	const dir = nodeFS.realpathSync(nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-verified-")));
 	execFileSync("git", ["init", "-q"], { cwd: dir });
@@ -28,24 +30,24 @@ const conditions = (dir: string, config: string, more: Partial<Parameters<typeof
 });
 
 describe("how a group last ran against its state", () => {
-	it("doesn't have a run until one is recorded, has one against the state it was recorded for, and loses it when a dependency changes", () => {
+	it("doesn't return a run until one is recorded, returns it while the state is unchanged, and doesn't return it after a dependency changes", () => {
 		const { dir, config } = aGroup();
 		const v = () => verificationOf(conditions(dir, config));
 		expect(outcomeAgainst(v() as never)).toBeUndefined();
 		recordOutcome(v() as never, "passed", 1);
 		expect(outcomeAgainst(v() as never)).toEqual({ outcome: "passed", features: 1 });
 		nodeFS.writeFileSync(path.join(dir, "features/a.feature"), "Feature: a, changed\n");
-		expect(outcomeAgainst(v() as never), "a change to what the features depend on is a state that hasn't been run against").toBeUndefined();
+		expect(outcomeAgainst(v() as never), "a changed dependency is a new state, and the record doesn't hold a run against it").toBeUndefined();
 	});
 
-	it("records a failure as a run against the state too, which is what refuses an agent a second run over unchanged features", () => {
+	it("records a failure as a run against the state, so InstanceStepper refuses a second run over unchanged features", () => {
 		const { dir, config } = aGroup();
 		const v = verificationOf(conditions(dir, config)) as never;
 		recordOutcome(v, "failed", 1);
 		expect(outcomeAgainst(v)).toEqual({ outcome: "failed", features: 1 });
 	});
 
-	it("keeps a run per way of running the group: other options, another filter, a policy or added steppers are another run", () => {
+	it("keeps a separate run for each way of running the group: other module options, another filter, a policy or added steppers each key a separate run", () => {
 		const { dir, config } = aGroup();
 		const plain = verificationOf(conditions(dir, config)) as never;
 		const onAnotherPort = verificationOf(conditions(dir, config, { moduleOptions: { WEBSERVER_PORT: "8300" } })) as never;
@@ -57,13 +59,13 @@ describe("how a group last ran against its state", () => {
 		expect(outcomeAgainst(plain)).toEqual({ outcome: "passed", features: 1 });
 	});
 
-	it("does not tell runs apart by what varies per run without changing what runs", () => {
+	it("gives one key to runs that differ only in options that don't change what runs", () => {
 		const c = (options: Record<string, unknown>) => runConditions({ configPath: "c.json", specl, bases: ["."], cwd: ".", filter: [], options, moduleOptions: {} });
 		expect(c({ KEY: "1", DESCRIPTION: "x", STAY: "always", DEST: "d" })).toBe(c({ KEY: "2", DEST: "d" }));
 		expect(c({ DEST: "d" })).not.toBe(c({ DEST: "e" }));
 	});
 
-	it("forgets the runs of the features named, and the runs of the whole group that include them, and only those", () => {
+	it("deletes the runs of the named features and the runs of the whole group that include them, and keeps every other run", () => {
 		const { dir, config } = aGroup();
 		const whole = verificationOf(conditions(dir, config)) as never;
 		const a = verificationOf(conditions(dir, config, { filter: ["a"] })) as never;
@@ -72,21 +74,21 @@ describe("how a group last ran against its state", () => {
 		forgetOutcomes(dir, "a");
 		expect(outcomeAgainst(a)).toBeUndefined();
 		expect(outcomeAgainst(whole), "the whole group includes a").toBeUndefined();
-		expect(outcomeAgainst(b), "b was not named").toEqual({ outcome: "passed", features: 1 });
+		expect(outcomeAgainst(b), "b wasn't named").toEqual({ outcome: "passed", features: 1 });
 	});
 
-	it("forgets a run that did not reach its features, and every run when a change is noted", () => {
+	it("deletes a run that didn't reach its features, and deletes every run when a change is noted", () => {
 		const { dir, config } = aGroup();
 		const v = verificationOf(conditions(dir, config)) as never;
 		recordOutcome(v, "passed", 1);
 		forgetOutcome(v);
-		expect(outcomeAgainst(v), "a run that could not start isn't evidence about the state").toBeUndefined();
+		expect(outcomeAgainst(v), "a run that didn't reach its features isn't evidence about the state").toBeUndefined();
 		recordOutcome(v, "passed", 1);
 		forgetOutcomes(dir);
 		expect(outcomeAgainst(v)).toBeUndefined();
 	});
 
-	it("doesn't verify a group kept outside a repository against a state", () => {
+	it("doesn't verify a group outside a git repository against a state", () => {
 		const dir = nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-norepo-"));
 		nodeFS.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ steppers: [] }));
 		expect(verificationOf(conditions(dir, path.join(dir, "config.json")))).toBeUndefined();

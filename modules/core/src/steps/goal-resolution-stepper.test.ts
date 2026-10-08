@@ -14,7 +14,7 @@ import { DOMAIN_USER_NAME } from "../lib/domains.js";
 import { itemAt } from "../lib/util/item-at.js";
 
 const DOMAIN_AUTH_SESSION = "domain-auth-session-test";
-/** A domain this test registers and the steps don't produce, so `resolve` has something registered but unreachable to answer about. */
+/** A domain this test registers and the steps don't produce. `resolve` returns unreachable for it. */
 const DOMAIN_UNPRODUCED = "unproduced-test";
 const DOMAIN_COMPOSITE_GOAL = "composite-goal-test";
 const DOMAIN_COMPOSITE_INPUT = "composite-input-test";
@@ -27,7 +27,7 @@ class AuthStepper extends AStepper implements IHasCycles {
 		getConcerns: () => ({
 			domains: [
 				{ selectors: [DOMAIN_AUTH_SESSION], schema: AuthSessionSchema, description: "Authenticated session" },
-				{ selectors: [DOMAIN_UNPRODUCED], schema: z.unknown(), description: "Registered by this test alone; no step produces it." },
+				{ selectors: [DOMAIN_UNPRODUCED], schema: z.unknown(), description: "Registered by this test alone. A step doesn't produce it." },
 			],
 		}),
 	};
@@ -42,12 +42,10 @@ class AuthStepper extends AStepper implements IHasCycles {
 }
 
 /**
- * Composite-decomposition fixture. `CompositeStepper.produceComposite` consumes
- * a composite input whose `session` field ranges over a registered fact domain
- * (`AuthSessionStepper` produces those). With composite decomposition on, the
- * resolver should walk the composite's `session` field and emit a chain
- * `signIn → composite binding → produceComposite`, not flatten the whole
- * composite into one opaque argument.
+ * Composite-decomposition fixture. `CompositeStepper.produceComposite` takes a composite input whose `session` field
+ * ranges over a registered fact domain. `AuthStepper.signIn` produces that domain. The resolver decomposes the `session`
+ * field when composite decomposition is on. It emits the chain `signIn → composite binding → produceComposite` and
+ * doesn't flatten the composite into one opaque argument.
  */
 const CompositeInputSchema = z.object({ session: z.string(), label: z.string() });
 const CompositeGoalSchema = z.object({ value: z.string() });
@@ -81,7 +79,7 @@ describe("GoalResolutionStepper, integration via passWithDefaults", () => {
 	const steppers = [VariablesStepper, GoalResolutionStepper, AuthStepper, LogicStepper];
 
 	it("resolve returns unreachable for a goal that a producer can't derive", async () => {
-		// A domain key this test registers (see DOMAIN_UNPRODUCED above) that the loaded steps don't produce.
+		// The quoted domain is the value of DOMAIN_UNPRODUCED.
 		const feature = {
 			path: "/features/howto-unreachable.feature",
 			content: `set goalResolution from resolve "unproduced-test"
@@ -91,7 +89,7 @@ variable goalResolution.finding is "unreachable"`,
 		expect(result.ok).toBe(true);
 	});
 
-	it("resolve returns michi when a producer exists and inputs are satisfied", async () => {
+	it("resolve returns michi when a producer exists and each of its inputs has a binding", async () => {
 		const feature = {
 			path: "/features/howto-michi.feature",
 			content: `set goalResolution from resolve "${DOMAIN_AUTH_SESSION}"
@@ -122,7 +120,7 @@ variable affordances exists`,
 		expect(result.ok).toBe(true);
 	});
 
-	it("affordances on offer answers what show affordances shows, and is a read: asked of a running instance it isn't shown and isn't recorded", async () => {
+	it("affordances on offer returns what show affordances returns, and is a read that isn't shown or recorded", async () => {
 		const stepper = new GoalResolutionStepper();
 		expect(stepper.steps.affordancesOnOffer.read).toBe(true);
 		expect(stepper.steps.affordancesOnOfferAsOf.read).toBe(true);
@@ -137,17 +135,17 @@ variable affordances exists`,
 		expect(offered.goals).toEqual(shown.goals);
 	});
 
-	it("names the actuality whose facts it shows, where the step a fact names ran: the affordances and the chain lint alike", async () => {
+	it("states the execution whose steps produced the facts, in the affordances and in the chain lint", async () => {
 		const feature = { path: "/features/test.feature", content: "show affordances\nshow chain lint" };
 		const result = await passWithDefaults([feature], steppers);
 		expect(result.ok).toBe(true);
 		const named = itemAt(result.featureResults, 0).stepResults.map((r) => (r.products as { execution: string }).execution);
-		// The one feature is actuality's first, whose steps' records name its execution.
+		// The feature is actuality's first, and its step records name that execution.
 		const firstFeature = executionOf({ key: result.world.tag.key, featureNum: 1 });
 		expect(named).toEqual([firstFeature, firstFeature]);
 	});
 
-	it("announces a change after an act and doesn't announce one after a read, since a read doesn't change a record and the panel's own re-fetch is one", async () => {
+	it("emits a change signal after an act and doesn't emit one after a read, since a read doesn't change a record and the panel's re-fetch is a read", async () => {
 		const stepper = new GoalResolutionStepper();
 		const world = getDefaultWorld();
 		await stepper.setWorld(world, [stepper]);
@@ -157,12 +155,12 @@ variable affordances exists`,
 			runInStep({ seqPath: "0.1", reportsAt: undefined }, () => stepper.cycles.afterStep?.({ featureStep: { action: { step } }, actionResult: { ok: true } } as never));
 		await after(stepper.steps.affordancesOnOffer);
 		await after(stepper.steps.affordancesOnOfferAsOf);
-		expect(announced, "a read doesn't announce a change, or the panel reading would announce a change to read again for, without bound").toEqual([]);
+		expect(announced, "a read doesn't emit a change signal, since a signal would make the panel read again without bound").toEqual([]);
 		await after({ gwta: "an act", action: () => Promise.resolve(actionOKWithProducts({})) });
 		expect(announced).toEqual(["affordances.0.1"]);
 	});
 
-	it("show affordances carries waypoint entries contributed by steppers with the ProvidesWaypoints capability: one verb, the whole snapshot", async () => {
+	it("show affordances carries the waypoint entries of steppers with the ProvidesWaypoints capability", async () => {
 		const feature = {
 			path: "/features/show-affordances-waypoints.feature",
 			content: `Activity: Sign in
@@ -178,7 +176,7 @@ variable affordances.waypoints.0.outcome is "Logged in"`,
 	});
 
 	describe("pursue {goal}, A1 idempotent goal-driven execution", () => {
-		it("pursue on a satisfied goal is a no-op: returns finding=satisfied, without an execution side-effect", async () => {
+		it("pursue on a satisfied goal returns finding=satisfied and doesn't run a step", async () => {
 			const feature = {
 				path: "/features/pursue-satisfied.feature",
 				content: `sign in as "alice"
@@ -191,16 +189,16 @@ variable second.finding is "satisfied"`,
 			expect(result.ok).toBe(true);
 		});
 
-		it("pursue refuses when the michi has argument bindings the caller hasn't supplied, naming what's needed", async () => {
-			// AuthSession's producer (`sign in as {subject}`) takes a string argument without a fact backing it, so a fresh world has finding=michi and pursue must refuse rather than guess.
+		it("pursue refuses when the michi has argument bindings that the caller hasn't supplied", async () => {
+			// AuthSession's producer (`sign in as {subject}`) takes a string argument that a fact doesn't supply, so a fresh world has finding=michi and pursue refuses.
 			const feature = { path: "/features/pursue-needs-arg.feature", content: `not pursue "${DOMAIN_AUTH_SESSION}"` };
 			const result = await passWithDefaults([feature], steppers);
 			expect(result.ok).toBe(true);
 		});
 
-		it("a walk runs the very path pursue refuses, one step at a time, with what that step needs", async () => {
-			// The auth session's producer takes an argument that a fact doesn't supply, which is why pursue refuses it. A walk is how
-			// such a path is run: it is begun, it reports what it still needs, and it is advanced with that.
+		it("a walk runs a path that pursue refuses, one step at a time, with the value each step takes", async () => {
+			// The auth session's producer takes an argument that a fact doesn't supply, so pursue refuses the path. A walk runs
+			// such a path. The walk begins, its products name the parameters its next step takes, and an advance supplies them.
 			const feature = {
 				path: "/features/walk-with-an-argument.feature",
 				content: `set walk from walk toward "${DOMAIN_AUTH_SESSION}"
@@ -222,8 +220,8 @@ variable after.finding is "satisfied"`,
 			expect(result.ok).toBe(true);
 		});
 
-		it("pursue refuses (overall fails) when the goal can't be reached", async () => {
-			// Same goal as above but WITHOUT the `not` wrapper: the bare pursue must propagate the refusal so callers can branch on it.
+		it("a bare pursue fails when the goal can't be reached", async () => {
+			// The goal of the test above, without `not`. The bare pursue fails, so a caller can branch on the refusal.
 			const feature = { path: "/features/pursue-bare-unreachable.feature", content: `pursue "test-scratch"` };
 			const result = await failWithDefaults([feature], steppers);
 			expect(result.ok).toBe(false);
@@ -245,13 +243,8 @@ variable affordances.composites exists`,
 	});
 
 	it("resolve emits a composite binding for a goal whose only producer takes a composite input ranged over a producible domain", async () => {
-		// CompositeStepper.produceComposite's input is `composite-input-test`,
-		// which declares `topology.ranges: { session: domain-auth-session-test }`.
-		// AuthStepper.signIn produces the auth-session domain. With composite
-		// decomposition enabled (the GoalResolutionStepper default), resolving
-		// the composite goal must emit at least one michi whose binding is
-		// `kind: "composite"` (the resolver decomposed the input rather than
-		// flattening it into one argument).
+		// Composite decomposition is on by default, so the first michi's first binding is `kind: "composite"`. The resolver
+		// decomposed the input instead of flattening it into one argument.
 		const feature = {
 			path: "/features/composite-resolve.feature",
 			content: `set goalResolution from resolve "${DOMAIN_COMPOSITE_GOAL}"
@@ -262,7 +255,7 @@ matches \`goalResolution.michi.0.bindings.0.kind\` with "composite"`,
 		expect(result.ok).toBe(true);
 	});
 
-	it("falls back to a flat argument binding when COMPOSITE_DECOMPOSITION is disabled", async () => {
+	it("resolve emits a flat argument binding when COMPOSITE_DECOMPOSITION is disabled", async () => {
 		const feature = {
 			path: "/features/composite-resolve-disabled.feature",
 			content: `set goalResolution from resolve "${DOMAIN_COMPOSITE_GOAL}"
@@ -276,7 +269,7 @@ matches \`goalResolution.michi.0.bindings.0.kind\` with "argument"`,
 		expect(result.ok).toBe(true);
 	});
 
-	it("resolve still works for a non-composite goal (auth-session), composite mode is additive, not disruptive", async () => {
+	it("resolve returns michi for a non-composite goal (auth-session) with composite decomposition on", async () => {
 		const feature = {
 			path: "/features/composite-non-disruptive.feature",
 			content: `set goalResolution from resolve "${DOMAIN_AUTH_SESSION}"

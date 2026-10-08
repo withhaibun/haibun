@@ -1,10 +1,11 @@
 /**
- * What a run declares, in the one shape every caller reads it in: a page, a remote host, an MCP host, a model and a
- * feature line.
+ * The shape of actuality's declarations. A page, a remote host, an MCP host, a model and a feature line read the
+ * declarations in this one shape.
  *
- * A step's description is declared here once. The registry holds one per step, the show steps step returns them, an MCP
- * host and a model are given tool definitions made from them, and a remote host's proxy registers the ones it read.
- * Separate from step-registry because the browser reads this module, and step-registry builds schemas on the server.
+ * This module declares the step descriptor once. The registry holds one descriptor per step. The show steps step returns
+ * the descriptors. An MCP host and a model receive tool definitions built from them. A remote host's proxy registers the
+ * descriptors it reads. This module is separate from step-registry. The browser imports this module, and step-registry
+ * builds schemas on the server.
  */
 import { z } from "zod";
 import { ConcernCatalogSchema } from "./hypermedia.js";
@@ -12,34 +13,37 @@ import { HYPERMEDIA, productData } from "../schema/protocol.js";
 import { readAction } from "./actions.js";
 import { Access, AccessLevelSchema } from "./resources.js";
 
-/** The step that shows what a run declares. `Haibun` declares it, so a run that serves callers lists `haibun`. */
+/** The method of the step that shows actuality's declarations. The `Haibun` stepper declares it, so the configuration of
+ *  an instance that serves callers lists `haibun`. */
 export const SHOW_STEPS_METHOD = "Haibun-showSteps";
 
-/** What showing a run's declarations requires: a public read. A caller reads it before it knows any other step, so this
- *  is the one action a caller knows without asking. */
+/** The action the show steps step requires: a public read. A caller calls show steps before it reads any step's
+ *  declaration, so a caller names this action without a prior read. */
 export const SHOW_STEPS_ACTION = readAction(Access.public);
 
-/** The domain of how much of each declaration a read of a run's declarations returns. */
+/** The domain of the detail that a read of actuality's declarations returns for each declaration. */
 export const DOMAIN_STEP_DETAIL = "step-detail";
-/** A summary names each declaration and states what it does, and links its definition. A definition adds the schemas and
- *  links a step's call. A caller searches summaries, and reads the definitions of the steps it calls. */
+/** A summary names each declaration, states what it does and links its definition. A definition adds the schemas and
+ *  links a step's call. A caller searches summaries and reads the definitions of the steps it calls. */
 export const STEP_DETAIL = { summary: "summary", definition: "definition" } as const;
 export const StepDetailSchema = z.enum(STEP_DETAIL);
 type TStepDetail = z.infer<typeof StepDetailSchema>;
 
-/** A read of what a run declares: the declarations whose text contains `text`, compared without regard to case, at `detail`. */
+/** A read of actuality's declarations at `detail`. It selects each declaration whose text contains `text` in a
+ *  case-insensitive comparison. */
 export type TStepsQuery = { text: string; detail: TStepDetail };
 
-/** Every declaration a run holds, in full, since every text contains the empty text. A page and a remote host read this. */
+/** A read at the definition detail of every declaration actuality holds. Every text contains the empty text, so this read
+ *  selects every declaration. A page and a remote host send this read. */
 export const EVERY_DEFINITION = { text: "", detail: STEP_DETAIL.definition } as const satisfies TStepsQuery;
 
-/** Whether any of the texts contains the given text, compared without regard to case. */
+/** Returns whether any of the texts contains the given text in a case-insensitive comparison. */
 export function containsText(texts: Array<string | undefined>, text: string): boolean {
 	const sought = text.toLowerCase();
 	return texts.some((candidate) => candidate !== undefined && candidate.toLowerCase().includes(sought));
 }
 
-/** The JSON Schema of a step's arguments: an object with a property for each argument, every one required. */
+/** The JSON Schema of a step's arguments. It is an object with a property for each argument, and every property is required. */
 const InputSchemaSchema = z.looseObject({ type: z.literal("object"), properties: z.record(z.string(), z.record(z.string(), z.unknown())), required: z.array(z.string()) });
 export type TInputSchema = z.infer<typeof InputSchemaSchema>;
 
@@ -58,7 +62,7 @@ export const StepDescriptorSchema = z
 		paramDomains: z.record(z.string(), z.string()),
 		/** The domain of the products the step returns, where it declares one. */
 		productsDomain: z.string().optional(),
-		/** The statement parameter whose products the step passes on, where it answers with what a statement answered. */
+		/** The statement parameter whose products the step returns as its own, where the step returns a statement's products. */
 		productsOf: z.string().optional(),
 		/** Each parameter naming a record by its id, with the parameter naming the record's type. */
 		recordIds: z.record(z.string(), z.string()).optional(),
@@ -66,17 +70,21 @@ export const StepDescriptorSchema = z
 		recordData: z.record(z.string(), z.string()).optional(),
 		/** The action a caller holds to call the step. */
 		capability: z.string(),
-		/** The level of what the step reads, which a caller's read must reach, where the step states one. */
+		/** The access level of the records the step reads, where the step states one. A caller's read must reach this level. */
 		readsAt: AccessLevelSchema.optional(),
-		/** Whether the step is a read: a caller that names it asks to read, and actuality answers without recording the reading. */
+		/** Whether the step is a read. A call that requests a read must name such a step, and actuality returns the result of
+		 *  a read over a transport without recording a step. */
 		read: z.boolean(),
-		/** Whether the step answers only when the other steps don't answer to its name. */
+		/** Whether the resolver drops the step from a line's candidates where a step that isn't a fallback also matches the line. */
 		fallback: z.boolean(),
-		/** Whether the step's result answers the turn that called it, so that turn ends with it rather than asking its model again. */
+		/** Whether the step's result is the response to the turn that called it. That turn ends with the result and doesn't
+		 *  send its model another request. */
 		answersTheTurn: z.boolean(),
-		/** The read that answers a caller who reads what the step changed, where the step names one. */
+		/** The read step that returns what the step changed, where the step names one. answeredFor calls it after the step,
+		 *  whether the step passed or failed. */
 		answeredBy: z.string().optional(),
-		/** The origin of the instance a transport calls the step at, where the step runs at another instance. */
+		/** The origin of the instance that runs the step, where another instance runs it. A transport calls the step at
+		 *  this origin. */
 		remoteOrigin: z.string().optional(),
 		inputSchema: InputSchemaSchema,
 		/** The JSON Schema of the products the step returns, where it declares them. */
@@ -85,21 +93,21 @@ export const StepDescriptorSchema = z
 	.strict();
 export type TStepDescriptor = z.infer<typeof StepDescriptorSchema>;
 
-/** A domain as a read of a run's declarations states it. */
+/** A domain as a read of actuality's declarations states it. */
 const DomainDiscoveryInfoSchema = z
 	.object({
 		description: z.string().optional(),
 		values: z.array(z.string()).optional(),
 		stepperName: z.string().optional(),
 		persistedAs: z.string().optional(),
-		/** How a domain presents itself: the component that renders it, the URL its source is served from, and its labels.
-		 *  Never the component's source itself: a client loads that from the URL. */
+		/** The domain's presentation: the component that renders it, the URL of the component's source, and its labels. It
+		 *  doesn't contain the component's source. A client loads the source from the URL. */
 		ui: z.record(z.string(), z.unknown()).optional(),
 	})
 	.strict();
 export type TDomainDiscoveryInfo = z.infer<typeof DomainDiscoveryInfoSchema>;
 
-/** A read of a run's declarations with the text and the detail given. */
+/** A read of actuality's declarations with the given text and detail. */
 const readOf = <D extends TStepDetail>(text: string, detail: D) => ({ method: SHOW_STEPS_METHOD, params: { text, detail } }) as const;
 const readLinkSchema = <D extends TStepDetail>(detail: D) =>
 	z.object({ method: z.literal(SHOW_STEPS_METHOD), params: z.object({ text: z.string(), detail: z.literal(detail) }).strict() }).strict();
@@ -122,7 +130,7 @@ const DomainSummarySchema = z.object({ description: z.string().optional(), [HYPE
 const StepDefinitionSchema = StepDescriptorSchema.extend({ [HYPERMEDIA.LINKS]: z.object({ call: z.object({ method: z.string() }).strict() }).strict() });
 export type TStepDefinition = z.infer<typeof StepDefinitionSchema>;
 
-/** What a read of a run's declarations returns at each detail. Both state their domains by name. */
+/** What a read of actuality's declarations returns at each detail. Both details key their domains by name. */
 const StepSummariesSchema = z
 	.object({
 		detail: z.literal(STEP_DETAIL.summary),
@@ -168,8 +176,8 @@ export const domainSummary = (domain: string, description: string | undefined): 
 /** A step as a definition states it. */
 export const stepDefinition = (step: TStepDescriptor): TStepDefinition => ({ ...step, [HYPERMEDIA.LINKS]: { call: { method: step.method } } });
 
-/** What a call to show steps returned at the detail it asked for. A dispatched step's products carry the seqPath it ran
- *  at, which is the call's trace and not what actuality declares, so the reading drops it. */
+/** Parses the products of a call to show steps at the detail the call requested. A dispatched step's products carry its
+ *  seqPath and its domain's hypermedia markers. These fields aren't actuality's declarations, so productData drops them. */
 export function readShownSteps(products: unknown, detail: typeof STEP_DETAIL.summary): TStepSummaries;
 export function readShownSteps(products: unknown, detail: typeof STEP_DETAIL.definition): TStepDefinitions;
 export function readShownSteps(products: unknown, detail: TStepDetail): TStepDiscovery {
@@ -178,25 +186,25 @@ export function readShownSteps(products: unknown, detail: TStepDetail): TStepDis
 }
 
 /** What the show steps step does, which its definition states. */
-export const SHOW_STEPS_DESCRIPTION = `Reads what this run declares: the steps its caller may call, and every domain. The text is matched without regard to case against each step's method, pattern and description, and each domain's name and description; an empty text matches everything. A method names its stepper and a hyphen first, so the text GraphStepper- matches the steps of GraphStepper and of any stepper whose name ends in GraphStepper. The ${STEP_DETAIL.summary} detail names each match, states what it does and links its definition. The ${STEP_DETAIL.definition} detail adds each step's argument and product schemas and links its call, and a step whose definition you read is one you may call. Every result lists the steppers whose steps matched.`;
+export const SHOW_STEPS_DESCRIPTION = `Reads actuality's declarations: the steps its caller may call, and every domain. The text is compared with each step's method, pattern and description, and with each domain's name and description. The comparison ignores case. An empty text matches every step and domain. A method names its stepper and a hyphen first, so the text GraphStepper- matches the steps of GraphStepper and of any stepper whose name ends in GraphStepper. The ${STEP_DETAIL.summary} detail names each match, states what it does and links its definition. The ${STEP_DETAIL.definition} detail adds each step's argument and product schemas and links its call. A step whose definition you read is one you may call. Every result lists the steppers whose steps matched.`;
 
-/** A tool as MCP defines one, which a model provider sends under its own field names. */
+/** A tool as MCP defines it. A model provider sends the same fields under its own field names. */
 export type TToolDefinition = { name: string; description: string; inputSchema: TInputSchema };
 
-/** A step as a tool: its method as the name, its pattern with its description, the capability it requires and the host
- *  it runs at, and the schema of its arguments. */
+/** A step as a tool: its method as the name, its pattern with its description, the capability it requires, the origin
+ *  of the instance that runs it, and the schema of its arguments. */
 export function toolDefinition(step: TStepDescriptor): TToolDefinition {
 	const parts = [step.pattern, step.description, `Requires capability ${step.capability}.`, step.remoteOrigin === undefined ? undefined : `Runs at ${step.remoteOrigin}.`];
 	return { name: step.method, description: parts.filter((part) => part !== undefined).join("\n\n"), inputSchema: step.inputSchema };
 }
 
-/** What a caller is told of a run before it asks for anything: the step that reads the run's declarations, and each
- *  stepper of the steps the caller holds, by its name, what it does and how many of its steps the caller holds. The
- *  definition of show steps states how to read. A model's turn states it in its standing instruction; an MCP host, whose
- *  instructions are set before any caller connects, sends it without naming a stepper. */
+/** The instructions a caller receives before its first request. They name the step that reads actuality's declarations.
+ *  They list each stepper of the steps the caller holds, with its name, what it does and how many of its steps the caller
+ *  holds. The definition of show steps states how to read the declarations. A model's turn puts these instructions in its
+ *  standing instruction. An MCP host sets its instructions before any caller connects, so they don't list a stepper. */
 export function stepsInstructions(steppers: TStepperSummary[]): string {
 	const ask = `Call ${SHOW_STEPS_METHOD} to find the step a request needs.`;
 	if (steppers.length === 0) return ask;
 	const listed = steppers.map((entry) => `- ${entry.stepper} (${entry.steps} steps): ${entry.description}`).join("\n");
-	return `${ask}\n\nThis run's steppers:\n${listed}`;
+	return `${ask}\n\nSteppers whose steps you hold:\n${listed}`;
 }

@@ -27,7 +27,7 @@ class EmailFromPerson extends AStepper {
 	steps: TStepperSteps = { issueEmail: { gwta: `issue email for {who: ${PERSON}}`, productsDomain: EMAIL, action: () => actionOKWithProducts({ id: "e1" }) } };
 }
 
-/** A registered producer of Person, turns Person into a typed-fact domain (not an argument). */
+/** A registered producer of Person. It makes Person a typed-fact domain instead of an argument. */
 class PersonSource extends AStepper {
 	description = "Registers a person.";
 	steps: TStepperSteps = { registerPerson: { gwta: "register a person", productsDomain: PERSON, action: () => actionOKWithProducts({ id: "p1" }) } };
@@ -76,13 +76,13 @@ describe("buildAffordances", () => {
 		expect(issue?.readyToRun).toBe(true);
 	});
 
-	it("marks steps without a producer for an input as readyToRun: that input is supplied as an argument, not chained", () => {
+	it("marks steps without a producer for an input as readyToRun: that input is supplied as an argument and isn't chained", () => {
 		const result = buildAffordances({ steppers: [new EmailFromPerson()], domains: fixedDomains(), facts: [], held: RUN_AUTHORITY });
 		const issue = result.forward.find((f) => f.stepName === "issueEmail");
 		expect(issue?.readyToRun).toBe(true);
 	});
 
-	it("leaves a reference out of the goals and the composites, since the type it names stands for it", () => {
+	it("leaves a reference out of the goals and the composites, and the goals list the type it names", () => {
 		const domains = deriveNamingDomains(
 			mapDefinitionsToDomains([
 				{ selectors: [PERSON], schema: z.object({ id: z.string() }), description: "person" },
@@ -95,7 +95,7 @@ describe("buildAffordances", () => {
 			]),
 		);
 		class EmailRefFromPerson extends AStepper {
-			description = "Answers with a reference to a person's email.";
+			description = "Returns a reference to a person's email.";
 			steps: TStepperSteps = { refer: { gwta: `refer to the email of {who: ${PERSON}}`, productsDomain: refDomainKey(EMAIL), action: () => actionOKWithProducts({ id: "e1" }) } };
 		}
 		const result = buildAffordances({ steppers: [new EmailFromPerson(), new EmailRefFromPerson(), new PersonSource()], domains, facts: [], held: RUN_AUTHORITY });
@@ -133,19 +133,19 @@ describe("buildAffordances", () => {
 		expect(result.goals.find((g) => g.domain === EMAIL)).toBeUndefined();
 	});
 
-	it("surfaces a goal when its only reachable path chains more than one step", () => {
+	it("lists a goal where its only reachable path chains more than one step", () => {
 		const result = buildAffordances({ steppers: [new EmailFromPerson(), new PersonSource()], domains: fixedDomains(), facts: [], held: RUN_AUTHORITY });
 		const emailGoal = result.goals.find((g) => g.domain === EMAIL);
 		expect(emailGoal?.resolution.finding).toBe("michi");
 	});
 
-	it("filters out satisfied single-step goals: the asserted fact alone conveys the verdict, and they don't have chaining context to show", () => {
+	it("filters out satisfied single-step goals, since satisfiedDomains lists the asserted domain and the goal doesn't chain steps", () => {
 		const fact: TQuad = { subject: "s:1", predicate: SESSION, object: { id: "s1" }, namedGraph: "facts", timestamp: 1 };
 		const result = buildAffordances({ steppers: [new SessionTerminal()], domains: fixedDomains(), facts: [fact], held: RUN_AUTHORITY });
 		expect(result.goals.find((g) => g.domain === SESSION)).toBeUndefined();
 	});
 
-	it("with asOfSeqPath, drops facts whose seqPath subject is after the cursor", () => {
+	it("drops facts whose seqPath subject is after asOfSeqPath", () => {
 		const personEarly: TQuad = { subject: "0.1.5", predicate: PERSON, object: { id: "p1" }, namedGraph: "facts", timestamp: 1 };
 		const emailLate: TQuad = { subject: "0.1.9", predicate: EMAIL, object: { id: "e1" }, namedGraph: "facts", timestamp: 2 };
 		const live = buildAffordances({ steppers: [new EmailFromPerson(), new PersonSource()], domains: fixedDomains(), facts: [personEarly, emailLate], held: RUN_AUTHORITY });
@@ -157,9 +157,8 @@ describe("buildAffordances", () => {
 			held: RUN_AUTHORITY,
 			asOfSeqPath: [0, 1, 6],
 		});
-		// emailLate (0.1.9) is dropped, personEarly (0.1.5) survives; the Email
-		// goal sees one less asserted fact, so the resolver does not report it
-		// as satisfied through that emission.
+		// asOfSeqPath drops emailLate (0.1.9) and keeps personEarly (0.1.5). The Email goal has one fewer asserted fact,
+		// so the resolver doesn't report it as satisfied through emailLate.
 		expect(replay.forward.find((f) => f.stepName === "issueEmail")?.readyToRun).toBe(true);
 	});
 });

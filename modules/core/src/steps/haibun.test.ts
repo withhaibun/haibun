@@ -26,7 +26,7 @@ describe("until", () => {
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
 	});
-	it("fails, naming why, when its statements haven't passed within the duration", async () => {
+	it("fails and states why when its statements haven't passed within the duration", async () => {
 		const feature = { path: "/features/test.feature", content: 'until fails within "50ms"' };
 		const result = await failWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(false);
@@ -62,14 +62,14 @@ describe("on host", () => {
 		const result = await passWithDefaults([feature], [Haibun, TestSteps, RemoteMarker]);
 		expect(result.ok).toBe(true);
 		const ins = itemAt(result.featureResults, 0).stepResults.map((r) => r.in);
-		// Sub-step records before its wrapping `on host` step's own result is pushed.
+		// The substep's record precedes the result of the `on host` step that wraps it.
 		expect(ins).toEqual(["passes", "passes", "on host 2, passes"]);
 		if (!result.world) throw new Error("result.world missing");
 		const remoteCalled = await getFact(result.world, "flag", "remoteCalled", OBSERVATION_GRAPH.RUNTIME_FLAG);
 		expect(remoteCalled).toBe(true);
 	});
 
-	it("fails cleanly when a registry entry doesn't exist for the target hostId", async () => {
+	it("fails and names the host-scoped method when a registry entry doesn't exist for the target hostId", async () => {
 		const feature = { path: "/features/test.feature", content: "on host 9, passes" };
 		const result = await failWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(false);
@@ -85,7 +85,7 @@ describe("seqPath ordering", () => {
 	// scenarioNum: 1-based scenario number (1 when a scenario isn't declared)
 	// stepPath: hierarchical step numbering with negative numbers for conditions
 
-	it("linear steps have incremental single-element seqPath", async () => {
+	it("linear steps increment the last element of the seqPath", async () => {
 		const feature = { path: "/features/test.feature", content: "passes\npasses\npasses" };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
@@ -134,7 +134,7 @@ describe("afterEvery", () => {
 		expect(ins).toEqual(["have a test", 'after every "TestSteps", Noodles, man.', "passes", "Noodles, man.", "passes", "Noodles, man."]);
 	});
 
-	it("fails a step whose after-every step fails, stating why, and records the step before it", async () => {
+	it("fails a step whose after-every step fails, states why, and records the step before its after-every step", async () => {
 		const feature = { path: "/features/test.feature", content: 'after every "TestSteps", fails\npasses' };
 		const result = await failWithDefaults([feature], [Haibun, TestSteps]);
 		const results = itemAt(result.featureResults, 0).stepResults;
@@ -149,8 +149,8 @@ describe("afterEvery", () => {
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
 		const seqs = itemAt(result.featureResults, 0).stepResults.map((r) => r.seqPath);
-		// afterEvery substep gets negative index (side-effect, not primary flow)
-		// Step [1,1,4] "passes" does not trigger afterEvery because it's the same action (prevents infinite recursion)
+		// An afterEvery substep has a negative index, since it isn't a step of the feature.
+		// Step [0,1,1,4] "passes" doesn't run the after-every step, since the after-every step is the same action.
 		expect(seqs).toEqual([
 			[0, 1, 1, 1],
 			[0, 1, 1, 2],
@@ -160,18 +160,18 @@ describe("afterEvery", () => {
 		]);
 	});
 
-	it("runs after a step of the feature, once, and not after the substeps of carrying it out", async () => {
+	it("runs once after a step of the feature and doesn't run after its substeps", async () => {
 		const feature = { path: "/features/test.feature", content: ["have a test", 'after every "TestSteps", Noodles, man.', "passes", "not fails"].join("\n") };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps, LogicStepper]);
 		expect(result.ok).toBe(true);
 		const said = itemAt(result.featureResults, 0).stepResults.filter((r) => r.in === "Noodles, man.").length;
-		expect(said, "one statement for the step the feature holds, and not one for the substep another step ran").toBe(1);
+		expect(said, "the statement runs for the step the feature holds and doesn't run for the substep that another step ran").toBe(1);
 	});
 });
 
 describe("line comment", () => {
 	const NOTE = ";;unsetVariable is the text of a note";
-	it("resolves a `;;` statement to the comment step, not to prose, and passes without resolving the variable its text refers to", async () => {
+	it("resolves a `;;` statement to the comment step instead of prose, and passes without resolving the variable that its text names", async () => {
 		const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);
 		const haibun = new Haibun();
 		await haibun.setWorld(world, [haibun]);
@@ -214,8 +214,8 @@ Prose sections are indicated by the presence of punctuation at the end of paragr
 	});
 });
 
-describe("the steps a run holds", () => {
-	it("are announced to actuality's subscribers when a transport adds to them", async () => {
+describe("the steps actuality holds", () => {
+	it("are announced to actuality's subscribers with STEPS_CHANGED when a transport adds a step", async () => {
 		const signals: string[] = [];
 		class AddsAStep extends AStepper {
 			description = "Adds a step to actuality's registry, as a transport adds another host's steps, and records actuality's signals.";
@@ -240,7 +240,7 @@ describe("the steps a run holds", () => {
 });
 
 describe("show steps", () => {
-	it("shows actuality's steps whose text contains the text, as a feature line reads them", async () => {
+	it("shows actuality's steps whose method, pattern or description contains the text a feature line gives", async () => {
 		const feature = { path: "/features/test.feature", content: 'show steps matching "testsTEPS-passes" as "definition"' };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
@@ -253,7 +253,7 @@ describe("show steps", () => {
 		expect(discovery.steppers.map((entry) => entry.stepper)).toEqual(["TestSteps"]);
 	});
 
-	it("shows a caller that acts for another the steps that other holds, while the caller holds less", async () => {
+	it("shows the steps a principal holds to a caller that acts for that principal and holds less", async () => {
 		const shown: string[][] = [];
 		class ActsForAnother extends AStepper {
 			description = "Lists steps as a caller holding only a public read that acts for one holding every action.";
@@ -296,7 +296,7 @@ describe("show steps", () => {
 });
 
 describe("nothing", () => {
-	it("nothing step doesn't act and passes", async () => {
+	it("an empty line passes without acting", async () => {
 		const feature = { path: "/features/test.feature", content: "" };
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
@@ -399,7 +399,6 @@ describe("backgrounds", () => {
 		const bgSteps = itemAt(result.featureResults, 0).stepResults.filter((r) => r.path?.includes("backgrounds/")) || [];
 		expect(bgSteps.length).toBe(2);
 
-		// Background steps should have lineNumbers 1 and 2
 		const bgLineNumbers = bgSteps.map((r) => r.lineNumber);
 		expect(bgLineNumbers).toEqual([1, 2]);
 	});
@@ -411,13 +410,12 @@ describe("backgrounds", () => {
 		const result = await passWithDefaults([feature], [Haibun, ActivitiesStepper, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 
-		// The "set x to 1" step should have lineNumber 2 (in bg.feature) and path backgrounds/bg.feature
 		const activityStep = itemAt(result.featureResults, 0).stepResults.find((r) => r.in === 'set x to "1"');
 		expect(activityStep).toBeDefined();
 		expect(activityStep?.lineNumber).toBe(3);
 		expect(activityStep?.path).toBe("test_base/backgrounds/bg.feature");
 
-		// The waypoint itself should also have its source location
+		// The waypoint record also carries its source location.
 		const waypointStep = itemAt(result.featureResults, 0).stepResults.find((r) => r.in === "Test Activity");
 		expect(waypointStep).toBeDefined();
 		expect(waypointStep?.lineNumber).toBe(3);

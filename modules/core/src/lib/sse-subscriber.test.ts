@@ -6,9 +6,9 @@ import { itemAt } from "./util/item-at.js";
 
 const ACTUALITY = newActualityId();
 
-/** A host's stream the case drives: each connection the subscriber asks for, what it asked with, and the body the case
- *  writes messages to or ends. A connection asked for while `refusing` is answered 401, as a host refuses a stream to a
- *  caller that doesn't hold what it requires. */
+/** A host's stream that the test drives. It records each connection the subscriber requests, the request's headers, and
+ *  the body that the test writes messages into or ends. A connection requested while `refusing` receives a 401
+ *  response, as a host refuses a stream to a caller that doesn't hold the authority it requires. */
 function hostStreams() {
 	const connections: { url: string; headers: Record<string, string>; send: (data: string) => void; end: () => void }[] = [];
 	const host = { connections, refusing: false };
@@ -30,7 +30,7 @@ function hostStreams() {
 const wire = (event: Record<string, unknown>): string => JSON.stringify({ type: "event", event });
 
 describe("SseSubscriber delivery", () => {
-	it("dispatches each message the stream carries, unwrapped", async () => {
+	it("unwraps each message's envelope and dispatches the event", async () => {
 		const { host, fetchImpl } = hostStreams();
 		const sub = new SseSubscriber({ url: "/sse", actualityId: ACTUALITY, fetchImpl });
 		const received: THaibunEvent[] = [];
@@ -43,7 +43,7 @@ describe("SseSubscriber delivery", () => {
 		sub.close();
 	});
 
-	it("asks for each connection with the headers made for it, since a proof covers one request", async () => {
+	it("requests each connection with headers made for that request, since a proof covers one request", async () => {
 		const { host, fetchImpl } = hostStreams();
 		let made = 0;
 		const sub = new SseSubscriber({
@@ -58,13 +58,13 @@ describe("SseSubscriber delivery", () => {
 		itemAt(host.connections, 0).end();
 		await vi.waitFor(() => expect(host.connections).toHaveLength(2));
 		expect(host.connections.map((c) => c.headers["capability-invocation"])).toEqual(["/sse 1", "/sse 2"]);
-		expect(itemAt(host.connections, 0).headers.accept, "and states what it reads").toBe("text/event-stream");
+		expect(itemAt(host.connections, 0).headers.accept, "and sends an accept header for an event stream").toBe("text/event-stream");
 		sub.close();
 	});
 });
 
-describe("SseSubscriber catching up after a break", () => {
-	it("the first open doesn't announce, and a re-open after the stream drops announces once", async () => {
+describe("SseSubscriber reconnection after a break", () => {
+	it("doesn't call a reconnected listener on the first open, and calls it once on a re-open after the stream drops", async () => {
 		const { host, fetchImpl } = hostStreams();
 		const sub = new SseSubscriber({ url: "/sse", actualityId: ACTUALITY, reconnectDelayMs: 0, fetchImpl });
 		let caughtUp = 0;
@@ -80,7 +80,7 @@ describe("SseSubscriber catching up after a break", () => {
 		sub.close();
 	});
 
-	it("stops announcing once the caller has unsubscribed", async () => {
+	it("doesn't call a reconnected listener after its unsubscribe runs", async () => {
 		const { host, fetchImpl } = hostStreams();
 		const sub = new SseSubscriber({ url: "/sse", actualityId: ACTUALITY, reconnectDelayMs: 0, fetchImpl });
 		let caughtUp = 0;
@@ -96,7 +96,7 @@ describe("SseSubscriber catching up after a break", () => {
 		sub.close();
 	});
 
-	it("a refused connection is down, and not asked for again, since the host's answer about its caller will not change", async () => {
+	it("leaves a refused connection down and doesn't request it again, since the host's response to its caller doesn't change", async () => {
 		const { host, fetchImpl } = hostStreams();
 		host.refusing = true;
 		let asked = 0;
@@ -109,13 +109,13 @@ describe("SseSubscriber catching up after a break", () => {
 		sub.disconnected(() => down++);
 		sub.connect();
 		await vi.waitFor(() => expect(down).toBe(1));
-		// One turn of the event loop, in which a retry without a delay would have asked again.
+		// One turn of the event loop. A retry with a zero delay would request the stream again within it.
 		await new Promise((resolve) => setTimeout(resolve, 0));
-		expect(asked, "asked once").toBe(1);
+		expect(asked, "requested once").toBe(1);
 		sub.close();
 	});
 
-	it("a connection that fails is a break, asked for again after the delay", async () => {
+	it("treats a failed connection as a break and requests it again after the delay", async () => {
 		const { host, fetchImpl } = hostStreams();
 		let failing = true;
 		const flaky: typeof fetch = (url, init) => (failing ? Promise.reject(new TypeError("fetch failed")) : fetchImpl(url, init));
