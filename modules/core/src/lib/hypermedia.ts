@@ -467,6 +467,19 @@ export function pageLimit(method: string, limit: number): number {
 	return limit;
 }
 
+/** Reads the rows from `start` to `end` in pages of at most `MAX_PAGE_ROWS`, in order, and stops at the first page shorter
+ *  than its span, which is the end of the data. Every client reading a span longer than one page calls this. */
+export async function readInPages<T>(readPage: (from: number, to: number) => Promise<readonly T[]>, start: number, end: number): Promise<T[]> {
+	const rows: T[] = [];
+	for (let from = start; from < end; from += MAX_PAGE_ROWS) {
+		const to = Math.min(end, from + MAX_PAGE_ROWS);
+		const page = await readPage(from, to);
+		rows.push(...page);
+		if (page.length < to - from) break;
+	}
+	return rows;
+}
+
 /** A view's members, validated as the block is built, so every view states them the one way. `totalItems` counts the
  *  members given, unless the view states that it holds more. */
 export function viewCollection(states: { id: string; name: string; items: ReadonlyArray<unknown>; totalItems?: number; stated?: Record<string, unknown> }): TViewCollection {

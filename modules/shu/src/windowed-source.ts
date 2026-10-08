@@ -4,7 +4,7 @@
  * an arbitrarily long set stays reachable. It is renderer-agnostic: the DOM virtualizer and a future 3D chip-mesh rail
  * read the same three calls (count, rowAt, ensureRange), so the same column data can drive both media.
  */
-import { counted, MAX_PAGE_ROWS, type TCounted } from "@haibun/core/lib/hypermedia.js";
+import { counted, readInPages, type TCounted } from "@haibun/core/lib/hypermedia.js";
 import type { TScrollMarker } from "./scrollbar-model.js";
 import type { Range } from "./ranges.js";
 
@@ -80,19 +80,6 @@ export function arrayWindowedSource<T>(
 /** Fetch the rows for `[start, end)`. Returns fewer than requested only at the end of the data. A paged source requests at
  *  most `MAX_PAGE_ROWS` rows in one call. */
 type TPageFetcher<T> = (start: number, end: number) => Promise<readonly T[]>;
-
-/** Reads the rows for `[start, end)` in order, as requests of at most `MAX_PAGE_ROWS` rows. A store returns a short page
- *  only at the end of the data, so a short response ends the read. */
-async function readSpan<T>(fetch: TPageFetcher<T>, start: number, end: number): Promise<T[]> {
-	const rows: T[] = [];
-	for (let from = start; from < end; from += MAX_PAGE_ROWS) {
-		const to = Math.min(end, from + MAX_PAGE_ROWS);
-		const page = await fetch(from, to);
-		for (const row of page) rows.push(row);
-		if (page.length < to - from) break;
-	}
-	return rows;
-}
 
 /** A paged source for data too large to cache cached (up to millions): rows are fetched a page at a time on
  *  ensureRange, cached in a bounded window (pages far from the last request are evicted so memory stays flat regardless
@@ -186,7 +173,7 @@ function makePagedSource<T>(opts: TPagedSourceOptions<T>): TPagedSource<T> {
 		if (endRow <= startRow) return; // the range fell outside the current count (it shrank); never call fetch with end<=start
 		// A partial first page holds that page's first rows, so the read starts after them.
 		const held = pages.get(firstPage) ?? [];
-		const rows = [...held, ...(await readSpan(opts.fetch, startRow + held.length, endRow))];
+		const rows = [...held, ...(await readInPages(opts.fetch, startRow + held.length, endRow))];
 		readEnd = Math.max(readEnd, startRow + rows.length);
 		if (rows.length < endRow - startRow) dataEnd = startRow + rows.length; // the read reached the end of the data
 		for (let p = firstPage; p <= lastPage; p++) {

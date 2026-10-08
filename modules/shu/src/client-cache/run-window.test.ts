@@ -3,6 +3,7 @@
 // decade. These pin where a window sits, what it holds and what a level narrows it to.
 import { describe, it, expect } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { MAX_PAGE_ROWS } from "@haibun/core/lib/hypermedia.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
@@ -70,6 +71,12 @@ describe("the window of a run a reader is looking at", () => {
 		expect(itemAt(atTheStart.rows, 0).at).toBe(1000);
 		const atTheEnd = await runWindow(graph, { at: 1039, size: 6 });
 		expect(atTheEnd.rows, "one record at the end, so five before it").toHaveLength(6);
+	});
+
+	it("tops up a window larger than one page by reading pages, as a store rejects a page past its maximum", async () => {
+		const graph = runGraphOf(await aRunOf(3));
+		const atTheStart = await runWindow(graph, { at: 1000, size: MAX_PAGE_ROWS });
+		expect(atTheStart.rows.map((r) => r.text)).toEqual(["step 0", "said 0", "step 1", "said 1", "step 2", "said 2"]);
 	});
 
 	it("doesn't hold more than actuality does", async () => {

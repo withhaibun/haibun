@@ -12,6 +12,7 @@
  * run holds that many.
  */
 import { GraphQuerySchema } from "@haibun/core/lib/quad-types.js";
+import { readInPages } from "@haibun/core/lib/hypermedia.js";
 import { HAIBUN_LOG_LEVELS, SUBSTEP_LEVEL, type THaibunLogLevel } from "@haibun/core/schema/protocol.js";
 import { LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { RUN_ARTIFACT_FIELD, RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
@@ -313,8 +314,12 @@ async function side(
 	const read = type.widensBySubsteps && substeps && !levels.includes(SUBSTEP_LEVEL) ? [...levels, SUBSTEP_LEVEL] : levels;
 	const shown = type.atEveryLevel ? [] : [{ predicate: LEVEL, operator: "in", value: read[0], values: [...read] }];
 	const sortOrder = direction === "before" ? "desc" : "asc";
-	const { vertices } = await graph.query(GraphQuerySchema.parse({ label, filters: [...when, ...shown], sortBy: timeField, sortOrder, limit, skipCount: true }));
-	return vertices;
+	const filters = [...when, ...shown];
+	return readInPages(
+		async (from, to) => (await graph.query(GraphQuerySchema.parse({ label, filters, sortBy: timeField, sortOrder, offset: from, limit: to - from, skipCount: true }))).vertices,
+		0,
+		limit,
+	);
 }
 
 /**
