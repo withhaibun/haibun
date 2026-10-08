@@ -234,8 +234,8 @@ export class FeatureExecutor {
 			if (step.action.actionName === FEATURE_START) {
 				if (currentScenario) {
 					await doStepperCycle(this.steppers, "endScenario", undefined);
-					world.shared = new FeatureVariables(world, await baseVars.all());
-					scopedVars = new FeatureVariables(world, await world.shared.all());
+					world.shared = new FeatureVariables(world, await baseVars.carried());
+					scopedVars = new FeatureVariables(world, await world.shared.carried());
 					currentScenario = 0;
 				}
 				world.runtime.currentFeaturePath = feature.path;
@@ -256,7 +256,7 @@ export class FeatureExecutor {
 			if (step.action.actionName === SCENARIO_START) {
 				if (currentScenario) {
 					await doStepperCycle(this.steppers, "endScenario", undefined);
-					scopedVars = new FeatureVariables(world, await world.shared.all());
+					scopedVars = new FeatureVariables(world, await world.shared.carried());
 				}
 				currentScenario = currentScenario + 1;
 				world.eventLogger.emit(
@@ -289,8 +289,8 @@ export class FeatureExecutor {
 				await sleep(world.options[STEP_DELAY] as number);
 			}
 			if (!currentScenario) {
-				scopedVars = new FeatureVariables(world, await world.shared.all());
-				baseVars = new FeatureVariables(world, await world.shared.all());
+				scopedVars = new FeatureVariables(world, await world.shared.carried());
+				baseVars = new FeatureVariables(world, await world.shared.carried());
 			}
 		}
 

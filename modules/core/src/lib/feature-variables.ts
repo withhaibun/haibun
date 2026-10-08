@@ -14,12 +14,27 @@ import { IQuadStore, SHARED_GRAPH, TQuad, emitQuadObservation } from "./quad-typ
 export { SHARED_GRAPH };
 export const OBSCURED_VALUE = "[o̴b̵s̵c̷u̶r̸e̵d̵]";
 
+/** A value as a message, an event or a record states it: a secret's value is obscured. */
+export const statedValue = (value: unknown, secret: boolean | undefined): unknown => (secret === true ? OBSCURED_VALUE : value);
+
 /** The domain of a value a dot path reads from JSON: a number compares as a number, text as text, and a list, an object, a
  *  boolean or null as the JSON it is. */
 const jsonValueDomain = (value: unknown): string => (typeof value === "number" ? DOMAIN_NUMBER : typeof value === "string" ? DOMAIN_STRING : DOMAIN_JSON);
 
+/** A variable's record in the variables graph. A secret's record holds the obscured value. */
+const variableOf = (q: TQuad): TStepValue => ({
+	term: q.subject,
+	domain: q.predicate,
+	value: q.object,
+	origin: (q.properties?.origin as TOrigin) ?? Origin.var,
+	...(q.properties?.secret === true ? { secret: true } : {}),
+});
+
 export class FeatureVariables {
 	private store: IQuadStore;
+	/** Each secret variable's value, by name, apart from the graph, which holds the obscured value. Resolution, `carried`
+	 *  and `getSecrets` read this map. */
+	private readonly secretValues = new Map<string, unknown>();
 
 	constructor(
 		private world: TWorld,
@@ -42,14 +57,20 @@ export class FeatureVariables {
 		return this.store;
 	}
 
+	/** The variables as the graph holds them, so a secret's value is obscured. */
 	async all(): Promise<{ [name: string]: TStepValue }> {
-		const quads = await this.store.query({ namedGraph: SHARED_GRAPH });
-		const result: { [name: string]: TStepValue } = {};
-		for (const q of quads) {
-			const isSecretVar = q.properties?.secret === true || this.isSecret(q.subject);
-			result[q.subject] = { term: q.subject, domain: q.predicate, value: isSecretVar ? OBSCURED_VALUE : q.object, origin: (q.properties?.origin as TOrigin) ?? Origin.var };
-		}
-		return result;
+		return Object.fromEntries((await this.variableQuads()).map((q) => [q.subject, variableOf(q)]));
+	}
+
+	/** The variables a next scope starts from. Each holds its value, and a secret holds its value from `secretValues`. */
+	async carried(): Promise<{ [name: string]: TStepValue }> {
+		return Object.fromEntries((await this.variableQuads()).map((q) => [q.subject, { ...variableOf(q), value: this.valueOf(q) }]));
+	}
+
+	/** Removes every quad of the store and every secret's value. */
+	async clear(): Promise<void> {
+		await this.store.clear();
+		this.secretValues.clear();
 	}
 
 	toString() {
@@ -69,6 +90,7 @@ export class FeatureVariables {
 
 	async unset(name: string) {
 		await this.store.remove({ subject: name, namedGraph: SHARED_GRAPH });
+		this.secretValues.delete(name);
 	}
 
 	async set(sv: TStepValue, provenance: TProvenanceIdentifier, namedGraph?: string) {
@@ -85,25 +107,19 @@ export class FeatureVariables {
 		if (domain === undefined) throw Error(`Cannot set variable "${sv.term}": unknown domain "${sv.domain}"`);
 		const normalized = { ...sv, domain: domainKey };
 		domain.coerce(normalized);
-		await this.writeQuads(sv.term, normalized, namedGraph, provenance);
+		const held = await this.writeQuads(sv.term, normalized, namedGraph, provenance);
 
 		const timestamp = Date.now();
-		emitQuadObservation(this.world.eventLogger, `quad-${timestamp}`, {
-			subject: sv.term,
-			predicate: domainKey,
-			object: this.isSecret(sv.term) ? OBSCURED_VALUE : normalized.value,
-			namedGraph,
-			timestamp,
-		});
+		emitQuadObservation(this.world.eventLogger, `quad-${timestamp}`, { subject: sv.term, predicate: domainKey, object: held, namedGraph, timestamp });
 	}
 
 	/** Look up a variable from store or dot-path. Shared by Origin.var, Origin.defined, Origin.quoted. */
 	private async lookupVariable(term: string): Promise<Partial<TStepValue> | undefined> {
 		const entry = await this.getStoredEntry(term);
-		if (entry) return { value: entry.value, domain: entry.domain, origin: Origin.var, secret: entry.secret ?? this.isSecret(term) };
+		if (entry) return { value: entry.value, domain: entry.domain, origin: Origin.var, secret: entry.secret };
 		if (term.includes(".")) {
 			const dot = await this.resolveDotPath(term);
-			if (dot.found) return { value: dot.value, domain: jsonValueDomain(dot.value), origin: Origin.var };
+			if (dot.found) return { value: dot.value, domain: jsonValueDomain(dot.value), origin: Origin.var, secret: dot.secret };
 		}
 		return undefined;
 	}
@@ -126,13 +142,13 @@ export class FeatureVariables {
 		let secret = false;
 		for (const match of template.matchAll(/\{([^{}"]+)\}/g)) {
 			const name = itemAt(match, 1);
-			// Secrecy is read before the secure resolution, which returns the value itself.
-			if (this.isSecret(name)) secret = true;
 			const resolved = await this.resolveTerm({ term: name, origin: Origin.defined }, featureStep, undefined, { secure: true });
 			if (resolved.value === undefined) {
 				if (options?.lenient) continue;
 				return { error: `Variable ${name} not found` };
 			}
+			// A value built from a secret is a secret.
+			if (resolved.secret === true || this.isSecret(name)) secret = true;
 			value = value.replace(match[0], () => String(resolved.value));
 		}
 		return { value, secret };
@@ -229,7 +245,18 @@ export class FeatureVariables {
 		const q = (await this.store.query({ subject: name, namedGraph: SHARED_GRAPH })).pop();
 		if (!q) return undefined;
 		const p = q.properties;
-		return { value: q.object, domain: q.predicate, readonly: p?.readonly === true, secret: p?.secret === true, origin: p?.origin as TOrigin | undefined };
+		return { value: this.valueOf(q), domain: q.predicate, readonly: p?.readonly === true, secret: p?.secret === true, origin: p?.origin as TOrigin | undefined };
+	}
+
+	/** A variable's value: the quad's object, or a secret's value from `secretValues`. */
+	private valueOf(q: TQuad): unknown {
+		if (q.properties?.secret !== true) return q.object;
+		if (!this.secretValues.has(q.subject)) throw new Error(`The secret variable "${q.subject}" doesn't have a value: FeatureVariables didn't write it`);
+		return this.secretValues.get(q.subject);
+	}
+
+	private variableQuads(): Promise<TQuad[]> {
+		return this.store.query({ namedGraph: SHARED_GRAPH });
 	}
 
 	/** Why `term` doesn't resolve: a variable that isn't set, or a dot path that names a field its value doesn't have,
@@ -248,7 +275,7 @@ export class FeatureVariables {
 		return !read.found && "miss" in read && read.miss.has.length > 0;
 	}
 
-	private async resolveDotPath(lookupTerm: string): Promise<ReturnType<typeof navigateValue> | { value: undefined; found: false }> {
+	private async resolveDotPath(lookupTerm: string): Promise<(ReturnType<typeof navigateValue> & { secret?: boolean }) | { value: undefined; found: false }> {
 		const { baseName, pathSegments } = parseDotPath(lookupTerm);
 		const baseEntry = pathSegments.length > 0 ? await this.getStoredEntry(baseName) : undefined;
 		if (!baseEntry) return { value: undefined, found: false };
@@ -259,7 +286,8 @@ export class FeatureVariables {
 			if (!read.success) return { value: undefined, found: false };
 			baseValue = read.data;
 		}
-		return navigateValue(baseValue, pathSegments);
+		// A field of a secret is a secret.
+		return { ...navigateValue(baseValue, pathSegments), secret: baseEntry.secret };
 	}
 
 	async getDomainValues(domainName: string): Promise<{ values: unknown[]; error?: string }> {
@@ -292,25 +320,30 @@ export class FeatureVariables {
 		for (const [key, value] of Object.entries(runEnvVariables(this.world))) {
 			if (this.isSecret(key)) secrets[key] = String(value);
 		}
-		// Query raw quads to get unmasked values for secret detection
-		const quads = await this.store.query({ namedGraph: SHARED_GRAPH });
-		for (const q of quads) {
-			if (q.properties?.secret === true || this.isSecret(q.subject)) secrets[q.subject] = String(q.object);
+		for (const q of await this.variableQuads()) {
+			if (q.properties?.secret === true) secrets[q.subject] = String(this.valueOf(q));
 		}
 		return secrets;
 	}
 
-	private async writeQuads(name: string, sv: TStepValue, namedGraph: string = SHARED_GRAPH, provenance?: TProvenanceIdentifier): Promise<void> {
+	/** Writes a variable's quad and returns the object the graph holds: a secret's value is held in `secretValues`, and its
+	 *  quad holds the obscured value. A value is secret where its name marks it or where it was built from a secret. */
+	private async writeQuads(name: string, sv: TStepValue, namedGraph: string = SHARED_GRAPH, provenance?: TProvenanceIdentifier): Promise<unknown> {
 		const domainKey = normalizeDomainKey(sv.domain);
+		const secret = sv.secret === true || this.isSecret(name);
+		if (secret) this.secretValues.set(name, sv.value);
+		else this.secretValues.delete(name);
 		const properties: Record<string, unknown> = {};
 		if (sv.origin) properties.origin = sv.origin;
 		if (sv.readonly) properties.readonly = true;
-		if (sv.secret || this.isSecret(name)) properties.secret = true;
+		if (secret) properties.secret = true;
 		if (provenance) {
 			const existing = await this.store.query({ subject: name, namedGraph });
 			const prev = existing.pop()?.properties?.provenance;
 			properties.provenance = Array.isArray(prev) ? [...prev, provenance.seq] : [provenance.seq];
 		}
-		await this.store.set(name, domainKey, sv.value, namedGraph, Object.keys(properties).length > 0 ? properties : undefined);
+		const held = statedValue(sv.value, secret);
+		await this.store.set(name, domainKey, held, namedGraph, Object.keys(properties).length > 0 ? properties : undefined);
+		return held;
 	}
 }

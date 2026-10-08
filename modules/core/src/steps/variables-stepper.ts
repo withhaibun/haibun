@@ -7,7 +7,7 @@ import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TSta
 import { actionOK, actionNotOK, actionOKWithProducts, getStepTerm, errorDetail } from "../lib/util/index.js";
 import { itemAt } from "../lib/util/item-at.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
-import { FeatureVariables, OBSCURED_VALUE } from "../lib/feature-variables.js";
+import { FeatureVariables, OBSCURED_VALUE, statedValue } from "../lib/feature-variables.js";
 import { sanitizeObjectSecrets } from "../lib/util/secret-utils.js";
 import {
 	DOMAIN_DOMAIN_KEY,
@@ -32,7 +32,7 @@ import { HypermediaContextSchema, hypermediaDomainFromContext, type THypermediaC
 import { edgeRanges, isPersisted, REL_CONTEXT, LinkRelations, type TRel, type TRegisteredDomain, type TDomainDefinition } from "../lib/resources.js";
 
 const clearVars = (vars: VariablesStepper) => async () => {
-	await vars.getWorld().shared.getStore().clear();
+	await vars.getWorld().shared.clear();
 };
 
 const DOMAIN_ENV_SNAPSHOT = "env-snapshot";
@@ -82,6 +82,10 @@ const varSummary = (p: Record<string, unknown>) => {
 	return `${term} = ${display}`;
 };
 
+/** A failed comparison's message. The message states a secret's value obscured, on either side. */
+const mismatch = (term: string, held: TStepValue, compared: unknown, comparedWith: TStepValue) =>
+	`${term} is ${JSON.stringify(statedValue(held.value, held.secret))}, not ${JSON.stringify(statedValue(compared, comparedWith.secret))}`;
+
 const domainsSummary = (p: Record<string, unknown>) => `${DomainsSnapshotSchema.parse(p).items.length} domains`;
 const domainSummary = (p: Record<string, unknown>) => {
 	const { domain, members } = DomainSnapshotSchema.parse(p);
@@ -91,7 +95,7 @@ const domainSummary = (p: Record<string, unknown>) => {
 const cycles = (variablesStepper: VariablesStepper): IStepperCycles => ({
 	startFeature: clearVars(variablesStepper),
 	startScenario: async ({ scopedVars }: TStartScenario) => {
-		variablesStepper.getWorld().shared = new FeatureVariables(variablesStepper.getWorld(), { ...(await scopedVars.all()) });
+		variablesStepper.getWorld().shared = new FeatureVariables(variablesStepper.getWorld(), await scopedVars.carried());
 	},
 	getConcerns: () => ({
 		domains: [
@@ -237,10 +241,8 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: "show vars",
 			productsDomain: DOMAIN_VARS_SNAPSHOT,
 			action: async () => {
-				const shared = this.getWorld().shared;
-				const displayVars = Object.fromEntries(Object.entries(await shared.all()).map(([key, variable]) => [key, variable.value]));
-				const safeVars = sanitizeObjectSecrets(displayVars, (key) => shared.isSecret(key));
-				return actionOKWithProducts({ vars: safeVars });
+				const vars = Object.fromEntries(Object.entries(await this.getWorld().shared.all()).map(([key, variable]) => [key, variable.value]));
+				return actionOKWithProducts({ vars });
 			},
 		},
 		set: {
@@ -316,7 +318,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const compared = registeredDomain(this.getWorld().domains, domainKey, `the value of ${term}`);
 				const compareVal = compared.coerce({ term: "_cmp", value: String(value.value), domain: domainKey, origin: Origin.quoted }, featureStep, this.steppers);
 
-				return JSON.stringify(resolved.value) === JSON.stringify(compareVal) ? OK : actionNotOK(`${term} is ${JSON.stringify(resolved.value)}, not ${JSON.stringify(compareVal)}`);
+				return JSON.stringify(resolved.value) === JSON.stringify(compareVal) ? OK : actionNotOK(mismatch(term, resolved, compareVal, value));
 			},
 		},
 		isLessThan: {
@@ -395,10 +397,9 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			productsDomain: DOMAIN_DOMAIN_SNAPSHOT,
 			action: async ({ name }: { name: string }) => {
 				const domain = registeredDomain(this.getWorld().domains, name, "show domain");
-				const shared = this.getWorld().shared;
 				const members: Record<string, TAnyFixme> = {};
-				for (const [key, variable] of Object.entries(await shared.all())) {
-					if (variable.domain && normalizeDomainKey(variable.domain) === name) members[key] = shared.isSecret(key) ? OBSCURED_VALUE : variable.value;
+				for (const [key, variable] of Object.entries(await this.getWorld().shared.all())) {
+					if (variable.domain && normalizeDomainKey(variable.domain) === name) members[key] = variable.value;
 				}
 				const { description, values, stepperName, topology } = domain;
 				return actionOKWithProducts({
@@ -437,7 +438,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					.filter((v) => v.domain && normalizeDomainKey(v.domain) === domainKey)
 					.map((v) => String(v.value));
 
-				return memberValues.includes(actualValue) ? OK : actionNotOK(`"${actualValue}" is not in ${domainName}`);
+				return memberValues.includes(actualValue) ? OK : actionNotOK(`"${statedValue(actualValue, value.secret)}" is not in ${domainName}`);
 			},
 		},
 		// Pattern matching: glob-style patterns for human-readable matching
@@ -456,22 +457,20 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const glob = new RegExp(globSource(actualPattern), "s");
 				// value/pattern are text being compared: an unresolved {X} is literal data (e.g. a captured reply echoing
 				// "{StepperName}"), not a variable reference, so interpolate leniently and leave unknown braces in place.
-				const textOf = async (item: unknown): Promise<string | { error: string }> => {
-					const read = await this.getWorld().shared.interpolate(typeof item === "string" ? item : JSON.stringify(item), featureStep, { lenient: true });
-					return "error" in read ? read : String(read.value);
-				};
+				const textOf = (item: unknown) => this.getWorld().shared.interpolate(typeof item === "string" ? item : JSON.stringify(item), featureStep, { lenient: true });
+				const statedPattern = statedValue(actualPattern, interpolated.secret);
 				// A list matches where one of its items does, each read as its own text.
 				if (Array.isArray(value.value)) {
 					for (const item of value.value) {
 						const text = await textOf(item);
-						if (typeof text !== "string") return actionNotOK(text.error);
-						if (glob.test(text)) return OK;
+						if ("error" in text) return actionNotOK(text.error);
+						if (glob.test(text.value)) return OK;
 					}
-					return actionNotOK(`the ${value.value.length} items of the list don't match pattern "${actualPattern}"`);
+					return actionNotOK(`the ${value.value.length} items of the list don't match pattern "${statedPattern}"`);
 				}
-				const actualValue = await textOf(value.value);
-				if (typeof actualValue !== "string") return actionNotOK(actualValue.error);
-				return glob.test(actualValue) ? OK : actionNotOK(`"${actualValue}" does not match pattern "${actualPattern}"`);
+				const actual = await textOf(value.value);
+				if ("error" in actual) return actionNotOK(actual.error);
+				return glob.test(actual.value) ? OK : actionNotOK(`"${statedValue(actual.value, value.secret || actual.secret)}" does not match pattern "${statedPattern}"`);
 			},
 		},
 	} as const satisfies TStepperSteps;
@@ -490,10 +489,10 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		const right = domainEntry.coerce({ term: `${term}__comparison`, value: String(value.value), domain: domainKey, origin: Origin.quoted }, featureStep, this.steppers);
 		const comparison = compareDomainValues(domainEntry, left, right, stored.domain);
 		if (operator === ">") {
-			return comparison > 0 ? OK : actionNotOK(`${term} is ${JSON.stringify(left)}, not ${JSON.stringify(right)}`);
+			return comparison > 0 ? OK : actionNotOK(mismatch(term, { ...stored, value: left }, right, value));
 		}
 		if (operator === "<") {
-			return comparison < 0 ? OK : actionNotOK(`${term} is ${JSON.stringify(left)}, not ${JSON.stringify(right)}`);
+			return comparison < 0 ? OK : actionNotOK(mismatch(term, { ...stored, value: left }, right, value));
 		}
 		return actionNotOK(`Unsupported operator: ${operator}`);
 	}
