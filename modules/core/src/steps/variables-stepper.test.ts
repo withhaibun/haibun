@@ -8,7 +8,8 @@ import LogicStepper from "./logic-stepper.js";
 import { OBSCURED_VALUE, SHARED_GRAPH } from "../lib/feature-variables.js";
 import { recordWithEdges } from "../lib/records/pipelines/record-reads.js";
 import { readFacts } from "../lib/records/pipelines/facts.js";
-import { EDGE, FACT_LABEL, SEQ_PATH_LABEL } from "../lib/resources.js";
+import { Access, EDGE, FACT_LABEL, SEQ_PATH_LABEL } from "../lib/resources.js";
+import { readAction } from "../lib/actions.js";
 import { SEQ_PATH_FIELD } from "../lib/seq-path.js";
 import EventCollectorStepper from "../lib/test/EventCollectorStepper.js";
 import { dispatchStep } from "../lib/step-dispatch.js";
@@ -473,7 +474,7 @@ describe("a transport's call", () => {
 		const tool = registry.get(`${VariablesStepper.name}-set`);
 		if (!tool) throw new Error("set isn't registered");
 		const call = buildFeatureStepForTransport(tool, { what: "greeting", value: "hi" }, [0, 1]);
-		const result = await dispatchStep({ registry, world, steppers: callers, grantedCapability: tool.descriptor.capability }, call);
+		const result = await dispatchStep({ registry, world, steppers: callers, grantedCapability: [tool.descriptor.capability, readAction(Access.public)] }, call);
 		expect(result.ok, result.errorMessage).toBe(true);
 		expect(await world.shared.get("greeting")).toBe("hi");
 	});

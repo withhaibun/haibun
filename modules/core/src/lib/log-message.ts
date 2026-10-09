@@ -12,7 +12,7 @@
 import { z } from "zod";
 import { HAIBUN_LOG_LEVELS } from "../schema/protocol.js";
 import { EXECUTION_FIELD, RECORDED_AT_TIME_FIELD } from "./seq-path.js";
-import { LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "./resources.js";
+import { Access, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "./resources.js";
 
 const LOG_MESSAGE_DOMAIN = "log-message";
 export const LOG_MESSAGE_LABEL = "LogMessage";
@@ -51,6 +51,7 @@ export const logMessageDomainDefinition: TDomainDefinition = {
 	description: "A message that actuality logged while a step ran. It holds the message text, its level and the time it was generated. It references the step that logged it.",
 	topology: {
 		persistedAs: LOG_MESSAGE_LABEL,
+		accessLevel: Access.private,
 		id: LOG_MESSAGE_FIELD.id,
 		instrumentation: true,
 		// A reader receives a logged message as a log event. This record is the durable copy of that event, so announcing

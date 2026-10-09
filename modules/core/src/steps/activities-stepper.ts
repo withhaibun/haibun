@@ -17,7 +17,7 @@ import { WAYPOINT_KIND, type TWaypointEntry, type TWaypointKind } from "../lib/a
 import { namedInterpolation } from "../lib/namedVars.js";
 import { callerHolds } from "../lib/capability-context.js";
 import { z } from "zod";
-import { LinkRelations, PersistedVertexSchema, type TDomainDefinition } from "../lib/resources.js";
+import { Access, LinkRelations, PersistedVertexSchema, type TDomainDefinition } from "../lib/resources.js";
 import { refDomainKey, type TIndividualRef } from "../lib/domains.js";
 import { ACTIVITIES_ACTIONS } from "./activities-actions.js";
 import { readEvery, recordOf } from "../lib/records/pipelines/record-reads.js";
@@ -58,6 +58,7 @@ export const savedWaypointDomainDefinition: TDomainDefinition = {
 	description: "A saved waypoint's outcome and the lines its activity runs. `register the saved waypoints` registers the waypoint again after a restart.",
 	topology: {
 		persistedAs: SAVED_WAYPOINT_LABEL,
+		accessLevel: Access.private,
 		type: "schema:HowTo",
 		id: "id",
 		properties: { id: LinkRelations.IDENTIFIER.rel, lines: LinkRelations.STEP.rel, source: LinkRelations.SOURCE_PATH.rel },

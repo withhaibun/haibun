@@ -1,7 +1,7 @@
 // What a run logs becomes a record under the step that logged it, so a reader who was not there to hear it asks for it
 // the way they ask for anything else. The record is the durable copy of a statement the reader was already told over
 // the stream, which is why writing it isn't announced.
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { executionOf, formatRecordName } from "@haibun/core/lib/seq-path.js";
 import type { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
@@ -18,10 +18,14 @@ const said = (over: Partial<THaibunEvent> = {}): THaibunEvent =>
 /** The actuality these records belong to: one feature of one process, which is what an execution is. */
 const TAG = { key: "1700000000000", featureNum: 1 };
 
+/** What the monitor's event logger does with a warning: `IGNORED` drops it, and `LOGGED` emits it as a log event to the
+ *  monitor, as actuality's logger does. */
+const WARNINGS = { IGNORED: "ignored", LOGGED: "logged" } as const;
+
 /** The monitor with a store to write to, its event hook reachable, and the end of a feature to wait on. Recording is
  *  started from the event hook, which returns before the store has the record; the feature ends with every record
  *  written, so that is what a reader of the store waits for. */
-function monitorOver(store: QuadStore): { onEvent: (e: THaibunEvent) => void; ended: () => Promise<void> } {
+function monitorOver(store: QuadStore, warnings: (typeof WARNINGS)[keyof typeof WARNINGS]): { onEvent: (e: THaibunEvent) => void; ended: () => Promise<void> } {
 	const stepper = new MonitorStepper() as unknown as {
 		getWorld: () => unknown;
 		cycles: { onEvent: (e: THaibunEvent) => void; endFeature: (ended: { shouldClose: boolean }) => Promise<void> };
@@ -29,7 +33,7 @@ function monitorOver(store: QuadStore): { onEvent: (e: THaibunEvent) => void; en
 	stepper.getWorld = () => ({
 		tag: TAG,
 		shared: { getStore: () => store },
-		eventLogger: { warn: () => undefined, emit: () => undefined },
+		eventLogger: { warn: (message: string) => (warnings === WARNINGS.LOGGED ? stepper.cycles.onEvent(said({ message })) : undefined), emit: () => undefined },
 		domains: { [asDomainKey(logMessageDomainDefinition.selectors)]: logMessageDomainDefinition, [asDomainKey(runArtifactDomainDefinition.selectors)]: runArtifactDomainDefinition },
 		runtime: {},
 	});
@@ -43,7 +47,7 @@ describe("what a run logged, as a record", () => {
 	});
 
 	it("records the statement, its level, when it was said and the step it was said during", async () => {
-		const monitor = monitorOver(store);
+		const monitor = monitorOver(store, WARNINGS.IGNORED);
 		monitor.onEvent(said());
 		await monitor.ended();
 		const [record] = await readEvery(store, { label: LOG_MESSAGE_LABEL });
@@ -54,7 +58,7 @@ describe("what a run logged, as a record", () => {
 	});
 
 	it("keeps two statements of one step apart, including two said in the same millisecond, which a clock cannot tell apart", async () => {
-		const monitor = monitorOver(store);
+		const monitor = monitorOver(store, WARNINGS.IGNORED);
 		monitor.onEvent(said({ message: "first", timestamp: 1700 }));
 		monitor.onEvent(said({ message: "second", timestamp: 1700 }));
 		await monitor.ended();
@@ -63,7 +67,7 @@ describe("what a run logged, as a record", () => {
 	});
 
 	it("doesn't record an event that is not something actuality logged", async () => {
-		const monitor = monitorOver(store);
+		const monitor = monitorOver(store, WARNINGS.IGNORED);
 		monitor.onEvent({ id: "0.1", timestamp: 1700, kind: "lifecycle", level: "info", stage: "end" } as unknown as THaibunEvent);
 		await monitor.ended();
 		expect(await readEvery(store, { label: LOG_MESSAGE_LABEL })).toEqual([]);
@@ -71,7 +75,7 @@ describe("what a run logged, as a record", () => {
 
 	it("belongs to the step it was said during, named as any record of actuality is named", async () => {
 		const store = storeDeclaring({ [LOG_MESSAGE_LABEL]: {}, [RUN_ARTIFACT_LABEL]: {} });
-		const monitor = monitorOver(store);
+		const monitor = monitorOver(store, WARNINGS.IGNORED);
 		monitor.onEvent(said({ id: "0.-1.525", message: "what went wrong" }));
 		await monitor.ended();
 		const [record] = await readEvery(store, { label: LOG_MESSAGE_LABEL });
@@ -91,7 +95,7 @@ describe("what a run logged, as a record", () => {
 			await held;
 			return await writes(label, data);
 		};
-		const monitor = monitorOver(store);
+		const monitor = monitorOver(store, WARNINGS.IGNORED);
 		monitor.onEvent(said({ message: "said just before the feature ends" }));
 		let ended = false;
 		const ending = monitor.ended().then(() => {
@@ -102,6 +106,22 @@ describe("what a run logged, as a record", () => {
 		finish();
 		await ending;
 		expect((await readEvery(store, { label: LOG_MESSAGE_LABEL })).length, "the record the feature waited for").toBe(1);
+	});
+
+	it("reports a record write that fails once on the console, doesn't record the report, and fails the end of the feature", async () => {
+		const REFUSED = "the store refuses the write";
+		let writes = 0;
+		store.upsertIndividual = () => {
+			writes += 1;
+			return Promise.reject(new Error(REFUSED));
+		};
+		const reported = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		const monitor = monitorOver(store, WARNINGS.LOGGED);
+		monitor.onEvent(said());
+		await expect(monitor.ended(), "the end of the feature fails with the write's error").rejects.toThrow(REFUSED);
+		expect(writes, "one write, and the failure doesn't start another").toBe(1);
+		expect(reported, "reported once").toHaveBeenCalledTimes(1);
+		reported.mockRestore();
 	});
 
 	it("declares that writing it isn't announced, since actuality logging it was the announcement", () => {
@@ -117,7 +137,7 @@ describe("what a run produced, as a record", () => {
 	});
 
 	it("records where it is, what it is and the step that produced it", async () => {
-		const monitor = monitorOver(store);
+		const monitor = monitorOver(store, WARNINGS.IGNORED);
 		monitor.onEvent({
 			id: "0.1.2",
 			timestamp: 1700,
@@ -140,7 +160,7 @@ describe("what a run produced, as a record", () => {
 	});
 
 	it("keeps two produced in one millisecond apart", async () => {
-		const monitor = monitorOver(store);
+		const monitor = monitorOver(store, WARNINGS.IGNORED);
 		const shot = (path: string) => ({ id: "0.1", timestamp: 1700, kind: "artifact", level: "info", artifactType: "image", path }) as unknown as THaibunEvent;
 		monitor.onEvent(shot("/artifacts/one.png"));
 		monitor.onEvent(shot("/artifacts/two.png"));
@@ -149,7 +169,7 @@ describe("what a run produced, as a record", () => {
 	});
 
 	it("doesn't record an artifact that doesn't name a file: a quad a store announces, or a trace of actuality's own machinery", async () => {
-		const monitor = monitorOver(store);
+		const monitor = monitorOver(store, WARNINGS.IGNORED);
 		monitor.onEvent({ id: "0.1", timestamp: 1700, kind: "artifact", level: "debug", artifactType: "json", json: {} } as unknown as THaibunEvent);
 		monitor.onEvent({ id: "http-trace-1", timestamp: 1700, kind: "artifact", level: "debug", artifactType: "http-trace", trace: {} } as unknown as THaibunEvent);
 		await monitor.ended();

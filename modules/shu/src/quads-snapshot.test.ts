@@ -30,7 +30,7 @@ import {
 	readIndividual,
 } from "./quads-snapshot.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
-import { BODY_LABEL } from "@haibun/core/lib/resources.js";
+import { Access, BODY_LABEL } from "@haibun/core/lib/resources.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { setSiteMetadata, type SiteMetadata } from "./rels-cache.js";
@@ -309,6 +309,7 @@ describe("an individual the page holds a copy of", () => {
 		stepName: "getIndividualWithEdges",
 		pattern: "getIndividualWithEdges",
 		read: true,
+		readsAt: Access.public,
 	};
 	const NOT_HELD = "Email a isn't held here";
 	const pageHolding = async (answer: () => unknown) => {

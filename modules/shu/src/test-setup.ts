@@ -102,11 +102,11 @@ import { CLIENT_LOG_ACTION, CLIENT_LOG_METHOD, type TClientLogLevel } from "./cl
 import { openPageAuthority, type TPageAuthority } from "./page-key.js";
 import type { TDelegations } from "@haibun/core/lib/authority-types.js";
 import { SHOW_STEPS_METHOD, STEP_DETAIL, readShownSteps, stepDefinition, type TStepDefinitions } from "@haibun/core/lib/step-discovery.js";
-import { requiredAction } from "@haibun/core/lib/actions.js";
+import { requiredAction, type TStepReads } from "@haibun/core/lib/actions.js";
 import { steppersOf } from "@haibun/core/lib/step-registry.js";
 import { ARTIFACTS_ROUTE } from "@haibun/core/lib/run-artifact.js";
 import { buildConcernCatalog, type TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
-import { LinkRelations, type TDomainDefinition, type TEdgeDef, type TRel } from "@haibun/core/lib/resources.js";
+import { Access, LinkRelations, type TDomainDefinition, type TEdgeDef, type TRel } from "@haibun/core/lib/resources.js";
 import { fromJsonText } from "@haibun/core/lib/json-text.js";
 import { z } from "zod";
 import { STEPS_CHANGED } from "@haibun/core/schema/protocol.js";
@@ -178,7 +178,7 @@ export function persistedTypeDefinition(
 		selectors: [selector],
 		schema: fromJsonText(schema),
 		description,
-		topology: { persistedAs: label, id: "id", properties: { id: LinkRelations.IDENTIFIER.rel, ...properties }, edges },
+		topology: { persistedAs: label, id: "id", accessLevel: Access.private, properties: { id: LinkRelations.IDENTIFIER.rel, ...properties }, edges },
 		// A feature's `set of {domain} by …` declaration marks what it registers this way.
 		...(declared ? { ui: { declared: true } } : {}),
 	};
@@ -187,24 +187,24 @@ export function persistedTypeDefinition(
 /** The steps given, the domains given, and the types the catalog given declares, as the show steps step returns them
  *  when they are all a run declares. */
 export function stepsShown(
-	steps: Array<{
-		method: string;
-		stepperName: string;
-		stepName: string;
-		pattern: string;
-		fallback?: boolean;
-		read?: boolean;
-		answersTheTurn?: boolean;
-		capability?: string;
-		paramDomains?: Record<string, string>;
-		productsDomain?: string;
-	}>,
+	steps: Array<
+		{
+			method: string;
+			stepperName: string;
+			stepName: string;
+			pattern: string;
+			fallback?: boolean;
+			answersTheTurn?: boolean;
+			paramDomains?: Record<string, string>;
+			productsDomain?: string;
+		} & TStepReads
+	>,
 	domains: TStepDefinitions["domains"] = {},
 	concerns: TConcernCatalog = buildConcernCatalog({}),
 ): TStepDefinitions {
 	const described = steps.map((step) => ({
 		...step,
-		// Each step requires what a run's step would: what it declares, a public read for a read, and otherwise its name.
+		// Each step requires what a step of actuality would: what it declares, a read at its level for a read, and otherwise its name.
 		capability: requiredAction(step.stepperName, step.stepName, step),
 		stepperDescription: `the steps of ${step.stepperName}`,
 		paramDomains: step.paramDomains ?? {},

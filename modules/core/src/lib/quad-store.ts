@@ -33,7 +33,7 @@ import {
 	type TRecordsPage,
 } from "./quad-types.js";
 import { displayLabelForQuads, type TTitledBy } from "./hypermedia.js";
-import { Access, AccessLevelSchema, BODY_LABEL, HELD_BY, LinkRelations, withinAccess, type AccessLevel } from "./resources.js";
+import { AccessLevelSchema, BODY_LABEL, HELD_BY, LinkRelations, withinAccess, type AccessLevel } from "./resources.js";
 import { seenAt, writesAtEveryLevel, writtenAt } from "./actions.js";
 import { distinctOf, readFromRecords, recordsOfQuads, type THeldRecord, type TReadDeclarations } from "./records/derivations/read-records.js";
 import { quadsOfRead, readEvery, type TRecordReader } from "./records/pipelines/record-reads.js";
@@ -215,21 +215,24 @@ export class QuadStore implements IQuadStore {
 	private classified(quad: Omit<TQuad, "timestamp">): Omit<TQuad, "timestamp"> {
 		if (!this.levels) return quad;
 		const held = this.quads.find((q) => q.subject === quad.subject && q.namedGraph === quad.namedGraph)?.accessLevel;
-		const accessLevel = writtenAt(quad.accessLevel ?? held, this.levels.declared(quad.namedGraph) ?? Access.private, this.levels.bound());
+		const accessLevel = writtenAt(quad.accessLevel ?? held, this.levels.declared(quad.namedGraph), this.levels.writeBound());
 		return { ...quad, accessLevel };
 	}
 
-	/** Whether a quad this store holds is one a read asking for `asked` may see, by the rule every store reads by. */
-	private seen(asked: AccessLevel = Access.private): (q: TQuad) => boolean {
+	/** Whether a read at `asked` returns a quad this store holds, by the rule of every store. A read that doesn't state a
+	 *  level reads at the caller's ceiling, and the instance's own read returns every level. */
+	private seen(asked: AccessLevel | undefined): (q: TQuad) => boolean {
 		if (!this.levels) return () => true;
-		const level = seenAt(asked, this.levels.bound().ceiling);
+		const { ceiling } = this.levels.bound();
+		const level = asked === undefined ? ceiling : seenAt(asked, ceiling);
+		if (level === undefined) return () => true;
 		return (q) => withinAccess(q.accessLevel, level);
 	}
 
 	/** Refuse removing a quad the caller may not write at: removing a fact is written into its subject, as adding one is. */
 	private removable(quads: TQuad[]): TQuad[] {
-		const bound = this.levels?.bound();
-		if (bound && !writesAtEveryLevel(bound)) for (const q of quads) if (q.accessLevel) writtenAt(q.accessLevel, q.accessLevel, bound);
+		const bound = this.levels?.writeBound();
+		if (bound && !writesAtEveryLevel(bound)) for (const q of quads) if (q.accessLevel) writtenAt(q.accessLevel, undefined, bound);
 		return quads;
 	}
 
@@ -239,7 +242,7 @@ export class QuadStore implements IQuadStore {
 			if (backing) return backing.get(subject, predicate, namedGraph);
 		}
 		// Search local first
-		const seen = this.seen();
+		const seen = this.seen(undefined);
 		for (let i = this.quads.length - 1; i >= 0; i--) {
 			const q = itemAt(this.quads, i);
 			if (q.subject === subject && q.predicate === predicate && (namedGraph === undefined || q.namedGraph === namedGraph) && seen(q)) return Promise.resolve(q.object);
@@ -286,7 +289,7 @@ export class QuadStore implements IQuadStore {
 	 * backing holds the source.
 	 */
 	referenceEdge(fromLabel: string, fromId: string, edgeLabel: string, toLabel: string, toId: string): Promise<void> {
-		const backing = this.storeFor(fromLabel) as (IQuadStore & { referenceEdge?: IQuadStore["createEdge"] }) | undefined;
+		const backing = this.storeFor(fromLabel);
 		if (backing?.referenceEdge) return backing.referenceEdge(fromLabel, fromId, edgeLabel, toLabel, toId);
 		return this.createEdge(fromLabel, fromId, edgeLabel, toLabel, toId);
 	}
@@ -304,7 +307,7 @@ export class QuadStore implements IQuadStore {
 	}
 
 	private localQuery(pattern: TQuadPattern): TQuad[] {
-		const seen = this.seen();
+		const seen = this.seen(undefined);
 		return this.quads.filter((q) => matchesQuadPattern(q, pattern) && seen(q));
 	}
 
@@ -333,7 +336,7 @@ export class QuadStore implements IQuadStore {
 	}
 
 	async all(): Promise<TQuad[]> {
-		const local = this.quads.filter(this.seen());
+		const local = this.quads.filter(this.seen(undefined));
 		const backingResults = await Promise.all(this.allStores.map((s) => s.all()));
 		return [...local, ...backingResults.flat()].sort((a, b) => a.timestamp - b.timestamp);
 	}
@@ -393,7 +396,9 @@ export class QuadStore implements IQuadStore {
 		if (query.textQuery === undefined) return undefined;
 		const stores = query.types ? [...new Set(query.types.map((type) => this.storeFor(type)))] : this.allStores;
 		if (stores.length > 1)
-			throw new Error(`a term reads the types of one store, and ${query.types ? `the types ${query.types.join(", ")}` : "the types this store routes"} are held by ${stores.length} stores: name the types of one store in types`);
+			throw new Error(
+				`a term reads the types of one store, and ${query.types ? `the types ${query.types.join(", ")}` : "the types this store routes"} are held by ${stores.length} stores: name the types of one store in types`,
+			);
 		return stores[0];
 	}
 
@@ -473,7 +478,7 @@ export class QuadStore implements IQuadStore {
 		// A record states its level, as every persisted type's record does, and each of its quads is held at that level.
 		const declared = this.levels?.declared(label);
 		const stated = validated.accessLevel === undefined ? undefined : AccessLevelSchema.parse(validated.accessLevel);
-		const accessLevel = this.levels ? writtenAt(stated, declared ?? Access.private, this.levels.bound()) : stated;
+		const accessLevel = this.levels ? writtenAt(stated, declared, this.levels.writeBound()) : stated;
 		if (declared) validated.accessLevel = accessLevel;
 		// Atomic replace: the code doesn't await between the remove and the adds, so a concurrent upsert (fire-and-forget writers), a
 		// scenario-boundary carry, or a mid-flight backing registration never observes a half-written individual.

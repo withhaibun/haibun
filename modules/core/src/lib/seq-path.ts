@@ -14,7 +14,7 @@
 import { itemAt } from "./util/item-at.js";
 import { z } from "zod";
 import { EXECUTION_MODES, HAIBUN_LOG_LEVELS } from "../schema/protocol.js";
-import { LinkRelations, PersistedVertexSchema, PRINCIPAL_LABEL, SEQ_PATH_LABEL, SEQ_PATH_STATUS, type TDomainDefinition } from "./resources.js";
+import { Access, LinkRelations, PersistedVertexSchema, PRINCIPAL_LABEL, SEQ_PATH_LABEL, SEQ_PATH_STATUS, type TDomainDefinition } from "./resources.js";
 
 const SEQ_PATH_DOMAIN = "seq-path";
 
@@ -231,6 +231,7 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 		"A step in an automated run: its text, the action it called, and how it ended. Each record made during the step references it, so you can see when and where the record was produced.",
 	topology: {
 		persistedAs: SEQ_PATH_LABEL,
+		accessLevel: Access.private,
 		id: SEQ_PATH_FIELD.id,
 		instrumentation: true,
 		properties: {

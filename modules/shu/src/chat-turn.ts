@@ -42,7 +42,12 @@ export function nextQuestion(state: TSubjectState): { carries: TEntry | null; re
 async function turnDelegation(): Promise<Record<string, unknown> | undefined> {
 	if (!deploymentVerifiesDelegations()) return undefined;
 	const turn = await conduit().follow<{ controller: string; expires: string; actions: string[] }>(acts(requireStep(OPEN_TURN_STEP)), "chat-turn: open the turn's key");
-	const reads = seenAt(storeScopeFor(appAccessLevel()), readCeilingOf(pageHolds()) ?? Access.public);
+	const ceiling = readCeilingOf(pageHolds());
+	if (ceiling === undefined)
+		throw new Error(
+			`chat-turn: a turn reads records, and this page's key doesn't hold a read action: capability ${readAction(Access.public)} required. Request it from the key that delegates the page's actions.`,
+		);
+	const reads = seenAt(storeScopeFor(appAccessLevel()), ceiling);
 	const given = [...new Set([...turn.actions, ...(await readTurnAllowance())])].filter((action) => pageMay(action));
 	return await delegateFromPage({ controller: turn.controller, wanted: [readAction(reads), ...given], expires: turn.expires, target: location.origin });
 }

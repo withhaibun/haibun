@@ -10,7 +10,7 @@ import { dispatchStep } from "@haibun/core/lib/step-dispatch.js";
 import { ACTION_BEGIN, ANSWERED_WITHOUT_PRODUCTS, parseRpcRequest, authorityRefusal, callFailed, RPC_PROTOCOL, type THandshake } from "@haibun/core/lib/rpc-wire.js";
 import { runWithRequestContext, requestBaseIri } from "@haibun/core/lib/request-context.js";
 import { buildFeatureStepForTransport, refusal, runRegistry, type StepRegistry } from "@haibun/core/lib/step-registry.js";
-import { actionList, EVERY_ACTION, lackedByCall, mayCall, readCeilingOf } from "@haibun/core/lib/actions.js";
+import { actionList, EVERY_ACTION, lackedByCall, mayCall } from "@haibun/core/lib/actions.js";
 import { DOMAIN_TEXT, DOMAIN_FILE_PATH, DOMAIN_ROUTE, DOMAIN_LINK } from "@haibun/core/lib/domains.js";
 import { STORE_METHOD_PREFIX, storeMethods } from "@haibun/core/lib/store-protocol.js";
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
@@ -18,7 +18,7 @@ import { activeSitePrincipal, allocateSyntheticSeqPath, resolveHostId, synthetic
 import { SERVING } from "@haibun/core/lib/serving.js";
 import { streamContext } from "@haibun/core/lib/step-stream-context.js";
 import { Access, HTTP_HOST_LABEL, LinkRelations } from "@haibun/core/lib/resources.js";
-import { runInvoking, runReadingAt, runActingAs } from "@haibun/core/lib/capability-context.js";
+import { runInvoking, runReadingAsHeld, runReadingAt, runActingAs } from "@haibun/core/lib/capability-context.js";
 import { fromJsonText } from "@haibun/core/lib/json-text.js";
 
 import { type IWebServer, WEBSERVER, DOMAIN_ENDPOINT, EndpointLabels, EndpointSchema } from "./defs.js";
@@ -56,6 +56,7 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 				description: "HTTP endpoint, route registered on the web server",
 				topology: {
 					persistedAs: EndpointLabels.Endpoint,
+					accessLevel: Access.private,
 					type: "as:Service",
 					instrumentation: true,
 					id: "url",
@@ -344,10 +345,10 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 				if (msg.asks === "read") return { error: notARead(method) };
 				try {
 					// Whoever proved themselves at this boundary is who acts inside it, holding what it presented and reading no
-					// more broadly than the read it holds, or the level it asked, as in a dispatched step.
-					const ceiling = readCeilingOf(held) ?? Access.public;
+					// more broadly than the read it holds, or the level it asked, as in a dispatched step. A caller that doesn't
+					// hold a read action is refused each read and write of records.
 					return await runInvoking({ invoked: granted, held }, () =>
-						runActingAs(principal, () => runReadingAt(ceiling, () => runReadingAt(msg.readingAt, () => served.handle(params))), restsOn),
+						runActingAs(principal, () => runReadingAsHeld(held, () => runReadingAt(msg.readingAt, () => served.handle(params))), restsOn),
 					);
 				} catch (err) {
 					return callFailed(method, errorDetail(err));

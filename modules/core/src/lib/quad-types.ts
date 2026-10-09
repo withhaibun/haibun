@@ -187,7 +187,9 @@ export interface TQuad {
 /** What a store classifies its own writes and bounds its reads by: what bounds the call in progress, and the level each
  *  type declares its records at, undefined for a name that isn't a persisted type. A store that isn't given one holds a copy of what
  *  a site served, which was bounded where it was served. */
-export type TStoreLevels = { bound: () => TAccessBound; declared: (label: string) => AccessLevel | undefined };
+/** The levels a store applies: the bound a read is read within, the bound a write is written within, and the level each
+ *  type declares. */
+export type TStoreLevels = { bound: () => TAccessBound; writeBound: () => TAccessBound; declared: (label: string) => AccessLevel | undefined };
 
 export interface TQuadPattern {
 	subject?: string;
@@ -328,6 +330,12 @@ export interface IQuadStore {
 	 * when this is absent. Idempotent per (from, edge, to) in implementations.
 	 */
 	createEdge?(fromLabel: string, fromId: string, edgeLabel: string, toLabel: string, toId: string): Promise<void>;
+	/**
+	 * Writes an edge to a target that the store may not hold. A store that keeps edges strictly writes a reference in place
+	 * of an absent target, and a later write of the target replaces it. The write doesn't state whether the store held the
+	 * target, so a caller that doesn't hold a read action writes it.
+	 */
+	referenceEdge?(fromLabel: string, fromId: string, edgeLabel: string, toLabel: string, toId: string): Promise<void>;
 }
 
 /**

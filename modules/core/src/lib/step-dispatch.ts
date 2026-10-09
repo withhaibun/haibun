@@ -9,9 +9,9 @@ import { itemAt } from "./util/item-at.js";
 import { isWrittenByCaller, normalizeDomainKey } from "./domains.js";
 import { assertFact, holdsFactOf } from "./records/pipelines/facts.js";
 import { doStepperCycle } from "./stepper-cycles.js";
-import { actingAs, callerHolds, readingAsStated, readingAt, runInStep, runInvoking, runReadingAt, runStatedAt } from "./capability-context.js";
-import { capabilityAllows, readCeilingOf } from "./actions.js";
-import { Access, LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS, type SeqPathStatus } from "./resources.js";
+import { actingAs, callerHolds, readingAsStated, readScope, runInStep, runInvoking, runReadingAsHeld, runStatedAt } from "./capability-context.js";
+import { capabilityAllows } from "./actions.js";
+import { LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS, type SeqPathStatus } from "./resources.js";
 import { SEQ_PATH_FIELD, calledOf, executionOf, formatRecordName, type TRecordName } from "./seq-path.js";
 import { StepRegistry, stepMethodName, hostScopedMethodName, authorizeToolCapability } from "./step-registry.js";
 import { augmentViewHypermedia, isViewOnlyDomain } from "./step-hypermedia.js";
@@ -131,10 +131,10 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		return pushAndReturn(stepResultFromActionResult(actionNotOK(`The registry doesn't hold ${method}${described}. Load its stepper.`), action, start, Timer.since(), featureStep));
 	}
 
-	// The read ceiling in force where the statement was stated. Its arguments are read at this ceiling, and
-	// authorizeToolCapability refuses a step that reads above it.
-	const statedAt = readingAt();
-	authorizeToolCapability(tool.descriptor, { invoked: grantedCapability, held }, statedAt);
+	// The read scope in force where the statement was stated. Its arguments are read in this scope, and
+	// authorizeToolCapability refuses a step that reads above its ceiling.
+	const statedAt = readScope();
+	authorizeToolCapability(tool.descriptor, { invoked: grantedCapability, held }, statedAt !== undefined && "ceiling" in statedAt ? statedAt.ceiling : undefined);
 	// The authorization the step's own record states. The record states the invoked action that allows the step and the
 	// actions the caller held, where the caller isn't actuality acting as itself. It states the principal that proved its
 	// identity, where one did. authorizeToolCapability throws on a refusal, so a record with these fields records an
@@ -145,10 +145,6 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 			: {}),
 		controller: actingAs(),
 	};
-	// The step reads at the broadest read its caller holds. The step reads at public where its caller doesn't hold a read,
-	// so a step doesn't read a record for a caller who couldn't read that record.
-	const ceiling = readCeilingOf(held) ?? Access.public;
-
 	// The step as its records state it. A domain's `recordedAs` replaces a value too large to repeat in the records.
 	const stated = asRecorded(featureStep, world.domains);
 	if (recorded) {
@@ -164,7 +160,9 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	await runInStep(step, () =>
 		runInvoking({ invoked: grantedCapability, held }, () =>
 			runStatedAt(statedAt, () =>
-				runReadingAt(ceiling, async () => {
+				// The step reads at the broadest read its caller holds. A caller that doesn't hold a read action is refused each
+				// read and write of records, so a step doesn't read a record for a caller who couldn't read that record.
+				runReadingAsHeld(held, async () => {
 					let doAction = true;
 					while (doAction) {
 						await doStepperCycle(steppers, "beforeStep", <TBeforeStep>{ featureStep });

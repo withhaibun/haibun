@@ -44,6 +44,7 @@ const domainOf = (persistedAs: string, edges: Record<string, { range: string }>)
 	description: `${persistedAs} of the quad store specification`,
 	topology: {
 		persistedAs,
+		accessLevel: Access.private,
 		id: "id",
 		properties: {
 			id: LinkRelations.IDENTIFIER.rel,
@@ -220,11 +221,14 @@ export function describeQuadStore(
 			/** Writes comments that state one time and the issue they reach. A comment is public unless `privately` names it. */
 			const held = async (comments: readonly string[], privately: readonly string[] = []): Promise<void> => {
 				await store.upsertIndividual(ISSUE, { id: "i1", generatedAtTime: TIME, accessLevel: Access.public });
-				for (const id of comments) await store.upsertIndividual(COMMENT, { id, generatedAtTime: TIME, status: "open", accessLevel: privately.includes(id) ? Access.private : Access.public });
+				for (const id of comments)
+					await store.upsertIndividual(COMMENT, { id, generatedAtTime: TIME, status: "open", accessLevel: privately.includes(id) ? Access.private : Access.public });
 			};
 			/** Writes an edge from a comment to the issue. A store without `createEdge` holds an edge as a quad that states its object's type. */
 			const relate = (from: string, relation: string): Promise<void> =>
-				store.createEdge ? store.createEdge(COMMENT, from, relation, ISSUE, "i1") : store.add({ subject: from, predicate: relation, object: "i1", namedGraph: COMMENT, objectType: ISSUE });
+				store.createEdge
+					? store.createEdge(COMMENT, from, relation, ISSUE, "i1")
+					: store.add({ subject: from, predicate: relation, object: "i1", namedGraph: COMMENT, objectType: ISSUE });
 
 			it("rejects a limit or a perType of 0 and of MAX_PAGE_ROWS + 1, and a count ceiling above COUNT_CEILING", async () => {
 				for (const size of [0, MAX_PAGE_ROWS + 1]) {
@@ -256,13 +260,17 @@ export function describeQuadStore(
 				await expect(store.readRecords(query({ label: COMMENT, filters: [{ predicate: "author", operator: "eq", value: "a" }] }))).rejects.toThrow(
 					`readRecords(Comment) doesn't compare author. ${compared}`,
 				);
-				await expect(store.readRecords(query({ label: COMMENT, sortBy: "author" }))).rejects.toThrow("readRecords(Comment) doesn't compare author. It compares accessLevel, generatedAtTime, status.");
+				await expect(store.readRecords(query({ label: COMMENT, sortBy: "author" }))).rejects.toThrow(
+					"readRecords(Comment) doesn't compare author. It compares accessLevel, generatedAtTime, status.",
+				);
 			});
 
 			it("refuses a relation compared by an operator other than eq or in, and a relation the store doesn't hold", async () => {
 				const compared = query({ label: COMMENT, filters: [{ predicate: ABOUT, operator: "gt", value: "i1" }] });
 				await expect(store.readRecords(compared)).rejects.toThrow(`Comment.${ABOUT} is a relation: a filter names the record at its other end with eq or in, not gt`);
-				await expect(store.readRecords(query({ references: { label: ISSUE, id: "i1", via: ["unheld"] } }))).rejects.toThrow(`a relation named "unheld" doesn't reach a record in this graph`);
+				await expect(store.readRecords(query({ references: { label: ISSUE, id: "i1", via: ["unheld"] } }))).rejects.toThrow(
+					`a relation named "unheld" doesn't reach a record in this graph`,
+				);
 			});
 
 			if (hooks.nature?.searches !== true)

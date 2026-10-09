@@ -8,7 +8,7 @@ import { heldDatabases } from "./device-store.js";
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeAll, beforeEach } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import type { AccessLevel } from "@haibun/core/lib/resources.js";
+import { Access, type AccessLevel } from "@haibun/core/lib/resources.js";
 import { IndexedDbQuadStore, deviceGraphStore } from "./quad-store.js";
 import { GraphQuerySchema } from "@haibun/core/lib/quad-types.js";
 import { equalTo, readEvery, recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
@@ -26,9 +26,9 @@ describe("the questions the site answers, asked of the graph this page caches", 
 	beforeEach(async () => {
 		store = new IndexedDbQuadStore(undefined, declared);
 		await store.clear();
-		await store.upsertIndividual("Email", { "@id": "a", folder: "INBOX", subject: "one" });
-		await store.upsertIndividual("Email", { "@id": "b", folder: "Sent", subject: "two" });
-		await store.upsertIndividual("Comment", { "@id": "c", content: "hello" });
+		await store.upsertIndividual("Email", { "@id": "a", folder: "INBOX", subject: "one", accessLevel: Access.public });
+		await store.upsertIndividual("Email", { "@id": "b", folder: "Sent", subject: "two", accessLevel: Access.public });
+		await store.upsertIndividual("Comment", { "@id": "c", content: "hello", accessLevel: Access.public });
 	});
 
 	it("answers a read at the level it was asked for, not everything it happens to hold", async () => {
@@ -66,7 +66,9 @@ describe("the questions the site answers, asked of the graph this page caches", 
 
 	it("lists a type's records, narrowed by a field and windowed", async () => {
 		expect((await readEvery(store, { label: "Email" })).length).toBe(2);
-		expect(await readEvery(store, { label: "Email", filters: equalTo({ folder: "Sent" }) })).toEqual([{ "@id": "b", "@type": "Email", folder: "Sent", subject: "two" }]);
+		expect(await readEvery(store, { label: "Email", filters: equalTo({ folder: "Sent" }) })).toEqual([
+			{ "@id": "b", "@type": "Email", folder: "Sent", subject: "two", accessLevel: Access.public },
+		]);
 		const window = await store.readRecords(GraphQuerySchema.parse({ label: "Email", offset: 1, limit: 1 }));
 		expect(
 			window.vertices.map((i) => i["@id"]),

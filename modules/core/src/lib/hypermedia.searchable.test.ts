@@ -8,12 +8,13 @@
  */
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
-import { LinkRelations, type THypermediaTopology } from "./resources.js";
+import { Access, LinkRelations, type THypermediaTopology } from "./resources.js";
 import { searchableFields, queryableFields } from "./hypermedia.js";
 
 const PersonSchema = z.object({ email: z.string(), name: z.string().optional(), generatedAtTime: z.date() });
 const personTopology: THypermediaTopology = {
 	persistedAs: "Person",
+	accessLevel: Access.private,
 	id: "email",
 	properties: { email: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel },
 };
@@ -31,6 +32,7 @@ describe("the fields a text search reads", () => {
 		const schema = z.object({ messageId: z.string(), folder: z.string(), unread: z.boolean() });
 		const topology: THypermediaTopology = {
 			persistedAs: "Message",
+			accessLevel: Access.private,
 			id: "messageId",
 			properties: { messageId: LinkRelations.IDENTIFIER.rel, folder: LinkRelations.CONTEXT.rel, unread: LinkRelations.TAG.rel },
 		};
@@ -43,6 +45,7 @@ describe("the fields a text search reads", () => {
 		const schema = z.object({ title: z.string(), seqPath: z.string(), accessLevel: z.string(), startedAtTime: z.string(), mediaType: z.string() });
 		const topology: THypermediaTopology = {
 			persistedAs: "Note",
+			accessLevel: Access.private,
 			id: "title",
 			properties: {
 				title: LinkRelations.NAME.rel,
@@ -64,6 +67,7 @@ describe("the fields a text search reads", () => {
 		const schema = z.object({ subject: z.string(), unread: z.boolean(), size: z.number(), state: z.string() });
 		const topology: THypermediaTopology = {
 			persistedAs: "Message",
+			accessLevel: Access.private,
 			id: "subject",
 			properties: { subject: LinkRelations.NAME.rel, unread: LinkRelations.TAG.rel, size: LinkRelations.TAG.rel, state: LinkRelations.TAG.rel },
 		};
@@ -74,6 +78,7 @@ describe("the fields a text search reads", () => {
 		const schema = z.object({ messageId: z.string(), from: z.string(), to: z.array(z.string()), folder: z.string() });
 		const topology: THypermediaTopology = {
 			persistedAs: "Message",
+			accessLevel: Access.private,
 			id: "messageId",
 			properties: { messageId: LinkRelations.IDENTIFIER.rel, from: LinkRelations.ATTRIBUTED_TO.rel, to: LinkRelations.AUDIENCE.rel, folder: LinkRelations.CONTEXT.rel },
 		};
@@ -84,6 +89,7 @@ describe("the fields a text search reads", () => {
 		const schema = z.object({ id: z.string(), body: z.string() });
 		const topology: THypermediaTopology = {
 			persistedAs: "Note",
+			accessLevel: Access.private,
 			id: "id",
 			properties: { id: LinkRelations.IDENTIFIER.rel, body: { rel: LinkRelations.CONTENT.rel, mediaType: "text/plain" } },
 		};

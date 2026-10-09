@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { AStepper, type TStepperSteps } from "./astepper.js";
 import { deriveNamingDomains, mapDefinitionsToDomains, refDomainKey } from "./domains.js";
-import { LinkRelations } from "./resources.js";
+import { Access, LinkRelations } from "./resources.js";
 import { actionOKWithProducts } from "./util/index.js";
 import { itemAt } from "./util/item-at.js";
 import { OK } from "../schema/protocol.js";
@@ -25,7 +25,7 @@ const thing = (selector: string, description: string) => ({
 	selectors: [selector],
 	schema: z.unknown(),
 	description,
-	topology: { persistedAs: selector, id: "id", properties: { id: LinkRelations.IDENTIFIER.rel } },
+	topology: { persistedAs: selector, id: "id", accessLevel: Access.private, properties: { id: LinkRelations.IDENTIFIER.rel } },
 });
 
 const domains = () =>

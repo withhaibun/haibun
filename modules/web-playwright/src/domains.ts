@@ -1,6 +1,15 @@
 import { HYPERMEDIA } from "@haibun/core/schema/protocol.js";
 import { z } from "zod";
-import { ENDPOINT_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL, HTTP_REQUEST_LABEL, LinkRelations, PersistedVertexSchema, TDomainDefinition } from "@haibun/core/lib/resources.js";
+import {
+	Access,
+	ENDPOINT_LABEL,
+	HTTP_CLIENT_LABEL,
+	HTTP_HOST_LABEL,
+	HTTP_REQUEST_LABEL,
+	LinkRelations,
+	PersistedVertexSchema,
+	TDomainDefinition,
+} from "@haibun/core/lib/resources.js";
 import { asDomainKey, createEnumDomainDefinition, NameSchema } from "@haibun/core/lib/domains.js";
 import { ENDPOINT_CLASS } from "@haibun/core/lib/http-observations.js";
 import {
@@ -156,6 +165,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 		description: "An HTTP request observed on the network: one record of a client, the site, or an external host exchanging a message.",
 		topology: {
 			persistedAs: HTTP_REQUEST_LABEL,
+			accessLevel: Access.private,
 			instrumentation: true,
 			type: "http:Request",
 			id: "id",
@@ -183,6 +193,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 		description: "The requesting party: the browser (user agent) that calls the site's routes and external resources.",
 		topology: {
 			persistedAs: HTTP_CLIENT_LABEL,
+			accessLevel: Access.private,
 			instrumentation: true,
 			type: "as:Application",
 			id: "id",
@@ -196,6 +207,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 		description: "A host seen on the network, with how many requests reached it (the http-trace hosts aggregate).",
 		topology: {
 			persistedAs: HTTP_HOST_LABEL,
+			accessLevel: Access.private,
 			instrumentation: true,
 			type: "as:Service",
 			id: "id",
@@ -209,6 +221,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 		description: "A page the browser navigated to during actuality, keyed by a per-navigation synthetic id; its name is the page URL.",
 		topology: {
 			persistedAs: VISITED_PAGE_LABEL,
+			accessLevel: Access.private,
 			instrumentation: true,
 			type: "schema:WebPage",
 			id: "id",

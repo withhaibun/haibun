@@ -196,7 +196,7 @@ function subPropertyOfRel(rel: string): string | string[] | undefined {
 	}
 	return undefined;
 }
-import { DOMAIN_PERSISTED_TYPE, HAIBUN_NS, type TRegisteredDomain } from "./resources.js";
+import { AccessLevelSchema, DOMAIN_PERSISTED_TYPE, HAIBUN_NS, type TRegisteredDomain } from "./resources.js";
 import { DOMAIN_UNION, hypermediaDomainMap, refTargetOf } from "./domains.js";
 import { jsonSchemaFor } from "./json-schema-of.js";
 import { unwrap, unwrapToShape } from "./zod-unwrap.js";
@@ -398,11 +398,12 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 
 const IRI_TO_REL: Record<string, TRel> = Object.fromEntries(Object.entries(REL_CONTEXT).map(([rel, iri]) => [iri, rel as TRel]));
 
-/** A JSON-LD @context as a feature declares a type by one: each term's IRI, or its IRI with its type and range, and the
- *  terms a reader filters by. */
+/** A JSON-LD @context as a feature declares a type by one: each term's IRI, or its IRI with its type and range, the
+ *  terms a reader filters by, and the level the type's records are stored at. */
 export const HypermediaContextSchema = z.object({
 	"@context": z.record(z.string(), z.union([z.string(), z.object({ "@id": z.string(), "@type": z.string().optional(), range: z.string().optional() })])),
 	"@queryable": z.array(z.string()).optional(),
+	"@accessLevel": AccessLevelSchema,
 });
 export type THypermediaContext = z.infer<typeof HypermediaContextSchema>;
 
@@ -574,6 +575,7 @@ export function hypermediaDomainFromContext(domainName: string, doc: THypermedia
 	const topology: THypermediaTopology = {
 		persistedAs: domainName,
 		id: idField,
+		accessLevel: doc["@accessLevel"],
 		properties,
 		...(Object.keys(edges).length ? { edges } : {}),
 		...(queryable.length ? { sortColumns } : {}),

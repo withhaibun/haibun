@@ -69,6 +69,7 @@ describe("the values a filter offers", () => {
 				description: "An email message.",
 				topology: {
 					persistedAs: "Email",
+					accessLevel: Access.private,
 					id: "id",
 					properties: { id: LinkRelations.IDENTIFIER.rel, account: LinkRelations.CONTEXT.rel, folder: LinkRelations.CONTEXT.rel, accessLevel: LinkRelations.ACCESS_LEVEL.rel },
 				},
@@ -91,7 +92,7 @@ describe("one individual with its edges, from the store this instance holds", ()
 		selectors: [`test-${persistedAs.toLowerCase()}`],
 		schema: z.looseObject({ id: z.string() }),
 		description: `A ${persistedAs} a test reads`,
-		topology: { persistedAs, id: "id", properties: { id: LinkRelations.IDENTIFIER.rel }, edges },
+		topology: { persistedAs, id: "id", accessLevel: Access.private, properties: { id: LinkRelations.IDENTIFIER.rel }, edges },
 	});
 	const held = async (): Promise<GraphSourceStepper> => {
 		const stepper = new GraphSourceStepper();

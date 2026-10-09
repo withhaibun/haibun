@@ -3,7 +3,7 @@ import { z } from "zod";
 import { GOAL_FINDING, resolveGoal, type TBinding, type TResolverInputs } from "./goal-resolver.js";
 import type { TDomainChainGraph } from "./domain-chain.js";
 import type { TFact } from "./records/domains/facts.js";
-import type { TRegisteredDomain } from "./resources.js";
+import { Access, type TRegisteredDomain } from "./resources.js";
 import { RUN_AUTHORITY } from "./capability-context.js";
 
 /**
@@ -26,9 +26,9 @@ function reg(schema: z.ZodType, topology?: TRegisteredDomain["topology"]): TRegi
 
 function makeDomains(): Record<string, TRegisteredDomain> {
 	return {
-		issuer: reg(IssuerSchema, { persistedAs: "Issuer", id: "did", properties: {} }),
-		proof: reg(ProofSchema, { persistedAs: "Proof", id: "value", properties: {} }),
-		vc: reg(VcSchema, { persistedAs: "VerifiableCredential", id: "subject", properties: {}, ranges: { issuer: "issuer", proof: "proof" } }),
+		issuer: reg(IssuerSchema, { persistedAs: "Issuer", accessLevel: Access.private, id: "did", properties: {} }),
+		proof: reg(ProofSchema, { persistedAs: "Proof", accessLevel: Access.private, id: "value", properties: {} }),
+		vc: reg(VcSchema, { persistedAs: "VerifiableCredential", accessLevel: Access.private, id: "subject", properties: {}, ranges: { issuer: "issuer", proof: "proof" } }),
 		"verifiable-credential": reg(z.object({ id: z.string() })),
 	};
 }
@@ -94,7 +94,7 @@ describe("resolveGoal, composite decomposition", () => {
 		// Self-referential composite: deep.next ranges over deep itself.
 		const SelfSchema = z.object({ next: z.string() });
 		const domains: Record<string, TRegisteredDomain> = {
-			deep: reg(SelfSchema, { persistedAs: "Deep", id: "next", properties: {}, ranges: { next: "deep" } }),
+			deep: reg(SelfSchema, { persistedAs: "Deep", accessLevel: Access.private, id: "next", properties: {}, ranges: { next: "deep" } }),
 			leaf: reg(z.object({ id: z.string() })),
 		};
 		const graph: TDomainChainGraph = {

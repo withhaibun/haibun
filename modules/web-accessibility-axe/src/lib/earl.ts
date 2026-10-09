@@ -81,6 +81,7 @@ export const earlDomainDefinitions: TDomainDefinition[] = [
 		description: "What was tested, such as a web page by its address.",
 		topology: {
 			persistedAs: EARL_LABEL.testSubject,
+			accessLevel: Access.private,
 			type: "earl:TestSubject",
 			id: "id",
 			properties: { id: LinkRelations.IDENTIFIER.rel, url: LinkRelations.URL.rel },
@@ -112,6 +113,7 @@ export const earlDomainDefinitions: TDomainDefinition[] = [
 		description: "The result of a test: its outcome, where in the subject it applies, and what the assertor states about it.",
 		topology: {
 			persistedAs: EARL_LABEL.testResult,
+			accessLevel: Access.private,
 			type: "earl:TestResult",
 			id: "id",
 			properties: {
@@ -132,6 +134,7 @@ export const earlDomainDefinitions: TDomainDefinition[] = [
 		description: "A statement that an assertor tested a subject against a test case, with the result, made by a step.",
 		topology: {
 			persistedAs: EARL_LABEL.assertion,
+			accessLevel: Access.private,
 			type: "earl:Assertion",
 			id: "id",
 			properties: { id: LinkRelations.IDENTIFIER.rel, mode: { rel: LinkRelations.CONTEXT.rel, iri: "earl:mode" } },

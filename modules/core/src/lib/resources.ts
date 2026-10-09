@@ -98,14 +98,20 @@ export function narrowerAccess(inForce: AccessLevel, asked: AccessLevel): Access
 	return ACCESS_BREADTH[asked] < ACCESS_BREADTH[inForce] ? asked : inForce;
 }
 
-/** Returns whether a read at `asked` may see a record at `level`. Every store applies this rule. A record that doesn't
- *  state a level passes, and the source that served it determines its visibility. A level outside the declared levels
- *  throws, because a read can't determine how widely the record was meant to be shared. */
-export function withinAccess(level: unknown, asked: AccessLevel): boolean {
-	if (level === undefined || level === null) return true;
+/** Returns the level a record states. A record that doesn't state a level, or states one outside the declared levels,
+ *  throws, because a read can't determine how widely the record was meant to be shared. Every write states the level. */
+export function statedLevel(level: unknown): AccessLevel {
+	if (level === undefined || level === null)
+		throw new Error(`a read refuses a record that doesn't state its access level. Write the record through a store that states its type's declared level.`);
 	const stated = AccessLevelSchema.safeParse(level);
 	if (!stated.success) throw new Error(`a record states the access level ${JSON.stringify(level)}, which isn't one of ${ACCESS_BROADEST_FIRST.join(", ")}`);
-	return ACCESS_BREADTH[stated.data] <= ACCESS_BREADTH[asked];
+	return stated.data;
+}
+
+/** Returns whether a read at `asked` may see a record at `level`. Every store applies this rule. A record without a stated
+ *  level throws (`statedLevel`). */
+export function withinAccess(level: unknown, asked: AccessLevel): boolean {
+	return ACCESS_BREADTH[statedLevel(level)] <= ACCESS_BREADTH[asked];
 }
 
 /** Returns the levels whose records a read at `seen` returns. A store that applies the rule as a query, and not as a per-record test, calls it. */
@@ -675,10 +681,9 @@ export type THypermediaTopology = {
 	/**
 	 * The level a record of this type is stored at when the record doesn't state one. A type declares the least sharing
 	 * under which its records remain useful, so a writer that omits the level doesn't publish a record. A record shared
-	 * more widely states its level on the record itself. A type that doesn't declare a level stores records as private,
-	 * which shares least.
+	 * more widely states its level on the record itself. Registration refuses a persisted type that doesn't state it.
 	 */
-	accessLevel?: AccessLevel;
+	accessLevel: AccessLevel;
 	/**
 	 * Where core holds the records of a type that core writes or derives. A backing store registers each persisted type
 	 * that doesn't state `heldBy`. `working memory` states that core's in-memory store holds the records. `declarations`
@@ -739,13 +744,12 @@ export function isPersisted(topology: TDomainTopology | undefined): topology is 
 }
 
 /** Returns the level a type's records are written at when a record doesn't state one. That is the level its topology
- *  declares, or private. A name that isn't a persisted type doesn't declare one and returns undefined. The graph that
- *  holds actuality's variables is such a name. */
+ *  declares. A name that isn't a persisted type doesn't declare one and returns undefined. */
 export function declaredAccessLevel(domain: TRegisteredDomain & { topology: THypermediaTopology }): AccessLevel;
 export function declaredAccessLevel(domain: TRegisteredDomain | undefined): AccessLevel | undefined;
 export function declaredAccessLevel(domain: TRegisteredDomain | undefined): AccessLevel | undefined {
 	const topology = domain?.topology;
-	return isPersisted(topology) ? (topology.accessLevel ?? Access.private) : undefined;
+	return isPersisted(topology) ? topology.accessLevel : undefined;
 }
 
 /** The domain name for type labels. Registered persisted domains populate it. */
@@ -859,6 +863,7 @@ export const commentDomainDefinition: TDomainDefinition = {
 	description: "A note about another record. It links to its subject and to any replies, so a conversation stays attached to its subject.",
 	topology: {
 		persistedAs: COMMENT_LABEL,
+		accessLevel: Access.private,
 		// A Comment carries oa:hasBody and oa:hasTarget in the W3C Web Annotation shape. The class relationship is an
 		// RDFS axiom and doesn't make @type multi-valued.
 		subClassOf: "oa:Annotation",
@@ -1004,6 +1009,7 @@ export const bodyDomainDefinition: TDomainDefinition = {
 	description: "The full content of another record, such as a message's text or a document's data. It is stored beside the record, so large content loads only when opened.",
 	topology: {
 		persistedAs: BODY_LABEL,
+		accessLevel: Access.private,
 		id: "id",
 		properties: { id: LinkRelations.IDENTIFIER.rel, content: LinkRelations.CONTENT.rel, mediaType: LinkRelations.MEDIA_TYPE.rel },
 		// The declared query surface for the one-path graph-store. Callers can filter or sort Body rows by mediaType,
@@ -1046,6 +1052,7 @@ export const textQuoteSelectorDomainDefinition: TDomainDefinition = {
 	description: "The quoted text that anchors an annotation at one place inside a document, with optional surrounding text that disambiguates the match.",
 	topology: {
 		persistedAs: TEXT_QUOTE_SELECTOR_LABEL,
+		accessLevel: Access.private,
 		type: "oa:TextQuoteSelector",
 		id: "id",
 		properties: { id: LinkRelations.IDENTIFIER.rel, exact: LinkRelations.EXACT.rel, prefix: LinkRelations.PREFIX.rel, suffix: LinkRelations.SUFFIX.rel },
@@ -1064,6 +1071,7 @@ export const fragmentSelectorDomainDefinition: TDomainDefinition = {
 	description: "The fragment of a document's or media's address that locates a part of it: a PDF's page, a span of audio or video, a region of an image.",
 	topology: {
 		persistedAs: FRAGMENT_SELECTOR_LABEL,
+		accessLevel: Access.private,
 		type: "oa:FragmentSelector",
 		id: "id",
 		properties: { id: LinkRelations.IDENTIFIER.rel, value: LinkRelations.VALUE.rel, conformsTo: LinkRelations.CONFORMS_TO.rel },
@@ -1098,6 +1106,7 @@ export const specificResourceDomainDefinition: TDomainDefinition = {
 	description: "A place inside a document: the document and the selection that locates the place. A note can point at one passage instead of the whole document.",
 	topology: {
 		persistedAs: SPECIFIC_RESOURCE_LABEL,
+		accessLevel: Access.private,
 		type: "oa:SpecificResource",
 		id: "id",
 		properties: { id: LinkRelations.IDENTIFIER.rel, label: LinkRelations.LABEL.rel },
@@ -1130,6 +1139,7 @@ export const readingDomainDefinition: TDomainDefinition = {
 	description: "One reading of a text that turned its links into facts. It names the text it read and the step that read it, so every stated fact names its source.",
 	topology: {
 		persistedAs: READING_LABEL,
+		accessLevel: Access.private,
 		instrumentation: true,
 		type: "prov:Activity",
 		id: "id",
@@ -1169,6 +1179,7 @@ export const sceneDomainDefinition: TDomainDefinition = {
 	description: "A named way of looking at the graph: which kinds are shown, how they are laid out, and when. It is saved so a reader can reopen it and link it.",
 	topology: {
 		persistedAs: SCENE_LABEL,
+		accessLevel: Access.private,
 		id: "id",
 		// Its id is its name.
 		displayLabel: "id",

@@ -4,6 +4,7 @@ import { buildConcernCatalog, composeDisplayLabel, composeTitle, MAX_DISPLAY_LAB
 import type { TDomainDefinition, THypermediaTopology } from "./resources.js";
 import { mapDefinitionsToDomains } from "./domains.js";
 import {
+	Access,
 	isPersisted,
 	LinkRelations,
 	specificResourceDomainDefinition,
@@ -112,6 +113,7 @@ describe("composeDisplayLabel priority: headline → body → weak → id", () =
 	it("rejects a declared labeling property that the type doesn't carry, since the record would display without a title and without an error", () => {
 		const topology: THypermediaTopology = {
 			persistedAs: "Thing",
+			accessLevel: Access.private,
 			id: "id",
 			properties: { id: LinkRelations.IDENTIFIER.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel },
 			displayLabel: "exact",
@@ -150,6 +152,7 @@ describe("queryableFields: the one declaration-side derivation of a type's query
 	});
 	const topology: THypermediaTopology = {
 		persistedAs: "Email",
+		accessLevel: Access.private,
 		id: "messageId",
 		properties: { subject: LinkRelations.NAME.rel, folder: LinkRelations.CONTEXT.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel },
 		sortColumns: { receivedAt: "TIMESTAMPTZ" },
@@ -165,7 +168,7 @@ describe("queryableFields: the one declaration-side derivation of a type's query
 	});
 
 	it("derives the fields of a `set of {domain}` prose declaration from its sortColumns when it doesn't have a schema shape", () => {
-		const proseTopology: THypermediaTopology = { persistedAs: "Recipe", id: "name", properties: {}, sortColumns: { servings: "DOUBLE PRECISION" } };
+		const proseTopology: THypermediaTopology = { persistedAs: "Recipe", accessLevel: Access.private, id: "name", properties: {}, sortColumns: { servings: "DOUBLE PRECISION" } };
 		expect(queryableFields({ schema: undefined, topology: proseTopology })).toEqual(["servings"]);
 	});
 });
@@ -179,6 +182,7 @@ describe("validTimeField: the catalog names the field that places a type's indiv
 			description: persistedAs,
 			topology: {
 				persistedAs,
+				accessLevel: Access.private,
 				id: "id",
 				properties: { id: LinkRelations.IDENTIFIER.rel, receivedAt: LinkRelations.PUBLISHED.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel },
 				...(defaultSort ? { defaultSort } : {}),
@@ -249,7 +253,13 @@ describe("buildConcernCatalog field declarations", () => {
 				selectors: ["thing"],
 				description: "d",
 				schema: z.object({ id: z.string(), [field]: z.string(), generatedAtTime: z.string() }),
-				topology: { persistedAs: "Thing", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel, ...properties }, edges },
+				topology: {
+					persistedAs: "Thing",
+					accessLevel: Access.private,
+					id: "id",
+					properties: { id: LinkRelations.IDENTIFIER.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel, ...properties },
+					edges,
+				},
 			},
 		]);
 

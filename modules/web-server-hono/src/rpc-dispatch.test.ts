@@ -12,7 +12,10 @@ import {
 	RpcRefusalSchema,
 	rpcEnvelope,
 } from "@haibun/core/lib/rpc-wire.js";
-import { FOLLOWS_THE_RUN } from "@haibun/core/lib/actions.js";
+import { FOLLOWS_THE_RUN, readAction } from "@haibun/core/lib/actions.js";
+import { STORE_METHOD_PREFIX, STORE_READ } from "@haibun/core/lib/store-protocol.js";
+import { GraphQuerySchema } from "@haibun/core/lib/quad-types.js";
+import { z } from "zod";
 import { passWithDefaults, DEF_PROTO_OPTIONS, freePort } from "@haibun/core/lib/test/lib.js";
 import { TEST_DOMAIN, declaresTestDomains } from "@haibun/core/lib/test/test-domains.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
@@ -27,7 +30,7 @@ import { EVERY_DEFINITION, SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, readShownSteps,
 import { refusal } from "@haibun/core/lib/step-registry.js";
 import { streamContext, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import { authorizedWith, readingAt } from "@haibun/core/lib/capability-context.js";
-import { Access } from "@haibun/core/lib/resources.js";
+import { Access, LinkRelations, PersistedVertexSchema } from "@haibun/core/lib/resources.js";
 import { TRANSPORT, type ITransport } from "./sse-transport.js";
 import { DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_STEP_METHOD, DOMAIN_TEXT } from "@haibun/core/lib/domains.js";
 
@@ -228,7 +231,7 @@ class RpcVerifyStepper extends AStepper {
 			},
 		},
 		rpcReadOfUncallableRefusedAlike: {
-			gwta: `rpc read at {url: ${DOMAIN_LINK}} of {method: ${DOMAIN_STEP_METHOD}} presenting nothing is refused as a call it may not make`,
+			gwta: `rpc read at {url: ${DOMAIN_LINK}} of {method: ${DOMAIN_STEP_METHOD}} without a capability invocation is refused as a call outside its capabilities`,
 			action: async ({ url, method }: TStepArgs) => {
 				const res = await fetch(String(url), {
 					method: "POST",
@@ -290,7 +293,7 @@ class RpcVerifyStepper extends AStepper {
 			},
 		},
 		rpcRefusedPresentingNothing: {
-			gwta: `rpc call to {url: ${DOMAIN_LINK}} with method {method: ${DOMAIN_STEP_METHOD}} presenting nothing is refused`,
+			gwta: `rpc call to {url: ${DOMAIN_LINK}} with method {method: ${DOMAIN_STEP_METHOD}} without a capability invocation is refused`,
 			action: async ({ url, method }: TStepArgs) => {
 				const res = await postRpc(String(url), String(method));
 				const data = (await res.json()) as { error?: string; pong?: boolean };
@@ -461,11 +464,89 @@ class ReadStepper extends AStepper {
 	};
 }
 
+const NOTICE_LABEL = "TestNotice";
+const NOTICE_ID = "notice-1";
+const NOTICE_COUNT_ACTION = "NoticeStepper:count";
+const NOTICE_COUNT_METHOD = "NoticeStepper-countNotices";
+const STORE_READ_METHOD = `${STORE_METHOD_PREFIX}readRecords`;
+const READS_PUBLIC = readAction(Access.public);
+
+/** A public record, a step that counts its records without declaring itself a read, and the requests that read them. */
+class NoticeStepper extends AStepper {
+	description = "Holds a public notice and reads it through a step and through the store's protocol.";
+	cycles = {
+		getConcerns: () => ({
+			domains: [
+				{
+					selectors: ["test-notice"],
+					schema: PersistedVertexSchema.extend({ id: z.string() }),
+					description: "A notice anyone may read",
+					topology: { persistedAs: NOTICE_LABEL, id: "id", accessLevel: Access.public, properties: { id: LinkRelations.IDENTIFIER.rel } },
+				},
+			],
+		}),
+	};
+	steps = {
+		holdsNotice: {
+			exact: "public notice is held",
+			action: async () => {
+				await this.getWorld().shared.getStore().upsertIndividual(NOTICE_LABEL, { id: NOTICE_ID });
+				return OK;
+			},
+		},
+		countNotices: {
+			exact: "count the notices",
+			capability: NOTICE_COUNT_ACTION,
+			productsDomain: TEST_DOMAIN.count,
+			action: async () =>
+				actionOKWithProducts({
+					count: (
+						await this.getWorld()
+							.shared.getStore()
+							.readRecords(GraphQuerySchema.parse({ label: NOTICE_LABEL }))
+					).vertices.length,
+				}),
+		},
+		refusedWithoutRead: {
+			gwta: `rpc call to {url: ${DOMAIN_LINK}} without a capability invocation is refused with the read action it lacks`,
+			action: async ({ url }: TStepArgs) => {
+				const method = String(url).slice(String(url).lastIndexOf("/") + 1);
+				const params = method === STORE_READ_METHOD ? { query: { label: NOTICE_LABEL } } : {};
+				const res = await fetch(String(url), {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: await rpcBody(String(url), { method, seqPath: [0, 1, 1, 1], params }),
+				});
+				const text = await res.text();
+				if (text.includes(NOTICE_ID) || text.includes('"count":1')) return actionNotOK(`a caller without a read action read the notice: ${res.status} ${text}`);
+				return text.includes(`capability ${READS_PUBLIC} required`) ? OK : actionNotOK(`the refusal doesn't name ${READS_PUBLIC}: ${res.status} ${text}`);
+			},
+		},
+	};
+}
+
 const steppers = [WebServerStepper, PingStepper, RpcVerifyStepper, ReadStepper, Haibun];
 /** The steppers with a stand-in authority, for a case whose caller signs what it calls. */
 const signedSteppers = [AuthorityStepper, FakeAuthorityStepper, ...steppers];
 
 describe("RPC dispatch via WebServerStepper", () => {
+	it("refuses each read of records to a caller that doesn't hold a read action, through a step and through the store's protocol", async () => {
+		const port = await freePort();
+		const base = `http://localhost:${port}/rpc`;
+		const feature = {
+			path: "/features/test.feature",
+			content: `
+enable rpc
+webserver is listening for "rpc-without-read"
+public notice is held
+rpc call to "${base}/${NOTICE_COUNT_METHOD}" without a capability invocation is refused with the read action it lacks
+rpc call to "${base}/${STORE_READ_METHOD}" without a capability invocation is refused with the read action it lacks
+`,
+		};
+		const result = await passWithDefaults([feature], [...steppers, NoticeStepper], makeOptions(port, `${NOTICE_COUNT_ACTION},${STORE_READ}`));
+		expect(result.ok, JSON.stringify(result.failure)).toBe(true);
+	});
+
 	it("refuses a call and a stream that state another actuality than the one the instance holds", async () => {
 		const port = await freePort();
 		const feature = {
@@ -508,8 +589,8 @@ enable rpc
 webserver is listening for "rpc-asks-read"
 rpc read at "http://localhost:${port}/rpc/ReadStepper-asked" of "ReadStepper-asked" is answered
 rpc read at "http://localhost:${port}/rpc/PingStepper-ping" of "PingStepper-ping" is refused
-rpc read at "http://localhost:${port}/rpc/PingStepper-protectedRpcPing" of "PingStepper-protectedRpcPing" presenting nothing is refused as a call it may not make
-rpc read at "http://localhost:${port}/rpc/Nowhere-nothing" of "Nowhere-nothing" presenting nothing is refused as a call it may not make
+rpc read at "http://localhost:${port}/rpc/PingStepper-protectedRpcPing" of "PingStepper-protectedRpcPing" without a capability invocation is refused as a call outside its capabilities
+rpc read at "http://localhost:${port}/rpc/Nowhere-nothing" of "Nowhere-nothing" without a capability invocation is refused as a call outside its capabilities
 `,
 		};
 		const result = await passWithDefaults([feature], steppers, makeOptions(port, "PingStepper:ping,Read:public"));
@@ -541,7 +622,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingSte
 				content: `
 enable rpc
 webserver is listening for "rpc-stop-refused"
-rpc call to "http://localhost:${port}/rpc/WebServerStepper-stopInstance" with method "WebServerStepper-stopInstance" presenting nothing is refused
+rpc call to "http://localhost:${port}/rpc/WebServerStepper-stopInstance" with method "WebServerStepper-stopInstance" without a capability invocation is refused
 `,
 			};
 			const result = await passWithDefaults([feature], steppers, makeOptions(port));
@@ -574,10 +655,10 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingSte
 			content: `
 enable rpc
 webserver is listening for "rpc-deny-by-default"
-rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingStepper-ping" presenting nothing is refused
-rpc call to "http://localhost:${port}/rpc/PingStepper-readsAt" with method "PingStepper-readsAt" presenting nothing is refused
-rpc call to "http://localhost:${port}/rpc/Nowhere-nothing" with method "Nowhere-nothing" presenting nothing is refused
-rpc call to "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" with method "${SHOW_STEPS_METHOD}" presenting nothing is refused
+rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingStepper-ping" without a capability invocation is refused
+rpc call to "http://localhost:${port}/rpc/PingStepper-readsAt" with method "PingStepper-readsAt" without a capability invocation is refused
+rpc call to "http://localhost:${port}/rpc/Nowhere-nothing" with method "Nowhere-nothing" without a capability invocation is refused
+rpc call to "http://localhost:${port}/rpc/${SHOW_STEPS_METHOD}" with method "${SHOW_STEPS_METHOD}" without a capability invocation is refused
 `,
 		};
 		const result = await passWithDefaults([feature], steppers, makeOptions(port));
@@ -594,7 +675,7 @@ webserver is listening for "rpc-allowed-without-delegation"
 accept authority from "agent" for "PingStepper:protected"
 rpc call to "http://localhost:${port}/rpc/PingStepper-ping" with method "PingStepper-ping" succeeds
 rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" succeeds when signed by "agent" for "PingStepper:protected"
-rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "PingStepper-adminPing" presenting nothing is refused
+rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "PingStepper-adminPing" without a capability invocation is refused
 `,
 		};
 		const result = await passWithDefaults([feature], signedSteppers, makeOptions(port, "PingStepper:ping"));
@@ -827,7 +908,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-ping" without seqPath succ
 enable rpc
 webserver is listening for "rpc-protected-step"
 accept authority from "agent" for "PingStepper:protected"
-rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" presenting nothing is refused
+rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" without a capability invocation is refused
 rpc call to "http://localhost:${port}/rpc/Nowhere-nothing" with method "Nowhere-nothing" is unknown when signed by "agent" for "PingStepper:protected"
 rpc call to "http://localhost:${port}/rpc/PingStepper-protectedPing" with method "PingStepper-protectedPing" succeeds when signed by "agent" for "PingStepper:protected"
 `,

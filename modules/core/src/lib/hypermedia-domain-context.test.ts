@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { hypermediaDomainFromContext, buildConcernCatalog } from "./hypermedia.js";
-import { LinkRelations, REL_CONTEXT } from "./resources.js";
+import { Access, LinkRelations, REL_CONTEXT } from "./resources.js";
 import { toRegisteredDomain } from "./domains.js";
 import { fromJsonText } from "./json-text.js";
 
@@ -11,8 +11,10 @@ describe("hypermediaDomainFromContext, declare a hypermedia domain from a JSON-L
 		const { topology, schema } = hypermediaDomainFromContext("Ingredient", {
 			"@context": { id: "@id", name: iri(LinkRelations.NAME.rel), usedIn: { "@id": iri(LinkRelations.PART_OF.rel), range: "Recipe" } },
 			"@queryable": ["name"],
+			"@accessLevel": Access.private,
 		});
 		expect(topology.id).toBe("id");
+		expect(topology.accessLevel, "and stores its records at the level the declaration states").toBe(Access.private);
 		expect(topology.properties.id).toBe(LinkRelations.IDENTIFIER.rel);
 		expect(topology.properties.name).toBe(LinkRelations.NAME.rel);
 		expect(topology.properties.generatedAtTime).toBe(LinkRelations.GENERATED_AT_TIME.rel); // auto-injected
@@ -30,13 +32,14 @@ describe("hypermediaDomainFromContext, declare a hypermedia domain from a JSON-L
 	});
 
 	it("requires an @id field: a type is invalid without an identifier", () => {
-		expect(() => hypermediaDomainFromContext("Bad", { "@context": { name: iri(LinkRelations.NAME.rel) } })).toThrow(/@id/);
+		expect(() => hypermediaDomainFromContext("Bad", { "@context": { name: iri(LinkRelations.NAME.rel) }, "@accessLevel": Access.private })).toThrow(/@id/);
 	});
 
 	it("types fields via @type (xsd:integer → number/BIGINT)", () => {
 		const { topology, schema } = hypermediaDomainFromContext("Item", {
 			"@context": { id: "@id", qty: { "@id": iri(LinkRelations.NAME.rel), "@type": "xsd:integer" } },
 			"@queryable": ["qty"],
+			"@accessLevel": Access.private,
 		});
 		expect(schema.safeParse({ id: "a", qty: 3 }).success).toBe(true);
 		expect(schema.safeParse({ id: "a", qty: "three" }).success).toBe(false);

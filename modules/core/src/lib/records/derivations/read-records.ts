@@ -18,7 +18,7 @@ import {
 	type TTitledBy,
 } from "../../hypermedia.js";
 import { ORDER_KEY, VIA_FIELD, type TDistinctValues, type TGraphQuery, type TOrderKey, type TQuad, type TRecordsPage, type TSearchCondition } from "../../quad-types.js";
-import { Access, AccessQuery, LinkRelations, isPersisted, type THeldBy, type TRegisteredDomain } from "../../resources.js";
+import { AccessQuery, LinkRelations, isPersisted, statedLevel, type THeldBy, type TRegisteredDomain } from "../../resources.js";
 
 /** The name a refusal and a rejected bound state for the read function. */
 export const READ_RECORDS = "readRecords";
@@ -184,12 +184,11 @@ export function readRefusal(query: TGraphQuery, declarations: Pick<TReadDeclarat
 	return reachedBy(surface, REACHED_BY.search).length > 0 ? undefined : unsearchedRefusal(READ_RECORDS, label, surface, declared.id);
 }
 
-/** Returns true where a record held at `level` is on a page read at `asked`. A read at `all`, or without a level, reads every
- *  level. A record that doesn't state a level is on a page read at private, and isn't on a page read at another level. */
+/** Returns true where a record held at `level` is on a page read at `asked`. A read at `all`, or a read that doesn't state
+ *  a level, reads every level. A read at one level refuses a record that doesn't state its level (`statedLevel`). */
 export function readsAtLevel(level: unknown, asked: TGraphQuery["accessLevel"]): boolean {
 	if (asked === undefined || asked === AccessQuery.all) return true;
-	if (asked === Access.private) return level === undefined || level === null || level === Access.private;
-	return level === asked;
+	return statedLevel(level) === asked;
 }
 
 const ID_ASCENDING: TOrderKey = { key: ORDER_KEY.id, order: "asc" };

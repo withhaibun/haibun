@@ -3,9 +3,9 @@ import { GraphQuerySchema } from "./quad-types.js";
 import { readEvery } from "./records/pipelines/record-reads.js";
 import { storeDeclaring } from "./test/declared-types.js";
 import { describe, it, expect, beforeEach, beforeAll } from "vitest";
-import { accessBound, runAuthorizedWith, runReadingAt } from "./capability-context.js";
+import { accessBound, runAuthorizedWith, runReadingAt, writeBound } from "./capability-context.js";
 import { readAction, readCeilingOf, writeAction } from "./actions.js";
-import { Access } from "./resources.js";
+import { Access, type AccessLevel } from "./resources.js";
 import { itemAt } from "./util/item-at.js";
 import { COUNT_CEILING } from "./hypermedia.js";
 
@@ -264,13 +264,18 @@ describe("which division of a span an instant falls in", () => {
 
 describe("the level each quad a run holds is written and read at", () => {
 	const [NOTICE, FACTS] = ["Notice", "facts"];
-	const levels = { bound: accessBound, declared: (label: string) => (label === NOTICE ? Access.public : undefined) };
+	const DECLARED: Record<string, AccessLevel> = { [NOTICE]: Access.public, [FACTS]: Access.private };
+	const levels = { bound: accessBound, writeBound, declared: (label: string) => DECLARED[label] };
 	const [reader, publicReader] = [[readAction(Access.private)], [readAction(Access.public)]];
 	const as = <T>(held: string[], within: () => Promise<T>): Promise<T> => runAuthorizedWith(held, () => runReadingAt(readCeilingOf(held), within));
 	let store: QuadStore;
 
 	beforeEach(() => {
 		store = storeDeclaring({ [NOTICE]: {} }, levels);
+	});
+
+	it("refuses a write that doesn't state a level to a graph that doesn't declare one", async () => {
+		await expect(store.set("note-1", "says", "kept", "undeclared")).rejects.toThrow("a write that doesn't state a level is refused");
 	});
 
 	it("doesn't return actuality's own facts to a public reader", async () => {

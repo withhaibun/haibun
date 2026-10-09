@@ -6,7 +6,7 @@
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type TStepperSteps } from "../lib/astepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts } from "../lib/util/index.js";
-import { LinkRelations } from "../lib/resources.js";
+import { Access, LinkRelations } from "../lib/resources.js";
 import { URAKATA, URAKATA_ID_DOMAIN, URAKATA_LABEL, UrakataRegistry, UrakataSchema, type IHasUrakata, type IUrakataRegistry, urakataIdDomainDefinition } from "../lib/urakata.js";
 
 const DOMAIN_URAKATA_LIST = "urakata-list";
@@ -25,6 +25,7 @@ export const urakataTaskDomainDefinition = {
 		"A background task (ticker) started in a run: what it is, which run instance it ran in, when it started, its tick and error counts, and when it was cleanly stopped.",
 	topology: {
 		persistedAs: URAKATA_LABEL,
+		accessLevel: Access.private,
 		id: "id",
 		instrumentation: true,
 		properties: {

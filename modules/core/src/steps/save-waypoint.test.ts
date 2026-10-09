@@ -11,7 +11,8 @@ import { dispatchStep } from "../lib/step-dispatch.js";
 import ActivitiesStepper, { SAVED_WAYPOINT_LABEL } from "./activities-stepper.js";
 import AuthorityStepper from "./authority-stepper.js";
 import { ACTIVITIES_ACTIONS, ACTIVITIES_STEPPER } from "./activities-actions.js";
-import { requiredAction } from "../lib/actions.js";
+import { readAction, requiredAction } from "../lib/actions.js";
+import { Access } from "../lib/resources.js";
 import VariablesStepper from "./variables-stepper.js";
 import { readEvery } from "../lib/records/pipelines/record-reads.js";
 
@@ -20,6 +21,7 @@ const KNOCK_LINE = 'set knocks to "2"';
 const SAVE = `save waypoint "${OUTCOME}" doing [${JSON.stringify(KNOCK_LINE)}]`;
 const RUN = ACTIVITIES_ACTIONS.runSavedWaypoint;
 const SET = requiredAction(VariablesStepper.name, "set", {});
+const READS_PUBLIC = readAction(Access.public);
 
 /** Holds whether actuality offered the saved waypoint, and whether a transport-style call to it passed. */
 const seen = { offered: false, ran: false };
@@ -61,7 +63,7 @@ describe("a waypoint a step saves", () => {
 
 	it("requires the action every saved waypoint requires, and each of its lines requires its own", async () => {
 		const holding = (actions: string[]) => `holding only "${actions.join(",")}", run the saved waypoint "${OUTCOME}"`;
-		expect((await passWithDefaults(`${SAVE}\n${holding([RUN, SET])}\nvariable knocks is "2"\n`, STEPPERS)).ok, "a caller holding both").toBe(true);
+		expect((await passWithDefaults(`${SAVE}\n${holding([RUN, SET, READS_PUBLIC])}\nvariable knocks is "2"\n`, STEPPERS)).ok, "a caller holding both").toBe(true);
 		const withoutRun = await failWithDefaults(`${SAVE}\n${holding([SET])}\n`, STEPPERS);
 		expect(JSON.stringify(withoutRun.featureResults?.[0]?.stepResults), "a caller that doesn't hold the action that runs a saved waypoint").toContain(RUN);
 		const withoutLine = await failWithDefaults(`${SAVE}\n${holding([RUN])}\n`, STEPPERS);

@@ -27,14 +27,30 @@ function readLevelOf(action: string): AccessLevel | undefined {
 	return parsed.success ? parsed.data : undefined;
 }
 
+/** What a step reads and the action it requires.
+ *  - `read`: the step reads actuality's records and doesn't change one. A call into a running instance from outside
+ *    actuality runs it and doesn't record it: it doesn't leave a step record, an announcement, a usage count or a kept
+ *    result. Reading actuality isn't a step of actuality, so an instance read for a year doesn't write a year of records of
+ *    those reads. A feature runs it as it runs any other step.
+ *  - `capability`: the action a caller must hold to run the step, where it differs from the step's own name. A group of
+ *    steps declares one action, so a delegation can name them together.
+ *  - `readsAt`: the level of the content the step reads. A gate refuses the step to a caller that doesn't hold a read at
+ *    this level. A read step states it, or states the capability that gates it. */
+export type TStepReads =
+	| { read?: boolean; capability: string; readsAt?: AccessLevel }
+	| { read?: boolean; capability?: string; readsAt: AccessLevel }
+	| { read?: false; capability?: string; readsAt?: undefined };
+
 /**
- * Returns the action a step requires. A step that declares a capability requires that action. A read step requires a read
- * at its `readsAt` level, or at private where it doesn't state one, so a read step that doesn't state its level responds
- * only to a caller who reads at private. Any other step requires its own name, so a gate refuses a step that doesn't
+ * Returns the action a step requires. A step that declares a capability requires that action. A read step without one
+ * requires a read at its `readsAt` level. Any other step requires its own name, so a gate refuses a step that doesn't
  * declare a requirement to every caller that doesn't hold that name.
  */
-export function requiredAction(stepperName: string, stepName: string, step: { capability?: string; read?: boolean; readsAt?: AccessLevel }): string {
-	return step.capability ?? (step.read ? readAction(step.readsAt ?? Access.private) : `${stepperName}:${stepName}`);
+export function requiredAction(stepperName: string, stepName: string, step: TStepReads): string {
+	if (step.capability !== undefined) return step.capability;
+	if (!step.read) return `${stepperName}:${stepName}`;
+	if (step.readsAt === undefined) throw new Error(`${stepperName}.${stepName} reads and doesn't state readsAt or a capability. State readsAt as the level of its read.`);
+	return readAction(step.readsAt);
 }
 
 /** The fields a gate or a listing reads from a step: the action the step requires, and its `readsAt` level where it states one. */
@@ -120,18 +136,23 @@ export function seenAt(asked: AccessLevel, ceiling: AccessLevel | undefined): Ac
  * states, or else the narrower of the type's declared level and the writer's ceiling, so a writer reads back what it
  * wrote. A writer can copy what it read into what it writes, so a level more public than its ceiling requires
  * `writeAction` of that level. A writer that lacks that action is refused a stated level, and receives its ceiling in
- * place of a declared level.
+ * place of a declared level. A write that doesn't state a level of a type that doesn't declare one is refused.
  */
-export function writtenAt(stated: AccessLevel | undefined, declared: AccessLevel, bound: TAccessBound): AccessLevel {
+export function writtenAt(stated: AccessLevel | undefined, declared: AccessLevel | undefined, bound: TAccessBound): AccessLevel {
 	const { ceiling } = bound;
-	if (!ceiling) return stated ?? declared;
-	const level = stated ?? narrowerAccess(ceiling, declared);
-	if (mayWriteAt(level, bound)) return level;
-	if (stated)
+	if (stated !== undefined) {
+		if (!ceiling || mayWriteAt(stated, bound)) return stated;
 		throw new Error(
 			`writing at ${stated} requires ${writeAction(stated)}. The caller doesn't hold it and reads at ${ceiling}. Write at that level or a more private one, or hold the action.`,
 		);
-	return ceiling;
+	}
+	if (declared === undefined)
+		throw new Error(
+			"a write that doesn't state a level is refused, and the record's type doesn't declare one. State accessLevel on the record, or declare its type with accessLevel.",
+		);
+	if (!ceiling) return declared;
+	const level = narrowerAccess(ceiling, declared);
+	return mayWriteAt(level, bound) ? level : ceiling;
 }
 
 /** Returns whether `writtenAt` writes at every level a caller states. It does where a ceiling doesn't bound the caller, or

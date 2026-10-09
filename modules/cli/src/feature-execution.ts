@@ -18,7 +18,7 @@
  * standing. A test run that isn't left standing doesn't have an endpoint. It ends when its features end.
  */
 import { z } from "zod";
-import { COMMENT_LABEL, LinkRelations, PRINCIPAL_LABEL, type TDomainDefinition } from "@haibun/core/lib/resources.js";
+import { Access, COMMENT_LABEL, LinkRelations, PRINCIPAL_LABEL, type TDomainDefinition } from "@haibun/core/lib/resources.js";
 
 export const FEATURE_EXECUTION_LABEL = "FeatureExecution";
 export const FEATURE_EXECUTION_DOMAIN = "feature-execution";
@@ -70,6 +70,7 @@ export const featureExecutionDomainDefinition: TDomainDefinition = {
 	description: "One test run of named features: its feature filter, the endpoint of a standing test run, and its status. A finding about a test run targets this record.",
 	topology: {
 		persistedAs: FEATURE_EXECUTION_LABEL,
+		accessLevel: Access.private,
 		id: "id",
 		displayLabel: "filter",
 		properties: {

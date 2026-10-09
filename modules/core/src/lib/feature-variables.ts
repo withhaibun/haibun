@@ -5,13 +5,13 @@ import { parseDotPath, navigateValue } from "./util/dot-path.js";
 import { itemAt } from "./util/item-at.js";
 import { runEnvVariables, type TWorld } from "./world.js";
 import { Origin, TOrigin, TProvenanceIdentifier, TStepValue } from "../schema/protocol.js";
-import { DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STRING, DOMAIN_UNION, domainParts, namesMember, normalizeDomainKey, registeredDomain } from "./domains.js";
+import { DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STRING, DOMAIN_UNION, domainParts, namesMember, normalizeDomainKey, persistedDomainOf, registeredDomain } from "./domains.js";
 import { readDeclarationsOf } from "./records/derivations/read-records.js";
 import { readEvery, recordOf } from "./records/pipelines/record-reads.js";
 import { ontologyReader } from "./records/pipelines/ontology-records.js";
 import { VARIABLE_FIELD } from "./records/domains/variables.js";
 import { QuadStore } from "./quad-store.js";
-import { accessBound, readingAsStated } from "./capability-context.js";
+import { accessBound, readingAsStated, writeBound } from "./capability-context.js";
 import { EDGE, SEQ_PATH_LABEL, declaredAccessLevel } from "./resources.js";
 import { executionOf, formatRecordName } from "./seq-path.js";
 import { IQuadStore, SHARED_GRAPH, emitQuadObservation } from "./quad-types.js";
@@ -64,7 +64,7 @@ export class FeatureVariables {
 		this.store = new QuadStore(
 			prevStore?.backingRouting(),
 			prevStore?.backingFederated(),
-			{ bound: accessBound, declared: (label) => declaredAccessLevel(world.domains[label]) },
+			{ bound: accessBound, writeBound, declared: (label) => declaredAccessLevel(persistedDomainOf(world.domains, label)) },
 			() => readDeclarationsOf(world.domains),
 			ontologyReader(
 				() => world.domains,

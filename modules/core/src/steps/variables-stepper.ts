@@ -29,7 +29,7 @@ import {
 } from "../lib/domains.js";
 import { fromJsonText } from "../lib/json-text.js";
 import { HypermediaContextSchema, hypermediaDomainFromContext, type THypermediaContext } from "../lib/hypermedia.js";
-import { edgeRanges, isPersisted, REL_CONTEXT, LinkRelations, type TRel, type TRegisteredDomain, type TDomainDefinition } from "../lib/resources.js";
+import { AccessLevelSchema, edgeRanges, isPersisted, REL_CONTEXT, LinkRelations, type TRel, type TRegisteredDomain, type TDomainDefinition } from "../lib/resources.js";
 
 const clearVars = (vars: VariablesStepper) => async () => {
 	await vars.getWorld().shared.clear();
@@ -571,6 +571,9 @@ class VariablesStepper extends AStepper implements IHasCycles {
 
 export default VariablesStepper;
 
+/** The clause of a declaration that states the storage level of its records. */
+const STORED_AT = /^stored at\s+(\S+)$/;
+
 const XSD_FOR: Record<string, string> = {
 	number: "xsd:integer",
 	integer: "xsd:integer",
@@ -581,9 +584,10 @@ const XSD_FOR: Record<string, string> = {
 	string: "",
 };
 
-/** Prose shorthand → JSON-LD @context: `id, with name [as number], used in Recipe`. The first clause is
+/** Prose shorthand → JSON-LD @context: `id, with name [as number], used in Recipe, stored at private`. The first clause is
  * the id field; `with {field}` maps the field to its same-named relation (queryable); `used in {Range}`
- * is the usedIn (isPartOf) edge. Non-relation field names need the JSON-LD form with an explicit @id. */
+ * is the usedIn (isPartOf) edge; `stored at {level}` states the level the type's records are stored at, and a declaration
+ * without it is refused. Non-relation field names need the JSON-LD form with an explicit @id. */
 function parseHypermediaDeclProse(domain: string, spec: string): THypermediaContext {
 	const clauses = spec
 		.split(",")
@@ -591,9 +595,15 @@ function parseHypermediaDeclProse(domain: string, spec: string): THypermediaCont
 		.filter(Boolean);
 	const [idField, ...fields] = clauses;
 	if (!idField) throw new Error(`set of ${domain}: declaration needs an id field (e.g. "by id, with name")`);
-	const context: Record<string, unknown> = { [idField]: "@id" };
+	const context: THypermediaContext["@context"] = { [idField]: "@id" };
 	const queryable: string[] = [];
+	let accessLevel: string | undefined;
 	for (const clause of fields) {
+		const storedM = clause.match(STORED_AT);
+		if (storedM) {
+			accessLevel = storedM[1];
+			continue;
+		}
 		const withM = clause.match(/^with\s+(\S+)(?:\s+as\s+(\S+))?$/);
 		if (withM) {
 			const field = itemAt(withM, 1);
@@ -611,9 +621,13 @@ function parseHypermediaDeclProse(domain: string, spec: string): THypermediaCont
 			context.usedIn = { "@id": REL_CONTEXT[LinkRelations.PART_OF.rel], range: usedM[1] };
 			continue;
 		}
-		throw new Error(`set of ${domain}: unrecognized clause "${clause}" (expected "with <field> [as <type>]" or "used in <Range>")`);
+		throw new Error(`set of ${domain}: unrecognized clause "${clause}" (expected "with <field> [as <type>]", "used in <Range>" or "stored at <level>")`);
 	}
-	return { "@context": context, ...(queryable.length ? { "@queryable": queryable } : {}) } as THypermediaContext;
+	if (accessLevel === undefined)
+		throw new Error(
+			`set of ${domain}: the declaration doesn't state the storage level of its records. Add the clause "stored at <level>", where the level is one of ${AccessLevelSchema.options.join(", ")}.`,
+		);
+	return HypermediaContextSchema.parse({ "@context": context, ...(queryable.length ? { "@queryable": queryable } : {}), "@accessLevel": accessLevel });
 }
 
 export function provenanceFromFeatureStep(featureStep: TFeatureStep): TProvenanceIdentifier {

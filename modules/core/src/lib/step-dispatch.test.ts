@@ -23,12 +23,12 @@ import { getDefaultWorld, testWithWorld } from "./test/lib.js";
 import { TEST_DOMAIN, declaresTestDomains, testDomainDefinitions } from "./test/test-domains.js";
 import { DOMAIN_DOMAIN_KEY, DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_RECORD_ID, DOMAIN_STRING, individualRefDomain, registerDomains } from "./domains.js";
 import type { TWorld } from "./world.js";
-import { Access, DOMAIN_PERSISTED_TYPE, LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
+import { Access, DOMAIN_PERSISTED_TYPE, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, SEQ_PATH_STATUS, type TDomainDefinition } from "./resources.js";
 import { SEQ_PATH_FIELD, executionOf, factIdOf, formatRecordName } from "./seq-path.js";
 import { readFacts } from "./records/pipelines/facts.js";
 import { streamContext, streamOver } from "./step-stream-context.js";
 import { capabilityAllows } from "./actions.js";
-import { RUN_AUTHORITY, readingAt, runActingAs, runReadingAt } from "./capability-context.js";
+import { RUN_AUTHORITY, readingAt, runActingAs, runReadingAt, WITHOUT_READ_REFUSAL } from "./capability-context.js";
 
 // --- Test Steppers ---
 
@@ -418,7 +418,10 @@ describe("step-dispatch", () => {
 						action: async () => {
 							const registry = nested.registry;
 							if (!registry) throw new Error("the registry isn't built");
-							const inner = itemAt([registry.get(`${this.constructor.name}-guarded`)].filter((tool) => tool !== undefined), 0);
+							const inner = itemAt(
+								[registry.get(`${this.constructor.name}-guarded`)].filter((tool) => tool !== undefined),
+								0,
+							);
 							const result = await dispatchStep({ registry, world, steppers: [this] }, buildFeatureStepForTransport(inner, {}, [0, 9, 1]));
 							return result.ok ? OK : actionNotOK(String(result.errorMessage));
 						},
@@ -573,11 +576,29 @@ describe("step-dispatch", () => {
 		});
 
 		describe("what the caller holds", () => {
+			const NOTICE_LABEL = "HeldNotice";
+			const NOTICE_ID = "notice-1";
+			const NOTICE_DOMAIN: TDomainDefinition = {
+				selectors: ["held-notice"],
+				schema: PersistedVertexSchema.extend({ id: z.string() }),
+				description: "A notice a caller writes",
+				topology: { persistedAs: NOTICE_LABEL, id: "id", accessLevel: Access.opened, properties: { id: LinkRelations.IDENTIFIER.rel } },
+			};
 			class Held extends AStepper {
-				description = "A step that reads at the caller's ceiling, and a read step that doesn't state its level.";
+				description = "A step that reads at the caller's ceiling, a step that reads records, a step that writes a record, and a read step at private.";
 				steps = {
+					writesNotice: {
+						gwta: "write a notice",
+						productsDomain: TEST_DOMAIN.echoed,
+						action: async () => actionOKWithProducts({ echoed: await world.shared.getStore().upsertIndividual(NOTICE_LABEL, { id: NOTICE_ID }) }),
+					},
 					readsAtCeiling: { gwta: "read at the ceiling", productsDomain: TEST_DOMAIN.readAt, action: async () => actionOKWithProducts({ at: readingAt() ?? "unbounded" }) },
-					describesItself: { gwta: "describe this", read: true, action: async () => OK },
+					readsRecords: {
+						gwta: "count the records",
+						productsDomain: TEST_DOMAIN.count,
+						action: async () => actionOKWithProducts({ count: (await world.shared.getStore().all()).length }),
+					},
+					describesItself: { gwta: "describe this", read: true, readsAt: Access.private, action: async () => OK },
 				};
 			}
 			const held = () => {
@@ -597,18 +618,39 @@ describe("step-dispatch", () => {
 			it("refuses a step that doesn't declare a capability to a caller not holding its name, and a read to a caller that doesn't hold a read", async () => {
 				const { call } = held();
 				await expect(call("readsAtCeiling", [], [0, 20, 1])).rejects.toThrow(/capability Held:readsAtCeiling required/);
-				await expect(call("describesItself", [], [0, 20, 2]), "a read that doesn't state its level is refused to a caller that doesn't hold Read:private").rejects.toThrow(
+				await expect(call("describesItself", [], [0, 20, 2]), "a read at private is refused to a caller that doesn't hold Read:private").rejects.toThrow(
 					/capability Read:private required/,
 				);
 				expect((await call("describesItself", ["Read:private"], [0, 20, 3])).ok, "a broader read allows it").toBe(true);
 			});
 
-			it("bounds what a step reads by the broadest read its caller holds, and at public for a caller that doesn't hold one", async () => {
+			it("bounds what a step reads by the broadest read its caller holds", async () => {
 				const { call } = held();
-				expect((await call("readsAtCeiling", ["Held:readsAtCeiling"], [0, 21, 1])).products?.at).toBe("public");
+				expect((await call("readsAtCeiling", ["Held:readsAtCeiling", "Read:public"], [0, 21, 1])).products?.at).toBe("public");
 				expect((await call("readsAtCeiling", ["Held:readsAtCeiling", "Read:opened"], [0, 21, 2])).products?.at).toBe("opened");
 				expect((await call("readsAtCeiling", RUN_AUTHORITY, [0, 21, 3])).products?.at, "actuality reads at the broadest level it holds").toBe("private");
 				expect((await runReadingAt("public", () => call("readsAtCeiling", RUN_AUTHORITY, [0, 21, 4]))).products?.at, "and never above a ceiling already in force").toBe("public");
+			});
+
+			it("refuses each read of records to a caller that doesn't hold a read action, naming the read it lacks", async () => {
+				const { call } = held();
+				const ceiling = await call("readsAtCeiling", ["Held:readsAtCeiling"], [0, 23, 1]);
+				expect(ceiling.ok ? ceiling.products : ceiling.errorMessage, "the step's read of its ceiling is refused").toBe(WITHOUT_READ_REFUSAL);
+				const records = await call("readsRecords", ["Held:readsRecords"], [0, 23, 2]);
+				expect(records.ok ? records.products : records.errorMessage, "and so is its read of the store's records").toBe(WITHOUT_READ_REFUSAL);
+				expect((await call("readsRecords", ["Held:readsRecords", "Read:public"], [0, 23, 3])).ok, "a caller that holds a read reads").toBe(true);
+			});
+
+			it("writes a record for a caller that holds only the write's action, at the level its type declares, and returns only the written record's id", async () => {
+				registerDomains(world, [[NOTICE_DOMAIN]]);
+				const { call } = held();
+				const written = await call("writesNotice", ["Held:writesNotice"], [0, 24, 1]);
+				expect(written.ok, written.errorMessage).toBe(true);
+				expect(written.products?.echoed, "the write returns the id of the record it wrote").toBe(NOTICE_ID);
+				const stored = await world.shared.getStore().query({ subject: NOTICE_ID, namedGraph: NOTICE_LABEL });
+				expect(new Set(stored.map(({ accessLevel }) => accessLevel)), "at the level its type declares").toEqual(new Set([Access.opened]));
+				const read = await call("readsRecords", ["Held:readsRecords"], [0, 24, 2]);
+				expect(read.ok ? read.products : read.errorMessage, "and the same caller's read is refused").toBe(WITHOUT_READ_REFUSAL);
 			});
 
 			it("records what a caller's step required and held and who proved it, and doesn't record authority for actuality's own", async () => {
@@ -626,7 +668,7 @@ describe("step-dispatch", () => {
 		it("returns the result of a read over a transport without recording the read, and records a read that a feature states in its own body", async () => {
 			const stepper = new (class extends AStepper {
 				description = "A read that counts.";
-				steps = { howMany: { gwta: "how many", read: true, productsDomain: TEST_DOMAIN.count, action: async () => actionOKWithProducts({ count: 3 }) } };
+				steps = { howMany: { gwta: "how many", read: true, readsAt: Access.private, productsDomain: TEST_DOMAIN.count, action: async () => actionOKWithProducts({ count: 3 }) } };
 			})();
 			const steppers = [stepper];
 			const registry = new StepRegistry(steppers, world);

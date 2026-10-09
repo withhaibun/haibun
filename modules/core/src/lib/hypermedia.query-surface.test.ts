@@ -8,12 +8,13 @@
  */
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
-import { LinkRelations, type THypermediaTopology } from "./resources.js";
+import { Access, LinkRelations, type THypermediaTopology } from "./resources.js";
 import { REACHED_BY, pointsThrough, querySurface } from "./hypermedia.js";
 
 const MessageSchema = z.object({ messageId: z.string(), subject: z.string(), folder: z.string(), unread: z.boolean(), generatedAtTime: z.date() });
 const topology: THypermediaTopology = {
 	persistedAs: "Message",
+	accessLevel: Access.private,
 	id: "messageId",
 	properties: {
 		messageId: LinkRelations.IDENTIFIER.rel,

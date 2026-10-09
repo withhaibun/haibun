@@ -10,8 +10,9 @@ import { z } from "zod";
 import { getDefaultWorld, testWithWorld } from "../lib/test/lib.js";
 import { resolveSitePrincipal } from "../lib/host-id.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "../lib/astepper.js";
-import { COMMENT_LABEL, LinkRelations, type TDomainDefinition } from "../lib/resources.js";
+import { Access, COMMENT_LABEL, LinkRelations, type TDomainDefinition } from "../lib/resources.js";
 import { getAuthority } from "../lib/session-authority.js";
+import { readAction } from "../lib/actions.js";
 import type { TAuthorityEvidence } from "../lib/authority-types.js";
 import { stubVerifier } from "../lib/test/fake-authority.js";
 import { itemAt } from "../lib/util/item-at.js";
@@ -25,7 +26,7 @@ const testNodeDomain: TDomainDefinition = {
 	selectors: ["test-node"],
 	schema: z.object({ id: z.string() }),
 	description: "Minimal persisted type for signed-capability attribution tests",
-	topology: { persistedAs: TEST_NODE_LABEL, id: "id", properties: { id: LinkRelations.IDENTIFIER.rel } },
+	topology: { persistedAs: TEST_NODE_LABEL, accessLevel: Access.private, id: "id", properties: { id: LinkRelations.IDENTIFIER.rel } },
 };
 
 class TestNodeStepper extends AStepper implements IHasCycles {
@@ -63,7 +64,7 @@ const CAP_JSON = JSON.stringify({
 	id: "urn:zcap:alice-comment",
 	controller: SUBKEY_DID,
 	invocationTarget: "urn:res:1",
-	allowedAction: "ResourcesStepper:comment",
+	allowedAction: ["ResourcesStepper:comment", readAction(Access.public)],
 	parentCapability: "urn:zcap:root:res:1",
 	proof: { type: "DataIntegrityProof", verificationMethod: `${SUBKEY_DID}#key-1`, proofValue: "z-stub-signature" },
 });

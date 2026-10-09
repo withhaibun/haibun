@@ -230,7 +230,7 @@ class TestServer extends AStepper {
 			},
 		},
 		mcpRefused: {
-			gwta: `mcp call to {url: ${DOMAIN_LINK}} with tool {toolName: ${DOMAIN_STEP_METHOD}} presenting nothing is refused`,
+			gwta: `mcp call to {url: ${DOMAIN_LINK}} with tool {toolName: ${DOMAIN_STEP_METHOD}} without a capability invocation is refused`,
 			action: async ({ url, toolName }: TStepArgs) => {
 				const response = await mcpCallTool(String(url), String(toolName));
 				const expected = refusal(String(toolName), undefined, undefined);
@@ -254,7 +254,7 @@ class TestServer extends AStepper {
 			},
 		},
 		rpcRefused: {
-			gwta: `rpc call to {url: ${DOMAIN_LINK}} with method {method: ${DOMAIN_STEP_METHOD}} presenting nothing is refused`,
+			gwta: `rpc call to {url: ${DOMAIN_LINK}} with method {method: ${DOMAIN_STEP_METHOD}} without a capability invocation is refused`,
 			action: async ({ url, method }: TStepArgs) => {
 				const response = await post(String(url), await rpcCall(String(url), "rpc-refused", String(method)), undefined);
 				const error = ((await response.json()) as { error?: unknown }).error;

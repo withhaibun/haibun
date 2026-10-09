@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { AStepper, type TStepperSteps } from "./astepper.js";
 import { deriveNamingDomains, mapDefinitionsToDomains, refDomainKey } from "./domains.js";
-import { LinkRelations } from "./resources.js";
+import { Access, LinkRelations } from "./resources.js";
 import { OK } from "../schema/protocol.js";
 import { actionOKWithProducts } from "./util/index.js";
 import { buildAffordances } from "./affordances.js";
@@ -91,7 +91,7 @@ describe("buildAffordances", () => {
 					selectors: [EMAIL],
 					schema: z.object({ id: z.string() }),
 					description: "email",
-					topology: { persistedAs: "Email", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel } },
+					topology: { persistedAs: "Email", accessLevel: Access.private, id: "id", properties: { id: LinkRelations.IDENTIFIER.rel } },
 				},
 			]),
 		);

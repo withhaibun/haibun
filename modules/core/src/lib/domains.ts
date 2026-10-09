@@ -1,6 +1,7 @@
 import { itemAt } from "./util/item-at.js";
 import { z } from "zod";
 import {
+	AccessLevelSchema,
 	DOMAIN_PERSISTED_TYPE,
 	PRINCIPAL_DOMAIN,
 	isPersisted,
@@ -144,7 +145,11 @@ export const registerDomains = (world: TWorld, results: TDomainDefinition[][]) =
 			const domainKey = asDomainKey(definition.selectors);
 
 			if (world.domains[domainKey]) continue;
-
+			const { topology } = definition;
+			if (isPersisted(topology) && !AccessLevelSchema.safeParse(topology.accessLevel).success)
+				throw new Error(
+					`The type ${topology.persistedAs} persists records, and its topology doesn't state accessLevel. State accessLevel as one of ${AccessLevelSchema.options.join(", ")}.`,
+				);
 			world.domains[domainKey] = toRegisteredDomain(definition);
 		}
 	}
@@ -403,6 +408,12 @@ export function linkVocabularyFromDomains(domains: Record<string, TRegisteredDom
 /** Get all persisted domains (those whose topology marks them as persisted) as an array. */
 export function getPersistedDomains(domains: Record<string, TRegisteredDomain>): Array<TRegisteredDomain & { topology: THypermediaTopology }> {
 	return Object.values(domains).filter((d): d is TRegisteredDomain & { topology: THypermediaTopology } => isPersisted(d.topology));
+}
+
+/** Returns the persisted domain whose records persist as `label`, or undefined where a domain doesn't persist as it. A
+ *  domain's key differs from the type it persists as, so a store that holds records by type finds the domain this way. */
+export function persistedDomainOf(domains: Record<string, TRegisteredDomain>, label: string): (TRegisteredDomain & { topology: THypermediaTopology }) | undefined {
+	return getPersistedDomains(domains).find(({ topology }) => topology.persistedAs === label);
 }
 
 /** Returns the persisted domains a backing store registers: each one whose topology doesn't state `heldBy`. Core holds or

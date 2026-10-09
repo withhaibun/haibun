@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { z } from "zod";
 import { registerContext, clearKeyDocuments } from "../../jsonld-loader.js";
-import { CLASS_LABEL, LinkRelations, PROPERTY_LABEL } from "../../resources.js";
+import { Access, CLASS_LABEL, LinkRelations, PROPERTY_LABEL } from "../../resources.js";
 import { mapDefinitionsToDomains } from "../../domains.js";
 import { ontologyToQuads, withStandardTerms } from "../derivations/ontology.js";
 import { ONTOLOGY_FIELD } from "../domains/ontology.js";
@@ -20,7 +20,13 @@ const widget = (standardContexts?: string[]) =>
 			selectors: ["widget"],
 			schema: z.object({ id: z.string(), size: z.string() }),
 			description: "A widget",
-			topology: { persistedAs: WIDGET, id: "id", properties: { id: LinkRelations.IDENTIFIER.rel, size: LinkRelations.TAG.rel }, ...(standardContexts ? { standardContexts } : {}) },
+			topology: {
+				persistedAs: WIDGET,
+				accessLevel: Access.private,
+				id: "id",
+				properties: { id: LinkRelations.IDENTIFIER.rel, size: LinkRelations.TAG.rel },
+				...(standardContexts ? { standardContexts } : {}),
+			},
 		},
 	]);
 

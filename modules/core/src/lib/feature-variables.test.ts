@@ -6,7 +6,7 @@ import { TFeatureStep } from "./astepper.js";
 import { TStepValue, Origin } from "../schema/protocol.js";
 import { getDefaultWorld } from "./test/lib.js";
 import { DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STRING, registerDomains } from "./domains.js";
-import { DOMAIN_PERSISTED_TYPE } from "./resources.js";
+import { Access, DOMAIN_PERSISTED_TYPE } from "./resources.js";
 import { executionOf, formatRecordName } from "./seq-path.js";
 
 describe("FeatureVariables", () => {
@@ -372,7 +372,16 @@ describe("FeatureVariables", () => {
 
 		it("is the type a record persists as, where its parameter names a type and a declared type is named", async () => {
 			const NOTE = "note";
-			registerDomains(world, [[{ selectors: [NOTE], schema: z.object({ id: z.string() }), description: "a note", topology: { persistedAs: "Note", id: "id", properties: {} } }]]);
+			registerDomains(world, [
+				[
+					{
+						selectors: [NOTE],
+						schema: z.object({ id: z.string() }),
+						description: "a note",
+						topology: { persistedAs: "Note", accessLevel: Access.private, id: "id", properties: {} },
+					},
+				],
+			]);
 			const resolveType = (term: string) => variables.resolveVariable({ term, origin: Origin.defined, domain: DOMAIN_PERSISTED_TYPE }, mockFeatureStep);
 			expect(await resolveType("Note")).toMatchObject({ value: "Note", domain: DOMAIN_PERSISTED_TYPE });
 			expect((await resolveType("Nowhere")).value, "an undeclared word").toBeUndefined();

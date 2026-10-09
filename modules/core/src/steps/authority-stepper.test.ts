@@ -18,6 +18,10 @@ import LogicStepper from "./logic-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
 import { addStepperConcerns } from "../phases/Executor.js";
 import { DOMAIN_TEXT } from "../lib/domains.js";
+import { readAction } from "../lib/actions.js";
+import { Access } from "../lib/resources.js";
+
+const READS_PUBLIC = readAction(Access.public);
 
 class PingStepper extends AStepper {
 	description = "Provides the steps that these tests run.";
@@ -74,8 +78,8 @@ describe("holding only a read", () => {
 
 describe("what a narrowed statement reads", () => {
 	it("resolves its arguments with what actuality holds, and its step reads only within what the statement holds", async () => {
-		expect(await holds(`set ${KEPT_NAME} to "${KEPT}"\nholding only "PingStepper:repeats", repeats ${KEPT_NAME}`)).toBe(true);
-		expect(await holds(`set ${KEPT_NAME} to "${KEPT}"\nholding only "PingStepper:readsKept", reads kept`)).toBe(true);
+		expect(await holds(`set ${KEPT_NAME} to "${KEPT}"\nholding only "PingStepper:repeats,${READS_PUBLIC}", repeats ${KEPT_NAME}`)).toBe(true);
+		expect(await holds(`set ${KEPT_NAME} to "${KEPT}"\nholding only "PingStepper:readsKept,${READS_PUBLIC}", reads kept`)).toBe(true);
 	});
 });
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
-import type { TRegisteredDomain } from "./resources.js";
+import { Access, type TRegisteredDomain } from "./resources.js";
 import { getCompositeFields, isPrimitiveZodType } from "./composite-domain.js";
 
 function reg(schema: z.ZodType, topology?: TRegisteredDomain["topology"]): TRegisteredDomain {
@@ -59,7 +59,13 @@ describe("getCompositeFields", () => {
 		const registry: Record<string, TRegisteredDomain> = {
 			issuer: reg(IssuerSchema),
 			proof: reg(ProofSchema),
-			"verifiable-credential": reg(VcSchema, { persistedAs: "VerifiableCredential", id: "id", properties: {}, ranges: { issuer: "issuer", proof: "proof" } }),
+			"verifiable-credential": reg(VcSchema, {
+				persistedAs: "VerifiableCredential",
+				accessLevel: Access.private,
+				id: "id",
+				properties: {},
+				ranges: { issuer: "issuer", proof: "proof" },
+			}),
 		};
 		const fields = getCompositeFields("verifiable-credential", registry);
 		const issuer = fields?.find((f) => f.fieldName === "issuer");
@@ -70,7 +76,7 @@ describe("getCompositeFields", () => {
 
 	it("drops a ranges entry that points at an unregistered domain (silent fall-back to primitive)", () => {
 		const registry: Record<string, TRegisteredDomain> = {
-			"verifiable-credential": reg(VcSchema, { persistedAs: "VerifiableCredential", id: "id", properties: {}, ranges: { issuer: "not-registered" } }),
+			"verifiable-credential": reg(VcSchema, { persistedAs: "VerifiableCredential", accessLevel: Access.private, id: "id", properties: {}, ranges: { issuer: "not-registered" } }),
 		};
 		const fields = getCompositeFields("verifiable-credential", registry);
 		const issuer = fields?.find((f) => f.fieldName === "issuer");

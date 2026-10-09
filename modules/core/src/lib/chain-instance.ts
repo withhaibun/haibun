@@ -21,7 +21,8 @@
 import type { TWorld } from "./world.js";
 import type { IQuadStore } from "./quad-types.js";
 import type { TMichi } from "./goal-resolver.js";
-import { actingAs } from "./capability-context.js";
+import { actingAs, readingAt } from "./capability-context.js";
+import { Access } from "./resources.js";
 
 /** The named graph that holds chain-instance facts. */
 export const CHAIN_INSTANCE_GRAPH = "chain/instance";
@@ -83,8 +84,13 @@ function newChainInstanceId(): string {
 	return `ci_${nowMs().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+/** Replaces one predicate of an instance. The graph isn't a declared type, so the quad states its level: the read level
+ *  of the call that walks the instance, so the walk's owner reads it back. The instance's own walk, outside a call, reads
+ *  every level and is written at private. */
 async function writePredicate(store: IQuadStore, instanceId: string, predicate: string, value: unknown): Promise<void> {
-	await store.set(instanceId, predicate, value, CHAIN_INSTANCE_GRAPH);
+	const ceiling = readingAt();
+	await store.remove({ subject: instanceId, predicate, namedGraph: CHAIN_INSTANCE_GRAPH });
+	await store.add({ subject: instanceId, predicate, object: value, namedGraph: CHAIN_INSTANCE_GRAPH, accessLevel: ceiling === undefined ? Access.private : ceiling });
 }
 
 /**

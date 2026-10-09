@@ -5,7 +5,7 @@ import { TFeatureStep } from "./astepper.js";
 import { sanitizeObjectSecrets } from "./util/secret-utils.js";
 import { formatSeqPath } from "./seq-path.js";
 import { failFastOrLog } from "./dev-mode.js";
-import { accessBound, stepInFlight } from "./capability-context.js";
+import { stepInFlight, writeBound } from "./capability-context.js";
 import { writtenAt } from "./actions.js";
 import { Access } from "./resources.js";
 
@@ -24,6 +24,10 @@ type TSubscribeOptions = {
  *  narrated. Only a subscriber that lists the blip kind receives a blip, so the monitor's buffer and SSE receive
  *  per-frame blips only where they list that kind. */
 const NARRATED_KINDS: ReadonlySet<TEventKind> = new Set<TEventKind>(["lifecycle", "log", "artifact", "control"]);
+
+/** The level an event is written at where it doesn't state one and a ceiling doesn't bound the call that emits it. An
+ *  event of actuality holds its steps, logs and records, so it is private. */
+const EVENT_LEVEL = Access.private;
 
 const matchesName = (names: readonly string[], name: string) => names.some((n) => name === n || name.startsWith(`${n}.`));
 
@@ -137,9 +141,10 @@ export class EventLogger implements IEventLogger {
 		const name = event.kind === "blip" ? event.name : undefined;
 		// Every event states the access level of what it reveals, so a follower receives only the events it may read.
 		// writtenAt determines an event's level, as it does a record's. An event that doesn't state a level takes the read
-		// ceiling of the call that emits it. Outside a bounded call, such an event is actuality's own and private. An event
-		// that states a level more public than the ceiling throws, unless the call holds that level's write action.
-		const eventWithEmitter = { ...event, emitter: event.emitter || getEmitter(), accessLevel: writtenAt(event.accessLevel, Access.private, accessBound()) };
+		// ceiling of the call that emits it. Outside a bounded call, such an event is actuality's own and takes the events'
+		// declared level. An event that states a level more public than the ceiling throws, unless the call holds that level's
+		// write action.
+		const eventWithEmitter = { ...event, emitter: event.emitter || getEmitter(), accessLevel: writtenAt(event.accessLevel, EVENT_LEVEL, writeBound()) };
 
 		for (const sub of this.subscribers) {
 			if (!this.wouldReceive(sub, event.kind, name)) continue;

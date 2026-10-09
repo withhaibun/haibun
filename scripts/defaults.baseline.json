@@ -1,0 +1,892 @@
+{
+	"modules/cli/src/instance-stepper.ts": {
+		"fills a falsy value with a constant through ||": 1,
+		"fills an absent value with a constant through ??": 2,
+		"states a parameter's default value": 2
+	},
+	"modules/cli/src/lib.ts": {
+		"fills a falsy value with a constant through ||": 4,
+		"fills an absent value with a constant through ??": 7,
+		"states a parameter's default value": 2
+	},
+	"modules/cli/src/run-outcome.ts": {
+		"fills an absent value with a constant through ??": 6
+	},
+	"modules/cli/src/test-runner-stepper.ts": {
+		"fills a falsy value with a constant through ||": 1,
+		"fills an absent value with a constant through ??": 4,
+		"states a parameter's default value": 4
+	},
+	"modules/cli/src/timings.ts": {
+		"fills a falsy value with a constant through ||": 1,
+		"fills an absent value with a constant through ??": 2
+	},
+	"modules/cli/src/verified.ts": {
+		"fills an absent value with a constant through ??": 2
+	},
+	"modules/core/src/lib/actions.ts": {
+		"fills an absent value with a constant through ??": 1,
+		"states a parameter's default value": 1
+	},
+	"modules/core/src/lib/affordances.ts": {
+		"fills an absent value with a constant through ??": 2
+	},
+	"modules/core/src/lib/blips.ts": {
+		"fills an absent value with a constant through ??": 5
+	},
+	"modules/core/src/lib/call-step.ts": {
+		"fills an absent value with a constant through ??": 1,
+		"states a parameter's default value": 2
+	},
+	"modules/core/src/lib/capture-locator.ts": {
+		"fills a falsy value with a constant through ||": 2
+	},
+	"modules/core/src/lib/chain-walker.ts": {
+		"fills an absent value with a constant through ??": 2
+	},
+	"modules/core/src/lib/composite-domain.ts": {
+		"fills an absent value with a constant through ??": 2
+	},
+	"modules/core/src/lib/core-domains.ts": {
+		"states a schema's default value through .default()": 2
+	},
+	"modules/core/src/lib/core/flow-runner.ts": {
+		"fills an absent value with a constant through ??": 3,
+		"states a parameter's default value": 4
+	},
+	"modules/core/src/lib/document-content.ts": {
+		"fills a falsy value with a constant through ||": 7,
+		"fills an absent value with a constant through ??": 3,
+		"states a parameter's default value": 3
+	},
+	"modules/core/src/lib/domains.ts": {
+		"fills a falsy value with a constant through ||": 1,
+		"fills an absent value with a constant through ??": 4,
+		"states a destructured default value": 1,
+		"states a parameter's default value": 1
+	},
+	"modules/core/src/lib/EventLogger.ts": {
+		"fills a falsy value with a constant through ||": 1,
+		"fills an absent value with a constant through ??": 4,
+		"states a destructured default value": 1,
+		"states a parameter's default value": 2
+	},
+	"modules/core/src/lib/feature-variables.ts": {
+		"fills an absent value with a constant through ??": 7,
+		"states a parameter's default value": 3
+	},
+	"modules/core/src/lib/features.ts": {
+		"states a parameter's default value": 2
+	},
+	"modules/core/src/lib/goal-resolver.ts": {
+		"fills an absent value with a constant through ??": 6
+	},
+	"modules/core/src/lib/host-id.ts": {
+		"fills an absent value with a constant through ??": 2,
+		"states a parameter's default value": 4
+	},
+	"modules/core/src/lib/http-observations.ts": {
+		"fills an absent value with a constant through ??": 1,
+		"states a parameter's default value": 1,
+		"states a schema's default value through .default()": 1
+	},
+	"modules/core/src/lib/hypermedia.ts": {
+		"fills a falsy value with a constant through ||": 2,
+		"fills an absent value with a constant through ??": 26,
+		"states a parameter's default value": 3,
+		"states a schema's default value through .default()": 6
+	},
+	"modules/core/src/lib/media-fragments.ts": {
+		"fills an absent value with a constant through ??": 2
+	},
+	"modules/core/src/lib/media-object.ts": {
+		"fills an absent value with a constant through ??": 2
+	},
+	"modules/core/src/lib/namedVars.ts": {
+		"fills a falsy value with a constant through ||": 3
+	},
+	"modules/core/src/lib/populateActionArgs.ts": {
+		"fills an absent value with a constant through ??": 2
+	},
+	"modules/core/src/lib/port-occupant.ts": {
+		"states a parameter's default value": 1
+	},
+	"modules/core/src/lib/principal.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/core/src/lib/prompter.ts": {
+		"states a parameter's default value": 1
+	},
+	"modules/core/src/lib/quad-graph-model.ts": {
+		"fills an absent value with a constant through ??": 4,
+		"states a parameter's default value": 3
+	},
+	"modules/core/src/lib/quad-store.ts": {
+		"fills an absent value with a constant through ??": 10,
+		"states a parameter's default value": 2
+	},
+	"modules/core/src/lib/quad-types.ts": {
+		"states a schema's default value through .default()": 8
+	},
+	"modules/core/src/lib/readline-prompter.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/core/src/lib/record-blip.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/core/src/lib/records/derivations/ontology.ts": {
+		"fills an absent value with a constant through ??": 6,
+		"states a parameter's default value": 1
+	},
+	"modules/core/src/lib/records/derivations/read-records.ts": {
+		"fills an absent value with a constant through ??": 11
+	},
+	"modules/core/src/lib/records/pipelines/discourse-writes.ts": {
+		"fills an absent value with a constant through ??": 2
+	},
+	"modules/core/src/lib/records/pipelines/record-reads.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/core/src/lib/records/pipelines/standard-vocabulary.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/core/src/lib/request-context.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/core/src/lib/resolver-features.ts": {
+		"fills a falsy value with a constant through ||": 1
+	},
+	"modules/core/src/lib/rpc-client.ts": {
+		"fills an absent value with a constant through ??": 3,
+		"states a parameter's default value": 2
+	},
+	"modules/core/src/lib/rpc-wire.ts": {
+		"fills an absent value with a constant through ??": 2,
+		"states a parameter's default value": 1,
+		"states a schema's default value through .default()": 1
+	},
+	"modules/core/src/lib/session-authority.ts": {
+		"fills an absent value with a constant through ??": 2
+	},
+	"modules/core/src/lib/sse-subscriber.ts": {
+		"fills an absent value with a constant through ??": 3,
+		"states a parameter's default value": 2
+	},
+	"modules/core/src/lib/statements.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/core/src/lib/step-dispatch.ts": {
+		"fills an absent value with a constant through ??": 5
+	},
+	"modules/core/src/lib/step-registry.ts": {
+		"fills an absent value with a constant through ??": 6
+	},
+	"modules/core/src/lib/step-stream-context.ts": {
+		"states a parameter's default value": 1
+	},
+	"modules/core/src/lib/step-validation.ts": {
+		"fills a falsy value with a constant through ||": 1
+	},
+	"modules/core/src/lib/stepper-cycles.ts": {
+		"fills an absent value with a constant through ??": 2,
+		"states a parameter's default value": 1
+	},
+	"modules/core/src/lib/store-protocol.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/core/src/lib/tool-validation.ts": {
+		"fills a falsy value with a constant through ||": 1
+	},
+	"modules/core/src/lib/ttag.ts": {
+		"states a parameter's default value": 3
+	},
+	"modules/core/src/lib/typed-links.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/core/src/lib/urakata.ts": {
+		"states a schema's default value through .default()": 1
+	},
+	"modules/core/src/lib/util/index.ts": {
+		"fills a falsy value with a constant through ||": 3,
+		"fills an absent value with a constant through ??": 1,
+		"states a parameter's default value": 1
+	},
+	"modules/core/src/lib/util/node/dependency-state.ts": {
+		"fills an absent value with a constant through ??": 3,
+		"states a parameter's default value": 1
+	},
+	"modules/core/src/lib/util/node/module-loader.ts": {
+		"fills a falsy value with a constant through ||": 1
+	},
+	"modules/core/src/lib/util/node/workspace-lib.ts": {
+		"states a parameter's default value": 1
+	},
+	"modules/core/src/lib/workspace-discovery.ts": {
+		"states a parameter's default value": 4
+	},
+	"modules/core/src/lib/world.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/core/src/phases/collector.ts": {
+		"states a parameter's default value": 3
+	},
+	"modules/core/src/phases/Executor.ts": {
+		"fills a falsy value with a constant through ||": 1,
+		"fills an absent value with a constant through ??": 2,
+		"states a parameter's default value": 7
+	},
+	"modules/core/src/phases/Resolver.ts": {
+		"fills an absent value with a constant through ??": 5,
+		"states a parameter's default value": 2
+	},
+	"modules/core/src/run-policy/run-policy-schema.ts": {
+		"fills an absent value with a constant through ??": 4,
+		"states a schema's default value through .default()": 2
+	},
+	"modules/core/src/schema/protocol.ts": {
+		"fills a falsy value with a constant through ||": 1,
+		"fills an absent value with a constant through ??": 2,
+		"states a schema's default value through .default()": 13
+	},
+	"modules/core/src/steps/activities-stepper.ts": {
+		"fills a falsy value with a constant through ||": 1,
+		"fills an absent value with a constant through ??": 7,
+		"states a parameter's default value": 1
+	},
+	"modules/core/src/steps/authority-stepper.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/core/src/steps/blips-stepper.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/core/src/steps/goal-resolution-stepper.ts": {
+		"fills an absent value with a constant through ??": 4
+	},
+	"modules/core/src/steps/haibun.ts": {
+		"fills an absent value with a constant through ??": 4
+	},
+	"modules/core/src/steps/lib/tts.ts": {
+		"states a parameter's default value": 1
+	},
+	"modules/core/src/steps/logic-stepper.ts": {
+		"fills a falsy value with a constant through ||": 1,
+		"fills an absent value with a constant through ??": 6
+	},
+	"modules/core/src/steps/resources-stepper.ts": {
+		"fills an absent value with a constant through ??": 3
+	},
+	"modules/core/src/steps/urakata-stepper.ts": {
+		"fills a falsy value with a constant through ||": 1
+	},
+	"modules/core/src/steps/variables-stepper.ts": {
+		"fills a falsy value with a constant through ||": 1,
+		"fills an absent value with a constant through ??": 7
+	},
+	"modules/domain-storage/src/AStorage.ts": {
+		"fills a falsy value with a constant through ||": 1,
+		"states a parameter's default value": 1
+	},
+	"modules/lsp/src/lsp-stepper.ts": {
+		"fills a falsy value with a constant through ||": 12,
+		"fills an absent value with a constant through ??": 2
+	},
+	"modules/lsp/src/semantic-tokens.ts": {
+		"fills an absent value with a constant through ??": 3
+	},
+	"modules/monitor-otel/src/index.ts": {
+		"fills a falsy value with a constant through ||": 9,
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/monitor-tui/src/index.tsx": {
+		"fills a falsy value with a constant through ||": 1
+	},
+	"modules/out-junit/src/out-junit.ts": {
+		"fills a falsy value with a constant through ||": 6
+	},
+	"modules/recorder/src/recorder-stepper.ts": {
+		"fills a falsy value with a constant through ||": 1
+	},
+	"modules/shu/src/affordance-products.ts": {
+		"fills an absent value with a constant through ??": 1,
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/annotation-resolver.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/shu/src/app.ts": {
+		"fills a falsy value with a constant through ||": 3,
+		"fills an absent value with a constant through ??": 3,
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/chat-context-harvest.ts": {
+		"fills an absent value with a constant through ??": 3,
+		"states a parameter's default value": 2
+	},
+	"modules/shu/src/client-cache/executions.ts": {
+		"fills an absent value with a constant through ??": 9
+	},
+	"modules/shu/src/client-cache/graph-run-source.ts": {
+		"fills an absent value with a constant through ??": 7,
+		"states a destructured default value": 4,
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/client-cache/quad-store.ts": {
+		"fills an absent value with a constant through ??": 2,
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/client-cache/run-graph.ts": {
+		"fills an absent value with a constant through ??": 2,
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/client-cache/run-marks.ts": {
+		"fills an absent value with a constant through ??": 1,
+		"states a destructured default value": 1
+	},
+	"modules/shu/src/client-cache/run-shape.ts": {
+		"fills an absent value with a constant through ??": 5,
+		"states a destructured default value": 2,
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/client-cache/run-source.ts": {
+		"fills an absent value with a constant through ??": 2
+	},
+	"modules/shu/src/client-cache/run-window.ts": {
+		"fills an absent value with a constant through ??": 15,
+		"states a destructured default value": 3,
+		"states a parameter's default value": 4
+	},
+	"modules/shu/src/components/actions-bar-query.ts": {
+		"fills a falsy value with a constant through ||": 4,
+		"fills an absent value with a constant through ??": 6,
+		"states a parameter's default value": 3
+	},
+	"modules/shu/src/components/actions-bar-steps.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/shu/src/components/controls-util.ts": {
+		"states a parameter's default value": 6
+	},
+	"modules/shu/src/components/json-disclosure.ts": {
+		"fills a falsy value with a constant through ||": 1,
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/components/page-strip-corners.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/shu/src/components/pane-dock.ts": {
+		"fills a falsy value with a constant through ||": 2
+	},
+	"modules/shu/src/components/ref-navigation.ts": {
+		"fills an absent value with a constant through ??": 1,
+		"states a parameter's default value": 4
+	},
+	"modules/shu/src/components/shu-action-column.ts": {
+		"states a schema's default value through .default()": 1
+	},
+	"modules/shu/src/components/shu-actions-bar.ts": {
+		"fills a falsy value with a constant through ||": 2,
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/shu/src/components/shu-activity-history.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/shu/src/components/shu-affordances-panel.ts": {
+		"fills a falsy value with a constant through ||": 1,
+		"fills an absent value with a constant through ??": 6,
+		"states a parameter's default value": 1,
+		"states a schema's default value through .default()": 4
+	},
+	"modules/shu/src/components/shu-annotated-body.ts": {
+		"fills a falsy value with a constant through ||": 3,
+		"fills an absent value with a constant through ??": 12
+	},
+	"modules/shu/src/components/shu-artifact-frame.ts": {
+		"fills an absent value with a constant through ??": 3
+	},
+	"modules/shu/src/components/shu-breadcrumb.ts": {
+		"fills a falsy value with a constant through ||": 1
+	},
+	"modules/shu/src/components/shu-chat-message.ts": {
+		"fills an absent value with a constant through ??": 1,
+		"states a schema's default value through .default()": 8
+	},
+	"modules/shu/src/components/shu-class-browser.ts": {
+		"fills an absent value with a constant through ??": 3,
+		"states a schema's default value through .default()": 1
+	},
+	"modules/shu/src/components/shu-client-cache-column.ts": {
+		"fills a falsy value with a constant through ||": 4,
+		"fills an absent value with a constant through ??": 3
+	},
+	"modules/shu/src/components/shu-clustered-graph-view.ts": {
+		"fills an absent value with a constant through ??": 4,
+		"states a parameter's default value": 1,
+		"states a schema's default value through .default()": 6
+	},
+	"modules/shu/src/components/shu-column-pane.ts": {
+		"fills an absent value with a constant through ??": 2,
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/components/shu-column-strip.controls.ts": {
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/components/shu-column-strip.ts": {
+		"fills a falsy value with a constant through ||": 1,
+		"fills an absent value with a constant through ??": 2
+	},
+	"modules/shu/src/components/shu-combobox.ts": {
+		"fills a falsy value with a constant through ||": 1,
+		"fills an absent value with a constant through ??": 5
+	},
+	"modules/shu/src/components/shu-document-column.ts": {
+		"fills a falsy value with a constant through ||": 3,
+		"fills an absent value with a constant through ??": 10,
+		"states a schema's default value through .default()": 1
+	},
+	"modules/shu/src/components/shu-domain-chain-view.ts": {
+		"fills an absent value with a constant through ??": 1,
+		"states a parameter's default value": 1,
+		"states a schema's default value through .default()": 2
+	},
+	"modules/shu/src/components/shu-element.ts": {
+		"fills an absent value with a constant through ??": 2,
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/components/shu-entity-column.ts": {
+		"fills a falsy value with a constant through ||": 4,
+		"fills an absent value with a constant through ??": 12,
+		"states a parameter's default value": 2
+	},
+	"modules/shu/src/components/shu-filter-column.ts": {
+		"fills a falsy value with a constant through ||": 2,
+		"states a parameter's default value": 2
+	},
+	"modules/shu/src/components/shu-graph-filter.ts": {
+		"fills an absent value with a constant through ??": 2,
+		"states a parameter's default value": 1,
+		"states a schema's default value through .default()": 3
+	},
+	"modules/shu/src/components/shu-graph-query.ts": {
+		"fills a falsy value with a constant through ||": 1,
+		"fills an absent value with a constant through ??": 2,
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/components/shu-graph.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/shu/src/components/shu-kihan-chat.ts": {
+		"fills a falsy value with a constant through ||": 2,
+		"fills an absent value with a constant through ??": 10,
+		"states a schema's default value through .default()": 3
+	},
+	"modules/shu/src/components/shu-monitor-column.controls.ts": {
+		"fills a falsy value with a constant through ||": 1,
+		"fills an absent value with a constant through ??": 6
+	},
+	"modules/shu/src/components/shu-monitor-column.ts": {
+		"fills a falsy value with a constant through ||": 5,
+		"fills an absent value with a constant through ??": 7,
+		"states a schema's default value through .default()": 3
+	},
+	"modules/shu/src/components/shu-page-strip.ts": {
+		"fills a falsy value with a constant through ||": 2,
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/shu/src/components/shu-permissions.ts": {
+		"fills an absent value with a constant through ??": 2
+	},
+	"modules/shu/src/components/shu-playback.ts": {
+		"states a schema's default value through .default()": 2
+	},
+	"modules/shu/src/components/shu-polymorphic-graph-view.controls.ts": {
+		"fills an absent value with a constant through ??": 28,
+		"states a parameter's default value": 2
+	},
+	"modules/shu/src/components/shu-polymorphic-graph-view.ts": {
+		"fills an absent value with a constant through ??": 5,
+		"states a parameter's default value": 1,
+		"states a schema's default value through .default()": 11
+	},
+	"modules/shu/src/components/shu-ref-element.ts": {
+		"fills an absent value with a constant through ??": 3
+	},
+	"modules/shu/src/components/shu-result-table.ts": {
+		"fills a falsy value with a constant through ||": 1,
+		"fills an absent value with a constant through ??": 3,
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/components/shu-scrollbar.ts": {
+		"fills an absent value with a constant through ??": 1,
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/components/shu-spinner.ts": {
+		"fills a falsy value with a constant through ||": 1
+	},
+	"modules/shu/src/components/shu-step-caller.ts": {
+		"fills a falsy value with a constant through ||": 9,
+		"fills an absent value with a constant through ??": 15,
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/components/shu-step-definition.ts": {
+		"states a schema's default value through .default()": 1
+	},
+	"modules/shu/src/components/shu-step-detail.ts": {
+		"fills an absent value with a constant through ??": 2,
+		"states a schema's default value through .default()": 1
+	},
+	"modules/shu/src/components/shu-thread-column.ts": {
+		"fills a falsy value with a constant through ||": 1,
+		"fills an absent value with a constant through ??": 12,
+		"states a parameter's default value": 1,
+		"states a schema's default value through .default()": 5
+	},
+	"modules/shu/src/components/shu-type-column.ts": {
+		"fills an absent value with a constant through ??": 3,
+		"states a schema's default value through .default()": 3
+	},
+	"modules/shu/src/components/shu-virtual-column.ts": {
+		"fills an absent value with a constant through ??": 8,
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/components/slot-extensions.ts": {
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/components/view-head.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/shu/src/content-security-policy.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/shu/src/controllers/authority-controller.ts": {
+		"fills an absent value with a constant through ??": 3
+	},
+	"modules/shu/src/controllers/scroll-follow-controller.ts": {
+		"fills an absent value with a constant through ??": 1,
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/controllers/subject-controller.ts": {
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/controllers/timeline-view-controller.ts": {
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/conversation.ts": {
+		"fills a falsy value with a constant through ||": 1,
+		"fills an absent value with a constant through ??": 8
+	},
+	"modules/shu/src/current-subject.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/shu/src/document-blocks.ts": {
+		"fills a falsy value with a constant through ||": 2,
+		"fills an absent value with a constant through ??": 3,
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/embedder.ts": {
+		"states a parameter's default value": 3
+	},
+	"modules/shu/src/event-marker.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/shu/src/event-stream.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/shu/src/external-components.ts": {
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/graph-expansion.ts": {
+		"fills an absent value with a constant through ??": 4
+	},
+	"modules/shu/src/graph-filter-projection.ts": {
+		"fills an absent value with a constant through ??": 2
+	},
+	"modules/shu/src/graph-model.ts": {
+		"fills an absent value with a constant through ??": 8,
+		"states a parameter's default value": 2
+	},
+	"modules/shu/src/graph-source-stepper.ts": {
+		"fills an absent value with a constant through ??": 1,
+		"states a parameter's default value": 1,
+		"states a schema's default value through .default()": 1
+	},
+	"modules/shu/src/graph/gantt-model.ts": {
+		"fills an absent value with a constant through ??": 2,
+		"states a parameter's default value": 2
+	},
+	"modules/shu/src/graph/graph-neighbors.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/shu/src/graph/graph-quads.ts": {
+		"fills an absent value with a constant through ??": 3
+	},
+	"modules/shu/src/graph/grouping.ts": {
+		"fills an absent value with a constant through ??": 8,
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/graph/layered-layout.ts": {
+		"fills an absent value with a constant through ??": 16,
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/graph/node-presenters.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/shu/src/graph/ontology-projection.ts": {
+		"fills a falsy value with a constant through ||": 1,
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/shu/src/graph/paint-select.ts": {
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/graph/polymorphic/force-layout.ts": {
+		"fills an absent value with a constant through ??": 3
+	},
+	"modules/shu/src/graph/polymorphic/model-hash.ts": {
+		"fills an absent value with a constant through ??": 1,
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-a11y-renderer.ts": {
+		"fills an absent value with a constant through ??": 3
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-camera.ts": {
+		"fills a falsy value with a constant through ||": 2,
+		"fills an absent value with a constant through ??": 24,
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-data-pipeline.ts": {
+		"fills an absent value with a constant through ??": 11,
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-drag.ts": {
+		"fills an absent value with a constant through ??": 3
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-focus.ts": {
+		"fills an absent value with a constant through ??": 2,
+		"states a parameter's default value": 3
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-frame-time.ts": {
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-frame.ts": {
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-highlight.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-layout.ts": {
+		"fills an absent value with a constant through ??": 1,
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-node-shapes.ts": {
+		"fills an absent value with a constant through ??": 2
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-pick-sync.ts": {
+		"states a destructured default value": 3
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-regulator.ts": {
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-renderer.ts": {
+		"fills an absent value with a constant through ??": 4
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-scene.ts": {
+		"fills a falsy value with a constant through ||": 3,
+		"fills an absent value with a constant through ??": 25,
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-svg-renderer.ts": {
+		"fills an absent value with a constant through ??": 3
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-troika-label.ts": {
+		"fills a falsy value with a constant through ||": 2,
+		"fills an absent value with a constant through ??": 2
+	},
+	"modules/shu/src/graph/polymorphic/polymorphic-type-avatar.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/shu/src/graph/polymorphic/sequence-model.ts": {
+		"fills an absent value with a constant through ??": 13,
+		"states a parameter's default value": 2
+	},
+	"modules/shu/src/graph/project-domain-chain.ts": {
+		"fills an absent value with a constant through ??": 4
+	},
+	"modules/shu/src/graph/project-goal-paths.ts": {
+		"fills an absent value with a constant through ??": 6
+	},
+	"modules/shu/src/graph/svg-renderer.ts": {
+		"fills a falsy value with a constant through ||": 2,
+		"fills an absent value with a constant through ??": 15
+	},
+	"modules/shu/src/graph/svg-util.ts": {
+		"states a parameter's default value": 2
+	},
+	"modules/shu/src/hypermedia.ts": {
+		"fills a falsy value with a constant through ||": 1,
+		"fills an absent value with a constant through ??": 3,
+		"states a parameter's default value": 2
+	},
+	"modules/shu/src/known-size-flow.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/shu/src/markdown-refs.ts": {
+		"fills an absent value with a constant through ??": 5
+	},
+	"modules/shu/src/monitor-stepper.ts": {
+		"fills an absent value with a constant through ??": 8,
+		"states a destructured default value": 1,
+		"states a schema's default value through .default()": 1
+	},
+	"modules/shu/src/page-blips.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/shu/src/page-key.ts": {
+		"fills an absent value with a constant through ??": 2,
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/page-pinned.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/shu/src/pane-fetch.ts": {
+		"fills an absent value with a constant through ??": 2,
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/pane-state.ts": {
+		"fills an absent value with a constant through ??": 2,
+		"states a parameter's default value": 3
+	},
+	"modules/shu/src/quads-snapshot.ts": {
+		"fills a falsy value with a constant through ||": 1,
+		"fills an absent value with a constant through ??": 8,
+		"states a parameter's default value": 4
+	},
+	"modules/shu/src/refused-scripts.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/shu/src/rels-cache.ts": {
+		"fills a falsy value with a constant through ||": 1,
+		"fills an absent value with a constant through ??": 21
+	},
+	"modules/shu/src/resolve-ui.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/shu/src/reveal.ts": {
+		"states a destructured default value": 3,
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/rpc-registry.ts": {
+		"fills an absent value with a constant through ??": 5
+	},
+	"modules/shu/src/run-scale.ts": {
+		"fills a falsy value with a constant through ||": 2
+	},
+	"modules/shu/src/scenes.ts": {
+		"fills an absent value with a constant through ??": 2
+	},
+	"modules/shu/src/schemas.ts": {
+		"fills a falsy value with a constant through ||": 3,
+		"states a parameter's default value": 1,
+		"states a schema's default value through .default()": 31
+	},
+	"modules/shu/src/scrollbar-model.ts": {
+		"states a parameter's default value": 2
+	},
+	"modules/shu/src/signals.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/shu/src/slash-command.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/shu/src/step-input-validator.ts": {
+		"fills an absent value with a constant through ??": 1,
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/test-setup.ts": {
+		"fills an absent value with a constant through ??": 4,
+		"states a destructured default value": 5,
+		"states a parameter's default value": 5
+	},
+	"modules/shu/src/turn-allowance.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/shu/src/util.ts": {
+		"fills an absent value with a constant through ??": 3,
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/view-hash.ts": {
+		"fills an absent value with a constant through ??": 1,
+		"states a parameter's default value": 1
+	},
+	"modules/shu/src/view-query.ts": {
+		"states a parameter's default value": 1,
+		"states a schema's default value through .default()": 7
+	},
+	"modules/shu/src/windowed-source.ts": {
+		"fills an absent value with a constant through ??": 6,
+		"states a parameter's default value": 2
+	},
+	"modules/utils/src/npm-link-haibuns.ts": {
+		"fills a falsy value with a constant through ||": 2
+	},
+	"modules/utils/src/scaffold/scaffold.ts": {
+		"fills a falsy value with a constant through ||": 1
+	},
+	"modules/utils/src/vcapture/index.ts": {
+		"states a parameter's default value": 1
+	},
+	"modules/utils/src/vcapture/vcapture-lib.ts": {
+		"fills a falsy value with a constant through ||": 1,
+		"fills an absent value with a constant through ??": 1,
+		"states a parameter's default value": 1
+	},
+	"modules/utils/vcapture/docker-compose.yml": {
+		"states a compose variable's default value": 3
+	},
+	"modules/web-playwright/src/BrowserFactory.ts": {
+		"states a parameter's default value": 4
+	},
+	"modules/web-playwright/src/cycles.ts": {
+		"fills a falsy value with a constant through ||": 1,
+		"fills an absent value with a constant through ??": 1,
+		"states a destructured default value": 1
+	},
+	"modules/web-playwright/src/interactionSteps.ts": {
+		"fills a falsy value with a constant through ||": 3,
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/web-playwright/src/relay-client/relayConnection.ts": {
+		"fills an absent value with a constant through ??": 3
+	},
+	"modules/web-playwright/src/relay/cdpRelay.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/web-playwright/src/web-playwright.ts": {
+		"fills a falsy value with a constant through ||": 3,
+		"fills an absent value with a constant through ??": 6,
+		"states a parameter's default value": 5
+	},
+	"modules/web-server-hono/src/auth.ts": {
+		"states a parameter's default value": 1
+	},
+	"modules/web-server-hono/src/capability-auth.ts": {
+		"fills an absent value with a constant through ??": 2
+	},
+	"modules/web-server-hono/src/defs.ts": {
+		"states a schema's default value through .default()": 2
+	},
+	"modules/web-server-hono/src/mcp-stepper.ts": {
+		"fills a falsy value with a constant through ||": 2,
+		"fills an absent value with a constant through ??": 6,
+		"states a parameter's default value": 1
+	},
+	"modules/web-server-hono/src/server-hono.ts": {
+		"fills a falsy value with a constant through ||": 2,
+		"fills an absent value with a constant through ??": 2,
+		"states a parameter's default value": 2
+	},
+	"modules/web-server-hono/src/sse-transport.ts": {
+		"fills an absent value with a constant through ??": 2
+	},
+	"modules/web-server-hono/src/web-server-stepper.ts": {
+		"fills an absent value with a constant through ??": 1
+	}
+}

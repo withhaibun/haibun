@@ -27,9 +27,9 @@ describe("what a step requires", () => {
 		expect(requiredAction("Pool", "swim", { capability: "Pool:enter" })).toBe("Pool:enter");
 	});
 
-	it("is a read at the level a read states, or at private for a read that doesn't state one, so a gate refuses it to a public reader by default", () => {
+	it("is a read at the level a read states", () => {
 		expect(requiredAction("Pool", "hours", { read: true, readsAt: Access.public })).toBe("Read:public");
-		expect(requiredAction("Pool", "hours", { read: true })).toBe("Read:private");
+		expect(requiredAction("Pool", "hours", { read: true, readsAt: Access.private })).toBe("Read:private");
 	});
 
 	it("is the step's own name for a step that doesn't declare a requirement, so a gate refuses that step to a caller that doesn't hold its name", () => {
@@ -185,8 +185,8 @@ describe("what a read returns", () => {
 		expect(levelsWithin(Access.private)).toEqual([Access.private, Access.opened, Access.public]);
 	});
 
-	it("refuses a record whose level isn't one of the levels, rather than reading it as within every read", () => {
+	it("refuses a record whose level isn't one of the levels, and a record that doesn't state one", () => {
 		expect(() => withinAccess("Private", Access.public)).toThrow(`a record states the access level "Private", which isn't one of private, opened, public`);
-		expect(withinAccess(undefined, Access.public), "a record that doesn't state a level passes, and the store that returned it determines its visibility").toBe(true);
+		expect(() => withinAccess(undefined, Access.public), "and a record that doesn't state a level").toThrow("a read refuses a record that doesn't state its access level");
 	});
 });

@@ -16,7 +16,7 @@
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 import { Access, narrowerCeiling, type AccessLevel } from "./resources.js";
-import { capabilityAllows, EVERY_ACTION, readCeilingOf, type TAccessBound, type TCallAuthority } from "./actions.js";
+import { capabilityAllows, EVERY_ACTION, readAction, readCeilingOf, type TAccessBound, type TCallAuthority } from "./actions.js";
 import type { TActingFor, TRestsOn } from "./authority-types.js";
 import type { THaibunLogLevel } from "../schema/protocol.js";
 
@@ -149,7 +149,15 @@ export function stepInFlight(): TStepInFlight | undefined {
 	return stepStore.getStore();
 }
 
-const readCeilingStore = new AsyncLocalStorage<AccessLevel | undefined>();
+/** The read scope of a call. `ceiling` is the broadest level the call reads, and is undefined for the instance's own reads.
+ *  A call whose caller doesn't hold a read action holds `refusal` in place of a ceiling. */
+export type TReadScope = { ceiling: AccessLevel | undefined } | { refusal: string };
+
+const readScopeStore = new AsyncLocalStorage<TReadScope>();
+
+/** The refusal of a read of records in a call whose caller doesn't hold a read action. It names the narrowest read action,
+ *  which the caller requests from the key that delegates its actions. */
+export const WITHOUT_READ_REFUSAL = `reading records requires a read action, and the caller doesn't hold one: capability ${readAction(Access.public)} required. Request it from the key that delegates the caller's actions.`;
 
 /**
  * Holds the broadest level a read may see, for the duration of the call that set it.
@@ -161,46 +169,76 @@ const readCeilingStore = new AsyncLocalStorage<AccessLevel | undefined>();
  * The ceiling is scoped like the capability, for the same reasons. The async chain bounds it to the call that set it.
  * It isn't a world field that later code can widen. A scope set inside another takes the narrower of its own level and
  * the ceiling in force. A call inside a boundary therefore doesn't read above the boundary's ceiling. A model turn that
- * reads at its context's resolved level is such a call.
+ * reads at its context's resolved level is such a call. A scope set inside a call whose caller doesn't hold a read action
+ * keeps that call's refusal.
  */
 export function runReadingAt<T>(ceiling: AccessLevel | undefined, within: () => Promise<T>): Promise<T> {
-	return readCeilingStore.run(narrowerCeiling(readCeilingStore.getStore(), ceiling), within);
+	const scope = readScopeStore.getStore();
+	if (scope !== undefined && "refusal" in scope) return within();
+	return readScopeStore.run({ ceiling: narrowerCeiling(scope?.ceiling, ceiling) }, within);
+}
+
+/** Runs `within` at the broadest read that `held` allows. Where `held` doesn't hold a read action, each read of records
+ *  within it throws `WITHOUT_READ_REFUSAL`, and its writes are written within `writeBound`. A step, a served method and a tick run under what their caller holds. */
+export function runReadingAsHeld<T>(held: string | string[] | undefined, within: () => Promise<T>): Promise<T> {
+	const ceiling = readCeilingOf(held);
+	return ceiling === undefined ? readScopeStore.run({ refusal: WITHOUT_READ_REFUSAL }, within) : runReadingAt(ceiling, within);
+}
+
+/** Returns the read scope in force, or undefined outside a call. Dispatch holds it as the scope of the statement. */
+export function readScope(): TReadScope | undefined {
+	return readScopeStore.getStore();
 }
 
 /** Returns the ceiling in force, or undefined where a ceiling doesn't bound the caller. A line of actuality's own
- *  features isn't bounded by a ceiling. */
+ *  features isn't bounded by a ceiling. Throws the scope's refusal where the caller doesn't hold a read action. */
 export function readingAt(): AccessLevel | undefined {
-	return readCeilingStore.getStore();
+	const scope = readScopeStore.getStore();
+	if (scope === undefined) return undefined;
+	if ("refusal" in scope) throw new Error(scope.refusal);
+	return scope.ceiling;
 }
 
-/** Returns the level of what the call in progress may have read. That level is the call's ceiling, or private for
- *  actuality's own statements. Actuality's own statements read without a ceiling. */
+/** Returns the level of what the call in progress may have read: the call's ceiling. Throws outside a call, since the
+ *  instance's own work reads without a ceiling and doesn't state a level. */
 export function readLevel(): AccessLevel {
-	return readingAt() ?? Access.private;
+	const ceiling = readingAt();
+	if (ceiling === undefined)
+		throw new Error("readLevel returns the read level of a call, and this code runs outside one. Run it inside dispatchStep, runReadingAt or runReadingAsHeld.");
+	return ceiling;
 }
 
-const statedAtStore = new AsyncLocalStorage<{ ceiling: AccessLevel | undefined }>();
+const statedAtStore = new AsyncLocalStorage<{ scope: TReadScope | undefined }>();
 
 /**
- * Runs `within` as the step a statement states, and holds `ceiling` as the statement's ceiling. `ceiling` is the
- * ceiling in force at dispatch, before the step's own authority narrows it. A statement's arguments are its author's,
- * so `readingAsStated` reads them at the author's ceiling. The step reads at its own ceiling.
+ * Runs `within` as the step a statement states, and holds `scope` as the statement's read scope. `scope` is the scope in
+ * force at dispatch, before the step's own authority narrows it. A statement's arguments are its author's, so
+ * `readingAsStated` reads them in the author's scope. The step reads in its own scope.
  */
-export function runStatedAt<T>(ceiling: AccessLevel | undefined, within: () => Promise<T>): Promise<T> {
-	return statedAtStore.run({ ceiling }, within);
+export function runStatedAt<T>(scope: TReadScope | undefined, within: () => Promise<T>): Promise<T> {
+	return statedAtStore.run({ scope }, within);
 }
 
-/** Runs `within` at the ceiling of the dispatched statement, so `within` reads the statement's arguments at that
- *  ceiling. Outside a dispatch it runs `within` at the ceiling in force. */
+/** Runs `within` in the read scope of the dispatched statement, so `within` reads the statement's arguments in that scope.
+ *  Outside a dispatch it runs `within` in the scope in force. */
 export function readingAsStated<T>(within: () => Promise<T>): Promise<T> {
 	const stated = statedAtStore.getStore();
-	return stated ? readCeilingStore.run(stated.ceiling, within) : within();
+	if (stated === undefined) return within();
+	return stated.scope === undefined ? readScopeStore.exit(within) : readScopeStore.run(stated.scope, within);
 }
 
-/** Returns the bound of the call in progress: its ceiling and what its caller holds. Every store reads and writes within
- *  this bound. */
+/** Returns the bound of the call in progress: its ceiling and what its caller holds. Every store reads within this bound.
+ *  Throws the scope's refusal where the caller doesn't hold a read action. */
 export function accessBound(): TAccessBound {
 	return { ceiling: readingAt(), held: callerHolds() };
+}
+
+/** Returns the bound that a write and an event of the call in progress are written within: the call's ceiling and what its
+ *  caller holds. A caller that doesn't hold a read action hasn't read a record, so a ceiling doesn't bound its writes. Its
+ *  write is gated by the write's own action, and `writtenAt` writes it at the level it states or its type declares. */
+export function writeBound(): TAccessBound {
+	const scope = readScopeStore.getStore();
+	return { ceiling: scope !== undefined && "ceiling" in scope ? scope.ceiling : undefined, held: callerHolds() };
 }
 
 /**
@@ -210,13 +248,14 @@ export function accessBound(): TAccessBound {
  * verdict, the delegations the key already holds, or the act's result.
  */
 export function runReadingAsTheInstance<T>(within: () => Promise<T>): Promise<T> {
-	return readCeilingStore.run(undefined, within);
+	return readScopeStore.run({ ceiling: undefined }, within);
 }
 
 /** Runs `within` as a tick, for work that outlives the step that started it. The tick holds only `needs` and reads at the
- *  broadest level `needs` allows, else at public. It acts as `startedBy` under `restsOn`. `startedBy` is the principal
- *  that started the ticker, and `restsOn` is what that start's proof rests on. */
+ *  broadest level `needs` allows. Where `needs` doesn't hold a read action, the tick's reads of records are refused. It
+ *  acts as `startedBy` under `restsOn`. `startedBy` is the principal that started the ticker, and `restsOn` is
+ *  what that start's proof rests on. */
 export function runAsTicking<T>(needs: readonly string[], startedBy: string | undefined, restsOn: TRestsOn | undefined, within: () => Promise<T>): Promise<T> {
 	const held = [...needs];
-	return runAuthorizedWith(held, () => readCeilingStore.run(readCeilingOf(held) ?? Access.public, () => runActingAs(startedBy, within, restsOn)));
+	return runAuthorizedWith(held, () => readScopeStore.exit(() => runReadingAsHeld(held, () => runActingAs(startedBy, within, restsOn))));
 }

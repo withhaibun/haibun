@@ -50,8 +50,7 @@
 		"anthropomorphic": 8
 	},
 	"modules/core/src/lib/quad-store.ts": {
-		"anthropomorphic": 9,
-		"terminal-preposition": 1
+		"anthropomorphic": 8
 	},
 	"modules/core/src/lib/quad-types.ts": {
 		"anthropomorphic": 13,

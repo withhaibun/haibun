@@ -35,8 +35,8 @@ import { ARTIFACT_POLICY } from "./content-security-policy.js";
 import { hashWithColumns } from "./view-hash.js";
 import { READS_THE_RUNS_ARTIFACTS } from "@haibun/core/lib/actions.js";
 import { requiring } from "@haibun/web-server-hono/capability-auth.js";
-import { LOG_MESSAGE_EDGE, LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
-import { ARTIFACTS_ROUTE, RUN_ARTIFACT_EDGE, RUN_ARTIFACT_FIELD, RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
+import { LOG_MESSAGE_EDGE, LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL, logMessageDomainDefinition } from "@haibun/core/lib/log-message.js";
+import { ARTIFACTS_ROUTE, RUN_ARTIFACT_EDGE, RUN_ARTIFACT_FIELD, RUN_ARTIFACT_LABEL, runArtifactDomainDefinition } from "@haibun/core/lib/run-artifact.js";
 import { loadReportBundle, buildReportHtml, buildGraphSource, type default as ShuStepper } from "./shu-stepper.js";
 
 import { discoverSteps, runRegistry } from "@haibun/core/lib/step-registry.js";
@@ -199,6 +199,9 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				{ selectors: [DOMAIN_LOG_EVENT], schema: fromJsonText(LogEventSchema), description: "Client-side log event forwarded from the SPA" },
 				{ selectors: [DOMAIN_CLIENT_BLIPS], schema: fromJsonText(ClientBlipsSchema), description: "A batch of fine-grained occurrences recorded in the SPA" },
 				{ selectors: [DOMAIN_SHU_REPORT], schema: z.object({ path: z.string() }), description: "Where a standalone shu report was written" },
+				// This stepper writes records of these two types: what actuality logged and what it produced.
+				logMessageDomainDefinition,
+				runArtifactDomainDefinition,
 			],
 		}),
 		startExecution: async () => {
@@ -212,8 +215,8 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			this.queriedLabel = queriedLabelOf(event) ?? this.queriedLabel;
 			// A quad announced is a quad the store holds, so the graph a view reads is read from the store rather than
 			// held again here. The live page still receives the announcement over the stream.
-			if (event.kind === "log") this.beganWriting(this.recordSaid(event));
-			if (event.kind === "artifact") this.beganWriting(this.recordProduced(event));
+			if (event.kind === "log") this.beganWriting(this.recordSaid(event), "what actuality logged");
+			if (event.kind === "artifact") this.beganWriting(this.recordProduced(event), "what actuality produced");
 			this.transport?.send({ type: "event", event });
 			this.monitorTransport?.send({ type: "event", event });
 		},
@@ -253,19 +256,33 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 
 	/** Every record write begun and not finished, as one chain. Recording is started from an event handler, which
 	 *  returns before the store has the record, so the chain is what a feature waits on to end with its records
-	 *  written. A write reports its own failure and settles, so the chain never rejects. */
+	 *  written. Each write settles the chain, and a failed write adds its error to `unrecorded`. */
 	private writing: Promise<unknown> = Promise.resolve();
+	/** The errors of the record writes that failed since the feature began. */
+	private unrecorded: unknown[] = [];
 
-	private beganWriting(write: Promise<unknown>): void {
-		this.writing = this.writing.then(() => write);
+	/** Adds `write` to the chain. A failed write is reported once on the console, which doesn't write a record, so the
+	 *  report doesn't start another record write. */
+	private beganWriting(write: Promise<unknown>, what: string): void {
+		const settled = write.then(
+			() => undefined,
+			(err: unknown) => {
+				console.error(`[monitor] ${what} wasn't recorded: ${errorDetail(err)}`);
+				this.unrecorded.push(err);
+			},
+		);
+		this.writing = this.writing.then(() => settled);
 	}
 
-	/** Wait for every record write begun so far, including one begun by writing the report. The next feature starts a
-	 *  new chain, so a write that failed is reported once. */
+	/** Waits for every record write begun so far, including one begun by writing the report, and throws where a write
+	 *  failed. The next feature starts a new chain. */
 	private async written(): Promise<void> {
 		const writes = this.writing;
 		this.writing = Promise.resolve();
 		await writes;
+		const [first, ...more] = this.unrecorded.splice(0);
+		if (first !== undefined)
+			throw new Error(`[monitor] ${more.length + 1} records of what actuality logged or produced weren't written. The first write failed: ${errorDetail(first)}`, { cause: first });
 	}
 
 	private async recordSaid(e: Extract<THaibunEvent, { kind: "log" }>): Promise<void> {
@@ -282,10 +299,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			[LOG_MESSAGE_FIELD.generatedAtTime]: new Date(at).toISOString(),
 			...(said ? { [LOG_MESSAGE_EDGE.isPartOf]: said } : {}),
 		};
-		await this.getWorld()
-			.shared.getStore()
-			.upsertIndividual(LOG_MESSAGE_LABEL, record)
-			.catch((err) => this.getWorld().eventLogger.warn(`[monitor] what actuality logged was not recorded: ${errorDetail(err)}`));
+		await this.getWorld().shared.getStore().upsertIndividual(LOG_MESSAGE_LABEL, record);
 	}
 
 	/**
@@ -312,10 +326,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			[RUN_ARTIFACT_FIELD.level]: e.level ?? "info",
 			...(under ? { [RUN_ARTIFACT_EDGE.isPartOf]: under } : {}),
 		};
-		await this.getWorld()
-			.shared.getStore()
-			.upsertIndividual(RUN_ARTIFACT_LABEL, record)
-			.catch((err) => this.getWorld().eventLogger.warn(`[monitor] what actuality produced was not recorded: ${errorDetail(err)}`));
+		await this.getWorld().shared.getStore().upsertIndividual(RUN_ARTIFACT_LABEL, record);
 	}
 
 	/** Actuality as the page holds it, for a page without a site to read it from: the graph actuality wrote, which is actuality,

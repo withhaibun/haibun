@@ -16,7 +16,7 @@ import {
 	registeredDomain,
 	toRegisteredDomain,
 } from "./domains.js";
-import { LinkRelations, PersistedVertexSchema, type THypermediaTopology, type TPropertyDef } from "./resources.js";
+import { Access, LinkRelations, PersistedVertexSchema, type THypermediaTopology, type TPropertyDef } from "./resources.js";
 
 const steppers = [VariablesStepper, Haibun, LogicStepper];
 
@@ -107,7 +107,12 @@ describe("a persisted type's level property", () => {
 			selectors: ["note"],
 			schema: PersistedVertexSchema.extend({ id: z.string(), generatedAtTime: z.string() }),
 			description: "A note.",
-			topology: { persistedAs: "Note", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel, ...properties } },
+			topology: {
+				persistedAs: "Note",
+				accessLevel: Access.private,
+				id: "id",
+				properties: { id: LinkRelations.IDENTIFIER.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel, ...properties },
+			},
 		});
 
 	it("is added where the type is registered, so a declaration doesn't repeat it", () => {
@@ -125,7 +130,7 @@ describe("a reference to a record of a type", () => {
 					selectors: [RECIPE],
 					schema: z.object({ id: z.string() }),
 					description: "a recipe",
-					topology: { persistedAs: "Recipe", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel } },
+					topology: { persistedAs: "Recipe", accessLevel: Access.private, id: "id", properties: { id: LinkRelations.IDENTIFIER.rel } },
 				},
 			],
 		]);

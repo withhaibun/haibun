@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AStepper } from "./astepper.js";
 import { OK } from "../schema/protocol.js";
+import { Access } from "./resources.js";
 import { getDefaultWorld } from "./test/lib.js";
 import { createStepTool } from "./step-registry.js";
 import { StepDescriptorSchema, toolDefinition } from "./step-discovery.js";
@@ -9,7 +10,7 @@ class DescribedSteps extends AStepper {
 	description = "Steps of each kind a stepper declares.";
 	steps = {
 		exactStep: { exact: "do something", action: async () => OK },
-		gwtaStep: { gwta: "set {name} to {value}", description: "Sets a value.", read: true, action: async () => OK },
+		gwtaStep: { gwta: "set {name} to {value}", description: "Sets a value.", read: true, readsAt: Access.private, action: async () => OK },
 		numberStep: { gwta: "wait {seconds: number} seconds", capability: "DescribedSteps:wait", action: async () => OK },
 		matchStep: { match: /^do (.*) with (.*)$/, fallback: true, action: async () => OK },
 	};

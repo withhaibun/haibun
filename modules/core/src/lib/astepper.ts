@@ -3,7 +3,8 @@ import type { FeatureVariables } from "./feature-variables.js";
 import type { TWorld, TEnvVariables } from "./world.js";
 import type { TOptionValue, TFeatures, TSourceLocation } from "./execution.js";
 import type { ExecutionIntent, TSeqPath, TActionResult, TStepArgs, TStepValue, TStepResult, TFeatureResult, TExecutorResult, THaibunEvent } from "../schema/protocol.js";
-import type { AccessLevel, TDomainDefinition } from "./resources.js";
+import type { TDomainDefinition } from "./resources.js";
+import type { TStepReads } from "./actions.js";
 import type { IQuadStore } from "./quad-types.js";
 import { constructorName } from "./util/index.js";
 
@@ -118,25 +119,11 @@ type TStepValuesMap = Record<string, TStepValue>;
 // Stepper step shape
 // ============================================================================
 
-type TStepperStepBase = {
+type TStepperStepBase = TStepReads & {
 	description?: string;
 	precludes?: string[];
 	unique?: boolean;
 	fallback?: boolean;
-	/** A step that reads actuality's records and doesn't change one. A call into a running instance from outside actuality
-	 *  runs it and doesn't record it: it doesn't leave a step record, an announcement, a usage count or a kept result.
-	 *  Reading actuality isn't a step of actuality, so an instance read for a year doesn't write a year of records of those
-	 *  reads. A feature runs it as it runs any other step. */
-	read?: boolean;
-	/** The action a caller must hold to run this step, where it differs from the step's own name. A group of steps declares
-	 *  one action, so a delegation can name them together. A read step that doesn't declare one requires a read at its
-	 *  `readsAt` level, or `Read:private` where it doesn't state one. Any other step that doesn't declare one requires its
-	 *  own name (`requiredAction` in actions.ts). */
-	capability?: string;
-	/** The level of the content the step reads, for a step that reads more than the records the caller's read level
-	 *  bounds. A step that reads a person's own page reads at private. A gate refuses the step to a caller whose read level
-	 *  is narrower. */
-	readsAt?: AccessLevel;
 	/** A step whose result is the response of the turn that called it. That turn ends with the result and doesn't send its
 	 *  model another request. A caller reads this flag from the step's definition, so it determines which steps end a turn
 	 *  without running one. */

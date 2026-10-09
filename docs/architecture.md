@@ -433,3 +433,8 @@ them from `getConcerns` and names their keys in its step patterns.
   opens to a record that states what it is.
 - A view doesn't name a type or a field: it reads both from the concern catalog.
 - A refusal states its cause and carries its remedy as data, which a page renders as a control.
+- A value that is absent is refused with a message that names what is missing and what supplies it, or its type states it
+  as optional and the code reads its absence by name. Code doesn't replace an absent value with a default: a constant
+  after `??` or `||`, a parameter's or a destructured initializer, a schema's `.default()`, or a compose variable's
+  `${VAR:-value}`. A caller without a read action doesn't hold a read level, and a read, a write or an event without a level
+  is refused.

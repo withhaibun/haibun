@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import ResourcesStepper from "./resources-stepper.js";
 import { getDefaultWorld } from "../lib/test/lib.js";
-import { LinkRelations } from "../lib/resources.js";
+import { Access, LinkRelations } from "../lib/resources.js";
 import { setPrincipal } from "../lib/principal.js";
 import { type TWorld } from "../lib/world.js";
 import { itemAt } from "../lib/util/item-at.js";
@@ -22,7 +22,7 @@ describe("ResourcesStepper comment (reply-threaded)", () => {
 
 	it("comment creates an individual and a narrate (reply) edge that grounds it", async () => {
 		const store = world.shared.getStore();
-		await store.upsertIndividual("Email", { id: "email-1", subject: "Test" });
+		await store.upsertIndividual("Email", { id: "email-1", subject: "Test", accessLevel: Access.private });
 
 		const result = await stepper.steps.comment.action({ label: "Email", id: "email-1", text: "A note" });
 		expect(result.ok).toBe(true);
@@ -37,7 +37,7 @@ describe("ResourcesStepper comment (reply-threaded)", () => {
 
 	it("a top-level comment's conversation root is the subject it is about", async () => {
 		const store = world.shared.getStore();
-		await store.upsertIndividual("Email", { id: "email-1", subject: "Test" });
+		await store.upsertIndividual("Email", { id: "email-1", subject: "Test", accessLevel: Access.private });
 
 		const result = await stepper.steps.comment.action({ label: "Email", id: "email-1", text: "A note" });
 		expect(result.products?.contextRoot).toBe("email-1");
@@ -45,7 +45,7 @@ describe("ResourcesStepper comment (reply-threaded)", () => {
 
 	it("a reply's conversation root is walked up the reply chain", async () => {
 		const store = world.shared.getStore();
-		await store.upsertIndividual("Email", { id: "root-email", subject: "Root" });
+		await store.upsertIndividual("Email", { id: "root-email", subject: "Root", accessLevel: Access.private });
 
 		const first = await stepper.steps.comment.action({ label: "Email", id: "root-email", text: "First" });
 		const reply = await stepper.steps.comment.action({ label: "Comment", id: first.products?.commentId as string, text: "A reply to the first" });
