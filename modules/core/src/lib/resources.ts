@@ -605,6 +605,8 @@ export type TEdgeDef = {
 	/** The noun that names this edge's target party: `X issuer→ P` makes P an "Issuer". A view reads it from the
 	 *  projection, so the edge that gives a party its role also declares the role's name. */
 	roleNoun?: string;
+	/** Set where the edge's target may be absent when a record is written. A store writes such an edge to a reference. */
+	reference?: boolean;
 };
 
 /**
