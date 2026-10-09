@@ -40,6 +40,7 @@ const ClusterFieldSchema = z.object({
 	totalCount: z.number(),
 	sampledCount: z.number(),
 	omittedCount: z.number(),
+	saturated: z.boolean().optional(),
 	sampledSubjects: z.array(z.string()),
 	displayLabels: z.record(z.string(), z.string()),
 	// Site principal per sampled subject served by a FEDERATED peer (omitting it makes the parse strip the federation stamp).

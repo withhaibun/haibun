@@ -19,7 +19,7 @@ import { counted } from "@haibun/core/lib/hypermedia.js";
 const listed: Array<{ session: string; label: string; generatedAtTime: string; turns: number }> = [];
 let onStartSeqPath: number[] | null = null;
 /** What the server answers the session read with. A deployment that answers without the list is the failed-read case. */
-let sessionsAnswer: () => Record<string, unknown> = () => ({ sessions: [...listed] });
+let sessionsAnswer: () => Record<string, unknown> = () => ({ sessions: [...listed], ...counted(listed.length) });
 
 /** A turn that streams text and completes, announcing the seqPath a case sets, where it sets one. */
 const aTurn = () =>
@@ -68,7 +68,7 @@ describe("the session selector", () => {
 		conversationState.set(CLOSED_CONVERSATION);
 		listed.length = 0;
 		onStartSeqPath = [0, 1, 2];
-		sessionsAnswer = () => ({ sessions: [...listed] });
+		sessionsAnswer = () => ({ sessions: [...listed], ...counted(listed.length) });
 	});
 
 	it("is there before any turn, offering a new conversation without sessions", async () => {
@@ -111,7 +111,7 @@ describe("the chat's settings", () => {
 		conversationState.set(CLOSED_CONVERSATION);
 		listed.length = 0;
 		onStartSeqPath = [0, 1, 2];
-		sessionsAnswer = () => ({ sessions: [...listed] });
+		sessionsAnswer = () => ({ sessions: [...listed], ...counted(listed.length) });
 	});
 
 	/** The chat as a pane holds it with its settings hidden, which is how a reader first sees it. */

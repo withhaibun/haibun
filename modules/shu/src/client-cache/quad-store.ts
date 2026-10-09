@@ -17,12 +17,13 @@ import {
 	type TClusteredQuads,
 	type TDensityQuery,
 	type TDensityResult,
+	type TDistinctValues,
 	type TGraphQuery,
 	type TQuad,
 	type TQuadPattern,
 	type TRecordsPage,
 } from "@haibun/core/lib/quad-types.js";
-import type { TReadDeclarations } from "@haibun/core/lib/records/derivations/read-records.js";
+import { distinctOf, type TReadDeclarations } from "@haibun/core/lib/records/derivations/read-records.js";
 import { readQuadRecords } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { densityOverQuadStore, sliceQuadsPerType } from "@haibun/core/lib/quad-store.js";
 import { QUADS, IDX_QUAD_SPG, IDX_QUAD_SUBJECT, IDX_QUAD_NAMED_GRAPH, IDX_QUAD_OBJECT, done, servedDatabase, withStores as withClientCacheStores } from "./device-store.js";
@@ -174,9 +175,9 @@ export class IndexedDbQuadStore implements IQuadStore {
 		return densityOverQuadStore(this, query);
 	}
 
-	async distinctPropertyValues(label: string, property: string): Promise<string[]> {
+	async distinctPropertyValues(label: string, property: string): Promise<TDistinctValues> {
 		const quads = await this.query({ predicate: property, namedGraph: label });
-		return [...new Set(quads.map((q) => String(q.object)))].sort();
+		return distinctOf(quads.map((q) => String(q.object)));
 	}
 
 	async getClusteredQuads(opts: { perTypeLimit: number; types?: string[]; accessLevel: AccessLevel }): Promise<TClusteredQuads> {

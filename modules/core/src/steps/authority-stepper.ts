@@ -95,7 +95,8 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 				const local = myId.startsWith(SITE_DID_PREFIX) ? myId.slice(SITE_DID_PREFIX.length) : myId.replace(/^did:/, "").replace(/:/g, ".");
 				const prefix = `${SITE_DID_PREFIX}${local}.`;
 				const ids = await store.distinctPropertyValues(PRINCIPAL_LABEL, "id");
-				const taken = ids.filter((id) => id.startsWith(prefix) && /^\d+$/.test(id.slice(prefix.length))).map((id) => Number(id.slice(prefix.length)));
+				if (ids.saturated) return actionNotOK(`the store holds more than ${ids.total} principals, so a principal number isn't assigned from a list that stops at ${ids.total}`);
+				const taken = ids.values.filter((id) => id.startsWith(prefix) && /^\d+$/.test(id.slice(prefix.length))).map((id) => Number(id.slice(prefix.length)));
 				const assigned = `${prefix}${taken.length === 0 ? 1 : Math.max(...taken) + 1}`;
 				const now = new Date().toISOString();
 				await persistPrincipalIndividual(world, { id: myId, controller: myId, generatedAtTime: now });

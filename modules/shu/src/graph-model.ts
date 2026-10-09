@@ -1,6 +1,14 @@
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
+import { statedTotal, type TCounted } from "@haibun/core/lib/hypermedia.js";
 
-type GraphNode = { id: string; type: string; isCluster?: boolean; omittedCount?: number; displayLabel?: string; properties?: Record<string, unknown> };
+type GraphNode = { id: string; type: string; isCluster?: boolean; omitted?: TCounted; displayLabel?: string; properties?: Record<string, unknown> };
+
+/** Returns the records of a type that a sample leaves out, as a node names them: "+N more", or "+N or more" where the type's
+ *  count stopped at its ceiling. */
+export const omittedLabel = (omitted: TCounted): string => (omitted.saturated ? `+${statedTotal(omitted)}` : `+${omitted.total} more`);
+
+/** Returns the count of the records of a cluster that a sample leaves out. A count that stopped at its ceiling is a floor. */
+export const omittedOf = (cluster: TCluster): TCounted => ({ total: cluster.omittedCount, saturated: cluster.saturated === true });
 type GraphEdge = { from: string; to: string; predicate: string; graph: string };
 export type GraphModel = { nodes: GraphNode[]; edges: GraphEdge[] };
 
@@ -100,7 +108,7 @@ export function buildGraphModelFromQuads(quads: TQuad[], options: BuildGraphMode
 		for (const c of options.clusters) {
 			if (c.omittedCount <= 0) continue;
 			const cid = clusterId(c.type);
-			nodeMap.set(cid, { id: cid, type: c.type, isCluster: true, omittedCount: c.omittedCount });
+			nodeMap.set(cid, { id: cid, type: c.type, isCluster: true, omitted: omittedOf(c) });
 			for (const sampledSubject of c.sampledSubjects) {
 				if (!nodeMap.has(sampledSubject)) continue;
 				edges.push({ from: cid, to: sampledSubject, predicate: CLUSTER_PREDICATE, graph: c.type });

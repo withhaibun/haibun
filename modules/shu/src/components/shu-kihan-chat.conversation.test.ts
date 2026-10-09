@@ -117,7 +117,8 @@ function respond(step: string, params: Record<string, unknown>): unknown {
 		keptFiles.push(kept);
 		return keptAs(kept.name);
 	}
-	if (step === CHAT_STEP.sessions) return { sessions: [{ session: RESTORED, label: "an earlier conversation", generatedAtTime: "2026-05-17T05:00:00.000Z", turns: 1 }] };
+	if (step === CHAT_STEP.sessions)
+		return { sessions: [{ session: RESTORED, label: "an earlier conversation", generatedAtTime: "2026-05-17T05:00:00.000Z", turns: 1 }], ...counted(1) };
 	// A read held open, answered when a case reports the store got back to the page.
 	if (step === CHAT_STEP.session)
 		return new Promise((resolve, reject) => {

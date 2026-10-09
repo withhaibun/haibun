@@ -9,6 +9,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { ShuGraphFilter } from "./shu-graph-filter.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import "./shu-chip-group.js";
+import { COUNT_CEILING, statedTotal } from "@haibun/core/lib/hypermedia.js";
 
 const cluster = (type: string): TCluster => ({ type, totalCount: 2, sampledCount: 2, omittedCount: 0, sampledSubjects: [`${type}-1`, `${type}-2`], displayLabels: {} });
 
@@ -32,7 +33,7 @@ function chipsOf(el: ShuGraphFilter, group?: string): string[] {
 	return groups.flatMap((g) => Array.from(g.shadowRoot?.querySelectorAll("label.chip") ?? []).map((c) => c.textContent?.trim().split(" ")[0] ?? ""));
 }
 
-async function mount(schemaOnly: boolean): Promise<ShuGraphFilter> {
+async function mount(schemaOnly: boolean, clusters: Map<string, TCluster> = CLUSTERS): Promise<ShuGraphFilter> {
 	const el = document.createElement("shu-graph-filter") as ShuGraphFilter;
 	if (schemaOnly) {
 		el.setAttribute("data-schema-only", "");
@@ -40,7 +41,7 @@ async function mount(schemaOnly: boolean): Promise<ShuGraphFilter> {
 	}
 	el.setAttribute("show-controls", "");
 	document.body.appendChild(el);
-	el.setSource(CLUSTERS, QUADS);
+	el.setSource(clusters, QUADS);
 	await flush();
 	return el;
 }
@@ -133,5 +134,19 @@ describe("shu-graph-filter host modes", () => {
 		expect((el as unknown as { persistKey: string }).persistKey).toBe("class-browser");
 		const plain = document.createElement("shu-graph-filter") as ShuGraphFilter;
 		expect((plain as unknown as { persistKey: string }).persistKey).toBe("");
+	});
+});
+
+describe("a type chip's count", () => {
+	beforeEach(() => {
+		document.body.innerHTML = "";
+	});
+
+	it("states a count that stopped at its ceiling as a floor", async () => {
+		const saturated: TCluster = { ...cluster("Email"), totalCount: COUNT_CEILING, sampledCount: 2, omittedCount: COUNT_CEILING - 2, saturated: true };
+		const el = await mount(false, new Map([["Email", saturated]]));
+		const group = Array.from(el.shadowRoot?.querySelectorAll("shu-chip-group") ?? []).find((g) => g.getAttribute("name") === "types");
+		const count = group?.shadowRoot?.querySelector("label.chip .count")?.textContent;
+		expect(count).toBe(`(${statedTotal({ total: COUNT_CEILING, saturated: true })})`);
 	});
 });

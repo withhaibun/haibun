@@ -7,6 +7,7 @@ import { accessBound, runAuthorizedWith, runReadingAt } from "./capability-conte
 import { readAction, readCeilingOf, writeAction } from "./actions.js";
 import { Access } from "./resources.js";
 import { itemAt } from "./util/item-at.js";
+import { COUNT_CEILING } from "./hypermedia.js";
 
 describe("QuadStore Contexts", () => {
 	let store: QuadStore;
@@ -291,5 +292,19 @@ describe("the level each quad a run holds is written and read at", () => {
 		await expect(as(reader, () => store.set("notice-1", "text", "read privately", NOTICE))).rejects.toThrow(writeAction(Access.public));
 		await expect(as(reader, () => store.remove({ subject: "notice-1", namedGraph: NOTICE }))).rejects.toThrow(writeAction(Access.public));
 		expect(await store.get("notice-1", "text", NOTICE), "and the record is as it was published").toBe("published");
+	});
+});
+
+describe("the distinct values of a property", () => {
+	const GRAPH = "Note";
+	const FIELD = "folder";
+	it("counts the values to the ceiling, and states where the count stopped", async () => {
+		const store = new QuadStore();
+		for (let n = 0; n <= COUNT_CEILING; n++) await store.add({ subject: `note-${n}`, predicate: FIELD, object: `folder-${String(n).padStart(4, "0")}`, namedGraph: GRAPH });
+		const held = await store.distinctPropertyValues(GRAPH, FIELD);
+		expect(held).toMatchObject({ total: COUNT_CEILING, saturated: true });
+		expect(held.values).toHaveLength(COUNT_CEILING);
+		for (const subject of ["note-0", "note-1"]) await store.remove({ subject, namedGraph: GRAPH });
+		expect(await store.distinctPropertyValues(GRAPH, FIELD), "a count below the ceiling states every value").toMatchObject({ total: COUNT_CEILING - 1, saturated: false });
 	});
 });

@@ -6,6 +6,7 @@ import { Access, AccessLevelSchema, LinkRelations, commentDomainDefinition } fro
 import { MAX_PAGE_ROWS } from "@haibun/core/lib/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
 import type { IQuadStore } from "@haibun/core/lib/quad-types.js";
+import { distinctOf } from "@haibun/core/lib/records/derivations/read-records.js";
 import { z } from "zod";
 import GraphSourceStepper from "./graph-source-stepper.js";
 
@@ -21,7 +22,7 @@ function mockQuadStore(overrides: Partial<IQuadStore> = {}): IQuadStore {
 		upsertIndividual: vi.fn(async () => ""),
 		deleteIndividual: vi.fn(async () => undefined),
 		readRecords: vi.fn(async () => ({ vertices: [], total: 0, saturated: false, order: [] })),
-		distinctPropertyValues: vi.fn(async () => []),
+		distinctPropertyValues: vi.fn(async () => distinctOf([])),
 		density: vi.fn(async () => ({ buckets: [] })),
 		getClusteredQuads: vi.fn(async () => ({ quads: [], clusters: [] })),
 		...overrides,
@@ -73,7 +74,7 @@ describe("the values a filter offers", () => {
 				},
 			},
 		};
-		const distinctPropertyValues = vi.fn(async (_label: string, property: string) => (property === "account" ? ["primary"] : ["INBOX", "Sent"]));
+		const distinctPropertyValues = vi.fn(async (_label: string, property: string) => distinctOf(property === "account" ? ["primary"] : ["INBOX", "Sent"]));
 		world.shared.getStore = vi.fn(() => mockQuadStore({ distinctPropertyValues }));
 
 		const result = await stepper.steps.getSelectValues.action({ label: "Email" });

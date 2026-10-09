@@ -19,7 +19,7 @@ import { computeLayout, type Adornment } from "../graph-layout.js";
 import { hashModel, linkKey } from "./model-hash.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import type { TQuad, TCluster } from "@haibun/core/lib/quad-types.js";
-import { buildGraphModelFromQuads, type GraphModel } from "../../graph-model.js";
+import { buildGraphModelFromQuads, omittedLabel, type GraphModel } from "../../graph-model.js";
 import { type FGNode, type FGLink, linkEndId } from "./polymorphic-graph-types.js";
 
 const NEWCOMER_SEED_SPREAD = 40; // a streamed node spawns within this radius of its neighbour/type so it eases in instead of flying from the origin
@@ -226,7 +226,7 @@ export class DataPipeline {
 		}
 		for (const n of nodes) {
 			const label = truncateLabel(n.displayLabel ?? n.id); // bound a long base64 id so the chip can't render hundreds of units wide
-			const name = n.isCluster && n.omittedCount ? `+${n.omittedCount} more` : label;
+			const name = n.isCluster && n.omitted ? omittedLabel(n.omitted) : label;
 			const existing = this.nodeMap.get(n.id);
 			// The deterministic PIN target. Grouped: the container cell (groupPin) wins in every view, so the member sits in
 			// its shelf-packed cell and the box stays exclusive. Ungrouped: the lane pin wins: the td/lr Sugiyama {x,y} or the

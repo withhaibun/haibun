@@ -281,7 +281,7 @@ export function selectValuesFor(label: string): Promise<Record<string, string[]>
 			// field doesn't have dropdowns, which is an answer.
 			if (!getRels(label)) return undefined;
 			const values: Record<string, string[]> = {};
-			for (const field of getSelectFields(label)) values[field] = await cachedGraphStore().distinctPropertyValues(label, field);
+			for (const field of getSelectFields(label)) values[field] = (await cachedGraphStore().distinctPropertyValues(label, field)).values;
 			return values;
 		},
 	);

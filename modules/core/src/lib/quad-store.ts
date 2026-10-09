@@ -28,13 +28,14 @@ import {
 	matchesQuadPattern,
 	type TDensityQuery,
 	type TDensityResult,
+	type TDistinctValues,
 	type TStoreLevels,
 	type TRecordsPage,
 } from "./quad-types.js";
 import { displayLabelForQuads, type TTitledBy } from "./hypermedia.js";
 import { Access, AccessLevelSchema, BODY_LABEL, HELD_BY, LinkRelations, withinAccess, type AccessLevel } from "./resources.js";
 import { seenAt, writesAtEveryLevel, writtenAt } from "./actions.js";
-import { readFromRecords, recordsOfQuads, type THeldRecord, type TReadDeclarations } from "./records/derivations/read-records.js";
+import { distinctOf, readFromRecords, recordsOfQuads, type THeldRecord, type TReadDeclarations } from "./records/derivations/read-records.js";
 import { quadsOfRead, readEvery, type TRecordReader } from "./records/pipelines/record-reads.js";
 
 export class QuadStore implements IQuadStore {
@@ -419,6 +420,7 @@ export class QuadStore implements IQuadStore {
 			existing.totalCount = Math.max(existing.totalCount, c.totalCount, existing.sampledCount);
 			existing.omittedCount = Math.max(0, existing.totalCount - existing.sampledCount);
 			existing.displayLabels = { ...existing.displayLabels, ...c.displayLabels };
+			if (c.saturated) existing.saturated = true;
 			if (c.sites) existing.sites = { ...existing.sites, ...c.sites };
 		};
 
@@ -495,11 +497,11 @@ export class QuadStore implements IQuadStore {
 		return densityOverQuadStore(this, query);
 	}
 
-	async distinctPropertyValues(label: string, property: string): Promise<string[]> {
+	async distinctPropertyValues(label: string, property: string): Promise<TDistinctValues> {
 		const backing = this.storeFor(label);
 		if (backing) return backing.distinctPropertyValues(label, property);
 		const quads = await this.query({ predicate: property, namedGraph: label });
-		return [...new Set(quads.map((q) => String(q.object)))].sort();
+		return distinctOf(quads.map((q) => String(q.object)));
 	}
 }
 

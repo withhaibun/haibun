@@ -34,6 +34,7 @@ import { isSchemaType, SCHEMA_TYPES } from "../graph/ontology-projection.js";
 import "./shu-chip-group.js";
 import "./shu-field.js";
 import type { TChip } from "./shu-chip-group.js";
+import { counted } from "@haibun/core/lib/hypermedia.js";
 
 const StateSchema = z.object({
 	// The user's EXPLICIT per-type visibility choices (true = shown, false = hidden). A type absent here follows the
@@ -256,7 +257,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 			label: c.type,
 			checked: !hiddenTypes.has(c.type),
 			color: colorForType(c.type),
-			...(c.totalCount > 0 ? { count: c.totalCount } : {}),
+			...(c.totalCount > 0 ? { count: { total: c.totalCount, saturated: c.saturated === true } } : {}),
 		});
 		// A schema-scoped host (`data-schema-only`, the class browser) filters the vocabulary itself: the legend carries
 		// only the Class + Property chips. The instance-data controls are absent: they don't have a subject when the host doesn't offer an
@@ -270,7 +271,9 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		const schemaClusters = clusters.filter((c) => isSchemaType(c.type));
 		const schemaShown = schemaClusters.length > 0 && schemaClusters.every((c) => !hiddenTypes.has(c.type));
 		const hiddenPreds = new Set(this.hiddenPredicates());
-		const predicateChips = derivePredicates(visibleQuads).map((p): TChip => ({ id: p.predicate, label: p.predicate, checked: !hiddenPreds.has(p.predicate), count: p.count }));
+		const predicateChips = derivePredicates(visibleQuads).map(
+			(p): TChip => ({ id: p.predicate, label: p.predicate, checked: !hiddenPreds.has(p.predicate), count: counted(p.count) }),
+		);
 		return this.rows([
 			html`<shu-chip-group name="types" .chips=${clusters.filter((c) => !isSchemaType(c.type)).map(typeChip)} .onToggle=${this.onChipToggle} .onPreview=${this.onChipPreview}></shu-chip-group>
 				<button type="button" class="solo" data-testid=${FILTER_IDS.SOLO} aria-pressed=${this.soloWaiting} title="solo: press this, then a type or property chip, to show only that one" @click=${this.toggleSolo}>1️⃣</button>`,

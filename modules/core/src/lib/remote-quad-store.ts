@@ -10,7 +10,18 @@ import { RemoteInstance } from "./rpc-client.js";
 import { STORE_METHOD_PREFIX, requiredStoreCapability } from "./store-protocol.js";
 import type { TRequestSigner } from "./authority-types.js";
 import type { AccessLevel } from "./resources.js";
-import type { IQuadStore, TClusteredQuads, TClusteredQuadsOpts, TDensityQuery, TDensityResult, TGraphQuery, TQuad, TQuadPattern, TRecordsPage } from "./quad-types.js";
+import type {
+	IQuadStore,
+	TClusteredQuads,
+	TClusteredQuadsOpts,
+	TDensityQuery,
+	TDensityResult,
+	TDistinctValues,
+	TGraphQuery,
+	TQuad,
+	TQuadPattern,
+	TRecordsPage,
+} from "./quad-types.js";
 
 type TRemoteQuadStoreConfig = { url: string; sign: TRequestSigner; graphs: string[]; fetchImpl?: typeof fetch };
 
@@ -82,7 +93,7 @@ export class RemoteQuadStore implements IQuadStore {
 		return this.call("deleteIndividual", { label, id });
 	}
 
-	distinctPropertyValues(label: string, property: string): Promise<string[]> {
+	distinctPropertyValues(label: string, property: string): Promise<TDistinctValues> {
 		return this.call("distinctPropertyValues", { label, property });
 	}
 

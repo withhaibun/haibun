@@ -17,7 +17,7 @@ import {
 	type TQuerySurface,
 	type TTitledBy,
 } from "../../hypermedia.js";
-import { ORDER_KEY, VIA_FIELD, type TGraphQuery, type TOrderKey, type TQuad, type TRecordsPage, type TSearchCondition } from "../../quad-types.js";
+import { ORDER_KEY, VIA_FIELD, type TDistinctValues, type TGraphQuery, type TOrderKey, type TQuad, type TRecordsPage, type TSearchCondition } from "../../quad-types.js";
 import { Access, AccessQuery, LinkRelations, isPersisted, type THeldBy, type TRegisteredDomain } from "../../resources.js";
 
 /** The name a refusal and a rejected bound state for the read function. */
@@ -101,6 +101,12 @@ export function countCeiling({ countTo }: Pick<TGraphQuery, "countTo">): number 
 
 /** Returns the count of `matched` records against the read's ceiling. */
 export const heldCount = (matched: number, ceiling: number): TCounted => countedTo(Math.min(matched, ceiling), ceiling);
+
+/** Returns the distinct values of `values` in order, the first `COUNT_CEILING` of them, with their count to the ceiling. */
+export function distinctOf(values: Iterable<string>): TDistinctValues {
+	const distinct = [...new Set(values)].sort().slice(0, COUNT_CEILING);
+	return { values: distinct, ...countedTo(distinct.length, COUNT_CEILING) };
+}
 
 /** Returns the count of a read with `skipCount`: the records a page returned, against the page's size. */
 export const skippedCount = (returned: number, page: TReadPage): TCounted => countedTo(returned, "perType" in page ? page.perType : page.limit);

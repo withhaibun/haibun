@@ -13,9 +13,11 @@ import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
+import { statedTotal, type TCounted } from "@haibun/core/lib/hypermedia.js";
 
-/** One chip: its identity, what it shows, whether it is on, and (optionally) how many it stands for and its swatch. */
-export type TChip = { id: string; label: string; checked: boolean; count?: number; color?: string };
+/** One chip: its identity, what it shows, whether it is on, and (optionally) how many it stands for and its swatch. A count
+ *  that stopped at its ceiling renders as a floor. */
+export type TChip = { id: string; label: string; checked: boolean; count?: TCounted; color?: string };
 
 class ShuChipGroup extends ShuElement<z.ZodObject> {
 	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
@@ -80,7 +82,7 @@ class ShuChipGroup extends ShuElement<z.ZodObject> {
 						@mouseenter=${() => this.onPreview?.(c.id)}
 						@mouseleave=${() => this.onPreview?.(null)}
 						><input type="checkbox" .checked=${c.checked} @change=${(e: Event) => this.toggle(c, e)} />${c.label}${
-							c.count !== undefined ? html` <span class="count">(${c.count})</span>` : ""
+							c.count !== undefined ? html` <span class="count">(${statedTotal(c.count)})</span>` : ""
 						}</label
 					>`,
 			)}`;

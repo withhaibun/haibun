@@ -654,8 +654,6 @@ export type THypermediaTopology = {
 	edges?: Record<string, TEdgeDef>;
 	/** Per-property ranges (sh:node / rdfs:range). See TDomainRanges. */
 	ranges?: TDomainRanges;
-	/** DB-specific: which properties to index for fast lookup. */
-	propertyIndexes?: string[];
 	/** DB-specific: the sortable columns, each with its SQL type. */
 	sortColumns?: Record<string, string>;
 	/**

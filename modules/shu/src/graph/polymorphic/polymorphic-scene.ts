@@ -6,7 +6,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { html, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "../../components/shu-element.js";
-import { SITE_KEY, HYPERMEDIA_ROLE_REL_KEY, type GraphModel } from "../../graph-model.js";
+import { SITE_KEY, HYPERMEDIA_ROLE_REL_KEY, omittedOf, type GraphModel } from "../../graph-model.js";
 import { readsEveryStatement, statedAboutFirst } from "./polymorphic-summary.js";
 import { DEFAULT_PER_TYPE_LIMIT } from "../../quads-snapshot.js";
 import { SCOPE, dispatchSubjectEvent, entryOf } from "../../current-subject.js";
@@ -19,7 +19,7 @@ import { makeTroikaChip, spriteVisual, type ChipThree } from "./polymorphic-troi
 import { GLOW_RAMP, BREATH_MS } from "../polymorphic/polymorphic-highlight.js";
 import { typeAvatar } from "../polymorphic/polymorphic-type-avatar.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
-import { PAGE_TERMS } from "@haibun/core/lib/hypermedia.js";
+import { PAGE_TERMS, type TCounted } from "@haibun/core/lib/hypermedia.js";
 import { isSubPropertyOf, CLASS_LABEL, PROPERTY_LABEL } from "@haibun/core/lib/resources.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { type GroupKeyMode, easeInOutCubic, groupKeyOf, type XYZ } from "../grouping.js";
@@ -138,7 +138,7 @@ export interface GraphSceneChangedDetail {
 	/** The options the active view forces, so a host offers only the ones this view honours. */
 	forces: TViewForces;
 	paintOptions: Array<{ id: string; label: string }>;
-	counts: { nodes: number; edges: number; relTypes: number; omitted: number };
+	counts: { nodes: number; edges: number; relTypes: number; omitted: TCounted };
 	latestStep: string | null;
 	axisLegend: { from: string; to: string; count: number } | null;
 	/** The user's drag-pins (id → [x,y]) so the host can persist them across reloads. */
@@ -2011,7 +2011,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  refreshes this scene's own axis-legend chrome. */
 	private emitSceneChanged(): void {
 		const links = this.currentLinks;
-		const omitted = this.model.clusters.reduce((s, c) => s + c.omittedCount, 0);
+		const left = this.model.clusters.map(omittedOf);
+		const omitted = { total: left.reduce((sum, c) => sum + c.total, 0), saturated: left.some((c) => c.saturated) };
 		const relTypes = new Set(links.map((l) => l.predicate)).size;
 		const detail: GraphSceneChangedDetail = {
 			groupByAxes: this.groupByAxes,

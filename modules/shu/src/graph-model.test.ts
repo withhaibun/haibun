@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { buildGraphModelFromQuads, HYPERMEDIA_ROLE_KEY, SITE_KEY } from "./graph-model.js";
+import { buildGraphModelFromQuads, HYPERMEDIA_ROLE_KEY, SITE_KEY, omittedLabel } from "./graph-model.js";
+import { COUNT_CEILING, statedTotal } from "@haibun/core/lib/hypermedia.js";
 // An injected, ordered role list, consumers derive theirs from rels-cache roleEdgeLabels() (declared rolePriority);
 // the merge itself is generic, so the fixture doesn't name a consumer vocabulary.
 const TEST_ROLE_ORDER: readonly string[] = ["archive", "keeper", "maker", "subjectOf", "performedBy", "author", "wasAttributedTo", "attributedTo"];
@@ -178,5 +179,22 @@ describe("serving-site merge (SITE_KEY)", () => {
 	it("doesn't merge a site into a node when the response doesn't carry one (offline snapshots, plain quad tests)", () => {
 		const model = buildGraphModelFromQuads([q("e1", "name", "E1", "Email")]);
 		expect(model.nodes.find((n) => n.id === "e1")?.properties?.[SITE_KEY]).toBeUndefined();
+	});
+});
+
+describe("the label of the records a sample leaves out", () => {
+	it("names a count that stopped at its ceiling as a floor, and another count as it is", () => {
+		const floor = { total: COUNT_CEILING - 100, saturated: true };
+		expect(omittedLabel(floor)).toBe(`+${statedTotal(floor)}`);
+		expect(omittedLabel({ total: 3, saturated: false })).toBe("+3 more");
+	});
+
+	it("labels a cluster's node with its count's floor", () => {
+		const quads: TQuad[] = [{ subject: "e1", predicate: "subject", object: "one", namedGraph: "Email", timestamp: 1 }];
+		const clusters: TCluster[] = [
+			{ type: "Email", totalCount: COUNT_CEILING, sampledCount: 1, omittedCount: COUNT_CEILING - 1, sampledSubjects: ["e1"], displayLabels: {}, saturated: true },
+		];
+		const node = buildGraphModelFromQuads(quads, { clusters }).nodes.find((n) => n.isCluster);
+		expect(node?.omitted).toEqual({ total: COUNT_CEILING - 1, saturated: true });
 	});
 });

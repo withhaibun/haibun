@@ -3,7 +3,7 @@ import { html, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import { ShuClusteredGraphView, clusteredGraphStateShape } from "./shu-clustered-graph-view.js";
-import type { TLinkedData } from "@haibun/core/lib/hypermedia.js";
+import { statedTotal, type TLinkedData } from "@haibun/core/lib/hypermedia.js";
 import { SHU_EVENT, SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
 import { acts, conduit } from "../hypermedia.js";
@@ -446,7 +446,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		this.forces = d.forces;
 		const c = d.counts;
 		const edgePart = `${c.edges} edges (${c.relTypes} ${c.relTypes === 1 ? "type" : "types"})`;
-		this.countsText = `${c.nodes} nodes · ${edgePart}${c.omitted ? ` · ${c.omitted} omitted` : ""}`;
+		this.countsText = `${c.nodes} nodes · ${edgePart}${c.omitted.total > 0 ? ` · ${statedTotal(c.omitted)} omitted` : ""}`;
 		this.latestStep = d.latestStep;
 		// Persist the user's drag-pins (a page-wide layout choice) whenever they change: a dragged layout then survives a reload.
 		if (JSON.stringify(d.pins) !== JSON.stringify(this.state.pins)) this.setState({ pins: d.pins });

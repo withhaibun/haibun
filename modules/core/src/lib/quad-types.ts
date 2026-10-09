@@ -121,6 +121,11 @@ export type TDensityQuery = z.infer<typeof DensityQuerySchema>;
 export const DensityResultSchema = z.object({ buckets: z.array(z.record(z.string(), z.number().int().nonnegative())) });
 export type TDensityResult = z.infer<typeof DensityResultSchema>;
 
+/** The distinct values of one property, in order, and their count to `COUNT_CEILING`. A saturated count states that more
+ *  values exist than the list holds. */
+export const DistinctValuesSchema = z.object({ values: z.array(z.string()), ...CountedFields });
+export type TDistinctValues = z.infer<typeof DistinctValuesSchema>;
+
 /** The keys that order a page besides a field: the record's id, its type, a search's score and the order of a named read. */
 export const ORDER_KEY = { id: "@id", type: "@type", score: "score", named: "named" } as const;
 const OrderKeySchema = z.object({ key: z.string(), order: SortOrderSchema });
@@ -295,7 +300,8 @@ export interface IQuadStore {
 	/** Writes and deletes one record. The named graph is the record's persisted type. */
 	upsertIndividual(label: string, data: unknown): Promise<string>;
 	deleteIndividual(label: string, id: string): Promise<void>;
-	distinctPropertyValues(label: string, property: string): Promise<string[]>;
+	/** Returns the distinct values of a property, in order, up to `COUNT_CEILING`, and states where the count stopped. */
+	distinctPropertyValues(label: string, property: string): Promise<TDistinctValues>;
 
 	/** How many records fall in each division of a span of time, by how each turned out. What a reader is shown of a run
 	 *  of any length, at a time that does not grow with it. */
@@ -341,6 +347,8 @@ export interface TCluster {
 	sampledCount: number;
 	/** Individuals not represented in `quads` (totalCount − sampledCount). */
 	omittedCount: number;
+	/** True where the store's count stopped at its ceiling. The type then holds at least `totalCount` individuals. */
+	saturated?: boolean;
 	/** Subjects for which quads are present, in sample order. */
 	sampledSubjects: string[];
 	/**

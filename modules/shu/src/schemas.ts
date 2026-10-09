@@ -4,7 +4,7 @@
 import { z } from "zod";
 import { SearchConditionSchema, type TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
-import { CountedSchema } from "@haibun/core/lib/hypermedia.js";
+import { CountedFields, CountedSchema } from "@haibun/core/lib/hypermedia.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { DENOTES, IndividualAddressSchema } from "@haibun/core/lib/typed-links.js";
 
@@ -253,8 +253,10 @@ export type TSessionTurn = z.infer<typeof SessionTurnSchema>;
 /** A session's turns as the store reads them back, in the order they were asked, so the last is the latest. A step's
  *  products carry the step they came from beside what the step declares, so the answer is not strict; each turn is. */
 export const SessionReadSchema = z.object({ turns: z.array(SessionTurnSchema) });
-/** The sessions the store holds, each named by its first question's record, newest first. */
+/** The sessions the store holds, each named by its first question's record, newest first, with the count of sessions to
+ *  the ceiling. */
 export const SessionListSchema = z.object({
+	...CountedFields,
 	sessions: z.array(
 		z
 			.object({

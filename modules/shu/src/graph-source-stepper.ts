@@ -47,6 +47,7 @@ const ClusteredQuadsSchema = z.object({
 			totalCount: z.number(),
 			sampledCount: z.number(),
 			omittedCount: z.number(),
+			saturated: z.boolean().optional(),
 			sampledSubjects: z.array(z.string()),
 			displayLabels: z.record(z.string(), z.string()).optional(),
 			// Site principal per sampled subject SERVED BY A FEDERATED PEER; a subject without an entry was served by `site` below.
@@ -132,7 +133,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 				if (!domain?.topology?.properties) return actionNotOK(`a filter topology isn't registered for ${label}`);
 				// Every field read at once: a type with several filtered fields is one round of reads rather than one per field.
 				const filtered = Object.entries(domain.topology.properties).filter(([, definition]) => relOf(definition) === LinkRelations.CONTEXT.rel);
-				const read = await Promise.all(filtered.map(async ([property]) => [property, await store.distinctPropertyValues(label, property)] as const));
+				const read = await Promise.all(filtered.map(async ([property]) => [property, (await store.distinctPropertyValues(label, property)).values] as const));
 				return actionOKWithProducts({ values: Object.fromEntries(read) });
 			},
 		},

@@ -75,8 +75,8 @@ describe("the questions the site answers, asked of the graph this page caches", 
 	});
 
 	it("reports the distinct values a field holds, for the dropdowns a reader filters by", async () => {
-		expect(await store.distinctPropertyValues("Email", "folder")).toEqual(["INBOX", "Sent"]);
-		expect(await store.distinctPropertyValues("Email", "nothing")).toEqual([]);
+		expect(await store.distinctPropertyValues("Email", "folder")).toEqual({ values: ["INBOX", "Sent"], total: 2, saturated: false });
+		expect(await store.distinctPropertyValues("Email", "nothing")).toEqual({ values: [], total: 0, saturated: false });
 	});
 });
 
