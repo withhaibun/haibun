@@ -906,7 +906,6 @@ const PrincipalSchema = PersistedVertexSchema.extend({
 	controller: z.string().optional(),
 	publicKey: z.string().optional(),
 	generatedAtTime: z.string(),
-	proof: z.string().optional(),
 });
 
 export type TPrincipal = z.infer<typeof PrincipalSchema>;

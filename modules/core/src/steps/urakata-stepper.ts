@@ -27,7 +27,20 @@ export const urakataTaskDomainDefinition = {
 		persistedAs: URAKATA_LABEL,
 		id: "id",
 		instrumentation: true,
-		properties: { id: LinkRelations.IDENTIFIER.rel, description: LinkRelations.NAME.rel, execution: LinkRelations.CONTEXT.rel },
+		properties: {
+			id: LinkRelations.IDENTIFIER.rel,
+			description: LinkRelations.NAME.rel,
+			execution: LinkRelations.CONTEXT.rel,
+			seqPath: LinkRelations.SEQ_PATH.rel,
+			startedAt: LinkRelations.STARTED_AT_TIME.rel,
+			lastTickAt: LinkRelations.UPDATED.rel,
+			tickIndex: LinkRelations.TAG.rel,
+			errorCount: LinkRelations.TAG.rel,
+			stoppedAt: LinkRelations.ENDED_AT_TIME.rel,
+			startedBy: LinkRelations.PERFORMED_BY.rel,
+			holds: LinkRelations.ALLOWED_ACTION.rel,
+			stopReason: LinkRelations.OUTCOME_REASON.rel,
+		},
 	},
 };
 

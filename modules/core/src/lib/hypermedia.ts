@@ -269,7 +269,8 @@ export type TConcernCatalog = z.infer<typeof ConcernCatalogSchema>;
 /**
  * Build a ConcernCatalog from world.domains after getConcerns has run.
  * Non-persisted domains (without topology.persistedAs) are skipped.
- * Persisted domains are validated: id, properties, and valid rels are required.
+ * Persisted domains are validated: id, properties, and valid rels are required. Each schema field is a property or an
+ * edge, and a property doesn't map to `tag` where a relation is named for it.
  */
 export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>): TConcernCatalog {
 	const persisted: Record<string, THypermediaConcern> = {};
@@ -302,6 +303,8 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 		const generatedField = itemAt(generatedFields, 0);
 		const shape = unwrapToShape(domain.schema);
 		if (!shape) throw new Error(`persisted domain "${label}" (${domainKey}) has a schema that isn't an object: a persisted type's value is an object of its fields`);
+		assertFieldsNamed(label, domainKey, topology, Object.keys(shape));
+		assertTagUnclaimed(label, domainKey, topology);
 		const fieldSchema = shape[generatedField];
 		if (!fieldSchema) throw new Error(`persisted domain "${label}" (${domainKey}) maps generatedAtTime rel to "${generatedField}" but the schema doesn't have that field`);
 		const probe = fieldSchema.safeParse(undefined);
@@ -861,6 +864,34 @@ function linkRelFromSemantic(rel: string): "item" | "filter" | "select" {
 	if (range === "iri") return "item";
 	if (range === "container") return "select";
 	return "filter";
+}
+
+/** Throws where a schema field isn't a property or an edge of the topology. The store holds such a field and serves it
+ *  without a term. */
+function assertFieldsNamed(label: string, domainKey: string, topology: THypermediaTopology, fields: string[]): void {
+	const unnamed = fields.filter((field) => topology.properties[field] === undefined && topology.edges?.[field] === undefined);
+	if (unnamed.length > 0)
+		throw new Error(
+			`persisted domain "${label}" (${domainKey}) has schema fields that its topology doesn't name: ${unnamed.join(", ")}. Map each field to its relation in topology.properties or topology.edges, or remove it from the schema`,
+		);
+}
+
+/** Each relation by its rel and by the local name of its IRI. A rel takes precedence over another relation's local name. */
+const RELATION_BY_NAME: ReadonlyMap<string, { rel: string; uri: string }> = new Map([
+	...Object.values(LinkRelations).map((relation) => [relation.uri.slice(relation.uri.indexOf(":") + 1), relation] as const),
+	...Object.values(LinkRelations).map((relation) => [relation.rel, relation] as const),
+]);
+
+/** Throws where a property maps to `tag` and a relation's rel or IRI local name is the property's name. `tag` states only
+ *  that a record carries a value, and the named relation states what the value is. */
+function assertTagUnclaimed(label: string, domainKey: string, topology: THypermediaTopology): void {
+	for (const [field, def] of Object.entries(topology.properties)) {
+		const named = RELATION_BY_NAME.get(field);
+		if (relOf(def) === LinkRelations.TAG.rel && named !== undefined && named.rel !== LinkRelations.TAG.rel)
+			throw new Error(
+				`persisted domain "${label}" (${domainKey}) maps property "${field}" to "${LinkRelations.TAG.rel}", and the relation "${named.rel}" (${named.uri}) is named for it. Map "${field}" to "${named.rel}"`,
+			);
+	}
 }
 
 /** The CURIE prefix a term names, or "" for a bare local name or an absolute IRI (these don't bind a vocabulary). */

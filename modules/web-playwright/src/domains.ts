@@ -165,7 +165,7 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 				method: LinkRelations.TAG.rel,
 				status: LinkRelations.TAG.rel,
 				durationMs: LinkRelations.TAG.rel,
-				url: LinkRelations.TAG.rel,
+				url: LinkRelations.URL.rel,
 				endpointClass: LinkRelations.TAG.rel,
 			},
 			// The browser performs a request, or the site does where it requests something itself; a request targets the

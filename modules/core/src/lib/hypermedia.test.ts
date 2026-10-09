@@ -173,20 +173,18 @@ describe("queryableFields: the one declaration-side derivation of a type's query
 describe("validTimeField: the catalog names the field that places a type's individuals in time", () => {
 	it("is the declared defaultSort when present, and generatedAtTime otherwise", () => {
 		const schema = z.object({ id: z.string(), receivedAt: z.coerce.date(), generatedAtTime: z.coerce.date().default(() => new Date()) });
-		const make = (persistedAs: string, defaultSort?: string) =>
-			({
-				selectors: [persistedAs.toLowerCase()],
-				schema,
-				coerce: (v: unknown) => v,
-				description: persistedAs,
-				topology: {
-					persistedAs,
-					id: "id",
-					properties: { id: LinkRelations.IDENTIFIER.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel },
-					...(defaultSort ? { defaultSort } : {}),
-				},
-			}) as unknown as Parameters<typeof buildConcernCatalog>[0][string];
-		const cat = buildConcernCatalog({ message: make("Message", "receivedAt"), note: make("Note") });
+		const make = (persistedAs: string, defaultSort?: string): TDomainDefinition => ({
+			selectors: [persistedAs.toLowerCase()],
+			schema,
+			description: persistedAs,
+			topology: {
+				persistedAs,
+				id: "id",
+				properties: { id: LinkRelations.IDENTIFIER.rel, receivedAt: LinkRelations.PUBLISHED.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel },
+				...(defaultSort ? { defaultSort } : {}),
+			},
+		});
+		const cat = buildConcernCatalog(mapDefinitionsToDomains([make("Message", "receivedAt"), make("Note")]));
 		expect(cat.persisted.Message?.validTimeField).toBe("receivedAt");
 		expect(cat.persisted.Note?.validTimeField).toBe(LinkRelations.GENERATED_AT_TIME.rel);
 	});
@@ -239,5 +237,42 @@ describe("buildConcernCatalog vocabulary binding", () => {
 	it("accepts an absolute IRI and a bare local name, since these don't name a vocabulary to bind", () => {
 		expect(() => buildConcernCatalog(domain({ type: "https://www.w3.org/ns/did#DIDDocument" }))).not.toThrow();
 		expect(() => buildConcernCatalog(domain({ subClassOf: "Thing" }))).not.toThrow();
+	});
+});
+
+describe("buildConcernCatalog field declarations", () => {
+	const ADDRESS = "url";
+	const KEY = "publicKeyMultibase";
+	const domain = (field: string, { properties, edges }: Pick<THypermediaTopology, "properties" | "edges">) =>
+		mapDefinitionsToDomains([
+			{
+				selectors: ["thing"],
+				description: "d",
+				schema: z.object({ id: z.string(), [field]: z.string(), generatedAtTime: z.string() }),
+				topology: { persistedAs: "Thing", id: "id", properties: { id: LinkRelations.IDENTIFIER.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel, ...properties }, edges },
+			},
+		]);
+
+	it("rejects a schema field that the topology doesn't name, and names the field and the change", () => {
+		expect(() => buildConcernCatalog(domain(ADDRESS, { properties: {} }))).toThrow(
+			`has schema fields that its topology doesn't name: ${ADDRESS}. Map each field to its relation in topology.properties or topology.edges, or remove it from the schema`,
+		);
+	});
+
+	it("accepts a schema field that an edge names", () => {
+		expect(() => buildConcernCatalog(domain(ADDRESS, { properties: {}, edges: { [ADDRESS]: { rel: LinkRelations.MENTIONS.rel, range: "Thing" } } }))).not.toThrow();
+	});
+
+	it("rejects a field mapped to tag where a relation is named for it, and names the relation", () => {
+		expect(() => buildConcernCatalog(domain(ADDRESS, { properties: { [ADDRESS]: LinkRelations.TAG.rel } }))).toThrow(
+			`maps property "${ADDRESS}" to "${LinkRelations.TAG.rel}", and the relation "${LinkRelations.URL.rel}" (${LinkRelations.URL.uri}) is named for it. Map "${ADDRESS}" to "${LinkRelations.URL.rel}"`,
+		);
+		expect(() => buildConcernCatalog(domain(ADDRESS, { properties: { [ADDRESS]: LinkRelations.URL.rel } }))).not.toThrow();
+	});
+
+	it("finds the relation named for a field by the local name of the relation's IRI", () => {
+		expect(() => buildConcernCatalog(domain(KEY, { properties: { [KEY]: LinkRelations.TAG.rel } }))).toThrow(
+			`the relation "${LinkRelations.PUBLIC_KEY.rel}" (${LinkRelations.PUBLIC_KEY.uri}) is named for it`,
+		);
 	});
 });
