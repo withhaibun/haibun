@@ -7,12 +7,12 @@ import type { TFeatureSteps } from "../schema/protocol.js";
 import { actionNotOK } from "./util/index.js";
 import { itemAt } from "./util/item-at.js";
 import { isWrittenByCaller, normalizeDomainKey } from "./domains.js";
-import { OBSERVATION_GRAPH, FACT_GRAPH, assertFact, getFact, queryFacts } from "./working-memory.js";
+import { assertFact, holdsFactOf } from "./records/pipelines/facts.js";
 import { doStepperCycle } from "./stepper-cycles.js";
 import { actingAs, callerHolds, readingAsStated, readingAt, runInStep, runInvoking, runReadingAt, runStatedAt } from "./capability-context.js";
 import { capabilityAllows, readCeilingOf } from "./actions.js";
 import { Access, LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS, type SeqPathStatus } from "./resources.js";
-import { SEQ_PATH_FIELD, calledOf, executionOf, factIdOf, formatRecordName } from "./seq-path.js";
+import { SEQ_PATH_FIELD, calledOf, executionOf, formatRecordName, type TRecordName } from "./seq-path.js";
 import { StepRegistry, stepMethodName, hostScopedMethodName, authorizeToolCapability } from "./step-registry.js";
 import { augmentViewHypermedia, isViewOnlyDomain } from "./step-hypermedia.js";
 
@@ -152,9 +152,6 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	// The step as its records state it. A domain's `recordedAs` replaces a value too large to repeat in the records.
 	const stated = asRecorded(featureStep, world.domains);
 	if (recorded) {
-		const usageKey = `${action.stepperName}.${action.actionName}`;
-		const priorCount = ((await getFact(world, "count", usageKey, OBSERVATION_GRAPH.STEP_USAGE)) as number | undefined) ?? 0;
-		await assertFact(world, "count", usageKey, priorCount + 1, OBSERVATION_GRAPH.STEP_USAGE);
 		world.eventLogger.stepStart(stated, action.stepperName, action.actionName, {}, stated.action.stepValuesMap, tool.isAsync);
 		await emitSeqPathStart(world, stated, authorization, { ranVia: tool.transport, ranOn: tool.descriptor.remoteOrigin });
 	}
@@ -188,7 +185,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 							if (actionResult.products) actionResult = { ...actionResult, products: { ...actionResult.products, [TRACE_SEQ_PATH]: featureStep.seqPath } };
 							actionResult = augmentViewHypermedia(world, action.step, actionResult, steppers);
 							// A fact is a record of actuality. Actuality doesn't record a read over a transport as a step or assert its products.
-							if (recorded) await autoAssertProducts(world, step.seqPath, action.step, actionResult);
+							if (recorded) await autoAssertProducts(world, { execution: executionOf(world.tag), path: featureStep.seqPath }, action.step, actionResult);
 						}
 						if (!actionResult.ok && featureStep.intent?.mode !== "speculative") {
 							world.eventLogger.log(featureStep, "error", actionResult.errorMessage);
@@ -265,34 +262,35 @@ async function checkInputPreconditions(world: TWorld, paramDomainKeys: ReadonlyM
 		// action runs.
 		if (stepValue?.term !== undefined && stepValue.term !== "") continue;
 		// The facts for an input are read at the statement's read ceiling, as its arguments are.
-		const facts = await readingAsStated(() => queryFacts(world, normalized, FACT_GRAPH));
-		if (facts.length === 0)
+		if (!(await readingAsStated(() => holdsFactOf(world.shared.getStore(), normalized))))
 			return `precondition-not-satisfied: domain "${normalized}" doesn't have an asserted fact or a resolved value for {${param}}. Run a step that produces this domain before this step, or give this parameter a value.`;
 	}
 	return undefined;
 }
 
 /**
- * Asserts a step's retained products into the facts graph under the step's declared products domain or domains. The
- * fact id derives from the seqPath, so a step that runs again replaces its fact rather than adding a second one.
+ * Writes a fact of a step's retained products under the step's declared products domain or domains. The fact's id is the
+ * step's record name, so a step that runs again replaces its fact rather than adding a second one.
  *
  * The products of a view-only domain aren't asserted. The `shu-monitor-column` products of `show monitor` are one example.
  * `isViewOnlyDomain` states why.
  */
-async function autoAssertProducts(world: TWorld, seqPathKey: string, step: TStepperStep, actionResult: TActionResult): Promise<void> {
+async function autoAssertProducts(world: TWorld, stepName: TRecordName, step: TStepperStep, actionResult: TActionResult): Promise<void> {
 	// Actuality holds a fact for as long as it runs, so the fact holds only what the step retains, as the step's end event does.
 	const products = retainedProducts(actionResult.products, step.retainProducts);
 	if (!products) return;
+	const store = world.shared.getStore();
+	const generatedAtTime = new Date().toISOString();
 	if (step.productsDomain) {
 		if (isViewOnlyDomain(world, step.productsDomain)) return;
-		await assertFact(world, normalizeDomainKey(step.productsDomain), factIdOf(seqPathKey), products, FACT_GRAPH);
+		await assertFact(store, stepName, { domain: normalizeDomainKey(step.productsDomain), value: products, generatedAtTime });
 		return;
 	}
 	if (step.productsDomains) {
 		for (const [field, domainKey] of Object.entries(step.productsDomains)) {
 			if (!(field in products)) continue;
 			if (isViewOnlyDomain(world, domainKey)) continue;
-			await assertFact(world, normalizeDomainKey(domainKey), factIdOf(seqPathKey, field), products[field], FACT_GRAPH);
+			await assertFact(store, stepName, { domain: normalizeDomainKey(domainKey), value: products[field], field, generatedAtTime });
 		}
 	}
 }

@@ -22,6 +22,7 @@ import { hashWithColumns } from "../view-hash.js";
 import { GOAL_FINDING } from "@haibun/core/lib/goal-resolver.js";
 import type { TForwardAffordance, TWaypointEntry, TCompositeRanges } from "@haibun/core/lib/affordances.js";
 import { EDGE_KIND, NODE_KIND, type TGraph, type TGraphEdge, type TGraphNode } from "./types.js";
+import { producingStep } from "@haibun/core/lib/seq-path.js";
 
 /** A link to the affordances panel, opened on the goal or waypoint a node names. */
 const affordancesAt = (param: (typeof AFFORDANCE_PARAM)[keyof typeof AFFORDANCE_PARAM], value: string): string => hashWithColumns([SHU_TAG.AFFORDANCES_PANEL], { [param]: value });
@@ -250,4 +251,10 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 	}
 
 	return { nodes, edges, direction: "LR" };
+}
+
+/** Returns the step path of the step that produced the fact a node stands for, or undefined where the node doesn't stand for a fact. */
+export function producingStepOf(node: TGraphNode): number[] | undefined {
+	const factId = node.wasGeneratedBy?.factId;
+	return factId === undefined ? undefined : producingStep(factId);
 }

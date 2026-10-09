@@ -31,11 +31,11 @@ import {
 	type TStoreLevels,
 	type TRecordsPage,
 } from "./quad-types.js";
-import { displayLabelForQuads } from "./hypermedia.js";
-import { Access, AccessLevelSchema, BODY_LABEL, LinkRelations, withinAccess, type AccessLevel } from "./resources.js";
+import { displayLabelForQuads, type TTitledBy } from "./hypermedia.js";
+import { Access, AccessLevelSchema, BODY_LABEL, HELD_BY, LinkRelations, withinAccess, type AccessLevel } from "./resources.js";
 import { seenAt, writesAtEveryLevel, writtenAt } from "./actions.js";
-import type { TReadDeclarations } from "./records/derivations/read-records.js";
-import { readEvery, readQuadRecords } from "./records/pipelines/record-reads.js";
+import { readFromRecords, recordsOfQuads, type THeldRecord, type TReadDeclarations } from "./records/derivations/read-records.js";
+import { quadsOfRead, readEvery, type TRecordReader } from "./records/pipelines/record-reads.js";
 
 export class QuadStore implements IQuadStore {
 	private quads: TQuad[] = [];
@@ -60,11 +60,32 @@ export class QuadStore implements IQuadStore {
 	/** Returns the declarations of the types this store's own layer reads. A store without them doesn't read its layer by type. */
 	private declarations: (() => TReadDeclarations) | undefined;
 
-	constructor(routing?: Map<string, IQuadStore>, federated?: Set<TFederatedGraphSource>, levels?: TStoreLevels, declarations?: () => TReadDeclarations) {
+	/** Reads the records core derives from the declarations: each type whose declaration states `heldBy: declarations`. */
+	private derived: TRecordReader | undefined;
+
+	constructor(routing?: Map<string, IQuadStore>, federated?: Set<TFederatedGraphSource>, levels?: TStoreLevels, declarations?: () => TReadDeclarations, derived?: TRecordReader) {
 		this.routing = routing ?? new Map();
 		this.federated = federated ?? new Set();
 		this.levels = levels;
 		this.declarations = declarations;
+		this.derived = derived;
+	}
+
+	/** Returns the reader of derived records where core derives a type's records from the declarations and this store holds
+	 *  that reader. A store without the reader holds the records it was given, as a page holds a copy of what a site served. */
+	private derivedReaderOf(label: string): TRecordReader | undefined {
+		return this.derived && this.declarations?.().of(label)?.heldBy === HELD_BY.declarations ? this.derived : undefined;
+	}
+
+	/** Throws for a write of a type whose records this store derives from the declarations. */
+	private refuseDerived(label: string): void {
+		if (this.derivedReaderOf(label))
+			throw new Error(`${label} records are derived from the declarations, so a write of a ${label} record is rejected. Change the declaration of the type it describes.`);
+	}
+
+	/** Returns what reads a type's records: the reader of derived records, or the backing store registered for it. */
+	private readerOf(label: string): TRecordReader | undefined {
+		return this.derivedReaderOf(label) ?? this.storeFor(label);
 	}
 
 	/** The routing map, for constructing the next store in a chain so it shares this one's registrations. */
@@ -144,11 +165,10 @@ export class QuadStore implements IQuadStore {
 	}
 
 	/**
-	 * Scenario-boundary carry-over: copy every quad whose named graph is NOT the variables graph into the target
-	 * store. Variables (SHARED_GRAPH) are re-projected by FeatureVariables from `world.shared.all()` with provenance
-	 * properties rebuilt, so they're carried separately. Facts and observations live only in this in-memory store and
-	 * would be lost when FeatureVariables creates a fresh QuadStore for the next scenario. Backing registrations are
-	 * NOT copied: the routing map is shared by reference via the constructor.
+	 * Copies every quad of this store's own layer into the target store, except the variables. FeatureVariables writes the
+	 * variables of the next scope from the ones it carries, with the steps that set each. The facts are held only in this
+	 * layer, so the next scenario's store holds them through this copy. The routing map is shared by reference through
+	 * the constructor, so a backing registration isn't copied.
 	 */
 	carryNonVariableQuadsTo(target: QuadStore): void {
 		for (const q of this.quads) {
@@ -178,6 +198,7 @@ export class QuadStore implements IQuadStore {
 	// async, as every write here is, so a refused level reaches a caller's .catch rather than throwing out of a method that
 	// returns a promise.
 	private async setQuad(quad: Omit<TQuad, "timestamp">): Promise<void> {
+		this.refuseDerived(quad.namedGraph);
 		const backing = this.storeFor(quad.namedGraph);
 		if (backing) return await backing.set(quad.subject, quad.predicate, quad.object, quad.namedGraph, quad.properties);
 		const classified = this.classified(quad);
@@ -238,6 +259,7 @@ export class QuadStore implements IQuadStore {
 	}
 
 	async add(quad: Omit<TQuad, "timestamp">): Promise<void> {
+		this.refuseDerived(quad.namedGraph);
 		const backing = this.storeFor(quad.namedGraph);
 		if (backing) return await backing.add(quad);
 		this.quads.push({ ...this.classified(quad), timestamp: Date.now() });
@@ -301,6 +323,7 @@ export class QuadStore implements IQuadStore {
 
 	async remove(pattern: TQuadPattern): Promise<void> {
 		if (pattern.namedGraph) {
+			this.refuseDerived(pattern.namedGraph);
 			const backing = this.storeFor(pattern.namedGraph);
 			if (backing) return await backing.remove(pattern);
 		}
@@ -316,21 +339,56 @@ export class QuadStore implements IQuadStore {
 
 	/**
 	 * Reads a page from the store that holds the read's records: the store of its label, of the record a reference read
-	 * names, or the one store that holds every type a term reads. Throws for a term whose types more than one store holds.
-	 * This store's own layer reads through `readFromRecords`, which doesn't search text.
+	 * names, the reader of the records core derives from the declarations, or the one store that holds every type a term
+	 * reads. Throws for a term whose types more than one store holds. This store's own layer reads through
+	 * `readFromRecords`, which doesn't search text. A read of the records one of its records references reads each
+	 * record that another store holds from that store.
 	 */
 	async readRecords(query: TGraphQuery): Promise<TRecordsPage> {
 		const routed = this.routeOf(query);
 		if (routed) return await routed.readRecords(query);
 		const declarations = this.declarations;
 		if (!declarations) throw new Error("this store doesn't hold the declarations of its types, so it doesn't read records by type");
-		return await readQuadRecords(query, (pattern) => Promise.resolve(this.localQuery(pattern)), declarations());
+		const held = recordsOfQuads(await quadsOfRead(query, (pattern) => Promise.resolve(this.localQuery(pattern))));
+		const elsewhere = query.referencedBy ? await this.referencedElsewhere(held, query) : [];
+		return readFromRecords([...held, ...elsewhere], query, declarations());
 	}
 
-	/** Returns the backing store that holds a read's records, or undefined where this store's own layer holds them. */
-	private routeOf(query: TGraphQuery): IQuadStore | undefined {
+	/**
+	 * Reads the records that a record of this store's own layer references and another store holds, from that store, at the
+	 * read's level. Throws where that store returns a record without its id field.
+	 */
+	private async referencedElsewhere(held: readonly THeldRecord[], query: TGraphQuery): Promise<THeldRecord[]> {
+		const { referencedBy, accessLevel } = query;
+		if (!referencedBy) return [];
+		const source = held.find((record) => record.label === referencedBy.label && record.id === referencedBy.id);
+		const named = new Map<string, Set<string>>();
+		for (const edge of source?.edges ?? []) {
+			if (referencedBy.via && !referencedBy.via.includes(edge.rel)) continue;
+			if (this.readerOf(edge.label) === undefined) continue;
+			named.set(edge.label, (named.get(edge.label) ?? new Set()).add(edge.id));
+		}
+		const read = await Promise.all(
+			[...named].map(async ([label, ids]) => {
+				const reader = this.readerOf(label);
+				if (!reader) throw new Error(`the store that holds ${label} records was removed during the read`);
+				const idField = this.declarations?.().of(label)?.id;
+				if (!idField) throw new Error(`${label} isn't a declared type, so a record it names can't be read by its id`);
+				const vertices = await readEvery(reader, { label, named: [...ids], ...(accessLevel ? { accessLevel } : {}) });
+				return vertices.map(({ "@id": _iri, "@type": _type, ...fields }): THeldRecord => {
+					const id = fields[idField];
+					if (typeof id !== "string" && typeof id !== "number") throw new Error(`a ${label} record read from another store doesn't state its id field ${idField}`);
+					return { id: String(id), label, fields, edges: [], level: fields[LinkRelations.ACCESS_LEVEL.rel] };
+				});
+			}),
+		);
+		return read.flat();
+	}
+
+	/** Returns the store or reader that holds a read's records, or undefined where this store's own layer holds them. */
+	private routeOf(query: TGraphQuery): TRecordReader | undefined {
 		const label = query.label ?? query.references?.label ?? query.referencedBy?.label;
-		if (label !== undefined) return this.storeFor(label);
+		if (label !== undefined) return this.readerOf(label);
 		if (query.textQuery === undefined) return undefined;
 		const stores = query.types ? [...new Set(query.types.map((type) => this.storeFor(type)))] : this.allStores;
 		if (stores.length > 1)
@@ -378,7 +436,7 @@ export class QuadStore implements IQuadStore {
 
 		const seen = this.seen(opts.accessLevel);
 		const localQuads = this.quads.filter((q) => (!requested || requested.has(q.namedGraph)) && seen(q));
-		const localClustered = sliceQuadsPerType(localQuads, opts.perTypeLimit, allQuads);
+		const localClustered = sliceQuadsPerType(localQuads, opts.perTypeLimit, allQuads, (type) => this.declarations?.().of(type)?.title);
 		allQuads.push(...localClustered.quads);
 		for (const c of localClustered.clusters) mergeCluster(c);
 
@@ -399,11 +457,12 @@ export class QuadStore implements IQuadStore {
 	// async so a rejected identity reaches a caller's .catch like every other failure, rather than throwing
 	// synchronously out of a method that returns a promise.
 	async upsertIndividual(label: string, data: unknown): Promise<string> {
+		this.refuseDerived(label);
 		const backing = this.storeFor(label);
 		if (backing) return await backing.upsertIndividual(label, data);
 		const schema = this.schemas[label];
 		const validated = RecordSchema.parse(schema ? schema.parse(data) : data);
-		const idField = this.idFields[label] ?? "id";
+		const idField = this.idFields[label] ?? this.declarations?.().of(label)?.id ?? "id";
 		// Read before stringifying: String(undefined) is "undefined", a truthy string, so the guard below it never fired
 		// and the record was written under that literal subject, unreachable and overwritten by the next one.
 		const identity = validated[idField];
@@ -426,6 +485,7 @@ export class QuadStore implements IQuadStore {
 	}
 
 	async deleteIndividual(label: string, id: string): Promise<void> {
+		this.refuseDerived(label);
 		const backing = this.storeFor(label);
 		if (backing) return backing.deleteIndividual(label, id);
 		await this.remove({ subject: id, namedGraph: label });
@@ -483,9 +543,15 @@ export async function densityOverQuadStore(store: IQuadStore, query: TDensityQue
  * Group quads by namedGraph, keep up to `perTypeLimit` distinct subjects per
  * group, and emit a TCluster summary for each. `existingQuads` lets the caller
  * pass already-included subjects (from another store) so totals stay coherent
- * across merged sources.
+ * across merged sources. `titledBy` returns the property or edge that titles a
+ * type's records, where the type declares one.
  */
-export function sliceQuadsPerType(quads: TQuad[], perTypeLimit: number, existingQuads: TQuad[] = []): TClusteredQuads {
+export function sliceQuadsPerType(
+	quads: TQuad[],
+	perTypeLimit: number,
+	existingQuads: TQuad[] = [],
+	titledBy: (type: string) => TTitledBy | undefined = () => undefined,
+): TClusteredQuads {
 	const subjectsByType = new Map<string, Set<string>>();
 	const sampledByType = new Map<string, Set<string>>();
 	for (const q of existingQuads) {
@@ -493,9 +559,9 @@ export function sliceQuadsPerType(quads: TQuad[], perTypeLimit: number, existing
 		sampledByType.get(q.namedGraph)?.add(q.subject);
 	}
 	// Index local quads by subject, plus each Body's content, so labels compose the
-	// same way every producer does (shortest linked-body preview, else id). The
-	// in-memory path doesn't have a rels registry, so name/content resolution is unavailable
-	// here; body-backed and id labels still come out identical to other producers.
+	// same way every producer does (declared title, shortest linked-body preview, else id).
+	// The in-memory path doesn't have a rels registry, so a name or content rel doesn't
+	// title a record here.
 	const quadsBySubject = new Map<string, TQuad[]>();
 	const bodyContentBySubject = new Map<string, string>();
 	for (const q of quads) {
@@ -525,7 +591,7 @@ export function sliceQuadsPerType(quads: TQuad[], perTypeLimit: number, existing
 		const displayLabels: Record<string, string> = {};
 		for (const subject of keep) {
 			if (!quadsBySubject.has(subject)) continue;
-			displayLabels[subject] = displayLabelForQuads(type, subject, quadsBySubject.get(subject) ?? [], (b) => bodyContentBySubject.get(b), undefined);
+			displayLabels[subject] = displayLabelForQuads(type, subject, quadsBySubject.get(subject) ?? [], (b) => bodyContentBySubject.get(b), undefined, titledBy(type));
 		}
 		clusters.push({
 			type,

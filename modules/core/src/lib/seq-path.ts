@@ -44,22 +44,23 @@ export function calledParts(called: string): { stepperName: string; actionName: 
  *  product has a domain for each field. */
 const FACT_FIELD_MARK = "#";
 
-/** Returns a fact's id. The id holds the seqPath of the step that produced the fact. The id also names the product
- *  field where the fact is one field of the product. */
-export function factIdOf(seqPathKey: string, field?: string): string {
-	return field === undefined ? seqPathKey : `${seqPathKey}${FACT_FIELD_MARK}${field}`;
+/** Returns a fact's id: the record name of the step that produced the fact, which holds the execution and the step path,
+ *  followed by the product field where the fact is one field of the product. */
+export function factIdOf(step: TRecordName, field?: string): string {
+	const named = formatRecordName(step);
+	return field === undefined ? named : `${named}${FACT_FIELD_MARK}${field}`;
 }
 
-/** Reads the seqPath of the step that produced a fact from the fact's id. Returns null where the id doesn't name a step. */
+/** Reads the step path of the step that produced a fact from the fact's id. Returns null where the id doesn't name a step's record. */
 export function factSeqPath(factId: string): number[] | null {
-	return parseSeqPath(itemAt(factId.split(FACT_FIELD_MARK), 0));
+	return parseRecordName(itemAt(factId.split(FACT_FIELD_MARK), 0))?.path ?? null;
 }
 
-/** Returns the seqPath of the step that produced a fact. Throws where the id doesn't name a step, since a fact's id is
- *  the seqPath of the step that produced it. */
+/** Returns the step path of the step that produced a fact. Throws where the id doesn't name a step's record, since a
+ *  fact's id is the record name of the step that produced it. */
 export function producingStep(factId: string): number[] {
 	const seqPath = factSeqPath(factId);
-	if (!seqPath) throw new Error(`fact "${factId}" doesn't name a step: a fact's id is the seqPath of the step that produced it`);
+	if (!seqPath) throw new Error(`fact "${factId}" doesn't name a step: a fact's id is the record name of the step that produced it`);
 	return seqPath;
 }
 

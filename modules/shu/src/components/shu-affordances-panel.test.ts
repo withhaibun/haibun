@@ -84,7 +84,7 @@ describe("shu-affordances-panel", () => {
 		(panel.shadowRoot?.querySelector('button[data-testid="goal-session-toggle"]') as HTMLButtonElement | null)?.click();
 		await applied(panel);
 		const detail = panel.shadowRoot?.querySelector(".resolution-detail")?.textContent ?? "";
-		expect(detail).toContain("asserted as facts");
+		expect(detail).toContain("already asserted: s-1");
 	});
 
 	it("renders michi findings as a picker with one card per enumerated path", async () => {

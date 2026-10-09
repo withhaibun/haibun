@@ -25,7 +25,7 @@ import { DOMAIN_SHU_APPS, ShuAppsSchema } from "./schemas.js";
 import type { IQuadStore, TQuad } from "@haibun/core/lib/quad-types.js";
 import { buildGraphModelFromQuads } from "./graph-model.js";
 import { withOntologySchema } from "./graph/ontology-projection.js";
-import { enumerateStandardVocab } from "./graph/standard-vocabulary.js";
+import { enumerateStandardVocab } from "@haibun/core/lib/records/pipelines/standard-vocabulary.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import type { IHasOptions } from "@haibun/core/lib/astepper.js";
 import { DOMAIN_ROUTE } from "@haibun/core/lib/domains.js";
@@ -56,7 +56,7 @@ export async function buildGraphSource(
 	const raw = await store.getClusteredQuads({ perTypeLimit: MAX_PAGE_ROWS, accessLevel: Access.private, scope: "own" });
 	// Include the schema exactly as the live getClusteredQuads does, so the offline report's ontology/class-browser view
 	// matches live, pruned against the serialized graph itself (the report IS the full data). The one assembler, so the two don't drift.
-	const standardVocab = await enumerateStandardVocab(world.domains);
+	const standardVocab = await enumerateStandardVocab(world.domains, (message) => world.eventLogger.warn(message));
 	const { quads, clusters } = withOntologySchema({ quads: raw.quads as TQuad[], clusters: raw.clusters }, raw.quads as TQuad[], world.domains, standardVocab);
 	const model = buildGraphModelFromQuads(quads as TQuad[]);
 	const nodeMap = new Map(model.nodes.map((n) => [n.id, { graph: n.type, subject: n.id }]));

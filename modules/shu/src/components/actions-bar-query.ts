@@ -237,7 +237,8 @@ export class ActionsBarQuery implements ReactiveController {
 			const matching = this.#domainOptions.find((option) => option.queryLabel === this.#selectedLabel);
 			this.#selectedDomainKey = matching?.key ?? "";
 			this.#statePageTypes();
-			if (!matching) this.#deps.setStatus(typeNotHeld(this.#selectedLabel));
+			// The bar's type select offers the types actuality holds, so the status states the cause.
+			if (!matching) this.#deps.setStatus(typeNotHeld(this.#selectedLabel, []).error);
 			return;
 		}
 		const first = this.#domainOptions[0];

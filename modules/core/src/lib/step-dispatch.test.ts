@@ -25,7 +25,7 @@ import { DOMAIN_DOMAIN_KEY, DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_RECORD_ID, DOMAIN
 import type { TWorld } from "./world.js";
 import { Access, DOMAIN_PERSISTED_TYPE, LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "./resources.js";
 import { SEQ_PATH_FIELD, executionOf, factIdOf, formatRecordName } from "./seq-path.js";
-import { FACT_GRAPH, getFact } from "./working-memory.js";
+import { readFacts } from "./records/pipelines/facts.js";
 import { streamContext, streamOver } from "./step-stream-context.js";
 import { capabilityAllows } from "./actions.js";
 import { RUN_AUTHORITY, readingAt, runActingAs, runReadingAt } from "./capability-context.js";
@@ -117,6 +117,10 @@ class CapabilityStepper extends AStepper {
 	description = "A step that requires CapabilityStepper:protected.";
 	steps = { protectedPing: { gwta: "protected ping", capability: "CapabilityStepper:protected", action: () => OK } };
 }
+
+/** Returns the value of the count fact of the step at `path`, or undefined where working memory doesn't hold one. */
+const countFact = async (world: TWorld, path: number[]) =>
+	(await readFacts(world.shared.getStore(), TEST_DOMAIN.count)).find((fact) => fact.id === factIdOf({ execution: executionOf(world.tag), path }))?.value;
 
 describe("step-dispatch", () => {
 	let world: TWorld;
@@ -639,7 +643,7 @@ describe("step-dispatch", () => {
 			expect(answered.ok).toBe(true);
 			expect(answered.products, "the read returns its products").toMatchObject({ count: 3 });
 			expect(await recordOf([0, 9, 1]), "a read over a transport doesn't leave a record").toEqual([]);
-			expect(await getFact(world, TEST_DOMAIN.count, factIdOf("0.9.1"), FACT_GRAPH), "and doesn't leave a fact of what it returned").toBeUndefined();
+			expect(await countFact(world, [0, 9, 1]), "and doesn't leave a fact of what it returned").toBeUndefined();
 			expect(world.runtime.stepResults?.length ?? 0, "the process doesn't keep a step result for it").toBe(kept);
 
 			// A read beneath a step the feature states is the feature reading through a combinator. `set x from <a read>` takes
@@ -659,7 +663,7 @@ describe("step-dispatch", () => {
 			const run = await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, inTheFeature);
 			expect(run.ok).toBe(true);
 			expect((await recordOf([0, 9, 3])).length, "a read a feature states is a step of actuality").toBeGreaterThan(0);
-			expect(await getFact(world, TEST_DOMAIN.count, factIdOf("0.9.3"), FACT_GRAPH), "whose products are a fact of actuality").toMatchObject({ count: 3 });
+			expect(await countFact(world, [0, 9, 3]), "whose products are a fact of actuality").toMatchObject({ count: 3 });
 			expect(world.runtime.stepResults?.length ?? 0, "and is kept with actuality's other steps").toBe(kept + 1);
 		});
 
@@ -682,8 +686,8 @@ describe("step-dispatch", () => {
 			};
 			await run("counted", [0, 9, 4]);
 			await run("notRetained", [0, 9, 5]);
-			expect(await getFact(world, TEST_DOMAIN.count, factIdOf("0.9.4"), FACT_GRAPH)).toMatchObject({ count: 4 });
-			expect(await getFact(world, TEST_DOMAIN.count, factIdOf("0.9.5"), FACT_GRAPH)).toBeUndefined();
+			expect(await countFact(world, [0, 9, 4])).toMatchObject({ count: 4 });
+			expect(await countFact(world, [0, 9, 5])).toBeUndefined();
 		});
 
 		it("records a step its caller stopped as stopped in its record and end event, and a step that fails on its own as failed", async () => {

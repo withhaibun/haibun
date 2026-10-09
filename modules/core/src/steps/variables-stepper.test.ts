@@ -5,7 +5,11 @@ import VariablesStepper from "./variables-stepper.js";
 import { DEFAULT_DEST, Origin } from "../schema/protocol.js";
 import Haibun from "./haibun.js";
 import LogicStepper from "./logic-stepper.js";
-import { OBSCURED_VALUE } from "../lib/feature-variables.js";
+import { OBSCURED_VALUE, SHARED_GRAPH } from "../lib/feature-variables.js";
+import { recordWithEdges } from "../lib/records/pipelines/record-reads.js";
+import { readFacts } from "../lib/records/pipelines/facts.js";
+import { EDGE, FACT_LABEL, SEQ_PATH_LABEL } from "../lib/resources.js";
+import { SEQ_PATH_FIELD } from "../lib/seq-path.js";
 import EventCollectorStepper from "../lib/test/EventCollectorStepper.js";
 import { dispatchStep } from "../lib/step-dispatch.js";
 import { buildFeatureStepForTransport, StepRegistry } from "../lib/step-registry.js";
@@ -152,6 +156,30 @@ variable a is "1"
 `;
 		const res = await passWithDefaults(content, steppers);
 		expect(res.ok).toBe(true);
+	});
+});
+
+describe("the records of variables and facts", () => {
+	const SET_FIRST = 'set a to "1"';
+	const SET_SECOND = 'set a to "2"';
+	const SHOW = "show var a";
+	/** The text of each step a record's `wasGeneratedBy` edges reach. */
+	const generatedBy = (read: Awaited<ReturnType<typeof recordWithEdges>>) =>
+		(read?.edges ?? []).filter(({ type }) => type === EDGE.wasGeneratedBy).map(({ target }) => [target["@type"], target[SEQ_PATH_FIELD.stepText]]);
+
+	it("link a variable's record to each step that set it, and a fact's record to the step that produced it", async () => {
+		const res = await passWithDefaults([SET_FIRST, SET_SECOND, SHOW].join("\n"), steppers);
+		expect(res.ok).toBe(true);
+		if (!res.world) throw new Error("the feature's result doesn't hold its world");
+		const store = res.world.shared.getStore();
+		expect(generatedBy(await recordWithEdges(store, SHARED_GRAPH, "a"))).toEqual([
+			[SEQ_PATH_LABEL, SET_FIRST],
+			[SEQ_PATH_LABEL, SET_SECOND],
+		]);
+		const [fact, ...others] = await readFacts(store);
+		if (!fact) throw new Error("working memory doesn't hold the fact of show var");
+		expect(others).toEqual([]);
+		expect(generatedBy(await recordWithEdges(store, FACT_LABEL, fact.id))).toEqual([[SEQ_PATH_LABEL, SHOW]]);
 	});
 });
 

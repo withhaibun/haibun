@@ -11,6 +11,7 @@ import type { TPaneOpen } from "../pane-state.js";
 import type { TPresenterNodeClick } from "../graph-presenter.js";
 import { applyScene, captureScene, listScenes, readScene, saveScene, type TSceneState } from "../scenes.js";
 import { SCENE_LABEL } from "@haibun/core/lib/resources.js";
+import { SCHEMA_TYPES } from "../graph/ontology-projection.js";
 
 /** The time a reader is looking at, held in a scene beside the views' own options. It is not an element's option but the shared time signal, so it is recorded under its own key. */
 const TIME_CURSOR_KEY = "time-cursor";
@@ -22,7 +23,6 @@ import { type TPolymorphicOptionChange } from "./shu-polymorphic-settings.js";
 import type { TViewForces } from "../graph/polymorphic/polymorphic-render-type.js";
 import "./shu-polymorphic-settings.js";
 import { viewHeadCss, viewActions, rotateControls, SETTINGS_GROUP_NAMES, type TSettingsGroup } from "./view-head.js";
-import { ONTOLOGY_CLASS, ONTOLOGY_PROPERTY } from "../graph/ontology-projection.js";
 import "@haibun/shu/graph/polymorphic/polymorphic-scene.js";
 
 import {
@@ -234,7 +234,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	/** Reveal or hide the included ontology SCHEMA (Class + Property) via the filter, exactly as ticking their chips does:
 	 *  the schema is default-hidden and revealed ALONGSIDE the instance data. A real capability + the interface a control step drives. */
 	revealSchema(visible: boolean): void {
-		this.filterEl?.setTypeVisibility([ONTOLOGY_CLASS, ONTOLOGY_PROPERTY], visible);
+		this.filterEl?.setTypeVisibility(SCHEMA_TYPES, visible);
 	}
 
 	/**

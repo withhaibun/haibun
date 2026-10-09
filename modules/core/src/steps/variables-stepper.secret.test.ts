@@ -4,7 +4,9 @@ import { DEF_PROTO_OPTIONS, getTestWorldWithOptions, testWithWorld } from "../li
 import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun.js";
 import { OBSCURED_VALUE, SHARED_GRAPH } from "../lib/feature-variables.js";
-import { FACT_GRAPH } from "../lib/working-memory.js";
+import { readFacts } from "../lib/records/pipelines/facts.js";
+import { readEvery } from "../lib/records/pipelines/record-reads.js";
+import { VARIABLE_FIELD } from "../lib/records/domains/variables.js";
 import { Access, SEQ_PATH_LABEL } from "../lib/resources.js";
 import type { THaibunEvent } from "../schema/protocol.js";
 
@@ -39,18 +41,20 @@ describe("a secret variable's value", () => {
 		const { ran, store, events, stepRecords } = await runWithSecrets([...SET_SECRETS, ...SHOW_SECRETS]);
 		expect(ran.ok).toBe(true);
 
-		const variables = await store.query({ namedGraph: SHARED_GRAPH });
-		expect(variables.map((q) => [q.subject, q.object, q.properties?.secret])).toEqual(SECRET_VARIABLES.map((name) => [name, OBSCURED_VALUE, true]));
+		const variables = await readEvery(store, { label: SHARED_GRAPH });
+		expect(variables.map((record) => [record[VARIABLE_FIELD.name], record[VARIABLE_FIELD.value], record[VARIABLE_FIELD.secret]]).sort()).toEqual(
+			SECRET_VARIABLES.map((name) => [name, OBSCURED_VALUE, true]).sort(),
+		);
 		expect.soft(holdsSecret(variables), "the variables graph holds the obscured value").toBe(false);
 
 		const sample = await store.getClusteredQuads?.({ perTypeLimit: PER_TYPE_LIMIT, accessLevel: Access.private });
-		expect(sample?.quads.filter((q) => q.namedGraph === SHARED_GRAPH)).toHaveLength(SECRET_VARIABLES.length);
+		expect(new Set(sample?.quads.filter((q) => q.namedGraph === SHARED_GRAPH).map((q) => q.subject))).toEqual(new Set(SECRET_VARIABLES));
 		expect.soft(holdsSecret(sample), "the clustered sample at the private level holds the obscured value").toBe(false);
 
 		expect(events.length).toBeGreaterThan(0);
 		expect.soft(holdsSecret(events), "the emitted observations and lifecycle events hold the obscured value").toBe(false);
 
-		const facts = await store.query({ namedGraph: FACT_GRAPH });
+		const facts = await readFacts(store);
 		expect(facts).toHaveLength(SHOW_SECRETS.length);
 		expect.soft(holdsSecret(facts), "the facts of show var hold the obscured value").toBe(false);
 

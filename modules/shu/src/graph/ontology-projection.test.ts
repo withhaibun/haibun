@@ -1,18 +1,8 @@
 import { describe, it, expect } from "vitest";
-import {
-	ontologyToQuads,
-	ONTOLOGY_CLASS,
-	ONTOLOGY_PROPERTY,
-	ONTOLOGY_PRED,
-	pruneOntologyToUse,
-	withOntologySchema,
-	scopeSchemaToType,
-	isSchemaType,
-	propertyVocabulary,
-	isHaibunTerm,
-	typesDeclaringRel,
-	categoryOf,
-} from "./ontology-projection.js";
+import { pruneOntologyToUse, withOntologySchema, scopeSchemaToType, isSchemaType, propertyVocabulary, isHaibunTerm } from "./ontology-projection.js";
+import { categoryOf, ontologyToQuads, typesDeclaringRel } from "@haibun/core/lib/records/derivations/ontology.js";
+import { ONTOLOGY_FIELD } from "@haibun/core/lib/records/domains/ontology.js";
+import { CLASS_LABEL, PROPERTY_LABEL } from "@haibun/core/lib/resources.js";
 import { LinkRelations, principalDomainDefinition, HAIBUN_NS, type TRegisteredDomain } from "@haibun/core/lib/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
@@ -22,18 +12,18 @@ const edge = (quads: ReturnType<typeof ontologyToQuads>["quads"], predicate: str
 describe("ontologyToQuads: the schema rendered as a graph", () => {
 	it("emits the directional role hierarchy as subPropertyOf edges (performedBy → fromActor → inRoleOf)", () => {
 		const { quads, clusters } = ontologyToQuads();
-		expect(edge(quads, ONTOLOGY_PRED.subPropertyOf, "performedBy", "fromActor")).toBe(true);
-		expect(edge(quads, ONTOLOGY_PRED.subPropertyOf, "fromActor", "inRoleOf")).toBe(true);
+		expect(edge(quads, ONTOLOGY_FIELD.subPropertyOf, "performedBy", "fromActor")).toBe(true);
+		expect(edge(quads, ONTOLOGY_FIELD.subPropertyOf, "fromActor", "inRoleOf")).toBe(true);
 		// toActor doesn't have a concrete CORE rel, consumers declare theirs against it; the upper pointer itself is projected
-		expect(edge(quads, ONTOLOGY_PRED.subPropertyOf, "toActor", "inRoleOf")).toBe(true);
+		expect(edge(quads, ONTOLOGY_FIELD.subPropertyOf, "toActor", "inRoleOf")).toBe(true);
 		// the abstract super-properties are nodes in the Property cluster (the interesting structure)
-		const props = clusters.find((c) => c.type === ONTOLOGY_PROPERTY);
+		const props = clusters.find((c) => c.type === PROPERTY_LABEL);
 		for (const rel of ["inRoleOf", "fromActor", "toActor", "performedBy", "author"]) expect(props?.sampledSubjects).toContain(rel);
 	});
 
 	it("flags the abstract super-properties so a view can distinguish them from concrete edge labels", () => {
 		const { quads } = ontologyToQuads();
-		const abstractOf = (rel: string): boolean => quads.some((q) => q.subject === rel && q.predicate === ONTOLOGY_PRED.abstract && q.object === true);
+		const abstractOf = (rel: string): boolean => quads.some((q) => q.subject === rel && q.predicate === ONTOLOGY_FIELD.abstract && q.object === true);
 		expect(abstractOf("inRoleOf")).toBe(true);
 		expect(abstractOf("fromActor")).toBe(true);
 		expect(abstractOf("performedBy")).toBe(false); // concrete: a real written edge label
@@ -42,16 +32,16 @@ describe("ontologyToQuads: the schema rendered as a graph", () => {
 	it("emits a class node per persisted type with its subClassOf superclass (Principal → prov:Agent)", () => {
 		const domains = { p: principalDomainDefinition as unknown as TRegisteredDomain };
 		const { quads, clusters } = ontologyToQuads(domains);
-		const classes = clusters.find((c) => c.type === ONTOLOGY_CLASS);
+		const classes = clusters.find((c) => c.type === CLASS_LABEL);
 		expect(classes?.sampledSubjects).toContain("Principal");
 		expect(classes?.sampledSubjects).toContain("prov:Agent"); // the superclass is its own node
-		expect(edge(quads, ONTOLOGY_PRED.subClassOf, "Principal", "prov:Agent")).toBe(true);
+		expect(edge(quads, ONTOLOGY_FIELD.subClassOf, "Principal", "prov:Agent")).toBe(true);
 	});
 
 	it("renders the property hierarchy even without domains (LinkRelations alone)", () => {
 		const { clusters } = ontologyToQuads();
-		expect(clusters.find((c) => c.type === ONTOLOGY_PROPERTY)?.sampledCount).toBeGreaterThan(10);
-		expect(clusters.find((c) => c.type === ONTOLOGY_CLASS)?.sampledCount).toBe(0);
+		expect(clusters.find((c) => c.type === PROPERTY_LABEL)?.sampledCount).toBeGreaterThan(10);
+		expect(clusters.find((c) => c.type === CLASS_LABEL)?.sampledCount).toBe(0);
 	});
 
 	it("carries a domain (rdfs:domain) on a property a type declares: the instances-drill routing (and doesn't carry one for an abstract super-property)", () => {
@@ -59,7 +49,7 @@ describe("ontologyToQuads: the schema rendered as a graph", () => {
 		// service is an edge Principal declares, so its rdfs:domain includes Principal.
 		expect(typesDeclaringRel(domains, LinkRelations.SERVICE.rel)).toContain("Principal");
 		const { quads } = ontologyToQuads(domains);
-		const domainOf = (rel: string): unknown => quads.find((q) => q.subject === rel && q.predicate === ONTOLOGY_PRED.domain)?.object;
+		const domainOf = (rel: string): unknown => quads.find((q) => q.subject === rel && q.predicate === ONTOLOGY_FIELD.domain)?.object;
 		expect(domainOf(LinkRelations.SERVICE.rel)).toBe("Principal");
 		// an abstract super-property that the types don't declare doesn't have instances to drill to → it doesn't carry a domain.
 		expect(domainOf(LinkRelations.IN_ROLE_OF.rel)).toBeUndefined();
@@ -80,30 +70,30 @@ describe("ontologyToQuads: the schema rendered as a graph", () => {
 		};
 		const { quads, clusters } = ontologyToQuads(domains);
 		// the edge's target class is a drawn Property→Class edge, and the range class is its own node.
-		expect(edge(quads, ONTOLOGY_PRED.range, LinkRelations.ATTRIBUTED_TO.rel, "Person")).toBe(true);
-		expect(clusters.find((c) => c.type === ONTOLOGY_CLASS)?.sampledSubjects).toContain("Person");
+		expect(edge(quads, ONTOLOGY_FIELD.range, LinkRelations.ATTRIBUTED_TO.rel, "Person")).toBe(true);
+		expect(clusters.find((c) => c.type === CLASS_LABEL)?.sampledSubjects).toContain("Person");
 	});
 });
 
 describe("pruneOntologyToUse: the served schema is the part the data exercises", () => {
-	const schemaTerm: TQuad = { subject: "VerifiableCredential", predicate: ONTOLOGY_PRED.name, object: "VerifiableCredential", namedGraph: ONTOLOGY_CLASS, timestamp: 0 };
+	const schemaTerm: TQuad = { subject: "VerifiableCredential", predicate: ONTOLOGY_FIELD.name, object: "VerifiableCredential", namedGraph: CLASS_LABEL, timestamp: 0 };
 	const superTerm: TQuad = {
 		subject: "VerifiableCredential",
-		predicate: ONTOLOGY_PRED.subClassOf,
+		predicate: ONTOLOGY_FIELD.subClassOf,
 		object: "prov:Entity",
-		namedGraph: ONTOLOGY_CLASS,
-		objectType: ONTOLOGY_CLASS,
+		namedGraph: CLASS_LABEL,
+		objectType: CLASS_LABEL,
 		timestamp: 0,
 	};
-	const superName: TQuad = { subject: "prov:Entity", predicate: ONTOLOGY_PRED.name, object: "prov:Entity", namedGraph: ONTOLOGY_CLASS, timestamp: 0 };
-	const unusedTerm: TQuad = { subject: "NeverInstantiated", predicate: ONTOLOGY_PRED.name, object: "NeverInstantiated", namedGraph: ONTOLOGY_CLASS, timestamp: 0 };
-	const usedProp: TQuad = { subject: "issuer", predicate: ONTOLOGY_PRED.name, object: "issuer", namedGraph: ONTOLOGY_PROPERTY, timestamp: 0 };
+	const superName: TQuad = { subject: "prov:Entity", predicate: ONTOLOGY_FIELD.name, object: "prov:Entity", namedGraph: CLASS_LABEL, timestamp: 0 };
+	const unusedTerm: TQuad = { subject: "NeverInstantiated", predicate: ONTOLOGY_FIELD.name, object: "NeverInstantiated", namedGraph: CLASS_LABEL, timestamp: 0 };
+	const usedProp: TQuad = { subject: "issuer", predicate: ONTOLOGY_FIELD.name, object: "issuer", namedGraph: PROPERTY_LABEL, timestamp: 0 };
 	const instance: TQuad = { subject: "vc-1", predicate: "issuer", object: "did:x", namedGraph: "VerifiableCredential", timestamp: 0 };
 	const ontology = {
 		quads: [schemaTerm, superTerm, superName, unusedTerm, usedProp],
 		clusters: [
-			{ type: ONTOLOGY_CLASS, totalCount: 3, sampledCount: 3, omittedCount: 0, sampledSubjects: ["VerifiableCredential", "prov:Entity", "NeverInstantiated"], displayLabels: {} },
-			{ type: ONTOLOGY_PROPERTY, totalCount: 1, sampledCount: 1, omittedCount: 0, sampledSubjects: ["issuer"], displayLabels: {} },
+			{ type: CLASS_LABEL, totalCount: 3, sampledCount: 3, omittedCount: 0, sampledSubjects: ["VerifiableCredential", "prov:Entity", "NeverInstantiated"], displayLabels: {} },
+			{ type: PROPERTY_LABEL, totalCount: 1, sampledCount: 1, omittedCount: 0, sampledSubjects: ["issuer"], displayLabels: {} },
 		],
 	};
 
@@ -118,10 +108,10 @@ describe("pruneOntologyToUse: the served schema is the part the data exercises",
 
 	it("cluster counts match the pruned subjects so the chips read the exercised subset", () => {
 		const pruned = pruneOntologyToUse(ontology, [instance]);
-		const classes = pruned.clusters.find((c) => c.type === ONTOLOGY_CLASS);
+		const classes = pruned.clusters.find((c) => c.type === CLASS_LABEL);
 		expect(classes?.sampledSubjects.sort()).toEqual(["VerifiableCredential", "prov:Entity"]);
 		expect(classes?.totalCount).toBe(2);
-		expect(pruned.clusters.find((c) => c.type === ONTOLOGY_PROPERTY)?.totalCount).toBe(1);
+		expect(pruned.clusters.find((c) => c.type === PROPERTY_LABEL)?.totalCount).toBe(1);
 	});
 });
 
@@ -134,12 +124,12 @@ describe("withOntologySchema: the schema travels with the response (live and off
 		const out = withOntologySchema(response, response.quads, domains);
 		expect(out.quads).toContain(instance); // instance data preserved
 		// the Principal Class node is present (an instance exercises it)…
-		expect(out.quads.some((q) => q.namedGraph === ONTOLOGY_CLASS && q.subject === "Principal")).toBe(true);
+		expect(out.quads.some((q) => q.namedGraph === CLASS_LABEL && q.subject === "Principal")).toBe(true);
 		// …and the instance is joined to its Class by an `a` edge living in the instance's own graph.
 		const typeEdge = out.quads.find((q) => q.predicate === "a" && q.subject === "did:x");
-		expect(typeEdge).toMatchObject({ object: "Principal", objectType: ONTOLOGY_CLASS, namedGraph: "Principal" });
-		expect(out.clusters.some((c) => c.type === ONTOLOGY_CLASS)).toBe(true);
-		expect(out.clusters.some((c) => c.type === ONTOLOGY_PROPERTY)).toBe(true);
+		expect(typeEdge).toMatchObject({ object: "Principal", objectType: CLASS_LABEL, namedGraph: "Principal" });
+		expect(out.clusters.some((c) => c.type === CLASS_LABEL)).toBe(true);
+		expect(out.clusters.some((c) => c.type === PROPERTY_LABEL)).toBe(true);
 	});
 
 	it("adds exactly one rdf:type edge per subject, and doesn't add one for a type without a Class node", () => {
@@ -147,7 +137,7 @@ describe("withOntologySchema: the schema travels with the response (live and off
 		const out = withOntologySchema({ quads: twoOfAType, clusters: response.clusters }, twoOfAType, domains);
 		expect(out.quads.filter((q) => q.predicate === "a" && q.subject === "did:x")).toHaveLength(1);
 		// every appended non-schema quad that is an `a` edge points at a real Class node
-		const classNodes = new Set(out.quads.filter((q) => isSchemaType(q.namedGraph) && q.namedGraph === ONTOLOGY_CLASS).map((q) => q.subject));
+		const classNodes = new Set(out.quads.filter((q) => isSchemaType(q.namedGraph) && q.namedGraph === CLASS_LABEL).map((q) => q.subject));
 		for (const e of out.quads.filter((q) => q.predicate === "a")) expect(classNodes.has(String(e.object))).toBe(true);
 	});
 });
@@ -162,13 +152,13 @@ describe("scopeSchemaToType: one type's own vocabulary", () => {
 		timestamp: 0,
 	});
 	const quads: TQuad[] = [
-		q("Issuer", ONTOLOGY_PRED.name, "Issuer", ONTOLOGY_CLASS),
-		q("Issuer", ONTOLOGY_PRED.subClassOf, "prov:Agent", ONTOLOGY_CLASS, ONTOLOGY_CLASS),
-		q("prov:Agent", ONTOLOGY_PRED.name, "prov:Agent", ONTOLOGY_CLASS),
-		q("did", ONTOLOGY_PRED.domain, "Issuer", ONTOLOGY_PROPERTY, ONTOLOGY_CLASS),
-		q("did", ONTOLOGY_PRED.name, "did", ONTOLOGY_PROPERTY),
-		q("Email", ONTOLOGY_PRED.name, "Email", ONTOLOGY_CLASS),
-		q("hasBody", ONTOLOGY_PRED.domain, "Email", ONTOLOGY_PROPERTY, ONTOLOGY_CLASS),
+		q("Issuer", ONTOLOGY_FIELD.name, "Issuer", CLASS_LABEL),
+		q("Issuer", ONTOLOGY_FIELD.subClassOf, "prov:Agent", CLASS_LABEL, CLASS_LABEL),
+		q("prov:Agent", ONTOLOGY_FIELD.name, "prov:Agent", CLASS_LABEL),
+		q("did", ONTOLOGY_FIELD.domain, "Issuer", PROPERTY_LABEL, CLASS_LABEL),
+		q("did", ONTOLOGY_FIELD.name, "did", PROPERTY_LABEL),
+		q("Email", ONTOLOGY_FIELD.name, "Email", CLASS_LABEL),
+		q("hasBody", ONTOLOGY_FIELD.domain, "Email", PROPERTY_LABEL, CLASS_LABEL),
 		q("vc-1", "issuer", "did:x", "VerifiableCredential"),
 	];
 
@@ -210,7 +200,7 @@ const catDomain = (persistedAs: string, subClassOf?: string): TRegisteredDomain 
 describe("category designation, read off the standard subClassOf axioms", () => {
 	it("stamps each class with its PROV/SOSA anchor category, defaulting to artifact, and the meta class carries its own", () => {
 		const { quads } = ontologyToQuads({ a: catDomain("Party", "prov:Agent"), b: catDomain("Verification", "prov:Activity"), c: catDomain("Credential") });
-		const cat = (cls: string): unknown => quads.find((q) => q.subject === cls && q.predicate === ONTOLOGY_PRED.category)?.object;
+		const cat = (cls: string): unknown => quads.find((q) => q.subject === cls && q.predicate === ONTOLOGY_FIELD.category)?.object;
 		expect(cat("Party")).toBe("agent");
 		expect(cat("Verification")).toBe("activity");
 		expect(cat("Credential")).toBe("artifact");

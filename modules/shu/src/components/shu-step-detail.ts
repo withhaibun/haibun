@@ -2,7 +2,7 @@
  * <shu-step-detail>: one step of a run, as its own record states it.
  *
  * A step is a record: what was asked for, what ran, how it went and why it failed, how long it took, where it ran, and
- * what it had to hold to run. This reads that record and the quads whose provenance names the step, so the pane is a
+ * what it had to hold to run. This reads that record and the variables whose records link the step, so the pane is a
  * read of the graph rather than a second account of the same act. The read is a @lit/task keyed on the step, so
  * switching steps cancels the stale read and renders only the latest.
  */
@@ -19,11 +19,11 @@ import { defineElement } from "../define-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { reads, conduit } from "../hypermedia.js";
 import { subscribeBatchedEvents } from "../event-stream.js";
-import { readIndividual } from "../quads-snapshot.js";
-import { getRels } from "../rels-cache.js";
+import { readIndividual, variablesSetBy, type TVariableSet } from "../quads-snapshot.js";
 import { appAccessLevel } from "../util.js";
 import { anIndividual, type TContextPattern } from "../schemas.js";
-import { factSeqPath, formatRecordName, formatSeqPath, parseSeqPath, SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
+import { formatRecordName, formatSeqPath, parseSeqPath, SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
+import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { readingExecution } from "../client-cache/index.js";
 import { actionRef, calledRef, originLink, refTpl } from "./shu-ref.js";
@@ -34,8 +34,7 @@ const STEP_RE_READ_AFTER_MS = 400;
 
 const StateSchema = z.object({ seqPath: z.array(z.number()).default([]) });
 
-type TVar = { name: string; value: unknown; graph: string };
-type TStepData = { step?: Record<string, unknown>; variablesSet: TVar[] };
+type TStepData = { step?: Record<string, unknown>; variablesSet: TVariableSet[] };
 
 /** The record that is this step: the step path a reader navigated to, under the execution being read. */
 export function stepRecordId(path: number[], execution: string | undefined): string | undefined {
@@ -78,9 +77,8 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		super(StateSchema, { seqPath: [] });
 	}
 
-	/** The step's record and the quads it set, keyed on the step. The quad query is a fuller per-step provenance read
-	 *  (perTypeLimit 1000), not the limited display snapshot the graph views share, which would drop the very quads
-	 *  whose provenance names this step. */
+	/** The step's record and the variables it set, keyed on the step. The variables are read from a sample of 1000 records
+	 *  of each type, which holds more variables than the sample a graph view draws. */
 	#load = new Task(this, {
 		args: () => [formatSeqPath(this.state.seqPath), readingExecution()] as const,
 		task: async ([path, execution]): Promise<TStepData> => {
@@ -89,18 +87,12 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 			const [record, quadsData] = await Promise.all([
 				// One record, read by the name it carries: a step is a record a reader opens, not a query they run.
 				readIndividual(SEQ_PATH_LABEL, id, appAccessLevel()),
-				conduit().follow<{ quads: Array<{ subject: string; predicate: string; object: unknown; namedGraph: string; timestamp: number; properties?: Record<string, unknown> }> }>(
+				conduit().follow<{ quads: TQuad[] }>(
 					reads(RPC_METHOD.CLUSTERED_QUADS, { perTypeLimit: 1000, accessLevel: appAccessLevel() }),
 					"step-detail: clustered quads",
 				),
 			]);
-			const variablesSet: TVar[] = (quadsData.quads ?? [])
-				.filter((q) => {
-					const prov = q.properties?.provenance;
-					return Array.isArray(prov) && prov.some((p: unknown) => Array.isArray(p) && formatSeqPath(p as number[]) === path);
-				})
-				.map((q) => ({ name: q.subject, value: q.object, graph: q.namedGraph }));
-			return { step: record.vertex, variablesSet };
+			return { step: record.vertex, variablesSet: variablesSetBy(quadsData.quads ?? [], id) };
 		},
 	});
 
@@ -149,11 +141,9 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		return typeof this.#load.value?.step?.[SEQ_PATH_FIELD.endedAtTime] === "string";
 	}
 
-	/** A variable the step set, as a link to the record it names, or to the step its seqPath names, or else as its name. */
-	private variableRef(name: string, graph: string): TemplateResult | string {
-		if (getRels(graph)) return refTpl(REF_DENOTES.individual, { persistedAs: graph, id: name }, name);
-		const seqPath = factSeqPath(name);
-		return seqPath ? refTpl("seqPath", { seqPath }, name) : name;
+	/** A variable the step set, as a link to its record. */
+	private variableRef({ name, graph }: TVariableSet): TemplateResult {
+		return refTpl(REF_DENOTES.individual, { persistedAs: graph, id: name }, name);
 	}
 
 	render(): TemplateResult {
@@ -196,7 +186,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 				variablesSet.length > 0
 					? html`
 				<div class="section"><span class="label">Data set (${variablesSet.length}):</span>
-					${variablesSet.map((v) => html`<div class="var-row"><span style="color:var(--shu-fg-faded);font-size:var(--shu-font-sm)">${v.graph}</span> ${this.variableRef(v.name, v.graph)}</div>`)}
+					${variablesSet.map((v) => html`<div class="var-row"><span style="color:var(--shu-fg-faded);font-size:var(--shu-font-sm)">${v.graph}</span> ${this.variableRef(v)}</div>`)}
 				</div>
 			`
 					: ""

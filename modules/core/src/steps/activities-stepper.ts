@@ -11,7 +11,7 @@ import { FlowRunner } from "../lib/core/flow-runner.js";
 import { ControlEvent, LifecycleEvent } from "../schema/protocol.js";
 import { buildDomainChain } from "../lib/domain-chain.js";
 import { GOAL_FINDING, resolveGoal } from "../lib/goal-resolver.js";
-import { FACT_GRAPH } from "../lib/working-memory.js";
+import { readFacts } from "../lib/records/pipelines/facts.js";
 import { runRegistry, stepMethodName } from "../lib/step-registry.js";
 import { WAYPOINT_KIND, type TWaypointEntry, type TWaypointKind } from "../lib/affordances.js";
 import { namedInterpolation } from "../lib/namedVars.js";
@@ -495,7 +495,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	private async checkDeclarativeGoal(domainKey: string): Promise<{ satisfied: boolean; refused?: string }> {
 		const world = this.getWorld();
 		const graph = buildDomainChain(runSteppers(world), world.domains);
-		const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
+		const facts = await readFacts(world.shared.getStore());
 		const resolution = resolveGoal(domainKey, { graph, facts, held: callerHolds() });
 		if (resolution.finding === GOAL_FINDING.SATISFIED) return { satisfied: true };
 		if (resolution.finding === GOAL_FINDING.REFUSED) return { satisfied: false, refused: `${resolution.refusalReason}: ${resolution.detail}` };
@@ -512,7 +512,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		const world = this.getWorld();
 		const steppers = runSteppers(world);
 		const graph = buildDomainChain(steppers, world.domains);
-		const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
+		const facts = await readFacts(world.shared.getStore());
 		const resolution = resolveGoal(domainKey, { graph, facts, held: callerHolds() });
 
 		if (resolution.finding === GOAL_FINDING.SATISFIED) return { handled: true, ok: true };

@@ -1,5 +1,6 @@
 import {
 	GraphQuerySchema,
+	SHARED_GRAPH,
 	type TCluster,
 	type TClusteredQuads,
 	type TGraphQueryResult,
@@ -22,7 +23,8 @@ import { findStep, getAvailableSteps, isOffline, requireStep } from "./rpc-regis
 import { IndexedDbQuadStore, deviceGraphStore } from "./client-cache/quad-store.js";
 import { heldDatabases } from "./client-cache/device-store.js";
 import { pagePinned } from "./page-pinned.js";
-import type { AccessLevel } from "@haibun/core/lib/resources.js";
+import { EDGE, type AccessLevel } from "@haibun/core/lib/resources.js";
+import { VARIABLE_FIELD } from "@haibun/core/lib/records/domains/variables.js";
 
 export const DEFAULT_PER_TYPE_LIMIT = 100;
 /** Ceiling for the per-type sample, everywhere the limit can be set (the filter slider AND the +N-more cluster expand), so a path can't silently inflate the limit past what the slider expresses. */
@@ -369,6 +371,17 @@ export function readIndividual(label: string, id: string, accessLevel: string): 
 		() => conduit().follow<TIndividualWithEdges>(reads(requireStep("getIndividualWithEdges"), { label, id, accessLevel }), `read ${label}:${id}`),
 		() => recordWithEdges(cachedGraphStore(), label, id),
 	);
+}
+
+/** One variable a step set: its name, the value its record holds, and the type of its record. */
+export type TVariableSet = { name: string; value: unknown; graph: string };
+
+/** Returns the variables a step set, from quads that hold the variables' records: each variable whose record has a
+ *  `wasGeneratedBy` edge to the step's record. */
+export function variablesSetBy(quads: readonly TQuad[], stepRecordName: string): TVariableSet[] {
+	const ofVariables = quads.filter((q) => q.namedGraph === SHARED_GRAPH);
+	const names = new Set(ofVariables.filter((q) => q.predicate === EDGE.wasGeneratedBy && q.object === stepRecordName).map((q) => q.subject));
+	return [...names].map((name) => ({ name, value: ofVariables.find((q) => q.subject === name && q.predicate === VARIABLE_FIELD.value)?.object, graph: SHARED_GRAPH }));
 }
 
 /**

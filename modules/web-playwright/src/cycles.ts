@@ -14,7 +14,6 @@ import {
 	type TAfterStep,
 	type TAfterStepResult,
 } from "@haibun/core/lib/astepper.js";
-import { queryFacts } from "@haibun/core/lib/working-memory.js";
 import { constructorName } from "@haibun/core/lib/util/index.js";
 import { featureAsData } from "@haibun/core/lib/features.js";
 import { HTTP_REQUEST_LABEL, HTTP_HOST_LABEL } from "@haibun/core/lib/resources.js";
@@ -29,7 +28,7 @@ const httpTraceSources: IObservationSource[] = [
 		name: "http-trace hosts",
 		observe: async (world) => {
 			// Each persisted HttpHost record carries how many requests reached it.
-			const quads = await queryFacts(world, "requestCount", HTTP_HOST_LABEL);
+			const quads = await world.shared.getStore().query({ predicate: "requestCount", namedGraph: HTTP_HOST_LABEL });
 			const items = quads.map((q) => q.subject);
 			const metrics: Record<string, Record<string, unknown>> = {};
 			for (const q of quads) metrics[q.subject] = { count: q.object };
@@ -51,7 +50,7 @@ const httpTraceSources: IObservationSource[] = [
 		name: "visited pages",
 		observe: async (world) => {
 			// Each persisted VisitedPage record, ordered by visit time (generatedAtTime).
-			const quads = await queryFacts(world, "name", VISITED_PAGE_LABEL);
+			const quads = await world.shared.getStore().query({ predicate: "name", namedGraph: VISITED_PAGE_LABEL });
 			const ordered = [...quads].sort((a, b) => a.timestamp - b.timestamp);
 			const items = ordered.map((q) => q.object as string);
 			const metrics: Record<string, Record<string, unknown>> = {};

@@ -3,16 +3,30 @@
  * read the store doesn't reach, the page's order and the page of a set of held records. Every store reads by these rules,
  * so a page holds the same records in the same order whichever store returns it.
  */
-import { COUNT_CEILING, REACHED_BY, countedTo, pageLimit, pointsThrough, querySurface, reachedBy, type TConcernCatalog, type TCounted, type TQuerySurface } from "../../hypermedia.js";
+import {
+	COUNT_CEILING,
+	REACHED_BY,
+	countedTo,
+	pageLimit,
+	pointsThrough,
+	querySurface,
+	reachedBy,
+	titledByOf,
+	type TConcernCatalog,
+	type TCounted,
+	type TQuerySurface,
+	type TTitledBy,
+} from "../../hypermedia.js";
 import { ORDER_KEY, VIA_FIELD, type TGraphQuery, type TOrderKey, type TQuad, type TRecordsPage, type TSearchCondition } from "../../quad-types.js";
-import { Access, AccessQuery, LinkRelations, isPersisted, type TRegisteredDomain } from "../../resources.js";
+import { Access, AccessQuery, LinkRelations, isPersisted, type THeldBy, type TRegisteredDomain } from "../../resources.js";
 
 /** The name a refusal and a rejected bound state for the read function. */
 export const READ_RECORDS = "readRecords";
 
 /** What a read of one type reads from its declaration: the field that holds a record's id, the fields and relations a read
- *  reaches, and the field a page orders by where the read doesn't name a sort. */
-export type TReadDeclaration = { id: string; surface: TQuerySurface; defaultSort: string };
+ *  reaches, the field a page orders by where the read doesn't name a sort, where core holds the type's records, and the
+ *  property or edge that titles a record. */
+export type TReadDeclaration = { id: string; surface: TQuerySurface; defaultSort: string; heldBy?: THeldBy; title?: TTitledBy };
 
 /** The declared types a store holds, the relations they declare, and each type's declaration. */
 export type TReadDeclarations = { types: readonly string[]; relations: readonly string[]; of(label: string): TReadDeclaration | undefined };
@@ -25,18 +39,34 @@ export type TReadPage = { limit: number; offset: number } | { perType: number };
 
 const unique = (values: Iterable<string>): string[] => [...new Set(values)].sort();
 
-/** Returns the read declarations of the persisted types among `domains`. A type's declaration is derived where a read names it. */
+/** The read declarations derived from a set of domains, and the count of those domains. */
+const declarationsFor = new WeakMap<Record<string, TRegisteredDomain>, { size: number; declarations: TReadDeclarations }>();
+
+/** Returns the read declarations of the persisted types among `domains`. A type's declaration is derived once, where a read
+ *  first names it, and the declarations are derived again where a domain was registered since. */
 export function readDeclarationsOf(domains: Record<string, TRegisteredDomain>): TReadDeclarations {
+	const size = Object.keys(domains).length;
+	const held = declarationsFor.get(domains);
+	if (held?.size === size) return held.declarations;
 	const persisted = Object.values(domains).flatMap(({ schema, topology }) => (isPersisted(topology) ? [{ schema, topology }] : []));
-	return {
+	const derived = new Map<string, TReadDeclaration | undefined>();
+	const declarationOf = (label: string): TReadDeclaration | undefined => {
+		const domain = persisted.find(({ topology }) => topology.persistedAs === label);
+		if (!domain) return undefined;
+		const { id, defaultSort, heldBy } = domain.topology;
+		const title = titledByOf(domain.topology);
+		return { id, surface: querySurface(domain), defaultSort: defaultSort ?? LinkRelations.GENERATED_AT_TIME.rel, ...(heldBy ? { heldBy } : {}), ...(title ? { title } : {}) };
+	};
+	const declarations: TReadDeclarations = {
 		types: unique(persisted.map(({ topology }) => topology.persistedAs)),
 		relations: unique(persisted.flatMap(({ topology }) => Object.keys(topology.edges ?? {}))),
 		of(label) {
-			const domain = persisted.find(({ topology }) => topology.persistedAs === label);
-			if (!domain) return undefined;
-			return { id: domain.topology.id, surface: querySurface(domain), defaultSort: domain.topology.defaultSort ?? LinkRelations.GENERATED_AT_TIME.rel };
+			if (!derived.has(label)) derived.set(label, declarationOf(label));
+			return derived.get(label);
 		},
 	};
+	declarationsFor.set(domains, { size, declarations });
+	return declarations;
 }
 
 /** Returns the read declarations of the types a concern catalog lists. The catalog doesn't list the fields a search reads, and
@@ -97,7 +127,8 @@ export function unsearchedRefusal(read: string, label: string, surface: TQuerySu
 
 /** Returns the text that refuses a term in a store that doesn't search text, with the routes that reach the type. */
 function unsearchingRefusal(label: string | undefined, declared: TReadDeclaration | undefined): string {
-	const routes = label !== undefined && declared ? routesOf(declared.surface, declared.id) : "It reads a type by its filters, named records, and the records that reference a record.";
+	const routes =
+		label !== undefined && declared ? routesOf(declared.surface, declared.id) : "It reads a type by its filters, named records, and the records that reference a record.";
 	return `${READ_RECORDS}(${label ?? "every type"}): this store doesn't search text. ${routes}`;
 }
 

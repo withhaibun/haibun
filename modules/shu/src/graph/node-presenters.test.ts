@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { CLASS_LABEL, PROPERTY_LABEL } from "@haibun/core/lib/resources.js";
 import { presenterForType, DEFAULT_PRESENTER } from "./node-presenters.js";
-import { ONTOLOGY_CLASS, ONTOLOGY_PROPERTY } from "./ontology-projection.js";
 
 describe("node presenters (per-@type, capability-driven default)", () => {
 	it("default presenter renders a free chip when it doesn't have a time placement", () => {
@@ -20,14 +20,14 @@ describe("node presenters (per-@type, capability-driven default)", () => {
 	});
 
 	it("a schema Property a standard declares but the data never uses (inData=false) is marked faint; a present one is not", () => {
-		const p = presenterForType(ONTOLOGY_PROPERTY);
-		expect(p.present({ id: "unusedTerm", name: "unusedTerm", type: ONTOLOGY_PROPERTY, properties: { inData: false } }, {}).faint).toBe(true);
-		expect(p.present({ id: "maker", name: "maker", type: ONTOLOGY_PROPERTY }, {}).faint).toBeFalsy();
+		const p = presenterForType(PROPERTY_LABEL);
+		expect(p.present({ id: "unusedTerm", name: "unusedTerm", type: PROPERTY_LABEL, properties: { inData: false } }, {}).faint).toBe(true);
+		expect(p.present({ id: "maker", name: "maker", type: PROPERTY_LABEL }, {}).faint).toBeFalsy();
 	});
 
 	it("presenterForType gives a schema type its own mark, and every other type the default", () => {
 		expect(presenterForType("Person")).toBe(DEFAULT_PRESENTER);
-		expect(presenterForType(ONTOLOGY_CLASS).present({ id: "Person", name: "Person", type: ONTOLOGY_CLASS }, {}).kind).toBe("square");
-		expect(presenterForType(ONTOLOGY_PROPERTY).present({ id: "maker", name: "maker", type: ONTOLOGY_PROPERTY }, {}).kind).toBe("lozenge");
+		expect(presenterForType(CLASS_LABEL).present({ id: "Person", name: "Person", type: CLASS_LABEL }, {}).kind).toBe("square");
+		expect(presenterForType(PROPERTY_LABEL).present({ id: "maker", name: "maker", type: PROPERTY_LABEL }, {}).kind).toBe("lozenge");
 	});
 });

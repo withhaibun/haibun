@@ -15,13 +15,13 @@
  */
 import type { AStepper, TFeatureStep } from "./astepper.js";
 import type { TRegisteredDomain } from "./resources.js";
-import type { TQuad } from "./quad-types.js";
+import type { TFact } from "./records/domains/facts.js";
 import { stepMethodName } from "./step-registry.js";
 import { mayCall } from "./actions.js";
 import { buildDomainChain, SOURCE_DOMAIN, type TDomainChainGraph } from "./domain-chain.js";
 import { isPrimitiveDomain, refTargetOf } from "./domains.js";
 import { resolveGoal, GOAL_FINDING, type TGoalResolution } from "./goal-resolver.js";
-import { compareSeqPath, parseSeqPath } from "./seq-path.js";
+import { compareSeqPath, factSeqPath } from "./seq-path.js";
 
 /** The event-id prefix of the `affordances.<seqPath>` change signal. The goal-resolution stepper emits it in afterStep for
  *  each step that isn't a read or a projection. SPA views filter the event stream on it and re-fetch the affordances
@@ -96,8 +96,8 @@ export type TAffordances = {
 	 */
 	satisfiedDomains: string[];
 	/**
-	 * Maps each domain name to the subjects of its asserted facts. A subject is the producing seqPath as a string. The
-	 * chain view reads it to render a node for each fact. The node shows the fact's seqPath, and an edge links it to its
+	 * Maps each domain name to the ids of its asserted facts. A fact's id is the record name of the step that produced it.
+	 * The chain view reads it to render a node for each fact. The node shows the fact's id, and an edge links it to its
 	 * domain node.
 	 */
 	satisfiedFacts: Record<string, string[]>;
@@ -106,7 +106,7 @@ export type TAffordances = {
 interface TAffordancesInputs {
 	steppers: AStepper[];
 	domains: Record<string, TRegisteredDomain>;
-	facts: TQuad[];
+	facts: TFact[];
 	/** The actions the caller holds. buildAffordances doesn't offer a step the caller may not run. */
 	held: string | string[] | undefined;
 	/** Makes the resolver decompose composite input domains through `topology.ranges` for the goal frontier. */
@@ -114,9 +114,9 @@ interface TAffordancesInputs {
 	/** The resolver's composite recursion depth limit. */
 	compositeMaxDepth?: number;
 	/**
-	 * Replays the affordances at an earlier seqPath. It limits the projection to the facts whose seqPath subject is at or
-	 * before this path, and leaves out facts asserted later in actuality. A fact whose subject isn't a seqPath stays. The
-	 * panel uses it to rebuild the state at any earlier seqPath.
+	 * Replays the affordances at an earlier seqPath. It limits the projection to the facts of the steps at or before this
+	 * path, and leaves out facts asserted later in actuality. A fact whose id doesn't name a step stays. The panel uses it
+	 * to rebuild the state at any earlier seqPath.
 	 */
 	asOfSeqPath?: number[];
 }
@@ -127,13 +127,9 @@ interface TAffordancesInputs {
 export function buildAffordances(inputs: TAffordancesInputs): TAffordances {
 	const graph = buildDomainChain(inputs.steppers, inputs.domains);
 	const facts = inputs.asOfSeqPath ? filterFactsAsOf(inputs.facts, inputs.asOfSeqPath) : inputs.facts;
-	const satisfiedDomains = [...new Set(facts.map((q) => q.predicate))].sort();
+	const satisfiedDomains = [...new Set(facts.map((fact) => fact.domain))].sort();
 	const satisfiedFacts: Record<string, string[]> = {};
-	for (const q of facts) {
-		const subjects = satisfiedFacts[q.predicate] ?? [];
-		subjects.push(q.subject);
-		satisfiedFacts[q.predicate] = subjects;
-	}
+	for (const fact of facts) satisfiedFacts[fact.domain] = [...(satisfiedFacts[fact.domain] ?? []), fact.id];
 	return {
 		forward: buildForwardFrontier(graph, facts, inputs.held),
 		goals: buildGoalFrontier(graph, facts, inputs.held, inputs.domains, inputs.compositeDecomposition, inputs.compositeMaxDepth),
@@ -143,15 +139,12 @@ export function buildAffordances(inputs: TAffordancesInputs): TAffordances {
 	};
 }
 
-/**
- * Keeps the facts whose seqPath subject is at or before `asOf`. It keeps every fact whose subject isn't a seqPath, since
- * such a fact isn't ordered against seqPaths. A hand-asserted fact can have such a subject.
- */
-function filterFactsAsOf(facts: TQuad[], asOf: number[]): TQuad[] {
-	return facts.filter((q) => {
-		const parsed = parseSeqPath(q.subject);
-		if (!parsed) return true;
-		return compareSeqPath(parsed, asOf) <= 0;
+/** Keeps the facts of the steps at or before `asOf`. It keeps every fact whose id doesn't name a step, since such a fact
+ *  isn't ordered against step paths. */
+function filterFactsAsOf(facts: TFact[], asOf: number[]): TFact[] {
+	return facts.filter((fact) => {
+		const path = factSeqPath(fact.id);
+		return path === null || compareSeqPath(path, asOf) <= 0;
 	});
 }
 
@@ -172,8 +165,8 @@ function collectCompositeRanges(domains: Record<string, TRegisteredDomain>): TCo
 	return any ? out : undefined;
 }
 
-function buildForwardFrontier(graph: TDomainChainGraph, facts: TQuad[], held: string | string[] | undefined): TForwardAffordance[] {
-	const assertedDomains = new Set(facts.map((q) => q.predicate));
+function buildForwardFrontier(graph: TDomainChainGraph, facts: TFact[], held: string | string[] | undefined): TForwardAffordance[] {
+	const assertedDomains = new Set(facts.map((fact) => fact.domain));
 	const producedDomains = new Set<string>();
 	for (const step of graph.steps) for (const d of step.outputDomains) producedDomains.add(d);
 	const isArgument = (d: string) => isPrimitiveDomain(d) || !producedDomains.has(d);
@@ -198,7 +191,7 @@ function buildForwardFrontier(graph: TDomainChainGraph, facts: TQuad[], held: st
 
 function buildGoalFrontier(
 	graph: TDomainChainGraph,
-	facts: TQuad[],
+	facts: TFact[],
 	held: string | string[] | undefined,
 	domains: Record<string, TRegisteredDomain>,
 	compositeDecomposition?: boolean,

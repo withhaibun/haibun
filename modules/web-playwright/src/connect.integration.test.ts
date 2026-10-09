@@ -9,7 +9,6 @@ import { failWithDefaults, freePort, getDefaultWorld, passWithDefaults } from "@
 import { DEFAULT_DEST } from "@haibun/core/schema/protocol.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import { queryFacts } from "@haibun/core/lib/working-memory.js";
 import { HTTP_REQUEST_LABEL } from "@haibun/core/lib/resources.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import StorageMem from "@haibun/storage-mem/storage-mem.js";
@@ -56,8 +55,8 @@ describe("connect to the browser at {endpoint}", () => {
 		expect(ownersPage.isClosed(), "the owner's page is still open after the feature ends").toBe(false);
 		expect(await ownersPage.textContent("button"), "the click landed on the owner's page").toBe("pressed");
 
-		expect(await queryFacts(res.world, "name", VISITED_PAGE_LABEL), "the owner's navigation is not actuality's visit").toEqual([]);
-		expect(await queryFacts(res.world, "url", HTTP_REQUEST_LABEL), "the owner's requests are not traced").toEqual([]);
+		expect(await res.world.shared.getStore().query({ predicate: "name", namedGraph: VISITED_PAGE_LABEL }), "the owner's navigation is not actuality's visit").toEqual([]);
+		expect(await res.world.shared.getStore().query({ predicate: "url", namedGraph: HTTP_REQUEST_LABEL }), "the owner's requests are not traced").toEqual([]);
 
 		const snapshot = res.featureResults?.[0]?.stepResults.find((step) => step.in === "take an accessibility snapshot")?.products as {
 			url: string;

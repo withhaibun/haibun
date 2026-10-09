@@ -39,6 +39,7 @@ import type { ShuPolymorphicGraphView } from "./shu-polymorphic-graph-view.js";
 import type { ShuGraphFilter } from "./shu-graph-filter.js";
 import { NO_ELEMENT, ROUND_TRIP_MS, SETTLES_MS, STATE_MS, attached, comesToHold, controlledBrowser, controlledPage, percent, pollUntil, until } from "./controls-util.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { SCHEMA_TYPES } from "../graph/ontology-projection.js";
 
 /** The page's main graph: the one view that draws the page's own data. */
 const MAIN_GRAPH = "shu-polymorphic-graph-view:not([data-external])";
@@ -47,8 +48,6 @@ const CLASS_BROWSER = `${SHU_TAG.TYPE_COLUMN} ${SHU_TAG.CLASS_BROWSER}`;
 const CLASS_BROWSER_SCENE = `${CLASS_BROWSER} ${SHU_TAG.GRAPH_SCENE}`;
 /** A chip of a filter's legend, which a chip group draws. */
 const FILTER_CHIP = `${SHU_TAG.CHIP_GROUP} label.chip`;
-/** The types a schema's graph draws. */
-const SCHEMA_TYPES = ["Class", "Property"];
 /** The attribute the accessible reading marks each node's entry with. */
 const NODE_ID_ATTR = "data-node-id";
 const ARIA_PRESSED = "aria-pressed";
@@ -1072,7 +1071,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				// the scoped state, only schema types drawn.
 				const scoped = await comesToHold(
 					scene,
-					({ el, arg }: { el: ShuGraphScene; arg: string[] }) => {
+					({ el, arg }: { el: ShuGraphScene; arg: readonly string[] }) => {
 						const types = [...el.nodeMap.values()].map((n) => n.type);
 						return types.length > 0 && types.every((t) => arg.includes(t));
 					},

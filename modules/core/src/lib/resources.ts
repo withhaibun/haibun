@@ -171,6 +171,13 @@ const READING_DOMAIN = "reading";
  */
 export const SEQ_PATH_LABEL = "SeqPath";
 
+/** The facts graph. Each record is one product of a step, and links the step that produced it. */
+export const FACT_LABEL = "facts";
+
+/** The ontology's two types. A Class record describes a declared type, and a Property record describes a link relation. */
+export const CLASS_LABEL = "Class";
+export const PROPERTY_LABEL = "Property";
+
 /** The status values a step's SeqPath record states. `stopped` marks a step its caller stopped, and a stopped step isn't a failure. */
 export const SEQ_PATH_STATUS = { running: "running", passed: "passed", failed: "failed", stopped: "stopped" } as const;
 export type SeqPathStatus = (typeof SEQ_PATH_STATUS)[keyof typeof SEQ_PATH_STATUS];
@@ -347,8 +354,10 @@ export const LinkRelations = {
 	OUTCOME_REASON: { rel: "outcomeReason", uri: "hbn:outcomeReason", range: "literal" },
 	// RDFS terms. Property nodes describe rels with them.
 	SUB_PROPERTY_OF: { rel: "subPropertyOf", uri: "rdfs:subPropertyOf", range: "iri" },
+	SUB_CLASS_OF: { rel: "subClassOf", uri: "rdfs:subClassOf", range: "iri" },
 	LABEL: { rel: "label", uri: "rdfs:label", range: "literal" },
-	RANGE: { rel: "range", uri: "rdfs:range", range: "literal" },
+	DOMAIN: { rel: "domain", uri: "rdfs:domain", range: "iri" },
+	RANGE: { rel: "range", uri: "rdfs:range", range: "iri" },
 	ICON: { rel: "icon", uri: "hbn:icon", range: "literal" },
 	PRESENTATION: { rel: "presentation", uri: "hbn:presentation", range: "literal" },
 	// W3C Security (sec:): controllers, delegation, key material and proofs (DID and zcap-LD vocabulary)
@@ -670,6 +679,12 @@ export type THypermediaTopology = {
 	 * which shares least.
 	 */
 	accessLevel?: AccessLevel;
+	/**
+	 * Where core holds the records of a type that core writes or derives. A backing store registers each persisted type
+	 * that doesn't state `heldBy`. `working memory` states that core's in-memory store holds the records. `declarations`
+	 * states that core derives the records from the declarations and rejects a write.
+	 */
+	heldBy?: THeldBy;
 	/** The default sort field when a query doesn't specify one. It must be one of this type's sort columns. Declare it for a type whose event or content time differs from its record creation time, such as an email's received time and its import time. Queries sort by generatedAtTime where a type doesn't declare it. */
 	defaultSort?: string;
 	/**
@@ -693,6 +708,10 @@ export type THypermediaTopology = {
 	 */
 	links?: Record<string, TOfferedCall>;
 };
+
+/** Where core holds the records of a type that core writes or derives (`THypermediaTopology.heldBy`). */
+export const HELD_BY = { workingMemory: "working memory", declarations: "declarations" } as const;
+export type THeldBy = (typeof HELD_BY)[keyof typeof HELD_BY];
 
 /** A call each record of a type offers: the step's method, the parameter that takes the record, and what the call does. */
 export type TOfferedCall = { method: string; param: string; summary: string };

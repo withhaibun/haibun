@@ -7,6 +7,7 @@ import { TStepValue, Origin } from "../schema/protocol.js";
 import { getDefaultWorld } from "./test/lib.js";
 import { DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STRING, registerDomains } from "./domains.js";
 import { DOMAIN_PERSISTED_TYPE } from "./resources.js";
+import { executionOf, formatRecordName } from "./seq-path.js";
 
 describe("FeatureVariables", () => {
 	let world: TWorld;
@@ -108,7 +109,7 @@ describe("FeatureVariables", () => {
 			expect(all.foo?.origin).toBe(Origin.var);
 		});
 
-		it("should append to provenance on multiple sets", async () => {
+		it("holds the last value and the record name of each step that set the variable, and carries both to the next scope", async () => {
 			const provenance1 = { in: "set foo to bar", seq: [1], when: "Variables.set" };
 			const provenance2 = { in: "set foo to baz", seq: [2], when: "Variables.set" };
 
@@ -116,8 +117,12 @@ describe("FeatureVariables", () => {
 			await variables.set({ term: "foo", value: "baz", domain: DOMAIN_STRING, origin: Origin.var }, provenance2);
 
 			const all = await variables.all();
-			expect(all.foo?.value).toBe("baz"); // Last value wins
+			expect(all.foo?.value).toBe("baz");
 			expect(all.foo?.origin).toBe(Origin.var);
+			const setBy = [provenance1, provenance2].map(({ seq }) => formatRecordName({ execution: executionOf(world.tag), path: seq }));
+			const carried = await variables.carried();
+			expect(carried.foo?.generatedBy).toEqual(setBy);
+			expect((await new FeatureVariables(world, carried).carried()).foo?.generatedBy, "the next scope keeps the steps").toEqual(setBy);
 		});
 
 		it("should coerce values through domain", async () => {

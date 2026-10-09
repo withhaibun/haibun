@@ -1,7 +1,7 @@
 import type { DispatchContext } from "./step-dispatch.js";
 import { stepMethodName } from "./step-registry.js";
 import { callStepByName } from "./call-step.js";
-import { formatSeqPath } from "./seq-path.js";
+import { executionOf, factIdOf } from "./seq-path.js";
 import { actingAs } from "./capability-context.js";
 import { validateToolInput } from "./tool-validation.js";
 import { errorDetail } from "./util/index.js";
@@ -67,7 +67,7 @@ export async function advanceChainInstance(ctx: TChainWalkerContext, instanceId:
 		return { kind: "failed", instance: { ...inst, stepArgs: nextArgs, status: CHAIN_INSTANCE_STATUS.FAILED }, error };
 	}
 
-	const factId = formatSeqPath(seqPath);
+	const factId = factIdOf({ execution: executionOf(world.tag), path: seqPath });
 	const nextFactIds = inst.stepFactIds.map((existing, i) => (i === inst.stepIndex ? [...existing, factId] : existing));
 	const nextStepIndex = inst.stepIndex + 1;
 	const nextStatus = nextStepIndex >= inst.michi.steps.length ? CHAIN_INSTANCE_STATUS.COMPLETED : CHAIN_INSTANCE_STATUS.PENDING;

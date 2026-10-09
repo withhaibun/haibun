@@ -115,7 +115,7 @@ describe("the actions bar's search mode", () => {
 		expect(query.selectedLabel, "the label stays as it was named").toBe(NOT_HELD);
 		expect(pageTypes.get().selected, "the types actuality holds aren't chosen for it").toBe("");
 		expect(pageTypes.get().options.length, "and actuality's types are all offered").toBeGreaterThan(0);
-		expect(statuses).toContain(typeNotHeld(NOT_HELD));
+		expect(statuses).toContain(typeNotHeld(NOT_HELD, []).error);
 	});
 
 	it("announces a type the strip states once, as asked for, with its select filters cleared, and states it as the type read", async () => {

@@ -77,7 +77,6 @@
 		"field generatedAtTime": 1,
 		"field ranOn": 1,
 		"field ranVia": 1,
-		"field seqPath": 1,
 		"field stepText": 1,
 		"type SeqPath": 3
 	},

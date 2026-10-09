@@ -18,7 +18,6 @@ import { STEP_DETAIL, readShownSteps, type TStepDefinitions } from "../lib/step-
 import type { TStepResult } from "../schema/protocol.js";
 import { validateStep } from "../lib/step-validation.js";
 import { RUN_AUTHORITY, runAuthorizedWith, runShowing } from "../lib/capability-context.js";
-import { OBSERVATION_GRAPH, assertFact, getFact } from "../lib/working-memory.js";
 
 describe("until", () => {
 	it("passes once its statements pass", async () => {
@@ -36,6 +35,7 @@ describe("until", () => {
 
 describe("on host", () => {
 	it("routes a step to a hostId-prefixed registry entry", async () => {
+		let remoteCalled = false;
 		class RemoteMarker extends AStepper {
 			description = "Injects a host-scoped copy of TestSteps-passes that records it was called.";
 			attach(registry: StepRegistry) {
@@ -45,9 +45,9 @@ describe("on host", () => {
 					{
 						...local,
 						descriptor: { ...local.descriptor, method: hostScopedMethodName(2, "TestSteps-passes") },
-						handler: async () => {
-							await assertFact(this.getWorld(), "flag", "remoteCalled", true, OBSERVATION_GRAPH.RUNTIME_FLAG);
-							return actionOK();
+						handler: () => {
+							remoteCalled = true;
+							return Promise.resolve(actionOK());
 						},
 					},
 				]);
@@ -64,9 +64,7 @@ describe("on host", () => {
 		const ins = itemAt(result.featureResults, 0).stepResults.map((r) => r.in);
 		// The substep's record precedes the result of the `on host` step that wraps it.
 		expect(ins).toEqual(["passes", "passes", "on host 2, passes"]);
-		if (!result.world) throw new Error("result.world missing");
-		const remoteCalled = await getFact(result.world, "flag", "remoteCalled", OBSERVATION_GRAPH.RUNTIME_FLAG);
-		expect(remoteCalled).toBe(true);
+		expect(remoteCalled, "the host-scoped entry ran").toBe(true);
 	});
 
 	it("fails and names the host-scoped method when a registry entry doesn't exist for the target hostId", async () => {

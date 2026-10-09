@@ -233,6 +233,9 @@ describe("any of", () => {
 	});
 });
 
+/** The observation source that counts the step records by the step each called. */
+const STEP_USAGE = "step usage";
+
 describe("observed in (runtime metrics)", () => {
 	it("some step observed in step usage finds a matching step", async () => {
 		const feature = {
@@ -287,6 +290,20 @@ some step observed in step usage is variable step/count is more than 0`,
 		};
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers]);
 		expect(result.ok).toBe(true);
+	});
+
+	it("counts the step records of the feature's execution by the step each called", async () => {
+		// Three passes steps hold three records. Every other step of the feature holds one.
+		const feature = {
+			path: "/features/test.feature",
+			content: `passes
+passes
+passes
+some step observed in ${STEP_USAGE} is "variable step/count is more than 2"
+every step observed in ${STEP_USAGE} is "variable step/count is less than 4"`,
+		};
+		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers]);
+		expect(result.ok, JSON.stringify(result.failure)).toBe(true);
 	});
 
 	it("unknown observation source fails gracefully", async () => {

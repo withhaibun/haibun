@@ -13,13 +13,12 @@ import { z } from "zod";
 import { conduit } from "../hypermedia.js";
 import { type TEvent } from "../event-stream.js";
 import { AFFORDANCE_EVENT_PREFIX } from "@haibun/core/lib/affordances.js";
-import { projectDomainChain, waypointNodeId, type TAffordancesSnapshot, type TWaypointSnapshot } from "../graph/project-domain-chain.js";
+import { producingStepOf, projectDomainChain, waypointNodeId, type TAffordancesSnapshot, type TWaypointSnapshot } from "../graph/project-domain-chain.js";
 import { graphToQuads } from "../graph/graph-quads.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { SHU_EVENT, AFFORDANCE_PARAM, RPC_METHOD, SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
 import * as ViewHash from "../view-hash.js";
-import { producingStep } from "@haibun/core/lib/seq-path.js";
 import { deepLinkOf, followDeepLink, openRef } from "./ref-navigation.js";
 import { domainRef, stepRef } from "./shu-ref.js";
 import { LINT_FINDING, LintFindingSchema, type TLintFinding } from "@haibun/core/lib/domain-chain-lint.js";
@@ -216,8 +215,9 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 	/** Click router for a graph node. Public for testability. */
 	routeNodeClick(node: TGraphNode): void {
 		// A fact-instance node opens the step that produced the fact.
-		if (node.kind === NODE_KIND.factInstance && node.wasGeneratedBy?.factId) {
-			openRef(this, "seqPath", { seqPath: producingStep(node.wasGeneratedBy.factId) });
+		const seqPath = node.kind === NODE_KIND.factInstance ? producingStepOf(node) : undefined;
+		if (seqPath) {
+			openRef(this, "seqPath", { seqPath });
 			return;
 		}
 		// Every other node of the chain projection deep-links into the affordances panel.

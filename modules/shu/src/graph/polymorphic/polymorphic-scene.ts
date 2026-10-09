@@ -20,7 +20,7 @@ import { GLOW_RAMP, BREATH_MS } from "../polymorphic/polymorphic-highlight.js";
 import { typeAvatar } from "../polymorphic/polymorphic-type-avatar.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { PAGE_TERMS } from "@haibun/core/lib/hypermedia.js";
-import { isSubPropertyOf } from "@haibun/core/lib/resources.js";
+import { isSubPropertyOf, CLASS_LABEL, PROPERTY_LABEL } from "@haibun/core/lib/resources.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { type GroupKeyMode, easeInOutCubic, groupKeyOf, type XYZ } from "../grouping.js";
 import { type KindTiers, type TGraphPreview } from "../focus-policy.js";
@@ -38,7 +38,7 @@ import { DataPipeline, visibleGraphModel } from "../polymorphic/polymorphic-data
 import { type RenderType, type TViewForces, buildRenderTypeRegistry } from "../polymorphic/polymorphic-render-type.js";
 import type { ViewType } from "../polymorphic/polymorphic-views.js";
 import { FRAME, VIEW, viewChangeRebuildsNodes } from "../polymorphic/polymorphic-views.js";
-import { ONTOLOGY_CLASS, ONTOLOGY_PROPERTY, isSchemaType, propertyVocabulary } from "../ontology-projection.js";
+import { isSchemaType, propertyVocabulary } from "../ontology-projection.js";
 import { PaneOpenSchema, addsToSelection, type DesiredPane, type TPaneOpen } from "../../pane-state.js";
 import { actorTypesFor, getValidTimeField, roleEdgeLabels, roleNounFor } from "../../rels-cache.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
@@ -1214,9 +1214,9 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  prefix, from its IRI) and whether the type's data exercises it: a term a standard declares but the data never uses
 	 *  reads "declared", distinguishing the full vocabulary from the properties present. */
 	private schemaHoverText(n: FGNode): string {
-		if (n.type !== ONTOLOGY_PROPERTY) return `${n.name} · ${n.type}`;
+		if (n.type !== PROPERTY_LABEL) return `${n.name} · ${n.type}`;
 		const uri = String(n.properties?.uri ?? "");
-		const vocab = uri ? propertyVocabulary(uri).prefix : ONTOLOGY_PROPERTY;
+		const vocab = uri ? propertyVocabulary(uri).prefix : PROPERTY_LABEL;
 		const status = n.properties?.inData === false ? "declared" : "in data";
 		return `${n.name} · ${vocab} · ${status}`;
 	}
@@ -1993,9 +1993,9 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const scope = this.embedScope;
 		if (!scope) return;
 		if (!scope.revealed) {
-			if (!this.model.knownClusters.has(ONTOLOGY_CLASS)) return;
+			if (!this.model.knownClusters.has(CLASS_LABEL)) return;
 			scope.revealed = true;
-			this.dispatchEvent(new CustomEvent(GRAPH_SCENE_EVENT.SCOPE_REVEALED, { detail: { types: [ONTOLOGY_CLASS, ONTOLOGY_PROPERTY] }, bubbles: true, composed: true }));
+			this.dispatchEvent(new CustomEvent(GRAPH_SCENE_EVENT.SCOPE_REVEALED, { detail: { types: [CLASS_LABEL, PROPERTY_LABEL] }, bubbles: true, composed: true }));
 			return;
 		}
 		if (!this.nodeMap.has(scope.focusType)) return;
@@ -2309,11 +2309,11 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		// view: description, schema graph, individuals), the same navigation a #Type reference / a graph Class-click uses,
 		// so exploring the schema stays in the schema rather than dropping into a list of instances. A Property opens the
 		// windowed instances of a type that declares it, sorted by it (zero instances → a pane doesn't open).
-		if (n.type === ONTOLOGY_CLASS) {
+		if (n.type === CLASS_LABEL) {
 			this.openPane({ paneType: "type", persistedAs: n.id }, e);
 			return;
 		}
-		if (n.type === ONTOLOGY_PROPERTY) {
+		if (n.type === PROPERTY_LABEL) {
 			this.openOntologyInstances(n, e);
 			return;
 		}

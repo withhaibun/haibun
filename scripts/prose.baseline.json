@@ -51,7 +51,6 @@
 	},
 	"modules/core/src/lib/quad-store.ts": {
 		"anthropomorphic": 9,
-		"relation-verb": 1,
 		"terminal-preposition": 1
 	},
 	"modules/core/src/lib/quad-types.ts": {
@@ -698,8 +697,7 @@
 		"relation-verb": 1
 	},
 	"modules/shu/src/graph/ontology-projection.ts": {
-		"relation-verb": 2,
-		"terminal-preposition": 1
+		"relation-verb": 2
 	},
 	"modules/shu/src/graph/paint-select.ts": {
 		"relation-verb": 1
@@ -1155,9 +1153,6 @@
 		"negated-noun": 2,
 		"terminal-preposition": 1
 	},
-	"modules/shu/src/view-query.ts": {
-		"the-run": 1
-	},
 	"modules/shu/src/virtual-column-model.ts": {
 		"relation-verb": 2
 	},
@@ -1197,9 +1192,6 @@
 	"modules/shu/tests-profile/features/d-two-origins.feature.ts": {
 		"negated-noun": 3,
 		"the-run": 2
-	},
-	"modules/shu/tests/features/address.feature.ts": {
-		"the-run": 4
 	},
 	"modules/shu/tests/features/monitor.feature.ts": {
 		"relation-verb": 2,

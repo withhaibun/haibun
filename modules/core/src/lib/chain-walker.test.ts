@@ -6,7 +6,7 @@ import { StepRegistry } from "./step-registry.js";
 import { registerDomains } from "./domains.js";
 import { getDefaultWorld } from "./test/lib.js";
 import type { TWorld } from "./world.js";
-import { FACT_GRAPH } from "./working-memory.js";
+import { readFacts } from "./records/pipelines/facts.js";
 import type { TMichi } from "./goal-resolver.js";
 import { CHAIN_INSTANCE_STATUS, createChainInstance } from "./chain-instance.js";
 import { advanceChainInstance } from "./chain-walker.js";
@@ -88,8 +88,8 @@ describe("chain-walker", () => {
 		expect(first.instance.stepIndex).toBe(1);
 		expect(first.instance.status).toBe(CHAIN_INSTANCE_STATUS.PENDING);
 		expect(first.factIds).toHaveLength(1);
-		const issuerFact = await world.shared.getStore().get(itemAt(first.factIds, 0), ISSUER_DOMAIN, FACT_GRAPH);
-		expect(issuerFact).toMatchObject({ issuerId: "alice" });
+		const issuerFact = (await readFacts(world.shared.getStore(), ISSUER_DOMAIN)).find((fact) => fact.id === itemAt(first.factIds, 0));
+		expect(issuerFact?.value).toMatchObject({ issuerId: "alice" });
 
 		const second = await advanceChainInstance(ctx, inst.id, {});
 		expect(second.kind).toBe("completed");

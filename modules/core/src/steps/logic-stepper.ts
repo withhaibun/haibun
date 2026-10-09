@@ -6,39 +6,40 @@ import { itemAt } from "../lib/util/item-at.js";
 import { z } from "zod";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { DOMAIN_NUMBER, DOMAIN_STATEMENT, DOMAIN_STRING } from "../lib/domains.js";
-import { OBSERVATION_GRAPH, queryFacts } from "../lib/working-memory.js";
-
-// The built-in observation sources read step-execution counts from the quad store, in the observation/step-usage
-// named graph. Each count's subject is `stepperName.actionName`.
+import { readEvery, equalTo } from "../lib/records/pipelines/record-reads.js";
+import { SEQ_PATH_LABEL } from "../lib/resources.js";
+import { SEQ_PATH_FIELD, calledParts, executionOf } from "../lib/seq-path.js";
 
 /** The outcome of a statement run as `maybe`. A failed outcome doesn't fail the step. */
 const MaybeOutcomeSchema = z.object({ outcome: z.looseObject({ ok: z.boolean() }) });
 const DOMAIN_MAYBE_OUTCOME = "maybe-outcome";
 
+/** Counts the step records of the feature's execution by the step each called, as `Stepper.action`. */
+async function stepCounts(world: TWorld): Promise<Map<string, number>> {
+	const steps = await readEvery(world.shared.getStore(), { label: SEQ_PATH_LABEL, filters: equalTo({ [SEQ_PATH_FIELD.execution]: executionOf(world.tag) }) });
+	const counts = new Map<string, number>();
+	for (const step of steps) {
+		const called = step[SEQ_PATH_FIELD.called];
+		if (typeof called === "string") counts.set(called, (counts.get(called) ?? 0) + 1);
+	}
+	return counts;
+}
+
+/** Returns each counted item and its count as a source's items and metrics. */
+const observedCounts = (counts: Map<string, number>) => ({ items: [...counts.keys()], metrics: Object.fromEntries([...counts].map(([item, count]) => [item, { count }])) });
+
+// The built-in observation sources count the step records of the feature's execution: by step, and by stepper.
 const builtInSources: IObservationSource[] = [
-	{
-		name: "step usage",
-		observe: async (world: TWorld) => {
-			const quads = await queryFacts(world, "count", OBSERVATION_GRAPH.STEP_USAGE);
-			const items = quads.map((q) => q.subject);
-			const metrics: Record<string, Record<string, unknown>> = {};
-			for (const q of quads) metrics[q.subject] = { count: q.object };
-			return { items, metrics };
-		},
-	},
+	{ name: "step usage", observe: async (world: TWorld) => observedCounts(await stepCounts(world)) },
 	{
 		name: "stepper usage",
 		observe: async (world: TWorld) => {
-			const quads = await queryFacts(world, "count", OBSERVATION_GRAPH.STEP_USAGE);
-			const stepperCounts = new Map<string, number>();
-			for (const q of quads) {
-				const stepperName = itemAt(q.subject.split("."), 0);
-				stepperCounts.set(stepperName, (stepperCounts.get(stepperName) || 0) + (q.object as number));
+			const byStepper = new Map<string, number>();
+			for (const [called, count] of await stepCounts(world)) {
+				const { stepperName } = calledParts(called);
+				byStepper.set(stepperName, (byStepper.get(stepperName) ?? 0) + count);
 			}
-			const items = [...stepperCounts.keys()];
-			const metrics: Record<string, Record<string, unknown>> = {};
-			for (const [stepper, count] of stepperCounts.entries()) metrics[stepper] = { count };
-			return { items, metrics };
+			return observedCounts(byStepper);
 		},
 	},
 ];

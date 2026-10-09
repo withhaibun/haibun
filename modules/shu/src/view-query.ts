@@ -39,9 +39,20 @@ export type TViewQuery = z.infer<typeof ViewQuerySchema>;
 
 const QUERY_PARAMS = ["label", "q", "sort", "order", "offset", "access", "f"] as const;
 
-/** What a page shows for an address naming a type actuality doesn't hold: an address outlives the actuality it was made in, so it
- *  keeps the type, and the page offers actuality's own. */
-export const typeNotHeld = (label: string): string => `This run does not hold the type ${label}. Choose one of its types.`;
+/** A link that opens the query of a type actuality holds. */
+export type THeldTypeLink = { label: string; href: string };
+
+/** What a page shows for an address that names a type actuality doesn't hold: the cause, and a link to the query of each
+ *  type actuality holds. An address outlives the actuality it was made in, so the page keeps the type the address names. */
+export type TTypeNotHeld = { error: string; held: THeldTypeLink[] };
+
+/** Returns what a page shows for an address that names `label`, where actuality holds the types `held`. */
+export function typeNotHeld(label: string, held: readonly string[]): TTypeNotHeld {
+	return {
+		error: `The address names the type ${label}, and actuality doesn't hold that type.`,
+		held: held.map((type) => ({ label: type, href: viewQuery.hashWith({ label: type, sort: null, offset: 0 }) })),
+	};
+}
 
 /** Parse + validate the query params out of a hash string. Throws (fail-fast) on a malformed param. */
 export function parseViewQuery(hash: string): TViewQuery {
@@ -125,6 +136,14 @@ function assign(q: TViewQuery): void {
 	s.f.set(q.f);
 }
 
+/** Returns the current hash with its query params replaced by `next`'s. The pane and affordance params stay. */
+function mergedHash(next: TViewQuery): string {
+	const merged = ViewHash.hashParams(ViewHash.getHash());
+	for (const k of QUERY_PARAMS) merged.delete(k);
+	for (const [k, v] of queryParams(next)) merged.append(k, v);
+	return merged.toString() ? ViewHash.hashOf(merged) : "";
+}
+
 export const viewQuery = {
 	/** The signal set, read `viewQuery.signals.q.get()` inside a render() to subscribe reactively. */
 	get signals(): ViewQueryStore {
@@ -152,11 +171,13 @@ export const viewQuery = {
 	set(patch: Partial<TViewQuery>): void {
 		const next = ViewQuerySchema.parse({ ...snapshot(), ...patch });
 		assign(next);
-		const merged = ViewHash.hashParams(ViewHash.getHash());
-		for (const k of QUERY_PARAMS) merged.delete(k);
-		for (const [k, v] of queryParams(next)) merged.append(k, v);
-		const hash = merged.toString() ? ViewHash.hashOf(merged) : "";
+		const hash = mergedHash(next);
 		store().lastWrittenHash = hash;
 		ViewHash.pushHash(hash);
+	},
+
+	/** Returns the hash a partial change states, with the pane and affordance params kept, without applying it. */
+	hashWith(patch: Partial<TViewQuery>): string {
+		return mergedHash(ViewQuerySchema.parse({ ...snapshot(), ...patch }));
 	},
 };

@@ -3,10 +3,10 @@
 // controls: and a schema-scoped host (data-schema-only, the class browser) carrying only the Class + Property chips
 // with an independent persistence scope. Chips are rendered by <shu-chip-group>, so a chip lives one shadow deeper.
 import { SHU_TEST_IDS } from "../test-ids.js";
+import { CLASS_LABEL, PROPERTY_LABEL } from "@haibun/core/lib/resources.js";
 import { SHU_EVENT } from "../consts.js";
 import { describe, it, expect, beforeEach } from "vitest";
 import { ShuGraphFilter } from "./shu-graph-filter.js";
-import { ONTOLOGY_CLASS, ONTOLOGY_PROPERTY } from "../graph/ontology-projection.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import "./shu-chip-group.js";
 
@@ -14,8 +14,8 @@ const cluster = (type: string): TCluster => ({ type, totalCount: 2, sampledCount
 
 const CLUSTERS = new Map<string, TCluster>([
 	["Email", cluster("Email")],
-	[ONTOLOGY_CLASS, cluster(ONTOLOGY_CLASS)],
-	[ONTOLOGY_PROPERTY, cluster(ONTOLOGY_PROPERTY)],
+	[CLASS_LABEL, cluster(CLASS_LABEL)],
+	[PROPERTY_LABEL, cluster(PROPERTY_LABEL)],
 ]);
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 20));
@@ -54,7 +54,7 @@ describe("shu-graph-filter host modes", () => {
 		const el = await mount(false);
 		expect(chipsOf(el, "types")).toContain("Email");
 		// The schema terms are not type chips: they reveal through the one classes & predicates toggle.
-		expect(chipsOf(el, "types")).not.toContain(ONTOLOGY_CLASS);
+		expect(chipsOf(el, "types")).not.toContain(CLASS_LABEL);
 		expect(el.shadowRoot?.querySelector(`[data-testid='${SHU_TEST_IDS.GRAPH_FILTER.SCHEMA}']`)).not.toBeNull();
 		// A property chip stands for the edges of one predicate: the typed references in the data.
 		expect(chipsOf(el, "properties")).toEqual(["inReplyTo", "references"]);
@@ -116,7 +116,7 @@ describe("shu-graph-filter host modes", () => {
 
 	it("a schema-only host offers ONLY the Class + Property chips and doesn't offer instance-data controls", async () => {
 		const el = await mount(true);
-		expect(chipsOf(el).sort()).toEqual([ONTOLOGY_CLASS, ONTOLOGY_PROPERTY]);
+		expect(chipsOf(el).sort()).toEqual([CLASS_LABEL, PROPERTY_LABEL]);
 		expect(el.shadowRoot?.querySelector(`[data-testid='${SHU_TEST_IDS.GRAPH_FILTER.LIMIT_VALUE}']`)).toBeNull();
 		expect(el.shadowRoot?.querySelector(`[data-testid='${SHU_TEST_IDS.GRAPH_FILTER.SOLO}']`)).toBeNull();
 	});

@@ -7,7 +7,8 @@ import { LinkRelations } from "./resources.js";
 import { OK } from "../schema/protocol.js";
 import { actionOKWithProducts } from "./util/index.js";
 import { buildAffordances } from "./affordances.js";
-import type { TQuad } from "./quad-types.js";
+import type { TFact } from "./records/domains/facts.js";
+import { executionOf, factIdOf } from "./seq-path.js";
 import { RUN_AUTHORITY } from "./capability-context.js";
 
 const PERSON = "person";
@@ -70,7 +71,7 @@ describe("buildAffordances", () => {
 	});
 
 	it("marks steps with satisfied input domains as readyToRun", () => {
-		const fact: TQuad = { subject: "p:alice", predicate: PERSON, object: { id: "alice" }, namedGraph: "facts", timestamp: 1 };
+		const fact: TFact = { id: "p:alice", domain: PERSON, value: { id: "alice" } };
 		const result = buildAffordances({ steppers: [new EmailFromPerson(), new PersonSource()], domains: fixedDomains(), facts: [fact], held: RUN_AUTHORITY });
 		const issue = result.forward.find((f) => f.stepName === "issueEmail");
 		expect(issue?.readyToRun).toBe(true);
@@ -140,14 +141,15 @@ describe("buildAffordances", () => {
 	});
 
 	it("filters out satisfied single-step goals, since satisfiedDomains lists the asserted domain and the goal doesn't chain steps", () => {
-		const fact: TQuad = { subject: "s:1", predicate: SESSION, object: { id: "s1" }, namedGraph: "facts", timestamp: 1 };
+		const fact: TFact = { id: "s:1", domain: SESSION, value: { id: "s1" } };
 		const result = buildAffordances({ steppers: [new SessionTerminal()], domains: fixedDomains(), facts: [fact], held: RUN_AUTHORITY });
 		expect(result.goals.find((g) => g.domain === SESSION)).toBeUndefined();
 	});
 
-	it("drops facts whose seqPath subject is after asOfSeqPath", () => {
-		const personEarly: TQuad = { subject: "0.1.5", predicate: PERSON, object: { id: "p1" }, namedGraph: "facts", timestamp: 1 };
-		const emailLate: TQuad = { subject: "0.1.9", predicate: EMAIL, object: { id: "e1" }, namedGraph: "facts", timestamp: 2 };
+	it("drops the facts of the steps after asOfSeqPath", () => {
+		const execution = executionOf({ key: "1700000000000", featureNum: 1 });
+		const personEarly: TFact = { id: factIdOf({ execution, path: [0, 1, 5] }), domain: PERSON, value: { id: "p1" } };
+		const emailLate: TFact = { id: factIdOf({ execution, path: [0, 1, 9] }), domain: EMAIL, value: { id: "e1" } };
 		const live = buildAffordances({ steppers: [new EmailFromPerson(), new PersonSource()], domains: fixedDomains(), facts: [personEarly, emailLate], held: RUN_AUTHORITY });
 		expect(live.forward.find((f) => f.stepName === "issueEmail")?.readyToRun).toBe(true);
 		const replay = buildAffordances({
@@ -157,8 +159,10 @@ describe("buildAffordances", () => {
 			held: RUN_AUTHORITY,
 			asOfSeqPath: [0, 1, 6],
 		});
-		// asOfSeqPath drops emailLate (0.1.9) and keeps personEarly (0.1.5). The Email goal has one fewer asserted fact,
-		// so the resolver doesn't report it as satisfied through emailLate.
+		// asOfSeqPath drops emailLate (0.1.9) and keeps personEarly (0.1.5).
 		expect(replay.forward.find((f) => f.stepName === "issueEmail")?.readyToRun).toBe(true);
+		expect(live.satisfiedFacts[EMAIL]).toEqual([emailLate.id]);
+		expect(replay.satisfiedFacts[EMAIL]).toBeUndefined();
+		expect(replay.satisfiedFacts[PERSON]).toEqual([personEarly.id]);
 	});
 });

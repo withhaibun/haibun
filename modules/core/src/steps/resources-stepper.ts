@@ -44,7 +44,7 @@ import { MEDIA_TYPE } from "../lib/media-types.js";
 import { bodyByMediaType, markdownOf, readEvery, recordOf } from "../lib/records/pipelines/record-reads.js";
 import { createComment, readTypedLinks, writeAnnotation } from "../lib/records/pipelines/discourse-writes.js";
 import { DOMAIN_LINK_REL, DOMAIN_RECORD_ID, DOMAIN_TEXT, linkVocabularyFor } from "../lib/domains.js";
-import { executionOf, formatRecordName, formatSeqPath, seqPathDomainDefinition } from "../lib/seq-path.js";
+import { executionOf, formatRecordName, formatSeqPath } from "../lib/seq-path.js";
 import { logMessageDomainDefinition } from "../lib/log-message.js";
 import { runArtifactDomainDefinition } from "../lib/run-artifact.js";
 import { statementsWith, type TStatementRow } from "../lib/statements.js";
@@ -137,7 +137,6 @@ const cycles = (stepper: ResourcesStepper): IStepperCycles => ({
 			sceneDomainDefinition,
 			logMessageDomainDefinition,
 			runArtifactDomainDefinition,
-			seqPathDomainDefinition,
 			specificResourceDomainDefinition,
 			textQuoteSelectorDomainDefinition,
 			fragmentSelectorDomainDefinition,

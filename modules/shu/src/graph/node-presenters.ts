@@ -6,8 +6,8 @@
  * the shared per-type colour (one source of truth across 3D + SVG); the paints translate the mark to their medium.
  */
 import { colorForType } from "../type-colors.js";
+import { CLASS_LABEL, PROPERTY_LABEL } from "@haibun/core/lib/resources.js";
 import { assertNodeMark, type NodeMark } from "./graph-scene.js";
-import { ONTOLOGY_CLASS, ONTOLOGY_PROPERTY } from "./ontology-projection.js";
 
 /** The slice of a node a presenter reads, identity + display name + @type. */
 export type SceneNode = { id: string; name: string; type: string; isCluster?: boolean; properties?: Record<string, unknown> };
@@ -60,8 +60,8 @@ const schemaPresenter = (schema: "class" | "property"): NodePresenter => ({
 
 /** The types whose mark differs from the capability default: the merged ontology's schema types. */
 const PRESENTERS: ReadonlyMap<string, NodePresenter> = new Map([
-	[ONTOLOGY_CLASS, schemaPresenter("class")],
-	[ONTOLOGY_PROPERTY, schemaPresenter("property")],
+	[CLASS_LABEL, schemaPresenter("class")],
+	[PROPERTY_LABEL, schemaPresenter("property")],
 ]);
 
 /** The presenter for a @type: the one the table lists, else the capability-driven default. */

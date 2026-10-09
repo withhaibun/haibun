@@ -2,7 +2,10 @@ import { z } from "zod";
 import { DOMAIN_GRAPH_QUERY, GraphQuerySchema, DOMAIN_DENSITY_QUERY, DensityQuerySchema } from "./quad-types.js";
 import { fromJsonText, JsonObjectTextSchema } from "./json-text.js";
 import { DOMAIN_FILE_DATA, DOMAIN_IMAGE_REFERENCE, FileDataSchema, ImageReferenceSchema, recordedFileData } from "./media-object.js";
-import { extractSeqPathPrefix, parseSeqPath } from "./seq-path.js";
+import { extractSeqPathPrefix, parseSeqPath, seqPathDomainDefinition } from "./seq-path.js";
+import { factDomainDefinition } from "./records/domains/facts.js";
+import { variableDomainDefinition } from "./records/domains/variables.js";
+import { classDomainDefinition, propertyDomainDefinition } from "./records/domains/ontology.js";
 import { LintFindingSchema, LintSummarySchema } from "./domain-chain-lint.js";
 import { AStepper, TFeatureStep } from "./astepper.js";
 import { TDomainDefinition } from "./resources.js";
@@ -212,6 +215,12 @@ export const chainLintSchema = z
 	.strict();
 
 const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
+	// The types of the records core writes or derives: each step's record, the facts and variables actuality holds, and the ontology.
+	seqPathDomainDefinition,
+	factDomainDefinition,
+	variableDomainDefinition,
+	classDomainDefinition,
+	propertyDomainDefinition,
 	{ selectors: [DOMAIN_STRING], schema: stringSchema, description: "A plain string literal captured from feature text." },
 	{ selectors: [DOMAIN_TEXT], schema: stringSchema, description: "Free text a person writes: a note, a question, a reason or a passage quoted, read as written." },
 	{

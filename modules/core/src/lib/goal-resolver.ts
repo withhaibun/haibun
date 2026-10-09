@@ -19,7 +19,7 @@ import { z } from "zod";
 import { itemAt } from "./util/item-at.js";
 import { navigateValue } from "./util/dot-path.js";
 import { SOURCE_DOMAIN, type TDomainChainGraph, type TDomainChainStep } from "./domain-chain.js";
-import type { TQuad } from "./quad-types.js";
+import type { TFact } from "./records/domains/facts.js";
 import { getCompositeFields, zodTypeLabel, type TCompositeField } from "./composite-domain.js";
 import type { TRegisteredDomain } from "./resources.js";
 import { mayCall } from "./actions.js";
@@ -106,11 +106,11 @@ export type TGoalResolution =
 
 export interface TResolverInputs {
 	graph: TDomainChainGraph;
-	facts: TQuad[];
+	facts: TFact[];
 	/** The capabilities the caller holds, in the form dispatch reads. The resolver skips a producer step the caller may not call. */
 	held: string | string[] | undefined;
 	depthLimit?: number;
-	/** Per-field filters over the goal fact's object. */
+	/** Per-field filters over the goal fact's value. */
 	where?: Record<string, TShibari | unknown>;
 	/** Cap on enumerated michi per goal. Default MAX_MICHI. */
 	maxMichi?: number;
@@ -148,12 +148,12 @@ export function resolveGoal(goal: string, inputs: TResolverInputs): TGoalResolut
 	if (refusal) return refusal;
 
 	const where = whereFilters(inputs.where);
-	const matchingFacts = inputs.facts.filter((q) => q.predicate === goal && factMatchesWhere(q, where));
+	const matchingFacts = inputs.facts.filter((fact) => fact.domain === goal && factMatchesWhere(fact, where));
 	const hasProducerEdge = inputs.graph.edges.some((e) => e.to === goal);
 	// Producer paths are enumerated for a satisfied goal too. `satisfied` means at least one matching fact exists.
 	// It doesn't stop a person producing another instance.
 	const walk: TWalk = {
-		inputs: { ...inputs, facts: inputs.facts.filter((q) => q.predicate !== goal) },
+		inputs: { ...inputs, facts: inputs.facts.filter((fact) => fact.domain !== goal) },
 		visited: new Set<string>([keyForVisited(goal, "")]),
 		missing: [],
 		depthLimit: inputs.depthLimit ?? DEFAULT_DEPTH_LIMIT,
@@ -166,7 +166,7 @@ export function resolveGoal(goal: string, inputs: TResolverInputs): TGoalResolut
 	if (elapsed > 500) console.warn(`[goal-resolver] resolveGoal(${goal}) took ${elapsed}ms, ${walk.calls} enumerate calls, ${enumeration.michi.length} michi`);
 
 	if (matchingFacts.length > 0) {
-		return { finding: GOAL_FINDING.SATISFIED, goal, factIds: matchingFacts.map((q) => q.subject), michi: enumeration.michi, truncated: enumeration.truncated };
+		return { finding: GOAL_FINDING.SATISFIED, goal, factIds: matchingFacts.map((fact) => fact.id), michi: enumeration.michi, truncated: enumeration.truncated };
 	}
 
 	// The goal itself must be produced by a registered step.
@@ -218,7 +218,7 @@ function enumerate(target: string, walk: TWalk, depth: number, path: string): TE
 	if (depth > depthLimit) return { michi: [], truncated: false };
 	if (target === SOURCE_DOMAIN) return { michi: [{ steps: [], bindings: [] }], truncated: false };
 
-	const factsOfTarget = inputs.facts.filter((q) => q.predicate === target);
+	const factsOfTarget = inputs.facts.filter((fact) => fact.domain === target);
 	const producers = inputs.graph.edges.filter((e) => e.to === target);
 
 	const out: TMichi[] = [];
@@ -230,7 +230,7 @@ function enumerate(target: string, walk: TWalk, depth: number, path: string): TE
 			truncated = true;
 			break;
 		}
-		out.push({ steps: [], bindings: [{ kind: "fact", domain: target, factId: fact.subject }] });
+		out.push({ steps: [], bindings: [{ kind: "fact", domain: target, factId: fact.id }] });
 	}
 
 	// Branch 2: a target without a registered producer or a fact takes its value from a step argument.
@@ -420,9 +420,9 @@ function whereFilters(where: Record<string, TShibari | unknown> | undefined): [s
 	return Object.entries(where ?? {}).map(([path, raw]) => [path.split("."), normaliseShibari(raw)]);
 }
 
-/** True when the fact's `object` matches every path's filter. An empty `where` always matches. */
-function factMatchesWhere(fact: TQuad, where: [string[], TShibari][]): boolean {
-	return where.every(([segments, filter]) => evaluateShibari(navigateValue(fact.object, segments).value, filter));
+/** True when the fact's value matches every path's filter. An empty `where` always matches. */
+function factMatchesWhere(fact: TFact, where: [string[], TShibari][]): boolean {
+	return where.every(([segments, filter]) => evaluateShibari(navigateValue(fact.value, segments).value, filter));
 }
 
 /** Converts a `where` value to a filter. A value that names an operator parses as a filter. Any other value becomes `{ eq }` of the value. */

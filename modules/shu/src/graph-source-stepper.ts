@@ -33,7 +33,7 @@ import { persistPrincipalIndividual } from "@haibun/core/lib/principal-individua
 import { requestSigner } from "@haibun/core/lib/session-authority.js";
 import { RemoteGraphSource } from "./remote-graph-source.js";
 import { withOntologySchema } from "./graph/ontology-projection.js";
-import { enumerateStandardVocab } from "./graph/standard-vocabulary.js";
+import { enumerateStandardVocab } from "@haibun/core/lib/records/pipelines/standard-vocabulary.js";
 
 /** The values a filter offers for each field of a type that names one. */
 const ShuSelectValuesSchema = z.object({ values: z.record(z.string(), z.array(z.string())) });
@@ -180,7 +180,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 				// uses. Its evidence is the response's own quads, which is what the store holds: a fact announced is a
 				// fact written, so a second buffer wouldn't add a fact. The offline report assembles it the same
 				// way (buildGraphSource).
-				const standardVocab = await enumerateStandardVocab(this.getWorld().domains);
+				const standardVocab = await enumerateStandardVocab(this.getWorld().domains, (message) => this.getWorld().eventLogger.warn(message));
 				const withSchema = withOntologySchema({ quads, clusters: model.snapshot.clusters }, quads, this.getWorld().domains, standardVocab);
 				return actionOKWithProducts({ ...withSchema, site: activeSitePrincipal(this.getWorld()) });
 			},

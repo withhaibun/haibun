@@ -14,6 +14,7 @@ import { SHU_TEST_IDS } from "../test-ids.js";
 import { LINT_FINDING } from "@haibun/core/lib/domain-chain-lint.js";
 import { DOMAIN_AFFORDANCES, DOMAIN_STRING } from "@haibun/core/lib/domains.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
+import { factIdOf } from "@haibun/core/lib/seq-path.js";
 import { readingExecution } from "../client-cache/executions.js";
 import { declareFakeGraphPresenter, mountedPresenter } from "../graph-presenter.test-fake.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
@@ -181,8 +182,10 @@ describe("shu-domain-chain-view", () => {
 		const view = mount();
 		const opened = vi.spyOn(PaneState, "requestFrom").mockImplementation(() => undefined);
 		const initialAffGoal = deepLink(AFFORDANCE_PARAM.GOAL);
-		view.routeNodeClick(chainNode({ id: "fact:0.1.3.2", kind: NODE_KIND.factInstance, wasGeneratedBy: { factId: "0.1.3.2", domain: "issuer" } }));
-		view.routeNodeClick(chainNode({ id: "fact:0.1.4#issuer", kind: NODE_KIND.factInstance, wasGeneratedBy: { factId: "0.1.4#issuer", domain: "issuer" } }));
+		const whole = factIdOf({ execution: EXECUTION, path: [0, 1, 3, 2] });
+		const field = factIdOf({ execution: EXECUTION, path: [0, 1, 4] }, "issuer");
+		view.routeNodeClick(chainNode({ id: `fact:${whole}`, kind: NODE_KIND.factInstance, wasGeneratedBy: { factId: whole, domain: "issuer" } }));
+		view.routeNodeClick(chainNode({ id: `fact:${field}`, kind: NODE_KIND.factInstance, wasGeneratedBy: { factId: field, domain: "issuer" } }));
 		expect(opened.mock.calls.map(([, pane]) => pane)).toEqual([
 			{ paneType: "step-detail", seqPath: [0, 1, 3, 2] },
 			{ paneType: "step-detail", seqPath: [0, 1, 4] },

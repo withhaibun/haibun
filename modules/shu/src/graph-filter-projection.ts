@@ -18,7 +18,6 @@
  * `filterEl.setSource(...)`. The filter's render calls this pure function with them.
  */
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
-import { isInstrumentationGraph } from "@haibun/core/lib/instrumentation-graphs.js";
 import { isInstrumentationType } from "./rels-cache.js";
 import { isSchemaType } from "./graph/ontology-projection.js";
 import { isEdgeQuad } from "./graph-model.js";
@@ -62,8 +61,7 @@ export function projectFilterClusters(opts: { knownClusters: Map<string, TCluste
 /**
  * Returns the effective hidden-type set. A person's explicit override takes precedence. Without an override,
  * instrumentation and the schema types (`isSchemaType`) are hidden by default, and every other type is visible.
- * Instrumentation is a type that declares it (`isInstrumentationType`) or a named graph without a type (observation/*,
- * facts, variables, `isInstrumentationGraph`).
+ * Instrumentation is a type whose declaration states it (`isInstrumentationType`), as the facts and the variables do.
  * `overrides[type]`: true = shown, false = hidden, absent = the predicate determines it. This function is the one place
  * that combines the default with the overrides. The filter (chip state) and the host views (which graphs render) call it,
  * so a live page and an offline report hide the same types. The rule applies the same way to a type that arrives only
@@ -78,7 +76,7 @@ export function effectiveHiddenTypes(types: Iterable<string>, overrides: Record<
 	const hidden = new Set<string>();
 	for (const type of types) {
 		const choice = overrides[type];
-		if (choice === undefined ? isInstrumentationGraph(type) || isInstrumentationType(type) || isSchemaType(type) : !choice) hidden.add(type);
+		if (choice === undefined ? isInstrumentationType(type) || isSchemaType(type) : !choice) hidden.add(type);
 	}
 	// An explicit hide applies before its type appears in `types`, such as a control-product hide of a type without data.
 	// An explicit show of an absent type doesn't change the view until the type arrives. The type shows then.

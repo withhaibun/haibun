@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 
 import { GOAL_FINDING, REFUSAL_REASON, resolveGoal, type TResolverInputs } from "./goal-resolver.js";
 import type { TDomainChainGraph } from "./domain-chain.js";
-import type { TQuad } from "./quad-types.js";
+import type { TFact } from "./records/domains/facts.js";
 import { RUN_AUTHORITY } from "./capability-context.js";
 import { itemAt } from "./util/item-at.js";
 
@@ -22,21 +22,21 @@ function singleProducerGraph(input: string, output: string, capability = "S:make
 }
 
 /** What the resolver is given: a caller that holds what actuality holds, where the case isn't about what it holds. */
-function inputs(graph: TDomainChainGraph, facts: TQuad[] = [], held: string[] = RUN_AUTHORITY): TResolverInputs {
+function inputs(graph: TDomainChainGraph, facts: TFact[] = [], held: string[] = RUN_AUTHORITY): TResolverInputs {
 	return { graph, facts, held };
 }
 
 describe("resolveGoal", () => {
 	it("returns satisfied when a fact of the goal already exists", () => {
 		const graph = singleProducerGraph("a", "b");
-		const fact: TQuad = { subject: "fact-1", predicate: "b", object: { id: "x" }, namedGraph: "facts", timestamp: 1 };
+		const fact: TFact = { id: "fact-1", domain: "b", value: { id: "x" } };
 		const result = resolveGoal("b", inputs(graph, [fact]));
 		expect(result).toMatchObject({ finding: GOAL_FINDING.SATISFIED, goal: "b", factIds: ["fact-1"] });
 	});
 
 	it("a satisfied goal still surfaces producer paths so the user can run again to produce another instance", () => {
 		const graph = singleProducerGraph("a", "b");
-		const existingGoalFact: TQuad = { subject: "fact-1", predicate: "b", object: { id: "x" }, namedGraph: "facts", timestamp: 1 };
+		const existingGoalFact: TFact = { id: "fact-1", domain: "b", value: { id: "x" } };
 		const result = resolveGoal("b", inputs(graph, [existingGoalFact]));
 		expect(result.finding).toBe(GOAL_FINDING.SATISFIED);
 		if (result.finding !== GOAL_FINDING.SATISFIED) throw new Error("unreachable");
@@ -49,8 +49,8 @@ describe("resolveGoal", () => {
 
 	it("returns satisfied with every matching fact id (multiple facts of the same goal)", () => {
 		const graph = singleProducerGraph("a", "b");
-		const f1: TQuad = { subject: "fact-1", predicate: "b", object: { id: "x" }, namedGraph: "facts", timestamp: 1 };
-		const f2: TQuad = { subject: "fact-2", predicate: "b", object: { id: "y" }, namedGraph: "facts", timestamp: 2 };
+		const f1: TFact = { id: "fact-1", domain: "b", value: { id: "x" } };
+		const f2: TFact = { id: "fact-2", domain: "b", value: { id: "y" } };
 		const result = resolveGoal("b", inputs(graph, [f1, f2]));
 		expect(result).toMatchObject({ finding: GOAL_FINDING.SATISFIED, factIds: ["fact-1", "fact-2"] });
 	});
@@ -64,7 +64,7 @@ describe("resolveGoal", () => {
 
 	it("returns michi when a producer chain exists from current facts", () => {
 		const graph = singleProducerGraph("a", "b");
-		const fact: TQuad = { subject: "fact-1", predicate: "a", object: { id: "x" }, namedGraph: "facts", timestamp: 1 };
+		const fact: TFact = { id: "fact-1", domain: "a", value: { id: "x" } };
 		const result = resolveGoal("b", inputs(graph, [fact]));
 		expect(result.finding).toBe(GOAL_FINDING.MICHI);
 		if (result.finding === GOAL_FINDING.MICHI) {
@@ -89,7 +89,7 @@ describe("resolveGoal", () => {
 				{ from: "a", to: "b", stepperName: "S", stepName: "make2" },
 			],
 		};
-		const fact: TQuad = { subject: "fact-1", predicate: "a", object: { id: "x" }, namedGraph: "facts", timestamp: 1 };
+		const fact: TFact = { id: "fact-1", domain: "a", value: { id: "x" } };
 		const result = resolveGoal("b", inputs(graph, [fact]));
 		expect(result.finding).toBe(GOAL_FINDING.MICHI);
 		if (result.finding === GOAL_FINDING.MICHI) {
@@ -99,8 +99,8 @@ describe("resolveGoal", () => {
 
 	it("filters facts by shibari `where` (value equality)", () => {
 		const graph = singleProducerGraph("a", "b");
-		const f1: TQuad = { subject: "fact-1", predicate: "b", object: { id: "x", role: "issuer" }, namedGraph: "facts", timestamp: 1 };
-		const f2: TQuad = { subject: "fact-2", predicate: "b", object: { id: "y", role: "verifier" }, namedGraph: "facts", timestamp: 2 };
+		const f1: TFact = { id: "fact-1", domain: "b", value: { id: "x", role: "issuer" } };
+		const f2: TFact = { id: "fact-2", domain: "b", value: { id: "y", role: "verifier" } };
 		const result = resolveGoal("b", { graph, facts: [f1, f2], held: [], where: { role: "issuer" } });
 		expect(result).toMatchObject({ finding: GOAL_FINDING.SATISFIED, factIds: ["fact-1"] });
 	});
@@ -159,14 +159,14 @@ describe("resolveGoal", () => {
 
 	it("filters out producer steps the caller does not have capability for", () => {
 		const graph = singleProducerGraph("a", "b", "auth:signin");
-		const fact: TQuad = { subject: "fact-1", predicate: "a", object: { id: "x" }, namedGraph: "facts", timestamp: 1 };
+		const fact: TFact = { id: "fact-1", domain: "a", value: { id: "x" } };
 		const result = resolveGoal("b", inputs(graph, [fact], []));
 		expect(result.finding).toBe(GOAL_FINDING.UNREACHABLE);
 	});
 
 	it("includes the capability-gated step when the caller has the capability", () => {
 		const graph = singleProducerGraph("a", "b", "auth:signin");
-		const fact: TQuad = { subject: "fact-1", predicate: "a", object: { id: "x" }, namedGraph: "facts", timestamp: 1 };
+		const fact: TFact = { id: "fact-1", domain: "a", value: { id: "x" } };
 		const result = resolveGoal("b", inputs(graph, [fact], ["auth:signin"]));
 		expect(result.finding).toBe(GOAL_FINDING.MICHI);
 	});

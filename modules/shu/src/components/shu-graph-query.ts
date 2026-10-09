@@ -13,7 +13,8 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { CountedSchema, MAX_PAGE_ROWS, counted, viewCollection, type TCounted } from "@haibun/core/lib/hypermedia.js";
 import { anIndividual, aType, type TContextPattern, QueryViewSchema } from "../schemas.js";
 import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
-import { typeNotHeld, viewQuery, type TViewQuery } from "../view-query.js";
+import { typeNotHeld, viewQuery, type THeldTypeLink, type TViewQuery } from "../view-query.js";
+import { SHU_TEST_IDS } from "../test-ids.js";
 import { ViewQueryControlSchema } from "./shu-graph-query.controls-schema.js";
 import { shuBaseStyles } from "./styles.js";
 import { esc } from "../util.js";
@@ -72,6 +73,8 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		return getWindowSize();
 	}
 	private error = "";
+	/** The links a refusal offers: the query of each type actuality holds, where the address names a type it doesn't hold. */
+	#remedies: THeldTypeLink[] = [];
 
 	// The query (type, search, sort, page, access, filters) IS the hash-backed viewQuery store: the single,
 	// schema-validated, reload-safe source of truth. These getters read it; writes go through viewQuery.set().
@@ -251,7 +254,10 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		// identically on every retrigger (each SSE batch fires one), flooding the server and actuality log. Report why once
 		// instead. An address outlives the actuality it was made in, so it keeps the type it names.
 		if (!label && !textQuery?.trim()) return this.#refuse("a query needs a record type or search text");
-		if (label && !this.labels.includes(label)) return this.#refuse(typeNotHeld(label));
+		if (label && !this.labels.includes(label)) {
+			const refusal = typeNotHeld(label, this.labels);
+			return this.#refuse(refusal.error, refusal.held);
+		}
 		const sortBy = this.qSort;
 		const sortOrder = this.qOrder;
 
@@ -277,6 +283,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		}
 
 		this.error = "";
+		this.#remedies = [];
 		const work = (async () => {
 			try {
 				const payload = {
@@ -444,9 +451,10 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		return this.resultTable;
 	}
 
-	/** Show why the query wasn't sent, and clear the rows. */
-	#refuse(why: string): void {
+	/** Show why the query wasn't sent with the links that remedy it, and clear the rows. */
+	#refuse(why: string, remedies: THeldTypeLink[] = []): void {
 		this.error = why;
+		this.#remedies = remedies;
 		this.results = [];
 		this.#counted = counted(0);
 		this.#source = arrayWindowedSource<VertexRow>([]);
@@ -458,7 +466,9 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		if (!target) return;
 
 		if (this.error) {
-			target.innerHTML = `<div class="results-pane" data-testid="shu-query"><div class="error-banner">${esc(this.error)}</div></div>`;
+			const links = this.#remedies.map(({ label, href }) => `<a href="${esc(href)}" data-testid="${SHU_TEST_IDS.QUERY.HELD_TYPE}-${esc(label)}">${esc(label)}</a>`).join(" ");
+			const remedies = links ? `<nav class="remedies">${links}</nav>` : "";
+			target.innerHTML = `<div class="results-pane" data-testid="${SHU_TEST_IDS.QUERY.ROOT}"><div class="error-banner">${esc(this.error)}${remedies}</div></div>`;
 			return;
 		}
 

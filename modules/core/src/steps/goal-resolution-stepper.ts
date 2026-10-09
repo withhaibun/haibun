@@ -46,8 +46,8 @@ import { resolveGoal, GOAL_FINDING, type TGoalResolution, type TMichi, type TBin
 import { runRegistry, stepMethodName, type StepRegistry } from "../lib/step-registry.js";
 import { callStepByName } from "../lib/call-step.js";
 import { buildAffordances, providesWaypoints, AFFORDANCE_EVENT_PREFIX, type TWaypointEntry, satisfiedGoalDomains } from "../lib/affordances.js";
-import { FACT_GRAPH } from "../lib/working-memory.js";
-import { executionOf } from "../lib/seq-path.js";
+import { readFacts } from "../lib/records/pipelines/facts.js";
+import { executionOf, factIdOf } from "../lib/seq-path.js";
 import { callerHolds, RUN_AUTHORITY, stepInFlight } from "../lib/capability-context.js";
 import { Access } from "../lib/resources.js";
 
@@ -96,7 +96,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 					.split(",")
 					.map((s: string) => s.trim())
 					.filter((s: string) => s.length > 0);
-				const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
+				const facts = await readFacts(world.shared.getStore());
 				const smokeFindings = goals.map((goal: string) => {
 					// Actuality makes this check with RUN_AUTHORITY, so the check reaches every step actuality offers.
 					const resolution = resolveGoal(goal, { graph, facts, held: RUN_AUTHORITY, ...this.compositeOptions() });
@@ -156,12 +156,12 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 	private async runResolution(goal: string): Promise<TGoalResolution> {
 		const world = this.getWorld();
 		const graph = buildDomainChain(this.steppers, world.domains);
-		const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
+		const facts = await readFacts(world.shared.getStore());
 		return resolveGoal(goal, { graph, facts, held: callerHolds(), ...this.compositeOptions() });
 	}
 
 	/** Runs a michi's steps in order. callStepByName calls each step with a synthetic seqPath, as other transports call steps.
-	 *  Returns each call's seqPath as a produced factId. The first step that fails stops the michi, and its error is returned. */
+	 *  Returns the id of each call's fact. The first step that fails stops the michi, and its error is returned. */
 	private async executeMichi(goal: string, michi: TMichi): Promise<ReturnType<typeof actionOKWithProducts> | ReturnType<typeof actionNotOK>> {
 		const world = this.getWorld();
 		const registry = runRegistry(world);
@@ -170,7 +170,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			const method = stepMethodName(step.stepperName, step.stepName);
 			const call = await callStepByName({ registry, world, steppers: this.steppers }, method);
 			if (!call.result.ok) return actionNotOK(`pursue ${goal}: step ${i} (${method}) failed: ${call.result.errorMessage}`);
-			factIds.push(call.seqPath.join("."));
+			factIds.push(factIdOf({ execution: executionOf(world.tag), path: call.seqPath }));
 		}
 		return actionOKWithProducts({ finding: "executed", goal, factIds });
 	}
@@ -184,7 +184,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 	 */
 	private async computeAffordances(asOf: number[] | undefined, featureStep: TFeatureStep) {
 		const world = this.getWorld();
-		const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
+		const facts = await readFacts(world.shared.getStore());
 		const composite = this.compositeOptions();
 		const affordances = buildAffordances({
 			steppers: this.steppers,
@@ -315,7 +315,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 				// The bound view (`shu-domain-chain-view`) draws the chain with the graph presenter from affordance data
 				// (forward edges and goal verdicts). The product carries both, so the lint pane shows the graph when it
 				// opens, with the lint findings that mark orphan, unsupplied and unreachable nodes.
-				const facts = await world.shared.getStore().query({ namedGraph: FACT_GRAPH });
+				const facts = await readFacts(world.shared.getStore());
 				const affordances = buildAffordances({ steppers: this.steppers, domains: world.domains, facts, held: callerHolds() });
 				return actionOKWithProducts(chainLintSchema.parse({ ...report, forward: affordances.forward, goals: affordances.goals, execution: executionOf(world.tag) }));
 			},

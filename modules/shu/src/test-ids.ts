@@ -70,7 +70,8 @@ export const SHU_TEST_IDS = {
 	/** The graph filter's own controls, beside its chips. */
 	GRAPH_FILTER: { SOLO: "graph-filter-solo", SCHEMA: "graph-filter-schema", LIMIT: "graph-filter-limit", LIMIT_VALUE: "graph-filter-limit-value" },
 	FILTER: { PROPERTY_0: "app-cond-property-0", OPERATOR_0: "app-cond-operator-0", VALUE_0: "app-cond-value-0", REMOVE_0: "app-remove-filter-0" },
-	QUERY: { ROOT: "shu-query", TABLE: "query-table", FIRST_ROW: "query-row-first", ROW: "query-row", RESULTS: "query-results" },
+	/** HELD_TYPE: a link to the query of a type actuality holds, offered where the address names a type it doesn't hold: `query-held-type-{type}`. */
+	QUERY: { ROOT: "shu-query", TABLE: "query-table", FIRST_ROW: "query-row-first", ROW: "query-row", RESULTS: "query-results", HELD_TYPE: "query-held-type" },
 	QUAD_ITEM: { ROOT: "shu-quad-item" },
 	COLUMN_BROWSER: {
 		COLUMN: "browser-column",

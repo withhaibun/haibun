@@ -4,6 +4,7 @@ import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
 import { seqPathDomainDefinition } from "@haibun/core/lib/seq-path.js";
+import { factDomainDefinition } from "@haibun/core/lib/records/domains/facts.js";
 import {
 	COMMENT_LABEL,
 	PRINCIPAL_LABEL,
@@ -105,9 +106,8 @@ describe("projectFilterClusters", () => {
 
 describe("effectiveHiddenTypes (instrumentation default + user overrides)", () => {
 	const types = ["Person", "SeqPath", "facts"];
-	// SeqPath declares itself instrumentation in its topology, which the page reads from the catalog. The facts graph and
-	// observation/* don't have a type, so the named-graph list states them.
-	beforeEach(() => setSiteMetadata(siteMetadataFromConcerns(buildConcernCatalog(mapDefinitionsToDomains([seqPathDomainDefinition])))));
+	// SeqPath and the facts each declare instrumentation in the topology, which the page reads from the catalog.
+	beforeEach(() => setSiteMetadata(siteMetadataFromConcerns(buildConcernCatalog(mapDefinitionsToDomains([seqPathDomainDefinition, factDomainDefinition])))));
 
 	it("hides instrumentation by default without user overrides, and the default is not a stored choice", () => {
 		expect(effectiveHiddenTypes(types, {}).sort()).toEqual(["SeqPath", "facts"]);
@@ -119,10 +119,6 @@ describe("effectiveHiddenTypes (instrumentation default + user overrides)", () =
 
 	it("an explicit hide override hides a default-visible domain type", () => {
 		expect(effectiveHiddenTypes(types, { Person: false }).sort()).toEqual(["Person", "SeqPath", "facts"]);
-	});
-
-	it("classifies a streamed observation/* type as instrumentation even without a cluster record", () => {
-		expect(effectiveHiddenTypes([...types, "observation/http-request"], { SeqPath: true }).sort()).toEqual(["facts", "observation/http-request"]);
 	});
 
 	it("treats a non-instrumentation (domain) type as visible", () => {

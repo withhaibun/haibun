@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import { GOAL_FINDING, resolveGoal, type TBinding, type TResolverInputs } from "./goal-resolver.js";
 import type { TDomainChainGraph } from "./domain-chain.js";
-import type { TQuad } from "./quad-types.js";
+import type { TFact } from "./records/domains/facts.js";
 import type { TRegisteredDomain } from "./resources.js";
 import { RUN_AUTHORITY } from "./capability-context.js";
 
@@ -82,7 +82,7 @@ describe("resolveGoal, composite decomposition", () => {
 
 	it("binds an existing fact to a ranged field instead of an argument", () => {
 		const graph = graphIssuingCredential();
-		const issuerFact: TQuad = { subject: "fact-issuer-1", predicate: "issuer", object: { did: "did:example:alice" }, namedGraph: "facts", timestamp: 1 };
+		const issuerFact: TFact = { id: "fact-issuer-1", domain: "issuer", value: { did: "did:example:alice" } };
 		const result = resolveGoal("verifiable-credential", withComposite({ graph, facts: [issuerFact], held: RUN_AUTHORITY }));
 		if (result.finding !== GOAL_FINDING.MICHI) throw new Error(`expected MICHI, got ${result.finding}`);
 		const composite = findComposite(result.michi[0].bindings);

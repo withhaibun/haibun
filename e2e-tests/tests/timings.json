@@ -22,7 +22,7 @@
 				"declaredStepTextHash": "b0eca8f53cdbc72079c3b13890aacf1b33a0fd50daccc93402e9d434c3b3338d"
 			},
 			"/features/agents-examples.feature": {
-				"seconds": 0.7,
+				"seconds": 0.9,
 				"steps": 354,
 				"declaredStepTextHash": "21975836a8d8dc1c98fd6751ebb98ed0eab60297e903e4b22845040245c6a8eb"
 			},
@@ -42,7 +42,7 @@
 				"declaredStepTextHash": "072620079179e9e5107f464049dff25238322ae72af9ff2ba115e09886cf2715"
 			},
 			"/features/counter.feature": {
-				"seconds": 0.7,
+				"seconds": 2.1,
 				"steps": 20,
 				"declaredStepTextHash": "179f2a7919aa297e130229e22984568a4465c73dbdcc6f5e39a2727caad9eb0f"
 			},
@@ -72,7 +72,7 @@
 				"declaredStepTextHash": "21d12de51d05e0a188e3bb7b5c56f79a774c8a92bac1f5772ec1709125f2317d"
 			},
 			"/features/identity-and-capability.feature.ts": {
-				"seconds": 0,
+				"seconds": 0.1,
 				"steps": 28,
 				"declaredStepTextHash": "9b4970ae48e7e295d24b51ebbd7dbb598cb482c27a437894d209062b86b60910"
 			},
@@ -87,17 +87,17 @@
 				"declaredStepTextHash": "19319d61d4aefc9cb0f31275a41584382b21cbc1439888a263facb9b6bbb362d"
 			},
 			"/features/once.feature.ts": {
-				"seconds": 0.4,
+				"seconds": 0.5,
 				"steps": 20,
 				"declaredStepTextHash": "e9fbbbaca778b5d638d6359d648c1b65c4c48a6e50274ac870dce6fe36f01355"
 			},
 			"/features/popup.feature": {
-				"seconds": 0.5,
+				"seconds": 0.6,
 				"steps": 13,
 				"declaredStepTextHash": "94d2694ac524d72db66b5a093c77648ec1c808852fc3f4a11d761b77a0e8e0e6"
 			},
 			"/features/qrcode.feature": {
-				"seconds": 2.7,
+				"seconds": 2.8,
 				"steps": 18,
 				"declaredStepTextHash": "414d23a119d105d311d8e8a0496102881e35613d91a514f21985534ec401eeda"
 			},
@@ -127,7 +127,7 @@
 				"declaredStepTextHash": "423b87fb62e3b26879565f24459e8474ab76e2eb6ff85bc3a5e49704ea336e08"
 			},
 			"/features/wikipedia.feature.ts": {
-				"seconds": 0.9,
+				"seconds": 1.2,
 				"steps": 145,
 				"declaredStepTextHash": "12a4293774dfd5657628d72b995d32c6ec6b481634fe6e7d8f434f5bde67c381"
 			},
@@ -143,6 +143,6 @@
 			}
 		},
 		"steps": 1151,
-		"seconds": 12.8
+		"seconds": 15.1
 	}
 }

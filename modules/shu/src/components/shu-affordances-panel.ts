@@ -26,10 +26,10 @@ import { RPC_METHOD, SHU_EVENT, AFFORDANCE_PARAM, SHU_TAG } from "../consts.js";
 import { defineElement } from "../define-element.js";
 import * as ViewHash from "../view-hash.js";
 import { pathNodeIds, projectGoalPaths } from "../graph/project-goal-paths.js";
+import { producingStepOf } from "../graph/project-domain-chain.js";
 import { graphToQuads } from "../graph/graph-quads.js";
 import { mountGraphPresenter, presenterIn, type TGraphPresenter, type TPresenterNodeClick } from "../graph-presenter.js";
 import { actionRef, domainRef, factIdRef } from "./shu-ref.js";
-import { producingStep } from "@haibun/core/lib/seq-path.js";
 import { openRef } from "./ref-navigation.js";
 import { nodeIn, type TGraph } from "../graph/types.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
@@ -73,6 +73,8 @@ const ShuAffordancesPanelSchema = z.object({
 	openWaypoint: z.string().default(""),
 });
 
+/** The words before the links to the facts that satisfy a goal. */
+const ALREADY_ASSERTED = "already asserted: ";
 const AFF_GOAL_PARAM = AFFORDANCE_PARAM.GOAL;
 const AFF_WAYPOINT_PARAM = AFFORDANCE_PARAM.WAYPOINT;
 /** Coalesce the per-step change signals into at most one snapshot refetch per window: a run emits one signal per
@@ -206,9 +208,8 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 			this.chooseStep(stepMethodName(invokes.stepperName, invokes.stepName));
 			return;
 		}
-		const factId = node.wasGeneratedBy?.factId;
-		if (typeof factId !== "string") return;
-		openRef(e, "seqPath", { seqPath: producingStep(factId) });
+		const seqPath = producingStepOf(node);
+		if (seqPath) openRef(e, "seqPath", { seqPath });
 	}
 
 	private applyAffordances(a: TAffordances): void {
@@ -317,9 +318,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		if (r.finding === GOAL_FINDING.SATISFIED) {
 			if (!Array.isArray(r.factIds))
 				throw new Error(`shu-affordances-panel: satisfied resolution for ${g.domain} doesn't have factIds[]. Got: ${JSON.stringify(r).slice(0, 200)}.`);
-			// Build the static prefix as one string so lit-html doesn't insert a `<!--?lit-->` part marker between "as" and "fact(s)", readers (and tests) match the natural sentence "asserted as facts <id list>".
-			const prefix = `already asserted as ${r.factIds.length === 1 ? "fact" : "facts"} `;
-			const factsTpl = html`<div class="resolution-detail">${prefix}${r.factIds.map((id, i) => html`${i > 0 ? ", " : ""}${unsafeHTML(factIdRef(id))}`)}</div>`;
+			const factsTpl = html`<div class="resolution-detail">${ALREADY_ASSERTED}${r.factIds.map((id, i) => html`${i > 0 ? ", " : ""}${unsafeHTML(factIdRef(id))}`)}</div>`;
 			// Satisfied is not terminal, render the run-again paths to produce another instance.
 			if (Array.isArray(r.michi) && r.michi.length > 0) return html`${factsTpl}${this.renderMichiSectionTpl(r.michi, r.truncated, goalIdx, true)}`;
 			return factsTpl;

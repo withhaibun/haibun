@@ -404,3 +404,9 @@ export function linkVocabularyFromDomains(domains: Record<string, TRegisteredDom
 export function getPersistedDomains(domains: Record<string, TRegisteredDomain>): Array<TRegisteredDomain & { topology: THypermediaTopology }> {
 	return Object.values(domains).filter((d): d is TRegisteredDomain & { topology: THypermediaTopology } => isPersisted(d.topology));
 }
+
+/** Returns the persisted domains a backing store registers: each one whose topology doesn't state `heldBy`. Core holds or
+ *  derives the records of a type that states it. */
+export function getBackedDomains(domains: Record<string, TRegisteredDomain>): Array<TRegisteredDomain & { topology: THypermediaTopology }> {
+	return getPersistedDomains(domains).filter((domain) => domain.topology.heldBy === undefined);
+}

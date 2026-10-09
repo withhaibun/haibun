@@ -25,6 +25,7 @@ import { openRunRegistry, type StepRegistry } from "../lib/step-registry.js";
 import { featureAsData } from "../lib/features.js";
 import { SCENARIO_START } from "../schema/protocol.js";
 import { FeatureVariables } from "../lib/feature-variables.js";
+import { FACT_LABEL } from "../lib/resources.js";
 import { registerDomains, registerStepperNames } from "../lib/domains.js";
 import { doStepperCycle, doStepperCycleSync } from "../lib/stepper-cycles.js";
 import { basename } from "path";
@@ -60,19 +61,9 @@ export function calculateShouldClose({ thisFeatureOK, isLast, continueAfterError
 	return !effectivelyLast || !staysAfterExecution(stay, thisFeatureOK);
 }
 
-function initExecutionRuntime(_world: TWorld): void {
-	// The quad store holds working-memory observations under the observation/* named graphs. The world's FeatureVariables
-	// creates the store, so this function doesn't initialize one.
-}
-
+/** Clears the facts between features, so a feature doesn't read another feature's facts. The variables remain. */
 async function initFeatureRuntime(world: TWorld): Promise<void> {
-	// Clears the transient graphs between features, so a feature doesn't read another feature's state. The observation/*
-	// graphs hold runtime metrics and counters. The facts graph holds the step-product assertions that dispatchStep writes.
-	// This function doesn't clear SHARED_GRAPH, so the feature variables in the store remain.
-	const store = world.shared.getStore();
-	const allQuads = await store.all();
-	const transientGraphs = new Set(allQuads.filter((q) => q.namedGraph.startsWith("observation/") || q.namedGraph === "facts").map((q) => q.namedGraph));
-	for (const graph of transientGraphs) await store.clear(graph);
+	await world.shared.getStore().clear(FACT_LABEL);
 }
 
 /**
@@ -111,7 +102,6 @@ export class Executor {
 	}
 
 	private static async runFeatures(steppers: AStepper[], world: TWorld, features: TResolvedFeature[]): Promise<TExecutorResult> {
-		initExecutionRuntime(world);
 		world.runtime.steppers = steppers;
 		const stepRegistry = openRunRegistry(world, steppers);
 		// Every transport attaches to actuality's one registry. A remote proxy injects the remote host's steps into the
@@ -152,6 +142,9 @@ export class Executor {
 			// basename without its extensions.
 			const featureName = feature.name || basename(feature.path).replace(/\..*$/, "");
 			const newWorld = { ...world, tag: { ...world.tag, featureNum, featureName } };
+			// The feature's variables are written by a store of the feature's world, so each names the step that set it under
+			// the feature's execution.
+			newWorld.shared = new FeatureVariables(newWorld, await world.shared.carried());
 
 			await initFeatureRuntime(newWorld);
 
@@ -165,6 +158,8 @@ export class Executor {
 			);
 
 			const featureResult = await featureExecutor.doFeature(feature);
+			// The next feature starts from the records this feature's store holds.
+			world.shared = newWorld.shared;
 			if (newWorld.runtime?.exhaustionError) {
 				world.runtime.exhaustionError = newWorld.runtime.exhaustionError;
 			}

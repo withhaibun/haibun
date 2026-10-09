@@ -1,15 +1,17 @@
 // @vitest-environment jsdom
 /**
- * shu-step-detail reads one step's record and the quads whose provenance names it, through a @lit/task keyed on the
+ * shu-step-detail reads one step's record and the variables whose records link it, through a @lit/task keyed on the
  * step, so switching steps cancels the stale read and the previous step's data never lingers. The record is read from
- * the graph; the quads come from a stubbed RPC behind LiveConduit.
+ * the graph; the variables' quads come from a stubbed RPC behind LiveConduit.
  */
 import { serveThePage } from "../test-setup.js";
 import { runStore } from "../client-cache/run-store.test-fake.js";
 import { describe, it, expect, beforeEach } from "vitest";
 import "./shu-step-detail.js"; // side-effect import so the module runs (registration is via component-registry in the app)
 import { ShuStepDetail, stepRecordId } from "./shu-step-detail.js";
-import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
+import { EDGE, SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
+import { SHARED_GRAPH } from "@haibun/core/lib/quad-types.js";
+import { VARIABLE_FIELD } from "@haibun/core/lib/records/domains/variables.js";
 import { setConduit, LiveConduit } from "../hypermedia.js";
 import { setEventStream, SerializedEventStream } from "../event-stream.js";
 import { setGraphStore } from "../quads-snapshot.js";
@@ -19,6 +21,12 @@ import { rpcAnswer, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
 import { endPage } from "../page-pinned.js";
 
 const EXECUTION = "1700000000000-1";
+const STEP = `${EXECUTION}.0.1`;
+/** The record of a variable the step set: its value, and its edge to the step's record. */
+const SET_BY_STEP = [
+	{ subject: "myVar", predicate: VARIABLE_FIELD.value, object: "42", namedGraph: SHARED_GRAPH, timestamp: 1 },
+	{ subject: "myVar", predicate: EDGE.wasGeneratedBy, object: STEP, objectType: SEQ_PATH_LABEL, namedGraph: SHARED_GRAPH, timestamp: 1 },
+];
 
 describe("shu-step-detail", () => {
 	beforeEach(async () => {
@@ -31,7 +39,7 @@ describe("shu-step-detail", () => {
 		// One step of the execution being read: what it asked for, what ran, how it went and where.
 		const store = runStore();
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
-			id: `${EXECUTION}.0.1`,
+			id: STEP,
 			stepText: "a step",
 			called: "S.does",
 			actionStatus: "passed",
@@ -48,7 +56,7 @@ describe("shu-step-detail", () => {
 			if (url.endsWith(HANDSHAKE_PATH)) return Promise.resolve(rpcAnswer({ seqPath: [0, -1, 1] }, 200));
 			if (url.includes("getClusteredQuads"))
 				return Promise.resolve(
-					rpcAnswer({ quads: [{ subject: "myVar", predicate: "set", object: "42", namedGraph: "vars", timestamp: 1, properties: { provenance: [[0, 1]] } }] }, 200),
+					rpcAnswer({ quads: SET_BY_STEP }, 200),
 				);
 			// The page reads the step's record from what it holds, as it does where the site doesn't respond.
 			return Promise.reject(new TypeError("the step's record is read from the page"));

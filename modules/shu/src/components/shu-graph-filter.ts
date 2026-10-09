@@ -30,7 +30,7 @@ import { colorForType } from "../type-colors.js";
 import { clamp } from "../util.js";
 import { readElementPrefs } from "../element-prefs.js";
 import { projectFilterClusters, effectiveHiddenTypes, derivePredicates, explicitlyHidden } from "../graph-filter-projection.js";
-import { isSchemaType, ONTOLOGY_CLASS, ONTOLOGY_PROPERTY } from "../graph/ontology-projection.js";
+import { isSchemaType, SCHEMA_TYPES } from "../graph/ontology-projection.js";
 import "./shu-chip-group.js";
 import "./shu-field.js";
 import type { TChip } from "./shu-chip-group.js";
@@ -136,7 +136,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 	/** Reveal or hide SPECIFIC types without touching the others' visibility: the additive counterpart to setVisibleTypes
 	 *  (which is show-only). Ticking a default-hidden type (the merged schema's Class/Property) reveals it ALONGSIDE the
 	 *  live data, exactly as ticking its chip does. */
-	setTypeVisibility(types: string[], visible: boolean): void {
+	setTypeVisibility(types: readonly string[], visible: boolean): void {
 		const overrides = { ...this.state.overrides };
 		for (const t of types) overrides[t] = visible;
 		this.setState({ overrides });
@@ -310,7 +310,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 	/** The one classes-&-predicates toggle: the two schema term kinds reveal together or hide together. */
 	private onSchemaToggle = (e: Event): void => {
 		const on = (e.target as HTMLInputElement).checked;
-		this.setTypeVisibility([ONTOLOGY_CLASS, ONTOLOGY_PROPERTY], on);
+		this.setTypeVisibility(SCHEMA_TYPES, on);
 	};
 }
 

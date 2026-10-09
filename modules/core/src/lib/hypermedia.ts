@@ -65,6 +65,19 @@ export function queryableFields(domain: { schema: z.ZodType | undefined; topolog
 }
 
 /**
+ * Returns the persisted type a record names through a field whose declared range (`topology.ranges`) is the persisted
+ * types, or undefined where the record doesn't name one. A Class record names the type it describes. Throws where a
+ * record names more than one type.
+ */
+export function typeDescribedBy(domains: Record<string, TRegisteredDomain>, label: string, record: Record<string, unknown>): string | undefined {
+	const declared = hypermediaDomainMap(domains);
+	const typeFields = Object.entries(declared.get(label)?.topology.ranges ?? {}).flatMap(([field, range]) => (range === DOMAIN_PERSISTED_TYPE ? [field] : []));
+	const named = typeFields.map((field) => record[field]).filter((value): value is string => typeof value === "string" && declared.has(value));
+	if (named.length > 1) throw new Error(`a ${label} record names the types ${named.join(", ")}, and a record describes the records of one type`);
+	return named[0];
+}
+
+/**
  * The rels naming what a record is about, who it involves and what context it states. A reader names one of those
  * when they search.
  *
@@ -183,8 +196,8 @@ function subPropertyOfRel(rel: string): string | string[] | undefined {
 	}
 	return undefined;
 }
-import { HAIBUN_NS, type TRegisteredDomain } from "./resources.js";
-import { DOMAIN_UNION, refTargetOf } from "./domains.js";
+import { DOMAIN_PERSISTED_TYPE, HAIBUN_NS, type TRegisteredDomain } from "./resources.js";
+import { DOMAIN_UNION, hypermediaDomainMap, refTargetOf } from "./domains.js";
 import { jsonSchemaFor } from "./json-schema-of.js";
 import { unwrap, unwrapToShape } from "./zod-unwrap.js";
 import { zodTypeLabel } from "./composite-domain.js";
@@ -606,7 +619,8 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 		types.push(type);
 		idFields.set(type, topology.id);
 		schemas.set(type, domain.schema);
-		if (topology.displayLabel) titledBy.set(type, { key: topology.displayLabel, through: topology.edges?.[topology.displayLabel] !== undefined });
+		const title = titledByOf(topology);
+		if (title) titledBy.set(type, title);
 		if (topology.instrumentation) instrumentation.add(type);
 		const rels: Record<string, string> = {};
 		for (const [field, def] of Object.entries(topology.properties ?? {})) {
@@ -688,6 +702,10 @@ const DISPLAY_LABEL_WEAK: ReadonlyArray<{ rel: string; bare: boolean }> = [
 /** What titles a type: the property or edge it declares (`topology.displayLabel`), and whether it is an edge, which
  *  titles it by the record it points at. */
 export type TTitledBy = { key: string; through: boolean };
+
+/** Returns the property or edge that titles a type's records, where the type declares one (`topology.displayLabel`). */
+export const titledByOf = ({ displayLabel, edges }: Pick<THypermediaTopology, "displayLabel" | "edges">): TTitledBy | undefined =>
+	displayLabel === undefined ? undefined : { key: displayLabel, through: edges?.[displayLabel] !== undefined };
 
 /** A title as a type declares it for one record: for an edge, the title of the record it points at, where it points at one. */
 export type TDeclaredTitle = TTitledBy & { linkedLabel?: string };

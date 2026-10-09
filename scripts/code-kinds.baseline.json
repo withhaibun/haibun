@@ -130,9 +130,6 @@
 	"modules/core/src/lib/hypermedia.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/core/src/lib/instrumentation-graphs.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/core/src/lib/json-schema-of.ts": {
 		"isn't in a kind position": 1
 	},
@@ -308,9 +305,6 @@
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/util/secret-utils.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/working-memory.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/workspace-discovery.ts": {
@@ -737,9 +731,6 @@
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/graph/sequence-model-types.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/graph/standard-vocabulary.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/graph/svg-renderer.ts": {
