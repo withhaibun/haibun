@@ -3,7 +3,9 @@
 // the stream, which is why writing it isn't announced.
 import { describe, it, expect, beforeEach } from "vitest";
 import { executionOf, formatRecordName } from "@haibun/core/lib/seq-path.js";
-import { QuadStore } from "@haibun/core/lib/quad-store.js";
+import type { QuadStore } from "@haibun/core/lib/quad-store.js";
+import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { storeDeclaring } from "@haibun/core/lib/test/declared-types.js";
 import { asDomainKey } from "@haibun/core/lib/domains.js";
 import { LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL, logMessageDomainDefinition } from "@haibun/core/lib/log-message.js";
 import { RUN_ARTIFACT_FIELD, RUN_ARTIFACT_LABEL, runArtifactDomainDefinition } from "@haibun/core/lib/run-artifact.js";
@@ -37,14 +39,14 @@ function monitorOver(store: QuadStore): { onEvent: (e: THaibunEvent) => void; en
 describe("what a run logged, as a record", () => {
 	let store: QuadStore;
 	beforeEach(() => {
-		store = new QuadStore();
+		store = storeDeclaring({ [LOG_MESSAGE_LABEL]: {}, [RUN_ARTIFACT_LABEL]: {} });
 	});
 
 	it("records the statement, its level, when it was said and the step it was said during", async () => {
 		const monitor = monitorOver(store);
 		monitor.onEvent(said());
 		await monitor.ended();
-		const [record] = await store.queryIndividuals<Record<string, unknown>>(LOG_MESSAGE_LABEL);
+		const [record] = await readEvery(store, { label: LOG_MESSAGE_LABEL });
 		expect(record?.[LOG_MESSAGE_FIELD.message]).toBe("what it said");
 		expect(record?.[LOG_MESSAGE_FIELD.level]).toBe("warn");
 		expect(record?.[LOG_MESSAGE_FIELD.generatedAtTime]).toBe(new Date(1700).toISOString());
@@ -56,7 +58,7 @@ describe("what a run logged, as a record", () => {
 		monitor.onEvent(said({ message: "first", timestamp: 1700 }));
 		monitor.onEvent(said({ message: "second", timestamp: 1700 }));
 		await monitor.ended();
-		const records = await store.queryIndividuals<Record<string, unknown>>(LOG_MESSAGE_LABEL);
+		const records = await readEvery(store, { label: LOG_MESSAGE_LABEL });
 		expect(records.map((r) => r[LOG_MESSAGE_FIELD.message]).sort()).toEqual(["first", "second"]);
 	});
 
@@ -64,15 +66,15 @@ describe("what a run logged, as a record", () => {
 		const monitor = monitorOver(store);
 		monitor.onEvent({ id: "0.1", timestamp: 1700, kind: "lifecycle", level: "info", stage: "end" } as unknown as THaibunEvent);
 		await monitor.ended();
-		expect(await store.queryIndividuals(LOG_MESSAGE_LABEL)).toEqual([]);
+		expect(await readEvery(store, { label: LOG_MESSAGE_LABEL })).toEqual([]);
 	});
 
 	it("belongs to the step it was said during, named as any record of actuality is named", async () => {
-		const store = new QuadStore();
+		const store = storeDeclaring({ [LOG_MESSAGE_LABEL]: {}, [RUN_ARTIFACT_LABEL]: {} });
 		const monitor = monitorOver(store);
 		monitor.onEvent(said({ id: "0.-1.525", message: "what went wrong" }));
 		await monitor.ended();
-		const [record] = await store.queryIndividuals<Record<string, unknown>>(LOG_MESSAGE_LABEL);
+		const [record] = await readEvery(store, { label: LOG_MESSAGE_LABEL });
 		expect(record?.isPartOf).toBe(formatRecordName({ execution: executionOf(TAG), path: [0, -1, 525] }));
 		expect(record?.id, "its own name is that step's, and which of what it logged this is").toBe(formatRecordName({ execution: executionOf(TAG), path: [0, -1, 525], ordinal: 0 }));
 	});
@@ -99,7 +101,7 @@ describe("what a run logged, as a record", () => {
 		expect(ended, "the feature has not ended while a record write is under way").toBe(false);
 		finish();
 		await ending;
-		expect((await store.queryIndividuals(LOG_MESSAGE_LABEL)).length, "the record the feature waited for").toBe(1);
+		expect((await readEvery(store, { label: LOG_MESSAGE_LABEL })).length, "the record the feature waited for").toBe(1);
 	});
 
 	it("declares that writing it isn't announced, since actuality logging it was the announcement", () => {
@@ -111,7 +113,7 @@ describe("what a run produced, as a record", () => {
 	// An artifact is a file; the record of it states where it is and what it is, and points at the step that produced it.
 	let store: QuadStore;
 	beforeEach(() => {
-		store = new QuadStore();
+		store = storeDeclaring({ [LOG_MESSAGE_LABEL]: {}, [RUN_ARTIFACT_LABEL]: {} });
 	});
 
 	it("records where it is, what it is and the step that produced it", async () => {
@@ -127,7 +129,7 @@ describe("what a run produced, as a record", () => {
 			mimetype: "image/png",
 		} as unknown as THaibunEvent);
 		await monitor.ended();
-		const [record] = await store.queryIndividuals<Record<string, unknown>>(RUN_ARTIFACT_LABEL);
+		const [record] = await readEvery(store, { label: RUN_ARTIFACT_LABEL });
 		expect(record).toMatchObject({
 			[RUN_ARTIFACT_FIELD.artifactType]: "image",
 			[RUN_ARTIFACT_FIELD.path]: "/artifacts/shot.png",
@@ -143,7 +145,7 @@ describe("what a run produced, as a record", () => {
 		monitor.onEvent(shot("/artifacts/one.png"));
 		monitor.onEvent(shot("/artifacts/two.png"));
 		await monitor.ended();
-		expect((await store.queryIndividuals(RUN_ARTIFACT_LABEL)).length).toBe(2);
+		expect((await readEvery(store, { label: RUN_ARTIFACT_LABEL })).length).toBe(2);
 	});
 
 	it("doesn't record an artifact that doesn't name a file: a quad a store announces, or a trace of actuality's own machinery", async () => {
@@ -151,7 +153,7 @@ describe("what a run produced, as a record", () => {
 		monitor.onEvent({ id: "0.1", timestamp: 1700, kind: "artifact", level: "debug", artifactType: "json", json: {} } as unknown as THaibunEvent);
 		monitor.onEvent({ id: "http-trace-1", timestamp: 1700, kind: "artifact", level: "debug", artifactType: "http-trace", trace: {} } as unknown as THaibunEvent);
 		await monitor.ended();
-		expect(await store.queryIndividuals(RUN_ARTIFACT_LABEL), "an artifact is a file, and a record of it points at that file").toEqual([]);
+		expect(await readEvery(store, { label: RUN_ARTIFACT_LABEL }), "an artifact is a file, and a record of it points at that file").toEqual([]);
 	});
 });
 

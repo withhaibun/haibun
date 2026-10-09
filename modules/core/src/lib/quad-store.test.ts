@@ -1,6 +1,7 @@
-import { QuadStore, queryQuadStore, bucketOf, incomingEdgesOf } from "./quad-store.js";
+import { QuadStore, bucketOf } from "./quad-store.js";
 import { GraphQuerySchema } from "./quad-types.js";
-import { MAX_PAGE_ROWS } from "./hypermedia.js";
+import { readEvery } from "./records/pipelines/record-reads.js";
+import { storeDeclaring } from "./test/declared-types.js";
 import { describe, it, expect, beforeEach, beforeAll } from "vitest";
 import { accessBound, runAuthorizedWith, runReadingAt } from "./capability-context.js";
 import { readAction, readCeilingOf, writeAction } from "./actions.js";
@@ -173,44 +174,51 @@ describe("federated clustered reads (reads-first federation)", () => {
 
 describe("the answer a store of quads gives a graph query", () => {
 	// The site's inherent query and a page reading its own copy of the graph both ask this, so the two never drift.
-	const store = new QuadStore();
+	const declared = { Email: { filters: ["folder"] }, Note: { filters: ["generatedAtTime"] } };
+	const store = storeDeclaring(declared);
 	beforeAll(async () => {
 		await store.upsertIndividual("Email", { id: "a", folder: "INBOX" });
 		await store.upsertIndividual("Email", { id: "b", folder: "Sent" });
 	});
 
 	it("lists a type's records, narrowed by equality and windowed", async () => {
-		expect((await queryQuadStore(store, GraphQuerySchema.parse({ label: "Email" }))).total).toBe(2);
-		const sent = { "@type": "Email", id: "b", folder: "Sent" };
-		expect((await queryQuadStore(store, GraphQuerySchema.parse({ label: "Email", filters: [{ predicate: "folder", operator: "eq", value: "Sent" }] }))).vertices).toEqual([sent]);
-		expect((await queryQuadStore(store, GraphQuerySchema.parse({ label: "Email", limit: 1, offset: 1 }))).vertices, "each row carries its type").toEqual([sent]);
+		expect((await store.readRecords(GraphQuerySchema.parse({ label: "Email" }))).total).toBe(2);
+		const [inbox, sent] = [
+			{ "@id": "a", "@type": "Email", id: "a", folder: "INBOX" },
+			{ "@id": "b", "@type": "Email", id: "b", folder: "Sent" },
+		];
+		expect((await store.readRecords(GraphQuerySchema.parse({ label: "Email", filters: [{ predicate: "folder", operator: "eq", value: "Sent" }] }))).vertices).toEqual([sent]);
+		expect(
+			(await store.readRecords(GraphQuerySchema.parse({ label: "Email", limit: 1, offset: 1 }))).vertices,
+			"each row carries its type, and records without a time order by id",
+		).toEqual([inbox]);
 	});
 
 	it("reads a range of time, which is what paging through a long run by time asks of it", async () => {
 		const at = (t: string) =>
 			GraphQuerySchema.parse({ label: "Note", filters: [{ predicate: "generatedAtTime", operator: "gt", value: t }], sortBy: "generatedAtTime", sortOrder: "asc" });
-		const times = new QuadStore();
+		const times = storeDeclaring(declared);
 		await times.upsertIndividual("Note", { id: "a", generatedAtTime: "2026-01-01T00:00:00.000Z" });
 		await times.upsertIndividual("Note", { id: "b", generatedAtTime: "2026-06-01T00:00:00.000Z" });
 		await times.upsertIndividual("Note", { id: "c", generatedAtTime: "2026-12-01T00:00:00.000Z" });
-		expect((await queryQuadStore(times, at("2026-05-01T00:00:00.000Z"))).vertices.map((v) => v.id)).toEqual(["b", "c"]);
+		expect((await times.readRecords(at("2026-05-01T00:00:00.000Z"))).vertices.map((v) => v.id)).toEqual(["b", "c"]);
 		const between = GraphQuerySchema.parse({
 			label: "Note",
 			filters: [{ predicate: "generatedAtTime", operator: "between", value: "2026-02-01T00:00:00.000Z", value2: "2026-07-01T00:00:00.000Z" }],
 		});
-		expect((await queryQuadStore(times, between)).vertices.map((v) => v.id)).toEqual(["b"]);
+		expect((await times.readRecords(between)).vertices.map((v) => v.id)).toEqual(["b"]);
 	});
 
 	it("windows what the conditions matched, not what the store returned before they were applied", async () => {
-		const times = new QuadStore();
+		const times = storeDeclaring(declared);
 		for (const [id, month] of [
 			["a", "01"],
 			["b", "06"],
 			["c", "12"],
 		])
 			await times.upsertIndividual("Note", { id, generatedAtTime: `2026-${month}-01T00:00:00.000Z` });
-		const after = { label: "Note", filters: [{ predicate: "generatedAtTime", operator: "gt", value: "2026-05-01T00:00:00.000Z" }], limit: 1 };
-		const page = await queryQuadStore(times, GraphQuerySchema.parse(after));
+		const after = { label: "Note", filters: [{ predicate: "generatedAtTime", operator: "gt", value: "2026-05-01T00:00:00.000Z" }], sortOrder: "asc", limit: 1 };
+		const page = await times.readRecords(GraphQuerySchema.parse(after));
 		expect(
 			page.vertices.map((v) => v.id),
 			"the first of what matched",
@@ -219,7 +227,7 @@ describe("the answer a store of quads gives a graph query", () => {
 	});
 
 	it("orders what matched before windowing it, so a page of the newest is the newest of what matched", async () => {
-		const times = new QuadStore();
+		const times = storeDeclaring(declared);
 		for (const [id, month] of [
 			["b", "06"],
 			["c", "12"],
@@ -227,40 +235,9 @@ describe("the answer a store of quads gives a graph query", () => {
 		])
 			await times.upsertIndividual("Note", { id, generatedAtTime: `2026-${month}-01T00:00:00.000Z` });
 		const newest = GraphQuerySchema.parse({ label: "Note", sortBy: "generatedAtTime", sortOrder: "desc", limit: 2 });
-		expect((await queryQuadStore(times, newest)).vertices.map((v) => v.id)).toEqual(["c", "b"]);
+		expect((await times.readRecords(newest)).vertices.map((v) => v.id)).toEqual(["c", "b"]);
 		const oldest = GraphQuerySchema.parse({ label: "Note", sortBy: "generatedAtTime", sortOrder: "asc", limit: 2 });
-		expect((await queryQuadStore(times, oldest)).vertices.map((v) => v.id)).toEqual(["a", "b"]);
-	});
-
-	it("states what it cannot answer rather than answering wrongly", async () => {
-		await expect(queryQuadStore(store, GraphQuerySchema.parse({}))).rejects.toThrow(/one type at a time/);
-		await expect(queryQuadStore(store, GraphQuerySchema.parse({ label: "Email", textQuery: "inbox" }))).rejects.toThrow(/query engine/);
-		await expect(
-			queryQuadStore(store, GraphQuerySchema.parse({ label: "Email", references: { label: "Person", id: "a@b.test" } })),
-			"a label read that drops the reference would answer every record of the type",
-		).rejects.toThrow(/records referencing a record need a store with a query engine/);
-	});
-});
-
-describe("the most rows a page read over a store of quads returns", () => {
-	const over = MAX_PAGE_ROWS + 1;
-	const rejected = (method: string): string => `${method} rejects a limit of ${over} rows: a page holds 1 to ${MAX_PAGE_ROWS} rows`;
-	const store = new QuadStore();
-	beforeAll(async () => {
-		await store.upsertIndividual("Email", { id: "a", folder: "INBOX" });
-		await store.add({ subject: "b", predicate: "inReplyTo", object: "a", objectType: "Email", namedGraph: "Email" });
-	});
-
-	it("rejects a limit above MAX_PAGE_ROWS, and the error names the read, the limit and the maximum", async () => {
-		await expect(store.queryIndividuals("Email", undefined, { limit: over })).rejects.toThrow(rejected("queryIndividuals"));
-		await expect(queryQuadStore(store, GraphQuerySchema.parse({ label: "Email", limit: over }))).rejects.toThrow(rejected("queryQuadStore"));
-		await expect(incomingEdgesOf(store, "a", { limit: over, offset: 0 })).rejects.toThrow(rejected("incomingEdgesOf"));
-	});
-
-	it("returns a page of MAX_PAGE_ROWS, and every individual where the read doesn't state a limit", async () => {
-		expect(await store.queryIndividuals("Email", undefined, { limit: MAX_PAGE_ROWS })).toHaveLength(2);
-		expect(await store.queryIndividuals("Email")).toHaveLength(2);
-		expect((await incomingEdgesOf(store, "a", { limit: MAX_PAGE_ROWS, offset: 0 })).edges).toHaveLength(1);
+		expect((await times.readRecords(oldest)).vertices.map((v) => v.id)).toEqual(["a", "b"]);
 	});
 });
 
@@ -292,7 +269,7 @@ describe("the level each quad a run holds is written and read at", () => {
 	let store: QuadStore;
 
 	beforeEach(() => {
-		store = new QuadStore(undefined, undefined, levels);
+		store = storeDeclaring({ [NOTICE]: {} }, levels);
 	});
 
 	it("doesn't return actuality's own facts to a public reader", async () => {
@@ -305,7 +282,7 @@ describe("the level each quad a run holds is written and read at", () => {
 	it("writes at private a record whose level a private reader doesn't state, where its type is public, and actuality's at public", async () => {
 		await as(reader, () => store.upsertIndividual(NOTICE, { id: "notice-1", text: "read privately" }));
 		await store.upsertIndividual(NOTICE, { id: "notice-2", text: "actuality's" });
-		const read = await as(publicReader, () => store.queryIndividuals<{ id: string; accessLevel: string }>(NOTICE));
+		const read = await as(publicReader, () => readEvery(store, { label: NOTICE }));
 		expect(read.map(({ id, accessLevel }) => [id, accessLevel])).toEqual([["notice-2", Access.public]]);
 	});
 

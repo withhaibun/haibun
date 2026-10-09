@@ -9,7 +9,7 @@ import type { SiteMetadata } from "../rels-cache.js";
  * QueryController: the per-view handle to the graph-query data path. A view that runs queries HOLDS one
  * (`#query = new QueryController(this)`) and calls `this.#query.run(payload)`; it never assembles `requireStep` +
  * `conduit` itself. `run()` asks for the `graphQuery` step: a graph store registers a rich `graphQuery` (sort / text /
- * cypher) that overrides the inherent one (`queryQuadStore` over the world's store), so the column browser works in
+ * cypher) that overrides the inherent one (the world's store's `readRecords`), so the column browser works in
  * plain haibun without a parallel store. See ./index.ts for the pattern; data-access.test.ts enforces it.
  */
 export class QueryController implements ReactiveController {

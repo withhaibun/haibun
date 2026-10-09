@@ -15,8 +15,8 @@ import type { WindowedSource } from "../windowed-source.js";
 import { html } from "lit";
 import { timeCursor } from "../signals.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
+import { runStore } from "../client-cache/run-store.test-fake.js";
 import { SHU_TAG } from "../consts.js";
-import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
@@ -59,7 +59,7 @@ const producedRecord = (i: number, over: Record<string, unknown> = {}): Record<s
 
 /** Actuality in the graph, without a server to ask: the views read the records. */
 async function aRun(records: Array<Record<string, unknown>>, said: Array<Record<string, unknown>> = [], produced: Array<Record<string, unknown>> = []): Promise<void> {
-	const store = new QuadStore();
+	const store = runStore();
 	for (const record of records) await store.upsertIndividual(SEQ_PATH_LABEL, record);
 	for (const record of said) await store.upsertIndividual(LOG_MESSAGE_LABEL, record);
 	for (const record of produced) await store.upsertIndividual(RUN_ARTIFACT_LABEL, record);

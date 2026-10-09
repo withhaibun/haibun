@@ -5,7 +5,8 @@ import { activeSitePrincipal } from "./host-id.js";
 import { registeredPaths, type IRouteRegistry } from "./execution.js";
 import type { TWorld } from "./world.js";
 import type { TQuad } from "./quad-types.js";
-import { QuadStore } from "./quad-store.js";
+import type { QuadStore } from "./quad-store.js";
+import { storeDeclaring } from "./test/declared-types.js";
 
 const MOUNTED: IRouteRegistry = {
 	mounted: { get: { "/app": "1", "/.well-known/did.json": "1", "/status/:purpose": "1", "/sse": "1" }, post: { "/rpc/:_method": "1", "/reports/check": "1" } },
@@ -13,7 +14,7 @@ const MOUNTED: IRouteRegistry = {
 const PATHS = registeredPaths(MOUNTED);
 
 function mockWorld(): { world: TWorld; store: QuadStore } {
-	const store = new QuadStore();
+	const store = storeDeclaring({ [HTTP_HOST_LABEL]: {} });
 	const world = { runtime: { stepResults: [] }, eventLogger: { emit: () => undefined, hasSubscribers: () => false }, shared: { getStore: () => store } } as unknown as TWorld;
 	return { world, store };
 }

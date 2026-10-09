@@ -18,7 +18,7 @@ const UrakataListSchema = z.object({ urakata: z.array(UrakataSchema) });
  * serve a "running" claim: a reader concludes it from the facts (the record doesn't have a stoppedAt, and execution is the current instance).
  */
 const DOMAIN_URAKATA_TASK = "urakata-task";
-const urakataTaskDomainDefinition = {
+export const urakataTaskDomainDefinition = {
 	selectors: [DOMAIN_URAKATA_TASK],
 	schema: UrakataSchema,
 	description:

@@ -3,7 +3,6 @@
 // fetched as a reader reaches them, and the window of a run over the records it wrote.
 import { ServerUnreachable } from "./hypermedia.js";
 import { beforeEach } from "vitest";
-import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
@@ -13,6 +12,7 @@ import { describeWindowedSource, CONFORMANCE_ROWS } from "./test/windowed-source
 import { setGraphStore } from "./quads-snapshot.js";
 import { setSiteMetadata, type SiteMetadata } from "./rels-cache.js";
 import { setupShuTest } from "./test-setup.js";
+import { runStore } from "./client-cache/run-store.test-fake.js";
 import { graphRunSource } from "./client-cache/graph-run-source.js";
 import { endPage } from "./page-pinned.js";
 
@@ -64,7 +64,7 @@ describeWindowedSource("the window of a run", async () => {
 		rels: { [SEQ_PATH_LABEL]: {}, [LOG_MESSAGE_LABEL]: {}, [RUN_ARTIFACT_LABEL]: {} },
 		edgeRanges: {},
 	} as unknown as SiteMetadata);
-	const store = new QuadStore();
+	const store = runStore();
 	for (let i = 0; i < CONFORMANCE_ROWS; i++) {
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
 			id: `${RUN}.0.${i}`,

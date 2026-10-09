@@ -23,23 +23,19 @@ import {
 	type TClusteredQuadsOpts,
 	type TFederatedGraphSource,
 	type TGraphQuery,
-	type TGraphQueryResult,
-	type TSearchCondition,
 	type TQuad,
 	type TQuadPattern,
 	matchesQuadPattern,
 	type TDensityQuery,
 	type TDensityResult,
-	type TIndividualWithEdges,
-	type TIncomingEdges,
 	type TStoreLevels,
 	type TRecordsPage,
 } from "./quad-types.js";
-import { counted, displayLabelForQuads, pageLimit } from "./hypermedia.js";
+import { displayLabelForQuads } from "./hypermedia.js";
 import { Access, AccessLevelSchema, BODY_LABEL, LinkRelations, withinAccess, type AccessLevel } from "./resources.js";
 import { seenAt, writesAtEveryLevel, writtenAt } from "./actions.js";
-import { compareHeld, satisfies, type TReadDeclarations } from "./records/derivations/read-records.js";
-import { readQuadRecords } from "./records/pipelines/record-reads.js";
+import type { TReadDeclarations } from "./records/derivations/read-records.js";
+import { readEvery, readQuadRecords } from "./records/pipelines/record-reads.js";
 
 export class QuadStore implements IQuadStore {
 	private quads: TQuad[] = [];
@@ -429,36 +425,10 @@ export class QuadStore implements IQuadStore {
 		return id;
 	}
 
-	async getIndividual<T = Record<string, unknown>>(label: string, id: string): Promise<T | undefined> {
-		const backing = this.storeFor(label);
-		if (backing) return backing.getIndividual<T>(label, id);
-		const quads = await this.query({ subject: id, namedGraph: label });
-		if (quads.length === 0) return undefined;
-		const result: Record<string, unknown> = {};
-		for (const q of quads) result[q.predicate] = q.object;
-		return result as T;
-	}
-
 	async deleteIndividual(label: string, id: string): Promise<void> {
 		const backing = this.storeFor(label);
 		if (backing) return backing.deleteIndividual(label, id);
 		await this.remove({ subject: id, namedGraph: label });
-	}
-
-	async queryIndividuals<T = Record<string, unknown>>(label: string, filters?: Record<string, unknown>, options?: { limit?: number; offset?: number }): Promise<T[]> {
-		const limit = options?.limit === undefined ? undefined : pageLimit("queryIndividuals", options.limit);
-		const backing = this.storeFor(label);
-		if (backing) return backing.queryIndividuals<T>(label, filters, options);
-		// The graph's quads once, grouped by subject in one pass: reading each individual back by its own query scanned
-		// every quad the store holds once per individual, so a read of a type takes its individuals times the store.
-		let individuals = individualsFrom(await this.query({ namedGraph: label }));
-		if (filters) {
-			for (const [key, value] of Object.entries(filters)) {
-				individuals = individuals.filter((v) => v[key] === value);
-			}
-		}
-		const offset = options?.offset ?? 0;
-		return individuals.slice(offset, limit === undefined ? undefined : offset + limit) as T[];
 	}
 
 	density(query: TDensityQuery): Promise<TDensityResult> {
@@ -471,60 +441,6 @@ export class QuadStore implements IQuadStore {
 		const quads = await this.query({ predicate: property, namedGraph: label });
 		return [...new Set(quads.map((q) => String(q.object)))].sort();
 	}
-}
-
-/**
- * The rows a graph query names, answered by a store that holds quads: one type at a time, equality filters, windowed.
- * A store with a query engine answers richer queries itself; this is what a store of quads can answer, and it is the same
- * answer whether the store is the site's or the copy a page caches, which is why both ask it here.
- */
-export async function queryQuadStore(store: IQuadStore, query: TGraphQuery): Promise<TGraphQueryResult> {
-	const { label, offset } = query;
-	const limit = pageLimit("queryQuadStore", query.limit);
-	if (!label) throw new Error("a graph query over quads reads one type at a time, and this one doesn't name a type");
-	if (query.textQuery) throw new Error("a graph query over quads matches a type and equality filters; text search needs a store with a query engine");
-	if (query.references) throw new Error("a graph query over quads matches a type and equality filters; the records referencing a record need a store with a query engine");
-	const vertices = await individualsMatching(store, label, query.filters);
-	// The order a query asks for, applied before the window: a page of the newest is the newest of what matched, not the
-	// first the store happened to return. A query that doesn't name an order takes the store's own.
-	if (query.sortBy) {
-		const by = query.sortBy;
-		const direction = query.sortOrder === "asc" ? 1 : -1;
-		vertices.sort((a, b) => direction * compareHeld(a[by], b[by]));
-	}
-	const from = offset ?? 0;
-	// Each row carries its type. A view reads a row's id field and title through the type.
-	const rows = vertices.slice(from, from + limit).map((vertex) => ({ "@type": label, ...vertex }));
-	return { vertices: rows, ...counted(vertices.length) };
-}
-
-/**
- * The individuals of a type that satisfy every condition, over a store that holds its records.
- *
- * The store matches equality itself; the comparisons are made here over the values it returned, which a store of quads
- * holds in full. Reading a range of time is a comparison, so answering only equality would have meant either a wrong
- * answer or not reading by time. Every read of such a store narrows this way, so it narrows in one place.
- */
-async function individualsMatching(store: IQuadStore, label: string, filters: readonly TSearchCondition[]): Promise<Record<string, unknown>[]> {
-	const equality = Object.fromEntries(filters.filter((f) => f.operator === "eq").map((f) => [f.predicate, f.value]));
-	const compared = filters.filter((f) => f.operator !== "eq");
-	const matched = await store.queryIndividuals<Record<string, unknown>>(label, Object.keys(equality).length ? equality : undefined, {});
-	return matched.filter((individual) => compared.every((f) => satisfies(individual[f.predicate], f)));
-}
-
-/** The individuals a set of quads describes, each from its own quads, in the order their subjects first appear: one
- *  pass over the quads, whatever their number. What every store that holds its records as quads reads a type by. */
-function individualsFrom(quads: readonly TQuad[]): Record<string, unknown>[] {
-	const bySubject = new Map<string, Record<string, unknown>>();
-	for (const q of quads) {
-		let record = bySubject.get(q.subject);
-		if (!record) {
-			record = {};
-			bySubject.set(q.subject, record);
-		}
-		record[q.predicate] = q.object;
-	}
-	return [...bySubject.values()];
 }
 
 /**
@@ -551,7 +467,7 @@ export async function densityOverQuadStore(store: IQuadStore, query: TDensityQue
 	if (Number.isNaN(from) || Number.isNaN(to)) throw new Error(`a density read spans instants, and this one names ${query.from} to ${query.to}`);
 	if (to < from) throw new Error(`a density read spans forward, and this one names ${query.from} to ${query.to}`);
 	const buckets: Record<string, number>[] = Array.from({ length: query.buckets }, () => ({}));
-	for (const individual of await individualsMatching(store, query.label, query.filters)) {
+	for (const individual of await readEvery(store, { label: query.label, filters: query.filters })) {
 		const at = Date.parse(String(individual[query.timeField] ?? ""));
 		if (Number.isNaN(at)) continue;
 		const bucket = bucketOf(at, from, to, query.buckets);
@@ -621,48 +537,4 @@ export function sliceQuadsPerType(quads: TQuad[], perTypeLimit: number, existing
 		});
 	}
 	return { quads: sampledQuads, clusters };
-}
-
-/** The record a store holds for a node, stamped with the identity it was reached by, so an edge resolves to something a
- *  reader can open even where that node's own fields are not held. */
-async function targetOf(store: IQuadStore, label: string, id: string): Promise<Record<string, unknown>> {
-	return { "@id": id, "@type": label, ...((await store.getIndividual<Record<string, unknown>>(label, id)) ?? {}) };
-}
-
-/** How many edges pointing at one individual are read as records at a time. A hub has more edges than a reader reads,
- *  and each edge read is a read of the record it names, so a reading takes a page of them and returns how many there are. */
-const INCOMING_EDGE_PAGE = 100;
-
-/** The edges pointing at an individual, over any store: how many there are, and the page of them asked for, each read
- *  as the record it names. A quad pointing at the individual carries the type of the record it comes from, which is how
- *  that record resolves rather than a bare id. */
-export async function incomingEdgesOf(store: IQuadStore, id: string, page: { offset?: number; limit?: number } = {}): Promise<TIncomingEdges> {
-	const limit = pageLimit("incomingEdgesOf", page.limit ?? INCOMING_EDGE_PAGE);
-	const pointing = (await store.query({ object: id })).filter((quad) => quad.objectType);
-	const offset = page.offset ?? 0;
-	const read = pointing.slice(offset, offset + limit);
-	const edges = await Promise.all(read.map(async (quad) => ({ type: quad.predicate, direction: "in" as const, target: await targetOf(store, quad.namedGraph, quad.subject) })));
-	return { edges, ...counted(pointing.length) };
-}
-
-/**
- * One individual with its edges, over any store: its own fields, the edges its quads name in both directions, and how
- * many edges point at it. An edge quad carries the type of the record it names. That type is how a target resolves to a
- * record rather than to a bare id. Undefined where the store doesn't hold the individual.
- *
- * One reading, so a page reading what it holds and a site answering for its own store give a reader the same shape.
- */
-export async function individualWithEdges(store: IQuadStore, label: string, id: string): Promise<TIndividualWithEdges | undefined> {
-	const quads = await store.query({ subject: id, namedGraph: label });
-	if (quads.length === 0) return undefined;
-	const vertex: Record<string, unknown> = { "@id": id, "@type": label };
-	const named = quads.filter((quad) => quad.objectType);
-	for (const quad of quads) if (!quad.objectType) vertex[quad.predicate] = quad.object;
-	// Every target read at once: a record with many edges is one round of reads rather than one round per edge.
-	const [outgoing, incoming] = await Promise.all([
-		Promise.all(named.map(async (quad) => ({ type: quad.predicate, direction: "out" as const, target: await targetOf(store, String(quad.objectType), String(quad.object)) }))),
-		incomingEdgesOf(store, id),
-	]);
-	const { edges: pointing, ...incomingCount } = incoming;
-	return { vertex, edges: [...outgoing, ...pointing], incomingCount };
 }

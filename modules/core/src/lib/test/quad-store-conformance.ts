@@ -129,12 +129,6 @@ export function describeQuadStore(
 			expect(await store.get("x", "content", OTHER)).toBe("in the second");
 		});
 
-		it("rejects a page read whose limit exceeds MAX_PAGE_ROWS, and the error names the read, the limit and the maximum", async () => {
-			const over = MAX_PAGE_ROWS + 1;
-			const rejected = `queryIndividuals rejects a limit of ${over} rows: a page holds 1 to ${MAX_PAGE_ROWS} rows`;
-			await expect(store.queryIndividuals(GRAPH, undefined, { limit: over })).rejects.toThrow(rejected);
-		});
-
 		it("returns undefined and an empty list for a subject it doesn't hold", async () => {
 			expect(await store.get("missing", "content", GRAPH)).toBeUndefined();
 			expect(await store.query({ subject: "missing", namedGraph: GRAPH })).toEqual([]);

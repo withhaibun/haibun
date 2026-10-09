@@ -11,9 +11,11 @@
  * report. Each row of the table holds a cited requirement and the status of the outermost step that contains the
  * citing step.
  */
-import { READING_LABEL, LinkRelations, SEQ_PATH_LABEL, StatedRecordSchema, type TDiscourseStore } from "./resources.js";
+import { READING_LABEL, LinkRelations, SEQ_PATH_LABEL, StatedRecordSchema } from "./resources.js";
 import { fromJsonText } from "./json-text.js";
-import { SEQ_PATH_FIELD, SEQ_PATH_EDGE, type TSeqPath } from "./seq-path.js";
+import { SEQ_PATH_FIELD, SEQ_PATH_EDGE } from "./seq-path.js";
+import type { IQuadStore } from "./quad-types.js";
+import { readEvery, recordOf } from "./records/pipelines/record-reads.js";
 
 /** A JSON-LD reference to an individual: its `@id` and its `@type`. */
 export type TReference = { "@id": string; "@type": string };
@@ -30,10 +32,8 @@ export type TStatementRow = {
 	outcome?: string;
 };
 
-/** The store methods this read calls: quads by pattern, an individual by id, and individuals by label. */
-type TStatementStore = Pick<TDiscourseStore, "query" | "getIndividual"> & {
-	queryIndividuals<T = Record<string, unknown>>(label: string, filters?: Record<string, unknown>, options?: { limit?: number; offset?: number }): Promise<T[]>;
-};
+/** The store methods this read calls: quads by pattern, and the read of records. */
+type TStatementStore = Pick<IQuadStore, "query" | "readRecords">;
 
 /** A quad as the stores return it: the subject's type is its named graph, and an edge names its target's type. */
 type TEdgeQuad = { subject: string; predicate: string; object: unknown; namedGraph?: string; objectType?: string };
@@ -42,10 +42,10 @@ type TEdgeQuad = { subject: string; predicate: string; object: unknown; namedGra
  *  of each reading. */
 async function readingsByStatement(store: TStatementStore): Promise<Map<string, string>> {
 	const byStatement = new Map<string, string>();
-	for (const reading of await store.queryIndividuals<{ id: string; stated?: unknown }>(READING_LABEL)) {
+	for (const reading of await readEvery(store, { label: READING_LABEL })) {
 		for (const entry of Array.isArray(reading.stated) ? (reading.stated as string[]) : []) {
 			const record = fromJsonText(StatedRecordSchema).parse(entry);
-			if (record.kind === "edge") byStatement.set(`${record.s}\u0000${record.rel}\u0000${record.o}`, reading.id);
+			if (record.kind === "edge") byStatement.set(`${record.s}\u0000${record.rel}\u0000${record.o}`, String(reading.id));
 		}
 	}
 	return byStatement;
@@ -53,12 +53,12 @@ async function readingsByStatement(store: TStatementStore): Promise<Map<string, 
 
 /** Returns the outermost recorded ancestor of a step, or the step where a recorded parent doesn't exist. A walk over a
  *  cycle of `isPartOf` edges stops at a depth of 100. */
-async function runOf(store: TStatementStore, seqPathId: string): Promise<TSeqPath | undefined> {
-	let current = await store.getIndividual<TSeqPath>(SEQ_PATH_LABEL, seqPathId);
+async function runOf(store: TStatementStore, seqPathId: string): Promise<Record<string, unknown> | undefined> {
+	let current = await recordOf(store, SEQ_PATH_LABEL, seqPathId);
 	for (let depth = 0; current && depth < 100; depth++) {
 		const parent = (await store.query({ subject: String(current[SEQ_PATH_FIELD.id]), predicate: SEQ_PATH_EDGE.isPartOf })).map((q) => String(q.object))[0];
 		if (!parent) return current;
-		const next = await store.getIndividual<TSeqPath>(SEQ_PATH_LABEL, parent);
+		const next = await recordOf(store, SEQ_PATH_LABEL, parent);
 		if (!next) return current;
 		current = next;
 	}
@@ -88,9 +88,8 @@ export async function statementsWith(store: TStatementStore, predicate: string):
 		const readingId = readings.get(`${quad.subject}\u0000${predicate}\u0000${String(quad.object)}`);
 		if (readingId) {
 			row.reading = { "@id": readingId, "@type": READING_LABEL };
-			const reading = await store.getIndividual<{ seqPath?: string }>(READING_LABEL, readingId);
-			const seqPathId = reading?.seqPath;
-			if (seqPathId) {
+			const seqPathId = (await recordOf(store, READING_LABEL, readingId))?.seqPath;
+			if (typeof seqPathId === "string") {
 				const run = await runOf(store, seqPathId);
 				row.assertedBy = { "@id": String(run?.[SEQ_PATH_FIELD.id] ?? seqPathId), "@type": SEQ_PATH_LABEL };
 				if (run?.[SEQ_PATH_FIELD.actionStatus]) row.outcome = String(run[SEQ_PATH_FIELD.actionStatus]);

@@ -10,6 +10,12 @@ import { describe, it, expect, beforeAll, beforeEach } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import type { AccessLevel } from "@haibun/core/lib/resources.js";
 import { IndexedDbQuadStore, deviceGraphStore } from "./quad-store.js";
+import { GraphQuerySchema } from "@haibun/core/lib/quad-types.js";
+import { equalTo, readEvery, recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { declaredTypes } from "@haibun/core/lib/test/declared-types.js";
+
+/** The types these tests write, declared so the device store reads their records. */
+const declared = () => declaredTypes({ Email: { filters: ["folder"] }, Comment: {}, SeqPath: {} });
 
 // The page is served, so its device store is the database of the actuality the page reads.
 beforeAll(serveThePage);
@@ -18,7 +24,7 @@ describe("the questions the site answers, asked of the graph this page caches", 
 	const access = { perTypeLimit: 10, accessLevel: "private" as AccessLevel };
 	let store: IndexedDbQuadStore;
 	beforeEach(async () => {
-		store = new IndexedDbQuadStore();
+		store = new IndexedDbQuadStore(undefined, declared);
 		await store.clear();
 		await store.upsertIndividual("Email", { "@id": "a", folder: "INBOX", subject: "one" });
 		await store.upsertIndividual("Email", { "@id": "b", folder: "Sent", subject: "two" });
@@ -59,9 +65,13 @@ describe("the questions the site answers, asked of the graph this page caches", 
 	});
 
 	it("lists a type's records, narrowed by a field and windowed", async () => {
-		expect((await store.queryIndividuals("Email")).length).toBe(2);
-		expect(await store.queryIndividuals("Email", { folder: "Sent" })).toEqual([{ "@id": "b", "@type": "Email", folder: "Sent", subject: "two" }]);
-		expect((await store.queryIndividuals<{ "@id": string }>("Email", undefined, { offset: 1, limit: 1 })).map((i) => i["@id"])).toEqual(["b"]);
+		expect((await readEvery(store, { label: "Email" })).length).toBe(2);
+		expect(await readEvery(store, { label: "Email", filters: equalTo({ folder: "Sent" }) })).toEqual([{ "@id": "b", "@type": "Email", folder: "Sent", subject: "two" }]);
+		const window = await store.readRecords(GraphQuerySchema.parse({ label: "Email", offset: 1, limit: 1 }));
+		expect(
+			window.vertices.map((i) => i["@id"]),
+			"records without a time order by id, newest first",
+		).toEqual(["a"]);
 	});
 
 	it("reports the distinct values a field holds, for the dropdowns a reader filters by", async () => {
@@ -78,13 +88,13 @@ describe("an individual in the page's cache", () => {
 	});
 
 	it("caches a record by its @id, reads it back with its type, replaces it in place and deletes it", async () => {
-		const store = new IndexedDbQuadStore();
+		const store = new IndexedDbQuadStore(undefined, declared);
 		expect(await store.upsertIndividual("Comment", { "@id": "c1", content: "hello", author: "did:example:a" })).toBe("c1");
-		expect(await store.getIndividual("Comment", "c1")).toMatchObject({ "@id": "c1", "@type": "Comment", content: "hello", author: "did:example:a" });
+		expect(await recordOf(store, "Comment", "c1")).toMatchObject({ "@id": "c1", "@type": "Comment", content: "hello", author: "did:example:a" });
 		await store.upsertIndividual("Comment", { "@id": "c1", content: "changed" });
-		expect(await store.getIndividual("Comment", "c1")).toMatchObject({ content: "changed", author: "did:example:a" });
+		expect(await recordOf(store, "Comment", "c1")).toMatchObject({ content: "changed", author: "did:example:a" });
 		await store.deleteIndividual("Comment", "c1");
-		expect(await store.getIndividual("Comment", "c1")).toBeUndefined();
+		expect(await recordOf(store, "Comment", "c1")).toBeUndefined();
 	});
 
 	it("does not write again a fact the device holds as it is, and writes one that changed", async () => {
@@ -111,13 +121,13 @@ describe("an individual in the page's cache", () => {
 describe("the records of another actuality", () => {
 	it("aren't read by a page served for another actuality, and the device holds each actuality's records apart", async () => {
 		serveThePage();
-		const first = deviceGraphStore();
+		const first = deviceGraphStore(undefined, declared);
 		await first.upsertIndividual("SeqPath", { "@id": "s1", stepText: "a step of the first actuality" });
 		hydrate({ actualityId: crypto.randomUUID() });
 		hydrateFromDom();
-		const second = deviceGraphStore();
-		expect(await second.getIndividual("SeqPath", "s1"), "the other actuality's record").toBeUndefined();
-		expect(await first.getIndividual("SeqPath", "s1"), "still held in its own").toMatchObject({ stepText: "a step of the first actuality" });
+		const second = deviceGraphStore(undefined, declared);
+		expect(await recordOf(second, "SeqPath", "s1"), "the other actuality's record").toBeUndefined();
+		expect(await recordOf(first, "SeqPath", "s1"), "still held in its own").toMatchObject({ stepText: "a step of the first actuality" });
 		await second.upsertIndividual("SeqPath", { "@id": "s2", stepText: "a step of the second actuality" });
 		expect(await heldDatabases()).toEqual(expect.arrayContaining([first.database, second.database]));
 	});

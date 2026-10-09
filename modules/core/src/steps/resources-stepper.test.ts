@@ -5,6 +5,7 @@ import { LinkRelations } from "../lib/resources.js";
 import { setPrincipal } from "../lib/principal.js";
 import { type TWorld } from "../lib/world.js";
 import { itemAt } from "../lib/util/item-at.js";
+import { registerDomains } from "../lib/domains.js";
 
 describe("ResourcesStepper comment (reply-threaded)", () => {
 	let stepper: ResourcesStepper;
@@ -15,6 +16,8 @@ describe("ResourcesStepper comment (reply-threaded)", () => {
 		world = getDefaultWorld() as TWorld;
 		setPrincipal(world, "did:site:0");
 		await stepper.setWorld(world, [stepper]);
+		// The world declares the stepper's types, as a run does, so its store reads the records a comment writes.
+		registerDomains(world, [stepper.cycles.getConcerns?.().domains ?? []]);
 	});
 
 	it("comment creates an individual and a narrate (reply) edge that grounds it", async () => {

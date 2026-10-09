@@ -12,6 +12,7 @@ import { ENDPOINT_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL, HTTP_REQUEST_LABEL,
 import { activeSitePrincipal } from "./host-id.js";
 import { declareBlips } from "./blips.js";
 import { recordBlip } from "./record-blip.js";
+import { recordOf } from "./records/pipelines/record-reads.js";
 
 const CLIENT_ID = "client";
 /** The endpoint classes: a page route of this site, a service route of the app (/rpc, /sse), or another host. */
@@ -32,6 +33,9 @@ declareBlips({
 
 /** The site's own host node's display name. */
 const SITE_NAME = "This site";
+
+/** The request count a host record holds. A host that isn't recorded counts zero requests. */
+const HostCountSchema = z.object({ requestCount: z.number().default(0) });
 
 /** The party that made an observed request. `client` is the browser or user agent that the instance drives. `site` is this
  *  site, for a request it makes outbound. The origin selects the target of the request's `performedBy` edge. The
@@ -102,7 +106,7 @@ export async function trackHttpRequest(world: TWorld, observation: THttpRequestO
 
 	const upsertHost = async (id: string, delta: number) => {
 		let count = memo.counts.get(id);
-		if (count === undefined) count = (await store.getIndividual<{ requestCount?: number }>(HTTP_HOST_LABEL, id))?.requestCount ?? 0;
+		if (count === undefined) count = HostCountSchema.parse((await recordOf(store, HTTP_HOST_LABEL, id)) ?? {}).requestCount;
 		memo.counts.set(id, count + delta);
 		await store.upsertIndividual(HTTP_HOST_LABEL, { id, name: id === site ? SITE_NAME : id, requestCount: count + delta, generatedAtTime });
 	};

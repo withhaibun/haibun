@@ -3,7 +3,7 @@
  *
  * It implements `comment on …` and the `annotate …` steps over any graph resource, and the `get annotations for …` read.
  * The `annotate …` steps quote a passage, link one passage to another, or anchor a passage with its surrounding context.
- * resources.ts implements the writes (createComment, writeAnnotation), so other callers reuse them with any store.
+ * records/pipelines/discourse-writes.ts implements the writes (createComment, writeAnnotation), so other callers reuse them with any store.
  *
  * It also implements the reads of what a text states. It reads a feature's prose as facts, checks that every cited
  * passage still resolves, and reads the statements made with a predicate.
@@ -25,19 +25,14 @@ import {
 	type TAnnotationNote,
 	annotationNoteDomainDefinition,
 	bodyDomainDefinition,
-	bodyByMediaType,
 	commentDomainDefinition,
 	readingDomainDefinition,
-	readTypedLinks,
-	markdownOf,
 	principalDomainDefinition,
 	sceneDomainDefinition,
 	specificResourceDomainDefinition,
 	textQuoteSelectorDomainDefinition,
 	fragmentSelectorDomainDefinition,
 	annotationPlacementDomainDefinition,
-	createComment,
-	writeAnnotation,
 	writeEdge,
 	conversationRoot,
 	assertCommentGrounded,
@@ -46,6 +41,8 @@ import {
 	Access,
 } from "../lib/resources.js";
 import { MEDIA_TYPE } from "../lib/media-types.js";
+import { bodyByMediaType, markdownOf, readEvery, recordOf } from "../lib/records/pipelines/record-reads.js";
+import { createComment, readTypedLinks, writeAnnotation } from "../lib/records/pipelines/discourse-writes.js";
 import { DOMAIN_LINK_REL, DOMAIN_RECORD_ID, DOMAIN_TEXT, linkVocabularyFor } from "../lib/domains.js";
 import { executionOf, formatRecordName, formatSeqPath, seqPathDomainDefinition } from "../lib/seq-path.js";
 import { logMessageDomainDefinition } from "../lib/log-message.js";
@@ -197,13 +194,14 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 				const store = this.getWorld().shared.getStore();
 				const unresolved: string[] = [];
 				let checked = 0;
-				for (const anchor of await store.queryIndividuals<{ id: string }>(SPECIFIC_RESOURCE_LABEL)) {
-					const quads = await store.query({ subject: anchor.id });
+				for (const anchor of await readEvery(store, { label: SPECIFIC_RESOURCE_LABEL })) {
+					const quads = await store.query({ subject: String(anchor.id) });
 					const sourceQuad = quads.find((q) => q.predicate === LinkRelations.HAS_SOURCE.rel);
 					const selectorId = quads.find((q) => q.predicate === LinkRelations.HAS_SELECTOR.rel)?.object;
 					if (!sourceQuad || !selectorId) continue;
-					const selector = await store.getIndividual<TQuoteAnchor>(TEXT_QUOTE_SELECTOR_LABEL, String(selectorId));
-					if (!selector) continue;
+					const held = await recordOf(store, TEXT_QUOTE_SELECTOR_LABEL, String(selectorId));
+					if (!held) continue;
+					const selector = QuoteAnchorSchema.parse(held);
 					checked++;
 					const sourceLabel = (sourceQuad as { objectType?: string }).objectType;
 					if (!sourceLabel) return actionNotOK(`anchor ${anchor.id}: its hasSource edge doesn't name a type for "${String(sourceQuad.object)}"`);
@@ -318,7 +316,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 					linkSrsOfComment.set(String(q.subject), list);
 				}
 				const selectorById = new Map<string, Record<string, unknown>>();
-				for (const s of (await store.queryIndividuals(TEXT_QUOTE_SELECTOR_LABEL)) as Array<Record<string, unknown>>) selectorById.set(String(s.id), s);
+				for (const s of await readEvery(store, { label: TEXT_QUOTE_SELECTOR_LABEL })) selectorById.set(String(s.id), s);
 				const quoteOf = (srId: string | undefined): TQuoteAnchor | undefined => {
 					const sel = srId ? selectorById.get(selectorOfSr.get(srId) ?? "") : undefined;
 					if (!sel) return undefined;
@@ -335,9 +333,9 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 					const quote = quoteOf(specificResourceId);
 					if (!quote) continue; // a target without a selector doesn't anchor a passage
 					const commentId = String(tq.subject);
-					const comment = await store.getIndividual(COMMENT_LABEL, commentId);
+					const comment = await recordOf(store, COMMENT_LABEL, commentId);
 					if (!comment) continue;
-					const noteText = await bodyByMediaType(store, comment, MEDIA_TYPE.markdown);
+					const noteText = await bodyByMediaType(store, { label: COMMENT_LABEL, id: commentId }, MEDIA_TYPE.markdown);
 					const links = (linkSrsOfComment.get(commentId) ?? []).map((srId) => quoteOf(srId)).filter((l): l is NonNullable<typeof l> => l !== undefined);
 					annotations.push({
 						commentId,

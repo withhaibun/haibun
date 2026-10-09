@@ -13,6 +13,7 @@ import AuthorityStepper from "./authority-stepper.js";
 import { ACTIVITIES_ACTIONS, ACTIVITIES_STEPPER } from "./activities-actions.js";
 import { requiredAction } from "../lib/actions.js";
 import VariablesStepper from "./variables-stepper.js";
+import { readEvery } from "../lib/records/pipelines/record-reads.js";
 
 const OUTCOME = "Knock twice";
 const KNOCK_LINE = 'set knocks to "2"';
@@ -55,7 +56,7 @@ describe("a waypoint a step saves", () => {
 
 	it("is kept as a record stating its outcome and its lines", async () => {
 		const { world } = await passWithDefaults(SAVE, STEPPERS);
-		expect(await world.shared.getStore().queryIndividuals(SAVED_WAYPOINT_LABEL)).toMatchObject([{ id: OUTCOME, lines: [KNOCK_LINE] }]);
+		expect(await readEvery(world.shared.getStore(), { label: SAVED_WAYPOINT_LABEL })).toMatchObject([{ id: OUTCOME, lines: [KNOCK_LINE] }]);
 	});
 
 	it("requires the action every saved waypoint requires, and each of its lines requires its own", async () => {

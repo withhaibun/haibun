@@ -6,6 +6,9 @@ import { AUTHORITY_KEY, SessionAuthority } from "./session-authority.js";
 import { actionsToReadAndWrite, EVERY_ACTION, readAction, writeAction, writtenAt } from "./actions.js";
 import { Access } from "./resources.js";
 import { itemAt } from "./util/item-at.js";
+import { recordOf } from "./records/pipelines/record-reads.js";
+import { mapDefinitionsToDomains } from "./domains.js";
+import { urakataTaskDomainDefinition } from "../steps/urakata-stepper.js";
 
 const noOpErrorHandler = () => undefined;
 const STARTER = "did:example:starter";
@@ -246,10 +249,16 @@ describe("UrakataRegistry", () => {
 });
 
 describe("UrakataRegistry persistence of transitions", () => {
-	const readTask = async (world: ReturnType<typeof getDefaultWorld>, id: string) => world.shared.getStore().getIndividual<Record<string, unknown>>(URAKATA_LABEL, id);
+	const readTask = async (world: ReturnType<typeof getDefaultWorld>, id: string) => recordOf(world.shared.getStore(), URAKATA_LABEL, id);
+	/** Returns a world that declares the task type, so its store reads the type's records. */
+	const taskWorld = () => {
+		const world = getDefaultWorld();
+		world.domains = { ...world.domains, ...mapDefinitionsToDomains([urakataTaskDomainDefinition]) };
+		return world;
+	};
 
 	it("persists the individual on registration, on an error and on stop, and keeps one row per id with the latest transition", async () => {
-		const world = getDefaultWorld();
+		const world = taskWorld();
 		const registry = new UrakataRegistry(world, () => undefined);
 		let fail = true;
 		const u = registry.register({
@@ -279,7 +288,7 @@ describe("UrakataRegistry persistence of transitions", () => {
 	});
 
 	it("leaves a prior instance's row unchanged, and registering its id again overwrites it with the current instance", async () => {
-		const world = getDefaultWorld();
+		const world = taskWorld();
 		// Writes a row from another actuality instance whose task didn't stop cleanly.
 		await world.shared
 			.getStore()

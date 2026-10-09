@@ -41,15 +41,6 @@ const STORE_METHODS = {
 	query: { write: false, params: z.object({ pattern: PatternSchema }) },
 	all: { write: false, params: z.object({}) },
 	readRecords: { write: false, params: z.object({ query: GraphQuerySchema }) },
-	getIndividual: { write: false, params: z.object({ label: z.string(), id: z.string() }) },
-	queryIndividuals: {
-		write: false,
-		params: z.object({
-			label: z.string(),
-			filters: z.record(z.string(), z.unknown()).optional(),
-			options: z.object({ limit: z.number().optional(), offset: z.number().optional() }).optional(),
-		}),
-	},
 	distinctPropertyValues: { write: false, params: z.object({ label: z.string(), property: z.string() }) },
 	density: { write: false, params: z.object({ query: DensityQuerySchema }) },
 	getClusteredQuads: {
@@ -136,14 +127,6 @@ export async function handleStoreCall(store: IQuadStore, method: string, rawPara
 		case "readRecords": {
 			const { query } = STORE_METHODS.readRecords.params.parse(raw);
 			return { result: await store.readRecords(query) };
-		}
-		case "getIndividual": {
-			const { label, id } = STORE_METHODS.getIndividual.params.parse(raw);
-			return { result: await store.getIndividual(label, id) };
-		}
-		case "queryIndividuals": {
-			const { label, filters, options } = STORE_METHODS.queryIndividuals.params.parse(raw);
-			return { result: await store.queryIndividuals(label, filters, options) };
 		}
 		case "distinctPropertyValues": {
 			const { label, property } = STORE_METHODS.distinctPropertyValues.params.parse(raw);

@@ -2,16 +2,15 @@
  * The executions this device holds, and which of them the page is reading.
  *
  * A run's records name the execution they belong to, so what a device holds of many runs is told apart by the ids
- * themselves rather than by a second index beside them. The executions are read the way everything else is read: a
- * query over the records, here the steps that declared a feature, which is what names an execution for a reader and
- * is one small query however long actuality was.
+ * themselves rather than by a second index beside them. The executions are read from the step records: a step that
+ * declared a feature names an execution for a reader.
  */
 import { reportFailure, reportToRun } from "../client-log.js";
 import { FEATURE_START, declaredName } from "@haibun/core/schema/protocol.js";
 import { SEQ_PATH_FIELD, parseRecordName } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
-import { queryQuadStore } from "@haibun/core/lib/quad-store.js";
-import { GraphQuerySchema, type TQuad } from "@haibun/core/lib/quad-types.js";
+import type { TQuad } from "@haibun/core/lib/quad-types.js";
+import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { heldGraphStores, readHeldStore, selectValuesFor, servedGraphStore, type TCachedGraphStore } from "../quads-snapshot.js";
 import { RUN_TYPES } from "./run-window.js";
 import { componentOfView, declaredViews } from "../rels-cache.js";
@@ -92,19 +91,12 @@ export async function executionsHeld(): Promise<THeldExecution[]> {
 
 /** The executions one actuality's store holds. */
 async function executionsIn(store: TCachedGraphStore): Promise<THeldExecution[]> {
-	const { vertices } = await queryQuadStore(
-		store,
-		GraphQuerySchema.parse({
-			label: SEQ_PATH_LABEL,
-			filters: [{ predicate: SEQ_PATH_FIELD.called, operator: "contains", value: `.${FEATURE_START}` }],
-			sortBy: SEQ_PATH_FIELD.generatedAtTime,
-			sortOrder: "desc",
-			limit: EXECUTIONS_READ,
-			skipCount: true,
-		}),
-	);
+	// The declarations don't compare a step's `called`, so the read orders the type's steps by time and keeps the steps that
+	// declared a feature.
+	const steps = await readEvery(store, { label: SEQ_PATH_LABEL, sortBy: SEQ_PATH_FIELD.generatedAtTime, sortOrder: "desc" });
+	const declared = steps.filter((step) => String(step[SEQ_PATH_FIELD.called] ?? "").includes(`.${FEATURE_START}`)).slice(0, EXECUTIONS_READ);
 	const byExecution = new Map<string, THeldExecution>();
-	for (const record of vertices as Array<Record<string, unknown>>) {
+	for (const record of declared) {
 		const execution = parseRecordName(String(record[SEQ_PATH_FIELD.id] ?? ""))?.execution;
 		if (!execution) continue;
 		const at = Date.parse(String(record[SEQ_PATH_FIELD.generatedAtTime] ?? ""));
@@ -138,32 +130,16 @@ export async function viewsShown(): Promise<string[]> {
 		.map(componentOfView);
 }
 
-/** How many of a run's records are read at a time while it is forgotten: a run is forgotten in pages so a long one is
- *  never read at once. */
-const FORGET_PAGE = 1000;
-
 /** Forget every record of one run this device holds, and answer how many went. A record's id names the run it belongs
  *  to, so what to forget is asked of the records themselves rather than of a second index beside them. */
 export async function forgetExecution({ execution, store }: THeldExecution): Promise<number> {
 	let gone = 0;
 	for (const type of RUN_TYPES) {
-		for (;;) {
-			const { vertices } = await queryQuadStore(
-				store,
-				GraphQuerySchema.parse({
-					label: type.label,
-					filters: [{ predicate: SEQ_PATH_FIELD.id, operator: "contains", value: `${execution}.` }],
-					limit: FORGET_PAGE,
-					skipCount: true,
-				}),
-			);
-			const ids = (vertices as Array<Record<string, unknown>>)
-				.map((record) => String(record[SEQ_PATH_FIELD.id] ?? ""))
-				.filter((id) => parseRecordName(id)?.execution === execution);
-			for (const id of ids) await store.deleteIndividual(type.label, id);
-			gone += ids.length;
-			if (vertices.length < FORGET_PAGE) break;
-		}
+		const ids = (await readEvery(store, { label: type.label }))
+			.map((record) => String(record[SEQ_PATH_FIELD.id] ?? ""))
+			.filter((id) => parseRecordName(id)?.execution === execution);
+		for (const id of ids) await store.deleteIndividual(type.label, id);
+		gone += ids.length;
 	}
 	return gone;
 }

@@ -56,7 +56,8 @@ export const GraphQuerySchema = z
 		types: z.array(z.string()).optional(),
 		/** How the words of `textQuery` combine. */
 		words: z.enum([TERM_WORDS.every, TERM_WORDS.any]).default(TERM_WORDS.every),
-		sortBy: z.string().optional(),
+		/** Names the field that orders a page of one type. A page without it takes the type's default sort. */
+		sortBy: z.string().min(1).optional(),
 		sortOrder: SortOrderSchema.default("desc"),
 		/** The records of a page. A store's `pageLimit` rejects a limit outside 1 to `MAX_PAGE_ROWS`, so one rule bounds every read. */
 		limit: z.number().int().default(50),
@@ -83,6 +84,8 @@ export const GraphQuerySchema = z
 	})
 	.strict();
 export type TGraphQuery = z.infer<typeof GraphQuerySchema>;
+/** A graph query as a caller states it, before the schema fills its defaults. */
+export type TGraphQueryInput = z.input<typeof GraphQuerySchema>;
 
 /**
  * How many records fall in each division of a span of time, by how each turned out.
@@ -289,13 +292,9 @@ export interface IQuadStore {
 	 *  read the store doesn't reach, with the text of `readRefusal`. Counts to the ceiling and states the page's order. */
 	readRecords(query: TGraphQuery): Promise<TRecordsPage>;
 
-	/** Individual operations, convenience over quads. namedGraph = persisted label. */
+	/** Writes and deletes one record. The named graph is the record's persisted type. */
 	upsertIndividual(label: string, data: unknown): Promise<string>;
-	getIndividual<T = Record<string, unknown>>(label: string, id: string): Promise<T | undefined>;
 	deleteIndividual(label: string, id: string): Promise<void>;
-	/** A stated `limit` selects a page of 1 to `MAX_PAGE_ROWS` rows, and the store rejects a limit outside that range. A read
-	 *  that doesn't state a limit returns every individual from `offset`. */
-	queryIndividuals<T = Record<string, unknown>>(label: string, filters?: Record<string, unknown>, options?: { limit?: number; offset?: number }): Promise<T[]>;
 	distinctPropertyValues(label: string, property: string): Promise<string[]>;
 
 	/** How many records fall in each division of a span of time, by how each turned out. What a reader is shown of a run

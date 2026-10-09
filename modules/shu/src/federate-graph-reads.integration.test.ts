@@ -4,7 +4,8 @@ import { AStepper } from "@haibun/core/lib/astepper.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import { activeSitePrincipal } from "@haibun/core/lib/host-id.js";
-import { PRINCIPAL_LABEL, type TPrincipal } from "@haibun/core/lib/resources.js";
+import { PRINCIPAL_LABEL } from "@haibun/core/lib/resources.js";
+import { recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import type { TClusteredQuads } from "@haibun/core/lib/quad-types.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import FakeAuthorityStepper from "@haibun/core/lib/test/fake-authority.js";
@@ -71,7 +72,7 @@ capture the federated clustered read
 		expect(adoptedDuringRun).toBe("did:site:0.1");
 		// The naming side persisted the assignment as a Principal individual.
 		const store = world.shared.getStore();
-		expect((await store.getIndividual<TPrincipal>(PRINCIPAL_LABEL, "did:site:0.1"))?.controller).toBe("did:site:0.1");
+		expect((await recordOf(store, PRINCIPAL_LABEL, "did:site:0.1"))?.controller).toBe("did:site:0.1");
 		// The merged read returned without recursion. It holds the peer's subjects. Each subject is stamped with its serving site.
 		const principals = captured?.clusters.find((c) => c.type === PRINCIPAL_LABEL);
 		expect(principals?.sampledSubjects.length).toBeGreaterThan(0);

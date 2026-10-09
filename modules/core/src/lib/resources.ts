@@ -19,7 +19,6 @@
 import { stripTrailingSlash } from "./local-origin.js";
 import { z } from "zod";
 import { MEDIA_TYPE } from "./media-types.js";
-import { typedLinkFacts, type TLinkVocabulary, type TTypedLinkFact } from "./typed-links.js";
 import { FragmentSchema, isFragment } from "./media-fragments.js";
 import { fromJsonText } from "./json-text.js";
 
@@ -854,6 +853,9 @@ export const commentDomainDefinition: TDomainDefinition = {
 			seqPath: LinkRelations.SEQ_PATH.rel,
 			body: { rel: LinkRelations.CONTENT.rel, mediaType: MEDIA_TYPE.markdown },
 			unverified: LinkRelations.TAG.rel,
+			// The conversation a comment is part of, by the id of its first question. A read of a conversation filters
+			// comments by this field.
+			[LinkRelations.CONTEXT.rel]: LinkRelations.CONTEXT.rel,
 		},
 		edges: {
 			[HAS_BODY_EDGE]: { rel: LinkRelations.HAS_BODY.rel, range: BODY_LABEL },
@@ -877,8 +879,6 @@ export const commentDomainDefinition: TDomainDefinition = {
 			...Object.fromEntries(DISCOURSE_RELS.map((r) => [r, { rel: r, subPropertyOf: LinkRelations.IN_REPLY_TO.rel, range: COMMENT_LABEL }])),
 		},
 		sortColumns: { author: "TEXT", seqPath: "TEXT" },
-		// A thread read selects comments by their context property.
-		propertyIndexes: [LinkRelations.CONTEXT.rel],
 	},
 };
 
@@ -893,7 +893,7 @@ export const commentDomainDefinition: TDomainDefinition = {
  * grant them, and a consumer records those delegations as its own capabilities.
  *
  * Comment→Principal authorship uses a shared DID: `Comment.author` (a string) equals `Principal.id`, and
- * `getIndividual("Principal", comment.author)` resolves it. The Comment topology also declares an attributedTo edge to
+ * a read of the Principal named `comment.author` returns it. The Comment topology also declares an attributedTo edge to
  * the Principal.
  *
  * Only public material persists, and the schema doesn't have a private-key field.
@@ -955,9 +955,6 @@ export const BodySchema = PersistedVertexSchema.extend({ id: z.string(), content
 
 export type TBody = z.infer<typeof BodySchema>;
 
-/** The minimal store surface that reads one body by fetching its Body individual. */
-type TBodyReader = { getIndividual(label: string, id: string): Promise<unknown> };
-
 /**
  * The order of preference among a record's readings where it holds several.
  *
@@ -981,38 +978,6 @@ export function pickPreferredBody<T extends { mediaType?: string; content?: stri
 		if (hit) return hit;
 	}
 	return usable[0];
-}
-
-/**
- * Reads the text of an individual's body in a given media type. A record names the bodies it links by id and media
- * type and doesn't carry their text, because a body holds a whole record's content and may be large. This function
- * reads the matching Body individual from the store. Returns undefined when the individual doesn't link a body of that
- * media type.
- */
-export async function bodyByMediaType(
-	store: TBodyReader,
-	individual: { hasBody?: Array<{ id?: string; mediaType?: string }> } | null | undefined,
-	mediaType: string,
-): Promise<string | undefined> {
-	const bodyId = individual?.hasBody?.find((b) => b.mediaType === mediaType)?.id;
-	if (!bodyId) return undefined;
-	const body = (await store.getIndividual(BODY_LABEL, String(bodyId))) as { content?: string } | null;
-	return body?.content;
-}
-
-/**
- * Returns an individual's markdown text from either store layout. A store that partitions content into a Body
- * sub-resource is read through the `hasBody` link. A store that keeps content inline is read from the field. Returns
- * undefined when the individual doesn't hold markdown.
- */
-export async function markdownOf(store: Pick<TDiscourseStore, "getIndividual">, label: string, id: string): Promise<string | undefined> {
-	const individual = (await store.getIndividual(label, id)) as
-		| ({ body?: unknown; content?: unknown; hasBody?: Array<{ id?: string; mediaType?: string }> } & Record<string, unknown>)
-		| undefined;
-	if (!individual) return undefined;
-	const inline = individual.body ?? individual.content;
-	if (typeof inline === "string") return inline;
-	return bodyByMediaType(store as TBodyReader, individual, MEDIA_TYPE.markdown);
 }
 
 export const bodyDomainDefinition: TDomainDefinition = {
@@ -1241,13 +1206,12 @@ export const annotationNoteDomainDefinition: TDomainDefinition = {
 // Discourse write helpers, comment and annotation acts over a quad store
 // ============================================================================
 
-/** The store surface the discourse write helpers call: node upsert, read and delete, single-property set, quad add,
+/** The store surface the discourse write helpers call: node upsert and delete, single-property set, quad add,
  *  query and remove, and the navigable createEdge and referenceEdge of a property-graph store. Every member is an
  *  `IQuadStore` member, so every consumer store implements it. Naming only the members these helpers call keeps them
  *  store-agnostic. */
 export type TDiscourseStore = {
 	upsertIndividual(label: string, data: unknown): Promise<string>;
-	getIndividual<T = Record<string, unknown>>(label: string, id: string): Promise<T | undefined>;
 	deleteIndividual(label: string, id: string): Promise<void>;
 	set(subject: string, predicate: string, object: unknown, namedGraph: string): Promise<void>;
 	query(pattern: { subject?: string; predicate?: string; object?: unknown }): Promise<Array<{ subject: string; predicate: string; object: unknown }>>;
@@ -1262,7 +1226,7 @@ export type TDiscourseStore = {
 
 /** The maximum length of a Comment's display name. The name is the note text on one line, truncated, so a graph view titles the Comment by its text and not its id. */
 const COMMENT_NAME_MAX = 60;
-function commentName(text: string): string {
+export function commentName(text: string): string {
 	const oneLine = text.replace(/\s+/g, " ").trim();
 	return oneLine.length > COMMENT_NAME_MAX ? `${oneLine.slice(0, COMMENT_NAME_MAX - 1)}…` : oneLine;
 }
@@ -1282,34 +1246,6 @@ export async function writeReferenceEdge(store: TDiscourseStore, fromLabel: stri
 	else await writeEdge(store, fromLabel, fromId, rel, toLabel, toId);
 }
 
-/** Creates a Comment individual with its markdown body as a Body sub-resource. The `comment` and `annotate` acts both
- *  call it. `name` titles the node by the truncated note text and not by its id. The note is markdown, so readTypedLinks
- *  derives the facts its links state with the Comment as their subject. */
-export async function createComment(
-	store: TDiscourseStore,
-	vocab: TLinkVocabulary,
-	author: string,
-	text: string,
-	now: string,
-	period?: { start?: string; end?: string },
-	provenance?: { seqPath?: string },
-): Promise<string> {
-	const commentId = crypto.randomUUID();
-	await store.upsertIndividual(COMMENT_LABEL, {
-		id: commentId,
-		author,
-		generatedAtTime: now,
-		...(period?.start ? { startedAtTime: period.start } : {}),
-		...(period?.end ? { endedAtTime: period.end } : {}),
-		name: commentName(text),
-	});
-	const bodyId = `body-${commentId}-text-markdown`;
-	await store.upsertIndividual(BODY_LABEL, { id: bodyId, content: text, mediaType: MEDIA_TYPE.markdown, generatedAtTime: now });
-	await writeEdge(store, COMMENT_LABEL, commentId, LinkRelations.HAS_BODY.rel, BODY_LABEL, bodyId);
-	await readTypedLinks(store, vocab, { label: COMMENT_LABEL, id: commentId }, text, provenance);
-	return commentId;
-}
-
 /** Returns the selector record that locates a part and the text the part reads as. A quoted passage gets a
  *  TextQuoteSelector and a media fragment gets a FragmentSelector. */
 const selectorOf = (part: TPart): { label: string; fields: Record<string, string>; reads: string } =>
@@ -1326,7 +1262,7 @@ const selectorOf = (part: TPart): { label: string; fields: Record<string, string
  *  one occurrence. Returns the ids it wrote and the selector's type. A Comment's oa:hasTarget (anchor) or oa:hasBody
  *  linksTo (cross-reference) points at the SpecificResource. The selector id lets a caller that owns the anchor retract
  *  the pair. */
-async function anchorPart(
+export async function anchorPart(
 	store: TDiscourseStore,
 	sourceLabel: string,
 	sourceId: string,
@@ -1378,34 +1314,6 @@ export async function conversationRoot(store: TDiscourseStore, id: string): Prom
 	return root;
 }
 
-/** Writes a W3C Web Annotation anchored in (label, id): the anchor passage (oa:hasTarget), the note and, for a linking
- *  annotation, each further anchored passage the note cross-references (oa:hasBody linksTo). The quote carries optional
- *  prefix and suffix context so the annotated passage resolves to one occurrence. Every annotate variant calls it. */
-export async function writeAnnotation(
-	store: TDiscourseStore,
-	vocab: TLinkVocabulary,
-	author: string,
-	a: { label: string; id: string; exact: string; prefix?: string; suffix?: string; text: string; at?: string; until?: string; links?: TQuoteAnchor[] },
-): Promise<{ commentId: string; specificResourceId: string; linkedSpecificResourceIds?: string[] }> {
-	// `at` and `until` bound the period the note describes, such as a milestone's week. They are stored as
-	// startedAtTime and endedAtTime so time-placed views such as gantt show the note over its period. `generatedAtTime`
-	// holds the time the record was written. The two are different facts.
-	const now = new Date().toISOString();
-	// The anchored passage is titled by the note's text, by the same rule that titles a Comment. Every view then shows
-	// the anchor as the note's statement and not as the bare quote.
-	const { specificResourceId } = await anchorPart(store, a.label, a.id, a, now, { label: commentName(a.text) });
-	const commentId = await createComment(store, vocab, author, a.text, now, { start: a.at, end: a.until });
-	await writeEdge(store, COMMENT_LABEL, commentId, LinkRelations.TARGET.rel, SPECIFIC_RESOURCE_LABEL, specificResourceId);
-	const linkedSpecificResourceIds: string[] = [];
-	for (const link of a.links ?? []) {
-		const linked = await anchorPart(store, a.label, a.id, link, now);
-		await writeEdge(store, COMMENT_LABEL, commentId, LinkRelations.LINKS_TO.rel, SPECIFIC_RESOURCE_LABEL, linked.specificResourceId);
-		linkedSpecificResourceIds.push(linked.specificResourceId);
-	}
-	await assertCommentGrounded(store, commentId);
-	return { commentId, specificResourceId, ...(linkedSpecificResourceIds.length > 0 ? { linkedSpecificResourceIds } : {}) };
-}
-
 // ============================================================================
 // Typed-link derivation: turning a text's links into facts
 // ============================================================================
@@ -1416,91 +1324,7 @@ export const StatedRecordSchema = z.discriminatedUnion("kind", [
 	z.object({ kind: z.literal("edge"), s: z.string(), sLabel: z.string(), rel: z.string(), o: z.string(), oLabel: z.string() }),
 	z.object({ kind: z.literal("individual"), label: z.string(), id: z.string() }),
 ]);
-type TStatedRecord = z.infer<typeof StatedRecordSchema>;
-
-/** Returns a stable reading id per source, so reading the source again replaces the previous reading and doesn't add one per run. */
-export function readingIdFor(sourceLabel: string, sourceId: string): string {
-	return `reading:${sourceLabel}:${sourceId}`;
-}
-
-/** Undoes the previous reading of this source. It retracts the reading's statements, deletes the anchors it wrote and removes the reading. */
-async function retractReading(store: TDiscourseStore, readingId: string): Promise<void> {
-	const prior = await store.getIndividual<{ stated?: unknown }>(READING_LABEL, readingId);
-	if (!prior) return;
-	const entries = prior.stated;
-	if (entries !== undefined && !Array.isArray(entries))
-		throw new Error(`${READING_LABEL} "${readingId}" records what it stated as ${typeof entries}, not a list, so the record cannot be undone`);
-	for (const entry of (entries ?? []) as string[]) {
-		const record = fromJsonText(StatedRecordSchema).parse(entry);
-		if (record.kind === "edge") await store.remove({ subject: record.s, predicate: record.rel, object: record.o, namedGraph: record.sLabel });
-		else await store.deleteIndividual(record.label, record.id);
-	}
-	await store.deleteIndividual(READING_LABEL, readingId);
-}
-
-/**
- * Writes the facts a text's links state, with `source` as their subject.
- *
- * Every statement connects two records of registered types. One is the text, which is already a record of its own
- * type. The other is the individual its link names by `#Type:id`. The persisted-type registry defines the link
- * targets. An untyped link to an absent record is prose and doesn't state a fact. A typed link to an absent record
- * throws. A typed link's part is a passage or a fragment of media. `anchorPart` anchors it on the W3C Web Annotation
- * types and labels it with the link text.
- *
- * A Reading records what it read (`prov:used`), the step that read it and every statement it made. Reading a rewritten
- * text then undoes the previous reading and leaves statements asserted by hand unchanged.
- */
-export async function readTypedLinks(
-	store: TDiscourseStore,
-	vocab: TLinkVocabulary,
-	source: { label: string; id: string },
-	markdown: string | undefined,
-	provenance?: { seqPath?: string; facts?: TTypedLinkFact[] },
-): Promise<{ readingId: string; statements: number } | undefined> {
-	const readingId = readingIdFor(source.label, source.id);
-	await retractReading(store, readingId);
-	// A caller that already parsed the text passes its facts, so a prose line is parsed once.
-	const facts = provenance?.facts ?? (markdown ? typedLinkFacts(markdown, vocab) : []);
-	if (facts.length === 0) return undefined;
-	const now = new Date().toISOString();
-	const stated: TStatedRecord[] = [];
-	// The reading is written first because the records below point at it, and a strict store requires an edge's target to exist. Its `stated` list is set at the end.
-	await store.upsertIndividual(READING_LABEL, { id: readingId, generatedAtTime: now, ...(provenance?.seqPath ? { seqPath: provenance.seqPath } : {}), stated: [] });
-	/** Anchors a part inside a record and returns the SpecificResource an edge can target. This reading owns the anchor pair. */
-	const anchored = async (base: { label: string; id: string }, part: TPart, linkText?: string): Promise<{ label: string; id: string }> => {
-		const { specificResourceId, selectorId, selectorLabel } = await anchorPart(store, base.label, base.id, part, now, linkText ? { label: linkText } : undefined);
-		for (const written of [
-			{ label: selectorLabel, id: selectorId },
-			{ label: SPECIFIC_RESOURCE_LABEL, id: specificResourceId },
-		]) {
-			await writeEdge(store, written.label, written.id, LinkRelations.WAS_GENERATED_BY.rel, READING_LABEL, readingId);
-			stated.push({ kind: "individual", ...written });
-		}
-		return { label: SPECIFIC_RESOURCE_LABEL, id: specificResourceId };
-	};
-	for (const fact of facts) {
-		const named = { label: fact.target.persistedAs, id: fact.target.id };
-		// The target must exist. Creating an id-only record as the target would add a node that doesn't hold a property.
-		if (!(await store.getIndividual(named.label, named.id))) {
-			if (!fact.typed) continue;
-			throw new Error(`typed link "${fact.linkText ?? fact.rel}" refers to ${named.label} "${named.id}", which isn't a record that exists. Write that record first.`);
-		}
-		// Only a typed link anchors its passage. An untyped link derives only the record-level edge, and its passage stays
-		// in the link, so plain cross-references don't add anchor records.
-		const target = fact.typed && fact.target.anchor ? await anchored(named, fact.target.anchor, fact.linkText) : named;
-		await writeEdge(store, source.label, source.id, fact.rel, target.label, target.id);
-		stated.push({ kind: "edge", s: source.id, sLabel: source.label, rel: fact.rel, o: target.id, oLabel: target.label });
-	}
-	// Sets the reading's record of its statements on the individual written before the facts.
-	await store.set(
-		readingId,
-		"stated",
-		stated.map((record) => JSON.stringify(record)),
-		READING_LABEL,
-	);
-	await writeReferenceEdge(store, READING_LABEL, readingId, LinkRelations.USED.rel, source.label, source.id);
-	return { readingId, statements: stated.filter((d) => d.kind === "edge").length };
-}
+export type TStatedRecord = z.infer<typeof StatedRecordSchema>;
 
 // ============================================================================
 // Property definitions, runtime projection of LinkRelations

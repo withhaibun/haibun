@@ -23,7 +23,8 @@ import {
 	IndividualWithEdgesSchema,
 	type TQuad,
 } from "@haibun/core/lib/quad-types.js";
-import { QuadStore, queryQuadStore, individualWithEdges } from "@haibun/core/lib/quad-store.js";
+import { QuadStore } from "@haibun/core/lib/quad-store.js";
+import { recordWithEdges } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { DOMAIN_RECORD_ID, hypermediaDomainMap, DOMAIN_LINK, DOMAIN_PRINCIPAL_REF, type TIndividualRef } from "@haibun/core/lib/domains.js";
 import { buildResourceRels, pageLimit, relOf } from "@haibun/core/lib/hypermedia.js";
 import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
@@ -116,7 +117,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			// this instance holds, which is what a site without a graph engine of its own has; a deployment that gates a
 			// read by what a reader may see declares its own step, and the page reads through that one instead.
 			action: async ({ label, id }: { label: string; id: string }) => {
-				const held = await individualWithEdges(this.getWorld().shared.getStore(), label, id);
+				const held = await recordWithEdges(this.getWorld().shared.getStore(), label, id);
 				return held === undefined ? actionNotOK(`${label} ${id} isn't held here`) : actionOKWithProducts(held);
 			},
 		},
@@ -246,7 +247,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			// The vertex rows are the RPC response; keeping them on the event too is the per-query bloat.
 			retainProducts: false,
 			// The same answer a page reading its own copy of the graph gives itself, so the two never drift.
-			action: async ({ query }: { query: TGraphQuery }) => actionOKWithProducts(await queryQuadStore(this.getWorld().shared.getStore(), query)),
+			action: async ({ query }: { query: TGraphQuery }) => actionOKWithProducts(await this.getWorld().shared.getStore().readRecords(query)),
 		},
 	} as const satisfies TStepperSteps;
 }

@@ -4,12 +4,12 @@
 // id, so a feature reads what the page holds from here with the generic steps. It doesn't make a source of its own.
 import { ServerUnreachable } from "../hypermedia.js";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { ShuClientCacheColumn } from "./shu-client-cache-column.js";
 import "./shu-monitor-column.js";
 import { SHU_TEST_IDS } from "../test-ids.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
+import { runStore } from "../client-cache/run-store.test-fake.js";
 import { timeCursor } from "../signals.js";
 import { setGraphStore } from "../quads-snapshot.js";
 import { setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
@@ -47,7 +47,7 @@ describe("the client cache view", () => {
 		});
 		setSiteMetadata({ types: [SEQ_PATH_LABEL], rels: { [SEQ_PATH_LABEL]: {} }, edgeRanges: {} } as unknown as SiteMetadata);
 		// The execution being recorded, and an earlier one this device still holds, each named by the feature it ran.
-		const store = new QuadStore();
+		const store = runStore();
 		await store.upsertIndividual(SEQ_PATH_LABEL, step(EARLIER, 0, { stepText: "Feature: An earlier run", called: "Haibun.feature", generatedAtTime: iso(500) }));
 		await store.upsertIndividual(SEQ_PATH_LABEL, step(RUN, 0, { stepText: "Feature: The actuality being recorded", called: "Haibun.feature" }));
 		for (let i = 1; i < STEPS; i++) await store.upsertIndividual(SEQ_PATH_LABEL, step(RUN, i));
@@ -75,7 +75,7 @@ describe("the client cache view", () => {
 	const text = (view: ShuClientCacheColumn): string => view.shadowRoot?.textContent?.replace(/\s+/g, " ").trim() ?? "";
 
 	it("reports what it does not know as pending, never as absent", async () => {
-		setGraphStore(new QuadStore());
+		setGraphStore(runStore());
 		const view = new ShuClientCacheColumn();
 		document.body.appendChild(view);
 		await view.updateComplete; // before what the device holds has been read once

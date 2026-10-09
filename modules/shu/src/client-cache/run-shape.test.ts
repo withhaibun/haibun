@@ -3,7 +3,6 @@
 // these read a store made here and don't install a store.
 import { describe, it, expect } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
@@ -12,13 +11,14 @@ import { MARK_COLOUR } from "../event-marker.js";
 import { ofExecution, runGraphOf, type TRunGraph } from "./run-graph.js";
 import { runShape } from "./run-shape.js";
 import { RUN_TYPES } from "./run-window.js";
+import { runStore } from "./run-store.test-fake.js";
 
 const RUN = "1700000000000-1";
 const iso = (n: number): string => new Date(n).toISOString();
 
 /** A run of the steps and messages given, and what was counted of it: the store is added to as a run adds to itself. */
 const aRun = async (steps: Array<{ at: number; status: string }> = [], said: Array<{ at: number; level: string }> = []) => {
-	const store = new QuadStore();
+	const store = runStore();
 	const counted: TDensityQuery[] = [];
 	const addStep = async (at: number, status: string, i: number) =>
 		store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.${i}`, execution: RUN, stepText: `step ${i}`, actionStatus: status, level: "info", generatedAtTime: iso(at) });

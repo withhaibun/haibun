@@ -4,19 +4,20 @@
 import { describe, it, expect } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { MAX_PAGE_ROWS } from "@haibun/core/lib/hypermedia.js";
-import { QuadStore } from "@haibun/core/lib/quad-store.js";
+import type { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { producedUnderSteps, runWindow, type TRunRow } from "./run-window.js";
 import { runGraphOf } from "./run-graph.js";
+import { runStore } from "./run-store.test-fake.js";
 
 const RUN = "1700000000000-1";
 const iso = (n: number): string => new Date(n).toISOString();
 
 /** A run of `steps` steps a second apart, each logging one thing at the level given. */
 async function aRunOf(steps: number, saying: string = "info"): Promise<QuadStore> {
-	const store = new QuadStore();
+	const store = runStore();
 	for (let i = 0; i < steps; i++) {
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
 			id: `${RUN}.0.${i}`,
@@ -97,7 +98,7 @@ describe("the window of a run a reader is looking at", () => {
 	});
 
 	it("is empty when actuality hasn't written a record, rather than failing", async () => {
-		const graph = runGraphOf(new QuadStore());
+		const graph = runGraphOf(runStore());
 		expect(await runWindow(graph, { size: 10 })).toEqual({ rows: [] });
 	});
 });
@@ -106,7 +107,7 @@ describe("the order a run put its records in", () => {
 	// A run outpaces a millisecond, so a clock alone leaves the records of one instant in whatever order they were read.
 	// Where a clock cannot tell two apart, their place in actuality does.
 	it("puts the records of one instant in the order actuality made them", async () => {
-		const store = new QuadStore();
+		const store = runStore();
 		// Written newest first, as a store reading the newest of a run returns them, and all within one millisecond.
 		for (const i of [30, 29, 28, 27, 26])
 			await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.${i}`, stepText: `step ${i}`, actionStatus: "passed", level: "info", generatedAtTime: iso(1000) });
@@ -123,7 +124,7 @@ describe("what a run reports outside every step", () => {
 	// A step that fails is reported after it ends, so what actuality reports about it doesn't belong to a step. Such a statement
 	// must not decide which run a window is of, or a reader watching a step fail loses the run they were reading.
 	it("keeps the actuality it is read with, rather than emptying the window", async () => {
-		const store = new QuadStore();
+		const store = runStore();
 		const execution = RUN;
 		for (const i of [1, 2, 3])
 			await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${execution}.0.${i}`, stepText: `step ${i}`, actionStatus: "passed", level: "info", generatedAtTime: iso(1000 + i) });
@@ -142,7 +143,7 @@ describe("what a run reports outside every step", () => {
 	});
 
 	it("is read even when it doesn't name an execution", async () => {
-		const store = new QuadStore();
+		const store = runStore();
 		await store.upsertIndividual(SEQ_PATH_LABEL, { id: "1700000000000-1.0.1", stepText: "a step", actionStatus: "passed", level: "info", generatedAtTime: iso(1000) });
 		await store.upsertIndividual(LOG_MESSAGE_LABEL, { id: "log.1700000009999", message: "said by nothing in particular", level: "warn", generatedAtTime: iso(1010) });
 		const graph = runGraphOf(store);
@@ -167,7 +168,7 @@ describe("following a run that is still happening", () => {
 	const newestRecording = (rows: TRunRow[]) => Math.max(...rows.map((r) => r.recordedAt ?? 0));
 
 	it("reads what was recorded since the last read, and doesn't read a record from before it", async () => {
-		const store = new QuadStore();
+		const store = runStore();
 		for (const i of [1, 2, 3]) await step(store, i, 1000 + i, 1000 + i);
 		const graph = runGraphOf(store);
 		const first = await runWindow(graph, { size: 10 });
@@ -184,7 +185,7 @@ describe("following a run that is still happening", () => {
 		// A record is written after the moment it is of. What a run logged or produced during a step is announced at
 		// once and recorded a moment later, and the next step can begin in between: asking for what is of a later
 		// moment than the newest row would pass such a record over for good.
-		const store = new QuadStore();
+		const store = runStore();
 		await step(store, 1, 1000, 1000);
 		await step(store, 2, 1004, 1004);
 		const graph = runGraphOf(store);
@@ -203,7 +204,7 @@ describe("following a run that is still happening", () => {
 	});
 
 	it("includes a step that ended after the last read, because its record was written again when it ended", async () => {
-		const store = new QuadStore();
+		const store = runStore();
 		await step(store, 1, 1000, 1000, { stepText: "the feature", actionStatus: "running" });
 		await step(store, 2, 1001, 1002, { stepText: "a step that ended", endedAtTime: iso(1002) });
 		await step(store, 3, 1003, 1003, { stepText: "the step now running", actionStatus: "running" });
@@ -218,7 +219,7 @@ describe("following a run that is still happening", () => {
 	});
 
 	it("names the step whose row carries what it produced, and keeps the produced row for the views that place it", async () => {
-		const store = new QuadStore();
+		const store = runStore();
 		await step(store, 1, 1000, 1002, { stepText: "a step of the feature" });
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
 			id: `${RUN}.0.1.-1`,
@@ -250,7 +251,7 @@ describe("following a run that is still happening", () => {
 	});
 
 	it("leaves out the steps run to carry other steps out, and reads them when a reader asks for them", async () => {
-		const store = new QuadStore();
+		const store = runStore();
 		await step(store, 1, 1000, 1002, { stepText: "a step of the feature" });
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
 			id: `${RUN}.0.1.-1`,
@@ -276,7 +277,7 @@ describe("following a run that is still happening", () => {
 	});
 
 	it("doesn't return a new record when a record wasn't added since the last read", async () => {
-		const store = new QuadStore();
+		const store = runStore();
 		await step(store, 1, 1000, 1000, { stepText: "a step" });
 		const graph = runGraphOf(store);
 		const first = await runWindow(graph, { size: 10 });

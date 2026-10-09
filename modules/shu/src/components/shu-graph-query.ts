@@ -284,7 +284,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 					label,
 					filters: validConditions,
 					textQuery: textQuery || undefined,
-					sortBy: sortBy || "",
+					...(sortBy ? { sortBy } : {}),
 					sortOrder,
 					// A request reads at most MAX_PAGE_ROWS rows. The source reads the rest of a larger window after these rows.
 					limit: Math.min(this.limit, MAX_PAGE_ROWS),

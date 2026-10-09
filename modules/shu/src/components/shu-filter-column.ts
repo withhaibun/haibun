@@ -59,9 +59,8 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 	}
 
 	async openFiltered(property: string, value: string, label: string = defaultLabel()): Promise<void> {
-		// The idField is never a query filter (queryIndividuals rejects predicates not
-		// in sortColumns). A filter request keyed on it is an open-by-id, so
-		// redirect to the entity column instead of issuing a doomed graphQuery.
+		// A read refuses a filter on the id field, which isn't in the type's filter surface. A filter on the id names one
+		// record, so the column opens that record in the entity column and doesn't run a graph query.
 		if (property === getIdField(label)) {
 			openRef(this, REF_DENOTES.individual, { persistedAs: label, id: value });
 			return;
@@ -71,7 +70,6 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 		await this.fetchResults({
 			label,
 			filters: [{ predicate: property, operator: "eq", value }],
-			sortBy: "",
 			sortOrder: "desc",
 			limit: 50,
 			offset: 0,
@@ -85,8 +83,8 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 		// Sort by the clicked property only when the topology declares it sortable; otherwise (the idField, or any field
 		// not in sortColumns, e.g. a SeqPath's id) fall back to the default sort so browsing all of this type still works
 		// instead of the store rejecting an undeclared sortBy.
-		const sortBy = getQueryableFields(label).includes(property) ? property : "";
-		await this.fetchResults({ label, filters: [], sortBy, sortOrder: "asc", limit: 50, offset: 0, accessLevel: appAccessLevel() });
+		const sorted = getQueryableFields(label).includes(property) ? { sortBy: property } : {};
+		await this.fetchResults({ label, filters: [], ...sorted, sortOrder: "asc", limit: 50, offset: 0, accessLevel: appAccessLevel() });
 	}
 
 	async openIncoming(targetId: string, targetLabel: string): Promise<void> {

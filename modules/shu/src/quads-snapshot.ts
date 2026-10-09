@@ -10,10 +10,9 @@ import {
 	type TIndividualWithEdges,
 	type TIncomingEdges,
 } from "@haibun/core/lib/quad-types.js";
-import { individualWithEdges, incomingEdgesOf } from "@haibun/core/lib/quad-store.js";
+import { incomingEdges as incomingEdgesHeld, recordWithEdges } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import type { TRunGraph } from "./client-cache/run-graph.js";
 import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
-import { queryQuadStore } from "@haibun/core/lib/quad-store.js";
 import { reportFailure } from "./client-log.js";
 import { appAccessLevel } from "./util.js";
 import { reads, conduit, isServerUnreachable } from "./hypermedia.js";
@@ -317,7 +316,7 @@ export function queryGraph(query: Record<string, unknown>): Promise<TGraphQueryR
 		() => conduit().follow<TGraphQueryResult>(reads(requireStep("graphQuery"), { query }), `query: ${(query.label as string) || "(any)"}`),
 		async () => {
 			const parsed = GraphQuerySchema.safeParse(query);
-			return parsed.success && getRels(parsed.data.label ?? "") ? await queryQuadStore(cachedGraphStore(), parsed.data) : undefined;
+			return parsed.success && getRels(parsed.data.label ?? "") ? await cachedGraphStore().readRecords(parsed.data) : undefined;
 		},
 	);
 }
@@ -368,7 +367,7 @@ export function mergeQuadsIntoSnapshot(quads: TQuad[]): void {
 export function readIndividual(label: string, id: string, accessLevel: string): Promise<TIndividualWithEdges> {
 	return askElseHeld(
 		() => conduit().follow<TIndividualWithEdges>(reads(requireStep("getIndividualWithEdges"), { label, id, accessLevel }), `read ${label}:${id}`),
-		() => individualWithEdges(cachedGraphStore(), label, id),
+		() => recordWithEdges(cachedGraphStore(), label, id),
 	);
 }
 
@@ -380,7 +379,7 @@ export function incomingEdges(label: string, id: string, window: { limit: number
 	return askElseHeld(
 		() => conduit().follow<TIncomingEdges>(reads(requireStep("getIncomingEdges"), { label, id, accessLevel: appAccessLevel(), ...window }), `what points at ${label}:${id}`),
 		// The window is taken before a record is read, so a hub takes the page a window rather than every edge of it.
-		() => (getRels(label) ? incomingEdgesOf(cachedGraphStore(), id, window) : Promise.resolve(undefined)),
+		() => (getRels(label) ? incomingEdgesHeld(cachedGraphStore(), label, id, window) : Promise.resolve(undefined)),
 	);
 }
 

@@ -5,10 +5,10 @@
  * the graph; the quads come from a stubbed RPC behind LiveConduit.
  */
 import { serveThePage } from "../test-setup.js";
+import { runStore } from "../client-cache/run-store.test-fake.js";
 import { describe, it, expect, beforeEach } from "vitest";
 import "./shu-step-detail.js"; // side-effect import so the module runs (registration is via component-registry in the app)
 import { ShuStepDetail, stepRecordId } from "./shu-step-detail.js";
-import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { setConduit, LiveConduit } from "../hypermedia.js";
 import { setEventStream, SerializedEventStream } from "../event-stream.js";
@@ -29,7 +29,7 @@ describe("shu-step-detail", () => {
 		setEventStream(new SerializedEventStream());
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
 		// One step of the execution being read: what it asked for, what ran, how it went and where.
-		const store = new QuadStore();
+		const store = runStore();
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
 			id: `${EXECUTION}.0.1`,
 			stepText: "a step",

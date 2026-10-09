@@ -78,16 +78,8 @@ export class RemoteQuadStore implements IQuadStore {
 		return this.call("upsertIndividual", { label, data });
 	}
 
-	getIndividual<T = Record<string, unknown>>(label: string, id: string): Promise<T | undefined> {
-		return this.call("getIndividual", { label, id });
-	}
-
 	deleteIndividual(label: string, id: string): Promise<void> {
 		return this.call("deleteIndividual", { label, id });
-	}
-
-	queryIndividuals<T = Record<string, unknown>>(label: string, filters?: Record<string, unknown>, options?: { limit?: number; offset?: number }): Promise<T[]> {
-		return this.call("queryIndividuals", { label, filters, options });
 	}
 
 	distinctPropertyValues(label: string, property: string): Promise<string[]> {

@@ -2,12 +2,14 @@
  * An individual must be addressable.
  *
  * upsertIndividual keyed on `String(validated[idField])`, so a record without a value in its identity field was written
- * under the literal subject "undefined": unreachable by getIndividual, and silently overwritten by the next such
+ * under the literal subject "undefined": unreachable by a read of the record, and silently overwritten by the next such
  * record. The guard below it never fired, because "undefined" is a truthy string.
  */
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { QuadStore } from "./quad-store.js";
+import { recordOf } from "./records/pipelines/record-reads.js";
+import { storeDeclaring } from "./test/declared-types.js";
 
 describe("upsertIndividual identity", () => {
 	it('refuses a record without a value in its identity field, rather than writing it under "undefined"', async () => {
@@ -32,10 +34,10 @@ describe("upsertIndividual identity", () => {
 	});
 
 	it("uses the registered identity field when a label declares one", async () => {
-		const store = new QuadStore();
+		const store = storeDeclaring({ File: {} });
 		store.registerIndividualType("File", z.object({ path: z.string(), name: z.string() }), "path");
 		await store.upsertIndividual("File", { path: "src/a.ts", name: "a" });
-		expect(await store.getIndividual("File", "src/a.ts")).toBeDefined();
+		expect(await recordOf(store, "File", "src/a.ts")).toBeDefined();
 	});
 
 	it("refuses a record missing the registered identity field, naming the field it wanted", async () => {

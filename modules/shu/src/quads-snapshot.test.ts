@@ -38,6 +38,7 @@ import { setConduit, LiveConduit, ServerUnreachable } from "./hypermedia.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { SerializedEventStream, setEventStream } from "./event-stream.js";
 import { endPage, pagePinned } from "./page-pinned.js";
+import { storeDeclaring } from "@haibun/core/lib/test/declared-types.js";
 
 const STORE_KEY = "__SHU_QUADS_SNAPSHOT_STORE__";
 
@@ -280,7 +281,7 @@ describe("the rows a graph query names, without a server to ask", () => {
 	});
 
 	it("lists what it caches of the type, narrowed by the same filters", async () => {
-		const store = new QuadStore();
+		const store = storeDeclaring({ Email: { filters: ["folder"] } });
 		await store.setMany([
 			{ subject: "a", predicate: "messageId", object: "a", namedGraph: "Email", timestamp: 1 },
 			{ subject: "a", predicate: "folder", object: "INBOX", namedGraph: "Email", timestamp: 1 },
@@ -289,9 +290,9 @@ describe("the rows a graph query names, without a server to ask", () => {
 		]);
 		setGraphStore(store);
 		expect((await queryGraph({ label: "Email" })).total).toBe(2);
-		// The row carries its type and the type's own id field. A reader opens the record from the list by that id.
+		// The row carries its @id, its type and the type's own id field. A reader opens the record from the list by that id.
 		expect((await queryGraph({ label: "Email", filters: [{ predicate: "folder", operator: "eq", value: "Sent" }] })).vertices).toEqual([
-			{ "@type": "Email", messageId: "b", folder: "Sent" },
+			{ "@id": "b", "@type": "Email", messageId: "b", folder: "Sent" },
 		]);
 	});
 
@@ -312,7 +313,7 @@ describe("an individual the page holds a copy of", () => {
 	const NOT_HELD = "Email a isn't held here";
 	const pageHolding = async (answer: () => unknown) => {
 		setupShuTest({ dispatch: (method) => (method === SHOW_STEPS_METHOD ? stepsShown([READ]) : answer()) });
-		const store = new QuadStore();
+		const store = storeDeclaring({ Email: { filters: ["folder"] } });
 		await store.upsertIndividual("Email", { id: "a", folder: "INBOX" });
 		setGraphStore(store);
 		setSiteMetadata({ types: ["Email"], rels: { Email: { folder: LinkRelations.CONTEXT.rel } }, edgeRanges: {} } as unknown as SiteMetadata);

@@ -20,6 +20,7 @@ import { z } from "zod";
 import { LinkRelations, PersistedVertexSchema, type TDomainDefinition } from "../lib/resources.js";
 import { refDomainKey, type TIndividualRef } from "../lib/domains.js";
 import { ACTIVITIES_ACTIONS } from "./activities-actions.js";
+import { readEvery, recordOf } from "../lib/records/pipelines/record-reads.js";
 
 // The steps this stepper always has. The stepper adds a step for each waypoint a feature declares and for each saved waypoint.
 type TActivitiesFixedSteps = {
@@ -180,7 +181,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			description: "Registers each saved waypoint from its record, so actuality offers a waypoint saved before a restart again.",
 			gwta: "register the saved waypoints",
 			action: async () => {
-				const saved = await this.getWorld().shared.getStore().queryIndividuals(SAVED_WAYPOINT_LABEL);
+				const saved = await readEvery(this.getWorld().shared.getStore(), { label: SAVED_WAYPOINT_LABEL });
 				this.registerSavedWaypoints(saved.map((record) => SavedWaypointSchema.parse(record)));
 				return OK;
 			},
@@ -451,7 +452,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		const store = this.getWorld().shared.getStore();
 		// The store holds a record for each saved waypoint. Saving an outcome again with the same lines returns the existing
 		// record. registerSavedWaypoints throws for every other outcome that is already registered.
-		const kept = await store.getIndividual(SAVED_WAYPOINT_LABEL, outcome);
+		const kept = await recordOf(store, SAVED_WAYPOINT_LABEL, outcome);
 		if (kept) {
 			const held = SavedWaypointSchema.parse(kept);
 			if (held.lines.length === lines.length && held.lines.every((line, at) => line === lines[at])) return held;

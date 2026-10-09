@@ -13,7 +13,10 @@ import { hydrateClientCache, type TCachePayload } from "./hydrate.js";
 import { currentExecution } from "./executions.js";
 import { runWindow } from "./run-window.js";
 import { cachedGraphStore, pageRunGraph } from "../quads-snapshot.js";
-import { setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
+import { setConcernCatalog, setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
+import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
+import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
+import { RUN_DOMAIN_DEFINITIONS } from "./run-store.test-fake.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
 
 const EXECUTION = "1700000000000-1";
@@ -46,6 +49,8 @@ describe("a run carried in a page", () => {
 		// What the site declared, which a report carries as its registry: a type the page does not know is a type whose
 		// records it doesn't hold, so the window would ask a question without an answer.
 		setSiteMetadata({ types: [SEQ_PATH_LABEL], rels: { [SEQ_PATH_LABEL]: {} }, edgeRanges: {} } as unknown as SiteMetadata);
+		// The page reads a carried run's records by the declarations the site's catalog states.
+		setConcernCatalog(buildConcernCatalog(mapDefinitionsToDomains(RUN_DOMAIN_DEFINITIONS)));
 	});
 	afterEach(() => {
 		handle.teardown();

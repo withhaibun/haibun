@@ -15,6 +15,7 @@ import { getAuthority } from "../lib/session-authority.js";
 import type { TAuthorityEvidence } from "../lib/authority-types.js";
 import { stubVerifier } from "../lib/test/fake-authority.js";
 import { itemAt } from "../lib/util/item-at.js";
+import { readEvery } from "../lib/records/pipelines/record-reads.js";
 import AuthorityStepper from "./authority-stepper.js";
 import ResourcesStepper from "./resources-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
@@ -91,7 +92,7 @@ holding capability cap at "urn:res:1", comment on "${TEST_NODE_LABEL}" "node-1" 
 		expect(result.ok).toBe(true);
 
 		const store = world.shared.getStore();
-		const comments = await store.queryIndividuals<{ id: string; author: string }>(COMMENT_LABEL);
+		const comments = await readEvery(store, { label: COMMENT_LABEL });
 		expect(comments.length).toBe(1);
 		expect(itemAt(comments, 0).author).toBe(SUBKEY_DID);
 
@@ -120,7 +121,7 @@ holding capability cap at "urn:res:1", comment on "${TEST_NODE_LABEL}" "node-1" 
 		expect(result.ok).toBe(false);
 
 		const store = world.shared.getStore();
-		const comments = await store.queryIndividuals<{ id: string; author: string }>(COMMENT_LABEL);
+		const comments = await readEvery(store, { label: COMMENT_LABEL });
 		expect(comments.length).toBe(0);
 	});
 });

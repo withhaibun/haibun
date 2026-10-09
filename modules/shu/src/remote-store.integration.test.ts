@@ -5,7 +5,9 @@ import { OK } from "@haibun/core/schema/protocol.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import { RpcCallFailed, RpcClient } from "@haibun/core/lib/rpc-client.js";
 import { refusal } from "@haibun/core/lib/step-registry.js";
-import { PRINCIPAL_LABEL, type TPrincipal } from "@haibun/core/lib/resources.js";
+import { PRINCIPAL_LABEL } from "@haibun/core/lib/resources.js";
+import type { TRecordsPage } from "@haibun/core/lib/quad-types.js";
+import { recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import FakeAuthorityStepper, { FakeInvoker } from "@haibun/core/lib/test/fake-authority.js";
@@ -25,8 +27,8 @@ import ShuStepper from "./shu-stepper.js";
  */
 const SATELLITE = "satellite";
 const PEER_PORT = 8251;
-let readBack: TPrincipal | undefined;
-let heldByMain: TPrincipal[] | undefined;
+let readBack: Record<string, unknown> | undefined;
+let heldByMain: TRecordsPage["vertices"] | undefined;
 let deniedRead: string | undefined;
 let deniedWrite: string | undefined;
 
@@ -48,14 +50,14 @@ class StoreDelegationProbeStepper extends AStepper {
 		probeDelegatedStore: {
 			gwta: "probe the delegated store surface",
 			action: async () => {
-				readBack = await this.getWorld().shared.getStore().getIndividual<TPrincipal>(PRINCIPAL_LABEL, "did:site:0.1");
+				readBack = await recordOf(this.getWorld().shared.getStore(), PRINCIPAL_LABEL, "did:site:0.1");
 				const asDelegate = new RpcClient({ baseUrl: `http://localhost:${PEER_PORT}`, sign: new FakeInvoker(SATELLITE).sign, timeoutMs: 2_000, retry: { maxAttempts: 1 } });
-				const held = await asDelegate.call<{ result: TPrincipal[] }>("store.queryIndividuals", { label: PRINCIPAL_LABEL, filters: { id: "did:site:0.1" } }, [], {
+				const held = await asDelegate.call<{ result: TRecordsPage }>("store.readRecords", { query: { label: PRINCIPAL_LABEL, named: ["did:site:0.1"], limit: 1 } }, [], {
 					action: "store.read",
 				});
-				heldByMain = held.result;
+				heldByMain = held.result.vertices;
 				const stranger = new RpcClient({ baseUrl: `http://localhost:${PEER_PORT}`, timeoutMs: 2_000, retry: { maxAttempts: 1 } });
-				deniedRead = await reasonRefused(stranger.call("store.queryIndividuals", { label: PRINCIPAL_LABEL }, []));
+				deniedRead = await reasonRefused(stranger.call("store.readRecords", { query: { label: PRINCIPAL_LABEL } }, []));
 				deniedWrite = await reasonRefused(stranger.call("store.upsertIndividual", { label: PRINCIPAL_LABEL, data: { id: "intruder" } }, []));
 				return OK;
 			},
@@ -89,7 +91,7 @@ probe the delegated store surface
 		// The main itself holds the record, asked directly under the satellite's delegation.
 		expect(heldByMain).toHaveLength(1);
 		// Without a grant a caller doesn't have access: reads and writes are refused a caller that doesn't present one, and the refusal doesn't state more.
-		expect(deniedRead).toBe(refusal("store.queryIndividuals", undefined, undefined));
+		expect(deniedRead).toBe(refusal("store.readRecords", undefined, undefined));
 		expect(deniedWrite).toBe(refusal("store.upsertIndividual", undefined, undefined));
 	});
 });

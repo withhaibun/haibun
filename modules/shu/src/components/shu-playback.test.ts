@@ -11,7 +11,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ShuPlayback } from "./shu-playback.js";
 import { timeCursor } from "../signals.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
-import { QuadStore } from "@haibun/core/lib/quad-store.js";
+import { runStore } from "../client-cache/run-store.test-fake.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { currentExecution, graphRunSource, readExecution } from "../client-cache/index.js";
 
@@ -26,7 +26,7 @@ const EARLIER_EXECUTION = "1600000000000-1";
 const LAST = 1_000_500;
 /** The actuality this control plays through: two steps, the first and the last of it. */
 async function aRun(): Promise<void> {
-	const store = new QuadStore();
+	const store = runStore();
 	for (const [i, at] of [FIRST, LAST].entries())
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
 			id: `1700000000000-1.0.${i}`,

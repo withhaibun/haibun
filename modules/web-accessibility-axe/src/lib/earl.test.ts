@@ -3,8 +3,12 @@ import { EARL_ASSERTION_EDGE, EARL_LABEL, EARL_MODE, EARL_OUTCOME, earlDomainDef
 import { buildConcernCatalog, getJsonLdContext } from "@haibun/core/lib/hypermedia.js";
 import { toRegisteredDomain } from "@haibun/core/lib/domains.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
-import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { readEvery, recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { storeDeclaring } from "@haibun/core/lib/test/declared-types.js";
+
+/** The EARL types, declared so the store reads their records. */
+const EARL_TYPES = Object.fromEntries(Object.values(EARL_LABEL).map((label) => [label, {}]));
 
 const registered = Object.fromEntries(earlDomainDefinitions.map((definition) => [definition.selectors[0], toRegisteredDomain(definition)]));
 
@@ -61,7 +65,7 @@ describe("EARL types", () => {
 
 describe("writeEarlAssertions", () => {
 	it("records each result as an assertion the step made, linked to the assertor, the subject, the test case and the result", async () => {
-		const store = new QuadStore();
+		const store = storeDeclaring(EARL_TYPES);
 		const ids = await writeEarlAssertions(store, assertions(STEP));
 		expect(ids).toEqual([`${STEP} ${IMAGE_ALT.id}`, `${STEP} ${TITLE.id}`]);
 		const edges = await store.query({ subject: itemAt(ids, 0), namedGraph: EARL_LABEL.assertion });
@@ -71,22 +75,22 @@ describe("writeEarlAssertions", () => {
 		expect(target(EARL_ASSERTION_EDGE.test)).toMatchObject({ object: IMAGE_ALT.id, objectType: EARL_LABEL.testCase });
 		expect(target(EARL_ASSERTION_EDGE.wasGeneratedBy)).toMatchObject({ object: STEP, objectType: SEQ_PATH_LABEL });
 		const resultId = String(target(EARL_ASSERTION_EDGE.result)?.object);
-		expect(await store.getIndividual(EARL_LABEL.testResult, resultId)).toMatchObject({
+		expect(await recordOf(store, EARL_LABEL.testResult, resultId)).toMatchObject({
 			outcome: EARL_OUTCOME.failed,
 			info: "Fix the image",
 			pointers: ["#hero img"],
 			impact: "critical",
 		});
-		expect(await store.getIndividual(EARL_LABEL.assertion, itemAt(ids, 0))).toMatchObject({ mode: EARL_MODE.automatic });
+		expect(await recordOf(store, EARL_LABEL.assertion, itemAt(ids, 0))).toMatchObject({ mode: EARL_MODE.automatic });
 	});
 	it("shares one record of a test case, an assertor and a subject among the assertions that name them", async () => {
-		const store = new QuadStore();
+		const store = storeDeclaring(EARL_TYPES);
 		await writeEarlAssertions(store, assertions(STEP));
 		await writeEarlAssertions(store, assertions(`${STEP}.1`));
-		expect(await store.queryIndividuals(EARL_LABEL.assertion)).toHaveLength(4);
-		expect(await store.queryIndividuals(EARL_LABEL.testResult)).toHaveLength(4);
-		expect(await store.queryIndividuals(EARL_LABEL.testCase)).toHaveLength(2);
-		expect(await store.queryIndividuals(EARL_LABEL.assertor)).toHaveLength(1);
-		expect(await store.queryIndividuals(EARL_LABEL.testSubject)).toHaveLength(1);
+		expect(await readEvery(store, { label: EARL_LABEL.assertion })).toHaveLength(4);
+		expect(await readEvery(store, { label: EARL_LABEL.testResult })).toHaveLength(4);
+		expect(await readEvery(store, { label: EARL_LABEL.testCase })).toHaveLength(2);
+		expect(await readEvery(store, { label: EARL_LABEL.assertor })).toHaveLength(1);
+		expect(await readEvery(store, { label: EARL_LABEL.testSubject })).toHaveLength(1);
 	});
 });

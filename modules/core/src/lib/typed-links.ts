@@ -16,7 +16,7 @@
  * FragmentSelector does: `page=N` of a PDF (RFC 8118), `t=` of audio or video and `xywh=` of an image (Media
  * Fragments). A page anchor, a relative path, a web address or any other href doesn't state a fact.
  *
- * This module implements only the grammar. It reads text and returns facts. `readTypedLinks` in resources.ts writes the
+ * This module implements only the grammar. It reads text and returns facts. `readTypedLinks` in records/pipelines/typed-link-reading.ts writes the
  * facts and resolves each target against the store.
  */
 import { z } from "zod";

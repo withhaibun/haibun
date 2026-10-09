@@ -27,13 +27,15 @@ import {
 	HAIBUN_NS,
 	haibunNsForHost,
 	assertCommentGrounded,
-	writeAnnotation,
 	isPersisted,
 	type TDiscourseStore,
 } from "./resources.js";
-import { RelSchema, getJsonLdContext, buildConcernCatalog } from "./hypermedia.js";
+import { RelSchema, getJsonLdContext, buildConcernCatalog, counted } from "./hypermedia.js";
 import { mapDefinitionsToDomains } from "./domains.js";
 import { itemAt } from "./util/item-at.js";
+import { writeAnnotation } from "./records/pipelines/discourse-writes.js";
+import type { TRecordReader } from "./records/pipelines/record-reads.js";
+import { ORDER_KEY, type TGraphQuery } from "./quad-types.js";
 
 describe("LinkRelations extensions", () => {
 	// These tests don't restate the vocabulary. A copy would make every addition a two-file edit and would assert only
@@ -674,7 +676,8 @@ describe("getPropertyDefinitions", () => {
 /** A link vocabulary that doesn't type a link. These tests assert the annotation shape alone and not the facts a note's links state. */
 const noLinkVocabulary = { relRange: () => undefined, isType: () => false };
 
-/** A minimal in-memory quad store without createEdge, so the discourse helpers write edges as `add` quads. */
+/** A minimal in-memory quad store without createEdge, so the discourse helpers write edges as `add` quads. Its read of
+ *  records reads named records alone, and throws for another read. */
 function memStore() {
 	const quads: Array<{ subject: string; predicate: string; object: unknown; namedGraph: string }> = [];
 	const nodes = new Map<string, Record<string, unknown>>();
@@ -686,13 +689,17 @@ function memStore() {
 		(p.predicate === undefined || q.predicate === p.predicate) &&
 		(p.object === undefined || q.object === p.object) &&
 		(p.namedGraph === undefined || q.namedGraph === p.namedGraph);
-	const store: TDiscourseStore = {
+	const store: TDiscourseStore & TRecordReader = {
 		upsertIndividual: (label, data) => {
 			const d = data as Record<string, unknown>;
 			nodes.set(`${label}:${String(d.id)}`, d);
 			return Promise.resolve(String(d.id));
 		},
-		getIndividual: <T>(label: string, id: string) => Promise.resolve(nodes.get(`${label}:${id}`) as T | undefined),
+		readRecords: (query: TGraphQuery) => {
+			if (!query.named) throw new Error("this test store reads named records alone");
+			const vertices = query.named.flatMap((id) => [nodes.get(`${query.label}:${id}`)].flatMap((node) => (node ? [node] : [])));
+			return Promise.resolve({ vertices, ...counted(vertices.length), order: [{ key: ORDER_KEY.named, order: "asc" }] });
+		},
 		deleteIndividual: (label, id) => {
 			nodes.delete(`${label}:${id}`);
 			return Promise.resolve();

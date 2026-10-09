@@ -7,7 +7,6 @@
  * store before reading a run.
  */
 import type { IQuadStore, TDensityQuery, TDensityResult, TGraphQuery, TGraphQueryResult } from "@haibun/core/lib/quad-types.js";
-import { queryQuadStore } from "@haibun/core/lib/quad-store.js";
 import { EXECUTION_FIELD } from "@haibun/core/lib/seq-path.js";
 
 export type TRunGraph = {
@@ -21,7 +20,7 @@ export type TRunGraph = {
 
 /** A run read over one store: what a report reads of the copy it carries, and what a test reads of a store it made. */
 export function runGraphOf(store: IQuadStore, declares: (label: string) => boolean = () => true): TRunGraph {
-	return { query: (query) => queryQuadStore(store, query), density: (query) => store.density(query), declares };
+	return { query: (query) => store.readRecords(query), density: (query) => store.density(query), declares };
 }
 
 /**

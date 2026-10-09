@@ -2,13 +2,14 @@
 // A view reads actuality through the records it wrote. A step is one row carrying how it went and how long it took,
 // where a stream of occurrences logged those separately and a view had to pair them up; what a step logged is its own row.
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { QuadStore } from "@haibun/core/lib/quad-store.js";
+import type { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { setGraphStore } from "../quads-snapshot.js";
 import { setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
 import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
+import { runStore } from "./run-store.test-fake.js";
 import { ServerUnreachable } from "../hypermedia.js";
 import { graphRunSource } from "./graph-run-source.js";
 import { readRunAt, runReadingAt } from "./run-source.js";
@@ -34,7 +35,7 @@ describe("the actuality a view reads, over the records it wrote", () => {
 			rels: { [SEQ_PATH_LABEL]: {}, [LOG_MESSAGE_LABEL]: {}, [RUN_ARTIFACT_LABEL]: {} },
 			edgeRanges: {},
 		} as unknown as SiteMetadata);
-		store = new QuadStore();
+		store = runStore();
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
 			execution: RUN,
 			id: `${RUN}.0.1`,

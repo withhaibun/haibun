@@ -11,6 +11,7 @@ import { EARL_ASSERTION_EDGE, EARL_LABEL, EARL_OUTCOME } from "./lib/earl.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import WebPlaywright from "@haibun/web-playwright";
+import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
 
 const PASSES_URI = new URL("../files/test/passes.html", import.meta.url);
 const FAILS_URI = new URL("../files/test/fails.html", import.meta.url);
@@ -62,10 +63,11 @@ page is accessible accepting serious "0" and moderate "0"
 		expect(res.featureResults?.[0]?.stepResults?.[1]?.artifact).toMatchObject({ artifactType: "html" });
 		// Each rule axe applied is an assertion the checking step made, and a violation is a failed result.
 		const store = res.world.shared.getStore();
-		const failed = (await store.queryIndividuals<{ id: string }>(EARL_LABEL.testResult, { outcome: EARL_OUTCOME.failed })).map(({ id }) => id);
+		const failed = (await readEvery(store, { label: EARL_LABEL.testResult })).filter(({ outcome }) => outcome === EARL_OUTCOME.failed).map(({ id }) => String(id));
 		expect(failed.length).toBeGreaterThan(0);
 		const assertion = itemAt(await store.query({ predicate: EARL_ASSERTION_EDGE.result, object: itemAt(failed, 0), namedGraph: EARL_LABEL.assertion }), 0);
 		const step = itemAt(await store.query({ subject: assertion.subject, predicate: EARL_ASSERTION_EDGE.wasGeneratedBy, namedGraph: EARL_LABEL.assertion }), 0);
-		expect(await store.getIndividual(SEQ_PATH_LABEL, String(step.object))).toMatchObject({ stepText: expect.stringContaining("page is accessible") });
+		// The world doesn't declare the step type, so the test reads the step's text as a quad.
+		expect(await store.get(String(step.object), "stepText", SEQ_PATH_LABEL)).toEqual(expect.stringContaining("page is accessible"));
 	});
 });

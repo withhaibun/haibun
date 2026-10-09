@@ -198,6 +198,8 @@ export function satisfies(held: unknown, condition: TSearchCondition): boolean {
 		return text < against ? -1 : text > against ? 1 : 0;
 	};
 	switch (condition.operator) {
+		case "eq":
+			return String(held) === condition.value;
 		case "in":
 			return (condition.values ?? [condition.value]).includes(String(held));
 		case "contains":

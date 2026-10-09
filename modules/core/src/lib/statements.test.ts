@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { QuadStore } from "./quad-store.js";
-import { LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS, SPECIFIC_RESOURCE_LABEL, readTypedLinks } from "./resources.js";
+import type { QuadStore } from "./quad-store.js";
+import { LinkRelations, READING_LABEL, SEQ_PATH_LABEL, SEQ_PATH_STATUS, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL } from "./resources.js";
+import { readTypedLinks } from "./records/pipelines/discourse-writes.js";
+import { storeDeclaring } from "./test/declared-types.js";
 
 const REPORT = "FieldReport";
 import { SEQ_PATH_EDGE, SEQ_PATH_FIELD } from "./seq-path.js";
@@ -17,7 +19,7 @@ describe("statementsWith", () => {
 	let store: QuadStore;
 
 	beforeEach(async () => {
-		store = new QuadStore();
+		store = storeDeclaring(Object.fromEntries([REPORT, SEQ_PATH_LABEL, READING_LABEL, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL].map((label) => [label, {}])));
 		// An execution: the feature's step `0.1` is part of the root step `0`. The root step passed.
 		await store.upsertIndividual(SEQ_PATH_LABEL, { [SEQ_PATH_FIELD.id]: "0", [SEQ_PATH_FIELD.actionStatus]: SEQ_PATH_STATUS.passed, [SEQ_PATH_FIELD.stepText]: "a run" });
 		await store.upsertIndividual(SEQ_PATH_LABEL, { [SEQ_PATH_FIELD.id]: "0.1", [SEQ_PATH_FIELD.actionStatus]: SEQ_PATH_STATUS.running, [SEQ_PATH_FIELD.stepText]: "prose" });

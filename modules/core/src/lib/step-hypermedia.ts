@@ -65,7 +65,7 @@ export function augmentViewHypermedia(world: TWorld, step: TStepperStep, actionR
  *      recover take a reference to the individual that issue produces.
  *
  * The params skeleton: each matching parameter receives `{ id: <product.id> }` where the product has a top-level string
- * `id`. Every individual ref domain takes this shape, as in `{record: {id}}` and in `{label, id}` for getIndividual.
+ * `id`. Every individual ref domain takes this shape, as in `{record: {id}}` and in `{label, id}` for a record read.
  * Otherwise the entry omits `params`, and the consumer fills them from the step's inputSchema, which show steps returns.
  *
  * H1: one derivation serves every step, and a step doesn't declare its own links.

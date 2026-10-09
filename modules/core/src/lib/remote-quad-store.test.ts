@@ -2,11 +2,15 @@ import { ACTION_BEGIN } from "./rpc-wire.js";
 import { hostHandshake } from "./test/rpc-answer.js";
 import { describe, expect, it } from "vitest";
 import { QuadStore } from "./quad-store.js";
+import { equalTo, readEvery, recordOf } from "./records/pipelines/record-reads.js";
+import { storeDeclaring } from "./test/declared-types.js";
 import { handleStoreCall, isStoreMethod } from "./store-protocol.js";
 import { RemoteQuadStore } from "./remote-quad-store.js";
 import { FakeInvoker } from "./test/fake-authority.js";
 
 const sign = new FakeInvoker("satellite").sign;
+const WIDGETS = { Widget: { filters: ["id"] } };
+const WIDGET_ONE = { "@id": "w-1", "@type": "Widget", id: "w-1", name: "One" };
 
 /** A canned serving instance: a real in-memory QuadStore behind the real protocol handler, plus the handshake. */
 function servingPeer(store: QuadStore) {
@@ -29,31 +33,32 @@ function servingPeer(store: QuadStore) {
 
 describe("RemoteQuadStore", () => {
 	it("handshakes the serving site, signs every store call for the action its method takes, and round-trips individuals", async () => {
-		const backing = new QuadStore();
+		const backing = storeDeclaring(WIDGETS);
 		const peer = servingPeer(backing);
 		const remote = new RemoteQuadStore({ url: "http://main:1", sign, graphs: ["Widget"], fetchImpl: peer.fetchImpl });
 		expect(() => remote.site).toThrow(/connect/);
 		expect(await remote.connect()).toBe("did:site:main");
 		expect(await remote.upsertIndividual("Widget", { id: "w-1", name: "One" })).toBe("w-1");
-		expect(await remote.getIndividual("Widget", "w-1")).toEqual({ id: "w-1", name: "One" });
-		expect(await backing.getIndividual("Widget", "w-1")).toEqual({ id: "w-1", name: "One" });
+		expect(await recordOf(remote, "Widget", "w-1")).toEqual(WIDGET_ONE);
+		expect(await recordOf(backing, "Widget", "w-1")).toEqual(WIDGET_ONE);
 		expect(peer.calls.map((c) => [c.method, c.invoked])).toEqual([
 			[ACTION_BEGIN, undefined],
 			["store.upsertIndividual", "store.write"],
-			["store.getIndividual", "store.read"],
+			["store.readRecords", "store.read"],
 		]);
 	});
 
 	it("routes through QuadStore registration: a satellite write lands in the serving store, reads come back", async () => {
-		const backing = new QuadStore();
+		const backing = storeDeclaring(WIDGETS);
 		const peer = servingPeer(backing);
 		const remote = new RemoteQuadStore({ url: "http://main:1", sign, graphs: ["Widget"], fetchImpl: peer.fetchImpl });
 		await remote.connect();
 		const satellite = new QuadStore();
 		await satellite.registerStore(remote, ["Widget"]);
 		await satellite.upsertIndividual("Widget", { id: "w-9", name: "Nine" });
-		expect(await backing.getIndividual("Widget", "w-9")).toEqual({ id: "w-9", name: "Nine" });
-		expect(await satellite.queryIndividuals("Widget", { id: "w-9" })).toEqual([{ id: "w-9", name: "Nine" }]);
+		const nine = { "@id": "w-9", "@type": "Widget", id: "w-9", name: "Nine" };
+		expect(await recordOf(backing, "Widget", "w-9")).toEqual(nine);
+		expect(await readEvery(satellite, { label: "Widget", filters: equalTo({ id: "w-9" }) })).toEqual([nine]);
 	});
 
 	it("stays mount-scoped: all() covers only the mounted graphs and clustered reads intersect the type filter", async () => {

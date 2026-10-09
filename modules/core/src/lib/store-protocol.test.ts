@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 import { QuadStore } from "./quad-store.js";
 import { handleStoreCall, isStoreMethod, requiredStoreCapability, STORE_READ, STORE_WRITE } from "./store-protocol.js";
 import { itemAt } from "./util/item-at.js";
+import { GraphQueryResultSchema } from "./quad-types.js";
+import { storeDeclaring } from "./test/declared-types.js";
 
 describe("store protocol capability classification", () => {
 	it("requires store.write for anything that changes the store and store.read otherwise", () => {
 		for (const m of ["set", "add", "remove", "clear", "upsertIndividual", "deleteIndividual", "createEdge"]) expect(requiredStoreCapability(`store.${m}`)).toBe(STORE_WRITE);
-		for (const m of ["get", "query", "all", "getIndividual", "queryIndividuals", "distinctPropertyValues", "getClusteredQuads"])
+		for (const m of ["get", "query", "all", "readRecords", "distinctPropertyValues", "getClusteredQuads"])
 			expect(requiredStoreCapability(`store.${m}`)).toBe(STORE_READ);
 	});
 
@@ -19,12 +21,12 @@ describe("store protocol capability classification", () => {
 
 describe("handleStoreCall", () => {
 	it("round-trips an individual and envelopes results so undefined survives JSON", async () => {
-		const store = new QuadStore();
+		const store = storeDeclaring({ Widget: {} });
 		const up = await handleStoreCall(store, "store.upsertIndividual", { label: "Widget", data: { id: "w-1", name: "One" } });
 		expect(up.result).toBe("w-1");
-		const got = await handleStoreCall(store, "store.getIndividual", { label: "Widget", id: "w-1" });
-		expect(got.result).toEqual({ id: "w-1", name: "One" });
-		const missing = await handleStoreCall(store, "store.getIndividual", { label: "Widget", id: "w-2" });
+		const got = await handleStoreCall(store, "store.readRecords", { query: { label: "Widget", named: ["w-1"], limit: 1 } });
+		expect(GraphQueryResultSchema.parse(got.result).vertices).toEqual([{ "@id": "w-1", "@type": "Widget", id: "w-1", name: "One" }]);
+		const missing = await handleStoreCall(store, "store.get", { subject: "w-2", predicate: "name", namedGraph: "Widget" });
 		expect(missing).toEqual({ result: undefined });
 	});
 

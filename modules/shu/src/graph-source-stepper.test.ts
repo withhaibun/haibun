@@ -19,9 +19,7 @@ function mockQuadStore(overrides: Partial<IQuadStore> = {}): IQuadStore {
 		remove: vi.fn(async () => undefined),
 		all: vi.fn(async () => []),
 		upsertIndividual: vi.fn(async () => ""),
-		getIndividual: vi.fn(async () => undefined),
 		deleteIndividual: vi.fn(async () => undefined),
-		queryIndividuals: vi.fn(async () => []),
 		readRecords: vi.fn(async () => ({ vertices: [], total: 0, saturated: false, order: [] })),
 		distinctPropertyValues: vi.fn(async () => []),
 		density: vi.fn(async () => ({ buckets: [] })),
@@ -42,14 +40,14 @@ describe("the values a filter offers", () => {
 		await stepper.setWorld(getDefaultWorld(), []);
 	});
 
-	it("doesn't return select values for Comment (it doesn't have enum-backed fields)", async () => {
+	it("offers the conversation of a Comment as its one filter value", async () => {
 		const world = stepper.getWorld();
 		world.domains = { ...world.domains, ...mapDefinitionsToDomains([commentDomainDefinition]) };
 		world.shared.getStore = vi.fn(() => mockQuadStore());
 
 		const result = await stepper.steps.getSelectValues.action({ label: "Comment" });
 		expect(result.ok).toBe(true);
-		expect(selectProducts(result).values).toEqual({});
+		expect(selectProducts(result).values).toEqual({ [LinkRelations.CONTEXT.rel]: [] });
 	});
 
 	it("fails when a filter topology isn't registered for the label", async () => {
@@ -86,28 +84,36 @@ describe("the values a filter offers", () => {
 });
 
 describe("one individual with its edges, from the store this instance holds", () => {
-	const EMAIL = "Email";
+	const [EMAIL, MESSAGE] = ["Email", "Message"];
+	const ABOUT = LinkRelations.TARGET.rel;
+	const declared = (persistedAs: string, edges = {}) => ({
+		selectors: [`test-${persistedAs.toLowerCase()}`],
+		schema: z.looseObject({ id: z.string() }),
+		description: `A ${persistedAs} a test reads`,
+		topology: { persistedAs, id: "id", properties: { id: LinkRelations.IDENTIFIER.rel }, edges },
+	});
 	const held = async (): Promise<GraphSourceStepper> => {
 		const stepper = new GraphSourceStepper();
 		const world = getDefaultWorld();
+		world.domains = { ...world.domains, ...mapDefinitionsToDomains([declared(EMAIL), declared(MESSAGE, { about: { rel: ABOUT, range: EMAIL } })]) };
 		await stepper.setWorld(world, []);
 		const store = world.shared.getStore();
 		await store.set("a@test.com", "address", "a@test.com", EMAIL);
-		await store.add({ subject: "m1", predicate: "about", object: "a@test.com", namedGraph: "Message", objectType: EMAIL });
+		await store.add({ subject: "m1", predicate: ABOUT, object: "a@test.com", namedGraph: MESSAGE, objectType: EMAIL });
 		return stepper;
 	};
 
-	it("answers with the record, the edges pointing at it, and how many those are", async () => {
+	it("returns the record, its outgoing edges, and the count of records that reference it", async () => {
 		const stepper = await held();
 		const result = await stepper.steps.getIndividualWithEdges.action({ label: EMAIL, id: "a@test.com" });
 		expect(result.ok).toBe(true);
-		const answer = result.products as { vertex: Record<string, unknown>; edges: Array<{ type: string; direction: string }>; incomingCount: number };
-		expect(answer.vertex).toMatchObject({ "@id": "a@test.com", "@type": EMAIL, address: "a@test.com" });
-		expect(answer.edges.filter((edge) => edge.direction === "in").map((edge) => edge.type)).toEqual(["about"]);
-		expect(answer.incomingCount).toEqual({ total: 1, saturated: false });
+		const read = result.products as { vertex: Record<string, unknown>; edges: Array<{ type: string; direction: string }>; incomingCount: number };
+		expect(read.vertex).toMatchObject({ "@id": "a@test.com", "@type": EMAIL, address: "a@test.com" });
+		expect(read.edges, "the record doesn't hold an edge of its own").toEqual([]);
+		expect(read.incomingCount).toEqual({ total: 1, saturated: false });
 	});
 
-	it("reports so where it doesn't hold the individual, rather than answering with an empty one", async () => {
+	it("fails where the store doesn't hold the record", async () => {
 		const stepper = await held();
 		const result = await stepper.steps.getIndividualWithEdges.action({ label: EMAIL, id: "nobody@test.com" });
 		expect(result.ok).toBe(false);

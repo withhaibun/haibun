@@ -47,12 +47,12 @@
 		"anthropomorphic": 1
 	},
 	"modules/core/src/lib/quad-store.test.ts": {
-		"anthropomorphic": 11
+		"anthropomorphic": 8
 	},
 	"modules/core/src/lib/quad-store.ts": {
-		"anthropomorphic": 19,
+		"anthropomorphic": 9,
 		"relation-verb": 1,
-		"terminal-preposition": 2
+		"terminal-preposition": 1
 	},
 	"modules/core/src/lib/quad-types.ts": {
 		"anthropomorphic": 13,
@@ -128,7 +128,7 @@
 		"the-run": 3
 	},
 	"modules/shu/src/client-cache/executions.ts": {
-		"anthropomorphic": 14,
+		"anthropomorphic": 12,
 		"relation-verb": 2,
 		"terminal-preposition": 1,
 		"the-run": 3
@@ -660,9 +660,6 @@
 	},
 	"modules/shu/src/current-subject.ts": {
 		"terminal-preposition": 1
-	},
-	"modules/shu/src/graph-source-stepper.test.ts": {
-		"anthropomorphic": 2
 	},
 	"modules/shu/src/graph-source-stepper.ts": {
 		"anthropomorphic": 20,

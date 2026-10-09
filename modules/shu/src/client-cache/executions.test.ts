@@ -2,7 +2,7 @@
 // it belongs to, so forgetting a run is asked of the records rather than of a second index beside them.
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import { QuadStore } from "@haibun/core/lib/quad-store.js";
+import type { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
@@ -20,6 +20,7 @@ import {
 	type THeldExecution,
 } from "./executions.js";
 import { endPage } from "../page-pinned.js";
+import { runStore } from "./run-store.test-fake.js";
 
 const OLDER = "1700000000000-1";
 const NEWER = "1700000009000-2";
@@ -27,7 +28,7 @@ const iso = (n: number): string => new Date(n).toISOString();
 
 /** A device holding two runs, each declaring the feature it ran and logging one thing. */
 const aDevice = async (): Promise<QuadStore> => {
-	const store = new QuadStore();
+	const store = runStore();
 	for (const [i, execution] of [OLDER, NEWER].entries()) {
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
 			id: `${execution}.0`,

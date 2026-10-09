@@ -9,6 +9,8 @@ import { EndpointLabels } from "./defs.js";
 import { whyNotSignedInOnly } from "./auth.js";
 import { basicAuthUsers } from "@haibun/core/lib/basic-auth.js";
 import { freePort } from "@haibun/core/lib/test/lib.js";
+import { recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { storeDeclaring } from "@haibun/core/lib/test/declared-types.js";
 
 const mockLogger: IEventLogger = {
 	subscribe: () => {
@@ -54,7 +56,7 @@ describe("ServerHono", () => {
 	let store: QuadStore;
 
 	beforeEach(() => {
-		store = new QuadStore();
+		store = storeDeclaring({ [EndpointLabels.Endpoint]: {} });
 		server = new ServerHono(mockLogger, "/tmp", () => store, []);
 	});
 
@@ -120,14 +122,14 @@ describe("ServerHono", () => {
 		it("persists a service route as an Endpoint record classed 'service'", async () => {
 			server.addRoute("get", "/sse", P, (c) => c.text("ok"));
 			await settled();
-			const ep = await store.getIndividual<Record<string, unknown>>(EndpointLabels.Endpoint, "/sse");
+			const ep = await recordOf(store, EndpointLabels.Endpoint, "/sse");
 			expect(ep?.endpointClass).toBe("service");
 		});
 
 		it("persists a mounted route as a single Endpoint record with its descriptor", async () => {
 			server.addRoute("get", "/.well-known/did.json", { description: "DID document resolution" }, (c) => c.text("ok"));
 			await settled();
-			const ep = await store.getIndividual<Record<string, unknown>>(EndpointLabels.Endpoint, "/.well-known/did.json");
+			const ep = await recordOf(store, EndpointLabels.Endpoint, "/.well-known/did.json");
 			expect(ep?.url).toBe("/.well-known/did.json");
 			expect(ep?.method).toBe("GET");
 			expect(ep?.description).toBe("DID document resolution");
@@ -145,7 +147,7 @@ describe("ServerHono", () => {
 			expect(server.rpcMethod("fam.write"), "a name the family doesn't serve").toBeUndefined();
 			expect(server.rpcMethod("other.read"), "a name outside every family").toBeUndefined();
 			await new Promise((r) => setTimeout(r, 0));
-			expect(await store.getIndividual<Record<string, unknown>>(EndpointLabels.Endpoint, "/rpc/fam.*")).toMatchObject({ description: "a family", endpointClass: "service" });
+			expect(await recordOf(store, EndpointLabels.Endpoint, "/rpc/fam.*")).toMatchObject({ description: "a family", endpointClass: "service" });
 		});
 
 		it("refuses a prefix that doesn't end in a dot, and a family already served", () => {
@@ -224,8 +226,8 @@ describe("ServerHono", () => {
 			server.addKnownStaticFolder(tmpdir(), "/files", { description: "files a test serves" });
 			server.checkAddIndexFolder(".", "/listing", { description: "an index a test serves" });
 			await new Promise((r) => setTimeout(r, 0)); // the mount's persist is fire-and-forget
-			expect(await store.getIndividual(EndpointLabels.Endpoint, "/files")).toMatchObject({ method: "GET", description: "files a test serves" });
-			expect(await store.getIndividual(EndpointLabels.Endpoint, "/listing")).toMatchObject({ method: "GET", description: "an index a test serves" });
+			expect(await recordOf(store, EndpointLabels.Endpoint, "/files")).toMatchObject({ method: "GET", description: "files a test serves" });
+			expect(await recordOf(store, EndpointLabels.Endpoint, "/listing")).toMatchObject({ method: "GET", description: "an index a test serves" });
 			expect(() => server.addKnownStaticFolder(tmpdir(), "/unstated", { description: "" })).toThrow("purpose.description is required");
 		});
 

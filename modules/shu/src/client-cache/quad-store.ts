@@ -25,7 +25,6 @@ import {
 import type { TReadDeclarations } from "@haibun/core/lib/records/derivations/read-records.js";
 import { readQuadRecords } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { densityOverQuadStore, sliceQuadsPerType } from "@haibun/core/lib/quad-store.js";
-import { pageLimit } from "@haibun/core/lib/hypermedia.js";
 import { QUADS, IDX_QUAD_SPG, IDX_QUAD_SUBJECT, IDX_QUAD_NAMED_GRAPH, IDX_QUAD_OBJECT, done, servedDatabase, withStores as withClientCacheStores } from "./device-store.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
@@ -150,17 +149,12 @@ export class IndexedDbQuadStore implements IQuadStore {
 		});
 	}
 
-	// --- Individual convenience ops: persist + deref-by-@id, the client store's actual job, over the quad primitives. ---
+	// --- Record writes and the read of records, over the quad primitives. ---
 
 	async upsertIndividual(label: string, data: unknown): Promise<string> {
 		const [id, quads] = individualAsQuads(label, RecordSchema.parse(data));
 		await this.setMany(quads);
 		return id;
-	}
-
-	async getIndividual<T = Record<string, unknown>>(label: string, id: string): Promise<T | undefined> {
-		const quads = await this.query({ subject: id, namedGraph: label });
-		return quads.length ? (individualFrom(label, id, quads) as T) : undefined;
 	}
 
 	async deleteIndividual(label: string, id: string): Promise<void> {
@@ -175,25 +169,6 @@ export class IndexedDbQuadStore implements IQuadStore {
 	}
 
 	// --- Query surface, answered over the cached quads: the same questions the site answers, asked of what this page holds. ---
-
-	async queryIndividuals<T = Record<string, unknown>>(label: string, filters?: Record<string, unknown>, options?: { limit?: number; offset?: number }): Promise<T[]> {
-		const limit = options?.limit === undefined ? undefined : pageLimit("queryIndividuals", options.limit);
-		// The graph's quads once, grouped by subject in one pass: building each individual by scanning the graph's quads
-		// again take a read of a type its individuals times its quads.
-		const bySubject = new Map<string, Record<string, unknown>>();
-		for (const q of await this.query({ namedGraph: label })) {
-			let individual = bySubject.get(q.subject);
-			if (!individual) {
-				individual = { "@id": q.subject, "@type": label };
-				bySubject.set(q.subject, individual);
-			}
-			individual[q.predicate] = q.object;
-		}
-		let individuals = [...bySubject.values()];
-		for (const [predicate, value] of Object.entries(filters ?? {})) individuals = individuals.filter((i) => i[predicate] === value);
-		const offset = options?.offset ?? 0;
-		return individuals.slice(offset, limit === undefined ? undefined : offset + limit) as T[];
-	}
 
 	density(query: TDensityQuery): Promise<TDensityResult> {
 		return densityOverQuadStore(this, query);
@@ -234,14 +209,6 @@ export function individualAsQuads(label: string, individual: Record<string, unkn
 /** The access level a subject states, from the quads describing it: what it was recorded at, where it states. */
 function levelOf(quads: TQuad[], of: TQuad): unknown {
 	return quads.find((q) => q.subject === of.subject && q.namedGraph === of.namedGraph && q.predicate === LinkRelations.ACCESS_LEVEL.rel)?.object;
-}
-
-/** One subject's quads read as a record: its `@id` and type, then a field per predicate. The page caches what it
- *  dereferenced by `@id`, so that is the identity a record it returns carries. */
-function individualFrom(label: string, subject: string, quads: TQuad[]): Record<string, unknown> {
-	const individual: Record<string, unknown> = { "@id": subject, "@type": label };
-	for (const q of quads) if (q.subject === subject) individual[q.predicate] = q.object;
-	return individual;
 }
 
 /** The store of the device's records of the actuality `database` holds, or of the one the page reads where it isn't named. It reads
