@@ -1,6 +1,7 @@
-import { mkdirSync, mkdtempSync, rmSync, utimesSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 // @ts-expect-error a plain JavaScript build script, which doesn't state types
 import { missingBuildOutput, staleBuildRecords } from "./prune-orphaned-build.mjs";
@@ -78,5 +79,22 @@ describe("a module whose build record is older than what it imports", () => {
 		]);
 		made.push(modulesDir);
 		expect(staleBuildRecords(modulesDir)).toEqual(["shu", "a-report", "b-cli", "c-app"].map((name) => join(modulesDir, name)));
+	});
+});
+
+describe("the script run as a command", () => {
+	const SCRIPT = "prune-orphaned-build.mjs";
+	const DRY_RUN_SUMMARY = "[prune-orphaned-build] dry run, 0 stray/orphaned artifact(s) would be removed.";
+
+	it("runs through a symlinked directory, and reads only the directory it names", () => {
+		const consumer = mkdtempSync(join(tmpdir(), "haibun-consumer-"));
+		made.push(consumer);
+		symlinkSync(join(import.meta.dirname, ".."), join(consumer, "haibun"));
+		const moduleDir = aModule(["lib/one.ts"], ["lib/one.js"]);
+		made.push(moduleDir);
+		const ran = spawnSync(process.execPath, [join("haibun", basename(import.meta.dirname), SCRIPT), "--dry-run", moduleDir], { cwd: consumer, encoding: "utf-8" });
+		expect(ran.stderr).toBe("");
+		expect(ran.status).toBe(0);
+		expect(ran.stdout.trim()).toBe(DRY_RUN_SUMMARY);
 	});
 });

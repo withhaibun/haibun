@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { z } from "zod";
 
 import { DEF_PROTO_OPTIONS, failWithDefaults, getTestWorldWithOptions, passWithDefaults } from "../lib/test/lib.js";
 import { Resolver } from "../phases/Resolver.js";
@@ -18,6 +19,8 @@ import { STEP_DETAIL, readShownSteps, type TStepDefinitions } from "../lib/step-
 import type { TStepResult } from "../schema/protocol.js";
 import { validateStep } from "../lib/step-validation.js";
 import { RUN_AUTHORITY, runAuthorizedWith, runShowing } from "../lib/capability-context.js";
+import { recordOf } from "../lib/records/pipelines/record-reads.js";
+import { SEQ_PATH_LABEL } from "../lib/resources.js";
 
 describe("until", () => {
 	it("passes once its statements pass", async () => {
@@ -30,6 +33,41 @@ describe("until", () => {
 		const result = await failWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(false);
 		expect(itemAt(result.featureResults, 0).stepResults.at(-1)).toMatchObject({ ok: false, errorMessage: expect.stringMatching(/didn't pass within 50ms/) });
+	});
+});
+
+describe("duration of", () => {
+	const PAUSED = '"30ms"';
+	const PAUSED_MS = 30;
+	const StepDurationSchema = z.object({ step: z.string(), called: z.string(), durationMs: z.number() });
+	const EndedSchema = z.object({ called: z.string(), generatedAtTime: z.string(), endedAtTime: z.string() });
+	/** The result of the feature's `duration of` step. A substep's result precedes it. */
+	const durationStep = (result: { featureResults?: Array<{ stepResults: TStepResult[] }> }): TStepResult => {
+		const found = itemAt(result.featureResults ?? [], 0).stepResults.find((stepResult) => stepResult.in.startsWith("duration of"));
+		if (!found) throw new Error("the feature's results don't hold the duration of step");
+		return found;
+	};
+
+	it("returns the duration of the statement's step from the step's record", async () => {
+		const result = await passWithDefaults(`duration of pause for ${PAUSED}`, [Haibun]);
+		const { step, called, durationMs } = StepDurationSchema.parse(durationStep(result).products);
+		const ended = EndedSchema.parse(await recordOf(result.world.shared.getStore(), SEQ_PATH_LABEL, step));
+		expect(called).toBe(ended.called);
+		expect(durationMs).toBe(Date.parse(ended.endedAtTime) - Date.parse(ended.generatedAtTime));
+		expect(durationMs).toBeGreaterThanOrEqual(PAUSED_MS);
+	});
+
+	it("sets a variable that a comparison reads", async () => {
+		const result = await passWithDefaults([`set timed from duration of pause for ${PAUSED}`, `variable timed.durationMs is more than "${PAUSED_MS - 1}"`].join("\n"), [
+			Haibun,
+			VariablesSteppers,
+		]);
+		expect(result.ok).toBe(true);
+	});
+
+	it("fails where the statement's step fails", async () => {
+		const result = await failWithDefaults("duration of fails", [Haibun, TestSteps]);
+		expect(durationStep(result).errorMessage).toBe("duration of: the step failed: test fail");
 	});
 });
 

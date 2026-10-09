@@ -8,6 +8,9 @@ import { nextSeqPath, syntheticSeqPathDirection } from "../../phases/Executor.js
 import { dispatchStep } from "../step-dispatch.js";
 import { runRegistry, type StepRegistry } from "../step-registry.js";
 
+/** How a step runs: its intent, its parent step and its target host. */
+type TRunOptions = { intent?: ExecutionIntent; parentStep?: TFeatureStep; targetHostId?: number };
+
 export class FlowRunner {
 	private resolver: Resolver;
 
@@ -107,22 +110,27 @@ export class FlowRunner {
 		return lastResult;
 	}
 
-	async runSteps(steps: TFeatureStep[], options: { intent?: ExecutionIntent; parentStep?: TFeatureStep; targetHostId?: number } = {}): Promise<TActionResult> {
+	/** Dispatches one step, as a substep of `parentStep` where one is stated, and returns its result with the path of its record. */
+	runStep(step: TFeatureStep, options: TRunOptions = {}): Promise<TStepResult> {
 		const { parentStep, targetHostId } = options;
 		const intent = options.intent ?? parentStep?.intent ?? { mode: "authoritative" };
+		let mappedStep: TFeatureStep = { ...step, intent, runtimeArgs: { ...parentStep?.runtimeArgs, ...step.runtimeArgs }, targetHostId: targetHostId ?? step.targetHostId };
+		if (parentStep) {
+			const isAfterEvery = parentStep.isAfterEveryStep || mappedStep.isAfterEveryStep;
+			const dir = syntheticSeqPathDirection(intent.mode === "speculative" || isAfterEvery);
+			const seqPath = nextSeqPath(this.world, parentStep.seqPath, dir);
+			mappedStep = { ...mappedStep, seqPath, isSubStep: true, isAfterEveryStep: isAfterEvery };
+		}
+		return dispatchStep({ registry: this.registry, world: this.world, steppers: this.steppers }, mappedStep);
+	}
+
+	async runSteps(steps: TFeatureStep[], options: TRunOptions = {}): Promise<TActionResult> {
+		const intent = options.intent ?? options.parentStep?.intent ?? { mode: "authoritative" };
 		let lastResult: TActionResult = { ok: true };
 
 		for (const step of steps) {
-			let mappedStep: TFeatureStep = { ...step, intent, runtimeArgs: { ...parentStep?.runtimeArgs, ...step.runtimeArgs }, targetHostId: targetHostId ?? step.targetHostId };
-			if (parentStep) {
-				const isAfterEvery = parentStep.isAfterEveryStep || mappedStep.isAfterEveryStep;
-				const dir = syntheticSeqPathDirection(intent.mode === "speculative" || isAfterEvery);
-				const seqPath = nextSeqPath(this.world, parentStep.seqPath, dir);
-				mappedStep = { ...mappedStep, seqPath, isSubStep: true, isAfterEveryStep: isAfterEvery };
-			}
-
 			try {
-				lastResult = await dispatchStep({ registry: this.registry, world: this.world, steppers: this.steppers }, mappedStep);
+				lastResult = await this.runStep(step, { ...options, intent });
 				if (!lastResult.ok) return lastResult;
 			} catch (e) {
 				if (intent.mode === "speculative") {

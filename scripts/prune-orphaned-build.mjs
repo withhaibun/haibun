@@ -27,10 +27,10 @@
 //
 // Usage: node scripts/prune-orphaned-build.mjs [--dry-run] [dir ...]
 //   default: stray output across the whole repo + orphaned build output per modules/*.
-import { readdirSync, existsSync, readFileSync, rmSync, statSync } from "node:fs";
+import { readdirSync, existsSync, readFileSync, realpathSync, rmSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { spawnSync } from "node:child_process";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 
 const SOURCE_EXTS = [".ts", ".tsx", ".mts", ".cts"];
 const OUTPUT_EXTS = [".js", ".js.map", ".d.ts", ".d.ts.map"];
@@ -151,8 +151,11 @@ function pruneStrayOutput(rootDir, dryRun) {
 	return removed;
 }
 
+/** Whether `script` names this module's file, by real path, so a script run through a symlinked directory runs as a command. */
+const runsAsCommand = (script) => script !== undefined && realpathSync(script) === realpathSync(fileURLToPath(import.meta.url));
+
 // Run as a command, not when a test imports the checks.
-if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (runsAsCommand(process.argv[1])) {
 	const args = process.argv.slice(2);
 	const dryRun = args.includes("--dry-run");
 	const targets = args.filter((a) => a !== "--dry-run");
@@ -184,9 +187,9 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
 		}
 	}
 	console.log(`[prune-orphaned-build] ${dryRun ? "dry run, " : ""}${total} stray/orphaned artifact(s)${dryRun ? " would be removed" : " removed"}.`);
-	const missing = readdirSync("modules")
-		.map((m) => ({ moduleDir: join("modules", m), sources: missingBuildOutput(join("modules", m)) }))
-		.filter(({ sources }) => sources.length > 0);
+	// The modules a run reads: the directories it names, or each module of the workspace.
+	const moduleDirs = targets.length ? targets : readdirSync("modules").map((m) => join("modules", m));
+	const missing = moduleDirs.map((moduleDir) => ({ moduleDir, sources: missingBuildOutput(moduleDir) })).filter(({ sources }) => sources.length > 0);
 	for (const { moduleDir, sources } of missing) {
 		rmSync(join(moduleDir, "tsconfig.tsbuildinfo"), { force: true });
 		console.error(
@@ -195,7 +198,8 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
 		for (const source of sources) console.error(`  - src/${source}`);
 	}
 	if (missing.length > 0) process.exitCode = 1;
-	const stale = staleBuildRecords("modules");
+	// A build record is stale against the workspace's other modules, which a run that names its directories doesn't read.
+	const stale = targets.length ? [] : staleBuildRecords("modules");
 	if (stale.length > 0) {
 		console.error(
 			`[prune-orphaned-build] ${dryRun ? "would compile again" : "compiles again"} the modules whose build records are older than what they import: ${stale.join(", ")}`,
