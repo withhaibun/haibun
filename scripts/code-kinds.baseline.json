@@ -400,9 +400,6 @@
 	"modules/shu/src/annotation-resolver.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/shu/src/app.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/artifact-url.ts": {
 		"isn't in a kind position": 1
 	},
@@ -449,9 +446,6 @@
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/client-log.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/component-registry.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/components/shu-class-browser.ts": {

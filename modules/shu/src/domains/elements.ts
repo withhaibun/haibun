@@ -121,6 +121,8 @@ export const HYDRATION_ID = "shu-hydration";
  *  (`ui.component`), a component selects in its tree and a test selects on the page. Each tag is named once here, so a
  *  file doesn't spell a tag again. A component that is also a domain exposes its own tag as `static domainSelector`. */
 export const SHU_TAG = {
+	/** The page a reader opens: the strip of panes, the page strip and the query, or why the page didn't open. */
+	PAGE: "shu-page",
 	PERMISSIONS: "shu-permissions",
 	PAGE_KEY: "shu-page-key",
 	GRAPH_QUERY: "shu-graph-query",

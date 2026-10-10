@@ -139,7 +139,7 @@ export function buildSpaHtml(basePath: string, bundle: string, hydration: TServe
 
 /**
  * Offline report: a `{bundle, hydration, scripts}` payload plus a tiny loader that recreates the `#shu-hydration` script
- * the bundle reads, injects the in-view component scripts, then the bundle (which boots via app.ts's readyState check).
+ * the bundle reads, injects the in-view component scripts, then the bundle (which starts the page at its entry's readyState check, `entries/shu-app.ts`).
  * `compressed` embeds the payload as gzip+base64 to keep shared files small (base64 doesn't need `</` escaping); uncompressed
  * embeds plain JSON (only `</` escaped) so the redacted text can be read and audited directly in the file: the
  * secret-obscuring check greps it.

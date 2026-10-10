@@ -14,7 +14,7 @@
  */
 import type { AccessQueryLevel } from "@haibun/core/lib/resources.js";
 import { DENOTES } from "@haibun/core/lib/typed-links.js";
-import type { TBundle, TContextPattern } from "./schemas.js";
+import type { TBundle, TContextPattern, TPageContext } from "./schemas.js";
 import { sharedMachine } from "./page/root.js";
 
 /** A record: what a pane shows, or a comment of a conversation. */
@@ -52,6 +52,9 @@ export const INITIAL_SUBJECT: TSubjectState = { scopes: {}, open: [SCOPE.page], 
 
 /** The entry for a set of context patterns: the record the first of them names, where it names one, with the patterns
  *  as its bundle. A type doesn't name a record. */
+/** The entry a view's stated context names. */
+export const entryOfContext = (context: TPageContext): TEntry => entryOf(context.patterns, context.accessLevel);
+
 export function entryOf(patterns: TContextPattern[], accessLevel: AccessQueryLevel): TEntry {
 	const first = patterns[0];
 	const record = first && first.kind === DENOTES.individual ? recordOf(first) : null;

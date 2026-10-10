@@ -194,7 +194,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	 * if either is missing, without fallbacks.
 	 */
 	set products(p: Record<string, unknown>) {
-		// app.ts coalesces the connect-time replay (one PaneState.request per pane per frame), so a burst never reaches
+		// <shu-page> coalesces the connect-time replay (one PaneState.request per pane per frame), so a burst never reaches
 		// here: apply the latest synchronously. The products carry the whole snapshot, waypoints included.
 		this.applyAffordances(snapshotOf(p));
 	}

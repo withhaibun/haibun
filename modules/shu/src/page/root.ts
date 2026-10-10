@@ -169,6 +169,19 @@ export function installServedConduit(basePath: string): TConduit {
 /** Installs the conduit of a page that carries a record of actuality, whose calls fail as calls to an unreachable site. */
 export const installCarriedConduit = (): TConduit => installConduit(carriedConduit());
 
+/** Installs the page's ports at its start: the reader's authority, and the conduit and event stream of a page a site serves,
+ *  whose stream is at `streamUrl`, or of a page that carries a record of actuality. */
+export function startPage(authority: TAuthority, carried: boolean, streamUrl: string): void {
+	installAuthority(authority);
+	if (carried) {
+		installCarriedConduit();
+		installCarriedEventStream();
+	} else {
+		installServedConduit("");
+		installServedEventStream(streamUrl);
+	}
+}
+
 /** Whether the page holds a conduit. A page mounted without one, as a bundle under test, doesn't send its blips. */
 export const hasConduit = (): boolean => installedConduit().conduit !== undefined;
 

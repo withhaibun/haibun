@@ -60,3 +60,10 @@ export function canonicalizeArrival(hash: string, base: string): string {
 	merged.set(ACTIVE_PARAM, splitPaneEntry(itemAt(opened, opened.length - 1)).id);
 	return hashOf(merged);
 }
+
+/** Returns the hash that states the parameters of the address's query `search`, or undefined where the query doesn't state
+ *  one. A page opened at `?label=Researcher` opens at `#?label=Researcher`. */
+export function hashFromQuery(search: string): string | undefined {
+	const params = new URLSearchParams(search);
+	return params.size === 0 ? undefined : hashOf(params);
+}

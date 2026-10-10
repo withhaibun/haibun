@@ -13,6 +13,12 @@
  * derives the dedup id, the child tag, and the display label from the variant
  * via `paneIdOf` / `tagOf` / `labelOf`. It doesn't hold redundant fields, so the fields don't drift.
  */
+import type { ShuEntityColumn } from "./page/components/shu-entity-column.js";
+import type { ShuStepDefinition } from "./page/components/shu-step-definition.js";
+import type { ShuActionColumn } from "./page/components/shu-action-column.js";
+import type { ShuFilterColumn } from "./page/components/shu-filter-column.js";
+import type { ShuTypeColumn } from "./page/components/shu-type-column.js";
+import type { ShuThreadColumn } from "./page/components/shu-thread-column.js";
 import { PartSchema, type TPart } from "@haibun/core/lib/resources.js";
 import { PART_DIRECTIVE, partDirectiveFor, splitPart } from "@haibun/core/lib/typed-links.js";
 import { z } from "zod";
@@ -210,6 +216,20 @@ const columnTypeFor = (d: DesiredPane): string => kindOf(d).column(d);
  * `paneType: "component"` doesn't need a hook (data flows via `data`). External component
  * loading also lives here so pane-state doesn't have a direct registry dependency.
  */
+/** What each pane kind's view is given once it is attached: the data its pane carries. */
+export const PANE_ATTACH: NonNullable<PaneHooks["afterAttach"]> = {
+	entity: (d, child) => (child as ShuEntityColumn).open(d.id, d.persistedAs, d.selector),
+	type: (d, child) => (child as ShuTypeColumn).open(d.persistedAs),
+	"filter-eq": (d, child) => (child as ShuFilterColumn).openFiltered(d.predicate, d.value, d.persistedAs),
+	"filter-prop": (d, child) => (child as ShuFilterColumn).openProperty(d.predicate, d.persistedAs),
+	"filter-incoming": (d, child) => (child as ShuFilterColumn).openIncoming(d.subject, d.persistedAs),
+	thread: (d, child) => (child as ShuThreadColumn).open(d.persistedAs, d.subject),
+	"step-detail": (d, child) => (child as HTMLElement & { open(s: number[]): Promise<void> }).open(d.seqPath),
+	step: (d, child) => (child as ShuStepDefinition).open(d.method),
+	action: (d, child) => (child as ShuActionColumn).open(d.action),
+	"views-picker": (d, child) => (child as HTMLElement & { setViews(v: unknown[]): void }).setViews(d.views),
+};
+
 type PaneHooks = { ensureLoaded?(tag: string): Promise<void> | void; afterAttach?: { [K in DesiredPaneType]?: (d: TPaneOf<K>, child: HTMLElement) => Promise<void> | void } };
 /** The attach hook of a pane's kind, as a hook for any pane. */
 type TAttach = (d: DesiredPane, child: HTMLElement) => Promise<void> | void;
@@ -230,7 +250,7 @@ type TPanesHeld = {
 	 *  fires while a column is opening) clobbers the in-flight pane. So fromHash ignores its own writes and reacts only
 	 *  to EXTERNAL hash changes (back/forward, a shared link). */
 	lastWrittenHash: string | null;
-	/** PaneState must READ the hash (fromHash) before it WRITES it. At boot the app activates the query column (app.ts)
+	/** PaneState must READ the hash (fromHash) before it WRITES it. At boot the page activates the query column (<shu-page>)
 	 *  before the first fromHash; the resulting setActivePane would writeHash a still-empty `desired` and delete the col=
 	 *  entries the reloaded URL carries, dropping every restored component-pane view. This flag, set once fromHash has
 	 *  parsed the hash, gates writes until that read has happened. */

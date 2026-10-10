@@ -7,7 +7,6 @@
 import { serveThePage, newPage } from "../../test-setup.js";
 import { runStore } from "../../client-cache/run-store.test-fake.js";
 import { describe, it, expect, beforeEach } from "vitest";
-import "./shu-step-detail.js"; // side-effect import so the module runs (registration is via component-registry in the app)
 import { ShuStepDetail, stepRecordId } from "./shu-step-detail.js";
 import { EDGE, SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { SHARED_GRAPH } from "@haibun/core/lib/quad-types.js";

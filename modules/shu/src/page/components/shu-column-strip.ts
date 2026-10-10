@@ -275,7 +275,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 	};
 
 	private handlePaneClose = (e: Event): void => {
-		// Close requests route through PaneState (via app.ts), which owns the desired
+		// Close requests route through PaneState (via <shu-page>), which owns the desired
 		// set and the URL hash. The strip never removes panes on its own, reconcile does.
 		const pane = (e as CustomEvent).target as PaneEl;
 		const paneId = pane.dataset.columnKey ?? pane.getAttribute("column-type") ?? "";
