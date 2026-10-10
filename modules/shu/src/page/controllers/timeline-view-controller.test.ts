@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { TimelineViewController } from "./timeline-view-controller.js";
 import { timeCursor } from "../root.js";
-import { getHash, mergeHashParams } from "../../view-hash.js";
+import { getHash, mergeHashParams } from "./hash-controller.js";
 
 const PAST = 42;
 const LATER = 77;
@@ -21,7 +21,7 @@ function mount(name?: string, onMove?: () => void) {
 
 describe("a view's place on the timeline", () => {
 	beforeEach(() => {
-		mergeHashParams({ ask: "" });
+		mergeHashParams({ ask: undefined });
 		timeCursor.set(null);
 	});
 

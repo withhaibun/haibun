@@ -2,7 +2,6 @@
  * ShuStepper: serves the @haibun/shu hypermedia SPA.
  * Any application that loads this stepper gets a UI driven entirely by stepper concerns.
  */
-import type { TActualityId } from "@haibun/core/lib/rpc-wire.js";
 import { readFileSync, statSync } from "fs";
 import { join, dirname } from "path";
 import { fileURLToPath } from "url";
@@ -11,7 +10,7 @@ import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError } from "@haibun/core/lib/util/index.js";
-import type { TDeploymentSettings, TPageBuild } from "./rpc-registry.js";
+import { RESPONSE_TIMEOUT_MS, type TDeploymentSettings, type THydration, type TPageBuild } from "./domains/hydration.js";
 import { currentVersion } from "@haibun/core/currentVersion.js";
 import { MAX_PAGE_ROWS, getJsonLdContext } from "@haibun/core/lib/hypermedia.js";
 import { Access, haibunNsForHost, isPersisted } from "@haibun/core/lib/resources.js";
@@ -170,7 +169,10 @@ export function buildReportHtml(basePath: string, payload: string, compressed: b
 
 /** What a served page's hydration carries: the actuality it reads, what the deployment set, and the address it opens at
  *  where its server states one. */
-type TServedHydration = { actualityId: TActualityId; settings: TDeploymentSettings; viewHash?: string };
+type TServedHydration = THydration & { settings: TDeploymentSettings };
+
+/** What a deployment sets for the pages a ShuStepper serves, from its options. */
+type TOptionSettings = Pick<TDeploymentSettings, "responseTimeoutMs" | "streamReconnectAfterMs" | "embedderOrigin" | "askToolLimit">;
 
 function createSpaHandler(basePath: string, hydration: () => TServedHydration) {
 	// Read the bundle from disk on every request rather than caching it at
@@ -234,8 +236,8 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 		const embedderOrigin = getStepperOption(this, "EMBEDDER_ORIGIN", world.moduleOptions);
 		const askToolLimit = timing("ASK_TOOL_LIMIT");
 		this.settings = {
+			responseTimeoutMs: responseTimeoutMs === undefined ? RESPONSE_TIMEOUT_MS : responseTimeoutMs,
 			...(streamReconnectAfterMs === undefined ? {} : { streamReconnectAfterMs }),
-			...(responseTimeoutMs === undefined ? {} : { responseTimeoutMs }),
 			...(embedderOrigin === undefined ? {} : { embedderOrigin }),
 			...(askToolLimit === undefined ? {} : { askToolLimit }),
 		};
@@ -295,7 +297,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 	/** What a deployment sets for the app this stepper serves: the timings its page applies. */
 	options = {
 		RESPONSE_TIMEOUT_MS: {
-			desc: "How long a call to this site may take before the page reads it as not answering and reads what the device holds, in milliseconds. Unset, the page allows what the product carries",
+			desc: `How long a call to this site may take before the page reads it as not answering and reads what the device holds, in milliseconds. Unset, the page allows ${RESPONSE_TIMEOUT_MS}`,
 			parse: (input: string) => intOrError(input),
 		},
 		STREAM_RECONNECT_AFTER_MS: {
@@ -315,9 +317,9 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 			parse: (input: string) => (ORIGIN.test(input) ? { result: input } : { parseError: `${input} isn't an origin: a scheme and a host, such as chrome-extension://<id>` }),
 		},
 	};
-	/** The timings and the embedding page's origin this deployment set, written into every page it serves. A deployment
-	 *  that doesn't set them serves a page that runs on the values the product carries. */
-	private settings: TDeploymentSettings = {};
+	/** The timings and the embedding page's origin this deployment set, written into every page it serves, or undefined
+	 *  until the stepper reads its options. */
+	private settings: TOptionSettings | undefined = undefined;
 
 	steps = {
 		serveShuApp: {
@@ -385,10 +387,12 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 		// The page boots with the actualityId of the records it reads and what this deployment set: it keeps its own key, and
 		// reads what was delegated to it here. Whether a delegation verifies here is read for each page served, since a
 		// verifier may be registered after the app is.
+		const { settings } = this;
+		if (settings === undefined) throw new Error("serveApp is called after ShuStepper reads its options in setWorld");
 		const hydration = (): TServedHydration => ({
 			actualityId: this.getWorld().runtime.actualityId,
 			settings: {
-				...this.settings,
+				...settings,
 				build: servedBuild(),
 				allowedWithoutDelegation: [...webserver.allowedWithoutDelegation],
 				verifiesDelegations: getAuthority(this.getWorld().runtime)?.hasVerifier() === true,

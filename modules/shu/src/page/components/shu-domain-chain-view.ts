@@ -18,7 +18,7 @@ import { graphToQuads } from "../../graph/graph-quads.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { SHU_EVENT, AFFORDANCE_PARAM, RPC_METHOD, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
-import * as ViewHash from "../../view-hash.js";
+import * as PageHash from "../controllers/hash-controller.js";
 import { deepLinkOf, followDeepLink, openRef } from "./ref-navigation.js";
 import { domainRef, stepRef } from "./shu-ref.js";
 import { LINT_FINDING, LintFindingSchema, type TLintFinding } from "@haibun/core/lib/domain-chain-lint.js";
@@ -28,7 +28,8 @@ import { noteExecution } from "../../client-cache/executions.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { NODE_KIND, nodeIn, type TGraph, type TGraphNode } from "../../graph/types.js";
 import { linkTo } from "../../rpc-registry.js";
-import { graphPresenterTag, mountGraphPresenter, presenterIn, type TGraphPresenter, type TPresenterNodeClick } from "../../graph-presenter.js";
+import { graphPresenterTag, mountGraphPresenter, presenterIn } from "../controllers/presenter-controller.js";
+import type { TGraphPresenter, TPresenterNodeClick } from "../ports.js";
 
 /** Where the chain's graph is placed in the view, which is also the test id it is found by, and the scope it keeps its
  *  settings under. */
@@ -93,7 +94,7 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 		);
 		this.autoListen(this, SHU_EVENT.GRAPH_NODE_CLICK, (e) => this.onNodeClick(e));
 		// The address names the goal or waypoint the reader is on, which the graph marks as its active node.
-		this.autoTeardown(ViewHash.onHashChanged(() => presenterIn(this, CHAIN_GRAPH.slot)?.selectNode(this.addressedNode())));
+		this.autoTeardown(PageHash.onHashChanged(() => presenterIn(this, CHAIN_GRAPH.slot)?.selectNode(this.addressedNode())));
 	}
 
 	/** View-open contract, pane-opener assigns producer products on mount. */
@@ -201,8 +202,8 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 
 	/** The node the address names: its goal, else its waypoint; null where the address doesn't name either. */
 	private addressedNode(): string | null {
-		const goal = ViewHash.hashParam(AFFORDANCE_PARAM.GOAL);
-		const waypoint = ViewHash.hashParam(AFFORDANCE_PARAM.WAYPOINT);
+		const goal = PageHash.hashParam(AFFORDANCE_PARAM.GOAL);
+		const waypoint = PageHash.hashParam(AFFORDANCE_PARAM.WAYPOINT);
 		return goal ? goal : waypoint ? waypointNodeId(waypoint) : null;
 	}
 

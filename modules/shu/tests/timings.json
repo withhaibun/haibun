@@ -38,7 +38,7 @@
 	"linux-x64-4x-intel-xeon-processor-2-80ghz": {
 		"features": {
 			"/features/address.feature.ts": {
-				"seconds": 6.7,
+				"seconds": 6.6,
 				"steps": 199,
 				"declaredStepTextHash": "c216fc584e69bf0250f73599bdb78598aae0a111131c1de9f1654cd25b2e0248"
 			},
@@ -48,27 +48,27 @@
 				"declaredStepTextHash": "ab37731cb50813b783e0aa872bb80a9b995c504e308a5603c48f254263f91584"
 			},
 			"/features/monitor-serves.feature.ts": {
-				"seconds": 7.2,
+				"seconds": 6.8,
 				"steps": 195,
 				"declaredStepTextHash": "057b8c11612d7dd2c4498512ecc1d222c44f5a10c188a3d1e5e037194ec9e96c"
 			},
 			"/features/monitor.feature.ts": {
-				"seconds": 19.8,
-				"steps": 569,
+				"seconds": 19.4,
+				"steps": 576,
 				"declaredStepTextHash": "e982914536abfeffd19c9e2d5117d7fbe9c2e8639ef8e3e39e2fd84c8cab330d"
 			},
 			"/features/remote-store.feature.ts": {
-				"seconds": 1,
+				"seconds": 1.3,
 				"steps": 8,
 				"declaredStepTextHash": "e72c51a4303f8c90b2629d72ca832ecc807fcfa3c405fea980dca36f601267e1"
 			},
 			"/features/voice-ui.feature.ts": {
-				"seconds": 6.9,
+				"seconds": 7.3,
 				"steps": 207,
 				"declaredStepTextHash": "2871b33eff0f6531280b742d5c8a6d8a827485ae4a99636c5a266e41b3854174"
 			}
 		},
-		"steps": 1184,
-		"seconds": 42.6
+		"steps": 1191,
+		"seconds": 42.4
 	}
 }

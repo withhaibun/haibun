@@ -1,16 +1,18 @@
-import { HYDRATION_ID } from "./domains/elements.js";
-import { ActualityIdSchema, type TActualityId } from "@haibun/core/lib/rpc-wire.js";
+import type { TActualityId } from "@haibun/core/lib/rpc-wire.js";
 import { reads, acts, type TLink } from "./page/domains/links.js";
 import { conduit } from "./page/controllers/conduit-controller.js";
 import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { getConcernCatalog, cachedConcernCatalog, setConcernCatalog } from "./rels-cache.js";
 import { pagePinned } from "./page/adapters/page-held.js";
-import { deviceStore, type TCachePayload } from "./client-cache/index.js";
+import { deviceStore } from "./client-cache/index.js";
+import { HYDRATION_ID } from "./domains/elements.js";
+import { HydrationSchema, type TCachePayload, type TDeploymentSettings, type THydration } from "./domains/hydration.js";
+import { jsonCarried } from "@haibun/core/lib/json-text.js";
 import { reportFailure, reportToRun } from "./client-log.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { STEPS_CHANGED } from "@haibun/core/schema/protocol.js";
 import { EVERY_DEFINITION, SHOW_STEPS_METHOD, readShownSteps, type TDomainDiscoveryInfo, type TStepDefinition, type TStepDefinitions } from "@haibun/core/lib/step-discovery.js";
-import { pageEventStream } from "./page/root.js";
+import { pageEventStream, pageHydrationElement } from "./page/root.js";
 import { domainParts } from "@haibun/core/lib/domains.js";
 import { capabilityAllows } from "@haibun/core/lib/actions.js";
 
@@ -117,157 +119,77 @@ async function readSteps(r: TRegistry): Promise<TStepList> {
 	}
 }
 
-/** What a record of a run carries in its own page: the run, what its views showed, and the address it opens at. */
-interface ShuHydration {
-	/** What a view showed, by the step that produces it. A view whose products cannot be read from actuality is given
-	 *  what it showed when the record was written, rather than asking a server that is not there. */
-	viewProducts?: Record<string, unknown>;
-	/** The address the page opens at for a reader who arrives without one. A record of a run states the type its query
-	 *  column was showing, which the records of the run don't state. A page a server serves to open at its own views, as
-	 *  the monitor's is, states those views. */
-	viewHash?: string;
-	/** The actuality this page carries, for a page without a server: filled into the client cache at boot. */
-	cache?: TCachePayload;
-	/** The actuality whose records this page reads, which every call it makes states. */
-	actualityId?: TActualityId;
-	/** What this deployment set for the page, written by the step that serves it. */
-	settings?: TDeploymentSettings;
-}
-
-/**
- * The timings the page applies, as the deployment sets them. A reader waits out both, so a deployment recording fast
- * runs sets them low, and one watching a long-running system keeps the values the product carries.
- */
-export type TDeploymentSettings = {
-	/** How long after the stream breaks the page opens it again. */
-	streamReconnectAfterMs?: number;
-	/** The timeout on a request the page awaits. */
-	responseTimeoutMs?: number;
-	/** What every reader holds here without presenting anything, as the web server declares it. */
-	allowedWithoutDelegation?: string[];
-	/** Whether anything here verifies a delegation, so the page knows to read what was delegated to its key: a key's
-	 *  proof sent where the deployment couldn't check it is refused. */
-	verifiesDelegations?: boolean;
-	/** The origin of a page that embeds shu in a frame and posts it the page the reader is on. */
-	embedderOrigin?: string;
-	/** The rounds of tool calls an ask starts with, before the reader chooses. */
-	askToolLimit?: number;
-	/** The build this page's code is from: its version, and when its bundle was built. */
-	build?: TPageBuild;
-};
-
-/** The build a page's code is from, which a deployment that serves an old one is recognized by. */
-export type TPageBuild = { version: string; builtAt: string };
-
-// The page boots ONCE, but its modules load once PER BUNDLE (the app, the polymorphic view, an actions-bar extension
-// each carry their own copy of this module). The one payload is pinned to the page so every bundle reads the same
-// boot: an extension reading a per-bundle copy would see an empty rpcCache and refetch what the export embedded.
+// The page starts once, and each bundle loads its own copy of this module, so the page holds its one hydration, and every
+// bundle reads the same.
 const HYDRATION_KEY = "__SHU_HYDRATION__";
-const cachedHydration = (): { data: ShuHydration | null } => pagePinned(HYDRATION_KEY, () => ({ data: null }));
+const cachedHydration = (): { data: THydration | undefined } => pagePinned(HYDRATION_KEY, () => ({ data: undefined }));
 
-/** Parse the embedded hydration and drop the text it was parsed from: the element caches the whole run: every event:
- *  as one string, which would sit in the DOM for the life of the page beside the objects parsed out of it. Read once
- *  (`hydrateFromDom`, at boot), so a caller doesn't read it again. */
-function readHydration(): ShuHydration | null {
-	const el = document.getElementById(HYDRATION_ID);
-	if (!el?.textContent) return null;
-	const text = el.textContent;
-	el.textContent = "";
-	try {
-		return JSON.parse(text) as ShuHydration;
-	} catch (err) {
-		reportFailure(REGISTRY, "actuality the page carries isn't JSON", err);
-		return null;
-	}
-}
-
-/** Apply hydrated data immediately (before any RPC). */
+/** Reads the page's hydration element, before any call, and holds what it parses. Throws where the element doesn't hold
+ *  JSON, or holds JSON that `HydrationSchema` refuses. */
 export function hydrateFromDom(): void {
-	cachedHydration().data = readHydration();
+	const text = pageHydrationElement(HYDRATION_ID).take();
+	if (text === undefined) {
+		cachedHydration().data = undefined;
+		return;
+	}
+	const parsed = HydrationSchema.safeParse(jsonCarried(text));
+	if (!parsed.success) throw new Error(`the page's hydration doesn't match its schema: ${errorDetail(parsed.error)}`);
+	cachedHydration().data = parsed.data;
 }
 
 /** The actuality whose records this page reads, as the page was served with it. */
-export const hydratedActualityId = (): TActualityId =>
-	ActualityIdSchema.parse(cachedHydration().data?.actualityId, { error: () => "this page wasn't served with the actualityId of the records it reads, so it doesn't make a call" });
-
-/** The address the page opens at, as it was served or as the run it carries states it, or "" where neither states one. */
-export function getHydratedViewHash(): string {
-	return cachedHydration().data?.viewHash ?? "";
+export function hydratedActualityId(): TActualityId {
+	const { data } = cachedHydration();
+	if (data === undefined) throw new Error("this page wasn't served with the actualityId of the records it reads, so it doesn't make a call");
+	return data.actualityId;
 }
 
-/** What this page carries of a view's products, by the step that produces them; undefined on a page with a server. */
+/** The address the page opens at, as it was served or as the record it carries states it, or undefined where neither states
+ *  one. */
+export const getHydratedViewHash = (): string | undefined => cachedHydration().data?.viewHash;
+
+/** What this page carries of a view's products, by the step that produces them; undefined on a page a site serves. */
 export function carriedProducts(method: string): unknown | undefined {
 	return cachedHydration().data?.viewProducts?.[method];
 }
 
-/**
- * True when this page carries its own run, which is what a record of a run is: it doesn't have a server behind it, so every
- * read is answered from what the page holds. The hydration script is present either way (a live serve carries an empty
- * one so the shape is stable); a carried run is the signal, since a live serve never has one.
- */
-export function isOffline(): boolean {
-	return cachedHydration().data?.cache !== undefined;
+/** Whether this page carries a record of actuality, which a site doesn't serve, so the page reads what it holds. */
+export const isOffline = (): boolean => cachedHydration().data?.cache !== undefined;
+
+/** Returns what the deployment set for the page it served. Throws for a page a site didn't serve with them. */
+function servedSettings(): TDeploymentSettings {
+	const settings = cachedHydration().data?.settings;
+	if (settings === undefined) throw new Error("this page wasn't served with its deployment's settings: a site's ShuStepper writes them into the page it serves");
+	return settings;
 }
 
-/** The build this page's code is from, as a person reads it, or undefined where the page was served without stating it. */
-export function pageBuild(): string | undefined {
-	const build = cachedHydration().data?.settings?.build;
-	return build ? `haibun ${build.version}, page code built ${build.builtAt}` : undefined;
+/** The build this page's code is from, as a person reads it. */
+export function pageBuild(): string {
+	const { build } = servedSettings();
+	return `haibun ${build.version}, page code built ${build.builtAt}`;
 }
 
-/** What every reader holds here without presenting anything: empty, where the page was served without stating it. */
-export function deploymentAllowedWithoutDelegation(): string[] {
-	return cachedHydration().data?.settings?.allowedWithoutDelegation ?? [];
-}
+/** What every reader holds here without presenting anything. */
+export const deploymentAllowedWithoutDelegation = (): string[] => servedSettings().allowedWithoutDelegation;
 
-/** The rounds of tool calls an ask starts with, as this deployment sets them, or undefined where it didn't set one. */
-export function deploymentAskToolLimit(): number | undefined {
-	return cachedHydration().data?.settings?.askToolLimit;
-}
+/** The rounds of tool calls an ask starts with, as this deployment sets them, or undefined where it doesn't set them or a
+ *  site didn't serve the page, as for a page that carries a record of actuality, whose ask doesn't send a turn. */
+export const deploymentAskToolLimit = (): number | undefined => cachedHydration().data?.settings?.askToolLimit;
 
 /** The origin of the page this deployment lets embed shu, or undefined where it doesn't let one. */
-export function deploymentEmbedderOrigin(): string | undefined {
-	return cachedHydration().data?.settings?.embedderOrigin;
-}
+export const deploymentEmbedderOrigin = (): string | undefined => servedSettings().embedderOrigin;
 
-/** Whether this deployment verifies a delegation: false, where the page was served without stating it. */
-export function deploymentVerifiesDelegations(): boolean {
-	return cachedHydration().data?.settings?.verifiesDelegations === true;
-}
+/** Whether this deployment verifies a delegation. */
+export const deploymentVerifiesDelegations = (): boolean => servedSettings().verifiesDelegations;
 
-/** A timing this deployment set, in milliseconds, or undefined where it didn't set one. A value the page cannot apply is a
- *  deployment stating something it does not mean, so it is refused rather than replaced with the product's own. */
-export function deploymentMs(name: "streamReconnectAfterMs" | "responseTimeoutMs"): number | undefined {
-	const set = cachedHydration().data?.settings?.[name];
-	if (set === undefined) return undefined;
-	if (typeof set !== "number" || !Number.isFinite(set) || set <= 0)
-		throw new Error(`${name}: a deployment sets a count of milliseconds above zero, and this page was served ${JSON.stringify(set)}`);
-	return set;
-}
+/** How long after the stream breaks the page opens it again, or undefined where the deployment doesn't set it. */
+export const deploymentStreamReconnectMs = (): number | undefined => servedSettings().streamReconnectAfterMs;
 
-/**
- * The timeout on a request the page awaits, after which the server is reported unreachable.
- *
- * A server that accepts a request without responding leaves the view that issued it without a result or an error, so
- * the read never fails and never falls back to the device store. The timeout converts that into a reported failure.
- *
- * Calibrated against measured query latency. Over a corpus of eight thousand messages the consumer's engine answers a
- * page read in 10ms mean and 64ms at the 95th percentile; its own benchmark bounds queries at 200ms mean and 600ms at
- * the 95th; the slowest query measured in either repository is 727ms; and the clustered graph read at page load
- * answers in 151ms. Twenty seconds is 27 times the slowest measured query, and three times the 95th percentile
- * extrapolated linearly to a corpus a hundredfold larger. A deployment on slower storage raises it.
- */
-export const RESPONSE_TIMEOUT_MS = 20_000;
+/** The timeout on a request the page awaits, after which the site counts as unreachable. */
+export const responseTimeoutMs = (): number => servedSettings().responseTimeoutMs;
 
-/** The timeout this page applies, as the deployment sets it. */
-export function responseTimeoutMs(): number {
-	return deploymentMs("responseTimeoutMs") ?? RESPONSE_TIMEOUT_MS;
-}
-
-/** The actuality this page carries, when it carries one. */
-export function hydratedCache(): TCachePayload | undefined {
-	return cachedHydration().data?.cache;
-}
+/** The record of actuality this page carries, or undefined for a page a site serves. */
+export const hydratedCache = (): TCachePayload | undefined => cachedHydration().data?.cache;
 
 /** Where the registry the page runs on came from: the server, or the device's copy of it (when the server did not respond),
  *  and when that copy was cached. Pinned to the page like the registry itself; null until the registry is known. */

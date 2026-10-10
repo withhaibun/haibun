@@ -4,7 +4,7 @@
  * attributed to its longest script.
  */
 import { reportFailure } from "../../client-log.js";
-import { recordClientBlip } from "../../client-blips.js";
+import { recordClientBlip, type TBlipChannel } from "./client-blips.js";
 import { PAGE_LONG_FRAME_BLIP, scriptOf } from "../../domains/blips.js";
 import { HOW_SCRIPTS_RUN, refusal } from "../derivations/refused-script.js";
 import type { TPageObservers } from "../ports.js";
@@ -19,9 +19,9 @@ export function reportRefusedScripts(observers: TPageObservers): void {
 
 /** Records each long animation frame of the page, including the frames before the call. Returns whether the browser
  *  reports long frames. */
-export function recordLongFrames(observers: TPageObservers): boolean {
+export function recordLongFrames(observers: TPageObservers, blips: () => TBlipChannel): boolean {
 	return observers.longFrames((frame) => {
 		const render = frame.renderStart > 0 ? frame.startTime + frame.duration - frame.renderStart : 0;
-		recordClientBlip(PAGE_LONG_FRAME_BLIP, frame.duration, { blocking: frame.blockingDuration, render, script: scriptOf(frame) });
+		recordClientBlip(blips(), PAGE_LONG_FRAME_BLIP, frame.duration, { blocking: frame.blockingDuration, render, script: scriptOf(frame) });
 	});
 }

@@ -7,20 +7,11 @@
  * persisted would mix its run with the next report's.
  */
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
-import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { pageReadDeclarations, setGraphStore } from "../quads-snapshot.js";
 import { CACHE_SHAPE, MemoryDeviceStore, setDeviceStore } from "./device-store.js";
 import { readExecution } from "./executions.js";
+import type { TCachePayload } from "../domains/hydration.js";
 
-/** What a report carries of the actuality it reports: the graph actuality wrote, which is actuality, and the site's registry as
- *  it stood. `shape` names the rule the payload was written to. */
-export type TCachePayload = {
-	shape: string;
-	/** The execution the report is of, which is the one its views read. */
-	execution: string;
-	registry?: unknown;
-	quads: TQuad[];
-};
 
 /** Fill a memory-backed store with a report's run, and read that execution from now on. */
 export async function hydrateClientCache(cache: TCachePayload): Promise<void> {

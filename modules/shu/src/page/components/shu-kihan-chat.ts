@@ -40,14 +40,15 @@ import {
 	type TAskedTurn,
 	type TConversationState,
 } from "../../conversation.js";
-import { pageMay } from "../../page-key.js";
+import { pageMay } from "../controllers/authority-controller.js";
 import { allowForTurns, readTurnAllowance, turnAllowance, withdrawFromTurns } from "../../turn-allowance.js";
 import { harvestChatViewLd } from "../../chat-context-harvest.js";
 import { SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { actionRef, recordRef, stepRef } from "./shu-ref.js";
 import { reportToRun } from "../../client-log.js";
-import { embeddedPageView, embeddedViewLd } from "../../embedder.js";
+import { embeddedPageView } from "../controllers/page-cell-controller.js";
+import { embeddedViewLd } from "../derivations/embedding.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { formatInstant, readerZone } from "../derivations/time-format.js";
 
@@ -602,7 +603,7 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 			envelope: {
 				patterns,
 				// The page the reader is on, where a page embedding shu posts it, is part of the view with only the bar open.
-				viewLd: [...harvestChatViewLd(), ...embeddedViewLd()],
+				viewLd: [...harvestChatViewLd(), ...embeddedViewLd(embeddedPageView.get())],
 				maxToolCalls: this.state.toolLimit,
 				contextReadBy: this.state.contextReadBy || undefined,
 				session: this.#conversation.state.session ?? undefined,

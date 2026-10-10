@@ -53,7 +53,7 @@ import { propertyVocabulary } from "../../graph/ontology-projection.js";
 import { linkHtml, paneHref, refHref, renderRef } from "./ref-navigation.js";
 import { refsInContent } from "../../markdown-refs.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
-import { pageAddress } from "../../view-hash.js";
+import { pageAddress } from "../controllers/hash-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { z } from "zod";
 import { CallLinkSchema, counted, statedTotal, type TCallLink, type TCounted } from "@haibun/core/lib/hypermedia.js";
@@ -86,12 +86,12 @@ type EdgeData = { type: string; target: VertexData; direction?: "out" | "in" };
 const bodyCsp = (baseOrigin: string): string =>
 	`default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:; base-uri ${baseOrigin || "'none'"}; form-action 'none'`;
 
-export function buildBodyIframeDoc(content: string, mediaType: string, pageUrl = ""): string {
-	const baseOrigin = pageUrl ? new URL(pageUrl).origin : "";
+export function buildBodyIframeDoc(content: string, mediaType: string, pageUrl: string | undefined): string {
+	const baseOrigin = pageUrl === undefined ? "" : new URL(pageUrl).origin;
 	const csp = mediaType === MEDIA_TYPE.html ? "" : `<meta http-equiv="Content-Security-Policy" content="${bodyCsp(baseOrigin)}">`;
 	// In a data: document a `#` link resolves against the data: URL and doesn't navigate; the base re-roots links against
 	// the app and target=_top sends them to the top frame (the iframe sandbox permits user-initiated top navigation).
-	const base = pageUrl ? `<base href="${escAttr(pageUrl)}" target="_top">` : "";
+	const base = pageUrl === undefined ? "" : `<base href="${escAttr(pageUrl)}" target="_top">`;
 	return `<!DOCTYPE html><html><head><meta charset="utf-8">${csp}${base}<style>body{${BODY_READING_STYLE}margin:8px;color:#111;}</style></head><body>${content}</body></html>`;
 }
 

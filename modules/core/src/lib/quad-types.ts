@@ -7,7 +7,7 @@
  */
 import type { IEventLogger } from "./EventLogger.js";
 import { z } from "zod";
-import type { AccessLevel } from "./resources.js";
+import { AccessLevelSchema, type AccessLevel } from "./resources.js";
 import type { TAccessBound } from "./actions.js";
 import { ellipsize } from "./util/index.js";
 import { CountedFields, CountedSchema } from "./hypermedia.js";
@@ -183,6 +183,20 @@ export interface TQuad {
 	/** The level the quad was written at, in a store that classifies each quad it holds rather than each record. */
 	accessLevel?: AccessLevel;
 }
+
+/** A quad as a page carries it or a site sends it. */
+export const QuadSchema = z
+	.object({
+		subject: z.string(),
+		predicate: z.string(),
+		object: z.unknown(),
+		namedGraph: z.string(),
+		objectType: z.string().optional(),
+		timestamp: z.number(),
+		properties: z.record(z.string(), z.unknown()).optional(),
+		accessLevel: AccessLevelSchema.optional(),
+	})
+	.strict() satisfies z.ZodType<TQuad>;
 
 /** What a store classifies its own writes and bounds its reads by: what bounds the call in progress, and the level each
  *  type declares its records at, undefined for a name that isn't a persisted type. A store that isn't given one holds a copy of what

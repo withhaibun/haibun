@@ -16,7 +16,8 @@
 import { PartSchema, type TPart } from "@haibun/core/lib/resources.js";
 import { PART_DIRECTIVE, partDirectiveFor, splitPart } from "@haibun/core/lib/typed-links.js";
 import { z } from "zod";
-import * as ViewHash from "./view-hash.js";
+import * as Address from "./page/derivations/address.js";
+import * as PageHash from "./page/controllers/hash-controller.js";
 import { objectId } from "./object-id.js";
 import { INDEX_PANE_KEY, SHU_ATTR, SHU_EVENT, SHU_TAG } from "./domains/elements.js";
 import { pagePreferences } from "./page/root.js";
@@ -324,15 +325,15 @@ class PaneStateImpl {
 
 	/** Parse the URL hash into desired panes and reconcile. */
 	fromHash(): void {
-		if (ViewHash.getHash() === this.held.lastWrittenHash) return; // its own echo, desired already matches; don't rebuild (would clobber an in-flight open)
+		if (PageHash.getHash() === this.held.lastWrittenHash) return; // its own echo, desired already matches; don't rebuild (would clobber an in-flight open)
 		this.held.hydrated = true; // the hash has now been read at least once, writes are safe (see `hydrated`)
 		// `open=` arrivals never reach here: view-hash canonicalizes them into col= entries at its ingress.
-		const params = ViewHash.hashParams(ViewHash.getHash());
-		const active = params.get(ViewHash.ACTIVE_PARAM);
+		const params = Address.hashParams(PageHash.getHash());
+		const active = params.get(Address.ACTIVE_PARAM);
 		const next = new Map<string, DesiredPane>();
 		const idParam = params.get("id");
 		const labelParam = params.get("label");
-		const rawCols = params.getAll(ViewHash.COLUMN_PARAM);
+		const rawCols = params.getAll(Address.COLUMN_PARAM);
 		if (idParam && labelParam && rawCols.length === 0) {
 			const d = parseColEntry(`e:${labelParam}:${idParam}`);
 			if (d) next.set(paneIdOf(d), withPersistedFlag(d));
@@ -585,21 +586,21 @@ class PaneStateImpl {
 		// would otherwise overwrite the reloaded hash with the partial desired set, dropping the col= views still waiting
 		// to be restored. This generalises the setActivePane guard to every writer (the boot-strip regression).
 		if (!this.held.hydrated) return;
-		const base = ViewHash.getHash();
-		const params = ViewHash.hashParams(base);
-		params.delete(ViewHash.COLUMN_PARAM);
+		const base = PageHash.getHash();
+		const params = Address.hashParams(base);
+		params.delete(Address.COLUMN_PARAM);
 		for (const d of this.held.desired.values()) {
 			const id = paneIdOf(d);
 			const page = this.held.pagePanes.get(id)?.pane;
 			if (page && Boolean(page.docked) === Boolean(d.docked) && page.flag === d.flag) continue;
-			const suffix = `${d.docked ? ViewHash.PANE_ENDING.dock : ""}${d.flag ? ViewHash.PANE_ENDING[d.flag] : ""}`;
-			params.append(ViewHash.COLUMN_PARAM, `${id}${suffix}`);
+			const suffix = `${d.docked ? Address.PANE_ENDING.dock : ""}${d.flag ? Address.PANE_ENDING[d.flag] : ""}`;
+			params.append(Address.COLUMN_PARAM, `${id}${suffix}`);
 		}
-		if (this.activePaneId) params.set(ViewHash.ACTIVE_PARAM, this.activePaneId);
-		else params.delete(ViewHash.ACTIVE_PARAM);
-		const next = ViewHash.hashOf(params);
+		if (this.activePaneId) params.set(Address.ACTIVE_PARAM, this.activePaneId);
+		else params.delete(Address.ACTIVE_PARAM);
+		const next = Address.hashOf(params);
 		this.held.lastWrittenHash = next; // mark as this instance's so the echoed hashchange doesn't re-enter fromHash and clobber desired
-		if (next !== base) ViewHash.pushHash(next);
+		if (next !== base) PageHash.pushHash(next);
 	}
 
 	private findLiveChild(paneId: string): HTMLElement | undefined {
@@ -630,7 +631,7 @@ function withPersistedFlag(d: DesiredPane): DesiredPane {
  * of the `PANE_ENDING`s of view-hash, which state where the pane stands.
  */
 export function parseColEntry(raw: string): DesiredPane | null {
-	const { id: body, endings } = ViewHash.splitPaneEntry(raw);
+	const { id: body, endings } = Address.splitPaneEntry(raw);
 	const placement = { flag: endings.has("max") ? ("max" as const) : endings.has("min") ? ("min" as const) : undefined, docked: endings.has("dock") || undefined };
 	for (const [paneType, kind] of Object.entries(PANE_KINDS) as [DesiredPaneType, TAnyPaneKind][]) {
 		if (!kind.prefix || !kind.parse || !body.startsWith(kind.prefix)) continue;

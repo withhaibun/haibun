@@ -9,7 +9,7 @@ import { defineElement } from "../page/controllers/element-controller.js";
 import { acts } from "../page/domains/links.js";
 import { conduit } from "../page/controllers/conduit-controller.js";
 import type { TPaneOpen } from "../pane-state.js";
-import type { TPresenterNodeClick } from "../graph-presenter.js";
+import type { TPresenterNodeClick } from "../page/ports.js";
 import { applyScene, captureScene, listScenes, readScene, saveScene, type TSceneState } from "../scenes.js";
 import { SCENE_LABEL } from "@haibun/core/lib/resources.js";
 import { SCHEMA_TYPES } from "../graph/ontology-projection.js";

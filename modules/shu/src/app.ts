@@ -2,7 +2,8 @@ import { SHU_TEST_IDS } from "./domains/test-ids.js";
 import { recordLongFrames, reportRefusedScripts } from "./page/pipelines/page-observations.js";
 import { appAccessLevel, defaultLabel, esc } from "./util.js";
 import { DOCK_FOOTPRINT, INDEX_PANE_KEY, SHU_EVENT, SHU_ATTR, SHU_TAG } from "./domains/elements.js";
-import { getHash, hashOf, hashWithColumns } from "./view-hash.js";
+import { hashOf, hashWithColumns } from "./page/derivations/address.js";
+import { getHash } from "./page/controllers/hash-controller.js";
 /**
  * Main SPA entry point. The layout uses shu-column-strip and shu-column-pane.
  * The query pane is sticky on the left. Additional columns scroll to the right.
@@ -18,8 +19,9 @@ import {
 	deploymentVerifiesDelegations,
 	deploymentEmbedderOrigin,
 	pageBuild,
+	responseTimeoutMs,
 } from "./rpc-registry.js";
-import { openPageAuthority, pageMay, type TPageAuthority } from "./page-key.js";
+import { authorityPort, openPageAuthority, pageMay, type TPageAuthority } from "./page/authority/controllers/page-authority-controller.js";
 import { DELEGATIONS_READ_METHOD, type TDelegations } from "@haibun/core/lib/authority-types.js";
 import { readAction } from "@haibun/core/lib/actions.js";
 import { Access } from "@haibun/core/lib/resources.js";
@@ -30,11 +32,12 @@ import { reads } from "./page/domains/links.js";
 import { SSE_ROUTE } from "@haibun/core/lib/rpc-wire.js";
 import { installShuTokens } from "./page/components/styles.js";
 import { applyStoredTheme } from "./page/components/shu-theme-switch.js";
-import { installCarriedEventStream, installServedConduit, installServedEventStream, pageEventStream, pageObservers } from "./page/root.js";
+import { embeddedPageView, givenDelegation, installAuthority, installCarriedConduit, installCarriedEventStream, installServedConduit, installServedEventStream, pageAuthorityPort, pageClock, pageEmbedder, pageEventStream, pageObservers } from "./page/root.js";
 import { subscribeBatchedEvents } from "./page/controllers/event-stream-controller.js";
 import { followRunningTurns } from "./conversation.js";
-import { askEmbedderToDelegate, receiveFromEmbedder } from "./embedder.js";
+import { askEmbedderToDelegate, receiveFromEmbedder, type TEmbedding } from "./page/pipelines/embedding.js";
 import { loadComponent } from "./page/controllers/element-controller.js";
+import { pageBlipChannel } from "./page/controllers/blip-controller.js";
 import { paneOpsFor } from "./page/derivations/affordances.js";
 import { setActiveViewId } from "./quads-snapshot.js";
 import { SCOPE, dispatchSubjectEvent, entryOf } from "./current-subject.js";
@@ -134,25 +137,29 @@ const main = async (): Promise<void> => {
 	// a view is shown actuality's own views.
 	const arrivedWithAddress = getHash().length > 1;
 	hydrateFromDom();
+	// The reader's authority is the authority area's, which the page's conduit, stream and views read through the root.
+	installAuthority(authorityPort());
 	// The embedding page at the deployment's embedder origin posts the page the reader has open and a delegation to shu's key.
 	const embedder = window.parent !== window ? deploymentEmbedderOrigin() : undefined;
-	if (embedder) receiveFromEmbedder(embedder);
-	// Every page uses one conduit. A page that a server serves sends its calls to that server. A page that carries a run's
-	// records doesn't reach a server. Each of its reads returns what the page holds. The conduit is installed before any
-	// component is registered, since every component reads through the accessor and throws on first use without a conduit.
-	installServedConduit("");
-	// A page that carries a run's records writes them into the client cache before anything reads actuality. Every view then
-	// reads them through the same sources it uses with a server. The client cache returns each read.
+	const embedding: TEmbedding | undefined = embedder ? { channel: pageEmbedder(embedder), pageView: embeddedPageView, given: givenDelegation, authority: pageAuthorityPort(), clock: pageClock() } : undefined;
+	if (embedding) receiveFromEmbedder(embedding);
+	// Every page uses one conduit, installed before any view connects. A page a site serves calls that site. A page that
+	// carries a record of actuality doesn't reach a site, so each of its reads returns what the page holds: it writes the
+	// record into the client cache before anything reads actuality, and every view reads through the sources it uses with
+	// a site.
 	const carried = hydratedCache();
 	if (carried) {
+		installCarriedConduit();
 		installCarriedEventStream();
 		await hydrateClientCache(carried);
-		ShuElement.pushHash(getHydratedViewHash());
+		const opensAt = getHydratedViewHash();
+		if (opensAt !== undefined) ShuElement.pushHash(opensAt);
 	} else {
+		installServedConduit("");
 		installServedEventStream(SSE_ROUTE);
 	}
 	// Records the long frames of the page's main thread from the start, including the frames before this call.
-	recordLongFrames(pageObservers());
+	recordLongFrames(pageObservers(), pageBlipChannel);
 	// Install the shared design tokens at document level so combobox dropdowns and other elements rendered into document.body resolve the same `--shu-…` variables that shadow-DOM components inherit.
 	installShuTokens();
 	applyStoredTheme();
@@ -166,7 +173,7 @@ const main = async (): Promise<void> => {
 		// The reader's authority is read first, since getAvailableSteps and every later call are signed with it.
 		if (!carried) {
 			const authority = await openReaderAuthority();
-			if (embedder && deploymentVerifiesDelegations()) await askEmbedderToDelegate(embedder, authority.controller);
+			if (embedding && deploymentVerifiesDelegations()) await askEmbedderToDelegate(embedding, authority.controller, responseTimeoutMs());
 			if (!pageMay(readAction(Access.public))) {
 				showPageKey(appRoot, authority);
 				return;
@@ -177,7 +184,7 @@ const main = async (): Promise<void> => {
 		if (!isOffline()) {
 			// The failure shows the page's build. The build identifies a deployment that serves page code older than its source.
 			const build = pageBuild();
-			appRoot.innerHTML = `<div style="padding:20px;color:#c00;font-family:monospace"><strong>This page didn't start.</strong> ${esc(errorDetail(err))}${build ? `<div data-testid="${SHU_TEST_IDS.APP.PAGE_BUILD}">${esc(build)}</div>` : ""}</div>`;
+			appRoot.innerHTML = `<div style="padding:20px;color:#c00;font-family:monospace"><strong>This page didn't start.</strong> ${esc(errorDetail(err))}<div data-testid="${SHU_TEST_IDS.APP.PAGE_BUILD}">${esc(build)}</div></div>`;
 			return;
 		}
 	}
@@ -215,7 +222,10 @@ const main = async (): Promise<void> => {
 	if (shown.length > 0) ShuElement.pushHash(hashWithColumns(shown));
 	// A served page opens at the view hash its server set when actuality hasn't shown a view and the reader's address
 	// doesn't name one. The monitor's page opens at the monitor and the executions this device holds.
-	else if (!arrivedWithAddress && !carried && getHydratedViewHash()) ShuElement.pushHash(getHydratedViewHash());
+	else if (!arrivedWithAddress && !carried) {
+		const servedAt = getHydratedViewHash();
+		if (servedAt !== undefined) ShuElement.pushHash(servedAt);
+	}
 
 	const reportBootDiagnostic = (level: TClientLogLevel, msg: string, attrs?: Record<string, unknown>): void => reportToRun(level, "shu-app-boot", msg, attrs);
 	reportBootDiagnostic("debug", "shu-app boot reached the pane-open listeners");

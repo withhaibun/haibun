@@ -4,6 +4,12 @@
  */
 import type { TLink, TRepresentation, TStreamChunk } from "./domains/links.js";
 import type { TLongFrame } from "../domains/blips.js";
+import type { TFrameMessage } from "../domains/embedding.js";
+import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
+import type { TLinkedData } from "@haibun/core/lib/hypermedia.js";
+import type { TDelegation } from "@haibun/core/lib/actions.js";
+import type { TProveRequest } from "@haibun/core/lib/rpc-wire.js";
+import type { TPageAuthority } from "./authority/pipelines/page-authority.js";
 
 /** An element's stored fields, by its tag and its instance's key. Each tag holds one record of its instances' fields. */
 export type TPreferences = {
@@ -40,6 +46,90 @@ export type TClock = {
 	after(ms: number, fn: () => void): () => void;
 	/** Calls `fn` before the browser draws its next frame. Returns the call that cancels it. */
 	frame(fn: () => void): () => void;
+};
+
+/** The page's location. */
+export type TLocation = {
+	/** Returns the address's hash. */
+	hash(): string;
+	/** Writes `hash` as the address's hash through the history, which doesn't raise `hashchange`. */
+	replaceHash(hash: string): void;
+	/** Calls `fn` at each arrival at a new hash. Returns the call that stops it. */
+	onHashArrival(fn: () => void): () => void;
+	/** Returns the address without its hash. */
+	address(): string;
+};
+
+/** The channel between shu's frame and the page that embeds it. */
+export type TEmbedderChannel = {
+	/** Calls `fn` with each message the embedding window posts at the deployment's origin, and `refused` with the origin of
+	 *  each message the embedding window posts at another. Returns the call that stops receiving. */
+	receive(fn: (data: unknown) => void, refused: (origin: string) => void): () => void;
+	/** Posts `message` to the embedding window, at the deployment's origin alone. */
+	post(message: TFrameMessage): void;
+};
+
+/** A node a reader opened in a graph presenter, which the presenter reports to its host as `SHU_EVENT.GRAPH_NODE_CLICK`;
+ *  the host opens the resource the node names. */
+export type TPresenterNodeClick = { nodeId: string };
+
+/** The calls a host makes on the graph presenter it embeds. */
+export type TGraphPresenter = HTMLElement & {
+	setQuads(quads: TQuad[], clusters?: TCluster[]): void;
+	/** Marks the host's current node as active in the graph. `null` means the host isn't on a node. */
+	selectNode(id: string | null): void;
+	/** Highlights these nodes and dims the rest of the graph. `null` ends the preview. */
+	previewNodes(ids: string[] | null): void;
+	/** Returns a summary of what the presenter shows, in the form the chat context reads from each view. */
+	summarizeForKihan(): TLinkedData | null;
+};
+
+/** Where a view holds the graph presenter it embeds. */
+export type TPresenterMount = {
+	/** Returns the presenter `host` holds in `slot`, or undefined where it doesn't hold one. */
+	presenterIn(host: HTMLElement, slot: string): TGraphPresenter | undefined;
+	/** Mounts a presenter of `tag` in `host` at `slot`, with its settings under `scope`, and returns it. */
+	mount(host: HTMLElement, slot: string, tag: string, scope: string): TGraphPresenter;
+};
+
+/** One occurrence a view recorded: its name, its value and attributes where it states them, and when it happened. */
+export type TClientBlip = { name: string; value: number | undefined; attributes: Record<string, unknown> | undefined; at: number };
+
+/** The page's ring of the latest occurrences. */
+export type TBlipRing = {
+	/** Holds `blip`, in place of the oldest where the ring is full. */
+	record(blip: TClientBlip): void;
+	/** Returns the occurrences the ring holds, oldest first, and empties it. */
+	take(): TClientBlip[];
+	/** Returns how many occurrences the ring recorded, including those it dropped. */
+	recorded(): number;
+	/** Returns how many occurrences the ring passed to a send. */
+	sent(): number;
+};
+
+/** The page's hydration element. */
+export type THydrationElement = {
+	/** Returns the element's text and empties the element, or undefined where the page doesn't hold the element or it is
+	 *  empty. */
+	take(): string | undefined;
+};
+
+/** The reader's authority on the page, which the page's start installs from the authority area (`page/authority/`). */
+export type TAuthority = {
+	/** Whether the page holds what `action` requires. */
+	may(action: string): boolean;
+	/** Returns each action the page holds. */
+	holds(): string[];
+	/** Returns what the page holds once the read the page started ends, or undefined where the page didn't start one. */
+	ready(): Promise<TPageAuthority | undefined>;
+	/** Holds a delegation the embedding page gave the page's key, in place of `replacing`. */
+	hold(delegation: TDelegation, replacing: TDelegation | undefined): void;
+	/** Lets go of what the page holds, so it reads it again. */
+	forget(): void;
+	/** Returns how a call of `method` is proven, where the call requires `required`. */
+	prove(method: string, required: string | undefined): TProveRequest;
+	/** Returns the headers of a GET of the absolute address `url` as `action`. */
+	readingHeaders(url: string, action: string): Promise<Record<string, string>>;
 };
 
 /** The page's clipboard. */

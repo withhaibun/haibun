@@ -7,18 +7,18 @@
  */
 import "fake-indexeddb/auto";
 import { authorityRefusal, notFromActuality, REFUSED_INVOCATION } from "@haibun/core/lib/rpc-wire.js";
-import { openPageAuthority, pageMay } from "../../page-key.js";
+import { openPageAuthority, pageMay } from "../authority/controllers/page-authority-controller.js";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { reads, acts, type TLink, type TRepresentation } from "../domains/links.js";
 import { hasLink, getLink } from "../derivations/links.js";
 import { conduit, serverLastRespondedAt } from "../controllers/conduit-controller.js";
 import { installConduit, installServedConduit } from "../root.js";
 import { ServerUnreachable, isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
-import { PAGE_ACTUALITY, TestConduit, hydrate, serveThePage } from "../../test-setup.js";
+import { PAGE_ACTUALITY, SERVED_SETTINGS, TestConduit, hydrate, servedWith, serveThePage, newPage } from "../../test-setup.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 
 beforeEach(() => {
-	endPage();
+	newPage();
 });
 
 /** Sets the page's own hydration, as a deployment serves it. */
@@ -29,7 +29,6 @@ function setHydration(payload: Record<string, unknown>): void {
 
 import { hydrateFromDom } from "../../rpc-registry.js";
 import { rpcAnswer, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
-import { endPage } from "./page-held.js";
 import { UNREACHABLE_RETRY_AFTER_MS } from "./live-conduit.js";
 
 /** The specifier of the copy of hypermedia.js that another bundle on the page loads. */
@@ -107,7 +106,7 @@ describe("conduit accessor", () => {
 
 	it("a page that has ended doesn't have a conduit installed", () => {
 		installConduit(new TestConduit(() => ({})));
-		endPage();
+		newPage();
 		expect(() => conduit()).toThrow(/the page doesn't hold a conduit/);
 	});
 });
@@ -116,7 +115,7 @@ describe("a server that does not respond", () => {
 	// A page holds when the site last responded and whether a timeout marked the site unreachable. Each case starts from
 	// a page that doesn't hold either, and sets up its own situation.
 	beforeEach(() => {
-		endPage();
+		newPage();
 		document.head.innerHTML = "";
 		serveThePage();
 	});
@@ -178,14 +177,14 @@ describe("a server that does not respond", () => {
 
 	it("records when the server last responded, and doesn't record a time where the server never responded", async () => {
 		const fetchWas = globalThis.fetch;
-		endPage();
+		newPage();
 		serveThePage();
 		globalThis.fetch = () => Promise.reject(new TypeError("Failed to fetch"));
 		try {
 			await installServedConduit("").follow(acts(SHOW_STEPS_METHOD), "test").catch(() => undefined);
 			expect(serverLastRespondedAt(), "a page that hasn't reached a server doesn't hold such a time").toBeUndefined();
 			// The second part starts a new page, so the state the first part left doesn't affect it.
-			endPage();
+			newPage();
 			serveThePage();
 			// An error the server returns still counts as a response, so a reader sees that the page reached the server.
 			globalThis.fetch = () => Promise.resolve(rpcAnswer({ error: "no such step" }, 422));
@@ -194,7 +193,7 @@ describe("a server that does not respond", () => {
 			expect(serverLastRespondedAt() ?? 0).toBeGreaterThanOrEqual(before);
 		} finally {
 			globalThis.fetch = fetchWas;
-			endPage();
+			newPage();
 		}
 	});
 
@@ -202,7 +201,7 @@ describe("a server that does not respond", () => {
 		// A call that doesn't receive a response or a refusal would leave the calling view empty without a reason, and the
 		// reading wouldn't fall back to what the device holds. The timeout bounds that call.
 		const fetchWas = globalThis.fetch;
-		setHydration({ settings: { responseTimeoutMs: 40 } });
+		setHydration({ settings: servedWith({ responseTimeoutMs: 40 }) });
 		hydrateFromDom();
 		let taken = 0;
 		globalThis.fetch = ((_url: string, init?: { signal?: AbortSignal }) => {
@@ -230,7 +229,7 @@ describe("a server that does not respond", () => {
 		// A timeout while the body arrives reports the server as not responding, as a timeout before the headers does. An
 		// aborted request would otherwise reach the page as a fault.
 		const fetchWas = globalThis.fetch;
-		setHydration({ settings: { responseTimeoutMs: 40 } });
+		setHydration({ settings: servedWith({ responseTimeoutMs: 40 }) });
 		hydrateFromDom();
 		globalThis.fetch = ((_url: string, init?: { signal?: AbortSignal }) => {
 			const stalled = new ReadableStream<Uint8Array>({
@@ -252,7 +251,7 @@ describe("a server that does not respond", () => {
 
 	it("applies the timeout to a request the page awaits and doesn't apply one to a stream, which stays open while actuality writes to it", async () => {
 		const fetchWas = globalThis.fetch;
-		setHydration({ settings: { responseTimeoutMs: 30 } });
+		setHydration({ settings: servedWith({ responseTimeoutMs: 30 }) });
 		hydrateFromDom();
 		const bounds: Array<boolean> = [];
 		globalThis.fetch = ((url: string, init?: { signal?: AbortSignal; body?: string }) => {
@@ -265,7 +264,7 @@ describe("a server that does not respond", () => {
 			expect(bounds.at(-1), "a read the page awaits carries a timeout").toBe(true);
 			// The call that opens an action carries a timeout like any other awaited call. This part starts a page that
 			// hasn't found the site unreachable.
-			endPage();
+			newPage();
 			serveThePage();
 			const streaming = installServedConduit("").followStream(acts(SHOW_STEPS_METHOD), () => undefined, { why: "actuality's own stream" }).catch(() => undefined);
 			await new Promise((r) => setTimeout(r, 60));
@@ -279,8 +278,8 @@ describe("a server that does not respond", () => {
 
 	it("issues one request per retry interval, not one per read, so concurrent reads fall back instead of each timing out", async () => {
 		const fetchWas = globalThis.fetch;
-		endPage();
-		setHydration({ settings: { responseTimeoutMs: 60 } });
+		newPage();
+		setHydration({ settings: servedWith({ responseTimeoutMs: 60 }) });
 		hydrateFromDom();
 		let made = 0;
 		globalThis.fetch = ((_url: string, init?: { signal?: AbortSignal }) => {
@@ -297,15 +296,15 @@ describe("a server that does not respond", () => {
 			expect(Date.now() - began, "so they didn't wait for the timeout again").toBeLessThan(60);
 		} finally {
 			globalThis.fetch = fetchWas;
-			endPage();
+			newPage();
 			document.head.innerHTML = "";
 		}
 	});
 
 	it("issues a request again after the retry interval, so a server that recovers is detected", async () => {
 		const fetchWas = globalThis.fetch;
-		endPage();
-		setHydration({ settings: { responseTimeoutMs: 40 } });
+		newPage();
+		setHydration({ settings: servedWith({ responseTimeoutMs: 40 }) });
 		hydrateFromDom();
 		let made = 0;
 		// The fake accepts the call and doesn't respond, so the timeout marks the site unreachable.
@@ -326,7 +325,7 @@ describe("a server that does not respond", () => {
 		} finally {
 			vi.useRealTimers();
 			globalThis.fetch = fetchWas;
-			endPage();
+			newPage();
 			document.head.innerHTML = "";
 		}
 	});
@@ -335,8 +334,8 @@ describe("a server that does not respond", () => {
 		// A question a reader types into the ask pane reaches the server even where a view's read timed out a moment
 		// before. The page would otherwise refuse to send the reader's question.
 		const fetchWas = globalThis.fetch;
-		endPage();
-		setHydration({ settings: { responseTimeoutMs: 40 } });
+		newPage();
+		setHydration({ settings: servedWith({ responseTimeoutMs: 40 }) });
 		hydrateFromDom();
 		const asked: string[] = [];
 		globalThis.fetch = ((url: string, init?: { signal?: AbortSignal }) => {
@@ -353,7 +352,7 @@ describe("a server that does not respond", () => {
 			expect(asked.slice(afterRead), "and then the act itself").toContain("/rpc/chatWithContext");
 		} finally {
 			globalThis.fetch = fetchWas;
-			endPage();
+			newPage();
 			document.head.innerHTML = "";
 		}
 	});
@@ -372,13 +371,13 @@ describe("a server that does not respond", () => {
 			expect(made, "each call reached fetch, since the network refusal returned at once").toBeGreaterThan(1);
 		} finally {
 			globalThis.fetch = fetchWas;
-			endPage();
+			newPage();
 		}
 	});
 
 	it("reports a request the caller aborted as the caller's, not as an unreachable server", async () => {
 		const fetchWas = globalThis.fetch;
-		setHydration({ settings: {} });
+		setHydration({ settings: SERVED_SETTINGS });
 		hydrateFromDom();
 		globalThis.fetch = ((url: string, init?: { signal?: AbortSignal }) => {
 			// The fake responds to the call that opens an action. It accepts the streamed read and doesn't respond, so only

@@ -124,7 +124,7 @@ describe("a report carries actuality and the site's declarations, and doesn't ca
 describe("a report opens on the type the reader was looking at", () => {
 	// Switching type in the actions bar runs a graph query, and the run records that step. The type is read from the
 	// argument's domain, so a deployment answering queries with its own step is read the same way as the inherent one.
-	const viewHash = (html: string): string => (reportHydration(html) as unknown as { viewHash: string }).viewHash;
+	const viewHash = (html: string): string | undefined => (reportHydration(html) as unknown as { viewHash?: string }).viewHash;
 
 	it("opens on the type the last query named, whichever step answered it", async () => {
 		expect(viewHash(await generateReport(undefined, 1, [queryEvent("MonitorStepper", "Comment")]))).toContain("label=Comment");
@@ -135,7 +135,7 @@ describe("a report opens on the type the reader was looking at", () => {
 		expect(viewHash(await generateReport(undefined, 1, [queryEvent("GraphStepper", "Email"), queryEvent("GraphStepper", "Person")]))).toContain("label=Person");
 	});
 
-	it("doesn't name a type when actuality never queried one", async () => {
-		expect(viewHash(await generateReport(undefined))).not.toContain("label=");
+	it("doesn't state a hash to open at when actuality never queried a type", async () => {
+		expect(viewHash(await generateReport(undefined))).toBeUndefined();
 	});
 });

@@ -10,12 +10,12 @@
 import { HYDRATION_ID } from "./domains/elements.js";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
-	RESPONSE_TIMEOUT_MS,
 	deploymentAskToolLimit,
 	deploymentEmbedderOrigin,
-	deploymentMs,
+	deploymentStreamReconnectMs,
 	getAvailableSteps,
 	hydrateFromDom,
+	hydratedCache,
 	isOffline,
 	registryOrigin,
 	requireStep,
@@ -24,11 +24,17 @@ import {
 	pageBuild,
 } from "./rpc-registry.js";
 import { asDomainKey } from "@haibun/core/lib/domains.js";
-import { setupShuTest, stepsShown, type TShuTestHandle, hydrate } from "./test-setup.js";
+import { setupShuTest, stepsShown, type TShuTestHandle, hydrate, PAGE_ACTUALITY, SERVED_SETTINGS, servedWith } from "./test-setup.js";
+import { RESPONSE_TIMEOUT_MS } from "./domains/hydration.js";
+import { CACHE_SHAPE, hydrateClientCache } from "./client-cache/index.js";
+import { installCarriedConduit } from "./page/root.js";
 import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { deviceStore, setDeviceStore, MemoryDeviceStore } from "./client-cache/index.js";
 import { endPage } from "./page/adapters/page-held.js";
+
+/** A record of actuality a test page carries. */
+const CARRIED = { shape: CACHE_SHAPE, execution: "r1", quads: [] };
 
 function setHydration(payload: unknown): void {
 	document.head.innerHTML = "";
@@ -36,104 +42,85 @@ function setHydration(payload: unknown): void {
 	hydrate(payload);
 }
 
-describe("a page that carries its own run doesn't have a server behind it", () => {
+describe("a page that carries a record of actuality doesn't have a site behind it", () => {
 	beforeEach(() => {
 		document.head.innerHTML = "";
 		document.body.innerHTML = "";
 	});
 
-	it("reports so when the page carries a run", () => {
-		setHydration({ cache: { shape: "run-indexed-events/1", run: "r1", events: [], extents: {} }, rpcCache: {}, viewHash: "" });
+	it("reports so where the page carries a record", () => {
+		setHydration({ actualityId: PAGE_ACTUALITY, cache: CARRIED });
 		hydrateFromDom();
 		expect(isOffline()).toBe(true);
 	});
 
-	it("doesn't report so for the served template, which carries an empty hydration", () => {
-		setHydration({});
+	it("doesn't report so for a page a site served", () => {
+		setHydration({ actualityId: PAGE_ACTUALITY, settings: SERVED_SETTINGS });
 		hydrateFromDom();
 		expect(isOffline()).toBe(false);
 	});
 
-	it("doesn't report so when the page doesn't have a hydration script", () => {
+	it("doesn't report so where the page doesn't hold a hydration element", () => {
 		hydrateFromDom();
 		expect(isOffline()).toBe(false);
 	});
 
-	// The embedded payload carries the whole run, every event, as one string. Parsing it is its only reader, so the
-	// text goes: left in the DOM it would cache a second copy of actuality beside the objects parsed out of it.
-	it("does not keep the embedded run in the DOM once it has been parsed", () => {
-		setHydration({ cache: { shape: "run-indexed-events/1", run: "r1", events: [{ id: "0.1", message: "x" }], extents: {} }, viewHash: "" });
+	// The element holds the whole record as one string. Parsing it is its one reader, so the text goes: left in the
+	// document it would hold a second copy of actuality beside the objects parsed from it.
+	it("doesn't keep the record in the document once it parses it", () => {
+		setHydration({ actualityId: PAGE_ACTUALITY, cache: CARRIED });
 		hydrateFromDom();
 		expect(document.getElementById(HYDRATION_ID)?.textContent).toBe("");
-		expect(isOffline()).toBe(true); // decided by the parsed data, not the DOM text
+		expect(isOffline()).toBe(true);
+	});
+
+	it("refuses a hydration its schema refuses, and names each field", () => {
+		setHydration({ actualityId: PAGE_ACTUALITY, cache: { shape: "run-indexed-events/1", run: "r1", events: [] } });
+		expect(() => hydrateFromDom()).toThrow(/the page's hydration doesn't match its schema: .*cache/);
+		setHydration({ actualityId: PAGE_ACTUALITY, settings: servedWith({ streamReconnectAfterMs: 0 }) });
+		expect(() => hydrateFromDom(), "a timing the page can't apply is refused at the page's start").toThrow(/streamReconnectAfterMs/);
+		setHydration({ actualityId: PAGE_ACTUALITY, settings: { responseTimeoutMs: 250 } });
+		expect(() => hydrateFromDom(), "a served page states every setting a deployment writes").toThrow(/allowedWithoutDelegation/);
 	});
 });
 
-describe("the timings a deployment sets", () => {
+describe("what a deployment sets", () => {
 	beforeEach(() => {
 		document.head.innerHTML = "";
 		document.body.innerHTML = "";
 	});
 
-	it("answers with what the deployment set", () => {
-		setHydration({ settings: { streamReconnectAfterMs: 500 } });
+	it("answers the timings, the embedding page's origin and the rounds an ask starts with, as the deployment set them", () => {
+		setHydration({ actualityId: PAGE_ACTUALITY, settings: servedWith({ streamReconnectAfterMs: 500, responseTimeoutMs: 250, embedderOrigin: "chrome-extension://abcdefghijklmnop", askToolLimit: 7 }) });
 		hydrateFromDom();
-		expect(deploymentMs("streamReconnectAfterMs")).toBe(500);
-	});
-
-	it("answers the embedding page's origin and the rounds an ask starts with, as the deployment set them", () => {
-		setHydration({ settings: { embedderOrigin: "chrome-extension://abcdefghijklmnop", askToolLimit: 7 } });
-		hydrateFromDom();
+		expect(deploymentStreamReconnectMs()).toBe(500);
+		expect(responseTimeoutMs()).toBe(250);
 		expect(deploymentEmbedderOrigin()).toBe("chrome-extension://abcdefghijklmnop");
 		expect(deploymentAskToolLimit()).toBe(7);
 	});
 
+	it("answers undefined for an optional setting the deployment didn't set", () => {
+		setHydration({ actualityId: PAGE_ACTUALITY, settings: SERVED_SETTINGS });
+		hydrateFromDom();
+		expect(deploymentStreamReconnectMs()).toBeUndefined();
+		expect(deploymentEmbedderOrigin()).toBeUndefined();
+	});
+
 	it("states the build the page's code is from, which a page that didn't start shows", () => {
-		setHydration({ settings: { build: { version: "4.0.0", builtAt: "2026-09-30T12:00:00.000Z" } } });
+		setHydration({ actualityId: PAGE_ACTUALITY, settings: servedWith({ build: { version: "4.0.0", builtAt: "2026-09-30T12:00:00.000Z" } }) });
 		hydrateFromDom();
 		expect(pageBuild()).toBe("haibun 4.0.0, page code built 2026-09-30T12:00:00.000Z");
-		setHydration({ settings: {} });
-		hydrateFromDom();
-		expect(pageBuild(), "a page served without it doesn't state one").toBeUndefined();
 	});
 
-	it("answers with undefined where the deployment didn't set a value, so the page applies what it carries", () => {
-		setHydration({ settings: {} });
+	it("throws for a setting of a page a site didn't serve, and names what writes the settings", () => {
+		setHydration({ actualityId: PAGE_ACTUALITY, cache: CARRIED });
 		hydrateFromDom();
-		expect(deploymentMs("streamReconnectAfterMs")).toBeUndefined();
+		expect(() => responseTimeoutMs()).toThrow(/wasn't served with its deployment's settings: a site's ShuStepper writes them/);
 	});
 
-	it("refuses a value the page cannot apply, rather than reading it as unset", () => {
-		setHydration({ settings: { streamReconnectAfterMs: 0 } });
-		hydrateFromDom();
-		expect(() => deploymentMs("streamReconnectAfterMs")).toThrow(/above zero/);
-		setHydration({ settings: { streamReconnectAfterMs: "soon" } });
-		hydrateFromDom();
-		expect(() => deploymentMs("streamReconnectAfterMs")).toThrow(/above zero/);
-	});
-});
-
-describe("how long a call to the site may take", () => {
-	beforeEach(() => {
-		document.head.innerHTML = "";
-		document.body.innerHTML = "";
-	});
-
-	it("allows what the product carries where the deployment doesn't set a value", () => {
-		setHydration({ settings: {} });
-		hydrateFromDom();
-		expect(responseTimeoutMs()).toBe(RESPONSE_TIMEOUT_MS);
-	});
-
-	it("allows what the deployment set, so a deployment reading a slower store raises it", () => {
-		setHydration({ settings: { responseTimeoutMs: 250 } });
-		hydrateFromDom();
-		expect(responseTimeoutMs()).toBe(250);
-	});
-
-	it("is far above what a read takes, which is what makes it a sign of a site that has stopped answering", () => {
-		// Measured: a page read over eight thousand messages answers in 10ms on average and 64ms at the ninety-fifth,
-		// the consumer holds its queries to 200ms, and the heaviest read either repository measures is 727ms.
+	it("allows far more than a read takes, which is what makes a timeout a sign of a site that stopped responding", () => {
+		// Measured: a page read over eight thousand messages takes 10ms on average and 64ms at the ninety-fifth percentile,
+		// the consumer holds its queries to 200ms, and the slowest read either repository measures takes 727ms.
 		expect(RESPONSE_TIMEOUT_MS).toBeGreaterThan(727 * 10);
 	});
 });
@@ -153,7 +140,7 @@ describe("the step a name answers to", () => {
 	const listing = (steps: Parameters<typeof stepsShown>[0]) => setupShuTest({ dispatch: (method) => (method === SHOW_STEPS_METHOD ? stepsShown(steps) : undefined) });
 	beforeEach(() => {
 		endPage();
-		setHydration({});
+		setHydration({ actualityId: PAGE_ACTUALITY, settings: SERVED_SETTINGS });
 		setDeviceStore(new MemoryDeviceStore());
 	});
 	afterEach(() => {
@@ -194,7 +181,7 @@ describe("the registry cached on the device", () => {
 	let handle: TShuTestHandle;
 	beforeEach(() => {
 		endPage();
-		setHydration({});
+		setHydration({ actualityId: PAGE_ACTUALITY, settings: SERVED_SETTINGS });
 	});
 	afterEach(() => {
 		handle?.teardown();
@@ -218,6 +205,18 @@ describe("the registry cached on the device", () => {
 		handle.teardown();
 		handle = setupShuTest({ dispatch: unreachable });
 		await expect(getAvailableSteps()).rejects.toThrow("offline");
+	});
+
+	it("reads the steps of a page that carries a record from the registry the record carries, without a site's settings", async () => {
+		handle = setupShuTest({ dispatch: unreachable });
+		setHydration({ actualityId: PAGE_ACTUALITY, cache: { shape: CACHE_SHAPE, execution: "r1", registry: ANSWER, quads: [] } });
+		hydrateFromDom();
+		const carried = hydratedCache();
+		if (carried === undefined) throw new Error("the test page doesn't carry a record");
+		await hydrateClientCache(carried);
+		installCarriedConduit();
+		await getAvailableSteps();
+		expect(registryOrigin()?.from).toBe("device");
 	});
 
 	it("answers a server's refusal with the refusal, not with the device's copy, so what a page may no longer read isn't read from the device", async () => {
@@ -250,7 +249,7 @@ describe("the steps a domain joins", () => {
 			{ ...aStep("VerifierStepper", "verify", false), paramDomains: { credential: CREDENTIAL }, productsDomain: CHECK },
 			{ ...aStep("VerifierStepper", "either", false), paramDomains: { what: asDomainKey([CREDENTIAL, CHECK]) } },
 		];
-		setHydration({});
+		setHydration({ actualityId: PAGE_ACTUALITY, settings: SERVED_SETTINGS });
 		handle = setupShuTest({
 			dispatch: (method) => (method === SHOW_STEPS_METHOD ? stepsShown([issue, verify, either], { [CREDENTIAL]: { persistedAs: CREDENTIAL_TYPE }, [CHECK]: {} }) : undefined),
 		});

@@ -6,8 +6,9 @@
  * the active id, the boot self-base, non-open passthrough).
  */
 import { describe, expect, it } from "vitest";
-import { canonicalizeArrival, hashParam, hashParams, mergeHashParams, onHashChanged, pageAddress, pushHash } from "./view-hash.js";
-import { carryARun, serveThePage } from "./test-setup.js";
+import { canonicalizeArrival, hashParams } from "../derivations/address.js";
+import { hashParam, mergeHashParams, onHashChanged, pageAddress, pushHash } from "../controllers/hash-controller.js";
+import { carryARun, serveThePage } from "../../test-setup.js";
 
 describe("canonicalizeArrival", () => {
 	const base = "#?label=File&sort=dateModified&col=shu-monitor-column&active=shu-monitor-column";
@@ -52,23 +53,24 @@ describe("pageAddress", () => {
 		serveThePage();
 		expect(pageAddress()).toBe(location.origin + location.pathname + location.search);
 		carryARun();
-		expect(pageAddress(), "a record of a run doesn't have an address to serve").toBe("");
+		expect(pageAddress(), "a record of actuality doesn't have an address a site serves").toBeUndefined();
 		serveThePage();
 	});
 });
 
 describe("params a view writes into the hash", () => {
-	it("keeps every param it was not asked about, and an empty value removes one", () => {
+	it("keeps every parameter the merge doesn't name, and an undefined value removes one", () => {
 		pushHash("#?label=File&aff-goal=vc");
 		mergeHashParams({ "aff-waypoint": "VC issued" });
 		expect(hashParam("label"), "the rest of the view state is untouched").toBe("File");
 		expect(hashParam("aff-waypoint")).toBe("VC issued");
-		mergeHashParams({ "aff-goal": "", "aff-waypoint": "" });
-		expect(hashParam("aff-goal")).toBe("");
+		mergeHashParams({ "aff-goal": undefined, "aff-waypoint": undefined });
+		expect(hashParam("aff-goal")).toBeUndefined();
 		expect(hashParam("label"), "and removing a deep link is not a reset").toBe("File");
+		expect(() => mergeHashParams({ "aff-goal": "" }), "an empty value is refused, since the hash doesn't distinguish it from a removed one").toThrow(/"aff-goal" is set to an empty value/);
 	});
 
-	it("tells the views reading it that it moved, since writing the hash doesn't raise an event of its own", () => {
+	it("calls each view that follows it, since a write through the history doesn't raise an event", () => {
 		pushHash("#?");
 		let announced = 0;
 		const heard = onHashChanged(() => announced++);
@@ -78,7 +80,7 @@ describe("params a view writes into the hash", () => {
 		expect(announced, "writing what is already there doesn't announce a change").toBe(1);
 		heard();
 		mergeHashParams({ "aff-goal": "other" });
-		expect(announced, "and a view that has gone doesn't hear it").toBe(1);
+		expect(announced, "and a view that stopped following it isn't called").toBe(1);
 	});
 
 	it("round-trips in a record of a run, where the page doesn't have an address to write to", () => {
@@ -88,18 +90,18 @@ describe("params a view writes into the hash", () => {
 		const heard = onHashChanged(() => announced++);
 		mergeHashParams({ "aff-goal": "vc" });
 		expect(hashParam("aff-goal"), "the report keeps its own view state").toBe("vc");
-		expect(announced, "and its views hear the deep link the same way").toBe(1);
+		expect(announced, "and its views are called for the deep link as well").toBe(1);
 		heard();
 		serveThePage();
 	});
 });
 
 /** The copy of this module another bundle on the page loads, as the graph view's bundle loads its own beside the app's. */
-const BUNDLE_COPY = "./view-hash.js?bundle=graph-view";
-const anotherBundle = (): Promise<typeof import("./view-hash.js")> => import(/* @vite-ignore */ BUNDLE_COPY);
+const BUNDLE_COPY = "../controllers/hash-controller.js?bundle=graph-view";
+const anotherBundle = (): Promise<typeof import("../controllers/hash-controller.js")> => import(/* @vite-ignore */ BUNDLE_COPY);
 
 describe("the page's hash, across its bundles", () => {
-	it("reaches a view in another bundle, which reads the same hash and hears an arrival once", async () => {
+	it("reaches a view in another bundle, which reads the same hash and is called once for an arrival", async () => {
 		const other = await anotherBundle();
 		pushHash("#?");
 		let heard = 0;
@@ -107,7 +109,7 @@ describe("the page's hash, across its bundles", () => {
 		mergeHashParams({ "aff-goal": "vc" });
 		expect(heard, "a hash one bundle writes reaches a view in the other").toBe(1);
 		window.dispatchEvent(new HashChangeEvent("hashchange"));
-		expect(heard, "the page hears an arrival once, whatever bundles it loads").toBe(2);
+		expect(heard, "the page follows an arrival once, whatever bundles it loads").toBe(2);
 		stop();
 		carryARun();
 		pushHash("#?aff-goal=offline");

@@ -12,7 +12,7 @@
  * import of the module in a new module-graph context (achieved here by
  * deleting the cached module) sees the same singleton store.
  */
-import { serveThePage, setupShuTest, stepsShown } from "./test-setup.js";
+import { serveThePage, setupShuTest, stepsShown, newPage } from "./test-setup.js";
 import { describe, it, expect, beforeEach } from "vitest";
 import {
 	subscribeSnapshot,
@@ -38,7 +38,7 @@ import { installServedConduit } from "./page/root.js";
 import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { installCarriedEventStream } from "./page/root.js";
-import { endPage, pagePinned } from "./page/adapters/page-held.js";
+import { pagePinned } from "./page/adapters/page-held.js";
 import { storeDeclaring } from "@haibun/core/lib/test/declared-types.js";
 
 const STORE_KEY = "__SHU_QUADS_SNAPSHOT_STORE__";
@@ -52,7 +52,7 @@ function feedSubject(type: string, subject: string, props: number): void {
 
 describe("quads-snapshot store singleton", () => {
 	beforeEach(() => {
-		endPage();
+		newPage();
 		serveThePage();
 	});
 
@@ -101,7 +101,7 @@ describe("quads-snapshot store singleton", () => {
 
 describe("mergeQuadsIntoSnapshot is bounded by the limit (the OOM fix)", () => {
 	beforeEach(() => {
-		endPage();
+		newPage();
 		serveThePage();
 	});
 
@@ -168,7 +168,7 @@ describe("mergeQuadsIntoSnapshot is bounded by the limit (the OOM fix)", () => {
 
 describe("per-scope snapshots, independent data sources over one store", () => {
 	beforeEach(() => {
-		endPage();
+		newPage();
 		serveThePage();
 	});
 
@@ -203,7 +203,7 @@ describe("the graph a page caches, without a server to ask", () => {
 	// A page that carries its graph clusters it for itself: the sample, its totals and its `+N more` nodes are what the
 	// site's own answer would have been, rather than a captured copy of that answer riding in the page.
 	beforeEach(() => {
-		endPage();
+		newPage();
 		serveThePage();
 		installServedConduit("");
 		serveThePage();
@@ -241,7 +241,7 @@ describe("the dropdown values a reader is offered, without a server to ask", () 
 	// The site derives them from the fields a type declares as context; a page without a server derives them the same way
 	// over the graph it caches, so the reader is offered the same fields narrowed to the values there.
 	beforeEach(() => {
-		endPage();
+		newPage();
 		serveThePage();
 		installServedConduit("");
 		serveThePage();
@@ -272,7 +272,7 @@ describe("the dropdown values a reader is offered, without a server to ask", () 
 describe("the rows a graph query names, without a server to ask", () => {
 	// The page answers with the same function the site's own inherent query uses, over the graph it caches.
 	beforeEach(() => {
-		endPage();
+		newPage();
 		serveThePage();
 		installServedConduit("");
 		serveThePage();
@@ -321,7 +321,7 @@ describe("an individual the page holds a copy of", () => {
 		setSiteMetadata({ types: ["Email"], rels: { Email: { folder: LinkRelations.CONTEXT.rel } }, edgeRanges: {} } as unknown as SiteMetadata);
 	};
 	beforeEach(() => {
-		endPage();
+		newPage();
 		serveThePage();
 	});
 

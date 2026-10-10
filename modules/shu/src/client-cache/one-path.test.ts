@@ -38,7 +38,7 @@ describe("the client cache is the one path to a run", () => {
 	});
 
 	it("only the report writer and the boot path know a page can carry its run", () => {
-		const allowed = new Set(["app.ts", "rpc-registry.ts", "monitor-stepper.ts"]);
+		const allowed = new Set(["app.ts", "rpc-registry.ts", "monitor-stepper.ts", "domains/hydration.ts"]);
 		const offenders = outsideTheLibrary.filter((f) => !allowed.has(f) && /hydrateClientCache|TCachePayload/.test(text(f)));
 		expect(
 			offenders,

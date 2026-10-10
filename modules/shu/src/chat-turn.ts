@@ -13,10 +13,10 @@ import { SCOPE, activeEntry, recordOf, scopeEntry, type TEntry, type TSubjectSta
 import { acts } from "./page/domains/links.js";
 import { conduit } from "./page/controllers/conduit-controller.js";
 import { deploymentVerifiesDelegations, requireStep } from "./rpc-registry.js";
-import { delegateFromPage } from "./page-delegation.js";
+import { delegateFromPage } from "./page/authority/delegation/controllers/delegation-controller.js";
 import { delegatedActions, readAction, readCeilingOf, seenAt } from "@haibun/core/lib/actions.js";
 import { Access, storeScopeFor } from "@haibun/core/lib/resources.js";
-import { pageHolds, pageMay } from "./page-key.js";
+import { pageHolds, pageMay } from "./page/authority/controllers/page-authority-controller.js";
 import { readTurnAllowance } from "./turn-allowance.js";
 import { reportToRun } from "./client-log.js";
 import { ASK_STEP, OPEN_TURN_STEP, askRefusal, conversationState, dispatchConversationEvent, type TAskedTurn } from "./conversation.js";

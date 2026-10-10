@@ -17,7 +17,8 @@
 
 import { actualityAt } from "@haibun/core/lib/rpc-wire.js";
 import { HYDRATION_ID } from "./domains/elements.js";
-import { installConduit } from "./page/root.js";
+import { RESPONSE_TIMEOUT_MS, type TDeploymentSettings } from "./domains/hydration.js";
+import { installAuthority, installConduit } from "./page/root.js";
 import { type TConduit } from "./page/ports.js";
 import { type TLink, type TRepresentation, type TStreamChunk } from "./page/domains/links.js";
 
@@ -102,7 +103,7 @@ import { endPage } from "./page/adapters/page-held.js";
 import { setDeviceStore, MemoryDeviceStore, CACHE_SHAPE } from "./client-cache/index.js";
 import { hydrateFromDom, onStepsChanged } from "./rpc-registry.js";
 import { CLIENT_LOG_ACTION, CLIENT_LOG_METHOD, type TClientLogLevel } from "./client-log.js";
-import { openPageAuthority, type TPageAuthority } from "./page-key.js";
+import { authorityPort, openPageAuthority, type TPageAuthority } from "./page/authority/controllers/page-authority-controller.js";
 import type { TDelegations } from "@haibun/core/lib/authority-types.js";
 import { SHOW_STEPS_METHOD, STEP_DETAIL, readShownSteps, stepDefinition, type TStepDefinitions } from "@haibun/core/lib/step-discovery.js";
 import { requiredAction, type TStepReads } from "@haibun/core/lib/actions.js";
@@ -299,6 +300,12 @@ export function hydrate(payload: unknown): HTMLScriptElement {
 	return script;
 }
 
+/** The settings a deployment writes into a test page it serves. */
+export const SERVED_SETTINGS: TDeploymentSettings = { responseTimeoutMs: RESPONSE_TIMEOUT_MS, allowedWithoutDelegation: [], verifiesDelegations: false, build: { version: "test", builtAt: "2026-01-01T00:00:00.000Z" } };
+
+/** Returns the settings of a test page a deployment serves, with `settings` in place of the test kit's. */
+export const servedWith = (settings: Partial<TDeploymentSettings>): TDeploymentSettings => ({ ...SERVED_SETTINGS, ...settings });
+
 /** The actuality whose records a test page reads. */
 export const PAGE_ACTUALITY = crypto.randomUUID();
 
@@ -310,13 +317,13 @@ export function carryARun(): void {
 
 /** Make it a page the instance at `base` served, with the actualityId of the records that instance holds. */
 export async function serveThePageFrom(base: string): Promise<void> {
-	hydrate({ actualityId: await actualityAt(base), settings: {} });
+	hydrate({ actualityId: await actualityAt(base), settings: SERVED_SETTINGS });
 	hydrateFromDom();
 }
 
 /** Make it a page a server served, with the hydration the server writes. */
 export function serveThePage(): void {
-	hydrate({ actualityId: PAGE_ACTUALITY, settings: {} });
+	hydrate({ actualityId: PAGE_ACTUALITY, settings: SERVED_SETTINGS });
 	hydrateFromDom();
 }
 
@@ -334,6 +341,7 @@ export function setupShuTest(config: TShuTestConfig = {}): TShuTestHandle {
 	const eventStream = installCarriedEventStream();
 	const stopServingArtifacts = servingArtifacts(config.artifact ?? (() => new Response(new Blob([], { type: "image/png" }))));
 	installConduit(conduit);
+	installAuthority(authorityPort());
 	setDeviceStore(new MemoryDeviceStore());
 	serveThePage();
 	return {
@@ -347,6 +355,13 @@ export function setupShuTest(config: TShuTestConfig = {}): TShuTestHandle {
 		conduit,
 		eventStream,
 	};
+}
+
+/** Ends the page and starts the next, with the reader's authority installed as the page's start installs it. A test that
+ *  builds a page without `setupShuTest` starts each page here. */
+export function newPage(): void {
+	endPage();
+	installAuthority(authorityPort());
 }
 
 /** Removes the stored fields of every tag, so a test starts as a reader's first page does. */

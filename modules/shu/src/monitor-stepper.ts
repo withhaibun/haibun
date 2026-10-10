@@ -32,7 +32,7 @@ import { Access, SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { SEQ_PATH_FIELD, executionOf, extractSeqPathPrefix, formatRecordName, parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { CLIENT_RING, SHU_TAG } from "./domains/elements.js";
 import { ARTIFACT_POLICY } from "./content-security-policy.js";
-import { hashWithColumns } from "./view-hash.js";
+import { MONITOR_OPENS_AT, reportOpensAt } from "./pipelines/monitor-report.js";
 import { READS_THE_RUNS_ARTIFACTS } from "@haibun/core/lib/actions.js";
 import { requiring } from "@haibun/web-server-hono/capability-auth.js";
 import { LOG_MESSAGE_EDGE, LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL, logMessageDomainDefinition } from "@haibun/core/lib/log-message.js";
@@ -44,7 +44,8 @@ import { EVERY_DEFINITION } from "@haibun/core/lib/step-discovery.js";
 import { shownTo } from "@haibun/core/lib/capability-context.js";
 
 import { DOMAIN_GRAPH_QUERY } from "@haibun/core/lib/quad-types.js";
-import { CACHE_SHAPE, type TCachePayload } from "./client-cache/index.js";
+import { CACHE_SHAPE } from "./client-cache/index.js";
+import type { TCachePayload, THydration } from "./domains/hydration.js";
 import { DOMAIN_FILE_PATH } from "@haibun/core/lib/domains.js";
 
 // The in-memory buffers hold a recent WINDOW, never actuality: over months, an unbounded buffer is the process's heap
@@ -77,9 +78,6 @@ const sandboxed: MiddlewareHandler = async (c, next) => {
 /** Where the monitor serves the shu views of actuality on its own port. */
 export const MONITOR_PATH = "/monitor";
 
-/** What the monitor's page shows a reader who arrives without an address: the monitor, beside the executions this device
- *  holds, where the reader opens an earlier feature. */
-export const MONITOR_OPENS_AT = hashWithColumns([SHU_TAG.MONITOR_COLUMN, SHU_TAG.CLIENT_CACHE_COLUMN]);
 
 /**
  * The type a graph query named, read off the step that ran it. The match is the argument's DOMAIN, not the step's name:
@@ -138,7 +136,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	description = "Records what a run logs and produces, and serves the shu views what it holds";
 	/** The type a reader is looking at: the last one a graph query named, so a record of this run opens where the run
 	 *  left off. Per feature, like everything else a report carries. */
-	private queriedLabel = "";
+	private queriedLabel: string | undefined = undefined;
 	/** Occurrences accepted from the SPA, so a page whose buffer overflowed between batches can be told apart from a quiet one. */
 	private clientBlipsReceived = 0;
 	private storage!: AStorage;
@@ -212,7 +210,8 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			this.serveArtifacts(this.getWorld().runtime[WEBSERVER] as IWebServer);
 		},
 		onEvent: (event: THaibunEvent) => {
-			this.queriedLabel = queriedLabelOf(event) ?? this.queriedLabel;
+			const queried = queriedLabelOf(event);
+			if (queried !== undefined) this.queriedLabel = queried;
 			// A quad announced is a quad the store holds, so the graph a view reads is read from the store rather than
 			// held again here. The live page still receives the announcement over the stream.
 			if (event.kind === "log") this.beganWriting(this.recordSaid(event), "what actuality logged");
@@ -233,7 +232,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			// only its own, and serialized artifacts resolve from the report's own directory. The stream is unaffected.
 			this.saidCount = 0;
 			this.producedCount = 0;
-			this.queriedLabel = "";
+			this.queriedLabel = undefined;
 		},
 	};
 
@@ -389,8 +388,8 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		const shown = await this.getWorld().shared.getStore().query({ predicate: SEQ_PATH_FIELD.showed, namedGraph: SEQ_PATH_LABEL });
 		const domains = this.getWorld().domains;
 		const cols = new Set(shown.map((quad) => String((domains[String(quad.object ?? "")]?.ui as { component?: string } | undefined)?.component ?? quad.object ?? "")));
-		const viewHash = this.queriedLabel ? `#?label=${encodeURIComponent(this.queriedLabel)}` : "";
-		const hydration = JSON.stringify({ viewProducts, viewHash, actualityId: this.getWorld().runtime.actualityId, cache: this.cacheForReport(registry, built?.quads ?? []) });
+		const viewHash = reportOpensAt(this.queriedLabel);
+		const hydration = JSON.stringify({ viewProducts, viewHash, actualityId: this.getWorld().runtime.actualityId, cache: this.cacheForReport(registry, built?.quads ?? []) } satisfies THydration);
 		const scripts = inlineScriptsForView(this.getWorld().domains, new Set(cols));
 		let payload = JSON.stringify({ bundle: loadReportBundle(), hydration, scripts });
 		const secrets = await this.getWorld().shared.getSecrets();

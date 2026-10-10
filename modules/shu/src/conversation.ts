@@ -36,7 +36,7 @@ import { SessionReadSchema, type TBundle, type TChatStatus, type TContextPattern
 import { sharedMachine } from "./page/root.js";
 import { SharedCell } from "./page/adapters/shared-cell.js";
 import { appAccessLevel } from "./util.js";
-import { mergeHashParams } from "./view-hash.js";
+import { mergeHashParams } from "./page/controllers/hash-controller.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 /** The step a turn runs. */
@@ -502,5 +502,5 @@ conversationMachine.follow(({ event, before, after }) => {
 		const [was, now] = [latestEntry(before), latestEntry(after)];
 		if (now && now.turn !== asked?.askId && now.record.id !== was?.record.id) dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: now });
 	}
-	if (after.session !== before.session) mergeHashParams({ [CONVERSATION_PARAM]: after.session ?? "" });
+	if (after.session !== before.session) mergeHashParams({ [CONVERSATION_PARAM]: after.session === null ? undefined : after.session });
 });

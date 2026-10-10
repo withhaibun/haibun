@@ -18,7 +18,7 @@ import { StepsChangedController } from "../controllers/steps-changed-controller.
 import { pageTypes } from "../controllers/page-cell-controller.js";
 import { NOTHING_SELECTED_LABEL, SEARCH_OPERATORS, type TComboboxOption, type TContextPattern } from "../../schemas.js";
 import { appAccessLevel } from "../../util.js";
-import { getHash } from "../../view-hash.js";
+import { getHash } from "../controllers/hash-controller.js";
 import { parseViewQuery, serializeViewQuery, typeNotHeld, viewQuery } from "../../view-query.js";
 import { contextLabel, isEntitySelection, type TContextExtra } from "../derivations/layout.js";
 import type { TControllerHost } from "./controller-host.js";

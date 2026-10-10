@@ -10,7 +10,7 @@ import { PaneState, parseColEntry, columnEntryOf, DesiredPaneSchema, paneIdOf, t
 import { FRAGMENT_SPEC } from "@haibun/core/lib/media-fragments.js";
 import { ShuElement } from "./page/components/shu-element.js";
 import { setSiteMetadata, type SiteMetadata } from "./rels-cache.js";
-import * as ViewHash from "./view-hash.js";
+import * as Address from "./page/derivations/address.js";
 import { installConduit, installServedConduit } from "./page/root.js";
 import { TestConduit } from "./test-setup.js";
 import { activePane } from "./page/root.js";
@@ -573,7 +573,7 @@ describe("PaneState", () => {
 		window.dispatchEvent(new HashChangeEvent("hashchange"));
 		await flush();
 
-		const params = ViewHash.hashParams(ShuElement.getHash());
+		const params = Address.hashParams(ShuElement.getHash());
 		expect(params.get("label")).toBe("File"); // the query state survives the link
 		expect(params.get("sort")).toBe("dateModified");
 		expect(params.getAll("col").sort()).toEqual(["shu-monitor-column", "shu-polymorphic-graph-view"]);

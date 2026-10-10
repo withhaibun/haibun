@@ -3,18 +3,18 @@ import { buildBodyIframeDoc } from "./shu-entity-column.js";
 
 describe("buildBodyIframeDoc network policy", () => {
 	it("markdown bodies render network-free: strict CSP, without remote images/fonts/scripts/fetches", () => {
-		const doc = buildBodyIframeDoc("<p>hi</p>", "text/markdown");
+		const doc = buildBodyIframeDoc("<p>hi</p>", "text/markdown", undefined);
 		expect(doc).toContain("Content-Security-Policy");
 		expect(doc).toContain("default-src 'none'");
 		expect(doc).toContain("img-src data:");
 	});
 
 	it("plain bodies are also network-free", () => {
-		expect(buildBodyIframeDoc("<pre>x</pre>", "text/plain")).toContain("Content-Security-Policy");
+		expect(buildBodyIframeDoc("<pre>x</pre>", "text/plain", undefined)).toContain("Content-Security-Policy");
 	});
 
 	it("html bodies (the original message) allow network: a CSP doesn't restrict remote assets", () => {
-		const doc = buildBodyIframeDoc("<p>hi</p>", "text/html");
+		const doc = buildBodyIframeDoc("<p>hi</p>", "text/html", undefined);
 		expect(doc).not.toContain("Content-Security-Policy");
 	});
 
@@ -29,7 +29,7 @@ describe("buildBodyIframeDoc network policy", () => {
 	});
 
 	it("without a page URL the document doesn't have a base and base-uri stays 'none'", () => {
-		const doc = buildBodyIframeDoc("<p>hi</p>", "text/markdown");
+		const doc = buildBodyIframeDoc("<p>hi</p>", "text/markdown", undefined);
 		expect(doc).not.toContain("<base");
 		expect(doc).toContain("base-uri 'none'");
 	});

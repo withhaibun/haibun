@@ -384,13 +384,10 @@
 	},
 	"modules/shu/src/conversation.ts": {
 		"fills a falsy value with a constant through ||": 1,
-		"fills an absent value with a constant through ??": 8
+		"fills an absent value with a constant through ??": 7
 	},
 	"modules/shu/src/current-subject.ts": {
 		"fills an absent value with a constant through ??": 1
-	},
-	"modules/shu/src/embedder.ts": {
-		"states a parameter's default value": 3
 	},
 	"modules/shu/src/graph-expansion.ts": {
 		"fills an absent value with a constant through ??": 4
@@ -529,10 +526,6 @@
 		"states a destructured default value": 1,
 		"states a schema's default value through .default()": 1
 	},
-	"modules/shu/src/page-key.ts": {
-		"fills an absent value with a constant through ??": 2,
-		"states a parameter's default value": 1
-	},
 	"modules/shu/src/page/components/actions-bar-query.ts": {
 		"fills a falsy value with a constant through ||": 4,
 		"fills an absent value with a constant through ??": 6,
@@ -562,8 +555,7 @@
 		"states a schema's default value through .default()": 1
 	},
 	"modules/shu/src/page/components/shu-actions-bar.ts": {
-		"fills a falsy value with a constant through ||": 2,
-		"fills an absent value with a constant through ??": 1
+		"fills a falsy value with a constant through ||": 2
 	},
 	"modules/shu/src/page/components/shu-activity-history.ts": {
 		"fills an absent value with a constant through ??": 1
@@ -572,7 +564,7 @@
 		"fills a falsy value with a constant through ||": 1,
 		"fills an absent value with a constant through ??": 6,
 		"states a parameter's default value": 1,
-		"states a schema's default value through .default()": 4
+		"states a schema's default value through .default()": 2
 	},
 	"modules/shu/src/page/components/shu-annotated-body.ts": {
 		"fills a falsy value with a constant through ||": 3,
@@ -624,7 +616,7 @@
 	"modules/shu/src/page/components/shu-entity-column.ts": {
 		"fills a falsy value with a constant through ||": 4,
 		"fills an absent value with a constant through ??": 12,
-		"states a parameter's default value": 2
+		"states a parameter's default value": 1
 	},
 	"modules/shu/src/page/components/shu-filter-column.ts": {
 		"fills a falsy value with a constant through ||": 2,
@@ -751,7 +743,7 @@
 		"states a parameter's default value": 1
 	},
 	"modules/shu/src/rpc-registry.ts": {
-		"fills an absent value with a constant through ??": 5
+		"fills an absent value with a constant through ??": 2
 	},
 	"modules/shu/src/scenes.ts": {
 		"fills an absent value with a constant through ??": 2
@@ -766,15 +758,8 @@
 		"states a destructured default value": 5,
 		"states a parameter's default value": 5
 	},
-	"modules/shu/src/turn-allowance.ts": {
-		"fills an absent value with a constant through ??": 1
-	},
 	"modules/shu/src/util.ts": {
 		"fills an absent value with a constant through ??": 3
-	},
-	"modules/shu/src/view-hash.ts": {
-		"fills an absent value with a constant through ??": 1,
-		"states a parameter's default value": 1
 	},
 	"modules/shu/src/view-query.ts": {
 		"states a parameter's default value": 1,

@@ -6,12 +6,11 @@ import { installServedConduit } from "../root.js";
 import { installCarriedEventStream } from "../root.js";
 import { rpcAnswer, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
-import { ENTITY_STEP_LIST, serveThePage } from "../../test-setup.js";
-import { endPage } from "../adapters/page-held.js";
+import { ENTITY_STEP_LIST, serveThePage, newPage } from "../../test-setup.js";
 
 describe("shu-entity-column error surfacing", () => {
 	beforeEach(() => {
-		endPage();
+		newPage();
 		document.body.innerHTML = "";
 		// LiveConduit honours the stubbed `fetch` below; CarriedEventStream replaces actuality's stream, which this case doesn't follow.
 		installServedConduit("");

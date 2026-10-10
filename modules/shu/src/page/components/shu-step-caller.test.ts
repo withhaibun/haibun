@@ -17,13 +17,12 @@ import "./shu-step-caller.js";
 import { installServedConduit } from "../root.js";
 import { installCarriedEventStream } from "../root.js";
 import { rpcAnswer, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
-import { endPage } from "../adapters/page-held.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
 import { setConcernCatalog } from "../../rels-cache.js";
 import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
-import { persistedTypeDefinition, serveThePage } from "../../test-setup.js";
+import { persistedTypeDefinition, serveThePage, newPage } from "../../test-setup.js";
 
 /** A type a record of which the generic create writes. */
 const NOTE = "Note";
@@ -31,7 +30,7 @@ const NOTE = "Note";
 describe("shu-step-caller", () => {
 	beforeAll(provideLayout);
 	beforeEach(() => {
-		endPage();
+		newPage();
 		document.body.innerHTML = "";
 		// LiveConduit goes through the stubbed `fetch` set in each test; CarriedEventStream stands in for the SSE source.
 		installServedConduit("");

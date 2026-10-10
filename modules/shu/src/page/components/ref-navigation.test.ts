@@ -9,7 +9,7 @@ import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { deepLinkOf, desiredPaneFor, followPaneLink, paneHref, refHref } from "./ref-navigation.js";
 import { PaneState, type DesiredPane } from "../../pane-state.js";
-import { hashWithColumns } from "../../view-hash.js";
+import { hashWithColumns } from "../derivations/address.js";
 
 describe("refHref", () => {
 	it("addresses one column view, not the reader's trail of columns", () => {

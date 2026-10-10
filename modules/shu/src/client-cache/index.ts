@@ -62,5 +62,5 @@ export { IndexedDbQuadStore } from "./quad-store.js";
 export { graphRunSource } from "./graph-run-source.js";
 export { runWindow, runExtent, RUN_WINDOW_SIZE, type TRunRow, type TRunWindow } from "./run-window.js";
 export { runGraphOf, ofExecution, type TRunGraph } from "./run-graph.js";
-export { hydrateClientCache, type TCachePayload } from "./hydrate.js";
+export { hydrateClientCache } from "./hydrate.js";
 export { indexedDbSummary, type TIdbDatabaseSummary, type TIdbStoreSummary } from "./idb-summary.js";

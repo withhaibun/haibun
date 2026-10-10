@@ -21,7 +21,8 @@ import { AccessQuery, AccessQueryLevelSchema } from "@haibun/core/lib/resources.
 import { parseFilterParam, serializeFilterParam } from "./schemas.js";
 import { SearchConditionSchema, type TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { pagePinned } from "./page/adapters/page-held.js";
-import * as ViewHash from "./view-hash.js";
+import * as Address from "./page/derivations/address.js";
+import * as PageHash from "./page/controllers/hash-controller.js";
 
 type TAccessQueryLevel = z.infer<typeof AccessQueryLevelSchema>;
 
@@ -56,7 +57,7 @@ export function typeNotHeld(label: string, held: readonly string[]): TTypeNotHel
 
 /** Parse + validate the query params out of a hash string. Throws (fail-fast) on a malformed param. */
 export function parseViewQuery(hash: string): TViewQuery {
-	const p = ViewHash.hashParams(hash);
+	const p = Address.hashParams(hash);
 	const offsetRaw = p.get("offset");
 	return ViewQuerySchema.parse({
 		label: p.get("label") || null,
@@ -87,7 +88,7 @@ function queryParams(q: TViewQuery): URLSearchParams {
 /** Canonical hash string for a view query alone (without pane/affordance params). */
 export function serializeViewQuery(q: TViewQuery): string {
 	const params = queryParams(q);
-	return params.toString() ? ViewHash.hashOf(params) : "";
+	return params.toString() ? Address.hashOf(params) : "";
 }
 
 // --- the page's signal store ---
@@ -138,10 +139,10 @@ function assign(q: TViewQuery): void {
 
 /** Returns the current hash with its query params replaced by `next`'s. The pane and affordance params stay. */
 function mergedHash(next: TViewQuery): string {
-	const merged = ViewHash.hashParams(ViewHash.getHash());
+	const merged = Address.hashParams(PageHash.getHash());
 	for (const k of QUERY_PARAMS) merged.delete(k);
 	for (const [k, v] of queryParams(next)) merged.append(k, v);
-	return merged.toString() ? ViewHash.hashOf(merged) : "";
+	return merged.toString() ? Address.hashOf(merged) : "";
 }
 
 export const viewQuery = {
@@ -162,7 +163,7 @@ export const viewQuery = {
 
 	/** Read the URL hash into the store (boot + back/forward). Fail-fast on a malformed param.
 	 * `open=` arrivals never reach here: view-hash canonicalizes them into col= entries at its ingress. */
-	hydrate(hash: string = ViewHash.getHash()): void {
+	hydrate(hash: string = PageHash.getHash()): void {
 		assign(parseViewQuery(hash));
 		store().lastWrittenHash = hash;
 	},
@@ -173,7 +174,7 @@ export const viewQuery = {
 		assign(next);
 		const hash = mergedHash(next);
 		store().lastWrittenHash = hash;
-		ViewHash.pushHash(hash);
+		PageHash.pushHash(hash);
 	},
 
 	/** Returns the hash a partial change states, with the pane and affordance params kept, without applying it. */

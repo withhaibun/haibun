@@ -4,7 +4,7 @@
  */
 import "fake-indexeddb/auto";
 import { describe, it, expect } from "vitest";
-import { readKept } from "./page-key.js";
+import { readKept } from "./page/authority/controllers/page-authority-controller.js";
 import { TURN_ALLOWANCE_KEPT_AS, allowForTurns, readTurnAllowance, turnAllowance, withdrawFromTurns } from "./turn-allowance.js";
 
 describe("what a page allows its turns", () => {

@@ -6,7 +6,7 @@
 import { SIGNATURE_HEADER } from "@haibun/core/lib/signature-header.js";
 import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach } from "vitest";
-import { forgetPageAuthority, holdGiven, keyHeaders, openPageAuthority, pageAuthority, pageAuthorityReady, pageHolds, pageMay, signedHeaders } from "./page-key.js";
+import { forgetPageAuthority, holdGiven, keyHeaders, openPageAuthority, pageAuthority, pageAuthorityReady, pageHolds, pageMay, signedHeaders } from "../controllers/page-authority-controller.js";
 
 const SITE = "http://localhost:8123";
 const delegatedAll = { id: "urn:uuid:owner", invocationTarget: SITE, allowedAction: ["*"], expires: "2099-01-01T00:00:00Z" };
@@ -41,7 +41,7 @@ describe("the key a page controls", () => {
 		expect(after).toBe(before);
 	});
 
-	it("proves only itself while it reads what was delegated to it, and holds what that answers with what doesn't need a delegation", async () => {
+	it("proves its key alone while it reads its delegations, and holds those delegations beside the actions that don't need one", async () => {
 		let proof: Record<string, string> | undefined;
 		const authority = await openPageAuthority(async () => {
 			proof = await keyHeaders({ url: `${SITE}/rpc/AuthorityStepper-delegationsTo`, method: "POST", headers: { host: "localhost:8123" }, body: "{}" });
@@ -79,17 +79,17 @@ describe("what a page sends", () => {
 		const headers = await signedHeaders(call("ShuStepper:showViews"));
 		expect(headers?.["capability-invocation"], "a delegation is matched on what it lists, so the action is its own").toContain('action="*"');
 		expect(headers?.[SIGNATURE_HEADER], "and the signature names the page's key").toContain(controller);
-		expect(headers?.digest, "which covers the body as well, so what was asked cannot be swapped").toBeTruthy();
+		expect(headers?.digest, "which covers the body as well, so a different body fails the proof").toBeTruthy();
 	});
 
-	it("signs a request that doesn't have a body without a digest, as the page asks for actuality's stream", async () => {
+	it("signs a request without a body without a digest, as a read of actuality's stream is", async () => {
 		await opened([delegatedReading]);
 		const headers = await signedHeaders(call("Read:private", "GET"));
 		expect(headers?.["capability-invocation"]).toContain('action="Read:private"');
 		expect(headers?.digest).toBeUndefined();
 	});
 
-	it("doesn't sign where the delegations don't allow the call, which is sent as it is for what doesn't need a delegation to decide", async () => {
+	it("doesn't sign where the delegations don't allow the call, which is sent unsigned, and the deployment may allow it without a delegation", async () => {
 		await opened([delegatedReading], ["ResourcesStepper:comment"]);
 		expect(await signedHeaders(call("ResourcesStepper:comment"))).toBeUndefined();
 		expect(await signedHeaders({ ...call("Read:private"), url: "http://elsewhere.example/rpc/x" }), "nor a call to another instance").toBeUndefined();
@@ -106,18 +106,18 @@ describe("a delegation another page gives", () => {
 	it("holds a delegation to its key in place of the one given before, and signs with it", async () => {
 		const { controller } = await opened([]);
 		const first = given(controller, "urn:uuid:given-first");
-		holdGiven(first);
+		holdGiven(first, undefined);
 		const renewed = given(controller, "urn:uuid:given-renewed");
 		holdGiven(renewed, first);
-		expect((await pageAuthorityReady())?.delegations, "what a later read of what the page holds answers").toEqual([renewed]);
+		expect((await pageAuthorityReady())?.delegations, "what a later read of the page's authority returns").toEqual([renewed]);
 		expect(pageMay("Read:private")).toBe(true);
 		expect(await signedHeaders(call("Read:private"))).toBeDefined();
 	});
 
 	it("refuses a delegation to another key, and one given before the page read what it holds", async () => {
-		expect(() => holdGiven(given("did:key:zDnOther", "urn:uuid:early")), "before the page read what it holds").toThrow("hasn't");
+		expect(() => holdGiven(given("did:key:zDnOther", "urn:uuid:early"), undefined), "before the page read what it holds").toThrow("hasn't");
 		await opened([]);
-		expect(() => holdGiven(given("did:key:zDnOther", "urn:uuid:other"))).toThrow("did:key:zDnOther");
+		expect(() => holdGiven(given("did:key:zDnOther", "urn:uuid:other"), undefined)).toThrow("did:key:zDnOther");
 		expect(pageHolds()).toEqual([]);
 	});
 });

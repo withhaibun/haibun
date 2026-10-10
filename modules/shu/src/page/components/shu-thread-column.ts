@@ -19,7 +19,8 @@ import { callStep } from "../../pane-fetch.js";
 import { getRelSync, getValidTimeField } from "../../rels-cache.js";
 import { fieldRef } from "./shu-ref.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import { graphPresenterTag, mountGraphPresenter, presenterIn, type TGraphPresenter, type TPresenterNodeClick } from "../../graph-presenter.js";
+import { graphPresenterTag, mountGraphPresenter, presenterIn } from "../controllers/presenter-controller.js";
+import type { TGraphPresenter, TPresenterNodeClick } from "../ports.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { COMMENT_LABEL, LinkRelations, isReplyEdge } from "@haibun/core/lib/resources.js";
 

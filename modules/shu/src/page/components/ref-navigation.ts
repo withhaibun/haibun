@@ -8,7 +8,8 @@
  */
 import { esc, escAttr } from "../../util.js";
 import { PaneState, addsToSelection, columnEntryOf, parseColEntry, type DesiredPane } from "../../pane-state.js";
-import { ACTIVE_PARAM, COLUMN_PARAM, hashParams, hashWithColumns, mergeHashParams } from "../../view-hash.js";
+import { ACTIVE_PARAM, COLUMN_PARAM, hashParams, hashWithColumns } from "../derivations/address.js";
+import { mergeHashParams } from "../controllers/hash-controller.js";
 import { DEEP_LINK_PREFIX } from "../../domains/elements.js";
 import { PartSchema } from "@haibun/core/lib/resources.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";

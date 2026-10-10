@@ -33,9 +33,10 @@ import {
 import { CONVERSATION_PARAM, SHU_ATTR, SHU_TAG } from "../../domains/elements.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { pagePreferences } from "../root.js";
-import { hashParam, mergeHashParams } from "../../view-hash.js";
+import { hashParam, mergeHashParams } from "../controllers/hash-controller.js";
 import { INITIAL_SUBJECT, SCOPE, activeEntry, currentSubject, currentSubjectState, dispatchSubjectEvent, entryOf, scopeEntry } from "../../current-subject.js";
-import { EMBEDDED_PAGE_TYPE, embeddedPageView } from "../../embedder.js";
+import { EMBEDDED_PAGE_TYPE } from "../../domains/embedding.js";
+import { embeddedPageView } from "../root.js";
 import { activePane } from "../controllers/page-cell-controller.js";
 import { counted } from "@haibun/core/lib/hypermedia.js";
 
@@ -152,7 +153,7 @@ beforeEach(async () => {
 	stream.finish = undefined;
 	sessionTurns = [readBack(RESTORED_TURN, undefined, [RESTORED_RECORD])];
 	pagePreferences().forget(SHU_TAG.KIHAN_CHAT, "");
-	mergeHashParams({ [CONVERSATION_PARAM]: "", access: "" });
+	mergeHashParams({ [CONVERSATION_PARAM]: undefined, access: undefined });
 	document.body.innerHTML = "";
 });
 afterEach(() => t.teardown());
@@ -660,7 +661,7 @@ describe("a conversation", () => {
 		await submit(pane, "what do these have in common");
 		await settle();
 		expect(conversationState.get().session).toBeNull();
-		expect(hashParam(CONVERSATION_PARAM)).toBe("");
+		expect(hashParam(CONVERSATION_PARAM)).toBeUndefined();
 		expect(chatInput(pane).value).toBe("what do these have in common");
 		refusedBeforeRecording = undefined;
 		await submit(pane, "what do these have in common");
@@ -719,7 +720,7 @@ describe("a conversation", () => {
 		pickSession(pane, NEW_CONVERSATION.value);
 		await pane.updateComplete;
 		expect(onHistory(history)).toHaveLength(0);
-		expect(hashParam(CONVERSATION_PARAM)).toBe("");
+		expect(hashParam(CONVERSATION_PARAM)).toBeUndefined();
 		expect(currentSubject(currentSubjectState.get()), "the page's record leads again").toEqual(EMAIL.record);
 		await submit(pane, "what does this say");
 		expect(sent.at(-1)?.session).toBeUndefined();

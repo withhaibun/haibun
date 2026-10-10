@@ -24,11 +24,12 @@ import {
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { RPC_METHOD, SHU_EVENT, AFFORDANCE_PARAM, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
-import * as ViewHash from "../../view-hash.js";
+import * as PageHash from "../controllers/hash-controller.js";
 import { pathNodeIds, projectGoalPaths } from "../../graph/project-goal-paths.js";
 import { producingStepOf } from "../../graph/project-domain-chain.js";
 import { graphToQuads } from "../../graph/graph-quads.js";
-import { mountGraphPresenter, presenterIn, type TGraphPresenter, type TPresenterNodeClick } from "../../graph-presenter.js";
+import { mountGraphPresenter, presenterIn } from "../controllers/presenter-controller.js";
+import type { TGraphPresenter, TPresenterNodeClick } from "../ports.js";
 import { actionRef, domainRef, factIdRef } from "./shu-ref.js";
 import { openRef } from "./ref-navigation.js";
 import { nodeIn, type TGraph } from "../../graph/types.js";
@@ -73,8 +74,8 @@ function findingLabel(finding: string): string {
 const ShuAffordancesPanelSchema = z.object({
 	loadState: z.enum(["idle", "fetching", "loaded"]).default("idle"),
 	fetchError: z.string().default(""),
-	openGoal: z.string().default(""),
-	openWaypoint: z.string().default(""),
+	openGoal: z.string().optional(),
+	openWaypoint: z.string().optional(),
 });
 
 /** The words before the links to the facts that satisfy a goal. */
@@ -89,14 +90,17 @@ const REFRESH_COALESCE_MS = 400;
  * Mutually exclusive selections: when both URL params are set, the one that
  * differs from prior state wins; waypoint wins ties (more granular).
  */
-function normalizeSelection(goalInUrl: string, waypointInUrl: string, priorGoal: string, priorWaypoint: string): { goal: string; waypoint: string } {
+function normalizeSelection(goalInUrl: string | undefined, waypointInUrl: string | undefined, priorGoal: string | undefined, priorWaypoint: string | undefined): TSelection {
 	if (!goalInUrl || !waypointInUrl) return { goal: goalInUrl, waypoint: waypointInUrl };
 	const goalChanged = goalInUrl !== priorGoal;
 	const waypointChanged = waypointInUrl !== priorWaypoint;
-	if (waypointChanged && !goalChanged) return { goal: "", waypoint: waypointInUrl };
-	if (goalChanged && !waypointChanged) return { goal: goalInUrl, waypoint: "" };
-	return { goal: "", waypoint: waypointInUrl };
+	if (waypointChanged && !goalChanged) return { goal: undefined, waypoint: waypointInUrl };
+	if (goalChanged && !waypointChanged) return { goal: goalInUrl, waypoint: undefined };
+	return { goal: undefined, waypoint: waypointInUrl };
 }
+
+/** The goal or the waypoint the panel opens, each undefined where the panel doesn't open one. */
+type TSelection = { goal: string | undefined; waypoint: string | undefined };
 
 /** The scope every goal's graph keeps its settings under. */
 const GOAL_GRAPH_SCOPE = "goal-graph";
@@ -131,10 +135,10 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	}
 
 	private assertedDomains: Set<string> = new Set();
-	private lastScrolledGoal: string = "";
-	private lastScrolledWaypoint: string = "";
+	private lastScrolledGoal: string | undefined = undefined;
+	private lastScrolledWaypoint: string | undefined = undefined;
 	constructor() {
-		const { goal, waypoint } = normalizeSelection(ViewHash.hashParam(AFF_GOAL_PARAM), ViewHash.hashParam(AFF_WAYPOINT_PARAM), "", "");
+		const { goal, waypoint } = normalizeSelection(PageHash.hashParam(AFF_GOAL_PARAM), PageHash.hashParam(AFF_WAYPOINT_PARAM), undefined, undefined);
 		super(ShuAffordancesPanelSchema, { loadState: "idle", fetchError: "", openGoal: goal, openWaypoint: waypoint });
 	}
 
@@ -163,12 +167,12 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		// panel reflects the address bar. Storing in history rather than state means
 		// a copy-pasted URL also opens the right entry on first load.
 		const fromHash = () => {
-			const { goal, waypoint } = normalizeSelection(ViewHash.hashParam(AFF_GOAL_PARAM), ViewHash.hashParam(AFF_WAYPOINT_PARAM), this.state.openGoal, this.state.openWaypoint);
+			const { goal, waypoint } = normalizeSelection(PageHash.hashParam(AFF_GOAL_PARAM), PageHash.hashParam(AFF_WAYPOINT_PARAM), this.state.openGoal, this.state.openWaypoint);
 			// Write the normalized form back so the next reader sees a single selection.
-			ViewHash.mergeHashParams({ [AFF_GOAL_PARAM]: goal, [AFF_WAYPOINT_PARAM]: waypoint });
+			PageHash.mergeHashParams({ [AFF_GOAL_PARAM]: goal, [AFF_WAYPOINT_PARAM]: waypoint });
 			if (goal !== this.state.openGoal || waypoint !== this.state.openWaypoint) this.setState({ openGoal: goal, openWaypoint: waypoint });
 		};
-		this.autoTeardown(ViewHash.onHashChanged(fromHash));
+		this.autoTeardown(PageHash.onHashChanged(fromHash));
 	}
 
 	readonly #clock = new ClockController(this);
@@ -179,8 +183,8 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	}
 
 	private toggleGoal(domain: string): void {
-		const next = this.state.openGoal === domain ? "" : domain;
-		ViewHash.mergeHashParams({ [AFF_GOAL_PARAM]: next });
+		const next = this.state.openGoal === domain ? undefined : domain;
+		PageHash.mergeHashParams({ [AFF_GOAL_PARAM]: next });
 		this.setState({ openGoal: next });
 	}
 
@@ -558,7 +562,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		`;
 	}
 
-	private renderGoalTpl(g: TGoalAffordance, idx: number, openGoal: string): TemplateResult {
+	private renderGoalTpl(g: TGoalAffordance, idx: number, openGoal: string | undefined): TemplateResult {
 		if (typeof g.description !== "string")
 			throw new Error(
 				`shu-affordances-panel: goal "${g.domain}" is missing a description. The goal-domain registry must declare one, see TRegisteredDomain.description. Got: ${JSON.stringify(g).slice(0, 200)}.`,
@@ -617,7 +621,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 			}
 			return null;
 		};
-		if (!openGoal) this.lastScrolledGoal = "";
+		if (openGoal === undefined) this.lastScrolledGoal = undefined;
 		else if (openGoal !== this.lastScrolledGoal) {
 			const card = findByAttr("data-goal-domain", openGoal);
 			if (card) {
@@ -625,7 +629,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 				this.lastScrolledGoal = openGoal;
 			}
 		}
-		if (!openWaypoint) this.lastScrolledWaypoint = "";
+		if (openWaypoint === undefined) this.lastScrolledWaypoint = undefined;
 		else if (openWaypoint !== this.lastScrolledWaypoint) {
 			const card = findByAttr("data-testid", `waypoint-${openWaypoint}`);
 			if (card) {

@@ -17,7 +17,7 @@ import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { acts } from "./page/domains/links.js";
 import { conduit, hasConduit } from "./page/controllers/conduit-controller.js";
 import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
-import { pageMay } from "./page-key.js";
+import { pageAuthorityPort } from "./page/root.js";
 
 /** The monitor's step a page reports a diagnostic through. */
 const CLIENT_LOG = { stepper: "MonitorStepper", step: "logClient" } as const;
@@ -39,7 +39,7 @@ export function reportFailure(source: string, what: string, err: unknown): void 
 export function reportToRun(level: TClientLogLevel, source: string, message: string, attributes?: Record<string, unknown>): void {
 	if (isOffline() || !hasConduit()) return;
 	// A page that doesn't hold the report's action logs the diagnostic to the console, as before its key holds its delegated actions.
-	if (!pageMay(CLIENT_LOG_ACTION)) return console.warn(`[${source}] not reported to actuality, since the page doesn't hold ${CLIENT_LOG_ACTION}: ${message}`, attributes);
+	if (!pageAuthorityPort().may(CLIENT_LOG_ACTION)) return console.warn(`[${source}] not reported to actuality, since the page doesn't hold ${CLIENT_LOG_ACTION}: ${message}`, attributes);
 	void conduit()
 		.follow(acts(CLIENT_LOG_METHOD, { event: { level, source, message, attributes } }), `${source}: ${level}`)
 		.catch((err: unknown) => {

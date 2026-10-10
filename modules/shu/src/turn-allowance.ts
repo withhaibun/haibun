@@ -3,9 +3,13 @@
  * after a turn was refused one. It is kept in the page's own store beside its key, so it outlives a reload, and held as a
  * signal, so the ask shows it and the reader withdraws any of it there. A turn is given only what the page holds of it.
  */
-import { keep, readKept } from "./page-key.js";
+import { z } from "zod";
+import { keep, readKept } from "./page/authority/controllers/page-authority-controller.js";
 import { pagePinned } from "./page/adapters/page-held.js";
 import { SharedCell } from "./page/adapters/shared-cell.js";
+
+/** What the page keeps of what it allows its turns: the actions. */
+const TurnAllowanceSchema = z.array(z.string());
 
 /** The name the page keeps what it allows its turns under, in its own store. */
 export const TURN_ALLOWANCE_KEPT_AS = "turn-allowance";
@@ -16,7 +20,7 @@ export const turnAllowance = new SharedCell<readonly string[]>("turnAllowance", 
 /** What this page allows its turns, read from its store once per page. */
 export async function readTurnAllowance(): Promise<readonly string[]> {
 	const pinned = pagePinned<{ reading?: Promise<void> }>("__SHU_TURN_ALLOWANCE__", () => ({}));
-	pinned.reading ??= readKept<string[]>(TURN_ALLOWANCE_KEPT_AS).then((kept) => turnAllowance.set(kept ?? []));
+	pinned.reading ??= readKept(TURN_ALLOWANCE_KEPT_AS).then((kept) => turnAllowance.set(kept === undefined ? [] : TurnAllowanceSchema.parse(kept)));
 	await pinned.reading;
 	return turnAllowance.get();
 }

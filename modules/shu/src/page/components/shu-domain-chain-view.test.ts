@@ -7,7 +7,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { ShuDomainChainView } from "./shu-domain-chain-view.js";
-import * as ViewHash from "../../view-hash.js";
+import * as PageHash from "../controllers/hash-controller.js";
 import { AFFORDANCE_PARAM, SHU_TAG } from "../../domains/elements.js";
 import { PaneState } from "../../pane-state.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
@@ -24,8 +24,8 @@ import { NODE_KIND, type TGraphNode } from "../../graph/types.js";
 const EXECUTION = "1790000000000-1";
 const GRAPH = SHU_TEST_IDS.DOMAIN_CHAIN.GRAPH;
 
-const deepLink = (name: string): string => ViewHash.hashParam(name);
-const clearDeepLink = (): void => ViewHash.mergeHashParams({ [AFFORDANCE_PARAM.GOAL]: "", [AFFORDANCE_PARAM.WAYPOINT]: "" });
+const deepLink = (name: string): string | undefined => PageHash.hashParam(name);
+const clearDeepLink = (): void => PageHash.mergeHashParams({ [AFFORDANCE_PARAM.GOAL]: undefined, [AFFORDANCE_PARAM.WAYPOINT]: undefined });
 
 /** A snapshot with N forward entries, as a step's products or a read of them give it. */
 const mkSnap = (n: number): Record<string, unknown> => ({
@@ -95,7 +95,7 @@ describe("shu-domain-chain-view", () => {
 		const presenter = await mountedPresenter(view, GRAPH);
 		const opened = vi.spyOn(PaneState, "requestFrom").mockImplementation(() => undefined);
 		let announced = 0;
-		const heard = ViewHash.onHashChanged(() => announced++);
+		const heard = PageHash.onHashChanged(() => announced++);
 		presenter.openNode("vc");
 		expect(deepLink(AFFORDANCE_PARAM.GOAL)).toBe("vc");
 		expect(announced, "and every view reading the same deep link hears that it moved").toBeGreaterThanOrEqual(1);
@@ -114,7 +114,7 @@ describe("shu-domain-chain-view", () => {
 			stepChosen = (e as CustomEvent).detail?.method;
 		};
 		document.addEventListener("step-choose", onChoose);
-		expect(deepLink(AFFORDANCE_PARAM.GOAL)).toBe("");
+		expect(deepLink(AFFORDANCE_PARAM.GOAL)).toBeUndefined();
 		view.routeNodeClick(chainNode({ id: "vc", link: { href: "#?col=shu-affordances-panel&aff-goal=vc" } }));
 		expect(deepLink(AFFORDANCE_PARAM.GOAL)).toBe("vc");
 		expect(stepChosen).toBeUndefined();
@@ -139,9 +139,9 @@ describe("shu-domain-chain-view", () => {
 		view.products = mkSnap(2);
 		await view.updateComplete;
 		const presenter = await mountedPresenter(view, GRAPH);
-		ViewHash.mergeHashParams({ [AFFORDANCE_PARAM.GOAL]: "d1" });
+		PageHash.mergeHashParams({ [AFFORDANCE_PARAM.GOAL]: "d1" });
 		expect(presenter.selected).toBe("d1");
-		ViewHash.mergeHashParams({ [AFFORDANCE_PARAM.GOAL]: "", [AFFORDANCE_PARAM.WAYPOINT]: "Logged in" });
+		PageHash.mergeHashParams({ [AFFORDANCE_PARAM.GOAL]: undefined, [AFFORDANCE_PARAM.WAYPOINT]: "Logged in" });
 		expect(presenter.selected, "a waypoint as its waypoint-prefixed node").toBe("waypoint:Logged in");
 		clearDeepLink();
 		expect(presenter.selected).toBeNull();

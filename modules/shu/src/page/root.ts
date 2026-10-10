@@ -5,23 +5,32 @@
 import { pagePinned } from "./adapters/page-held.js";
 import { SharedCell } from "./adapters/shared-cell.js";
 import { Machine, machine, type TMove, type TTransition } from "@haibun/core/lib/machine.js";
-import type { TClipboard, TClock, TConduit, TElements, TPageObservers, TEventStream, TPreferences, TSharedCell, TStreamReports } from "./ports.js";
+import type { TAuthority, TBlipRing, TClipboard, TClock, TConduit, TElements, TEmbedderChannel, THydrationElement, TLocation, TPresenterMount, TPageObservers, TEventStream, TPreferences, TSharedCell, TStreamReports } from "./ports.js";
 import type { TDockedPane, TPageTypes, TStripPane } from "./domains/page-state.js";
 import { NOTHING_SELECTED_LABEL, type TPageContext } from "../schemas.js";
-import { DELEGATIONS_READ_METHOD } from "@haibun/core/lib/authority-types.js";
 import { SHOW_STEPS_ACTION, SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import type { TProveRequest } from "@haibun/core/lib/rpc-wire.js";
 import { initialConduitHeld, LiveConduit } from "./adapters/live-conduit.js";
+import { carriedConduit } from "./adapters/carried-conduit.js";
 import { cookiePreferences } from "./adapters/prefs-cookie.js";
 import { browserClock } from "./adapters/clock.js";
 import { browserClipboard } from "./adapters/clipboard.js";
 import { browserElements } from "./adapters/elements.js";
 import { browserObservers } from "./adapters/page-observers.js";
+import { browserLocation } from "./adapters/location-hash.js";
+import { embedderChannel } from "./adapters/embedder-channel.js";
+import { browserPresenterMount } from "./adapters/presenter-mount.js";
+import { blipRing } from "./adapters/blip-ring.js";
+import { documentHydration } from "./adapters/hydration.js";
+import type { TBlipChannel, TBlipSending } from "./pipelines/client-blips.js";
+import { isOffline } from "../rpc-registry.js";
+import type { TEmbeddedPageView } from "../domains/embedding.js";
+import type { TDelegation } from "@haibun/core/lib/actions.js";
+import type { TPageHash } from "./pipelines/page-hash.js";
 import { liveEventStream, type TLiveStreamSource } from "./adapters/live-event-stream.js";
 import { CarriedEventStream } from "./adapters/carried-event-stream.js";
 import { FOLLOWS_THE_RUN } from "@haibun/core/lib/actions.js";
-import { deploymentMs, findStep, hydratedActualityId, responseTimeoutMs } from "../rpc-registry.js";
-import { forgetPageAuthority, keyHeaders, pageAuthorityReady, readingHeaders, signedHeaders } from "../page-key.js";
+import { deploymentStreamReconnectMs, findStep, hydratedActualityId, responseTimeoutMs } from "../rpc-registry.js";
 import { INITIAL_STREAM_STATUS, STREAM_EVENT, streamTransition, type TStreamEvent, type TStreamStatus } from "./machines/event-stream.js";
 
 const PREFERENCES_KEY = "__SHU_PREFERENCES__";
@@ -29,10 +38,16 @@ const CLOCK_KEY = "__SHU_CLOCK__";
 const CLIPBOARD_KEY = "__SHU_CLIPBOARD__";
 const ELEMENTS_KEY = "__SHU_ELEMENTS__";
 const OBSERVERS_KEY = "__SHU_OBSERVERS__";
+const LOCATION_KEY = "__SHU_LOCATION__";
+const PAGE_HASH_KEY = "__SHU_PAGE_HASH__";
+const EMBEDDER_KEY = "__SHU_EMBEDDER__";
+const PRESENTER_MOUNT_KEY = "__SHU_PRESENTER_MOUNT__";
+const BLIPS_KEY = "__SHU_CLIENT_BLIPS__";
 const EVENT_STREAM_KEY = "__SHU_EVENT_STREAM__";
 const STREAM_STATUS_KEY = "__SHU_STREAM_STATUS__";
 const CONDUIT_KEY = "__SHU_CONDUIT__";
 const CONDUIT_HELD_KEY = "__SHU_CONDUIT_HELD__";
+const AUTHORITY_PORT_KEY = "__SHU_AUTHORITY_PORT__";
 
 /** Returns the page's preferences, stored in the page's cookies. */
 export const pagePreferences = (): TPreferences => pagePinned(PREFERENCES_KEY, () => cookiePreferences(window));
@@ -51,6 +66,29 @@ export const pageElements = (): TElements => pagePinned(ELEMENTS_KEY, () => brow
 
 /** Returns what the browser reports of the page. */
 export const pageObservers = (): TPageObservers => pagePinned(OBSERVERS_KEY, () => browserObservers(window));
+
+/** Returns the page's location. */
+export const pageLocation = (): TLocation => pagePinned(LOCATION_KEY, () => browserLocation(window));
+
+/** Returns what the page holds of its hash. The page stops following arrivals when it ends. */
+export const pageHashHeld = (): TPageHash =>
+	pagePinned(PAGE_HASH_KEY, (): TPageHash => ({ stored: "", subscribers: new Set(), stopArrivals: undefined }), (held) => held.stopArrivals?.());
+
+/** Returns the channel to the window that embeds the page, at the deployment's embedder origin `origin`. */
+export const pageEmbedder = (origin: string): TEmbedderChannel => pagePinned(EMBEDDER_KEY, () => embedderChannel(window, origin));
+
+/** Returns where the page's views hold the graph presenters they embed. */
+export const pagePresenterMount = (): TPresenterMount => pagePinned(PRESENTER_MOUNT_KEY, () => browserPresenterMount(document));
+
+/** Returns the page's blip channel: its ring of `capacity` blips and its pending send, held across its bundles, its clock, and its conduit where
+ *  a site serves the page and the page holds one. The page cancels its pending send when it ends. */
+export function pageBlips(capacity: number): TBlipChannel {
+	const { ring, sending } = pagePinned(BLIPS_KEY, (): { ring: TBlipRing; sending: TBlipSending } => ({ ring: blipRing(capacity), sending: { cancel: undefined } }), (held) => held.sending.cancel?.());
+	return { ring, sending, clock: pageClock(), may: (action) => pageAuthorityPort().may(action), conduit: !isOffline() && hasConduit() ? pageConduit() : undefined };
+}
+
+/** Returns the page's hydration element, by its id `id`. */
+export const pageHydrationElement = (id: string): THydrationElement => documentHydration(document, id);
 
 /** Returns the status of the page's event stream, which its adapter moves as the stream opens, breaks and closes. */
 export const streamStatus = (): Machine<TStreamStatus, TStreamEvent> => pagePinned(STREAM_STATUS_KEY, () => machine(INITIAL_STREAM_STATUS, streamTransition));
@@ -77,7 +115,7 @@ export function installLiveEventStream(source: () => TLiveStreamSource): TEventS
 /** Installs the stream of actuality's events at `url` of the site that served the page, signed under a delegation that allows
  *  following actuality where the page holds one, and reopened after a break after the deployment's delay. */
 export const installServedEventStream = (url: string): TEventStream =>
-	installLiveEventStream(() => ({ url, actualityId: hydratedActualityId(), headers: (at) => readingHeaders(at, FOLLOWS_THE_RUN), reconnectDelayMs: deploymentMs("streamReconnectAfterMs") }));
+	installLiveEventStream(() => ({ url, actualityId: hydratedActualityId(), headers: (at) => pageAuthorityPort().readingHeaders(new URL(at, location.href).toString(), FOLLOWS_THE_RUN), reconnectDelayMs: deploymentStreamReconnectMs() }));
 
 /** Installs a stream of the events a page carries or a test supplies, and returns it, so the caller adds its events. */
 export function installCarriedEventStream(): CarriedEventStream {
@@ -96,6 +134,22 @@ export function pageEventStream(): TEventStream {
 	return stream;
 }
 
+const installedAuthority = (): { authority: TAuthority | undefined } => pagePinned(AUTHORITY_PORT_KEY, () => ({ authority: undefined }));
+
+/** Installs `authority` as the reader's authority on the page. The page's start, and a test's `setupShuTest`, install the
+ *  authority area's (`page/authority/`). */
+export function installAuthority(authority: TAuthority): TAuthority {
+	installedAuthority().authority = authority;
+	return authority;
+}
+
+/** Returns the reader's authority on the page. Throws where the page's start, or a test's `setupShuTest`, didn't install it. */
+export function pageAuthorityPort(): TAuthority {
+	const { authority } = installedAuthority();
+	if (authority === undefined) throw new Error("the page doesn't hold the reader's authority: the page's start installs it, and a test calls setupShuTest() first");
+	return authority;
+}
+
 const installedConduit = (): { conduit?: TConduit } => pagePinned(CONDUIT_KEY, () => ({}));
 
 /** Installs `conduit` as the page's conduit, in place of the conduit the page holds. A test installs its own. */
@@ -104,27 +158,16 @@ export function installConduit(conduit: TConduit): TConduit {
 	return conduit;
 }
 
-/**
- * Returns how a call of `method` from this page is proven. A call of a step is signed with the page's key, under a
- * delegation that allows the action the step requires. The read of the page's delegations proves the key alone, since the
- * page reads its delegations through it. A call for which the page doesn't hold a delegation carries its headers as they
- * are, and the deployment may allow it without a delegation.
- */
-function provingFor(method: string): TProveRequest {
-	return async (request) => {
-		if (method === DELEGATIONS_READ_METHOD) return await keyHeaders(request);
-		// The page reads its steps through discovery, so discovery requires the one action the page holds without a read.
-		const required = method === SHOW_STEPS_METHOD ? SHOW_STEPS_ACTION : findStep(method)?.capability;
-		if (!required) return request.headers;
-		// A call waits for the page's authority, which the page reads at its start.
-		await pageAuthorityReady();
-		return (await signedHeaders({ ...request, action: required })) ?? request.headers;
-	};
+/** Installs the conduit that calls the site at `basePath`, signed with the page's authority. A served page installs it. */
+export function installServedConduit(basePath: string): TConduit {
+	// The page reads its steps through discovery, so discovery requires the one action the page holds without a read.
+	const prove = (method: string): TProveRequest => pageAuthorityPort().prove(method, method === SHOW_STEPS_METHOD ? SHOW_STEPS_ACTION : findStep(method)?.capability);
+	const forgetAuthority = (): void => pageAuthorityPort().forget();
+	return installConduit(new LiveConduit({ prove, actualityId: hydratedActualityId, responseTimeoutMs, forgetAuthority }, conduitHeld(), basePath, null));
 }
 
-/** Installs the conduit that calls the site at `basePath`, signed with the page's authority. A served page installs it. */
-export const installServedConduit = (basePath: string): TConduit =>
-	installConduit(new LiveConduit({ prove: provingFor, actualityId: hydratedActualityId, responseTimeoutMs, forgetAuthority: forgetPageAuthority }, conduitHeld(), basePath, null));
+/** Installs the conduit of a page that carries a record of actuality, whose calls fail as calls to an unreachable site. */
+export const installCarriedConduit = (): TConduit => installConduit(carriedConduit());
 
 /** Whether the page holds a conduit. A page mounted without one, as a bundle under test, doesn't send its blips. */
 export const hasConduit = (): boolean => installedConduit().conduit !== undefined;
@@ -174,3 +217,10 @@ export const pageStatus = new SharedCell<string>("pageStatus", "");
 
 /** The panes the column strip holds, in its order. The strip writes it. */
 export const stripPanes = new SharedCell<ReadonlyArray<TStripPane>>("stripPanes", []);
+
+/** The page the reader has open in the window that embeds shu, as the embedding page last posted it, or null where the
+ *  reader doesn't have a page open. */
+export const embeddedPageView = new SharedCell<TEmbeddedPageView | null>("embeddedPageView", null);
+
+/** The delegation the embedding page last gave shu's page key, or null where it hasn't given one. */
+export const givenDelegation = new SharedCell<TDelegation | null>("givenDelegation", null);

@@ -2,12 +2,13 @@
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import type { TLink } from "./page/domains/links.js";
-import { CLIENT_RING } from "./domains/elements.js";
-import { clientBlipsRecorded, clientBlipsSent, flushClientBlips, recordClientBlip } from "./client-blips.js";
-import { endPage } from "./page/adapters/page-held.js";
-import { carryARun, openReportingPage, setupShuTest, type TShuTestHandle } from "./test-setup.js";
-import { CLIENT_LOG_METHOD } from "./client-log.js";
+import type { TLink } from "../domains/links.js";
+import { CLIENT_RING } from "../../domains/elements.js";
+import { flushClientBlips } from "./client-blips.js";
+import { pageBlipChannel, recordClientBlip } from "../controllers/blip-controller.js";
+import { endPage } from "../adapters/page-held.js";
+import { carryARun, openReportingPage, setupShuTest, type TShuTestHandle } from "../../test-setup.js";
+import { CLIENT_LOG_METHOD } from "../../client-log.js";
 import { readAction } from "@haibun/core/lib/actions.js";
 import { Access } from "@haibun/core/lib/resources.js";
 
@@ -83,8 +84,8 @@ describe("recording in the browser: the page holds occurrences and sends them in
 		expect(batch.blips).toHaveLength(CLIENT_RING);
 		expect(itemAt(batch.blips, 0).value).toBe(over - CLIENT_RING);
 		expect(batch.recorded).toBe(over);
-		expect(clientBlipsRecorded()).toBe(over);
-		expect(clientBlipsSent()).toBe(CLIENT_RING);
+		expect(pageBlipChannel().ring.recorded()).toBe(over);
+		expect(pageBlipChannel().ring.sent()).toBe(CLIENT_RING);
 	});
 
 	it("starts a new buffer after sending one, so it doesn't send an occurrence twice", async () => {
@@ -101,7 +102,7 @@ describe("recording in the browser: the page holds occurrences and sends them in
 		recordClientBlip("haibun.shu.view.scroll", 1, { view: "a" });
 		await vi.runAllTimersAsync();
 		expect(sent).toEqual([]);
-		expect(clientBlipsRecorded()).toBe(1);
+		expect(pageBlipChannel().ring.recorded()).toBe(1);
 	});
 
 	it("holds without sending on a page mounted without a conduit, such as a bundle under test or a still", async () => {
@@ -110,13 +111,13 @@ describe("recording in the browser: the page holds occurrences and sends them in
 		recordClientBlip("haibun.shu.view.scroll", 1, { view: "a" });
 		await vi.runAllTimersAsync();
 		expect(sent).toEqual([]);
-		expect(clientBlipsRecorded()).toBe(1);
+		expect(pageBlipChannel().ring.recorded()).toBe(1);
 	});
 
 	it("keeps its occurrences where the page doesn't hold the read of what actuality records", async () => {
 		await openReportingPage();
 		recordClientBlip("haibun.shu.view.scroll", 1, { view: "a" });
-		await flushClientBlips();
+		await flushClientBlips(pageBlipChannel());
 		expect(sent.filter((link) => link.method !== CLIENT_LOG_METHOD)).toEqual([]);
 	});
 
@@ -127,7 +128,7 @@ describe("recording in the browser: the page holds occurrences and sends them in
 		};
 		await openReportingPage(undefined, [PRIVATE_READ]);
 		recordClientBlip("haibun.shu.view.scroll", 1, { view: "a" });
-		await expect(flushClientBlips()).resolves.toBeUndefined();
+		await expect(flushClientBlips(pageBlipChannel())).resolves.toBeUndefined();
 		const report = sent.find((link) => link.method === CLIENT_LOG_METHOD);
 		expect(report?.params).toMatchObject({ event: { level: "warn", source: "client-blips", message: "a batch holding 1 of the page's occurrences wasn't delivered: offline" } });
 	});

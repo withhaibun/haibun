@@ -31,7 +31,7 @@ import { pageContext, pageStatus, pageTrail } from "../controllers/page-cell-con
 import { loadSlotExtensions } from "./slot-extensions.js";
 import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { closeConversation, conversationState, dispatchConversationEvent, openConversation, STOPPED_BY_THE_READER } from "../../conversation.js";
-import { hashParam, onHashChanged } from "../../view-hash.js";
+import { hashParam, onHashChanged } from "../controllers/hash-controller.js";
 import { eventsAffectLabel } from "@haibun/core/lib/quad-types.js";
 import { isOffline } from "../../rpc-registry.js";
 import { getActionBarChatExtensionTags } from "../../rels-cache.js";
@@ -142,8 +142,9 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	 *  address doesn't name one. An address the conversation already follows doesn't change the conversation. */
 	private followConversationAddress = (): void => {
 		const session = hashParam(CONVERSATION_PARAM);
-		if (session === (conversationState.get().session ?? "")) return;
-		if (!session) return closeConversation();
+		const followed = conversationState.get().session;
+		if (session === undefined) return followed === null ? undefined : closeConversation();
+		if (session === followed) return;
 		this.setState({ mode: "ask" });
 		this.openPane();
 		void openConversation(session, "update");

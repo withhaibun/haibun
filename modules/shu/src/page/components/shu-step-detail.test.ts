@@ -4,7 +4,7 @@
  * step, so switching steps cancels the stale read and the previous step's data never lingers. The record is read from
  * the graph; the variables' quads come from a stubbed RPC behind LiveConduit.
  */
-import { serveThePage } from "../../test-setup.js";
+import { serveThePage, newPage } from "../../test-setup.js";
 import { runStore } from "../../client-cache/run-store.test-fake.js";
 import { describe, it, expect, beforeEach } from "vitest";
 import "./shu-step-detail.js"; // side-effect import so the module runs (registration is via component-registry in the app)
@@ -18,7 +18,6 @@ import { setGraphStore } from "../../quads-snapshot.js";
 import { setSiteMetadata, type SiteMetadata } from "../../rels-cache.js";
 import { noteExecution } from "../../client-cache/index.js";
 import { rpcAnswer, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
-import { endPage } from "../adapters/page-held.js";
 
 const EXECUTION = "1700000000000-1";
 const STEP = `${EXECUTION}.0.1`;
@@ -30,7 +29,7 @@ const SET_BY_STEP = [
 
 describe("shu-step-detail", () => {
 	beforeEach(async () => {
-		endPage();
+		newPage();
 		document.body.innerHTML = "";
 		installServedConduit("");
 		serveThePage();

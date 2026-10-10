@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 /**
  * The viewQuery store is the single hash-backed source of truth for the query params, so a reload must
  * restore the exact view. These pin the two invariants that guarantee it: (1) object round-trip:
@@ -7,7 +8,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { ViewQuerySchema, type TViewQuery, parseViewQuery, serializeViewQuery, viewQuery } from "./view-query.js";
-import { canonicalizeArrival } from "./view-hash.js";
+import { canonicalizeArrival } from "./page/derivations/address.js";
 import { appAccessLevel } from "./util.js";
 
 const DEFAULTS: TViewQuery = ViewQuerySchema.parse({});

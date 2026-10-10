@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Runs one specification against both adapters of the page's event stream. The live one reads the host's stream, and a
 // report and a scripted scenario drive the carried one.
-import { PAGE_ACTUALITY, hydrate } from "./test-setup.js";
+import { PAGE_ACTUALITY, hydrate, newPage, servedWith } from "./test-setup.js";
 import { vi, expect } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { installCarriedEventStream, installServedEventStream } from "./page/root.js";
@@ -22,7 +22,8 @@ describeEventStream("a log the page carries", () => {
  * the stream, so a case can inspect the stream while it is down.
  */
 describeEventStream("a live connection", async () => {
-	const hydration = hydrate({ actualityId: PAGE_ACTUALITY, settings: { streamReconnectAfterMs: 1 } });
+	newPage();
+	const hydration = hydrate({ actualityId: PAGE_ACTUALITY, settings: servedWith({ streamReconnectAfterMs: 1 }) });
 	hydrateFromDom();
 	const bodies: Array<{ body: ReadableStreamDefaultController<Uint8Array>; read: boolean }> = [];
 	const held: Array<() => void> = [];

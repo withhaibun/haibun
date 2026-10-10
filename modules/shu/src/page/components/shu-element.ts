@@ -53,22 +53,22 @@ export const EmptyStateSchema = z.object({});
 export type { TLinkedData };
 import { getRels } from "../../rels-cache.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
-import * as ViewHash from "../../view-hash.js";
+import * as PageHash from "../controllers/hash-controller.js";
 import { subscribeBatchedEvents } from "../controllers/event-stream-controller.js";
 import { type TEvent, type TEventFilter } from "../ports.js";
 import { PreferencesController } from "../controllers/preferences-controller.js";
-import { recordClientBlip } from "../../client-blips.js";
+import { recordClientBlip } from "../controllers/blip-controller.js";
 import type { TContextPattern } from "../../schemas.js";
 
 export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(LitElement) {
 	/** Get the current view hash, from URL when a live `window.location` is present, from stored state when running in an offline standalone HTML file. */
 	static getHash(): string {
-		return ViewHash.getHash();
+		return PageHash.getHash();
 	}
 
 	/** Update view hash. Online: writes to URL. Offline: updates stored state only. */
 	static pushHash(newHash: string): void {
-		ViewHash.pushHash(newHash);
+		PageHash.pushHash(newHash);
 	}
 
 	/** Extra HTML attributes a subclass wants observed, beyond lit's reactive-property attributes. Declare this static array instead of overriding `observedAttributes` directly: lit computes `elementStyles` lazily inside its `observedAttributes` getter, so a raw override that skips `super` never triggers `finalize()` and the component silently inherits the base's empty styles: every `static styles` rule is dropped from the shadow root. */

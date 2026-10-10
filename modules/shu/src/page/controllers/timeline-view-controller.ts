@@ -15,7 +15,7 @@
 import type { ReactiveController, ReactiveControllerHost } from "lit";
 import { timeCursor } from "../root.js";
 import { SHU_ATTR } from "../../domains/elements.js";
-import { hashParam, mergeHashParams, onHashChanged } from "../../view-hash.js";
+import { hashParam, mergeHashParams, onHashChanged } from "./hash-controller.js";
 
 export class TimelineViewController implements ReactiveController {
 	#host: ReactiveControllerHost;
@@ -127,15 +127,16 @@ export class TimelineViewController implements ReactiveController {
 
 	#stateAddress(): void {
 		if (!this.#name) return;
-		mergeHashParams({ [this.#name]: this.#tracking || this.#held === null ? "" : String(this.#held) });
+		mergeHashParams({ [this.#name]: this.#tracking || this.#held === null ? undefined : String(this.#held) });
 	}
 
 	/** Read the place the address states. A place this view already shows doesn't change the view. */
 	#readAddress(): void {
 		if (!this.#name) return;
 		const stated = hashParam(this.#name);
-		const at = stated ? Number(stated) : null;
-		if (at !== null && Number.isFinite(at)) {
+		if (stated !== undefined) {
+			const at = Number(stated);
+			if (!Number.isFinite(at)) throw new Error(`the hash parameter "${this.#name}" states "${stated}", which isn't an instant in epoch milliseconds`);
 			if (this.#tracking || this.#held !== at) {
 				this.#tracking = false;
 				this.#held = at;

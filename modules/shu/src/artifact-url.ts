@@ -7,7 +7,7 @@ import { nothing } from "lit";
 import { until } from "lit/directives/until.js";
 import { READS_THE_RUNS_ARTIFACTS } from "@haibun/core/lib/actions.js";
 import { isOffline } from "./rpc-registry.js";
-import { readingHeaders } from "./page-key.js";
+import { pageAuthorityPort } from "./page/root.js";
 import { ARTIFACTS_ROUTE, artifactAddress } from "@haibun/core/lib/run-artifact.js";
 import { reportToRun } from "./client-log.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
@@ -64,7 +64,7 @@ export const artifactAt = (url: string, source: string) =>
 	);
 
 async function readArtifact(url: string): Promise<string> {
-	const response = await fetch(url, { headers: await readingHeaders(url, READS_THE_RUNS_ARTIFACTS), credentials: "include" });
+	const response = await fetch(url, { headers: await pageAuthorityPort().readingHeaders(new URL(url, location.href).toString(), READS_THE_RUNS_ARTIFACTS), credentials: "include" });
 	if (!response.ok) throw new Error(`actuality refused its artifact ${url}: ${response.status} ${await response.text()}`);
 	return URL.createObjectURL(await response.blob());
 }

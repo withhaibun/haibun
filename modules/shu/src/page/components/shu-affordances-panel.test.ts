@@ -5,12 +5,12 @@ import { installConduit } from "../root.js";
 import { TestConduit, setupShuTest, type TShuTestHandle } from "../../test-setup.js";
 import { installCarriedEventStream } from "../root.js";
 import { type TEvent } from "../ports.js";
-import * as ViewHash from "../../view-hash.js";
+import * as PageHash from "../controllers/hash-controller.js";
 import { AFFORDANCE_PARAM } from "../../domains/elements.js";
 import { RPC_METHOD } from "../../domains/elements.js";
 import { readingExecution } from "../../client-cache/executions.js";
 import { declareFakeGraphPresenter, mountedPresenter } from "../../graph-presenter.test-fake.js";
-import { presenterIn } from "../../graph-presenter.js";
+import { presenterIn } from "../controllers/presenter-controller.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
 
 /** The actuality a snapshot records its facts from. */
@@ -39,7 +39,7 @@ describe("shu-affordances-panel", () => {
 		provideLayout();
 		// The deep link lives in the view hash, which is module state: clear it the way the app does, or one test's
 		// open goal is the next one's starting point.
-		ViewHash.mergeHashParams({ [AFFORDANCE_PARAM.GOAL]: "", [AFFORDANCE_PARAM.WAYPOINT]: "" });
+		PageHash.mergeHashParams({ [AFFORDANCE_PARAM.GOAL]: undefined, [AFFORDANCE_PARAM.WAYPOINT]: undefined });
 		if (!customElements.get("shu-spinner")) {
 			class FakeSpinner extends HTMLElement {}
 			customElements.define("shu-spinner", FakeSpinner);
