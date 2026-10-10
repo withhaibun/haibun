@@ -3,7 +3,8 @@
  * unserved extension is reported by itself, and the others load.
  */
 import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { whenSiteMetadataReady } from "../../rels-cache.js";
+import { slotExtensions } from "../controllers/catalog-controller.js";
+import { getAvailableSteps } from "../controllers/registry-controller.js";
 import { reportToRun, type TClientLogLevel } from "../../client-log.js";
 
 /** Load each extension declared for one of the slots, telling the component after each loads, and throw naming every one
@@ -17,9 +18,9 @@ export async function loadSlotExtensions(source: string, slots: ReadonlyArray<st
 				? { "haibun.autonomic.event": "step.failure", "exception.type": "SlotUiExtension", "exception.message": typeof attributes.error === "string" ? attributes.error : message }
 				: {}),
 		});
-	// The concern catalog populates the site metadata after a component connects, so the slots are read once it has.
-	const meta = await whenSiteMetadataReady();
-	const slotted = Object.entries(meta.ui).filter(([, ui]) => slots.includes(String(ui.slot)) && ui.js);
+	// The concern catalog arrives with actuality's steps, after a component connects, so the slots are read once it has.
+	await getAvailableSteps();
+	const slotted = slotExtensions(slots);
 	report("debug", `${slotted.length} slot extensions found`, { count: slotted.length });
 	const errors: string[] = [];
 	for (const [label, ui] of slotted) {

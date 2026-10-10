@@ -533,7 +533,7 @@ function concreteSubRelsOf(target: string): ReadonlySet<string> {
  * `subPropertyOf` the broad role super-property `inRoleOf` (performedBy, author, wasAttributedTo, attributedTo, …). A
  * new core role predicate declares `subPropertyOf` in LinkRelations and doesn't need an entry here. A consumer's role
  * predicates don't appear here. They classify through the edges of their domain declarations, whose rel is an actor
- * upper pointer, and the client's rels-cache merges them with this set. The role merge reads the merged set to assign
+ * upper pointer, and the page's catalog derivation merges them with this set. The role merge reads the merged set to assign
  * each node's HypermediaRole (the party it is attributed to) and to form the role containers and swimlanes.
  *
  * The set is unordered. Each entry's declared rolePriority orders a node's role edges when the node carries several.

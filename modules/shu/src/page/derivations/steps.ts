@@ -70,7 +70,14 @@ export function domainOptions(catalog: TConcernCatalog, domains: Record<string, 
 	const options = Object.values(catalog.persisted).map((concern): TDomainOption => {
 		if (/^\s*\[.*\]\s*$/.test(concern.label)) throw new Error(`the concern label of domain ${concern.domainKey} reads as a stringified list: ${concern.label}`);
 		const info = domains[concern.domainKey];
-		return { key: concern.domainKey, queryLabel: concern.label, description: info?.description, stepperName: info?.stepperName, selectable: true, group: concern.declared ? DOMAIN_GROUP.declared : DOMAIN_GROUP.builtIn };
+		return {
+			key: concern.domainKey,
+			queryLabel: concern.label,
+			description: info?.description,
+			stepperName: info?.stepperName,
+			selectable: true,
+			group: concern.declared ? DOMAIN_GROUP.declared : DOMAIN_GROUP.builtIn,
+		};
 	});
 	return options.sort((a, b) => (a.group === b.group ? 0 : a.group === DOMAIN_GROUP.declared ? -1 : 1));
 }

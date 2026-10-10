@@ -12,6 +12,7 @@
  * import of the module in a new module-graph context (achieved here by
  * deleting the cached module) sees the same singleton store.
  */
+import { catalogOf, declareCatalog, declareRegistry, declareSpec, declareGraphSpec } from "./test/catalog-fixture.js";
 import { requiredActionOf } from "./page/controllers/registry-controller.js";
 import { serveThePage, setupShuTest, stepsShown, newPage } from "./test-setup.js";
 import { describe, it, expect, beforeEach } from "vitest";
@@ -34,10 +35,8 @@ import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { Access, BODY_LABEL } from "@haibun/core/lib/resources.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
-import { setSiteMetadata, type SiteMetadata } from "./rels-cache.js";
 import { installServedConduit } from "./page/root.js";
 import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
-import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { installCarriedEventStream } from "./page/root.js";
 import { pagePinned } from "./page/adapters/page-held.js";
 import { storeDeclaring } from "@haibun/core/lib/test/declared-types.js";
@@ -103,6 +102,7 @@ describe("quads-snapshot store singleton", () => {
 describe("mergeQuadsIntoSnapshot is bounded by the limit (the OOM fix)", () => {
 	beforeEach(() => {
 		newPage();
+		declareSpec({ types: [] });
 		serveThePage();
 	});
 
@@ -170,6 +170,7 @@ describe("mergeQuadsIntoSnapshot is bounded by the limit (the OOM fix)", () => {
 describe("per-scope snapshots, independent data sources over one store", () => {
 	beforeEach(() => {
 		newPage();
+		declareSpec({ types: [] });
 		serveThePage();
 	});
 
@@ -248,7 +249,7 @@ describe("the dropdown values a reader is offered, without a server to ask", () 
 		serveThePage();
 		installCarriedEventStream();
 		globalThis.fetch = () => Promise.reject(new TypeError("this page has no server"));
-		setSiteMetadata({ types: ["Email"], rels: { Email: { folder: LinkRelations.CONTEXT.rel, subject: "name" } }, edgeRanges: {} } as unknown as SiteMetadata);
+		declareGraphSpec({ types: ["Email"], rels: { Email: { folder: LinkRelations.CONTEXT.rel, subject: "name" } } });
 	});
 
 	it("offers the distinct values its context fields hold, and doesn't offer a field the type does not declare as one", async () => {
@@ -263,7 +264,7 @@ describe("the dropdown values a reader is offered, without a server to ask", () 
 	});
 
 	it("doesn't offer a dropdown for a declared type that doesn't have a context field, and reports the failure for a type the site never declared", async () => {
-		setSiteMetadata({ types: ["Email", "Note"], rels: { Email: { folder: LinkRelations.CONTEXT.rel }, Note: { body: "hasBody" } }, edgeRanges: {} } as unknown as SiteMetadata);
+		declareCatalog(catalogOf({ types: ["Email", "Note"], rels: { Email: { folder: LinkRelations.CONTEXT.rel }, Note: { body: "hasBody" } } }));
 		setGraphStore(new QuadStore());
 		expect(await selectValuesFor("Note")).toEqual({});
 		await expect(selectValuesFor("NeverDeclared")).rejects.toThrow();
@@ -279,7 +280,7 @@ describe("the rows a graph query names, without a server to ask", () => {
 		serveThePage();
 		installCarriedEventStream();
 		globalThis.fetch = () => Promise.reject(new TypeError("this page has no server"));
-		setSiteMetadata({ types: ["Email"], rels: { Email: { folder: LinkRelations.CONTEXT.rel } }, edgeRanges: {} } as unknown as SiteMetadata);
+		declareGraphSpec({ types: ["Email"], rels: { Email: { folder: LinkRelations.CONTEXT.rel } } });
 	});
 
 	it("lists what it caches of the type, narrowed by the same filters", async () => {
@@ -315,11 +316,11 @@ describe("an individual the page holds a copy of", () => {
 	};
 	const NOT_HELD = "Email a isn't held here";
 	const pageHolding = async (answer: () => unknown) => {
-		setupShuTest({ dispatch: (method) => (method === SHOW_STEPS_METHOD ? stepsShown([READ]) : answer()) });
+		setupShuTest({ dispatch: answer });
 		const store = storeDeclaring({ Email: { filters: ["folder"] } });
 		await store.upsertIndividual("Email", { id: "a", folder: "INBOX" });
 		setGraphStore(store);
-		setSiteMetadata({ types: ["Email"], rels: { Email: { folder: LinkRelations.CONTEXT.rel } }, edgeRanges: {} } as unknown as SiteMetadata);
+		declareRegistry(stepsShown([READ], {}, catalogOf({ types: ["Email"], rels: { Email: { folder: LinkRelations.CONTEXT.rel } } })));
 	};
 	beforeEach(() => {
 		newPage();

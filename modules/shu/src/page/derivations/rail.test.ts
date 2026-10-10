@@ -1,17 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import {
-	thumbHeightPx,
-	thumbTopPx,
-	firstAtPointer,
-	markerTopPx,
-	clusterMarkers,
-	pressTarget,
-	indexAtMarkerPx,
-	MARK_SNAP_PX,
-	MARK_INSET_PX,
-	type TScrollMarker,
-} from "./rail.js";
+import { thumbHeightPx, thumbTopPx, firstAtPointer, markerTopPx, clusterMarkers, pressTarget, indexAtMarkerPx, MARK_SNAP_PX, MARK_INSET_PX, type TScrollMarker } from "./rail.js";
 
 const RAIL = 400;
 /** A representative thumb height: geometry below takes it as a pixel input, whatever produced it. */
@@ -113,7 +102,6 @@ describe("clusterMarkers", () => {
 		expect(clustered.map((c) => c.count)).toEqual([1, 1, 1]);
 	});
 });
-
 
 describe("hardening (adversarial review)", () => {
 	it("firstAtPointer is monotonic and reaches both ends across the whole rail at millions", () => {

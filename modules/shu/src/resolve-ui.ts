@@ -1,4 +1,4 @@
-import { getUiByType, getRecordComponent } from "./rels-cache.js";
+import { getUiByType, getRecordComponent } from "./page/controllers/catalog-controller.js";
 
 /** The component + placement to render a product with, resolved from its type with shape-based defaults. */
 type ResolvedUi = {

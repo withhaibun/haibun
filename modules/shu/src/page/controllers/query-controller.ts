@@ -1,10 +1,6 @@
 import type { ReactiveController, ReactiveControllerHost } from "lit";
 import type { TGraphQueryResult } from "@haibun/core/lib/quad-types.js";
-import { reads } from "../domains/links.js";
-import { conduit } from "./conduit-controller.js";
-import { getAvailableSteps, findStep } from "./registry-controller.js";
 import { queryGraph } from "../../quads-snapshot.js";
-import type { SiteMetadata } from "../../rels-cache.js";
 
 /**
  * QueryController: the per-view handle to the graph-query data path. A view that runs queries HOLDS one
@@ -24,12 +20,5 @@ export class QueryController implements ReactiveController {
 	 *  the same query over the graph the page caches. */
 	run(query: Record<string, unknown>): Promise<TGraphQueryResult> {
 		return queryGraph(query);
-	}
-
-	/** The server's site metadata (id fields, types, sortable fields) where the active stepper provides it, else null. */
-	async siteMetadata(): Promise<SiteMetadata | null> {
-		await getAvailableSteps();
-		const step = findStep("getSiteMetadata");
-		return step ? conduit().follow<SiteMetadata>(reads(step.method), "query: site metadata") : null;
 	}
 }

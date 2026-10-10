@@ -4,11 +4,11 @@
  * it: a thread card's sender, a key a delegation names, an item an items table lists. A field declared as anything else
  * is its text.
  */
+import { type TCatalogSpec, declareSpec } from "../../test/catalog-fixture.js";
 import { beforeEach, describe, expect, it } from "vitest";
 import { render } from "lit";
 import { LinkRelations, PRINCIPAL_LABEL } from "@haibun/core/lib/resources.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
-import { setSiteMetadata, type SiteMetadata } from "../../rels-cache.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
 import { fieldRef } from "./shu-ref.js";
@@ -24,17 +24,14 @@ const ADDRESS = "sender@example.com";
 const KEY = "did:key:z6MkexampleKey";
 /** The IRI prefix of the records a case names. */
 const RECORDS = "ex:";
-const META: SiteMetadata = {
+const META: TCatalogSpec = {
 	types: [EMAIL, PERSON, NOTE],
 	idFields: { [EMAIL]: "messageId", [PERSON]: "id", [NOTE]: "id" },
 	rels: { [EMAIL]: { messageId: LinkRelations.IDENTIFIER.rel, [SENDER]: LinkRelations.ATTRIBUTED_TO.rel, [SUBJECT]: LinkRelations.NAME.rel }, [PERSON]: {}, [NOTE]: {} },
 	edgeRanges: { [EMAIL]: { [SENDER]: [PERSON] } },
-	properties: { [EMAIL]: ["messageId", SENDER, SUBJECT], [PERSON]: ["id"], [NOTE]: ["id"] },
 	queryable: {},
 	validTimeFields: {},
-	summary: {},
 	ui: {},
-	propertyDefinitions: {},
 };
 
 /** The references rendered under `root`, as the kind and target each names. */
@@ -42,7 +39,7 @@ const refsIn = (root: ParentNode) => [...root.querySelectorAll("shu-ref")].map((
 
 beforeEach(() => {
 	provideLayout();
-	setSiteMetadata(META);
+	declareSpec(META);
 	document.body.innerHTML = "";
 });
 

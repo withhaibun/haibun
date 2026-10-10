@@ -3,10 +3,10 @@
  * declares it as the site's "graph" presenter. The fake records what its host gives it, and reports a node a reader
  * opens as the presenter does. Every embedding view's test imports this one fake for the presenter boundary.
  */
+import { declareSpec } from "./test/catalog-fixture.js";
 import { vi } from "vitest";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import type { TLinkedData } from "@haibun/core/lib/hypermedia.js";
-import { setSiteMetadata } from "./rels-cache.js";
 import { presenterIn } from "./page/controllers/presenter-controller.js";
 import type { TGraphPresenter, TPresenterNodeClick } from "./page/ports.js";
 import { SHU_EVENT } from "./domains/elements.js";
@@ -43,17 +43,14 @@ export class FakeGraphPresenter extends HTMLElement implements TGraphPresenter {
  *  entries a case gives, keyed by domain. */
 export function declareFakeGraphPresenter(ui: Record<string, Record<string, unknown>> = {}): void {
 	if (!customElements.get(FAKE_PRESENTER_TAG)) customElements.define(FAKE_PRESENTER_TAG, FakeGraphPresenter);
-	setSiteMetadata({
+	declareSpec({
 		types: [],
 		idFields: {},
 		rels: {},
 		edgeRanges: {},
-		properties: {},
 		queryable: {},
 		validTimeFields: {},
-		summary: {},
 		ui: { graph: { component: FAKE_PRESENTER_TAG, presents: "graph" }, ...ui },
-		propertyDefinitions: {},
 	});
 }
 

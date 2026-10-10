@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // Every implementation of the page's paging contract, held to one specification: a list already in memory, pages
 // fetched as a reader reaches them, and the window of a run over the records it wrote.
+import { declareGraphSpec } from "./test/catalog-fixture.js";
 import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { beforeEach } from "vitest";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
@@ -10,7 +11,6 @@ import { counted } from "@haibun/core/lib/hypermedia.js";
 import { arrayWindowedSource, lazyWindowedSource, readWindowedSource } from "./windowed-source.js";
 import { describeWindowedSource, CONFORMANCE_ROWS } from "./test/windowed-source-conformance.js";
 import { setGraphStore } from "./quads-snapshot.js";
-import { setSiteMetadata, type SiteMetadata } from "./rels-cache.js";
 import { setupShuTest } from "./test-setup.js";
 import { runStore } from "./client-cache/run-store.test-fake.js";
 import { graphRunSource } from "./client-cache/graph-run-source.js";
@@ -59,11 +59,7 @@ describeWindowedSource("the window of a run", async () => {
 			throw new ServerUnreachable("/rpc", new Error("this specification reads the records, not a server"));
 		},
 	});
-	setSiteMetadata({
-		types: [SEQ_PATH_LABEL, LOG_MESSAGE_LABEL, RUN_ARTIFACT_LABEL],
-		rels: { [SEQ_PATH_LABEL]: {}, [LOG_MESSAGE_LABEL]: {}, [RUN_ARTIFACT_LABEL]: {} },
-		edgeRanges: {},
-	} as unknown as SiteMetadata);
+	declareGraphSpec({ types: [SEQ_PATH_LABEL, LOG_MESSAGE_LABEL, RUN_ARTIFACT_LABEL] });
 	const store = runStore();
 	for (let i = 0; i < CONFORMANCE_ROWS; i++) {
 		await store.upsertIndividual(SEQ_PATH_LABEL, {

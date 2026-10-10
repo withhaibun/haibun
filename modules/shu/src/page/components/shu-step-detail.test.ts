@@ -4,6 +4,7 @@
  * step, so switching steps cancels the stale read and the previous step's data never lingers. The record is read from
  * the graph; the variables' quads come from a stubbed RPC behind LiveConduit.
  */
+import { declareGraphSpec } from "../../test/catalog-fixture.js";
 import { requiredActionOf } from "../controllers/registry-controller.js";
 import { serveThePage, newPage } from "../../test-setup.js";
 import { runStore } from "../../client-cache/run-store.test-fake.js";
@@ -15,7 +16,6 @@ import { VARIABLE_FIELD } from "@haibun/core/lib/records/domains/variables.js";
 import { installServedConduit } from "../root.js";
 import { installCarriedEventStream } from "../root.js";
 import { setGraphStore } from "../../quads-snapshot.js";
-import { setSiteMetadata, type SiteMetadata } from "../../rels-cache.js";
 import { noteExecution } from "../../client-cache/index.js";
 import { rpcAnswer, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
 
@@ -48,15 +48,12 @@ describe("shu-step-detail", () => {
 			endedAtTime: new Date(1005).toISOString(),
 		});
 		setGraphStore(store);
-		setSiteMetadata({ types: [SEQ_PATH_LABEL], rels: { [SEQ_PATH_LABEL]: {} }, edgeRanges: {} } as unknown as SiteMetadata);
+		declareGraphSpec({ types: [SEQ_PATH_LABEL] });
 		noteExecution(EXECUTION);
 		globalThis.fetch = (input: unknown): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
 			if (url.endsWith(HANDSHAKE_PATH)) return Promise.resolve(rpcAnswer({ seqPath: [0, -1, 1] }, 200));
-			if (url.includes("getClusteredQuads"))
-				return Promise.resolve(
-					rpcAnswer({ quads: SET_BY_STEP }, 200),
-				);
+			if (url.includes("getClusteredQuads")) return Promise.resolve(rpcAnswer({ quads: SET_BY_STEP }, 200));
 			// The page reads the step's record from what it holds, as it does where the site doesn't respond.
 			return Promise.reject(new TypeError("the step's record is read from the page"));
 		};

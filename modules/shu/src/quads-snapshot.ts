@@ -19,7 +19,7 @@ import { appAccessLevel } from "./util.js";
 import { reads } from "./page/domains/links.js";
 import { conduit } from "./page/controllers/conduit-controller.js";
 import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
-import { getConcernCatalog, getRels, getTitledBy, getSelectFields } from "./rels-cache.js";
+import { getConcernCatalog, getRels, getTitledBy, getSelectFields } from "./page/controllers/catalog-controller.js";
 import { readDeclarationsOfCatalog, type TReadDeclarations } from "@haibun/core/lib/records/derivations/read-records.js";
 import { isOffline } from "./page/controllers/hydration-controller.js";
 import { findStep, getAvailableSteps, requireStep } from "./page/controllers/registry-controller.js";

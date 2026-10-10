@@ -36,7 +36,7 @@ import { eventMarkerStyle } from "../derivations/event-marker.js";
 import { HAIBUN_LOG_LEVELS } from "@haibun/core/schema/protocol.js";
 import { esc } from "../../util.js";
 import { jsonDisclosure } from "./json-disclosure.js";
-import { isKnownType } from "../../rels-cache.js";
+import { isKnownType } from "../controllers/catalog-controller.js";
 import { artifactUrl } from "../../artifact-url.js";
 import { refLinksPlugin } from "../../markdown-refs.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
@@ -171,7 +171,6 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		// ←/→ from an expanded thumbnail: only this column can navigate the whole run: the off-screen frames are not in the DOM.
 		this.autoListen(this, SHU_EVENT.FRAME_NAV, (e) => void this.#frameNav((e as CustomEvent<{ dir: number; from: HTMLElement }>).detail));
 	}
-
 
 	/** Read actuality at the level now shown: one source per level, shared across views, swapped when the level changes. */
 	#readRun(): void {

@@ -17,8 +17,8 @@ import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { FilterColumnSchema, aType, type TContextPattern } from "../../schemas.js";
 import { queryGraph, incomingEdges } from "../../quads-snapshot.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { appAccessLevel, defaultLabel } from "../../util.js";
-import { getIdField, getQueryableFields } from "../../rels-cache.js";
+import { appAccessLevel } from "../../util.js";
+import { getIdField, getQueryableFields, firstDeclaredType } from "../controllers/catalog-controller.js";
 import type { ShuResultTable } from "./shu-result-table.js";
 import { arrayWindowedSource, readWindowedSource, type WindowedSource } from "../../windowed-source.js";
 import { CountedSchema, counted, type TCounted } from "@haibun/core/lib/hypermedia.js";
@@ -58,7 +58,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 		super(FilterColumnSchema, { loading: true });
 	}
 
-	async openFiltered(property: string, value: string, label: string = defaultLabel()): Promise<void> {
+	async openFiltered(property: string, value: string, label: string = firstDeclaredType()): Promise<void> {
 		// A read refuses a filter on the id field, which isn't in the type's filter surface. A filter on the id names one
 		// record, so the column opens that record in the entity column and doesn't run a graph query.
 		if (property === getIdField(label)) {
@@ -67,17 +67,10 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 		}
 		this.setState({ property, value, persistedAs: label, loading: true, error: undefined });
 		this.spinnerStatus = "Fetching...";
-		await this.fetchResults({
-			label,
-			filters: [{ predicate: property, operator: "eq", value }],
-			sortOrder: "desc",
-			limit: 50,
-			offset: 0,
-			accessLevel: appAccessLevel(),
-		});
+		await this.fetchResults({ label, filters: [{ predicate: property, operator: "eq", value }], sortOrder: "desc", limit: 50, offset: 0, accessLevel: appAccessLevel() });
 	}
 
-	async openProperty(property: string, label: string = defaultLabel()): Promise<void> {
+	async openProperty(property: string, label: string = firstDeclaredType()): Promise<void> {
 		this.setState({ property, persistedAs: label, loading: true, error: undefined });
 		this.spinnerStatus = "Fetching...";
 		// Sort by the clicked property only when the topology declares it sortable; otherwise (the idField, or any field
@@ -134,7 +127,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 
 	private onRowClick = (e: Event): void => {
 		const { individualId: vid, label: rowLabel, ctrlKey } = (e as CustomEvent).detail;
-		if (vid) openRef(e, REF_DENOTES.individual, { persistedAs: rowLabel || this.state.persistedAs || defaultLabel(), id: vid }, ctrlKey);
+		if (vid) openRef(e, REF_DENOTES.individual, { persistedAs: rowLabel || this.state.persistedAs || firstDeclaredType(), id: vid }, ctrlKey);
 	};
 
 	private onSortChange = (e: Event): void => {

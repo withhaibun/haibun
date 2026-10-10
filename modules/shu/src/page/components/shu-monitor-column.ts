@@ -319,7 +319,6 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		return out;
 	}
 
-
 	private onSubstepsChange = (e: Event): void => {
 		this.setState({ substeps: (e.target as HTMLInputElement).checked });
 		this.#readRun(); // another reading of actuality: what it holds of the steps run to carry other steps out

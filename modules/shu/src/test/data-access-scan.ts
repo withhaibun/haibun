@@ -17,7 +17,14 @@ export const VIEWS = "components";
 export const CONTROLLERS = "controllers";
 
 /** The modules that send requests. An import of one by its package path matches the same suffix. */
-const PLUMBING_MODULES = ["/conduit-controller.js", "/pane-fetch.js", "/registry-controller.js", "/hydration-controller.js", "/authority-controller.js", "/page-authority-controller.js"];
+const PLUMBING_MODULES = [
+	"/conduit-controller.js",
+	"/pane-fetch.js",
+	"/registry-controller.js",
+	"/hydration-controller.js",
+	"/authority-controller.js",
+	"/page-authority-controller.js",
+];
 
 /** The names a view doesn't import. A controller holds the read each one performs. */
 const DATA_ACCESS_PRIMITIVES = new Set(["conduit", "requireStep", "findStep", "callStep", "fetchIndividuals", "pageAuthority", "signedHeaders"]);
@@ -51,7 +58,13 @@ export function viewDirectories(root: string, names: readonly string[]): string[
 
 /** The view files in `dirs`, without their tests, by their names, and which of them import a data-access primitive. */
 export function scanComponents(dirs: readonly string[]): { files: string[]; reachesRpc: (file: string) => boolean } {
-	const paths = new Map(dirs.flatMap((dir) => readdirSync(dir).filter((file) => file.endsWith(".ts") && !file.endsWith(".test.ts") && !file.endsWith(".d.ts")).map((file) => [file, join(dir, file)] as const)));
+	const paths = new Map(
+		dirs.flatMap((dir) =>
+			readdirSync(dir)
+				.filter((file) => file.endsWith(".ts") && !file.endsWith(".test.ts") && !file.endsWith(".d.ts"))
+				.map((file) => [file, join(dir, file)] as const),
+		),
+	);
 	const pathOf = (file: string): string => {
 		const path = paths.get(file);
 		if (path === undefined) throw new Error(`${file} isn't a view file in ${dirs.join(", ")}`);

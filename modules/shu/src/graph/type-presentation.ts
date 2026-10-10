@@ -9,7 +9,7 @@
  * column tag from `columnComponent`. One source of truth, so the three renders can't disagree about a type.
  */
 import { presenterForType, type PresentContext, type SceneNode } from "./node-presenters.js";
-import { getRecordComponent } from "../rels-cache.js";
+import { getRecordComponent } from "../page/controllers/catalog-controller.js";
 import type { NodeMark } from "./graph-scene.js";
 
 type TypePresentation = {

@@ -8,7 +8,7 @@ import { dispatchAffordanceFromResponse } from "../../affordance-dispatch.js";
 import { esc, escAttr, prettifyGwta, normalizeStepKey } from "../../util.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { validateStepInput, type TFieldError } from "../derivations/step-input.js";
-import { cachedConcernCatalog, getConcernCatalog } from "../../rels-cache.js";
+import { getConcernCatalog } from "../controllers/catalog-controller.js";
 import { JsonObjectTextSchema, RecordSchema, RecordsSchema } from "@haibun/core/lib/json-text.js";
 import { type TComboboxOption } from "../../schemas.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
@@ -205,7 +205,7 @@ class StepCaller extends HTMLElement {
 		const properties = { ...schema.properties };
 		for (const [data, typeParam] of Object.entries(desc.recordData ?? {})) {
 			const chosen = this.fixedParams[typeParam] ?? this.lastFormValues[typeParam];
-			const typeSchema = (typeof chosen === "string" ? cachedConcernCatalog()?.persisted[chosen]?.jsonSchema : undefined) as InputProperty | undefined;
+			const typeSchema = (typeof chosen === "string" ? getConcernCatalog().persisted[chosen]?.jsonSchema : undefined) as InputProperty | undefined;
 			// The catalog states what a record holds, so a field its schema fills by default is one a caller may leave out.
 			const defaulted = new Set(Object.entries(typeSchema?.properties ?? {}).flatMap(([field, prop]) => ("default" in prop ? [field] : [])));
 			if (typeSchema) properties[data] = { ...typeSchema, required: (typeSchema.required ?? []).filter((field) => !defaulted.has(field)) };
@@ -236,7 +236,7 @@ class StepCaller extends HTMLElement {
 			} else {
 				const prop = properties[paramName];
 				// A parameter naming the type of a record's fields offers the types the catalog declares.
-				const names = Object.values(desc.recordData ?? {}).includes(paramName) ? Object.keys(cachedConcernCatalog()?.persisted ?? {}).sort() : prop?.enum;
+				const names = Object.values(desc.recordData ?? {}).includes(paramName) ? Object.keys(getConcernCatalog().persisted).sort() : prop?.enum;
 				if (names) {
 					const savedVal = this.lastFormValues[paramName] || "";
 					const options = names.map((v: string) => `<option value="${escAttr(v)}"${v === savedVal ? " selected" : ""}>${esc(v)}</option>`).join("");
@@ -443,7 +443,7 @@ class StepCaller extends HTMLElement {
 	private refTargetLabel(desc: TStepDefinition, paramName: string): string | undefined {
 		const domainKey = desc.paramDomains[paramName];
 		if (!domainKey) return undefined;
-		return cachedConcernCatalog()?.references?.[domainKey]?.targetPersistedAs;
+		return getConcernCatalog().references[domainKey]?.targetPersistedAs;
 	}
 
 	private async populatePersistedRef(cb: HTMLElement & { setOptions?: (opts: TComboboxOption[]) => void }, label: string): Promise<void> {

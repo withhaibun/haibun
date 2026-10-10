@@ -17,7 +17,7 @@ import { isImageFormat } from "@haibun/core/lib/media-types.js";
 import { IndividualAddressSchema } from "@haibun/core/lib/typed-links.js";
 import { deploymentAskToolLimit } from "../controllers/hydration-controller.js";
 import { findStep, getAvailableSteps, requireStep } from "../controllers/registry-controller.js";
-import { edgeRecordType, getActionBarAskExtensionTags, getActionBarChatExtensionTags, getEdgeRanges, getRelSync } from "../../rels-cache.js";
+import { edgeRecordType, getActionBarAskExtensionTags, getActionBarChatExtensionTags, getEdgeRanges, getFieldRel } from "../controllers/catalog-controller.js";
 import { anIndividual, ContextReadBySchema, SessionListSchema, type TComboboxOption, type TContextIndividual, type TContextPattern, type TQuestionFork } from "../../schemas.js";
 import { GraphQueryResultSchema, extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
@@ -91,7 +91,7 @@ const ProviderPageSchema = GraphQueryResultSchema.extend({ vertices: z.array(Pro
 
 /** The type a model's records are grouped under, as the model's type declares it: the provider each is called through. */
 function providerType(): string | undefined {
-	const grouping = Object.keys(getEdgeRanges(KIHAN) ?? {}).find((field) => getRelSync(KIHAN, field) === LinkRelations.CONTEXT.rel);
+	const grouping = Object.keys(getEdgeRanges(KIHAN) ?? {}).find((field) => getFieldRel(KIHAN, field) === LinkRelations.CONTEXT.rel);
 	return grouping ? edgeRecordType(KIHAN, grouping) : undefined;
 }
 /** Combo option text for a session: what its first question asked, when its newest turn was asked, and how many turns

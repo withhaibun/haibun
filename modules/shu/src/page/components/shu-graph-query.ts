@@ -1,6 +1,6 @@
 import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { firstDeclaredType, getTypes } from "../controllers/catalog-controller.js";
 import { html, css, type TemplateResult } from "lit";
-import { defaultLabel } from "../../util.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { openRef } from "./ref-navigation.js";
@@ -18,10 +18,9 @@ import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { ViewQueryControlSchema } from "./shu-graph-query.controls-schema.js";
 import { shuBaseStyles } from "./styles.js";
 import { esc } from "../../util.js";
-import { setSiteMetadata, getConcernDerivedMetadata } from "../../rels-cache.js";
 import type { ShuResultTable } from "./shu-result-table.js";
 import { isOffline } from "../controllers/hydration-controller.js";
-import { getAvailableDomains } from "../controllers/registry-controller.js";
+import { getAvailableSteps } from "../controllers/registry-controller.js";
 import { QueryController } from "../controllers/query-controller.js";
 import { arrayWindowedSource, readWindowedSource, type WindowedSource } from "../../windowed-source.js";
 import { SettingController } from "../controllers/setting-controller.js";
@@ -231,16 +230,10 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		if (Object.keys(patch).length > 0) viewQuery.set(patch);
 	}
 
+	/** Reads the types the query offers: those the catalog declares, read with actuality's steps (CA4B4). */
 	async loadMetadata(): Promise<void> {
-		const domains = await getAvailableDomains();
-		const derivedMeta = getConcernDerivedMetadata();
-		const serverMeta = await this.#query.siteMetadata();
-		if (serverMeta) Object.assign(derivedMeta, serverMeta);
-		setSiteMetadata(derivedMeta);
-		const persistedTypes = Object.values(domains)
-			.map((d) => d.persistedAs)
-			.filter((l): l is string => !!l);
-		this.labels = persistedTypes.length > 0 ? persistedTypes : derivedMeta.types;
+		await getAvailableSteps();
+		this.labels = getTypes();
 		this.requestUpdate();
 	}
 
@@ -439,7 +432,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 
 				// The result table is the source, not this controller, which lives outside the strip: the table is in the query
 				// pane, which the Miller-column prune starts from.
-				if (this.selectedIds.size > 0) openRef(table, REF_DENOTES.individual, { persistedAs: this.qLabel || defaultLabel(), id: vid }, ctrlKey);
+				if (this.selectedIds.size > 0) openRef(table, REF_DENOTES.individual, { persistedAs: this.qLabel || firstDeclaredType(), id: vid }, ctrlKey);
 			}) as EventListener);
 		}
 

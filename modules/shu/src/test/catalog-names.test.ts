@@ -45,7 +45,7 @@ const STEPPERS = [
 	MonitorStepper,
 	ShuStepper,
 ];
-const FIX = "read the type or field from the concern catalog through a controller, as rels-cache.ts reads it";
+const FIX = "read the type or field from the concern catalog through a controller, as page/controllers/catalog-controller.ts reads it";
 
 describe("a view's types and fields", () => {
 	it("come from the catalog, apart from the names catalog-names.baseline.json records (CR4)", async () => {
@@ -57,11 +57,6 @@ describe("a view's types and fields", () => {
 		expect([...names.types]).toEqual(expect.arrayContaining(["Comment", "SeqPath", "Principal"]));
 		const files = sourceFiles(REPOSITORY, VIEW_SOURCES);
 		const found = catalogNameFindings(REPOSITORY, { files, packages: workspacePackages(REPOSITORY, "modules"), names });
-		expectWithinBaseline({
-			baselineFile: join(import.meta.dirname, "catalog-names.baseline.json"),
-			found,
-			testFile: "modules/shu/src/test/catalog-names.test.ts",
-			fix: FIX,
-		});
+		expectWithinBaseline({ baselineFile: join(import.meta.dirname, "catalog-names.baseline.json"), found, testFile: "modules/shu/src/test/catalog-names.test.ts", fix: FIX });
 	});
 });

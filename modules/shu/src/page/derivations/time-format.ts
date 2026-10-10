@@ -27,7 +27,9 @@ export const isDateValue = (value: string): boolean => DATE_RE.some((re) => re.t
 /** The calendar day of `instant` in `timeZone`, as days since the epoch, and its ISO weekday. */
 function calendarDay(instant: Date, timeZone: string): { day: number; weekday: number; year: number } {
 	const parts = Object.fromEntries(
-		new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "numeric", day: "numeric", weekday: "short" }).formatToParts(instant).map(({ type, value }) => [type, value]),
+		new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "numeric", day: "numeric", weekday: "short" })
+			.formatToParts(instant)
+			.map(({ type, value }) => [type, value]),
 	);
 	const weekday = ISO_WEEKDAY[String(parts.weekday)];
 	if (weekday === undefined) throw new Error(`the weekday "${String(parts.weekday)}" isn't a weekday of the en-US locale`);

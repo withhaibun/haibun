@@ -14,7 +14,7 @@ import DOMPurify from "dompurify";
 import { parseRefHref } from "@haibun/core/lib/typed-links.js";
 import { JsonObjectTextSchema } from "@haibun/core/lib/json-text.js";
 import { isRefKind, renderRef, type TRefKind } from "./page/components/ref-navigation.js";
-import { getPropertyDefinition } from "./rels-cache.js";
+import { getPropertyDefinition } from "./page/controllers/catalog-controller.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 /**

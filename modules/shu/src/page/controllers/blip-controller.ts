@@ -7,4 +7,5 @@ import { CLIENT_RING } from "../../domains/elements.js";
 export const pageBlipChannel = (): TBlipChannel => pageBlips(CLIENT_RING);
 
 /** Records one occurrence of `name`, declared in `domains/blips.ts`, with its value and attributes. */
-export const recordClientBlip = (name: string, value: number | undefined, attributes: Record<string, unknown> | undefined): void => recordIn(pageBlipChannel(), name, value, attributes);
+export const recordClientBlip = (name: string, value: number | undefined, attributes: Record<string, unknown> | undefined): void =>
+	recordIn(pageBlipChannel(), name, value, attributes);

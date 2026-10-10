@@ -217,7 +217,11 @@ export type TConduit = {
 	follow<T = TRepresentation>(link: TLink, why: string): Promise<T>;
 	/** Calls the step `link` names and passes each chunk it streams to `onChunk`. `opts.onStart` receives the place in
 	 *  actuality's sequence before the first chunk, and `opts.signal` stops the stream. Returns that place. */
-	followStream(link: TLink, onChunk: (chunk: TStreamChunk) => void, opts: { why: string; signal?: AbortSignal; onStart?: (seqPath: number[]) => void }): Promise<{ seqPath: number[] }>;
+	followStream(
+		link: TLink,
+		onChunk: (chunk: TStreamChunk) => void,
+		opts: { why: string; signal?: AbortSignal; onStart?: (seqPath: number[]) => void },
+	): Promise<{ seqPath: number[] }>;
 	/** Calls `fn` with a conduit whose calls are each a part of one act of actuality, under one place in its sequence. Each
 	 *  group holds its own place. */
 	group<T>(why: string, fn: (g: TConduit) => Promise<T>): Promise<T>;

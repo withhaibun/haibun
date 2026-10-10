@@ -3,27 +3,24 @@
  * A record's body is shown in a sandboxed iframe, where a reference doesn't work, so the references the body makes are
  * listed beside it, once each: a markdown body's `#Type:id` links and an HTML body's.
  */
+import { type TCatalogSpec, declareSpec } from "../../test/catalog-fixture.js";
 import { newPage } from "../../test-setup.js";
 import { beforeEach, describe, expect, it } from "vitest";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { MEDIA_TYPE } from "@haibun/core/lib/media-types.js";
 import { ShuEntityColumn } from "./shu-entity-column.js";
-import { setSiteMetadata, type SiteMetadata } from "../../rels-cache.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
 
 const [NOTE, SURVEY] = ["Note", "SiteSurvey"];
-const META: SiteMetadata = {
+const META: TCatalogSpec = {
 	types: [NOTE, SURVEY],
 	idFields: { [NOTE]: "id", [SURVEY]: "id" },
 	rels: { [NOTE]: { id: "identifier" }, [SURVEY]: { id: "identifier" } },
 	edgeRanges: {},
-	properties: { [NOTE]: ["id"], [SURVEY]: ["id"] },
 	queryable: {},
 	validTimeFields: {},
-	summary: {},
 	ui: {},
-	propertyDefinitions: {},
 };
 
 /** The references listed beside a body of this text and media type. */
@@ -41,7 +38,7 @@ describe("the references a record's body makes", () => {
 	beforeEach(() => {
 		newPage();
 		provideLayout();
-		setSiteMetadata(META);
+		declareSpec(META);
 		document.body.innerHTML = "";
 	});
 

@@ -6,7 +6,11 @@ export const HOW_SCRIPTS_RUN =
 	"a page runs the script shu serves with it, and each script that script loads, as a component a concern declares by its ui.js; an inline script, an event handler attribute and a script added other than by loading it don't run";
 
 /** What the browser reports as refused other than a script's address, by the keyword it reports. */
-const REFUSED_KEYWORDS = new Map([["inline", "an inline script or event handler attribute"], ["eval", "code built from text"], ["wasm-eval", "WebAssembly"]]);
+const REFUSED_KEYWORDS = new Map([
+	["inline", "an inline script or event handler attribute"],
+	["eval", "code built from text"],
+	["wasm-eval", "WebAssembly"],
+]);
 
 /** What a refusal refused, by the keyword or the address the browser reports for it. */
 function refusedWhat(blockedURI: string): string {

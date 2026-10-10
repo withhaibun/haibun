@@ -7,7 +7,9 @@
  * Light DOM: the query renders its results into the index pane from outside the pane, and the strip's panes find each
  * other through the document.
  */
+import { firstDeclaredType, hasCatalog } from "../controllers/catalog-controller.js";
 import { html, type TemplateResult } from "lit";
+import { ifDefined } from "lit/directives/if-defined.js";
 import { DOCK_FOOTPRINT, INDEX_PANE_KEY, SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { ShuElement, EmptyStateSchema, type TLinkedData } from "./shu-element.js";
@@ -23,7 +25,7 @@ import { PageContextSchema, type TContextPattern } from "../../schemas.js";
 import { setActiveViewId } from "../../quads-snapshot.js";
 import { readRunAt } from "../../client-cache/index.js";
 import { reportFailure } from "../../client-log.js";
-import { appAccessLevel, defaultLabel } from "../../util.js";
+import { appAccessLevel } from "../../util.js";
 import type { ShuColumnStrip } from "./shu-column-strip.js";
 import type { ShuGraphQuery } from "./shu-graph-query.js";
 
@@ -186,7 +188,9 @@ export class ShuPage extends ShuElement<typeof EmptyStateSchema> {
 		});
 		// The time cursor holds the moment of each read of actuality. A window holds a few thousand records, so the page reads
 		// actuality around each moment the cursor names.
-		this.autoTeardown(timeCursor.subscribe((at) => void readRunAt(at).catch((err: unknown) => reportFailure(SHU_TAG.PAGE, "actuality could not be read at the moment the cursor names", err))));
+		this.autoTeardown(
+			timeCursor.subscribe((at) => void readRunAt(at).catch((err: unknown) => reportFailure(SHU_TAG.PAGE, "actuality could not be read at the moment the cursor names", err))),
+		);
 		this.autoListen(this, SHU_EVENT.FILTER_CHANGE, ((e: CustomEvent) => {
 			const { asked, ...filters } = FilterChangeSchema.parse(e.detail);
 			this.#query()?.setFilters?.(filters);
@@ -224,14 +228,9 @@ export class ShuPage extends ShuElement<typeof EmptyStateSchema> {
 		const strip = this.#strip();
 		strip.activatePane(0);
 		const apiBase = this.#apiBase();
-		PaneState.init(
-			strip,
-			{
-				ensureLoaded: (tag) => loadComponent(tag),
-				afterAttach: PANE_ATTACH,
-			},
-			[{ pane: { paneType: "component", tag: SHU_TAG.ACTIONS_BAR, label: ACTIONS_LABEL, docked: true }, attributes: { "api-base": apiBase, "testid-prefix": "app-" } }],
-		);
+		PaneState.init(strip, { ensureLoaded: (tag) => loadComponent(tag), afterAttach: PANE_ATTACH }, [
+			{ pane: { paneType: "component", tag: SHU_TAG.ACTIONS_BAR, label: ACTIONS_LABEL, docked: true }, attributes: { "api-base": apiBase, "testid-prefix": "app-" } },
+		]);
 		// The page renders the index pane, so PaneState doesn't create it or set it active. A hash that names panes replaces
 		// the active pane; one that doesn't leaves the index pane active.
 		if (activePane.get() === null) activePane.set(INDEX_PANE_KEY);
@@ -267,7 +266,7 @@ export class ShuPage extends ShuElement<typeof EmptyStateSchema> {
 					</shu-column-pane>
 				</shu-column-strip>
 				<shu-page-strip api-base=${apiBase} testid-prefix="app-"></shu-page-strip>
-				<shu-graph-query api-base=${apiBase} label=${defaultLabel()} sort-order="desc" results-target=".results-target"></shu-graph-query>
+				<shu-graph-query api-base=${apiBase} label=${ifDefined(hasCatalog() ? firstDeclaredType() : undefined)} sort-order="desc" results-target=".results-target"></shu-graph-query>
 			</div>`;
 	}
 }

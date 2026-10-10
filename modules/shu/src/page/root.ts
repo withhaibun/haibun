@@ -5,7 +5,24 @@
 import { pagePinned } from "./adapters/page-held.js";
 import { SharedCell } from "./adapters/shared-cell.js";
 import { Machine, machine, type TMove, type TTransition } from "@haibun/core/lib/machine.js";
-import type { TAuthority, TBlipRing, TClipboard, TClock, TConduit, TElements, TEmbedderChannel, THydrationElement, THydrationRead, TLocation, TPresenterMount, TPageObservers, TEventStream, TPreferences, TSharedCell, TStreamReports } from "./ports.js";
+import type {
+	TAuthority,
+	TBlipRing,
+	TClipboard,
+	TClock,
+	TConduit,
+	TElements,
+	TEmbedderChannel,
+	THydrationElement,
+	THydrationRead,
+	TLocation,
+	TPresenterMount,
+	TPageObservers,
+	TEventStream,
+	TPreferences,
+	TSharedCell,
+	TStreamReports,
+} from "./ports.js";
 import type { TDockedPane, TPageTypes, TStripPane } from "./domains/page-state.js";
 import { NOTHING_SELECTED_LABEL, type TPageContext } from "../schemas.js";
 import type { TProveRequest } from "@haibun/core/lib/rpc-wire.js";
@@ -74,7 +91,11 @@ export const pageLocation = (): TLocation => pagePinned(LOCATION_KEY, () => brow
 
 /** Returns what the page holds of its hash. The page stops following arrivals when it ends. */
 export const pageHashHeld = (): TPageHash =>
-	pagePinned(PAGE_HASH_KEY, (): TPageHash => ({ stored: "", subscribers: new Set(), stopArrivals: undefined }), (held) => held.stopArrivals?.());
+	pagePinned(
+		PAGE_HASH_KEY,
+		(): TPageHash => ({ stored: "", subscribers: new Set(), stopArrivals: undefined }),
+		(held) => held.stopArrivals?.(),
+	);
 
 /** Returns the channel to the window that embeds the page, at the deployment's embedder origin `origin`. */
 export const pageEmbedder = (origin: string): TEmbedderChannel => pagePinned(EMBEDDER_KEY, () => embedderChannel(window, origin));
@@ -85,8 +106,18 @@ export const pagePresenterMount = (): TPresenterMount => pagePinned(PRESENTER_MO
 /** Returns the page's blip channel: its ring of `capacity` blips and its pending send, held across its bundles, its clock, and its conduit where
  *  a site serves the page and the page holds one. The page cancels its pending send when it ends. */
 export function pageBlips(capacity: number): TBlipChannel {
-	const { ring, sending } = pagePinned(BLIPS_KEY, (): { ring: TBlipRing; sending: TBlipSending } => ({ ring: blipRing(capacity), sending: { cancel: undefined } }), (held) => held.sending.cancel?.());
-	return { ring, sending, clock: pageClock(), may: (action) => pageAuthorityPort().may(action), conduit: pageHydration().carried() === undefined && hasConduit() ? pageConduit() : undefined };
+	const { ring, sending } = pagePinned(
+		BLIPS_KEY,
+		(): { ring: TBlipRing; sending: TBlipSending } => ({ ring: blipRing(capacity), sending: { cancel: undefined } }),
+		(held) => held.sending.cancel?.(),
+	);
+	return {
+		ring,
+		sending,
+		clock: pageClock(),
+		may: (action) => pageAuthorityPort().may(action),
+		conduit: pageHydration().carried() === undefined && hasConduit() ? pageConduit() : undefined,
+	};
 }
 
 /** Returns the page's hydration element, by its id `id`. */
@@ -98,7 +129,11 @@ export const pageRegistry = (): Machine<TRegistryState, TRegistryEvent> => pageP
 /** Returns the reads of actuality's steps under way, across the page's bundles. The page stops following actuality's signals
  *  when it ends. */
 export const registryReads = (): TRegistryReads =>
-	pagePinned(REGISTRY_READS_KEY, (): TRegistryReads => ({ pending: undefined, againQueued: false, unfollow: undefined }), (reads) => reads.unfollow?.());
+	pagePinned(
+		REGISTRY_READS_KEY,
+		(): TRegistryReads => ({ pending: undefined, againQueued: false, unfollow: undefined }),
+		(reads) => reads.unfollow?.(),
+	);
 
 /** Returns the status of the page's event stream, which its adapter moves as the stream opens, breaks and closes. */
 export const streamStatus = (): Machine<TStreamStatus, TStreamEvent> => pagePinned(STREAM_STATUS_KEY, () => machine(INITIAL_STREAM_STATUS, streamTransition));
@@ -125,7 +160,12 @@ export function installLiveEventStream(source: () => TLiveStreamSource): TEventS
 /** Installs the stream of actuality's events at `url` of the site that served the page, signed under a delegation that allows
  *  following actuality where the page holds one, and reopened after a break after the deployment's delay. */
 export const installServedEventStream = (url: string): TEventStream =>
-	installLiveEventStream(() => ({ url, actualityId: pageHydration().actualityId(), headers: (at) => pageAuthorityPort().readingHeaders(new URL(at, location.href).toString(), FOLLOWS_THE_RUN), reconnectDelayMs: pageHydration().settings().streamReconnectAfterMs }));
+	installLiveEventStream(() => ({
+		url,
+		actualityId: pageHydration().actualityId(),
+		headers: (at) => pageAuthorityPort().readingHeaders(new URL(at, location.href).toString(), FOLLOWS_THE_RUN),
+		reconnectDelayMs: pageHydration().settings().streamReconnectAfterMs,
+	}));
 
 /** Installs a stream of the events a page carries or a test supplies, and returns it, so the caller adds its events. */
 export function installCarriedEventStream(): CarriedEventStream {
@@ -189,7 +229,12 @@ export function installServedConduit(basePath: string, required: (method: string
 	const prove = (method: string): TProveRequest => pageAuthorityPort().prove(method, required(method));
 	const forgetAuthority = (): void => pageAuthorityPort().forget();
 	return installConduit(
-		new LiveConduit({ prove, actualityId: () => pageHydration().actualityId(), responseTimeoutMs: () => pageHydration().settings().responseTimeoutMs, forgetAuthority }, conduitHeld(), basePath, null),
+		new LiveConduit(
+			{ prove, actualityId: () => pageHydration().actualityId(), responseTimeoutMs: () => pageHydration().settings().responseTimeoutMs, forgetAuthority },
+			conduitHeld(),
+			basePath,
+			null,
+		),
 	);
 }
 
@@ -255,6 +300,9 @@ export const pageTrail = new SharedCell<string>("pageTrail", NOTHING_SELECTED_LA
 
 /** What the page reports of itself, which the page strip shows: a failure, a site that didn't respond. */
 export const pageStatus = new SharedCell<string>("pageStatus", "");
+
+/** The dropdown values each type's fields offer, by type, as the site returned them and its live quads added to them. */
+export const selectValues = new SharedCell<Readonly<Record<string, Record<string, string[]>>>>("selectValues", {});
 
 /** The panes the column strip holds, in its order. The strip writes it. */
 export const stripPanes = new SharedCell<ReadonlyArray<TStripPane>>("stripPanes", []);

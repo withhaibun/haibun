@@ -8,7 +8,7 @@
 // the leaf state it shares with the gantt/swimlane overlays (the shared unit geometries are owned here and read back via
 // accessors) and delegates the enclosure concern entirely. (lovely-finding-babbage, step 2.)
 
-import { roleNounFor } from "../../rels-cache.js";
+import { roleNounFor } from "../../page/controllers/catalog-controller.js";
 import SpriteText from "three-spritetext";
 import { colorForType } from "../../type-colors.js";
 import { groupKeyOf, containerLabelOf, shelfPack, groupBounds, type GroupAnchor, type GroupKeyMode, ENCLOSURE_PAD, GROUP_GAP } from "../grouping.js";

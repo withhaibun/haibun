@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { declareCatalog, declareSpec } from "../../test/catalog-fixture.js";
 import { requiredActionOf } from "../controllers/registry-controller.js";
 import { describe, it, expect, beforeAll, beforeEach } from "vitest";
 import "./shu-step-caller.js";
@@ -19,7 +20,6 @@ import { installServedConduit } from "../root.js";
 import { installCarriedEventStream } from "../root.js";
 import { rpcAnswer, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
-import { setConcernCatalog } from "../../rels-cache.js";
 import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
@@ -32,6 +32,8 @@ describe("shu-step-caller", () => {
 	beforeAll(provideLayout);
 	beforeEach(() => {
 		newPage();
+		// A form draws after the page reads actuality's steps.
+		declareSpec({ types: [] });
 		document.body.innerHTML = "";
 		// LiveConduit goes through the stubbed `fetch` set in each test; CarriedEventStream stands in for the SSE source.
 		installServedConduit("", requiredActionOf);
@@ -68,7 +70,7 @@ describe("shu-step-caller", () => {
 	});
 
 	it("asks for the fields of the type a record's data is of, once the type is chosen", () => {
-		setConcernCatalog(buildConcernCatalog(mapDefinitionsToDomains([persistedTypeDefinition(NOTE, { properties: { title: LinkRelations.NAME.rel } })])));
+		declareCatalog(buildConcernCatalog(mapDefinitionsToDomains([persistedTypeDefinition(NOTE, { properties: { title: LinkRelations.NAME.rel } })])));
 		const caller = makeCaller({
 			method: "StoreStepper-createTyped",
 			pattern: "create {label: persisted-type} {data: record-data}",

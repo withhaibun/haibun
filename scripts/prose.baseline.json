@@ -140,7 +140,7 @@
 		"the-run": 9
 	},
 	"modules/shu/src/client-cache/hydrate.test.ts": {
-		"anthropomorphic": 5,
+		"anthropomorphic": 2,
 		"negated-noun": 1,
 		"terminal-preposition": 1,
 		"the-run": 2
@@ -962,16 +962,6 @@
 	},
 	"modules/shu/src/recogito.ts": {
 		"relation-verb": 1
-	},
-	"modules/shu/src/rels-cache.test.ts": {
-		"anthropomorphic": 5,
-		"relation-verb": 1
-	},
-	"modules/shu/src/rels-cache.ts": {
-		"anthropomorphic": 12,
-		"negated-noun": 1,
-		"relation-verb": 1,
-		"terminal-preposition": 7
 	},
 	"modules/shu/src/remote-graph-source.test.ts": {
 		"anthropomorphic": 2

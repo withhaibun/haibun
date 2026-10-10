@@ -6,6 +6,7 @@
  * publishes: a concrete time while it is playing through the past, and null at the end, "now, without an upper bound", so a
  * record written after the newest event this page has seen is not read as future before its own event arrives.
  */
+import { declareGraphSpec } from "../../test/catalog-fixture.js";
 import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ShuPlayback } from "./shu-playback.js";
@@ -16,7 +17,6 @@ import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { currentExecution, graphRunSource, readExecution } from "../../client-cache/index.js";
 
 import { setGraphStore } from "../../quads-snapshot.js";
-import { setSiteMetadata, type SiteMetadata } from "../../rels-cache.js";
 import { SHU_EVENT } from "../../domains/elements.js";
 import { endPage } from "../adapters/page-held.js";
 
@@ -36,7 +36,7 @@ async function aRun(): Promise<void> {
 			generatedAtTime: new Date(at).toISOString(),
 		});
 	setGraphStore(store);
-	setSiteMetadata({ types: [SEQ_PATH_LABEL], rels: { [SEQ_PATH_LABEL]: {} }, edgeRanges: {} } as unknown as SiteMetadata);
+	declareGraphSpec({ types: [SEQ_PATH_LABEL] });
 }
 
 let shu: TShuTestHandle;

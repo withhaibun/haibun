@@ -3,6 +3,7 @@
 // content (one iframe per active type, a switcher when several types exist), even when the entity has few scalar
 // fields, which previously misclassified it as a "stub" and dropped the content. Regression guard for that.
 import { newPage } from "../../test-setup.js";
+import { declareSpec } from "../../test/catalog-fixture.js";
 import { describe, it, expect, beforeEach } from "vitest";
 import { ShuEntityColumn } from "./shu-entity-column.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
@@ -21,6 +22,7 @@ const render = async (type: string, fields: Record<string, unknown>, bodies: Bod
 describe("entity body content renders for every type and view that should show it", () => {
 	beforeEach(() => {
 		newPage();
+		declareSpec({ types: [] });
 		provideLayout();
 	});
 

@@ -315,7 +315,8 @@ async function side(
 	const shown = type.atEveryLevel ? [] : [{ predicate: LEVEL, operator: "in", value: read[0], values: [...read] }];
 	const sortOrder = direction === "before" ? "desc" : "asc";
 	const filters = [...when, ...shown];
-	const readPage = (from: number, to: number) => graph.query(GraphQuerySchema.parse({ label, filters, sortBy: timeField, sortOrder, offset: from, limit: to - from, skipCount: true }));
+	const readPage = (from: number, to: number) =>
+		graph.query(GraphQuerySchema.parse({ label, filters, sortBy: timeField, sortOrder, offset: from, limit: to - from, skipCount: true }));
 	return (await readInPages(readPage, 0, limit)).vertices;
 }
 

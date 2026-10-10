@@ -13,6 +13,7 @@ export function getLink(rep: TRepresentation, rel: string): TLink {
 	const links = rep._links;
 	if (!links || typeof links !== "object") throw new Error(`getLink("${rel}"): the ${String(rep._type)} representation doesn't hold _links`);
 	const link = links[rel];
-	if (!link || typeof link !== "object" || typeof link.method !== "string") throw new Error(`getLink("${rel}"): _links doesn't hold ${rel}; it holds ${Object.keys(links).join(", ")}`);
+	if (!link || typeof link !== "object" || typeof link.method !== "string")
+		throw new Error(`getLink("${rel}"): _links doesn't hold ${rel}; it holds ${Object.keys(links).join(", ")}`);
 	return link;
 }

@@ -664,7 +664,7 @@
 	},
 	"modules/shu/src/page/components/shu-step-caller.ts": {
 		"fills a falsy value with a constant through ||": 9,
-		"fills an absent value with a constant through ??": 15,
+		"fills an absent value with a constant through ??": 14,
 		"states a parameter's default value": 1
 	},
 	"modules/shu/src/page/components/shu-step-definition.ts": {
@@ -727,10 +727,6 @@
 		"fills an absent value with a constant through ??": 8,
 		"states a parameter's default value": 4
 	},
-	"modules/shu/src/rels-cache.ts": {
-		"fills a falsy value with a constant through ||": 1,
-		"fills an absent value with a constant through ??": 21
-	},
 	"modules/shu/src/resolve-ui.ts": {
 		"fills an absent value with a constant through ??": 1
 	},
@@ -752,7 +748,7 @@
 		"states a parameter's default value": 5
 	},
 	"modules/shu/src/util.ts": {
-		"fills an absent value with a constant through ??": 3
+		"fills an absent value with a constant through ??": 2
 	},
 	"modules/shu/src/view-query.ts": {
 		"states a parameter's default value": 1,

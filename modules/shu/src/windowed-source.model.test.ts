@@ -226,7 +226,11 @@ describe("a source whose window holds more rows than one request reads", () => {
 		const { requests, read } = store();
 		const held = await read(0, MAX_PAGE_ROWS);
 		requests.length = 0;
-		const src = readWindowedSource<number>({ size: WINDOW, read: async (start, end) => ({ vertices: await read(start, end), ...counted(HELD) }), held: { vertices: held, ...counted(HELD) } });
+		const src = readWindowedSource<number>({
+			size: WINDOW,
+			read: async (start, end) => ({ vertices: await read(start, end), ...counted(HELD) }),
+			held: { vertices: held, ...counted(HELD) },
+		});
 		await src.ensureRange(0, 1);
 		expect(requests).toEqual([[MAX_PAGE_ROWS, WINDOW]]);
 		expect(src.rowAt(MAX_PAGE_ROWS), "row 10,001").toBe(rowFor(MAX_PAGE_ROWS));
@@ -239,7 +243,10 @@ describe("a window's count after a page that reaches the end", () => {
 	const FIRST_COUNT = 10;
 	const HELD = 12;
 	/** A store that holds two records more than the first page's count stated, and states its count on each page. */
-	const read = async (start: number, end: number) => ({ vertices: Array.from({ length: Math.max(0, Math.min(end, HELD) - start) }, (_, k) => rowFor(start + k)), ...counted(HELD) });
+	const read = async (start: number, end: number) => ({
+		vertices: Array.from({ length: Math.max(0, Math.min(end, HELD) - start) }, (_, k) => rowFor(start + k)),
+		...counted(HELD),
+	});
 
 	it("reads the count of the latest page, so the rows past the first page's count are read", async () => {
 		const first = await read(0, PAGE);

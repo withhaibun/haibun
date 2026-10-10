@@ -5,7 +5,7 @@
  * loaded the script first.
  */
 import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { getUiByComponent } from "../../rels-cache.js";
+import { uiOfComponent, type TCatalog } from "../derivations/catalog.js";
 import { reportToRun } from "../../client-log.js";
 import type { TElements } from "../ports.js";
 
@@ -30,16 +30,16 @@ function refuse(phase: TLoadPhase, component: string, message: string, extra: Re
 	throw new Error(message);
 }
 
-/** Loads the script of the component `tag` that a concern declares, through `elements`. Resolves once the element is
- *  defined. Throws where the concerns don't declare the component, where its declaration doesn't name a script, and where the
- *  script fails to load or doesn't define the element. */
-export async function loadDeclaredComponent(elements: TElements, tag: string): Promise<void> {
+/** Loads the script of the component `tag` that a concern of `catalog` declares, through `elements`. Resolves once the element
+ *  is defined. Throws where the concerns don't declare the component, where its declaration doesn't name a script, and where
+ *  the script fails to load or doesn't define the element. */
+export async function loadDeclaredComponent(elements: TElements, catalog: () => TCatalog, tag: string): Promise<void> {
 	if (elements.isDefined(tag)) {
 		report("debug", "already-defined", tag, {});
 		return;
 	}
 	report("debug", "lookup", tag, {});
-	const ui = getUiByComponent(tag);
+	const ui = uiOfComponent(catalog(), tag);
 	if (!ui) refuse("missing-ui", tag, `the concerns don't declare ui.component "${tag}". A domain declares its component with ui: { component, js }`, {});
 	const js = ui.js;
 	if (typeof js !== "string" || js === "") refuse("missing-script", tag, `the concern that declares <${tag}> doesn't name its script in ui.js`, {});

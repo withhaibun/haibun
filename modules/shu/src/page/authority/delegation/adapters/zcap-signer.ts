@@ -21,7 +21,8 @@ export function zcapDelegationSigner(): TDelegationSigner {
 	return {
 		sign: async (document, parent, key) => {
 			if (!registered) {
-				for (const bundled of [dataIntegrityContext, securityContext, multikeyContext, zcapContext, didContext]) for (const [url, context] of bundled.contexts) registerContext(url, context);
+				for (const bundled of [dataIntegrityContext, securityContext, multikeyContext, zcapContext, didContext])
+					for (const [url, context] of bundled.contexts) registerContext(url, context);
 				registered = true;
 			}
 			const suite = new DataIntegrityProof({ signer: { id: key.keyId, algorithm: "P-256", sign: key.sign }, cryptosuite: ecdsaRdfc2019Cryptosuite });

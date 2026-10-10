@@ -6,7 +6,17 @@
 import { SIGNATURE_HEADER } from "@haibun/core/lib/signature-header.js";
 import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach } from "vitest";
-import { forgetPageAuthority, holdGiven, keyHeaders, openPageAuthority, pageAuthority, pageAuthorityReady, pageHolds, pageMay, signedHeaders } from "../controllers/page-authority-controller.js";
+import {
+	forgetPageAuthority,
+	holdGiven,
+	keyHeaders,
+	openPageAuthority,
+	pageAuthority,
+	pageAuthorityReady,
+	pageHolds,
+	pageMay,
+	signedHeaders,
+} from "../controllers/page-authority-controller.js";
 
 const SITE = "http://localhost:8123";
 const delegatedAll = { id: "urn:uuid:owner", invocationTarget: SITE, allowedAction: ["*"], expires: "2099-01-01T00:00:00Z" };

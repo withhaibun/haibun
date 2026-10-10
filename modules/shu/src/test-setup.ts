@@ -303,7 +303,12 @@ export function hydrate(payload: unknown): HTMLScriptElement {
 }
 
 /** The settings a deployment writes into a test page it serves. */
-export const SERVED_SETTINGS: TDeploymentSettings = { responseTimeoutMs: RESPONSE_TIMEOUT_MS, allowedWithoutDelegation: [], verifiesDelegations: false, build: { version: "test", builtAt: "2026-01-01T00:00:00.000Z" } };
+export const SERVED_SETTINGS: TDeploymentSettings = {
+	responseTimeoutMs: RESPONSE_TIMEOUT_MS,
+	allowedWithoutDelegation: [],
+	verifiesDelegations: false,
+	build: { version: "test", builtAt: "2026-01-01T00:00:00.000Z" },
+};
 
 /** Returns the settings of a test page a deployment serves, with `settings` in place of the test kit's. */
 export const servedWith = (settings: Partial<TDeploymentSettings>): TDeploymentSettings => ({ ...SERVED_SETTINGS, ...settings });

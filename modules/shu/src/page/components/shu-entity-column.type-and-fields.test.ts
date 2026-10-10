@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 // A record's view names its type as a link to the type's own view, which holds the description, and lists the record's fields.
+import { declareCatalog } from "../../test/catalog-fixture.js";
 import { describe, it, expect, beforeEach } from "vitest";
 import { ShuEntityColumn, foldedTargets } from "./shu-entity-column.js";
-import { setConcernCatalog } from "../../rels-cache.js";
 import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
@@ -26,7 +26,7 @@ const render = async (type: string): Promise<string> => {
 describe("shu-entity-column type and fields", () => {
 	beforeEach(() => {
 		document.body.innerHTML = "";
-		setConcernCatalog(
+		declareCatalog(
 			buildConcernCatalog(
 				mapDefinitionsToDomains([persistedTypeDefinition("Widget", { description: "A widget.", properties: { name: LinkRelations.NAME.rel, note: LinkRelations.CONTEXT.rel } })]),
 			),
@@ -115,5 +115,26 @@ describe("shu-entity-column type and fields", () => {
 		// Who may see the record is shown as its field, without a heading of its own.
 		expect(html).toContain('data-testid="entity-governance"');
 		expect(html).not.toContain(">Governance<");
+	});
+});
+
+describe("a field whose relation points at a record (HM17)", () => {
+	beforeEach(() => {
+		document.body.innerHTML = "";
+		declareCatalog(
+			buildConcernCatalog(
+				mapDefinitionsToDomains([
+					persistedTypeDefinition("Widget", { description: "A widget.", properties: { name: LinkRelations.NAME.rel, owner: LinkRelations.ATTRIBUTED_TO.rel } }),
+				]),
+			),
+		);
+	});
+
+	it("links its value, as a field of the iri range", async () => {
+		const el = document.createElement("shu-entity-column") as ShuEntityColumn;
+		document.body.appendChild(el);
+		el.openProducts({ _type: "Widget", id: "x1", name: "Example", owner: "did:example:alice" });
+		await el.updateComplete;
+		expect(el.shadowRoot?.querySelector('[data-testid="entity-field-owner"] a')?.textContent).toBe("did:example:alice");
 	});
 });

@@ -4,6 +4,7 @@
  * own at boot, and the window then reads that run exactly as it reads one a site is recording. A payload written to
  * another rule is refused rather than read wrongly.
  */
+import { declareRegistry, GRAPH_READ_STEPS } from "../test/catalog-fixture.js";
 import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
@@ -14,11 +15,10 @@ import type { TCachePayload } from "../domains/hydration.js";
 import { currentExecution } from "./executions.js";
 import { runWindow } from "./run-window.js";
 import { cachedGraphStore, pageRunGraph } from "../quads-snapshot.js";
-import { setConcernCatalog, setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
 import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
 import { RUN_DOMAIN_DEFINITIONS } from "./run-store.test-fake.js";
-import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
+import { setupShuTest, stepsShown, type TShuTestHandle } from "../test-setup.js";
 
 const EXECUTION = "1700000000000-1";
 const iso = (n: number): string => new Date(n).toISOString();
@@ -47,11 +47,9 @@ describe("a run carried in a page", () => {
 				throw new ServerUnreachable("/rpc", new Error("this page has no site"));
 			},
 		});
-		// What the site declared, which a report carries as its registry: a type the page does not know is a type whose
-		// records it doesn't hold, so the window would ask a question without an answer.
-		setSiteMetadata({ types: [SEQ_PATH_LABEL], rels: { [SEQ_PATH_LABEL]: {} }, edgeRanges: {} } as unknown as SiteMetadata);
-		// The page reads a carried run's records by the declarations the site's catalog states.
-		setConcernCatalog(buildConcernCatalog(mapDefinitionsToDomains(RUN_DOMAIN_DEFINITIONS)));
+		// What the site declared, which a report carries as its registry: the graph's reads, and the declarations through which
+		// the page reads a carried run's records.
+		declareRegistry(stepsShown(GRAPH_READ_STEPS, {}, buildConcernCatalog(mapDefinitionsToDomains(RUN_DOMAIN_DEFINITIONS))));
 	});
 	afterEach(() => {
 		handle.teardown();

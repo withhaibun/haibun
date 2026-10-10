@@ -5,12 +5,12 @@
  * Pinned invariants: idempotency, hash round-trip, dedup-by-derived-id, and
  * malformed col= entries are skipped (never crashed-on).
  */
+import { type TCatalogSpec, declareSpec } from "./test/catalog-fixture.js";
 import { requiredActionOf } from "./page/controllers/registry-controller.js";
 import { describe, it, expect, beforeEach } from "vitest";
 import { PaneState, parseColEntry, columnEntryOf, DesiredPaneSchema, paneIdOf, tagOf, labelOf } from "./pane-state.js";
 import { FRAGMENT_SPEC } from "@haibun/core/lib/media-fragments.js";
 import { ShuElement } from "./page/components/shu-element.js";
-import { setSiteMetadata, type SiteMetadata } from "./rels-cache.js";
 import * as Address from "./page/derivations/address.js";
 import { installConduit, installServedConduit } from "./page/root.js";
 import { TestConduit, newPage } from "./test-setup.js";
@@ -24,18 +24,7 @@ const offline = () =>
 		}),
 	);
 
-const emptyMeta = (ui: SiteMetadata["ui"] = {}): SiteMetadata => ({
-	types: [],
-	idFields: {},
-	rels: {},
-	edgeRanges: {},
-	properties: {},
-	queryable: {},
-	validTimeFields: {},
-	summary: {},
-	ui,
-	propertyDefinitions: {},
-});
+const emptyMeta = (ui: TCatalogSpec["ui"] = {}): TCatalogSpec => ({ types: [], idFields: {}, rels: {}, edgeRanges: {}, queryable: {}, validTimeFields: {}, ui });
 
 describe("derived helpers", () => {
 	it("paneIdOf is unique per variant data", () => {
@@ -50,10 +39,10 @@ describe("derived helpers", () => {
 	it("an entity pane of a type whose panel is slotted opens the generic entity column", () => {
 		// The petitions panel is declared on Proposal with a slot: it mounts in the permissions area and is about the
 		// type. Opening one proposal must not mount that panel as the record's column: it has no `open` to call.
-		setSiteMetadata(emptyMeta({ Proposal: { component: "shu-petitions", slot: "permissions" }, Report: { component: "shu-report-column" } }));
+		declareSpec(emptyMeta({ Proposal: { component: "shu-petitions", slot: "permissions" }, Report: { component: "shu-report-column" } }));
 		expect(tagOf({ paneType: "entity", id: "p-1", persistedAs: "Proposal" })).toBe("shu-entity-column");
 		expect(tagOf({ paneType: "entity", id: "r-1", persistedAs: "Report" })).toBe("shu-report-column");
-		setSiteMetadata(emptyMeta());
+		declareSpec(emptyMeta());
 	});
 
 	it("tagOf maps each paneType to its column-component, components reuse their tag", () => {
@@ -64,10 +53,10 @@ describe("derived helpers", () => {
 	});
 
 	it("an entity opens its @type's declared column component, defaulting to the generic entity column", () => {
-		setSiteMetadata(emptyMeta({ Task: { component: "shu-task-column" } }));
+		declareSpec(emptyMeta({ Task: { component: "shu-task-column" } }));
 		expect(tagOf({ paneType: "entity", id: "t1", persistedAs: "Task" })).toBe("shu-task-column"); // @type declares its own column
 		expect(tagOf({ paneType: "entity", id: "e1", persistedAs: "Email" })).toBe("shu-entity-column"); // a column isn't declared → generic
-		setSiteMetadata(emptyMeta()); // reset so other tests don't see a per-type ui
+		declareSpec(emptyMeta()); // reset so other tests don't see a per-type ui
 	});
 
 	it("labelOf derives a display label per variant", () => {
@@ -134,9 +123,10 @@ describe("parseColEntry", () => {
 });
 
 describe("PaneState", () => {
-	/** A page loaded again: it doesn't hold the last page's panes, and boot installs its conduit. */
+	/** A page loaded again: it doesn't hold the last page's panes, boot installs its conduit, and it reads its registry. */
 	const reloadPage = () => {
 		newPage();
+		declareSpec(emptyMeta());
 		offline();
 		activePane.set(null);
 	};

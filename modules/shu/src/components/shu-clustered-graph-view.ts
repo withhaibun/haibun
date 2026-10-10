@@ -12,7 +12,7 @@ import { SHU_EVENT, SHU_ATTR } from "../domains/elements.js";
 import { reportToRun } from "../client-log.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { extractQuadsFromEvents, type TCluster, type TQuad } from "@haibun/core/lib/quad-types.js";
-import { getRels } from "../rels-cache.js";
+import { getRels } from "../page/controllers/catalog-controller.js";
 import { getGraphSnapshot, currentSnapshot, mergeQuadsIntoSnapshot, DEFAULT_PER_TYPE_LIMIT, MAX_PER_TYPE_LIMIT } from "../quads-snapshot.js";
 import { SubjectController } from "../page/controllers/subject-controller.js";
 import { expandNeighborhood } from "../graph-expansion.js";

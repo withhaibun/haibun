@@ -157,6 +157,8 @@ describe("the page a deployment serves", () => {
 	});
 
 	it("doesn't carry a timing where the deployment didn't set one", () => {
-		expect(buildSpaHtml("/spa", "/* bundle */", { actualityId: PAGE_ACTUALITY, settings: SERVED_SETTINGS }, NONCE)).toContain(JSON.stringify({ actualityId: PAGE_ACTUALITY, settings: SERVED_SETTINGS }));
+		expect(buildSpaHtml("/spa", "/* bundle */", { actualityId: PAGE_ACTUALITY, settings: SERVED_SETTINGS }, NONCE)).toContain(
+			JSON.stringify({ actualityId: PAGE_ACTUALITY, settings: SERVED_SETTINGS }),
+		);
 	});
 });

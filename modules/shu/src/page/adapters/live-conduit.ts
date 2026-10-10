@@ -5,18 +5,24 @@
  * which allocates its place in actuality's sequence, and a group's calls each take a part of the group's place.
  */
 import { z } from "zod";
-import { ACTION_BEGIN, buildRpcCall, readNdjson, type TProveRequest, type TActualityId, type TRpcEnvelope, ServerUnreachable, answerBody, authorityFailed, refusalCarried } from "@haibun/core/lib/rpc-wire.js";
+import {
+	ACTION_BEGIN,
+	buildRpcCall,
+	readNdjson,
+	type TProveRequest,
+	type TActualityId,
+	type TRpcEnvelope,
+	ServerUnreachable,
+	answerBody,
+	authorityFailed,
+	refusalCarried,
+} from "@haibun/core/lib/rpc-wire.js";
 import type { TConduit } from "../ports.js";
 import type { TLink, TRepresentation, TStreamChunk } from "../domains/links.js";
 
 /** What the conduit reads of the page: the proof of a call of a method, the actuality the page reads, how long it waits
  *  for a response, and how it lets go of authority actuality refused. */
-export type TConduitSource = {
-	prove(method: string): TProveRequest;
-	actualityId(): TActualityId;
-	responseTimeoutMs(): number;
-	forgetAuthority(): void;
-};
+export type TConduitSource = { prove(method: string): TProveRequest; actualityId(): TActualityId; responseTimeoutMs(): number; forgetAuthority(): void };
 
 type ActionScope = { readonly root: readonly number[]; subSeq: number };
 
@@ -95,7 +101,8 @@ export class LiveConduit implements TConduit {
 		// Within the retry interval of a timed-out read, a read fails at once with that timeout. Each of a page's views would
 		// otherwise wait out the timeout separately. An act is sent regardless, since a reader requested it. The timer is
 		// allocated after this check, so a read that isn't sent doesn't allocate one.
-		if (awaited && envelope.asks !== "act" && Date.now() < this.held.unreachableUntil) throw new ServerUnreachable(base, new Error("a read of this server timed out within the last interval"));
+		if (awaited && envelope.asks !== "act" && Date.now() < this.held.unreachableUntil)
+			throw new ServerUnreachable(base, new Error("a read of this server timed out within the last interval"));
 		const call = await buildRpcCall(base, { ...envelope, id: this.nextRpcId(), actualityId: this.source.actualityId() }, this.source.prove(method));
 		const bounded = awaited ? AbortSignal.timeout(this.source.responseTimeoutMs()) : signal;
 		try {

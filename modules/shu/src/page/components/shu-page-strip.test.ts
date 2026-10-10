@@ -3,6 +3,7 @@
  * The page strip stands along the bottom of the page whatever is docked above it. It names the search and the columns in
  * its breadcrumb, shows the page's status, opens, closes and pins the docked pane, and changes the read access level.
  */
+import { declareCatalog } from "../../test/catalog-fixture.js";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { Access } from "@haibun/core/lib/resources.js";
 import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
@@ -15,7 +16,6 @@ import "./shu-combobox.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { activePane, dockedPane, pageContext, pageStatus, pageTrail, pageTypes, stripPanes } from "../controllers/page-cell-controller.js";
-import { setConcernCatalog } from "../../rels-cache.js";
 import { carryARun, setupShuTest } from "../../test-setup.js";
 
 provideLayout();
@@ -65,7 +65,7 @@ describe("the page strip", () => {
 		teardown = setupShuTest().teardown;
 		// The page is a record of actuality, and actuality doesn't declare an extension for the strip.
 		carryARun();
-		setConcernCatalog(buildConcernCatalog(mapDefinitionsToDomains([])));
+		declareCatalog(buildConcernCatalog(mapDefinitionsToDomains([])));
 		document.body.innerHTML = "";
 		pageContext.set(null);
 		pageStatus.set("");

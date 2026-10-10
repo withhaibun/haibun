@@ -1,28 +1,26 @@
 // @vitest-environment jsdom
 // jsdom: the module defines a ShuElement (extends HTMLElement); the builders under test are pure metadata projections.
+import { type TCatalogSpec, declareSpec } from "../../test/catalog-fixture.js";
 import { describe, it, expect, beforeAll, vi } from "vitest";
 import { buildTypeSchemaGraph, buildFullSchemaGraph, ShuTypeColumn } from "./shu-type-column.js";
-import { getUiPresenting, setSiteMetadata, isSystemSchemaType, type SiteMetadata } from "../../rels-cache.js";
+import { getUiPresenting, isSystemSchemaType } from "../controllers/catalog-controller.js";
 import { deepLinkOf } from "./ref-navigation.js";
 import { NODE_KIND } from "../../graph/types.js";
 import { PaneState } from "../../pane-state.js";
 import { SHU_EVENT } from "../../domains/elements.js";
 
 /** A two-type vocabulary: Issuer --assertionMethod--> VerificationMethod, both declaring a literal `name`. */
-const META: SiteMetadata = {
+const META: TCatalogSpec = {
 	types: ["Issuer", "VerificationMethod"],
 	idFields: { Issuer: "did", VerificationMethod: "id" },
 	rels: { Issuer: { did: "identifier", name: "name", assertionMethod: "assertionMethod" }, VerificationMethod: { id: "identifier", name: "name" } },
 	edgeRanges: { Issuer: { assertionMethod: ["VerificationMethod"] } },
-	properties: { Issuer: ["did", "name", "assertionMethod"], VerificationMethod: ["id", "name"] },
 	queryable: {},
 	validTimeFields: {},
-	summary: {},
 	ui: { "the-graph-view": { component: "site-graph-view", js: "/assets/site-graph-view.js", presents: "graph" } },
-	propertyDefinitions: {},
 };
 
-beforeAll(() => setSiteMetadata(META));
+beforeAll(() => declareSpec(META));
 
 const node = (g: ReturnType<typeof buildTypeSchemaGraph>, id: string) => g.nodes.find((n) => n.id === id);
 
@@ -84,10 +82,10 @@ describe("getUiPresenting, discovering the site's presenter for a capability", (
 	});
 
 	it("flags a haibun-namespace type as a system schema, a standard-vocabulary type not", () => {
-		setSiteMetadata({ ...META, classIris: { SeqPath: "hbn:SeqPath", VerifiableCredential: "cred:VerifiableCredential" } });
+		declareSpec({ ...META, types: [...META.types, "SeqPath", "VerifiableCredential"], classIris: { SeqPath: "hbn:SeqPath", VerifiableCredential: "cred:VerifiableCredential" } });
 		expect(isSystemSchemaType("SeqPath")).toBe(true); // hbn: is haibun's own vocabulary
 		expect(isSystemSchemaType("VerifiableCredential")).toBe(false); // cred: is a standard
 		expect(isSystemSchemaType("Issuer")).toBe(false); // it doesn't declare a class IRI
-		setSiteMetadata(META);
+		declareSpec(META);
 	});
 });

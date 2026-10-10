@@ -15,7 +15,13 @@ const EMBEDDER_SOURCE = "embedder";
 
 /** What the pipeline reads and writes: the channel to the embedding window, the cells of the page view and the delegation
  *  the embedding page last posted, the reader's authority, which holds the delegation, and the page's clock. */
-export type TEmbedding = { channel: TEmbedderChannel; pageView: TSharedCell<TEmbeddedPageView | null>; given: TSharedCell<TDelegation | null>; authority: TAuthority; clock: TClock };
+export type TEmbedding = {
+	channel: TEmbedderChannel;
+	pageView: TSharedCell<TEmbeddedPageView | null>;
+	given: TSharedCell<TDelegation | null>;
+	authority: TAuthority;
+	clock: TClock;
+};
 
 /** Receives the messages the embedding page posts. Refuses and reports a message from another origin, a message its schema
  *  refuses and a delegation the reader's authority refuses. Returns the call that stops receiving. */

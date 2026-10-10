@@ -5,7 +5,6 @@
  */
 import {
 	appAccessLevel,
-	defaultLabel,
 	esc,
 	escAttr,
 	idOf,
@@ -39,7 +38,7 @@ import { assertFragmentReads, fragmentReads, isFragment, pageOfPassage, pdfPage,
 import "./shu-annotated-body.js";
 import {
 	edgeRecordType,
-	getRelSync,
+	rangeOf,
 	getEdgeTargetLabels,
 	getSummaryFields,
 	getIdField,
@@ -48,7 +47,8 @@ import {
 	isKnownType,
 	roleEdgeLabelSet,
 	getDeclaredEdgeLabel,
-} from "../../rels-cache.js";
+	firstDeclaredType,
+} from "../controllers/catalog-controller.js";
 import { propertyVocabulary } from "../../graph/ontology-projection.js";
 import { linkHtml, paneHref, refHref, renderRef } from "./ref-navigation.js";
 import { refsInContent } from "../../markdown-refs.js";
@@ -296,7 +296,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	/** Open an individual by ID through the entity handle: it serves a cached copy at once, else fetches (then falls back
 	 *  to the persisted browser store when offline), and resolves the annotations anchored in it: one path, one shared
 	 *  copy and one live subscription per individual. `applyView` projects each resolved state onto the render fields. */
-	async open(id: string, label: string = defaultLabel(), selector?: TPart): Promise<void> {
+	async open(id: string, label: string = firstDeclaredType(), selector?: TPart): Promise<void> {
 		this.fragment = null;
 		if (selector) this.revealPart(selector);
 		this.setState({ individualId: id, persistedAs: label, error: undefined });
@@ -477,7 +477,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 
 	/** The address of an edge's target, typed by the edge's range where it names one type and by the target otherwise. */
 	private edgeTargetHref(edgeType: string, target: VertexData): string | undefined {
-		const persistedAs = edgeRecordType(this.state.persistedAs, edgeType) ?? (target["@type"] as string) ?? defaultLabel();
+		const persistedAs = edgeRecordType(this.state.persistedAs, edgeType) ?? (target["@type"] as string) ?? firstDeclaredType();
 		return refHref(REF_DENOTES.individual, { persistedAs, id: idOf(target) });
 	}
 
@@ -493,7 +493,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	};
 
 	/** The node's roles in plain language, who plays what role toward it, so the roles are explained rather than left
-	 *  as raw rels. Reads the role edges (rels-cache roleEdgeLabelSet). A role is one fact per (rel, party), so a rel
+	 *  as raw rels. Reads the role edges (the catalog controller's roleEdgeLabelSet). A role is one fact per (rel, party), so a rel
 	 *  repeated to the same party renders once, as renderReferences dedups its targets. */
 	private renderRoles(): string {
 		const roles = roleEdgeLabelSet();
@@ -726,7 +726,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	private fieldValueHtml(value: string, propertyName: string): string {
 		const label = this.state.persistedAs;
 		if (propertyName === getIdField(label)) return linkHtml(refHref(REF_DENOTES.individual, { persistedAs: label, id: value }), value);
-		if (getRelSync(label, propertyName) === "item" || getQueryableFields(label).includes(propertyName)) return this.valueLink(value, propertyName);
+		if (rangeOf(label, propertyName) === "iri" || getQueryableFields(label).includes(propertyName)) return this.valueLink(value, propertyName);
 		return esc(value);
 	}
 
@@ -780,7 +780,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	/** A field's value as a link: to the record an edge of that relation points at, or else to the records whose field
 	 *  holds the same value. */
 	private valueLink(value: string, propertyName: string): string {
-		const target = getRelSync(this.state.persistedAs, propertyName) === "item" ? this.edges.find((e) => e.type === propertyName && e.direction === "out")?.target : undefined;
+		const target = rangeOf(this.state.persistedAs, propertyName) === "iri" ? this.edges.find((e) => e.type === propertyName && e.direction === "out")?.target : undefined;
 		if (target) return linkHtml(this.edgeTargetHref(propertyName, target), value);
 		return linkHtml(paneHref({ paneType: "filter-eq", persistedAs: this.state.persistedAs, predicate: propertyName, value }), value);
 	}

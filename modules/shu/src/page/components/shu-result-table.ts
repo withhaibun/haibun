@@ -26,7 +26,7 @@ import { ResultTableSchema } from "../../schemas.js";
 import { idOf, persistedTypeOf, isVisibleKey } from "../../util.js";
 import { formatInstant, isDateValue, readerZone } from "../derivations/time-format.js";
 import { ellipsize } from "@haibun/core/lib/util/index.js";
-import { getRelSync, getPropertyOrder } from "../../rels-cache.js";
+import { getIdField, getPropertyOrder } from "../controllers/catalog-controller.js";
 import "./shu-virtual-column.js";
 import { virtualColumnCss } from "./shu-virtual-column.js";
 import { arrayWindowedSource, statedCountOf, type WindowedSource } from "../../windowed-source.js";
@@ -113,7 +113,6 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 		super(ResultTableSchema, { sortOrder: "desc", selectable: true, displayMode: "full", total: 0, limit: 100, offset: 0, paginated: false });
 		this.#subscribe();
 	}
-
 
 	protected override onDisconnected(): void {
 		this.#unsub?.();
@@ -208,7 +207,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 		}
 		if (displayMode === "pairs") {
 			const label = persistedTypeOf(this.#source.rowAt(0) ?? {});
-			const idProp = label ? this.allProperties.find((p) => getRelSync(label, p) === "item") : undefined;
+			const idProp = label ? this.allProperties.find((p) => p === getIdField(label)) : undefined;
 			if (!idProp) return fixedProperty ? [fixedProperty] : this.allProperties.slice(0, 2);
 			return fixedProperty ? [idProp, fixedProperty] : this.allProperties.slice(0, 2);
 		}

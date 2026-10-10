@@ -5,6 +5,7 @@ import { SHU_EVENT } from "../../domains/elements.js";
 import { describeSearch, ShuSearchSummary } from "./shu-search-summary.js";
 import { ShuActivityHistory } from "./shu-activity-history.js";
 import type { TViewQuery } from "../../view-query.js";
+import { newPage } from "../../test-setup.js";
 
 const query = (over: Partial<TViewQuery>): TViewQuery => ViewQuerySchema.parse(over);
 
@@ -66,6 +67,9 @@ describe("shu-search-summary restore", () => {
 });
 
 describe("shu-activity-history", () => {
+	// The history reads its address from the page, which reads its hydration at its start.
+	beforeEach(newPage);
+
 	it("appended entries are real light-DOM children, in arrival order, surviving a re-render", async () => {
 		const history = document.createElement("shu-activity-history");
 		expect(history).toBeInstanceOf(ShuActivityHistory);

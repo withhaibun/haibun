@@ -7,6 +7,7 @@ import { CLASS_LABEL, PROPERTY_LABEL } from "@haibun/core/lib/resources.js";
 import { SHU_EVENT } from "../domains/elements.js";
 import { describe, it, expect, beforeEach } from "vitest";
 import { ShuGraphFilter } from "./shu-graph-filter.js";
+import { declareSpec } from "../test/catalog-fixture.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import "./shu-chip-group.js";
 import { COUNT_CEILING, statedTotal } from "@haibun/core/lib/hypermedia.js";
@@ -48,6 +49,8 @@ async function mount(schemaOnly: boolean, clusters: Map<string, TCluster> = CLUS
 
 describe("shu-graph-filter host modes", () => {
 	beforeEach(() => {
+		// The filter draws after the page reads actuality's steps.
+		declareSpec({ types: [] });
 		document.body.innerHTML = "";
 	});
 
@@ -139,6 +142,8 @@ describe("shu-graph-filter host modes", () => {
 
 describe("a type chip's count", () => {
 	beforeEach(() => {
+		// The filter draws after the page reads actuality's steps.
+		declareSpec({ types: [] });
 		document.body.innerHTML = "";
 	});
 

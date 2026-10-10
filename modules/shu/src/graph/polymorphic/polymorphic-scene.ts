@@ -41,7 +41,7 @@ import type { ViewType } from "../polymorphic/polymorphic-views.js";
 import { FRAME, VIEW, viewChangeRebuildsNodes } from "../polymorphic/polymorphic-views.js";
 import { isSchemaType, propertyVocabulary } from "../ontology-projection.js";
 import { PaneOpenSchema, addsToSelection, type DesiredPane, type TPaneOpen } from "../../pane-state.js";
-import { actorTypesFor, getValidTimeField, roleEdgeLabels, roleNounFor } from "../../rels-cache.js";
+import { actorTypesFor, getValidTimeField, roleEdgeLabels, roleNounFor } from "../../page/controllers/catalog-controller.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { compositeRenderer, threeRenderer, type IGraphRenderer } from "../polymorphic/polymorphic-renderer.js";
 import { A11yRenderer } from "./polymorphic-a11y-renderer.js";

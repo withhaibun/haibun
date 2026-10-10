@@ -5,12 +5,13 @@
  * columns, row test-ids, selection, group headers, future-dimming, and the sort/row/deselect events. Scroll geometry
  * (thumb, marker jump, O(viewport) window) needs real layout and is covered by shu-scrollbar's tests and the browser e2e.
  */
-import { describe, it, expect } from "vitest";
+import { beforeEach, describe, it, expect } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import "./shu-result-table.js"; // side-effect import runs the module so customElements.define registers the element
 import type { ShuResultTable } from "./shu-result-table.js";
 import { arrayWindowedSource } from "../../windowed-source.js";
 import { SHU_EVENT } from "../../domains/elements.js";
+import { declareSpec } from "../../test/catalog-fixture.js";
 
 type Row = Record<string, unknown>;
 
@@ -42,6 +43,8 @@ const clickEvents = (el: ShuResultTable, name: string): CustomEvent[] => {
 };
 
 describe("shu-result-table", () => {
+	beforeEach(() => declareSpec({ types: ["Person"] }));
+
 	it("derives visible columns from the rows and renders a header cell per column", async () => {
 		const el = await mount();
 		el.setResults(rows(3));
@@ -185,5 +188,14 @@ describe("shu-result-table", () => {
 		expect(refs).toHaveLength(1);
 		expect(JSON.parse(itemAt(refs, 0).getAttribute("linkTarget") ?? "{}")).toEqual({ persistedAs: "Document", id: "tests/a.feature.ts" });
 		expect(q(el, ".td").some((cell) => cell.textContent?.includes("passed"))).toBe(true);
+	});
+
+	it("shows a type's id field beside the fixed field in pairs mode, where the id field isn't the first field", async () => {
+		declareSpec({ types: ["Email"], idFields: { Email: "messageId" }, rels: { Email: { sender: "attributedTo", messageId: "identifier", folder: "context" } } });
+		const el = await mount();
+		el.setResults([{ "@id": "Email/m1", "@type": "Email", sender: "a@example.org", messageId: "m1", folder: "INBOX" }]);
+		el.updateState({ displayMode: "pairs", fixedProperty: "folder" });
+		await settle(el);
+		expect(q(el, ".grid-header .th").map((h) => (h.textContent ?? "").trim())).toEqual(["messageId", "folder"]);
 	});
 });

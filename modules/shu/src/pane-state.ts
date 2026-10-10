@@ -30,7 +30,7 @@ import { pagePreferences } from "./page/root.js";
 import { INITIAL_SHOWN_CONTROLS, ShownControlsSchema, shownControlsKey } from "./page/domains/settings.js";
 import { storedSetting } from "./page/derivations/settings.js";
 import { presentationForType } from "./graph/type-presentation.js";
-import { getUiByComponent } from "./rels-cache.js";
+import { getUiByComponent, hasCatalog } from "./page/controllers/catalog-controller.js";
 import { activePane } from "./page/root.js";
 import type { ShuColumnPane } from "./page/components/shu-column-pane.js";
 import type { ShuColumnStrip } from "./page/components/shu-column-strip.js";
@@ -582,7 +582,8 @@ class PaneStateImpl {
 		this.held.strip.addPane(pane);
 		const child = document.createElement(tag);
 		for (const [name, value] of Object.entries(page?.attributes ?? {})) child.setAttribute(name, value);
-		if (storedSetting(`the controls of <${tag}>`, ShownControlsSchema, pagePreferences().read(SHU_TAG.COLUMN_PANE, shownControlsKey(tag)), INITIAL_SHOWN_CONTROLS).shown) child.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");
+		if (storedSetting(`the controls of <${tag}>`, ShownControlsSchema, pagePreferences().read(SHU_TAG.COLUMN_PANE, shownControlsKey(tag)), INITIAL_SHOWN_CONTROLS).shown)
+			child.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");
 		if (d.paneType === "component" && d.data) (child as HTMLElement & { products?: Record<string, unknown> }).products = d.data;
 		pane.appendChild(child);
 		pane.setMinimized(d.flag === "min");
@@ -662,9 +663,9 @@ export function parseColEntry(raw: string): DesiredPane | null {
 }
 
 /** A component pane's title: the summary its domain's `ui` declares, as a step that opens it titles it, or its tag where the
- *  declaration doesn't state one. */
+ *  declaration doesn't state one or the page doesn't hold a catalog, as a carried page without the site's registry. */
 function componentTitle(tag: string): string {
-	const summary = getUiByComponent(tag)?.summary;
+	const summary = hasCatalog() ? getUiByComponent(tag)?.summary : undefined;
 	return typeof summary === "string" ? summary : tag;
 }
 

@@ -17,7 +17,13 @@ export type TPageTypes = { options: ReadonlyArray<TComboboxOption>; selected: st
 /** A search a view sets for the page's query: whether a reader asked for it, and its access level, type and conditions,
  *  each where the view states it. */
 export const FilterChangeSchema = z
-	.object({ asked: z.boolean(), accessLevel: z.string().optional(), label: z.string().optional(), textQuery: z.string().optional(), conditions: z.array(SearchConditionSchema).optional() })
+	.object({
+		asked: z.boolean(),
+		accessLevel: z.string().optional(),
+		label: z.string().optional(),
+		textQuery: z.string().optional(),
+		conditions: z.array(SearchConditionSchema).optional(),
+	})
 	.strict();
 
 /** A breadcrumb a reader followed: the index of the pane it names. */

@@ -11,10 +11,6 @@ const NOT_SERVED = new Error("a page that carries a record of actuality isn't se
 /** Returns the conduit of a page that carries a record of actuality. */
 export function carriedConduit(): TConduit {
 	const refuse = (method: string): Promise<never> => Promise.reject(new ServerUnreachable(method, NOT_SERVED));
-	const conduit: TConduit = {
-		follow: (link) => refuse(link.method),
-		followStream: (link) => refuse(link.method),
-		group: () => refuse("a group of calls"),
-	};
+	const conduit: TConduit = { follow: (link) => refuse(link.method), followStream: (link) => refuse(link.method), group: () => refuse("a group of calls") };
 	return conduit;
 }

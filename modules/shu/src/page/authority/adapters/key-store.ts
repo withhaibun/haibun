@@ -16,7 +16,10 @@ export function browserKeyStore(): TKeyStore {
 		const subtle: SubtleCrypto | undefined = globalThis.crypto?.subtle;
 		const indexedDB: IDBFactory | undefined = globalThis.indexedDB;
 		const origin: string | undefined = globalThis.location?.origin;
-		if (subtle === undefined) throw new Error(`a reader makes a key only in a secure context (https, or localhost); this page runs at ${origin === undefined ? "a context without a location" : origin}, where the browser withholds its key store`);
+		if (subtle === undefined)
+			throw new Error(
+				`a reader makes a key only in a secure context (https, or localhost); this page runs at ${origin === undefined ? "a context without a location" : origin}, where the browser withholds its key store`,
+			);
 		if (indexedDB === undefined) throw new Error("a reader's page keeps its key in the browser's IndexedDB, which this page doesn't hold");
 		return { subtle, indexedDB };
 	};
@@ -52,7 +55,10 @@ export function browserKeyStore(): TKeyStore {
 		keyPair: async (): Promise<TKeyPair> => {
 			const pair = await keptPair();
 			const { subtle } = held();
-			return { publicJwk: await subtle.exportKey("jwk", pair.publicKey), sign: async (data) => new Uint8Array(await subtle.sign({ name: "ECDSA", hash: "SHA-256" }, pair.privateKey, data)) };
+			return {
+				publicJwk: await subtle.exportKey("jwk", pair.publicKey),
+				sign: async (data) => new Uint8Array(await subtle.sign({ name: "ECDSA", hash: "SHA-256" }, pair.privateKey, data)),
+			};
 		},
 		read,
 		keep,

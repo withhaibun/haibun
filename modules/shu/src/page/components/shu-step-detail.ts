@@ -92,10 +92,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 			const [record, quadsData] = await Promise.all([
 				// One record, read by the name it carries: a step is a record a reader opens, not a query they run.
 				readIndividual(SEQ_PATH_LABEL, id, appAccessLevel()),
-				conduit().follow<{ quads: TQuad[] }>(
-					reads(RPC_METHOD.CLUSTERED_QUADS, { perTypeLimit: 1000, accessLevel: appAccessLevel() }),
-					"step-detail: clustered quads",
-				),
+				conduit().follow<{ quads: TQuad[] }>(reads(RPC_METHOD.CLUSTERED_QUADS, { perTypeLimit: 1000, accessLevel: appAccessLevel() }), "step-detail: clustered quads"),
 			]);
 			return { step: record.vertex, variablesSet: variablesSetBy(quadsData.quads ?? [], id) };
 		},

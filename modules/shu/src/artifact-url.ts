@@ -64,7 +64,10 @@ export const artifactAt = (url: string, source: string) =>
 	);
 
 async function readArtifact(url: string): Promise<string> {
-	const response = await fetch(url, { headers: await pageAuthorityPort().readingHeaders(new URL(url, location.href).toString(), READS_THE_RUNS_ARTIFACTS), credentials: "include" });
+	const response = await fetch(url, {
+		headers: await pageAuthorityPort().readingHeaders(new URL(url, location.href).toString(), READS_THE_RUNS_ARTIFACTS),
+		credentials: "include",
+	});
 	if (!response.ok) throw new Error(`actuality refused its artifact ${url}: ${response.status} ${await response.text()}`);
 	return URL.createObjectURL(await response.blob());
 }

@@ -78,7 +78,6 @@ const sandboxed: MiddlewareHandler = async (c, next) => {
 /** Where the monitor serves the shu views of actuality on its own port. */
 export const MONITOR_PATH = "/monitor";
 
-
 /**
  * The type a graph query named, read off the step that ran it. The match is the argument's DOMAIN, not the step's name:
  * a deployment answers graph queries with its own step, and every one of them takes an argument of this domain, so this
@@ -389,7 +388,12 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		const domains = this.getWorld().domains;
 		const cols = new Set(shown.map((quad) => String((domains[String(quad.object ?? "")]?.ui as { component?: string } | undefined)?.component ?? quad.object ?? "")));
 		const viewHash = reportOpensAt(this.queriedLabel);
-		const hydration = JSON.stringify({ viewProducts, viewHash, actualityId: this.getWorld().runtime.actualityId, cache: this.cacheForReport(registry, built?.quads ?? []) } satisfies THydration);
+		const hydration = JSON.stringify({
+			viewProducts,
+			viewHash,
+			actualityId: this.getWorld().runtime.actualityId,
+			cache: this.cacheForReport(registry, built?.quads ?? []),
+		} satisfies THydration);
 		const scripts = inlineScriptsForView(this.getWorld().domains, new Set(cols));
 		let payload = JSON.stringify({ bundle: loadReportBundle(), hydration, scripts });
 		const secrets = await this.getWorld().shared.getSecrets();

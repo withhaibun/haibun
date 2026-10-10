@@ -2,6 +2,7 @@
 // The client cache view is THE reading of what the page holds of a run: each source's extent, the rows it holds and the
 // cursor's row in it, the live stream by level, and the executions this device holds; every value under its own test
 // id, so a feature reads what the page holds from here with the generic steps. It doesn't make a source of its own.
+import { declareGraphSpec } from "../../test/catalog-fixture.js";
 import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
@@ -12,7 +13,6 @@ import { setupShuTest, type TShuTestHandle } from "../../test-setup.js";
 import { runStore } from "../../client-cache/run-store.test-fake.js";
 import { timeCursor } from "../controllers/page-cell-controller.js";
 import { setGraphStore } from "../../quads-snapshot.js";
-import { setSiteMetadata, type SiteMetadata } from "../../rels-cache.js";
 import { currentExecution, graphRunSource } from "../../client-cache/index.js";
 import { endPage } from "../adapters/page-held.js";
 
@@ -45,7 +45,6 @@ describe("the client cache view", () => {
 				throw new ServerUnreachable("/rpc", new Error("the views read actuality's records"));
 			},
 		});
-		setSiteMetadata({ types: [SEQ_PATH_LABEL], rels: { [SEQ_PATH_LABEL]: {} }, edgeRanges: {} } as unknown as SiteMetadata);
 		// The execution being recorded, and an earlier one this device still holds, each named by the feature it ran.
 		const store = runStore();
 		await store.upsertIndividual(SEQ_PATH_LABEL, step(EARLIER, 0, { stepText: "Feature: An earlier run", called: "Haibun.feature", generatedAtTime: iso(500) }));
@@ -59,8 +58,10 @@ describe("the client cache view", () => {
 		document.body.innerHTML = "";
 	});
 
-	/** A view reading actuality at info, which is what this view reports on: the source, not whoever opened it. */
+	/** A view reading actuality at info, which is what this view reports on: the source, not whoever opened it. The view
+	 *  reads after the page reads actuality's steps. */
 	const readingTheRun = async (): Promise<void> => {
+		declareGraphSpec({ types: [SEQ_PATH_LABEL] });
 		await graphRunSource("info").ready();
 		await flush();
 	};

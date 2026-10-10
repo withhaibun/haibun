@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 // A view reads actuality through the records it wrote. A step is one row carrying how it went and how long it took,
 // where a stream of occurrences logged those separately and a view had to pair them up; what a step logged is its own row.
+import { declareGraphSpec } from "../test/catalog-fixture.js";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import type { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { setGraphStore } from "../quads-snapshot.js";
-import { setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
 import { clearStoredFields, setupShuTest, storeFields, type TShuTestHandle } from "../test-setup.js";
 import { SHU_TAG } from "../domains/elements.js";
 import { PAGE_SETTING_KEY } from "../page/domains/settings.js";
@@ -33,11 +33,7 @@ describe("the actuality a view reads, over the records it wrote", () => {
 				throw new ServerUnreachable(`/rpc/${method}`, new Error("this test reads the records, not a server"));
 			},
 		});
-		setSiteMetadata({
-			types: [SEQ_PATH_LABEL, LOG_MESSAGE_LABEL, RUN_ARTIFACT_LABEL],
-			rels: { [SEQ_PATH_LABEL]: {}, [LOG_MESSAGE_LABEL]: {}, [RUN_ARTIFACT_LABEL]: {} },
-			edgeRanges: {},
-		} as unknown as SiteMetadata);
+		declareGraphSpec({ types: [SEQ_PATH_LABEL, LOG_MESSAGE_LABEL, RUN_ARTIFACT_LABEL] });
 		store = runStore();
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
 			execution: RUN,

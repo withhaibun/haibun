@@ -34,7 +34,7 @@ import { closeConversation, conversationState, dispatchConversationEvent, openCo
 import { hashParam, onHashChanged } from "../controllers/hash-controller.js";
 import { eventsAffectLabel } from "@haibun/core/lib/quad-types.js";
 import { isOffline } from "../controllers/hydration-controller.js";
-import { getActionBarChatExtensionTags } from "../../rels-cache.js";
+import { getActionBarChatExtensionTags } from "../controllers/catalog-controller.js";
 import { reportToRun } from "../../client-log.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 

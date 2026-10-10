@@ -51,7 +51,7 @@ import { unwrap as unwrapWrappers } from "@haibun/core/lib/zod-unwrap.js";
 export const EmptyStateSchema = z.object({});
 
 export type { TLinkedData };
-import { getRels } from "../../rels-cache.js";
+import { getRels } from "../controllers/catalog-controller.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import * as PageHash from "../controllers/hash-controller.js";
 import { subscribeBatchedEvents } from "../controllers/event-stream-controller.js";
@@ -134,7 +134,6 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 	#dirtyFields = new Set<string>();
 	#restoring = false;
 	readonly #preferences = new PreferencesController(this, this.#storedFields());
-
 
 	/** Record one fine-grained occurrence of this view's behaviour, at whatever rate it happens: held in the page's
 	 *  fixed ring and handed to actuality in batches, which doesn't retain them. The view attribution is this element's

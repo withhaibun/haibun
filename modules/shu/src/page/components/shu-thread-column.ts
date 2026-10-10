@@ -16,7 +16,7 @@ import { appAccessLevel, extractBodyLiterals, idOf, instanceLabel, persistedType
 import { anIndividual, type TContextPattern } from "../../schemas.js";
 import { ellipsize } from "@haibun/core/lib/util/index.js";
 import { callStep } from "../../pane-fetch.js";
-import { getRelSync, getValidTimeField } from "../../rels-cache.js";
+import { getFieldRel, getValidTimeField } from "../controllers/catalog-controller.js";
 import { fieldRef } from "./shu-ref.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { graphPresenterTag, mountGraphPresenter, presenterIn } from "../controllers/presenter-controller.js";
@@ -229,7 +229,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		const isCurrent = id === this.state.individualId;
 		const label = persistedTypeOf(v) || this.state.label;
 		// Who sent it is the field its type declares with the attribution rel, which links to the record it names.
-		const senderField = Object.keys(v).find((field) => getRelSync(label, field) === LinkRelations.ATTRIBUTED_TO.rel);
+		const senderField = Object.keys(v).find((field) => getFieldRel(label, field) === LinkRelations.ATTRIBUTED_TO.rel);
 		const sender = senderField ? String(v[senderField] ?? "") : "";
 		const title = instanceLabel(v);
 		const timeField = getValidTimeField(label);

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { declareCatalog } from "./test/catalog-fixture.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
@@ -17,7 +18,7 @@ import {
 	textQuoteSelectorDomainDefinition,
 } from "@haibun/core/lib/resources.js";
 import { projectFilterClusters, effectiveHiddenTypes } from "./graph-filter-projection.js";
-import { siteMetadataFromConcerns, setSiteMetadata, getTitledBy } from "./rels-cache.js";
+import { getTitledBy } from "./page/controllers/catalog-controller.js";
 
 function quad(namedGraph: string, subject: string, timestamp = 1): TQuad {
 	return { namedGraph, subject, predicate: "p", object: "o", timestamp };
@@ -107,7 +108,7 @@ describe("projectFilterClusters", () => {
 describe("effectiveHiddenTypes (instrumentation default + user overrides)", () => {
 	const types = ["Person", "SeqPath", "facts"];
 	// SeqPath and the facts each declare instrumentation in the topology, which the page reads from the catalog.
-	beforeEach(() => setSiteMetadata(siteMetadataFromConcerns(buildConcernCatalog(mapDefinitionsToDomains([seqPathDomainDefinition, factDomainDefinition])))));
+	beforeEach(() => declareCatalog(buildConcernCatalog(mapDefinitionsToDomains([seqPathDomainDefinition, factDomainDefinition]))));
 
 	it("hides instrumentation by default without user overrides, and the default is not a stored choice", () => {
 		expect(effectiveHiddenTypes(types, {}).sort()).toEqual(["SeqPath", "facts"]);
@@ -126,7 +127,7 @@ describe("effectiveHiddenTypes (instrumentation default + user overrides)", () =
 	});
 
 	it("shows a type the catalog doesn't declare instrumentation, whatever its name", () => {
-		setSiteMetadata(siteMetadataFromConcerns(buildConcernCatalog(mapDefinitionsToDomains([]))));
+		declareCatalog(buildConcernCatalog(mapDefinitionsToDomains([])));
 		expect(effectiveHiddenTypes(["SeqPath"], {}), "the declaration hides a type, not a list of names").toEqual([]);
 	});
 
@@ -136,14 +137,12 @@ describe("effectiveHiddenTypes (instrumentation default + user overrides)", () =
 });
 
 describe("declared labeling property (topology.displayLabel) reaches the browser", () => {
-	const metadata = siteMetadataFromConcerns(
-		buildConcernCatalog(
-			mapDefinitionsToDomains([commentDomainDefinition, principalDomainDefinition, bodyDomainDefinition, specificResourceDomainDefinition, textQuoteSelectorDomainDefinition]),
-		),
+	const concerns = buildConcernCatalog(
+		mapDefinitionsToDomains([commentDomainDefinition, principalDomainDefinition, bodyDomainDefinition, specificResourceDomainDefinition, textQuoteSelectorDomainDefinition]),
 	);
 	const types = [COMMENT_LABEL, PRINCIPAL_LABEL, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL];
 
-	beforeEach(() => setSiteMetadata(metadata));
+	beforeEach(() => declareCatalog(concerns));
 
 	it("serves each type's labeling property, and doesn't serve one for a type titled by the shared headline", () => {
 		expect(getTitledBy(TEXT_QUOTE_SELECTOR_LABEL)).toEqual({ key: "exact", through: false });

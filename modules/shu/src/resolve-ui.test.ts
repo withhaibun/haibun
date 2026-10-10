@@ -1,22 +1,19 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import { type TCatalogSpec, declareSpec } from "./test/catalog-fixture.js";
 import { resolveUi, ENTITY_COMPONENT, COLLECTION_COMPONENT } from "./resolve-ui.js";
-import { setSiteMetadata, type SiteMetadata } from "./rels-cache.js";
 
-const META: SiteMetadata = {
+const META: TCatalogSpec = {
 	types: [],
 	idFields: {},
 	rels: {},
 	edgeRanges: {},
-	properties: {},
 	queryable: {},
 	validTimeFields: {},
-	summary: {},
-	propertyDefinitions: {},
 	ui: { Affordances: { component: "shu-affordances-panel" }, Pinned: { component: "shu-x" }, Slotted: { component: "shu-y", slot: "action-bar-chat" } },
 };
 
 describe("resolveUi", () => {
-	beforeEach(() => setSiteMetadata(META));
+	beforeEach(() => declareSpec(META));
 
 	it("prefers the product's stamped _component", () => {
 		expect(resolveUi({ _component: "shu-polymorphic-graph-view", _type: "Affordances" }).component).toBe("shu-polymorphic-graph-view");

@@ -208,7 +208,6 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 		});
 	}
 
-
 	/** Something moved: what is in memory shows at once; the device is read again soon, once for however many changes. */
 	#changed(): void {
 		this.#watchSources();

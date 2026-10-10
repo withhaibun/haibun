@@ -7,7 +7,7 @@
  * gate every other write goes through.
  */
 import { AccessLevelSchema, SCENE_LABEL } from "@haibun/core/lib/resources.js";
-import { fromActorEdgeLabels, getEdgeRanges, getPropertyDefinition, getRels, getTypes, toActorEdgeLabels } from "./rels-cache.js";
+import { fromActorEdgeLabels, getEdgeRanges, getPropertyDefinition, getRels, getTypes, toActorEdgeLabels } from "./page/controllers/catalog-controller.js";
 import { callStep, fetchIndividuals } from "./pane-fetch.js";
 import { appAccessLevel } from "./util.js";
 import { SHU_TAG } from "./domains/elements.js";

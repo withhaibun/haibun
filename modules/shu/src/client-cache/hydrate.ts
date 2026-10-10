@@ -12,7 +12,6 @@ import { CACHE_SHAPE, MemoryDeviceStore, setDeviceStore } from "./device-store.j
 import { readExecution } from "./executions.js";
 import type { TCachePayload } from "../domains/hydration.js";
 
-
 /** Fill a memory-backed store with a report's run, and read that execution from now on. */
 export async function hydrateClientCache(cache: TCachePayload): Promise<void> {
 	if (cache.shape !== CACHE_SHAPE) throw new Error(`this report carries a run written as ${cache.shape}, which this build does not read (${CACHE_SHAPE})`);

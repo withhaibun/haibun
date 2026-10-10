@@ -3,6 +3,7 @@
  * A chat message reads in the order its turn was made: what the answer was made of comes before the answer. A question
  * links to the records it carries, so a reader opens what was asked about from the message itself.
  */
+import { declareSpec } from "../../test/catalog-fixture.js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { anIndividual, aType } from "../../schemas.js";
 import { INITIAL_SUBJECT, SCOPE, currentSubjectState, scopeEntry } from "../../current-subject.js";
@@ -15,7 +16,6 @@ import "./shu-ref-element.js";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 import { REF_DENOTES, markdownRef } from "@haibun/core/lib/typed-links.js";
 import { ICON_STEP_COMPLETED, RETURNED_TO_CALLER } from "@haibun/core/schema/protocol.js";
-import { setSiteMetadata } from "../../rels-cache.js";
 
 const BUNDLE = { patterns: [anIndividual("Email", "a@test.com"), aType("Email")], accessLevel: "private" };
 
@@ -115,17 +115,14 @@ describe("the records a message names", () => {
 	const refs = (root: ParentNode) => [...root.querySelectorAll("shu-ref")].map((ref) => [ref.getAttribute("kind"), JSON.parse(ref.getAttribute("linkTarget") ?? "{}")]);
 
 	beforeEach(() => {
-		setSiteMetadata({
+		declareSpec({
 			types: [COMMENT_LABEL, TOOL_CALL],
 			idFields: { [COMMENT_LABEL]: "id", [TOOL_CALL]: "id" },
 			rels: { [COMMENT_LABEL]: {}, [TOOL_CALL]: {} },
 			edgeRanges: {},
-			properties: { [COMMENT_LABEL]: ["id"], [TOOL_CALL]: ["id"] },
 			queryable: {},
 			validTimeFields: {},
-			summary: {},
 			ui: {},
-			propertyDefinitions: {},
 		});
 	});
 

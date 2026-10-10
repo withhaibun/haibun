@@ -9,7 +9,7 @@ import { itemAt } from "@haibun/core/lib/util/item-at.js";
 export type XYZ = { x: number; y: number; z: number };
 
 /** A grouping/container axis. `"type"` groups by `@type`; `"role"` by the highest-priority actor a node is attributed to
- *  (rels-cache `roleEdgeLabels()`: ontology + concern-catalog derived, ordered by each rel's / consumer edge's DECLARED
+ *  (the catalog controller's `roleEdgeLabels()`: ontology + concern-catalog derived, ordered by each rel's / consumer edge's DECLARED
  *  rolePriority: never a hand-kept list, and this file doesn't name a consumer vocabulary); ANY other value is a merged
  *  node-property key: an actor predicate, or the read-time SITE_KEY stamp (the site whose store served the node, set at
  *  the federation merge). */

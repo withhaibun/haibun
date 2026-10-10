@@ -18,7 +18,7 @@ const YEAR_AGO = "2025-07-06T00:00:00.000Z";
 const LAST_WEEK = "2026-06-29T00:00:00.000Z";
 const TODAY = "2026-07-05T23:00:00.000Z";
 
-/** The catalog rule as the polymorphic view wires it (rels-cache getValidTimeField): the declared defaultSort, else generatedAtTime. */
+/** The catalog rule as the polymorphic view wires it (the catalog controller's getValidTimeField): the declared defaultSort, else generatedAtTime. */
 const validTimeFieldFor = (type: string): string => ({ Email: "dateReceived", File: "dateModified" })[type] ?? GENERATED;
 
 const quad = (subject: string, namedGraph: string, predicate: string, object: string): TQuad => ({ subject, namedGraph, predicate, object, timestamp: 0 });

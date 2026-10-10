@@ -51,16 +51,11 @@ export function appAccessLevel(): AccessQueryLevel {
 	return typeof window === "undefined" ? AccessQuery.all : parseViewQuery(window.location.hash).access;
 }
 
-import { getIdField, getRels, getSiteMetadataSync, getTitledBy } from "./rels-cache.js";
+import { getIdField, getRels, getTitledBy } from "./page/controllers/catalog-controller.js";
 import { TITLE_RELS, composeDisplayLabel } from "@haibun/core/lib/hypermedia.js";
 
-/** First available persisted type from domain metadata. It doesn't use a hard-coded default. */
-export function defaultLabel(): string {
-	return getSiteMetadataSync()?.types?.[0] ?? "";
-}
-
 import { renderRefBody } from "./markdown-refs.js";
-import { isKnownType } from "./rels-cache.js";
+import { isKnownType } from "./page/controllers/catalog-controller.js";
 /** The one reading style for a record's body text. The body iframe's document and the inline annotated view both use
  *  it, so toggling the annotation gutter never changes how the text reads. */
 export const BODY_READING_STYLE = "font-family: sans-serif; font-size: 14px; line-height: 1.5;";
@@ -137,7 +132,7 @@ export function persistedTypeOf(v: Record<string, unknown>): string {
 export const SPA_PROPS = new Set([STORED_TYPE_PROP]);
 
 import { getRelPresentation } from "@haibun/core/lib/resources.js";
-import { getRelSync } from "./rels-cache.js";
+import { getFieldRel } from "./page/controllers/catalog-controller.js";
 
 /**
  * True for keys that belong in the field table for `label`. The field table
@@ -157,7 +152,7 @@ export function isVisibleKey(k: string, label?: string): boolean {
 	const directPresentation = getRelPresentation(k);
 	if (directPresentation === "body" || directPresentation === "governance") return false;
 	if (!label) return true;
-	const rel = getRelSync(label, k);
+	const rel = getFieldRel(label, k);
 	if (!rel) return true;
 	const presentation = getRelPresentation(rel);
 	return presentation !== "body" && presentation !== "governance";
@@ -169,7 +164,7 @@ export function governanceFields(vertex: Record<string, unknown>, label?: string
 	const out: Record<string, string> = {};
 	for (const [k, v] of Object.entries(vertex)) {
 		if (k.startsWith("_") || k.startsWith("@") || v === undefined || v === null) continue;
-		const rel = (label ? getRelSync(label, k) : undefined) ?? k;
+		const rel = (label ? getFieldRel(label, k) : undefined) ?? k;
 		if (getRelPresentation(rel) === "governance") out[k] = typeof v === "string" ? v : JSON.stringify(v);
 	}
 	return out;
@@ -212,7 +207,7 @@ export function extractBodyLiterals(vertex: Record<string, unknown>, label?: str
 	const out: Record<string, string> = {};
 	for (const [k, v] of Object.entries(vertex)) {
 		if (typeof v !== "string" || v.length === 0 || k.startsWith("_") || k.startsWith("@")) continue;
-		const rel = getRelPresentation(k) ? k : label ? getRelSync(label, k) : undefined;
+		const rel = getRelPresentation(k) ? k : label ? getFieldRel(label, k) : undefined;
 		if (rel && getRelPresentation(rel) === "body") out[k] = v;
 	}
 	return out;
@@ -226,4 +221,3 @@ export function extractBodyLiterals(vertex: Record<string, unknown>, label?: str
 // Which reading of a record to use is one rule for every surface, declared in core beside the body it reads; re-exported
 // here because this module is where the page's formatting helpers are found.
 export { BODY_PREFERENCE, pickPreferredBody } from "@haibun/core/lib/resources.js";
-

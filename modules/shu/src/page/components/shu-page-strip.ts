@@ -80,7 +80,6 @@ export class ShuPageStrip extends ShuElement<typeof EmptyStateSchema> {
 
 	/** Shows where the cursor sits in actuality. It reads `now` while every view shows now, and an offset once a reader pins a moment. */
 
-
 	protected updated(): void {
 		this.#updateBreadcrumb();
 	}

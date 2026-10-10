@@ -167,7 +167,6 @@ export const PageKeySchema = z.object({
 	controller: z.string().default(""),
 });
 
-
 // --- Result table ---
 
 export const ResultTableSchema = z.object({

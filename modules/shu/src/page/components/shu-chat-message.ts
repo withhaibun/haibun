@@ -9,7 +9,7 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { guard } from "lit/directives/guard.js";
 import { z } from "zod";
 import { proseText, renderRefAnswer, renderRefProse } from "../../markdown-refs.js";
-import { isKnownType } from "../../rels-cache.js";
+import { isKnownType } from "../controllers/catalog-controller.js";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import type { ShuSpinner } from "./shu-spinner.js";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";

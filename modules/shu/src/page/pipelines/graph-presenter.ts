@@ -4,13 +4,13 @@
  * `data-external` draws only what its host gives it: the quads of the host's graph and the node the host selects. It keeps
  * its settings under the host's scope, apart from the main graph's.
  */
-import { getUiPresenting } from "../../rels-cache.js";
+import { uiPresenting, type TCatalog } from "../derivations/catalog.js";
 import { loadDeclaredComponent } from "./declared-component.js";
 import type { TElements, TGraphPresenter, TPresenterMount } from "../ports.js";
 
-/** Returns the component the site declares as its graph presenter, or undefined where the deployment doesn't declare one. */
-export function graphPresenterTag(): string | undefined {
-	const presenting = getUiPresenting("graph");
+/** Returns the component `catalog` declares as the site's graph presenter, or undefined where the deployment doesn't declare one. */
+export function graphPresenterTag(catalog: TCatalog): string | undefined {
+	const presenting = uiPresenting(catalog, "graph");
 	if (presenting === undefined) return undefined;
 	const { component } = presenting.ui;
 	if (typeof component !== "string") throw new Error(`the concern that presents "graph" names its component as ${typeof component}, where a tag is a string`);
@@ -20,10 +20,17 @@ export function graphPresenterTag(): string | undefined {
 /** Mounts the site's graph presenter as a light-DOM child of `host`, shown at `<slot name=${slot}>`. The presenter's scene
  *  finds its camera through the document, which a shadow root hides. The presenter keeps its settings under `scope`.
  *  Resolves undefined where the site doesn't declare a presenter, or where the slot holds one. */
-export async function mountGraphPresenter(mount: TPresenterMount, elements: TElements, host: HTMLElement, slot: string, scope: string): Promise<TGraphPresenter | undefined> {
-	const tag = graphPresenterTag();
+export async function mountGraphPresenter(
+	mount: TPresenterMount,
+	elements: TElements,
+	catalog: () => TCatalog,
+	host: HTMLElement,
+	slot: string,
+	scope: string,
+): Promise<TGraphPresenter | undefined> {
+	const tag = graphPresenterTag(catalog());
 	if (tag === undefined) return undefined;
-	await loadDeclaredComponent(elements, tag);
+	await loadDeclaredComponent(elements, catalog, tag);
 	if (mount.presenterIn(host, slot) !== undefined) return undefined;
 	return mount.mount(host, slot, tag, scope);
 }

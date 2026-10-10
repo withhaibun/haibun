@@ -3,13 +3,13 @@
  * Capture and apply: a scene holds exactly what a view remembers across a reload, and returning to one sets those
  * choices back through the view's ordinary state path.
  */
+import { type TCatalogSpec, declareSpec } from "./test/catalog-fixture.js";
 import { beforeEach, describe, it, expect } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { html, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement } from "./page/components/shu-element.js";
 import { applyScene, builtInScenes, captureScene, networkSceneTypes, storedAccessLevel, NETWORK_SCENE } from "./scenes.js";
-import { setSiteMetadata, type SiteMetadata } from "./rels-cache.js";
 import { clearStoredFields } from "./test-setup.js";
 
 const StateSchema = z.object({ overrides: z.record(z.string(), z.boolean()).default({}), limit: z.number().default(10), hovered: z.string().optional() });
@@ -102,24 +102,13 @@ describe("the scene every deployment has", () => {
 			Email: { subject: "name" },
 		},
 		edgeRanges: { HttpRequest: { target: ["Endpoint"], hasBody: ["Body"] }, SeqPath: { performedBy: ["Principal"] } },
-		properties: {},
 		queryable: {},
 		validTimeFields: {},
-		summary: {},
 		ui: {},
-		propertyDefinitions: {
-			performedBy: { iri: "prov:wasAssociatedWith", range: "iri" },
-			allowedAction: { iri: "sec:allowedAction", range: "literal" },
-			publicKey: { iri: "sec:publicKeyMultibase", range: "literal" },
-			attributedTo: { iri: "prov:wasAttributedTo", range: "iri" },
-			identifier: { iri: "dcterms:identifier", range: "literal" },
-			content: { iri: "sio:content", range: "literal" },
-			name: { iri: "schema:name", range: "literal" },
-		},
-	} as unknown as SiteMetadata;
+	} as unknown as TCatalogSpec;
 
 	it("reads its types off the site's own declarations, and reaches what they point at", () => {
-		setSiteMetadata(site);
+		declareSpec(site);
 		const types = networkSceneTypes();
 		expect(types, "what declares who acted or what allowed it, and what those point at").toEqual(["Endpoint", "HttpRequest", "Principal", "SeqPath"]);
 		expect(types, "a record merely attributed to someone is not part of the exchange").not.toContain("Comment");
@@ -128,7 +117,7 @@ describe("the scene every deployment has", () => {
 	});
 
 	it("is offered whether or not anything was ever saved, as the view and the types to show", () => {
-		setSiteMetadata(site);
+		declareSpec(site);
 		const scene = itemAt(builtInScenes(), 0);
 		expect(scene.id).toBe(NETWORK_SCENE);
 		expect(scene.state["shu-polymorphic-graph-view"], "an exchange reads as a sequence").toEqual({ viewType: "sequence" });
@@ -138,7 +127,7 @@ describe("the scene every deployment has", () => {
 	});
 
 	it("doesn't offer a scene where a site doesn't declare an exchange", () => {
-		setSiteMetadata({ ...site, types: ["Email"], rels: { Email: { subject: "name" } }, edgeRanges: {} } as unknown as SiteMetadata);
+		declareSpec({ ...site, types: ["Email"], rels: { Email: { subject: "name" } }, edgeRanges: {} } as unknown as TCatalogSpec);
 		expect(builtInScenes(), "a deployment without an exchange to show isn't offered a scene of one").toEqual([]);
 	});
 });

@@ -16,7 +16,7 @@ import { shuBaseStyles } from "./styles.js";
 import { QueryController } from "../controllers/query-controller.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { appAccessLevel } from "../../util.js";
-import { getEdgeRanges, getQueryableFields, getRels, getTypeDescription, getTypes, getUiPresenting, isKnownType, isSystemSchemaType } from "../../rels-cache.js";
+import { getEdgeRanges, getQueryableFields, getRels, getTypeDescription, getTypes, getUiPresenting, isKnownType, isSystemSchemaType } from "../controllers/catalog-controller.js";
 import { renderRefProse } from "../../markdown-refs.js";
 import { arrayWindowedSource, readWindowedSource, type WindowedSource } from "../../windowed-source.js";
 
@@ -159,11 +159,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		try {
 			const of = { label: persistedAs, accessLevel: appAccessLevel() };
 			const first = await this.#query.run({ ...of, limit: INSTANCES_PAGE });
-			this.#instances = readWindowedSource<VertexData>({
-				size: INSTANCES_PAGE,
-				read: (start, end) => this.#query.run({ ...of, limit: end - start, offset: start }),
-				held: first,
-			});
+			this.#instances = readWindowedSource<VertexData>({ size: INSTANCES_PAGE, read: (start, end) => this.#query.run({ ...of, limit: end - start, offset: start }), held: first });
 		} catch (err) {
 			this.setState({ loading: false, error: errorDetail(err) });
 			return;

@@ -9,13 +9,13 @@
  * ARTIFACT-MEDIATED and fully general (without per-type knowledge): an entity carrying a `fromActor` edge (its SOURCE
  * agent) AND a `toActor` edge (its DESTINATION agent) reads as one message source → destination, at the entity's time,
  * labelled by the entity. The artifact itself is the message, not a lifeline. Both edge-label sets are derived from
- * the ontology + concern catalog (rels-cache fromActorEdgeLabels/toActorEdgeLabels, core rels `subPropertyOf`
+ * the ontology + concern catalog (the catalog controller's fromActorEdgeLabels/toActorEdgeLabels, core rels `subPropertyOf`
  * fromActor/toActor plus every consumer edge declared with those upper pointers), so a new actor predicate doesn't
  * need a change here.
  *
  * Unit-tested without a scene (see sequence-model.test.ts).
  */
-import { fromActorEdgeLabels, toActorEdgeLabels } from "../../rels-cache.js";
+import { fromActorEdgeLabels, toActorEdgeLabels } from "../../page/controllers/catalog-controller.js";
 import { collideRadius } from "./layout-forces.js";
 import type { TSeqModel, TSeqMessage, TSeqActor } from "../sequence-model-types.js";
 

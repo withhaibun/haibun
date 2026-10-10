@@ -14,8 +14,7 @@ const INVOCATIONS_KEY = "__SHU_INVOCATION_SIGNER__";
 const AUTHORITY_KEY = "__SHU_PAGE_AUTHORITY__";
 
 /** Returns the page's key store. Throws outside a secure context, where the browser withholds one. */
-export const pageKeyStore = (): TKeyStore =>
-	pagePinned(KEY_STORE_KEY, () => browserKeyStore());
+export const pageKeyStore = (): TKeyStore => pagePinned(KEY_STORE_KEY, () => browserKeyStore());
 
 /** Returns what the page's authority reads and writes. */
 export const authorityScope = (): TAuthorityScope => ({

@@ -182,7 +182,9 @@ describe("a server that does not respond", () => {
 		serveThePage();
 		globalThis.fetch = () => Promise.reject(new TypeError("Failed to fetch"));
 		try {
-			await installServedConduit("", requiredActionOf).follow(acts(SHOW_STEPS_METHOD), "test").catch(() => undefined);
+			await installServedConduit("", requiredActionOf)
+				.follow(acts(SHOW_STEPS_METHOD), "test")
+				.catch(() => undefined);
 			expect(serverLastRespondedAt(), "a page that hasn't reached a server doesn't hold such a time").toBeUndefined();
 			// The second part starts a new page, so the state the first part left doesn't affect it.
 			newPage();
@@ -190,7 +192,9 @@ describe("a server that does not respond", () => {
 			// An error the server returns still counts as a response, so a reader sees that the page reached the server.
 			globalThis.fetch = () => Promise.resolve(rpcAnswer({ error: "no such step" }, 422));
 			const before = Date.now();
-			await installServedConduit("", requiredActionOf).follow(acts(SHOW_STEPS_METHOD), "test").catch(() => undefined);
+			await installServedConduit("", requiredActionOf)
+				.follow(acts(SHOW_STEPS_METHOD), "test")
+				.catch(() => undefined);
 			expect(serverLastRespondedAt() ?? 0).toBeGreaterThanOrEqual(before);
 		} finally {
 			globalThis.fetch = fetchWas;
@@ -213,10 +217,12 @@ describe("a server that does not respond", () => {
 		}) as unknown as typeof globalThis.fetch;
 		try {
 			const began = Date.now();
-			const err = await installServedConduit("", requiredActionOf).follow(acts(SHOW_STEPS_METHOD), "test").then(
-				() => undefined,
-				(e: unknown) => e,
-			);
+			const err = await installServedConduit("", requiredActionOf)
+				.follow(acts(SHOW_STEPS_METHOD), "test")
+				.then(
+					() => undefined,
+					(e: unknown) => e,
+				);
 			expect(taken, "the call was made").toBeGreaterThan(0);
 			expect(err, "and reported as the site not responding, so a reading falls back to what the device holds").toBeInstanceOf(ServerUnreachable);
 			expect(Date.now() - began, "within the timeout the deployment set, instead of never").toBeLessThan(4000);
@@ -239,10 +245,12 @@ describe("a server that does not respond", () => {
 			return Promise.resolve(new Response(stalled, { status: 200, headers: { "content-type": "application/json" } }));
 		}) as unknown as typeof globalThis.fetch;
 		try {
-			const err = await installServedConduit("", requiredActionOf).follow(acts(SHOW_STEPS_METHOD), "test").then(
-				() => undefined,
-				(e: unknown) => e,
-			);
+			const err = await installServedConduit("", requiredActionOf)
+				.follow(acts(SHOW_STEPS_METHOD), "test")
+				.then(
+					() => undefined,
+					(e: unknown) => e,
+				);
 			expect(err, "a stalled response reports the server as not responding").toBeInstanceOf(ServerUnreachable);
 		} finally {
 			globalThis.fetch = fetchWas;
@@ -261,13 +269,17 @@ describe("a server that does not respond", () => {
 			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("timed out", "TimeoutError")), { once: true }));
 		}) as unknown as typeof globalThis.fetch;
 		try {
-			await installServedConduit("", requiredActionOf).follow(acts(SHOW_STEPS_METHOD), "a read the page awaits").catch(() => undefined);
+			await installServedConduit("", requiredActionOf)
+				.follow(acts(SHOW_STEPS_METHOD), "a read the page awaits")
+				.catch(() => undefined);
 			expect(bounds.at(-1), "a read the page awaits carries a timeout").toBe(true);
 			// The call that opens an action carries a timeout like any other awaited call. This part starts a page that
 			// hasn't found the site unreachable.
 			newPage();
 			serveThePage();
-			const streaming = installServedConduit("", requiredActionOf).followStream(acts(SHOW_STEPS_METHOD), () => undefined, { why: "actuality's own stream" }).catch(() => undefined);
+			const streaming = installServedConduit("", requiredActionOf)
+				.followStream(acts(SHOW_STEPS_METHOD), () => undefined, { why: "actuality's own stream" })
+				.catch(() => undefined);
 			await new Promise((r) => setTimeout(r, 60));
 			expect(bounds.at(-1), "and a stream doesn't carry one, so a timeout doesn't close it while actuality writes to it").toBe(false);
 			void streaming;
@@ -408,10 +420,12 @@ describe("a server that does not respond", () => {
 		const fetchWas = globalThis.fetch;
 		globalThis.fetch = () => Promise.resolve(rpcAnswer({ error: "no such step" }, 422));
 		try {
-			const err = await installServedConduit("", requiredActionOf).follow(acts(SHOW_STEPS_METHOD), "test").then(
-				() => undefined,
-				(e: unknown) => e,
-			);
+			const err = await installServedConduit("", requiredActionOf)
+				.follow(acts(SHOW_STEPS_METHOD), "test")
+				.then(
+					() => undefined,
+					(e: unknown) => e,
+				);
 			expect(isServerUnreachable(err)).toBe(false);
 		} finally {
 			globalThis.fetch = fetchWas;

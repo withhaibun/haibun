@@ -2,6 +2,7 @@
 // The views of a run, over the records it wrote. A run is in the graph: a step is one record carrying how it went, and
 // what it logged and produced point back at it. So a step is one row rather than a start paired with an end, and a
 // heading is the step that declared the feature or the scenario.
+import { declareGraphSpec } from "../../test/catalog-fixture.js";
 import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { describe, it, expect, beforeEach, afterEach, onTestFinished } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
@@ -21,7 +22,6 @@ import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
 import { setGraphStore } from "../../quads-snapshot.js";
-import { setSiteMetadata, type SiteMetadata } from "../../rels-cache.js";
 
 import { pagePreferences } from "../root.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
@@ -64,11 +64,7 @@ async function aRun(records: Array<Record<string, unknown>>, said: Array<Record<
 	for (const record of said) await store.upsertIndividual(LOG_MESSAGE_LABEL, record);
 	for (const record of produced) await store.upsertIndividual(RUN_ARTIFACT_LABEL, record);
 	setGraphStore(store);
-	setSiteMetadata({
-		types: [SEQ_PATH_LABEL, LOG_MESSAGE_LABEL, RUN_ARTIFACT_LABEL],
-		rels: { [SEQ_PATH_LABEL]: {}, [LOG_MESSAGE_LABEL]: {}, [RUN_ARTIFACT_LABEL]: {} },
-		edgeRanges: {},
-	} as unknown as SiteMetadata);
+	declareGraphSpec({ types: [SEQ_PATH_LABEL, LOG_MESSAGE_LABEL, RUN_ARTIFACT_LABEL] });
 }
 
 describe("the views of a run, over the records it wrote", () => {
@@ -226,12 +222,7 @@ describe("the views of a run, over the records it wrote", () => {
 
 	it("records the step that showed a view, and doesn't open a copy of that view in the manual", async () => {
 		await aRun([stepRecord(1), stepRecord(2, { stepText: "show the graph", called: "TestStepper.showGraph", showed: "test-view" })]);
-		setSiteMetadata({
-			types: [SEQ_PATH_LABEL],
-			rels: { [SEQ_PATH_LABEL]: {} },
-			edgeRanges: {},
-			ui: { "test-view": { component: "test-view-element", summary: "the test view" } },
-		} as unknown as SiteMetadata);
+		declareGraphSpec({ types: [SEQ_PATH_LABEL], ui: { "test-view": { component: "test-view-element" } } });
 		const doc = await open(ShuDocumentColumn);
 		expect(doc.shadowRoot?.textContent).toContain("show the graph");
 		expect(doc.shadowRoot?.querySelector("shu-product-view"), "a manual records what a step showed; what that view looked like is actuality's own screenshot").toBeNull();

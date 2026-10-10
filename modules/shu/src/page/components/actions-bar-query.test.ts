@@ -15,7 +15,7 @@ import { pageTypes } from "../controllers/page-cell-controller.js";
 import { ActionsBarQuery, SEARCH_DEBOUNCE_MS, searchConditions } from "./actions-bar-query.js";
 import { aControllerHost } from "./controller-host.test-fake.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
-import { getSelectValues } from "../../rels-cache.js";
+import { getSelectValues } from "../controllers/catalog-controller.js";
 import { setGraphStore } from "../../quads-snapshot.js";
 import { typeNotHeld, viewQuery } from "../../view-query.js";
 import { declaringSteps, persistedTypeDefinition, setupShuTest, stepsChanged, stepsReadAgain, stepsShown, type TShuTestHandle } from "../../test-setup.js";

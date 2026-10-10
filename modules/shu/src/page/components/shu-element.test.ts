@@ -178,8 +178,6 @@ describe("ShuElement persistFields", () => {
 		customElements.define("shu-persist-bad-probe", Bad);
 		expect(() => new Bad()).toThrow(/persistFields names "nope"/);
 	});
-
-
 });
 
 /**

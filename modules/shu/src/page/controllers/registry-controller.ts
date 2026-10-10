@@ -48,7 +48,8 @@ export const findDomain = (key: string): TDomainDiscoveryInfo | undefined => hel
 
 /** Returns a link to a step a caller names at run time, by the step's declaration: a read where the step declares itself a
  *  read, and an act otherwise, as for a method the steppers don't provide. */
-export const linkTo = (method: string, params?: Record<string, unknown>, summary?: string): TLink => (findStep(method)?.read === true ? reads(method, params, summary) : acts(method, params, summary));
+export const linkTo = (method: string, params?: Record<string, unknown>, summary?: string): TLink =>
+	findStep(method)?.read === true ? reads(method, params, summary) : acts(method, params, summary);
 
 /** Returns the steps that take a domain and the steps that return it. */
 export const stepsJoining = (name: string): ReturnType<typeof Steps.stepsJoining> => Steps.stepsJoining(readList(`the steps joining ${name}`), name);

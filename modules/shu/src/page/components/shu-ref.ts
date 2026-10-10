@@ -10,7 +10,7 @@ import { DENOTES, REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { defaultLabel, renderRef, type TRefKind } from "./ref-navigation.js";
 import type { TContextPattern } from "../../schemas.js";
 import { findDomain } from "../controllers/registry-controller.js";
-import { edgeRecordType } from "../../rels-cache.js";
+import { edgeRecordType } from "../controllers/catalog-controller.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 
 /**

@@ -18,7 +18,7 @@
  * `filterEl.setSource(...)`. The filter's render calls this pure function with them.
  */
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
-import { isInstrumentationType } from "./rels-cache.js";
+import { isInstrumentationType } from "./page/controllers/catalog-controller.js";
 import { isSchemaType } from "./graph/ontology-projection.js";
 import { isEdgeQuad } from "./graph-model.js";
 

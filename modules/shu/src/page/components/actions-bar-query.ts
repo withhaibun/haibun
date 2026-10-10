@@ -12,7 +12,7 @@ import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import type { TEvent } from "../ports.js";
 import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { selectValuesFor } from "../../quads-snapshot.js";
-import { addObservedSelectValues, getQueryableFields, getSelectValues, hasSelectValues, hasUsableSelectValues, setSelectValues } from "../../rels-cache.js";
+import { addObservedSelectValues, getQueryableFields, getSelectValues, hasSelectValues, hasUsableSelectValues, setSelectValues } from "../controllers/catalog-controller.js";
 import { domainOptions } from "../controllers/registry-controller.js";
 import { type TDomainOption } from "../derivations/steps.js";
 import { StepsChangedController } from "../controllers/registry-controller.js";
@@ -160,8 +160,9 @@ export class ActionsBarQuery implements ReactiveController {
 		this.#host.requestUpdate();
 	}
 
-	/** Read the fields of the selected type a condition can name. */
+	/** Read the fields of the selected type a condition can name. Before the types are read, reading them settles the fields. */
 	loadProperties(): void {
+		if (!this.#typesRead) return;
 		this.#propertyOptions = (this.#selectedLabel ? getQueryableFields(this.#selectedLabel) : []).map((field) => ({ value: field, label: field }));
 	}
 
