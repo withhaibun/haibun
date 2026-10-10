@@ -8,7 +8,8 @@
  * data can't evict them, and labels are filled by the merge's one shared rule.
  * Bounded per call by the server's neighborhood limits.
  */
-import { reads, conduit } from "./hypermedia.js";
+import { reads } from "./page/domains/links.js";
+import { conduit } from "./page/controllers/conduit-controller.js";
 import { getAvailableSteps, requireStep } from "./rpc-registry.js";
 import { getRels } from "./rels-cache.js";
 import { appAccessLevel, idOf } from "./util.js";

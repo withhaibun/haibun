@@ -76,14 +76,15 @@ export class TimelineViewController implements ReactiveController {
 		return cursor === null ? items : items.filter((item) => item.timestamp <= cursor);
 	}
 
-	/** The moment the host is opened at, null where its attribute doesn't state a number, and undefined where the host isn't
-	 *  opened at a moment. */
-	#pinned(): number | null | undefined {
+	/** The moment the host shows, and undefined where the host doesn't state `SHU_ATTR.SNAPSHOT_TIME`. Throws where the
+	 *  attribute states something other than an instant. */
+	#pinned(): number | undefined {
 		const host: ReactiveControllerHost & { getAttribute?: (name: string) => string | null } = this.#host;
 		const stated = host.getAttribute ? host.getAttribute(SHU_ATTR.SNAPSHOT_TIME) : null;
 		if (stated === null) return undefined;
-		const at = Number.parseFloat(stated);
-		return Number.isNaN(at) ? null : at;
+		const at = Number(stated);
+		if (stated === "" || !Number.isFinite(at)) throw new Error(`${SHU_ATTR.SNAPSHOT_TIME} states "${stated}", which isn't an instant in epoch milliseconds`);
+		return at;
 	}
 
 	/** Whether this view shows the live edge, which is what a following view sticks to. */

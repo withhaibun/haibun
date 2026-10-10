@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuAffordancesPanel } from "./shu-affordances-panel.js";
-import { setConduit } from "../../hypermedia.js";
+import { installConduit } from "../root.js";
 import { TestConduit, setupShuTest, type TShuTestHandle } from "../../test-setup.js";
-import { setEventStream, SerializedEventStream, type TEvent } from "../../event-stream.js";
+import { installCarriedEventStream } from "../root.js";
+import { type TEvent } from "../ports.js";
 import * as ViewHash from "../../view-hash.js";
 import { AFFORDANCE_PARAM } from "../../domains/elements.js";
 import { RPC_METHOD } from "../../domains/elements.js";
@@ -320,7 +321,7 @@ describe("shu-affordances-panel", () => {
 
 	it("waypoints carried by `show affordances` products render the waypoint section: the ONE verb brings the whole snapshot", async () => {
 		const wp = { outcome: "deliver-report", kind: "declarative", ensured: false, method: "Acts-ensure", resolvesDomain: "report", paramSlots: [], proofStatements: [] };
-		setConduit(new TestConduit(async () => ({})));
+		installConduit(new TestConduit(async () => ({})));
 		const panel = new ShuAffordancesPanel();
 		panel.products = { execution: EXECUTION, forward: [], goals: [], waypoints: [wp] };
 		document.body.appendChild(panel);
@@ -334,14 +335,13 @@ describe("shu-affordances-panel", () => {
 		// Refetching per signal is the RPC flood (hundreds per run); the panel starts one timer per coalesce window
 		// (REFRESH_COALESCE_MS) and the burst rides it, exactly one read of the affordances on offer.
 		let snapshotCalls = 0;
-		setConduit(
+		installConduit(
 			new TestConduit((method: string) => {
 				if (method === RPC_METHOD.AFFORDANCES_ON_OFFER) snapshotCalls++;
 				return { execution: EXECUTION, waypoints: [], forward: [], goals: [] };
 			}),
 		);
-		const stream = new SerializedEventStream();
-		setEventStream(stream);
+		const stream = installCarriedEventStream();
 		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel); // subscribes via subscribeBatchedEvents
 		await new Promise((r) => setTimeout(r, 40)); // let the mount-time fetchInitial settle, then measure ONLY the burst

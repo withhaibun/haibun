@@ -25,11 +25,14 @@ import { readAction } from "@haibun/core/lib/actions.js";
 import { Access } from "@haibun/core/lib/resources.js";
 import { ShuElement } from "./page/components/shu-element.js";
 import { registerComponents } from "./component-registry.js";
-import { conduit, reads, setConduit, LiveConduit } from "./hypermedia.js";
+import { conduit } from "./page/controllers/conduit-controller.js";
+import { reads } from "./page/domains/links.js";
+import { installServedConduit } from "./page/root.js";
 import { SSE_ROUTE } from "@haibun/core/lib/rpc-wire.js";
 import { installShuTokens } from "./page/components/styles.js";
 import { applyStoredTheme } from "./page/components/shu-theme-switch.js";
-import { eventStream, setEventStream, LiveEventStream, SerializedEventStream, subscribeBatchedEvents } from "./event-stream.js";
+import { pageEventStream, installCarriedEventStream, installServedEventStream } from "./page/root.js";
+import { subscribeBatchedEvents } from "./page/controllers/event-stream-controller.js";
 import { followRunningTurns } from "./conversation.js";
 import { askEmbedderToDelegate, receiveFromEmbedder } from "./embedder.js";
 import { ensureUiComponentLoaded as sharedEnsureUiComponentLoaded } from "./external-components.js";
@@ -139,16 +142,16 @@ const main = async (): Promise<void> => {
 	// Every page uses one conduit. A page that a server serves sends its calls to that server. A page that carries a run's
 	// records doesn't reach a server. Each of its reads returns what the page holds. The conduit is installed before any
 	// component is registered, since every component reads through the accessor and throws on first use without a conduit.
-	setConduit(new LiveConduit(""));
+	installServedConduit("");
 	// A page that carries a run's records writes them into the client cache before anything reads actuality. Every view then
 	// reads them through the same sources it uses with a server. The client cache returns each read.
 	const carried = hydratedCache();
 	if (carried) {
-		setEventStream(new SerializedEventStream());
+		installCarriedEventStream();
 		await hydrateClientCache(carried);
 		ShuElement.pushHash(getHydratedViewHash());
 	} else {
-		setEventStream(new LiveEventStream(SSE_ROUTE));
+		installServedEventStream(SSE_ROUTE);
 	}
 	// Records the long frames of the page's main thread from the start, including the frames before this call.
 	observeLongFrames();
@@ -185,7 +188,7 @@ const main = async (): Promise<void> => {
 		// so a page that waited for its first view would lose the events actuality logged while the page booted. A page that
 		// didn't reach a server connects too, so its stream reports that the server is down. The server refuses the stream to a
 		// page that may not follow actuality. That page reads without following.
-		eventStream().connect();
+		pageEventStream().connect();
 		followRunningTurns();
 	}
 

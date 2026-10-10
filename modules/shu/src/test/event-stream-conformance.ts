@@ -1,5 +1,5 @@
 /**
- * One specification, every event stream. A view subscribes through `eventStream()` and does not know which
+ * One specification, every event stream. A view subscribes through `pageEventStream()` and does not know which
  * implementation is installed: the live one over `/sse`, or the serialized one a report and a scripted scenario drive.
  * A difference between them is a difference in what a view is told, so each answers these cases rather than carrying a
  * suite of its own.
@@ -10,12 +10,12 @@
  * `emit` for the serialized one, which is what `TStreamUnderTest` supplies.
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import type { EventStream, TEvent } from "../event-stream.js";
+import type { TEventStream, TEvent } from "../page/ports.js";
 
 /** A stream ready to subscribe to, with the operations that drive it. Each is awaited, so an implementation that
  *  reconnects on a timer advances that timer here rather than in a case. */
 type TStreamUnderTest = {
-	stream: EventStream;
+	stream: TEventStream;
 	/** Deliver one event through the stream, as the server delivers one. */
 	deliver(event: TEvent): Promise<void> | void;
 	/** Break the connection. */
@@ -32,7 +32,7 @@ const messages = (got: TEvent[]): string[] => got.map((e) => String(e.message));
 export function describeEventStream(name: string, make: () => TStreamUnderTest | Promise<TStreamUnderTest>): void {
 	describe(`the event stream (${name})`, () => {
 		let held: TStreamUnderTest;
-		let stream: EventStream;
+		let stream: TEventStream;
 		beforeEach(async () => {
 			held = await make();
 			stream = held.stream;

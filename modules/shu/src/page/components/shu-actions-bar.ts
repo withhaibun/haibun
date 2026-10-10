@@ -29,7 +29,7 @@ import { ShuActivityHistory } from "./shu-activity-history.js";
 import { SignalController } from "../controllers/signal-controller.js";
 import { pageContext, pageStatus, pageTrail } from "../../signals.js";
 import { loadSlotExtensions } from "./slot-extensions.js";
-import { isServerUnreachable } from "../../hypermedia.js";
+import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { closeConversation, conversationState, dispatchConversationEvent, openConversation, STOPPED_BY_THE_READER } from "../../conversation.js";
 import { hashParam, onHashChanged } from "../../view-hash.js";
 import { eventsAffectLabel } from "@haibun/core/lib/quad-types.js";

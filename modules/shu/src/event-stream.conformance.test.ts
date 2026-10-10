@@ -1,16 +1,17 @@
 // @vitest-environment jsdom
-// Runs one specification against both implementations of the page's event stream. The live one reads the host's stream.
-// A report and a scripted scenario drive the serialized one.
+// Runs one specification against both adapters of the page's event stream. The live one reads the host's stream, and a
+// report and a scripted scenario drive the carried one.
 import { PAGE_ACTUALITY, hydrate } from "./test-setup.js";
 import { vi, expect } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import { LiveEventStream, SerializedEventStream, type TEvent } from "./event-stream.js";
+import { installCarriedEventStream, installServedEventStream } from "./page/root.js";
+import { type TEvent } from "./page/ports.js";
 import { hydrateFromDom } from "./rpc-registry.js";
 import { SSE_ROUTE } from "@haibun/core/lib/rpc-wire.js";
 import { describeEventStream } from "./test/event-stream-conformance.js";
 
 describeEventStream("a log the page carries", () => {
-	const stream = new SerializedEventStream();
+	const stream = installCarriedEventStream();
 	stream.connect();
 	return { stream, deliver: (e: TEvent) => stream.emit(e), breakStream: () => stream.disconnect(), restore: () => stream.reconnect() };
 });
@@ -36,7 +37,7 @@ describeEventStream("a live connection", async () => {
 		};
 		return bodies.length === 0 ? Promise.resolve(answer()) : new Promise<Response>((resolve) => held.push(() => resolve(answer())));
 	});
-	const stream = new LiveEventStream(SSE_ROUTE);
+	const stream = installServedEventStream(SSE_ROUTE);
 	let opens = 0;
 	let breaks = 0;
 	stream.opened(() => opens++);

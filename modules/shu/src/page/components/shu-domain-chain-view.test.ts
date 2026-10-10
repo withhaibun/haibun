@@ -17,7 +17,7 @@ import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { factIdOf } from "@haibun/core/lib/seq-path.js";
 import { readingExecution } from "../../client-cache/executions.js";
 import { declareFakeGraphPresenter, mountedPresenter } from "../../graph-presenter.test-fake.js";
-import { setupShuTest, type TShuTestHandle } from "../../test-setup.js";
+import { reportedErrors, setupShuTest, type TShuTestHandle } from "../../test-setup.js";
 import { NODE_KIND, type TGraphNode } from "../../graph/types.js";
 
 /** The actuality a snapshot records its facts from. */
@@ -101,15 +101,7 @@ describe("shu-domain-chain-view", () => {
 		expect(announced, "and every view reading the same deep link hears that it moved").toBeGreaterThanOrEqual(1);
 		expect(opened.mock.calls.map(([, pane]) => pane)).toEqual([{ paneType: "component", tag: SHU_TAG.AFFORDANCES_PANEL, label: AFFORDANCES_TITLE }]);
 		// A listener's error is the page's to report, not the dispatcher's to catch.
-		const reported: string[] = [];
-		const onError = (e: ErrorEvent): void => {
-			reported.push(e.message);
-			e.preventDefault();
-		};
-		window.addEventListener("error", onError);
-		presenter.openNode("nowhere");
-		window.removeEventListener("error", onError);
-		expect(reported.join(), "a node the chain does not hold is refused").toMatch(/the chain graph doesn't hold a node "nowhere"/);
+		expect(reportedErrors(() => presenter.openNode("nowhere")).join(), "a node the chain does not hold is refused").toMatch(/the chain graph doesn't hold a node "nowhere"/);
 		heard();
 		opened.mockRestore();
 	});

@@ -14,7 +14,7 @@
  * readable.
  */
 import { HAIBUN_LOG_LEVELS, declaredName, declaresFeature, declaresScenario, type THaibunLogLevel } from "@haibun/core/schema/protocol.js";
-import { subscribeBatchedEvents } from "../event-stream.js";
+import { subscribeBatchedEvents } from "../page/controllers/event-stream-controller.js";
 import { pagePreferences } from "../page/root.js";
 import { INITIAL_WINDOW_SIZE, PAGE_SETTING_KEY, WindowSizeSchema } from "../page/domains/settings.js";
 import { storedSetting, windowRows } from "../page/derivations/settings.js";
@@ -356,7 +356,7 @@ function makeGraphRunSource(
 				timeCursor.set(atLiveEdge(moment) ? null : moment);
 			},
 		},
-		pageSize: windowRows(storedSetting(WindowSizeSchema, pagePreferences().read(SHU_TAG.WINDOW_SIZE, PAGE_SETTING_KEY), INITIAL_WINDOW_SIZE)),
+		pageSize: windowRows(storedSetting(`<${SHU_TAG.WINDOW_SIZE}>`, WindowSizeSchema, pagePreferences().read(SHU_TAG.WINDOW_SIZE, PAGE_SETTING_KEY), INITIAL_WINDOW_SIZE)),
 		get loaded() {
 			return loaded;
 		},

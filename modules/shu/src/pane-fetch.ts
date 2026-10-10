@@ -1,5 +1,5 @@
 import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { conduit } from "./hypermedia.js";
+import { conduit } from "./page/controllers/conduit-controller.js";
 import { linkTo, getAvailableSteps, requireStep, carriedProducts } from "./rpc-registry.js";
 import { appAccessLevel } from "./util.js";
 import { queryGraph } from "./quads-snapshot.js";
@@ -7,7 +7,7 @@ import type { TCallLink } from "@haibun/core/lib/hypermedia.js";
 
 type FetchOutcome<T> = { ok: true; value: T } | { ok: false; error: string };
 
-/** Step discovery + action scope + RPC + error detail in one call. Callers own their loading/error UI. The wire call routes through the installed `Conduit` so live/serialized/test modes share one path. `step` is a friendly name or full `Stepper-method`, resolved against the loaded registry at runtime. */
+/** Step discovery + action scope + RPC + error detail in one call. Callers own their loading/error UI. The wire call routes through the installed `TConduit` so live/serialized/test modes share one path. `step` is a friendly name or full `Stepper-method`, resolved against the loaded registry at runtime. */
 export async function callStep<T>(step: string, params: Record<string, unknown> = {}, why?: string): Promise<FetchOutcome<T>> {
 	try {
 		await getAvailableSteps();

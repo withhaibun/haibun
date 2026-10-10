@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Every implementation of the page's paging contract, held to one specification: a list already in memory, pages
 // fetched as a reader reaches them, and the window of a run over the records it wrote.
-import { ServerUnreachable } from "./hypermedia.js";
+import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { beforeEach } from "vitest";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";

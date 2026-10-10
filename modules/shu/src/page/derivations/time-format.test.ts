@@ -24,8 +24,8 @@ describe("an instant", () => {
 		expect(formatInstant("2026-03-04T14:30:00Z", NOW, MONTREAL)).toBe("aujourd’hui, 09 h 30");
 	});
 
-	it("returns a text that doesn't state an instant as it is", () => {
-		expect(formatInstant("not a date", NOW, TORONTO)).toBe("not a date");
+	it("throws for a text that doesn't state an instant", () => {
+		expect(() => formatInstant("not a date", NOW, TORONTO)).toThrow(/"not a date" doesn't state an instant/);
 		expect(isDateValue("2026-03-04T14:30")).toBe(true);
 		expect(isDateValue("Wed, 4 Mar 2026 14:30:00 +0000")).toBe(true);
 		expect(isDateValue("12345")).toBe(false);

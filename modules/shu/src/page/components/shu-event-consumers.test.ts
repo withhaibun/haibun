@@ -2,7 +2,7 @@
 // The views of a run, over the records it wrote. A run is in the graph: a step is one record carrying how it went, and
 // what it logged and produced point back at it. So a step is one row rather than a start paired with an end, and a
 // heading is the step that declared the feature or the scenario.
-import { ServerUnreachable } from "../../hypermedia.js";
+import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { describe, it, expect, beforeEach, afterEach, onTestFinished } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { ShuMonitorColumn } from "./shu-monitor-column.js";

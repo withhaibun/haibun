@@ -7,7 +7,7 @@
  * which is why this decides the order and the harvest and the window don't depend on what a graph is.
  */
 import { RPC_METHOD } from "../../domains/elements.js";
-import { reads, type TLink } from "../../hypermedia.js";
+import { reads, type TLink } from "../../page/domains/links.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
 type TStated = Pick<TQuad, "subject" | "object">;

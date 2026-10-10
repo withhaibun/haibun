@@ -484,9 +484,6 @@
 	"modules/shu/src/entity-store.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/shu/src/event-stream.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/external-components.ts": {
 		"isn't in a kind position": 1
 	},
@@ -665,9 +662,6 @@
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/graph/types.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/hypermedia.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/known-size-flow.ts": {

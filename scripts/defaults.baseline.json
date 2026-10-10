@@ -393,9 +393,6 @@
 	"modules/shu/src/embedder.ts": {
 		"states a parameter's default value": 3
 	},
-	"modules/shu/src/event-stream.ts": {
-		"fills an absent value with a constant through ??": 1
-	},
 	"modules/shu/src/external-components.ts": {
 		"states a parameter's default value": 1
 	},
@@ -523,11 +520,6 @@
 		"fills an absent value with a constant through ??": 15
 	},
 	"modules/shu/src/graph/svg-util.ts": {
-		"states a parameter's default value": 2
-	},
-	"modules/shu/src/hypermedia.ts": {
-		"fills a falsy value with a constant through ||": 1,
-		"fills an absent value with a constant through ??": 3,
 		"states a parameter's default value": 2
 	},
 	"modules/shu/src/known-size-flow.ts": {

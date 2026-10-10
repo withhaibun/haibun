@@ -3,9 +3,10 @@
 // TestConduit returns results from a function the test supplies.
 import { ACTION_BEGIN } from "@haibun/core/lib/rpc-wire.js";
 import { hostHandshake } from "@haibun/core/lib/test/rpc-answer.js";
-import { LiveConduit, type TStreamChunk } from "./hypermedia.js";
-import { TestConduit, PAGE_ACTUALITY, serveThePage } from "./test-setup.js";
-import { describeConduit, type TConduitUnderTest } from "./test/conduit-conformance.js";
+import { installServedConduit } from "../root.js";
+import { type TStreamChunk } from "../domains/links.js";
+import { TestConduit, PAGE_ACTUALITY, serveThePage } from "../../test-setup.js";
+import { describeConduit, type TConduitUnderTest } from "../../test/conduit-conformance.js";
 import { rpcAnswer } from "@haibun/core/lib/test/rpc-answer.js";
 
 type TArranged = { answer?: unknown; failure?: string; chunks?: TStreamChunk[] };
@@ -67,7 +68,7 @@ describeConduit("over a running service", () => {
 		return Promise.resolve(rpcAnswer(one.answer, 200));
 	}) as unknown as typeof globalThis.fetch;
 	return {
-		conduit: new LiveConduit(),
+		conduit: installServedConduit(""),
 		...arranged,
 		done: () => {
 			globalThis.fetch = fetchWas;

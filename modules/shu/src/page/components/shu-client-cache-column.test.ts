@@ -2,7 +2,7 @@
 // The client cache view is THE reading of what the page holds of a run: each source's extent, the rows it holds and the
 // cursor's row in it, the live stream by level, and the executions this device holds; every value under its own test
 // id, so a feature reads what the page holds from here with the generic steps. It doesn't make a source of its own.
-import { ServerUnreachable } from "../../hypermedia.js";
+import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { ShuClientCacheColumn } from "./shu-client-cache-column.js";

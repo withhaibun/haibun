@@ -3,7 +3,7 @@ import type { TCounted } from "@haibun/core/lib/hypermedia.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
 import { BODY_LABEL, LinkRelations } from "@haibun/core/lib/resources.js";
-import { subscribeBatchedEvents, hasEventStream } from "./event-stream.js";
+import { subscribeBatchedEvents, hasEventStream } from "./page/controllers/event-stream-controller.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { reportToRun } from "./client-log.js";
 import { callStep } from "./pane-fetch.js";

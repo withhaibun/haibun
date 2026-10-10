@@ -10,8 +10,8 @@
 import { html, css, type TemplateResult } from "lit";
 import { shuBaseStyles } from "./styles.js";
 import { z } from "zod";
-import { conduit } from "../../hypermedia.js";
-import { type TEvent } from "../../event-stream.js";
+import { conduit } from "../controllers/conduit-controller.js";
+import { type TEvent } from "../ports.js";
 import { AFFORDANCE_EVENT_PREFIX } from "@haibun/core/lib/affordances.js";
 import { producingStepOf, projectDomainChain, waypointNodeId, type TAffordancesSnapshot, type TWaypointSnapshot } from "../../graph/project-domain-chain.js";
 import { graphToQuads } from "../../graph/graph-quads.js";

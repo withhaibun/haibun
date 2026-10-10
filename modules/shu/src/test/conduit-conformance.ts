@@ -9,12 +9,13 @@
  * arranged is each implementation's own, which is what `TConduitUnderTest` supplies.
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import type { Conduit, TStreamChunk } from "../hypermedia.js";
-import { reads } from "../hypermedia.js";
+import type { TConduit } from "../page/ports.js";
+import type { TStreamChunk } from "../page/domains/links.js";
+import { reads } from "../page/domains/links.js";
 
 /** A conduit ready to call, with the answers a case arranges for it. */
 export type TConduitUnderTest = {
-	conduit: Conduit;
+	conduit: TConduit;
 	/** A call to `method` is answered with `value`. */
 	answers(method: string, value: unknown): void;
 	/** A call to `method` fails, as a server refusing it makes it fail. */
@@ -32,7 +33,7 @@ const METHOD = "TestStepper-read";
 export function describeConduit(name: string, make: () => TConduitUnderTest | Promise<TConduitUnderTest>): void {
 	describe(`the conduit (${name})`, () => {
 		let held: TConduitUnderTest;
-		let conduit: Conduit;
+		let conduit: TConduit;
 		beforeEach(async () => {
 			held = await make();
 			conduit = held.conduit;

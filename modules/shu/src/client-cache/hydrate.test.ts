@@ -4,7 +4,7 @@
  * own at boot, and the window then reads that run exactly as it reads one a site is recording. A payload written to
  * another rule is refused rather than read wrongly.
  */
-import { ServerUnreachable } from "../hypermedia.js";
+import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";

@@ -561,7 +561,7 @@ class PaneStateImpl {
 		this.held.strip.addPane(pane);
 		const child = document.createElement(tag);
 		for (const [name, value] of Object.entries(page?.attributes ?? {})) child.setAttribute(name, value);
-		if (storedSetting(ShownControlsSchema, pagePreferences().read(SHU_TAG.COLUMN_PANE, shownControlsKey(tag)), INITIAL_SHOWN_CONTROLS).shown) child.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");
+		if (storedSetting(`the controls of <${tag}>`, ShownControlsSchema, pagePreferences().read(SHU_TAG.COLUMN_PANE, shownControlsKey(tag)), INITIAL_SHOWN_CONTROLS).shown) child.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");
 		if (d.paneType === "component" && d.data) (child as HTMLElement & { products?: Record<string, unknown> }).products = d.data;
 		pane.appendChild(child);
 		pane.setMinimized(d.flag === "min");

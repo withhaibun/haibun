@@ -27,7 +27,7 @@
  *
  * Inbound event subscriptions go through `subscribeBatched({onBatch, filter})`
  * which coalesces every event arriving between paints into one handler call
- * inside an animation frame. The transport is the installed `EventStream`
+ * inside an animation frame. The transport is the installed `TEventStream`
  * (`event-stream.ts`); subscribers never construct `SseSubscriber` directly.
  *
  * Light DOM: components that must live in the host's light DOM (e.g.
@@ -53,7 +53,8 @@ export type { TLinkedData };
 import { getRels } from "../../rels-cache.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import * as ViewHash from "../../view-hash.js";
-import { subscribeBatchedEvents, type TEvent, type TEventFilter } from "../../event-stream.js";
+import { subscribeBatchedEvents } from "../controllers/event-stream-controller.js";
+import { type TEvent, type TEventFilter } from "../ports.js";
 import { PreferencesController } from "../controllers/preferences-controller.js";
 import { recordClientBlip } from "../../client-blips.js";
 import type { TContextPattern } from "../../schemas.js";
@@ -296,8 +297,8 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 	}
 
 	/** The fields `PreferencesController` stores: the `persistFields`, under this element's tag and `persistKey`. On the
-	 *  first connection, a field that this element set before it connected stays as set. A set of stored fields that the
-	 *  schema rejects doesn't apply. */
+	 *  first connection, a field that this element set before it connected stays as set. Throws where the schema refuses the
+	 *  stored fields. */
 	#storedFields(): ConstructorParameters<typeof PreferencesController>[1] {
 		const element = this;
 		const names = (this.constructor as typeof ShuElement).persistFields;
@@ -310,7 +311,9 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 			fields: () => Object.fromEntries(names.filter((name) => this.#fields[name] !== undefined).map((name) => [name, this.#fields[name]])),
 			restore: (saved, initial) => {
 				const patch = Object.fromEntries(Object.entries(saved).filter(([name]) => !initial || !this.#dirtyFields.has(name)));
-				if (Object.keys(patch).length === 0 || !this._schema.safeParse({ ...(this.state as object), ...patch }).success) return;
+				if (Object.keys(patch).length === 0) return;
+				const parsed = this._schema.safeParse({ ...(this.state as object), ...patch });
+				if (!parsed.success) throw new Error(`the fields stored for <${element.tagName.toLowerCase()}> don't match its schema (${errorDetail(parsed.error)}). Remove its cookie.`);
 				this.#restoring = true;
 				try {
 					this.setState(patch as Partial<z.infer<T>>);
@@ -488,7 +491,7 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 		return `<script type="application/ld+json">${JSON.stringify(products).replaceAll("</", "<\\/")}</script>`;
 	}
 
-	/** Subscribe to inbound events via the installed `EventStream`, batching all events received between paints into one `onBatch(events)` call inside an animation frame. Delegates to the shared `subscribeBatchedEvents` (the data controllers use the same path). */
+	/** Subscribe to inbound events via the installed `TEventStream`, batching all events received between paints into one `onBatch(events)` call inside an animation frame. Delegates to the shared `subscribeBatchedEvents` (the data controllers use the same path). */
 	protected subscribeBatched(opts: { onBatch: (events: TEvent[]) => void; filter?: TEventFilter; onReconnect?: () => void }): () => void {
 		return subscribeBatchedEvents(opts);
 	}

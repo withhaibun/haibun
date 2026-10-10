@@ -9,8 +9,8 @@ import { html, nothing, type ReactiveController, type TemplateResult } from "lit
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { extractQuadsFromEvents, type TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
-import type { TEvent } from "../../event-stream.js";
-import { isServerUnreachable } from "../../hypermedia.js";
+import type { TEvent } from "../ports.js";
+import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { selectValuesFor } from "../../quads-snapshot.js";
 import { addObservedSelectValues, getQueryableFields, getSelectValues, hasSelectValues, hasUsableSelectValues, setSelectValues } from "../../rels-cache.js";
 import { buildDomainOptions, getAvailableDomains, getAvailableSteps, type DomainOption } from "../../rpc-registry.js";

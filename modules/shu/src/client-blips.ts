@@ -12,7 +12,8 @@ import { isOffline } from "./rpc-registry.js";
  * without occurrences doesn't send a batch. On actuality's side each occurrence lands in the same channel a server-side
  * recording does, where it is one check while the channel doesn't have a subscriber.
  */
-import { conduit, hasConduit, reads } from "./hypermedia.js";
+import { conduit, hasConduit } from "./page/controllers/conduit-controller.js";
+import { reads } from "./page/domains/links.js";
 import { reportToRun } from "./client-log.js";
 import { pageMay } from "./page-key.js";
 import { readAction } from "@haibun/core/lib/actions.js";

@@ -17,7 +17,7 @@ export const VIEWS = "components";
 export const CONTROLLERS = "controllers";
 
 /** The modules that send requests. An import of one by its package path matches the same suffix. */
-const PLUMBING_MODULES = ["/hypermedia.js", "/pane-fetch.js", "/rpc-registry.js", "/page-key.js"];
+const PLUMBING_MODULES = ["/conduit-controller.js", "/pane-fetch.js", "/rpc-registry.js", "/page-key.js"];
 
 /** The names a view doesn't import. A controller holds the read each one performs. */
 const DATA_ACCESS_PRIMITIVES = new Set(["conduit", "requireStep", "findStep", "callStep", "fetchIndividuals", "pageAuthority", "signedHeaders"]);

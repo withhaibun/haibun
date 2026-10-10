@@ -1,7 +1,7 @@
 /**
  * `setupShuTest`: the single way every shu test installs its services. One
- * call inside `beforeEach` (or once at suite level) installs a `Conduit` and
- * an `EventStream`, returns handles for the test to drive scripted events
+ * call inside `beforeEach` (or once at suite level) installs a `TConduit` and
+ * an event stream, returns handles for the test to drive scripted events
  * and inspect dispatch params, and runs cleanup on teardown.
  *
  * Tests pass a `dispatch` function that returns wire results per
@@ -10,14 +10,16 @@
  * call sites. Tests `emit` events to drive lifecycle/log subscribers.
  *
  * Every test sets up the same way, without setup by side effect; forgetting
- * the call makes the first `conduit()` or `eventStream()` throw a precise
- * "a Conduit isn't installed" / "an EventStream isn't installed" error naming
+ * the call makes the first `conduit()` or `pageEventStream()` throw a precise
+ * "the page doesn't hold a conduit" / "the page doesn't hold an event stream" error naming
  * what was missed.
  */
 
 import { actualityAt } from "@haibun/core/lib/rpc-wire.js";
 import { HYDRATION_ID } from "./domains/elements.js";
-import { setConduit, type Conduit, type TLink, type TRepresentation, type TStreamChunk } from "./hypermedia.js";
+import { installConduit } from "./page/root.js";
+import { type TConduit } from "./page/ports.js";
+import { type TLink, type TRepresentation, type TStreamChunk } from "./page/domains/links.js";
 
 // ─── The conduit a test installs ─────────────────────────────────────────────
 
@@ -36,8 +38,8 @@ export class DrivenStream {
 	) {}
 }
 
-/** A `Conduit` answering from a function a test supplies, so the code under test doesn't detect that it isn't calling a server. */
-export class TestConduit implements Conduit {
+/** A `TConduit` answering from a function a test supplies, so the code under test doesn't detect that it isn't calling a server. */
+export class TestConduit implements TConduit {
 	constructor(private readonly dispatch: TDispatch) {}
 
 	async follow<T = TRepresentation>(link: TLink, _why: string): Promise<T> {
@@ -89,12 +91,13 @@ export class TestConduit implements Conduit {
 		return { seqPath: stream.seqPath ?? [] };
 	}
 
-	group<T>(_why: string, fn: (g: Conduit) => Promise<T>): Promise<T> {
+	group<T>(_why: string, fn: (g: TConduit) => Promise<T>): Promise<T> {
 		return fn(this);
 	}
 }
 
-import { setEventStream, SerializedEventStream, type TEvent } from "./event-stream.js";
+import { CarriedEventStream } from "./page/adapters/carried-event-stream.js";
+import { type TEvent } from "./page/ports.js";
 import { endPage } from "./page-pinned.js";
 import { setDeviceStore, MemoryDeviceStore, CACHE_SHAPE } from "./client-cache/index.js";
 import { hydrateFromDom, onStepsChanged } from "./rpc-registry.js";
@@ -110,7 +113,7 @@ import { Access, LinkRelations, type TDomainDefinition, type TEdgeDef, type TRel
 import { fromJsonText } from "@haibun/core/lib/json-text.js";
 import { z } from "zod";
 import { STEPS_CHANGED } from "@haibun/core/schema/protocol.js";
-import { pagePreferences } from "./page/root.js";
+import { installCarriedEventStream, pagePreferences } from "./page/root.js";
 import type { TClock } from "./page/ports.js";
 import { PREFERENCES_COOKIE_PREFIX } from "./page/adapters/prefs-cookie.js";
 
@@ -136,14 +139,14 @@ function servingArtifacts(answer: (url: string, init?: RequestInit) => Response)
 }
 
 export type TShuTestHandle = {
-	/** Drive a scripted event into the installed `EventStream`. Components subscribed via `eventStream()` see it as if it had arrived over SSE. */
+	/** Drive a scripted event into the installed `TEventStream`. Components subscribed via `pageEventStream()` see it as if it had arrived over SSE. */
 	emit: (event: TEvent) => void;
 	/** Tear down both services. Call from `afterEach` (or rely on the next `beforeEach`'s `setupShuTest` overwriting them: both are valid). */
 	teardown: () => void;
 	/** The `TestConduit` instance installed under `conduit()`. Exposed for assertions that need to swap the dispatch mid-test or read the instance identity. */
 	conduit: TestConduit;
-	/** The `SerializedEventStream` instance installed under `eventStream()`. Exposed for assertions that need its `totalRecorded()` or to inspect identity. */
-	eventStream: SerializedEventStream;
+	/** The `CarriedEventStream` instance installed under `pageEventStream()`. Exposed for assertions that need its `totalRecorded()` or to inspect identity. */
+	eventStream: CarriedEventStream;
 };
 
 /** Signal on actuality's stream that its steps changed, as actuality does when a feature declares a step; `n` tells one
@@ -328,10 +331,9 @@ export function setupShuTest(config: TShuTestConfig = {}): TShuTestHandle {
 			);
 		});
 	const conduit = new TestConduit(dispatch);
-	const eventStream = new SerializedEventStream();
+	const eventStream = installCarriedEventStream();
 	const stopServingArtifacts = servingArtifacts(config.artifact ?? (() => new Response(new Blob([], { type: "image/png" }))));
-	setConduit(conduit);
-	setEventStream(eventStream);
+	installConduit(conduit);
 	setDeviceStore(new MemoryDeviceStore());
 	serveThePage();
 	return {
@@ -359,6 +361,23 @@ export function clearEveryStoredField(): void {
 export function clearStoredFields(tag: string): void {
 	pagePreferences().flush();
 	document.cookie = `${PREFERENCES_COOKIE_PREFIX}${tag}=; path=/; max-age=0`;
+}
+
+/** Returns the messages of the errors the page reports while `fn` runs, as an error a listener or an element's connection
+ *  throws, which the browser reports to the window rather than to the caller. */
+export function reportedErrors(fn: () => void): string[] {
+	const reported: string[] = [];
+	const onError = (e: ErrorEvent): void => {
+		reported.push(e.message);
+		e.preventDefault();
+	};
+	window.addEventListener("error", onError);
+	try {
+		fn();
+	} finally {
+		window.removeEventListener("error", onError);
+	}
+	return reported;
 }
 
 /** Stores `fields` for the instance `key` of `tag` at once, as an element that wrote them on an earlier page did. */

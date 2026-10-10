@@ -11,14 +11,14 @@ import { FRAGMENT_SPEC } from "@haibun/core/lib/media-fragments.js";
 import { ShuElement } from "./page/components/shu-element.js";
 import { setSiteMetadata, type SiteMetadata } from "./rels-cache.js";
 import * as ViewHash from "./view-hash.js";
-import { setConduit, LiveConduit } from "./hypermedia.js";
+import { installConduit, installServedConduit } from "./page/root.js";
 import { TestConduit } from "./test-setup.js";
 import { activePane } from "./signals.js";
 import { endPage } from "./page-pinned.js";
 
-/** Offline is which Conduit is installed: a serialized one doesn't have a location to mutate, a live one does. */
+/** Offline is which TConduit is installed: a serialized one doesn't have a location to mutate, a live one does. */
 const offline = () =>
-	setConduit(
+	installConduit(
 		new TestConduit(() => {
 			throw new Error("pane-state test: no dispatch expected");
 		}),
@@ -562,7 +562,7 @@ describe("PaneState", () => {
 		// Online: the arrival path is a real location change, canonicalized by view-hash's ingress listener
 		// (registered at import, so it runs before PaneState's) before any consumer reads the hash.
 		endPage();
-		setConduit(new LiveConduit(""));
+		installServedConduit("");
 		ShuElement.pushHash("#?label=File&sort=dateModified&col=shu-monitor-column&active=shu-monitor-column");
 		PaneState.fromHash();
 		await flush();

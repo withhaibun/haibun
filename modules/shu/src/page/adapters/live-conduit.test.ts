@@ -1,29 +1,20 @@
 // @vitest-environment jsdom
 /**
- * Tests the wire-shape contract of `hypermedia.ts`: the type guards, link resolution, the `Conduit` accessor's failure
+ * Tests the wire-shape contract of `hypermedia.ts`: the type guards, link resolution, the `TConduit` accessor's failure
  * where a conduit isn't installed, and the conduit a test installs. It also tests `LiveConduit` against a replaced
  * `fetch`: a server that doesn't respond, the timeout, the retry interval and refusals. A regression in the contract
  * fails in this file. The component integration tests exercise `LiveConduit` against a running RPC service.
  */
 import "fake-indexeddb/auto";
 import { authorityRefusal, notFromActuality, REFUSED_INVOCATION } from "@haibun/core/lib/rpc-wire.js";
-import { openPageAuthority, pageMay } from "./page-key.js";
+import { openPageAuthority, pageMay } from "../../page-key.js";
 import { describe, it, expect, beforeEach } from "vitest";
-import {
-	reads,
-	acts,
-	type TLink,
-	hasLink,
-	getLink,
-	conduit,
-	setConduit,
-	type TRepresentation,
-	LiveConduit,
-	ServerUnreachable,
-	isServerUnreachable,
-	serverLastRespondedAt,
-} from "./hypermedia.js";
-import { PAGE_ACTUALITY, TestConduit, hydrate, serveThePage } from "./test-setup.js";
+import { reads, acts, type TLink, type TRepresentation } from "../domains/links.js";
+import { hasLink, getLink } from "../derivations/links.js";
+import { conduit, serverLastRespondedAt } from "../controllers/conduit-controller.js";
+import { installConduit, installServedConduit } from "../root.js";
+import { ServerUnreachable, isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
+import { PAGE_ACTUALITY, TestConduit, hydrate, serveThePage } from "../../test-setup.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 
 beforeEach(() => {
@@ -36,12 +27,12 @@ function setHydration(payload: Record<string, unknown>): void {
 	hydrate({ actualityId: PAGE_ACTUALITY, ...payload });
 }
 
-import { hydrateFromDom } from "./rpc-registry.js";
+import { hydrateFromDom } from "../../rpc-registry.js";
 import { rpcAnswer, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
-import { endPage, pagePinned } from "./page-pinned.js";
+import { endPage, pagePinned } from "../../page-pinned.js";
 
 /** The specifier of the copy of hypermedia.js that another bundle on the page loads. */
-const BUNDLE_COPY = "./hypermedia.js?bundle=graph-view";
+const BUNDLE_COPY = "@haibun/core/lib/rpc-wire.js?bundle=graph-view";
 
 describe("whether a link reads or acts", () => {
 	// A page can't read actuality through a step whose result actuality would record. Each link's required `asks` field
@@ -89,34 +80,34 @@ describe("getLink", () => {
 	});
 
 	it("throws a message that lists the rels in _links when the requested rel isn't one of them", () => {
-		expect(() => getLink(rep, "unknown-rel")).toThrow(/rel not in _links \(have: trace\)/);
+		expect(() => getLink(rep, "unknown-rel")).toThrow(/_links doesn't hold unknown-rel; it holds trace/);
 	});
 
-	it("throws `Representation has no _links` when _links is absent", () => {
-		expect(() => getLink({ _type: "Email" }, "trace")).toThrow(/Representation has no _links/);
+	it("throws where the representation doesn't hold _links", () => {
+		expect(() => getLink({ _type: "Email" }, "trace")).toThrow(/representation doesn't hold _links/);
 	});
 
 	it("throws on a malformed link entry (missing method), so a caller never receives a partial link", () => {
 		const bad: TRepresentation = { _links: { x: { params: {} } as unknown as TLink } };
-		expect(() => getLink(bad, "x")).toThrow(/rel not in _links/);
+		expect(() => getLink(bad, "x")).toThrow(/_links doesn't hold x/);
 	});
 });
 
 describe("conduit accessor", () => {
-	it("throws a message stating that a Conduit isn't installed when one hasn't been installed", () => {
-		expect(() => conduit()).toThrow(/a Conduit isn't installed/);
+	it("throws a message that names what installs a conduit where the page doesn't hold one", () => {
+		expect(() => conduit()).toThrow(/the page doesn't hold a conduit/);
 	});
 
 	it("returns the installed instance after setConduit", () => {
 		const c = new TestConduit(() => ({ _type: "Email" }));
-		setConduit(c);
+		installConduit(c);
 		expect(conduit()).toBe(c);
 	});
 
 	it("a page that has ended doesn't have a conduit installed", () => {
-		setConduit(new TestConduit(() => ({})));
+		installConduit(new TestConduit(() => ({})));
 		endPage();
-		expect(() => conduit()).toThrow(/a Conduit isn't installed/);
+		expect(() => conduit()).toThrow(/the page doesn't hold a conduit/);
 	});
 });
 
@@ -135,7 +126,7 @@ describe("a server that does not respond", () => {
 		const fetchWas = globalThis.fetch;
 		globalThis.fetch = () => Promise.reject(new TypeError("Failed to fetch"));
 		try {
-			const conduit = new LiveConduit("");
+			const conduit = installServedConduit("");
 			const err = await conduit.follow(acts(SHOW_STEPS_METHOD), "test").then(
 				() => undefined,
 				(e: unknown) => e,
@@ -150,8 +141,8 @@ describe("a server that does not respond", () => {
 	});
 
 	it("detects the server not responding in a failure from another bundle's copy of the conduit", async () => {
-		// A second bundle loads its own copy of hypermedia.js, so its conduit throws its own ServerUnreachable class.
-		const otherBundle: typeof import("./hypermedia.js") = await import(/* @vite-ignore */ BUNDLE_COPY);
+		// A second bundle loads its own copy of the wire module, so its conduit throws its own ServerUnreachable class.
+		const otherBundle: typeof import("@haibun/core/lib/rpc-wire.js") = await import(/* @vite-ignore */ BUNDLE_COPY);
 		expect(otherBundle.ServerUnreachable).not.toBe(ServerUnreachable);
 		expect(isServerUnreachable(new Error("wrapped", { cause: new otherBundle.ServerUnreachable(HANDSHAKE_PATH, new TypeError("Failed to fetch")) }))).toBe(true);
 		expect(isServerUnreachable(new Error("refused"))).toBe(false);
@@ -161,11 +152,11 @@ describe("a server that does not respond", () => {
 		const fetchWas = globalThis.fetch;
 		try {
 			globalThis.fetch = () => Promise.resolve(new Response("404 Not Found", { status: 404, headers: { "Content-Type": "text/plain; charset=UTF-8" } }));
-			await expect(new LiveConduit("").follow(reads(SHOW_STEPS_METHOD), "test")).rejects.toThrow(
+			await expect(installServedConduit("").follow(reads(SHOW_STEPS_METHOD), "test")).rejects.toThrow(
 				notFromActuality(SHOW_STEPS_METHOD, 404, "text/plain; charset=UTF-8", "404 Not Found").error,
 			);
 			globalThis.fetch = () => Promise.resolve(rpcAnswer({ ok: false, error: "no such step" }, 422));
-			await expect(new LiveConduit("").follow(reads(SHOW_STEPS_METHOD), "test")).rejects.toThrow("no such step");
+			await expect(installServedConduit("").follow(reads(SHOW_STEPS_METHOD), "test")).rejects.toThrow("no such step");
 		} finally {
 			globalThis.fetch = fetchWas;
 		}
@@ -177,7 +168,7 @@ describe("a server that does not respond", () => {
 		await openPageAuthority(undefined, [HELD]);
 		try {
 			globalThis.fetch = () => Promise.resolve(rpcAnswer(authorityRefusal("the presented authority failed verification: revoked"), REFUSED_INVOCATION));
-			await expect(new LiveConduit("").follow(reads(SHOW_STEPS_METHOD), "test")).rejects.toThrow("revoked");
+			await expect(installServedConduit("").follow(reads(SHOW_STEPS_METHOD), "test")).rejects.toThrow("revoked");
 			expect(pageMay(HELD), "the page doesn't hold the authority actuality refused").toBe(false);
 		} finally {
 			globalThis.fetch = fetchWas;
@@ -190,7 +181,7 @@ describe("a server that does not respond", () => {
 		serveThePage();
 		globalThis.fetch = () => Promise.reject(new TypeError("Failed to fetch"));
 		try {
-			await new LiveConduit("").follow(acts(SHOW_STEPS_METHOD), "test").catch(() => undefined);
+			await installServedConduit("").follow(acts(SHOW_STEPS_METHOD), "test").catch(() => undefined);
 			expect(serverLastRespondedAt(), "a page that hasn't reached a server doesn't hold such a time").toBeUndefined();
 			// The second part starts a new page, so the state the first part left doesn't affect it.
 			endPage();
@@ -198,7 +189,7 @@ describe("a server that does not respond", () => {
 			// An error the server returns still counts as a response, so a reader sees that the page reached the server.
 			globalThis.fetch = () => Promise.resolve(rpcAnswer({ error: "no such step" }, 422));
 			const before = Date.now();
-			await new LiveConduit("").follow(acts(SHOW_STEPS_METHOD), "test").catch(() => undefined);
+			await installServedConduit("").follow(acts(SHOW_STEPS_METHOD), "test").catch(() => undefined);
 			expect(serverLastRespondedAt() ?? 0).toBeGreaterThanOrEqual(before);
 		} finally {
 			globalThis.fetch = fetchWas;
@@ -221,7 +212,7 @@ describe("a server that does not respond", () => {
 		}) as unknown as typeof globalThis.fetch;
 		try {
 			const began = Date.now();
-			const err = await new LiveConduit("").follow(acts(SHOW_STEPS_METHOD), "test").then(
+			const err = await installServedConduit("").follow(acts(SHOW_STEPS_METHOD), "test").then(
 				() => undefined,
 				(e: unknown) => e,
 			);
@@ -247,7 +238,7 @@ describe("a server that does not respond", () => {
 			return Promise.resolve(new Response(stalled, { status: 200, headers: { "content-type": "application/json" } }));
 		}) as unknown as typeof globalThis.fetch;
 		try {
-			const err = await new LiveConduit("").follow(acts(SHOW_STEPS_METHOD), "test").then(
+			const err = await installServedConduit("").follow(acts(SHOW_STEPS_METHOD), "test").then(
 				() => undefined,
 				(e: unknown) => e,
 			);
@@ -269,13 +260,13 @@ describe("a server that does not respond", () => {
 			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("timed out", "TimeoutError")), { once: true }));
 		}) as unknown as typeof globalThis.fetch;
 		try {
-			await new LiveConduit("").follow(acts(SHOW_STEPS_METHOD), "a read the page awaits").catch(() => undefined);
+			await installServedConduit("").follow(acts(SHOW_STEPS_METHOD), "a read the page awaits").catch(() => undefined);
 			expect(bounds.at(-1), "a read the page awaits carries a timeout").toBe(true);
 			// The call that opens an action carries a timeout like any other awaited call. This part starts a page that
 			// hasn't found the site unreachable.
 			endPage();
 			serveThePage();
-			const streaming = new LiveConduit("").followStream(acts(SHOW_STEPS_METHOD), () => undefined, { why: "actuality's own stream" }).catch(() => undefined);
+			const streaming = installServedConduit("").followStream(acts(SHOW_STEPS_METHOD), () => undefined, { why: "actuality's own stream" }).catch(() => undefined);
 			await new Promise((r) => setTimeout(r, 60));
 			expect(bounds.at(-1), "and a stream doesn't carry one, so a timeout doesn't close it while actuality writes to it").toBe(false);
 			void streaming;
@@ -296,7 +287,7 @@ describe("a server that does not respond", () => {
 			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("timed out", "TimeoutError")), { once: true }));
 		}) as unknown as typeof globalThis.fetch;
 		try {
-			const conduit = new LiveConduit("");
+			const conduit = installServedConduit("");
 			await conduit.follow(reads(SHOW_STEPS_METHOD), "the first read").catch(() => undefined);
 			const afterFirst = made;
 			const began = Date.now();
@@ -322,7 +313,7 @@ describe("a server that does not respond", () => {
 			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("timed out", "TimeoutError")), { once: true }));
 		}) as unknown as typeof globalThis.fetch;
 		try {
-			const conduit = new LiveConduit("");
+			const conduit = installServedConduit("");
 			await conduit.follow(reads(SHOW_STEPS_METHOD), "the first read").catch(() => undefined);
 			expect(made).toBe(1);
 			await conduit.follow(reads(SHOW_STEPS_METHOD), "a read within the span").catch(() => undefined);
@@ -351,7 +342,7 @@ describe("a server that does not respond", () => {
 			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("timed out", "TimeoutError")), { once: true }));
 		}) as unknown as typeof globalThis.fetch;
 		try {
-			const conduit = new LiveConduit("");
+			const conduit = installServedConduit("");
 			await conduit.follow(reads(SHOW_STEPS_METHOD), "a view reading").catch(() => undefined);
 			const afterRead = asked.length;
 			await conduit.follow(acts("chatWithContext"), "the reader's question").catch(() => undefined);
@@ -372,7 +363,7 @@ describe("a server that does not respond", () => {
 			return Promise.reject(new TypeError("Failed to fetch"));
 		}) as unknown as typeof globalThis.fetch;
 		try {
-			const conduit = new LiveConduit("");
+			const conduit = installServedConduit("");
 			await conduit.follow(acts(SHOW_STEPS_METHOD), "the first read").catch(() => undefined);
 			await conduit.follow(acts(SHOW_STEPS_METHOD), "the read after it").catch(() => undefined);
 			expect(made, "each call reached fetch, since the network refusal returned at once").toBeGreaterThan(1);
@@ -394,7 +385,7 @@ describe("a server that does not respond", () => {
 		}) as unknown as typeof globalThis.fetch;
 		try {
 			const stopping = new AbortController();
-			const following = new LiveConduit("")
+			const following = installServedConduit("")
 				.followStream(acts(SHOW_STEPS_METHOD), () => undefined, { why: "a reader reading", signal: stopping.signal })
 				.then(
 					() => undefined,
@@ -414,7 +405,7 @@ describe("a server that does not respond", () => {
 		const fetchWas = globalThis.fetch;
 		globalThis.fetch = () => Promise.resolve(rpcAnswer({ error: "no such step" }, 422));
 		try {
-			const err = await new LiveConduit("").follow(acts(SHOW_STEPS_METHOD), "test").then(
+			const err = await installServedConduit("").follow(acts(SHOW_STEPS_METHOD), "test").then(
 				() => undefined,
 				(e: unknown) => e,
 			);

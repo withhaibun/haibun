@@ -17,13 +17,13 @@ import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js
 import { shuBaseStyles } from "./styles.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 
-import { subscribeBatchedEvents } from "../../event-stream.js";
+import { subscribeBatchedEvents } from "../controllers/event-stream-controller.js";
 import { currentRowIndex } from "../derivations/rail.js";
 
 import type { Range } from "../derivations/rail.js";
 import { HAIBUN_LOG_LEVELS } from "@haibun/core/schema/protocol.js";
 import { registryOrigin } from "../../rpc-registry.js";
-import { serverLastRespondedAt } from "../../hypermedia.js";
+import { serverLastRespondedAt } from "../controllers/conduit-controller.js";
 import { emptyOrLoading } from "./empty-state.js";
 import {
 	runSources,

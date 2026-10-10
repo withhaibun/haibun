@@ -12,8 +12,8 @@ import { ShuStepDetail, stepRecordId } from "./shu-step-detail.js";
 import { EDGE, SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { SHARED_GRAPH } from "@haibun/core/lib/quad-types.js";
 import { VARIABLE_FIELD } from "@haibun/core/lib/records/domains/variables.js";
-import { setConduit, LiveConduit } from "../../hypermedia.js";
-import { setEventStream, SerializedEventStream } from "../../event-stream.js";
+import { installServedConduit } from "../root.js";
+import { installCarriedEventStream } from "../root.js";
 import { setGraphStore } from "../../quads-snapshot.js";
 import { setSiteMetadata, type SiteMetadata } from "../../rels-cache.js";
 import { noteExecution } from "../../client-cache/index.js";
@@ -32,9 +32,9 @@ describe("shu-step-detail", () => {
 	beforeEach(async () => {
 		endPage();
 		document.body.innerHTML = "";
-		setConduit(new LiveConduit(""));
+		installServedConduit("");
 		serveThePage();
-		setEventStream(new SerializedEventStream());
+		installCarriedEventStream();
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
 		// One step of the execution being read: what it asked for, what ran, how it went and where.
 		const store = runStore();

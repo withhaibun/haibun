@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { paneOpsFor } from "./affordances.js";
-import type { TEvent } from "../../event-stream.js";
+import type { TEvent } from "../ports.js";
 
 /** A completed step-end lifecycle event whose products open the given component view. */
 const openEvent = (id: string, component: string, over: Record<string, unknown> = {}): TEvent =>

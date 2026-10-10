@@ -6,7 +6,7 @@ import { LitElement } from "lit";
 import { EntityController } from "./entity-controller.js";
 import { type TEntityView } from "../../entity-store.js";
 import { setupShuTest, makeEntityDispatch, type TShuTestHandle } from "../../test-setup.js";
-import type { TEvent } from "../../event-stream.js";
+import type { TEvent } from "../ports.js";
 import { endPage } from "../../page-pinned.js";
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 20));

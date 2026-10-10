@@ -14,7 +14,9 @@ import { failFastOrLog, isDev } from "@haibun/core/lib/dev-mode.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { requiredAction } from "@haibun/core/lib/actions.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
-import { acts, conduit, hasConduit, isServerUnreachable } from "./hypermedia.js";
+import { acts } from "./page/domains/links.js";
+import { conduit, hasConduit } from "./page/controllers/conduit-controller.js";
+import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { pageMay } from "./page-key.js";
 
 /** The monitor's step a page reports a diagnostic through. */

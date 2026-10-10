@@ -11,7 +11,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { openEntity, refreshAnnotations, getEntityView, subscribeEntities } from "./entity-store.js";
 import { setupShuTest, makeEntityDispatch, type TShuTestHandle } from "./test-setup.js";
 import { LinkRelations, SPECIFIC_RESOURCE_LABEL } from "@haibun/core/lib/resources.js";
-import type { TEvent } from "./event-stream.js";
+import type { TEvent } from "./page/ports.js";
 import { endPage } from "./page-pinned.js";
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 20));

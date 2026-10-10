@@ -14,8 +14,8 @@ import "./shu-step-caller.js";
  *      rejection (the original crash this test was added for).
  */
 
-import { setConduit, LiveConduit } from "../../hypermedia.js";
-import { setEventStream, SerializedEventStream } from "../../event-stream.js";
+import { installServedConduit } from "../root.js";
+import { installCarriedEventStream } from "../root.js";
 import { rpcAnswer, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
 import { endPage } from "../../page-pinned.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
@@ -33,10 +33,10 @@ describe("shu-step-caller", () => {
 	beforeEach(() => {
 		endPage();
 		document.body.innerHTML = "";
-		// LiveConduit goes through the stubbed `fetch` set in each test; SerializedEventStream stands in for the SSE source.
-		setConduit(new LiveConduit(""));
+		// LiveConduit goes through the stubbed `fetch` set in each test; CarriedEventStream stands in for the SSE source.
+		installServedConduit("");
 		serveThePage();
-		setEventStream(new SerializedEventStream());
+		installCarriedEventStream();
 	});
 
 	function makeCaller(descriptor: Record<string, unknown>): HTMLElement {

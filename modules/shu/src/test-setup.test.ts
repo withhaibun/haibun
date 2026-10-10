@@ -6,8 +6,9 @@
  * un-installs.
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { acts, conduit } from "./hypermedia.js";
-import { eventStream } from "./event-stream.js";
+import { acts } from "./page/domains/links.js";
+import { conduit } from "./page/controllers/conduit-controller.js";
+import { pageEventStream } from "./page/root.js";
 import { setupShuTest } from "./test-setup.js";
 
 beforeEach(() => {
@@ -15,10 +16,10 @@ beforeEach(() => {
 });
 
 describe("setupShuTest", () => {
-	it("installs a Conduit and EventStream, conduit() and eventStream() no longer throw", () => {
+	it("installs a conduit and an event stream, so conduit() and pageEventStream() don't throw", () => {
 		setupShuTest();
 		expect(conduit()).toBeDefined();
-		expect(eventStream()).toBeDefined();
+		expect(pageEventStream()).toBeDefined();
 	});
 
 	it("default dispatch throws with the missing method name when no `dispatch` is configured", async () => {
@@ -35,7 +36,7 @@ describe("setupShuTest", () => {
 	it("emit reaches eventStream subscribers in order", () => {
 		const h = setupShuTest();
 		const seen: number[] = [];
-		eventStream().subscribe((e) => seen.push(e.id as number));
+		pageEventStream().subscribe((e) => seen.push(e.id as number));
 		h.emit({ id: 1 });
 		h.emit({ id: 2 });
 		expect(seen).toEqual([1, 2]);
@@ -44,15 +45,15 @@ describe("setupShuTest", () => {
 	it("teardown un-installs both services, subsequent accessor calls throw", () => {
 		const h = setupShuTest();
 		h.teardown();
-		expect(() => conduit()).toThrow(/a Conduit isn't installed/);
-		expect(() => eventStream()).toThrow(/an EventStream isn't installed/);
+		expect(() => conduit()).toThrow(/the page doesn't hold a conduit/);
+		expect(() => pageEventStream()).toThrow(/the page doesn't hold an event stream/);
 	});
 
 	it("a second setupShuTest replaces the prior instances cleanly", () => {
 		const first = setupShuTest();
 		const second = setupShuTest();
 		expect(conduit()).toBe(second.conduit);
-		expect(eventStream()).toBe(second.eventStream);
+		expect(pageEventStream()).toBe(second.eventStream);
 		expect(first.conduit).not.toBe(second.conduit);
 	});
 });

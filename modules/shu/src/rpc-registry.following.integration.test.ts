@@ -14,8 +14,9 @@ import WebServerStepper from "@haibun/web-server-hono/web-server-stepper.js";
 import StorageFS from "@haibun/storage-fs/storage-fs.js";
 import MonitorStepper from "./monitor-stepper.js";
 import ShuStepper from "./shu-stepper.js";
-import { LiveConduit, setConduit } from "./hypermedia.js";
-import { LiveEventStream, eventStream, setEventStream } from "./event-stream.js";
+import { installServedConduit, } from "./page/root.js";
+
+import { installServedEventStream, pageEventStream } from "./page/root.js";
 import { getAvailableSteps, onStepsChanged } from "./rpc-registry.js";
 import { serveThePageFrom } from "./test-setup.js";
 import { DOMAIN_LINK } from "@haibun/core/lib/domains.js";
@@ -35,15 +36,15 @@ class StepsPage extends AStepper {
 			action: async ({ base }: { base: string }) => {
 				endPage();
 				await serveThePageFrom(base);
-				setConduit(new LiveConduit(base));
-				setEventStream(new LiveEventStream(`${base}${SSE_ROUTE}`));
+				installServedConduit(base);
+				installServedEventStream(`${base}${SSE_ROUTE}`);
 				// The stream is open before the page reads, so the page reads its steps once and then once for the change.
 				await new Promise<void>((resolve) => {
-					const stop = eventStream().opened(() => {
+					const stop = pageEventStream().opened(() => {
 						resolve();
 						queueMicrotask(stop);
 					});
-					eventStream().connect();
+					pageEventStream().connect();
 				});
 				const methods = (await getAvailableSteps()).map((step) => step.method);
 				if (methods.includes(ADDED)) throw new Error(`${ADDED} was held before it was added`);
@@ -70,7 +71,7 @@ class StepsPage extends AStepper {
 			action: async () => {
 				if (!holdsAdded) throw new Error("a page doesn't follow actuality's steps: a scenario opens one with `page at {base} reads actuality's steps` first");
 				await holdsAdded;
-				eventStream().close();
+				pageEventStream().close();
 				endPage();
 				return actionOK();
 			},

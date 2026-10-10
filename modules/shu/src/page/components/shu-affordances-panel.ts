@@ -9,8 +9,8 @@ import { html, css, type TemplateResult, type PropertyValues } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
-import { conduit, hasConduit } from "../../hypermedia.js";
-import { type TEvent } from "../../event-stream.js";
+import { conduit, hasConduit } from "../controllers/conduit-controller.js";
+import { type TEvent } from "../ports.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { GOAL_FINDING, type TMichi, type TBinding, type TFieldBinding } from "@haibun/core/lib/goal-resolver.js";
 import {
@@ -223,7 +223,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	}
 
 	private async fetchInitial(quiet = false): Promise<void> {
-		// Where a Conduit isn't installed (standalone HTML pre-boot), the panel doesn't have a server
+		// Where the page doesn't hold a conduit (standalone HTML before the page starts), the panel doesn't have a server
 		// to fetch from. Stay on the actionable empty state rather than the spinner: the "invoke show
 		// affordances" prompt shows, and the panel becomes useful once a snapshot arrives.
 		// `quiet` (a live re-fetch on a change signal) skips the loadState transitions so the panel never flashes.

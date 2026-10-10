@@ -4,8 +4,10 @@
  * doesn't exceed a cookie's limit of about 4 KB. Each cookie lasts a year at the path `/`. A page in another site's frame
  * sets a partitioned cookie, which the browser keys to the framing site, since a framed page can't set another cookie.
  */
+import { z } from "zod";
 import { jsonCarried } from "@haibun/core/lib/json-text.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 import type { TPreferences } from "../ports.js";
 
 /** The prefix of each tag's cookie name. */
@@ -17,11 +19,8 @@ const WRITE_PAUSE_MS = 150;
 const ONE_YEAR_S = 60 * 60 * 24 * 365;
 
 /** A tag's instances, each with its stored fields, in the order they were written. */
-type TInstances = Record<string, Record<string, unknown>>;
-
-/** Whether a carried value is a record of instances, each a record of fields. */
-const isInstances = (value: unknown): value is TInstances =>
-	typeof value === "object" && value !== null && !Array.isArray(value) && Object.values(value).every((fields) => typeof fields === "object" && fields !== null && !Array.isArray(fields));
+const InstancesSchema = z.record(z.string(), z.record(z.string(), z.unknown()));
+type TInstances = z.infer<typeof InstancesSchema>;
 
 /** Returns the preferences of `page`, stored in its cookies. */
 export function cookiePreferences(page: Window): TPreferences {
@@ -30,12 +29,15 @@ export function cookiePreferences(page: Window): TPreferences {
 	const watchers = new Map<string, Set<(fields: Record<string, unknown> | undefined) => void>>();
 	const idOf = (tag: string, key: string): string => JSON.stringify([tag, key]);
 
-	/** Returns the instances a tag's cookie holds, or an empty record where the cookie doesn't hold a record of instances. */
+	/** Returns the instances a tag's cookie holds, and an empty record where the page doesn't hold the cookie. Throws where the
+	 *  cookie holds something other than a record of instances, each a record of fields. */
 	const instancesOf = (tag: string): TInstances => {
-		const match = document.cookie.match(new RegExp(`(?:^|; )${PREFERENCES_COOKIE_PREFIX}${tag}=([^;]*)`));
+		const name = `${PREFERENCES_COOKIE_PREFIX}${tag}`;
+		const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
 		if (!match) return {};
-		const carried = jsonCarried(decodeURIComponent(itemAt(match, 1)));
-		return isInstances(carried) ? carried : {};
+		const parsed = InstancesSchema.safeParse(jsonCarried(decodeURIComponent(itemAt(match, 1))));
+		if (!parsed.success) throw new Error(`the cookie ${name} doesn't hold a record of each instance's fields: ${errorDetail(parsed.error)}. Remove the cookie.`);
+		return parsed.data;
 	};
 
 	/** Writes the instance's fields at the end of its tag's cookie, where the newest instances are kept. */

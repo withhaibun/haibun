@@ -4,7 +4,7 @@ import { dispatchAffordanceFromResponse } from "./affordance-dispatch.js";
 import { PaneState } from "./pane-state.js";
 import { HYPERMEDIA } from "@haibun/core/schema/protocol.js";
 import { ShuElement } from "./page/components/shu-element.js";
-import { setConduit } from "./hypermedia.js";
+import { installConduit } from "./page/root.js";
 import { TestConduit } from "./test-setup.js";
 import { endPage } from "./page-pinned.js";
 import { activePane } from "./signals.js";
@@ -14,7 +14,7 @@ describe("dispatchAffordanceFromResponse", () => {
 		endPage();
 		activePane.set(null);
 		document.body.innerHTML = "";
-		setConduit(
+		installConduit(
 			new TestConduit(() => {
 				throw new Error("affordance-dispatch test: the conduit received a call, and this test doesn't define a fixture for one");
 			}),

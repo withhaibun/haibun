@@ -13,7 +13,7 @@ import { SHU_TAG } from "../domains/elements.js";
 import { PAGE_SETTING_KEY } from "../page/domains/settings.js";
 import "../page/components/shu-window-size.js";
 import { runStore } from "./run-store.test-fake.js";
-import { ServerUnreachable } from "../hypermedia.js";
+import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { graphRunSource } from "./graph-run-source.js";
 import { readRunAt, runReadingAt } from "./run-source.js";
 import { timeCursor } from "../signals.js";

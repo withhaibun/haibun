@@ -16,7 +16,7 @@ import { css, html, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { ShuColumnPane } from "./shu-column-pane.js";
-import { clearStoredFields, installTestMediaQueries, storeFields } from "../../test-setup.js";
+import { clearStoredFields, installTestMediaQueries, reportedErrors, storeFields } from "../../test-setup.js";
 import { pagePreferences } from "../root.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
 import { shuBaseStyles } from "./styles.js";
@@ -104,6 +104,7 @@ customElements.define("shu-persist-probe", PersistProbe);
 
 describe("ShuElement persistFields", () => {
 	beforeEach(() => {
+		document.body.replaceChildren();
 		clearStoredFields("shu-persist-probe");
 	});
 
@@ -155,11 +156,9 @@ describe("ShuElement persistFields", () => {
 		expect(el.current.tone).toBe("cool");
 	});
 
-	it("an invalid remembered value is dropped whole rather than crashing or half-applying", () => {
+	it("stored fields the schema refuses throw at the first connection, naming the element and the field", () => {
 		storeFields("shu-persist-probe", "", { size: "not-a-number", tone: "cool" });
-		const el = attach();
-		expect(el.current.size).toBe(10);
-		expect(el.current.tone).toBe("plain");
+		expect(reportedErrors(() => attach()).join()).toMatch(/the fields stored for <shu-persist-probe> don't match its schema \(size: /);
 	});
 
 	it("a typo'd persistFields entry fails fast at construction", () => {

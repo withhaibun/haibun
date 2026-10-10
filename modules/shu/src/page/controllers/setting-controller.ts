@@ -8,9 +8,10 @@ import { pagePreferences } from "../root.js";
 import { PAGE_SETTING_KEY } from "../domains/settings.js";
 import { storedSetting } from "../derivations/settings.js";
 
-/** Returns the setting `tag` stored, or `initial` where it didn't store one. The page's start reads the theme through it,
+/** Returns the setting `tag` stored, or `initial` where it didn't store one, and throws where the stored fields don't match
+ *  `schema`. The page's start reads the theme through it,
  *  before an element connects. */
-export const readSetting = <T>(tag: string, schema: z.ZodType<T>, initial: T): T => storedSetting(schema, pagePreferences().read(tag, PAGE_SETTING_KEY), initial);
+export const readSetting = <T>(tag: string, schema: z.ZodType<T>, initial: T): T => storedSetting(`<${tag}>`, schema, pagePreferences().read(tag, PAGE_SETTING_KEY), initial);
 
 /** Stores `fields` for the instance `key` of `tag`. A view stores a choice another element of the page reads through it,
  *  as a column pane stores whether its view's controls show. */
@@ -32,7 +33,7 @@ export class SettingController<T> implements ReactiveController {
 		private readonly initial: T,
 		private readonly changed: (value: T) => void,
 	) {
-		this.#value = storedSetting(schema, pagePreferences().read(tag, PAGE_SETTING_KEY), initial);
+		this.#value = storedSetting(`<${tag}>`, schema, pagePreferences().read(tag, PAGE_SETTING_KEY), initial);
 		host.addController(this);
 	}
 
@@ -41,9 +42,9 @@ export class SettingController<T> implements ReactiveController {
 	}
 
 	hostConnected(): void {
-		this.#value = storedSetting(this.schema, pagePreferences().read(this.tag, PAGE_SETTING_KEY), this.initial);
+		this.#value = storedSetting(`<${this.tag}>`, this.schema, pagePreferences().read(this.tag, PAGE_SETTING_KEY), this.initial);
 		this.#stopWatching = pagePreferences().watch(this.tag, PAGE_SETTING_KEY, (fields) => {
-			this.#value = storedSetting(this.schema, fields, this.initial);
+			this.#value = storedSetting(`<${this.tag}>`, this.schema, fields, this.initial);
 			this.host.requestUpdate();
 			this.changed(this.#value);
 		});

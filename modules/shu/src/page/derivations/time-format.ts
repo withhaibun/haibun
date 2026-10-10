@@ -35,10 +35,10 @@ function calendarDay(instant: Date, timeZone: string): { day: number; weekday: n
 	return { day: Date.UTC(year, Number(parts.month) - 1, Number(parts.day)) / DAY_MS, weekday, year };
 }
 
-/** Returns `value` formatted relative to `now` in `zone`, or `value` where it doesn't state an instant. */
+/** Returns `value` formatted relative to `now` in `zone`. Throws where `value` doesn't state an instant. */
 export function formatInstant(value: string, now: Date, { locale, timeZone }: TReaderZone): string {
 	const instant = new Date(value);
-	if (Number.isNaN(instant.getTime())) return value;
+	if (Number.isNaN(instant.getTime())) throw new Error(`"${value}" doesn't state an instant, so it can't be formatted as one`);
 	const time = new Intl.DateTimeFormat(locale, { timeZone, hour: "2-digit", minute: "2-digit" }).format(instant);
 	const at = calendarDay(instant, timeZone);
 	const today = calendarDay(now, timeZone);

@@ -1,31 +1,39 @@
 // @vitest-environment jsdom
 /**
- * Tests the `eventStream()` accessor with and without an installed stream. Every view reads the stream through this
- * accessor. `test/event-stream-conformance.ts` holds the one specification of what a stream sends a subscriber.
- * `event-stream.conformance.test.ts` runs both implementations against it.
+ * The page's event stream, as the root installs it: every view reads the installed stream, and a page that ended doesn't
+ * hold one. `test/event-stream-conformance.ts` holds the one specification of what a stream sends a subscriber, and
+ * `event-stream.conformance.test.ts` runs both adapters against it. The stream's status follows the stream.
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { eventStream, setEventStream, SerializedEventStream } from "./event-stream.js";
+import { hasEventStream, installCarriedEventStream, pageEventStream, streamStatus } from "./page/root.js";
+import { STREAM_STATUS } from "./page/machines/event-stream.js";
 import { endPage } from "./page-pinned.js";
 
 beforeEach(() => {
 	endPage();
 });
 
-describe("eventStream accessor", () => {
-	it("throws with a message that names the fix when an EventStream isn't installed", () => {
-		expect(() => eventStream()).toThrow(/an EventStream isn't installed/);
+describe("the page's event stream", () => {
+	it("throws with a message that names what installs one where the page doesn't hold one", () => {
+		expect(hasEventStream()).toBe(false);
+		expect(() => pageEventStream()).toThrow(/the page doesn't hold an event stream/);
 	});
 
-	it("returns the installed instance after setEventStream", () => {
-		const s = new SerializedEventStream();
-		setEventStream(s);
-		expect(eventStream()).toBe(s);
-	});
-
-	it("a page that has ended doesn't have an event stream installed", () => {
-		setEventStream(new SerializedEventStream());
+	it("is the installed stream, until the page ends", () => {
+		const stream = installCarriedEventStream();
+		expect(pageEventStream()).toBe(stream);
 		endPage();
-		expect(() => eventStream()).toThrow(/an EventStream isn't installed/);
+		expect(hasEventStream()).toBe(false);
+	});
+
+	it("states its status: open as it opens, reconnecting after a break, open again, and closed once closed", () => {
+		const stream = installCarriedEventStream();
+		expect(streamStatus().state.get()).toBe(STREAM_STATUS.OPEN);
+		stream.disconnect();
+		expect(streamStatus().state.get()).toBe(STREAM_STATUS.RECONNECTING);
+		stream.reconnect();
+		expect(streamStatus().state.get()).toBe(STREAM_STATUS.OPEN);
+		stream.close();
+		expect(streamStatus().state.get()).toBe(STREAM_STATUS.CLOSED);
 	});
 });

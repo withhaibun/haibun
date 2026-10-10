@@ -8,7 +8,7 @@
 import { z } from "zod";
 import { HYPERMEDIA, SUBSTEP_LEVEL, type THaibunEvent, type THypermediaProducts } from "@haibun/core/schema/protocol.js";
 import { SHU_TYPE } from "../../domains/elements.js";
-import type { TEvent } from "../../event-stream.js";
+import type { TEvent } from "../ports.js";
 
 const PRODUCT_KEY = { ID: "id", VIEW: "view", COMPONENT: "_component", PRODUCTS: "products" } as const;
 

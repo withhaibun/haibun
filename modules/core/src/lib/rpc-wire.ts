@@ -227,8 +227,9 @@ export function rpcEnvelope(e: TRpcEnvelope): string {
 /** Computes the headers that prove a call. It reads the request as it is sent: its URL, method, headers and body. */
 export type TProveRequest = (request: { url: string; method: string; headers: Record<string, string>; body: string }) => Promise<Record<string, string>>;
 
-/** The fields of a call's envelope that its caller states. `rpcEnvelope` adds `jsonrpc` and `protocol`. */
-export type TRpcEnvelope = TRpcRequest extends infer R ? (R extends unknown ? Omit<R, "jsonrpc" | "protocol"> : never) : never;
+/** The fields of a call's envelope that its caller states, as the schema reads them: `params` is optional, and the schema
+ *  reads an absent `params` as an empty record. `rpcEnvelope` adds `jsonrpc` and `protocol`. */
+export type TRpcEnvelope = z.input<typeof RpcRequestSchema> extends infer R ? (R extends unknown ? Omit<R, "jsonrpc" | "protocol"> : never) : never;
 
 /** The fetch credentials mode under which a browser sends its sign-in for the target site with each call. That sign-in
  *  can be a proxy's basic auth. The call carries its own proof beside it. A page on the same site sends that sign-in
@@ -337,4 +338,31 @@ export async function* readNdjson<T>(body: ReadableStream<Uint8Array>): AsyncGen
 			/* already closed */
 		}
 	}
+}
+
+const SERVER_UNREACHABLE = "ServerUnreachable";
+
+/**
+ * A failure to reach a haibun host: the request didn't receive a response, so what it requested is unknown. A caller
+ * reports it as the deployment's state (the reader is offline, or the host stopped). Every other failure, including an
+ * error the host returns, is a fault.
+ */
+export class ServerUnreachable extends Error {
+	constructor(
+		readonly url: string,
+		cause: unknown,
+	) {
+		super(`the server did not respond to ${url}: ${cause instanceof Error ? cause.message : String(cause)}`, { cause });
+		this.name = SERVER_UNREACHABLE;
+	}
+}
+
+/** How deep in a failure's causes `isServerUnreachable` reads. */
+const CAUSE_DEPTH = 8;
+
+/** Whether a failure, or one of its causes, is a failure to reach a host. It reads the failure's name, since each bundle of
+ *  a page holds its own copy of the class. */
+export function isServerUnreachable(err: unknown): boolean {
+	for (let e: unknown = err, depth = 0; e && depth < CAUSE_DEPTH; e = (e as { cause?: unknown }).cause, depth++) if ((e as { name?: unknown }).name === SERVER_UNREACHABLE) return true;
+	return false;
 }

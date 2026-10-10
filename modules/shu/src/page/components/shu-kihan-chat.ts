@@ -11,7 +11,8 @@ import { nothing, html, css, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
-import { acts, reads, conduit } from "../../hypermedia.js";
+import { acts, reads } from "../domains/links.js";
+import { conduit } from "../controllers/conduit-controller.js";
 import { isImageFormat } from "@haibun/core/lib/media-types.js";
 import { IndividualAddressSchema } from "@haibun/core/lib/typed-links.js";
 import { deploymentAskToolLimit, findStep, getAvailableSteps, requireStep } from "../../rpc-registry.js";
@@ -19,7 +20,7 @@ import { edgeRecordType, getActionBarAskExtensionTags, getActionBarChatExtension
 import { anIndividual, ContextReadBySchema, SessionListSchema, type TComboboxOption, type TContextIndividual, type TContextPattern, type TQuestionFork } from "../../schemas.js";
 import { GraphQueryResultSchema, extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
-import { hasEventStream, subscribeBatchedEvents } from "../../event-stream.js";
+import { hasEventStream, subscribeBatchedEvents } from "../controllers/event-stream-controller.js";
 import { currentSubjectState } from "../../current-subject.js";
 import { SignalController } from "../controllers/signal-controller.js";
 import { nextQuestion, startTurn } from "../../chat-turn.js";

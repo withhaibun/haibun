@@ -2,8 +2,8 @@
 /** Regression: a failing open() RPC must flip loading off and render the error banner. */
 import { describe, it, expect, beforeEach } from "vitest";
 import { ShuEntityColumn } from "./shu-entity-column.js";
-import { setConduit, LiveConduit } from "../../hypermedia.js";
-import { setEventStream, SerializedEventStream } from "../../event-stream.js";
+import { installServedConduit } from "../root.js";
+import { installCarriedEventStream } from "../root.js";
 import { rpcAnswer, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { ENTITY_STEP_LIST, serveThePage } from "../../test-setup.js";
@@ -13,10 +13,10 @@ describe("shu-entity-column error surfacing", () => {
 	beforeEach(() => {
 		endPage();
 		document.body.innerHTML = "";
-		// LiveConduit honours the stubbed `fetch` below; SerializedEventStream replaces actuality's stream, which this case doesn't follow.
-		setConduit(new LiveConduit(""));
+		// LiveConduit honours the stubbed `fetch` below; CarriedEventStream replaces actuality's stream, which this case doesn't follow.
+		installServedConduit("");
 		serveThePage();
-		setEventStream(new SerializedEventStream());
+		installCarriedEventStream();
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
 		// 422 + {error} mirrors a server actionNotOK response.
 		globalThis.fetch = (input: unknown): Promise<Response> => {

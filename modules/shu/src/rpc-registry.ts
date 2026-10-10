@@ -1,6 +1,8 @@
 import { HYDRATION_ID } from "./domains/elements.js";
 import { ActualityIdSchema, type TActualityId } from "@haibun/core/lib/rpc-wire.js";
-import { reads, acts, conduit, isServerUnreachable, type TLink } from "./hypermedia.js";
+import { reads, acts, type TLink } from "./page/domains/links.js";
+import { conduit } from "./page/controllers/conduit-controller.js";
+import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { getConcernCatalog, cachedConcernCatalog, setConcernCatalog } from "./rels-cache.js";
 import { pagePinned } from "./page-pinned.js";
 import { deviceStore, type TCachePayload } from "./client-cache/index.js";
@@ -8,7 +10,7 @@ import { reportFailure, reportToRun } from "./client-log.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { STEPS_CHANGED } from "@haibun/core/schema/protocol.js";
 import { EVERY_DEFINITION, SHOW_STEPS_METHOD, readShownSteps, type TDomainDiscoveryInfo, type TStepDefinition, type TStepDefinitions } from "@haibun/core/lib/step-discovery.js";
-import { eventStream } from "./event-stream.js";
+import { pageEventStream } from "./page/root.js";
 import { domainParts } from "@haibun/core/lib/domains.js";
 import { capabilityAllows } from "@haibun/core/lib/actions.js";
 
@@ -290,7 +292,7 @@ export function onStepsChanged(listener: () => Promise<void> | void): () => void
  * subscription doesn't add a read.
  */
 function followRun(r: TRegistry): () => void {
-	const stream = eventStream();
+	const stream = pageEventStream();
 	const stopSignals = stream.subscribe(
 		() => readAgain(r),
 		(event) => event.kind === "control" && event.signal === STEPS_CHANGED,

@@ -1,0 +1,152 @@
+/**
+ * Calls actuality's steps at the site that served the page. The adapter writes each call's envelope (JSON-RPC with the
+ * place in actuality's sequence), signs it where the step requires authority, sends it with `fetch`, reads a streamed
+ * response as NDJSON, and states a failure to reach the site as `ServerUnreachable`. An act begins with `action.begin`,
+ * which allocates its place in actuality's sequence, and a group's calls each take a part of the group's place.
+ */
+import { z } from "zod";
+import { ACTION_BEGIN, buildRpcCall, readNdjson, type TProveRequest, type TActualityId, type TRpcEnvelope, ServerUnreachable, answerBody, authorityFailed, refusalCarried } from "@haibun/core/lib/rpc-wire.js";
+import { pagePinned } from "../../page-pinned.js";
+import type { TConduit } from "../ports.js";
+import type { TLink, TRepresentation, TStreamChunk } from "../domains/links.js";
+
+/** What the conduit reads of the page: the proof of a call of a method, the actuality the page reads, how long it waits
+ *  for a response, and how it lets go of authority actuality refused. */
+export type TConduitSource = {
+	prove(method: string): TProveRequest;
+	actualityId(): TActualityId;
+	responseTimeoutMs(): number;
+	forgetAuthority(): void;
+};
+
+type ActionScope = { readonly root: readonly number[]; subSeq: number };
+
+/** How many calls the page has numbered, across its bundles, so two calls on the page don't share an id. */
+const RPC_IDS_KEY = "__SHU_RPC_IDS__";
+const issuedRpcIds = (): { count: number } => pagePinned(RPC_IDS_KEY, () => ({ count: 0 }));
+function nextRpcId(): string {
+	const issued = issuedRpcIds();
+	issued.count += 1;
+	return `rpc-${issued.count}-${Date.now().toString(36)}`;
+}
+
+/** What actuality returns for `action.begin`: the place in its sequence that records the act. */
+const ActionBeganSchema = z.object({ seqPath: z.array(z.number()).min(1) });
+
+/** The conduit of a served page. `scope` is the place a group's calls share, and is null for the page's own conduit, which
+ *  allocates a place for each act. */
+export class LiveConduit implements TConduit {
+	constructor(
+		private readonly source: TConduitSource,
+		private readonly basePath: string,
+		private readonly scope: ActionScope | null,
+	) {}
+
+	async follow<T = TRepresentation>(link: TLink, why: string): Promise<T> {
+		// A read doesn't begin an act, since actuality doesn't record a read and an act's place takes a call of its own. An
+		// act begins one, since actuality records what the act does at that place.
+		const seqPath = link.asks === "read" ? undefined : await this.allocateSeqPath(why);
+		const res = await this.post(link.method, { method: link.method, params: link.params, seqPath, asks: link.asks });
+		return (await this.answerOf(link.method, res)) as T;
+	}
+
+	async followStream(
+		link: TLink,
+		onChunk: (chunk: TStreamChunk) => void,
+		opts: { why: string; signal?: AbortSignal; onStart?: (seqPath: number[]) => void },
+	): Promise<{ seqPath: number[] }> {
+		const seqPath = await this.allocateSeqPath(opts.why);
+		opts.onStart?.(seqPath);
+		const res = await this.post(link.method, { method: link.method, params: link.params, seqPath, stream: true, asks: link.asks }, opts.signal);
+		// A refused stream returns its refusal, as any refused call does.
+		if (!res.ok) await this.answerOf(link.method, res);
+		if (!res.body) throw new Error(`${link.method}: stream RPC didn't return a body`);
+		for await (const chunk of readNdjson<TStreamChunk>(res.body)) {
+			if (chunk.error) throw new Error(chunk.error);
+			onChunk(chunk);
+		}
+		return { seqPath };
+	}
+
+	async group<T>(why: string, fn: (g: TConduit) => Promise<T>): Promise<T> {
+		const root = await this.beginAction(why);
+		return fn(new LiveConduit(this.source, this.basePath, { root, subSeq: 0 }));
+	}
+
+	private allocateSeqPath(why: string): Promise<number[]> {
+		if (this.scope) {
+			this.scope.subSeq += 1;
+			return Promise.resolve([...this.scope.root, this.scope.subSeq]);
+		}
+		return this.beginAction(why);
+	}
+
+	// Writes every request: the envelope, the headers (signed where the step requires authority) and the POST.
+	private async post(method: string, envelope: Omit<TRpcEnvelope, "id" | "actualityId">, signal?: AbortSignal): Promise<Response> {
+		// The proof covers the absolute address of the request. A proof over a relative path doesn't state the destination,
+		// and the host checks the absolute address it receives.
+		const base = new URL(`${this.basePath}/`, location.origin).href;
+		// A host that receives a request and doesn't respond looks the same as an unreachable host, so a request the page
+		// waits on carries a timeout. A request with the caller's own signal, and a stream, which stays open while actuality
+		// writes to it, don't carry the timeout.
+		const awaited = signal === undefined && envelope.stream !== true;
+		// Within the retry interval of a timed-out read, a read fails at once with that timeout. Each of a page's views would
+		// otherwise wait out the timeout separately. An act is sent regardless, since a reader requested it. The timer is
+		// allocated after this check, so a read that isn't sent doesn't allocate one.
+		if (awaited && envelope.asks !== "act" && isUnreachable()) throw new ServerUnreachable(base, new Error("a read of this server timed out within the last interval"));
+		const call = await buildRpcCall(base, { ...envelope, id: nextRpcId(), actualityId: this.source.actualityId() }, this.source.prove(method));
+		const bounded = awaited ? AbortSignal.timeout(this.source.responseTimeoutMs()) : signal;
+		try {
+			const res = await fetch(call.url, { ...call.init, signal: bounded });
+			// The timeout bounds the whole response, so an awaited request's body is read here, where a body still arriving at
+			// the timeout fails as a failure to reach the host.
+			const answered = awaited ? new Response(await res.arrayBuffer(), { status: res.status, statusText: res.statusText, headers: res.headers }) : res;
+			const state = responded();
+			state.at = Date.now();
+			state.unreachableUntil = 0;
+			return answered;
+		} catch (err) {
+			// The caller stopped the request, so the failure doesn't state whether the host is reachable.
+			if (signal?.aborted) throw err;
+			// Only a timeout withholds later reads. A request the network refuses fails at once, so the next read doesn't delay
+			// the page, and that read finds a host that recovered.
+			if (bounded?.aborted) responded().unreachableUntil = Date.now() + UNREACHABLE_RETRY_AFTER_MS;
+			throw new ServerUnreachable(call.url, err);
+		}
+	}
+
+	/** Returns actuality's response to a call, or throws the refusal it states. Authority that actuality refused as failing
+	 *  verification, as revoked or lapsed authority is, is let go, so later calls are made without it. */
+	private async answerOf(method: string, res: Response): Promise<unknown> {
+		try {
+			return await answerBody(method, res);
+		} catch (err) {
+			if (authorityFailed(refusalCarried(err))) this.source.forgetAuthority();
+			throw err;
+		}
+	}
+
+	private async beginAction(why: string): Promise<number[]> {
+		// `action.begin` is part of the act: it allocates the act's place in actuality's sequence.
+		const res = await this.post(ACTION_BEGIN, { method: ACTION_BEGIN, params: { why }, asks: "act" });
+		return ActionBeganSchema.parse(await this.answerOf(ACTION_BEGIN, res)).seqPath;
+	}
+}
+
+/** When the host last responded to the page, with any response, and until when a read fails at once after a timeout. The
+ *  page holds both, since a request from any bundle on the page reaches the host for the page. */
+const RESPONDED_KEY = "__SHU_SERVER_RESPONDED__";
+const responded = (): { at: number | undefined; unreachableUntil: number } => pagePinned(RESPONDED_KEY, () => ({ at: undefined, unreachableUntil: 0 }));
+
+/** How long after a read timed out each read fails at once. A page sends a read for each view, and each would otherwise wait
+ *  out the timeout, where the page reads the device's store. After the interval, the next read is sent. */
+const UNREACHABLE_RETRY_AFTER_MS = 2_000;
+
+/** Whether a read timed out within the retry interval. */
+const isUnreachable = (): boolean => Date.now() < responded().unreachableUntil;
+
+/** Returns when the site last responded to the page, or undefined where it hasn't responded. */
+export function serverLastRespondedAt(): number | undefined {
+	return responded().at;
+}
+

@@ -1,6 +1,6 @@
 import { SHU_BASE } from "./styles.js";
 import { jsonDisclosure } from "./json-disclosure.js";
-import { conduit } from "../../hypermedia.js";
+import { conduit } from "../controllers/conduit-controller.js";
 import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { getAvailableSteps, findStep } from "../../rpc-registry.js";
 import { queryGraph } from "../../quads-snapshot.js";

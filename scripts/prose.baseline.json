@@ -500,13 +500,6 @@
 		"relation-verb": 2,
 		"terminal-preposition": 4
 	},
-	"modules/shu/src/hypermedia.ts": {
-		"anthropomorphic": 22,
-		"negated-noun": 1,
-		"relation-verb": 2,
-		"terminal-preposition": 3,
-		"the-run": 5
-	},
 	"modules/shu/src/known-size-flow.test.ts": {
 		"anthropomorphic": 1
 	},
@@ -707,7 +700,7 @@
 		"the-run": 1
 	},
 	"modules/shu/src/page/components/shu-element.test.ts": {
-		"anthropomorphic": 3,
+		"anthropomorphic": 2,
 		"terminal-preposition": 1
 	},
 	"modules/shu/src/page/components/shu-element.ts": {

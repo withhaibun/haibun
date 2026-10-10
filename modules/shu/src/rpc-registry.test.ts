@@ -25,7 +25,7 @@ import {
 } from "./rpc-registry.js";
 import { asDomainKey } from "@haibun/core/lib/domains.js";
 import { setupShuTest, stepsShown, type TShuTestHandle, hydrate } from "./test-setup.js";
-import { ServerUnreachable } from "./hypermedia.js";
+import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { deviceStore, setDeviceStore, MemoryDeviceStore } from "./client-cache/index.js";
 import { endPage } from "./page-pinned.js";

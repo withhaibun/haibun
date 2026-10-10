@@ -34,9 +34,10 @@ import { Access, BODY_LABEL } from "@haibun/core/lib/resources.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { setSiteMetadata, type SiteMetadata } from "./rels-cache.js";
-import { setConduit, LiveConduit, ServerUnreachable } from "./hypermedia.js";
+import { installServedConduit } from "./page/root.js";
+import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
-import { SerializedEventStream, setEventStream } from "./event-stream.js";
+import { installCarriedEventStream } from "./page/root.js";
 import { endPage, pagePinned } from "./page-pinned.js";
 import { storeDeclaring } from "@haibun/core/lib/test/declared-types.js";
 
@@ -204,9 +205,9 @@ describe("the graph a page caches, without a server to ask", () => {
 	beforeEach(() => {
 		endPage();
 		serveThePage();
-		setConduit(new LiveConduit(""));
+		installServedConduit("");
 		serveThePage();
-		setEventStream(new SerializedEventStream());
+		installCarriedEventStream();
 		globalThis.fetch = () => Promise.reject(new TypeError("this page has no server"));
 	});
 
@@ -242,9 +243,9 @@ describe("the dropdown values a reader is offered, without a server to ask", () 
 	beforeEach(() => {
 		endPage();
 		serveThePage();
-		setConduit(new LiveConduit(""));
+		installServedConduit("");
 		serveThePage();
-		setEventStream(new SerializedEventStream());
+		installCarriedEventStream();
 		globalThis.fetch = () => Promise.reject(new TypeError("this page has no server"));
 		setSiteMetadata({ types: ["Email"], rels: { Email: { folder: LinkRelations.CONTEXT.rel, subject: "name" } }, edgeRanges: {} } as unknown as SiteMetadata);
 	});
@@ -273,9 +274,9 @@ describe("the rows a graph query names, without a server to ask", () => {
 	beforeEach(() => {
 		endPage();
 		serveThePage();
-		setConduit(new LiveConduit(""));
+		installServedConduit("");
 		serveThePage();
-		setEventStream(new SerializedEventStream());
+		installCarriedEventStream();
 		globalThis.fetch = () => Promise.reject(new TypeError("this page has no server"));
 		setSiteMetadata({ types: ["Email"], rels: { Email: { folder: LinkRelations.CONTEXT.rel } }, edgeRanges: {} } as unknown as SiteMetadata);
 	});

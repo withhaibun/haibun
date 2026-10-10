@@ -4,7 +4,7 @@
  * is not told them by the app through its place in the page. It is a pane's view, so it opens its pane for a chosen
  * step, and its scope of the active record follows its pane. What its search describes goes to the page strip.
  */
-import { ServerUnreachable } from "../../hypermedia.js";
+import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { Access } from "@haibun/core/lib/resources.js";
 import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
