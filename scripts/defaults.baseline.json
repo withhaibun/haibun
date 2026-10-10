@@ -648,7 +648,7 @@
 		"fills an absent value with a constant through ??": 3
 	},
 	"modules/shu/src/graph/polymorphic/polymorphic-camera.ts": {
-		"fills a falsy value with a constant through ||": 2,
+		"fills a falsy value with a constant through ||": 1,
 		"fills an absent value with a constant through ??": 24,
 		"states a parameter's default value": 1
 	},

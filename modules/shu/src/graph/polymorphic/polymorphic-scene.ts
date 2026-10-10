@@ -31,7 +31,7 @@ import { type Adornment } from "../graph-layout.js";
 import { PolymorphicCamera, clearStripOffset, coveredTogether, type GanttExtent, type TMeasureUnit, type TPanDirection, type TZoomDirection } from "./polymorphic-camera.js";
 import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../consts.js";
 import { defineElement } from "../../define-element.js";
-import { ndcToClient, clientToNdc, ndcOnScreen, NDC_EDGE, NDC_SPAN, type TClientPoint } from "../polymorphic/polymorphic-project.js";
+import { ndcToClient, clientToNdc, screenShare, type TClientPoint } from "../polymorphic/polymorphic-project.js";
 import { syncPickTarget, restorePickTarget, type TPickObject, type TScaleRestore } from "../polymorphic/polymorphic-pick-sync.js";
 import { RenderContext, type TSceneCamera } from "./polymorphic-render-context.js";
 import { DataPipeline, visibleGraphModel } from "../polymorphic/polymorphic-data-pipeline.js";
@@ -815,27 +815,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				const cam = this.fgCamera;
 				if (!T || !cam) return null;
 				cam.updateMatrixWorld?.(true);
-				let on = 0;
-				let total = 0;
-				let minX = Number.POSITIVE_INFINITY;
-				let maxX = Number.NEGATIVE_INFINITY;
-				let minY = Number.POSITIVE_INFINITY;
-				let maxY = Number.NEGATIVE_INFINITY;
-				for (const n of this.nodeMap.values()) {
-					total++;
-					const v = new T.Vector3(n.x ?? 0, n.y ?? 0, n.z ?? 0).project(cam);
-					if (ndcOnScreen(v) && v.z <= NDC_EDGE) on++;
-					if (v.z <= NDC_EDGE) {
-						minX = Math.min(minX, v.x);
-						maxX = Math.max(maxX, v.x);
-						minY = Math.min(minY, v.y);
-						maxY = Math.max(maxY, v.y);
-					}
-				}
-				// span: the graph's projected bounding box as a fraction of the viewport. A healthy frame fills a meaningful
-				// share; a value near 0 is the "rendered but a tiny dot / not visible" failure.
-				const span = total ? Math.max((maxX - minX) / NDC_SPAN, (maxY - minY) / NDC_SPAN) : 0;
-				return { total, onScreen: on, fraction: total ? on / total : 1, span: Number.isFinite(span) ? span : 0 };
+				return screenShare([...this.nodeMap.values()].map((n) => new T.Vector3(n.x ?? 0, n.y ?? 0, n.z ?? 0).project(cam)));
 			})(),
 			anchors: Object.fromEntries(this.enclosureCtl.anchors),
 			enclosures: [...this.enclosureCtl.enclosures.entries()].map(([k, e]) => ({

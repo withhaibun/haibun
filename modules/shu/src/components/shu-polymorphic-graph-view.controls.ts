@@ -34,6 +34,7 @@ import { objectId } from "../object-id.js";
 import { VIEW, VIEW_TYPES, isLaneView } from "../graph/polymorphic/polymorphic-views.js";
 import { MEASURE_UNIT, PAN_DIRECTION, ZOOM_DIRECTION, type TMeasureUnit, type TPanDirection, type TZoomDirection } from "../graph/polymorphic/polymorphic-camera.js";
 import type { ShuGraphScene, TGraphState } from "../graph/polymorphic/polymorphic-scene.js";
+import { framesGraph } from "../graph/polymorphic/polymorphic-project.js";
 import { SETTINGS_GROUP, type TSettingsGroup } from "./view-head.js";
 import type { ShuPolymorphicGraphView } from "./shu-polymorphic-graph-view.js";
 import type { ShuGraphFilter } from "./shu-graph-filter.js";
@@ -73,9 +74,6 @@ const LIT_OPACITY = 0.9;
 const DIM_OPACITY = 0.5;
 const isLit = (opacity: number | null): boolean => (opacity ?? 1) > LIT_OPACITY;
 const isDim = (opacity: number | null): boolean => (opacity ?? 1) < DIM_OPACITY;
-/** The camera frames the graph when this share of its nodes projects on screen and the graph spans this share of the view. */
-const FRAMED_ON_SCREEN = 0.9;
-const FRAMED_SPAN = 0.2;
 const HOVER_POP_MAX = 2.6; // a hover pop above this reads as "huge" (the regression): an independent ceiling, comfortably clear of the gentle magnify cap so a legit pop passes and a runaway one fails
 
 /** The alpha a browser reports for a painted colour, in either shape it writes one: `rgba(r, g, b, a)` and the
@@ -285,7 +283,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			active: focus.selected,
 			highlighted,
 			follow,
-			framed: !!onScreen && onScreen.fraction >= FRAMED_ON_SCREEN && onScreen.span >= FRAMED_SPAN,
+			framed: !!onScreen && framesGraph(onScreen),
 			focusDims: (!!focus.hover || !!focus.selected) && dim > 0 && lit > 0 && lit < sample.length,
 			isolated: drawn.filter((id) => !linked.has(id)),
 			predicates: [...new Set(edges.map((e) => e.predicate))],

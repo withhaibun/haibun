@@ -55,6 +55,10 @@ export type CameraDeps = {
 
 /** A zoom step that would reach the target closes this fraction of what remains instead, so it never arrives. */
 const ZOOM_APPROACH = 0.1;
+/** A fit places the node with the widest projection at 1/FIT_MARGIN of the way from the canvas centre to its edge. */
+const FIT_MARGIN = 1.1;
+/** The world distance a fit keeps between the lens and the nearest node. A single node is framed at this distance. */
+const LENS_CLEARANCE = 20;
 
 /** Every camera write goes through this: a single non-finite coordinate bricks EVERY later move (each computes from the
  *  previous position), showing up as a camera that cannot zoom or pan and never recovers. Throwing names the culprit
@@ -69,6 +73,25 @@ const azimuthOf = (refs: { t: Vec3; p: Vec3 } | null): number | null => (refs ? 
 
 type XYZ = { x: number; y: number; z: number };
 const cross = (a: XYZ, b: XYZ): XYZ => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x });
+const dot = (a: XYZ, b: XYZ): number => a.x * b.x + a.y * b.y + a.z * b.z;
+
+/** The axis-aligned bounds of `points`, or null for an empty set. */
+function boundsOf(points: readonly XYZ[]): Bbox | null {
+	const [first, ...rest] = points;
+	if (!first) return null;
+	const b: Bbox = { x: [first.x, first.x], y: [first.y, first.y], z: [first.z, first.z] };
+	for (const p of rest) {
+		b.x = [Math.min(b.x[0], p.x), Math.max(b.x[1], p.x)];
+		b.y = [Math.min(b.y[0], p.y), Math.max(b.y[1], p.y)];
+		b.z = [Math.min(b.z[0], p.z), Math.max(b.z[1], p.z)];
+	}
+	return b;
+}
+
+/** The eight corners of `b`, the points a fit frames for a lane view's extent. */
+function cornersOf(b: Bbox): XYZ[] {
+	return b.x.flatMap((x) => b.y.flatMap((y) => b.z.map((z) => ({ x, y, z }))));
+}
 
 type TRect = { left: number; top: number; right: number; bottom: number };
 
@@ -185,33 +208,11 @@ export class PolymorphicCamera {
 		this.syncViewport();
 	}
 
-	/** World-space bounds of the live laid-out nodes, straight from the node positions (the authoritative simulation
-	 *  positions): NOT the lib's getGraphBbox, whose cached value is unreliable (it reported a near-collapsed extent
-	 *  while the nodes were already spread, then overshot on the next render, so the camera framed empty space). */
-	private nodeBounds(positions: Iterable<{ x?: number; y?: number; z?: number }> = this.deps.nodePositions()): Bbox | null {
-		let minX = Number.POSITIVE_INFINITY,
-			maxX = Number.NEGATIVE_INFINITY;
-		let minY = Number.POSITIVE_INFINITY,
-			maxY = Number.NEGATIVE_INFINITY;
-		let minZ = Number.POSITIVE_INFINITY,
-			maxZ = Number.NEGATIVE_INFINITY;
-		for (const n of positions) {
-			const x = n.x ?? 0,
-				y = n.y ?? 0,
-				z = n.z ?? 0;
-			if (x < minX) minX = x;
-			if (x > maxX) maxX = x;
-			if (y < minY) minY = y;
-			if (y > maxY) maxY = y;
-			if (z < minZ) minZ = z;
-			if (z > maxZ) maxZ = z;
-		}
-		return Number.isFinite(minX) ? { x: [minX, maxX], y: [minY, maxY], z: [minZ, maxZ] } : null;
-	}
-
-	/** Half-diagonal of a bounds box (0 when null): the single scalar that tells the auto-fit the graph has grown. */
-	private boundsRadius(b: Bbox | null): number {
-		return b ? Math.hypot((b.x[1] - b.x[0]) / 2, (b.y[1] - b.y[0]) / 2, (b.z[1] - b.z[0]) / 2) : 0;
+	/** The live laid-out nodes' positions, read from the nodes (the authoritative simulation positions): NOT the lib's
+	 *  getGraphBbox, whose cached value is unreliable (it reported a near-collapsed extent while the nodes were already
+	 *  spread, then overshot on the next render, so the camera framed empty space). */
+	private nodePoints(positions: Iterable<{ x?: number; y?: number; z?: number }> = this.deps.nodePositions()): XYZ[] {
+		return [...positions].map((n) => ({ x: n.x ?? 0, y: n.y ?? 0, z: n.z ?? 0 }));
 	}
 
 	/** The orbit target + camera position as mutable Vec3s (or null when controls aren't ready): the shared preamble
@@ -232,16 +233,16 @@ export class PolymorphicCamera {
 	frame(move: FrameMove): boolean {
 		if (move === FRAME.gantt) return this.frameLane(this.deps.ganttExtent(), LANE_AIM);
 		if (move === FRAME.sequence) return this.frameLane(this.deps.sequenceExtent(), SEQUENCE_AIM);
-		if (move === FRAME.side) this.fitBounds(this.nodeBounds(), LANE_AIM);
-		else if (move === FRAME.front) this.fitBounds(this.nodeBounds(), FRONT_AIM);
-		else this.fitBounds(this.nodeBounds(), KEEP_AIM);
+		if (move === FRAME.side) this.fitPoints(this.nodePoints(), LANE_AIM);
+		else if (move === FRAME.front) this.fitPoints(this.nodePoints(), FRONT_AIM);
+		else this.fitPoints(this.nodePoints(), KEEP_AIM);
 		return true;
 	}
 
 	/** Frame a subset of nodes by their positions: a node + its 1-hop neighbours, so a doc/tour step can jump straight to
 	 *  a node's local context instead of the whole graph. Same orbit-preserving fit; a no-op for an empty/unknown set. */
 	fitPositions(positions: Iterable<{ x?: number; y?: number; z?: number }>): void {
-		this.fitBounds(this.nodeBounds(positions), KEEP_AIM);
+		this.fitPoints(this.nodePoints(positions), KEEP_AIM);
 	}
 
 	/** Look at `pos` from where the camera already is: the target slides to the point, the camera slides with it, so the
@@ -289,20 +290,20 @@ export class PolymorphicCamera {
 		return d && Number.isFinite(len) && len > 1e-9 ? { x: d.x / len, y: d.y / len, z: d.z / len } : { x: 0, y: 0, z: 1 };
 	}
 
-	/** The ONE fit kernel every framing move runs through: recentre on `bbox` and back the camera off along the view
-	 *  direction: the current one for KEEP_AIM, the explicit aim's otherwise (which also owns the roll: an explicit aim
-	 *  writes its up axis, undoing the sequence's z-up). The box is projected onto the camera's screen axes, so one
-	 *  formula frames ANY orientation: size the frustum to the projected lateral extent, then back off by the projected
-	 *  half-depth so the nearest node clears the lens. At the front aim that reduces to the XY-extent + z-half-depth fit:
-	 *  a node at the XY corner AND nearest z still projects inside, while a time-DEEP but XY-clustered graph fills the
-	 *  view instead of shrinking to the z-inflated bounding sphere (the time axis fills its FULL depth for any date range,
-	 *  so a 3D-radius fit made every multi-time graph a thin ribbon spanning a fraction of the view). */
-	private fitBounds(bbox: Bbox | null, aim: Aim): void {
+	/** The ONE fit kernel every framing move runs through: recentre on the points' bounds and back the camera off along
+	 *  the view direction: the current one for KEEP_AIM, the explicit aim's otherwise (which also owns the roll: an
+	 *  explicit aim writes its up axis, undoing the sequence's z-up). Each point is projected onto the camera's screen
+	 *  axes, so one formula frames ANY orientation. The distance is the least one at which every point projects inside
+	 *  the frustum at its own depth, plus the lens clearance.
+	 *  The fit reads the points, not the corners of their bounding box. The nodes at one end of the time axis are nearest
+	 *  the camera. A box corner at that depth and at the plane's widest extent doesn't hold a node, and fitting it placed
+	 *  the camera so far back that a time-deep graph drew at under a fifth of the view. */
+	private fitPoints(points: readonly XYZ[], aim: Aim): void {
 		const controls = this.deps.controls();
 		const cam = this.deps.camera();
+		const bbox = boundsOf(points);
 		if (!bbox || !controls || !cam) return;
 		const center = { x: (bbox.x[0] + bbox.x[1]) / 2, y: (bbox.y[0] + bbox.y[1]) / 2, z: (bbox.z[0] + bbox.z[1]) / 2 };
-		const half = { x: (bbox.x[1] - bbox.x[0]) / 2, y: (bbox.y[1] - bbox.y[0]) / 2, z: (bbox.z[1] - bbox.z[0]) / 2 };
 		if (aim !== KEEP_AIM) cam.up?.set(aim.up.x, aim.up.y, aim.up.z);
 		const dir = aim !== KEEP_AIM ? aim.dir : this.viewDir();
 		const up = aim !== KEEP_AIM ? aim.up : { x: cam.up?.x ?? 0, y: cam.up?.y ?? 1, z: cam.up?.z ?? 0 };
@@ -312,11 +313,17 @@ export class PolymorphicCamera {
 		const rl = Math.hypot(right.x, right.y, right.z);
 		right = { x: right.x / rl, y: right.y / rl, z: right.z / rl };
 		const upv = cross(dir, right);
-		const extent = (v: XYZ) => half.x * Math.abs(v.x) + half.y * Math.abs(v.y) + half.z * Math.abs(v.z);
-		const vHalfFov = ((cam.fov ?? 80) * RAD_PER_DEG) / 2;
-		const hHalfFov = Math.atan(Math.tan(vHalfFov) * (cam.aspect ?? 1));
-		const reach = Math.max(extent(right) / Math.tan(hHalfFov), extent(upv) / Math.tan(vHalfFov)) || 1;
-		const distance = (extent(dir) + reach) * 1.1 + 20; // +20 floor keeps a degenerate single point off the lens
+		const tanV = Math.tan(((cam.fov ?? 80) * RAD_PER_DEG) / 2);
+		const tanH = tanV * (cam.aspect ?? 1);
+		// A point's `reach` is the distance along the view axis at which its offset from the axis reaches the frustum's
+		// edge. The fit places the camera FIT_MARGIN * reach beyond the point's depth.
+		let farthest = 0;
+		for (const p of points) {
+			const o = { x: p.x - center.x, y: p.y - center.y, z: p.z - center.z };
+			const reach = Math.max(Math.abs(dot(o, right)) / tanH, Math.abs(dot(o, upv)) / tanV);
+			farthest = Math.max(farthest, dot(o, dir) + FIT_MARGIN * reach);
+		}
+		const distance = farthest + LENS_CLEARANCE;
 		finite("fit", { x: center.x, y: center.y, z: center.z, distance });
 		controls.target.set(center.x, center.y, center.z);
 		controls.object.position.set(center.x + dir.x * distance, center.y + dir.y * distance, center.z + dir.z * distance);
@@ -333,9 +340,9 @@ export class PolymorphicCamera {
 		// The extent is where the view PUT things; the node bounds are where they ended up. Union them ON THE PLANE only
 		// (the lane axis and time), never across it: a lane view pins every node it shows to the plane, so the two agree
 		// in y and z, while x is the axis the camera looks along, unioning that would let depth inflate the frame.
-		const b = this.nodeBounds();
+		const b = boundsOf(this.nodePoints());
 		const span = (lo: number, hi: number, other: [number, number] | undefined): [number, number] => (other ? [Math.min(lo, other[0]), Math.max(hi, other[1])] : [lo, hi]);
-		this.fitBounds({ x: [0, 0], y: span(ext.cy - ext.halfH, ext.cy + ext.halfH, b?.y), z: span(ext.cz - ext.halfW, ext.cz + ext.halfW, b?.z) }, aim);
+		this.fitPoints(cornersOf({ x: [0, 0], y: span(ext.cy - ext.halfH, ext.cy + ext.halfH, b?.y), z: span(ext.cz - ext.halfW, ext.cz + ext.halfW, b?.z) }), aim);
 		return true;
 	}
 

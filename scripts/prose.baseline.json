@@ -746,7 +746,7 @@
 		"terminal-preposition": 1
 	},
 	"modules/shu/src/graph/polymorphic/polymorphic-camera.ts": {
-		"anthropomorphic": 6,
+		"anthropomorphic": 5,
 		"relation-verb": 3,
 		"terminal-preposition": 1
 	},

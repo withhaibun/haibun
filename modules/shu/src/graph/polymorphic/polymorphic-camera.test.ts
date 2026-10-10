@@ -8,6 +8,10 @@
 import { describe, it, expect } from "vitest";
 import { PolymorphicCamera, clearStripOffset, coveredTogether, type CameraDeps } from "./polymorphic-camera.js";
 import { FRAME, REFRAME, type ReframeMode } from "../polymorphic/polymorphic-views.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { FRAMED_SPAN, NDC_SPAN, screenShare, type TProjected } from "./polymorphic-project.js";
+
+type XYZ = { x: number; y: number; z: number };
 
 // Record the z the fit backs the camera to; the rest of the deps are inert stubs (only camera/controls/nodePositions
 // are read by frame → fitBounds). fov 80, aspect 1 matches the fit math the test asserts.
@@ -165,7 +169,7 @@ function orbitedHarness(
 		const len = Math.hypot(d.x, d.y, d.z);
 		return { x: d.x / len, y: d.y / len, z: d.z / len };
 	};
-	return { cam: new PolymorphicCamera(deps), target, position, up, viewDir };
+	return { cam: new PolymorphicCamera(deps), camera, target, position, up, viewDir };
 }
 
 describe("PolymorphicCamera.frame, fit keeps the user's orbit, the view aims reset it", () => {
@@ -214,13 +218,42 @@ describe("PolymorphicCamera.frame, fit keeps the user's orbit, the view aims res
 
 	it("an orbited fit backs off far enough that the whole box fits the frustum from that angle", () => {
 		// Viewed from +x, the z depth (±200) is the LATERAL screen extent and the x spread (±100) is the depth.
-		// Required distance ≈ (200/tan(40°) + 100) * 1.1 + 20 ≈ 392, past the front fit's ≈371, since the long axis
+		// Required distance ≈ 100 + 1.1 * 200/tan(40°) + 20 ≈ 382, past the front fit's ≈351, since the long axis
 		// now spans the screen.
 		const { cam, position, viewDir } = orbitedHarness(nodes, { x: 300, y: 0, z: 0 });
 		cam.frame(FRAME.fit);
 		expect(viewDir()).toMatchObject({ x: 1, y: 0, z: 0 });
 		expect(position.x, "the projected z-span sizes the distance from this angle").toBeGreaterThan(380);
 		expect(position.x).toBeLessThan(430);
+	});
+});
+
+describe("PolymorphicCamera.frame(fit), a time-deep graph whose nearest nodes cluster on the plane", () => {
+	// The node positions and lens of the polymorphic feature's load-time fit in actuality: five emails 550 to 700 deep and
+	// within 65 of each other on the plane, and thirteen nodes at depth 0 spread 150 wide. Fitting the bounding box
+	// drew this graph at 0.188 of the view, under FRAMED_SPAN.
+	const at = {
+		x: [84, 69, 36, 41, 71, 45, 68, 89, 64, 50, 111, 53, -19, 73, 28, 31, 132, 42],
+		y: [13, 6, 15, 7, 69, 69, 94, -7, 50, 28, -32, 7, 39, 26, 98, 6, 53, -49],
+		z: [550, 563, 629, 665, 700, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+	};
+	const nodes = at.x.map((x, i) => ({ x, y: itemAt(at.y, i), z: itemAt(at.z, i) }));
+	const lens = { fov: 79, aspect: 0.718 };
+
+	/** Project `p` through a camera at `eye` that looks down -z. A point behind the camera projects past the far plane. */
+	const projectFront = (p: XYZ, eye: XYZ): TProjected => {
+		const depth = eye.z - p.z;
+		const tanV = Math.tan((lens.fov * Math.PI) / 360);
+		return { x: (p.x - eye.x) / (depth * tanV * lens.aspect), y: (p.y - eye.y) / (depth * tanV), z: depth > 0 ? 0 : NDC_SPAN };
+	};
+
+	it("places every node on screen and spans at least FRAMED_SPAN of the view", () => {
+		const { cam, camera, position } = orbitedHarness(nodes, { x: 0, y: 0, z: 1000 });
+		Object.assign(camera, lens);
+		cam.frame(FRAME.fit);
+		const share = screenShare(nodes.map((n) => projectFront(n, position)));
+		expect(share.fraction, "every node projects on screen").toBe(1);
+		expect(share.span, `the graph spans ${share.span.toFixed(3)} of the view`).toBeGreaterThanOrEqual(FRAMED_SPAN);
 	});
 });
 
