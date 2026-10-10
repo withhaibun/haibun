@@ -23,8 +23,14 @@ import type { ShuResultTable } from "./shu-result-table.js";
 import { getAvailableDomains, isOffline } from "../../rpc-registry.js";
 import { QueryController } from "../controllers/query-controller.js";
 import { arrayWindowedSource, readWindowedSource, type WindowedSource } from "../../windowed-source.js";
-import { getWindowSize } from "../../window-size-setting.js";
+import { SettingController } from "../controllers/setting-controller.js";
+import { INITIAL_WINDOW_SIZE, WindowSizeSchema } from "../domains/settings.js";
+import { windowRows } from "../derivations/settings.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
+import { ClockController } from "../controllers/clock-controller.js";
+
+/** The name of the delay before the query reads again after arrivals. */
+const ARRIVAL = "arrival";
 
 /** A vertex row: flat property object. */
 type VertexRow = Record<string, unknown>;
@@ -68,9 +74,11 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 			stated: { saturated: this.#counted.saturated, ...(label ? { queryType: label } : {}), ...(textQuery ? { textQuery } : {}) },
 		});
 	}
-	/** Page size is the one global app setting (theme), so the query view windows by the same size as every other view. */
+	/** The window size `<shu-window-size>` stores. A change of it reads the query again, since it sets the page's limit. */
+	readonly #windowSize = new SettingController(this, SHU_TAG.WINDOW_SIZE, WindowSizeSchema, INITIAL_WINDOW_SIZE, () => void this.executeQuery());
+	/** The page size: the window size every windowed view reads. */
 	private get limit(): number {
-		return getWindowSize();
+		return windowRows(this.#windowSize.value);
 	}
 	private error = "";
 	/** The links a refusal offers: the query of each type actuality holds, where the address names a type it doesn't hold. */
@@ -126,17 +134,6 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		});
 		this.#metadata = this.loadMetadata();
 		void this.#metadata.then(() => this.executeQuery());
-
-		// Re-query when the global data window size changes: it sets the server-side limit, so the result set resizes.
-		let firstWindow = true;
-		this.updateEffect(() => {
-			getWindowSize(); // subscribe to the window-size setting
-			if (firstWindow) {
-				firstWindow = false;
-				return;
-			}
-			void this.executeQuery();
-		});
 
 		// Re-query when the text search changes in the store. The actions-bar search box writes viewQuery
 		// directly (not through this component's lifecycle), so a store write is the single, lifecycle-proof
@@ -357,15 +354,12 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		else if (changed) this.renderResults();
 	}
 
-	#arrivalTimer: number | undefined;
+	readonly #clock = new ClockController(this);
 
-	/** One record arrives as many quads, and mail arrives in bursts: a trailing pause asks once for all of them. */
+	/** Reads the query again `ARRIVAL_DEBOUNCE_MS` after the first arrival of a burst. A record arrives as many quads, and
+	 *  mail arrives in bursts, so one read covers them. */
 	#requeryOnArrival(): void {
-		if (this.#arrivalTimer !== undefined) return;
-		this.#arrivalTimer = window.setTimeout(() => {
-			this.#arrivalTimer = undefined;
-			void this.executeQuery();
-		}, ARRIVAL_DEBOUNCE_MS);
+		this.#clock.coalesce(ARRIVAL, ARRIVAL_DEBOUNCE_MS, () => void this.executeQuery());
 	}
 
 	private get resultsTarget(): HTMLElement | null {

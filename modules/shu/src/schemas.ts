@@ -157,7 +157,7 @@ export const BreadcrumbSchema = z.object({
 
 export const ColumnStripSchema = z.object({});
 
-// --- Theme switch ---
+// --- Permissions ---
 
 /** What the permissions view remembers: whether the principals this deployment knows are shown. */
 export const PermissionsSchema = z.object({ showPrincipals: z.boolean().default(false) });
@@ -167,7 +167,6 @@ export const PageKeySchema = z.object({
 	controller: z.string().default(""),
 });
 
-export const ThemeSwitchSchema = z.object({ theme: z.enum(["auto", "light", "dark"]), scale: z.string() });
 
 // --- Result table ---
 

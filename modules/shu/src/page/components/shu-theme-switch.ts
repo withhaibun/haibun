@@ -1,64 +1,28 @@
 /**
- * <shu-theme-switch>: Theme + scale control cluster, shown in the actions bar's settings popover.
- *
- * Sets `data-theme` on documentElement (resolved by SHU_TOKENS via :root[data-theme="…"])
- * and writes `--shu-scale` as a custom property on the root, which every SHU component
- * picks up through `calc(N * var(--shu-scale))` in its tokens. Persists via localStorage.
+ * <shu-theme-switch>: the theme and scale controls of the actions bar's settings. It sets `data-theme` on the document's
+ * root element, which `SHU_TOKENS` reads through `:root[data-theme="…"]`, and the `--shu-scale` property, which every
+ * component's tokens multiply. It stores both under its tag, and the page applies them at its start (`applyStoredTheme`).
  */
 import { SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../../define-element.js";
-import { html, css, type TemplateResult } from "lit";
+import { html, css, type PropertyValues, type TemplateResult } from "lit";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles, shuSegmentedStyles } from "./styles.js";
-import { ThemeSwitchSchema } from "../../schemas.js";
-import { persistedSetting } from "../../signals.js";
+import { INITIAL_THEME, PAGE_SETTING_KEY, SCALES, THEMES, ThemeSwitchSchema, type TThemeSettings } from "../domains/settings.js";
+import { readSetting } from "../controllers/setting-controller.js";
 import "./shu-window-size.js";
 
-const STORAGE_THEME = "shu.theme";
-const STORAGE_SCALE = "shu.scale";
-
-/** First-run fallback theme / UI scale, named consts (never bare literals), each a member of THEMES / SCALES. */
-const DEFAULT_THEME = "auto";
-const DEFAULT_SCALE = "1";
-
-const THEMES = [
-	{ value: DEFAULT_THEME, label: "Auto" },
-	{ value: "light", label: "Light" },
-	{ value: "dark", label: "Dark" },
-] as const;
-
-const SCALES = [
-	{ value: "0.85", label: "S" },
-	{ value: DEFAULT_SCALE, label: "M" },
-	{ value: "1.25", label: "L" },
-	{ value: "1.5", label: "XL" },
-] as const;
-
-type Theme = (typeof THEMES)[number]["value"];
-
-// The global UI settings go through the one persistedSetting mechanism (localStorage + a reactive signal) so they
-// can't drift into bespoke wiring. Theme/scale apply via the DOM; the window size lives in shu-window-size (its own
-// reusable control, also embedded where a view truncates).
-const themeSetting = persistedSetting(STORAGE_THEME, DEFAULT_THEME, (v) => THEMES.some((t) => t.value === v));
-const scaleSetting = persistedSetting(STORAGE_SCALE, DEFAULT_SCALE, (v) => Number.isFinite(Number.parseFloat(v)));
-
-function readTheme(): Theme {
-	return themeSetting.get() as Theme;
-}
-function readScale(): string {
-	return scaleSetting.get();
-}
-
-/** Set the page's theme. `auto` doesn't set a theme, so the page follows the OS preference. */
-function applyTheme(theme: Theme): void {
+/** Sets the theme and the scale on the document's root element. The `auto` theme doesn't set a theme, so the page follows
+ *  the operating system's preference. */
+function applyTheme({ theme, scale }: TThemeSettings): void {
 	if (theme === "auto") document.documentElement.removeAttribute("data-theme");
 	else document.documentElement.setAttribute("data-theme", theme);
+	document.documentElement.style.setProperty("--shu-scale", scale);
 }
 
-/** Apply persisted theme + scale at boot, before any component mounts. Call from app.ts after installShuTokens(). */
-export function applyShuPreferences(): void {
-	applyTheme(readTheme());
-	document.documentElement.style.setProperty("--shu-scale", readScale());
+/** Applies the stored theme and scale before a component mounts. The page's start calls it after `installShuTokens`. */
+export function applyStoredTheme(): void {
+	applyTheme(readSetting(SHU_TAG.THEME_SWITCH, ThemeSwitchSchema, INITIAL_THEME));
 }
 
 class ShuThemeSwitch extends ShuElement<typeof ThemeSwitchSchema> {
@@ -83,32 +47,31 @@ class ShuThemeSwitch extends ShuElement<typeof ThemeSwitchSchema> {
 	`,
 	];
 
+	static persistFields = ["theme", "scale"] as const;
+
 	constructor() {
-		super(ThemeSwitchSchema, { theme: readTheme(), scale: readScale() });
+		super(ThemeSwitchSchema, INITIAL_THEME);
 	}
 
-	private setTheme = (theme: Theme): void => {
-		this.setState({ ...this.state, theme });
-		themeSetting.set(theme);
-		applyTheme(theme);
-	};
+	protected override get persistKey(): string {
+		return PAGE_SETTING_KEY;
+	}
 
-	private setScale = (scale: string): void => {
-		this.setState({ ...this.state, scale });
-		scaleSetting.set(scale);
-		document.documentElement.style.setProperty("--shu-scale", scale);
-	};
+	protected override updated(changed: PropertyValues): void {
+		super.updated(changed);
+		if (changed.has("state")) applyTheme(this.state);
+	}
 
 	render(): TemplateResult {
 		const { theme, scale } = this.state;
 		return html`
 			<span class="label">theme</span>
 			<span class="group" role="group" aria-label="Theme">
-				${THEMES.map((t) => html`<button type="button" aria-pressed=${t.value === theme} @click=${() => this.setTheme(t.value)}>${t.label}</button>`)}
+				${THEMES.map((t) => html`<button type="button" aria-pressed=${t.value === theme} @click=${() => this.setState({ theme: t.value })}>${t.label}</button>`)}
 			</span>
 			<span class="label">size</span>
 			<span class="group" role="group" aria-label="Scale">
-				${SCALES.map((s) => html`<button type="button" aria-pressed=${s.value === scale} @click=${() => this.setScale(s.value)}>${s.label}</button>`)}
+				${SCALES.map((s) => html`<button type="button" aria-pressed=${s.value === scale} @click=${() => this.setState({ scale: s.value })}>${s.label}</button>`)}
 			</span>
 			<span class="label">window</span>
 			<shu-window-size></shu-window-size>

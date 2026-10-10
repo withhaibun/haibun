@@ -19,7 +19,6 @@
 import { Signal } from "@lit-labs/signals";
 import type { ICell } from "@haibun/core/lib/cell.js";
 import { Machine, type TTransition, type TMove } from "@haibun/core/lib/machine.js";
-import { pagePinned } from "./page-pinned.js";
 import { NOTHING_SELECTED_LABEL, type TComboboxOption, type TPageContext } from "./schemas.js";
 
 /** The globalThis key every bundle's shared cells are held under, so a page reader outside the bundles finds the same cells. */
@@ -128,47 +127,3 @@ export const pageStatus = new SharedSignal<string>("pageStatus", "");
 
 /** The panes the column strip holds, in its order. The strip is its only writer. */
 export const stripPanes = new SharedSignal<ReadonlyArray<TStripPane>>("stripPanes", []);
-
-// --- Persisted reactive settings -------------------------------------------------------------------------------------
-// One mechanism for every global UI setting (data window size, …) so they can't drift into bespoke per-setting wiring.
-// localStorage is the durable store; a signal the page holds is the in-bundle reactive mirror, reading get() in a
-// lit render() auto-subscribes the view, so changing a setting in the UI re-renders every view that reads it. (A
-// cross-bundle view, a separate IIFE like the polymorphic view, does not track signals across the boundary; a setting that
-// must reach one would keep an explicit subscribe, as timeCursor does. Settings consumed in-bundle don't need one.)
-
-const SETTING_SIGNALS_KEY = "__SHU_SETTING_SIGNALS__";
-
-/** Resolve (creating once) the signal the page holds for a setting key, so every importer shares one instance. */
-function settingSignal(storageKey: string): Signal.State<string | null> {
-	const map = pagePinned(SETTING_SIGNALS_KEY, () => new Map<string, Signal.State<string | null>>());
-	let signal = map.get(storageKey);
-	if (!signal) {
-		signal = new Signal.State<string | null>(null);
-		map.set(storageKey, signal);
-	}
-	return signal;
-}
-
-type PersistedSetting = { get(): string; set(value: string): void };
-
-/** Define a persisted, cross-view reactive setting. `fallback` applies when a valid value isn't stored; `isValid` rejects a
- *  stale/foreign stored value. get() reads reactively (auto-subscribes a lit render); set() persists then notifies all. */
-/** localStorage may be absent or unusable: a non-DOM test env, or a browser with storage disabled (private mode). */
-const canStore = (): boolean => typeof localStorage !== "undefined" && typeof localStorage.getItem === "function";
-
-export function persistedSetting(storageKey: string, fallback: string, isValid: (value: string) => boolean): PersistedSetting {
-	const signal = settingSignal(storageKey);
-	return {
-		get: () => {
-			const current = signal.get(); // subscribe; non-null once set() has run this session
-			if (current !== null) return current;
-			// Lazy seed: read persistence on first use (never at module load), and only when storage is usable; else the fallback.
-			const stored = canStore() ? localStorage.getItem(storageKey) : null;
-			return stored !== null && isValid(stored) ? stored : fallback;
-		},
-		set: (value: string) => {
-			if (canStore()) localStorage.setItem(storageKey, value);
-			signal.set(value); // still notify in-session even when storage is unavailable
-		},
-	};
-}

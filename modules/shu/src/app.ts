@@ -28,7 +28,7 @@ import { registerComponents } from "./component-registry.js";
 import { conduit, reads, setConduit, LiveConduit } from "./hypermedia.js";
 import { SSE_ROUTE } from "@haibun/core/lib/rpc-wire.js";
 import { installShuTokens } from "./page/components/styles.js";
-import { applyShuPreferences } from "./page/components/shu-theme-switch.js";
+import { applyStoredTheme } from "./page/components/shu-theme-switch.js";
 import { eventStream, setEventStream, LiveEventStream, SerializedEventStream, subscribeBatchedEvents } from "./event-stream.js";
 import { followRunningTurns } from "./conversation.js";
 import { askEmbedderToDelegate, receiveFromEmbedder } from "./embedder.js";
@@ -154,7 +154,7 @@ const main = async (): Promise<void> => {
 	observeLongFrames();
 	// Install the shared design tokens at document level so combobox dropdowns and other elements rendered into document.body resolve the same `--shu-…` variables that shadow-DOM components inherit.
 	installShuTokens();
-	applyShuPreferences();
+	applyStoredTheme();
 	seedHashFromQueryString();
 	await registerComponents();
 

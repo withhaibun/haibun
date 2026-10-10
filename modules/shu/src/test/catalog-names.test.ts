@@ -28,7 +28,7 @@ import { catalogNameFindings, catalogNames } from "./catalog-names-scan.js";
 import { CONTROLLERS, viewDirectories, VIEWS } from "./data-access-scan.js";
 
 const REPOSITORY = join(import.meta.dirname, "..", "..", "..", "..");
-const VIEWS = viewDirectories(join(REPOSITORY, "modules/shu/src"), [VIEWS, CONTROLLERS]).map((dir) => relative(REPOSITORY, dir));
+const VIEW_SOURCES = viewDirectories(join(REPOSITORY, "modules/shu/src"), [VIEWS, CONTROLLERS]).map((dir) => relative(REPOSITORY, dir));
 /** The steppers whose persisted types a page of shu shows. */
 const STEPPERS = [
 	Haibun,
@@ -55,7 +55,7 @@ describe("a view's types and fields", () => {
 		addStepperConcerns(world, steppers);
 		const names = catalogNames(buildConcernCatalog(world.domains));
 		expect([...names.types]).toEqual(expect.arrayContaining(["Comment", "SeqPath", "Principal"]));
-		const files = sourceFiles(REPOSITORY, VIEWS);
+		const files = sourceFiles(REPOSITORY, VIEW_SOURCES);
 		const found = catalogNameFindings(REPOSITORY, { files, packages: workspacePackages(REPOSITORY, "modules"), names });
 		expectWithinBaseline({
 			baselineFile: join(import.meta.dirname, "catalog-names.baseline.json"),

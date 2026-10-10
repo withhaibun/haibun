@@ -19,7 +19,7 @@ import { shuBaseStyles } from "./styles.js";
 import { renderRef } from "./ref-navigation.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { statedTotal, viewCollection } from "@haibun/core/lib/hypermedia.js";
-import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
+import { SHU_EVENT, SHU_TAG, TIME_SYNC_CLASS } from "../../domains/elements.js";
 import { defineElement } from "../../define-element.js";
 import { z } from "zod";
 import { ResultTableSchema } from "../../schemas.js";
@@ -27,10 +27,10 @@ import { idOf, persistedTypeOf, isVisibleKey } from "../../util.js";
 import { formatInstant, isDateValue, readerZone } from "../derivations/time-format.js";
 import { ellipsize } from "@haibun/core/lib/util/index.js";
 import { getRelSync, getPropertyOrder } from "../../rels-cache.js";
-import { TIME_SYNC_CLASS } from "./shu-element.js";
 import "./shu-virtual-column.js";
 import { virtualColumnCss } from "./shu-virtual-column.js";
 import { arrayWindowedSource, statedCountOf, type WindowedSource } from "../../windowed-source.js";
+import { TimelineViewController } from "../controllers/timeline-view-controller.js";
 
 /** The narrowest a column gets before the table scrolls sideways instead of squeezing further. */
 const MIN_COLUMN = "12ch";
@@ -48,6 +48,8 @@ function referenceOf(value: unknown): { "@id": string; "@type": string } | undef
 const CELL_MAX = 50;
 
 export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
+	/** The instant this view shows, which is the page's time cursor or the moment `data-snapshot-time` states. */
+	readonly #timeline = new TimelineViewController(this);
 	static styles = [
 		shuBaseStyles,
 		virtualColumnCss,
@@ -112,9 +114,6 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 		this.#subscribe();
 	}
 
-	protected override onTimeSync(): void {
-		this.requestUpdate(); // renderRow recomputes each row's future-dimming class
-	}
 
 	protected override onDisconnected(): void {
 		this.#unsub?.();
@@ -278,7 +277,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 
 	#isFutureRow(v: VertexRow): boolean {
 		const ts = this.extractTimestamp(v, this.persistedAs);
-		return ts !== null && this.isFuture(ts);
+		return ts !== null && this.#timeline.isFuture(ts);
 	}
 
 	#onSort(field: string): void {

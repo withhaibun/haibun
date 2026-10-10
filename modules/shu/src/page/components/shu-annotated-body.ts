@@ -38,6 +38,11 @@ import type { TScrollMarker, TWindow } from "../derivations/rail.js";
 import { railMarks, railTotalAndWindow } from "../../annotation-rail.js";
 import { revealInDocument } from "../../reveal.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { ClockController } from "../controllers/clock-controller.js";
+
+/** How long a quoted passage stays marked after the view reveals it, and the name of that delay. */
+const QUOTE_FLASH_MS = 1400;
+const QUOTE_FLASH = "quote-flash";
 
 /** Characters of surrounding text captured as a selection's prefix/suffix, so a short or repeated quote re-anchors to the right spot. */
 /** The ref sanitize allowlist plus inline style, which the annotation gutter's highlight spans carry. */
@@ -500,14 +505,16 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 			return; // the range crosses element boundaries, skip the flash, still scroll below
 		}
 		revealInDocument(mark, { block: "center", behavior: "smooth" });
-		setTimeout(() => {
+		this.#clock.trailing(QUOTE_FLASH, QUOTE_FLASH_MS, () => {
 			const parent = mark.parentNode;
 			if (parent) {
 				while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
 				parent.removeChild(mark);
 			}
-		}, 1400);
+		});
 	}
+
+	readonly #clock = new ClockController(this);
 
 	render(): TemplateResult {
 		const cards = this.show ? this.placedCards : [];

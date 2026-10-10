@@ -8,13 +8,13 @@ import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { ShuMonitorColumn } from "./shu-monitor-column.js";
 import { ShuDocumentColumn } from "./shu-document-column.js";
 import type { ShuArtifactFrame } from "./shu-artifact-frame.js";
-import { windowSizeSetting } from "../../window-size-setting.js";
 import { WINDOW_CHANGED, ShuVirtualColumn } from "./shu-virtual-column.js";
 import { SCROLL_TO_INDEX } from "./shu-scrollbar.js";
 import type { WindowedSource } from "../../windowed-source.js";
 import { html } from "lit";
 import { timeCursor } from "../../signals.js";
-import { setupShuTest, type TShuTestHandle } from "../../test-setup.js";
+import { setupShuTest, storeFields, type TShuTestHandle } from "../../test-setup.js";
+import { PAGE_SETTING_KEY } from "../domains/settings.js";
 import { runStore } from "../../client-cache/run-store.test-fake.js";
 import { SHU_TAG } from "../../domains/elements.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
@@ -23,7 +23,7 @@ import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
 import { setGraphStore } from "../../quads-snapshot.js";
 import { setSiteMetadata, type SiteMetadata } from "../../rels-cache.js";
 
-import { forgetElementPrefs } from "../../element-prefs.js";
+import { pagePreferences } from "../root.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { ICON_LOG_INFO, ICON_LOG_WARN, ICON_STEP_COMPLETED } from "@haibun/core/schema/protocol.js";
 import { endPage } from "../../page-pinned.js";
@@ -76,7 +76,7 @@ describe("the views of a run, over the records it wrote", () => {
 	beforeEach(async () => {
 		endPage();
 		// What a reader chose of a view is remembered across reloads, so each case starts from a view that a reader hasn't set.
-		forgetElementPrefs(SHU_TAG.MONITOR_COLUMN, "");
+		pagePreferences().forget(SHU_TAG.MONITOR_COLUMN, "");
 		handle = setupShuTest({
 			dispatch: () => {
 				throw new ServerUnreachable("/rpc", new Error("the views read actuality's records, not a server"));
@@ -241,9 +241,8 @@ describe("the views of a run, over the records it wrote", () => {
 		// The step's hidden substep produces one screenshot and the step itself produces another, after a page of steps, so
 		// both frames are at the start of the next page.
 		const PAGE = 50;
-		const was = windowSizeSetting.get();
-		windowSizeSetting.set(String(PAGE));
-		onTestFinished(() => windowSizeSetting.set(was));
+		storeFields(SHU_TAG.WINDOW_SIZE, PAGE_SETTING_KEY, { rows: String(PAGE) });
+		onTestFinished(() => pagePreferences().forget(SHU_TAG.WINDOW_SIZE, PAGE_SETTING_KEY));
 		const RUN = "1700000000000-1";
 		const shooter = `${RUN}.0.${PAGE}`;
 		const steps = Array.from({ length: PAGE }, (_, i) => stepRecord(i + 1, { id: `${RUN}.0.${i + 1}` }));

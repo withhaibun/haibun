@@ -31,10 +31,10 @@ import { defineElement } from "../../define-element.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { ColumnPaneSchema } from "../../schemas.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
-import { readShowControlsCookie, writeShowControlsCookie } from "../../show-controls.js";
+import { storeFields } from "../controllers/setting-controller.js";
+import { shownControlsKey } from "../domains/settings.js";
 import { startPointerDrag } from "./pointer-drag.js";
 import { PaneDock } from "./pane-dock.js";
-export { readShowControlsCookie };
 
 const ICON = { MIN: "―", RESTORE: "▭", MAX: "⤢", DOCK: "⤓", UNDOCK: "⤒", CONTROLS: "⚙", PIN: "📌", CLOSE: "×" } as const;
 const CLASS = {
@@ -416,7 +416,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		const show = !child.hasAttribute(SHU_ATTR.SHOW_CONTROLS);
 		if (show) child.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");
 		else child.removeAttribute(SHU_ATTR.SHOW_CONTROLS);
-		writeShowControlsCookie(child.tagName.toLowerCase(), show);
+		storeFields(SHU_TAG.COLUMN_PANE, shownControlsKey(child.tagName.toLowerCase()), { shown: show });
 		child.refresh?.();
 		if (show) this.open();
 		this.requestUpdate();

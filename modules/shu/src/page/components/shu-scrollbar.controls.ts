@@ -20,8 +20,11 @@ import { SHU_TAG } from "../../domains/elements.js";
 /** Where the thumb is measured, as a fraction of the host's scrollable length. The ends are included because a thumb
  *  clamped at a rail end is where an off-by-one in the travel shows. */
 const SAMPLES = [0, 0.25, 0.5, 0.75, 1];
-/** Settling time after each scroll: past the virtualizer's own measuring pass and the rail's re-render. */
-const SETTLE_MS = 300;
+/** How many frames in a row the thumb's box stays the same after a scroll before it is read. The virtualizer measures the
+ *  rows it renders and the rail renders again in the frames after a scroll, and the box stays the same once both end. */
+const STEADY_FRAMES = 3;
+/** The most frames a reading waits for the thumb to stay the same. */
+const SETTLE_FRAMES = 120;
 /** A thumb whose height varies by more than this across a scroll is resizing as the content goes by. Some drift is
  *  approximate: a virtualizer refines its total-height estimate as rows are measured, so the bar is the CONTENT swing
  *  (a screen of prose against a screen of images differs manyfold), not estimate noise. */
@@ -63,7 +66,15 @@ export default class ShuScrollbarControls extends AStepper {
 						// follow exactly as it does for a person, so the follow cannot reclaim the pane before the reading.
 						scroller.dispatchEvent(new WheelEvent(arg.wheel, { bubbles: true, composed: true }));
 						scroller.scrollTop = over * at;
-						await new Promise((r) => setTimeout(r, arg.settleMs));
+						let last = "";
+						let steady = 0;
+						for (let frame = 0; frame < arg.settleFrames && steady < arg.steadyFrames; frame++) {
+							await new Promise((r) => requestAnimationFrame(r));
+							const box = arg.thumb?.getBoundingClientRect();
+							const now = box ? `${Math.round(box.top)}:${Math.round(box.height)}` : "";
+							steady = now === last ? steady + 1 : 0;
+							last = now;
+						}
 					};
 					// A first pass lets the virtualizer measure the rows at each position, so the readings compare the thumb
 					// across content rather than across an estimate still refining itself.
@@ -76,7 +87,7 @@ export default class ShuScrollbarControls extends AStepper {
 					}
 					return readings;
 				},
-				{ thumb: handle, samples: SAMPLES, settleMs: SETTLE_MS, wheel: INPUT_EVENT.wheel },
+				{ thumb: handle, samples: SAMPLES, steadyFrames: STEADY_FRAMES, settleFrames: SETTLE_FRAMES, wheel: INPUT_EVENT.wheel },
 			);
 	}
 

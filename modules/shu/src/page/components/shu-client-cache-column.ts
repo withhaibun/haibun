@@ -45,6 +45,11 @@ import {
 	indexedDbSummary,
 	type TIdbDatabaseSummary,
 } from "../../client-cache/index.js";
+import { ClockController } from "../controllers/clock-controller.js";
+import { TimelineViewController } from "../controllers/timeline-view-controller.js";
+
+/** The name of the delay before the column reads the device again. */
+const DEVICE_READ = "device-read";
 
 const IDS = SHU_TEST_IDS.CLIENT_CACHE;
 /** How soon after a change the device is read again: the stream can change many times a second, the device once in this.
@@ -79,6 +84,8 @@ const spans = (ranges: Range[]): string => ranges.map((r) => `${r.from}..${r.to 
 const cachedRows = (ranges: Range[]): number => ranges.reduce((n, r) => n + (r.to - r.from), 0);
 
 export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
+	/** The instant this view shows, which is the page's time cursor or the moment `data-snapshot-time` states. */
+	readonly #timeline = new TimelineViewController(this);
 	#unsubscribes = new Map<RunSource, () => void>();
 	#held: THeldExecution[] = [];
 	#registry: TStoredRegistry | undefined; // the site's registry as the device holds it, for when it was cached
@@ -86,7 +93,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 	#reading = false;
 	#readAgain = false;
 	#deviceRead = false; // the device has been read at least once: before that, what it caches is not known, not absent
-	#readDue: ReturnType<typeof setTimeout> | undefined;
+	readonly #clock = new ClockController(this);
 	#liveByLevel = new Map<string, { count: number; newest?: number }>(); // what the live stream delivered since this view opened
 	#openedAt = 0; // the device's time when this view opened: what "since this view opened" is measured from
 	#forgets = 0; // how many runs a reader has forgotten here: a device read begun before a forget cannot know the run went
@@ -160,7 +167,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 			"@id": "view:client-cache",
 			"@type": "as:Note",
 			name: "what this page caches of actuality",
-			cursor: this.timeCursor,
+			cursor: this.#timeline.cursor,
 			registry: registryOrigin(),
 			sources: runSources().map((s) => ({ level: s.level, ...s.extent(), cached: spans(s.cachedRanges()), cursorRow: this.#cursorRowIn(s) })),
 			openedAt: this.#openedAt,
@@ -198,24 +205,15 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 		this.autoTeardown(() => {
 			for (const off of this.#unsubscribes.values()) off();
 			this.#unsubscribes.clear();
-			if (this.#readDue) clearTimeout(this.#readDue);
 		});
 	}
 
-	/** The cursor moved: where it sits in each source is derived in render. */
-	protected override onTimeSync(): void {
-		this.requestUpdate();
-	}
 
 	/** Something moved: what is in memory shows at once; the device is read again soon, once for however many changes. */
 	#changed(): void {
 		this.#watchSources();
 		this.requestUpdate();
-		if (this.#readDue) return;
-		this.#readDue = setTimeout(() => {
-			this.#readDue = undefined;
-			void this.#readDevice();
-		}, DEVICE_READ_DELAY_MS);
+		this.#clock.coalesce(DEVICE_READ, DEVICE_READ_DELAY_MS, () => void this.#readDevice());
 	}
 
 	/** Every source built so far is watched for its changes (a page landing, the extent growing, a new run). */
@@ -269,7 +267,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 
 	/** The row the cursor sits on in a source, among the rows it caches: -1 where the cursor isn't on a cached row (the live edge, or before the first cached). */
 	#cursorRowIn(src: RunSource): number {
-		const cursor = this.timeCursor;
+		const cursor = this.#timeline.cursor;
 		if (cursor === null) return -1;
 		const rows: Array<{ index: number; timestamp: number }> = [];
 		for (const { from, to } of src.cachedRanges()) for (let i = from; i < to; i++) rows.push({ index: i, timestamp: Number(src.rowAt(i)?.timestamp) || 0 });
@@ -279,7 +277,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 	/** Put the shared cursor at an instant this view reports, so every open view scrubs to the moment a reader clicked. */
 	#cursorTo(instant: number | undefined): void {
 		if (instant === undefined || !Number.isFinite(instant)) return;
-		this.timeCursor = atLiveEdge(instant) ? null : instant;
+		this.#timeline.movePage(atLiveEdge(instant) ? null : instant);
 	}
 
 	/** An instant a reader can act on: clicking it moves the shared cursor there. */
@@ -306,7 +304,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 
 	render(): TemplateResult {
 		const sources = runSources();
-		const cursor = this.timeCursor;
+		const cursor = this.#timeline.cursor;
 		// The moment every source reads around, which is the cursor once a reader has moved it: what is read is what a
 		// reader is looking at, and this shows it rather than leaving it to be inferred from the rows.
 		const readingMoment = runReadingAt();
@@ -330,7 +328,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 			<div data-testid=${IDS.SERVER}>${respondedAt === undefined ? "has not responded to this page" : `last responded at ${at(respondedAt)}`}</div>
 			<h4>Cursor</h4>
 			<div data-testid=${IDS.CURSOR}>
-				${cursor === null ? "live edge" : html`${at(cursor)} <button class="link" title="back to the live edge" @click=${() => (this.timeCursor = null)}>to the live edge</button>`}
+				${cursor === null ? "live edge" : html`${at(cursor)} <button class="link" title="back to the live edge" @click=${() => this.#timeline.movePage(null)}>to the live edge</button>`}
 			</div>
 			<div data-testid=${IDS.READING_AT}>${readingMoment === undefined ? "following the newest records" : `actuality is read around ${at(readingMoment)}`}</div>
 			<h4>Live stream since this view opened (device time ${at(this.#openedAt)})</h4>

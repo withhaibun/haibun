@@ -14,7 +14,7 @@ import { Task, TaskStatus } from "@lit/task";
 import { z } from "zod";
 import { eventMarkerStyle } from "../derivations/event-marker.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { RPC_METHOD, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
+import { RPC_METHOD, SHU_EVENT, SHU_TAG, SHU_ATTR } from "../../domains/elements.js";
 import { defineElement } from "../../define-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { reads, conduit } from "../../hypermedia.js";
@@ -28,6 +28,10 @@ import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { readingExecution } from "../../client-cache/index.js";
 import { actionRef, calledRef, originLink, refTpl } from "./shu-ref.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
+import { ClockController } from "../controllers/clock-controller.js";
+
+/** The name of the delay before the pane reads a running step again. */
+const STEP_RE_READ = "step-re-read";
 
 /** How long a burst of announcements is collected before a still-running step's record is read again. */
 const STEP_RE_READ_AFTER_MS = 400;
@@ -115,25 +119,20 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		await this.#load.taskComplete.catch(() => undefined);
 	}
 
+	readonly #clock = new ClockController(this);
+
 	protected override onConnected(): void {
 		// A step still running reaches its end while this pane is open, and its record then shows it. A step that has
 		// ended will not change again, so it is read once: a pane that re-read on every announcement would never settle,
 		// since reading actuality is itself something actuality announces. In snapshot mode actuality doesn't change.
-		if (this.hasAttribute("data-snapshot-time")) return;
-		let due: ReturnType<typeof setTimeout> | null = null;
+		if (this.hasAttribute(SHU_ATTR.SNAPSHOT_TIME)) return;
 		const unsubscribe = subscribeBatchedEvents({
 			onBatch: () => {
-				if (due || this.#load.status !== TaskStatus.COMPLETE || this.#ended()) return;
-				due = setTimeout(() => {
-					due = null;
-					void this.#load.run();
-				}, STEP_RE_READ_AFTER_MS);
+				if (this.#load.status !== TaskStatus.COMPLETE || this.#ended()) return;
+				this.#clock.coalesce(STEP_RE_READ, STEP_RE_READ_AFTER_MS, () => void this.#load.run());
 			},
 		});
-		this.autoTeardown(() => {
-			if (due) clearTimeout(due);
-			unsubscribe();
-		});
+		this.autoTeardown(unsubscribe);
 	}
 
 	/** Whether the step this pane shows has ended, which is when its record stops changing. */

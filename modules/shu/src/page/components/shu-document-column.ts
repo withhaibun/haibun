@@ -14,8 +14,8 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
-import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js";
-import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { SHU_ATTR, SHU_EVENT, SHU_TAG, TIME_SYNC_CLASS } from "../../domains/elements.js";
 import { defineElement } from "../../define-element.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { shuBaseStyles } from "./styles.js";
@@ -40,6 +40,7 @@ import { isKnownType } from "../../rels-cache.js";
 import { artifactUrl } from "../../artifact-url.js";
 import { refLinksPlugin } from "../../markdown-refs.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { TimelineViewController } from "../controllers/timeline-view-controller.js";
 
 const DocumentColumnSchema = z.object({ level: z.enum(HAIBUN_LOG_LEVELS).default("log") });
 
@@ -87,6 +88,8 @@ const MAX_FRAME_HOPS = 50;
 const FRAME_ORDINAL = /data-frame-ordinal="(\d+):(\d+)"/g;
 
 export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
+	/** The instant this view shows, which is the page's time cursor or the moment `data-snapshot-time` states. */
+	readonly #timeline = new TimelineViewController(this);
 	// The run this view reads is the run at its level, spanning the whole run by index (event-source): the rail is the
 	// run's extent, any region of it pages in on demand, the cached pages are bounded, and live events take their place
 	// as they arrive. One source per level, shared across views, swapped when the level changes.
@@ -169,9 +172,6 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		this.autoListen(this, SHU_EVENT.FRAME_NAV, (e) => void this.#frameNav((e as CustomEvent<{ dir: number; from: HTMLElement }>).detail));
 	}
 
-	protected override onTimeSync(): void {
-		this.requestUpdate(); // renderRow recomputes each row's past/current/future class
-	}
 
 	/** Read actuality at the level now shown: one source per level, shared across views, swapped when the level changes. */
 	#readRun(): void {
@@ -307,7 +307,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		// rail asks for its marks on every frame a reader scrolls, and a cursor at the live edge doesn't sit on a row.
 		this.#windowRows = this.#window();
 		this.#marks = this.#markers();
-		const cursor = this.timeCursor;
+		const cursor = this.#timeline.cursor;
 		this.#currentIdx =
 			cursor === null
 				? -1
@@ -322,7 +322,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	 *  view). The newest instant is the live edge: the cursor there is null, every view following, like the slider at its end. */
 	private cursorToRow(rawTime: number): void {
 		const absTime = this.#first + rawTime;
-		this.timeCursor = atLiveEdge(absTime) ? null : absTime; // the setter fires onTimeSync → requestUpdate
+		this.#timeline.movePage(atLiveEdge(absTime) ? null : absTime); // the setter fires onTimeSync → requestUpdate
 		this.requestUpdate(); // refresh even when the value is unchanged (the setter no-ops an equal value)
 	}
 
@@ -428,7 +428,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		const id = String(r.event.id ?? "");
 		if (r.blocks.length === 0) return html`<div class="doc-block doc-empty" data-id=${id}></div>`;
 		const ts = Number(r.event.timestamp) || 0;
-		const t = rowTimeClass(ts, i, this.timeCursor, this.#currentIdx);
+		const t = rowTimeClass(ts, i, this.#timeline.cursor, this.#currentIdx);
 		const cls = `doc-block${t === "future" ? ` ${TIME_SYNC_CLASS.FUTURE}` : t === "current" ? ` ${TIME_SYNC_CLASS.CURRENT}` : ""}`;
 		const rawTime = ts - this.#first;
 		return html`<div class=${cls} data-id=${id} @click=${(e: Event) => this.onBlockClick(e, rawTime)}>

@@ -12,11 +12,11 @@ import { describe, it, expect, beforeEach, beforeAll } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { ShuColumnPane } from "./shu-column-pane.js";
 import { ShuColumnStrip } from "./shu-column-strip.js";
-import { SHU_EVENT, SHU_ATTR } from "../../domains/elements.js";
-import { flushPersistWrites, writeElementPrefs } from "../../element-prefs.js";
-import { setJsonCookie } from "../../cookies.js";
+import { SHU_EVENT, SHU_ATTR, SHU_TAG } from "../../domains/elements.js";
 import { activePane, stripPanes } from "../../signals.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
+import { clearStoredFields, storeFields } from "../../test-setup.js";
+import { pagePreferences } from "../root.js";
 
 beforeAll(() => {
 	provideLayout(); // a pane observes its own size for the footprint it reserves when docked
@@ -40,8 +40,7 @@ describe("shu-column-strip minimize", () => {
 	let panes: ShuColumnPane[];
 
 	beforeEach(async () => {
-		flushPersistWrites();
-		setJsonCookie("shu-prefs-shu-column-pane", {});
+		clearStoredFields(SHU_TAG.COLUMN_PANE);
 		activePane.set(null);
 		document.body.innerHTML = "";
 		strip = new ShuColumnStrip();
@@ -66,14 +65,14 @@ describe("shu-column-strip minimize", () => {
 	it("expand clears the persisted minimize so the column reopens expanded", () => {
 		minimize(itemAt(panes, 1));
 		itemAt(panes, 1).dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_EXPAND, { bubbles: true, composed: true }));
-		flushPersistWrites();
+		pagePreferences().flush();
 		const again = makePane("B");
 		strip.addPane(again as ShuColumnPane & HTMLElement);
 		expect(again.hasAttribute(SHU_ATTR.DATA_MINIMIZED)).toBe(false);
 	});
 
 	it("restores a remembered-minimized pane as minimized without giving it activation", () => {
-		writeElementPrefs("shu-column-pane", "D", { minimized: true });
+		storeFields(SHU_TAG.COLUMN_PANE, "D", { minimized: true });
 		const before = (strip as unknown as { state: { activeIndex: number } }).state.activeIndex;
 		const d = makePane("D");
 		strip.addPane(d as ShuColumnPane & HTMLElement);
@@ -94,8 +93,7 @@ describe("shu-column-strip activation invariant", () => {
 	let strip: ShuColumnStrip;
 
 	beforeEach(async () => {
-		flushPersistWrites();
-		setJsonCookie("shu-prefs-shu-column-pane", {});
+		clearStoredFields(SHU_TAG.COLUMN_PANE);
 		activePane.set(null);
 		document.body.innerHTML = "";
 		strip = new ShuColumnStrip();
@@ -135,8 +133,7 @@ describe("the panes a strip publishes", () => {
 	let strip: ShuColumnStrip;
 
 	beforeEach(async () => {
-		flushPersistWrites();
-		setJsonCookie("shu-prefs-shu-column-pane", {});
+		clearStoredFields(SHU_TAG.COLUMN_PANE);
 		activePane.set(null);
 		stripPanes.set([]);
 		document.body.innerHTML = "";
@@ -212,8 +209,7 @@ describe("which pane grows into the strip's leftover width", () => {
 	let panes: ShuColumnPane[];
 
 	beforeEach(async () => {
-		flushPersistWrites();
-		setJsonCookie("shu-prefs-shu-column-pane", {});
+		clearStoredFields(SHU_TAG.COLUMN_PANE);
 		activePane.set(null);
 		document.body.innerHTML = "";
 		strip = new ShuColumnStrip();

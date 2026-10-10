@@ -36,6 +36,10 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { linkTo } from "../../rpc-registry.js";
 import { noteExecution } from "../../client-cache/executions.js";
 import { revealInDocument } from "../../reveal.js";
+import { ClockController } from "../controllers/clock-controller.js";
+
+/** The name of the delay before the panel reads its affordances again. */
+const REFRESH = "refresh";
 
 /** The panel's read-projection of the affordances wire blob: forward steps + goal verdicts (+ optional waypoints). forward/goals reuse the core element types; the panel ignores composites/satisfied* that the chain view consumes. */
 type TAffordances = {
@@ -155,9 +159,6 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 				filter: (event: TEvent) => typeof event.id === "string" && (event.id as string).startsWith(AFFORDANCE_EVENT_PREFIX),
 			}),
 		);
-		this.autoTeardown(() => {
-			if (this._refreshTimer !== undefined) clearTimeout(this._refreshTimer);
-		});
 		// Back/forward navigation should re-sync the open goal / waypoint from the URL so the
 		// panel reflects the address bar. Storing in history rather than state means
 		// a copy-pasted URL also opens the right entry on first load.
@@ -170,14 +171,11 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		this.autoTeardown(ViewHash.onHashChanged(fromHash));
 	}
 
-	private _refreshTimer: ReturnType<typeof setTimeout> | undefined;
-	/** One refetch per coalesce window, however many change signals arrive: the first signal starts the timer, and the rest fall inside it. */
+	readonly #clock = new ClockController(this);
+	/** Reads the affordances again once per `REFRESH_COALESCE_MS`, however many change signals arrive: the first signal starts
+	 *  the delay, and the rest arrive within it. */
 	private scheduleRefresh(): void {
-		if (this._refreshTimer !== undefined) return;
-		this._refreshTimer = setTimeout(() => {
-			this._refreshTimer = undefined;
-			void this.fetchInitial(true);
-		}, REFRESH_COALESCE_MS);
+		this.#clock.coalesce(REFRESH, REFRESH_COALESCE_MS, () => void this.fetchInitial(true));
 	}
 
 	private toggleGoal(domain: string): void {

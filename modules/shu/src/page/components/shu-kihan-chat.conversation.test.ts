@@ -32,7 +32,7 @@ import {
 } from "../../conversation.js";
 import { CONVERSATION_PARAM, SHU_ATTR, SHU_TAG } from "../../domains/elements.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import { forgetElementPrefs } from "../../element-prefs.js";
+import { pagePreferences } from "../root.js";
 import { hashParam, mergeHashParams } from "../../view-hash.js";
 import { INITIAL_SUBJECT, SCOPE, activeEntry, currentSubject, currentSubjectState, dispatchSubjectEvent, entryOf, scopeEntry } from "../../current-subject.js";
 import { EMBEDDED_PAGE_TYPE, embeddedPageView } from "../../embedder.js";
@@ -151,7 +151,7 @@ beforeEach(async () => {
 	stream.piece = undefined;
 	stream.finish = undefined;
 	sessionTurns = [readBack(RESTORED_TURN, undefined, [RESTORED_RECORD])];
-	forgetElementPrefs(SHU_TAG.KIHAN_CHAT, "");
+	pagePreferences().forget(SHU_TAG.KIHAN_CHAT, "");
 	mergeHashParams({ [CONVERSATION_PARAM]: "", access: "" });
 	document.body.innerHTML = "";
 });

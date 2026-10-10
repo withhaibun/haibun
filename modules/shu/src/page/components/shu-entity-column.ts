@@ -25,8 +25,8 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { jsonDisclosure, literalWithJson, recordJson } from "./json-disclosure.js";
 import { jsonCarried, RecordsSchema, isRecord } from "@haibun/core/lib/json-text.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
-import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js";
-import { SHU_EVENT, ANNOTATION_GLYPH, SHU_TAG } from "../../domains/elements.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { SHU_EVENT, ANNOTATION_GLYPH, SHU_TAG, TIME_SYNC_CLASS } from "../../domains/elements.js";
 import { defineElement } from "../../define-element.js";
 import { copyText } from "../../copy-util.js";
 import { isReplyEdge } from "@haibun/core/lib/resources.js";
@@ -61,6 +61,11 @@ import { SentFileSchema, fileDataBlob } from "@haibun/core/lib/media-object.js";
 import { MEDIA_TYPE, viewedInBrowser } from "@haibun/core/lib/media-types.js";
 import { reportFailure } from "../../client-log.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { ClockController } from "../controllers/clock-controller.js";
+import { TimelineViewController } from "../controllers/timeline-view-controller.js";
+
+/** The name of the delay after which the copy button reads Copy again. */
+const COPY_RESULT = "copy-result";
 
 /** The links a record carries, by rel. */
 const OfferedLinksSchema = z.record(z.string(), CallLinkSchema);
@@ -113,6 +118,8 @@ const COPY_RESULT_SHOWN_MS = 1500;
 const COPY_BODY_BUTTON = `<button class="copy-btn" title="Copy to clipboard">${COPY}</button>`;
 
 export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
+	/** The instant the column shows. A record after it dims. */
+	readonly #timeline = new TimelineViewController(this, { onMove: () => this.#cursorMoved() });
 	static styles = [
 		shuBaseStyles,
 		shuIconButtonStyles,
@@ -218,11 +225,11 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		super(EntityColumnSchema, { individualId: "", persistedAs: "", loading: false });
 	}
 
-	protected override onTimeSync(): void {
+	#cursorMoved(): void {
 		const container = this.shadowRoot?.querySelector(".container");
 		if (!container) return;
 		const ts = this.extractTimestamp(this.vertex ?? {}, this.state.persistedAs);
-		if (ts !== null && this.isFuture(ts)) {
+		if (ts !== null && this.#timeline.isFuture(ts)) {
 			container.classList.add(TIME_SYNC_CLASS.FUTURE);
 		} else {
 			container.classList.remove(TIME_SYNC_CLASS.FUTURE);
@@ -807,11 +814,13 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const ok = await copyText(text);
 		btn.classList.toggle("copied", ok);
 		btn.textContent = ok ? COPIED : NOT_COPIED;
-		setTimeout(() => {
+		this.#clock.trailing(COPY_RESULT, COPY_RESULT_SHOWN_MS, () => {
 			btn.classList.remove("copied");
 			btn.textContent = COPY;
-		}, COPY_RESULT_SHOWN_MS);
+		});
 	}
+
+	readonly #clock = new ClockController(this);
 
 	/** Show the reading a reader switched to, and read its text where it has not been read. */
 	private switchBody(btn: HTMLElement): void {

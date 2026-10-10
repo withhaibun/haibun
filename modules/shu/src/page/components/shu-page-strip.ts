@@ -20,8 +20,11 @@ import { reportToRun } from "../../client-log.js";
 import { appAccessLevel } from "../../util.js";
 import { PAGE_STRIP_STYLES } from "./page-strip-styles.js";
 import type { ShuColumnPane } from "./shu-column-pane.js";
+import { TimelineViewController } from "../controllers/timeline-view-controller.js";
 
 export class ShuPageStrip extends ShuElement<typeof EmptyStateSchema> {
+	/** The page's time cursor, which the strip's corners show. */
+	readonly #timeline = new TimelineViewController(this, { onMove: (cursor) => this.#corners.showTime(cursor) });
 	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
@@ -72,13 +75,11 @@ export class ShuPageStrip extends ShuElement<typeof EmptyStateSchema> {
 			reportToRun("warn", SHU_TAG.PAGE_STRIP, "optional UI extensions failed to load", { error: errorDetail(err) }),
 		);
 		// Actuality moving on changes where the cursor sits in it.
-		if (!isOffline()) this.autoTeardown(this.subscribeBatched({ onBatch: () => this.#corners.showTime(this.timeCursor) }));
+		if (!isOffline()) this.autoTeardown(this.subscribeBatched({ onBatch: () => this.#corners.showTime(this.#timeline.cursor) }));
 	}
 
 	/** Shows where the cursor sits in actuality. It reads `now` while every view shows now, and an offset once a reader pins a moment. */
-	protected onTimeSync(cursor: number | null): void {
-		this.#corners.showTime(cursor);
-	}
+
 
 	protected updated(): void {
 		this.#updateBreadcrumb();

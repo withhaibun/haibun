@@ -21,9 +21,9 @@
  * into the next microtask. State mutations are whole-object replacements
  * so Lit's change detection (===) fires correctly.
  *
- * Time-sync (the `timeCursor` signal) and active-view (the `activePane` signal) are wired by #installTimeSync /
- * #installActiveView; subclasses override `onTimeSync(cursor)` / `onViewActive(active)` for custom behavior. Default
- * time-sync calls `requestUpdate` so views refresh as the cursor moves.
+ * A view that shows actuality at the time cursor holds a `TimelineViewController`, and a view that stores fields across
+ * reloads names them in `persistFields`, which `PreferencesController` stores. The active-view signal (`activePane`) is
+ * wired by #installActiveView, and a subclass overrides `onViewActive(active)` to react.
  *
  * Inbound event subscriptions go through `subscribeBatched({onBatch, filter})`
  * which coalesces every event arriving between paints into one handler call
@@ -41,8 +41,7 @@ import { property } from "lit/decorators.js";
 import { SignalWatcher } from "@lit-labs/signals";
 import { z } from "zod";
 import { SHU_TAG, SHU_ATTR, SHU_EVENT, SPINE_SLOT } from "../../domains/elements.js";
-import { TIME_SYNC_CLASS } from "../../time-sync.js";
-import { timeCursor, activePane, type SharedSignal } from "../../signals.js";
+import { activePane, type SharedSignal } from "../../signals.js";
 import { parseTimestampValue, type TLinkedData } from "@haibun/core/lib/hypermedia.js";
 import { unwrap as unwrapWrappers } from "@haibun/core/lib/zod-unwrap.js";
 // Re-exported so every view can annotate its summarizeForKihan as `TLinkedData | null` from the same import it already
@@ -55,7 +54,7 @@ import { getRels } from "../../rels-cache.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import * as ViewHash from "../../view-hash.js";
 import { subscribeBatchedEvents, type TEvent, type TEventFilter } from "../../event-stream.js";
-import { readElementPrefs, schedulePersistWrite, forgetElementPrefs } from "../../element-prefs.js";
+import { PreferencesController } from "../controllers/preferences-controller.js";
 import { recordClientBlip } from "../../client-blips.js";
 import type { TContextPattern } from "../../schemas.js";
 
@@ -131,30 +130,9 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 	private readonly _schema: T;
 	#teardowns: Array<() => void> = [];
 	#dirtyFields = new Set<string>();
-	#persistRestored = false;
 	#restoring = false;
+	readonly #preferences = new PreferencesController(this, this.#storedFields());
 
-	/**
-	 * Current time cursor (absolute epoch ms; null = show all). ONE cursor system, two sources: live
-	 * views read the shared global `timeCursor` SharedSignal (scrubbing one view syncs them all); snapshot-pinned
-	 * views replay the frozen instant carried by `data-snapshot-time` (set by shu-product-view when a view
-	 * is opened "as of" a point in history). The attribute is the single store for a pinned time: it is
-	 * declarative, serializable, and already the marker other views check, so the element doesn't hold a parallel field.
-	 * Reading this during an update auto-subscribes an in-bundle component via SignalWatcher; cross-bundle views
-	 * react through `watchSignal(timeCursor, …)` (wired here by #installTimeSync for any onTimeSync overrider).
-	 * Setting it publishes app-wide for a live view; a pinned view is frozen, so set is a no-op.
-	 */
-	protected get timeCursor(): number | null {
-		if (this.hasAttribute("data-snapshot-time")) {
-			const pinned = Number.parseFloat(this.getAttribute("data-snapshot-time") ?? "");
-			return Number.isNaN(pinned) ? null : pinned;
-		}
-		return timeCursor.get();
-	}
-	protected set timeCursor(v: number | null) {
-		if (this.hasAttribute("data-snapshot-time")) return; // a pinned view replays a fixed point and never moves the global cursor
-		timeCursor.set(v); // SharedSignal.set co-fires the signal + the cross-bundle bus and no-ops an unchanged value
-	}
 
 	/** Record one fine-grained occurrence of this view's behaviour, at whatever rate it happens: held in the page's
 	 *  fixed ring and handed to actuality in batches, which doesn't retain them. The view attribution is this element's
@@ -278,7 +256,7 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 		}
 		if (!this.#restoring) {
 			for (const k of Object.keys(partial)) this.#dirtyFields.add(k);
-			this.#persistChanged(Object.keys(partial));
+			this.#preferences.changed(Object.keys(partial));
 		}
 		// Reflect any changed attributeFields back onto their attributes (inverse of #reflectAttribute), including during
 		// a restore, so a bound attribute a subclass declared (e.g. a pane's `pinned`) stays in sync without per-caller code.
@@ -311,51 +289,36 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 		this.setState(fields as Partial<z.infer<T>>);
 	}
 
-	/** Forget this instance's remembered `persistFields`. For a view being DISMISSED, not merely removed: its options
-	 *  describe the view the reader closed, so the next instance under the same identity opens with the defaults. A view
-	 *  that is removed and expected back (a prune, a reload) must not call this: that is what the memory is for. */
+	/** Removes this instance's stored `persistFields`. A view the reader closes calls it, so the next instance under the same
+	 *  key opens with its initial state. A view that is removed and returns, as on a reload, doesn't call it. */
 	protected forgetPersisted(): void {
-		const key = this.persistKey;
-		if (key === null) return;
-		forgetElementPrefs(this.tagName.toLowerCase(), key);
+		this.#preferences.forget();
 	}
 
-	/** Write-through for persistFields touched by a setState. Debounced in element-prefs; values are collected at flush time so the latest state wins. */
-	#persistChanged(changed: string[]): void {
-		const fields = (this.constructor as typeof ShuElement).persistFields;
-		if (fields.length === 0 || !changed.some((k) => fields.includes(k))) return;
-		const key = this.persistKey;
-		if (key === null) return;
-		schedulePersistWrite(this.tagName.toLowerCase(), key, () => {
-			const state = this.#fields;
-			const out: Record<string, unknown> = {};
-			for (const f of fields) if (state[f] !== undefined) out[f] = state[f];
-			return out;
-		});
-	}
-
-	/** Restore persisted fields on first connect (persistKey is settled by then, e.g. a pane's columnKey is
-	 * assigned before attach). Fields the element already set explicitly stay; a stale or invalid remembered
-	 * value is dropped by schema validation rather than crashing the boot. */
-	#restorePersisted(): void {
-		const fields = (this.constructor as typeof ShuElement).persistFields;
-		if (this.#persistRestored || fields.length === 0) return;
-		this.#persistRestored = true;
-		const key = this.persistKey;
-		if (key === null) return;
-		const saved = readElementPrefs(this.tagName.toLowerCase(), key);
-		if (!saved) return;
-		const patch: Record<string, unknown> = {};
-		for (const f of fields) if (f in saved && !this.#dirtyFields.has(f)) patch[f] = saved[f];
-		if (Object.keys(patch).length === 0) return;
-		const merged = this._schema.safeParse({ ...(this.state as object), ...patch });
-		if (!merged.success) return;
-		this.#restoring = true;
-		try {
-			this.setState(patch as Partial<z.infer<T>>);
-		} finally {
-			this.#restoring = false;
-		}
+	/** The fields `PreferencesController` stores: the `persistFields`, under this element's tag and `persistKey`. On the
+	 *  first connection, a field that this element set before it connected stays as set. A set of stored fields that the
+	 *  schema rejects doesn't apply. */
+	#storedFields(): ConstructorParameters<typeof PreferencesController>[1] {
+		const element = this;
+		const names = (this.constructor as typeof ShuElement).persistFields;
+		return {
+			get tag() {
+				return element.tagName.toLowerCase();
+			},
+			key: () => this.persistKey,
+			names,
+			fields: () => Object.fromEntries(names.filter((name) => this.#fields[name] !== undefined).map((name) => [name, this.#fields[name]])),
+			restore: (saved, initial) => {
+				const patch = Object.fromEntries(Object.entries(saved).filter(([name]) => !initial || !this.#dirtyFields.has(name)));
+				if (Object.keys(patch).length === 0 || !this._schema.safeParse({ ...(this.state as object), ...patch }).success) return;
+				this.#restoring = true;
+				try {
+					this.setState(patch as Partial<z.infer<T>>);
+				} finally {
+					this.#restoring = false;
+				}
+			},
+		};
 	}
 
 	protected validate(data: unknown): z.infer<T> {
@@ -372,8 +335,6 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 	// can never be silently skipped. A subclass that overrides any of these throws at construction (see #assertSealed).
 	connectedCallback(): void {
 		super.connectedCallback();
-		this.#restorePersisted();
-		this.#installTimeSync();
 		this.#installActiveView();
 		this.#installColumnDisplay();
 		this.onConnected();
@@ -426,19 +387,7 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 		for (const [attr, field] of bound) reflectAttributeValue(this, attr, this._schema.shape[field], this.#fields[field]);
 	}
 
-	// One wiring for every cursor-watching component, in any bundle: the cross-bundle cursor bus runs onTimeSync on each
-	// change. The bus (a globalThis subscriber set), not signal tracking: the polyfill's reactive context is module-level
-	// and does not cross esbuild bundle boundaries, so an external view (the separately-bundled polymorphic) reacts through
-	// this same interface instead of hand-rolling its own subscribe. Views that only dim auto-rerender by reading
-	// this.timeCursor in render(); snapshot-pinned views replay a fixed point and opt out.
-	#installTimeSync(): void {
-		const reactsToTime = this.onTimeSync !== ShuElement.prototype.onTimeSync;
-		if (reactsToTime && !this.hasAttribute("data-snapshot-time")) {
-			this.watchSignal(timeCursor, (cursor) => this.onTimeSync(cursor));
-		}
-	}
-
-	// Sibling of #installTimeSync for the active-pane signal: a view that overrides onViewActive reacts across bundles
+	// A view that overrides onViewActive reacts to the active-pane signal across bundles
 	// through the shared signal bus, and only when its OWN active state flips (the signal fires on every pane switch).
 	#installActiveView(): void {
 		if (this.onViewActive === ShuElement.prototype.onViewActive) return;
@@ -462,11 +411,6 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 	 * button strip): the decision is required of every view, never implicit.
 	 */
 	abstract summarizeForKihan(): TLinkedData | null;
-
-	/** Called when TIME_SYNC is received. Default re-renders via `requestUpdate`; override for custom behavior. */
-	protected onTimeSync(_cursor: number | null): void {
-		this.requestUpdate();
-	}
 
 	/** Called when this view's active state toggles. Default no-op; override for custom behavior. */
 	protected onViewActive(_active: boolean): void {
@@ -516,18 +460,6 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 	/** Force a re-render. Most callers should not need this, mutate state via `setState` instead. Kept as an explicit escape hatch for callers that need to refresh after side-channel state change. */
 	refresh(): void {
 		this.requestUpdate();
-	}
-
-	/** True iff the timestamp lies strictly after the current time cursor. When a cursor isn't set, a timestamp isn't in the future. */
-	protected isFuture(timestamp: number): boolean {
-		return this.timeCursor !== null && timestamp > this.timeCursor;
-	}
-
-	/** Filter an array of timestamped items, keeping only those at or before cursor. */
-	protected filterByTime<I extends { timestamp: number }>(items: I[]): I[] {
-		const cursor = this.timeCursor;
-		if (cursor === null) return items;
-		return items.filter((item) => item.timestamp <= cursor);
 	}
 
 	/** Extract creation timestamp from an individual using concern metadata. Prefers the uniform creation field (rel generatedAtTime), then the published field (LinkRelations.PUBLISHED), then common fallbacks. */
@@ -617,4 +549,3 @@ function attributeValueOf(fieldSchema: z.ZodTypeAny | undefined, value: unknown)
 }
 
 /** Re-export so components import the time-sync class names from the same module as ShuElement. */
-export { TIME_SYNC_CLASS };

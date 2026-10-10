@@ -28,13 +28,14 @@ const FILTER_IDS = SHU_TEST_IDS.GRAPH_FILTER;
 import { DEFAULT_PER_TYPE_LIMIT, MAX_PER_TYPE_LIMIT } from "../quads-snapshot.js";
 import { colorForType } from "../type-colors.js";
 import { clamp } from "../util.js";
-import { readElementPrefs } from "../element-prefs.js";
+import { storedFields } from "../page/controllers/setting-controller.js";
 import { projectFilterClusters, effectiveHiddenTypes, derivePredicates, explicitlyHidden } from "../graph-filter-projection.js";
 import { isSchemaType, SCHEMA_TYPES } from "../graph/ontology-projection.js";
 import "./shu-chip-group.js";
 import "../page/components/shu-field.js";
 import type { TChip } from "./shu-chip-group.js";
 import { counted } from "@haibun/core/lib/hypermedia.js";
+import { TimelineViewController } from "../page/controllers/timeline-view-controller.js";
 
 const StateSchema = z.object({
 	// The user's EXPLICIT per-type visibility choices (true = shown, false = hidden). A type absent here follows the
@@ -49,6 +50,8 @@ const StateSchema = z.object({
 });
 
 export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
+	/** The instant this view shows, which is the page's time cursor or the moment `data-snapshot-time` states. */
+	readonly #timeline = new TimelineViewController(this);
 	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
@@ -88,7 +91,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 	 * combine these overrides with the instrumentation-default predicate via `effectiveHiddenTypes`: the default is
 	 * never persisted here. */
 	static getPersistedFilter(scope = ""): { overrides: Record<string, boolean>; hiddenPredicates: string[]; perTypeLimit: number } {
-		const saved = readElementPrefs("shu-graph-filter", scope);
+		const saved = storedFields("shu-graph-filter", scope);
 		const parsed = StateSchema.safeParse(saved ?? {});
 		if (!parsed.success) return { overrides: {}, hiddenPredicates: [], perTypeLimit: DEFAULT_PER_TYPE_LIMIT };
 		return { overrides: parsed.data.overrides, hiddenPredicates: explicitlyHidden(parsed.data.predicateOverrides), perTypeLimit: parsed.data.perTypeLimit };
@@ -197,13 +200,13 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 	setVisiblePredicates(predicates: string[]): void {
 		const keep = new Set(predicates);
 		const predicateOverrides = { ...this.state.predicateOverrides };
-		for (const { predicate } of derivePredicates(this.filterByTime(this.quads))) predicateOverrides[predicate] = keep.has(predicate);
+		for (const { predicate } of derivePredicates(this.#timeline.shownBy(this.quads))) predicateOverrides[predicate] = keep.has(predicate);
 		this.setState({ predicateOverrides });
 		this.dispatchChange();
 	}
 
 	private deriveClusters(visibleQuads: TQuad[]): TCluster[] {
-		return projectFilterClusters({ knownClusters: this.knownClusters, allQuads: this.quads, visibleQuads, timeCursor: this.timeCursor });
+		return projectFilterClusters({ knownClusters: this.knownClusters, allQuads: this.quads, visibleQuads, timeCursor: this.#timeline.cursor });
 	}
 
 	private clampLimit(raw: string): number {
@@ -241,7 +244,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 	};
 
 	render(): TemplateResult {
-		const visibleQuads = this.filterByTime(this.quads); // ONE time-filtered pass, shared by the clusters, the predicates and the count
+		const visibleQuads = this.#timeline.shownBy(this.quads); // ONE time-filtered pass, shared by the clusters, the predicates and the count
 		const clusters = this.deriveClusters(visibleQuads)
 			.slice()
 			.sort((a, b) => a.type.localeCompare(b.type));

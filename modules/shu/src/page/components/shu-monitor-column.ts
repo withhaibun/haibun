@@ -7,7 +7,7 @@ import { html, css, nothing, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
-import { ShuElement, TIME_SYNC_CLASS, type TLinkedData } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { eventMarkerStyle, markFor, type TEventMarkerStyle } from "../derivations/event-marker.js";
 import { HAIBUN_LOG_LEVELS, ICON_DEFAULT, ICON_LOG_ERROR, ICON_LOG_INFO, ICON_LOG_WARN } from "@haibun/core/schema/protocol.js";
 import "./shu-virtual-column.js";
@@ -15,7 +15,7 @@ import { virtualColumnCss } from "./shu-virtual-column.js";
 import { atLiveEdge, graphRunSource, type RunSource } from "../../client-cache/index.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { SCROLL_TO_INDEX, type TSeekBy } from "./shu-scrollbar.js";
-import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
+import { SHU_EVENT, SHU_TAG, TIME_SYNC_CLASS } from "../../domains/elements.js";
 import { defineElement } from "../../define-element.js";
 import type { WindowedSource } from "../../windowed-source.js";
 import type { TScrollMarker } from "../derivations/rail.js";
@@ -26,6 +26,7 @@ import { actionRef, fieldRef, originLink, refTpl } from "./shu-ref.js";
 import { parseSeqPath, SEQ_PATH_EDGE } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
 import { currentRowIndex, cursorMark } from "../derivations/rail.js";
+import { TimelineViewController } from "../controllers/timeline-view-controller.js";
 
 /** The source the monitor reports an artifact it couldn't show under. */
 const MONITOR_SOURCE = "shu-monitor-column";
@@ -126,6 +127,8 @@ export function railMarkers(rows: readonly TLogRow[], indices?: readonly number[
 }
 
 export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
+	/** The instant this view shows, which is the page's time cursor or the moment `data-snapshot-time` states. */
+	readonly #timeline = new TimelineViewController(this);
 	/** Collapsed, the strip doesn't have room for the log's rows, but it has room for the scroll rail: the rail is already a narrow vertical
 	 *  strip carrying a mark per significant event and driving the log's position, so the strip IS the rail, left where
 	 *  it is. The view doesn't copy the rail into a second control, so a copy doesn't need to be kept in step. */
@@ -316,9 +319,6 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		return out;
 	}
 
-	protected override onTimeSync(): void {
-		this.requestUpdate();
-	}
 
 	private onSubstepsChange = (e: Event): void => {
 		this.setState({ substeps: (e.target as HTMLInputElement).checked });
@@ -332,7 +332,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 
 	/** Place the shared cursor at a row's instant; the newest row is the live edge, so the cursor there is null (every view follows again). */
 	#cursorTo(instant: number): void {
-		this.timeCursor = atLiveEdge(instant) ? null : instant;
+		this.#timeline.movePage(atLiveEdge(instant) ? null : instant);
 	}
 
 	private onTimeClick =
@@ -365,7 +365,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			this.rows,
 			cached.map(({ index }) => index),
 		);
-		const cursor = this.timeCursor;
+		const cursor = this.#timeline.cursor;
 		this.#currentIdx =
 			cursor === null
 				? -1
@@ -412,8 +412,8 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		if (carried(this.#run.rowAt(index))) return html`<div class="carried"></div>`;
 		const testId = index === 0 ? SHU_TEST_IDS.MONITOR.FIRST_ROW : "monitor-log-row";
 		let cls = r.level === "error" ? " error" : r.level === "warn" ? " warn" : "";
-		if (this.timeCursor !== null) {
-			if (this.isFuture(r.timestamp)) cls += ` ${TIME_SYNC_CLASS.FUTURE}`;
+		if (this.#timeline.cursor !== null) {
+			if (this.#timeline.isFuture(r.timestamp)) cls += ` ${TIME_SYNC_CLASS.FUTURE}`;
 			if (index === this.#currentIdx) cls += ` ${TIME_SYNC_CLASS.CURRENT}`;
 		}
 		// Where the step ran, how long it took, and what it had to hold to run: its own record states all of it, so a row

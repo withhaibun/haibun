@@ -110,6 +110,9 @@ import { Access, LinkRelations, type TDomainDefinition, type TEdgeDef, type TRel
 import { fromJsonText } from "@haibun/core/lib/json-text.js";
 import { z } from "zod";
 import { STEPS_CHANGED } from "@haibun/core/schema/protocol.js";
+import { pagePreferences } from "./page/root.js";
+import type { TClock } from "./page/ports.js";
+import { PREFERENCES_COOKIE_PREFIX } from "./page/adapters/prefs-cookie.js";
 
 type TShuTestConfig = {
 	/** Optional dispatch for in-test RPCs. Default throws on every call, naming the unconfigured method, tests opt in by supplying a function that returns wire results for the methods they exercise. */
@@ -316,6 +319,7 @@ export function serveThePage(): void {
 
 export function setupShuTest(config: TShuTestConfig = {}): TShuTestHandle {
 	installTestMediaQueries();
+	clearEveryStoredField();
 	const dispatch: TDispatch =
 		config.dispatch ??
 		((method) => {
@@ -341,4 +345,56 @@ export function setupShuTest(config: TShuTestConfig = {}): TShuTestHandle {
 		conduit,
 		eventStream,
 	};
+}
+
+/** Removes the stored fields of every tag, so a test starts as a reader's first page does. */
+export function clearEveryStoredField(): void {
+	for (const [name] of document.cookie.split("; ").map((cookie) => cookie.split("="))) {
+		if (name?.startsWith(PREFERENCES_COOKIE_PREFIX)) clearStoredFields(name.slice(PREFERENCES_COOKIE_PREFIX.length));
+	}
+}
+
+/** Removes every instance's stored fields of `tag`, and the writes the page holds for them, so a test starts without
+ *  them. */
+export function clearStoredFields(tag: string): void {
+	pagePreferences().flush();
+	document.cookie = `${PREFERENCES_COOKIE_PREFIX}${tag}=; path=/; max-age=0`;
+}
+
+/** Stores `fields` for the instance `key` of `tag` at once, as an element that wrote them on an earlier page did. */
+export function storeFields(tag: string, key: string, fields: Record<string, unknown>): void {
+	pagePreferences().write(tag, key, () => fields);
+	pagePreferences().flush();
+}
+
+/** A clock a test advances: its instant moves only by `advance`, which runs each delay and frame due by then, in order. */
+export function manualClock(start: number): { clock: TClock; advance(ms: number): void } {
+	let now = start;
+	let next = 0;
+	const due = new Map<number, { at: number; fn: () => void }>();
+	const hold = (at: number, fn: () => void): (() => void) => {
+		const id = next++;
+		due.set(id, { at, fn });
+		return () => due.delete(id);
+	};
+	return {
+		clock: { now: () => now, after: (ms, fn) => hold(now + ms, fn), frame: (fn) => hold(now, fn) },
+		advance: (ms) => {
+			const until = now + ms;
+			for (let first = earliest(due, until); first !== undefined; first = earliest(due, until)) {
+				const [id, { at, fn }] = first;
+				due.delete(id);
+				now = at;
+				fn();
+			}
+			now = until;
+		},
+	};
+}
+
+/** Returns the held call due earliest at or before `until`, where one is held. */
+function earliest(due: Map<number, { at: number; fn: () => void }>, until: number): [number, { at: number; fn: () => void }] | undefined {
+	let found: [number, { at: number; fn: () => void }] | undefined;
+	for (const entry of due) if (entry[1].at <= until && (found === undefined || entry[1].at < found[1].at)) found = entry;
+	return found;
 }

@@ -16,11 +16,10 @@ import { css, html, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { ShuColumnPane } from "./shu-column-pane.js";
-import { installTestMediaQueries } from "../../test-setup.js";
+import { clearStoredFields, installTestMediaQueries, storeFields } from "../../test-setup.js";
+import { pagePreferences } from "../root.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
 import { shuBaseStyles } from "./styles.js";
-import { flushPersistWrites, readElementPrefs, writeElementPrefs } from "../../element-prefs.js";
-import { setJsonCookie } from "../../cookies.js";
 
 const S = z.object({ x: z.string().default("") });
 
@@ -105,8 +104,7 @@ customElements.define("shu-persist-probe", PersistProbe);
 
 describe("ShuElement persistFields", () => {
 	beforeEach(() => {
-		flushPersistWrites();
-		setJsonCookie("shu-prefs-shu-persist-probe", {});
+		clearStoredFields("shu-persist-probe");
 	});
 
 	const attach = (key: string | null = ""): PersistProbe => {
@@ -119,7 +117,7 @@ describe("ShuElement persistFields", () => {
 	it("setState write-through persists declared fields; a fresh instance with the same key restores them", () => {
 		const a = attach();
 		a.set({ size: 42, tone: "warm", volatile: "not persisted" });
-		flushPersistWrites();
+		pagePreferences().flush();
 		a.remove();
 		const b = attach();
 		expect(b.current.size).toBe(42);
@@ -132,7 +130,7 @@ describe("ShuElement persistFields", () => {
 		a.set({ size: 1 });
 		const b = attach("two");
 		b.set({ size: 2 });
-		flushPersistWrites();
+		pagePreferences().flush();
 		a.remove();
 		b.remove();
 		expect(attach("one").current.size).toBe(1);
@@ -140,16 +138,16 @@ describe("ShuElement persistFields", () => {
 	});
 
 	it("a null persistKey doesn't persist or restore", () => {
-		writeElementPrefs("shu-persist-probe", "", { size: 99 });
+		storeFields("shu-persist-probe", "", { size: 99 });
 		const el = attach(null);
 		expect(el.current.size).toBe(10);
 		el.set({ size: 5 });
-		flushPersistWrites();
-		expect(readElementPrefs("shu-persist-probe", "")).toEqual({ size: 99 });
+		pagePreferences().flush();
+		expect(pagePreferences().read("shu-persist-probe", "")).toEqual({ size: 99 });
 	});
 
 	it("a field set explicitly before attach is never overwritten by the remembered value; others restore", () => {
-		writeElementPrefs("shu-persist-probe", "", { size: 7, tone: "cool" });
+		storeFields("shu-persist-probe", "", { size: 7, tone: "cool" });
 		const el = new PersistProbe();
 		el.set({ size: 33 });
 		document.body.appendChild(el);
@@ -158,7 +156,7 @@ describe("ShuElement persistFields", () => {
 	});
 
 	it("an invalid remembered value is dropped whole rather than crashing or half-applying", () => {
-		writeElementPrefs("shu-persist-probe", "", { size: "not-a-number", tone: "cool" });
+		storeFields("shu-persist-probe", "", { size: "not-a-number", tone: "cool" });
 		const el = attach();
 		expect(el.current.size).toBe(10);
 		expect(el.current.tone).toBe("plain");
@@ -182,11 +180,7 @@ describe("ShuElement persistFields", () => {
 		expect(() => new Bad()).toThrow(/persistFields names "nope"/);
 	});
 
-	it("evicts the oldest instance entries past the per-tag cap", () => {
-		for (let i = 0; i < 30; i++) writeElementPrefs("shu-persist-probe", `k${i}`, { size: i });
-		expect(readElementPrefs("shu-persist-probe", "k0")).toBeUndefined();
-		expect(readElementPrefs("shu-persist-probe", "k29")).toEqual({ size: 29 });
-	});
+
 });
 
 /**

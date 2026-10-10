@@ -8,15 +8,19 @@
  *
  * A view that states a `name` writes its held instant to the address under that name, so a reload opens the view where
  * the reader was reading. A tracking view doesn't write to the address, since the page states its own cursor.
+ *
+ * A view opened at a moment of actuality's history carries that moment in its `data-snapshot-time` attribute
+ * (`shu-product-view`). Its cursor is that moment, it doesn't follow the page's cursor, and it doesn't move the page's.
  */
 import type { ReactiveController, ReactiveControllerHost } from "lit";
 import { timeCursor } from "../../signals.js";
+import { SHU_ATTR } from "../../domains/elements.js";
 import { hashParam, mergeHashParams, onHashChanged } from "../../view-hash.js";
 
 export class TimelineViewController implements ReactiveController {
 	#host: ReactiveControllerHost;
 	#name: string | undefined;
-	#onMove: (() => void) | undefined;
+	#onMove: ((cursor: number | null) => void) | undefined;
 	/** The instant this view holds, where it holds one. A tracking view doesn't hold an instant and reads the page's cursor. */
 	#held: number | null = null;
 	#tracking = true;
@@ -24,7 +28,7 @@ export class TimelineViewController implements ReactiveController {
 
 	/** `name` is the address key a held place is written under. A view that doesn't state one holds a place for as long as it
 	 *  is mounted and doesn't write it to the address. */
-	constructor(host: ReactiveControllerHost, opts: { name?: string; onMove?: () => void } = {}) {
+	constructor(host: ReactiveControllerHost, opts: { name?: string; onMove?: (cursor: number | null) => void } = {}) {
 		this.#host = host;
 		this.#name = opts.name;
 		this.#onMove = opts.onMove;
@@ -32,6 +36,7 @@ export class TimelineViewController implements ReactiveController {
 	}
 
 	hostConnected(): void {
+		if (this.#pinned() !== undefined) return;
 		this.#readAddress();
 		// The page's cursor is this view's only while it tracks: a view holding its own place doesn't move when the page does.
 		this.#unwatch.push(
@@ -47,9 +52,38 @@ export class TimelineViewController implements ReactiveController {
 		this.#unwatch = [];
 	}
 
-	/** The instant this view shows: its own where it holds one, else the page's cursor. */
+	/** The instant this view shows: the moment it is opened at, its own where it holds one, else the page's cursor. */
 	get cursor(): number | null {
+		const pinned = this.#pinned();
+		if (pinned !== undefined) return pinned;
 		return this.#tracking ? timeCursor.get() : this.#held;
+	}
+
+	/** Moves the page's cursor, which every tracking view follows. A view opened at a moment doesn't move it. */
+	movePage(at: number | null): void {
+		if (this.#pinned() === undefined) timeCursor.set(at);
+	}
+
+	/** Whether `timestamp` is after the instant this view shows. Without an instant, a timestamp isn't after it. */
+	isFuture(timestamp: number): boolean {
+		const cursor = this.cursor;
+		return cursor !== null && timestamp > cursor;
+	}
+
+	/** Returns the items at or before the instant this view shows. */
+	shownBy<I extends { timestamp: number }>(items: I[]): I[] {
+		const cursor = this.cursor;
+		return cursor === null ? items : items.filter((item) => item.timestamp <= cursor);
+	}
+
+	/** The moment the host is opened at, null where its attribute doesn't state a number, and undefined where the host isn't
+	 *  opened at a moment. */
+	#pinned(): number | null | undefined {
+		const host: ReactiveControllerHost & { getAttribute?: (name: string) => string | null } = this.#host;
+		const stated = host.getAttribute ? host.getAttribute(SHU_ATTR.SNAPSHOT_TIME) : null;
+		if (stated === null) return undefined;
+		const at = Number.parseFloat(stated);
+		return Number.isNaN(at) ? null : at;
 	}
 
 	/** Whether this view shows the live edge, which is what a following view sticks to. */
@@ -86,7 +120,7 @@ export class TimelineViewController implements ReactiveController {
 	}
 
 	#moved(): void {
-		this.#onMove?.();
+		this.#onMove?.(this.cursor);
 		this.#host.requestUpdate();
 	}
 

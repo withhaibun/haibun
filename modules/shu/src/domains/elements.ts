@@ -184,6 +184,8 @@ export const SEARCH_SLOT = "search";
 
 export const SHU_ATTR = {
 	DATA_MINIMIZED: "data-minimized",
+	/** On a view opened at a moment of actuality's history: that moment, which the view shows (`TimelineViewController`). */
+	SNAPSHOT_TIME: "data-snapshot-time",
 	/** On an image or frame an artifact frame holds: the address of actuality's artifact it shows once the page has read it. */
 	DATA_ARTIFACT: "data-artifact",
 	/** Declared by an overlay while it covers the views beneath it. A framing positions its subject clear of every element
@@ -231,3 +233,6 @@ export const RPC_METHOD = {
 	AFFORDANCES_ON_OFFER: "GoalResolutionStepper-affordancesOnOffer",
 	AFFORDANCES_ON_OFFER_AS_OF: "GoalResolutionStepper-affordancesOnOfferAsOf",
 } as const;
+
+/** The classes a row takes against the time cursor: after it (dimmed), and the cursor's row. `SHU_BASE` styles both. */
+export const TIME_SYNC_CLASS = { FUTURE: "future-event", CURRENT: "time-current" } as const;

@@ -2,6 +2,10 @@ import { SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../../define-element.js";
 import { copyText } from "../../copy-util.js";
 import { esc } from "../../util.js";
+import { delay } from "../controllers/clock-controller.js";
+
+/** How long the button reads Copied after a copy. */
+const COPIED_MS = 1500;
 
 /**
  * <shu-copy-button>: Standard "copy to clipboard" button used across shu views.
@@ -16,7 +20,8 @@ export class ShuCopyButton extends HTMLElement {
 	private _source = "";
 	private _label = "Copy";
 	private _copied = false;
-	private _resetTimer: number | null = null;
+	/** Cancels the delay after which the button reads Copy again. */
+	private _cancelReset: (() => void) | undefined;
 
 	connectedCallback(): void {
 		if (!this.shadowRoot) this.attachShadow({ mode: "open" });
@@ -28,10 +33,8 @@ export class ShuCopyButton extends HTMLElement {
 	}
 
 	disconnectedCallback(): void {
-		if (this._resetTimer !== null) {
-			window.clearTimeout(this._resetTimer);
-			this._resetTimer = null;
-		}
+		this._cancelReset?.();
+		this._cancelReset = undefined;
 	}
 
 	private _titleAttr = "Copy to clipboard";
@@ -56,12 +59,12 @@ export class ShuCopyButton extends HTMLElement {
 		if (!(await copyText(this._source))) return;
 		this._copied = true;
 		this.render();
-		if (this._resetTimer !== null) window.clearTimeout(this._resetTimer);
-		this._resetTimer = window.setTimeout(() => {
+		this._cancelReset?.();
+		this._cancelReset = delay(COPIED_MS, () => {
 			this._copied = false;
-			this._resetTimer = null;
+			this._cancelReset = undefined;
 			this.render();
-		}, 1500);
+		});
 	}
 
 	private render(): void {

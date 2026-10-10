@@ -26,6 +26,10 @@ import type { ShuActivityHistory } from "./shu-activity-history.js";
 import { ShuSearchSummary } from "./shu-search-summary.js";
 import { readSlashCommand } from "../derivations/step-input.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { ClockController } from "../controllers/clock-controller.js";
+
+/** The name of the typed search's trailing pause. */
+const TYPED_SEARCH = "typed-search";
 
 /** How long typing rests before the search text is committed. */
 export const SEARCH_DEBOUNCE_MS = 300;
@@ -68,12 +72,14 @@ export class ActionsBarQuery implements ReactiveController {
 	#selectedLabel = "";
 	/** Each recorded search's number, never reused, so removing one never leaves two sharing a test id. */
 	#searchNumber = 0;
-	#searchDebounce: ReturnType<typeof setTimeout> | null = null;
+	/** The search typed text commits after a trailing pause (`SEARCH_DEBOUNCE_MS`). */
+	#clock: ClockController;
 
 	constructor(host: TControllerHost, deps: TActionsBarQueryDeps) {
 		this.#host = host;
 		this.#deps = deps;
 		host.addController(this);
+		this.#clock = new ClockController(host);
 		new StepsChangedController(host, () => this.readTypes());
 	}
 
@@ -279,8 +285,7 @@ export class ActionsBarQuery implements ReactiveController {
 	}
 
 	#cancelPendingSearch(): void {
-		if (this.#searchDebounce) clearTimeout(this.#searchDebounce);
-		this.#searchDebounce = null;
+		this.#clock.cancel(TYPED_SEARCH);
 	}
 
 	/**
@@ -330,7 +335,7 @@ export class ActionsBarQuery implements ReactiveController {
 	#onTextInput = (e: Event): void => {
 		const text = searchText((e.target as HTMLInputElement).value);
 		this.#cancelPendingSearch();
-		if (text !== undefined) this.#searchDebounce = setTimeout(() => this.#commitSearch(text), SEARCH_DEBOUNCE_MS);
+		if (text !== undefined) this.#clock.trailing(TYPED_SEARCH, SEARCH_DEBOUNCE_MS, () => this.#commitSearch(text));
 	};
 
 	/** Leaving the search box commits exactly what was typed and records it. */

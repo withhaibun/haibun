@@ -8,7 +8,7 @@
  */
 import { z } from "zod";
 import { ShuElement } from "../page/components/shu-element.js";
-import { SHU_EVENT } from "../domains/elements.js";
+import { SHU_EVENT, SHU_ATTR } from "../domains/elements.js";
 import { reportToRun } from "../client-log.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { extractQuadsFromEvents, type TCluster, type TQuad } from "@haibun/core/lib/quad-types.js";
@@ -20,6 +20,7 @@ import { ShuGraphFilter } from "./shu-graph-filter.js";
 import "../graph/polymorphic/polymorphic-scene.js";
 import { type ShuGraphScene, type GraphSceneModel } from "../graph/polymorphic/polymorphic-scene.js";
 import { effectiveHiddenTypes } from "../graph-filter-projection.js";
+import { TimelineViewController } from "../page/controllers/timeline-view-controller.js";
 
 /** The source the clustered graph view reports under. */
 const CLUSTERED_SOURCE = "clustered-graph-view";
@@ -167,7 +168,7 @@ export abstract class ShuClusteredGraphView<T extends z.ZodObject<typeof cluster
 	 * The ONE time pathway every clustered graph view renders from, never `state.quads` directly, so scrubbing
 	 * the shared timeline hides/restores the same objects in every view. */
 	protected get visibleQuads(): TQuad[] {
-		return this.filterByTime(this.cgState.quads);
+		return this.timeline.shownBy(this.cgState.quads);
 	}
 
 	private lastTimeSync = 0;
@@ -182,11 +183,14 @@ export abstract class ShuClusteredGraphView<T extends z.ZodObject<typeof cluster
 	 *  streamed-data coalesce (and must not stack a second debounce on top of this one). */
 	protected onTimeCursorPaint(): void {
 		this.pushSceneModel();
-		this.scene?.setTimeCursorValue(this.timeCursor);
+		this.scene?.setTimeCursorValue(this.timeline.cursor);
 	}
-	/** The cursor moves continuously during a scrub/play: coalesce to `timeSyncCoalesceMs` (the leading edge paints a
-	 *  single move at once; the trailing call lands the final position). */
-	protected override onTimeSync(): void {
+	/** The instant this view shows, which is the page's time cursor or the moment `data-snapshot-time` states. The cursor
+	 *  moves on each frame of a scrub or a play, so a move repaints the view at most once per `timeSyncCoalesceMs`: the
+	 *  first move of a burst paints at once, and a later call paints the final position. */
+	protected readonly timeline = new TimelineViewController(this, { onMove: () => this.#cursorMoved() });
+
+	#cursorMoved(): void {
 		const apply = () => {
 			this.lastTimeSync = Date.now();
 			this.refresh(); // the reactive overview re-renders from visibleQuads
@@ -200,7 +204,6 @@ export abstract class ShuClusteredGraphView<T extends z.ZodObject<typeof cluster
 			}, this.timeSyncCoalesceMs);
 		}
 	}
-
 	protected override async onConnected(): Promise<void> {
 		if (this.graphInitialized) return;
 		this.graphInitialized = true;
@@ -238,7 +241,7 @@ export abstract class ShuClusteredGraphView<T extends z.ZodObject<typeof cluster
 		await this.onGraphConnected();
 		await this.refetchSnapshot({ perTypeLimit: initial.perTypeLimit });
 
-		if (this.hasAttribute("data-snapshot-time")) return; // snapshot mode: one fetch, without live updates
+		if (this.hasAttribute(SHU_ATTR.SNAPSHOT_TIME)) return; // snapshot mode: one fetch, without live updates
 
 		this.autoTeardown(
 			this.subscribeBatched({

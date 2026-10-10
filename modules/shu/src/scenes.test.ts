@@ -3,13 +3,14 @@
  * Capture and apply: a scene holds exactly what a view remembers across a reload, and returning to one sets those
  * choices back through the view's ordinary state path.
  */
-import { describe, it, expect } from "vitest";
+import { beforeEach, describe, it, expect } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { html, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement } from "./page/components/shu-element.js";
 import { applyScene, builtInScenes, captureScene, networkSceneTypes, storedAccessLevel, NETWORK_SCENE } from "./scenes.js";
 import { setSiteMetadata, type SiteMetadata } from "./rels-cache.js";
+import { clearStoredFields } from "./test-setup.js";
 
 const StateSchema = z.object({ overrides: z.record(z.string(), z.boolean()).default({}), limit: z.number().default(10), hovered: z.string().optional() });
 
@@ -53,6 +54,8 @@ describe("what a saved scene is stored at", () => {
 });
 
 describe("scenes", () => {
+	beforeEach(() => clearStoredFields("test-scene-view"));
+
 	it("captures exactly the options a view remembers, and doesn't capture an option it does not", () => {
 		const view = mount();
 		view.set({ overrides: { Email: false }, limit: 25, hovered: "Person" });

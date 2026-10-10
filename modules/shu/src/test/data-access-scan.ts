@@ -13,7 +13,7 @@ import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 /** The name of a directory that holds views. */
 export const VIEWS = "components";
-/** The name of a directory that holds the controllers views read through. */
+/** The name of a directory that holds controllers. */
 export const CONTROLLERS = "controllers";
 
 /** The modules that send requests. An import of one by its package path matches the same suffix. */

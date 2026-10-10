@@ -7,6 +7,12 @@ import { ComboboxSchema, type TComboboxOption } from "../../schemas.js";
 import { shuBaseStyles } from "./styles.js";
 import { revealInDocument } from "../../reveal.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { ClockController } from "../controllers/clock-controller.js";
+
+/** How long after the input loses focus the list closes, so a click on an option lands before it closes, and the name of
+ *  that delay. */
+const BLUR_MS = 150;
+const BLUR = "blur";
 
 export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
@@ -44,7 +50,7 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 	private _list: HTMLElement | null = null;
 	private _bound = false;
 	private _valueSchema: ZodType | null = null;
-	private _blurTimeout: ReturnType<typeof setTimeout> | null = null;
+	readonly #clock = new ClockController(this);
 
 	constructor() {
 		super(ComboboxSchema, { value: "", options: [], placeholder: "", shown: "", filterText: "", open: false });
@@ -327,7 +333,6 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 	}
 
 	protected override onDisconnected(): void {
-		if (this._blurTimeout) clearTimeout(this._blurTimeout);
 		this._list?.remove();
 		this._list = null;
 	}
@@ -396,12 +401,10 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 		});
 
 		input.addEventListener("blur", () => {
-			if (this._blurTimeout) clearTimeout(this._blurTimeout);
-			this._blurTimeout = setTimeout(() => {
-				this._blurTimeout = null;
+			this.#clock.trailing(BLUR, BLUR_MS, () => {
 				this.close();
 				this.#showHeld();
-			}, 150);
+			});
 		});
 	}
 

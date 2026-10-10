@@ -1,23 +1,22 @@
 /**
- * <shu-window-size>: the window-size picker, bound to the ONE global `windowSizeSetting` (window-size-setting.ts, the
- * setting's home, read by actuality sources and the graph query). The current value is read reactively from the shared
- * signal, so every mounted picker stays in step.
+ * <shu-window-size>: the picker of how many rows a windowed read returns. It stores its choice under its tag, so every
+ * picker on the page shows the same choice, and actuality's sources and the graph query read it by the tag.
  */
 import { html, css, type TemplateResult } from "lit";
-import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles, shuSegmentedStyles } from "./styles.js";
 import { SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../../define-element.js";
-import { WINDOW_SIZES, windowSizeSetting } from "../../window-size-setting.js";
+import { INITIAL_WINDOW_SIZE, PAGE_SETTING_KEY, WINDOW_SIZES, WindowSizeSchema } from "../domains/settings.js";
 
-class ShuWindowSize extends ShuElement<typeof EmptyStateSchema> {
+class ShuWindowSize extends ShuElement<typeof WindowSizeSchema> {
 	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
 	}
 
-	static schema = EmptyStateSchema;
 	static domainSelector = SHU_TAG.WINDOW_SIZE;
+	static persistFields = ["rows"] as const;
 
 	static styles = [
 		shuBaseStyles,
@@ -28,13 +27,17 @@ class ShuWindowSize extends ShuElement<typeof EmptyStateSchema> {
 	];
 
 	constructor() {
-		super(EmptyStateSchema);
+		super(WindowSizeSchema, INITIAL_WINDOW_SIZE);
+	}
+
+	protected override get persistKey(): string {
+		return PAGE_SETTING_KEY;
 	}
 
 	render(): TemplateResult {
-		const current = windowSizeSetting.get(); // reactive: any picker (or the setting itself) changing re-renders this one
+		const { rows } = this.state;
 		return html`<span class="group" role="group" aria-label="Window size" data-testid="settings-window-size">
-			${WINDOW_SIZES.map((w) => html`<button type="button" data-value=${w.value} aria-pressed=${w.value === current} @click=${() => windowSizeSetting.set(w.value)}>${w.label}</button>`)}
+			${WINDOW_SIZES.map((w) => html`<button type="button" data-value=${w.value} aria-pressed=${w.value === rows} @click=${() => this.setState({ rows: w.value })}>${w.label}</button>`)}
 		</span>`;
 	}
 }

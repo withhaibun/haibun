@@ -3,9 +3,11 @@
  * The combobox offers its options and holds the one a reader picks. A press offers them, whether or not the control
  * already holds focus, and the control shows what it holds: the text its holder states, else the chosen option's label.
  */
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuCombobox } from "./shu-combobox.js";
-import { installTestMediaQueries } from "../../test-setup.js";
+import { installTestMediaQueries, manualClock } from "../../test-setup.js";
+import { installClock } from "../root.js";
+import { endPage } from "../../page-pinned.js";
 
 const OPTIONS = [
 	{ value: "email-domain", label: "Email" },
@@ -39,6 +41,19 @@ const offered = (): string[] =>
 describe("the combobox", () => {
 	beforeEach(() => {
 		installTestMediaQueries();
+	});
+	afterEach(() => endPage());
+
+	it("puts its list away 150 ms after the input loses focus, on the page's clock", async () => {
+		const time = manualClock(0);
+		installClock(time.clock);
+		const combo = await aCombobox();
+		input(combo).dispatchEvent(new FocusEvent("focus"));
+		input(combo).dispatchEvent(new FocusEvent("blur"));
+		time.advance(149);
+		expect(offered(), "the list waits for a click on an option").toEqual(["Email", "File"]);
+		time.advance(1);
+		expect(offered(), "and is put away once the delay passes").toEqual([]);
 	});
 
 	it("offers its options on a press after a pick, since a pick leaves the control holding focus", async () => {

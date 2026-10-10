@@ -228,7 +228,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	/** Scrub the shared time cursor (the same global signal the timeline drives): nodes recorded after `ms` are hidden;
 	 * null means live/now (all shown). A real "show the graph as of T" capability, and the interface the time-cursor test drives. */
 	setTimeCursor(ms: number | null): void {
-		this.timeCursor = ms;
+		this.timeline.movePage(ms);
 	}
 
 	/** Reveal or hide the included ontology SCHEMA (Class + Property) via the filter, exactly as ticking their chips does:
@@ -244,7 +244,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	 */
 	captureScene(): TSceneState {
 		const state = captureScene([this, ...(this.filterEl ? [this.filterEl] : [])]);
-		state[TIME_CURSOR_KEY] = { timeCursor: this.timeCursor };
+		state[TIME_CURSOR_KEY] = { timeCursor: this.timeline.cursor };
 		return state;
 	}
 
@@ -464,7 +464,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 			hiddenPredicates: this.cgState.hiddenPredicates,
 			site: this.cgState.site,
 			perTypeLimit: this.cgState.perTypeLimit,
-			timeCursor: this.timeCursor,
+			timeCursor: this.timeline.cursor,
 		};
 	}
 

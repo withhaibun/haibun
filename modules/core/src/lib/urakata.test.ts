@@ -260,7 +260,8 @@ describe("UrakataRegistry persistence of transitions", () => {
 	it("persists the individual on registration, on an error and on stop, and keeps one row per id with the latest transition", async () => {
 		const world = taskWorld();
 		const registry = new UrakataRegistry(world, () => undefined);
-		let fail = true;
+		// The task fails only after the row is read at registration, so a tick that runs before that read doesn't count an error.
+		let fail = false;
 		const u = registry.register({
 			needs: [],
 			id: "p1",
@@ -276,6 +277,7 @@ describe("UrakataRegistry persistence of transitions", () => {
 		expect(atStart?.stoppedAt).toBeUndefined();
 		expect(atStart?.errorCount).toBe(0);
 
+		fail = true;
 		await until(async () => expect(Number((await readTask(world, u.id))?.errorCount)).toBeGreaterThan(0));
 		fail = false;
 		const afterError = await readTask(world, u.id);

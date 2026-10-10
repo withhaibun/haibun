@@ -16,17 +16,15 @@
 import { describe, it, expect, afterEach, beforeEach, beforeAll } from "vitest";
 import { ShuColumnPane } from "./shu-column-pane.js";
 import { ShuColumnStrip } from "./shu-column-strip.js";
-import { SHU_EVENT, SHU_ATTR, SPINE_SLOT } from "../../domains/elements.js";
+import { SHU_EVENT, SHU_ATTR, SHU_TAG, SPINE_SLOT } from "../../domains/elements.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import { flushPersistWrites } from "../../element-prefs.js";
-import { setJsonCookie } from "../../cookies.js";
-import { installTestMediaQueries } from "../../test-setup.js";
+import { pagePreferences } from "../root.js";
+import { clearStoredFields, installTestMediaQueries, storeFields } from "../../test-setup.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
 
 /** Flush any pending debounced persistence and clear the pane prefs cookie so tests are isolated. */
 function resetPanePrefs(): void {
-	flushPersistWrites();
-	setJsonCookie("shu-prefs-shu-column-pane", {});
+	clearStoredFields(SHU_TAG.COLUMN_PANE);
 }
 
 beforeAll(() => {
@@ -182,7 +180,7 @@ describe("shu-column-pane buttons", () => {
 		stripWidth(pane.parentElement as HTMLElement, 1000);
 		pane.setWidth(0.28);
 		pane.setMinimized(true);
-		flushPersistWrites();
+		pagePreferences().flush();
 		const again = makePane(); // same label → same columnKey
 		document.body.appendChild(again);
 		await nextFrame(again);
@@ -198,7 +196,7 @@ describe("shu-column-pane buttons", () => {
 		pane.setWidth(280);
 		pane.setMinimized(true);
 		await click(".pane-close"); // the reader dismisses the column
-		flushPersistWrites(); // a write still owed must not put back what the close forgot
+		pagePreferences().flush(); // a write still owed must not put back what the close forgot
 		const again = makePane(); // same label → same columnKey
 		document.body.appendChild(again);
 		await nextFrame(again);
@@ -210,7 +208,7 @@ describe("shu-column-pane buttons", () => {
 	it("an explicit pre-attach state (a URL-hash flag) outranks the remembered value; untouched fields still restore", async () => {
 		stripWidth(pane.parentElement as HTMLElement, 1000);
 		pane.setWidth(0.28); // persists { width: 0.28, minimized: false }
-		flushPersistWrites();
+		pagePreferences().flush();
 		const again = makePane();
 		again.setMinimized(true); // hash flag ~min applied before attach
 		document.body.appendChild(again);
@@ -593,7 +591,7 @@ describe("a docked pane", () => {
 	});
 
 	it("opens where it was pinned when it is docked before it attaches, as the page's pane is at a reload", async () => {
-		setJsonCookie("shu-prefs-shu-column-pane", { Pinned: { pinned: true } });
+		storeFields(SHU_TAG.COLUMN_PANE, "Pinned", { pinned: true });
 		const pinned = makePane("Pinned");
 		pinned.setDocked(true);
 		document.body.appendChild(pinned);

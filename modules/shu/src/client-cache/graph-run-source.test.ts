@@ -8,7 +8,10 @@ import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { setGraphStore } from "../quads-snapshot.js";
 import { setSiteMetadata, type SiteMetadata } from "../rels-cache.js";
-import { setupShuTest, type TShuTestHandle } from "../test-setup.js";
+import { clearStoredFields, setupShuTest, storeFields, type TShuTestHandle } from "../test-setup.js";
+import { SHU_TAG } from "../domains/elements.js";
+import { PAGE_SETTING_KEY } from "../page/domains/settings.js";
+import "../page/components/shu-window-size.js";
 import { runStore } from "./run-store.test-fake.js";
 import { ServerUnreachable } from "../hypermedia.js";
 import { graphRunSource } from "./graph-run-source.js";
@@ -91,6 +94,21 @@ describe("the actuality a view reads, over the records it wrote", () => {
 			timestamp: 1100,
 		});
 		expect(source.rowAt(3)).toMatchObject({ id: `${RUN}.0.2`, status: "failed" });
+	});
+
+	it("pages by the window size <shu-window-size> stored, and by the initial size where it didn't store one", async () => {
+		// A source is read once per level on a page, so each read names another level.
+		clearStoredFields(SHU_TAG.WINDOW_SIZE);
+		expect(graphRunSource("warn").pageSize).toBe(500);
+		const picker = document.createElement(SHU_TAG.WINDOW_SIZE);
+		document.body.appendChild(picker);
+		await (picker as HTMLElement & { updateComplete: Promise<boolean> }).updateComplete;
+		picker.shadowRoot?.querySelector<HTMLButtonElement>('button[data-value="2000"]')?.click();
+		expect(graphRunSource("error").pageSize).toBe(2000);
+		picker.remove();
+		storeFields(SHU_TAG.WINDOW_SIZE, PAGE_SETTING_KEY, { rows: "50" });
+		expect(graphRunSource("trace").pageSize, "a size stored on an earlier page").toBe(50);
+		clearStoredFields(SHU_TAG.WINDOW_SIZE);
 	});
 
 	it("reports what actuality spans, so a view places its rows in time", async () => {

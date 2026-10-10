@@ -19,8 +19,9 @@ import { z } from "zod";
 import * as ViewHash from "./view-hash.js";
 import { objectId } from "./object-id.js";
 import { INDEX_PANE_KEY, SHU_ATTR, SHU_EVENT, SHU_TAG } from "./domains/elements.js";
-import { readShowControlsCookie } from "./show-controls.js";
-import { readElementPrefs } from "./element-prefs.js";
+import { pagePreferences } from "./page/root.js";
+import { INITIAL_SHOWN_CONTROLS, ShownControlsSchema, shownControlsKey } from "./page/domains/settings.js";
+import { storedSetting } from "./page/derivations/settings.js";
 import { presentationForType } from "./graph/type-presentation.js";
 import { getUiByComponent } from "./rels-cache.js";
 import { activePane } from "./signals.js";
@@ -560,7 +561,7 @@ class PaneStateImpl {
 		this.held.strip.addPane(pane);
 		const child = document.createElement(tag);
 		for (const [name, value] of Object.entries(page?.attributes ?? {})) child.setAttribute(name, value);
-		if (readShowControlsCookie(tag)) child.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");
+		if (storedSetting(ShownControlsSchema, pagePreferences().read(SHU_TAG.COLUMN_PANE, shownControlsKey(tag)), INITIAL_SHOWN_CONTROLS).shown) child.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");
 		if (d.paneType === "component" && d.data) (child as HTMLElement & { products?: Record<string, unknown> }).products = d.data;
 		pane.appendChild(child);
 		pane.setMinimized(d.flag === "min");
@@ -617,7 +618,7 @@ function firstKeyOf(m: Map<string, DesiredPane>): string | null {
  * defaulted: re-applying a remembered maximize would unexpectedly hide the rest of the workspace. */
 function withPersistedFlag(d: DesiredPane): DesiredPane {
 	if (d.flag) return d;
-	const saved = readElementPrefs("shu-column-pane", paneIdOf(d));
+	const saved = pagePreferences().read(SHU_TAG.COLUMN_PANE, paneIdOf(d));
 	return saved?.minimized === true ? ({ ...d, flag: "min" } as DesiredPane) : d;
 }
 

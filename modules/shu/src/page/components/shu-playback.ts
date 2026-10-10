@@ -17,6 +17,7 @@ import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../../define-element.js";
 import { followRecordedExecution, runSpan } from "../../client-cache/index.js";
+import { TimelineViewController } from "../controllers/timeline-view-controller.js";
 
 /** Playback rates. The two below 1 run slower than actuality did, for a dense burst to watch as it plays. */
 const SPEED_OPTIONS = [0.02, 0.05, 1, 2];
@@ -25,6 +26,8 @@ const formatSpeed = (s: number): string => (s < 1 ? `-${Math.round(1 / s)}×` : 
 const StateSchema = z.object({ playing: z.boolean().default(false), speed: z.number().default(1) });
 
 export class ShuPlayback extends ShuElement<typeof StateSchema> {
+	/** The page's time cursor, which playback moves and follows. */
+	readonly #timeline = new TimelineViewController(this, { onMove: (cursor) => this.#cursorMoved(cursor) });
 	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
@@ -70,15 +73,15 @@ export class ShuPlayback extends ShuElement<typeof StateSchema> {
 
 	/** The cursor moved somewhere else: a rail seek, a row click. Playing from here means playing from there. Its own
 	 *  publishes come back through here, and re-reading them would conflict with the frame that is mid-flight. */
-	protected override onTimeSync(cursor: number | null): void {
-		const at = cursor ?? this.#span.last;
+	#cursorMoved(cursor: number | null): void {
+		const at = cursor === null ? this.#span.last : cursor;
 		if (at === this.#currentTime) return;
 		this.#currentTime = at;
 	}
 
 	/** Publish where playback has reached. At the end that is null, "now", so live records are not read as future. */
 	#publish(): void {
-		this.timeCursor = this.#atEnd ? null : this.#currentTime;
+		this.#timeline.movePage(this.#atEnd ? null : this.#currentTime);
 	}
 
 	#stop(): void {
@@ -118,7 +121,7 @@ export class ShuPlayback extends ShuElement<typeof StateSchema> {
 	 *  off a moment they picked, or an earlier execution they chose, and back to whatever is happening now. */
 	private onLive = (): void => {
 		followRecordedExecution();
-		this.timeCursor = null;
+		this.#timeline.movePage(null);
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.GO_LIVE, { bubbles: true, composed: true }));
 	};
 

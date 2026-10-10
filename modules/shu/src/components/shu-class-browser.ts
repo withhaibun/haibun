@@ -276,7 +276,7 @@ class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
 			hiddenGraphs: this.cgState.hiddenGraphs,
 			site: this.cgState.site,
 			perTypeLimit: this.cgState.perTypeLimit,
-			timeCursor: this.timeCursor,
+			timeCursor: this.timeline.cursor,
 		};
 	}
 
