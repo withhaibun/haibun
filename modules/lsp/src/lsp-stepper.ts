@@ -1,5 +1,5 @@
 import { classifyDocument, TOKEN_TYPES } from "./semantic-tokens.js";
-import * as ts from "typescript";
+import ts from "typescript";
 import {
 	createConnection,
 	TextDocuments,

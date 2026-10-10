@@ -4,9 +4,9 @@
  * transport's refusal builder, the gate's refusal thrown as an error, or a returned or sent object: one holding only
  * `error`, `ok: false` and `remedy`, or an MCP result with `isError: true`.
  */
-import * as ts from "typescript";
+import ts from "typescript";
 import type { TFound } from "./baseline.js";
-import { lineOf, parsedSource } from "./repository-files.js";
+import { constInitializers, lineOf, type TSources } from "./repository-files.js";
 
 /** The words a refusal's own text holds at least, where it doesn't include another value: a subject, a verb and an object. */
 const WORDS_OF_A_CAUSE = 3;
@@ -56,19 +56,6 @@ function caughtBindings(source: ts.SourceFile): { name: string; scope: ts.Node }
 	};
 	visit(source);
 	return caught;
-}
-
-/** The const declarations of a source file by name, each with its initializer. */
-function constInitializers(source: ts.SourceFile): Map<string, ts.Expression> {
-	const consts = new Map<string, ts.Expression>();
-	const visit = (node: ts.Node): void => {
-		if (ts.isVariableDeclarationList(node) && (node.flags & ts.NodeFlags.Const) !== 0) {
-			for (const declaration of node.declarations) if (ts.isIdentifier(declaration.name) && declaration.initializer) consts.set(declaration.name.text, declaration.initializer);
-		}
-		ts.forEachChild(node, visit);
-	};
-	visit(source);
-	return consts;
 }
 
 const wordsIn = (text: string): number => [...text.matchAll(WORD)].length;
@@ -197,9 +184,8 @@ function refusalsOf(source: ts.SourceFile): TRefusal[] {
 }
 
 /** The findings of each file's refusals: a message that doesn't state its cause, and a refusal a caller can act on without a remedy. */
-export function refusalFindings(repository: string, files: readonly string[]): TFound[] {
-	return files.flatMap((file) => {
-		const source = parsedSource(repository, file);
+export function refusalFindings(sources: TSources): TFound[] {
+	return [...sources].flatMap(([file, source]) => {
 		const reader = new MessageReader(source);
 		return refusalsOf(source).flatMap(({ message, actionable }) => {
 			const cause = reader

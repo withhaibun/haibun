@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { COMPOSE_DEFAULT, DESTRUCTURED_DEFAULT, defaultFindings, FILLS_ABSENT, FILLS_FALSY, PARAMETER_DEFAULT, SCHEMA_DEFAULT } from "./default-rules.js";
+import { parsedSources } from "./repository-files.js";
 
 const FILE = "source.ts";
 const COMPOSE = "docker-compose.yml";
@@ -18,7 +19,7 @@ function findingsOf(source: string, compose?: string): [string, number | undefin
 	made.push(repository);
 	writeFileSync(join(repository, FILE), source);
 	if (compose !== undefined) writeFileSync(join(repository, COMPOSE), compose);
-	return defaultFindings(repository, [FILE], compose === undefined ? [] : [COMPOSE]).map(({ finding, line }) => [finding, line]);
+	return defaultFindings(repository, parsedSources(repository, [FILE]), compose === undefined ? [] : [COMPOSE]).map(({ finding, line }) => [finding, line]);
 }
 
 describe("a default value in source", () => {

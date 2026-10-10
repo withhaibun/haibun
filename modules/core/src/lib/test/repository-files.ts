@@ -5,7 +5,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join, posix, relative, sep } from "node:path";
-import * as ts from "typescript";
+import ts from "typescript";
 import { z } from "zod";
 
 /** A test module: a `*.test.ts` file, a `*.test-fake.ts` file, or a file under a `test/` directory. */
@@ -69,6 +69,27 @@ export function workspacePackages(repository: string, modules: string): TPackage
 export function parsedSource(repository: string, path: string): ts.SourceFile {
 	const kind = path.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
 	return ts.createSourceFile(path, readFileSync(join(repository, path), "utf-8"), ts.ScriptTarget.Latest, true, kind);
+}
+
+/** Source files parsed once, each by its path from the repository root. Each code check reads the same parse. */
+export type TSources = ReadonlyMap<string, ts.SourceFile>;
+
+/** Each of `files` parsed, by its path from the repository root. */
+export function parsedSources(repository: string, files: readonly string[]): TSources {
+	return new Map(files.map((file) => [file, parsedSource(repository, file)]));
+}
+
+/** The const declarations of a source file by name, each with its initializer. */
+export function constInitializers(source: ts.SourceFile): Map<string, ts.Expression> {
+	const consts = new Map<string, ts.Expression>();
+	const visit = (node: ts.Node): void => {
+		if (ts.isVariableDeclarationList(node) && (node.flags & ts.NodeFlags.Const) !== 0) {
+			for (const declaration of node.declarations) if (ts.isIdentifier(declaration.name) && declaration.initializer) consts.set(declaration.name.text, declaration.initializer);
+		}
+		ts.forEachChild(node, visit);
+	};
+	visit(source);
+	return consts;
 }
 
 /** The source file a specifier names in the repository, by its path from the repository root, where it names one. */

@@ -19,9 +19,9 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import * as ts from "typescript";
+import ts from "typescript";
 import type { TFound } from "./baseline.js";
-import { lineOf, parsedSource } from "./repository-files.js";
+import { constInitializers, lineOf, type TSources } from "./repository-files.js";
 
 export const FILLS_ABSENT = "fills an absent value with a constant through ??";
 export const FILLS_FALSY = "fills a falsy value with a constant through ||";
@@ -56,19 +56,6 @@ const COMPOSE_VARIABLE_DEFAULT = /\$\{[A-Za-z_][A-Za-z0-9_]*:?-[^}]*\}/g;
 /** An empty set of const names. A read of an expression starts with it, and adds the name of each const it reads. */
 const NOT_READING: ReadonlySet<string> = new Set();
 const COMPOSE_FILES = ["*compose*.yml", "*compose*.yaml"];
-
-/** The const declarations of a source file by name, each with its initializer. */
-function constInitializers(source: ts.SourceFile): Map<string, ts.Expression> {
-	const consts = new Map<string, ts.Expression>();
-	const visit = (node: ts.Node): void => {
-		if (ts.isVariableDeclarationList(node) && (node.flags & ts.NodeFlags.Const) !== 0) {
-			for (const declaration of node.declarations) if (ts.isIdentifier(declaration.name) && declaration.initializer) consts.set(declaration.name.text, declaration.initializer);
-		}
-		ts.forEachChild(node, visit);
-	};
-	visit(source);
-	return consts;
-}
 
 /** Whether a property access is a chain of names whose first name starts with an upper-case letter. */
 function constantProperty(node: ts.PropertyAccessExpression): boolean {
@@ -106,8 +93,7 @@ function findingOf(node: ts.Node, consts: Map<string, ts.Expression>): string | 
 }
 
 /** Each default value a source file states, at its line. */
-function sourceDefaults(repository: string, file: string): TFound[] {
-	const source = parsedSource(repository, file);
+function sourceDefaults(file: string, source: ts.SourceFile): TFound[] {
 	const consts = constInitializers(source);
 	const found: TFound[] = [];
 	const visit = (node: ts.Node): void => {
@@ -134,7 +120,7 @@ function composeDefaults(repository: string, file: string): TFound[] {
 		.flatMap((text, at) => [...text.matchAll(COMPOSE_VARIABLE_DEFAULT)].map(() => ({ file, finding: COMPOSE_DEFAULT, line: at + 1 })));
 }
 
-/** The default values that `files` and `compose` state, each at its line. */
-export function defaultFindings(repository: string, files: readonly string[], compose: readonly string[]): TFound[] {
-	return [...files.flatMap((file) => sourceDefaults(repository, file)), ...compose.flatMap((file) => composeDefaults(repository, file))];
+/** The default values that `sources` and the `compose` files of the repository state, each at its line. */
+export function defaultFindings(repository: string, sources: TSources, compose: readonly string[]): TFound[] {
+	return [...[...sources].flatMap(([file, source]) => sourceDefaults(file, source)), ...compose.flatMap((file) => composeDefaults(repository, file))];
 }

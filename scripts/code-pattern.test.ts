@@ -11,11 +11,12 @@ import { expectWithinBaseline } from "@haibun/core/lib/test/baseline.js";
 import { codeKindFindings, UNPOSITIONED } from "@haibun/core/lib/test/code-kinds.js";
 import { composeFiles, defaultFindings } from "@haibun/core/lib/test/default-rules.js";
 import { refusalFindings } from "@haibun/core/lib/test/refusal-rules.js";
-import { sourceFiles } from "@haibun/core/lib/test/repository-files.js";
+import { parsedSources, sourceFiles } from "@haibun/core/lib/test/repository-files.js";
 import { MODULE_PACKAGES, MODULE_SOURCES, REPOSITORY } from "./roots.js";
 
 const TEST_FILE = "scripts/code-pattern.test.ts";
 const files = sourceFiles(REPOSITORY, MODULE_SOURCES);
+const sources = parsedSources(REPOSITORY, files);
 
 describe("the source of this repository", () => {
 	it("reads every module's source", () => {
@@ -23,19 +24,19 @@ describe("the source of this repository", () => {
 	});
 
 	it("places each file in a kind position that imports only its row's kinds, apart from what code-kinds.baseline.json records (CR1)", () => {
-		const found = codeKindFindings(REPOSITORY, { files, packages: MODULE_PACKAGES });
+		const found = codeKindFindings(REPOSITORY, { sources, packages: MODULE_PACKAGES });
 		const fix = `move a file that ${UNPOSITIONED} into its kind's directory, and import only the kinds its row of docs/architecture.md lists`;
 		expectWithinBaseline({ baselineFile: join(import.meta.dirname, "code-kinds.baseline.json"), found, testFile: TEST_FILE, fix });
 	});
 
 	it("states each refusal's cause and carries a remedy a caller can act on, apart from what refusals.baseline.json records (CR5)", () => {
 		const fix = "state what failed and why in the refusal's own words, and carry the remedy a caller can act on as data";
-		expectWithinBaseline({ baselineFile: join(import.meta.dirname, "refusals.baseline.json"), found: refusalFindings(REPOSITORY, files), testFile: TEST_FILE, fix });
+		expectWithinBaseline({ baselineFile: join(import.meta.dirname, "refusals.baseline.json"), found: refusalFindings(sources), testFile: TEST_FILE, fix });
 	});
 
 	it("doesn't state a default value, apart from what defaults.baseline.json records (CR8)", () => {
 		const fix = "refuse the absent value with a message that names what supplies it, or type it as optional and read its absence by name";
-		const found = defaultFindings(REPOSITORY, files, composeFiles(REPOSITORY));
+		const found = defaultFindings(REPOSITORY, sources, composeFiles(REPOSITORY));
 		expectWithinBaseline({ baselineFile: join(import.meta.dirname, "defaults.baseline.json"), found, testFile: TEST_FILE, fix });
 	});
 });

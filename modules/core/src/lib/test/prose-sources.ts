@@ -6,7 +6,7 @@
  * prose is its descriptions.
  */
 import { basename, extname } from "node:path";
-import * as ts from "typescript";
+import ts from "typescript";
 
 export type TProseKind = "comment" | "string" | "markdown";
 export type TLine = { line: number; text: string };
@@ -91,6 +91,22 @@ const CSS_TAG = "css";
 const TEMPLATE_SUBSTITUTION = "${…}";
 /** A literal haibun quotes as a whole, as a step's argument is quoted: its quotes are syntax, so its prose is what they hold. */
 const QUOTED_LITERAL = /^"([^"]*)"$/;
+/** The kinds of node `TStringNode` names. The walk tests every node's kind against them. */
+const STRING_KINDS: ReadonlySet<ts.SyntaxKind> = new Set([
+	ts.SyntaxKind.StringLiteral,
+	ts.SyntaxKind.NoSubstitutionTemplateLiteral,
+	ts.SyntaxKind.TemplateExpression,
+	ts.SyntaxKind.JsxText,
+]);
+/** The kinds of node that hold a fact `readSource` reads: a function's or a variable's declaration, a call, a property and an object literal. */
+const FACT_KINDS: ReadonlySet<ts.SyntaxKind> = new Set([
+	ts.SyntaxKind.FunctionDeclaration,
+	ts.SyntaxKind.VariableDeclaration,
+	ts.SyntaxKind.CallExpression,
+	ts.SyntaxKind.NewExpression,
+	ts.SyntaxKind.PropertyAssignment,
+	ts.SyntaxKind.ObjectLiteralExpression,
+]);
 
 const LINE_BREAK = /\r?\n/;
 const LINE_COMMENT_MARKER = /^\/\/+/;
@@ -132,6 +148,10 @@ type TStringUse = "code" | "data" | "prose" | "describes" | "feature";
 type THelper = { message: Set<number>; data: Set<number> };
 type TSourceFacts = { featureText: Set<ts.Node>; helpers: Map<string, THelper>; isTest: boolean; isFeature: boolean };
 type TStringNode = ts.StringLiteral | ts.NoSubstitutionTemplateLiteral | ts.TemplateExpression | ts.JsxText;
+/** What one walk of a source reads: its comments in source order, its strings in source order, and the facts that classify a string's position. */
+type TSourceRead = { comments: ts.CommentRange[]; strings: TStringNode[]; facts: TSourceFacts };
+/** A declaration of a function, whose parameters a call names by position. */
+type THelperDeclaration = ts.SignatureDeclarationBase & { body?: ts.Node };
 type TLiteralPiece = ts.StringLiteral | ts.NoSubstitutionTemplateLiteral | ts.TemplateHead | ts.TemplateMiddle | ts.TemplateTail;
 type TArgument = { call: ts.CallExpression | ts.NewExpression; index: number };
 
@@ -151,7 +171,8 @@ export function proseBlocks(path: string, text: string): TProseBlock[] {
 	const scriptKind = SCRIPT_KINDS.get(extension);
 	if (scriptKind === undefined) throw new Error(`${path} isn't a file whose prose the rules read: a script, Markdown, a feature, a shell script or ${CONFIGURATION_FILE}`);
 	const source = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true, scriptKind);
-	return [...commentBlocks(source), ...stringBlocks(source, path)];
+	const read = readSource(source, path);
+	return [...commentBlocks(source, read.comments), ...stringBlocks(source, read)];
 }
 
 /** Lines grouped into paragraphs: a blank line or a gap in line numbers ends one, a line `starts` matches begins one, and a line `single` matches is its own. */
@@ -220,20 +241,80 @@ function configurationBlocks(path: string, text: string): TProseBlock[] {
 	return blocks;
 }
 
-/** Every comment of a source, read once from the full start of each token. A JSDoc node is part of a comment and JSX text is text, so the scan skips both. */
-function commentRanges(source: ts.SourceFile): ts.CommentRange[] {
-	const text = source.getFullText();
-	const ranges = new Map<number, ts.CommentRange>();
-	const visit = (node: ts.Node): void => {
-		if (node.kind >= ts.SyntaxKind.FirstJSDocNode && node.kind <= ts.SyntaxKind.LastJSDocNode) return;
-		if (!ts.isJsxText(node)) {
-			const at = node.getFullStart();
-			for (const range of [...(ts.getLeadingCommentRanges(text, at) ?? []), ...(ts.getTrailingCommentRanges(text, at) ?? [])]) ranges.set(range.pos, range);
+/**
+ * One walk of a source: every comment, read from the full start of each node, list and token, and the facts and strings that
+ * `stringBlocks` reads. A scanner reads the punctuation and keyword tokens between a node's children, as the compiler's
+ * `getChildren` does, without building a node for each. JSX text is text, so its full start isn't read. A JSDoc comment is
+ * a comment, and the walk doesn't enter it.
+ */
+function readSource(source: ts.SourceFile, path: string): TSourceRead {
+	const { text } = source;
+	const isFeature = path.endsWith(FEATURE_SUFFIX);
+	const comments = new Map<number, ts.CommentRange>();
+	const strings: TStringNode[] = [];
+	const declared = new Map<string, ts.Expression[]>();
+	const roots: ts.Node[] = [];
+	const helperDeclarations = new Map<string, THelperDeclaration>();
+	const messageNames = new Map<ts.Node, Set<string>>();
+	const scanner = ts.createScanner(ts.ScriptTarget.Latest, true, ts.LanguageVariant.Standard, text);
+	// The walk reads positions in source order, so a position equal to the last one read holds the same comments.
+	let lastRead: number | undefined;
+	const readCommentsAt = (at: number): void => {
+		if (at === lastRead) return;
+		lastRead = at;
+		for (const range of [...(ts.getLeadingCommentRanges(text, at) ?? []), ...(ts.getTrailingCommentRanges(text, at) ?? [])]) comments.set(range.pos, range);
+	};
+	const readTokens = (from: number, to: number): void => {
+		scanner.resetTokenState(from);
+		for (let at = from; at < to; ) {
+			const token = scanner.scan();
+			const end = scanner.getTokenEnd();
+			if (end <= to) readCommentsAt(at);
+			at = end;
+			if (token === ts.SyntaxKind.EndOfFileToken) return;
 		}
-		for (const child of node.getChildren(source)) visit(child);
+	};
+	const visit = (node: ts.Node): void => {
+		if (!ts.isJsxText(node)) readCommentsAt(node.pos);
+		readFacts(node);
+		if (node.kind < ts.SyntaxKind.FirstNode) return;
+		let at = node.pos;
+		const child = (next: ts.Node): void => {
+			readTokens(at, next.pos);
+			visit(next);
+			at = next.end;
+		};
+		const list = (nodes: ts.NodeArray<ts.Node>): void => {
+			readTokens(at, nodes.pos);
+			readCommentsAt(nodes.pos);
+			at = nodes.pos;
+			for (const next of nodes) child(next);
+			readTokens(at, nodes.end);
+			at = nodes.end;
+		};
+		ts.forEachChild(node, child, list);
+		readTokens(at, node.end);
+	};
+	const readFacts = (node: ts.Node): void => {
+		if (isStringNode(node)) strings.push(node);
+		if (!FACT_KINDS.has(node.kind)) return;
+		if (ts.isFunctionDeclaration(node) && node.name !== undefined) helperDeclarations.set(node.name.text, node);
+		else if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer !== undefined) {
+			const { initializer } = node;
+			declared.set(node.name.text, [...(declared.get(node.name.text) ?? []), initializer]);
+			if (ts.isArrowFunction(initializer) || ts.isFunctionExpression(initializer)) helperDeclarations.set(node.name.text, initializer);
+			if (isFeature && isKirejiExport(node)) roots.push(...kirejiSteps(initializer));
+		} else if (ts.isCallExpression(node) && FEATURE_TEXT_RUNNERS.has(calleeName(node.expression) ?? "")) roots.push(...node.arguments.slice(0, 1));
+		else if (isFeature && ts.isPropertyAssignment(node) && STATEMENT_PROPERTIES.has(propertyName(node.name) ?? "")) roots.push(node.initializer);
+		const content = ts.isObjectLiteralExpression(node) ? featureContent(node) : undefined;
+		if (content !== undefined) roots.push(content);
+		if (isMessageCall(node)) readMessageNames(node, messageNames);
 	};
 	visit(source);
-	return [...ranges.values()].sort((a, b) => a.pos - b.pos);
+	const isTest = TEST_FILE.test(path);
+	const helpers = new Map([...helperDeclarations].map(([name, declaration]) => [name, helperOfDeclaration(declaration, messageNames.get(declaration))]));
+	const facts: TSourceFacts = { featureText: featureTextFrom(roots, declared), helpers, isTest, isFeature };
+	return { comments: [...comments.values()].sort((a, b) => a.pos - b.pos), strings, facts };
 }
 
 /** A block comment's lines without its markers or its JSDoc margin, from the source line it starts on. */
@@ -261,10 +342,10 @@ function commentParagraphs(lines: readonly TLine[]): TProseBlock[] {
 }
 
 /** Comments as paragraphs: line comments on adjacent lines form one. */
-function commentBlocks(source: ts.SourceFile): TProseBlock[] {
+function commentBlocks(source: ts.SourceFile, comments: readonly ts.CommentRange[]): TProseBlock[] {
 	const groups: TLine[][] = [];
 	let previous: ts.CommentRange | undefined;
-	for (const range of commentRanges(source)) {
+	for (const range of comments) {
 		const lines = commentLines(source, range);
 		const last = groups.at(-1);
 		const continues =
@@ -315,7 +396,7 @@ function rawText(source: ts.SourceFile, node: TLiteralPiece): string {
 }
 
 function isStringNode(node: ts.Node): node is TStringNode {
-	return ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) || ts.isTemplateExpression(node) || ts.isJsxText(node);
+	return STRING_KINDS.has(node.kind);
 }
 
 /**
@@ -374,19 +455,21 @@ function rootName(expression: ts.Expression): string | undefined {
 
 /** Operators whose result can be the value of their right operand: concatenation, a fallback and a condition. */
 const PASSING_OPERATORS = new Set([ts.SyntaxKind.PlusToken, ts.SyntaxKind.QuestionQuestionToken, ts.SyntaxKind.BarBarToken, ts.SyntaxKind.AmpersandAmpersandToken]);
+/** The expressions that pass their operand's value through whole: a parenthesis, a template, a cast and a non-null assertion. */
+const WRAPPING_KINDS: ReadonlySet<ts.SyntaxKind> = new Set([
+	ts.SyntaxKind.ParenthesizedExpression,
+	ts.SyntaxKind.TemplateSpan,
+	ts.SyntaxKind.TemplateExpression,
+	ts.SyntaxKind.AsExpression,
+	ts.SyntaxKind.SatisfiesExpression,
+	ts.SyntaxKind.NonNullExpression,
+]);
 
 /** True where `node` passes the value `from` holds to the expression around it: a parenthesis, a conditional, a template, a cast, a concatenation or a fallback. */
 function wraps(node: ts.Node, from: ts.Node): boolean {
-	return (
-		ts.isParenthesizedExpression(node) ||
-		(ts.isConditionalExpression(node) && node.condition !== from) ||
-		ts.isTemplateSpan(node) ||
-		ts.isTemplateExpression(node) ||
-		ts.isAsExpression(node) ||
-		ts.isSatisfiesExpression(node) ||
-		ts.isNonNullExpression(node) ||
-		(ts.isBinaryExpression(node) && PASSING_OPERATORS.has(node.operatorToken.kind))
-	);
+	if (ts.isConditionalExpression(node)) return node.condition !== from;
+	if (ts.isBinaryExpression(node)) return PASSING_OPERATORS.has(node.operatorToken.kind);
+	return WRAPPING_KINDS.has(node.kind);
 }
 
 /** True where `node` passes `from` through to the expression around it, so a string inside an argument is passed with the argument. */
@@ -552,36 +635,31 @@ function openingIdentifier(message: ts.Expression): string | undefined {
 	return first !== undefined && ts.isIdentifier(first) ? first.text : undefined;
 }
 
-/** The identifiers a function body's messages open with: a parameter named there is the message's text, as `within`'s `what` is. */
-function messageIdentifiers(body: ts.Node | undefined): Set<string> {
-	const names = new Set<string>();
-	const visit = (node: ts.Node): void => {
-		if (isMessageCall(node)) for (const name of node.arguments?.flatMap((argument) => openingIdentifier(argument) ?? []) ?? []) names.add(name);
-		ts.forEachChild(node, visit);
-	};
-	if (body !== undefined) visit(body);
-	return names;
+/**
+ * Adds the identifiers a message call opens with to each function whose body holds the call: a parameter named there is
+ * the message's text, as `within`'s `what` is.
+ */
+function readMessageNames(call: ts.CallExpression | ts.NewExpression, names: Map<ts.Node, Set<string>>): void {
+	const opening = call.arguments?.flatMap((argument) => openingIdentifier(argument) ?? []) ?? [];
+	if (opening.length === 0) return;
+	for (let child: ts.Node = call; !ts.isSourceFile(child); child = child.parent) {
+		const holder = child.parent;
+		if (ts.isFunctionLike(holder) && "body" in holder && holder.body === child) {
+			const held = names.get(holder) ?? new Set<string>();
+			for (const name of opening) held.add(name);
+			names.set(holder, held);
+		}
+	}
 }
 
-/** The functions a file declares, each by the parameters whose argument is a message or a fixture's content. */
-function localHelpers(source: ts.SourceFile): Map<string, THelper> {
-	const helpers = new Map<string, THelper>();
-	const add = (name: string, declaration: ts.SignatureDeclarationBase & { body?: ts.Node }): void => {
-		const messages = messageIdentifiers(declaration.body);
-		const names = declaration.parameters.map((parameter) => (ts.isIdentifier(parameter.name) ? parameter.name.text : ""));
-		const indices = (holds: (name: string) => boolean) => new Set(names.flatMap((name, index) => (name !== "" && holds(name) ? [index] : [])));
-		helpers.set(name, { message: indices((name) => name === MESSAGE_PARAMETER || messages.has(name)), data: indices((name) => DATA_PROPERTIES.has(name)) });
-	};
-	const visit = (node: ts.Node): void => {
-		if (ts.isFunctionDeclaration(node) && node.name !== undefined) add(node.name.text, node);
-		if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer !== undefined) {
-			const initializer = node.initializer;
-			if (ts.isArrowFunction(initializer) || ts.isFunctionExpression(initializer)) add(node.name.text, initializer);
-		}
-		ts.forEachChild(node, visit);
-	};
-	visit(source);
-	return helpers;
+/**
+ * A function the file declares, by the parameters whose argument is a message or a fixture's content. `messages` holds the
+ * names that open its body's messages.
+ */
+function helperOfDeclaration(declaration: THelperDeclaration, messages: ReadonlySet<string> | undefined): THelper {
+	const names = declaration.parameters.map((parameter) => (ts.isIdentifier(parameter.name) ? parameter.name.text : ""));
+	const indices = (holds: (name: string) => boolean) => new Set(names.flatMap((name, index) => (name !== "" && holds(name) ? [index] : [])));
+	return { message: indices((name) => name === MESSAGE_PARAMETER || messages?.has(name) === true), data: indices((name) => DATA_PROPERTIES.has(name)) };
 }
 
 /** True where a variable is a feature file's export of its features or backgrounds. */
@@ -608,25 +686,11 @@ function featureContent(node: ts.ObjectLiteralExpression): ts.Node | undefined {
 }
 
 /**
- * The strings a file holds as feature text: a unit test runner's first argument, the `content` of a feature's `{ path,
- * content }`, a feature file's exported features and backgrounds and the statements its builders take, and every
- * declaration of a variable they name. A message inside them is a message, so it isn't feature text.
+ * The strings a file holds as feature text, from the roots `readSource` finds: a unit test runner's first argument, the
+ * `content` of a feature's `{ path, content }`, a feature file's exported features and backgrounds and the statements its
+ * builders take, and every declaration of a variable they name. A message inside them is a message, so it isn't feature text.
  */
-function featureTextOf(source: ts.SourceFile, isFeatureFile: boolean): Set<ts.Node> {
-	const declared = new Map<string, ts.Expression[]>();
-	const roots: ts.Node[] = [];
-	const find = (node: ts.Node): void => {
-		if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer !== undefined) {
-			declared.set(node.name.text, [...(declared.get(node.name.text) ?? []), node.initializer]);
-			if (isFeatureFile && isKirejiExport(node)) roots.push(...kirejiSteps(node.initializer));
-		}
-		if (ts.isCallExpression(node) && FEATURE_TEXT_RUNNERS.has(calleeName(node.expression) ?? "")) roots.push(...node.arguments.slice(0, 1));
-		if (isFeatureFile && ts.isPropertyAssignment(node) && STATEMENT_PROPERTIES.has(propertyName(node.name) ?? "")) roots.push(node.initializer);
-		const content = ts.isObjectLiteralExpression(node) ? featureContent(node) : undefined;
-		if (content !== undefined) roots.push(content);
-		ts.forEachChild(node, find);
-	};
-	find(source);
+function featureTextFrom(roots: readonly ts.Node[], declared: ReadonlyMap<string, readonly ts.Expression[]>): Set<ts.Node> {
 	const texts = new Set<ts.Node>();
 	const followed = new Set<ts.Node>();
 	const collect = (node: ts.Node): void => {
@@ -710,23 +774,18 @@ function cssCommentBlocks(source: ts.SourceFile, node: ts.Node): TProseBlock[] {
  * A string with a space is prose where its position holds prose (`stringUse`). Feature text is prose a line at a time, and
  * a stylesheet's prose is its comments.
  */
-function stringBlocks(source: ts.SourceFile, path: string): TProseBlock[] {
-	const isFeature = path.endsWith(FEATURE_SUFFIX);
-	const facts: TSourceFacts = { featureText: featureTextOf(source, isFeature), helpers: localHelpers(source), isTest: TEST_FILE.test(path), isFeature };
+function stringBlocks(source: ts.SourceFile, { strings, facts }: TSourceRead): TProseBlock[] {
 	const inPlace = new Set<ts.Node>();
 	const css: TProseBlock[] = [];
 	const literals: { lines: TLine[]; use: TStringUse }[] = [];
-	const visit = (node: ts.Node): void => {
-		if (isStringNode(node) && !inPlace.has(node)) {
-			if (isCssTemplate(node)) css.push(...cssCommentBlocks(source, node));
-			else {
-				const use = stringUse(node, facts);
-				if (use !== "code" && use !== "data") literals.push({ lines: stringLines(source, node, inPlace), use });
-			}
+	for (const node of strings) {
+		if (inPlace.has(node)) continue;
+		if (isCssTemplate(node)) css.push(...cssCommentBlocks(source, node));
+		else {
+			const use = stringUse(node, facts);
+			if (use !== "code" && use !== "data") literals.push({ lines: stringLines(source, node, inPlace), use });
 		}
-		ts.forEachChild(node, visit);
-	};
-	visit(source);
+	}
 	const invokes = invokesDeclared(literals.flatMap(({ lines, use }) => (use === "feature" ? lines.map(({ text }) => text) : [])));
 	return [
 		...css,

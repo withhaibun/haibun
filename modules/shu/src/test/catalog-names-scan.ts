@@ -5,7 +5,7 @@
  * by one word, such as `id` or `content`, names a property of objects that aren't records too, so the scan doesn't read
  * it. A read of the element's own property or state doesn't read a record's field.
  */
-import * as ts from "typescript";
+import ts from "typescript";
 import type { TFound } from "@haibun/core/lib/test/baseline.js";
 import type { TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { lineOf, parsedSource, resolvedSource, type TPackages } from "@haibun/core/lib/test/repository-files.js";

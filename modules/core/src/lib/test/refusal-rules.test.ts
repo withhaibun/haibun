@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { LACKS_A_REMEDY, RELAYS_A_CAUGHT_ERROR, refusalFindings, STATES_FEW_WORDS } from "./refusal-rules.js";
+import { parsedSources } from "./repository-files.js";
 
 const FILE = "steps.ts";
 
@@ -16,7 +17,7 @@ function findingsOf(source: string): [string, number | undefined][] {
 	const repository = mkdtempSync(join(tmpdir(), "haibun-refusals-"));
 	made.push(repository);
 	writeFileSync(join(repository, FILE), source);
-	return refusalFindings(repository, [FILE]).map(({ finding, line }) => [finding, line]);
+	return refusalFindings(parsedSources(repository, [FILE])).map(({ finding, line }) => [finding, line]);
 }
 
 describe("a step's refusal", () => {

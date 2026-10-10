@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { codeKindFindings, kindOf, UNPOSITIONED } from "./code-kinds.js";
+import { parsedSources } from "./repository-files.js";
 
 const PIPELINE = "src/area/pipelines/read.ts";
 const ADAPTER = "src/area/adapters/store.ts";
@@ -25,7 +26,7 @@ function findingsOf(file: string, sources: Record<string, string>): string[] {
 		mkdirSync(join(repository, dirname(path)), { recursive: true });
 		writeFileSync(join(repository, path), source);
 	}
-	return codeKindFindings(repository, { files: [file], packages: { [PACKAGE]: "src/area" } }).map(({ finding }) => finding);
+	return codeKindFindings(repository, { sources: parsedSources(repository, [file]), packages: { [PACKAGE]: "src/area" } }).map(({ finding }) => finding);
 }
 const withPorts = (sources: Record<string, string>) => ({ [PORTS]: "export type TStore = { read(): string };\n", [ADAPTER]: "export const store = 1;\n", ...sources });
 

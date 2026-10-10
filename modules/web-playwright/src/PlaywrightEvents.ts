@@ -40,7 +40,7 @@ export class PlaywrightEvents {
 		return this;
 	}
 	private logRequest(request: Request) {
-		if (asksToRead(request.method(), request.postData())) return;
+		if (leftUnrecorded(request)) return;
 		this.pendingRequests.set(request, Date.now());
 		const frameURL = request.frame().url();
 		const etc = { method: request.method(), headers: request.headers(), postData: request.postData() ?? undefined };
@@ -51,7 +51,7 @@ export class PlaywrightEvents {
 
 	private logResponse(response: Response) {
 		const request = response.request();
-		if (asksToRead(request.method(), request.postData())) return;
+		if (leftUnrecorded(request)) return;
 		const startTime = this.pendingRequests.get(request);
 		const duration = startTime ? Date.now() - startTime : 0;
 		if (startTime) {
@@ -118,6 +118,19 @@ export class PlaywrightEvents {
  * read returns to the page as a request individual and a host count, and a page that records what it draws then draws
  * what it recorded.
  */
+/** The URL schemes of a request that reaches a host. A `blob:` or `data:` URL loads content the page holds, so it isn't an HTTP exchange. */
+const HTTP_SCHEMES = new Set(["http:", "https:"]);
+
+/** Returns true where `url` names a request to a host over HTTP. */
+export function isHttpExchange(url: string): boolean {
+	return HTTP_SCHEMES.has(new URL(url).protocol);
+}
+
+/** Returns true for a request the observer doesn't trace: one that isn't an HTTP exchange, and an RPC call whose envelope states `asks: "read"`. */
+function leftUnrecorded(request: Request): boolean {
+	return !isHttpExchange(request.url()) || asksToRead(request.method(), request.postData());
+}
+
 export function asksToRead(method: string, postData: string | null | undefined): boolean {
 	if (method !== "POST" || !postData) return false;
 	return fromJsonText(RpcEnvelopeSchema).safeParse(postData).data?.asks === "read";

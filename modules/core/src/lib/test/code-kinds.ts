@@ -6,9 +6,9 @@
  * and its imports aren't read.
  */
 import { posix } from "node:path";
-import * as ts from "typescript";
+import ts from "typescript";
 import type { TFound } from "./baseline.js";
-import { importsOf, lineOf, parsedSource, RELATIVE, resolvedSource, type TPackages } from "./repository-files.js";
+import { importsOf, lineOf, RELATIVE, resolvedSource, type TPackages, type TSources } from "./repository-files.js";
 
 export const CODE_KINDS = ["domain", "derivation", "machine", "pipeline", "port", "adapter", "composition root", "stepper", "view"] as const;
 export type TCodeKind = (typeof CODE_KINDS)[number];
@@ -83,8 +83,8 @@ const imports = (kind: TCodeKind, specifier: string) => `imports ${ARTICLE_AN.te
 const performsIo = (through: string) => `performs I/O through ${through}`;
 const importsAnotherRoot = (specifier: string) => `imports another area's composition root: ${specifier}`;
 
-/** What a check reads of a repository: its source files, and its workspace packages, each by its name and its source directory. */
-export type TCodeScope = { files: readonly string[]; packages: TPackages };
+/** What a check reads of a repository: its parsed source files, and its workspace packages, each by its name and its source directory. */
+export type TCodeScope = { sources: TSources; packages: TPackages };
 
 /** The kind of a file by its path from the repository root, where its directory or name is a kind position. */
 export function kindOf(path: string): TCodeKind | undefined {
@@ -170,11 +170,10 @@ function importFinding(kind: TCodeKind, file: string, target: string, targetKind
 }
 
 /** The findings of each file against the kinds: a file outside a kind position, an import of a kind it doesn't depend on, and I/O outside an adapter. */
-export function codeKindFindings(repository: string, { files, packages }: TCodeScope): TFound[] {
-	return files.flatMap((file): TFound[] => {
+export function codeKindFindings(repository: string, { sources, packages }: TCodeScope): TFound[] {
+	return [...sources].flatMap(([file, source]): TFound[] => {
 		const kind = kindOf(file);
 		if (kind === undefined) return [{ file, finding: UNPOSITIONED }];
-		const source = parsedSource(repository, file);
 		const valueImports = importsOf(source).filter(({ typeOnly }) => !typeOnly);
 		const kindImports = valueImports.flatMap(({ specifier, line }) => {
 			const target = resolvedSource(repository, file, specifier, packages);
