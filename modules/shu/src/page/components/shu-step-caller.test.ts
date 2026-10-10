@@ -17,7 +17,7 @@ import "./shu-step-caller.js";
 import { installServedConduit } from "../root.js";
 import { installCarriedEventStream } from "../root.js";
 import { rpcAnswer, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
-import { endPage } from "../../page-pinned.js";
+import { endPage } from "../adapters/page-held.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
 import { setConcernCatalog } from "../../rels-cache.js";
 import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";

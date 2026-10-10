@@ -28,7 +28,7 @@ import { setupShuTest, stepsShown, type TShuTestHandle, hydrate } from "./test-s
 import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { deviceStore, setDeviceStore, MemoryDeviceStore } from "./client-cache/index.js";
-import { endPage } from "./page-pinned.js";
+import { endPage } from "./page/adapters/page-held.js";
 
 function setHydration(payload: unknown): void {
 	document.head.innerHTML = "";

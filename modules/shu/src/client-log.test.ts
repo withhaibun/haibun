@@ -7,7 +7,7 @@ import "fake-indexeddb/auto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { reportFailure, reportToRun } from "./client-log.js";
 import { authorityRefusal, RefusedCall } from "@haibun/core/lib/rpc-wire.js";
-import { endPage } from "./page-pinned.js";
+import { endPage } from "./page/adapters/page-held.js";
 import { carryARun, serveThePage, openReportingPage, reportingTo, setupShuTest, type TReportedToRun, type TShuTestHandle } from "./test-setup.js";
 import { openPageAuthority } from "./page-key.js";
 

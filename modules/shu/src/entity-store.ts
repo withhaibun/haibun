@@ -7,7 +7,7 @@ import { subscribeBatchedEvents, hasEventStream } from "./page/controllers/event
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { reportToRun } from "./client-log.js";
 import { callStep } from "./pane-fetch.js";
-import { pagePinned } from "./page-pinned.js";
+import { pagePinned } from "./page/adapters/page-held.js";
 import { appAccessLevel } from "./util.js";
 import { readIndividual } from "./quads-snapshot.js";
 import { resolveAnnotationsLive, resolveAnnotationsOffline, type AnnotationView } from "./annotation-resolver.js";

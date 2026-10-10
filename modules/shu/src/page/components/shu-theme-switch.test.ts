@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { SHU_TAG } from "../../domains/elements.js";
 import { PREFERENCES_COOKIE_PREFIX } from "../adapters/prefs-cookie.js";
 import { pagePreferences } from "../root.js";
-import { endPage } from "../../page-pinned.js";
+import { endPage } from "../adapters/page-held.js";
 import { clearStoredFields } from "../../test-setup.js";
 import { applyStoredTheme } from "./shu-theme-switch.js";
 

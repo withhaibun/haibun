@@ -16,7 +16,7 @@
  * `virtualColumnCss` in its own `static styles` for the layout the element needs; the rows are styled by the host.
  */
 import { SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import { html, css, type TemplateResult, type CSSResultGroup } from "lit";
 import { property } from "lit/decorators.js";
 import { ref, createRef } from "lit/directives/ref.js";

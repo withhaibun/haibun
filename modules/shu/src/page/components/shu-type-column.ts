@@ -27,7 +27,7 @@ const INSTANCES_PAGE = 100;
 /** A `#Type` link resolves against the site's own declared types: the same test every ref surface uses. */
 import type { ShuResultTable } from "./shu-result-table.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { findDomain, stepsJoining } from "../../rpc-registry.js";
 import { stepRef } from "./shu-ref.js";

@@ -98,7 +98,7 @@ export class TestConduit implements TConduit {
 
 import { CarriedEventStream } from "./page/adapters/carried-event-stream.js";
 import { type TEvent } from "./page/ports.js";
-import { endPage } from "./page-pinned.js";
+import { endPage } from "./page/adapters/page-held.js";
 import { setDeviceStore, MemoryDeviceStore, CACHE_SHAPE } from "./client-cache/index.js";
 import { hydrateFromDom, onStepsChanged } from "./rpc-registry.js";
 import { CLIENT_LOG_ACTION, CLIENT_LOG_METHOD, type TClientLogLevel } from "./client-log.js";

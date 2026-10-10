@@ -15,7 +15,7 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import { followRecordedExecution, runSpan } from "../../client-cache/index.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
 

@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { copyText } from "./copy-util.js";
+import { browserClipboard } from "./clipboard.js";
+
+const copyText = (text: string): Promise<boolean> => browserClipboard(window).copy(text);
 
 describe("copying text to the clipboard", () => {
 	beforeEach(() => {

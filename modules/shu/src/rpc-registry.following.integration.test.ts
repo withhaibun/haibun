@@ -20,7 +20,7 @@ import { installServedEventStream, pageEventStream } from "./page/root.js";
 import { getAvailableSteps, onStepsChanged } from "./rpc-registry.js";
 import { serveThePageFrom } from "./test-setup.js";
 import { DOMAIN_LINK } from "@haibun/core/lib/domains.js";
-import { endPage } from "./page-pinned.js";
+import { endPage } from "./page/adapters/page-held.js";
 
 /** The step another host would add, named as this run names that host's steps. */
 const ADDED = hostScopedMethodName(9, "Haibun-validateStep");

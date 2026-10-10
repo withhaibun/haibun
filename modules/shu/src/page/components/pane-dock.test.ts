@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 import { PaneDock } from "./pane-dock.js";
 import { PROPORTION } from "../derivations/layout.js";
 import { DOCK_FOOTPRINT, SHU_ATTR } from "../../domains/elements.js";
-import { dockedPane } from "../../signals.js";
+import { dockedPane } from "../controllers/page-cell-controller.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
 import { aControllerHost, type ControllerHostFake } from "./controller-host.test-fake.js";
 

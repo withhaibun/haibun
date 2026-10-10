@@ -6,7 +6,7 @@
  */
 import type { ReactiveController } from "lit";
 import { DOCK_FOOTPRINT, SHU_ATTR } from "../../domains/elements.js";
-import { dockedPane } from "../../signals.js";
+import { dockedPane } from "../controllers/page-cell-controller.js";
 import { draggedHeight, draggedProportion, openAtProportion } from "../derivations/layout.js";
 import { FootprintController } from "./footprint.js";
 import { startPointerDrag } from "./pointer-drag.js";

@@ -1,5 +1,5 @@
 import { SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import { html, css, type TemplateResult } from "lit";
 import type { ZodType } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";

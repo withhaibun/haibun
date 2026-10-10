@@ -17,7 +17,7 @@ import { producingStepOf, projectDomainChain, waypointNodeId, type TAffordancesS
 import { graphToQuads } from "../../graph/graph-quads.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { SHU_EVENT, AFFORDANCE_PARAM, RPC_METHOD, SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import * as ViewHash from "../../view-hash.js";
 import { deepLinkOf, followDeepLink, openRef } from "./ref-navigation.js";
 import { domainRef, stepRef } from "./shu-ref.js";

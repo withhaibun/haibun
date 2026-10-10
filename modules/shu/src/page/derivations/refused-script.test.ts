@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { refusal } from "./refused-scripts.js";
+import { refusal } from "./refused-script.js";
 
 describe("a script the page's policy refused", () => {
 	it("is stated by what was refused, the directive that refused it, and where", () => {

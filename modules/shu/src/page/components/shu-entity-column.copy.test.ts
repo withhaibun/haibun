@@ -3,7 +3,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { ShuEntityColumn } from "./shu-entity-column.js";
 import { setupShuTest, makeEntityDispatch, type TShuTestHandle } from "../../test-setup.js";
-import { endPage } from "../../page-pinned.js";
+import { endPage } from "../adapters/page-held.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 
 const BODY = "the body a reader copies";

@@ -4,14 +4,14 @@
  * signal, so the ask shows it and the reader withdraws any of it there. A turn is given only what the page holds of it.
  */
 import { keep, readKept } from "./page-key.js";
-import { pagePinned } from "./page-pinned.js";
-import { SharedSignal } from "./signals.js";
+import { pagePinned } from "./page/adapters/page-held.js";
+import { SharedCell } from "./page/adapters/shared-cell.js";
 
 /** The name the page keeps what it allows its turns under, in its own store. */
 export const TURN_ALLOWANCE_KEPT_AS = "turn-allowance";
 
 /** The actions this page allows its turns, once read from its store. */
-export const turnAllowance = new SharedSignal<readonly string[]>("turnAllowance", []);
+export const turnAllowance = new SharedCell<readonly string[]>("turnAllowance", []);
 
 /** What this page allows its turns, read from its store once per page. */
 export async function readTurnAllowance(): Promise<readonly string[]> {

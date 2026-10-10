@@ -15,7 +15,7 @@ import { z } from "zod";
 import { eventMarkerStyle } from "../derivations/event-marker.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { RPC_METHOD, SHU_EVENT, SHU_TAG, SHU_ATTR } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import { shuBaseStyles } from "./styles.js";
 import { reads } from "../domains/links.js";
 import { conduit } from "../controllers/conduit-controller.js";

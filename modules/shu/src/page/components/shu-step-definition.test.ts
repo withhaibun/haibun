@@ -14,7 +14,7 @@ import { setupShuTest, stepsShown, type TShuTestHandle } from "../../test-setup.
 import { setDeviceStore, MemoryDeviceStore } from "../../client-cache/index.js";
 import { SHU_EVENT } from "../../domains/elements.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import { endPage } from "../../page-pinned.js";
+import { endPage } from "../adapters/page-held.js";
 
 const IDS = SHU_TEST_IDS.STEP_DEFINITION;
 const [CREDENTIAL, CREDENTIAL_TYPE, CHECK] = ["credential", "VerifiableCredential", "verification"];

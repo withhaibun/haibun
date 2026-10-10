@@ -12,7 +12,7 @@
  * The orientation group holds only actions (the two head-on aims), so the host renders it directly.
  */
 import { SHU_TAG } from "../domains/elements.js";
-import { defineElement } from "../define-element.js";
+import { defineElement } from "../page/controllers/element-controller.js";
 import { SHU_TEST_IDS } from "../domains/test-ids.js";
 import { html, type TemplateResult } from "lit";
 import { z } from "zod";

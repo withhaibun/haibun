@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { hasEventStream, installCarriedEventStream, pageEventStream, streamStatus } from "./page/root.js";
 import { STREAM_STATUS } from "./page/machines/event-stream.js";
-import { endPage } from "./page-pinned.js";
+import { endPage } from "./page/adapters/page-held.js";
 
 beforeEach(() => {
 	endPage();

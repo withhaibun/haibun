@@ -27,7 +27,7 @@
 import { html, css, nothing, unsafeCSS, type TemplateResult } from "lit";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { PAGE_STRIP_FOOTPRINT, SHU_EVENT, SHU_ATTR, SPINE_SLOT, SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { ColumnPaneSchema } from "../../schemas.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";

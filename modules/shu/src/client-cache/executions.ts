@@ -14,7 +14,7 @@ import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { heldGraphStores, readHeldStore, selectValuesFor, servedGraphStore, type TCachedGraphStore } from "../quads-snapshot.js";
 import { RUN_TYPES } from "./run-window.js";
 import { componentOfView, declaredViews } from "../rels-cache.js";
-import { pagePinned } from "../page-pinned.js";
+import { pagePinned } from "../page/adapters/page-held.js";
 
 /** The source the device's runs report under. */
 const EXECUTIONS = "executions";

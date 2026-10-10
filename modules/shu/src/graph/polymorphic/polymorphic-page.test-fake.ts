@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { chromium, type Browser, type Page } from "playwright";
 import { SHU_EVENT } from "../../domains/elements.js";
 import type { TPaneOpen } from "../../pane-state.js";
-import { SHARED_SIGNALS_KEY } from "../../signals.js";
+import { SHARED_CELLS_KEY } from "../../page/adapters/shared-cell.js";
 import type { TSubjectState } from "../../current-subject.js";
 import type { TMeasureUnit, TPanDirection, TZoomDirection } from "./polymorphic-camera.js";
 
@@ -238,7 +238,7 @@ export async function mountPolymorphicPage({ external = false }: { external?: bo
 				const signals = (globalThis as unknown as Record<string, Map<string, { signal: { get(): TSubjectState } }>>)[key];
 				if (!signals) throw new Error(`the page doesn't hold shared signals at ${key}`);
 				return signals.get("currentSubject")?.signal.get() as TSubjectState;
-			}, SHARED_SIGNALS_KEY),
+			}, SHARED_CELLS_KEY),
 		async emptyPixel() {
 			const found = await page.evaluate(() => {
 				const view = document.querySelector("shu-polymorphic-graph-view") as unknown as { pickAt(x: number, y: number): string | null } & HTMLElement;

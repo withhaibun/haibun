@@ -15,7 +15,7 @@ import { selectValuesFor } from "../../quads-snapshot.js";
 import { addObservedSelectValues, getQueryableFields, getSelectValues, hasSelectValues, hasUsableSelectValues, setSelectValues } from "../../rels-cache.js";
 import { buildDomainOptions, getAvailableDomains, getAvailableSteps, type DomainOption } from "../../rpc-registry.js";
 import { StepsChangedController } from "../controllers/steps-changed-controller.js";
-import { pageTypes } from "../../signals.js";
+import { pageTypes } from "../controllers/page-cell-controller.js";
 import { NOTHING_SELECTED_LABEL, SEARCH_OPERATORS, type TComboboxOption, type TContextPattern } from "../../schemas.js";
 import { appAccessLevel } from "../../util.js";
 import { getHash } from "../../view-hash.js";

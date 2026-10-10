@@ -4,7 +4,7 @@
  * component's tokens multiply. It stores both under its tag, and the page applies them at its start (`applyStoredTheme`).
  */
 import { SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import { html, css, type PropertyValues, type TemplateResult } from "lit";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles, shuSegmentedStyles } from "./styles.js";

@@ -14,7 +14,7 @@ import { signCapabilityInvocation } from "@digitalbazaar/http-signature-zcap-inv
 import { encode } from "base58-universal";
 import { actionUnder, capabilityAllows, delegatedActions, type TDelegation } from "@haibun/core/lib/actions.js";
 import { DELEGATIONS_READ_ACTION, type TDelegationRecord, type TDelegations } from "@haibun/core/lib/authority-types.js";
-import { pagePinned } from "./page-pinned.js";
+import { pagePinned } from "./page/adapters/page-held.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 /** What a reader's page holds here: its key, named as a did:key, and what was delegated to that key. */

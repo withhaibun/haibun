@@ -15,7 +15,7 @@
  *   text: display label (defaults to a derived label per kind)
  */
 import { SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import { esc } from "../../util.js";
 import { JsonObjectTextSchema } from "@haibun/core/lib/json-text.js";
 import { isRefKind, refHref, defaultLabel } from "./ref-navigation.js";

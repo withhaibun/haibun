@@ -36,7 +36,7 @@ import { pagePreferences } from "../root.js";
 import { hashParam, mergeHashParams } from "../../view-hash.js";
 import { INITIAL_SUBJECT, SCOPE, activeEntry, currentSubject, currentSubjectState, dispatchSubjectEvent, entryOf, scopeEntry } from "../../current-subject.js";
 import { EMBEDDED_PAGE_TYPE, embeddedPageView } from "../../embedder.js";
-import { activePane } from "../../signals.js";
+import { activePane } from "../controllers/page-cell-controller.js";
 import { counted } from "@haibun/core/lib/hypermedia.js";
 
 /** The pane the reader is on, the view it holds, and what a turn is sent of the page: that view's statement, then the

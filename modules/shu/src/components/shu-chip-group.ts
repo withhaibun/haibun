@@ -8,7 +8,7 @@
  * visibility means (a hidden type, a hidden predicate, a hidden axis value) is the host's business.
  */
 import { SHU_TAG } from "../domains/elements.js";
-import { defineElement } from "../define-element.js";
+import { defineElement } from "../page/controllers/element-controller.js";
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "../page/components/shu-element.js";

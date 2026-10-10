@@ -1,5 +1,5 @@
 import { SHU_TEST_IDS } from "./domains/test-ids.js";
-import { reportRefusedScripts } from "./refused-scripts.js";
+import { recordLongFrames, reportRefusedScripts } from "./page/pipelines/page-observations.js";
 import { appAccessLevel, defaultLabel, esc } from "./util.js";
 import { DOCK_FOOTPRINT, INDEX_PANE_KEY, SHU_EVENT, SHU_ATTR, SHU_TAG } from "./domains/elements.js";
 import { getHash, hashOf, hashWithColumns } from "./view-hash.js";
@@ -27,20 +27,19 @@ import { ShuElement } from "./page/components/shu-element.js";
 import { registerComponents } from "./component-registry.js";
 import { conduit } from "./page/controllers/conduit-controller.js";
 import { reads } from "./page/domains/links.js";
-import { installServedConduit } from "./page/root.js";
 import { SSE_ROUTE } from "@haibun/core/lib/rpc-wire.js";
 import { installShuTokens } from "./page/components/styles.js";
 import { applyStoredTheme } from "./page/components/shu-theme-switch.js";
-import { pageEventStream, installCarriedEventStream, installServedEventStream } from "./page/root.js";
+import { installCarriedEventStream, installServedConduit, installServedEventStream, pageEventStream, pageObservers } from "./page/root.js";
 import { subscribeBatchedEvents } from "./page/controllers/event-stream-controller.js";
 import { followRunningTurns } from "./conversation.js";
 import { askEmbedderToDelegate, receiveFromEmbedder } from "./embedder.js";
-import { ensureUiComponentLoaded as sharedEnsureUiComponentLoaded } from "./external-components.js";
+import { loadComponent } from "./page/controllers/element-controller.js";
 import { paneOpsFor } from "./page/derivations/affordances.js";
 import { setActiveViewId } from "./quads-snapshot.js";
 import { SCOPE, dispatchSubjectEvent, entryOf } from "./current-subject.js";
 import { PageContextSchema, type TContextPattern } from "./schemas.js";
-import { activePane, pageContext, stripPanes, timeCursor } from "./signals.js";
+import { activePane, pageContext, stripPanes, timeCursor } from "./page/root.js";
 import { PaneState, PaneOpenSchema } from "./pane-state.js";
 import { followPaneLink } from "./page/components/ref-navigation.js";
 import type { ShuColumnStrip } from "./page/components/shu-column-strip.js";
@@ -51,7 +50,6 @@ import type { ShuFilterColumn } from "./page/components/shu-filter-column.js";
 import type { ShuGraphQuery } from "./page/components/shu-graph-query.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { reportFailure, reportToRun, type TClientLogLevel } from "./client-log.js";
-import { observeLongFrames } from "./long-frames.js";
 import { hydrateClientCache, viewsShown, readRunAt } from "./client-cache/index.js";
 
 const LAYOUT_STYLE = `
@@ -154,7 +152,7 @@ const main = async (): Promise<void> => {
 		installServedEventStream(SSE_ROUTE);
 	}
 	// Records the long frames of the page's main thread from the start, including the frames before this call.
-	observeLongFrames();
+	recordLongFrames(pageObservers());
 	// Install the shared design tokens at document level so combobox dropdowns and other elements rendered into document.body resolve the same `--shu-…` variables that shadow-DOM components inherit.
 	installShuTokens();
 	applyStoredTheme();
@@ -222,29 +220,6 @@ const main = async (): Promise<void> => {
 	const reportBootDiagnostic = (level: TClientLogLevel, msg: string, attrs?: Record<string, unknown>): void => reportToRun(level, "shu-app-boot", msg, attrs);
 	reportBootDiagnostic("debug", "shu-app boot reached the pane-open listeners");
 
-	const reportClientLog = (level: TClientLogLevel, message: string, attributes?: Record<string, unknown>): void => reportToRun(level, "shu-app", message, attributes);
-
-	/**
-	 * Reports each external-component lifecycle `phase` as a structured event. An error-level event also holds
-	 * `haibun.autonomic.event: "step.failure"` and exception attributes. An urakata tick failure holds the same attributes.
-	 * A consumer's autonomic loop reads that event from any source, so a source doesn't need its own channel.
-	 */
-	const reportExternalComponent = (
-		level: "debug" | "error" | "info" | "warn" | "error",
-		phase: "lookup" | "fetch" | "register" | "mount" | "missing-ui" | "missing-script" | "fetch-failed" | "register-failed" | "mounted",
-		component: string,
-		extra: Record<string, unknown> = {},
-	) => {
-		const message = `external-component ${component}: ${phase}${extra.error ? `, ${String(extra.error)}` : ""}`;
-		const attributes: Record<string, unknown> = { "haibun.shu.external-component.phase": phase, "haibun.shu.external-component.name": component, ...extra };
-		if (level === "error") {
-			attributes["haibun.autonomic.event"] = "step.failure";
-			attributes["exception.type"] = "ExternalComponentFailure";
-			attributes["exception.message"] = typeof extra.error === "string" ? extra.error : message;
-		}
-		reportClientLog(level, message, attributes);
-	};
-
 	// Activates the pane at `index` through PaneState. PaneState.setActivePane writes the paneId as the hash's `active`
 	// value. The hash doesn't hold a numeric index, since fromHash can't resolve a number and falls back to the leftmost
 	// pane.
@@ -300,9 +275,6 @@ const main = async (): Promise<void> => {
 		}) as EventListener,
 		{ signal },
 	);
-
-	// Binds this app's diagnostic reporter to the shared loader in external-components.ts.
-	const ensureUiComponentLoaded = (childTag: string): Promise<void> => sharedEnsureUiComponentLoaded(childTag, reportExternalComponent);
 
 	// The end event of a completed step can hold hypermedia products. Each product with view markers opens a pane through
 	// PaneState. A trace substep doesn't open a view (see pane-event-router). paneOpsFor keeps only the latest op per pane
@@ -449,7 +421,7 @@ const main = async (): Promise<void> => {
 		PaneState.init(
 			strip0,
 			{
-				ensureLoaded: (tag) => ensureUiComponentLoaded(tag),
+				ensureLoaded: (tag) => loadComponent(tag),
 				afterAttach: {
 					entity: (d, child) => (child as ShuEntityColumn).open(d.id, d.persistedAs, d.selector),
 					type: (d, child) => (child as import("./page/components/shu-type-column.js").ShuTypeColumn).open(d.persistedAs),
@@ -485,7 +457,7 @@ const main = async (): Promise<void> => {
 	}
 };
 
-reportRefusedScripts();
+reportRefusedScripts(pageObservers());
 if (document.readyState === "loading") {
 	document.addEventListener("DOMContentLoaded", () => void main());
 } else {

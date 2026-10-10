@@ -16,7 +16,7 @@ import { ShuColumnPane } from "./shu-column-pane.js";
 // The app registers the ask pane, which the bar renders in Ask mode.
 import "./shu-kihan-chat.js";
 import { INITIAL_SUBJECT, SCOPE, currentSubjectState } from "../../current-subject.js";
-import { pageContext, pageStatus, pageTrail } from "../../signals.js";
+import { pageContext, pageStatus, pageTrail } from "../controllers/page-cell-controller.js";
 import { STOPPED_BY_THE_READER, conversationState, dispatchConversationEvent } from "../../conversation.js";
 import { commandList } from "../derivations/step-input.js";
 import { aType } from "../../schemas.js";

@@ -19,7 +19,7 @@ import { pagePreferences } from "../page/root.js";
 import { INITIAL_WINDOW_SIZE, PAGE_SETTING_KEY, WindowSizeSchema } from "../page/domains/settings.js";
 import { storedSetting, windowRows } from "../page/derivations/settings.js";
 import { SHU_TAG } from "../domains/elements.js";
-import { pagePinned } from "../page-pinned.js";
+import { pagePinned } from "../page/adapters/page-held.js";
 import { pageRunGraph } from "../quads-snapshot.js";
 import { ofExecution, type TRunGraph } from "./run-graph.js";
 import { individualAsQuads } from "./quad-store.js";
@@ -30,7 +30,7 @@ import type { TScrollMarker } from "../page/derivations/rail.js";
 import { RUN_WINDOW_SIZE, inRunOrder, producedUnderSteps, runExtent, runWindow, type TRunRow } from "./run-window.js";
 import { runShape } from "./run-shape.js";
 import { railAt, momentAt, type TRunFocus, type TRunSpan } from "../page/derivations/rail.js";
-import { timeCursor } from "../signals.js";
+import { timeCursor } from "../page/root.js";
 import { atLiveEdge, noteRunSpan, readingBy, runReadingAt, type RunSource, type TEventRecord, type TRunExtent } from "./run-source.js";
 
 /** The source actuality's window reports under. */

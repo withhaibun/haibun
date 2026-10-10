@@ -6,7 +6,7 @@
  * survives.
  */
 import { SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import { html, css, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { ref, createRef } from "lit/directives/ref.js";

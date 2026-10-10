@@ -9,7 +9,7 @@
  * `summarizeForKihan` method and not by `instanceof`. The polymorphic view is built into a separate bundle, which defines
  * its own ShuElement class.
  */
-import { activePane } from "./signals.js";
+import { activePane } from "./page/root.js";
 import { PAGE_TERMS, ViewCollectionSchema, viewCollection, type TLinkedData, type TViewCollection } from "@haibun/core/lib/hypermedia.js";
 
 type TSummarizes = Element & { summarizeForKihan(): TLinkedData | null };

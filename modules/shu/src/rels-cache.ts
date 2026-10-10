@@ -336,7 +336,7 @@ export function hasUsableSelectValues(label: string): boolean {
 
 import type { TConcernCatalog, TTitledBy } from "@haibun/core/lib/hypermedia.js";
 import { LinkRelations, RESOURCE_LABEL, getPropertyDefinitions, isSubPropertyOf, roleRels, fromActorRels, toActorRels } from "@haibun/core/lib/resources.js";
-import { pagePinned } from "./page-pinned.js";
+import { pagePinned } from "./page/adapters/page-held.js";
 
 // What the site declares is one thing per page, and a page is more than one bundle: the app, the graph view, a panel a
 // deployment adds. Held per bundle, whichever bundle did not ask the site wouldn't have a vocabulary at all.

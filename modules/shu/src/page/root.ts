@@ -2,15 +2,21 @@
  * The page's composition root. It installs each of the page's ports once per page, and every bundle on the page reads the
  * installed port, since a bundle that loads this module holds its own copy of it.
  */
-import { pagePinned } from "../page-pinned.js";
-import { machine, type Machine } from "@haibun/core/lib/machine.js";
-import type { TClock, TConduit, TEventStream, TPreferences, TStreamReports } from "./ports.js";
+import { pagePinned } from "./adapters/page-held.js";
+import { SharedCell } from "./adapters/shared-cell.js";
+import { Machine, machine, type TMove, type TTransition } from "@haibun/core/lib/machine.js";
+import type { TClipboard, TClock, TConduit, TElements, TPageObservers, TEventStream, TPreferences, TSharedCell, TStreamReports } from "./ports.js";
+import type { TDockedPane, TPageTypes, TStripPane } from "./domains/page-state.js";
+import { NOTHING_SELECTED_LABEL, type TPageContext } from "../schemas.js";
 import { DELEGATIONS_READ_METHOD } from "@haibun/core/lib/authority-types.js";
 import { SHOW_STEPS_ACTION, SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import type { TProveRequest } from "@haibun/core/lib/rpc-wire.js";
-import { LiveConduit, serverLastRespondedAt } from "./adapters/live-conduit.js";
+import { initialConduitHeld, LiveConduit } from "./adapters/live-conduit.js";
 import { cookiePreferences } from "./adapters/prefs-cookie.js";
 import { browserClock } from "./adapters/clock.js";
+import { browserClipboard } from "./adapters/clipboard.js";
+import { browserElements } from "./adapters/elements.js";
+import { browserObservers } from "./adapters/page-observers.js";
 import { liveEventStream, type TLiveStreamSource } from "./adapters/live-event-stream.js";
 import { CarriedEventStream } from "./adapters/carried-event-stream.js";
 import { FOLLOWS_THE_RUN } from "@haibun/core/lib/actions.js";
@@ -20,9 +26,13 @@ import { INITIAL_STREAM_STATUS, STREAM_EVENT, streamTransition, type TStreamEven
 
 const PREFERENCES_KEY = "__SHU_PREFERENCES__";
 const CLOCK_KEY = "__SHU_CLOCK__";
+const CLIPBOARD_KEY = "__SHU_CLIPBOARD__";
+const ELEMENTS_KEY = "__SHU_ELEMENTS__";
+const OBSERVERS_KEY = "__SHU_OBSERVERS__";
 const EVENT_STREAM_KEY = "__SHU_EVENT_STREAM__";
 const STREAM_STATUS_KEY = "__SHU_STREAM_STATUS__";
 const CONDUIT_KEY = "__SHU_CONDUIT__";
+const CONDUIT_HELD_KEY = "__SHU_CONDUIT_HELD__";
 
 /** Returns the page's preferences, stored in the page's cookies. */
 export const pagePreferences = (): TPreferences => pagePinned(PREFERENCES_KEY, () => cookiePreferences(window));
@@ -32,6 +42,15 @@ export const pageClock = (): TClock => pagePinned(CLOCK_KEY, () => browserClock(
 
 /** Installs `clock` as the page's clock where the page doesn't hold one yet. A test installs a clock it advances. */
 export const installClock = (clock: TClock): TClock => pagePinned(CLOCK_KEY, () => clock);
+
+/** Returns the page's clipboard. */
+export const pageClipboard = (): TClipboard => pagePinned(CLIPBOARD_KEY, () => browserClipboard(window));
+
+/** Returns the page's custom elements. */
+export const pageElements = (): TElements => pagePinned(ELEMENTS_KEY, () => browserElements(customElements));
+
+/** Returns what the browser reports of the page. */
+export const pageObservers = (): TPageObservers => pagePinned(OBSERVERS_KEY, () => browserObservers(window));
 
 /** Returns the status of the page's event stream, which its adapter moves as the stream opens, breaks and closes. */
 export const streamStatus = (): Machine<TStreamStatus, TStreamEvent> => pagePinned(STREAM_STATUS_KEY, () => machine(INITIAL_STREAM_STATUS, streamTransition));
@@ -105,7 +124,7 @@ function provingFor(method: string): TProveRequest {
 
 /** Installs the conduit that calls the site at `basePath`, signed with the page's authority. A served page installs it. */
 export const installServedConduit = (basePath: string): TConduit =>
-	installConduit(new LiveConduit({ prove: provingFor, actualityId: hydratedActualityId, responseTimeoutMs, forgetAuthority: forgetPageAuthority }, basePath, null));
+	installConduit(new LiveConduit({ prove: provingFor, actualityId: hydratedActualityId, responseTimeoutMs, forgetAuthority: forgetPageAuthority }, conduitHeld(), basePath, null));
 
 /** Whether the page holds a conduit. A page mounted without one, as a bundle under test, doesn't send its blips. */
 export const hasConduit = (): boolean => installedConduit().conduit !== undefined;
@@ -117,5 +136,41 @@ export function pageConduit(): TConduit {
 	return conduit;
 }
 
+/** What the page holds of its calls, across its bundles. */
+const conduitHeld = () => pagePinned(CONDUIT_HELD_KEY, initialConduitHeld);
+
 /** Returns when the site last responded to the page, or undefined where it hasn't responded. */
-export const lastResponseAt = (): number | undefined => serverLastRespondedAt();
+export const lastResponseAt = (): number | undefined => conduitHeld().respondedAt;
+
+/** A machine of the page: its state and its moves are cells the page holds under `key`, so every view in every bundle reads
+ *  the state and follows the moves. */
+export const sharedMachine = <S, E>(key: string, initial: S, transition: TTransition<S, E>): Machine<S, E> & { readonly state: TSharedCell<S> } =>
+	new Machine(new SharedCell(key, initial), new SharedCell<TMove<S, E> | null>(`${key}:moves`, null), transition) as Machine<S, E> & { readonly state: TSharedCell<S> };
+
+/** The page's time cursor, in epoch milliseconds, or null where the page follows actuality as it happens. A view opened at
+ *  a moment holds its own cursor. */
+export const timeCursor = new SharedCell<number | null>("timeCursor", null);
+
+/** The column key of the pane the reader acts from, or null where the query pane is active. The pane router writes it, and
+ *  the ask's context, each view's `isActiveView`, the strip and the graph view's dimming read it. */
+export const activePane = new SharedCell<string | null>("activePane", null);
+
+/** What the view the reader acts from states it shows, or null until a view states it. The page writes it from each view's
+ *  `CONTEXT_CHANGE`. */
+export const pageContext = new SharedCell<TPageContext | null>("pageContext", null);
+
+/** The pane docked along the bottom of the page, or null where a pane isn't docked. The docked pane writes it, and the page
+ *  strip opens and closes the pane through it. */
+export const dockedPane = new SharedCell<TDockedPane | null>("dockedPane", null);
+
+/** The types the page searches. The actions bar's search writes it, and the page strip offers them beside what it found. */
+export const pageTypes = new SharedCell<TPageTypes>("pageTypes", { options: [], selected: "" });
+
+/** What the page's breadcrumb names first: the search the query surface states. The actions bar's search writes it. */
+export const pageTrail = new SharedCell<string>("pageTrail", NOTHING_SELECTED_LABEL);
+
+/** What the page reports of itself, which the page strip shows: a failure, a site that didn't respond. */
+export const pageStatus = new SharedCell<string>("pageStatus", "");
+
+/** The panes the column strip holds, in its order. The strip writes it. */
+export const stripPanes = new SharedCell<ReadonlyArray<TStripPane>>("stripPanes", []);

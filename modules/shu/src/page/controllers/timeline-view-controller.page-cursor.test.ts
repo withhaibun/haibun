@@ -8,7 +8,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { html, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement } from "../components/shu-element.js";
-import { timeCursor } from "../../signals.js";
+import { timeCursor } from "../root.js";
 import { SHU_ATTR } from "../../domains/elements.js";
 import { TimelineViewController } from "./timeline-view-controller.js";
 

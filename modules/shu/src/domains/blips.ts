@@ -1,7 +1,7 @@
 /**
  * The blips a page and its views record, each declared once. The browser records under these names, and actuality accepts
  * them under the same names. A page records each long animation frame, which holds the main thread and delays input
- * behind it, with the longest script that ran in it (`long-frames.ts`). A view records its scroll position, its rail
+ * behind it, with the longest script that ran in it (`page/pipelines/page-observations.ts`). A view records its scroll position, its rail
  * thumb's size and its visible row window on each change, and states whether the reader or the page moved it.
  */
 import { z } from "zod";

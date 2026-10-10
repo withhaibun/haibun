@@ -9,7 +9,7 @@
  * be put, the level decides how much of the answer comes back, and a reader is looking at both in one place.
  */
 import { SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { html, css, type TemplateResult } from "lit";
 import { ShuElement, type TLinkedData } from "./shu-element.js";

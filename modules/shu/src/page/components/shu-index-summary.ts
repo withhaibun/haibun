@@ -16,7 +16,7 @@ import { state } from "lit/decorators.js";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { describeSearch } from "./shu-search-summary.js";
 import { viewQuery } from "../../view-query.js";

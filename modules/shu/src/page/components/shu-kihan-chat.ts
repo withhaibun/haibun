@@ -44,7 +44,7 @@ import { pageMay } from "../../page-key.js";
 import { allowForTurns, readTurnAllowance, turnAllowance, withdrawFromTurns } from "../../turn-allowance.js";
 import { harvestChatViewLd } from "../../chat-context-harvest.js";
 import { SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import { actionRef, recordRef, stepRef } from "./shu-ref.js";
 import { reportToRun } from "../../client-log.js";
 import { embeddedPageView, embeddedViewLd } from "../../embedder.js";

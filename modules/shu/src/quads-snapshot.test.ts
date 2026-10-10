@@ -38,7 +38,7 @@ import { installServedConduit } from "./page/root.js";
 import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { installCarriedEventStream } from "./page/root.js";
-import { endPage, pagePinned } from "./page-pinned.js";
+import { endPage, pagePinned } from "./page/adapters/page-held.js";
 import { storeDeclaring } from "@haibun/core/lib/test/declared-types.js";
 
 const STORE_KEY = "__SHU_QUADS_SNAPSHOT_STORE__";

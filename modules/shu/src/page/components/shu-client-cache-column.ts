@@ -11,7 +11,7 @@
  * the server's registry the page runs on came from: the server, or the device's copy when the server did not respond.
  */
 import { SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import { html, css, type TemplateResult } from "lit";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";

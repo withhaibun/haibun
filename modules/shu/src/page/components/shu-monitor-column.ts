@@ -16,7 +16,7 @@ import { atLiveEdge, graphRunSource, type RunSource } from "../../client-cache/i
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { SCROLL_TO_INDEX, type TSeekBy } from "./shu-scrollbar.js";
 import { SHU_EVENT, SHU_TAG, TIME_SYNC_CLASS } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import type { WindowedSource } from "../../windowed-source.js";
 import type { TScrollMarker } from "../derivations/rail.js";
 import { artifactAt, artifactUrl } from "../../artifact-url.js";

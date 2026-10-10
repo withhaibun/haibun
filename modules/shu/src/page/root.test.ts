@@ -5,7 +5,7 @@
  * second bundle's copy.
  */
 import { afterEach, describe, expect, it } from "vitest";
-import { endPage } from "../page-pinned.js";
+import { endPage } from "./adapters/page-held.js";
 import * as first from "./root.js";
 
 /** The root module as another bundle loads it: the same source, a separate module instance. */

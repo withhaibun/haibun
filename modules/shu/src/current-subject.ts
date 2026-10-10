@@ -15,7 +15,7 @@
 import type { AccessQueryLevel } from "@haibun/core/lib/resources.js";
 import { DENOTES } from "@haibun/core/lib/typed-links.js";
 import type { TBundle, TContextPattern } from "./schemas.js";
-import { SharedMachine } from "./signals.js";
+import { sharedMachine } from "./page/root.js";
 
 /** A record: what a pane shows, or a comment of a conversation. */
 export type TRecord = { id: string; label: string };
@@ -112,6 +112,6 @@ export function scopeEntry(state: TSubjectState, scope: string): TEntry | null {
 }
 
 /** The one instance, shared across every component and bundle. */
-const subjectMachine = new SharedMachine<TSubjectState, TSubjectEvent>("currentSubject", INITIAL_SUBJECT, transition);
+const subjectMachine = sharedMachine<TSubjectState, TSubjectEvent>("currentSubject", INITIAL_SUBJECT, transition);
 export const currentSubjectState = subjectMachine.state;
 export const dispatchSubjectEvent = (event: TSubjectEvent): TSubjectState => subjectMachine.dispatch(event);

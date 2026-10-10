@@ -17,7 +17,7 @@
  * this host.
  */
 import { CONTEXT_DOCUMENT, SHU_TAG } from "../domains/elements.js";
-import { defineElement } from "../define-element.js";
+import { defineElement } from "../page/controllers/element-controller.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { html, type TemplateResult } from "lit";
 import type { TLinkedData } from "../page/components/shu-element.js";

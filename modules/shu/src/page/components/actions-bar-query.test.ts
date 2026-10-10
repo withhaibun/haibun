@@ -11,7 +11,7 @@ import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
-import { pageTypes } from "../../signals.js";
+import { pageTypes } from "../controllers/page-cell-controller.js";
 import { ActionsBarQuery, SEARCH_DEBOUNCE_MS, searchConditions } from "./actions-bar-query.js";
 import { aControllerHost } from "./controller-host.test-fake.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";

@@ -21,7 +21,7 @@ import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { ShuElement, type TLinkedData } from "../page/components/shu-element.js";
 import { shuBaseStyles, shuRowSeparated } from "../page/components/styles.js";
 import { SHU_EVENT, SHU_TAG } from "../domains/elements.js";
-import { defineElement } from "../define-element.js";
+import { defineElement } from "../page/controllers/element-controller.js";
 import { SHU_TEST_IDS } from "../domains/test-ids.js";
 
 const FILTER_IDS = SHU_TEST_IDS.GRAPH_FILTER;

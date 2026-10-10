@@ -13,7 +13,7 @@
  * (`shu-product-view`). Its cursor is that moment, it doesn't follow the page's cursor, and it doesn't move the page's.
  */
 import type { ReactiveController, ReactiveControllerHost } from "lit";
-import { timeCursor } from "../../signals.js";
+import { timeCursor } from "../root.js";
 import { SHU_ATTR } from "../../domains/elements.js";
 import { hashParam, mergeHashParams, onHashChanged } from "../../view-hash.js";
 

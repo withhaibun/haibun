@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ScrollFollowController } from "./scroll-follow-controller.js";
-import { timeCursor } from "../../signals.js";
+import { timeCursor } from "../root.js";
 
 const LIVE = null; // timeCursor at the live edge
 const PAST = 42; // a scrubbed cutoff

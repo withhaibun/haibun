@@ -18,7 +18,7 @@
 	"linux-x64-4x-intel-xeon-processor-2-80ghz": {
 		"features": {
 			"/features/api/r_list.feature": {
-				"seconds": 0.1,
+				"seconds": 0,
 				"steps": 2,
 				"declaredStepTextHash": "0e33a9741ddea2875e4f87b3d1d86840245752385c43879a6144bbb35d7c822c"
 			},
@@ -29,6 +29,6 @@
 			}
 		},
 		"steps": 13,
-		"seconds": 0.1
+		"seconds": 0
 	}
 }

@@ -8,9 +8,9 @@
 import { html, css, type TemplateResult } from "lit";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT, SHU_ATTR, SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import { ColumnStripSchema } from "../../schemas.js";
-import { activePane, stripPanes } from "../../signals.js";
+import { activePane, stripPanes } from "../controllers/page-cell-controller.js";
 import { shuBaseStyles } from "./styles.js";
 import type { ShuColumnPane } from "./shu-column-pane.js";
 import { revealInDocument } from "../../reveal.js";

@@ -1,5 +1,5 @@
 import { SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import { esc } from "../../util.js";
 /**
  * <shu-spinner>: reusable spinner with status text for async UI operations.

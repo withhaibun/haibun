@@ -18,7 +18,7 @@ import { html } from "lit";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import { ShuChatMessage } from "./shu-chat-message.js";
 import { CHAT_VIEW_PARAM, SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { FOLLOW_EDGE_SLACK_PX, ScrollFollowController } from "../controllers/scroll-follow-controller.js";
 import { SignalController } from "../controllers/signal-controller.js";

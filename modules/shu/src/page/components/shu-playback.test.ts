@@ -9,7 +9,7 @@
 import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ShuPlayback } from "./shu-playback.js";
-import { timeCursor } from "../../signals.js";
+import { timeCursor } from "../controllers/page-cell-controller.js";
 import { setupShuTest, type TShuTestHandle } from "../../test-setup.js";
 import { runStore } from "../../client-cache/run-store.test-fake.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
@@ -18,7 +18,7 @@ import { currentExecution, graphRunSource, readExecution } from "../../client-ca
 import { setGraphStore } from "../../quads-snapshot.js";
 import { setSiteMetadata, type SiteMetadata } from "../../rels-cache.js";
 import { SHU_EVENT } from "../../domains/elements.js";
-import { endPage } from "../../page-pinned.js";
+import { endPage } from "../adapters/page-held.js";
 
 const FIRST = 1_000_000;
 /** An execution a reader chose over the one being recorded. */

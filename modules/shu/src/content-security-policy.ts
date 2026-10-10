@@ -21,7 +21,7 @@ export const frameAncestors = (embedderOrigin: string | undefined): string => ["
  * declares by its `ui.js`. The 3D graph's layout library builds code from text under `'unsafe-eval'`. The voice assistant's speech
  * model compiles WebAssembly under `'wasm-unsafe-eval'`. The browser blocks an inline script without the nonce, an event
  * handler attribute, and a script a page adds other than by loading it from a running script. The page reports each
- * blocked script (`reportRefusedScripts`).
+ * blocked script (`reportRefusedScripts` in `page/pipelines/page-observations.ts`).
  */
 export const scriptSources = (nonce: string): string => ["script-src", `'nonce-${nonce}'`, "'strict-dynamic'", "'unsafe-eval'", "'wasm-unsafe-eval'"].join(" ");
 

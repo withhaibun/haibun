@@ -12,7 +12,7 @@
  * reaching the last row. The host translates whichever applies into `setAtBottom`.
  */
 import type { ReactiveController, ReactiveControllerHost } from "lit";
-import { timeCursor } from "../../signals.js";
+import { timeCursor } from "../root.js";
 import { TimelineViewController } from "./timeline-view-controller.js";
 
 /** How many pixels above its end a followed view may sit and still count as at the live edge: the height-estimate

@@ -27,8 +27,8 @@ import { jsonCarried, RecordsSchema, isRecord } from "@haibun/core/lib/json-text
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT, ANNOTATION_GLYPH, SHU_TAG, TIME_SYNC_CLASS } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
-import { copyText } from "../../copy-util.js";
+import { defineElement } from "../controllers/element-controller.js";
+import { copyText } from "../controllers/clipboard-controller.js";
 import { isReplyEdge } from "@haibun/core/lib/resources.js";
 import { anIndividual, EntityColumnSchema, type TContextPattern } from "../../schemas.js";
 import { EntityController } from "../controllers/entity-controller.js";

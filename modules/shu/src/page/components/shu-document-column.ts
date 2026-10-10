@@ -16,7 +16,7 @@ import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { SHU_ATTR, SHU_EVENT, SHU_TAG, TIME_SYNC_CLASS } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { shuBaseStyles } from "./styles.js";
 import { artifactStepId, buildArtifactIndex, generateDocumentMarkdown, stepAncestors } from "@haibun/core/lib/document-content.js";

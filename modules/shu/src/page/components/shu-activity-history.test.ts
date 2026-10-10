@@ -9,7 +9,7 @@ import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { setupShuTest } from "../../test-setup.js";
 import { conversationState, dispatchConversationEvent } from "../../conversation.js";
 import { ShuActivityHistory } from "./shu-activity-history.js";
-import { timeCursor } from "../../signals.js";
+import { timeCursor } from "../controllers/page-cell-controller.js";
 
 const SESSION = question("0.1.1");
 const arrivedIn = (history: ShuActivityHistory) => history.querySelector<HTMLElement>(`[data-testid="${SHU_TEST_IDS.APP.CHAT_ARRIVED}"]`);

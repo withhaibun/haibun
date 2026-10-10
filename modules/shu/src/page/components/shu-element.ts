@@ -41,7 +41,8 @@ import { property } from "lit/decorators.js";
 import { SignalWatcher } from "@lit-labs/signals";
 import { z } from "zod";
 import { SHU_TAG, SHU_ATTR, SHU_EVENT, SPINE_SLOT } from "../../domains/elements.js";
-import { activePane, type SharedSignal } from "../../signals.js";
+import { activePane } from "../controllers/page-cell-controller.js";
+import type { TSharedCell } from "../ports.js";
 import { parseTimestampValue, type TLinkedData } from "@haibun/core/lib/hypermedia.js";
 import { unwrap as unwrapWrappers } from "@haibun/core/lib/zod-unwrap.js";
 // Re-exported so every view can annotate its summarizeForKihan as `TLinkedData | null` from the same import it already
@@ -447,11 +448,11 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 		this.#teardowns.push(cleanup);
 	}
 
-	/** React to a {@link SharedSignal} for this element's lifetime: THE one way a component tracks shared reactive
+	/** React to a {@link TSharedCell} for this element's lifetime: THE one way a component tracks shared reactive
 	 * state RELIABLY regardless of which bundle it lives in. A SignalWatcher's auto-tracking does not cross an esbuild
 	 * IIFE boundary, so an external view (a separately-bundled viewer) would silently never re-render on a `get()` read;
-	 * the SharedSignal bus this subscribes does cross it. Auto-torn-down on disconnect. Default handler re-renders. */
-	protected watchSignal<V>(signal: SharedSignal<V>, handler: (value: V) => void = () => this.requestUpdate()): void {
+	 * the cell's subscribers this adds to does cross it. Auto-torn-down on disconnect. Default handler re-renders. */
+	protected watchSignal<V>(signal: TSharedCell<V>, handler: (value: V) => void = () => this.requestUpdate()): void {
 		this.autoTeardown(signal.subscribe(handler));
 	}
 

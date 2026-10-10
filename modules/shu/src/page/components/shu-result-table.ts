@@ -20,7 +20,7 @@ import { renderRef } from "./ref-navigation.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { statedTotal, viewCollection } from "@haibun/core/lib/hypermedia.js";
 import { SHU_EVENT, SHU_TAG, TIME_SYNC_CLASS } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import { z } from "zod";
 import { ResultTableSchema } from "../../schemas.js";
 import { idOf, persistedTypeOf, isVisibleKey } from "../../util.js";

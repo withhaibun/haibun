@@ -45,9 +45,9 @@ describe("findings held to a baseline", () => {
 		expect(() => check(FOUND)).not.toThrow();
 	});
 
-	it("fail where a count rises, listing the line of each finding of its kind in its file", () => {
+	it("fail where a count exceeds its record, listing the line of each finding of its kind in its file", () => {
 		record({ ...RECORDED, "b.ts": { [IMPORTS]: 1 } });
-		expect(() => check(FOUND)).toThrow(/rose above[\s\S]*b\.ts: imports a view 1 -> 2\n {4}b\.ts:7\n {4}b\.ts:9/);
+		expect(() => check(FOUND)).toThrow(/exceed what[\s\S]*b\.ts: imports a view 1 -> 2\n {4}b\.ts:7\n {4}b\.ts:9/);
 	});
 
 	it("fail where a finding in a file the baseline doesn't name appears", () => {
@@ -57,22 +57,22 @@ describe("findings held to a baseline", () => {
 
 	it("fail where a count falls, naming the command that writes the lower count", () => {
 		record({ ...RECORDED, "a.ts": { [UNPOSITIONED]: 2 } });
-		expect(() => check(FOUND)).toThrow(new RegExp(`fell below[\\s\\S]*${lowerCommand(TEST_FILE)}[\\s\\S]*a\\.ts: unpositioned 2 -> 1`));
+		expect(() => check(FOUND)).toThrow(new RegExp(`are lower than what[\\s\\S]*${lowerCommand(TEST_FILE)}[\\s\\S]*a\\.ts: unpositioned 2 -> 1`));
 	});
 
-	it("are lowered by the command where a count fell", () => {
+	it("are lowered by the command where a count is lower than its record", () => {
 		record({ ...RECORDED, "c.ts": { [UNPOSITIONED]: 1 } });
 		lowering();
 		check(FOUND);
 		expect(JSON.parse(readFileSync(baselineFile(), "utf-8"))).toEqual(RECORDED);
 	});
 
-	it("aren't written by the command where a count rose", () => {
-		const rose = { "a.ts": { [UNPOSITIONED]: 1 } };
-		record(rose);
+	it("aren't written by the command where a count exceeds its record", () => {
+		const exceeding = { "a.ts": { [UNPOSITIONED]: 1 } };
+		record(exceeding);
 		lowering();
 		expect(() => check(FOUND)).toThrow(/writes only lower counts[\s\S]*b\.ts: imports a view 0 -> 2/);
-		expect(JSON.parse(readFileSync(baselineFile(), "utf-8"))).toEqual(rose);
+		expect(JSON.parse(readFileSync(baselineFile(), "utf-8"))).toEqual(exceeding);
 	});
 
 	it("reject a baseline that doesn't hold positive whole counts by file", () => {

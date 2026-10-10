@@ -5,7 +5,7 @@ import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import type { TLink } from "./page/domains/links.js";
 import { CLIENT_RING } from "./domains/elements.js";
 import { clientBlipsRecorded, clientBlipsSent, flushClientBlips, recordClientBlip } from "./client-blips.js";
-import { endPage } from "./page-pinned.js";
+import { endPage } from "./page/adapters/page-held.js";
 import { carryARun, openReportingPage, setupShuTest, type TShuTestHandle } from "./test-setup.js";
 import { CLIENT_LOG_METHOD } from "./client-log.js";
 import { readAction } from "@haibun/core/lib/actions.js";

@@ -10,13 +10,12 @@
  * mounted subtree document-reachable wherever the product view is embedded.
  */
 import { SHU_TAG, SHU_ATTR } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement, isDefined, loadComponent } from "../controllers/element-controller.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { html, css, type TemplateResult } from "lit";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { resolveUi } from "../../resolve-ui.js";
-import { ensureUiComponentLoaded } from "../../external-components.js";
 
 export class ShuProductView extends ShuElement<typeof EmptyStateSchema> {
 	/** Delegates to the mounted child view: the wrapper summarizes for its whole subtree. */
@@ -44,8 +43,8 @@ export class ShuProductView extends ShuElement<typeof EmptyStateSchema> {
 	openProducts(products: Record<string, unknown>, snapshotTime?: number): void {
 		this.replaceChildren();
 		const tag = resolveUi(products).component;
-		if (!customElements.get(tag)) {
-			void ensureUiComponentLoaded(tag)
+		if (!isDefined(tag)) {
+			void loadComponent(tag)
 				.then(() => this.mountProduct(tag, products, snapshotTime))
 				.catch((err) => {
 					this.textContent = `failed to load ${tag}: ${errorDetail(err)}`;

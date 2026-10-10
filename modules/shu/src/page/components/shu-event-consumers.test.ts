@@ -12,7 +12,7 @@ import { WINDOW_CHANGED, ShuVirtualColumn } from "./shu-virtual-column.js";
 import { SCROLL_TO_INDEX } from "./shu-scrollbar.js";
 import type { WindowedSource } from "../../windowed-source.js";
 import { html } from "lit";
-import { timeCursor } from "../../signals.js";
+import { timeCursor } from "../controllers/page-cell-controller.js";
 import { setupShuTest, storeFields, type TShuTestHandle } from "../../test-setup.js";
 import { PAGE_SETTING_KEY } from "../domains/settings.js";
 import { runStore } from "../../client-cache/run-store.test-fake.js";
@@ -26,7 +26,7 @@ import { setSiteMetadata, type SiteMetadata } from "../../rels-cache.js";
 import { pagePreferences } from "../root.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { ICON_LOG_INFO, ICON_LOG_WARN, ICON_STEP_COMPLETED } from "@haibun/core/schema/protocol.js";
-import { endPage } from "../../page-pinned.js";
+import { endPage } from "../adapters/page-held.js";
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 30));
 const iso = (n: number): string => new Date(n).toISOString();

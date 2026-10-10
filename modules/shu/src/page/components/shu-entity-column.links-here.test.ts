@@ -5,7 +5,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { countedTo } from "@haibun/core/lib/hypermedia.js";
 import { ShuEntityColumn } from "./shu-entity-column.js";
 import { setupShuTest, makeEntityDispatch, type TShuTestHandle } from "../../test-setup.js";
-import { endPage } from "../../page-pinned.js";
+import { endPage } from "../adapters/page-held.js";
 
 const CEILING = 3;
 

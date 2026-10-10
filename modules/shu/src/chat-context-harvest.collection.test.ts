@@ -15,7 +15,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { HARVEST_MEMBERS, harvested, harvestChatViewLd } from "./chat-context-harvest.js";
-import { activePane } from "./signals.js";
+import { activePane } from "./page/root.js";
 
 type TView = HTMLElement & { summarizeForKihan(): unknown | null };
 

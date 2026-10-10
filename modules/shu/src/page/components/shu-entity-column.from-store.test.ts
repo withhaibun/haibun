@@ -6,7 +6,7 @@ import { ShuEntityColumn } from "./shu-entity-column.js";
 
 import { setupShuTest, makeEntityDispatch, type TShuTestHandle } from "../../test-setup.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import { endPage } from "../../page-pinned.js";
+import { endPage } from "../adapters/page-held.js";
 
 const badge = (el: ShuEntityColumn): string | undefined => el.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.FROM_STORE}"]`)?.textContent ?? undefined;
 

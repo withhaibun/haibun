@@ -16,7 +16,7 @@ import { ActionsBarSteps } from "./actions-bar-steps.js";
 import { ActionsBarQuery } from "./actions-bar-query.js";
 import { ACTIONS_BAR_STYLES } from "./actions-bar-styles.js";
 import { SHU_EVENT, ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, SHU_TAG, CONVERSATION_PARAM } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import { SCOPE, dispatchSubjectEvent } from "../../current-subject.js";
 import type { ShuColumnPane } from "./shu-column-pane.js";
 import { ActionsBarSchema, BAR_MODES, QuestionForkSchema, StepChoiceSchema, TypeChoiceSchema, type TQuestionFork } from "../../schemas.js";
@@ -27,7 +27,7 @@ import type { ShuKihanChat } from "./shu-kihan-chat.js";
 // customElements.define side effect and leaving un-upgraded elements at runtime.
 import { ShuActivityHistory } from "./shu-activity-history.js";
 import { SignalController } from "../controllers/signal-controller.js";
-import { pageContext, pageStatus, pageTrail } from "../../signals.js";
+import { pageContext, pageStatus, pageTrail } from "../controllers/page-cell-controller.js";
 import { loadSlotExtensions } from "./slot-extensions.js";
 import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { closeConversation, conversationState, dispatchConversationEvent, openConversation, STOPPED_BY_THE_READER } from "../../conversation.js";

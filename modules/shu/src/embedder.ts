@@ -9,7 +9,7 @@ import { QuoteAnchorSchema } from "@haibun/core/lib/resources.js";
 import { CallLinkSchema, PAGE_TERMS } from "@haibun/core/lib/hypermedia.js";
 import type { TDelegation } from "@haibun/core/lib/actions.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { SharedSignal } from "./signals.js";
+import { SharedCell } from "./page/adapters/shared-cell.js";
 import { reportToRun } from "./client-log.js";
 import { holdGiven } from "./page-key.js";
 import { responseTimeoutMs } from "./rpc-registry.js";
@@ -58,10 +58,10 @@ export const FrameMessageSchema = z.object({ kind: z.literal(EMBED_MESSAGE.pageK
 type TFrameMessage = z.infer<typeof FrameMessageSchema>;
 
 /** The page the reader has open, as the embedding page last posted it. */
-export const embeddedPageView = new SharedSignal<TEmbeddedPageView | null>("embeddedPageView", null);
+export const embeddedPageView = new SharedCell<TEmbeddedPageView | null>("embeddedPageView", null);
 
 /** The delegation that the embedding page last gave to shu's page key. shu holds this delegation. */
-export const givenDelegation = new SharedSignal<TDelegation | null>("givenDelegation", null);
+export const givenDelegation = new SharedCell<TDelegation | null>("givenDelegation", null);
 
 /** The part of a frame's window that receives messages and references the embedding window (`parent`). */
 type TFrameWindow = Pick<Window, "parent" | "addEventListener" | "removeEventListener">;

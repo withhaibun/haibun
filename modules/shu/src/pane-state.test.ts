@@ -13,8 +13,8 @@ import { setSiteMetadata, type SiteMetadata } from "./rels-cache.js";
 import * as ViewHash from "./view-hash.js";
 import { installConduit, installServedConduit } from "./page/root.js";
 import { TestConduit } from "./test-setup.js";
-import { activePane } from "./signals.js";
-import { endPage } from "./page-pinned.js";
+import { activePane } from "./page/root.js";
+import { endPage } from "./page/adapters/page-held.js";
 
 /** Offline is which TConduit is installed: a serialized one doesn't have a location to mutate, a live one does. */
 const offline = () =>

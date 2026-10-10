@@ -1,6 +1,6 @@
 import { SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
-import { copyText } from "../../copy-util.js";
+import { defineElement } from "../controllers/element-controller.js";
+import { copyText } from "../controllers/clipboard-controller.js";
 import { esc } from "../../util.js";
 import { delay } from "../controllers/clock-controller.js";
 
@@ -55,7 +55,6 @@ export class ShuCopyButton extends HTMLElement {
 
 	private async copy(): Promise<void> {
 		if (this.sourceProvider) this._source = this.sourceProvider();
-		// copyText falls back to execCommand when the async Clipboard API is blocked/absent (e.g. a file:// report).
 		if (!(await copyText(this._source))) return;
 		this._copied = true;
 		this.render();

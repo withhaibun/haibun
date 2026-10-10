@@ -18,7 +18,7 @@
  * innerHTML this component sets and the layer the annotator injects intact across re-renders (see lit render pitfalls).
  */
 import { SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import { html, type TemplateResult, type PropertyValues } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { property, state } from "lit/decorators.js";

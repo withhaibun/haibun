@@ -24,10 +24,10 @@ import { INITIAL_SHOWN_CONTROLS, ShownControlsSchema, shownControlsKey } from ".
 import { storedSetting } from "./page/derivations/settings.js";
 import { presentationForType } from "./graph/type-presentation.js";
 import { getUiByComponent } from "./rels-cache.js";
-import { activePane } from "./signals.js";
+import { activePane } from "./page/root.js";
 import type { ShuColumnPane } from "./page/components/shu-column-pane.js";
 import type { ShuColumnStrip } from "./page/components/shu-column-strip.js";
-import { pagePinned } from "./page-pinned.js";
+import { pagePinned } from "./page/adapters/page-held.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 const FlagSchema = z.enum(["min", "max"]).optional();

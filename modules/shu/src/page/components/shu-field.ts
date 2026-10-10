@@ -8,7 +8,7 @@
  * It doesn't own the control: the control is the host's, slotted in, keeping its own id, value and events.
  */
 import { SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";

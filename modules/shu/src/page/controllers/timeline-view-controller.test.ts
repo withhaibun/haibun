@@ -5,7 +5,7 @@
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import { TimelineViewController } from "./timeline-view-controller.js";
-import { timeCursor } from "../../signals.js";
+import { timeCursor } from "../root.js";
 import { getHash, mergeHashParams } from "../../view-hash.js";
 
 const PAST = 42;

@@ -10,11 +10,11 @@ import "./shu-monitor-column.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { setupShuTest, type TShuTestHandle } from "../../test-setup.js";
 import { runStore } from "../../client-cache/run-store.test-fake.js";
-import { timeCursor } from "../../signals.js";
+import { timeCursor } from "../controllers/page-cell-controller.js";
 import { setGraphStore } from "../../quads-snapshot.js";
 import { setSiteMetadata, type SiteMetadata } from "../../rels-cache.js";
 import { currentExecution, graphRunSource } from "../../client-cache/index.js";
-import { endPage } from "../../page-pinned.js";
+import { endPage } from "../adapters/page-held.js";
 
 const IDS = SHU_TEST_IDS.CLIENT_CACHE;
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 30));

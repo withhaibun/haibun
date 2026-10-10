@@ -10,7 +10,7 @@
  * unified through Pointer Events so mouse, touch, and pen behave identically on every device.
  */
 import { SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import { html, css, nothing, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";

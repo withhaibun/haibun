@@ -12,7 +12,7 @@ import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { getAvailableSteps } from "../../rpc-registry.js";
 import { actionRef, domainRef, originLink } from "./shu-ref.js";

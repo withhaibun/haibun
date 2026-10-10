@@ -24,7 +24,7 @@ import { z } from "zod";
 import { ShuElement, type TLinkedData } from "../page/components/shu-element.js";
 import { shuBaseStyles } from "../page/components/styles.js";
 import { SHU_EVENT, SHU_TAG } from "../domains/elements.js";
-import { defineElement } from "../define-element.js";
+import { defineElement } from "../page/controllers/element-controller.js";
 import { SvgGraphRenderer, graphToDot, findSvgNodes, findSvgEdges } from "../graph/svg-renderer.js";
 import { buildNeighbors, connectedNodes } from "../graph/graph-neighbors.js";
 import type { IGraphRenderer, TGraph, TGraphRenderOptions } from "../graph/types.js";

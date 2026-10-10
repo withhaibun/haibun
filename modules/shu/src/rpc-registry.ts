@@ -4,7 +4,7 @@ import { reads, acts, type TLink } from "./page/domains/links.js";
 import { conduit } from "./page/controllers/conduit-controller.js";
 import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { getConcernCatalog, cachedConcernCatalog, setConcernCatalog } from "./rels-cache.js";
-import { pagePinned } from "./page-pinned.js";
+import { pagePinned } from "./page/adapters/page-held.js";
 import { deviceStore, type TCachePayload } from "./client-cache/index.js";
 import { reportFailure, reportToRun } from "./client-log.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";

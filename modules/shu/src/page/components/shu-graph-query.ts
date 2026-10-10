@@ -2,7 +2,7 @@ import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { html, css, type TemplateResult } from "lit";
 import { defaultLabel } from "../../util.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import { openRef } from "./ref-navigation.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 /**

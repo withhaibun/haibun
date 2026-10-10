@@ -506,9 +506,6 @@
 	"modules/shu/src/known-size-flow.ts": {
 		"anthropomorphic": 5
 	},
-	"modules/shu/src/long-frames.ts": {
-		"terminal-preposition": 1
-	},
 	"modules/shu/src/markdown-refs.test.ts": {
 		"anthropomorphic": 2,
 		"relation-verb": 1
@@ -544,9 +541,6 @@
 	"modules/shu/src/page-key.ts": {
 		"anthropomorphic": 7,
 		"terminal-preposition": 2
-	},
-	"modules/shu/src/page-pinned.ts": {
-		"relation-verb": 1
 	},
 	"modules/shu/src/page/components/actions-bar-query.test.ts": {
 		"anthropomorphic": 2,
@@ -1048,9 +1042,6 @@
 		"anthropomorphic": 3,
 		"negated-noun": 1,
 		"terminal-preposition": 1
-	},
-	"modules/shu/src/signals.ts": {
-		"anthropomorphic": 2
 	},
 	"modules/shu/src/test-setup.test.ts": {
 		"negated-noun": 1

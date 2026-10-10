@@ -10,7 +10,7 @@
  */
 import { hydratedActualityId } from "../rpc-registry.js";
 import { reportFailure, reportToRun } from "../client-log.js";
-import { pagePinned } from "../page-pinned.js";
+import { pagePinned } from "../page/adapters/page-held.js";
 
 /** The source the device store reports under. */
 const DEVICE_STORE = "device-store";

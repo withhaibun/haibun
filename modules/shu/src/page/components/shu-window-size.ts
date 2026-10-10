@@ -6,7 +6,7 @@ import { html, css, type TemplateResult } from "lit";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles, shuSegmentedStyles } from "./styles.js";
 import { SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import { INITIAL_WINDOW_SIZE, PAGE_SETTING_KEY, WINDOW_SIZES, WindowSizeSchema } from "../domains/settings.js";
 
 class ShuWindowSize extends ShuElement<typeof WindowSizeSchema> {

@@ -19,7 +19,7 @@ import {
 	subscribeExecutionSwitch,
 	type THeldExecution,
 } from "./executions.js";
-import { endPage } from "../page-pinned.js";
+import { endPage } from "../page/adapters/page-held.js";
 import { runStore } from "./run-store.test-fake.js";
 
 const OLDER = "1700000000000-1";

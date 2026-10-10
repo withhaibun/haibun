@@ -33,7 +33,8 @@ import { conduit } from "./page/controllers/conduit-controller.js";
 import { reads } from "./page/domains/links.js";
 import { getAvailableSteps, requireStep } from "./rpc-registry.js";
 import { SessionReadSchema, type TBundle, type TChatStatus, type TContextPattern, type TSessionTurn } from "./schemas.js";
-import { SharedMachine, SharedSignal } from "./signals.js";
+import { sharedMachine } from "./page/root.js";
+import { SharedCell } from "./page/adapters/shared-cell.js";
 import { appAccessLevel } from "./util.js";
 import { mergeHashParams } from "./view-hash.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
@@ -361,10 +362,10 @@ export function transcript(conversation: TConversationState, onTurn: string | un
 
 /** The question the reader is writing. The page holds it while the ask pane closes and opens again, and while the
  *  actions bar changes mode. */
-export const askDraft = new SharedSignal<string>("askDraft", "");
+export const askDraft = new SharedCell<string>("askDraft", "");
 
 /** The conversation machine's one instance. Every component and bundle shares it. */
-const conversationMachine = new SharedMachine<TConversationState, TConversationEvent>("conversation", CLOSED_CONVERSATION, transition);
+const conversationMachine = sharedMachine<TConversationState, TConversationEvent>("conversation", CLOSED_CONVERSATION, transition);
 export const conversationState = conversationMachine.state;
 /** The stop reason of a turn the reader stopped. */
 export const STOPPED_BY_THE_READER = "you stopped it";
@@ -378,7 +379,7 @@ export const dispatchConversationEvent = (event: TConversationEvent): TConversat
  * last read it. A session this page hasn't read counts every turn as gained. A view reads the map as a signal, so
  * opening a session updates the list and clears that session's gained count.
  */
-export const sessionsRead = new SharedSignal<Readonly<Record<string, number>>>("sessionsRead", {});
+export const sessionsRead = new SharedCell<Readonly<Record<string, number>>>("sessionsRead", {});
 
 /** Records that this page has read a session's turns. */
 function readTurnsOf(session: string, turns: number): void {

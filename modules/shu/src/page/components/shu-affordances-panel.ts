@@ -23,7 +23,7 @@ import {
 } from "@haibun/core/lib/affordances.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { RPC_METHOD, SHU_EVENT, AFFORDANCE_PARAM, SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import * as ViewHash from "../../view-hash.js";
 import { pathNodeIds, projectGoalPaths } from "../../graph/project-goal-paths.js";
 import { producingStepOf } from "../../graph/project-domain-chain.js";

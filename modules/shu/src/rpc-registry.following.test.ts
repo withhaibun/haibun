@@ -4,7 +4,7 @@ import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { findStep, getAvailableSteps, onStepsChanged } from "./rpc-registry.js";
 import { setupShuTest, stepsChanged, stepsShown, type TShuTestHandle } from "./test-setup.js";
 import { setDeviceStore, MemoryDeviceStore } from "./client-cache/index.js";
-import { endPage } from "./page-pinned.js";
+import { endPage } from "./page/adapters/page-held.js";
 
 const aStep = (stepName: string) => ({ method: `RunSteps-${stepName}`, stepperName: "RunSteps", stepName, pattern: stepName });
 const methodsOf = async () => (await getAvailableSteps()).map((step) => step.method);

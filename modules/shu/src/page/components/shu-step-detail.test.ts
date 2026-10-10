@@ -18,7 +18,7 @@ import { setGraphStore } from "../../quads-snapshot.js";
 import { setSiteMetadata, type SiteMetadata } from "../../rels-cache.js";
 import { noteExecution } from "../../client-cache/index.js";
 import { rpcAnswer, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
-import { endPage } from "../../page-pinned.js";
+import { endPage } from "../adapters/page-held.js";
 
 const EXECUTION = "1700000000000-1";
 const STEP = `${EXECUTION}.0.1`;

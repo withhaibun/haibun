@@ -5,7 +5,7 @@ import { z } from "zod";
 import { ShuClusteredGraphView, clusteredGraphStateShape } from "./shu-clustered-graph-view.js";
 import { statedTotal, type TLinkedData } from "@haibun/core/lib/hypermedia.js";
 import { SHU_EVENT, SHU_TAG } from "../domains/elements.js";
-import { defineElement } from "../define-element.js";
+import { defineElement } from "../page/controllers/element-controller.js";
 import { acts } from "../page/domains/links.js";
 import { conduit } from "../page/controllers/conduit-controller.js";
 import type { TPaneOpen } from "../pane-state.js";

@@ -24,7 +24,7 @@ import { readDeclarationsOfCatalog, type TReadDeclarations } from "@haibun/core/
 import { findStep, getAvailableSteps, isOffline, requireStep } from "./rpc-registry.js";
 import { IndexedDbQuadStore, deviceGraphStore } from "./client-cache/quad-store.js";
 import { heldDatabases } from "./client-cache/device-store.js";
-import { pagePinned } from "./page-pinned.js";
+import { pagePinned } from "./page/adapters/page-held.js";
 import { EDGE, type AccessLevel } from "@haibun/core/lib/resources.js";
 import { VARIABLE_FIELD } from "@haibun/core/lib/records/domains/variables.js";
 

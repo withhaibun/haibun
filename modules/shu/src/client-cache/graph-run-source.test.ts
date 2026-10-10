@@ -16,8 +16,8 @@ import { runStore } from "./run-store.test-fake.js";
 import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { graphRunSource } from "./graph-run-source.js";
 import { readRunAt, runReadingAt } from "./run-source.js";
-import { timeCursor } from "../signals.js";
-import { endPage } from "../page-pinned.js";
+import { timeCursor } from "../page/root.js";
+import { endPage } from "../page/adapters/page-held.js";
 
 const iso = (n: number): string => new Date(n).toISOString();
 const RUN = "1700000000000-1";

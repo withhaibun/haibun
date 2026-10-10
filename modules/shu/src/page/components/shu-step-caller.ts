@@ -12,7 +12,7 @@ import { cachedConcernCatalog, getConcernCatalog } from "../../rels-cache.js";
 import { JsonObjectTextSchema, RecordSchema, RecordsSchema } from "@haibun/core/lib/json-text.js";
 import { type TComboboxOption } from "../../schemas.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import { linkTo } from "../../rpc-registry.js";
 import { revealInDocument } from "../../reveal.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";

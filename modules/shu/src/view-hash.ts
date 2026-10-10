@@ -1,4 +1,4 @@
-import { pagePinned } from "./page-pinned.js";
+import { pagePinned } from "./page/adapters/page-held.js";
 import { isOffline } from "./rpc-registry.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 

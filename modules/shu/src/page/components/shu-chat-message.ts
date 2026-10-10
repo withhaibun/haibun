@@ -15,7 +15,7 @@ import type { ShuSpinner } from "./shu-spinner.js";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 import { SCOPE, dispatchSubjectEvent } from "../../current-subject.js";
 import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { patternRef, recordRef } from "./shu-ref.js";
 import { CalledSchema } from "@haibun/core/lib/called.js";

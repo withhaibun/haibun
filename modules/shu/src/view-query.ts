@@ -20,7 +20,7 @@ import { z } from "zod";
 import { AccessQuery, AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
 import { parseFilterParam, serializeFilterParam } from "./schemas.js";
 import { SearchConditionSchema, type TSearchCondition } from "@haibun/core/lib/quad-types.js";
-import { pagePinned } from "./page-pinned.js";
+import { pagePinned } from "./page/adapters/page-held.js";
 import * as ViewHash from "./view-hash.js";
 
 type TAccessQueryLevel = z.infer<typeof AccessQueryLevelSchema>;

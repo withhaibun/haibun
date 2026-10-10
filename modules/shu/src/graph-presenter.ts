@@ -7,7 +7,7 @@
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import type { TLinkedData } from "@haibun/core/lib/hypermedia.js";
 import { getUiPresenting } from "./rels-cache.js";
-import { ensureUiComponentLoaded } from "./external-components.js";
+import { loadComponent } from "./page/controllers/element-controller.js";
 
 /** A node a reader opened in a presenter. The presenter reports it to its host as `SHU_EVENT.GRAPH_NODE_CLICK`, and
  *  the host opens the resource the node names. */
@@ -44,7 +44,7 @@ export function presenterIn(host: HTMLElement, slot: string): TGraphPresenter | 
 export async function mountGraphPresenter(host: HTMLElement, slot: string, scope: string): Promise<TGraphPresenter | undefined> {
 	const tag = graphPresenterTag();
 	if (!tag) return undefined;
-	if (!customElements.get(tag)) await ensureUiComponentLoaded(tag);
+	await loadComponent(tag);
 	if (presenterIn(host, slot)) return undefined;
 	const presenter = document.createElement(tag) as TGraphPresenter;
 	presenter.slot = slot;

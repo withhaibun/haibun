@@ -3,6 +3,7 @@
  * page reads the installed one.
  */
 import type { TLink, TRepresentation, TStreamChunk } from "./domains/links.js";
+import type { TLongFrame } from "../domains/blips.js";
 
 /** An element's stored fields, by its tag and its instance's key. Each tag holds one record of its instances' fields. */
 export type TPreferences = {
@@ -22,6 +23,15 @@ export type TPreferences = {
 	watch(tag: string, key: string, fn: (fields: Record<string, unknown> | undefined) => void): () => void;
 };
 
+/** A value the page holds under a key, which every bundle reads and follows. */
+export type TSharedCell<T> = {
+	get(): T;
+	/** Sets the value, and calls each subscriber where it changed. */
+	set(v: T): void;
+	/** Calls `cb` with each new value and the value it replaced. Returns the call that stops it. */
+	subscribe(cb: (v: T, before: T) => void): () => void;
+};
+
 /** The page's time: the instant now, a call after a delay, and a call on the next frame the browser draws. */
 export type TClock = {
 	/** Returns the instant now, in epoch milliseconds. */
@@ -30,6 +40,35 @@ export type TClock = {
 	after(ms: number, fn: () => void): () => void;
 	/** Calls `fn` before the browser draws its next frame. Returns the call that cancels it. */
 	frame(fn: () => void): () => void;
+};
+
+/** The page's clipboard. */
+export type TClipboard = {
+	/** Copies `text` to the clipboard, and returns whether the clipboard holds it. */
+	copy(text: string): Promise<boolean>;
+};
+
+/** The page's custom elements. */
+export type TElements = {
+	/** Defines `element` under `tag`, where the page doesn't define the tag yet. */
+	define(tag: string, element: CustomElementConstructor): void;
+	/** Whether the page defines `tag`. */
+	isDefined(tag: string): boolean;
+	/** Imports `script`, and resolves once it defines `tag`. Throws where the import fails or the script doesn't define
+	 *  the element. */
+	load(tag: string, script: string): Promise<void>;
+};
+
+/** A script the page's Content-Security-Policy refused, as the browser reports it. */
+export type TRefusedScript = Pick<SecurityPolicyViolationEvent, "blockedURI" | "effectiveDirective" | "sourceFile" | "lineNumber">;
+
+/** What the browser reports of the page. */
+export type TPageObservers = {
+	/** Calls `fn` with each script the page's policy refuses. */
+	refusedScripts(fn: (refused: TRefusedScript) => void): void;
+	/** Calls `fn` with each long animation frame, including the frames before the call. Returns false where the browser
+	 *  doesn't report long frames. */
+	longFrames(fn: (frame: TLongFrame) => void): boolean;
 };
 
 /** An event actuality sends the page: a lifecycle, a log or a time-sync event. */

@@ -8,7 +8,7 @@
 import "fake-indexeddb/auto";
 import { authorityRefusal, notFromActuality, REFUSED_INVOCATION } from "@haibun/core/lib/rpc-wire.js";
 import { openPageAuthority, pageMay } from "../../page-key.js";
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { reads, acts, type TLink, type TRepresentation } from "../domains/links.js";
 import { hasLink, getLink } from "../derivations/links.js";
 import { conduit, serverLastRespondedAt } from "../controllers/conduit-controller.js";
@@ -29,7 +29,8 @@ function setHydration(payload: Record<string, unknown>): void {
 
 import { hydrateFromDom } from "../../rpc-registry.js";
 import { rpcAnswer, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
-import { endPage, pagePinned } from "../../page-pinned.js";
+import { endPage } from "./page-held.js";
+import { UNREACHABLE_RETRY_AFTER_MS } from "./live-conduit.js";
 
 /** The specifier of the copy of hypermedia.js that another bundle on the page loads. */
 const BUNDLE_COPY = "@haibun/core/lib/rpc-wire.js?bundle=graph-view";
@@ -318,10 +319,12 @@ describe("a server that does not respond", () => {
 			expect(made).toBe(1);
 			await conduit.follow(reads(SHOW_STEPS_METHOD), "a read within the span").catch(() => undefined);
 			expect(made, "the page doesn't call the site within the span, since the first call's timeout stands for it").toBe(1);
-			pagePinned<{ unreachableUntil: number }>("__SHU_SERVER_RESPONDED__", () => ({ unreachableUntil: 0 })).unreachableUntil = Date.now() - 1;
+			vi.useFakeTimers({ toFake: ["Date"] });
+			vi.setSystemTime(Date.now() + UNREACHABLE_RETRY_AFTER_MS);
 			await conduit.follow(reads(SHOW_STEPS_METHOD), "a read after it").catch(() => undefined);
 			expect(made, "and the page calls the site again after the span").toBe(2);
 		} finally {
+			vi.useRealTimers();
 			globalThis.fetch = fetchWas;
 			endPage();
 			document.head.innerHTML = "";

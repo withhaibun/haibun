@@ -11,7 +11,7 @@ import type { TemplateResult } from "lit";
 import { html } from "lit";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import type { TViewQuery } from "../../view-query.js";
 
 /** The human-readable one-line description of a search: type, text, per-field conditions, non-default access. */

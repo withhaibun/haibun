@@ -6,8 +6,8 @@ import { HYPERMEDIA } from "@haibun/core/schema/protocol.js";
 import { ShuElement } from "./page/components/shu-element.js";
 import { installConduit } from "./page/root.js";
 import { TestConduit } from "./test-setup.js";
-import { endPage } from "./page-pinned.js";
-import { activePane } from "./signals.js";
+import { endPage } from "./page/adapters/page-held.js";
+import { activePane } from "./page/root.js";
 
 describe("dispatchAffordanceFromResponse", () => {
 	beforeEach(() => {

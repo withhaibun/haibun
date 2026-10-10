@@ -31,7 +31,7 @@ import { ganttBarTimes, GANTT_ROW_H, GANTT_BAR_H, GANTT_BAR_D, GANTT_MIN_BAR_W, 
 import { type Adornment } from "../graph-layout.js";
 import { PolymorphicCamera, clearStripOffset, coveredTogether, type GanttExtent, type TMeasureUnit, type TPanDirection, type TZoomDirection } from "./polymorphic-camera.js";
 import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../../page/controllers/element-controller.js";
 import { ndcToClient, clientToNdc, screenShare, type TClientPoint } from "../polymorphic/polymorphic-project.js";
 import { syncPickTarget, restorePickTarget, type TPickObject, type TScaleRestore } from "../polymorphic/polymorphic-pick-sync.js";
 import { RenderContext, type TSceneCamera } from "./polymorphic-render-context.js";

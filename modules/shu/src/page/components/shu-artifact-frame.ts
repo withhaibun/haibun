@@ -4,7 +4,7 @@
  * Attributes: caption (display text).
  */
 import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../../define-element.js";
+import { defineElement } from "../controllers/element-controller.js";
 import { esc } from "../../util.js";
 import { shownOrReported } from "../../artifact-url.js";
 
