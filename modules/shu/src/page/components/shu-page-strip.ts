@@ -15,7 +15,7 @@ import { SignalController } from "../controllers/signal-controller.js";
 import { activePane, dockedPane, pageContext, pageStatus, pageTrail, pageTypes, stripPanes } from "../controllers/page-cell-controller.js";
 import { PAGE_STRIP_FOOTPRINT, PERMISSIONS_SLOT, SEARCH_SLOT, SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
-import { isOffline } from "../../rpc-registry.js";
+import { isOffline } from "../controllers/hydration-controller.js";
 import { reportToRun } from "../../client-log.js";
 import { appAccessLevel } from "../../util.js";
 import { PAGE_STRIP_STYLES } from "./page-strip-styles.js";

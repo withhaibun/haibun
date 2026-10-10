@@ -31,7 +31,7 @@ import { hasEventStream, subscribeBatchedEvents } from "./page/controllers/event
 import { type TEvent } from "./page/ports.js";
 import { conduit } from "./page/controllers/conduit-controller.js";
 import { reads } from "./page/domains/links.js";
-import { getAvailableSteps, requireStep } from "./rpc-registry.js";
+import { getAvailableSteps, requireStep } from "./page/controllers/registry-controller.js";
 import { SessionReadSchema, type TBundle, type TChatStatus, type TContextPattern, type TSessionTurn } from "./schemas.js";
 import { sharedMachine } from "./page/root.js";
 import { SharedCell } from "./page/adapters/shared-cell.js";

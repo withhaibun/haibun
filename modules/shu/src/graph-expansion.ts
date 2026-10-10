@@ -10,7 +10,7 @@
  */
 import { reads } from "./page/domains/links.js";
 import { conduit } from "./page/controllers/conduit-controller.js";
-import { getAvailableSteps, requireStep } from "./rpc-registry.js";
+import { getAvailableSteps, requireStep } from "./page/controllers/registry-controller.js";
 import { getRels } from "./rels-cache.js";
 import { appAccessLevel, idOf } from "./util.js";
 import { mergeQuadsIntoSnapshot, pinSubjects } from "./quads-snapshot.js";

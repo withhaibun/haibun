@@ -5,13 +5,12 @@ import { PaneState } from "./pane-state.js";
 import { HYPERMEDIA } from "@haibun/core/schema/protocol.js";
 import { ShuElement } from "./page/components/shu-element.js";
 import { installConduit } from "./page/root.js";
-import { TestConduit } from "./test-setup.js";
-import { endPage } from "./page/adapters/page-held.js";
+import { TestConduit, newPage } from "./test-setup.js";
 import { activePane } from "./page/root.js";
 
 describe("dispatchAffordanceFromResponse", () => {
 	beforeEach(() => {
-		endPage();
+		newPage();
 		activePane.set(null);
 		document.body.innerHTML = "";
 		installConduit(

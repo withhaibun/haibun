@@ -1,4 +1,4 @@
-import { isOffline } from "./rpc-registry.js";
+import { isOffline } from "./page/controllers/hydration-controller.js";
 import type { TCounted } from "@haibun/core/lib/hypermedia.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";

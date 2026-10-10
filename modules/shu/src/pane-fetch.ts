@@ -1,6 +1,7 @@
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { conduit } from "./page/controllers/conduit-controller.js";
-import { linkTo, getAvailableSteps, requireStep, carriedProducts } from "./rpc-registry.js";
+import { carriedProducts } from "./page/controllers/hydration-controller.js";
+import { linkTo, getAvailableSteps, requireStep } from "./page/controllers/registry-controller.js";
 import { appAccessLevel } from "./util.js";
 import { queryGraph } from "./quads-snapshot.js";
 import type { TCallLink } from "@haibun/core/lib/hypermedia.js";

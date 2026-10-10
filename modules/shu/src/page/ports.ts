@@ -10,6 +10,8 @@ import type { TLinkedData } from "@haibun/core/lib/hypermedia.js";
 import type { TDelegation } from "@haibun/core/lib/actions.js";
 import type { TProveRequest } from "@haibun/core/lib/rpc-wire.js";
 import type { TPageAuthority } from "./authority/pipelines/page-authority.js";
+import type { TCachePayload, TDeploymentSettings } from "../domains/hydration.js";
+import type { TActualityId } from "@haibun/core/lib/rpc-wire.js";
 
 /** An element's stored fields, by its tag and its instance's key. Each tag holds one record of its instances' fields. */
 export type TPreferences = {
@@ -130,6 +132,23 @@ export type TAuthority = {
 	prove(method: string, required: string | undefined): TProveRequest;
 	/** Returns the headers of a GET of the absolute address `url` as `action`. */
 	readingHeaders(url: string, action: string): Promise<Record<string, string>>;
+};
+
+/** What the page holds of its hydration. */
+export type THydrationRead = {
+	/** Returns the actuality whose records the page reads. Throws where the page wasn't served with it. */
+	actualityId(): TActualityId;
+	/** Returns the record of actuality the page carries, or undefined for a page a site serves. */
+	carried(): TCachePayload | undefined;
+	/** Returns the address the page opens at for a reader who arrives without one, or undefined where it doesn't state one. */
+	opensAt(): string | undefined;
+	/** Returns what the page carries of a view's products, by the step that produces them, or undefined where it doesn't. */
+	carriedProducts(method: string): unknown;
+	/** Returns what the deployment set for the page it served. Throws for a page a site didn't serve with them. */
+	settings(): TDeploymentSettings;
+	/** Returns the rounds of tool calls an ask starts with, or undefined where the deployment doesn't set them or a site
+	 *  didn't serve the page, as for a page that carries a record of actuality, whose ask doesn't send a turn. */
+	askToolLimit(): number | undefined;
 };
 
 /** The page's clipboard. */

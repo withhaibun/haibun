@@ -3,6 +3,7 @@
  * A record's body is shown in a sandboxed iframe, where a reference doesn't work, so the references the body makes are
  * listed beside it, once each: a markdown body's `#Type:id` links and an HTML body's.
  */
+import { newPage } from "../../test-setup.js";
 import { beforeEach, describe, expect, it } from "vitest";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { MEDIA_TYPE } from "@haibun/core/lib/media-types.js";
@@ -38,6 +39,7 @@ async function refsBeside(content: string, mediaType: string) {
 
 describe("the references a record's body makes", () => {
 	beforeEach(() => {
+		newPage();
 		provideLayout();
 		setSiteMetadata(META);
 		document.body.innerHTML = "";

@@ -7,8 +7,7 @@ import "fake-indexeddb/auto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { reportFailure, reportToRun } from "./client-log.js";
 import { authorityRefusal, RefusedCall } from "@haibun/core/lib/rpc-wire.js";
-import { endPage } from "./page/adapters/page-held.js";
-import { carryARun, serveThePage, openReportingPage, reportingTo, setupShuTest, type TReportedToRun, type TShuTestHandle } from "./test-setup.js";
+import { carryARun, serveThePage, openReportingPage, reportingTo, setupShuTest, type TReportedToRun, type TShuTestHandle, newPage } from "./test-setup.js";
 import { openPageAuthority } from "./page/authority/controllers/page-authority-controller.js";
 
 const SOURCE = "a view";
@@ -50,7 +49,7 @@ describe("the page's reports to actuality", () => {
 		reportToRun("warn", SOURCE, "carried");
 		t.teardown();
 		t = undefined;
-		endPage();
+		newPage();
 		reportToRun("warn", SOURCE, "without a conduit");
 		expect(reported).toEqual([]);
 	});

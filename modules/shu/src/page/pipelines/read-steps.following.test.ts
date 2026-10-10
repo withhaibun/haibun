@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
-import { findStep, getAvailableSteps, onStepsChanged } from "./rpc-registry.js";
-import { setupShuTest, stepsChanged, stepsShown, type TShuTestHandle } from "./test-setup.js";
-import { setDeviceStore, MemoryDeviceStore } from "./client-cache/index.js";
-import { endPage } from "./page/adapters/page-held.js";
+import { findStep, getAvailableSteps, onStepsChanged } from "../controllers/registry-controller.js";
+import { setupShuTest, stepsChanged, stepsShown, type TShuTestHandle } from "../../test-setup.js";
+import { setDeviceStore, MemoryDeviceStore } from "../../client-cache/index.js";
+import { endPage } from "../adapters/page-held.js";
 
 const aStep = (stepName: string) => ({ method: `RunSteps-${stepName}`, stepperName: "RunSteps", stepName, pattern: stepName });
 const methodsOf = async () => (await getAvailableSteps()).map((step) => step.method);
@@ -27,7 +27,7 @@ describe("the steps a page holds", () => {
 		handle?.teardown();
 	});
 
-	it("are read again when actuality signals its steps changed, and a view is told once they are read", async () => {
+	it("are read again when actuality signals its steps changed, and a view's listener is called once the page reads them", async () => {
 		let declared = [aStep("passes")];
 		handle = setupShuTest({ dispatch: (method) => (method === SHOW_STEPS_METHOD ? stepsShown(declared) : undefined) });
 		expect(await methodsOf()).toEqual(["RunSteps-passes"]);
@@ -92,6 +92,6 @@ describe("the steps a page holds", () => {
 		handle.emit({ id: "pause-1", timestamp: Date.now(), kind: "control", level: "debug", signal: "pause" });
 		stepsChanged(handle, 1);
 		await toldOfTheChange;
-		expect(toldAtRead, "a view is told once, of the read the change caused").toEqual([2]);
+		expect(toldAtRead, "a view's listener is called once, at the read the change caused").toEqual([2]);
 	});
 });

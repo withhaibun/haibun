@@ -1,7 +1,7 @@
 /** The page's hash, as a view and the page's reads read, write and follow it (`page/pipelines/page-hash.ts`). */
 import { pageHashHeld, pageLocation } from "../root.js";
 import * as PageHash from "../pipelines/page-hash.js";
-import { isOffline } from "../../rpc-registry.js";
+import { isOffline } from "./hydration-controller.js";
 
 const scope = (): PageHash.THashScope => ({ location: pageLocation(), held: pageHashHeld(), carried: isOffline() });
 

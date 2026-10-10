@@ -738,9 +738,6 @@
 		"states a destructured default value": 3,
 		"states a parameter's default value": 1
 	},
-	"modules/shu/src/rpc-registry.ts": {
-		"fills an absent value with a constant through ??": 2
-	},
 	"modules/shu/src/scenes.ts": {
 		"fills an absent value with a constant through ??": 2
 	},

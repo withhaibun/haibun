@@ -12,7 +12,7 @@ import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import { getAvailableSteps, stepsAllowedBy } from "../../rpc-registry.js";
+import { getAvailableSteps, stepsAllowedBy } from "../controllers/registry-controller.js";
 import { stepRef } from "./shu-ref.js";
 import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 

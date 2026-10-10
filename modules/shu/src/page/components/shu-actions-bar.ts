@@ -33,7 +33,7 @@ import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { closeConversation, conversationState, dispatchConversationEvent, openConversation, STOPPED_BY_THE_READER } from "../../conversation.js";
 import { hashParam, onHashChanged } from "../controllers/hash-controller.js";
 import { eventsAffectLabel } from "@haibun/core/lib/quad-types.js";
-import { isOffline } from "../../rpc-registry.js";
+import { isOffline } from "../controllers/hydration-controller.js";
 import { getActionBarChatExtensionTags } from "../../rels-cache.js";
 import { reportToRun } from "../../client-log.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";

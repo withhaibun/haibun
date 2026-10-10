@@ -41,7 +41,13 @@ const delegationTo = (controller: string, id = "urn:uuid:to-the-frame") => ({
 const aFrame = (parent: Window) => Object.assign(new EventTarget(), { parent }) as unknown as Window;
 const post = (frame: Window, data: unknown, origin: string, source: Window) => frame.dispatchEvent(new MessageEvent("message", { data, origin, source }));
 /** What the pipeline reads in `frame`: its channel to the embedding page, the page's cells and its clock. */
-const embedding = (frame: Window): TEmbedding => ({ channel: embedderChannel(frame, EMBEDDER), pageView: embeddedPageView, given: givenDelegation, authority: pageAuthorityPort(), clock: pageClock() });
+const embedding = (frame: Window): TEmbedding => ({
+	channel: embedderChannel(frame, EMBEDDER),
+	pageView: embeddedPageView,
+	given: givenDelegation,
+	authority: pageAuthorityPort(),
+	clock: pageClock(),
+});
 
 describe("what the page embedding shu posts", () => {
 	beforeEach(() => embeddedPageView.set(null));

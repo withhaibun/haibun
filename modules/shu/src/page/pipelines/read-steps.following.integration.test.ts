@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 /**
- * A page open on a run reads the run's steps again when the run adds to them: the run signals the change on its stream,
- * and the page reads its steps again over RPC. A run adds steps while a page is open when it stands up another host.
+ * A page open on actuality reads actuality's steps again when actuality adds to them: actuality signals the change on its
+ * stream, and the page reads its steps again over RPC. Actuality adds steps while a page is open when it starts another host.
  */
+import { requiredActionOf } from "../controllers/registry-controller.js";
 import { SSE_ROUTE } from "@haibun/core/lib/rpc-wire.js";
 import { describe, it } from "vitest";
 import { AStepper } from "@haibun/core/lib/astepper.js";
@@ -12,17 +13,17 @@ import { hostScopedMethodName, runRegistry } from "@haibun/core/lib/step-registr
 import Haibun from "@haibun/core/steps/haibun.js";
 import WebServerStepper from "@haibun/web-server-hono/web-server-stepper.js";
 import StorageFS from "@haibun/storage-fs/storage-fs.js";
-import MonitorStepper from "./monitor-stepper.js";
-import ShuStepper from "./shu-stepper.js";
-import { installServedConduit, } from "./page/root.js";
+import MonitorStepper from "../../monitor-stepper.js";
+import ShuStepper from "../../shu-stepper.js";
+import { installServedConduit } from "../root.js";
 
-import { installServedEventStream, pageEventStream } from "./page/root.js";
-import { getAvailableSteps, onStepsChanged } from "./rpc-registry.js";
-import { serveThePageFrom } from "./test-setup.js";
+import { installServedEventStream, pageEventStream } from "../root.js";
+import { getAvailableSteps, onStepsChanged } from "../controllers/registry-controller.js";
+import { serveThePageFrom } from "../../test-setup.js";
 import { DOMAIN_LINK } from "@haibun/core/lib/domains.js";
-import { endPage } from "./page/adapters/page-held.js";
+import { endPage } from "../adapters/page-held.js";
 
-/** The step another host would add, named as this run names that host's steps. */
+/** The step another host adds, named as actuality names that host's steps. */
 const ADDED = hostScopedMethodName(9, "Haibun-validateStep");
 
 /** Resolves once the page holds the added step. */
@@ -36,7 +37,7 @@ class StepsPage extends AStepper {
 			action: async ({ base }: { base: string }) => {
 				endPage();
 				await serveThePageFrom(base);
-				installServedConduit(base);
+				installServedConduit(base, requiredActionOf);
 				installServedEventStream(`${base}${SSE_ROUTE}`);
 				// The stream is open before the page reads, so the page reads its steps once and then once for the change.
 				await new Promise<void>((resolve) => {
@@ -85,7 +86,7 @@ describe("a page open on a run", () => {
 		const base = `http://localhost:${port}`;
 		const world = getTestWorldWithOptions({
 			...DEF_PROTO_OPTIONS,
-			// This run doesn't verify a delegation, so the deployment allows every action without one, as a haibun-only run does.
+			// This actuality doesn't verify a delegation, so the deployment allows every action without one, as haibun alone does.
 			moduleOptions: {
 				...DEF_PROTO_OPTIONS.moduleOptions,
 				[getStepperOptionName(WebServerStepper, "PORT")]: String(port),

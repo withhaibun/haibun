@@ -3,6 +3,7 @@
  * through the root, opens the page, and mounts `<shu-page>` in the served document's main element. The entry is outside the
  * module's kind positions, since it composes the views with the root (code-pattern CA4S2).
  */
+import "./page-hydration.js";
 import "../src/page/components/shu-page.js";
 import "../src/page/components/shu-permissions.js";
 import "../src/page/components/shu-page-key.js";
@@ -55,17 +56,8 @@ import { recordLongFrames, reportRefusedScripts } from "../src/page/pipelines/pa
 import { installShuTokens } from "../src/page/components/styles.js";
 import { applyStoredTheme } from "../src/page/components/shu-theme-switch.js";
 import type { ShuPage } from "../src/page/components/shu-page.js";
-import {
-	deploymentAllowedWithoutDelegation,
-	deploymentEmbedderOrigin,
-	deploymentVerifiesDelegations,
-	getAvailableSteps,
-	getHydratedViewHash,
-	hydratedCache,
-	hydrateFromDom,
-	pageBuild,
-	responseTimeoutMs,
-} from "../src/rpc-registry.js";
+import { deploymentAllowedWithoutDelegation, deploymentEmbedderOrigin, deploymentVerifiesDelegations, getHydratedViewHash, hydratedCache, pageBuild, responseTimeoutMs } from "../src/page/controllers/hydration-controller.js";
+import { getAvailableSteps, requiredActionOf } from "../src/page/controllers/registry-controller.js";
 import { hydrateClientCache, viewsShown } from "../src/client-cache/index.js";
 import { followRunningTurns } from "../src/conversation.js";
 
@@ -78,9 +70,8 @@ async function start(): Promise<void> {
 	// Whether the reader arrived at an address that names views, read before anything writes the hash. An address that names
 	// views is the reader's own arrangement; a reader whose address doesn't name one is shown actuality's views.
 	const arrivedWithAddress = getHash().length > 1;
-	hydrateFromDom();
 	const carried = hydratedCache();
-	startPage(authorityPort(), carried !== undefined, SSE_ROUTE);
+	startPage(authorityPort(), requiredActionOf, SSE_ROUTE);
 	// The page that embeds shu at the deployment's embedder origin posts the page the reader has open and a delegation to
 	// shu's key.
 	const embedder = carried === undefined && window.parent !== window ? deploymentEmbedderOrigin() : undefined;

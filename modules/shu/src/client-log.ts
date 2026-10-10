@@ -1,4 +1,4 @@
-import { isOffline } from "./rpc-registry.js";
+import { isOffline } from "./page/controllers/hydration-controller.js";
 import { authorityFailed, refusalCarried } from "@haibun/core/lib/rpc-wire.js";
 /**
  * The page's diagnostic channel to actuality. A page reports a diagnostic to actuality through the monitor's client-log

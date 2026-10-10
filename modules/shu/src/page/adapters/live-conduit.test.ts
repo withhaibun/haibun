@@ -5,6 +5,7 @@
  * `fetch`: a server that doesn't respond, the timeout, the retry interval and refusals. A regression in the contract
  * fails in this file. The component integration tests exercise `LiveConduit` against a running RPC service.
  */
+import { requiredActionOf } from "../controllers/registry-controller.js";
 import "fake-indexeddb/auto";
 import { authorityRefusal, notFromActuality, REFUSED_INVOCATION } from "@haibun/core/lib/rpc-wire.js";
 import { openPageAuthority, pageMay } from "../authority/controllers/page-authority-controller.js";
@@ -27,7 +28,7 @@ function setHydration(payload: Record<string, unknown>): void {
 	hydrate({ actualityId: PAGE_ACTUALITY, ...payload });
 }
 
-import { hydrateFromDom } from "../../rpc-registry.js";
+import { hydrateFromDom } from "../controllers/hydration-controller.js";
 import { rpcAnswer, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
 import { UNREACHABLE_RETRY_AFTER_MS } from "./live-conduit.js";
 
@@ -126,7 +127,7 @@ describe("a server that does not respond", () => {
 		const fetchWas = globalThis.fetch;
 		globalThis.fetch = () => Promise.reject(new TypeError("Failed to fetch"));
 		try {
-			const conduit = installServedConduit("");
+			const conduit = installServedConduit("", requiredActionOf);
 			const err = await conduit.follow(acts(SHOW_STEPS_METHOD), "test").then(
 				() => undefined,
 				(e: unknown) => e,
@@ -152,11 +153,11 @@ describe("a server that does not respond", () => {
 		const fetchWas = globalThis.fetch;
 		try {
 			globalThis.fetch = () => Promise.resolve(new Response("404 Not Found", { status: 404, headers: { "Content-Type": "text/plain; charset=UTF-8" } }));
-			await expect(installServedConduit("").follow(reads(SHOW_STEPS_METHOD), "test")).rejects.toThrow(
+			await expect(installServedConduit("", requiredActionOf).follow(reads(SHOW_STEPS_METHOD), "test")).rejects.toThrow(
 				notFromActuality(SHOW_STEPS_METHOD, 404, "text/plain; charset=UTF-8", "404 Not Found").error,
 			);
 			globalThis.fetch = () => Promise.resolve(rpcAnswer({ ok: false, error: "no such step" }, 422));
-			await expect(installServedConduit("").follow(reads(SHOW_STEPS_METHOD), "test")).rejects.toThrow("no such step");
+			await expect(installServedConduit("", requiredActionOf).follow(reads(SHOW_STEPS_METHOD), "test")).rejects.toThrow("no such step");
 		} finally {
 			globalThis.fetch = fetchWas;
 		}
@@ -168,7 +169,7 @@ describe("a server that does not respond", () => {
 		await openPageAuthority(undefined, [HELD]);
 		try {
 			globalThis.fetch = () => Promise.resolve(rpcAnswer(authorityRefusal("the presented authority failed verification: revoked"), REFUSED_INVOCATION));
-			await expect(installServedConduit("").follow(reads(SHOW_STEPS_METHOD), "test")).rejects.toThrow("revoked");
+			await expect(installServedConduit("", requiredActionOf).follow(reads(SHOW_STEPS_METHOD), "test")).rejects.toThrow("revoked");
 			expect(pageMay(HELD), "the page doesn't hold the authority actuality refused").toBe(false);
 		} finally {
 			globalThis.fetch = fetchWas;
@@ -181,7 +182,7 @@ describe("a server that does not respond", () => {
 		serveThePage();
 		globalThis.fetch = () => Promise.reject(new TypeError("Failed to fetch"));
 		try {
-			await installServedConduit("").follow(acts(SHOW_STEPS_METHOD), "test").catch(() => undefined);
+			await installServedConduit("", requiredActionOf).follow(acts(SHOW_STEPS_METHOD), "test").catch(() => undefined);
 			expect(serverLastRespondedAt(), "a page that hasn't reached a server doesn't hold such a time").toBeUndefined();
 			// The second part starts a new page, so the state the first part left doesn't affect it.
 			newPage();
@@ -189,7 +190,7 @@ describe("a server that does not respond", () => {
 			// An error the server returns still counts as a response, so a reader sees that the page reached the server.
 			globalThis.fetch = () => Promise.resolve(rpcAnswer({ error: "no such step" }, 422));
 			const before = Date.now();
-			await installServedConduit("").follow(acts(SHOW_STEPS_METHOD), "test").catch(() => undefined);
+			await installServedConduit("", requiredActionOf).follow(acts(SHOW_STEPS_METHOD), "test").catch(() => undefined);
 			expect(serverLastRespondedAt() ?? 0).toBeGreaterThanOrEqual(before);
 		} finally {
 			globalThis.fetch = fetchWas;
@@ -212,7 +213,7 @@ describe("a server that does not respond", () => {
 		}) as unknown as typeof globalThis.fetch;
 		try {
 			const began = Date.now();
-			const err = await installServedConduit("").follow(acts(SHOW_STEPS_METHOD), "test").then(
+			const err = await installServedConduit("", requiredActionOf).follow(acts(SHOW_STEPS_METHOD), "test").then(
 				() => undefined,
 				(e: unknown) => e,
 			);
@@ -238,7 +239,7 @@ describe("a server that does not respond", () => {
 			return Promise.resolve(new Response(stalled, { status: 200, headers: { "content-type": "application/json" } }));
 		}) as unknown as typeof globalThis.fetch;
 		try {
-			const err = await installServedConduit("").follow(acts(SHOW_STEPS_METHOD), "test").then(
+			const err = await installServedConduit("", requiredActionOf).follow(acts(SHOW_STEPS_METHOD), "test").then(
 				() => undefined,
 				(e: unknown) => e,
 			);
@@ -260,13 +261,13 @@ describe("a server that does not respond", () => {
 			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("timed out", "TimeoutError")), { once: true }));
 		}) as unknown as typeof globalThis.fetch;
 		try {
-			await installServedConduit("").follow(acts(SHOW_STEPS_METHOD), "a read the page awaits").catch(() => undefined);
+			await installServedConduit("", requiredActionOf).follow(acts(SHOW_STEPS_METHOD), "a read the page awaits").catch(() => undefined);
 			expect(bounds.at(-1), "a read the page awaits carries a timeout").toBe(true);
 			// The call that opens an action carries a timeout like any other awaited call. This part starts a page that
 			// hasn't found the site unreachable.
 			newPage();
 			serveThePage();
-			const streaming = installServedConduit("").followStream(acts(SHOW_STEPS_METHOD), () => undefined, { why: "actuality's own stream" }).catch(() => undefined);
+			const streaming = installServedConduit("", requiredActionOf).followStream(acts(SHOW_STEPS_METHOD), () => undefined, { why: "actuality's own stream" }).catch(() => undefined);
 			await new Promise((r) => setTimeout(r, 60));
 			expect(bounds.at(-1), "and a stream doesn't carry one, so a timeout doesn't close it while actuality writes to it").toBe(false);
 			void streaming;
@@ -287,7 +288,7 @@ describe("a server that does not respond", () => {
 			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("timed out", "TimeoutError")), { once: true }));
 		}) as unknown as typeof globalThis.fetch;
 		try {
-			const conduit = installServedConduit("");
+			const conduit = installServedConduit("", requiredActionOf);
 			await conduit.follow(reads(SHOW_STEPS_METHOD), "the first read").catch(() => undefined);
 			const afterFirst = made;
 			const began = Date.now();
@@ -313,7 +314,7 @@ describe("a server that does not respond", () => {
 			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("timed out", "TimeoutError")), { once: true }));
 		}) as unknown as typeof globalThis.fetch;
 		try {
-			const conduit = installServedConduit("");
+			const conduit = installServedConduit("", requiredActionOf);
 			await conduit.follow(reads(SHOW_STEPS_METHOD), "the first read").catch(() => undefined);
 			expect(made).toBe(1);
 			await conduit.follow(reads(SHOW_STEPS_METHOD), "a read within the span").catch(() => undefined);
@@ -344,7 +345,7 @@ describe("a server that does not respond", () => {
 			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("timed out", "TimeoutError")), { once: true }));
 		}) as unknown as typeof globalThis.fetch;
 		try {
-			const conduit = installServedConduit("");
+			const conduit = installServedConduit("", requiredActionOf);
 			await conduit.follow(reads(SHOW_STEPS_METHOD), "a view reading").catch(() => undefined);
 			const afterRead = asked.length;
 			await conduit.follow(acts("chatWithContext"), "the reader's question").catch(() => undefined);
@@ -365,7 +366,7 @@ describe("a server that does not respond", () => {
 			return Promise.reject(new TypeError("Failed to fetch"));
 		}) as unknown as typeof globalThis.fetch;
 		try {
-			const conduit = installServedConduit("");
+			const conduit = installServedConduit("", requiredActionOf);
 			await conduit.follow(acts(SHOW_STEPS_METHOD), "the first read").catch(() => undefined);
 			await conduit.follow(acts(SHOW_STEPS_METHOD), "the read after it").catch(() => undefined);
 			expect(made, "each call reached fetch, since the network refusal returned at once").toBeGreaterThan(1);
@@ -387,7 +388,7 @@ describe("a server that does not respond", () => {
 		}) as unknown as typeof globalThis.fetch;
 		try {
 			const stopping = new AbortController();
-			const following = installServedConduit("")
+			const following = installServedConduit("", requiredActionOf)
 				.followStream(acts(SHOW_STEPS_METHOD), () => undefined, { why: "a reader reading", signal: stopping.signal })
 				.then(
 					() => undefined,
@@ -407,7 +408,7 @@ describe("a server that does not respond", () => {
 		const fetchWas = globalThis.fetch;
 		globalThis.fetch = () => Promise.resolve(rpcAnswer({ error: "no such step" }, 422));
 		try {
-			const err = await installServedConduit("").follow(acts(SHOW_STEPS_METHOD), "test").then(
+			const err = await installServedConduit("", requiredActionOf).follow(acts(SHOW_STEPS_METHOD), "test").then(
 				() => undefined,
 				(e: unknown) => e,
 			);

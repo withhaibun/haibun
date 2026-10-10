@@ -34,7 +34,7 @@ import { actionRef, domainRef, factIdRef } from "./shu-ref.js";
 import { openRef } from "./ref-navigation.js";
 import { nodeIn, type TGraph } from "../../graph/types.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { linkTo } from "../../rpc-registry.js";
+import { linkTo } from "../controllers/registry-controller.js";
 import { noteExecution } from "../../client-cache/executions.js";
 import { revealInDocument } from "../../reveal.js";
 import { ClockController } from "../controllers/clock-controller.js";

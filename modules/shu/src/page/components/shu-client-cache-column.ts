@@ -22,7 +22,7 @@ import { currentRowIndex } from "../derivations/rail.js";
 
 import type { Range } from "../derivations/rail.js";
 import { HAIBUN_LOG_LEVELS } from "@haibun/core/schema/protocol.js";
-import { registryOrigin } from "../../rpc-registry.js";
+import { registryOrigin } from "../controllers/registry-controller.js";
 import { serverLastRespondedAt } from "../controllers/conduit-controller.js";
 import { emptyOrLoading } from "./empty-state.js";
 import {
@@ -322,7 +322,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 		return html`<div data-testid=${IDS.ROOT}>
 			<h4>Registry</h4>
 			<div data-testid=${IDS.REGISTRY}>
-				${registry === null ? "not known yet" : registry.from === "server" ? `from the server${cached ? `, cached on the device at ${at(cached.savedAt)}` : ""}` : `from the device, cached at ${at(registry.savedAt)} (the server did not respond)`}
+				${registry === undefined ? "not known yet" : registry.from === "site" ? `from the server${cached ? `, cached on the device at ${at(cached.savedAt)}` : ""}` : `from the device, cached at ${at(registry.savedAt)} (the server did not respond)`}
 			</div>
 			<h4>Server</h4>
 			<div data-testid=${IDS.SERVER}>${respondedAt === undefined ? "has not responded to this page" : `last responded at ${at(respondedAt)}`}</div>

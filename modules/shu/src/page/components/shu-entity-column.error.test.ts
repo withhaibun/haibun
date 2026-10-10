@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 /** Regression: a failing open() RPC must flip loading off and render the error banner. */
+import { requiredActionOf } from "../controllers/registry-controller.js";
 import { describe, it, expect, beforeEach } from "vitest";
 import { ShuEntityColumn } from "./shu-entity-column.js";
 import { installServedConduit } from "../root.js";
@@ -13,7 +14,7 @@ describe("shu-entity-column error surfacing", () => {
 		newPage();
 		document.body.innerHTML = "";
 		// LiveConduit honours the stubbed `fetch` below; CarriedEventStream replaces actuality's stream, which this case doesn't follow.
-		installServedConduit("");
+		installServedConduit("", requiredActionOf);
 		serveThePage();
 		installCarriedEventStream();
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});

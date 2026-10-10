@@ -8,7 +8,7 @@
  * write is a no-op. Browser-only (IndexedDB is absent in jsdom/node) → exercised by the e2e suites, with an in-memory
  * stand-in for the unit tests. It uses raw IndexedDB, promisified, without a dependency.
  */
-import { hydratedActualityId } from "../rpc-registry.js";
+import { hydratedActualityId } from "../page/controllers/hydration-controller.js";
 import { reportFailure, reportToRun } from "../client-log.js";
 import { pagePinned } from "../page/adapters/page-held.js";
 

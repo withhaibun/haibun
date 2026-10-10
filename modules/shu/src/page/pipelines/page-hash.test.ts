@@ -67,7 +67,9 @@ describe("params a view writes into the hash", () => {
 		mergeHashParams({ "aff-goal": undefined, "aff-waypoint": undefined });
 		expect(hashParam("aff-goal")).toBeUndefined();
 		expect(hashParam("label"), "and removing a deep link is not a reset").toBe("File");
-		expect(() => mergeHashParams({ "aff-goal": "" }), "an empty value is refused, since the hash doesn't distinguish it from a removed one").toThrow(/"aff-goal" is set to an empty value/);
+		expect(() => mergeHashParams({ "aff-goal": "" }), "an empty value is refused, since the hash doesn't distinguish it from a removed one").toThrow(
+			/"aff-goal" is set to an empty value/,
+		);
 	});
 
 	it("calls each view that follows it, since a write through the history doesn't raise an event", () => {

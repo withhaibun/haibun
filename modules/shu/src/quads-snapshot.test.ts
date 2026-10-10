@@ -12,6 +12,7 @@
  * import of the module in a new module-graph context (achieved here by
  * deleting the cached module) sees the same singleton store.
  */
+import { requiredActionOf } from "./page/controllers/registry-controller.js";
 import { serveThePage, setupShuTest, stepsShown, newPage } from "./test-setup.js";
 import { describe, it, expect, beforeEach } from "vitest";
 import {
@@ -205,7 +206,7 @@ describe("the graph a page caches, without a server to ask", () => {
 	beforeEach(() => {
 		newPage();
 		serveThePage();
-		installServedConduit("");
+		installServedConduit("", requiredActionOf);
 		serveThePage();
 		installCarriedEventStream();
 		globalThis.fetch = () => Promise.reject(new TypeError("this page has no server"));
@@ -243,7 +244,7 @@ describe("the dropdown values a reader is offered, without a server to ask", () 
 	beforeEach(() => {
 		newPage();
 		serveThePage();
-		installServedConduit("");
+		installServedConduit("", requiredActionOf);
 		serveThePage();
 		installCarriedEventStream();
 		globalThis.fetch = () => Promise.reject(new TypeError("this page has no server"));
@@ -274,7 +275,7 @@ describe("the rows a graph query names, without a server to ask", () => {
 	beforeEach(() => {
 		newPage();
 		serveThePage();
-		installServedConduit("");
+		installServedConduit("", requiredActionOf);
 		serveThePage();
 		installCarriedEventStream();
 		globalThis.fetch = () => Promise.reject(new TypeError("this page has no server"));

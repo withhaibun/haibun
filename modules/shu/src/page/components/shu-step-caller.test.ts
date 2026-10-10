@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { requiredActionOf } from "../controllers/registry-controller.js";
 import { describe, it, expect, beforeAll, beforeEach } from "vitest";
 import "./shu-step-caller.js";
 
@@ -33,7 +34,7 @@ describe("shu-step-caller", () => {
 		newPage();
 		document.body.innerHTML = "";
 		// LiveConduit goes through the stubbed `fetch` set in each test; CarriedEventStream stands in for the SSE source.
-		installServedConduit("");
+		installServedConduit("", requiredActionOf);
 		serveThePage();
 		installCarriedEventStream();
 	});

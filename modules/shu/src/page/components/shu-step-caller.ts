@@ -2,7 +2,7 @@ import { SHU_BASE } from "./styles.js";
 import { jsonDisclosure } from "./json-disclosure.js";
 import { conduit } from "../controllers/conduit-controller.js";
 import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
-import { getAvailableSteps, findStep } from "../../rpc-registry.js";
+import { getAvailableSteps, findStep } from "../controllers/registry-controller.js";
 import { queryGraph } from "../../quads-snapshot.js";
 import { dispatchAffordanceFromResponse } from "../../affordance-dispatch.js";
 import { esc, escAttr, prettifyGwta, normalizeStepKey } from "../../util.js";
@@ -13,7 +13,7 @@ import { JsonObjectTextSchema, RecordSchema, RecordsSchema } from "@haibun/core/
 import { type TComboboxOption } from "../../schemas.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
-import { linkTo } from "../../rpc-registry.js";
+import { linkTo } from "../controllers/registry-controller.js";
 import { revealInDocument } from "../../reveal.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 

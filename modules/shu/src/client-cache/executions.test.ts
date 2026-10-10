@@ -1,5 +1,6 @@
 // What a device holds of the runs it has read, and what it does when it can't hold more. A record's id names the run
 // it belongs to, so forgetting a run is asked of the records rather than of a second index beside them.
+import { newPage } from "../test-setup.js";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import type { QuadStore } from "@haibun/core/lib/quad-store.js";
@@ -19,7 +20,6 @@ import {
 	subscribeExecutionSwitch,
 	type THeldExecution,
 } from "./executions.js";
-import { endPage } from "../page/adapters/page-held.js";
 import { runStore } from "./run-store.test-fake.js";
 
 const OLDER = "1700000000000-1";
@@ -66,7 +66,7 @@ const heldOf = async (store: QuadStore, execution: string): Promise<number> => {
 };
 
 describe("what a device holds of the runs it has read", () => {
-	beforeEach(endPage);
+	beforeEach(newPage);
 	afterEach(() => vi.restoreAllMocks());
 
 	it("names the runs it holds, newest first, by the features each ran", async () => {

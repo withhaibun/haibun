@@ -3,7 +3,7 @@
 // ask, a view is offered what the reader holds rather than an empty result. The quad primitives are covered by the conformance
 // specification both stores answer; these are the questions the site is otherwise asked.
 import { hydrate, serveThePage } from "../test-setup.js";
-import { hydrateFromDom } from "../rpc-registry.js";
+import { hydrateFromDom } from "../page/controllers/hydration-controller.js";
 import { heldDatabases } from "./device-store.js";
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeAll, beforeEach } from "vitest";

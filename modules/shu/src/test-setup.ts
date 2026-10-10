@@ -18,7 +18,8 @@
 import { actualityAt } from "@haibun/core/lib/rpc-wire.js";
 import { HYDRATION_ID } from "./domains/elements.js";
 import { RESPONSE_TIMEOUT_MS, type TDeploymentSettings } from "./domains/hydration.js";
-import { installAuthority, installConduit } from "./page/root.js";
+import { installAuthority, installConduit, installHydration } from "./page/root.js";
+import { readHydration } from "./page/pipelines/hydrate.js";
 import { type TConduit } from "./page/ports.js";
 import { type TLink, type TRepresentation, type TStreamChunk } from "./page/domains/links.js";
 
@@ -101,7 +102,8 @@ import { CarriedEventStream } from "./page/adapters/carried-event-stream.js";
 import { type TEvent } from "./page/ports.js";
 import { endPage } from "./page/adapters/page-held.js";
 import { setDeviceStore, MemoryDeviceStore, CACHE_SHAPE } from "./client-cache/index.js";
-import { hydrateFromDom, onStepsChanged } from "./rpc-registry.js";
+import { hydrateFromDom } from "./page/controllers/hydration-controller.js";
+import { onStepsChanged } from "./page/controllers/registry-controller.js";
 import { CLIENT_LOG_ACTION, CLIENT_LOG_METHOD, type TClientLogLevel } from "./client-log.js";
 import { authorityPort, openPageAuthority, type TPageAuthority } from "./page/authority/controllers/page-authority-controller.js";
 import type { TDelegations } from "@haibun/core/lib/authority-types.js";
@@ -357,10 +359,14 @@ export function setupShuTest(config: TShuTestConfig = {}): TShuTestHandle {
 	};
 }
 
-/** Ends the page and starts the next, with the reader's authority installed as the page's start installs it. A test that
+/** Ends the page and starts the next, with its hydration read and the reader's authority installed, as the page's start
+ *  reads and installs them. A test that
  *  builds a page without `setupShuTest` starts each page here. */
 export function newPage(): void {
 	endPage();
+	// A test without a document stands for a page without a hydration element.
+	if (typeof document === "undefined") installHydration(readHydration({ take: () => undefined }));
+	else hydrateFromDom();
 	installAuthority(authorityPort());
 }
 

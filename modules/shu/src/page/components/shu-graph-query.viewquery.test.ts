@@ -6,6 +6,7 @@
  * browser (a fail-fast schema throw inside viewQuery.set), where the e2e can't see the console; here the
  * throw is a visible test failure.
  */
+import { newPage } from "../../test-setup.js";
 import { beforeEach, describe, expect, it } from "vitest";
 import { viewQuery } from "../../view-query.js";
 import { ShuGraphQuery } from "./shu-graph-query.js";
@@ -14,6 +15,7 @@ const make = () => new ShuGraphQuery();
 
 describe("shu-graph-query → viewQuery", () => {
 	beforeEach(() => {
+		newPage();
 		window.location.hash = "";
 		viewQuery.hydrate("");
 	});

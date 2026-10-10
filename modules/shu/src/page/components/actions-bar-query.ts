@@ -13,8 +13,9 @@ import type { TEvent } from "../ports.js";
 import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { selectValuesFor } from "../../quads-snapshot.js";
 import { addObservedSelectValues, getQueryableFields, getSelectValues, hasSelectValues, hasUsableSelectValues, setSelectValues } from "../../rels-cache.js";
-import { buildDomainOptions, getAvailableDomains, getAvailableSteps, type DomainOption } from "../../rpc-registry.js";
-import { StepsChangedController } from "../controllers/steps-changed-controller.js";
+import { domainOptions } from "../controllers/registry-controller.js";
+import { type TDomainOption } from "../derivations/steps.js";
+import { StepsChangedController } from "../controllers/registry-controller.js";
 import { pageTypes } from "../controllers/page-cell-controller.js";
 import { NOTHING_SELECTED_LABEL, SEARCH_OPERATORS, type TComboboxOption, type TContextPattern } from "../../schemas.js";
 import { appAccessLevel } from "../../util.js";
@@ -62,7 +63,7 @@ export class ActionsBarQuery implements ReactiveController {
 	#conditions: TSearchCondition[] = [];
 	/** The fields of the selected type a condition can name, as the condition's field selector offers them. */
 	#propertyOptions: TComboboxOption[] = [];
-	#domainOptions: DomainOption[] = [];
+	#domainOptions: TDomainOption[] = [];
 	/** Whether the types the query surface offers have been read, so a selected label can be checked against them. */
 	#typesRead = false;
 	/** The types, as the type selector offers them: each by the domain key the hash uses, grouped declared first. */
@@ -150,11 +151,10 @@ export class ActionsBarQuery implements ReactiveController {
 	/** Read the types the query surface offers and the fields of the selected type. The bar reads them again when actuality's
 	 *  steps change, which changes what actuality declares and not the search a reader chose, so the bar doesn't announce a search. */
 	async readTypes(): Promise<void> {
-		await getAvailableSteps(); // the concern catalog the domains are read from arrives with the steps
-		this.#domainOptions = buildDomainOptions(await getAvailableDomains());
+		this.#domainOptions = await domainOptions();
 		if (this.#domainOptions.length === 0) throw new Error("the concern catalog didn't produce a domain option");
 		this.#typesRead = true;
-		this.#typeOptions = this.#domainOptions.map((o) => ({ value: o.key, label: o.queryLabel || o.key, group: o.group }));
+		this.#typeOptions = this.#domainOptions.map((o) => ({ value: o.key, label: o.queryLabel, group: o.group }));
 		this.#syncSelectedDomainKey();
 		this.loadProperties();
 		this.#host.requestUpdate();

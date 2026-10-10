@@ -1,7 +1,7 @@
 import type { ReactiveController, ReactiveControllerHost } from "lit";
 import { Access, PRINCIPAL_LABEL } from "@haibun/core/lib/resources.js";
 import { delegatedActions, readAction } from "@haibun/core/lib/actions.js";
-import { getAvailableSteps } from "../../rpc-registry.js";
+import { getAvailableSteps } from "./registry-controller.js";
 import { queryGraph } from "../../quads-snapshot.js";
 import { pageAuthorityPort } from "../root.js";
 

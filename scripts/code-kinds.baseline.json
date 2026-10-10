@@ -677,9 +677,6 @@
 	"modules/shu/src/reveal.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/shu/src/rpc-registry.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/scenes.ts": {
 		"isn't in a kind position": 1
 	},

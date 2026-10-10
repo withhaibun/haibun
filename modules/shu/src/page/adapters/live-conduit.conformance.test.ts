@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 // Runs one specification against both implementations of the page's conduit. LiveConduit sends each call over /rpc.
 // TestConduit returns results from a function the test supplies.
+import { requiredActionOf } from "../controllers/registry-controller.js";
 import { ACTION_BEGIN } from "@haibun/core/lib/rpc-wire.js";
 import { hostHandshake } from "@haibun/core/lib/test/rpc-answer.js";
 import { installServedConduit } from "../root.js";
@@ -69,7 +70,7 @@ describeConduit("over a running service", () => {
 		return Promise.resolve(rpcAnswer(one.answer, 200));
 	}) as unknown as typeof globalThis.fetch;
 	return {
-		conduit: installServedConduit(""),
+		conduit: installServedConduit("", requiredActionOf),
 		...arranged,
 		done: () => {
 			globalThis.fetch = fetchWas;

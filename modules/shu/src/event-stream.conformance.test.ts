@@ -6,7 +6,7 @@ import { vi, expect } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { installCarriedEventStream, installServedEventStream } from "./page/root.js";
 import { type TEvent } from "./page/ports.js";
-import { hydrateFromDom } from "./rpc-registry.js";
+import { hydrateFromDom } from "./page/controllers/hydration-controller.js";
 import { SSE_ROUTE } from "@haibun/core/lib/rpc-wire.js";
 import { describeEventStream } from "./test/event-stream-conformance.js";
 

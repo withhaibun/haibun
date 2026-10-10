@@ -6,12 +6,15 @@
  * serialize(parse(h)) === h for a canonical hash. Plus fail-fast: a malformed param throws, never
  * silently resets (no `|| default`, no `parseInt || 0`).
  */
-import { describe, expect, it } from "vitest";
+import { newPage } from "./test-setup.js";
+import { describe, expect, it, beforeEach } from "vitest";
 import { ViewQuerySchema, type TViewQuery, parseViewQuery, serializeViewQuery, viewQuery } from "./view-query.js";
 import { canonicalizeArrival } from "./page/derivations/address.js";
 import { appAccessLevel } from "./util.js";
 
 const DEFAULTS: TViewQuery = ViewQuerySchema.parse({});
+
+beforeEach(newPage);
 
 describe("viewQuery serialize/parse", () => {
 	it("empty hash yields all defaults, which serialize back to empty", () => {

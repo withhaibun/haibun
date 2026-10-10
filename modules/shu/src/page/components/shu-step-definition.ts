@@ -14,7 +14,7 @@ import { shuBaseStyles } from "./styles.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import { getAvailableSteps } from "../../rpc-registry.js";
+import { getAvailableSteps } from "../controllers/registry-controller.js";
 import { actionRef, domainRef, originLink } from "./shu-ref.js";
 
 const StateSchema = z.object({ method: z.string().default("") });

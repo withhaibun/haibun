@@ -4,6 +4,7 @@
  * step, so switching steps cancels the stale read and the previous step's data never lingers. The record is read from
  * the graph; the variables' quads come from a stubbed RPC behind LiveConduit.
  */
+import { requiredActionOf } from "../controllers/registry-controller.js";
 import { serveThePage, newPage } from "../../test-setup.js";
 import { runStore } from "../../client-cache/run-store.test-fake.js";
 import { describe, it, expect, beforeEach } from "vitest";
@@ -30,7 +31,7 @@ describe("shu-step-detail", () => {
 	beforeEach(async () => {
 		newPage();
 		document.body.innerHTML = "";
-		installServedConduit("");
+		installServedConduit("", requiredActionOf);
 		serveThePage();
 		installCarriedEventStream();
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});

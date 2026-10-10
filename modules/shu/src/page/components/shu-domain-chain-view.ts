@@ -27,7 +27,7 @@ import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { noteExecution } from "../../client-cache/executions.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { NODE_KIND, nodeIn, type TGraph, type TGraphNode } from "../../graph/types.js";
-import { linkTo } from "../../rpc-registry.js";
+import { linkTo } from "../controllers/registry-controller.js";
 import { graphPresenterTag, mountGraphPresenter, presenterIn } from "../controllers/presenter-controller.js";
 import type { TGraphPresenter, TPresenterNodeClick } from "../ports.js";
 

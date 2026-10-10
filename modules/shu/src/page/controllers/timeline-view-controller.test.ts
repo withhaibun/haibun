@@ -3,6 +3,7 @@
  * A view's place on actuality's timeline: it tracks the page's cursor until its reader holds a place of its own, and a
  * view that states a name writes the place it holds to the address.
  */
+import { newPage } from "../../test-setup.js";
 import { describe, it, expect, beforeEach } from "vitest";
 import { TimelineViewController } from "./timeline-view-controller.js";
 import { timeCursor } from "../root.js";
@@ -21,6 +22,7 @@ function mount(name?: string, onMove?: () => void) {
 
 describe("a view's place on the timeline", () => {
 	beforeEach(() => {
+		newPage();
 		mergeHashParams({ ask: undefined });
 		timeCursor.set(null);
 	});

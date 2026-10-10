@@ -5,6 +5,7 @@
  * Pinned invariants: idempotency, hash round-trip, dedup-by-derived-id, and
  * malformed col= entries are skipped (never crashed-on).
  */
+import { requiredActionOf } from "./page/controllers/registry-controller.js";
 import { describe, it, expect, beforeEach } from "vitest";
 import { PaneState, parseColEntry, columnEntryOf, DesiredPaneSchema, paneIdOf, tagOf, labelOf } from "./pane-state.js";
 import { FRAGMENT_SPEC } from "@haibun/core/lib/media-fragments.js";
@@ -12,9 +13,8 @@ import { ShuElement } from "./page/components/shu-element.js";
 import { setSiteMetadata, type SiteMetadata } from "./rels-cache.js";
 import * as Address from "./page/derivations/address.js";
 import { installConduit, installServedConduit } from "./page/root.js";
-import { TestConduit } from "./test-setup.js";
+import { TestConduit, newPage } from "./test-setup.js";
 import { activePane } from "./page/root.js";
-import { endPage } from "./page/adapters/page-held.js";
 
 /** Offline is which TConduit is installed: a serialized one doesn't have a location to mutate, a live one does. */
 const offline = () =>
@@ -135,13 +135,13 @@ describe("parseColEntry", () => {
 
 describe("PaneState", () => {
 	/** A page loaded again: it doesn't hold the last page's panes, and boot installs its conduit. */
-	const newPage = () => {
-		endPage();
+	const reloadPage = () => {
+		newPage();
 		offline();
 		activePane.set(null);
 	};
 	beforeEach(() => {
-		endPage();
+		reloadPage();
 		activePane.set(null);
 		document.body.innerHTML = "";
 		offline();
@@ -319,7 +319,7 @@ describe("PaneState", () => {
 	// be deterministic regardless of that interleave: every col= entry in the reloaded hash mounts, and the restore doesn't drop one.
 	const liveIds = () => Array.from(document.querySelectorAll("shu-column-pane")).map((p) => (p as HTMLElement).dataset.columnKey);
 	const reloadInto = (hash: string): HTMLElement => {
-		newPage();
+		reloadPage();
 		document.body.innerHTML = "";
 		const strip = document.createElement("shu-column-strip") as HTMLElement;
 		document.body.appendChild(strip);
@@ -457,7 +457,7 @@ describe("PaneState", () => {
 	/** A page with the affordances panel as its pane, docked as declared and labelled Actions. */
 	const withPagePane = () => {
 		const strip = document.querySelector("shu-column-strip");
-		newPage();
+		reloadPage();
 		// biome-ignore lint/suspicious/noExplicitAny: test-only, strip facade is narrower than real ShuColumnStrip.
 		PaneState.init(strip as any, {}, [{ pane: { paneType: "component", tag: "shu-affordances-panel", label: "Actions", docked: true } }]);
 	};
@@ -490,7 +490,7 @@ describe("PaneState", () => {
 
 	it("holds a page pane as declared where the address doesn't name it, and names it in the address only where it stands otherwise", async () => {
 		const strip = document.querySelector("shu-column-strip");
-		newPage();
+		reloadPage();
 		// biome-ignore lint/suspicious/noExplicitAny: test-only, strip facade is narrower than real ShuColumnStrip.
 		PaneState.init(strip as any, {}, [{ pane: { paneType: "component", tag: "shu-affordances-panel", label: "Actions", docked: true }, attributes: { "testid-prefix": "app-" } }]);
 		PaneState.fromHash();
@@ -561,8 +561,8 @@ describe("PaneState", () => {
 	it("an open= link adds its pane to the live state instead of replacing it (a document's view link)", async () => {
 		// Online: the arrival path is a real location change, canonicalized by view-hash's ingress listener
 		// (registered at import, so it runs before PaneState's) before any consumer reads the hash.
-		endPage();
-		installServedConduit("");
+		reloadPage();
+		installServedConduit("", requiredActionOf);
 		ShuElement.pushHash("#?label=File&sort=dateModified&col=shu-monitor-column&active=shu-monitor-column");
 		PaneState.fromHash();
 		await flush();
@@ -579,7 +579,7 @@ describe("PaneState", () => {
 		expect(params.getAll("col").sort()).toEqual(["shu-monitor-column", "shu-polymorphic-graph-view"]);
 		expect(params.get("active")).toBe("shu-polymorphic-graph-view"); // the linked view is what the reader asked for
 		expect(params.get("open")).toBeNull(); // canonicalized away
-		endPage();
+		reloadPage();
 		offline();
 	});
 });

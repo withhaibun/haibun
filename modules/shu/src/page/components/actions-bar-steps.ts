@@ -8,8 +8,8 @@ import { html, nothing, type ReactiveController, type TemplateResult } from "lit
 import { ASK_STEP } from "../../conversation.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
-import { getAvailableSteps, stepsForContext } from "../../rpc-registry.js";
-import { StepsChangedController } from "../controllers/steps-changed-controller.js";
+import { getAvailableSteps, stepsForContext } from "../controllers/registry-controller.js";
+import { StepsChangedController } from "../controllers/registry-controller.js";
 import type { TComboboxOption } from "../../schemas.js";
 import { prettifyGwta } from "../../util.js";
 import type { TControllerHost } from "./controller-host.js";
