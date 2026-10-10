@@ -9,7 +9,7 @@
  */
 import { z } from "zod";
 import { declareBlips, type TBlipDeclaration } from "@haibun/core/lib/blips.js";
-import { viewAttributes } from "./view-blips.js";
+import { viewAttributes } from "./domains/blips.js";
 import { REGULATION_KINDS } from "./graph/polymorphic/polymorphic-regulator.js";
 
 /** A scene measured one drawn frame. `value` is the renderer's time to complete the frame in milliseconds. A fence

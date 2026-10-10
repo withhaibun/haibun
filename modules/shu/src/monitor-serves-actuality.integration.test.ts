@@ -18,7 +18,7 @@ import StorageFS from "@haibun/storage-fs/storage-fs.js";
 import MonitorStepper, { MONITOR_OPENS_AT, MONITOR_PATH } from "./monitor-stepper.js";
 import GraphSourceStepper from "./graph-source-stepper.js";
 import ShuStepper from "./shu-stepper.js";
-import { RPC_METHOD } from "./consts.js";
+import { RPC_METHOD } from "./domains/elements.js";
 import { ARTIFACT_POLICY } from "./content-security-policy.js";
 
 const PORT = await freePort();

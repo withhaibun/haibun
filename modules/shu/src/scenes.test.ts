@@ -7,7 +7,7 @@ import { describe, it, expect } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { html, type TemplateResult } from "lit";
 import { z } from "zod";
-import { ShuElement } from "./components/shu-element.js";
+import { ShuElement } from "./page/components/shu-element.js";
 import { applyScene, builtInScenes, captureScene, networkSceneTypes, storedAccessLevel, NETWORK_SCENE } from "./scenes.js";
 import { setSiteMetadata, type SiteMetadata } from "./rels-cache.js";
 

@@ -4,7 +4,7 @@
  * host shadow whose :host scrolls), reading the rail's pixel-space total/window from that ancestor, and mapping located
  * annotations to marks. Layout (sticky, real pixels) is a browser concern; these cover the DOM-reading logic.
  */
-import { ANNOTATION_GLYPH } from "./consts.js";
+import { ANNOTATION_GLYPH } from "./domains/elements.js";
 import { describe, it, expect } from "vitest";
 import { railTotalAndWindow, railMarks } from "./annotation-rail.js";
 

@@ -3,10 +3,7 @@
 	"version": "4.0.0-alpha.3",
 	"type": "module",
 	"description": "Haibun hypermedia SPA — renders any domain-driven application from stepper concerns",
-	"main": "build/app.js",
-	"types": "build/app.d.ts",
 	"exports": {
-		".": "./build/index.js",
 		"./*": {
 			"haibun-source": "./src/*",
 			"default": "./build/*"

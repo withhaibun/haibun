@@ -9,5 +9,16 @@
 		},
 		"steps": 1,
 		"seconds": 0
+	},
+	"linux-x64-4x-intel-xeon-processor-2-80ghz": {
+		"features": {
+			"/features/once.feature": {
+				"seconds": 0,
+				"steps": 1,
+				"declaredStepTextHash": "8791f58bb41a852e25455b6098dc0a9cd34adca1341af0d9987190b2b6905f78"
+			}
+		},
+		"steps": 1,
+		"seconds": 0
 	}
 }

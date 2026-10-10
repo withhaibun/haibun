@@ -2,9 +2,10 @@ import { withAction, type TKirejiExport } from "@haibun/core/kireji/withAction.j
 import WebPlaywright from "@haibun/web-playwright";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
-import { ShuStepper, SHU_TEST_IDS } from "@haibun/shu";
+import ShuStepper from "@haibun/shu/shu-stepper.js";
+import { SHU_TEST_IDS } from "@haibun/shu/domains/test-ids.js";
 import { flattenTestIds } from "@haibun/shu/test/step-ui.js";
-import ShuMonitorColumnControls from "../../build/components/shu-monitor-column.controls.js";
+import ShuMonitorColumnControls from "../../build/page/components/shu-monitor-column.controls.js";
 
 const wp = new WebPlaywright();
 const { waitFor, gotoPage } = withAction(wp);

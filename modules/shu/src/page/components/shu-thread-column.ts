@@ -1,0 +1,277 @@
+/**
+ * <shu-thread-column>: Displays a conversation thread for any individual type with inReplyTo edges.
+ * Fetches thread via getRelated RPC, renders flat (chronological) or tree (indented reply structure).
+ */
+import { RecordsSchema } from "@haibun/core/lib/json-text.js";
+import { html, css, type TemplateResult } from "lit";
+import { z } from "zod";
+import { shuBaseStyles } from "./styles.js";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
+import { defineElement } from "../../define-element.js";
+import { openRef } from "./ref-navigation.js";
+import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
+import { addsToSelection } from "../../pane-state.js";
+import { appAccessLevel, extractBodyLiterals, idOf, instanceLabel, persistedTypeOf, titleFields } from "../../util.js";
+import { anIndividual, type TContextPattern } from "../../schemas.js";
+import { ellipsize } from "@haibun/core/lib/util/index.js";
+import { callStep } from "../../pane-fetch.js";
+import { getRelSync, getValidTimeField } from "../../rels-cache.js";
+import { fieldRef } from "./shu-ref.js";
+import { SHU_TEST_IDS } from "../../domains/test-ids.js";
+import { graphPresenterTag, mountGraphPresenter, presenterIn, type TGraphPresenter, type TPresenterNodeClick } from "../../graph-presenter.js";
+import type { TQuad } from "@haibun/core/lib/quad-types.js";
+import { COMMENT_LABEL, LinkRelations, isReplyEdge } from "@haibun/core/lib/resources.js";
+
+/** Where the thread's graph is placed in the column, and the scope it keeps its settings under, apart from the main graph's. */
+const THREAD_GRAPH = { slot: "thread-graph", scope: "thread" } as const;
+
+const ThreadColumnSchema = z.object({
+	label: z.string().default(""),
+	individualId: z.string().default(""),
+	mode: z.enum(["tree", "graph"]).default("tree"),
+	depth: z.number().default(2),
+	loading: z.boolean().default(false),
+	error: z.string().optional(),
+});
+
+type ThreadEdge = { type: string; targetId: string };
+type ThreadVertex = Record<string, unknown> & { _edges?: ThreadEdge[] };
+
+/** A related record carries its linked text in this key. The card renders that text as its preview. */
+const CARRIED_TEXT = "body";
+
+/** Merge a product item's `_links` affordances into `_edges` so the tree/graph render reply structure. */
+function normalizeItem(item: Record<string, unknown>): ThreadVertex {
+	const existingEdges = (item._edges ?? []) as ThreadEdge[];
+	const links = item._links as Record<string, { params?: Record<string, unknown> }> | undefined;
+	const linkEdges: ThreadEdge[] = [];
+	if (links)
+		for (const [rel, link] of Object.entries(links)) {
+			if (link.params) {
+				const targetId = String(Object.values(link.params)[0] ?? "");
+				if (targetId) linkEdges.push({ type: rel, targetId });
+			}
+		}
+	const _edges = [...existingEdges, ...linkEdges];
+	return { ...item, ...(_edges.length ? { _edges } : {}) };
+}
+
+export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
+	/** A conversation thread as an ordered collection: each item's public fields plus the reply it answers. */
+	summarizeForKihan(): TLinkedData | null {
+		if (this.thread.length === 0) return null;
+		const items = this.thread.map((v) => {
+			const inReplyTo = (v._edges ?? []).find((e) => isReplyEdge(e.type))?.targetId;
+			const fields = Object.fromEntries(Object.entries(v).filter(([k]) => !k.startsWith("_")));
+			return inReplyTo ? { ...fields, inReplyTo } : fields;
+		});
+		return { "@id": "view:thread", "@type": "as:OrderedCollection", name: `a conversation thread of ${items.length} items`, totalItems: items.length, items };
+	}
+
+	static styles = [
+		shuBaseStyles,
+		css`
+			:host { display: flex; flex-direction: column; height: 100%; overflow: hidden; font-family: var(--shu-font-family); font-size: var(--shu-font-md); }
+			.toolbar { display: flex; gap: var(--shu-space-3); align-items: center; padding: var(--shu-space-2) var(--shu-space-4); flex: 0 0 auto; font-size: var(--shu-font-md);
+				background: var(--shu-bg-soft); border-bottom: var(--shu-border-w) solid var(--shu-border); }
+			.toolbar button { padding: 1px var(--shu-space-3); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); cursor: pointer;
+				font-size: var(--shu-font-sm); background: var(--shu-bg); }
+			:host(:not([data-show-controls])) .toolbar { display: none; }
+			.toolbar button.active { background: var(--shu-accent); border-color: var(--shu-accent); color: var(--shu-accent-fg); }
+			.toolbar .count { margin-left: auto; color: var(--shu-fg-muted); }
+			.thread-list { flex: 1; overflow: auto; padding: var(--shu-space-2); }
+			.thread-card { padding: var(--shu-space-3) var(--shu-space-4); margin: var(--shu-space-1) 0; border-radius: var(--shu-radius); cursor: pointer;
+				border: var(--shu-border-w) solid var(--shu-border); }
+			.thread-card:hover { background: var(--shu-bg-hover); border-color: var(--shu-border-strong); }
+			.thread-card.current { background: var(--shu-accent-soft); border-color: var(--shu-accent); }
+			/* The item's @type, so a mixed thread (a Comment replying to a File, etc.) reads its kinds at a glance. */
+			/* The badge's background is a THEME surface, not a type-colour swatch, so its text is the ordinary foreground:
+			   the swatch colour is dark in both themes and would be dark-on-dark here. */
+			.thread-card .type-badge { display: inline-block; font-size: var(--shu-font-sm); color: var(--shu-fg); background: var(--shu-bg-soft); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); padding: 0 var(--shu-space-2); margin-bottom: var(--shu-space-1); }
+			.thread-card .meta { display: flex; gap: var(--shu-space-4); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); }
+			.thread-card .sender { color: var(--shu-fg); font-weight: 500; }
+			.thread-card .subject { color: var(--shu-fg-muted); margin-top: var(--shu-space-1); }
+			.thread-card .preview { color: var(--shu-fg-muted); margin-top: var(--shu-space-1); font-size: var(--shu-font-md); overflow: hidden; text-overflow: ellipsis;
+				white-space: nowrap; }
+			.indent { margin-left: 20px; border-left: 2px solid var(--shu-border); padding-left: var(--shu-space-2); }
+			.extra-fields { display: flex; flex-wrap: wrap; gap: var(--shu-space-2) var(--shu-space-5); margin-top: var(--shu-space-1); font-size: var(--shu-font-sm); }
+			.extra-field { color: var(--shu-fg-muted); }
+			.field-label { color: var(--shu-fg-faded); }
+			.field-label::after { content: ":"; }
+			.empty { padding: var(--shu-space-6); color: var(--shu-fg-muted); text-align: center; }
+			.content-area { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+			.graph-container { flex: 1; overflow: auto; padding: var(--shu-space-4); min-height: 0; }
+			::slotted([data-external]) { display: block; height: 100%; }
+			.error { padding: var(--shu-space-4); color: var(--shu-error); background: var(--shu-bg-error-soft); border-radius: var(--shu-radius); margin: var(--shu-space-4); }
+		`,
+	];
+
+	private thread: ThreadVertex[] = [];
+
+	constructor() {
+		super(ThreadColumnSchema, { label: "", individualId: "", mode: "tree", depth: 2, loading: false });
+	}
+
+	protected override onConnected(): void {
+		// A node opened in the thread's graph opens the record it draws, as its card does.
+		this.autoListen(this, SHU_EVENT.GRAPH_NODE_CLICK, (e) => {
+			const { nodeId } = (e as CustomEvent<TPresenterNodeClick>).detail;
+			const vertex = this.thread.find((v) => idOf(v) === nodeId);
+			if (!vertex) throw new Error(`thread graph node "${nodeId}" isn't a record of the thread`);
+			openRef(e, REF_DENOTES.individual, { persistedAs: persistedTypeOf(vertex) || this.state.label, id: nodeId });
+		});
+	}
+
+	/** Render items directly without RPC fetch. Items are JSON-LD nodes (`@id`/`@type`), optionally with `_edges`. */
+	openItems(items: ThreadVertex[], label = "Result"): void {
+		this.thread = items;
+		this.setState({ label, individualId: "", loading: false });
+	}
+
+	/** Render a collection product: its `items` become thread vertices (links merged into edges), without an RPC fetch. */
+	openProducts(products: Record<string, unknown>): void {
+		const items = Array.isArray(products.items) ? RecordsSchema.parse(products.items) : [];
+		this.openItems(items.map(normalizeItem), String(products._type || "Result"));
+	}
+
+	async open(label: string, id: string, depth?: number): Promise<void> {
+		if (depth !== undefined) this.state = { ...this.state, depth };
+		this.setState({ label, individualId: id, loading: true, error: undefined });
+		// A thread is about the record it is read from, as a record column is: stated the same way, so the reader is on
+		// it here as they would be there.
+		this.dispatchEvent(
+			new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns: [anIndividual(label, id)], accessLevel: appAccessLevel(), label }, bubbles: true, composed: true }),
+		);
+		const res = await callStep<{ items: ThreadVertex[]; contextRoot: string }>("getRelated", { label, id, depth: this.state.depth }, `thread-column: open ${label}:${id}`);
+		if (!res.ok) {
+			this.setState({ loading: false, error: res.error });
+			return;
+		}
+		this.thread = res.value.items ?? [];
+		this.setState({ loading: false });
+	}
+
+	override paneSubject(): TContextPattern[] | null {
+		return this.state.individualId ? [anIndividual(this.state.label, this.state.individualId)] : null;
+	}
+
+	private onModeClick = (mode: "tree" | "graph") => (): void => {
+		this.setState({ mode });
+	};
+
+	private onDepthChange = (e: Event): void => {
+		const newDepth = parseInt((e.target as HTMLInputElement).value, 10);
+		if (newDepth > 0 && this.state.individualId) void this.open(this.state.label, this.state.individualId, newDepth);
+	};
+
+	private onCardClick =
+		(id: string, cardLabel: string) =>
+		(e: MouseEvent): void =>
+			openRef(e, REF_DENOTES.individual, { persistedAs: cardLabel, id }, addsToSelection(e));
+
+	/** The graph mode draws the thread in the site's graph presenter, mounted once and given the thread on each update. */
+	protected updated(): void {
+		const presenter = presenterIn(this, THREAD_GRAPH.slot);
+		if (this.state.mode !== "graph" || this.state.loading || this.state.error || this.thread.length === 0) {
+			presenter?.remove();
+			return;
+		}
+		if (presenter) this.feedPresenter(presenter);
+		else void mountGraphPresenter(this, THREAD_GRAPH.slot, THREAD_GRAPH.scope).then((mounted) => mounted && this.feedPresenter(mounted));
+	}
+
+	/** Give the presenter the thread, and the record the column is on as its active node. */
+	private feedPresenter(presenter: TGraphPresenter): void {
+		presenter.setQuads(this.threadToQuads());
+		presenter.selectNode(this.state.individualId || null);
+	}
+
+	render(): TemplateResult {
+		const { mode, loading, error, depth } = this.state;
+		if (loading) return html`<div class="empty">Loading thread...</div>`;
+		if (error) return html`<div class="error">${error}</div>`;
+		if (this.thread.length === 0) return html`<div class="empty">A thread wasn't found.</div>`;
+		return html`
+			<div class="toolbar">
+				<button class=${`mode-btn${mode === "tree" ? " active" : ""}`} @click=${this.onModeClick("tree")}>Tree</button>
+				${graphPresenterTag() ? html`<button class=${`mode-btn${mode === "graph" ? " active" : ""}`} @click=${this.onModeClick("graph")}>Graph</button>` : ""}
+				<label>depth <input type="number" .value=${String(depth)} min="1" max="99" style="width:40px" @change=${this.onDepthChange}></label>
+				<span class="count">${this.thread.length} items</span>
+			</div>
+			<div class="content-area">${mode === "graph" ? html`<div class="graph-container"><slot name=${THREAD_GRAPH.slot}></slot></div>` : html`<div class="thread-list">${this.renderTreeTemplate()}</div>`}</div>
+		`;
+	}
+
+	private renderTreeTemplate(): TemplateResult {
+		const childMap = new Map<string, ThreadVertex[]>();
+		const roots: ThreadVertex[] = [];
+		const idSet = new Set(this.thread.map((t) => idOf(t)));
+		for (const v of this.thread) {
+			const parentId = (v._edges ?? []).find((e) => isReplyEdge(e.type))?.targetId ?? "";
+			if (parentId && idSet.has(parentId)) {
+				const children = childMap.get(parentId) ?? [];
+				children.push(v);
+				childMap.set(parentId, children);
+			} else roots.push(v);
+		}
+		const renderBranch = (vertices: ThreadVertex[]): TemplateResult =>
+			html`${vertices.map((v) => {
+				const children = childMap.get(idOf(v)) ?? [];
+				return html`${this.renderCardTemplate(v)}${children.length > 0 ? html`<div class="indent">${renderBranch(children)}</div>` : ""}`;
+			})}`;
+		return renderBranch(roots);
+	}
+
+	private renderCardTemplate(v: ThreadVertex): TemplateResult {
+		const id = idOf(v);
+		const isCurrent = id === this.state.individualId;
+		const label = persistedTypeOf(v) || this.state.label;
+		// Who sent it is the field its type declares with the attribution rel, which links to the record it names.
+		const senderField = Object.keys(v).find((field) => getRelSync(label, field) === LinkRelations.ATTRIBUTED_TO.rel);
+		const sender = senderField ? String(v[senderField] ?? "") : "";
+		const title = instanceLabel(v);
+		const timeField = getValidTimeField(label);
+		const date = String(v[timeField] ?? "");
+		const bodyLiterals = extractBodyLiterals(v, label);
+		const preview = String(v[CARRIED_TEXT] ?? Object.values(bodyLiterals)[0] ?? "");
+		const shown = new Set([...(senderField ? [senderField] : []), ...titleFields(label), timeField, CARRIED_TEXT, ...Object.keys(bodyLiterals)]);
+		const hasKnownContent = !!(sender || date || preview);
+		const isComment = label === COMMENT_LABEL;
+		const extraFields = Object.entries(v).filter(([k, val]) => !k.startsWith("_") && !k.startsWith("@") && !shown.has(k) && val !== undefined && val !== null && val !== "");
+		return html`<div class=${`thread-card${isCurrent ? " current" : ""}`} data-id=${id} data-label=${label} @click=${this.onCardClick(id, label)}>
+			${label ? html`<span class="type-badge" data-testid=${SHU_TEST_IDS.THREAD.ITEM_TYPE}>${label}</span>` : ""}
+			${hasKnownContent ? html`<div class="meta"><span class="sender">${senderField && sender ? fieldRef(label, senderField, sender, SHU_TEST_IDS.THREAD.SENDER) : isComment ? COMMENT_LABEL : ""}</span><span>${date}</span></div>` : ""}
+			<div class="subject">${title}</div>
+			${preview ? html`<div class="preview">${ellipsize(preview, 120)}</div>` : ""}
+			${
+				extraFields.length > 0
+					? html`<div class="extra-fields">${extraFields.map(
+							([k, val]) => html`<span class="extra-field"><span class="field-label">${k}</span> ${ellipsize(String(val), 80)}</span>`,
+						)}</div>`
+					: ""
+			}
+		</div>`;
+	}
+
+	/** Build quads from thread items. */
+	private threadToQuads(): TQuad[] {
+		const quads: TQuad[] = [];
+		const now = Date.now();
+		const labelById = new Map(this.thread.map((v) => [idOf(v), persistedTypeOf(v) || this.state.label]));
+		for (const v of this.thread) {
+			const id = idOf(v);
+			const vlabel = persistedTypeOf(v) || this.state.label;
+			quads.push({ subject: id, predicate: LinkRelations.NAME.rel, object: instanceLabel(v), namedGraph: vlabel, timestamp: now });
+			for (const edge of v._edges ?? []) {
+				// Only emit edges where both endpoints exist in the thread
+				if (labelById.has(edge.targetId)) {
+					quads.push({ subject: id, predicate: edge.type, object: edge.targetId, namedGraph: vlabel, objectType: labelById.get(edge.targetId), timestamp: now });
+				}
+			}
+		}
+		return quads;
+	}
+}
+
+defineElement(SHU_TAG.THREAD_COLUMN, ShuThreadColumn);

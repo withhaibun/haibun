@@ -7,7 +7,7 @@
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOKWithProducts } from "@haibun/core/lib/util/index.js";
-import { SHU_TAG } from "../consts.js";
+import { SHU_TAG } from "../domains/elements.js";
 
 export default class ClientCacheStepper extends AStepper implements IHasCycles {
 	description = "Opens the client cache view, which shows what a page caches of actuality.";

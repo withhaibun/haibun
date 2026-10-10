@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { readsEveryStatement, statedAboutFirst } from "./polymorphic-summary.js";
-import { RPC_METHOD } from "../../consts.js";
+import { RPC_METHOD } from "../../domains/elements.js";
 
 const subjectAt = (at: number) => `note-${at}@bakery.test`;
 const stated = (subject: string, object: string) => ({ subject, predicate: "inReplyTo", object, namedGraph: "Email" });

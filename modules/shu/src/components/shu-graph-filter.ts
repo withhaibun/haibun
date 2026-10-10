@@ -18,11 +18,11 @@
 import { html, css, unsafeCSS, type TemplateResult } from "lit";
 import { z } from "zod";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
-import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { shuBaseStyles, shuRowSeparated } from "./styles.js";
-import { SHU_EVENT, SHU_TAG } from "../consts.js";
+import { ShuElement, type TLinkedData } from "../page/components/shu-element.js";
+import { shuBaseStyles, shuRowSeparated } from "../page/components/styles.js";
+import { SHU_EVENT, SHU_TAG } from "../domains/elements.js";
 import { defineElement } from "../define-element.js";
-import { SHU_TEST_IDS } from "../test-ids.js";
+import { SHU_TEST_IDS } from "../domains/test-ids.js";
 
 const FILTER_IDS = SHU_TEST_IDS.GRAPH_FILTER;
 import { DEFAULT_PER_TYPE_LIMIT, MAX_PER_TYPE_LIMIT } from "../quads-snapshot.js";
@@ -32,7 +32,7 @@ import { readElementPrefs } from "../element-prefs.js";
 import { projectFilterClusters, effectiveHiddenTypes, derivePredicates, explicitlyHidden } from "../graph-filter-projection.js";
 import { isSchemaType, SCHEMA_TYPES } from "../graph/ontology-projection.js";
 import "./shu-chip-group.js";
-import "./shu-field.js";
+import "../page/components/shu-field.js";
 import type { TChip } from "./shu-chip-group.js";
 import { counted } from "@haibun/core/lib/hypermedia.js";
 

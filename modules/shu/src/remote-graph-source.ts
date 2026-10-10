@@ -8,7 +8,7 @@
 import { RemoteInstance } from "@haibun/core/lib/rpc-client.js";
 import type { TRequestSigner } from "@haibun/core/lib/authority-types.js";
 import { AUTHORITY_CAPABILITIES } from "@haibun/core/steps/authority-stepper.js";
-import { RPC_METHOD } from "./consts.js";
+import { RPC_METHOD } from "./domains/elements.js";
 import { readAction } from "@haibun/core/lib/actions.js";
 import type { AccessLevel } from "@haibun/core/lib/resources.js";
 import type { TCluster, TClusteredQuads, TFederatedGraphSource, TQuad } from "@haibun/core/lib/quad-types.js";

@@ -2,9 +2,9 @@
 // The filter's two host modes: the main graph's legend: its groups of chips (types, properties) plus the instance-data
 // controls: and a schema-scoped host (data-schema-only, the class browser) carrying only the Class + Property chips
 // with an independent persistence scope. Chips are rendered by <shu-chip-group>, so a chip lives one shadow deeper.
-import { SHU_TEST_IDS } from "../test-ids.js";
+import { SHU_TEST_IDS } from "../domains/test-ids.js";
 import { CLASS_LABEL, PROPERTY_LABEL } from "@haibun/core/lib/resources.js";
-import { SHU_EVENT } from "../consts.js";
+import { SHU_EVENT } from "../domains/elements.js";
 import { describe, it, expect, beforeEach } from "vitest";
 import { ShuGraphFilter } from "./shu-graph-filter.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";

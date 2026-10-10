@@ -21,9 +21,9 @@
  */
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
-import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { shuBaseStyles } from "./styles.js";
-import { SHU_EVENT, SHU_TAG } from "../consts.js";
+import { ShuElement, type TLinkedData } from "../page/components/shu-element.js";
+import { shuBaseStyles } from "../page/components/styles.js";
+import { SHU_EVENT, SHU_TAG } from "../domains/elements.js";
 import { defineElement } from "../define-element.js";
 import { SvgGraphRenderer, graphToDot, findSvgNodes, findSvgEdges } from "../graph/svg-renderer.js";
 import { buildNeighbors, connectedNodes } from "../graph/graph-neighbors.js";

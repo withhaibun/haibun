@@ -12,8 +12,8 @@
  */
 import { html, type TemplateResult } from "lit";
 import { ref } from "lit/directives/ref.js";
-import type { ShuCopyButton } from "./shu-copy-button.js";
-import { SHU_ICON_BUTTON, shuRowSeparated } from "./styles.js";
+import type { ShuCopyButton } from "../page/components/shu-copy-button.js";
+import { SHU_ICON_BUTTON, shuRowSeparated } from "../page/components/styles.js";
 
 /** The settings groups a host can offer, by name. */
 export const SETTINGS_GROUP = { layout: "layout", filters: "filters", scenes: "scenes" } as const;

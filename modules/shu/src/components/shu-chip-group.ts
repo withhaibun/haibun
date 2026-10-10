@@ -7,12 +7,12 @@
  * It does NOT own state. The host supplies the chips and hears intent back through `onToggle`/`onPreview`; what a chip's
  * visibility means (a hidden type, a hidden predicate, a hidden axis value) is the host's business.
  */
-import { SHU_TAG } from "../consts.js";
+import { SHU_TAG } from "../domains/elements.js";
 import { defineElement } from "../define-element.js";
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
-import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
-import { shuBaseStyles } from "./styles.js";
+import { ShuElement, type TLinkedData, EmptyStateSchema } from "../page/components/shu-element.js";
+import { shuBaseStyles } from "../page/components/styles.js";
 import { statedTotal, type TCounted } from "@haibun/core/lib/hypermedia.js";
 
 /** One chip: its identity, what it shows, whether it is on, and (optionally) how many it stands for and its swatch. A count

@@ -8,7 +8,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { PaneState, parseColEntry, columnEntryOf, DesiredPaneSchema, paneIdOf, tagOf, labelOf } from "./pane-state.js";
 import { FRAGMENT_SPEC } from "@haibun/core/lib/media-fragments.js";
-import { ShuElement } from "./components/shu-element.js";
+import { ShuElement } from "./page/components/shu-element.js";
 import { setSiteMetadata, type SiteMetadata } from "./rels-cache.js";
 import * as ViewHash from "./view-hash.js";
 import { setConduit, LiveConduit } from "./hypermedia.js";

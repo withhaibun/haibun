@@ -7,14 +7,14 @@
  * differs, so two hosts of one scene cannot drift apart.
  */
 import { z } from "zod";
-import { ShuElement } from "./shu-element.js";
-import { SHU_EVENT } from "../consts.js";
+import { ShuElement } from "../page/components/shu-element.js";
+import { SHU_EVENT } from "../domains/elements.js";
 import { reportToRun } from "../client-log.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { extractQuadsFromEvents, type TCluster, type TQuad } from "@haibun/core/lib/quad-types.js";
 import { getRels } from "../rels-cache.js";
 import { getGraphSnapshot, currentSnapshot, mergeQuadsIntoSnapshot, DEFAULT_PER_TYPE_LIMIT, MAX_PER_TYPE_LIMIT } from "../quads-snapshot.js";
-import { SubjectController } from "../controllers/index.js";
+import { SubjectController } from "../page/controllers/subject-controller.js";
 import { expandNeighborhood } from "../graph-expansion.js";
 import { ShuGraphFilter } from "./shu-graph-filter.js";
 import "../graph/polymorphic/polymorphic-scene.js";

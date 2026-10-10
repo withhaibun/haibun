@@ -11,6 +11,7 @@ const PORTS = "src/area/ports.ts";
 const ROOT = "src/area/root.ts";
 const STEPPER = "src/area/area-stepper.ts";
 const VIEW = "src/components/shu-list.ts";
+const CONTROLLER = "src/area/controllers/list-controller.ts";
 const PACKAGE = "@example/area";
 
 const made: string[] = [];
@@ -41,6 +42,7 @@ describe("the kind of a file", () => {
 		expect(kindOf(ROOT)).toBe("composition root");
 		expect(kindOf(STEPPER)).toBe("stepper");
 		expect(kindOf(VIEW)).toBe("view");
+		expect(kindOf(CONTROLLER)).toBe("controller");
 		expect(kindOf("src/lib/util.ts")).toBeUndefined();
 	});
 });
@@ -89,6 +91,40 @@ describe("a file's findings against the kinds", () => {
 		const shared = { "src/components/shu-element.ts": "export class ShuElement {}\n", "src/area/other-stepper.ts": "export const other = 1;\n" };
 		expect(findingsOf(VIEW, { ...shared, [VIEW]: 'import { ShuElement } from "./shu-element.js";\n' })).toEqual([]);
 		expect(findingsOf(STEPPER, { ...shared, [STEPPER]: 'import { other } from "./other-stepper.js";\n' })).toEqual(["imports a stepper: ./other-stepper.js"]);
+	});
+
+	it("don't name a view's import of a controller, a domain or a derivation, and name its import of a pipeline, a port's value or an adapter", () => {
+		const view = "src/area/components/shu-list.ts";
+		const sources = withPorts({
+			[view]: [
+				'import { ListController } from "../controllers/list-controller.js";',
+				'import { NOTE } from "../domains/note.js";',
+				'import { title } from "../derivations/title.js";',
+				'import { read } from "../pipelines/read.js";',
+				'import { ports } from "../ports.js";',
+				'import { store } from "../adapters/store.js";',
+			].join("\n"),
+			[CONTROLLER]: "export class ListController {}\n",
+			"src/area/domains/note.ts": 'export const NOTE = "note";\n',
+			"src/area/derivations/title.ts": "export const title = 1;\n",
+			[PIPELINE]: "export const read = 1;\n",
+		});
+		expect(findingsOf(view, sources)).toEqual(["imports a pipeline: ../pipelines/read.js", "imports a port: ../ports.js", "imports an adapter: ../adapters/store.js"]);
+	});
+
+	it("don't name a controller's import of a pipeline or of its area's composition root, and name its import of another area's root", () => {
+		const sources = withPorts({
+			[CONTROLLER]: 'import { read } from "../pipelines/read.js";\nimport { ports } from "../root.js";\nimport { other } from "../../other/root.js";\n',
+			[PIPELINE]: "export const read = 1;\n",
+			[ROOT]: "export const ports = 1;\n",
+			"src/other/root.ts": "export const other = 1;\n",
+		});
+		expect(findingsOf(CONTROLLER, sources)).toEqual(["imports another area's composition root: ../../other/root.js"]);
+	});
+
+	it("don't name a composition root's import of a machine, which it builds the area's instances from", () => {
+		const sources = { [ROOT]: 'import { panes } from "./machines/panes.js";\n', "src/area/machines/panes.ts": "export const panes = 1;\n" };
+		expect(findingsOf(ROOT, sources)).toEqual([]);
 	});
 
 	it("resolve a workspace package's import to its source", () => {

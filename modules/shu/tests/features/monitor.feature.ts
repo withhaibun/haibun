@@ -1,14 +1,14 @@
 import { withAction, type TKirejiExport } from "@haibun/core/kireji/withAction.js";
 import WebPlaywright from "@haibun/web-playwright";
 import ShuStepper from "../../build/shu-stepper.js";
-import ShuMonitorColumnControls, { RAIL_END } from "../../build/components/shu-monitor-column.controls.js";
-import ShuScrollbarControls from "../../build/components/shu-scrollbar.controls.js";
+import ShuMonitorColumnControls, { RAIL_END } from "../../build/page/components/shu-monitor-column.controls.js";
+import ShuScrollbarControls from "../../build/page/components/shu-scrollbar.controls.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import BlipsStepper from "@haibun/core/steps/blips-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
-import { SHU_TEST_IDS } from "../../build/test-ids.js";
+import { SHU_TEST_IDS } from "../../build/domains/test-ids.js";
 import { createStepUI, flattenTestIds } from "@haibun/shu/test/step-ui.js";
-import { SHU_TAG } from "@haibun/shu/consts.js";
+import { SHU_TAG } from "@haibun/shu/domains/elements.js";
 
 const wp = new WebPlaywright();
 const { serveShuApp } = withAction(new ShuStepper());

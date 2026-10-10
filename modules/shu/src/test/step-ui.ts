@@ -2,8 +2,8 @@ import { withAction, type TKirejiStep } from "@haibun/core/kireji/withAction.js"
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import type WebPlaywright from "@haibun/web-playwright";
 import { dePolite } from "@haibun/core/lib/util/index.js";
-import { SHU_TEST_IDS } from "../test-ids.js";
-import { CHAT_MESSAGE_MATCH, SHU_TAG } from "../consts.js";
+import { SHU_TEST_IDS } from "../domains/test-ids.js";
+import { CHAT_MESSAGE_MATCH, SHU_TAG } from "../domains/elements.js";
 
 const { setAs } = withAction(new VariablesStepper());
 

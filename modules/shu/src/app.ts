@@ -1,7 +1,7 @@
-import { SHU_TEST_IDS } from "./test-ids.js";
+import { SHU_TEST_IDS } from "./domains/test-ids.js";
 import { reportRefusedScripts } from "./refused-scripts.js";
 import { appAccessLevel, defaultLabel, esc } from "./util.js";
-import { DOCK_FOOTPRINT, INDEX_PANE_KEY, SHU_EVENT, SHU_ATTR, SHU_TAG } from "./consts.js";
+import { DOCK_FOOTPRINT, INDEX_PANE_KEY, SHU_EVENT, SHU_ATTR, SHU_TAG } from "./domains/elements.js";
 import { getHash, hashOf, hashWithColumns } from "./view-hash.js";
 /**
  * Main SPA entry point. The layout uses shu-column-strip and shu-column-pane.
@@ -23,29 +23,29 @@ import { openPageAuthority, pageMay, type TPageAuthority } from "./page-key.js";
 import { DELEGATIONS_READ_METHOD, type TDelegations } from "@haibun/core/lib/authority-types.js";
 import { readAction } from "@haibun/core/lib/actions.js";
 import { Access } from "@haibun/core/lib/resources.js";
-import { ShuElement } from "./components/shu-element.js";
+import { ShuElement } from "./page/components/shu-element.js";
 import { registerComponents } from "./component-registry.js";
 import { conduit, reads, setConduit, LiveConduit } from "./hypermedia.js";
 import { SSE_ROUTE } from "@haibun/core/lib/rpc-wire.js";
-import { installShuTokens } from "./components/styles.js";
-import { applyShuPreferences } from "./components/shu-theme-switch.js";
+import { installShuTokens } from "./page/components/styles.js";
+import { applyShuPreferences } from "./page/components/shu-theme-switch.js";
 import { eventStream, setEventStream, LiveEventStream, SerializedEventStream, subscribeBatchedEvents } from "./event-stream.js";
 import { followRunningTurns } from "./conversation.js";
 import { askEmbedderToDelegate, receiveFromEmbedder } from "./embedder.js";
 import { ensureUiComponentLoaded as sharedEnsureUiComponentLoaded } from "./external-components.js";
-import { paneOpsFor } from "./pane-event-router.js";
+import { paneOpsFor } from "./page/derivations/affordances.js";
 import { setActiveViewId } from "./quads-snapshot.js";
 import { SCOPE, dispatchSubjectEvent, entryOf } from "./current-subject.js";
 import { PageContextSchema, type TContextPattern } from "./schemas.js";
 import { activePane, pageContext, stripPanes, timeCursor } from "./signals.js";
 import { PaneState, PaneOpenSchema } from "./pane-state.js";
-import { followPaneLink } from "./components/ref-navigation.js";
-import type { ShuColumnStrip } from "./components/shu-column-strip.js";
-import type { ShuEntityColumn } from "./components/shu-entity-column.js";
-import type { ShuStepDefinition } from "./components/shu-step-definition.js";
-import type { ShuActionColumn } from "./components/shu-action-column.js";
-import type { ShuFilterColumn } from "./components/shu-filter-column.js";
-import type { ShuGraphQuery } from "./components/shu-graph-query.js";
+import { followPaneLink } from "./page/components/ref-navigation.js";
+import type { ShuColumnStrip } from "./page/components/shu-column-strip.js";
+import type { ShuEntityColumn } from "./page/components/shu-entity-column.js";
+import type { ShuStepDefinition } from "./page/components/shu-step-definition.js";
+import type { ShuActionColumn } from "./page/components/shu-action-column.js";
+import type { ShuFilterColumn } from "./page/components/shu-filter-column.js";
+import type { ShuGraphQuery } from "./page/components/shu-graph-query.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { reportFailure, reportToRun, type TClientLogLevel } from "./client-log.js";
 import { observeLongFrames } from "./long-frames.js";
@@ -449,11 +449,11 @@ const main = async (): Promise<void> => {
 				ensureLoaded: (tag) => ensureUiComponentLoaded(tag),
 				afterAttach: {
 					entity: (d, child) => (child as ShuEntityColumn).open(d.id, d.persistedAs, d.selector),
-					type: (d, child) => (child as import("./components/shu-type-column.js").ShuTypeColumn).open(d.persistedAs),
+					type: (d, child) => (child as import("./page/components/shu-type-column.js").ShuTypeColumn).open(d.persistedAs),
 					"filter-eq": (d, child) => (child as ShuFilterColumn).openFiltered(d.predicate, d.value, d.persistedAs),
 					"filter-prop": (d, child) => (child as ShuFilterColumn).openProperty(d.predicate, d.persistedAs),
 					"filter-incoming": (d, child) => (child as ShuFilterColumn).openIncoming(d.subject, d.persistedAs),
-					thread: (d, child) => (child as import("./components/shu-thread-column.js").ShuThreadColumn).open(d.persistedAs, d.subject),
+					thread: (d, child) => (child as import("./page/components/shu-thread-column.js").ShuThreadColumn).open(d.persistedAs, d.subject),
 					"step-detail": (d, child) => (child as HTMLElement & { open(s: number[]): Promise<void> }).open(d.seqPath),
 					step: (d, child) => (child as ShuStepDefinition).open(d.method),
 					action: (d, child) => (child as ShuActionColumn).open(d.action),

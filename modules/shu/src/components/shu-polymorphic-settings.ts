@@ -11,18 +11,18 @@
  * `fit` and `copy graph` are NOT here: they are actions, not options, and stay directly reachable on the view head.
  * The orientation group holds only actions (the two head-on aims), so the host renders it directly.
  */
-import { SHU_TAG } from "../consts.js";
+import { SHU_TAG } from "../domains/elements.js";
 import { defineElement } from "../define-element.js";
-import { SHU_TEST_IDS } from "../test-ids.js";
+import { SHU_TEST_IDS } from "../domains/test-ids.js";
 import { html, type TemplateResult } from "lit";
 import { z } from "zod";
-import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
+import { ShuElement, type TLinkedData, EmptyStateSchema } from "../page/components/shu-element.js";
 // The view catalog itself, never the render-type module that re-exports it: that pulls the whole 3D layout chain in
 // behind a name this element only reads.
 import { VIEW_TYPES, VIEW_LABELS, type ViewType } from "../graph/polymorphic/polymorphic-views.js";
 import type { GraphSceneConfig } from "../graph/polymorphic/polymorphic-scene.js";
 import type { TViewForces } from "../graph/polymorphic/polymorphic-render-type.js";
-import "@haibun/shu/components/shu-field.js";
+import "@haibun/shu/page/components/shu-field.js";
 
 const IDS = SHU_TEST_IDS.POLYMORPHIC_VIEW;
 

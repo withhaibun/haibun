@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { extractBodyLiterals, extractFieldEntries, idOf, instanceLabel, isReferenceEdge, isVisibleKey, pickPreferredBody, SPA_PROPS } from "./util.js";
-import { STORED_TYPE_PROP } from "./consts.js";
+import { STORED_TYPE_PROP } from "./domains/elements.js";
 import { setSiteMetadata } from "./rels-cache.js";
 
 /** A type whose id and title field names don't match another type's fields. Only its declaration resolves them. */

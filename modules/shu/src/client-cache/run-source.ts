@@ -8,7 +8,7 @@
 import { HAIBUN_LOG_LEVELS, type THaibunLogLevel } from "@haibun/core/schema/protocol.js";
 import type { WindowedSource } from "../windowed-source.js";
 import { pagePinned } from "../page-pinned.js";
-import type { Range } from "../ranges.js";
+import type { Range } from "../page/derivations/rail.js";
 
 export type TEventRecord = Record<string, unknown>;
 

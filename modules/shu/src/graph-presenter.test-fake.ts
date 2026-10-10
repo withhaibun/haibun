@@ -8,7 +8,7 @@ import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import type { TLinkedData } from "@haibun/core/lib/hypermedia.js";
 import { setSiteMetadata } from "./rels-cache.js";
 import { presenterIn, type TGraphPresenter, type TPresenterNodeClick } from "./graph-presenter.js";
-import { SHU_EVENT } from "./consts.js";
+import { SHU_EVENT } from "./domains/elements.js";
 
 export const FAKE_PRESENTER_TAG = "fake-graph-presenter";
 

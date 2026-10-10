@@ -16,7 +16,7 @@
  */
 
 import { actualityAt } from "@haibun/core/lib/rpc-wire.js";
-import { HYDRATION_ID } from "./consts.js";
+import { HYDRATION_ID } from "./domains/elements.js";
 import { setConduit, type Conduit, type TLink, type TRepresentation, type TStreamChunk } from "./hypermedia.js";
 
 // ─── The conduit a test installs ─────────────────────────────────────────────

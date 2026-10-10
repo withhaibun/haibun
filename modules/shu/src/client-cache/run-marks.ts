@@ -11,7 +11,7 @@ import { LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-messa
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
 import type { TDensityQuery } from "@haibun/core/lib/quad-types.js";
-import { bucketMarkerStyle, type TEventMarkerStyle } from "../event-marker.js";
+import { bucketMarkerStyle, type TEventMarkerStyle } from "../page/derivations/event-marker.js";
 import type { TRunGraph } from "./run-graph.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 

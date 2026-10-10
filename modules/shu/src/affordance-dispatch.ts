@@ -5,7 +5,7 @@
  * It parses the response for hypermedia view markers and calls PaneState directly,
  * without custom events or an event bus. PaneState owns the pane lifecycle.
  */
-import { parseAffordanceProduct } from "./affordance-products.js";
+import { parseAffordanceProduct } from "./page/derivations/affordances.js";
 import { PaneState, paneIdOf } from "./pane-state.js";
 
 export function dispatchAffordanceFromResponse(response: unknown): ReturnType<typeof parseAffordanceProduct> {

@@ -3,7 +3,7 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import type { TLink } from "./hypermedia.js";
-import { CLIENT_RING } from "./consts.js";
+import { CLIENT_RING } from "./domains/elements.js";
 import { clientBlipsRecorded, clientBlipsSent, flushClientBlips, recordClientBlip } from "./client-blips.js";
 import { endPage } from "./page-pinned.js";
 import { carryARun, openReportingPage, setupShuTest, type TShuTestHandle } from "./test-setup.js";

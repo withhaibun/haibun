@@ -394,9 +394,6 @@
 	"modules/shu/src/affordance-dispatch.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/shu/src/affordance-products.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/annotation-rail.ts": {
 		"isn't in a kind position": 1
 	},
@@ -417,9 +414,6 @@
 	},
 	"modules/shu/src/client-blips.ts": {
 		"isn't in a kind position": 1
-	},
-	"modules/shu/src/client-cache-stepper.ts": {
-		"imports a stepper: ./client-cache/client-cache-stepper.js": 1
 	},
 	"modules/shu/src/client-cache/device-store.ts": {
 		"isn't in a kind position": 1
@@ -463,76 +457,13 @@
 	"modules/shu/src/component-registry.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/shu/src/components/actions-bar-query.ts": {
-		"performs I/O through setTimeout": 1
-	},
-	"modules/shu/src/components/shu-affordances-panel.ts": {
-		"performs I/O through setTimeout": 1
-	},
-	"modules/shu/src/components/shu-annotated-body.ts": {
-		"performs I/O through setTimeout": 1
-	},
 	"modules/shu/src/components/shu-class-browser.ts": {
 		"performs I/O through fetch": 1
-	},
-	"modules/shu/src/components/shu-client-cache-column.ts": {
-		"performs I/O through setTimeout": 1
 	},
 	"modules/shu/src/components/shu-clustered-graph-view.ts": {
 		"performs I/O through setTimeout": 1
 	},
-	"modules/shu/src/components/shu-combobox.ts": {
-		"performs I/O through setTimeout": 1
-	},
-	"modules/shu/src/components/shu-copy-button.ts": {
-		"performs I/O through setTimeout": 1
-	},
-	"modules/shu/src/components/shu-entity-column.ts": {
-		"performs I/O through setTimeout": 1
-	},
-	"modules/shu/src/components/shu-graph-query.ts": {
-		"performs I/O through setTimeout": 1
-	},
-	"modules/shu/src/components/shu-scrollbar.controls.ts": {
-		"performs I/O through setTimeout": 1
-	},
-	"modules/shu/src/components/shu-step-detail.ts": {
-		"performs I/O through setTimeout": 1
-	},
-	"modules/shu/src/consts.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/content-security-policy.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/controllers/authority-controller.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/controllers/data-access-scan.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/controllers/entity-controller.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/controllers/index.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/controllers/query-controller.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/controllers/scroll-follow-controller.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/controllers/signal-controller.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/controllers/steps-changed-controller.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/controllers/subject-controller.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/controllers/timeline-view-controller.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/conversation.ts": {
@@ -550,9 +481,6 @@
 	"modules/shu/src/define-element.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/shu/src/document-blocks.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/element-prefs.ts": {
 		"isn't in a kind position": 1
 	},
@@ -560,9 +488,6 @@
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/entity-store.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/event-marker.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/event-stream.ts": {
@@ -751,9 +676,6 @@
 	"modules/shu/src/hypermedia.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/shu/src/index.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/known-size-flow.ts": {
 		"isn't in a kind position": 1
 	},
@@ -770,9 +692,6 @@
 	"modules/shu/src/object-id.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/shu/src/page-blips.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/page-delegation.ts": {
 		"isn't in a kind position": 1
 	},
@@ -782,8 +701,35 @@
 	"modules/shu/src/page-pinned.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/shu/src/pane-event-router.ts": {
-		"isn't in a kind position": 1
+	"modules/shu/src/page/components/actions-bar-query.ts": {
+		"performs I/O through setTimeout": 1
+	},
+	"modules/shu/src/page/components/shu-affordances-panel.ts": {
+		"performs I/O through setTimeout": 1
+	},
+	"modules/shu/src/page/components/shu-annotated-body.ts": {
+		"performs I/O through setTimeout": 1
+	},
+	"modules/shu/src/page/components/shu-client-cache-column.ts": {
+		"performs I/O through setTimeout": 1
+	},
+	"modules/shu/src/page/components/shu-combobox.ts": {
+		"performs I/O through setTimeout": 1
+	},
+	"modules/shu/src/page/components/shu-copy-button.ts": {
+		"performs I/O through setTimeout": 1
+	},
+	"modules/shu/src/page/components/shu-entity-column.ts": {
+		"performs I/O through setTimeout": 1
+	},
+	"modules/shu/src/page/components/shu-graph-query.ts": {
+		"performs I/O through setTimeout": 1
+	},
+	"modules/shu/src/page/components/shu-scrollbar.controls.ts": {
+		"performs I/O through setTimeout": 1
+	},
+	"modules/shu/src/page/components/shu-step-detail.ts": {
+		"performs I/O through setTimeout": 1
 	},
 	"modules/shu/src/pane-fetch.ts": {
 		"isn't in a kind position": 1
@@ -791,13 +737,7 @@
 	"modules/shu/src/pane-state.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/shu/src/quad-detail-pane.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/quads-snapshot.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/ranges.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/recogito.ts": {
@@ -821,16 +761,10 @@
 	"modules/shu/src/rpc-registry.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/shu/src/run-scale.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/scenes.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/schemas.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/scrollbar-model.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/show-controls.ts": {
@@ -840,15 +774,6 @@
 		"performs I/O through fs": 1
 	},
 	"modules/shu/src/signals.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/slash-command.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/step-input-validator.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/test-ids.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/test-setup.ts": {
@@ -866,16 +791,10 @@
 	"modules/shu/src/util.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/shu/src/view-blips.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/view-hash.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/view-query.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/virtual-column-model.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/window-size-setting.ts": {

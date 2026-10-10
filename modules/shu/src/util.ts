@@ -37,7 +37,7 @@ export function escAttr(s: string): string {
 
 import { AccessQuery, type AccessQueryLevel } from "@haibun/core/lib/resources.js";
 import { parseViewQuery } from "./view-query.js";
-import { STORED_TYPE_PROP } from "./consts.js";
+import { STORED_TYPE_PROP } from "./domains/elements.js";
 
 /**
  * The SPA's current access level. Single source of truth for every RPC caller that reads/writes data, read from the URL
@@ -227,48 +227,3 @@ export function extractBodyLiterals(vertex: Record<string, unknown>, label?: str
 // here because this module is where the page's formatting helpers are found.
 export { BODY_PREFERENCE, pickPreferredBody } from "@haibun/core/lib/resources.js";
 
-const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-function pad2(n: number): string {
-	return n < 10 ? `0${n}` : String(n);
-}
-
-function timeStr(d: Date): string {
-	return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
-}
-
-function startOfWeek(d: Date): Date {
-	const copy = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-	const day = copy.getDay();
-	// Monday = start of week
-	copy.setDate(copy.getDate() - ((day + 6) % 7));
-	return copy;
-}
-
-const DATE_RE = [/^\d{4}-\d{2}-\d{2}(T|\s)\d{2}:\d{2}/, /^\d{4}-\d{2}-\d{2}$/, /^[A-Z][a-z]{2},?\s+\d{1,2}\s+[A-Z][a-z]{2}\s+\d{4}/];
-
-export function isDateValue(value: string): boolean {
-	return DATE_RE.some((re) => re.test(value));
-}
-
-export function formatDate(value: string, now: Date = new Date()): string {
-	const d = new Date(value);
-	if (isNaN(d.getTime())) return value;
-
-	const time = timeStr(d);
-	const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-	const target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-
-	if (target.getTime() === today.getTime()) {
-		return `Today, ${time}`;
-	}
-	if (startOfWeek(target).getTime() === startOfWeek(today).getTime()) {
-		return `${DAYS[d.getDay()]} ${time}`;
-	}
-	const month = MONTHS[d.getMonth()];
-	if (d.getFullYear() === now.getFullYear()) {
-		return `${month} ${d.getDate()} ${time}`;
-	}
-	return `${month} ${d.getDate()}, ${d.getFullYear()} ${time}`;
-}

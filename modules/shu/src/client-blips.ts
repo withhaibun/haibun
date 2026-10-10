@@ -17,7 +17,7 @@ import { reportToRun } from "./client-log.js";
 import { pageMay } from "./page-key.js";
 import { readAction } from "@haibun/core/lib/actions.js";
 import { Access } from "@haibun/core/lib/resources.js";
-import { CLIENT_RING } from "./consts.js";
+import { CLIENT_RING } from "./domains/elements.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 
 /** How long to wait before sending, so a burst of frames leaves as one batch rather than one request per frame. */

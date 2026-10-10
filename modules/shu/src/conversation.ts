@@ -23,9 +23,9 @@ import { COMMENT_LABEL, type AccessQueryLevel } from "@haibun/core/lib/resources
 import type { TRefusedCall } from "@haibun/core/lib/step-stream-context.js";
 import type { TCalled } from "@haibun/core/lib/called.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
-import type { TChatMessage } from "./components/shu-chat-message.js";
+import type { TChatMessage } from "./page/components/shu-chat-message.js";
 import { reportToRun } from "./client-log.js";
-import { CONVERSATION_PARAM } from "./consts.js";
+import { CONVERSATION_PARAM } from "./domains/elements.js";
 import { SCOPE, dispatchSubjectEvent, recordOf, type TRecord } from "./current-subject.js";
 import { hasEventStream, subscribeBatchedEvents, type TEvent } from "./event-stream.js";
 import { conduit, reads } from "./hypermedia.js";

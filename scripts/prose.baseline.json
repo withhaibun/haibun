@@ -209,118 +209,6 @@
 	"modules/shu/src/client-log.ts": {
 		"terminal-preposition": 1
 	},
-	"modules/shu/src/components/actions-bar-model.test.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/shu/src/components/actions-bar-model.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/shu/src/components/actions-bar-query.test.ts": {
-		"anthropomorphic": 2,
-		"terminal-preposition": 1
-	},
-	"modules/shu/src/components/actions-bar-query.ts": {
-		"anthropomorphic": 7,
-		"terminal-preposition": 4
-	},
-	"modules/shu/src/components/actions-bar-steps.test.ts": {
-		"anthropomorphic": 1,
-		"the-run": 1
-	},
-	"modules/shu/src/components/actions-bar-steps.ts": {
-		"anthropomorphic": 1,
-		"terminal-preposition": 1,
-		"the-run": 1
-	},
-	"modules/shu/src/components/body-iframe-csp.test.ts": {
-		"terminal-preposition": 1
-	},
-	"modules/shu/src/components/chat-pane.test-fake.ts": {
-		"anthropomorphic": 6,
-		"terminal-preposition": 1
-	},
-	"modules/shu/src/components/controller-host.test-fake.ts": {
-		"anthropomorphic": 4,
-		"terminal-preposition": 1
-	},
-	"modules/shu/src/components/controls-util.ts": {
-		"terminal-preposition": 3
-	},
-	"modules/shu/src/components/dock-model.test.ts": {
-		"anthropomorphic": 2
-	},
-	"modules/shu/src/components/dock-model.ts": {
-		"anthropomorphic": 2,
-		"terminal-preposition": 1
-	},
-	"modules/shu/src/components/json-disclosure.ts": {
-		"relation-verb": 1,
-		"terminal-preposition": 4
-	},
-	"modules/shu/src/components/page-strip-corners.test.ts": {
-		"relation-verb": 1,
-		"the-run": 1
-	},
-	"modules/shu/src/components/page-strip-corners.ts": {
-		"anthropomorphic": 1,
-		"relation-verb": 2,
-		"the-run": 3
-	},
-	"modules/shu/src/components/pane-dock.test.ts": {
-		"anthropomorphic": 2
-	},
-	"modules/shu/src/components/pane-dock.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/shu/src/components/ref-navigation.ts": {
-		"terminal-preposition": 2
-	},
-	"modules/shu/src/components/shu-actions-bar.test.ts": {
-		"anthropomorphic": 1,
-		"relation-verb": 2,
-		"the-run": 1
-	},
-	"modules/shu/src/components/shu-actions-bar.ts": {
-		"anthropomorphic": 12,
-		"relation-verb": 2,
-		"terminal-preposition": 1,
-		"the-run": 1
-	},
-	"modules/shu/src/components/shu-activity-history.ts": {
-		"anthropomorphic": 1,
-		"terminal-preposition": 3
-	},
-	"modules/shu/src/components/shu-affordances-panel.test.ts": {
-		"relation-verb": 1,
-		"terminal-preposition": 1,
-		"the-run": 2
-	},
-	"modules/shu/src/components/shu-affordances-panel.ts": {
-		"anthropomorphic": 4,
-		"terminal-preposition": 3,
-		"the-run": 1
-	},
-	"modules/shu/src/components/shu-annotated-body.ts": {
-		"anthropomorphic": 4,
-		"relation-verb": 4,
-		"terminal-preposition": 1
-	},
-	"modules/shu/src/components/shu-artifact-frame.test.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/shu/src/components/shu-artifact-frame.ts": {
-		"anthropomorphic": 2,
-		"relation-verb": 2,
-		"the-run": 1
-	},
-	"modules/shu/src/components/shu-chat-message.test.ts": {
-		"anthropomorphic": 7
-	},
-	"modules/shu/src/components/shu-chat-message.ts": {
-		"anthropomorphic": 7,
-		"relation-verb": 1,
-		"terminal-preposition": 1
-	},
 	"modules/shu/src/components/shu-chip-group.ts": {
 		"anthropomorphic": 3
 	},
@@ -328,98 +216,10 @@
 		"anthropomorphic": 2,
 		"terminal-preposition": 2
 	},
-	"modules/shu/src/components/shu-client-cache-column.test.ts": {
-		"anthropomorphic": 1,
-		"relation-verb": 1
-	},
-	"modules/shu/src/components/shu-client-cache-column.ts": {
-		"anthropomorphic": 11,
-		"relation-verb": 3,
-		"terminal-preposition": 2,
-		"the-run": 5
-	},
 	"modules/shu/src/components/shu-clustered-graph-view.ts": {
 		"anthropomorphic": 2,
 		"relation-verb": 1,
 		"terminal-preposition": 3
-	},
-	"modules/shu/src/components/shu-column-pane.test.ts": {
-		"anthropomorphic": 15,
-		"negated-noun": 5,
-		"terminal-preposition": 1
-	},
-	"modules/shu/src/components/shu-column-pane.ts": {
-		"anthropomorphic": 10,
-		"negated-noun": 1,
-		"relation-verb": 4,
-		"terminal-preposition": 3
-	},
-	"modules/shu/src/components/shu-column-strip.controls.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/shu/src/components/shu-column-strip.ts": {
-		"anthropomorphic": 2,
-		"terminal-preposition": 1
-	},
-	"modules/shu/src/components/shu-combobox.test.ts": {
-		"negated-noun": 1
-	},
-	"modules/shu/src/components/shu-combobox.ts": {
-		"anthropomorphic": 2,
-		"relation-verb": 2
-	},
-	"modules/shu/src/components/shu-document-column.ts": {
-		"anthropomorphic": 5,
-		"relation-verb": 5,
-		"terminal-preposition": 3,
-		"the-run": 8
-	},
-	"modules/shu/src/components/shu-domain-chain-view.test.ts": {
-		"anthropomorphic": 1,
-		"relation-verb": 1,
-		"terminal-preposition": 1,
-		"the-run": 2
-	},
-	"modules/shu/src/components/shu-domain-chain-view.ts": {
-		"negated-noun": 1,
-		"terminal-preposition": 1,
-		"the-run": 1
-	},
-	"modules/shu/src/components/shu-element.test.ts": {
-		"anthropomorphic": 3,
-		"terminal-preposition": 1
-	},
-	"modules/shu/src/components/shu-element.ts": {
-		"anthropomorphic": 17,
-		"negated-noun": 1,
-		"relation-verb": 5,
-		"terminal-preposition": 7
-	},
-	"modules/shu/src/components/shu-entity-column.body-content.test.ts": {
-		"negated-noun": 1,
-		"terminal-preposition": 1
-	},
-	"modules/shu/src/components/shu-entity-column.ts": {
-		"anthropomorphic": 4,
-		"banned-word": 3,
-		"relation-verb": 1,
-		"terminal-preposition": 3
-	},
-	"modules/shu/src/components/shu-entity-column.type-and-fields.test.ts": {
-		"banned-word": 2
-	},
-	"modules/shu/src/components/shu-event-consumers.test.ts": {
-		"anthropomorphic": 3,
-		"relation-verb": 1,
-		"terminal-preposition": 1,
-		"the-run": 1
-	},
-	"modules/shu/src/components/shu-field.test.ts": {
-		"negated-noun": 1
-	},
-	"modules/shu/src/components/shu-field.ts": {
-		"anthropomorphic": 2,
-		"relation-verb": 2
 	},
 	"modules/shu/src/components/shu-graph-filter.test.ts": {
 		"anthropomorphic": 1,
@@ -430,90 +230,8 @@
 		"anthropomorphic": 4,
 		"relation-verb": 2
 	},
-	"modules/shu/src/components/shu-graph-query.controls.test.ts": {
-		"negated-noun": 1,
-		"relation-verb": 1
-	},
-	"modules/shu/src/components/shu-graph-query.controls.ts": {
-		"anthropomorphic": 2,
-		"relation-verb": 1
-	},
-	"modules/shu/src/components/shu-graph-query.ts": {
-		"anthropomorphic": 9,
-		"relation-verb": 2,
-		"terminal-preposition": 1
-	},
 	"modules/shu/src/components/shu-graph.ts": {
 		"relation-verb": 1
-	},
-	"modules/shu/src/components/shu-index-summary.test.ts": {
-		"anthropomorphic": 6,
-		"relation-verb": 2
-	},
-	"modules/shu/src/components/shu-index-summary.ts": {
-		"anthropomorphic": 5,
-		"relation-verb": 1,
-		"terminal-preposition": 1
-	},
-	"modules/shu/src/components/shu-kihan-chat.catalog.test.ts": {
-		"anthropomorphic": 1,
-		"terminal-preposition": 1
-	},
-	"modules/shu/src/components/shu-kihan-chat.conversation.test.ts": {
-		"anthropomorphic": 31,
-		"negated-noun": 2,
-		"relation-verb": 2,
-		"terminal-preposition": 2
-	},
-	"modules/shu/src/components/shu-kihan-chat.test.ts": {
-		"anthropomorphic": 3,
-		"terminal-preposition": 1
-	},
-	"modules/shu/src/components/shu-kihan-chat.ts": {
-		"anthropomorphic": 35,
-		"relation-verb": 1,
-		"terminal-preposition": 8,
-		"the-run": 1
-	},
-	"modules/shu/src/components/shu-monitor-column.controls.ts": {
-		"relation-verb": 3,
-		"terminal-preposition": 2
-	},
-	"modules/shu/src/components/shu-monitor-column.ts": {
-		"anthropomorphic": 7,
-		"relation-verb": 4,
-		"terminal-preposition": 4,
-		"the-run": 2
-	},
-	"modules/shu/src/components/shu-monitor-column.window.test.ts": {
-		"anthropomorphic": 3,
-		"relation-verb": 1,
-		"terminal-preposition": 1,
-		"the-run": 2
-	},
-	"modules/shu/src/components/shu-page-key.ts": {
-		"terminal-preposition": 1
-	},
-	"modules/shu/src/components/shu-page-strip.test.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/shu/src/components/shu-page-strip.ts": {
-		"anthropomorphic": 1,
-		"relation-verb": 2,
-		"terminal-preposition": 1
-	},
-	"modules/shu/src/components/shu-permissions.test.ts": {
-		"anthropomorphic": 4
-	},
-	"modules/shu/src/components/shu-permissions.ts": {
-		"anthropomorphic": 5
-	},
-	"modules/shu/src/components/shu-playback.test.ts": {
-		"anthropomorphic": 6,
-		"the-run": 1
-	},
-	"modules/shu/src/components/shu-playback.ts": {
-		"anthropomorphic": 1
 	},
 	"modules/shu/src/components/shu-polymorphic-graph-view.controls.ts": {
 		"anthropomorphic": 12,
@@ -530,134 +248,19 @@
 		"anthropomorphic": 3,
 		"terminal-preposition": 1
 	},
-	"modules/shu/src/components/shu-product-view.ts": {
-		"relation-verb": 1
-	},
-	"modules/shu/src/components/shu-ref-element.ts": {
-		"anthropomorphic": 1,
-		"terminal-preposition": 2
-	},
-	"modules/shu/src/components/shu-ref.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/shu/src/components/shu-result-table.test.ts": {
-		"negated-noun": 1,
-		"terminal-preposition": 1
-	},
-	"modules/shu/src/components/shu-result-table.ts": {
-		"anthropomorphic": 1,
-		"relation-verb": 1
-	},
-	"modules/shu/src/components/shu-scrollbar.controls.ts": {
-		"terminal-preposition": 2
-	},
-	"modules/shu/src/components/shu-scrollbar.test.ts": {
-		"anthropomorphic": 5,
-		"negated-noun": 3,
-		"relation-verb": 5,
-		"terminal-preposition": 2
-	},
-	"modules/shu/src/components/shu-scrollbar.ts": {
-		"anthropomorphic": 7,
-		"relation-verb": 5,
-		"terminal-preposition": 3
-	},
-	"modules/shu/src/components/shu-spinner.escape.test.ts": {
-		"negated-noun": 1
-	},
-	"modules/shu/src/components/shu-step-caller.test.ts": {
-		"anthropomorphic": 1,
-		"relation-verb": 1
-	},
-	"modules/shu/src/components/shu-step-caller.ts": {
-		"anthropomorphic": 2,
-		"negated-noun": 1
-	},
-	"modules/shu/src/components/shu-step-definition.ts": {
-		"terminal-preposition": 1
-	},
-	"modules/shu/src/components/shu-step-detail.test.ts": {
-		"anthropomorphic": 2
-	},
-	"modules/shu/src/components/shu-step-detail.ts": {
-		"anthropomorphic": 2
-	},
-	"modules/shu/src/components/shu-theme-switch.ts": {
-		"relation-verb": 2
-	},
-	"modules/shu/src/components/shu-thread-column.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/shu/src/components/shu-type-column.ts": {
-		"anthropomorphic": 3,
-		"relation-verb": 1
-	},
-	"modules/shu/src/components/shu-views-picker.test.ts": {
-		"anthropomorphic": 2
-	},
-	"modules/shu/src/components/shu-virtual-column.test.ts": {
-		"anthropomorphic": 2,
-		"terminal-preposition": 1
-	},
-	"modules/shu/src/components/shu-virtual-column.ts": {
-		"anthropomorphic": 8,
-		"relation-verb": 5,
-		"terminal-preposition": 1
-	},
-	"modules/shu/src/components/slot-extensions.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/shu/src/components/styles.test.ts": {
-		"negated-noun": 1
-	},
-	"modules/shu/src/components/styles.ts": {
-		"relation-verb": 4
-	},
 	"modules/shu/src/content-security-policy.ts": {
 		"terminal-preposition": 1
-	},
-	"modules/shu/src/controllers/authority-controller.test-fake.ts": {
-		"anthropomorphic": 3,
-		"relation-verb": 1
-	},
-	"modules/shu/src/controllers/authority-controller.ts": {
-		"anthropomorphic": 2
-	},
-	"modules/shu/src/controllers/data-access.test.ts": {
-		"relation-verb": 3
-	},
-	"modules/shu/src/controllers/entity-controller.ts": {
-		"anthropomorphic": 2
-	},
-	"modules/shu/src/controllers/index.ts": {
-		"relation-verb": 1
-	},
-	"modules/shu/src/controllers/query-controller.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/shu/src/controllers/scroll-follow-controller.ts": {
-		"terminal-preposition": 2
-	},
-	"modules/shu/src/controllers/signal-controller.ts": {
-		"anthropomorphic": 4
-	},
-	"modules/shu/src/controllers/subject-controller.test.ts": {
-		"anthropomorphic": 5
-	},
-	"modules/shu/src/controllers/subject-controller.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/shu/src/controllers/timeline-view-controller.test.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/shu/src/controllers/timeline-view-controller.ts": {
-		"terminal-preposition": 2
 	},
 	"modules/shu/src/conversation.test.ts": {
 		"anthropomorphic": 1
 	},
 	"modules/shu/src/current-subject.ts": {
 		"terminal-preposition": 1
+	},
+	"modules/shu/src/domains/test-ids.ts": {
+		"anthropomorphic": 1,
+		"relation-verb": 2,
+		"terminal-preposition": 5
 	},
 	"modules/shu/src/graph-source-stepper.ts": {
 		"anthropomorphic": 20,
@@ -936,9 +539,6 @@
 		"terminal-preposition": 1,
 		"the-run": 6
 	},
-	"modules/shu/src/page-blips.ts": {
-		"relation-verb": 2
-	},
 	"modules/shu/src/page-bundles.test.ts": {
 		"terminal-preposition": 1
 	},
@@ -955,8 +555,410 @@
 	"modules/shu/src/page-pinned.ts": {
 		"relation-verb": 1
 	},
-	"modules/shu/src/pane-event-router.ts": {
+	"modules/shu/src/page/components/actions-bar-query.test.ts": {
+		"anthropomorphic": 2,
+		"terminal-preposition": 1
+	},
+	"modules/shu/src/page/components/actions-bar-query.ts": {
+		"anthropomorphic": 7,
+		"terminal-preposition": 4
+	},
+	"modules/shu/src/page/components/actions-bar-steps.test.ts": {
+		"anthropomorphic": 1,
+		"the-run": 1
+	},
+	"modules/shu/src/page/components/actions-bar-steps.ts": {
+		"anthropomorphic": 1,
+		"terminal-preposition": 1,
+		"the-run": 1
+	},
+	"modules/shu/src/page/components/body-iframe-csp.test.ts": {
+		"terminal-preposition": 1
+	},
+	"modules/shu/src/page/components/chat-pane.test-fake.ts": {
+		"anthropomorphic": 6,
+		"terminal-preposition": 1
+	},
+	"modules/shu/src/page/components/controller-host.test-fake.ts": {
+		"anthropomorphic": 4,
+		"terminal-preposition": 1
+	},
+	"modules/shu/src/page/components/controls-util.ts": {
+		"terminal-preposition": 3
+	},
+	"modules/shu/src/page/components/json-disclosure.ts": {
+		"relation-verb": 1,
+		"terminal-preposition": 4
+	},
+	"modules/shu/src/page/components/page-strip-corners.test.ts": {
+		"relation-verb": 1,
+		"the-run": 1
+	},
+	"modules/shu/src/page/components/page-strip-corners.ts": {
+		"anthropomorphic": 1,
+		"relation-verb": 2,
+		"the-run": 3
+	},
+	"modules/shu/src/page/components/pane-dock.test.ts": {
+		"anthropomorphic": 2
+	},
+	"modules/shu/src/page/components/pane-dock.ts": {
 		"anthropomorphic": 1
+	},
+	"modules/shu/src/page/components/ref-navigation.ts": {
+		"terminal-preposition": 2
+	},
+	"modules/shu/src/page/components/shu-actions-bar.test.ts": {
+		"anthropomorphic": 1,
+		"relation-verb": 2,
+		"the-run": 1
+	},
+	"modules/shu/src/page/components/shu-actions-bar.ts": {
+		"anthropomorphic": 12,
+		"relation-verb": 2,
+		"terminal-preposition": 1,
+		"the-run": 1
+	},
+	"modules/shu/src/page/components/shu-activity-history.ts": {
+		"anthropomorphic": 1,
+		"terminal-preposition": 3
+	},
+	"modules/shu/src/page/components/shu-affordances-panel.test.ts": {
+		"relation-verb": 1,
+		"terminal-preposition": 1,
+		"the-run": 2
+	},
+	"modules/shu/src/page/components/shu-affordances-panel.ts": {
+		"anthropomorphic": 4,
+		"terminal-preposition": 3,
+		"the-run": 1
+	},
+	"modules/shu/src/page/components/shu-annotated-body.ts": {
+		"anthropomorphic": 4,
+		"relation-verb": 4,
+		"terminal-preposition": 1
+	},
+	"modules/shu/src/page/components/shu-artifact-frame.test.ts": {
+		"anthropomorphic": 1
+	},
+	"modules/shu/src/page/components/shu-artifact-frame.ts": {
+		"anthropomorphic": 2,
+		"relation-verb": 2,
+		"the-run": 1
+	},
+	"modules/shu/src/page/components/shu-chat-message.test.ts": {
+		"anthropomorphic": 7
+	},
+	"modules/shu/src/page/components/shu-chat-message.ts": {
+		"anthropomorphic": 7,
+		"relation-verb": 1,
+		"terminal-preposition": 1
+	},
+	"modules/shu/src/page/components/shu-client-cache-column.test.ts": {
+		"anthropomorphic": 1,
+		"relation-verb": 1
+	},
+	"modules/shu/src/page/components/shu-client-cache-column.ts": {
+		"anthropomorphic": 11,
+		"relation-verb": 3,
+		"terminal-preposition": 2,
+		"the-run": 5
+	},
+	"modules/shu/src/page/components/shu-column-pane.test.ts": {
+		"anthropomorphic": 15,
+		"negated-noun": 5,
+		"terminal-preposition": 1
+	},
+	"modules/shu/src/page/components/shu-column-pane.ts": {
+		"anthropomorphic": 10,
+		"negated-noun": 1,
+		"relation-verb": 4,
+		"terminal-preposition": 3
+	},
+	"modules/shu/src/page/components/shu-column-strip.controls.ts": {
+		"anthropomorphic": 1
+	},
+	"modules/shu/src/page/components/shu-column-strip.ts": {
+		"anthropomorphic": 2,
+		"terminal-preposition": 1
+	},
+	"modules/shu/src/page/components/shu-combobox.test.ts": {
+		"negated-noun": 1
+	},
+	"modules/shu/src/page/components/shu-combobox.ts": {
+		"anthropomorphic": 2,
+		"relation-verb": 2
+	},
+	"modules/shu/src/page/components/shu-document-column.ts": {
+		"anthropomorphic": 5,
+		"relation-verb": 5,
+		"terminal-preposition": 3,
+		"the-run": 8
+	},
+	"modules/shu/src/page/components/shu-domain-chain-view.test.ts": {
+		"anthropomorphic": 1,
+		"relation-verb": 1,
+		"terminal-preposition": 1,
+		"the-run": 2
+	},
+	"modules/shu/src/page/components/shu-domain-chain-view.ts": {
+		"negated-noun": 1,
+		"terminal-preposition": 1,
+		"the-run": 1
+	},
+	"modules/shu/src/page/components/shu-element.test.ts": {
+		"anthropomorphic": 3,
+		"terminal-preposition": 1
+	},
+	"modules/shu/src/page/components/shu-element.ts": {
+		"anthropomorphic": 17,
+		"negated-noun": 1,
+		"relation-verb": 5,
+		"terminal-preposition": 7
+	},
+	"modules/shu/src/page/components/shu-entity-column.body-content.test.ts": {
+		"negated-noun": 1,
+		"terminal-preposition": 1
+	},
+	"modules/shu/src/page/components/shu-entity-column.ts": {
+		"anthropomorphic": 4,
+		"banned-word": 3,
+		"relation-verb": 1,
+		"terminal-preposition": 3
+	},
+	"modules/shu/src/page/components/shu-entity-column.type-and-fields.test.ts": {
+		"banned-word": 2
+	},
+	"modules/shu/src/page/components/shu-event-consumers.test.ts": {
+		"anthropomorphic": 3,
+		"relation-verb": 1,
+		"terminal-preposition": 1,
+		"the-run": 1
+	},
+	"modules/shu/src/page/components/shu-field.test.ts": {
+		"negated-noun": 1
+	},
+	"modules/shu/src/page/components/shu-field.ts": {
+		"anthropomorphic": 2,
+		"relation-verb": 2
+	},
+	"modules/shu/src/page/components/shu-graph-query.controls.test.ts": {
+		"negated-noun": 1,
+		"relation-verb": 1
+	},
+	"modules/shu/src/page/components/shu-graph-query.controls.ts": {
+		"anthropomorphic": 2,
+		"relation-verb": 1
+	},
+	"modules/shu/src/page/components/shu-graph-query.ts": {
+		"anthropomorphic": 9,
+		"relation-verb": 2,
+		"terminal-preposition": 1
+	},
+	"modules/shu/src/page/components/shu-index-summary.test.ts": {
+		"anthropomorphic": 6,
+		"relation-verb": 2
+	},
+	"modules/shu/src/page/components/shu-index-summary.ts": {
+		"anthropomorphic": 5,
+		"relation-verb": 1,
+		"terminal-preposition": 1
+	},
+	"modules/shu/src/page/components/shu-kihan-chat.catalog.test.ts": {
+		"anthropomorphic": 1,
+		"terminal-preposition": 1
+	},
+	"modules/shu/src/page/components/shu-kihan-chat.conversation.test.ts": {
+		"anthropomorphic": 31,
+		"negated-noun": 2,
+		"relation-verb": 2,
+		"terminal-preposition": 2
+	},
+	"modules/shu/src/page/components/shu-kihan-chat.test.ts": {
+		"anthropomorphic": 3,
+		"terminal-preposition": 1
+	},
+	"modules/shu/src/page/components/shu-kihan-chat.ts": {
+		"anthropomorphic": 35,
+		"relation-verb": 1,
+		"terminal-preposition": 8,
+		"the-run": 1
+	},
+	"modules/shu/src/page/components/shu-monitor-column.controls.ts": {
+		"relation-verb": 3,
+		"terminal-preposition": 2
+	},
+	"modules/shu/src/page/components/shu-monitor-column.ts": {
+		"anthropomorphic": 7,
+		"relation-verb": 4,
+		"terminal-preposition": 4,
+		"the-run": 2
+	},
+	"modules/shu/src/page/components/shu-monitor-column.window.test.ts": {
+		"anthropomorphic": 3,
+		"relation-verb": 1,
+		"terminal-preposition": 1,
+		"the-run": 2
+	},
+	"modules/shu/src/page/components/shu-page-key.ts": {
+		"terminal-preposition": 1
+	},
+	"modules/shu/src/page/components/shu-page-strip.test.ts": {
+		"anthropomorphic": 1
+	},
+	"modules/shu/src/page/components/shu-page-strip.ts": {
+		"anthropomorphic": 1,
+		"relation-verb": 2,
+		"terminal-preposition": 1
+	},
+	"modules/shu/src/page/components/shu-permissions.test.ts": {
+		"anthropomorphic": 4
+	},
+	"modules/shu/src/page/components/shu-permissions.ts": {
+		"anthropomorphic": 5
+	},
+	"modules/shu/src/page/components/shu-playback.test.ts": {
+		"anthropomorphic": 6,
+		"the-run": 1
+	},
+	"modules/shu/src/page/components/shu-playback.ts": {
+		"anthropomorphic": 1
+	},
+	"modules/shu/src/page/components/shu-product-view.ts": {
+		"relation-verb": 1
+	},
+	"modules/shu/src/page/components/shu-ref-element.ts": {
+		"anthropomorphic": 1,
+		"terminal-preposition": 2
+	},
+	"modules/shu/src/page/components/shu-ref.ts": {
+		"anthropomorphic": 1
+	},
+	"modules/shu/src/page/components/shu-result-table.test.ts": {
+		"negated-noun": 1,
+		"terminal-preposition": 1
+	},
+	"modules/shu/src/page/components/shu-result-table.ts": {
+		"anthropomorphic": 1,
+		"relation-verb": 1
+	},
+	"modules/shu/src/page/components/shu-scrollbar.controls.ts": {
+		"terminal-preposition": 2
+	},
+	"modules/shu/src/page/components/shu-scrollbar.test.ts": {
+		"anthropomorphic": 5,
+		"negated-noun": 3,
+		"relation-verb": 5,
+		"terminal-preposition": 2
+	},
+	"modules/shu/src/page/components/shu-scrollbar.ts": {
+		"anthropomorphic": 7,
+		"relation-verb": 5,
+		"terminal-preposition": 3
+	},
+	"modules/shu/src/page/components/shu-spinner.escape.test.ts": {
+		"negated-noun": 1
+	},
+	"modules/shu/src/page/components/shu-step-caller.test.ts": {
+		"anthropomorphic": 1,
+		"relation-verb": 1
+	},
+	"modules/shu/src/page/components/shu-step-caller.ts": {
+		"anthropomorphic": 2,
+		"negated-noun": 1
+	},
+	"modules/shu/src/page/components/shu-step-definition.ts": {
+		"terminal-preposition": 1
+	},
+	"modules/shu/src/page/components/shu-step-detail.test.ts": {
+		"anthropomorphic": 2
+	},
+	"modules/shu/src/page/components/shu-step-detail.ts": {
+		"anthropomorphic": 2
+	},
+	"modules/shu/src/page/components/shu-theme-switch.ts": {
+		"relation-verb": 2
+	},
+	"modules/shu/src/page/components/shu-thread-column.ts": {
+		"anthropomorphic": 1
+	},
+	"modules/shu/src/page/components/shu-type-column.ts": {
+		"anthropomorphic": 3,
+		"relation-verb": 1
+	},
+	"modules/shu/src/page/components/shu-views-picker.test.ts": {
+		"anthropomorphic": 2
+	},
+	"modules/shu/src/page/components/shu-virtual-column.test.ts": {
+		"anthropomorphic": 2,
+		"terminal-preposition": 1
+	},
+	"modules/shu/src/page/components/shu-virtual-column.ts": {
+		"anthropomorphic": 8,
+		"relation-verb": 5,
+		"terminal-preposition": 1
+	},
+	"modules/shu/src/page/components/slot-extensions.ts": {
+		"anthropomorphic": 1
+	},
+	"modules/shu/src/page/components/styles.test.ts": {
+		"negated-noun": 1
+	},
+	"modules/shu/src/page/components/styles.ts": {
+		"relation-verb": 4
+	},
+	"modules/shu/src/page/controllers/authority-controller.test-fake.ts": {
+		"anthropomorphic": 3,
+		"relation-verb": 1
+	},
+	"modules/shu/src/page/controllers/authority-controller.ts": {
+		"anthropomorphic": 2
+	},
+	"modules/shu/src/page/controllers/entity-controller.ts": {
+		"anthropomorphic": 2
+	},
+	"modules/shu/src/page/controllers/query-controller.ts": {
+		"anthropomorphic": 1
+	},
+	"modules/shu/src/page/controllers/scroll-follow-controller.ts": {
+		"terminal-preposition": 2
+	},
+	"modules/shu/src/page/controllers/signal-controller.ts": {
+		"anthropomorphic": 4
+	},
+	"modules/shu/src/page/controllers/subject-controller.test.ts": {
+		"anthropomorphic": 5
+	},
+	"modules/shu/src/page/controllers/subject-controller.ts": {
+		"anthropomorphic": 1
+	},
+	"modules/shu/src/page/controllers/timeline-view-controller.test.ts": {
+		"anthropomorphic": 1
+	},
+	"modules/shu/src/page/controllers/timeline-view-controller.ts": {
+		"terminal-preposition": 2
+	},
+	"modules/shu/src/page/derivations/layout.actions-bar.test.ts": {
+		"anthropomorphic": 1
+	},
+	"modules/shu/src/page/derivations/layout.test.ts": {
+		"anthropomorphic": 2
+	},
+	"modules/shu/src/page/derivations/layout.ts": {
+		"anthropomorphic": 1
+	},
+	"modules/shu/src/page/derivations/rail.run-scale.test.ts": {
+		"anthropomorphic": 3,
+		"relation-verb": 2,
+		"the-run": 3
+	},
+	"modules/shu/src/page/derivations/rail.test.ts": {
+		"anthropomorphic": 2,
+		"relation-verb": 3,
+		"terminal-preposition": 1
+	},
+	"modules/shu/src/page/derivations/step-input.ts": {
+		"relation-verb": 1
 	},
 	"modules/shu/src/pane-fetch.ts": {
 		"anthropomorphic": 5
@@ -986,9 +988,6 @@
 		"relation-verb": 1,
 		"terminal-preposition": 5,
 		"the-run": 1
-	},
-	"modules/shu/src/ranges.ts": {
-		"anthropomorphic": 3
 	},
 	"modules/shu/src/recogito.ts": {
 		"relation-verb": 1
@@ -1036,17 +1035,6 @@
 		"terminal-preposition": 5,
 		"the-run": 4
 	},
-	"modules/shu/src/run-scale.test.ts": {
-		"anthropomorphic": 3,
-		"relation-verb": 2,
-		"the-run": 3
-	},
-	"modules/shu/src/run-scale.ts": {
-		"anthropomorphic": 1,
-		"relation-verb": 3,
-		"terminal-preposition": 2,
-		"the-run": 2
-	},
 	"modules/shu/src/scenes.test.ts": {
 		"anthropomorphic": 3,
 		"terminal-preposition": 1
@@ -1063,15 +1051,6 @@
 		"anthropomorphic": 20,
 		"terminal-preposition": 3
 	},
-	"modules/shu/src/scrollbar-model.test.ts": {
-		"anthropomorphic": 2,
-		"relation-verb": 3,
-		"terminal-preposition": 1
-	},
-	"modules/shu/src/scrollbar-model.ts": {
-		"anthropomorphic": 4,
-		"relation-verb": 4
-	},
 	"modules/shu/src/shu-stepper.test.ts": {
 		"anthropomorphic": 1
 	},
@@ -1082,17 +1061,6 @@
 	},
 	"modules/shu/src/signals.ts": {
 		"anthropomorphic": 2
-	},
-	"modules/shu/src/slash-command.ts": {
-		"terminal-preposition": 1
-	},
-	"modules/shu/src/step-input-validator.ts": {
-		"relation-verb": 1
-	},
-	"modules/shu/src/test-ids.ts": {
-		"anthropomorphic": 1,
-		"relation-verb": 2,
-		"terminal-preposition": 5
 	},
 	"modules/shu/src/test-setup.test.ts": {
 		"negated-noun": 1
@@ -1134,12 +1102,6 @@
 		"anthropomorphic": 1,
 		"relation-verb": 4
 	},
-	"modules/shu/src/view-blips.ts": {
-		"anthropomorphic": 3,
-		"relation-verb": 2,
-		"terminal-preposition": 1,
-		"the-run": 1
-	},
 	"modules/shu/src/view-hash.test.ts": {
 		"anthropomorphic": 6
 	},
@@ -1151,9 +1113,6 @@
 		"anthropomorphic": 1,
 		"negated-noun": 2,
 		"terminal-preposition": 1
-	},
-	"modules/shu/src/virtual-column-model.ts": {
-		"relation-verb": 2
 	},
 	"modules/shu/src/window-size-setting.ts": {
 		"relation-verb": 1

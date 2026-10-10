@@ -3,7 +3,7 @@
  * Provides rels, edge ranges, and properties for all node types.
  */
 import { propertyVocabulary } from "./graph/ontology-projection.js";
-import { ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, isMarkerType } from "./consts.js";
+import { ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, isMarkerType } from "./domains/elements.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
 /**

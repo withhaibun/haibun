@@ -5,13 +5,14 @@ import SpriteText from "three-spritetext";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { html, type TemplateResult } from "lit";
 import { z } from "zod";
-import { ShuElement, type TLinkedData } from "../../components/shu-element.js";
+import { ShuElement, type TLinkedData } from "../../page/components/shu-element.js";
 import { SITE_KEY, HYPERMEDIA_ROLE_REL_KEY, omittedOf, type GraphModel } from "../../graph-model.js";
 import { readsEveryStatement, statedAboutFirst } from "./polymorphic-summary.js";
 import { DEFAULT_PER_TYPE_LIMIT } from "../../quads-snapshot.js";
 import { SCOPE, dispatchSubjectEvent, entryOf } from "../../current-subject.js";
-import { appAccessLevel, formatDate } from "../../util.js";
-import { SHU_TEST_IDS } from "../../test-ids.js";
+import { appAccessLevel } from "../../util.js";
+import { formatInstant, readerZone } from "../../page/derivations/time-format.js";
+import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { FrameScheduler } from "../polymorphic/polymorphic-frame.js";
 import { EngineGovernor, type TPacedGraph } from "../polymorphic/polymorphic-engine.js";
 import { PolymorphicProfiler } from "../polymorphic/polymorphic-profiler.js";
@@ -29,7 +30,7 @@ import { availablePaints, browserRelOf } from "../paint-select.js";
 import { ganttBarTimes, GANTT_ROW_H, GANTT_BAR_H, GANTT_BAR_D, GANTT_MIN_BAR_W, GANTT_GHOST_PAD } from "../gantt-layout.js";
 import { type Adornment } from "../graph-layout.js";
 import { PolymorphicCamera, clearStripOffset, coveredTogether, type GanttExtent, type TMeasureUnit, type TPanDirection, type TZoomDirection } from "./polymorphic-camera.js";
-import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../consts.js";
+import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../../define-element.js";
 import { ndcToClient, clientToNdc, screenShare, type TClientPoint } from "../polymorphic/polymorphic-project.js";
 import { syncPickTarget, restorePickTarget, type TPickObject, type TScaleRestore } from "../polymorphic/polymorphic-pick-sync.js";
@@ -1172,7 +1173,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			return { display: `${c} connections`, chip: `${c}` };
 		}
 		if (n.__t === undefined) return { display: "time isn't recorded", chip: undefined };
-		const date = formatDate(new Date(n.__t).toISOString());
+		const date = formatInstant(new Date(n.__t).toISOString(), new Date(), readerZone());
 		return { display: `${n.__tField ?? LinkRelations.GENERATED_AT_TIME.rel} ${date}`, chip: date };
 	}
 
@@ -2615,7 +2616,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	}
 
 	/** The drag affordance for a gantt bar: a wireframe outline around the bar at its live position plus the new start
-	 *  date-time (formatDate, which renders future dates fine), updated every move. Reuses the shared unit-box edges +
+	 *  date-time (formatInstant, which renders future dates fine), updated every move. Reuses the shared unit-box edges +
 	 *  the SpriteText label pattern; parented into node-coordinate space like the enclosures. */
 	private updateGanttGhost(node: FGNode): void {
 		const T = aframeThree();
@@ -2645,7 +2646,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const { edges } = g;
 		edges.scale.set(GANTT_BAR_D + GANTT_GHOST_PAD, GANTT_BAR_H + GANTT_GHOST_PAD, zLen + GANTT_GHOST_PAD);
 		edges.position.set(x, y, node.z);
-		g.label.text = formatDate(ganttBarTimes(node.z, target.zLen, scale).startedAtTime);
+		g.label.text = formatInstant(ganttBarTimes(node.z, target.zLen, scale).startedAtTime, new Date(), readerZone());
 		g.label.position.set(x, y + GANTT_BAR_H, node.z);
 	}
 

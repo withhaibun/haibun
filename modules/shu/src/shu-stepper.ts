@@ -20,7 +20,7 @@ import { getAuthority } from "@haibun/core/lib/session-authority.js";
 import type { IWebServer } from "@haibun/web-server-hono/defs.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import type { Context } from "@haibun/web-server-hono/defs.js";
-import { CONTEXT_DOCUMENT, SHU_TYPE, SHU_TAG, HYDRATION_ID } from "./consts.js";
+import { CONTEXT_DOCUMENT, SHU_TYPE, SHU_TAG, HYDRATION_ID } from "./domains/elements.js";
 import { DOMAIN_SHU_APPS, ShuAppsSchema } from "./schemas.js";
 import type { IQuadStore, TQuad } from "@haibun/core/lib/quad-types.js";
 import { buildGraphModelFromQuads } from "./graph-model.js";

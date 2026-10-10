@@ -14,7 +14,7 @@
  */
 import { linkEndId, type FGNode } from "../polymorphic/polymorphic-graph-types.js";
 import { graphSummary, type IGraphRenderer, type TDrawn } from "../polymorphic/polymorphic-renderer.js";
-import { SHU_TEST_IDS } from "../../test-ids.js";
+import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 
 /** What the medium needs from its host. */
 export type TA11yRendererDeps = {

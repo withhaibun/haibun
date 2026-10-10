@@ -1,0 +1,579 @@
+/**
+ * <shu-column-pane>: Resizable column container. Uses <slot> for content
+ * projection. Active state via attribute (without a re-render). Resize drag handle
+ * on right edge. Dispatches column-close, column-resize, column-minimize,
+ * column-maximize, column-activate, column-expand events.
+ *
+ * Collapsed, the pane renders the `spine` slot in place of the default one. Only one of the two slots exists at a
+ * time, so a column's main view is not rendered while it is collapsed, and a spine view is not rendered while it is
+ * not: an unslotted child stays in the DOM, keeping its state and its data, without being rendered. A column that
+ * doesn't declare a spine view collapses to the rotated label alone, as before.
+ *
+ * A column can instead declare that its spine is a narrow form of ITSELF (`rendersOwnSpine`). Then the default slot is
+ * what the strip renders and the column is marked as serving as the spine, so a part it already owns: the log's scroll
+ * rail: stays where it is rather than being copied into a second element that would have to be kept in step.
+ *
+ * The visual chrome is built entirely from `--shu-…` tokens (defined in styles.ts);
+ * theme/scale/responsive shifts happen there, never inside this component.
+ * Active toggle state (controls-on, maximized, pinned, minimized) is reflected
+ * onto the host element as boolean attributes so CSS selectors highlight the
+ * relevant button via `[aria-pressed=true]` from the SHU button base style.
+ *
+ * A pane is placed in the strip or docked along the bottom of the app, as the same pane with its axes transposed: docked,
+ * its height is a share of the app where a column's width is a share of the strip, its resize handle is its top edge,
+ * and its collapsed form is its spine laid out along the width, in the header row. The pane stays where it is in the DOM
+ * either way, so its view isn't disconnected. `PaneDock` holds what docking adds.
+ */
+import { html, css, nothing, unsafeCSS, type TemplateResult } from "lit";
+import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { PAGE_STRIP_FOOTPRINT, SHU_EVENT, SHU_ATTR, SPINE_SLOT, SHU_TAG } from "../../domains/elements.js";
+import { defineElement } from "../../define-element.js";
+import { SHU_TEST_IDS } from "../../domains/test-ids.js";
+import { ColumnPaneSchema } from "../../schemas.js";
+import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
+import { readShowControlsCookie, writeShowControlsCookie } from "../../show-controls.js";
+import { startPointerDrag } from "./pointer-drag.js";
+import { PaneDock } from "./pane-dock.js";
+export { readShowControlsCookie };
+
+const ICON = { MIN: "―", RESTORE: "▭", MAX: "⤢", DOCK: "⤓", UNDOCK: "⤒", CONTROLS: "⚙", PIN: "📌", CLOSE: "×" } as const;
+const CLASS = {
+	MIN: "pane-minimize",
+	MAX: "pane-maximize",
+	DOCK: "pane-dock",
+	CONTROLS: "pane-controls",
+	PIN: "pane-pin",
+	CLOSE: "pane-close",
+	GROUP: "pane-controls-group",
+	HEADER: "pane-header",
+	LABEL: "pane-label",
+	CONTENT: "pane-content",
+	SPINE: "pane-spine",
+	RESIZE: "resize-handle",
+} as const;
+const TEST_ID = {
+	MIN: SHU_TEST_IDS.COLUMN_PANE.MINIMIZE,
+	MAX: SHU_TEST_IDS.COLUMN_PANE.MAXIMIZE,
+	DOCK: SHU_TEST_IDS.COLUMN_PANE.DOCK,
+	CONTROLS: SHU_TEST_IDS.COLUMN_PANE.CONTROLS_TOGGLE,
+	CLOSE: SHU_TEST_IDS.COLUMN_PANE.CLOSE,
+	SPINE: SHU_TEST_IDS.COLUMN_PANE.SPINE,
+	BROWSER_COLUMN: "browser-column",
+} as const;
+
+const MIN_RESIZED_WIDTH = 120;
+
+export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
+	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
+	summarizeForKihan(): TLinkedData | null {
+		return null;
+	}
+
+	static override observedHtmlAttributes = [SHU_ATTR.IS_LAST, SHU_ATTR.GROWS, SHU_ATTR.DATA_MAXIMIZED];
+
+	static styles = [
+		shuBaseStyles,
+		shuIconButtonStyles,
+		css`
+		:host {
+			display: flex; flex-direction: column;
+			min-width: calc(var(--shu-space-6) * 4);
+			min-height: 0; overflow: hidden; position: relative;
+			flex: 1;
+			background: var(--shu-bg);
+			/* A view's own z-index, such as an embedded scene's enter-VR button, stays inside its pane, so it doesn't paint
+			   over a docked pane or press through its controls. */
+			isolation: isolate;
+		}
+		:host([is-last]) .resize-handle { display: none; }
+		:host([is-last]) { box-shadow: none; }
+		:host([collapsed]) {
+			flex: 0 0 auto;
+			min-width: calc(var(--shu-icon-btn) + var(--shu-space-3) * 2);
+			max-width: calc(var(--shu-icon-btn) + var(--shu-space-3) * 2);
+			cursor: pointer;
+			transition: max-width 0.2s ease, min-width 0.2s ease;
+		}
+		:host([collapsed]) .resize-handle { display: none; }
+		:host([collapsed]) .pane-header {
+			writing-mode: vertical-lr; text-orientation: mixed;
+			padding: var(--shu-space-4) var(--shu-space-2);
+			flex: 1;
+			align-items: center;
+			/* The label runs from the top of the strip and the controls sit at the bottom of it. Without this they pack
+			   against the label, which leaves them wherever the label's text happens to end. A header sized to its
+			   content (one with a spine below it) doesn't have free space, so this doesn't change its layout. */
+			justify-content: space-between;
+		}
+		/* A spine takes the height the rotated label does not, so the label stays readable at the top of the strip and
+		   the spine view gets the rest. Its own width governs the strip, which is why the collapsed cap lifts here. */
+		:host([collapsed][has-spine]) {
+			min-width: var(--shu-spine-w);
+			max-width: var(--shu-spine-w);
+		}
+		:host([collapsed][has-spine]) .pane-header { flex: 0 0 auto; }
+		/* The spine box takes the height the header does not, but only once a column has a spine view to put in it. A
+		   column that doesn't declare one renders the slot (so one attached later is still noticed) without an element assigned to
+		   it, and an empty box claiming half the strip is what pushed that column's controls to the middle of it. */
+		.pane-spine { flex: 0 0 auto; min-height: 0; overflow: hidden; display: flex; justify-content: center; }
+		:host([has-spine]) .pane-spine { flex: 1; }
+		:host([collapsed]) .pane-controls-group { writing-mode: horizontal-tb; flex-direction: column; margin-left: 0; margin-top: var(--shu-space-3); }
+		/* Docked: the same pane along the bottom of the app, its axes transposed. It overlays the columns, is as tall as
+		   its remembered share of the app while open, and collapses to one row along the width. */
+		:host([docked]) {
+			/* Above the page strip, whose height the strip publishes on the app. */
+			position: absolute; left: 0; right: 0; bottom: var(${unsafeCSS(PAGE_STRIP_FOOTPRINT)}, 0px); z-index: 20;
+			flex: none; min-width: 0; max-width: none;
+			border-top: var(--shu-border-w) solid var(--shu-border);
+			box-shadow: none;
+		}
+		/* Closed, the elements of a column's strip lie in one row: the header's label, the spine, then the header's
+		   controls. The header doesn't draw a box of its own, so its label and controls lie in that row. */
+		:host([docked][collapsed]), :host([docked][collapsed][has-spine]) {
+			min-width: 0; max-width: none; cursor: default;
+			flex-direction: row; align-items: center; gap: var(--shu-space-2);
+			min-height: var(--shu-row-h); padding: 0 var(--shu-space-3);
+			background: var(--shu-bg-soft); color: var(--shu-fg-muted); font-size: var(--shu-font-sm);
+		}
+		:host([docked][collapsed][active]) { background: var(--shu-accent-soft); color: var(--shu-accent); }
+		:host([docked][collapsed]) .pane-header { display: contents; writing-mode: horizontal-tb; }
+		:host([docked][collapsed]) .pane-label { flex: 0 1 auto; }
+		:host([docked][collapsed]) .pane-spine { order: 1; flex: 1; min-width: 0; align-self: stretch; justify-content: flex-start; }
+		:host([docked][collapsed]) .pane-controls-group { order: 2; flex-direction: row; margin: 0; }
+		:host([docked]) .resize-handle { top: 0; left: 0; right: 0; width: auto; height: var(--shu-resize-w); cursor: row-resize; }
+		:host([docked]) .resize-handle::after { top: 0; left: 0; right: 0; bottom: auto; width: auto; height: 2px; }
+		:host([docked]) .resize-handle:hover::after, :host([docked]) .resize-handle.dragging::after { width: auto; height: 4px; }
+		:host([docked][collapsed]) .resize-handle { display: none; }
+		:host([column-type="query"]) { position: sticky; left: 0; z-index: 1; background: var(--shu-bg); }
+		.pane-header {
+			/* Above the content it heads: a view that positions anything (the graph's canvas fills its box) would
+			   otherwise paint over the pane's own controls, and a reader could not press them. */
+			position: relative; z-index: 1;
+			display: flex; align-items: center;
+			min-height: var(--shu-row-h);
+			padding: 0 var(--shu-space-3);
+			background: var(--shu-bg-soft);
+			color: var(--shu-fg-muted);
+			font-size: var(--shu-font-sm);
+			border-bottom: var(--shu-border-w) solid var(--shu-border);
+			flex-shrink: 0;
+			gap: var(--shu-space-2);
+		}
+		:host([active]) { box-shadow: inset 0 2px 0 0 var(--shu-accent); }
+		:host([active]) .pane-header { background: var(--shu-accent-soft); color: var(--shu-accent); }
+		.pane-label {
+			font-weight: 500;
+			overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+			flex: 1; min-width: 0;
+		}
+		.pane-controls-group {
+			display: inline-flex; align-items: center;
+			gap: var(--shu-space-1);
+			margin-left: auto;
+			flex-shrink: 0;
+		}
+		.pane-controls-group > button.pane-close:hover {
+			color: var(--shu-accent-fg);
+			background: var(--shu-error);
+			border-color: var(--shu-error);
+		}
+		.pane-content { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+		.pane-content ::slotted(*) { flex: 1; min-height: 0; overflow: auto; }
+		/* A spine is the width of the strip and no wider: its view sizes to that rather than scrolling inside it, or a
+		   few pixels of spill, a slider knob's label for example, become native scrollbars in a strip too narrow to use them. */
+		.pane-spine ::slotted(*) { flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
+		/* A declared spine view is a line down the strip, so it keeps its own width and the box centres it. A column
+		   serving as its OWN spine keeps the stretch above: its rail must stay exactly where it is when the column is
+		   open, and centring a narrowed column would move it. */
+		.pane-spine slot[name="spine"]::slotted(*) { flex: 0 1 auto; }
+		.resize-handle {
+			position: absolute; top: 0; right: 0;
+			width: var(--shu-resize-w); height: 100%;
+			cursor: col-resize; z-index: 4;
+			background: transparent;
+			touch-action: none;
+		}
+		.resize-handle::after {
+			content: ""; position: absolute;
+			top: 0; bottom: 0; right: 0;
+			width: 2px;
+			background: var(--shu-border-strong);
+			pointer-events: none;
+			transition: width 0.1s ease, background 0.1s ease;
+		}
+		.resize-handle:hover::after, .resize-handle.dragging::after { width: 4px; background: var(--shu-accent); }
+		@media (max-width: 600px), (orientation: portrait) {
+			:host { border-right: none; border-bottom: var(--shu-border-w) solid var(--shu-border); }
+			:host([column-type="query"]) { position: static; min-width: 0; }
+			.resize-handle { display: none; }
+		}
+	`,
+	];
+
+	constructor() {
+		super(ColumnPaneSchema, { label: "", active: false, closable: true, pinned: false, columnType: "query" });
+	}
+
+	static attributeFields = { label: "label", active: "active", closable: "closable", pinned: "pinned", "column-type": "columnType" };
+
+	/** Width, user-minimize, and pin are remembered per column across reloads (ShuElement.persistFields), keyed by the column's identity; `pinned` is a bidirectional attributeField, so restoring it re-asserts the `pinned` attribute pane-state's prune reads. Maximize is deliberately not remembered: it lives in the URL hash only. */
+	static persistFields = ["width", "height", "minimized", "pinned"] as const;
+
+	/** A pane's persistence identity is its column key (assigned before attach by PaneState; "query" for the root pane). A pane without one doesn't persist. */
+	protected override get persistKey(): string | null {
+		return this.dataset.columnKey ?? null;
+	}
+
+	/** Transient accordion auto-collapse (strip layout), unioned with the persisted `minimized` state into the `collapsed` attribute. */
+	#accordionCollapsed = false;
+
+	get accordionCollapsed(): boolean {
+		return this.#accordionCollapsed;
+	}
+
+	/** Whether a docked pane stands at its strip. A page's click elsewhere closes it, so it is transient, as the accordion's
+	 *  collapse is, and not the reader's persisted minimize. */
+	#dockClosed = true;
+
+	/** What docking adds: the open height, the top-edge drag, the footprint, and closing on a click elsewhere. */
+	#dock = new PaneDock(this, {
+		key: () => this.dataset.columnKey ?? "",
+		docked: () => this.docked,
+		closed: () => this.#dockClosed,
+		setClosed: (closed) => this.#setDockClosed(closed),
+		maximized: () => this.hasAttribute(SHU_ATTR.DATA_MAXIMIZED),
+		pinned: () => this.state.pinned,
+		height: () => this.state.height,
+		setHeight: (share) => this.setState({ height: share }),
+	});
+
+	/** Whether the pane is docked along the bottom of the app. */
+	get docked(): boolean {
+		return this.hasAttribute(SHU_ATTR.DOCKED);
+	}
+
+	/** Dock the pane or return it to the strip, open where `open` indicates: a pane the reader docks opens, and a pane docked by
+	 *  an address opens only where it is pinned. A change of placement ends a maximize, which fills the axis the pane
+	 *  leaves. */
+	setDocked(docked: boolean, open = this.state.pinned): void {
+		if (docked === this.docked) return;
+		this.setMaximized(false);
+		this.toggleAttribute(SHU_ATTR.DOCKED, docked);
+		this.#dockClosed = !open;
+		this.#reflectLayout();
+	}
+
+	#setDockClosed(closed: boolean): void {
+		if (closed === this.#dockClosed) return;
+		this.#dockClosed = closed;
+		this.#reflectLayout();
+	}
+
+	/** Open the pane: a docked pane opens from its strip, and a collapsed column asks the strip to expand it. */
+	open(): void {
+		if (this.docked) return this.#setDockClosed(false);
+		if (this.isCollapsed) this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_EXPAND, { bubbles: true, composed: true }));
+	}
+
+	/** Close a docked pane to its strip. A column closes by its minimize control, which the reader's address remembers. */
+	close(): void {
+		if (this.docked) this.#setDockClosed(true);
+	}
+
+	/** Pin the pane or unpin it, as its pin control does. */
+	setPinned(pinned: boolean): void {
+		this.setState({ pinned });
+	}
+
+	protected override onConnected(): void {
+		// A pane docked before it attached opens where its restored pin indicates, since a pinned pane keeps its state.
+		if (this.docked) this.#dockClosed = !this.state.pinned;
+		this.#reflectLayout(); // persisted width/minimized restored just before this, reflect synchronously so the strip's addPane sees the attributes
+		this.addEventListener("pointerdown", this.onPaneActivate, { capture: true });
+		this.autoListen(this, "click", this.onPaneClick);
+	}
+
+	protected override onDisconnected(): void {
+		this.removeEventListener("pointerdown", this.onPaneActivate, { capture: true });
+		this.#stopResize?.(); // a pane closed mid-drag would otherwise keep reading the pointer
+		this.#stopResize = null;
+	}
+
+	protected override onAttributeChanged(name: string): void {
+		if (name === SHU_ATTR.IS_LAST || name === SHU_ATTR.GROWS || name === SHU_ATTR.DATA_MAXIMIZED) this.#reflectLayout();
+	}
+
+	/** Single writer of layout-derived DOM: the data-minimized attribute mirrors state for CSS and the strip's queries; collapsed is the union of user-minimize and accordion collapse; inline flex from #applyFlex. */
+	#reflectLayout(): void {
+		this.toggleAttribute(SHU_ATTR.DATA_MINIMIZED, this.state.minimized);
+		this.toggleAttribute(SHU_ATTR.COLLAPSED, this.state.minimized || this.#accordionCollapsed || (this.docked && this.#dockClosed));
+		this.#applyFlex();
+		this.requestUpdate(); // the template renders either the default slot or the spine slot, so it follows this
+	}
+
+	/** Inline flex computed from full state: one writer, so a path can't leave a stale width. Maximized fills the
+	 * strip; collapsed defers to the :host([collapsed]) CSS; the pane the strip marked as growing takes the remaining
+	 * width (its stored width stays put and reapplies when it stops growing); otherwise an explicit user width is
+	 * fixed; default shares the strip via :host { flex: 1 }. */
+	#applyFlex(): void {
+		const w = this.state.width;
+		if (this.docked) this.style.flex = "";
+		else if (this.hasAttribute(SHU_ATTR.DATA_MAXIMIZED)) this.style.flex = "1";
+		else if (this.isCollapsed || w === undefined || this.hasAttribute(SHU_ATTR.GROWS)) this.style.flex = "";
+		// Capped at what the strip can give while the other panes keep a usable minimum, so a share restored into a
+		// narrower strip cannot crush them and push this pane's resize handle off screen.
+		else this.style.flex = `0 0 ${(Math.min(w, this.#maxShare()) * 100).toFixed(3)}%`;
+	}
+
+	/** A dragged pixel width as a share of the strip it was dragged in. */
+	#asShare(px: number): number {
+		const strip = this.#stripWidth();
+		if (!strip) throw new Error("shu-column-pane: resized in a strip without a width");
+		return px / strip;
+	}
+
+	/** The largest share this pane can render at: the strip minus the minimum footprint the other panes need. */
+	#maxShare(): number {
+		const strip = this.#stripWidth();
+		return strip ? this.#maxResizeWidth() / strip : 1;
+	}
+
+	/** Toggle active state. Reflects to the `[active]` host attribute so the `:host([active])` CSS rules apply without re-rendering, and dispatches `VIEW_ACTIVE` to the slotted child so it can adjust selection/update behavior. */
+	setActive(active: boolean): void {
+		if (this.state.active === active) return;
+		this.setState({ active }); // the `active` attribute reflects automatically (bidirectional attributeFields), driving :host([active]) CSS
+	}
+
+	/** Set the user-resized width as this pane's share of the strip (0..1), persisted. Undefined = auto (flex: 1).
+	 *  A share, not pixels: the one unit the pane keeps, so a width outlives the window it was set in. Pixels exist
+	 *  only in the drag, which measures the strip and divides. */
+	setWidth(share: number | undefined): void {
+		this.setState({ width: share === undefined ? undefined : Math.min(1, Math.max(share, 0.01)) });
+		this.#reflectLayout();
+	}
+
+	#stripWidth(): number {
+		return this.parentElement?.clientWidth ?? 0;
+	}
+
+	/** The width to count as fixed in strip layout math, in pixels: the user's explicit share of the current strip,
+	 *  except a growing or maximized pane, which always renders flexible (the stored share stays put for when it isn't).
+	 *  The same two the flex is derived from, so what the strip counts and what the pane renders cannot differ. */
+	get fixedWidth(): number | undefined {
+		if (this.hasAttribute(SHU_ATTR.GROWS) || this.hasAttribute(SHU_ATTR.DATA_MAXIMIZED)) return undefined;
+		const share = this.state.width;
+		return share === undefined ? undefined : Math.round(share * this.#stripWidth());
+	}
+
+	/** Accordion auto-collapse (strip layout only). User minimize goes through setMinimized. */
+	setCollapsed(collapsed: boolean): void {
+		this.#accordionCollapsed = collapsed;
+		this.#reflectLayout();
+	}
+
+	get isCollapsed(): boolean {
+		return this.hasAttribute(SHU_ATTR.COLLAPSED);
+	}
+
+	/** User-minimize (persisted). The one path that owns the minimize state, clicks, hash flags, and restores all land here. */
+	setMinimized(minimized: boolean): void {
+		if (this.state.minimized === minimized) return;
+		this.setState({ minimized });
+		this.#reflectLayout();
+	}
+
+	private onMinimize = (e: Event): void => {
+		e.stopPropagation();
+		if (this.docked) return this.#setDockClosed(!this.#dockClosed);
+		const minimize = !this.state.minimized;
+		this.setMinimized(minimize);
+		this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_MINIMIZE, { detail: { minimized: minimize }, bubbles: true, composed: true }));
+	};
+
+	/** The one path that owns the maximize state: the button and a resize both land here, so the strip always hears
+	 *  the change and a caller can't set the attribute without announcing it. Maximize lives in the URL hash, not the
+	 *  persisted prefs. */
+	setMaximized(maximized: boolean): void {
+		if (maximized === this.hasAttribute(SHU_ATTR.DATA_MAXIMIZED)) return;
+		this.toggleAttribute(SHU_ATTR.DATA_MAXIMIZED, maximized);
+		this.requestUpdate();
+		this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_MAXIMIZE, { detail: { maximized }, bubbles: true, composed: true }));
+	}
+
+	/** Maximizing shows the pane's view, so a collapsed pane opens as it maximizes. */
+	private onMaximize = (e: Event): void => {
+		e.stopPropagation();
+		const maximize = !this.hasAttribute(SHU_ATTR.DATA_MAXIMIZED);
+		if (maximize) this.open();
+		this.setMaximized(maximize);
+	};
+
+	/** The view's controls show inside the pane, so a collapsed pane opens as they show. */
+	private onControlsToggle = (e: Event): void => {
+		e.stopPropagation();
+		const child = this.columnView as (HTMLElement & { refresh?: () => void }) | undefined;
+		if (!child) return;
+		const show = !child.hasAttribute(SHU_ATTR.SHOW_CONTROLS);
+		if (show) child.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");
+		else child.removeAttribute(SHU_ATTR.SHOW_CONTROLS);
+		writeShowControlsCookie(child.tagName.toLowerCase(), show);
+		child.refresh?.();
+		if (show) this.open();
+		this.requestUpdate();
+	};
+
+	/** Dock the pane, open, or return it to the strip, and tell the strip and the address. */
+	private onDock = (e: Event): void => {
+		e.stopPropagation();
+		const docked = !this.docked;
+		this.setDocked(docked, true);
+		this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_DOCK, { detail: { docked }, bubbles: true, composed: true }));
+	};
+
+	private onPin = (e: Event): void => {
+		e.stopPropagation();
+		this.setState({ pinned: !this.state.pinned }); // the `pinned` attribute (read by pane-state's prune) reflects automatically
+	};
+
+	/** Closing is the reader dismissing this column, so its remembered width, minimize and pin go with it: a column
+	 *  opened again at the same identity is a new one, and would otherwise arrive still pinned (or still minimized) from
+	 *  a column the reader had closed. A pane removed by a prune or a reload keeps its memory: that is what it is for. */
+	private onClose = (e: Event): void => {
+		e.stopPropagation();
+		this.forgetPersisted();
+		this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_CLOSE, { bubbles: true, composed: true }));
+	};
+
+	// Activate on a press ANYWHERE in the pane, in the CAPTURE phase (bound in onConnected) so it fires before any
+	// slotted content (entity links, graph nodes) can stopPropagation and stop the activation, clicking the column
+	// body focuses it, not just the empty chrome.
+	private onPaneActivate = (): void => {
+		if (!this.activates) return;
+		if (!this.state.active) this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_ACTIVATE, { bubbles: true, composed: true }));
+	};
+
+	/** A control the pane's view offers, which takes its own clicks. The rest of the strip opens the pane. */
+	private static readonly VIEW_CONTROL = "button, input, select, textarea, a[href], [role='button'], [contenteditable]";
+
+	/** Opens a collapsed pane on a press anywhere on its strip: its label, its spine, or the strip around them.
+	 *
+	 *  Two presses leave it collapsed. A control the view offers takes its own press. The spine of a column that renders a
+	 *  narrow form of ITSELF takes its presses too, since that spine is the view's own control surface: the log's rail
+	 *  moves through actuality, and opening the column would replace the rail with the rows. Such a column opens from its
+	 *  header. */
+	private onPaneClick = (e: Event): void => {
+		if (!this.isCollapsed) return;
+		const path = e.composedPath();
+		if (path.some((node) => node instanceof Element && node.matches(ShuColumnPane.VIEW_CONTROL))) return;
+		const header = this.renderRoot.querySelector(`.${CLASS.HEADER}`);
+		if (this.#ownSpineColumn && !(header && path.includes(header))) return;
+		this.open();
+	};
+
+	private onSlotChange = (e: Event): void => {
+		// A spine view holds its render while the page doesn't show it (ShuElement.shouldUpdate). The spine slot taking it is
+		// the moment it becomes visible, so it is asked to catch up on everything it heard and did not render.
+		const slot = e.target as HTMLSlotElement;
+		if (slot.name === SPINE_SLOT) for (const view of slot.assignedElements()) (view as Element & { requestUpdate?: () => void }).requestUpdate?.();
+		this.requestUpdate();
+	};
+
+	/** The widest this pane can render: the strip minus the minimum footprint the other panes need. Past this the strip
+	 *  would overflow and the stored width would outrun what's shown: the drag keeps "growing" a width the
+	 *  layout can't display, then feels dead on the way back until the excess unwinds. Clamping here keeps the handle
+	 *  tracking the cursor. A collapsed/minimized sibling only needs its current sliver; any other needs a usable min. */
+	#maxResizeWidth(): number {
+		const strip = this.parentElement;
+		if (!strip) return Number.POSITIVE_INFINITY;
+		let othersMin = 0;
+		for (const sib of Array.from(strip.children)) {
+			if (sib === this || sib.hasAttribute(SHU_ATTR.DOCKED)) continue;
+			othersMin += sib.hasAttribute(SHU_ATTR.COLLAPSED) || sib.hasAttribute(SHU_ATTR.DATA_MINIMIZED) ? (sib as HTMLElement).offsetWidth : MIN_RESIZED_WIDTH;
+		}
+		return Math.max(MIN_RESIZED_WIDTH, strip.clientWidth - othersMin);
+	}
+
+	/** Drag the edge to set this pane's width: the pointer's distance from where it was pressed, held between the
+	 *  narrowest a pane may be and the widest the strip can spare, and reported once the drag is over. */
+	/** A resize in flight, so a pane that goes away mid-drag takes its drag with it. */
+	#stopResize: (() => void) | null = null;
+
+	private onResizeDown = (e: PointerEvent): void => {
+		// A drag states the pane's size, which is more specific than filling the strip or the app.
+		this.setMaximized(false);
+		if (this.docked) return this.#dock.onResizeDown(e);
+		e.preventDefault();
+		e.stopPropagation();
+		const handle = e.currentTarget as HTMLElement;
+		handle.classList.add("dragging");
+		const startX = e.clientX;
+		const startWidth = this.offsetWidth;
+		const maxWidth = this.#maxResizeWidth();
+		this.#stopResize = startPointerDrag(e, {
+			onMove: (ev) => this.setWidth(this.#asShare(Math.min(maxWidth, Math.max(MIN_RESIZED_WIDTH, startWidth + (ev.clientX - startX))))),
+			onEnd: () => {
+				this.#stopResize = null;
+				handle.classList.remove("dragging");
+				this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_RESIZE, { detail: { width: this.state.width }, bubbles: true, composed: true }));
+			},
+		});
+	};
+
+	/** Whether acting in this pane makes it the active pane, as its view declares. */
+	get activates(): boolean {
+		return (this.columnView?.constructor as { activates?: boolean } | undefined)?.activates !== false;
+	}
+
+	/** The column's own view: the first child that is not its spine view. `controls` and the Kihan summary both mean
+	 *  this one, so the spine view doesn't provide either when a column declares one. */
+	get columnView(): Element | undefined {
+		return Array.from(this.children).find((child) => child.getAttribute("slot") !== SPINE_SLOT);
+	}
+
+	/** Whether this column's spine is a narrow form of ITSELF, declared by the column's own class. */
+	get #ownSpineColumn(): boolean {
+		return !!(this.columnView?.constructor as { rendersOwnSpine?: boolean } | undefined)?.rendersOwnSpine;
+	}
+
+	render(): TemplateResult {
+		const { label, closable, columnType, pinned } = this.state;
+		const collapsed = this.isCollapsed;
+		// A column whose spine is a narrow form of itself keeps being rendered while collapsed, and is told it is
+		// serving as the spine so it can render only what fits the strip. Everything else is swapped for the view
+		// mounted in the spine slot.
+		const view = this.columnView;
+		const ownSpine = collapsed && this.#ownSpineColumn;
+		view?.toggleAttribute(SHU_ATTR.SPINE, ownSpine);
+		// The view reads the axis it lies along. A docked pane's spine runs along the width.
+		view?.toggleAttribute(SHU_ATTR.DOCKED, this.docked);
+		const hasSpine = ownSpine || Array.from(this.children).some((child) => child.getAttribute("slot") === SPINE_SLOT);
+		this.toggleAttribute(SHU_ATTR.HAS_SPINE, hasSpine);
+		const controlsActive = !!this.columnView?.hasAttribute?.(SHU_ATTR.SHOW_CONTROLS);
+		const maximized = this.hasAttribute(SHU_ATTR.DATA_MAXIMIZED);
+		const docked = this.docked;
+		this.toggleAttribute(SHU_ATTR.DATA_CONTROLS_ON, controlsActive);
+		this.toggleAttribute(SHU_ATTR.DATA_MAXIMIZED, maximized);
+		// Every pane's header holds the same controls, whatever the pane is called and wherever it stands.
+		const controlsGroup = html`<span class=${CLASS.GROUP}>
+				<button class="pane-icon ${CLASS.MIN}" type="button" data-testid=${TEST_ID.MIN} title=${collapsed ? "Restore" : "Minimize"} aria-label=${collapsed ? "Restore column" : "Minimize column"} aria-pressed=${collapsed} @click=${this.onMinimize}>${collapsed ? ICON.RESTORE : ICON.MIN}</button>
+				<button class="pane-icon ${CLASS.MAX}" type="button" data-testid=${TEST_ID.MAX} title=${maximized ? "Restore" : "Maximize"} aria-label="Maximize column" aria-pressed=${maximized} @click=${this.onMaximize}>${ICON.MAX}</button>
+				<button class="pane-icon ${CLASS.DOCK}" type="button" data-testid=${TEST_ID.DOCK} title=${docked ? "Return to the strip" : "Dock along the bottom"} aria-label=${docked ? "Return column to the strip" : "Dock column along the bottom"} aria-pressed=${docked} @click=${this.onDock}>${docked ? ICON.UNDOCK : ICON.DOCK}</button>
+				<button class="pane-icon ${CLASS.CONTROLS}" type="button" data-testid=${TEST_ID.CONTROLS} title=${controlsActive ? "Hide controls" : "Show controls"} aria-label="Toggle controls" aria-pressed=${controlsActive} @click=${this.onControlsToggle}>${ICON.CONTROLS}</button>
+				<button class="pane-icon ${CLASS.PIN}" type="button" title=${pinned ? "Unpin column" : "Pin column"} aria-label="Pin column" aria-pressed=${pinned} @click=${this.onPin}>${ICON.PIN}</button>
+				${closable ? html`<button class="pane-icon ${CLASS.CLOSE}" type="button" data-testid=${TEST_ID.CLOSE} title="Close" aria-label="Close column" @click=${this.onClose}>${ICON.CLOSE}</button>` : nothing}
+			</span>`;
+		const spine = html`<div class=${CLASS.SPINE} data-testid=${TEST_ID.SPINE}>
+			<slot name=${ownSpine ? "" : SPINE_SLOT} @slotchange=${this.onSlotChange}></slot>
+		</div>`;
+		return html`
+			<div class=${CLASS.HEADER} data-testid=${columnType !== "query" ? TEST_ID.BROWSER_COLUMN : ""}>
+				<span class=${CLASS.LABEL} title=${label}>${label}</span>
+				${controlsGroup}
+			</div>
+			${collapsed ? spine : html`<div class=${CLASS.CONTENT}><slot @slotchange=${this.onSlotChange}></slot></div>`}
+			<div class=${CLASS.RESIZE} @pointerdown=${this.onResizeDown}></div>
+		`;
+	}
+}
+
+defineElement(SHU_TAG.COLUMN_PANE, ShuColumnPane);

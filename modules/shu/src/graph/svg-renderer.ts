@@ -3,7 +3,7 @@
  * colours, edge arrows, and per-node hover-hint titles. `graphToSvg` is pure markup so the same paint runs in a
  * browser component and in a report generated in Node; `SvgGraphRenderer` wires node click/hover/leave on the painted DOM.
  */
-import { SHU_EVENT } from "../consts.js";
+import { SHU_EVENT } from "../domains/elements.js";
 import { layeredLayout, type NodeBox } from "./layered-layout.js";
 import { presentationForType } from "./type-presentation.js";
 import { xml, MAX_SVG_LABEL, arrowMarker, ARROW_MARKER_ID, SVG_MARGIN as MARGIN } from "./svg-util.js";

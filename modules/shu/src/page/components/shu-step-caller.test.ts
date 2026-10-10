@@ -1,0 +1,260 @@
+// @vitest-environment jsdom
+import { describe, it, expect, beforeAll, beforeEach } from "vitest";
+import "./shu-step-caller.js";
+
+/**
+ * Step-caller form rendering and submit-time input assembly. Two behaviours
+ * pinned here:
+ *   1. Composite-domain inputs (z.object schemas) render one HTML input per
+ *      sub-field, not one stringified-JSON textbox. The user types
+ *      `did=did:example:1` and `name=Alice`, not `{"did":"…","name":"…"}`.
+ *   2. When a non-composite step input is declared as object/array and the
+ *      user types invalid JSON, the submit handler surfaces the parse error
+ *      in the form state instead of escaping as an uncaught promise
+ *      rejection (the original crash this test was added for).
+ */
+
+import { setConduit, LiveConduit } from "../../hypermedia.js";
+import { setEventStream, SerializedEventStream } from "../../event-stream.js";
+import { rpcAnswer, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
+import { endPage } from "../../page-pinned.js";
+import { provideLayout } from "../../test/jsdom-layout.js";
+import { setConcernCatalog } from "../../rels-cache.js";
+import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
+import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
+import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { persistedTypeDefinition, serveThePage } from "../../test-setup.js";
+
+/** A type a record of which the generic create writes. */
+const NOTE = "Note";
+
+describe("shu-step-caller", () => {
+	beforeAll(provideLayout);
+	beforeEach(() => {
+		endPage();
+		document.body.innerHTML = "";
+		// LiveConduit goes through the stubbed `fetch` set in each test; SerializedEventStream stands in for the SSE source.
+		setConduit(new LiveConduit(""));
+		serveThePage();
+		setEventStream(new SerializedEventStream());
+	});
+
+	function makeCaller(descriptor: Record<string, unknown>): HTMLElement {
+		const el = document.createElement("shu-step-caller") as HTMLElement & { descriptor?: Record<string, unknown> };
+		(el as { descriptor: Record<string, unknown> }).descriptor = descriptor;
+		document.body.appendChild(el);
+		return el;
+	}
+
+	it("renders one input per sub-field for a composite-domain parameter (instead of a single stringified-JSON input)", () => {
+		const descriptor = {
+			method: "IssueStepper-createIssuer",
+			pattern: "create issuer {issuer: issuer}",
+			paramDomains: { issuer: "issuer" },
+			inputSchema: { properties: { issuer: { type: "object", properties: { did: { type: "string" }, name: { type: "string" } }, required: ["did"] } }, required: ["issuer"] },
+		};
+		const caller = makeCaller(descriptor);
+		// Force render by setting the attribute the step uses; mounting alone doesn't render
+		// the form, since the descriptor is normally resolved via findStep on connect.
+		caller.setAttribute("step", "IssueStepper-createIssuer");
+		// Drive render manually via the public refresh path most components expose; the
+		// step-caller renders on render(), exercised via its dispatched property.
+		(caller as unknown as { renderComponent: () => void }).renderComponent?.();
+		const html = caller.shadowRoot?.innerHTML ?? "";
+		expect(html).toContain('name="issuer.did"');
+		expect(html).toContain('name="issuer.name"');
+		// And it doesn't render a single JSON-blob input for the composite itself.
+		expect(html).not.toMatch(/name="issuer"[^.]/);
+	});
+
+	it("asks for the fields of the type a record's data is of, once the type is chosen", () => {
+		setConcernCatalog(buildConcernCatalog(mapDefinitionsToDomains([persistedTypeDefinition(NOTE, { properties: { title: LinkRelations.NAME.rel } })])));
+		const caller = makeCaller({
+			method: "StoreStepper-createTyped",
+			pattern: "create {label: persisted-type} {data: record-data}",
+			paramDomains: { label: "persisted-type", data: "record-data" },
+			recordData: { data: "label" },
+			inputSchema: { properties: { label: { type: "string" }, data: { type: "object" } }, required: ["label", "data"] },
+		}) as HTMLElement & { renderComponent: () => void };
+		caller.renderComponent();
+		const select = caller.shadowRoot?.querySelector<HTMLSelectElement>('select[name="label"]');
+		expect(
+			[...(select?.options ?? [])].map((option) => option.value),
+			"the declared types are offered",
+		).toContain(NOTE);
+		if (!select) throw new Error("the type isn't offered as a choice");
+		select.value = NOTE;
+		select.dispatchEvent(new Event("change"));
+		const html = caller.shadowRoot?.innerHTML ?? "";
+		expect(html, "the chosen type's fields").toContain('name="data.title"');
+		expect(html).toContain('name="data.id"');
+	});
+
+	it("setting `call-index` before appendChild yields a testid carrying the index (regression: live SPA was emitting testids without the index)", () => {
+		const descriptor = {
+			method: "IssueStepper-createIssuer",
+			pattern: "create issuer {issuer: issuer}",
+			paramDomains: { issuer: "issuer" },
+			inputSchema: { properties: { issuer: { type: "object", properties: { did: { type: "string" } }, required: ["did"] } }, required: ["issuer"] },
+		};
+		const caller = document.createElement("shu-step-caller") as HTMLElement & { descriptor?: Record<string, unknown> };
+		caller.setAttribute("step", "createIssuer");
+		caller.setAttribute("call-index", "0");
+		(caller as { descriptor: Record<string, unknown> }).descriptor = descriptor;
+		document.body.appendChild(caller);
+		// Force a render path that runs after descriptor + attributes are set.
+		(caller as unknown as { renderComponent: () => void }).renderComponent?.();
+		const html = caller.shadowRoot?.innerHTML ?? "";
+		expect(html).toContain('data-testid="create-issuer-0-step-input-issuer-did"');
+	});
+
+	it("composite-input testids use `-` (not `.`) so haibun variable resolution doesn't parse them as dot-paths", () => {
+		const descriptor = {
+			method: "IssueStepper-createIssuer",
+			pattern: "create issuer {issuer: issuer}",
+			paramDomains: { issuer: "issuer" },
+			inputSchema: { properties: { issuer: { type: "object", properties: { did: { type: "string" }, name: { type: "string" } }, required: ["did"] } }, required: ["issuer"] },
+		};
+		const caller = makeCaller(descriptor);
+		caller.setAttribute("step", "IssueStepper-createIssuer");
+		caller.setAttribute("call-index", "0");
+		(caller as unknown as { renderComponent: () => void }).renderComponent?.();
+		const html = caller.shadowRoot?.innerHTML ?? "";
+		expect(html).toContain('data-testid="create-issuer-0-step-input-issuer-did"');
+		expect(html).toContain('data-testid="create-issuer-0-step-input-issuer-name"');
+		expect(html).toContain('name="issuer.did"');
+		expect(html).toContain('name="issuer.name"');
+	});
+
+	it("invalid JSON in an object-typed input surfaces as a form error, not an uncaught promise rejection", async () => {
+		const descriptor = {
+			method: "Test-take",
+			pattern: "take {payload}",
+			paramDomains: { payload: "string" },
+			inputSchema: { properties: { payload: { type: "object" } }, required: ["payload"] },
+		};
+		const caller = makeCaller(descriptor) as HTMLElement & { callStep: (v: Record<string, string>) => Promise<void>; error: string };
+		caller.setAttribute("step", "Test-take");
+		(caller as unknown as { renderComponent: () => void }).renderComponent?.();
+		// Inject the invalid value through the same code path the form submit handler uses.
+		// The original crash was `JSON.parse("aaaa")` thrown synchronously before the inner try/catch.
+		let rejected = false;
+		try {
+			await caller.callStep({ payload: "aaaa" });
+		} catch {
+			rejected = true;
+		}
+		expect(rejected).toBe(false);
+		expect(caller.error).toMatch(/invalid input/i);
+	});
+
+	it("server-side validation errors (HTTP 200 body with `error`) render in the step-error div, not a silent step-result", async () => {
+		// Pattern: dispatchStep returns actionNotOK, web-server returns
+		// `{ error: "<method>: <message>" }` body with HTTP 200, so the
+		// SSE client throws and the step-caller catches. The error div
+		// must include the server message verbatim to surface what the
+		// schema rejected. This pins the contract.
+		const descriptor = {
+			method: "IssueStepper-issueCredential",
+			pattern: "issue credential {credential}",
+			paramDomains: { credential: "string" },
+			inputSchema: { properties: { credential: { type: "object" } }, required: ["credential"] },
+		};
+		const realFetch = globalThis.fetch;
+		// The web-server-stepper returns HTTP 422 for action results carrying
+		// an `error` field, mirroring the SPA's wire contract. The SSE client
+		// throws on either non-OK status or `data.error`, so callStep's catch
+		// branch fires regardless of which trigger the runtime sees first.
+		globalThis.fetch = (input: unknown): Promise<Response> => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
+			if (url.endsWith(HANDSHAKE_PATH)) return Promise.resolve(rpcAnswer({ seqPath: [0, -1, 1] }, 200));
+			if (url.endsWith("/rpc/IssueStepper-issueCredential")) {
+				return Promise.resolve(rpcAnswer({ error: 'IssueStepper-issueCredential: "type" must include `VerifiableCredential`.' }, 422));
+			}
+			return Promise.resolve(rpcAnswer({}, 200));
+		};
+		try {
+			const caller = makeCaller(descriptor) as HTMLElement & { callStep: (v: Record<string, string>) => Promise<void>; error: string };
+			caller.setAttribute("step", "IssueStepper-issueCredential");
+			(caller as unknown as { renderComponent: () => void }).renderComponent?.();
+			await caller.callStep({ credential: JSON.stringify({ type: ["bogus"] }) });
+			expect(caller.error).toContain('"type" must include');
+			expect(caller.error).toContain("VerifiableCredential");
+			const html = caller.shadowRoot?.innerHTML ?? "";
+			expect(html).toMatch(/class="error"[^>]*data-testid="[^"]*-step-error"/);
+			expect(html).toContain('"type" must include');
+			// Loading indicator must be cleared on error: the step-caller must not
+			// stay stuck on "loading..." after server-side validation rejects the input.
+			expect(html).not.toMatch(/class="loading"/);
+		} finally {
+			globalThis.fetch = realFetch;
+		}
+	});
+
+	it("renders a result's rows as one table whose columns are every row's fields, a field a row lacks an empty cell", async () => {
+		const descriptor = {
+			method: "GoalStepper-showGoals",
+			pattern: "show goals",
+			paramDomains: {},
+			inputSchema: { properties: {}, required: [] },
+			outputSchema: { type: "object", properties: { goals: { type: "array", items: { type: "object" } } } },
+		};
+		const realFetch = globalThis.fetch;
+		globalThis.fetch = (input: unknown): Promise<Response> => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
+			if (url.endsWith(HANDSHAKE_PATH)) return Promise.resolve(rpcAnswer({ seqPath: [0, -1, 1] }, 200));
+			return Promise.resolve(rpcAnswer({ goals: [{ goal: "issued", factIds: ["f1"] }, { goal: "revoked" }, { goal: "suspended", michi: 2 }] }, 200));
+		};
+		try {
+			const caller = makeCaller(descriptor) as HTMLElement & { callStep: (v: Record<string, string>) => Promise<void>; error: string };
+			await caller.callStep({});
+			expect(caller.error).toBe("");
+			const table = caller.shadowRoot?.querySelector("table");
+			expect([...(table?.querySelectorAll("th") ?? [])].map((th) => th.textContent)).toEqual(["goal", "factIds", "michi"]);
+			expect([...(table?.querySelectorAll("tbody tr") ?? [])].map((tr) => [...tr.querySelectorAll("td")].map((td) => td.textContent))).toEqual([
+				["issued", '["f1"]', ""],
+				["revoked", "", ""],
+				["suspended", "", "2"],
+			]);
+		} finally {
+			globalThis.fetch = realFetch;
+		}
+	});
+
+	it("oversized-response errors (HTTP 413 with `error`) render in the step-error div instead of hanging the caller", async () => {
+		// When a step's products exceed V8's max-string length, the web-server
+		// can't JSON.stringify them. It returns HTTP 413 with a structured
+		// `error` so the client gets a definite failure instead of an aborted
+		// response that strands the caller in "loading…" forever.
+		const descriptor = {
+			method: "GraphStepper-graphQuery",
+			pattern: "graph query {query}",
+			paramDomains: { query: "string" },
+			inputSchema: { properties: { query: { type: "object" } }, required: ["query"] },
+		};
+		const realFetch = globalThis.fetch;
+		globalThis.fetch = (input: unknown): Promise<Response> => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
+			if (url.endsWith(HANDSHAKE_PATH)) return Promise.resolve(rpcAnswer({ seqPath: [0, -1, 1] }, 200));
+			if (url.endsWith("/rpc/GraphStepper-graphQuery")) {
+				return Promise.resolve(
+					rpcAnswer({ ok: false, error: "GraphStepper-graphQuery: response too large to serialize (Invalid string length). Narrow the query or return a summary." }, 413),
+				);
+			}
+			return Promise.resolve(rpcAnswer({}, 200));
+		};
+		try {
+			const caller = makeCaller(descriptor) as HTMLElement & { callStep: (v: Record<string, string>) => Promise<void>; error: string };
+			caller.setAttribute("step", "GraphStepper-graphQuery");
+			(caller as unknown as { renderComponent: () => void }).renderComponent?.();
+			await caller.callStep({ query: JSON.stringify({ all: true }) });
+			expect(caller.error).toContain("response too large");
+			const html = caller.shadowRoot?.innerHTML ?? "";
+			expect(html).toMatch(/class="error"[^>]*data-testid="[^"]*-step-error"/);
+			expect(html).toContain("response too large");
+			expect(html).not.toMatch(/class="loading"/);
+		} finally {
+			globalThis.fetch = realFetch;
+		}
+	});
+});

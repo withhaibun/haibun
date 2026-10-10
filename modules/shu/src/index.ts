@@ -1,2 +1,0 @@
-export { default as ShuStepper } from "./shu-stepper.js";
-export { SHU_TEST_IDS } from "./test-ids.js";

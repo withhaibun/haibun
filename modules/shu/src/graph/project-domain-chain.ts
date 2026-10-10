@@ -17,7 +17,7 @@
  *   - capability-gated  →  step requires an unmet capability
  */
 import { SOURCE_DOMAIN } from "@haibun/core/lib/domain-chain.js";
-import { AFFORDANCE_PARAM, SHU_TAG } from "../consts.js";
+import { AFFORDANCE_PARAM, SHU_TAG } from "../domains/elements.js";
 import { hashWithColumns } from "../view-hash.js";
 import { GOAL_FINDING } from "@haibun/core/lib/goal-resolver.js";
 import type { TForwardAffordance, TWaypointEntry, TCompositeRanges } from "@haibun/core/lib/affordances.js";

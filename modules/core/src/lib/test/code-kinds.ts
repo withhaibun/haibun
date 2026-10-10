@@ -1,8 +1,8 @@
 /**
  * The kinds of code that haibun's docs/architecture.md states in "How code is organized", each determined by a file's
  * directory or name, and a repository's findings against them. A file in a kind position imports values only from its own
- * kind and the kinds its row lists, and only an adapter performs I/O. A stepper doesn't import another stepper, and imports
- * only the composition root of its own area or of an area that encloses it. A file outside a kind position is a finding,
+ * kind and the kinds its row lists, and only an adapter performs I/O. A stepper doesn't import another stepper. A stepper
+ * and a controller import only the composition root of their own area or of an area that encloses it. A file outside a kind position is a finding,
  * and its imports aren't read.
  */
 import { posix } from "node:path";
@@ -10,16 +10,17 @@ import ts from "typescript";
 import type { TFound } from "./baseline.js";
 import { importsOf, lineOf, RELATIVE, resolvedSource, type TPackages, type TSources } from "./repository-files.js";
 
-export const CODE_KINDS = ["domain", "derivation", "machine", "pipeline", "port", "adapter", "composition root", "stepper", "view"] as const;
+export const CODE_KINDS = ["domain", "derivation", "machine", "pipeline", "port", "adapter", "composition root", "stepper", "controller", "view"] as const;
 export type TCodeKind = (typeof CODE_KINDS)[number];
 
-/** The directory of an area that holds each kind. A view is a component. */
+/** The directory of an area that holds each kind. A view is a component, and a controller is a Lit `ReactiveController`. */
 const KIND_DIRECTORIES: Record<string, TCodeKind> = {
 	domains: "domain",
 	derivations: "derivation",
 	machines: "machine",
 	pipelines: "pipeline",
 	adapters: "adapter",
+	controllers: "controller",
 	components: "view",
 };
 const PORTS_FILE = "ports.ts";
@@ -28,8 +29,8 @@ const STEPPER_FILE = /-stepper\.tsx?$/;
 
 /**
  * The kinds each kind imports values from, as the table's "Depends on" column lists them. A type import is allowed from any
- * file, since every row allows types. The core types a domain reads and the controllers a view reads aren't kind positions,
- * so the rule doesn't read those imports.
+ * file, since every row allows types. The core types a domain reads aren't kind positions, so the rule doesn't read those
+ * imports.
  */
 const DEPENDS_ON: Record<TCodeKind, readonly TCodeKind[]> = {
 	domain: [],
@@ -38,12 +39,15 @@ const DEPENDS_ON: Record<TCodeKind, readonly TCodeKind[]> = {
 	pipeline: ["domain", "derivation", "machine", "port"],
 	port: [],
 	adapter: ["port"],
-	"composition root": ["port", "adapter"],
+	"composition root": ["port", "adapter", "machine"],
 	stepper: ["domain", "pipeline", "machine", "composition root"],
-	view: [],
+	controller: ["domain", "derivation", "machine", "pipeline", "composition root"],
+	view: ["controller", "domain", "derivation"],
 };
 /** The kind that doesn't import its own kind: a stepper calls another stepper's steps through dispatch. */
 const DISPATCHED: TCodeKind = "stepper";
+/** The kinds that import only the composition root of their own area or of an enclosing area. */
+const AREA_BOUND: readonly TCodeKind[] = ["stepper", "controller"];
 
 /** The packages only an adapter imports: the filesystem, the network, child processes, timers, database drivers, mail servers, model endpoints and browsers. */
 const IO_PACKAGES = new Set([
@@ -164,9 +168,9 @@ function globalIoOf(source: ts.SourceFile): ts.Identifier[] {
 function importFinding(kind: TCodeKind, file: string, target: string, targetKind: TCodeKind, specifier: string): string | undefined {
 	if (targetKind === kind && kind !== DISPATCHED) return undefined;
 	if (!DEPENDS_ON[kind].includes(targetKind)) return imports(targetKind, specifier);
-	// An area is its composition root's directory and every directory within it, so a stepper can import the root of its own
-	// area and of each enclosing area.
-	return kind === DISPATCHED && targetKind === "composition root" && !file.startsWith(`${posix.dirname(target)}/`) ? importsAnotherRoot(specifier) : undefined;
+	// An area is its composition root's directory and every directory within it, so a stepper or a controller can import the
+	// root of its own area and of each enclosing area.
+	return AREA_BOUND.includes(kind) && targetKind === "composition root" && !file.startsWith(`${posix.dirname(target)}/`) ? importsAnotherRoot(specifier) : undefined;
 }
 
 /** The findings of each file against the kinds: a file outside a kind position, an import of a kind it doesn't depend on, and I/O outside an adapter. */

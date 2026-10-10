@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { hostHandshake, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
 import { RemoteGraphSource } from "./remote-graph-source.js";
-import { RPC_METHOD } from "./consts.js";
+import { RPC_METHOD } from "./domains/elements.js";
 import { rpcAnswer } from "@haibun/core/lib/test/rpc-answer.js";
 import { FakeInvoker } from "@haibun/core/lib/test/fake-authority.js";
 

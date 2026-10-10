@@ -11,9 +11,9 @@ import { writeFileSync } from "fs";
 import { AStepper, type IHasCycles, type IHasOptions, type TStepperSteps, StepperKinds, CycleWhen, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { recordBlip } from "@haibun/core/lib/record-blip.js";
 // The view vocabulary declares itself at import, so an arriving batch finds its names already declared here.
-import "./view-blips.js";
+import "./domains/blips.js";
 import "./graph-blips.js";
-import "./page-blips.js";
+import "./domains/blips.js";
 import { type TWorld } from "@haibun/core/lib/world.js";
 import { OK, type TArtifactEvent, type THaibunEvent } from "@haibun/core/schema/protocol.js";
 
@@ -30,7 +30,7 @@ import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import type { TTag } from "@haibun/core/lib/ttag.js";
 import { Access, SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { SEQ_PATH_FIELD, executionOf, extractSeqPathPrefix, formatRecordName, parseSeqPath } from "@haibun/core/lib/seq-path.js";
-import { CLIENT_RING, SHU_TAG } from "./consts.js";
+import { CLIENT_RING, SHU_TAG } from "./domains/elements.js";
 import { ARTIFACT_POLICY } from "./content-security-policy.js";
 import { hashWithColumns } from "./view-hash.js";
 import { READS_THE_RUNS_ARTIFACTS } from "@haibun/core/lib/actions.js";

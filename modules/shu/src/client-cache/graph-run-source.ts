@@ -22,11 +22,11 @@ import { ofExecution, type TRunGraph } from "./run-graph.js";
 import { individualAsQuads } from "./quad-store.js";
 import { currentExecution, holdOnDevice, noteExecution, readingExecution, subscribeExecutionSwitch } from "./executions.js";
 import { reportFailure } from "../client-log.js";
-import type { Range } from "../ranges.js";
-import type { TScrollMarker } from "../scrollbar-model.js";
+import type { Range } from "../page/derivations/rail.js";
+import type { TScrollMarker } from "../page/derivations/rail.js";
 import { RUN_WINDOW_SIZE, inRunOrder, producedUnderSteps, runExtent, runWindow, type TRunRow } from "./run-window.js";
 import { runShape } from "./run-shape.js";
-import { railAt, momentAt, type TRunFocus, type TRunSpan } from "../run-scale.js";
+import { railAt, momentAt, type TRunFocus, type TRunSpan } from "../page/derivations/rail.js";
 import { timeCursor } from "../signals.js";
 import { atLiveEdge, noteRunSpan, readingBy, runReadingAt, type RunSource, type TEventRecord, type TRunExtent } from "./run-source.js";
 

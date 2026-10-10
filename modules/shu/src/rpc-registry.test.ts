@@ -7,7 +7,7 @@
  * If the signal widened to the script alone, every served page would decide it didn't have a server and stop reaching the one
  * it has. These tests pin the rule.
  */
-import { HYDRATION_ID } from "./consts.js";
+import { HYDRATION_ID } from "./domains/elements.js";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
 	RESPONSE_TIMEOUT_MS,

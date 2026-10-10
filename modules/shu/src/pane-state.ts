@@ -18,14 +18,14 @@ import { PART_DIRECTIVE, partDirectiveFor, splitPart } from "@haibun/core/lib/ty
 import { z } from "zod";
 import * as ViewHash from "./view-hash.js";
 import { objectId } from "./object-id.js";
-import { INDEX_PANE_KEY, SHU_ATTR, SHU_EVENT, SHU_TAG } from "./consts.js";
+import { INDEX_PANE_KEY, SHU_ATTR, SHU_EVENT, SHU_TAG } from "./domains/elements.js";
 import { readShowControlsCookie } from "./show-controls.js";
 import { readElementPrefs } from "./element-prefs.js";
 import { presentationForType } from "./graph/type-presentation.js";
 import { getUiByComponent } from "./rels-cache.js";
 import { activePane } from "./signals.js";
-import type { ShuColumnPane } from "./components/shu-column-pane.js";
-import type { ShuColumnStrip } from "./components/shu-column-strip.js";
+import type { ShuColumnPane } from "./page/components/shu-column-pane.js";
+import type { ShuColumnStrip } from "./page/components/shu-column-strip.js";
 import { pagePinned } from "./page-pinned.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 

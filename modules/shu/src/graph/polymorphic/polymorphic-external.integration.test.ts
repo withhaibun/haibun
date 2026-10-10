@@ -5,7 +5,7 @@
  * rather than opened as a record.
  */
 import { afterAll, beforeAll, expect, test } from "vitest";
-import { SHU_EVENT } from "../../consts.js";
+import { SHU_EVENT } from "../../domains/elements.js";
 import { mountPolymorphicPage, type TMountedPage } from "./polymorphic-page.test-fake.js";
 
 const EMAILS = ["e-1", "e-2", "e-3"];

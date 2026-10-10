@@ -4,7 +4,7 @@ import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import { localOrigin } from "@haibun/core/lib/local-origin.js";
 import { MONITOR_PATH } from "../../build/monitor-stepper.js";
-import { SHU_TEST_IDS } from "../../build/test-ids.js";
+import { SHU_TEST_IDS } from "../../build/domains/test-ids.js";
 import { flattenTestIds } from "@haibun/shu/test/step-ui.js";
 
 const { waitFor, gotoPage } = withAction(new WebPlaywright());

@@ -5,7 +5,7 @@
  * a reader asks on another page.
  */
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { CHAT_STEP, answer, chatDispatch, question, readBack as aReadBack } from "./components/chat-pane.test-fake.js";
+import { CHAT_STEP, answer, chatDispatch, question, readBack as aReadBack } from "./page/components/chat-pane.test-fake.js";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 import { INITIAL_SUBJECT, SCOPE, currentSubjectState, scopeEntry } from "./current-subject.js";
 import { carryARun, setupShuTest, type TShuTestHandle } from "./test-setup.js";

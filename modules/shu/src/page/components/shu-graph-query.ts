@@ -1,0 +1,486 @@
+import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { html, css, type TemplateResult } from "lit";
+import { defaultLabel } from "../../util.js";
+import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
+import { defineElement } from "../../define-element.js";
+import { openRef } from "./ref-navigation.js";
+import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
+/**
+ * <shu-graph-query>: Query component for the graph store.
+ * Renders in light DOM .results-target, hash state, custom scrollbar, sort, multi-select.
+ */
+import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { CountedSchema, MAX_PAGE_ROWS, counted, viewCollection, type TCounted } from "@haibun/core/lib/hypermedia.js";
+import { anIndividual, aType, type TContextPattern, QueryViewSchema } from "../../schemas.js";
+import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
+import { typeNotHeld, viewQuery, type THeldTypeLink, type TViewQuery } from "../../view-query.js";
+import { SHU_TEST_IDS } from "../../domains/test-ids.js";
+import { ViewQueryControlSchema } from "./shu-graph-query.controls-schema.js";
+import { shuBaseStyles } from "./styles.js";
+import { esc } from "../../util.js";
+import { setSiteMetadata, getConcernDerivedMetadata } from "../../rels-cache.js";
+import type { ShuResultTable } from "./shu-result-table.js";
+import { getAvailableDomains, isOffline } from "../../rpc-registry.js";
+import { QueryController } from "../controllers/query-controller.js";
+import { arrayWindowedSource, readWindowedSource, type WindowedSource } from "../../windowed-source.js";
+import { getWindowSize } from "../../window-size-setting.js";
+import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
+
+/** A vertex row: flat property object. */
+type VertexRow = Record<string, unknown>;
+
+/** How long the view waits after a record arrives before asking again. One record arrives as many quads and mail
+ *  arrives in bursts, so a trailing pause turns a burst into one query. */
+const ARRIVAL_DEBOUNCE_MS = 400;
+
+export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
+	static styles = [
+		shuBaseStyles,
+		css`
+		:host { display: block; color: var(--shu-fg); }
+	`,
+	];
+
+	static schema = QueryViewSchema;
+	static domainSelector = SHU_TAG.GRAPH_QUERY;
+
+	#query = new QueryController(this);
+	private results: VertexRow[] = [];
+	private sortableFields: string[] = [];
+	private labels: string[] = [];
+	/** The read of actuality's types, which a query waits on: a type is asked for only where actuality holds it. */
+	#metadata: Promise<void> = Promise.resolve();
+	/** The query's row count and whether that count stopped at a ceiling. */
+	#counted: TCounted = counted(0);
+	#source: WindowedSource<VertexRow> = arrayWindowedSource<VertexRow>([]);
+	#installedSource: WindowedSource<VertexRow> | null = null;
+
+	/** The current search as linked data: the rows the visible page shows, with the query that produced them.
+	 *  `totalItems` carries the count. `saturated` reports whether the count stopped at a ceiling. */
+	summarizeForKihan(): TLinkedData | null {
+		if (this.results.length === 0) return null;
+		const { label, textQuery } = this.state as { label?: string; textQuery?: string };
+		return viewCollection({
+			id: "view:query",
+			name: "the search results shown in this column",
+			items: this.results,
+			totalItems: this.#counted.total,
+			stated: { saturated: this.#counted.saturated, ...(label ? { queryType: label } : {}), ...(textQuery ? { textQuery } : {}) },
+		});
+	}
+	/** Page size is the one global app setting (theme), so the query view windows by the same size as every other view. */
+	private get limit(): number {
+		return getWindowSize();
+	}
+	private error = "";
+	/** The links a refusal offers: the query of each type actuality holds, where the address names a type it doesn't hold. */
+	#remedies: THeldTypeLink[] = [];
+
+	// The query (type, search, sort, page, access, filters) IS the hash-backed viewQuery store: the single,
+	// schema-validated, reload-safe source of truth. These getters read it; writes go through viewQuery.set().
+	private get qLabel(): string | undefined {
+		return viewQuery.signals.label.get() ?? undefined;
+	}
+	private get qText(): string | undefined {
+		return viewQuery.signals.q.get() ?? undefined;
+	}
+	private get qSort(): string | undefined {
+		return viewQuery.signals.sort.get() ?? undefined;
+	}
+	private get qOrder(): "asc" | "desc" {
+		return viewQuery.signals.order.get();
+	}
+	private get qConditions(): TSearchCondition[] {
+		return viewQuery.signals.f.get();
+	}
+	private get qAccess(): string {
+		return viewQuery.signals.access.get();
+	}
+	private get qOffset(): number {
+		return viewQuery.signals.offset.get();
+	}
+	private lastQueryKey = "";
+	/** The `label` of the most recently *started* query. A change means the node type switched, so the previous type's rows are dropped before the new query lands: a stale-row click would otherwise open the wrong entity. */
+	private lastQueriedLabel: string | undefined;
+	/** In-flight promise, coalesces concurrent identical `executeQuery` calls. The key is `lastQueryKey` (set immediately after the dedup check). */
+	private inflightPromise: Promise<void> | null = null;
+	private selectedIds = new Set<string>();
+
+	static observedHtmlAttributes = ["label", "sort-by", "sort-order", "results-target"];
+
+	constructor() {
+		super(QueryViewSchema, { sortOrder: "desc" as const });
+	}
+
+	protected override onAttributeChanged(_name: string, _old: string | null, _val: string | null): void {
+		if (!this.hasHash()) this.seedFromAttributes();
+	}
+
+	protected override onConnected(): void {
+		viewQuery.hydrate(); // store ← URL hash (fail-fast); defaults when empty
+		if (!this.hasHash()) this.seedFromAttributes(); // alternate input when the URL doesn't carry a query
+		this.autoListen(window, "hashchange", () => {
+			if (viewQuery.wroteHash(ShuElement.getHash())) return; // the component's own writes use replaceState (which doesn't fire an event); this catches back/forward
+			viewQuery.hydrate();
+			void this.executeQuery();
+		});
+		this.#metadata = this.loadMetadata();
+		void this.#metadata.then(() => this.executeQuery());
+
+		// Re-query when the global data window size changes: it sets the server-side limit, so the result set resizes.
+		let firstWindow = true;
+		this.updateEffect(() => {
+			getWindowSize(); // subscribe to the window-size setting
+			if (firstWindow) {
+				firstWindow = false;
+				return;
+			}
+			void this.executeQuery();
+		});
+
+		// Re-query when the text search changes in the store. The actions-bar search box writes viewQuery
+		// directly (not through this component's lifecycle), so a store write is the single, lifecycle-proof
+		// trigger, without debounce-cleared-on-disconnect or setContext-reset fragility. Subscribes to `q` only,
+		// so the server-default-sort reflection (which writes `sort`) can't re-trigger it.
+		let firstSearch = true;
+		this.updateEffect(() => {
+			viewQuery.signals.q.get(); // subscribe to the search term
+			if (firstSearch) {
+				firstSearch = false;
+				return;
+			}
+			void this.executeQuery();
+		});
+
+		if (!isOffline()) {
+			this.autoTeardown(this.subscribeBatched({ onBatch: (events) => this.applyLiveQuads(events) }));
+		}
+	}
+
+	/** Apply filters from the actions bar and re-execute the query. */
+	setFilters(filters: { accessLevel?: string; label?: string; textQuery?: string; conditions?: TSearchCondition[] }): void {
+		const patch: Partial<TViewQuery> = { offset: 0 }; // any filter change resets pagination
+		if (filters.accessLevel !== undefined) patch.access = filters.accessLevel as TViewQuery["access"];
+		if (filters.label !== undefined) {
+			patch.label = filters.label || null;
+			// Sort columns are label-specific: the server rejects a sortBy not in the new label's topology.sortColumns:
+			// so switching type drops any sort carried over from the previous type (the new label sorts by its default).
+			if ((filters.label || null) !== (this.qLabel ?? null)) patch.sort = null;
+		}
+		if (filters.textQuery !== undefined) patch.q = filters.textQuery || null;
+		if (filters.conditions) patch.f = filters.conditions;
+		viewQuery.set(patch);
+		void this.executeQuery();
+	}
+
+	/** Apply a view-query control product (from a shu-graph-query.controls step) to the store, then re-query.
+	 *  The product is validated against the control schema; hypermedia markers (_component, _type, …) added by
+	 *  dispatch are stripped by the schema. This is the scriptable, hypermedia-driven entry the feature steps reach. */
+	set products(product: Record<string, unknown>) {
+		viewQuery.set(ViewQueryControlSchema.parse(product));
+		void this.executeQuery();
+	}
+
+	/** Deselect all rows and revert to query context. */
+	deselectAll(): void {
+		if (this.selectedIds.size === 0) return;
+		this.selectedIds.clear();
+		const target = this.resultsTarget;
+		if (target) {
+			target.querySelectorAll(".clickable-row").forEach((r) => r.classList.remove("selected"));
+		}
+		this.dispatchContextChange();
+	}
+
+	/** What this view shows: the selected rows as records of the queried type, else the type narrowed by its conditions. */
+	override paneSubject(): TContextPattern[] | null {
+		const label = this.qLabel;
+		if (!label) return null;
+		return this.selectedIds.size > 0 ? [...this.selectedIds].map((id) => anIndividual(label, id)) : [aType(label, this.qConditions)];
+	}
+
+	private dispatchContextChange(): void {
+		// Selected rows are records of the label this query ran under, so each is named by that pair; where a row isn't selected,
+		// the ask is about the queried type itself, narrowed by whatever the filter rows carry.
+		const conditions = this.qConditions.filter((c) => c.predicate && c.value);
+		const patterns: TContextPattern[] = this.paneSubject() ?? [];
+
+		this.dispatchEvent(
+			new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {
+				detail: { patterns, accessLevel: this.qAccess, total: this.#counted, label: this.qLabel, textQuery: this.qText, labels: this.labels, conditions },
+				bubbles: true,
+				composed: true,
+			}),
+		);
+	}
+
+	private hasHash(): boolean {
+		const h = ShuElement.getHash();
+		return h.length > 1 && h.startsWith("#?");
+	}
+
+	/** Alternate input: when the URL doesn't carry a query, seed the store from the element's attributes. */
+	private seedFromAttributes(): void {
+		const patch: Partial<TViewQuery> = {};
+		const label = this.getAttribute("label");
+		if (label) patch.label = label;
+		const textQuery = this.getAttribute("text-query");
+		if (textQuery) patch.q = textQuery;
+		const sortBy = this.getAttribute("sort-by");
+		if (sortBy) patch.sort = sortBy;
+		const sortOrder = this.getAttribute("sort-order");
+		if (sortOrder === "asc" || sortOrder === "desc") patch.order = sortOrder;
+		if (Object.keys(patch).length > 0) viewQuery.set(patch);
+	}
+
+	async loadMetadata(): Promise<void> {
+		const domains = await getAvailableDomains();
+		const derivedMeta = getConcernDerivedMetadata();
+		const serverMeta = await this.#query.siteMetadata();
+		if (serverMeta) Object.assign(derivedMeta, serverMeta);
+		setSiteMetadata(derivedMeta);
+		const persistedTypes = Object.values(domains)
+			.map((d) => d.persistedAs)
+			.filter((l): l is string => !!l);
+		this.labels = persistedTypes.length > 0 ? persistedTypes : derivedMeta.types;
+		this.requestUpdate();
+	}
+
+	async executeQuery(): Promise<void> {
+		await this.#metadata;
+		const label = this.qLabel;
+		const textQuery = this.qText;
+		// The server rejects a query that doesn't name a type or text, or a type actuality doesn't hold; asking anyway fails
+		// identically on every retrigger (each SSE batch fires one), flooding the server and actuality log. Report why once
+		// instead. An address outlives the actuality it was made in, so it keeps the type it names.
+		if (!label && !textQuery?.trim()) return this.#refuse("a query needs a record type or search text");
+		if (label && !this.labels.includes(label)) {
+			const refusal = typeNotHeld(label, this.labels);
+			return this.#refuse(refusal.error, refusal.held);
+		}
+		const sortBy = this.qSort;
+		const sortOrder = this.qOrder;
+
+		const validConditions = this.qConditions
+			.filter((c) => c.predicate && c.value)
+			.map((c) => ({ predicate: c.predicate, operator: c.operator, value: c.value, ...(c.operator === "between" && c.value2 ? { value2: c.value2 } : {}) }));
+
+		const queryKey = JSON.stringify({ label, textQuery, conditions: validConditions, sortBy: sortBy || "", sortOrder, offset: this.qOffset, limit: this.limit });
+		// Coalesce concurrent identical fires (e.g. hashchange + initial connect).
+		if (this.inflightPromise && this.lastQueryKey === queryKey) return this.inflightPromise;
+		const resultsChanged = queryKey !== this.lastQueryKey;
+		this.lastQueryKey = queryKey;
+
+		if (label !== this.lastQueriedLabel) {
+			// The node type changed: drop the previous type's rows now so they are never left
+			// clickable while the new query is in flight: a stale-row click would open the wrong
+			// entity (its id is a different type). The new rows render when `work` resolves.
+			this.lastQueriedLabel = label;
+			this.results = [];
+			this.#counted = counted(0);
+			this.#source = arrayWindowedSource<VertexRow>([]);
+			this.renderResults();
+		}
+
+		this.error = "";
+		this.#remedies = [];
+		const work = (async () => {
+			try {
+				const payload = {
+					accessLevel: this.qAccess,
+					label,
+					filters: validConditions,
+					textQuery: textQuery || undefined,
+					...(sortBy ? { sortBy } : {}),
+					sortOrder,
+					// A request reads at most MAX_PAGE_ROWS rows. The source reads the rest of a larger window after these rows.
+					limit: Math.min(this.limit, MAX_PAGE_ROWS),
+					offset: this.qOffset,
+				};
+				const data = await this.#query.run(payload);
+				// Out-of-order guard: a newer query (e.g. a type switch) replaced this queryKey while this
+				// RPC was in flight, so this response is stale. Ignore it, applying it would overwrite the
+				// current type's rows with the previous type's, leaving the wrong type's rows clickable. The
+				// current query renders its own response when it resolves.
+				if (this.lastQueryKey !== queryKey) return;
+				this.results = data.vertices;
+				this.#counted = CountedSchema.parse(data);
+				this.#buildSource(payload, this.results, this.qOffset);
+				this.sortableFields = data.sort?.fields ?? [];
+				// Reflect the server's resolved sort, including the per-type default the client didn't explicitly pick, so the result-table indicator highlights the active column.
+				if (data.sort?.current?.field && !this.qSort) viewQuery.set({ sort: data.sort.current.field, order: data.sort.current.order });
+				if (data.cypher) {
+					const pane = this.closest("shu-column-pane");
+					if (pane) pane.setAttribute("label", data.cypher);
+				}
+			} catch (err) {
+				this.error = errorDetail(err);
+			}
+			this.renderResults();
+			if (resultsChanged) this.selectedIds.clear(); // a fresh result set invalidates the row selection
+			this.dispatchContextChange();
+		})();
+		this.inflightPromise = work.finally(() => {
+			this.inflightPromise = null;
+		});
+		return this.inflightPromise;
+	}
+
+	/**
+	 * Apply what a live batch carries to the rows on screen, instead of asking the server again.
+	 *
+	 * A change arrives AS the quads that changed, so a row already shown is brought up to date from them. Answering a
+	 * change with a fresh query is what made a view of actuality's own records feed itself: the query is dispatched as a
+	 * step, the step is recorded in the graph, and that recording is another change to answer, without end. Rows past
+	 * the ones on screen are read when a reader reaches them, which is what the windowed source already does.
+	 */
+	private applyLiveQuads(events: Record<string, unknown>[]): void {
+		if (!this.qLabel) return;
+		const quads = extractQuadsFromEvents(events);
+		let changed = false;
+		let arrived = false;
+		for (const quad of quads) {
+			if (quad.namedGraph !== this.qLabel) continue;
+			const row = this.results.find((r) => String(r.id) === quad.subject);
+			// A record this view holds takes the new value in place. One it does not hold is a record that arrived: which
+			// rows the query matches, and in what order, is the server's answer, so the view asks again rather than
+			// placing the record itself. Without this a record that arrived showed only after a reload.
+			if (!row) {
+				arrived = true;
+				continue;
+			}
+			if (row[quad.predicate] === quad.object) continue;
+			row[quad.predicate] = quad.object;
+			changed = true;
+		}
+		if (arrived) this.#requeryOnArrival();
+		else if (changed) this.renderResults();
+	}
+
+	#arrivalTimer: number | undefined;
+
+	/** One record arrives as many quads, and mail arrives in bursts: a trailing pause asks once for all of them. */
+	#requeryOnArrival(): void {
+		if (this.#arrivalTimer !== undefined) return;
+		this.#arrivalTimer = window.setTimeout(() => {
+			this.#arrivalTimer = undefined;
+			void this.executeQuery();
+		}, ARRIVAL_DEBOUNCE_MS);
+	}
+
+	private get resultsTarget(): HTMLElement | null {
+		const selector = this.getAttribute("results-target");
+		if (!selector) return null;
+		return document.querySelector(selector);
+	}
+
+	/** The rows of the current query, read a page at a time by the same graphQuery the first read used, with that page
+	 *  already in hand so the first paint doesn't need a second read. */
+	#buildSource(payload: Record<string, unknown>, page0: readonly VertexRow[], startRow: number): void {
+		this.#source = readWindowedSource<VertexRow>({
+			size: this.limit,
+			read: (start, end) => this.#query.run({ ...payload, limit: end - start, offset: start }),
+			held: { vertices: page0, ...this.#counted },
+			from: startRow,
+		});
+	}
+
+	render(): TemplateResult {
+		return html``;
+	}
+
+	protected updated(): void {
+		this.renderResults();
+	}
+
+	private resultTable: ShuResultTable | null = null;
+
+	private ensureResultTable(target: HTMLElement): ShuResultTable {
+		let pane = target.querySelector(".results-pane") as HTMLElement | null;
+		if (!pane) {
+			pane = document.createElement("div");
+			pane.className = "results-pane";
+			pane.dataset.testid = "shu-query";
+			target.appendChild(pane);
+		}
+
+		if (!this.resultTable || !pane.contains(this.resultTable)) {
+			// Create result table element
+			const table = document.createElement("shu-result-table") as ShuResultTable;
+			pane.innerHTML = "";
+			pane.appendChild(table);
+			this.resultTable = table;
+
+			// Listen for result table events
+			table.addEventListener(SHU_EVENT.SORT_CHANGE, ((e: CustomEvent) => {
+				const { field, order } = e.detail;
+				viewQuery.set({ sort: field || null, order, offset: 0 });
+				void this.executeQuery();
+			}) as EventListener);
+
+			table.addEventListener(SHU_EVENT.ROW_CLICK, ((e: CustomEvent) => {
+				const { individualId: vid, deselect, ctrlKey } = e.detail;
+				if (deselect) {
+					this.selectedIds.clear();
+					this.dispatchContextChange();
+					return;
+				}
+				if (!vid) return;
+
+				if (ctrlKey) {
+					if (this.selectedIds.has(vid)) {
+						this.selectedIds.delete(vid);
+					} else {
+						this.selectedIds.add(vid);
+					}
+				} else if (this.selectedIds.has(vid) && this.selectedIds.size === 1) {
+					this.selectedIds.clear();
+				} else {
+					this.selectedIds.clear();
+					this.selectedIds.add(vid);
+				}
+
+				this.dispatchContextChange();
+
+				// The result table is the source, not this controller, which lives outside the strip: the table is in the query
+				// pane, which the Miller-column prune starts from.
+				if (this.selectedIds.size > 0) openRef(table, REF_DENOTES.individual, { persistedAs: this.qLabel || defaultLabel(), id: vid }, ctrlKey);
+			}) as EventListener);
+		}
+
+		return this.resultTable;
+	}
+
+	/** Show why the query wasn't sent with the links that remedy it, and clear the rows. */
+	#refuse(why: string, remedies: THeldTypeLink[] = []): void {
+		this.error = why;
+		this.#remedies = remedies;
+		this.results = [];
+		this.#counted = counted(0);
+		this.#source = arrayWindowedSource<VertexRow>([]);
+		this.renderResults();
+	}
+
+	private renderResults(): void {
+		const target = this.resultsTarget;
+		if (!target) return;
+
+		if (this.error) {
+			const links = this.#remedies.map(({ label, href }) => `<a href="${esc(href)}" data-testid="${SHU_TEST_IDS.QUERY.HELD_TYPE}-${esc(label)}">${esc(label)}</a>`).join(" ");
+			const remedies = links ? `<nav class="remedies">${links}</nav>` : "";
+			target.innerHTML = `<div class="results-pane" data-testid="${SHU_TEST_IDS.QUERY.ROOT}"><div class="error-banner">${esc(this.error)}${remedies}</div></div>`;
+			return;
+		}
+
+		const table = this.ensureResultTable(target);
+		table.updateState({ sortBy: this.qSort, sortOrder: this.qOrder, selectable: true, paginated: this.#counted.saturated || this.#counted.total > this.limit });
+		if (this.qLabel) table.persistedAs = this.qLabel;
+		table.setSortableFields(this.sortableFields);
+		if (this.#source !== this.#installedSource) {
+			table.setSource(this.#source);
+			this.#installedSource = this.#source;
+		}
+	}
+}
+
+defineElement(SHU_TAG.GRAPH_QUERY, ShuGraphQuery);

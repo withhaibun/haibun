@@ -7,8 +7,8 @@
  * the content. `shu-virtual-column` reads its scroller's total and window through `railTotalAndWindow` too. `shu-annotated-body`
  * mounts the rail and computes each annotation's offset from the live text range.
  */
-import type { TScrollMarker, TWindow } from "./scrollbar-model.js";
-import { ANNOTATION_GLYPH } from "./consts.js";
+import type { TScrollMarker, TWindow } from "./page/derivations/rail.js";
+import { ANNOTATION_GLYPH } from "./domains/elements.js";
 
 /** Reads the rail's total (scrollable height) and window (the visible part) from the scroll container. */
 export function railTotalAndWindow(scrollEl: HTMLElement): { total: number; window: TWindow } {

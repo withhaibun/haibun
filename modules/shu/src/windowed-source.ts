@@ -5,8 +5,8 @@
  * read the same three calls (count, rowAt, ensureRange), so the same column data can drive both media.
  */
 import { counted, readInPages, type TCounted, type TCountedPage } from "@haibun/core/lib/hypermedia.js";
-import type { TScrollMarker } from "./scrollbar-model.js";
-import type { Range } from "./ranges.js";
+import type { TScrollMarker } from "./page/derivations/rail.js";
+import type { Range } from "./page/derivations/rail.js";
 
 export interface WindowedSource<T> {
 	/** Total rows. May be an estimate for a server-counted or still-arriving set of millions. */

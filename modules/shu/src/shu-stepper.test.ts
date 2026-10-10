@@ -1,6 +1,6 @@
 import { currentVersion } from "@haibun/core/currentVersion.js";
 import { PAGE_ACTUALITY } from "./test-setup.js";
-import { CONTEXT_DOCUMENT, HYDRATION_ID } from "./consts.js";
+import { CONTEXT_DOCUMENT, HYDRATION_ID } from "./domains/elements.js";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";

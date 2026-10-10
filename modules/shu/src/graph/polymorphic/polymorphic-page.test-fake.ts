@@ -4,7 +4,7 @@ import type { AddressInfo } from "node:net";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, type Browser, type Page } from "playwright";
-import { SHU_EVENT } from "../../consts.js";
+import { SHU_EVENT } from "../../domains/elements.js";
 import type { TPaneOpen } from "../../pane-state.js";
 import { SHARED_SIGNALS_KEY } from "../../signals.js";
 import type { TSubjectState } from "../../current-subject.js";

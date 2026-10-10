@@ -4,7 +4,7 @@ import ShuStepper from "../../build/shu-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
-import { SHU_TEST_IDS } from "../../build/test-ids.js";
+import { SHU_TEST_IDS } from "../../build/domains/test-ids.js";
 import { typeNotHeld } from "../../build/view-query.js";
 import { flattenTestIds } from "@haibun/shu/test/step-ui.js";
 

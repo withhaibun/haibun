@@ -16,25 +16,25 @@
  * Light DOM: the scene resolves its A-Frame camera through document.querySelector, and its chrome positions against
  * this host.
  */
-import { CONTEXT_DOCUMENT, SHU_TAG } from "../consts.js";
+import { CONTEXT_DOCUMENT, SHU_TAG } from "../domains/elements.js";
 import { defineElement } from "../define-element.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { html, type TemplateResult } from "lit";
-import type { TLinkedData } from "./shu-element.js";
+import type { TLinkedData } from "../page/components/shu-element.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import { ShuClusteredGraphView, clusteredGraphStateShape } from "./shu-clustered-graph-view.js";
 import { fetchIndividuals } from "../pane-fetch.js";
 import { esc, idOf, instanceLabel } from "../util.js";
-import { jsonDisclosure } from "./json-disclosure.js";
-import { renderRef } from "./ref-navigation.js";
+import { jsonDisclosure } from "../page/components/json-disclosure.js";
+import { renderRef } from "../page/components/ref-navigation.js";
 import { scopeSchemaToType, scopeSchemaToConnected } from "../graph/ontology-projection.js";
 import { prefixesReferencedBy } from "../graph/jsonld-context-scope.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { VIEW } from "../graph/polymorphic/polymorphic-views.js";
 import { viewHeadCss, viewActions } from "./view-head.js";
-import { JSON_DISCLOSURE_CSS } from "./styles.js";
-import { SHU_TEST_IDS } from "../test-ids.js";
+import { JSON_DISCLOSURE_CSS } from "../page/components/styles.js";
+import { SHU_TEST_IDS } from "../domains/test-ids.js";
 import "@haibun/shu/graph/polymorphic/polymorphic-scene.js";
 import { type ShuGraphScene, type GraphSceneModel } from "../graph/polymorphic/polymorphic-scene.js";
 import { GRAPH_SCENE_EVENT } from "../graph/polymorphic/polymorphic-graph-types.js";

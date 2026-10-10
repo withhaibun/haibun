@@ -1,4 +1,4 @@
-import { HYDRATION_ID } from "./consts.js";
+import { HYDRATION_ID } from "./domains/elements.js";
 import { ActualityIdSchema, type TActualityId } from "@haibun/core/lib/rpc-wire.js";
 import { reads, acts, conduit, isServerUnreachable, type TLink } from "./hypermedia.js";
 import { getConcernCatalog, cachedConcernCatalog, setConcernCatalog } from "./rels-cache.js";
