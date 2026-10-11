@@ -1,6 +1,7 @@
 /**
- * <shu-refusal>: a refusal's cause, and its remedy as a native control (CA4F4): a link that signs in, a button that reloads
- * or reads again, and a link to what a reference names. The page performs a reload through its remedies port.
+ * <shu-refusal>: a refusal's cause, a control that copies it, and its remedy as a native control (CA4F4): a link that signs
+ * in, a button that reloads or reads again, and a link to what a reference names. The page performs a reload through its
+ * remedies port.
  */
 import { html, css, nothing, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
@@ -13,6 +14,7 @@ import { reloadFor } from "../controllers/remedy-controller.js";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import { refHref } from "./ref-navigation.js";
 import { shuBaseStyles } from "./styles.js";
+import "./shu-copy-button.js";
 
 /** What a reload reads again, as its control states it. */
 const RELOAD_SAID = { client: "Reload the page", actuality: "Read actuality again", authority: "Read the authority again" } as const;
@@ -60,7 +62,9 @@ export class ShuRefusal extends ShuElement<typeof EmptyStateSchema> {
 		const { refusal } = this;
 		if (refusal === undefined) throw new Error("<shu-refusal> renders before it is given a refusal");
 		return html`<div class="refusal" role="alert" data-testid=${SHU_TEST_IDS.REFUSAL.ROOT}>
-			<span data-testid=${SHU_TEST_IDS.REFUSAL.CAUSE}>${refusal.error}</span>${refusal.remedy === undefined ? nothing : this.remedyControl(refusal.remedy)}
+			<span data-testid=${SHU_TEST_IDS.REFUSAL.CAUSE}>${refusal.error}</span>
+			<shu-copy-button label="copy" title="copy this message" .source=${refusal.error}></shu-copy-button>
+			${refusal.remedy === undefined ? nothing : this.remedyControl(refusal.remedy)}
 		</div>`;
 	}
 }

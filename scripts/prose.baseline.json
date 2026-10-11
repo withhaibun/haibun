@@ -539,9 +539,6 @@
 		"terminal-preposition": 1,
 		"the-run": 1
 	},
-	"modules/shu/src/page/components/body-iframe-csp.test.ts": {
-		"terminal-preposition": 1
-	},
 	"modules/shu/src/page/components/chat-pane.test-fake.ts": {
 		"anthropomorphic": 6,
 		"terminal-preposition": 1

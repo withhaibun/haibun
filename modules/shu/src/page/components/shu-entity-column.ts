@@ -47,7 +47,8 @@ import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { ClockController } from "../controllers/clock-controller.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
 import { appAccessLevel } from "../../view-query.js";
-import { esc, escAttr, renderContentHtml, utf8ToBase64, BODY_READING_STYLE, renderRef, refsInContent } from "../derivations/markdown.js";
+import { esc, escAttr, renderContentHtml, utf8ToBase64, renderRef, refsInContent } from "../derivations/markdown.js";
+import { buildBodyIframeDoc } from "../derivations/body-frame.js";
 import { idOf, instanceLabel, isVisibleKey, extractFieldEntries, extractBodyLiterals, governanceFields } from "../controllers/record-controller.js";
 import { isReferenceEdge } from "../derivations/record-fields.js";
 import { pickPreferredBody } from "@haibun/core/lib/resources.js";
@@ -71,20 +72,6 @@ function saveFile(blob: Blob, name: string): void {
 
 type VertexData = Record<string, unknown>;
 type EdgeData = { type: string; target: VertexData; direction?: "out" | "in" };
-
-/** Network-free CSP for markdown/plain bodies (text/html opts out; the iframe sandbox still blocks its scripts).
- *  base-uri must admit the app origin or the CSP discards the <base> that makes the body's links work. */
-const bodyCsp = (baseOrigin: string): string =>
-	`default-src 'none'; img-src data:; style-src 'unsafe-inline'; font-src data:; base-uri ${baseOrigin || "'none'"}; form-action 'none'`;
-
-export function buildBodyIframeDoc(content: string, mediaType: string, pageUrl: string | undefined): string {
-	const baseOrigin = pageUrl === undefined ? "" : new URL(pageUrl).origin;
-	const csp = mediaType === MEDIA_TYPE.html ? "" : `<meta http-equiv="Content-Security-Policy" content="${bodyCsp(baseOrigin)}">`;
-	// In a data: document a `#` link resolves against the data: URL and doesn't navigate; the base re-roots links against
-	// the app and target=_top sends them to the top frame (the iframe sandbox permits user-initiated top navigation).
-	const base = pageUrl === undefined ? "" : `<base href="${escAttr(pageUrl)}" target="_top">`;
-	return `<!DOCTYPE html><html><head><meta charset="utf-8">${csp}${base}<style>body{${BODY_READING_STYLE}margin:8px;color:#111;}</style></head><body>${content}</body></html>`;
-}
 
 /** How many fields the field table shows open. A record with many fields dumps them all at once, so a table holding more
  *  starts closed behind a summary naming how many, and a reader opens it when a field is the question. */
@@ -171,7 +158,6 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		/* Locally-rendered (black-on-white) bodies invert in dark themes so they read natively; a text/html body is
 		   the original document with its own colours and never inverts (see renderContentIframe). */
 		.body-iframe.invertible { filter: invert(var(--shu-invert, 0)) hue-rotate(calc(var(--shu-invert, 0) * 180deg)); }
-		.error-banner { padding: var(--shu-space-3) var(--shu-space-4); margin: var(--shu-space-2); background: var(--shu-bg-error-soft); color: var(--shu-error); border-radius: var(--shu-radius); }
 		.loading, .empty { color: var(--shu-fg-faded); padding: var(--shu-space-4); }
 		`,
 	];
@@ -313,8 +299,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const refusal = this.#refusal;
 		if (refusal !== undefined) return html`<shu-refusal .refusal=${refusal} .readAgain=${() => void this.open(this.state.individualId, this.state.persistedAs)}></shu-refusal>`;
 		if (!this.vertex) {
-			const msg = this.state.individualId ? `Vertex not found: ${this.state.individualId}` : "";
-			return msg ? html`<div class="error-banner">${msg}</div>` : html`<shu-spinner status="Waiting..." visible></shu-spinner>`;
+			if (this.state.individualId === "") return html`<shu-spinner status="Waiting..." visible></shu-spinner>`;
+			throw new Error(`<shu-entity-column> shows ${persistedAs}:${this.state.individualId} without its record, a refusal or a read under way`);
 		}
 
 		const fields = extractFieldEntries(this.vertex, persistedAs);

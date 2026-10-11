@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildBodyIframeDoc } from "./shu-entity-column.js";
+import { buildBodyIframeDoc } from "./body-frame.js";
 
 describe("buildBodyIframeDoc network policy", () => {
 	it("markdown bodies render network-free: strict CSP, without remote images/fonts/scripts/fetches", () => {
@@ -19,7 +19,7 @@ describe("buildBodyIframeDoc network policy", () => {
 	});
 
 	// A body's `#` links (a view: `#?col=...`; a record: `#Type:id`) must reach the app, not the sandboxed data:
-	// document they render in. The base re-roots them against the app's address and targets the top frame, and the
+	// document that renders them. The base re-roots them against the app's address and targets the top frame, and the
 	// CSP's base-uri admits exactly that origin, so the base is honoured while another base couldn't be injected.
 	it("with a page URL, links re-root against the app and open in the top frame", () => {
 		const doc = buildBodyIframeDoc("<p>hi</p>", "text/markdown", "http://localhost:8235/credentials?x=1");

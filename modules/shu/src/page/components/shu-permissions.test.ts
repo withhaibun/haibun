@@ -82,8 +82,11 @@ describe("what a reader may do here", () => {
 		await el.updateComplete;
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		await el.updateComplete;
-		expect(el.shadowRoot?.textContent, "what went wrong, in the panel rather than only in a console").toContain("graphQuery: step not registered");
-		const copy = el.shadowRoot?.querySelector("shu-copy-button") as (HTMLElement & { source: string }) | null;
+		const refusal = el.shadowRoot?.querySelector("shu-refusal") as (HTMLElement & { updateComplete: Promise<unknown> }) | null;
+		if (refusal === null || refusal === undefined) throw new Error("the panel doesn't render the refusal of its read");
+		await refusal.updateComplete;
+		expect(refusal.shadowRoot?.textContent, "what went wrong, in the panel rather than only in a console").toContain("graphQuery: step not registered");
+		const copy = refusal.shadowRoot?.querySelector("shu-copy-button") as (HTMLElement & { source: string }) | null;
 		expect(copy?.source, "and it can be taken away as text").toBe("graphQuery: step not registered");
 	});
 

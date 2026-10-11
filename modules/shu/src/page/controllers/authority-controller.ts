@@ -4,6 +4,7 @@ import { delegatedActions, readAction } from "@haibun/core/lib/actions.js";
 import { getAvailableSteps } from "./registry-controller.js";
 import { pageAuthorityPort } from "../root.js";
 import { queryGraph } from "./read-controller.js";
+import { outcomeOf, type TCallOutcome } from "../pipelines/call-step.js";
 
 /** Whether the page holds what `action` requires. */
 export const pageMay = (action: string): boolean => pageAuthorityPort().may(action);
@@ -50,5 +51,10 @@ export class AuthorityController implements ReactiveController {
 		}
 		const principals = pageMay(readAction(Access.public)) ? ((await queryGraph({ label: PRINCIPAL_LABEL })).vertices ?? []) : [];
 		return { controller: authority?.controller, holds: pageHolds(), grantedBy, principals: principals as TPrincipalRow[] };
+	}
+
+	/** Returns what holds here, or the refusal of its read. */
+	readOutcome(): Promise<TCallOutcome<TAuthority>> {
+		return outcomeOf(() => this.read());
 	}
 }

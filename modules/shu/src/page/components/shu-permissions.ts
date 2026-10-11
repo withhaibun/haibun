@@ -10,7 +10,6 @@
  */
 import { SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
-import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { html, css, type TemplateResult } from "lit";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
@@ -20,6 +19,8 @@ import { PRINCIPAL_LABEL } from "@haibun/core/lib/resources.js";
 import { actionRef, refTpl } from "./shu-ref.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { type TRefKind } from "../derivations/markdown.js";
+import { LoadController } from "../controllers/load-controller.js";
+import "./shu-refusal.js";
 
 /** What the access indicator shows beside the level, and the event carrying it: one count per thing this panel lists. */
 export const PERMISSIONS_SUMMARY = "permissions-summary";
@@ -30,6 +31,8 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 	static persistFields = ["showPrincipals"] as const;
 
 	#authority = new AuthorityController(this);
+	/** What holds here, read when the panel connects. */
+	readonly #held = new LoadController<TAuthority>(this, () => this.#authority.readOutcome());
 	/** How many items await the reader's decision, and the reference that leads to them. Set by the host, which hears
 	 *  it from whichever extension reports it: the panel states the count in a row of its own beside the access level. */
 	awaiting = 0;
@@ -39,10 +42,6 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 	declare level: string;
 	declare levels: readonly string[];
 	declare onLevelChange: (level: string) => void;
-	private held: TAuthority = { holds: [], grantedBy: {}, principals: [] };
-
-	private failure = "";
-
 	static observedHtmlAttributes = [];
 
 	constructor() {
@@ -54,7 +53,8 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 
 	/** A reading of this deployment's authority is part of what a Kihan is looking at, so it summarizes as what it shows. */
 	summarizeForKihan(): TLinkedData | null {
-		return { "@type": "ShuPermissions", holds: this.held.holds, principals: this.held.principals.length };
+		const held = this.#held.page;
+		return held === undefined ? null : { "@type": "ShuPermissions", holds: held.holds, principals: held.principals.length };
 	}
 
 	static styles = [
@@ -79,7 +79,6 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 		.awaiting-row shu-ref { --shu-accent: var(--shu-bg); }
 		.awaiting-row[hidden] { display: none; }
 		.none { color: var(--shu-fg-muted); }
-		.failure { color: var(--shu-danger, crimson); }
 	`,
 	];
 
@@ -90,13 +89,9 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 	/** What the deployment holds about itself: what this reader holds and its principals. Reported upward each time it is
 	 *  read, so the indicator that summarises this panel counts what the panel is showing rather than what it found once. */
 	private async read(): Promise<void> {
-		try {
-			this.held = await this.#authority.read();
-			this.dispatchEvent(new CustomEvent(PERMISSIONS_SUMMARY, { detail: summaryOf(this.held), bubbles: true, composed: true }));
-		} catch (err) {
-			this.failure = errorDetail(err);
-		}
-		this.requestUpdate();
+		await this.#held.run();
+		const held = this.#held.page;
+		if (held !== undefined) this.dispatchEvent(new CustomEvent(PERMISSIONS_SUMMARY, { detail: summaryOf(held), bubbles: true, composed: true }));
 	}
 
 	/**
@@ -104,8 +99,8 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 	 * opens that record, and from there what it was delegated from and on to its root. An action this deployment didn't record,
 	 * such as one allowed without a delegation, is still named, since a reader holds it either way.
 	 */
-	private grantedAt(action: string): TemplateResult {
-		const grantedBy = this.held.grantedBy[action];
+	private grantedAt(held: TAuthority, action: string): TemplateResult {
+		const grantedBy = held.grantedBy[action];
 		if (grantedBy) return refTpl("entity", { persistedAs: grantedBy.persistedAs, id: grantedBy.id }, action, SHU_TEST_IDS.APP.HELD);
 		return html`<span class="action">${actionRef(action)}</span>`;
 	}
@@ -115,7 +110,6 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 	};
 
 	render(): TemplateResult {
-		const { controller, holds, principals } = this.held;
 		return html`
 			<div class="level">
 				<label for="read-access">read access</label>
@@ -129,7 +123,19 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 				<span>${this.awaiting === 1 ? "petition awaits your decision" : "petitions await your decision"}</span>
 				${refTpl(this.awaitingRef?.kind ?? "domain", this.awaitingRef?.target ?? {}, "read them", "permissions-awaiting")}
 			</div>
+			${this.#held.render<TemplateResult>({
+				pending: () => html`<p class="none">reading what holds here</p>`,
+				running: () => html`<p class="none">reading what holds here</p>`,
+				completed: (held) => this.renderHeld(held),
+				failed: (refusal) => html`<shu-refusal .refusal=${refusal} .readAgain=${() => void this.read()}></shu-refusal>`,
+			})}
+		`;
+	}
 
+	/** What holds here: the key the page signs as, what it may do and by what grant, and the principals. */
+	private renderHeld(held: TAuthority): TemplateResult {
+		const { controller, holds, principals } = held;
+		return html`
 			<h3>this page signs as</h3>
 			${controller ? html`<shu-page-key controller=${controller}></shu-page-key>` : html`<p class="none">this page doesn't hold a key, so it holds only what doesn't need a delegation here</p>`}
 
@@ -137,7 +143,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 			${
 				holds.length
 					? html`<ul class="holds">
-						${holds.map((action) => html`<li>${this.grantedAt(action)}</li>`)}
+						${holds.map((action) => html`<li>${this.grantedAt(held, action)}</li>`)}
 					</ul>`
 					: html`<p class="none">this page's key doesn't hold a delegation</p>`
 			}
@@ -152,15 +158,6 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 					? html`<ul>
 						${principals.map((p) => html`<li>${refTpl("entity", { persistedAs: PRINCIPAL_LABEL, id: p.id }, p.id)}</li>`)}
 					</ul>`
-					: ""
-			}
-
-			${
-				this.failure
-					? html`<p class="failure">
-							${this.failure}
-							<shu-copy-button label="copy" title="copy this message" .source=${this.failure}></shu-copy-button>
-						</p>`
 					: ""
 			}
 		`;
