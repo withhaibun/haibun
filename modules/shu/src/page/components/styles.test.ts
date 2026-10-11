@@ -3,6 +3,13 @@ import { describe, expect, test } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { shuBaseStyles, SHU_BASE, SHU_TOKENS, installShuTokens } from "./styles.js";
 
+describe("the base sheet", () => {
+	test("styles shu's own elements and text, and leaves the browser's controls as the browser draws them (CA4D14)", () => {
+		expect(SHU_BASE).not.toMatch(/appearance/);
+		expect(SHU_BASE).not.toMatch(/(^|[\s,}])(button|input|select|textarea)\b/m);
+	});
+});
+
 describe("design-token cascade", () => {
 	test("SHU_TOKENS owns the token declarations", () => {
 		expect(SHU_TOKENS).toMatch(/--shu-bg:\s*#ffffff/);

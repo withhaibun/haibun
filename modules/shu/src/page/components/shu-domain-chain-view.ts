@@ -26,7 +26,7 @@ import { LINT_FINDING, LintFindingSchema, type TLintFinding } from "@haibun/core
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { noteExecution } from "../../client-cache/executions.js";
-import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { ShuElement, EmptyStateSchema, type TLinkedData } from "./shu-element.js";
 import { NODE_KIND, nodeIn, type TGraph, type TGraphNode } from "../../graph/types.js";
 import { graphPresenterTag, mountGraphPresenter, presenterIn } from "../controllers/presenter-controller.js";
 import type { TGraphPresenter, TPresenterNodeClick } from "../ports.js";
@@ -37,8 +37,6 @@ import "./shu-spinner.js";
 /** Where the chain's graph is placed in the view, which is also the test id it is found by, and the scope it keeps its
  *  settings under. */
 const CHAIN_GRAPH = { slot: SHU_TEST_IDS.DOMAIN_CHAIN.GRAPH, scope: "domain-chain" } as const;
-
-const StateSchema = z.object({});
 
 /** Returns a snapshot of actuality's affordances, as a step's products or a read of them give it, and notes the execution it
  *  is of: its facts are that execution's, so the page reads that execution, and a fact's step opens there. Throws for products
@@ -59,7 +57,7 @@ function snapshotOf(p: Record<string, unknown>): TAffordancesSnapshot {
 	return snapshot;
 }
 
-export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
+export class ShuDomainChainView extends ShuElement<typeof EmptyStateSchema> {
 	/** What the embedded graph shows of the chain. */
 	summarizeForKihan(): TLinkedData | null {
 		if (!this.affordances) return null;
@@ -109,7 +107,7 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 	private graph: TGraph | null = null;
 
 	constructor() {
-		super(StateSchema, {});
+		super(EmptyStateSchema);
 	}
 
 	protected override onConnected(): void {

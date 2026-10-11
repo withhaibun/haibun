@@ -41,7 +41,7 @@ import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
 import { esc, refLinksPlugin } from "../derivations/markdown.js";
 
-const DocumentColumnSchema = z.object({ level: z.enum(HAIBUN_LOG_LEVELS).default("log") });
+const DocumentColumnSchema = z.object({ level: z.enum(HAIBUN_LOG_LEVELS) });
 
 const mdRenderer = new MarkdownIt({ html: true, linkify: true, typographer: true });
 withHeadingAnchors(mdRenderer);

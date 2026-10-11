@@ -192,55 +192,6 @@ export const SHU_BASE = `
 	}
 	a { color: var(--shu-link); text-decoration: none; }
 	a:hover { text-decoration: underline; }
-	button {
-		font: inherit;
-		color: var(--shu-fg);
-		background: var(--shu-bg-soft);
-		border: var(--shu-border-w) solid transparent;
-		border-radius: var(--shu-radius);
-		padding: var(--shu-space-1) var(--shu-space-3);
-		cursor: pointer;
-	}
-	button:hover { background: var(--shu-bg-hover); }
-	button.primary { background: var(--shu-accent); color: var(--shu-accent-fg); }
-	button.primary:hover { filter: brightness(1.1); }
-	button.icon {
-		width: var(--shu-icon-btn);
-		height: var(--shu-icon-btn);
-		padding: 0;
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		font-size: calc(var(--shu-font-md) * 0.95);
-		color: var(--shu-fg-muted);
-		background: transparent;
-	}
-	button.icon:hover { background: var(--shu-bg-hover); color: var(--shu-fg); }
-	button.icon[aria-pressed="true"] { background: var(--shu-accent); color: var(--shu-accent-fg); }
-	button.icon[aria-pressed="true"]:hover { filter: brightness(1.1); background: var(--shu-accent); }
-	/* Text-like inputs only. checkbox/radio/range render natively: they must NOT get appearance:none + box styling, or the control becomes an empty box that never shows its checked/value state. */
-	input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), textarea, select, .text-input {
-		font: inherit;
-		font-size: var(--shu-font-md);
-		color: var(--shu-fg);
-		background: var(--shu-bg-input);
-		border: var(--shu-border-w) solid var(--shu-border);
-		border-radius: var(--shu-radius);
-		padding: var(--shu-space-1) var(--shu-space-3);
-		outline: none;
-		min-height: var(--shu-input-h);
-		appearance: none;
-		-webkit-appearance: none;
-	}
-	select {
-		padding-right: calc(var(--shu-space-5) + var(--shu-space-2));
-		background-image: linear-gradient(45deg, transparent 50%, var(--shu-fg-muted) 50%), linear-gradient(135deg, var(--shu-fg-muted) 50%, transparent 50%);
-		background-position: calc(100% - var(--shu-space-4)) 50%, calc(100% - var(--shu-space-3)) 50%;
-		background-size: 5px 5px, 5px 5px;
-		background-repeat: no-repeat;
-	}
-	input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus, textarea:focus, select:focus { background-color: var(--shu-bg-input-focus); border-color: var(--shu-border-strong); }
-	input::placeholder, textarea::placeholder { color: var(--shu-fg-faded); }
 	.error { color: var(--shu-error); }
 	.success { color: var(--shu-success); }
 	.access-badge {

@@ -211,7 +211,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	];
 
 	constructor() {
-		super(ColumnPaneSchema, { label: "", active: false, closable: true, pinned: false, columnType: "query" });
+		super(ColumnPaneSchema, { label: "", active: false, minimized: false, closable: true, pinned: false, columnType: "query" });
 	}
 
 	static attributeFields = { label: "label", active: "active", closable: "closable", pinned: "pinned", "column-type": "columnType" };

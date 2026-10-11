@@ -2,7 +2,8 @@
  * The scan behind the view element rules: the elements each view module defines, the class each extends, the shu tags each
  * renders, and the modules each imports as a value. An element a view module defines extends ShuElement, so each renders
  * through lit; and a view imports, as a value, the module that defines each tag it renders, so a view renders only
- * elements its own imports define, whichever bundle loads it.
+ * elements its own imports define, whichever bundle loads it. A view doesn't call `scrollIntoView`, which scrolls a page that
+ * embeds shu too; it reveals an element through `revealInDocument`.
  */
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -13,7 +14,7 @@ import { SHU_TAG } from "../domains/elements.js";
 export const ELEMENT_BASE = "ShuElement";
 
 /** A view module: its path, its source without comments, and what it defines, extends, renders and imports. */
-type TViewModule = { path: string; defines: Map<string, string>; extendsOf: Map<string, string>; renders: Set<string>; imports: Set<string> };
+type TViewModule = { path: string; defines: Map<string, string>; extendsOf: Map<string, string>; renders: Set<string>; imports: Set<string>; scrollsIntoView: boolean };
 
 const TAG_OF = new Map<string, string>(Object.entries(SHU_TAG));
 
@@ -54,7 +55,7 @@ function readView(path: string): TViewModule {
 	const extendsOf = new Map<string, string>();
 	for (const match of source.matchAll(/class\s+(\w+)(?:<[^{]*?>)?\s+extends\s+(\w+)/g)) extendsOf.set(itemAt(match, 1), itemAt(match, 2));
 	const renders = new Set([...source.matchAll(/<(shu-[a-z0-9-]+)[\s>/]/g)].map((match) => itemAt(match, 1)));
-	return { path, defines, extendsOf, renders, imports: valueImports(path, source) };
+	return { path, defines, extendsOf, renders, imports: valueImports(path, source), scrollsIntoView: /\.scrollIntoView\(/.test(source) };
 }
 
 /** Returns the modules under `root`, without tests, fakes and declarations. */
@@ -91,3 +92,6 @@ export function tagsUnimported(views: readonly TViewModule[], modules: readonly 
 		}),
 	);
 }
+
+/** Returns the views that call `scrollIntoView`. */
+export const scrollingViews = (views: readonly TViewModule[]): string[] => views.filter((v) => v.scrollsIntoView).map((v) => v.path);

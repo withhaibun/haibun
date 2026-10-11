@@ -9,12 +9,11 @@
 // @ts-expect-error -- package ships node16-incompatible relative type specifiers; the runtime import resolves via esbuild.
 import { createTextAnnotator as _createTextAnnotator, W3CTextFormat as _W3CTextFormat } from "@recogito/text-annotator";
 
-/** The read-only surface of the annotator this project uses: feed it annotations, toggle visibility, react to clicks. */
+/** The surface of the annotator this project uses: it takes annotations, shows or hides them, and reports a press on one. */
 export interface TextAnnotator<E> {
 	setAnnotations(annotations: E[], replace?: boolean): void;
 	getAnnotations(): E[];
 	setVisible(visible: boolean): void;
-	scrollIntoView(annotationOrId: E | string, scrollParentOrId?: string | Element): boolean;
 	on(event: "clickAnnotation", callback: (annotation: E, originalEvent: PointerEvent) => void): void;
 	destroy(): void;
 }

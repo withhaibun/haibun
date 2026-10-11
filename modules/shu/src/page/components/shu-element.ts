@@ -212,12 +212,13 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 		return key !== null && key === activePane.get();
 	}
 
-	// Input type, not output: fields with a Zod `.default()` may be omitted (parse fills them), so a subclass whose
-	// schema is all-defaulted passes nothing.
+	// A view states its initial state here, as a machine states its own (CA4D7). The graph views of CA3 still read some
+	// fields from their schemas' `.default()`, so the initial state is the schema's input type until CA3 states theirs.
 	constructor(schema: T, defaults?: z.input<T>) {
 		super();
 		this._schema = schema;
 		this.state = schema.parse(defaults ?? {});
+		this.#initial = this.state;
 		// Fail fast on a typo'd persistFields entry: a name absent from the schema would otherwise silently never persist.
 		const persisted = (this.constructor as typeof ShuElement).persistFields;
 		for (const f of persisted) if (!schema.shape[f]) throw new Error(`${this.constructor.name}: persistFields names "${f}", which is absent from the schema`);
@@ -238,6 +239,9 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 	get schema(): T {
 		return this._schema;
 	}
+
+	/** The state the element starts in, which an absent bound attribute reads as. */
+	#initial: z.infer<T>;
 
 	/** The state read by field name, as the base reads the fields a subclass names in persistFields and attributeFields. */
 	get #fields(): Record<string, unknown> {
@@ -362,18 +366,15 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 		if (!field) return;
 		const fieldSchema = this._schema.shape[field];
 		if (!fieldSchema) throw new Error(`${this.constructor.name}: attributeFields maps "${name}" → state field "${field}", which is absent from the schema`);
-		const coerced = coerceAttribute(fieldSchema, val);
-		// An attribute that is NOT THERE doesn't state a value for a field that must have one; it does not blank it. The
-		// inverse write removes an attribute whose value is empty, and reading that removal back as "no value" would
-		// reject state the element legitimately holds. That is the loop a boot-time attribute write once fell into.
-		const absent = fieldSchema.safeParse(undefined);
-		if (coerced === undefined && !absent.success) return;
+		// An absent attribute reads as the field's initial state (CA4D7): the inverse write removes an attribute that holds
+		// the initial state, so reading the removal back as another value would reject state the element holds.
+		const value = val === null ? (this.#initial as Record<string, unknown>)[field] : coerceAttribute(fieldSchema, val);
 		// The state already holds what the attribute holds, so this change reports the element's own write and the element
 		// doesn't have a value to write. The element compares the value rather than timing its own writes, since the browser delivers
 		// the reactions it holds for other attributes whenever the element writes one.
-		if (this.#fields[field] === (coerced === undefined ? absent.data : coerced)) return;
+		if (this.#fields[field] === value) return;
 		try {
-			this.setState({ [field]: coerced } as Partial<z.infer<T>>);
+			this.setState({ [field]: value } as Partial<z.infer<T>>);
 		} catch (error) {
 			// Name the attribute that drove the write: setState reports the state it rejected, not where that state came from.
 			throw new Error(`<${this.tagName.toLowerCase()}> attribute ${name}=${JSON.stringify(val)} → state.${field}: ${errorDetail(error)}`, { cause: error });
@@ -387,7 +388,7 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 		const attributeFields = (this.constructor as typeof ShuElement).attributeFields;
 		const bound = Object.entries(attributeFields).filter(([, field]) => changed.includes(field));
 		if (bound.length === 0) return;
-		for (const [attr, field] of bound) reflectAttributeValue(this, attr, this._schema.shape[field], this.#fields[field]);
+		for (const [attr, field] of bound) reflectAttributeValue(this, attr, this._schema.shape[field], this.#fields[field], (this.#initial as Record<string, unknown>)[field]);
 	}
 
 	// A view that overrides onViewActive reacts to the active-pane signal across bundles
@@ -517,10 +518,7 @@ function describeStateWrite(partial: object): string {
 
 /** Coerce an HTML attribute string into the value its state field's Zod type expects: presence-based boolean,
  * numeric parse, else the raw string. A removed attribute (null) yields undefined so setState applies the schema default. */
-function coerceAttribute(fieldSchema: z.ZodTypeAny, val: string | null): unknown {
-	// A removed attribute (null) yields undefined so setState falls back to the field's schema default: this is
-	// what makes a default-true boolean (e.g. `closable`) reset to true when absent, not to presence-semantics false.
-	if (val === null) return undefined;
+function coerceAttribute(fieldSchema: z.ZodTypeAny, val: string): unknown {
 	const { inner } = unwrapWrappers(fieldSchema);
 	if (inner instanceof z.ZodBoolean) return val !== "false";
 	if (inner instanceof z.ZodNumber) return Number(val);
@@ -528,24 +526,23 @@ function coerceAttribute(fieldSchema: z.ZodTypeAny, val: string | null): unknown
 }
 
 /** Serialize a state value onto its bound attribute: the inverse of coerceAttribute, so the attribute reads as the value
- * written. A boolean at its field's default removes the attribute, which reads as that default; otherwise it is present
- * for true and "false" for false. A default-false boolean stays presence-based for CSS, and a default-true boolean
- * declared false holds "false". An undefined, null or empty value removes the attribute, so the attribute doesn't hold a value
+ * written. A boolean at its initial state removes the attribute, which reads as that state; otherwise it is present for
+ * true and "false" for false. An initially false boolean stays presence-based for CSS, and an initially true boolean
+ * set false holds "false". An undefined, null or empty value removes the attribute, so the attribute doesn't hold a value
  * the state doesn't hold; anything else writes its string form. An attribute that already holds the value is not written
  * again, since a write reports a change. */
-function reflectAttributeValue(el: HTMLElement, attr: string, fieldSchema: z.ZodTypeAny | undefined, value: unknown): void {
-	const serialized = attributeValueOf(fieldSchema, value);
+function reflectAttributeValue(el: HTMLElement, attr: string, fieldSchema: z.ZodTypeAny | undefined, value: unknown, initial: unknown): void {
+	const serialized = attributeValueOf(fieldSchema, value, initial);
 	if (el.getAttribute(attr) === serialized) return;
 	if (serialized === null) el.removeAttribute(attr);
 	else el.setAttribute(attr, serialized);
 }
 
 /** The attribute value a state value serializes to, or null where the attribute is absent. */
-function attributeValueOf(fieldSchema: z.ZodTypeAny | undefined, value: unknown): string | null {
+function attributeValueOf(fieldSchema: z.ZodTypeAny | undefined, value: unknown, initial: unknown): string | null {
 	const inner = fieldSchema ? unwrapWrappers(fieldSchema).inner : undefined;
 	if (fieldSchema && inner instanceof z.ZodBoolean) {
-		const absent = fieldSchema.safeParse(undefined);
-		if (absent.success && absent.data === value) return null;
+		if (value === initial) return null;
 		return value === true ? "" : "false";
 	}
 	return value === undefined || value === null || value === "" ? null : String(value);

@@ -6,10 +6,9 @@
  * persistence is owned by the panes themselves (ShuElement.persistFields).
  */
 import { html, css, type TemplateResult } from "lit";
-import { ShuElement, type TLinkedData } from "./shu-element.js";
+import { ShuElement, EmptyStateSchema, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT, SHU_ATTR, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
-import { ColumnStripSchema } from "../../schemas.js";
 import { activePane, stripPanes } from "../controllers/page-cell-controller.js";
 import { shuBaseStyles } from "./styles.js";
 import type { ShuColumnPane } from "./shu-column-pane.js";
@@ -23,7 +22,7 @@ const paneKeyOf = (pane: PaneEl): string => pane.dataset.columnKey ?? pane.getAt
 /** Layout snapshot taken when a pane maximizes; restored on un-maximize. Flex is derived state (the pane recomputes it), so only display and accordion collapse are stashed. */
 type SavedPaneState = { accordionCollapsed: boolean; inlineDisplay: string };
 
-export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
+export class ShuColumnStrip extends ShuElement<typeof EmptyStateSchema> {
 	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
 	summarizeForKihan(): TLinkedData | null {
 		return null;
@@ -49,7 +48,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 	private savedLayout: Map<PaneEl, SavedPaneState> | null = null;
 
 	constructor() {
-		super(ColumnStripSchema);
+		super(EmptyStateSchema);
 	}
 
 	protected override onConnected(): void {

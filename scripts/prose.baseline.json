@@ -659,14 +659,12 @@
 		"terminal-preposition": 1
 	},
 	"modules/shu/src/page/components/shu-element.test.ts": {
-		"anthropomorphic": 2,
-		"terminal-preposition": 1
+		"anthropomorphic": 2
 	},
 	"modules/shu/src/page/components/shu-element.ts": {
 		"anthropomorphic": 15,
-		"negated-noun": 1,
 		"relation-verb": 5,
-		"terminal-preposition": 6
+		"terminal-preposition": 5
 	},
 	"modules/shu/src/page/components/shu-entity-column.body-content.test.ts": {
 		"negated-noun": 1,

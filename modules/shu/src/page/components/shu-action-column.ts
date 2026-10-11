@@ -17,7 +17,7 @@ import { stepRef } from "./shu-ref.js";
 import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import "./shu-spinner.js";
 
-const StateSchema = z.object({ action: z.string().default("") });
+const StateSchema = z.object({ action: z.string() });
 
 const IDS = SHU_TEST_IDS.ACTION_COLUMN;
 

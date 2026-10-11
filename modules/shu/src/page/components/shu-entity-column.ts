@@ -200,7 +200,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	private readonly entity = new EntityController(this, (view) => this.applyView(view));
 
 	constructor() {
-		super(EntityColumnSchema, { individualId: "", persistedAs: "", loading: false });
+		super(EntityColumnSchema, { individualId: "", persistedAs: "", loading: false, showAnnotations: true, annotateMode: false });
 	}
 
 	#cursorMoved(): void {

@@ -23,7 +23,7 @@ import { TimelineViewController } from "../controllers/timeline-view-controller.
 const SPEED_OPTIONS = [0.02, 0.05, 1, 2];
 const formatSpeed = (s: number): string => (s < 1 ? `-${Math.round(1 / s)}×` : `${s}×`);
 
-const StateSchema = z.object({ playing: z.boolean().default(false), speed: z.number().default(1) });
+const StateSchema = z.object({ playing: z.boolean(), speed: z.number() });
 
 export class ShuPlayback extends ShuElement<typeof StateSchema> {
 	/** The page's time cursor, which playback moves and follows. */
@@ -52,7 +52,7 @@ export class ShuPlayback extends ShuElement<typeof StateSchema> {
 	#rafId = 0;
 
 	constructor() {
-		super(StateSchema);
+		super(StateSchema, { playing: false, speed: 1 });
 	}
 
 	protected override onConnected(): void {

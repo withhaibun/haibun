@@ -82,12 +82,7 @@ export function serializeFilterParam(c: TSearchCondition): string {
 
 // --- Query view schema (for shu-graph-query component state) ---
 
-export const QueryViewSchema = z.object({
-	label: z.string().optional(),
-	textQuery: z.string().optional(),
-	sortBy: z.string().optional(),
-	sortOrder: z.enum(["asc", "desc"]).default("desc"),
-});
+export const QueryViewSchema = z.object({ label: z.string().optional(), textQuery: z.string().optional(), sortBy: z.string().optional(), sortOrder: z.enum(["asc", "desc"]) });
 
 // --- Context patterns (for LLM / actions bar) ---
 
@@ -95,18 +90,18 @@ export const QueryViewSchema = z.object({
 
 export const ColumnPaneSchema = z.object({
 	label: z.string(),
-	active: z.boolean().default(false),
+	active: z.boolean(),
 	// The pane's share of the strip (0..1), not pixels: a width kept from one window restores sensibly into another, and
 	// can never exceed the strip. A stored pixel width fails this and is dropped on restore.
 	width: z.number().gt(0).lte(1).optional(),
 	// Docked, the pane's open height as a share of the app (0..1), for the same reason its width is a share of the strip.
 	height: z.number().gt(0).lte(1).optional(),
 	// User-minimized: a persisted choice, distinct from the strip's transient accordion auto-collapse.
-	minimized: z.boolean().default(false),
-	closable: z.boolean().default(true),
-	pinned: z.boolean().default(false),
+	minimized: z.boolean(),
+	closable: z.boolean(),
+	pinned: z.boolean(),
 	// Free-form: the pane strip writes the component tag for component panes; CSS only matches the well-known values.
-	columnType: z.string().default("query"),
+	columnType: z.string(),
 });
 
 // --- Entity column ---
@@ -114,15 +109,15 @@ export const ColumnPaneSchema = z.object({
 export const EntityColumnSchema = z.object({
 	individualId: z.string(),
 	persistedAs: z.string(),
-	loading: z.boolean().default(false),
+	loading: z.boolean(),
 	/** How this individual was served: from the in-memory session cache or the persisted browser store (offline), vs a
 	 *  live fetch (undefined). Surfaced as a badge so a reader knows the view may be a stored copy, not freshly fetched. */
 	fromStore: z.enum(["cache", "offline"]).optional(),
 	/** Show annotations anchored in this body inline (on by default). When the body has annotations this renders the
 	 *  inline annotated view; off returns to the plain body iframe. Remembered per column via persistFields. */
-	showAnnotations: z.boolean().default(true),
+	showAnnotations: z.boolean(),
 	/** Enter the inline annotated view to author the first annotation on a body that doesn't have one yet (transient). */
-	annotateMode: z.boolean().default(false),
+	annotateMode: z.boolean(),
 });
 
 // --- Filter column ---
@@ -137,39 +132,30 @@ export const TypeChoiceSchema = z.object({ key: z.string().min(1) });
 /** What the page's search is called when the reader hasn't selected a record, since the page then acts on everything. */
 export const NOTHING_SELECTED_LABEL = "All";
 
-export const BreadcrumbSchema = z.object({
-	queryLabel: z.string().default(NOTHING_SELECTED_LABEL),
-	columns: z.array(z.string()).default([]),
-	activeIndex: z.number().default(0),
-	hasSync: z.boolean().default(false),
-});
-
-// --- Column strip ---
-
-export const ColumnStripSchema = z.object({});
+export const BreadcrumbSchema = z.object({ queryLabel: z.string(), columns: z.array(z.string()), activeIndex: z.number(), hasSync: z.boolean() });
 
 // --- Permissions ---
 
 /** What the permissions view remembers: whether the principals this deployment knows are shown. */
-export const PermissionsSchema = z.object({ showPrincipals: z.boolean().default(false) });
+export const PermissionsSchema = z.object({ showPrincipals: z.boolean() });
 
 export const PageKeySchema = z.object({
 	/** The page's key as a did:key: what a holder delegates to. */
-	controller: z.string().default(""),
+	controller: z.string(),
 });
 
 // --- Result table ---
 
 export const ResultTableSchema = z.object({
 	sortBy: z.string().optional(),
-	sortOrder: z.enum(["asc", "desc"]).default("desc"),
-	selectable: z.boolean().default(true),
-	displayMode: z.enum(["full", "objects", "pairs"]).default("full"),
+	sortOrder: z.enum(["asc", "desc"]),
+	selectable: z.boolean(),
+	displayMode: z.enum(["full", "objects", "pairs"]),
 	fixedProperty: z.string().optional(),
-	total: z.number().default(0),
-	limit: z.number().default(100),
-	offset: z.number().default(0),
-	paginated: z.boolean().default(false),
+	total: z.number(),
+	limit: z.number(),
+	offset: z.number(),
+	paginated: z.boolean(),
 });
 
 // --- What an ask is about ---
@@ -295,7 +281,7 @@ export const aType = (persistedAs: string, conditions: readonly TSearchCondition
 /** The actions bar's modes. search browses and filters the graph, and is the default. step runs a haibun step. ask chats
  *  with a model, and the mode control offers it only where actuality registers an ask-capable step. */
 export const BAR_MODES = ["search", "ask", "step"] as const;
-export const ActionsBarSchema = z.object({ mode: z.enum(BAR_MODES).default("search") });
+export const ActionsBarSchema = z.object({ mode: z.enum(BAR_MODES) });
 
 /** The domain of where an instance serves shu. */
 export const DOMAIN_SHU_APPS = "shu-apps";

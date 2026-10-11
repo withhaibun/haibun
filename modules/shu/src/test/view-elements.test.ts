@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { fileURLToPath } from "node:url";
 import { viewDirectories, VIEWS } from "./data-access-scan.js";
-import { ELEMENT_BASE, elementsOffBase, inDirectories, readModules, tagsUnimported } from "./view-elements-scan.js";
+import { ELEMENT_BASE, elementsOffBase, inDirectories, readModules, scrollingViews, tagsUnimported } from "./view-elements-scan.js";
 
 /**
  * Every element a view module defines extends ShuElement, and a view imports as a value the module that defines each shu
- * tag it renders (`view-elements-scan.ts`).
+ * tag it renders, and doesn't call `scrollIntoView` (`view-elements-scan.ts`).
  */
 const SRC = fileURLToPath(new URL("../", import.meta.url));
 const modules = readModules(SRC);
@@ -19,5 +19,9 @@ describe("a view's elements", () => {
 
 	it("are defined by a module the view imports as a value", () => {
 		expect(tagsUnimported(views, modules).map((found) => found.replace(SRC, ""))).toEqual([]);
+	});
+
+	it("reveal an element within shu's document, rather than through scrollIntoView", () => {
+		expect(scrollingViews(views).map((path) => path.replace(SRC, ""))).toEqual([]);
 	});
 });

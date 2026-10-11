@@ -18,7 +18,7 @@ import { getAvailableSteps } from "../controllers/registry-controller.js";
 import { actionRef, domainRef, originLink } from "./shu-ref.js";
 import "./shu-spinner.js";
 
-const StateSchema = z.object({ method: z.string().default("") });
+const StateSchema = z.object({ method: z.string() });
 
 const IDS = SHU_TEST_IDS.STEP_DEFINITION;
 

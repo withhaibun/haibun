@@ -31,12 +31,7 @@ import "./shu-refusal.js";
 /** Where the thread's graph is placed in the column, and the scope it keeps its settings under, apart from the main graph's. */
 const THREAD_GRAPH = { slot: "thread-graph", scope: "thread" } as const;
 
-const ThreadColumnSchema = z.object({
-	label: z.string().default(""),
-	individualId: z.string().default(""),
-	mode: z.enum(["tree", "graph"]).default("tree"),
-	depth: z.number().default(2),
-});
+const ThreadColumnSchema = z.object({ label: z.string(), individualId: z.string(), mode: z.enum(["tree", "graph"]), depth: z.number() });
 
 type ThreadEdge = { type: string; targetId: string };
 type ThreadVertex = Record<string, unknown> & { _edges?: ThreadEdge[] };

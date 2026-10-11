@@ -44,7 +44,7 @@ import { renderRefProse } from "../derivations/markdown.js";
 import "../../components/shu-graph.js";
 import "./shu-result-table.js";
 
-const TypeColumnSchema = z.object({ persistedAs: z.string().default(""), fullSchema: z.boolean().default(false) });
+const TypeColumnSchema = z.object({ persistedAs: z.string(), fullSchema: z.boolean() });
 
 type VertexData = Record<string, unknown>;
 
@@ -141,7 +141,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 	}
 
 	constructor() {
-		super(TypeColumnSchema, {});
+		super(TypeColumnSchema, { persistedAs: "", fullSchema: false });
 	}
 
 	/** Called by the pane afterAttach hook with the referenced type. */

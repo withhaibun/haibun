@@ -336,13 +336,16 @@ describe("ShuElement invalid state reporting", () => {
 		expect(thrown?.message).toContain("<shu-report-probe>"); // the setState account rides along
 	});
 
-	// A state→attribute write removes the attribute when the value is empty, and the browser reports that removal back.
-	// Reading it as an absent value would reject a field the element must hold, the loop a boot-time attribute write fell into.
-	it("leaves a field that must have a value alone when its attribute is removed, since an absent attribute doesn't state a value", () => {
+	// A state→attribute write removes the attribute when the value is the initial state, and the browser reports that
+	// removal back; it reads back as the state the element holds, so a boot-time attribute write doesn't loop (CA4D7).
+	it("reads a removed attribute as the field's initial state", () => {
 		const el = probe();
+		const initial = el.read().label;
 		el.write({ label: "a name" });
 		expect(() => el.attributeChangedCallback("data-label", "a name", null)).not.toThrow();
-		expect(el.read().label).toBe("a name");
+		expect(el.read().label).toBe(initial);
+		expect(() => el.attributeChangedCallback("data-label", null, null)).not.toThrow();
+		expect(el.read().label).toBe(initial);
 	});
 });
 

@@ -33,11 +33,11 @@ import { addsToSelection, type DesiredPane } from "../derivations/pane-kinds.js"
 const MONITOR_SOURCE = "shu-monitor-column";
 
 const MonitorColumnSchema = z.object({
-	level: z.enum(HAIBUN_LOG_LEVELS).default("info"),
-	tail: z.boolean().default(true),
+	level: z.enum(HAIBUN_LOG_LEVELS),
+	tail: z.boolean(),
 	/** Whether the steps run to carry other steps out are shown. They report under the steps a reader wrote, so a
 	 *  reader reading what a feature did is not shown them, and a reader asking how it was done is. */
-	substeps: z.boolean().default(false),
+	substeps: z.boolean(),
 });
 
 /**

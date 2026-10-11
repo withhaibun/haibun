@@ -412,10 +412,13 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 		});
 	}
 
-	/** Select a note: mark its card and scroll its highlight into view. Fired by a highlight click and a card click alike. */
+	/** Selects a note: marks its card, and reveals its passage within shu's document, as a highlight press and a card press
+	 *  both do. The annotator's own scroll would scroll a page that embeds shu too. */
 	private selectCard(commentId: string): void {
 		this.selectedCommentId = commentId;
-		this.annotator?.scrollIntoView(commentId);
+		const note = [...this.annotations, ...this.pending].find((a) => a.commentId === commentId);
+		if (note === undefined) throw new Error(`<shu-annotated-body> selects the note ${commentId}, which it doesn't hold`);
+		this.revealQuote(note);
 	}
 
 	// --- Authoring: select text → annotate ---
