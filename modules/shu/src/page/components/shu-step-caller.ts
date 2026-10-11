@@ -1,482 +1,85 @@
-import { SHU_BASE } from "./styles.js";
-import { jsonDisclosure } from "./json-disclosure.js";
-import { conduit } from "../controllers/conduit-controller.js";
-import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
-import { getAvailableSteps, findStep } from "../controllers/registry-controller.js";
-import { dispatchAffordanceFromResponse } from "../../affordance-dispatch.js";
-import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { validateStepInput, type TFieldError } from "../derivations/step-input.js";
-import { getConcernCatalog } from "../controllers/catalog-controller.js";
-import { JsonObjectTextSchema, RecordSchema, RecordsSchema } from "@haibun/core/lib/json-text.js";
-import { type TComboboxOption } from "../../schemas.js";
-import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../controllers/element-controller.js";
-import { linkTo } from "../controllers/registry-controller.js";
-import { revealInDocument } from "../../reveal.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import { esc, escAttr } from "../derivations/markdown.js";
-import { prettifyGwta, normalizeStepKey } from "../derivations/steps.js";
-import { queryGraph } from "../controllers/read-controller.js";
-
-type InputProperty = { type?: string; description?: string; enum?: string[]; properties?: Record<string, InputProperty>; required?: string[]; [key: string]: unknown };
-
 /**
- * Recognise a composite (z.object) input property, render one field per
- * sub-property instead of a single stringified-JSON text input. A single input
- * would require hand-typed valid JSON and crash silently on anything else.
- */
-function isCompositeProperty(prop: InputProperty | undefined): prop is InputProperty & { properties: Record<string, InputProperty> } {
-	return prop?.type === "object" && !!prop.properties && Object.keys(prop.properties).length > 0;
-}
-
-/**
- * Generic step caller component. Renders input form from inputSchema,
- * calls the step via RPC, and renders output from outputSchema.
+ * <shu-step-caller>: a step's form, its call, and what the call returned. The form reads the step's pattern as a sentence,
+ * with an input for each parameter its input schema declares; a press of its run control validates the values against the
+ * schema the server holds, calls the step, and shows the result by the step's output schema, or its refusal.
  *
  * Attributes:
- *   step: step name (looked up via findStep)
- *   auto: call on mount without showing input form
- *   params: JSON string of fixed params, merged with form values
+ *   step: the method of the step the form calls
+ *   call-index: the caller's number among the callers of its step, which its test ids carry
+ *   auto: the form calls the step when it connects, without showing its inputs
+ *   params: JSON of fixed parameters, which the form shows and merges with its values
  */
-class StepCaller extends HTMLElement {
-	private descriptor: TStepDefinition | undefined;
-	private fixedParams: Record<string, unknown> = {};
-	private result: unknown = null;
-	private error = "";
-	private loading = false;
-	private _executed = false;
-	private fieldErrors: Record<string, string> = {};
-	get executed(): boolean {
-		return this._executed;
-	}
-	private lastFormValues: Record<string, string> = {};
+import { html, css, nothing, type TemplateResult } from "lit";
+import { property, state } from "lit/decorators.js";
+import { unsafeHTML } from "lit/directives/unsafe-html.js";
+import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
+import { JsonObjectTextSchema, RecordSchema, RecordsSchema } from "@haibun/core/lib/json-text.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
+import { defineElement } from "../controllers/element-controller.js";
+import { getConcernCatalog } from "../controllers/catalog-controller.js";
+import { queryRead } from "../controllers/read-controller.js";
+import { StepCallController } from "../controllers/step-call-controller.js";
+import { validateStepInput, type TFieldError } from "../derivations/step-input.js";
+import { prettifyGwta, normalizeStepKey } from "../derivations/steps.js";
+import { dispatchAffordanceFromResponse } from "../../affordance-dispatch.js";
+import { revealInDocument } from "../../reveal.js";
+import type { TComboboxOption } from "../../schemas.js";
+import type { TPageRefusal } from "../domains/refusal.js";
+import { ShuElement, EmptyStateSchema, type TLinkedData } from "./shu-element.js";
+import { jsonDisclosure } from "./json-disclosure.js";
+import { shuBaseStyles } from "./styles.js";
+import "./shu-combobox.js";
+import "./shu-refusal.js";
 
-	connectedCallback(): void {
-		if (!this.shadowRoot) this.attachShadow({ mode: "open" });
-		if (this.descriptor) return; // Already initialized, just re-attached
-		void this.init();
-	}
+type TInputProperty = {
+	type?: string;
+	format?: string;
+	description?: string;
+	enum?: string[];
+	properties?: Record<string, TInputProperty>;
+	required?: string[];
+	[key: string]: unknown;
+};
+type TInputSchema = { properties?: Record<string, TInputProperty>; required?: string[] };
 
-	async init(): Promise<void> {
-		this.result = null;
-		this.error = "";
-		this.loading = false;
-		this._executed = false;
-		this.lastFormValues = {};
-		await getAvailableSteps();
-		const stepName = this.getAttribute("step") || "";
-		this.descriptor = findStep(stepName);
-		if (!this.descriptor) {
-			this.error = `Step "${stepName}" not found`;
-			this.renderComponent();
-			return;
-		}
+/** A parameter of a pattern: `{name}` or `{name: domain}`. */
+const PARAM = /\{(\w+)(?::\s*[^}]*)?\}/g;
+/** The fields a record's options read for its name, in order. */
+const NAME_FIELDS = ["name", "title", "label", "subject"];
+/** How many records a reference's options offer. */
+const REFERENCE_OPTIONS = 50;
 
-		const paramsAttr = this.getAttribute("params");
-		if (paramsAttr) {
-			const params = JsonObjectTextSchema.safeParse(paramsAttr);
-			if (params.success) this.fixedParams = params.data;
-			else this.error = "Invalid params JSON";
-		}
+/** Whether an input property is a composite (an object schema with properties), which the form renders one field at a
+ *  time rather than as JSON. */
+function isCompositeProperty(prop: TInputProperty | undefined): prop is TInputProperty & { properties: Record<string, TInputProperty> } {
+	return prop?.type === "object" && prop.properties !== undefined && Object.keys(prop.properties).length > 0;
+}
 
-		if (this.hasAttribute("auto")) {
-			await this.callStep();
-		} else {
-			this.renderComponent();
-		}
-	}
+/** Returns the refused fields' causes, by field. */
+function collectFieldErrors(errs: TFieldError[]): Record<string, string> {
+	const out: Record<string, string> = {};
+	for (const e of errs) out[e.field] = out[e.field] === undefined ? e.message : `${out[e.field]}; ${e.message}`;
+	return out;
+}
 
-	private async callStep(formValues: Record<string, string> = {}): Promise<void> {
-		if (!this.descriptor) return;
-		this.lastFormValues = { ...formValues };
-		this.loading = true;
-		this.error = "";
-		this.result = null;
-		this.fieldErrors = {};
-		this.renderComponent();
+/** Returns a form value as its property's type states it: JSON for an object or an array, a number for a number. */
+function typedValue(value: string, type: string | undefined): unknown {
+	if ((type === "object" || type === "array") && value !== "") return JSON.parse(value);
+	if (type === "number" && value !== "") return Number(value);
+	return value;
+}
 
-		const params: Record<string, unknown> = { ...this.fixedParams };
-		const schema = this.inputSchemaOf(this.descriptor);
-		try {
-			for (const [key, value] of Object.entries(formValues)) {
-				const dotIndex = key.indexOf(".");
-				if (dotIndex > 0) {
-					const parent = key.slice(0, dotIndex);
-					const sub = key.slice(dotIndex + 1);
-					const subSchema = schema?.properties?.[parent]?.properties?.[sub];
-					const propType = subSchema?.type;
-					if (!value && !schema?.properties?.[parent]?.required?.includes(sub)) continue;
-					const existing = RecordSchema.optional().parse(params[parent]) ?? {};
-					if ((propType === "array" || propType === "object") && value) existing[sub] = JSON.parse(value);
-					else if (propType === "number" && value) existing[sub] = Number(value);
-					else existing[sub] = value;
-					params[parent] = existing;
-					continue;
-				}
-				const propType = schema?.properties?.[key]?.type;
-				if ((propType === "object" || propType === "array") && value) {
-					params[key] = JSON.parse(value);
-				} else if (propType === "number" && value) {
-					params[key] = Number(value);
-				} else {
-					params[key] = value;
-				}
-			}
-		} catch (err) {
-			this.error = `invalid input: ${errorDetail(err)}`;
-			this.loading = false;
-			this._executed = true;
-			this.renderComponent();
-			this.dataset.testid = `${this.idPrefix()}-step-error`;
-			this.dispatchEvent(new CustomEvent(SHU_EVENT.STEP_ERROR, { bubbles: true, composed: true, detail: this.error }));
-			return;
-		}
-		// Client-side schema validation against the same JSON Schema the server
-		// exposes through `findStep().inputSchema`. Single source of truth: the
-		// Zod schema on the server. Validating here yields inline, per-field
-		// feedback before the RPC roundtrip.
-		const fieldErrors = validateStepInput(params, schema as Parameters<typeof validateStepInput>[1]);
-		if (fieldErrors.length > 0) {
-			this.fieldErrors = collectFieldErrors(fieldErrors);
-			this.error = `invalid input: ${fieldErrors.map((e) => `${e.field} ${e.message}`).join("; ")}`;
-			this.loading = false;
-			this._executed = true;
-			this.renderComponent();
-			this.dataset.testid = `${this.idPrefix()}-step-error`;
-			this.dispatchEvent(new CustomEvent(SHU_EVENT.STEP_ERROR, { bubbles: true, composed: true, detail: this.error }));
-			return;
-		}
-		this.fieldErrors = {};
-
-		try {
-			const method = this.descriptor.method;
-			this.result = await conduit().follow(linkTo(method, params), `step-caller: ${method}`);
-			dispatchAffordanceFromResponse(this.result);
-			this.dispatchEvent(new CustomEvent(SHU_EVENT.STEP_SUCCESS, { bubbles: true, composed: true, detail: this.result }));
-		} catch (err) {
-			this.error = errorDetail(err);
-			this.dispatchEvent(new CustomEvent(SHU_EVENT.STEP_ERROR, { bubbles: true, composed: true, detail: this.error }));
-		}
-		this.loading = false;
-		this._executed = true;
-		this.renderComponent();
-		this.dataset.testid = `${this.idPrefix()}-${this.error ? "step-error" : "step-result"}`;
-		revealInDocument(this, { behavior: "smooth", block: "nearest" });
+export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
+	/** A form doesn't contribute to the Kihan's context; what its call returned does, through the step's products. */
+	summarizeForKihan(): TLinkedData | null {
+		return null;
 	}
 
-	private idPrefix(): string {
-		// Derive the slug from the qualified method so test selectors can build
-		// the same id from either side of the wire, `normalizeStepKey` strips
-		// the stepper prefix and camelCase-splits the action name, producing a
-		// stable kebab-case slug. gwta-derived slugs vary with optional words
-		// between params (e.g. "check record X against Y") and diverge from the
-		// test helper's `stepInput(method, …)`.
-		const key = this.getAttribute("method") || this.getAttribute("step") || this.getAttribute("gwta") || "";
-		const callIndex = this.getAttribute("call-index") ?? "0";
-		return `${normalizeStepKey(key)}-${callIndex}`;
-	}
-
-	private renderComponent(): void {
-		if (!this.shadowRoot) return;
-		const desc = this.descriptor;
-		const stepName = this.getAttribute("step") || "";
-		const prefix = this.idPrefix();
-
-		const dismissBtn = this.executed ? '<button class="dismiss-btn" title="Remove">x</button>' : "";
-
-		this.shadowRoot.innerHTML = `
-			${this.css()}
-			<div class="step-caller" data-testid="step-caller-${esc(stepName)}">
-				${dismissBtn}
-				${desc && !this.hasAttribute("auto") ? this.renderForm(desc) : ""}
-				${this.loading ? `<div class="loading" data-testid="${esc(prefix)}-step-loading">loading...</div>` : ""}
-				${this.result !== null ? `<div data-testid="${esc(prefix)}-step-result">${this.renderOutput()}</div>` : ""}
-				${this.error ? `<div class="error" data-testid="${esc(prefix)}-step-error">${esc(this.error)}</div>` : ""}
-				${!this.error && this.result !== null && !desc?.outputSchema ? `<div class="success" data-testid="${esc(prefix)}-step-success">done</div>` : ""}
-				${this._executed ? `<div hidden data-testid="${esc(prefix)}-step-done"></div>` : ""}
-			</div>
-		`;
-		this.bindEvents();
-	}
-
-	/** The step's input schema, where a parameter taking a record's fields takes those the chosen type's schema states, as the
-	 *  catalog carries it, so the form asks for each field and validates it as the server does. */
-	private inputSchemaOf(desc: TStepDefinition): { properties?: Record<string, InputProperty>; required?: string[] } {
-		const schema = desc.inputSchema as { properties?: Record<string, InputProperty>; required?: string[] };
-		const properties = { ...schema.properties };
-		for (const [data, typeParam] of Object.entries(desc.recordData ?? {})) {
-			const chosen = this.fixedParams[typeParam] ?? this.lastFormValues[typeParam];
-			const typeSchema = (typeof chosen === "string" ? getConcernCatalog().persisted[chosen]?.jsonSchema : undefined) as InputProperty | undefined;
-			// The catalog states what a record holds, so a field its schema fills by default is one a caller may leave out.
-			const defaulted = new Set(Object.entries(typeSchema?.properties ?? {}).flatMap(([field, prop]) => ("default" in prop ? [field] : [])));
-			if (typeSchema) properties[data] = { ...typeSchema, required: (typeSchema.required ?? []).filter((field) => !defaulted.has(field)) };
-		}
-		return { ...schema, properties };
-	}
-
-	private renderForm(desc: TStepDefinition): string {
-		const schema = this.inputSchemaOf(desc);
-		const properties = schema.properties || {};
-		const prefix = this.idPrefix();
-		const tid = (suffix: string) => ` data-testid="${escAttr(prefix)}-${escAttr(suffix)}"`;
-
-		// Parse the gwta pattern into text segments and inline inputs
-		const pattern = prettifyGwta(desc.pattern || "");
-		const parts: string[] = [];
-		let last = 0;
-		const paramRegex = /\{(\w+)(?::\s*[^}]*)?\}/g;
-		let match: RegExpExecArray | null;
-
-		while ((match = paramRegex.exec(pattern)) !== null) {
-			if (match.index > last) {
-				parts.push(`<span class="step-text">${esc(pattern.slice(last, match.index))}</span>`);
-			}
-			const paramName = itemAt(match, 1);
-			if (paramName in this.fixedParams) {
-				parts.push(`<span class="step-fixed">${esc(String(this.fixedParams[paramName]))}</span>`);
-			} else {
-				const prop = properties[paramName];
-				// A parameter naming the type of a record's fields offers the types the catalog declares.
-				const names = Object.values(desc.recordData ?? {}).includes(paramName) ? Object.keys(getConcernCatalog().persisted).sort() : prop?.enum;
-				if (names) {
-					const savedVal = this.lastFormValues[paramName] || "";
-					const options = names.map((v: string) => `<option value="${escAttr(v)}"${v === savedVal ? " selected" : ""}>${esc(v)}</option>`).join("");
-					parts.push(
-						`<select name="${escAttr(paramName)}" class="inline-select"${tid(`step-input-${paramName}`)}><option value=""${!savedVal ? " selected" : ""}>${esc(paramName)}</option>${options}</select>`,
-					);
-				} else if (this.refTargetLabel(desc, paramName)) {
-					// Persisted-ref input: the parameter is a single-field composite
-					// `{id}` whose `id` ranges over a registered persisted domain.
-					// Render a combobox populated from the live snapshot of that
-					// persisted type rather than a free-text id field. The combobox
-					// propagates `testid` to its inner
-					// `<input>` so Playwright's `fill()` (and the existing
-					// `setValue` step) work directly. A hidden `${paramName}.id`
-					// input carries the chosen id into the form's submit handler.
-					const targetLabel = this.refTargetLabel(desc, paramName) ?? "";
-					const saved = this.lastFormValues[`${paramName}.id`] || "";
-					const innerTestId = `${prefix}-step-input-${paramName}`;
-					parts.push(
-						`<span class="ref-input" data-param="${escAttr(paramName)}">` +
-							`<shu-combobox testid="${escAttr(innerTestId)}" data-persisted-ref="${escAttr(targetLabel)}" data-param="${escAttr(paramName)}" placeholder="${escAttr(paramName + " (pick or type id)")}"></shu-combobox>` +
-							`<input type="hidden" name="${escAttr(paramName + ".id")}" value="${escAttr(saved)}" />` +
-							`</span>`,
-					);
-				} else if (isCompositeProperty(prop)) {
-					const subInputs: string[] = [];
-					const required = new Set(prop.required ?? []);
-					for (const [subName, subProp] of Object.entries(prop.properties)) {
-						const fullName = `${paramName}.${subName}`;
-						// `data-testid` uses `-` joins (not `.`) so haibun's variable
-						// resolver doesn't parse `foo.bar` as a dot-path traversal.
-						const testIdName = `${paramName}-${subName}`;
-						const saved = this.lastFormValues[fullName] || "";
-						const requiredMark = required.has(subName) ? "" : "?";
-						// `format` (e.g. "uri", "email", "date-time") wins over the base
-						// `type` so a `z.url()` field shows "uri" rather than "string".
-						// A field that doesn't have either is a schema bug: the JSON Schema producer
-						// must declare one or the other.
-						const format = (subProp as { format?: string }).format;
-						const typeLabel = format ?? subProp.type;
-						if (!typeLabel)
-							throw new Error(`shu-step-caller: composite sub-field "${fullName}" has no \`type\` or \`format\` in its JSON Schema. The schema producer must declare one.`);
-						const placeholder = `${subName}${requiredMark}: ${typeLabel}`;
-						const sz = Math.max(saved.length, placeholder.length, 4);
-						const fieldError = this.fieldErrors[fullName];
-						const errSpan = fieldError ? `<span class="field-error"${tid(`step-input-${testIdName}-error`)}>${esc(fieldError)}</span>` : "";
-						subInputs.push(
-							`<input type="${subProp.type === "number" ? "number" : "text"}" name="${escAttr(fullName)}" class="inline-input" placeholder="${escAttr(placeholder)}" value="${escAttr(saved)}" size="${sz}"${tid(`step-input-${testIdName}`)} />${errSpan}`,
-						);
-					}
-					parts.push(`<span class="composite-input" data-param="${escAttr(paramName)}">${subInputs.join(" ")}</span>`);
-				} else {
-					const saved = this.lastFormValues[paramName] || "";
-					const sz = Math.max(saved.length, paramName.length, 4);
-					const fieldError = this.fieldErrors[paramName];
-					const errSpan = fieldError ? `<span class="field-error"${tid(`step-input-${paramName}-error`)}>${esc(fieldError)}</span>` : "";
-					parts.push(
-						`<input type="text" name="${escAttr(paramName)}" class="inline-input" placeholder="${escAttr(paramName)}" value="${escAttr(saved)}" size="${sz}"${tid(`step-input-${paramName}`)} />${errSpan}`,
-					);
-				}
-			}
-			last = match.index + match[0].length;
-		}
-		if (last < pattern.length) {
-			parts.push(`<span class="step-text">${esc(pattern.slice(last))}</span>`);
-		}
-
-		const runLabel = this.executed ? "\u27F3\u25B6" : "\u25B6";
-		return `<form class="step-form step-sentence">${parts.join(" ")} <button type="submit" class="run-inline${this.executed ? " rerun" : ""}" title="${this.executed ? "Re-run" : "Run"}"${tid("step-run")}>${runLabel}</button></form>`;
-	}
-
-	private renderOutput(): string {
-		const data = this.result;
-		const schema = this.descriptor?.outputSchema;
-		if (!schema) {
-			return data != null ? jsonDisclosure(data) : "";
-		}
-		return this.renderBySchema(data, schema);
-	}
-
-	private renderBySchema(data: unknown, schema: Record<string, unknown>): string {
-		if (!data) return "";
-		const jsonSchema = schema as { type?: string; properties?: Record<string, Record<string, unknown>>; items?: Record<string, unknown> };
-
-		// Object: unwrap single-property containers, otherwise render each property via its own schema branch (so an array-of-object property renders as a nested table, not stringified JSON).
-		if (jsonSchema.type === "object" && jsonSchema.properties) {
-			const props = Object.entries(jsonSchema.properties);
-			const obj = RecordSchema.parse(data);
-			if (props.length === 1) {
-				const [key, keySchema] = itemAt(props, 0);
-				const inner = obj[key];
-				if (inner !== undefined) return this.renderBySchema(inner, keySchema);
-			}
-			const entries = props
-				.filter(([k]) => obj[k] !== undefined)
-				.map(([k, kSchema]) => `<dt>${esc(k)}</dt><dd data-testid="step-result-${escAttr(k)}">${this.renderBySchema(obj[k], kSchema)}</dd>`)
-				.join("");
-			return `<dl>${entries}</dl>`;
-		}
-
-		if (jsonSchema.type === "array" && Array.isArray(data)) {
-			const items = jsonSchema.items;
-			if (items && typeof items === "object" && items.type === "object") {
-				return this.renderTable(RecordsSchema.parse(data));
-			}
-			return `<ul>${(data as unknown[]).map((v) => `<li>${this.renderCell(v)}</li>`).join("")}</ul>`;
-		}
-
-		if (typeof data === "string" || typeof data === "number") {
-			return `<span>${esc(String(data))}</span>`;
-		}
-
-		return jsonDisclosure(data);
-	}
-
-	/** Rows as one table, its columns every field a row has, since a field one row states another may leave out. */
-	private renderTable(rows: Record<string, unknown>[]): string {
-		if (rows.length === 0) return "<p>The result doesn't hold a row.</p>";
-		const cols = [...new Set(rows.flatMap((r) => Object.keys(r)))];
-		const header = cols.map((c) => `<th>${esc(c)}</th>`).join("");
-		const body = rows.map((r) => `<tr>${cols.map((c) => `<td>${this.renderCell(r[c])}</td>`).join("")}</tr>`).join("");
-		return `<table><thead><tr>${header}</tr></thead><tbody>${body}</tbody></table>`;
-	}
-
-	/** A value as the text of its cell: a field a row leaves out is an empty cell. */
-	private renderCell(value: unknown): string {
-		if (value === undefined) return "";
-		return esc(typeof value === "string" ? value : JSON.stringify(value));
-	}
-
-	private bindEvents(): void {
-		this.shadowRoot?.querySelector(".dismiss-btn")?.addEventListener("click", () => {
-			this.remove();
-		});
-
-		const form = this.shadowRoot?.querySelector(".step-form");
-		if (form) {
-			form.addEventListener("submit", (e) => {
-				e.preventDefault();
-				const inputs = Array.from((form as HTMLFormElement).querySelectorAll<HTMLInputElement | HTMLSelectElement>("input[name], select[name]"));
-				const values: Record<string, string> = {};
-				for (const input of inputs) {
-					if (input.value) values[input.name] = input.value;
-				}
-				void this.callStep(values);
-			});
-
-			// A parameter naming the type a record's fields are of: choosing a type asks for its fields.
-			for (const typeParam of Object.values(this.descriptor?.recordData ?? {})) {
-				form.querySelector<HTMLSelectElement>(`select[name="${typeParam}"]`)?.addEventListener("change", () => {
-					for (const input of form.querySelectorAll<HTMLInputElement | HTMLSelectElement>("input[name], select[name]")) this.lastFormValues[input.name] = input.value;
-					this.renderComponent();
-				});
-			}
-
-			// Auto-expand inline inputs as user types
-			form.querySelectorAll<HTMLInputElement>(".inline-input").forEach((input) => {
-				const resize = () => {
-					const len = Math.max(input.value.length, input.placeholder.length, 4);
-					input.size = len + 1;
-				};
-				input.addEventListener("input", resize);
-			});
-
-			// Persisted-ref combobox wiring. Each `shu-combobox[data-persisted-ref]`
-			// is populated from a live snapshot of that persisted type, and its
-			// picked value flows into the hidden `${param}.id` input that the
-			// form's submit handler reads.
-			form
-				.querySelectorAll<HTMLElement & { setOptions?: (opts: TComboboxOption[]) => void; updateComplete?: Promise<unknown> }>("shu-combobox[data-persisted-ref]")
-				.forEach((cb) => {
-					const targetLabel = cb.dataset.persistedRef;
-					const paramName = cb.dataset.param;
-					if (!targetLabel || !paramName) return;
-					const hidden = form.querySelector<HTMLInputElement>(`input[name="${CSS.escape(paramName)}\\.id"]`);
-					cb.addEventListener("combo-change", (e) => {
-						if (hidden) hidden.value = (e as CustomEvent).detail?.value ?? "";
-					});
-					// An id can be typed directly without picking an option. Mirror the
-					// typed text into the hidden input so the submit handler always
-					// carries something, `combo-change` overwrites it on a dropdown pick.
-					// `await updateComplete` waits for lit's first render of the
-					// combobox's inner `<input>`; without this the `querySelector`
-					// returns null because lit's render is scheduled in the next
-					// microtask, leaving Playwright's `fill()` unwired.
-					const wireInputMirror = () => {
-						const inputEl = cb.shadowRoot?.querySelector("input") as HTMLInputElement | null;
-						inputEl?.addEventListener("input", () => {
-							if (hidden) hidden.value = inputEl.value;
-						});
-					};
-					if (cb.updateComplete) void cb.updateComplete.then(wireInputMirror);
-					else wireInputMirror();
-					void this.populatePersistedRef(cb, targetLabel);
-				});
-		}
-	}
-
-	/**
-	 * If the named param is a persisted-ref input (its domain is registered as a
-	 * reference in the concern catalog), returns the target persisted type's label.
-	 * `undefined` means render the param as a normal composite or primitive.
-	 */
-	private refTargetLabel(desc: TStepDefinition, paramName: string): string | undefined {
-		const domainKey = desc.paramDomains[paramName];
-		if (!domainKey) return undefined;
-		return getConcernCatalog().references[domainKey]?.targetPersistedAs;
-	}
-
-	private async populatePersistedRef(cb: HTMLElement & { setOptions?: (opts: TComboboxOption[]) => void }, label: string): Promise<void> {
-		try {
-			const data = await queryGraph({ label, limit: 50 });
-			const concerns = getConcernCatalog();
-			const concern = Object.values(concerns.persisted).find((c) => c.label === label);
-			const idField = concern?.idField ?? "id";
-			const nameField = this.pickNameField(concern);
-			const options: TComboboxOption[] = (data.vertices ?? []).map((v) => {
-				const id = String(v[idField] ?? "");
-				const name = nameField ? String(v[nameField] ?? "") : "";
-				return { value: id, label: name || id, secondary: label, details: JSON.stringify(v, null, 2) };
-			});
-			cb.setOptions?.(options);
-		} catch (err) {
-			cb.setOptions?.([{ value: "", label: `(failed to load ${label}: ${errorDetail(err)})` }]);
-		}
-	}
-
-	/** Pick the most readable identifier field for an individual (name > title > label). Returns undefined if a candidate doesn't exist. */
-	private pickNameField(vertexConcern: { properties?: Record<string, unknown> } | undefined): string | undefined {
-		if (!vertexConcern?.properties) return undefined;
-		for (const candidate of ["name", "title", "label", "subject"]) {
-			if (candidate in vertexConcern.properties) return candidate;
-		}
-		return undefined;
-	}
-
-	private css(): string {
-		return `<style>
-			${SHU_BASE}
+	static styles = [
+		shuBaseStyles,
+		css`
 			:host { display: block; }
 			table { width: 100%; border-collapse: collapse; font-size: var(--shu-font-md); }
 			th, td { text-align: left; padding: var(--shu-space-2) var(--shu-space-4); border-bottom: var(--shu-border-w) solid var(--shu-border); }
@@ -484,55 +87,320 @@ class StepCaller extends HTMLElement {
 			.loading { color: var(--shu-fg-muted); font-style: italic; }
 			dl { display: grid; grid-template-columns: auto 1fr; gap: var(--shu-space-2) var(--shu-space-5); }
 			dt { font-weight: bold; }
-			pre { white-space: pre-wrap; font-size: var(--shu-font-md); }
 			ul { list-style: none; padding: 0; }
 			ul li { padding: var(--shu-space-1) 0; border-bottom: var(--shu-border-w) solid var(--shu-border); }
-			.step-sentence {
-				display: flex; flex-wrap: wrap; align-items: center; gap: var(--shu-space-2) var(--shu-space-3);
-				font: inherit; line-height: 1.6; padding: var(--shu-space-1) 0; color: var(--shu-fg);
-			}
+			.step-sentence { display: flex; flex-wrap: wrap; align-items: center; gap: var(--shu-space-2) var(--shu-space-3); line-height: 1.6; padding: var(--shu-space-1) 0; }
 			.step-text { color: var(--shu-fg-muted); white-space: nowrap; }
-			.step-fixed { color: var(--shu-fg); font-weight: 500; white-space: nowrap; }
-			.inline-input, .inline-select {
-				font: inherit; font-size: var(--shu-font-md);
-				padding: var(--shu-space-1) var(--shu-space-3); margin: 1px 0;
-				border: var(--shu-border-w) solid var(--shu-border);
-				border-radius: var(--shu-radius);
-				background: var(--shu-bg-input); color: var(--shu-fg);
-				min-height: var(--shu-input-h);
-				outline: none; width: auto;
-			}
-			.inline-input:focus, .inline-select:focus { border-color: var(--shu-border-strong); background: var(--shu-bg-input-focus); }
-			.inline-input::placeholder { color: var(--shu-fg-faded); }
-			.run-inline {
-				padding: var(--shu-space-1) var(--shu-space-4);
-				background: var(--shu-accent); color: var(--shu-accent-fg);
-				border: var(--shu-border-w) solid var(--shu-accent);
-				border-radius: var(--shu-radius); font: inherit; cursor: pointer;
-				margin-left: var(--shu-space-1); font-size: var(--shu-font-md);
-				min-height: var(--shu-input-h);
-			}
-			.run-inline:hover { filter: brightness(1.1); }
-			.run-inline.rerun { background: var(--shu-success); border-color: var(--shu-success); }
-			.dismiss-btn {
-				float: right; background: none; border: none; color: var(--shu-fg-faded);
-				cursor: pointer; font-size: var(--shu-font-sm);
-				padding: 0 var(--shu-space-2); line-height: 1; width: auto;
-			}
-			.dismiss-btn:hover { color: var(--shu-error); }
+			.step-fixed { font-weight: 500; white-space: nowrap; }
+			.inline-input, .inline-select { font: inherit; width: auto; }
+			.dismiss-btn { float: right; }
 			.field-error { display: inline-block; color: var(--shu-error); font-size: var(--shu-font-sm); margin-left: var(--shu-space-1); }
-		</style>`;
+		`,
+	];
+
+	@property() accessor step = "";
+	@property({ attribute: "call-index" }) accessor callIndex = "0";
+	@property({ type: Boolean }) accessor auto = false;
+	@property() accessor params = "";
+
+	readonly #call = new StepCallController(this);
+	@state() private accessor definition: TStepDefinition | undefined = undefined;
+	/** Why the form doesn't show, where the page refused its step or its fixed parameters. */
+	@state() private accessor unshown: TPageRefusal | undefined = undefined;
+	/** The values the form last held, by input name, so a form drawn again keeps them. */
+	@state() private accessor formValues: Record<string, string> = {};
+	/** The options of each reference parameter, by parameter, and the refusal of a read of them. */
+	@state() private accessor referenceOptions: Record<string, TComboboxOption[]> = {};
+	@state() private accessor referenceRefusals: Record<string, TPageRefusal> = {};
+	/** The id a reader picked or typed for each reference parameter, by parameter. */
+	#referenceIds: Record<string, string> = {};
+
+	constructor() {
+		super(EmptyStateSchema);
+	}
+
+	/** Whether the form has called its step, or refused its values. */
+	get executed(): boolean {
+		return this.#call.executed;
+	}
+
+	/** The fixed parameters the `params` attribute states. Throws for text that isn't a JSON object. */
+	get #fixed(): Record<string, unknown> {
+		if (this.params === "") return {};
+		const parsed = JsonObjectTextSchema.safeParse(this.params);
+		if (!parsed.success) throw new Error(`<shu-step-caller> params ${this.params} isn't a JSON object`);
+		return parsed.data;
+	}
+
+	protected override onConnected(): void {
+		if (this.definition !== undefined) return;
+		void this.#open();
+	}
+
+	async #open(): Promise<void> {
+		if (this.step === "") throw new Error("<shu-step-caller> connects without the step it calls");
+		try {
+			this.definition = await this.#call.definitionOf(this.step);
+			this.#loadReferences(this.definition);
+		} catch (err) {
+			this.unshown = { error: errorDetail(err) };
+			return;
+		}
+		if (this.auto) await this.callStep({});
+	}
+
+	/** The test id prefix: the step's key and the caller's number, which a test builds from the method too. */
+	get #prefix(): string {
+		return `${normalizeStepKey(this.step)}-${this.callIndex}`;
+	}
+
+	/** The step's input schema, where a parameter taking a record's fields takes those the chosen type's schema states, as the
+	 *  catalog carries it, so the form renders each field and validates it as the server does. */
+	#inputSchemaOf(desc: TStepDefinition): TInputSchema {
+		const schema = desc.inputSchema as TInputSchema;
+		const properties = { ...schema.properties };
+		const fixed = this.#fixed;
+		for (const [data, typeParam] of Object.entries(desc.recordData ?? {})) {
+			const chosen = typeParam in fixed ? fixed[typeParam] : this.formValues[typeParam];
+			if (typeof chosen !== "string" || chosen === "") continue;
+			const typeSchema = getConcernCatalog().persisted[chosen]?.jsonSchema as TInputProperty | undefined;
+			if (typeSchema === undefined) throw new Error(`<shu-step-caller> offers the type ${chosen}, which the catalog doesn't declare`);
+			// The catalog states what a record holds, so a field its schema fills by default is one a caller may leave out.
+			const defaulted = new Set(Object.entries(typeSchema.properties ?? {}).flatMap(([field, prop]) => ("default" in prop ? [field] : [])));
+			properties[data] = { ...typeSchema, required: (typeSchema.required ?? []).filter((field) => !defaulted.has(field)) };
+		}
+		return { ...schema, properties };
+	}
+
+	/** The persisted type a parameter names a record of, where its domain is a reference the catalog registers. */
+	#referenceTarget(desc: TStepDefinition, paramName: string): string | undefined {
+		const domainKey = desc.paramDomains[paramName];
+		return domainKey === undefined ? undefined : getConcernCatalog().references[domainKey]?.targetPersistedAs;
+	}
+
+	/** Reads the options of each reference parameter: the records of its type, each by its id and its name. */
+	#loadReferences(desc: TStepDefinition): void {
+		for (const paramName of Object.keys(desc.paramDomains)) {
+			const label = this.#referenceTarget(desc, paramName);
+			if (label !== undefined) void this.#loadReference(paramName, label);
+		}
+	}
+
+	async #loadReference(paramName: string, label: string): Promise<void> {
+		const read = await queryRead({ label, limit: REFERENCE_OPTIONS });
+		if (!read.ok) {
+			this.referenceRefusals = { ...this.referenceRefusals, [paramName]: read.refusal };
+			return;
+		}
+		const concern = Object.values(getConcernCatalog().persisted).find((c) => c.label === label);
+		if (concern === undefined) throw new Error(`<shu-step-caller> offers records of ${label}, which the catalog doesn't declare`);
+		const nameField = NAME_FIELDS.find((field) => field in (concern.properties ?? {}));
+		const options = read.value.vertices.map((v) => {
+			const id = v[concern.idField];
+			if (typeof id !== "string") throw new Error(`a ${label} record's id field ${concern.idField} isn't text`);
+			const name = nameField === undefined ? undefined : v[nameField];
+			return { value: id, label: typeof name === "string" && name !== "" ? name : id, secondary: label, details: JSON.stringify(v, null, 2) };
+		});
+		this.referenceOptions = { ...this.referenceOptions, [paramName]: options };
+	}
+
+	/** Assembles the step's parameters from the form's values, validates them against its input schema, and calls the
+	 *  step. A value that doesn't parse, or a field the schema refuses, refuses the form's values without a call. */
+	async callStep(values: Record<string, string>): Promise<void> {
+		const desc = this.definition;
+		if (desc === undefined) throw new Error(`<shu-step-caller> calls ${this.step} before it reads the step's definition`);
+		this.formValues = { ...values };
+		const schema = this.#inputSchemaOf(desc);
+		const params: Record<string, unknown> = { ...this.#fixed };
+		try {
+			for (const [key, value] of Object.entries(values)) {
+				const dot = key.indexOf(".");
+				if (dot <= 0) {
+					params[key] = typedValue(value, schema.properties?.[key]?.type);
+					continue;
+				}
+				const parent = key.slice(0, dot);
+				const sub = key.slice(dot + 1);
+				const parentSchema = schema.properties?.[parent];
+				if (value === "" && parentSchema?.required?.includes(sub) !== true) continue;
+				params[parent] = { ...RecordSchema.optional().parse(params[parent]), [sub]: typedValue(value, parentSchema?.properties?.[sub]?.type) };
+			}
+		} catch (err) {
+			return this.#refuseInput(`invalid input: ${errorDetail(err)}`, {});
+		}
+		// The schema is the one the server exposes through the step's definition, so the form states each field's cause before a call.
+		const fieldErrors = validateStepInput(params, schema as Parameters<typeof validateStepInput>[1]);
+		if (fieldErrors.length > 0) return this.#refuseInput(`invalid input: ${fieldErrors.map((e) => `${e.field} ${e.message}`).join("; ")}`, collectFieldErrors(fieldErrors));
+		await this.#call.call(desc.method, params);
+		const returned = this.#call.returned;
+		if (returned === undefined) {
+			const refusal = this.#call.refusal;
+			this.dispatchEvent(new CustomEvent(SHU_EVENT.STEP_ERROR, { bubbles: true, composed: true, detail: refusal?.error }));
+		} else {
+			dispatchAffordanceFromResponse(returned.result);
+			this.dispatchEvent(new CustomEvent(SHU_EVENT.STEP_SUCCESS, { bubbles: true, composed: true, detail: returned.result }));
+		}
+		await this.updateComplete;
+		revealInDocument(this, { behavior: "smooth", block: "nearest" });
+	}
+
+	#refuseInput(error: string, fieldErrors: Record<string, string>): void {
+		this.#call.refuseInput(error, fieldErrors);
+		this.dispatchEvent(new CustomEvent(SHU_EVENT.STEP_ERROR, { bubbles: true, composed: true, detail: error }));
+	}
+
+	/** The form's values, by input name: its inputs and selects, and each reference's id. */
+	#valuesOf(form: HTMLFormElement): Record<string, string> {
+		const values: Record<string, string> = {};
+		for (const input of form.querySelectorAll<HTMLInputElement | HTMLSelectElement>("input[name], select[name]")) if (input.value !== "") values[input.name] = input.value;
+		for (const [param, id] of Object.entries(this.#referenceIds)) if (id !== "") values[`${param}.id`] = id;
+		return values;
+	}
+
+	#onSubmit = (e: Event): void => {
+		e.preventDefault();
+		void this.callStep(this.#valuesOf(e.target as HTMLFormElement));
+	};
+
+	/** A choice of the type of a record's fields renders that type's fields. */
+	#onTypeChosen = (e: Event): void => {
+		const form = (e.target as HTMLSelectElement).form;
+		if (form === null) throw new Error("<shu-step-caller> holds a type choice outside its form");
+		this.formValues = this.#valuesOf(form);
+	};
+
+	/** An inline input grows as a reader types. */
+	#resize = (e: Event): void => {
+		const input = e.target as HTMLInputElement;
+		input.size = Math.max(input.value.length, input.placeholder.length, 4) + 1;
+	};
+
+	#testId(suffix: string): string {
+		return `${this.#prefix}-${suffix}`;
+	}
+
+	#fieldError(name: string, testName: string): TemplateResult | typeof nothing {
+		const error = this.#call.fieldErrors[name];
+		return error === undefined ? nothing : html`<span class="field-error" data-testid=${this.#testId(`step-input-${testName}-error`)}>${error}</span>`;
+	}
+
+	#textInput(name: string, testName: string, placeholder: string, type: "text" | "number"): TemplateResult {
+		const saved = this.formValues[name] ?? "";
+		return html`<input type=${type} name=${name} class="inline-input" placeholder=${placeholder} .value=${saved} size=${Math.max(saved.length, placeholder.length, 4)}
+				data-testid=${this.#testId(`step-input-${testName}`)} @input=${this.#resize} />${this.#fieldError(name, testName)}`;
+	}
+
+	/** The input of one parameter, by what its schema and domain declare. */
+	#paramInput(desc: TStepDefinition, properties: Record<string, TInputProperty>, paramName: string): TemplateResult {
+		const fixed = this.#fixed;
+		if (paramName in fixed) return html`<span class="step-fixed">${String(fixed[paramName])}</span>`;
+		const prop = properties[paramName];
+		// A parameter naming the type of a record's fields offers the types the catalog declares.
+		const names = Object.values(desc.recordData ?? {}).includes(paramName) ? Object.keys(getConcernCatalog().persisted).sort() : prop?.enum;
+		if (names !== undefined) {
+			const saved = this.formValues[paramName];
+			const typeChoice = Object.values(desc.recordData ?? {}).includes(paramName);
+			return html`<select name=${paramName} class="inline-select" data-testid=${this.#testId(`step-input-${paramName}`)} @change=${typeChoice ? this.#onTypeChosen : nothing}>
+				<option value="" ?selected=${saved === undefined}>${paramName}</option>${names.map((v) => html`<option value=${v} ?selected=${v === saved}>${v}</option>`)}</select>`;
+		}
+		const target = this.#referenceTarget(desc, paramName);
+		if (target !== undefined) {
+			const refusal = this.referenceRefusals[paramName];
+			// The combobox carries its test id to its input, so a driver fills it as a text input. A typed id is the value until a pick.
+			return html`<span class="ref-input"><shu-combobox testid=${this.#testId(`step-input-${paramName}`)} placeholder=${`${paramName} (pick or type id)`} .options=${this.referenceOptions[paramName] ?? []}
+					@combo-change=${(e: CustomEvent<{ value: string }>) => (this.#referenceIds[paramName] = e.detail.value)}
+					@input=${(e: Event) => (this.#referenceIds[paramName] = (e.composedPath()[0] as HTMLInputElement).value)}></shu-combobox>${refusal === undefined ? nothing : html`<shu-refusal .refusal=${refusal}></shu-refusal>`}</span>`;
+		}
+		if (!isCompositeProperty(prop)) return this.#textInput(paramName, paramName, paramName, "text");
+		const required = new Set(prop.required ?? []);
+		const fields = Object.entries(prop.properties).map(([subName, subProp]) => {
+			// A test id joins with `-`, so haibun's variable resolver doesn't read `foo.bar` as a path.
+			const typeLabel = subProp.format ?? subProp.type;
+			if (typeLabel === undefined) throw new Error(`<shu-step-caller>: the composite field "${paramName}.${subName}" doesn't declare a type or a format in its JSON Schema`);
+			return this.#textInput(
+				`${paramName}.${subName}`,
+				`${paramName}-${subName}`,
+				`${subName}${required.has(subName) ? "" : "?"}: ${typeLabel}`,
+				subProp.type === "number" ? "number" : "text",
+			);
+		});
+		return html`<span class="composite-input">${fields}</span>`;
+	}
+
+	/** The form: the step's pattern as a sentence, with an input in place of each parameter. */
+	#renderForm(desc: TStepDefinition): TemplateResult {
+		const properties = this.#inputSchemaOf(desc).properties ?? {};
+		const pattern = prettifyGwta(desc.pattern);
+		const parts: TemplateResult[] = [];
+		let last = 0;
+		for (const match of pattern.matchAll(PARAM)) {
+			if (match.index > last) parts.push(html`<span class="step-text">${pattern.slice(last, match.index)}</span>`);
+			parts.push(this.#paramInput(desc, properties, itemAt(match, 1)));
+			last = match.index + match[0].length;
+		}
+		if (last < pattern.length) parts.push(html`<span class="step-text">${pattern.slice(last)}</span>`);
+		const executed = this.#call.executed;
+		return html`<form class="step-form step-sentence" @submit=${this.#onSubmit}>${parts}
+			<button type="submit" class=${executed ? "run-inline rerun" : "run-inline"} title=${executed ? "Re-run" : "Run"} data-testid=${this.#testId("step-run")}>${executed ? "⟳▶" : "▶"}</button></form>`;
+	}
+
+	/** What the call returned, by the step's output schema, or as JSON where the step doesn't declare one. */
+	#renderOutput(desc: TStepDefinition, result: unknown): TemplateResult {
+		return desc.outputSchema === undefined ? html`${unsafeHTML(jsonDisclosure(result))}` : this.#bySchema(result, desc.outputSchema);
+	}
+
+	#bySchema(data: unknown, schema: Record<string, unknown>): TemplateResult {
+		const jsonSchema = schema as { type?: string; properties?: Record<string, Record<string, unknown>>; items?: Record<string, unknown> };
+		// An object unwraps a container of one property, and otherwise renders each property by its own schema.
+		if (jsonSchema.type === "object" && jsonSchema.properties !== undefined) {
+			const props = Object.entries(jsonSchema.properties);
+			const obj = RecordSchema.parse(data);
+			if (props.length === 1) {
+				const [key, keySchema] = itemAt(props, 0);
+				if (obj[key] !== undefined) return this.#bySchema(obj[key], keySchema);
+			}
+			return html`<dl>${props.filter(([k]) => obj[k] !== undefined).map(([k, kSchema]) => html`<dt>${k}</dt><dd data-testid=${`step-result-${k}`}>${this.#bySchema(obj[k], kSchema)}</dd>`)}</dl>`;
+		}
+		if (jsonSchema.type === "array" && Array.isArray(data)) {
+			if (jsonSchema.items?.type === "object") return this.#table(RecordsSchema.parse(data));
+			return html`<ul>${data.map((v) => html`<li>${this.#cell(v)}</li>`)}</ul>`;
+		}
+		if (typeof data === "string" || typeof data === "number") return html`<span>${String(data)}</span>`;
+		return html`${unsafeHTML(jsonDisclosure(data))}`;
+	}
+
+	/** Rows as one table, its columns every field a row has, since a field one row states another may leave out. */
+	#table(rows: Record<string, unknown>[]): TemplateResult {
+		if (rows.length === 0) return html`<p>The result doesn't hold a row.</p>`;
+		const cols = [...new Set(rows.flatMap((r) => Object.keys(r)))];
+		return html`<table><thead><tr>${cols.map((c) => html`<th>${c}</th>`)}</tr></thead><tbody>${rows.map((r) => html`<tr>${cols.map((c) => html`<td>${this.#cell(r[c])}</td>`)}</tr>`)}</tbody></table>`;
+	}
+
+	/** A value as the text of its cell: a field a row leaves out is an empty cell. */
+	#cell(value: unknown): string {
+		if (value === undefined) return "";
+		return typeof value === "string" ? value : JSON.stringify(value);
+	}
+
+	render(): TemplateResult {
+		if (this.unshown !== undefined) return html`<div class="step-caller" data-testid=${`step-caller-${this.step}`}><shu-refusal .refusal=${this.unshown}></shu-refusal></div>`;
+		const desc = this.definition;
+		if (desc === undefined) return html`<div class="step-caller" data-testid=${`step-caller-${this.step}`}></div>`;
+		const call = this.#call;
+		const returned = call.returned;
+		const refusal = call.refusal;
+		// The host carries the outcome's test id, so a driver reads it from the history.
+		if (call.executed) this.dataset.testid = this.#testId(refusal === undefined ? "step-result" : "step-error");
+		return html`<div class="step-caller" data-testid=${`step-caller-${this.step}`}>
+			${call.executed ? html`<button type="button" class="dismiss-btn" title="Remove" @click=${() => this.remove()}>x</button>` : nothing}
+			${this.auto ? nothing : this.#renderForm(desc)}
+			${call.calling ? html`<div class="loading" data-testid=${this.#testId("step-loading")}>loading...</div>` : nothing}
+			${returned === undefined ? nothing : html`<div data-testid=${this.#testId("step-result")}>${this.#renderOutput(desc, returned.result)}</div>`}
+			${refusal === undefined ? nothing : html`<div class="error" data-testid=${this.#testId("step-error")}><shu-refusal .refusal=${refusal}></shu-refusal></div>`}
+			${returned !== undefined && desc.outputSchema === undefined ? html`<div class="success" data-testid=${this.#testId("step-success")}>done</div>` : nothing}
+			${call.executed ? html`<div hidden data-testid=${this.#testId("step-done")}></div>` : nothing}
+		</div>`;
 	}
 }
 
-/** Flatten a list of `{field, message}` errors into a `field → message` map for rendering. */
-function collectFieldErrors(errs: TFieldError[]): Record<string, string> {
-	const out: Record<string, string> = {};
-	for (const e of errs) {
-		if (out[e.field]) out[e.field] += `; ${e.message}`;
-		else out[e.field] = e.message;
-	}
-	return out;
-}
-
-defineElement(SHU_TAG.STEP_CALLER, StepCaller);
+defineElement(SHU_TAG.STEP_CALLER, ShuStepCaller);

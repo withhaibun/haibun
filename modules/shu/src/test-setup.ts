@@ -107,7 +107,7 @@ import { onStepsChanged } from "./page/controllers/registry-controller.js";
 import { CLIENT_LOG_ACTION, CLIENT_LOG_METHOD, type TClientLogLevel } from "./client-log.js";
 import { authorityPort, openPageAuthority, type TPageAuthority } from "./page/authority/controllers/page-authority-controller.js";
 import type { TDelegations } from "@haibun/core/lib/authority-types.js";
-import { SHOW_STEPS_METHOD, STEP_DETAIL, readShownSteps, stepDefinition, type TStepDefinitions } from "@haibun/core/lib/step-discovery.js";
+import { SHOW_STEPS_METHOD, STEP_DETAIL, readShownSteps, stepDefinition, type TStepDefinition, type TStepDefinitions } from "@haibun/core/lib/step-discovery.js";
 import { requiredAction, type TStepReads } from "@haibun/core/lib/actions.js";
 import { steppersOf } from "@haibun/core/lib/step-registry.js";
 import { ARTIFACTS_ROUTE } from "@haibun/core/lib/run-artifact.js";
@@ -206,12 +206,17 @@ export function stepsShown(
 			answersTheTurn?: boolean;
 			paramDomains?: Record<string, string>;
 			productsDomain?: string;
+			recordData?: Record<string, string>;
+			inputSchema?: TStepDefinition["inputSchema"];
+			outputSchema?: Record<string, unknown>;
 		} & TStepReads
 	>,
 	domains: TStepDefinitions["domains"] = {},
 	concerns: TConcernCatalog = buildConcernCatalog({}),
 ): TStepDefinitions {
+	// A step that doesn't state its input schema takes an empty object.
 	const described = steps.map((step) => ({
+		inputSchema: { type: "object" as const, properties: {}, required: [] },
 		...step,
 		// Each step requires what a step of actuality would: what it declares, a read at its level for a read, and otherwise its name.
 		capability: requiredAction(step.stepperName, step.stepName, step),
@@ -220,7 +225,6 @@ export function stepsShown(
 		read: step.read === true,
 		fallback: step.fallback === true,
 		answersTheTurn: step.answersTheTurn === true,
-		inputSchema: { type: "object" as const, properties: {}, required: [] },
 	}));
 	const shown = { detail: STEP_DETAIL.definition, steppers: steppersOf(described), steps: described.map(stepDefinition), domains, concerns };
 	return readShownSteps(shown, STEP_DETAIL.definition);

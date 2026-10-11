@@ -10,6 +10,8 @@ import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { CHAT_STEP, CHAT_STEPPER } from "./chat-pane.test-fake.js";
 import { ActionsBarSteps, stepDetails, stepOptions, stepSecondary } from "./actions-bar-steps.js";
+import type { ShuStepCaller } from "./shu-step-caller.js";
+import { provideLayout } from "../../test/jsdom-layout.js";
 import { aControllerHost } from "./controller-host.test-fake.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { declaringSteps, setupShuTest, stepsChanged, stepsReadAgain, stepsShown, type TShuTestHandle } from "../../test-setup.js";
@@ -43,17 +45,22 @@ async function aStepsPage(selectedLabel = "") {
 }
 
 const callers = (history: HTMLElement) => Array.from(history.querySelectorAll(SHU_TAG.STEP_CALLER));
-/** A caller already in the history, which has run its step or not. */
-const aCaller = (history: HTMLElement, method: string, executed: boolean) => {
-	const caller = Object.assign(document.createElement(SHU_TAG.STEP_CALLER), { executed });
+/** A caller already in the history, which has called its step or not. A call this page's run refuses is still a call. */
+async function aCaller(history: HTMLElement, method: string, executed: boolean): Promise<ShuStepCaller> {
+	const caller = document.createElement(SHU_TAG.STEP_CALLER) as ShuStepCaller;
+	caller.setAttribute("step", method);
 	caller.setAttribute("method", method);
 	history.append(caller);
+	await new Promise((resolve) => setTimeout(resolve, 0));
+	if (executed) await caller.callStep({ name: "all" });
+	expect(caller.executed).toBe(executed);
 	return caller;
-};
+}
 
 describe("the actions bar's step mode", () => {
 	let t: TShuTestHandle;
 	beforeEach(() => {
+		provideLayout();
 		offered.splice(0, offered.length, SHOW, LIST);
 		t = aRun();
 	});
@@ -103,18 +110,17 @@ describe("the actions bar's step mode", () => {
 
 	it("opens a caller for a picked step in the history, numbered among the callers of its method, and keeps it in view", async () => {
 		const { history, steps } = await aStepsPage();
-		aCaller(history, SHOW.method, true);
+		await aCaller(history, SHOW.method, true);
 		steps.open(SHOW.method);
 		const opened = callers(history).at(-1);
 		expect(opened?.getAttribute("method")).toBe(SHOW.method);
-		expect(opened?.getAttribute("gwta")).toBe("show graph {name}");
 		expect(opened?.getAttribute("call-index"), "the second caller of its method").toBe("1");
 		expect(history.append, "the caller is placed by the history, which keeps the newest in view").toHaveBeenCalled();
 	});
 
 	it("replaces the last caller that has not run rather than adding a second, and adds one for fixed arguments or a step run at once", async () => {
 		const { history, steps } = await aStepsPage();
-		const waiting = aCaller(history, LIST.method, false);
+		const waiting = await aCaller(history, LIST.method, false);
 		waiting.setAttribute("params", JSON.stringify({ name: "fixed" }));
 		steps.open(LIST.method);
 		expect(callers(history)).toHaveLength(1);

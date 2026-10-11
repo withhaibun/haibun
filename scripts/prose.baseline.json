@@ -807,14 +807,6 @@
 	"modules/shu/src/page/components/shu-spinner.escape.test.ts": {
 		"negated-noun": 1
 	},
-	"modules/shu/src/page/components/shu-step-caller.test.ts": {
-		"anthropomorphic": 1,
-		"relation-verb": 1
-	},
-	"modules/shu/src/page/components/shu-step-caller.ts": {
-		"anthropomorphic": 2,
-		"negated-noun": 1
-	},
 	"modules/shu/src/page/components/shu-step-definition.ts": {
 		"terminal-preposition": 1
 	},

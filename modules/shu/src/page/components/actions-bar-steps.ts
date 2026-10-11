@@ -14,6 +14,8 @@ import type { TComboboxOption } from "../../schemas.js";
 import type { TControllerHost } from "./controller-host.js";
 import type { ShuActivityHistory } from "./shu-activity-history.js";
 import type { ShuCombobox } from "./shu-combobox.js";
+import type { ShuStepCaller } from "./shu-step-caller.js";
+import "./shu-step-caller.js";
 import { prettifyGwta } from "../derivations/steps.js";
 
 /** What marks a step offered for the selected type. */
@@ -60,7 +62,6 @@ export function stepOptions(steps: readonly TStepDefinition[], forTheType: reado
 type TActionsBarStepsDeps = { testIdPrefix: () => string; selectedLabel: () => string; history: ShuActivityHistory };
 
 /** A step caller as the steps address it: whether it has run its step. */
-type TStepCaller = HTMLElement & { executed?: boolean };
 
 export class ActionsBarSteps implements ReactiveController {
 	readonly #host: TControllerHost;
@@ -107,18 +108,15 @@ export class ActionsBarSteps implements ReactiveController {
 	/**
 	 * Open a caller for the step at the end of the history. The last caller is removed first where it has not run and
 	 * the new one doesn't carry fixed arguments, so a reader trying steps keeps one caller. A caller carries the method it
-	 * dispatches, the step's pattern as its test-id prefix, and its number among the callers of that method. The newest
-	 * caller is kept in view.
+	 * calls and its number among the callers of that method, which its test ids carry. The newest caller is kept in view.
 	 */
 	open(method: string, args?: Record<string, unknown>, auto?: boolean): void {
 		const history = this.#deps.history;
-		const last = history.querySelector<TStepCaller>(`${SHU_TAG.STEP_CALLER}:last-of-type`);
+		const last = history.querySelector<ShuStepCaller>(`${SHU_TAG.STEP_CALLER}:last-of-type`);
 		if (last && !last.executed && !args && !auto) last.remove();
-		const step = this.#steps.find((offered) => offered.method === method);
 		const caller = document.createElement(SHU_TAG.STEP_CALLER);
 		caller.setAttribute("step", method);
 		caller.setAttribute("method", method);
-		caller.setAttribute("gwta", step ? prettifyGwta(step.pattern) : method);
 		caller.setAttribute("call-index", String(history.querySelectorAll(`${SHU_TAG.STEP_CALLER}[method="${method}"]`).length));
 		if (args) caller.setAttribute("params", JSON.stringify(args));
 		if (auto) caller.setAttribute("auto", "");

@@ -10,7 +10,7 @@ import { scanComponents, viewDirectories, VIEWS } from "./data-access-scan.js";
 
 /** The views that import a data-access primitive. The list may only shrink: a view that moves onto a controller leaves
  *  it, and a new view that imports a primitive fails the first test. */
-const PENDING_MIGRATION = new Set(["shu-kihan-chat.ts", "shu-step-caller.ts", "shu-polymorphic-graph-view.ts"]);
+const PENDING_MIGRATION = new Set(["shu-kihan-chat.ts", "shu-polymorphic-graph-view.ts"]);
 
 const { files, reachesRpc } = scanComponents(viewDirectories(fileURLToPath(new URL("../", import.meta.url)), [VIEWS]));
 
