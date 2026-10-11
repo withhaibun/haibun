@@ -6,21 +6,32 @@
  * entity / domain / step) is addressed through `refHref`, and a view that isn't an anchor, a row or a card, opens the
  * same pane with `openRef`.
  */
-import { PaneState, addsToSelection, columnEntryOf, parseColEntry, type DesiredPane } from "../../pane-state.js";
 import { ACTIVE_PARAM, COLUMN_PARAM, hashParams, hashWithColumns } from "../derivations/address.js";
 import { mergeHashParams } from "../controllers/hash-controller.js";
 import { DEEP_LINK_PREFIX } from "../../domains/elements.js";
 import { PartSchema } from "@haibun/core/lib/resources.js";
+import { formatRecordName } from "@haibun/core/lib/seq-path.js";
+import { readingExecution } from "../../client-cache/executions.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { esc, escAttr, type TRefKind } from "../derivations/markdown.js";
+import { paneOfEntry, requestPaneFrom } from "../controllers/pane-controller.js";
+import { addsToSelection, columnEntryOf, type DesiredPane } from "../derivations/pane-kinds.js";
+import { typeShownIn } from "../controllers/catalog-controller.js";
+import { SHU_TAG } from "../../domains/elements.js";
 
 /** The pane a reference opens. ONE reading of (kind, linkTarget), so what a ref's href addresses is what clicking it
  *  opens: a second reading would drift, and the href would then advertise the wrong destination. */
 export function desiredPaneFor(kind: TRefKind, linkTarget: Record<string, unknown>): DesiredPane | null {
-	// Typed-fact subjects ARE seqPaths, so a seqPath ref doubles as the quad-view link: step-detail loads every quad
-	// emitted at that seqPath (including the fact), drillable into individual quads from there.
-	if (kind === "seqPath" && Array.isArray(linkTarget.seqPath)) return { paneType: "step-detail", seqPath: linkTarget.seqPath as number[] };
+	// A step is a record, named by the execution being read and its path, and opens as its record's view (CA4D9). A typed
+	// fact's subject is its step's path, so a reference to a fact's step opens the step that produced it. Before the page
+	// reads an execution, a step's path doesn't name a record.
+	if (kind === "seqPath" && Array.isArray(linkTarget.seqPath)) {
+		const execution = readingExecution();
+		return execution === undefined
+			? null
+			: { paneType: "entity", persistedAs: typeShownIn(SHU_TAG.STEP_DETAIL), id: formatRecordName({ execution, path: linkTarget.seqPath as number[] }) };
+	}
 	if (kind === REF_DENOTES.individual && typeof linkTarget.persistedAs === "string" && typeof linkTarget.id === "string") {
 		// A part addresses a passage or a fragment of media INSIDE the individual; the pane identity stays the individual:
 		// same document, same column, and the part rides along for the column to show.
@@ -53,7 +64,7 @@ export function deepLinkOf(href: string): TDeepLink | null {
 	const params = hashParams(href);
 	if (params.has(ACTIVE_PARAM)) return null;
 	const columns = params.getAll(COLUMN_PARAM);
-	const pane = columns.length === 1 ? parseColEntry(itemAt(columns, 0)) : null;
+	const pane = columns.length === 1 ? paneOfEntry(itemAt(columns, 0)) : null;
 	if (!pane) return null;
 	params.delete(COLUMN_PARAM);
 	return { pane, state: Object.fromEntries(params) };
@@ -62,7 +73,7 @@ export function deepLinkOf(href: string): TDeepLink | null {
 /** Follow a link: set the view state it names, then open its pane beside the one it was followed from. */
 export function followDeepLink(from: Element | Event, link: TDeepLink, addToSelection = false): void {
 	if (Object.keys(link.state).length > 0) mergeHashParams(link.state);
-	PaneState.requestFrom(from, link.pane, addToSelection);
+	requestPaneFrom(from, link.pane, addToSelection);
 }
 
 /**
@@ -91,7 +102,7 @@ export function followPaneLink(e: MouseEvent): void {
 export function openRef(source: Element | Event, kind: TRefKind, linkTarget: Record<string, unknown>, addToSelection = false): void {
 	const desired = desiredPaneFor(kind, linkTarget);
 	if (!desired) throw new Error(`a ${kind} reference to ${JSON.stringify(linkTarget)} doesn't address a pane`);
-	PaneState.requestFrom(source, desired, addToSelection);
+	requestPaneFrom(source, desired, addToSelection);
 }
 
 /** The inline markup for a link to a pane, for a view that renders a string of markup: an anchor whose href is the

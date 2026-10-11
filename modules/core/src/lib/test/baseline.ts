@@ -87,7 +87,9 @@ export function expectWithinBaseline(check: TBaselineCheck): void {
 	const exceeding = recorded === undefined ? [] : differences(findings, recorded, "exceeds");
 	if (process.env[LOWER_BASELINE] === "true") {
 		if (exceeding.length > 0)
-			throw new Error([`${command} writes only lower counts, and these exceed their records. Fix each: ${fix}.`, ...exceeding.flatMap((over) => exceedingLines(over, sites))].join("\n"));
+			throw new Error(
+				[`${command} writes only lower counts, and these exceed their records. Fix each: ${fix}.`, ...exceeding.flatMap((over) => exceedingLines(over, sites))].join("\n"),
+			);
 		writeFileSync(baselineFile, `${JSON.stringify(sorted(findings), null, "\t")}\n`);
 		return;
 	}

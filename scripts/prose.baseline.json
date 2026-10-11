@@ -841,7 +841,7 @@
 		"anthropomorphic": 2
 	},
 	"modules/shu/src/page/components/shu-step-detail.ts": {
-		"anthropomorphic": 2
+		"anthropomorphic": 1
 	},
 	"modules/shu/src/page/components/shu-thread-column.ts": {
 		"anthropomorphic": 1
@@ -926,16 +926,6 @@
 	},
 	"modules/shu/src/pane-fetch.ts": {
 		"anthropomorphic": 5
-	},
-	"modules/shu/src/pane-state.test.ts": {
-		"anthropomorphic": 1,
-		"negated-noun": 2
-	},
-	"modules/shu/src/pane-state.ts": {
-		"anthropomorphic": 7,
-		"negated-noun": 1,
-		"relation-verb": 3,
-		"terminal-preposition": 2
 	},
 	"modules/shu/src/polymorphic-report.test.ts": {
 		"anthropomorphic": 9,

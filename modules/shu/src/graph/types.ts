@@ -55,7 +55,7 @@ export type TGraphNode = {
 	/**
 	 * `prov:wasGeneratedBy`: this node represents a fact produced by a
 	 * step. `factId` is the producing seqPath (string form). The
-	 * consumer opens the step-detail pane for that seqPath.
+	 * consumer opens the record of the step at that seqPath.
 	 */
 	wasGeneratedBy?: { factId: string; domain: string };
 };

@@ -19,7 +19,6 @@ import { paneOpsFor } from "../derivations/affordances.js";
 import { BreadcrumbNavSchema, FilterChangeSchema } from "../domains/page-state.js";
 import type { TPageOpening } from "../pipelines/open-page.js";
 import { followPaneLink } from "./ref-navigation.js";
-import { PANE_ATTACH, PaneState, PaneOpenSchema } from "../../pane-state.js";
 import { SCOPE, dispatchSubjectEvent, entryOf, entryOfContext } from "../../current-subject.js";
 import { PageContextSchema, type TContextPattern } from "../../schemas.js";
 import { setActiveViewId } from "../../quads-snapshot.js";
@@ -28,6 +27,8 @@ import { reportFailure } from "../../client-log.js";
 import type { ShuColumnStrip } from "./shu-column-strip.js";
 import type { ShuGraphQuery } from "./shu-graph-query.js";
 import { appAccessLevel } from "../../view-query.js";
+import { PANE_ATTACH, activatePane, dismissPane, openStrip, requestPane, requestPaneFrom, restorePanes } from "../controllers/pane-controller.js";
+import { PaneOpenSchema } from "../derivations/pane-kinds.js";
 
 const LAYOUT_STYLE = `
   .app-container {
@@ -147,24 +148,24 @@ export class ShuPage extends ShuElement<typeof EmptyStateSchema> {
 		// search, a move of the time cursor and of the active pane.
 		this.autoListen(this, SHU_EVENT.PANE_DISMISS, ((e: CustomEvent) => {
 			const paneId = e.detail?.paneId;
-			if (typeof paneId === "string" && paneId !== INDEX_PANE_KEY) PaneState.dismiss(paneId);
+			if (typeof paneId === "string" && paneId !== INDEX_PANE_KEY) dismissPane(paneId);
 		}) as EventListener);
 		// A click on a pane link opens the linked pane beside the pane that holds it, in the capture phase, before a view under
 		// the link receives the click.
 		this.autoListen(this, "click", followPaneLink as EventListener, { capture: true });
-		// A view in another bundle opens a pane through this event, since that bundle's PaneState isn't the page's.
+		// A view in another bundle opens a pane through this event, since that bundle's panes aren't the page's.
 		this.autoListen(this, SHU_EVENT.PANE_OPEN, ((e: CustomEvent) => {
 			const parsed = PaneOpenSchema.safeParse(e.detail);
 			if (!parsed.success) throw new Error(`[shu] ${SHU_EVENT.PANE_OPEN}: invalid pane request: ${parsed.error.message}`);
-			PaneState.requestFrom(e, parsed.data.pane, parsed.data.addToSelection);
+			requestPaneFrom(e, parsed.data.pane, parsed.data.addToSelection);
 		}) as EventListener);
 		// A completed step's products with view markers open a pane each, the latest operation per pane in a batch.
 		this.autoTeardown(
 			this.subscribeBatched({
 				onBatch: (events) => {
 					for (const op of paneOpsFor(events).values()) {
-						if (op.op === "component") PaneState.request({ paneType: "component", tag: op.tag, label: op.label, data: op.data });
-						else PaneState.request({ paneType: "views-picker", views: op.views, label: op.label });
+						if (op.op === "component") requestPane({ paneType: "component", tag: op.tag, label: op.label, data: op.data });
+						else requestPane({ paneType: "views-picker", views: op.views, label: op.label });
 					}
 				},
 			}),
@@ -208,7 +209,7 @@ export class ShuPage extends ShuElement<typeof EmptyStateSchema> {
 			const { index } = BreadcrumbNavSchema.parse(e.detail);
 			if (index === 0) this.#query()?.deselectAll?.();
 			const paneId = this.#strip().panes[index]?.dataset.columnKey;
-			if (paneId) PaneState.setActivePane(paneId);
+			if (paneId) activatePane(paneId);
 		}) as EventListener);
 		// The active pane's column type is the snapshot store's active view, and its subject is the page scope's.
 		this.autoTeardown(
@@ -228,13 +229,13 @@ export class ShuPage extends ShuElement<typeof EmptyStateSchema> {
 		const strip = this.#strip();
 		strip.activatePane(0);
 		const apiBase = this.#apiBase();
-		PaneState.init(strip, { ensureLoaded: (tag) => loadComponent(tag), afterAttach: PANE_ATTACH }, [
+		openStrip(strip, { load: (tag) => loadComponent(tag), attach: PANE_ATTACH }, [
 			{ pane: { paneType: "component", tag: SHU_TAG.ACTIONS_BAR, label: ACTIONS_LABEL, docked: true }, attributes: { "api-base": apiBase, "testid-prefix": "app-" } },
 		]);
-		// The page renders the index pane, so PaneState doesn't create it or set it active. A hash that names panes replaces
+		// The page renders the index pane, so the pane machine doesn't create it or set it active. A hash that names panes replaces
 		// the active pane; one that doesn't leaves the index pane active.
 		if (activePane.get() === null) activePane.set(INDEX_PANE_KEY);
-		PaneState.fromHash();
+		restorePanes();
 		// The index pane minimizes to its spine to give actuality's views room, since a reader shown them didn't ask for a view.
 		if (shown.length > 0) {
 			const index = this.#indexPane();

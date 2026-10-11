@@ -261,6 +261,14 @@ export function resolveUi(catalog: TCatalog, product: Record<string, unknown>): 
 	return { component, slot: typeof ui?.slot === "string" ? ui.slot : undefined };
 }
 
+/** Returns the type whose records open in `component`, as the type's declaration names it. Throws where the catalog
+ *  doesn't declare one type that way. */
+export function typeShownIn(catalog: TCatalog, component: string): string {
+	const types = catalog.types.filter((label) => recordComponent(catalog, label) === component);
+	if (types.length !== 1) throw new Error(`the catalog declares ${types.length} types whose records open in <${component}> (${types.join(", ")}), where a view reads one`);
+	return types[0] as string;
+}
+
 /** Returns the declaration of the component `component` names, or undefined where the catalog doesn't declare it. Throws
  *  where more than one concern declares it. */
 export function uiOfComponent(catalog: TCatalog, component: string): Record<string, unknown> | undefined {

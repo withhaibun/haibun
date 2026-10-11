@@ -56,12 +56,12 @@ export function factSeqPath(factId: string): number[] | null {
 	return parseRecordName(itemAt(factId.split(FACT_FIELD_MARK), 0))?.path ?? null;
 }
 
-/** Returns the step path of the step that produced a fact. Throws where the id doesn't name a step's record, since a
- *  fact's id is the record name of the step that produced it. */
-export function producingStep(factId: string): number[] {
-	const seqPath = factSeqPath(factId);
-	if (!seqPath) throw new Error(`fact "${factId}" doesn't name a step: a fact's id is the record name of the step that produced it`);
-	return seqPath;
+/** Returns the record name of the step that produced a fact, which opens as that step's record. Throws where the id doesn't
+ *  name a step's record, since a fact's id is the record name of the step that produced it. */
+export function producingStepRecord(factId: string): string {
+	const named = itemAt(factId.split(FACT_FIELD_MARK), 0);
+	if (parseRecordName(named) === undefined) throw new Error(`fact "${factId}" doesn't name a step: a fact's id is the record name of the step that produced it`);
+	return named;
 }
 
 /**
@@ -229,6 +229,8 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 	schema: SeqPathSchema,
 	description:
 		"A step in an automated run: its text, the action it called, and how it ended. Each record made during the step references it, so you can see when and where the record was produced.",
+	// A step opens as the view of its record (CA4D9), as core declares the affordances panel's view.
+	ui: { component: "shu-step-detail" },
 	topology: {
 		persistedAs: SEQ_PATH_LABEL,
 		accessLevel: Access.private,

@@ -2,7 +2,7 @@
  * <shu-column-strip>: Horizontal scrolling container for column panes.
  * Manages pane insertion/removal via DOM API (NOT innerHTML).
  * Publishes the panes it holds as the `stripPanes` signal.
- * Pane open-state and the URL hash are owned by PaneState; per-pane width/minimize
+ * Pane open-state and the URL hash are the pane machine's (`page/machines/panes.ts`); per-pane width/minimize
  * persistence is owned by the panes themselves (ShuElement.persistFields).
  */
 import { html, css, type TemplateResult } from "lit";
@@ -77,7 +77,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 		return this.panes.filter((pane) => !pane.docked);
 	}
 
-	/** Add a new pane (appends at end). A pane arriving minimized, pre-marked by PaneState or restored from its persisted state on attach, never takes activation or scroll. */
+	/** Add a new pane (appends at end). A pane arriving minimized, pre-marked by the pane strip or restored from its persisted state on attach, never takes activation or scroll. */
 	addPane(pane: PaneEl): void {
 		this.appendChild(pane);
 		const minimized = pane.hasAttribute(SHU_ATTR.DATA_MINIMIZED);
@@ -229,7 +229,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 
 	/** Maximize layout: every other pane is fully removed from layout (display:none), not just collapsed:
 	 * the maximizing pane takes the entire strip width including the query pane area. The snapshot guard makes
-	 * this idempotent: a re-application while already maximized (e.g. a PaneState reconcile re-affirming the
+	 * this idempotent: a re-application while already maximized (e.g. a pane reconcile re-affirming the
 	 * flag) can never re-snapshot the hidden layout and corrupt the restore. The pane's flex is derived from
 	 * its data-maximized attribute, so only display and accordion collapse need stashing. */
 	applyMaximize(pane: PaneEl, maximizing: boolean): void {
@@ -275,7 +275,7 @@ export class ShuColumnStrip extends ShuElement<typeof ColumnStripSchema> {
 	};
 
 	private handlePaneClose = (e: Event): void => {
-		// Close requests route through PaneState (via <shu-page>), which owns the desired
+		// Close requests route through the pane controller (via <shu-page>), which owns the desired
 		// set and the URL hash. The strip never removes panes on its own, reconcile does.
 		const pane = (e as CustomEvent).target as PaneEl;
 		const paneId = pane.dataset.columnKey ?? pane.getAttribute("column-type") ?? "";

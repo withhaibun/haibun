@@ -7,8 +7,8 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { SHU_TAG } from "../../domains/elements.js";
-import { PaneState } from "../../pane-state.js";
 import { ShuViewsPicker } from "./shu-views-picker.js";
+import { followPaneRequests } from "../../test/pane-requests.js";
 
 const IDS = SHU_TEST_IDS.VIEWS_PICKER;
 const views = [
@@ -37,9 +37,10 @@ describe("the views a deployment offers", () => {
 	});
 
 	it("asks for the view a pressed row names, so a press opens that view and doesn't open another", async () => {
-		const asked = vi.spyOn(PaneState, "request").mockImplementation(() => undefined);
+		const asked = followPaneRequests();
 		const picker = await pickerOf();
 		itemAt(rowsOf(picker), 1).click();
-		expect(asked).toHaveBeenCalledWith({ paneType: "component", tag: SHU_TAG.CLIENT_CACHE_COLUMN, label: "what this page holds" });
+		expect(asked.requested).toEqual([{ paneType: "component", tag: SHU_TAG.CLIENT_CACHE_COLUMN, label: "what this page holds" }]);
+		asked.stop();
 	});
 });

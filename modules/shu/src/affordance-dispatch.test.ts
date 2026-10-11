@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
 import { dispatchAffordanceFromResponse } from "./affordance-dispatch.js";
-import { PaneState } from "./pane-state.js";
 import { HYPERMEDIA } from "@haibun/core/schema/protocol.js";
 import { ShuElement } from "./page/components/shu-element.js";
 import { installConduit } from "./page/root.js";
 import { TestConduit, newPage } from "./test-setup.js";
 import { activePane } from "./page/root.js";
+import { IMPORTED_VIEWS } from "./test/pane-requests.js";
+import { openStrip, shownPanes, showsPane } from "./page/controllers/pane-controller.js";
 
 describe("dispatchAffordanceFromResponse", () => {
 	beforeEach(() => {
@@ -60,14 +61,14 @@ describe("dispatchAffordanceFromResponse", () => {
 		const strip = document.createElement("shu-column-strip");
 		document.body.appendChild(strip);
 		// biome-ignore lint/suspicious/noExplicitAny: the test's strip implements a subset of ShuColumnStrip.
-		PaneState.init(strip as any);
+		openStrip(strip as any, IMPORTED_VIEWS, []);
 	});
 
 	const flush = async () => {
 		for (let i = 0; i < 5; i++) await new Promise<void>((resolve) => queueMicrotask(resolve));
 	};
 
-	it("opens a component pane in PaneState when products carry _component markers", async () => {
+	it("opens a component pane when products carry _component markers", async () => {
 		const response = {
 			forward: [{ method: "X-y", stepperName: "X", stepName: "y", inputDomains: [], outputDomains: [], readyToRun: true }],
 			goals: [{ domain: "g", resolution: { finding: "satisfied", goal: "g", factIdentity: "f" } }],
@@ -80,7 +81,7 @@ describe("dispatchAffordanceFromResponse", () => {
 		const action = dispatchAffordanceFromResponse(response);
 		expect(action.kind).toBe("open-component");
 		await flush();
-		expect(PaneState.has("shu-affordances-panel")).toBe(true);
+		expect(showsPane("shu-affordances-panel")).toBe(true);
 	});
 
 	it("opens a monitor pane when products carry shu-monitor-column markers (regression: show monitor from affordances panel)", async () => {
@@ -95,7 +96,7 @@ describe("dispatchAffordanceFromResponse", () => {
 		const action = dispatchAffordanceFromResponse(response);
 		expect(action.kind).toBe("open-component");
 		await flush();
-		expect(PaneState.has("shu-monitor-column")).toBe(true);
+		expect(showsPane("shu-monitor-column")).toBe(true);
 		const pane = document.querySelector("shu-column-pane") as HTMLElement | null;
 		expect(pane?.dataset.columnKey).toBe("shu-monitor-column");
 	});
@@ -104,6 +105,6 @@ describe("dispatchAffordanceFromResponse", () => {
 		const action = dispatchAffordanceFromResponse({});
 		expect(action.kind).toBe("none");
 		await flush();
-		expect(PaneState.snapshot()).toHaveLength(0);
+		expect(shownPanes()).toHaveLength(0);
 	});
 });

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { paneIdOf } from "../../pane-state.js";
 import { objectId, persistedTypeOf } from "./record-fields.js";
+import { paneIdOf } from "./pane-kinds.js";
 
 describe("objectId: one cross-system object handle", () => {
 	it("composes (type, id) into a single addressable handle", () => {

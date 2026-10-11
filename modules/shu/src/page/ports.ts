@@ -226,3 +226,68 @@ export type TConduit = {
 	 *  group holds its own place. */
 	group<T>(why: string, fn: (g: TConduit) => Promise<T>): Promise<T>;
 };
+
+/** A pane element of the strip, as the pane strip drives it. */
+export type TPaneElement = HTMLElement & {
+	readonly docked: boolean;
+	setMinimized(minimized: boolean): void;
+	setMaximized(maximized: boolean): void;
+	setDocked(docked: boolean): void;
+	setPinned(pinned: boolean): void;
+	close(): void;
+};
+
+/** The strip of panes, as the pane strip drives it. */
+export type TStripElement = HTMLElement & {
+	readonly panes: TPaneElement[];
+	addPane(pane: TPaneElement): void;
+	removePane(index: number): void;
+	layoutColumns(): void;
+	updateAccordion(): void;
+	applyActive(): void;
+};
+
+/** The names a pane strip marks its panes with and follows their controls by: the pane element's tag, the attributes of a
+ *  pane's column type, its pin and its close control, and the events of a pane's minimize, maximize, dock and expand. */
+export type TPaneMarks = { paneTag: string; columnType: string; pinned: string; closable: string; events: { minimize: string; maximize: string; dock: string; expand: string } };
+
+/** A pane element as the pane strip makes it: its id, label and column type, whether it closes, where it stands, and its view
+ *  with the view's attributes. `seed` gives the view what it shows before it attaches. */
+export type TPaneSpec = {
+	id: string;
+	label: string;
+	columnType: string;
+	closable: boolean;
+	docked: boolean;
+	minimized: boolean;
+	viewTag: string;
+	viewAttributes: Readonly<Record<string, string>>;
+	seed(view: HTMLElement): void;
+};
+
+/** A change a pane's own control makes: its flag, or where it stands. */
+export type TPaneControl = { flag: "min" | "max" | undefined } | { docked: boolean };
+
+/** The strip's pane elements, which the pane pipeline creates, updates and removes as the pane machine's state names them. */
+export type TPaneStrip = {
+	/** Each pane's id, in the strip's order. */
+	ids(): string[];
+	/** Returns the view of the pane `id`, or undefined where the strip doesn't hold the pane. */
+	view(id: string): HTMLElement | undefined;
+	remove(id: string): void;
+	/** Sets a pane's label, minimize and placement. Returns whether its placement changed. */
+	update(id: string, label: string, minimized: boolean, docked: boolean): boolean;
+	/** Makes a pane and its view, and resolves the view once its element is defined. Resolves undefined where the strip
+	 *  holds a pane of that id, which a request made during the view's load made. */
+	open(spec: TPaneSpec): Promise<HTMLElement | undefined>;
+	/** Lays the strip out once its panes match the machine: its columns' widths where a placement changed, then the pane
+	 *  `maximized` maximized and the others not, then its accordion and its active pane. */
+	settle(maximized: string | null, placementChanged: boolean): void;
+	/** Returns the ids of the panes after the pane `source` is in that a prune closes: the panes that aren't pinned or
+	 *  docked. Undefined where `source` isn't in a pane of the strip. */
+	after(source: Element | Event): string[] | undefined;
+	/** Unpins and closes the pane `id`, which returns to where the page declares it. */
+	close(id: string): void;
+	/** Calls `handler` with each change a pane's own control makes. */
+	onControl(handler: (id: string, control: TPaneControl) => void): void;
+};

@@ -22,6 +22,9 @@ import type {
 	TPreferences,
 	TSharedCell,
 	TStreamReports,
+	TPaneMarks,
+	TPaneStrip,
+	TStripElement,
 } from "./ports.js";
 import type { TDockedPane, TPageTypes, TStripPane } from "./domains/page-state.js";
 import { NOTHING_SELECTED_LABEL, type TPageContext } from "../schemas.js";
@@ -41,7 +44,10 @@ import { documentHydration } from "./adapters/hydration.js";
 import type { TBlipChannel, TBlipSending } from "./pipelines/client-blips.js";
 import type { TEmbeddedPageView } from "../domains/embedding.js";
 import type { TDelegation } from "@haibun/core/lib/actions.js";
-import type { TPageHash } from "./pipelines/page-hash.js";
+import type { THashScope, TPageHash } from "./pipelines/page-hash.js";
+import type { TPanesHeld } from "./pipelines/panes.js";
+import { browserPaneStrip } from "./adapters/pane-strip.js";
+import { INITIAL_PANES, panesTransition, type TPanesEvent, type TPanesState } from "./machines/panes.js";
 import { liveEventStream, type TLiveStreamSource } from "./adapters/live-event-stream.js";
 import { CarriedEventStream } from "./adapters/carried-event-stream.js";
 import { FOLLOWS_THE_RUN } from "@haibun/core/lib/actions.js";
@@ -67,6 +73,8 @@ const AUTHORITY_PORT_KEY = "__SHU_AUTHORITY_PORT__";
 const HYDRATION_KEY = "__SHU_HYDRATION__";
 const REGISTRY_KEY = "__SHU_STEP_REGISTRY__";
 const REGISTRY_READS_KEY = "__SHU_STEP_REGISTRY_READS__";
+const PANES_KEY = "__SHU_PANES__";
+const PANES_HELD_KEY = "__SHU_PANES_HELD__";
 
 /** Returns the page's preferences, stored in the page's cookies. */
 export const pagePreferences = (): TPreferences => pagePinned(PREFERENCES_KEY, () => cookiePreferences(window));
@@ -96,6 +104,20 @@ export const pageHashHeld = (): TPageHash =>
 		(): TPageHash => ({ stored: "", subscribers: new Set(), stopArrivals: undefined }),
 		(held) => held.stopArrivals?.(),
 	);
+
+/** Returns the page's hash as its reads and writes take it: the location, what the page holds of the hash, and whether the
+ *  page carries a record of actuality, whose hash the page holds itself. */
+export const pageHashScope = (): THashScope => ({ location: pageLocation(), held: pageHashHeld(), carried: pageHydration().carried() !== undefined });
+
+/** Returns the page's panes, held across its bundles, and empty on each new page. */
+export const pagePanes = (): Machine<TPanesState, TPanesEvent> => pagePinned(PANES_KEY, () => machine(INITIAL_PANES, panesTransition));
+
+/** Returns what the page holds of its panes beside their machine. */
+export const panesHeld = (): TPanesHeld =>
+	pagePinned(PANES_HELD_KEY, (): TPanesHeld => ({ strip: undefined, hooks: undefined, lastWritten: undefined, reconciling: false, requested: false }));
+
+/** Returns the pane strip over `strip`, whose panes carry the names `marks` gives. */
+export const pagePaneStrip = (strip: TStripElement, marks: TPaneMarks): TPaneStrip => browserPaneStrip(document, customElements, strip, marks);
 
 /** Returns the channel to the window that embeds the page, at the deployment's embedder origin `origin`. */
 export const pageEmbedder = (origin: string): TEmbedderChannel => pagePinned(EMBEDDER_KEY, () => embedderChannel(window, origin));

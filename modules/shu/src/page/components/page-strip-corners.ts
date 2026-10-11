@@ -8,7 +8,6 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { AccessQueryLevelSchema, type AccessQueryLevel } from "@haibun/core/lib/resources.js";
 import { AuthorityController } from "../controllers/authority-controller.js";
 import { AWAITING_DECISION, PERMISSIONS_SLOT, SHU_TAG } from "../../domains/elements.js";
-import { PaneState } from "../../pane-state.js";
 import { runSpan } from "../../client-cache/index.js";
 import { getUiExtensionTags } from "../controllers/catalog-controller.js";
 import { PERMISSIONS_SUMMARY, summaryOf, type TPermissionsSummary } from "./shu-permissions.js";
@@ -16,6 +15,7 @@ import type { TControllerHost } from "./controller-host.js";
 import { reportToRun } from "../../client-log.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { isRefKind, type TRefKind } from "../derivations/markdown.js";
+import { requestPane, showsPane } from "../controllers/pane-controller.js";
 
 export const CORNERS = ["settings", "playback", "access", "status"] as const;
 type TCorner = (typeof CORNERS)[number];
@@ -154,7 +154,7 @@ export class PageStripCorners implements ReactiveController {
 	 *  and left as the reader has it where it is. It also opens playback, the controls a rail cannot offer. */
 	onTimeOffsetClick = (e: Event): void => {
 		const tag = SHU_TAG.MONITOR_COLUMN;
-		PaneState.request({ paneType: "component", tag, label: "Monitor", ...(PaneState.has(tag) ? {} : { flag: "min" as const }) });
+		requestPane({ paneType: "component", tag, label: "Monitor", ...(showsPane(tag) ? {} : { flag: "min" as const }) });
 		this.toggle("playback")(e);
 	};
 

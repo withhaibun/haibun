@@ -9,7 +9,9 @@ import { requiredActionOf } from "../controllers/registry-controller.js";
 import { serveThePage, newPage } from "../../test-setup.js";
 import { runStore } from "../../client-cache/run-store.test-fake.js";
 import { describe, it, expect, beforeEach } from "vitest";
-import { ShuStepDetail, stepRecordId } from "./shu-step-detail.js";
+import "./shu-step-detail.js"; // the module defines the element
+import { SHU_TAG } from "../../domains/elements.js";
+import type { ShuStepDetail } from "./shu-step-detail.js";
 import { EDGE, SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { SHARED_GRAPH } from "@haibun/core/lib/quad-types.js";
 import { VARIABLE_FIELD } from "@haibun/core/lib/records/domains/variables.js";
@@ -48,7 +50,7 @@ describe("shu-step-detail", () => {
 			endedAtTime: new Date(1005).toISOString(),
 		});
 		setGraphStore(store);
-		declareGraphSpec({ types: [SEQ_PATH_LABEL] });
+		declareGraphSpec({ types: [SEQ_PATH_LABEL], ui: { [SEQ_PATH_LABEL]: { component: SHU_TAG.STEP_DETAIL } } });
 		noteExecution(EXECUTION);
 		globalThis.fetch = (input: unknown): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
@@ -64,7 +66,7 @@ describe("shu-step-detail", () => {
 	it("renders the step's record and the variables it set", async () => {
 		const el = document.createElement("shu-step-detail") as ShuStepDetail;
 		document.body.appendChild(el);
-		await el.open([0, 1]);
+		await el.open(`${EXECUTION}.0.1`, SEQ_PATH_LABEL);
 		await el.updateComplete;
 		const t = text(el);
 		expect(t).toContain("Step [0.1]");
@@ -77,10 +79,10 @@ describe("shu-step-detail", () => {
 	it("re-keys the read when the step changes, dropping the previous step's data", async () => {
 		const el = document.createElement("shu-step-detail") as ShuStepDetail;
 		document.body.appendChild(el);
-		await el.open([0, 1]);
+		await el.open(`${EXECUTION}.0.1`, SEQ_PATH_LABEL);
 		await el.updateComplete;
 		expect(text(el)).toContain("myVar");
-		await el.open([0, 2]); // the page doesn't hold a record of this step, and it doesn't have a site to ask
+		await el.open(`${EXECUTION}.0.2`, SEQ_PATH_LABEL); // the page doesn't hold a record of this step, and it doesn't have a site to ask
 		await el.updateComplete;
 		const t = text(el);
 		expect(t, "a step the page cannot read reports that, rather than claiming that the step doesn't exist").toContain("Failed to load step [0.2]");
@@ -95,18 +97,13 @@ describe("shu-step-detail", () => {
 		};
 		const el = document.createElement("shu-step-detail") as ShuStepDetail;
 		document.body.appendChild(el);
-		await el.open([0, 3]);
+		await el.open(`${EXECUTION}.0.3`, SEQ_PATH_LABEL);
 		await el.updateComplete;
 		expect(text(el)).toContain("Failed to load step [0.3]");
 	});
-});
 
-describe("the record that is a step", () => {
-	it("is the step's path under the execution being read", () => {
-		expect(stepRecordId([0, 1], EXECUTION)).toBe(`${EXECUTION}.0.1`);
-	});
-	it("is undefined before an execution has been read, or when a step isn't named", () => {
-		expect(stepRecordId([0, 1], undefined)).toBeUndefined();
-		expect(stepRecordId([], EXECUTION)).toBeUndefined();
+	it("throws where a pane opens it at a record of a type whose declaration doesn't name it", async () => {
+		const el = document.createElement("shu-step-detail") as ShuStepDetail;
+		await expect(el.open("m-1", "Email")).rejects.toThrow("<shu-step-detail> shows a SeqPath record, and was opened at a record of Email");
 	});
 });

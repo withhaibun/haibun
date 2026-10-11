@@ -34,7 +34,7 @@ export const DEEP_LINK_PREFIX = "#?";
 export const CONTEXT_DOCUMENT = { wellKnown: "/.well-known/haibun-context.jsonld", namespace: "/ns/context.jsonld" } as const;
 
 export const SHU_EVENT = {
-	/** A view in the graph bundle opens a pane (a `TPaneOpen` detail): that bundle's PaneState isn't the page's. */
+	/** A view in the graph bundle opens a pane (a `TPaneOpen` detail): that bundle's panes aren't the page's. */
 	PANE_OPEN: "pane-open",
 	COLUMN_CLOSE: "column-close",
 	PANE_DISMISS: "pane-dismiss",

@@ -8,7 +8,6 @@ import { SHU_EVENT, SHU_TAG } from "../domains/elements.js";
 import { defineElement } from "../page/controllers/element-controller.js";
 import { acts } from "../page/domains/links.js";
 import { conduit } from "../page/controllers/conduit-controller.js";
-import type { TPaneOpen } from "../pane-state.js";
 import type { TPresenterNodeClick } from "../page/ports.js";
 import { applyScene, captureScene, listScenes, readScene, saveScene, type TSceneState } from "../scenes.js";
 import { SCENE_LABEL } from "@haibun/core/lib/resources.js";
@@ -36,6 +35,7 @@ import {
 } from "../graph/polymorphic/polymorphic-scene.js";
 import { GRAPH_SCENE_EVENT } from "../graph/polymorphic/polymorphic-graph-types.js";
 import type { TMeasureUnit, TPanDirection, TZoomDirection } from "../graph/polymorphic/polymorphic-camera.js";
+import { type TPaneOpen } from "../page/derivations/pane-kinds.js";
 
 // A cursor move re-styles (depth re-place, positions pinned), fast, so it paints promptly. NOT the streamed-data
 // window (which would stack to ~1s); the base coalesces continuous scrubbing to this before it reaches onTimeCursorPaint.

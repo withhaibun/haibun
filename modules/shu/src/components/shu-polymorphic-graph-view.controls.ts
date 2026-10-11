@@ -21,7 +21,6 @@
 import { MEDIA_TYPE } from "@haibun/core/lib/media-types.js";
 import { SHU_TEST_IDS } from "../domains/test-ids.js";
 import { SHU_EVENT, SHU_TAG } from "../domains/elements.js";
-import type { TPaneOpen } from "../pane-state.js";
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps, type TFeatureStep } from "@haibun/core/lib/astepper.js";
 import { DOMAIN_PERSISTED_TYPE, type TDomainDefinition } from "@haibun/core/lib/resources.js";
@@ -53,6 +52,7 @@ import {
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { SCHEMA_TYPES } from "../graph/ontology-projection.js";
 import { objectId } from "../page/derivations/record-fields.js";
+import { type TPaneOpen } from "../page/derivations/pane-kinds.js";
 
 /** The page's main graph: the one view that draws the page's own data. */
 const MAIN_GRAPH = "shu-polymorphic-graph-view:not([data-external])";

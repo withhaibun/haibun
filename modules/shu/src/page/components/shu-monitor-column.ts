@@ -21,12 +21,13 @@ import type { WindowedSource } from "../../windowed-source.js";
 import type { TScrollMarker } from "../derivations/rail.js";
 import { artifactAt, artifactUrl } from "../../artifact-url.js";
 import { unavailableOrEmpty } from "./empty-state.js";
-import { PaneState, addsToSelection, type DesiredPane } from "../../pane-state.js";
 import { actionRef, fieldRef, originLink, refTpl } from "./shu-ref.js";
 import { parseSeqPath, SEQ_PATH_EDGE } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
 import { currentRowIndex, cursorMark } from "../derivations/rail.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
+import { requestPaneFrom } from "../controllers/pane-controller.js";
+import { addsToSelection, type DesiredPane } from "../derivations/pane-kinds.js";
 
 /** The source the monitor reports an artifact it couldn't show under. */
 const MONITOR_SOURCE = "shu-monitor-column";
@@ -50,7 +51,6 @@ const MonitorColumnSchema = z.object({
  * A row that doesn't name a record doesn't open a view: it is a row of something actuality never wrote down.
  */
 export function opens(row: TLogRow): DesiredPane | undefined {
-	if (row.seqPath) return { paneType: "step-detail", seqPath: row.seqPath };
 	return row.record ? { paneType: "entity", persistedAs: row.record.persistedAs, id: row.record.id } : undefined;
 }
 
@@ -346,7 +346,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		(e: Event): void => {
 			const opening = opens(row);
 			if (!opening) return;
-			PaneState.requestFrom(this, opening, addsToSelection(e as MouseEvent));
+			requestPaneFrom(this, opening, addsToSelection(e as MouseEvent));
 		};
 
 	// Derive the window before each render: the rows it holds, the rail markers (every record

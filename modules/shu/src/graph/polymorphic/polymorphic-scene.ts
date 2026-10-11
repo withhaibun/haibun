@@ -39,7 +39,6 @@ import { type RenderType, type TViewForces, buildRenderTypeRegistry } from "../p
 import type { ViewType } from "../polymorphic/polymorphic-views.js";
 import { FRAME, VIEW, viewChangeRebuildsNodes } from "../polymorphic/polymorphic-views.js";
 import { isSchemaType, propertyVocabulary } from "../ontology-projection.js";
-import { PaneOpenSchema, addsToSelection, type DesiredPane, type TPaneOpen } from "../../pane-state.js";
 import { actorTypesFor, getValidTimeField, roleEdgeLabels, roleNounFor } from "../../page/controllers/catalog-controller.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { compositeRenderer, threeRenderer, type IGraphRenderer } from "../polymorphic/polymorphic-renderer.js";
@@ -71,6 +70,7 @@ import {
 import { presentationForType } from "../type-presentation.js";
 import type { NodeMark } from "../graph-scene.js";
 import { appAccessLevel } from "../../view-query.js";
+import { PaneOpenSchema, addsToSelection, type DesiredPane, type TPaneOpen } from "../../page/derivations/pane-kinds.js";
 
 /**
  * shu-graph-scene: the A-Frame / ForceGraphVR rendering surface, extracted from shu-polymorphic-graph-view so the scene is
@@ -2320,7 +2320,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.openPane({ paneType: "entity", persistedAs: n.type, id: n.id }, e);
 	}
 
-	/** Ask the page to open a pane beside the one this graph is in. This bundle's PaneState isn't the page's, so the ask
+	/** Ask the page to open a pane beside the one this graph is in. This bundle's panes aren't the page's, so the ask
 	 *  is an event, parsed here so a malformed pane fails at its source. */
 	private openPane(pane: DesiredPane, e?: MouseEvent): void {
 		const detail: TPaneOpen = PaneOpenSchema.parse({ pane, addToSelection: addsToSelection(e) });

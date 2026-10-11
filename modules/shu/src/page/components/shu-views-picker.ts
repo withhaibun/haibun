@@ -1,6 +1,6 @@
 /**
  * <shu-views-picker>: Lists available views (id, description) and opens one
- * on click via PaneState. Populated by the host via setViews().
+ * on click through the pane controller. Populated by the host via setViews().
  */
 import { SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
@@ -9,7 +9,8 @@ import { property } from "lit/decorators.js";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { shuBaseStyles } from "./styles.js";
-import { PaneState, addsToSelection } from "../../pane-state.js";
+import { requestPaneFrom } from "../controllers/pane-controller.js";
+import { addsToSelection } from "../derivations/pane-kinds.js";
 
 type TView = { id: string; description: string; component: string };
 
@@ -47,7 +48,7 @@ export class ShuViewsPicker extends ShuElement<typeof EmptyStateSchema> {
 	private onPick =
 		(v: TView) =>
 		(e: MouseEvent): void => {
-			if (v.component) PaneState.requestFrom(e, { paneType: "component", tag: v.component, label: v.description }, addsToSelection(e));
+			if (v.component) requestPaneFrom(e, { paneType: "component", tag: v.component, label: v.description }, addsToSelection(e));
 		};
 
 	render(): TemplateResult {

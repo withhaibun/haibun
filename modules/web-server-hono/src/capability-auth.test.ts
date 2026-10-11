@@ -23,8 +23,11 @@ class StubVerifier implements IAuthorityVerifier {
 	verify(evidence: TAuthorityEvidence): Promise<TVerdict> {
 		const invoked = evidence.kind === "request" ? evidence.headers["capability-invocation"] : undefined;
 		// A key invoking its own root holds the read of its own delegations and nothing it was delegated.
-		if (invoked?.includes(DELEGATIONS_READ_ACTION)) return Promise.resolve({ ok: true, principal: READER, allowedAction: [DELEGATIONS_READ_ACTION], invoked: DELEGATIONS_READ_ACTION });
-		return Promise.resolve(invoked?.includes(ACTION) ? { ok: true, principal: READER, allowedAction: [ACTION, "comment.deny"], invoked: ACTION } : { ok: false, error: "not this one" });
+		if (invoked?.includes(DELEGATIONS_READ_ACTION))
+			return Promise.resolve({ ok: true, principal: READER, allowedAction: [DELEGATIONS_READ_ACTION], invoked: DELEGATIONS_READ_ACTION });
+		return Promise.resolve(
+			invoked?.includes(ACTION) ? { ok: true, principal: READER, allowedAction: [ACTION, "comment.deny"], invoked: ACTION } : { ok: false, error: "not this one" },
+		);
 	}
 
 	delegationsTo(): Promise<TDelegations> {
@@ -89,7 +92,10 @@ describe("what a request carries to a boundary", () => {
 		authority.registerVerifier(new StubVerifier());
 		const presentingNothing = { method: "POST", url: "http://site.test:8123/rpc/x", headers: { authorization: "Bearer tkn" } };
 		expect(await grantedCapabilityForRequest(presentingNothing, runtimeWith(authority), NOBODY), "a secret it carries isn't authority").toEqual({ granted: [], held: [] });
-		expect(await grantedCapabilityForRequest(presentingNothing, runtimeWith(authority), PUBLIC_SITE), "and anyone may read a public site").toEqual({ granted: [READ_PUBLIC], held: [READ_PUBLIC] });
+		expect(await grantedCapabilityForRequest(presentingNothing, runtimeWith(authority), PUBLIC_SITE), "and anyone may read a public site").toEqual({
+			granted: [READ_PUBLIC],
+			held: [READ_PUBLIC],
+		});
 	});
 
 	it("doesn't hold what a caller holds without a delegation for a page of another site sending through a reader's browser, where a proof still does", async () => {

@@ -8,8 +8,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { deepLinkOf, desiredPaneFor, followPaneLink, paneHref, refHref } from "./ref-navigation.js";
-import { PaneState, type DesiredPane } from "../../pane-state.js";
 import { hashWithColumns } from "../derivations/address.js";
+import { declareSpec } from "../../test/catalog-fixture.js";
+import { readExecution } from "../../client-cache/executions.js";
+import { SHU_TAG } from "../../domains/elements.js";
+import { addsToSelection, type DesiredPane } from "../derivations/pane-kinds.js";
+import { followPaneRequests } from "../../test/pane-requests.js";
 
 describe("refHref", () => {
 	it("addresses one column view, not the reader's trail of columns", () => {
@@ -18,9 +22,14 @@ describe("refHref", () => {
 		expect(href?.match(/col=/g)).toHaveLength(1);
 	});
 
-	it("addresses an individual and a step's quads", () => {
+	it("addresses an individual, and a step as its record in the execution the page reads (CA4D9)", () => {
 		expect(refHref("entity", { persistedAs: "Person", id: "ada@test.com" })).toContain("col=");
-		expect(refHref("seqPath", { seqPath: [0, 1, 2] })).toContain("col=");
+		declareSpec({ types: ["SeqPath"], ui: { SeqPath: { component: SHU_TAG.STEP_DETAIL } } });
+		readExecution(undefined);
+		expect(desiredPaneFor("seqPath", { seqPath: [0, 1, 2] }), "a step's path doesn't name a record before the page reads an execution").toBeNull();
+		readExecution("1790000000000-1");
+		expect(desiredPaneFor("seqPath", { seqPath: [0, 1, 2] })).toEqual({ paneType: "entity", persistedAs: "SeqPath", id: "1790000000000-1.0.1.2" });
+		readExecution(undefined);
 	});
 
 	it("addresses exactly the pane a click opens: one reading of (kind, target) serves both, so they cannot drift", () => {
@@ -43,7 +52,7 @@ describe("a link to a pane", () => {
 		{ paneType: "filter-eq", persistedAs: "Email", predicate: "from", value: "a@test.com" },
 		{ paneType: "filter-incoming", persistedAs: "Email", subject: "m-1" },
 		{ paneType: "thread", persistedAs: "Email", subject: "m-1" },
-		{ paneType: "step-detail", seqPath: [0, 1, 2] },
+		{ paneType: "entity", persistedAs: "SeqPath", id: "1790000000000-1.0.1.2" },
 		{ paneType: "step", method: "GraphStepper-graphQuery" },
 		{ paneType: "action", action: "Read:private" },
 	];
@@ -82,29 +91,35 @@ describe("a link to a pane", () => {
 			const heard = vi.fn();
 			view.addEventListener("click", heard);
 			anchor.addEventListener("click", heard);
-			return { anchor, heard, opened: vi.spyOn(PaneState, "requestFrom").mockImplementation(() => undefined) };
+			return { anchor, heard, opened: followPaneRequests() };
 		};
 
 		it("opens the pane it addresses beside the one it was clicked in, and a listener under the page doesn't take the click", () => {
 			const { anchor, heard, opened } = linkIn(refHref(REF_DENOTES.individual, { persistedAs: "Email", id: "m-1" }) ?? "");
 			const click = new MouseEvent("click", { bubbles: true, composed: true, cancelable: true });
 			anchor.dispatchEvent(click);
-			expect(opened).toHaveBeenCalledWith(click, { paneType: "entity", persistedAs: "Email", id: "m-1" }, false);
+			expect(opened.requested).toEqual([{ paneType: "entity", persistedAs: "Email", id: "m-1" }]);
+			expect(addsToSelection(click), "a plain click replaces the panes after the one it was made in").toBe(false);
 			expect(click.defaultPrevented, "the page's address is not replaced").toBe(true);
 			expect(heard).not.toHaveBeenCalled();
+			opened.stop();
 		});
 
 		it("adds the pane beside the others when a modifier is held", () => {
 			const { anchor, opened } = linkIn(paneHref(itemAt(PANES, 1)));
-			anchor.dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true, cancelable: true, ctrlKey: true }));
-			expect(itemAt(opened.mock.calls, 0)[2]).toBe(true);
+			const click = new MouseEvent("click", { bubbles: true, composed: true, cancelable: true, ctrlKey: true });
+			anchor.dispatchEvent(click);
+			expect(opened.requested).toEqual([itemAt(PANES, 1)]);
+			expect(addsToSelection(click)).toBe(true);
+			opened.stop();
 		});
 
 		it("leaves a link to anything else to the browser", () => {
 			const { anchor, heard, opened } = linkIn("https://example.com/");
 			const click = new MouseEvent("click", { bubbles: true, composed: true, cancelable: true });
 			anchor.dispatchEvent(click);
-			expect(opened).not.toHaveBeenCalled();
+			expect(opened.requested).toEqual([]);
+			opened.stop();
 			expect(click.defaultPrevented).toBe(false);
 			expect(heard).toHaveBeenCalled();
 		});

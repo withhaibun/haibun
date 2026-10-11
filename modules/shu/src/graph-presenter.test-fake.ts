@@ -39,19 +39,11 @@ export class FakeGraphPresenter extends HTMLElement implements TGraphPresenter {
 	}
 }
 
-/** Declares the fake as the site's graph presenter. The site's other declarations are empty, except for the `ui`
- *  entries a case gives, keyed by domain. */
-export function declareFakeGraphPresenter(ui: Record<string, Record<string, unknown>> = {}): void {
+/** Declares the fake as the site's graph presenter, beside the `types` and the `ui` entries a case gives, keyed by type or
+ *  domain. The site's other declarations are empty. */
+export function declareFakeGraphPresenter(ui: Record<string, Record<string, unknown>>, types: string[]): void {
 	if (!customElements.get(FAKE_PRESENTER_TAG)) customElements.define(FAKE_PRESENTER_TAG, FakeGraphPresenter);
-	declareSpec({
-		types: [],
-		idFields: {},
-		rels: {},
-		edgeRanges: {},
-		queryable: {},
-		validTimeFields: {},
-		ui: { graph: { component: FAKE_PRESENTER_TAG, presents: "graph" }, ...ui },
-	});
+	declareSpec({ types, idFields: {}, rels: {}, edgeRanges: {}, queryable: {}, validTimeFields: {}, ui: { graph: { component: FAKE_PRESENTER_TAG, presents: "graph" }, ...ui } });
 }
 
 /** Returns the presenter a host holds in a slot once its mount has resolved. */

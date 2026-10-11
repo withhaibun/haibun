@@ -216,10 +216,10 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 
 	static attributeFields = { label: "label", active: "active", closable: "closable", pinned: "pinned", "column-type": "columnType" };
 
-	/** Width, user-minimize, and pin are remembered per column across reloads (ShuElement.persistFields), keyed by the column's identity; `pinned` is a bidirectional attributeField, so restoring it re-asserts the `pinned` attribute pane-state's prune reads. Maximize is deliberately not remembered: it lives in the URL hash only. */
+	/** Width, user-minimize, and pin are remembered per column across reloads (ShuElement.persistFields), keyed by the column's identity; `pinned` is a bidirectional attributeField, so restoring it re-asserts the `pinned` attribute the pane strip's prune reads. Maximize is deliberately not remembered: it lives in the URL hash only. */
 	static persistFields = ["width", "height", "minimized", "pinned"] as const;
 
-	/** A pane's persistence identity is its column key (assigned before attach by PaneState; "query" for the root pane). A pane without one doesn't persist. */
+	/** A pane's persistence identity is its column key (assigned before attach by the pane strip; "query" for the root pane). A pane without one doesn't persist. */
 	protected override get persistKey(): string | null {
 		return this.dataset.columnKey ?? null;
 	}
@@ -432,7 +432,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 
 	private onPin = (e: Event): void => {
 		e.stopPropagation();
-		this.setState({ pinned: !this.state.pinned }); // the `pinned` attribute (read by pane-state's prune) reflects automatically
+		this.setState({ pinned: !this.state.pinned }); // the `pinned` attribute (read by the pane strip's prune) reflects automatically
 	};
 
 	/** Closing is the reader dismissing this column, so its remembered width, minimize and pin go with it: a column

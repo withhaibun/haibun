@@ -14,9 +14,6 @@
 	"modules/shu/src/page/components/shu-actions-bar.ts": {
 		"field accessLevel": 1
 	},
-	"modules/shu/src/page/components/shu-affordances-panel.ts": {
-		"field seqPath": 1
-	},
 	"modules/shu/src/page/components/shu-annotated-body.ts": {
 		"type Comment": 1
 	},
@@ -25,9 +22,6 @@
 	},
 	"modules/shu/src/page/components/shu-document-column.ts": {
 		"field artifactType": 1
-	},
-	"modules/shu/src/page/components/shu-domain-chain-view.ts": {
-		"field seqPath": 1
 	},
 	"modules/shu/src/page/components/shu-element.ts": {
 		"field generatedAtTime": 1
@@ -54,7 +48,7 @@
 		"field performedBy": 3,
 		"field ranOn": 2,
 		"field ranVia": 2,
-		"field seqPath": 8,
+		"field seqPath": 6,
 		"type SeqPath": 1
 	},
 	"modules/shu/src/page/components/shu-page-key.ts": {
@@ -77,8 +71,7 @@
 		"field generatedAtTime": 1,
 		"field ranOn": 1,
 		"field ranVia": 1,
-		"field stepText": 1,
-		"type SeqPath": 3
+		"field stepText": 1
 	},
 	"modules/shu/src/page/components/shu-thread-column.ts": {
 		"type Comment": 2

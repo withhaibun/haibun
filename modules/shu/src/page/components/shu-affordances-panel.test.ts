@@ -48,7 +48,7 @@ describe("shu-affordances-panel", () => {
 			class FakeCopyBtn extends HTMLElement {}
 			customElements.define("shu-copy-button", FakeCopyBtn);
 		}
-		declareFakeGraphPresenter();
+		declareFakeGraphPresenter({}, []);
 	});
 
 	afterEach(() => handle.teardown());

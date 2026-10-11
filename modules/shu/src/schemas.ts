@@ -107,7 +107,7 @@ export const ColumnPaneSchema = z.object({
 	minimized: z.boolean().default(false),
 	closable: z.boolean().default(true),
 	pinned: z.boolean().default(false),
-	// Free-form: PaneState writes the component tag for component panes; CSS only matches the well-known values.
+	// Free-form: the pane strip writes the component tag for component panes; CSS only matches the well-known values.
 	columnType: z.string().default("query"),
 });
 

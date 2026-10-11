@@ -56,7 +56,15 @@ import { recordLongFrames, reportRefusedScripts } from "../src/page/pipelines/pa
 import { installShuTokens } from "../src/page/components/styles.js";
 import { applyStoredTheme } from "../src/page/components/shu-theme-switch.js";
 import type { ShuPage } from "../src/page/components/shu-page.js";
-import { deploymentAllowedWithoutDelegation, deploymentEmbedderOrigin, deploymentVerifiesDelegations, getHydratedViewHash, hydratedCache, pageBuild, responseTimeoutMs } from "../src/page/controllers/hydration-controller.js";
+import {
+	deploymentAllowedWithoutDelegation,
+	deploymentEmbedderOrigin,
+	deploymentVerifiesDelegations,
+	getHydratedViewHash,
+	hydratedCache,
+	pageBuild,
+	responseTimeoutMs,
+} from "../src/page/controllers/hydration-controller.js";
 import { getAvailableSteps, requiredActionOf } from "../src/page/controllers/registry-controller.js";
 import { hydrateClientCache, viewsShown } from "../src/client-cache/index.js";
 import { followRunningTurns } from "../src/conversation.js";
@@ -76,7 +84,9 @@ async function start(): Promise<void> {
 	// shu's key.
 	const embedder = carried === undefined && window.parent !== window ? deploymentEmbedderOrigin() : undefined;
 	const embedding: TEmbedding | undefined =
-		embedder === undefined ? undefined : { channel: pageEmbedder(embedder), pageView: embeddedPageView, given: givenDelegation, authority: pageAuthorityPort(), clock: pageClock() };
+		embedder === undefined
+			? undefined
+			: { channel: pageEmbedder(embedder), pageView: embeddedPageView, given: givenDelegation, authority: pageAuthorityPort(), clock: pageClock() };
 	if (embedding !== undefined) receiveFromEmbedder(embedding);
 	// The long frames of the page's main thread, from its start, including the frames before this call.
 	recordLongFrames(pageObservers(), pageBlipChannel);
@@ -102,7 +112,9 @@ async function start(): Promise<void> {
 			),
 		mayRead: () => pageMay(readAction(Access.public)),
 		delegateFromEmbedder:
-			embedding !== undefined && carried === undefined && deploymentVerifiesDelegations() ? (controller) => askEmbedderToDelegate(embedding, controller, responseTimeoutMs()) : undefined,
+			embedding !== undefined && carried === undefined && deploymentVerifiesDelegations()
+				? (controller) => askEmbedderToDelegate(embedding, controller, responseTimeoutMs())
+				: undefined,
 		readSteps: getAvailableSteps,
 		connect: () => pageEventStream().connect(),
 		followTurns: () => {

@@ -363,6 +363,7 @@ const CAUSE_DEPTH = 8;
 /** Whether a failure, or one of its causes, is a failure to reach a host. It reads the failure's name, since each bundle of
  *  a page holds its own copy of the class. */
 export function isServerUnreachable(err: unknown): boolean {
-	for (let e: unknown = err, depth = 0; e && depth < CAUSE_DEPTH; e = (e as { cause?: unknown }).cause, depth++) if ((e as { name?: unknown }).name === SERVER_UNREACHABLE) return true;
+	for (let e: unknown = err, depth = 0; e && depth < CAUSE_DEPTH; e = (e as { cause?: unknown }).cause, depth++)
+		if ((e as { name?: unknown }).name === SERVER_UNREACHABLE) return true;
 	return false;
 }

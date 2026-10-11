@@ -650,9 +650,6 @@
 	"modules/shu/src/pane-fetch.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/shu/src/pane-state.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/quads-snapshot.ts": {
 		"isn't in a kind position": 1
 	},

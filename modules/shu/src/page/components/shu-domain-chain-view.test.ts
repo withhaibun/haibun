@@ -5,11 +5,10 @@
  * Must reach a terminal display state: the chain drawn by the site's graph presenter when products are supplied, or an
  * actionable empty-state message. A spinner that never disappears is a bug.
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuDomainChainView } from "./shu-domain-chain-view.js";
 import * as PageHash from "../controllers/hash-controller.js";
 import { AFFORDANCE_PARAM, SHU_TAG } from "../../domains/elements.js";
-import { PaneState } from "../../pane-state.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { LINT_FINDING } from "@haibun/core/lib/domain-chain-lint.js";
 import { DOMAIN_AFFORDANCES, DOMAIN_STRING } from "@haibun/core/lib/domains.js";
@@ -19,6 +18,8 @@ import { readingExecution } from "../../client-cache/executions.js";
 import { declareFakeGraphPresenter, mountedPresenter } from "../../graph-presenter.test-fake.js";
 import { reportedErrors, setupShuTest, type TShuTestHandle } from "../../test-setup.js";
 import { NODE_KIND, type TGraphNode } from "../../graph/types.js";
+import { followPaneRequests } from "../../test/pane-requests.js";
+import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 
 /** The actuality a snapshot records its facts from. */
 const EXECUTION = "1790000000000-1";
@@ -56,7 +57,11 @@ describe("shu-domain-chain-view", () => {
 		// is module state rather than the document's.
 		clearDeepLink();
 		// The site declares the affordances panel as core does, titled by its summary.
-		declareFakeGraphPresenter({ [DOMAIN_AFFORDANCES]: { component: SHU_TAG.AFFORDANCES_PANEL, summary: AFFORDANCES_TITLE } });
+		// A fact opens the step that produced it, as the record view its type declares.
+		declareFakeGraphPresenter(
+			{ [DOMAIN_AFFORDANCES]: { component: SHU_TAG.AFFORDANCES_PANEL, summary: AFFORDANCES_TITLE }, [SEQ_PATH_LABEL]: { component: SHU_TAG.STEP_DETAIL } },
+			[SEQ_PATH_LABEL],
+		);
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
 	});
 
@@ -93,22 +98,22 @@ describe("shu-domain-chain-view", () => {
 		};
 		await view.updateComplete;
 		const presenter = await mountedPresenter(view, GRAPH);
-		const opened = vi.spyOn(PaneState, "requestFrom").mockImplementation(() => undefined);
+		const opened = followPaneRequests();
 		let announced = 0;
 		const heard = PageHash.onHashChanged(() => announced++);
 		presenter.openNode("vc");
 		expect(deepLink(AFFORDANCE_PARAM.GOAL)).toBe("vc");
 		expect(announced, "and every view reading the same deep link hears that it moved").toBeGreaterThanOrEqual(1);
-		expect(opened.mock.calls.map(([, pane]) => pane)).toEqual([{ paneType: "component", tag: SHU_TAG.AFFORDANCES_PANEL, label: AFFORDANCES_TITLE }]);
+		expect(opened.requested).toEqual([{ paneType: "component", tag: SHU_TAG.AFFORDANCES_PANEL, label: AFFORDANCES_TITLE }]);
 		// A listener's error is the page's to report, not the dispatcher's to catch.
 		expect(reportedErrors(() => presenter.openNode("nowhere")).join(), "a node the chain does not hold is refused").toMatch(/the chain graph doesn't hold a node "nowhere"/);
 		heard();
-		opened.mockRestore();
+		opened.stop();
 	});
 
 	it("routes a node click with link.href to the deep link it names; never dispatches STEP_CHOOSE (every click opens a view)", () => {
 		const view = mount();
-		const opened = vi.spyOn(PaneState, "requestFrom").mockImplementation(() => undefined);
+		const opened = followPaneRequests();
 		let stepChosen: string | undefined;
 		const onChoose = (e: Event) => {
 			stepChosen = (e as CustomEvent).detail?.method;
@@ -122,7 +127,7 @@ describe("shu-domain-chain-view", () => {
 		expect(() => view.routeNodeClick(chainNode({ id: "vc" }))).toThrow("chain node vc doesn't have a deep link to open");
 		expect(stepChosen).toBeUndefined();
 		document.removeEventListener("step-choose", onChoose);
-		opened.mockRestore();
+		opened.stop();
 	});
 
 	it("takes the run it names as the run the page reads, where a fact's step opens, and refuses one that doesn't name a run", () => {
@@ -172,20 +177,20 @@ describe("shu-domain-chain-view", () => {
 
 	it("routes a fact-instance node click to the step that produced it, a field's fact included, without writing a goal deep link", () => {
 		const view = mount();
-		const opened = vi.spyOn(PaneState, "requestFrom").mockImplementation(() => undefined);
+		const opened = followPaneRequests();
 		const initialAffGoal = deepLink(AFFORDANCE_PARAM.GOAL);
 		const whole = factIdOf({ execution: EXECUTION, path: [0, 1, 3, 2] });
 		const field = factIdOf({ execution: EXECUTION, path: [0, 1, 4] }, "issuer");
 		view.routeNodeClick(chainNode({ id: `fact:${whole}`, kind: NODE_KIND.factInstance, wasGeneratedBy: { factId: whole, domain: "issuer" } }));
 		view.routeNodeClick(chainNode({ id: `fact:${field}`, kind: NODE_KIND.factInstance, wasGeneratedBy: { factId: field, domain: "issuer" } }));
-		expect(opened.mock.calls.map(([, pane]) => pane)).toEqual([
-			{ paneType: "step-detail", seqPath: [0, 1, 3, 2] },
-			{ paneType: "step-detail", seqPath: [0, 1, 4] },
+		expect(opened.requested).toEqual([
+			{ paneType: "entity", persistedAs: SEQ_PATH_LABEL, id: whole },
+			{ paneType: "entity", persistedAs: SEQ_PATH_LABEL, id: `${EXECUTION}.0.1.4` },
 		]);
 		expect(deepLink(AFFORDANCE_PARAM.GOAL)).toBe(initialAffGoal);
 		expect(() => view.routeNodeClick(chainNode({ id: "f", kind: NODE_KIND.factInstance, wasGeneratedBy: { factId: "issuer-1", domain: "issuer" } }))).toThrow(
 			/doesn't name a step/,
 		);
-		opened.mockRestore();
+		opened.stop();
 	});
 });

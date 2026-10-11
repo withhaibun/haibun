@@ -53,7 +53,12 @@ export async function grantedCapabilityForRequest(request: TAuthorizedRequest | 
 	const verdict = await authority.verifyEvidence({ kind: "request", method: request.method, url: request.url, headers: request.headers ?? {}, body: request.body });
 	if (!verdict.ok) return { granted: [], held: [], refused: `the presented authority failed verification: ${verdict.error}` };
 	if (!verdict.invoked) return { granted: [], held: [], refused: "the verified request doesn't name the action it invokes" };
-	return { granted: [...allowedWithoutDelegation, verdict.invoked], held: [...allowedWithoutDelegation, ...(verdict.allowedAction ?? [])], principal: verdict.principal, restsOn: verdict.restsOn };
+	return {
+		granted: [...allowedWithoutDelegation, verdict.invoked],
+		held: [...allowedWithoutDelegation, ...(verdict.allowedAction ?? [])],
+		principal: verdict.principal,
+		restsOn: verdict.restsOn,
+	};
 }
 
 /**

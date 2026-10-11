@@ -110,6 +110,9 @@ export const componentOfView = (view: string): string => Catalog.componentOfView
 /** Returns the component a record of `label` opens as, or undefined for the generic view. */
 export const getRecordComponent = (label: string): string | undefined => Catalog.recordComponent(catalog(`the record component of ${label}`), label);
 
+/** Returns the type whose records open in `component`. */
+export const typeShownIn = (component: string): string => Catalog.typeShownIn(catalog(`the type shown in <${component}>`), component);
+
 /** Returns the declaration of the component `component` names. */
 export const getUiByComponent = (component: string): Record<string, unknown> | undefined => Catalog.uiOfComponent(catalog(`the UI of ${component}`), component);
 

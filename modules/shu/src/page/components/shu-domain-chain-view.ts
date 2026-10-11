@@ -30,6 +30,8 @@ import { NODE_KIND, nodeIn, type TGraph, type TGraphNode } from "../../graph/typ
 import { linkTo } from "../controllers/registry-controller.js";
 import { graphPresenterTag, mountGraphPresenter, presenterIn } from "../controllers/presenter-controller.js";
 import type { TGraphPresenter, TPresenterNodeClick } from "../ports.js";
+import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
+import { typeShownIn } from "../controllers/catalog-controller.js";
 
 /** Where the chain's graph is placed in the view, which is also the test id it is found by, and the scope it keeps its
  *  settings under. */
@@ -216,9 +218,9 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 	/** Click router for a graph node. Public for testability. */
 	routeNodeClick(node: TGraphNode): void {
 		// A fact-instance node opens the step that produced the fact.
-		const seqPath = node.kind === NODE_KIND.factInstance ? producingStepOf(node) : undefined;
-		if (seqPath) {
-			openRef(this, "seqPath", { seqPath });
+		const step = node.kind === NODE_KIND.factInstance ? producingStepOf(node) : undefined;
+		if (step !== undefined) {
+			openRef(this, REF_DENOTES.individual, { persistedAs: typeShownIn(SHU_TAG.STEP_DETAIL), id: step }, false);
 			return;
 		}
 		// Every other node of the chain projection deep-links into the affordances panel.

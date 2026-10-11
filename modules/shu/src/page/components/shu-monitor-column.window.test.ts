@@ -78,7 +78,7 @@ describe("what pressing a row of the log opens", () => {
 	// carried a step, a reader met rows that didn't open a record, what a run logged over a connection among them, and the
 	// row didn't show which would answer.
 	it("opens a step at its own place in actuality", () => {
-		expect(opens(row({ seqPath: [0, 1, 2], record: { persistedAs: "SeqPath", id: "a-step" } }))).toEqual({ paneType: "step-detail", seqPath: [0, 1, 2] });
+		expect(opens(row({ seqPath: [0, 1, 2], record: { persistedAs: "SeqPath", id: "a-step" } }))).toEqual({ paneType: "entity", persistedAs: "SeqPath", id: "a-step" });
 	});
 
 	it("opens what actuality logged as the record it is, which a step row is not the only kind of", () => {

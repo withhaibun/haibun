@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 // jsdom: the module defines a ShuElement (extends HTMLElement); the builders under test are pure metadata projections.
 import { type TCatalogSpec, declareSpec } from "../../test/catalog-fixture.js";
-import { describe, it, expect, beforeAll, vi } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import { buildTypeSchemaGraph, buildFullSchemaGraph, ShuTypeColumn } from "./shu-type-column.js";
 import { getUiPresenting, isSystemSchemaType } from "../controllers/catalog-controller.js";
 import { deepLinkOf } from "./ref-navigation.js";
 import { NODE_KIND } from "../../graph/types.js";
-import { PaneState } from "../../pane-state.js";
 import { SHU_EVENT } from "../../domains/elements.js";
+import { followPaneRequests } from "../../test/pane-requests.js";
 
 /** A two-type vocabulary: Issuer --assertionMethod--> VerificationMethod, both declaring a literal `name`. */
 const META: TCatalogSpec = {
@@ -43,12 +43,12 @@ describe("buildTypeSchemaGraph: one type's schema", () => {
 
 	it("opens the view a pressed node links, and doesn't open a view for a press on the background", () => {
 		const column = document.body.appendChild(new ShuTypeColumn());
-		const opened = vi.spyOn(PaneState, "requestFrom").mockImplementation(() => undefined);
+		const opened = followPaneRequests();
 		const press = (graphNode: unknown) => column.dispatchEvent(new CustomEvent(SHU_EVENT.GRAPH_NODE_CLICK, { detail: { node: graphNode }, bubbles: true, composed: true }));
 		press(node(buildTypeSchemaGraph("Issuer"), "VerificationMethod"));
 		press(null);
-		expect(opened.mock.calls.map(([, pane]) => pane)).toEqual([{ paneType: "type", persistedAs: "VerificationMethod" }]);
-		opened.mockRestore();
+		expect(opened.requested).toEqual([{ paneType: "type", persistedAs: "VerificationMethod" }]);
+		opened.stop();
 		column.remove();
 	});
 });

@@ -73,7 +73,12 @@ describe("a secret variable's value", () => {
 	});
 
 	it("a scenario reads the value a secret held in the scenario before it", async () => {
-		const { ran } = await runWithSecrets(["Scenario: set the secrets", ...SET_SECRETS, "Scenario: compare the secrets", ...SECRET_VARIABLES.map((name) => `variable ${name} is ${SECRET_ENV}`)]);
+		const { ran } = await runWithSecrets([
+			"Scenario: set the secrets",
+			...SET_SECRETS,
+			"Scenario: compare the secrets",
+			...SECRET_VARIABLES.map((name) => `variable ${name} is ${SECRET_ENV}`),
+		]);
 		expect(ran.ok).toBe(true);
 	});
 

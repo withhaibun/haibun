@@ -22,14 +22,13 @@ import { conduit } from "../controllers/conduit-controller.js";
 import { subscribeBatchedEvents } from "../controllers/event-stream-controller.js";
 import { readIndividual, variablesSetBy, type TVariableSet } from "../../quads-snapshot.js";
 import { anIndividual, type TContextPattern } from "../../schemas.js";
-import { formatRecordName, formatSeqPath, parseSeqPath, SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
+import { formatSeqPath, parseRecordName, SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
-import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
-import { readingExecution } from "../../client-cache/index.js";
 import { actionRef, calledRef, originLink, refTpl } from "./shu-ref.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { ClockController } from "../controllers/clock-controller.js";
 import { appAccessLevel } from "../../view-query.js";
+import { typeShownIn } from "../controllers/catalog-controller.js";
 
 /** The name of the delay before the pane reads a running step again. */
 const STEP_RE_READ = "step-re-read";
@@ -37,14 +36,10 @@ const STEP_RE_READ = "step-re-read";
 /** How long a burst of announcements is collected before a still-running step's record is read again. */
 const STEP_RE_READ_AFTER_MS = 400;
 
-const StateSchema = z.object({ seqPath: z.array(z.number()).default([]) });
+/** The record of the step the view shows, its type and its id, or undefined before a pane opens it. */
+const StateSchema = z.object({ record: z.object({ persistedAs: z.string(), id: z.string() }).optional() });
 
 type TStepData = { step?: Record<string, unknown>; variablesSet: TVariableSet[] };
-
-/** The record that is this step: the step path a reader navigated to, under the execution being read. */
-export function stepRecordId(path: number[], execution: string | undefined): string | undefined {
-	return execution === undefined || path.length === 0 ? undefined : formatRecordName({ execution, path });
-}
 
 export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 	/** One step as a prov:Activity: its record, and the variables it set. */
@@ -52,7 +47,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		const data = this.#load.value;
 		if (!data?.step) return null;
 		return {
-			"@id": `view:step-${formatSeqPath(this.state.seqPath)}`,
+			"@id": `view:step-${this.state.record?.id}`,
 			"@type": "prov:Activity",
 			name: "a step execution detail",
 			step: data.step,
@@ -79,40 +74,43 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 	];
 
 	constructor() {
-		super(StateSchema, { seqPath: [] });
+		super(StateSchema, {});
 	}
 
 	/** The step's record and the variables it set, keyed on the step. The variables are read from a sample of 1000 records
 	 *  of each type, which holds more variables than the sample a graph view draws. */
 	#load = new Task(this, {
-		args: () => [formatSeqPath(this.state.seqPath), readingExecution()] as const,
-		task: async ([path, execution]): Promise<TStepData> => {
-			const id = stepRecordId(parseSeqPath(path) ?? [], execution);
-			if (id === undefined) return { variablesSet: [] };
-			const [record, quadsData] = await Promise.all([
+		args: () => [this.state.record] as const,
+		task: async ([record]): Promise<TStepData> => {
+			if (record === undefined) return { variablesSet: [] };
+			const { persistedAs, id } = record;
+			const [read, quadsData] = await Promise.all([
 				// One record, read by the name it carries: a step is a record a reader opens, not a query they run.
-				readIndividual(SEQ_PATH_LABEL, id, appAccessLevel()),
+				readIndividual(persistedAs, id, appAccessLevel()),
 				conduit().follow<{ quads: TQuad[] }>(reads(RPC_METHOD.CLUSTERED_QUADS, { perTypeLimit: 1000, accessLevel: appAccessLevel() }), "step-detail: clustered quads"),
 			]);
-			return { step: record.vertex, variablesSet: variablesSetBy(quadsData.quads ?? [], id) };
+			return { step: read.vertex, variablesSet: variablesSetBy(quadsData.quads ?? [], id) };
 		},
 	});
 
-	/** Called by the pane afterAttach hook with the step's seqPath; setting the state re-keys the load task. Awaits the
-	 *  settle so the caller's attach sequence still completes after the data lands (an error surfaces in render). */
-	/** The step this pane reads, as the record it is: named only once the actuality being read is known. */
+	/** The step this pane reads, as the record it is. */
 	override paneSubject(): TContextPattern[] | null {
-		const id = stepRecordId(this.state.seqPath, readingExecution());
-		return id === undefined ? null : [anIndividual(SEQ_PATH_LABEL, id)];
+		const { record } = this.state;
+		return record === undefined ? null : [anIndividual(record.persistedAs, record.id)];
 	}
 
-	async open(seqPath: number[]): Promise<void> {
-		this.setState({ seqPath });
+	/** Opens the step record `id` as a record's view opens its record, which re-keys the read. Resolves once the read
+	 *  settles, so a pane's attach ends after the data arrives; a failed read shows in the view. Throws for a record of a
+	 *  type whose declaration doesn't name this view. */
+	async open(id: string, persistedAs: string): Promise<void> {
+		const shown = typeShownIn(SHU_TAG.STEP_DETAIL);
+		if (persistedAs !== shown) throw new Error(`<${SHU_TAG.STEP_DETAIL}> shows a ${shown} record, and was opened at a record of ${persistedAs}`);
+		this.setState({ record: { persistedAs, id } });
 		// Opening a step is a reader's move to it, stated as a record column states its record. The load below runs again
 		// whenever the actuality being read moves on, which isn't a move of the reader's, so it doesn't state the subject.
 		const patterns = this.paneSubject();
 		if (patterns)
-			this.dispatchEvent(new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns, accessLevel: appAccessLevel(), label: SEQ_PATH_LABEL }, bubbles: true, composed: true }));
+			this.dispatchEvent(new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns, accessLevel: appAccessLevel(), label: persistedAs }, bubbles: true, composed: true }));
 		await this.updateComplete;
 		await this.#load.taskComplete.catch(() => undefined);
 	}
@@ -144,8 +142,10 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 	}
 
 	render(): TemplateResult {
-		const key = formatSeqPath(this.state.seqPath);
-		if (!key) return html`<div class="empty"><shu-spinner></shu-spinner> Loading step…</div>`;
+		const { record } = this.state;
+		if (record === undefined) return html`<div class="empty"><shu-spinner></shu-spinner> Loading step…</div>`;
+		const name = parseRecordName(record.id);
+		const key = name === undefined ? record.id : formatSeqPath(name.path);
 		return this.#load.render({
 			initial: () => html`<div class="empty"><shu-spinner></shu-spinner> Loading step [${key}]...</div>`,
 			pending: () => html`<div class="empty"><shu-spinner></shu-spinner> Loading step [${key}]...</div>`,

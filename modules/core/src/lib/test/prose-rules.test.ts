@@ -118,8 +118,7 @@ describe("each rule", () => {
 	});
 
 	it("reports a sentence that ends on a preposition, in a comment, a prose string and Markdown", () => {
-		const comment =
-			"/** The graph area's composition root: the engine a persistence option names, the graph store actuality holds and the directory actuality keeps files in. */";
+		const comment = "/** The graph area's composition root: the engine a persistence option names, the graph store actuality holds and the directory actuality keeps files in. */";
 		expect(rulesOf(violationsIn(SOURCE, comment))).toEqual([TERMINAL_PREPOSITION]);
 		expect(rulesOf(violationsIn(SOURCE, "// Makes one edge label and the indexes a read of a record's edges reads it by."))).toEqual([TERMINAL_PREPOSITION]);
 		expect(rulesOf(violationsIn(SOURCE, "/** The text search configuration a search reads words with. */"))).toEqual([TERMINAL_PREPOSITION]);

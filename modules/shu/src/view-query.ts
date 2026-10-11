@@ -11,7 +11,7 @@
  * `parseInt || 0`). The schema is the contract.
  *
  * SCOPE: this owns the QUERY params (label, q, sort, order, offset, access, f). The pane params
- * (col, active) and affordance deep-links (aff-goal, aff-waypoint) are still owned by PaneState and
+ * (col, active) and affordance deep-links (aff-goal, aff-waypoint) are still the pane machine's and
  * the affordances panel; `set()` merges its params over the live hash so those survive untouched,
  * letting them be migrated into this store incrementally.
  */

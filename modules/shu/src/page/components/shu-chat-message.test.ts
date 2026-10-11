@@ -4,11 +4,10 @@
  * links to the records it carries, so a reader opens what was asked about from the message itself.
  */
 import { declareSpec } from "../../test/catalog-fixture.js";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { anIndividual, aType } from "../../schemas.js";
 import { INITIAL_SUBJECT, SCOPE, currentSubjectState, scopeEntry } from "../../current-subject.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import { PaneState } from "../../pane-state.js";
 import { followPaneLink } from "./ref-navigation.js";
 import { ChatMessageSchema, FORK_CONTROLS, ShuChatMessage } from "./shu-chat-message.js";
 import { SHU_EVENT } from "../../domains/elements.js";
@@ -16,6 +15,7 @@ import "./shu-ref-element.js";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 import { REF_DENOTES, markdownRef } from "@haibun/core/lib/typed-links.js";
 import { ICON_STEP_COMPLETED, RETURNED_TO_CALLER } from "@haibun/core/schema/protocol.js";
+import { followPaneRequests } from "../../test/pane-requests.js";
 
 const BUNDLE = { patterns: [anIndividual("Email", "a@test.com"), aType("Email")], accessLevel: "private" };
 
@@ -70,10 +70,10 @@ describe("what a question carries", () => {
 
 	it("opens the linked record without selecting the question", async () => {
 		const el = await rendered({ id: "q1", role: "user", text: "what is this", turn: "cmt-ask-0.1.2", recordId: "cmt-ask-0.1.2", bundle: BUNDLE });
-		const opened = vi.spyOn(PaneState, "requestFrom").mockImplementation(() => undefined);
+		const opened = followPaneRequests();
 		el.querySelector(`[data-testid="${SHU_TEST_IDS.APP.CHAT_CARRIES}"] shu-ref`)?.shadowRoot?.querySelector("a")?.click();
-		expect(opened.mock.calls.map(([, pane]) => pane)).toEqual([{ paneType: "entity", persistedAs: "Email", id: "a@test.com" }]);
-		opened.mockRestore();
+		expect(opened.requested).toEqual([{ paneType: "entity", persistedAs: "Email", id: "a@test.com" }]);
+		opened.stop();
 		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar), "the question is not selected").toBeNull();
 		(el.querySelector(".chat-prompt") as HTMLElement).click();
 		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar)?.record, "a click on the question itself selects it").toEqual({ id: "cmt-ask-0.1.2", label: "Comment" });

@@ -1,9 +1,8 @@
 /** The page's hash, as a view and the page's reads read, write and follow it (`page/pipelines/page-hash.ts`). */
-import { pageHashHeld, pageLocation } from "../root.js";
+import { pageHashScope } from "../root.js";
 import * as PageHash from "../pipelines/page-hash.js";
-import { isOffline } from "./hydration-controller.js";
 
-const scope = (): PageHash.THashScope => ({ location: pageLocation(), held: pageHashHeld(), carried: isOffline() });
+const scope = (): PageHash.THashScope => pageHashScope();
 
 /** Calls `listener` at each arrival at a hash and each write of one. Returns the call that stops it. */
 export const onHashChanged = (listener: () => void): (() => void) => PageHash.onHashChanged(scope(), listener);

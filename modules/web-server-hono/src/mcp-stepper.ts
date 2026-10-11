@@ -87,20 +87,17 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 
 	/** Call a step by its method, as a tool call names it, under the capability the caller was granted and as whoever it
 	 *  proved to be. */
-	public async executeTool(name: string, args: Record<string, unknown>, call: TCallAuthority = { invoked: undefined, held: undefined }, principal?: string): Promise<CallToolResult> {
+	public async executeTool(
+		name: string,
+		args: Record<string, unknown>,
+		call: TCallAuthority = { invoked: undefined, held: undefined },
+		principal?: string,
+	): Promise<CallToolResult> {
 		const tool = this.registry().get(name);
 		// A call is refused before its input is read, and alike whether its step exists, as it is over RPC.
 		const lacked = tool && lackedByCall(call, tool.descriptor);
 		if (!tool || lacked)
-			return {
-				isError: true,
-				content: [
-					{
-						type: "text",
-						text: refusal(name, lacked, delegateOf({ held: [call.held ?? []].flat(), principal }, this.webserver())),
-					},
-				],
-			};
+			return { isError: true, content: [{ type: "text", text: refusal(name, lacked, delegateOf({ held: [call.held ?? []].flat(), principal }, this.webserver())) }] };
 		try {
 			const world = this.getWorld();
 			// MCP callers don't have a haibun seqPath; the server synthesises one.
@@ -140,7 +137,9 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 
 		// --- HANDLER 2: CALL TOOL ---
 		// A call runs under what its request presented, which the middleware verified over the whole request.
-		mcpServer.server.setRequestHandler(CallToolRequestSchema, (request) => this.executeTool(request.params.name, request.params.arguments ?? {}, { invoked: authorizedWith(), held: callerHolds() }, actingAs()));
+		mcpServer.server.setRequestHandler(CallToolRequestSchema, (request) =>
+			this.executeTool(request.params.name, request.params.arguments ?? {}, { invoked: authorizedWith(), held: callerHolds() }, actingAs()),
+		);
 
 		// --- HANDLER 3: LIST RESOURCES ---
 		mcpServer.server.setRequestHandler(ListResourcesRequestSchema, (_request, _extra) => {
