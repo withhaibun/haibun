@@ -18,7 +18,7 @@ import { LoadController } from "../controllers/load-controller.js";
 import type { TCallOutcome } from "../pipelines/call-step.js";
 import "./shu-refusal.js";
 import { getEdgeRanges, getQueryableFields, getRels, getTypeDescription, getTypes, getUiPresenting, isSystemSchemaType, refContext } from "../controllers/catalog-controller.js";
-import { arrayWindowedSource, readWindowedSource, type WindowedSource } from "../../windowed-source.js";
+import { arrayWindowedSource, readWindowedSource, unmarked, type WindowedSource } from "../derivations/windowed-source.js";
 
 /** How many of a type's individuals one read answers. The column lists every individual the type has, a page at a time
  *  as a reader reaches it, rather than the first page without a statement that the rest are there. */
@@ -37,7 +37,7 @@ const IDS = SHU_TEST_IDS.TYPE_COLUMN;
 import { deepLinkOf, followDeepLink, openRef, paneHref, refHref } from "./ref-navigation.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { aType, type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
-import { NODE_KIND, type TGraph } from "../../graph/types.js";
+import { NODE_KIND, type TGraph } from "../domains/graph.js";
 import { ShuProductView } from "./shu-product-view.js";
 import { appAccessLevel } from "../../view-query.js";
 import { renderRefProse } from "../derivations/markdown.js";
@@ -121,13 +121,13 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 	static persistFields = ["fullSchema"] as const;
 
 	/** What the column reads of the type's individuals: each page the reader reaches, read as the table reaches it. */
-	#readInstances: () => Promise<TCallOutcome<WindowedSource<VertexData>>> = () => Promise.resolve({ ok: true, value: arrayWindowedSource<VertexData>([]) });
+	#readInstances: () => Promise<TCallOutcome<WindowedSource<VertexData>>> = () => Promise.resolve({ ok: true, value: arrayWindowedSource<VertexData>([], []) });
 	readonly #instancesRead = new LoadController<WindowedSource<VertexData>>(this, () => this.#readInstances());
 
 	/** The type's individuals the column holds, or an empty source before its read completes. */
 	get #instances(): WindowedSource<VertexData> {
 		const page = this.#instancesRead.page;
-		return page === undefined ? arrayWindowedSource<VertexData>([]) : page;
+		return page === undefined ? arrayWindowedSource<VertexData>([], []) : page;
 	}
 
 	/** The individuals read so far: the page the column read, and whatever a reader has scrolled to since. */
@@ -158,17 +158,15 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		// registered topology) doesn't have any and would fail a graphQuery with "Unknown label"; and a registered schema presenter
 		// lists individuals in its own tab, so the column shows only the schema position (description + scoped schema graph).
 		if (!getTypes().includes(persistedAs) || ShuTypeColumn.schemaPresenter() !== undefined) {
-			this.#instancesRead.hold(arrayWindowedSource<VertexData>([]));
+			this.#instancesRead.hold(arrayWindowedSource<VertexData>([], []));
 			return;
 		}
 		const of = { label: persistedAs, accessLevel: appAccessLevel() };
 		this.#readInstances = async () => {
-			const first = await queryRead({ ...of, limit: INSTANCES_PAGE });
+			const first = await queryRead({ ...of, limit: INSTANCES_PAGE, offset: 0 });
 			if (!first.ok) return first;
-			return {
-				ok: true,
-				value: readWindowedSource<VertexData>({ size: INSTANCES_PAGE, read: (start, end) => queryGraph({ ...of, limit: end - start, offset: start }), held: first.value }),
-			};
+			const read = (start: number, end: number) => queryGraph({ ...of, limit: end - start, offset: start });
+			return { ok: true, value: readWindowedSource<VertexData>({ size: INSTANCES_PAGE, read, held: first.value, from: 0, markers: unmarked }) };
 		};
 		await this.#instancesRead.run();
 	}

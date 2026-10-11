@@ -19,8 +19,8 @@
  */
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { isInstrumentationType } from "./page/controllers/catalog-controller.js";
-import { isSchemaType } from "./graph/ontology-projection.js";
-import { isEdgeQuad } from "./graph-model.js";
+import { isSchemaType } from "./derivations/ontology-projection.js";
+import { isEdgeQuad } from "./derivations/graph-model.js";
 
 export function projectFilterClusters(opts: { knownClusters: Map<string, TCluster>; allQuads: TQuad[]; visibleQuads: TQuad[]; timeCursor: number | null }): TCluster[] {
 	if (opts.timeCursor === null) {

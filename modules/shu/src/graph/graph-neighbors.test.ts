@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildNeighbors, connectedNodes } from "./graph-neighbors.js";
-import type { TGraph } from "./types.js";
+import type { TGraph } from "../page/domains/graph.js";
 
 const sampleGraph = (): TGraph => ({
 	direction: "LR",

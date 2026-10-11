@@ -15,8 +15,8 @@ import { LoadController } from "../controllers/load-controller.js";
 import "./shu-refusal.js";
 import { type TEvent } from "../ports.js";
 import { AFFORDANCE_EVENT_PREFIX } from "@haibun/core/lib/affordances.js";
-import { producingStepOf, projectDomainChain, waypointNodeId, type TAffordancesSnapshot, type TWaypointSnapshot } from "../../graph/project-domain-chain.js";
-import { graphToQuads } from "../../graph/graph-quads.js";
+import { producingStepOf, projectDomainChain, waypointNodeId, type TAffordancesSnapshot, type TWaypointSnapshot } from "../derivations/project-domain-chain.js";
+import { graphToQuads } from "../derivations/graph-quads.js";
 import { SHU_EVENT, AFFORDANCE_PARAM, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import * as PageHash from "../controllers/hash-controller.js";
@@ -27,7 +27,7 @@ import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { noteExecution } from "../client-cache/controllers/device-controller.js";
 import { ShuElement, EmptyStateSchema, type TLinkedData } from "./shu-element.js";
-import { NODE_KIND, nodeIn, type TGraph, type TGraphNode } from "../../graph/types.js";
+import { NODE_KIND, nodeIn, type TGraph, type TGraphNode } from "../domains/graph.js";
 import { graphPresenterTag, mountGraphPresenter, presenterIn } from "../controllers/presenter-controller.js";
 import type { TGraphPresenter, TPresenterNodeClick } from "../ports.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
@@ -42,15 +42,17 @@ const CHAIN_GRAPH = { slot: SHU_TEST_IDS.DOMAIN_CHAIN.GRAPH, scope: "domain-chai
  *  is of: its facts are that execution's, so the page reads that execution, and a fact's step opens there. Throws for products
  *  that don't carry the snapshot. */
 function snapshotOf(p: Record<string, unknown>): TAffordancesSnapshot {
-	if (!Array.isArray(p.forward) || !Array.isArray(p.goals) || typeof p.execution !== "string") {
-		throw new Error(`shu-domain-chain-view takes \`forward\` and \`goals\` arrays and the \`execution\` they are of. Received keys: [${Object.keys(p).join(", ")}].`);
+	if (!Array.isArray(p.forward) || !Array.isArray(p.goals) || !Array.isArray(p.satisfiedDomains) || typeof p.execution !== "string") {
+		throw new Error(
+			`shu-domain-chain-view takes \`forward\`, \`goals\` and \`satisfiedDomains\` arrays and the \`execution\` they are of. Received keys: [${Object.keys(p).join(", ")}].`,
+		);
 	}
 	const snapshot: TAffordancesSnapshot = {
 		forward: p.forward as TAffordancesSnapshot["forward"],
 		goals: p.goals as TAffordancesSnapshot["goals"],
 		composites: p.composites as TAffordancesSnapshot["composites"],
 		waypoints: Array.isArray(p.waypoints) ? (p.waypoints as TWaypointSnapshot[]) : undefined,
-		satisfiedDomains: Array.isArray(p.satisfiedDomains) ? (p.satisfiedDomains as string[]) : undefined,
+		satisfiedDomains: p.satisfiedDomains as string[],
 		satisfiedFacts: typeof p.satisfiedFacts === "object" && p.satisfiedFacts !== null ? (p.satisfiedFacts as Record<string, string[]>) : undefined,
 	};
 	noteExecution(p.execution);

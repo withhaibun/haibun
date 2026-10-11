@@ -26,7 +26,7 @@ import "./shu-virtual-column.js";
 import { virtualColumnCss } from "./shu-virtual-column.js";
 import { atLiveEdge, RunController, type RunSource, type TEventRecord } from "../client-cache/controllers/run-controller.js";
 import { renderedAt } from "../client-cache/derivations/rendered-rows.js";
-import type { WindowedSource } from "../../windowed-source.js";
+import type { WindowedSource } from "../derivations/windowed-source.js";
 import { splitDocumentBlocks, finalizeBlocks, blocksByEvent, blockText, isArtifactOf, type TDocBlock } from "../derivations/document-blocks.js";
 import { cursorMark, rowAtCursor, rowTimeClass, timedRows, type TTimedRows } from "../derivations/rail.js";
 import type { TScrollMarker } from "../derivations/rail.js";

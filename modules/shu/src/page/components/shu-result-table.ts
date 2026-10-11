@@ -27,7 +27,7 @@ import { ellipsize } from "@haibun/core/lib/util/index.js";
 import { getIdField, getPropertyOrder } from "../controllers/catalog-controller.js";
 import "./shu-virtual-column.js";
 import { virtualColumnCss } from "./shu-virtual-column.js";
-import { arrayWindowedSource, statedCountOf, type WindowedSource } from "../../windowed-source.js";
+import { arrayWindowedSource, statedCountOf, type WindowedSource } from "../derivations/windowed-source.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
 import { renderRef } from "../derivations/markdown.js";
 import { countRef } from "./shu-ref.js";
@@ -114,7 +114,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 	}
 	private selectedIds = new Set<string>();
 	#multiType = false;
-	#residentSource = arrayWindowedSource<VertexRow>([]);
+	#residentSource = arrayWindowedSource<VertexRow>([], []);
 	#source: WindowedSource<VertexRow> = this.#residentSource;
 	#unsub: (() => void) | null = null;
 

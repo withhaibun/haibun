@@ -9,7 +9,7 @@ import { beforeEach, describe, it, expect } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import "./shu-result-table.js"; // side-effect import runs the module so customElements.define registers the element
 import type { ShuResultTable } from "./shu-result-table.js";
-import { arrayWindowedSource } from "../../windowed-source.js";
+import { arrayWindowedSource } from "../derivations/windowed-source.js";
 import { SHU_EVENT } from "../../domains/elements.js";
 import { declareSpec } from "../../test/catalog-fixture.js";
 
@@ -166,7 +166,7 @@ describe("shu-result-table", () => {
 
 	it("drives the same render from an external windowed source", async () => {
 		const el = await mount();
-		const src = arrayWindowedSource<Row>(rows(3));
+		const src = arrayWindowedSource<Row>(rows(3), []);
 		el.setSource(src);
 		await settle(el);
 		expect(q(el, ".clickable-row")).toHaveLength(3);
@@ -175,7 +175,7 @@ describe("shu-result-table", () => {
 
 	it("re-renders when the external source appends (a live re-query)", async () => {
 		const el = await mount();
-		const src = arrayWindowedSource<Row>(rows(2));
+		const src = arrayWindowedSource<Row>(rows(2), []);
 		el.setSource(src);
 		await settle(el);
 		expect(q(el, ".clickable-row")).toHaveLength(2);

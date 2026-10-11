@@ -24,7 +24,7 @@ import "./shu-refusal.js";
 import { isOffline } from "../controllers/hydration-controller.js";
 import { getAvailableSteps } from "../controllers/registry-controller.js";
 import { QueryController } from "../controllers/query-controller.js";
-import { arrayWindowedSource, readWindowedSource, type WindowedSource } from "../../windowed-source.js";
+import { arrayWindowedSource, readWindowedSource, unmarked, type WindowedSource } from "../derivations/windowed-source.js";
 import { SettingController } from "../controllers/setting-controller.js";
 import { INITIAL_WINDOW_SIZE, WindowSizeSchema } from "../domains/settings.js";
 import { windowRows } from "../derivations/settings.js";
@@ -64,7 +64,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	#metadata: Promise<void> = Promise.resolve();
 	/** The query's row count and whether that count stopped at a ceiling. */
 	#counted: TCounted = counted(0);
-	#source: WindowedSource<VertexRow> = arrayWindowedSource<VertexRow>([]);
+	#source: WindowedSource<VertexRow> = arrayWindowedSource<VertexRow>([], []);
 	#installedSource: WindowedSource<VertexRow> | null = null;
 
 	/** The current search as linked data: the rows the visible page shows, with the query that produced them.
@@ -274,7 +274,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 			this.lastQueriedLabel = label;
 			this.results = [];
 			this.#counted = counted(0);
-			this.#source = arrayWindowedSource<VertexRow>([]);
+			this.#source = arrayWindowedSource<VertexRow>([], []);
 			this.requestUpdate();
 		}
 
@@ -369,6 +369,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 			read: (start, end) => this.#query.run({ ...payload, limit: end - start, offset: start }),
 			held: { vertices: page0, ...this.#counted },
 			from: startRow,
+			markers: unmarked,
 		});
 	}
 
@@ -408,7 +409,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		this.#remedies = remedies;
 		this.results = [];
 		this.#counted = counted(0);
-		this.#source = arrayWindowedSource<VertexRow>([]);
+		this.#source = arrayWindowedSource<VertexRow>([], []);
 		this.requestUpdate();
 	}
 

@@ -40,7 +40,7 @@ import { NO_ELEMENT, ROUND_TRIP_MS, SETTLES_MS, STATE_MS } from "./domains/waits
 import { attached, comesToHold, nodeMatching, percent, pollUntil, until } from "./pipelines/page-reads.js";
 import { controlled } from "./root.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import { SCHEMA_TYPES } from "../graph/ontology-projection.js";
+import { SCHEMA_TYPES } from "../domains/ontology.js";
 import { type TPaneOpen } from "../page/derivations/pane-kinds.js";
 
 /** The page's main graph: the one view that draws the page's own data. */

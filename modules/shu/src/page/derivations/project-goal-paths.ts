@@ -17,7 +17,7 @@
  *     sub-fields INTO that producer step instead of attaching them to the
  *     field slot; the producer step's output edge then fills the slot. So a
  *     sub-composite field whose domain is `B` and a step in the chain that
- *     produces `B` end up structurally connected: the sub-fields go into the
+ *     produces `B` end up structurally connected: the sub-fields feed the
  *     `B`-producing step, and that step's output becomes the slot's value.
  *   - Edges are labelled with the slot or domain they carry, field name on
  *     value-into-slot edges, produced domain on producer-step output edges,
@@ -40,8 +40,9 @@
  * path to emphasise by passing the same id back.
  */
 import { GOAL_FINDING, type TBinding, type TFieldBinding, type TMichi } from "@haibun/core/lib/goal-resolver.js";
-import { EDGE_KIND, NODE_KIND, type TGraph, type TGraphEdge, type TGraphNode } from "./types.js";
+import { EDGE_KIND, NODE_KIND, kindOfEdge, type TGraph, type TGraphEdge, type TGraphNode } from "../domains/graph.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { stepLabelOf } from "./steps.js";
 
 export function pathId(index: number): string {
 	return `path-${index}`;
@@ -74,15 +75,14 @@ class EdgeBag {
 	private readonly byKey = new Map<string, TGraphEdge>();
 
 	add(edge: TGraphEdge): void {
-		const key = `${edge.from}|${edge.to}|${edge.kind ?? EDGE_KIND.default}|${edge.label ?? ""}`;
+		const key = JSON.stringify([edge.from, edge.to, kindOfEdge(edge), edge.label]);
 		const existing = this.byKey.get(key);
 		if (!existing) {
 			this.byKey.set(key, { ...edge, paths: edge.paths ? [...edge.paths] : undefined });
 			return;
 		}
 		if (!edge.paths) return;
-		const merged = new Set(existing.paths ?? []);
-		for (const p of edge.paths) merged.add(p);
+		const merged = new Set(existing.paths === undefined ? edge.paths : [...existing.paths, ...edge.paths]);
 		existing.paths = [...merged];
 	}
 
@@ -134,7 +134,7 @@ function emitField(field: TFieldBinding, parentDomain: string, parentPath: strin
 	// Primitive arguments (without a typed domain) render as yellow `argument` nodes
 	// so the chain's entry points are visible. Typed slots and intermediate
 	// composite fields stay purple: the incoming edge from the producer step
-	// or typed-argument node tells the reader where the value comes from.
+	// or typed-argument node shows the source of the value.
 	const isPrimitiveArgument = field.kind === "argument" && (!field.fieldDomain || field.fieldDomain === field.fieldName);
 	ctx.nodes.set(fieldId, { id: fieldId, label: fieldLabel, kind: isPrimitiveArgument ? NODE_KIND.argument : NODE_KIND.field });
 
@@ -152,7 +152,7 @@ function emitField(field: TFieldBinding, parentDomain: string, parentPath: strin
 				id: factId,
 				label: `${field.fieldDomain}#${field.factId}`,
 				kind: NODE_KIND.satisfied,
-				wasGeneratedBy: { factId: field.factId, domain: field.fieldDomain ?? "" },
+				wasGeneratedBy: { factId: field.factId, domain: field.fieldDomain },
 			});
 		ctx.edges.add({ from: factId, to: fieldId, kind: EDGE_KIND.ready, paths: [ctx.pid], label: field.fieldName });
 	} else {
@@ -164,7 +164,7 @@ function emitField(field: TFieldBinding, parentDomain: string, parentPath: strin
 		const producerStepId = field.fieldDomain ? ctx.producerByDomain.get(field.fieldDomain) : undefined;
 		if (producerStepId) {
 			for (const sub of field.fields) emitField(sub, field.fieldDomain || parentDomain, fieldPath, producerStepId, ctx);
-			ctx.edges.add({ from: producerStepId, to: fieldId, kind: EDGE_KIND.ready, paths: [ctx.pid], label: field.fieldDomain ?? "" });
+			ctx.edges.add({ from: producerStepId, to: fieldId, kind: EDGE_KIND.ready, paths: [ctx.pid], label: field.fieldDomain });
 		} else {
 			for (const sub of field.fields) emitField(sub, field.fieldDomain || parentDomain, fieldPath, fieldId, ctx);
 		}
@@ -219,12 +219,7 @@ export function projectGoalPaths(input: TGoalPathsInput): TGraph {
 			stepIds.push(stepId);
 			producerByDomain.set(step.productsDomain, stepId);
 			if (!nodes.has(stepId)) {
-				nodes.set(stepId, {
-					id: stepId,
-					label: step.gwta ?? `${step.stepperName}.${step.stepName}`,
-					kind: NODE_KIND.default,
-					invokes: { stepperName: step.stepperName, stepName: step.stepName },
-				});
+				nodes.set(stepId, { id: stepId, label: stepLabelOf(step), kind: NODE_KIND.default, invokes: { stepperName: step.stepperName, stepName: step.stepName } });
 			}
 		});
 

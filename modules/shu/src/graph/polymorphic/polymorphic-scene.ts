@@ -6,7 +6,8 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { html, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "../../page/components/shu-element.js";
-import { SITE_KEY, HYPERMEDIA_ROLE_REL_KEY, omittedOf, type GraphModel } from "../../graph-model.js";
+import { SITE_KEY, HYPERMEDIA_ROLE_REL_KEY, type GraphModel } from "../../domains/graph-model.js";
+import { omittedOf } from "../../derivations/graph-model.js";
 import { readsEveryStatement, statedAboutFirst } from "./polymorphic-summary.js";
 import { DEFAULT_PER_TYPE_LIMIT } from "../../quads-snapshot.js";
 import { SCOPE, dispatchSubjectEvent, entryOf } from "../../current-subject.js";
@@ -38,7 +39,7 @@ import { DataPipeline, visibleGraphModel } from "./polymorphic-data-pipeline.js"
 import { type RenderType, type TViewForces, buildRenderTypeRegistry } from "./polymorphic-render-type.js";
 import type { ViewType } from "./polymorphic-views.js";
 import { FRAME, VIEW, viewChangeRebuildsNodes } from "./polymorphic-views.js";
-import { isSchemaType, propertyVocabulary } from "../ontology-projection.js";
+import { isSchemaType, propertyVocabulary } from "../../derivations/ontology-projection.js";
 import { actorTypesFor, roleEdgeLabels, roleNounFor, validTimeFieldOf } from "../../page/controllers/catalog-controller.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { compositeRenderer, threeRenderer, type IGraphRenderer } from "./polymorphic-renderer.js";

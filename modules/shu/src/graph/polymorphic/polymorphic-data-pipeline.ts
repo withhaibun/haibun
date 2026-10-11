@@ -14,12 +14,13 @@ import { groupKeyOf, type GroupKeyMode, type GroupAnchor, type XYZ } from "../gr
 import { timeZScale, timeZ, spanZScale, spanZ, subjectValidTimes, type TimeZScale, type TSubjectTimes } from "../time-axis.js";
 import { quadsToGanttModel } from "../gantt-model.js";
 import { browserRelOf } from "../paint-select.js";
-import { isSchemaType } from "../ontology-projection.js";
+import { isSchemaType } from "../../derivations/ontology-projection.js";
 import { computeLayout, type Adornment } from "../graph-layout.js";
 import { hashModel, linkKey } from "./model-hash.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import type { TQuad, TCluster } from "@haibun/core/lib/quad-types.js";
-import { buildGraphModelFromQuads, omittedLabel, type GraphModel } from "../../graph-model.js";
+import type { GraphModel } from "../../domains/graph-model.js";
+import { buildGraphModelFromQuads, omittedLabel } from "../../derivations/graph-model.js";
 import { type FGNode, type FGLink, linkEndId } from "./polymorphic-graph-types.js";
 
 const NEWCOMER_SEED_SPREAD = 40; // a streamed node spawns within this radius of its neighbour/type so it eases in instead of flying from the origin

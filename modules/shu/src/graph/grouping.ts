@@ -3,7 +3,7 @@
  * transition easing. Each paint maps these to its own rendering constants (opacity, render order, etc.).
  */
 
-import { HYPERMEDIA_ROLE_KEY } from "../graph-model.js";
+import { HYPERMEDIA_ROLE_KEY } from "../domains/graph-model.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 export type XYZ = { x: number; y: number; z: number };

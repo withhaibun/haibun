@@ -421,9 +421,6 @@
 	"modules/shu/src/graph-filter-projection.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/shu/src/graph-model.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/graph/focus-policy.ts": {
 		"isn't in a kind position": 1
 	},
@@ -439,9 +436,6 @@
 	"modules/shu/src/graph/graph-neighbors.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/shu/src/graph/graph-quads.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/graph/graph-scene.ts": {
 		"isn't in a kind position": 1
 	},
@@ -455,9 +449,6 @@
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/graph/node-presenters.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/graph/ontology-projection.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/graph/paint-select.ts": {
@@ -562,12 +553,6 @@
 	"modules/shu/src/graph/polymorphic/sequence-model.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/shu/src/graph/project-domain-chain.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/graph/project-goal-paths.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/graph/sequence-model-types.ts": {
 		"isn't in a kind position": 1
 	},
@@ -581,9 +566,6 @@
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/graph/type-presentation.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/graph/types.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/known-size-flow.ts": {
@@ -608,9 +590,6 @@
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/view-query.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/windowed-source.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/storage-fs/src/storage-fs.ts": {

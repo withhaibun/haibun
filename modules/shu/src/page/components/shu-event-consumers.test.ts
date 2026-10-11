@@ -11,7 +11,7 @@ import { ShuDocumentColumn } from "./shu-document-column.js";
 import type { ShuArtifactFrame } from "./shu-artifact-frame.js";
 import { WINDOW_CHANGED, ShuVirtualColumn } from "./shu-virtual-column.js";
 import { SCROLL_TO_INDEX } from "./shu-scrollbar.js";
-import type { WindowedSource } from "../../windowed-source.js";
+import type { WindowedSource } from "../derivations/windowed-source.js";
 import { html } from "lit";
 import { timeCursor } from "../controllers/page-cell-controller.js";
 import { setupShuTest, storeFields, type TShuTestHandle } from "../../test/setup.js";

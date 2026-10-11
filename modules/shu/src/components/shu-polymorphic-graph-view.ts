@@ -11,7 +11,7 @@ import { conduit } from "../page/controllers/conduit-controller.js";
 import type { TPresenterNodeClick } from "../page/ports.js";
 import { applyScene, captureScene, listScenes, readScene, saveScene, type TSceneState } from "../scenes.js";
 import { SCENE_LABEL } from "@haibun/core/lib/resources.js";
-import { SCHEMA_TYPES } from "../graph/ontology-projection.js";
+import { SCHEMA_TYPES } from "../domains/ontology.js";
 
 /** The time a reader is looking at, held in a scene beside the views' own options. It is not an element's option but the shared time signal, so it is recorded under its own key. */
 const TIME_CURSOR_KEY = "time-cursor";

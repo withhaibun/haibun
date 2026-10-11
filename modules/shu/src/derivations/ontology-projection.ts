@@ -4,30 +4,29 @@
  * to an instance graph's response with an `a` edge from each instance to its Class. A view draws the ontology as it draws
  * any other graph.
  */
-import { CLASS_LABEL, HAIBUN_NS, HAIBUN_PREFIXES, PROPERTY_LABEL, type TRegisteredDomain } from "@haibun/core/lib/resources.js";
+import { CLASS_LABEL, HAIBUN_NS, HAIBUN_PREFIXES, type TRegisteredDomain } from "@haibun/core/lib/resources.js";
 import type { TQuad, TClusteredQuads } from "@haibun/core/lib/quad-types.js";
 import { ancestorsWith, ontologyToQuads, superMap, withStandardTerms, type TStandardTerm } from "@haibun/core/lib/records/derivations/ontology.js";
 import { ONTOLOGY_FIELD } from "@haibun/core/lib/records/domains/ontology.js";
+import { SCHEMA_TYPES, UNPREFIXED_VOCABULARY } from "../domains/ontology.js";
 
 /** The edge from an individual to the class it is an instance of, named as JSON-LD's `@type` and Turtle's `a` name it. */
 const INSTANCE_OF = "a";
-
-/** The two types a schema's graph draws, Class and Property. */
-export const SCHEMA_TYPES: readonly string[] = [CLASS_LABEL, PROPERTY_LABEL];
 
 /** Whether a @type is one of the two schema clusters: the ONE predicate every schema-aware surface reuses: the filter
  *  (default-hide), the paint (distinct shape), and the layout (timeless, so pinned to the front z=0 plane, not the age axis). */
 export const isSchemaType = (type: string): boolean => SCHEMA_TYPES.includes(type);
 
 /** A property's provenance, keyed off its IRI. `haibun` when the term is haibun's own vocabulary: a CURIE under one of
- *  haibun's own prefixes, or an IRI under HAIBUN_NS. Otherwise the term belongs to a separate vocabulary (a standard, or a
+ *  haibun's own prefixes, or an IRI under HAIBUN_NS. Otherwise the term is of a separate vocabulary (a standard, or a
  *  consumer's own) and is identified by that vocabulary's own prefix: this doesn't assume a closed set of
  *  non-haibun vocabularies. Lets a view mark haibun-added fields distinctly and group a type's properties by their vocabulary. */
 export function propertyVocabulary(iri: string): { source: "haibun" | "standard"; prefix: string } {
 	const colon = iri.indexOf(":");
 	const curiePrefix = colon > 0 && !iri.startsWith("http") ? iri.slice(0, colon) : "";
 	const isHaibun = curiePrefix ? (HAIBUN_PREFIXES as readonly string[]).includes(curiePrefix) : iri.startsWith(HAIBUN_NS);
-	return { source: isHaibun ? "haibun" : "standard", prefix: isHaibun ? "haibun" : curiePrefix || "?" };
+	if (isHaibun) return { source: "haibun", prefix: "haibun" };
+	return { source: "standard", prefix: curiePrefix === "" ? UNPREFIXED_VOCABULARY : curiePrefix };
 }
 
 /** True when a property's IRI is haibun's own vocabulary (not a standard term). */
@@ -96,7 +95,7 @@ export function scopeSchemaToConnected(quads: TQuad[], type: string): TQuad[] {
 
 /** Include the pruned ontology (the schema the `evidence` data exercises) in an instance-graph response, so one response
  *  carries both the data and the model that drives it: the two Class + Property clusters at t=0 (default-hidden on the
- *  client, revealed via their filter chip) plus one rdf:type (`a`) edge per instance to its Class: the edge lives in the
+ *  client, revealed via their filter chip) plus one rdf:type (`a`) edge per instance to its Class: the edge is in the
  *  instance's own graph so buildGraphModelFromQuads drops it until the Class chip is revealed, and it never inflates the
  *  Class count. The ONE assembler both the live getClusteredQuads and the offline report use, so a served report's
  *  schema view matches a live one. `evidence` is the full data (live: the observation buffer; offline: the serialized
@@ -111,7 +110,9 @@ export function withOntologySchema(
 	// view shows a standard's whole vocabulary. Each has a domain edge to its type, so scopeSchemaToType keeps it.
 	const pruned = pruneOntologyToUse(ontologyToQuads(domains), evidence);
 	const ontology = standardVocab ? withStandardTerms(pruned, standardVocab) : pruned;
-	const classNodes = new Set(ontology.clusters.find((c) => c.type === CLASS_LABEL)?.sampledSubjects ?? []);
+	// An ontology that doesn't hold a Class cluster doesn't hold a class to which an instance links.
+	const classCluster = ontology.clusters.find((c) => c.type === CLASS_LABEL);
+	const classNodes = new Set(classCluster === undefined ? [] : classCluster.sampledSubjects);
 	const typeEdges: TQuad[] = [];
 	const linkedSubjects = new Set<string>();
 	for (const q of response.quads) {

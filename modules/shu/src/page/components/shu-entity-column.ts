@@ -34,7 +34,7 @@ import {
 	getDeclaredEdgeLabel,
 	firstDeclaredType,
 } from "../controllers/catalog-controller.js";
-import { propertyVocabulary } from "../../graph/ontology-projection.js";
+import { propertyVocabulary } from "../../derivations/ontology-projection.js";
 import { linkHtml, paneHref, refHref } from "./ref-navigation.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { pageAddress } from "../controllers/hash-controller.js";

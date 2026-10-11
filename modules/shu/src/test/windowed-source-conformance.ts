@@ -9,7 +9,7 @@
  * is implemented: eviction and coalescing for the paged one, currency and levels for actuality's.
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import type { WindowedSource } from "../windowed-source.js";
+import type { WindowedSource } from "../page/derivations/windowed-source.js";
 
 /** A source ready to read, over a known number of rows. `named` names a row the source answers, and `shouldName` is
  *  what the row at an index is called, so a case names which row it read rather than that it read something. */

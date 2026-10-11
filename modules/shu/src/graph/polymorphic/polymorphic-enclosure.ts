@@ -12,7 +12,7 @@ import { roleNounFor } from "../../page/controllers/catalog-controller.js";
 import SpriteText from "three-spritetext";
 import { colorForType } from "../../type-colors.js";
 import { groupKeyOf, containerLabelOf, shelfPack, groupBounds, type GroupAnchor, type GroupKeyMode, ENCLOSURE_PAD, GROUP_GAP } from "../grouping.js";
-import { HYPERMEDIA_ROLE_REL_KEY } from "../../graph-model.js";
+import { HYPERMEDIA_ROLE_REL_KEY } from "../../domains/graph-model.js";
 import { type FGNode, type TSprite } from "./polymorphic-graph-types.js";
 import { chipTextHeight, collideRadius } from "./layout-forces.js";
 import { groupCellSize } from "./group-grid.js";

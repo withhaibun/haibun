@@ -99,6 +99,10 @@ export function normalizeStepKey(input: string): string {
 }
 
 /** Returns a step's pattern as a reader reads it, without its optional groups (`set( empty)? {what}`). */
+/** A step's label: its pattern, or its stepper and step names where it doesn't state a pattern. */
+export const stepLabelOf = (step: { gwta?: string; stepperName: string; stepName: string }): string =>
+	step.gwta === undefined ? `${step.stepperName}.${step.stepName}` : step.gwta;
+
 export const prettifyGwta = (gwta: string): string =>
 	gwta
 		.replace(/\(\s*[^()]*?\s*\)\?/g, "")

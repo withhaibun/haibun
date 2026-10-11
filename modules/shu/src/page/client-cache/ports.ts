@@ -4,7 +4,7 @@
  */
 import type { IQuadStore, TDensityQuery, TDensityResult, TGraphQuery, TGraphQueryResult, TQuad } from "@haibun/core/lib/quad-types.js";
 import type { THaibunLogLevel } from "@haibun/core/schema/protocol.js";
-import type { WindowedSource } from "../../windowed-source.js";
+import type { WindowedSource } from "../derivations/windowed-source.js";
 import type { Range } from "../derivations/rail.js";
 
 /**

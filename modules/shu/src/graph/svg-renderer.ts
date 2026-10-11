@@ -8,7 +8,7 @@ import { layeredLayout, type NodeBox } from "./layered-layout.js";
 import { presentationForType } from "./type-presentation.js";
 import { xml, MAX_SVG_LABEL, arrowMarker, ARROW_MARKER_ID, SVG_MARGIN as MARGIN } from "./svg-util.js";
 import { ellipsize } from "@haibun/core/lib/util/index.js";
-import { EDGE_KIND, NODE_KIND, type IGraphRenderer, type TGraph, type TGraphEdge, type TGraphRenderOptions } from "./types.js";
+import { EDGE_KIND, NODE_KIND, type IGraphRenderer, type TGraph, type TGraphEdge, type TGraphRenderOptions } from "../page/domains/graph.js";
 
 /** Built-in node styling by `kind`; consumers override via `graph.styles[kind]`. */
 const DEFAULT_NODE = { fill: "#eee", stroke: "#999" };

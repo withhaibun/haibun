@@ -182,12 +182,6 @@
 		"anthropomorphic": 1,
 		"relation-verb": 1
 	},
-	"modules/shu/src/graph/ontology-projection.test.ts": {
-		"relation-verb": 1
-	},
-	"modules/shu/src/graph/ontology-projection.ts": {
-		"relation-verb": 2
-	},
 	"modules/shu/src/graph/paint-select.ts": {
 		"relation-verb": 1
 	},
@@ -362,14 +356,6 @@
 		"relation-verb": 4,
 		"terminal-preposition": 1
 	},
-	"modules/shu/src/graph/project-domain-chain.ts": {
-		"terminal-preposition": 1
-	},
-	"modules/shu/src/graph/project-goal-paths.ts": {
-		"anthropomorphic": 1,
-		"relation-verb": 1,
-		"terminal-preposition": 1
-	},
 	"modules/shu/src/graph/svg-renderer.ts": {
 		"relation-verb": 1
 	},
@@ -382,10 +368,6 @@
 	},
 	"modules/shu/src/graph/type-presentation.ts": {
 		"anthropomorphic": 1
-	},
-	"modules/shu/src/graph/types.ts": {
-		"relation-verb": 2,
-		"terminal-preposition": 4
 	},
 	"modules/shu/src/known-size-flow.test.ts": {
 		"anthropomorphic": 1
@@ -785,18 +767,6 @@
 		"anthropomorphic": 1,
 		"negated-noun": 2,
 		"terminal-preposition": 1
-	},
-	"modules/shu/src/windowed-source.model.test.ts": {
-		"relation-verb": 1,
-		"the-run": 2
-	},
-	"modules/shu/src/windowed-source.test.ts": {
-		"relation-verb": 1
-	},
-	"modules/shu/src/windowed-source.ts": {
-		"anthropomorphic": 2,
-		"relation-verb": 5,
-		"terminal-preposition": 5
 	},
 	"modules/shu/src/zcap-signing.d.ts": {
 		"anthropomorphic": 1,

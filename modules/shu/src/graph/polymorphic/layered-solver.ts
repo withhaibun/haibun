@@ -5,7 +5,7 @@
  * option can still flatten it). Pure and headless, asserted without a scene.
  */
 import { layeredLayout, type LayeredMetrics } from "../layered-layout.js";
-import type { TGraph } from "../types.js";
+import type { TGraph } from "../../page/domains/graph.js";
 import { collideRadius, chipTextHeight, LAYERED_RANK_GAP, LAYERED_SIBLING_GAP } from "./layout-forces.js";
 
 type LayeredNode = { id: string; label: string };

@@ -6,6 +6,7 @@ import { graphToQuads } from "./graph-quads.js";
 describe("projectDomainChain", () => {
 	it("maps the satisfied finding to the satisfied node kind", () => {
 		const snap: TAffordancesSnapshot = {
+			satisfiedDomains: [],
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: ["a"], outputDomains: ["b"], readyToRun: true }],
 			goals: [{ domain: "b", resolution: { finding: "satisfied" } }],
 		};
@@ -16,6 +17,7 @@ describe("projectDomainChain", () => {
 
 	it("maps the resolver's `michi` finding to the user-facing `reachable` node kind", () => {
 		const snap: TAffordancesSnapshot = {
+			satisfiedDomains: [],
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: ["a"], outputDomains: ["b"], readyToRun: false }],
 			goals: [{ domain: "b", resolution: { finding: "michi" } }],
 		};
@@ -24,7 +26,11 @@ describe("projectDomainChain", () => {
 	});
 
 	it("introduces the sentinel source domain when any step doesn't have an input domain", () => {
-		const snap: TAffordancesSnapshot = { forward: [{ stepperName: "S", stepName: "s", inputDomains: [], outputDomains: ["b"], readyToRun: true }], goals: [] };
+		const snap: TAffordancesSnapshot = {
+			satisfiedDomains: [],
+			forward: [{ stepperName: "S", stepName: "s", inputDomains: [], outputDomains: ["b"], readyToRun: true }],
+			goals: [],
+		};
 		const g = projectDomainChain(snap);
 		expect(g.nodes.some((n) => n.id === SOURCE_DOMAIN)).toBe(true);
 		const edge = g.edges.find((e) => e.to === "b");
@@ -33,6 +39,7 @@ describe("projectDomainChain", () => {
 
 	it("emits synthetic field nodes and edges from composites map (topology.ranges)", () => {
 		const snap: TAffordancesSnapshot = {
+			satisfiedDomains: [],
 			forward: [{ stepperName: "S", stepName: "issue", inputDomains: ["order"], outputDomains: ["fulfilled-order"], readyToRun: true }],
 			goals: [],
 			composites: { order: { maker: "maker-vertex", proof: "proof" } },
@@ -49,6 +56,7 @@ describe("projectDomainChain", () => {
 
 	it("holds a node for every domain an edge ends at, including a composite that a step doesn't take or return, so the scene draws each edge", () => {
 		const snap: TAffordancesSnapshot = {
+			satisfiedDomains: [],
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: ["a"], outputDomains: ["b"], readyToRun: true }],
 			goals: [],
 			composites: { unnamed: { part: "a" } },
@@ -61,6 +69,7 @@ describe("projectDomainChain", () => {
 
 	it("flags capability-gated edges separately from ready / blocked", () => {
 		const snap: TAffordancesSnapshot = {
+			satisfiedDomains: [],
 			forward: [
 				{ stepperName: "A", stepName: "a", inputDomains: ["x"], outputDomains: ["y"], readyToRun: true },
 				{ stepperName: "B", stepName: "b", inputDomains: ["x"], outputDomains: ["z"], readyToRun: false },
@@ -79,6 +88,7 @@ describe("projectDomainChain", () => {
 
 	it("deep-links every non-source domain node to the affordances panel", () => {
 		const snap: TAffordancesSnapshot = {
+			satisfiedDomains: [],
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: ["a"], outputDomains: ["b"], readyToRun: true }],
 			goals: [{ domain: "b", resolution: { finding: "michi" } }],
 		};
@@ -89,6 +99,7 @@ describe("projectDomainChain", () => {
 
 	it("exposes a unique producer via invokes so callers can dispatch directly", () => {
 		const snap: TAffordancesSnapshot = {
+			satisfiedDomains: [],
 			forward: [{ stepperName: "Greeter", stepName: "createGreeting", inputDomains: ["name"], outputDomains: ["greeting"], readyToRun: true }],
 			goals: [],
 		};
@@ -100,6 +111,7 @@ describe("projectDomainChain", () => {
 
 	it("does not set invokes on a domain produced by multiple steps (ambiguous), but still deep-links", () => {
 		const snap: TAffordancesSnapshot = {
+			satisfiedDomains: [],
 			forward: [
 				{ stepperName: "A", stepName: "a", inputDomains: [], outputDomains: ["x"], readyToRun: true },
 				{ stepperName: "B", stepName: "b", inputDomains: [], outputDomains: ["x"], readyToRun: true },
@@ -147,6 +159,7 @@ describe("projectDomainChain", () => {
 		// into the projection: the projection returns the same kinds regardless of which
 		// node is open, preserving each node's base resolver verdict colour.
 		const snap: TAffordancesSnapshot = {
+			satisfiedDomains: [],
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: ["a"], outputDomains: ["b"], readyToRun: true }],
 			goals: [{ domain: "b", resolution: { finding: "michi" } }],
 		};
@@ -158,6 +171,7 @@ describe("projectDomainChain", () => {
 
 	it("merges waypoints into nodes with ensures edges from their resolvesDomain", () => {
 		const snap: TAffordancesSnapshot = {
+			satisfiedDomains: [],
 			forward: [{ stepperName: "Cred", stepName: "issue", inputDomains: [], outputDomains: ["vc"], readyToRun: true }],
 			goals: [{ domain: "vc", resolution: { finding: "michi" } }],
 			waypoints: [

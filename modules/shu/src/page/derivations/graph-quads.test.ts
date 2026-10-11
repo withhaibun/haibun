@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { graphToQuads } from "./graph-quads.js";
-import { buildGraphModelFromQuads } from "../graph-model.js";
-import { EDGE_KIND, NODE_KIND, type TGraph } from "./types.js";
+import { buildGraphModelFromQuads } from "../../derivations/graph-model.js";
+import { EDGE_KIND, NODE_KIND, type TGraph } from "../domains/graph.js";
 
 const GRAPH: TGraph = {
 	nodes: [

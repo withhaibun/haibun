@@ -6,7 +6,7 @@
  * asserts the invariants that must hold after every operation. Seeded, so a failure replays exactly.
  */
 import { describe, it, expect } from "vitest";
-import { lazyWindowedSource, readWindowedSource } from "./windowed-source.js";
+import { lazyWindowedSource, MAX_RESIDENT_PAGES, readWindowedSource, unmarked } from "./windowed-source.js";
 import { seededRandom } from "@haibun/core/lib/test/machine-table.js";
 import { MAX_PAGE_ROWS, counted, countedTo, pageLimit } from "@haibun/core/lib/hypermedia.js";
 
@@ -16,7 +16,7 @@ const rowFor = (index: number): number => index;
 type TPending = { start: number; end: number; resolve: () => void };
 
 /** A source whose fetches complete when this harness completes them, over data of a known extent. */
-function harness(opts: { pageSize: number; maxResidentPages?: number; dataEnd: number }) {
+function harness(opts: { pageSize: number; maxResidentPages: number; dataEnd: number }) {
 	const pending: TPending[] = [];
 	const fetches: Array<[number, number]> = [];
 	let total = 0;
@@ -24,6 +24,7 @@ function harness(opts: { pageSize: number; maxResidentPages?: number; dataEnd: n
 		count: () => total,
 		pageSize: opts.pageSize,
 		maxResidentPages: opts.maxResidentPages,
+		markers: unmarked,
 		fetch: (start, end) => {
 			fetches.push([start, end]);
 			return new Promise<readonly number[]>((res) => {
@@ -61,7 +62,7 @@ function harness(opts: { pageSize: number; maxResidentPages?: number; dataEnd: n
 	};
 }
 
-/** Every row read is the row that belongs at that index, and the cached ranges name exactly the indices that read. */
+/** Every row read is the row of that index, and the cached ranges name exactly the indices that read. */
 function assertInvariants(h: ReturnType<typeof harness>, note: string): void {
 	const src = h.src;
 	const readable: number[] = [];
@@ -131,8 +132,8 @@ describe("the paging core under arbitrary interleaving", () => {
 			const whole = h.src.ensureRange(0, dataEnd); // started before the fetches it needs are completed
 			await h.drain();
 			await whole;
-			for (let i = 0; i < dataEnd; i++) expect(h.src.rowAt(i), `seed ${seed}: row ${i} after requesting the whole run`).toBe(rowFor(i));
-			expect(h.src.cachedRanges(), `seed ${seed}: one range over the whole run`).toEqual([{ from: 0, to: dataEnd }]);
+			for (let i = 0; i < dataEnd; i++) expect(h.src.rowAt(i), `seed ${seed}: row ${i} after requesting every row`).toBe(rowFor(i));
+			expect(h.src.cachedRanges(), `seed ${seed}: one range over every row`).toEqual([{ from: 0, to: dataEnd }]);
 			const fetchedPages = h.fetches.flatMap(([start, end]) => Array.from({ length: Math.ceil((end - start) / pageSize) }, (_, k) => Math.floor(start / pageSize) + k));
 			expect(new Set(fetchedPages).size, `seed ${seed}: pages fetched once each`).toBe(fetchedPages.length);
 		}
@@ -176,7 +177,7 @@ describe("a source over a read whose count stopped at its ceiling", () => {
 	const reachedEnd = async (start: number, end: number) => ({ vertices: rows(start, end), ...counted(CEILING) });
 
 	it("reads rows past a stopped count and reports the exact count once a read reaches the end of the data", async () => {
-		const src = readWindowedSource<number>({ size: PAGE, read: stopped, held: await stopped(0, PAGE) });
+		const src = readWindowedSource<number>({ size: PAGE, read: stopped, held: await stopped(0, PAGE), from: 0, markers: unmarked });
 		expect(src.stated()).toEqual(countedTo(CEILING, CEILING));
 		await src.ensureRange(CEILING - PAGE, CEILING);
 		expect(src.count(), "the count extends one page past the rows read").toBe(CEILING + PAGE);
@@ -188,7 +189,7 @@ describe("a source over a read whose count stopped at its ceiling", () => {
 	});
 
 	it("doesn't read past a count that reached the end", async () => {
-		const src = readWindowedSource<number>({ size: PAGE, read: reachedEnd, held: await reachedEnd(0, PAGE) });
+		const src = readWindowedSource<number>({ size: PAGE, read: reachedEnd, held: await reachedEnd(0, PAGE), from: 0, markers: unmarked });
 		await src.ensureRange(CEILING, CEILING + 1);
 		expect(src.count()).toBe(CEILING);
 		expect(src.rowAt(CEILING)).toBeUndefined();
@@ -211,7 +212,7 @@ describe("a source whose window holds more rows than one request reads", () => {
 
 	it("splits a span of 20,000 rows into requests of at most MAX_PAGE_ROWS and reaches row 10,001", async () => {
 		const { requests, read } = store();
-		const src = lazyWindowedSource<number>({ count: () => HELD, pageSize: WINDOW, fetch: read });
+		const src = lazyWindowedSource<number>({ count: () => HELD, pageSize: WINDOW, fetch: read, maxResidentPages: MAX_RESIDENT_PAGES, markers: unmarked });
 		await src.ensureRange(0, 1);
 		expect(requests, "two requests of at most MAX_PAGE_ROWS each").toEqual([
 			[0, MAX_PAGE_ROWS],
@@ -230,6 +231,8 @@ describe("a source whose window holds more rows than one request reads", () => {
 			size: WINDOW,
 			read: async (start, end) => ({ vertices: await read(start, end), ...counted(HELD) }),
 			held: { vertices: held, ...counted(HELD) },
+			from: 0,
+			markers: unmarked,
 		});
 		await src.ensureRange(0, 1);
 		expect(requests).toEqual([[MAX_PAGE_ROWS, WINDOW]]);
@@ -250,7 +253,7 @@ describe("a window's count after a page that reaches the end", () => {
 
 	it("reads the count of the latest page, so the rows past the first page's count are read", async () => {
 		const first = await read(0, PAGE);
-		const src = readWindowedSource<number>({ size: PAGE, read, held: { ...first, ...counted(FIRST_COUNT) } });
+		const src = readWindowedSource<number>({ size: PAGE, read, held: { ...first, ...counted(FIRST_COUNT) }, from: 0, markers: unmarked });
 		expect(src.count(), "the first page's count").toBe(FIRST_COUNT);
 		await src.ensureRange(PAGE, FIRST_COUNT);
 		await src.ensureRange(FIRST_COUNT, src.count());

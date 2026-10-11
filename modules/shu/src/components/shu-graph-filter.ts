@@ -29,7 +29,8 @@ import { DEFAULT_PER_TYPE_LIMIT, MAX_PER_TYPE_LIMIT } from "../quads-snapshot.js
 import { colorForType } from "../type-colors.js";
 import { storedFields } from "../page/controllers/setting-controller.js";
 import { projectFilterClusters, effectiveHiddenTypes, derivePredicates, explicitlyHidden } from "../graph-filter-projection.js";
-import { isSchemaType, SCHEMA_TYPES } from "../graph/ontology-projection.js";
+import { isSchemaType } from "../derivations/ontology-projection.js";
+import { SCHEMA_TYPES } from "../domains/ontology.js";
 import "./shu-chip-group.js";
 import "../page/components/shu-field.js";
 import type { TChip } from "./shu-chip-group.js";

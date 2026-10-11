@@ -28,7 +28,7 @@ import { SHU_EVENT, SHU_TAG } from "../domains/elements.js";
 import { defineElement } from "../page/controllers/element-controller.js";
 import { SvgGraphRenderer, graphToDot, findSvgNodes, findSvgEdges } from "../graph/svg-renderer.js";
 import { buildNeighbors, connectedNodes } from "../graph/graph-neighbors.js";
-import type { IGraphRenderer, TGraph, TGraphRenderOptions } from "../graph/types.js";
+import type { IGraphRenderer, TGraph, TGraphRenderOptions } from "../page/domains/graph.js";
 
 const GraphNodeSchema = z.object({
 	id: z.string(),
@@ -37,7 +37,7 @@ const GraphNodeSchema = z.object({
 	group: z.string().optional(),
 	link: z.object({ method: z.string().optional(), href: z.string().optional() }).optional(),
 	invokes: z.object({ stepperName: z.string(), stepName: z.string(), pathIndex: z.number().optional(), stepIndex: z.number().optional() }).optional(),
-	wasGeneratedBy: z.object({ factId: z.string(), domain: z.string() }).optional(),
+	wasGeneratedBy: z.object({ factId: z.string(), domain: z.string().optional() }).optional(),
 });
 const GraphEdgeSchema = z.object({ from: z.string(), to: z.string(), label: z.string().optional(), kind: z.string().optional(), paths: z.array(z.string()).optional() });
 const GraphGroupSchema = z.object({ label: z.string(), parent: z.string().optional(), kind: z.string().optional() });

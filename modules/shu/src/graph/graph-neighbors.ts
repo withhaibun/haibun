@@ -2,7 +2,7 @@
  * The neighbours of a `TGraph`'s nodes, which `shu-graph` highlights: a node's immediate neighbours on hover, the
  * connected component of the selected node.
  */
-import type { TGraph } from "./types.js";
+import type { TGraph } from "../page/domains/graph.js";
 
 /**
  * Bidirectional neighbour map. For each node id, the set of node ids it is connected to

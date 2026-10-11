@@ -5,7 +5,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { buildTypeSchemaGraph, buildFullSchemaGraph, ShuTypeColumn } from "./shu-type-column.js";
 import { getUiPresenting, isSystemSchemaType } from "../controllers/catalog-controller.js";
 import { deepLinkOf } from "./ref-navigation.js";
-import { NODE_KIND } from "../../graph/types.js";
+import { NODE_KIND } from "../domains/graph.js";
 import { SHU_EVENT } from "../../domains/elements.js";
 import { followPaneRequests } from "../../test/pane-requests.js";
 

@@ -28,7 +28,7 @@ import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js
 import { railTotalAndWindow } from "../../annotation-rail.js";
 import { VIEW_THUMB_BLIP, VIEW_SCROLL_BLIP, VIEW_WINDOW_BLIP, READER_INPUT_WINDOW_MS } from "../../domains/blips.js";
 import { SCROLL_TO_INDEX } from "./shu-scrollbar.js";
-import type { WindowedSource } from "../../windowed-source.js";
+import type { WindowedSource } from "../derivations/windowed-source.js";
 import type { TScrollMarker, TWindow } from "../derivations/rail.js";
 import { visibleWindow, convergeTarget } from "../derivations/rail.js";
 import { ScrollFollowController } from "../controllers/scroll-follow-controller.js";

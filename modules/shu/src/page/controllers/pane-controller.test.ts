@@ -270,10 +270,10 @@ describe("the page's panes", () => {
 	it("re-request with data updates the live child's products", async () => {
 		requestPane({ paneType: "component", tag: "shu-affordances-panel", label: "A" });
 		await flush();
-		requestPane({ paneType: "component", tag: "shu-affordances-panel", label: "A", data: { forward: [], goals: [] } });
+		requestPane({ paneType: "component", tag: "shu-affordances-panel", label: "A", data: { satisfiedDomains: [], forward: [], goals: [] } });
 		await flush();
 		const child = document.querySelector("shu-column-pane > *") as HTMLElement & { products?: Record<string, unknown> };
-		expect(child.products).toEqual({ forward: [], goals: [] });
+		expect(child.products).toEqual({ satisfiedDomains: [], forward: [], goals: [] });
 	});
 
 	it("malformed col= entries are skipped, not crashed-on", async () => {
@@ -370,7 +370,7 @@ describe("the page's panes", () => {
 		await flush();
 		expect(liveIds()).toContain("shu-affordances-panel");
 		// the event lands afterwards and re-feeds the live pane
-		requestPane({ paneType: "component", tag: "shu-affordances-panel", label: "A", data: { forward: [], goals: [] } });
+		requestPane({ paneType: "component", tag: "shu-affordances-panel", label: "A", data: { satisfiedDomains: [], forward: [], goals: [] } });
 		await flush();
 		expect(liveIds().filter((i) => i === "shu-affordances-panel")).toHaveLength(1);
 	});

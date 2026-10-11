@@ -125,7 +125,7 @@ describe("withOntologySchema: the schema travels with the response (live and off
 		expect(out.quads).toContain(instance); // instance data preserved
 		// the Principal Class node is present (an instance exercises it)…
 		expect(out.quads.some((q) => q.namedGraph === CLASS_LABEL && q.subject === "Principal")).toBe(true);
-		// …and the instance is joined to its Class by an `a` edge living in the instance's own graph.
+		// …and the instance is joined to its Class by an `a` edge in the instance's own graph.
 		const typeEdge = out.quads.find((q) => q.predicate === "a" && q.subject === "did:x");
 		expect(typeEdge).toMatchObject({ object: "Principal", objectType: CLASS_LABEL, namedGraph: "Principal" });
 		expect(out.clusters.some((c) => c.type === CLASS_LABEL)).toBe(true);

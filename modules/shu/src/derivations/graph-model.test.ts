@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { buildGraphModelFromQuads, HYPERMEDIA_ROLE_KEY, SITE_KEY, omittedLabel } from "./graph-model.js";
+import { buildGraphModelFromQuads, omittedLabel } from "./graph-model.js";
+import { HYPERMEDIA_ROLE_KEY, SITE_KEY } from "../domains/graph-model.js";
 import { COUNT_CEILING, statedTotal } from "@haibun/core/lib/hypermedia.js";
 // An injected, ordered role list, consumers derive theirs from the catalog controller's roleEdgeLabels() (declared rolePriority);
 // the merge itself is generic, so the fixture doesn't name a consumer vocabulary.
@@ -41,9 +42,9 @@ describe("buildGraphModelFromQuads", () => {
 		expect(e1?.properties?._seqPath).toBeUndefined();
 	});
 
-	it("leaves properties undefined for a node carrying only edges", () => {
+	it("gives a node carrying only edges an empty set of properties", () => {
 		const model = buildGraphModelFromQuads([q("e1", "attributedTo", "p1", "Email", "Person"), q("p1", "name", "Alice", "Person")]);
-		expect(model.nodes.find((n) => n.id === "e1")?.properties).toBeUndefined();
+		expect(model.nodes.find((n) => n.id === "e1")?.properties).toEqual({});
 	});
 });
 

@@ -6,15 +6,15 @@
  * implementation. The shape doesn't carry layout information, laying out is the
  * renderer's job.
  *
- * Each node belongs to at most one group. Groups can nest via `groups[g].parent`.
+ * Each node is a member of at most one group. Groups can nest via `groups[g].parent`.
  * Per-kind styling is keyed by `node.kind` and `edge.kind`; renderers ship sensible
  * defaults for a small built-in vocabulary and accept overrides via `styles`.
  *
- * Path-aware views (affordance combined-graph) tag each edge with the path ids it
- * participates in via `edge.paths`; renderers can highlight a subset of paths.
+ * Path-aware views (affordance combined-graph) tag each edge with the ids of the paths
+ * that include it, in `edge.paths`; renderers can highlight a subset of paths.
  */
 
-/** The built-in kinds a node is styled by. */
+/** The built-in kinds that style a node. */
 export const NODE_KIND = {
 	default: "default",
 	satisfied: "satisfied",
@@ -31,7 +31,7 @@ export const NODE_KIND = {
 	waypointImperative: "waypoint-imperative",
 } as const;
 
-/** The built-in kinds an edge is styled by. */
+/** The built-in kinds that style an edge. */
 export const EDGE_KIND = { default: "default", ready: "ready", blocked: "blocked", capabilityGated: "capability-gated", context: "context", reply: "reply" } as const;
 
 export type TGraphNode = {
@@ -41,9 +41,9 @@ export type TGraphNode = {
 	label: string;
 	/** Extended detail shown as the node's hover hint (a paint renders it as the SVG title / tooltip); falls back to label+kind. */
 	hint?: string;
-	/** Semantic marker for styling: one of NODE_KIND, or a data @type. */
+	/** Semantic marker for styling: one of NODE_KIND, or a data @type. A node that doesn't state one is of NODE_KIND.default (`kindOfNode`). */
 	kind?: string;
-	/** Group this node belongs to. References a key in `groups`. */
+	/** The group of this node: a key in `groups`. */
 	group?: string;
 	/** Optional click target for the consumer to handle. */
 	link?: { method?: string; href?: string };
@@ -57,7 +57,7 @@ export type TGraphNode = {
 	 * step. `factId` is the producing seqPath (string form). The
 	 * consumer opens the record of the step at that seqPath.
 	 */
-	wasGeneratedBy?: { factId: string; domain: string };
+	wasGeneratedBy?: { factId: string; domain?: string };
 };
 
 export type TGraphEdge = {
@@ -67,11 +67,11 @@ export type TGraphEdge = {
 	to: string;
 	/** Edge label. */
 	label?: string;
-	/** Semantic marker for styling: one of EDGE_KIND. */
+	/** Semantic marker for styling: one of EDGE_KIND. An edge that doesn't state one is of EDGE_KIND.default (`kindOfEdge`). */
 	kind?: string;
 	/** Link relation this edge carries (e.g. "attributedTo", "inReplyTo"); drives relation-filter selection. */
 	rel?: string;
-	/** Path ids this edge participates in. Used by path-aware highlighting; absent for non-path graphs. */
+	/** The ids of the paths that include this edge. Used by path-aware highlighting; absent for non-path graphs. */
 	paths?: string[];
 	/** Stepper and step that produced this edge (for filtering / click routing on chain-style projections). Absent for synthetic edges (fields, ensures). */
 	stepperName?: string;
@@ -133,3 +133,9 @@ export type TGraphRenderOptions = {
 export interface IGraphRenderer {
 	render(graph: TGraph, container: HTMLElement, options?: TGraphRenderOptions): Promise<void>;
 }
+
+/** A node's kind: the kind it states, or NODE_KIND.default where it doesn't state one. */
+export const kindOfNode = (node: TGraphNode): string => (node.kind === undefined ? NODE_KIND.default : node.kind);
+
+/** An edge's kind: the kind it states, or EDGE_KIND.default where it doesn't state one. */
+export const kindOfEdge = (edge: TGraphEdge): string => (edge.kind === undefined ? EDGE_KIND.default : edge.kind);

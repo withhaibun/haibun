@@ -19,7 +19,7 @@ import { FilterColumnSchema } from "../../schemas.js";
 import { aType, type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { getIdField, getQueryableFields, firstDeclaredType } from "../controllers/catalog-controller.js";
 import type { ShuResultTable } from "./shu-result-table.js";
-import { readWindowedSource, type WindowedSource } from "../../windowed-source.js";
+import { readWindowedSource, unmarked, type WindowedSource } from "../derivations/windowed-source.js";
 import { CountedSchema } from "@haibun/core/lib/hypermedia.js";
 import { appAccessLevel } from "../../view-query.js";
 import { queryGraph, queryRead, incomingEdges, incomingRead } from "../controllers/read-controller.js";
@@ -102,6 +102,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 				},
 				held: { vertices: targets, ...CountedSchema.parse(read.value) },
 				from: offset,
+				markers: unmarked,
 			});
 			return { ok: true, value: source };
 		};
@@ -118,6 +119,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 				read: (start, end) => queryGraph({ ...query, limit: end - start, offset: start }),
 				held: { vertices: read.value.vertices, ...CountedSchema.parse(read.value) },
 				from: query.offset,
+				markers: unmarked,
 			});
 			return { ok: true, value: source };
 		};

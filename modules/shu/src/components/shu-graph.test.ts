@@ -11,7 +11,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { ShuGraph } from "./shu-graph.js";
-import type { IGraphRenderer, TGraph, TGraphRenderOptions } from "../graph/types.js";
+import type { IGraphRenderer, TGraph, TGraphRenderOptions } from "../page/domains/graph.js";
 import { SHU_EVENT } from "../domains/elements.js";
 
 class RecordingRenderer implements IGraphRenderer {

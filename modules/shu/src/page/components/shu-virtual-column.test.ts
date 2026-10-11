@@ -5,7 +5,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { html } from "lit";
-import type { WindowedSource } from "../../windowed-source.js";
+import type { WindowedSource } from "../derivations/windowed-source.js";
 import type { ShuVirtualColumn } from "./shu-virtual-column.js";
 import "./shu-virtual-column.js";
 import { SCROLL_TO_INDEX } from "./shu-scrollbar.js";

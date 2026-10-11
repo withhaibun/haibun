@@ -25,7 +25,7 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import { ShuClusteredGraphView, clusteredGraphStateShape } from "./shu-clustered-graph-view.js";
 import { jsonDisclosure } from "../page/components/json-disclosure.js";
-import { scopeSchemaToType, scopeSchemaToConnected } from "../graph/ontology-projection.js";
+import { scopeSchemaToType, scopeSchemaToConnected } from "../derivations/ontology-projection.js";
 import { prefixesReferencedBy } from "../graph/jsonld-context-scope.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { VIEW } from "../graph/polymorphic/polymorphic-views.js";

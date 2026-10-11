@@ -13,8 +13,8 @@ import { activeSitePrincipal, adoptSitePrincipal, hasDefaultSitePrincipal } from
 import { persistPrincipalIndividual } from "@haibun/core/lib/principal-individual.js";
 import { requestSigner } from "@haibun/core/lib/session-authority.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import { withOntologySchema } from "../graph/ontology-projection.js";
-import { buildGraphModelFromQuads } from "../graph-model.js";
+import { withOntologySchema } from "../derivations/ontology-projection.js";
+import { buildGraphModelFromQuads } from "../derivations/graph-model.js";
 import type { TOpenPeerGraphSource, TPeerCalls } from "../ports.js";
 import { RPC_METHOD } from "../domains/elements.js";
 import { AUTHORITY_CAPABILITIES } from "@haibun/core/lib/actions.js";

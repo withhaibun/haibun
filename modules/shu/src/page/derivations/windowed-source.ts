@@ -5,8 +5,8 @@
  * read the same three calls (count, rowAt, ensureRange), so the same column data can drive both media.
  */
 import { counted, readInPages, type TCounted, type TCountedPage } from "@haibun/core/lib/hypermedia.js";
-import type { TScrollMarker } from "./page/derivations/rail.js";
-import type { Range } from "./page/derivations/rail.js";
+import type { TScrollMarker } from "./rail.js";
+import type { Range } from "./rail.js";
 
 export interface WindowedSource<T> {
 	/** Total rows. May be an estimate for a server-counted or still-arriving set of millions. */
@@ -22,10 +22,10 @@ export interface WindowedSource<T> {
 	subscribe(cb: () => void): () => void;
 	/** Significant rows to mark on the scroll rail (annotations, failed steps, feature boundaries), across the whole set. */
 	markers(): TScrollMarker[];
-	/** The size of a row known without rendering it: 0 for a cached empty row, so the renderer doesn't give it
+	/** The size of a row, where the source states it without a render: 0 for a cached empty row, so the renderer doesn't give it
 	 *  room and does not let it drag its estimate of the rows it has not measured; undefined to measure and estimate. */
 	rowSize?(index: number): number | undefined;
-	/** The rail this source's rows sit on, where the rows are a window of something longer. A source that doesn't offer one
+	/** The rail of this source's rows, where the rows are a window of a longer set. A source that doesn't offer one
 	 *  has a rail of its own rows, spread evenly. */
 	rail?: TSourceRail;
 }
@@ -34,17 +34,17 @@ export interface WindowedSource<T> {
 export const statedCountOf = (source: WindowedSource<unknown>): TCounted => source.stated?.() ?? counted(source.count());
 
 /**
- * A rail over the whole of what a source is a window of.
+ * A rail over the whole set of which a source holds a window.
  *
  * A window holds a few thousand rows and the set can be a year of them, so a rail that spread the window evenly would
- * not describe the rest. The source states the rail instead: how many places it has, where each row it holds sits
- * among them, what marks the whole set puts on it, and what a press on a place asks the set for. The renderer draws
+ * not describe the rest. The source states the rail instead: how many places it has, the place of each row it holds,
+ * what marks the whole set puts on it, and what a press on a place requests of the set. The renderer draws
  * places and doesn't depend on what they mean.
  */
 type TSourceRail = {
-	/** How many places the rail has. A place is what a mark sits at and what a press names. */
+	/** How many places the rail has. A place is the position of a mark and the target of a press. */
 	readonly places: number;
-	/** Where the row at `index` sits among those places. */
+	/** The place of the row at `index`. */
 	placeOf(index: number): number;
 	/** What the whole set marks on the rail, at their places. */
 	marks(): TScrollMarker[];
@@ -54,10 +54,7 @@ type TSourceRail = {
 
 /** A source over data already cached in memory (a fetched page of query results, a finite in-memory list): every row
  *  is available and ensureRange is a no-op. `set` swaps the backing list and notifies (a live re-query). */
-export function arrayWindowedSource<T>(
-	initial: readonly T[] = [],
-	markers: TScrollMarker[] = [],
-): WindowedSource<T> & { set(items: readonly T[], markers?: TScrollMarker[]): void } {
+export function arrayWindowedSource<T>(initial: readonly T[], markers: TScrollMarker[]): WindowedSource<T> & { set(items: readonly T[], markers?: TScrollMarker[]): void } {
 	const subs = new Set<() => void>();
 	let items = initial;
 	let marks = markers;
@@ -71,11 +68,20 @@ export function arrayWindowedSource<T>(
 		markers: () => marks,
 		set(next: readonly T[], nextMarks?: TScrollMarker[]) {
 			items = next;
-			if (nextMarks) marks = nextMarks;
+			if (nextMarks !== undefined) marks = nextMarks;
 			for (const cb of subs) cb();
 		},
 	} as WindowedSource<T> & { set(items: readonly T[], markers?: TScrollMarker[]): void };
 }
+
+/** The markers of a source whose rows carry an empty set of marks on the scroll rail. */
+export const unmarked = (): TScrollMarker[] => [];
+
+/** How many pages a paged source caches at most, beyond the pages of the latest request. */
+export const MAX_RESIDENT_PAGES = 24;
+
+/** The fewest pages a paged source may cache: the pages of a request, and the pages either side of it. */
+const MIN_RESIDENT_PAGES = 4;
 
 /** Fetch the rows for `[start, end)`. Returns fewer than requested only at the end of the data. A paged source requests at
  *  most `MAX_PAGE_ROWS` rows in one call. */
@@ -93,9 +99,9 @@ const countOf = ({ total, saturated }: TCounted): TCounted => ({ total, saturate
 export function lazyWindowedSource<T>(opts: {
 	count: () => number;
 	fetch: TPageFetcher<T>;
-	pageSize?: number;
-	maxResidentPages?: number;
-	markers?: () => TScrollMarker[];
+	pageSize: number;
+	maxResidentPages: number;
+	markers: () => TScrollMarker[];
 }): TPagedSource<T> {
 	const { count, fetch, ...rest } = opts;
 	return makePagedSource({ ...rest, counted: () => counted(count()), fetch: async (start, end) => ({ vertices: await fetch(start, end), ...counted(count()) }) });
@@ -110,21 +116,23 @@ type TPagedSource<T> = WindowedSource<T> & {
 	/** Seed an already-fetched, page-aligned run of rows (the first page the caller fetched to record the total) so the
 	 *  first paint doesn't need a second round-trip. `startRow` must be a multiple of `pageSize`. */
 	prime(startRow: number, rows: readonly T[]): void;
-	/** A row arrived live at `index` (the source's count has grown to include it): placed into its page when that page is
+	/** A live row arrived for `index` (the source's count has grown to include it): placed into its page when that page is
 	 *  cached up to it, so the live edge caches rendering without a fetch; cached aside while that page is being fetched and
 	 *  placed once the fetch lands, so a live edge under a steady stream is never a short page fetched again and again;
-	 *  otherwise left for ensureRange to deliver in. */
+	 *  otherwise left for ensureRange to deliver. */
 	append(index: number, row: T): void;
 	/** The index spans cached, in order, as half-open [from, to) ranges: what a view derives marks or a cursor
 	 *  from without scanning the whole extent for the rows it caches. */
 	cachedRanges(): Range[];
 };
 
-type TPagedSourceOptions<T> = { counted: () => TCounted; fetch: TCountedFetcher<T>; pageSize?: number; maxResidentPages?: number; markers?: () => TScrollMarker[] };
+type TPagedSourceOptions<T> = { counted: () => TCounted; fetch: TCountedFetcher<T>; pageSize: number; maxResidentPages: number; markers: () => TScrollMarker[] };
 
 function makePagedSource<T>(opts: TPagedSourceOptions<T>): TPagedSource<T> {
-	const pageSize = opts.pageSize ?? 200;
-	const maxResidentPages = Math.max(4, opts.maxResidentPages ?? 24);
+	const { pageSize, maxResidentPages } = opts;
+	if (!Number.isInteger(pageSize) || pageSize < 1) throw new Error(`a paged source's page size must be a positive integer, and ${pageSize} is not`);
+	if (!Number.isInteger(maxResidentPages) || maxResidentPages < MIN_RESIDENT_PAGES)
+		throw new Error(`a paged source caches at least ${MIN_RESIDENT_PAGES} pages, and ${maxResidentPages} is fewer`);
 	const pages = new Map<number, readonly T[]>();
 	const inflight = new Map<number, Promise<void>>();
 	const arrived = new Map<number, Map<number, T>>(); // live rows for a page being fetched, by their offset in it, placed when the fetch lands
@@ -178,7 +186,8 @@ function makePagedSource<T>(opts: TPagedSourceOptions<T>): TPagedSource<T> {
 		const endRow = Math.max(startRow, Math.min(count(), (lastPage + 1) * pageSize));
 		if (endRow <= startRow) return; // the range fell outside the current count (it shrank); never call fetch with end<=start
 		// A partial first page holds that page's first rows, so the read starts after them.
-		const held = pages.get(firstPage) ?? [];
+		const partial = pages.get(firstPage);
+		const held = partial === undefined ? [] : partial;
 		const rows = [...held, ...(await readInPages(opts.fetch, startRow + held.length, endRow)).vertices];
 		readEnd = Math.max(readEnd, startRow + rows.length);
 		if (rows.length < endRow - startRow) dataEnd = startRow + rows.length; // the read reached the end of the data
@@ -245,7 +254,7 @@ function makePagedSource<T>(opts: TPagedSourceOptions<T>): TPagedSource<T> {
 			subs.add(cb);
 			return () => subs.delete(cb);
 		},
-		markers: opts.markers ?? (() => []),
+		markers: opts.markers,
 		notifyCountChanged() {
 			dataEnd = Number.POSITIVE_INFINITY;
 			notify();
@@ -259,19 +268,19 @@ function makePagedSource<T>(opts: TPagedSourceOptions<T>): TPagedSource<T> {
 				// fetched again, under a steady stream that would never settle.
 				if (!arrived.has(p)) arrived.set(p, new Map());
 				arrived.get(p)?.set(within, row);
-			} else if (within === 0 || (have && have.length === within)) {
+			} else if (have === undefined ? within === 0 : have.length === within) {
 				// The page is cached up to this row (or begins with it): extend it in place. A short cached page is re-read
 				// as partial by `cached()` only against the count, which now includes this row.
-				pages.set(p, [...(have ?? []), row]);
+				pages.set(p, have === undefined ? [row] : [...have, row]);
 				dataEnd = Number.POSITIVE_INFINITY;
 			}
 			notify();
 		},
 		cachedRanges() {
 			const out: Range[] = [];
-			for (const p of [...pages.keys()].sort((a, b) => a - b)) {
+			for (const [p, rows] of [...pages.entries()].sort(([a], [b]) => a - b)) {
 				const from = p * pageSize;
-				const to = from + (pages.get(p)?.length ?? 0);
+				const to = from + rows.length;
 				const last = out[out.length - 1];
 				if (last && last.to === from) last.to = to;
 				else out.push({ from, to });
@@ -280,7 +289,7 @@ function makePagedSource<T>(opts: TPagedSourceOptions<T>): TPagedSource<T> {
 		},
 		prime(startRow, rows) {
 			// A seed beginning inside a page covers that page in part, and a part of a page cached as the page would put
-			// its rows at indexes they are not at. Only the pages the seed covers from their first row are cached; the
+			// its rows at the wrong indexes. Only the pages the seed covers from their first row are cached; the
 			// page it begins inside is left for ensureRange to read whole.
 			for (let p = pageOf(startRow); p * pageSize < startRow + rows.length; p++) {
 				const within = p * pageSize - startRow;
@@ -311,9 +320,9 @@ export function readWindowedSource<T>(opts: {
 	/** The page already read. A page shorter than `size` holds the first rows of its page, and the source reads the rest of the
 	 *  page after them. */
 	held: TCountedPage<T>;
-	/** The row the held page starts with. */
-	from?: number;
-	markers?: () => TScrollMarker[];
+	/** The index of the held page's first row. */
+	from: number;
+	markers: () => TScrollMarker[];
 }): TPagedSource<T> {
 	let latest = countOf(opts.held);
 	const read: TCountedFetcher<T> = async (start, end) => {
@@ -321,7 +330,7 @@ export function readWindowedSource<T>(opts: {
 		latest = countOf(page);
 		return page;
 	};
-	const source = makePagedSource<T>({ counted: () => latest, fetch: read, pageSize: opts.size, ...(opts.markers === undefined ? {} : { markers: opts.markers }) });
-	source.prime(opts.from ?? 0, opts.held.vertices);
+	const source = makePagedSource<T>({ counted: () => latest, fetch: read, pageSize: opts.size, maxResidentPages: MAX_RESIDENT_PAGES, markers: opts.markers });
+	source.prime(opts.from, opts.held.vertices);
 	return source;
 }

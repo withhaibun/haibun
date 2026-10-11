@@ -17,12 +17,13 @@
  *   - capability-gated  →  step requires an unmet capability
  */
 import { SOURCE_DOMAIN } from "@haibun/core/lib/domain-chain.js";
-import { AFFORDANCE_PARAM, SHU_TAG } from "../domains/elements.js";
-import { hashWithColumns } from "../page/derivations/address.js";
+import { AFFORDANCE_PARAM, SHU_TAG } from "../../domains/elements.js";
+import { hashWithColumns } from "./address.js";
 import { GOAL_FINDING } from "@haibun/core/lib/goal-resolver.js";
 import type { TForwardAffordance, TWaypointEntry, TCompositeRanges } from "@haibun/core/lib/affordances.js";
-import { EDGE_KIND, NODE_KIND, type TGraph, type TGraphEdge, type TGraphNode } from "./types.js";
+import { EDGE_KIND, NODE_KIND, type TGraph, type TGraphEdge, type TGraphNode } from "../domains/graph.js";
 import { producingStepRecord } from "@haibun/core/lib/seq-path.js";
+import { stepLabelOf } from "./steps.js";
 
 /** A link to the affordances panel, opened on the goal or waypoint a node names. */
 const affordancesAt = (param: (typeof AFFORDANCE_PARAM)[keyof typeof AFFORDANCE_PARAM], value: string): string => hashWithColumns([SHU_TAG.AFFORDANCES_PANEL], { [param]: value });
@@ -59,7 +60,7 @@ export type TAffordancesSnapshot = {
 	 * view to color satisfied domains even when their only producer is a
 	 * single-step argument-only path.
 	 */
-	satisfiedDomains?: string[];
+	satisfiedDomains: string[];
 	/**
 	 * Per-domain map of asserted fact identifiers. Each fact becomes a small
 	 * instance node attached to its domain, surfacing individual created
@@ -112,7 +113,7 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 	// Working-memory truth: a domain with a fact is satisfied, regardless of whether
 	// the goal-frontier kept it (trivial-filtered goals are absent from `goals[]` but
 	// their producing fact may still exist).
-	const satisfied = new Set(a.satisfiedDomains ?? []);
+	const satisfied = new Set(a.satisfiedDomains);
 	for (const d of satisfied) goalFindings.set(d, GOAL_FINDING.SATISFIED);
 
 	const domains = new Set<string>();
@@ -162,7 +163,7 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 	// would otherwise contribute N identical from→to edges, one per input position.
 	const edgeKeys = new Set<string>();
 	for (const f of a.forward) {
-		const label = (f.gwta ?? `${f.stepperName}.${f.stepName}`) + (f.capability ? " ⚷" : "");
+		const label = stepLabelOf(f) + (f.capability ? " ⚷" : "");
 		const ins = f.inputDomains.length === 0 ? [SOURCE_DOMAIN] : f.inputDomains;
 		for (const from of ins) {
 			for (const to of f.outputDomains) {
@@ -207,8 +208,8 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 		}
 	}
 
-	// APG annotation pass, tag every schema edge with the goal-resolver paths it
-	// participates in. The renderer reads `edge.paths` to style active edges
+	// APG annotation pass, tag every schema edge with the goal-resolver paths that
+	// include it. The renderer reads `edge.paths` to style active edges
 	// (traversed by some goal-path) distinctly from potential edges (a runnable
 	// step without a current goal-path through it). One edge per step in the
 	// topology; metadata carries the path semantics.
@@ -221,15 +222,17 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 		else edgesByStep.set(key, [edge]);
 	}
 	for (const goal of a.goals) {
-		const michi = goal.resolution.michi ?? [];
+		// A goal whose resolution doesn't state paths doesn't mark an edge.
+		const michi = goal.resolution.michi;
+		if (michi === undefined) continue;
 		michi.forEach((m, pathIdx) => {
 			const pid = `${goal.domain}/path-${pathIdx}`;
 			for (const step of m.steps) {
 				const bucket = edgesByStep.get(`${step.stepperName}.${step.stepName}`);
 				if (!bucket) continue;
 				for (const edge of bucket) {
-					edge.paths ??= [];
-					if (!edge.paths.includes(pid)) edge.paths.push(pid);
+					if (edge.paths === undefined) edge.paths = [pid];
+					else if (!edge.paths.includes(pid)) edge.paths.push(pid);
 				}
 			}
 		});

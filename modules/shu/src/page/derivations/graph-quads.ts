@@ -5,11 +5,11 @@
  */
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
-import { EDGE_KIND, NODE_KIND, type TGraph } from "./types.js";
+import { kindOfEdge, kindOfNode, type TGraph } from "../domains/graph.js";
 
 /** The quads of a projected graph, and one cluster per kind titling each of its nodes. */
 export function graphToQuads(graph: TGraph): { quads: TQuad[]; clusters: TCluster[] } {
-	const kinds = new Map(graph.nodes.map((node) => [node.id, node.kind ?? NODE_KIND.default]));
+	const kinds = new Map(graph.nodes.map((node) => [node.id, kindOfNode(node)]));
 	const kindOf = (id: string): string => {
 		const kind = kinds.get(id);
 		if (kind === undefined) throw new Error(`graph edge names node "${id}", which the graph does not hold`);
@@ -17,11 +17,16 @@ export function graphToQuads(graph: TGraph): { quads: TQuad[]; clusters: TCluste
 	};
 	const quads: TQuad[] = graph.nodes.map((node) => ({ subject: node.id, predicate: LinkRelations.NAME.rel, object: node.label, namedGraph: kindOf(node.id), timestamp: 0 }));
 	for (const edge of graph.edges) {
-		const predicate = edge.label ?? edge.rel ?? edge.kind ?? EDGE_KIND.default;
+		// An edge's predicate is its label, else its relation, else its kind.
+		const predicate = edge.label ?? edge.rel ?? kindOfEdge(edge);
 		quads.push({ subject: edge.from, predicate, object: edge.to, namedGraph: kindOf(edge.from), objectType: kindOf(edge.to), timestamp: 0 });
 	}
 	const byKind = new Map<string, TGraph["nodes"]>();
-	for (const node of graph.nodes) byKind.set(kindOf(node.id), [...(byKind.get(kindOf(node.id)) ?? []), node]);
+	for (const node of graph.nodes) {
+		const kind = byKind.get(kindOf(node.id));
+		if (kind === undefined) byKind.set(kindOf(node.id), [node]);
+		else kind.push(node);
+	}
 	const clusters: TCluster[] = [...byKind].map(([type, nodes]) => ({
 		type,
 		totalCount: nodes.length,

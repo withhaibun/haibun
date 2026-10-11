@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { layeredLayout } from "./layered-layout.js";
-import type { TGraph } from "./types.js";
+import type { TGraph } from "../page/domains/graph.js";
 
 const chain: TGraph = {
 	nodes: [

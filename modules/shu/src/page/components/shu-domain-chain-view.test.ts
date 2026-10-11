@@ -17,7 +17,7 @@ import { factIdOf } from "@haibun/core/lib/seq-path.js";
 import { readingExecution } from "../client-cache/controllers/device-controller.js";
 import { declareFakeGraphPresenter, mountedPresenter } from "../../graph-presenter.test-fake.js";
 import { reportedErrors, setupShuTest, type TShuTestHandle } from "../../test/setup.js";
-import { NODE_KIND, type TGraphNode } from "../../graph/types.js";
+import { NODE_KIND, type TGraphNode } from "../domains/graph.js";
 import { followPaneRequests } from "../../test/pane-requests.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 
@@ -31,6 +31,7 @@ const clearDeepLink = (): void => PageHash.mergeHashParams({ [AFFORDANCE_PARAM.G
 /** A snapshot with N forward entries, as a step's products or a read of them give it. */
 const mkSnap = (n: number): Record<string, unknown> => ({
 	execution: EXECUTION,
+	satisfiedDomains: [],
 	forward: Array.from({ length: n }, (_, i) => ({ stepperName: "S", stepName: `s${i}`, inputDomains: [], outputDomains: [`d${i}`], readyToRun: true })),
 	goals: [],
 });
@@ -76,6 +77,7 @@ describe("shu-domain-chain-view", () => {
 		const view = mount();
 		view.products = {
 			execution: EXECUTION,
+			satisfiedDomains: [],
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: [], outputDomains: ["vc"], readyToRun: true }],
 			goals: [{ domain: "vc", resolution: { finding: "michi" } }],
 		};
@@ -93,6 +95,7 @@ describe("shu-domain-chain-view", () => {
 		const view = mount();
 		view.products = {
 			execution: EXECUTION,
+			satisfiedDomains: [],
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: [], outputDomains: ["vc"], readyToRun: true }],
 			goals: [{ domain: "vc", resolution: { finding: "michi" } }],
 		};
@@ -135,7 +138,7 @@ describe("shu-domain-chain-view", () => {
 		view.products = mkSnap(1);
 		expect(readingExecution()).toBe(EXECUTION);
 		expect(() => {
-			view.products = { forward: [], goals: [] };
+			view.products = { satisfiedDomains: [], forward: [], goals: [] };
 		}).toThrow(/the `execution` they are of/);
 	});
 
@@ -156,6 +159,7 @@ describe("shu-domain-chain-view", () => {
 		const view = mount();
 		view.products = {
 			execution: EXECUTION,
+			satisfiedDomains: [],
 			forward: [],
 			goals: [],
 			findings: [

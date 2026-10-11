@@ -1,20 +1,20 @@
 // @vitest-environment jsdom
 // Every implementation of the page's paging contract, held to one specification: a list already in memory, pages
 // fetched as a reader reaches them, and the window of a run over the records it wrote.
-import { declareGraphSpec } from "./test/catalog-fixture.js";
+import { declareGraphSpec } from "../../test/catalog-fixture.js";
 import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { beforeEach } from "vitest";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { counted } from "@haibun/core/lib/hypermedia.js";
-import { arrayWindowedSource, lazyWindowedSource, readWindowedSource } from "./windowed-source.js";
-import { describeWindowedSource, CONFORMANCE_ROWS } from "./test/windowed-source-conformance.js";
-import { installGraph } from "./page/client-cache/controllers/device-controller.js";
-import { setupShuTest } from "./test/setup.js";
-import { runStore } from "./page/client-cache/run-store.test-fake.js";
-import { graphRunSource } from "./page/client-cache/controllers/run-controller.js";
-import { endPage } from "./page/adapters/page-held.js";
+import { arrayWindowedSource, lazyWindowedSource, MAX_RESIDENT_PAGES, readWindowedSource } from "./windowed-source.js";
+import { describeWindowedSource, CONFORMANCE_ROWS } from "../../test/windowed-source-conformance.js";
+import { installGraph } from "../client-cache/controllers/device-controller.js";
+import { setupShuTest } from "../../test/setup.js";
+import { runStore } from "../client-cache/run-store.test-fake.js";
+import { graphRunSource } from "../client-cache/controllers/run-controller.js";
+import { endPage } from "../adapters/page-held.js";
 
 type TRow = { name: string };
 const named = (row: TRow): string => row.name;
@@ -27,7 +27,13 @@ describeWindowedSource("a list already in memory", () => ({ source: arrayWindowe
 describeWindowedSource(
 	"pages fetched as they are read",
 	() => ({
-		source: lazyWindowedSource<TRow>({ count: () => CONFORMANCE_ROWS, fetch: async (start, end) => rows.slice(start, end), pageSize: 4, markers: () => marks }),
+		source: lazyWindowedSource<TRow>({
+			count: () => CONFORMANCE_ROWS,
+			fetch: async (start, end) => rows.slice(start, end),
+			pageSize: 4,
+			markers: () => marks,
+			maxResidentPages: MAX_RESIDENT_PAGES,
+		}),
 		named,
 		shouldName,
 	}),
@@ -41,6 +47,7 @@ describeWindowedSource(
 			size: 4,
 			read: async (start, end) => ({ vertices: rows.slice(start, end), ...counted(CONFORMANCE_ROWS) }),
 			held: { vertices: rows.slice(0, 4), ...counted(CONFORMANCE_ROWS) },
+			from: 0,
 			markers: () => marks,
 		}),
 		named,

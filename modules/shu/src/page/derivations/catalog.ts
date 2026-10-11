@@ -8,7 +8,7 @@ import { LinkRelations, RESOURCE_LABEL, fromActorRels, getPropertyDefinitions, i
 import type { TConcernCatalog, TTitledBy } from "@haibun/core/lib/hypermedia.js";
 import type { TDomainDiscoveryInfo } from "@haibun/core/lib/step-discovery.js";
 import { ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, SHU_TAG, isMarkerType } from "../../domains/elements.js";
-import { propertyVocabulary } from "../../graph/ontology-projection.js";
+import { propertyVocabulary } from "../../derivations/ontology-projection.js";
 
 /** What a catalog derives from: the concern catalog and the domains actuality declares, as a read of its steps holds them. */
 export type TCatalogSource = { concerns: TConcernCatalog; domains: Record<string, TDomainDiscoveryInfo> };

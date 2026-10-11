@@ -71,6 +71,7 @@ describe("shu-affordances-panel", () => {
 		document.body.appendChild(panel);
 		panel.products = {
 			execution: EXECUTION,
+			satisfiedDomains: [],
 			forward: [{ method: "X-y", stepperName: "X", stepName: "y", inputDomains: [], outputDomains: ["g"], readyToRun: true }],
 			goals: [{ domain: "g", description: "Goal g", resolution: { finding: "satisfied", goal: "g", factIds: ["fact-1"] } }],
 		};
@@ -87,6 +88,7 @@ describe("shu-affordances-panel", () => {
 		document.body.appendChild(panel);
 		panel.products = {
 			execution: EXECUTION,
+			satisfiedDomains: [],
 			forward: [],
 			goals: [{ domain: "session", description: "Session", resolution: { finding: "satisfied", goal: "session", factIds: ["s-1", "s-2", "s-3"] } }],
 		};
@@ -106,6 +108,7 @@ describe("shu-affordances-panel", () => {
 		document.body.appendChild(panel);
 		panel.products = {
 			execution: EXECUTION,
+			satisfiedDomains: [],
 			forward: [],
 			goals: [
 				{
@@ -140,6 +143,7 @@ describe("shu-affordances-panel", () => {
 		const path = { steps: [{ stepperName: "Issue", stepName: "issueCredential" }], bindings: [{ kind: "argument", domain: "issuer" }] };
 		panel.products = {
 			execution: EXECUTION,
+			satisfiedDomains: [],
 			forward: [],
 			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { finding: "michi", goal: "vc", truncated: false, michi: [path] } }],
 		};
@@ -164,6 +168,7 @@ describe("shu-affordances-panel", () => {
 		document.body.appendChild(panel);
 		panel.products = {
 			execution: EXECUTION,
+			satisfiedDomains: [],
 			forward: [],
 			goals: [
 				{
@@ -184,6 +189,7 @@ describe("shu-affordances-panel", () => {
 		document.body.appendChild(panel);
 		panel.products = {
 			execution: EXECUTION,
+			satisfiedDomains: [],
 			forward: [],
 			goals: [
 				{
@@ -233,7 +239,12 @@ describe("shu-affordances-panel", () => {
 	it("re-rendering after a new affordances snapshot preserves <details> open state", async () => {
 		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
-		panel.products = { execution: EXECUTION, forward: [], goals: [{ domain: "g", description: "Goal g", resolution: { finding: "satisfied", goal: "g", factIds: ["fact-x"] } }] };
+		panel.products = {
+			execution: EXECUTION,
+			satisfiedDomains: [],
+			forward: [],
+			goals: [{ domain: "g", description: "Goal g", resolution: { finding: "satisfied", goal: "g", factIds: ["fact-x"] } }],
+		};
 		await applied(panel);
 		const explain = panel.shadowRoot?.querySelector('details[data-key="explanation"]') as HTMLDetailsElement | null;
 		expect(explain).toBeTruthy();
@@ -241,6 +252,7 @@ describe("shu-affordances-panel", () => {
 		explain.open = true;
 		panel.products = {
 			execution: EXECUTION,
+			satisfiedDomains: [],
 			forward: [],
 			goals: [
 				{ domain: "g", description: "Goal g", resolution: { finding: "satisfied", goal: "g", factIds: ["fact-x"] } },
@@ -271,6 +283,7 @@ describe("shu-affordances-panel", () => {
 		};
 		panel.products = {
 			execution: EXECUTION,
+			satisfiedDomains: [],
 			forward: [],
 			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { finding: "michi", goal: "vc", truncated: false, michi: [compositeMichi] } }],
 		};
@@ -283,6 +296,7 @@ describe("shu-affordances-panel", () => {
 		composite.open = true;
 		panel.products = {
 			execution: EXECUTION,
+			satisfiedDomains: [],
 			forward: [],
 			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { finding: "michi", goal: "vc", truncated: false, michi: [compositeMichi] } }],
 		};
@@ -296,6 +310,7 @@ describe("shu-affordances-panel", () => {
 		document.body.appendChild(panel);
 		panel.products = {
 			execution: EXECUTION,
+			satisfiedDomains: [],
 			forward: [],
 			goals: [
 				{
@@ -339,7 +354,7 @@ describe("shu-affordances-panel", () => {
 		const wp = { outcome: "deliver-report", kind: "declarative", ensured: false, method: "Acts-ensure", resolvesDomain: "report", paramSlots: [], proofStatements: [] };
 		installConduit(new TestConduit(async () => ({})));
 		const panel = new ShuAffordancesPanel();
-		panel.products = { execution: EXECUTION, forward: [], goals: [], waypoints: [wp] };
+		panel.products = { execution: EXECUTION, satisfiedDomains: [], forward: [], goals: [], waypoints: [wp] };
 		document.body.appendChild(panel);
 		await applied(panel);
 		expect(panel.shadowRoot?.querySelector('[data-testid="affordances-waypoints"]')).toBeTruthy();
@@ -354,7 +369,7 @@ describe("shu-affordances-panel", () => {
 		installConduit(
 			new TestConduit((method: string) => {
 				if (method === RPC_METHOD.AFFORDANCES_ON_OFFER) snapshotCalls++;
-				return { execution: EXECUTION, waypoints: [], forward: [], goals: [] };
+				return { execution: EXECUTION, waypoints: [], satisfiedDomains: [], forward: [], goals: [] };
 			}),
 		);
 		declareRegistry(stepsShown([AFFORDANCES_STEP]));
@@ -372,10 +387,10 @@ describe("shu-affordances-panel", () => {
 	it("takes the run its snapshot names as the run the page reads, where a fact's step opens, and refuses one that doesn't name a run", () => {
 		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
-		panel.products = { execution: EXECUTION, forward: [], goals: [] };
+		panel.products = { execution: EXECUTION, satisfiedDomains: [], forward: [], goals: [] };
 		expect(readingExecution()).toBe(EXECUTION);
 		expect(() => {
-			panel.products = { forward: [], goals: [] };
+			panel.products = { satisfiedDomains: [], forward: [], goals: [] };
 		}).toThrow(/the `execution` they are of/);
 	});
 });
