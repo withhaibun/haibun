@@ -5,6 +5,7 @@ import { ShuEntityColumn } from "./shu-entity-column.js";
 import { setupShuTest, makeEntityDispatch, type TShuTestHandle } from "../../test-setup.js";
 import { endPage } from "../adapters/page-held.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
+import { BODY_LABEL } from "@haibun/core/lib/resources.js";
 
 const BODY = "the body a reader copies";
 
@@ -14,8 +15,10 @@ describe("shu-entity-column copying its body", () => {
 		endPage();
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
 		Object.defineProperty(navigator, "clipboard", { value: { writeText: vi.fn(async () => undefined) }, configurable: true });
-		const vertex = { "@id": "t1", title: "a task", hasBody: [{ id: "t1-body", mediaType: "text/plain", content: BODY }] };
-		handle = setupShuTest({ dispatch: makeEntityDispatch({ entity: () => ({ vertex, edges: [], incomingCount: { total: 0, saturated: false } }) }) });
+		const task = { "@id": "t1", title: "a task", hasBody: [{ id: "t1-body", mediaType: "text/plain", content: BODY }] };
+		const body = { "@id": "t1-body", mediaType: "text/plain", content: BODY };
+		const read = (vertex: Record<string, unknown>) => ({ vertex, edges: [], incomingCount: { total: 0, saturated: false } });
+		handle = setupShuTest({ dispatch: makeEntityDispatch({ entity: (params) => read(params.label === BODY_LABEL ? body : task) }) });
 	});
 	afterEach(() => handle.teardown());
 

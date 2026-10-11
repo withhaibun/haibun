@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // The open column must never go stale: it holds its individual through the entity handle, whose store merges live
 // observations into the held copy in place; the column re-renders from that copy without a per-change refetch.
-// Observations for other subjects are ignored. The store's merge/notify is covered by entity-store.test.ts;
+// Observations for other subjects are ignored. The store's merge/notify is covered by entity-controller.records.test.ts;
 // this exercises only the column's subscribe-and-rerender wiring.
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuEntityColumn } from "./shu-entity-column.js";

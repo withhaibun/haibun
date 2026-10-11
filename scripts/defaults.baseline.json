@@ -306,9 +306,6 @@
 	"modules/recorder/src/recorder-stepper.ts": {
 		"fills a falsy value with a constant through ||": 1
 	},
-	"modules/shu/src/annotation-resolver.ts": {
-		"fills an absent value with a constant through ??": 1
-	},
 	"modules/shu/src/chat-context-harvest.ts": {
 		"fills an absent value with a constant through ??": 3,
 		"states a parameter's default value": 2

@@ -56,6 +56,7 @@ import { FOLLOWS_THE_RUN } from "@haibun/core/lib/actions.js";
 import { INITIAL_STREAM_STATUS, STREAM_EVENT, streamTransition, type TStreamEvent, type TStreamStatus } from "./machines/event-stream.js";
 import { INITIAL_REGISTRY, registryTransition, type TRegistryEvent, type TRegistryState } from "./machines/registry.js";
 import type { TReadStepsScope, TRegistryReads } from "./pipelines/read-steps.js";
+import type { TRecordStore } from "./pipelines/open-record.js";
 
 const PREFERENCES_KEY = "__SHU_PREFERENCES__";
 const CLOCK_KEY = "__SHU_CLOCK__";
@@ -78,6 +79,7 @@ const REGISTRY_READS_KEY = "__SHU_STEP_REGISTRY_READS__";
 const PANES_KEY = "__SHU_PANES__";
 const PANES_HELD_KEY = "__SHU_PANES_HELD__";
 const REMEDIES_KEY = "__SHU_REMEDIES__";
+const RECORDS_KEY = "__SHU_ENTITY_STORE__";
 
 /** Returns the page's preferences, stored in the page's cookies. */
 export const pagePreferences = (): TPreferences => pagePinned(PREFERENCES_KEY, () => cookiePreferences(window));
@@ -127,6 +129,14 @@ export const pageRemedies = (): TRemedies => pagePinned(REMEDIES_KEY, () => brow
 
 /** Installs `remedies` as the page's, before a read of them, as a test installs a fake. */
 export const installRemedies = (remedies: TRemedies): TRemedies => pagePinned(REMEDIES_KEY, () => remedies);
+
+/** The records the page shows. Ending the page ends its subscription to observed quads. */
+export const pageRecords = (): TRecordStore =>
+	pagePinned(
+		RECORDS_KEY,
+		(): TRecordStore => ({ entries: new Map(), listeners: new Set(), unsubscribe: undefined }),
+		(store) => store.unsubscribe?.(),
+	);
 
 /** Returns the channel to the window that embeds the page, at the deployment's embedder origin `origin`. */
 export const pageEmbedder = (origin: string): TEmbedderChannel => pagePinned(EMBEDDER_KEY, () => embedderChannel(window, origin));

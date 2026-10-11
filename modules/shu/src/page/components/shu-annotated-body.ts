@@ -25,8 +25,9 @@ import { property, state } from "lit/decorators.js";
 import DOMPurify from "dompurify";
 import { createTextAnnotator, W3CTextFormat, type TextAnnotator } from "../../recogito.js";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
-import type { TAnnotationDraft } from "../../entity-store.js";
-import { type AnnotationView, type W3CTextAnnotation, toW3CAnnotations } from "../../annotation-resolver.js";
+import type { TAnnotationDraft } from "../domains/entity.js";
+import type { TAnnotationView } from "@haibun/core/lib/resources.js";
+import { type TW3CTextAnnotation, toW3CAnnotations } from "../derivations/annotations.js";
 import { locateQuoteOffsets } from "@haibun/core/lib/quote-anchor.js";
 import { COMMENT_LABEL, LinkRelations, type TQuoteAnchor } from "@haibun/core/lib/resources.js";
 import { fieldRef } from "./shu-ref.js";
@@ -115,7 +116,7 @@ function installPurifyHook(): void {
 
 /** A note card ready to place: the annotation, the top its passage wants (aligned to the highlight), and the top it is
  *  finally drawn at (pushed down so it never covers the card above, see the measured restack in `updated`). */
-type PlacedCard = { annotation: AnnotationView; idealTop: number; top: number };
+type PlacedCard = { annotation: TAnnotationView; idealTop: number; top: number };
 
 export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 	/** The document body as an as:Document, with any anchored web annotations (their quote, note, author, and links). */
@@ -146,7 +147,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 	@property({ attribute: false }) accessor mediaType = "text/plain";
 	@property({ attribute: false }) accessor sourceId = "";
 	@property({ attribute: false }) accessor sourceLabel = "";
-	@property({ attribute: false }) accessor annotations: AnnotationView[] = [];
+	@property({ attribute: false }) accessor annotations: TAnnotationView[] = [];
 	@property({ type: Boolean }) accessor show = true;
 	/** How this view asks for a note to be written: the host owns the individual, so it owns the write and the re-resolve
 	 *  that follows. Null leaves the body read-only (the view doesn't write notes), which is what a host that does not offer
@@ -171,13 +172,13 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 	@state() private accessor drafting = false;
 	/** Optimistic annotations just authored here, shown immediately while the write and reload are in flight. Cleared when
 	 *  the reloaded `annotations` property arrives (which then carries the real ones). */
-	@state() private accessor pending: AnnotationView[] = [];
+	@state() private accessor pending: TAnnotationView[] = [];
 	/** Count of annotations the annotator anchored to the text (quote located → highlight drawn). Read synchronously from
 	 *  the annotator store (which rejects a quote it cannot place), so it reflects what is highlighted, distinct from what
 	 *  the graph holds. Surfaced into the DOM so a view or test can confirm the annotation shows over the content. */
 	@state() private accessor anchoredCount = 0;
 
-	private annotator?: TextAnnotator<W3CTextAnnotation>;
+	private annotator?: TextAnnotator<TW3CTextAnnotation>;
 	/** The last revealTarget acted on, keyed by its quote fields. */
 	private revealedKey = "";
 	private mountedSignature = "";
@@ -322,8 +323,8 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 		}
 		this.teardownAnnotator();
 		container.innerHTML = this.sanitizedHtml();
-		this.annotator = createTextAnnotator<W3CTextAnnotation>(container, { adapter: W3CTextFormat(this.sourceId, container), annotatingEnabled: false });
-		this.annotator.on("clickAnnotation", (a: W3CTextAnnotation) => this.selectCard(String(a.id)));
+		this.annotator = createTextAnnotator<TW3CTextAnnotation>(container, { adapter: W3CTextFormat(this.sourceId, container), annotatingEnabled: false });
+		this.annotator.on("clickAnnotation", (a: TW3CTextAnnotation) => this.selectCard(String(a.id)));
 		this.mountedSignature = signature;
 		this.resizeObserver?.observe(container);
 		this.applyAnnotations();

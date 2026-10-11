@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import { toW3CAnnotations, type AnnotationView } from "./annotation-resolver.js";
+import type { TAnnotationView } from "@haibun/core/lib/resources.js";
+import { toW3CAnnotations } from "./annotations.js";
 
-const view = (over: Partial<AnnotationView>): AnnotationView => ({ commentId: "c1", specificResourceId: "sr1", exact: "the quote", ...over });
+const view = (over: Partial<TAnnotationView>): TAnnotationView => ({ commentId: "c1", specificResourceId: "sr1", exact: "the quote", ...over });
 
 describe("toW3CAnnotations, anchoring shape for the annotator library", () => {
 	it("emits BOTH a TextQuoteSelector and a computed TextPositionSelector (the library requires both to anchor)", () => {

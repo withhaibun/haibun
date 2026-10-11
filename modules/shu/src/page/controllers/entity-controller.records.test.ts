@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * Tests the entity store's resolution order and freshness through the real interfaces. The conduit dispatch returns the
+ * Tests the order in which a record opens, and how it stays current, through the real interfaces. The conduit dispatch returns the
  * results of the `getIndividualWithEdges` and `annotations` steps. Emitted events drive the live-quad path.
  *
  * `setupShuTest` hydrates a served page through `serveThePage`. `isOffline` then returns false, so these tests don't reach
@@ -8,11 +8,11 @@
  * exercise that branch against a real browser.
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { openEntity, refreshAnnotations, getEntityView, subscribeEntities } from "./entity-store.js";
-import { setupShuTest, makeEntityDispatch, type TShuTestHandle } from "./test-setup.js";
+import { openRecord, refreshAnnotations, recordView, followRecords } from "./entity-controller.js";
+import { setupShuTest, makeEntityDispatch, annotationList, type TShuTestHandle } from "../../test-setup.js";
 import { LinkRelations, SPECIFIC_RESOURCE_LABEL } from "@haibun/core/lib/resources.js";
-import type { TEvent } from "./page/ports.js";
-import { endPage } from "./page/adapters/page-held.js";
+import type { TEvent } from "../ports.js";
+import { endPage } from "../adapters/page-held.js";
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 20));
 
@@ -39,27 +39,27 @@ function stubDispatch(over: { entity?: () => unknown; annotations?: () => unknow
 		},
 		annotations: () => {
 			calls.annotations++;
-			return over.annotations ? over.annotations() : { annotations: [] };
+			return over.annotations ? over.annotations() : annotationList([]);
 		},
 	});
 	return { dispatch, calls };
 }
 
-describe("entity-store resolution", () => {
+describe("an open of a record", () => {
 	let handle: TShuTestHandle;
 	afterEach(() => handle.teardown());
 	beforeEach(endPage);
 
 	it("is a loading stub until an individual is opened", () => {
 		handle = setupShuTest(stubDispatch());
-		expect(getEntityView("Email", "e1")).toEqual({ status: "loading", annotations: [], bodies: {} });
+		expect(recordView("Email", "e1")).toEqual({ status: "loading", annotations: [], bodies: {} });
 	});
 
 	it("serves a fetched individual and its anchored annotations with `live` provenance", async () => {
-		const { dispatch } = stubDispatch({ annotations: () => ({ annotations: [note("c1", "first note")] }) });
+		const { dispatch } = stubDispatch({ annotations: () => annotationList([note("c1", "first note")]) });
 		handle = setupShuTest({ dispatch });
-		await openEntity("Email", "e1", "private");
-		const view = getEntityView("Email", "e1");
+		await openRecord("Email", "e1", "private");
+		const view = recordView("Email", "e1");
 		expect(view.status).toBe("ready");
 		expect(view.provenance).toBe("live");
 		expect(view.entity?.vertex.subject).toBe("Hi");
@@ -69,11 +69,11 @@ describe("entity-store resolution", () => {
 	it("serves an already-resolved individual from the session copy without refetching it", async () => {
 		const { dispatch, calls } = stubDispatch();
 		handle = setupShuTest({ dispatch });
-		await openEntity("Email", "e1", "private");
+		await openRecord("Email", "e1", "private");
 		expect(calls.entity).toBe(1);
-		await openEntity("Email", "e1", "private");
+		await openRecord("Email", "e1", "private");
 		expect(calls.entity).toBe(1);
-		expect(getEntityView("Email", "e1").provenance).toBe("cache");
+		expect(recordView("Email", "e1").provenance).toBe("cache");
 	});
 
 	it("reports the server's error when the server rejects the read of the individual", async () => {
@@ -83,8 +83,8 @@ describe("entity-store resolution", () => {
 			},
 		});
 		handle = setupShuTest({ dispatch });
-		await openEntity("Email", "e1", "private");
-		const view = getEntityView("Email", "e1");
+		await openRecord("Email", "e1", "private");
+		const view = recordView("Email", "e1");
 		expect(view.status).toBe("error");
 		expect(view.refusal?.error).toContain("Issuer not found");
 		expect(view.entity).toBeUndefined();
@@ -93,52 +93,52 @@ describe("entity-store resolution", () => {
 	it("keeps two individuals apart when a label contains a space", async () => {
 		const { dispatch } = stubDispatch();
 		handle = setupShuTest({ dispatch });
-		await openEntity("Draft Note", "b", "private"); // would key the same as ("Draft", "Note b") under a space separator
-		expect(getEntityView("Draft", "Note b").status).toBe("loading");
-		expect(getEntityView("Draft Note", "b").status).toBe("ready");
+		await openRecord("Draft Note", "b", "private"); // would key the same as ("Draft", "Note b") under a space separator
+		expect(recordView("Draft", "Note b").status).toBe("loading");
+		expect(recordView("Draft Note", "b").status).toBe("ready");
 	});
 
 	it("notifies subscribers as the individual resolves", async () => {
 		const { dispatch } = stubDispatch();
 		handle = setupShuTest({ dispatch });
 		const seen: string[] = [];
-		subscribeEntities((s) => seen.push(s));
-		await openEntity("Email", "e1", "private");
+		followRecords((s) => seen.push(s));
+		await openRecord("Email", "e1", "private");
 		expect(seen).toContain("e1");
 	});
 });
 
-describe("entity-store annotations", () => {
+describe("the notes of an open record", () => {
 	let handle: TShuTestHandle;
 	afterEach(() => handle.teardown());
 	beforeEach(endPage);
 
 	it("re-resolves a held individual's annotations when a note is anchored on it from anywhere", async () => {
 		let round = 0;
-		const { dispatch } = stubDispatch({ annotations: () => ({ annotations: ++round === 1 ? [] : [note("c1", "written elsewhere")] }) });
+		const { dispatch } = stubDispatch({ annotations: () => annotationList(++round === 1 ? [] : [note("c1", "written elsewhere")]) });
 		handle = setupShuTest({ dispatch });
-		await openEntity("Email", "e1", "private");
-		expect(getEntityView("Email", "e1").annotations).toEqual([]);
+		await openRecord("Email", "e1", "private");
+		expect(recordView("Email", "e1").annotations).toEqual([]);
 
 		handle.emit(quadEvent(SPECIFIC_RESOURCE_LABEL, "sr-c1", LinkRelations.HAS_SOURCE.rel, "e1", SPECIFIC_RESOURCE_LABEL));
 		await flush();
-		expect(getEntityView("Email", "e1").annotations.map((a) => a.body)).toEqual(["written elsewhere"]);
+		expect(recordView("Email", "e1").annotations.map((a) => a.body)).toEqual(["written elsewhere"]);
 	});
 
 	it("keeps the annotations it holds when a re-resolve fails rather than reporting an empty list", async () => {
 		let round = 0;
 		const { dispatch } = stubDispatch({
 			annotations: () => {
-				if (++round === 1) return { annotations: [note("c1", "first note")] };
+				if (++round === 1) return annotationList([note("c1", "first note")]);
 				throw new Error("connection lost");
 			},
 		});
 		handle = setupShuTest({ dispatch });
-		await openEntity("Email", "e1", "private");
-		expect(getEntityView("Email", "e1").annotations.map((a) => a.body)).toEqual(["first note"]);
+		await openRecord("Email", "e1", "private");
+		expect(recordView("Email", "e1").annotations.map((a) => a.body)).toEqual(["first note"]);
 
 		await refreshAnnotations("Email", "e1");
-		expect(getEntityView("Email", "e1").annotations.map((a) => a.body)).toEqual(["first note"]);
+		expect(recordView("Email", "e1").annotations.map((a) => a.body)).toEqual(["first note"]);
 	});
 
 	it("doesn't read annotations for an individual that hasn't resolved, since the store doesn't hold its record", async () => {
@@ -149,7 +149,7 @@ describe("entity-store annotations", () => {
 	});
 });
 
-describe("entity-store freshness", () => {
+describe("an open record kept current", () => {
 	let handle: TShuTestHandle;
 	afterEach(() => handle.teardown());
 	beforeEach(endPage);
@@ -157,13 +157,13 @@ describe("entity-store freshness", () => {
 	it("applies a live property change in place and notifies without a refetch", async () => {
 		const { dispatch, calls } = stubDispatch();
 		handle = setupShuTest({ dispatch });
-		await openEntity("Email", "e1", "private");
+		await openRecord("Email", "e1", "private");
 		const seen: string[] = [];
-		subscribeEntities((s) => seen.push(s));
+		followRecords((s) => seen.push(s));
 
 		handle.emit(quadEvent("Email", "e1", "subject", "Updated"));
 		await flush();
-		expect(getEntityView("Email", "e1").entity?.vertex.subject).toBe("Updated");
+		expect(recordView("Email", "e1").entity?.vertex.subject).toBe("Updated");
 		expect(seen).toContain("e1");
 		expect(calls.entity).toBe(1);
 	});
@@ -171,18 +171,18 @@ describe("entity-store freshness", () => {
 	it("leaves an edge quad to a full reopen rather than merging it as a field", async () => {
 		const { dispatch } = stubDispatch();
 		handle = setupShuTest({ dispatch });
-		await openEntity("Email", "e1", "private");
+		await openRecord("Email", "e1", "private");
 		handle.emit(quadEvent("Email", "e1", "inReplyTo", "e0", "Email"));
 		await flush();
-		expect(getEntityView("Email", "e1").entity?.vertex.inReplyTo).toBeUndefined();
+		expect(recordView("Email", "e1").entity?.vertex.inReplyTo).toBeUndefined();
 	});
 
 	it("doesn't fetch an individual the store doesn't hold when a live change names it", async () => {
 		const { dispatch } = stubDispatch();
 		handle = setupShuTest({ dispatch });
-		await openEntity("Email", "e1", "private");
+		await openRecord("Email", "e1", "private");
 		handle.emit(quadEvent("Email", "e2", "subject", "Other"));
 		await flush();
-		expect(getEntityView("Email", "e2").status).toBe("loading");
+		expect(recordView("Email", "e2").status).toBe("loading");
 	});
 });

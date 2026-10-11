@@ -875,9 +875,6 @@
 	"modules/shu/src/page/controllers/authority-controller.ts": {
 		"anthropomorphic": 2
 	},
-	"modules/shu/src/page/controllers/entity-controller.ts": {
-		"anthropomorphic": 2
-	},
 	"modules/shu/src/page/controllers/query-controller.ts": {
 		"anthropomorphic": 1
 	},

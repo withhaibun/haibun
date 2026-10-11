@@ -1041,6 +1041,24 @@ export const QuoteAnchorSchema = z.object({
 });
 export type TQuoteAnchor = z.infer<typeof QuoteAnchorSchema>;
 
+/** A note anchored in a record, as the annotations step returns it: the quote that locates it, its body, its provenance,
+ *  and the quotes of the sections a linking note links. */
+export const AnnotationViewSchema = z.object({
+	commentId: z.string(),
+	author: z.string().optional(),
+	generatedAtTime: z.string().optional(),
+	startedAtTime: z.string().optional(),
+	endedAtTime: z.string().optional(),
+	body: z.string().optional(),
+	...QuoteAnchorSchema.shape,
+	specificResourceId: z.string(),
+	links: z.array(QuoteAnchorSchema).optional(),
+});
+export type TAnnotationView = z.infer<typeof AnnotationViewSchema>;
+
+/** The notes anchored in a record, and how many there are. */
+export const AnnotationListSchema = z.object({ annotations: z.array(AnnotationViewSchema), total: z.number() });
+
 /** A part of a record: a passage it quotes, or a fragment of its media. */
 export const PartSchema = z.union([FragmentSchema, QuoteAnchorSchema]);
 export type TPart = z.infer<typeof PartSchema>;

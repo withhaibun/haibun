@@ -4,8 +4,8 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { LitElement } from "lit";
 import { EntityController } from "./entity-controller.js";
-import { type TEntityView } from "../../entity-store.js";
-import { setupShuTest, makeEntityDispatch, type TShuTestHandle } from "../../test-setup.js";
+import type { TEntityView } from "../domains/entity.js";
+import { setupShuTest, makeEntityDispatch, annotationList, type TShuTestHandle } from "../../test-setup.js";
 import type { TEvent } from "../ports.js";
 import { endPage } from "../adapters/page-held.js";
 
@@ -38,7 +38,7 @@ describe("EntityController", () => {
 				entity: () => ({ vertex: { "@id": "e1", subject: "Hi" }, edges: [], incomingCount: { total: 0, saturated: false } }),
 				annotations: () => {
 					annotationCalls++;
-					return { annotations: [] };
+					return annotationList([]);
 				},
 			}),
 		});

@@ -112,7 +112,7 @@ import { requiredAction, type TStepReads } from "@haibun/core/lib/actions.js";
 import { steppersOf } from "@haibun/core/lib/step-registry.js";
 import { ARTIFACTS_ROUTE } from "@haibun/core/lib/run-artifact.js";
 import { buildConcernCatalog, type TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
-import { Access, LinkRelations, type TDomainDefinition, type TEdgeDef, type TRel } from "@haibun/core/lib/resources.js";
+import { Access, LinkRelations, type TDomainDefinition, type TEdgeDef, type TRel, type TAnnotationView } from "@haibun/core/lib/resources.js";
 import { fromJsonText } from "@haibun/core/lib/json-text.js";
 import { z } from "zod";
 import { STEPS_CHANGED } from "@haibun/core/schema/protocol.js";
@@ -242,11 +242,14 @@ export const ENTITY_STEP_LIST = stepsShown([
 
 /** A dispatch over the entity surface: the show steps step answers with {@link ENTITY_STEP_LIST}, the two entity steps route
  *  to the given answerers (annotations defaults to an empty list), and anything else throws: the loud-failure signal. */
-export function makeEntityDispatch(over: { entity: () => unknown; annotations?: () => unknown }): TDispatch {
-	return (method) => {
+/** The notes anchored in a record, as the annotations step returns them. */
+export const annotationList = (annotations: TAnnotationView[]): { annotations: TAnnotationView[]; total: number } => ({ annotations, total: annotations.length });
+
+export function makeEntityDispatch(over: { entity: (params: Record<string, unknown>) => unknown; annotations?: () => unknown }): TDispatch {
+	return (method, params) => {
 		if (method === SHOW_STEPS_METHOD) return ENTITY_STEP_LIST;
-		if (method === "GraphStepper-getIndividualWithEdges") return over.entity();
-		if (method === "ResourcesStepper-annotations") return over.annotations ? over.annotations() : { annotations: [] };
+		if (method === "GraphStepper-getIndividualWithEdges") return over.entity(params);
+		if (method === "ResourcesStepper-annotations") return over.annotations ? over.annotations() : annotationList([]);
 		throw new Error(`unexpected ${method}`);
 	};
 }

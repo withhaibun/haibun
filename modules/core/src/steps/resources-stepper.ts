@@ -37,6 +37,7 @@ import {
 	conversationRoot,
 	assertCommentGrounded,
 	QuoteAnchorSchema,
+	AnnotationListSchema,
 	type TQuoteAnchor,
 	Access,
 } from "../lib/resources.js";
@@ -99,26 +100,6 @@ const AnnotationCreatedSchema = z.object({
 	specificResourceId: z.string(),
 	linkedSpecificResourceIds: z.array(z.string()).optional(),
 	contextRoot: z.string(),
-});
-
-const AnnotationListSchema = z.object({
-	annotations: z.array(
-		z.object({
-			commentId: z.string(),
-			author: z.string().optional(),
-			generatedAtTime: z.string().optional(),
-			startedAtTime: z.string().optional(),
-			endedAtTime: z.string().optional(),
-			body: z.string().optional(),
-			exact: z.string(),
-			prefix: z.string().optional(),
-			suffix: z.string().optional(),
-			specificResourceId: z.string(),
-			// A linking annotation's cross-references. Each quote locates a section the note links, so a reader can open that section.
-			links: z.array(QuoteAnchorSchema).optional(),
-		}),
-	),
-	total: z.number(),
 });
 
 const cycles = (stepper: ResourcesStepper): IStepperCycles => ({

@@ -1,18 +1,44 @@
 import type { ReactiveController, ReactiveControllerHost } from "lit";
-import { openEntity, refreshAnnotations, requestBody, annotateIndividual, getEntityView, subscribeEntities, type TEntityView, type TAnnotationDraft } from "../../entity-store.js";
-import type { TWritten } from "../pipelines/call-step.js";
 import type { TCallLink } from "@haibun/core/lib/hypermedia.js";
-import { followCall } from "./read-controller.js";
+import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
+import * as OpenRecord from "../pipelines/open-record.js";
+import type { TWritten } from "../pipelines/call-step.js";
+import { loadingView, type TAnnotationDraft, type TEntityView } from "../domains/entity.js";
+import { hasEventStream, pageRecords } from "../root.js";
+import { callStep, followCall, recordRead, recordReadAt } from "./read-controller.js";
+import { subscribeBatchedEvents } from "./event-stream-controller.js";
+import { isOffline } from "./hydration-controller.js";
+import { queryStoredQuads } from "../../quads-snapshot.js";
+import { reportToRun } from "../../client-log.js";
+
+/** What an open of a record reads: the page's records, its reads and calls, its stream of observed quads, and its report. */
+const scope = (): OpenRecord.TOpenScope => ({
+	store: pageRecords(),
+	offline: isOffline(),
+	subscribe: hasEventStream() ? (onQuads) => subscribeBatchedEvents({ onBatch: (events) => onQuads(extractQuadsFromEvents(events)) }) : undefined,
+	readAt: recordReadAt,
+	read: recordRead,
+	annotations: { call: callStep, quads: queryStoredQuads },
+	report: (message) => reportToRun("warn", "open-record", message),
+});
+
+/** Opens a record and its notes, and resolves once both are read. */
+export const openRecord = (label: string, id: string, accessLevel: string): Promise<void> => OpenRecord.openRecord(scope(), label, id, accessLevel);
+
+/** Reads a held record's notes again. */
+export const refreshAnnotations = (label: string, id: string): Promise<void> => OpenRecord.refreshAnnotations(scope(), label, id);
+
+/** Returns a record's view, or a loading view until the record first opens. */
+export const recordView = (label: string, id: string): TEntityView => OpenRecord.recordView(pageRecords(), label, id);
+
+/** Adds a listener of changes to the records, by subject id, and returns its removal. */
+export const followRecords = (listener: OpenRecord.TRecordListener): (() => void) => OpenRecord.followRecords(pageRecords(), listener);
 
 /**
- * EntityController: the per-view handle to ONE individual's data: its entity, the annotations anchored in it, and how
- * it resolved (live fetch / session cache / persisted browser store when offline). A view HOLDS one and calls
- * `open(label, id, accessLevel)`; it never calls the fetch / offline / annotation primitives itself.
- *
- * Resolution and freshness live once, in the shared entity-store: one cache and one SSE subscription for every view of
- * the same individual. The controller relays the store's `TEntityView` to the host: the initial resolve, a live field
- * update over SSE, and a newly-anchored annotation all arrive by the same path, so the entity and its annotations are
- * never stitched from two uncoordinated fetches. See ./index.ts for the pattern; data-access.test.ts enforces it.
+ * EntityController: a view's handle to one record (`page/pipelines/open-record.ts`): the record, the notes anchored in it,
+ * and how the page read it. A view holds one and calls `open(label, id, accessLevel)`. The page reads each record once and
+ * keeps it current, for every view of it, so the controller passes the record's view to its host on the open, on an
+ * observed change, and on a new note, by one path.
  */
 export class EntityController implements ReactiveController {
 	view: TEntityView;
@@ -25,12 +51,12 @@ export class EntityController implements ReactiveController {
 	constructor(host: ReactiveControllerHost, onChange: (view: TEntityView) => void) {
 		this.host = host;
 		this.onChange = onChange;
-		this.view = getEntityView("", "");
+		this.view = loadingView();
 		host.addController(this);
 	}
 
 	hostConnected(): void {
-		this.unsubscribe = subscribeEntities((subject) => {
+		this.unsubscribe = followRecords((subject) => {
 			if (subject === this.id) this.sync();
 		});
 	}
@@ -40,49 +66,48 @@ export class EntityController implements ReactiveController {
 		this.unsubscribe = null;
 	}
 
-	/** Open an individual: apply any cached view at once, then resolve (fetch → offline) it and its annotations. Resolves
-	 *  when the individual has settled, so a caller can `await` a fully-applied view (a cache hit settles synchronously). */
+	/** Opens a record: shows the copy the page holds at once, then reads the record and its notes. Resolves once both are
+	 *  read, so a caller can await the whole view. */
 	async open(label: string, id: string, accessLevel: string): Promise<void> {
 		this.label = label;
 		this.id = id;
 		this.sync();
-		await openEntity(label, id, accessLevel);
+		await openRecord(label, id, accessLevel);
 		if (this.id === id) this.sync();
 	}
 
-	/** Re-resolve just this individual's annotations (a note was authored here), ahead of the SSE round-trip. */
+	/** Reads the open record's notes again, after a note is written here, before the stream reports it. */
 	refreshAnnotations(): void {
 		if (this.id) void refreshAnnotations(this.label, this.id);
 	}
 
-	/** Read one of this individual's bodies: the intentional call that fetches a document's text. The view names its
-	 *  bodies from the open; their text arrives only through this, and lands in `view.bodies` by id. */
+	/** Reads the text of one of the open record's bodies into `view.bodies`, by its id. The open names the bodies, and a
+	 *  body's text is read only here. */
 	requestBody(bodyId: string): void {
-		if (this.id && bodyId) void requestBody(this.label, this.id, bodyId);
+		if (this.id && bodyId) void OpenRecord.requestBody(scope(), this.label, this.id, bodyId);
 	}
 
-	/** Write a note anchored to a passage of this individual, and re-resolve so it reads back anchored. */
+	/** Writes a note anchored in a passage of the open record, then reads its notes again so the note shows anchored. */
 	annotate(draft: TAnnotationDraft): Promise<TWritten> {
-		if (!this.id) return Promise.resolve({ ok: false as const, refusal: { error: "an individual isn't open to annotate" } });
-		return annotateIndividual(this.label, this.id, draft);
+		if (!this.id) return Promise.resolve({ ok: false as const, refusal: { error: "a record isn't open to annotate" } });
+		return OpenRecord.annotateRecord(scope(), this.label, this.id, draft);
 	}
 
-	/** Follow a call the opened individual offers, and answer with what the call answered. */
+	/** Follows a call the open record links, and returns what the call returned. */
 	follow<T>(link: TCallLink): Promise<T> {
 		return followCall<T>(link, `${this.label} ${this.id}: ${link.summary ?? link.method}`);
 	}
 
-	/** Stop tracking the opened individual. A host that shows something else (arbitrary products rather than a resolved
-	 *  individual) doesn't take further updates for it, otherwise a live change to the individual it last opened would
-	 *  replace what the host is showing. */
+	/** Stops following the open record. A host that shows a step's products in place of a record then keeps them, where a
+	 *  change to the record it last opened would otherwise replace them. */
 	release(): void {
 		this.label = "";
 		this.id = "";
-		this.view = getEntityView("", "");
+		this.view = loadingView();
 	}
 
 	private sync(): void {
-		this.view = getEntityView(this.label, this.id);
+		this.view = recordView(this.label, this.id);
 		this.onChange(this.view);
 		this.host.requestUpdate();
 	}

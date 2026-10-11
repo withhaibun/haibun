@@ -15,8 +15,8 @@ import { copyText } from "../controllers/clipboard-controller.js";
 import { isReplyEdge } from "@haibun/core/lib/resources.js";
 import { anIndividual, EntityColumnSchema, type TContextPattern } from "../../schemas.js";
 import { EntityController } from "../controllers/entity-controller.js";
-import type { TEntityResult, TEntityView, TAnnotationDraft } from "../../entity-store.js";
-import type { AnnotationView } from "../../annotation-resolver.js";
+import type { TEntityResult, TEntityView, TAnnotationDraft } from "../domains/entity.js";
+import type { TAnnotationView } from "@haibun/core/lib/resources.js";
 import type { TPart, TQuoteAnchor } from "@haibun/core/lib/resources.js";
 import { assertFragmentReads, fragmentReads, isFragment, pageOfPassage, pdfPage, type TFragment } from "@haibun/core/lib/media-fragments.js";
 import "./shu-annotated-body.js";
@@ -184,7 +184,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	private predicateLinkCount = 0;
 	private edgeTargetCount = 0;
 	/** Annotations anchored in the open individual's body, projected from the entity view; empty until resolved. */
-	private annotationsList: AnnotationView[] = [];
+	private annotationsList: TAnnotationView[] = [];
 	/** A passage to reveal once the body renders, set by a Text Fragment reference into this individual. */
 	private revealTarget: TQuoteAnchor | null = null;
 	/** A part of the individual's media a reference names, as a PDF's page, which a file the individual offers opens at. */
