@@ -11,6 +11,7 @@ import * as Catalog from "../derivations/catalog.js";
 import { modelType } from "../ask/derivations/ask-steps.js";
 import { heldCatalog, holdsCatalog } from "../pipelines/held-catalog.js";
 import type { TRefContext } from "../derivations/markdown.js";
+import { browserRelOf } from "../graph/derivations/paint-select.js";
 
 /** Returns the catalog the page holds. Throws before the page reads actuality's steps, and names what `what` read. */
 const catalog = (what: string): Catalog.TCatalog => heldCatalog(pageRegistry(), what);
@@ -63,6 +64,12 @@ export const getTitledBy = (label: string): TTitledBy | undefined => catalog(`th
 
 /** Whether a type records actuality's own execution. */
 export const isInstrumentationType = (label: string): boolean => catalog(`whether ${label} records execution`).instrumentationTypes.has(label);
+
+/** The types whose declaration states they record execution, which a graph hides until a reader shows them. */
+export const instrumentationTypes = (): ReadonlySet<string> => catalog("the instrumentation types").instrumentationTypes;
+
+/** The link relation of a stored predicate in a graph, through the catalog the page holds (`browserRelOf`). */
+export const relationOfPredicate = (predicate: string, graph: string): string => browserRelOf(catalog(`the relation of ${graph}.${predicate}`), predicate, graph);
 
 /** Returns what the ontology declares of a relation, or undefined for a relation it doesn't declare. */
 export const getPropertyDefinition = (rel: string): Catalog.TPropertyDefinition | undefined => catalog(`the definition of ${rel}`).propertyDefinitions[rel];

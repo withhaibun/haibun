@@ -5,9 +5,9 @@
  */
 import { describe, it, expect } from "vitest";
 import { visibleGraphModel } from "./polymorphic-data-pipeline.js";
-import { actorBars } from "./sequence-model.js";
+import { actorBars } from "../../page/graph/derivations/sequence-model.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
-import type { SeqLayout } from "./sequence-model.js";
+import type { SeqLayout } from "../../page/graph/derivations/sequence-model.js";
 
 const quad = (subject: string, predicate: string, object: string, namedGraph: string, objectType?: string): TQuad => ({
 	subject,

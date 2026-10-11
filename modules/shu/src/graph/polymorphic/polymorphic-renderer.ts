@@ -2,7 +2,7 @@
 // A renderer doesn't hold a second model: a renderer is handed what the pipeline already produced, and what it displayed is read back
 // through the scene's own snapshot (inspect).
 
-import type { FGLink, FGNode } from "./polymorphic-graph-types.js";
+import type { FGLink, FGNode } from "../../page/graph/domains/graph-types.js";
 
 /** What the scene displays each repaint: the pipeline's own output. */
 export type TDrawn = { nodes: FGNode[]; links: FGLink[] };

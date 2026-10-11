@@ -21,7 +21,7 @@
  */
 import { Text } from "troika-three-text";
 import { GLOW_SPREAD, type GlowThree, MarkGlow, makeGlow } from "./polymorphic-highlight.js";
-import type { NodeVisual, Obj3D } from "./polymorphic-graph-types.js";
+import type { NodeVisual, Obj3D } from "../../page/graph/domains/graph-types.js";
 
 /** A scene object this module CONSTRUCTS or parents onto: the structural handle leaves `add` optional because a
  *  mark that doesn't parent a child never needs it. */

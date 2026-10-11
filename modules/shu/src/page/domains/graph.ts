@@ -105,7 +105,7 @@ export function nodeIn(graph: TGraph | null | undefined, id: string, where: stri
 export type TGraph = {
 	nodes: TGraphNode[];
 	edges: TGraphEdge[];
-	/** Direction hint. Renderer may ignore. */
+	/** The flow direction a layered layout reads; `directionOf` reads left to right where a graph doesn't state one. */
 	direction?: "LR" | "TB" | "RL" | "BT";
 	/** Group metadata keyed by group id (which nodes reference via `node.group`). */
 	groups?: Record<string, TGraphGroup>;
@@ -139,3 +139,6 @@ export const kindOfNode = (node: TGraphNode): string => (node.kind === undefined
 
 /** An edge's kind: the kind it states, or EDGE_KIND.default where it doesn't state one. */
 export const kindOfEdge = (edge: TGraphEdge): string => (edge.kind === undefined ? EDGE_KIND.default : edge.kind);
+
+/** A graph's flow direction: the direction it states, or left to right where it doesn't state one. */
+export const directionOf = (graph: TGraph): NonNullable<TGraph["direction"]> => (graph.direction === undefined ? "LR" : graph.direction);

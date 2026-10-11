@@ -337,36 +337,8 @@
 	"modules/shu/src/graph-expansion.ts": {
 		"fills an absent value with a constant through ??": 4
 	},
-	"modules/shu/src/graph-filter-projection.ts": {
-		"fills an absent value with a constant through ??": 2
-	},
-	"modules/shu/src/graph/gantt-model.ts": {
-		"fills an absent value with a constant through ??": 2,
-		"states a parameter's default value": 2
-	},
 	"modules/shu/src/graph/graph-neighbors.ts": {
 		"fills an absent value with a constant through ??": 1
-	},
-	"modules/shu/src/graph/grouping.ts": {
-		"fills an absent value with a constant through ??": 8,
-		"states a parameter's default value": 1
-	},
-	"modules/shu/src/graph/layered-layout.ts": {
-		"fills an absent value with a constant through ??": 16,
-		"states a parameter's default value": 1
-	},
-	"modules/shu/src/graph/node-presenters.ts": {
-		"fills an absent value with a constant through ??": 1
-	},
-	"modules/shu/src/graph/paint-select.ts": {
-		"states a parameter's default value": 1
-	},
-	"modules/shu/src/graph/polymorphic/force-layout.ts": {
-		"fills an absent value with a constant through ??": 3
-	},
-	"modules/shu/src/graph/polymorphic/model-hash.ts": {
-		"fills an absent value with a constant through ??": 1,
-		"states a parameter's default value": 1
 	},
 	"modules/shu/src/graph/polymorphic/polymorphic-a11y-renderer.ts": {
 		"fills an absent value with a constant through ??": 3
@@ -423,13 +395,6 @@
 	"modules/shu/src/graph/polymorphic/polymorphic-troika-label.ts": {
 		"fills a falsy value with a constant through ||": 2,
 		"fills an absent value with a constant through ??": 2
-	},
-	"modules/shu/src/graph/polymorphic/polymorphic-type-avatar.ts": {
-		"fills an absent value with a constant through ??": 1
-	},
-	"modules/shu/src/graph/polymorphic/sequence-model.ts": {
-		"fills an absent value with a constant through ??": 13,
-		"states a parameter's default value": 2
 	},
 	"modules/shu/src/graph/svg-renderer.ts": {
 		"fills a falsy value with a constant through ||": 2,

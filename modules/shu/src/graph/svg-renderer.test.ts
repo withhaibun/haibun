@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { graphToSvg, graphToDot } from "./svg-renderer.js";
-import { colorForType } from "../type-colors.js";
+import { colorForType } from "../page/graph/derivations/type-colors.js";
 import type { TGraph } from "../page/domains/graph.js";
 
 const g: TGraph = {

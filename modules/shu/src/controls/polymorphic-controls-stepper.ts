@@ -29,10 +29,9 @@ import { actionOK, actionNotOK, actionOKWithProducts } from "@haibun/core/lib/ut
 import type { TActionResult } from "@haibun/core/schema/protocol.js";
 import { saveImageArtifact } from "@haibun/domain-storage/image-artifact.js";
 import type { Locator, Page } from "playwright";
-import { VIEW, VIEW_TYPES, isLaneView } from "../graph/polymorphic/polymorphic-views.js";
+import { VIEW, VIEW_TYPES, isLaneView } from "../page/graph/domains/views.js";
 import { MEASURE_UNIT, PAN_DIRECTION, ZOOM_DIRECTION, type TMeasureUnit, type TPanDirection, type TZoomDirection } from "../graph/polymorphic/polymorphic-camera.js";
 import type { ShuGraphScene, TGraphState } from "../graph/polymorphic/polymorphic-scene.js";
-import { framesGraph } from "../graph/polymorphic/polymorphic-project.js";
 
 import type { ShuPolymorphicGraphView } from "../components/shu-polymorphic-graph-view.js";
 import type { ShuGraphFilter } from "../components/shu-graph-filter.js";
@@ -277,7 +276,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	/** The graph as `snapshot the graph` records it: its framing and what it draws. */
 	private async snapshot(page: Page): Promise<TGraphSnapshot> {
 		const state = await this.state(page);
-		const { focus, highlighted, follow, onScreen, sample, edges, enclosures, layered, camera, gantt, sequence } = state;
+		const { focus, highlighted, follow, framed, sample, edges, enclosures, layered, camera, gantt, sequence } = state;
 		const drawn = await this.view(page).evaluate((view: ShuPolymorphicGraphView) => (view.nodeMap === undefined ? [] : [...view.nodeMap.keys()]));
 		const linked = new Set(edges.flatMap((e) => [e.s, e.t]));
 		const lit = sample.filter((n) => isLit(n.opacity)).length;
@@ -288,7 +287,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			active: focus.selected,
 			highlighted,
 			follow,
-			framed: !!onScreen && framesGraph(onScreen),
+			framed,
 			focusDims: (!!focus.hover || !!focus.selected) && dim > 0 && lit > 0 && lit < sample.length,
 			isolated: drawn.filter((id) => !linked.has(id)),
 			predicates: [...new Set(edges.map((e) => e.predicate))],

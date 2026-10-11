@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { paintMarkScene, chipShape, boxShape, type NodeShapeDeps, type ShapeLabel, type ShapeThree } from "./polymorphic-node-shapes.js";
-import type { NodeMark } from "../graph-scene.js";
-import { GANTT_BAR_H, GANTT_BAR_D, GANTT_MIN_BAR_W, GANTT_LABEL_INSET } from "../gantt-layout.js";
+import type { NodeMark } from "../../page/graph/domains/graph-scene.js";
+import { GANTT_BAR_H, GANTT_BAR_D, GANTT_MIN_BAR_W, GANTT_LABEL_INSET } from "../../page/graph/derivations/gantt-layout.js";
 
 const chipMark = (over: Partial<NodeMark> = {}): NodeMark => ({ id: "a", type: "Person", kind: "chip", label: "Alice", color: "colour:Person", role: { kind: "free" }, ...over });
 const boxMark = (zExtent: number, over: Partial<NodeMark> = {}): NodeMark => ({

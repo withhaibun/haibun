@@ -26,9 +26,10 @@ import { SHU_TEST_IDS } from "../domains/test-ids.js";
 
 const FILTER_IDS = SHU_TEST_IDS.GRAPH_FILTER;
 import { DEFAULT_PER_TYPE_LIMIT, MAX_PER_TYPE_LIMIT } from "../quads-snapshot.js";
-import { colorForType } from "../type-colors.js";
+import { colorForType } from "../page/graph/derivations/type-colors.js";
 import { storedFields } from "../page/controllers/setting-controller.js";
-import { projectFilterClusters, effectiveHiddenTypes, derivePredicates, explicitlyHidden } from "../graph-filter-projection.js";
+import { instrumentationTypes } from "../page/controllers/catalog-controller.js";
+import { projectFilterClusters, effectiveHiddenTypes, derivePredicates, explicitlyHidden } from "../page/graph/derivations/graph-filter.js";
 import { isSchemaType } from "../derivations/ontology-projection.js";
 import { SCHEMA_TYPES } from "../domains/ontology.js";
 import "./shu-chip-group.js";
@@ -254,6 +255,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 			effectiveHiddenTypes(
 				clusters.map((c) => c.type),
 				this.state.overrides,
+				instrumentationTypes(),
 			),
 		);
 		const typeChip = (c: TCluster): TChip => ({

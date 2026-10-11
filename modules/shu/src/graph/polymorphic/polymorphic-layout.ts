@@ -1,4 +1,4 @@
-/// <reference path="./force-deps.d.ts" />
+/// <reference path="../../force-deps.d.ts" />
 /**
  * Where the nodes go. A layout writes each node's x/y from the graph's own physics: the charge, collide, link and
  * cohesion forces configured in force-layout.ts, and honours the fx/fy pins a drag, a lane or a group sets. The
@@ -9,9 +9,9 @@
  * them, so a renderer for another medium draws the force views too and the placing is testable without WebGL.
  */
 import { forceLink, forceManyBody, forceSimulation, type Simulation } from "d3-force-3d";
-import { ALPHA_DECAY, VELOCITY_DECAY } from "./layout-forces.js";
-import { configureForces, type ForceContext } from "./force-layout.js";
-import { linkEndId, type FGLink, type FGNode } from "./polymorphic-graph-types.js";
+import { ALPHA_DECAY, VELOCITY_DECAY } from "../../page/graph/derivations/layout-forces.js";
+import { configureForces, type ForceContext } from "../../page/graph/derivations/force-layout.js";
+import { linkEndId, type FGLink, type FGNode } from "../../page/graph/domains/graph-types.js";
 
 /** How a scene places its nodes. */
 export interface IGraphLayout {

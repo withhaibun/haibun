@@ -6,9 +6,9 @@
  * markup, all of it is asserted as text.
  */
 import { describe, expect, it } from "vitest";
-import { colorForType } from "../../type-colors.js";
+import { colorForType } from "../../page/graph/derivations/type-colors.js";
 import { SvgRenderer } from "./polymorphic-svg-renderer.js";
-import type { FGLink, FGNode } from "./polymorphic-graph-types.js";
+import type { FGLink, FGNode } from "../../page/graph/domains/graph-types.js";
 
 const node = (id: string, x: number, y: number, z = 0, type = "Comment"): FGNode => ({ id, name: id, type, x, y, z });
 const still = (nodes: FGNode[], links: FGLink[] = [], timeIsHorizontal = false): string => {

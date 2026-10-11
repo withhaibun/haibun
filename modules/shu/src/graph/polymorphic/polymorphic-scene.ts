@@ -8,7 +8,7 @@ import { z } from "zod";
 import { ShuElement, type TLinkedData } from "../../page/components/shu-element.js";
 import { SITE_KEY, HYPERMEDIA_ROLE_REL_KEY, type GraphModel } from "../../domains/graph-model.js";
 import { omittedOf } from "../../derivations/graph-model.js";
-import { readsEveryStatement, statedAboutFirst } from "./polymorphic-summary.js";
+import { readsEveryStatement, statedAboutFirst } from "../../page/graph/derivations/summary.js";
 import { DEFAULT_PER_TYPE_LIMIT } from "../../quads-snapshot.js";
 import { SCOPE, dispatchSubjectEvent, entryOf } from "../../current-subject.js";
 import { formatInstant, readerZone } from "../../page/derivations/time-format.js";
@@ -18,29 +18,37 @@ import { EngineGovernor, type TPacedGraph } from "./polymorphic-engine.js";
 import { PolymorphicProfiler } from "./polymorphic-profiler.js";
 import { makeTroikaChip, spriteVisual, type ChipThree } from "./polymorphic-troika-label.js";
 import { GLOW_RAMP, BREATH_MS } from "./polymorphic-highlight.js";
-import { typeAvatar } from "./polymorphic-type-avatar.js";
+import { typeAvatar } from "../../page/graph/derivations/type-avatar.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { PAGE_TERMS, type TCounted } from "@haibun/core/lib/hypermedia.js";
 import { isSubPropertyOf, CLASS_LABEL, PROPERTY_LABEL } from "@haibun/core/lib/resources.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import { type GroupKeyMode, easeInOutCubic, groupKeyOf, type XYZ } from "../grouping.js";
-import { type KindTiers, type TGraphPreview } from "../focus-policy.js";
-import { quadsToGanttModel, cascadeReschedule } from "../gantt-model.js";
-import { availablePaints, browserRelOf } from "../paint-select.js";
-import { ganttBarTimes, GANTT_ROW_H, GANTT_BAR_H, GANTT_BAR_D, GANTT_MIN_BAR_W, GANTT_GHOST_PAD } from "../gantt-layout.js";
-import { type Adornment } from "../graph-layout.js";
+import { type GroupKeyMode, easeInOutCubic, groupKeyOf, type XYZ } from "../../page/graph/derivations/grouping.js";
+import { type KindTiers, type TGraphPreview } from "../../page/graph/derivations/focus-policy.js";
+import { quadsToGanttModel, cascadeReschedule } from "../../page/graph/derivations/gantt-model.js";
+import { availablePaints } from "../../page/graph/derivations/paint-select.js";
+import { ganttBarTimes, GANTT_ROW_H, GANTT_BAR_H, GANTT_BAR_D, GANTT_MIN_BAR_W, GANTT_GHOST_PAD } from "../../page/graph/derivations/gantt-layout.js";
+import { type Adornment } from "../../page/graph/derivations/graph-layout.js";
 import { PolymorphicCamera, clearStripOffset, coveredTogether, type GanttExtent, type TMeasureUnit, type TPanDirection, type TZoomDirection } from "./polymorphic-camera.js";
 import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../../page/controllers/element-controller.js";
-import { ndcToClient, clientToNdc, screenShare, type TClientPoint } from "./polymorphic-project.js";
+import { ndcToClient, clientToNdc, framesGraph, screenShare, type TClientPoint, type TScreenShare } from "../../page/graph/derivations/project.js";
 import { syncPickTarget, restorePickTarget, type TPickObject, type TScaleRestore } from "./polymorphic-pick-sync.js";
 import { RenderContext, type TSceneCamera } from "./polymorphic-render-context.js";
 import { DataPipeline, visibleGraphModel } from "./polymorphic-data-pipeline.js";
 import { type RenderType, type TViewForces, buildRenderTypeRegistry } from "./polymorphic-render-type.js";
-import type { ViewType } from "./polymorphic-views.js";
-import { FRAME, VIEW, viewChangeRebuildsNodes } from "./polymorphic-views.js";
+import type { ViewType } from "../../page/graph/domains/views.js";
+import { FRAME, VIEW, viewChangeRebuildsNodes } from "../../page/graph/domains/views.js";
 import { isSchemaType, propertyVocabulary } from "../../derivations/ontology-projection.js";
-import { actorTypesFor, roleEdgeLabels, roleNounFor, validTimeFieldOf } from "../../page/controllers/catalog-controller.js";
+import {
+	actorTypesFor,
+	fromActorEdgeLabels,
+	relationOfPredicate,
+	roleEdgeLabels,
+	roleNounFor,
+	toActorEdgeLabels,
+	validTimeFieldOf,
+} from "../../page/controllers/catalog-controller.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { compositeRenderer, threeRenderer, type IGraphRenderer } from "./polymorphic-renderer.js";
 import { A11yRenderer } from "./polymorphic-a11y-renderer.js";
@@ -48,12 +56,12 @@ import { Drawing, aframeLoop, type TAframeScene } from "./polymorphic-drawing.js
 import { FrameTime, type TFenceGl } from "./polymorphic-frame-time.js";
 import { DEFAULT_REGULATION_THRESHOLDS, evaluateRegulation, medianOf, newRegulationState, recordFrameTime } from "./polymorphic-regulator.js";
 import { GRAPH_DRAWING_BLIP, GRAPH_FRAME_BLIP, GRAPH_REGULATION_BLIP, type TDrawingReason, type TWakeCause } from "../../graph-blips.js";
-import { SEQ_LANE_SPACING, actorBars, type TSeqModel } from "./sequence-model.js";
-import { type FGNode, type FGLink, type TSprite, GRAPH_SCENE_EVENT, linkEndId, neighboursOf } from "./polymorphic-graph-types.js";
+import { SEQ_LANE_SPACING, actorBars, type TSeqModel } from "../../page/graph/derivations/sequence-model.js";
+import { type FGNode, type FGLink, type TSprite, GRAPH_SCENE_EVENT, linkEndId, neighboursOf } from "../../page/graph/domains/graph-types.js";
 import { forceLayout, type IGraphLayout } from "./polymorphic-layout.js";
 import { SvgRenderer } from "./polymorphic-svg-renderer.js";
 import { NodeDrag, DRAG_THRESHOLD_PX } from "./polymorphic-drag.js";
-import { NODE_TEXT_COLOR, chipTextHeight } from "./layout-forces.js";
+import { NODE_TEXT_COLOR, chipTextHeight } from "../../page/graph/derivations/layout-forces.js";
 import { paintMarkScene, type ShapeLabel, type ShapeThree } from "./polymorphic-node-shapes.js";
 import { PolymorphicFocus, NODE_RENDER_ORDER, NODE_FONT_SIZE } from "./polymorphic-focus.js";
 import {
@@ -68,8 +76,8 @@ import {
 	type Vec3,
 	type Obj3D,
 } from "./polymorphic-enclosure.js";
-import { presentationForType } from "../type-presentation.js";
-import type { NodeMark } from "../graph-scene.js";
+import { presentationForType } from "../../page/graph/derivations/type-presentation.js";
+import type { NodeMark } from "../../page/graph/domains/graph-scene.js";
 import { appAccessLevel } from "../../view-query.js";
 import { PaneOpenSchema, addsToSelection, type DesiredPane, type TPaneOpen } from "../../page/derivations/pane-kinds.js";
 
@@ -517,7 +525,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		{
 			seqNodes: () => this.seqNodes(),
 			seqEdges: () => this.visibleModel().edges.map((e) => ({ from: e.from, to: e.to, predicate: e.predicate })),
-			labelOf: (participantId) => this.seqLabelFor(participantId),
+			seqOptions: () => ({ labelOf: (participantId) => this.seqLabelFor(participantId), actorEdges: { from: fromActorEdgeLabels(), to: toActorEdgeLabels() } }),
 		},
 	);
 	private get renderType(): RenderType {
@@ -734,8 +742,19 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 * quality against this surface, never against private fields. `sample` carries every node's actual x/y/z. The host
 	 * delegates its own `inspect()` to this and registers itself on globalThis as `shuPolymorphic` for devtools.
 	 */
+	/** The share of the nodes whose world position projects inside the canvas, through the camera's projection; null before
+	 *  the scene holds a camera. */
+	#screenShare(): TScreenShare | null {
+		const T = aframeThree();
+		const cam = this.fgCamera;
+		if (!T || !cam) return null;
+		cam.updateMatrixWorld?.(true);
+		return screenShare([...this.nodeMap.values()].map((n) => new T.Vector3(n.x ?? 0, n.y ?? 0, n.z ?? 0).project(cam)));
+	}
+
 	inspect() {
 		const nodes = [...this.nodeMap.values()];
+		const onScreen = this.#screenShare();
 		return {
 			nodes: nodes.length,
 			links: this.currentLinks.length,
@@ -812,13 +831,9 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			// Visibility: the fraction of nodes whose world position projects inside the canvas (NDC within [-1,1], in front
 			// of the camera). 1 = the whole graph is framed; a low value means the camera is not framing the graph (the
 			// "rendered but not visible" failure). Computed through the real camera projection, so it tracks any fov/dolly.
-			onScreen: (() => {
-				const T = aframeThree();
-				const cam = this.fgCamera;
-				if (!T || !cam) return null;
-				cam.updateMatrixWorld?.(true);
-				return screenShare([...this.nodeMap.values()].map((n) => new T.Vector3(n.x ?? 0, n.y ?? 0, n.z ?? 0).project(cam)));
-			})(),
+			onScreen,
+			// Whether the camera frames the graph: nearly every node on screen, spread across the canvas.
+			framed: onScreen !== null && framesGraph(onScreen),
 			anchors: Object.fromEntries(this.enclosureCtl.anchors),
 			enclosures: [...this.enclosureCtl.enclosures.entries()].map(([k, e]) => ({
 				key: k,
@@ -1225,7 +1240,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const target = this.ganttTargets.get(node.id);
 		const scale = this.ganttScale;
 		if (!this.renderType.dragReschedules || !target || !scale || node.z === undefined || node.isCluster) return;
-		const tasks = quadsToGanttModel(this.pipeline.renderableQuads(), { relOf: browserRelOf }).tasks;
+		const tasks = quadsToGanttModel(this.pipeline.renderableQuads(), relationOfPredicate).tasks;
 		const dragged = tasks.find((t) => t.id === node.id);
 		if (!dragged) return;
 		// Time is the z axis: the dropped bar's new centre z maps back to its start (ganttBarTimes is the 1D inverse). The
@@ -1999,7 +2014,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const detail: GraphSceneChangedDetail = {
 			groupByAxes: this.groupByAxes,
 			forces: this.renderType.forces,
-			paintOptions: availablePaints(this.model.visibleQuads),
+			paintOptions: availablePaints(this.model.visibleQuads, relationOfPredicate),
 			counts: { nodes: this.nodeMap.size, edges: links.length, relTypes, omitted },
 			latestStep: this.computeLatestStep(),
 			axisLegend: this.renderType.axisLegend(),

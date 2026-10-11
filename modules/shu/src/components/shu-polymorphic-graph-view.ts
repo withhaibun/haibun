@@ -18,7 +18,7 @@ const TIME_CURSOR_KEY = "time-cursor";
 
 const POLYMORPHIC_IDS = SHU_TEST_IDS.POLYMORPHIC_VIEW;
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
-import { VIEW, VIEW_TYPES } from "../graph/polymorphic/polymorphic-views.js";
+import { VIEW, VIEW_TYPES } from "../page/graph/domains/views.js";
 import { type TPolymorphicOptionChange } from "./shu-polymorphic-settings.js";
 import type { TViewForces } from "../graph/polymorphic/polymorphic-render-type.js";
 import "./shu-polymorphic-settings.js";
@@ -34,7 +34,7 @@ import {
 	type RescheduleUpdate,
 	type TGraphState,
 } from "../graph/polymorphic/polymorphic-scene.js";
-import { GRAPH_SCENE_EVENT } from "../graph/polymorphic/polymorphic-graph-types.js";
+import { GRAPH_SCENE_EVENT } from "../page/graph/domains/graph-types.js";
 import type { TMeasureUnit, TPanDirection, TZoomDirection } from "../graph/polymorphic/polymorphic-camera.js";
 import { type TPaneOpen } from "../page/derivations/pane-kinds.js";
 import "./shu-graph-filter.js";

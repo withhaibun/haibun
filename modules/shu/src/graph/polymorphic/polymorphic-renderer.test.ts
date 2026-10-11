@@ -9,7 +9,7 @@
 import { describe, expect, it } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { compositeRenderer, graphSummary, RecordingRenderer, samePlacement, threeRenderer } from "./polymorphic-renderer.js";
-import type { FGLink, FGNode } from "./polymorphic-graph-types.js";
+import type { FGLink, FGNode } from "../../page/graph/domains/graph-types.js";
 
 const nodes = (places: Array<[string, number, number, number]>): FGNode[] => places.map(([id, x, y, z]) => ({ id, name: id, type: "Comment", x, y, z }));
 const links = (pairs: Array<[string, string]>): FGLink[] => pairs.map(([source, target]) => ({ source, target, predicate: "narrate" }));

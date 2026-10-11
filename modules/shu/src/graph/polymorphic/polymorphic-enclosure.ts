@@ -10,12 +10,22 @@
 
 import { roleNounFor } from "../../page/controllers/catalog-controller.js";
 import SpriteText from "three-spritetext";
-import { colorForType } from "../../type-colors.js";
-import { groupKeyOf, containerLabelOf, shelfPack, groupBounds, type GroupAnchor, type GroupKeyMode, ENCLOSURE_PAD, GROUP_GAP } from "../grouping.js";
+import { colorForType } from "../../page/graph/derivations/type-colors.js";
+import {
+	groupKeyOf,
+	containerLabelOf,
+	shelfPack,
+	groupBounds,
+	isPlaced,
+	type GroupAnchor,
+	type GroupKeyMode,
+	ENCLOSURE_PAD,
+	GROUP_GAP,
+} from "../../page/graph/derivations/grouping.js";
 import { HYPERMEDIA_ROLE_REL_KEY } from "../../domains/graph-model.js";
-import { type FGNode, type TSprite } from "./polymorphic-graph-types.js";
-import { chipTextHeight, collideRadius } from "./layout-forces.js";
-import { groupCellSize } from "./group-grid.js";
+import { type FGNode, type TSprite } from "../../page/graph/domains/graph-types.js";
+import { chipTextHeight, collideRadius } from "../../page/graph/derivations/layout-forces.js";
+import { groupCellSize } from "../../page/graph/derivations/group-grid.js";
 import { FOCUS_RENDER_ORDER } from "./polymorphic-focus.js";
 
 // Group enclosures: each group's members cohere toward a ring anchor (pure math in @haibun/shu/graph/grouping.ts), then a
@@ -208,10 +218,7 @@ export class EnclosureController {
 		for (const [key, members] of byKey) {
 			// Chips are centred on the node (sprite.center = (0.5, 0.5)), so the footprint is symmetric (± rx about node.x)
 			// groupBounds' own ± rx computation covers it directly, without a per-member x shift.
-			const b = groupBounds(members, ENCLOSURE_PAD, (m) => {
-				const n = m as FGNode;
-				return { rx: collideRadius(n), ry: chipTextHeight(n) };
-			});
+			const b = groupBounds(members.filter(isPlaced), ENCLOSURE_PAD, (n) => ({ rx: collideRadius(n), ry: chipTextHeight(n) }));
 			if (!b) continue;
 			let e = this.enclosuresMap.get(key);
 			if (!e) {

@@ -17,11 +17,19 @@
 // time, so the component's per-repaint layout-target caches (ganttTargets) stay current behind a getter.
 
 import { nothing, type TemplateResult } from "lit";
-import { mapGraphToSeq, mapGraphToSeqLayout, type TSeqModel, type SeqNode, type SeqEdge, type SeqLayout } from "./sequence-model.js";
-import { layeredPositions, type LayeredDirection, LAYERED_MIN_FLOW_SPAN } from "./layered-solver.js";
-import { truncateLabel } from "./layout-forces.js";
+import {
+	mapGraphToSeq,
+	mapGraphToSeqLayout,
+	type TSeqModel,
+	type SeqNode,
+	type SeqEdge,
+	type SeqLayout,
+	type TSeqMapOptions,
+} from "../../page/graph/derivations/sequence-model.js";
+import { layeredPositions, type LayeredDirection, LAYERED_MIN_FLOW_SPAN } from "../../page/graph/derivations/layered-solver.js";
+import { truncateLabel } from "../../page/graph/derivations/layout-forces.js";
 import type { GanttTarget } from "./polymorphic-data-pipeline.js";
-import { VIEW, type ViewType, REFRAME, type ReframeMode, FRAME, type FrameMove } from "./polymorphic-views.js";
+import { VIEW, type ViewType, REFRAME, type ReframeMode, FRAME, type FrameMove } from "../../page/graph/domains/views.js";
 
 /** Sentinel a render type's `controls()` returns when it doesn't add a control to the shared control bar (lit's no-render value). */
 type ControlsFragment = TemplateResult | typeof nothing;
@@ -49,7 +57,7 @@ export type RenderTypeDeps = {
 /** The data the SequenceRenderType reads to derive its actors/messages + lane layout: the visible graph (nodes + edges,
  *  with each node's merged role + recorded time), the human form of an edge predicate, and the display label for a
  *  participant id. Read at CALL time so the layout reflects the current model. */
-export type SeqRenderDeps = { seqNodes: () => ReadonlyArray<SeqNode>; seqEdges: () => ReadonlyArray<SeqEdge>; labelOf: (participantId: string) => string };
+export type SeqRenderDeps = { seqNodes: () => ReadonlyArray<SeqNode>; seqEdges: () => ReadonlyArray<SeqEdge>; seqOptions: () => TSeqMapOptions };
 
 /** The layout options a view overrides while active. */
 export type TViewForces = { grouped?: boolean; flatten?: boolean; labelAsZ?: boolean };
@@ -261,7 +269,7 @@ export class SequenceRenderType extends BaseRenderType {
 		const nodes = this.seqDeps.seqNodes();
 		if (this.cacheRef !== nodes || !this.cached) {
 			this.cacheRef = nodes;
-			this.cached = mapGraphToSeqLayout(nodes, this.seqDeps.seqEdges(), { labelOf: this.seqDeps.labelOf });
+			this.cached = mapGraphToSeqLayout(nodes, this.seqDeps.seqEdges(), this.seqDeps.seqOptions());
 		}
 		return this.cached;
 	}
@@ -276,8 +284,8 @@ export class SequenceRenderType extends BaseRenderType {
 	}
 	/** The actors + messages model for inspect()/tests (the protocol read of the same layout). */
 	seqModel(): TSeqModel {
-		const { seqNodes, seqEdges, labelOf } = this.seqDeps;
-		return mapGraphToSeq(seqNodes(), seqEdges(), { labelOf });
+		const { seqNodes, seqEdges, seqOptions } = this.seqDeps;
+		return mapGraphToSeq(seqNodes(), seqEdges(), seqOptions());
 	}
 }
 

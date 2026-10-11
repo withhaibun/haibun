@@ -10,27 +10,27 @@
 // caches (gantt/swimlane), the group anchors and the magnify pop; the pipeline reads/writes them through these deps
 // rather than owning render-type state the rest of the component also reads.
 
-import { groupKeyOf, type GroupKeyMode, type GroupAnchor, type XYZ } from "../grouping.js";
-import { timeZScale, timeZ, spanZScale, spanZ, subjectValidTimes, type TimeZScale, type TSubjectTimes } from "../time-axis.js";
-import { quadsToGanttModel } from "../gantt-model.js";
-import { browserRelOf } from "../paint-select.js";
+import { groupKeyOf, type GroupKeyMode, type GroupAnchor, type XYZ } from "../../page/graph/derivations/grouping.js";
+import { timeZScale, timeZ, spanZScale, spanZ, subjectValidTimes, type TimeZScale, type TSubjectTimes } from "../../page/graph/derivations/time-axis.js";
+import { quadsToGanttModel } from "../../page/graph/derivations/gantt-model.js";
 import { isSchemaType } from "../../derivations/ontology-projection.js";
-import { computeLayout, type Adornment } from "../graph-layout.js";
-import { hashModel, linkKey } from "./model-hash.js";
+import { computeLayout, type Adornment } from "../../page/graph/derivations/graph-layout.js";
+import { hashModel, linkKey } from "../../page/graph/derivations/model-hash.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { relationOfPredicate } from "../../page/controllers/catalog-controller.js";
 import type { TQuad, TCluster } from "@haibun/core/lib/quad-types.js";
 import type { GraphModel } from "../../domains/graph-model.js";
 import { buildGraphModelFromQuads, omittedLabel } from "../../derivations/graph-model.js";
-import { type FGNode, type FGLink, linkEndId } from "./polymorphic-graph-types.js";
+import { type FGNode, type FGLink, linkEndId } from "../../page/graph/domains/graph-types.js";
 
 const NEWCOMER_SEED_SPREAD = 40; // a streamed node spawns within this radius of its neighbour/type so it eases in instead of flying from the origin
 const TIME_DEPTH_MAX = 700; // depth range in world units, full span of the visible dates fills this. The auto-fit frames the 3D bounds, so more depth mostly backs the camera off (it reads as separation only up to ~the x/y layout spread) and pushes the deepest nodes small enough that the focus magnifier pops them harder: a moderate range. The sqrt scale (time-axis) does the real work of making long gaps read deeper than short ones.
 
-import type { ViewType } from "./polymorphic-views.js";
-import { VIEW, isLaneView } from "./polymorphic-views.js";
-import { LAYERED_Z_FACTOR } from "./layered-solver.js";
-import { truncateLabel } from "./layout-forces.js";
-import { gridSlot } from "./group-grid.js";
+import type { ViewType } from "../../page/graph/domains/views.js";
+import { VIEW, isLaneView } from "../../page/graph/domains/views.js";
+import { LAYERED_Z_FACTOR } from "../../page/graph/derivations/layered-solver.js";
+import { truncateLabel } from "../../page/graph/derivations/layout-forces.js";
+import { gridSlot } from "../../page/graph/derivations/group-grid.js";
 export type GanttTarget = { y: number; z: number; zLen: number; start: number; end: number };
 export type GanttScale = { min: number; span: number };
 
@@ -136,7 +136,7 @@ export class DataPipeline {
 			this.deps.setGanttShapeSig(""); // leaving gantt → boxes revert to chips on the next feed
 			return;
 		}
-		const tasks = quadsToGanttModel(this.renderableQuads(), { relOf: browserRelOf }).tasks;
+		const tasks = quadsToGanttModel(this.renderableQuads(), relationOfPredicate).tasks;
 		if (tasks.length === 0) {
 			this.deps.setGanttTargets(new Map());
 			this.deps.setGanttScale(undefined);

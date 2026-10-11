@@ -8,8 +8,8 @@
 import { describe, expect, it } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { forceLayout } from "./polymorphic-layout.js";
-import type { ForceContext } from "./force-layout.js";
-import type { FGLink, FGNode } from "./polymorphic-graph-types.js";
+import type { ForceContext } from "../../page/graph/derivations/force-layout.js";
+import type { FGLink, FGNode } from "../../page/graph/domains/graph-types.js";
 
 const node = (id: string, at?: { x: number; y: number; z: number }): FGNode => ({ id, name: id, type: "Comment", ...at });
 const context = (nodes: FGNode[], over: Partial<ForceContext> = {}): ForceContext => ({

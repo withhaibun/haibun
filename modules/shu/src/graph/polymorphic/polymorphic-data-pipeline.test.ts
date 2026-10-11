@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
-import { timeZScale, timeZ } from "../time-axis.js";
+import { timeZScale, timeZ } from "../../page/graph/derivations/time-axis.js";
 import { DataPipeline, type DataPipelineDeps } from "./polymorphic-data-pipeline.js";
 
 const GENERATED = LinkRelations.GENERATED_AT_TIME.rel;

@@ -19,7 +19,7 @@ import { z } from "zod";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "../page/components/shu-element.js";
 // The view catalog itself, never the render-type module that re-exports it: that pulls the whole 3D layout chain in
 // behind a name this element only reads.
-import { VIEW_TYPES, VIEW_LABELS, type ViewType } from "../graph/polymorphic/polymorphic-views.js";
+import { VIEW_TYPES, VIEW_LABELS, type ViewType } from "../page/graph/domains/views.js";
 import type { GraphSceneConfig } from "../graph/polymorphic/polymorphic-scene.js";
 import type { TViewForces } from "../graph/polymorphic/polymorphic-render-type.js";
 import "@haibun/shu/page/components/shu-field.js";

@@ -4,8 +4,8 @@
  * browser component and in a report generated in Node; `SvgGraphRenderer` wires node click/hover/leave on the painted DOM.
  */
 import { SHU_EVENT } from "../domains/elements.js";
-import { layeredLayout, type NodeBox } from "./layered-layout.js";
-import { presentationForType } from "./type-presentation.js";
+import { layeredLayout, PIXEL_METRICS, type NodeBox } from "../page/graph/derivations/layered-layout.js";
+import { presentationForType } from "../page/graph/derivations/type-presentation.js";
 import { xml, MAX_SVG_LABEL, arrowMarker, ARROW_MARKER_ID, SVG_MARGIN as MARGIN } from "./svg-util.js";
 import { ellipsize } from "@haibun/core/lib/util/index.js";
 import { EDGE_KIND, NODE_KIND, type IGraphRenderer, type TGraph, type TGraphEdge, type TGraphRenderOptions } from "../page/domains/graph.js";
@@ -56,7 +56,7 @@ const groupHue = (i: number): string => `hsl(${(i * 67) % 360} 45% 50%)`;
 
 /** Pure SVG markup for a graph (without the DOM). Group boxes (outermost first), then edges, then nodes on top. */
 export function graphToSvg(graph: TGraph, options?: TGraphRenderOptions): string {
-	const layout = layeredLayout(graph);
+	const layout = layeredLayout(graph, PIXEL_METRICS);
 	const w = layout.width + MARGIN * 2;
 	const h = layout.height + MARGIN * 2;
 	const shift = (b: NodeBox): NodeBox => ({ x: b.x + MARGIN, y: b.y + MARGIN, w: b.w, h: b.h });

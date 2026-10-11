@@ -6,9 +6,9 @@
  * namespace, a label factory, the theme text colours, the rendering constants), all injected so the geometry:
  * positions + dimensions, which are just numbers, is unit-tested with a recording stub, not a GPU.
  */
-import type { NodeMark } from "../graph-scene.js";
-import { GANTT_BAR_H, GANTT_BAR_D, GANTT_MIN_BAR_W, GANTT_LABEL_INSET } from "../gantt-layout.js";
-import { chipTextHeight } from "./layout-forces.js";
+import type { NodeMark } from "../../page/graph/domains/graph-scene.js";
+import { GANTT_BAR_H, GANTT_BAR_D, GANTT_MIN_BAR_W, GANTT_LABEL_INSET } from "../../page/graph/derivations/gantt-layout.js";
+import { chipTextHeight } from "../../page/graph/derivations/layout-forces.js";
 
 type V3 = { x: number; y: number; z: number; set(x: number, y: number, z: number): void };
 type Obj3D = { position: V3; scale: V3; renderOrder: number; add(o: Obj3D): void };

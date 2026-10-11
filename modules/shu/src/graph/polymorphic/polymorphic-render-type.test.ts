@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildRenderTypeRegistry, type RenderTypeDeps, type SeqRenderDeps } from "./polymorphic-render-type.js";
-import { VIEW } from "./polymorphic-views.js";
+import { VIEW } from "../../page/graph/domains/views.js";
 import type { GanttTarget } from "./polymorphic-data-pipeline.js";
 
 // Everything a view type decides about its own axes, plane and labels is declared on the view type, so the scene can
@@ -11,7 +11,10 @@ const DAY = 86_400_000;
 const target = (start: number, len: number): GanttTarget => ({ y: 10, z: start + len / 2, start, end: start + len, zLen: len });
 
 const registry = (deps: Partial<RenderTypeDeps> = {}, seq: Partial<SeqRenderDeps> = {}) =>
-	buildRenderTypeRegistry({ ganttTarget: () => undefined, ganttPlacement: () => ({ count: 0 }), ...deps }, { seqNodes: () => [], seqEdges: () => [], labelOf: (id) => id, ...seq });
+	buildRenderTypeRegistry(
+		{ ganttTarget: () => undefined, ganttPlacement: () => ({ count: 0 }), ...deps },
+		{ seqNodes: () => [], seqEdges: () => [], seqOptions: () => ({ labelOf: (id) => id, actorEdges: { from: new Set(), to: new Set() } }), ...seq },
+	);
 
 describe("what each view type declares about its own drawing", () => {
 	it("only the sequence draws in one plane, and it shows which", () => {

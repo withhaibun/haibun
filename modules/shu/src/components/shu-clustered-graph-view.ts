@@ -12,14 +12,14 @@ import { SHU_EVENT, SHU_ATTR } from "../domains/elements.js";
 import { reportToRun } from "../client-log.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { extractQuadsFromEvents, type TCluster, type TQuad } from "@haibun/core/lib/quad-types.js";
-import { getRels } from "../page/controllers/catalog-controller.js";
+import { getRels, instrumentationTypes } from "../page/controllers/catalog-controller.js";
 import { getGraphSnapshot, currentSnapshot, mergeQuadsIntoSnapshot, DEFAULT_PER_TYPE_LIMIT, MAX_PER_TYPE_LIMIT } from "../quads-snapshot.js";
 import { SubjectController } from "../page/controllers/subject-controller.js";
 import { expandNeighborhood } from "../graph-expansion.js";
 import { ShuGraphFilter } from "./shu-graph-filter.js";
 import "../graph/polymorphic/polymorphic-scene.js";
 import { type ShuGraphScene, type GraphSceneModel } from "../graph/polymorphic/polymorphic-scene.js";
-import { effectiveHiddenTypes } from "../graph-filter-projection.js";
+import { effectiveHiddenTypes } from "../page/graph/derivations/graph-filter.js";
 import { TimelineViewController } from "../page/controllers/timeline-view-controller.js";
 
 /** The source the clustered graph view reports under. */
@@ -273,7 +273,7 @@ export abstract class ShuClusteredGraphView<T extends z.ZodObject<typeof cluster
 	 *  explicit overrides, applied to every known type (snapshot clusters AND types seen only in live quads, so a graph
 	 *  that streams in mid-run, without a server cluster yet, is classified the moment it appears). */
 	private hiddenGraphsFor(types: Iterable<string>): string[] {
-		return effectiveHiddenTypes(types, this.filterOverrides);
+		return effectiveHiddenTypes(types, this.filterOverrides, instrumentationTypes());
 	}
 	private computeHiddenGraphs(): string[] {
 		return this.hiddenGraphsFor(this.allKnownGraphs());

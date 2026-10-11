@@ -6,11 +6,11 @@
  * The markup is self-contained (concrete colours without CSS variables), since a still leaves the app: it is embedded in a
  * report, printed, or opened on its own.
  */
-import { colorForType } from "../../type-colors.js";
+import { colorForType } from "../../page/graph/derivations/type-colors.js";
 import { xml } from "../svg-util.js";
 import { ellipsize } from "@haibun/core/lib/util/index.js";
-import { NODE_TEXT_COLOR } from "./layout-forces.js";
-import { linkEndId, type FGNode } from "./polymorphic-graph-types.js";
+import { NODE_TEXT_COLOR } from "../../page/graph/derivations/layout-forces.js";
+import { linkEndId, type FGNode } from "../../page/graph/domains/graph-types.js";
 import { graphSummary, type IGraphRenderer, type TDrawn } from "./polymorphic-renderer.js";
 
 /** What the medium needs from its host, read at draw time. */
