@@ -136,7 +136,6 @@ export const SHU_TEST_IDS = {
 		RETURNED_BY: "type-returned-by",
 		TAKEN_BY: "type-taken-by",
 		INSTANCES: "type-instances",
-		ERROR: "type-error",
 	},
 	/** An action, by the steps this page may call that it allows. */
 	/** A thread's cards: each card's type and who sent it. */
@@ -256,7 +255,6 @@ export const SHU_TEST_IDS = {
 	DOMAIN_CHAIN: {
 		ROOT: "shu-domain-chain",
 		GRAPH: "domain-chain-graph",
-		ERROR: "domain-chain-error",
 		EMPTY: "domain-chain-empty",
 		/** What a chain lint report found, and each finding. */
 		FINDINGS: "domain-chain-findings",

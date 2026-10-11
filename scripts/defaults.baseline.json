@@ -609,7 +609,6 @@
 		"states a parameter's default value": 1
 	},
 	"modules/shu/src/page/components/shu-filter-column.ts": {
-		"fills a falsy value with a constant through ||": 2,
 		"states a parameter's default value": 2
 	},
 	"modules/shu/src/page/components/shu-graph-query.ts": {
@@ -672,7 +671,7 @@
 	},
 	"modules/shu/src/page/components/shu-type-column.ts": {
 		"fills an absent value with a constant through ??": 3,
-		"states a schema's default value through .default()": 3
+		"states a schema's default value through .default()": 2
 	},
 	"modules/shu/src/page/components/shu-virtual-column.ts": {
 		"fills an absent value with a constant through ??": 8,
@@ -718,7 +717,7 @@
 	"modules/shu/src/schemas.ts": {
 		"fills a falsy value with a constant through ||": 3,
 		"states a parameter's default value": 1,
-		"states a schema's default value through .default()": 31
+		"states a schema's default value through .default()": 30
 	},
 	"modules/shu/src/test-setup.ts": {
 		"fills an absent value with a constant through ??": 4,

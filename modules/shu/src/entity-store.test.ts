@@ -86,7 +86,7 @@ describe("entity-store resolution", () => {
 		await openEntity("Email", "e1", "private");
 		const view = getEntityView("Email", "e1");
 		expect(view.status).toBe("error");
-		expect(view.error).toContain("Issuer not found");
+		expect(view.refusal?.error).toContain("Issuer not found");
 		expect(view.entity).toBeUndefined();
 	});
 

@@ -60,9 +60,19 @@ export const queryGraph = (query: Record<string, unknown>): Promise<TGraphQueryR
 /** Returns a record with its edges, at `accessLevel`. */
 export const readIndividual = (label: string, id: string, accessLevel: string): Promise<TIndividualWithEdges> => Reads.readIndividual(scope(), label, id, accessLevel);
 
+/** Returns a record with its edges, at `accessLevel`, or the refusal. */
+export const recordReadAt = (label: string, id: string, accessLevel: string): Promise<CallStep.TCallOutcome<TIndividualWithEdges>> =>
+	CallStep.outcomeOf(() => readIndividual(label, id, accessLevel));
+
 /** Returns a record with its edges, at the page's access level, or the refusal. */
-export const recordRead = (label: string, id: string): Promise<CallStep.TCallOutcome<TIndividualWithEdges>> =>
-	CallStep.outcomeOf(() => readIndividual(label, id, appAccessLevel()));
+export const recordRead = (label: string, id: string): Promise<CallStep.TCallOutcome<TIndividualWithEdges>> => recordReadAt(label, id, appAccessLevel());
+
+/** Returns the rows a graph query names, or the refusal. */
+export const queryRead = (query: Record<string, unknown>): Promise<CallStep.TCallOutcome<TGraphQueryResult>> => CallStep.outcomeOf(() => queryGraph(query));
+
+/** Returns the edges that reach a record, in `window`, at the page's access level, or the refusal. */
+export const incomingRead = (label: string, id: string, window: Reads.TEdgeWindow): Promise<CallStep.TCallOutcome<TIncomingEdges>> =>
+	CallStep.outcomeOf(() => incomingEdges(label, id, window));
 
 /** Returns the edges that reach a record, in `window`, at the page's access level. */
 export const incomingEdges = (label: string, id: string, window: Reads.TEdgeWindow): Promise<TIncomingEdges> => Reads.incomingEdges(scope(), label, id, appAccessLevel(), window);

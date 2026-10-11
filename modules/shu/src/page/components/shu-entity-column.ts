@@ -52,6 +52,8 @@ import { idOf, instanceLabel, isVisibleKey, extractFieldEntries, extractBodyLite
 import { isReferenceEdge } from "../derivations/record-fields.js";
 import { pickPreferredBody } from "@haibun/core/lib/resources.js";
 import type { TWritten } from "../pipelines/call-step.js";
+import type { TPageRefusal } from "../domains/refusal.js";
+import "./shu-refusal.js";
 
 /** The name of the delay after which the copy button reads Copy again. */
 const COPY_RESULT = "copy-result";
@@ -243,18 +245,18 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	 *  selected and written; the individual (and the entity handle that reaches it) is the column's, so the write is too. */
 	private readonly annotateDraft = (draft: TAnnotationDraft): Promise<TWritten> => this.entity.annotate(draft);
 
+	/** Why the record wasn't read, where its read was refused. */
+	#refusal: TPageRefusal | undefined = undefined;
+
 	/** Project the entity handle's view onto the render fields: the entity (applied for the field table/roles/body), the
 	 *  annotations anchored in it, the text of any body already read, and the loading/error/provenance state the render
 	 *  branches read. */
 	private applyView(view: TEntityView): void {
 		if (view.entity) this.applyEntity(view.entity);
 		this.annotationsList = view.annotations;
+		this.#refusal = view.status === "error" ? view.refusal : undefined;
 		this.bodyText = view.bodies;
-		this.setState({
-			loading: view.status === "loading",
-			error: view.status === "error" ? view.error : undefined,
-			fromStore: view.provenance === "cache" || view.provenance === "offline" ? view.provenance : undefined,
-		});
+		this.setState({ loading: view.status === "loading", fromStore: view.provenance === "cache" || view.provenance === "offline" ? view.provenance : undefined });
 		// Read the body the reader is shown, only that one, only once (the handle no-ops for a body already read).
 		const bodyId = this.activeBodyId();
 		if (bodyId && view.bodies[bodyId] === undefined) this.entity.requestBody(bodyId);
@@ -288,7 +290,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	async open(id: string, label: string = firstDeclaredType(), selector?: TPart): Promise<void> {
 		this.fragment = null;
 		if (selector) this.revealPart(selector);
-		this.setState({ individualId: id, persistedAs: label, error: undefined });
+		this.#refusal = undefined;
+		this.setState({ individualId: id, persistedAs: label });
 		const accessLevel = appAccessLevel();
 		await this.entity.open(label, id, accessLevel);
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns: [anIndividual(label, id)], accessLevel, label }, bubbles: true, composed: true }));
@@ -299,7 +302,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	}
 
 	render(): TemplateResult {
-		const { loading, error, persistedAs } = this.state;
+		const { loading, persistedAs } = this.state;
 		this.predicateLinkCount = 0;
 		this.edgeTargetCount = 0;
 
@@ -307,7 +310,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			const { individualId: vid, persistedAs: lbl } = this.state;
 			return html`<shu-spinner .status=${`Fetching ${lbl} ${vid.slice(0, 30)}...`} .visible=${true}></shu-spinner>`;
 		}
-		if (error) return html`<div class="error-banner">${error}</div>`;
+		const refusal = this.#refusal;
+		if (refusal !== undefined) return html`<shu-refusal .refusal=${refusal} .readAgain=${() => void this.open(this.state.individualId, this.state.persistedAs)}></shu-refusal>`;
 		if (!this.vertex) {
 			const msg = this.state.individualId ? `Vertex not found: ${this.state.individualId}` : "";
 			return msg ? html`<div class="error-banner">${msg}</div>` : html`<shu-spinner status="Waiting..." visible></shu-spinner>`;
@@ -366,7 +370,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	}
 
 	protected updated(): void {
-		if (!this.state.loading && !this.state.error && this.vertex) this.bindEvents();
+		if (!this.state.loading && this.#refusal === undefined && this.vertex) this.bindEvents();
 	}
 
 	/** The calls the record offers, each a control that states what it does: a link that doesn't state it, as the record's

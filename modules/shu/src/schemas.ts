@@ -117,7 +117,6 @@ export const EntityColumnSchema = z.object({
 	individualId: z.string(),
 	persistedAs: z.string(),
 	loading: z.boolean().default(false),
-	error: z.string().optional(),
 	/** How this individual was served: from the in-memory session cache or the persisted browser store (offline), vs a
 	 *  live fetch (undefined). Surfaced as a badge so a reader knows the view may be a stored copy, not freshly fetched. */
 	fromStore: z.enum(["cache", "offline"]).optional(),
@@ -130,13 +129,7 @@ export const EntityColumnSchema = z.object({
 
 // --- Filter column ---
 
-export const FilterColumnSchema = z.object({
-	persistedAs: z.string().optional(),
-	property: z.string().optional(),
-	value: z.string().optional(),
-	loading: z.boolean().default(false),
-	error: z.string().optional(),
-});
+export const FilterColumnSchema = z.object({ persistedAs: z.string().optional(), property: z.string().optional(), value: z.string().optional() });
 
 /** The type a reader chooses to search, as the page strip states it. */
 export const TypeChoiceSchema = z.object({ key: z.string().min(1) });

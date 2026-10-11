@@ -10,7 +10,8 @@ import type { TWritten } from "./page/pipelines/call-step.js";
 import { pagePinned } from "./page/adapters/page-held.js";
 import { resolveAnnotationsLive, resolveAnnotationsOffline, type AnnotationView } from "./annotation-resolver.js";
 import { appAccessLevel } from "./view-query.js";
-import { readIndividual } from "./page/controllers/read-controller.js";
+import { readIndividual, recordReadAt } from "./page/controllers/read-controller.js";
+import type { TPageRefusal } from "./page/domains/refusal.js";
 import { callStep } from "./page/controllers/read-controller.js";
 
 /** The client's copy of one entity. It holds the `getIndividualWithEdges` result. SSE quads keep its scalar fields current. */
@@ -30,7 +31,8 @@ export type TEntityView = {
 	provenance?: TProvenance;
 	entity?: TEntityResult;
 	annotations: AnnotationView[];
-	error?: string;
+	/** Why the record wasn't read, where the read was refused. */
+	refusal?: TPageRefusal;
 	/** Maps each read body's id to the body's text. A record names the bodies it links by id and media type. It doesn't
 	 *  carry their text, because a body is a whole document. `requestBody` reads a body's text when a reader opens the body.
 	 *  A body id absent here hasn't been read, so its body area renders as loading rather than empty. */
@@ -147,12 +149,12 @@ export async function openEntity(label: string, id: string, accessLevel: string)
 		// `readIndividual` returns the site's response. It returns the individual as this page holds it where the site doesn't
 		// respond or the page reads another actuality's records. A copy the page holds is marked `live` on a served page, so the
 		// provenance doesn't separate those sources.
-		const read = await readIndividual(label, id, accessLevel).catch((err: unknown) => errorDetail(err));
-		if (typeof read === "string") {
-			entry.view = { status: "error", annotations: [], error: read, bodies: {} };
+		const read = await recordReadAt(label, id, accessLevel);
+		if (!read.ok) {
+			entry.view = { status: "error", annotations: [], refusal: read.refusal, bodies: {} };
 			return void notify(s, id);
 		}
-		entry.view = { status: "ready", provenance: isOffline() ? "offline" : "live", entity: read as TEntityResult, annotations: [], bodies: {} };
+		entry.view = { status: "ready", provenance: isOffline() ? "offline" : "live", entity: read.value as TEntityResult, annotations: [], bodies: {} };
 		notify(s, id);
 	}
 	await loadAnnotationsInto(entry);

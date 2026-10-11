@@ -35,8 +35,26 @@ describe("shu-entity-column error surfacing", () => {
 		document.body.appendChild(el);
 		await el.open("did:example:pookie", "Issuer");
 		await el.updateComplete;
-		const html = el.shadowRoot?.innerHTML ?? "";
-		expect(html).toContain("Issuer not found: did:example:pookie");
-		expect(html).not.toMatch(/Fetching .* did:example:pookie/);
+		const refusal = el.shadowRoot?.querySelector("shu-refusal");
+		await (refusal as (Element & { updateComplete?: Promise<unknown> }) | null)?.updateComplete;
+		expect(refusal?.shadowRoot?.textContent, "the site's refusal, through the refusal view").toContain("Issuer not found: did:example:pookie");
+		expect(el.shadowRoot?.innerHTML ?? "").not.toMatch(/Fetching .* did:example:pookie/);
+	});
+
+	it("renders the remedy the site's refusal carries as its control", async () => {
+		const answering = globalThis.fetch;
+		globalThis.fetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			if (url.includes("getIndividualWithEdges"))
+				return Promise.resolve(rpcAnswer({ error: "sign in to read the issuer", remedy: { do: "sign-in", at: "https://example.org/sign-in" } }, 401));
+			return answering(input, init);
+		};
+		const el = new ShuEntityColumn();
+		document.body.appendChild(el);
+		await el.open("did:example:pookie", "Issuer");
+		await el.updateComplete;
+		const refusal = el.shadowRoot?.querySelector("shu-refusal");
+		await (refusal as (Element & { updateComplete?: Promise<unknown> }) | null)?.updateComplete;
+		expect(refusal?.shadowRoot?.querySelector('a[href="https://example.org/sign-in"]')?.textContent).toBe("Sign in");
 	});
 });

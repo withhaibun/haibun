@@ -7,14 +7,16 @@
  * shows the type's own schema, with a toggle widening it to the entire vocabulary. Read-only: the schema comes from
  * getTypeDescription/getRels/getEdgeRanges/getTypes, the individuals from the graph query a page at a time.
  */
-import { html, css, type TemplateResult } from "lit";
+import { html, css, nothing, type TemplateResult } from "lit";
 import { createRef, ref } from "lit/directives/ref.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
-import { QueryController } from "../controllers/query-controller.js";
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { queryGraph, queryRead } from "../controllers/read-controller.js";
+import { LoadController } from "../controllers/load-controller.js";
+import type { TCallOutcome } from "../pipelines/call-step.js";
+import "./shu-refusal.js";
 import { getEdgeRanges, getQueryableFields, getRels, getTypeDescription, getTypes, getUiPresenting, isSystemSchemaType, refContext } from "../controllers/catalog-controller.js";
 import { arrayWindowedSource, readWindowedSource, type WindowedSource } from "../../windowed-source.js";
 
@@ -40,12 +42,7 @@ import { ShuProductView } from "./shu-product-view.js";
 import { appAccessLevel } from "../../view-query.js";
 import { renderRefProse } from "../derivations/markdown.js";
 
-const TypeColumnSchema = z.object({
-	persistedAs: z.string().default(""),
-	fullSchema: z.boolean().default(false),
-	loading: z.boolean().default(false),
-	error: z.string().optional(),
-});
+const TypeColumnSchema = z.object({ persistedAs: z.string().default(""), fullSchema: z.boolean().default(false) });
 
 type VertexData = Record<string, unknown>;
 
@@ -115,14 +112,21 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 			.joins .section-label { display: inline; margin-right: var(--shu-space-2); }
 			.section-label { display: block; font-size: var(--shu-font-sm); color: var(--shu-fg-muted); margin-bottom: var(--shu-space-2); }
 			.instances ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--shu-space-1); }
-			.error { color: var(--shu-error); }
 		`,
 	];
 
 	/** The full-schema toggle is remembered across reloads, like every persisted view option. */
 	static persistFields = ["fullSchema"] as const;
 
-	#instances: WindowedSource<VertexData> = arrayWindowedSource<VertexData>([]);
+	/** What the column reads of the type's individuals: each page the reader reaches, read as the table reaches it. */
+	#readInstances: () => Promise<TCallOutcome<WindowedSource<VertexData>>> = () => Promise.resolve({ ok: true, value: arrayWindowedSource<VertexData>([]) });
+	readonly #instancesRead = new LoadController<WindowedSource<VertexData>>(this, () => this.#readInstances());
+
+	/** The type's individuals the column holds, or an empty source before its read completes. */
+	get #instances(): WindowedSource<VertexData> {
+		const page = this.#instancesRead.page;
+		return page === undefined ? arrayWindowedSource<VertexData>([]) : page;
+	}
 
 	/** The individuals read so far: the page the column read, and whatever a reader has scrolled to since. */
 	#read(): VertexData[] {
@@ -135,7 +139,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 	}
 
 	constructor() {
-		super(TypeColumnSchema, { loading: true });
+		super(TypeColumnSchema, {});
 	}
 
 	/** Called by the pane afterAttach hook with the referenced type. */
@@ -144,7 +148,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		// the schema can find this type by it. It is not published on the selection axis, which names a record the store
 		// holds: a Class is a projection of the registry and isn't a record, and naming one there asks every reader of that
 		// axis for a record of a type that does not exist.
-		this.setState({ persistedAs, loading: true, error: undefined });
+		this.setState({ persistedAs });
 		// An ask from here is about the type: its members. This column holds a type without an id, so `aType` is the
 		// only thing it can show, and it doesn't offer a query-surface label, since a schema view doesn't have one to give.
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns: [aType(persistedAs)], accessLevel: appAccessLevel() }, bubbles: true, composed: true }));
@@ -152,23 +156,20 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		// registered topology) doesn't have any and would fail a graphQuery with "Unknown label"; and a registered schema presenter
 		// lists individuals in its own tab, so the column shows only the schema position (description + scoped schema graph).
 		if (!getTypes().includes(persistedAs) || ShuTypeColumn.schemaPresenter() !== undefined) {
-			this.#instances = arrayWindowedSource<VertexData>([]);
-			this.setState({ loading: false });
+			this.#instancesRead.hold(arrayWindowedSource<VertexData>([]));
 			return;
 		}
-		try {
-			const of = { label: persistedAs, accessLevel: appAccessLevel() };
-			const first = await this.#query.run({ ...of, limit: INSTANCES_PAGE });
-			this.#instances = readWindowedSource<VertexData>({ size: INSTANCES_PAGE, read: (start, end) => this.#query.run({ ...of, limit: end - start, offset: start }), held: first });
-		} catch (err) {
-			this.setState({ loading: false, error: errorDetail(err) });
-			return;
-		}
-		this.setState({ loading: false });
+		const of = { label: persistedAs, accessLevel: appAccessLevel() };
+		this.#readInstances = async () => {
+			const first = await queryRead({ ...of, limit: INSTANCES_PAGE });
+			if (!first.ok) return first;
+			return {
+				ok: true,
+				value: readWindowedSource<VertexData>({ size: INSTANCES_PAGE, read: (start, end) => queryGraph({ ...of, limit: end - start, offset: start }), held: first.value }),
+			};
+		};
+		await this.#instancesRead.run();
 	}
-
-	/** The view holds its data access, as every migrated column does, rather than calling the wire itself. */
-	#query = new QueryController(this);
 
 	private tableRef = createRef<ShuResultTable>();
 
@@ -208,7 +209,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 	private embeddedGraphFor = "";
 	protected updated(): void {
 		const table = this.tableRef.value;
-		if (table && !this.state.loading && !this.state.error) {
+		if (table && this.#instancesRead.completed) {
 			table.persistedAs = this.state.persistedAs;
 			table.setSortableFields(getQueryableFields(this.state.persistedAs));
 			table.setSource(this.#instances as WindowedSource<Record<string, unknown>>);
@@ -262,8 +263,12 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 					? ""
 					: html`<div class="instances">
 				<span class="section-label">Individuals${this.#instances.count() ? ` (${this.#instances.count()})` : ""}</span>
-				${this.state.loading ? html`<span>Loading…</span>` : ""}
-				${this.state.error ? html`<div class="error" data-testid=${IDS.ERROR}>${this.state.error}</div>` : ""}
+				${this.#instancesRead.render<TemplateResult | typeof nothing>({
+					pending: () => html`<span>Loading…</span>`,
+					running: () => html`<span>Loading…</span>`,
+					completed: () => nothing,
+					failed: (refusal) => html`<shu-refusal .refusal=${refusal} .readAgain=${() => void this.#instancesRead.run()}></shu-refusal>`,
+				})}
 				<shu-result-table ${ref(this.tableRef)} data-testid=${IDS.INSTANCES} @row-click=${this.onRowClick}></shu-result-table>
 			</div>`
 			}`;
