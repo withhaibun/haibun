@@ -596,9 +596,8 @@
 		"the-run": 2
 	},
 	"modules/shu/src/page/components/shu-affordances-panel.ts": {
-		"anthropomorphic": 4,
-		"terminal-preposition": 3,
-		"the-run": 1
+		"anthropomorphic": 2,
+		"terminal-preposition": 2
 	},
 	"modules/shu/src/page/components/shu-annotated-body.ts": {
 		"anthropomorphic": 4,
@@ -669,9 +668,7 @@
 		"the-run": 2
 	},
 	"modules/shu/src/page/components/shu-domain-chain-view.ts": {
-		"negated-noun": 1,
-		"terminal-preposition": 1,
-		"the-run": 1
+		"terminal-preposition": 1
 	},
 	"modules/shu/src/page/components/shu-element.test.ts": {
 		"anthropomorphic": 2,
@@ -934,11 +931,9 @@
 		"negated-noun": 3
 	},
 	"modules/shu/src/quads-snapshot.ts": {
-		"anthropomorphic": 28,
-		"negated-noun": 1,
+		"anthropomorphic": 6,
 		"relation-verb": 1,
-		"terminal-preposition": 5,
-		"the-run": 1
+		"terminal-preposition": 3
 	},
 	"modules/shu/src/recogito.ts": {
 		"relation-verb": 1

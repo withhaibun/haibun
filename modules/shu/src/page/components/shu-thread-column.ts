@@ -13,7 +13,6 @@ import { openRef } from "./ref-navigation.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { anIndividual, type TContextPattern } from "../../schemas.js";
 import { ellipsize } from "@haibun/core/lib/util/index.js";
-import { callStep } from "../controllers/registry-controller.js";
 import { getFieldRel, getValidTimeField } from "../controllers/catalog-controller.js";
 import { fieldRef } from "./shu-ref.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
@@ -25,6 +24,9 @@ import { appAccessLevel } from "../../view-query.js";
 import { extractBodyLiterals, idOf, instanceLabel, titleFields } from "../controllers/record-controller.js";
 import { persistedTypeOf } from "../derivations/record-fields.js";
 import { addsToSelection } from "../derivations/pane-kinds.js";
+import { relatedRecords } from "../controllers/read-controller.js";
+import { LoadController } from "../controllers/load-controller.js";
+import "./shu-refusal.js";
 
 /** Where the thread's graph is placed in the column, and the scope it keeps its settings under, apart from the main graph's. */
 const THREAD_GRAPH = { slot: "thread-graph", scope: "thread" } as const;
@@ -34,8 +36,6 @@ const ThreadColumnSchema = z.object({
 	individualId: z.string().default(""),
 	mode: z.enum(["tree", "graph"]).default("tree"),
 	depth: z.number().default(2),
-	loading: z.boolean().default(false),
-	error: z.string().optional(),
 });
 
 type ThreadEdge = { type: string; targetId: string };
@@ -106,14 +106,24 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 			.content-area { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
 			.graph-container { flex: 1; overflow: auto; padding: var(--shu-space-4); min-height: 0; }
 			::slotted([data-external]) { display: block; height: 100%; }
-			.error { padding: var(--shu-space-4); color: var(--shu-error); background: var(--shu-bg-error-soft); border-radius: var(--shu-radius); margin: var(--shu-space-4); }
 		`,
 	];
 
-	private thread: ThreadVertex[] = [];
+	/** The thread the column shows: the records related to the record it opened at, or the items it was given. */
+	readonly #thread = new LoadController<ThreadVertex[]>(this, async () => {
+		const { label, individualId, depth } = this.state;
+		const related = await relatedRecords<ThreadVertex>(label, individualId, depth);
+		return related.ok ? { ok: true, value: related.value.items } : related;
+	});
+
+	/** The records of the thread, or an empty list before its read completes. */
+	private get thread(): ThreadVertex[] {
+		const page = this.#thread.page;
+		return page === undefined ? [] : page;
+	}
 
 	constructor() {
-		super(ThreadColumnSchema, { label: "", individualId: "", mode: "tree", depth: 2, loading: false });
+		super(ThreadColumnSchema, { label: "", individualId: "", mode: "tree", depth: 2 });
 	}
 
 	protected override onConnected(): void {
@@ -128,8 +138,8 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 
 	/** Render items directly without RPC fetch. Items are JSON-LD nodes (`@id`/`@type`), optionally with `_edges`. */
 	openItems(items: ThreadVertex[], label = "Result"): void {
-		this.thread = items;
-		this.setState({ label, individualId: "", loading: false });
+		this.setState({ label, individualId: "" });
+		this.#thread.hold(items);
 	}
 
 	/** Render a collection product: its `items` become thread vertices (links merged into edges), without an RPC fetch. */
@@ -140,19 +150,13 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 
 	async open(label: string, id: string, depth?: number): Promise<void> {
 		if (depth !== undefined) this.state = { ...this.state, depth };
-		this.setState({ label, individualId: id, loading: true, error: undefined });
+		this.setState({ label, individualId: id });
 		// A thread is about the record it is read from, as a record column is: stated the same way, so the reader is on
 		// it here as they would be there.
 		this.dispatchEvent(
 			new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns: [anIndividual(label, id)], accessLevel: appAccessLevel(), label }, bubbles: true, composed: true }),
 		);
-		const res = await callStep<{ items: ThreadVertex[]; contextRoot: string }>("getRelated", { label, id, depth: this.state.depth }, `thread-column: open ${label}:${id}`);
-		if (!res.ok) {
-			this.setState({ loading: false, error: res.refusal.error });
-			return;
-		}
-		this.thread = res.value.items ?? [];
-		this.setState({ loading: false });
+		await this.#thread.run();
 	}
 
 	override paneSubject(): TContextPattern[] | null {
@@ -176,7 +180,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 	/** The graph mode draws the thread in the site's graph presenter, mounted once and given the thread on each update. */
 	protected updated(): void {
 		const presenter = presenterIn(this, THREAD_GRAPH.slot);
-		if (this.state.mode !== "graph" || this.state.loading || this.state.error || this.thread.length === 0) {
+		if (this.state.mode !== "graph" || this.thread.length === 0) {
 			presenter?.remove();
 			return;
 		}
@@ -191,10 +195,18 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 	}
 
 	render(): TemplateResult {
-		const { mode, loading, error, depth } = this.state;
-		if (loading) return html`<div class="empty">Loading thread...</div>`;
-		if (error) return html`<div class="error">${error}</div>`;
-		if (this.thread.length === 0) return html`<div class="empty">A thread wasn't found.</div>`;
+		const loading = (): TemplateResult => html`<div class="empty">Loading thread...</div>`;
+		return this.#thread.render({
+			pending: loading,
+			running: loading,
+			failed: (refusal) => html`<shu-refusal .refusal=${refusal} .readAgain=${() => void this.#thread.run()}></shu-refusal>`,
+			completed: (thread) => (thread.length === 0 ? html`<div class="empty">A thread wasn't found.</div>` : this.threadTemplate()),
+		});
+	}
+
+	/** The thread's toolbar, and its records as a tree or a graph. */
+	private threadTemplate(): TemplateResult {
+		const { mode, depth } = this.state;
 		return html`
 			<div class="toolbar">
 				<button class=${`mode-btn${mode === "tree" ? " active" : ""}`} @click=${this.onModeClick("tree")}>Tree</button>

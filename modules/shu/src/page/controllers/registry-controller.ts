@@ -6,16 +6,14 @@
 import type { ReactiveController, ReactiveControllerHost } from "lit";
 import type { TDomainDiscoveryInfo, TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { SHOW_STEPS_ACTION, SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
-import { pageConduit, pageEventStream, pageHydration, pageRegistry, registryReads } from "../root.js";
-import * as CallStep from "../pipelines/call-step.js";
-import type { TCallLink } from "@haibun/core/lib/hypermedia.js";
+import { pageRegistry, registryScope } from "../root.js";
 import { readSteps } from "../pipelines/read-steps.js";
 import { REGISTRY_EVENT, REGISTRY_STATUS, type TRegistryOrigin, type TStepList } from "../machines/registry.js";
 import * as Steps from "../derivations/steps.js";
 import { acts, type TLink } from "../domains/links.js";
 
 /** Reads actuality's steps where the page doesn't hold them, and returns them. */
-const stepList = (): Promise<TStepList> => readSteps({ registry: pageRegistry(), reads: registryReads(), conduit: pageConduit, stream: pageEventStream });
+const stepList = (): Promise<TStepList> => readSteps(registryScope());
 
 /** Returns the steps the page holds, or undefined before its first read. */
 function heldList(): TStepList | undefined {
@@ -54,15 +52,6 @@ export function linkTo(method: string, params?: Record<string, unknown>, summary
 	const list = heldList();
 	return list === undefined ? acts(method, params, summary) : Steps.linkOf(list, method, params, summary);
 }
-
-/** What a call reads: actuality's steps, the conduit, and what a carried run's step produced. */
-const callScope = (): CallStep.TCallScope => ({ steps: stepList, conduit: pageConduit, carried: (method) => pageHydration().carriedProducts(method) });
-
-/** Calls the step `step` names with `params`, and returns what the step returned, or the refusal. */
-export const callStep = <T>(step: string, params: Record<string, unknown>, why: string): Promise<CallStep.TCallOutcome<T>> => CallStep.callStep<T>(callScope(), step, params, why);
-
-/** Follows a call a record links, and returns what the call returned. Throws the call's failure. */
-export const followCall = <T>(link: TCallLink, why: string): Promise<T> => CallStep.followCall<T>(callScope(), link, why);
 
 /** Returns the steps that take a domain and the steps that return it. */
 export const stepsJoining = (name: string): ReturnType<typeof Steps.stepsJoining> => Steps.stepsJoining(readList(`the steps joining ${name}`), name);

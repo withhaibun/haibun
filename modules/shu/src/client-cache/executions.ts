@@ -11,10 +11,11 @@ import { SEQ_PATH_FIELD, parseRecordName } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
-import { heldGraphStores, readHeldStore, selectValuesFor, servedGraphStore, type TCachedGraphStore } from "../quads-snapshot.js";
+import { heldGraphStores, readHeldStore, servedGraphStore, type TCachedGraphStore } from "../quads-snapshot.js";
 import { RUN_TYPES } from "./run-window.js";
 import { componentOfView, declaredViews } from "../page/controllers/catalog-controller.js";
 import { pagePinned } from "../page/adapters/page-held.js";
+import { selectValuesFor } from "../page/controllers/read-controller.js";
 
 /** The source the device's runs report under. */
 const EXECUTIONS = "executions";

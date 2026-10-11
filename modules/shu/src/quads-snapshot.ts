@@ -1,35 +1,17 @@
-import {
-	GraphQuerySchema,
-	SHARED_GRAPH,
-	type TCluster,
-	type TClusteredQuads,
-	type TGraphQueryResult,
-	type TQuad,
-	type IQuadStore,
-	type TDensityQuery,
-	type TDensityResult,
-	type TIndividualWithEdges,
-	type TIncomingEdges,
-} from "@haibun/core/lib/quad-types.js";
-import { incomingEdges as incomingEdgesHeld, recordWithEdges } from "@haibun/core/lib/records/pipelines/record-reads.js";
-import type { TRunGraph } from "./client-cache/run-graph.js";
+import { SHARED_GRAPH, type TCluster, type TClusteredQuads, type TQuad, type IQuadStore } from "@haibun/core/lib/quad-types.js";
 import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
 import { reportFailure } from "./client-log.js";
 import { reads } from "./page/domains/links.js";
 import { conduit } from "./page/controllers/conduit-controller.js";
-import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
-import { getConcernCatalog, getRels, getTitledBy, getSelectFields } from "./page/controllers/catalog-controller.js";
+import { getConcernCatalog, getRels, getTitledBy } from "./page/controllers/catalog-controller.js";
 import { readDeclarationsOfCatalog, type TReadDeclarations } from "@haibun/core/lib/records/derivations/read-records.js";
-import { isOffline } from "./page/controllers/hydration-controller.js";
-import { findStep, getAvailableSteps, requireStep } from "./page/controllers/registry-controller.js";
+import { getAvailableSteps, requireStep } from "./page/controllers/registry-controller.js";
 import { IndexedDbQuadStore, deviceGraphStore } from "./client-cache/quad-store.js";
 import { heldDatabases } from "./client-cache/device-store.js";
 import { pagePinned } from "./page/adapters/page-held.js";
 import { EDGE, type AccessLevel } from "@haibun/core/lib/resources.js";
 import { VARIABLE_FIELD } from "@haibun/core/lib/records/domains/variables.js";
 import { appAccessLevel } from "./view-query.js";
-import { refusalOf } from "./page/derivations/refusal.js";
-import type { TCallOutcome } from "./page/pipelines/call-step.js";
 
 export const DEFAULT_PER_TYPE_LIMIT = 100;
 /** Ceiling for the per-type sample, everywhere the limit can be set (the filter slider AND the +N-more cluster expand), so a path can't silently inflate the limit past what the slider expresses. */
@@ -55,6 +37,9 @@ export function setGraphStore(store: TCachedGraphStore): void {
 export function readHeldStore(store: TCachedGraphStore): void {
 	graphStoreSlot().reading = store === servedGraphStore() ? undefined : store;
 }
+
+/** Whether the page reads a store of the device other than the one it serves, as it reads another actuality's records. */
+export const readsHeldStore = (): boolean => graphStoreSlot().reading !== undefined;
 
 /** Returns the read declarations of the types the page's concern catalog lists. */
 export const pageReadDeclarations = (): TReadDeclarations => readDeclarationsOfCatalog(getConcernCatalog());
@@ -244,104 +229,6 @@ export async function getGraphSnapshot(opts: { perTypeLimit?: number; types?: st
 	}
 }
 
-/**
- * The one rule for reading the graph: ask the site, and when the site doesn't respond, give the answer from what this page
- * holds. A site's refusal is its answer, a record it doesn't hold among them. `held` returns undefined when the page cannot answer either, and then the site's own failure is what the
- * caller is told, since a question this page cannot answer is not one to be quiet about.
- */
-async function askElseHeld<T>(ask: () => Promise<T>, held: () => Promise<T | undefined>): Promise<T> {
-	// A page reading another actuality's records, or a report, reads what it holds: the site doesn't hold those records.
-	let failure: unknown = new Error("this page doesn't hold that record of the actuality it reads");
-	if (!isOffline() && !graphStoreSlot().reading) {
-		try {
-			await getAvailableSteps();
-			return await ask();
-		} catch (err) {
-			if (!isServerUnreachable(err)) throw err;
-			failure = err;
-		}
-	}
-	const own = await held();
-	if (own === undefined) throw failure;
-	return own;
-}
-
-/**
- * A label's dropdown values: what the site answers, and when the site doesn't answer, the distinct values its context fields
- * hold in the graph this page caches. The site derives its answer from the same declaration over the same fields, so a
- * reader without a server offered the values in the graph they hold is offered the same fields, narrowed to what is there.
- */
-/** The step a site offers a label's dropdown values by. */
-const SELECT_VALUES_STEP = "getSelectValues";
-
-export function selectValuesFor(label: string): Promise<Record<string, string[]>> {
-	return askElseHeld(
-		// The values are an affordance: a page whose key the site doesn't offer them to is offered none, and the reader types.
-		async () =>
-			findStep(SELECT_VALUES_STEP)
-				? ((await conduit().follow<{ values: Record<string, string[]> }>(reads(requireStep(SELECT_VALUES_STEP), { label }), `select values for ${label}`)).values ?? {})
-				: {},
-		async () => {
-			// A type the site never declared is a question this page cannot answer at all; a declared type without a context
-			// field doesn't have dropdowns, which is an answer.
-			if (!getRels(label)) return undefined;
-			const values: Record<string, string[]> = {};
-			for (const field of getSelectFields(label)) values[field] = (await cachedGraphStore().distinctPropertyValues(label, field)).values;
-			return values;
-		},
-	);
-}
-
-/**
- * Actuality as this page reads it: the site's answer, and what the page holds when the site doesn't answer. The one reading a
- * live page uses, stated rather than reached for, so what a view reads a run through is visible where the view is made.
- */
-export function pageRunGraph(): TRunGraph {
-	return { query: (query) => queryGraph(query), density: densityOf, declares: (label) => !!getRels(label) };
-}
-
-/**
- * How many records fall in each division of a span, by how each turned out: what the site answers, and when the site doesn't
- * answer, the same count over the graph this page caches. The site counts over the whole run it holds; a page without a
- * site counts over what it has read, which is what a reader without a site has.
- */
-function densityOf(query: TDensityQuery): Promise<TDensityResult> {
-	return askElseHeld(
-		() => conduit().follow<TDensityResult>(reads(requireStep("density"), { query }), `the shape of ${query.label}`),
-		async () => (getRels(query.label) ? await cachedGraphStore().density(query) : undefined),
-	);
-}
-
-/** Returns a bounded list of a type's records at the page's access level, through the graph query, so a page without a
- *  site lists what it caches, or the refusal. `why` states the read. */
-export async function listRecords(label: string, why: string): Promise<TCallOutcome<TGraphQueryResult>> {
-	try {
-		return { ok: true, value: await queryGraph({ label, accessLevel: appAccessLevel(), limit: LIST_LIMIT }) };
-	} catch (err) {
-		const refusal = refusalOf(err);
-		return { ok: false, refusal: { ...refusal, error: `${why}: ${refusal.error}` } };
-	}
-}
-
-/** How many records a list of a type's records holds. */
-const LIST_LIMIT = 100;
-
-/**
- * The rows a graph query names: what the site answers, and when the site doesn't answer, the same query over the graph this
- * page caches. The site's own inherent query is that function over its store, so a reader without a server is given the
- * answer the site would have given, bounded by what they hold. A type the site never declared, or a query a store of
- * quads cannot answer, is reported as the failure it is.
- */
-export function queryGraph(query: Record<string, unknown>): Promise<TGraphQueryResult> {
-	return askElseHeld(
-		() => conduit().follow<TGraphQueryResult>(reads(requireStep("graphQuery"), { query }), `query: ${(query.label as string) || "(any)"}`),
-		async () => {
-			const parsed = GraphQuerySchema.safeParse(query);
-			return parsed.success && getRels(parsed.data.label ?? "") ? await cachedGraphStore().readRecords(parsed.data) : undefined;
-		},
-	);
-}
-
 /** A scope's current snapshot, read synchronously (without a fetch). Empty before anything loads. */
 export function currentSnapshot(scope = ""): TGraphSnapshot {
 	return getStore().scopes.get(scope)?.cache?.model.snapshot ?? { quads: [], clusters: [] };
@@ -382,16 +269,6 @@ export function mergeQuadsIntoSnapshot(quads: TQuad[]): void {
 	void servedGraphStore().setMany(quads); // persist live observations off-heap for the next reload
 }
 
-/**
- * One individual with its edges: what the site answers, and when the site doesn't respond, the individual as the page holds it.
- */
-export function readIndividual(label: string, id: string, accessLevel: string): Promise<TIndividualWithEdges> {
-	return askElseHeld(
-		() => conduit().follow<TIndividualWithEdges>(reads(requireStep("getIndividualWithEdges"), { label, id, accessLevel }), `read ${label}:${id}`),
-		() => recordWithEdges(cachedGraphStore(), label, id),
-	);
-}
-
 /** One variable a step set: its name, the value its record holds, and the type of its record. */
 export type TVariableSet = { name: string; value: unknown; graph: string };
 
@@ -401,18 +278,6 @@ export function variablesSetBy(quads: readonly TQuad[], stepRecordName: string):
 	const ofVariables = quads.filter((q) => q.namedGraph === SHARED_GRAPH);
 	const names = new Set(ofVariables.filter((q) => q.predicate === EDGE.wasGeneratedBy && q.object === stepRecordName).map((q) => q.subject));
 	return [...names].map((name) => ({ name, value: ofVariables.find((q) => q.subject === name && q.predicate === VARIABLE_FIELD.value)?.object, graph: SHARED_GRAPH }));
-}
-
-/**
- * What points at an individual: what the site answers, and when the site doesn't answer, the edges the page holds that point at
- * it, windowed the same way. The count is what the reader can reach, which offline is what they hold.
- */
-export function incomingEdges(label: string, id: string, window: { limit: number; offset: number }): Promise<TIncomingEdges> {
-	return askElseHeld(
-		() => conduit().follow<TIncomingEdges>(reads(requireStep("getIncomingEdges"), { label, id, accessLevel: appAccessLevel(), ...window }), `what points at ${label}:${id}`),
-		// The window is taken before a record is read, so a hub takes the page a window rather than every edge of it.
-		() => (getRels(label) ? incomingEdgesHeld(cachedGraphStore(), label, id, window) : Promise.resolve(undefined)),
-	);
 }
 
 /** Query the off-heap snapshot store (the serialized-report / offline backing). The reverse walks a display needs: an

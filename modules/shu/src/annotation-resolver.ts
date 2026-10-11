@@ -10,11 +10,11 @@
 import { locateQuoteOffsets } from "@haibun/core/lib/quote-anchor.js";
 import { COMMENT_LABEL, BODY_LABEL, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL, LinkRelations } from "@haibun/core/lib/resources.js";
 import { MEDIA_TYPE } from "@haibun/core/lib/media-types.js";
-import { callStep } from "./page/controllers/registry-controller.js";
 import { queryStoredQuads } from "./quads-snapshot.js";
 
 /** A quote that locates a passage in the rendered text: the TextQuoteSelector shape the typed-link grammar and the graph share. */
 import type { TQuoteAnchor } from "@haibun/core/lib/resources.js";
+import { callStep } from "./page/controllers/read-controller.js";
 
 /** One anchored note: the quote that locates it, the note body, and its provenance. `commentId` is the annotating
  *  Comment (the id the highlight carries, so a click selects the note). */

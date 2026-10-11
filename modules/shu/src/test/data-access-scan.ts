@@ -27,7 +27,7 @@ const PLUMBING_MODULES = [
 ];
 
 /** The names a view doesn't import. A controller holds the read each one performs. */
-const DATA_ACCESS_PRIMITIVES = new Set(["conduit", "requireStep", "findStep", "callStep", "followCall", "listRecords", "pageAuthority", "signedHeaders"]);
+const DATA_ACCESS_PRIMITIVES = new Set(["conduit", "requireStep", "findStep", "callStep", "followCall", "pageAuthority", "signedHeaders"]);
 
 /** The name an entry of an import's list takes from its module: `type x as y` takes `x`. */
 function importedName(entry: string): string {

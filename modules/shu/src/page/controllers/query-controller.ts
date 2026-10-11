@@ -1,6 +1,6 @@
 import type { ReactiveController, ReactiveControllerHost } from "lit";
 import type { TGraphQueryResult } from "@haibun/core/lib/quad-types.js";
-import { queryGraph } from "../../quads-snapshot.js";
+import { queryGraph } from "./read-controller.js";
 
 /**
  * QueryController: the per-view handle to the graph-query data path. A view that runs queries HOLDS one

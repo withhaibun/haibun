@@ -5,13 +5,15 @@
  * the same flow as picking a step from the combo. The panel never invokes RPCs
  * itself; the step-caller in the actions-bar runs the step.
  */
-import { html, css, type TemplateResult, type PropertyValues } from "lit";
+import { html, css, nothing, type TemplateResult, type PropertyValues } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
-import { conduit, hasConduit } from "../controllers/conduit-controller.js";
+import { hasConduit } from "../controllers/conduit-controller.js";
+import { affordancesOnOffer } from "../controllers/read-controller.js";
+import { LoadController } from "../controllers/load-controller.js";
+import "./shu-refusal.js";
 import { type TEvent } from "../ports.js";
-import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { GOAL_FINDING, type TMichi, type TBinding, type TFieldBinding } from "@haibun/core/lib/goal-resolver.js";
 import {
 	isArgumentDomain,
@@ -22,7 +24,7 @@ import {
 	satisfiedGoalDomains,
 } from "@haibun/core/lib/affordances.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
-import { RPC_METHOD, SHU_EVENT, AFFORDANCE_PARAM, SHU_TAG } from "../../domains/elements.js";
+import { SHU_EVENT, AFFORDANCE_PARAM, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import * as PageHash from "../controllers/hash-controller.js";
 import { pathNodeIds, projectGoalPaths } from "../../graph/project-goal-paths.js";
@@ -34,7 +36,6 @@ import { actionRef, domainRef, factIdRef } from "./shu-ref.js";
 import { openRef } from "./ref-navigation.js";
 import { nodeIn, type TGraph } from "../../graph/types.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { linkTo } from "../controllers/registry-controller.js";
 import { noteExecution } from "../../client-cache/executions.js";
 import { revealInDocument } from "../../reveal.js";
 import { ClockController } from "../controllers/clock-controller.js";
@@ -73,12 +74,7 @@ function findingLabel(finding: string): string {
 	return finding;
 }
 
-const ShuAffordancesPanelSchema = z.object({
-	loadState: z.enum(["idle", "fetching", "loaded"]).default("idle"),
-	fetchError: z.string().default(""),
-	openGoal: z.string().optional(),
-	openWaypoint: z.string().optional(),
-});
+const ShuAffordancesPanelSchema = z.object({ openGoal: z.string().optional(), openWaypoint: z.string().optional() });
 
 /** The words before the links to the facts that satisfy a goal. */
 const ALREADY_ASSERTED = "already asserted: ";
@@ -117,7 +113,18 @@ const feedGoalGraph = (presenter: TGraphPresenter, graph: TGraph): void => {
 };
 
 export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSchema> {
-	private affordances: TAffordances | null = null;
+	/** The affordances the panel shows: read from actuality, or given as a step's products. */
+	readonly #affordances = new LoadController<TAffordances>(this, async () => {
+		const asOf = this.getAttribute("as-of");
+		const read = await affordancesOnOffer(asOf === null ? undefined : asOf);
+		return read.ok ? { ok: true, value: this.merged(snapshotOf(read.value)) } : read;
+	});
+
+	/** The affordances the panel shows, or null before they are read. */
+	private get affordances(): TAffordances | null {
+		const page = this.#affordances.page;
+		return page === undefined ? null : page;
+	}
 
 	/** The discovery surface as linked data: every forward step (the deployment's callable verbs) and each goal's verdict: the core affordance shapes, uninvented. The served vocabulary terms don't type this composite, so it doesn't carry a type. */
 	summarizeForKihan(): TLinkedData | null {
@@ -141,7 +148,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	private lastScrolledWaypoint: string | undefined = undefined;
 	constructor() {
 		const { goal, waypoint } = normalizeSelection(PageHash.hashParam(AFF_GOAL_PARAM), PageHash.hashParam(AFF_WAYPOINT_PARAM), undefined, undefined);
-		super(ShuAffordancesPanelSchema, { loadState: "idle", fetchError: "", openGoal: goal, openWaypoint: waypoint });
+		super(ShuAffordancesPanelSchema, { openGoal: goal, openWaypoint: waypoint });
 	}
 
 	protected override onConnected(): void {
@@ -151,7 +158,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		// Hash restoration mounts the panel without products. Fetch the current snapshot
 		// directly so real data shows instead of a forever-spinner. The setter path
 		// still wins when products are threaded through (step invocation).
-		if (this.affordances === null) void this.fetchInitial();
+		if (this.affordances === null) this.fetchInitial();
 		// Every step end emits an `affordances.<seqPath>` artifact via the goal-resolution
 		// stepper's afterStep cycle. Subscribing keeps the panel current; the snapshot/restore
 		// helper preserves scroll, focus, and details-open state across re-renders.
@@ -181,7 +188,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	/** Reads the affordances again once per `REFRESH_COALESCE_MS`, however many change signals arrive: the first signal starts
 	 *  the delay, and the rest arrive within it. */
 	private scheduleRefresh(): void {
-		this.#clock.coalesce(REFRESH, REFRESH_COALESCE_MS, () => void this.fetchInitial(true));
+		this.#clock.coalesce(REFRESH, REFRESH_COALESCE_MS, () => this.fetchInitial(true));
 	}
 
 	private toggleGoal(domain: string): void {
@@ -198,7 +205,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	set products(p: Record<string, unknown>) {
 		// <shu-page> coalesces the connect-time replay (one pane request per pane per frame), so a burst never reaches
 		// here: apply the latest synchronously. The products carry the whole snapshot, waypoints included.
-		this.applyAffordances(snapshotOf(p));
+		this.#affordances.hold(this.merged(snapshotOf(p)));
 	}
 
 	/** A step on a path opens in the actions bar to be run; a fact opens the step that produced it. */
@@ -216,56 +223,29 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		if (step !== undefined) openRef(e, REF_DENOTES.individual, { persistedAs: typeShownIn(SHU_TAG.STEP_DETAIL), id: step }, false);
 	}
 
-	private applyAffordances(a: TAffordances): void {
-		// Live affordance events emitted by the goal-resolver after every step include
-		// `forward` and `goals` but not `waypoints`, preserve the last known waypoints
-		// across those updates so the section doesn't flicker out between explicit refreshes.
-		const waypoints = a.waypoints ?? this.affordances?.waypoints;
-		this.affordances = { ...a, waypoints };
-		// The facts shown are that run's, so it is the run the page reads, and a fact's step opens there.
+	/** Returns a snapshot with the waypoints the panel shows where the snapshot doesn't carry them, as a live update after a
+	 *  step doesn't, so the section doesn't leave between reads. Notes the execution the snapshot is of, whose facts it shows,
+	 *  so a fact's step opens there, and the goals it satisfies. */
+	private merged(a: TAffordances): TAffordances {
+		const held = this.affordances;
+		const waypoints = a.waypoints !== undefined ? a.waypoints : held === null ? undefined : held.waypoints;
 		noteExecution(a.execution);
 		this.assertedDomains = satisfiedGoalDomains(a.goals, GOAL_FINDING.SATISFIED);
-		this.setState({ loadState: "loaded" });
+		return { ...a, waypoints };
 	}
 
-	private async fetchInitial(quiet = false): Promise<void> {
-		// Where the page doesn't hold a conduit (standalone HTML before the page starts), the panel doesn't have a server
-		// to fetch from. Stay on the actionable empty state rather than the spinner: the "invoke show
-		// affordances" prompt shows, and the panel becomes useful once a snapshot arrives.
-		// `quiet` (a live re-fetch on a change signal) skips the loadState transitions so the panel never flashes.
-		if (!hasConduit()) {
-			if (!quiet) this.setState({ loadState: "idle" });
-			return;
-		}
-		if (!quiet) this.setState({ loadState: "fetching" });
-		const asOf = this.getAttribute("as-of");
-		const params = asOf ? { asOf } : {};
-		// The affordances on offer, read rather than shown: the whole snapshot (forward + goals + waypoints), asked of
-		// actuality without being recorded as an act of it. The as-of replay variant doesn't carry waypoints: waypoint
-		// ensure-state is current run state, so actuality doesn't hold a waypoint history to replay.
-		const candidates = asOf ? [RPC_METHOD.AFFORDANCES_ON_OFFER_AS_OF] : [RPC_METHOD.AFFORDANCES_ON_OFFER];
-
-		let lastError = "";
-		for (const method of candidates) {
-			try {
-				this.applyAffordances(snapshotOf(await conduit().follow<Record<string, unknown>>(linkTo(method, params), `affordances-panel: ${method}`)));
-				return;
-			} catch (err) {
-				lastError = `RPC ${method} failed: ${errorDetail(err)}`;
-				// Try the next candidate, typical reason is that the stepper providing the method is not loaded.
-			}
-		}
-		if (!quiet)
-			this.setState({
-				loadState: "loaded",
-				fetchError: `${lastError}. The affordances panel cannot proceed without a snapshot, check the server log, confirm at least one of [${candidates.join(", ")}] is loaded, and confirm /rpc/<method> is reachable from this origin.`,
-			});
+	/** Reads the affordances on offer, or where the panel shows them, reads them again without leaving what it shows. A page
+	 *  without a conduit, a standalone HTML before the page starts, doesn't have a site to read, and the panel stays on its
+	 *  prompt until a snapshot arrives. */
+	private fetchInitial(quiet = false): void {
+		if (!hasConduit()) return;
+		void (quiet ? this.#affordances.refresh() : this.#affordances.run());
 	}
 
 	static observedHtmlAttributes = ["as-of"];
 
 	protected override onAttributeChanged(name: string, oldValue: string | null, newValue: string | null): void {
-		if (name === "as-of" && oldValue !== newValue && this.isConnected) void this.fetchInitial();
+		if (name === "as-of" && oldValue !== newValue && this.isConnected) this.fetchInitial();
 	}
 
 	private chooseStep(method: string, args?: Record<string, unknown>, auto?: boolean): void {
@@ -522,8 +502,9 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	];
 
 	render(): TemplateResult {
-		const loading = this.state.loadState === "fetching";
-		const empty = this.state.loadState === "idle";
+		const loading = this.#affordances.running;
+		const empty = this.#affordances.pending;
+		const shown = this.#affordances.completed;
 		const goals = this.affordances?.goals ?? [];
 		const waypoints = this.affordances?.waypoints ?? [];
 		const openGoal = this.state.openGoal;
@@ -542,11 +523,11 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 				</div>
 			</details>
 			${this.renderAsOfBannerTpl()}
-			${this.state.fetchError ? html`<div class="banner error">${this.state.fetchError}</div>` : ""}
+			${this.#affordances.render<TemplateResult | typeof nothing>({ pending: () => nothing, running: () => nothing, completed: () => nothing, failed: (refusal) => html`<shu-refusal .refusal=${refusal} .readAgain=${() => void this.#affordances.run()}></shu-refusal>` })}
 			${loading ? html`<shu-spinner visible status="Loading affordances…"></shu-spinner>` : ""}
 			${empty ? html`<div class="empty" data-testid="affordances-empty">The panel doesn't hold affordances yet. Invoke <code>show affordances</code> from the actions bar (Step mode) to populate this view, or run any step: every step end announces a change this panel follows.</div>` : ""}
 			${
-				!loading && !empty && waypoints.length > 0
+				shown && waypoints.length > 0
 					? html`
 				<div class="section-header"><h3>Waypoints (${waypoints.length})</h3><shu-copy-button data-copy-id="waypoints" label="Copy" title="Copy Waypoints JSON to clipboard" .source=${waypointsCopySource}></shu-copy-button></div>
 				<div data-testid="affordances-waypoints">${waypoints.map((w) => this.renderWaypointEntryTpl(w))}</div>
@@ -554,7 +535,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 					: ""
 			}
 			${
-				!loading && !empty
+				shown
 					? html`
 				<div class="section-header"><h3>Goals (${goals.length})</h3><shu-copy-button data-copy-id="goals" label="Copy" title="Copy Goals JSON to clipboard" .source=${goalsCopySource}></shu-copy-button></div>
 				<div data-testid="affordances-goals">${goals.length === 0 ? html`<div class="empty">A goal-producing step isn't loaded.</div>` : goals.map((g, idx) => this.renderGoalTpl(g, idx, openGoal))}</div>

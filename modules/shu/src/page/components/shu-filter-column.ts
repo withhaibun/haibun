@@ -15,13 +15,13 @@ import { shuBaseStyles } from "./styles.js";
 import { openRef } from "./ref-navigation.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { FilterColumnSchema, aType, type TContextPattern } from "../../schemas.js";
-import { queryGraph, incomingEdges } from "../../quads-snapshot.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { getIdField, getQueryableFields, firstDeclaredType } from "../controllers/catalog-controller.js";
 import type { ShuResultTable } from "./shu-result-table.js";
 import { arrayWindowedSource, readWindowedSource, type WindowedSource } from "../../windowed-source.js";
 import { CountedSchema, counted, type TCounted } from "@haibun/core/lib/hypermedia.js";
 import { appAccessLevel } from "../../view-query.js";
+import { queryGraph, incomingEdges } from "../controllers/read-controller.js";
 
 type VertexData = Record<string, unknown>;
 

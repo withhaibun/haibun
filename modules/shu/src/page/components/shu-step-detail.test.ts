@@ -62,6 +62,8 @@ describe("shu-step-detail", () => {
 	});
 
 	const text = (el: ShuStepDetail): string => el.shadowRoot?.textContent?.replace(/\s+/g, " ").trim() ?? "";
+	/** The refusal the view shows, as its own shadow root renders it. */
+	const refusalOf = (el: ShuStepDetail): ShadowRoot | null | undefined => el.shadowRoot?.querySelector("shu-refusal")?.shadowRoot;
 
 	it("renders the step's record and the variables it set", async () => {
 		const el = document.createElement("shu-step-detail") as ShuStepDetail;
@@ -85,7 +87,8 @@ describe("shu-step-detail", () => {
 		await el.open(`${EXECUTION}.0.2`, SEQ_PATH_LABEL); // the page doesn't hold a record of this step, and it doesn't have a site to ask
 		await el.updateComplete;
 		const t = text(el);
-		expect(t, "a step the page cannot read reports that, rather than claiming that the step doesn't exist").toContain("Failed to load step [0.2]");
+		expect(t, "a step the page cannot read reports that, rather than claiming that the step doesn't exist").toContain("Step [0.2] wasn't read.");
+		expect(refusalOf(el)?.textContent, "a site that doesn't respond offers a read again").toContain("Read again");
 		expect(t).not.toContain("myVar");
 	});
 
@@ -99,7 +102,8 @@ describe("shu-step-detail", () => {
 		document.body.appendChild(el);
 		await el.open(`${EXECUTION}.0.3`, SEQ_PATH_LABEL);
 		await el.updateComplete;
-		expect(text(el)).toContain("Failed to load step [0.3]");
+		expect(text(el)).toContain("Step [0.3] wasn't read.");
+		expect(refusalOf(el)?.textContent, "the site's refusal, as the site stated it").toContain("boom");
 	});
 
 	it("throws where a pane opens it at a record of a type whose declaration doesn't name it", async () => {

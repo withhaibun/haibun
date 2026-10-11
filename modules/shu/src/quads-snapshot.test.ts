@@ -26,10 +26,7 @@ import {
 	DEFAULT_PER_TYPE_LIMIT,
 	getGraphSnapshot,
 	setGraphStore,
-	selectValuesFor,
 	cachedGraphStore,
-	queryGraph,
-	readIndividual,
 } from "./quads-snapshot.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { Access, BODY_LABEL } from "@haibun/core/lib/resources.js";
@@ -40,6 +37,7 @@ import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { installCarriedEventStream } from "./page/root.js";
 import { pagePinned } from "./page/adapters/page-held.js";
 import { storeDeclaring } from "@haibun/core/lib/test/declared-types.js";
+import { selectValuesFor, queryGraph, readIndividual } from "./page/controllers/read-controller.js";
 
 const STORE_KEY = "__SHU_QUADS_SNAPSHOT_STORE__";
 

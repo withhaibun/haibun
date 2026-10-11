@@ -20,7 +20,6 @@ import { INITIAL_WINDOW_SIZE, PAGE_SETTING_KEY, WindowSizeSchema } from "../page
 import { storedSetting, windowRows } from "../page/derivations/settings.js";
 import { SHU_TAG } from "../domains/elements.js";
 import { pagePinned } from "../page/adapters/page-held.js";
-import { pageRunGraph } from "../quads-snapshot.js";
 import { ofExecution, type TRunGraph } from "./run-graph.js";
 import { individualAsQuads } from "./quad-store.js";
 import { currentExecution, holdOnDevice, noteExecution, readingExecution, subscribeExecutionSwitch } from "./executions.js";
@@ -32,6 +31,7 @@ import { runShape } from "./run-shape.js";
 import { railAt, momentAt, type TRunFocus, type TRunSpan } from "../page/derivations/rail.js";
 import { timeCursor } from "../page/root.js";
 import { atLiveEdge, noteRunSpan, readingBy, runReadingAt, type RunSource, type TEventRecord, type TRunExtent } from "./run-source.js";
+import { pageRunGraph } from "../page/controllers/read-controller.js";
 
 /** The source actuality's window reports under. */
 const RUN_SOURCE = "graph-run-source";

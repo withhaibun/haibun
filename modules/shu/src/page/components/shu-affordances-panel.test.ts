@@ -12,6 +12,19 @@ import { readingExecution } from "../../client-cache/executions.js";
 import { declareFakeGraphPresenter, mountedPresenter } from "../../graph-presenter.test-fake.js";
 import { presenterIn } from "../controllers/presenter-controller.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
+import { declareRegistry } from "../../test/catalog-fixture.js";
+import { stepsShown } from "../../test-setup.js";
+import { Access } from "@haibun/core/lib/resources.js";
+
+/** The step that reads the affordances on offer, as the show steps step describes it. */
+const AFFORDANCES_STEP = {
+	method: RPC_METHOD.AFFORDANCES_ON_OFFER,
+	stepperName: "GoalResolutionStepper",
+	stepName: "affordancesOnOffer",
+	pattern: "affordances on offer",
+	read: true,
+	readsAt: Access.public,
+};
 
 /** The actuality a snapshot records its facts from. */
 const EXECUTION = "1790000000000-1";
@@ -311,12 +324,15 @@ describe("shu-affordances-panel", () => {
 	it("must NOT show 'Loading affordances…' forever when mounted without products (regression: reload-without-fetch hangs)", async () => {
 		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
+		// The panel's read ends on a later task than its mount.
+		await new Promise((resolve) => setTimeout(resolve, 0));
 		await applied(panel);
 		// Either the actionable empty-state appears, or the panel rendered goals/waypoints lists. The forbidden outcome is only a spinner without a path forward.
 		const emptyState = panel.shadowRoot?.querySelector('[data-testid="affordances-empty"]');
 		const goalsList = panel.shadowRoot?.querySelector('[data-testid="affordances-goals"]');
 		const waypointsList = panel.shadowRoot?.querySelector('[data-testid="affordances-waypoints"]');
-		expect(!!emptyState || !!goalsList || !!waypointsList).toBe(true);
+		const refusal = panel.shadowRoot?.querySelector("shu-refusal");
+		expect(!!emptyState || !!goalsList || !!waypointsList || !!refusal).toBe(true);
 	});
 
 	it("waypoints carried by `show affordances` products render the waypoint section: the ONE verb brings the whole snapshot", async () => {
@@ -341,6 +357,7 @@ describe("shu-affordances-panel", () => {
 				return { execution: EXECUTION, waypoints: [], forward: [], goals: [] };
 			}),
 		);
+		declareRegistry(stepsShown([AFFORDANCES_STEP]));
 		const stream = installCarriedEventStream();
 		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel); // subscribes via subscribeBatchedEvents

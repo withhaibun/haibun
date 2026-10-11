@@ -3,7 +3,6 @@ import { jsonDisclosure } from "./json-disclosure.js";
 import { conduit } from "../controllers/conduit-controller.js";
 import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { getAvailableSteps, findStep } from "../controllers/registry-controller.js";
-import { queryGraph } from "../../quads-snapshot.js";
 import { dispatchAffordanceFromResponse } from "../../affordance-dispatch.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { validateStepInput, type TFieldError } from "../derivations/step-input.js";
@@ -17,6 +16,7 @@ import { revealInDocument } from "../../reveal.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { esc, escAttr } from "../derivations/markdown.js";
 import { prettifyGwta, normalizeStepKey } from "../derivations/steps.js";
+import { queryGraph } from "../controllers/read-controller.js";
 
 type InputProperty = { type?: string; description?: string; enum?: string[]; properties?: Record<string, InputProperty>; required?: string[]; [key: string]: unknown };
 

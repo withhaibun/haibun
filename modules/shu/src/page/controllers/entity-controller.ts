@@ -1,8 +1,8 @@
 import type { ReactiveController, ReactiveControllerHost } from "lit";
 import { openEntity, refreshAnnotations, requestBody, annotateIndividual, getEntityView, subscribeEntities, type TEntityView, type TAnnotationDraft } from "../../entity-store.js";
-import { followCall } from "./registry-controller.js";
 import type { TWritten } from "../pipelines/call-step.js";
 import type { TCallLink } from "@haibun/core/lib/hypermedia.js";
+import { followCall } from "./read-controller.js";
 
 /**
  * EntityController: the per-view handle to ONE individual's data: its entity, the annotations anchored in it, and how

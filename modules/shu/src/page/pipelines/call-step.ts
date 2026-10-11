@@ -23,21 +23,26 @@ export type TCallOutcome<T> = { ok: true; value: T } | { ok: false; refusal: TPa
 
 /** Calls the step `step` names with `params`, and returns what the step returned, or the refusal. `why` states the call to the
  *  conduit's reports. */
-export async function callStep<T>(scope: TCallScope, step: string, params: Record<string, unknown>, why: string): Promise<TCallOutcome<T>> {
-	try {
+export const callStep = <T>(scope: TCallScope, step: string, params: Record<string, unknown>, why: string): Promise<TCallOutcome<T>> =>
+	outcomeOf(async () => {
 		const list = await scope.steps();
 		const method = Steps.methodOf(list, step);
 		const carried = Object.keys(params).length === 0 ? scope.carried(method) : undefined;
-		if (carried !== undefined) return { ok: true, value: carried as T };
-		return { ok: true, value: await scope.conduit().follow<T>(Steps.linkOf(list, method, params, undefined), why) };
-	} catch (err) {
-		return { ok: false, refusal: refusalOf(err) };
-	}
-}
+		return carried !== undefined ? (carried as T) : await scope.conduit().follow<T>(Steps.linkOf(list, method, params, undefined), why);
+	});
 
 /** Follows a call a record links, as its link names it, and returns what the call returned. Throws the call's failure, so
  *  the reader that followed it states it. */
 export async function followCall<T>(scope: TCallScope, link: TCallLink, why: string): Promise<T> {
 	const list = await scope.steps();
 	return await scope.conduit().follow<T>(Steps.linkOf(list, link.method, link.params, link.summary), why);
+}
+
+/** Returns the outcome of a read that throws its failure: what it returned, or its failure as the page's refusal. */
+export async function outcomeOf<T>(read: () => Promise<T>): Promise<TCallOutcome<T>> {
+	try {
+		return { ok: true, value: await read() };
+	} catch (err) {
+		return { ok: false, refusal: refusalOf(err) };
+	}
 }

@@ -24,7 +24,6 @@ import type { TLinkedData } from "../page/components/shu-element.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import { ShuClusteredGraphView, clusteredGraphStateShape } from "./shu-clustered-graph-view.js";
-import { listRecords } from "../quads-snapshot.js";
 import { jsonDisclosure } from "../page/components/json-disclosure.js";
 import { scopeSchemaToType, scopeSchemaToConnected } from "../graph/ontology-projection.js";
 import { prefixesReferencedBy } from "../graph/jsonld-context-scope.js";
@@ -38,6 +37,7 @@ import { type ShuGraphScene, type GraphSceneModel } from "../graph/polymorphic/p
 import { GRAPH_SCENE_EVENT } from "../graph/polymorphic/polymorphic-graph-types.js";
 import { esc, renderRef } from "../page/derivations/markdown.js";
 import { idOf, instanceLabel } from "../page/controllers/record-controller.js";
+import { listRecords } from "../page/controllers/read-controller.js";
 
 const BrowserStateSchema = z.object({
 	...clusteredGraphStateShape,

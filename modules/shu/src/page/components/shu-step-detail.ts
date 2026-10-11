@@ -3,35 +3,36 @@
  *
  * A step is a record: what was asked for, what ran, how it went and why it failed, how long it took, where it ran, and
  * what it had to hold to run. This reads that record and the variables whose records link the step, so the pane is a
- * read of the graph rather than a second account of the same act. The read is a @lit/task keyed on the step, so
- * switching steps cancels the stale read and renders only the latest.
+ * read of the graph rather than a second account of the same act. The read is a load controller's, so opening another
+ * step ends the earlier read without showing it, and a refused read shows the refusal and its remedy.
  */
-import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { recordJson } from "./json-disclosure.js";
 import { html, css, type TemplateResult } from "lit";
-import { Task, TaskStatus } from "@lit/task";
 import { z } from "zod";
 import { eventMarkerStyle } from "../derivations/event-marker.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { RPC_METHOD, SHU_EVENT, SHU_TAG, SHU_ATTR } from "../../domains/elements.js";
+import { SHU_EVENT, SHU_TAG, SHU_ATTR } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { shuBaseStyles } from "./styles.js";
-import { reads } from "../domains/links.js";
-import { conduit } from "../controllers/conduit-controller.js";
 import { subscribeBatchedEvents } from "../controllers/event-stream-controller.js";
-import { readIndividual, variablesSetBy, type TVariableSet } from "../../quads-snapshot.js";
+import { variablesSetBy, type TVariableSet } from "../../quads-snapshot.js";
 import { anIndividual, type TContextPattern } from "../../schemas.js";
 import { formatSeqPath, parseRecordName, SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
-import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { actionRef, calledRef, originLink, refTpl } from "./shu-ref.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { ClockController } from "../controllers/clock-controller.js";
 import { appAccessLevel } from "../../view-query.js";
 import { typeShownIn } from "../controllers/catalog-controller.js";
+import { clusteredQuads, recordRead } from "../controllers/read-controller.js";
+import { LoadController } from "../controllers/load-controller.js";
+import "./shu-refusal.js";
 
 /** The name of the delay before the pane reads a running step again. */
 const STEP_RE_READ = "step-re-read";
+
+/** How many records of each type a sample holds, which holds more variables than the sample a graph view draws. */
+const VARIABLE_SAMPLE = 1000;
 
 /** How long a burst of announcements is collected before a still-running step's record is read again. */
 const STEP_RE_READ_AFTER_MS = 400;
@@ -44,7 +45,7 @@ type TStepData = { step?: Record<string, unknown>; variablesSet: TVariableSet[] 
 export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 	/** One step as a prov:Activity: its record, and the variables it set. */
 	summarizeForKihan(): TLinkedData | null {
-		const data = this.#load.value;
+		const data = this.#load.page;
 		if (!data?.step) return null;
 		return {
 			"@id": `view:step-${this.state.record?.id}`,
@@ -77,20 +78,15 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		super(StateSchema, {});
 	}
 
-	/** The step's record and the variables it set, keyed on the step. The variables are read from a sample of 1000 records
-	 *  of each type, which holds more variables than the sample a graph view draws. */
-	#load = new Task(this, {
-		args: () => [this.state.record] as const,
-		task: async ([record]): Promise<TStepData> => {
-			if (record === undefined) return { variablesSet: [] };
-			const { persistedAs, id } = record;
-			const [read, quadsData] = await Promise.all([
-				// One record, read by the name it carries: a step is a record a reader opens, not a query they run.
-				readIndividual(persistedAs, id, appAccessLevel()),
-				conduit().follow<{ quads: TQuad[] }>(reads(RPC_METHOD.CLUSTERED_QUADS, { perTypeLimit: 1000, accessLevel: appAccessLevel() }), "step-detail: clustered quads"),
-			]);
-			return { step: read.vertex, variablesSet: variablesSetBy(quadsData.quads ?? [], id) };
-		},
+	/** The step's record and the variables it set, read from a sample of `VARIABLE_SAMPLE` records of each type. */
+	readonly #load = new LoadController<TStepData>(this, async () => {
+		const { record } = this.state;
+		if (record === undefined) return { ok: true, value: { variablesSet: [] } };
+		// One record, read by the name it carries: a step is a record a reader opens, not a query they run.
+		const [read, sampled] = await Promise.all([recordRead(record.persistedAs, record.id), clusteredQuads(VARIABLE_SAMPLE)]);
+		if (!read.ok) return read;
+		if (!sampled.ok) return sampled;
+		return { ok: true, value: { step: read.value.vertex, variablesSet: variablesSetBy(sampled.value.quads, record.id) } };
 	});
 
 	/** The step this pane reads, as the record it is. */
@@ -112,7 +108,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		if (patterns)
 			this.dispatchEvent(new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns, accessLevel: appAccessLevel(), label: persistedAs }, bubbles: true, composed: true }));
 		await this.updateComplete;
-		await this.#load.taskComplete.catch(() => undefined);
+		await this.#load.run();
 	}
 
 	readonly #clock = new ClockController(this);
@@ -124,8 +120,8 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		if (this.hasAttribute(SHU_ATTR.SNAPSHOT_TIME)) return;
 		const unsubscribe = subscribeBatchedEvents({
 			onBatch: () => {
-				if (this.#load.status !== TaskStatus.COMPLETE || this.#ended()) return;
-				this.#clock.coalesce(STEP_RE_READ, STEP_RE_READ_AFTER_MS, () => void this.#load.run());
+				if (!this.#load.completed || this.#ended()) return;
+				this.#clock.coalesce(STEP_RE_READ, STEP_RE_READ_AFTER_MS, () => void this.#load.refresh());
 			},
 		});
 		this.autoTeardown(unsubscribe);
@@ -133,7 +129,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 
 	/** Whether the step this pane shows has ended, which is when its record stops changing. */
 	#ended(): boolean {
-		return typeof this.#load.value?.step?.[SEQ_PATH_FIELD.endedAtTime] === "string";
+		return typeof this.#load.page?.step?.[SEQ_PATH_FIELD.endedAtTime] === "string";
 	}
 
 	/** A variable the step set, as a link to its record. */
@@ -146,11 +142,12 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		if (record === undefined) return html`<div class="empty"><shu-spinner></shu-spinner> Loading step…</div>`;
 		const name = parseRecordName(record.id);
 		const key = name === undefined ? record.id : formatSeqPath(name.path);
+		const loading = (): TemplateResult => html`<div class="empty"><shu-spinner></shu-spinner> Loading step [${key}]...</div>`;
 		return this.#load.render({
-			initial: () => html`<div class="empty"><shu-spinner></shu-spinner> Loading step [${key}]...</div>`,
-			pending: () => html`<div class="empty"><shu-spinner></shu-spinner> Loading step [${key}]...</div>`,
-			error: (e) => html`<div class="empty" style="color:var(--shu-error)">Failed to load step [${key}]: ${errorDetail(e)}</div>`,
-			complete: (data) => this.renderContent(key, data),
+			pending: loading,
+			running: loading,
+			failed: (refusal) => html`<div class="empty">Step [${key}] wasn't read.</div><shu-refusal .refusal=${refusal} .readAgain=${() => void this.#load.run()}></shu-refusal>`,
+			completed: (data) => this.renderContent(key, data),
 		});
 	}
 

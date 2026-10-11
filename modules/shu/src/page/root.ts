@@ -55,7 +55,7 @@ import { CarriedEventStream } from "./adapters/carried-event-stream.js";
 import { FOLLOWS_THE_RUN } from "@haibun/core/lib/actions.js";
 import { INITIAL_STREAM_STATUS, STREAM_EVENT, streamTransition, type TStreamEvent, type TStreamStatus } from "./machines/event-stream.js";
 import { INITIAL_REGISTRY, registryTransition, type TRegistryEvent, type TRegistryState } from "./machines/registry.js";
-import type { TRegistryReads } from "./pipelines/read-steps.js";
+import type { TReadStepsScope, TRegistryReads } from "./pipelines/read-steps.js";
 
 const PREFERENCES_KEY = "__SHU_PREFERENCES__";
 const CLOCK_KEY = "__SHU_CLOCK__";
@@ -165,6 +165,9 @@ export const registryReads = (): TRegistryReads =>
 		(): TRegistryReads => ({ pending: undefined, againQueued: false, unfollow: undefined }),
 		(reads) => reads.unfollow?.(),
 	);
+
+/** Returns what a read of actuality's steps reads: the registry, the reads under way, the conduit and the stream. */
+export const registryScope = (): TReadStepsScope => ({ registry: pageRegistry(), reads: registryReads(), conduit: pageConduit, stream: pageEventStream });
 
 /** Returns the status of the page's event stream, which its adapter moves as the stream opens, breaks and closes. */
 export const streamStatus = (): Machine<TStreamStatus, TStreamEvent> => pagePinned(STREAM_STATUS_KEY, () => machine(INITIAL_STREAM_STATUS, streamTransition));

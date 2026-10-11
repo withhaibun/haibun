@@ -8,12 +8,12 @@
  */
 import { AccessLevelSchema, SCENE_LABEL } from "@haibun/core/lib/resources.js";
 import { fromActorEdgeLabels, getEdgeRanges, getPropertyDefinition, getRels, getTypes, toActorEdgeLabels } from "./page/controllers/catalog-controller.js";
-import { callStep } from "./page/controllers/registry-controller.js";
-import { listRecords } from "./quads-snapshot.js";
 import type { TCallOutcome } from "./page/pipelines/call-step.js";
 import { SHU_TAG } from "./domains/elements.js";
 import type { ShuElement } from "./page/components/shu-element.js";
 import { appAccessLevel } from "./view-query.js";
+import { listRecords } from "./page/controllers/read-controller.js";
+import { callStep } from "./page/controllers/read-controller.js";
 
 /** The options of every view a scene holds, keyed by element tag. Opaque to the graph; each view validates its own. */
 export type TSceneState = Record<string, Record<string, unknown>>;

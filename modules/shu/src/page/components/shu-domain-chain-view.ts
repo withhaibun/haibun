@@ -10,13 +10,14 @@
 import { html, css, type TemplateResult } from "lit";
 import { shuBaseStyles } from "./styles.js";
 import { z } from "zod";
-import { conduit } from "../controllers/conduit-controller.js";
+import { affordancesOnOffer } from "../controllers/read-controller.js";
+import { LoadController } from "../controllers/load-controller.js";
+import "./shu-refusal.js";
 import { type TEvent } from "../ports.js";
 import { AFFORDANCE_EVENT_PREFIX } from "@haibun/core/lib/affordances.js";
 import { producingStepOf, projectDomainChain, waypointNodeId, type TAffordancesSnapshot, type TWaypointSnapshot } from "../../graph/project-domain-chain.js";
 import { graphToQuads } from "../../graph/graph-quads.js";
-import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { SHU_EVENT, AFFORDANCE_PARAM, RPC_METHOD, SHU_TAG } from "../../domains/elements.js";
+import { SHU_EVENT, AFFORDANCE_PARAM, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import * as PageHash from "../controllers/hash-controller.js";
 import { deepLinkOf, followDeepLink, openRef } from "./ref-navigation.js";
@@ -27,7 +28,6 @@ import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { noteExecution } from "../../client-cache/executions.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { NODE_KIND, nodeIn, type TGraph, type TGraphNode } from "../../graph/types.js";
-import { linkTo } from "../controllers/registry-controller.js";
 import { graphPresenterTag, mountGraphPresenter, presenterIn } from "../controllers/presenter-controller.js";
 import type { TGraphPresenter, TPresenterNodeClick } from "../ports.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
@@ -37,7 +37,26 @@ import { typeShownIn } from "../controllers/catalog-controller.js";
  *  settings under. */
 const CHAIN_GRAPH = { slot: SHU_TEST_IDS.DOMAIN_CHAIN.GRAPH, scope: "domain-chain" } as const;
 
-const StateSchema = z.object({ loadState: z.enum(["idle", "fetching", "loaded", "empty"]).default("idle"), fetchError: z.string().default("") });
+const StateSchema = z.object({});
+
+/** Returns a snapshot of actuality's affordances, as a step's products or a read of them give it, and notes the execution it
+ *  is of: its facts are that execution's, so the page reads that execution, and a fact's step opens there. Throws for products
+ *  that don't carry the snapshot. */
+function snapshotOf(p: Record<string, unknown>): TAffordancesSnapshot {
+	if (!Array.isArray(p.forward) || !Array.isArray(p.goals) || typeof p.execution !== "string") {
+		throw new Error(`shu-domain-chain-view takes \`forward\` and \`goals\` arrays and the \`execution\` they are of. Received keys: [${Object.keys(p).join(", ")}].`);
+	}
+	const snapshot: TAffordancesSnapshot = {
+		forward: p.forward as TAffordancesSnapshot["forward"],
+		goals: p.goals as TAffordancesSnapshot["goals"],
+		composites: p.composites as TAffordancesSnapshot["composites"],
+		waypoints: Array.isArray(p.waypoints) ? (p.waypoints as TWaypointSnapshot[]) : undefined,
+		satisfiedDomains: Array.isArray(p.satisfiedDomains) ? (p.satisfiedDomains as string[]) : undefined,
+		satisfiedFacts: typeof p.satisfiedFacts === "object" && p.satisfiedFacts !== null ? (p.satisfiedFacts as Record<string, string[]>) : undefined,
+	};
+	noteExecution(p.execution);
+	return snapshot;
+}
 
 export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 	/** What the embedded graph shows of the chain. */
@@ -70,7 +89,17 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 	];
 	static domainSelector = SHU_TAG.DOMAIN_CHAIN_VIEW;
 
-	private affordances: TAffordancesSnapshot | null = null;
+	/** The affordances the chain draws: read from actuality, or given as a step's products. */
+	readonly #chain = new LoadController<TAffordancesSnapshot>(this, async () => {
+		const read = await affordancesOnOffer(undefined);
+		return read.ok ? { ok: true, value: snapshotOf(read.value) } : read;
+	});
+
+	/** The affordances the chain draws, or null before they are read. */
+	private get affordances(): TAffordancesSnapshot | null {
+		const page = this.#chain.page;
+		return page === undefined ? null : page;
+	}
 	/** Test-only accessor; production reads happen inside `render()`. */
 	getAffordances(): TAffordancesSnapshot | null {
 		return this.affordances;
@@ -79,18 +108,18 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 	private graph: TGraph | null = null;
 
 	constructor() {
-		super(StateSchema, { loadState: "idle", fetchError: "" });
+		super(StateSchema, {});
 	}
 
 	protected override onConnected(): void {
 		if (!this.hasAttribute("data-testid")) this.setAttribute("data-testid", SHU_TEST_IDS.DOMAIN_CHAIN.ROOT);
-		if (this.affordances === null) void this.fetchInitial();
+		if (this.affordances === null) void this.#chain.run();
 		// Batch the subscription: on reload the stream replays the whole `affordances.` history at once (thousands of
 		// events), and a re-fetch per event pins the page. subscribeBatched collapses the replay to one re-fetch per frame.
 		this.autoTeardown(
 			this.subscribeBatched({
 				// afterStep emits a lean change signal without a payload, so the view reads the snapshot again quietly, once per batch.
-				onBatch: () => void this.fetchInitial(true),
+				onBatch: () => void this.#chain.refresh(),
 				filter: (event: TEvent) => typeof event.id === "string" && (event.id as string).startsWith(AFFORDANCE_EVENT_PREFIX),
 			}),
 		);
@@ -103,25 +132,12 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 	set products(p: Record<string, unknown>) {
 		// A chain lint report carries its findings beside the chain.
 		this.findings = p.findings === undefined ? [] : z.array(LintFindingSchema).parse(p.findings);
-		this.ingest(p);
+		this.#chain.hold(snapshotOf(p));
 	}
 
-	/** A snapshot of the run's affordances, as a step's products or a read of them give it. Its facts are that run's, so
-	 *  the actuality it names is the one the page reads, and a fact's step opens there. */
-	private ingest(p: Record<string, unknown>): void {
-		if (!Array.isArray(p.forward) || !Array.isArray(p.goals) || typeof p.execution !== "string") {
-			throw new Error(`shu-domain-chain-view takes \`forward\` and \`goals\` arrays and the \`execution\` they are of. Received keys: [${Object.keys(p).join(", ")}].`);
-		}
-		this.affordances = {
-			forward: p.forward as TAffordancesSnapshot["forward"],
-			goals: p.goals as TAffordancesSnapshot["goals"],
-			composites: p.composites as TAffordancesSnapshot["composites"],
-			waypoints: Array.isArray(p.waypoints) ? (p.waypoints as TWaypointSnapshot[]) : undefined,
-			satisfiedDomains: Array.isArray(p.satisfiedDomains) ? (p.satisfiedDomains as string[]) : undefined,
-			satisfiedFacts: typeof p.satisfiedFacts === "object" && p.satisfiedFacts !== null ? (p.satisfiedFacts as Record<string, string[]>) : undefined,
-		};
-		noteExecution(p.execution);
-		this.setState({ loadState: "loaded", fetchError: "" });
+	/** What the chain shows before its read completes. */
+	private loadingTemplate(): TemplateResult {
+		return html`<shu-spinner visible status="Loading domain chain…"></shu-spinner>`;
 	}
 
 	/** What a chain lint report found, when the view shows one. */
@@ -142,25 +158,18 @@ export class ShuDomainChainView extends ShuElement<typeof StateSchema> {
 		}
 	}
 
-	private async fetchInitial(quiet = false): Promise<void> {
-		// `quiet` (a live re-fetch on a change signal) skips the loadState transitions so the chain never flashes.
-		if (!quiet) this.setState({ loadState: "fetching" });
-		try {
-			this.ingest(await conduit().follow<Record<string, unknown>>(linkTo(RPC_METHOD.AFFORDANCES_ON_OFFER), `domain-chain-view: ${RPC_METHOD.AFFORDANCES_ON_OFFER}`));
-		} catch (err) {
-			if (!quiet) this.setState({ loadState: "empty", fetchError: `RPC ${RPC_METHOD.AFFORDANCES_ON_OFFER} failed: ${errorDetail(err)}` });
-		}
+	render(): TemplateResult {
+		return this.#chain.render({
+			pending: () => this.loadingTemplate(),
+			running: () => this.loadingTemplate(),
+			failed: (refusal) => html`<shu-refusal .refusal=${refusal} .readAgain=${() => void this.#chain.run()}></shu-refusal>
+				<div class="empty" data-testid=${SHU_TEST_IDS.DOMAIN_CHAIN.EMPTY}>The chain wasn't read. Invoke <code>show affordances</code> from the actions bar (Step mode), or run any step.</div>`,
+			completed: () => this.chainTemplate(),
+		});
 	}
 
-	render(): TemplateResult {
-		const { loadState, fetchError } = this.state;
-		if (!this.affordances) {
-			if (loadState === "fetching") return html`<shu-spinner visible status="Loading domain chain…"></shu-spinner>`;
-			return html`
-				${fetchError ? html`<div class="error" data-testid=${SHU_TEST_IDS.DOMAIN_CHAIN.ERROR}>${fetchError}</div>` : ""}
-				<div class="empty" data-testid=${SHU_TEST_IDS.DOMAIN_CHAIN.EMPTY}>No chain data yet. Invoke <code>show affordances</code> from the actions bar (Step mode), or run any step.</div>
-			`;
-		}
+	/** The chain's header, its explanation and its graph. */
+	private chainTemplate(): TemplateResult {
 		return html`
 			<div class="header"><h3>Domain chain</h3></div>
 			<details class="explanation">

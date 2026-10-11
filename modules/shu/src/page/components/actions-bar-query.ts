@@ -11,7 +11,6 @@ import { extractQuadsFromEvents, type TSearchCondition } from "@haibun/core/lib/
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import type { TEvent } from "../ports.js";
 import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
-import { selectValuesFor } from "../../quads-snapshot.js";
 import { addObservedSelectValues, getQueryableFields, getSelectValues, hasSelectValues, hasUsableSelectValues, setSelectValues } from "../controllers/catalog-controller.js";
 import { domainOptions } from "../controllers/registry-controller.js";
 import { type TDomainOption } from "../derivations/steps.js";
@@ -28,6 +27,7 @@ import { readSlashCommand } from "../derivations/step-input.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { ClockController } from "../controllers/clock-controller.js";
 import { appAccessLevel } from "../../view-query.js";
+import { selectValuesFor } from "../controllers/read-controller.js";
 
 /** The name of the typed search's trailing pause. */
 const TYPED_SEARCH = "typed-search";

@@ -6,12 +6,12 @@ import { BODY_LABEL, LinkRelations } from "@haibun/core/lib/resources.js";
 import { subscribeBatchedEvents, hasEventStream } from "./page/controllers/event-stream-controller.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { reportToRun } from "./client-log.js";
-import { callStep } from "./page/controllers/registry-controller.js";
 import type { TWritten } from "./page/pipelines/call-step.js";
 import { pagePinned } from "./page/adapters/page-held.js";
-import { readIndividual } from "./quads-snapshot.js";
 import { resolveAnnotationsLive, resolveAnnotationsOffline, type AnnotationView } from "./annotation-resolver.js";
 import { appAccessLevel } from "./view-query.js";
+import { readIndividual } from "./page/controllers/read-controller.js";
+import { callStep } from "./page/controllers/read-controller.js";
 
 /** The client's copy of one entity. It holds the `getIndividualWithEdges` result. SSE quads keep its scalar fields current. */
 export type TEntityResult = { vertex: Record<string, unknown>; edges: unknown[]; incomingCount: TCounted };
