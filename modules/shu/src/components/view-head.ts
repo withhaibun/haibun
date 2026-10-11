@@ -11,8 +11,7 @@
  * a mount may set the host's display inline (e.g. display:block), which would disable a tag-level flex.
  */
 import { html, type TemplateResult } from "lit";
-import { ref } from "lit/directives/ref.js";
-import type { ShuCopyButton } from "../page/components/shu-copy-button.js";
+import "../page/components/shu-copy-button.js";
 import { SHU_ICON_BUTTON, shuRowSeparated } from "../page/components/styles.js";
 
 /** The settings groups a host can offer, by name. */
@@ -91,9 +90,6 @@ export function viewActions(o: {
 	/** The exclusive settings groups: at most one open; its controls row renders under the head (host-owned). */
 	settings?: { openGroup: TSettingsGroup | null; idFor: (group: TSettingsGroup) => string; onGroup: (group: TSettingsGroup | null) => void };
 }): TemplateResult {
-	const bindProvider = (el?: Element): void => {
-		if (el) (el as ShuCopyButton).sourceProvider = o.getCopyText;
-	};
 	const s = o.settings;
 	return html`<button type="button" data-testid=${o.fitId} title="fit the whole graph in view" @click=${o.onFit}>⛶ fit</button>
 		${(o.toggles ?? []).map((t) => iconToggle({ id: t.id, glyph: t.glyph, label: t.label, title: t.title, on: t.on, press: () => t.onToggle(!t.on) }))}
@@ -105,5 +101,5 @@ export function viewActions(o: {
 				: ""
 		}
 		${o.rotate ? rotateControls(o.rotate) : ""}
-		<shu-copy-button data-testid=${o.copyId} label="⧉" title="copy the graph to the clipboard" ${ref(bindProvider)}></shu-copy-button>`;
+		<shu-copy-button data-testid=${o.copyId} label="⧉" title="copy the graph to the clipboard" .sourceProvider=${o.getCopyText}></shu-copy-button>`;
 }

@@ -604,11 +604,6 @@
 	"modules/shu/src/page/components/shu-artifact-frame.test.ts": {
 		"anthropomorphic": 1
 	},
-	"modules/shu/src/page/components/shu-artifact-frame.ts": {
-		"anthropomorphic": 2,
-		"relation-verb": 2,
-		"the-run": 1
-	},
 	"modules/shu/src/page/components/shu-chat-message.test.ts": {
 		"anthropomorphic": 7
 	},
@@ -787,10 +782,6 @@
 	},
 	"modules/shu/src/page/components/shu-product-view.ts": {
 		"relation-verb": 1
-	},
-	"modules/shu/src/page/components/shu-ref-element.ts": {
-		"anthropomorphic": 1,
-		"terminal-preposition": 2
 	},
 	"modules/shu/src/page/components/shu-ref.ts": {
 		"anthropomorphic": 1

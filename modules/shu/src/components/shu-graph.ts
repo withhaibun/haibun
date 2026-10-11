@@ -23,6 +23,7 @@ import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "../page/components/shu-element.js";
 import { shuBaseStyles } from "../page/components/styles.js";
+import "../page/components/shu-copy-button.js";
 import { SHU_EVENT, SHU_TAG } from "../domains/elements.js";
 import { defineElement } from "../page/controllers/element-controller.js";
 import { SvgGraphRenderer, graphToDot, findSvgNodes, findSvgEdges } from "../graph/svg-renderer.js";

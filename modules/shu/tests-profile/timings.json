@@ -33,32 +33,32 @@
 	"linux-x64-4x-intel-xeon-processor-2-80ghz": {
 		"features": {
 			"/features/a-a-run-to-come-back-to.feature.ts": {
-				"seconds": 7.8,
-				"steps": 206,
-				"declaredStepTextHash": "2986e4256445b950706b5b32865113c9b46f46bf43b2fc7cdc5645c0369c4b35"
+				"seconds": 7.9,
+				"steps": 207,
+				"declaredStepTextHash": "671a7e673ad72395d01dde1196d506f4d41a50b8ade46b90db4565c69a2db1d3"
 			},
 			"/features/b-reading-a-cached-run.feature.ts": {
 				"seconds": 8.7,
-				"steps": 216,
-				"declaredStepTextHash": "60f417f65861a689dcf6e1d8ca59750bbe7629561204ddb40f486caee2643baf"
+				"steps": 217,
+				"declaredStepTextHash": "8ddef01bce596599607cbf71dab1117384cc753140b29f36a2d1a28dd8d4e39f"
 			},
 			"/features/c-reading-a-report.feature.ts": {
-				"seconds": 7.5,
-				"steps": 214,
-				"declaredStepTextHash": "b6b89045ad6916e1c5483c66a34c44dea2e8b450e6236195e3fd5cac077071e7"
+				"seconds": 8,
+				"steps": 215,
+				"declaredStepTextHash": "85169755c1495e3090d261f0902690e7369adddba7c9400a209bb41309a68259"
 			},
 			"/features/d-two-origins.feature.ts": {
-				"seconds": 7.1,
-				"steps": 215,
-				"declaredStepTextHash": "2183b140ebebc1fa85dc74f2b6e3cd30a7bb81845b1d88664a52d9c1135e8e5b"
+				"seconds": 6.8,
+				"steps": 216,
+				"declaredStepTextHash": "8fd4119c054d83a0a1007d4a5da864ca8d8a633722e3eb1cf700cbec1727c560"
 			},
 			"/features/e-forgetting-a-run.feature.ts": {
-				"seconds": 21.9,
-				"steps": 206,
-				"declaredStepTextHash": "b6b1aaffc2d568b46dbda8baa5628e56c06291a022cca1f9708cbce75a6b8a6b"
+				"seconds": 21.7,
+				"steps": 207,
+				"declaredStepTextHash": "0f9f3e73c88d3e5d164d11f2a98659b52524cf8075a61d3f29dbe24854efa878"
 			}
 		},
-		"steps": 1057,
-		"seconds": 53
+		"steps": 1062,
+		"seconds": 53.1
 	}
 }

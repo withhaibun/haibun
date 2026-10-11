@@ -246,12 +246,13 @@ describe("the views of a run, over the records it wrote", () => {
 		const doc = await open(ShuDocumentColumn);
 		const frames = Array.from(doc.shadowRoot?.querySelectorAll<ShuArtifactFrame>(`${SHU_TAG.ARTIFACT_FRAME}.thumb`) ?? []);
 		expect(frames.length, "both screenshots are in the document").toBe(2);
-		const captions = frames.map((frame) => {
+		const captions: Array<string | undefined> = [];
+		for (const frame of frames) {
 			frame.setFullscreen(true);
-			const caption = frame.shadowRoot?.querySelector(".step-caption")?.textContent;
+			await frame.updateComplete;
+			captions.push(frame.shadowRoot?.querySelector(".step-caption")?.textContent);
 			frame.setFullscreen(false);
-			return caption;
-		});
+		}
 		expect(captions).toEqual(["take a screenshot", "take a screenshot"]);
 	});
 

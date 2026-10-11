@@ -1,12 +1,13 @@
 /**
- * <shu-artifact-frame>: Displays an artifact with caption bar and fullscreen toggle.
- * Uses a slot for content, wrap any artifact (img, iframe, pre, shu-product-view) inside.
- * Attributes: caption (display text).
+ * <shu-artifact-frame>: an artifact under a caption bar, with a control that expands it. The artifact (an img, iframe, pre
+ * or shu-product-view) is the frame's child, and shows through its slot. The `caption` attribute names it.
  */
+import { html, css, unsafeCSS, nothing, type TemplateResult } from "lit";
+import { property, state } from "lit/decorators.js";
 import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { shownOrReported } from "../../artifact-url.js";
-import { esc } from "../derivations/markdown.js";
+import { ShuElement, EmptyStateSchema, type TLinkedData } from "./shu-element.js";
 
 const STYLES = `
 :host { display: block; margin: var(--shu-space-6) 0 var(--shu-space-6) 32px; border: var(--shu-border-w) solid var(--shu-border); border-radius: 6px; overflow: hidden; }
@@ -49,31 +50,63 @@ const STYLES = `
 ::slotted(pre) { margin: 0; padding: var(--shu-space-4) var(--shu-space-5); overflow-x: auto; }
 `;
 
-export class ShuArtifactFrame extends HTMLElement {
-	private shadow: ShadowRoot;
+/** A class that marks an expanded frame, which the styles read. */
+const FULLSCREEN = "fullscreen";
+
+export class ShuArtifactFrame extends ShuElement<typeof EmptyStateSchema> {
+	/** An artifact is part of the document that shows it, so the frame doesn't contribute to the Kihan's context on its own. */
+	summarizeForKihan(): TLinkedData | null {
+		return null;
+	}
+
+	static styles = css`${unsafeCSS(STYLES)}`;
+
+	/** The words that name the artifact; a frame without a caption shows a bare bar. */
+	@property() accessor caption = "";
+	/** The step that produced the artifact, which the expanded frame shows. */
+	@state() private accessor stepText = "";
+	@state() private accessor expanded = false;
+	private columnResize?: ResizeObserver;
+
+	constructor() {
+		super(EmptyStateSchema);
+	}
+
 	private onKeydown = (e: KeyboardEvent): void => {
-		// Every frame listens on `document`; defaultPrevented stops the just-navigated-to frame's listener
-		// from re-handling the same keypress (which would cascade ArrowRight straight to the last image).
-		if (e.defaultPrevented || !this.classList.contains("fullscreen")) return;
+		// Every frame listens on `document`; defaultPrevented stops the frame a key moved to from moving again on the same
+		// key, which would move ArrowRight straight to the last image.
+		if (e.defaultPrevented || !this.expanded) return;
 		if (e.key === "Escape") e.preventDefault(), this.setFullscreen(false);
 		else if (e.key === "ArrowLeft") e.preventDefault(), this.requestSibling(-1);
 		else if (e.key === "ArrowRight") e.preventDefault(), this.requestSibling(1);
 	};
-	private columnResize?: ResizeObserver;
-	// Re-pin on window resize while fullscreen (catches a window change that shifts the column without resizing it).
+
+	/** Places the expanded frame again when the window resizes, which can move the column without resizing it. */
 	private onReposition = (): void => {
-		if (this.classList.contains("fullscreen")) this.pinToColumn();
+		if (this.expanded) this.pinToColumn();
 	};
 
-	/** The document column this frame lives in: the shadow host (shu-document-column), which is the scroll container. */
+	protected override onConnected(): void {
+		this.autoListen(document, "keydown", this.onKeydown as EventListener);
+		this.autoListen(window, "resize", this.onReposition);
+		this.autoTeardown(() => this.columnResize?.disconnect());
+		// Actuality serves an artifact only to a reader holding a private read, so what the frame holds shows what the page read.
+		for (const media of this.querySelectorAll(`[${SHU_ATTR.DATA_ARTIFACT}]`)) {
+			const path = media.getAttribute(SHU_ATTR.DATA_ARTIFACT);
+			if (path === null) throw new Error(`<shu-artifact-frame> holds a ${SHU_ATTR.DATA_ARTIFACT} element without a path`);
+			void shownOrReported(path, "shu-artifact-frame").then((at) => at && media.setAttribute("src", at));
+		}
+	}
+
+	/** The document column the frame shows in: the shadow host, which is the scroll container. */
 	private column(): HTMLElement | null {
 		const root = this.getRootNode();
 		return root instanceof ShadowRoot ? (root.host as HTMLElement) : null;
 	}
 
-	/** Size + place the fullscreen overlay to the document column's on-screen box, so it expands WITHIN the column instead
-	 *  of floating over the whole viewport. Viewport coordinates are exact here: while expanded the frame is a showing
-	 *  popover, and a top-layer element's fixed containing block is the viewport, never a transformed virtualizer row. */
+	/** Sizes and places the expanded frame to the document column's box on screen, so it expands within the column. Viewport
+	 *  coordinates are exact, since the expanded frame is a popover in the top layer, whose fixed containing block is the
+	 *  viewport rather than a transformed row. */
 	private pinToColumn(): void {
 		const r = this.column()?.getBoundingClientRect();
 		if (!r) return;
@@ -83,72 +116,35 @@ export class ShuArtifactFrame extends HTMLElement {
 		this.style.setProperty("--fs-height", `${r.height}px`);
 	}
 
-	/** While expanded, track the column itself resizing: a pane maximize / divider drag doesn't fire a window resize, so the
-	 *  expanded thumbnail must follow the column's new size. Only the active fullscreen frame observes. */
+	/** While expanded, follows the column resizing: a pane maximize or a divider drag doesn't resize the window. */
 	private observeColumn(on: boolean): void {
-		if (!on) {
-			this.columnResize?.disconnect();
-			return;
-		}
+		if (!on) return this.columnResize?.disconnect();
 		const col = this.column();
 		if (!col || typeof ResizeObserver === "undefined") return;
-		this.columnResize ??= new ResizeObserver(() => {
-			if (this.classList.contains("fullscreen")) this.pinToColumn();
-		});
+		this.columnResize ??= new ResizeObserver(() => this.onReposition());
 		this.columnResize.disconnect();
 		this.columnResize.observe(col);
 	}
 
-	/** When fullscreen, ←/→ asks the document column for the previous/next thumbnail in the whole run. The column owns the
-	 *  move: under virtualization only the visible window's frames exist in the DOM, so this frame cannot find an off-screen
-	 *  sibling itself: the column knows every block, scrolls the target into existence and expands it. */
+	/** While expanded, ←/→ requests the previous or next thumbnail from the document column, which holds every block: under
+	 *  virtualization only the shown window's frames are in the DOM. */
 	private requestSibling(dir: number): void {
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.FRAME_NAV, { detail: { dir, from: this }, bubbles: true, composed: true }));
 	}
 
-	constructor() {
-		super();
-		this.shadow = this.attachShadow({ mode: "open" });
-	}
-
-	connectedCallback(): void {
-		const caption = this.getAttribute("caption") ?? "";
-		const captionHtml = caption ? `<span>${esc(caption)}</span>` : "";
-		this.shadow.innerHTML = `<style>${STYLES}</style>
-			<div class="caption${caption ? "" : " bare"}">${captionHtml}<button class="fullscreen-btn" title="fullscreen">\u2922</button></div>
-			<div class="content"><slot></slot></div>
-			<div class="step-caption"></div>`;
-		this.shadow.querySelector(".fullscreen-btn")?.addEventListener("click", () => this.setFullscreen(!this.classList.contains("fullscreen")));
-		// Clicking the image itself toggles fullscreen (composedPath sees the slotted <img> across the shadow boundary); iframes/pre/links are left to their own behaviour.
-		this.shadow.querySelector(".content")?.addEventListener("click", (e) => {
-			if (e.composedPath().some((n) => n instanceof HTMLImageElement)) this.setFullscreen(!this.classList.contains("fullscreen"));
-		});
-		document.addEventListener("keydown", this.onKeydown);
-		window.addEventListener("resize", this.onReposition);
-		// Actuality serves an artifact only to a reader holding a private read, so what the frame holds shows what the page read.
-		for (const media of this.querySelectorAll(`[${SHU_ATTR.DATA_ARTIFACT}]`)) {
-			void shownOrReported(media.getAttribute(SHU_ATTR.DATA_ARTIFACT) ?? "", "shu-artifact-frame").then((at) => at && media.setAttribute("src", at));
-		}
-	}
-
-	disconnectedCallback(): void {
-		document.removeEventListener("keydown", this.onKeydown);
-		window.removeEventListener("resize", this.onReposition);
-	}
-
-	/** Sets the fullscreen caption to the text of the step that produced the frame's artifact. The document column calls it
-	 *  when the frame opens, because only the column reads a step row outside the rendered window. */
+	/** Sets the expanded caption to the text of the step that produced the artifact. The document column calls it when the
+	 *  frame opens, because only the column reads a step row outside the rendered window. */
 	showStep(text: string): void {
-		const stepEl = this.shadow.querySelector(".step-caption");
-		if (stepEl) stepEl.textContent = text;
+		this.stepText = text;
 	}
 
-	/** Expand or collapse this frame. Public: the document column drives it for ←/→ navigation across actuality. */
+	/** Expands or collapses the frame. The document column calls it for ←/→ across actuality. */
 	setFullscreen(on: boolean): void {
-		this.classList.toggle("fullscreen", on);
-		// The expanded overlay renders in the TOP LAYER (popover): the frame sits inside a transform-positioned virtualizer
-		// row, a stacking context that a z-index doesn't escape, so without this the tiles of later rows paint over the enlargement.
-		// "manual" keeps light-dismiss off, Escape and the fullscreen button own closing. Guarded for jsdom (jsdom doesn't implement popover).
+		this.expanded = on;
+		this.classList.toggle(FULLSCREEN, on);
+		// The expanded frame renders in the top layer as a popover: the frame is inside a transformed virtualizer row, a
+		// stacking context a z-index doesn't leave, so later rows' tiles would paint over it. "manual" keeps light dismiss
+		// off, so Escape and the control close it. jsdom doesn't implement popover.
 		if (on && typeof this.showPopover === "function") {
 			this.setAttribute("popover", "manual");
 			this.showPopover();
@@ -156,19 +152,23 @@ export class ShuArtifactFrame extends HTMLElement {
 			if (typeof this.hidePopover === "function") this.hidePopover();
 			this.removeAttribute("popover");
 		}
-		if (!on) this.showStep("");
-		this.observeColumn(on); // follow the column resizing/maximizing while expanded; stop on exit
-		if (on) {
-			this.pinToColumn(); // expand within the document column's box, not the whole viewport
-			// Ask the owning document column to move the global time cursor to this thumbnail's step: a proper cursor-set
-			// call through the column, which owns the time mapping and resolves the frame's stamped step id.
-			this.dispatchEvent(new CustomEvent(SHU_EVENT.CURSOR_TO_ROW, { detail: { row: this }, bubbles: true, composed: true }));
-		}
-		const btn = this.shadow.querySelector(".fullscreen-btn");
-		if (btn) {
-			btn.textContent = on ? "\u2923" : "\u2922";
-			btn.setAttribute("title", on ? "exit fullscreen (Esc)" : "fullscreen");
-		}
+		if (!on) this.stepText = "";
+		this.observeColumn(on);
+		if (!on) return;
+		this.pinToColumn();
+		// The document column holds the time mapping and reads the frame's step id, so it moves the time cursor to this step.
+		this.dispatchEvent(new CustomEvent(SHU_EVENT.CURSOR_TO_ROW, { detail: { row: this }, bubbles: true, composed: true }));
+	}
+
+	/** A press on the image itself expands or collapses the frame; an iframe, a pre or a link keeps its own behaviour. */
+	private onContentClick = (e: Event): void => {
+		if (e.composedPath().some((n) => n instanceof HTMLImageElement)) this.setFullscreen(!this.expanded);
+	};
+
+	render(): TemplateResult {
+		return html`<div class=${this.caption === "" ? "caption bare" : "caption"}>${this.caption === "" ? nothing : html`<span>${this.caption}</span>`}<button class="fullscreen-btn" title=${this.expanded ? "exit fullscreen (Esc)" : "fullscreen"} @click=${() => this.setFullscreen(!this.expanded)}>${this.expanded ? "\u2923" : "\u2922"}</button></div>
+			<div class="content" @click=${this.onContentClick}><slot></slot></div>
+			<div class="step-caption">${this.stepText}</div>`;
 	}
 }
 

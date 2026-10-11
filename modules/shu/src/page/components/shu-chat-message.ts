@@ -10,7 +10,7 @@ import { guard } from "lit/directives/guard.js";
 import { z } from "zod";
 import { refContext } from "../controllers/catalog-controller.js";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
-import type { ShuSpinner } from "./shu-spinner.js";
+import "./shu-spinner.js";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 import { SCOPE, dispatchSubjectEvent } from "../../current-subject.js";
 import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
@@ -145,18 +145,6 @@ export class ShuChatMessage extends ShuElement<typeof EmptyStateSchema> {
 		activateComment(m.recordId, m.turn, m.bundle);
 	};
 
-	protected updated(): void {
-		// Spinner is a sibling custom element; sync its imperative props from the message. Only assign on change: the status setter re-pulses, and the parent re-renders every streamed-text frame, so unconditional assignment would restart the pulse animation ~60×/s.
-		const spinner = this.querySelector(":scope > .msg > .msg-content > shu-spinner") as ShuSpinner | null;
-		if (!spinner) return;
-		const m = this.message;
-		// The spinner shows text alone, so a line naming a record shows the words that name it.
-		const status = proseText(m.spinnerStatus, refContext);
-		if (spinner.status !== status) spinner.status = status;
-		if (spinner.visible !== m.spinnerVisible) spinner.visible = m.spinnerVisible;
-		if (spinner.spinning !== m.spinnerSpinning) spinner.spinning = m.spinnerSpinning;
-	}
-
 	render(): TemplateResult {
 		const m = this.message;
 		// Host attributes reflect the message on each render, so a page reader selects a message by its state.
@@ -187,7 +175,7 @@ export class ShuChatMessage extends ShuElement<typeof EmptyStateSchema> {
 							? html`<div class="chat-carries" data-testid=${SHU_TEST_IDS.APP.CHAT_CARRIES}>about ${m.bundle.patterns.map(patternRef)}</div>`
 							: ""
 					}
-					${m.role === "llm" ? html`<shu-spinner></shu-spinner>` : ""}
+					${m.role === "llm" ? html`<shu-spinner .status=${proseText(m.spinnerStatus, refContext)} .visible=${m.spinnerVisible} .spinning=${m.spinnerSpinning}></shu-spinner>` : ""}
 					${
 						// What the answer was made of reads before the answer: the context it was sent and the calls it made
 						// come first in time, and a reader weighing the answer reads them first.

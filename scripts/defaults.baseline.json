@@ -560,7 +560,7 @@
 		"fills an absent value with a constant through ??": 12
 	},
 	"modules/shu/src/page/components/shu-artifact-frame.ts": {
-		"fills an absent value with a constant through ??": 3
+		"fills an absent value with a constant through ??": 1
 	},
 	"modules/shu/src/page/components/shu-breadcrumb.ts": {
 		"fills a falsy value with a constant through ||": 1
@@ -637,9 +637,6 @@
 	"modules/shu/src/page/components/shu-playback.ts": {
 		"states a schema's default value through .default()": 2
 	},
-	"modules/shu/src/page/components/shu-ref-element.ts": {
-		"fills an absent value with a constant through ??": 3
-	},
 	"modules/shu/src/page/components/shu-result-table.ts": {
 		"fills a falsy value with a constant through ||": 1,
 		"fills an absent value with a constant through ??": 3,
@@ -648,9 +645,6 @@
 	"modules/shu/src/page/components/shu-scrollbar.ts": {
 		"fills an absent value with a constant through ??": 1,
 		"states a parameter's default value": 1
-	},
-	"modules/shu/src/page/components/shu-spinner.ts": {
-		"fills a falsy value with a constant through ||": 1
 	},
 	"modules/shu/src/page/components/shu-step-caller.ts": {
 		"fills a falsy value with a constant through ||": 9,
