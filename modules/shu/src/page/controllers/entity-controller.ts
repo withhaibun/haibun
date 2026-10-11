@@ -1,6 +1,7 @@
 import type { ReactiveController, ReactiveControllerHost } from "lit";
 import { openEntity, refreshAnnotations, requestBody, annotateIndividual, getEntityView, subscribeEntities, type TEntityView, type TAnnotationDraft } from "../../entity-store.js";
-import { followCall } from "../../pane-fetch.js";
+import { followCall } from "./registry-controller.js";
+import type { TWritten } from "../pipelines/call-step.js";
 import type { TCallLink } from "@haibun/core/lib/hypermedia.js";
 
 /**
@@ -61,8 +62,8 @@ export class EntityController implements ReactiveController {
 	}
 
 	/** Write a note anchored to a passage of this individual, and re-resolve so it reads back anchored. */
-	annotate(draft: TAnnotationDraft): Promise<{ ok: true } | { ok: false; error: string }> {
-		if (!this.id) return Promise.resolve({ ok: false as const, error: "an individual isn't open to annotate" });
+	annotate(draft: TAnnotationDraft): Promise<TWritten> {
+		if (!this.id) return Promise.resolve({ ok: false as const, refusal: { error: "an individual isn't open to annotate" } });
 		return annotateIndividual(this.label, this.id, draft);
 	}
 

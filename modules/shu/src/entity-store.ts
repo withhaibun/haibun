@@ -6,7 +6,8 @@ import { BODY_LABEL, LinkRelations } from "@haibun/core/lib/resources.js";
 import { subscribeBatchedEvents, hasEventStream } from "./page/controllers/event-stream-controller.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { reportToRun } from "./client-log.js";
-import { callStep } from "./pane-fetch.js";
+import { callStep } from "./page/controllers/registry-controller.js";
+import type { TWritten } from "./page/pipelines/call-step.js";
 import { pagePinned } from "./page/adapters/page-held.js";
 import { readIndividual } from "./quads-snapshot.js";
 import { resolveAnnotationsLive, resolveAnnotationsOffline, type AnnotationView } from "./annotation-resolver.js";
@@ -182,9 +183,9 @@ export type TAnnotationDraft = { exact: string; prefix?: string; suffix?: string
 /** Writes a note anchored to a passage of a held individual through the `annotate` step. It then re-resolves the
  *  individual's annotations so the note reads back anchored. Returns the failure so the caller can remove its optimistic
  *  placeholder and show the reason. */
-export async function annotateIndividual(label: string, id: string, draft: TAnnotationDraft): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function annotateIndividual(label: string, id: string, draft: TAnnotationDraft): Promise<TWritten> {
 	const res = await callStep("annotate", { label, id, ...draft }, `entity-store: annotate ${label}:${id}`);
-	if (!res.ok) return { ok: false, error: res.error };
+	if (!res.ok) return res;
 	await refreshAnnotations(label, id);
 	return { ok: true };
 }

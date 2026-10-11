@@ -24,7 +24,7 @@ import type { TLinkedData } from "../page/components/shu-element.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import { ShuClusteredGraphView, clusteredGraphStateShape } from "./shu-clustered-graph-view.js";
-import { fetchIndividuals } from "../pane-fetch.js";
+import { listRecords } from "../quads-snapshot.js";
 import { jsonDisclosure } from "../page/components/json-disclosure.js";
 import { scopeSchemaToType, scopeSchemaToConnected } from "../graph/ontology-projection.js";
 import { prefixesReferencedBy } from "../graph/jsonld-context-scope.js";
@@ -167,7 +167,7 @@ class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
 	private async loadIndividuals(): Promise<void> {
 		if (!this.focusType || this.individualsFocus === this.focusType) return; // already loaded (or loading) for this focus
 		this.individualsFocus = this.focusType;
-		const res = await fetchIndividuals(this.focusType, `class-browser individuals: ${this.focusType}`);
+		const res = await listRecords(this.focusType, `class-browser individuals: ${this.focusType}`);
 		this.individuals = res.ok ? (res.value.vertices ?? []) : [];
 		this.requestUpdate();
 	}

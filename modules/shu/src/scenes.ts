@@ -8,7 +8,9 @@
  */
 import { AccessLevelSchema, SCENE_LABEL } from "@haibun/core/lib/resources.js";
 import { fromActorEdgeLabels, getEdgeRanges, getPropertyDefinition, getRels, getTypes, toActorEdgeLabels } from "./page/controllers/catalog-controller.js";
-import { callStep, fetchIndividuals } from "./pane-fetch.js";
+import { callStep } from "./page/controllers/registry-controller.js";
+import { listRecords } from "./quads-snapshot.js";
+import type { TCallOutcome } from "./page/pipelines/call-step.js";
 import { SHU_TAG } from "./domains/elements.js";
 import type { ShuElement } from "./page/components/shu-element.js";
 import { appAccessLevel } from "./view-query.js";
@@ -49,7 +51,7 @@ export function storedAccessLevel(viewing: string): string | undefined {
 const CREATE_A_RECORD = "createTyped";
 
 /** Save a scene under `name`, replacing one of that name. Writes through the step RPC, as every write does. */
-export function saveScene(name: string, state: TSceneState, why: string): Promise<{ ok: true; value: unknown } | { ok: false; error: string }> {
+export function saveScene(name: string, state: TSceneState, why: string): Promise<TCallOutcome<unknown>> {
 	const accessLevel = storedAccessLevel(appAccessLevel());
 	return callStep(
 		CREATE_A_RECORD,
@@ -112,7 +114,7 @@ export async function listScenes(why: string): Promise<TScene[]> {
 }
 
 async function savedScenes(why: string): Promise<TScene[]> {
-	const result = (await fetchIndividuals(SCENE_LABEL, why)) as { ok: boolean; value: { vertices: Array<{ id?: unknown; state?: unknown }> } };
+	const result = await listRecords(SCENE_LABEL, why);
 	if (!result.ok) return [];
 	return result.value.vertices.flatMap((vertex) => {
 		if (typeof vertex.id !== "string" || typeof vertex.state !== "string") return [];

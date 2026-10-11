@@ -28,6 +28,8 @@ import { pagePinned } from "./page/adapters/page-held.js";
 import { EDGE, type AccessLevel } from "@haibun/core/lib/resources.js";
 import { VARIABLE_FIELD } from "@haibun/core/lib/records/domains/variables.js";
 import { appAccessLevel } from "./view-query.js";
+import { refusalOf } from "./page/derivations/refusal.js";
+import type { TCallOutcome } from "./page/pipelines/call-step.js";
 
 export const DEFAULT_PER_TYPE_LIMIT = 100;
 /** Ceiling for the per-type sample, everywhere the limit can be set (the filter slider AND the +N-more cluster expand), so a path can't silently inflate the limit past what the slider expresses. */
@@ -309,6 +311,20 @@ function densityOf(query: TDensityQuery): Promise<TDensityResult> {
 		async () => (getRels(query.label) ? await cachedGraphStore().density(query) : undefined),
 	);
 }
+
+/** Returns a bounded list of a type's records at the page's access level, through the graph query, so a page without a
+ *  site lists what it caches, or the refusal. `why` states the read. */
+export async function listRecords(label: string, why: string): Promise<TCallOutcome<TGraphQueryResult>> {
+	try {
+		return { ok: true, value: await queryGraph({ label, accessLevel: appAccessLevel(), limit: LIST_LIMIT }) };
+	} catch (err) {
+		const refusal = refusalOf(err);
+		return { ok: false, refusal: { ...refusal, error: `${why}: ${refusal.error}` } };
+	}
+}
+
+/** How many records a list of a type's records holds. */
+const LIST_LIMIT = 100;
 
 /**
  * The rows a graph query names: what the site answers, and when the site doesn't answer, the same query over the graph this

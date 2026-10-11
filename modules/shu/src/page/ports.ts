@@ -291,3 +291,6 @@ export type TPaneStrip = {
 	/** Calls `handler` with each change a pane's own control makes. */
 	onControl(handler: (id: string, control: TPaneControl) => void): void;
 };
+
+/** The remedies the page performs itself: a reload of the page. */
+export type TRemedies = { reloadPage(): void };

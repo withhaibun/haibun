@@ -39,6 +39,7 @@ import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { ClockController } from "../controllers/clock-controller.js";
 import { renderContentHtml, BODY_READING_STYLE, refSanitizeOptions } from "../derivations/markdown.js";
 import { refContext } from "../controllers/catalog-controller.js";
+import type { TWritten } from "../pipelines/call-step.js";
 
 /** How long a quoted passage stays marked after the view reveals it, and the name of that delay. */
 const QUOTE_FLASH_MS = 1400;
@@ -150,7 +151,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 	/** How this view asks for a note to be written: the host owns the individual, so it owns the write and the re-resolve
 	 *  that follows. Null leaves the body read-only (the view doesn't write notes), which is what a host that does not offer
 	 *  annotating passes. */
-	@property({ attribute: false }) accessor annotate: ((draft: TAnnotationDraft) => Promise<{ ok: true } | { ok: false; error: string }>) | null = null;
+	@property({ attribute: false }) accessor annotate: ((draft: TAnnotationDraft) => Promise<TWritten>) | null = null;
 	/** A passage to scroll to and flash once the body is mounted, set by a Text Fragment reference into this document.
 	 *  Acted on once per distinct quote (tracked by `revealedKey`), so unrelated re-renders do not re-flash it. */
 	@property({ attribute: false }) accessor revealTarget: TQuoteAnchor | null = null;

@@ -19,15 +19,15 @@ export const CONTROLLERS = "controllers";
 /** The modules that send requests. An import of one by its package path matches the same suffix. */
 const PLUMBING_MODULES = [
 	"/conduit-controller.js",
-	"/pane-fetch.js",
 	"/registry-controller.js",
 	"/hydration-controller.js",
 	"/authority-controller.js",
 	"/page-authority-controller.js",
+	"/quads-snapshot.js",
 ];
 
 /** The names a view doesn't import. A controller holds the read each one performs. */
-const DATA_ACCESS_PRIMITIVES = new Set(["conduit", "requireStep", "findStep", "callStep", "fetchIndividuals", "pageAuthority", "signedHeaders"]);
+const DATA_ACCESS_PRIMITIVES = new Set(["conduit", "requireStep", "findStep", "callStep", "followCall", "listRecords", "pageAuthority", "signedHeaders"]);
 
 /** The name an entry of an import's list takes from its module: `type x as y` takes `x`. */
 function importedName(entry: string): string {

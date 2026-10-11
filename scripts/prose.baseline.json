@@ -924,9 +924,6 @@
 	"modules/shu/src/page/derivations/step-input.ts": {
 		"relation-verb": 1
 	},
-	"modules/shu/src/pane-fetch.ts": {
-		"anthropomorphic": 5
-	},
 	"modules/shu/src/polymorphic-report.test.ts": {
 		"anthropomorphic": 9,
 		"terminal-preposition": 1,

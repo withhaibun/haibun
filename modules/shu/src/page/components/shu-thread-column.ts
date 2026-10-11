@@ -13,7 +13,7 @@ import { openRef } from "./ref-navigation.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { anIndividual, type TContextPattern } from "../../schemas.js";
 import { ellipsize } from "@haibun/core/lib/util/index.js";
-import { callStep } from "../../pane-fetch.js";
+import { callStep } from "../controllers/registry-controller.js";
 import { getFieldRel, getValidTimeField } from "../controllers/catalog-controller.js";
 import { fieldRef } from "./shu-ref.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
@@ -148,7 +148,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		);
 		const res = await callStep<{ items: ThreadVertex[]; contextRoot: string }>("getRelated", { label, id, depth: this.state.depth }, `thread-column: open ${label}:${id}`);
 		if (!res.ok) {
-			this.setState({ loading: false, error: res.error });
+			this.setState({ loading: false, error: res.refusal.error });
 			return;
 		}
 		this.thread = res.value.items ?? [];

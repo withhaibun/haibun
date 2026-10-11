@@ -12,9 +12,6 @@
 	"modules/core/src/steps/variables-stepper.ts": {
 		"relays a caught error without stating what failed": 4
 	},
-	"modules/shu/src/pane-fetch.ts": {
-		"relays a caught error without stating what failed": 2
-	},
 	"modules/web-playwright/src/interactionSteps.ts": {
 		"relays a caught error without stating what failed": 4
 	},

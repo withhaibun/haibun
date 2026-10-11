@@ -7,6 +7,7 @@ import { capabilityAllows } from "@haibun/core/lib/actions.js";
 import type { TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import type { TDomainDiscoveryInfo, TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import type { TStepList } from "../machines/registry.js";
+import { acts, reads, type TLink } from "../domains/links.js";
 
 /** The index of each list's steps by both names of each step, made once per list. */
 const indexes = new WeakMap<TStepList, Map<string, TStepDefinition>>();
@@ -36,6 +37,11 @@ export function methodOf(list: TStepList, name: string): string {
 	if (step === undefined) throw new Error(`actuality's steps don't hold a step named "${name}"`);
 	return step.method;
 }
+
+/** Returns a link to the step `method` names: a read where the step declares itself a read, and an act otherwise, as for a
+ *  method the steps don't hold. */
+export const linkOf = (list: TStepList, method: string, params: Record<string, unknown> | undefined, summary: string | undefined): TLink =>
+	stepNamed(list, method)?.read === true ? reads(method, params, summary) : acts(method, params, summary);
 
 /** Returns the steps that take a domain and the steps that return it, the domain named by its key or by the type it persists
  *  as. A step that takes a union takes each of its parts. */

@@ -271,7 +271,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	 *  exactly like a save that worked until the reader comes back for the scene. */
 	private async saveSceneAs(name: string): Promise<void> {
 		const written = await saveScene(name, this.captureScene(), "polymorphic: save this view as a scene");
-		this.sceneError = written.ok === false ? `could not save "${name}": ${written.error}` : null;
+		this.sceneError = written.ok === false ? `could not save "${name}": ${written.refusal.error}` : null;
 		if (written.ok !== false) await this.loadScenes();
 		this.requestUpdate();
 	}

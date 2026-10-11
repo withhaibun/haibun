@@ -51,6 +51,7 @@ import { esc, escAttr, renderContentHtml, utf8ToBase64, BODY_READING_STYLE, rend
 import { idOf, instanceLabel, isVisibleKey, extractFieldEntries, extractBodyLiterals, governanceFields } from "../controllers/record-controller.js";
 import { isReferenceEdge } from "../derivations/record-fields.js";
 import { pickPreferredBody } from "@haibun/core/lib/resources.js";
+import type { TWritten } from "../pipelines/call-step.js";
 
 /** The name of the delay after which the copy button reads Copy again. */
 const COPY_RESULT = "copy-result";
@@ -240,7 +241,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 
 	/** Write a note the reader authored in the body, and re-resolve so it reads back anchored. The body reports what was
 	 *  selected and written; the individual (and the entity handle that reaches it) is the column's, so the write is too. */
-	private readonly annotateDraft = (draft: TAnnotationDraft): Promise<{ ok: true } | { ok: false; error: string }> => this.entity.annotate(draft);
+	private readonly annotateDraft = (draft: TAnnotationDraft): Promise<TWritten> => this.entity.annotate(draft);
 
 	/** Project the entity handle's view onto the render fields: the entity (applied for the field table/roles/body), the
 	 *  annotations anchored in it, the text of any body already read, and the loading/error/provenance state the render

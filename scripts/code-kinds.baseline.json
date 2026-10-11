@@ -647,9 +647,6 @@
 		"imports a stepper: ./shu-stepper.js": 1,
 		"performs I/O through fs": 1
 	},
-	"modules/shu/src/pane-fetch.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/quads-snapshot.ts": {
 		"isn't in a kind position": 1
 	},

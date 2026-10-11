@@ -123,6 +123,8 @@ export const HYDRATION_ID = "shu-hydration";
 export const SHU_TAG = {
 	/** The page a reader opens: the strip of panes, the page strip and the query, or why the page didn't open. */
 	PAGE: "shu-page",
+	/** A refusal's cause and its remedy as a control. */
+	REFUSAL: "shu-refusal",
 	PERMISSIONS: "shu-permissions",
 	PAGE_KEY: "shu-page-key",
 	GRAPH_QUERY: "shu-graph-query",

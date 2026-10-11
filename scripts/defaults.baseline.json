@@ -710,10 +710,6 @@
 	"modules/shu/src/page/derivations/step-input.ts": {
 		"fills an absent value with a constant through ??": 2
 	},
-	"modules/shu/src/pane-fetch.ts": {
-		"fills an absent value with a constant through ??": 2,
-		"states a parameter's default value": 1
-	},
 	"modules/shu/src/quads-snapshot.ts": {
 		"fills a falsy value with a constant through ||": 1,
 		"fills an absent value with a constant through ??": 8,

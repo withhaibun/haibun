@@ -25,6 +25,7 @@ import type {
 	TPaneMarks,
 	TPaneStrip,
 	TStripElement,
+	TRemedies,
 } from "./ports.js";
 import type { TDockedPane, TPageTypes, TStripPane } from "./domains/page-state.js";
 import { NOTHING_SELECTED_LABEL, type TPageContext } from "../schemas.js";
@@ -47,6 +48,7 @@ import type { TDelegation } from "@haibun/core/lib/actions.js";
 import type { THashScope, TPageHash } from "./pipelines/page-hash.js";
 import type { TPanesHeld } from "./pipelines/panes.js";
 import { browserPaneStrip } from "./adapters/pane-strip.js";
+import { browserRemedies } from "./adapters/remedies.js";
 import { INITIAL_PANES, panesTransition, type TPanesEvent, type TPanesState } from "./machines/panes.js";
 import { liveEventStream, type TLiveStreamSource } from "./adapters/live-event-stream.js";
 import { CarriedEventStream } from "./adapters/carried-event-stream.js";
@@ -75,6 +77,7 @@ const REGISTRY_KEY = "__SHU_STEP_REGISTRY__";
 const REGISTRY_READS_KEY = "__SHU_STEP_REGISTRY_READS__";
 const PANES_KEY = "__SHU_PANES__";
 const PANES_HELD_KEY = "__SHU_PANES_HELD__";
+const REMEDIES_KEY = "__SHU_REMEDIES__";
 
 /** Returns the page's preferences, stored in the page's cookies. */
 export const pagePreferences = (): TPreferences => pagePinned(PREFERENCES_KEY, () => cookiePreferences(window));
@@ -118,6 +121,12 @@ export const panesHeld = (): TPanesHeld =>
 
 /** Returns the pane strip over `strip`, whose panes carry the names `marks` gives. */
 export const pagePaneStrip = (strip: TStripElement, marks: TPaneMarks): TPaneStrip => browserPaneStrip(document, customElements, strip, marks);
+
+/** Returns the remedies the page performs itself. */
+export const pageRemedies = (): TRemedies => pagePinned(REMEDIES_KEY, () => browserRemedies(window.location));
+
+/** Installs `remedies` as the page's, before a read of them, as a test installs a fake. */
+export const installRemedies = (remedies: TRemedies): TRemedies => pagePinned(REMEDIES_KEY, () => remedies);
 
 /** Returns the channel to the window that embeds the page, at the deployment's embedder origin `origin`. */
 export const pageEmbedder = (origin: string): TEmbedderChannel => pagePinned(EMBEDDER_KEY, () => embedderChannel(window, origin));
