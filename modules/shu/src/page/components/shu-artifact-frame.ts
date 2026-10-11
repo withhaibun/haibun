@@ -5,8 +5,8 @@
  */
 import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
-import { esc } from "../../util.js";
 import { shownOrReported } from "../../artifact-url.js";
+import { esc } from "../derivations/markdown.js";
 
 const STYLES = `
 :host { display: block; margin: var(--shu-space-6) 0 var(--shu-space-6) 32px; border: var(--shu-border-w) solid var(--shu-border); border-radius: 6px; overflow: hidden; }

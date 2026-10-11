@@ -17,10 +17,10 @@ import { PAGE_STRIP_FOOTPRINT, PERMISSIONS_SLOT, SEARCH_SLOT, SHU_ATTR, SHU_EVEN
 import { defineElement } from "../controllers/element-controller.js";
 import { isOffline } from "../controllers/hydration-controller.js";
 import { reportToRun } from "../../client-log.js";
-import { appAccessLevel } from "../../util.js";
 import { PAGE_STRIP_STYLES } from "./page-strip-styles.js";
 import type { ShuColumnPane } from "./shu-column-pane.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
+import { appAccessLevel } from "../../view-query.js";
 
 export class ShuPageStrip extends ShuElement<typeof EmptyStateSchema> {
 	/** The page's time cursor, which the strip's corners show. */

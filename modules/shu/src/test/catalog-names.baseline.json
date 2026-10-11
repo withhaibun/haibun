@@ -1,9 +1,15 @@
 {
+	"modules/shu/src/components/shu-polymorphic-graph-view.controls.ts": {
+		"field seqPath": 1
+	},
+	"modules/shu/src/components/shu-polymorphic-graph-view.ts": {
+		"type Scene": 1
+	},
 	"modules/shu/src/page/components/page-strip-corners.ts": {
 		"field accessLevel": 2
 	},
 	"modules/shu/src/page/components/ref-navigation.ts": {
-		"field seqPath": 7
+		"field seqPath": 3
 	},
 	"modules/shu/src/page/components/shu-actions-bar.ts": {
 		"field accessLevel": 1
@@ -59,12 +65,6 @@
 	},
 	"modules/shu/src/page/components/shu-permissions.ts": {
 		"type Principal": 1
-	},
-	"modules/shu/src/components/shu-polymorphic-graph-view.controls.ts": {
-		"field seqPath": 1
-	},
-	"modules/shu/src/components/shu-polymorphic-graph-view.ts": {
-		"type Scene": 1
 	},
 	"modules/shu/src/page/components/shu-ref.ts": {
 		"field seqPath": 1

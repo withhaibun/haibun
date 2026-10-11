@@ -1,6 +1,6 @@
 import { SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
-import { esc } from "../../util.js";
+import { esc } from "../derivations/markdown.js";
 /**
  * <shu-spinner>: reusable spinner with status text for async UI operations.
  * Pulses on each status update to show aliveness.

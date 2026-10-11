@@ -1,8 +1,8 @@
 import { SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { copyText } from "../controllers/clipboard-controller.js";
-import { esc } from "../../util.js";
 import { delay } from "../controllers/clock-controller.js";
+import { esc } from "../derivations/markdown.js";
 
 /** How long the button reads Copied after a copy. */
 const COPIED_MS = 1500;

@@ -9,8 +9,8 @@
  * under what it belongs to, so a reader can follow it and can collapse the parts they are done with. The disclosure is
  * the browser's own, as every other disclosure here is.
  */
-import { esc, escAttr } from "../../util.js";
 import { jsonCarried } from "@haibun/core/lib/json-text.js";
+import { esc, escAttr } from "../derivations/markdown.js";
 
 /** The test id of the whole record as JSON. */
 export const RECORD_JSON = "record-json";

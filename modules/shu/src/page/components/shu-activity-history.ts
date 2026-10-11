@@ -27,7 +27,7 @@ import { TimelineViewController } from "../controllers/timeline-view-controller.
 import { nextQuestion } from "../../chat-turn.js";
 import { conversationState, transcript, turnEnded } from "../../conversation.js";
 import { currentSubject } from "../../current-subject.js";
-import { appAccessLevel } from "../../util.js";
+import { appAccessLevel } from "../../view-query.js";
 
 export class ShuActivityHistory extends ShuElement<typeof EmptyStateSchema> {
 	/** The actions-bar output region, not a column pane: the harvest reads only column panes, so this is never the

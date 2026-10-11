@@ -503,13 +503,6 @@
 	"modules/shu/src/known-size-flow.ts": {
 		"anthropomorphic": 5
 	},
-	"modules/shu/src/markdown-refs.test.ts": {
-		"anthropomorphic": 2,
-		"relation-verb": 1
-	},
-	"modules/shu/src/markdown-refs.ts": {
-		"anthropomorphic": 2
-	},
 	"modules/shu/src/monitor-serves-actuality.integration.test.ts": {
 		"anthropomorphic": 1,
 		"negated-noun": 1
@@ -973,9 +966,6 @@
 		"anthropomorphic": 3,
 		"relation-verb": 1
 	},
-	"modules/shu/src/resolve-ui.test.ts": {
-		"relation-verb": 1
-	},
 	"modules/shu/src/reveal.ts": {
 		"anthropomorphic": 1
 	},
@@ -1032,13 +1022,6 @@
 	},
 	"modules/shu/src/turn-allowance.ts": {
 		"anthropomorphic": 3
-	},
-	"modules/shu/src/util.test.ts": {
-		"anthropomorphic": 2
-	},
-	"modules/shu/src/util.ts": {
-		"anthropomorphic": 1,
-		"relation-verb": 4
 	},
 	"modules/shu/src/view-query.test.ts": {
 		"anthropomorphic": 1,

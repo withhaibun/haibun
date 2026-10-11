@@ -15,9 +15,7 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { QueryController } from "../controllers/query-controller.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { appAccessLevel } from "../../util.js";
-import { getEdgeRanges, getQueryableFields, getRels, getTypeDescription, getTypes, getUiPresenting, isKnownType, isSystemSchemaType } from "../controllers/catalog-controller.js";
-import { renderRefProse } from "../../markdown-refs.js";
+import { getEdgeRanges, getQueryableFields, getRels, getTypeDescription, getTypes, getUiPresenting, isSystemSchemaType, refContext } from "../controllers/catalog-controller.js";
 import { arrayWindowedSource, readWindowedSource, type WindowedSource } from "../../windowed-source.js";
 
 /** How many of a type's individuals one read answers. The column lists every individual the type has, a page at a time
@@ -39,6 +37,8 @@ import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { aType, type TContextPattern } from "../../schemas.js";
 import { NODE_KIND, type TGraph } from "../../graph/types.js";
 import { ShuProductView } from "./shu-product-view.js";
+import { appAccessLevel } from "../../view-query.js";
+import { renderRefProse } from "../derivations/markdown.js";
 
 const TypeColumnSchema = z.object({
 	persistedAs: z.string().default(""),
@@ -252,7 +252,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 				<label class="schema-scope"><input type="checkbox" data-testid=${IDS.SCHEMA_SCOPE} .checked=${this.state.fullSchema} @change=${this.onScopeChange} /> entire schema</label>
 				<shu-graph data-testid=${IDS.SCHEMA_GRAPH} .products=${{ graph: this.state.fullSchema ? buildFullSchemaGraph(type) : buildTypeSchemaGraph(type) }}></shu-graph>`;
 		return html`
-			${desc ? html`<p class="type-desc" data-testid=${IDS.DESCRIPTION}>${unsafeHTML(renderRefProse(desc, isKnownType))}</p>` : ""}
+			${desc ? html`<p class="type-desc" data-testid=${IDS.DESCRIPTION}>${unsafeHTML(renderRefProse(desc, refContext))}</p>` : ""}
 			${isSystemSchemaType(type) ? html`<p class="system-schema-note" data-testid=${IDS.SYSTEM_SCHEMA}>A system schema, defined in haibun's own vocabulary.</p>` : ""}
 			${domain?.values?.length ? html`<p class="joins" data-testid=${IDS.VALUES}><span class="section-label">Values</span> ${domain.values.map((value, i) => html`${i ? ", " : ""}<code>${value}</code>`)}</p>` : ""}
 			${type ? this.renderJoins(type) : ""}

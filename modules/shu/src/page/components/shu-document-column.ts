@@ -34,20 +34,19 @@ import type { THaibunEvent, TArtifactEvent, THaibunLogLevel } from "@haibun/core
 import { SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
 import { eventMarkerStyle } from "../derivations/event-marker.js";
 import { HAIBUN_LOG_LEVELS } from "@haibun/core/schema/protocol.js";
-import { esc } from "../../util.js";
 import { jsonDisclosure } from "./json-disclosure.js";
-import { isKnownType } from "../controllers/catalog-controller.js";
+import { refContext } from "../controllers/catalog-controller.js";
 import { artifactUrl } from "../../artifact-url.js";
-import { refLinksPlugin } from "../../markdown-refs.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
+import { esc, refLinksPlugin } from "../derivations/markdown.js";
 
 const DocumentColumnSchema = z.object({ level: z.enum(HAIBUN_LOG_LEVELS).default("log") });
 
 const mdRenderer = new MarkdownIt({ html: true, linkify: true, typographer: true });
 withHeadingAnchors(mdRenderer);
 // A `#Type` / `#Type:id` link in prose opens the type or individual in a column (shu-ref), never navigating the page.
-refLinksPlugin(mdRenderer, isKnownType);
+refLinksPlugin(mdRenderer, refContext);
 
 const SANITIZE_OPTS = {
 	// `kind`/`linktarget`/`text` carry the shu-ref reference (a `#Type` link the refLinksPlugin rewrote); DOMPurify

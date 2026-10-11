@@ -12,9 +12,10 @@ import { reads } from "./page/domains/links.js";
 import { conduit } from "./page/controllers/conduit-controller.js";
 import { getAvailableSteps, requireStep } from "./page/controllers/registry-controller.js";
 import { getRels } from "./page/controllers/catalog-controller.js";
-import { appAccessLevel, idOf } from "./util.js";
 import { mergeQuadsIntoSnapshot, pinSubjects } from "./quads-snapshot.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
+import { appAccessLevel } from "./view-query.js";
+import { idOf } from "./page/controllers/record-controller.js";
 
 /** Incoming-edge page size; the server caps this at 100, so a hub stays bounded. */
 const INCOMING_LIMIT = 100;

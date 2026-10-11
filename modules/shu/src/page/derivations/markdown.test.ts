@@ -2,13 +2,17 @@
 // jsdom: refLinksPlugin imports renderRef from shu-ref, which defines a custom element (extends HTMLElement).
 import { describe, expect, it } from "vitest";
 import MarkdownIt from "markdown-it";
-import { refLinksPlugin, renderRefAnswer, renderRefProse } from "./markdown-refs.js";
 import { parseRefHref } from "@haibun/core/lib/typed-links.js";
+import { refLinksPlugin, renderRefAnswer, renderRefProse, type TRefContext } from "./markdown.js";
+
+/** A reference context over the types `isType` names, which doesn't declare a relation. */
+const refsOf = (isType: (name: string) => boolean): TRefContext => ({ isType, propertyDefinition: () => undefined });
 
 const isType = (name: string) => name === "FieldReport" || name === "SiteSurvey";
+const refs = refsOf(isType);
 
 describe("parseRefHref", () => {
-	it("reads #Type as a domain reference when Type is known", () => {
+	it("reads #Type as a domain reference where the catalog declares Type", () => {
 		expect(parseRefHref("#FieldReport", isType)).toEqual({ kind: "domain", target: { domain: "FieldReport" } });
 	});
 
@@ -51,7 +55,7 @@ describe("parseRefHref", () => {
 
 describe("refLinksPlugin", () => {
 	const md = new MarkdownIt();
-	refLinksPlugin(md, isType);
+	refLinksPlugin(md, refs);
 
 	it("rewrites a type-reference link into a shu-ref carrying the link text, leaving plain links untouched", () => {
 		const html = md.renderInline("A [Field Report](#FieldReport) and [an anchor](#intro) and [ext](https://x.test).");
@@ -71,37 +75,46 @@ describe("refLinksPlugin", () => {
 });
 
 describe("renderRefProse", () => {
-	const isType = (name: string) => name === "Principal";
+	const refs = refsOf((name: string) => name === "Principal");
 
 	it("turns a type link in a description into a live reference, so a description names a type rather than re-explaining it", () => {
-		const html = renderRefProse("The document a [party](#Principal)’s DID resolves to.", isType);
+		const html = renderRefProse("The document a [party](#Principal)’s DID resolves to.", refs);
 		expect(html).toContain("<shu-ref");
 		expect(html).toContain("Principal");
 		expect(html).toContain("party"); // the author's words, not the type name, are what the reader reads
 	});
 
 	it("leaves an ordinary anchor and a link to an unknown type as plain text", () => {
-		expect(renderRefProse("see [below](#notes)", isType)).not.toContain("shu-ref");
-		expect(renderRefProse("see [that](#Nonesuch)", isType)).not.toContain("shu-ref");
+		expect(renderRefProse("see [below](#notes)", refs)).not.toContain("shu-ref");
+		expect(renderRefProse("see [that](#Nonesuch)", refs)).not.toContain("shu-ref");
 	});
 
-	it("renders a description as one sentence without a paragraph wrapper to break the line it sits on", () => {
-		expect(renderRefProse("A plain description.", isType)).toBe("A plain description.");
+	it("renders a description as one sentence, without a paragraph wrapper that breaks its line", () => {
+		expect(renderRefProse("A plain description.", refs)).toBe("A plain description.");
 	});
 
 	it("renders markup a description carries as text: a description is prose, not a document body", () => {
-		const html = renderRefProse('<img src=x onerror="alert(1)"> plain', isType);
+		const html = renderRefProse('<img src=x onerror="alert(1)"> plain', refs);
 		expect(html).not.toContain("<img"); // escaped, so the tag isn't live
 		expect(html).toContain("&lt;img");
 	});
 });
 
 describe("renderRefAnswer", () => {
-	it("turns a record a model's answer links into a live reference, and renders markup the model wrote as text", () => {
-		const html = renderRefAnswer('The [site survey](#SiteSurvey:survey-1) holds it.\n\n<img src=x onerror="alert(1)">', isType);
+	it("renders a model's link to a record as a live reference, and the markup the model wrote as text", () => {
+		const html = renderRefAnswer('The [site survey](#SiteSurvey:survey-1) holds it.\n\n<img src=x onerror="alert(1)">', refs);
 		expect(html).toContain('<shu-ref kind="entity"');
 		expect(html).toContain("survey-1");
 		expect(html).not.toContain("<img");
 		expect(html).toContain("&lt;img");
+	});
+});
+
+describe("a renderer for each reference context", () => {
+	it("renders a reference by the context it is given, and not by the context of an earlier render", () => {
+		const knowsPrincipal = refsOf((name) => name === "Principal");
+		const knowsNothing = refsOf(() => false);
+		expect(renderRefProse("a [party](#Principal)", knowsPrincipal)).toContain("shu-ref");
+		expect(renderRefProse("a [party](#Principal)", knowsNothing)).not.toContain("shu-ref");
 	});
 });

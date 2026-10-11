@@ -3,22 +3,6 @@
  * Fetches individual+edges via RPC on open. Renders once per navigation.
  * HATEOAS rel-based links, each addressing the pane it opens. Fully type-agnostic, driven by schema metadata.
  */
-import {
-	appAccessLevel,
-	esc,
-	escAttr,
-	idOf,
-	instanceLabel,
-	isVisibleKey,
-	isReferenceEdge,
-	extractFieldEntries,
-	extractBodyLiterals,
-	governanceFields,
-	pickPreferredBody,
-	renderContentHtml,
-	utf8ToBase64,
-	BODY_READING_STYLE,
-} from "../../util.js";
 import { html, css, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { jsonDisclosure, literalWithJson, recordJson } from "./json-disclosure.js";
@@ -44,14 +28,13 @@ import {
 	getIdField,
 	getQueryableFields,
 	getRels,
-	isKnownType,
+	refContext,
 	roleEdgeLabelSet,
 	getDeclaredEdgeLabel,
 	firstDeclaredType,
 } from "../controllers/catalog-controller.js";
 import { propertyVocabulary } from "../../graph/ontology-projection.js";
-import { linkHtml, paneHref, refHref, renderRef } from "./ref-navigation.js";
-import { refsInContent } from "../../markdown-refs.js";
+import { linkHtml, paneHref, refHref } from "./ref-navigation.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { pageAddress } from "../controllers/hash-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
@@ -63,6 +46,11 @@ import { reportFailure } from "../../client-log.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { ClockController } from "../controllers/clock-controller.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
+import { appAccessLevel } from "../../view-query.js";
+import { esc, escAttr, renderContentHtml, utf8ToBase64, BODY_READING_STYLE, renderRef, refsInContent } from "../derivations/markdown.js";
+import { idOf, instanceLabel, isVisibleKey, extractFieldEntries, extractBodyLiterals, governanceFields } from "../controllers/record-controller.js";
+import { isReferenceEdge } from "../derivations/record-fields.js";
+import { pickPreferredBody } from "@haibun/core/lib/resources.js";
 
 /** The name of the delay after which the copy button reads Copy again. */
 const COPY_RESULT = "copy-result";
@@ -583,7 +571,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		if (raw === undefined)
 			return `<div class="body-container"><div class="content-toolbar">${switcherHtml}</div><div class="body-reading" data-testid="body-reading">Reading ${esc(String(active.mediaType))}…</div></div>`;
 		if (raw === "") return ""; // an empty body renders an empty string, not an empty frame
-		const content = renderContentHtml(raw, String(active.mediaType));
+		const content = renderContentHtml(raw, String(active.mediaType), refContext);
 		const encoded = utf8ToBase64(buildBodyIframeDoc(content, String(active.mediaType), pageAddress()));
 		const invertible = String(active.mediaType) !== "text/html" ? " invertible" : "";
 		const iframeHtml = `<iframe class="body-iframe${invertible}" data-body-id="${escAttr(activeId)}" sandbox="allow-same-origin allow-top-navigation-by-user-activation" src="data:text/html;base64,${encoded}" data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_IFRAME}"></iframe>`;
@@ -591,7 +579,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const annotateBtn = this.annotatableBody() ? this.annotateButtonHtml(false) : "";
 		const toolbar = `<div class="content-toolbar">${switcherHtml}${COPY_BODY_BUTTON}${annotateBtn}</div>`;
 		// References don't work inside the sandbox, so the ones the body makes are listed beside it.
-		const refs = refsInContent(content, isKnownType);
+		const refs = refsInContent(content, refContext);
 		const refsHtml = refs.length
 			? `<div class="body-refs" data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_REFS}">${refs.map((ref) => renderRef(ref.kind, ref.target, ref.text)).join(", ")}</div>`
 			: "";

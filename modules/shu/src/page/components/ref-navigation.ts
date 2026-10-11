@@ -6,22 +6,14 @@
  * entity / domain / step) is addressed through `refHref`, and a view that isn't an anchor, a row or a card, opens the
  * same pane with `openRef`.
  */
-import { esc, escAttr } from "../../util.js";
 import { PaneState, addsToSelection, columnEntryOf, parseColEntry, type DesiredPane } from "../../pane-state.js";
 import { ACTIVE_PARAM, COLUMN_PARAM, hashParams, hashWithColumns } from "../derivations/address.js";
 import { mergeHashParams } from "../controllers/hash-controller.js";
 import { DEEP_LINK_PREFIX } from "../../domains/elements.js";
 import { PartSchema } from "@haibun/core/lib/resources.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
-import { JsonObjectTextSchema } from "@haibun/core/lib/json-text.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-
-export const REF_KIND = ["seqPath", REF_DENOTES.individual, REF_DENOTES.type, "step", "action"] as const;
-export type TRefKind = (typeof REF_KIND)[number];
-
-export function isRefKind(v: string | undefined): v is TRefKind {
-	return v !== undefined && (REF_KIND as readonly string[]).includes(v);
-}
+import { esc, escAttr, type TRefKind } from "../derivations/markdown.js";
 
 /** The pane a reference opens. ONE reading of (kind, linkTarget), so what a ref's href addresses is what clicking it
  *  opens: a second reading would drift, and the href would then advertise the wrong destination. */
@@ -106,29 +98,4 @@ export function openRef(source: Element | Event, kind: TRefKind, linkTarget: Rec
  *  pane's address. Without an address, the text alone. */
 export function linkHtml(href: string | undefined, text: string, attrs = "", linkClass = "col-link"): string {
 	return href ? `<a class="${linkClass}" href="${escAttr(href)}"${attrs}>${esc(text)}</a>` : esc(text);
-}
-
-/** The text a reference shows when its caller doesn't name one: the identifier itself, read out of the target. */
-export function defaultLabel(kind: string | null, targetJson: string | null): string {
-	if (!kind || !targetJson) return "";
-	const target = JsonObjectTextSchema.parse(targetJson);
-	if (kind === "seqPath" && Array.isArray(target.seqPath)) return (target.seqPath as number[]).join(".");
-	if (kind === REF_DENOTES.individual && typeof target.id === "string") return target.id;
-	if (kind === REF_DENOTES.type && typeof target.domain === "string") return target.domain;
-	if (kind === "step" && typeof target.method === "string") return target.method;
-	if (kind === "action" && typeof target.action === "string") return target.action;
-	return "";
-}
-
-/**
- * The inline markup for a reference: the string form, kept here with the router rather than with the element that
- * renders it: a text or a table that names an individual builds this, and putting it behind the custom element drags a
- * DOM class into the import path of every module that formats one.
- */
-export function renderRef(kind: TRefKind, linkTarget: Record<string, unknown>, text?: string): string {
-	const targetJson = JSON.stringify(linkTarget);
-	const display = text ?? defaultLabel(kind, targetJson);
-	// The display text is also child text: a surface where the element is not defined (the sandboxed body iframe)
-	// then shows the text instead of an empty element. The defined element's shadow root doesn't have a slot, so it never doubles.
-	return `<shu-ref kind="${escAttr(kind)}" linkTarget="${escAttr(targetJson)}" text="${escAttr(display)}">${esc(display)}</shu-ref>`;
 }

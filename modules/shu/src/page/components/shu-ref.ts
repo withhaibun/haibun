@@ -5,13 +5,12 @@
  */
 import { html, nothing, type TemplateResult } from "lit";
 import { calledParts, factSeqPath } from "@haibun/core/lib/seq-path.js";
-import { esc } from "../../util.js";
 import { DENOTES, REF_DENOTES } from "@haibun/core/lib/typed-links.js";
-import { defaultLabel, renderRef, type TRefKind } from "./ref-navigation.js";
 import type { TContextPattern } from "../../schemas.js";
 import { findDomain } from "../controllers/registry-controller.js";
 import { edgeRecordType } from "../controllers/catalog-controller.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
+import { esc, refLabel, renderRef, type TRefKind } from "../derivations/markdown.js";
 
 /**
  * The lit form of the same reference, for a view that renders a template rather than a string of markup: one place
@@ -21,7 +20,7 @@ import { stepMethodName } from "@haibun/core/lib/step-registry.js";
  */
 export const refTpl = (kind: TRefKind, linkTarget: Record<string, unknown>, text?: string, testId?: string): TemplateResult => {
 	const targetJson = JSON.stringify(linkTarget);
-	const display = text ?? defaultLabel(kind, targetJson);
+	const display = text ?? refLabel(kind, targetJson);
 	return html`<shu-ref data-testid=${testId ?? nothing} kind=${kind} linkTarget=${targetJson} text=${display}>${display}</shu-ref>`;
 };
 

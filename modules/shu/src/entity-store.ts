@@ -8,9 +8,9 @@ import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { reportToRun } from "./client-log.js";
 import { callStep } from "./pane-fetch.js";
 import { pagePinned } from "./page/adapters/page-held.js";
-import { appAccessLevel } from "./util.js";
 import { readIndividual } from "./quads-snapshot.js";
 import { resolveAnnotationsLive, resolveAnnotationsOffline, type AnnotationView } from "./annotation-resolver.js";
+import { appAccessLevel } from "./view-query.js";
 
 /** The client's copy of one entity. It holds the `getIndividualWithEdges` result. SSE quads keep its scalar fields current. */
 export type TEntityResult = { vertex: Record<string, unknown>; edges: unknown[]; incomingCount: TCounted };

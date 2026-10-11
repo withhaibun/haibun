@@ -12,10 +12,10 @@ import { PaneState } from "../../pane-state.js";
 import { runSpan } from "../../client-cache/index.js";
 import { getUiExtensionTags } from "../controllers/catalog-controller.js";
 import { PERMISSIONS_SUMMARY, summaryOf, type TPermissionsSummary } from "./shu-permissions.js";
-import { isRefKind, type TRefKind } from "./ref-navigation.js";
 import type { TControllerHost } from "./controller-host.js";
 import { reportToRun } from "../../client-log.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { isRefKind, type TRefKind } from "../derivations/markdown.js";
 
 export const CORNERS = ["settings", "playback", "access", "status"] as const;
 type TCorner = (typeof CORNERS)[number];

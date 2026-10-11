@@ -15,7 +15,7 @@ import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { html, css, type TemplateResult } from "lit";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
-import { resolveUi } from "../../resolve-ui.js";
+import { resolveUi } from "../controllers/catalog-controller.js";
 
 export class ShuProductView extends ShuElement<typeof EmptyStateSchema> {
 	/** Delegates to the mounted child view: the wrapper summarizes for its whole subtree. */

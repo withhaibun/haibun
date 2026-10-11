@@ -12,7 +12,6 @@ import { defineElement } from "../controllers/element-controller.js";
 import { openRef } from "./ref-navigation.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { addsToSelection } from "../../pane-state.js";
-import { appAccessLevel, extractBodyLiterals, idOf, instanceLabel, persistedTypeOf, titleFields } from "../../util.js";
 import { anIndividual, type TContextPattern } from "../../schemas.js";
 import { ellipsize } from "@haibun/core/lib/util/index.js";
 import { callStep } from "../../pane-fetch.js";
@@ -23,6 +22,9 @@ import { graphPresenterTag, mountGraphPresenter, presenterIn } from "../controll
 import type { TGraphPresenter, TPresenterNodeClick } from "../ports.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { COMMENT_LABEL, LinkRelations, isReplyEdge } from "@haibun/core/lib/resources.js";
+import { appAccessLevel } from "../../view-query.js";
+import { extractBodyLiterals, idOf, instanceLabel, titleFields } from "../controllers/record-controller.js";
+import { persistedTypeOf } from "../derivations/record-fields.js";
 
 /** Where the thread's graph is placed in the column, and the scope it keeps its settings under, apart from the main graph's. */
 const THREAD_GRAPH = { slot: "thread-graph", scope: "thread" } as const;

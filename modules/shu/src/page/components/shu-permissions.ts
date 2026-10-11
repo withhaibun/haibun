@@ -19,7 +19,7 @@ import { AuthorityController, type TAuthority } from "../controllers/authority-c
 import { PRINCIPAL_LABEL } from "@haibun/core/lib/resources.js";
 import { actionRef, refTpl } from "./shu-ref.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import type { TRefKind } from "./ref-navigation.js";
+import { type TRefKind } from "../derivations/markdown.js";
 
 /** What the access indicator shows beside the level, and the event carrying it: one count per thing this panel lists. */
 export const PERMISSIONS_SUMMARY = "permissions-summary";

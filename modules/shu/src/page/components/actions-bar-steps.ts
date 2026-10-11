@@ -11,10 +11,10 @@ import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { getAvailableSteps, stepsForContext } from "../controllers/registry-controller.js";
 import { StepsChangedController } from "../controllers/registry-controller.js";
 import type { TComboboxOption } from "../../schemas.js";
-import { prettifyGwta } from "../../util.js";
 import type { TControllerHost } from "./controller-host.js";
 import type { ShuActivityHistory } from "./shu-activity-history.js";
 import type { ShuCombobox } from "./shu-combobox.js";
+import { prettifyGwta } from "../derivations/steps.js";
 
 /** What marks a step offered for the selected type. */
 const FOR_THE_TYPE = "● ";

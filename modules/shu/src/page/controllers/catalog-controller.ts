@@ -9,6 +9,7 @@ import { pageRegistry, selectValues } from "../root.js";
 import { REGISTRY_STATUS } from "../machines/registry.js";
 import * as Catalog from "../derivations/catalog.js";
 import { heldCatalog, holdsCatalog } from "../pipelines/held-catalog.js";
+import type { TRefContext } from "../derivations/markdown.js";
 
 /** Returns the catalog the page holds. Throws before the page reads actuality's steps, and names what `what` read. */
 const catalog = (what: string): Catalog.TCatalog => heldCatalog(pageRegistry(), what);
@@ -188,3 +189,9 @@ export function addObservedSelectValues(label: string, quads: readonly TQuad[]):
 	if (added) setSelectValues(label, next);
 	return added;
 }
+
+/** The page's reference context: a text's references read the catalog the page holds. */
+export const refContext: TRefContext = { isType: isKnownType, propertyDefinition: getPropertyDefinition };
+
+/** Returns the component a product renders in, and the slot its type's UI names. */
+export const resolveUi = (product: Record<string, unknown>): Catalog.TResolvedUi => Catalog.resolveUi(catalog("the component of a product"), product);

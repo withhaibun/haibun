@@ -27,7 +27,6 @@ import { SHU_TEST_IDS } from "../domains/test-ids.js";
 const FILTER_IDS = SHU_TEST_IDS.GRAPH_FILTER;
 import { DEFAULT_PER_TYPE_LIMIT, MAX_PER_TYPE_LIMIT } from "../quads-snapshot.js";
 import { colorForType } from "../type-colors.js";
-import { clamp } from "../util.js";
 import { storedFields } from "../page/controllers/setting-controller.js";
 import { projectFilterClusters, effectiveHiddenTypes, derivePredicates, explicitlyHidden } from "../graph-filter-projection.js";
 import { isSchemaType, SCHEMA_TYPES } from "../graph/ontology-projection.js";
@@ -36,6 +35,7 @@ import "../page/components/shu-field.js";
 import type { TChip } from "./shu-chip-group.js";
 import { counted } from "@haibun/core/lib/hypermedia.js";
 import { TimelineViewController } from "../page/controllers/timeline-view-controller.js";
+import { clamp } from "../page/derivations/layout.js";
 
 const StateSchema = z.object({
 	// The user's EXPLICIT per-type visibility choices (true = shown, false = hidden). A type absent here follows the

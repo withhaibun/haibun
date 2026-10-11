@@ -1,12 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { declareSpec } from "./test/catalog-fixture.js";
-import { extractBodyLiterals, extractFieldEntries, idOf, instanceLabel, isReferenceEdge, isVisibleKey, pickPreferredBody, SPA_PROPS } from "./util.js";
-import { STORED_TYPE_PROP } from "./domains/elements.js";
+import { declareSpec } from "../../test/catalog-fixture.js";
+import { STORED_TYPE_PROP } from "../../domains/elements.js";
+import { extractBodyLiterals, extractFieldEntries, idOf, instanceLabel, isVisibleKey } from "./record-controller.js";
+import { isReferenceEdge, SPA_PROPS } from "../derivations/record-fields.js";
+import { pickPreferredBody } from "@haibun/core/lib/resources.js";
 
 /** A type whose id and title field names don't match another type's fields. Only its declaration resolves them. */
 const CONCEPT = { type: "Concept", idField: "conceptId", titleField: "title" } as const;
 
-// Seed the rels cache so isVisibleKey can resolve property → rel for known labels.
+// The catalog declares each type's relations, which isVisibleKey reads.
 declareSpec({
 	types: ["Email", "SeqPath", CONCEPT.type],
 	idFields: { Email: "messageId", SeqPath: "id", [CONCEPT.type]: CONCEPT.idField },
@@ -211,7 +213,7 @@ describe("pickPreferredBody", () => {
 		expect(pickPreferredBody([ical])).toBe(ical);
 	});
 
-	it("skips a body known to be empty, and a body that doesn't state a media type", () => {
+	it("leaves out an empty body, and a body that doesn't state a media type", () => {
 		expect(pickPreferredBody([{ mediaType: "text/markdown", content: "" }, plain])).toBe(plain);
 		expect(pickPreferredBody([{ content: "no media type" }, md])).toBe(md);
 	});

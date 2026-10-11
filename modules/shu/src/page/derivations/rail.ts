@@ -9,7 +9,7 @@
  * scroll. `shu-scrollbar.ts` renders the rail from these functions.
  */
 import type { TEventMarkerStyle } from "./event-marker.js";
-import { clamp } from "../../util.js";
+import { clamp } from "./layout.js";
 
 /** A mark on the scroll rail: a row of the whole column (an annotation, a failed step, a feature's start) at its index,
  *  drawn as a glyph, so a reader sees its place in the column and moves to it from anywhere. `icon` and `color` are the

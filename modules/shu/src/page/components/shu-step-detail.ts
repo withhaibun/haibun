@@ -21,7 +21,6 @@ import { reads } from "../domains/links.js";
 import { conduit } from "../controllers/conduit-controller.js";
 import { subscribeBatchedEvents } from "../controllers/event-stream-controller.js";
 import { readIndividual, variablesSetBy, type TVariableSet } from "../../quads-snapshot.js";
-import { appAccessLevel } from "../../util.js";
 import { anIndividual, type TContextPattern } from "../../schemas.js";
 import { formatRecordName, formatSeqPath, parseSeqPath, SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
@@ -30,6 +29,7 @@ import { readingExecution } from "../../client-cache/index.js";
 import { actionRef, calledRef, originLink, refTpl } from "./shu-ref.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { ClockController } from "../controllers/clock-controller.js";
+import { appAccessLevel } from "../../view-query.js";
 
 /** The name of the delay before the pane reads a running step again. */
 const STEP_RE_READ = "step-re-read";

@@ -35,9 +35,9 @@ import { getAvailableSteps, requireStep } from "./page/controllers/registry-cont
 import { SessionReadSchema, type TBundle, type TChatStatus, type TContextPattern, type TSessionTurn } from "./schemas.js";
 import { sharedMachine } from "./page/root.js";
 import { SharedCell } from "./page/adapters/shared-cell.js";
-import { appAccessLevel } from "./util.js";
 import { mergeHashParams } from "./page/controllers/hash-controller.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { appAccessLevel } from "./view-query.js";
 
 /** The step a turn runs. */
 export const ASK_STEP = "chatWithContext";

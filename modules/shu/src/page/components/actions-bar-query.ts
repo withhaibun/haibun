@@ -18,7 +18,6 @@ import { type TDomainOption } from "../derivations/steps.js";
 import { StepsChangedController } from "../controllers/registry-controller.js";
 import { pageTypes } from "../controllers/page-cell-controller.js";
 import { NOTHING_SELECTED_LABEL, SEARCH_OPERATORS, type TComboboxOption, type TContextPattern } from "../../schemas.js";
-import { appAccessLevel } from "../../util.js";
 import { getHash } from "../controllers/hash-controller.js";
 import { parseViewQuery, serializeViewQuery, typeNotHeld, viewQuery } from "../../view-query.js";
 import { contextLabel, isEntitySelection, type TContextExtra } from "../derivations/layout.js";
@@ -28,6 +27,7 @@ import { ShuSearchSummary } from "./shu-search-summary.js";
 import { readSlashCommand } from "../derivations/step-input.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { ClockController } from "../controllers/clock-controller.js";
+import { appAccessLevel } from "../../view-query.js";
 
 /** The name of the typed search's trailing pause. */
 const TYPED_SEARCH = "typed-search";

@@ -23,6 +23,8 @@ const config: Config = {
 	test: {
 		globals: true,
 		environment: "node",
+		// A test under jsdom runs the browser's frame callbacks, which the text annotator draws its highlights in.
+		environmentOptions: { jsdom: { pretendToBeVisual: true } },
 		// The projects below say what runs; a root `include` beside them would be a third project running everything again.
 		projects: [
 			{ extends: true, test: { name: "integration", include: [INTEGRATION_TESTS], exclude: EXCLUDE, maxWorkers: 2, minWorkers: 1, sequence: { groupOrder: 0 } } },

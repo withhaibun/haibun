@@ -16,14 +16,12 @@
 import { html, css, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { shuBaseStyles } from "./styles.js";
-import { renderRef } from "./ref-navigation.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { statedTotal, viewCollection } from "@haibun/core/lib/hypermedia.js";
 import { SHU_EVENT, SHU_TAG, TIME_SYNC_CLASS } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { z } from "zod";
 import { ResultTableSchema } from "../../schemas.js";
-import { idOf, persistedTypeOf, isVisibleKey } from "../../util.js";
 import { formatInstant, isDateValue, readerZone } from "../derivations/time-format.js";
 import { ellipsize } from "@haibun/core/lib/util/index.js";
 import { getIdField, getPropertyOrder } from "../controllers/catalog-controller.js";
@@ -31,6 +29,9 @@ import "./shu-virtual-column.js";
 import { virtualColumnCss } from "./shu-virtual-column.js";
 import { arrayWindowedSource, statedCountOf, type WindowedSource } from "../../windowed-source.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
+import { renderRef } from "../derivations/markdown.js";
+import { idOf, isVisibleKey } from "../controllers/record-controller.js";
+import { persistedTypeOf } from "../derivations/record-fields.js";
 
 /** The narrowest a column gets before the table scrolls sideways instead of squeezing further. */
 const MIN_COLUMN = "12ch";
@@ -285,7 +286,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.SORT_CHANGE, { detail: { field, order }, bubbles: true, composed: true }));
 	}
 
-	#onRowClick(e: Event, vid: string, vlabel: string): void {
+	#onRowClick(e: Event, vid: string, vlabel: string | undefined): void {
 		e.stopPropagation(); // an empty-area click deselects; a row click must not also reach #onAreaClick
 		if (!this.state.selectable || !vid) return;
 		const multi = (e as MouseEvent).ctrlKey || (e as MouseEvent).metaKey;

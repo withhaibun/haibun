@@ -25,8 +25,6 @@ import { property, state } from "lit/decorators.js";
 import DOMPurify from "dompurify";
 import { createTextAnnotator, W3CTextFormat, type TextAnnotator } from "../../recogito.js";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
-import { renderContentHtml, BODY_READING_STYLE } from "../../util.js";
-import { refSanitizeOptions } from "../../markdown-refs.js";
 import type { TAnnotationDraft } from "../../entity-store.js";
 import { type AnnotationView, type W3CTextAnnotation, toW3CAnnotations } from "../../annotation-resolver.js";
 import { locateQuoteOffsets } from "@haibun/core/lib/quote-anchor.js";
@@ -39,6 +37,8 @@ import { railMarks, railTotalAndWindow } from "../../annotation-rail.js";
 import { revealInDocument } from "../../reveal.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { ClockController } from "../controllers/clock-controller.js";
+import { renderContentHtml, BODY_READING_STYLE, refSanitizeOptions } from "../derivations/markdown.js";
+import { refContext } from "../controllers/catalog-controller.js";
 
 /** How long a quoted passage stays marked after the view reveals it, and the name of that delay. */
 const QUOTE_FLASH_MS = 1400;
@@ -262,7 +262,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 	 *  Markdown renders with its in-app references live. A text shown inline is read here, so a `#Type:id` link in it
 	 *  opens that individual in a column; as a plain anchor it would navigate the page to a hash the app cannot read. */
 	private sanitizedHtml(): string {
-		return DOMPurify.sanitize(renderContentHtml(this.content, this.mediaType), STYLED_REF_SANITIZE);
+		return DOMPurify.sanitize(renderContentHtml(this.content, this.mediaType, refContext), STYLED_REF_SANITIZE);
 	}
 
 	private contentEl(): HTMLElement | null {
@@ -541,7 +541,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 							@click=${() => this.selectCard(a.commentId)}
 						>
 							<div class="annotation-card-quote">“${a.exact}”</div>
-							${a.body ? html`<div class="annotation-card-body">${unsafeHTML(DOMPurify.sanitize(renderContentHtml(a.body, "text/markdown"), STYLED_REF_SANITIZE))}</div>` : html``}
+							${a.body ? html`<div class="annotation-card-body">${unsafeHTML(DOMPurify.sanitize(renderContentHtml(a.body, "text/markdown", refContext), STYLED_REF_SANITIZE))}</div>` : html``}
 							${a.author ? html`<div class="annotation-card-author">${fieldRef(COMMENT_LABEL, LinkRelations.ATTRIBUTED_TO.rel, a.author)}</div>` : html``}
 							${(a.links ?? []).map(
 								(link) => html`<span

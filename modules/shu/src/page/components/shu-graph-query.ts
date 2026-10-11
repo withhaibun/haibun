@@ -17,7 +17,6 @@ import { typeNotHeld, viewQuery, type THeldTypeLink, type TViewQuery } from "../
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { ViewQueryControlSchema } from "./shu-graph-query.controls-schema.js";
 import { shuBaseStyles } from "./styles.js";
-import { esc } from "../../util.js";
 import type { ShuResultTable } from "./shu-result-table.js";
 import { isOffline } from "../controllers/hydration-controller.js";
 import { getAvailableSteps } from "../controllers/registry-controller.js";
@@ -28,6 +27,7 @@ import { INITIAL_WINDOW_SIZE, WindowSizeSchema } from "../domains/settings.js";
 import { windowRows } from "../derivations/settings.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
 import { ClockController } from "../controllers/clock-controller.js";
+import { esc } from "../derivations/markdown.js";
 
 /** The name of the delay before the query reads again after arrivals. */
 const ARRIVAL = "arrival";

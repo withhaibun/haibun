@@ -4,12 +4,21 @@
 // fields, which previously misclassified it as a "stub" and dropped the content. Regression guard for that.
 import { newPage } from "../../test-setup.js";
 import { declareSpec } from "../../test/catalog-fixture.js";
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuEntityColumn } from "./shu-entity-column.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
 
 type Body = { id: string; content: string; mediaType: string };
+
+/** Longer than the text annotator's redraw debounce, which a removed view's annotator still runs. */
+const ANNOTATOR_SETTLE_MS = 30;
+
+// Each test removes its views and waits for the annotator's last redraw, so a redraw doesn't run once jsdom has ended.
+afterEach(async () => {
+	document.body.innerHTML = "";
+	await new Promise((resolve) => setTimeout(resolve, ANNOTATOR_SETTLE_MS));
+});
 
 const render = async (type: string, fields: Record<string, unknown>, bodies: Body[]): Promise<string> => {
 	const el = new ShuEntityColumn();

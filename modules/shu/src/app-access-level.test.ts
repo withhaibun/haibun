@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it } from "vitest";
-import { appAccessLevel } from "./util.js";
 import { parseViewQuery } from "./view-query.js";
+import { appAccessLevel } from "./view-query.js";
 
 /**
  * appAccessLevel returns the access level of the page's reads. Every read and every question is sent at that level. It

@@ -10,7 +10,6 @@ import { SITE_KEY, HYPERMEDIA_ROLE_REL_KEY, omittedOf, type GraphModel } from ".
 import { readsEveryStatement, statedAboutFirst } from "./polymorphic-summary.js";
 import { DEFAULT_PER_TYPE_LIMIT } from "../../quads-snapshot.js";
 import { SCOPE, dispatchSubjectEvent, entryOf } from "../../current-subject.js";
-import { appAccessLevel } from "../../util.js";
 import { formatInstant, readerZone } from "../../page/derivations/time-format.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { FrameScheduler } from "../polymorphic/polymorphic-frame.js";
@@ -71,6 +70,7 @@ import {
 } from "./polymorphic-enclosure.js";
 import { presentationForType } from "../type-presentation.js";
 import type { NodeMark } from "../graph-scene.js";
+import { appAccessLevel } from "../../view-query.js";
 
 /**
  * shu-graph-scene: the A-Frame / ForceGraphVR rendering surface, extracted from shu-polymorphic-graph-view so the scene is

@@ -5,7 +5,6 @@ import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { getAvailableSteps, findStep } from "../controllers/registry-controller.js";
 import { queryGraph } from "../../quads-snapshot.js";
 import { dispatchAffordanceFromResponse } from "../../affordance-dispatch.js";
-import { esc, escAttr, prettifyGwta, normalizeStepKey } from "../../util.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { validateStepInput, type TFieldError } from "../derivations/step-input.js";
 import { getConcernCatalog } from "../controllers/catalog-controller.js";
@@ -16,6 +15,8 @@ import { defineElement } from "../controllers/element-controller.js";
 import { linkTo } from "../controllers/registry-controller.js";
 import { revealInDocument } from "../../reveal.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { esc, escAttr } from "../derivations/markdown.js";
+import { prettifyGwta, normalizeStepKey } from "../derivations/steps.js";
 
 type InputProperty = { type?: string; description?: string; enum?: string[]; properties?: Record<string, InputProperty>; required?: string[]; [key: string]: unknown };
 

@@ -24,7 +24,6 @@ import { PART_DIRECTIVE, partDirectiveFor, splitPart } from "@haibun/core/lib/ty
 import { z } from "zod";
 import * as Address from "./page/derivations/address.js";
 import * as PageHash from "./page/controllers/hash-controller.js";
-import { objectId } from "./object-id.js";
 import { INDEX_PANE_KEY, SHU_ATTR, SHU_EVENT, SHU_TAG } from "./domains/elements.js";
 import { pagePreferences } from "./page/root.js";
 import { INITIAL_SHOWN_CONTROLS, ShownControlsSchema, shownControlsKey } from "./page/domains/settings.js";
@@ -36,6 +35,7 @@ import type { ShuColumnPane } from "./page/components/shu-column-pane.js";
 import type { ShuColumnStrip } from "./page/components/shu-column-strip.js";
 import { pagePinned } from "./page/adapters/page-held.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { objectId } from "./page/derivations/record-fields.js";
 
 const FlagSchema = z.enum(["min", "max"]).optional();
 /** Where a pane stands and how: minimized or maximized, and docked along the bottom of the app rather than a column. */

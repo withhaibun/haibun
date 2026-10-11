@@ -10,8 +10,8 @@ import { AWAITING_DECISION } from "../../domains/elements.js";
 import { PageStripCorners, CORNERS, awaitingOf, timeOffsetLabel } from "./page-strip-corners.js";
 import { aControllerHost, type ControllerHostFake } from "./controller-host.test-fake.js";
 import { PERMISSIONS_SUMMARY } from "./shu-permissions.js";
-import { REF_KIND } from "./ref-navigation.js";
 import { pageHolding } from "../controllers/authority-controller.test-fake.js";
+import { REF_KIND } from "../derivations/markdown.js";
 
 /** A kind of reference a ref opens. */
 const OPENABLE = REF_KIND[1];

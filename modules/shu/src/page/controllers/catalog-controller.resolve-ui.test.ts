@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { type TCatalogSpec, declareSpec } from "./test/catalog-fixture.js";
-import { resolveUi, ENTITY_COMPONENT, COLLECTION_COMPONENT } from "./resolve-ui.js";
+import { type TCatalogSpec, declareSpec } from "../../test/catalog-fixture.js";
+import { SHU_TAG } from "../../domains/elements.js";
+import { resolveUi } from "./catalog-controller.js";
+
+const [ENTITY_COMPONENT, COLLECTION_COMPONENT] = [SHU_TAG.ENTITY_COLUMN, SHU_TAG.THREAD_COLUMN];
 
 const META: TCatalogSpec = {
 	types: [],
@@ -32,7 +35,7 @@ describe("resolveUi", () => {
 		expect(resolveUi({}).component).toBe(ENTITY_COMPONENT);
 	});
 
-	// A slotted panel is about the type, not about one record of it: the petitions panel sits in the permissions area
+	// A slotted panel shows a type, not one of its records: the petitions panel is in the permissions area
 	// for every proposal there is. Rendering a record with it mounts a panel that doesn't have a record view's methods.
 	it("does not render a record with the panel its type mounts in a slot", () => {
 		expect(resolveUi({ _type: "Slotted" }).component).toBe(ENTITY_COMPONENT);

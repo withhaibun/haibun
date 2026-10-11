@@ -643,15 +643,9 @@
 	"modules/shu/src/known-size-flow.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/shu/src/markdown-refs.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/monitor-stepper.ts": {
 		"imports a stepper: ./shu-stepper.js": 1,
 		"performs I/O through fs": 1
-	},
-	"modules/shu/src/object-id.ts": {
-		"isn't in a kind position": 1
 	},
 	"modules/shu/src/pane-fetch.ts": {
 		"isn't in a kind position": 1
@@ -666,9 +660,6 @@
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/remote-graph-source.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/resolve-ui.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/reveal.ts": {
@@ -690,9 +681,6 @@
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/type-colors.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/util.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/view-query.ts": {

@@ -182,3 +182,10 @@ export const viewQuery = {
 		return mergedHash(ViewQuerySchema.parse({ ...snapshot(), ...patch }));
 	},
 };
+
+/** Returns the page's access level, as its address states it, which each read and write of a record carries. A view's change
+ *  of the level writes the address, so the level and the view query read one value. A page without a window, a test under
+ *  Node, reads at every level. */
+export function appAccessLevel(): TAccessQueryLevel {
+	return typeof window === "undefined" ? AccessQuery.all : parseViewQuery(window.location.hash).access;
+}

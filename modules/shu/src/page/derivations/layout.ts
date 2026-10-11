@@ -2,11 +2,13 @@
  * The page's layout values: a docked pane's height as a share of the app, the height a drag of its top edge sets, and the
  * name of the actions bar's selection. Each reads values the view holds, so a test reads them without a browser.
  */
-import { clamp } from "../../util.js";
 import { NOTHING_SELECTED_LABEL, type TContextPattern, type TContextIndividual } from "../../schemas.js";
 import { DENOTES } from "@haibun/core/lib/typed-links.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { statedTotal, type TCounted } from "@haibun/core/lib/hypermedia.js";
+
+/** Constrains `x` to [min, max]. */
+export const clamp = (x: number, min: number, max: number): number => Math.min(max, Math.max(min, x));
 
 /** Height of an open docked pane as a share of the app: dragged, remembered, and bounded. */
 export const PROPORTION = { min: 0.12, max: 0.9, default: 0.38 } as const;

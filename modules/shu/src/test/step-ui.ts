@@ -73,8 +73,8 @@ const ASK_LOCATOR = { ANSWERED: "ask-answered", TURNS_SHOWN: "ask-turns-shown", 
 /** The page-locator variable the actions bar helpers set: the minimize control of the bar's pane. */
 const ACTIONS_PANE_CONTROL = "actions-pane-control";
 
-import { normalizeStepKey } from "../util.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { normalizeStepKey } from "../page/derivations/steps.js";
 export { normalizeStepKey };
 const stepRun = (method: string, callIndex: number) => `${normalizeStepKey(method)}-${callIndex}-step-run`;
 const stepDone = (method: string, callIndex: number) => `${normalizeStepKey(method)}-${callIndex}-step-done`;

@@ -30,7 +30,6 @@ import { actionOK, actionNotOK, actionOKWithProducts } from "@haibun/core/lib/ut
 import type { TActionResult } from "@haibun/core/schema/protocol.js";
 import { saveImageArtifact } from "@haibun/domain-storage/image-artifact.js";
 import type { Locator, Page } from "playwright";
-import { objectId } from "../object-id.js";
 import { VIEW, VIEW_TYPES, isLaneView } from "../graph/polymorphic/polymorphic-views.js";
 import { MEASURE_UNIT, PAN_DIRECTION, ZOOM_DIRECTION, type TMeasureUnit, type TPanDirection, type TZoomDirection } from "../graph/polymorphic/polymorphic-camera.js";
 import type { ShuGraphScene, TGraphState } from "../graph/polymorphic/polymorphic-scene.js";
@@ -53,6 +52,7 @@ import {
 } from "../page/components/controls-util.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { SCHEMA_TYPES } from "../graph/ontology-projection.js";
+import { objectId } from "../page/derivations/record-fields.js";
 
 /** The page's main graph: the one view that draws the page's own data. */
 const MAIN_GRAPH = "shu-polymorphic-graph-view:not([data-external])";

@@ -7,7 +7,7 @@
 import { LinkRelations, RESOURCE_LABEL, fromActorRels, getPropertyDefinitions, isSubPropertyOf, roleRels, toActorRels } from "@haibun/core/lib/resources.js";
 import type { TConcernCatalog, TTitledBy } from "@haibun/core/lib/hypermedia.js";
 import type { TDomainDiscoveryInfo } from "@haibun/core/lib/step-discovery.js";
-import { ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, isMarkerType } from "../../domains/elements.js";
+import { ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, SHU_TAG, isMarkerType } from "../../domains/elements.js";
 import { propertyVocabulary } from "../../graph/ontology-projection.js";
 
 /** What a catalog derives from: the concern catalog and the domains actuality declares, as a read of its steps holds them. */
@@ -244,6 +244,21 @@ export function recordComponent(catalog: TCatalog, label: string): string | unde
 	const ui = catalog.ui[label];
 	if (ui === undefined || typeof ui.slot === "string") return undefined;
 	return typeof ui.component === "string" ? ui.component : undefined;
+}
+
+/** The component a product renders in, and the slot its type's UI names, where it names one. */
+export type TResolvedUi = { component: string; slot: string | undefined };
+
+/** Returns the component a product renders in: the `_component` its type's domain stamped, else the component its type
+ *  declares, else the thread column for a collection (a product that carries `items`) and the entity column for a single
+ *  record. Each product resolves to one component. */
+export function resolveUi(catalog: TCatalog, product: Record<string, unknown>): TResolvedUi {
+	const type = typeof product._type === "string" ? product._type : undefined;
+	const ui = type === undefined ? undefined : catalog.ui[type];
+	const declared = typeof product._component === "string" ? product._component : type === undefined ? undefined : recordComponent(catalog, type);
+	const isCollection = Array.isArray(product.items) && product.items.length > 0;
+	const component = declared !== undefined ? declared : isCollection ? SHU_TAG.THREAD_COLUMN : SHU_TAG.ENTITY_COLUMN;
+	return { component, slot: typeof ui?.slot === "string" ? ui.slot : undefined };
 }
 
 /** Returns the declaration of the component `component` names, or undefined where the catalog doesn't declare it. Throws

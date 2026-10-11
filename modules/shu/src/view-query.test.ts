@@ -10,7 +10,7 @@ import { newPage } from "./test-setup.js";
 import { describe, expect, it, beforeEach } from "vitest";
 import { ViewQuerySchema, type TViewQuery, parseViewQuery, serializeViewQuery, viewQuery } from "./view-query.js";
 import { canonicalizeArrival } from "./page/derivations/address.js";
-import { appAccessLevel } from "./util.js";
+import { appAccessLevel } from "./view-query.js";
 
 const DEFAULTS: TViewQuery = ViewQuerySchema.parse({});
 

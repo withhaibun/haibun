@@ -81,3 +81,19 @@ export function domainOptions(catalog: TConcernCatalog, domains: Record<string, 
 	});
 	return options.sort((a, b) => (a.group === b.group ? 0 : a.group === DOMAIN_GROUP.declared ? -1 : 1));
 }
+
+/** Returns a step's key, as a feature's selectors read it, from its pattern or its qualified method: without its
+ *  placeholders and its stepper's prefix, in kebab case. The step caller's test ids use the same key. */
+export function normalizeStepKey(input: string): string {
+	let s = input.replace(/\{[^}]*\}/g, "");
+	if (/^[A-Z]\w+-/.test(s)) s = s.replace(/^[A-Z]\w+-/, "");
+	s = s.replace(/([a-z0-9])([A-Z])/g, "$1-$2");
+	return s.toLowerCase().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+}
+
+/** Returns a step's pattern as a reader reads it, without its optional groups (`set( empty)? {what}`). */
+export const prettifyGwta = (gwta: string): string =>
+	gwta
+		.replace(/\(\s*[^()]*?\s*\)\?/g, "")
+		.replace(/ {2,}/g, " ")
+		.trim();

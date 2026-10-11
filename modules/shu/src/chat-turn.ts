@@ -22,7 +22,7 @@ import { readTurnAllowance } from "./turn-allowance.js";
 import { reportToRun } from "./client-log.js";
 import { ASK_STEP, OPEN_TURN_STEP, askRefusal, conversationState, dispatchConversationEvent, type TAskedTurn } from "./conversation.js";
 import { TurnEnvelopeSchema, type TTurnEnvelope } from "./schemas.js";
-import { appAccessLevel } from "./util.js";
+import { appAccessLevel } from "./view-query.js";
 
 /** What a turn sends: its prompt, the envelope that states its subject and the turn it replies to, and the target model. */
 type TTurnRequest = { prompt: string; envelope: TTurnEnvelope; target: string };

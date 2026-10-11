@@ -16,9 +16,9 @@
  */
 import { SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
-import { esc } from "../../util.js";
 import { JsonObjectTextSchema } from "@haibun/core/lib/json-text.js";
-import { isRefKind, refHref, defaultLabel } from "./ref-navigation.js";
+import { refHref } from "./ref-navigation.js";
+import { esc, isRefKind, refLabel } from "../derivations/markdown.js";
 
 class ShuRef extends HTMLElement {
 	connectedCallback(): void {
@@ -36,7 +36,7 @@ class ShuRef extends HTMLElement {
 	private render(): void {
 		if (!this.shadowRoot) return;
 		const kind = this.getAttribute("kind") ?? "";
-		const text = this.getAttribute("text") ?? defaultLabel(kind, this.getAttribute("linkTarget"));
+		const text = this.getAttribute("text") ?? refLabel(kind, this.getAttribute("linkTarget"));
 		// A real href: the address of the thing itself, which the browser can open in a tab, copy and preview. A kind
 		// without a pane is text, not a link that doesn't lead to a pane.
 		const href = this.hrefForRef();

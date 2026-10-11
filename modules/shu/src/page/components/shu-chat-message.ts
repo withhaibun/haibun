@@ -8,8 +8,7 @@ import { property } from "lit/decorators.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { guard } from "lit/directives/guard.js";
 import { z } from "zod";
-import { proseText, renderRefAnswer, renderRefProse } from "../../markdown-refs.js";
-import { isKnownType } from "../controllers/catalog-controller.js";
+import { refContext } from "../controllers/catalog-controller.js";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import type { ShuSpinner } from "./shu-spinner.js";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
@@ -21,6 +20,7 @@ import { patternRef, recordRef } from "./shu-ref.js";
 import { CalledSchema } from "@haibun/core/lib/called.js";
 import { ICON_STEP_COMPLETED, RETURNED_TO_CALLER } from "@haibun/core/schema/protocol.js";
 import { BundleSchema, ChatRoleSchema, ChatStatusSchema, UNVERIFIED_TURN, type TBundle, type TChatRole, type TQuestionFork } from "../../schemas.js";
+import { proseText, renderRefAnswer, renderRefProse } from "../derivations/markdown.js";
 
 /** Styles for a light-DOM chat message, exported for the shadow scope that hosts the activity history: the message
  *  renders in light DOM, so the scope that contains it declares the rules. */
@@ -151,7 +151,7 @@ export class ShuChatMessage extends ShuElement<typeof EmptyStateSchema> {
 		if (!spinner) return;
 		const m = this.message;
 		// The spinner shows text alone, so a line naming a record shows the words that name it.
-		const status = proseText(m.spinnerStatus, isKnownType);
+		const status = proseText(m.spinnerStatus, refContext);
 		if (spinner.status !== status) spinner.status = status;
 		if (spinner.visible !== m.spinnerVisible) spinner.visible = m.spinnerVisible;
 		if (spinner.spinning !== m.spinnerSpinning) spinner.spinning = m.spinnerSpinning;
@@ -194,7 +194,7 @@ export class ShuChatMessage extends ShuElement<typeof EmptyStateSchema> {
 						m.context.length > 0
 							? html`<details class="chat-made-of" data-testid=${SHU_TEST_IDS.APP.CHAT_CONTEXT}>
 								<summary>context sent (${m.context.length} lines)</summary>
-								<ol>${guard([m.context.join("\n")], () => m.context.map((line) => html`<li>${unsafeHTML(renderRefProse(line, isKnownType))}</li>`))}</ol>
+								<ol>${guard([m.context.join("\n")], () => m.context.map((line) => html`<li>${unsafeHTML(renderRefProse(line, refContext))}</li>`))}</ol>
 							</details>`
 							: ""
 					}
@@ -206,7 +206,7 @@ export class ShuChatMessage extends ShuElement<typeof EmptyStateSchema> {
 							</details>`
 							: ""
 					}
-					${m.role === "llm" && m.text ? html`<div class="chat-text" data-testid="app-chat-text">${unsafeHTML(renderRefAnswer(m.text, isKnownType))}</div>` : ""}
+					${m.role === "llm" && m.text ? html`<div class="chat-text" data-testid="app-chat-text">${unsafeHTML(renderRefAnswer(m.text, refContext))}</div>` : ""}
 					${m.error ? html`<div class="chat-error">${m.error}</div>` : ""}
 					${m.unverified.length > 0 ? html`<div class="chat-unverified" data-testid="app-chat-unverified">${UNVERIFIED_TURN}: ${m.unverified.join(", ")}</div>` : ""}
 					${

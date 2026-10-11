@@ -15,7 +15,6 @@ import { incomingEdges as incomingEdgesHeld, recordWithEdges } from "@haibun/cor
 import type { TRunGraph } from "./client-cache/run-graph.js";
 import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
 import { reportFailure } from "./client-log.js";
-import { appAccessLevel } from "./util.js";
 import { reads } from "./page/domains/links.js";
 import { conduit } from "./page/controllers/conduit-controller.js";
 import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
@@ -28,6 +27,7 @@ import { heldDatabases } from "./client-cache/device-store.js";
 import { pagePinned } from "./page/adapters/page-held.js";
 import { EDGE, type AccessLevel } from "@haibun/core/lib/resources.js";
 import { VARIABLE_FIELD } from "@haibun/core/lib/records/domains/variables.js";
+import { appAccessLevel } from "./view-query.js";
 
 export const DEFAULT_PER_TYPE_LIMIT = 100;
 /** Ceiling for the per-type sample, everywhere the limit can be set (the filter slider AND the +N-more cluster expand), so a path can't silently inflate the limit past what the slider expresses. */

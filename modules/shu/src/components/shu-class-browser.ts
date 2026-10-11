@@ -25,9 +25,7 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import { ShuClusteredGraphView, clusteredGraphStateShape } from "./shu-clustered-graph-view.js";
 import { fetchIndividuals } from "../pane-fetch.js";
-import { esc, idOf, instanceLabel } from "../util.js";
 import { jsonDisclosure } from "../page/components/json-disclosure.js";
-import { renderRef } from "../page/components/ref-navigation.js";
 import { scopeSchemaToType, scopeSchemaToConnected } from "../graph/ontology-projection.js";
 import { prefixesReferencedBy } from "../graph/jsonld-context-scope.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
@@ -38,6 +36,8 @@ import { SHU_TEST_IDS } from "../domains/test-ids.js";
 import "@haibun/shu/graph/polymorphic/polymorphic-scene.js";
 import { type ShuGraphScene, type GraphSceneModel } from "../graph/polymorphic/polymorphic-scene.js";
 import { GRAPH_SCENE_EVENT } from "../graph/polymorphic/polymorphic-graph-types.js";
+import { esc, renderRef } from "../page/derivations/markdown.js";
+import { idOf, instanceLabel } from "../page/controllers/record-controller.js";
 
 const BrowserStateSchema = z.object({
 	...clusteredGraphStateShape,
