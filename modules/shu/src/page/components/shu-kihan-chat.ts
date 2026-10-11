@@ -52,6 +52,7 @@ import { embeddedPageView } from "../controllers/page-cell-controller.js";
 import { embeddedViewLd } from "../derivations/embedding.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { formatInstant, readerZone } from "../derivations/time-format.js";
+import "./shu-combobox.js";
 
 /** What a reader says a turn sends. The values are the words the registry and a profile state it in; what each of them
  *  sends is how a reader reads them, and "" means the reader doesn't state a value, which leaves it to the model. */

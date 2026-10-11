@@ -37,6 +37,7 @@ import { isOffline } from "../controllers/hydration-controller.js";
 import { getActionBarChatExtensionTags } from "../controllers/catalog-controller.js";
 import { reportToRun } from "../../client-log.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import "./shu-kihan-chat.js";
 
 export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */

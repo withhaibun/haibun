@@ -57,8 +57,8 @@ export class ShuIndexSummary extends ShuElement<typeof EmptyStateSchema> {
 	}
 
 	protected override onConnected(): void {
-		// The index is not an ancestor of this element (it renders into the pane from outside it), so its context does
-		// not bubble through here. The document is where both meet.
+		// The query is this element's sibling in the index pane, so its context doesn't bubble through here. The document
+		// is where both meet.
 		this.autoListen(document, SHU_EVENT.CONTEXT_CHANGE, (e: Event) => {
 			if ((e.target as Element | null)?.tagName.toLowerCase() !== SHU_TAG.GRAPH_QUERY) return;
 			this.found = CountedSchema.parse((e as CustomEvent).detail.total);

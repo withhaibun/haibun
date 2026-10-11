@@ -55,6 +55,7 @@ import { pickPreferredBody } from "@haibun/core/lib/resources.js";
 import type { TWritten } from "../pipelines/call-step.js";
 import type { TPageRefusal } from "../domains/refusal.js";
 import "./shu-refusal.js";
+import "./shu-spinner.js";
 
 /** The name of the delay after which the copy button reads Copy again. */
 const COPY_RESULT = "copy-result";

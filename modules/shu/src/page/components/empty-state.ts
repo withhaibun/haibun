@@ -1,4 +1,5 @@
 import { html, type TemplateResult } from "lit";
+import "./shu-spinner.js";
 
 /**
  * The one waiting-versus-empty pathway every data control uses for an empty region. While the data is still being read

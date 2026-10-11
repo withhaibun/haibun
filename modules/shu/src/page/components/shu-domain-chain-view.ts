@@ -32,6 +32,7 @@ import { graphPresenterTag, mountGraphPresenter, presenterIn } from "../controll
 import type { TGraphPresenter, TPresenterNodeClick } from "../ports.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { typeShownIn } from "../controllers/catalog-controller.js";
+import "./shu-spinner.js";
 
 /** Where the chain's graph is placed in the view, which is also the test id it is found by, and the scope it keeps its
  *  settings under. */

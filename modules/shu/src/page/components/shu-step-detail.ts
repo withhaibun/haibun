@@ -27,6 +27,7 @@ import { typeShownIn } from "../controllers/catalog-controller.js";
 import { clusteredQuads, recordRead } from "../controllers/read-controller.js";
 import { LoadController } from "../controllers/load-controller.js";
 import "./shu-refusal.js";
+import "./shu-spinner.js";
 
 /** The name of the delay before the pane reads a running step again. */
 const STEP_RE_READ = "step-re-read";

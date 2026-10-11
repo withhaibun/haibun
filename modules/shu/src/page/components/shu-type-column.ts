@@ -41,6 +41,8 @@ import { NODE_KIND, type TGraph } from "../../graph/types.js";
 import { ShuProductView } from "./shu-product-view.js";
 import { appAccessLevel } from "../../view-query.js";
 import { renderRefProse } from "../derivations/markdown.js";
+import "../../components/shu-graph.js";
+import "./shu-result-table.js";
 
 const TypeColumnSchema = z.object({ persistedAs: z.string().default(""), fullSchema: z.boolean().default(false) });
 
@@ -266,10 +268,9 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 				${this.#instancesRead.render<TemplateResult | typeof nothing>({
 					pending: () => html`<span>Loading…</span>`,
 					running: () => html`<span>Loading…</span>`,
-					completed: () => nothing,
+					completed: () => html`<shu-result-table ${ref(this.tableRef)} data-testid=${IDS.INSTANCES} @row-click=${this.onRowClick}></shu-result-table>`,
 					failed: (refusal) => html`<shu-refusal .refusal=${refusal} .readAgain=${() => void this.#instancesRead.run()}></shu-refusal>`,
 				})}
-				<shu-result-table ${ref(this.tableRef)} data-testid=${IDS.INSTANCES} @row-click=${this.onRowClick}></shu-result-table>
 			</div>`
 			}`;
 	}

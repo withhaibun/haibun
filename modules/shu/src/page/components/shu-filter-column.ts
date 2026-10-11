@@ -24,6 +24,8 @@ import { queryGraph, queryRead, incomingEdges, incomingRead } from "../controlle
 import { LoadController } from "../controllers/load-controller.js";
 import type { TCallOutcome } from "../pipelines/call-step.js";
 import "./shu-refusal.js";
+import "./shu-spinner.js";
+import "./shu-result-table.js";
 
 /** A graph query a filter column reads: its window is stated, so each later window reads from it. */
 type TFilterQuery = Record<string, unknown> & { limit: number; offset: number };
@@ -47,7 +49,8 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 	/** The read the column opened at: its rows, as a windowed source that reads each later window. */
 	#readPage: () => Promise<TCallOutcome<WindowedSource<VertexData>>> = () => Promise.resolve({ ok: false, refusal: { error: "the column isn't opened at a filter" } });
 	readonly #page = new LoadController<WindowedSource<VertexData>>(this, () => this.#readPage());
-	#installedSource: WindowedSource<VertexData> | null = null;
+	/** The table and the source the column last gave it: the table draws again at each read, so a new table takes the source too. */
+	#installed: { table: ShuResultTable; source: WindowedSource<VertexData> } | undefined = undefined;
 
 	private tableRef = createRef<ShuResultTable>();
 
@@ -135,9 +138,9 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 		if (!table || source === undefined) return;
 		table.updateState({ displayMode: "full", fixedProperty: this.state.property });
 		if (this.state.persistedAs) table.persistedAs = this.state.persistedAs;
-		if (source !== this.#installedSource) {
+		if (this.#installed?.table !== table || this.#installed.source !== source) {
 			table.setSource(source);
-			this.#installedSource = source;
+			this.#installed = { table, source };
 		}
 	}
 
@@ -156,7 +159,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 				completed: () => nothing,
 				failed: (refusal) => html`<shu-refusal .refusal=${refusal} .readAgain=${() => void this.#page.run()}></shu-refusal>`,
 			})}
-			<shu-result-table ${ref(this.tableRef)} style=${shown ? "flex:1" : "display:none"} @row-click=${this.onRowClick} @sort-change=${this.onSortChange}></shu-result-table>
+			${shown ? html`<shu-result-table ${ref(this.tableRef)} style="flex:1" @row-click=${this.onRowClick} @sort-change=${this.onSortChange}></shu-result-table>` : nothing}
 		`;
 	}
 }

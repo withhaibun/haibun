@@ -41,6 +41,8 @@ import { revealInDocument } from "../../reveal.js";
 import { ClockController } from "../controllers/clock-controller.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { typeShownIn } from "../controllers/catalog-controller.js";
+import "./shu-spinner.js";
+import "./shu-copy-button.js";
 
 /** The name of the delay before the panel reads its affordances again. */
 const REFRESH = "refresh";

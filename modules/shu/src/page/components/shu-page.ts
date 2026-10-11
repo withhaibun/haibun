@@ -29,6 +29,12 @@ import type { ShuGraphQuery } from "./shu-graph-query.js";
 import { appAccessLevel } from "../../view-query.js";
 import { PANE_ATTACH, activatePane, dismissPane, openStrip, requestPane, requestPaneFrom, restorePanes } from "../controllers/pane-controller.js";
 import { PaneOpenSchema } from "../derivations/pane-kinds.js";
+import "./shu-page-key.js";
+import "./shu-column-strip.js";
+import "./shu-column-pane.js";
+import "./shu-graph-query.js";
+import "./shu-index-summary.js";
+import "./shu-page-strip.js";
 
 const LAYOUT_STYLE = `
   .app-container {
@@ -47,25 +53,6 @@ const LAYOUT_STYLE = `
        pane isn't docked. */
     margin-bottom: var(${DOCK_FOOTPRINT}, 0px);
   }
-  .results-pane { display: flex; flex-direction: column; height: 100%; overflow: hidden; position: relative; }
-  .results-pane .error-banner {
-    padding: 4px 6px; margin: 8px 6px 4px; background: #fdd; border: 1px solid #c00;
-    color: #900; white-space: pre-wrap; border-radius: 3px;
-  }
-  .results-pane .loading-bar {
-    position: absolute; top: 0; left: 0; right: 0; height: 2px; z-index: 2;
-    background: linear-gradient(90deg, transparent, #666, transparent);
-    background-size: 200% 100%;
-    animation: shu-slide 1s linear infinite;
-    pointer-events: none;
-  }
-  @keyframes shu-slide { to { background-position: -200% 0; } }
-  .results-pane .result-total.has-sync {
-    color: #1a6b3c; font-weight: 700; pointer-events: auto; cursor: pointer;
-    animation: sync-pulse 2s ease-in-out infinite;
-  }
-  .results-pane .result-total.has-sync::after { content: " \\27F3"; }
-  @keyframes sync-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
 `;
 
 /** The id of the page's layout stylesheet in the document. */
@@ -262,12 +249,11 @@ export class ShuPage extends ShuElement<typeof EmptyStateSchema> {
 		return html`<div class="app-container">
 				<shu-column-strip>
 					<shu-column-pane label="" column-type="query" closable="false" active data-column-key=${INDEX_PANE_KEY}>
-						<div class="results-target" style="height:100%;overflow:hidden;"></div>
+						<shu-graph-query api-base=${apiBase} label=${ifDefined(hasCatalog() ? firstDeclaredType() : undefined)} sort-order="desc"></shu-graph-query>
 						<shu-index-summary slot="spine"></shu-index-summary>
 					</shu-column-pane>
 				</shu-column-strip>
 				<shu-page-strip api-base=${apiBase} testid-prefix="app-"></shu-page-strip>
-				<shu-graph-query api-base=${apiBase} label=${ifDefined(hasCatalog() ? firstDeclaredType() : undefined)} sort-order="desc" results-target=".results-target"></shu-graph-query>
 			</div>`;
 	}
 }

@@ -16,6 +16,9 @@ import { reportToRun } from "../../client-log.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { isRefKind, type TRefKind } from "../derivations/markdown.js";
 import { requestPane, showsPane } from "../controllers/pane-controller.js";
+import "./shu-theme-switch.js";
+import "./shu-playback.js";
+import "./shu-copy-button.js";
 
 export const CORNERS = ["settings", "playback", "access", "status"] as const;
 type TCorner = (typeof CORNERS)[number];

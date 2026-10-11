@@ -21,6 +21,7 @@ import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { type TRefKind } from "../derivations/markdown.js";
 import { LoadController } from "../controllers/load-controller.js";
 import "./shu-refusal.js";
+import "./shu-page-key.js";
 
 /** What the access indicator shows beside the level, and the event carrying it: one count per thing this panel lists. */
 export const PERMISSIONS_SUMMARY = "permissions-summary";

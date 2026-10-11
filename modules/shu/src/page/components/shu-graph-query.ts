@@ -1,14 +1,14 @@
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+/**
+ * <shu-graph-query>: the query of the graph store, as the address states it, and its rows in a result table: sorted,
+ * read a window at a time, and selected one or several at a time.
+ */
 import { firstDeclaredType, getTypes } from "../controllers/catalog-controller.js";
-import { html, css, type TemplateResult } from "lit";
+import { html, css, nothing, type TemplateResult } from "lit";
+import { ref, createRef } from "lit/directives/ref.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { openRef } from "./ref-navigation.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
-/**
- * <shu-graph-query>: Query component for the graph store.
- * Renders in light DOM .results-target, hash state, custom scrollbar, sort, multi-select.
- */
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { CountedSchema, MAX_PAGE_ROWS, counted, viewCollection, type TCounted } from "@haibun/core/lib/hypermedia.js";
 import { anIndividual, aType, type TContextPattern, QueryViewSchema } from "../../schemas.js";
@@ -18,6 +18,8 @@ import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { ViewQueryControlSchema } from "./shu-graph-query.controls-schema.js";
 import { shuBaseStyles } from "./styles.js";
 import type { ShuResultTable } from "./shu-result-table.js";
+import "./shu-result-table.js";
+import "./shu-refusal.js";
 import { isOffline } from "../controllers/hydration-controller.js";
 import { getAvailableSteps } from "../controllers/registry-controller.js";
 import { QueryController } from "../controllers/query-controller.js";
@@ -27,7 +29,8 @@ import { INITIAL_WINDOW_SIZE, WindowSizeSchema } from "../domains/settings.js";
 import { windowRows } from "../derivations/settings.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
 import { ClockController } from "../controllers/clock-controller.js";
-import { esc } from "../derivations/markdown.js";
+import { refusalOf } from "../derivations/refusal.js";
+import type { TPageRefusal } from "../domains/refusal.js";
 
 /** The name of the delay before the query reads again after arrivals. */
 const ARRIVAL = "arrival";
@@ -43,7 +46,9 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	static styles = [
 		shuBaseStyles,
 		css`
-		:host { display: block; color: var(--shu-fg); }
+		:host { display: block; height: 100%; overflow: hidden; color: var(--shu-fg); }
+		.results-pane { display: flex; flex-direction: column; height: 100%; overflow: hidden; position: relative; }
+		.remedies { display: flex; flex-wrap: wrap; gap: var(--shu-space-3); padding: var(--shu-space-2) var(--shu-space-4); }
 	`,
 	];
 
@@ -80,7 +85,9 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	private get limit(): number {
 		return windowRows(this.#windowSize.value);
 	}
-	private error = "";
+	/** Why the query wasn't read, where it was refused. */
+	#refusal: TPageRefusal | undefined = undefined;
+	readonly #table = createRef<ShuResultTable>();
 	/** The links a refusal offers: the query of each type actuality holds, where the address names a type it doesn't hold. */
 	#remedies: THeldTypeLink[] = [];
 
@@ -114,7 +121,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	private inflightPromise: Promise<void> | null = null;
 	private selectedIds = new Set<string>();
 
-	static observedHtmlAttributes = ["label", "sort-by", "sort-order", "results-target"];
+	static observedHtmlAttributes = ["label", "sort-by", "sort-order"];
 
 	constructor() {
 		super(QueryViewSchema, { sortOrder: "desc" as const });
@@ -182,10 +189,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	deselectAll(): void {
 		if (this.selectedIds.size === 0) return;
 		this.selectedIds.clear();
-		const target = this.resultsTarget;
-		if (target) {
-			target.querySelectorAll(".clickable-row").forEach((r) => r.classList.remove("selected"));
-		}
+		this.#table.value?.deselectAll();
 		this.dispatchContextChange();
 	}
 
@@ -270,10 +274,10 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 			this.results = [];
 			this.#counted = counted(0);
 			this.#source = arrayWindowedSource<VertexRow>([]);
-			this.renderResults();
+			this.requestUpdate();
 		}
 
-		this.error = "";
+		this.#refusal = undefined;
 		this.#remedies = [];
 		const work = (async () => {
 			try {
@@ -305,9 +309,9 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 					if (pane) pane.setAttribute("label", data.cypher);
 				}
 			} catch (err) {
-				this.error = errorDetail(err);
+				this.#refusal = refusalOf(err);
 			}
-			this.renderResults();
+			this.requestUpdate();
 			if (resultsChanged) this.selectedIds.clear(); // a fresh result set invalidates the row selection
 			this.dispatchContextChange();
 		})();
@@ -345,7 +349,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 			changed = true;
 		}
 		if (arrived) this.#requeryOnArrival();
-		else if (changed) this.renderResults();
+		else if (changed) this.requestUpdate();
 	}
 
 	readonly #clock = new ClockController(this);
@@ -354,12 +358,6 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	 *  mail arrives in bursts, so one read covers them. */
 	#requeryOnArrival(): void {
 		this.#clock.coalesce(ARRIVAL, ARRIVAL_DEBOUNCE_MS, () => void this.executeQuery());
-	}
-
-	private get resultsTarget(): HTMLElement | null {
-		const selector = this.getAttribute("results-target");
-		if (!selector) return null;
-		return document.querySelector(selector);
 	}
 
 	/** The rows of the current query, read a page at a time by the same graphQuery the first read used, with that page
@@ -373,101 +371,66 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		});
 	}
 
-	render(): TemplateResult {
-		return html``;
-	}
+	private onSortChange = (e: Event): void => {
+		const { field, order } = (e as CustomEvent<{ field: string; order: "asc" | "desc" }>).detail;
+		viewQuery.set({ sort: field === "" ? null : field, order, offset: 0 });
+		void this.executeQuery();
+	};
 
-	protected updated(): void {
-		this.renderResults();
-	}
-
-	private resultTable: ShuResultTable | null = null;
-
-	private ensureResultTable(target: HTMLElement): ShuResultTable {
-		let pane = target.querySelector(".results-pane") as HTMLElement | null;
-		if (!pane) {
-			pane = document.createElement("div");
-			pane.className = "results-pane";
-			pane.dataset.testid = "shu-query";
-			target.appendChild(pane);
+	/** A row selects its record, a press with ctrl adds it to the selection, and a press on a selected row alone clears it.
+	 *  A selection opens its record beside the query's pane. */
+	private onRowClick = (e: Event): void => {
+		const { individualId: vid, deselect, ctrlKey } = (e as CustomEvent<{ individualId: string | null; deselect?: boolean; ctrlKey?: boolean }>).detail;
+		if (deselect === true) {
+			this.selectedIds.clear();
+			this.dispatchContextChange();
+			return;
 		}
-
-		if (!this.resultTable || !pane.contains(this.resultTable)) {
-			// Create result table element
-			const table = document.createElement("shu-result-table") as ShuResultTable;
-			pane.innerHTML = "";
-			pane.appendChild(table);
-			this.resultTable = table;
-
-			// Listen for result table events
-			table.addEventListener(SHU_EVENT.SORT_CHANGE, ((e: CustomEvent) => {
-				const { field, order } = e.detail;
-				viewQuery.set({ sort: field || null, order, offset: 0 });
-				void this.executeQuery();
-			}) as EventListener);
-
-			table.addEventListener(SHU_EVENT.ROW_CLICK, ((e: CustomEvent) => {
-				const { individualId: vid, deselect, ctrlKey } = e.detail;
-				if (deselect) {
-					this.selectedIds.clear();
-					this.dispatchContextChange();
-					return;
-				}
-				if (!vid) return;
-
-				if (ctrlKey) {
-					if (this.selectedIds.has(vid)) {
-						this.selectedIds.delete(vid);
-					} else {
-						this.selectedIds.add(vid);
-					}
-				} else if (this.selectedIds.has(vid) && this.selectedIds.size === 1) {
-					this.selectedIds.clear();
-				} else {
-					this.selectedIds.clear();
-					this.selectedIds.add(vid);
-				}
-
-				this.dispatchContextChange();
-
-				// The result table is the source, not this controller, which lives outside the strip: the table is in the query
-				// pane, which the Miller-column prune starts from.
-				if (this.selectedIds.size > 0) openRef(table, REF_DENOTES.individual, { persistedAs: this.qLabel || firstDeclaredType(), id: vid }, ctrlKey);
-			}) as EventListener);
+		if (vid === null) return;
+		if (ctrlKey === true) {
+			if (this.selectedIds.has(vid)) this.selectedIds.delete(vid);
+			else this.selectedIds.add(vid);
+		} else if (this.selectedIds.has(vid) && this.selectedIds.size === 1) {
+			this.selectedIds.clear();
+		} else {
+			this.selectedIds.clear();
+			this.selectedIds.add(vid);
 		}
+		this.dispatchContextChange();
+		// The result table is the source, since the pruning of the columns starts from the query's pane.
+		if (this.selectedIds.size > 0) openRef(e.target as Element, REF_DENOTES.individual, { persistedAs: this.qLabel ?? firstDeclaredType(), id: vid }, ctrlKey === true);
+	};
 
-		return this.resultTable;
-	}
-
-	/** Show why the query wasn't sent with the links that remedy it, and clear the rows. */
+	/** Show why the query wasn't sent, with the links that remedy it, and clear the rows. */
 	#refuse(why: string, remedies: THeldTypeLink[] = []): void {
-		this.error = why;
+		this.#refusal = { error: why };
 		this.#remedies = remedies;
 		this.results = [];
 		this.#counted = counted(0);
 		this.#source = arrayWindowedSource<VertexRow>([]);
-		this.renderResults();
+		this.requestUpdate();
 	}
 
-	private renderResults(): void {
-		const target = this.resultsTarget;
-		if (!target) return;
-
-		if (this.error) {
-			const links = this.#remedies.map(({ label, href }) => `<a href="${esc(href)}" data-testid="${SHU_TEST_IDS.QUERY.HELD_TYPE}-${esc(label)}">${esc(label)}</a>`).join(" ");
-			const remedies = links ? `<nav class="remedies">${links}</nav>` : "";
-			target.innerHTML = `<div class="results-pane" data-testid="${SHU_TEST_IDS.QUERY.ROOT}"><div class="error-banner">${esc(this.error)}${remedies}</div></div>`;
-			return;
-		}
-
-		const table = this.ensureResultTable(target);
+	/** Gives the table the query's sort, selection mode, type and rows. */
+	protected override updated(): void {
+		const table = this.#table.value;
+		if (table === undefined) return;
 		table.updateState({ sortBy: this.qSort, sortOrder: this.qOrder, selectable: true, paginated: this.#counted.saturated || this.#counted.total > this.limit });
-		if (this.qLabel) table.persistedAs = this.qLabel;
+		if (this.qLabel !== undefined) table.persistedAs = this.qLabel;
 		table.setSortableFields(this.sortableFields);
 		if (this.#source !== this.#installedSource) {
 			table.setSource(this.#source);
 			this.#installedSource = this.#source;
 		}
+	}
+
+	render(): TemplateResult {
+		const refusal = this.#refusal;
+		if (refusal !== undefined) {
+			const links = this.#remedies.map(({ label, href }) => html`<a href=${href} data-testid=${`${SHU_TEST_IDS.QUERY.HELD_TYPE}-${label}`}>${label}</a>`);
+			return html`<div class="results-pane" data-testid=${SHU_TEST_IDS.QUERY.ROOT}><shu-refusal .refusal=${refusal} .readAgain=${() => void this.executeQuery()}></shu-refusal>${links.length === 0 ? nothing : html`<nav class="remedies">${links}</nav>`}</div>`;
+		}
+		return html`<div class="results-pane" data-testid=${SHU_TEST_IDS.QUERY.ROOT}><shu-result-table ${ref(this.#table)} @sort-change=${this.onSortChange} @row-click=${this.onRowClick}></shu-result-table></div>`;
 	}
 }
 

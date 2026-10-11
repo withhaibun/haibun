@@ -28,6 +28,7 @@ import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { ClockController } from "../controllers/clock-controller.js";
 import { appAccessLevel } from "../../view-query.js";
 import { selectValuesFor } from "../controllers/read-controller.js";
+import "./shu-combobox.js";
 
 /** The name of the typed search's trailing pause. */
 const TYPED_SEARCH = "typed-search";

@@ -21,6 +21,8 @@ import { PAGE_STRIP_STYLES } from "./page-strip-styles.js";
 import type { ShuColumnPane } from "./shu-column-pane.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
 import { appAccessLevel } from "../../view-query.js";
+import "./shu-breadcrumb.js";
+import "./shu-combobox.js";
 
 export class ShuPageStrip extends ShuElement<typeof EmptyStateSchema> {
 	/** The page's time cursor, which the strip's corners show. */

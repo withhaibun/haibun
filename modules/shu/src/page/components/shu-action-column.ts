@@ -15,6 +15,7 @@ import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { getAvailableSteps, stepsAllowedBy } from "../controllers/registry-controller.js";
 import { stepRef } from "./shu-ref.js";
 import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
+import "./shu-spinner.js";
 
 const StateSchema = z.object({ action: z.string().default("") });
 

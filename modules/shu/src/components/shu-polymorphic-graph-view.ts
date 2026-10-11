@@ -36,6 +36,8 @@ import {
 import { GRAPH_SCENE_EVENT } from "../graph/polymorphic/polymorphic-graph-types.js";
 import type { TMeasureUnit, TPanDirection, TZoomDirection } from "../graph/polymorphic/polymorphic-camera.js";
 import { type TPaneOpen } from "../page/derivations/pane-kinds.js";
+import "./shu-graph-filter.js";
+import "../graph/polymorphic/polymorphic-scene.js";
 
 // A cursor move re-styles (depth re-place, positions pinned), fast, so it paints promptly. NOT the streamed-data
 // window (which would stack to ~1s); the base coalesces continuous scrubbing to this before it reaches onTimeCursorPaint.

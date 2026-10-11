@@ -38,6 +38,8 @@ import { GRAPH_SCENE_EVENT } from "../graph/polymorphic/polymorphic-graph-types.
 import { esc, renderRef } from "../page/derivations/markdown.js";
 import { idOf, instanceLabel } from "../page/controllers/record-controller.js";
 import { listRecords } from "../page/controllers/read-controller.js";
+import "./shu-graph-filter.js";
+import "../graph/polymorphic/polymorphic-scene.js";
 
 const BrowserStateSchema = z.object({
 	...clusteredGraphStateShape,

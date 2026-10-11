@@ -23,6 +23,7 @@ import { VIEW_TYPES, VIEW_LABELS, type ViewType } from "../graph/polymorphic/pol
 import type { GraphSceneConfig } from "../graph/polymorphic/polymorphic-scene.js";
 import type { TViewForces } from "../graph/polymorphic/polymorphic-render-type.js";
 import "@haibun/shu/page/components/shu-field.js";
+import "../page/components/shu-field.js";
 
 const IDS = SHU_TEST_IDS.POLYMORPHIC_VIEW;
 

@@ -11,6 +11,7 @@ import { findDomain } from "../controllers/registry-controller.js";
 import { edgeRecordType } from "../controllers/catalog-controller.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { esc, refLabel, renderRef, type TRefKind } from "../derivations/markdown.js";
+import "./shu-ref-element.js";
 
 /**
  * The lit form of the same reference, for a view that renders a template rather than a string of markup: one place

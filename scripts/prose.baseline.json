@@ -704,8 +704,7 @@
 	},
 	"modules/shu/src/page/components/shu-graph-query.ts": {
 		"anthropomorphic": 8,
-		"relation-verb": 2,
-		"terminal-preposition": 1
+		"relation-verb": 1
 	},
 	"modules/shu/src/page/components/shu-index-summary.test.ts": {
 		"anthropomorphic": 6,

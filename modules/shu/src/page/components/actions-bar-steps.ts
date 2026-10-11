@@ -17,6 +17,7 @@ import type { ShuCombobox } from "./shu-combobox.js";
 import type { ShuStepCaller } from "./shu-step-caller.js";
 import "./shu-step-caller.js";
 import { prettifyGwta } from "../derivations/steps.js";
+import "./shu-combobox.js";
 
 /** What marks a step offered for the selected type. */
 const FOR_THE_TYPE = "● ";
