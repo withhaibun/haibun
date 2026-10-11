@@ -12,7 +12,6 @@ import { html, css, type TemplateResult } from "lit";
 import { ARTIFACT_SANDBOX } from "../../domains/serving.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
-import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { SHU_ATTR, SHU_EVENT, SHU_TAG, TIME_SYNC_CLASS } from "../../domains/elements.js";
@@ -28,7 +27,7 @@ import { virtualColumnCss } from "./shu-virtual-column.js";
 import { atLiveEdge, RunController, type RunSource, type TEventRecord } from "../client-cache/controllers/run-controller.js";
 import { renderedAt } from "../client-cache/derivations/rendered-rows.js";
 import type { WindowedSource } from "../../windowed-source.js";
-import { splitDocumentBlocks, finalizeBlocks, blocksByEvent, blockText, withHeadingAnchors, isArtifactOf, type TDocBlock } from "../derivations/document-blocks.js";
+import { splitDocumentBlocks, finalizeBlocks, blocksByEvent, blockText, isArtifactOf, type TDocBlock } from "../derivations/document-blocks.js";
 import { cursorMark, rowAtCursor, rowTimeClass, timedRows, type TTimedRows } from "../derivations/rail.js";
 import type { TScrollMarker } from "../derivations/rail.js";
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel } from "@haibun/core/schema/protocol.js";
@@ -40,14 +39,9 @@ import { refContext } from "../controllers/catalog-controller.js";
 import { artifactUrl } from "../../artifact-url.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
-import { esc, refLinksPlugin } from "../derivations/markdown.js";
+import { esc, renderRefBody } from "../derivations/markdown.js";
 
 const DocumentColumnSchema = z.object({ level: z.enum(HAIBUN_LOG_LEVELS) });
-
-const mdRenderer = new MarkdownIt({ html: true, linkify: true, typographer: true });
-withHeadingAnchors(mdRenderer);
-// A `#Type` / `#Type:id` link in prose opens the type or individual in a column (shu-ref), never navigating the page.
-refLinksPlugin(mdRenderer, refContext);
 
 const SANITIZE_OPTS = {
 	// `kind`/`linktarget`/`text` carry the shu-ref reference (a `#Type` link the refLinksPlugin rewrote); DOMPurify
@@ -267,7 +261,10 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	#buildRows(p: number, start: number, events: TEventRecord[]): TDocRow[] {
 		const typed = events as unknown as THaibunEvent[];
 		const { artifactsByStep } = buildArtifactIndex(typed);
-		const html = DOMPurify.sanitize(mdRenderer.render(generateDocumentMarkdown(typed, artifactsByStep, this.state.level as THaibunLogLevel, this.#first).md), SANITIZE_OPTS);
+		const html = DOMPurify.sanitize(
+			renderRefBody(generateDocumentMarkdown(typed, artifactsByStep, this.state.level as THaibunLogLevel, this.#first).md, refContext),
+			SANITIZE_OPTS,
+		);
 		// Every artifact the index knows, by id: the ones recorded as events and the ones embedded in a step's products.
 		const artifactsById = new Map<string, TArtifactEvent>();
 		for (const list of artifactsByStep.values()) for (const a of list) artifactsById.set(a.id, a);

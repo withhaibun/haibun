@@ -7,7 +7,8 @@
  */
 import { describe, it, expect } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import { splitDocumentBlocks, finalizeBlocks, blocksByEvent, blockIndexForHeading, withHeadingAnchors, type TArtifactResolver, type TDocBlock } from "./document-blocks.js";
+import { splitDocumentBlocks, finalizeBlocks, blocksByEvent, blockIndexForHeading, type TArtifactResolver, type TDocBlock } from "./document-blocks.js";
+import { withHeadingAnchors } from "./markdown.js";
 
 /** The prefix of a document that names one page of actuality: none. */
 const NO_PAGE = "";

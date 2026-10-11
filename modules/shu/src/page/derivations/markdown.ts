@@ -9,7 +9,7 @@
  */
 import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
-import { esc } from "@haibun/core/lib/document-content.js";
+import { esc, headingAnchor } from "@haibun/core/lib/document-content.js";
 import { jsonCarried, JsonObjectTextSchema } from "@haibun/core/lib/json-text.js";
 import { REF_DENOTES, parseRefHref } from "@haibun/core/lib/typed-links.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
@@ -124,6 +124,17 @@ function rendererFor(held: WeakMap<TRefContext, MarkdownIt>, refs: TRefContext, 
 	return made;
 }
 
+/** Stamps every markdown heading the renderer produces with its name as a link anchor in `data-heading`. Core's
+ *  headingAnchor computes the anchor from the heading text, as it does for actuality's scenario headings. A prose
+ *  block's "## Contents" is then reachable as `#contents`. */
+export function withHeadingAnchors(md: { renderer: { rules: Record<string, unknown>; renderToken(tokens: unknown[], idx: number, options: unknown): string } }): void {
+	md.renderer.rules.heading_open = (tokens: Array<{ attrSet(name: string, value: string): void }>, idx: number, options: unknown) => {
+		const inline = (tokens as Array<{ type?: string; content?: string }>)[idx + 1];
+		if (inline?.type === "inline" && inline.content) itemAt(tokens, idx).attrSet("data-heading", headingAnchor(inline.content));
+		return md.renderer.renderToken(tokens, idx, options);
+	};
+}
+
 const bodyRenderers = new WeakMap<TRefContext, MarkdownIt>();
 const answerRenderers = new WeakMap<TRefContext, MarkdownIt>();
 const proseRenderers = new WeakMap<TRefContext, MarkdownIt>();
@@ -134,9 +145,14 @@ export const refSanitizeOptions = { ADD_TAGS: ["shu-ref"], ADD_ATTR: ["kind", "l
 
 /** Renders a whole markdown body, block markdown and the inline HTML its source carries, with its references live, so a
  *  reference opens its target in a column and doesn't navigate the page to a hash the page doesn't read. Each body sink
- *  sanitizes with its own allowlist and `refSanitizeOptions`. */
+ *  sanitizes with its own allowlist and `refSanitizeOptions`. Every heading carries its anchor, so a link reaches a
+ *  heading of any record body (CA4D12). */
 export const renderRefBody = (markdown: string, refs: TRefContext): string =>
-	rendererFor(bodyRenderers, refs, () => new MarkdownIt({ html: true, linkify: true, typographer: true })).render(markdown);
+	rendererFor(bodyRenderers, refs, () => {
+		const md = new MarkdownIt({ html: true, linkify: true, typographer: true });
+		withHeadingAnchors(md);
+		return md;
+	}).render(markdown);
 
 /** Returns the text of a parsed element or fragment, whose text the DOM states. */
 function textOf(node: Node): string {

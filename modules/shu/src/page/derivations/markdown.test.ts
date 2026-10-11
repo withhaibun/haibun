@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 import MarkdownIt from "markdown-it";
 import { parseRefHref } from "@haibun/core/lib/typed-links.js";
-import { refLinksPlugin, renderRefAnswer, renderRefProse, type TRefContext } from "./markdown.js";
+import { refLinksPlugin, renderRefAnswer, renderRefBody, renderRefProse, type TRefContext } from "./markdown.js";
 
 /** A reference context over the types `isType` names, which doesn't declare a relation. */
 const refsOf = (isType: (name: string) => boolean): TRefContext => ({ isType, propertyDefinition: () => undefined });
@@ -97,6 +97,14 @@ describe("renderRefProse", () => {
 		const html = renderRefProse('<img src=x onerror="alert(1)"> plain', refs);
 		expect(html).not.toContain("<img"); // escaped, so the tag isn't live
 		expect(html).toContain("&lt;img");
+	});
+});
+
+describe("renderRefBody", () => {
+	it("anchors each heading of a record body by its name, so a link reaches it, and keeps its references live", () => {
+		const html = renderRefBody("## Site notes\n\nSee the [survey](#SiteSurvey:survey-1).", refs);
+		expect(html).toContain('<h2 data-heading="site-notes">Site notes</h2>');
+		expect(html).toContain('<shu-ref kind="entity"');
 	});
 });
 

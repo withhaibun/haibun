@@ -7,7 +7,6 @@
  * image thumbnails in one `.thumb-row` strip. The functions parse through a detached `<template>` and don't modify the
  * page, so a test runs them without a live column.
  */
-import { headingAnchor } from "@haibun/core/lib/document-content.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { artifactOf } from "@haibun/core/lib/run-artifact.js";
 import type { TArtifactEvent } from "@haibun/core/schema/protocol.js";
@@ -114,17 +113,6 @@ export function finalizeBlocks(blocks: TDocBlock[], resolveArtifact: TArtifactRe
 	}
 	flush();
 	return out;
-}
-
-/** Stamps every markdown heading the renderer produces with its name as a link anchor in `data-heading`. Core's
- *  headingAnchor computes the anchor from the heading text, as it does for actuality's scenario headings. A prose
- *  block's "## Contents" is then reachable as `#contents`. */
-export function withHeadingAnchors(md: { renderer: { rules: Record<string, unknown>; renderToken(tokens: unknown[], idx: number, options: unknown): string } }): void {
-	md.renderer.rules.heading_open = (tokens: Array<{ attrSet(name: string, value: string): void }>, idx: number, options: unknown) => {
-		const inline = (tokens as Array<{ type?: string; content?: string }>)[idx + 1];
-		if (inline?.type === "inline" && inline.content) itemAt(tokens, idx).attrSet("data-heading", headingAnchor(inline.content));
-		return md.renderer.renderToken(tokens, idx, options);
-	};
 }
 
 /** Returns the index of the block that carries the heading a link names, or -1 when this document doesn't contain that
