@@ -21,7 +21,7 @@
 				"steps": 217,
 				"declaredStepTextHash": "2183b140ebebc1fa85dc74f2b6e3cd30a7bb81845b1d88664a52d9c1135e8e5b"
 			},
-			"/features/e-forgetting-a-run.feature.ts": {
+			"/features/e-deleting-a-run.feature.ts": {
 				"seconds": 7.3,
 				"steps": 207,
 				"declaredStepTextHash": "b6b1aaffc2d568b46dbda8baa5628e56c06291a022cca1f9708cbce75a6b8a6b"
@@ -33,32 +33,32 @@
 	"linux-x64-4x-intel-xeon-processor-2-80ghz": {
 		"features": {
 			"/features/a-a-run-to-come-back-to.feature.ts": {
-				"seconds": 7.9,
-				"steps": 207,
-				"declaredStepTextHash": "671a7e673ad72395d01dde1196d506f4d41a50b8ade46b90db4565c69a2db1d3"
+				"seconds": 9,
+				"steps": 208,
+				"declaredStepTextHash": "0874c5be4c467db78ffd270fb5254c6fe8087088ede9c01edb0503c70aed9622"
 			},
 			"/features/b-reading-a-cached-run.feature.ts": {
-				"seconds": 9,
-				"steps": 217,
-				"declaredStepTextHash": "8ddef01bce596599607cbf71dab1117384cc753140b29f36a2d1a28dd8d4e39f"
+				"seconds": 8.5,
+				"steps": 218,
+				"declaredStepTextHash": "b9f77e5d93857099db3c7a2d0e6892a552c332b6262beb73e8a83a179f83d4d3"
 			},
 			"/features/c-reading-a-report.feature.ts": {
-				"seconds": 8,
-				"steps": 215,
-				"declaredStepTextHash": "85169755c1495e3090d261f0902690e7369adddba7c9400a209bb41309a68259"
+				"seconds": 8.6,
+				"steps": 216,
+				"declaredStepTextHash": "2af260951e484044a2244fda4cdb360cf0628f63224c7783ce2dc0946091956f"
 			},
 			"/features/d-two-origins.feature.ts": {
-				"seconds": 7,
-				"steps": 216,
-				"declaredStepTextHash": "8fd4119c054d83a0a1007d4a5da864ca8d8a633722e3eb1cf700cbec1727c560"
+				"seconds": 7.3,
+				"steps": 217,
+				"declaredStepTextHash": "18c697d23104029fe7ee01130ff493fa3bd0a360647d308451520d2a053f1543"
 			},
-			"/features/e-forgetting-a-run.feature.ts": {
-				"seconds": 26.2,
-				"steps": 207,
-				"declaredStepTextHash": "0f9f3e73c88d3e5d164d11f2a98659b52524cf8075a61d3f29dbe24854efa878"
+			"/features/e-deleting-a-run.feature.ts": {
+				"seconds": 24.3,
+				"steps": 208,
+				"declaredStepTextHash": "b43492aa484cd2a52965870c92e309ff68dab46f5b480a326b0ec218001682fe"
 			}
 		},
-		"steps": 1062,
-		"seconds": 58.1
+		"steps": 1067,
+		"seconds": 57.7
 	}
 }
