@@ -123,16 +123,16 @@ describe("one individual with its edges, from the store this instance holds", ()
 });
 
 describe("the clustered sample a graph view reads", () => {
-	it("rejects a count of each type's records above MAX_PAGE_ROWS, and doesn't read the store", async () => {
+	it("refuses a count of each type's records above MAX_PAGE_ROWS, and doesn't read the store", async () => {
 		const stepper = new GraphSourceStepper();
 		const world = getDefaultWorld();
 		await stepper.setWorld(world, []);
 		const getClusteredQuads = vi.fn(async () => ({ quads: [], clusters: [] }));
 		world.shared.getStore = vi.fn(() => mockQuadStore({ getClusteredQuads }));
 		const over = MAX_PAGE_ROWS + 1;
-		await expect(stepper.steps.getClusteredQuads.action({ perTypeLimit: over, accessLevel: Access.private })).rejects.toThrow(
-			`getClusteredQuads rejects a limit of ${over} rows: a page holds 1 to ${MAX_PAGE_ROWS} rows`,
-		);
+		const refused = await stepper.steps.getClusteredQuads.action({ perTypeLimit: over, accessLevel: Access.private });
+		expect(refused).toMatchObject({ ok: false });
+		expect(refused.ok ? "" : refused.errorMessage).toContain(`getClusteredQuads rejects a limit of ${over} rows: a page holds 1 to ${MAX_PAGE_ROWS} rows`);
 		expect(getClusteredQuads).not.toHaveBeenCalled();
 	});
 });
