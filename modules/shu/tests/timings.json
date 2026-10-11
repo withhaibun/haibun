@@ -38,7 +38,7 @@
 	"linux-x64-4x-intel-xeon-processor-2-80ghz": {
 		"features": {
 			"/features/address.feature.ts": {
-				"seconds": 7,
+				"seconds": 7.2,
 				"steps": 200,
 				"declaredStepTextHash": "0789061696f15cdf35e8a0a8f24006b3bf51a05c7078fe4bb8058897b3301b97"
 			},
@@ -48,12 +48,12 @@
 				"declaredStepTextHash": "ab37731cb50813b783e0aa872bb80a9b995c504e308a5603c48f254263f91584"
 			},
 			"/features/monitor-serves.feature.ts": {
-				"seconds": 7.2,
+				"seconds": 8.3,
 				"steps": 196,
 				"declaredStepTextHash": "0151290192bbf2bbb3e3332e3a8b2e4620f8724deb41aabac7f2a32395c37b28"
 			},
 			"/features/monitor.feature.ts": {
-				"seconds": 20.6,
+				"seconds": 21.5,
 				"steps": 568,
 				"declaredStepTextHash": "c2c5bc8dd783c6cee31e79ed12fa8ef342f77b3c8f2839852a9a163d91ea390d"
 			},
@@ -69,6 +69,6 @@
 			}
 		},
 		"steps": 1186,
-		"seconds": 44
+		"seconds": 46.2
 	}
 }
