@@ -103,16 +103,9 @@ describe("how a docked pane stands", () => {
 		expect(pane.state.closed, "a click on the controls of the docked pane").toBe(false);
 		const holder = document.createElement("div");
 		pane.host.append(holder);
-		const chat = holder.attachShadow({ mode: "open" }).appendChild(document.createElement("section"));
-		chat.append(document.createElement("shu-kihan-chat"));
-		const options = document.createElement("ul");
-		options.setAttribute("role", "listbox");
-		options.dataset.comboOwner = "shu-kihan-chat";
-		const option = document.createElement("li");
-		options.append(option);
-		document.body.append(options);
+		const option = holder.attachShadow({ mode: "open" }).appendChild(document.createElement("li"));
 		option.click();
-		expect(pane.state.closed, "an option of a combobox a view inside it holds").toBe(false);
+		expect(pane.state.closed, "an option of a combobox a view inside it holds, in the combobox's shadow root").toBe(false);
 		document.body.click();
 		expect(pane.state.closed, "a click elsewhere").toBe(true);
 	});

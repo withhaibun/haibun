@@ -643,10 +643,6 @@
 	"modules/shu/src/page/components/shu-combobox.test.ts": {
 		"negated-noun": 1
 	},
-	"modules/shu/src/page/components/shu-combobox.ts": {
-		"anthropomorphic": 2,
-		"relation-verb": 2
-	},
 	"modules/shu/src/page/components/shu-document-column.ts": {
 		"anthropomorphic": 5,
 		"relation-verb": 5,

@@ -28,15 +28,6 @@ type TPaneDockDeps = {
 	setHeight: (share: number) => void;
 };
 
-/** Whether an element with the tag is inside the root, through the shadow roots of what it holds. */
-function holdsTag(root: ParentNode, tag: string): boolean {
-	for (const element of Array.from(root.querySelectorAll("*"))) {
-		if (element.localName === tag) return true;
-		if (element.shadowRoot && holdsTag(element.shadowRoot, tag)) return true;
-	}
-	return false;
-}
-
 export class PaneDock implements ReactiveController {
 	readonly #host: TControllerHost;
 	readonly #deps: TPaneDockDeps;
@@ -112,15 +103,13 @@ export class PaneDock implements ReactiveController {
 		dockedPane.set({ key, open });
 	}
 
-	/** Closes an open docked pane to its strip on a click outside it. Three clicks leave it open: a click on a pinned
-	 *  pane, a click on a control of the docked pane, and a click on an option of a combobox inside the pane. A combobox
-	 *  renders its options into the document, marked with the tag of the element that holds the combobox. */
+	/** Closes an open docked pane to its strip on a click outside it. A click on a pinned pane, within the pane (an option of a
+	 *  combobox inside it among them, since a combobox renders its options in its own shadow root), or on a control of the
+	 *  docked pane leaves it open. */
 	#onDocumentClick = (e: Event): void => {
 		if (!this.#deps.docked() || this.#deps.closed() || this.#deps.pinned()) return;
 		const path = e.composedPath();
 		if (path.includes(this.#host) || path.some((node) => node instanceof Element && node.hasAttribute(SHU_ATTR.DOCK_CONTROLS))) return;
-		const owner = e.target instanceof Element ? e.target.closest<HTMLElement>('ul[role="listbox"][data-combo-owner]')?.dataset.comboOwner : undefined;
-		if (owner && holdsTag(this.#host, owner)) return;
 		this.#deps.setClosed(true);
 	};
 

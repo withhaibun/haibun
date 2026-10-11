@@ -585,8 +585,7 @@
 		"fills an absent value with a constant through ??": 2
 	},
 	"modules/shu/src/page/components/shu-combobox.ts": {
-		"fills a falsy value with a constant through ||": 1,
-		"fills an absent value with a constant through ??": 5
+		"fills an absent value with a constant through ??": 1
 	},
 	"modules/shu/src/page/components/shu-document-column.ts": {
 		"fills a falsy value with a constant through ||": 3,
@@ -708,7 +707,7 @@
 	"modules/shu/src/schemas.ts": {
 		"fills a falsy value with a constant through ||": 3,
 		"states a parameter's default value": 1,
-		"states a schema's default value through .default()": 30
+		"states a schema's default value through .default()": 25
 	},
 	"modules/shu/src/test-setup.ts": {
 		"fills an absent value with a constant through ??": 4,

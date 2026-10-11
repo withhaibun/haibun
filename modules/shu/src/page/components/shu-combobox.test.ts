@@ -33,10 +33,12 @@ const input = (combo: TCombobox): HTMLInputElement => {
 	return found;
 };
 
-/** The options the control is offering, as the list it renders into the page holds them. */
-const offered = (): string[] =>
-	// The option the control holds carries a mark, which is not part of what it is called.
-	Array.from(document.querySelectorAll<HTMLElement>('ul[role="listbox"] li')).map((item) => (item.textContent?.trim() ?? "").replace("✓", ""));
+/** The options the control offers, as its list holds them. */
+async function offered(combo: TCombobox): Promise<string[]> {
+	await combo.updateComplete;
+	// The option the control holds carries a mark, which isn't part of what it is called.
+	return Array.from(combo.shadowRoot?.querySelectorAll<HTMLElement>('ul[role="listbox"] li') ?? []).map((item) => (item.textContent?.trim() ?? "").replace("✓", ""));
+}
 
 describe("the combobox", () => {
 	beforeEach(() => {
@@ -51,22 +53,51 @@ describe("the combobox", () => {
 		input(combo).dispatchEvent(new FocusEvent("focus"));
 		input(combo).dispatchEvent(new FocusEvent("blur"));
 		time.advance(149);
-		expect(offered(), "the list waits for a click on an option").toEqual(["Email", "File"]);
+		expect(await offered(combo), "the list waits for a click on an option").toEqual(["Email", "File"]);
 		time.advance(1);
-		expect(offered(), "and is put away once the delay passes").toEqual([]);
+		expect(await offered(combo), "and is put away once the delay passes").toEqual([]);
 	});
 
 	it("offers its options on a press after a pick, since a pick leaves the control holding focus", async () => {
 		const combo = await aCombobox();
 		input(combo).dispatchEvent(new FocusEvent("focus"));
-		expect(offered(), "the reader is offered every option").toEqual(["Email", "File"]);
-		const file = Array.from(document.querySelectorAll<HTMLElement>('ul[role="listbox"] li')).find((item) => item.textContent?.includes("File"));
+		expect(await offered(combo), "the reader is offered every option").toEqual(["Email", "File"]);
+		const file = Array.from(combo.shadowRoot?.querySelectorAll<HTMLElement>('ul[role="listbox"] li') ?? []).find((item) => item.textContent?.includes("File"));
 		file?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
 		await combo.updateComplete;
 		expect(combo.value, "the option the reader picked").toBe("file-domain");
-		expect(offered(), "and the list is put away").toEqual([]);
+		expect(await offered(combo), "and the list is put away").toEqual([]);
 		input(combo).dispatchEvent(new Event("pointerdown"));
-		expect(offered(), "a press offers them again, where the control doesn't raise focus").toEqual(["Email", "File"]);
+		expect(await offered(combo), "a press offers them again, where the control doesn't raise focus").toEqual(["Email", "File"]);
+	});
+
+	it("renders its list in its own shadow root as a manual popover, leaving the document's body as it was", async () => {
+		const combo = await aCombobox();
+		const bodyChildren = document.body.children.length;
+		input(combo).dispatchEvent(new FocusEvent("focus"));
+		await combo.updateComplete;
+		expect(combo.shadowRoot?.querySelector("[popover]")?.getAttribute("popover")).toBe("manual");
+		expect(document.body.children.length).toBe(bodyChildren);
+	});
+
+	it("moves its focus with the arrow keys, and picks the focused option at Enter", async () => {
+		const combo = await aCombobox();
+		const changes: string[] = [];
+		combo.addEventListener("combo-change", (e) => changes.push((e as CustomEvent<{ value: string }>).detail.value));
+		input(combo).dispatchEvent(new FocusEvent("focus"));
+		await combo.updateComplete;
+		for (const key of ["ArrowDown", "ArrowDown", "Enter"]) input(combo).dispatchEvent(new KeyboardEvent("keydown", { key, cancelable: true }));
+		await combo.updateComplete;
+		expect(changes).toEqual(["file-domain"]);
+		expect(await offered(combo), "and the list is put away").toEqual([]);
+	});
+
+	it("filters by the text a reader enters, and states where the text doesn't match an option", async () => {
+		const combo = await aCombobox();
+		combo.enter("fi");
+		expect(await offered(combo)).toEqual(["File"]);
+		combo.enter("zz");
+		expect(await offered(combo)).toEqual(["The text doesn't match an option"]);
 	});
 
 	it("shows the text its holder states for what it holds, and the chosen option's label where its holder doesn't state one", async () => {

@@ -51,14 +51,12 @@ const TurnStatusSchema = z.enum(["idle", ...ChatStatusSchema.options]);
 export type TTurnStatus = z.infer<typeof TurnStatusSchema>;
 
 export const ComboboxSchema = z.object({
-	value: z.string().default(""),
-	options: z.array(ComboboxOptionSchema).default([]),
+	value: z.string(),
+	options: z.array(ComboboxOptionSchema),
 	placeholder: z.string(),
 	/** What the control shows for the value it holds, where its holder states it: the page strip shows the search and
 	 *  what it found. Empty, the control shows the chosen option's label. */
-	shown: z.string().default(""),
-	filterText: z.string().default(""),
-	open: z.boolean().default(false),
+	shown: z.string(),
 });
 
 // --- Search conditions ---
