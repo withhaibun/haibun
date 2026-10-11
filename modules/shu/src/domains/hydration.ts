@@ -68,3 +68,7 @@ export const HydrationSchema = z
 	})
 	.strict();
 export type THydration = z.infer<typeof HydrationSchema>;
+
+/** What a served page's hydration carries: the actuality it reads, what the deployment set, and the address it opens at
+ *  where its server states one. */
+export type TServedHydration = THydration & { settings: TDeploymentSettings };

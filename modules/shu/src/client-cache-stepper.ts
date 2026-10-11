@@ -7,7 +7,7 @@
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOKWithProducts } from "@haibun/core/lib/util/index.js";
-import { SHU_TAG } from "../domains/elements.js";
+import { SHU_TAG } from "./domains/elements.js";
 
 export default class ClientCacheStepper extends AStepper implements IHasCycles {
 	description = "Opens the client cache view, which shows what a page caches of actuality.";
@@ -17,7 +17,7 @@ export default class ClientCacheStepper extends AStepper implements IHasCycles {
 				{
 					selectors: [SHU_TAG.CLIENT_CACHE_COLUMN],
 					schema: z.object({}),
-					description: "What this page caches of the run: each run source's extent, cached spans and cursor row, the live stream by level, and what the device stores",
+					description: "What this page caches of actuality: each run source's extent, cached spans and cursor row, the live stream by level, and what the device stores",
 					ui: { component: SHU_TAG.CLIENT_CACHE_COLUMN },
 				},
 			],

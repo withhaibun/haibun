@@ -409,9 +409,6 @@
 	"modules/shu/src/components/shu-clustered-graph-view.ts": {
 		"performs I/O through setTimeout": 1
 	},
-	"modules/shu/src/content-security-policy.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/current-subject.ts": {
 		"isn't in a kind position": 1
 	},
@@ -592,17 +589,10 @@
 	"modules/shu/src/known-size-flow.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/shu/src/monitor-stepper.ts": {
-		"imports a stepper: ./shu-stepper.js": 1,
-		"performs I/O through fs": 1
-	},
 	"modules/shu/src/quads-snapshot.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/recogito.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/remote-graph-source.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/reveal.ts": {
@@ -613,9 +603,6 @@
 	},
 	"modules/shu/src/schemas.ts": {
 		"isn't in a kind position": 1
-	},
-	"modules/shu/src/shu-stepper.ts": {
-		"performs I/O through fs": 1
 	},
 	"modules/shu/src/test-setup.ts": {
 		"isn't in a kind position": 1

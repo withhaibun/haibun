@@ -11,8 +11,8 @@
 import { z } from "zod";
 import { fromJsonText } from "@haibun/core/lib/json-text.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
-import { Access, AccessQueryLevelSchema, DOMAIN_PERSISTED_TYPE, LinkRelations, storeScopeFor, type TDomainDefinition } from "@haibun/core/lib/resources.js";
-import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
+import { Access, AccessQueryLevelSchema, DOMAIN_PERSISTED_TYPE, type TDomainDefinition } from "@haibun/core/lib/resources.js";
+import { actionNotOK, actionOKWithProducts, errorDetail } from "@haibun/core/lib/util/index.js";
 import {
 	DOMAIN_GRAPH_QUERY,
 	GraphQueryResultSchema,
@@ -21,19 +21,11 @@ import {
 	DensityResultSchema,
 	type TDensityQuery,
 	IndividualWithEdgesSchema,
-	type TQuad,
 } from "@haibun/core/lib/quad-types.js";
-import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { recordWithEdges } from "@haibun/core/lib/records/pipelines/record-reads.js";
-import { DOMAIN_RECORD_ID, hypermediaDomainMap, DOMAIN_LINK, DOMAIN_PRINCIPAL_REF, type TIndividualRef } from "@haibun/core/lib/domains.js";
-import { buildResourceRels, pageLimit, relOf } from "@haibun/core/lib/hypermedia.js";
-import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
-import { activeSitePrincipal, adoptSitePrincipal, hasDefaultSitePrincipal } from "@haibun/core/lib/host-id.js";
-import { persistPrincipalIndividual } from "@haibun/core/lib/principal-individual.js";
-import { requestSigner } from "@haibun/core/lib/session-authority.js";
-import { RemoteGraphSource } from "./remote-graph-source.js";
-import { withOntologySchema } from "./graph/ontology-projection.js";
-import { enumerateStandardVocab } from "@haibun/core/lib/records/pipelines/standard-vocabulary.js";
+import { DOMAIN_RECORD_ID, DOMAIN_LINK, DOMAIN_PRINCIPAL_REF, type TIndividualRef } from "@haibun/core/lib/domains.js";
+import { clusteredQuads, federate, selectValues, servingSite } from "./pipelines/graph-source.js";
+import { openPeerGraphSource } from "./root.js";
 
 /** The values a filter offers for each field of a type that names one. */
 const ShuSelectValuesSchema = z.object({ values: z.record(z.string(), z.array(z.string())) });
@@ -84,9 +76,9 @@ const GRAPH_SOURCE_DOMAINS: TDomainDefinition[] = [
 /** The parameters a graph view sends `get clustered quads` over RPC. A value may arrive as its text. They state how many
  *  records of each type to read, the types, the query level, and whether a federated read requests the peer's own data
  *  rather than its view of the world (see TClusteredQuadsOpts). Each type's records are a page, so the step rejects a
- *  count above `MAX_PAGE_ROWS`. */
+ *  count above `MAX_PAGE_ROWS`. A page states every parameter but the types and the scope. */
 const ClusteredQuadsAskSchema = z.object({
-	perTypeLimit: z.coerce.number().int().default(100),
+	perTypeLimit: z.coerce.number().int(),
 	types: fromJsonText(z.array(z.string())).optional(),
 	accessLevel: AccessQueryLevelSchema,
 	scope: z.enum(["own", "federated"]).optional(),
@@ -95,16 +87,6 @@ const ClusteredQuadsAskSchema = z.object({
 export default class GraphSourceStepper extends AStepper implements IHasCycles {
 	description = "The graph a page reads: a query, a count over a span, the clustered sample a graph view draws, and the reads a federated peer answers.";
 	cycles: IStepperCycles = { getConcerns: () => ({ domains: GRAPH_SOURCE_DOMAINS }) };
-
-	/** buildResourceRels walks every domain; memoized by domain count so per-read calls reuse it while a runtime-declared
-	 *  domain still invalidates. */
-	private relsCache?: { rels: ReturnType<typeof buildResourceRels>; size: number };
-	private resourceRels(): ReturnType<typeof buildResourceRels> {
-		const domains = this.getWorld().domains;
-		const size = Object.keys(domains).length;
-		if (!this.relsCache || this.relsCache.size !== size) this.relsCache = { rels: buildResourceRels(domains), size };
-		return this.relsCache.rels;
-	}
 
 	steps = {
 		getIndividualWithEdges: {
@@ -128,13 +110,8 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			gwta: `get select values for {label: ${DOMAIN_PERSISTED_TYPE}}`,
 			productsDomain: DOMAIN_SELECT_VALUES,
 			action: async ({ label }: { label: string }) => {
-				const store = this.getWorld().shared.getStore();
-				const domain = hypermediaDomainMap(this.getWorld().domains).get(label);
-				if (!domain?.topology?.properties) return actionNotOK(`a filter topology isn't registered for ${label}`);
-				// Every field read at once: a type with several filtered fields is one round of reads rather than one per field.
-				const filtered = Object.entries(domain.topology.properties).filter(([, definition]) => relOf(definition) === LinkRelations.CONTEXT.rel);
-				const read = await Promise.all(filtered.map(async ([property]) => [property, (await store.distinctPropertyValues(label, property)).values] as const));
-				return actionOKWithProducts({ values: Object.fromEntries(read) });
+				const values = await selectValues(this.getWorld(), label);
+				return values === undefined ? actionNotOK(`a filter topology isn't registered for ${label}`) : actionOKWithProducts({ values });
 			},
 		},
 		getClusteredQuads: {
@@ -144,46 +121,14 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			productsDomain: DOMAIN_CLUSTERED_QUADS,
 			// The sampled graph is the RPC response; keeping it on the event too holds a second copy of it per call.
 			retainProducts: false,
-			action: async (asked: Record<string, unknown> = {}) => {
-				const store = this.getWorld().shared.getStore();
+			action: async (asked: Record<string, unknown>) => {
 				const read = ClusteredQuadsAskSchema.safeParse(asked);
 				if (!read.success) return actionNotOK(`getClusteredQuads: ${z.prettifyError(read.error)}`);
-				const { types, scope } = read.data;
-				const perTypeLimit = pageLimit("getClusteredQuads", read.data.perTypeLimit);
-				// Required, as the dereference and query paths require it, without a default ceiling, so the cluster view applies the
-				// caller's access exactly. A caller states a QUERY level: `all` asks for everything it may see, and refusing it left
-				// the graph view with only the quads that happened to stream live.
-				const accessLevel = storeScopeFor(read.data.accessLevel);
-				if (!store.getClusteredQuads) {
-					return actionNotOK("QuadStore does not support getClusteredQuads");
+				try {
+					return actionOKWithProducts({ ...(await clusteredQuads(this.getWorld(), read.data)) });
+				} catch (err) {
+					return actionNotOK(`the clustered sample wasn't read: ${errorDetail(err)}`);
 				}
-				const result = await store.getClusteredQuads({ perTypeLimit, types, accessLevel, scope });
-				// The store sample is canonical; the live observation buffer only EXTENDS it through the one shared,
-				// limit-bounded merge (dedup by fact, admit-or-omit per type, relabel newcomers). Concatenating the
-				// buffer unbudgeted let every observed subject past the requested limit. The client seeds this
-				// response verbatim, so the response itself must hold the bound.
-				const model = new QuadGraphModel(
-					perTypeLimit,
-					(type) => this.resourceRels().fields(type),
-					(type) => this.resourceRels().titledBy(type),
-				);
-				model.seed({ quads: result.quads as TQuad[], clusters: [...result.clusters] });
-				const quads = model.snapshot.quads.map(({ subject, predicate, object, objectType, namedGraph, timestamp, properties }) => ({
-					subject,
-					predicate,
-					object,
-					objectType,
-					namedGraph,
-					timestamp,
-					properties,
-				}));
-				// The same response carries the schema (Class, Property and rdf:type edges), pruned to the terms the data
-				// uses. Its evidence is the response's own quads, which is what the store holds: a fact announced is a
-				// fact written, so a second buffer wouldn't add a fact. The offline report assembles it the same
-				// way (buildGraphSource).
-				const standardVocab = await enumerateStandardVocab(this.getWorld().domains, (message) => this.getWorld().eventLogger.warn(message));
-				const withSchema = withOntologySchema({ quads, clusters: model.snapshot.clusters }, quads, this.getWorld().domains, standardVocab);
-				return actionOKWithProducts({ ...withSchema, site: activeSitePrincipal(this.getWorld()) });
 			},
 		},
 		clusteredGraphHoldsFromSite: {
@@ -194,37 +139,23 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			// SERVED BY {site}? Reads the same clustered surface the views render from, so it asserts exactly what a
 			// user would see, including that the subject's stamp names the site that serves it.
 			action: async ({ type, subject, site: { id: site } }: { type: string; subject: string; site: TIndividualRef }) => {
-				const store = this.getWorld().shared.getStore();
-				if (!store.getClusteredQuads) return actionNotOK("QuadStore does not support getClusteredQuads");
-				const { clusters } = await store.getClusteredQuads({ perTypeLimit: 1000, accessLevel: Access.private });
-				const cluster = clusters.find((c) => c.type === type);
-				if (!cluster?.sampledSubjects.includes(subject)) return actionNotOK(`clustered graph holds no ${type} ${subject}`);
-				const served = cluster.sites?.[subject];
-				return served === site ? actionOKWithProducts({ subject, site }) : actionNotOK(`${subject} is served by ${served ?? "this site (unstamped)"}, not ${site}`);
+				const served = await servingSite(this.getWorld(), type, subject, Access.private);
+				if (!served.held) return actionNotOK(`the clustered graph doesn't hold ${type} ${subject}`);
+				if (served.site === site) return actionOKWithProducts({ subject, site });
+				return actionNotOK(`${subject} is served by ${served.site === undefined ? "this site, which doesn't stamp its own subjects" : served.site}, not ${site}`);
 			},
 		},
 		federateGraphReads: {
 			gwta: `federate graph reads from {where: ${DOMAIN_LINK}}`,
 			productsDomain: DOMAIN_SITE_FEDERATED,
-			// Reads-first federation: merge a peer instance's clustered graph reads into this one's view, each of the
-			// peer's subjects stamped with its site principal so the view can group by site. Site principals must be
-			// unique in a federation. Where this instance still carries the default (did:site:0 to itself) and collides
-			// with the peer, it asks the peer what it should be called and adopts the answer; an operator-set principal
-			// that collides is a configuration error, surfaced as one.
+			// Reads-first federation: a peer instance's clustered reads merge into this one's view, each of the peer's subjects
+			// stamped with its site principal, so the view groups by site.
 			action: async ({ where }: { where: string }) => {
-				const world = this.getWorld();
-				const source = new RemoteGraphSource({ url: where, sign: requestSigner(world.runtime) });
-				const peer = await source.connect();
-				if (peer === activeSitePrincipal(world)) {
-					if (!hasDefaultSitePrincipal(world)) return actionNotOK(`federate: site principals collide (${peer}) and this site is operator-named. Set HAIBUN_SITE_KEY uniquely`);
-					const assigned = await source.requestName();
-					adoptSitePrincipal(world, assigned);
-					await persistPrincipalIndividual(world, { id: assigned, controller: assigned, generatedAtTime: new Date().toISOString() });
+				try {
+					return actionOKWithProducts({ site: await federate(this.getWorld(), openPeerGraphSource, where) });
+				} catch (err) {
+					return actionNotOK(`the graph reads of ${where} weren't federated: ${errorDetail(err)}`);
 				}
-				const store = world.shared.getStore();
-				if (!(store instanceof QuadStore)) return actionNotOK("federate: the world store does not support federation");
-				store.federate(source);
-				return actionOKWithProducts({ site: peer });
 			},
 		},
 		density: {

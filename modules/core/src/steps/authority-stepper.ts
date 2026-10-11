@@ -9,7 +9,7 @@ import { DELEGATIONS_READ_ACTION, DOMAIN_HELD_CALLS, HeldCallsSchema, type IAuth
 import { DOMAIN_ACTIONS, DOMAIN_JSON, DOMAIN_LINK, DOMAIN_PRINCIPAL_REF } from "../lib/domains.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
 import { actingAs, actingFor, callerHolds, runActingAs, runAuthorizedWith } from "../lib/capability-context.js";
-import { capabilityAllows, delegatedActions, readAction } from "../lib/actions.js";
+import { AUTHORITY_CAPABILITIES, capabilityAllows, delegatedActions, readAction } from "../lib/actions.js";
 import { activeSitePrincipal, SITE_DID_PREFIX } from "../lib/host-id.js";
 import { Access, AccessLevelSchema, PRINCIPAL_LABEL, principalDomainDefinition } from "../lib/resources.js";
 
@@ -19,10 +19,6 @@ const authorityActionSchema = z
 	.refine((value) => value === "*" || value.includes(":") || value.includes("."), "action must be * or namespaced like Stepper:scope or type.action")
 	.regex(/^\S+$/, "action must not contain whitespace")
 	.describe("Allowed action label such as GraphStepper:read, comment.grant, or Namespace:*.");
-
-/** The actions on actuality's own authority. `delegate` permits stating and delegating the authority. `revoke` permits
- *  revoking a capability the authority granted. `name` permits naming the sites that connect to this instance. */
-export const AUTHORITY_CAPABILITIES = { delegate: "Authority:delegate", revoke: "Authority:revoke", name: "Authority:name" } as const;
 
 /** The domain of the delegations this instance recorded to a key. */
 const DOMAIN_DELEGATIONS = "delegations";

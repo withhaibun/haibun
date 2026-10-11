@@ -11,7 +11,7 @@ import StorageMem from "@haibun/storage-mem/storage-mem.js";
 import WebServerStepper from "@haibun/web-server-hono/web-server-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import WebPlaywright from "@haibun/web-playwright";
-import ClientCacheStepper from "./client-cache/client-cache-stepper.js";
+import ClientCacheStepper from "./client-cache-stepper.js";
 import ShuActivityHistoryControls from "./page/components/shu-activity-history.controls.js";
 import ShuColumnStripControls from "./page/components/shu-column-strip.controls.js";
 import ShuGraphQueryControls from "./page/components/shu-graph-query.controls.js";

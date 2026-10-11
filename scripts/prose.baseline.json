@@ -105,9 +105,6 @@
 	"modules/core/src/steps/resources-stepper.test.ts": {
 		"terminal-preposition": 1
 	},
-	"modules/shu/src/client-cache/client-cache-stepper.ts": {
-		"the-run": 1
-	},
 	"modules/shu/src/client-log.ts": {
 		"terminal-preposition": 1
 	},
@@ -150,9 +147,6 @@
 		"anthropomorphic": 3,
 		"terminal-preposition": 1
 	},
-	"modules/shu/src/content-security-policy.ts": {
-		"terminal-preposition": 1
-	},
 	"modules/shu/src/current-subject.ts": {
 		"terminal-preposition": 1
 	},
@@ -162,8 +156,8 @@
 		"terminal-preposition": 3
 	},
 	"modules/shu/src/graph-source-stepper.ts": {
-		"anthropomorphic": 20,
-		"negated-noun": 2,
+		"anthropomorphic": 17,
+		"negated-noun": 1,
 		"terminal-preposition": 3
 	},
 	"modules/shu/src/graph/gantt-layout.ts": {
@@ -415,11 +409,9 @@
 		"terminal-preposition": 2
 	},
 	"modules/shu/src/monitor-stepper.ts": {
-		"anthropomorphic": 8,
+		"anthropomorphic": 4,
 		"negated-noun": 1,
-		"relation-verb": 3,
-		"terminal-preposition": 1,
-		"the-run": 6
+		"the-run": 5
 	},
 	"modules/shu/src/page-bundles.test.ts": {
 		"terminal-preposition": 1
@@ -766,12 +758,6 @@
 	"modules/shu/src/recogito.ts": {
 		"relation-verb": 1
 	},
-	"modules/shu/src/remote-graph-source.test.ts": {
-		"anthropomorphic": 2
-	},
-	"modules/shu/src/remote-graph-source.ts": {
-		"anthropomorphic": 3
-	},
 	"modules/shu/src/remote-store.integration.test.ts": {
 		"anthropomorphic": 3,
 		"relation-verb": 1
@@ -799,9 +785,8 @@
 		"anthropomorphic": 1
 	},
 	"modules/shu/src/shu-stepper.ts": {
-		"anthropomorphic": 3,
-		"negated-noun": 1,
-		"terminal-preposition": 1
+		"anthropomorphic": 2,
+		"negated-noun": 1
 	},
 	"modules/shu/src/test-setup.test.ts": {
 		"negated-noun": 1

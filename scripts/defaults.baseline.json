@@ -335,9 +335,6 @@
 	"modules/shu/src/components/view-head.ts": {
 		"fills an absent value with a constant through ??": 1
 	},
-	"modules/shu/src/content-security-policy.ts": {
-		"fills an absent value with a constant through ??": 1
-	},
 	"modules/shu/src/current-subject.ts": {
 		"fills an absent value with a constant through ??": 1
 	},
@@ -350,11 +347,6 @@
 	"modules/shu/src/graph-model.ts": {
 		"fills an absent value with a constant through ??": 8,
 		"states a parameter's default value": 2
-	},
-	"modules/shu/src/graph-source-stepper.ts": {
-		"fills an absent value with a constant through ??": 1,
-		"states a parameter's default value": 1,
-		"states a schema's default value through .default()": 1
 	},
 	"modules/shu/src/graph/gantt-model.ts": {
 		"fills an absent value with a constant through ??": 2,
@@ -469,11 +461,6 @@
 	},
 	"modules/shu/src/known-size-flow.ts": {
 		"fills an absent value with a constant through ??": 1
-	},
-	"modules/shu/src/monitor-stepper.ts": {
-		"fills an absent value with a constant through ??": 8,
-		"states a destructured default value": 1,
-		"states a schema's default value through .default()": 1
 	},
 	"modules/shu/src/page/components/actions-bar-query.ts": {
 		"fills a falsy value with a constant through ||": 4,

@@ -20,7 +20,7 @@ import { MONITOR_OPENS_AT } from "./pipelines/monitor-report.js";
 import GraphSourceStepper from "./graph-source-stepper.js";
 import ShuStepper from "./shu-stepper.js";
 import { RPC_METHOD } from "./domains/elements.js";
-import { ARTIFACT_POLICY } from "./content-security-policy.js";
+import { ARTIFACT_POLICY } from "./domains/serving.js";
 
 const PORT = await freePort();
 const MONITOR = localOrigin(PORT);

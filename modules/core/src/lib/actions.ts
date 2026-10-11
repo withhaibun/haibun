@@ -234,3 +234,7 @@ export function narrowing(held: TDelegation[], to: { wanted: string[]; expires: 
 	}
 	return undefined;
 }
+
+/** The actions on actuality's own authority. `delegate` permits stating and delegating the authority. `revoke` permits
+ *  revoking a capability the authority granted. `name` permits naming the sites that connect to this instance. */
+export const AUTHORITY_CAPABILITIES = { delegate: "Authority:delegate", revoke: "Authority:revoke", name: "Authority:name" } as const;

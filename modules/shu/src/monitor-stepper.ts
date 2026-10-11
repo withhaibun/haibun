@@ -4,21 +4,16 @@
  * The shu frontend receives events via SSE for live updates and fetches history via RPC.
  * At endFeature, writes a standalone HTML file with embedded events, quads, and concerns.
  */
-import { resolve } from "path";
+import { resolve } from "node:path";
 import { z } from "zod";
-import { writeFileSync } from "fs";
 
 import { AStepper, type IHasCycles, type IHasOptions, type TStepperSteps, StepperKinds, CycleWhen, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { recordBlip } from "@haibun/core/lib/record-blip.js";
 // The view vocabulary declares itself at import, so an arriving batch finds its names already declared here.
 import "./domains/blips.js";
 import "./graph-blips.js";
-import "./domains/blips.js";
 import { type TWorld } from "@haibun/core/lib/world.js";
-import { OK, type TArtifactEvent, type THaibunEvent } from "@haibun/core/schema/protocol.js";
-
-import type { TQuad } from "@haibun/core/lib/quad-types.js";
-import { OBSCURED_VALUE } from "@haibun/core/lib/feature-variables.js";
+import { OK, type THaibunEvent } from "@haibun/core/schema/protocol.js";
 import { actionOKWithProducts, stringOrError, intOrError, findStepper, findStepperFromOptionOrKind, getStepperOption, errorDetail } from "@haibun/core/lib/util/index.js";
 import { localOrigin } from "@haibun/core/lib/local-origin.js";
 import { actualURI } from "@haibun/core/lib/util/node/actualURI.js";
@@ -27,45 +22,22 @@ import { TRANSPORT, type ITransport } from "@haibun/web-server-hono/sse-transpor
 import type WebServerStepper from "@haibun/web-server-hono/web-server-stepper.js";
 import { WEBSERVER, type IWebServer, type MiddlewareHandler } from "@haibun/web-server-hono/defs.js";
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
-import type { TTag } from "@haibun/core/lib/ttag.js";
-import { Access, SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
-import { SEQ_PATH_FIELD, executionOf, extractSeqPathPrefix, formatRecordName, parseSeqPath } from "@haibun/core/lib/seq-path.js";
+import { Access } from "@haibun/core/lib/resources.js";
 import { CLIENT_RING, SHU_TAG } from "./domains/elements.js";
-import { ARTIFACT_POLICY } from "./content-security-policy.js";
-import { MONITOR_OPENS_AT, reportOpensAt } from "./pipelines/monitor-report.js";
+import { ARTIFACT_POLICY } from "./domains/serving.js";
+import { MONITOR_OPENS_AT, reportHtml } from "./pipelines/monitor-report.js";
+import { recordProduced, recordSaid } from "./pipelines/run-records.js";
+import { reportWriter, servedBundles } from "./root.js";
 import { READS_THE_RUNS_ARTIFACTS } from "@haibun/core/lib/actions.js";
 import { requiring } from "@haibun/web-server-hono/capability-auth.js";
-import { LOG_MESSAGE_EDGE, LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL, logMessageDomainDefinition } from "@haibun/core/lib/log-message.js";
-import { ARTIFACTS_ROUTE, RUN_ARTIFACT_EDGE, RUN_ARTIFACT_FIELD, RUN_ARTIFACT_LABEL, runArtifactDomainDefinition } from "@haibun/core/lib/run-artifact.js";
-import { loadReportBundle, buildReportHtml, buildGraphSource, type default as ShuStepper } from "./shu-stepper.js";
-
-import { discoverSteps, runRegistry } from "@haibun/core/lib/step-registry.js";
-import { EVERY_DEFINITION } from "@haibun/core/lib/step-discovery.js";
-import { shownTo } from "@haibun/core/lib/capability-context.js";
-
+import { logMessageDomainDefinition } from "@haibun/core/lib/log-message.js";
+import { ARTIFACTS_ROUTE, runArtifactDomainDefinition } from "@haibun/core/lib/run-artifact.js";
+import type ShuStepper from "./shu-stepper.js";
 import { DOMAIN_GRAPH_QUERY } from "@haibun/core/lib/quad-types.js";
-import { carriedRun } from "./page/client-cache/pipelines/carried-run.js";
-import type { TCachePayload, THydration } from "./domains/hydration.js";
 import { DOMAIN_FILE_PATH } from "@haibun/core/lib/domains.js";
 
-// The in-memory buffers hold a recent WINDOW, never actuality: over months, an unbounded buffer is the process's heap
-// death (a first-time index of a large mailbox OOMed the daemon at ~4GB). The store is canonical for graph data and
-// the disk log for event history; these buffers only serve live backfill and the live cluster extension.
-
-/**
- * Component JS to inline in the offline report: a domain's `ui.jsContent`, but only for components whose view is in the
- * final report (the columns shown at endFeature). A heavy external-component bundle is embedded only when its view is
- * shown, and never built otherwise. Pure + exported so the inclusion rule is unit-tested.
- */
-export function inlineScriptsForView(domains: Record<string, unknown>, finalViewComponents: Set<string>): string[] {
-	return Object.values(domains)
-		.map((d) => (d as { ui?: { component?: string; jsContent?: string } } | undefined)?.ui)
-		.filter(
-			(u): u is { component: string; jsContent: string } =>
-				typeof u?.jsContent === "string" && u.jsContent.length > 0 && typeof u.component === "string" && finalViewComponents.has(u.component),
-		)
-		.map((u) => u.jsContent);
-}
+// The monitor holds a window of what actuality sends, never actuality itself: an unbounded buffer exhausts the process's
+// heap over months. The store holds the graph and the disk log holds the events.
 
 const DOMAIN_LOG_EVENT = "shu-log-event";
 
@@ -84,7 +56,8 @@ export const MONITOR_PATH = "/monitor";
  * reads the type from whichever step answered. Undefined for every other event.
  */
 function queriedLabelOf(event: THaibunEvent): string | undefined {
-	const values = (event as { stepValuesMap?: Record<string, { domain?: string; value?: unknown }> }).stepValuesMap ?? {};
+	const values = (event as { stepValuesMap?: Record<string, { domain?: string; value?: unknown }> }).stepValuesMap;
+	if (values === undefined) return undefined;
 	for (const held of Object.values(values)) {
 		if (held?.domain !== DOMAIN_GRAPH_QUERY) continue;
 		const label = (held.value as { label?: unknown } | undefined)?.label;
@@ -95,7 +68,7 @@ function queriedLabelOf(event: THaibunEvent): string | undefined {
 
 /** Client-side log event forwarded from the SPA. Validated with Zod at the action boundary. */
 const LogEventSchema = z.object({
-	level: z.enum(["debug", "trace", "info", "warn", "error"]).default("info"),
+	level: z.enum(["debug", "trace", "info", "warn", "error"]),
 	message: z.string().min(1),
 	source: z.string().optional(),
 	attributes: z.record(z.string(), z.unknown()).optional(),
@@ -114,22 +87,6 @@ const ClientBlipsSchema = z.object({
 	recorded: z.number().optional(),
 });
 type TClientBlips = z.infer<typeof ClientBlipsSchema>;
-
-/** The step an event happened in, as the path the run walks: what a run logs or produces names itself for that step,
- *  and what isn't named for a step doesn't have one. */
-const stepOf = (e: THaibunEvent): number[] => {
-	const path = extractSeqPathPrefix(e.id);
-	return path === null ? [] : (parseSeqPath(path) ?? []);
-};
-
-/** The step a record belongs to, named as any record is named; empty where it doesn't belong to a step. */
-const underStep = (tag: TTag, e: THaibunEvent): string => {
-	const path = stepOf(e);
-	return path.length ? formatRecordName({ execution: executionOf(tag), path }) : "";
-};
-
-/** A record's own name: the execution it belongs to, the step it came from, and which of that step's it is. */
-const recordId = (tag: TTag, e: THaibunEvent, ordinal: number): string => formatRecordName({ execution: executionOf(tag), path: stepOf(e), ordinal });
 
 export default class MonitorStepper extends AStepper implements IHasCycles, IHasOptions {
 	description = "Records what a run logs and produces, and serves the shu views what it holds";
@@ -213,12 +170,12 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			if (queried !== undefined) this.queriedLabel = queried;
 			// A quad announced is a quad the store holds, so the graph a view reads is read from the store rather than
 			// held again here. The live page still receives the announcement over the stream.
-			if (event.kind === "log") this.beganWriting(this.recordSaid(event), "what actuality logged");
-			if (event.kind === "artifact") this.beganWriting(this.recordProduced(event), "what actuality produced");
+			if (event.kind === "log") this.beganWriting(recordSaid(this.getWorld(), event, this.saidCount++), "what actuality logged");
+			if (event.kind === "artifact") this.beganWriting(recordProduced(this.getWorld(), event, this.producedCount++), "what actuality produced");
 			this.transport?.send({ type: "event", event });
 			this.monitorTransport?.send({ type: "event", event });
 		},
-		endFeature: async ({ shouldClose = true }: TEndFeature) => {
+		endFeature: async ({ shouldClose }: TEndFeature) => {
 			// An explicit `saves shu to <path>` step is honored regardless of HAIBUN_STAY (shouldClose=false).
 			const hasFixedPath = !!this.outputPath;
 			const writesReport = hasFixedPath || (shouldClose && !!this.storage);
@@ -283,130 +240,18 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			throw new Error(`[monitor] ${more.length + 1} records of what actuality logged or produced weren't written. The first write failed: ${errorDetail(first)}`, { cause: first });
 	}
 
-	private async recordSaid(e: Extract<THaibunEvent, { kind: "log" }>): Promise<void> {
-		const message = typeof e.message === "string" ? e.message : undefined;
-		if (message === undefined) return;
-		const at = typeof e.timestamp === "number" ? e.timestamp : Date.now();
-		const said = underStep(this.getWorld().tag, e);
-		const record: Record<string, unknown> = {
-			[LOG_MESSAGE_FIELD.id]: recordId(this.getWorld().tag, e, this.saidCount++),
-			[LOG_MESSAGE_FIELD.execution]: executionOf(this.getWorld().tag),
-			[LOG_MESSAGE_FIELD.recordedAtTime]: new Date().toISOString(),
-			[LOG_MESSAGE_FIELD.message]: message,
-			[LOG_MESSAGE_FIELD.level]: e.level,
-			[LOG_MESSAGE_FIELD.generatedAtTime]: new Date(at).toISOString(),
-			...(said ? { [LOG_MESSAGE_EDGE.isPartOf]: said } : {}),
-		};
-		await this.getWorld().shared.getStore().upsertIndividual(LOG_MESSAGE_LABEL, record);
-	}
-
-	/**
-	 * What a run produced, written as a record under the step that produced it. The record states where the artifact is
-	 * and what it is, not what it holds: an artifact is a file, and a record of it is a pointer to that file.
-	 *
-	 * A trace of actuality's own machinery doesn't state where a file is, because it is not a file actuality produced. The graph
-	 * holds such a trace as what it is instead: a request is an HttpRequest, and a record of it here would be a second
-	 * copy of the same fact.
-	 */
-	private async recordProduced(e: TArtifactEvent): Promise<void> {
-		if (!("path" in e) || typeof e.path !== "string") return;
-		const at = typeof e.timestamp === "number" ? e.timestamp : Date.now();
-		const under = underStep(this.getWorld().tag, e);
-		const record: Record<string, unknown> = {
-			[RUN_ARTIFACT_FIELD.id]: recordId(this.getWorld().tag, e, this.producedCount++),
-			[RUN_ARTIFACT_FIELD.execution]: executionOf(this.getWorld().tag),
-			[RUN_ARTIFACT_FIELD.recordedAtTime]: new Date().toISOString(),
-			[RUN_ARTIFACT_FIELD.artifactType]: String(e.artifactType ?? "file"),
-			[RUN_ARTIFACT_FIELD.path]: e.path,
-			...(typeof e.featureRelativePath === "string" ? { [RUN_ARTIFACT_FIELD.featureRelativePath]: e.featureRelativePath } : {}),
-			...(typeof e.mimetype === "string" ? { [RUN_ARTIFACT_FIELD.mediaType]: e.mimetype } : {}),
-			[RUN_ARTIFACT_FIELD.generatedAtTime]: new Date(at).toISOString(),
-			[RUN_ARTIFACT_FIELD.level]: e.level ?? "info",
-			...(under ? { [RUN_ARTIFACT_EDGE.isPartOf]: under } : {}),
-		};
-		await this.getWorld().shared.getStore().upsertIndividual(RUN_ARTIFACT_LABEL, record);
-	}
-
-	/** Actuality as the page holds it, for a page without a site to read it from: the graph actuality wrote, which is actuality,
-	 *  and the site's registry as it stood. */
-	private cacheForReport(registry: unknown, quads: TQuad[]): TCachePayload {
-		return carriedRun(executionOf(this.getWorld().tag), registry, quads);
-	}
-
+	/** Writes the standalone report of actuality at `fixedPath`, or as an artifact of the feature where a path isn't
+	 *  given, and returns where it was written. */
 	private async writeStandaloneReport({ fixedPath, compressed }: { fixedPath?: string; compressed: boolean }): Promise<string> {
-		// A report carries actuality and the view state it was left in, never the answers a live page happened to receive:
-		// actuality rides in the client cache (its events, the graph as quads, the site's declarations), and every read a
-		// view makes of those is answered from what the page holds. What is left is what a view SHOWED and actuality does
-		// not record, which is produced here.
-		const viewProducts: Record<string, unknown> = {};
-		// The view toggles: parameterless steps with a `.view` product, run once so the page opens where the reader left it.
-		const candidates = Object.entries(this.steps).filter(([, step]) => !step.gwta.includes("{"));
-		const logger = this.getWorld().eventLogger;
-		await Promise.all(
-			candidates.map(async ([name, step]) => {
-				try {
-					const r = (await (step.action as () => unknown)()) as { products?: Record<string, unknown> } | undefined;
-					const products = r?.products;
-					if (products?.view) viewProducts[`MonitorStepper-${name}`] = products;
-				} catch (err) {
-					logger.warn(`[shu writeStandaloneReport] step ${name} failed: ${errorDetail(err)}`);
-				}
-			}),
-		);
-		// Actuality's declarations ride in the cache as the registry, where a page without a server reads them, read as every
-		// caller reads them: the steps the report's writer holds, which for actuality's own report is every step.
+		const viewSteps = Object.entries(this.steps)
+			.filter(([, step]) => !step.gwta.includes("{"))
+			.map(([name, step]): [string, () => unknown] => [name, step.action as () => unknown]);
 		const world = this.getWorld();
-		if (!world.runtime.steppers) throw new Error("a report reads actuality's steppers, and actuality doesn't hold them");
-		const registry = discoverSteps(world, runRegistry(world), EVERY_DEFINITION, shownTo());
-		// 3. End-of-run snapshots for the affordances panel. Earlier RPC calls cached
-		// the early empty-graph state; the panel's offline render uses the cache, so the
-		// last live snapshot is the one that matters. Re-run the read the panel makes
-		// to overwrite with end-of-run forward / goals / waypoints, under the name it asks by.
-		const steppers = world.runtime.steppers as AStepper[];
-		for (const stepper of steppers) {
-			const refreshable = ["affordancesOnOffer"];
-			for (const name of refreshable) {
-				const step = stepper.steps?.[name];
-				if (!step || typeof (step as { action?: unknown }).action !== "function") continue;
-				const key = `${stepper.constructor.name}-${name}`;
-				try {
-					const r = (await (step as { action: (a: Record<string, unknown>) => unknown }).action({})) as { products?: Record<string, unknown> } | undefined;
-					if (r?.products) viewProducts[key] = r.products;
-				} catch (err) {
-					logger.warn(`[shu writeStandaloneReport] ${key} refresh failed: ${errorDetail(err)}`);
-				}
-			}
-		}
-		// The whole graph, as the site holds it: it rides in the cache as quads, and a page reading it clusters them for
-		// itself, so what a reader sees of the graph is what the views would have painted from the site's own answer.
-		const built = await buildGraphSource(this.getWorld());
-		if (!built) logger.warn("[shu writeStandaloneReport] the graph was not captured: this store does not cluster, so a page reading this report doesn't show a graph");
-		// The address a report opens at names the type the query column was showing, which the records of actuality don't state.
-		// Which views were open it does not name: the page reads those from the records it carries, by the same read a
-		// page with a server makes. What is inlined is the code those views need, so the views are still read for that.
-		const shown = await this.getWorld().shared.getStore().query({ predicate: SEQ_PATH_FIELD.showed, namedGraph: SEQ_PATH_LABEL });
-		const domains = this.getWorld().domains;
-		const cols = new Set(shown.map((quad) => String((domains[String(quad.object ?? "")]?.ui as { component?: string } | undefined)?.component ?? quad.object ?? "")));
-		const viewHash = reportOpensAt(this.queriedLabel);
-		const hydration = JSON.stringify({
-			viewProducts,
-			viewHash,
-			actualityId: this.getWorld().runtime.actualityId,
-			cache: this.cacheForReport(registry, built?.quads ?? []),
-		} satisfies THydration);
-		const scripts = inlineScriptsForView(this.getWorld().domains, new Set(cols));
-		let payload = JSON.stringify({ bundle: loadReportBundle(), hydration, scripts });
-		const secrets = await this.getWorld().shared.getSecrets();
-		for (const [, value] of Object.entries(secrets)) if (value) payload = payload.replaceAll(value, OBSCURED_VALUE);
-		const html = buildReportHtml(".", payload, compressed);
-		if (fixedPath) {
-			writeFileSync(fixedPath, html);
-			logger.info(`shu standalone report: ${actualURI(fixedPath)}`);
-			return fixedPath;
-		}
-		const saved = await this.storage.saveArtifact("shu.html", html);
-		logger.info(`shu standalone report: ${actualURI(saved.absolutePath)}`);
-		return saved.absolutePath;
+		const html = await reportHtml({ world, viewSteps, queriedLabel: this.queriedLabel, reportBundle: servedBundles.report(), compressed });
+		const written = fixedPath === undefined ? (await this.storage.saveArtifact("shu.html", html)).absolutePath : fixedPath;
+		if (fixedPath !== undefined) reportWriter.write(fixedPath, html);
+		world.eventLogger.info(`shu standalone report: ${actualURI(written)}`);
+		return written;
 	}
 
 	steps = {
@@ -461,7 +306,9 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				for (const blip of batch.blips) recordBlip(world, blip.name, blip.value, { ...blip.attributes, at: blip.at });
 				// A browser buffer that overflowed between batches would otherwise be invisible: actuality holds what it was
 				// given, and the page holds the truth about what it saw.
-				const missed = (batch.recorded ?? 0) - (this.clientBlipsReceived += batch.blips.length);
+				this.clientBlipsReceived += batch.blips.length;
+				// A page that doesn't count what it recorded states only the batch it sent.
+				const missed = batch.recorded === undefined ? 0 : batch.recorded - this.clientBlipsReceived;
 				if (missed > 0) world.eventLogger.debug(`[shu] ${missed} client occurrence(s) recorded but not delivered; the page's buffer filled between batches`);
 				return OK;
 			},

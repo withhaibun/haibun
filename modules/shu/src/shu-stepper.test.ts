@@ -8,8 +8,10 @@ import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import { AUTHORITY_KEY, SessionAuthority } from "@haibun/core/lib/session-authority.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
-import ShuStepper, { buildSpaHtml } from "./shu-stepper.js";
-import { EMBEDDER_ORIGIN_OPTION, mayFrame } from "./content-security-policy.js";
+import ShuStepper from "./shu-stepper.js";
+import { buildSpaHtml } from "./derivations/page-html.js";
+import { mayFrame } from "./derivations/content-security-policy.js";
+import { EMBEDDER_ORIGIN_OPTION } from "./domains/serving.js";
 
 /** A page's script nonce, as a test states one. */
 const NONCE = "a-test-nonce";
