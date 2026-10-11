@@ -338,10 +338,12 @@ export function carryARun(): void {
 	hydrateFromDom();
 }
 
-/** Make it a page the instance at `base` served, with the actualityId of the records that instance holds. */
+/** Make it a page the instance at `base` served, with the actualityId of the records that instance holds, and the
+ *  reader's authority installed, as the page's start installs it. */
 export async function serveThePageFrom(base: string): Promise<void> {
 	hydrate({ actualityId: await actualityAt(base), settings: SERVED_SETTINGS });
 	hydrateFromDom();
+	installAuthority(authorityPort());
 }
 
 /** Make it a page a server served, with the hydration the server writes. */
