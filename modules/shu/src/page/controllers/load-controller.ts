@@ -3,7 +3,7 @@
  * the machine with what it read, or fails it with the refusal (`page/derivations/refusal.ts`). The view draws again at each
  * move, and renders each status through `render`.
  */
-import type { ReactiveController, ReactiveControllerHost } from "lit";
+import type { ReactiveControllerHost } from "lit";
 import { machine, type Machine } from "@haibun/core/lib/machine.js";
 import { INITIAL_LOAD, LOAD_EVENT, LOAD_STATUS, loadTransition, type TLoadEvent, type TLoadState } from "../machines/load.js";
 import { refusalOf } from "../derivations/refusal.js";
@@ -12,7 +12,7 @@ import type { TPageRefusal } from "../domains/refusal.js";
 /** What a view renders for each status of a read. */
 export type TLoadRenders<T, R> = { pending: () => R; running: () => R; completed: (page: T) => R; failed: (refusal: TPageRefusal) => R };
 
-export class LoadController<T> implements ReactiveController {
+export class LoadController<T> {
 	readonly #read: () => Promise<T>;
 	readonly #machine: Machine<TLoadState<T>, TLoadEvent<T>> = machine<TLoadState<T>, TLoadEvent<T>>(INITIAL_LOAD, loadTransition);
 	/** The count of reads started, so a read that a later read replaced doesn't end the later read. */
@@ -20,7 +20,6 @@ export class LoadController<T> implements ReactiveController {
 
 	constructor(host: ReactiveControllerHost, read: () => Promise<T>) {
 		this.#read = read;
-		host.addController(this);
 		this.#machine.follow(() => host.requestUpdate());
 	}
 
