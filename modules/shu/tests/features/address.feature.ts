@@ -35,7 +35,11 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "An address names a type actuality doesn't hold" }),
 		"An address can name a type that an earlier actuality held and this actuality doesn't. The page keeps the address, states that actuality doesn't hold the type, and links the query of each type actuality holds. Following the link of the step records opens their query.",
 		gotoPage({ name: `"${host}/spa#?label=${NOT_HELD}"` }),
-		setAs({ what: "notHeld", domain: "page-locator", value: `".error-banner:has-text('${typeNotHeld(NOT_HELD, []).error.replaceAll("'", "\\'")}')"` }),
+		setAs({
+			what: "notHeld",
+			domain: "page-locator",
+			value: `"[data-testid='${SHU_TEST_IDS.REFUSAL.CAUSE}']:has-text('${typeNotHeld(NOT_HELD, []).error.replaceAll("'", "\\'")}')"`,
+		}),
 		waitFor({ target: "notHeld" }),
 		setAs({ what: HELD_STEPS, domain: "page-test-id", value: `"${HELD_STEPS}"` }),
 		click({ target: HELD_STEPS }),
