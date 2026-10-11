@@ -143,6 +143,8 @@ export function narrowerCeiling(inForce: AccessLevel | undefined, asked: AccessL
  * and domain definition.
  */
 export const COMMENT_LABEL = "Comment";
+/** Whether records of `label` are comments: notes about another record, which a thread shows as replies. */
+export const isCommentType = (label: string): boolean => label === COMMENT_LABEL;
 export const COMMENT_DOMAIN = "comment";
 
 /** Web Annotation node labels for the target side of an annotation (a Comment anchored inside a source). They are
@@ -934,6 +936,21 @@ const PrincipalSchema = PersistedVertexSchema.extend({
 
 export type TPrincipal = z.infer<typeof PrincipalSchema>;
 
+/** A principal as a row reads it: its DID, and the key it signs with where it declares one. */
+export type TPrincipalRow = { id: string; publicKey?: string };
+
+/** Returns a principal record's row. Throws for a record that isn't a principal's. */
+export function principalRow(record: Record<string, unknown>): TPrincipalRow {
+	const { id, publicKey } = PrincipalSchema.parse(record);
+	return publicKey === undefined ? { id } : { id, publicKey };
+}
+
+/** The address of the principal `id` names, which a reference opens. */
+export const principalAddress = (id: string): { persistedAs: string; id: string } => ({ persistedAs: PRINCIPAL_LABEL, id });
+
+/** The graph query of the principals actuality holds. */
+export const principalsQuery = (): { label: string } => ({ label: PRINCIPAL_LABEL });
+
 /**
  * The Principal domain definition. Register it in a stepper's `getConcerns().domains` to expose Principal as a graph
  * node. `generatedAtTime` is required because buildConcernCatalog (hypermedia.ts) rejects a persisted domain whose
@@ -988,19 +1005,42 @@ export type TBody = z.infer<typeof BodySchema>;
  */
 export const BODY_PREFERENCE: readonly string[] = [MEDIA_TYPE.markdown, MEDIA_TYPE.plain, MEDIA_TYPE.html];
 
-/**
- * Returns the preferred body by BODY_PREFERENCE, or the first usable body where a record doesn't hold a preferred media
- * type. A body is usable when it states its media type and its content isn't the empty string. A listing names bodies
- * without their text, which is read on request. A body whose text hasn't been read is therefore chosen by its media
- * type like any other.
- */
-export function pickPreferredBody<T extends { mediaType?: string; content?: string }>(bodies: readonly T[]): T | undefined {
-	const usable = bodies.filter((b) => typeof b.mediaType === "string" && b.content !== "");
-	for (const mediaType of BODY_PREFERENCE) {
-		const hit = usable.find((b) => b.mediaType === mediaType);
-		if (hit) return hit;
+/** A body a record links, as a reader opens it: its id, its media type, and its text where the record carries it. A
+ *  record read from the graph names its bodies, and a body's text is read when a reader opens it. */
+export type TLinkedBody = { id: string; media: string; text?: string };
+
+const LinkedBodySchema = z.object({ id: z.string(), mediaType: z.string(), content: z.string().optional() });
+
+/** Returns the bodies a record links through `hasBody`. Throws for a body that doesn't state its id and media type. */
+export function bodiesOf(record: Record<string, unknown>): TLinkedBody[] {
+	const linked = record[HAS_BODY_EDGE];
+	if (linked === undefined) return [];
+	return z
+		.array(LinkedBodySchema)
+		.parse(Array.isArray(linked) ? linked : [linked])
+		.map(({ id, mediaType, content }) => (content === undefined ? { id, media: mediaType } : { id, media: mediaType, text: content }));
+}
+
+/** Returns the body a reader reads first: the first media type of BODY_PREFERENCE among the bodies with text to show. */
+export function preferredBody(bodies: readonly TLinkedBody[]): TLinkedBody | undefined {
+	const usable = bodies.filter((b) => b.text !== "");
+	for (const media of BODY_PREFERENCE) {
+		const hit = usable.find((b) => b.media === media);
+		if (hit !== undefined) return hit;
 	}
 	return usable[0];
+}
+
+/** Returns a record with each linked body's text in `texts` set on that body, by its id, where the body doesn't carry text. */
+export function withBodyTexts(record: Record<string, unknown>, texts: Readonly<Record<string, string>>): Record<string, unknown> {
+	const linked = record[HAS_BODY_EDGE];
+	if (!Array.isArray(linked)) return record;
+	const withText = (body: unknown): unknown => {
+		const parsed = LinkedBodySchema.parse(body);
+		const text = texts[parsed.id];
+		return text === undefined || parsed.content !== undefined ? body : { ...(body as Record<string, unknown>), content: text };
+	};
+	return { ...record, [HAS_BODY_EDGE]: linked.map(withText) };
 }
 
 export const bodyDomainDefinition: TDomainDefinition = {

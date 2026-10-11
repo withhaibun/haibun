@@ -3,7 +3,6 @@ import { declareSpec } from "../../test/catalog-fixture.js";
 import { STORED_TYPE_PROP } from "../../domains/elements.js";
 import { extractBodyLiterals, extractFieldEntries, idOf, instanceLabel, isVisibleKey } from "./record-controller.js";
 import { isReferenceEdge, SPA_PROPS } from "../derivations/record-fields.js";
-import { pickPreferredBody } from "@haibun/core/lib/resources.js";
 
 /** A type whose id and title field names don't match another type's fields. Only its declaration resolves them. */
 const CONCEPT = { type: "Concept", idField: "conceptId", titleField: "title" } as const;
@@ -187,47 +186,5 @@ describe("extractBodyLiterals", () => {
 
 	it("excludes projection-internal keys and empty values", () => {
 		expect(extractBodyLiterals({ _x: "a", "@id": "b", stepText: "" }, "SeqPath")).toEqual({});
-	});
-});
-
-describe("pickPreferredBody", () => {
-	const plain = { mediaType: "text/plain", content: "plain text" };
-	const md = { mediaType: "text/markdown", content: "*md*" };
-	const html = { mediaType: "text/html", content: "<p>html</p>" };
-
-	it("prefers text/markdown when present", () => {
-		expect(pickPreferredBody([plain, md, html])).toBe(md);
-		expect(pickPreferredBody([html, md])).toBe(md);
-	});
-
-	it("falls back to text/plain when the bodies don't include markdown", () => {
-		expect(pickPreferredBody([plain, html])).toBe(plain);
-	});
-
-	it("falls back to text/html when the bodies don't include markdown or plain", () => {
-		expect(pickPreferredBody([html])).toBe(html);
-	});
-
-	it("returns the first usable when the preferred types don't match", () => {
-		const ical = { mediaType: "text/calendar", content: "BEGIN:VCALENDAR" };
-		expect(pickPreferredBody([ical])).toBe(ical);
-	});
-
-	it("leaves out an empty body, and a body that doesn't state a media type", () => {
-		expect(pickPreferredBody([{ mediaType: "text/markdown", content: "" }, plain])).toBe(plain);
-		expect(pickPreferredBody([{ content: "no media type" }, md])).toBe(md);
-	});
-
-	it("chooses from a listing that names bodies without their text, by media type", () => {
-		const listed = [
-			{ id: "p", mediaType: "text/plain" },
-			{ id: "h", mediaType: "text/html" },
-			{ id: "m", mediaType: "text/markdown" },
-		];
-		expect(pickPreferredBody(listed)?.id).toBe("m");
-	});
-
-	it("returns undefined for empty input", () => {
-		expect(pickPreferredBody([])).toBeUndefined();
 	});
 });

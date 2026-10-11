@@ -3,6 +3,7 @@
  * that join a domain, the steps an action allows, the steps of a type, and the domain options a selector offers.
  */
 import { domainParts } from "@haibun/core/lib/domains.js";
+import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { capabilityAllows } from "@haibun/core/lib/actions.js";
 import type { TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import type { TDomainDiscoveryInfo, TStepDefinition } from "@haibun/core/lib/step-discovery.js";
@@ -103,3 +104,11 @@ export const prettifyGwta = (gwta: string): string =>
 		.replace(/\(\s*[^()]*?\s*\)\?/g, "")
 		.replace(/ {2,}/g, " ")
 		.trim();
+
+/** Returns the path of the step an event of actuality names: the path it carries, or the path its id states. */
+export function stepPathOfEvent(event: Record<string, unknown>): number[] | undefined {
+	const carried = event.seqPath;
+	if (Array.isArray(carried) && carried.every((n) => typeof n === "number")) return carried;
+	if (carried !== undefined) throw new Error(`an event names its step's path as ${JSON.stringify(carried)}, not numbers`);
+	return typeof event.id === "string" ? (parseSeqPath(event.id) ?? undefined) : undefined;
+}

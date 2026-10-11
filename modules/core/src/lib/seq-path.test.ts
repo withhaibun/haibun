@@ -9,7 +9,9 @@ import {
 	parseRecordName,
 	parseSeqPath,
 	seqPathDomainDefinition,
+	stepLine,
 } from "./seq-path.js";
+import { SEQ_PATH_STATUS } from "./resources.js";
 import { LinkRelations, isPersisted } from "./resources.js";
 import { EXECUTION_MODES } from "../schema/protocol.js";
 import { queryableFields } from "./hypermedia.js";
@@ -136,5 +138,47 @@ describe("the name of an execution's record", () => {
 describe("what a step offers as a filter", () => {
 	it("includes endedAtTime, so a follower can request the steps that ended after its last read", () => {
 		expect(queryableFields({ schema: seqPathDomainDefinition.schema, topology: seqPathTopology() })).toContain("endedAtTime");
+	});
+});
+
+describe("a step's line", () => {
+	const STEP = {
+		id: "1700000000000-1.0.1",
+		stepText: "the gate checks the ticket",
+		called: "GateStepper.check",
+		actionStatus: SEQ_PATH_STATUS.passed,
+		generatedAtTime: "2026-01-01T00:00:00.000Z",
+		endedAtTime: "2026-01-01T00:00:00.250Z",
+		ranVia: "remote",
+		ranOn: "https://gate.example",
+		capabilityAction: "Check:ticket",
+		allowedAction: "Check:ticket",
+		performedBy: "did:example:gate",
+	};
+
+	it("states the step's words, outcome, times, dispatch and action", () => {
+		expect(stepLine(STEP)).toEqual({
+			text: "the gate checks the ticket",
+			called: "GateStepper.check",
+			status: SEQ_PATH_STATUS.passed,
+			began: "2026-01-01T00:00:00.000Z",
+			ended: "2026-01-01T00:00:00.250Z",
+			tookMs: 250,
+			dispatch: { via: "remote", on: "https://gate.example" },
+			action: { required: "Check:ticket", allowed: "Check:ticket", holder: "did:example:gate" },
+		});
+	});
+
+	it("leaves out the end, dispatch and action a running step without a capability doesn't state", () => {
+		const { endedAtTime, ranVia, ranOn, capabilityAction, allowedAction, performedBy, ...running } = { ...STEP, actionStatus: SEQ_PATH_STATUS.running };
+		const line = stepLine(running);
+		expect(line.ended).toBeUndefined();
+		expect(line.tookMs).toBeUndefined();
+		expect(line.dispatch).toBeUndefined();
+		expect(line.action).toBeUndefined();
+	});
+
+	it("refuses a record that isn't a step's", () => {
+		expect(() => stepLine({ id: "x" })).toThrow();
 	});
 });

@@ -6,12 +6,12 @@
  * strip, and how much of it there is. The context it reads is the one the index already publishes, and other columns
  * publish that context too, so the test that matters is that another column's search is not read as the index's.
  */
-import { describe, it, expect, beforeAll, beforeEach } from "vitest";
+import { describe, it, expect, afterEach, beforeAll, beforeEach } from "vitest";
 import { ShuIndexSummary } from "./shu-index-summary.js";
 import { SHU_EVENT, SPINE_SLOT } from "../../domains/elements.js";
 import { viewQuery } from "../../view-query.js";
 import { ShuColumnPane } from "./shu-column-pane.js";
-import { installTestMediaQueries } from "../../test-setup.js";
+import { installTestMediaQueries, setupShuTest, type TShuTestHandle } from "../../test-setup.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
 import { counted, countedTo, statedTotal } from "@haibun/core/lib/hypermedia.js";
 
@@ -39,7 +39,10 @@ beforeAll(() => {
 describe("the index's spine summary", () => {
 	let summary: ShuIndexSummary;
 
+	let handle: TShuTestHandle;
+	afterEach(() => handle.teardown());
 	beforeEach(async () => {
+		handle = setupShuTest();
 		document.body.innerHTML = "";
 		searching("#?"); // the shared query outlives one test, so each starts without a search
 		summary = new ShuIndexSummary();
@@ -68,6 +71,7 @@ describe("the index's spine summary", () => {
 		expect(shown(), "which search").toContain("Person");
 		expect(shown(), "the text that was searched for").toContain("smith");
 		expect(shown(), "and how much is behind the strip").toContain("42");
+		expect(summary.shadowRoot?.querySelector("a.count")?.getAttribute("href"), "the count links the query it counts").toBe(viewQuery.hashWith({ offset: 0 }));
 	});
 
 	it("renders a count that stopped at its ceiling as a floor", async () => {
@@ -102,6 +106,12 @@ describe("the index's spine summary", () => {
 describe("a spine view while its column is open", () => {
 	// Attached but unslotted is how a spine view keeps hearing what it needs, and it must not take what being shown
 	// takes: a reader can't see what it renders, so it doesn't render until the spine slot takes it.
+	let handle: TShuTestHandle;
+	afterEach(() => handle.teardown());
+	beforeEach(() => {
+		handle = setupShuTest();
+	});
+
 	it("hears the index without rendering, and is current the moment the column collapses", async () => {
 		document.body.innerHTML = "";
 		const pane = new ShuColumnPane();

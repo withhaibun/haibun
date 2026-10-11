@@ -53,7 +53,7 @@ export const INITIAL_SUBJECT: TSubjectState = { scopes: {}, open: [SCOPE.page], 
 /** The entry for a set of context patterns: the record the first of them names, where it names one, with the patterns
  *  as its bundle. A type doesn't name a record. */
 /** The entry a view's stated context names. */
-export const entryOfContext = (context: TPageContext): TEntry => entryOf(context.patterns, context.accessLevel);
+export const entryOfContext = (context: TPageContext): TEntry => entryOf(context.patterns, context.readLevel);
 
 export function entryOf(patterns: TContextPattern[], accessLevel: AccessQueryLevel): TEntry {
 	const first = patterns[0];

@@ -41,16 +41,16 @@ export class ShuPageStrip extends ShuElement<typeof EmptyStateSchema> {
 	}
 
 	/** The read access level the access indicator shows. It holds the context's level until a reader changes it. */
-	#accessLevel: AccessQueryLevel = appAccessLevel();
+	#readLevel: AccessQueryLevel = appAccessLevel();
 	/** The corner controls and their popover. They hold the settings, the access level and authority, the time offset and playback, and the status. */
 	#corners = new PageStripCorners(this, {
 		testIdPrefix: () => this.testIdPrefix,
 		anchorTop: () => this.#anchorTop(),
-		accessLevel: () => this.#accessLevel,
-		setAccessLevel: (level) => this.#setAccessLevel(level),
+		readLevel: () => this.#readLevel,
+		setReadLevel: (level) => this.#setReadLevel(level),
 	});
 	#context = new SignalController(this, pageContext, (context) => {
-		if (context) this.#accessLevel = context.accessLevel;
+		if (context) this.#readLevel = context.readLevel;
 	});
 	#trail = new SignalController(this, pageTrail, () => this.#updateBreadcrumb());
 	#panes = new SignalController(this, stripPanes, () => this.#updateBreadcrumb());
@@ -87,9 +87,9 @@ export class ShuPageStrip extends ShuElement<typeof EmptyStateSchema> {
 	}
 
 	/** Change the read access level the query reads at, as the access panel asks. */
-	#setAccessLevel(level: AccessQueryLevel): void {
-		this.#accessLevel = level;
-		this.dispatchEvent(new CustomEvent(SHU_EVENT.FILTER_CHANGE, { detail: { asked: true, accessLevel: level }, bubbles: true, composed: true }));
+	#setReadLevel(level: AccessQueryLevel): void {
+		this.#readLevel = level;
+		this.dispatchEvent(new CustomEvent(SHU_EVENT.FILTER_CHANGE, { detail: { asked: true, readLevel: level }, bubbles: true, composed: true }));
 		this.requestUpdate();
 	}
 

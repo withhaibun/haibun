@@ -23,10 +23,10 @@ describe("shu-graph-query → viewQuery", () => {
 	it("setFilters from a type selection then a text search writes q to the store and the URL hash", () => {
 		const el = make();
 		// chooseGraphLabel("Email"): the FILTER_CHANGE the actions bar emits on a type pick.
-		el.setFilters({ accessLevel: "private", label: "Email", textQuery: undefined, conditions: [] });
+		el.setFilters({ readLevel: "private", label: "Email", textQuery: undefined, conditions: [] });
 		expect(viewQuery.current.label).toBe("Email");
 		// type "INBOX" into the search box: the FILTER_CHANGE on the debounced input.
-		el.setFilters({ accessLevel: "private", label: "Email", textQuery: "INBOX", conditions: [] });
+		el.setFilters({ readLevel: "private", label: "Email", textQuery: "INBOX", conditions: [] });
 		expect(viewQuery.current.q).toBe("INBOX");
 		expect(window.location.hash).toContain("q=INBOX");
 		expect(window.location.hash).toContain("label=Email");
@@ -34,16 +34,16 @@ describe("shu-graph-query → viewQuery", () => {
 
 	it("a select-filter condition (eq) round-trips through setFilters into the store + hash", () => {
 		const el = make();
-		el.setFilters({ accessLevel: "private", label: "Email", textQuery: undefined, conditions: [{ predicate: "folder", operator: "eq", value: "INBOX" }] });
+		el.setFilters({ readLevel: "private", label: "Email", textQuery: undefined, conditions: [{ predicate: "folder", operator: "eq", value: "INBOX" }] });
 		expect(viewQuery.current.f).toEqual([{ predicate: "folder", operator: "eq", value: "INBOX" }]);
 		expect(decodeURIComponent(window.location.hash)).toContain("f=folder|eq|INBOX");
 	});
 
 	it("switching type clears the carried-over sort", () => {
 		const el = make();
-		el.setFilters({ accessLevel: "private", label: "Email", textQuery: undefined, conditions: [] });
+		el.setFilters({ readLevel: "private", label: "Email", textQuery: undefined, conditions: [] });
 		viewQuery.set({ sort: "dateSent" });
-		el.setFilters({ accessLevel: "private", label: "Person", textQuery: undefined, conditions: [] });
+		el.setFilters({ readLevel: "private", label: "Person", textQuery: undefined, conditions: [] });
 		expect(viewQuery.current.label).toBe("Person");
 		expect(viewQuery.current.sort).toBeNull();
 	});

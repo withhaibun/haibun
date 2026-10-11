@@ -136,7 +136,7 @@ describe("the actions bar reads the page's state", () => {
 	});
 
 	it("describes to the page strip the context a view stated before the bar connected, and settles its type once the types are read", async () => {
-		pageContext.set({ patterns: [aType("Email")], accessLevel: Access.private, label: "Email" });
+		pageContext.set({ patterns: [aType("Email")], readLevel: Access.private, label: "Email" });
 		await mountBar();
 		expect(pageTrail.get(), "the search names the stated type").toContain("Email");
 	});

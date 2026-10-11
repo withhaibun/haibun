@@ -20,7 +20,8 @@ import { defineElement } from "../controllers/element-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { describeSearch } from "./shu-search-summary.js";
 import { viewQuery } from "../../view-query.js";
-import { CountedSchema, statedTotal, type TCounted } from "@haibun/core/lib/hypermedia.js";
+import { CountedSchema, type TCounted } from "@haibun/core/lib/hypermedia.js";
+import { countRef } from "./shu-ref.js";
 
 /** What the strip shows the column is. The index pane doesn't carry a label, and an open index doesn't show a header, so the strip
  *  would otherwise be the only column that does not show what it is. */
@@ -70,7 +71,7 @@ export class ShuIndexSummary extends ShuElement<typeof EmptyStateSchema> {
 		// before it answers what is in it, and still shows what it is before any search has been made.
 		const said = [INDEX_NAME, describeSearch(viewQuery.current)].filter(Boolean).join(" · ");
 		return html`<span data-testid=${SHU_TEST_IDS.INDEX_SUMMARY.ROOT}
-			>${said}${this.found === null ? "" : html` · <span class="count">${statedTotal(this.found)}</span>`}</span
+			>${said}${this.found === null ? "" : html` · ${countRef(this.found, viewQuery.hashWith({ offset: 0 }))}`}</span
 		>`;
 	}
 }

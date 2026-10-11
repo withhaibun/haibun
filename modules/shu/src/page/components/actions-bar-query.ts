@@ -59,7 +59,7 @@ export class ActionsBarQuery implements ReactiveController {
 	#contextPatterns: TContextPattern[] = [];
 	/** The read access every query here runs at, opening at the level the page opened at, so the bar and the snapshot
 	 *  cannot open at different levels. */
-	#accessLevel = appAccessLevel();
+	#readLevel = appAccessLevel();
 	#trailLabel = NOTHING_SELECTED_LABEL;
 	#conditions: TSearchCondition[] = [];
 	/** The fields of the selected type a condition can name, as the condition's field selector offers them. */
@@ -98,8 +98,8 @@ export class ActionsBarQuery implements ReactiveController {
 		if (input.value !== q) input.value = q;
 	}
 
-	get accessLevel(): AccessQueryLevel {
-		return this.#accessLevel;
+	get readLevel(): AccessQueryLevel {
+		return this.#readLevel;
 	}
 
 	get selectedLabel(): string {
@@ -112,9 +112,9 @@ export class ActionsBarQuery implements ReactiveController {
 
 	/** Take the context a view offers: its patterns, the access it reads at, and the label and conditions it opened with. A
 	 *  view offers a label only when the query surface can use one, so a schema view leaves the label as it is. */
-	setContext(patterns: TContextPattern[], accessLevel: AccessQueryLevel, extra?: TQueryContextExtra): void {
+	setContext(patterns: TContextPattern[], readLevel: AccessQueryLevel, extra?: TQueryContextExtra): void {
 		this.#contextPatterns = patterns;
-		this.#accessLevel = accessLevel;
+		this.#readLevel = readLevel;
 		if (extra?.label !== undefined && extra.label !== this.#selectedLabel) {
 			this.#selectedLabel = extra.label || "";
 			this.#syncSelectedDomainKey();
@@ -130,8 +130,8 @@ export class ActionsBarQuery implements ReactiveController {
 	}
 
 	/** The read access every query here runs at, set from the permissions panel. */
-	setAccessLevel(level: AccessQueryLevel): void {
-		this.#accessLevel = level;
+	setReadLevel(level: AccessQueryLevel): void {
+		this.#readLevel = level;
 		this.#announce();
 	}
 
@@ -271,7 +271,7 @@ export class ActionsBarQuery implements ReactiveController {
 	#announce(asked = true): void {
 		this.#trailLabel = contextLabel(this.#contextPatterns, { label: this.#selectedLabel, ...this.#selectFilters });
 		this.#deps.onTrailChange();
-		const detail = { asked, accessLevel: this.#accessLevel, label: this.#selectedLabel, conditions: searchConditions(this.#selectFilters, this.#conditions) };
+		const detail = { asked, readLevel: this.#readLevel, label: this.#selectedLabel, conditions: searchConditions(this.#selectFilters, this.#conditions) };
 		this.#host.dispatchEvent(new CustomEvent(SHU_EVENT.FILTER_CHANGE, { detail, bubbles: true, composed: true }));
 	}
 

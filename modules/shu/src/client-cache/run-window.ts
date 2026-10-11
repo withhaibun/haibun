@@ -54,13 +54,6 @@ export type TRunRow = {
 	/** The view this step showed, by the name the site declares it under. */
 	showed?: string;
 	endedAt?: number;
-	/** How a step reached what ran it, and the host that ran it where another one did. */
-	ranVia?: string;
-	ranOn?: string;
-	/** What a step had to hold to run, what the caller held, and who they were. */
-	capabilityAction?: string;
-	allowedAction?: string;
-	performedBy?: string;
 	/** What a produced thing is and where it is: an artifact is a file, and a row of it points at that file. */
 	artifactType?: string;
 	path?: string;
@@ -135,11 +128,6 @@ function stepRow(record: Record<string, unknown>): TRunRow {
 		...text(record, SEQ_PATH_FIELD.error, "error"),
 		...text(record, SEQ_PATH_FIELD.showed, "showed"),
 		...text(record, SEQ_PATH_FIELD.called, "called"),
-		...text(record, SEQ_PATH_FIELD.ranVia, "ranVia"),
-		...text(record, SEQ_PATH_FIELD.ranOn, "ranOn"),
-		...text(record, SEQ_PATH_FIELD.capabilityAction, "capabilityAction"),
-		...text(record, SEQ_PATH_FIELD.allowedAction, "allowedAction"),
-		...text(record, "performedBy", "performedBy"),
 	};
 }
 

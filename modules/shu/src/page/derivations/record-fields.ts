@@ -2,8 +2,8 @@
  * A record's fields as a view shows them: its type, its id, its title, the fields its field table shows, its governance
  * fields and its body literals, each read through the relations its type declares, and an object's handle.
  */
-import { TITLE_RELS, composeDisplayLabel, type TTitledBy } from "@haibun/core/lib/hypermedia.js";
-import { getRelPresentation } from "@haibun/core/lib/resources.js";
+import { TITLE_RELS, composeDisplayLabel, parseTimestampValue, type TTitledBy } from "@haibun/core/lib/hypermedia.js";
+import { getRelPresentation, LinkRelations } from "@haibun/core/lib/resources.js";
 import { STORED_TYPE_PROP } from "../../domains/elements.js";
 
 /** A type's fields by the relation each declares. */
@@ -103,4 +103,14 @@ export function extractBodyLiterals(vertex: Record<string, unknown>, rels: TFiel
 		if (rel !== undefined && getRelPresentation(rel) === "body") out[k] = v;
 	}
 	return out;
+}
+
+/** Returns when a record was made, by the field its type declares the creation relation, else the published relation.
+ *  Returns null for a type without either field, or a field that doesn't hold a time. */
+export function recordTime(vertex: Record<string, unknown>, rels: TFieldRels): number | null {
+	for (const rel of [LinkRelations.GENERATED_AT_TIME.rel, LinkRelations.PUBLISHED.rel]) {
+		const field = Object.keys(rels).find((name) => rels[name] === rel);
+		if (field !== undefined) return parseTimestampValue(vertex[field]);
+	}
+	return null;
 }

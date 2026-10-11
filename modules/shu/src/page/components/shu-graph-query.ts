@@ -162,9 +162,9 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	}
 
 	/** Apply filters from the actions bar and re-execute the query. */
-	setFilters(filters: { accessLevel?: string; label?: string; textQuery?: string; conditions?: TSearchCondition[] }): void {
+	setFilters(filters: { readLevel?: string; label?: string; textQuery?: string; conditions?: TSearchCondition[] }): void {
 		const patch: Partial<TViewQuery> = { offset: 0 }; // any filter change resets pagination
-		if (filters.accessLevel !== undefined) patch.access = filters.accessLevel as TViewQuery["access"];
+		if (filters.readLevel !== undefined) patch.access = filters.readLevel as TViewQuery["access"];
 		if (filters.label !== undefined) {
 			patch.label = filters.label || null;
 			// Sort columns are label-specific: the server rejects a sortBy not in the new label's topology.sortColumns:
@@ -208,7 +208,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 
 		this.dispatchEvent(
 			new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, {
-				detail: { patterns, accessLevel: this.qAccess, total: this.#counted, label: this.qLabel, textQuery: this.qText, labels: this.labels, conditions },
+				detail: { patterns, readLevel: this.qAccess, total: this.#counted, label: this.qLabel, textQuery: this.qText, labels: this.labels, conditions },
 				bubbles: true,
 				composed: true,
 			}),
@@ -417,6 +417,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		if (table === undefined) return;
 		table.updateState({ sortBy: this.qSort, sortOrder: this.qOrder, selectable: true, paginated: this.#counted.saturated || this.#counted.total > this.limit });
 		if (this.qLabel !== undefined) table.persistedAs = this.qLabel;
+		table.collection = viewQuery.hashWith({ offset: 0 });
 		table.setSortableFields(this.sortableFields);
 		if (this.#source !== this.#installedSource) {
 			table.setSource(this.#source);

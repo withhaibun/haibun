@@ -12,7 +12,8 @@ import { property } from "lit/decorators.js";
 import { ref, createRef } from "lit/directives/ref.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
-import { openRef } from "./ref-navigation.js";
+import { openRef, paneHref } from "./ref-navigation.js";
+import type { DesiredPane } from "../derivations/pane-kinds.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { FilterColumnSchema, aType, type TContextPattern } from "../../schemas.js";
 import { getIdField, getQueryableFields, firstDeclaredType } from "../controllers/catalog-controller.js";
@@ -65,13 +66,13 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 			openRef(this, REF_DENOTES.individual, { persistedAs: label, id: value });
 			return;
 		}
-		this.setState({ property, value, persistedAs: label });
+		this.setState({ property, value, persistedAs: label, incoming: undefined });
 		this.spinnerStatus = "Fetching...";
 		await this.fetchResults({ label, filters: [{ predicate: property, operator: "eq", value }], sortOrder: "desc", limit: 50, offset: 0, accessLevel: appAccessLevel() });
 	}
 
 	async openProperty(property: string, label: string = firstDeclaredType()): Promise<void> {
-		this.setState({ property, persistedAs: label });
+		this.setState({ property, value: undefined, persistedAs: label, incoming: undefined });
 		this.spinnerStatus = "Fetching...";
 		// Sort by the clicked property only when the topology declares it sortable; otherwise (the idField, or any field
 		// not in sortColumns, e.g. a SeqPath's id) fall back to the default sort so browsing all of this type still works
@@ -81,7 +82,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 	}
 
 	async openIncoming(targetId: string, targetLabel: string): Promise<void> {
-		this.setState({ persistedAs: targetLabel, property: "linksTo", value: targetId });
+		this.setState({ persistedAs: targetLabel, property: undefined, value: undefined, incoming: targetId });
 		this.spinnerStatus = "Fetching...";
 		await this.fetchIncoming(targetLabel, targetId, 50, 0);
 	}
@@ -138,10 +139,20 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 		if (!table || source === undefined) return;
 		table.updateState({ displayMode: "full", fixedProperty: this.state.property });
 		if (this.state.persistedAs) table.persistedAs = this.state.persistedAs;
+		table.collection = paneHref(this.#listing());
 		if (this.#installed?.table !== table || this.#installed.source !== source) {
 			table.setSource(source);
 			this.#installed = { table, source };
 		}
+	}
+
+	/** The pane the column's listing is: the records whose edges reach a record, or whose property holds a value or is stated. */
+	#listing(): DesiredPane {
+		const { persistedAs, property, value, incoming } = this.state;
+		if (persistedAs === undefined) throw new Error("<shu-filter-column> lists records before it is opened at a type");
+		if (incoming !== undefined) return { paneType: "filter-incoming", persistedAs, subject: incoming };
+		if (property === undefined) throw new Error(`<shu-filter-column> lists ${persistedAs} without a property or a record its edges reach`);
+		return value === undefined ? { paneType: "filter-prop", persistedAs, predicate: property } : { paneType: "filter-eq", persistedAs, predicate: property, value };
 	}
 
 	/** A filtered list shows records of one type, so an ask or a graph from here is about that type. */

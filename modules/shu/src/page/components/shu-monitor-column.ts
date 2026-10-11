@@ -21,9 +21,12 @@ import type { WindowedSource } from "../../windowed-source.js";
 import type { TScrollMarker } from "../derivations/rail.js";
 import { artifactAt, artifactUrl } from "../../artifact-url.js";
 import { unavailableOrEmpty } from "./empty-state.js";
-import { actionRef, fieldRef, originLink, refTpl } from "./shu-ref.js";
-import { parseSeqPath, SEQ_PATH_EDGE } from "@haibun/core/lib/seq-path.js";
-import { SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
+import { actionRef, originLink, refTpl, stepPathTpl } from "./shu-ref.js";
+import { StepLineSchema, type TStepLine } from "@haibun/core/lib/seq-path.js";
+import { stepPathOfEvent } from "../derivations/steps.js";
+import { artifactOf } from "@haibun/core/lib/run-artifact.js";
+import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
+import { principalAddress, SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
 import { currentRowIndex, cursorMark } from "../derivations/rail.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
 import { requestPaneFrom } from "../controllers/pane-controller.js";
@@ -54,19 +57,11 @@ export function opens(row: TLogRow): DesiredPane | undefined {
 	return row.record ? { paneType: "entity", persistedAs: row.record.persistedAs, id: row.record.id } : undefined;
 }
 
-/** A step's outcome, how long it took, where it ran, and what it had to hold to run: what its own record holds, and what a
- *  row carries beside its words. */
-const RowOutcomeSchema = z.object({
-	status: z.string().optional(),
-	durationMs: z.number().optional(),
-	ranVia: z.string().optional(),
-	ranOn: z.string().optional(),
-	capabilityAction: z.string().optional(),
-	allowedAction: z.string().optional(),
-	performedBy: z.string().optional(),
-});
-
-export type TLogRow = z.infer<typeof RowOutcomeSchema> & {
+export type TLogRow = {
+	/** How a step went, or how a lifecycle row reports it. */
+	status?: string;
+	/** A step's line: how long it took, where it ran, and what it had to hold to run, as its record states them. */
+	line?: TStepLine;
 	time: string;
 	timestamp: number;
 	level: string;
@@ -74,7 +69,8 @@ export type TLogRow = z.infer<typeof RowOutcomeSchema> & {
 	message: string;
 	/** The one glyph the row carries: how the step went, or the level a message reports at. */
 	icon: string;
-	seqPath?: number[];
+	/** The path of the step the row is of, or was logged or produced during. */
+	path?: number[];
 	/** The record this row is: pressing a row opens it, and a row that is not a step is opened the way any record of
 	 *  the graph is. */
 	record?: { persistedAs: string; id: string };
@@ -95,7 +91,11 @@ export type TLogRow = z.infer<typeof RowOutcomeSchema> & {
 const carried = (e: Record<string, unknown> | undefined): boolean => e?.carriedBy !== undefined;
 
 /** What a produced thing is called: what kind it is and where it is, as actuality recorded it. */
-const producedName = (e: Record<string, unknown>): string => `${String(e.artifactType ?? "")} ${String(e.featureRelativePath ?? e.path ?? "")}`.trim();
+function producedName(e: Record<string, unknown>): string {
+	const artifact = artifactOf(e);
+	const at = artifact.besideFeature ?? artifact.path;
+	return at === undefined ? artifact.kind : `${artifact.kind} ${at}`;
+}
 
 const LEVEL_ICONS: Record<string, string> = { error: ICON_LOG_ERROR, warn: ICON_LOG_WARN, info: ICON_LOG_INFO, debug: "💬", trace: "🔍" };
 const LEVEL_ORDER: readonly string[] = HAIBUN_LOG_LEVELS;
@@ -272,19 +272,17 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		// step it belongs to, and a raw id in its place isn't readable to a reader.
 		const step = String(e.in ?? "");
 		// What a row shows beside the step it names: what was logged, what was produced, or how the step it names turned out.
-		const isOf = producedName(e);
-		const said = e.kind === "artifact" ? isOf : String(e.called || e.type || "");
+		const said = e.kind === "artifact" ? producedName(e) : String(e.called || e.type || "");
 		const message = e.kind === "log" ? String((e as { message?: string }).message || "") : said;
 		// One glyph per row, and the one that indicates something: how a step went, and the level a message reports at. Every
 		// step of a run reports at the same level, so a level glyph on a step row doesn't separate the rows.
 		const icon = e.kind === "log" ? (LEVEL_ICONS[level] ?? ICON_DEFAULT) : eventMarkerStyle(e).icon;
-		let seqPath = Array.isArray(e.seqPath) ? (e.seqPath as number[]) : undefined;
-		if (!seqPath && typeof e.id === "string") seqPath = parseSeqPath(e.id as string) ?? undefined;
+		const path = stepPathOfEvent(e);
 		// What the step produced, as images a reader can see: a produced thing that is not an image is named by actuality's
 		// own document rather than drawn here.
 		const made = Array.isArray(e.produced) ? (e.produced as Array<Record<string, unknown>>) : [];
 		const produced = made
-			.filter((one) => one.artifactType === "image")
+			.filter((one) => artifactOf(one).kind === "image")
 			.map((one) => ({ url: artifactUrl(one) ?? "", what: producedName(one) }))
 			.filter((one) => one.url !== "");
 		const partOf = Array.isArray(e.partOf) ? (e.partOf as number[]) : undefined;
@@ -295,12 +293,13 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			step,
 			message,
 			icon,
-			seqPath,
+			...(path === undefined ? {} : { path }),
 			...(e.record === undefined ? {} : { record: e.record as { persistedAs: string; id: string } }),
 			mark: markFor(e),
 			...(produced.length ? { produced } : {}),
 			...(partOf === undefined ? {} : { partOf }),
-			...RowOutcomeSchema.parse(e),
+			...(typeof e.status === "string" ? { status: e.status } : {}),
+			...(e.line === undefined ? {} : { line: StepLineSchema.parse(e.line) }),
 		};
 		this.#rowCache.set(e, row);
 		return row;
@@ -418,10 +417,13 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		// Where the step ran, how long it took, and what it had to hold to run: its own record states all of it, so a row
 		// states it rather than being paired with a separate account of the same act. A step that doesn't require a capability
 		// doesn't state one, so the rows mentioning a capability are exactly the acts that needed one.
-		const dispatchText = r.ranVia ? html`${r.ranVia}${r.ranOn ? html` ${originLink(r.ranOn)}` : ""}${r.durationMs === undefined ? "" : ` ${r.durationMs}ms`}` : "";
-		const capabilityRefused = r.capabilityAction !== undefined && r.allowedAction === undefined;
-		const capability = r.capabilityAction
-			? html`${capabilityRefused ? "🔒" : "🔓"} ${actionRef(r.capabilityAction)}${r.performedBy ? html` ${fieldRef(SEQ_PATH_LABEL, SEQ_PATH_EDGE.performedBy, r.performedBy)}` : ""}`
+		const dispatch = r.line?.dispatch;
+		const tookMs = r.line?.tookMs;
+		const dispatchText = dispatch ? html`${dispatch.via}${dispatch.on ? html` ${originLink(dispatch.on)}` : ""}${tookMs === undefined ? "" : ` ${tookMs}ms`}` : "";
+		const action = r.line?.action;
+		const capabilityRefused = action !== undefined && action.allowed === undefined;
+		const capability = action
+			? html`${capabilityRefused ? "🔒" : "🔓"} ${actionRef(action.required)}${action.holder ? html` ${refTpl(REF_DENOTES.individual, principalAddress(action.holder), action.holder)}` : ""}`
 			: "";
 		// What the step produced, beside its words: the row of the step a reader sees is where a screenshot taken during it
 		// is shown, and pressing one opens the image itself.
@@ -430,13 +432,13 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 			: "";
 		// A substep names which step it was run to carry out, and reading that step from here is the same act as reading
 		// its own row: a reader shown a step of the machinery is one press from the step of the feature that ran it.
-		const seqPath = r.partOf
-			? html`<span class="seqpath">[<span class="established-by" title="the step this was run to carry out">${refTpl("seqPath", { seqPath: r.partOf }, r.partOf.join("."), SHU_TEST_IDS.MONITOR.ESTABLISHED_BY)}</span>${(r.seqPath ?? []).slice(r.partOf.length).map((n) => `.${n}`)}] </span>`
-			: r.seqPath
-				? html`<span class="seqpath">[${r.seqPath.join(".")}] </span>`
+		const stepPath = r.partOf
+			? html`<span class="seqpath">[<span class="established-by" title="the step this was run to carry out">${stepPathTpl(r.partOf, r.partOf.join("."), SHU_TEST_IDS.MONITOR.ESTABLISHED_BY)}</span>${(r.path ?? []).slice(r.partOf.length).map((n) => `.${n}`)}] </span>`
+			: r.path
+				? html`<span class="seqpath">[${r.path.join(".")}] </span>`
 				: "";
 		return html`<div class="log-row${cls}" data-testid=${testId}>
-			<span class="time-group" @click=${this.onTimeClick(r.timestamp)}>${seqPath}<span class="time">${r.time}</span></span>
+			<span class="time-group" @click=${this.onTimeClick(r.timestamp)}>${stepPath}<span class="time">${r.time}</span></span>
 			<span class="row-content" @click=${this.onRowClick(r)}>${r.status === SEQ_PATH_STATUS.running ? html`<span class="loader"></span>` : html`<span class="icon">${r.icon}</span>`} <span class="step">${r.step}</span> <span class="msg">${r.message}</span>${dispatchText ? html` <span class="dispatch">${dispatchText}</span>` : ""}${capability ? html` <span class="capability${capabilityRefused ? " refused" : ""}" title="capability required to run this step">${capability}</span>` : ""}${produced}</span>
 		</div>`;
 	};

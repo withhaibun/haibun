@@ -62,7 +62,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	#steps = new ActionsBarSteps(this, { testIdPrefix: () => this.testIdPrefix, selectedLabel: () => this.#query.selectedLabel, history: this._history });
 	/** The page's context, which the search describes, read wherever the bar is placed. */
 	#context = new SignalController(this, pageContext, (context) => {
-		if (context) this.#query.setContext(context.patterns, context.accessLevel, context);
+		if (context) this.#query.setContext(context.patterns, context.readLevel, context);
 	});
 
 	static observedHtmlAttributes = ["api-base", "testid-prefix"];

@@ -27,19 +27,33 @@ export function utf8ToBase64(str: string): string {
 	return btoa(binary);
 }
 
+/** The kind of a reference to a step by its path within the execution the page reads. */
+const STEP_PATH_KIND = "seqPath";
 /** The kinds of reference a `<shu-ref>` names. */
-export const REF_KIND = ["seqPath", REF_DENOTES.individual, REF_DENOTES.type, "step", "action"] as const;
+export const REF_KIND = [STEP_PATH_KIND, REF_DENOTES.individual, REF_DENOTES.type, "step", "action"] as const;
 export type TRefKind = (typeof REF_KIND)[number];
 
 /** Whether `v` names a kind of reference. */
 export const isRefKind = (v: string | null | undefined): v is TRefKind => typeof v === "string" && (REF_KIND as readonly string[]).includes(v);
+
+/** A reference to the step at `path` within the execution the page reads: its kind and its target. */
+export const stepPathRef = (path: readonly number[]): { kind: TRefKind; target: Record<string, unknown> } => ({ kind: STEP_PATH_KIND, target: { seqPath: [...path] } });
+
+/** Returns the step path a reference names, where it is a reference to a step by its path. */
+export function stepPathOf(kind: string, target: Record<string, unknown>): number[] | undefined {
+	if (kind !== STEP_PATH_KIND) return undefined;
+	const path = target.seqPath;
+	if (!Array.isArray(path) || !path.every((n) => typeof n === "number")) throw new Error(`a reference to a step names its path as ${JSON.stringify(path)}, not numbers`);
+	return path;
+}
 
 /** Returns the words a reference of `kind` to `targetJson` reads as where its text isn't given, or an empty text where the
  *  element's attributes don't state a kind and a target. */
 export function refLabel(kind: string | null, targetJson: string | null): string {
 	if (!kind || !targetJson) return "";
 	const target = JsonObjectTextSchema.parse(targetJson);
-	if (kind === "seqPath" && Array.isArray(target.seqPath)) return (target.seqPath as number[]).join(".");
+	const path = stepPathOf(kind, target);
+	if (path !== undefined) return path.join(".");
 	if (kind === REF_DENOTES.individual && typeof target.id === "string") return target.id;
 	if (kind === REF_DENOTES.type && typeof target.domain === "string") return target.domain;
 	if (kind === "step" && typeof target.method === "string") return target.method;

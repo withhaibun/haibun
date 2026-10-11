@@ -27,7 +27,7 @@ import "./shu-virtual-column.js";
 import { virtualColumnCss } from "./shu-virtual-column.js";
 import { atLiveEdge, graphRunSource, type RunSource, type TEventRecord } from "../../client-cache/index.js";
 import type { WindowedSource } from "../../windowed-source.js";
-import { splitDocumentBlocks, finalizeBlocks, blocksByEvent, blockText, withHeadingAnchors, type TDocBlock } from "../derivations/document-blocks.js";
+import { splitDocumentBlocks, finalizeBlocks, blocksByEvent, blockText, withHeadingAnchors, isArtifactOf, type TDocBlock } from "../derivations/document-blocks.js";
 import { currentRowIndex, cursorMark, rowTimeClass } from "../derivations/rail.js";
 import type { TScrollMarker } from "../derivations/rail.js";
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel } from "@haibun/core/schema/protocol.js";
@@ -435,18 +435,17 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	};
 
 	private renderArtifact(artifact: TArtifactEvent): string {
-		const type = artifact.artifactType;
 		const artifactPath = artifactUrl(artifact);
 		// A frame's data-step-id holds the id of the step that produced its artifact. The fullscreen caption and the time cursor read it.
 		const step = `data-step-id="${esc(artifactStepId(artifact.id))}"`;
-		if (type === "image") {
+		if (isArtifactOf(artifact, "image")) {
 			// Decoded off the thread that draws the page: a strip holds many tiles, and each is a screenshot of a whole page.
 			return `<shu-artifact-frame class="thumb" ${step}><img ${SHU_ATTR.DATA_ARTIFACT}="${esc(String(artifactPath))}" loading="lazy" decoding="async" /></shu-artifact-frame>`;
 		}
-		if (type === "html")
+		if (isArtifactOf(artifact, "html"))
 			return `<shu-artifact-frame ${step}><iframe ${SHU_ATTR.DATA_ARTIFACT}="${esc(String(artifactPath))}" loading="lazy" sandbox="${ARTIFACT_SANDBOX}" style="width:100%;min-height:80vh;border:none;"></iframe></shu-artifact-frame>`;
-		if (type === "json") return `<shu-artifact-frame ${step}><div class="json-block">${jsonDisclosure(artifact.json)}</div></shu-artifact-frame>`;
-		if (type === "file")
+		if (isArtifactOf(artifact, "json")) return `<shu-artifact-frame ${step}><div class="json-block">${jsonDisclosure(artifact.json)}</div></shu-artifact-frame>`;
+		if (isArtifactOf(artifact, "file"))
 			return `<shu-artifact-frame ${step} caption="${esc(String(artifact.path))}">${artifactPath ? `<a href="${esc(artifactPath)}">${esc(String(artifact.path))}</a>` : esc(String(artifact.path))}</shu-artifact-frame>`;
 		return "";
 	}

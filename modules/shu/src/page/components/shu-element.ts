@@ -43,7 +43,7 @@ import { z } from "zod";
 import { SHU_TAG, SHU_ATTR, SHU_EVENT, SPINE_SLOT } from "../../domains/elements.js";
 import { activePane } from "../controllers/page-cell-controller.js";
 import type { TSharedCell } from "../ports.js";
-import { parseTimestampValue, type TLinkedData } from "@haibun/core/lib/hypermedia.js";
+import type { TLinkedData } from "@haibun/core/lib/hypermedia.js";
 import { unwrap as unwrapWrappers } from "@haibun/core/lib/zod-unwrap.js";
 // Re-exported so every view can annotate its summarizeForKihan as `TLinkedData | null` from the same import it already
 // takes for ShuElement, instead of each reaching into core for the node-object type.
@@ -52,7 +52,7 @@ export const EmptyStateSchema = z.object({});
 
 export type { TLinkedData };
 import { getRels } from "../controllers/catalog-controller.js";
-import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { recordTime } from "../derivations/record-fields.js";
 import * as PageHash from "../controllers/hash-controller.js";
 import { subscribeBatchedEvents } from "../controllers/event-stream-controller.js";
 import { type TEvent, type TEventFilter } from "../ports.js";
@@ -466,24 +466,10 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 		this.requestUpdate();
 	}
 
-	/** Extract creation timestamp from an individual using concern metadata. Prefers the uniform creation field (rel generatedAtTime), then the published field (LinkRelations.PUBLISHED), then common fallbacks. */
-	protected extractTimestamp(vertex: Record<string, unknown>, label?: string): number | null {
-		if (label) {
-			const rels = getRels(label);
-			if (rels) {
-				for (const [field, rel] of Object.entries(rels)) {
-					if (rel === LinkRelations.GENERATED_AT_TIME.rel) return parseTimestampValue(vertex[field]);
-				}
-				for (const [field, rel] of Object.entries(rels)) {
-					if (rel === LinkRelations.PUBLISHED.rel) return parseTimestampValue(vertex[field]);
-				}
-			}
-		}
-		for (const key of ["generatedAtTime", "validFrom", "dateCreated"]) {
-			const val = parseTimestampValue(vertex[key]);
-			if (val !== null) return val;
-		}
-		return null;
+	/** Returns when a record of `label` was made, as its type's creation or published field states it. */
+	protected extractTimestamp(vertex: Record<string, unknown>, label: string): number | null {
+		const rels = getRels(label);
+		return rels === undefined ? null : recordTime(vertex, rels);
 	}
 
 	/** Wrap a view's hypermedia products as a W3C `<script type="application/ld+json">` block. Used when a view wants to embed its structured payload for the chat-context harvester / a downstream agent following `_links`. */

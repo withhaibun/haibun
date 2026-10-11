@@ -44,7 +44,7 @@ describe("shu-step-detail", () => {
 			stepText: "a step",
 			called: "S.does",
 			actionStatus: "passed",
-			ranVia: "rpc",
+			ranVia: "remote",
 			level: "info",
 			generatedAtTime: new Date(1000).toISOString(),
 			endedAtTime: new Date(1005).toISOString(),
@@ -73,7 +73,7 @@ describe("shu-step-detail", () => {
 		const t = text(el);
 		expect(t).toContain("Step [0.1]");
 		expect(t, "what ran, and how it went").toContain("S.does");
-		expect(t, "where it ran and how long it took, which its record states").toContain("rpc 5ms");
+		expect(t, "where it ran and how long it took, which its record states").toContain("remote 5ms");
 		expect(t).toContain("Data set (1)");
 		expect(t).toContain("myVar");
 	});

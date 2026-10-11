@@ -224,6 +224,46 @@ export const SeqPathSchema = PersistedVertexSchema.extend({
 });
 export type TSeqPath = z.infer<typeof SeqPathSchema>;
 
+/** A step as a line reads it: its words, the action that ran it, how it ended and why where it failed, when it began and
+ *   ended and how long it took, how it reached what ran it, and the capability it required, what allowed it and who held it. */
+export const StepLineSchema = z.object({
+	text: z.string(),
+	called: z.string().optional(),
+	status: z.enum(STATUS_VALUES),
+	error: z.string().optional(),
+	began: z.string(),
+	ended: z.string().optional(),
+	tookMs: z.number().optional(),
+	dispatch: z.object({ via: z.enum(["local", "remote"]), on: z.string().optional() }).optional(),
+	action: z.object({ required: z.string(), allowed: z.string().optional(), holder: z.string().optional() }).optional(),
+});
+export type TStepLine = z.infer<typeof StepLineSchema>;
+
+/** Returns a step record's line. Throws for a record that isn't a step's. */
+export function stepLine(record: Record<string, unknown>): TStepLine {
+	const step = SeqPathSchema.parse(record);
+	const began = step[SEQ_PATH_FIELD.generatedAtTime];
+	const ended = step[SEQ_PATH_FIELD.endedAtTime];
+	const via = step[SEQ_PATH_FIELD.ranVia];
+	const on = step[SEQ_PATH_FIELD.ranOn];
+	const required = step[SEQ_PATH_FIELD.capabilityAction];
+	const allowed = step[SEQ_PATH_FIELD.allowedAction];
+	const performedBy = record[SEQ_PATH_EDGE.performedBy];
+	if (performedBy !== undefined && typeof performedBy !== "string") throw new Error(`the step ${step.id} names the principal who performed it as ${typeof performedBy}, not an id`);
+	const called = step[SEQ_PATH_FIELD.called];
+	const error = step[SEQ_PATH_FIELD.error];
+	return {
+		text: step[SEQ_PATH_FIELD.stepText],
+		status: step[SEQ_PATH_FIELD.actionStatus],
+		began,
+		...(called === undefined ? {} : { called }),
+		...(error === undefined ? {} : { error }),
+		...(ended === undefined ? {} : { ended, tookMs: Date.parse(ended) - Date.parse(began) }),
+		...(via === undefined ? {} : { dispatch: on === undefined ? { via } : { via, on } }),
+		...(required === undefined ? {} : { action: { required, ...(allowed === undefined ? {} : { allowed }), ...(performedBy === undefined ? {} : { holder: performedBy }) } }),
+	};
+}
+
 export const seqPathDomainDefinition: TDomainDefinition = {
 	selectors: [SEQ_PATH_DOMAIN],
 	schema: SeqPathSchema,

@@ -159,7 +159,7 @@ describe("the views of a run, over the records it wrote", () => {
 
 	it("states on the row where the step ran and how it went, rather than pairing it with a separate account of the same act", async () => {
 		const mon = await open(ShuMonitorColumn);
-		expect(mon.rows[0]).toMatchObject({ status: "passed", ranVia: "local" });
+		expect(mon.rows[0]).toMatchObject({ status: "passed", line: expect.objectContaining({ dispatch: { via: "local" } }) });
 	});
 
 	it("shows what a step logged as its own row, under the step it was logged during", async () => {

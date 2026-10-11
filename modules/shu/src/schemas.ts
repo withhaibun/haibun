@@ -122,7 +122,9 @@ export const EntityColumnSchema = z.object({
 
 // --- Filter column ---
 
-export const FilterColumnSchema = z.object({ persistedAs: z.string().optional(), property: z.string().optional(), value: z.string().optional() });
+/** A filter column's listing: the records of a type whose property holds a value, or whose edges reach the record
+ *  `incoming` names, as the `filter-incoming` pane addresses it. */
+export const FilterColumnSchema = z.object({ persistedAs: z.string().optional(), property: z.string().optional(), value: z.string().optional(), incoming: z.string().optional() });
 
 /** The type a reader chooses to search, as the page strip states it. */
 export const TypeChoiceSchema = z.object({ key: z.string().min(1) });
@@ -180,7 +182,7 @@ export const ContextQuerySchema = z.array(ContextPatternSchema);
  *  view knows of them. A view states it with `CONTEXT_CHANGE`, and the app checks it against this schema. */
 export const PageContextSchema = z.object({
 	patterns: ContextQuerySchema,
-	accessLevel: AccessQueryLevelSchema,
+	readLevel: AccessQueryLevelSchema,
 	label: z.string().optional(),
 	total: CountedSchema.optional(),
 	folder: z.string().optional(),

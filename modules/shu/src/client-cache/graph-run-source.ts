@@ -13,6 +13,7 @@
  * happened, and following takes what has changed rather than what the run holds, which is what keeps a run of years
  * readable.
  */
+import { stepLine } from "@haibun/core/lib/seq-path.js";
 import { HAIBUN_LOG_LEVELS, declaredName, declaresFeature, declaresScenario, type THaibunLogLevel } from "@haibun/core/schema/protocol.js";
 import { subscribeBatchedEvents } from "../page/controllers/event-stream-controller.js";
 import { pagePreferences } from "../page/root.js";
@@ -99,12 +100,9 @@ function stepRecord(row: TRunRow, seqPath: number[] | undefined): TEventRecord {
 		...(row.error === undefined ? {} : { error: row.error }),
 		...(row.showed === undefined ? {} : { showed: row.showed }),
 		timestamp: row.at,
-		...(row.endedAt === undefined ? {} : { endedAt: row.endedAt, durationMs: row.endedAt - row.at }),
-		...(row.ranVia === undefined ? {} : { ranVia: row.ranVia }),
-		...(row.ranOn === undefined ? {} : { ranOn: row.ranOn }),
-		...(row.capabilityAction === undefined ? {} : { capabilityAction: row.capabilityAction }),
-		...(row.allowedAction === undefined ? {} : { allowedAction: row.allowedAction }),
-		...(row.performedBy === undefined ? {} : { performedBy: row.performedBy }),
+		...(row.endedAt === undefined ? {} : { endedAt: row.endedAt }),
+		// The step's words, outcome, times, dispatch and action, as core reads a step's record.
+		line: stepLine(row.record),
 		// The step a substep was run to carry out, so a reader shown one reads the step that established it.
 		...(row.partOf === undefined ? {} : { partOf: row.partOf }),
 		// What this step produced, shown by the row of the step a reader sees rather than by rows of its own.

@@ -81,7 +81,16 @@ describe("the actuality a view reads, over the records it wrote", () => {
 		const source = graphRunSource("debug");
 		await source.ready();
 		expect(source.count()).toBe(4);
-		expect(source.rowAt(0)).toMatchObject({ id: `${RUN}.0.1`, kind: "lifecycle", type: "step", in: "a step", status: "passed", timestamp: 1000, endedAt: 1300, durationMs: 300 });
+		expect(source.rowAt(0)).toMatchObject({
+			id: `${RUN}.0.1`,
+			kind: "lifecycle",
+			type: "step",
+			in: "a step",
+			status: "passed",
+			timestamp: 1000,
+			endedAt: 1300,
+			line: expect.objectContaining({ tookMs: 300 }),
+		});
 		expect(source.rowAt(1), "a statement is shown under the step it was logged during, which is what names its row").toMatchObject({
 			id: `${RUN}.0.1`,
 			kind: "log",

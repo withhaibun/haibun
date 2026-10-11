@@ -73,8 +73,8 @@ type TPageStripCornersDeps = {
 	testIdPrefix: () => string;
 	/** The top edge a popover opens above: the strip's, or an open docked pane's above it, whose input line it keeps clear. */
 	anchorTop: () => number;
-	accessLevel: () => string;
-	setAccessLevel: (level: AccessQueryLevel) => void;
+	readLevel: () => string;
+	setReadLevel: (level: AccessQueryLevel) => void;
 };
 
 export class PageStripCorners implements ReactiveController {
@@ -176,11 +176,11 @@ export class PageStripCorners implements ReactiveController {
 						: this.#open === "access"
 							? html`<shu-permissions
 								data-testid=${`${prefix}permissions`}
-								.level=${this.#deps.accessLevel()}
+								.level=${this.#deps.readLevel()}
 								.levels=${AccessQueryLevelSchema.options}
 								.awaiting=${this.#awaiting.count}
 								.awaitingRef=${this.#awaiting.ref}
-								.onLevelChange=${(level: string) => this.#deps.setAccessLevel(AccessQueryLevelSchema.parse(level))}
+								.onLevelChange=${(level: string) => this.#deps.setReadLevel(AccessQueryLevelSchema.parse(level))}
 							></shu-permissions>`
 							: nothing;
 		const extensions = unsafeHTML(
@@ -204,7 +204,7 @@ export class PageStripCorners implements ReactiveController {
 	/** The access indicator with what the reader holds and what awaits them, the settings, and the time offset. */
 	controlsTemplate(): TemplateResult {
 		const prefix = this.#deps.testIdPrefix();
-		const level = this.#deps.accessLevel();
+		const level = this.#deps.readLevel();
 		const { holds, principals } = this.#summary;
 		const awaiting = this.#awaiting.count;
 		return html`<span class="corner-controls">

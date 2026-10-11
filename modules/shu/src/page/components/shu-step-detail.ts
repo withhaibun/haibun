@@ -18,7 +18,7 @@ import { shuBaseStyles } from "./styles.js";
 import { subscribeBatchedEvents } from "../controllers/event-stream-controller.js";
 import { variablesSetBy, type TVariableSet } from "../../quads-snapshot.js";
 import { anIndividual, type TContextPattern } from "../../schemas.js";
-import { formatSeqPath, parseRecordName, SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
+import { formatSeqPath, parseRecordName, stepLine, type TStepLine } from "@haibun/core/lib/seq-path.js";
 import { actionRef, calledRef, originLink, refTpl } from "./shu-ref.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { ClockController } from "../controllers/clock-controller.js";
@@ -107,7 +107,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		// whenever the actuality being read moves on, which isn't a move of the reader's, so it doesn't state the subject.
 		const patterns = this.paneSubject();
 		if (patterns)
-			this.dispatchEvent(new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns, accessLevel: appAccessLevel(), label: persistedAs }, bubbles: true, composed: true }));
+			this.dispatchEvent(new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns, readLevel: appAccessLevel(), label: persistedAs }, bubbles: true, composed: true }));
 		await this.updateComplete;
 		await this.#load.run();
 	}
@@ -130,7 +130,8 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 
 	/** Whether the step this pane shows has ended, which is when its record stops changing. */
 	#ended(): boolean {
-		return typeof this.#load.page?.step?.[SEQ_PATH_FIELD.endedAtTime] === "string";
+		const step = this.#load.page?.step;
+		return step !== undefined && stepLine(step).ended !== undefined;
 	}
 
 	/** A variable the step set, as a link to its record. */
@@ -152,31 +153,25 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		});
 	}
 
+	/** A step's words, its action and how it ended, where and how long it ran, and the capability it required. The glyph
+	 *  is the one the log and the rail use, so a speculative try or a handed-out call isn't shown as a fault. */
+	private renderLine(line: TStepLine): TemplateResult {
+		const { dispatch, action } = line;
+		return html`
+			<div class="field"><span class="label">Step:</span> <span class="value">${line.text}</span></div>
+			<div class="field"><span class="label">Action:</span> <span class="value">${eventMarkerStyle({ status: line.status, kind: "lifecycle", type: "step" }).icon} ${line.called === undefined ? "" : calledRef(line.called)}</span></div>
+			${line.error === undefined ? "" : html`<div class="field"><span class="label">Error:</span> <span class="value" style="color:var(--shu-error)">${line.error}</span></div>`}
+			<div class="section"><span class="label">Ran:</span> <span class="value">${dispatch === undefined ? "" : dispatch.via}${dispatch?.on === undefined ? "" : html` ${originLink(dispatch.on)}`}${line.tookMs === undefined ? "" : ` ${line.tookMs}ms`}</span></div>
+			${action === undefined ? "" : html`<div class="field"><span class="label">Capability:</span> <span class="value">${actionRef(action.required)}${action.allowed === undefined ? "" : html` allowed by ${actionRef(action.allowed)}`}</span></div>`}`;
+	}
+
 	private renderContent(key: string, data: TStepData): TemplateResult {
 		const { step, variablesSet } = data;
 		if (!step && variablesSet.length === 0) return html`<div class="empty">Actuality doesn't hold a record of step [${key}]</div>`;
-		const field = (name: string): string => (step && typeof step[name] === "string" ? String(step[name]) : "");
-		// The same glyph the log and the rail use, so a speculative try or a handed-out call is not shown as a fault.
-		const status = field(SEQ_PATH_FIELD.actionStatus) ? eventMarkerStyle({ status: field(SEQ_PATH_FIELD.actionStatus), kind: "lifecycle", type: "step" }).icon : "";
-		const began = Date.parse(field(SEQ_PATH_FIELD.generatedAtTime));
-		const ended = Date.parse(field(SEQ_PATH_FIELD.endedAtTime));
-		const took = Number.isNaN(began) || Number.isNaN(ended) ? "" : `${ended - began}ms`;
-		const ranOn = field(SEQ_PATH_FIELD.ranOn);
-		const capability = field(SEQ_PATH_FIELD.capabilityAction);
-		const allowed = field(SEQ_PATH_FIELD.allowedAction);
+		const line = step === undefined ? undefined : stepLine(step);
 		return html`<div class="step-detail">
 			<h4>Step [${key}]</h4>
-			${
-				step
-					? html`
-				<div class="field"><span class="label">Step:</span> <span class="value">${field(SEQ_PATH_FIELD.stepText)}</span></div>
-				<div class="field"><span class="label">Action:</span> <span class="value">${status} ${field(SEQ_PATH_FIELD.called) ? calledRef(field(SEQ_PATH_FIELD.called)) : ""}</span></div>
-				${field(SEQ_PATH_FIELD.error) ? html`<div class="field"><span class="label">Error:</span> <span class="value" style="color:var(--shu-error)">${field(SEQ_PATH_FIELD.error)}</span></div>` : ""}
-				<div class="section"><span class="label">Ran:</span> <span class="value">${field(SEQ_PATH_FIELD.ranVia)}${ranOn ? html` ${originLink(ranOn)}` : ""}${took ? ` ${took}` : ""}</span></div>
-				${capability ? html`<div class="field"><span class="label">Capability:</span> <span class="value">${actionRef(capability)}${allowed ? html` allowed by ${actionRef(allowed)}` : ""}</span></div>` : ""}
-			`
-					: ""
-			}
+			${line === undefined ? "" : this.renderLine(line)}
 			${
 				variablesSet.length > 0
 					? html`

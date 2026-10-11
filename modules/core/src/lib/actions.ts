@@ -20,6 +20,9 @@ export function actionList(listed: string | undefined): string[] {
 /** The action a read at `level` requires. */
 export const readAction = (level: AccessLevel): string => `${READ_PREFIX}${level}`;
 
+/** The read action a reader holds to open a record, at the level the record states. */
+export const recordReadAction = (record: { accessLevel: AccessLevel }): string => readAction(record.accessLevel);
+
 /** The level a read action names, or undefined for any other action. */
 function readLevelOf(action: string): AccessLevel | undefined {
 	if (!action.startsWith(READ_PREFIX)) return undefined;

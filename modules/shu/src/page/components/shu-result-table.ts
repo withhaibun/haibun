@@ -17,7 +17,7 @@ import { html, css, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { shuBaseStyles } from "./styles.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { statedTotal, viewCollection } from "@haibun/core/lib/hypermedia.js";
+import { viewCollection } from "@haibun/core/lib/hypermedia.js";
 import { SHU_EVENT, SHU_TAG, TIME_SYNC_CLASS } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { z } from "zod";
@@ -30,6 +30,7 @@ import { virtualColumnCss } from "./shu-virtual-column.js";
 import { arrayWindowedSource, statedCountOf, type WindowedSource } from "../../windowed-source.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
 import { renderRef } from "../derivations/markdown.js";
+import { countRef } from "./shu-ref.js";
 import { idOf, isVisibleKey } from "../controllers/record-controller.js";
 import { persistedTypeOf } from "../derivations/record-fields.js";
 
@@ -104,6 +105,13 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 	private allProperties: string[] = [];
 	private sortableFields: ReadonlySet<string> = new Set();
 	persistedAs = "";
+	/** The address of what the rows count, which the total links: the query, the type or the listing the host shows. */
+	collection: string | undefined = undefined;
+
+	#collectionHref(): string {
+		if (this.collection === undefined) throw new Error("<shu-result-table> states a total without the address of what it counts; its host sets collection");
+		return this.collection;
+	}
 	private selectedIds = new Set<string>();
 	#multiType = false;
 	#residentSource = arrayWindowedSource<VertexRow>([]);
@@ -239,7 +247,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 					<shu-virtual-column .source=${this.#source} .renderRow=${(i: number, r: unknown) => this.#renderRow(i, r)}></shu-virtual-column>
 				</div>
 			</div>
-			${stated.total > 0 ? html`<span class="result-total" data-testid="query-total">${statedTotal(stated)}</span>` : ""}
+			${stated.total > 0 ? html`<span class="result-total">${countRef(stated, this.#collectionHref(), "query-total")}</span>` : ""}
 		`;
 	}
 

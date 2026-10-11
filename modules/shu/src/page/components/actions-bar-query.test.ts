@@ -33,7 +33,7 @@ const CACHED = [{ subject: "m0", predicate: "folder", object: "INBOX", namedGrap
 /** A type the address names that actuality doesn't hold. */
 const NOT_HELD = "Nothing";
 
-type TFilterChange = { asked: boolean; label: string; accessLevel: string; conditions: TSearchCondition[] };
+type TFilterChange = { asked: boolean; label: string; readLevel: string; conditions: TSearchCondition[] };
 
 async function aQueryPage(hash = "") {
 	history.replaceState(null, "", hash || location.pathname);
@@ -105,13 +105,13 @@ describe("the actions bar's search mode", () => {
 	it("reads the type and field filters the address names, and announces that search as not asked for", async () => {
 		const { query, changes } = await aQueryPage("#?label=File&f=folder|eq|Drafts");
 		expect(query.selectedLabel).toBe("File");
-		expect(changes).toEqual([{ asked: false, accessLevel: query.accessLevel, label: "File", conditions: [{ predicate: "folder", operator: "eq", value: "Drafts" }] }]);
+		expect(changes).toEqual([{ asked: false, readLevel: query.readLevel, label: "File", conditions: [{ predicate: "folder", operator: "eq", value: "Drafts" }] }]);
 	});
 
 	it("reads the first type where the address doesn't name one, and keeps a label that the types don't carry, stating that actuality doesn't hold such a type", async () => {
 		const { query, statuses } = await aQueryPage();
 		expect(query.selectedLabel).toBe("Email");
-		query.setContext([], query.accessLevel, { label: NOT_HELD });
+		query.setContext([], query.readLevel, { label: NOT_HELD });
 		expect(query.selectedLabel, "the label stays as it was named").toBe(NOT_HELD);
 		expect(pageTypes.get().selected, "the types actuality holds aren't chosen for it").toBe("");
 		expect(pageTypes.get().options.length, "and actuality's types are all offered").toBeGreaterThan(0);
@@ -123,7 +123,7 @@ describe("the actions bar's search mode", () => {
 		changes.length = 0;
 		query.chooseType("file-domain");
 		expect(query.selectedLabel).toBe("File");
-		expect(changes).toEqual([{ asked: true, accessLevel: query.accessLevel, label: "File", conditions: [] }]);
+		expect(changes).toEqual([{ asked: true, readLevel: query.readLevel, label: "File", conditions: [] }]);
 		expect(pageTypes.get().selected, "the strip shows the type the search reads").toBe("file-domain");
 	});
 

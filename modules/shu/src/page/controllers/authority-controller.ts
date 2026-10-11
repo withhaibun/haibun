@@ -1,6 +1,6 @@
 import type { ReactiveController, ReactiveControllerHost } from "lit";
-import { Access, PRINCIPAL_LABEL } from "@haibun/core/lib/resources.js";
-import { delegatedActions, readAction } from "@haibun/core/lib/actions.js";
+import { Access, principalRow, principalsQuery, type TPrincipalRow } from "@haibun/core/lib/resources.js";
+import { delegatedActions, readAction, recordReadAction } from "@haibun/core/lib/actions.js";
 import { getAvailableSteps } from "./registry-controller.js";
 import { pageAuthorityPort } from "../root.js";
 import { queryGraph } from "./read-controller.js";
@@ -14,8 +14,7 @@ export const pageHolds = (): string[] => pageAuthorityPort().holds();
 
 const pageAuthorityReady = () => pageAuthorityPort().ready();
 
-/** A principal as a view reads one: its own id, and the key it signs with where it declares one. */
-export type TPrincipalRow = { id: string; publicKey?: string };
+export type { TPrincipalRow };
 
 /** A record a view opens: the type the deployment records it as, and its id. */
 type TRecordRef = { persistedAs: string; id: string };
@@ -46,11 +45,11 @@ export class AuthorityController implements ReactiveController {
 		const grantedBy: Record<string, TRecordRef> = {};
 		for (const delegation of authority?.delegations ?? []) {
 			const record = typeof delegation.id === "string" ? authority?.records?.[delegation.id] : undefined;
-			if (!record || !pageMay(readAction(record.accessLevel))) continue;
+			if (!record || !pageMay(recordReadAction(record))) continue;
 			for (const action of delegatedActions(delegation)) grantedBy[action] ??= { persistedAs: record.persistedAs, id: String(delegation.id) };
 		}
-		const principals = pageMay(readAction(Access.public)) ? ((await queryGraph({ label: PRINCIPAL_LABEL })).vertices ?? []) : [];
-		return { controller: authority?.controller, holds: pageHolds(), grantedBy, principals: principals as TPrincipalRow[] };
+		const principals = pageMay(readAction(Access.public)) ? (await queryGraph(principalsQuery())).vertices.map(principalRow) : [];
+		return { controller: authority?.controller, holds: pageHolds(), grantedBy, principals };
 	}
 
 	/** Returns what holds here, or the refusal of its read. */

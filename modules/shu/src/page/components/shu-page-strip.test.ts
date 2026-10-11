@@ -139,7 +139,7 @@ describe("the page strip", () => {
 	});
 
 	it("changes the read access level the query reads at", async () => {
-		pageContext.set({ patterns: [], accessLevel: Access.private });
+		pageContext.set({ patterns: [], readLevel: Access.private });
 		const strip = await mountStrip();
 		const popover = strip.shadowRoot?.querySelector<HTMLElement>(".corner-popover") as HTMLElement;
 		// jsdom doesn't have a top layer, so the popover's show doesn't change its state.
@@ -150,7 +150,7 @@ describe("the page strip", () => {
 		await strip.updateComplete;
 		const permissions = strip.shadowRoot?.querySelector(`[data-testid="${PREFIX}permissions"]`) as HTMLElement & { onLevelChange: (level: string) => void };
 		permissions.onLevelChange(Access.public);
-		expect(asked).toHaveBeenCalledWith({ asked: true, accessLevel: Access.public });
+		expect(asked).toHaveBeenCalledWith({ asked: true, readLevel: Access.public });
 		await strip.updateComplete;
 		expect(control(strip, `${PREFIX}access-indicator`).textContent, "the indicator shows the level asked").toContain(Access.public);
 	});

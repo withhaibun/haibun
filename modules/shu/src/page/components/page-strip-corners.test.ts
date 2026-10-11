@@ -37,8 +37,8 @@ function aCornersPage(): TCornersPage {
 	const corners = new PageStripCorners(host, {
 		testIdPrefix: () => PREFIX,
 		anchorTop: () => host.getBoundingClientRect().top,
-		accessLevel: () => "all",
-		setAccessLevel: () => undefined,
+		readLevel: () => "all",
+		setReadLevel: () => undefined,
 	});
 	corners.hostConnected();
 	return { host, corners, popover };

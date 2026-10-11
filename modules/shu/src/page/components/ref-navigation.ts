@@ -14,7 +14,7 @@ import { formatRecordName } from "@haibun/core/lib/seq-path.js";
 import { readingExecution } from "../../client-cache/executions.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import { esc, escAttr, type TRefKind } from "../derivations/markdown.js";
+import { esc, escAttr, stepPathOf, type TRefKind } from "../derivations/markdown.js";
 import { paneOfEntry, requestPaneFrom } from "../controllers/pane-controller.js";
 import { addsToSelection, columnEntryOf, type DesiredPane } from "../derivations/pane-kinds.js";
 import { typeShownIn } from "../controllers/catalog-controller.js";
@@ -26,11 +26,10 @@ export function desiredPaneFor(kind: TRefKind, linkTarget: Record<string, unknow
 	// A step is a record, named by the execution being read and its path, and opens as its record's view (CA4D9). A typed
 	// fact's subject is its step's path, so a reference to a fact's step opens the step that produced it. Before the page
 	// reads an execution, a step's path doesn't name a record.
-	if (kind === "seqPath" && Array.isArray(linkTarget.seqPath)) {
+	const path = stepPathOf(kind, linkTarget);
+	if (path !== undefined) {
 		const execution = readingExecution();
-		return execution === undefined
-			? null
-			: { paneType: "entity", persistedAs: typeShownIn(SHU_TAG.STEP_DETAIL), id: formatRecordName({ execution, path: linkTarget.seqPath as number[] }) };
+		return execution === undefined ? null : { paneType: "entity", persistedAs: typeShownIn(SHU_TAG.STEP_DETAIL), id: formatRecordName({ execution, path }) };
 	}
 	if (kind === REF_DENOTES.individual && typeof linkTarget.persistedAs === "string" && typeof linkTarget.id === "string") {
 		// A part addresses a passage or a fragment of media INSIDE the individual; the pane identity stays the individual:

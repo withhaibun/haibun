@@ -14,12 +14,12 @@ import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { anIndividual, type TContextPattern } from "../../schemas.js";
 import { ellipsize } from "@haibun/core/lib/util/index.js";
 import { getFieldRel, getValidTimeField } from "../controllers/catalog-controller.js";
-import { fieldRef } from "./shu-ref.js";
+import { fieldRef, typeRef } from "./shu-ref.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { graphPresenterTag, mountGraphPresenter, presenterIn } from "../controllers/presenter-controller.js";
 import type { TGraphPresenter, TPresenterNodeClick } from "../ports.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
-import { COMMENT_LABEL, LinkRelations, isReplyEdge } from "@haibun/core/lib/resources.js";
+import { LinkRelations, isCommentType, isReplyEdge } from "@haibun/core/lib/resources.js";
 import { appAccessLevel } from "../../view-query.js";
 import { extractBodyLiterals, idOf, instanceLabel, titleFields } from "../controllers/record-controller.js";
 import { persistedTypeOf } from "../derivations/record-fields.js";
@@ -149,7 +149,7 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		// A thread is about the record it is read from, as a record column is: stated the same way, so the reader is on
 		// it here as they would be there.
 		this.dispatchEvent(
-			new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns: [anIndividual(label, id)], accessLevel: appAccessLevel(), label }, bubbles: true, composed: true }),
+			new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns: [anIndividual(label, id)], readLevel: appAccessLevel(), label }, bubbles: true, composed: true }),
 		);
 		await this.#thread.run();
 	}
@@ -247,11 +247,10 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 		const preview = String(v[CARRIED_TEXT] ?? Object.values(bodyLiterals)[0] ?? "");
 		const shown = new Set([...(senderField ? [senderField] : []), ...titleFields(label), timeField, CARRIED_TEXT, ...Object.keys(bodyLiterals)]);
 		const hasKnownContent = !!(sender || date || preview);
-		const isComment = label === COMMENT_LABEL;
 		const extraFields = Object.entries(v).filter(([k, val]) => !k.startsWith("_") && !k.startsWith("@") && !shown.has(k) && val !== undefined && val !== null && val !== "");
 		return html`<div class=${`thread-card${isCurrent ? " current" : ""}`} data-id=${id} data-label=${label} @click=${this.onCardClick(id, label)}>
-			${label ? html`<span class="type-badge" data-testid=${SHU_TEST_IDS.THREAD.ITEM_TYPE}>${label}</span>` : ""}
-			${hasKnownContent ? html`<div class="meta"><span class="sender">${senderField && sender ? fieldRef(label, senderField, sender, SHU_TEST_IDS.THREAD.SENDER) : isComment ? COMMENT_LABEL : ""}</span><span>${date}</span></div>` : ""}
+			${label ? html`<span class="type-badge">${typeRef(label, SHU_TEST_IDS.THREAD.ITEM_TYPE)}</span>` : ""}
+			${hasKnownContent ? html`<div class="meta"><span class="sender">${senderField && sender ? fieldRef(label, senderField, sender, SHU_TEST_IDS.THREAD.SENDER) : isCommentType(label) ? label : ""}</span><span>${date}</span></div>` : ""}
 			<div class="subject">${title}</div>
 			${preview ? html`<div class="preview">${ellipsize(preview, 120)}</div>` : ""}
 			${

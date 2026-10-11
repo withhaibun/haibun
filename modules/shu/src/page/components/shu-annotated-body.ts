@@ -29,8 +29,9 @@ import type { TAnnotationDraft } from "../domains/entity.js";
 import type { TAnnotationView } from "@haibun/core/lib/resources.js";
 import { type TW3CTextAnnotation, toW3CAnnotations } from "../derivations/annotations.js";
 import { locateQuoteOffsets } from "@haibun/core/lib/quote-anchor.js";
-import { COMMENT_LABEL, LinkRelations, type TQuoteAnchor } from "@haibun/core/lib/resources.js";
-import { fieldRef } from "./shu-ref.js";
+import { principalAddress, type TQuoteAnchor } from "@haibun/core/lib/resources.js";
+import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
+import { refTpl } from "./shu-ref.js";
 import "./shu-scrollbar.js";
 import { SCROLL_TO_INDEX } from "./shu-scrollbar.js";
 import type { TScrollMarker, TWindow } from "../derivations/rail.js";
@@ -547,7 +548,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 						>
 							<div class="annotation-card-quote">“${a.exact}”</div>
 							${a.body ? html`<div class="annotation-card-body">${unsafeHTML(DOMPurify.sanitize(renderContentHtml(a.body, "text/markdown", refContext), STYLED_REF_SANITIZE))}</div>` : html``}
-							${a.author ? html`<div class="annotation-card-author">${fieldRef(COMMENT_LABEL, LinkRelations.ATTRIBUTED_TO.rel, a.author)}</div>` : html``}
+							${a.author ? html`<div class="annotation-card-author">${refTpl(REF_DENOTES.individual, principalAddress(a.author), a.author)}</div>` : html``}
 							${(a.links ?? []).map(
 								(link) => html`<span
 										class="annotation-card-link"

@@ -10,7 +10,8 @@ import type { TContextPattern } from "../../schemas.js";
 import { findDomain } from "../controllers/registry-controller.js";
 import { edgeRecordType } from "../controllers/catalog-controller.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
-import { esc, refLabel, renderRef, type TRefKind } from "../derivations/markdown.js";
+import { statedTotal, type TCounted } from "@haibun/core/lib/hypermedia.js";
+import { esc, refLabel, renderRef, stepPathRef, type TRefKind } from "../derivations/markdown.js";
 import "./shu-ref-element.js";
 
 /**
@@ -24,6 +25,13 @@ export const refTpl = (kind: TRefKind, linkTarget: Record<string, unknown>, text
 	const display = text ?? refLabel(kind, targetJson);
 	return html`<shu-ref data-testid=${testId ?? nothing} kind=${kind} linkTarget=${targetJson} text=${display}>${display}</shu-ref>`;
 };
+
+/** A type, as a link to its pane. */
+export const typeRef = (label: string, testId?: string): TemplateResult => refTpl(REF_DENOTES.type, { domain: label }, label, testId);
+
+/** A count, as a link to what it counts: a count that stopped at its ceiling reads as a floor. */
+export const countRef = (counted: TCounted, href: string, testId?: string): TemplateResult =>
+	html`<a class="count" href=${href} data-testid=${testId ?? nothing}>${statedTotal(counted)}</a>`;
 
 /** A record, by its type and id, as a link to its view. */
 export const recordRef = (persistedAs: string, id: string, text?: string, testId?: string): TemplateResult =>
@@ -64,7 +72,16 @@ export const patternRef = (pattern: TContextPattern): TemplateResult =>
 /**
  * Convenience wrappers: each panel typically calls just one or two of these.
  */
-const refSeqPath = (seqPath: number[], text?: string): string => renderRef("seqPath", { seqPath }, text ?? seqPath.join("."));
+const refSeqPath = (path: number[], text?: string): string => {
+	const ref = stepPathRef(path);
+	return renderRef(ref.kind, ref.target, text ?? path.join("."));
+};
+
+/** A reference to the step at `path` within the execution the page reads. */
+export const stepPathTpl = (path: readonly number[], text: string, testId?: string): TemplateResult => {
+	const ref = stepPathRef(path);
+	return refTpl(ref.kind, ref.target, text, testId);
+};
 
 export const refDomain = (domain: string, text?: string): string => renderRef("domain", { domain }, text ?? domain);
 

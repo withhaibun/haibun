@@ -57,6 +57,26 @@ const RunArtifactSchema = PersistedVertexSchema.extend({
 	[RUN_ARTIFACT_FIELD.execution]: z.string().optional(),
 	[RUN_ARTIFACT_FIELD.recordedAtTime]: z.string().optional(),
 });
+/** An artifact as a reader names and finds it: its kind, the path under which actuality serves it, and its path relative to
+ *  the feature's directory, by which a saved record of actuality references it. */
+export type TArtifactLine = { kind: string; path?: string; besideFeature?: string };
+
+/** The fields an artifact's record and the artifact event it copies both hold. */
+const ArtifactFieldsSchema = z.object({
+	[RUN_ARTIFACT_FIELD.artifactType]: z.string(),
+	[RUN_ARTIFACT_FIELD.path]: z.string().optional(),
+	[RUN_ARTIFACT_FIELD.featureRelativePath]: z.string().optional(),
+});
+
+/** Returns an artifact's line, from its record or from the artifact event its record copies. Throws for an object that
+ *  doesn't state an artifact's kind. */
+export function artifactOf(artifact: Record<string, unknown>): TArtifactLine {
+	const fields = ArtifactFieldsSchema.parse(artifact);
+	const path = fields[RUN_ARTIFACT_FIELD.path];
+	const besideFeature = fields[RUN_ARTIFACT_FIELD.featureRelativePath];
+	return { kind: fields[RUN_ARTIFACT_FIELD.artifactType], ...(path === undefined ? {} : { path }), ...(besideFeature === undefined ? {} : { besideFeature }) };
+}
+
 export const runArtifactDomainDefinition: TDomainDefinition = {
 	selectors: [RUN_ARTIFACT_DOMAIN],
 	schema: RunArtifactSchema,

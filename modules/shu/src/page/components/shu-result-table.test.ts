@@ -15,8 +15,12 @@ import { declareSpec } from "../../test/catalog-fixture.js";
 
 type Row = Record<string, unknown>;
 
+/** The address of what the table's rows count, which its total links. */
+const COLLECTION = "#?label=Person";
+
 async function mount(): Promise<ShuResultTable> {
 	const el = document.createElement("shu-result-table") as ShuResultTable;
+	el.collection = COLLECTION;
 	document.body.appendChild(el);
 	await el.updateComplete;
 	return el;
@@ -66,7 +70,9 @@ describe("shu-result-table", () => {
 		const el = await mount();
 		el.setResults(rows(7));
 		await settle(el);
-		expect((el.shadowRoot?.querySelector('[data-testid="query-total"]')?.textContent ?? "").trim()).toBe("7");
+		const total = el.shadowRoot?.querySelector('[data-testid="query-total"]');
+		expect((total?.textContent ?? "").trim()).toBe("7");
+		expect(total?.getAttribute("href"), "the total links what it counts").toBe(COLLECTION);
 	});
 
 	it("selects a row on click, dispatches row-click, and marks it selected", async () => {
