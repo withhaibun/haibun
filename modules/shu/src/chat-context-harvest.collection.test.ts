@@ -17,12 +17,12 @@ import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { HARVEST_MEMBERS, harvested, harvestChatViewLd } from "./chat-context-harvest.js";
 import { activePane } from "./page/root.js";
 
-type TView = HTMLElement & { summarizeForKihan(): unknown | null };
+type TView = HTMLElement & { summarizeForContext(): unknown | null };
 
 /** A duck-typed view. The harvester checks for the method and not the class, since each bundle defines its own classes. */
 const view = (tag: string, summary: unknown | null): TView => {
 	const el = document.createElement(tag) as TView;
-	el.summarizeForKihan = () => summary;
+	el.summarizeForContext = () => summary;
 	return el;
 };
 

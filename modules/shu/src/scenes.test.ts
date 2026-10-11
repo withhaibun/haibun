@@ -20,7 +20,7 @@ class TestView extends ShuElement<typeof StateSchema> {
 	constructor() {
 		super(StateSchema, {});
 	}
-	summarizeForKihan() {
+	summarizeForContext() {
 		return null;
 	}
 	render(): TemplateResult {

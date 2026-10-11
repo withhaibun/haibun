@@ -19,7 +19,8 @@ import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { patternRef, recordRef } from "./shu-ref.js";
 import { CalledSchema } from "@haibun/core/lib/called.js";
 import { ICON_STEP_COMPLETED, RETURNED_TO_CALLER } from "@haibun/core/schema/protocol.js";
-import { BundleSchema, ChatRoleSchema, ChatStatusSchema, UNVERIFIED_TURN, type TBundle, type TChatRole, type TQuestionFork } from "../../schemas.js";
+import { BundleSchema, ChatRoleSchema, type TBundle, type TChatRole, type TQuestionFork } from "../../schemas.js";
+import { ChatStatusSchema, UNVERIFIED_TURN } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { proseText, renderRefAnswer, renderRefProse } from "../derivations/markdown.js";
 
 /** Styles for a light-DOM chat message, exported for the shadow scope that hosts the activity history: the message
@@ -101,7 +102,7 @@ function activateComment(id: string, turn: string, bundle: TBundle): void {
 
 export class ShuChatMessage extends ShuElement<typeof EmptyStateSchema> {
 	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
-	summarizeForKihan(): TLinkedData | null {
+	summarizeForContext(): TLinkedData | null {
 		return null;
 	}
 

@@ -21,7 +21,7 @@ const RELOAD_SAID = { client: "Reload the page", actuality: "Read actuality agai
 
 export class ShuRefusal extends ShuElement<typeof EmptyStateSchema> {
 	/** A refusal is part of the view that shows it, so it doesn't contribute to the Kihan's context on its own. */
-	summarizeForKihan(): TLinkedData | null {
+	summarizeForContext(): TLinkedData | null {
 		return null;
 	}
 

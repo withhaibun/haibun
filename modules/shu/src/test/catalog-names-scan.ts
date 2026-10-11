@@ -10,6 +10,14 @@ import type { TFound } from "@haibun/core/lib/test/baseline.js";
 import type { TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { lineOf, parsedSource, resolvedSource, type TPackages } from "@haibun/core/lib/test/repository-files.js";
 
+/** A word in the form of a type's label, such as `Comment` or `SeqPath`. */
+const LABEL_FORM = /^[A-Z][a-z\d]+(?:[A-Z][a-z\d]*)*$/;
+/** The modules whose functions read a type by its label. */
+const TYPE_READERS = /controllers\/(catalog|registry)-controller\.js$/;
+/** The keys of a query that name a type. */
+const QUERY_TYPE_KEYS = new Set(["label", "persistedAs"]);
+/** The key of an object that holds a query. */
+const QUERY = "query";
 /** A field name that joins words in camel case, such as `generatedAtTime`. */
 const COMPOUND = /^[a-z][a-z\d]*[A-Z]/;
 /** The property of a ShuElement that holds its state. */
@@ -76,16 +84,65 @@ function importedNames(repository: string, file: string, source: ts.SourceFile, 
 	return found;
 }
 
+/** The label-form string each local const holds, by the const's name. */
+function labelConsts(source: ts.SourceFile): Map<string, string> {
+	const labels = new Map<string, string>();
+	const visit = (node: ts.Node): void => {
+		if (
+			ts.isVariableDeclaration(node) &&
+			ts.isIdentifier(node.name) &&
+			node.initializer !== undefined &&
+			ts.isStringLiteralLike(node.initializer) &&
+			LABEL_FORM.test(node.initializer.text)
+		)
+			labels.set(node.name.text, node.initializer.text);
+		ts.forEachChild(node, visit);
+	};
+	visit(source);
+	return labels;
+}
+
+/** The local names of the functions a view imports from a module that reads a type by its label. */
+function typeReaders(source: ts.SourceFile): Set<string> {
+	const readers = new Set<string>();
+	for (const statement of source.statements) {
+		if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier) || !TYPE_READERS.test(statement.moduleSpecifier.text)) continue;
+		const bindings = statement.importClause?.namedBindings;
+		if (bindings !== undefined && ts.isNamedImports(bindings)) for (const element of bindings.elements) readers.add(element.name.text);
+	}
+	return readers;
+}
+
+/** Whether an expression is in a type's position: an argument of a function that reads a type by its label, or the type
+ *  a query names. */
+function inTypePosition(node: ts.Expression, readers: ReadonlySet<string>): boolean {
+	const { parent } = node;
+	if (ts.isCallExpression(parent) && parent.arguments.includes(node)) return ts.isIdentifier(parent.expression) && readers.has(parent.expression.text);
+	if (!ts.isPropertyAssignment(parent) || parent.initializer !== node || !ts.isIdentifier(parent.name) || !QUERY_TYPE_KEYS.has(parent.name.text)) return false;
+	const holder = parent.parent.parent;
+	return ts.isPropertyAssignment(holder) && ts.isIdentifier(holder.name) && holder.name.text === QUERY;
+}
+
+/** The finding a label in a type's position is, where the catalog doesn't declare it: a type a consumer declares, which
+ *  haibun doesn't name. */
+function undeclared(names: TCatalogNames, label: string | undefined): string | undefined {
+	return label === undefined || names.types.has(label) ? undefined : `undeclared type ${label}`;
+}
+
 /** Each type and field each view names, at its line. */
 export function catalogNameFindings(repository: string, scope: TViewScope): TFound[] {
 	return scope.files.flatMap((file) => {
 		const source = parsedSource(repository, file);
 		const imported = importedNames(repository, file, source, scope);
+		const labels = labelConsts(source);
+		const readers = typeReaders(source);
 		const found: TFound[] = [];
 		const add = (node: ts.Node, finding: string | undefined): void => {
 			if (finding !== undefined) found.push({ file, finding, line: lineOf(node) });
 		};
 		const visit = (node: ts.Node): void => {
+			if ((ts.isStringLiteralLike(node) || ts.isIdentifier(node)) && inTypePosition(node, readers))
+				add(node, undeclared(scope.names, ts.isIdentifier(node) ? labels.get(node.text) : LABEL_FORM.test(node.text) ? node.text : undefined));
 			if (ts.isStringLiteralLike(node) && !isModuleSpecifier(node)) add(node, named(scope.names, node.text));
 			else if (ts.isPropertyAccessExpression(node) && !isOwn(node.expression)) add(node.name, named(scope.names, node.name.text));
 			else if (ts.isBindingElement(node) && ts.isObjectBindingPattern(node.parent)) {

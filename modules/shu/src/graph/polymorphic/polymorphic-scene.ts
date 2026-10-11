@@ -2675,7 +2675,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.camera.frame(aim === "xy" ? FRAME.front : FRAME.side);
 	}
 
-	/** The visible graph as one JSON-LD node: the single representation the copy-graph button and `summarizeForKihan` both use, so what a person copies and what the model reads are the same data. The members are the system's own statement projection (the shape getClusteredQuads serves and chat batching consumes), not an invented nodes/edges dialect. */
+	/** The visible graph as one JSON-LD node: the single representation the copy-graph button and `summarizeForContext` both use, so what a person copies and what the model reads are the same data. The members are the system's own statement projection (the shape getClusteredQuads serves and chat batching consumes), not an invented nodes/edges dialect. */
 	graphJsonLd(): Record<string, unknown> {
 		const { nodes, edges } = this.visibleModel();
 		const hidden = new Set(this.model.hiddenGraphs);
@@ -2712,7 +2712,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 
 	/** What a reader is looking at, for a reader who is not looking at it: the statements about the node they are on
 	 *  first, and the call that reads every one. What travels and what a window holds keep what arrives first. */
-	summarizeForKihan(): TLinkedData | null {
+	summarizeForContext(): TLinkedData | null {
 		const whole = this.graphJsonLd();
 		const stated = whole.items as Array<{ subject: string; object: unknown }>;
 		return {

@@ -54,7 +54,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 	}
 
 	/** A reading of this deployment's authority is part of what a Kihan is looking at, so it summarizes as what it shows. */
-	summarizeForKihan(): TLinkedData | null {
+	summarizeForContext(): TLinkedData | null {
 		const held = this.#held.page;
 		return held === undefined ? null : { "@type": "ShuPermissions", holds: held.holds, principals: held.principals.length };
 	}

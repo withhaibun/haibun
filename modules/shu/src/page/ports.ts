@@ -83,7 +83,7 @@ export type TGraphPresenter = HTMLElement & {
 	/** Highlights these nodes and dims the rest of the graph. `null` ends the preview. */
 	previewNodes(ids: string[] | null): void;
 	/** Returns a summary of what the presenter shows, in the form the chat context reads from each view. */
-	summarizeForKihan(): TLinkedData | null;
+	summarizeForContext(): TLinkedData | null;
 };
 
 /** Where a view holds the graph presenter it embeds. */

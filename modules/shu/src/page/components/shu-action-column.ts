@@ -23,7 +23,7 @@ const IDS = SHU_TEST_IDS.ACTION_COLUMN;
 
 export class ShuActionColumn extends ShuElement<typeof StateSchema> {
 	/** The action, and the steps it allows. */
-	summarizeForKihan(): TLinkedData | null {
+	summarizeForContext(): TLinkedData | null {
 		const allowed = this.#load.value;
 		if (!allowed) return null;
 		return { "@id": `action:${this.state.action}`, "@type": "hbn:Action", name: this.state.action, allows: allowed.map((step) => step.method) };

@@ -653,9 +653,7 @@
 		"fills an absent value with a constant through ??": 2
 	},
 	"modules/shu/src/schemas.ts": {
-		"fills a falsy value with a constant through ||": 3,
-		"states a parameter's default value": 1,
-		"states a schema's default value through .default()": 2
+		"fills a falsy value with a constant through ||": 3
 	},
 	"modules/shu/src/test-setup.ts": {
 		"fills an absent value with a constant through ??": 4,

@@ -173,7 +173,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	}
 
 	/** Actuality document as an as:Document, with what is cached rendered to markdown (mirrors what the column shows). */
-	summarizeForKihan(): TLinkedData | null {
+	summarizeForContext(): TLinkedData | null {
 		const events = this.#windowRows.map((r) => r.event) as unknown as THaibunEvent[];
 		if (events.length === 0) return null;
 		const { md } = generateDocumentMarkdown(events, buildArtifactIndex(events).artifactsByStep, this.state.level as THaibunLogLevel, this.#first);

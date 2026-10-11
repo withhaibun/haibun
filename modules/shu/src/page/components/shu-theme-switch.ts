@@ -27,7 +27,7 @@ export function applyStoredTheme(): void {
 
 class ShuThemeSwitch extends ShuElement<typeof ThemeSwitchSchema> {
 	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
-	summarizeForKihan(): TLinkedData | null {
+	summarizeForContext(): TLinkedData | null {
 		return null;
 	}
 

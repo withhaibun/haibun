@@ -15,7 +15,8 @@ import { shuBaseStyles } from "./styles.js";
 import { openRef, paneHref } from "./ref-navigation.js";
 import type { DesiredPane } from "../derivations/pane-kinds.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
-import { FilterColumnSchema, aType, type TContextPattern } from "../../schemas.js";
+import { FilterColumnSchema } from "../../schemas.js";
+import { aType, type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { getIdField, getQueryableFields, firstDeclaredType } from "../controllers/catalog-controller.js";
 import type { ShuResultTable } from "./shu-result-table.js";
 import { readWindowedSource, type WindowedSource } from "../../windowed-source.js";
@@ -35,8 +36,8 @@ type VertexData = Record<string, unknown>;
 
 export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 	/** The query results, summarized by the embedded result table. */
-	summarizeForKihan(): TLinkedData | null {
-		return this.tableRef.value?.summarizeForKihan() ?? null;
+	summarizeForContext(): TLinkedData | null {
+		return this.tableRef.value?.summarizeForContext() ?? null;
 	}
 
 	static styles = [
@@ -157,7 +158,7 @@ export class ShuFilterColumn extends ShuElement<typeof FilterColumnSchema> {
 
 	/** A filtered list shows records of one type, so an ask or a graph from here is about that type. */
 	override paneSubject(): TContextPattern[] | null {
-		return this.state.persistedAs ? [aType(this.state.persistedAs)] : null;
+		return this.state.persistedAs ? [aType(this.state.persistedAs, [])] : null;
 	}
 
 	render(): TemplateResult {

@@ -86,7 +86,7 @@ describe("shu-domain-chain-view", () => {
 		expect(presenter.hasAttribute("data-external")).toBe(true);
 		expect(presenter.dataset.persistScope).toBe("domain-chain");
 		expect(presenter.quads.find((q) => q.subject === "vc")?.namedGraph, "a domain is drawn as its verdict").toBe(NODE_KIND.reachable);
-		expect(view.summarizeForKihan(), "the chat context reads what the graph shows").toEqual(presenter.summarizeForKihan());
+		expect(view.summarizeForContext(), "the chat context reads what the graph shows").toEqual(presenter.summarizeForContext());
 	});
 
 	it("opens the affordances panel at a domain a reader opens in the graph", async () => {

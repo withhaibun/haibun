@@ -129,7 +129,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	}
 
 	/** The discovery surface as linked data: every forward step (the deployment's callable verbs) and each goal's verdict: the core affordance shapes, uninvented. The served vocabulary terms don't type this composite, so it doesn't carry a type. */
-	summarizeForKihan(): TLinkedData | null {
+	summarizeForContext(): TLinkedData | null {
 		if (!this.affordances) return null;
 		return {
 			"@id": "view:affordances",

@@ -73,7 +73,7 @@ function typedValue(value: string, type: string | undefined): unknown {
 
 export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 	/** A form doesn't contribute to the Kihan's context; what its call returned does, through the step's products. */
-	summarizeForKihan(): TLinkedData | null {
+	summarizeForContext(): TLinkedData | null {
 		return null;
 	}
 

@@ -19,7 +19,7 @@ import { INITIAL_SUBJECT, SCOPE, currentSubjectState } from "../../current-subje
 import { pageContext, pageStatus, pageTrail } from "../controllers/page-cell-controller.js";
 import { STOPPED_BY_THE_READER, conversationState, dispatchConversationEvent } from "../../conversation.js";
 import { commandList } from "../derivations/step-input.js";
-import { aType } from "../../schemas.js";
+import { aType } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { carryARun, persistedTypeDefinition, setupShuTest } from "../../test-setup.js";
 import { CHAT_STEP, chatDispatch } from "./chat-pane.test-fake.js";
 
@@ -136,7 +136,7 @@ describe("the actions bar reads the page's state", () => {
 	});
 
 	it("describes to the page strip the context a view stated before the bar connected, and settles its type once the types are read", async () => {
-		pageContext.set({ patterns: [aType("Email")], readLevel: Access.private, label: "Email" });
+		pageContext.set({ patterns: [aType("Email", [])], readLevel: Access.private, label: "Email" });
 		await mountBar();
 		expect(pageTrail.get(), "the search names the stated type").toContain("Email");
 	});

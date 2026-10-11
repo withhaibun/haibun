@@ -7,18 +7,39 @@
  * one per file.
  */
 
-import type { TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
+import { buildConcernCatalog, type TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
+import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { CLIENT_LOG_METHOD } from "../../client-log.js";
-import { ASK_STEP, KEEP_FILE_STEP } from "../../conversation.js";
-import type { TSessionTurn } from "../../schemas.js";
-import { stepsShown, type TDispatch } from "../../test-setup.js";
+import { ASK_PARAM, CONVERSATION_DOMAIN, CONVERSATION_MODEL_CLASS, FILE_PARAM, SESSION_PARAM, type TSessionTurn } from "@haibun/core/lib/conversation/domains/conversation.js";
+import { persistedTypeDefinition, stepsShown, type TDispatch } from "../../test-setup.js";
 
 /** The consumer's stepper that offers the steps the pane calls. */
 export const CHAT_STEPPER = "AskingStepper";
-/** The steps the pane and the conversation call, by name. */
-export const CHAT_STEP = { ask: ASK_STEP, keepFile: KEEP_FILE_STEP, sessions: "listChatSessions", session: "loadChatSession", catalog: "graphQuery" } as const;
+/** The steps the pane and the conversation call, by name. The names are the fixture's own: the pane finds each step by the
+ *  domains core's conversation contract declares, so a stepper names its methods as it chooses. */
+export const CHAT_STEP = { ask: "putQuestion", keepFile: "holdQuestionFile", sessions: "listConversations", session: "readConversation", catalog: "graphQuery" } as const;
+
+/** The domain of the model an ask names, as the consumer declares it. */
+const MODEL_DOMAIN = "asking-model";
+/** What each step takes and returns, by name. */
+export const CHAT_DECLARED: Record<string, { paramDomains: Record<string, string>; productsDomain?: string }> = {
+	[CHAT_STEP.ask]: {
+		paramDomains: { [ASK_PARAM.model]: MODEL_DOMAIN, [ASK_PARAM.readLevel]: "text", [ASK_PARAM.prompt]: "text", [ASK_PARAM.question]: CONVERSATION_DOMAIN.QUESTION },
+		productsDomain: CONVERSATION_DOMAIN.RESPONSE,
+	},
+	[CHAT_STEP.keepFile]: { paramDomains: { [FILE_PARAM.file]: "text", [FILE_PARAM.name]: "text" }, productsDomain: CONVERSATION_DOMAIN.FILE },
+	[CHAT_STEP.sessions]: { paramDomains: {}, productsDomain: CONVERSATION_DOMAIN.SESSIONS },
+	[CHAT_STEP.session]: { paramDomains: { [SESSION_PARAM]: "text" }, productsDomain: CONVERSATION_DOMAIN.SESSION },
+	[CHAT_STEP.catalog]: { paramDomains: {} },
+};
+/** The type the consumer's models are records of, which states itself a conversation model. */
+export const MODEL_TYPE = "AskingModel";
+/** The catalog of a run that declares only its model type. */
+const MODELS_ONLY = buildConcernCatalog(mapDefinitionsToDomains([persistedTypeDefinition(MODEL_TYPE, { subClassOf: CONVERSATION_MODEL_CLASS })]));
+/** The domains the steps name, as a read of the steps lists them. */
+export const CHAT_DOMAINS = Object.fromEntries([...Object.values(CONVERSATION_DOMAIN), MODEL_DOMAIN, "text"].map((key) => [key, { description: key }]));
 
 /**
  * A dispatch answering the pane as a run that offers the steps named: the show steps step lists them with the types the
@@ -27,12 +48,12 @@ export const CHAT_STEP = { ask: ASK_STEP, keepFile: KEEP_FILE_STEP, sessions: "l
  */
 export function chatDispatch(
 	respond: (step: string, params: Record<string, unknown>) => unknown,
-	{ steps = Object.values(CHAT_STEP), concerns }: { steps?: string[]; concerns?: TConcernCatalog } = {},
+	{ steps = Object.values(CHAT_STEP), concerns = MODELS_ONLY }: { steps?: string[]; concerns?: TConcernCatalog } = {},
 ): TDispatch {
 	const byMethod = new Map(steps.map((step) => [stepMethodName(CHAT_STEPPER, step), step]));
 	const listed = stepsShown(
-		[...byMethod].map(([method, stepName]) => ({ method, stepperName: CHAT_STEPPER, stepName, pattern: stepName })),
-		{},
+		[...byMethod].map(([method, stepName]) => ({ method, stepperName: CHAT_STEPPER, stepName, pattern: stepName, ...CHAT_DECLARED[stepName] })),
+		CHAT_DOMAINS,
 		concerns,
 	);
 	return (method, params) => {

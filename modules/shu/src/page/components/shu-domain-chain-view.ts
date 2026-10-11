@@ -59,9 +59,9 @@ function snapshotOf(p: Record<string, unknown>): TAffordancesSnapshot {
 
 export class ShuDomainChainView extends ShuElement<typeof EmptyStateSchema> {
 	/** What the embedded graph shows of the chain. */
-	summarizeForKihan(): TLinkedData | null {
+	summarizeForContext(): TLinkedData | null {
 		if (!this.affordances) return null;
-		return presenterIn(this, CHAIN_GRAPH.slot)?.summarizeForKihan() ?? null;
+		return presenterIn(this, CHAIN_GRAPH.slot)?.summarizeForContext() ?? null;
 	}
 
 	static styles = [

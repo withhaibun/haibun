@@ -29,7 +29,7 @@ const INDEX_NAME = "Index";
 
 export class ShuIndexSummary extends ShuElement<typeof EmptyStateSchema> {
 	/** A one-line reading of a view the model can already read in full when the index is open. */
-	summarizeForKihan(): TLinkedData | null {
+	summarizeForContext(): TLinkedData | null {
 		return null;
 	}
 

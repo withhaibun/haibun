@@ -121,7 +121,7 @@ type PlacedCard = { annotation: TAnnotationView; idealTop: number; top: number }
 
 export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 	/** The document body as an as:Document, with any anchored web annotations (their quote, note, author, and links). */
-	summarizeForKihan(): TLinkedData | null {
+	summarizeForContext(): TLinkedData | null {
 		if (!this.content) return null;
 		const annotations = this.annotations.map((a) => ({
 			exact: a.exact,

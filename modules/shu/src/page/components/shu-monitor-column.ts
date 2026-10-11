@@ -141,7 +141,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	@property({ type: Boolean }) accessor spine = false;
 
 	/** The live execution log as an ordered collection of rows (time, level, step, message). */
-	summarizeForKihan(): TLinkedData | null {
+	summarizeForContext(): TLinkedData | null {
 		if (this.rows.length === 0) return null;
 		return {
 			"@id": "view:monitor",

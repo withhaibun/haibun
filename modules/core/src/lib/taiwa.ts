@@ -11,7 +11,8 @@ import { z } from "zod";
 import { AStepper, StepperKinds } from "./astepper.js";
 
 const AskOptionsSchema = z.object({
-	kihan: z.string().optional(),
+	/** The model a call is sent to, where it isn't the standing default. */
+	model: z.string().optional(),
 	system: z.string().optional(),
 	limit: z.number().optional(),
 	timeoutMs: z.number().optional(),

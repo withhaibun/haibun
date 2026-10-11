@@ -90,7 +90,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 
 	/** The rows this table shows: the resident window where the set is paged, and the count the whole set holds. Usually
 	 *  reached through the query view's summary; standalone tables answer for themselves. */
-	summarizeForKihan(): TLinkedData | null {
+	summarizeForContext(): TLinkedData | null {
 		const { total, saturated } = statedCountOf(this.#source);
 		if (total === 0) return null;
 		return viewCollection({

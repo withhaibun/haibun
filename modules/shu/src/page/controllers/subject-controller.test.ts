@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { ReactiveController, ReactiveControllerHost } from "lit";
-import { anIndividual } from "../../schemas.js";
+import { anIndividual } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { INITIAL_SUBJECT, SCOPE, currentSubjectState, dispatchSubjectEvent, entryOf, type TRecord } from "../../current-subject.js";
 import { SubjectController } from "./subject-controller.js";
 import { nextQuestion } from "../../chat-turn.js";

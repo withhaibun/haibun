@@ -4,9 +4,9 @@
 import { z } from "zod";
 import { SearchConditionSchema, type TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
-import { CountedFields, CountedSchema } from "@haibun/core/lib/hypermedia.js";
+import { CountedSchema } from "@haibun/core/lib/hypermedia.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
-import { DENOTES, IndividualAddressSchema } from "@haibun/core/lib/typed-links.js";
+import { ChatStatusSchema, ContextQuerySchema } from "@haibun/core/lib/conversation/domains/conversation.js";
 
 // --- Combobox ---
 
@@ -41,11 +41,6 @@ export type TComboboxOption = z.infer<typeof ComboboxOptionSchema>;
 /** The author of a chat message: the reader's question or the model's reply. */
 export const ChatRoleSchema = z.enum(["user", "llm"]);
 export type TChatRole = z.infer<typeof ChatRoleSchema>;
-/** What a reader is told of a turn whose answer states records it was not sent, before the handles it names. */
-export const UNVERIFIED_TURN = "the turn stated records it was not sent";
-/** The status of an asked chat turn, which its reply message shows. */
-export const ChatStatusSchema = z.enum(["asking", "running", "completed", "failed", "stopped", "unverified"]);
-export type TChatStatus = z.infer<typeof ChatStatusSchema>;
 /** The status of the page's turn: idle before the first question, else the status of the turn asked last. */
 const TurnStatusSchema = z.enum(["idle", ...ChatStatusSchema.options]);
 export type TTurnStatus = z.infer<typeof TurnStatusSchema>;
@@ -160,24 +155,6 @@ export const ResultTableSchema = z.object({
 	paginated: z.boolean(),
 });
 
-// --- What an ask is about ---
-
-/**
- * An individual is named by the type it is persisted as and its own id, the pair every surface names one by, so
- * whoever resolves it reads it directly. A type names its members, narrowed by the conditions given. `kind` tells the
- * two apart in the words core already names them by, so a surface holding only a type can't state more.
- */
-const ContextIndividualSchema = IndividualAddressSchema.extend({ kind: z.literal(DENOTES.individual) });
-const ContextTypeSchema = z.object({
-	kind: z.literal(DENOTES.type),
-	persistedAs: z.string().describe("The type whose members the ask is about."),
-	conditions: z.array(SearchConditionSchema).default([]).describe("What every member must match, in the same conditions the query surface and the store already take."),
-});
-export const ContextPatternSchema = z.discriminatedUnion("kind", [ContextIndividualSchema, ContextTypeSchema]);
-export type TContextIndividual = z.infer<typeof ContextIndividualSchema>;
-export type TContextPattern = z.infer<typeof ContextPatternSchema>;
-export const ContextQuerySchema = z.array(ContextPatternSchema);
-
 /** What a view states it shows, as the page's actions read it: the patterns, the level they are read at, and what the
  *  view knows of them. A view states it with `CONTEXT_CHANGE`, and the app checks it against this schema. */
 export const PageContextSchema = z.object({
@@ -204,79 +181,6 @@ export const BundleSchema = z.object({ patterns: ContextQuerySchema, accessLevel
 export const QuestionForkSchema = z.object({ prompt: z.string().min(1), patterns: ContextQuerySchema, inReplyTo: z.string().optional(), send: z.boolean() });
 export type TQuestionFork = z.infer<typeof QuestionForkSchema>;
 export type TBundle = z.infer<typeof BundleSchema>;
-
-/**
- * A turn of a session as the store reads it back. A turn is named by its question's record, which is what a page is
- * told actuality recorded, so a page addresses a turn, the turn it replies to and the session it is in without knowing
- * how a run names what it records.
- */
-const SessionTurnSchema = z
-	.object({
-		prompt: z.string().describe("What the reader asked."),
-		response: z.string().describe("What the model answered; empty before it answered."),
-		askId: z.string().describe("The question's record, which names the turn."),
-		sayId: z.string().optional().describe("The answer's record, once there is one."),
-		inReplyTo: z.string().optional().describe("The question record of the turn this one replies to; unset for a session's first turn."),
-		bundle: ContextQuerySchema.describe("The records the question referenced, which a page makes active again when a reader selects the turn."),
-		generatedAtTime: z.string().describe("When the question was asked. This orders the turns, and a view shows the turns asked at or before the place its reader holds."),
-		status: ChatStatusSchema.describe(
-			"How the turn stands: running, completed, failed, stopped by its reader, or unverified, which is a turn that stated a handle what it was sent doesn't hold.",
-		),
-		unverified: z.array(z.string()).optional().describe("The handles an unverified turn's answer states that what the turn was sent doesn't hold."),
-		error: z.string().optional().describe("What the step failed with, where it failed."),
-	})
-	.strict();
-export type TSessionTurn = z.infer<typeof SessionTurnSchema>;
-/** A session's turns as the store reads them back, in the order they were asked, so the last is the latest. A step's
- *  products carry the step they came from beside what the step declares, so the answer is not strict; each turn is. */
-export const SessionReadSchema = z.object({ turns: z.array(SessionTurnSchema) });
-/** The sessions the store holds, each named by its first question's record, newest first, with the count of sessions to
- *  the ceiling. */
-export const SessionListSchema = z.object({
-	...CountedFields,
-	sessions: z.array(
-		z
-			.object({
-				session: z.string().describe("The question record that names the session."),
-				label: z.string().describe("What the session is called: what its first question asked."),
-				generatedAtTime: z.string().describe("When its newest turn was asked. A page lists the sessions by this, most recent first."),
-				turns: z.number().int().nonnegative().describe("How many turns the session holds. A page compares this with the count it read when the reader last opened the session."),
-			})
-			.strict(),
-	),
-});
-
-/** Who reads a turn's records: actuality, which sends them, or the model, which is sent the calls that read them. */
-export const ContextReadBySchema = z.enum(["run", "model"]);
-
-/** What a turn sends beside its question: the patterns of the records it is about, the page's view, how many calls its
- *  model may chain, who reads the records, and the session and turn it replies in, each named by a question record.
- *  Strict, so a key a sender renamed is refused rather than dropped. */
-export const TurnEnvelopeSchema = z
-	.object({
-		patterns: ContextQuerySchema,
-		viewLd: z.array(z.record(z.string(), z.unknown())).default([]),
-		maxToolCalls: z.number().int().min(0).max(99).optional(),
-		contextReadBy: ContextReadBySchema.optional(),
-		session: z.string().optional(),
-		inReplyTo: z.string().optional(),
-		/** The delegation the asker signed to the turn's key: what the turn may do, which an ask from a key carries. */
-		delegation: z.record(z.string(), z.unknown()).optional(),
-	})
-	.strict()
-	.refine((envelope) => envelope.inReplyTo === undefined || envelope.session !== undefined, { message: "a reply names the session it replies in", path: ["session"] });
-export type TTurnEnvelope = z.input<typeof TurnEnvelopeSchema>;
-
-/** The ask is about one individual. */
-export const anIndividual = (persistedAs: string, id: string): TContextIndividual => ({ kind: DENOTES.individual, persistedAs, id });
-
-/** The ask is about a type: its members, narrowed by whichever conditions carry both a field and a value. The
- *  conditions travel as they were asked, so an operator the reader chose reaches the store that can read it. */
-export const aType = (persistedAs: string, conditions: readonly TSearchCondition[] = []): TContextPattern => ({
-	kind: DENOTES.type,
-	persistedAs,
-	conditions: conditions.filter((c) => c.predicate && c.value),
-});
 
 // --- Actions bar ---
 

@@ -8,6 +8,7 @@ import type { TConcernCatalog, TTitledBy } from "@haibun/core/lib/hypermedia.js"
 import { pageRegistry, selectValues } from "../root.js";
 import { REGISTRY_STATUS } from "../machines/registry.js";
 import * as Catalog from "../derivations/catalog.js";
+import { modelType } from "../ask/derivations/ask-steps.js";
 import { heldCatalog, holdsCatalog } from "../pipelines/held-catalog.js";
 import type { TRefContext } from "../derivations/markdown.js";
 
@@ -30,6 +31,9 @@ export const slotExtensions = (slots: ReadonlyArray<string>): Array<[string, Rec
 	Object.entries(catalog("the slot extensions").ui).filter(([, ui]) => slots.includes(String(ui.slot)) && ui.js !== undefined);
 
 /** Returns the concern catalog the page holds. */
+/** Returns the type of the models an ask lists, or undefined where the catalog doesn't declare one. */
+export const conversationModelType = (): string | undefined => modelType(getConcernCatalog());
+
 export function getConcernCatalog(): TConcernCatalog {
 	const state = pageRegistry().state.get();
 	if (state.status !== REGISTRY_STATUS.READ) throw new Error("the concern catalog is read after actuality's steps: call getAvailableSteps() first");

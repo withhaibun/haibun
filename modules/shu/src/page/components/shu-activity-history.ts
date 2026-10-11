@@ -32,7 +32,7 @@ import { appAccessLevel } from "../../view-query.js";
 export class ShuActivityHistory extends ShuElement<typeof EmptyStateSchema> {
 	/** The actions-bar output region, not a column pane: the harvest reads only column panes, so this is never the
 	 *  active pane, and its entries (searches, steps, chat turns) are represented by their own views. It doesn't contribute to the Kihan's context. */
-	summarizeForKihan(): TLinkedData | null {
+	summarizeForContext(): TLinkedData | null {
 		return null;
 	}
 

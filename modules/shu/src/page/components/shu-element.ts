@@ -45,7 +45,7 @@ import { activePane } from "../controllers/page-cell-controller.js";
 import type { TSharedCell } from "../ports.js";
 import type { TLinkedData } from "@haibun/core/lib/hypermedia.js";
 import { unwrap as unwrapWrappers } from "@haibun/core/lib/zod-unwrap.js";
-// Re-exported so every view can annotate its summarizeForKihan as `TLinkedData | null` from the same import it already
+// Re-exported so every view can annotate its summarizeForContext as `TLinkedData | null` from the same import it already
 // takes for ShuElement, instead of each reaching into core for the node-object type.
 /** The state of a component that doesn't hold any of its own. */
 export const EmptyStateSchema = z.object({});
@@ -58,7 +58,7 @@ import { subscribeBatchedEvents } from "../controllers/event-stream-controller.j
 import { type TEvent, type TEventFilter } from "../ports.js";
 import { PreferencesController } from "../controllers/preferences-controller.js";
 import { recordClientBlip } from "../controllers/blip-controller.js";
-import type { TContextPattern } from "../../schemas.js";
+import type { TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
 
 export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(LitElement) {
 	/** Get the current view hash, from URL when a live `window.location` is present, from stored state when running in an offline standalone HTML file. */
@@ -414,7 +414,7 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 	 * model cannot read is a broken ask; return null only for a pure control that doesn't present data (a picker, a
 	 * button strip): the decision is required of every view, never implicit.
 	 */
-	abstract summarizeForKihan(): TLinkedData | null;
+	abstract summarizeForContext(): TLinkedData | null;
 
 	/** Called when this view's active state toggles. Default no-op; override for custom behavior. */
 	protected onViewActive(_active: boolean): void {

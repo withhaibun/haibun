@@ -54,7 +54,7 @@ const ShuGraphSchema = z.object({ graph: GraphSchema.nullable(), options: GraphR
 
 export class ShuGraph extends ShuElement<typeof ShuGraphSchema> {
 	/** The rendered graph as a collection of nodes and edges. */
-	summarizeForKihan(): TLinkedData | null {
+	summarizeForContext(): TLinkedData | null {
 		const graph = this.state.graph;
 		if (!graph || graph.nodes.length === 0) return null;
 		// This view draws one domain chain, which holds two sets of members rather than one, so it states nodes and edges

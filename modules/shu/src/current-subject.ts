@@ -14,7 +14,8 @@
  */
 import type { AccessQueryLevel } from "@haibun/core/lib/resources.js";
 import { DENOTES } from "@haibun/core/lib/typed-links.js";
-import type { TBundle, TContextPattern, TPageContext } from "./schemas.js";
+import type { TBundle, TPageContext } from "./schemas.js";
+import type { TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { sharedMachine } from "./page/root.js";
 
 /** A record: what a pane shows, or a comment of a conversation. */

@@ -2,7 +2,8 @@
  * The page's layout values: a docked pane's height as a share of the app, the height a drag of its top edge sets, and the
  * name of the actions bar's selection. Each reads values the view holds, so a test reads them without a browser.
  */
-import { NOTHING_SELECTED_LABEL, type TContextPattern, type TContextIndividual } from "../../schemas.js";
+import { NOTHING_SELECTED_LABEL } from "../../schemas.js";
+import { type TContextPattern, type TContextIndividual } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { DENOTES } from "@haibun/core/lib/typed-links.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { statedTotal, type TCounted } from "@haibun/core/lib/hypermedia.js";

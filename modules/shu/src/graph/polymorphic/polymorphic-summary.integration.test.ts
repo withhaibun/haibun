@@ -28,9 +28,9 @@ test("states each type's records held and drawn, and a hidden type doesn't draw 
 	const quads = [quad("e-1", DRAWN), quad("e-2", DRAWN), quad("l-1", HIDDEN)];
 	const summary = await mounted.page.evaluate(
 		({ quads, clusters, hidden }) => {
-			const el = document.querySelector("shu-polymorphic-graph-view") as unknown as { scene: { setModel(model: unknown): void; summarizeForKihan(): unknown } };
+			const el = document.querySelector("shu-polymorphic-graph-view") as unknown as { scene: { setModel(model: unknown): void; summarizeForContext(): unknown } };
 			el.scene.setModel({ quads, visibleQuads: quads, clusters, knownClusters: new Map(), hiddenGraphs: [hidden], hiddenPredicates: [], perTypeLimit: 2, timeCursor: null });
-			return el.scene.summarizeForKihan() as { typesHeld: unknown[]; items: Array<{ namedGraph: string }> };
+			return el.scene.summarizeForContext() as { typesHeld: unknown[]; items: Array<{ namedGraph: string }> };
 		},
 		{ quads, clusters: [cluster(DRAWN, ["e-1", "e-2"], 40), cluster(HIDDEN, ["l-1"], 7)], hidden: HIDDEN },
 	);

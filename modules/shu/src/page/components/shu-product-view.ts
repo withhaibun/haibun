@@ -19,9 +19,9 @@ import { resolveUi } from "../controllers/catalog-controller.js";
 
 export class ShuProductView extends ShuElement<typeof EmptyStateSchema> {
 	/** Delegates to the mounted child view: the wrapper summarizes for its whole subtree. */
-	summarizeForKihan(): TLinkedData | null {
-		const child = this.firstElementChild as (Element & Partial<{ summarizeForKihan(): TLinkedData | null }>) | null;
-		return child?.summarizeForKihan?.() ?? null;
+	summarizeForContext(): TLinkedData | null {
+		const child = this.firstElementChild as (Element & Partial<{ summarizeForContext(): TLinkedData | null }>) | null;
+		return child?.summarizeForContext?.() ?? null;
 	}
 
 	static styles = [

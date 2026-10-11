@@ -13,15 +13,15 @@ import { SCOPE, activeEntry, recordOf, scopeEntry, type TEntry, type TSubjectSta
 import { acts } from "./page/domains/links.js";
 import { conduit } from "./page/controllers/conduit-controller.js";
 import { deploymentVerifiesDelegations } from "./page/controllers/hydration-controller.js";
-import { requireStep } from "./page/controllers/registry-controller.js";
+import { conversationSteps } from "./page/controllers/registry-controller.js";
 import { delegateFromPage } from "./page/authority/delegation/controllers/delegation-controller.js";
 import { delegatedActions, readAction, readCeilingOf, seenAt } from "@haibun/core/lib/actions.js";
 import { Access, storeScopeFor } from "@haibun/core/lib/resources.js";
 import { pageHolds, pageMay } from "./page/authority/controllers/page-authority-controller.js";
 import { readTurnAllowance } from "./turn-allowance.js";
 import { reportToRun } from "./client-log.js";
-import { ASK_STEP, OPEN_TURN_STEP, askRefusal, conversationState, dispatchConversationEvent, type TAskedTurn } from "./conversation.js";
-import { TurnEnvelopeSchema, type TTurnEnvelope } from "./schemas.js";
+import { askRefusal, conversationState, dispatchConversationEvent, type TAskedTurn } from "./conversation.js";
+import { ASK_PARAM, CONVERSATION_DOMAIN, TurnEnvelopeSchema, TurnKeySchema, type TTurnEnvelope } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { appAccessLevel } from "./view-query.js";
 
 /** What a turn sends: its prompt, the envelope that states its subject and the turn it replies to, and the target model. */
@@ -43,7 +43,12 @@ export function nextQuestion(state: TSubjectState): { carries: TEntry | null; re
  */
 async function turnDelegation(): Promise<Record<string, unknown> | undefined> {
 	if (!deploymentVerifiesDelegations()) return undefined;
-	const turn = await conduit().follow<{ controller: string; expires: string; actions: string[] }>(acts(requireStep(OPEN_TURN_STEP)), "chat-turn: open the turn's key");
+	const open = conversationSteps()?.turnKey;
+	if (open === undefined)
+		throw new Error(
+			`chat-turn: this deployment verifies delegations, and actuality doesn't declare a step that returns ${CONVERSATION_DOMAIN.TURN_KEY}, which opens the key a turn acts as`,
+		);
+	const turn = TurnKeySchema.parse(await conduit().follow(acts(open.method), "chat-turn: open the turn's key"));
 	const ceiling = readCeilingOf(pageHolds());
 	if (ceiling === undefined)
 		throw new Error(
@@ -111,7 +116,10 @@ export async function startTurn({ prompt, envelope, target }: TTurnRequest): Pro
 	});
 	const chunks = new ChunkEvents();
 	try {
-		await conduit().followStream(acts(requireStep(ASK_STEP), { prompt, context, accessLevel: appAccessLevel(), target }), chunks.raise, {
+		const ask = conversationSteps()?.ask;
+		if (ask === undefined) throw new Error(`chat-turn: actuality doesn't declare a step that takes ${CONVERSATION_DOMAIN.QUESTION} and returns ${CONVERSATION_DOMAIN.RESPONSE}`);
+		const params = { [ASK_PARAM.prompt]: prompt, [ASK_PARAM.question]: context, [ASK_PARAM.readLevel]: appAccessLevel(), [ASK_PARAM.model]: target };
+		await conduit().followStream(acts(ask.method, params), chunks.raise, {
 			why: "chat-turn: stream the turn's response",
 			signal: abort.signal,
 			onStart: () => dispatchConversationEvent({ type: "started" }),

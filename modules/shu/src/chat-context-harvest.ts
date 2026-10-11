@@ -1,23 +1,23 @@
 /**
- * Harvests a turn's view context on demand. The harvest holds the active pane's `summarizeForKihan()` linked data and a
+ * Harvests a turn's view context on demand. The harvest holds the active pane's `summarizeForContext()` linked data and a
  * manifest of every open column. The model's context then holds the view the person is looking at and the other columns
  * on screen. The chat calls the harvest when it starts a turn.
  *
  * The harvester finds the active pane by the shared `activePane` signal, which holds the pane's columnKey. The strip
  * renders its active pane from the same signal. The harvester doesn't use a DOM `active` attribute or a positional index,
  * which can lag or become stale when a pane earlier in the strip closes. The harvester recognises a view by its
- * `summarizeForKihan` method and not by `instanceof`. The polymorphic view is built into a separate bundle, which defines
+ * `summarizeForContext` method and not by `instanceof`. The polymorphic view is built into a separate bundle, which defines
  * its own ShuElement class.
  */
 import { activePane } from "./page/root.js";
 import { PAGE_TERMS, ViewCollectionSchema, viewCollection, type TLinkedData, type TViewCollection } from "@haibun/core/lib/hypermedia.js";
 
-type TSummarizes = Element & { summarizeForKihan(): TLinkedData | null };
+type TSummarizes = Element & { summarizeForContext(): TLinkedData | null };
 
 /** A pane's key in the `activePane` signal: its columnKey, or its column-type for the query pane, which doesn't have a columnKey. */
 const paneKeyOf = (pane: Element): string => (pane as HTMLElement).dataset.columnKey ?? pane.getAttribute("column-type") ?? "";
 
-const summarizes = (el: Element): el is TSummarizes => typeof (el as Partial<TSummarizes>).summarizeForKihan === "function";
+const summarizes = (el: Element): el is TSummarizes => typeof (el as Partial<TSummarizes>).summarizeForContext === "function";
 
 /**
  * The most members of a view's collection that a page carries. It bounds the payload size, not what a model's window holds.
@@ -42,7 +42,7 @@ export function harvested(summary: TLinkedData, holds = HARVEST_MEMBERS): TLinke
 	if (!Array.isArray(summary.items)) return summary;
 	const collection = ViewCollectionSchema.safeParse(summary);
 	if (!collection.success)
-		throw new Error(`a view's summary states "items" but doesn't conform to ViewCollectionSchema: ${collection.error.message}. Return a view collection from summarizeForKihan.`);
+		throw new Error(`a view's summary states "items" but doesn't conform to ViewCollectionSchema: ${collection.error.message}. Return a view collection from summarizeForContext.`);
 	const { items, totalItems } = collection.data;
 	if (items.length <= holds) return summary;
 	return { ...summary, items: items.slice(0, holds), [PAGE_TERMS.partOf]: collection.data["@id"], totalItems: totalItems ?? items.length };
@@ -75,7 +75,7 @@ export function harvestChatViewLd(root: ParentNode = document): TLinkedData[] {
 		);
 	const blocks: TLinkedData[] = [];
 	for (const el of topSummarizers(active)) {
-		const summary = el.summarizeForKihan();
+		const summary = el.summarizeForContext();
 		if (summary == null) continue;
 		try {
 			blocks.push(harvested(summary));

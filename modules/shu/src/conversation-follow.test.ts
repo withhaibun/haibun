@@ -9,15 +9,16 @@ import { CHAT_STEP, answer, chatDispatch, question, readBack as aReadBack } from
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 import { INITIAL_SUBJECT, SCOPE, currentSubjectState, scopeEntry } from "./current-subject.js";
 import { carryARun, setupShuTest, type TShuTestHandle } from "./test-setup.js";
-import { ASK_STEP, conversationState, dispatchConversationEvent, followRunningTurns, gainedSince, openConversation } from "./conversation.js";
-import type { TSessionTurn } from "./schemas.js";
+import { getAvailableSteps } from "./page/controllers/registry-controller.js";
+import { conversationState, dispatchConversationEvent, followRunningTurns, gainedSince, openConversation } from "./conversation.js";
+import type { TSessionTurn } from "@haibun/core/lib/conversation/domains/conversation.js";
 
 /** The turns the store returns for the session and the number of times the page read the session. */
 const read: { turns: TSessionTurn[]; reads: number } = { turns: [], reads: 0 };
 
 const SESSION = question("0.1.1");
 /** The lifecycle event actuality emits when a turn's step starts or ends. This page receives only this event for a turn that a reader asks on another page. */
-const reportOf = (stage: "start" | "end") => ({ kind: "lifecycle", type: "step", stage, actionName: ASK_STEP });
+const reportOf = (stage: "start" | "end") => ({ kind: "lifecycle", type: "step", stage, actionName: CHAT_STEP.ask });
 /** Waits for the next animation frame and then the next task. The stream delivers its events as a batch in that frame.
  *  The promises that the batch's handler starts settle before that task. */
 const batchSettled = async () => {
@@ -47,6 +48,8 @@ describe("the page follows actuality's turns in the open conversation", () => {
 
 	it("reads the session again when actuality reports a turn's step starting, so this page holds a turn that a reader asks on another page", async () => {
 		followRunningTurns();
+		// A report names the step that sends a turn, which the page reads from actuality's steps first.
+		await getAvailableSteps();
 		read.turns = [aReadBack("0.1.1"), aReadBack("0.1.2", SESSION)];
 		t.emit(reportOf("start"));
 		await vi.waitFor(() => expect(conversationState.get().turns).toHaveLength(2));
@@ -54,6 +57,8 @@ describe("the page follows actuality's turns in the open conversation", () => {
 
 	it("reads the session again when actuality reports a turn's step ending", async () => {
 		followRunningTurns();
+		// A report names the step that sends a turn, which the page reads from actuality's steps first.
+		await getAvailableSteps();
 		read.turns = [aReadBack("0.1.1"), aReadBack("0.1.2", SESSION)];
 		t.emit(reportOf("end"));
 		await vi.waitFor(() => expect(conversationState.get().turns).toHaveLength(2));
@@ -61,6 +66,8 @@ describe("the page follows actuality's turns in the open conversation", () => {
 
 	it("activates the newest comment of another page's turn once a read returns it", async () => {
 		followRunningTurns();
+		// A report names the step that sends a turn, which the page reads from actuality's steps first.
+		await getAvailableSteps();
 		read.turns = [aReadBack("0.1.1"), aReadBack("0.1.2", SESSION)];
 		t.emit(reportOf("end"));
 		await vi.waitFor(() => expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar)?.record).toEqual({ id: answer("0.1.2"), label: COMMENT_LABEL }));

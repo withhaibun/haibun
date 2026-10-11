@@ -78,8 +78,8 @@ class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
 	static persistFields = ["viewMode"] as const;
 
 	/** The schema as the scene states it, in the order a reader is reading it. The copy button keeps every statement. */
-	summarizeForKihan(): TLinkedData | null {
-		return this.scene?.summarizeForKihan() ?? null;
+	summarizeForContext(): TLinkedData | null {
+		return this.scene?.summarizeForContext() ?? null;
 	}
 
 	/** The focus type's JSON-LD @context, fetched from the served context document for the context view (null until loaded). */

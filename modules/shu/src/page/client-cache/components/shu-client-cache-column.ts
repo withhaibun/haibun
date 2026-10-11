@@ -157,7 +157,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 		super(EmptyStateSchema);
 	}
 
-	summarizeForKihan(): TLinkedData | null {
+	summarizeForContext(): TLinkedData | null {
 		return {
 			"@id": "view:client-cache",
 			"@type": "as:Note",

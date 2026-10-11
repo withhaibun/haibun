@@ -28,7 +28,7 @@ export class ShuPageStrip extends ShuElement<typeof EmptyStateSchema> {
 	/** The page's time cursor, which the strip's corners show. */
 	readonly #timeline = new TimelineViewController(this, { onMove: (cursor) => this.#corners.showTime(cursor) });
 	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
-	summarizeForKihan(): TLinkedData | null {
+	summarizeForContext(): TLinkedData | null {
 		return null;
 	}
 

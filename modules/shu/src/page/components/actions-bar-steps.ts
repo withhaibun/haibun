@@ -5,10 +5,9 @@
  * the callers of its method, so its test ids stay unique across repeated calls.
  */
 import { html, nothing, type ReactiveController, type TemplateResult } from "lit";
-import { ASK_STEP } from "../../conversation.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
-import { getAvailableSteps, stepsForContext } from "../controllers/registry-controller.js";
+import { conversationSteps, getAvailableSteps, stepsForContext } from "../controllers/registry-controller.js";
 import { StepsChangedController } from "../controllers/registry-controller.js";
 import type { TComboboxOption } from "../../schemas.js";
 import type { TControllerHost } from "./controller-host.js";
@@ -68,6 +67,8 @@ export class ActionsBarSteps implements ReactiveController {
 	readonly #host: TControllerHost;
 	readonly #deps: TActionsBarStepsDeps;
 	#steps: TStepDefinition[] = [];
+	/** Whether the steps read last declare a step that sends a turn. A mode chosen before the steps are read waits for them. */
+	#asks = false;
 	/** The step the selector shows as chosen. */
 	#chosen = "";
 
@@ -88,14 +89,15 @@ export class ActionsBarSteps implements ReactiveController {
 		this.#host.removeEventListener(SHU_EVENT.STEP_ERROR, this.#onSettled);
 	}
 
-	/** Whether the run offers the step an ask runs, which decides whether a chosen Ask mode renders. */
+	/** Whether actuality offers the step that sends a turn, which states whether a chosen Ask mode renders. */
 	get offersAsk(): boolean {
-		return this.#steps.some((step) => step.stepName === ASK_STEP);
+		return this.#asks;
 	}
 
 	/** Read the steps actuality offers, and render with them. */
 	async load(): Promise<void> {
 		this.#steps = await getAvailableSteps();
+		this.#asks = conversationSteps() !== undefined;
 		this.#host.requestUpdate();
 	}
 

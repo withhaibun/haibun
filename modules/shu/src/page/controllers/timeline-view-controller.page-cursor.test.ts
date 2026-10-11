@@ -15,7 +15,7 @@ import { TimelineViewController } from "./timeline-view-controller.js";
 const S = z.object({ n: z.number() });
 
 class TimeProbe extends ShuElement<typeof S> {
-	summarizeForKihan() {
+	summarizeForContext() {
 		return null;
 	}
 

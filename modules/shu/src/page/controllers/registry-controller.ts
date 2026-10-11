@@ -10,6 +10,7 @@ import { pageRegistry, registryScope } from "../root.js";
 import { readSteps } from "../pipelines/read-steps.js";
 import { REGISTRY_EVENT, REGISTRY_STATUS, type TRegistryOrigin, type TStepList } from "../machines/registry.js";
 import * as Steps from "../derivations/steps.js";
+import { askSteps, type TAskSteps } from "../ask/derivations/ask-steps.js";
 import { acts, type TLink } from "../domains/links.js";
 
 /** Reads actuality's steps where the page doesn't hold them, and returns them. */
@@ -55,6 +56,13 @@ export function linkTo(method: string, params?: Record<string, unknown>, summary
 
 /** Returns the steps that take a domain and the steps that return it. */
 export const stepsJoining = (name: string): ReturnType<typeof Steps.stepsJoining> => Steps.stepsJoining(readList(`the steps joining ${name}`), name);
+
+/** Returns the steps of a conversation, or undefined where the page doesn't hold actuality's steps or they don't declare a
+ *  step that sends a turn. */
+export function conversationSteps(): TAskSteps | undefined {
+	const list = heldList();
+	return list === undefined ? undefined : askSteps(list);
+}
 
 /** Returns the steps whose required action `action` allows. */
 export const stepsAllowedBy = (action: string): TStepDefinition[] => Steps.stepsAllowedBy(readList(`the steps ${action} allows`), action);

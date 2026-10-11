@@ -10,7 +10,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
-import { anIndividual, aType } from "./schemas.js";
+import { anIndividual, aType } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { pickWith, runSequences } from "@haibun/core/lib/test/machine-table.js";
 import {
 	INITIAL_SUBJECT,
@@ -50,9 +50,9 @@ describe("an entry for a pane's patterns", () => {
 	});
 
 	it("doesn't name a record for a type, and still bundles it", () => {
-		const typed = entryOf([aType("Email")], "private");
+		const typed = entryOf([aType("Email", [])], "private");
 		expect(typed.record).toBeNull();
-		expect(typed.bundle.patterns).toEqual([aType("Email")]);
+		expect(typed.bundle.patterns).toEqual([aType("Email", [])]);
 	});
 });
 

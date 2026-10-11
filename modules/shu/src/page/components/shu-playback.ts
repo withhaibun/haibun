@@ -30,7 +30,7 @@ export class ShuPlayback extends ShuElement<typeof StateSchema> {
 	/** The page's time cursor, which playback moves and follows. */
 	readonly #timeline = new TimelineViewController(this, { onMove: (cursor) => this.#cursorMoved(cursor) });
 	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
-	summarizeForKihan(): TLinkedData | null {
+	summarizeForContext(): TLinkedData | null {
 		return null;
 	}
 

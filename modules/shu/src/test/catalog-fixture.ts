@@ -28,6 +28,8 @@ export type TCatalogSpec = {
 	classIris?: Record<string, string>;
 	titledBy?: Record<string, TTitledBy>;
 	instrumentationTypes?: string[];
+	/** Each type's superclasses, as its topology states them. */
+	subClassOf?: Record<string, string[]>;
 };
 
 /** Returns the concern catalog `spec` states. A type's id field is `id` and its valid time `generatedAtTime` where the spec
@@ -43,6 +45,7 @@ export function catalogOf(spec: TCatalogSpec): TConcernCatalog {
 			label,
 			idField: spec.idFields?.[label] ?? "id",
 			asType: spec.classIris?.[label],
+			subClassOf: spec.subClassOf?.[label] ?? [],
 			jsonSchema: {},
 			// A spec's relations are a test's, which the type doesn't check against the ontology's.
 			properties: Object.fromEntries(Object.entries(rels).flatMap(([field, rel]) => (edgeRanges[field] === undefined ? [[field, { term: field, rel: rel as TRel }]] : []))),

@@ -36,7 +36,7 @@ import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 const IDS = SHU_TEST_IDS.TYPE_COLUMN;
 import { deepLinkOf, followDeepLink, openRef, paneHref, refHref } from "./ref-navigation.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
-import { aType, type TContextPattern } from "../../schemas.js";
+import { aType, type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { NODE_KIND, type TGraph } from "../../graph/types.js";
 import { ShuProductView } from "./shu-product-view.js";
 import { appAccessLevel } from "../../view-query.js";
@@ -92,7 +92,7 @@ export function buildFullSchemaGraph(current: string): TGraph {
 
 export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 	/** The type and its individuals: an rdfs:Class with its description and the instances currently listed. */
-	summarizeForKihan(): TLinkedData | null {
+	summarizeForContext(): TLinkedData | null {
 		const type = this.state.persistedAs;
 		if (!type) return null;
 		const description = getTypeDescription(type);
@@ -153,7 +153,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		this.setState({ persistedAs });
 		// An ask from here is about the type: its members. This column holds a type without an id, so `aType` is the
 		// only thing it can show, and it doesn't offer a query-surface label, since a schema view doesn't have one to give.
-		this.dispatchEvent(new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns: [aType(persistedAs)], readLevel: appAccessLevel() }, bubbles: true, composed: true }));
+		this.dispatchEvent(new CustomEvent(SHU_EVENT.CONTEXT_CHANGE, { detail: { patterns: [aType(persistedAs, [])], readLevel: appAccessLevel() }, bubbles: true, composed: true }));
 		// The column doesn't list individuals: a referenced-but-undefined class (e.g. prov:Agent, reachable via subClassOf but without a
 		// registered topology) doesn't have any and would fail a graphQuery with "Unknown label"; and a registered schema presenter
 		// lists individuals in its own tab, so the column shows only the schema position (description + scoped schema graph).
@@ -238,7 +238,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 	}
 
 	override paneSubject(): TContextPattern[] | null {
-		return this.state.persistedAs ? [aType(this.state.persistedAs)] : null;
+		return this.state.persistedAs ? [aType(this.state.persistedAs, [])] : null;
 	}
 
 	render(): TemplateResult {

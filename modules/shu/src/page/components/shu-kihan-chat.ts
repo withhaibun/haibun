@@ -16,9 +16,29 @@ import { conduit } from "../controllers/conduit-controller.js";
 import { isImageFormat } from "@haibun/core/lib/media-types.js";
 import { IndividualAddressSchema } from "@haibun/core/lib/typed-links.js";
 import { deploymentAskToolLimit } from "../controllers/hydration-controller.js";
-import { findStep, getAvailableSteps, requireStep } from "../controllers/registry-controller.js";
-import { edgeRecordType, getActionBarAskExtensionTags, getActionBarChatExtensionTags, getEdgeRanges, getFieldRel } from "../controllers/catalog-controller.js";
-import { anIndividual, ContextReadBySchema, SessionListSchema, type TComboboxOption, type TContextIndividual, type TContextPattern, type TQuestionFork } from "../../schemas.js";
+import { conversationSteps, findStep, getAvailableSteps, requireStep } from "../controllers/registry-controller.js";
+import {
+	conversationModelType,
+	edgeRecordType,
+	getActionBarAskExtensionTags,
+	getActionBarChatExtensionTags,
+	getEdgeRanges,
+	getFieldRel,
+} from "../controllers/catalog-controller.js";
+import { type TComboboxOption, type TQuestionFork } from "../../schemas.js";
+import {
+	anIndividual,
+	ContextReadBySchema,
+	CONVERSATION_DOMAIN,
+	ConversationModelSchema,
+	ConversationProviderSchema,
+	FILE_PARAM,
+	SessionListSchema,
+	type TContextIndividual,
+	type TContextPattern,
+	type TConversationModel,
+	type TConversationProvider,
+} from "@haibun/core/lib/conversation/domains/conversation.js";
 import { GraphQueryResultSchema, extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { hasEventStream, subscribeBatchedEvents } from "../controllers/event-stream-controller.js";
@@ -35,7 +55,6 @@ import {
 	gainedSince,
 	sessionsRead,
 	inFlight,
-	KEEP_FILE_STEP,
 	openConversation,
 	turnEnded,
 	type TAskedTurn,
@@ -67,33 +86,28 @@ const TOOL_LIMIT_MAX = 99;
 export const NEW_CONVERSATION: TComboboxOption = { value: "new", label: "new conversation" };
 
 type TChatSession = z.infer<typeof SessionListSchema>["sessions"][number];
-/** A model as the registry holds it: what the endpoint reports it can do, and what a profile states about it. */
-const KihanVertexSchema = z.looseObject({
-	id: z.string(),
-	displayName: z.string().optional(),
-	capabilities: z.looseObject({ tools: z.boolean().optional(), thinking: z.boolean().optional() }).optional(),
-	/** Whether this is actuality's standing default, the model a call outside any turn is sent to. */
-	standing: z.boolean().optional(),
-	options: z.looseObject({ contextReadBy: ContextReadBySchema.optional() }).optional(),
-});
-type TKihanVertex = z.infer<typeof KihanVertexSchema>;
-/** A page of the model catalog, and how many models actuality offers; an answer without a list is a failed read. */
-const CatalogPageSchema = GraphQueryResultSchema.extend({ vertices: z.array(KihanVertexSchema) });
-/** The type actuality's models are records of. */
-const KIHAN = "Kihan";
+/** A page of the models, and how many models actuality offers; an answer without a list is a failed read. */
+const CatalogPageSchema = GraphQueryResultSchema.extend({ vertices: z.array(ConversationModelSchema) });
 /** The read that pages through the records of any declared type. */
 const READS_A_TYPE = "graphQuery";
 /** How many models a read of the catalog asks for at a time. */
 const CATALOG_PAGE = 50;
-/** A provider actuality's models are grouped under, as discovery recorded what it answered. */
-const ProviderSchema = z.looseObject({ id: z.string(), answered: z.boolean(), models: z.number(), why: z.string().optional() });
-type TProvider = z.infer<typeof ProviderSchema>;
-const ProviderPageSchema = GraphQueryResultSchema.extend({ vertices: z.array(ProviderSchema) });
+/** A page of the providers the models are grouped under. */
+const ProviderPageSchema = GraphQueryResultSchema.extend({ vertices: z.array(ConversationProviderSchema) });
 
-/** The type a model's records are grouped under, as the model's type declares it: the provider each is called through. */
-function providerType(): string | undefined {
-	const grouping = Object.keys(getEdgeRanges(KIHAN) ?? {}).find((field) => getFieldRel(KIHAN, field) === LinkRelations.CONTEXT.rel);
-	return grouping ? edgeRecordType(KIHAN, grouping) : undefined;
+/** The type the records of the model type `models` are grouped under, as that type declares it: the provider each is
+ *  called through. */
+function providerType(models: string): string | undefined {
+	const grouping = Object.keys(getEdgeRanges(models) ?? {}).find((field) => getFieldRel(models, field) === LinkRelations.CONTEXT.rel);
+	return grouping ? edgeRecordType(models, grouping) : undefined;
+}
+
+/** The types the models and their providers are records of, which a write of either reads the models again for. */
+function modelTypes(): string[] {
+	const models = conversationModelType();
+	if (models === undefined) return [];
+	const providers = providerType(models);
+	return providers === undefined ? [models] : [models, providers];
 }
 /** Combo option text for a session: what its first question asked, when its newest turn was asked, and how many turns
  *  it gained since this page last read it. */
@@ -141,7 +155,7 @@ function restoreQuestion(input: HTMLTextAreaElement, prompt: string): void {
 
 export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
-	summarizeForKihan(): TLinkedData | null {
+	summarizeForContext(): TLinkedData | null {
 		return null;
 	}
 
@@ -196,9 +210,9 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	/** The chat's remembered options; a new visit restores the model, the tool limit and who reads the context. */
 	static persistFields = ["model", "toolLimit", "contextReadBy"] as const;
 
-	private _models: TKihanVertex[] = [];
+	private _models: TConversationModel[] = [];
 	/** The providers whose models actuality didn't register, and why, as their records state it. */
-	#providersWithout: { type: string; providers: TProvider[] } | undefined;
+	#providersWithout: { type: string; providers: TConversationProvider[] } | undefined;
 	/** Whether the model catalog was read, so the view states that a run doesn't offer a model, rather than showing an empty list. */
 	#modelsRead = false;
 	/** The read of the model catalog in flight, so a question asked while it reads waits on that read rather than making
@@ -237,13 +251,13 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 
 	protected override onConnected(): void {
 		this.#readModels();
-		// Actuality's models are its Kihan records, which discovery and a new profile write, and discovery records each
-		// provider it asked, so the catalog is read again when actuality records either.
+		// Actuality's models are the records of its model type, which discovery and a new profile write, and discovery records
+		// each provider it asked, so the models are read again when actuality records either.
 		if (hasEventStream())
 			this.autoTeardown(
 				subscribeBatchedEvents({
 					onBatch: (events) => {
-						const read = [KIHAN, providerType()];
+						const read = modelTypes();
 						if (!extractQuadsFromEvents(events).some((quad) => read.includes(quad.namedGraph))) return;
 						this.#catalog = undefined;
 						this.#readModels();
@@ -269,9 +283,10 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	/** Fetch the persisted chat sessions (newest first) for the selector. */
 	private async listSessions(): Promise<TChatSession[]> {
 		await getAvailableSteps();
-		if (!findStep("listChatSessions")) return [];
+		const list = conversationSteps()?.sessions;
+		if (list === undefined) return [];
 		// An answer that doesn't carry a list is a failed read, not an empty one: the schema states what came back instead.
-		return SessionListSchema.parse(await conduit().follow(reads(requireStep("listChatSessions")), "kihan-chat: list chat sessions")).sessions;
+		return SessionListSchema.parse(await conduit().follow(reads(list.method), "ask: list the sessions")).sessions;
 	}
 
 	/** Refresh the selector's sessions. A failed read leaves the selector as it was and is reported: which sessions exist
@@ -325,17 +340,18 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	/** Every model actuality offers, read a page at a time until the pages hold as many as the listing states. */
 	private async readCatalog(): Promise<void> {
 		await getAvailableSteps();
-		if (!findStep(READS_A_TYPE)) return;
-		const models: TKihanVertex[] = [];
+		const type = conversationModelType();
+		if (type === undefined || !findStep(READS_A_TYPE)) return;
+		const models: TConversationModel[] = [];
 		for (;;) {
 			const page = CatalogPageSchema.parse(
-				await conduit().follow(reads(requireStep(READS_A_TYPE), { query: { label: KIHAN, offset: models.length, limit: CATALOG_PAGE } }), "kihan-chat: load model catalog"),
+				await conduit().follow(reads(requireStep(READS_A_TYPE), { query: { label: type, offset: models.length, limit: CATALOG_PAGE } }), "ask: read the models"),
 			);
 			models.push(...page.vertices);
 			if (page.vertices.length === 0 || (!page.saturated && models.length >= page.total)) break;
 		}
 		this._models = models;
-		this.#providersWithout = await this.readProvidersWithout();
+		this.#providersWithout = await this.readProvidersWithout(type);
 		this.#modelsRead = true;
 		this.#modelOptions = this._models.map((m) => ({ value: m.id, label: m.displayName || m.id }));
 		this.offeredModel();
@@ -343,11 +359,11 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 	}
 
 	/** The providers whose models actuality didn't register, read from the records of the type its models are grouped under. */
-	private async readProvidersWithout(): Promise<{ type: string; providers: TProvider[] } | undefined> {
-		const type = providerType();
+	private async readProvidersWithout(models: string): Promise<{ type: string; providers: TConversationProvider[] } | undefined> {
+		const type = providerType(models);
 		if (!type || !findStep(READS_A_TYPE)) return undefined;
 		const page = ProviderPageSchema.parse(
-			await conduit().follow(reads(requireStep(READS_A_TYPE), { query: { label: type, offset: 0, limit: CATALOG_PAGE } }), "kihan-chat: load providers"),
+			await conduit().follow(reads(requireStep(READS_A_TYPE), { query: { label: type, offset: 0, limit: CATALOG_PAGE } }), "ask: read the providers"),
 		);
 		return { type, providers: page.vertices.filter((provider) => provider.models === 0) };
 	}
@@ -620,7 +636,10 @@ export class ShuKihanChat extends ShuElement<typeof ChatSchema> {
 		const input = e.target as HTMLInputElement;
 		try {
 			for (const file of input.files ?? []) {
-				const kept = await conduit().follow(acts(requireStep(KEEP_FILE_STEP), { file: await readAsDataUrl(file), name: file.name }), "kihan-chat: keep the question's file");
+				const keep = conversationSteps()?.file;
+				if (keep === undefined) throw new Error(`actuality doesn't declare a step that returns ${CONVERSATION_DOMAIN.FILE}, which keeps a question's file`);
+				const params = { [FILE_PARAM.file]: await readAsDataUrl(file), [FILE_PARAM.name]: file.name };
+				const kept = await conduit().follow(acts(keep.method, params), "ask: keep the question's file");
 				const shown = isImageFormat(file.type) ? URL.createObjectURL(file) : undefined;
 				const { persistedAs, id } = IndividualAddressSchema.parse(kept);
 				this.#files = [...this.#files, { name: file.name, record: anIndividual(persistedAs, id), shown }];

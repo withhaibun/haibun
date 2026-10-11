@@ -13,7 +13,8 @@ import { SHU_EVENT, ANNOTATION_GLYPH, SHU_TAG, TIME_SYNC_CLASS } from "../../dom
 import { defineElement } from "../controllers/element-controller.js";
 import { copyText } from "../controllers/clipboard-controller.js";
 import { isReplyEdge } from "@haibun/core/lib/resources.js";
-import { anIndividual, EntityColumnSchema, type TContextPattern } from "../../schemas.js";
+import { EntityColumnSchema } from "../../schemas.js";
+import { anIndividual, type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { EntityController } from "../controllers/entity-controller.js";
 import type { TEntityResult, TEntityView, TAnnotationDraft } from "../domains/entity.js";
 import type { TAnnotationView } from "@haibun/core/lib/resources.js";
@@ -181,12 +182,12 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	private bodyText: Record<string, string> = {};
 	/** The body a reader switched to, by id. A record that does not list it shows its preferred reading. */
 	private chosenBodyId: string | null = null;
-	/** Full augmented products from getIndividualWithEdges (individual + edges + incomingCount + `_type/_summary/_description/_links/_seqPath`). Retained for the `<script type="application/ld+json">` block in render so an agent reading the page sees the same hypermedia, and returned on demand by `summarizeForKihan`. */
+	/** Full augmented products from getIndividualWithEdges (individual + edges + incomingCount + `_type/_summary/_description/_links/_seqPath`). Retained for the `<script type="application/ld+json">` block in render so an agent reading the page sees the same hypermedia, and returned on demand by `summarizeForContext`. */
 	private products: Record<string, unknown> | null = null;
 
 	/** The open record's products, the linked data the page embeds, with the text of each body the reader opened set on
 	 *  that body. Null while the products are read. */
-	summarizeForKihan(): TLinkedData | null {
+	summarizeForContext(): TLinkedData | null {
 		return this.products === null ? null : withBodyTexts(this.products, this.bodyText);
 	}
 	/** The one data path for this individual: its entity, the annotations anchored in it, and how it resolved (live /

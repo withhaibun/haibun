@@ -31,21 +31,21 @@ import { hasEventStream, subscribeBatchedEvents } from "./page/controllers/event
 import { type TEvent } from "./page/ports.js";
 import { conduit } from "./page/controllers/conduit-controller.js";
 import { reads } from "./page/domains/links.js";
-import { getAvailableSteps, requireStep } from "./page/controllers/registry-controller.js";
-import { SessionReadSchema, type TBundle, type TChatStatus, type TContextPattern, type TSessionTurn } from "./schemas.js";
+import { conversationSteps, getAvailableSteps } from "./page/controllers/registry-controller.js";
+import { type TBundle } from "./schemas.js";
+import {
+	CONVERSATION_DOMAIN,
+	SESSION_PARAM,
+	SessionReadSchema,
+	type TChatStatus,
+	type TContextPattern,
+	type TSessionTurn,
+} from "@haibun/core/lib/conversation/domains/conversation.js";
 import { sharedMachine } from "./page/root.js";
 import { SharedCell } from "./page/adapters/shared-cell.js";
 import { mergeHashParams } from "./page/controllers/hash-controller.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { appAccessLevel } from "./view-query.js";
-
-/** The step a turn runs. */
-export const ASK_STEP = "chatWithContext";
-/** The step that creates the key a turn acts as. The page signs a delegation to that key before it sends the turn, where
- *  the deployment verifies delegations. */
-export const OPEN_TURN_STEP = "openTurn";
-/** The step that stores a file a person adds to a question. The question then references the file. */
-export const KEEP_FILE_STEP = "keepFile";
 
 /** What a turn emitted while it ran. `progress` holds its latest status line, and its spinner shows that line.
  *  `context` holds the lines it sent, and `calls` holds the calls it made. */
@@ -394,7 +394,9 @@ export function gainedSince(session: string, turns: number): number {
 
 async function readSession(session: string): Promise<TSessionTurn[]> {
 	await getAvailableSteps();
-	return SessionReadSchema.parse(await conduit().follow(reads(requireStep("loadChatSession"), { session }), "conversation: read a session back")).turns;
+	const read = conversationSteps()?.session;
+	if (read === undefined) throw new Error(`actuality doesn't declare a step that returns ${CONVERSATION_DOMAIN.SESSION}, which reads a conversation's session back`);
+	return SessionReadSchema.parse(await conduit().follow(reads(read.method, { [SESSION_PARAM]: session }), "conversation: read a session back")).turns;
 }
 
 /**
@@ -430,13 +432,15 @@ export function closeConversation(): void {
 }
 
 /** Whether an event on actuality's stream reports a turn's step starting or ending. */
-const reportsATurn = (event: TEvent): boolean => event.kind === "lifecycle" && event.type === "step" && event.actionName === ASK_STEP;
+const reportsATurn = (event: TEvent): boolean => event.kind === "lifecycle" && event.type === "step" && event.actionName === conversationSteps()?.ask.stepName;
 
 /** Calls `onReport` when actuality's stream reports a turn's step starting or ending, and when the stream reconnects.
  *  Any page can send the turn. A page that didn't send a turn reads a session's new turns this way. A page without an
  *  installed event stream doesn't receive reports and doesn't follow turns. Returns a function that stops following. */
 export function followReportedTurns(onReport: () => void): () => void {
 	if (!hasEventStream()) return () => undefined;
+	// A report names the step that sends a turn, which the page reads from actuality's steps.
+	getAvailableSteps().catch((err: unknown) => reportToRun("error", "conversation", `actuality's steps were not read, so its turns are not followed: ${errorDetail(err)}`));
 	return subscribeBatchedEvents({ filter: reportsATurn, onBatch: onReport, onReconnect: onReport });
 }
 

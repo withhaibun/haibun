@@ -443,9 +443,7 @@
 		"the-run": 1
 	},
 	"modules/shu/src/page/components/actions-bar-steps.ts": {
-		"anthropomorphic": 1,
-		"terminal-preposition": 1,
-		"the-run": 1
+		"terminal-preposition": 1
 	},
 	"modules/shu/src/page/components/chat-pane.test-fake.ts": {
 		"anthropomorphic": 6,
@@ -626,9 +624,9 @@
 		"terminal-preposition": 1
 	},
 	"modules/shu/src/page/components/shu-kihan-chat.ts": {
-		"anthropomorphic": 35,
+		"anthropomorphic": 34,
 		"relation-verb": 1,
-		"terminal-preposition": 8,
+		"terminal-preposition": 7,
 		"the-run": 1
 	},
 	"modules/shu/src/page/components/shu-monitor-column.controls.ts": {
@@ -832,8 +830,8 @@
 		"anthropomorphic": 1
 	},
 	"modules/shu/src/schemas.ts": {
-		"anthropomorphic": 20,
-		"terminal-preposition": 3
+		"anthropomorphic": 7,
+		"terminal-preposition": 2
 	},
 	"modules/shu/src/shu-stepper.test.ts": {
 		"anthropomorphic": 1

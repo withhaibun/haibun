@@ -181,14 +181,22 @@ export function persistedTypeDefinition(
 		properties = {},
 		edges = {},
 		declared = false,
-	}: { selector?: string; description?: string; properties?: Record<string, TRel>; edges?: Record<string, TEdgeDef>; declared?: boolean } = {},
+		subClassOf,
+	}: { selector?: string; description?: string; properties?: Record<string, TRel>; edges?: Record<string, TEdgeDef>; declared?: boolean; subClassOf?: string } = {},
 ): TDomainDefinition {
 	const schema = z.object({ id: z.string(), generatedAtTime: z.string(), ...Object.fromEntries(Object.keys(properties).map((field) => [field, z.string()])) });
 	return {
 		selectors: [selector],
 		schema: fromJsonText(schema),
 		description,
-		topology: { persistedAs: label, id: "id", accessLevel: Access.private, properties: { id: LinkRelations.IDENTIFIER.rel, ...properties }, edges },
+		topology: {
+			persistedAs: label,
+			id: "id",
+			accessLevel: Access.private,
+			properties: { id: LinkRelations.IDENTIFIER.rel, ...properties },
+			edges,
+			...(subClassOf === undefined ? {} : { subClassOf }),
+		},
 		// A feature's `set of {domain} by …` declaration marks what it registers this way.
 		...(declared ? { ui: { declared: true } } : {}),
 	};

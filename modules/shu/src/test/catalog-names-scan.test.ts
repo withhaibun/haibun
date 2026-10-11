@@ -74,3 +74,21 @@ describe("a view's names", () => {
 		expect(namesIn(view)).toEqual([]);
 	});
 });
+
+describe("a type a consumer declares", () => {
+	it("is a finding where a view names it in a type's position and the catalog doesn't declare it", () => {
+		const view = [
+			'import { getEdgeRanges } from "../page/controllers/catalog-controller.js";',
+			'const MODELS = "Kihan";',
+			"export const edges = getEdgeRanges(MODELS);",
+			'export const read = { query: { label: "Kihan", offset: 0 } };',
+			'export const heading = { label: "Monitor" };',
+			`export const declared = { query: { label: "${NOTE}" } };`,
+		].join("\n");
+		expect(namesIn(view)).toEqual([
+			["undeclared type Kihan", 3],
+			["undeclared type Kihan", 4],
+			["type Note", 6],
+		]);
+	});
+});

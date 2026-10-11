@@ -11,7 +11,8 @@ import { openRef } from "./ref-navigation.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { CountedSchema, MAX_PAGE_ROWS, counted, viewCollection, type TCounted } from "@haibun/core/lib/hypermedia.js";
-import { anIndividual, aType, type TContextPattern, QueryViewSchema } from "../../schemas.js";
+import { QueryViewSchema } from "../../schemas.js";
+import { anIndividual, aType, type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
 import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { typeNotHeld, viewQuery, type THeldTypeLink, type TViewQuery } from "../../view-query.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
@@ -68,7 +69,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 
 	/** The current search as linked data: the rows the visible page shows, with the query that produced them.
 	 *  `totalItems` carries the count. `saturated` reports whether the count stopped at a ceiling. */
-	summarizeForKihan(): TLinkedData | null {
+	summarizeForContext(): TLinkedData | null {
 		if (this.results.length === 0) return null;
 		const { label, textQuery } = this.state as { label?: string; textQuery?: string };
 		return viewCollection({

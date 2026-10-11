@@ -5,7 +5,7 @@
  */
 import { declareSpec } from "../../test/catalog-fixture.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { anIndividual, aType } from "../../schemas.js";
+import { anIndividual, aType } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { INITIAL_SUBJECT, SCOPE, currentSubjectState, scopeEntry } from "../../current-subject.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { followPaneLink } from "./ref-navigation.js";
@@ -17,7 +17,7 @@ import { REF_DENOTES, markdownRef } from "@haibun/core/lib/typed-links.js";
 import { ICON_STEP_COMPLETED, RETURNED_TO_CALLER } from "@haibun/core/schema/protocol.js";
 import { followPaneRequests } from "../../test/pane-requests.js";
 
-const BUNDLE = { patterns: [anIndividual("Email", "a@test.com"), aType("Email")], accessLevel: "private" };
+const BUNDLE = { patterns: [anIndividual("Email", "a@test.com"), aType("Email", [])], accessLevel: "private" };
 
 async function rendered(message: Record<string, unknown>): Promise<HTMLElement> {
 	const el = new ShuChatMessage();

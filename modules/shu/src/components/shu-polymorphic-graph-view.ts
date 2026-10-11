@@ -159,8 +159,8 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 
 	/** What a reader is looking at, as the scene states it. The copy-graph button keeps the whole graph in draw order,
 	 *  which is what a person saves to a file. */
-	summarizeForKihan(): TLinkedData | null {
-		return this.scene?.summarizeForKihan() ?? null;
+	summarizeForContext(): TLinkedData | null {
+		return this.scene?.summarizeForContext() ?? null;
 	}
 
 	/* Delegation surface: the tests read the scene's live objects off THIS element; forward each 1:1 (same object). */

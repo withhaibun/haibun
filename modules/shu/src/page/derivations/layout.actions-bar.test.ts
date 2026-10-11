@@ -2,7 +2,7 @@
  * What the actions bar works out before it draws anything: what to call the current context, read here without a browser.
  */
 import { describe, it, expect } from "vitest";
-import { anIndividual, aType } from "../../schemas.js";
+import { anIndividual, aType } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { contextLabel, isEntitySelection } from "./layout.js";
 import { counted, countedTo, statedTotal } from "@haibun/core/lib/hypermedia.js";
 
@@ -21,11 +21,11 @@ describe("what the bar calls the current context", () => {
 	});
 
 	it("labels a count that stopped at its ceiling as a floor", () => {
-		expect(contextLabel([aType("Email")], { label: "Email", total: countedTo(CEILING, CEILING) })).toBe(`Email: ${statedTotal(countedTo(CEILING, CEILING))}`);
+		expect(contextLabel([aType("Email", [])], { label: "Email", total: countedTo(CEILING, CEILING) })).toBe(`Email: ${statedTotal(countedTo(CEILING, CEILING))}`);
 	});
 
 	it("names a type by the type itself where the view doesn't offer a summary; a schema view doesn't offer one", () => {
-		expect(contextLabel([aType("Email")])).toBe("Email:");
+		expect(contextLabel([aType("Email", [])])).toBe("Email:");
 	});
 
 	it("is All without a selection, since the bar then acts on everything", () => {
@@ -34,7 +34,7 @@ describe("what the bar calls the current context", () => {
 
 	it("tells a selection of records from a type to query over", () => {
 		expect(isEntitySelection([anIndividual("Email", "msg-1"), anIndividual("Email", "msg-2")])).toBe(true);
-		expect(isEntitySelection([aType("Email")])).toBe(false);
+		expect(isEntitySelection([aType("Email", [])])).toBe(false);
 		expect(isEntitySelection([])).toBe(false);
 	});
 });

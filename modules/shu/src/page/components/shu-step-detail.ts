@@ -17,7 +17,7 @@ import { defineElement } from "../controllers/element-controller.js";
 import { shuBaseStyles } from "./styles.js";
 import { subscribeBatchedEvents } from "../controllers/event-stream-controller.js";
 import { variablesSetBy, type TVariableSet } from "../../quads-snapshot.js";
-import { anIndividual, type TContextPattern } from "../../schemas.js";
+import { anIndividual, type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { formatSeqPath, parseRecordName, stepLine, type TStepLine } from "@haibun/core/lib/seq-path.js";
 import { actionRef, calledRef, originLink, refTpl } from "./shu-ref.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
@@ -45,7 +45,7 @@ type TStepData = { step?: Record<string, unknown>; variablesSet: TVariableSet[] 
 
 export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 	/** One step as a prov:Activity: its record, and the variables it set. */
-	summarizeForKihan(): TLinkedData | null {
+	summarizeForContext(): TLinkedData | null {
 		const data = this.#load.page;
 		if (!data?.step) return null;
 		return {

@@ -14,7 +14,7 @@ import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import type { TChatMessage } from "./shu-chat-message.js";
-import { anIndividual } from "../../schemas.js";
+import { anIndividual } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { CHAT_STEP, answer, chatDispatch, question, readBack, type TDriven as Driven } from "./chat-pane.test-fake.js";
 import { DrivenStream, STREAM_ABORTED, setupShuTest, type TShuTestHandle } from "../../test-setup.js";
 import "./shu-combobox.js";
@@ -163,7 +163,7 @@ function aViewOnScreen(): void {
 	const strip = document.createElement(SHU_TAG.COLUMN_STRIP);
 	const pane = document.createElement(SHU_TAG.COLUMN_PANE);
 	pane.dataset.columnKey = ON_SCREEN_PANE;
-	pane.append(Object.assign(document.createElement("div"), { summarizeForKihan: () => onScreen }));
+	pane.append(Object.assign(document.createElement("div"), { summarizeForContext: () => onScreen }));
 	strip.append(pane);
 	document.body.append(strip);
 	activePane.set(ON_SCREEN_PANE);

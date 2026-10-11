@@ -10,7 +10,8 @@
  */
 import { describe, expect, it } from "vitest";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
-import { anIndividual, type TChatStatus, type TSessionTurn, type TTurnStatus } from "./schemas.js";
+import { type TTurnStatus } from "./schemas.js";
+import { anIndividual, type TChatStatus, type TSessionTurn } from "@haibun/core/lib/conversation/domains/conversation.js";
 import type { TRecord } from "./current-subject.js";
 import { question, answer, readBack as aReadBack } from "./page/components/chat-pane.test-fake.js";
 import {

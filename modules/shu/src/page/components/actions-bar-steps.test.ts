@@ -8,7 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
-import { CHAT_STEP, CHAT_STEPPER } from "./chat-pane.test-fake.js";
+import { CHAT_DECLARED, CHAT_DOMAINS, CHAT_STEP, CHAT_STEPPER } from "./chat-pane.test-fake.js";
 import { ActionsBarSteps, stepDetails, stepOptions, stepSecondary } from "./actions-bar-steps.js";
 import type { ShuStepCaller } from "./shu-step-caller.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
@@ -19,7 +19,7 @@ import { declaringSteps, setupShuTest, stepsChanged, stepsReadAgain, stepsShown,
 /** The steps actuality offers. */
 const offered: TStepDefinition[] = [];
 /** A page on a run that offers the steps `offered` holds when the page reads them. */
-const aRun = () => setupShuTest({ dispatch: declaringSteps(() => stepsShown(offered)) });
+const aRun = () => setupShuTest({ dispatch: declaringSteps(() => stepsShown(offered, CHAT_DOMAINS)) });
 
 const step = (method: string, pattern: string, extra: Partial<TStepDefinition> = {}) => {
 	const [stepperName, stepName] = method.split("-");
@@ -27,7 +27,7 @@ const step = (method: string, pattern: string, extra: Partial<TStepDefinition> =
 };
 const SHOW = step("GraphStepper-showGraph", "show graph {name}", { paramDomains: { name: "string" }, productsDomain: "graph" });
 const LIST = step("GraphStepper-listTypes", "list types");
-const ASK = step(stepMethodName(CHAT_STEPPER, CHAT_STEP.ask), "ask {prompt}");
+const ASK = step(stepMethodName(CHAT_STEPPER, CHAT_STEP.ask), "ask {prompt}", CHAT_DECLARED[CHAT_STEP.ask]);
 
 /** The history callers open in, as the steps address it. */
 type THistory = HTMLElement & { keepNewestInView: ReturnType<typeof vi.fn>; append: ReturnType<typeof vi.fn> };

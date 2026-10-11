@@ -20,7 +20,8 @@ import { BreadcrumbNavSchema, FilterChangeSchema } from "../domains/page-state.j
 import type { TPageOpening } from "../pipelines/open-page.js";
 import { followPaneLink } from "./ref-navigation.js";
 import { SCOPE, dispatchSubjectEvent, entryOf, entryOfContext } from "../../current-subject.js";
-import { PageContextSchema, type TContextPattern } from "../../schemas.js";
+import { PageContextSchema } from "../../schemas.js";
+import { type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { setActiveViewId } from "../../quads-snapshot.js";
 import { readRunAt } from "../client-cache/controllers/run-controller.js";
 import { reportFailure } from "../../client-log.js";
@@ -62,7 +63,7 @@ const LAYOUT_STYLE_ID = "shu-page-layout";
 const ACTIONS_LABEL = "Actions";
 
 export class ShuPage extends ShuElement<typeof EmptyStateSchema> {
-	summarizeForKihan(): TLinkedData | null {
+	summarizeForContext(): TLinkedData | null {
 		return null;
 	}
 

@@ -238,6 +238,8 @@ const HypermediaConcernSchema = z.object({
 	idField: z.string(),
 	/** ActivityStreams @type  e.g. "as:Note" */
 	asType: z.string().optional(),
+	/** The classes this type states it is a kind of (`topology.subClassOf`), by which a client finds the type of a contract. */
+	subClassOf: z.array(z.string()),
 	/** JSON Schema derived from the Zod domain schema at registration time. */
 	jsonSchema: z.record(z.string(), z.unknown()),
 	properties: z.record(z.string(), PropertyConcernSchema),
@@ -362,6 +364,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 			label,
 			idField: topology.id,
 			...(topology.type ? { asType: topology.type } : {}),
+			subClassOf: topology.subClassOf === undefined ? [] : [topology.subClassOf].flat(),
 			jsonSchema,
 			properties,
 			edges,
@@ -408,7 +411,7 @@ export const HypermediaContextSchema = z.object({
 export type THypermediaContext = z.infer<typeof HypermediaContextSchema>;
 
 /** A JSON-LD node object: an optional `@context`, an optional `@id`/`@type`, and any number of term→value entries. THE
- *  one shape every linked-data projection in the system produces: a served vertex, a view's `summarizeForKihan`, the
+ *  one shape every linked-data projection in the system produces: a served vertex, a view's `summarizeForContext`, the
  *  chat pane manifest, the graph export, so they share this contract instead of each being `unknown`. The `@context`
  *  form reuses {@link THypermediaContext}'s, plus the string-URL and array forms a 1.1 processor accepts. */
 export type TLinkedData = {

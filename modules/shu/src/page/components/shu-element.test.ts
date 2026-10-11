@@ -24,7 +24,7 @@ import { shuBaseStyles } from "./styles.js";
 const S = z.object({ x: z.string().default("") });
 
 class FinalizeProbe extends ShuElement<typeof S> {
-	summarizeForKihan() {
+	summarizeForContext() {
 		return null;
 	}
 
@@ -55,7 +55,7 @@ describe("ShuElement observedAttributes → finalize contract", () => {
 });
 
 class SealedOverrideProbe extends ShuElement<typeof S> {
-	summarizeForKihan() {
+	summarizeForContext() {
 		return null;
 	}
 
@@ -78,7 +78,7 @@ describe("ShuElement sealed-lifecycle guard", () => {
 const P = z.object({ size: z.number().default(10), tone: z.string().default("plain"), volatile: z.string().default("") });
 
 class PersistProbe extends ShuElement<typeof P> {
-	summarizeForKihan() {
+	summarizeForContext() {
 		return null;
 	}
 
@@ -163,7 +163,7 @@ describe("ShuElement persistFields", () => {
 
 	it("a typo'd persistFields entry fails fast at construction", () => {
 		const Bad = class extends ShuElement<typeof P> {
-			summarizeForKihan() {
+			summarizeForContext() {
 				return null;
 			}
 
@@ -189,7 +189,7 @@ describe("ShuElement attribute fields", () => {
 	const Schema = z.object({ open: z.boolean().default(true), marked: z.boolean().default(false), label: z.string().default("") });
 
 	class FieldProbe extends ShuElement<typeof Schema> {
-		summarizeForKihan() {
+		summarizeForContext() {
 			return null;
 		}
 
@@ -270,7 +270,7 @@ describe("ShuElement invalid state reporting", () => {
 	const Schema = z.object({ label: z.string(), count: z.number().default(0) });
 
 	class ReportProbe extends ShuElement<typeof Schema> {
-		summarizeForKihan() {
+		summarizeForContext() {
 			return null;
 		}
 
@@ -355,7 +355,7 @@ describe("knowing whether the hosting column is collapsed", () => {
 	const EmptySchema = z.object({});
 
 	class Deep extends ShuElement<typeof EmptySchema> {
-		summarizeForKihan(): TLinkedData | null {
+		summarizeForContext(): TLinkedData | null {
 			return null;
 		}
 		constructor() {
@@ -369,7 +369,7 @@ describe("knowing whether the hosting column is collapsed", () => {
 		}
 	}
 	class Wrapper extends ShuElement<typeof EmptySchema> {
-		summarizeForKihan(): TLinkedData | null {
+		summarizeForContext(): TLinkedData | null {
 			return null;
 		}
 		constructor() {

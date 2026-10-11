@@ -24,7 +24,7 @@ const IDS = SHU_TEST_IDS.STEP_DEFINITION;
 
 export class ShuStepDefinition extends ShuElement<typeof StateSchema> {
 	/** The step as a prov:Plan: what a caller runs to reach its product. */
-	summarizeForKihan(): TLinkedData | null {
+	summarizeForContext(): TLinkedData | null {
 		const step = this.#load.value;
 		if (!step) return null;
 		return {

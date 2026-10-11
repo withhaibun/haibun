@@ -29,7 +29,7 @@ export class FakeGraphPresenter extends HTMLElement implements TGraphPresenter {
 	previewNodes(ids: string[] | null): void {
 		this.previewed = ids;
 	}
-	summarizeForKihan(): TLinkedData | null {
+	summarizeForContext(): TLinkedData | null {
 		return { "@id": "view:fake-graph", subjects: [...new Set(this.quads.map((quad) => quad.subject))] };
 	}
 	/** Reports a reader opening a node to the host, as the presenter reports it. */
