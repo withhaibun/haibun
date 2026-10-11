@@ -6,7 +6,7 @@ import { ACTION_BEGIN } from "@haibun/core/lib/rpc-wire.js";
 import { hostHandshake } from "@haibun/core/lib/test/rpc-answer.js";
 import { installServedConduit } from "../root.js";
 import { type TStreamChunk } from "../domains/links.js";
-import { TestConduit, PAGE_ACTUALITY, newPage, serveThePage } from "../../test-setup.js";
+import { TestConduit, PAGE_ACTUALITY, newPage, serveThePage } from "../../test/setup.js";
 import { describeConduit, type TConduitUnderTest } from "../../test/conduit-conformance.js";
 import { rpcAnswer } from "@haibun/core/lib/test/rpc-answer.js";
 

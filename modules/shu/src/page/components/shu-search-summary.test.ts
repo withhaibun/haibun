@@ -5,7 +5,7 @@ import { SHU_EVENT } from "../../domains/elements.js";
 import { describeSearch, ShuSearchSummary } from "./shu-search-summary.js";
 import { ShuActivityHistory } from "./shu-activity-history.js";
 import type { TViewQuery } from "../../view-query.js";
-import { newPage } from "../../test-setup.js";
+import { newPage } from "../../test/setup.js";
 
 const query = (over: Partial<TViewQuery>): TViewQuery => ViewQuerySchema.parse(over);
 

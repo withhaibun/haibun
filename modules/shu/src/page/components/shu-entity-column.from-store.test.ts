@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuEntityColumn } from "./shu-entity-column.js";
 
-import { setupShuTest, makeEntityDispatch, type TShuTestHandle } from "../../test-setup.js";
+import { setupShuTest, makeEntityDispatch, type TShuTestHandle } from "../../test/setup.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { endPage } from "../adapters/page-held.js";
 

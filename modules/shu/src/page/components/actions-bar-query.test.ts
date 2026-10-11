@@ -18,7 +18,7 @@ import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { getSelectValues } from "../controllers/catalog-controller.js";
 import { installGraph } from "../client-cache/controllers/device-controller.js";
 import { typeNotHeld, viewQuery } from "../../view-query.js";
-import { declaringSteps, persistedTypeDefinition, setupShuTest, stepsChanged, stepsReadAgain, stepsShown, type TShuTestHandle } from "../../test-setup.js";
+import { declaringSteps, persistedTypeDefinition, setupShuTest, stepsChanged, stepsReadAgain, stepsShown, type TShuTestHandle } from "../../test/setup.js";
 
 /** The fields each type takes as filters: the folder a record is filed in, whose values the search offers, and its subject. */
 const FILED = { folder: LinkRelations.CONTEXT.rel, subject: LinkRelations.NAME.rel };

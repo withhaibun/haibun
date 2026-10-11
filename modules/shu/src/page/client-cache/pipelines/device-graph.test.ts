@@ -2,7 +2,7 @@
 // The client IQuadStore serves every read over what this page caches, its query surface included: without a server, a
 // view is offered what the reader holds rather than an empty result. The conformance specification of both stores
 // covers the quad primitives; these are the reads the site otherwise serves.
-import { hydrate, serveThePage } from "../../../test-setup.js";
+import { hydrate, serveThePage } from "../../../test/setup.js";
 import { hydrateFromDom } from "../../controllers/hydration-controller.js";
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";

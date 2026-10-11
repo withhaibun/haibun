@@ -4,7 +4,7 @@
  * report, a test, a server without an engine of its own) and the page's IndexedDB. IndexedDB runs on `fake-indexeddb`, so
  * the implementation a reader uses is covered in a unit test rather than only in a browser.
  */
-import { serveThePage } from "../../../test-setup.js";
+import { serveThePage } from "../../../test/setup.js";
 import "fake-indexeddb/auto";
 import { beforeAll } from "vitest";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";

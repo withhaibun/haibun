@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
 import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
-import { persistedTypeDefinition } from "../test-setup.js";
+import { persistedTypeDefinition } from "./setup.js";
 import { catalogNameFindings, catalogNames } from "./catalog-names-scan.js";
 
 const NOTE = "Note";

@@ -14,7 +14,7 @@ import { SCROLL_TO_INDEX } from "./shu-scrollbar.js";
 import type { WindowedSource } from "../../windowed-source.js";
 import { html } from "lit";
 import { timeCursor } from "../controllers/page-cell-controller.js";
-import { setupShuTest, storeFields, type TShuTestHandle } from "../../test-setup.js";
+import { setupShuTest, storeFields, type TShuTestHandle } from "../../test/setup.js";
 import { PAGE_SETTING_KEY } from "../domains/settings.js";
 import { runStore } from "../client-cache/run-store.test-fake.js";
 import { SHU_TAG } from "../../domains/elements.js";

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 // Runs one specification against both adapters of the page's event stream. The live one reads the host's stream, and a
 // report and a scripted scenario drive the carried one.
-import { PAGE_ACTUALITY, hydrate, newPage, servedWith } from "./test-setup.js";
+import { PAGE_ACTUALITY, hydrate, newPage, servedWith } from "./test/setup.js";
 import { vi, expect } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { installCarriedEventStream, installServedEventStream } from "./page/root.js";

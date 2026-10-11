@@ -16,7 +16,7 @@ import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { factIdOf } from "@haibun/core/lib/seq-path.js";
 import { readingExecution } from "../client-cache/controllers/device-controller.js";
 import { declareFakeGraphPresenter, mountedPresenter } from "../../graph-presenter.test-fake.js";
-import { reportedErrors, setupShuTest, type TShuTestHandle } from "../../test-setup.js";
+import { reportedErrors, setupShuTest, type TShuTestHandle } from "../../test/setup.js";
 import { NODE_KIND, type TGraphNode } from "../../graph/types.js";
 import { followPaneRequests } from "../../test/pane-requests.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";

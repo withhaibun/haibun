@@ -13,7 +13,7 @@ import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { CLIENT_LOG_METHOD } from "../../../client-log.js";
 import { ASK_PARAM, CONVERSATION_DOMAIN, CONVERSATION_MODEL_CLASS, FILE_PARAM, SESSION_PARAM, type TSessionTurn } from "@haibun/core/lib/conversation/domains/conversation.js";
-import { persistedTypeDefinition, stepsShown, type TDispatch } from "../../../test-setup.js";
+import { persistedTypeDefinition, stepsShown, type TDispatch } from "../../../test/setup.js";
 
 /** The consumer's stepper that offers the steps the pane calls. */
 export const CHAT_STEPPER = "AskingStepper";

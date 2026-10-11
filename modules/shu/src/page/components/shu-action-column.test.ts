@@ -10,7 +10,7 @@ import { Access } from "@haibun/core/lib/resources.js";
 import { ShuActionColumn } from "./shu-action-column.js";
 import "./shu-ref-element.js";
 
-import { setupShuTest, stepsShown, type TShuTestHandle } from "../../test-setup.js";
+import { setupShuTest, stepsShown, type TShuTestHandle } from "../../test/setup.js";
 import { installMemoryDeviceStore } from "../client-cache/root.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { endPage } from "../adapters/page-held.js";

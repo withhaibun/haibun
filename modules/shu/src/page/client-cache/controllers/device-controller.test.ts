@@ -1,6 +1,6 @@
 // What a device holds of the runs it has read, and what it does when it can't hold more. A record's id names its
 // execution, so deleting a run reads the records rather than a second index beside them.
-import { newPage } from "../../../test-setup.js";
+import { newPage } from "../../../test/setup.js";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import type { QuadStore } from "@haibun/core/lib/quad-store.js";

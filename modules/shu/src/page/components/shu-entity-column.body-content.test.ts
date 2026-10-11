@@ -2,7 +2,7 @@
 // Body sub-resources MUST always render when present. Selecting an email, file, comment, credential, etc. shows its
 // content (one iframe per active type, a switcher when several types exist), even when the entity has few scalar
 // fields, which previously misclassified it as a "stub" and dropped the content. Regression guard for that.
-import { newPage } from "../../test-setup.js";
+import { newPage } from "../../test/setup.js";
 import { declareSpec } from "../../test/catalog-fixture.js";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuEntityColumn } from "./shu-entity-column.js";

@@ -16,7 +16,7 @@ import { css, html, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { ShuColumnPane } from "./shu-column-pane.js";
-import { clearStoredFields, installTestMediaQueries, reportedErrors, storeFields } from "../../test-setup.js";
+import { clearStoredFields, installTestMediaQueries, reportedErrors, storeFields } from "../../test/setup.js";
 import { pagePreferences } from "../root.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
 import { shuBaseStyles } from "./styles.js";

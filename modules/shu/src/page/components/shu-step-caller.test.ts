@@ -11,7 +11,7 @@ import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { rpcAnswer, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
 import { declareRegistry } from "../../test/catalog-fixture.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
-import { persistedTypeDefinition, serveThePage, newPage, stepsShown } from "../../test-setup.js";
+import { persistedTypeDefinition, serveThePage, newPage, stepsShown } from "../../test/setup.js";
 import { requiredActionOf } from "../controllers/registry-controller.js";
 import { installCarriedEventStream, installServedConduit } from "../root.js";
 import "./shu-step-caller.js";

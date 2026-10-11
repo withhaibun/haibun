@@ -16,7 +16,7 @@ import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import type { TChatMessage } from "./shu-chat-message.js";
 import { anIndividual } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { A_CATALOG, CHAT_STEP, answer, chatDispatch, question, readBack, type TDriven as Driven } from "./chat-pane.test-fake.js";
-import { DrivenStream, STREAM_ABORTED, setupShuTest, type TShuTestHandle } from "../../../test-setup.js";
+import { DrivenStream, STREAM_ABORTED, setupShuTest, type TShuTestHandle } from "../../../test/setup.js";
 import "../../components/shu-combobox.js";
 import { ShuActivityHistory } from "../../components/shu-activity-history.js";
 import { ShuAsk, NEW_CONVERSATION } from "./shu-ask.js";

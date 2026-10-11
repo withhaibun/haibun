@@ -9,7 +9,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { acts } from "./page/domains/links.js";
 import { conduit } from "./page/controllers/conduit-controller.js";
 import { pageEventStream } from "./page/root.js";
-import { setupShuTest } from "./test-setup.js";
+import { setupShuTest } from "./test/setup.js";
 
 beforeEach(() => {
 	// Each test re-runs setupShuTest; state doesn't leak between cases.

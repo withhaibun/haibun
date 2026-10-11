@@ -15,7 +15,7 @@ import { ShuColumnStrip } from "./shu-column-strip.js";
 import { SHU_EVENT, SHU_ATTR, SHU_TAG } from "../../domains/elements.js";
 import { activePane, stripPanes } from "../controllers/page-cell-controller.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
-import { clearStoredFields, storeFields } from "../../test-setup.js";
+import { clearStoredFields, storeFields } from "../../test/setup.js";
 import { pagePreferences } from "../root.js";
 
 beforeAll(() => {

@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { A_CATALOG, CHAT_STEP, chatDispatch } from "./chat-pane.test-fake.js";
-import { DrivenStream, setupShuTest, type TShuTestHandle } from "../../../test-setup.js";
+import { DrivenStream, setupShuTest, type TShuTestHandle } from "../../../test/setup.js";
 // The selector must be a real combobox, so define that one element rather than the whole registry.
 import "../../components/shu-combobox.js";
 import { ShuAsk } from "./shu-ask.js";

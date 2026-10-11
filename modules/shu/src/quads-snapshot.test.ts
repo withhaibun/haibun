@@ -14,7 +14,7 @@
  */
 import { catalogOf, declareCatalog, declareRegistry, declareSpec, declareGraphSpec } from "./test/catalog-fixture.js";
 import { requiredActionOf } from "./page/controllers/registry-controller.js";
-import { serveThePage, setupShuTest, stepsShown, newPage } from "./test-setup.js";
+import { serveThePage, setupShuTest, stepsShown, newPage } from "./test/setup.js";
 import { describe, it, expect, beforeEach } from "vitest";
 import {
 	subscribeSnapshot,

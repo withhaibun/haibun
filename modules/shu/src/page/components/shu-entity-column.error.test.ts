@@ -7,7 +7,7 @@ import { installServedConduit } from "../root.js";
 import { installCarriedEventStream } from "../root.js";
 import { rpcAnswer, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
-import { ENTITY_STEP_LIST, serveThePage, newPage } from "../../test-setup.js";
+import { ENTITY_STEP_LIST, serveThePage, newPage } from "../../test/setup.js";
 
 describe("shu-entity-column error surfacing", () => {
 	beforeEach(() => {

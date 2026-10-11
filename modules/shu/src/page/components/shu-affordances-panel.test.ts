@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuAffordancesPanel } from "./shu-affordances-panel.js";
 import { installConduit } from "../root.js";
-import { TestConduit, setupShuTest, type TShuTestHandle } from "../../test-setup.js";
+import { TestConduit, setupShuTest, type TShuTestHandle } from "../../test/setup.js";
 import { installCarriedEventStream } from "../root.js";
 import { type TEvent } from "../ports.js";
 import * as PageHash from "../controllers/hash-controller.js";
@@ -13,7 +13,7 @@ import { declareFakeGraphPresenter, mountedPresenter } from "../../graph-present
 import { presenterIn } from "../controllers/presenter-controller.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
 import { declareRegistry } from "../../test/catalog-fixture.js";
-import { stepsShown } from "../../test-setup.js";
+import { stepsShown } from "../../test/setup.js";
 import { Access } from "@haibun/core/lib/resources.js";
 
 /** The step that reads the affordances on offer, as the show steps step describes it. */

@@ -6,7 +6,7 @@ import type { TLink } from "../domains/links.js";
 import { CLIENT_RING } from "../../domains/elements.js";
 import { flushClientBlips } from "./client-blips.js";
 import { pageBlipChannel, recordClientBlip } from "../controllers/blip-controller.js";
-import { carryARun, openReportingPage, setupShuTest, type TShuTestHandle, newPage } from "../../test-setup.js";
+import { carryARun, openReportingPage, setupShuTest, type TShuTestHandle, newPage } from "../../test/setup.js";
 import { CLIENT_LOG_METHOD } from "../../client-log.js";
 import { readAction } from "@haibun/core/lib/actions.js";
 import { Access } from "@haibun/core/lib/resources.js";

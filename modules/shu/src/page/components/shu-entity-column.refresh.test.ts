@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuEntityColumn } from "./shu-entity-column.js";
 
-import { setupShuTest, makeEntityDispatch, type TShuTestHandle } from "../../test-setup.js";
+import { setupShuTest, makeEntityDispatch, type TShuTestHandle } from "../../test/setup.js";
 import { endPage } from "../adapters/page-held.js";
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 20));

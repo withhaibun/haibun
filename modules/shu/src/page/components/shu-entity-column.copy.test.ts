@@ -2,7 +2,7 @@
 /** The body toolbar copies the body the column shows, and drawing the column again leaves the body's frame in place. */
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { ShuEntityColumn } from "./shu-entity-column.js";
-import { setupShuTest, makeEntityDispatch, type TShuTestHandle } from "../../test-setup.js";
+import { setupShuTest, makeEntityDispatch, type TShuTestHandle } from "../../test/setup.js";
 import { endPage } from "../adapters/page-held.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { BODY_LABEL } from "@haibun/core/lib/resources.js";

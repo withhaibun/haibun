@@ -14,7 +14,7 @@ import {
 	responseTimeoutMs,
 	pageBuild,
 } from "../controllers/hydration-controller.js";
-import { hydrate, PAGE_ACTUALITY, SERVED_SETTINGS, servedWith } from "../../test-setup.js";
+import { hydrate, PAGE_ACTUALITY, SERVED_SETTINGS, servedWith } from "../../test/setup.js";
 import { RESPONSE_TIMEOUT_MS } from "../../domains/hydration.js";
 import { CACHE_SHAPE } from "../client-cache/ports.js";
 

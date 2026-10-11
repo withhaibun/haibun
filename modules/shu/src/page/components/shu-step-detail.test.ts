@@ -6,7 +6,7 @@
  */
 import { declareGraphSpec } from "../../test/catalog-fixture.js";
 import { requiredActionOf } from "../controllers/registry-controller.js";
-import { serveThePage, newPage } from "../../test-setup.js";
+import { serveThePage, newPage } from "../../test/setup.js";
 import { runStore } from "../client-cache/run-store.test-fake.js";
 import { describe, it, expect, beforeEach } from "vitest";
 import "./shu-step-detail.js"; // the module defines the element

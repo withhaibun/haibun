@@ -19,7 +19,7 @@ import { installServedConduit } from "../root.js";
 
 import { installServedEventStream, pageEventStream } from "../root.js";
 import { getAvailableSteps, onStepsChanged } from "../controllers/registry-controller.js";
-import { serveThePageFrom } from "../../test-setup.js";
+import { serveThePageFrom } from "../../test/setup.js";
 import { DOMAIN_LINK } from "@haibun/core/lib/domains.js";
 import { endPage } from "../adapters/page-held.js";
 

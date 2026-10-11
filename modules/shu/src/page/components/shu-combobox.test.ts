@@ -5,7 +5,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuCombobox } from "./shu-combobox.js";
-import { installTestMediaQueries, manualClock } from "../../test-setup.js";
+import { installTestMediaQueries, manualClock } from "../../test/setup.js";
 import { installClock } from "../root.js";
 import { endPage } from "../adapters/page-held.js";
 

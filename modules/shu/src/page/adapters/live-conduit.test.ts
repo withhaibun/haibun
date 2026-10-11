@@ -15,7 +15,7 @@ import { hasLink, getLink } from "../derivations/links.js";
 import { conduit, serverLastRespondedAt } from "../controllers/conduit-controller.js";
 import { installConduit, installServedConduit } from "../root.js";
 import { ServerUnreachable, isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
-import { PAGE_ACTUALITY, SERVED_SETTINGS, TestConduit, hydrate, servedWith, serveThePage, newPage } from "../../test-setup.js";
+import { PAGE_ACTUALITY, SERVED_SETTINGS, TestConduit, hydrate, servedWith, serveThePage, newPage } from "../../test/setup.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 
 beforeEach(() => {

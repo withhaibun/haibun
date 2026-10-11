@@ -17,7 +17,7 @@ import { FRAGMENT_SPEC } from "@haibun/core/lib/media-fragments.js";
 import { ShuElement } from "../components/shu-element.js";
 import * as Address from "../derivations/address.js";
 import { installConduit, installServedConduit } from "../root.js";
-import { TestConduit, newPage } from "../../test-setup.js";
+import { TestConduit, newPage } from "../../test/setup.js";
 import { IMPORTED_VIEWS } from "../../test/pane-requests.js";
 import type { TStripElement } from "../ports.js";
 import { activePane } from "../root.js";

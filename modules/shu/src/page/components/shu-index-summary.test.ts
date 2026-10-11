@@ -11,7 +11,7 @@ import { ShuIndexSummary } from "./shu-index-summary.js";
 import { SHU_EVENT, SPINE_SLOT } from "../../domains/elements.js";
 import { viewQuery } from "../../view-query.js";
 import { ShuColumnPane } from "./shu-column-pane.js";
-import { installTestMediaQueries, setupShuTest, type TShuTestHandle } from "../../test-setup.js";
+import { installTestMediaQueries, setupShuTest, type TShuTestHandle } from "../../test/setup.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
 import { counted, countedTo, statedTotal } from "@haibun/core/lib/hypermedia.js";
 

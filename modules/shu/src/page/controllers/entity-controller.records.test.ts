@@ -9,7 +9,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { openRecord, refreshAnnotations, recordView, followRecords } from "./entity-controller.js";
-import { setupShuTest, makeEntityDispatch, annotationList, type TShuTestHandle } from "../../test-setup.js";
+import { setupShuTest, makeEntityDispatch, annotationList, type TShuTestHandle } from "../../test/setup.js";
 import { LinkRelations, SPECIFIC_RESOURCE_LABEL } from "@haibun/core/lib/resources.js";
 import type { TEvent } from "../ports.js";
 import { endPage } from "../adapters/page-held.js";

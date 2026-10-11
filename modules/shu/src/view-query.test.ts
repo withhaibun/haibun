@@ -6,7 +6,7 @@
  * serialize(parse(h)) === h for a canonical hash. Plus fail-fast: a malformed param throws, never
  * silently resets (no `|| default`, no `parseInt || 0`).
  */
-import { newPage } from "./test-setup.js";
+import { newPage } from "./test/setup.js";
 import { describe, expect, it, beforeEach } from "vitest";
 import { ViewQuerySchema, type TViewQuery, parseViewQuery, serializeViewQuery, viewQuery } from "./view-query.js";
 import { canonicalizeArrival } from "./page/derivations/address.js";

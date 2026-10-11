@@ -10,7 +10,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { READS_THE_RUNS_ARTIFACTS } from "@haibun/core/lib/actions.js";
 import { artifactUrl, shownArtifact, shownOrReported } from "./artifact-url.js";
-import { carryARun, openReportingPage, reportingTo, setupShuTest, type TReportedToRun, type TShuTestHandle } from "./test-setup.js";
+import { carryARun, openReportingPage, reportingTo, setupShuTest, type TReportedToRun, type TShuTestHandle } from "./test/setup.js";
 
 const SCREENSHOT = "/artifacts/featn-1/image/event-0.1.png";
 /** The source a view reports under. */

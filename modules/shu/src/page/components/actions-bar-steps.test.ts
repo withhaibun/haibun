@@ -14,7 +14,7 @@ import type { ShuStepCaller } from "./shu-step-caller.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
 import { aControllerHost } from "./controller-host.test-fake.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
-import { declaringSteps, setupShuTest, stepsChanged, stepsReadAgain, stepsShown, type TShuTestHandle } from "../../test-setup.js";
+import { declaringSteps, setupShuTest, stepsChanged, stepsReadAgain, stepsShown, type TShuTestHandle } from "../../test/setup.js";
 
 /** The steps actuality offers. */
 const offered: TStepDefinition[] = [];

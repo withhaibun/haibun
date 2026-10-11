@@ -3,7 +3,7 @@ import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { actorTypesFor, addObservedSelectValues, getEdgeRelMap, getSelectValues, getTypes, hasSelectValues, setSelectValues } from "./catalog-controller.js";
 import { declareSpec } from "../../test/catalog-fixture.js";
-import { newPage } from "../../test-setup.js";
+import { newPage } from "../../test/setup.js";
 
 describe("a catalog read before actuality's steps", () => {
 	beforeEach(() => newPage());

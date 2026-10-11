@@ -4,7 +4,7 @@
  * listed beside it, once each: a markdown body's `#Type:id` links and an HTML body's.
  */
 import { type TCatalogSpec, declareSpec } from "../../test/catalog-fixture.js";
-import { newPage } from "../../test-setup.js";
+import { newPage } from "../../test/setup.js";
 import { beforeEach, describe, expect, it } from "vitest";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { MEDIA_TYPE } from "@haibun/core/lib/media-types.js";

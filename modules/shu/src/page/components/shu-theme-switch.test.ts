@@ -8,7 +8,7 @@ import { SHU_TAG } from "../../domains/elements.js";
 import { PREFERENCES_COOKIE_PREFIX } from "../adapters/prefs-cookie.js";
 import { pagePreferences } from "../root.js";
 import { endPage } from "../adapters/page-held.js";
-import { clearStoredFields } from "../../test-setup.js";
+import { clearStoredFields } from "../../test/setup.js";
 import { applyStoredTheme } from "./shu-theme-switch.js";
 
 /** A page whose `localStorage` throws on each use, as a browser that refuses the site's storage does. */

@@ -10,7 +10,7 @@ import { html, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement } from "./page/components/shu-element.js";
 import { applyScene, builtInScenes, captureScene, networkSceneTypes, storedAccessLevel, NETWORK_SCENE } from "./scenes.js";
-import { clearStoredFields } from "./test-setup.js";
+import { clearStoredFields } from "./test/setup.js";
 
 const StateSchema = z.object({ overrides: z.record(z.string(), z.boolean()).default({}), limit: z.number().default(10), hovered: z.string().optional() });
 

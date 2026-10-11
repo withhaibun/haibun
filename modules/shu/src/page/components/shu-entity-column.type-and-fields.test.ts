@@ -10,7 +10,7 @@ import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { refHref } from "./ref-navigation.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { RECORD_JSON } from "./json-disclosure.js";
-import { persistedTypeDefinition } from "../../test-setup.js";
+import { persistedTypeDefinition } from "../../test/setup.js";
 
 /** The href of a link to a type's view, as the column's markup serializes it. */
 const typeHref = (domain: string) => `href="${refHref(REF_DENOTES.type, { domain })}"`;

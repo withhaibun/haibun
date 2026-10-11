@@ -8,7 +8,7 @@ import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import type { THaibunLogLevel } from "@haibun/core/schema/protocol.js";
-import { clearStoredFields, setupShuTest, storeFields, type TShuTestHandle } from "../../../test-setup.js";
+import { clearStoredFields, setupShuTest, storeFields, type TShuTestHandle } from "../../../test/setup.js";
 import { SHU_TAG } from "../../../domains/elements.js";
 import { PAGE_SETTING_KEY } from "../../domains/settings.js";
 import "../../components/shu-window-size.js";

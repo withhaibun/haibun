@@ -10,7 +10,7 @@ import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { ShuStepDefinition } from "./shu-step-definition.js";
 import "./shu-ref-element.js";
 
-import { setupShuTest, stepsShown, type TShuTestHandle } from "../../test-setup.js";
+import { setupShuTest, stepsShown, type TShuTestHandle } from "../../test/setup.js";
 import { installMemoryDeviceStore } from "../client-cache/root.js";
 import { SHU_EVENT } from "../../domains/elements.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";

@@ -17,7 +17,7 @@ import { RUN_WINDOW_SIZE } from "../derivations/run-rows.js";
 import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
 import { RUN_DOMAIN_DEFINITIONS } from "../run-store.test-fake.js";
-import { setupShuTest, stepsShown, type TShuTestHandle } from "../../../test-setup.js";
+import { setupShuTest, stepsShown, type TShuTestHandle } from "../../../test/setup.js";
 import { pageRunGraph } from "../../controllers/read-controller.js";
 
 const EXECUTION = "1700000000000-1";

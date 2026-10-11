@@ -1,5 +1,5 @@
 import { currentVersion } from "@haibun/core/currentVersion.js";
-import { PAGE_ACTUALITY, SERVED_SETTINGS, servedWith } from "./test-setup.js";
+import { PAGE_ACTUALITY, SERVED_SETTINGS, servedWith } from "./test/setup.js";
 import { CONTEXT_DOCUMENT, HYDRATION_ID } from "./domains/elements.js";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";

@@ -9,7 +9,7 @@ import { Access, LinkRelations } from "@haibun/core/lib/resources.js";
 import { RefusedCall, ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { catalogOf, declareRegistry } from "../../test/catalog-fixture.js";
-import { setupShuTest, stepsShown, type TShuTestHandle } from "../../test-setup.js";
+import { setupShuTest, stepsShown, type TShuTestHandle } from "../../test/setup.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
 import "./shu-filter-column.js";
 import "./shu-type-column.js";

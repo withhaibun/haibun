@@ -20,7 +20,7 @@ import { pageContext, pageStatus, pageTrail } from "../controllers/page-cell-con
 import { STOPPED_BY_THE_READER, conversationState, dispatchConversationEvent } from "../ask/controllers/conversation-controller.js";
 import { commandList } from "../derivations/step-input.js";
 import { aType } from "@haibun/core/lib/conversation/domains/conversation.js";
-import { carryARun, persistedTypeDefinition, setupShuTest } from "../../test-setup.js";
+import { carryARun, persistedTypeDefinition, setupShuTest } from "../../test/setup.js";
 import { CHAT_STEP, chatDispatch } from "../ask/components/chat-pane.test-fake.js";
 
 provideLayout();

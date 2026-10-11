@@ -12,7 +12,7 @@ import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { ShuClientCacheColumn } from "./shu-client-cache-column.js";
 import "../../components/shu-monitor-column.js";
 import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
-import { setupShuTest, stepsShown, type TShuTestHandle } from "../../../test-setup.js";
+import { setupShuTest, stepsShown, type TShuTestHandle } from "../../../test/setup.js";
 import { RUN_DOMAIN_DEFINITIONS, runStore } from "../run-store.test-fake.js";
 import { timeCursor } from "../../controllers/page-cell-controller.js";
 import { currentExecution, deviceGraph, installGraph } from "../controllers/device-controller.js";

@@ -8,7 +8,7 @@
 import { describe, expect, it } from "vitest";
 import { canonicalizeArrival, hashParams } from "../derivations/address.js";
 import { hashParam, mergeHashParams, onHashChanged, pageAddress, pushHash } from "../controllers/hash-controller.js";
-import { carryARun, serveThePage } from "../../test-setup.js";
+import { carryARun, serveThePage } from "../../test/setup.js";
 
 describe("canonicalizeArrival", () => {
 	const base = "#?label=File&sort=dateModified&col=shu-monitor-column&active=shu-monitor-column";

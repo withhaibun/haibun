@@ -11,7 +11,7 @@ import { counted } from "@haibun/core/lib/hypermedia.js";
 import { arrayWindowedSource, lazyWindowedSource, readWindowedSource } from "./windowed-source.js";
 import { describeWindowedSource, CONFORMANCE_ROWS } from "./test/windowed-source-conformance.js";
 import { installGraph } from "./page/client-cache/controllers/device-controller.js";
-import { setupShuTest } from "./test-setup.js";
+import { setupShuTest } from "./test/setup.js";
 import { runStore } from "./page/client-cache/run-store.test-fake.js";
 import { graphRunSource } from "./page/client-cache/controllers/run-controller.js";
 import { endPage } from "./page/adapters/page-held.js";

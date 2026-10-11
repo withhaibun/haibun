@@ -6,7 +6,7 @@ import { askEmbedderToDelegate, receiveFromEmbedder, type TEmbedding } from "./e
 import { embedderChannel } from "../adapters/embedder-channel.js";
 import { embeddedPageView, givenDelegation, pageAuthorityPort, pageClock } from "../root.js";
 import { pageMay } from "../authority/controllers/page-authority-controller.js";
-import { openReportingPage, reportingTo, setupShuTest, type TReportedToRun, type TShuTestHandle } from "../../test-setup.js";
+import { openReportingPage, reportingTo, setupShuTest, type TReportedToRun, type TShuTestHandle } from "../../test/setup.js";
 
 const reported: TReportedToRun[] = [];
 let t: TShuTestHandle;

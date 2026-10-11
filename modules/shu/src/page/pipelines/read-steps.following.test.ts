@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { findStep, getAvailableSteps, onStepsChanged } from "../controllers/registry-controller.js";
-import { setupShuTest, stepsChanged, stepsShown, type TShuTestHandle } from "../../test-setup.js";
+import { setupShuTest, stepsChanged, stepsShown, type TShuTestHandle } from "../../test/setup.js";
 import { installMemoryDeviceStore } from "../client-cache/root.js";
 import { endPage } from "../adapters/page-held.js";
 

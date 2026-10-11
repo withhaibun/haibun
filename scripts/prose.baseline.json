@@ -764,10 +764,6 @@
 	"modules/shu/src/test-setup.test.ts": {
 		"negated-noun": 1
 	},
-	"modules/shu/src/test-setup.ts": {
-		"anthropomorphic": 17,
-		"terminal-preposition": 1
-	},
 	"modules/shu/src/test/conduit-conformance.ts": {
 		"anthropomorphic": 13
 	},

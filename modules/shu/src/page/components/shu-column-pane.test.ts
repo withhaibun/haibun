@@ -19,7 +19,7 @@ import { ShuColumnStrip } from "./shu-column-strip.js";
 import { SHU_EVENT, SHU_ATTR, SHU_TAG, SPINE_SLOT } from "../../domains/elements.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { pagePreferences } from "../root.js";
-import { clearStoredFields, installTestMediaQueries, storeFields } from "../../test-setup.js";
+import { clearStoredFields, installTestMediaQueries, storeFields } from "../../test/setup.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
 
 /** Flush any pending debounced persistence and clear the pane prefs cookie so tests are isolated. */

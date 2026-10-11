@@ -9,29 +9,29 @@
  * fixture, and the throw surfaces verbatim through `conduit()`
  * call sites. Tests `emit` events to drive lifecycle/log subscribers.
  *
- * Every test sets up the same way, without setup by side effect; forgetting
+ * Every test sets up the same way, without setup by side effect; omitting
  * the call makes the first `conduit()` or `pageEventStream()` throw a precise
  * "the page doesn't hold a conduit" / "the page doesn't hold an event stream" error naming
  * what was missed.
  */
 
 import { actualityAt } from "@haibun/core/lib/rpc-wire.js";
-import { HYDRATION_ID } from "./domains/elements.js";
-import { RESPONSE_TIMEOUT_MS, type TDeploymentSettings } from "./domains/hydration.js";
-import { installAuthority, installConduit, installHydration } from "./page/root.js";
-import { readHydration } from "./page/pipelines/hydrate.js";
-import { type TConduit } from "./page/ports.js";
-import { type TLink, type TRepresentation, type TStreamChunk } from "./page/domains/links.js";
+import { HYDRATION_ID } from "../domains/elements.js";
+import { RESPONSE_TIMEOUT_MS, type TDeploymentSettings } from "../domains/hydration.js";
+import { installAuthority, installConduit, installHydration } from "../page/root.js";
+import { readHydration } from "../page/pipelines/hydrate.js";
+import { type TConduit } from "../page/ports.js";
+import { type TLink, type TRepresentation, type TStreamChunk } from "../page/domains/links.js";
 
 // ─── The conduit a test installs ─────────────────────────────────────────────
 
-/** A test's answers, by `(method, params)`, given the link followed, for a case that checks what a call asks. Throwing inside it signals that a fixture for this call doesn't exist: `TestConduit` surfaces the throw so a test fails loudly, naming the method a fixture didn't answer. */
+/** A test's responses, by `(method, params)`, given the link followed, for a case that checks what a call requests. A throw inside it signals that a fixture for this call doesn't exist: `TestConduit` surfaces the throw so a test fails loudly, naming the method a fixture didn't serve. */
 export type TDispatch = (method: string, params: Record<string, unknown>, link: TLink) => unknown | Promise<unknown>;
 
 /** What a stream rejects with once its caller aborts it, as the fetch that carries one rejects. */
 export const STREAM_ABORTED = "the stream was aborted";
 
-/** A stream a case drives, one form a dispatch answers a streamed call with: the seqPath actuality announces, or null where
+/** A stream a case drives, one form of a dispatch's response to a streamed call: the seqPath actuality announces, or null where
  *  it doesn't announce one, and `run`, which sends chunks until it resolves, given the caller's abort signal. */
 export class DrivenStream {
 	constructor(
@@ -40,7 +40,7 @@ export class DrivenStream {
 	) {}
 }
 
-/** A `TConduit` answering from a function a test supplies, so the code under test doesn't detect that it isn't calling a server. */
+/** A `TConduit` that responds from a function a test supplies, so the code under test doesn't detect that it isn't calling a server. */
 export class TestConduit implements TConduit {
 	constructor(private readonly dispatch: TDispatch) {}
 
@@ -49,8 +49,8 @@ export class TestConduit implements TConduit {
 		return result as T;
 	}
 
-	/** A plain answer is the chunk, or the chunks, the stream sends in order, announced at seqPath [0]; a `DrivenStream`
-	 *  is sent as its case drives it. Either is announced once the dispatch answers, before a chunk arrives. */
+	/** A plain response is the chunk, or the chunks, the stream sends in order, announced at seqPath [0]; a `DrivenStream`
+	 *  is sent as its case drives it. Either is announced once the dispatch responds, before a chunk arrives. */
 	async followStream(
 		link: TLink,
 		onChunk: (chunk: TStreamChunk) => void,
@@ -98,15 +98,15 @@ export class TestConduit implements TConduit {
 	}
 }
 
-import { CarriedEventStream } from "./page/adapters/carried-event-stream.js";
-import { type TEvent } from "./page/ports.js";
-import { endPage } from "./page/adapters/page-held.js";
-import { CACHE_SHAPE } from "./page/client-cache/ports.js";
-import { installMemoryDeviceStore } from "./page/client-cache/root.js";
-import { hydrateFromDom } from "./page/controllers/hydration-controller.js";
-import { onStepsChanged } from "./page/controllers/registry-controller.js";
-import { CLIENT_LOG_ACTION, CLIENT_LOG_METHOD, type TClientLogLevel } from "./client-log.js";
-import { authorityPort, openPageAuthority, type TPageAuthority } from "./page/authority/controllers/page-authority-controller.js";
+import { CarriedEventStream } from "../page/adapters/carried-event-stream.js";
+import { type TEvent } from "../page/ports.js";
+import { endPage } from "../page/adapters/page-held.js";
+import { CACHE_SHAPE } from "../page/client-cache/ports.js";
+import { installMemoryDeviceStore } from "../page/client-cache/root.js";
+import { hydrateFromDom } from "../page/controllers/hydration-controller.js";
+import { onStepsChanged } from "../page/controllers/registry-controller.js";
+import { CLIENT_LOG_ACTION, CLIENT_LOG_METHOD, type TClientLogLevel } from "../client-log.js";
+import { authorityPort, openPageAuthority, type TPageAuthority } from "../page/authority/controllers/page-authority-controller.js";
 import type { TDelegations } from "@haibun/core/lib/authority-types.js";
 import { SHOW_STEPS_METHOD, STEP_DETAIL, readShownSteps, stepDefinition, type TStepDefinition, type TStepDefinitions } from "@haibun/core/lib/step-discovery.js";
 import { requiredAction, type TStepReads } from "@haibun/core/lib/actions.js";
@@ -117,18 +117,18 @@ import { Access, LinkRelations, type TDomainDefinition, type TEdgeDef, type TRel
 import { fromJsonText } from "@haibun/core/lib/json-text.js";
 import { z } from "zod";
 import { STEPS_CHANGED } from "@haibun/core/schema/protocol.js";
-import { installCarriedEventStream, pagePreferences } from "./page/root.js";
-import type { TClock } from "./page/ports.js";
-import { PREFERENCES_COOKIE_PREFIX } from "./page/adapters/prefs-cookie.js";
+import { installCarriedEventStream, pagePreferences } from "../page/root.js";
+import type { TClock } from "../page/ports.js";
+import { PREFERENCES_COOKIE_PREFIX } from "../page/adapters/prefs-cookie.js";
 
 type TShuTestConfig = {
 	/** Optional dispatch for in-test RPCs. Default throws on every call, naming the unconfigured method, tests opt in by supplying a function that returns wire results for the methods they exercise. */
 	dispatch?: TDispatch;
-	/** What actuality answers a read of one of its artifacts with, given the read as the page sent it: an empty image unless a test specifies otherwise. */
+	/** What actuality returns for a read of one of its artifacts, given the read as the page sent it: an empty image unless a test specifies otherwise. */
 	artifact?: (url: string, init?: RequestInit) => Response;
 };
 
-/** Answer a view's reads of actuality's artifacts as actuality's artifact route does, and show what it read at an object URL
+/** Serve a view's reads of actuality's artifacts as actuality's artifact route does, and show what it read at an object URL
  *  a test page can hold, until the returned function restores both. */
 function servingArtifacts(answer: (url: string, init?: RequestInit) => Response): () => void {
 	const through = globalThis.fetch;
@@ -153,12 +153,12 @@ export type TShuTestHandle = {
 	eventStream: CarriedEventStream;
 };
 
-/** Signal on actuality's stream that its steps changed, as actuality does when a feature declares a step; `n` tells one
+/** Signal on actuality's stream that its steps changed, as actuality does when a feature declares a step; `n` distinguishes one
  *  signal from another. */
 export const stepsChanged = (handle: TShuTestHandle, n: number): void =>
 	handle.emit({ id: `${STEPS_CHANGED}-${n}`, timestamp: Date.now(), kind: "control", level: "debug", signal: STEPS_CHANGED });
 
-/** Resolves once the page has read actuality's steps again, and what that read told has settled. */
+/** Resolves once the page has read actuality's steps again, and what that read returned has settled. */
 export const stepsReadAgain = (): Promise<void> =>
 	new Promise((resolve) => {
 		const stop = onStepsChanged(() => {
@@ -253,8 +253,8 @@ export const ENTITY_STEP_LIST = stepsShown([
 	{ method: "ResourcesStepper-annotations", stepperName: "ResourcesStepper", stepName: "annotations", pattern: "get annotations for {label} {id}" },
 ]);
 
-/** A dispatch over the entity surface: the show steps step answers with {@link ENTITY_STEP_LIST}, the two entity steps route
- *  to the given answerers (annotations defaults to an empty list), and anything else throws: the loud-failure signal. */
+/** A dispatch over the entity surface: the show steps step returns {@link ENTITY_STEP_LIST}, the two entity steps route
+ *  to the given responders (annotations defaults to an empty list), and anything else throws: the loud-failure signal. */
 /** The notes anchored in a record, as the annotations step returns them. */
 export const annotationList = (annotations: TAnnotationView[]): { annotations: TAnnotationView[]; total: number } => ({ annotations, total: annotations.length });
 
@@ -275,7 +275,7 @@ export type TReportedToRun = { level: TClientLogLevel; source: string; message: 
 export const openReportingPage = (read?: () => Promise<TDelegations>, withoutDelegation: string[] = []): Promise<TPageAuthority> =>
 	openPageAuthority(read, [CLIENT_LOG_ACTION, ...withoutDelegation]);
 
-/** A dispatch answering the page's reports to actuality as the monitor's client-log step does, holding each in `reported`;
+/** A dispatch that receives the page's reports to actuality as the monitor's client-log step does, holding each in `reported`;
  *  any other call throws. */
 export function reportingTo(reported: TReportedToRun[]): TDispatch {
 	return (method, params) => {
@@ -285,10 +285,10 @@ export function reportingTo(reported: TReportedToRun[]): TDispatch {
 	};
 }
 
-/** jsdom doesn't implement media queries, so a component that asks the viewport a question (the strip asks whether it
- *  is narrow or portrait before it lays panes out) throws only there. Install the query API the browser always has,
- *  answering "no match": a jsdom window doesn't have an orientation or a width to match on. `setupShuTest` calls this;
- *  a DOM test that doesn't install services calls it directly. */
+/** jsdom doesn't implement media queries, so a component that queries the viewport (the strip queries whether it is
+ *  narrow or portrait before it lays panes out) throws only there. Install the query API the browser always has, where
+ *  every query fails to match: a jsdom window doesn't have an orientation or a width on which a query matches.
+ *  `setupShuTest` calls this; a DOM test that doesn't install services calls it directly. */
 export function installTestMediaQueries(): void {
 	const w = globalThis as { matchMedia?: (q: string) => unknown };
 	if (w.matchMedia) return;

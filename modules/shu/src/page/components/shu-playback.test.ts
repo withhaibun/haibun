@@ -11,7 +11,7 @@ import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ShuPlayback } from "./shu-playback.js";
 import { timeCursor } from "../controllers/page-cell-controller.js";
-import { setupShuTest, type TShuTestHandle } from "../../test-setup.js";
+import { setupShuTest, type TShuTestHandle } from "../../test/setup.js";
 import { runStore } from "../client-cache/run-store.test-fake.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { currentExecution, installGraph, readExecution } from "../client-cache/controllers/device-controller.js";

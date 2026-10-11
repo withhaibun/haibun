@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import "./shu-refusal.js"; // the module defines the element
 import type { ShuRefusal } from "./shu-refusal.js";
 import { installRemedies } from "../root.js";
-import { newPage } from "../../test-setup.js";
+import { newPage } from "../../test/setup.js";
 import { SHU_TAG } from "../../domains/elements.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import type { TPageRefusal } from "../domains/refusal.js";
