@@ -2,7 +2,7 @@
  * Control + interaction steps for shu-polymorphic-graph-view, kept beside the element (the shu-graph-view.controls
  * pattern) so the graph's controls travel with the component. These are the GRAPH's own visual operations:
  * zoom/pan/orbit/fit, scope-to-type, reveal-a-node, hover, so feature tests for graphs read naturally
- * ("zoom in 50 pixels", "orbit 30 degrees left", "fit graph"). The functionality lives on the component
+ * ("zoom in 50 pixels", "orbit 30 degrees left", "fit graph"). The component holds the functionality
  * (zoomBy/panBy/orbitBy/fitGraph/openNode/setHoveredNode); this stepper drives it in the live app and reads inspect().
  *
  * Why component methods, not synthetic WebGL clicks: a Playwright pixel click does not reliably reach the lib's
@@ -10,7 +10,7 @@
  * click takes (onNodeClick → PANE_OPEN) and a genuine app entry point, so the open/resize/no-auto-zoom chain is
  * exercised faithfully. The lib's raycaster is the lib's concern, not this module's.
  *
- * Concern boundary: WHICH column is focused is the column browser's concern (shu-column-strip.controls), not here.
+ * Concern boundary: WHICH column is focused is the column strip's concern (controls/column-strip-controls-stepper.ts), not here.
  *
  * The steps drive the page's main graph, `MAIN_GRAPH`: a graph a view embeds to draw its own data (`data-external`) is
  * its host's, and a page can hold several. A step reads what the graph draws through `state()`, calls it through
@@ -20,7 +20,7 @@
  */
 import { MEDIA_TYPE } from "@haibun/core/lib/media-types.js";
 import { SHU_TEST_IDS } from "../domains/test-ids.js";
-import { SHU_EVENT, SHU_TAG } from "../domains/elements.js";
+import { SETTINGS_GROUP, SHU_EVENT, SHU_TAG, type TSettingsGroup } from "../domains/elements.js";
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps, type TFeatureStep } from "@haibun/core/lib/astepper.js";
 import { DOMAIN_PERSISTED_TYPE, type TDomainDefinition } from "@haibun/core/lib/resources.js";
@@ -33,25 +33,14 @@ import { VIEW, VIEW_TYPES, isLaneView } from "../graph/polymorphic/polymorphic-v
 import { MEASURE_UNIT, PAN_DIRECTION, ZOOM_DIRECTION, type TMeasureUnit, type TPanDirection, type TZoomDirection } from "../graph/polymorphic/polymorphic-camera.js";
 import type { ShuGraphScene, TGraphState } from "../graph/polymorphic/polymorphic-scene.js";
 import { framesGraph } from "../graph/polymorphic/polymorphic-project.js";
-import { SETTINGS_GROUP, type TSettingsGroup } from "./view-head.js";
-import type { ShuPolymorphicGraphView } from "./shu-polymorphic-graph-view.js";
-import type { ShuGraphFilter } from "./shu-graph-filter.js";
-import {
-	NO_ELEMENT,
-	ROUND_TRIP_MS,
-	SETTLES_MS,
-	STATE_MS,
-	attached,
-	comesToHold,
-	controlledBrowser,
-	controlledPage,
-	percent,
-	pollUntil,
-	until,
-} from "../page/components/controls-util.js";
+
+import type { ShuPolymorphicGraphView } from "../components/shu-polymorphic-graph-view.js";
+import type { ShuGraphFilter } from "../components/shu-graph-filter.js";
+import { NO_ELEMENT, ROUND_TRIP_MS, SETTLES_MS, STATE_MS } from "./domains/waits.js";
+import { attached, comesToHold, nodeMatching, percent, pollUntil, until } from "./pipelines/page-reads.js";
+import { controlled } from "./root.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { SCHEMA_TYPES } from "../graph/ontology-projection.js";
-import { objectId } from "../page/derivations/record-fields.js";
 import { type TPaneOpen } from "../page/derivations/pane-kinds.js";
 
 /** The page's main graph: the one view that draws the page's own data. */
@@ -61,7 +50,7 @@ const CLASS_BROWSER = `${SHU_TAG.TYPE_COLUMN} ${SHU_TAG.CLASS_BROWSER}`;
 const CLASS_BROWSER_SCENE = `${CLASS_BROWSER} ${SHU_TAG.GRAPH_SCENE}`;
 /** A chip of a filter's legend, which a chip group draws. */
 const FILTER_CHIP = `${SHU_TAG.CHIP_GROUP} label.chip`;
-/** The attribute the accessible reading marks each node's entry with. */
+/** The attribute with which the accessible reading marks each node's entry. */
 const NODE_ID_ATTR = "data-node-id";
 const ARIA_PRESSED = "aria-pressed";
 const PRESSED = "true";
@@ -84,8 +73,12 @@ const SCOPED_REFETCH_BEGIN_MS = 350; // covers the scoped refetch's RPC dispatch
 /** A node or edge drawn above this opacity is lit, and one below `DIM_OPACITY` is dim. A node without an opacity is drawn full. */
 const LIT_OPACITY = 0.9;
 const DIM_OPACITY = 0.5;
-const isLit = (opacity: number | null): boolean => (opacity ?? 1) > LIT_OPACITY;
-const isDim = (opacity: number | null): boolean => (opacity ?? 1) < DIM_OPACITY;
+const isLit = (opacity: number | null): boolean => opacity === null || opacity > LIT_OPACITY;
+const isDim = (opacity: number | null): boolean => opacity !== null && opacity < DIM_OPACITY;
+/** How many frames a read waits after the scene comes to rest, since focus applies a frame after the engine freezes. */
+const FRAMES_AFTER_REST = 2;
+/** How far along x a pointer's aim at a node is moved, so it clears a neighbour's chip. */
+const NUDGE_PX = 12;
 const HOVER_POP_MAX = 2.6; // a hover pop above this reads as "huge" (the regression): an independent ceiling, comfortably clear of the gentle magnify cap so a legit pop passes and a runaway one fails
 
 /** The alpha a browser reports for a painted colour, in either shape it writes one: `rgba(r, g, b, a)` and the
@@ -225,7 +218,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	cycles: IStepperCycles = { getConcerns: () => ({ domains: graphControlDomains }) };
 
 	private page(): Promise<Page> {
-		return controlledPage(this);
+		return controlled(this).page();
 	}
 
 	/** The page's main graph view. */
@@ -245,7 +238,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		await this.view(page).evaluate((view: ShuPolymorphicGraphView, nid) => view.setHoveredNode(nid), id);
 	}
 
-	/** Aim the camera head-on at the graph's plane, a deterministic frame to aim the pointer in. */
+	/** Aim the camera head-on at the graph's plane, a deterministic frame in which to aim the pointer. */
 	private async headOn(page: Page): Promise<void> {
 		await this.view(page).evaluate((view: ShuPolymorphicGraphView) => view.rotateTo("xy"));
 	}
@@ -267,7 +260,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	}
 
 	/** Wait until `test` holds of the main graph; a timeout names `state`. */
-	private untilGraph<A>(page: Page, state: string, test: (on: { el: ShuPolymorphicGraphView; arg: A }) => boolean, arg: A, timeout?: number): Promise<void> {
+	private untilGraph<A>(page: Page, state: string, test: (on: { el: ShuPolymorphicGraphView; arg: A }) => boolean, arg: A, timeout: number): Promise<void> {
 		return until(this.view(page), state, test, arg, timeout);
 	}
 
@@ -285,7 +278,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	private async snapshot(page: Page): Promise<TGraphSnapshot> {
 		const state = await this.state(page);
 		const { focus, highlighted, follow, onScreen, sample, edges, enclosures, layered, camera, gantt, sequence } = state;
-		const drawn = await this.view(page).evaluate((view: ShuPolymorphicGraphView) => [...(view.nodeMap?.keys() ?? [])]);
+		const drawn = await this.view(page).evaluate((view: ShuPolymorphicGraphView) => (view.nodeMap === undefined ? [] : [...view.nodeMap.keys()]));
 		const linked = new Set(edges.flatMap((e) => [e.s, e.t]));
 		const lit = sample.filter((n) => isLit(n.opacity)).length;
 		const dim = sample.filter((n) => isDim(n.opacity)).length;
@@ -311,9 +304,10 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			rankedFlow: layered ? readsAsRankedFlow(layered) : null,
 			offLanePlane: offLanePlane(state),
 			facesLanePlane: !!camera && Math.abs(camera.x) > Math.abs(camera.z),
-			ganttTasks: gantt?.count ?? 0,
-			actors: (sequence?.actors ?? []).map((a) => a.label),
-			messages: (sequence?.messages ?? []).map((m) => `${m.from} → ${m.to}: ${m.label}`),
+			// Only the gantt draws tasks, and only the sequence draws actors and messages.
+			ganttTasks: gantt === null ? 0 : gantt.count,
+			actors: sequence === null ? [] : sequence.actors.map((a) => a.label),
+			messages: sequence === null ? [] : sequence.messages.map((m) => `${m.from} → ${m.to}: ${m.label}`),
 		};
 	}
 
@@ -334,13 +328,22 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			null,
 			SETTLES_MS,
 		);
-		await this.frames(page);
+		await this.frames(page, FRAMES_AFTER_REST);
 	}
 
 	/** Block until the graph holds at least `min` nodes. The scene mounts before its first data feed, so its test ids
 	 *  resolve before it holds any. */
 	private waitForNodes(page: Page, min: number): Promise<void> {
-		return this.untilGraph(page, `${min} or more nodes in the graph`, ({ el, arg }) => (el.inspect()?.nodes ?? 0) >= arg, min);
+		return this.untilGraph(
+			page,
+			`${min} or more nodes in the graph`,
+			({ el, arg }) => {
+				const i = el.inspect();
+				return i !== null && i.nodes >= arg;
+			},
+			min,
+			SETTLES_MS,
+		);
 	}
 
 	/** Wait for the layout and the camera to come to rest, so a read is stable and a camera op is not raced by a settling
@@ -355,18 +358,37 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				return !!i && i.engineMode === "frozen" && i.tween === null && !i.repaintPending && !i.followPending;
 			},
 			null,
+			SETTLES_MS,
 		);
 	}
 
 	/** Wait for the scene to run `count` more frames: a change scheduled for the next frame has been drawn by then. */
-	private async frames(page: Page, count = 2): Promise<void> {
+	private async frames(page: Page, count: number): Promise<void> {
 		const from = (await this.state(page)).render.ticks;
-		await this.untilGraph(page, `${count} more frames of the scene`, ({ el, arg }) => (el.inspect()?.render.ticks ?? 0) >= arg, from + count, STATE_MS);
+		await this.untilGraph(
+			page,
+			`${count} more frames of the scene`,
+			({ el, arg }) => {
+				const i = el.inspect();
+				return i !== null && i.render.ticks >= arg;
+			},
+			from + count,
+			STATE_MS,
+		);
 	}
 
 	/** Wait for the group containers, which the graph draws a frame or two after its layout settles. */
 	private groupsDrawn(page: Page): Promise<void> {
-		return this.untilGraph(page, "the group boxes drawn", ({ el }) => (el.inspect()?.enclosures.length ?? 0) > 0, null, SETTLES_MS);
+		return this.untilGraph(
+			page,
+			"the group boxes drawn",
+			({ el }) => {
+				const i = el.inspect();
+				return i !== null && i.enclosures.length > 0;
+			},
+			null,
+			SETTLES_MS,
+		);
 	}
 
 	/** Read `read` until two reads in a row are `stable`, running `beforeEach` (such as a settle) before every read. */
@@ -431,8 +453,11 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	private async nodeId(page: Page, match: string): Promise<string> {
 		await this.waitForNodes(page, 1);
 		const find = async () =>
-			(await this.view(page).evaluate((view: ShuPolymorphicGraphView) => [...(view.nodeMap?.values() ?? [])].map((n) => ({ id: n.id, type: n.type, name: n.name })))).find(
-				(n) => objectId(n.type, n.id) === match || n.id === match || n.name?.includes(match),
+			nodeMatching(
+				await this.view(page).evaluate((view: ShuPolymorphicGraphView) =>
+					view.nodeMap === undefined ? [] : [...view.nodeMap.values()].map((n) => ({ id: n.id, type: n.type, name: n.name })),
+				),
+				match,
 			)?.id;
 		const id = await pollUntil(page, find, (found) => found !== undefined, 30, ARRIVAL_POLL_MS);
 		if (!id) throw new Error(`the graph doesn't hold node "${match}"`);
@@ -444,10 +469,16 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	private chipStates(page: Page): Promise<Array<{ label: string; checked: boolean }>> {
 		return this.filter(page)
 			.locator(FILTER_CHIP)
-			.evaluateAll((chips) => chips.map((chip) => ({ label: (chip.textContent ?? "").trim(), checked: !!chip.querySelector<HTMLInputElement>("input")?.checked })));
+			.evaluateAll((chips) =>
+				chips.map((chip) => {
+					const text = chip.textContent;
+					if (text === null) throw new Error("a filter chip doesn't hold text");
+					return { label: text.trim(), checked: chip.querySelector<HTMLInputElement>("input")?.checked === true };
+				}),
+			);
 	}
 
-	/** Whether a node projects inside the central half of the canvas, which is what following promises a reader: the
+	/** Whether a node projects inside the central half of the canvas, which is what following guarantees a reader: the
 	 *  one measurement, whether the reader reached the node on the canvas or opened it in a column. */
 	private async centresNode(page: Page, id: string): Promise<TActionResult> {
 		await this.settle(page);
@@ -468,7 +499,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 
 	/** Where the view draws a node, read from the view's own projection: the same one the pick inverts, so an aim here
 	 *  lands on that node. `nudgeX` offsets the aim along x to clear a neighbour's chip. */
-	private async projectNode(page: Page, id: string, nudgeX = 12): Promise<{ x: number; y: number }> {
+	private async projectNode(page: Page, id: string, nudgeX: number): Promise<{ x: number; y: number }> {
 		const at = await this.view(page).evaluate((view: ShuPolymorphicGraphView, nid) => view.projectNodeToScreen(nid), id);
 		if (!at) throw new Error(`node ${id} doesn't project: the graph doesn't hold it, or the scene doesn't have a camera yet`);
 		return { x: at.x + nudgeX, y: at.y };
@@ -481,7 +512,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		if (k > 1.05) problems.push(`node magnified ${k.toFixed(2)}×`);
 		if (before.viewport && after.viewport) {
 			const zoom = Math.abs(after.viewport.worldPerPx - before.viewport.worldPerPx) / before.viewport.worldPerPx;
-			if (zoom > 0.02) problems.push(`zoom (worldPerPx) shifted ${percent(zoom)}`);
+			if (zoom > 0.02) problems.push(`zoom (worldPerPx) shifted ${percent(zoom, 0)}`);
 		}
 		if (before.camera && after.camera) {
 			const cam = Math.hypot(after.camera.x - before.camera.x, after.camera.y - before.camera.y, after.camera.z - before.camera.z);
@@ -497,9 +528,11 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		return problems;
 	}
 
-	/** The node's live magnify multiplier (1 = resting). */
+	/** The node's live magnify multiplier (1 = resting). A node the sample doesn't hold isn't drawn, which is a fault in the step that names it. */
 	private async hoveredK(page: Page, id: string): Promise<number> {
-		return (await this.state(page)).sample.find((s) => s.id === id)?.k ?? 1;
+		const node = (await this.state(page)).sample.find((s) => s.id === id);
+		if (node === undefined) throw new Error(`the graph's sample doesn't hold node "${id}"`);
+		return node.k;
 	}
 
 	/** Read the node's magnify until it holds still: the pop animates in and out over several frames. */
@@ -529,7 +562,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const page = await this.page();
 				await this.nodeId(page, match);
 				await this.settle(page); // the arrival reheats the layout; wait for it to settle before any assert
-				await this.frames(page); // focus is applied a frame after the engine freezes
+				await this.frames(page, FRAMES_AFTER_REST); // focus is applied a frame after the engine freezes
 				return actionOK();
 			},
 		},
@@ -675,7 +708,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				}, POLYMORPHIC_IDS.A11Y);
 				const under = covers.find((c) => at.x >= c.x && at.x <= c.x + c.w && at.y >= c.y && at.y <= c.y + c.h);
 				if (under)
-					return actionNotOK(`active node "${id}" sits under the ${under.what} (${under.w.toFixed(0)}×${under.h.toFixed(0)} at ${under.x.toFixed(0)},${under.y.toFixed(0)})`);
+					return actionNotOK(`active node "${id}" is under the ${under.what} (${under.w.toFixed(0)}×${under.h.toFixed(0)} at ${under.x.toFixed(0)},${under.y.toFixed(0)})`);
 				return actionOK();
 			},
 		},
@@ -715,7 +748,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 					},
 					{ nid: id, evt: SHU_EVENT.PANE_OPEN },
 				);
-				if (subject !== id) return actionNotOK(`opening graph node "${id}" did not ask to open its column (got ${subject})`);
+				if (subject !== id) return actionNotOK(`opening graph node "${id}" did not request its column (got ${subject})`);
 				// Opening round-trips through the page (PANE_OPEN → the pane → the active record → the view), so the node becomes
 				// the active node after the call returns. A node that never does was not opened, and the scene settles once the
 				// column it opened has resized the view.
@@ -808,7 +841,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				await this.settle(page); // the camera is fixed once the load-time auto-fit has run
 				const id = (await this.state(page)).sample[0]?.id;
 				if (!id) return actionNotOK(NO_NODE_TO_HOVER);
-				const c = await this.projectNode(page, id);
+				const c = await this.projectNode(page, id, NUDGE_PX);
 				await page.mouse.move(c.x - 20, c.y); // pointer onto the canvas → sets pointerOverCanvas via the canvas pointermove handler
 				const kBefore = await this.steadyK(page, id); // settle any residual magnify before the baseline
 				const before = await this.framing(page);
@@ -837,7 +870,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		graphView: {
 			// The framing assertion, both directions in one step. "unchanged" is the auto-zoom guard: fov, camera
 			// position, and the zoom level (worldPerPx) all held since the snapshot, used after a click/hover/move-off,
-			// where the graph must NOT re-decide its own framing. "changed" confirms a sanctioned pan/orbit/fit moved it.
+			// where the graph must NOT change its own framing. "changed" confirms a sanctioned pan/orbit/fit moved it.
 			// Node positions are not checked: opening a node may legitimately bring in data; only the framing is pinned.
 			gwta: `graph view is {state: ${DOMAIN_GRAPH_CHANGE}} since {before: ${DOMAIN_GRAPH_SNAPSHOT}}`,
 			action: async ({ state, before }: { state: string; before: TGraphSnapshot }) => {
@@ -995,8 +1028,8 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		},
 		graphRevealsActors: {
 			// Choosing the sequence shows the types its bars are drawn from: a hidden actor type would leave the exchange
-			// without actors. Hides whatever types the actors belong to, leaves the view and comes back, and asks the
-			// filter: the production path a reader takes, without a type named here.
+			// without actors. Hides the types of the actors, leaves the view and comes back, and reads the filter: the
+			// production path a reader takes, without a type named here.
 			gwta: "switching to the sequence reveals its actor types",
 			action: async () => {
 				const page = await this.page();
@@ -1004,7 +1037,8 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				await this.settle(page);
 				const { sample, sequence } = await this.state(page);
 				const typeOf = new Map(sample.map((n) => [n.id, n.type]));
-				const actorTypes = [...new Set((sequence?.actors ?? []).map((a) => typeOf.get(a.id)).filter((t): t is string => !!t))];
+				if (sequence === null) return actionNotOK("the view isn't the sequence, so it doesn't draw actors");
+				const actorTypes = [...new Set(sequence.actors.map((a) => typeOf.get(a.id)).filter((t): t is string => !!t))];
 				if (actorTypes.length === 0) return actionNotOK("the sequence didn't form an actor, so it can't reveal an actor type");
 				await this.selectView(page, VIEW.force);
 				const hide = await this.setFilterChips(CHIP_FACET.types, actorTypes, false);
@@ -1017,9 +1051,9 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			},
 		},
 		settingsHoldEveryOption: {
-			// Every option lives under its settings group and the ACTIONS do not: fit and copy stay directly on the head.
+			// Every option is under its settings group and the ACTIONS are not: fit and copy stay directly on the head.
 			// The groups are exclusive: opening one closes the last. Asserted in a real browser: a group's controls render
-			// only while its row is open, which a jsdom test can't tell apart from missing.
+			// only while its row is open, which a jsdom test can't distinguish from missing.
 			gwta: "polymorphic settings hold every option, and fit stays out of them",
 			action: async () => {
 				const page = await this.page();
@@ -1077,7 +1111,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const page = await this.page();
 				const browser = page.locator(CLASS_BROWSER);
 				const scene = page.locator(CLASS_BROWSER_SCENE);
-				// The browser's first paints precede the schema scope (the reveal lands once the clusters are known), so wait for
+				// The browser's first paints precede the schema scope (the reveal lands once the clusters are read), so wait for
 				// the scoped state, only schema types drawn.
 				const scoped = await comesToHold(
 					scene,
@@ -1116,6 +1150,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 							return el.nodeMap.size > 0 && !!i && i.engineMode === "frozen" && !i.repaintPending;
 						},
 						null,
+						SETTLES_MS,
 					);
 				const count = async () => {
 					await atRest();
@@ -1141,7 +1176,9 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 					({ el, arg }: { el: ShuGraphScene; arg: { id: string; lit: number; dim: number } }) => {
 						if (!el.nodeMap.has(arg.id)) return false;
 						const i = el.inspect();
-						return i.focus.selected === arg.id && i.sample.some((n) => (n.opacity ?? 1) < arg.dim) && i.sample.some((n) => (n.opacity ?? 1) > arg.lit);
+						return (
+							i.focus.selected === arg.id && i.sample.some((n) => n.opacity !== null && n.opacity < arg.dim) && i.sample.some((n) => n.opacity === null || n.opacity > arg.lit)
+						);
 					},
 					{ id: typeName, lit: LIT_OPACITY, dim: DIM_OPACITY },
 					ROUND_TRIP_MS,
@@ -1157,7 +1194,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		},
 		saveGraphScene: {
 			// Save the way the graph is currently set up under a name, through the production control (the settings' name
-			// field + save button), the same path a reader takes, so the write goes through the app's own step RPC.
+			// field + save button), the same path a reader takes, so the write uses the app's own step RPC.
 			gwta: `save graph scene as {name: ${DOMAIN_SCENE_NAME}}`,
 			productsDomain: DOMAIN_GRAPH_SCENE,
 			action: async ({ name }: { name: string }) => {
@@ -1248,7 +1285,15 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const hid = await this.comesToHold(page, ({ el, arg }) => (el.inspect()?.nodes ?? arg) < arg, before, STATE_MS);
 				const hidden = (await this.state(page)).nodes;
 				await this.setTimeCursor(page, null);
-				const restored = await this.comesToHold(page, ({ el, arg }) => (el.inspect()?.nodes ?? 0) >= arg, before, STATE_MS);
+				const restored = await this.comesToHold(
+					page,
+					({ el, arg }) => {
+						const i = el.inspect();
+						return i !== null && i.nodes >= arg;
+					},
+					before,
+					STATE_MS,
+				);
 				if (!hid) return actionNotOK(`scrubbing the cursor did not hide newer nodes (${before} shown → ${hidden})`);
 				if (!restored) return actionNotOK(`clearing the cursor did not restore nodes (${before} → ${(await this.state(page)).nodes})`);
 				return actionOK();
@@ -1264,20 +1309,24 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			action: async (_: unknown, featureStep: TFeatureStep) => {
 				const page = await this.page();
 				await this.settle(page);
-				const { svg, sceneNodes } = await this.view(page).evaluate((view: ShuPolymorphicGraphView) => ({ svg: view.still(), sceneNodes: view.nodeMap?.size ?? 0 }));
+				const { svg, sceneNodes } = await this.view(page).evaluate((view: ShuPolymorphicGraphView) => ({
+					svg: view.still(),
+					sceneNodes: view.nodeMap === undefined ? 0 : view.nodeMap.size,
+				}));
 				if (!svg.startsWith("<svg")) return actionNotOK("the view didn't produce a still: is the graph view mounted?");
-				const nodes = (svg.match(/<circle /g) ?? []).length;
+				const circles = svg.match(/<circle /g);
+				const nodes = circles === null ? 0 : circles.length;
 				if (nodes !== sceneNodes) return actionNotOK(`the still drew ${nodes} node(s) but the scene holds ${sceneNodes}: a still must show exactly what is on screen`);
-				const wp = controlledBrowser(this);
-				if (!wp.storage) return actionNotOK("save a graph still: the world doesn't hold a storage stepper");
-				const saved = await saveImageArtifact(this.getWorld(), wp.storage, featureStep, `graph-still-${featureStep.seqPath.join(".")}.svg`, svg, MEDIA_TYPE.svg);
+				const storage = controlled(this).storage();
+				if (!storage) return actionNotOK("save a graph still: the world doesn't hold a storage stepper");
+				const saved = await saveImageArtifact(this.getWorld(), storage, featureStep, `graph-still-${featureStep.seqPath.join(".")}.svg`, svg, MEDIA_TYPE.svg);
 				return actionOKWithProducts({ path: saved.baseRelativePath, nodes });
 			},
 		},
 		graphReadingShown: {
 			// Shown means SHOWN, not merely present: the region is clipped to a pixel until it is opened, so this reads
 			// its rendered size rather than its markup. It reads the painted background too: the guide lies over the
-			// graph, so it is translucent, which a jsdom test can't tell from opaque.
+			// graph, so it is translucent, which a jsdom test can't distinguish from opaque.
 			gwta: "graph reading is on screen",
 			action: async () => {
 				const region = (await this.page()).getByTestId(POLYMORPHIC_IDS.A11Y);
@@ -1301,13 +1350,13 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				// edge. Two characters are what a numbered reading of any length needs.
 				return seen.markerRoom >= seen.fontSize * 2
 					? actionOK()
-					: actionNotOK(`a line's number has ${seen.markerRoom}px to sit in, which its own edge takes back at ${seen.fontSize}px text`);
+					: actionNotOK(`a line's number has ${seen.markerRoom}px of room, which its own edge takes back at ${seen.fontSize}px text`);
 			},
 		},
 		graphA11yDocument: {
 			// The accessible document is a medium beside WebGL: it must list exactly the drawn nodes and carry a live
 			// status line, so a reader without the picture reads the same graph. The composite renderer feeds both from
-			// one draw; this proves they agree in the live app.
+			// one draw; this proves they match in the live app.
 			gwta: "accessible graph document lists every drawn node",
 			action: async () => {
 				const page = await this.page();
@@ -1320,11 +1369,13 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 					// a reading that offers a way to something not there doesn't lead a reader who cannot see the picture to a node.
 					const drawn = new Set(entryIds);
 					const waysNowhere = [...el.querySelectorAll(`ol > li ul [${attr}]`)].filter((b) => !drawn.has(b.getAttribute(attr))).length;
-					return { entries: entryIds.length, waysNowhere, status: el.querySelector('[role="status"]')?.textContent ?? "" };
+					const status = el.querySelector('[role="status"]')?.textContent;
+					return { entries: entryIds.length, waysNowhere, status: status === null ? undefined : status };
 				}, NODE_ID_ATTR);
 				const { nodes } = await this.state(page);
 				if (res.entries !== nodes) return actionNotOK(`the accessible document lists ${res.entries} entries for ${nodes} drawn nodes`);
 				if (res.waysNowhere > 0) return actionNotOK(`${res.waysNowhere} of the document's edge lines offer a way to a node it doesn't list`);
+				if (res.status === undefined) return actionNotOK("the accessible document doesn't show a status line");
 				if (!res.status.includes(`${nodes} nodes`)) return actionNotOK(`the status line does not announce the node count: "${res.status}"`);
 				return actionOK();
 			},
@@ -1347,7 +1398,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		graphChipsShowDepth: {
 			// Turning "label as depth" on re-labels every chip with the value that places its depth, and turning it off
 			// puts the names back: each taking effect on its own, without another change to force a redraw. Reads what the
-			// chips show and compares the three states, so it doesn't need to know this fixture's names.
+			// chips show and compares the three states, so it doesn't depend on this fixture's names.
 			gwta: "graph chips re-label by depth and back",
 			action: async () => {
 				const page = await this.page();
@@ -1367,7 +1418,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				await labelAsDepth.setChecked(false);
 				const back = await chips();
 				const stuck = Object.keys(named).filter((id) => back[id] !== named[id]);
-				if (stuck.length > 0) return actionNotOK(`${stuck.length} chip(s) did not go back to their name (e.g. "${back[itemAt(stuck, 0)]}" for "${named[itemAt(stuck, 0)]}")`);
+				if (stuck.length > 0) return actionNotOK(`${stuck.length} chip(s) did not return to their name (e.g. "${back[itemAt(stuck, 0)]}" for "${named[itemAt(stuck, 0)]}")`);
 				return actionOK();
 			},
 		},
@@ -1417,7 +1468,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const n = (await this.state(page)).sample.find((s) => s.id === id);
 				if (!n) return actionNotOK(`graph node "${id}" not in the layout sample`);
 				if (n.x === undefined || n.y === undefined) return actionNotOK(`graph node "${id}" isn't placed: the streamed node was not laid out`);
-				return Math.hypot(n.x, n.y) > 1 ? actionOK() : actionNotOK(`graph node "${id}" sits at the origin: the streamed node was not laid out`);
+				return Math.hypot(n.x, n.y) > 1 ? actionOK() : actionNotOK(`graph node "${id}" is at the origin: the streamed node was not laid out`);
 			},
 		},
 		previewGraphType: {
@@ -1489,7 +1540,16 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				};
 				const base = await spanOf();
 				await this.openNode(page, id); // select it → it becomes the focus and magnifies (a hover is ignored while another node is selected)
-				await this.untilGraph(page, `node "${id}" magnified`, ({ el, arg }) => (el.inspect()?.sample.find((s) => s.id === arg)?.k ?? 1) > 1, id, STATE_MS);
+				await this.untilGraph(
+					page,
+					`node "${id}" magnified`,
+					({ el, arg }) => {
+						const k = el.inspect()?.sample.find((s) => s.id === arg)?.k;
+						return k !== undefined && k > 1;
+					},
+					id,
+					STATE_MS,
+				);
 				const magnified = await spanOf();
 				if (base < 0) return actionNotOK(`node "${id}" was not pickable at any probed offset at rest`);
 				const SHIFT_TOLERANCE_PX = 25; // a focus re-anchor may move the footprint a little; a hijack moves it a lot
@@ -1528,7 +1588,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 
 	/** Move the real pointer onto a pixel that picks node `id` AND that a real pointer reaches, or null where such a pixel doesn't exist.
 	 * Probes with the side-effect-free pickAt: a real press on a MISS would orbit the camera and walk the node off-screen,
-	 * defeating the next probe. The chip sits right of and a little below its anchor, and an overlay (the actions bar) can
+	 * defeating the next probe. The chip is right of and a little below its anchor, and an overlay (the actions bar) can
 	 * cover part of it, so accept only a pixel the view picks AND whose elementFromPoint is inside the view. */
 	private async aimAtNode(page: Page, id: string): Promise<{ x: number; y: number } | null> {
 		for (const dy of [0, 8, -8, 16, -16]) {
@@ -1559,7 +1619,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	}
 
 	/** Wait for a node's PROJECTED screen position to stop moving. A fit/reframe animates over several frames AFTER the
-	 * engine freezes, so settle() alone leaves the node mid-flight; poll its projection until two reads agree to ~1px. */
+	 * engine freezes, so settle() alone leaves the node mid-flight; poll its projection until two reads match to ~1px. */
 	private async settleNodeProjection(page: Page, id: string): Promise<void> {
 		await this.pollUntilStable(
 			page,
@@ -1586,9 +1646,9 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			const at = await this.pressOnNode(page, s.id); // leaves the pointer DOWN on the first un-occluded node
 			if (at) return { target: { id: s.id, x: at.x, y: at.y }, diag: "" };
 		}
-		// A node wasn't pickable, and only NOW (the failure path) reconstruct why, so a passing call doesn't pay for it. A miss
-		// is either aim (the centre is off-canvas) or object (a missing pick target, or one the raycast skips), and the two
-		// want opposite fixes, so the report names which: the pixel, what picks there, and the pick target's own state.
+		// A node wasn't pickable, and only NOW (the failure path) reconstruct why, so a passing call doesn't spend the time. A
+		// miss is either aim (the centre is off-canvas) or object (a missing pick target, or one the raycast skips), and the two
+		// require opposite fixes, so the report names which: the pixel, what picks there, and the pick target's own state.
 		return { target: null, diag: `${sample.length} nodes, and a pick at each one's centre missed ${await this.unpickableReport(page, sample)}` };
 	}
 
@@ -1598,7 +1658,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		for (const s of sample.slice(0, 8)) misses.push(await this.missReport(page, s.id));
 		const box = await this.view(page).locator("canvas").first().boundingBox();
 		const { onScreen, camera } = await this.state(page);
-		const frustum = `onScreen=${onScreen ? `${onScreen.onScreen}/${onScreen.total} span=${onScreen.span.toFixed(2)}` : "null"} camera=${camera ? `${camera.x.toFixed(0)},${camera.y.toFixed(0)},${camera.z.toFixed(0)} fov=${camera.fov ?? "?"}` : "null"}`;
+		const frustum = `onScreen=${onScreen ? `${onScreen.onScreen}/${onScreen.total} span=${onScreen.span.toFixed(2)}` : "null"} camera=${camera ? `${camera.x.toFixed(0)},${camera.y.toFixed(0)},${camera.z.toFixed(0)} fov=${camera.fov === null ? "?" : camera.fov}` : "null"}`;
 		return `(canvas ${box ? `${box.x.toFixed(0)},${box.y.toFixed(0)} ${box.width.toFixed(0)}x${box.height.toFixed(0)}` : NO_ELEMENT}, ${frustum}): ${misses.join("  ")}`;
 	}
 
@@ -1608,11 +1668,12 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		const c = await this.view(page).evaluate((view: ShuPolymorphicGraphView, nid) => view.projectNodeToScreen(nid), id);
 		if (!c) return `${id}→offscreen`;
 		const over = await page.evaluate((at) => document.elementFromPoint(at.x, at.y)?.tagName.toLowerCase(), c);
-		return `${id}@(${c.x.toFixed(0)},${c.y.toFixed(0)})→${(await this.pickAt(page, c.x, c.y)) ?? NO_ELEMENT} under ${over ?? NO_ELEMENT} ${await this.pickTargetState(page, id)}`;
+		const picked = await this.pickAt(page, c.x, c.y);
+		return `${id}@(${c.x.toFixed(0)},${c.y.toFixed(0)})→${picked === null ? NO_ELEMENT : picked} under ${over === undefined ? NO_ELEMENT : over} ${await this.pickTargetState(page, id)}`;
 	}
 
 	/** What the raycast has to hit for a node: whether it has a sprite/pick target at all, whether that target is visible
-	 *  (an invisible one is skipped), and where it sits versus the node the projection aimed at. */
+	 *  (an invisible one is skipped), and where it is against the node at which the projection aimed. */
 	private pickTargetState(page: Page, id: string): Promise<string> {
 		return this.view(page).evaluate((view: ShuPolymorphicGraphView, nid) => {
 			const n = view.nodeMap?.get(nid) as
@@ -1629,7 +1690,8 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			if (!s) return "[doesn't have a sprite]";
 			const t = n.__visual?.pickTarget;
 			const at = s.position ? `${s.position.x.toFixed(0)},${s.position.y.toFixed(0)},${s.position.z.toFixed(0)}` : "?";
-			const node = `${(n.x ?? 0).toFixed(0)},${(n.y ?? 0).toFixed(0)},${(n.z ?? 0).toFixed(0)}`;
+			const coordinate = (v: number | undefined): string => (v === undefined ? "?" : v.toFixed(0));
+			const node = `${coordinate(n.x)},${coordinate(n.y)},${coordinate(n.z)}`;
 			return `[sprite vis=${s.visible} at=${at} node=${node} scale=${s.scale ? `${s.scale.x.toFixed(2)}x${s.scale.y.toFixed(2)}` : "?"} target=${t ? `yes vis=${t.visible}` : "sprite"}]`;
 		}, id);
 	}
@@ -1683,12 +1745,12 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	 *  wait for a control of that group to attach: what a reader can reach and what a step can drive are the same. */
 	private async openSettings(page: Page, group: TSettingsGroup): Promise<void> {
 		const view = this.view(page);
-		const probeId = SETTINGS_CONTROLS[group][0]; // the filters group doesn't have a control of its own: its icon's pressed state is the answer
+		const probeId = SETTINGS_CONTROLS[group][0]; // the filters group doesn't have a control of its own: its icon's pressed state is the result
 		if (probeId && (await view.getByTestId(probeId).count()) > 0) return;
 		const icon = view.getByTestId(POLYMORPHIC_IDS.SETTINGS[group]);
 		if (!probeId && (await icon.getAttribute(ARIA_PRESSED)) === PRESSED) return;
 		await icon.click();
-		if (probeId) await attached(view.getByTestId(probeId));
+		if (probeId) await attached(view.getByTestId(probeId), STATE_MS);
 	}
 
 	/** Drive the production view control to `value`, exactly as a person choosing it does. */
@@ -1747,7 +1809,11 @@ function readsAsRankedFlow({ flowAxis, nodes }: NonNullable<TGraphState["layered
 	const target = (n: { tx: number; ty: number }): number => Math.round(flowAxis === "y" ? n.ty : n.tx);
 	const along = (n: { x: number; y: number }): number => (flowAxis === "y" ? n.y : n.x);
 	const ranks = new Map<number, number[]>();
-	for (const n of nodes) ranks.set(target(n), [...(ranks.get(target(n)) ?? []), along(n)]);
+	for (const n of nodes) {
+		const rank = ranks.get(target(n));
+		if (rank === undefined) ranks.set(target(n), [along(n)]);
+		else rank.push(along(n));
+	}
 	const bands = [...ranks.entries()]
 		.sort((a, b) => a[0] - b[0])
 		.map(([, at]) => ({ mean: at.reduce((sum, v) => sum + v, 0) / at.length, least: Math.min(...at), most: Math.max(...at) }));
@@ -1758,7 +1824,7 @@ function readsAsRankedFlow({ flowAxis, nodes }: NonNullable<TGraphState["layered
 /** In a lane view, the nodes not drawn on its plane (x = 0) or not drawn where the view placed them; null in another view. */
 function offLanePlane({ viewType, sample, sequence }: TGraphState): string[] | null {
 	if (!isLaneView(viewType)) return null;
-	const placement = new Map((sequence?.nodes ?? []).map((p) => [p.id, p]));
+	const placement = new Map(sequence === null ? [] : sequence.nodes.map((p) => [p.id, p]));
 	return sample
 		.filter((n) => {
 			const at = placed(n);

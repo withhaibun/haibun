@@ -5,7 +5,7 @@ import Haibun from "@haibun/core/steps/haibun.js";
 import ShuStepper from "@haibun/shu/shu-stepper.js";
 import { SHU_TEST_IDS } from "@haibun/shu/domains/test-ids.js";
 import { flattenTestIds } from "@haibun/shu/test/step-ui.js";
-import ShuMonitorColumnControls from "../../build/page/components/shu-monitor-column.controls.js";
+import ShuMonitorColumnControls from "../../build/controls/monitor-controls-stepper.js";
 
 const wp = new WebPlaywright();
 const { waitFor, gotoPage } = withAction(wp);

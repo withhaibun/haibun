@@ -1,27 +1,19 @@
 /**
- * Assertions for the column browser (the Miller-column strip), kept beside the element (the polymorphic view's controls
- * pattern). WHICH column is focused is the browser's concern, deliberately NOT on any graph/view stepper. Reads the
- * live [active] pane from the page.
+ * Controls for the column strip: activate and close a column as a reader does, and assert which column is active. Which
+ * column is focused is the strip's concern, so a graph or view stepper doesn't state it.
  *
- * Steps never lead with the article "the", haibun treats such lines as narrative prose, not matchable steps.
+ * A step doesn't lead with the article "the", since haibun reads such a line as narrative prose and not as a step.
  */
 import { NameSchema } from "@haibun/core/lib/domains.js";
 import type { Page } from "playwright";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK } from "@haibun/core/lib/util/index.js";
-import { INPUT_EVENT, STATE_MS, controlledPage, findsAtLeast } from "./controls-util.js";
-import { SHU_TAG } from "../../domains/elements.js";
+import { INPUT_EVENT, STATE_MS } from "./domains/waits.js";
+import { columnKeys, findsAtLeast, panesMatching, scrollingOf } from "./pipelines/page-reads.js";
+import { controlled } from "./root.js";
 
 /** A column, by words of the key it is open under, such as `e:Email:` for an Email's column. */
 const DOMAIN_COLUMN_MATCH = "column-match";
-/** How long a column takes to open, close or become active after the page acts. */
-
-/** The panes whose column key holds `match`, and are `active` where asked. */
-const panesMatching = (page: Page, match: string, active = false) => page.locator(`${SHU_TAG.COLUMN_PANE}${active ? "[active]" : ""}[data-column-key*=${JSON.stringify(match)}]`);
-
-/** Every pane's column key, and the active one's, for a refusal to state. */
-const columnKeys = (page: Page) =>
-	page.locator(SHU_TAG.COLUMN_PANE).evaluateAll((panes) => panes.map((p) => `${(p as HTMLElement).dataset.columnKey}${p.hasAttribute("active") ? " (active)" : ""}`));
 
 export default class ShuColumnStripControls extends AStepper implements IHasCycles {
 	description = "Column-browser (Miller columns) controls: click a column to activate it, assert which is active.";
@@ -31,8 +23,9 @@ export default class ShuColumnStripControls extends AStepper implements IHasCycl
 		}),
 	};
 
+	/** The page this control drives. */
 	private page(): Promise<Page> {
-		return controlledPage(this);
+		return controlled(this).page();
 	}
 
 	steps = {
@@ -43,7 +36,7 @@ export default class ShuColumnStripControls extends AStepper implements IHasCycl
 			action: async () => {
 				const region = (await this.page()).locator(".annotated-scroll").first();
 				if ((await region.count()) === 0) return actionNotOK("the page doesn't show an .annotated-scroll region");
-				const r = await region.evaluate((el: HTMLElement) => ({ overflowY: getComputedStyle(el).overflowY, gutter: el.offsetWidth - el.clientWidth }));
+				const r = await scrollingOf(region);
 				if (r.overflowY !== "auto" && r.overflowY !== "scroll") return actionNotOK(`the annotated content region is not a scroller (overflow-y: ${r.overflowY})`);
 				if (r.gutter > 0) return actionNotOK(`a native scrollbar gutter (${r.gutter}px) is still present beside the glyph rail`);
 				return actionOK();
@@ -55,7 +48,7 @@ export default class ShuColumnStripControls extends AStepper implements IHasCycl
 			// that collides with web-playwright's generic "click {target}".
 			gwta: `activate column {match: ${DOMAIN_COLUMN_MATCH}}`,
 			action: async ({ match }: { match: string }) => {
-				const pane = panesMatching(await this.page(), match).first();
+				const pane = panesMatching(await this.page(), match, false).first();
 				if ((await pane.count()) === 0) return actionNotOK(`the page doesn't show a column matching "${match}"`);
 				await pane.dispatchEvent(INPUT_EVENT.pointerdown, { bubbles: true, composed: true });
 				return actionOK();
@@ -68,7 +61,7 @@ export default class ShuColumnStripControls extends AStepper implements IHasCycl
 			gwta: `close column {match: ${DOMAIN_COLUMN_MATCH}}`,
 			action: async ({ match }: { match: string }) => {
 				const page = await this.page();
-				const panes = panesMatching(page, match);
+				const panes = panesMatching(page, match, false);
 				if ((await panes.count()) === 0) return actionNotOK(`close column "${match}": the page doesn't show such a column`);
 				const close = panes.first().locator("button.pane-close");
 				if ((await close.count()) === 0) return actionNotOK(`close column "${match}": the column doesn't offer a close control`);

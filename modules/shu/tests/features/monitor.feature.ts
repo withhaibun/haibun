@@ -1,8 +1,8 @@
 import { withAction, type TKirejiExport } from "@haibun/core/kireji/withAction.js";
 import WebPlaywright from "@haibun/web-playwright";
 import ShuStepper from "../../build/shu-stepper.js";
-import ShuMonitorColumnControls, { RAIL_END } from "../../build/page/components/shu-monitor-column.controls.js";
-import ShuScrollbarControls from "../../build/page/components/shu-scrollbar.controls.js";
+import ShuMonitorColumnControls, { RAIL_END } from "../../build/controls/monitor-controls-stepper.js";
+import ShuScrollbarControls from "../../build/controls/scrollbar-controls-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import BlipsStepper from "@haibun/core/steps/blips-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";

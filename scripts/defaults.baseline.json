@@ -323,10 +323,6 @@
 	"modules/shu/src/components/shu-graph.ts": {
 		"fills an absent value with a constant through ??": 1
 	},
-	"modules/shu/src/components/shu-polymorphic-graph-view.controls.ts": {
-		"fills an absent value with a constant through ??": 28,
-		"states a parameter's default value": 2
-	},
 	"modules/shu/src/components/shu-polymorphic-graph-view.ts": {
 		"fills an absent value with a constant through ??": 5,
 		"states a parameter's default value": 1,
@@ -470,9 +466,6 @@
 	"modules/shu/src/page/components/actions-bar-steps.ts": {
 		"fills an absent value with a constant through ??": 1
 	},
-	"modules/shu/src/page/components/controls-util.ts": {
-		"states a parameter's default value": 6
-	},
 	"modules/shu/src/page/components/json-disclosure.ts": {
 		"fills a falsy value with a constant through ||": 1,
 		"states a parameter's default value": 1
@@ -512,9 +505,6 @@
 		"fills an absent value with a constant through ??": 2,
 		"states a parameter's default value": 1
 	},
-	"modules/shu/src/page/components/shu-column-strip.controls.ts": {
-		"states a parameter's default value": 1
-	},
 	"modules/shu/src/page/components/shu-column-strip.ts": {
 		"fills a falsy value with a constant through ||": 1
 	},
@@ -544,10 +534,6 @@
 		"fills a falsy value with a constant through ||": 1,
 		"fills an absent value with a constant through ??": 2,
 		"states a parameter's default value": 1
-	},
-	"modules/shu/src/page/components/shu-monitor-column.controls.ts": {
-		"fills a falsy value with a constant through ||": 1,
-		"fills an absent value with a constant through ??": 6
 	},
 	"modules/shu/src/page/components/shu-monitor-column.ts": {
 		"fills a falsy value with a constant through ||": 5,

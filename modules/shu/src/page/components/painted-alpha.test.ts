@@ -3,7 +3,7 @@
  * one a plain rgba parse misses, which read as opaque, and failed a translucent guide for being translucent.
  */
 import { describe, expect, it } from "vitest";
-import { paintedAlpha } from "../../components/shu-polymorphic-graph-view.controls.js";
+import { paintedAlpha } from "../../controls/polymorphic-controls-stepper.js";
 
 describe("the alpha of a painted colour", () => {
 	it("reads both shapes a browser writes, and treats an unstated alpha as opaque", () => {

@@ -15,11 +15,6 @@ import type { ReactiveController, ReactiveControllerHost } from "lit";
 import { timeCursor } from "../root.js";
 import { TimelineViewController } from "./timeline-view-controller.js";
 
-/** How many pixels above its end a followed view may sit and still count as at the live edge: the height-estimate
- *  overshoot below the last row is tens of pixels, a stalled follow is hundreds. One contract, shared by every host
- *  that reports its end and by the control that asserts it. */
-export const FOLLOW_EDGE_SLACK_PX = 200;
-
 export class ScrollFollowController implements ReactiveController {
 	#host: ReactiveControllerHost;
 	#jumpToEdge: () => void;

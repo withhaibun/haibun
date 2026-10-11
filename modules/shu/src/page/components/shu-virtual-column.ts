@@ -31,7 +31,8 @@ import { SCROLL_TO_INDEX } from "./shu-scrollbar.js";
 import type { WindowedSource } from "../../windowed-source.js";
 import type { TScrollMarker, TWindow } from "../derivations/rail.js";
 import { visibleWindow, convergeTarget } from "../derivations/rail.js";
-import { FOLLOW_EDGE_SLACK_PX, ScrollFollowController } from "../controllers/scroll-follow-controller.js";
+import { ScrollFollowController } from "../controllers/scroll-follow-controller.js";
+import { FOLLOW_EDGE_SLACK_PX } from "../domains/scroll-follow.js";
 
 /** Cap on re-issuing the jump-to-edge as the virtualizer measures its way down to the last row: a handful of passes closes
  *  the height-estimate gap; the bound stops an unreachable target (a row that can't fit) from re-jumping forever. */

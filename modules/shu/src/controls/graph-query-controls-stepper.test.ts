@@ -2,11 +2,11 @@
  * The view-query control steps are tested through the haibun step machinery: the registry builds the tool
  * from the gwta + getConcerns domains, validateToolInput enforces the typed params, the handler runs the
  * action, and checks the product against the view-query productsDomain. The test doesn't use a browser or
- * mount a component: the step's behaviour is verified end-to-end at the step layer, which is where it lives.
+ * mount a component: the step's behaviour is verified end-to-end at the step layer, which is the layer that holds it.
  */
 import { beforeEach, describe, expect, it } from "vitest";
 import { z } from "zod";
-import ShuGraphQueryControls from "./shu-graph-query.controls.js";
+import ShuGraphQueryControls from "./graph-query-controls-stepper.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { StepRegistry, buildFeatureStepForTransport } from "@haibun/core/lib/step-registry.js";
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
@@ -30,7 +30,7 @@ describe("view-query controls", () => {
 	const runStep = async (method: string, input: Record<string, unknown>) => {
 		const registry = new StepRegistry([stepper], world);
 		const tool = registry.get(`ShuGraphQueryControls-${method}`);
-		if (!tool) throw new Error(`no tool for ${method}`);
+		if (!tool) throw new Error(`a tool isn't offered for ${method}`);
 		const validated = validateToolInput([0], tool, input, world);
 		const featureStep = buildFeatureStepForTransport(tool, validated, [0]);
 		const result = await tool.handler(featureStep, world);

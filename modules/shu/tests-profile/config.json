@@ -12,8 +12,8 @@
 		"@haibun/shu/monitor-stepper",
 		"@haibun/shu/graph-source-stepper",
 		"@haibun/shu/client-cache-stepper",
-		"./build/page/components/shu-scrollbar.controls",
-		"./build/page/components/shu-monitor-column.controls",
+		"./build/controls/scrollbar-controls-stepper",
+		"./build/controls/monitor-controls-stepper",
 		"@haibun/monitor-tui"
 	]
 }

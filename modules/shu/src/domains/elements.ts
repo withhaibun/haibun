@@ -241,3 +241,7 @@ export const RPC_METHOD = {
 
 /** The classes a row takes against the time cursor: after it (dimmed), and the cursor's row. `SHU_BASE` styles both. */
 export const TIME_SYNC_CLASS = { FUTURE: "future-event", CURRENT: "time-current" } as const;
+
+/** The settings groups a host can offer, by name. */
+export const SETTINGS_GROUP = { layout: "layout", filters: "filters", scenes: "scenes" } as const;
+export type TSettingsGroup = (typeof SETTINGS_GROUP)[keyof typeof SETTINGS_GROUP];

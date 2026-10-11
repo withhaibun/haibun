@@ -132,12 +132,6 @@
 	"modules/shu/src/components/shu-graph.ts": {
 		"relation-verb": 1
 	},
-	"modules/shu/src/components/shu-polymorphic-graph-view.controls.ts": {
-		"anthropomorphic": 12,
-		"banned-word": 1,
-		"relation-verb": 10,
-		"terminal-preposition": 3
-	},
 	"modules/shu/src/components/shu-polymorphic-graph-view.ts": {
 		"anthropomorphic": 12,
 		"relation-verb": 1,
@@ -435,9 +429,6 @@
 		"anthropomorphic": 4,
 		"terminal-preposition": 1
 	},
-	"modules/shu/src/page/components/controls-util.ts": {
-		"terminal-preposition": 3
-	},
 	"modules/shu/src/page/components/json-disclosure.ts": {
 		"relation-verb": 1,
 		"terminal-preposition": 4
@@ -503,9 +494,6 @@
 		"relation-verb": 4,
 		"terminal-preposition": 3
 	},
-	"modules/shu/src/page/components/shu-column-strip.controls.ts": {
-		"anthropomorphic": 1
-	},
 	"modules/shu/src/page/components/shu-column-strip.ts": {
 		"anthropomorphic": 2,
 		"terminal-preposition": 1
@@ -562,14 +550,6 @@
 		"anthropomorphic": 2,
 		"relation-verb": 2
 	},
-	"modules/shu/src/page/components/shu-graph-query.controls.test.ts": {
-		"negated-noun": 1,
-		"relation-verb": 1
-	},
-	"modules/shu/src/page/components/shu-graph-query.controls.ts": {
-		"anthropomorphic": 2,
-		"relation-verb": 1
-	},
 	"modules/shu/src/page/components/shu-graph-query.ts": {
 		"anthropomorphic": 8,
 		"relation-verb": 1
@@ -582,10 +562,6 @@
 		"anthropomorphic": 5,
 		"relation-verb": 1,
 		"terminal-preposition": 1
-	},
-	"modules/shu/src/page/components/shu-monitor-column.controls.ts": {
-		"relation-verb": 3,
-		"terminal-preposition": 2
 	},
 	"modules/shu/src/page/components/shu-monitor-column.ts": {
 		"anthropomorphic": 5,
@@ -636,9 +612,6 @@
 	"modules/shu/src/page/components/shu-result-table.ts": {
 		"anthropomorphic": 1,
 		"relation-verb": 1
-	},
-	"modules/shu/src/page/components/shu-scrollbar.controls.ts": {
-		"terminal-preposition": 2
 	},
 	"modules/shu/src/page/components/shu-scrollbar.test.ts": {
 		"anthropomorphic": 5,

@@ -16,7 +16,7 @@ import { anIndividual, aType, type TContextPattern } from "@haibun/core/lib/conv
 import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { typeNotHeld, viewQuery, type THeldTypeLink, type TViewQuery } from "../../view-query.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import { ViewQueryControlSchema } from "./shu-graph-query.controls-schema.js";
+import { ViewQueryControlSchema } from "../../controls/domains/view-query-control.js";
 import { shuBaseStyles } from "./styles.js";
 import type { ShuResultTable } from "./shu-result-table.js";
 import "./shu-result-table.js";
@@ -178,7 +178,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		void this.executeQuery();
 	}
 
-	/** Apply a view-query control product (from a shu-graph-query.controls step) to the store, then re-query.
+	/** Apply a view-query control product (from a graph query control step) to the store, then re-query.
 	 *  The product is validated against the control schema; hypermedia markers (_component, _type, …) added by
 	 *  dispatch are stripped by the schema. This is the scriptable, hypermedia-driven entry the feature steps reach. */
 	set products(product: Record<string, unknown>) {

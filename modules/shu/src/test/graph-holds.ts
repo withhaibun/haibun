@@ -5,7 +5,7 @@
  */
 import { withAction, type TKirejiStep } from "@haibun/core/kireji/withAction.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
-import ShuPolymorphicGraphViewControls, { type TGraphSnapshot } from "../components/shu-polymorphic-graph-view.controls.js";
+import ShuPolymorphicGraphViewControls, { type TGraphSnapshot } from "../controls/polymorphic-controls-stepper.js";
 
 const { snapshotGraph } = withAction(new ShuPolymorphicGraphViewControls());
 const { setFromStatement, is } = withAction(new VariablesStepper());

@@ -13,10 +13,8 @@
 import { html, type TemplateResult } from "lit";
 import "../page/components/shu-copy-button.js";
 import { SHU_ICON_BUTTON, shuRowSeparated } from "../page/components/styles.js";
+import { SETTINGS_GROUP, type TSettingsGroup } from "../domains/elements.js";
 
-/** The settings groups a host can offer, by name. */
-export const SETTINGS_GROUP = { layout: "layout", filters: "filters", scenes: "scenes" } as const;
-export type TSettingsGroup = (typeof SETTINGS_GROUP)[keyof typeof SETTINGS_GROUP];
 /** The settings groups in row order. Each is a disclosure: its icon opens its controls row. */
 export const SETTINGS_GROUPS: ReadonlyArray<{ group: TSettingsGroup; glyph: string; title: string }> = [
 	// How the graph is laid out is one choice made of several: which way it is faced, what it reads as, how it gathers,

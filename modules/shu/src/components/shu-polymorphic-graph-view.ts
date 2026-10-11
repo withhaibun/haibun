@@ -22,7 +22,8 @@ import { VIEW, VIEW_TYPES } from "../graph/polymorphic/polymorphic-views.js";
 import { type TPolymorphicOptionChange } from "./shu-polymorphic-settings.js";
 import type { TViewForces } from "../graph/polymorphic/polymorphic-render-type.js";
 import "./shu-polymorphic-settings.js";
-import { viewHeadCss, viewActions, rotateControls, SETTINGS_GROUP_NAMES, type TSettingsGroup } from "./view-head.js";
+import { viewHeadCss, viewActions, rotateControls, SETTINGS_GROUP_NAMES } from "./view-head.js";
+import type { TSettingsGroup } from "../domains/elements.js";
 import "@haibun/shu/graph/polymorphic/polymorphic-scene.js";
 
 import {

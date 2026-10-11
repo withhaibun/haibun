@@ -1,7 +1,4 @@
 {
-	"modules/shu/src/components/shu-polymorphic-graph-view.controls.ts": {
-		"field seqPath": 1
-	},
 	"modules/shu/src/components/shu-polymorphic-graph-view.ts": {
 		"type Scene": 1
 	}
