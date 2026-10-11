@@ -14,7 +14,7 @@ import { LINT_FINDING } from "@haibun/core/lib/domain-chain-lint.js";
 import { DOMAIN_AFFORDANCES, DOMAIN_STRING } from "@haibun/core/lib/domains.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { factIdOf } from "@haibun/core/lib/seq-path.js";
-import { readingExecution } from "../../client-cache/executions.js";
+import { readingExecution } from "../client-cache/controllers/device-controller.js";
 import { declareFakeGraphPresenter, mountedPresenter } from "../../graph-presenter.test-fake.js";
 import { reportedErrors, setupShuTest, type TShuTestHandle } from "../../test-setup.js";
 import { NODE_KIND, type TGraphNode } from "../../graph/types.js";

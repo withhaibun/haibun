@@ -8,7 +8,7 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { AccessQueryLevelSchema, type AccessQueryLevel } from "@haibun/core/lib/resources.js";
 import { AuthorityController } from "../controllers/authority-controller.js";
 import { AWAITING_DECISION, PERMISSIONS_SLOT, SHU_TAG } from "../../domains/elements.js";
-import { runSpan } from "../../client-cache/index.js";
+import { runSpan } from "../client-cache/controllers/run-controller.js";
 import { getUiExtensionTags } from "../controllers/catalog-controller.js";
 import { PERMISSIONS_SUMMARY, summaryOf, type TPermissionsSummary } from "./shu-permissions.js";
 import type { TControllerHost } from "./controller-host.js";

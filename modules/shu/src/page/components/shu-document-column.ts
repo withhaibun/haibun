@@ -25,10 +25,11 @@ import { ShuArtifactFrame } from "./shu-artifact-frame.js";
 import type { ShuVirtualColumn } from "./shu-virtual-column.js";
 import "./shu-virtual-column.js";
 import { virtualColumnCss } from "./shu-virtual-column.js";
-import { atLiveEdge, graphRunSource, type RunSource, type TEventRecord } from "../../client-cache/index.js";
+import { atLiveEdge, RunController, type RunSource, type TEventRecord } from "../client-cache/controllers/run-controller.js";
+import { renderedAt } from "../client-cache/derivations/rendered-rows.js";
 import type { WindowedSource } from "../../windowed-source.js";
 import { splitDocumentBlocks, finalizeBlocks, blocksByEvent, blockText, withHeadingAnchors, isArtifactOf, type TDocBlock } from "../derivations/document-blocks.js";
-import { currentRowIndex, cursorMark, rowTimeClass } from "../derivations/rail.js";
+import { cursorMark, rowAtCursor, rowTimeClass, timedRows, type TTimedRows } from "../derivations/rail.js";
 import type { TScrollMarker } from "../derivations/rail.js";
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel } from "@haibun/core/schema/protocol.js";
 import { SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
@@ -86,6 +87,24 @@ const BUILT_PAGES = 24;
 const MAX_FRAME_HOPS = 50;
 const FRAME_ORDINAL = /data-frame-ordinal="(\d+):(\d+)"/g;
 
+/** A mark on the rail for every step that failed, so a reader jumps to it in a long run without scrolling for it.
+ *  The mark sits on the step's own row (its start, which carries its blocks), found from the end that failed. Its
+ *  glyph comes from the shared marker vocabulary, so a speculative try and a handed-out call are marked as what
+ *  they are rather than as actuality failing. */
+function markersOf(rows: ReadonlyArray<{ index: number; event: TEventRecord }>): TScrollMarker[] {
+	const markers: TScrollMarker[] = [];
+	for (const { index, event } of rows) {
+		// A step is one row, so a failed step marks the rail where that row is.
+		if (event.kind !== "lifecycle" || event.status !== SEQ_PATH_STATUS.failed) continue;
+		const { icon, color } = eventMarkerStyle(event);
+		markers.push({ index, id: String(event.id ?? ""), icon, color, label: `${String(event.in ?? "")} failed` });
+	}
+	return markers;
+}
+
+/** The document's window of a reading: its rows, the rail's marks over them, and the rows the time cursor reads. */
+type TDocWindow = { rows: Array<{ index: number; event: TEventRecord }>; marks: TScrollMarker[]; timed: TTimedRows };
+
 export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	/** The instant this view shows, which is the page's time cursor or the moment `data-snapshot-time` states. */
 	readonly #timeline = new TimelineViewController(this);
@@ -94,9 +113,8 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	// as they arrive. One source per level, shared across views, swapped when the level changes.
 	/** The reading this view reads, made when it connects: a view constructed and never connected would otherwise
 	 *  leave a reading of the actuality that a view doesn't read. */
-	#run!: RunSource;
-	#unsubscribeRun?: () => void;
-	#source: WindowedSource<TDocRow> = this.#rowsOver(this.#run);
+	#runs = new RunController<TDocWindow>(this, (run) => this.#windowOf(run));
+	#source: WindowedSource<TDocRow> = this.#rowsOver(() => this.#run);
 	#pages = new Map<number, TPageRows>();
 	#windowRows: Array<{ index: number; event: TEventRecord }> = []; // the rows of the window a reader is looking at, read once per update
 	#marks: TScrollMarker[] = []; // the rail's marks, derived when the window changes rather than when the rail draws
@@ -164,7 +182,6 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 
 	protected override onConnected(): void {
 		this.#readRun();
-		this.autoTeardown(() => this.#unsubscribeRun?.());
 		// A framed row a reader clicked in another view requests the document to scroll to that instant and reveal the row.
 		this.autoListen(this, SHU_EVENT.CURSOR_TO_ROW, (e) => this.jumpToRow((e as CustomEvent<{ row: Element }>).detail.row));
 		// ←/→ from an expanded thumbnail: only this column can navigate the whole run: the off-screen frames are not in the DOM.
@@ -173,22 +190,24 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 
 	/** Read actuality at the level now shown: one source per level, shared across views, swapped when the level changes. */
 	#readRun(): void {
-		this.#unsubscribeRun?.();
-		this.#run = graphRunSource(this.state.level);
+		// The document reads the steps a reader wrote, so it doesn't read the steps run to carry them out.
+		const run = this.#runs.read(this.state.level, false);
 		this.#pages.clear();
-		this.#source = this.#rowsOver(this.#run);
-		this.#unsubscribeRun = this.#run.subscribe(() => this.requestUpdate());
-		void this.#run.ready().then(() => this.requestUpdate());
+		this.#source = this.#rowsOver(() => run);
+	}
+
+	get #run(): RunSource {
+		return this.#runs.source;
 	}
 
 	/** A WindowedSource of rows over actuality source: actuality's extent, each cached event as a row, the rest undefined
 	 *  until their page lands. The rail marks come from the cached rows. */
-	#rowsOver(run: RunSource): WindowedSource<TDocRow> {
+	#rowsOver(run: () => RunSource): WindowedSource<TDocRow> {
 		return {
-			count: () => run.count(),
+			count: () => run().count(),
 			rowAt: (i) => this.#rowAt(i),
-			ensureRange: (a, b) => run.ensureRange(a, b),
-			subscribe: (cb) => run.subscribe(cb),
+			ensureRange: (a, b) => run().ensureRange(a, b),
+			subscribe: (cb) => run().subscribe(cb),
 			markers: () => this.#marks,
 			// A row of zero height, taken from what the row renders rather than from the record behind it: a row without
 			// blocks doesn't draw, and every other row is measured when it renders. A virtualizer told which rows are
@@ -270,14 +289,14 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	 * built a page at a time, when a page is rendered, so a window of any length is one read rather than the whole
 	 * document being written out on every update.
 	 */
-	#window(): Array<{ index: number; event: TEventRecord }> {
-		const out: Array<{ index: number; event: TEventRecord }> = [];
-		for (const { from, to } of this.#run.cachedRanges())
+	#windowOf(run: RunSource): TDocWindow {
+		const rows: Array<{ index: number; event: TEventRecord }> = [];
+		for (const { from, to } of run.cachedRanges())
 			for (let i = from; i < to; i++) {
-				const event = this.#run.rowAt(i);
-				if (event) out.push({ index: i, event });
+				const event = run.rowAt(i);
+				if (event) rows.push({ index: i, event });
 			}
-		return out;
+		return { rows, marks: markersOf(rows), timed: timedRows(rows.map(({ index, event }) => ({ index, timestamp: renderedAt(event) }))) };
 	}
 
 	/** The rows already built, which is what a reader can see: what a jump or a heading link searches. */
@@ -285,34 +304,15 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		return [...this.#pages.values()].flatMap((page) => page.rows);
 	}
 
-	/** A mark on the rail for every step that failed, so a reader jumps to it in a long run without scrolling for it.
-	 *  The mark sits on the step's own row (its start, which carries its blocks), found from the end that failed. Its
-	 *  glyph comes from the shared marker vocabulary, so a speculative try and a handed-out call are marked as what
-	 *  they are rather than as actuality failing. */
-	#markers(): TScrollMarker[] {
-		const markers: TScrollMarker[] = [];
-		for (const { index, event } of this.#windowRows) {
-			// A step is one row, so a failed step marks the rail where that row is.
-			if (event.kind !== "lifecycle" || event.status !== SEQ_PATH_STATUS.failed) continue;
-			const { icon, color } = eventMarkerStyle(event);
-			markers.push({ index, id: String(event.id ?? ""), icon, color, label: `${String(event.in ?? "")} failed` });
-		}
-		return markers;
-	}
-
 	protected willUpdate(): void {
-		// The window, its marks and the cursor's row, derived when actuality changes rather than when the rail draws: the
-		// rail asks for its marks on every frame a reader scrolls, and a cursor at the live edge doesn't sit on a row.
-		this.#windowRows = this.#window();
-		this.#marks = this.#markers();
+		// The window, its marks and the cursor's row derive from the reading once per change of it, rather than when the
+		// rail draws: the rail reads its marks on every frame a reader scrolls, and a cursor at the live edge doesn't sit on
+		// a row. A move of the cursor finds its row by a binary search of the window's times.
+		const { rows, marks, timed } = this.#runs.derived;
+		this.#windowRows = rows;
+		this.#marks = marks;
 		const cursor = this.#timeline.cursor;
-		this.#currentIdx =
-			cursor === null
-				? -1
-				: currentRowIndex(
-						this.#windowRows.map(({ index, event }) => ({ index, timestamp: Number(event.timestamp) || 0 })),
-						cursor,
-					);
+		this.#currentIdx = rowAtCursor(timed, cursor);
 		this.#cursorMark = cursorMark(this.#currentIdx, this.#run.count(), cursor);
 	}
 

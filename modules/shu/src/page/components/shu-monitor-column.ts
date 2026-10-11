@@ -12,13 +12,12 @@ import { eventMarkerStyle, markFor, type TEventMarkerStyle } from "../derivation
 import { HAIBUN_LOG_LEVELS, ICON_DEFAULT, ICON_LOG_ERROR, ICON_LOG_INFO, ICON_LOG_WARN } from "@haibun/core/schema/protocol.js";
 import "./shu-virtual-column.js";
 import { virtualColumnCss } from "./shu-virtual-column.js";
-import { atLiveEdge, graphRunSource, type RunSource } from "../../client-cache/index.js";
+import { atLiveEdge, RunController, type RunSource } from "../client-cache/controllers/run-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { SCROLL_TO_INDEX, type TSeekBy } from "./shu-scrollbar.js";
 import { SHU_EVENT, SHU_TAG, TIME_SYNC_CLASS } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import type { WindowedSource } from "../../windowed-source.js";
-import type { TScrollMarker } from "../derivations/rail.js";
 import { artifactAt, artifactUrl } from "../../artifact-url.js";
 import { unavailableOrEmpty } from "./empty-state.js";
 import { actionRef, originLink, refTpl, stepPathTpl } from "./shu-ref.js";
@@ -27,7 +26,7 @@ import { stepPathOfEvent } from "../derivations/steps.js";
 import { artifactOf } from "@haibun/core/lib/run-artifact.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { principalAddress, SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
-import { currentRowIndex, cursorMark } from "../derivations/rail.js";
+import { cursorMark, rowAtCursor, timedRows, type TScrollMarker, type TTimedRows } from "../derivations/rail.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
 import { requestPaneFrom } from "../controllers/pane-controller.js";
 import { addsToSelection, type DesiredPane } from "../derivations/pane-kinds.js";
@@ -56,6 +55,9 @@ const MonitorColumnSchema = z.object({
 export function opens(row: TLogRow): DesiredPane | undefined {
 	return row.record ? { paneType: "entity", persistedAs: row.record.persistedAs, id: row.record.id } : undefined;
 }
+
+/** The monitor's window of a reading: the rows, the rail's marks over them, and the rows the time cursor reads. */
+type TMonitorWindow = { rows: TLogRow[]; marks: TScrollMarker[]; timed: TTimedRows };
 
 export type TLogRow = {
 	/** How a step went, or how a lifecycle row reports it. */
@@ -154,14 +156,17 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	// index. Rows are derived from those records as they are painted. One source per level, shared across views,
 	// swapped when the level changes.
 	/** The reading this view reads, made when it connects: a view constructed and never connected would otherwise
-	 *  leave a reading of the actuality that a view doesn't read. */
-	#run!: RunSource;
-	#unsubscribeRun?: () => void;
+	 *  leave a reading of the actuality that a view doesn't read. The window derives from it once per change of it. */
+	#runs = new RunController<TMonitorWindow>(this, (run) => this.#windowOf(run));
 	#rowCache = new WeakMap<object, TLogRow>();
-	#source: WindowedSource<TLogRow> = this.#rowsOver(this.#run);
+	#source: WindowedSource<TLogRow> = this.#rowsOver(() => this.#run);
 	#currentIdx = -1;
 	#cursorMark = -1;
 	#marks: TScrollMarker[] = []; // the rail's marks, derived when the window changes rather than when the rail draws
+
+	get #run(): RunSource {
+		return this.#runs.source;
+	}
 	static styles = [
 		virtualColumnCss,
 		shuBaseStyles,
@@ -214,7 +219,6 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 
 	protected override onConnected(): void {
 		this.#readRun();
-		this.autoTeardown(() => this.#unsubscribeRun?.());
 		// A press or drag on the rail is the reader saying WHEN, not just where: the row it lands on carries a time, so
 		// the cursor every other view reads moves with it. Wheeling does not, over the rail or over the rows: that is
 		// reading, and a reader scrolling their own log should not drag every other view along. The rail reports which.
@@ -237,27 +241,24 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	/** Read actuality as it is now shown: one source per reading, shared across views, swapped when the reader changes
 	 *  the level or asks for the steps run to carry other steps out. */
 	#readRun(): void {
-		this.#unsubscribeRun?.();
-		this.#run = graphRunSource(this.state.level, { substeps: this.state.substeps });
-		this.#source = this.#rowsOver(this.#run);
-		this.#unsubscribeRun = this.#run.subscribe(() => this.requestUpdate());
-		void this.#run.ready().then(() => this.requestUpdate());
+		const run = this.#runs.read(this.state.level, this.state.substeps);
+		this.#source = this.#rowsOver(() => run);
 	}
 
 	/** A WindowedSource of rows over actuality source: actuality's extent, each record it holds as a row (derived once per
 	 *  record and held), the rest undefined until the window reaches them. The rail marks come from those rows. */
-	#rowsOver(run: RunSource): WindowedSource<TLogRow> {
+	#rowsOver(run: () => RunSource): WindowedSource<TLogRow> {
 		return {
-			count: () => run.count(),
+			count: () => run().count(),
 			rowAt: (i) => {
-				const e = run.rowAt(i);
+				const e = run().rowAt(i);
 				return e ? this.#rowOf(e) : undefined;
 			},
-			ensureRange: (a, b) => run.ensureRange(a, b),
-			subscribe: (cb) => run.subscribe(cb),
+			ensureRange: (a, b) => run().ensureRange(a, b),
+			subscribe: (cb) => run().subscribe(cb),
 			markers: () => this.#marks,
 			// A shot drawn on the row of the step that took it is not a row of its own here, so it doesn't take room.
-			rowSize: (i) => (carried(run.rowAt(i)) ? 0 : undefined),
+			rowSize: (i) => (carried(run().rowAt(i)) ? 0 : undefined),
 		};
 	}
 
@@ -305,17 +306,19 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		return row;
 	}
 
-	/** The cached rows in index order, with their indices: what the rail marks, the cursor and the Kihan summary read.
-	 *  Walked from the spans the source caches, never a scan of actuality's extent. */
-	#cached(): Array<{ index: number; row: TLogRow }> {
-		const out: Array<{ index: number; row: TLogRow }> = [];
-		for (const { from, to } of this.#run.cachedRanges())
+	/** The window of a reading: its cached rows in index order, the rail's marks over them, and the rows the time cursor
+	 *  reads. Walked from the spans the source caches, never a scan of actuality's extent. */
+	#windowOf(run: RunSource): TMonitorWindow {
+		const cached: Array<{ index: number; row: TLogRow }> = [];
+		for (const { from, to } of run.cachedRanges())
 			for (let i = from; i < to; i++) {
-				const e = this.#run.rowAt(i);
+				const e = run.rowAt(i);
 				// A shot the step's own row carries is read there, so it marks the rail there rather than twice.
-				if (e && !carried(e)) out.push({ index: i, row: this.#rowOf(e) });
+				if (e && !carried(e)) cached.push({ index: i, row: this.#rowOf(e) });
 			}
-		return out;
+		const rows = cached.map(({ row }) => row);
+		const indices = cached.map(({ index }) => index);
+		return { rows, marks: railMarkers(rows, indices), timed: timedRows(cached.map(({ index, row }) => ({ index, timestamp: row.timestamp }))) };
 	}
 
 	private onSubstepsChange = (e: Event): void => {
@@ -353,24 +356,13 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	// across the whole log), and the time-cursor row. shu-virtual-column reads the source and virtualizes; its
 	// notify-driven follow tails the live edge.
 	protected willUpdate(): void {
-		// Derived per update from the window: the rows (for the Kihan summary and the tests), the rail's marks, and the
-		// current row: the last row at or before the time cursor, read ONCE (an accessor over an attribute check and a
-		// signal read). The marks are derived here rather than when the rail asks for them, since the rail asks on every
-		// frame a reader scrolls and the window changes only when actuality does.
-		const cached = this.#cached();
-		this.rows = cached.map(({ row }) => row);
-		this.#marks = railMarkers(
-			this.rows,
-			cached.map(({ index }) => index),
-		);
+		// The window derives from the reading once per change of it: a render for any other reason, a move of the time
+		// cursor among them, reads the window held, and finds the cursor's row by a binary search of its rows' times.
+		const { rows, marks, timed } = this.#runs.derived;
+		this.rows = rows;
+		this.#marks = marks;
 		const cursor = this.#timeline.cursor;
-		this.#currentIdx =
-			cursor === null
-				? -1
-				: currentRowIndex(
-						cached.map(({ index, row }) => ({ index, timestamp: row.timestamp })),
-						cursor,
-					);
+		this.#currentIdx = rowAtCursor(timed, cursor);
 		this.#cursorMark = cursorMark(this.#currentIdx, this.#run.count(), cursor);
 	}
 

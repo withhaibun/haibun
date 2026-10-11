@@ -16,7 +16,7 @@ import { ActionsBarQuery, SEARCH_DEBOUNCE_MS, searchConditions } from "./actions
 import { aControllerHost } from "./controller-host.test-fake.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { getSelectValues } from "../controllers/catalog-controller.js";
-import { setGraphStore } from "../../quads-snapshot.js";
+import { installGraph } from "../client-cache/controllers/device-controller.js";
 import { typeNotHeld, viewQuery } from "../../view-query.js";
 import { declaringSteps, persistedTypeDefinition, setupShuTest, stepsChanged, stepsReadAgain, stepsShown, type TShuTestHandle } from "../../test-setup.js";
 
@@ -67,7 +67,7 @@ describe("the actions bar's search mode", () => {
 		t = setupShuTest({ dispatch: (method, params, link) => (method === SELECT_VALUES.method ? { values: { folder: ["INBOX"] } } : shown(method, params, link)) });
 		const cached = new QuadStore();
 		await cached.setMany(CACHED);
-		setGraphStore(cached);
+		installGraph(cached);
 		viewQuery.set({ q: null });
 	});
 	afterEach(() => {

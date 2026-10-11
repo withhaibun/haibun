@@ -4,16 +4,17 @@
  * report, a test, a server without an engine of its own) and the page's IndexedDB. IndexedDB runs on `fake-indexeddb`, so
  * the implementation a reader uses is covered in a unit test rather than only in a browser.
  */
-import { serveThePage } from "../test-setup.js";
+import { serveThePage } from "../../../test-setup.js";
 import "fake-indexeddb/auto";
 import { beforeAll } from "vitest";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { describeQuadStore } from "@haibun/core/lib/test/quad-store-conformance.js";
 import { readDeclarationsOf } from "@haibun/core/lib/records/derivations/read-records.js";
-import { IndexedDbQuadStore } from "./quad-store.js";
+import { DeviceGraph } from "./device-graph.js";
+import { deviceQuads, servedDatabase } from "../root.js";
 
 // The page is served, so its device store is the database of the actuality the page reads.
 beforeAll(serveThePage);
 
 describeQuadStore("in memory", (domains) => new QuadStore(undefined, undefined, undefined, () => readDeclarationsOf(domains)));
-describeQuadStore("IndexedDB", (domains) => new IndexedDbQuadStore(undefined, () => readDeclarationsOf(domains)));
+describeQuadStore("IndexedDB", (domains) => new DeviceGraph(deviceQuads(servedDatabase()), () => readDeclarationsOf(domains)));

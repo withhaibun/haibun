@@ -25,7 +25,7 @@ import { domainRef, stepRef } from "./shu-ref.js";
 import { LINT_FINDING, LintFindingSchema, type TLintFinding } from "@haibun/core/lib/domain-chain-lint.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import { noteExecution } from "../../client-cache/executions.js";
+import { noteExecution } from "../client-cache/controllers/device-controller.js";
 import { ShuElement, EmptyStateSchema, type TLinkedData } from "./shu-element.js";
 import { NODE_KIND, nodeIn, type TGraph, type TGraphNode } from "../../graph/types.js";
 import { graphPresenterTag, mountGraphPresenter, presenterIn } from "../controllers/presenter-controller.js";

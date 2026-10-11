@@ -10,10 +10,10 @@ import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { counted } from "@haibun/core/lib/hypermedia.js";
 import { arrayWindowedSource, lazyWindowedSource, readWindowedSource } from "./windowed-source.js";
 import { describeWindowedSource, CONFORMANCE_ROWS } from "./test/windowed-source-conformance.js";
-import { setGraphStore } from "./quads-snapshot.js";
+import { installGraph } from "./page/client-cache/controllers/device-controller.js";
 import { setupShuTest } from "./test-setup.js";
-import { runStore } from "./client-cache/run-store.test-fake.js";
-import { graphRunSource } from "./client-cache/graph-run-source.js";
+import { runStore } from "./page/client-cache/run-store.test-fake.js";
+import { graphRunSource } from "./page/client-cache/controllers/run-controller.js";
 import { endPage } from "./page/adapters/page-held.js";
 
 type TRow = { name: string };
@@ -72,8 +72,8 @@ describeWindowedSource("the window of a run", async () => {
 			recordedAtTime: iso(1000 + i),
 		});
 	}
-	setGraphStore(store);
-	const source = graphRunSource("info");
+	installGraph(store);
+	const source = graphRunSource("info", false);
 	await source.ready();
 	return { source, named: (row: Record<string, unknown>): string => String(row.in), shouldName, done: () => handle.teardown() };
 });

@@ -12,11 +12,11 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ShuPlayback } from "./shu-playback.js";
 import { timeCursor } from "../controllers/page-cell-controller.js";
 import { setupShuTest, type TShuTestHandle } from "../../test-setup.js";
-import { runStore } from "../../client-cache/run-store.test-fake.js";
+import { runStore } from "../client-cache/run-store.test-fake.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
-import { currentExecution, graphRunSource, readExecution } from "../../client-cache/index.js";
+import { currentExecution, installGraph, readExecution } from "../client-cache/controllers/device-controller.js";
+import { graphRunSource } from "../client-cache/controllers/run-controller.js";
 
-import { setGraphStore } from "../../quads-snapshot.js";
 import { SHU_EVENT } from "../../domains/elements.js";
 import { endPage } from "../adapters/page-held.js";
 
@@ -35,7 +35,7 @@ async function aRun(): Promise<void> {
 			level: "info",
 			generatedAtTime: new Date(at).toISOString(),
 		});
-	setGraphStore(store);
+	installGraph(store);
 	declareGraphSpec({ types: [SEQ_PATH_LABEL] });
 }
 
@@ -50,7 +50,7 @@ async function playing(): Promise<ShuPlayback> {
 	await el.updateComplete;
 	// Actuality's span comes from actuality sources the open views read: so actuality is read at a level (as an open monitor or
 	// document would read it), and its extent is what the control plays between.
-	await graphRunSource("info").ready();
+	await graphRunSource("info", false).ready();
 	await el.updateComplete;
 	return el;
 }

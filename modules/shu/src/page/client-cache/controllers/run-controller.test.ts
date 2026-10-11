@@ -1,33 +1,51 @@
 // @vitest-environment jsdom
 // A view reads actuality through the records it wrote. A step is one row carrying how it went and how long it took,
 // where a stream of occurrences logged those separately and a view had to pair them up; what a step logged is its own row.
-import { declareGraphSpec } from "../test/catalog-fixture.js";
+import { declareGraphSpec } from "../../../test/catalog-fixture.js";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import type { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
-import { setGraphStore } from "../quads-snapshot.js";
-import { clearStoredFields, setupShuTest, storeFields, type TShuTestHandle } from "../test-setup.js";
-import { SHU_TAG } from "../domains/elements.js";
-import { PAGE_SETTING_KEY } from "../page/domains/settings.js";
-import "../page/components/shu-window-size.js";
-import { runStore } from "./run-store.test-fake.js";
+import type { THaibunLogLevel } from "@haibun/core/schema/protocol.js";
+import { clearStoredFields, setupShuTest, storeFields, type TShuTestHandle } from "../../../test-setup.js";
+import { SHU_TAG } from "../../../domains/elements.js";
+import { PAGE_SETTING_KEY } from "../../domains/settings.js";
+import "../../components/shu-window-size.js";
+import { runStore } from "../run-store.test-fake.js";
 import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
-import { graphRunSource } from "./graph-run-source.js";
-import { readRunAt, runReadingAt } from "./run-source.js";
-import { timeCursor } from "../page/root.js";
-import { endPage } from "../page/adapters/page-held.js";
+import { installGraph } from "./device-controller.js";
+import { graphRunSource as readingAt, readRunAt, RunController, runReadingAt, runSourceScope, type RunSource } from "./run-controller.js";
+import { makeGraphRunSource, type TGraphRunSource } from "../pipelines/run-sources.js";
+import { RUN_WINDOW_SIZE } from "../derivations/run-rows.js";
+import { timeCursor } from "../../root.js";
+import { endPage } from "../../adapters/page-held.js";
 
 const iso = (n: number): string => new Date(n).toISOString();
 const RUN = "1700000000000-1";
+
+/** The readings made with a size or a delay of their own, which the page doesn't hold, so each case closes them. */
+const made: TGraphRunSource[] = [];
+
+/** A reading of actuality at `level`: the page's, or one of its own size and delay before it reads again. */
+function graphRunSource(level: THaibunLogLevel, own?: { size?: number; reReadAfterMs?: number }): RunSource {
+	if (own === undefined) return readingAt(level, false);
+	const source = makeGraphRunSource(runSourceScope(), level, {
+		size: own.size ?? RUN_WINDOW_SIZE,
+		reReadAfterMs: own.reReadAfterMs ?? 250,
+		substeps: false,
+		release: () => undefined,
+	});
+	made.push(source);
+	return source;
+}
 
 describe("the actuality a view reads, over the records it wrote", () => {
 	let handle: TShuTestHandle;
 	let store: QuadStore;
 	beforeEach(async () => {
 		endPage();
-		// A server doesn't answer: the page reads the records it holds.
+		// A server doesn't respond: the page reads the records it holds.
 		handle = setupShuTest({
 			dispatch: (method) => {
 				throw new ServerUnreachable(`/rpc/${method}`, new Error("this test reads the records, not a server"));
@@ -73,9 +91,12 @@ describe("the actuality a view reads, over the records it wrote", () => {
 			endedAtTime: iso(1500),
 			recordedAtTime: iso(1500),
 		});
-		setGraphStore(store);
+		installGraph(store);
 	});
-	afterEach(() => handle.teardown());
+	afterEach(() => {
+		for (const source of made.splice(0)) source.close();
+		handle.teardown();
+	});
 
 	it("gives a step one row, carrying how it went and how long it took", async () => {
 		const source = graphRunSource("debug");
@@ -122,7 +143,7 @@ describe("the actuality a view reads, over the records it wrote", () => {
 		expect(source.extent()).toMatchObject({ total: 4, first: 1000, last: 1400 });
 	});
 
-	it("holds the levels at or above the one asked for, and doesn't hold a level under it", async () => {
+	it("holds the levels at or above the one requested, and doesn't hold a level under it", async () => {
 		const source = graphRunSource("info");
 		await source.ready();
 		expect(source.count(), "the two steps and the warning, and not the detail under info").toBe(3);
@@ -272,7 +293,7 @@ describe("the actuality a view reads, over the records it wrote", () => {
 		handle.eventStream.disconnect();
 		handle.eventStream.reconnect();
 		await new Promise((r) => setTimeout(r, 5));
-		expect(source.count(), "the actuality it held, and what happened while it was not being told").toBe(5);
+		expect(source.count(), "the actuality it held, and what happened while the stream was down").toBe(5);
 		expect(source.rowAt(4)).toMatchObject({ in: "a step nobody was told about" });
 	});
 
@@ -300,14 +321,14 @@ describe("the actuality a view reads, over the records it wrote", () => {
 		expect(source.behind, "read again since the stream came back").toBe(false);
 	});
 
-	it("knows the stream is down when made after it broke, rather than believing it is current", async () => {
+	it("states the stream is down when made after it broke, rather than reading as current", async () => {
 		handle.eventStream.disconnect();
 		const source = graphRunSource("info");
 		await source.ready();
 		expect(source.disconnected).toBe(true);
 	});
 
-	it("reports every row it holds is readable, so a view marks and scrolls without asking for more", async () => {
+	it("reports every row it holds is readable, so a view marks and scrolls without reading more", async () => {
 		const source = graphRunSource("debug");
 		await source.ready();
 		expect(source.cachedRanges()).toEqual([{ from: 0, to: 4 }]);
@@ -315,12 +336,12 @@ describe("the actuality a view reads, over the records it wrote", () => {
 		expect(source.unavailable).toBeNull();
 	});
 
-	describe("the rail actuality's rows sit on", () => {
-		it("carries the whole run, so a place on it names a moment the window does not hold", async () => {
+	describe("the rail of actuality's rows", () => {
+		it("carries all of the execution, so a place on it names a moment the window does not hold", async () => {
 			const source = graphRunSource("debug");
 			await source.ready();
 			const rail = source.rail;
-			expect(rail, "a run source states the rail its rows sit on").toBeDefined();
+			expect(rail, "a run source states the rail of its rows").toBeDefined();
 			expect(rail?.places).toBeGreaterThan(1);
 			const first = rail?.placeOf(0) ?? -1;
 			const last = rail?.placeOf(source.count() - 1) ?? -1;
@@ -344,6 +365,54 @@ describe("the actuality a view reads, over the records it wrote", () => {
 			await source.ready();
 			source.rail?.goTo(0);
 			expect(timeCursor.get(), "the earliest place names actuality's first moment, which is not the live edge").not.toBeNull();
+		});
+	});
+
+	describe("a view's reading", () => {
+		/** A host that renders on request, as a view does, and counts its renders. */
+		const host = () => {
+			const controllers: Array<{ hostDisconnected?: () => void }> = [];
+			return {
+				renders: 0,
+				controllers,
+				addController: (c: { hostDisconnected?: () => void }) => controllers.push(c),
+				requestUpdate() {
+					this.renders += 1;
+				},
+				removeController: () => undefined,
+				updateComplete: Promise.resolve(true),
+			};
+		};
+
+		it("derives the view's window once per change of the reading, so 1,000 moves of the time cursor cause 0 rebuilds", async () => {
+			const view = host();
+			let rebuilds = 0;
+			const runs = new RunController(view, (run) => {
+				rebuilds += 1;
+				return run.count();
+			});
+			const source = runs.read("debug", false);
+			await source.ready();
+			expect(runs.derived).toBe(4);
+			const built = rebuilds;
+			for (let move = 0; move < 1000; move++) {
+				timeCursor.set(1000 + move);
+				expect(runs.derived).toBe(4);
+			}
+			expect(rebuilds - built, "a move of the cursor reads the window held").toBe(0);
+			await source.readAt(1000);
+			expect(runs.derived, "a change of the reading derives again").toBe(source.count());
+			expect(rebuilds - built).toBe(1);
+			timeCursor.set(null);
+		});
+
+		it("lets the reading go when the view disconnects", async () => {
+			const view = host();
+			const runs = new RunController(view, (run) => run.count());
+			const source = runs.read("debug", false);
+			await source.ready();
+			for (const controller of view.controllers) controller.hostDisconnected?.();
+			expect(readingAt("debug", false), "a reading that every view let go is dropped, and the next view reads afresh").not.toBe(source);
 		});
 	});
 });

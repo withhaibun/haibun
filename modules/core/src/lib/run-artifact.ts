@@ -46,7 +46,7 @@ export const RUN_ARTIFACT_EDGE = {
 } as const;
 
 // Non-strict for the same reason as SeqPath: `isPartOf` is declared as an edge and written in the same upsert.
-const RunArtifactSchema = PersistedVertexSchema.extend({
+export const RunArtifactSchema = PersistedVertexSchema.extend({
 	[RUN_ARTIFACT_FIELD.id]: z.string(),
 	[RUN_ARTIFACT_FIELD.artifactType]: z.string(),
 	[RUN_ARTIFACT_FIELD.path]: z.string().optional(),

@@ -6,11 +6,12 @@ import { hydrateFromDom, hydratedCache } from "../controllers/hydration-controll
 import { getAvailableSteps, registryOrigin, requireStep, stepsJoining } from "../controllers/registry-controller.js";
 import { asDomainKey } from "@haibun/core/lib/domains.js";
 import { setupShuTest, stepsShown, type TShuTestHandle, hydrate, PAGE_ACTUALITY, SERVED_SETTINGS } from "../../test-setup.js";
-import { CACHE_SHAPE, hydrateClientCache } from "../../client-cache/index.js";
+import { CACHE_SHAPE } from "../client-cache/ports.js";
+import { hydrateClientCache } from "../client-cache/controllers/device-controller.js";
 import { installCarriedConduit } from "../root.js";
 import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
-import { deviceStore, setDeviceStore, MemoryDeviceStore } from "../../client-cache/index.js";
+import { installDeviceStore, installMemoryDeviceStore, pageDeviceStore } from "../client-cache/root.js";
 import { endPage } from "../adapters/page-held.js";
 
 function setHydration(payload: unknown): void {
@@ -35,7 +36,7 @@ describe("the step a name indexes", () => {
 	beforeEach(() => {
 		endPage();
 		setHydration({ actualityId: PAGE_ACTUALITY, settings: SERVED_SETTINGS });
-		setDeviceStore(new MemoryDeviceStore());
+		installMemoryDeviceStore();
 	});
 	afterEach(() => {
 		handle?.teardown();
@@ -46,7 +47,7 @@ describe("the step a name indexes", () => {
 		await getAvailableSteps();
 		expect(requireStep("graphQuery")).toBe("GraphStepper-graphQuery");
 		handle.teardown();
-		setDeviceStore(new MemoryDeviceStore());
+		installMemoryDeviceStore();
 		handle = listing([aStep("GraphStepper", "graphQuery", false), aStep("GraphSourceStepper", "graphQuery", true)]);
 		await getAvailableSteps();
 		expect(requireStep("graphQuery")).toBe("GraphStepper-graphQuery");
@@ -85,13 +86,13 @@ describe("the registry cached on the device", () => {
 		handle = setupShuTest({ dispatch: (method) => (method === SHOW_STEPS_METHOD ? ANSWER : undefined) });
 		await getAvailableSteps();
 		expect(registryOrigin()).toEqual({ from: "site" });
-		const store = deviceStore() as MemoryDeviceStore;
+		const store = pageDeviceStore();
 		await new Promise((r) => setTimeout(r, 0)); // cached without holding the page up
 		expect((await store.registry())?.response, "the response as validated, cached on the device").toMatchObject(ANSWER);
 		// The same device, a server that does not respond: the page runs on the device's copy.
 		handle.teardown();
 		handle = setupShuTest({ dispatch: unreachable });
-		setDeviceStore(store);
+		installDeviceStore(store);
 		await getAvailableSteps();
 		const origin = registryOrigin();
 		expect(origin !== undefined && origin.from === "device" && typeof origin.savedAt === "number", JSON.stringify(origin)).toBe(true);
@@ -116,7 +117,7 @@ describe("the registry cached on the device", () => {
 	it("returns a site's refusal, not the device's copy, so the page doesn't read from the device what the site refuses", async () => {
 		handle = setupShuTest({ dispatch: (method) => (method === SHOW_STEPS_METHOD ? ANSWER : undefined) });
 		await getAvailableSteps();
-		const store = deviceStore() as MemoryDeviceStore;
+		const store = pageDeviceStore();
 		await new Promise((r) => setTimeout(r, 0));
 		handle.teardown();
 		handle = setupShuTest({
@@ -124,7 +125,7 @@ describe("the registry cached on the device", () => {
 				throw new Error(`${SHOW_STEPS_METHOD}: capability Read:public required`);
 			},
 		});
-		setDeviceStore(store);
+		installDeviceStore(store);
 		await expect(getAvailableSteps()).rejects.toThrow("capability Read:public required");
 		expect(registryOrigin()?.from, "and doesn't run on a copy it was refused").not.toBe("device");
 	});

@@ -44,7 +44,7 @@ import { EVERY_DEFINITION } from "@haibun/core/lib/step-discovery.js";
 import { shownTo } from "@haibun/core/lib/capability-context.js";
 
 import { DOMAIN_GRAPH_QUERY } from "@haibun/core/lib/quad-types.js";
-import { CACHE_SHAPE } from "./client-cache/index.js";
+import { carriedRun } from "./page/client-cache/pipelines/carried-run.js";
 import type { TCachePayload, THydration } from "./domains/hydration.js";
 import { DOMAIN_FILE_PATH } from "@haibun/core/lib/domains.js";
 
@@ -330,7 +330,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	/** Actuality as the page holds it, for a page without a site to read it from: the graph actuality wrote, which is actuality,
 	 *  and the site's registry as it stood. */
 	private cacheForReport(registry: unknown, quads: TQuad[]): TCachePayload {
-		return { shape: CACHE_SHAPE, execution: executionOf(this.getWorld().tag), registry, quads };
+		return carriedRun(executionOf(this.getWorld().tag), registry, quads);
 	}
 
 	private async writeStandaloneReport({ fixedPath, compressed }: { fixedPath?: string; compressed: boolean }): Promise<string> {

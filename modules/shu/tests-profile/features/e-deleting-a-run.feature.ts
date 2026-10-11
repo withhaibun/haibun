@@ -14,21 +14,21 @@ const { feature, scenario } = withAction(new Haibun());
 
 const host = "http://localhost:8241";
 const IDS = SHU_TEST_IDS;
-const OLDEST_FORGET = "oldest-run-forget";
+const OLDEST_DELETE = "oldest-run-delete";
 const testIdSetup = flattenTestIds(IDS).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
 
 export const features: TKirejiExport = {
-	"Forgetting a run this device holds": [
-		feature({ feature: "Forgetting a run this device holds" }),
+	"Deleting a run this device holds": [
+		feature({ feature: "Deleting a run this device holds" }),
 		...testIdSetup,
-		setAs({ what: OLDEST_FORGET, domain: "page-locator", value: `"[data-testid^='${IDS.CLIENT_CACHE.RUN}'][data-testid$='-forget'] >> nth=-1"` }),
+		setAs({ what: OLDEST_DELETE, domain: "page-locator", value: `"[data-testid^='${IDS.CLIENT_CACHE.RUN}'][data-testid$='-delete'] >> nth=-1"` }),
 
-		scenario({ scenario: "A reader forgets the oldest run this device holds" }),
+		scenario({ scenario: "A reader deletes the oldest run this device holds" }),
 
-		"A device holds every run a reader has read at this address, and a reader removes one of them by forgetting it. The list carries a forget control on every run but the one being read, so a reader never deletes what a view is drawing. The oldest run this device holds is the first of these runs, and the earlier ones are listed with it.",
+		"A device holds every run a reader has read at this address, and a reader removes one of them by deleting it. The list carries a delete control on every run but the one being read, so a reader never deletes what a view is drawing. The oldest run this device holds is the first of these runs, and the earlier ones are listed with it.",
 		"enable rpc",
 		serveShuApp({ path: '"/spa"' }),
-		'webserver is listening for "forgetting a run this device holds"',
+		'webserver is listening for "deleting a run this device holds"',
 		gotoPage({ name: `"${host}/spa"` }),
 		"show client cache",
 		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
@@ -37,9 +37,9 @@ export const features: TKirejiExport = {
 		`save text from ${IDS.CLIENT_CACHE.HELD} to heldBefore`,
 		'matches heldBefore with "*A run to come back to*"',
 
-		"Forgetting a run deletes its records from this device. The view reports what went once it has read the executions again, so what a reader sees after the deletion is what the device holds. The forgotten run is no longer listed, and the runs read after it are still there.",
-		click({ target: OLDEST_FORGET }),
-		waitFor({ target: IDS.CLIENT_CACHE.FORGOTTEN }),
+		"Deleting a run removes its records from this device. The view reports what went once it has read the executions again, so what a reader sees after the deletion is what the device holds. The deleted run is no longer listed, and the runs read after it are still there.",
+		click({ target: OLDEST_DELETE }),
+		waitFor({ target: IDS.CLIENT_CACHE.DELETED }),
 		`save text from ${IDS.CLIENT_CACHE.HELD} to heldAfter`,
 		'not matches heldAfter with "*A run to come back to*"',
 		'matches heldAfter with "*Reading an execution this device holds*"',

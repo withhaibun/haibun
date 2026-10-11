@@ -26,7 +26,7 @@ import "../src/page/components/shu-step-detail.js";
 import "../src/page/components/shu-index-summary.js";
 import "../src/page/components/shu-playback.js";
 import "../src/page/components/shu-document-column.js";
-import "../src/page/components/shu-client-cache-column.js";
+import "../src/page/client-cache/components/shu-client-cache-column.js";
 import "../src/page/components/shu-product-view.js";
 import "../src/page/components/shu-views-picker.js";
 import "../src/page/components/shu-affordances-panel.js";
@@ -66,7 +66,8 @@ import {
 	responseTimeoutMs,
 } from "../src/page/controllers/hydration-controller.js";
 import { getAvailableSteps, requiredActionOf } from "../src/page/controllers/registry-controller.js";
-import { hydrateClientCache, viewsShown } from "../src/client-cache/index.js";
+import { hydrateClientCache } from "../src/page/client-cache/controllers/device-controller.js";
+import { viewsShown } from "../src/page/client-cache/controllers/run-controller.js";
 import { followRunningTurns } from "../src/conversation.js";
 
 /** The id of the served document's main element, which holds the page. */

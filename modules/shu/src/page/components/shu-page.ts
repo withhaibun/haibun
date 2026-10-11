@@ -22,7 +22,7 @@ import { followPaneLink } from "./ref-navigation.js";
 import { SCOPE, dispatchSubjectEvent, entryOf, entryOfContext } from "../../current-subject.js";
 import { PageContextSchema, type TContextPattern } from "../../schemas.js";
 import { setActiveViewId } from "../../quads-snapshot.js";
-import { readRunAt } from "../../client-cache/index.js";
+import { readRunAt } from "../client-cache/controllers/run-controller.js";
 import { reportFailure } from "../../client-log.js";
 import type { ShuColumnStrip } from "./shu-column-strip.js";
 import type { ShuGraphQuery } from "./shu-graph-query.js";

@@ -2,19 +2,24 @@
 // The client cache view is THE reading of what the page holds of a run: each source's extent, the rows it holds and the
 // cursor's row in it, the live stream by level, and the executions this device holds; every value under its own test
 // id, so a feature reads what the page holds from here with the generic steps. It doesn't make a source of its own.
-import { declareGraphSpec } from "../../test/catalog-fixture.js";
+import { declareGraphSpec, declareRegistry, GRAPH_READ_STEPS } from "../../../test/catalog-fixture.js";
+import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
+import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
 import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
+import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { ShuClientCacheColumn } from "./shu-client-cache-column.js";
-import "./shu-monitor-column.js";
-import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import { setupShuTest, type TShuTestHandle } from "../../test-setup.js";
-import { runStore } from "../../client-cache/run-store.test-fake.js";
-import { timeCursor } from "../controllers/page-cell-controller.js";
-import { setGraphStore } from "../../quads-snapshot.js";
-import { currentExecution, graphRunSource } from "../../client-cache/index.js";
-import { endPage } from "../adapters/page-held.js";
+import "../../components/shu-monitor-column.js";
+import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
+import { setupShuTest, stepsShown, type TShuTestHandle } from "../../../test-setup.js";
+import { RUN_DOMAIN_DEFINITIONS, runStore } from "../run-store.test-fake.js";
+import { timeCursor } from "../../controllers/page-cell-controller.js";
+import { currentExecution, deviceGraph, installGraph } from "../controllers/device-controller.js";
+import { servedDatabase } from "../root.js";
+import { GRAPH_BOUND } from "../adapters/quad-store.js";
+import { graphRunSource } from "../controllers/run-controller.js";
+import { endPage } from "../../adapters/page-held.js";
 
 const IDS = SHU_TEST_IDS.CLIENT_CACHE;
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 30));
@@ -50,7 +55,7 @@ describe("the client cache view", () => {
 		await store.upsertIndividual(SEQ_PATH_LABEL, step(EARLIER, 0, { stepText: "Feature: An earlier run", called: "Haibun.feature", generatedAtTime: iso(500) }));
 		await store.upsertIndividual(SEQ_PATH_LABEL, step(RUN, 0, { stepText: "Feature: The actuality being recorded", called: "Haibun.feature" }));
 		for (let i = 1; i < STEPS; i++) await store.upsertIndividual(SEQ_PATH_LABEL, step(RUN, i));
-		setGraphStore(store);
+		installGraph(store);
 	});
 	afterEach(() => {
 		handle.teardown();
@@ -62,7 +67,7 @@ describe("the client cache view", () => {
 	 *  reads after the page reads actuality's steps. */
 	const readingTheRun = async (): Promise<void> => {
 		declareGraphSpec({ types: [SEQ_PATH_LABEL] });
-		await graphRunSource("info").ready();
+		await graphRunSource("info", false).ready();
 		await flush();
 	};
 
@@ -75,8 +80,8 @@ describe("the client cache view", () => {
 	const value = (view: ShuClientCacheColumn, id: string): string | undefined => (view.shadowRoot as ShadowRoot).querySelector(`[data-testid="${id}"]`)?.textContent?.trim();
 	const text = (view: ShuClientCacheColumn): string => view.shadowRoot?.textContent?.replace(/\s+/g, " ").trim() ?? "";
 
-	it("reports what it does not know as pending, never as absent", async () => {
-		setGraphStore(runStore());
+	it("reports what it hasn't read as pending, never as absent", async () => {
+		installGraph(runStore());
 		const view = new ShuClientCacheColumn();
 		document.body.appendChild(view);
 		await view.updateComplete; // before what the device holds has been read once
@@ -90,7 +95,7 @@ describe("the client cache view", () => {
 		const view = await open();
 		expect(text(view)).toContain("A view hasn't read actuality yet");
 		expect(value(view, IDS.CURSOR)).toBe("live edge");
-		expect(value(view, IDS.REGISTRY), "a step list hasn't been requested in this page").toBe("not known yet");
+		expect(value(view, IDS.REGISTRY), "a step list hasn't been requested in this page").toBe("pending");
 	});
 
 	it("reads a source's extent, the rows it holds and its state, each under its id", async () => {
@@ -117,7 +122,7 @@ describe("the client cache view", () => {
 		timeCursor.set(1010);
 		await view.updateComplete;
 		expect(value(view, IDS.CURSOR)).toContain("00:00:01.010");
-		expect(value(view, `${IDS.SOURCE}info-cursor`), "the cursor at 1010 sits on row 10, shown without waiting for the device").toBe("10");
+		expect(value(view, `${IDS.SOURCE}info-cursor`), "the cursor at 1010 is on row 10, shown without waiting for the device").toBe("10");
 		handle.emit({ id: "0.1", timestamp: 2000, kind: "log", level: "info", message: "actuality logs something" });
 		handle.emit({ id: "0.2", timestamp: 2000, kind: "log", level: "debug", message: "below every open view's level" });
 		await flush();
@@ -157,5 +162,35 @@ describe("the client cache view", () => {
 		const toLive = (view.shadowRoot as ShadowRoot).querySelector(`[data-testid="${IDS.CURSOR}"] button`) as HTMLButtonElement;
 		toLive.click();
 		expect(timeCursor.get(), "back to the live edge").toBeNull();
+	});
+});
+
+describe("the graph the device holds", () => {
+	let handle: TShuTestHandle;
+	beforeEach(() => {
+		endPage();
+		handle = setupShuTest({
+			dispatch: () => {
+				throw new ServerUnreachable("/rpc", new Error("the view reads the device"));
+			},
+		});
+	});
+	afterEach(() => {
+		handle.teardown();
+		document.body.innerHTML = "";
+	});
+
+	it("states how full each database's graph is, its bound, and how many quads it dropped to keep within it", async () => {
+		// The site's declarations of a run's types, which state how the device's graph reads a run's records.
+		declareRegistry(stepsShown(GRAPH_READ_STEPS, {}, buildConcernCatalog(mapDefinitionsToDomains(RUN_DOMAIN_DEFINITIONS))));
+		const database = servedDatabase();
+		await deviceGraph(database).setMany([{ subject: "c1", predicate: "content", object: "hello", namedGraph: "Comment", timestamp: 1 }]);
+		const view = new ShuClientCacheColumn();
+		document.body.appendChild(view);
+		await new Promise((r) => setTimeout(r, 300));
+		const value = (id: string): string | undefined => (view.shadowRoot as ShadowRoot).querySelector(`[data-testid="${id}"]`)?.textContent?.trim();
+		expect(value(`${SHU_TEST_IDS.CLIENT_CACHE.GRAPH}${database}-held`)).toBe("1");
+		expect(value(`${SHU_TEST_IDS.CLIENT_CACHE.GRAPH}${database}-bound`)).toBe(String(GRAPH_BOUND));
+		expect(value(`${SHU_TEST_IDS.CLIENT_CACHE.GRAPH}${database}-dropped`)).toBe("0");
 	});
 });

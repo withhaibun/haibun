@@ -57,6 +57,7 @@ import { INITIAL_STREAM_STATUS, STREAM_EVENT, streamTransition, type TStreamEven
 import { INITIAL_REGISTRY, registryTransition, type TRegistryEvent, type TRegistryState } from "./machines/registry.js";
 import type { TReadStepsScope, TRegistryReads } from "./pipelines/read-steps.js";
 import type { TRecordStore } from "./pipelines/open-record.js";
+import { pageDeviceStore } from "./client-cache/root.js";
 
 const PREFERENCES_KEY = "__SHU_PREFERENCES__";
 const CLOCK_KEY = "__SHU_CLOCK__";
@@ -177,7 +178,7 @@ export const registryReads = (): TRegistryReads =>
 	);
 
 /** Returns what a read of actuality's steps reads: the registry, the reads under way, the conduit and the stream. */
-export const registryScope = (): TReadStepsScope => ({ registry: pageRegistry(), reads: registryReads(), conduit: pageConduit, stream: pageEventStream });
+export const registryScope = (): TReadStepsScope => ({ registry: pageRegistry(), reads: registryReads(), conduit: pageConduit, stream: pageEventStream, device: pageDeviceStore });
 
 /** Returns the status of the page's event stream, which its adapter moves as the stream opens, breaks and closes. */
 export const streamStatus = (): Machine<TStreamStatus, TStreamEvent> => pagePinned(STREAM_STATUS_KEY, () => machine(INITIAL_STREAM_STATUS, streamTransition));

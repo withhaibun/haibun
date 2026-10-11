@@ -310,39 +310,6 @@
 		"fills an absent value with a constant through ??": 3,
 		"states a parameter's default value": 2
 	},
-	"modules/shu/src/client-cache/executions.ts": {
-		"fills an absent value with a constant through ??": 9
-	},
-	"modules/shu/src/client-cache/graph-run-source.ts": {
-		"fills an absent value with a constant through ??": 7,
-		"states a destructured default value": 4,
-		"states a parameter's default value": 1
-	},
-	"modules/shu/src/client-cache/quad-store.ts": {
-		"fills an absent value with a constant through ??": 2,
-		"states a parameter's default value": 1
-	},
-	"modules/shu/src/client-cache/run-graph.ts": {
-		"fills an absent value with a constant through ??": 2,
-		"states a parameter's default value": 1
-	},
-	"modules/shu/src/client-cache/run-marks.ts": {
-		"fills an absent value with a constant through ??": 1,
-		"states a destructured default value": 1
-	},
-	"modules/shu/src/client-cache/run-shape.ts": {
-		"fills an absent value with a constant through ??": 5,
-		"states a destructured default value": 2,
-		"states a parameter's default value": 1
-	},
-	"modules/shu/src/client-cache/run-source.ts": {
-		"fills an absent value with a constant through ??": 2
-	},
-	"modules/shu/src/client-cache/run-window.ts": {
-		"fills an absent value with a constant through ??": 15,
-		"states a destructured default value": 3,
-		"states a parameter's default value": 4
-	},
 	"modules/shu/src/components/shu-class-browser.ts": {
 		"fills an absent value with a constant through ??": 3,
 		"states a schema's default value through .default()": 1
@@ -566,10 +533,6 @@
 		"fills an absent value with a constant through ??": 1,
 		"states a schema's default value through .default()": 8
 	},
-	"modules/shu/src/page/components/shu-client-cache-column.ts": {
-		"fills a falsy value with a constant through ||": 4,
-		"fills an absent value with a constant through ??": 3
-	},
 	"modules/shu/src/page/components/shu-column-pane.ts": {
 		"fills an absent value with a constant through ??": 2,
 		"states a parameter's default value": 1
@@ -585,7 +548,7 @@
 		"fills an absent value with a constant through ??": 1
 	},
 	"modules/shu/src/page/components/shu-document-column.ts": {
-		"fills a falsy value with a constant through ||": 3,
+		"fills a falsy value with a constant through ||": 2,
 		"fills an absent value with a constant through ??": 10
 	},
 	"modules/shu/src/page/components/shu-domain-chain-view.ts": {

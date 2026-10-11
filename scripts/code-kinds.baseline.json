@@ -406,42 +406,6 @@
 	"modules/shu/src/chat-turn.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/shu/src/client-cache/device-store.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/client-cache/executions.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/client-cache/graph-run-source.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/client-cache/hydrate.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/client-cache/idb-summary.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/client-cache/index.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/client-cache/quad-store.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/client-cache/run-graph.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/client-cache/run-marks.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/client-cache/run-shape.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/client-cache/run-source.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/client-cache/run-window.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/client-log.ts": {
 		"isn't in a kind position": 1
 	},

@@ -16,7 +16,8 @@ import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
-import { followRecordedExecution, runSpan } from "../../client-cache/index.js";
+import { followRecordedExecution } from "../client-cache/controllers/device-controller.js";
+import { runSpan } from "../client-cache/controllers/run-controller.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
 
 /** Playback rates. The two below 1 run slower than actuality did, for a dense burst to watch as it plays. */

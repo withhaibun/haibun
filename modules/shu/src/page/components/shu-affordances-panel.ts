@@ -36,7 +36,7 @@ import { actionRef, domainRef, factIdRef } from "./shu-ref.js";
 import { openRef } from "./ref-navigation.js";
 import { nodeIn, type TGraph } from "../../graph/types.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { noteExecution } from "../../client-cache/executions.js";
+import { noteExecution } from "../client-cache/controllers/device-controller.js";
 import { revealInDocument } from "../../reveal.js";
 import { ClockController } from "../controllers/clock-controller.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";

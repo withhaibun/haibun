@@ -7,7 +7,7 @@
 import { declareGraphSpec } from "../../test/catalog-fixture.js";
 import { requiredActionOf } from "../controllers/registry-controller.js";
 import { serveThePage, newPage } from "../../test-setup.js";
-import { runStore } from "../../client-cache/run-store.test-fake.js";
+import { runStore } from "../client-cache/run-store.test-fake.js";
 import { describe, it, expect, beforeEach } from "vitest";
 import "./shu-step-detail.js"; // the module defines the element
 import { SHU_TAG } from "../../domains/elements.js";
@@ -17,8 +17,7 @@ import { SHARED_GRAPH } from "@haibun/core/lib/quad-types.js";
 import { VARIABLE_FIELD } from "@haibun/core/lib/records/domains/variables.js";
 import { installServedConduit } from "../root.js";
 import { installCarriedEventStream } from "../root.js";
-import { setGraphStore } from "../../quads-snapshot.js";
-import { noteExecution } from "../../client-cache/index.js";
+import { installGraph, noteExecution } from "../client-cache/controllers/device-controller.js";
 import { rpcAnswer, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
 
 const EXECUTION = "1700000000000-1";
@@ -49,7 +48,7 @@ describe("shu-step-detail", () => {
 			generatedAtTime: new Date(1000).toISOString(),
 			endedAtTime: new Date(1005).toISOString(),
 		});
-		setGraphStore(store);
+		installGraph(store);
 		declareGraphSpec({ types: [SEQ_PATH_LABEL], ui: { [SEQ_PATH_LABEL]: { component: SHU_TAG.STEP_DETAIL } } });
 		noteExecution(EXECUTION);
 		globalThis.fetch = (input: unknown): Promise<Response> => {

@@ -11,7 +11,7 @@ import { ShuStepDefinition } from "./shu-step-definition.js";
 import "./shu-ref-element.js";
 
 import { setupShuTest, stepsShown, type TShuTestHandle } from "../../test-setup.js";
-import { setDeviceStore, MemoryDeviceStore } from "../../client-cache/index.js";
+import { installMemoryDeviceStore } from "../client-cache/root.js";
 import { SHU_EVENT } from "../../domains/elements.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { endPage } from "../adapters/page-held.js";
@@ -49,7 +49,7 @@ describe("a step's view", () => {
 	let handle: TShuTestHandle;
 	beforeEach(() => {
 		endPage();
-		setDeviceStore(new MemoryDeviceStore());
+		installMemoryDeviceStore();
 		handle = setupShuTest({
 			dispatch: (method) => (method === SHOW_STEPS_METHOD ? stepsShown([VERIFY, HOLDING, READ], { [CREDENTIAL]: { persistedAs: CREDENTIAL_TYPE }, [CHECK]: {} }) : undefined),
 		});

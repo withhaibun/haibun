@@ -12,9 +12,9 @@ import { EVERY_DEFINITION, SHOW_STEPS_METHOD, readShownSteps } from "@haibun/cor
 import type { Machine } from "@haibun/core/lib/machine.js";
 import { reads } from "../domains/links.js";
 import { REGISTRY_EVENT, REGISTRY_STATUS, type TRegistryEvent, type TRegistryRead, type TRegistryState, type TStepList } from "../machines/registry.js";
-import { deviceStore } from "../../client-cache/index.js";
 import { reportFailure, reportToRun } from "../../client-log.js";
 import type { TConduit, TEventStream } from "../ports.js";
+import type { TDeviceStore } from "../client-cache/ports.js";
 
 /** The source the registry reports under. */
 const REGISTRY_SOURCE = "rpc-registry";
@@ -23,8 +23,15 @@ const REGISTRY_SOURCE = "rpc-registry";
  *  for it, and the call that stops following actuality's signals, undefined until the first read. */
 export type TRegistryReads = { pending: Promise<TStepList> | undefined; againQueued: boolean; unfollow: (() => void) | undefined };
 
-/** What reading actuality's steps reads and writes: the registry machine, the reads under way, the conduit and the stream. */
-export type TReadStepsScope = { registry: Machine<TRegistryState, TRegistryEvent>; reads: TRegistryReads; conduit: () => TConduit; stream: () => TEventStream };
+/** What reading actuality's steps reads and writes: the registry machine, the reads under way, the conduit, the stream, and
+ *  the device's store, which holds the steps a site served for a page the site doesn't serve. */
+export type TReadStepsScope = {
+	registry: Machine<TRegistryState, TRegistryEvent>;
+	reads: TRegistryReads;
+	conduit: () => TConduit;
+	stream: () => TEventStream;
+	device: () => TDeviceStore;
+};
 
 /** Returns actuality's steps: what the page holds, or a new read before the page holds them. A read under way is shared. */
 export function readSteps(scope: TReadStepsScope): Promise<TStepList> {
@@ -37,7 +44,7 @@ export function readSteps(scope: TReadStepsScope): Promise<TStepList> {
  *  so a step the page looks up during the read is found. */
 async function read(scope: TReadStepsScope, type: TRegistryEvent["type"]): Promise<TStepList> {
 	if (scope.reads.unfollow === undefined) scope.reads.unfollow = followActuality(scope);
-	const discovery = discover(scope.conduit()).then((registryRead) => {
+	const discovery = discover(scope.conduit(), scope.device()).then((registryRead) => {
 		scope.registry.dispatch({ type, read: registryRead });
 		return registryRead.list;
 	});
@@ -50,19 +57,17 @@ async function read(scope: TReadStepsScope, type: TRegistryEvent["type"]): Promi
 }
 
 /** Reads actuality's steps from the site, and from the device's copy where the site doesn't respond. */
-async function discover(conduit: TConduit): Promise<TRegistryRead> {
+async function discover(conduit: TConduit, device: TDeviceStore): Promise<TRegistryRead> {
 	try {
 		const list = readShownSteps(
 			await conduit.follow<Record<string, unknown>>(reads(SHOW_STEPS_METHOD, EVERY_DEFINITION), "rpc-registry: discover available steps"),
 			EVERY_DEFINITION.detail,
 		);
-		void deviceStore()
-			.setRegistry(list)
-			.catch((err) => reportFailure(REGISTRY_SOURCE, "the registry was not cached on the device", err));
+		void device.setRegistry(list).catch((err) => reportFailure(REGISTRY_SOURCE, "the registry was not cached on the device", err));
 		return { list, from: "site" };
 	} catch (err) {
 		if (!isServerUnreachable(err)) throw err;
-		const cached = await deviceStore().registry();
+		const cached = await device.registry();
 		if (cached === undefined) throw err;
 		reportToRun(
 			"warn",

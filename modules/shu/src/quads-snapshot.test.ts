@@ -25,9 +25,8 @@ import {
 	currentSnapshot,
 	DEFAULT_PER_TYPE_LIMIT,
 	getGraphSnapshot,
-	setGraphStore,
-	cachedGraphStore,
 } from "./quads-snapshot.js";
+import { cachedGraph, installGraph } from "./page/client-cache/controllers/device-controller.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { Access, BODY_LABEL } from "@haibun/core/lib/resources.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
@@ -213,10 +212,10 @@ describe("the graph a page caches, without a server to ask", () => {
 
 	it("holds the store on the page, so a view in another bundle reads the graph the app installed", () => {
 		const store = new QuadStore();
-		setGraphStore(store);
+		installGraph(store);
 		// A second bundle has its own copy of this module's bindings and reaches the store through the page, as here.
-		expect(pagePinned<{ store: unknown }>("__SHU_CACHED_GRAPH_STORE__", () => ({ store: undefined })).store).toBe(store);
-		expect(cachedGraphStore()).toBe(store);
+		expect(pagePinned<{ installed?: unknown }>("__SHU_CACHED_GRAPH_STORE__", () => ({})).installed).toBe(store);
+		expect(cachedGraph()).toBe(store);
 	});
 
 	it("groups what it caches by type, as the site would have", async () => {
@@ -225,14 +224,14 @@ describe("the graph a page caches, without a server to ask", () => {
 			{ subject: "c1", predicate: "content", object: "one", namedGraph: "Comment", timestamp: 1 },
 			{ subject: "c2", predicate: "content", object: "two", namedGraph: "Comment", timestamp: 2 },
 		]);
-		setGraphStore(store);
+		installGraph(store);
 		const snapshot = await getGraphSnapshot({ perTypeLimit: 10, scope: "carried" });
 		expect(snapshot.quads.length, "the graph it caches").toBe(2);
 		expect(Array.isArray(snapshot.clusters), "clustered by the store, not by a captured response").toBe(true);
 	});
 
 	it("reports that the graph is not available when it doesn't cache one and a server doesn't answer", async () => {
-		setGraphStore(new QuadStore());
+		installGraph(new QuadStore());
 		await expect(getGraphSnapshot({ perTypeLimit: 10, scope: "empty" })).rejects.toThrow();
 	});
 });
@@ -257,13 +256,13 @@ describe("the dropdown values a reader is offered, without a server to ask", () 
 			{ subject: "b", predicate: "folder", object: "Sent", namedGraph: "Email", timestamp: 2 },
 			{ subject: "b", predicate: "subject", object: "two", namedGraph: "Email", timestamp: 3 },
 		]);
-		setGraphStore(store);
+		installGraph(store);
 		expect(await selectValuesFor("Email")).toEqual({ folder: ["INBOX", "Sent"] });
 	});
 
 	it("doesn't offer a dropdown for a declared type that doesn't have a context field, and reports the failure for a type the site never declared", async () => {
 		declareCatalog(catalogOf({ types: ["Email", "Note"], rels: { Email: { folder: LinkRelations.CONTEXT.rel }, Note: { body: "hasBody" } } }));
-		setGraphStore(new QuadStore());
+		installGraph(new QuadStore());
 		expect(await selectValuesFor("Note")).toEqual({});
 		await expect(selectValuesFor("NeverDeclared")).rejects.toThrow();
 	});
@@ -289,7 +288,7 @@ describe("the rows a graph query names, without a server to ask", () => {
 			{ subject: "b", predicate: "messageId", object: "b", namedGraph: "Email", timestamp: 2 },
 			{ subject: "b", predicate: "folder", object: "Sent", namedGraph: "Email", timestamp: 2 },
 		]);
-		setGraphStore(store);
+		installGraph(store);
 		expect((await queryGraph({ label: "Email" })).total).toBe(2);
 		// The row carries its @id, its type and the type's own id field. A reader opens the record from the list by that id.
 		expect((await queryGraph({ label: "Email", filters: [{ predicate: "folder", operator: "eq", value: "Sent" }] })).vertices).toEqual([
@@ -298,7 +297,7 @@ describe("the rows a graph query names, without a server to ask", () => {
 	});
 
 	it("reports the failure for a type the site never declared, rather than an empty list", async () => {
-		setGraphStore(new QuadStore());
+		installGraph(new QuadStore());
 		await expect(queryGraph({ label: "NeverDeclared" })).rejects.toThrow();
 	});
 });
@@ -317,7 +316,7 @@ describe("an individual the page holds a copy of", () => {
 		setupShuTest({ dispatch: answer });
 		const store = storeDeclaring({ Email: { filters: ["folder"] } });
 		await store.upsertIndividual("Email", { id: "a", folder: "INBOX" });
-		setGraphStore(store);
+		installGraph(store);
 		declareRegistry(stepsShown([READ], {}, catalogOf({ types: ["Email"], rels: { Email: { folder: LinkRelations.CONTEXT.rel } } })));
 	};
 	beforeEach(() => {

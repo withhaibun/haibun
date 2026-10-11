@@ -218,7 +218,7 @@ export const SeqPathSchema = PersistedVertexSchema.extend({
 	[SEQ_PATH_FIELD.mode]: z.enum(EXECUTION_MODES).optional(),
 	[SEQ_PATH_FIELD.ranVia]: z.enum(["local", "remote"]).optional(),
 	[SEQ_PATH_FIELD.ranOn]: z.string().optional(),
-	[SEQ_PATH_FIELD.level]: z.enum(HAIBUN_LOG_LEVELS).optional(),
+	[SEQ_PATH_FIELD.level]: z.enum(HAIBUN_LOG_LEVELS),
 	[SEQ_PATH_FIELD.execution]: z.string().optional(),
 	[SEQ_PATH_FIELD.recordedAtTime]: z.string().optional(),
 });

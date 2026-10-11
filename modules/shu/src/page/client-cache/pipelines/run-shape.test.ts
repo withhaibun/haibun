@@ -7,11 +7,15 @@ import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
 import { DensityQuerySchema, type TDensityQuery } from "@haibun/core/lib/quad-types.js";
-import { MARK_COLOUR } from "../page/derivations/event-marker.js";
-import { ofExecution, runGraphOf, type TRunGraph } from "./run-graph.js";
-import { runShape } from "./run-shape.js";
-import { RUN_TYPES } from "./run-window.js";
-import { runStore } from "./run-store.test-fake.js";
+import { MARK_COLOUR } from "../../derivations/event-marker.js";
+import { ofExecution, runGraphOf } from "../derivations/run-graph.js";
+import type { TRunGraph } from "../ports.js";
+import { runShape as shapeOver } from "./run-shape.js";
+import { RUN_TYPES } from "../derivations/run-rows.js";
+import { runStore } from "../run-store.test-fake.js";
+
+/** The shape of a run at the level a step reports at, in `divisions`. */
+const runShape = (graph: TRunGraph, { divisions }: { divisions: number }) => shapeOver(graph, { minLevel: "info", divisions });
 
 const RUN = "1700000000000-1";
 const iso = (n: number): string => new Date(n).toISOString();
@@ -26,14 +30,14 @@ const aRun = async (steps: Array<{ at: number; status: string }> = [], said: Arr
 		store.upsertIndividual(LOG_MESSAGE_LABEL, { id: `${RUN}.0.${i}@${i}`, execution: RUN, message: `said ${i}`, level, generatedAtTime: iso(at) });
 	for (const [i, s] of steps.entries()) await addStep(s.at, s.status, i);
 	for (const [i, m] of said.entries()) await addSaid(m.at, m.level, 100 + i);
-	const over = runGraphOf(store);
+	const over = runGraphOf(store, () => true);
 	const graph: TRunGraph = { ...over, density: (query) => (counted.push(query), over.density(query)) };
 	let more = steps.length;
 	return { graph, store, counted, step: (at: number, status: string) => addStep(at, status, more++) };
 };
 
 describe("the shape of a run, by division", () => {
-	it("answers one mark per division, in the order the divisions run", async () => {
+	it("returns one mark per division, in the order of the divisions", async () => {
 		const { graph } = await aRun([
 			{ at: 1000, status: "passed" },
 			{ at: 3000, status: "passed" },
@@ -46,7 +50,7 @@ describe("the shape of a run, by division", () => {
 		).toEqual([shape.beginningOf(0), shape.beginningOf(2)]);
 	});
 
-	it("draws in the divisions asked for whatever actuality's length, since the answer's size is the divisions", async () => {
+	it("draws in the divisions requested whatever actuality's length, since the divisions are the size of what it returns", async () => {
 		const anHour = await aRun([
 			{ at: 1000, status: "passed" },
 			{ at: 1000 + 3600_000, status: "passed" },
@@ -130,7 +134,7 @@ describe("the shape of a run, by division", () => {
 		).toEqual([shape.beginningOf(0), shape.beginningOf(2)]);
 	});
 
-	it("takes counts in turn, so a count asked for while another awaits the store counts from what that one wrote", async () => {
+	it("takes counts in turn, so a count requested while another awaits the store counts from what that one wrote", async () => {
 		const { graph, counted } = await aRun([
 			{ at: 1000, status: "passed" },
 			{ at: 2000, status: "passed" },
@@ -149,7 +153,7 @@ describe("the shape of a run, by division", () => {
 		await new Promise((ran) => setImmediate(ran));
 		answer();
 		await Promise.all([earlier, later]);
-		for (const query of counted) expect(DensityQuerySchema.safeParse(query).success, `a count asks for one division or more, and one asked for ${query.buckets}`).toBe(true);
+		for (const query of counted) expect(DensityQuerySchema.safeParse(query).success, `a count reads one division or more, and one read ${query.buckets}`).toBe(true);
 		expect(shape.marks.at(-1)?.color, "the failure the later count reached is marked").toBe(MARK_COLOUR.fault);
 	});
 

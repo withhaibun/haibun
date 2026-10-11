@@ -16,12 +16,12 @@ import { html } from "lit";
 import { timeCursor } from "../controllers/page-cell-controller.js";
 import { setupShuTest, storeFields, type TShuTestHandle } from "../../test-setup.js";
 import { PAGE_SETTING_KEY } from "../domains/settings.js";
-import { runStore } from "../../client-cache/run-store.test-fake.js";
+import { runStore } from "../client-cache/run-store.test-fake.js";
 import { SHU_TAG } from "../../domains/elements.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
-import { setGraphStore } from "../../quads-snapshot.js";
+import { installGraph } from "../client-cache/controllers/device-controller.js";
 
 import { pagePreferences } from "../root.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
@@ -66,7 +66,7 @@ async function aRun(records: Array<Record<string, unknown>>, said: Array<Record<
 	for (const record of records) await store.upsertIndividual(SEQ_PATH_LABEL, record);
 	for (const record of said) await store.upsertIndividual(LOG_MESSAGE_LABEL, record);
 	for (const record of produced) await store.upsertIndividual(RUN_ARTIFACT_LABEL, record);
-	setGraphStore(store);
+	installGraph(store);
 	declareGraphSpec({ types: [SEQ_PATH_LABEL, LOG_MESSAGE_LABEL, RUN_ARTIFACT_LABEL], ui: SEQ_PATH_OPENS });
 }
 

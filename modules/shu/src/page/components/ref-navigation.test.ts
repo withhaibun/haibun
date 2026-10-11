@@ -10,7 +10,7 @@ import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { deepLinkOf, desiredPaneFor, followPaneLink, paneHref, refHref } from "./ref-navigation.js";
 import { hashWithColumns } from "../derivations/address.js";
 import { declareSpec } from "../../test/catalog-fixture.js";
-import { readExecution } from "../../client-cache/executions.js";
+import { readExecution } from "../client-cache/controllers/device-controller.js";
 import { SHU_TAG } from "../../domains/elements.js";
 import { addsToSelection, type DesiredPane } from "../derivations/pane-kinds.js";
 import { followPaneRequests } from "../../test/pane-requests.js";

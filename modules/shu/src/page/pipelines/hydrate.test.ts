@@ -16,7 +16,7 @@ import {
 } from "../controllers/hydration-controller.js";
 import { hydrate, PAGE_ACTUALITY, SERVED_SETTINGS, servedWith } from "../../test-setup.js";
 import { RESPONSE_TIMEOUT_MS } from "../../domains/hydration.js";
-import { CACHE_SHAPE } from "../../client-cache/index.js";
+import { CACHE_SHAPE } from "../client-cache/ports.js";
 
 /** A record of actuality a test page carries. */
 const CARRIED = { shape: CACHE_SHAPE, execution: "r1", quads: [] };

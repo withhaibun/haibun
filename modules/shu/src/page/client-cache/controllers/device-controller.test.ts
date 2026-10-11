@@ -1,26 +1,26 @@
-// What a device holds of the runs it has read, and what it does when it can't hold more. A record's id names the run
-// it belongs to, so forgetting a run is asked of the records rather than of a second index beside them.
-import { newPage } from "../test-setup.js";
+// What a device holds of the runs it has read, and what it does when it can't hold more. A record's id names its
+// execution, so deleting a run reads the records rather than a second index beside them.
+import { newPage } from "../../../test-setup.js";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import type { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
-import { individualAsQuads } from "./quad-store.js";
-import { setGraphStore } from "../quads-snapshot.js";
+import { individualAsQuads } from "../derivations/quads.js";
 import {
 	executionsHeld,
 	followRecordedExecution,
-	forgetExecution,
+	deleteExecution,
 	holdOnDevice,
 	noteExecution,
 	readExecution,
 	readingExecution,
+	installGraph,
 	subscribeExecutionSwitch,
 	type THeldExecution,
-} from "./executions.js";
-import { runStore } from "./run-store.test-fake.js";
+} from "./device-controller.js";
+import { runStore } from "../run-store.test-fake.js";
 
 const OLDER = "1700000000000-1";
 const NEWER = "1700000009000-2";
@@ -48,7 +48,7 @@ const aDevice = async (): Promise<QuadStore> => {
 		});
 		await store.upsertIndividual(LOG_MESSAGE_LABEL, { id: `${execution}.0.1@0`, message: "it said this", level: "info", generatedAtTime: iso(1200 + i * 9000) });
 	}
-	setGraphStore(store);
+	installGraph(store);
 	return store;
 };
 
@@ -59,7 +59,7 @@ const held = async (execution: string): Promise<THeldExecution> => {
 	return found;
 };
 
-/** The records of one run the device still holds, over every type a run writes to. */
+/** The records of one run the device still holds, over every type a run writes. */
 const heldOf = async (store: QuadStore, execution: string): Promise<number> => {
 	const quads = await store.query({});
 	return new Set(quads.filter((q) => q.subject.startsWith(`${execution}.`)).map((q) => q.subject)).size;
@@ -75,16 +75,16 @@ describe("what a device holds of the runs it has read", () => {
 		expect(itemAt(await executionsHeld(), 0).features).toEqual(["run 1"]);
 	});
 
-	it("reports the run being read changed when a run starts while the page is following the one before it", () => {
+	it("reports a change of the execution being read when a run starts while the page follows the one before it", () => {
 		let told = 0;
 		const stop = subscribeExecutionSwitch(() => told++);
 		noteExecution(OLDER);
 		expect(readingExecution()).toBe(OLDER);
-		expect(told, "a page learning which run it is reading has not changed run").toBe(0);
+		expect(told, "a page reading its first execution has not changed run").toBe(0);
 		noteExecution(OLDER);
 		expect(told, "the same run again is not a change either").toBe(0);
 		noteExecution(NEWER);
-		expect(told, "the run that started is the one being read, and what is drawn of a run follows it").toBe(1);
+		expect(told, "the execution that started is the one being read, and what is drawn of a run follows it").toBe(1);
 		stop();
 	});
 
@@ -106,18 +106,18 @@ describe("what a device holds of the runs it has read", () => {
 		const stop = subscribeExecutionSwitch(() => told++);
 		followRecordedExecution();
 		expect(readingExecution(), "the execution being recorded").toBe(NEWER);
-		expect(told, "the views reading an execution are told it changed").toBe(1);
+		expect(told, "the views reading an execution receive its change").toBe(1);
 		stop();
 	});
 
-	it("forgets one run entirely and holds the rest of what it has read", async () => {
+	it("deletes one run entirely and holds the rest of what it has read", async () => {
 		const store = await aDevice();
-		expect(await forgetExecution(await held(OLDER))).toBe(3);
-		expect(await heldOf(store, OLDER), "it doesn't hold a record of the actuality it forgot").toBe(0);
+		expect(await deleteExecution(await held(OLDER))).toBe(3);
+		expect(await heldOf(store, OLDER), "it doesn't hold a record of the actuality it deleted").toBe(0);
 		expect(await heldOf(store, NEWER), "every record of the actuality it kept").toBe(3);
 	});
 
-	it("makes room by forgetting the oldest run it is not reading, and holds what it was given", async () => {
+	it("makes room by deleting the oldest run it is not reading, and holds what it was given", async () => {
 		const store = await aDevice();
 		readExecution(NEWER);
 		vi.spyOn(console, "warn").mockImplementation(() => undefined);
@@ -137,7 +137,7 @@ describe("what a device holds of the runs it has read", () => {
 
 	it("reports a device is full when it can't free a record there, and goes on reading", async () => {
 		const store = await aDevice();
-		await forgetExecution(await held(OLDER));
+		await deleteExecution(await held(OLDER));
 		readExecution(NEWER);
 		vi.spyOn(store, "setMany").mockRejectedValue(new DOMException("the device is full", "QuotaExceededError"));
 		const [, quads] = individualAsQuads(SEQ_PATH_LABEL, {
@@ -147,7 +147,7 @@ describe("what a device holds of the runs it has read", () => {
 			level: "info",
 			generatedAtTime: iso(30000),
 		});
-		// The failure is reported rather than discarded: a development build throws it, a built page logs it and reads on.
+		// The failure is reported rather than discarded: a development build throws it, a built page logs it and goes on reading.
 		await expect(holdOnDevice(quads)).rejects.toThrow("the device is full");
 	});
 });

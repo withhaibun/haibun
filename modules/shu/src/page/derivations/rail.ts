@@ -9,6 +9,7 @@
  * scroll. `shu-scrollbar.ts` renders the rail from these functions.
  */
 import type { TEventMarkerStyle } from "./event-marker.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { clamp } from "./layout.js";
 
 /** A mark on the scroll rail: a row of the whole column (an annotation, a failed step, a feature's start) at its index,
@@ -197,15 +198,38 @@ export function convergeTarget(window: TWindow, count: number): number {
 }
 
 /** A row the time cursor can mark: its index in the column and the instant it records. */
-type TTimedRow = { index: number; timestamp: number };
+export type TTimedRow = { index: number; timestamp: number };
 
-/** Returns the row of the time cursor: the last of `rows`, in index order, at or before the cursor. Returns -1 without a
- *  cursor, or where every row is after it. It reads the rows the column holds, in one pass. */
-export function currentRowIndex(rows: Iterable<TTimedRow>, cursor: number | null): number {
+/** The rows a time cursor reads, in index order, with the earliest instant of each row and every row after it. A column
+ *  places a step's row by its path, so its rows aren't always in the order of their instants; the earliest instant from a
+ *  row on never decreases, which is what a binary search reads. */
+export type TTimedRows = { indices: readonly number[]; earliestFrom: readonly number[] };
+
+/** Returns the rows a time cursor reads, built in one pass from the last row back. */
+export function timedRows(rows: readonly TTimedRow[]): TTimedRows {
+	const earliestFrom = new Array<number>(rows.length);
+	let earliest = Number.POSITIVE_INFINITY;
+	for (let i = rows.length - 1; i >= 0; i--) {
+		earliest = Math.min(earliest, itemAt(rows, i).timestamp);
+		earliestFrom[i] = earliest;
+	}
+	return { indices: rows.map((row) => row.index), earliestFrom };
+}
+
+/** Returns the row of the time cursor: the last row, in index order, at or before the cursor, found by a binary search of
+ *  the earliest instants. Returns -1 without a cursor, or where every row is after it. */
+export function rowAtCursor({ indices, earliestFrom }: TTimedRows, cursor: number | null): number {
 	if (cursor === null) return -1;
-	let idx = -1;
-	for (const { index, timestamp } of rows) if (timestamp <= cursor) idx = index;
-	return idx;
+	// The first position whose earliest instant is after the cursor: every row from it on is after the cursor, and the row
+	// before it is at or before the cursor, or it would not be.
+	let low = 0;
+	let high = earliestFrom.length;
+	while (low < high) {
+		const mid = (low + high) >>> 1;
+		if (itemAt(earliestFrom, mid) <= cursor) low = mid + 1;
+		else high = mid;
+	}
+	return low === 0 ? -1 : itemAt(indices, low - 1);
 }
 
 /** Returns the row where the rail marks the moment shown. Without a cursor it is the newest row, which changes as rows

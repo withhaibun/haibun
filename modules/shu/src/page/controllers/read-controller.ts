@@ -12,17 +12,17 @@ import * as CallStep from "../pipelines/call-step.js";
 import type { TCallLink } from "@haibun/core/lib/hypermedia.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { RPC_METHOD } from "../../domains/elements.js";
-import { cachedGraphStore, readsHeldStore } from "../../quads-snapshot.js";
+import { cachedGraph, readsHeldGraph } from "../client-cache/controllers/device-controller.js";
 import { appAccessLevel } from "../../view-query.js";
-import type { TRunGraph } from "../../client-cache/run-graph.js";
+import type { TRunGraph } from "../client-cache/ports.js";
 
 /** What a read reads. A page that carries a record of actuality, or reads another actuality's records, reads what it holds. */
 const scope = (): Reads.TReadScope => ({
-	readsSite: pageHydration().carried() === undefined && !readsHeldStore(),
+	readsSite: pageHydration().carried() === undefined && !readsHeldGraph(),
 	steps: () => readSteps(registryScope()),
 	conduit: pageConduit,
 	catalog: () => heldCatalog(pageRegistry(), "the catalog a read of the records reads"),
-	held: cachedGraphStore,
+	held: cachedGraph,
 });
 
 /** What a call reads: actuality's steps, the conduit, and what a carried record of actuality's step produced. */

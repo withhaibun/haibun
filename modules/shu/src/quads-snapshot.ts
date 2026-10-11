@@ -1,13 +1,11 @@
-import { SHARED_GRAPH, type TCluster, type TClusteredQuads, type TQuad, type IQuadStore } from "@haibun/core/lib/quad-types.js";
+import { SHARED_GRAPH, type TCluster, type TClusteredQuads, type TQuad } from "@haibun/core/lib/quad-types.js";
 import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
 import { reportFailure } from "./client-log.js";
 import { reads } from "./page/domains/links.js";
 import { conduit } from "./page/controllers/conduit-controller.js";
-import { getConcernCatalog, getRels, getTitledBy } from "./page/controllers/catalog-controller.js";
-import { readDeclarationsOfCatalog, type TReadDeclarations } from "@haibun/core/lib/records/derivations/read-records.js";
+import { getRels, getTitledBy } from "./page/controllers/catalog-controller.js";
 import { getAvailableSteps, requireStep } from "./page/controllers/registry-controller.js";
-import { IndexedDbQuadStore, deviceGraphStore } from "./client-cache/quad-store.js";
-import { heldDatabases } from "./client-cache/device-store.js";
+import { cachedGraph, servedGraph } from "./page/client-cache/controllers/device-controller.js";
 import { pagePinned } from "./page/adapters/page-held.js";
 import { EDGE, type AccessLevel } from "@haibun/core/lib/resources.js";
 import { VARIABLE_FIELD } from "@haibun/core/lib/records/domains/variables.js";
@@ -16,53 +14,6 @@ import { appAccessLevel } from "./view-query.js";
 export const DEFAULT_PER_TYPE_LIMIT = 100;
 /** Ceiling for the per-type sample, everywhere the limit can be set (the filter slider AND the +N-more cluster expand), so a path can't silently inflate the limit past what the slider expresses. */
 export const MAX_PER_TYPE_LIMIT = 1000;
-
-/** Off-heap persistent backing for the client graph: live merges + each backfill are written here, and a reload seeds
- *  the model from it (instant graph; an offline context serves it). Degrades to a no-op when IndexedDB is unavailable. */
-/** The graph this page caches. The client's own store on a served origin; a report installs a memory-backed one holding
- *  the graph it carries, so the same reads serve both. Held by the page, not by a bundle: the app installs it and a
- *  view a deployment adds reads the same one, which is how a report's graph reaches a view in its own bundle. */
-export type TCachedGraphStore = IQuadStore & { setMany(quads: TQuad[]): Promise<void> };
-const GRAPH_STORE_KEY = "__SHU_CACHED_GRAPH_STORE__";
-/** `store` holds what the site serves, made when first read unless a report installs its own; `reading` is another
- *  actuality's store this device holds, while a reader reads it. */
-const graphStoreSlot = (): { store?: TCachedGraphStore; reading?: TCachedGraphStore } => pagePinned(GRAPH_STORE_KEY, () => ({}));
-
-/** Install the store the graph is cached in (a report: memory, holding what the report carries). */
-export function setGraphStore(store: TCachedGraphStore): void {
-	graphStoreSlot().store = store;
-}
-
-/** Read the records `store` holds, or the site's again where it is the store of what the site serves. */
-export function readHeldStore(store: TCachedGraphStore): void {
-	graphStoreSlot().reading = store === servedGraphStore() ? undefined : store;
-}
-
-/** Whether the page reads a store of the device other than the one it serves, as it reads another actuality's records. */
-export const readsHeldStore = (): boolean => graphStoreSlot().reading !== undefined;
-
-/** Returns the read declarations of the types the page's concern catalog lists. */
-export const pageReadDeclarations = (): TReadDeclarations => readDeclarationsOfCatalog(getConcernCatalog());
-
-/** The store of each actuality this device holds records of, the one of what the site serves first. A report holds only what
- *  it carries. */
-export async function heldGraphStores(): Promise<TCachedGraphStore[]> {
-	const store = servedGraphStore();
-	if (!(store instanceof IndexedDbQuadStore)) return [store];
-	return [store, ...(await heldDatabases()).filter((database) => database !== store.database).map((database) => deviceGraphStore(database, pageReadDeclarations))];
-}
-
-/** The store what the site serves is held in. */
-export function servedGraphStore(): TCachedGraphStore {
-	const slot = graphStoreSlot();
-	slot.store ??= deviceGraphStore(undefined, pageReadDeclarations);
-	return slot.store;
-}
-
-/** The store the graph is cached in. */
-export function cachedGraphStore(): TCachedGraphStore {
-	return graphStoreSlot().reading ?? servedGraphStore();
-}
 
 /** The client-held graph snapshot IS the wire shape (quads + clusters + the responding site): one type, so the shapes don't drift. */
 type TGraphSnapshot = TClusteredQuads;
@@ -207,13 +158,13 @@ export async function getGraphSnapshot(opts: { perTypeLimit?: number; types?: st
 			model.seed({ quads: data.quads, clusters: data.clusters ?? [], site: data.site });
 			if (priorPinned) model.pin(priorPinned);
 			st.cache = { model, perTypeLimit, typesKey: tk, accessLevel };
-			void servedGraphStore().setMany(data.quads); // persist the fresh snapshot off-heap (fire-and-forget; online path unchanged)
+			void servedGraph().setMany(data.quads); // persist the fresh snapshot off-heap (fire-and-forget; online path unchanged)
 			notify(s, scope);
 			return model.snapshot;
 		} catch (err) {
 			// The server didn't answer: the graph this page caches is the graph, and it answers the question the server was asked, so the
 			// sample, its totals and its `+N more` nodes are what they would have been.
-			const clustered = await cachedGraphStore().getClusteredQuads({ perTypeLimit, types: opts.types, accessLevel: accessLevel as AccessLevel });
+			const clustered = await cachedGraph().getClusteredQuads({ perTypeLimit, types: opts.types, accessLevel: accessLevel as AccessLevel });
 			if (clustered.quads.length === 0) throw err;
 			model.seed({ quads: clustered.quads, clusters: clustered.clusters ?? [], site: clustered.site });
 			if (priorPinned) model.pin(priorPinned);
@@ -266,7 +217,7 @@ export function mergeQuadsIntoSnapshot(quads: TQuad[]): void {
 		st.cache.model.merge(quads);
 		notify(s, scope);
 	}
-	void servedGraphStore().setMany(quads); // persist live observations off-heap for the next reload
+	void servedGraph().setMany(quads); // persist live observations off-heap for the next reload
 }
 
 /** One variable a step set: its name, the value its record holds, and the type of its record. */
@@ -284,5 +235,5 @@ export function variablesSetBy(quads: readonly TQuad[], stepRecordName: string):
  *  annotation's SpecificResource points AT its source, so finding a subject's annotations reads incoming edges the IDB
  *  store indexes only by subject/namedGraph. Callers scan a namedGraph and filter, since object is not an IDB index. */
 export function queryStoredQuads(pattern: { subject?: string; predicate?: string; object?: unknown; namedGraph?: string }): Promise<TQuad[]> {
-	return cachedGraphStore().query(pattern);
+	return cachedGraph().query(pattern);
 }

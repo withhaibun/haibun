@@ -1,15 +1,17 @@
 // @vitest-environment jsdom
-// The client IQuadStore answers every read over what this page caches, its query surface included: without a server to
-// ask, a view is offered what the reader holds rather than an empty result. The quad primitives are covered by the conformance
-// specification both stores answer; these are the questions the site is otherwise asked.
-import { hydrate, serveThePage } from "../test-setup.js";
-import { hydrateFromDom } from "../page/controllers/hydration-controller.js";
-import { heldDatabases } from "./device-store.js";
+// The client IQuadStore serves every read over what this page caches, its query surface included: without a server, a
+// view is offered what the reader holds rather than an empty result. The conformance specification of both stores
+// covers the quad primitives; these are the reads the site otherwise serves.
+import { hydrate, serveThePage } from "../../../test-setup.js";
+import { hydrateFromDom } from "../../controllers/hydration-controller.js";
 import "fake-indexeddb/auto";
-import { describe, it, expect, beforeAll, beforeEach } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach, vi } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { Access, type AccessLevel } from "@haibun/core/lib/resources.js";
-import { IndexedDbQuadStore, deviceGraphStore } from "./quad-store.js";
+import { DeviceGraph } from "./device-graph.js";
+import { deviceQuads, heldDatabases, servedDatabase } from "../root.js";
+import { IndexedDbQuads } from "../adapters/quad-store.js";
+import { deviceDatabase } from "../adapters/device-store.js";
 import { GraphQuerySchema } from "@haibun/core/lib/quad-types.js";
 import { equalTo, readEvery, recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { declaredTypes } from "@haibun/core/lib/test/declared-types.js";
@@ -17,22 +19,25 @@ import { declaredTypes } from "@haibun/core/lib/test/declared-types.js";
 /** The types these tests write, declared so the device store reads their records. */
 const declared = () => declaredTypes({ Email: { filters: ["folder"] }, Comment: {}, SeqPath: {} });
 
+/** The device's graph of the actuality the page reads, reading the types these tests declare. */
+const servedGraph = (): DeviceGraph => new DeviceGraph(deviceQuads(servedDatabase()), declared);
+
 // The page is served, so its device store is the database of the actuality the page reads.
 beforeAll(serveThePage);
 
-describe("the questions the site answers, asked of the graph this page caches", () => {
+describe("the reads the site serves, made of the graph this page caches", () => {
 	const access = { perTypeLimit: 10, accessLevel: "private" as AccessLevel };
-	let store: IndexedDbQuadStore;
+	let store: DeviceGraph;
 	beforeEach(async () => {
-		store = new IndexedDbQuadStore(undefined, declared);
+		store = servedGraph();
 		await store.clear();
 		await store.upsertIndividual("Email", { "@id": "a", folder: "INBOX", subject: "one", accessLevel: Access.public });
 		await store.upsertIndividual("Email", { "@id": "b", folder: "Sent", subject: "two", accessLevel: Access.public });
 		await store.upsertIndividual("Comment", { "@id": "c", content: "hello", accessLevel: Access.public });
 	});
 
-	it("answers a read at the level it was asked for, not everything it happens to hold", async () => {
-		// A page holds what it was served, which may have been read at a wider level than a later read asks for.
+	it("returns a read at the level it was made at, not everything it happens to hold", async () => {
+		// A page holds what it was served, which may have been read at a wider level than a later read's.
 		await store.upsertIndividual("Email", { "@id": "p", accessLevel: "private", folder: "INBOX" });
 		await store.upsertIndividual("Email", { "@id": "o", accessLevel: "public", folder: "INBOX" });
 		const publicly = await store.getClusteredQuads({ perTypeLimit: 10, types: ["Email"], accessLevel: "public" as AccessLevel });
@@ -41,8 +46,8 @@ describe("the questions the site answers, asked of the graph this page caches", 
 		expect([...new Set(privately.quads.map((q) => q.subject))].sort(), "and a read that may see it does").toEqual(["a", "b", "o", "p"]);
 	});
 
-	it("answers what points at an individual by its id, and a value that is not an id the same way", async () => {
-		// An id is looked up; a value that cannot be a key is matched after the widest read. Both answer the same question.
+	it("returns what points at an individual by its id, and a value that is not an id the same way", async () => {
+		// An id is looked up; a value that cannot be a key is matched after the widest read. Both return the same quads.
 		await store.upsertIndividual("Email", { "@id": "e", inReplyTo: "a", flagged: true, tags: ["x", "y"] });
 		await store.upsertIndividual("Comment", { "@id": "d", inReplyTo: "a" });
 		expect((await store.query({ object: "a" })).map((q) => `${q.namedGraph}:${q.subject}`).sort()).toEqual(["Comment:d", "Email:e"]);
@@ -83,14 +88,13 @@ describe("the questions the site answers, asked of the graph this page caches", 
 });
 
 describe("an individual in the page's cache", () => {
-	// The page caches a record under the `@id` it was dereferenced by: that is the identity a view holds and asks again
-	// with. The authoritative store instead requires the identity field the type declares, and validates the record.
+	// The page caches a record under the `@id` that dereferenced it: that is the identity a view holds and reads again. The authoritative store instead requires the identity field the type declares, and validates the record.
 	beforeEach(async () => {
-		await new IndexedDbQuadStore().clear();
+		await servedGraph().clear();
 	});
 
 	it("caches a record by its @id, reads it back with its type, replaces it in place and deletes it", async () => {
-		const store = new IndexedDbQuadStore(undefined, declared);
+		const store = servedGraph();
 		expect(await store.upsertIndividual("Comment", { "@id": "c1", content: "hello", author: "did:example:a" })).toBe("c1");
 		expect(await recordOf(store, "Comment", "c1")).toMatchObject({ "@id": "c1", "@type": "Comment", content: "hello", author: "did:example:a" });
 		await store.upsertIndividual("Comment", { "@id": "c1", content: "changed" });
@@ -100,7 +104,7 @@ describe("an individual in the page's cache", () => {
 	});
 
 	it("does not write again a fact the device holds as it is, and writes one that changed", async () => {
-		const store = new IndexedDbQuadStore();
+		const store = servedGraph();
 		const fact = (object: unknown, timestamp: number) => ({ subject: "c1", predicate: "content", object, namedGraph: "Comment", timestamp });
 		await store.setMany([fact({ text: "hello" }, 1)]);
 		await store.setMany([fact({ text: "hello" }, 2)]);
@@ -109,12 +113,12 @@ describe("an individual in the page's cache", () => {
 		expect(await store.query({ subject: "c1" }), "a changed fact replaces what was held").toMatchObject([{ object: { text: "changed" }, timestamp: 3 }]);
 	});
 
-	it("refuses a record that doesn't state an identity, since a view can't ask for it again", async () => {
-		await expect(new IndexedDbQuadStore().upsertIndividual("Comment", { content: "no id" })).rejects.toThrow(/doesn't state an identity/);
+	it("refuses a record that doesn't state an identity, since a view can't read it again", async () => {
+		await expect(servedGraph().upsertIndividual("Comment", { content: "no id" })).rejects.toThrow(/doesn't state an identity/);
 	});
 
 	it("holds a record by the identity it states, whether that is its @id or the id it records", async () => {
-		const store = new IndexedDbQuadStore();
+		const store = servedGraph();
 		expect(await store.upsertIndividual("Comment", { "@id": "c1", content: "served" }), "what a site serves names itself @id").toBe("c1");
 		expect(await store.upsertIndividual("SeqPath", { id: "1700000000000-1.0.1", stepText: "a step" }), "what a run records names itself id").toBe("1700000000000-1.0.1");
 	});
@@ -123,14 +127,44 @@ describe("an individual in the page's cache", () => {
 describe("the records of another actuality", () => {
 	it("aren't read by a page served for another actuality, and the device holds each actuality's records apart", async () => {
 		serveThePage();
-		const first = deviceGraphStore(undefined, declared);
+		const first = servedGraph();
 		await first.upsertIndividual("SeqPath", { "@id": "s1", stepText: "a step of the first actuality" });
 		hydrate({ actualityId: crypto.randomUUID() });
 		hydrateFromDom();
-		const second = deviceGraphStore(undefined, declared);
+		const second = servedGraph();
 		expect(await recordOf(second, "SeqPath", "s1"), "the other actuality's record").toBeUndefined();
 		expect(await recordOf(first, "SeqPath", "s1"), "still held in its own").toMatchObject({ stepText: "a step of the first actuality" });
 		await second.upsertIndividual("SeqPath", { "@id": "s2", stepText: "a step of the second actuality" });
 		expect(await heldDatabases()).toEqual(expect.arrayContaining([first.database, second.database]));
+	});
+});
+
+describe("a clustered read of named types", () => {
+	it("reads each named type through the type index, rather than every quad the device holds", async () => {
+		const store = servedGraph();
+		await store.clear();
+		await store.upsertIndividual("Email", { "@id": "a", folder: "INBOX", accessLevel: Access.public });
+		await store.upsertIndividual("Comment", { "@id": "c", content: "hello", accessLevel: Access.public });
+		const everyQuad = vi.spyOn(IDBObjectStore.prototype, "getAll");
+		const clustered = await store.getClusteredQuads({ perTypeLimit: 10, types: ["Comment"], accessLevel: Access.public });
+		expect(clustered.clusters.map((c) => c.type)).toEqual(["Comment"]);
+		expect(
+			everyQuad.mock.calls.filter((args) => args.length === 0 || args[0] === undefined),
+			"a read of every quad without a key",
+		).toEqual([]);
+		everyQuad.mockRestore();
+	});
+});
+
+describe("the bound of a database's graph", () => {
+	it("drops the oldest quads past its bound, and states how full it is and how many it dropped", async () => {
+		const name = `bound-${crypto.randomUUID()}`;
+		const quads = new IndexedDbQuads(deviceDatabase(name, { opened: new Map(), report: { warn: () => undefined, failure: () => undefined } }, false), 5);
+		const fact = (n: number) => ({ subject: `s${n}`, predicate: "content", object: `text ${n}`, namedGraph: "Comment", timestamp: 1000 + n });
+		await quads.setMany([1, 2, 3, 4, 5, 6, 7, 8].map(fact));
+		expect(await quads.saturation()).toEqual({ held: 5, bound: 5, dropped: 3 });
+		expect((await quads.all()).map((q) => q.subject).sort(), "the oldest three are the ones dropped").toEqual(["s4", "s5", "s6", "s7", "s8"]);
+		await quads.setMany([fact(9)]);
+		expect(await quads.saturation(), "the count dropped adds up across writes").toEqual({ held: 5, bound: 5, dropped: 4 });
 	});
 });

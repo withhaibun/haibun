@@ -449,6 +449,9 @@ const BaseEvent = z.object({
 	),
 });
 
+/** The level an event reports at, as the protocol reads it from any event. */
+export const EventLevelSchema = BaseEvent.pick({ level: true });
+
 // Lifecycle Events
 const LifecycleEventCommon = BaseEvent.extend({
 	kind: z.literal("lifecycle"),

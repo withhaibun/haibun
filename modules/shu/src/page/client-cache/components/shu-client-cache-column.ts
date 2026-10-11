@@ -1,52 +1,48 @@
 /**
- * <shu-client-cache-column>: what this page caches of the run, as it stands: each run source (one per level read) with
- * its extent, the index spans it caches and the row the shared cursor sits on in it; what the live stream has
- * delivered since the view opened, by level; what the device's event store caches of the last run, by level; and every
- * IndexedDB database of the origin with its stores and their counts. It doesn't request data from the server: a source is
- * listed once a view has read its level, and the store is read as it is. A reader makes one change here, which is to
- * forget a run this device holds. It watches everything that moves:
- * each source as it is made and as it changes, every live batch, the cursor, and shows the change at once; the device
- * is re-read after changes at a bounded cadence, since reading it is slower than the stream. Every value carries its own
- * test id (SHU_TEST_IDS.CLIENT_CACHE), so this one view is what a feature reads cache facts from. It also reports where
- * the server's registry the page runs on came from: the server, or the device's copy when the server did not respond.
+ * <shu-client-cache-column>: what this page caches of actuality, as it stands: each run source (one per level read) with
+ * its extent, the index spans it caches and the shared cursor's row in it; what the live stream has delivered since the
+ * view opened, by level; the executions the device holds; every IndexedDB database of the origin with its stores and
+ * their counts; and how full each database's graph is. It doesn't request data from the server: a source is listed once
+ * a view has read its level, and the store is read as it is. A reader makes one change here, which is to delete a run
+ * this device holds. It follows everything that moves: each source as it is made and as it changes, every live batch,
+ * the cursor, and shows the change at once; the device is read again after changes at a bounded cadence, since reading
+ * it is slower than the stream. Every value carries its own test id (SHU_TEST_IDS.CLIENT_CACHE), so this one view is the
+ * source of a feature's cache facts. It also reports the origin of the server's registry the page runs on: the server,
+ * or the device's copy when the server did not respond.
  */
-import { SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../controllers/element-controller.js";
+import { SHU_TAG } from "../../../domains/elements.js";
+import { defineElement } from "../../controllers/element-controller.js";
 import { html, css, type TemplateResult } from "lit";
-import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
-import { shuBaseStyles } from "./styles.js";
-import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-
-import { subscribeBatchedEvents } from "../controllers/event-stream-controller.js";
-import { currentRowIndex } from "../derivations/rail.js";
-
-import type { Range } from "../derivations/rail.js";
-import { HAIBUN_LOG_LEVELS } from "@haibun/core/schema/protocol.js";
-import { registryOrigin } from "../controllers/registry-controller.js";
-import { serverLastRespondedAt } from "../controllers/conduit-controller.js";
-import { emptyOrLoading } from "./empty-state.js";
+import { ShuElement, type TLinkedData, EmptyStateSchema } from "../../components/shu-element.js";
+import { shuBaseStyles } from "../../components/styles.js";
+import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
+import { subscribeBatchedEvents } from "../../controllers/event-stream-controller.js";
+import { rowAtCursor, timedRows, type Range } from "../../derivations/rail.js";
+import { EventLevelSchema, HAIBUN_LOG_LEVELS } from "@haibun/core/schema/protocol.js";
+import { registryOrigin } from "../../controllers/registry-controller.js";
+import { serverLastRespondedAt } from "../../controllers/conduit-controller.js";
+import { emptyOrLoading } from "../../components/empty-state.js";
+import { atLiveEdge, runReadingAt, runSources, subscribeRunSources, type RunSource } from "../controllers/run-controller.js";
 import {
-	runSources,
-	runReadingAt,
-	deviceStore,
-	subscribeRunSources,
-	subscribeDeviceWrites,
 	CACHE_SHAPE,
-	type TStoredRegistry,
-	atLiveEdge,
-	executionsHeld,
-	forgetExecution,
 	currentExecution,
+	deviceSummary,
+	executionsHeld,
+	EXECUTIONS_READ,
+	followDeviceWrites,
+	deleteExecution,
+	graphSaturations,
+	pageDeviceStore,
 	readHeldExecution,
 	subscribeExecutionSwitch,
-	EXECUTIONS_READ,
+	type TGraphSaturation,
 	type THeldExecution,
-	type RunSource,
-	indexedDbSummary,
 	type TIdbDatabaseSummary,
-} from "../../client-cache/index.js";
-import { ClockController } from "../controllers/clock-controller.js";
-import { TimelineViewController } from "../controllers/timeline-view-controller.js";
+	type TStoredRegistry,
+} from "../controllers/device-controller.js";
+import { renderedAt } from "../derivations/rendered-rows.js";
+import { ClockController } from "../../controllers/clock-controller.js";
+import { TimelineViewController } from "../../controllers/timeline-view-controller.js";
 
 /** The name of the delay before the column reads the device again. */
 const DEVICE_READ = "device-read";
@@ -57,7 +53,7 @@ const IDS = SHU_TEST_IDS.CLIENT_CACHE;
 const DEVICE_READ_DELAY_MS = 150;
 
 const at = (t: number | undefined): string => (t === undefined || !Number.isFinite(t) ? "" : new Date(t).toISOString().slice(11, 23));
-/** The feature the run being read declared, from the first rows of it a view has read. A run declares its feature at
+/** The feature the execution being read declared, from its first rows a view has read. A run declares its feature at
  *  its start, so this reads the first rows rather than actuality. */
 function featureBeingRead(sources: RunSource[]): string {
 	for (const source of sources) {
@@ -74,13 +70,11 @@ function featureBeingRead(sources: RunSource[]): string {
 /** How far into a run its feature declaration is looked for: a run declares it at its start. */
 const FEATURE_WITHIN_ROWS = 20;
 
-/** What a source is doing, as the one word a reader reads it by. It is the cell's own id as well, so what a reader
- *  waits for is the state itself rather than a cell that may still be about to change. */
 /** What a source is doing, one word a reader waits for: not yet read, cut off from actuality, behind what actuality has
  *  announced, or read and current. Each is a fact of the reading, so a state isn't inferred from what happens to arrive. */
 const stateOf = (source: RunSource): string =>
 	source.unavailable ? "unavailable" : source.ended ? "ended" : !source.loaded ? "loading" : source.disconnected ? "disconnected" : source.behind ? "behind" : "loaded";
-const spans = (ranges: Range[]): string => ranges.map((r) => `${r.from}..${r.to - 1}`).join(", ") || "none";
+const spans = (ranges: Range[]): string => (ranges.length === 0 ? "none" : ranges.map((r) => `${r.from}..${r.to - 1}`).join(", "));
 const cachedRows = (ranges: Range[]): number => ranges.reduce((n, r) => n + (r.to - r.from), 0);
 
 export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
@@ -90,14 +84,15 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 	#held: THeldExecution[] = [];
 	#registry: TStoredRegistry | undefined; // the site's registry as the device holds it, for when it was cached
 	#databases: TIdbDatabaseSummary[] = [];
+	#graphs: Array<{ database: string; saturation: TGraphSaturation }> = [];
 	#reading = false;
 	#readAgain = false;
-	#deviceRead = false; // the device has been read at least once: before that, what it caches is not known, not absent
+	#deviceRead = false; // the device has been read at least once: before that, what it caches is pending, not absent
 	readonly #clock = new ClockController(this);
 	#liveByLevel = new Map<string, { count: number; newest?: number }>(); // what the live stream delivered since this view opened
 	#openedAt = 0; // the device's time when this view opened: what "since this view opened" is measured from
-	#forgets = 0; // how many runs a reader has forgotten here: a device read begun before a forget cannot know the run went
-	#forgotten: { execution: string; records: number } | undefined; // what the last forget removed
+	#deletions = 0; // how many runs a reader has deleted here: a device read begun before a deletion still lists that run
+	#deleted: { execution: string; records: number } | undefined; // what the last deletion removed
 
 	static styles = [
 		shuBaseStyles,
@@ -173,7 +168,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 			openedAt: this.#openedAt,
 			live: Object.fromEntries(this.#liveByLevel),
 			executions: this.#held,
-			forgotten: this.#forgotten ?? null,
+			deleted: this.#deleted === undefined ? null : this.#deleted,
 			indexedDb: this.#databases,
 		};
 	}
@@ -187,16 +182,17 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 		// A run the reader chose, or a new one the server began: both change what every view reads.
 		this.autoTeardown(subscribeExecutionSwitch(() => this.#changed()));
 		// The sources persist what they read after they report it, so what the device caches is read again when it is written.
-		this.autoTeardown(subscribeDeviceWrites(() => this.#changed()));
+		this.autoTeardown(followDeviceWrites(() => this.#changed()));
 		// Every live batch: counted by level and shown, whether or not any source takes it (a page without an open event view doesn't take a batch).
 		this.autoTeardown(
 			subscribeBatchedEvents({
 				onBatch: (events) => {
 					for (const e of events as Array<Record<string, unknown>>) {
-						const level = String(e.level ?? "info");
-						const seen = this.#liveByLevel.get(level) ?? { count: 0 };
+						const { level } = EventLevelSchema.parse(e);
+						const seen = this.#liveByLevel.get(level);
 						const t = Number(e.timestamp);
-						this.#liveByLevel.set(level, { count: seen.count + 1, newest: Number.isFinite(t) ? Math.max(seen.newest ?? 0, t) : seen.newest });
+						const newest = !Number.isFinite(t) ? seen?.newest : seen?.newest === undefined ? t : Math.max(seen.newest, t);
+						this.#liveByLevel.set(level, { count: seen === undefined ? 1 : seen.count + 1, ...(newest === undefined ? {} : { newest }) });
 					}
 					this.#changed();
 				},
@@ -232,14 +228,15 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 			return;
 		}
 		this.#reading = true;
-		const began = this.#forgets;
+		const began = this.#deletions;
 		try {
-			const [held, databases, registry] = await Promise.all([executionsHeld(), indexedDbSummary(), deviceStore().registry()]);
-			// A run forgotten while this read was running is still in what it read, so the read made after the forget stands.
-			if (began === this.#forgets) {
+			const [held, databases, registry, graphs] = await Promise.all([executionsHeld(), deviceSummary(), pageDeviceStore().registry(), graphSaturations()]);
+			// A run deleted while this read was running is still in what it read, so the read made after the deletion stands.
+			if (began === this.#deletions) {
 				this.#held = held;
 				this.#databases = databases;
 				this.#registry = registry;
+				this.#graphs = graphs;
 				this.#deviceRead = true;
 			}
 		} finally {
@@ -252,25 +249,29 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 		}
 	}
 
-	/** Forget one run this device holds, and report what went. The run being read doesn't have a control for it: a reader reads
-	 *  another run first, so a run isn't deleted under a view drawing it. The executions are read again here rather than on
+	/** Delete one run this device holds, and report what went. The execution being read doesn't have a control for it: a
+	 *  reader reads another run first, so a run isn't deleted under a view drawing it. The executions are read again here rather than on
 	 *  the ordinary cadence, so the list a reader sees after the deletion is the list the device holds. */
-	async #forget(held: THeldExecution): Promise<void> {
+	async #delete(held: THeldExecution): Promise<void> {
 		const { execution } = held;
-		const records = await forgetExecution(held);
-		this.#forgets += 1;
+		const records = await deleteExecution(held);
+		this.#deletions += 1;
 		this.#held = await executionsHeld();
-		this.#forgotten = { execution, records };
+		this.#deleted = { execution, records };
 		this.requestUpdate();
 	}
 
-	/** The row the cursor sits on in a source, among the rows it caches: -1 where the cursor isn't on a cached row (the live edge, or before the first cached). */
+	/** The cursor's row in a source, among the rows it caches: -1 where the cursor isn't on a cached row (the live edge, or before the first cached). */
 	#cursorRowIn(src: RunSource): number {
 		const cursor = this.#timeline.cursor;
 		if (cursor === null) return -1;
 		const rows: Array<{ index: number; timestamp: number }> = [];
-		for (const { from, to } of src.cachedRanges()) for (let i = from; i < to; i++) rows.push({ index: i, timestamp: Number(src.rowAt(i)?.timestamp) || 0 });
-		return currentRowIndex(rows, cursor);
+		for (const { from, to } of src.cachedRanges())
+			for (let i = from; i < to; i++) {
+				const event = src.rowAt(i);
+				if (event) rows.push({ index: i, timestamp: renderedAt(event) });
+			}
+		return rowAtCursor(timedRows(rows), cursor);
 	}
 
 	/** Put the shared cursor at an instant this view reports, so every open view scrubs to the moment a reader clicked. */
@@ -314,14 +315,20 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 		const registry = registryOrigin();
 		const respondedAt = serverLastRespondedAt();
 		const cached = this.#registry;
-		// What the execution being read ran, from the actuality being read rather than from what the device has been asked for:
-		// a page names what it is reading as soon as it has read it.
-		const named = (execution: string | undefined): string => this.#held.find((e) => e.execution === execution)?.features.join(", ") || featureBeingRead(sources) || execution || "";
+		// What the execution being read ran, from the actuality being read rather than from a read of the device: a page
+		// names what it is reading as soon as it has read it.
+		const named = (execution: string | undefined): string => {
+			const held = this.#held.find((e) => e.execution === execution);
+			if (held !== undefined && held.features.length > 0) return held.features.join(", ");
+			const declared = featureBeingRead(sources);
+			if (declared !== "") return declared;
+			return execution === undefined ? "" : execution;
+		};
 		const cell = (id: string, value: unknown): TemplateResult => html`<td data-testid=${id}>${value}</td>`;
 		return html`<div data-testid=${IDS.ROOT}>
 			<h4>Registry</h4>
 			<div data-testid=${IDS.REGISTRY}>
-				${registry === undefined ? "not known yet" : registry.from === "site" ? `from the server${cached ? `, cached on the device at ${at(cached.savedAt)}` : ""}` : `from the device, cached at ${at(registry.savedAt)} (the server did not respond)`}
+				${registry === undefined ? "pending" : registry.from === "site" ? `from the server${cached ? `, cached on the device at ${at(cached.savedAt)}` : ""}` : `from the device, cached at ${at(registry.savedAt)} (the server did not respond)`}
 			</div>
 			<h4>Server</h4>
 			<div data-testid=${IDS.SERVER}>${respondedAt === undefined ? "has not responded to this page" : `last responded at ${at(respondedAt)}`}</div>
@@ -381,7 +388,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 			<h4>Executions this device holds <small>(named by the features each ran, from the newest ${EXECUTIONS_READ} feature declarations held)</small></h4>
 			<div>
 				reading
-				<span data-testid=${IDS.READING}>${named(reading) || "not reading an execution yet"}</span>
+				<span data-testid=${IDS.READING}>${named(reading) === "" ? "not reading an execution yet" : named(reading)}</span>
 				${earlier === undefined ? "" : html` <button data-testid=${IDS.READ_EARLIER} @click=${() => readHeldExecution(earlier)}>read the execution before it</button>`}
 			</div>
 			${
@@ -394,7 +401,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 								<th>reading</th>
 								<th>began</th>
 								<th>newest</th>
-								<th>forget</th>
+								<th>delete</th>
 							</tr>
 							${this.#held.map((e) => {
 								const id = (field: string): string => `${IDS.RUN}${e.execution}-${field}`;
@@ -405,14 +412,14 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 								${cell(id("features"), e.features.join(", "))}${cell(id("reading"), e.execution === reading ? "reading" : "")}
 								${this.#instant(id("began"), e.first)}${this.#instant(id("newest"), e.last)}
 								<td>
-									${e.execution === reading ? "" : html`<button class="link" data-testid=${id("forget")} title="forget this run on this device" @click=${() => void this.#forget(e)}>forget</button>`}
+									${e.execution === reading ? "" : html`<button class="link" data-testid=${id("delete")} title="delete this execution on this device" @click=${() => void this.#delete(e)}>delete</button>`}
 								</td>
 							</tr>`;
 							})}
 						</table>`
 			}
-			${this.#forgotten === undefined ? "" : html`<div data-testid=${IDS.FORGOTTEN}>actuality ${this.#forgotten.execution} and its ${this.#forgotten.records} records are forgotten</div>`}
-			<h4>IndexedDB <small>(this build reads ${CACHE_SHAPE}; a cache written to another rule is forgotten on open)</small></h4>
+			${this.#deleted === undefined ? "" : html`<div data-testid=${IDS.DELETED}>actuality ${this.#deleted.execution} and its ${this.#deleted.records} records are deleted</div>`}
+			<h4>IndexedDB <small>(this build reads ${CACHE_SHAPE}; a cache written to another rule is cleared on open)</small></h4>
 			${
 				this.#databases.length === 0
 					? emptyOrLoading(this.#deviceRead, "This origin doesn't hold an IndexedDB database.")
@@ -433,6 +440,26 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 										${cell(`${IDS.IDB}${d.name}-${s.name}`, s.count)}
 									</tr>`,
 								),
+							)}
+						</table>`
+			}
+			<h4>Graph <small>(each database holds its graph within a bound, and drops its oldest quads past it)</small></h4>
+			${
+				this.#graphs.length === 0
+					? emptyOrLoading(this.#deviceRead, "This device doesn't hold a graph.")
+					: html`<table>
+							<tr>
+								<th>database</th>
+								<th>quads</th>
+								<th>bound</th>
+								<th>dropped</th>
+							</tr>
+							${this.#graphs.map(
+								({ database, saturation }) =>
+									html`<tr>
+									<td>${database}</td>
+									${cell(`${IDS.GRAPH}${database}-held`, saturation.held)}${cell(`${IDS.GRAPH}${database}-bound`, saturation.bound)}${cell(`${IDS.GRAPH}${database}-dropped`, saturation.dropped)}
+								</tr>`,
 							)}
 						</table>`
 			}

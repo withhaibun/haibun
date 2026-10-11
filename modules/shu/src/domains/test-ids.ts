@@ -188,19 +188,22 @@ export const SHU_TEST_IDS = {
 		 *  length of time. */
 		SOURCE: "client-cache-source-",
 		/** One held execution's row: this prefix and its id, then `-features`, `-reading`, `-began`, `-newest`, `-read`, or
-		 *  `-forget` on every run but the one being read. */
+		 *  `-delete` on every run but the one being read. */
 		RUN: "client-cache-run-",
-		/** The list of executions this device holds. It is there once the device holds one, so it is what states a run
-		 *  a page read has been written to the device and can be come back to. */
+		/** The list of executions this device holds. It is there once the device holds one, so it states that a run a
+		 *  page read has been written to the device and that the page can return to it. */
 		HELD: "client-cache-held",
-		/** The execution being read, named by what it ran, which is how a reader knows which one they are looking at. */
+		/** The execution being read, named by what it ran, which is how a reader tells which one they are reading. */
 		READING: "client-cache-reading",
 		/** Read the newest execution this device holds other than the one being read. */
 		READ_EARLIER: "client-cache-read-earlier",
-		/** What the last forget removed: actuality and how many of its records went. It is there once a reader has forgotten a
-		 *  run and the executions have been read again, so it is the state that shows the list no longer holds that run. */
-		FORGOTTEN: "client-cache-forgotten",
+		/** What the last deletion removed: actuality and how many of its records went. It is there once a reader has deleted
+		 *  a run and the executions have been read again, so it is the state that shows the list no longer holds that run. */
+		DELETED: "client-cache-deleted",
 		IDB: "client-cache-idb-",
+		/** One database's graph: this prefix and the database's name, then `-held`, `-bound` or `-dropped`, the count of the
+		 *  oldest quads it dropped to keep within its bound. */
+		GRAPH: "client-cache-graph-",
 	},
 	DOCUMENT: {
 		ROOT: "document-view",
