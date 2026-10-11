@@ -524,7 +524,7 @@
 	},
 	"modules/shu/src/page/components/shu-entity-column.ts": {
 		"fills a falsy value with a constant through ||": 3,
-		"fills an absent value with a constant through ??": 4,
+		"fills an absent value with a constant through ??": 3,
 		"states a parameter's default value": 1
 	},
 	"modules/shu/src/page/components/shu-filter-column.ts": {

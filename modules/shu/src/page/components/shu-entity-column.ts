@@ -99,7 +99,8 @@ const COPY_BODY_BUTTON = `<button class="copy-btn" title="Copy to clipboard">${C
 
 export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	/** The instant the column shows. A record after it dims. */
-	readonly #timeline = new TimelineViewController(this, { onMove: () => this.#cursorMoved() });
+	// A move of the cursor renders the column again, since whether the record is after the cursor is part of its render.
+	readonly #timeline = new TimelineViewController(this, { onMove: () => this.requestUpdate() });
 	static styles = [
 		shuBaseStyles,
 		shuIconButtonStyles,
@@ -198,15 +199,12 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		super(EntityColumnSchema, { individualId: "", persistedAs: "", loading: false, showAnnotations: true, annotateMode: false });
 	}
 
-	#cursorMoved(): void {
-		const container = this.shadowRoot?.querySelector(".container");
-		if (!container) return;
-		const ts = this.extractTimestamp(this.vertex ?? {}, this.state.persistedAs);
-		if (ts !== null && this.#timeline.isFuture(ts)) {
-			container.classList.add(TIME_SYNC_CLASS.FUTURE);
-		} else {
-			container.classList.remove(TIME_SYNC_CLASS.FUTURE);
-		}
+	/** Whether the record's valid time is after the instant this column shows, so it renders dimmed (CA4D11). A record
+	 *  that doesn't state a valid time isn't after it. */
+	#isFuture(): boolean {
+		if (this.vertex === null) return false;
+		const at = this.extractTimestamp(this.vertex, this.state.persistedAs);
+		return at !== null && this.#timeline.isFuture(at);
 	}
 
 	/** Render arbitrary products as an individual view without RPC fetch. Releases the entity handle: these products are
@@ -348,7 +346,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			contentHtml = `${typeLine}${summaryHtml}${this.renderRoles()}${fieldsHtml}${this.renderItemsTable()}${this.renderReferences()}${governance}${bodyLiterals}`;
 		}
 
-		return html`${unsafeHTML(this.emitHypermediaScript(this.products))}${this.renderColumnSettings()}<div class="entity-content">${this.renderFromStore()}${this.renderOffers()}${unsafeHTML(`${contentHtml}${recordJson(this.vertex, false)}`)}${this.renderBodyArea(contentIframe)}</div>`;
+		return html`${unsafeHTML(this.emitHypermediaScript(this.products))}${this.renderColumnSettings()}<div class="entity-content ${this.#isFuture() ? TIME_SYNC_CLASS.FUTURE : ""}">${this.renderFromStore()}${this.renderOffers()}${unsafeHTML(`${contentHtml}${recordJson(this.vertex, false)}`)}${this.renderBodyArea(contentIframe)}</div>`;
 	}
 
 	protected updated(): void {
