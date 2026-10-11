@@ -91,6 +91,17 @@ describe("subject valid times: an object places by when it happened, not when it
 		expect(indexed.get("e2")).toEqual({ ms: Date.parse("2026-07-04T00:00:00.000Z"), field: "generatedAtTime" });
 	});
 
+	it("places a subject of a name the catalog doesn't declare, such as a domain, by its indexed time alone", () => {
+		const declaredOnly = (type: string) => (type === "Email" ? "dateReceived" : undefined);
+		const quads = [quad("d1", "default", "generatedAtTime", "2026-02-02T00:00:00.000Z"), quad("d1", "default", "dateReceived", "2025-01-01T00:00:00.000Z")];
+		const { times, indexed } = subjectValidTimes(quads, declaredOnly, "generatedAtTime");
+		expect(times.get("d1"), "an undeclared name doesn't name a valid time, so its subject places by its indexed time").toEqual({
+			ms: Date.parse("2026-02-02T00:00:00.000Z"),
+			field: "generatedAtTime",
+		});
+		expect(indexed.get("d1")).toEqual({ ms: Date.parse("2026-02-02T00:00:00.000Z"), field: "generatedAtTime" });
+	});
+
 	it("ignores unparseable values and unrelated predicates", () => {
 		const quads = [quad("e1", "Email", "dateReceived", "not a date"), quad("e1", "Email", "subject", "hello")];
 		expect(subjectValidTimes(quads, fieldFor, "generatedAtTime").times.size).toBe(0);

@@ -46,7 +46,7 @@ export type DataPipelineDeps = {
 	lastModelHash: () => number | undefined; // undefined = first feed / post-reset (everything is "new", without arrival pops)
 	timeCursor: () => number | null; // the resolved cursor (a pinned view's frozen instant, else the global cursor); null = live
 	zBasis: () => "valid" | "indexed" | "connections"; // what places depth: the object's valid time (its declared field), its indexed time (generatedAtTime), or its number of connections
-	validTimeFieldFor: (type: string) => string; // the catalog's validTimeField per label (the catalog controller)
+	validTimeFieldFor: (type: string) => string | undefined; // the catalog's validTimeField per label, undefined for a name it doesn't declare
 	groupAnchors: () => Map<string, GroupAnchor>;
 	groupSizes: () => Map<string, { w: number; h: number }>;
 	setGanttTargets: (targets: Map<string, GanttTarget>) => void;

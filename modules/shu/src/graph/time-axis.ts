@@ -19,17 +19,16 @@ type TSubjectTime = { ms: number; field: string };
  * (indexed-time) quad, so an individual always places by its own time and only by indexing time when it doesn't carry
  * another time. The field lookup is memoized per type, so the resolver runs O(types), not O(quads).
  */
-export function subjectValidTimes(quads: TQuad[], validTimeFieldFor: (type: string) => string, indexedTimeField: string): TSubjectTimes {
-	const fieldByType = new Map<string, string>();
+export function subjectValidTimes(quads: TQuad[], validTimeFieldFor: (type: string) => string | undefined, indexedTimeField: string): TSubjectTimes {
+	const fieldByType = new Map<string, string | undefined>();
 	const times = new Map<string, TSubjectTime>();
 	const fallback = new Map<string, TSubjectTime>();
 	for (const q of quads) {
 		if (typeof q.object !== "string") continue;
-		let field = fieldByType.get(q.namedGraph);
-		if (field === undefined) {
-			field = validTimeFieldFor(q.namedGraph);
-			fieldByType.set(q.namedGraph, field);
-		}
+		// A name the catalog doesn't declare as a type, such as a domain the domain chain draws, doesn't name a valid time,
+		// so its subjects place by their indexed time alone.
+		if (!fieldByType.has(q.namedGraph)) fieldByType.set(q.namedGraph, validTimeFieldFor(q.namedGraph));
+		const field = fieldByType.get(q.namedGraph);
 		// Two independent questions, not one routing: a quad can be a subject's valid time AND its written-down time:
 		// most types don't declare a valid field of their own, so generatedAtTime is both. Routed to one map only, every
 		// such type came out of `indexed` empty, and a reading ordered by creation fell back to name order.

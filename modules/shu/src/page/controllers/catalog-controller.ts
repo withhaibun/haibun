@@ -87,8 +87,12 @@ export function getQueryableFields(label: string): string[] {
 }
 
 /** Returns the field that carries a type's valid time. Throws for a type the catalog doesn't declare. */
+/** Returns the field of a type's valid time, or undefined for a name the catalog doesn't declare as a type, such as a
+ *  domain a graph of the domain chain draws. */
+export const validTimeFieldOf = (label: string): string | undefined => catalog(`the valid time of ${label}`).validTimeFields[label];
+
 export function getValidTimeField(label: string): string {
-	const field = catalog(`the valid time of ${label}`).validTimeFields[label];
+	const field = validTimeFieldOf(label);
 	if (field === undefined) throw new Error(`the catalog doesn't declare the type ${label}, so it doesn't name the field of its valid time`);
 	return field;
 }

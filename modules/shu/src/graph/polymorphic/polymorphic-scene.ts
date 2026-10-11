@@ -39,7 +39,7 @@ import { type RenderType, type TViewForces, buildRenderTypeRegistry } from "./po
 import type { ViewType } from "./polymorphic-views.js";
 import { FRAME, VIEW, viewChangeRebuildsNodes } from "./polymorphic-views.js";
 import { isSchemaType, propertyVocabulary } from "../ontology-projection.js";
-import { actorTypesFor, getValidTimeField, roleEdgeLabels, roleNounFor } from "../../page/controllers/catalog-controller.js";
+import { actorTypesFor, roleEdgeLabels, roleNounFor, validTimeFieldOf } from "../../page/controllers/catalog-controller.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { compositeRenderer, threeRenderer, type IGraphRenderer } from "./polymorphic-renderer.js";
 import { A11yRenderer } from "./polymorphic-a11y-renderer.js";
@@ -439,7 +439,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		lastModelHash: () => this.lastModelHash,
 		timeCursor: () => this.model.timeCursor, // the pinning-aware cursor the host resolved (a snapshot-pinned view reads its frozen instant)
 		zBasis: () => this.config.zBasis,
-		validTimeFieldFor: (type) => getValidTimeField(type),
+		validTimeFieldFor: (type) => validTimeFieldOf(type),
 		groupAnchors: () => this.enclosureCtl.anchors,
 		groupSizes: () => this.enclosureCtl.sizes,
 		setGanttTargets: (t) => {
