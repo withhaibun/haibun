@@ -68,7 +68,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 		super(EmptyStateSchema);
 	}
 
-	/** The hosting column summarizes its data for a Kihan; this element is just the scroller shell. */
+	/** The hosting column summarizes its data for a conversation; this element is just the scroller shell. */
 	summarizeForContext(): TLinkedData | null {
 		return null;
 	}

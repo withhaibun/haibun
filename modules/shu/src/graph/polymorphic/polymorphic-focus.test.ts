@@ -4,9 +4,9 @@
  * active. Driven through updateHighlight, the same per-frame pass the active node's breath rides.
  */
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { PolymorphicFocus, type FocusDeps } from "../polymorphic/polymorphic-focus.js";
-import { NEWCOMER_GLOW_MS } from "../polymorphic/polymorphic-highlight.js";
-import type { FGNode } from "../polymorphic/polymorphic-graph-types.js";
+import { PolymorphicFocus, type FocusDeps } from "./polymorphic-focus.js";
+import { NEWCOMER_GLOW_MS } from "./polymorphic-highlight.js";
+import type { FGNode } from "./polymorphic-graph-types.js";
 import type { NodeVisual } from "./polymorphic-graph-types.js";
 import type { TGraphPreview } from "../focus-policy.js";
 

@@ -1,19 +1,19 @@
 /**
- * The page a pane test drives the Ask pane on.
+ * The page on which a pane test drives the Ask pane.
  *
- * Several test files drive the pane and the conversation, and each needs the same run behind it: one that offers the
- * steps the pane calls, lists them when the page reads its steps, and takes the page's reports. Only the answers differ
- * between cases, so only the answers are written per case, and a change to what the pane calls is one edit rather than
+ * Several test files drive the pane and the conversation, and each needs the same actuality behind it: one that offers the
+ * steps the pane calls, lists them when the page reads its steps, and takes the page's reports. Only the responses differ
+ * between cases, so only the responses are written per case, and a change to what the pane calls is one edit rather than
  * one per file.
  */
 
-import { buildConcernCatalog, type TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
+import { buildConcernCatalog, counted, type TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { stepMethodName } from "@haibun/core/lib/step-registry.js";
-import { CLIENT_LOG_METHOD } from "../../client-log.js";
+import { CLIENT_LOG_METHOD } from "../../../client-log.js";
 import { ASK_PARAM, CONVERSATION_DOMAIN, CONVERSATION_MODEL_CLASS, FILE_PARAM, SESSION_PARAM, type TSessionTurn } from "@haibun/core/lib/conversation/domains/conversation.js";
-import { persistedTypeDefinition, stepsShown, type TDispatch } from "../../test-setup.js";
+import { persistedTypeDefinition, stepsShown, type TDispatch } from "../../../test-setup.js";
 
 /** The consumer's stepper that offers the steps the pane calls. */
 export const CHAT_STEPPER = "AskingStepper";
@@ -42,8 +42,8 @@ const MODELS_ONLY = buildConcernCatalog(mapDefinitionsToDomains([persistedTypeDe
 export const CHAT_DOMAINS = Object.fromEntries([...Object.values(CONVERSATION_DOMAIN), MODEL_DOMAIN, "text"].map((key) => [key, { description: key }]));
 
 /**
- * A dispatch answering the pane as a run that offers the steps named: the show steps step lists them with the types the
- * catalog declares, a call to one of them is answered by `respond` under the step's name, the page's reports to actuality are
+ * A dispatch that responds to the pane as an actuality that offers the steps named: the show steps step lists them with the types the
+ * catalog declares, a call to one of them returns what `respond` gives under the step's name, the page's reports to actuality are
  * taken as the monitor takes them, and any other call throws.
  */
 export function chatDispatch(
@@ -65,11 +65,14 @@ export function chatDispatch(
 	};
 }
 
-/** The question record of the turn a case names, which names the turn, and the answer record of that turn. */
+/** The question record of the turn a case names, which names the turn, and the response record of that turn. */
+/** A catalog read that returns one model, which takes tool calls. */
+export const A_CATALOG = { vertices: [{ id: "openai:a-model", displayName: "a model", capabilities: { tools: true } }], ...counted(1) };
+
 export const question = (turn: string): string => `cmt-ask-${turn}`;
 export const answer = (turn: string): string => `cmt-say-${turn}`;
 
-/** A turn of a session as the store reads it back, completed, its question and answer named by the turn a case names. */
+/** A turn of a session as the store reads it back, completed, its question and response named by the turn a case names. */
 export const readBack = (turn: string, inReplyTo?: string, bundle: TSessionTurn["bundle"] = []): TSessionTurn => ({
 	prompt: `asked ${turn}`,
 	response: `answered ${turn}`,

@@ -57,7 +57,7 @@ describe("lit-html focus preservation", () => {
 	});
 
 	it("preserves custom-element children with internal state across re-renders", () => {
-		// shu's templates compose custom elements (shu-combobox, shu-kihan-chat, etc.)
+		// shu's templates compose custom elements (shu-combobox, shu-ask, etc.)
 		// that own internal state in fields. Lit must keep the same instance across
 		// re-renders so its state (open dropdown, typed-ahead text, focus, attached
 		// listeners) survives parent re-renders.

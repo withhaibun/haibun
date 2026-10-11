@@ -6,7 +6,7 @@
 import { z } from "zod";
 import { PartSchema, type TPart } from "@haibun/core/lib/resources.js";
 import { PART_DIRECTIVE, partDirectiveFor, splitPart } from "@haibun/core/lib/typed-links.js";
-import { SHU_TAG } from "../../domains/elements.js";
+import { SHU_ATTR, SHU_TAG } from "../../domains/elements.js";
 import { splitPaneEntry } from "./address.js";
 import { objectId } from "./record-fields.js";
 
@@ -247,4 +247,14 @@ export function parseColEntry(raw: string, context: TPaneContext): DesiredPane |
 function parsedPane(input: unknown): DesiredPane | null {
 	const r = DesiredPaneSchema.safeParse(input);
 	return r.success ? r.data : null;
+}
+
+/** A pane's key in the `activePane` signal: its columnKey, or its column-type for the query pane, which doesn't have a
+ *  columnKey. A pane that lacks both is a fault in the view that renders it. */
+export function paneKeyOf(pane: HTMLElement): string {
+	const key = pane.dataset.columnKey;
+	if (key !== undefined) return key;
+	const type = pane.getAttribute(SHU_ATTR.COLUMN_TYPE);
+	if (type === null) throw new Error(`a column pane lacks both a columnKey and a ${SHU_ATTR.COLUMN_TYPE}. The column strip sets one where it renders the pane.`);
+	return type;
 }

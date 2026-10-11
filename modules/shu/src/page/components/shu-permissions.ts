@@ -53,7 +53,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 		this.onLevelChange = () => undefined;
 	}
 
-	/** A reading of this deployment's authority is part of what a Kihan is looking at, so it summarizes as what it shows. */
+	/** A reading of this deployment's authority is part of what a model reads, so it summarizes as what it shows. */
 	summarizeForContext(): TLinkedData | null {
 		const held = this.#held.page;
 		return held === undefined ? null : { "@type": "ShuPermissions", holds: held.holds, principals: held.principals.length };

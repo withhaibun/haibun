@@ -400,12 +400,6 @@
 	"modules/shu/src/artifact-url.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/shu/src/chat-context-harvest.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/chat-turn.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/client-log.ts": {
 		"isn't in a kind position": 1
 	},
@@ -416,9 +410,6 @@
 		"performs I/O through setTimeout": 1
 	},
 	"modules/shu/src/content-security-policy.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/conversation.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/current-subject.ts": {
@@ -627,9 +618,6 @@
 		"performs I/O through fs": 1
 	},
 	"modules/shu/src/test-setup.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/turn-allowance.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/type-colors.ts": {

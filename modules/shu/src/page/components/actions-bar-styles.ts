@@ -3,7 +3,7 @@
  * writes into it.
  */
 import { css, type CSSResultGroup } from "lit";
-import { chatMessageStyles } from "./shu-chat-message.js";
+import { chatMessageStyles } from "../ask/components/shu-chat-message.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 
 const STYLES = css`

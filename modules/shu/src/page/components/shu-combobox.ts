@@ -22,7 +22,7 @@ const BLUR = "blur";
 const LIST_MIN_WIDTH = 200;
 
 export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
-	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
+	/** A control doesn't contribute to a conversation's context, since it isn't a view of data. */
 	summarizeForContext(): TLinkedData | null {
 		return null;
 	}

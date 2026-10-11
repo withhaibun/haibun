@@ -408,7 +408,7 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 	abstract render(): TemplateResult;
 
 	/**
-	 * What this view presents, summarized for a Kihan as linked data: a JSON-LD node (`@id`, `@type`, and the
+	 * What this view presents, summarized for a conversation as linked data: a JSON-LD node (`@id`, `@type`, and the
 	 * view's content or a faithful digest of it). Called ON DEMAND by the chat-context harvester when the person
 	 * asks: never on render, so a large summary isn't computed until the ask is sent. A view on screen the
 	 * model cannot read is a broken ask; return null only for a pure control that doesn't present data (a picker, a

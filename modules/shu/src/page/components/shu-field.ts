@@ -15,7 +15,7 @@ import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js
 import { shuBaseStyles } from "./styles.js";
 
 class ShuField extends ShuElement<z.ZodObject> {
-	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
+	/** A control doesn't contribute to a conversation's context, since it isn't a view of data. */
 	summarizeForContext(): TLinkedData | null {
 		return null;
 	}

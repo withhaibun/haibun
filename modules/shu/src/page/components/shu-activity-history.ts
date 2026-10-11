@@ -16,7 +16,7 @@
 import type { TemplateResult } from "lit";
 import { html } from "lit";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
-import { ShuChatMessage } from "./shu-chat-message.js";
+import { ShuChatMessage } from "../ask/components/shu-chat-message.js";
 import { CHAT_VIEW_PARAM, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
@@ -24,14 +24,14 @@ import { FOLLOW_EDGE_SLACK_PX, ScrollFollowController } from "../controllers/scr
 import { SignalController } from "../controllers/signal-controller.js";
 import { SubjectController } from "../controllers/subject-controller.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
-import { nextQuestion } from "../../chat-turn.js";
-import { conversationState, transcript, turnEnded } from "../../conversation.js";
+import { nextQuestion } from "../ask/controllers/conversation-controller.js";
+import { conversationState, transcript, turnEnded } from "../ask/controllers/conversation-controller.js";
 import { currentSubject } from "../../current-subject.js";
 import { appAccessLevel } from "../../view-query.js";
 
 export class ShuActivityHistory extends ShuElement<typeof EmptyStateSchema> {
 	/** The actions-bar output region, not a column pane: the harvest reads only column panes, so this is never the
-	 *  active pane, and its entries (searches, steps, chat turns) are represented by their own views. It doesn't contribute to the Kihan's context. */
+	 *  active pane, and its entries (searches, steps, chat turns) are represented by their own views. It doesn't contribute to a conversation's context. */
 	summarizeForContext(): TLinkedData | null {
 		return null;
 	}
@@ -150,7 +150,7 @@ export class ShuActivityHistory extends ShuElement<typeof EmptyStateSchema> {
 			}
 			const given = JSON.stringify(message);
 			if (held.given !== given) {
-				pin ||= turnEnded(held.el.message.status, message.status);
+				pin ||= turnEnded(held.el.message?.status, message.status);
 				held.el.message = message;
 				held.given = given;
 			}

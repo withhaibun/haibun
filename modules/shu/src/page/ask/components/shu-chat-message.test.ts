@@ -1,27 +1,39 @@
 // @vitest-environment jsdom
 /**
- * A chat message reads in the order its turn was made: what the answer was made of comes before the answer. A question
+ * A chat message reads in the order its turn was made: what the response was made of comes before the response. A question
  * links to the records it carries, so a reader opens what was asked about from the message itself.
  */
-import { declareSpec } from "../../test/catalog-fixture.js";
+import { declareSpec } from "../../../test/catalog-fixture.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { anIndividual, aType } from "@haibun/core/lib/conversation/domains/conversation.js";
-import { INITIAL_SUBJECT, SCOPE, currentSubjectState, scopeEntry } from "../../current-subject.js";
-import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import { followPaneLink } from "./ref-navigation.js";
+import { INITIAL_SUBJECT, SCOPE, currentSubjectState, scopeEntry } from "../../../current-subject.js";
+import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
+import { followPaneLink } from "../../components/ref-navigation.js";
 import { ChatMessageSchema, FORK_CONTROLS, ShuChatMessage } from "./shu-chat-message.js";
-import { SHU_EVENT } from "../../domains/elements.js";
-import "./shu-ref-element.js";
+import { SHU_EVENT } from "../../../domains/elements.js";
+import "../../components/shu-ref-element.js";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
 import { REF_DENOTES, markdownRef } from "@haibun/core/lib/typed-links.js";
 import { ICON_STEP_COMPLETED, RETURNED_TO_CALLER } from "@haibun/core/schema/protocol.js";
-import { followPaneRequests } from "../../test/pane-requests.js";
+import { followPaneRequests } from "../../../test/pane-requests.js";
 
 const BUNDLE = { patterns: [anIndividual("Email", "a@test.com"), aType("Email", [])], accessLevel: "private" };
 
+/** A message's fields that a case doesn't vary: a settled message without text, context or calls, that carries an empty bundle. */
+const SETTLED = {
+	text: "",
+	context: [],
+	calls: [],
+	spinnerStatus: "",
+	spinnerVisible: false,
+	spinnerSpinning: false,
+	bundle: { patterns: [], accessLevel: "private" },
+	recordType: COMMENT_LABEL,
+};
+
 async function rendered(message: Record<string, unknown>): Promise<HTMLElement> {
 	const el = new ShuChatMessage();
-	el.message = ChatMessageSchema.parse(message);
+	el.message = ChatMessageSchema.parse({ ...SETTLED, ...message });
 	document.body.appendChild(el);
 	await el.updateComplete;
 	return el;
@@ -41,7 +53,7 @@ beforeEach(() => {
 afterEach(() => document.removeEventListener("click", followPaneLink, { capture: true }));
 
 describe("the order a chat message reads in", () => {
-	it("puts the context sent and the calls made above the answer, each closed until a reader opens it", async () => {
+	it("puts the context sent and the calls made above the response, each closed until a reader opens it", async () => {
 		const calls = [{ name: "GraphStepper-getIndividual", ok: true, record: { persistedAs: "ToolCall", id: "tcall-1" } }];
 		const el = await rendered({ id: "m1", role: "llm", text: "an answer", status: "completed", context: ["Email -> total -> 1"], calls });
 		const [context, called] = [SHU_TEST_IDS.APP.CHAT_CONTEXT, SHU_TEST_IDS.APP.CHAT_CALLS].map((id) => el.querySelector<HTMLDetailsElement>(`[data-testid="${id}"]`));
@@ -49,7 +61,7 @@ describe("the order a chat message reads in", () => {
 		expect(context?.querySelector("summary")?.textContent, "the context counts its lines").toBe("context sent (1 lines)");
 		expect(called?.querySelector("summary")?.textContent, "and the calls count apart from it").toBe("calls (1)");
 		expect([context?.open, called?.open], "each closed").toEqual([false, false]);
-		expect(called?.compareDocumentPosition(answer as Node) ?? 0, "they precede the answer").toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+		expect(called?.compareDocumentPosition(answer as Node) ?? 0, "they precede the response").toBe(Node.DOCUMENT_POSITION_FOLLOWING);
 	});
 });
 
@@ -62,8 +74,8 @@ describe("what a question carries", () => {
 		]);
 	});
 
-	it("doesn't link a record for an answer, or for a question that doesn't carry one", async () => {
-		expect(carried(await rendered({ id: "a1", role: "llm", text: "an answer", bundle: BUNDLE })), "the answer's question carries the bundle").toEqual([]);
+	it("doesn't link a record for a response, or for a question that doesn't carry one", async () => {
+		expect(carried(await rendered({ id: "a1", role: "llm", text: "an answer", bundle: BUNDLE })), "the response's question carries the bundle").toEqual([]);
 		expect(carried(await rendered({ id: "q2", role: "user", text: "anything", bundle: { patterns: [], accessLevel: "opened" } }))).toEqual([]);
 		expect(document.querySelectorAll(`[data-testid="${SHU_TEST_IDS.APP.CHAT_CARRIES}"]`), "and doesn't render an empty line").toHaveLength(0);
 	});
@@ -81,7 +93,7 @@ describe("what a question carries", () => {
 });
 
 describe("a question's controls", () => {
-	it("ask it again, or put it in the input, replying where it replied, without selecting it", async () => {
+	it("sends it again, or puts it in the input, replying where it replied, without selecting it", async () => {
 		const el = await rendered({ id: "q2", role: "user", text: "what is this", turn: "cmt-ask-0.1.2", recordId: "cmt-ask-0.1.2", inReplyTo: "cmt-ask-0.1.1", bundle: BUNDLE });
 		const raised: unknown[] = [];
 		const hear = (e: Event) => raised.push((e as CustomEvent).detail);

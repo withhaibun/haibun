@@ -14,14 +14,14 @@ import { ShuActionsBar } from "./shu-actions-bar.js";
 import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { ShuColumnPane } from "./shu-column-pane.js";
 // The app registers the ask pane, which the bar renders in Ask mode.
-import "./shu-kihan-chat.js";
+import "../ask/components/shu-ask.js";
 import { INITIAL_SUBJECT, SCOPE, currentSubjectState } from "../../current-subject.js";
 import { pageContext, pageStatus, pageTrail } from "../controllers/page-cell-controller.js";
-import { STOPPED_BY_THE_READER, conversationState, dispatchConversationEvent } from "../../conversation.js";
+import { STOPPED_BY_THE_READER, conversationState, dispatchConversationEvent } from "../ask/controllers/conversation-controller.js";
 import { commandList } from "../derivations/step-input.js";
 import { aType } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { carryARun, persistedTypeDefinition, setupShuTest } from "../../test-setup.js";
-import { CHAT_STEP, chatDispatch } from "./chat-pane.test-fake.js";
+import { CHAT_STEP, chatDispatch } from "../ask/components/chat-pane.test-fake.js";
 
 provideLayout();
 
@@ -110,7 +110,7 @@ describe("the actions bar reads the page's state", () => {
 		bar.setState({ mode: "ask" });
 		await settle();
 		await bar.updateComplete;
-		const ask = bar.shadowRoot?.querySelector(SHU_TAG.KIHAN_CHAT) as HTMLElement & { updateComplete: Promise<unknown> };
+		const ask = bar.shadowRoot?.querySelector(SHU_TAG.ASK) as HTMLElement & { updateComplete: Promise<unknown> };
 		await ask.updateComplete;
 		pressEnterWith(ask.shadowRoot?.querySelector(".chat-input") as HTMLTextAreaElement, "/search the dough");
 		await settle();
@@ -172,7 +172,7 @@ describe("the actions bar reads the page's state", () => {
 		bar.setState({ mode: "ask" });
 		await settle();
 		await bar.updateComplete;
-		const ask = bar.shadowRoot?.querySelector(SHU_TAG.KIHAN_CHAT) as HTMLElement | null;
+		const ask = bar.shadowRoot?.querySelector(SHU_TAG.ASK) as HTMLElement | null;
 		expect(ask, "the ask is the body of the bar").not.toBeNull();
 		expect(ask?.querySelector(SHU_TAG.ACTIVITY_HISTORY), "and holds the transcript").not.toBeNull();
 		expect(ask?.hasAttribute(SHU_ATTR.SHOW_CONTROLS), "whose settings are hidden until the pane's control shows them").toBe(false);

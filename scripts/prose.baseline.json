@@ -105,9 +105,6 @@
 	"modules/core/src/steps/resources-stepper.test.ts": {
 		"terminal-preposition": 1
 	},
-	"modules/shu/src/chat-turn.ts": {
-		"terminal-preposition": 1
-	},
 	"modules/shu/src/client-cache/client-cache-stepper.ts": {
 		"the-run": 1
 	},
@@ -155,9 +152,6 @@
 	},
 	"modules/shu/src/content-security-policy.ts": {
 		"terminal-preposition": 1
-	},
-	"modules/shu/src/conversation.test.ts": {
-		"anthropomorphic": 1
 	},
 	"modules/shu/src/current-subject.ts": {
 		"terminal-preposition": 1
@@ -445,10 +439,6 @@
 	"modules/shu/src/page/components/actions-bar-steps.ts": {
 		"terminal-preposition": 1
 	},
-	"modules/shu/src/page/components/chat-pane.test-fake.ts": {
-		"anthropomorphic": 6,
-		"terminal-preposition": 1
-	},
 	"modules/shu/src/page/components/controller-host.test-fake.ts": {
 		"anthropomorphic": 4,
 		"terminal-preposition": 1
@@ -509,14 +499,6 @@
 	},
 	"modules/shu/src/page/components/shu-artifact-frame.test.ts": {
 		"anthropomorphic": 1
-	},
-	"modules/shu/src/page/components/shu-chat-message.test.ts": {
-		"anthropomorphic": 7
-	},
-	"modules/shu/src/page/components/shu-chat-message.ts": {
-		"anthropomorphic": 7,
-		"relation-verb": 1,
-		"terminal-preposition": 1
 	},
 	"modules/shu/src/page/components/shu-column-pane.test.ts": {
 		"anthropomorphic": 15,
@@ -608,26 +590,6 @@
 		"anthropomorphic": 5,
 		"relation-verb": 1,
 		"terminal-preposition": 1
-	},
-	"modules/shu/src/page/components/shu-kihan-chat.catalog.test.ts": {
-		"anthropomorphic": 1,
-		"terminal-preposition": 1
-	},
-	"modules/shu/src/page/components/shu-kihan-chat.conversation.test.ts": {
-		"anthropomorphic": 31,
-		"negated-noun": 2,
-		"relation-verb": 2,
-		"terminal-preposition": 2
-	},
-	"modules/shu/src/page/components/shu-kihan-chat.test.ts": {
-		"anthropomorphic": 3,
-		"terminal-preposition": 1
-	},
-	"modules/shu/src/page/components/shu-kihan-chat.ts": {
-		"anthropomorphic": 34,
-		"relation-verb": 1,
-		"terminal-preposition": 7,
-		"the-run": 1
 	},
 	"modules/shu/src/page/components/shu-monitor-column.controls.ts": {
 		"relation-verb": 3,
@@ -864,12 +826,6 @@
 	},
 	"modules/shu/src/test/windowed-source-conformance.ts": {
 		"anthropomorphic": 9
-	},
-	"modules/shu/src/turn-allowance.test.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/shu/src/turn-allowance.ts": {
-		"anthropomorphic": 3
 	},
 	"modules/shu/src/view-query.test.ts": {
 		"anthropomorphic": 1,

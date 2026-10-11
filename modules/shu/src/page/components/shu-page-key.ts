@@ -24,7 +24,7 @@ export class ShuPageKey extends ShuElement<typeof PageKeySchema> {
 		super(PageKeySchema, { controller: "" });
 	}
 
-	/** A key names who the page is, not what it shows, so it doesn't add to the Kihan's context. */
+	/** A key names who the page is, not what it shows, so it doesn't add to a conversation's context. */
 	summarizeForContext(): TLinkedData | null {
 		return null;
 	}

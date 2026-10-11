@@ -20,7 +20,7 @@ import { isRefKind } from "../derivations/markdown.js";
 import { ShuElement, EmptyStateSchema, type TLinkedData } from "./shu-element.js";
 
 export class ShuRef extends ShuElement<typeof EmptyStateSchema> {
-	/** A reference is part of the view that shows it, so it doesn't contribute to the Kihan's context on its own. */
+	/** A reference is part of the view that shows it, so it doesn't contribute to a conversation's context on its own. */
 	summarizeForContext(): TLinkedData | null {
 		return null;
 	}

@@ -64,7 +64,7 @@ const TEST_ID = {
 const MIN_RESIZED_WIDTH = 120;
 
 export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
-	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
+	/** A control doesn't contribute to a conversation's context, since it isn't a view of data. */
 	summarizeForContext(): TLinkedData | null {
 		return null;
 	}
@@ -524,7 +524,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		return (this.columnView?.constructor as { activates?: boolean } | undefined)?.activates !== false;
 	}
 
-	/** The column's own view: the first child that is not its spine view. `controls` and the Kihan summary both mean
+	/** The column's own view: the first child that is not its spine view. `controls` and the context summary both mean
 	 *  this one, so the spine view doesn't provide either when a column declares one. */
 	get columnView(): Element | undefined {
 		return Array.from(this.children).find((child) => child.getAttribute("slot") !== SPINE_SLOT);

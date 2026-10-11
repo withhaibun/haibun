@@ -13,10 +13,10 @@ import SpriteText from "three-spritetext";
 import { colorForType } from "../../type-colors.js";
 import { groupKeyOf, containerLabelOf, shelfPack, groupBounds, type GroupAnchor, type GroupKeyMode, ENCLOSURE_PAD, GROUP_GAP } from "../grouping.js";
 import { HYPERMEDIA_ROLE_REL_KEY } from "../../graph-model.js";
-import { type FGNode, type TSprite } from "../polymorphic/polymorphic-graph-types.js";
-import { chipTextHeight, collideRadius } from "../polymorphic/layout-forces.js";
-import { groupCellSize } from "../polymorphic/group-grid.js";
-import { FOCUS_RENDER_ORDER } from "../polymorphic/polymorphic-focus.js";
+import { type FGNode, type TSprite } from "./polymorphic-graph-types.js";
+import { chipTextHeight, collideRadius } from "./layout-forces.js";
+import { groupCellSize } from "./group-grid.js";
+import { FOCUS_RENDER_ORDER } from "./polymorphic-focus.js";
 
 // Group enclosures: each group's members cohere toward a ring anchor (pure math in @haibun/shu/graph/grouping.ts), then a
 // translucent type-coloured box with a wire border is drawn around them: the 3D read of the SVG group box.

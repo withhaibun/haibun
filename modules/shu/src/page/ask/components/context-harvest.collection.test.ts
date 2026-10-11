@@ -14,8 +14,8 @@
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import { HARVEST_MEMBERS, harvested, harvestChatViewLd } from "./chat-context-harvest.js";
-import { activePane } from "./page/root.js";
+import { HARVEST_MEMBERS, harvested, harvestChatViewLd } from "./context-harvest.js";
+import { activePane } from "../../root.js";
 
 type TView = HTMLElement & { summarizeForContext(): unknown | null };
 
@@ -30,7 +30,7 @@ const collection = (count: number) => ({ "@id": "view:graph", totalItems: count,
 
 describe("what a page sends of a view that states many members", () => {
 	it("carries the view's first members in the view's order, and states the page terms", () => {
-		const carried = harvested(collection(HARVEST_MEMBERS + 50)) as Record<string, unknown>;
+		const carried = harvested(collection(HARVEST_MEMBERS + 50), HARVEST_MEMBERS) as Record<string, unknown>;
 		expect(carried.partOf, "the page doesn't have an address of its own: it pages the collection at the view's address").toBe("view:graph");
 		expect(
 			(carried.items as Array<{ at: number }>).map((m) => m.at),
@@ -43,12 +43,12 @@ describe("what a page sends of a view that states many members", () => {
 
 	it("states the number of members the view holds as the count when the view doesn't state a count", () => {
 		const unstated = { "@id": "view:many", items: Array.from({ length: HARVEST_MEMBERS + 1 }, (_, at) => ({ at })) };
-		expect(harvested(unstated).totalItems).toBe(HARVEST_MEMBERS + 1);
+		expect(harvested(unstated, HARVEST_MEMBERS).totalItems).toBe(HARVEST_MEMBERS + 1);
 	});
 
 	it("carries a view unchanged when a page holds all of its members", () => {
 		const whole = collection(3);
-		expect(harvested(whole)).toBe(whole);
+		expect(harvested(whole, HARVEST_MEMBERS)).toBe(whole);
 	});
 
 	it("sends a view unchanged when it states two member sets under their own names", () => {
@@ -62,17 +62,17 @@ describe("what a page sends of a view that states many members", () => {
 			nodes: Array.from({ length: 300 }, () => ({})),
 			edges: Array.from({ length: 400 }, () => ({})),
 		};
-		expect(harvested(graph)).toBe(graph);
+		expect(harvested(graph, HARVEST_MEMBERS)).toBe(graph);
 	});
 
 	it("carries a summary without members unchanged", () => {
 		const stated = { "@id": "view:one", name: "a view of one thing" };
-		expect(harvested(stated)).toBe(stated);
+		expect(harvested(stated, HARVEST_MEMBERS)).toBe(stated);
 	});
 
 	it("rejects a block whose items don't conform to the schema", () => {
 		const bad = { "@id": "view:bad", totalItems: "many", items: [{ at: 0 }] };
-		expect(() => harvested(bad)).toThrow();
+		expect(() => harvested(bad, HARVEST_MEMBERS)).toThrow();
 	});
 });
 
@@ -97,7 +97,7 @@ describe("the harvest rejects a non-conformant summary with an error that names 
 		strip.appendChild(pane("bad", view("shu-bad-view", { "@id": "view:bad", totalItems: "many", items: [{ at: 0 }] })));
 		document.body.appendChild(strip);
 		activePane.set("bad");
-		expect(() => harvestChatViewLd()).toThrow(/shu-bad-view/);
+		expect(() => harvestChatViewLd(document)).toThrow(/shu-bad-view/);
 	});
 
 	it("bounds the members a view sends in the harvest to the members a page carries", () => {
@@ -105,7 +105,7 @@ describe("the harvest rejects a non-conformant summary with an error that names 
 		strip.appendChild(pane("only", view("shu-polymorphic-graph-view", collection(HARVEST_MEMBERS + 10))));
 		document.body.appendChild(strip);
 		activePane.set("only");
-		const block = itemAt(harvestChatViewLd() as Array<{ items: unknown[] }>, 0);
+		const block = itemAt(harvestChatViewLd(document) as Array<{ items: unknown[] }>, 0);
 		expect(block.items).toHaveLength(HARVEST_MEMBERS);
 	});
 });

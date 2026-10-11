@@ -3,7 +3,7 @@ import type { ReactiveController, ReactiveControllerHost } from "lit";
 import { anIndividual } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { INITIAL_SUBJECT, SCOPE, currentSubjectState, dispatchSubjectEvent, entryOf, type TRecord } from "../../current-subject.js";
 import { SubjectController } from "./subject-controller.js";
-import { nextQuestion } from "../../chat-turn.js";
+import { nextQuestion } from "../ask/controllers/conversation-controller.js";
 
 /** A host as a controller sees one: it registers controllers and can be asked to update. */
 function aHost(): ReactiveControllerHost & { controllers: ReactiveController[]; updates: number } {

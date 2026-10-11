@@ -14,7 +14,7 @@ import { ShuElement, EmptyStateSchema, type TLinkedData } from "./shu-element.js
 const COPIED_MS = 1500;
 
 export class ShuCopyButton extends ShuElement<typeof EmptyStateSchema> {
-	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
+	/** A control doesn't contribute to a conversation's context, since it isn't a view of data. */
 	summarizeForContext(): TLinkedData | null {
 		return null;
 	}

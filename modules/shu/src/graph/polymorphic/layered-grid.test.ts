@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import { layeredPositions, type LayeredDirection } from "../polymorphic/layered-solver.js";
-import { collideRadius, chipTextHeight, truncateLabel, LAYERED_SIBLING_GAP } from "../polymorphic/layout-forces.js";
+import { layeredPositions, type LayeredDirection } from "./layered-solver.js";
+import { collideRadius, chipTextHeight, truncateLabel, LAYERED_SIBLING_GAP } from "./layout-forces.js";
 
 // The layered (td/lr) analogue of group-grid.test.ts: run the REAL solver, attach each node's REAL chip footprint
 // (collideRadius half-width × chipTextHeight half-height), and assert the rendered layout is EXCLUSIVE (the chips don't

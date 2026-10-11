@@ -137,7 +137,7 @@ export const SHU_TAG = {
 	FILTER_COLUMN: "shu-filter-column",
 	ACTIONS_BAR: "shu-actions-bar",
 	PAGE_STRIP: "shu-page-strip",
-	KIHAN_CHAT: "shu-kihan-chat",
+	ASK: "shu-ask",
 	CHAT_MESSAGE: "shu-chat-message",
 	BREADCRUMB: "shu-breadcrumb",
 	COMBOBOX: "shu-combobox",

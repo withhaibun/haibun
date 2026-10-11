@@ -9,7 +9,7 @@ import { defineElement } from "../controllers/element-controller.js";
 import { ShuElement, EmptyStateSchema, type TLinkedData } from "./shu-element.js";
 
 export class ShuSpinner extends ShuElement<typeof EmptyStateSchema> {
-	/** A spinner is part of the view that shows it, so it doesn't contribute to the Kihan's context on its own. */
+	/** A spinner is part of the view that shows it, so it doesn't contribute to a conversation's context on its own. */
 	summarizeForContext(): TLinkedData | null {
 		return null;
 	}

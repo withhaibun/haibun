@@ -46,6 +46,7 @@ export function askSteps(list: TStepList): TAskSteps | undefined {
 export function modelType(catalog: TConcernCatalog): string | undefined {
 	const types = Object.values(catalog.persisted).filter((concern) => concern.subClassOf.includes(CONVERSATION_MODEL_CLASS));
 	const [first, ...others] = types;
-	if (others.length > 0) throw new Error(`${types.map((concern) => concern.label).join(", ")} each state themselves ${CONVERSATION_MODEL_CLASS}; a deployment declares one model type`);
+	if (others.length > 0)
+		throw new Error(`${types.map((concern) => concern.label).join(", ")} each state themselves ${CONVERSATION_MODEL_CLASS}; a deployment declares one model type`);
 	return first?.label;
 }

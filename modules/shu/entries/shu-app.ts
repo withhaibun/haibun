@@ -15,7 +15,7 @@ import "../src/page/components/shu-entity-column.js";
 import "../src/page/components/shu-filter-column.js";
 import "../src/page/components/shu-actions-bar.js";
 import "../src/page/components/shu-page-strip.js";
-import "../src/page/components/shu-kihan-chat.js";
+import "../src/page/ask/components/shu-ask.js";
 import "../src/page/components/shu-breadcrumb.js";
 import "../src/page/components/shu-combobox.js";
 import "../src/page/components/shu-spinner.js";
@@ -68,7 +68,7 @@ import {
 import { getAvailableSteps, requiredActionOf } from "../src/page/controllers/registry-controller.js";
 import { hydrateClientCache } from "../src/page/client-cache/controllers/device-controller.js";
 import { viewsShown } from "../src/page/client-cache/controllers/run-controller.js";
-import { followRunningTurns } from "../src/conversation.js";
+import { followRunningTurns } from "../src/page/ask/controllers/conversation-controller.js";
 
 /** The id of the served document's main element, which holds the page. */
 const MAIN_ID = "shu-main";

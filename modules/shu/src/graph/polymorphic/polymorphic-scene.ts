@@ -12,12 +12,12 @@ import { DEFAULT_PER_TYPE_LIMIT } from "../../quads-snapshot.js";
 import { SCOPE, dispatchSubjectEvent, entryOf } from "../../current-subject.js";
 import { formatInstant, readerZone } from "../../page/derivations/time-format.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import { FrameScheduler } from "../polymorphic/polymorphic-frame.js";
-import { EngineGovernor, type TPacedGraph } from "../polymorphic/polymorphic-engine.js";
-import { PolymorphicProfiler } from "../polymorphic/polymorphic-profiler.js";
+import { FrameScheduler } from "./polymorphic-frame.js";
+import { EngineGovernor, type TPacedGraph } from "./polymorphic-engine.js";
+import { PolymorphicProfiler } from "./polymorphic-profiler.js";
 import { makeTroikaChip, spriteVisual, type ChipThree } from "./polymorphic-troika-label.js";
-import { GLOW_RAMP, BREATH_MS } from "../polymorphic/polymorphic-highlight.js";
-import { typeAvatar } from "../polymorphic/polymorphic-type-avatar.js";
+import { GLOW_RAMP, BREATH_MS } from "./polymorphic-highlight.js";
+import { typeAvatar } from "./polymorphic-type-avatar.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { PAGE_TERMS, type TCounted } from "@haibun/core/lib/hypermedia.js";
 import { isSubPropertyOf, CLASS_LABEL, PROPERTY_LABEL } from "@haibun/core/lib/resources.js";
@@ -31,30 +31,30 @@ import { type Adornment } from "../graph-layout.js";
 import { PolymorphicCamera, clearStripOffset, coveredTogether, type GanttExtent, type TMeasureUnit, type TPanDirection, type TZoomDirection } from "./polymorphic-camera.js";
 import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../../page/controllers/element-controller.js";
-import { ndcToClient, clientToNdc, screenShare, type TClientPoint } from "../polymorphic/polymorphic-project.js";
-import { syncPickTarget, restorePickTarget, type TPickObject, type TScaleRestore } from "../polymorphic/polymorphic-pick-sync.js";
+import { ndcToClient, clientToNdc, screenShare, type TClientPoint } from "./polymorphic-project.js";
+import { syncPickTarget, restorePickTarget, type TPickObject, type TScaleRestore } from "./polymorphic-pick-sync.js";
 import { RenderContext, type TSceneCamera } from "./polymorphic-render-context.js";
-import { DataPipeline, visibleGraphModel } from "../polymorphic/polymorphic-data-pipeline.js";
-import { type RenderType, type TViewForces, buildRenderTypeRegistry } from "../polymorphic/polymorphic-render-type.js";
-import type { ViewType } from "../polymorphic/polymorphic-views.js";
-import { FRAME, VIEW, viewChangeRebuildsNodes } from "../polymorphic/polymorphic-views.js";
+import { DataPipeline, visibleGraphModel } from "./polymorphic-data-pipeline.js";
+import { type RenderType, type TViewForces, buildRenderTypeRegistry } from "./polymorphic-render-type.js";
+import type { ViewType } from "./polymorphic-views.js";
+import { FRAME, VIEW, viewChangeRebuildsNodes } from "./polymorphic-views.js";
 import { isSchemaType, propertyVocabulary } from "../ontology-projection.js";
 import { actorTypesFor, getValidTimeField, roleEdgeLabels, roleNounFor } from "../../page/controllers/catalog-controller.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
-import { compositeRenderer, threeRenderer, type IGraphRenderer } from "../polymorphic/polymorphic-renderer.js";
+import { compositeRenderer, threeRenderer, type IGraphRenderer } from "./polymorphic-renderer.js";
 import { A11yRenderer } from "./polymorphic-a11y-renderer.js";
 import { Drawing, aframeLoop, type TAframeScene } from "./polymorphic-drawing.js";
 import { FrameTime, type TFenceGl } from "./polymorphic-frame-time.js";
 import { DEFAULT_REGULATION_THRESHOLDS, evaluateRegulation, medianOf, newRegulationState, recordFrameTime } from "./polymorphic-regulator.js";
 import { GRAPH_DRAWING_BLIP, GRAPH_FRAME_BLIP, GRAPH_REGULATION_BLIP, type TDrawingReason, type TWakeCause } from "../../graph-blips.js";
-import { SEQ_LANE_SPACING, actorBars, type TSeqModel } from "../polymorphic/sequence-model.js";
-import { type FGNode, type FGLink, type TSprite, GRAPH_SCENE_EVENT, linkEndId, neighboursOf } from "../polymorphic/polymorphic-graph-types.js";
-import { forceLayout, type IGraphLayout } from "../polymorphic/polymorphic-layout.js";
-import { SvgRenderer } from "../polymorphic/polymorphic-svg-renderer.js";
-import { NodeDrag, DRAG_THRESHOLD_PX } from "../polymorphic/polymorphic-drag.js";
-import { NODE_TEXT_COLOR, chipTextHeight } from "../polymorphic/layout-forces.js";
-import { paintMarkScene, type ShapeLabel, type ShapeThree } from "../polymorphic/polymorphic-node-shapes.js";
-import { PolymorphicFocus, NODE_RENDER_ORDER, NODE_FONT_SIZE } from "../polymorphic/polymorphic-focus.js";
+import { SEQ_LANE_SPACING, actorBars, type TSeqModel } from "./sequence-model.js";
+import { type FGNode, type FGLink, type TSprite, GRAPH_SCENE_EVENT, linkEndId, neighboursOf } from "./polymorphic-graph-types.js";
+import { forceLayout, type IGraphLayout } from "./polymorphic-layout.js";
+import { SvgRenderer } from "./polymorphic-svg-renderer.js";
+import { NodeDrag, DRAG_THRESHOLD_PX } from "./polymorphic-drag.js";
+import { NODE_TEXT_COLOR, chipTextHeight } from "./layout-forces.js";
+import { paintMarkScene, type ShapeLabel, type ShapeThree } from "./polymorphic-node-shapes.js";
+import { PolymorphicFocus, NODE_RENDER_ORDER, NODE_FONT_SIZE } from "./polymorphic-focus.js";
 import {
 	EnclosureController,
 	type EnclosureThree,
@@ -2681,7 +2681,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const hidden = new Set(this.model.hiddenGraphs);
 		const quads = this.model.visibleQuads.filter((q) => !hidden.has(q.namedGraph));
 		// `nodeCount`/`edgeCount` describe the graph the statements project (the render's own node/edge set), so a reader: a
-		// Kihan, the clipboard, or a driver asserting expected values, has the counts without re-deriving them from the
+		// model, the clipboard, or a driver asserting expected values, has the counts without re-deriving them from the
 		// statements. `totalItems` stays the view's own member count (the statements).
 		return {
 			"@id": "view:graph",
@@ -2696,7 +2696,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		};
 	}
 
-	/** The host's copy-graph button copies the same JSON-LD the Kihan reads, pretty-printed. */
+	/** The host's copy-graph button copies the same JSON-LD a model reads, pretty-printed. */
 	graphCopyText(): string {
 		return JSON.stringify(this.graphJsonLd(), null, 2);
 	}

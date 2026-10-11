@@ -4,11 +4,5 @@
 	},
 	"modules/shu/src/components/shu-polymorphic-graph-view.ts": {
 		"type Scene": 1
-	},
-	"modules/shu/src/page/components/shu-chat-message.ts": {
-		"type Comment": 2
-	},
-	"modules/shu/src/page/components/shu-kihan-chat.ts": {
-		"field generatedAtTime": 1
 	}
 }

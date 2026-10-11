@@ -21,7 +21,7 @@ import { SCOPE, dispatchSubjectEvent } from "../../current-subject.js";
 import type { ShuColumnPane } from "./shu-column-pane.js";
 import { ActionsBarSchema, BAR_MODES, QuestionForkSchema, StepChoiceSchema, TypeChoiceSchema, type TQuestionFork } from "../../schemas.js";
 import { commandList, readSlashCommand, type TBarMode, type TInputLine, type TSlashCommand } from "../derivations/step-input.js";
-import type { ShuKihanChat } from "./shu-kihan-chat.js";
+import type { ShuAsk } from "../ask/components/shu-ask.js";
 // Constructed with `new` (not createElement + type-cast): the value use keeps the registering module in the
 // bundle: esbuild strips a TS import whose bindings only appear in type positions, silently dropping the
 // customElements.define side effect and leaving un-upgraded elements at runtime.
@@ -30,17 +30,17 @@ import { SignalController } from "../controllers/signal-controller.js";
 import { pageContext, pageStatus, pageTrail } from "../controllers/page-cell-controller.js";
 import { loadSlotExtensions } from "./slot-extensions.js";
 import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
-import { closeConversation, conversationState, dispatchConversationEvent, openConversation, STOPPED_BY_THE_READER } from "../../conversation.js";
+import { closeConversation, conversationState, dispatchConversationEvent, openConversation, STOPPED_BY_THE_READER } from "../ask/controllers/conversation-controller.js";
 import { hashParam, onHashChanged } from "../controllers/hash-controller.js";
 import { eventsAffectLabel } from "@haibun/core/lib/quad-types.js";
 import { isOffline } from "../controllers/hydration-controller.js";
 import { getActionBarChatExtensionTags } from "../controllers/catalog-controller.js";
 import { reportToRun } from "../../client-log.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import "./shu-kihan-chat.js";
+import "../ask/components/shu-ask.js";
 
 export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
-	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
+	/** A control doesn't contribute to a conversation's context, since it isn't a view of data. */
 	summarizeForContext(): TLinkedData | null {
 		return null;
 	}
@@ -124,7 +124,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.setState({ mode: "ask" });
 		this.openPane();
 		await this.updateComplete;
-		const pane = this.renderRoot.querySelector<ShuKihanChat>(SHU_TAG.KIHAN_CHAT);
+		const pane = this.renderRoot.querySelector<ShuAsk>(SHU_TAG.ASK);
 		if (!pane) this.failFast("a question can be asked again only where actuality offers asking");
 		await pane.fork(forking);
 	}
@@ -243,8 +243,8 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	/** The ask holds the transcript, so its settings stand above it and its input line below it. The pane's settings
 	 *  control reaches the chat's settings through this view, which holds that control's state. */
 	private askModeTemplate(hasAsk: boolean): TemplateResult {
-		return html`<shu-kihan-chat testid-prefix=${this.testIdPrefix} ?data-show-controls=${this.showControls}
-			>${this.modeToggleTemplate(hasAsk, "mode-toggle")}${this._history}</shu-kihan-chat
+		return html`<shu-ask testid-prefix=${this.testIdPrefix} ?data-show-controls=${this.showControls}
+			>${this.modeToggleTemplate(hasAsk, "mode-toggle")}${this._history}</shu-ask
 		>`;
 	}
 
@@ -294,7 +294,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	#inputLine(mode: TBarMode): TInputLine {
 		if (mode === "search") return this.#query;
 		if (mode === "step") return this.#steps;
-		const pane = this.renderRoot.querySelector<ShuKihanChat>(SHU_TAG.KIHAN_CHAT);
+		const pane = this.renderRoot.querySelector<ShuAsk>(SHU_TAG.ASK);
 		if (!pane) this.failFast("a question can be asked only where actuality offers asking");
 		return pane;
 	}

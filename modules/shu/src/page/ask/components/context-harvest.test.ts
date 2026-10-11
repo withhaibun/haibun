@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
-import { harvestChatViewLd } from "./chat-context-harvest.js";
-import { activePane } from "./page/root.js";
+import { harvestChatViewLd } from "./context-harvest.js";
+import { activePane } from "../../root.js";
 
 type TView = HTMLElement & { summarizeForContext(): unknown | null };
 
@@ -41,7 +41,7 @@ describe("harvestChatViewLd: the active pane's linked data plus the pane manifes
 		const b = pane("second", view("shu-document-column", { "@id": "d1" }));
 		activePane.set("second");
 		mount(a, b);
-		const blocks = harvestChatViewLd();
+		const blocks = harvestChatViewLd(document);
 		expect(blocks[0]).toEqual({ "@id": "d1" });
 		const manifest = blocks.at(-1) as { "@type"?: string; name: string; totalItems: number; items: Array<{ name: string; component: string; active: boolean }> };
 		expect(manifest["@type"], "a block a page carries doesn't claim a type, since what it describes isn't persisted").toBeUndefined();
@@ -62,7 +62,7 @@ describe("harvestChatViewLd: the active pane's linked data plus the pane manifes
 		const p = pane("graph", wrapper);
 		activePane.set("graph");
 		mount(p);
-		const blocks = harvestChatViewLd();
+		const blocks = harvestChatViewLd(document);
 		// The harvest carries only the host's summary. The host's summary covers its nested scene.
 		expect(blocks.filter((b) => (b as { "@id"?: string })["@id"] === "graph")).toHaveLength(1);
 		expect(blocks.filter((b) => (b as { "@id"?: string })["@id"] === "scene")).toHaveLength(0);
@@ -72,7 +72,7 @@ describe("harvestChatViewLd: the active pane's linked data plus the pane manifes
 		const p = pane("controls", view("shu-views-picker", null));
 		activePane.set("controls");
 		mount(p);
-		const blocks = harvestChatViewLd();
+		const blocks = harvestChatViewLd(document);
 		expect(blocks).toHaveLength(1); // manifest only
 		expect((blocks[0] as { items: unknown[] }).items).toHaveLength(1);
 	});
@@ -82,7 +82,7 @@ describe("harvestChatViewLd: the active pane's linked data plus the pane manifes
 		const actions = Object.assign(pane("Actions", view("shu-actions-bar", null)), { activates: false });
 		activePane.set("first");
 		mount(column, actions);
-		const manifest = harvestChatViewLd().at(-1) as { totalItems: number; items: Array<{ name: string }> };
+		const manifest = harvestChatViewLd(document).at(-1) as { totalItems: number; items: Array<{ name: string }> };
 		expect(manifest.items.map((item) => item.name)).toEqual(["first"]);
 		expect(manifest.totalItems).toBe(1);
 	});
@@ -92,7 +92,7 @@ describe("harvestChatViewLd: the active pane's linked data plus the pane manifes
 		const actions = Object.assign(pane("Actions", view("shu-actions-bar", { "@id": "a1", exchanges: [{ "@id": "x1" }] })), { activates: false });
 		activePane.set("Actions");
 		mount(column, actions);
-		const blocks = harvestChatViewLd();
+		const blocks = harvestChatViewLd(document);
 		// The harvest carries the bar's summary, since the bar's pane is active. The manifest lists only the columns.
 		expect(blocks.some((b) => (b as { "@id"?: string })["@id"] === "a1")).toBe(true);
 		const manifest = blocks.at(-1) as { totalItems: number; items: Array<{ name: string }> };
@@ -101,7 +101,7 @@ describe("harvestChatViewLd: the active pane's linked data plus the pane manifes
 	});
 
 	it("returns empty when a strip isn't mounted", () => {
-		expect(harvestChatViewLd()).toEqual([]);
+		expect(harvestChatViewLd(document)).toEqual([]);
 	});
 });
 
@@ -134,11 +134,11 @@ describe("harvestChatViewLd: an activePane key that doesn't match an open pane",
 		activePane.set("a-pane-that-closed");
 		mount(a, b);
 		// The error names the key and the open panes, so a developer can find the writer that set the key.
-		expect(() => harvestChatViewLd()).toThrow(/"a-pane-that-closed".*isn't one of the 2 open pane\(s\).*"first", "second"/s);
+		expect(() => harvestChatViewLd(document)).toThrow(/"a-pane-that-closed".*isn't one of the 2 open pane\(s\).*"first", "second"/s);
 	});
 
 	it("throws when the signal was never set, so a model's prompt doesn't state that a pane isn't selected", () => {
 		mount(pane("first", view("shu-entity-column", { "@id": "e1" })));
-		expect(() => harvestChatViewLd()).toThrow(/activePane is null/);
+		expect(() => harvestChatViewLd(document)).toThrow(/activePane is null/);
 	});
 });

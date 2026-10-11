@@ -4,10 +4,10 @@
  * on a control that returns them to the newest.
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { question, readBack } from "./chat-pane.test-fake.js";
+import { question, readBack } from "../ask/components/chat-pane.test-fake.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { setupShuTest } from "../../test-setup.js";
-import { conversationState, dispatchConversationEvent } from "../../conversation.js";
+import { conversationState, dispatchConversationEvent } from "../ask/controllers/conversation-controller.js";
 import { ShuActivityHistory } from "./shu-activity-history.js";
 import { timeCursor } from "../controllers/page-cell-controller.js";
 

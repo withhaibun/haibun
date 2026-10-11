@@ -20,7 +20,7 @@ import { statedTotal, type TCounted } from "@haibun/core/lib/hypermedia.js";
 export type TChip = { id: string; label: string; checked: boolean; count?: TCounted; color?: string };
 
 class ShuChipGroup extends ShuElement<z.ZodObject> {
-	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
+	/** A control doesn't contribute to a conversation's context, since it isn't a view of data. */
 	summarizeForContext(): TLinkedData | null {
 		return null;
 	}

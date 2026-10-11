@@ -14,16 +14,15 @@ import { shuBaseStyles } from "./styles.js";
 import type { ShuColumnPane } from "./shu-column-pane.js";
 import { revealInDocument } from "../../reveal.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { paneKeyOf } from "../derivations/pane-kinds.js";
 
 type PaneEl = ShuColumnPane & HTMLElement;
 
-/** A pane's stable identity in the `activePane` signal: its columnKey, or its column-type for the query pane (which doesn't have one). */
-const paneKeyOf = (pane: PaneEl): string => pane.dataset.columnKey ?? pane.getAttribute(SHU_ATTR.COLUMN_TYPE) ?? "";
 /** Layout snapshot taken when a pane maximizes; restored on un-maximize. Flex is derived state (the pane recomputes it), so only display and accordion collapse are stashed. */
 type SavedPaneState = { accordionCollapsed: boolean; inlineDisplay: string };
 
 export class ShuColumnStrip extends ShuElement<typeof EmptyStateSchema> {
-	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
+	/** A control doesn't contribute to a conversation's context, since it isn't a view of data. */
 	summarizeForContext(): TLinkedData | null {
 		return null;
 	}
@@ -277,8 +276,7 @@ export class ShuColumnStrip extends ShuElement<typeof EmptyStateSchema> {
 		// Close requests route through the pane controller (via <shu-page>), which owns the desired
 		// set and the URL hash. The strip never removes panes on its own, reconcile does.
 		const pane = (e as CustomEvent).target as PaneEl;
-		const paneId = pane.dataset.columnKey ?? pane.getAttribute("column-type") ?? "";
-		if (!paneId) return;
+		const paneId = paneKeyOf(pane);
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.PANE_DISMISS, { detail: { paneId }, bubbles: true, composed: true }));
 	};
 

@@ -12,8 +12,8 @@
  * carries on from where it stopped, so a graph of any size is readable and a repaint doesn't build all of it. All text
  * lands via textContent, so node names don't need escaping.
  */
-import { linkEndId, type FGNode } from "../polymorphic/polymorphic-graph-types.js";
-import { graphSummary, type IGraphRenderer, type TDrawn } from "../polymorphic/polymorphic-renderer.js";
+import { linkEndId, type FGNode } from "./polymorphic-graph-types.js";
+import { graphSummary, type IGraphRenderer, type TDrawn } from "./polymorphic-renderer.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 
 /** What the medium needs from its host. */

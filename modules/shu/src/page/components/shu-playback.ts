@@ -29,7 +29,7 @@ const StateSchema = z.object({ playing: z.boolean(), speed: z.number() });
 export class ShuPlayback extends ShuElement<typeof StateSchema> {
 	/** The page's time cursor, which playback moves and follows. */
 	readonly #timeline = new TimelineViewController(this, { onMove: (cursor) => this.#cursorMoved(cursor) });
-	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
+	/** A control doesn't contribute to a conversation's context, since it isn't a view of data. */
 	summarizeForContext(): TLinkedData | null {
 		return null;
 	}

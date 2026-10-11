@@ -54,7 +54,7 @@ const STYLES = `
 const FULLSCREEN = "fullscreen";
 
 export class ShuArtifactFrame extends ShuElement<typeof EmptyStateSchema> {
-	/** An artifact is part of the document that shows it, so the frame doesn't contribute to the Kihan's context on its own. */
+	/** An artifact is part of the document that shows it, so the frame doesn't contribute to a conversation's context on its own. */
 	summarizeForContext(): TLinkedData | null {
 		return null;
 	}

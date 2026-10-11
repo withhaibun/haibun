@@ -9,13 +9,25 @@
  * `summarizeForContext` method and not by `instanceof`. The polymorphic view is built into a separate bundle, which defines
  * its own ShuElement class.
  */
-import { activePane } from "./page/root.js";
+import { activePane } from "../../controllers/page-cell-controller.js";
+import { paneKeyOf } from "../../derivations/pane-kinds.js";
 import { PAGE_TERMS, ViewCollectionSchema, viewCollection, type TLinkedData, type TViewCollection } from "@haibun/core/lib/hypermedia.js";
 
 type TSummarizes = Element & { summarizeForContext(): TLinkedData | null };
 
-/** A pane's key in the `activePane` signal: its columnKey, or its column-type for the query pane, which doesn't have a columnKey. */
-const paneKeyOf = (pane: Element): string => (pane as HTMLElement).dataset.columnKey ?? pane.getAttribute("column-type") ?? "";
+/** The name a manifest gives a pane: its label, or its key where the pane doesn't state a label. */
+function paneName(pane: HTMLElement): string {
+	const label = pane.getAttribute("label");
+	return label === null ? paneKeyOf(pane) : label;
+}
+
+/** The tag of the view a pane shows: its top-most summarizer, else its first element. A pane without an element is a fault in the strip. */
+function componentOf(pane: HTMLElement): string {
+	const [view] = topSummarizers(pane);
+	const shown = view === undefined ? pane.firstElementChild : view;
+	if (shown === null) throw new Error(`the column pane ${JSON.stringify(paneKeyOf(pane))} doesn't hold an element. The column strip renders a view in each pane.`);
+	return shown.tagName.toLowerCase();
+}
 
 const summarizes = (el: Element): el is TSummarizes => typeof (el as Partial<TSummarizes>).summarizeForContext === "function";
 
@@ -38,7 +50,7 @@ export const HARVEST_MEMBERS = 200;
  * page that carries them doesn't have an address of its own. A summary without `items` is returned unchanged and isn't
  * bounded. A view of that shape holds what it projects, as `shu-graph` holds the nodes and edges of one domain chain.
  */
-export function harvested(summary: TLinkedData, holds = HARVEST_MEMBERS): TLinkedData {
+export function harvested(summary: TLinkedData, holds: number): TLinkedData {
 	if (!Array.isArray(summary.items)) return summary;
 	const collection = ViewCollectionSchema.safeParse(summary);
 	if (!collection.success)
@@ -54,12 +66,12 @@ type TPaneManifestEntry = { name: string; component: string; active: boolean };
  *  beyond the active pane from it, and its tool calls can read another pane's subject through the graph steps. */
 type TPaneManifest = TViewCollection & { items: TPaneManifestEntry[] };
 
-export function harvestChatViewLd(root: ParentNode = document): TLinkedData[] {
+export function harvestChatViewLd(root: ParentNode): TLinkedData[] {
 	const strip = root.querySelector("shu-column-strip");
 	if (!strip) return [];
 	// A pane whose `activates` is false isn't a column of the workspace. The reader acts on other views through its view,
 	// as through the actions bar's view.
-	const allPanes = Array.from(strip.querySelectorAll("shu-column-pane"));
+	const allPanes = Array.from(strip.querySelectorAll<HTMLElement>("shu-column-pane"));
 	const panes = allPanes.filter((pane) => (pane as Element & { activates?: boolean }).activates !== false);
 	if (panes.length === 0) return [];
 	const activeKey = activePane.get();
@@ -78,7 +90,7 @@ export function harvestChatViewLd(root: ParentNode = document): TLinkedData[] {
 		const summary = el.summarizeForContext();
 		if (summary == null) continue;
 		try {
-			blocks.push(harvested(summary));
+			blocks.push(harvested(summary, HARVEST_MEMBERS));
 		} catch (err) {
 			// A summary that ViewCollectionSchema rejects is a fault in its view. The error names the view's tag, so a
 			// developer can find the view.
@@ -88,11 +100,7 @@ export function harvestChatViewLd(root: ParentNode = document): TLinkedData[] {
 	const manifest = viewCollection({
 		id: "view:panes",
 		name: "every open column in the workspace; the active pane's content is included in this context, and another pane's subject can be fetched through the graph steps by its name or type",
-		items: panes.map((p) => ({
-			name: p.getAttribute("label") ?? p.getAttribute("column-type") ?? "",
-			component: topSummarizers(p)[0]?.tagName.toLowerCase() ?? p.firstElementChild?.tagName.toLowerCase() ?? "",
-			active: p === active,
-		})),
+		items: panes.map((p) => ({ name: paneName(p), component: componentOf(p), active: p === active })),
 	}) as TPaneManifest;
 	blocks.push(manifest);
 	return blocks;
@@ -101,8 +109,7 @@ export function harvestChatViewLd(root: ParentNode = document): TLinkedData[] {
 /** Returns the top-most summarizers in a pane's light DOM. A wrapper can contain a view, as the query pane's wrapper does.
  *  A composite view summarizes its whole subtree, so the summarizers nested in it are left out. The polymorphic view host
  *  is a composite view over its scene. */
-function topSummarizers(pane: Element | undefined): TSummarizes[] {
-	if (!pane) return [];
+function topSummarizers(pane: Element): TSummarizes[] {
 	const candidates = Array.from(pane.querySelectorAll("*")).filter(summarizes);
 	return candidates.filter((el) => !candidates.some((other) => other !== el && other.contains(el)));
 }

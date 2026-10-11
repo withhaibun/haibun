@@ -10,28 +10,25 @@
  */
 import { describe, expect, it } from "vitest";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
-import { type TTurnStatus } from "./schemas.js";
+import { type TTurnStatus } from "../../../schemas.js";
 import { anIndividual, type TChatStatus, type TSessionTurn } from "@haibun/core/lib/conversation/domains/conversation.js";
-import type { TRecord } from "./current-subject.js";
-import { question, answer, readBack as aReadBack } from "./page/components/chat-pane.test-fake.js";
+import type { TRecord } from "../../../current-subject.js";
+import { question, answer, readBack as aReadBack } from "../components/chat-pane.test-fake.js";
 import {
-	CLOSED_CONVERSATION,
 	CONVERSATION_EVENTS,
 	CONVERSATION_OPENING,
 	NOT_STARTED,
 	REQUEST_EVENTS,
 	SENDING,
 	TURN_IN_FLIGHT,
-	askRefusal,
 	inFlight,
-	transcript,
-	transition,
-	turnOf,
 	type TAskedTurn,
 	type TConversationEvent,
 	type TConversationEventType,
 	type TConversationState,
-} from "./conversation.js";
+} from "../domains/conversation.js";
+import { CLOSED_CONVERSATION, askRefusal, transition, turnOf } from "./conversation.js";
+import { transcript } from "../derivations/transcript.js";
 import { assertTable, pickWith, runSequences, staying as stayingOn } from "@haibun/core/lib/test/machine-table.js";
 
 /** The session's first turn. Its question record names the session. */
@@ -153,7 +150,7 @@ describe("each move of the conversation", () => {
 		const moved = transition(AT.opening, { type: "open", session: question("0.2.1") });
 		expect(transition(moved, EVENT.read)).toBe(moved);
 		expect(transition(AT.closed, EVENT.read)).toBe(AT.closed);
-		expect(AT.open.turns).toEqual([{ ...readBack(FIRST), error: "", progress: "", context: [], calls: [] }]);
+		expect(AT.open.turns).toEqual([{ ...readBack(FIRST), progress: "", context: [], calls: [] }]);
 	});
 
 	it("`read` writes the context and calls of the page's ended turn onto the store's copy of that turn", () => {
@@ -208,7 +205,6 @@ describe("each move of the page's turn", () => {
 			// Actuality writes the turn's time when it records the turn. A turn that is still `asking` holds an empty time.
 			generatedAtTime: "",
 			status: "asking",
-			error: "",
 			progress: "",
 			context: [],
 			calls: [],
@@ -238,7 +234,8 @@ describe("each move of the page's turn", () => {
 			askId: QUESTION.id,
 			sayId: ANSWER.id,
 		});
-		for (const type of ["text", "status", "context", "called", "recorded"] as const) expect(transition(TURN_AT.asking, EVENT[type]), `asking + ${type}`).toBe(TURN_AT.asking);
+		for (const type of ["text", "status", "context", "called", "recorded"] as const)
+			expect(transition(TURN_AT.asking, EVENT[type]), `${TURN_AT.asking.status} + ${type}`).toBe(TURN_AT.asking);
 	});
 
 	it("`refused` adds each refused action of a running turn once, and doesn't change a turn that isn't running", () => {
@@ -260,7 +257,8 @@ describe("each move of the page's turn", () => {
 
 	it("`erred` fails a turn that a reader didn't stop, and `ended` completes a running turn and fails a turn whose step didn't start", () => {
 		expect(TURN_AT.failed.asked).toMatchObject({ status: "failed", error: "connection reset" });
-		expect(TURN_AT.completed.asked).toMatchObject({ status: "completed", error: "" });
+		expect(TURN_AT.completed.asked).toMatchObject({ status: "completed" });
+		expect(TURN_AT.completed.asked?.error, "a completed turn doesn't state an error").toBeUndefined();
 		expect(on("open", "read", "ask", "ended").asked).toMatchObject({ status: "failed", error: NOT_STARTED });
 	});
 

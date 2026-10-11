@@ -9,7 +9,7 @@ import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
 import { ShuActionsBar } from "./shu-actions-bar.js";
 import { SHU_EVENT } from "../../domains/elements.js";
 import { persistedTypeDefinition, serveThePage, setupShuTest, type TShuTestHandle } from "../../test-setup.js";
-import { CHAT_STEP, chatDispatch } from "./chat-pane.test-fake.js";
+import { CHAT_STEP, chatDispatch } from "../ask/components/chat-pane.test-fake.js";
 
 const TYPE = "Email";
 const SELECT_VALUES = "getSelectValues";

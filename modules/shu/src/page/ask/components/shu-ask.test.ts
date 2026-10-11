@@ -7,18 +7,18 @@
  * fault: the selector is always rendered, and its options fill in as sessions arrive.
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { CHAT_STEP, chatDispatch } from "./chat-pane.test-fake.js";
-import { DrivenStream, setupShuTest, type TShuTestHandle } from "../../test-setup.js";
+import { A_CATALOG, CHAT_STEP, chatDispatch } from "./chat-pane.test-fake.js";
+import { DrivenStream, setupShuTest, type TShuTestHandle } from "../../../test-setup.js";
 // The selector must be a real combobox, so define that one element rather than the whole registry.
-import "./shu-combobox.js";
-import { ShuKihanChat } from "./shu-kihan-chat.js";
-import { SHU_ATTR } from "../../domains/elements.js";
-import { CLOSED_CONVERSATION, conversationState } from "../../conversation.js";
+import "../../components/shu-combobox.js";
+import { ShuAsk } from "./shu-ask.js";
+import { SHU_ATTR } from "../../../domains/elements.js";
+import { CLOSED_CONVERSATION, conversationState } from "../controllers/conversation-controller.js";
 import { counted } from "@haibun/core/lib/hypermedia.js";
 
 const listed: Array<{ session: string; label: string; generatedAtTime: string; turns: number }> = [];
 let onStartSeqPath: number[] | null = null;
-/** What the server answers the session read with. A deployment that answers without the list is the failed-read case. */
+/** What the server returns for the session read. A deployment that responds without the list is the failed-read case. */
 let sessionsAnswer: () => Record<string, unknown> = () => ({ sessions: [...listed], ...counted(listed.length) });
 
 /** A turn that streams text and completes, announcing the seqPath a case sets, where it sets one. */
@@ -33,16 +33,14 @@ const aTurn = () =>
 let t: TShuTestHandle;
 beforeEach(() => {
 	t = setupShuTest({
-		dispatch: chatDispatch((step) =>
-			step === CHAT_STEP.sessions ? sessionsAnswer() : step === CHAT_STEP.catalog ? { vertices: [], ...counted(0) } : step === CHAT_STEP.ask ? aTurn() : {},
-		),
+		dispatch: chatDispatch((step) => (step === CHAT_STEP.sessions ? sessionsAnswer() : step === CHAT_STEP.catalog ? A_CATALOG : step === CHAT_STEP.ask ? aTurn() : {})),
 	});
 });
 afterEach(() => t.teardown());
 
 async function chat(): Promise<HTMLElement> {
 	document.body.innerHTML = "";
-	const el = new ShuKihanChat();
+	const el = new ShuAsk();
 	// The selector is one of the chat's settings, which the pane's settings control shows.
 	el.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");
 	document.body.appendChild(el);
@@ -84,7 +82,7 @@ describe("the session selector", () => {
 		expect(optionCount(el)).toBe(2);
 	});
 
-	it("keeps the pane rendering when the read answers without a list, so the conversation continues past that turn", async () => {
+	it("keeps the pane rendering when the read returns without a list, so the conversation continues past that turn", async () => {
 		sessionsAnswer = () => ({});
 		const el = await chat();
 		await turn(el, "the first");

@@ -1,6 +1,6 @@
 /// <reference path="./three-controls.d.ts" />
 import type { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { FRAME, type FrameMove, type ReframeMode } from "../polymorphic/polymorphic-views.js";
+import { FRAME, type FrameMove, type ReframeMode } from "./polymorphic-views.js";
 import type { TMatrix4Elements } from "./polymorphic-render-context.js";
 
 /** Sole owner of camera CONTROL for the polymorphic view: every framing, viewport, and navigation move that mutates the

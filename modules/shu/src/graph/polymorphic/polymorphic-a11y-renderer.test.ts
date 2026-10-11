@@ -7,7 +7,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { A11yRenderer, type TA11yRendererDeps } from "./polymorphic-a11y-renderer.js";
-import type { FGLink, FGNode } from "../polymorphic/polymorphic-graph-types.js";
+import type { FGLink, FGNode } from "./polymorphic-graph-types.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 
 const nodes: FGNode[] = [

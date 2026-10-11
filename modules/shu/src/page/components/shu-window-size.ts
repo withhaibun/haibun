@@ -10,7 +10,7 @@ import { defineElement } from "../controllers/element-controller.js";
 import { INITIAL_WINDOW_SIZE, PAGE_SETTING_KEY, WINDOW_SIZES, WindowSizeSchema } from "../domains/settings.js";
 
 class ShuWindowSize extends ShuElement<typeof WindowSizeSchema> {
-	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
+	/** A control doesn't contribute to a conversation's context, since it isn't a view of data. */
 	summarizeForContext(): TLinkedData | null {
 		return null;
 	}

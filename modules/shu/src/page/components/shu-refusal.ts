@@ -20,7 +20,7 @@ import "./shu-copy-button.js";
 const RELOAD_SAID = { client: "Reload the page", actuality: "Read actuality again", authority: "Read the authority again" } as const;
 
 export class ShuRefusal extends ShuElement<typeof EmptyStateSchema> {
-	/** A refusal is part of the view that shows it, so it doesn't contribute to the Kihan's context on its own. */
+	/** A refusal is part of the view that shows it, so it doesn't contribute to a conversation's context on its own. */
 	summarizeForContext(): TLinkedData | null {
 		return null;
 	}

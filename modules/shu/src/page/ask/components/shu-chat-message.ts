@@ -1,27 +1,26 @@
 /**
- * <shu-chat-message>: one question or one answer of the conversation's transcript. Purely prop-driven: the activity
+ * <shu-chat-message>: one question or one response of the conversation's transcript. Purely prop-driven: the activity
  * history renders the transcript from the conversation and the page's turn, and passes each message one TChatMessage.
- * Lives in light DOM so the host scope's styles reach it.
+ * It renders in light DOM so the host scope's styles reach it.
  */
 import { css, html, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { guard } from "lit/directives/guard.js";
 import { z } from "zod";
-import { refContext } from "../controllers/catalog-controller.js";
-import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
-import "./shu-spinner.js";
-import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
-import { SCOPE, dispatchSubjectEvent } from "../../current-subject.js";
-import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
-import { defineElement } from "../controllers/element-controller.js";
-import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import { patternRef, recordRef } from "./shu-ref.js";
+import { refContext } from "../../controllers/catalog-controller.js";
+import { ShuElement, type TLinkedData, EmptyStateSchema } from "../../components/shu-element.js";
+import "../../components/shu-spinner.js";
+import { SCOPE, dispatchSubjectEvent } from "../../../current-subject.js";
+import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../../domains/elements.js";
+import { defineElement } from "../../controllers/element-controller.js";
+import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
+import { patternRef, recordRef } from "../../components/shu-ref.js";
 import { CalledSchema } from "@haibun/core/lib/called.js";
 import { ICON_STEP_COMPLETED, RETURNED_TO_CALLER } from "@haibun/core/schema/protocol.js";
-import { BundleSchema, ChatRoleSchema, type TBundle, type TChatRole, type TQuestionFork } from "../../schemas.js";
+import { BundleSchema, ChatRoleSchema, type TBundle, type TChatRole, type TQuestionFork } from "../../../schemas.js";
 import { ChatStatusSchema, UNVERIFIED_TURN } from "@haibun/core/lib/conversation/domains/conversation.js";
-import { proseText, renderRefAnswer, renderRefProse } from "../derivations/markdown.js";
+import { proseText, renderRefAnswer, renderRefProse } from "../../derivations/markdown.js";
 
 /** Styles for a light-DOM chat message, exported for the shadow scope that hosts the activity history: the message
  *  renders in light DOM, so the scope that contains it declares the rules. */
@@ -62,23 +61,26 @@ export const chatMessageStyles = css`
 export const ChatMessageSchema = z.object({
 	id: z.string(),
 	role: ChatRoleSchema,
-	text: z.string().default(""),
+	text: z.string(),
 	status: ChatStatusSchema.optional(),
 	turn: z.string().optional(),
-	spinnerStatus: z.string().default(""),
+	spinnerStatus: z.string(),
 	/** The lines of what the turn sent: its model and window, the records it carried and the context it read. */
-	context: z.array(z.string()).default([]),
+	context: z.array(z.string()),
 	/** The calls the turn made, each with the record of the call. */
-	calls: z.array(CalledSchema).default([]),
-	spinnerVisible: z.boolean().default(false),
-	spinnerSpinning: z.boolean().default(true),
-	error: z.string().default(""),
-	/** The handles the answer states that what its turn was sent doesn't hold, where the turn is unverified. */
-	unverified: z.array(z.string()).default([]),
+	calls: z.array(CalledSchema),
+	spinnerVisible: z.boolean(),
+	spinnerSpinning: z.boolean(),
+	/** Why the turn failed or stopped; unset for a turn that hasn't failed. */
+	error: z.string().optional(),
+	/** The handles the response states that the context its turn was sent doesn't hold; unset where the turn is verified. */
+	unverified: z.array(z.string()).optional(),
 	/** The id of the comment actuality recorded for this message. Selecting the message selects that comment. */
 	recordId: z.string().optional(),
-	/** The context the turn was sent with, which selecting the message makes active again. */
-	bundle: BundleSchema.optional(),
+	/** The type of the records actuality records the conversation's messages as, which the transcript states. */
+	recordType: z.string(),
+	/** The context the turn carried, which selecting the message makes active again. */
+	bundle: BundleSchema,
 	/** The question record of the turn this message's turn replies to; unset for the turn that starts a session. */
 	inReplyTo: z.string().optional(),
 	/** Where another branch of the conversation leaves the branch shown at this reply: that branch's latest message, and
@@ -92,21 +94,28 @@ const ROLE_LABEL: Record<TChatRole, string> = { user: "🧘", llm: "🤖" };
 /** The controls under a question's icon that fork the conversation at it, as each is named and described. */
 export const FORK_CONTROLS = {
 	fork: { label: "Fork", title: "Fork: ask it again as a new branch" },
-	editAndFork: { label: "Edit and fork", title: "Edit and fork: change it, then ask it as a new branch" },
+	editAndFork: { label: "Edit and fork", title: "Edit and fork: change it, then send it as a new branch" },
 } as const;
 
-/** Activate a comment of the conversation in the actions bar's scope, with the bundle its turn was sent with. */
-function activateComment(id: string, turn: string, bundle: TBundle): void {
-	dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: { record: { id, label: COMMENT_LABEL }, turn, bundle } });
+/** Activate a record of the conversation in the actions bar's scope, with the bundle that its turn carried. */
+function activateRecord(label: string, id: string, turn: string, bundle: TBundle): void {
+	dispatchSubjectEvent({ type: "activate", scope: SCOPE.actionsBar, entry: { record: { id, label }, turn, bundle } });
 }
 
 export class ShuChatMessage extends ShuElement<typeof EmptyStateSchema> {
-	/** A control doesn't contribute to the Kihan's context, since it isn't a view of data. */
+	/** A control doesn't contribute to a conversation's context, since it isn't a view of data. */
 	summarizeForContext(): TLinkedData | null {
 		return null;
 	}
 
-	@property({ attribute: false }) accessor message: TChatMessage = ChatMessageSchema.parse({ id: "", role: "user" });
+	/** The message this element shows. The history sets it before the element renders. */
+	@property({ attribute: false }) accessor message: TChatMessage | undefined;
+
+	/** The message set on this element. An element rendered without one is a fault in the view that renders it. */
+	private get shown(): TChatMessage {
+		if (this.message === undefined) throw new Error(`<${SHU_TAG.CHAT_MESSAGE}> rendered without a message. Set its message property where the history renders it.`);
+		return this.message;
+	}
 
 	constructor() {
 		super(EmptyStateSchema);
@@ -121,33 +130,33 @@ export class ShuChatMessage extends ShuElement<typeof EmptyStateSchema> {
 	 *  and the transcript shows that branch. */
 	private onOtherBranch = (e: Event): void => {
 		e.stopPropagation(); // the click is on the control, not a selection of this message
-		const other = this.message.otherBranch;
+		const other = this.shown.otherBranch;
 		if (!other) return;
-		activateComment(other.recordId, other.turn, other.bundle);
+		activateRecord(this.shown.recordType, other.recordId, other.turn, other.bundle);
 	};
 
-	/** Fork the conversation at this question. It is asked again, as it was or after editing, as a reply to the turn the
+	/** Fork the conversation at this question. It is sent again, as it was or after editing, as a reply to the turn the
 	 *  original replied to, so it starts another branch. The actions bar that holds the history handles the event. */
 	private fork =
 		(send: boolean) =>
 		(e: Event): void => {
 			e.stopPropagation(); // the click is on the control, not a selection of this message
-			const m = this.message;
-			const detail: TQuestionFork = { prompt: m.text, patterns: m.bundle?.patterns ?? [], inReplyTo: m.inReplyTo, send };
+			const m = this.shown;
+			const detail: TQuestionFork = { prompt: m.text, patterns: m.bundle.patterns, inReplyTo: m.inReplyTo, send };
 			this.dispatchEvent(new CustomEvent(SHU_EVENT.QUESTION_FORK, { detail, bubbles: true, composed: true }));
 		};
 
-	/** Activate the comment this message was recorded as, with the bundle its turn was sent with, in the actions bar's
+	/** Activate the comment this message was recorded as, with the bundle that its turn carried, in the actions bar's
 	 *  scope. The graph follows that comment, and the next question replies to its turn. A message without a recorded
 	 *  comment doesn't activate a comment. */
 	private onSelect = (): void => {
-		const m = this.message;
-		if (!m.recordId || !m.turn || !m.bundle) return;
-		activateComment(m.recordId, m.turn, m.bundle);
+		const m = this.shown;
+		if (!m.recordId || !m.turn) return;
+		activateRecord(m.recordType, m.recordId, m.turn, m.bundle);
 	};
 
 	render(): TemplateResult {
-		const m = this.message;
+		const m = this.shown;
 		// Host attributes reflect the message on each render, so a page reader selects a message by its state.
 		const reflected: Array<[string, string | undefined]> = [
 			[SHU_ATTR.DATA_ROLE, m.role],
@@ -161,7 +170,7 @@ export class ShuChatMessage extends ShuElement<typeof EmptyStateSchema> {
 		return html`
 			<div class="msg" @click=${this.onSelect}>
 				<span class="msg-label">
-					${m.recordId ? recordRef(COMMENT_LABEL, m.recordId, ROLE_LABEL[m.role], SHU_TEST_IDS.APP.CHAT_RECORD) : ROLE_LABEL[m.role]}
+					${m.recordId ? recordRef(m.recordType, m.recordId, ROLE_LABEL[m.role], SHU_TEST_IDS.APP.CHAT_RECORD) : ROLE_LABEL[m.role]}
 					${
 						m.role === "user" && m.recordId && m.text
 							? html`<button type="button" title=${FORK_CONTROLS.fork.title} aria-label=${FORK_CONTROLS.fork.label} data-testid=${SHU_TEST_IDS.APP.CHAT_FORK} @click=${this.fork(true)}>⑂</button>
@@ -172,14 +181,14 @@ export class ShuChatMessage extends ShuElement<typeof EmptyStateSchema> {
 				<div class="msg-content">
 					${m.role === "user" ? html`<div class="chat-prompt">${m.text}</div>` : ""}
 					${
-						m.role === "user" && m.bundle && m.bundle.patterns.length > 0
+						m.role === "user" && m.bundle.patterns.length > 0
 							? html`<div class="chat-carries" data-testid=${SHU_TEST_IDS.APP.CHAT_CARRIES}>about ${m.bundle.patterns.map(patternRef)}</div>`
 							: ""
 					}
 					${m.role === "llm" ? html`<shu-spinner .status=${proseText(m.spinnerStatus, refContext)} .visible=${m.spinnerVisible} .spinning=${m.spinnerSpinning}></shu-spinner>` : ""}
 					${
-						// What the answer was made of reads before the answer: the context it was sent and the calls it made
-						// come first in time, and a reader weighing the answer reads them first.
+						// What the response was made of reads before the response: the context the turn carried and the calls it
+						// made come first in time, and a reader weighing the response reads them first.
 						m.context.length > 0
 							? html`<details class="chat-made-of" data-testid=${SHU_TEST_IDS.APP.CHAT_CONTEXT}>
 								<summary>context sent (${m.context.length} lines)</summary>
@@ -197,7 +206,7 @@ export class ShuChatMessage extends ShuElement<typeof EmptyStateSchema> {
 					}
 					${m.role === "llm" && m.text ? html`<div class="chat-text" data-testid="app-chat-text">${unsafeHTML(renderRefAnswer(m.text, refContext))}</div>` : ""}
 					${m.error ? html`<div class="chat-error">${m.error}</div>` : ""}
-					${m.unverified.length > 0 ? html`<div class="chat-unverified" data-testid="app-chat-unverified">${UNVERIFIED_TURN}: ${m.unverified.join(", ")}</div>` : ""}
+					${m.unverified !== undefined && m.unverified.length > 0 ? html`<div class="chat-unverified" data-testid="app-chat-unverified">${UNVERIFIED_TURN}: ${m.unverified.join(", ")}</div>` : ""}
 					${
 						m.otherBranch
 							? html`<button class="other-branch" data-testid=${SHU_TEST_IDS.APP.CHAT_OTHER_BRANCH} @click=${this.onOtherBranch}>

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * The ask pane and the activity history over the page's turn and conversation, rendered in jsdom against a stream a case
- * holds open and finishes, and a store read a case answers.
+ * holds open and finishes, and a store read a case resolves.
  *
  * The pane sends a question from the active record and the conversation, and shows beside its input why a question is
  * refused. The history renders the transcript, so the conversation outlives the pane the actions bar removes when it
@@ -15,29 +15,21 @@ import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import type { TChatMessage } from "./shu-chat-message.js";
 import { anIndividual } from "@haibun/core/lib/conversation/domains/conversation.js";
-import { CHAT_STEP, answer, chatDispatch, question, readBack, type TDriven as Driven } from "./chat-pane.test-fake.js";
-import { DrivenStream, STREAM_ABORTED, setupShuTest, type TShuTestHandle } from "../../test-setup.js";
-import "./shu-combobox.js";
-import { ShuActivityHistory } from "./shu-activity-history.js";
-import { ShuKihanChat, NEW_CONVERSATION } from "./shu-kihan-chat.js";
-import {
-	CLOSED_CONVERSATION,
-	CONVERSATION_OPENING,
-	STOPPED_BY_THE_READER,
-	TURN_IN_FLIGHT,
-	askDraft,
-	conversationState,
-	dispatchConversationEvent,
-	openConversation,
-} from "../../conversation.js";
-import { CONVERSATION_PARAM, SHU_ATTR, SHU_TAG } from "../../domains/elements.js";
-import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import { pagePreferences } from "../root.js";
-import { hashParam, mergeHashParams } from "../controllers/hash-controller.js";
-import { INITIAL_SUBJECT, SCOPE, activeEntry, currentSubject, currentSubjectState, dispatchSubjectEvent, entryOf, scopeEntry } from "../../current-subject.js";
-import { EMBEDDED_PAGE_TYPE } from "../../domains/embedding.js";
-import { embeddedPageView } from "../root.js";
-import { activePane } from "../controllers/page-cell-controller.js";
+import { A_CATALOG, CHAT_STEP, answer, chatDispatch, question, readBack, type TDriven as Driven } from "./chat-pane.test-fake.js";
+import { DrivenStream, STREAM_ABORTED, setupShuTest, type TShuTestHandle } from "../../../test-setup.js";
+import "../../components/shu-combobox.js";
+import { ShuActivityHistory } from "../../components/shu-activity-history.js";
+import { ShuAsk, NEW_CONVERSATION } from "./shu-ask.js";
+import { CONVERSATION_OPENING, TURN_IN_FLIGHT } from "../domains/conversation.js";
+import { CLOSED_CONVERSATION, STOPPED_BY_THE_READER, askDraft, conversationState, dispatchConversationEvent, openConversation } from "../controllers/conversation-controller.js";
+import { CONVERSATION_PARAM, SHU_ATTR, SHU_TAG } from "../../../domains/elements.js";
+import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
+import { pagePreferences } from "../../root.js";
+import { hashParam, mergeHashParams } from "../../controllers/hash-controller.js";
+import { INITIAL_SUBJECT, SCOPE, activeEntry, currentSubject, currentSubjectState, dispatchSubjectEvent, entryOf, scopeEntry } from "../../../current-subject.js";
+import { EMBEDDED_PAGE_TYPE } from "../../../domains/embedding.js";
+import { embeddedPageView } from "../../root.js";
+import { activePane } from "../../controllers/page-cell-controller.js";
 import { counted } from "@haibun/core/lib/hypermedia.js";
 
 /** The pane the reader is on, the view it holds, and what a turn is sent of the page: that view's statement, then the
@@ -55,21 +47,20 @@ let streamFails: string | undefined;
 let refusedBeforeRecording: string | undefined;
 /** What actuality waits on between starting the turn's step and recording its question, where a case holds it there. */
 let recording: Promise<void> | undefined;
-/** The context envelope each turn was sent with, so a case reads what the pane asked for. */
+/** The context envelope sent with each turn, so a case reads what the pane requested. */
 const sent: Array<{ contextReadBy?: string; patterns?: unknown[]; inReplyTo?: string; viewLd?: unknown[]; session?: string; target?: string; accessLevel?: string }> = [];
 /** The type actuality keeps a file a person adds as, which the pane reads from what the keep step returns. */
 const KEPT_TYPE = "KeptFile";
 /** The record a kept file is returned as. */
 const keptAs = (name: string) => ({ persistedAs: KEPT_TYPE, id: `added/${name}` });
-/** Each file the pane asked actuality to keep. */
+/** Each file the pane sent actuality to keep. */
 const keptFiles: Array<{ file: string; name: string }> = [];
 /** The seqPath each turn the stream starts is given, in order; a turn beyond them is given 0.1.2. Actuality records the
- *  turn's question as the step starts and its answer when it finishes, each named by the turn. */
+ *  turn's question as the step starts and its response when it finishes, each named by the turn. */
 const turnSeqPaths: number[][] = [];
-/** What a read of the model catalog answers with, given the page it asks for, or a promise a case holds open or rejects. */
-const A_CATALOG = { vertices: [{ id: "openai:a-model", displayName: "a model", capabilities: { tools: true } }], ...counted(1) };
+/** What a read of the model catalog returns, given the page it requests, or a promise a case holds open or rejects. */
 let catalog: (page: { offset?: number; limit?: number }) => unknown = () => A_CATALOG;
-/** The running stream's abort signal, how a case streams a piece of the answer, and its finish function. */
+/** The running stream's abort signal, how a case streams a piece of the response, and its finish function. */
 const stream: { signal: AbortSignal | undefined; piece: ((text: string) => void) | undefined; finish: (() => void) | undefined } = {
 	signal: undefined,
 	piece: undefined,
@@ -80,11 +71,11 @@ const stream: { signal: AbortSignal | undefined; piece: ((text: string) => void)
 const RESTORED_TURN = "0.1.1";
 const RESTORED = question(RESTORED_TURN);
 const RESTORED_RECORD = anIndividual("Email", "restored@bakery.test");
-/** The turns the store reads back for a session, and the answers to the reads a case holds open, oldest first. */
+/** The turns the store reads back for a session, and the resolvers of the reads a case holds open, oldest first. */
 let sessionTurns: unknown[] = [];
 const sessionReads: Array<(failure?: string) => void> = [];
 
-/** A turn actuality streams: it records the question once `recording` lets it, states what `stated` holds, and answers
+/** A turn actuality streams: it records the question once `recording` lets it, states what `stated` holds, and responds
  *  when a case finishes it, each record named by the turn. */
 function aTurn(params: Record<string, unknown>): DrivenStream {
 	const seqPath = turnSeqPaths.shift() ?? [0, 1, 2];
@@ -109,7 +100,7 @@ function aTurn(params: Record<string, unknown>): DrivenStream {
 	});
 }
 
-/** What actuality answers each step the pane calls. */
+/** What actuality returns for each step the pane calls. */
 function respond(step: string, params: Record<string, unknown>): unknown {
 	// The registry as the server holds it: a model states who reads its context, which the pane shows on the default.
 	if (step === CHAT_STEP.catalog) return catalog((params as { query: { offset?: number; limit?: number } }).query);
@@ -120,7 +111,7 @@ function respond(step: string, params: Record<string, unknown>): unknown {
 	}
 	if (step === CHAT_STEP.sessions)
 		return { sessions: [{ session: RESTORED, label: "an earlier conversation", generatedAtTime: "2026-05-17T05:00:00.000Z", turns: 1 }], ...counted(1) };
-	// A read held open, answered when a case reports the store got back to the page.
+	// A read held open, resolved when a case reports what the store returned to the page.
 	if (step === CHAT_STEP.session)
 		return new Promise((resolve, reject) => {
 			sessionReads.push((failure) => (failure ? reject(new Error(failure)) : resolve({ turns: sessionTurns })));
@@ -152,7 +143,7 @@ beforeEach(async () => {
 	stream.piece = undefined;
 	stream.finish = undefined;
 	sessionTurns = [readBack(RESTORED_TURN, undefined, [RESTORED_RECORD])];
-	pagePreferences().forget(SHU_TAG.KIHAN_CHAT, "");
+	pagePreferences().forget(SHU_TAG.ASK, "");
 	mergeHashParams({ [CONVERSATION_PARAM]: undefined, access: undefined });
 	document.body.innerHTML = "";
 });
@@ -180,7 +171,7 @@ async function aPage(): Promise<{ pane: Driven; history: HTMLElement }> {
 
 /** An ask pane, as the bar builds one each time it opens, with its settings shown, as the pane's settings control shows them. */
 async function aPane(): Promise<Driven> {
-	const pane = new ShuKihanChat() as unknown as Driven;
+	const pane = new ShuAsk() as unknown as Driven;
 	pane.setAttribute(SHU_ATTR.SHOW_CONTROLS, "");
 	document.body.appendChild(pane);
 	await pane.updateComplete;
@@ -191,7 +182,7 @@ async function aPane(): Promise<Driven> {
 /** The element the selector addresses inside the root, or a failure naming the one missing. */
 function inside<T extends Element>(root: ParentNode | null | undefined, selector: string): T {
 	const found = root?.querySelector<T>(selector);
-	if (!found) throw new Error(`nothing addresses ${selector}`);
+	if (!found) throw new Error(`the selector addresses an absent element: ${selector}`);
 	return found;
 }
 const chatInput = (pane: Driven) => inside<HTMLTextAreaElement>(pane.shadowRoot, ".chat-input");
@@ -217,11 +208,11 @@ async function submit(pane: Driven, prompt: string): Promise<void> {
 	await pane.updateComplete;
 }
 
-/** Answer the oldest session read the page is waiting on. */
+/** Resolve the oldest session read that the page awaits. */
 async function answerTheSessionRead(failure?: string): Promise<void> {
 	await settle();
 	const oldest = sessionReads.shift();
-	if (!oldest) throw new Error("the page made no session read to answer");
+	if (!oldest) throw new Error("the page hasn't made a session read to resolve");
 	oldest(failure);
 	await settle();
 }
@@ -270,7 +261,7 @@ describe("the question being written", () => {
 		expect(chatInput(reopened).value).toBe("which runs failed");
 	});
 
-	it("isn't in a pane opened after the question was asked", async () => {
+	it("isn't in a pane opened after the question was sent", async () => {
 		const { pane } = await aPage();
 		write(pane, "which runs failed");
 		void pane.submitChat();
@@ -282,7 +273,7 @@ describe("the question being written", () => {
 	});
 });
 
-describe("a question not asked", () => {
+describe("a question not sent", () => {
 	it("while the model catalog is read, is refused where the reader opened a conversation meanwhile", async () => {
 		let answerCatalog = (): void => undefined;
 		catalog = () => new Promise((resolve) => (answerCatalog = () => resolve(A_CATALOG)));
@@ -329,8 +320,8 @@ describe("a question not asked", () => {
 	});
 });
 
-describe("a turn that ends before it answered", () => {
-	it("shows what went wrong on its answer, and doesn't leave a spinner running", async () => {
+describe("a turn that ends before its response", () => {
+	it("shows what went wrong on its response, and doesn't leave a spinner running", async () => {
 		streamFails = "the model did not answer: connection reset";
 		const { pane, history } = await aPage();
 		await submit(pane, "what do these have in common");
@@ -352,7 +343,7 @@ describe("a turn that ends before it answered", () => {
 });
 
 describe("a turn stopped before actuality records its question", () => {
-	it("is aborted once the question is recorded, so the question opens its session and is not put back to ask again", async () => {
+	it("is aborted once the question is recorded, so the question opens its session and is not put back to send again", async () => {
 		let recorded = (): void => undefined;
 		recording = new Promise<void>((resolve) => (recorded = resolve));
 		turnSeqPaths.push([0, 1, 5]);
@@ -369,7 +360,7 @@ describe("a turn stopped before actuality records its question", () => {
 });
 
 describe("the model a question is sent to", () => {
-	it("is found past the first page of the catalog, so a remembered model among many is the one asked", async () => {
+	it("is found past the first page of the catalog, so a stored model choice among many is the one that receives the question", async () => {
 		const offered = Array.from({ length: 120 }, (_, at) => ({ id: `openai:model-${at}`, capabilities: { tools: true } }));
 		catalog = ({ offset = 0, limit = 50 }) => ({ vertices: offered.slice(offset, offset + limit), ...counted(offered.length) });
 		const { pane } = await aPage();
@@ -383,10 +374,10 @@ describe("the model a question is sent to", () => {
 		pane.setState({ model: "llama:thinker" });
 		await submit(pane, "what is this");
 		expect(sent.at(-1)?.target).toBe("openai:a-model");
-		expect(inside<HTMLElement & { value?: string }>(pane.shadowRoot, ".model-select").value, "and the selector shows the model the question went to").toBe("openai:a-model");
+		expect(inside<HTMLElement & { value?: string }>(pane.shadowRoot, ".model-select").value, "and the selector shows the model that received the question").toBe("openai:a-model");
 	});
 
-	it("is actuality's standing default where the reader hasn't chosen a model actuality offers, before a model that doesn't think", async () => {
+	it("is actuality's standing default where the reader hasn't chosen a model actuality offers, before a model without reasoning", async () => {
 		catalog = () => ({
 			vertices: [
 				{ id: "openai:quick", capabilities: { tools: true, thinking: false } },
@@ -400,7 +391,7 @@ describe("the model a question is sent to", () => {
 		expect(sent.at(-1)?.target).toBe("openai:standing");
 	});
 
-	it("is the one that states it does not think, where the catalog offers that beside ones that do, so a question gets an answer within its turn", async () => {
+	it("is the one that states it does not reason, where the catalog offers that beside ones that reason, so a question gets a response within its turn", async () => {
 		catalog = () => ({
 			vertices: [
 				{ id: "openai:deep", displayName: "deep", capabilities: { tools: true, thinking: true } },
@@ -410,7 +401,7 @@ describe("the model a question is sent to", () => {
 		});
 		const { pane } = await aPage();
 		await submit(pane, "what is this");
-		expect(sent.at(-1)?.target, "the question goes to the model that answers within its turn").toBe("openai:nothink");
+		expect(sent.at(-1)?.target, "the question is sent to the model that responds within its turn").toBe("openai:nothink");
 	});
 });
 
@@ -457,7 +448,7 @@ describe("who reads the context", () => {
 });
 
 describe("what a turn states about itself", () => {
-	it("keeps the context it sent and the calls it made on its answer, each in order, and the spinner shows its latest progress", async () => {
+	it("keeps the context it sent and the calls it made on its response, each in order, and the spinner shows its latest progress", async () => {
 		const call = { name: "GraphStepper-graphQuery", ok: true, record: { persistedAs: "ToolCall", id: "tcall-1" } };
 		stated.push({ context: "Email -> total -> 2" }, { status: "dispatching GraphStepper-graphQuery, reading the emails" }, { called: call }, { status: "generated 40 chars" });
 		const { pane, history } = await aPage();
@@ -468,7 +459,7 @@ describe("what a turn states about itself", () => {
 		expect(message.spinnerStatus).toBe("generated 40 chars");
 	});
 
-	it("moves its answer once for the pieces the stream brings within a frame, and keeps what the stream ends on", async () => {
+	it("moves its response once for the pieces the stream brings within a frame, and keeps what the stream ends on", async () => {
 		const { pane, history } = await aPage();
 		await submit(pane, "what do these have in common");
 		const moves: string[] = [];
@@ -554,7 +545,7 @@ describe("the ask and the active record", () => {
 		expect(scopeEntry(currentSubjectState.get(), SCOPE.actionsBar)).toMatchObject({ record: { id: "tcall-1", label: "ToolCall" }, turn: "cmt-ask-0.1.2" });
 	});
 
-	it("is asked at the level the address reads at, narrowed since the record was activated, and its comments activate at that level", async () => {
+	it("is sent at the level at which the address reads, narrowed since the record was activated, and its comments activate at that level", async () => {
 		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: EMAIL });
 		dispatchSubjectEvent({ type: "open", scope: SCOPE.actionsBar });
 		mergeHashParams({ access: "public" });
@@ -602,7 +593,7 @@ describe("a conversation", () => {
 		expect(sent.at(-1)).toMatchObject({ session: question("0.1.5"), inReplyTo: question("0.1.5") });
 	});
 
-	it("outlives the pane: a turn left running when the bar closes ends, the history shows its answer, and the next pane continues the session", async () => {
+	it("outlives the pane: a turn left running when the bar closes ends, the history shows its response, and the next pane continues the session", async () => {
 		turnSeqPaths.push([0, 1, 5]);
 		const { pane, history } = await aPage();
 		await submit(pane, "what do these have in common");
@@ -617,7 +608,7 @@ describe("a conversation", () => {
 		expect(onHistory(history).map((el) => el.message.text)).toEqual(["what do these have in common", "an answer", "and what came of it", ""]);
 	});
 
-	it("picked by a reader, is read back, and its last answer becomes the active record with the records its question referenced", async () => {
+	it("picked by a reader, is read back, and its last response becomes the active record with the records its question referenced", async () => {
 		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: EMAIL });
 		dispatchSubjectEvent({ type: "open", scope: SCOPE.actionsBar });
 		const { pane, history } = await aPage();
@@ -686,7 +677,7 @@ describe("a conversation", () => {
 		expect(sent.at(-1)?.inReplyTo).toBe(question("0.1.1"));
 	});
 
-	it("whose turn records its answer while the session is read again, and the read fails, leaves that turn out of the bar's scope", async () => {
+	it("whose turn records its response while the session is read again, and the read fails, leaves that turn out of the bar's scope", async () => {
 		dispatchSubjectEvent({ type: "open", scope: SCOPE.actionsBar });
 		const { pane } = await aPage();
 		pickSession(pane, RESTORED);
@@ -762,7 +753,7 @@ describe("the transcript of a conversation that branches", () => {
 		expect(otherBranchOn(history, "0.1.1")).not.toBeNull();
 	});
 
-	it("shows a question about an earlier answer on the branch it starts there", async () => {
+	it("shows a question about an earlier response on the branch it starts there", async () => {
 		const { pane, history } = await onTheBranchedSession();
 		inside<HTMLElement>(
 			answers(history).find((el) => el.message.turn === question("0.1.1")),
@@ -776,7 +767,7 @@ describe("the transcript of a conversation that branches", () => {
 	});
 });
 
-describe("a question from the history asked again", () => {
+describe("a question from the history sent again", () => {
 	/** The bar's turn and a record the page activated, which a question asked again replies past and doesn't carry. */
 	const elsewhere = () => {
 		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: OTHER });

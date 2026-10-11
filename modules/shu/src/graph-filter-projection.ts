@@ -11,8 +11,8 @@
  *   - With a time cursor pinned: the snapshot counts differ from what the view shows. The projection derives the
  *     clusters from `visibleQuads`, which `ShuElement.filterByTime` has filtered. It returns one cluster per
  *     `namedGraph` and counts the unique subjects seen at or before the cursor. A type without visible subjects at
- *     the cursor drops from the legend. `Kihan (7)` becomes `Kihan (3)` at one point in the timeline and leaves the
- *     legend before the first Kihan node arrives.
+ *     the cursor drops from the legend. `Note (7)` becomes `Note (3)` at one point in the timeline and leaves the
+ *     legend before the first Note node arrives.
  *
  * Each host (graph-view and external viewers) holds its own `knownClusters` map and quads, and passes them to
  * `filterEl.setSource(...)`. The filter's render calls this pure function with them.
