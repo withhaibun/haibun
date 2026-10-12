@@ -148,7 +148,7 @@
 	"linux-x64-20x-12th-gen-intel-core-i7-12700k": {
 		"features": {
 			"/features/a11y-fail.feature": {
-				"seconds": 0.5,
+				"seconds": 0.6,
 				"steps": 12,
 				"declaredStepTextHash": "5a76c771445a220203a7eab76f27f428e25697d9a984395e5bc5ede0aa55ffef"
 			},
@@ -168,7 +168,7 @@
 				"declaredStepTextHash": "b0eca8f53cdbc72079c3b13890aacf1b33a0fd50daccc93402e9d434c3b3338d"
 			},
 			"/features/agents-examples.feature": {
-				"seconds": 1.6,
+				"seconds": 1.7,
 				"steps": 354,
 				"declaredStepTextHash": "21975836a8d8dc1c98fd6751ebb98ed0eab60297e903e4b22845040245c6a8eb"
 			},
@@ -183,7 +183,7 @@
 				"declaredStepTextHash": "696befdc9ac2a5bc6164b827c8ba63f012da9b2d5b5daa4d570fe7e33ad1d838"
 			},
 			"/features/auth-form.feature": {
-				"seconds": 0.9,
+				"seconds": 0.8,
 				"steps": 24,
 				"declaredStepTextHash": "072620079179e9e5107f464049dff25238322ae72af9ff2ba115e09886cf2715"
 			},
@@ -193,7 +193,7 @@
 				"declaredStepTextHash": "179f2a7919aa297e130229e22984568a4465c73dbdcc6f5e39a2727caad9eb0f"
 			},
 			"/features/counter.feature.ts": {
-				"seconds": 2.3,
+				"seconds": 1.9,
 				"steps": 20,
 				"declaredStepTextHash": "2dbaa6f8d7e5ced812a237be8252de1c768081154d89aeb79786ded0725bb453"
 			},
@@ -218,7 +218,7 @@
 				"declaredStepTextHash": "21d12de51d05e0a188e3bb7b5c56f79a774c8a92bac1f5772ec1709125f2317d"
 			},
 			"/features/identity-and-capability.feature.ts": {
-				"seconds": 0.1,
+				"seconds": 0.2,
 				"steps": 28,
 				"declaredStepTextHash": "67006159fc0445822858aa111a2a9191c669dc75c2a5e9acfd5b63768d8d61df"
 			},
@@ -238,7 +238,7 @@
 				"declaredStepTextHash": "e9fbbbaca778b5d638d6359d648c1b65c4c48a6e50274ac870dce6fe36f01355"
 			},
 			"/features/page-visits.feature.ts": {
-				"seconds": 0.6,
+				"seconds": 0.7,
 				"steps": 64,
 				"declaredStepTextHash": "b2e407c6ed2a4ab0bdd92877e35ee3a2c2ba1ae61e098a1c7da072358f2598ba"
 			},
@@ -248,7 +248,7 @@
 				"declaredStepTextHash": "94d2694ac524d72db66b5a093c77648ec1c808852fc3f4a11d761b77a0e8e0e6"
 			},
 			"/features/qrcode.feature": {
-				"seconds": 2.6,
+				"seconds": 2.5,
 				"steps": 18,
 				"declaredStepTextHash": "414d23a119d105d311d8e8a0496102881e35613d91a514f21985534ec401eeda"
 			},
@@ -263,12 +263,12 @@
 				"declaredStepTextHash": "6942d0c33395a275d35979caddfbce9c5932de5821f3fdc23d5dd206c7974e83"
 			},
 			"/features/upload-verify.feature": {
-				"seconds": 0.4,
+				"seconds": 0.5,
 				"steps": 19,
 				"declaredStepTextHash": "92f57a2dc38d79bda306ab924a8c55b05a7ce5afb76435288e861b57fcaf3a78"
 			},
 			"/features/visited-pages.feature": {
-				"seconds": 0.5,
+				"seconds": 0.4,
 				"steps": 31,
 				"declaredStepTextHash": "8c89036d502541abe1895d75994a810d40ff013dfd6b58bb078591f2c99945ae"
 			},
@@ -289,6 +289,6 @@
 			}
 		},
 		"steps": 1070,
-		"seconds": 14.9
+		"seconds": 14.7
 	}
 }
