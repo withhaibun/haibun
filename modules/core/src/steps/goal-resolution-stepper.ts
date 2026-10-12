@@ -312,12 +312,11 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 				const world = this.getWorld();
 				const graph = buildDomainChain(this.steppers, world.domains);
 				const report = lintDomainChain(graph, world.domains);
-				// The bound view (`shu-domain-chain-view`) draws the chain with the graph presenter from affordance data
-				// (forward edges and goal verdicts). The product carries both, so the lint pane shows the graph when it
-				// opens, with the lint findings that mark orphan, unsupplied and unreachable nodes.
+				// The bound view (`shu-domain-chain-view`) draws the chain from the affordance snapshot the product carries (forward edges,
+				// goal verdicts, the satisfied domains and their facts), with the lint findings that mark orphan, unsupplied and unreachable nodes.
 				const facts = await readFacts(world.shared.getStore());
 				const affordances = buildAffordances({ steppers: this.steppers, domains: world.domains, facts, held: callerHolds() });
-				return actionOKWithProducts(chainLintSchema.parse({ ...report, forward: affordances.forward, goals: affordances.goals, execution: executionOf(world.tag) }));
+				return actionOKWithProducts(chainLintSchema.parse({ ...report, ...affordances, execution: executionOf(world.tag) }));
 			},
 		},
 	} as const satisfies TStepperSteps;
