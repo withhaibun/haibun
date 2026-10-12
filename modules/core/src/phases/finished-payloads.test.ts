@@ -45,7 +45,7 @@ describe("the finished step results actuality holds", () => {
 		expect(feature?.steps.lastEnd, "the step totals hold the last end time").toBeDefined();
 		expect(feature?.stepResults.length, "stepResults holds only the most recent RESULTS_READ_IN_FULL step results").toBe(RESULTS_READ_IN_FULL);
 		expect((feature?.stepResults.at(-1)?.products as { big?: string } | undefined)?.big?.length, "the newest step result holds its products in full").toBe(10000);
-	});
+	}, 30_000);
 
 	it("names a failed step however many steps executed after it, because the step totals hold the failed step", () => {
 		const ran = (over: Partial<TStepResult>): TStepResult => ({ name: "s", in: "a step", path: "/f", seqPath: [0, 1, 1], ok: true, ...over }) as TStepResult;

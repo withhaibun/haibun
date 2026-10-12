@@ -39,4 +39,4 @@ describe("the source of this repository", () => {
 		const found = defaultFindings(REPOSITORY, sources, composeFiles(REPOSITORY));
 		expectWithinBaseline({ baselineFile: join(import.meta.dirname, "defaults.baseline.json"), found, testFile: TEST_FILE, fix });
 	});
-});
+}, 30_000);

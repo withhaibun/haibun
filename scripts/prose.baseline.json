@@ -167,16 +167,6 @@
 		"anthropomorphic": 2,
 		"relation-verb": 3
 	},
-	"modules/shu/src/graph/polymorphic/polymorphic-camera.test.ts": {
-		"anthropomorphic": 1,
-		"relation-verb": 1,
-		"terminal-preposition": 1
-	},
-	"modules/shu/src/graph/polymorphic/polymorphic-camera.ts": {
-		"anthropomorphic": 5,
-		"relation-verb": 3,
-		"terminal-preposition": 1
-	},
 	"modules/shu/src/graph/polymorphic/polymorphic-chip-geometry.test.ts": {
 		"relation-verb": 1
 	},
@@ -189,9 +179,6 @@
 		"relation-verb": 3,
 		"terminal-preposition": 1
 	},
-	"modules/shu/src/graph/polymorphic/polymorphic-drag.ts": {
-		"relation-verb": 2
-	},
 	"modules/shu/src/graph/polymorphic/polymorphic-enclosure.ts": {
 		"relation-verb": 2
 	},
@@ -201,26 +188,9 @@
 	"modules/shu/src/graph/polymorphic/polymorphic-external.integration.test.ts": {
 		"anthropomorphic": 1
 	},
-	"modules/shu/src/graph/polymorphic/polymorphic-focus.test.ts": {
-		"anthropomorphic": 3
-	},
-	"modules/shu/src/graph/polymorphic/polymorphic-focus.ts": {
-		"anthropomorphic": 3,
-		"banned-word": 1,
-		"relation-verb": 2,
-		"terminal-preposition": 1
-	},
 	"modules/shu/src/graph/polymorphic/polymorphic-follow.integration.test.ts": {
 		"anthropomorphic": 2,
 		"negated-noun": 1
-	},
-	"modules/shu/src/graph/polymorphic/polymorphic-highlight.test.ts": {
-		"relation-verb": 1
-	},
-	"modules/shu/src/graph/polymorphic/polymorphic-highlight.ts": {
-		"anthropomorphic": 1,
-		"negated-noun": 1,
-		"relation-verb": 1
 	},
 	"modules/shu/src/graph/polymorphic/polymorphic-node-shapes.ts": {
 		"relation-verb": 2
@@ -238,9 +208,6 @@
 	},
 	"modules/shu/src/graph/polymorphic/polymorphic-pick.integration.test.ts": {
 		"anthropomorphic": 3
-	},
-	"modules/shu/src/graph/polymorphic/polymorphic-regulator.ts": {
-		"banned-word": 1
 	},
 	"modules/shu/src/graph/polymorphic/polymorphic-render-context.ts": {
 		"relation-verb": 1,
@@ -414,6 +381,7 @@
 	},
 	"modules/shu/src/page/components/shu-element.ts": {
 		"anthropomorphic": 15,
+		"negated-noun": 1,
 		"relation-verb": 5,
 		"terminal-preposition": 5
 	},
@@ -607,6 +575,58 @@
 	"modules/shu/src/page/derivations/step-input.ts": {
 		"relation-verb": 1
 	},
+	"modules/shu/src/page/graph/adapters/context-document.ts": {
+		"negated-noun": 1
+	},
+	"modules/shu/src/page/graph/adapters/engine.ts": {
+		"anthropomorphic": 2,
+		"negated-noun": 1
+	},
+	"modules/shu/src/page/graph/adapters/size-observer.ts": {
+		"negated-noun": 1
+	},
+	"modules/shu/src/page/graph/derivations/highlight.test.ts": {
+		"relation-verb": 1
+	},
+	"modules/shu/src/page/graph/derivations/highlight.ts": {
+		"anthropomorphic": 1,
+		"negated-noun": 1,
+		"relation-verb": 1
+	},
+	"modules/shu/src/page/graph/derivations/regulation.ts": {
+		"banned-word": 1
+	},
+	"modules/shu/src/page/graph/machines/camera.test.ts": {
+		"anthropomorphic": 1,
+		"relation-verb": 1,
+		"terminal-preposition": 1
+	},
+	"modules/shu/src/page/graph/machines/camera.ts": {
+		"anthropomorphic": 5,
+		"relation-verb": 3,
+		"terminal-preposition": 1
+	},
+	"modules/shu/src/page/graph/machines/focus.test.ts": {
+		"anthropomorphic": 3
+	},
+	"modules/shu/src/page/graph/machines/focus.ts": {
+		"anthropomorphic": 3,
+		"banned-word": 1,
+		"relation-verb": 2,
+		"terminal-preposition": 1
+	},
+	"modules/shu/src/page/graph/machines/node-drag.ts": {
+		"relation-verb": 2
+	},
+	"modules/shu/src/page/graph/ports.ts": {
+		"anthropomorphic": 1,
+		"negated-noun": 3,
+		"relation-verb": 1,
+		"terminal-preposition": 2
+	},
+	"modules/shu/src/page/graph/root.ts": {
+		"negated-noun": 1
+	},
 	"modules/shu/src/polymorphic-report.test.ts": {
 		"anthropomorphic": 9,
 		"terminal-preposition": 1,
@@ -637,6 +657,7 @@
 	},
 	"modules/shu/src/scenes.ts": {
 		"anthropomorphic": 2,
+		"negated-noun": 1,
 		"relation-verb": 1,
 		"terminal-preposition": 3
 	},

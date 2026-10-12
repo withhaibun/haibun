@@ -17,7 +17,7 @@ import { isSchemaType } from "../../derivations/ontology-projection.js";
 import { computeLayout, type Adornment } from "../../page/graph/derivations/graph-layout.js";
 import { hashModel, linkKey } from "../../page/graph/derivations/model-hash.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
-import { relationOfPredicate } from "../../page/controllers/catalog-controller.js";
+import { hasCatalog, relationOfPredicate } from "../../page/controllers/catalog-controller.js";
 import type { TQuad, TCluster } from "@haibun/core/lib/quad-types.js";
 import type { GraphModel } from "../../domains/graph-model.js";
 import { buildGraphModelFromQuads, omittedLabel } from "../../derivations/graph-model.js";
@@ -136,7 +136,7 @@ export class DataPipeline {
 			this.deps.setGanttShapeSig(""); // leaving gantt → boxes revert to chips on the next feed
 			return;
 		}
-		const tasks = quadsToGanttModel(this.renderableQuads(), relationOfPredicate).tasks;
+		const tasks = quadsToGanttModel(this.renderableQuads(), (p, g) => (hasCatalog() ? relationOfPredicate(p, g) : p)).tasks;
 		if (tasks.length === 0) {
 			this.deps.setGanttTargets(new Map());
 			this.deps.setGanttScale(undefined);

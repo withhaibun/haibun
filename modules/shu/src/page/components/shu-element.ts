@@ -54,7 +54,7 @@ export type { TLinkedData };
 import { getRels } from "../controllers/catalog-controller.js";
 import { recordTime } from "../derivations/record-fields.js";
 import * as PageHash from "../controllers/hash-controller.js";
-import { subscribeBatchedEvents } from "../controllers/event-stream-controller.js";
+import { hasEventStream, subscribeBatchedEvents } from "../controllers/event-stream-controller.js";
 import { type TEvent, type TEventFilter } from "../ports.js";
 import { PreferencesController } from "../controllers/preferences-controller.js";
 import { recordClientBlip } from "../controllers/blip-controller.js";
@@ -480,6 +480,7 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 
 	/** Subscribe to inbound events via the installed `TEventStream`, batching all events received between paints into one `onBatch(events)` call inside an animation frame. Delegates to the shared `subscribeBatchedEvents` (the data controllers use the same path). */
 	protected subscribeBatched(opts: { onBatch: (events: TEvent[]) => void; filter?: TEventFilter; onReconnect?: () => void }): () => void {
+		if (!hasEventStream()) return () => undefined; // a bundle under test doesn't install the page's event stream, so there is nothing to subscribe to
 		return subscribeBatchedEvents(opts);
 	}
 }

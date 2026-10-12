@@ -44,6 +44,7 @@ import { isSchemaType, propertyVocabulary } from "../../derivations/ontology-pro
 import {
 	actorTypesFor,
 	fromActorEdgeLabels,
+	hasCatalog,
 	relationOfPredicate,
 	roleEdgeLabels,
 	roleNounFor,
@@ -82,6 +83,9 @@ import { presentationForType } from "../../page/graph/derivations/type-presentat
 import type { NodeMark } from "../../page/graph/domains/graph-scene.js";
 import { appAccessLevel } from "../../view-query.js";
 import { PaneOpenSchema, addsToSelection, type DesiredPane, type TPaneOpen } from "../../page/derivations/pane-kinds.js";
+
+/** A predicate's link relation, which a view that draws before the page reads actuality's steps reads as the predicate itself. */
+const relOf = (predicate: string, graph: string): string => (hasCatalog() ? relationOfPredicate(predicate, graph) : predicate);
 
 /**
  * shu-graph-scene: the A-Frame / ForceGraphVR rendering surface, extracted from shu-polymorphic-graph-view so the scene is
@@ -378,7 +382,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  appears on a visible node, plus the serving site once the view holds data from MORE than one site (a single-site
 	 *  graph doesn't have sites to separate): all derived from the data, so an axis the graph does not carry never shows. */
 	private get groupByAxes(): string[] {
-		const roleLabels = roleEdgeLabels();
+		const roleLabels = hasCatalog() ? roleEdgeLabels() : [];
 		const present = new Set<string>();
 		const sites = new Set<unknown>();
 		for (const n of this.visibleModel().nodes)
@@ -450,7 +454,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		lastModelHash: () => this.lastModelHash,
 		timeCursor: () => this.model.timeCursor, // the pinning-aware cursor the host resolved (a snapshot-pinned view reads its frozen instant)
 		zBasis: () => this.config.zBasis,
-		validTimeFieldFor: (type) => validTimeFieldOf(type),
+		validTimeFieldFor: (type) => (hasCatalog() ? validTimeFieldOf(type) : undefined),
 		groupAnchors: () => this.enclosureCtl.anchors,
 		groupSizes: () => this.enclosureCtl.sizes,
 		setGanttTargets: (t) => {
@@ -527,7 +531,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		{
 			seqNodes: () => this.seqNodes(),
 			seqEdges: () => this.visibleModel().edges.map((e) => ({ from: e.from, to: e.to, predicate: e.predicate })),
-			seqOptions: () => ({ labelOf: (participantId) => this.seqLabelFor(participantId), actorEdges: { from: fromActorEdgeLabels(), to: toActorEdgeLabels() } }),
+			seqOptions: () => ({ labelOf: (participantId) => this.seqLabelFor(participantId), actorEdges: hasCatalog() ? { from: fromActorEdgeLabels(), to: toActorEdgeLabels() } : { from: new Set(), to: new Set() } }),
 		},
 	);
 	private get renderType(): RenderType {
@@ -1242,7 +1246,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const target = this.ganttTargets.get(node.id);
 		const scale = this.ganttScale;
 		if (!this.renderType.dragReschedules || !target || !scale || node.z === undefined || node.isCluster) return;
-		const tasks = quadsToGanttModel(this.pipeline.renderableQuads(), relationOfPredicate).tasks;
+		const tasks = quadsToGanttModel(this.pipeline.renderableQuads(), relOf).tasks;
 		const dragged = tasks.find((t) => t.id === node.id);
 		if (!dragged) return;
 		// Time is the z axis: the dropped bar's new centre z maps back to its start (ganttBarTimes is the 1D inverse). The
@@ -2015,7 +2019,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const detail: GraphSceneChangedDetail = {
 			groupByAxes: this.groupByAxes,
 			forces: this.renderType.forces,
-			paintOptions: availablePaints(this.model.visibleQuads, relationOfPredicate),
+			paintOptions: availablePaints(this.model.visibleQuads, relOf),
 			counts: { nodes: this.nodeMap.size, edges: links.length, relTypes, omitted },
 			latestStep: this.computeLatestStep(),
 			axisLegend: this.renderType.axisLegend(),
@@ -2226,7 +2230,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			hiddenPredicates: this.model.hiddenPredicates,
 			prune: this.config.prune,
 			site: this.model.site,
-			roleRels: roleEdgeLabels(),
+			roleRels: hasCatalog() ? roleEdgeLabels() : [],
 		});
 		return this.modelCache;
 	}
@@ -2246,7 +2250,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	/** The noun a party displays under: what the edge conferring the role declares its target is called, else the
 	 *  party's own type. Declared vocabulary, read from the projection: a graph view doesn't name roles of its own. */
 	private roleNoun(roleRel: unknown, type: string | undefined): string | undefined {
-		return roleNounFor(roleRel) ?? type;
+		return (hasCatalog() ? roleNounFor(roleRel) : undefined) ?? type;
 	}
 
 	private seqLabelFor(participantId: string): string {
@@ -2262,7 +2266,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private revealActorTypes(): void {
 		const hidden = new Set(this.model.hiddenGraphs);
 		const showing = [...this.model.knownClusters.keys()].filter((t) => !hidden.has(t));
-		const types = actorTypesFor(showing).filter((t) => hidden.has(t));
+		const types = (hasCatalog() ? actorTypesFor(showing) : []).filter((t) => hidden.has(t));
 		if (types.length === 0) return;
 		this.dispatchEvent(new CustomEvent(GRAPH_SCENE_EVENT.SCOPE_REVEALED, { detail: { types }, bubbles: true, composed: true }));
 	}

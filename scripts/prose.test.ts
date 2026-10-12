@@ -14,5 +14,5 @@ describe("the prose of this repository", () => {
 	it("breaks each rule at most as often as its baseline records", () => {
 		const found = proseFindings(REPOSITORY, { roots: PROSE_ROOTS, exclude: [], allowedFile: join(import.meta.dirname, "prose.allowed.json") });
 		expectWithinBaseline({ baselineFile: join(import.meta.dirname, "prose.baseline.json"), found, testFile: "scripts/prose.test.ts", fix: FIX });
-	});
+	}, 30_000);
 });

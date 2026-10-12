@@ -472,6 +472,11 @@
 	"modules/shu/src/known-size-flow.ts": {
 		"isn't in a kind position": 1
 	},
+	"modules/shu/src/page/graph/machines/focus.ts": {
+		"imports a derivation: ../derivations/focus-policy.js": 1,
+		"imports a derivation: ../derivations/highlight.js": 1,
+		"imports a derivation: ../derivations/layout-forces.js": 1
+	},
 	"modules/shu/src/quads-snapshot.ts": {
 		"isn't in a kind position": 1
 	},

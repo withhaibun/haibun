@@ -158,7 +158,7 @@ export function pageBlips(capacity: number): TBlipChannel {
 		sending,
 		clock: pageClock(),
 		may: (action) => pageAuthorityPort().may(action),
-		conduit: pageHydration().carried() === undefined && hasConduit() ? pageConduit() : undefined,
+		conduit: hasHydration() && pageHydration().carried() === undefined && hasConduit() ? pageConduit() : undefined,
 	};
 }
 
@@ -243,6 +243,9 @@ export function pageHydration(): THydrationRead {
 	if (hydration === undefined) throw new Error("the page doesn't hold its hydration: the page's start reads it, and a test calls setupShuTest() first");
 	return hydration;
 }
+
+/** Whether the page holds its hydration. A page mounted without it, as a bundle under test, records its blips but doesn't send them. */
+export const hasHydration = (): boolean => installedHydration().hydration !== undefined;
 
 const installedAuthority = (): { authority: TAuthority | undefined } => pagePinned(AUTHORITY_PORT_KEY, () => ({ authority: undefined }));
 
