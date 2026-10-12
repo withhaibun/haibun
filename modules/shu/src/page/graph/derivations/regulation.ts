@@ -13,7 +13,7 @@
  * The scene acts on the signal itself and records it as a blip, so a run can observe the regulation and the time
  * behind it.
  */
-import { BREATH_MS } from "./polymorphic-highlight.js";
+import { BREATH_MS } from "./highlight.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 export const REGULATION_KINDS = ["decorativeOverLimit", "decorativeWithinLimit"] as const;

@@ -8,7 +8,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import { PULSE_MS, pulseAt } from "./polymorphic-highlight.js";
+import { PULSE_MS, pulseAt } from "../../page/graph/derivations/highlight.js";
 
 /** The loop as the scene runs it: rAF frames always advance; the scene draws only while within the dirty grace. */
 function loop(sampleEvery: number, frames: number): { sampledAt: number[]; drawn: number } {

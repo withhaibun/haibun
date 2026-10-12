@@ -9,7 +9,7 @@ import {
 	newRegulationState,
 	recordFrameTime,
 	type TRegulationThresholds,
-} from "./polymorphic-regulator.js";
+} from "./regulation.js";
 
 const thresholds: TRegulationThresholds = { windowSamples: 5, decorativeShareLimit: 0.05, beatsPerSecond: 10, cooldownMs: 10_000 };
 

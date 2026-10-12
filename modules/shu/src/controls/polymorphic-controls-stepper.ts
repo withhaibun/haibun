@@ -30,7 +30,7 @@ import type { TActionResult } from "@haibun/core/schema/protocol.js";
 import { saveImageArtifact } from "@haibun/domain-storage/image-artifact.js";
 import type { Locator, Page } from "playwright";
 import { VIEW, VIEW_TYPES, isLaneView } from "../page/graph/domains/views.js";
-import { MEASURE_UNIT, PAN_DIRECTION, ZOOM_DIRECTION, type TMeasureUnit, type TPanDirection, type TZoomDirection } from "../graph/polymorphic/polymorphic-camera.js";
+import { MEASURE_UNIT, PAN_DIRECTION, ZOOM_DIRECTION, type TMeasureUnit, type TPanDirection, type TZoomDirection } from "../page/graph/machines/camera.js";
 import type { ShuGraphScene, TGraphState } from "../graph/polymorphic/polymorphic-scene.js";
 
 import type { ShuPolymorphicGraphView } from "../components/shu-polymorphic-graph-view.js";

@@ -3,8 +3,8 @@
 // occluded WebGL scene, never in this logic, which is pure number-shuffling once a node is picked. The component owns the
 // DOM events + the THREE projection; this owns the state transitions: a press that stays put is a click; one that crosses
 // the threshold pins the whole layout and drags a node; release leaves that node pinned while freeing the rest.
-import type { XYZ } from "../../page/graph/derivations/grouping.js";
-import type { FGNode } from "../../page/graph/domains/graph-types.js";
+import type { XYZ } from "../derivations/grouping.js";
+import type { FGNode } from "../domains/graph-types.js";
 
 export const DRAG_THRESHOLD_PX = 5; // a press that moves less than this is a click, not a drag
 

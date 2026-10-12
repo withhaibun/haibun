@@ -35,7 +35,7 @@ import {
 	type TGraphState,
 } from "../graph/polymorphic/polymorphic-scene.js";
 import { GRAPH_SCENE_EVENT } from "../page/graph/domains/graph-types.js";
-import type { TMeasureUnit, TPanDirection, TZoomDirection } from "../graph/polymorphic/polymorphic-camera.js";
+import type { TMeasureUnit, TPanDirection, TZoomDirection } from "../page/graph/machines/camera.js";
 import { type TPaneOpen } from "../page/derivations/pane-kinds.js";
 import "./shu-graph-filter.js";
 import "../graph/polymorphic/polymorphic-scene.js";

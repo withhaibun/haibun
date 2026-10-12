@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import { NodeDrag, type NodeDragDeps } from "./polymorphic-drag.js";
-import type { FGNode } from "../../page/graph/domains/graph-types.js";
+import { NodeDrag, type NodeDragDeps } from "./node-drag.js";
+import type { FGNode } from "../domains/graph-types.js";
 
 const node = (id: string, x: number, y: number, z = 0): FGNode => ({ id, x, y, z }) as FGNode;
 const evt = (x: number, y: number): PointerEvent => ({ clientX: x, clientY: y }) as PointerEvent;

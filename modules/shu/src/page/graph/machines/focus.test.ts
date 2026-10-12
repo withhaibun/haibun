@@ -4,11 +4,11 @@
  * active. Driven through updateHighlight, the same per-frame pass the active node's breath rides.
  */
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import { PolymorphicFocus, type FocusDeps } from "./polymorphic-focus.js";
-import { NEWCOMER_GLOW_MS } from "./polymorphic-highlight.js";
-import type { FGNode } from "../../page/graph/domains/graph-types.js";
-import type { NodeVisual } from "../../page/graph/domains/graph-types.js";
-import type { TGraphPreview } from "../../page/graph/derivations/focus-policy.js";
+import { PolymorphicFocus, type FocusDeps } from "./focus.js";
+import { NEWCOMER_GLOW_MS } from "../derivations/highlight.js";
+import type { FGNode } from "../domains/graph-types.js";
+import type { NodeVisual } from "../domains/graph-types.js";
+import type { TGraphPreview } from "../derivations/focus-policy.js";
 
 function stubVisual(): NodeVisual & { burns: number } {
 	const v = {

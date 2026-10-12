@@ -6,10 +6,10 @@
  * keeping the nearest-z node in front of the lens. This pins the distance the fit lands on.
  */
 import { describe, it, expect } from "vitest";
-import { PolymorphicCamera, clearStripOffset, coveredTogether, type CameraDeps } from "./polymorphic-camera.js";
-import { FRAME, REFRAME, type ReframeMode } from "../../page/graph/domains/views.js";
+import { PolymorphicCamera, clearStripOffset, coveredTogether, type CameraDeps } from "./camera.js";
+import { FRAME, REFRAME, type ReframeMode } from "../domains/views.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import { FRAMED_SPAN, NDC_SPAN, screenShare, type TProjected } from "../../page/graph/derivations/project.js";
+import { FRAMED_SPAN, NDC_SPAN, screenShare, type TProjected } from "../derivations/project.js";
 
 type XYZ = { x: number; y: number; z: number };
 

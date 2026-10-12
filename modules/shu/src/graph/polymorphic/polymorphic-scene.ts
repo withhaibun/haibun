@@ -13,11 +13,12 @@ import { DEFAULT_PER_TYPE_LIMIT } from "../../quads-snapshot.js";
 import { SCOPE, dispatchSubjectEvent, entryOf } from "../../current-subject.js";
 import { formatInstant, readerZone } from "../../page/derivations/time-format.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import { FrameScheduler } from "./polymorphic-frame.js";
-import { EngineGovernor, type TPacedGraph } from "./polymorphic-engine.js";
-import { PolymorphicProfiler } from "./polymorphic-profiler.js";
+import { FrameScheduler } from "../../page/graph/machines/frame-scheduler.js";
+import { type TGraphEnginePacing, type TGraphFrameLoop } from "../../page/graph/ports.js";
+import { type TAframeScene } from "../../page/graph/adapters/frame-loop.js";
+import { PolymorphicProfiler } from "../../page/graph/machines/profiler.js";
 import { makeTroikaChip, spriteVisual, type ChipThree } from "./polymorphic-troika-label.js";
-import { GLOW_RAMP, BREATH_MS } from "./polymorphic-highlight.js";
+import { GLOW_RAMP, BREATH_MS } from "../../page/graph/derivations/highlight.js";
 import { typeAvatar } from "../../page/graph/derivations/type-avatar.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { PAGE_TERMS, type TCounted } from "@haibun/core/lib/hypermedia.js";
@@ -29,7 +30,7 @@ import { quadsToGanttModel, cascadeReschedule } from "../../page/graph/derivatio
 import { availablePaints } from "../../page/graph/derivations/paint-select.js";
 import { ganttBarTimes, GANTT_ROW_H, GANTT_BAR_H, GANTT_BAR_D, GANTT_MIN_BAR_W, GANTT_GHOST_PAD } from "../../page/graph/derivations/gantt-layout.js";
 import { type Adornment } from "../../page/graph/derivations/graph-layout.js";
-import { PolymorphicCamera, clearStripOffset, coveredTogether, type GanttExtent, type TMeasureUnit, type TPanDirection, type TZoomDirection } from "./polymorphic-camera.js";
+import { PolymorphicCamera, clearStripOffset, coveredTogether, type GanttExtent, type TMeasureUnit, type TPanDirection, type TZoomDirection } from "../../page/graph/machines/camera.js";
 import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../../page/controllers/element-controller.js";
 import { ndcToClient, clientToNdc, framesGraph, screenShare, type TClientPoint, type TScreenShare } from "../../page/graph/derivations/project.js";
@@ -52,18 +53,19 @@ import {
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { compositeRenderer, threeRenderer, type IGraphRenderer } from "./polymorphic-renderer.js";
 import { A11yRenderer } from "./polymorphic-a11y-renderer.js";
-import { Drawing, aframeLoop, type TAframeScene } from "./polymorphic-drawing.js";
-import { FrameTime, type TFenceGl } from "./polymorphic-frame-time.js";
-import { DEFAULT_REGULATION_THRESHOLDS, evaluateRegulation, medianOf, newRegulationState, recordFrameTime } from "./polymorphic-regulator.js";
+import { type TFenceGl } from "../../page/graph/adapters/frame-time.js";
+import { graphEngine, graphFrameLoop, graphFrameTime, pageGraphSizeObserver } from "../../page/graph/root.js";
+import { pageClock } from "../../page/root.js";
+import { DEFAULT_REGULATION_THRESHOLDS, evaluateRegulation, medianOf, newRegulationState, recordFrameTime } from "../../page/graph/derivations/regulation.js";
 import { GRAPH_DRAWING_BLIP, GRAPH_FRAME_BLIP, GRAPH_REGULATION_BLIP, type TDrawingReason, type TWakeCause } from "../../graph-blips.js";
 import { SEQ_LANE_SPACING, actorBars, type TSeqModel } from "../../page/graph/derivations/sequence-model.js";
 import { type FGNode, type FGLink, type TSprite, GRAPH_SCENE_EVENT, linkEndId, neighboursOf } from "../../page/graph/domains/graph-types.js";
-import { forceLayout, type IGraphLayout } from "./polymorphic-layout.js";
+import { forceLayout, type IGraphLayout } from "../../page/graph/derivations/polymorphic-layout.js";
 import { SvgRenderer } from "./polymorphic-svg-renderer.js";
-import { NodeDrag, DRAG_THRESHOLD_PX } from "./polymorphic-drag.js";
+import { NodeDrag, DRAG_THRESHOLD_PX } from "../../page/graph/machines/node-drag.js";
 import { NODE_TEXT_COLOR, chipTextHeight } from "../../page/graph/derivations/layout-forces.js";
 import { paintMarkScene, type ShapeLabel, type ShapeThree } from "./polymorphic-node-shapes.js";
-import { PolymorphicFocus, NODE_RENDER_ORDER, NODE_FONT_SIZE } from "./polymorphic-focus.js";
+import { PolymorphicFocus, NODE_RENDER_ORDER, NODE_FONT_SIZE } from "../../page/graph/machines/focus.js";
 import {
 	EnclosureController,
 	type EnclosureThree,
@@ -338,13 +340,13 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  renderer; what remains here is the camera, the controls, and the force simulation (see the plan doc). */
 	graph?: FGInstance;
 	private controls?: OrbitControls;
-	private rafHandle?: number;
+	private rafCancel?: () => void;
 	// Render-on-demand bookkeeping: a monotonic frame counter, the frame up to which a discrete change keeps the scene
 	// drawing, and whether the A-Frame render loop is currently paused because motion has ended.
 	private rafFrame = 0;
 	private dirtyUntilFrame = 0;
 	private dirtyCause: TWakeCause = "data"; // what set dirtyUntilFrame, named while its grace lasts
-	private drawing?: Drawing; // the gate on the renderer's loop; the scene is paused while it is not drawing
+	private drawing?: TGraphFrameLoop; // the gate on the renderer's loop; the scene is paused while it is not drawing
 	private lastBreathAt = 0; // when the active node's glow was last redrawn; the breath runs on BREATH_MS, not on frames
 	private regulation = newRegulationState(); // the scene's own regulator of decorative motion, on what a frame takes
 	/** Why the scene draws now, since when and which frame, and how many changes woke it since, so each change of reason
@@ -558,11 +560,11 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private compassEl: HTMLCanvasElement | null = null;
 	private infoEl: HTMLElement | null = null; // hover overlay above the controls: label · type · its time with units
 	private currentLinks: FGLink[] = [];
-	private fitFrameTimer?: number;
-	private repaintTimer?: number;
+	private fitFrameTimer?: () => void;
+	private repaintTimer?: () => void;
 	/** The wait for the camera to rest after a reader's pan or zoom, after which following checks the node is in view. */
-	private cameraRestTimer?: number;
-	private layoutTimer?: number;
+	private cameraRestTimer?: () => void;
+	private layoutTimer?: () => void;
 	private lastModelHash?: number;
 	// Per-repaint memo of the visible model and its sequence-node projection. The layered/sequence render types cache
 	// their layout on the seqNodes() array reference and expect a fresh array only per repaint; seqNodes() built a new
@@ -627,13 +629,13 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	// Public so the host delegates its `fgCamera` accessor 1:1 (tests project through it and wait for it before driving).
 	fgCamera?: TSceneCamera;
 	private frame = new FrameScheduler();
-	private engine = new EngineGovernor();
+	private engine = graphEngine();
 	private profiler = new PolymorphicProfiler();
 	private fgCanvas?: HTMLCanvasElement;
 	private fgContainer?: HTMLElement;
 	private fgSceneEl?: HTMLElement & { emit(name: string, detail?: unknown, bubbles?: boolean): void };
 	private lastCanvasPos?: { left: number; top: number; width: number; height: number };
-	private freshTimers: number[] = [];
+	private freshTimers: (() => void)[] = [];
 	// Gantt layout: per-node calendar-grid target (subject id → world x/y of the bar CENTRE, plus the bar width = its
 	// duration), recomputed in toGraphData when viewType is "gantt". The groupX/groupY forces pull each task to its
 	// slot; the node object is a duration bar of width `w`. Non-task nodes don't have an entry.
@@ -770,7 +772,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			// A press in progress that has not (yet) crossed the drag threshold, i.e. still a potential click (it
 			// becomes a node-open on release). Null once the pointer is up.
 			dragPending: this.nodeDrag.pendingId,
-			tween: this.tween ? { elapsedMs: performance.now() - this.tween.start } : null,
+			tween: this.tween ? { elapsedMs: pageClock().now() - this.tween.start } : null,
 			pointerOverCanvas: this.pointerOverCanvas,
 			engineMode: this.engine.mode,
 			// Render-on-demand state: the scene pauses when motion has ended and a recent discrete change isn't pending, and
@@ -963,10 +965,10 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.fitGraphFrame(container);
 
 		this.autoTeardown(() => {
-			if (this.repaintTimer !== undefined) clearTimeout(this.repaintTimer);
-			if (this.layoutTimer !== undefined) clearTimeout(this.layoutTimer);
-			if (this.fitFrameTimer !== undefined) clearTimeout(this.fitFrameTimer);
-			for (const t of this.freshTimers) clearTimeout(t);
+			this.repaintTimer?.();
+			this.layoutTimer?.();
+			this.fitFrameTimer?.();
+			for (const cancel of this.freshTimers) cancel();
 			this.clearGanttAxis();
 			this.clearGanttGhost();
 			this.enclosureCtl.dispose(); // boxes + the shared unit geometries (the gantt ghost reuses unitEdges but never disposes it)
@@ -1131,7 +1133,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				// After a data settle (not a layout solve: those tween independently), draw enclosures and run the settle
 				// hook (queued re-aim + gantt ruler) on the frame the nodes came to rest, not while they were still moving.
 				if (!this.tween) {
-					if (this.groupingActive()) requestAnimationFrame(() => this.enclosureCtl.updateEnclosureGeometry());
+					if (this.groupingActive()) pageClock().frame(() => this.enclosureCtl.updateEnclosureGeometry());
 					this.onLayoutSettled();
 				}
 			})
@@ -1262,7 +1264,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  the rescheduled bars and their edges redraw immediately rather than after the trailing coalesce. */
 	flushRepaint(): void {
 		if (this.repaintTimer !== undefined) {
-			clearTimeout(this.repaintTimer);
+			this.repaintTimer();
 			this.repaintTimer = undefined;
 		}
 		this.repaint();
@@ -1273,7 +1275,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		// where the VR wrapper forwards them through two debounced digests (a cooldown set from inside the engine's
 		// stop callback would land frames late and the engine would re-stop on the stale value). The wrapper attach
 		// at construction covers only the pre-scene boot window.
-		const fgEl = scene.querySelector("[forcegraph]") as (Element & { components?: { forcegraph?: { forceGraph?: TPacedGraph } } }) | null;
+		const fgEl = scene.querySelector("[forcegraph]") as (Element & { components?: { forcegraph?: { forceGraph?: TGraphEnginePacing } } }) | null;
 		const inner = fgEl?.components?.forcegraph?.forceGraph;
 		if (!inner) throw new Error("shu-graph-scene: inner forcegraph instance unavailable at scene load");
 		this.engine.attach(inner);
@@ -1294,13 +1296,12 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.attachNodeDrag();
 		this.fitGraphFrame(container);
 		this.camera.onContainerResize();
-		const observer = new ResizeObserver(() => {
+		const disconnectSize = pageGraphSizeObserver().observe(container, () => {
 			this.markDirty("resize"); // a paused scene must wake to re-fit and redraw on a container resize
 			this.fitGraphFrame(container);
 			this.camera.onContainerResize();
 		});
-		observer.observe(container);
-		this.autoTeardown(() => observer.disconnect());
+		this.autoTeardown(disconnectSize);
 		// Re-theme when the OS colour scheme flips (auto mode) or the user picks a theme (data-theme on <html>).
 		const media = window.matchMedia("(prefers-color-scheme: dark)");
 		const onSchemeChange = () => this.applyTheme();
@@ -1324,8 +1325,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private fitGraphFrame(container: HTMLElement): void {
 		// Trailing debounce: column open/close animates over many frames; firing on each pixel causes viewport
 		// jitter as the lib resizes the renderer. Wait for the animation to settle, then apply the final size.
-		clearTimeout(this.fitFrameTimer);
-		this.fitFrameTimer = window.setTimeout(() => {
+		this.fitFrameTimer?.();
+		this.fitFrameTimer = pageClock().after(100, () => {
 			this.fitFrameTimer = undefined;
 			const w = container.clientWidth;
 			const h = container.clientHeight;
@@ -1333,7 +1334,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			// A resize moves where the reader can see: the first click's own column-open narrows the canvas right after the
 			// follow aimed at the wide one.
 			this.keepFollowedInView();
-		}, 100);
+		});
 	}
 
 	/**
@@ -1613,13 +1614,13 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		});
 		controls.addEventListener("change", () => {
 			this.markDirty("camera", 4);
-			clearTimeout(this.cameraRestTimer);
-			this.cameraRestTimer = window.setTimeout(() => {
+			this.cameraRestTimer?.();
+			this.cameraRestTimer = pageClock().after(CAMERA_REST_MS, () => {
 				this.cameraRestTimer = undefined;
 				if (!gesturing) this.keepFollowedInView();
-			}, CAMERA_REST_MS);
+			});
 		});
-		this.autoTeardown(() => clearTimeout(this.cameraRestTimer));
+		this.autoTeardown(() => this.cameraRestTimer?.());
 		const canvas = renderer.domElement;
 		let pressed: { x: number; y: number; node: FGNode | undefined } | null = null;
 		// Ctrl/meta/shift-to-orbit is OrbitControls' OWN behavior: with LEFT mapped to PAN, a modified press
@@ -1676,12 +1677,12 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		// comparison, so a change wakes the scene within one frame.
 		// What a drawn frame takes is measured after the draw (see `FrameTime`) and read in the gate below, where the
 		// regulator sets whether the breath may keep requesting frames.
-		const frameTime = new FrameTime(() => scene.renderer?.getContext?.() as TFenceGl | undefined, DEFAULT_REGULATION_THRESHOLDS.windowSamples);
-		const drawing = new Drawing(aframeLoop(scene, () => frameTime.drew()));
+		const frameTime = graphFrameTime(() => scene.renderer?.getContext?.() as TFenceGl | undefined, DEFAULT_REGULATION_THRESHOLDS.windowSamples);
+		const drawing = graphFrameLoop(scene, () => frameTime.drew());
 		this.drawing = drawing;
 		const tick = () => {
 			this.rafFrame++;
-			const now = performance.now();
+			const now = pageClock().now();
 			// A wake detector, not a render job: the canvas can MOVE (strip scroll, column shift) without resizing, which the
 			// observers don't catch, so this light poll runs even while the scene is paused and marks dirty on any geometry change.
 			if (this.rafFrame % CANVAS_GEOMETRY_EVERY === 0) this.checkCanvasGeometry();
@@ -1713,11 +1714,11 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				}
 				this.frame.tick();
 			}
-			this.rafHandle = requestAnimationFrame(tick);
+			this.rafCancel = pageClock().frame(tick);
 		};
-		this.rafHandle = requestAnimationFrame(tick);
+		this.rafCancel = pageClock().frame(tick);
 		this.autoTeardown(() => {
-			if (this.rafHandle !== undefined) cancelAnimationFrame(this.rafHandle);
+			this.rafCancel?.();
 			drawing.end();
 			frameTime.end();
 			controls.dispose();
@@ -1891,14 +1892,14 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	setTimeCursorValue(_ms: number | null): void {
 		if (this.cursorPaintPending) return;
 		this.cursorPaintPending = true;
-		setTimeout(() => {
+		pageClock().after(0, () => {
 			this.cursorPaintPending = false;
 			if (this.repaintTimer !== undefined) {
-				clearTimeout(this.repaintTimer);
+				this.repaintTimer();
 				this.repaintTimer = undefined;
 			}
 			this.repaint();
-		}, 0);
+		});
 	}
 
 	/** New/removed streamed nodes: short trailing coalesce so the newcomer shows promptly; positions are preserved (without a scatter).
@@ -1906,20 +1907,20 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  the visible model (an observation of the page's own request, with instrumentation hidden) leaves the scene at rest. */
 	private scheduleData(): void {
 		if (this.repaintTimer !== undefined) return;
-		this.repaintTimer = window.setTimeout(() => {
+		this.repaintTimer = pageClock().after(DATA_DEBOUNCE_MS, () => {
 			this.repaintTimer = undefined;
 			this.repaint();
-		}, DATA_DEBOUNCE_MS);
+		});
 	}
 
 	/** A layout change (flatten/dag/group/type-filter): longer trailing coalesce so a burst of toggles collapses into one tween. */
 	private scheduleLayout(): void {
 		this.markDirty("arrange");
-		if (this.layoutTimer !== undefined) clearTimeout(this.layoutTimer);
-		this.layoutTimer = window.setTimeout(() => {
+		this.layoutTimer?.();
+		this.layoutTimer = pageClock().after(LAYOUT_DEBOUNCE_MS, () => {
 			this.layoutTimer = undefined;
 			this.repaintLayout();
-		}, LAYOUT_DEBOUNCE_MS);
+		});
 	}
 
 	private repaint(): void {
@@ -2112,14 +2113,14 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		// Keep the engine ticking through the tween so it applies the pins and redraws links/sprites; pinned nodes
 		// ignore the forces, so the forces don't move them; only the eased pin motion shows.
 		this.engine.hold();
-		this.tween = { start: performance.now(), from, to };
+		this.tween = { start: pageClock().now(), from, to };
 		if (this.hoverSubject || this.selectedSubject) this.requestFocusAtRest();
 	}
 
 	/** Advance the active ghost tween one frame: ease each node's pin from its start toward its target; release on completion. */
 	private updateLayoutTween(): void {
 		if (!this.tween) return;
-		const e = easeInOutCubic(Math.min((performance.now() - this.tween.start) / TWEEN_MS, 1));
+		const e = easeInOutCubic(Math.min((pageClock().now() - this.tween.start) / TWEEN_MS, 1));
 		for (const [id, f] of this.tween.from) {
 			const t = this.tween.to.get(id);
 			const n = this.nodeMap.get(id);
@@ -2152,7 +2153,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.engine.freeze(); // targets are an equilibrium; stop ticking so the graph rests
 		this.tween = undefined;
 		this.onLayoutSettled(); // queued view-type re-aim + (re)draw the gantt ruler, now the layout rests at its targets
-		requestAnimationFrame(() => this.enclosureCtl.updateEnclosureGeometry());
+		pageClock().frame(() => this.enclosureCtl.updateEnclosureGeometry());
 	}
 
 	/** What is focused: the open column's node stays focused while a column is open; hover takes over only when a node isn't selected. */
@@ -2200,10 +2201,10 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		for (const l of fresh.slice(0, 20)) {
 			for (const delay of [80, 480, 880]) {
 				this.freshTimers.push(
-					window.setTimeout(() => {
+					pageClock().after(delay, () => {
 						this.graph?.emitParticle(l);
 						this.markDirty("particles", PARTICLE_CROSSING_FRAMES);
-					}, delay),
+					}),
 				);
 			}
 		}

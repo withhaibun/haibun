@@ -26,7 +26,7 @@ import { HYPERMEDIA_ROLE_REL_KEY } from "../../domains/graph-model.js";
 import { type FGNode, type TSprite } from "../../page/graph/domains/graph-types.js";
 import { chipTextHeight, collideRadius } from "../../page/graph/derivations/layout-forces.js";
 import { groupCellSize } from "../../page/graph/derivations/group-grid.js";
-import { FOCUS_RENDER_ORDER } from "./polymorphic-focus.js";
+import { FOCUS_RENDER_ORDER } from "../../page/graph/machines/focus.js";
 
 // Group enclosures: each group's members cohere toward a ring anchor (pure math in @haibun/shu/graph/grouping.ts), then a
 // translucent type-coloured box with a wire border is drawn around them: the 3D read of the SVG group box.

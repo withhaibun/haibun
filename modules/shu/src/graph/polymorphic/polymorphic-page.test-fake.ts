@@ -7,7 +7,7 @@ import { chromium, type Browser, type Page } from "playwright";
 import { SHU_EVENT } from "../../domains/elements.js";
 import { SHARED_CELLS_KEY } from "../../page/adapters/shared-cell.js";
 import type { TSubjectState } from "../../current-subject.js";
-import type { TMeasureUnit, TPanDirection, TZoomDirection } from "./polymorphic-camera.js";
+import type { TMeasureUnit, TPanDirection, TZoomDirection } from "../../page/graph/machines/camera.js";
 import { type TPaneOpen } from "../../page/derivations/pane-kinds.js";
 
 /**

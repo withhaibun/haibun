@@ -424,13 +424,7 @@
 	"modules/shu/src/graph/polymorphic/polymorphic-a11y-renderer.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/shu/src/graph/polymorphic/polymorphic-camera.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/graph/polymorphic/polymorphic-data-pipeline.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/graph/polymorphic/polymorphic-drag.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/graph/polymorphic/polymorphic-drawing.ts": {
@@ -442,31 +436,13 @@
 	"modules/shu/src/graph/polymorphic/polymorphic-engine.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/shu/src/graph/polymorphic/polymorphic-focus.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/graph/polymorphic/polymorphic-frame-time.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/graph/polymorphic/polymorphic-frame.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/graph/polymorphic/polymorphic-highlight.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/graph/polymorphic/polymorphic-layout.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/graph/polymorphic/polymorphic-node-shapes.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/graph/polymorphic/polymorphic-pick-sync.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/graph/polymorphic/polymorphic-profiler.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/graph/polymorphic/polymorphic-regulator.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/graph/polymorphic/polymorphic-render-context.ts": {

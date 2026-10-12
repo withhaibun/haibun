@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import { GLOW_RAMP, GLOW_SPREAD, PULSE_MS, glowColorAt, pulseAt, swellAt } from "./polymorphic-highlight.js";
+import { GLOW_RAMP, GLOW_SPREAD, PULSE_MS, glowColorAt, pulseAt, swellAt } from "./highlight.js";
 
 describe("the active-node glow breathes", () => {
 	it("stays lit at its dimmest, so the active node is marked at every moment of the cycle", () => {

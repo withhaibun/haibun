@@ -20,7 +20,7 @@
  * worker (off the main thread), sync() kicks it off and its callback sizes the background to the measured text bounds.
  */
 import { Text } from "troika-three-text";
-import { GLOW_SPREAD, type GlowThree, MarkGlow, makeGlow } from "./polymorphic-highlight.js";
+import { GLOW_SPREAD, type GlowThree, MarkGlow, makeGlow } from "../../page/graph/derivations/highlight.js";
 import type { NodeVisual, Obj3D } from "../../page/graph/domains/graph-types.js";
 
 /** A scene object this module CONSTRUCTS or parents onto: the structural handle leaves `add` optional because a

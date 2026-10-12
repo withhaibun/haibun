@@ -1,7 +1,7 @@
 // The polymorphic graph's node/link shapes and the minimal three.js object slices they carry. Shared by the view and the
 // DataPipeline subsystem so both speak the same FGNode/FGLink without a circular import through the component.
 
-import type { TBurn } from "../../../graph/polymorphic/polymorphic-highlight.js";
+import type { TBurn } from "../derivations/highlight.js";
 
 /** A scene object as this view drives it: position, scale, draw order and (where the mark has one) a material that
  *  dims it. Declared structurally so the layout, focus and pick subsystems never import a 3D library: the concrete

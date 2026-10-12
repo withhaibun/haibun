@@ -9,10 +9,10 @@
 // instance, a per-repaint-refreshed nodeMap, or a theme-recoloured colour field is always current; the component still
 // OWNS those, this controller only reads them and owns the magnify animation state. (lovely-finding-babbage.)
 
-import { focusStateFor, opacityFor, isFullContrast, previewLights, type FocusState, type KindTiers, type TGraphPreview } from "../../page/graph/derivations/focus-policy.js";
-import { type FGNode, type FGLink, type TSprite, type ThreeObj, linkEndId } from "../../page/graph/domains/graph-types.js";
-import { chipTextHeight } from "../../page/graph/derivations/layout-forces.js";
-import { NEWCOMER_GLOW_MS, RESTING_INTENSITY, glowColorAt, pulseAt } from "./polymorphic-highlight.js";
+import { focusStateFor, opacityFor, isFullContrast, previewLights, type FocusState, type KindTiers, type TGraphPreview } from "../derivations/focus-policy.js";
+import { type FGNode, type FGLink, type TSprite, type ThreeObj, linkEndId } from "../domains/graph-types.js";
+import { chipTextHeight } from "../derivations/layout-forces.js";
+import { NEWCOMER_GLOW_MS, RESTING_INTENSITY, glowColorAt, pulseAt } from "../derivations/highlight.js";
 
 // three-forcegraph forces link objects to renderOrder 10; draw nodes above that (edges sit behind), labels between.
 export const NODE_RENDER_ORDER = 20;

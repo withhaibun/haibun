@@ -172,6 +172,8 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	private incomingCount: TCounted = counted(0);
 	private predicateLinkCount = 0;
 	private edgeTargetCount = 0;
+	/** Whether the enclosing column pane is the active column. A column outside a pane, as a unit test's, stays active. */
+	#paneActive = true;
 	/** Annotations anchored in the open individual's body, projected from the entity view; empty until resolved. */
 	private annotationsList: TAnnotationView[] = [];
 	/** A passage to reveal once the body renders, set by a Text Fragment reference into this individual. */
@@ -281,6 +283,23 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		return this.state.individualId ? [anIndividual(this.state.persistedAs, this.state.individualId)] : null;
 	}
 
+	/** The first edge target is the one the reader follows next, so it is testable only on the active column: with several columns
+	 *  open, a stamp on every column's first target is ambiguous. The enclosing pane reflects its active state to the `active`
+	 *  attribute; a change re-renders this column so the stamp follows the active column. */
+	protected override onConnected(): void {
+		const pane = this.closest(SHU_TAG.COLUMN_PANE) as HTMLElement | null;
+		if (pane === null) return;
+		this.#paneActive = pane.hasAttribute("active");
+		const observer = new MutationObserver(() => {
+			const active = pane.hasAttribute("active");
+			if (active === this.#paneActive) return;
+			this.#paneActive = active;
+			this.requestUpdate();
+		});
+		observer.observe(pane, { attributes: true, attributeFilter: ["active"] });
+		this.autoTeardown(() => observer.disconnect());
+	}
+
 	render(): TemplateResult {
 		const { loading, persistedAs } = this.state;
 		this.predicateLinkCount = 0;
@@ -359,7 +378,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const offered = Object.entries(OfferedLinksSchema.parse(this.vertex?._links ?? {})).filter(([, link]) => link.summary);
 		return html`${offered.map(
 			([rel, link]) =>
-				html`<button type="button" class="entity-offer" data-testid=${`${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_OFFER}-${rel}`} @click=${() => this.followOffer(link)}>${link.summary}${this.fragment ? ` at ${this.fragment.value}` : ""}</button>`,
+				html`<button type="button" class="entity-offer" data-testid=${this.#paneActive ? `${SHU_TEST_IDS.COLUMN_BROWSER.ENTITY_OFFER}-${rel}` : ""} @click=${() => this.followOffer(link)}>${link.summary}${this.fragment ? ` at ${this.fragment.value}` : ""}</button>`,
 		)}`;
 	}
 
@@ -443,7 +462,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	/** Render an edge target as a link to it. */
 	private renderEdgeTarget(target: VertexData, edgeType: string): string {
 		const display = instanceLabel(target);
-		const testId = this.edgeTargetCount === 0 ? ` data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.EDGE_TARGET_FIRST}"` : "";
+		const testId = this.#paneActive && this.edgeTargetCount === 0 ? ` data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.EDGE_TARGET_FIRST}"` : "";
 		this.edgeTargetCount++;
 		return linkHtml(this.edgeTargetHref(edgeType, target), display, testId);
 	}

@@ -1,7 +1,7 @@
-/// <reference path="./three-controls.d.ts" />
+/// <reference path="../../../graph/polymorphic/three-controls.d.ts" />
 import type { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import { FRAME, type FrameMove, type ReframeMode } from "../../page/graph/domains/views.js";
-import type { TMatrix4Elements } from "./polymorphic-render-context.js";
+import { FRAME, type FrameMove, type ReframeMode } from "../domains/views.js";
+import type { TMatrix4Elements } from "../ports.js";
 
 /** Sole owner of camera CONTROL for the polymorphic view: every framing, viewport, and navigation move that mutates the
  * three.js camera + OrbitControls lives here, so "who decides the zoom" has one answer. The component keeps the leaf

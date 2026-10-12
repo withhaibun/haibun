@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { PolymorphicProfiler } from "./polymorphic-profiler.js";
+import { PolymorphicProfiler } from "./profiler.js";
 
 /** A stage that takes `ms` on the fake clock, so the stage attributions are exact, not wall-clock-dependent. */
 const tick = (ms: number): void => void vi.advanceTimersByTime(ms);

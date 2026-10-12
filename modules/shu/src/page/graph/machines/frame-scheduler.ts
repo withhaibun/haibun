@@ -3,7 +3,7 @@
  * view hand-rolling countdown fields. `every: 1` runs each frame (camera-coupled work like label orientation);
  * a larger cadence samples (watchdogs, bounds). One place to see, and test, everything the frame does.
  */
-import { reportFailure } from "../../client-log.js";
+import { reportFailure } from "../../../client-log.js";
 
 type TFrameJob = { name: string; every: number; run: () => void };
 
