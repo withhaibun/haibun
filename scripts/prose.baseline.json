@@ -194,12 +194,6 @@
 		"negated-noun": 2,
 		"terminal-preposition": 1
 	},
-	"modules/shu/src/graph/polymorphic/polymorphic-pick-sync.test.ts": {
-		"relation-verb": 2
-	},
-	"modules/shu/src/graph/polymorphic/polymorphic-pick-sync.ts": {
-		"terminal-preposition": 2
-	},
 	"modules/shu/src/graph/polymorphic/polymorphic-pick.integration.test.ts": {
 		"anthropomorphic": 3
 	},
@@ -224,8 +218,8 @@
 	"modules/shu/src/graph/polymorphic/polymorphic-scene.ts": {
 		"anthropomorphic": 16,
 		"banned-word": 3,
-		"relation-verb": 16,
-		"terminal-preposition": 7
+		"relation-verb": 11,
+		"terminal-preposition": 5
 	},
 	"modules/shu/src/graph/polymorphic/polymorphic-summary.integration.test.ts": {
 		"anthropomorphic": 1

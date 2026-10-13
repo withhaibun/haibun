@@ -1,11 +1,11 @@
 /// <reference path="./three-controls.d.ts" />
 import "aframe";
 import ForceGraphVR from "3d-force-graph-vr";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import type { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { html, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "../../page/components/shu-element.js";
-import { SITE_KEY, HYPERMEDIA_ROLE_REL_KEY, type GraphModel } from "../../domains/graph-model.js";
+import { SITE_KEY, type GraphModel } from "../../domains/graph-model.js";
 import { omittedOf } from "../../derivations/graph-model.js";
 import { readsEveryStatement, statedAboutFirst } from "../../page/graph/derivations/summary.js";
 import { DEFAULT_PER_TYPE_LIMIT } from "../../quads-snapshot.js";
@@ -28,24 +28,20 @@ import { type GroupKeyMode, easeInOutCubic, groupKeyOf } from "../../page/graph/
 import { type KindTiers, type TGraphPreview } from "../../page/graph/derivations/focus-policy.js";
 import { quadsToGanttModel, cascadeReschedule } from "../../page/graph/derivations/gantt-model.js";
 import { availablePaints } from "../../page/graph/derivations/paint-select.js";
-import { ganttBarTimes, GANTT_ROW_H, GANTT_BAR_H, GANTT_BAR_D, GANTT_MIN_BAR_W, GANTT_GHOST_PAD } from "../../page/graph/derivations/gantt-layout.js";
+import { ganttBarSpan, ganttExtentOf, type GanttTarget } from "../../page/graph/derivations/gantt-layout.js";
 import { type Adornment } from "../../page/graph/derivations/graph-layout.js";
-import {
-	PolymorphicCamera,
-	clearStripOffset,
-	coveredTogether,
-	type GanttExtent,
-	type TMeasureUnit,
-	type TPanDirection,
-	type TZoomDirection,
-} from "../../page/graph/machines/camera.js";
+import type { TMeasureUnit, TPanDirection, TZoomDirection } from "../../page/graph/machines/camera.js";
+import { CameraController } from "../../page/graph/controllers/camera-controller.js";
+import { PickController, type TPickThree } from "../../page/graph/controllers/pick-controller.js";
+import { LayoutTween } from "../../page/graph/machines/layout-tween.js";
+import { GanttOverlay, type GanttThree } from "../../page/graph/components/gantt-overlay.js";
+import { sceneDataHash, visibleGraphModel, type TSceneData } from "../../page/graph/derivations/scene-data.js";
 import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../../page/controllers/element-controller.js";
-import { ndcToClient, clientToNdc, framesGraph, screenShare, type TClientPoint, type TScreenShare } from "../../page/graph/derivations/project.js";
-import { syncPickTarget, restorePickTarget, type TPickObject, type TScaleRestore } from "./polymorphic-pick-sync.js";
+import { framesGraph, type TClientPoint } from "../../page/graph/derivations/project.js";
 import { RenderContext } from "./polymorphic-render-context.js";
 import type { TGraphRenderer, TSceneCamera } from "../../page/graph/ports.js";
-import { DataPipeline, visibleGraphModel } from "./polymorphic-data-pipeline.js";
+import { DataPipeline } from "./polymorphic-data-pipeline.js";
 import { type RenderType, type TViewForces, buildRenderTypeRegistry } from "./polymorphic-render-type.js";
 import type { ViewType } from "../../page/graph/domains/views.js";
 import { FRAME, VIEW, viewChangeRebuildsNodes } from "../../page/graph/domains/views.js";
@@ -70,26 +66,14 @@ import { pageAddress } from "../../page/controllers/hash-controller.js";
 import { LABEL_FONT_FALLBACKS } from "../../domains/serving.js";
 import { DEFAULT_REGULATION_THRESHOLDS, evaluateRegulation, medianOf, newRegulationState, recordFrameTime } from "../../page/graph/derivations/regulation.js";
 import { GRAPH_DRAWING_BLIP, GRAPH_FRAME_BLIP, GRAPH_REGULATION_BLIP, type TDrawingReason, type TWakeCause } from "../../graph-blips.js";
-import { SEQ_LANE_SPACING, actorBars, type TSeqModel } from "../../page/graph/derivations/sequence-model.js";
-import { type FGNode, type FGLink, type LabelVisual, type XYZ, GRAPH_SCENE_EVENT, isPlaced, linkEndId, neighboursOf } from "../../page/graph/domains/graph-types.js";
+import { actorBars, seqLabelOf, seqNodesOf, sequenceExtentOf, type SeqNode, type TSeqModel } from "../../page/graph/derivations/sequence-model.js";
+import { type FGNode, type FGLink, type XYZ, GRAPH_SCENE_EVENT, linkEndId } from "../../page/graph/domains/graph-types.js";
 import { forceLayout, type IGraphLayout } from "../../page/graph/derivations/polymorphic-layout.js";
 import { SvgRenderer } from "./polymorphic-svg-renderer.js";
-import { NodeDrag, DRAG_THRESHOLD_PX } from "../../page/graph/machines/node-drag.js";
 import { NODE_TEXT_COLOR, chipTextHeight } from "../../page/graph/derivations/layout-forces.js";
 import { paintMarkScene, type ShapeThree } from "./polymorphic-node-shapes.js";
 import { PolymorphicFocus, NODE_RENDER_ORDER } from "../../page/graph/controllers/focus-controller.js";
-import {
-	EnclosureController,
-	type EnclosureThree,
-	ENCLOSURE_FILL_OPACITY,
-	ENCLOSURE_EDGE_OPACITY,
-	ENCLOSURE_RENDER_ORDER,
-	ENCLOSURE_LABEL_RENDER_ORDER,
-	ENCLOSURE_LABEL_HEIGHT,
-	type Disposable,
-	type Vec3,
-	type Obj3D,
-} from "./polymorphic-enclosure.js";
+import { EnclosureController, type EnclosureThree, ENCLOSURE_FILL_OPACITY, ENCLOSURE_EDGE_OPACITY, type Obj3D } from "./polymorphic-enclosure.js";
 import { presentationForType } from "../../page/graph/derivations/type-presentation.js";
 import type { NodeMark } from "../../page/graph/domains/graph-scene.js";
 import { appAccessLevel } from "../../view-query.js";
@@ -194,8 +178,6 @@ const LINK_OPACITY = 0.55; // resting edge opacity; focus raises incident edges 
 // layout: rather than a per-node reheat that keeps the whole graph wiggling. A layout change (flatten / dag / group /
 // type-filter) coalesces longer so rapid toggles collapse into ONE transition, then animates as a controlled tween.
 const DATA_DEBOUNCE_MS = 500;
-/** How long the camera holds still before a reader's pan or zoom counts as finished: longer than the damping's last visible easing. */
-const CAMERA_REST_MS = 150;
 // The scene renders on demand: a discrete change (data, selection, resize, theme) is drawn on the next frame, and then
 // the scene idles. A change made between gate ticks is seen by the next tick, which starts the renderer's loop, and the
 // renderer draws before the tick after it stops the loop: two ticks draw one frame. A motion (layout settle, tween,
@@ -211,37 +193,13 @@ const LAYOUT_DEBOUNCE_MS = 450;
 // eased path from where it is to where it lands (links follow). The physics doesn't move the nodes: the engine only holds the pins.
 const TWEEN_MS = 700;
 
-// three.js MOUSE enum values for OrbitControls.mouseButtons (ROTATE=0, DOLLY=1, PAN=2).
-const ORBIT_ROTATE = 0;
-const ORBIT_PAN = 2;
-
 // The enclosure fill/edge/label render orders + heights live with the enclosure subsystem (it draws the boxes); they're
 // re-used here by the gantt axis ruler + the gantt drag ghost (same render layer) and the focus tier consts.
 // The slice of A-Frame's bundled THREE that the group enclosures + the gantt overlays drive. Constructed at runtime via the scene's OWN
 // THREE instance (AFRAME.THREE), never a separately imported `three`, which would be a second copy whose objects
 // the scene can't render. Typed structurally so this view doesn't depend on a three .d.ts.
-type DragPlane = { setFromNormalAndCoplanarPoint(normal: Vec3, point: Vec3): unknown };
-/** A point, and where it falls in a camera's view, in normalized device coordinates. */
-type ProjectedPoint = Vec3 & { project(camera: unknown): Vec3 };
-/** The enclosures' slice of THREE, the slices a chip and a painted shape construct from, and what the gantt overlays and a
- *  node's drag add to them. */
-type ThreeNs = EnclosureThree &
-	ChipThree &
-	ShapeThree & {
-		BufferGeometry: new () => Disposable & { setAttribute(name: string, attr: unknown): void };
-		Float32BufferAttribute: new (array: number[], itemSize: number) => unknown;
-		// Node-drag math: a ray from the pointer through the camera, picks the pressed sprite, then follows the
-		// camera-facing plane through it. `camera` must be set for Sprite.raycast (billboard math).
-		Raycaster: new () => {
-			camera: unknown;
-			setFromCamera(coords: { x: number; y: number }, camera: unknown): void;
-			ray: { intersectPlane(plane: DragPlane, target: Vec3): Vec3 | null };
-			intersectObjects(objects: unknown[], recursive?: boolean): Array<{ object: unknown }>;
-		};
-		Plane: new () => DragPlane;
-		Vector2: new (x?: number, y?: number) => { x: number; y: number };
-		Vector3: new (x?: number, y?: number, z?: number) => ProjectedPoint;
-	};
+/** The slices of THREE that the enclosures, a chip, a painted shape, the gantt overlays and a pick construct. */
+type ThreeNs = GanttThree & ChipThree & ShapeThree & TPickThree;
 const aframeThree = (): ThreeNs | undefined => (globalThis as { AFRAME?: { THREE?: ThreeNs } }).AFRAME?.THREE;
 
 /** The slice of A-Frame's component registry where the scene replaces a component. */
@@ -307,9 +265,6 @@ export interface FGInstance {
 	getGraphBbox(): Bbox | null;
 }
 
-/** A visible node projected as sequence-mapper input: identity, derived @type/role, label and recorded time. */
-type SeqNode = { id: string; type: string; displayLabel?: string; properties?: Record<string, unknown>; __t?: number };
-
 const DEFAULT_MODEL: GraphSceneModel = {
 	quads: [],
 	visibleQuads: [],
@@ -348,8 +303,6 @@ type TSceneRenderer = {
 
 /** The a-scene element as A-Frame extends it: the renderer and camera it holds once loaded, and the events it emits. */
 type TSceneElement = HTMLElement & TAframeScene & { renderer?: TSceneRenderer; camera?: TSceneCamera; emit(name: string, detail?: unknown, bubbles?: boolean): void };
-/** An A-Frame entity, which sets one property of a component it carries. */
-type TAframeEntity = HTMLElement & { setAttribute(component: string, prop: string, value: unknown): void };
 
 /** What a graph scene draws, as its `inspect()` states it. */
 export type TGraphState = ReturnType<ShuGraphScene["inspect"]>;
@@ -368,7 +321,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	/** The ForceGraphVR instance, public so the host can delegate its `graph` accessor 1:1. Displaying goes through the
 	 *  renderer; what remains here is the camera, the controls, and the force simulation (see the plan doc). */
 	graph?: FGInstance;
-	private controls?: OrbitControls;
 	private rafCancel?: () => void;
 	// Render-on-demand bookkeeping: a monotonic frame counter, the frame up to which a discrete change keeps the scene
 	// drawing, and whether the A-Frame render loop is currently paused because motion has ended.
@@ -431,28 +383,12 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private focusEdgeColor = "#222222"; // full-contrast foreground: a focused node's edges + labels brighten to it
 	private particleColor = "#1a6b3c";
 	private focusTextPx = 13; // from --shu-font-md: the pop matches the app's own text size (follows --shu-scale)
-	// Sole owner of camera control: framing/viewport/nav + the load-time auto-fit and view-type re-aim state. It reads the
-	// shared leaf refs (camera/controls/canvas/renderer/container) and the node positions through these accessors, read at
-	// call time so a late-set ref or a re-fed nodeMap is always current; this component never mutates the camera directly.
-	private camera = new PolymorphicCamera({
-		camera: () => this.ctx.camera,
-		controls: () => this.ctx.controls,
-		container: () => this.ctx.container,
-		renderer: () => this.ctx.renderer,
-		canvas: () => this.ctx.canvas,
-		nodePositions: () => [...this.ctx.nodeMap.values()].filter(isPlaced),
-		hasNodes: () => this.ctx.nodeMap.size > 0,
-		reframeMode: () => this.renderType.reframeMode(),
-		ganttExtent: () => this.ganttExtent(),
-		sequenceExtent: () => this.sequenceExtent(),
-		refreshPickBounds: () => this.refreshPickBounds(),
-	});
 	// The single interface to the live render world, late-bound three.js leaf refs + the shared mutable graph-state
 	// collections, behind typed getters read at call time. The component still OWNS the refs/maps (DataPipeline mutates
 	// nodeMap); subsystems extracted next read this ONE injected context instead of scattered private-field touches.
-	private ctx = new RenderContext<FGNode, FGLink>({
+	private ctx: RenderContext<FGNode, FGLink> = new RenderContext<FGNode, FGLink>({
 		camera: () => this.fgCamera,
-		controls: () => this.controls,
+		controls: () => this.cameraCtl.controls,
 		container: () => this.fgContainer,
 		renderer: () => this.fgRenderer,
 		canvas: () => this.fgCanvas,
@@ -460,6 +396,27 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		nodeMap: () => this.nodeMap,
 		currentLinks: () => this.currentLinks,
 		linkMap: () => this.linkMap,
+	});
+	// The camera controller: the orbit controls, the frame's fit to the column, following, framing and the nudges. Its
+	// camera machine owns the arithmetic of every move; both read the render world and the layout through call-time accessors.
+	private cameraCtl: CameraController = new CameraController({
+		world: this.ctx,
+		fitMove: () => this.renderType.fitMove(),
+		reframeMode: () => this.renderType.reframeMode(),
+		ganttExtent: () => ganttExtentOf(this.ganttTargets.values()),
+		sequenceExtent: () => {
+			const layout = this.renderType.seqLayout?.();
+			return layout === undefined ? null : sequenceExtentOf(layout);
+		},
+		layoutRests: () => this.engine.mode === "frozen",
+		activeId: () => this.activeSubject,
+		follows: () => this.config.follow,
+		project: (id) => this.pick.project(id),
+		guide: () => this.querySelector<HTMLElement>("#polymorphic-a11y"),
+		sizeRenderer: (w, h) => this.renderer?.size(w, h),
+		refreshPickBounds: () => this.pick.refreshBounds(),
+		markDirty: (cause, grace) => this.markDirty(cause, grace),
+		teardown: (end) => this.autoTeardown(end),
 	});
 	// The data-flow subsystem: owns the per-id node/link maps + parked positions + the sqrt-age depth scale, and turns
 	// the quad model into {nodes, links, freshLinks}. Wired like the camera, constructor-injected accessors read at
@@ -521,7 +478,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		graph: () => this.graph,
 		engineFrozen: () => this.engine.mode === "frozen",
 		pinNode: (n) => this.dataPinnedIds.push(n.id),
-		worldPerPxAt: (pos) => this.camera.worldPerPxAt(pos),
+		worldPerPxAt: (pos) => this.cameraCtl.camera.worldPerPxAt(pos),
 		focusEdgeColor: () => this.focusEdgeColor,
 		edgeLineColor: () => this.edgeLineColor,
 		edgeLabelColor: () => this.edgeLabelColor,
@@ -556,7 +513,10 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		{
 			seqNodes: () => this.seqNodes(),
 			seqEdges: () => this.visibleModel().edges.map((e) => ({ from: e.from, to: e.to, predicate: e.predicate })),
-			seqOptions: () => ({ labelOf: (participantId) => this.seqLabelFor(participantId), actorEdges: { from: fromActorEdgeLabels(), to: toActorEdgeLabels() } }),
+			seqOptions: () => ({
+				labelOf: (participantId) => seqLabelOf(participantId, this.nodeMap.get(participantId), roleNounFor),
+				actorEdges: { from: fromActorEdgeLabels(), to: toActorEdgeLabels() },
+			}),
 		},
 	);
 	private get renderType(): RenderType {
@@ -589,66 +549,69 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private compassEl: HTMLCanvasElement | null = null;
 	private infoEl: HTMLElement | null = null; // hover overlay above the controls: label · type · its time with units
 	private currentLinks: FGLink[] = [];
-	private fitFrameTimer?: () => void;
 	private repaintTimer?: () => void;
-	/** The wait for the camera to rest after a reader's pan or zoom, after which following checks the node is in view. */
-	private cameraRestTimer?: () => void;
 	private layoutTimer?: () => void;
 	private lastModelHash?: number;
+	/** The hash of the scene's inputs at the last repaint, compared before a model is built (PF31). */
+	private lastInputHash?: number;
 	// Per-repaint memo of the visible model and its sequence-node projection. The layered/sequence render types cache
 	// their layout on the seqNodes() array reference and expect a fresh array only per repaint; seqNodes() built a new
 	// array every call, so those caches never hit and the layout was recomputed ~once per node per feed. Cleared at each
 	// repaint entry (invalidateModelCache), so the reference is stable within a repaint and fresh across repaints.
 	private modelCache?: GraphModel;
 	private seqNodesCache?: SeqNode[];
-	// Active ghost tween: each frame the node pins ease from `from`→`to`. Null when a transition isn't running.
-	private tween?: { start: number; from: Map<string, XYZ>; to: Map<string, XYZ> };
-	// Active node drag: the node follows the pointer in the camera-facing plane; every other node is pinned so
-	// the other nodes don't move. After release the dragged node's pin PERSISTS (a blocked view stays fixed) until the
-	// next layout change re-solves and releases all pins.
-	// The drag state-machine (down/move/up + the pin geometry) lives in NodeDrag, unit-tested with stubs: the flake it
-	// replaces was entirely in picking a pixel out of an occluded WebGL scene, never in this logic. This component owns
-	// only the DOM events + the THREE projection it hands NodeDrag (pick, plane, plane-hit).
-	private nodeDrag = new NodeDrag({
-		pick: (e) => this.pickNodeAt(e),
-		makePlane: (n) => this.dragPlaneFor(n),
-		planeHit: (e, p) => (p ? this.pointerPlaneHit(e, p as DragPlane) : null),
-		nodes: () => this.nodeMap.values(),
-		hold: () => this.engine.hold(),
-		freeze: () => this.engine.freeze(),
-		setControlsEnabled: (on) => {
-			if (this.controls) this.controls.enabled = on;
+	// The ghost tween of a layout change: each frame the node pins ease from where they were toward where they land.
+	private tween = new LayoutTween(TWEEN_MS, easeInOutCubic);
+	// Picking and dragging: which node a press, a click or a projection names, and a node's drag, whose machine holds the
+	// pin geometry. After release the dragged node's pin persists until the next layout change re-solves and releases it.
+	private pick = new PickController({
+		world: this.ctx,
+		three: () => aframeThree(),
+		drag: {
+			hold: () => this.engine.hold(),
+			freeze: () => this.engine.freeze(),
+			dragReschedules: () => this.renderType.dragReschedules,
+			updateGhost: (n) => {
+				const target = this.ganttTargets.get(n.id);
+				if (target !== undefined && this.ganttScale !== undefined) this.ganttOverlay.drawGhost(n, target, this.ganttScale);
+			},
+			clearGhost: () => this.ganttOverlay.clearGhost(),
+			commit: (n) => this.commitGanttDrag(n),
+			selectedId: () => this.activeSubject,
+			dropDataPin: (id) => {
+				this.dataPinnedIds = this.dataPinnedIds.filter((x) => x !== id);
+				// Remember where the user left it, so a reload can pin it back here (persisted by the host). The pin is read
+				// from the drag's own fx/fy, where the pointer left the node, not from x/y, which the engine writes on its
+				// next tick and which therefore still holds the pre-drag place when the drop lands between ticks.
+				const n = this.nodeMap.get(id);
+				const x = n?.fx ?? n?.x;
+				const y = n?.fy ?? n?.y;
+				if (n && x != null && y != null) {
+					this.userPins.set(id, { x, y });
+					n.x = x;
+					n.y = y;
+				}
+				// Emit at drop so the host persists the pin now: the sole carrier of the pin set to the host.
+				this.emitSceneChanged();
+			},
 		},
-		dragReschedules: () => this.renderType.dragReschedules,
-		updateGhost: (n) => this.updateGanttGhost(n),
-		clearGhost: () => this.clearGanttGhost(),
-		commit: (n) => void this.commitGanttDrag(n),
-		selectedId: () => this.activeSubject,
-		dropDataPin: (id) => {
-			this.dataPinnedIds = this.dataPinnedIds.filter((x) => x !== id);
-			// Remember where the user left it, so a reload can pin it back here (persisted by the host). The pin is read
-			// from the drag's own fx/fy, where the pointer left the node, not from x/y, which the engine writes on its
-			// next tick and which therefore still holds the pre-drag place when the drop lands between ticks.
-			const n = this.nodeMap.get(id);
-			const x = n?.fx ?? n?.x;
-			const y = n?.fy ?? n?.y;
-			if (n && x != null && y != null) {
-				this.userPins.set(id, { x, y });
-				n.x = x;
-				n.y = y;
+		tweening: () => this.tween.running,
+		clicked: (node, e) => {
+			if (node) this.onNodeClick(node, e);
+			// Empty space is the reader not choosing a record on the page; the host relays the active record back through setSelectedSubject.
+			else if (this.selectedSubject) dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: entryOf([], appAccessLevel()) });
+		},
+		left: () => {
+			this.updateHoverInfo(null);
+			if (this.hoverSubject) {
+				this.hoverSubject = null;
+				this.applyFocus();
 			}
-			// Emit at drop so the host persists the pin now: the sole carrier of the pin set to the host; otherwise it
-			// survives only if some later unrelated repaint happens to fire before reload.
-			this.emitSceneChanged();
 		},
+		markDirty: (cause) => this.markDirty(cause),
+		teardown: (end) => this.autoTeardown(end),
 	});
-	// The cursor component raycasts every frame against its LAST KNOWN pointer position, when the pointer isn't
-	// over the canvas at all, nodes drifting through that stale spot fire phantom hovers that dim the whole graph.
-	// Hover is honored only while the pointer is present.
-	private pointerOverCanvas = false;
 	private selectedSubject: string | null = null; // sticky: the current column-view node (via the shared selection system)
-	/** The node following last aimed at, so a subject that arrives after it was chosen is centred once. */
-	private aimedAt: string | null = null;
 	private hoverSubject: string | null = null; // transient: the hovered node
 	private preview: TGraphPreview | null = null; // what a preview lights: a type hovered in the filter legend, or nodes a host points at
 	// Ontology (T-Box) mode: the view shows the SCHEMA that drives it: the Class + Property hierarchy from
@@ -663,7 +626,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private fgCanvas?: HTMLCanvasElement;
 	private fgContainer?: HTMLElement;
 	private fgSceneEl?: HTMLElement & { emit(name: string, detail?: unknown, bubbles?: boolean): void };
-	private lastCanvasPos?: { left: number; top: number; width: number; height: number };
 	private freshTimers: (() => void)[] = [];
 	// Gantt layout: per-node calendar-grid target (subject id → world x/y of the bar CENTRE, plus the bar width = its
 	// duration), recomputed in toGraphData when viewType is "gantt". The groupX/groupY forces pull each task to its
@@ -671,7 +633,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	// Gantt layout target per task: y = lane (one row each, force-pulled), z = the bar's CENTRE on the linear time
 	// axis (data-assigned in toGraphData), zLen = its duration as a z-span (the box depth). Time is the z axis; the
 	// camera pivots so z lies flat/horizontal on screen.
-	private ganttTargets = new Map<string, { y: number; z: number; zLen: number; start: number; end: number }>();
+	private ganttTargets = new Map<string, GanttTarget>();
 	// Calendar scale for the gantt layout: drag maps a node's new x back to a time through this (inverse of timeX).
 	private ganttScale: { min: number; span: number } | undefined;
 	// The calendar ruler the layout pass produced (baseline z-range + tick marks + baseline y); null off-gantt.
@@ -682,9 +644,16 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	// next feed (via setGanttShapeSig, the bar-width fingerprint) to re-bind the accessor: a full node rebuild.
 	private nodeRebuildPending = false;
 	private ganttShapeSig = "";
-	private ganttAxisGroup?: Obj3D; // the gantt calendar ruler (baseline + tick marks + date labels), parented like the enclosures; null off-gantt
-	private ganttAxisLabels: LabelVisual[] = []; // the ruler's date labels, which the scene turns to the camera
-	private ganttGhost?: { group: Obj3D; edges: Obj3D; label: LabelVisual }; // transient drag affordance: a wireframe outline + the new date-time, attached to the dragged bar (disposed via disposeGroup)
+	// The gantt calendar ruler and a dragged bar's ghost, parented like the enclosures.
+	private ganttOverlay = new GanttOverlay({
+		three: () => aframeThree(),
+		parent: () => this.enclosureParent(),
+		unitEdges: (T) => {
+			this.enclosureCtl.ensureUnitBox(T);
+			return this.enclosureCtl.unitEdges;
+		},
+		colors: () => ({ text: this.compassFgColor, accent: this.compassAccentColor }),
+	});
 
 	constructor() {
 		super(SceneStateSchema, {});
@@ -736,12 +705,12 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			if (this.renderType.forces.grouped === false) this.enclosureCtl.clearEnclosures();
 			if ((prevType?.forces.labelAsZ ?? this.config.labelAsZ) !== this.labelAsZ) this.nodeRebuildPending = true;
 			const nextMode = this.renderType.reframeMode();
-			if (prevType && nextMode !== prevType.reframeMode()) this.camera.queueFrame(nextMode);
+			if (prevType && nextMode !== prevType.reframeMode()) this.cameraCtl.camera.queueFrame(nextMode);
 			// Crossing a node-shape boundary (chip ↔ gantt bar ↔ sequence activation bar) must rebuild the lib's identity-cached
 			// node objects; a force↔td↔lr switch keeps the chips and must not.
 			if (viewChangeRebuildsNodes(prev.viewType, patch.viewType)) this.nodeRebuildPending = true;
 		}
-		if (patch.follow !== undefined && patch.follow && !prev.follow && this.activeSubject) this.followActive(this.activeSubject); // turning follow on centres the active node at once
+		if (patch.follow !== undefined && patch.follow && !prev.follow && this.activeSubject) this.cameraCtl.follow(this.activeSubject); // turning follow on centres the active node at once
 		if (patch.readAsDocument !== undefined && patch.readAsDocument !== prev.readAsDocument) {
 			// Showing or hiding the reading changes one attribute on a region the renderer already keeps current: the
 			// model and the layout don't move, so this re-renders the template and stops there.
@@ -774,19 +743,9 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 * quality against this surface, never against private fields. `sample` carries every node's actual x/y/z. The host
 	 * delegates its own `inspect()` to this and registers itself on globalThis as `shuPolymorphic` for devtools.
 	 */
-	/** The share of the nodes whose world position projects inside the canvas, through the camera's projection; null before
-	 *  the scene holds a camera. */
-	#screenShare(): TScreenShare | null {
-		const T = aframeThree();
-		const cam = this.fgCamera;
-		if (!T || !cam) return null;
-		cam.updateMatrixWorld?.(true);
-		return screenShare([...this.nodeMap.values()].map((n) => new T.Vector3(n.x ?? 0, n.y ?? 0, n.z ?? 0).project(cam)));
-	}
-
 	inspect() {
 		const nodes = [...this.nodeMap.values()];
-		const onScreen = this.#screenShare();
+		const onScreen = this.pick.screenShare();
 		return {
 			nodes: nodes.length,
 			links: this.currentLinks.length,
@@ -798,12 +757,12 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				preview: this.preview === null ? null : "type" in this.preview ? this.preview.type : [...this.preview.subjects],
 				litNodes: nodes.filter((n) => (n.__visual?.opacity ?? 1) > 0.9).length,
 			},
-			drag: this.nodeDrag.draggedId ? { id: this.nodeDrag.draggedId } : null,
+			drag: this.pick.drag.draggedId ? { id: this.pick.drag.draggedId } : null,
 			// A press in progress that has not (yet) crossed the drag threshold, i.e. still a potential click (it
 			// becomes a node-open on release). Null once the pointer is up.
-			dragPending: this.nodeDrag.pendingId,
-			tween: this.tween ? { elapsedMs: pageClock().now() - this.tween.start } : null,
-			pointerOverCanvas: this.pointerOverCanvas,
+			dragPending: this.pick.drag.pendingId,
+			tween: this.tween.running ? { elapsedMs: this.tween.elapsedMs(pageClock().now()) } : null,
+			pointerOverCanvas: this.pick.pointerOver,
 			engineMode: this.engine.mode,
 			// Render-on-demand state: the scene pauses when motion has ended and a recent discrete change isn't pending, and
 			// `ticks` counts the gate's frames whether or not one was drawn. A reader whose focus/highlight assertion
@@ -833,12 +792,12 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			// The camera moved and has not rested yet, or the column resized and the frame has not been fitted to it, so
 			// following has not checked the node is still in view. A reader of this snapshot has not seen where following
 			// puts the camera.
-			followPending: this.cameraRestTimer !== undefined || this.fitFrameTimer !== undefined,
+			followPending: this.cameraCtl.pending,
 			// Render-stage timing accumulated since the last resetProfile(): how raising the per-type limit uses the
 			// main thread, split into compute / force-warmup / label-textures (the profiling control step reads this).
 			profile: this.profiler.profile,
 			frameJobs: this.frame.names(),
-			controlsLeft: this.controls?.mouseButtons.LEFT ?? null,
+			controlsLeft: this.cameraCtl.controls?.mouseButtons.LEFT ?? null,
 			grouped: this.groupingActive(),
 			viewType: this.viewType,
 			// The sequence-diagram ground truth, or null off-sequence: the participant actors, the time-ordered
@@ -850,16 +809,16 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			layered: this.layeredInspect(),
 			// Camera framing, so a resize/click can be asserted not to zoom or re-frame (fov + position + aim target).
 			camera: this.fgCamera?.position
-				? { fov: this.fgCamera.fov ?? null, x: this.fgCamera.position.x, y: this.fgCamera.position.y, z: this.fgCamera.position.z, target: this.camera.targetPoint() }
+				? { fov: this.fgCamera.fov ?? null, x: this.fgCamera.position.x, y: this.fgCamera.position.y, z: this.fgCamera.position.z, target: this.cameraCtl.camera.targetPoint() }
 				: null,
 			follow: this.config.follow,
 			// Azimuth of the camera around its target (radians): a pan translates camera+target together so this holds; an
 			// orbit changes it. Lets a test tell a sanctioned orbit gesture from a pan without spelunking OrbitControls.
-			azimuth: this.camera.azimuth(),
+			azimuth: this.cameraCtl.camera.azimuth(),
 			// worldPerPx is THE zoom level the user sees (world units per screen pixel at the graph centre): a function
 			// of fov, camera distance AND viewport height. It must change ONLY on a user dolly/fit; never on a click,
 			// focus, data feed, or a column-open resize. A canvas-height change moves it even with fov/pos fixed.
-			viewport: this.camera.zoomMetric(),
+			viewport: this.cameraCtl.camera.zoomMetric(),
 			// Visibility: the fraction of nodes whose world position projects inside the canvas (NDC within [-1,1], in front
 			// of the camera). 1 = the whole graph is framed; a low value means the camera is not framing the graph (the
 			// "rendered but not visible" failure). Computed through the real camera projection, so it tracks any fov/dolly.
@@ -993,15 +952,14 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			}),
 		);
 		this.renderer.rebuildNodes(); // the node factory reaches the library through the renderer, initially and on every shape change
-		this.fitGraphFrame(container);
+		this.cameraCtl.fitFrame(container);
 
 		this.autoTeardown(() => {
 			this.repaintTimer?.();
 			this.layoutTimer?.();
-			this.fitFrameTimer?.();
+			this.cameraCtl.end();
 			for (const cancel of this.freshTimers) cancel();
-			this.clearGanttAxis();
-			this.clearGanttGhost();
+			this.ganttOverlay.dispose();
 			this.enclosureCtl.dispose(); // boxes + the shared unit geometries (the gantt ghost reuses unitEdges but never disposes it)
 			// Release the scene's WebGL context deterministically: a context otherwise frees only at GC, and past the
 			// browser's concurrent-context cap the OLDEST context is silently lost, closed views must never be able to
@@ -1105,8 +1063,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		for (const n of this.nodeMap.values()) n.__visual?.faceCamera(q);
 		for (const l of this.currentLinks) l.__label?.faceCamera(q);
 		for (const label of this.enclosureCtl.labels()) label.faceCamera(q);
-		for (const label of this.ganttAxisLabels) label.faceCamera(q);
-		this.ganttGhost?.label.faceCamera(q);
+		for (const label of this.ganttOverlay.labels()) label.faceCamera(q);
 	}
 
 	private configureGraph(g: FGInstance): void {
@@ -1151,7 +1108,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			})
 			.onEngineStop(() => {
 				const cameToRest = this.engine.engineStopped(); // the governor records that the engine rests
-				this.camera.autoFitOnSettle(!!this.tween); // keep the spreading graph framed (growth-gated); the controller owns the policy
+				this.cameraCtl.camera.autoFitOnSettle(this.tween.running); // keep the spreading graph framed (growth-gated); the controller owns the policy
 				// Release the temporary data-feed pins now the settle has come to rest: existing nodes held still
 				// through the reheat (without jitter), and the resting layout is not left permanently frozen.
 				for (const id of this.dataPinnedIds) {
@@ -1169,7 +1126,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				if (cameToRest && (this.hoverSubject || this.selectedSubject)) this.requestFocusAtRest();
 				// After a data settle (not a layout solve: those tween independently), draw enclosures and run the settle
 				// hook (queued re-aim + gantt ruler) on the frame the nodes came to rest, not while they were still moving.
-				if (!this.tween) {
+				if (!this.tween.running) {
 					if (this.groupingActive()) pageClock().frame(() => this.enclosureCtl.updateEnclosureGeometry());
 					this.onLayoutSettled();
 				}
@@ -1186,7 +1143,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				// (the graph is still moving); and when the pointer isn't over the canvas at all, the cursor raycasts a
 				// stale position every frame. All would jump focus to nodes the user never pointed at, honor hover only
 				// from a live pointer over a graph at rest. (The programmatic setHoveredNode test interface is NOT gated.)
-				if (this.tween || this.nodeDrag.dragging || !this.pointerOverCanvas || this.engine.mode === "settling") return;
+				if (this.tween.running || this.pick.drag.dragging || !this.pick.pointerOver || this.engine.mode === "settling") return;
 				this.hoverSubject = n?.id ?? null;
 				this.updateHoverInfo(n ?? null);
 				this.applyFocus();
@@ -1282,9 +1239,9 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const tasks = quadsToGanttModel(this.pipeline.renderableQuads(), relationOfPredicate).tasks;
 		const dragged = tasks.find((t) => t.id === node.id);
 		if (!dragged) return;
-		// Time is the z axis: the dropped bar's new centre z maps back to its start (ganttBarTimes is the 1D inverse). The
+		// Time is the z axis: the dropped bar's new centre z maps back to its start (ganttBarSpan is the 1D inverse). The
 		// drag sets node.z directly (the 2D sim ignores fz), so read z: the bar's actual rendered position.
-		const newStartMs = Date.parse(ganttBarTimes(node.z, target.zLen, scale).startedAtTime);
+		const newStartMs = ganttBarSpan(node.z, target.zLen, scale).start;
 		// Dragging a bar reschedules it AND slides every task that depends on it by the same delta.
 		const shifted = cascadeReschedule(node.id, newStartMs - dragged.start, tasks);
 		const updates: RescheduleUpdate[] = [...shifted].map(([id, { start, end }]) => ({
@@ -1318,8 +1275,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.engine.attach(inner);
 		// Re-assert after load: A-Frame may swap in its own camera entity during scene init.
 		scene.querySelector("[camera]")?.setAttribute("data-testid", SHU_TEST_IDS.POLYMORPHIC_VIEW.CAMERA);
-		this.enableSpriteRaycast(scene);
-		this.attachControls(scene);
+		this.startFrameLoop(scene, this.cameraCtl.attach(scene));
 		this.removeLibraryForces();
 		this.applyTheme();
 		// Own the size end-to-end: the lib's wrapper frame (fitGraphFrame) plus the drawing buffer + camera. A genuine
@@ -1330,20 +1286,21 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.fgCanvas = container.querySelector("canvas") ?? undefined;
 		this.fgContainer = container;
 		this.fgSceneEl = scene;
-		this.attachNodeDrag();
-		this.fitGraphFrame(container);
-		this.camera.onContainerResize();
+		if (this.fgCanvas === undefined) throw new Error("shu-graph-scene: the scene lacks the canvas a pick reads");
+		this.pick.attach(scene, this.fgCanvas);
+		this.cameraCtl.fitFrame(container);
+		this.cameraCtl.camera.onContainerResize();
 		this.#observers.resizes(container, () => {
 			this.markDirty("resize"); // a paused scene must wake to re-fit and redraw on a container resize
-			this.fitGraphFrame(container);
-			this.camera.onContainerResize();
+			this.cameraCtl.fitFrame(container);
+			this.cameraCtl.camera.onContainerResize();
 		});
 		// Re-theme when the OS colour scheme flips (auto mode) or the user picks a theme (data-theme on <html>).
 		this.#observers.mediaChanges("(prefers-color-scheme: dark)", () => this.applyTheme());
 		this.#observers.attributes(document.documentElement, ["data-theme"], false, () => this.applyTheme());
 		// An overlay declaring that it covers the views: a framing aims clear of it while it is there, and back over the
 		// whole canvas once it goes.
-		this.#observers.attributes(document.body, [SHU_ATTR.DATA_COVERS_VIEWS], true, () => this.onCoverChanged());
+		this.#observers.attributes(document.body, [SHU_ATTR.DATA_COVERS_VIEWS], true, () => this.cameraCtl.coverChanged());
 	}
 
 	/**
@@ -1351,66 +1308,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 * WINDOW SIZE: the scene then displays at that size regardless of the column (the measured stretch/blur).
 	 * Keep that frame matched to the column via the lib's own width()/height() API.
 	 */
-	private fitGraphFrame(container: HTMLElement): void {
-		// Trailing debounce: column open/close animates over many frames; firing on each pixel causes viewport
-		// jitter as the lib resizes the renderer. Wait for the animation to settle, then apply the final size.
-		this.fitFrameTimer?.();
-		this.fitFrameTimer = pageClock().after(100, () => {
-			this.fitFrameTimer = undefined;
-			const w = container.clientWidth;
-			const h = container.clientHeight;
-			if (w && h) this.renderer?.size(w, h);
-			// A resize moves where the reader can see: the first click's own column-open narrows the canvas right after the
-			// follow aimed at the wide one.
-			this.keepFollowedInView();
-		});
-	}
-
-	/**
-	 * Hold the followed node where a reader can see it: inside the canvas and clear of whatever covers it, at the zoom
-	 * the reader set. Called wherever the node, the camera or the view can move (a layout coming to rest, a resize, a
-	 * reader's pan or zoom coming to rest), so following is one rule rather than a reaction per event. A node already in
-	 * view is left where it is, so a pan that keeps it on screen stays put, and a node not in the graph yet is aimed at by
-	 * the layout that brings it in.
-	 */
-	private keepFollowedInView(): void {
-		const id = this.selectedSubject;
-		if (!this.config.follow || !id || !this.nodeMap.has(id)) return;
-		// A subject chosen before the graph held it, such as a question the conversation has just written, is centred
-		// when it arrives, as a present one is centred when it is chosen; after that it is only kept in view.
-		if (this.aimedAt !== id || !this.inClearView(id)) this.followActive(id);
-	}
-
-	/** Whether a node draws inside the canvas and outside everything covering it. Without a projection yet the node doesn't
-	 *  have a position to judge, so it counts as in view and the camera doesn't move. */
-	private inClearView(id: string): boolean {
-		const at = this.projectNodeToScreen(id);
-		const canvas = this.ctx.canvas?.getBoundingClientRect();
-		if (!at || !canvas) return true;
-		if (at.x < canvas.left || at.x > canvas.right || at.y < canvas.top || at.y > canvas.bottom) return false;
-		const covered = this.coveredRect(canvas);
-		return !covered || at.x < covered.left || at.x > covered.right || at.y < covered.top || at.y > covered.bottom;
-	}
-
-	/**
-	 * A-Frame's mouse cursor caches the canvas bounds, refreshed only on window resize/scroll or a DEBOUNCED
-	 * (500ms) rendererresize handler: both miss column-level layout changes, and the debounce can be delayed without end by
-	 * recurring layout shifts (an open actions bar), leaving picks permanently offset. Write the fresh rect into
-	 * the cursor components directly; emit rendererresize too for anything else listening.
-	 */
-	private refreshPickBounds(): void {
-		const scene = this.ctx.sceneEl;
-		const canvas = this.ctx.canvas;
-		if (!scene || !canvas) return;
-		const bounds = canvas.getBoundingClientRect();
-		type CursorEl = HTMLElement & { components?: { cursor?: { canvasBounds: DOMRect } } };
-		for (const el of Array.from(scene.querySelectorAll<CursorEl>("[cursor]"))) {
-			const cursor = el.components?.cursor;
-			if (cursor) cursor.canvasBounds = bounds;
-		}
-		scene.emit("rendererresize", null, false);
-	}
-
 	/**
 	 * Light geometry watchdog, sampled every 15 frames from the rAF tick (per-frame layout reads would force a
 	 * synchronous layout flush 60×/s for the component's lifetime). Re-asserts the buffer size aspect-only via
@@ -1421,19 +1318,10 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 * doesn't refresh in a loop. Real container resizes are handled immediately by the ResizeObserver (the fov path).
 	 */
 	private checkCanvasGeometry(): void {
-		this.camera.syncViewport();
-		const canvas = this.ctx.canvas;
-		if (!canvas) return;
-		const b = canvas.getBoundingClientRect();
-		const r = { left: Math.round(b.left), top: Math.round(b.top), width: Math.round(b.width), height: Math.round(b.height) };
-		const prev = this.lastCanvasPos;
-		if (prev && (prev.left !== r.left || prev.top !== r.top || prev.width !== r.width || prev.height !== r.height)) {
-			this.refreshPickBounds();
-			// What the canvas shows is the same wherever it is on the page, so a move only refreshes the pick bounds, and a
-			// scene at rest stays at rest; a changed size is drawn again at its new aspect.
-			if (prev.width !== r.width || prev.height !== r.height) this.markDirty("resize");
-		}
-		this.lastCanvasPos = r;
+		this.cameraCtl.camera.syncViewport();
+		// What the canvas shows is the same wherever it is on the page, so a move only refreshes the pick bounds, and a scene
+		// at rest stays at rest; a changed size is drawn again at its new aspect.
+		if (this.pick.canvasResized()) this.markDirty("resize");
 	}
 
 	private themeColor(token: string, fallback: string): string {
@@ -1588,8 +1476,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  a focus still to apply, or a discrete change within its grace, named by its cause. Rest where these don't hold, so a
 	 *  scene draws only while something it shows changes. */
 	private drawingReason(frame: number): TDrawingReason {
-		if (this.nodeDrag.dragging) return "drag";
-		if (this.tween) return "tween";
+		if (this.pick.drag.dragging) return "drag";
+		if (this.tween.running) return "tween";
 		if (this.engine.mode !== "frozen") return "settle";
 		if (this.focusCtl.magnifying) return "magnify";
 		if (this.focusDirty) return "focus";
@@ -1604,81 +1492,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.drawingFor = { reason, since: now, frame: this.rafFrame, wakes: 0 };
 	}
 
-	/**
-	 * Desktop navigation: drag pans, Ctrl+drag spins, wheel zooms. A-Frame's look/wasd/movement controls
-	 * are removed and the camera rig is flattened to the origin so OrbitControls operates in world space;
-	 * it's disabled inside a VR session, where WebXR drives the camera.
-	 */
-	private attachControls(scene: TSceneElement): void {
-		const { camera, renderer } = scene;
-		const cameraEl = scene.querySelector("[camera]");
-		const rigEl = scene.querySelector<TAframeEntity>("[movement-controls]");
-		if (!cameraEl || !camera?.position || !renderer?.domElement) throw new Error("shu-graph-scene: camera/renderer unavailable for controls");
-		cameraEl.removeAttribute("look-controls");
-		cameraEl.removeAttribute("wasd-controls");
-		// Disable rather than remove: movement-controls' own loaded/tick handlers still run and crash on a removed component.
-		rigEl?.setAttribute("movement-controls", "enabled", false);
-		// Flatten the rig to the origin and carry the view distance on the camera itself, so OrbitControls:
-		// which reads/writes `scene.camera` (the PerspectiveCamera), operates directly in world space.
-		rigEl?.setAttribute("position", "0 0 0");
-		camera.position.set(0, 0, 300);
-
-		const controls = new OrbitControls(camera, renderer.domElement);
-		controls.enableDamping = true;
-		controls.dampingFactor = 0.12;
-		controls.screenSpacePanning = true;
-		controls.mouseButtons = { LEFT: ORBIT_PAN, MIDDLE: 1, RIGHT: ORBIT_ROTATE };
-		this.controls = controls;
-		// Camera motion, a drag/zoom and the damping that eases out after the pointer releases, wakes the on-demand loop.
-		// `change` fires each frame the camera still moves, so the scene keeps drawing through the damping, then idles.
-		// A reader's pan or zoom can carry the followed node out of view. Held while the pointer is down, and checked once
-		// the damping has eased the camera to rest, so following never fights a drag in progress.
-		let gesturing = false;
-		controls.addEventListener("start", () => {
-			gesturing = true;
-			this.markDirty("camera");
-		});
-		controls.addEventListener("end", () => {
-			gesturing = false;
-		});
-		controls.addEventListener("change", () => {
-			this.markDirty("camera", 4);
-			this.cameraRestTimer?.();
-			this.cameraRestTimer = pageClock().after(CAMERA_REST_MS, () => {
-				this.cameraRestTimer = undefined;
-				if (!gesturing) this.keepFollowedInView();
-			});
-		});
-		this.autoTeardown(() => this.cameraRestTimer?.());
-		const canvas = renderer.domElement;
-		let pressed: { x: number; y: number; node: FGNode | undefined } | null = null;
-		// Ctrl/meta/shift-to-orbit is OrbitControls' OWN behavior: with LEFT mapped to PAN, a modified press
-		// rotates (see OrbitControls' MOUSE.PAN case). Never pre-flip mouseButtons from key events: that double-
-		// inverts the lib's handling and the modifier goes dead.
-		const onPointerDown = (e: PointerEvent) => {
-			pressed = { x: e.clientX, y: e.clientY, node: this.pickNodeAt(e) };
-		};
-		// The canvas handles every click here, in place of the library's onNodeClick. A press that moves past the drag
-		// threshold is a pan, orbit or drag, and its click is skipped. Otherwise the click opens the node pickNodeAt found
-		// at the press, with ctrl, meta or shift adding it to the selection, and a click on empty space clears the subject.
-		// The pick runs at the press because document click listeners run before this one and can move the camera. The
-		// actions bar closes on such a click, and the follow then re-aims the followed node.
-		const onClick = (e: MouseEvent) => {
-			const press = pressed;
-			pressed = null;
-			if (!press || Math.hypot(e.clientX - press.x, e.clientY - press.y) > DRAG_THRESHOLD_PX) return;
-			const node = press.node;
-			if (node) this.onNodeClick(node, e);
-			// Empty space is the reader not choosing a record on the page; the host relays the active record back through setSelectedSubject.
-			else if (this.selectedSubject) dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: entryOf([], appAccessLevel()) });
-		};
-		canvas.addEventListener("pointerdown", onPointerDown);
-		canvas.addEventListener("click", onClick);
-		this.autoTeardown(() => {
-			canvas.removeEventListener("pointerdown", onPointerDown);
-			canvas.removeEventListener("click", onClick);
-		});
-
+	/** Start the scene's frame loop: the frame jobs, and the gate that draws while something moves and rests otherwise. */
+	private startFrameLoop(scene: TSceneElement, controls: OrbitControls): void {
 		// The frame's jobs, declared with their cadences in one place (see FrameScheduler).
 		this.frame.add("controls", () => controls.update(), EVERY_FRAME);
 		this.frame.add("compass", () => this.drawCompass(), 2);
@@ -1695,7 +1510,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.frame.add(
 			"enclosure-track",
 			() => {
-				if (this.groupingActive() && this.engine.mode !== "frozen" && !this.nodeDrag.dragging) this.enclosureCtl.updateEnclosureGeometry();
+				if (this.groupingActive() && this.engine.mode !== "frozen" && !this.pick.drag.dragging) this.enclosureCtl.updateEnclosureGeometry();
 			},
 			8,
 		);
@@ -1754,165 +1569,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			this.rafCancel?.();
 			drawing.end();
 			frameTime.end();
-			controls.dispose();
 		});
-
-		const setEnabled = (on: boolean) => {
-			controls.enabled = on;
-		};
-		scene.addEventListener("enter-vr", () => setEnabled(false));
-		scene.addEventListener("exit-vr", () => setEnabled(true));
-	}
-
-	/** A pointer ray through the camera at the event's canvas position, usable for plane hits and sprite picks. */
-	private pointerRay(e: MouseEvent): InstanceType<ThreeNs["Raycaster"]> | null {
-		const T = aframeThree();
-		const canvas = this.ctx.canvas;
-		const cam = this.ctx.camera;
-		if (!T || !canvas || !cam) return null;
-		// Raycast from a CURRENT camera matrix. A pick can run between render frames, after a fit reframe a render hasn't
-		// repainted the camera's matrixWorld yet, so setFromCamera would build the ray from a stale matrix and miss every
-		// sprite. `projectNodeToScreen` forces the same for the symmetric projection; the pick must match or the two disagree.
-		cam.updateMatrixWorld?.(true);
-		const n = clientToNdc({ x: e.clientX, y: e.clientY }, canvas.getBoundingClientRect());
-		const ndc = new T.Vector2(n.x, n.y);
-		const ray = new T.Raycaster();
-		ray.setFromCamera(ndc, cam);
-		ray.camera = cam; // Sprite.raycast needs the camera reference (billboard math)
-		return ray;
-	}
-
-	/** Where the pointer ray meets the given plane, in graph/world coordinates. null when the ray misses (grazing angle). */
-	private pointerPlaneHit(e: PointerEvent, plane: DragPlane): Vec3 | null {
-		const T = aframeThree();
-		const ray = this.pointerRay(e);
-		return T && ray ? ray.ray.intersectPlane(plane, new T.Vector3()) : null;
-	}
-
-	/** The node whose chip is under the pointer: a fresh press-time raycast, so a drag/orbit decision never waits on
-	 * the cursor component's per-frame hover. Picks against the chip's RESTING footprint, not its magnified halo:
-	 * the focus pop is purely visual and must never inflate the clickable area (a 6× focused chip would otherwise
-	 * capture every orbit press around it: the "focused node blocks the graph" bug). */
-	private pickNodeAt(e: MouseEvent): FGNode | undefined {
-		const ray = this.pointerRay(e);
-		if (!ray) return undefined;
-		const spriteToNode = new Map<unknown, FGNode>();
-		const sprites: unknown[] = [];
-		const restore: Array<[TPickObject, TScaleRestore]> = [];
-		for (const n of this.ctx.nodeMap.values()) {
-			const visual = n.__visual;
-			if (!visual) continue;
-			const s = visual.object;
-			// Raycast the visual's pick target: a troika chip's background quad (the geometry-less group can't be hit),
-			// a sprite/mesh is itself. Its world matrix follows the object's, so the transform writes below (on the
-			// visual's object) still position the pick target.
-			const target = visual.pickTarget as unknown;
-			sprites.push(target);
-			spriteToNode.set(target, n);
-			// Raycast against WHERE THE NODE IS (the engine's coordinates) at its resting size, with the matrix re-derived:
-			// the object-side twin of pointerRay's forced camera matrix, and the same all-nodes-miss symptom when it is
-			// skipped. Writes are what the next render tick would do anyway: idempotent and paint-invisible.
-			const magnified = syncPickTarget(s as TPickObject, { x: n.x, y: n.y, z: n.z, baseScale: n.__baseScale });
-			if (magnified) restore.push([s as TPickObject, magnified]);
-		}
-		const hit = ray.intersectObjects(sprites, false)[0];
-		for (const [s, scale] of restore) restorePickTarget(s, scale);
-		return hit ? spriteToNode.get(hit.object) : undefined;
-	}
-
-	/**
-	 * Drag a node aside (it sometimes blocks a more important one): pointerdown on a node starts a drag in
-	 * the camera-facing plane through it. Every OTHER node is pinned for the duration so the other nodes don't move; only
-	 * the dragged node follows the pointer, links tracking live. On release the dragged node's pin persists, so the
-	 * cleared view holds until the next layout change re-solves the layout and releases every pin.
-	 */
-	/** The camera-facing plane through a node, fixed at press time: the surface the drag slides the node along. Null when
-	 *  the GPU namespace or the camera isn't ready (headless), so the drag never starts. */
-	private dragPlaneFor(node: FGNode): DragPlane | null {
-		const T = aframeThree();
-		const dir = T && this.ctx.camera?.getWorldDirection?.(new T.Vector3());
-		if (!T || !dir) return null;
-		const plane = new T.Plane();
-		plane.setFromNormalAndCoplanarPoint(dir, new T.Vector3(node.x ?? 0, node.y ?? 0, node.z ?? 0));
-		return plane as DragPlane;
-	}
-
-	private attachNodeDrag(): void {
-		const canvas = this.ctx.canvas;
-		if (!canvas) return;
-		const onDown = (e: PointerEvent) => {
-			// Ctrl/meta is the CAMERA modifier: a modified press always orbits, even over a chip, otherwise a dense graph
-			// doesn't leave a pixel from which the camera can be rotated. A press during a tween or an active drag is ignored.
-			if (e.button !== 0 || this.tween || this.nodeDrag.dragging || !this.graph) return;
-			if (e.ctrlKey || e.metaKey) return;
-			this.nodeDrag.down(e);
-			if (this.nodeDrag.pendingId !== null) {
-				try {
-					canvas.setPointerCapture(e.pointerId); // keeps moves flowing outside the canvas; synthetic pointers (tests) don't have a capturable id
-				} catch {
-					/* drag still works, bounded to the canvas */
-				}
-			}
-		};
-		const onMove = (e: PointerEvent) => {
-			// Any move over the canvas proves presence, pointerenter alone misses the page loading with the cursor already
-			// over the canvas (an enter doesn't fire), which left hover and drag dead until a re-entry. A move is drawn, so hover
-			// follows the pointer; a pointer at rest doesn't change the hover or draw a frame.
-			this.pointerOverCanvas = true;
-			this.markDirty("pointer");
-			this.nodeDrag.move(e);
-		};
-		const onUp = () => this.nodeDrag.up();
-		// Pointer presence gates hover (see onNodeHover): entering enables it, leaving clears any active hover so a
-		// dimmed neighbourhood can never outlive the pointer that caused it.
-		const onEnter = () => {
-			this.pointerOverCanvas = true;
-			this.markDirty("pointer");
-		};
-		const onLeave = () => {
-			this.pointerOverCanvas = false;
-			this.markDirty("focus"); // draw the hover magnify easing back out after the pointer leaves
-			this.updateHoverInfo(null);
-			if (this.hoverSubject) {
-				this.hoverSubject = null;
-				this.applyFocus();
-			}
-		};
-		// Capture phase: a press on a node must disable the controls BEFORE OrbitControls' own (earlier-attached)
-		// pointerdown handler runs, or the press starts a pan and the node drag competes with the camera for the gesture.
-		canvas.addEventListener("pointerdown", onDown, true);
-		canvas.addEventListener("pointermove", onMove);
-		canvas.addEventListener("pointerup", onUp);
-		canvas.addEventListener("pointercancel", onUp);
-		canvas.addEventListener("pointerenter", onEnter);
-		canvas.addEventListener("pointerleave", onLeave);
-		this.autoTeardown(() => {
-			canvas.removeEventListener("pointerdown", onDown, true);
-			canvas.removeEventListener("pointermove", onMove);
-			canvas.removeEventListener("pointerup", onUp);
-			canvas.removeEventListener("pointercancel", onUp);
-			canvas.removeEventListener("pointerenter", onEnter);
-			canvas.removeEventListener("pointerleave", onLeave);
-		});
-	}
-
-	/**
-	 * A-Frame's raycaster aims by origin+direction and never sets its THREE.Raycaster.camera, but
-	 * `Sprite.raycast` needs that reference (billboard math), without it the lozenge sprites throw.
-	 * Point every cursor/laser raycaster at the active camera; harmless for the mesh/line objects.
-	 */
-	private enableSpriteRaycast(scene: TSceneElement): void {
-		type RaycasterEl = HTMLElement & { components?: { raycaster?: { raycaster: { camera: unknown } } } };
-		const apply = (camera: unknown) => {
-			for (const el of Array.from(scene.querySelectorAll<RaycasterEl>("[raycaster]"))) {
-				const rc = el.components?.raycaster?.raycaster;
-				if (rc) rc.camera = camera;
-			}
-		};
-		apply(scene.camera);
-		const onCameraSet = (e: Event) => apply((e as CustomEvent<{ cameraEl: { components: { camera: { camera: unknown } } } }>).detail.cameraEl.components.camera.camera);
-		scene.addEventListener("camera-set-active", onCameraSet as EventListener);
-		this.autoTeardown(() => scene.removeEventListener("camera-set-active", onCameraSet as EventListener));
 	}
 
 	private cursorPaintPending = false;
@@ -1962,17 +1619,20 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		}
 		// A ghost tween or an active drag owns the layout, don't re-place under it; retry after. (A mid-drag merge
 		// would re-run toGraphData and overwrite the dragged bar's live z back to its stored target.)
-		if (this.tween || this.nodeDrag.dragging) {
+		if (this.tween.running || this.pick.drag.dragging) {
 			this.scheduleData();
 			return;
 		}
+		// A batch that leaves the scene's inputs as they were doesn't build a model (PF31); a pending shape rebuild still feeds.
+		const inputHash = sceneDataHash(this.sceneData());
+		if (inputHash === this.lastInputHash && !this.nodeRebuildPending) return;
+		this.lastInputHash = inputHash;
 		this.invalidateModelCache(); // a fresh repaint: rebuild the model + seqNodes once, so the render-type caches re-key
 		const firstFeed = this.lastModelHash === undefined; // the from-scratch layout (springy); later feeds are incremental clumps (damped)
 		const existingIds = new Set(this.nodeMap.keys()); // before toGraphData rebuilds the map
 		const { nodes, links, freshLinks } = this.profiler.compute(() => this.pipeline.toGraphData());
-		// Re-feeding graphData reheats the layout (visible jitter), skip entirely when the visible model is unchanged
-		// (e.g. instrumentation-adjacent merges or a throttled window that didn't bring a new node). In gantt the time z is
-		// part of the model, so a reschedule (same nodes/links, moved bars) is detected here and DOES repaint.
+		// Re-feeding graphData reheats the layout (visible jitter), so a model the changed inputs left as it was isn't fed,
+		// such as a property that the chips leave unshown. In gantt the time z is part of the model, so a reschedule repaints.
 		const hash = this.pipeline.hashCurrentModel(nodes, links);
 		if (hash === this.lastModelHash && !this.nodeRebuildPending) return; // a pending shape rebuild must still feed
 		this.lastModelHash = hash;
@@ -2032,7 +1692,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		// Queued, not framed here: this runs on a repaint, with the feed's nodes still piled at the origin, so framing now
 		// fits a bounding box barely bigger than one node and leaves the camera sitting on top of it. The camera applies a
 		// queued reframe on the settle: the once-only frame, on the laid-out graph.
-		this.camera.queueFrame(FRAME.front);
+		this.cameraCtl.camera.queueFrame(FRAME.front);
 	}
 
 	/** Emit the control-bar inputs the host renders: the group-by axes and paint options derived from the visible model,
@@ -2099,6 +1759,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const { nodes, links } = this.pipeline.toGraphData(true); // a deliberate re-place re-fits the depth scale to the new layout
 		this.currentLinks = links;
 		this.lastModelHash = this.pipeline.hashCurrentModel(nodes, links); // gantt-aware: matches the repaint() comparison baseline
+		this.lastInputHash = sceneDataHash(this.sceneData());
 		this.emitSceneChanged();
 		// Place the final layout now, the pins the pipeline set hold lanes and groups; the force fills in the rest, and
 		// glide every surviving node from where it is to where it lands over one eased tween. Positions exist before the
@@ -2109,80 +1770,20 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.renderer?.draw({ nodes, links });
 	}
 
-	/** Snapshot the placed targets, rewind every node to its start, and glide pins start→target. */
+	/** Rewind every node to where it was and glide its pin to where the solved layout places it, keeping the engine ticking
+	 *  so it applies the pins and redraws links and chips; pinned nodes ignore the forces, so only the eased motion shows. */
 	private beginLayoutTween(from: Map<string, XYZ>, nodes: FGNode[]): void {
-		// Placement runs before this, so every node has a position; one without is a defect, not a timing.
-		const unplaced = nodes.find((n) => n.x === undefined);
-		if (unplaced) throw new Error(`beginLayoutTween: node ${unplaced.id} doesn't have a position: place() must run first`);
-		const to = new Map<string, XYZ>();
-		for (const n of nodes) to.set(n.id, { x: n.x ?? 0, y: n.y ?? 0, z: n.z ?? 0 });
-		// Anchor the last-selected node: translate the WHOLE solved layout so that node lands exactly where the user
-		// left it: the layout's internal shape is unchanged (a rigid translation doesn't break a constraint), but the eye's
-		// reference point holds still through the transition. z is never translated: it is the time axis (data).
-		const anchorId = this.selectedSubject;
-		const af = anchorId ? from.get(anchorId) : undefined;
-		const at = anchorId ? to.get(anchorId) : undefined;
-		if (af && at) {
-			const dx = af.x - at.x;
-			const dy = af.y - at.y;
-			if (dx !== 0 || dy !== 0) {
-				for (const p of to.values()) {
-					p.x += dx;
-					p.y += dy;
-				}
-			}
-		}
-		// Snap every node back to its start and pin it there, so the first painted frame is the BEFORE layout; the
-		// tween then eases the pins to the targets. A node without a prior position (newly revealed) starts at its target.
-		for (const n of nodes) {
-			const start = from.get(n.id) ?? to.get(n.id);
-			if (!start) continue;
-			n.x = n.fx = start.x;
-			n.y = n.fy = start.y;
-			// z is the time axis (assigned from data in toGraphData), never a layout pin, don't tween it.
-		}
-		// Keep the engine ticking through the tween so it applies the pins and redraws links/sprites; pinned nodes
-		// ignore the forces, so the forces don't move them; only the eased pin motion shows.
+		this.tween.begin(pageClock().now(), from, nodes, this.selectedSubject);
 		this.engine.hold();
-		this.tween = { start: pageClock().now(), from, to };
 		if (this.hoverSubject || this.selectedSubject) this.requestFocusAtRest();
 	}
 
-	/** Advance the active ghost tween one frame: ease each node's pin from its start toward its target; release on completion. */
+	/** Advance the tween one frame. At its end each node rests at its target, its pin released unless the reader dropped it
+	 *  there or chose it, since a placement by hand is a decision and the reader's reference point mustn't drift. */
 	private updateLayoutTween(): void {
-		if (!this.tween) return;
-		const e = easeInOutCubic(Math.min((pageClock().now() - this.tween.start) / TWEEN_MS, 1));
-		for (const [id, f] of this.tween.from) {
-			const t = this.tween.to.get(id);
-			const n = this.nodeMap.get(id);
-			if (!t || !n) continue;
-			n.fx = f.x + (t.x - f.x) * e;
-			n.fy = f.y + (t.y - f.y) * e;
-			// z is the time axis, data-owned, never tweened
-		}
-		if (e < 1) return;
-		// Done: settle each node at its target and release the pins so later data merges can nudge it again. A node the
-		// reader dropped keeps its pin, as does the selected node: a placement by hand is a decision, which a layout
-		// that frees the node again rejects, and the reader's reference point must not drift under them.
-		for (const n of this.nodeMap.values()) {
-			const t = this.tween.to.get(n.id);
-			if (t) {
-				n.x = t.x;
-				n.y = t.y;
-				// z stays at its current data value, toGraphData() owns it
-			}
-			if (n.id === this.selectedSubject || this.userPins.has(n.id)) {
-				n.fx = n.x;
-				n.fy = n.y;
-				n.fz = n.z;
-				continue;
-			}
-			n.fx = undefined;
-			n.fy = undefined;
-			n.fz = undefined;
-		}
+		if (!this.tween.running || !this.tween.step(pageClock().now(), (id) => this.nodeMap.get(id))) return;
+		this.tween.finish(this.nodeMap.values(), (id) => id === this.selectedSubject || this.userPins.has(id));
 		this.engine.freeze(); // targets are an equilibrium; stop ticking so the graph rests
-		this.tween = undefined;
 		this.onLayoutSettled(); // queued view-type re-aim + (re)draw the gantt ruler, now the layout rests at its targets
 		pageClock().frame(() => this.enclosureCtl.updateEnclosureGeometry());
 	}
@@ -2248,17 +1849,27 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.seqNodesCache = undefined;
 	}
 
+	/** The inputs the visible model and its placement read, which a repaint hashes before it builds the model. */
+	private sceneData(): TSceneData {
+		const { visibleQuads, clusters, hiddenGraphs, hiddenPredicates, site, timeCursor } = this.model;
+		const options = { flatten: this.flatten, grouped: this.groupingActive(), groupBy: this.groupBy, zBasis: this.config.zBasis, labelAsZ: this.labelAsZ };
+		return {
+			quads: visibleQuads,
+			clusters,
+			hiddenGraphs,
+			hiddenPredicates,
+			prune: this.config.prune,
+			site,
+			roleRels: roleEdgeLabels(),
+			viewType: this.viewType,
+			options,
+			timeCursor,
+		};
+	}
+
 	private visibleModel(): GraphModel {
 		if (this.modelCache) return this.modelCache;
-		this.modelCache = visibleGraphModel({
-			quads: this.model.visibleQuads,
-			clusters: this.model.clusters,
-			hiddenGraphs: this.model.hiddenGraphs,
-			hiddenPredicates: this.model.hiddenPredicates,
-			prune: this.config.prune,
-			site: this.model.site,
-			roleRels: roleEdgeLabels(),
-		});
+		this.modelCache = visibleGraphModel(this.sceneData());
 		return this.modelCache;
 	}
 
@@ -2266,18 +1877,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  sequence view derives its actors/messages from these, see mapGraphToSeq. */
 	private seqNodes(): SeqNode[] {
 		if (this.seqNodesCache) return this.seqNodesCache;
-		const { times } = this.pipeline.extractTimes();
-		this.seqNodesCache = this.visibleModel().nodes.map((n) => ({ id: n.id, type: n.type, displayLabel: n.displayLabel, properties: n.properties, __t: times.get(n.id)?.ms }));
+		this.seqNodesCache = seqNodesOf(this.visibleModel().nodes, this.pipeline.extractTimes().times);
 		return this.seqNodesCache;
-	}
-
-	/** The display name for a sequence actor (a participant id). Mirrors the role-container labelling: the party's display
-	 *  name prefixed by its role designation, named from the role rel by which nodes attribute to it, not the party's
-	 *  vertex type (one Principal per DID); an id without a node falls back to the id. */
-	/** The noun a party displays under: what the edge conferring the role declares its target is called, else the
-	 *  party's own type. Declared vocabulary, read from the projection: a graph view doesn't name roles of its own. */
-	private roleNoun(roleRel: unknown, type: string | undefined): string | undefined {
-		return roleNounFor(roleRel) ?? type;
 	}
 
 	/** Where troika looks up a font for a character the label font lacks, absolute on the page's own address, or undefined
@@ -2285,14 +1886,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private labelFontFallbacks(): string | undefined {
 		const address = pageAddress();
 		return address === undefined ? undefined : new URL(LABEL_FONT_FALLBACKS, address).href;
-	}
-
-	private seqLabelFor(participantId: string): string {
-		const partyNode = this.nodeMap.get(participantId);
-		if (!partyNode) return participantId;
-		const party = partyNode.name || participantId;
-		const role = this.roleNoun(partyNode.properties?.[HYPERMEDIA_ROLE_REL_KEY], partyNode.type);
-		return role && role !== party ? `${role}, ${party}` : party;
 	}
 
 	/** Ask the host to show the actor types, through the same reveal the schema scope uses. A no-op when they are all
@@ -2358,7 +1951,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		// The load-time auto-fit ends so that selecting/focusing a node, which re-pools link colours and can nudge the
 		// layout: never re-frames under them ("the graph re-zoomed when I clicked a node"). A cluster-expand is excluded
 		// above: it streams in new nodes, which SHOULD still auto-frame.
-		this.camera.takeControl();
+		this.cameraCtl.camera.takeControl();
 		// Pin the clicked node NOW, at its click-time position. Selection (and its pin) only comes back after the column's
 		// async load, if anything reheats the engine in that gap, an unpinned node would drift and then be pinned at the
 		// moved spot. Locking it here keeps the user's reference point exactly where they clicked. setSelectedSubject owns
@@ -2371,7 +1964,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		// Follow moves at CLICK time: the selection only returns after the column's async load, and does not re-fire for
 		// an already-selected subject: the camera must not wait on either. Choosing a node is the ONLY thing that moves
 		// a following camera, so a pan or orbit afterwards stands until the next node is chosen.
-		if (this.config.follow && n.id !== this.selectedSubject) this.followActive(n.id);
+		if (this.config.follow && n.id !== this.selectedSubject) this.cameraCtl.follow(n.id);
 		this.openPane({ paneType: "entity", persistedAs: n.type, id: n.id }, e);
 	}
 
@@ -2413,7 +2006,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 * change). Lets a test prove the press-pick reads the chip's RESTING footprint, so a magnified focus chip never
 	 * widens its own grab zone (the "focused node blocks the graph" guard at pickNodeAt). */
 	pickAt(clientX: number, clientY: number): string | null {
-		return this.pickNodeAt({ clientX, clientY } as MouseEvent)?.id ?? null;
+		return this.pick.pickAt(clientX, clientY);
 	}
 
 	/** The pixel a node is drawn at: its engine coordinates through the render camera, with the matrix forced current
@@ -2421,13 +2014,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  camera or canvas yet, or the id doesn't name a node. The graph's ONE projection: whatever aims at a node reads it here
 	 *  rather than repeating the arithmetic, which is what lets a pick land on what a projection pointed at. */
 	projectNodeToScreen(id: string): TClientPoint | null {
-		const T = aframeThree();
-		const cam = this.ctx.camera;
-		const canvas = this.ctx.canvas;
-		const n = this.nodeMap.get(id);
-		if (!T || !cam || !canvas || !n) return null;
-		cam.updateMatrixWorld?.(true);
-		return ndcToClient(new T.Vector3(n.x ?? 0, n.y ?? 0, n.z ?? 0).project(cam), canvas.getBoundingClientRect());
+		return this.pick.project(id);
 	}
 
 	/** Set or clear the hovered node programmatically, runs the real focus pass (the same effect a pointer hover
@@ -2461,7 +2048,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			n.fy = n.y;
 			n.fz = n.z;
 		}
-		if (this.config.follow && subject && subject !== previous) this.followActive(subject); // a NEW active node centres; re-asserting the same one leaves the camera where the reader put it
+		if (this.config.follow && subject && subject !== previous) this.cameraCtl.follow(subject); // a NEW active node centres; re-asserting the same one leaves the camera where the reader put it
 		this.reassertFocus();
 	}
 
@@ -2482,114 +2069,18 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 * path. These are the ONLY sanctioned camera changes: the explicit, user-initiated re-framing. Another change (a
 	 * node click, focus, data feed, or a resize) may not re-decide the zoom: the graph never auto-determines its framing. */
 
-	/** The placed-gantt extent the camera frames (centre + half-spans of the bars), computed here, in the gantt
-	 *  layout's owner, and handed to the camera controller so it never reaches into render-type state. The time span
-	 *  (z) becomes screen-horizontal and the lane stack (y) screen-vertical. Null when the view hasn't placed bars. */
-	private ganttExtent(): GanttExtent | null {
-		if (this.ganttTargets.size === 0) return null;
-		let minY = Infinity,
-			maxY = -Infinity,
-			minZ = Infinity,
-			maxZ = -Infinity; // one pass over the placed bars
-		for (const { y, z, zLen } of this.ganttTargets.values()) {
-			if (y < minY) minY = y;
-			if (y > maxY) maxY = y;
-			if (z - zLen / 2 < minZ) minZ = z - zLen / 2;
-			if (z + zLen / 2 > maxZ) maxZ = z + zLen / 2;
-		}
-		return {
-			cy: (minY + maxY) / 2,
-			cz: (minZ + maxZ) / 2,
-			halfH: Math.max((maxY - minY) / 2 + GANTT_ROW_H, 1), // lanes → screen-vertical
-			halfW: Math.max((maxZ - minZ) / 2, 1), // time span → screen-horizontal
-		};
-	}
-
-	/** The participant-lane (y) × time (z) extent the camera frames for the sequence view, mirroring ganttExtent and
-	 *  sourced from the active RenderType's seqLayout; null when the active view doesn't have a sequence layout. */
-	private sequenceExtent(): GanttExtent | null {
-		const layout = this.renderType.seqLayout?.();
-		if (!layout || layout.placement.size === 0) return null;
-		let minY = Infinity,
-			maxY = -Infinity,
-			minZ = Infinity,
-			maxZ = -Infinity;
-		for (const { y, z } of layout.placement.values()) {
-			if (y < minY) minY = y;
-			if (y > maxY) maxY = y;
-			if (z < minZ) minZ = z;
-			if (z > maxZ) maxZ = z;
-		}
-		// A placement is a node's ANCHOR; its chip reads outward from there, so the extent carries a lane of
-		// room on the lane axis, without it the outermost lifeline's label sits half outside the frame.
-		return {
-			cy: (minY + maxY) / 2,
-			cz: (minZ + maxZ) / 2,
-			halfH: Math.max((maxY - minY) / 2 + SEQ_LANE_SPACING, 1), // participant lanes → screen-vertical
-			halfW: Math.max((maxZ - minZ) / 2 + GANTT_ROW_H, 1), // time → screen-horizontal
-		};
-	}
-
 	/** Re-frame so the whole graph fits the viewport: the "fit" button/step, view-relative: the render type declares
 	 *  what fit means for its view (a lane view re-establishes its canonical frame; the force family keeps the orbit
 	 *  orientation and re-sizes). While the layout is still moving the move is queued for the settle; framing now would
 	 *  frame where the nodes are, not where they stop. Delegates to the camera controller, the sole owner of framing. */
 	fitGraph(): void {
-		const move = this.renderType.fitMove();
-		if (this.engine.mode === "frozen") this.camera.frame(move);
-		else this.camera.queueFrame(move);
+		this.cameraCtl.fit();
 	}
 
 	/** Frame a node and its 1-hop neighbours, so a doc/tour step can jump straight to a node's local context rather than
-	 *  the whole graph. Gathers the node plus every node one link away and fits the camera to just that subset; a no-op
-	 *  when the node isn't in the graph. */
+	 *  the whole graph; a no-op when the node isn't in the graph. */
 	fitGraphAround(nodeId: string): void {
-		if (!this.nodeMap.has(nodeId)) return;
-		const positions: XYZ[] = [];
-		for (const id of neighboursOf(nodeId, this.linkMap.values())) {
-			const n = this.nodeMap.get(id);
-			if (n !== undefined && isPlaced(n)) positions.push(n);
-		}
-		this.camera.fitPositions(positions);
-	}
-
-	/** Follow the active node: centre it, holding the reader's zoom level. Not a fit around its neighbourhood: that
-	 *  sizes the distance to each node's own surroundings, so the label scale would change from node to node; the zoom
-	 *  belongs to the reader, and following only moves what the camera looks at. With the guide open over the canvas,
-	 *  "centre" is the clear strip beside it, centring under the guide didn't show the reader the node. */
-	private followActive(nodeId: string): void {
-		const n = this.nodeMap.get(nodeId);
-		if (n === undefined || !isPlaced(n)) return; // a node the layout hasn't placed is followed once it is
-		this.aimedAt = nodeId;
-		this.camera.centerOn(n, this.coverClearOffset() ?? undefined);
-	}
-
-	/** What covers the canvas right now, as the aim offset a framing applies: the reading guide of this scene, and every
-	 *  overlay on the page that declares it covers the views (the actions bar while it is open). Null where an overlay doesn't
-	 *  reach the canvas or one that does leaves the centre clear, which is where a framing aims anyway. */
-	private coverClearOffset(): { dxPx: number; dyPx: number } | null {
-		const canvas = this.ctx.canvas?.getBoundingClientRect();
-		const covered = canvas ? this.coveredRect(canvas) : null;
-		return canvas && covered ? clearStripOffset(canvas, covered) : null;
-	}
-
-	/** The part of the canvas something covers: the reading guide of this scene while it shows, and every overlay on the
-	 *  page that declares it covers the views, boxed together. */
-	private coveredRect(canvas: DOMRect): ReturnType<typeof coveredTogether> {
-		const guide = this.querySelector<HTMLElement>("#polymorphic-a11y");
-		const showing = guide && (guide.hasAttribute("data-shown") || guide.matches(":focus-within")) ? [guide] : [];
-		const declared = Array.from(document.querySelectorAll<HTMLElement>(`[${SHU_ATTR.DATA_COVERS_VIEWS}]`));
-		return coveredTogether(
-			canvas,
-			[...showing, ...declared].map((el) => el.getBoundingClientRect()),
-		);
-	}
-
-	/** An overlay opened or closed: where a reader can see the followed node has moved, so aim it there again. A resize
-	 *  re-aims only when it loses the node (see fitGraphFrame), because a resize is not a choice about the graph; opening
-	 *  or closing a panel is, and it changes the clear region the aim is measured against. */
-	private onCoverChanged(): void {
-		if (this.config.follow && this.activeSubject) this.followActive(this.activeSubject);
+		this.cameraCtl.fitAround(nodeId);
 	}
 
 	/** The one "layout has come to rest" hook: both settle paths (a no-tween engine stop and a tween's completion) call
@@ -2597,139 +2088,36 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  Following does NOT re-centre here: a settle is not a choice the reader made, and re-centring on one would undo
 	 *  a pan or an orbit the moment the layout came to rest. */
 	private onLayoutSettled(): void {
-		this.camera.applyPendingFrame();
+		this.cameraCtl.settled();
 		this.updateLaneAxis();
-		this.keepFollowedInView(); // the layout may have moved the followed node, or brought it in
 	}
 
 	/** Draw the calendar ruler for a view that reads along a calendar, and take it off screen for one that does not, so a
 	 *  view switch cannot leave the previous view's ruler behind. A sequence's lifelines are the actor chips themselves,
 	 *  so it doesn't need an overlay of its own. */
 	private updateLaneAxis(): void {
-		if (this.renderType.drawsCalendarAxis) this.updateGanttAxis();
-		else this.clearGanttAxis();
-	}
-
-	/** An overlay label (a gantt ruler tick, the drag-ghost date): always on top, never depth-hidden, not pickable. */
-	private overlayLabel(text: string): LabelVisual {
-		return makeTroikaText(text, {
-			fontSize: ENCLOSURE_LABEL_HEIGHT,
-			color: this.compassFgColor,
-			renderOrder: ENCLOSURE_LABEL_RENDER_ORDER,
-			anchor: { x: "center", y: "middle" },
-			emphasis: false,
-		});
-	}
-
-	/** Tear down a parented overlay group: dispose each child's material + texture and detach from its parent. Owned
-	 *  geometry is disposed only when `disposeGeometry` is set: the ghost reuses the shared unitEdges and must NOT. */
-	private disposeGroup(group: Obj3D, disposeGeometry: boolean): void {
-		for (const child of [...group.children]) {
-			const c = child as unknown as { geometry?: Disposable; material?: Disposable; dispose?: () => void };
-			if (disposeGeometry) c.geometry?.dispose?.();
-			c.material?.dispose?.();
-			c.dispose?.(); // a troika label owns its text's geometry
-		}
-		group.parent?.remove(group);
-	}
-
-	/** The gantt calendar ruler: a world-space baseline along z (the time axis) with calendar tick marks + date labels,
-	 *  just below the lowest lane, so a dragged bar has a real date reference. Lives in the node coordinate space (the
-	 *  forcegraph object), rebuilt whenever the scale/data change; removed off-gantt. */
-	private updateGanttAxis(): void {
-		this.clearGanttAxis(); // tick set + positions change with the data/scale → rebuild rather than diff
-		const T = aframeThree();
-		const ad = this.ganttAdornment;
-		if (!T || !ad) return; // the layout pass produces the ruler only for a non-empty calendar
-		const parent = this.enclosureParent();
-		if (!parent) return;
-		const { baseY, zMin, zMax, ticks } = ad;
-		const tickH = GANTT_ROW_H * 0.5;
-		const group = new T.Group();
-		(group as Obj3D & { name: string }).name = "shu-gantt-axis";
-		// Baseline (axis min → max along z) + one upward vertical per tick, as a single line-segments mesh.
-		const pts = [0, baseY, zMin, 0, baseY, zMax];
-		for (const tk of ticks) pts.push(0, baseY, tk.z, 0, baseY + tickH, tk.z);
-		const geo = new T.BufferGeometry();
-		geo.setAttribute("position", new T.Float32BufferAttribute(pts, 3));
-		const mat = new T.LineBasicMaterial({ color: this.compassAccentColor, transparent: true, opacity: 0.7, depthWrite: false });
-		const lines = new T.LineSegments(geo, mat);
-		lines.raycast = () => undefined;
-		lines.renderOrder = ENCLOSURE_RENDER_ORDER;
-		group.add(lines);
-		for (const tk of ticks) {
-			const label = this.overlayLabel(tk.label);
-			label.object.position.set(0, baseY - tickH, tk.z);
-			group.add(label.object);
-			this.ganttAxisLabels.push(label);
-		}
-		parent.add(group);
-		this.ganttAxisGroup = group;
-	}
-
-	private clearGanttAxis(): void {
-		if (this.ganttAxisGroup) this.disposeGroup(this.ganttAxisGroup, true); // owns its BufferGeometry → dispose it
-		this.ganttAxisGroup = undefined;
-		this.ganttAxisLabels = [];
-	}
-
-	/** The drag affordance for a gantt bar: a wireframe outline around the bar at its live position plus the new start
-	 *  date-time (formatInstant, which renders future dates fine), updated every move. Reuses the shared unit-box edges +
-	 *  an overlay label; parented into node-coordinate space like the enclosures. */
-	private updateGanttGhost(node: FGNode): void {
-		const T = aframeThree();
-		const target = this.ganttTargets.get(node.id);
-		const scale = this.ganttScale;
-		if (!T || !target || !scale || node.z === undefined) return;
-		this.enclosureCtl.ensureUnitBox(T);
-		const parent = this.enclosureParent();
-		if (!parent || !this.enclosureCtl.unitEdges) return;
-		if (!this.ganttGhost) {
-			const edgeMat = new T.LineBasicMaterial({ color: this.compassAccentColor, transparent: true, opacity: 0.9, depthWrite: false, depthTest: false });
-			const edges = new T.LineSegments(this.enclosureCtl.unitEdges, edgeMat);
-			edges.raycast = () => undefined;
-			edges.renderOrder = ENCLOSURE_LABEL_RENDER_ORDER;
-			const label = this.overlayLabel("");
-			const group = new T.Group();
-			group.add(edges);
-			group.add(label.object);
-			parent.add(group);
-			this.ganttGhost = { group, edges, label };
-		}
-		const g = this.ganttGhost;
-		const x = node.x ?? 0;
-		const y = node.y ?? 0;
-		const zLen = Math.max(target.zLen, GANTT_MIN_BAR_W);
-		const { edges } = g;
-		edges.scale.set(GANTT_BAR_D + GANTT_GHOST_PAD, GANTT_BAR_H + GANTT_GHOST_PAD, zLen + GANTT_GHOST_PAD);
-		edges.position.set(x, y, node.z);
-		g.label.text = formatInstant(ganttBarTimes(node.z, target.zLen, scale).startedAtTime, new Date(), readerZone());
-		g.label.object.position.set(x, y + GANTT_BAR_H, node.z);
-	}
-
-	private clearGanttGhost(): void {
-		if (this.ganttGhost) this.disposeGroup(this.ganttGhost.group, false); // reuses the shared unitEdges → keep geometry
-		this.ganttGhost = undefined;
+		if (this.renderType.drawsCalendarAxis) this.ganttOverlay.drawAxis(this.ganttAdornment);
+		else this.ganttOverlay.clearAxis();
 	}
 
 	/* Visual-graph navigation, the ONLY sanctioned camera changes: the explicit, user-initiated re-framing. Public
 	 * entries (a control step, key, or button all drive ONE path) that delegate to the camera controller, which owns
 	 * the math and latches the camera away from the load-time auto-fit. */
 	zoomBy(amount: number, unit: TMeasureUnit, dir: TZoomDirection): void {
-		this.camera.zoomBy(amount, unit, dir);
+		this.cameraCtl.zoomBy(amount, unit, dir);
 	}
 
 	panBy(amount: number, unit: TMeasureUnit, dir: TPanDirection): void {
-		this.camera.panBy(amount, unit, dir);
+		this.cameraCtl.panBy(amount, unit, dir);
 	}
 
 	orbitBy(degrees: number, dir: TPanDirection): void {
-		this.camera.orbitBy(degrees, dir);
+		this.cameraCtl.orbitBy(degrees, dir);
 	}
 
 	/** Rotate to a head-on aim: `xy` faces the layout plane (the front default), `z` faces the depth axis (time reads left→right). */
 	rotateTo(aim: "xy" | "z"): void {
-		this.camera.frame(aim === "xy" ? FRAME.front : FRAME.side);
+		this.cameraCtl.rotateTo(aim);
 	}
 
 	/** The visible graph as one JSON-LD node: the single representation the copy-graph button and `summarizeForContext` both use, so what a person copies and what the model reads are the same data. The members are the system's own statement projection (the shape getClusteredQuads serves and chat batching consumes), not an invented nodes/edges dialect. */

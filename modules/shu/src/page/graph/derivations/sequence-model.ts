@@ -15,7 +15,10 @@
  * Unit-tested without a scene (see sequence-model.test.ts).
  */
 import { valueAt } from "@haibun/core/lib/util/item-at.js";
+import { HYPERMEDIA_ROLE_REL_KEY, type GraphModel } from "../../../domains/graph-model.js";
 import { collideRadius } from "./layout-forces.js";
+import { GANTT_ROW_H, laneExtent } from "./gantt-layout.js";
+import type { GanttExtent } from "../machines/camera.js";
 import type { TSeqModel, TSeqMessage, TSeqActor } from "../domains/sequence.js";
 
 export type { TSeqModel, TSeqMessage, TSeqActor } from "../domains/sequence.js";
@@ -32,6 +35,24 @@ export type TActorEdges = { from: ReadonlySet<string>; to: ReadonlySet<string> }
 /** What the host passes: the display label for a participant id, so the live view resolves a DID → "Coastal Fisheries
  *  Authority", and the actor edges. A message is labelled by its mediating artifact's @type, never an edge predicate. */
 export type TSeqMapOptions = { labelOf: (participantId: string) => string; actorEdges: TActorEdges };
+
+/** The visible model's nodes as the sequence reads them: identity, @type, label, the role their properties carry, and the
+ *  recorded time `times` holds for each. */
+export const seqNodesOf = (nodes: GraphModel["nodes"], times: ReadonlyMap<string, { ms: number }>): SeqNode[] =>
+	nodes.map((n) => ({ id: n.id, type: n.type, displayLabel: n.displayLabel, properties: n.properties, __t: times.get(n.id)?.ms }));
+
+/** The party a participant id names, as its node shows it. */
+export type TSeqParty = { name: string; type: string; properties?: Record<string, unknown> };
+
+/** A participant's display name: the party's name prefixed by the noun of the role it holds, which `roleNoun` reads from the
+ *  role rel by which nodes attribute to it, else the party's own type. An id the graph lacks shows as itself. */
+export function seqLabelOf(participantId: string, party: TSeqParty | undefined, roleNoun: (roleRel: unknown) => string | undefined): string {
+	if (party === undefined) return participantId;
+	const name = party.name === "" ? participantId : party.name;
+	const declared = roleNoun(party.properties?.[HYPERMEDIA_ROLE_REL_KEY]);
+	const role = declared === undefined ? party.type : declared;
+	return role !== name ? `${role}, ${name}` : name;
+}
 
 /** The label for an artifact-mediated message: the mediating entity's @type (e.g. "VerifiablePresentation"), never a
  *  predicate and never its displayLabel (which for a credential is its raw claims): the artifact's TYPE is the message. */
@@ -251,6 +272,15 @@ export function mapGraphToSeqLayout(nodes: ReadonlyArray<SeqNode>, edges: Readon
 /** Each participant's bar and the objects on it, in the order the layout placed them: what an accessible reading of a
  *  sequence walks, and what a still image draws as the lanes. Empty bars are kept, since a participant without an object
  *  on it is itself to read. */
+/** The extent of a sequence's placement: a lane of room on the participant axis, since a placement is a node's anchor and its
+ *  chip reads outward from there, and a row of room on the time axis. */
+export function sequenceExtentOf(layout: SeqLayout): GanttExtent | null {
+	return laneExtent(
+		[...layout.placement.values()].map(({ y, z }) => ({ y, zFrom: z, zTo: z })),
+		{ lane: SEQ_LANE_SPACING, time: GANTT_ROW_H },
+	);
+}
+
 export function actorBars(layout: SeqLayout): Array<{ id: string; label: string; nodeIds: string[] }> {
 	const onBar = new Map<string, string[]>(layout.actors.map((a): [string, string[]] => [a.id, []]));
 	for (const id of layout.placement.keys()) {

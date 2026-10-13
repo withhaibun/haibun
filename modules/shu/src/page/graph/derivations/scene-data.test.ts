@@ -4,10 +4,8 @@
  * derivation, so a chip put away has to disappear from the drawing, the still image and the accessible reading alike.
  */
 import { describe, it, expect } from "vitest";
-import { visibleGraphModel } from "./polymorphic-data-pipeline.js";
-import { actorBars } from "../../page/graph/derivations/sequence-model.js";
+import { sceneDataHash, visibleGraphModel, type TSceneData } from "./scene-data.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
-import type { SeqLayout } from "../../page/graph/derivations/sequence-model.js";
 
 const quad = (subject: string, predicate: string, object: string, namedGraph: string, objectType?: string): TQuad => ({
 	subject,
@@ -64,40 +62,33 @@ describe("the prune, which reads what is left rather than what was there", () =>
 	});
 });
 
-describe("the bars a sequence reads along", () => {
-	const layout = (): SeqLayout => ({
-		barOf: new Map([
-			["msg-1", "issuer"],
-			["msg-2", "holder"],
-			["msg-3", "issuer"],
-		]),
-		actors: [
-			{ id: "issuer", label: "Issuer" },
-			{ id: "holder", label: "Holder" },
-			{ id: "verifier", label: "Verifier" },
-		],
-		laneY: new Map(),
-		placement: new Map([
-			["msg-1", { y: 0, z: 0 }],
-			["msg-2", { y: 1, z: 1 }],
-			["msg-3", { y: 0, z: 2 }],
-			["loose", { y: 2, z: 3 }],
-		]),
-		spans: new Map(),
-		arrows: [],
-		laneSpan: 0,
-		timeSpan: 0,
+describe("the hash a repaint compares before it builds a model (PF31)", () => {
+	const data = (over: Partial<TSceneData> = {}): TSceneData => ({
+		quads,
+		clusters: [],
+		hiddenGraphs: ["Note"],
+		hiddenPredicates: [],
+		prune: false,
+		roleRels: [],
+		viewType: "force",
+		options: { flatten: false },
+		timeCursor: null,
+		...over,
 	});
 
-	it("puts each object on its participant's bar, in the order the layout placed them", () => {
-		expect(actorBars(layout())).toEqual([
-			{ id: "issuer", label: "Issuer", nodeIds: ["msg-1", "msg-3"] },
-			{ id: "holder", label: "Holder", nodeIds: ["msg-2"] },
-			{ id: "verifier", label: "Verifier", nodeIds: [] },
-		]);
+	it("leaves the hash of a batch that brings only quads of a hidden type", () => {
+		expect(sceneDataHash(data({ quads: [...quads, quad("note-1", "name", "aside", "Note")] }))).toBe(sceneDataHash(data()));
 	});
 
-	it("keeps a participant without an object on its bar, which is itself to read", () => {
-		expect(actorBars(layout()).find((b) => b.id === "verifier")?.nodeIds).toEqual([]);
+	it("changes with a visible quad, a hidden type, the view, an option and the time cursor", () => {
+		const base = sceneDataHash(data());
+		for (const over of [
+			{ quads: [...quads, quad("person-2", "name", "Ana", "Principal")] },
+			{ hiddenGraphs: ["File"] },
+			{ viewType: "gantt" },
+			{ options: { flatten: true } },
+			{ timeCursor: 5 },
+		])
+			expect(sceneDataHash(data(over))).not.toBe(base);
 	});
 });

@@ -430,9 +430,6 @@
 	"modules/shu/src/graph/polymorphic/polymorphic-node-shapes.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/shu/src/graph/polymorphic/polymorphic-pick-sync.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/graph/polymorphic/polymorphic-render-context.ts": {
 		"isn't in a kind position": 1
 	},

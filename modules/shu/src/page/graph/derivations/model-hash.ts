@@ -15,25 +15,31 @@ const endId = (e: string | { id: string }): string => (typeof e === "string" ? e
 /** One identity for a link: the unchanged-model skip and the fresh-link detection both read it. */
 export const linkKey = (l: HashLink): string => `${endId(l.source)}${SEP}${l.predicate}${SEP}${endId(l.target)}`;
 
-export function hashModel(nodes: HashNode[], links: HashLink[], mixZ: boolean, extra: number | null): number {
+/** A stable 53-bit hash of the strings `write` mixes, each a field: ("ab","c") hashes apart from ("a","bc"). */
+export function stableHash(write: (mix: (s: string) => void) => void): number {
 	let h1 = 0xdeadbeef;
 	let h2 = 0x41c6ce57;
-	const mix = (s: string): void => {
+	write((s) => {
 		for (let i = 0; i < s.length; i++) {
 			const ch = s.charCodeAt(i);
 			h1 = Math.imul(h1 ^ ch, 2654435761);
 			h2 = Math.imul(h2 ^ ch, 1597334677);
 		}
-		h1 = Math.imul(h1 ^ 0x1f, 2654435761); // field terminator: ("ab","c") must differ from ("a","bc")
-	};
-	for (const n of nodes) {
-		mix(n.id);
-		mix(n.name);
-		if (mixZ) mix(n.z === undefined ? "" : String(Math.round(n.z))); // gantt: the calendar position is part of the model, and an unplaced node differs from one at 0
-	}
-	for (const l of links) mix(linkKey(l));
-	if (extra !== null) mix(String(extra)); // the scrub cursor (live/null doesn't mix a value, so live streaming is unaffected)
+		h1 = Math.imul(h1 ^ 0x1f, 2654435761); // the field's terminator
+	});
 	h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
 	h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
 	return 4294967296 * (2097151 & h2) + (h1 >>> 0);
+}
+
+export function hashModel(nodes: HashNode[], links: HashLink[], mixZ: boolean, extra: number | null): number {
+	return stableHash((mix) => {
+		for (const n of nodes) {
+			mix(n.id);
+			mix(n.name);
+			if (mixZ) mix(n.z === undefined ? "" : String(Math.round(n.z))); // gantt: the calendar position is part of the model, and an unplaced node differs from one at 0
+		}
+		for (const l of links) mix(linkKey(l));
+		if (extra !== null) mix(String(extra)); // the scrub cursor (live/null doesn't mix a value, so live streaming is unaffected)
+	});
 }

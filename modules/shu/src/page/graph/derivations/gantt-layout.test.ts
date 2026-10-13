@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import { timeToGanttX, ganttBarTimes, ganttAxisTicks, type GanttScale } from "./gantt-layout.js";
-import { GANTT_WORLD_W } from "./gantt-layout.js";
+import { timeToGanttX, ganttBarSpan, ganttAxisTicks, ganttExtentOf, laneExtent, GANTT_ROW_H, GANTT_WORLD_W, type GanttScale } from "./gantt-layout.js";
 
 const DAY = 86400000;
 const scale: GanttScale = { min: Date.parse("2026-06-01T00:00:00.000Z"), span: 10 * DAY };
@@ -14,9 +13,9 @@ describe("gantt-layout time ⇄ x mapping (the drag-to-reschedule math)", () => 
 
 	it("dropping a bar at the axis centre reschedules it to the mid-span, keeping its 2-day width", () => {
 		const w = ((2 * DAY) / scale.span) * GANTT_WORLD_W; // a 2-day bar's world width
-		const { startedAtTime, endedAtTime } = ganttBarTimes(0, w, scale); // centre x → mid of [min, min+span] = 2026-06-06
-		expect(startedAtTime).toBe("2026-06-05T00:00:00.000Z");
-		expect(endedAtTime).toBe("2026-06-07T00:00:00.000Z");
+		const { start, end } = ganttBarSpan(0, w, scale); // centre x → mid of [min, min+span] = 2026-06-06
+		expect(start).toBe(Date.parse("2026-06-05T00:00:00.000Z"));
+		expect(end).toBe(Date.parse("2026-06-07T00:00:00.000Z"));
 	});
 
 	it("round-trips: a bar centred at timeToGanttX(t) reschedules back to a span centred on t", () => {
@@ -24,9 +23,7 @@ describe("gantt-layout time ⇄ x mapping (the drag-to-reschedule math)", () => 
 		const end = Date.parse("2026-06-07T00:00:00.000Z"); // 4-day task, midpoint 2026-06-05
 		const w = ((end - start) / scale.span) * GANTT_WORLD_W;
 		const centerX = timeToGanttX((start + end) / 2, scale);
-		const times = ganttBarTimes(centerX, w, scale);
-		expect(times.startedAtTime).toBe("2026-06-03T00:00:00.000Z");
-		expect(times.endedAtTime).toBe("2026-06-07T00:00:00.000Z");
+		expect(ganttBarSpan(centerX, w, scale)).toEqual({ start, end });
 	});
 });
 
@@ -50,3 +47,18 @@ describe("ganttAxisTicks (calendar marks sized to the span, for a draggable date
 });
 
 const TARGET_OK = 9; // ~8 target ticks + the trailing boundary
+
+describe("the extent a camera frames over lane-placed marks", () => {
+	it("centres the lanes and the spans in time, each half padded, and states null for a set without a mark", () => {
+		const spans = [
+			{ y: 0, zFrom: -10, zTo: 0 },
+			{ y: 20, zFrom: 5, zTo: 30 },
+		];
+		expect(laneExtent(spans, { lane: 2, time: 1 })).toEqual({ cy: 10, cz: 10, halfH: 12, halfW: 21 });
+		expect(laneExtent([], { lane: 2, time: 1 })).toBeNull();
+	});
+
+	it("reads a gantt bar's span from its centre and length, with a row of room on the lane axis", () => {
+		expect(ganttExtentOf([{ y: 0, z: 10, zLen: 20, start: 0, end: 1 }])).toEqual({ cy: 0, cz: 10, halfH: GANTT_ROW_H, halfW: 10 });
+	});
+});

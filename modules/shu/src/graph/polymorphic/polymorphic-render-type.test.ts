@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildRenderTypeRegistry, type RenderTypeDeps, type SeqRenderDeps } from "./polymorphic-render-type.js";
 import { VIEW } from "../../page/graph/domains/views.js";
-import type { GanttTarget } from "./polymorphic-data-pipeline.js";
+import type { GanttTarget } from "../../page/graph/derivations/gantt-layout.js";
 
 // Everything a view type decides about its own axes, plane and labels is declared on the view type, so the scene can
 // draw any of them without asking which one it holds. These tests read those declarations through the registry the

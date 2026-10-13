@@ -344,15 +344,12 @@
 	"modules/shu/src/graph/polymorphic/polymorphic-node-shapes.ts": {
 		"fills an absent value with a constant through ??": 1
 	},
-	"modules/shu/src/graph/polymorphic/polymorphic-pick-sync.ts": {
-		"states a destructured default value": 3
-	},
 	"modules/shu/src/graph/polymorphic/polymorphic-renderer.ts": {
 		"fills an absent value with a constant through ??": 4
 	},
 	"modules/shu/src/graph/polymorphic/polymorphic-scene.ts": {
 		"fills a falsy value with a constant through ||": 3,
-		"fills an absent value with a constant through ??": 24,
+		"fills an absent value with a constant through ??": 10,
 		"states a parameter's default value": 1
 	},
 	"modules/shu/src/graph/polymorphic/polymorphic-svg-renderer.ts": {

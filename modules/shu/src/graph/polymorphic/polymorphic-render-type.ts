@@ -28,7 +28,7 @@ import {
 } from "../../page/graph/derivations/sequence-model.js";
 import { layeredPositions, type LayeredDirection, LAYERED_MIN_FLOW_SPAN } from "../../page/graph/derivations/layered-solver.js";
 import { truncateLabel } from "../../page/graph/derivations/layout-forces.js";
-import type { GanttTarget } from "./polymorphic-data-pipeline.js";
+import type { GanttTarget } from "../../page/graph/derivations/gantt-layout.js";
 import { VIEW, type ViewType, REFRAME, type ReframeMode, FRAME, type FrameMove } from "../../page/graph/domains/views.js";
 
 /** Sentinel a render type's `controls()` returns when it doesn't add a control to the shared control bar (lit's no-render value). */

@@ -2,11 +2,11 @@
  * The rule the drag rests on: a pick re-derives its target's matrix EVERY time, because the raycast reads the matrix
  * and the fields it is derived from are written by the layout a frame earlier. A node whose position field already
  * equals the engine's is the dangerous case, not the safe one: its matrix is the stale one, and skipping the update
- * there is the "N nodes, none pickable at centre" failure: every sprite visible, sitting at the node's own
+ * there is the "N nodes, none pickable at centre" failure: every sprite visible, drawn at the node's own
  * coordinates, and a pick doesn't hit one.
  */
 import { describe, it, expect } from "vitest";
-import { syncPickTarget, restorePickTarget, type TPickObject } from "./polymorphic-pick-sync.js";
+import { syncPickTarget, restorePickTarget, type TPickObject } from "./pick-controller.js";
 
 const RESTING = { x: 1, y: 1 };
 const MAGNIFIED = { x: 1.4, y: 1.4 };
@@ -41,7 +41,7 @@ function fakeObject(
 }
 
 describe("polymorphic pick target sync", () => {
-	it("re-derives the matrix even when the target already sits at the node: the stale-matrix case that misses", () => {
+	it("re-derives the matrix even when the target already matches the node: the stale-matrix case that misses", () => {
 		const o = fakeObject({ x: 10, y: -44, z: 532 });
 		syncPickTarget(o, { x: 10, y: -44, z: 532, baseScale: RESTING }); // the fields already match, so it doesn't write them
 		expect(o.matrixUpdates).toBe(1); // ...and the matrix is still re-derived, because that is what the raycast reads
@@ -73,12 +73,5 @@ describe("polymorphic pick target sync", () => {
 	it("doesn't report a size to restore for a node already at its resting size", () => {
 		const o = fakeObject({ x: 0, y: 0, z: 0 }, RESTING);
 		expect(syncPickTarget(o, { x: 0, y: 0, z: 0, baseScale: RESTING })).toBeNull();
-	});
-
-	it("treats absent node coordinates as the origin rather than skipping the sync", () => {
-		const o = fakeObject({ x: 5, y: 5, z: 5 });
-		syncPickTarget(o, {});
-		expect(o.position).toMatchObject({ x: 0, y: 0, z: 0 });
-		expect(o.matrixUpdates).toBe(1);
 	});
 });

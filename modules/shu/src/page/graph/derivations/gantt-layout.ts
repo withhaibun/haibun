@@ -3,6 +3,8 @@
  * inverse a drag relies on (a dropped bar's new x → its rescheduled time) can't drift. Pure arithmetic, unit-tested
  * without a scene.
  */
+import type { GanttExtent } from "../machines/camera.js";
+
 // Gantt sizing/layout constants (the gantt module owns them; the 3D paint + view import these from here).
 export const GANTT_WORLD_W = 220; // world-units the calendar time axis spans
 export const GANTT_ROW_H = 14; // world-units between task rows
@@ -14,14 +16,46 @@ export const GANTT_GHOST_PAD = 1.5; // drag-outline grows the bar dims by this s
 
 export type GanttScale = { min: number; span: number };
 
+/** Where a task's bar is placed: y its lane, z the centre of its span on the time axis, zLen that span, and the times it covers. */
+export type GanttTarget = { y: number; z: number; zLen: number; start: number; end: number };
+
+/** A mark placed on a lane: its lane (y) and the part of the time axis (z) it spans. */
+export type TLaneSpan = { y: number; zFrom: number; zTo: number };
+
+/** The extent a camera frames over lane-placed marks: the centre of their lanes (y, screen-vertical) and of their span in
+ *  time (z, screen-horizontal), and the half of each span, padded by `pad` so the outermost mark's label stays inside the
+ *  frame. Null for a set without a mark. */
+export function laneExtent(spans: Iterable<TLaneSpan>, pad: { lane: number; time: number }): GanttExtent | null {
+	let minY = Infinity;
+	let maxY = -Infinity;
+	let minZ = Infinity;
+	let maxZ = -Infinity;
+	for (const { y, zFrom, zTo } of spans) {
+		minY = Math.min(minY, y);
+		maxY = Math.max(maxY, y);
+		minZ = Math.min(minZ, zFrom);
+		maxZ = Math.max(maxZ, zTo);
+	}
+	if (minY === Infinity) return null;
+	return { cy: (minY + maxY) / 2, cz: (minZ + maxZ) / 2, halfH: Math.max((maxY - minY) / 2 + pad.lane, 1), halfW: Math.max((maxZ - minZ) / 2 + pad.time, 1) };
+}
+
+/** The extent of the placed gantt bars, a lane of room on the lane axis. */
+export function ganttExtentOf(targets: Iterable<GanttTarget>): GanttExtent | null {
+	return laneExtent(
+		[...targets].map(({ y, z, zLen }) => ({ y, zFrom: z - zLen / 2, zTo: z + zLen / 2 })),
+		{ lane: GANTT_ROW_H, time: 0 },
+	);
+}
+
 /** A time (epoch ms) → its x on the calendar axis (origin-centred, spanning ±GANTT_WORLD_W/2). */
 export const timeToGanttX = (timeMs: number, scale: GanttScale): number => ((timeMs - scale.min) / scale.span - 0.5) * GANTT_WORLD_W;
 
 /** Inverse: a bar's centre x + its world width → the [start, end] it now covers, preserving the width as elapsed time. */
-export function ganttBarTimes(centerX: number, barWidth: number, scale: GanttScale): { startedAtTime: string; endedAtTime: string } {
+export function ganttBarSpan(centerX: number, barWidth: number, scale: GanttScale): { start: number; end: number } {
 	const durMs = (barWidth / GANTT_WORLD_W) * scale.span;
 	const midMs = scale.min + (centerX / GANTT_WORLD_W + 0.5) * scale.span;
-	return { startedAtTime: new Date(Math.round(midMs - durMs / 2)).toISOString(), endedAtTime: new Date(Math.round(midMs + durMs / 2)).toISOString() };
+	return { start: Math.round(midMs - durMs / 2), end: Math.round(midMs + durMs / 2) };
 }
 
 export type GanttTick = { ms: number; z: number; label: string };
