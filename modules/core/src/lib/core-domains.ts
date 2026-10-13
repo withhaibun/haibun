@@ -203,21 +203,21 @@ export const affordancesSchema = z
 /** The DOMAIN_CHAIN_LINT product shape holds the lint findings and their summary, with the affordance snapshot the bound view draws
  *  as the chain beside the findings. */
 export const chainLintSchema = z
-.object({
-	findings: z.array(LintFindingSchema),
-	summary: LintSummarySchema,
-	// The affordance snapshot that shu-domain-chain-view draws as the chain beside the findings. `show chain lint` carries the
-	// snapshot the view reads: forward, goals and the satisfied domains, with the report's findings and their summary. The view
-	// throws on a report without them.
-	forward: z.array(z.unknown()).optional(),
-	goals: z.array(z.unknown()).optional(),
-	satisfiedDomains: z.array(z.string()),
-	satisfiedFacts: z.record(z.string(), z.array(z.string())).optional(),
-	composites: z.record(z.string(), z.record(z.string(), z.string())).optional(),
-	// The id of the execution whose steps asserted these facts. A fact's id is the seqPath of its step within this execution.
-	execution: z.string(),
-})
-.strict();
+	.object({
+		findings: z.array(LintFindingSchema),
+		summary: LintSummarySchema,
+		// The affordance snapshot that shu-domain-chain-view draws as the chain beside the findings. `show chain lint` carries the
+		// snapshot the view reads: forward, goals and the satisfied domains, with the report's findings and their summary. The view
+		// throws on a report without them.
+		forward: z.array(z.unknown()).optional(),
+		goals: z.array(z.unknown()).optional(),
+		satisfiedDomains: z.array(z.string()),
+		satisfiedFacts: z.record(z.string(), z.array(z.string())),
+		composites: z.record(z.string(), z.record(z.string(), z.string())).optional(),
+		// The id of the execution whose steps asserted these facts. A fact's id is the seqPath of its step within this execution.
+		execution: z.string(),
+	})
+	.strict();
 
 const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 	// The types of the records core writes or derives: each step's record, the facts and variables actuality holds, and the ontology.

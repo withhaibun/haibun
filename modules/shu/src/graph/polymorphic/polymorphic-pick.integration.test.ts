@@ -9,22 +9,9 @@
  * signature. The moved-coordinates state is created and picked inside ONE page.evaluate, so a render frame can't
  * re-sync the sprites in between: the intermittent between-frames window, made deterministic.
  */
-import { readFileSync } from "node:fs";
-import { createServer, type Server } from "node:http";
-import type { AddressInfo } from "node:net";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { chromium, type Browser, type Page } from "playwright";
+import type { Page } from "playwright";
+import { openPolymorphicPage, type TOpenedPage } from "./polymorphic-page.test-fake.js";
 import { afterAll, beforeAll, expect, test } from "vitest";
-
-const BUNDLE_PATH = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "build", "assets", "shu-polymorphic-graph-view.js");
-
-const PAGE = `<!doctype html><html><head><meta charset="utf-8"><script src="/bundle.js"></script></head>
-<body style="margin:0">
-	<div id="box" style="position:fixed;left:0;top:0;width:700px;height:500px;">
-		<shu-polymorphic-graph-view style="display:block;width:100%;height:100%"></shu-polymorphic-graph-view>
-	</div>
-</body></html>`;
 
 /** Pinned, well-separated node positions so the layout holds them exactly where the test expects. */
 const NODES = [
@@ -36,12 +23,8 @@ const NODES = [
 
 type PickRow = { id: string; x: number; y: number; picked: string | null };
 
-let server: Server;
-let browser: Browser;
+let opened: TOpenedPage;
 let page: Page;
-const pageErrors: string[] = [];
-/** The pick geometry doesn't need an event stream; mounting the raw bundle without the app boot reports exactly this once. */
-const unexpectedErrors = () => pageErrors.filter((m) => !m.includes("an EventStream isn't installed"));
 
 /** In-page: ask the view where it draws each node, then probe the production pick at that pixel. Both sides are the
  * production pair: a copy of the projection here could only ever agree with itself, never catch the two drifting.
@@ -55,31 +38,8 @@ const PICK_ALL = `(() => {
 })()`;
 
 beforeAll(async () => {
-	const bundle = readFileSync(BUNDLE_PATH, "utf-8"); // throws if not built, run `npm run bundle:polymorphic` first
-	server = createServer((req, res) => {
-		if (req.url === "/") {
-			res.writeHead(200, { "Content-Type": "text/html" }).end(PAGE);
-		} else if (req.url === "/bundle.js") {
-			res.writeHead(200, { "Content-Type": "application/javascript" }).end(bundle);
-		} else {
-			res.writeHead(404).end();
-		}
-	});
-	await new Promise<void>((res) => server.listen(0, "127.0.0.1", res));
-	browser = await chromium.launch({ args: ["--enable-unsafe-swiftshader"] });
-	page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
-	page.on("pageerror", (e) => pageErrors.push(e.message));
-	await page.goto(`http://127.0.0.1:${(server.address() as AddressInfo).port}/`);
-	await page.waitForFunction(
-		() => {
-			const fe = document.querySelector("shu-polymorphic-graph-view");
-			const scene = fe?.querySelector("a-scene") as (HTMLElement & { camera?: unknown }) | null;
-			const canvas = fe?.querySelector("canvas") as HTMLCanvasElement | null;
-			return Boolean(scene?.camera && canvas && canvas.width > 0);
-		},
-		undefined,
-		{ timeout: 30_000 },
-	);
+	opened = await openPolymorphicPage({ external: false, box: { width: 700, height: 500 }, deviceScaleFactor: 1 });
+	page = opened.page;
 	// Feed pinned nodes straight into the force-graph and frame them: the pick geometry under test is independent
 	// of the store pipeline. fx/fy/fz pin each node so the engine holds it exactly at its coordinates. The lib
 	// decorates these SAME objects (nodeThreeObject → __sprite/__baseScale), so pointing the pipeline's nodeMap at
@@ -106,16 +66,11 @@ beforeAll(async () => {
 	await page.waitForTimeout(1200); // let the fit tween finish framing before the baseline reads projections
 }, 60_000);
 
-afterAll(async () => {
-	await browser?.close();
-	await new Promise<void>((res) => {
-		server?.close(() => res());
-	});
-});
+afterAll(() => opened.close());
 
 test("baseline: with rendered frames in sync, every node picks at its projected centre", { timeout: 30_000 }, async () => {
 	const rows = (await page.evaluate(PICK_ALL)) as PickRow[];
-	expect(unexpectedErrors(), `page errors: ${pageErrors.join("; ")}`).toEqual([]);
+	expect(opened.errors(), `page errors: ${opened.errors().join("; ")}`).toEqual([]);
 	for (const row of rows) expect(row.picked, `${row.id} at (${row.x.toFixed(0)},${row.y.toFixed(0)})`).toBe(row.id);
 });
 
@@ -127,6 +82,6 @@ test("between frames: after the engine moves nodes and before any render, the pi
 		for (const n of el.nodeMap.values()) { n.x += 25; n.y += 15; n.fx = n.x; n.fy = n.y; }
 		return ${PICK_ALL};
 	})()`)) as PickRow[];
-	expect(unexpectedErrors(), `page errors: ${pageErrors.join("; ")}`).toEqual([]);
+	expect(opened.errors(), `page errors: ${opened.errors().join("; ")}`).toEqual([]);
 	for (const row of rows) expect(row.picked, `${row.id} at (${row.x.toFixed(0)},${row.y.toFixed(0)}), stale sprite transform?`).toBe(row.id);
 });

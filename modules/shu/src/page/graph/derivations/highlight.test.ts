@@ -14,7 +14,7 @@ describe("the active-node glow breathes", () => {
 		expect(Math.max(...over)).toBeLessThanOrEqual(1);
 	});
 
-	it("moves: a glow that sat at one intensity would not read as alive", () => {
+	it("moves: a glow held at one intensity would not read as alive", () => {
 		const over = Array.from({ length: 240 }, (_, i) => pulseAt(i * 25));
 		expect(Math.max(...over) - Math.min(...over)).toBeGreaterThan(0.3);
 	});

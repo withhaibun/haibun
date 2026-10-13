@@ -26,7 +26,7 @@ const gap = (a: FGNode, b: FGNode): number => Math.hypot((a.x ?? 0) - (b.x ?? 0)
 describe("where a layout puts the nodes", () => {
 	it("gives every node a distinct x/y position, and doesn't write a node's z", () => {
 		const nodes = ["a", "b", "c", "d"].map((id, i) => node(id, { x: 0, y: 0, z: i * 10 }));
-		forceLayout(context(nodes)).place(nodes, []);
+		forceLayout(context(nodes)).place(nodes, [], { damped: false });
 		for (const n of nodes) expect([n.x, n.y].every((v) => typeof v === "number" && Number.isFinite(v))).toBe(true);
 		for (const a of nodes) for (const b of nodes) if (a !== b) expect(gap(a, b)).toBeGreaterThan(0);
 		// z is the time axis, data-owned: the placement must leave it EXACTLY as given, not merely keep the differences.
@@ -38,7 +38,7 @@ describe("where a layout puts the nodes", () => {
 	it("leaves a pinned node where it is pinned, which is how a drag and a lane hold their nodes", () => {
 		const held = { ...node("held"), fx: 120, fy: -40, x: 120, y: -40, z: 0 };
 		const nodes = [held, node("a"), node("b")];
-		forceLayout(context(nodes)).place(nodes, []);
+		forceLayout(context(nodes)).place(nodes, [], { damped: false });
 		expect([held.x, held.y]).toEqual([120, -40]);
 	});
 
@@ -46,7 +46,7 @@ describe("where a layout puts the nodes", () => {
 		const seeded = (): FGNode[] => ["a", "b", "c"].map((id, i) => node(id, { x: i * 4, y: 0, z: 0 }));
 		const span = (nodes: FGNode[]): number => Math.max(...nodes.map((n) => Math.abs(n.x ?? 0)));
 		const full = seeded();
-		forceLayout(context(full)).place(full, []);
+		forceLayout(context(full)).place(full, [], { damped: false });
 		const damped = seeded();
 		forceLayout(context(damped)).place(damped, [], { damped: true });
 		expect(span(damped)).toBeLessThan(span(full));
@@ -56,7 +56,7 @@ describe("where a layout puts the nodes", () => {
 		const [a, b, c, d] = [node("a"), node("b"), node("c"), node("d")];
 		const nodes = [a, b, c, d];
 		const links: FGLink[] = [{ source: "a", target: "b", predicate: "narrate" }];
-		forceLayout(context(nodes)).place(nodes, links);
+		forceLayout(context(nodes)).place(nodes, links, { damped: false });
 		expect(gap(a, b)).toBeLessThan(gap(c, d));
 	});
 
@@ -64,20 +64,20 @@ describe("where a layout puts the nodes", () => {
 		// The library's forces are removed, so a placement is the one resolver of link endpoints.
 		const nodes = ["a", "b"].map((id) => node(id));
 		const links: FGLink[] = [{ source: "a", target: "b", predicate: "narrate" }];
-		forceLayout(context(nodes)).place(nodes, links);
+		forceLayout(context(nodes)).place(nodes, links, { damped: false });
 		expect(itemAt(links, 0).source).toBe(itemAt(nodes, 0));
 		expect(itemAt(links, 0).target).toBe(itemAt(nodes, 1));
 	});
 
 	it("throws on a link naming a node that is not in the set, rather than drawing a line to a missing node", () => {
 		const nodes = [node("a")];
-		expect(() => forceLayout(context(nodes)).place(nodes, [{ source: "a", target: "missing", predicate: "narrate" }])).toThrow();
+		expect(() => forceLayout(context(nodes)).place(nodes, [{ source: "a", target: "missing", predicate: "narrate" }], { damped: false })).toThrow();
 	});
 
 	it("places the same graph the same way twice, so a repaint that didn't change the graph doesn't move a node", () => {
 		const place = (): string => {
 			const nodes = ["a", "b", "c"].map((id) => node(id, { x: 0, y: 0, z: 0 }));
-			forceLayout(context(nodes)).place(nodes, [{ source: "a", target: "b", predicate: "narrate" }]);
+			forceLayout(context(nodes)).place(nodes, [{ source: "a", target: "b", predicate: "narrate" }], { damped: false });
 			return nodes.map((n) => `${Math.round(n.x ?? 0)},${Math.round(n.y ?? 0)},${Math.round(n.z ?? 0)}`).join("|");
 		};
 		expect(place()).toBe(place());

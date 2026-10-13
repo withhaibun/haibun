@@ -1,6 +1,8 @@
 /** Minimal ambient types for the slice of troika-three-text the polymorphic view uses (the package doesn't ship a .d.ts). Text is a
  *  THREE.Mesh subclass; only the properties this view sets/reads are declared, structurally (without a dependency on three's types). */
 declare module "troika-three-text" {
+	/** Sets what every Text builds with; `defaultFontURL` is the font a Text reads where it doesn't name its own. */
+	export function configureTextBuilder(config: { defaultFontURL?: string }): void;
 	export class Text {
 		text: string;
 		fontSize: number;

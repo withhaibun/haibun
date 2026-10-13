@@ -1,9 +1,9 @@
 // The node-drag state machine, lifted out of the polymorphic view component so its geometry + pin behaviour is unit-tested with
-// stubs, without a GPU, a raycaster or a rendered scene. The flake it replaces lived ENTIRELY in picking a pixel out of an
+// stubs, without a GPU, a raycaster or a rendered scene. The flake it replaces was ENTIRELY in picking a pixel out of an
 // occluded WebGL scene, never in this logic, which is pure number-shuffling once a node is picked. The component owns the
 // DOM events + the THREE projection; this owns the state transitions: a press that stays put is a click; one that crosses
 // the threshold pins the whole layout and drags a node; release leaves that node pinned while freeing the rest.
-import type { XYZ } from "../derivations/grouping.js";
+import { isPlaced, type XYZ } from "../domains/graph-types.js";
 import type { FGNode } from "../domains/graph-types.js";
 
 export const DRAG_THRESHOLD_PX = 5; // a press that moves less than this is a click, not a drag
@@ -14,7 +14,7 @@ export const DRAG_THRESHOLD_PX = 5; // a press that moves less than this is a cl
 export type NodeDragDeps = {
 	pick: (e: PointerEvent) => FGNode | undefined; // press-time pick against the resting footprint
 	makePlane: (node: FGNode) => unknown; // the camera-facing plane through the node, fixed at press time
-	planeHit: (e: PointerEvent, plane: unknown) => XYZ | null; // where the pointer ray meets that plane
+	planeHit: (e: PointerEvent, plane: unknown) => XYZ | null; // where the pointer ray crosses that plane
 	nodes: () => Iterable<FGNode>;
 	hold: () => void; // engine: apply the pins each tick, keep links tracking
 	freeze: () => void; // engine: rest
@@ -38,23 +38,23 @@ export class NodeDrag {
 	}
 	/** The id of the node currently being dragged, or null, for the host's inspect/paint. */
 	get draggedId(): string | null {
-		return this.activeState?.node.id ?? null;
+		return this.activeState === undefined ? null : this.activeState.node.id;
 	}
 	/** The id of a captured-but-not-yet-dragging press, or null. */
 	get pendingId(): string | null {
-		return this.pendingState?.node.id ?? null;
+		return this.pendingState === undefined ? null : this.pendingState.node.id;
 	}
 
 	down(e: PointerEvent): void {
 		const node = this.d.pick(e);
-		if (!node) return;
+		if (!node || !isPlaced(node)) return; // a node the layout hasn't placed isn't drawn, so it isn't dragged
 		const plane = this.d.makePlane(node);
 		const hit = this.d.planeHit(e, plane);
 		if (!hit) return;
 		// Disable controls now, but do NOT pin/hold yet: a press that stays put is a CLICK (it opens the node's column).
 		// The drag begins only once the pointer crosses the threshold (see move), so a click never reheats the layout.
 		this.d.setControlsEnabled(false);
-		this.pendingState = { node, plane, off: { x: (node.x ?? 0) - hit.x, y: (node.y ?? 0) - hit.y, z: (node.z ?? 0) - hit.z }, downX: e.clientX, downY: e.clientY };
+		this.pendingState = { node, plane, off: { x: node.x - hit.x, y: node.y - hit.y, z: node.z - hit.z }, downX: e.clientX, downY: e.clientY };
 	}
 
 	move(e: PointerEvent): void {

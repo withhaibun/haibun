@@ -1,27 +1,14 @@
 /**
  * Real-browser fit verification for shu-polymorphic-graph-view (jsdom doesn't prove WebGL/layout behaviour).
- * Serves the BUILT bundle from a stub server and asserts the invariants that define "fitted":
+ * Serves the BUILT bundle on the started test page and asserts the invariants that define "fitted":
  *   1. the canvas displays exactly at its container box (without overflow / scrollbars),
  *   2. the drawing buffer is rect × devicePixelRatio (anything else = blur),
  *   3. the camera aspect matches the rect aspect (anything else = stretch),
  * at mount AND after a container resize. RPC/SSE against the stub 404s; the geometry doesn't need data.
  */
-import { readFileSync } from "node:fs";
-import { createServer, type Server } from "node:http";
-import type { AddressInfo } from "node:net";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { chromium, type Browser, type Page } from "playwright";
+import type { Page } from "playwright";
+import { openPolymorphicPage, type TOpenedPage } from "./polymorphic-page.test-fake.js";
 import { afterAll, beforeAll, expect, test } from "vitest";
-
-const BUNDLE_PATH = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "build", "assets", "shu-polymorphic-graph-view.js");
-
-const PAGE = `<!doctype html><html><head><meta charset="utf-8"><script src="/bundle.js"></script></head>
-<body style="margin:0">
-	<div id="box" style="position:fixed;left:0;top:0;width:700px;height:500px;">
-		<shu-polymorphic-graph-view style="display:block;width:100%;height:100%"></shu-polymorphic-graph-view>
-	</div>
-</body></html>`;
 
 type Fit = {
 	rect: { w: number; h: number };
@@ -34,10 +21,8 @@ type Fit = {
 	scrollH: number;
 };
 
-let server: Server;
-let browser: Browser;
+let opened: TOpenedPage;
 let page: Page;
-const pageErrors: string[] = [];
 
 const measureFit = (): Promise<Fit> =>
 	page.evaluate(() => {
@@ -72,39 +57,11 @@ const expectFitted = (fit: Fit, w: number, h: number) => {
 };
 
 beforeAll(async () => {
-	const bundle = readFileSync(BUNDLE_PATH, "utf-8"); // throws if not built, run `npm run bundle:polymorphic` first
-	server = createServer((req, res) => {
-		if (req.url === "/") {
-			res.writeHead(200, { "Content-Type": "text/html" }).end(PAGE);
-		} else if (req.url === "/bundle.js") {
-			res.writeHead(200, { "Content-Type": "application/javascript" }).end(bundle);
-		} else {
-			res.writeHead(404).end();
-		}
-	});
-	await new Promise<void>((res) => server.listen(0, "127.0.0.1", res));
-	browser = await chromium.launch({ args: ["--enable-unsafe-swiftshader"] });
-	page = await browser.newPage({ viewport: { width: 1400, height: 900 }, deviceScaleFactor: 2 });
-	page.on("pageerror", (e) => pageErrors.push(e.message));
-	await page.goto(`http://127.0.0.1:${(server.address() as AddressInfo).port}/`);
-	await page.waitForFunction(
-		() => {
-			const fe = document.querySelector("shu-polymorphic-graph-view");
-			const scene = fe?.querySelector("a-scene") as (HTMLElement & { camera?: unknown }) | null;
-			const canvas = fe?.querySelector("canvas") as HTMLCanvasElement | null;
-			return Boolean(scene?.camera && canvas && canvas.width > 0);
-		},
-		undefined,
-		{ timeout: 30_000 },
-	);
+	opened = await openPolymorphicPage({ external: false, box: { width: 700, height: 500 }, deviceScaleFactor: 2 });
+	page = opened.page;
 }, 60_000);
 
-afterAll(async () => {
-	await browser?.close();
-	await new Promise<void>((res) => {
-		server?.close(() => res());
-	});
-});
+afterAll(() => opened.close());
 
 test("canvas fits its container at mount: display == box, buffer == display×dpr, aspect matches", { timeout: 30_000 }, async () => {
 	await page.waitForTimeout(500); // let the rAF enforce loop assert once
@@ -151,7 +108,6 @@ test("mouse-pick bounds refresh after the canvas MOVES without resizing (strip s
 });
 
 test("the view boots and runs without page errors", () => {
-	// The stub page doesn't install an EventStream, so the live-update subscription fails fast by design; the real app installs one at boot.
-	const unexpected = pageErrors.filter((e) => !e.includes("an EventStream isn't installed"));
+	const unexpected = opened.errors();
 	expect(unexpected).toEqual([]);
 });

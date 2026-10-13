@@ -2,9 +2,10 @@
 import type { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { FRAME, type FrameMove, type ReframeMode } from "../domains/views.js";
 import type { TMatrix4Elements } from "../ports.js";
+import type { XYZ } from "../domains/graph-types.js";
 
 /** Sole owner of camera CONTROL for the polymorphic view: every framing, viewport, and navigation move that mutates the
- * three.js camera + OrbitControls lives here, so "who decides the zoom" has one answer. The component keeps the leaf
+ * three.js camera + OrbitControls is here, so the zoom has one owner. The component keeps the leaf
  * refs (camera/controls/canvas/renderer/container, set late at scene-load and read by inspect/the drag/the compass)
  * and hands them in as accessors read at call time; this controller only READS them and is the only thing that moves
  * the camera. It also owns the load-time auto-fit state (the growth-gated frame that ends the moment the user takes
@@ -15,9 +16,9 @@ type Bbox = { x: [number, number]; y: [number, number]; z: [number, number] };
 
 type FgCamera = {
 	aspect: number;
-	fov?: number;
+	fov: number;
 	position?: { x: number; y: number; z: number };
-	up?: Vec3; // the view's up vector, +y for every view except the sequence, which stands time (z) up
+	up: Vec3; // the view's up vector, +y for every view except the sequence, which stands time (z) up
 	updateProjectionMatrix(): void;
 	updateMatrixWorld?(force?: boolean): void;
 	matrixWorld?: { elements: TMatrix4Elements };
@@ -45,7 +46,8 @@ export type CameraDeps = {
 	container: () => HTMLElement | undefined;
 	renderer: () => FgRenderer | undefined;
 	canvas: () => HTMLCanvasElement | undefined;
-	nodePositions: () => Iterable<{ x?: number; y?: number; z?: number }>;
+	/** The positions of the nodes the layout has placed. */
+	nodePositions: () => Iterable<XYZ>;
 	hasNodes: () => boolean;
 	reframeMode: () => ReframeMode; // the active RenderType's camera aim, gantt looks down +x (time flat), front the default
 	ganttExtent: () => GanttExtent | null;
@@ -60,7 +62,7 @@ const FIT_MARGIN = 1.1;
 /** The world distance a fit keeps between the lens and the nearest node. A single node is framed at this distance. */
 const LENS_CLEARANCE = 20;
 
-/** Every camera write goes through this: a single non-finite coordinate bricks EVERY later move (each computes from the
+/** Every camera write passes this check: a single non-finite coordinate bricks EVERY later move (each computes from the
  *  previous position), showing up as a camera that cannot zoom or pan and never recovers. Throwing names the culprit
  *  (a NaN node position, a zero-height container) at the write instead of leaving a silently stuck camera. */
 function finite(move: string, values: Record<string, number>): void {
@@ -71,7 +73,6 @@ function finite(move: string, values: Record<string, number>): void {
 
 const azimuthOf = (refs: { t: Vec3; p: Vec3 } | null): number | null => (refs ? Math.atan2(refs.p.x - refs.t.x, refs.p.z - refs.t.z) : null);
 
-type XYZ = { x: number; y: number; z: number };
 const cross = (a: XYZ, b: XYZ): XYZ => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x });
 const dot = (a: XYZ, b: XYZ): number => a.x * b.x + a.y * b.y + a.z * b.z;
 
@@ -170,7 +171,7 @@ export class PolymorphicCamera {
 	 * Re-assert the drawing buffer + camera ASPECT to the column box, aspect ONLY, never fov. The every-15-frame
 	 * watchdog calls this, so when A-Frame transiently sizes the canvas to document.body the buffer is corrected
 	 * without ever slipping in a fov change, worldPerPx ∝ tan(fov/2)/viewH, so a watchdog fov rewrite IS a zoom.
-	 * Idempotent: no-ops unless the buffer drifted. Never touches lastViewH: that fov baseline belongs to the
+	 * Idempotent: no-ops unless the buffer drifted. Never touches lastViewH: that fov baseline is the
 	 * genuine-resize path alone, so a transient body-size can't corrupt it.
 	 */
 	syncViewport(): void {
@@ -200,7 +201,9 @@ export class PolymorphicCamera {
 	 */
 	onContainerResize(): void {
 		const cam = this.deps.camera();
-		const h = this.deps.container()?.clientHeight ?? 0;
+		const container = this.deps.container();
+		if (container === undefined) return;
+		const h = container.clientHeight;
 		if (h && this.lastViewH && h !== this.lastViewH && this.deps.hasNodes() && cam?.fov) {
 			cam.fov = (2 * Math.atan(Math.tan((cam.fov * RAD_PER_DEG) / 2) * (h / this.lastViewH))) / RAD_PER_DEG;
 		}
@@ -211,8 +214,8 @@ export class PolymorphicCamera {
 	/** The live laid-out nodes' positions, read from the nodes (the authoritative simulation positions): NOT the lib's
 	 *  getGraphBbox, whose cached value is unreliable (it reported a near-collapsed extent while the nodes were already
 	 *  spread, then overshot on the next render, so the camera framed empty space). */
-	private nodePoints(positions: Iterable<{ x?: number; y?: number; z?: number }> = this.deps.nodePositions()): XYZ[] {
-		return [...positions].map((n) => ({ x: n.x ?? 0, y: n.y ?? 0, z: n.z ?? 0 }));
+	private nodePoints(positions: Iterable<XYZ>): XYZ[] {
+		return [...positions].map(({ x, y, z }) => ({ x, y, z }));
 	}
 
 	/** The orbit target + camera position as mutable Vec3s (or null when controls aren't ready): the shared preamble
@@ -228,20 +231,21 @@ export class PolymorphicCamera {
 	 *  type's view-relative `fitMove`), a queued view reframe, the load-time auto-fit, and the head's rotate control.
 	 *  Every move shows every node: the lane frames (gantt/sequence) re-establish their canonical aim and roll over the
 	 *  lane extent UNIONED with the node bounds, and report whether they applied (false until their bars are placed).
-	 *  `fit` recentres on the node bounds and backs off ALONG THE CURRENT VIEW DIRECTION: a fit decides centre and
+	 *  `fit` recentres on the node bounds and backs off ALONG THE CURRENT VIEW DIRECTION: a fit sets centre and
 	 *  distance, never the orientation the user orbited to, while `front` and `side` reset the aim. */
 	frame(move: FrameMove): boolean {
 		if (move === FRAME.gantt) return this.frameLane(this.deps.ganttExtent(), LANE_AIM);
 		if (move === FRAME.sequence) return this.frameLane(this.deps.sequenceExtent(), SEQUENCE_AIM);
-		if (move === FRAME.side) this.fitPoints(this.nodePoints(), LANE_AIM);
-		else if (move === FRAME.front) this.fitPoints(this.nodePoints(), FRONT_AIM);
-		else this.fitPoints(this.nodePoints(), KEEP_AIM);
+		const points = this.nodePoints(this.deps.nodePositions());
+		if (move === FRAME.side) this.fitPoints(points, LANE_AIM);
+		else if (move === FRAME.front) this.fitPoints(points, FRONT_AIM);
+		else this.fitPoints(points, KEEP_AIM);
 		return true;
 	}
 
 	/** Frame a subset of nodes by their positions: a node + its 1-hop neighbours, so a doc/tour step can jump straight to
 	 *  a node's local context instead of the whole graph. Same orbit-preserving fit; a no-op for an empty/unknown set. */
-	fitPositions(positions: Iterable<{ x?: number; y?: number; z?: number }>): void {
+	fitPositions(positions: Iterable<XYZ>): void {
 		this.fitPoints(this.nodePoints(positions), KEEP_AIM);
 	}
 
@@ -250,11 +254,9 @@ export class PolymorphicCamera {
 	 *  and it must not change as the active node moves, or a label readable on one node is unreadable on the next.
 	 *  `offsetPx` places the point that many pixels right/up of the canvas centre instead of at it, for a reader whose
 	 *  centre is under an overlay, the clear part of the canvas is where "showing" happens. */
-	centerOn(pos: { x?: number; y?: number; z?: number }, offsetPx?: { dxPx: number; dyPx: number }): void {
+	centerOn(pos: XYZ, offsetPx?: { dxPx: number; dyPx: number }): void {
 		const refs = this.orbitRefs();
-		const x = pos.x ?? 0;
-		const y = pos.y ?? 0;
-		const z = pos.z ?? 0;
+		const { x, y, z } = pos;
 		if (!refs) return;
 		finite("center", { x, y, z });
 		const { t, p } = refs;
@@ -269,8 +271,8 @@ export class PolymorphicCamera {
 			const cam = this.deps.camera();
 			cam?.updateMatrixWorld?.(true);
 			const m = cam?.matrixWorld?.elements;
-			if (m) {
-				const wpp = this.worldPerPxAt(pos) ?? 0;
+			const wpp = this.worldPerPxAt(pos);
+			if (m && wpp !== null) {
 				ox = (m[0] * offsetPx.dxPx + m[4] * offsetPx.dyPx) * wpp;
 				oy = (m[1] * offsetPx.dxPx + m[5] * offsetPx.dyPx) * wpp;
 				oz = (m[2] * offsetPx.dxPx + m[6] * offsetPx.dyPx) * wpp;
@@ -304,17 +306,17 @@ export class PolymorphicCamera {
 		const bbox = boundsOf(points);
 		if (!bbox || !controls || !cam) return;
 		const center = { x: (bbox.x[0] + bbox.x[1]) / 2, y: (bbox.y[0] + bbox.y[1]) / 2, z: (bbox.z[0] + bbox.z[1]) / 2 };
-		if (aim !== KEEP_AIM) cam.up?.set(aim.up.x, aim.up.y, aim.up.z);
+		if (aim !== KEEP_AIM) cam.up.set(aim.up.x, aim.up.y, aim.up.z);
 		const dir = aim !== KEEP_AIM ? aim.dir : this.viewDir();
-		const up = aim !== KEEP_AIM ? aim.up : { x: cam.up?.x ?? 0, y: cam.up?.y ?? 1, z: cam.up?.z ?? 0 };
+		const up = aim !== KEEP_AIM ? aim.up : { x: cam.up.x, y: cam.up.y, z: cam.up.z };
 		let right = cross(up, dir);
 		// A degenerate up (unset, or parallel to the view direction) can't span the screen plane, pick a world axis that can.
 		if (Math.hypot(right.x, right.y, right.z) < 1e-6) right = cross(Math.abs(dir.y) < 0.9 ? { x: 0, y: 1, z: 0 } : { x: 0, y: 0, z: 1 }, dir);
 		const rl = Math.hypot(right.x, right.y, right.z);
 		right = { x: right.x / rl, y: right.y / rl, z: right.z / rl };
 		const upv = cross(dir, right);
-		const tanV = Math.tan(((cam.fov ?? 80) * RAD_PER_DEG) / 2);
-		const tanH = tanV * (cam.aspect ?? 1);
+		const tanV = Math.tan((cam.fov * RAD_PER_DEG) / 2);
+		const tanH = tanV * cam.aspect;
 		// A point's `reach` is the distance along the view axis at which its offset from the axis reaches the frustum's
 		// edge. The fit places the camera FIT_MARGIN * reach beyond the point's depth.
 		let farthest = 0;
@@ -332,15 +334,15 @@ export class PolymorphicCamera {
 
 	/** Frame a lane view: its canonical aim (gantt upright, the sequence quarter-turned so time reads down) over the
 	 *  placed lane extent, taken together with where the nodes are ON THE PLANE. A lane view places every node
-	 *  it shows, so the extent and the bounds agree in the lane axis and time; only x: the axis the camera looks along:
+	 *  it shows, so the extent and the bounds match in the lane axis and time; only x: the axis the camera looks along:
 	 *  is left out, since depth would inflate the frame and shrink the diagram to a speck.
 	 *  False until the extent is placed: the caller keeps the move pending for the settle that has the placements. */
 	private frameLane(ext: GanttExtent | null, aim: Aim): boolean {
 		if (!ext) return false;
 		// The extent is where the view PUT things; the node bounds are where they ended up. Union them ON THE PLANE only
-		// (the lane axis and time), never across it: a lane view pins every node it shows to the plane, so the two agree
+		// (the lane axis and time), never across it: a lane view pins every node it shows to the plane, so the two match
 		// in y and z, while x is the axis the camera looks along, unioning that would let depth inflate the frame.
-		const b = boundsOf(this.nodePoints());
+		const b = boundsOf(this.nodePoints(this.deps.nodePositions()));
 		const span = (lo: number, hi: number, other: [number, number] | undefined): [number, number] => (other ? [Math.min(lo, other[0]), Math.max(hi, other[1])] : [lo, hi]);
 		this.fitPoints(cornersOf({ x: [0, 0], y: span(ext.cy - ext.halfH, ext.cy + ext.halfH, b?.y), z: span(ext.cz - ext.halfW, ext.cz + ext.halfW, b?.z) }), aim);
 		return true;
@@ -372,7 +374,7 @@ export class PolymorphicCamera {
 	}
 
 	/**
-	 * Move the camera toward or away from what it looks at. It doesn't limit how near or far: a graph is laid out in whatever
+	 * Move the camera toward or away from its target. It doesn't limit how near or far: a graph is laid out in whatever
 	 * units its data implies, so a fixed floor is arbitrary. A world-unit floor stopped zoom-in dead, and since pan and
 	 * orbit scale with the distance to the target, it reduced those too.
 	 *
@@ -387,8 +389,11 @@ export class PolymorphicCamera {
 		const ox = p.x - t.x,
 			oy = p.y - t.y,
 			oz = p.z - t.z;
-		const dist = Math.hypot(ox, oy, oz) || 1;
-		const delta = unit === MEASURE_UNIT.percent ? dist * (amount / 100) : amount * (this.worldPerPxAt(t) ?? 1);
+		const dist = Math.hypot(ox, oy, oz);
+		// A zoom never reaches the target and a fit keeps the lens clear of it, so a camera on its target is a fault.
+		if (dist === 0) throw new Error("camera zoom: the camera is on its target, so a zoom lacks a direction");
+		const delta = unit === MEASURE_UNIT.percent ? dist * (amount / 100) : this.pixelsToWorld(amount, t);
+		if (delta === null) return; // a zoom in pixels waits for a sized canvas
 		const reached = dir === ZOOM_DIRECTION.in ? dist - delta : dist + delta;
 		const k = (reached > 0 ? reached : dist * ZOOM_APPROACH) / dist;
 		finite("zoom", { k, x: t.x + ox * k, y: t.y + oy * k, z: t.z + oz * k });
@@ -401,15 +406,17 @@ export class PolymorphicCamera {
 	panBy(amount: number, unit: TMeasureUnit, dir: TPanDirection): void {
 		const m = this.deps.camera()?.matrixWorld?.elements;
 		const refs = this.orbitRefs();
-		if (!m || !refs) return;
+		const container = this.deps.container();
+		if (!m || !refs || container === undefined) return;
+		const wpp = this.worldPerPxAt(refs.t);
+		if (wpp === null) return; // a pan waits for a sized canvas
 		this.userControlled = true; // the camera is now the user's, end the load-time auto-fit
 		const { t, p } = refs;
 		const horizontal = dir === PAN_DIRECTION.left || dir === PAN_DIRECTION.right; // matrixWorld columns 0/1 are the camera's orthonormal right/up axes
 		const ax = horizontal ? m[0] : m[4],
 			ay = horizontal ? m[1] : m[5],
 			az = horizontal ? m[2] : m[6];
-		const dimPx = horizontal ? (this.deps.container()?.clientWidth ?? 0) : (this.deps.container()?.clientHeight ?? 0);
-		const wpp = this.worldPerPxAt(t) ?? 1;
+		const dimPx = horizontal ? container.clientWidth : container.clientHeight;
 		const sign = dir === PAN_DIRECTION.left || dir === PAN_DIRECTION.down ? -1 : 1;
 		const d = (unit === MEASURE_UNIT.percent ? (amount / 100) * dimPx : amount) * wpp * sign;
 		finite("pan", { d, ax, ay, az });
@@ -444,13 +451,20 @@ export class PolymorphicCamera {
 		this.deps.controls()?.update();
 	}
 
+	/** `px` screen pixels in world units at `pos`, or null before the canvas is sized. */
+	private pixelsToWorld(px: number, pos: XYZ): number | null {
+		const wpp = this.worldPerPxAt(pos);
+		return wpp === null ? null : px * wpp;
+	}
+
 	/** World units per screen pixel at `pos`: the zoom signal. A function of fov, camera distance, AND viewport height. */
-	worldPerPxAt(pos: { x?: number; y?: number; z?: number }): number | null {
+	worldPerPxAt(pos: XYZ): number | null {
 		const cam = this.deps.camera();
-		const viewH = this.deps.container()?.clientHeight ?? 0;
-		if (!cam?.position || !viewH) return null;
-		const dist = Math.hypot((pos.x ?? 0) - cam.position.x, (pos.y ?? 0) - cam.position.y, (pos.z ?? 0) - cam.position.z);
-		const fov = (cam.fov ?? 80) * RAD_PER_DEG;
+		const container = this.deps.container();
+		if (!cam?.position || container === undefined || !container.clientHeight) return null;
+		const viewH = container.clientHeight;
+		const dist = Math.hypot(pos.x - cam.position.x, pos.y - cam.position.y, pos.z - cam.position.z);
+		const fov = cam.fov * RAD_PER_DEG;
 		return (2 * dist * Math.tan(fov / 2)) / viewH;
 	}
 
@@ -458,11 +472,11 @@ export class PolymorphicCamera {
 	 * box. A column-open changes WIDTH (expected) but must never change HEIGHT or worldPerPx (auto-zoom). */
 	zoomMetric(): { h: number; w: number; worldPerPx: number; calibratedH: number } | null {
 		const worldPerPx = this.worldPerPxAt({ x: 0, y: 0, z: 0 });
-		if (worldPerPx === null) return null;
 		const c = this.deps.container();
+		if (worldPerPx === null || c === undefined) return null;
 		// `calibratedH` is the height the fov was last adjusted to: while it lags `h`, a resize has landed and the
-		// compensation has not, so a reader of worldPerPx waits for the two to agree.
-		return { h: c?.clientHeight ?? 0, w: c?.clientWidth ?? 0, worldPerPx, calibratedH: this.lastViewH };
+		// compensation has not, so a reader of worldPerPx waits for the two to match.
+		return { h: c.clientHeight, w: c.clientWidth, worldPerPx, calibratedH: this.lastViewH };
 	}
 
 	/** Azimuth of the camera around its target (radians): a pan holds it, an orbit changes it. For inspect()/tests. */

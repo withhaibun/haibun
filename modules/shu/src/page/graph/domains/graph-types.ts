@@ -32,7 +32,7 @@ export interface NodeVisual {
 	readonly layingOut: boolean; // measured text still to land, which is drawn when it lands
 	/** Wear or drop the glow that marks the ACTIVE node, `glow` carrying how it burns right now (strength and colour,
 	 *  driven per frame). `hasHighlight` tracks `on` alone, so it stays true through the dimmest part of the breath. */
-	setHighlighted(on: boolean, glow?: TBurn): void;
+	setHighlighted(on: boolean, glow: TBurn): void;
 	opacity: number; // effective opacity, get for the readback, set for the focus dim
 	faceCamera(q: QLike): void; // orient to the camera (a chip group; a native-billboard sprite / fixed bar is a no-op)
 }
@@ -122,3 +122,9 @@ export const neighboursOf = (nodeId: string, links: Iterable<FGLink>): Set<strin
 	}
 	return ids;
 };
+
+/** A position on the three axes. */
+export type XYZ = { x: number; y: number; z: number };
+
+/** Whether the layout has placed a node: it holds a position on every axis. */
+export const isPlaced = <N extends { x?: number; y?: number; z?: number }>(n: N): n is N & XYZ => n.x !== undefined && n.y !== undefined && n.z !== undefined;

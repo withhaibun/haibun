@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { build } from "esbuild";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { dirname, join } from "node:path";
@@ -9,6 +10,9 @@ import { SHARED_CELLS_KEY } from "../../page/adapters/shared-cell.js";
 import type { TSubjectState } from "../../current-subject.js";
 import type { TMeasureUnit, TPanDirection, TZoomDirection } from "../../page/graph/machines/camera.js";
 import { type TPaneOpen } from "../../page/derivations/pane-kinds.js";
+import { POLYMORPHIC_ROUTE } from "../../test/polymorphic-routes.js";
+import { LABEL_FONT } from "../../domains/serving.js";
+import { bundleFile } from "../../adapters/bundle-file.js";
 
 /**
  * A real page with the polymorphic graph view mounted on it, drawn by a headless browser through a software
@@ -17,15 +21,30 @@ import { type TPaneOpen } from "../../page/derivations/pane-kinds.js";
  * stopped moving. Held here once, so a test states only what it does to the scene and what it expects of it.
  */
 
-const BUNDLE_PATH = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "build", "assets", "shu-polymorphic-graph-view.js");
+const HERE = dirname(fileURLToPath(import.meta.url));
+const BUNDLE_PATH = join(HERE, "..", "..", "..", "build", "assets", "shu-polymorphic-graph-view.js");
+const ENTRY_PATH = join(HERE, "..", "..", "test", "polymorphic-page-entry.ts");
+
+/** The page's entry, built once per test file: it starts the page and then loads the view's bundle. */
+let entry: Promise<string> | undefined;
+const pageEntry = (): Promise<string> => {
+	entry ??= build({ entryPoints: [ENTRY_PATH], bundle: true, write: false, format: "esm", platform: "browser", target: "es2022", conditions: ["haibun-source"] }).then((built) => {
+		const [file] = built.outputFiles;
+		if (file === undefined) throw new Error(`esbuild wrote an empty set of files for ${ENTRY_PATH}`);
+		return file.text;
+	});
+	return entry;
+};
+
+type TBox = { width: number; height: number };
 
 /** The view's box on the page: fixed, so a test that resizes it knows what it started from. */
-export const BOX = { width: 1000, height: 700 };
+export const BOX: TBox = { width: 1000, height: 700 };
 
 /** The page, its view the page's main graph, or a graph a host embeds to draw its own data (`data-external`). */
-const pageWith = (external: boolean): string => `<!doctype html><html><head><meta charset="utf-8"><script src="/bundle.js"></script></head>
+const pageWith = (external: boolean, box: TBox): string => `<!doctype html><html><head><meta charset="utf-8"><script type="module" src="${POLYMORPHIC_ROUTE.entry}"></script></head>
 <body style="margin:0">
-	<div id="box" style="position:fixed;left:0;top:0;width:${BOX.width}px;height:${BOX.height}px;">
+	<div id="box" style="position:fixed;left:0;top:0;width:${box.width}px;height:${box.height}px;">
 		<shu-polymorphic-graph-view ${external ? `data-external data-persist-scope="${EMBEDDED_SCOPE}"` : ""} style="display:block;width:100%;height:100%"></shu-polymorphic-graph-view>
 	</div>
 </body></html>`;
@@ -62,7 +81,7 @@ const VIEW = `document.querySelector("shu-polymorphic-graph-view")`;
 
 export type TMountedPage = {
 	page: Page;
-	/** Page errors other than the one the raw bundle reports for running without an app around it. */
+	/** The page's errors. */
 	errors(): string[];
 	/** Feed a model as the view does, and wait for every node of it to be laid out and the engine to rest. */
 	feed(quads: TQuadFed[]): Promise<void>;
@@ -97,17 +116,24 @@ export type TMountedPage = {
 	close(): Promise<void>;
 };
 
-export async function mountPolymorphicPage({ external = false }: { external?: boolean } = {}): Promise<TMountedPage> {
-	const html = pageWith(external);
+/** The page as a test opens it: the page's entry started, the view mounted in a box of `box`, at `deviceScaleFactor`. */
+export type TOpenedPage = { page: Page; errors(): string[]; close(): Promise<void> };
+
+/** Opens the page with the view mounted, and waits for its scene to hold a camera and a sized canvas. */
+export async function openPolymorphicPage(opts: { external: boolean; box: TBox; deviceScaleFactor: number }): Promise<TOpenedPage> {
+	const html = pageWith(opts.external, opts.box);
 	const bundle = readFileSync(BUNDLE_PATH, "utf-8"); // throws if not built: run `npm run bundle:polymorphic` first
+	const started = await pageEntry();
 	const server: Server = createServer((req, res) => {
 		if (req.url === "/") res.writeHead(200, { "Content-Type": "text/html" }).end(html);
-		else if (req.url === "/bundle.js") res.writeHead(200, { "Content-Type": "application/javascript" }).end(bundle);
+		else if (req.url === POLYMORPHIC_ROUTE.entry) res.writeHead(200, { "Content-Type": "application/javascript" }).end(started);
+		else if (req.url === POLYMORPHIC_ROUTE.bundle) res.writeHead(200, { "Content-Type": "application/javascript" }).end(bundle);
+		else if (req.url === LABEL_FONT) res.writeHead(200, { "Content-Type": "font/woff" }).end(Buffer.from(bundleFile().labelFont()));
 		else res.writeHead(404).end();
 	});
 	await new Promise<void>((res) => server.listen(0, "127.0.0.1", res));
 	const browser: Browser = await chromium.launch({ args: ["--enable-unsafe-swiftshader"] });
-	const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+	const page = await browser.newPage({ viewport: { width: 1400, height: 900 }, deviceScaleFactor: opts.deviceScaleFactor });
 	const pageErrors: string[] = [];
 	page.on("pageerror", (e) => pageErrors.push(e.message));
 	await page.goto(`http://127.0.0.1:${(server.address() as AddressInfo).port}/`);
@@ -121,6 +147,18 @@ export async function mountPolymorphicPage({ external = false }: { external?: bo
 		undefined,
 		{ timeout: 30_000 },
 	);
+	return {
+		page,
+		errors: () => pageErrors,
+		async close() {
+			await browser.close();
+			await new Promise<void>((res) => server.close(() => res()));
+		},
+	};
+}
+
+export async function mountPolymorphicPage({ external = false }: { external?: boolean } = {}): Promise<TMountedPage> {
+	const { page, errors, close } = await openPolymorphicPage({ external, box: BOX, deviceScaleFactor: 1 });
 
 	const inspect = async (): Promise<TInspected> => (await page.evaluate(`${VIEW}.inspect()`)) as TInspected;
 	const settle = async (): Promise<void> => {
@@ -140,7 +178,7 @@ export async function mountPolymorphicPage({ external = false }: { external?: bo
 
 	return {
 		page,
-		errors: () => pageErrors.filter((m) => !m.includes("an EventStream isn't installed")),
+		errors,
 		async atRest() {
 			await settle();
 			await page.waitForFunction(
@@ -258,9 +296,6 @@ export async function mountPolymorphicPage({ external = false }: { external?: bo
 				const r = (document.querySelector("#box") as HTMLElement).getBoundingClientRect();
 				return { x: r.x, y: r.y, w: r.width, h: r.height };
 			}),
-		async close() {
-			await browser.close();
-			await new Promise<void>((res) => server.close(() => res()));
-		},
+		close,
 	};
 }

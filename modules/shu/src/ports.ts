@@ -20,6 +20,8 @@ export type TBundleFile = {
 	polymorphic(): TServedAsset;
 	/** The app bundle's source map. */
 	sourceMap(): string;
+	/** The font of the graph's labels. */
+	labelFont(): ArrayBuffer;
 };
 
 /** Writes a report at a path. */

@@ -2,21 +2,8 @@
 // A renderer doesn't hold a second model: a renderer is handed what the pipeline already produced, and what it displayed is read back
 // through the scene's own snapshot (inspect).
 
-import type { FGLink, FGNode } from "../../page/graph/domains/graph-types.js";
-
-/** What the scene displays each repaint: the pipeline's own output. */
-export type TDrawn = { nodes: FGNode[]; links: FGLink[] };
-
-/**
- * What a medium must do to show a graph. Every repaint calls `draw`, so a renderer that records what it was given uses
- * the same path as one that displays it.
- */
-export interface IGraphRenderer {
-	size(width: number, height: number): void;
-	draw(drawn: TDrawn): void;
-	/** The node shapes changed kind (a chip became a bar), not just their places. */
-	rebuildNodes(): void;
-}
+import type { FGNode } from "../../page/graph/domains/graph-types.js";
+import type { TDrawn, TGraphRenderer } from "../../page/graph/ports.js";
 
 /** Where each node was placed, by node id: what "it did not redraw" compares. */
 type TPlacement = Map<string, string>;
@@ -44,7 +31,7 @@ export function graphSummary({ nodes, links }: TDrawn): string {
 
 /** One renderer driving several media: the scene draws once and every medium shows it (WebGL and the accessible
  *  document). Each call forwards to every medium in order. */
-export function compositeRenderer(...media: IGraphRenderer[]): IGraphRenderer {
+export function compositeRenderer(...media: TGraphRenderer[]): TGraphRenderer {
 	return {
 		size(width: number, height: number): void {
 			for (const m of media) m.size(width, height);
@@ -62,7 +49,7 @@ export function compositeRenderer(...media: IGraphRenderer[]): IGraphRenderer {
  * A renderer that keeps what it was given, so a test can ask what a change displayed, did a view change place the nodes
  * differently, did a merge that didn't change the model display at all, without a browser.
  */
-export class RecordingRenderer implements IGraphRenderer {
+export class RecordingRenderer implements TGraphRenderer {
 	readonly placements: TPlacement[] = [];
 	readonly linkCounts: number[] = [];
 	/** How many displays had happened at each shape rebuild, so a rebuild has its place in the order. */
@@ -96,7 +83,7 @@ type TGraphLib = { graphData(data: TDrawn): unknown; width(w: number): { height(
  * only when the accessor it is given is a different function, so a rebuild passes a new one, passing the same function
  * leaves every node with the shape it already had, which is a pinned node that never gets its frame.
  */
-export function threeRenderer(graph: TGraphLib, nodeObject: (n: FGNode) => unknown): IGraphRenderer {
+export function threeRenderer(graph: TGraphLib, nodeObject: (n: FGNode) => unknown): TGraphRenderer {
 	return {
 		size: (width, height) => void graph.width(width).height(height),
 		draw: (drawn) => void graph.graphData(drawn),

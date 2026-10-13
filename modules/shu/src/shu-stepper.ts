@@ -19,7 +19,7 @@ import type { TWorld } from "@haibun/core/lib/world.js";
 import type { IHasOptions } from "@haibun/core/lib/astepper.js";
 import { DOMAIN_ROUTE } from "@haibun/core/lib/domains.js";
 import { servedBuild, servedPage } from "./pipelines/served-page.js";
-import { POLYMORPHIC_VIEW_JS, SPA_SOURCE_MAP } from "./domains/serving.js";
+import { LABEL_FONT, POLYMORPHIC_VIEW_JS, SPA_SOURCE_MAP } from "./domains/serving.js";
 import { graphLayout } from "./pipelines/graph-source.js";
 import { servedBundles } from "./root.js";
 
@@ -254,6 +254,11 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 			if (c.req.header("if-none-match") === etag) return c.body(null, 304);
 			c.header("Content-Type", "application/javascript");
 			return c.body(content);
+		});
+		webserver.addRouteIfAbsent("get", LABEL_FONT, { description: "The font of the graph's labels" }, (c: Context) => {
+			c.header("Content-Type", "font/woff");
+			c.header("Cache-Control", "max-age=86400");
+			return c.body(servedBundles.labelFont());
 		});
 		webserver.addRouteIfAbsent("get", SPA_SOURCE_MAP, { description: "Source map for the served shu bundle" }, (c: Context) => {
 			try {

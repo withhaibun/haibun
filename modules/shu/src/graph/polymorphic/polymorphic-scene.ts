@@ -13,29 +13,39 @@ import { DEFAULT_PER_TYPE_LIMIT } from "../../quads-snapshot.js";
 import { SCOPE, dispatchSubjectEvent, entryOf } from "../../current-subject.js";
 import { formatInstant, readerZone } from "../../page/derivations/time-format.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import { FrameScheduler } from "../../page/graph/machines/frame-scheduler.js";
+import { EVERY_FRAME, FrameScheduler } from "../../page/graph/machines/frame-scheduler.js";
+import { reportFailure } from "../../client-log.js";
 import { type TGraphEnginePacing, type TGraphFrameLoop } from "../../page/graph/ports.js";
 import { type TAframeScene } from "../../page/graph/adapters/frame-loop.js";
 import { PolymorphicProfiler } from "../../page/graph/machines/profiler.js";
 import { makeTroikaChip, spriteVisual, type ChipThree } from "./polymorphic-troika-label.js";
-import { GLOW_RAMP, BREATH_MS } from "../../page/graph/derivations/highlight.js";
+import { FULL_BURN, GLOW_RAMP, BREATH_MS } from "../../page/graph/derivations/highlight.js";
 import { typeAvatar } from "../../page/graph/derivations/type-avatar.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { PAGE_TERMS, type TCounted } from "@haibun/core/lib/hypermedia.js";
 import { isSubPropertyOf, CLASS_LABEL, PROPERTY_LABEL } from "@haibun/core/lib/resources.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import { type GroupKeyMode, easeInOutCubic, groupKeyOf, type XYZ } from "../../page/graph/derivations/grouping.js";
+import { type GroupKeyMode, easeInOutCubic, groupKeyOf } from "../../page/graph/derivations/grouping.js";
 import { type KindTiers, type TGraphPreview } from "../../page/graph/derivations/focus-policy.js";
 import { quadsToGanttModel, cascadeReschedule } from "../../page/graph/derivations/gantt-model.js";
 import { availablePaints } from "../../page/graph/derivations/paint-select.js";
 import { ganttBarTimes, GANTT_ROW_H, GANTT_BAR_H, GANTT_BAR_D, GANTT_MIN_BAR_W, GANTT_GHOST_PAD } from "../../page/graph/derivations/gantt-layout.js";
 import { type Adornment } from "../../page/graph/derivations/graph-layout.js";
-import { PolymorphicCamera, clearStripOffset, coveredTogether, type GanttExtent, type TMeasureUnit, type TPanDirection, type TZoomDirection } from "../../page/graph/machines/camera.js";
+import {
+	PolymorphicCamera,
+	clearStripOffset,
+	coveredTogether,
+	type GanttExtent,
+	type TMeasureUnit,
+	type TPanDirection,
+	type TZoomDirection,
+} from "../../page/graph/machines/camera.js";
 import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../../page/controllers/element-controller.js";
 import { ndcToClient, clientToNdc, framesGraph, screenShare, type TClientPoint, type TScreenShare } from "../../page/graph/derivations/project.js";
 import { syncPickTarget, restorePickTarget, type TPickObject, type TScaleRestore } from "./polymorphic-pick-sync.js";
-import { RenderContext, type TSceneCamera } from "./polymorphic-render-context.js";
+import { RenderContext } from "./polymorphic-render-context.js";
+import type { TGraphRenderer, TSceneCamera } from "../../page/graph/ports.js";
 import { DataPipeline, visibleGraphModel } from "./polymorphic-data-pipeline.js";
 import { type RenderType, type TViewForces, buildRenderTypeRegistry } from "./polymorphic-render-type.js";
 import type { ViewType } from "../../page/graph/domains/views.js";
@@ -44,7 +54,6 @@ import { isSchemaType, propertyVocabulary } from "../../derivations/ontology-pro
 import {
 	actorTypesFor,
 	fromActorEdgeLabels,
-	hasCatalog,
 	relationOfPredicate,
 	roleEdgeLabels,
 	roleNounFor,
@@ -52,21 +61,22 @@ import {
 	validTimeFieldOf,
 } from "../../page/controllers/catalog-controller.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
-import { compositeRenderer, threeRenderer, type IGraphRenderer } from "./polymorphic-renderer.js";
+import { compositeRenderer, threeRenderer } from "./polymorphic-renderer.js";
 import { A11yRenderer } from "./polymorphic-a11y-renderer.js";
 import { type TFenceGl } from "../../page/graph/adapters/frame-time.js";
-import { graphEngine, graphFrameLoop, graphFrameTime, pageGraphSizeObserver } from "../../page/graph/root.js";
+import { graphEngine, graphFrameLoop, graphFrameTime } from "../../page/graph/root.js";
 import { pageClock } from "../../page/root.js";
+import { ObserverController } from "../../page/controllers/observer-controller.js";
 import { DEFAULT_REGULATION_THRESHOLDS, evaluateRegulation, medianOf, newRegulationState, recordFrameTime } from "../../page/graph/derivations/regulation.js";
 import { GRAPH_DRAWING_BLIP, GRAPH_FRAME_BLIP, GRAPH_REGULATION_BLIP, type TDrawingReason, type TWakeCause } from "../../graph-blips.js";
 import { SEQ_LANE_SPACING, actorBars, type TSeqModel } from "../../page/graph/derivations/sequence-model.js";
-import { type FGNode, type FGLink, type TSprite, GRAPH_SCENE_EVENT, linkEndId, neighboursOf } from "../../page/graph/domains/graph-types.js";
+import { type FGNode, type FGLink, type TSprite, type XYZ, GRAPH_SCENE_EVENT, isPlaced, linkEndId, neighboursOf } from "../../page/graph/domains/graph-types.js";
 import { forceLayout, type IGraphLayout } from "../../page/graph/derivations/polymorphic-layout.js";
 import { SvgRenderer } from "./polymorphic-svg-renderer.js";
 import { NodeDrag, DRAG_THRESHOLD_PX } from "../../page/graph/machines/node-drag.js";
 import { NODE_TEXT_COLOR, chipTextHeight } from "../../page/graph/derivations/layout-forces.js";
 import { paintMarkScene, type ShapeLabel, type ShapeThree } from "./polymorphic-node-shapes.js";
-import { PolymorphicFocus, NODE_RENDER_ORDER, NODE_FONT_SIZE } from "../../page/graph/machines/focus.js";
+import { PolymorphicFocus, NODE_RENDER_ORDER, NODE_FONT_SIZE } from "../../page/graph/controllers/focus-controller.js";
 import {
 	EnclosureController,
 	type EnclosureThree,
@@ -83,9 +93,6 @@ import { presentationForType } from "../../page/graph/derivations/type-presentat
 import type { NodeMark } from "../../page/graph/domains/graph-scene.js";
 import { appAccessLevel } from "../../view-query.js";
 import { PaneOpenSchema, addsToSelection, type DesiredPane, type TPaneOpen } from "../../page/derivations/pane-kinds.js";
-
-/** A predicate's link relation, which a view that draws before the page reads actuality's steps reads as the predicate itself. */
-const relOf = (predicate: string, graph: string): string => (hasCatalog() ? relationOfPredicate(predicate, graph) : predicate);
 
 /**
  * shu-graph-scene: the A-Frame / ForceGraphVR rendering surface, extracted from shu-polymorphic-graph-view so the scene is
@@ -331,6 +338,7 @@ type TAframeEntity = HTMLElement & { setAttribute(component: string, prop: strin
 export type TGraphState = ReturnType<ShuGraphScene["inspect"]>;
 
 export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
+	readonly #observers = new ObserverController(this);
 	/** The host's time-filtered data slice; replaced whole via setModel. */
 	private model: GraphSceneModel = DEFAULT_MODEL;
 	/** The host's layout choices; patched via setConfig. */
@@ -338,7 +346,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 
 	/** How this scene is drawn. The library-backed renderer is built at mount; a caller that wants the graph shown in
 	 *  another medium, a report, a still, a test that reads what was drawn, sets its own before mounting. */
-	renderer?: IGraphRenderer;
+	renderer?: TGraphRenderer;
 
 	/** The ForceGraphVR instance, public so the host can delegate its `graph` accessor 1:1. Displaying goes through the
 	 *  renderer; what remains here is the camera, the controls, and the force simulation (see the plan doc). */
@@ -382,7 +390,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  appears on a visible node, plus the serving site once the view holds data from MORE than one site (a single-site
 	 *  graph doesn't have sites to separate): all derived from the data, so an axis the graph does not carry never shows. */
 	private get groupByAxes(): string[] {
-		const roleLabels = hasCatalog() ? roleEdgeLabels() : [];
+		const roleLabels = roleEdgeLabels();
 		const present = new Set<string>();
 		const sites = new Set<unknown>();
 		for (const n of this.visibleModel().nodes)
@@ -415,7 +423,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		container: () => this.ctx.container,
 		renderer: () => this.ctx.renderer,
 		canvas: () => this.ctx.canvas,
-		nodePositions: () => this.ctx.nodeMap.values(),
+		nodePositions: () => [...this.ctx.nodeMap.values()].filter(isPlaced),
 		hasNodes: () => this.ctx.nodeMap.size > 0,
 		reframeMode: () => this.renderType.reframeMode(),
 		ganttExtent: () => this.ganttExtent(),
@@ -454,7 +462,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		lastModelHash: () => this.lastModelHash,
 		timeCursor: () => this.model.timeCursor, // the pinning-aware cursor the host resolved (a snapshot-pinned view reads its frozen instant)
 		zBasis: () => this.config.zBasis,
-		validTimeFieldFor: (type) => (hasCatalog() ? validTimeFieldOf(type) : undefined),
+		validTimeFieldFor: (type) => validTimeFieldOf(type),
 		groupAnchors: () => this.enclosureCtl.anchors,
 		groupSizes: () => this.enclosureCtl.sizes,
 		setGanttTargets: (t) => {
@@ -531,7 +539,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		{
 			seqNodes: () => this.seqNodes(),
 			seqEdges: () => this.visibleModel().edges.map((e) => ({ from: e.from, to: e.to, predicate: e.predicate })),
-			seqOptions: () => ({ labelOf: (participantId) => this.seqLabelFor(participantId), actorEdges: hasCatalog() ? { from: fromActorEdgeLabels(), to: toActorEdgeLabels() } : { from: new Set(), to: new Set() } }),
+			seqOptions: () => ({ labelOf: (participantId) => this.seqLabelFor(participantId), actorEdges: { from: fromActorEdgeLabels(), to: toActorEdgeLabels() } }),
 		},
 	);
 	private get renderType(): RenderType {
@@ -632,7 +640,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private fgRenderer?: TSceneRenderer;
 	// Public so the host delegates its `fgCamera` accessor 1:1 (tests project through it and wait for it before driving).
 	fgCamera?: TSceneCamera;
-	private frame = new FrameScheduler();
+	private frame = new FrameScheduler((name, err) => reportFailure("polymorphic-frame", `the frame job "${name}" failed and is disabled`, err));
 	private engine = graphEngine();
 	private profiler = new PolymorphicProfiler();
 	private fgCanvas?: HTMLCanvasElement;
@@ -1054,7 +1062,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 						);
 			const obj = visual.object;
 			n.__visual = visual;
-			visual.setHighlighted(n.id === this.activeSubject); // a rebuilt object re-wears the glow if it is the active node
+			visual.setHighlighted(n.id === this.activeSubject, FULL_BURN); // a rebuilt object re-wears the glow if it is the active node
 			n.__sprite = obj as unknown as TSprite;
 			n.__baseScale = { x: obj.scale.x, y: obj.scale.y };
 			n.__k = 1;
@@ -1246,7 +1254,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const target = this.ganttTargets.get(node.id);
 		const scale = this.ganttScale;
 		if (!this.renderType.dragReschedules || !target || !scale || node.z === undefined || node.isCluster) return;
-		const tasks = quadsToGanttModel(this.pipeline.renderableQuads(), relOf).tasks;
+		const tasks = quadsToGanttModel(this.pipeline.renderableQuads(), relationOfPredicate).tasks;
 		const dragged = tasks.find((t) => t.id === node.id);
 		if (!dragged) return;
 		// Time is the z axis: the dropped bar's new centre z maps back to its start (ganttBarTimes is the 1D inverse). The
@@ -1300,25 +1308,17 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.attachNodeDrag();
 		this.fitGraphFrame(container);
 		this.camera.onContainerResize();
-		const disconnectSize = pageGraphSizeObserver().observe(container, () => {
+		this.#observers.resizes(container, () => {
 			this.markDirty("resize"); // a paused scene must wake to re-fit and redraw on a container resize
 			this.fitGraphFrame(container);
 			this.camera.onContainerResize();
 		});
-		this.autoTeardown(disconnectSize);
 		// Re-theme when the OS colour scheme flips (auto mode) or the user picks a theme (data-theme on <html>).
-		const media = window.matchMedia("(prefers-color-scheme: dark)");
-		const onSchemeChange = () => this.applyTheme();
-		media.addEventListener("change", onSchemeChange);
-		this.autoTeardown(() => media.removeEventListener("change", onSchemeChange));
-		const themeObserver = new MutationObserver(() => this.applyTheme());
-		themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
-		this.autoTeardown(() => themeObserver.disconnect());
+		this.#observers.mediaChanges("(prefers-color-scheme: dark)", () => this.applyTheme());
+		this.#observers.attributes(document.documentElement, ["data-theme"], false, () => this.applyTheme());
 		// An overlay declaring that it covers the views: a framing aims clear of it while it is there, and back over the
 		// whole canvas once it goes.
-		const coverObserver = new MutationObserver(() => this.onCoverChanged());
-		coverObserver.observe(document.body, { attributes: true, subtree: true, attributeFilter: [SHU_ATTR.DATA_COVERS_VIEWS] });
-		this.autoTeardown(() => coverObserver.disconnect());
+		this.#observers.attributes(document.body, [SHU_ATTR.DATA_COVERS_VIEWS], true, () => this.onCoverChanged());
 	}
 
 	/**
@@ -1655,13 +1655,13 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		});
 
 		// The frame's jobs, declared with their cadences in one place (see FrameScheduler).
-		this.frame.add("controls", () => controls.update());
+		this.frame.add("controls", () => controls.update(), EVERY_FRAME);
 		this.frame.add("compass", () => this.drawCompass(), 2);
 		this.frame.add("retarget-magnify", () => this.focusCtl.retargetMagnify(), 15);
-		this.frame.add("magnify", () => this.focusCtl.updateMagnify());
+		this.frame.add("magnify", () => this.focusCtl.updateMagnify(), EVERY_FRAME);
 
-		this.frame.add("billboard", () => this.billboardLabels()); // troika labels are meshes, orient them to the camera each frame
-		this.frame.add("layout-tween", () => this.updateLayoutTween());
+		this.frame.add("billboard", () => this.billboardLabels(), EVERY_FRAME); // troika labels are meshes, orient them to the camera each frame
+		this.frame.add("layout-tween", () => this.updateLayoutTween(), EVERY_FRAME);
 		// Track the group containers on a throttled cadence WHILE the layout is settling, so they form and follow the
 		// nodes instead of popping in only at full stop (a large graph's settle is otherwise a long wait). Nodes are
 		// anchor-seeded with real positions from the first frame, so the frames don't flash at z=0; the final
@@ -1681,7 +1681,11 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		// comparison, so a change wakes the scene within one frame.
 		// What a drawn frame takes is measured after the draw (see `FrameTime`) and read in the gate below, where the
 		// regulator sets whether the breath may keep requesting frames.
-		const frameTime = graphFrameTime(() => scene.renderer?.getContext?.() as TFenceGl | undefined, DEFAULT_REGULATION_THRESHOLDS.windowSamples);
+		const frameTime = graphFrameTime(
+			() => scene.renderer?.getContext?.() as TFenceGl | undefined,
+			DEFAULT_REGULATION_THRESHOLDS.windowSamples,
+			() => pageClock().elapsed(),
+		);
 		const drawing = graphFrameLoop(scene, () => frameTime.drew());
 		this.drawing = drawing;
 		const tick = () => {
@@ -2019,7 +2023,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const detail: GraphSceneChangedDetail = {
 			groupByAxes: this.groupByAxes,
 			forces: this.renderType.forces,
-			paintOptions: availablePaints(this.model.visibleQuads, relOf),
+			paintOptions: availablePaints(this.model.visibleQuads, relationOfPredicate),
 			counts: { nodes: this.nodeMap.size, edges: links.length, relTypes, omitted },
 			latestStep: this.computeLatestStep(),
 			axisLegend: this.renderType.axisLegend(),
@@ -2076,7 +2080,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		// Place the final layout now, the pins the pipeline set hold lanes and groups; the force fills in the rest, and
 		// glide every surviving node from where it is to where it lands over one eased tween. Positions exist before the
 		// feed, so the tween starts immediately; the feed only gives the renderer the new set to display.
-		this.profiler.compute(() => this.layoutForFeed().place(nodes, links));
+		this.profiler.compute(() => this.layoutForFeed().place(nodes, links, { damped: false }));
 		this.beginLayoutTween(from, nodes);
 		if (this.nodeRebuildPending) this.forceNodeObjectRebuild(); // chip↔box on a view switch, or resized gantt bars
 		this.renderer?.draw({ nodes, links });
@@ -2230,7 +2234,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			hiddenPredicates: this.model.hiddenPredicates,
 			prune: this.config.prune,
 			site: this.model.site,
-			roleRels: hasCatalog() ? roleEdgeLabels() : [],
+			roleRels: roleEdgeLabels(),
 		});
 		return this.modelCache;
 	}
@@ -2250,7 +2254,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	/** The noun a party displays under: what the edge conferring the role declares its target is called, else the
 	 *  party's own type. Declared vocabulary, read from the projection: a graph view doesn't name roles of its own. */
 	private roleNoun(roleRel: unknown, type: string | undefined): string | undefined {
-		return (hasCatalog() ? roleNounFor(roleRel) : undefined) ?? type;
+		return roleNounFor(roleRel) ?? type;
 	}
 
 	private seqLabelFor(participantId: string): string {
@@ -2266,7 +2270,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private revealActorTypes(): void {
 		const hidden = new Set(this.model.hiddenGraphs);
 		const showing = [...this.model.knownClusters.keys()].filter((t) => !hidden.has(t));
-		const types = (hasCatalog() ? actorTypesFor(showing) : []).filter((t) => hidden.has(t));
+		const types = actorTypesFor(showing).filter((t) => hidden.has(t));
 		if (types.length === 0) return;
 		this.dispatchEvent(new CustomEvent(GRAPH_SCENE_EVENT.SCOPE_REVEALED, { detail: { types }, bubbles: true, composed: true }));
 	}
@@ -2511,10 +2515,10 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  when the node isn't in the graph. */
 	fitGraphAround(nodeId: string): void {
 		if (!this.nodeMap.has(nodeId)) return;
-		const positions: FGNode[] = [];
+		const positions: XYZ[] = [];
 		for (const id of neighboursOf(nodeId, this.linkMap.values())) {
 			const n = this.nodeMap.get(id);
-			if (n) positions.push(n);
+			if (n !== undefined && isPlaced(n)) positions.push(n);
 		}
 		this.camera.fitPositions(positions);
 	}
@@ -2525,7 +2529,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  "centre" is the clear strip beside it, centring under the guide didn't show the reader the node. */
 	private followActive(nodeId: string): void {
 		const n = this.nodeMap.get(nodeId);
-		if (!n) return;
+		if (n === undefined || !isPlaced(n)) return; // a node the layout hasn't placed is followed once it is
 		this.aimedAt = nodeId;
 		this.camera.centerOn(n, this.coverClearOffset() ?? undefined);
 	}

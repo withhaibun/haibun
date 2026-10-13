@@ -44,6 +44,8 @@ export type TSharedCell<T> = {
 export type TClock = {
 	/** Returns the instant now, in epoch milliseconds. */
 	now(): number;
+	/** Returns a monotonic reading in fractional milliseconds, for measuring how long something takes. */
+	elapsed(): number;
 	/** Calls `fn` after `ms` milliseconds. Returns the call that cancels it. */
 	after(ms: number, fn: () => void): () => void;
 	/** Calls `fn` before the browser draws its next frame. Returns the call that cancels it. */
@@ -178,6 +180,13 @@ export type TPageObservers = {
 	/** Calls `fn` with each long animation frame, including the frames before the call. Returns false where the browser
 	 *  doesn't report long frames. */
 	longFrames(fn: (frame: TLongFrame) => void): boolean;
+	/** Calls `fn` each time `target`'s box changes size. Returns the call that stops it. */
+	resizes(target: Element, fn: () => void): () => void;
+	/** Calls `fn` each time an attribute `names` lists changes on `target`, or on an element under it where `subtree`
+	 *  holds. Returns the call that stops it. */
+	attributes(target: Element, names: readonly string[], subtree: boolean, fn: () => void): () => void;
+	/** Calls `fn` each time whether the page matches the media query `query` changes. Returns the call that stops it. */
+	mediaChanges(query: string, fn: () => void): () => void;
 };
 
 /** An event actuality sends the page: a lifecycle, a log or a time-sync event. */

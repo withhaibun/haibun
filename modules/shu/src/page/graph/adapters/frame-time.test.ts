@@ -1,7 +1,7 @@
 // A frame's time is measured with a fence after the draw and read when the fence signals, one frame in SAMPLE_EVERY, so
 // the page measures what the renderer uses without stalling for it.
 import { describe, expect, it } from "vitest";
-import { FrameTime, SAMPLE_EVERY, type TFenceGl } from "./polymorphic-frame-time.js";
+import { FrameTime, SAMPLE_EVERY, type TFenceGl } from "./frame-time.js";
 
 /** A context whose fences signal after `pollsToSignal` status reads. */
 function fakeGl(pollsToSignal: number) {
@@ -52,7 +52,11 @@ describe("measuring a drawn frame", () => {
 	it("measures every drawn frame until the first measurements are made, so a scene that draws few frames fills its window", () => {
 		const held = fakeGl(1);
 		const first = 3;
-		const frameTime = new FrameTime(() => held.gl, first);
+		const frameTime = new FrameTime(
+			() => held.gl,
+			first,
+			() => performance.now(),
+		);
 		for (let i = 0; i < first; i++) {
 			frameTime.drew();
 			expect(frameTime.poll(), `measurement ${i + 1}, from the frame just drawn`).toBeDefined();
@@ -64,17 +68,29 @@ describe("measuring a drawn frame", () => {
 
 	it("holds one measurement at a time: sampled frames drawn while a fence is pending are not measured", () => {
 		const held = fakeGl(100);
-		const frameTime = new FrameTime(() => held.gl, 0);
+		const frameTime = new FrameTime(
+			() => held.gl,
+			0,
+			() => performance.now(),
+		);
 		for (let i = 0; i < SAMPLE_EVERY * 3; i++) frameTime.drew();
 		expect(held.fences).toBe(1);
 	});
 
 	it("doesn't measure a frame on a context without fences, or before the renderer exists", () => {
-		const frameTime = new FrameTime(() => ({}) as unknown as TFenceGl, 0);
+		const frameTime = new FrameTime(
+			() => ({}) as unknown as TFenceGl,
+			0,
+			() => performance.now(),
+		);
 		for (let i = 0; i < SAMPLE_EVERY; i++) frameTime.drew();
 		expect(frameTime.poll()).toBeUndefined();
 		let gl: TFenceGl | undefined;
-		const later = new FrameTime(() => gl, 0);
+		const later = new FrameTime(
+			() => gl,
+			0,
+			() => performance.now(),
+		);
 		for (let i = 0; i < SAMPLE_EVERY; i++) later.drew();
 		expect(later.poll(), "the renderer doesn't exist yet").toBeUndefined();
 		const held = fakeGl(1);
@@ -85,7 +101,11 @@ describe("measuring a drawn frame", () => {
 
 	it("releases a pending fence when the scene ends", () => {
 		const held = fakeGl(100);
-		const frameTime = new FrameTime(() => held.gl, 0);
+		const frameTime = new FrameTime(
+			() => held.gl,
+			0,
+			() => performance.now(),
+		);
 		for (let i = 0; i < SAMPLE_EVERY; i++) frameTime.drew();
 		frameTime.end();
 		expect(held.deleted).toBe(1);

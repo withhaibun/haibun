@@ -19,9 +19,13 @@
  * three-spritetext resolves), so a chip is an object in the A-Frame scene. The text builds async on troika's
  * worker (off the main thread), sync() kicks it off and its callback sizes the background to the measured text bounds.
  */
-import { Text } from "troika-three-text";
-import { GLOW_SPREAD, type GlowThree, MarkGlow, makeGlow } from "../../page/graph/derivations/highlight.js";
+import { Text, configureTextBuilder } from "troika-three-text";
+import { LABEL_FONT } from "../../domains/serving.js";
+import { FULL_BURN, GLOW_SPREAD, type GlowThree, MarkGlow, makeGlow } from "../../page/graph/derivations/highlight.js";
 import type { NodeVisual, Obj3D } from "../../page/graph/domains/graph-types.js";
+
+// Every label reads the font shu serves beside its bundles, so the page draws its labels without a font service (CA3D10).
+configureTextBuilder({ defaultFontURL: LABEL_FONT });
 
 /** A scene object this module CONSTRUCTS or parents onto: the structural handle leaves `add` optional because a
  *  mark that doesn't parent a child never needs it. */
@@ -182,7 +186,7 @@ export function makeTroikaChip(label: string, bgColor: string, three: ChipThree,
 			avatarBg.position.set(g.badge.cx, g.cy, 0);
 		}
 		box = { w: g.glow.w, h: g.glow.h, cx: g.cx, cy: g.cy };
-		if (glow.isLit) glow.set(true);
+		if (glow.isLit) glow.set(true, FULL_BURN);
 		d.laidOut();
 	};
 

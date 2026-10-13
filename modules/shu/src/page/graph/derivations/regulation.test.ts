@@ -1,15 +1,7 @@
 // The scene regulates its own decorative motion the way actuality's health monitor regulates actuality: a rolling window,
 // a threshold, a signal under cooldown. These cases hold the arithmetic and the discipline.
 import { describe, expect, it } from "vitest";
-import {
-	DEFAULT_REGULATION_THRESHOLDS,
-	describeRegulation,
-	evaluateRegulation,
-	medianOf,
-	newRegulationState,
-	recordFrameTime,
-	type TRegulationThresholds,
-} from "./regulation.js";
+import { DEFAULT_REGULATION_THRESHOLDS, describeRegulation, evaluateRegulation, medianOf, newRegulationState, recordFrameTime, type TRegulationThresholds } from "./regulation.js";
 
 const thresholds: TRegulationThresholds = { windowSamples: 5, decorativeShareLimit: 0.05, beatsPerSecond: 10, cooldownMs: 10_000 };
 

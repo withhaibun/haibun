@@ -1,4 +1,4 @@
-// The polymorphic's focus subsystem: the whole purely-visual dim/highlight + the focus-chip MAGNIFY pop. It decides what is
+// The polymorphic's focus subsystem: the whole purely-visual dim/highlight + the focus-chip MAGNIFY pop. It states what is
 // focused (the open column's node, else the hovered node), dims every node/edge/label except the focus neighbourhood,
 // re-pools the lib's per-link colours so a line's rgba carries its focus-state opacity, and animates the focus node's
 // chip up to a readable on-screen size with the cartoon easeOutBack overshoot. This module doesn't move the layout: at rest
@@ -10,20 +10,22 @@
 // OWNS those, this controller only reads them and owns the magnify animation state. (lovely-finding-babbage.)
 
 import { focusStateFor, opacityFor, isFullContrast, previewLights, type FocusState, type KindTiers, type TGraphPreview } from "../derivations/focus-policy.js";
-import { type FGNode, type FGLink, type TSprite, type ThreeObj, linkEndId } from "../domains/graph-types.js";
+import { type FGNode, type FGLink, type TSprite, type ThreeObj, type XYZ, isPlaced, linkEndId } from "../domains/graph-types.js";
 import { chipTextHeight } from "../derivations/layout-forces.js";
-import { NEWCOMER_GLOW_MS, RESTING_INTENSITY, glowColorAt, pulseAt } from "../derivations/highlight.js";
+import { FULL_BURN, NEWCOMER_GLOW_MS, RESTING_INTENSITY, glowColorAt, pulseAt } from "../derivations/highlight.js";
+/** The magnify multiplier of a chip at its natural size. */
+const NATURAL_K = 1;
 
-// three-forcegraph forces link objects to renderOrder 10; draw nodes above that (edges sit behind), labels between.
+// three-forcegraph forces link objects to renderOrder 10; draw nodes above that (edges draw behind), labels between.
 export const NODE_RENDER_ORDER = 20;
 export const FOCUS_RENDER_ORDER = 21; // the magnified chip is never occluded by its peers
 
 // Focus magnifier: a focused chip pops UP TO a readable on-screen text size, and ONLY when that's a MODEST step.
-// readableK wants `targetPx·worldPerPx/textHeight`: on a zoomed-out graph that's a big multiplier, which would blow the
+// readableK computes `targetPx·worldPerPx/textHeight`: on a zoomed-out graph that's a big multiplier, which would blow the
 // connected nodes up to dominate the whole graph ("the hover pops everything huge"). So the pop is bounded to MAX_MAGNIFY:
 // a node already at/above readable is left alone, a node a modest step below pops to readable, and a node so small it
 // would need MORE than MAX_MAGNIFY to read is LEFT AS-IS (zoom in to read it) rather than enlarged into a huge blob.
-const MAX_MAGNIFY = 1.4; // the focus pop never enlarges a chip beyond this, kept low so that, on a z-deep graph (camera backed off, so readableK wants a large multiplier), the focus set pops only gently rather than dominating the view; a chip needing more is left small (zoom in to read it). Tune here.
+const MAX_MAGNIFY = 1.4; // the focus pop never enlarges a chip beyond this, kept low so that, on a z-deep graph (camera backed off, so readableK computes a large multiplier), the focus set pops only gently rather than dominating the view; a chip needing more is left small (zoom in to read it). Tune here.
 const MAGNIFY_MS = 500;
 export const NODE_FONT_SIZE = 96;
 const MAX_FONT_SIZE = 384;
@@ -88,13 +90,13 @@ export type FocusDeps = {
 	preview: () => TGraphPreview | null; // what a preview lights (a type hovered in the filter legend, a path a host points at): dim the rest
 	groupOf: (n: FGNode) => string; // the group a node is drawn in, under the grouping the view uses
 	nodeMap: () => Map<string, FGNode>;
-	decorates: () => boolean; // whether decorative motion may run now: the scene's regulator rests it when a frame costs more than decoration may take
+	decorates: () => boolean; // whether decorative motion may run now: the scene's regulator rests it when a frame takes more than decoration may take
 	currentLinks: () => FGLink[];
 	enclosures: () => Map<string, FocusEnclosure>;
 	graph: () => FocusGraph | undefined;
 	engineFrozen: () => boolean; // at REST: pin still-free nodes before the colour re-pool tick so it cannot jump an under-converged layout
 	pinNode: (n: FGNode) => void; // record the rest-time focus pin (rides the data-feed pin set; released at the next engine stop)
-	worldPerPxAt: (pos: { x?: number; y?: number; z?: number }) => number | null; // the zoom signal readableK scales from
+	worldPerPxAt: (pos: XYZ) => number | null; // the zoom signal readableK scales from
 	focusEdgeColor: () => string; // full-contrast foreground a focused edge/label brightens to
 	edgeLineColor: () => string; // resting line colour
 	edgeLabelColor: () => string; // resting edge-label colour
@@ -165,7 +167,7 @@ export class PolymorphicFocus {
 		// A purely-visual focus must NOT move the layout. Re-pooling linkColor (below) makes the lib tick the sim once,
 		// and a force layout that froze before full convergence (a big graph capped by the warmup limit, so it happens
 		// only ~half the time, when the random layout didn't settle in limit) JUMPS on that one tick: "the graph
-		// rescales/moves on hover". So at REST, pin every still-free node where it sits first: the reheat then moves
+		// rescales/moves on hover". So at REST, pin every still-free node at its position first: the reheat then moves
 		// the COLOUR only, never the positions. These pins ride the data-feed pin set, so the same engine-stop that ends
 		// the reheat releases them (so they don't freeze permanently); already-pinned nodes (the selection) are left as they are. Only
 		// at rest, during a genuine settle the engine owns the layout (and the hover is guarded then anyway).
@@ -205,7 +207,7 @@ export class PolymorphicFocus {
 		this.lastMagnifiedFocus = focus;
 		const selected = this.deps.selectedId(); // hoisted: it cannot change during the pass, and reading it takes a map lookup
 		for (const n of nodeMap.values()) {
-			const inFocus = focus !== null && (neighbors?.has(n.id) ?? false);
+			const inFocus = neighbors !== null && neighbors.has(n.id);
 			const state = focusStateFor({
 				focusActive: focus !== null,
 				isInFocus: inFocus,
@@ -213,7 +215,7 @@ export class PolymorphicFocus {
 				matchesPreview: preview !== null && previewLights(preview, n),
 			});
 			if (n.__visual) n.__visual.opacity = opacityFor(state, this.deps.nodeTiers); // the visual owns how its concrete object dims (a chip's text fill, a sprite's material)
-			n.__visual?.setHighlighted(n.id === selected || this.freshGlows.has(n)); // the glow: the ACTIVE node wears it always, a newcomer for its first moments
+			n.__visual?.setHighlighted(n.id === selected || this.freshGlows.has(n), FULL_BURN); // the glow: the ACTIVE node wears it always, a newcomer for its first moments
 			const isFocus = n.id === focus;
 			this.aimMagnify(n, isFocus, isFocus && freshFocus);
 		}
@@ -239,14 +241,14 @@ export class PolymorphicFocus {
 
 	/** Only the focus node's chip pops, to a readable on-screen size (readableK never shrinks, so an already-readable
 	 *  chip stays put) with the attention overshoot in setMagnifyTarget; every other node resolves to natural size. */
-	private aimMagnify(n: FGNode, isFocus: boolean, freshlyFocused = false): void {
-		const to = isFocus ? this.readableK(n, chipTextHeight(n), this.deps.focusTextPx()) : 1;
+	private aimMagnify(n: FGNode, isFocus: boolean, freshlyFocused: boolean): void {
+		const to = isFocus && isPlaced(n) ? this.readableK(n, chipTextHeight(n), this.deps.focusTextPx()) : NATURAL_K;
 		this.setMagnifyTarget(n, to, isFocus, freshlyFocused);
 	}
 
 	/** The multiplier that renders text of `baseTextHeight` world units at targetPx on screen, from the camera
 	 * distance at `pos` (via the camera's worldPerPxAt). Never below natural size, so an already-readable chip stays put. */
-	private readableK(pos: { x?: number; y?: number; z?: number }, baseTextHeight: number, targetPx: number): number {
+	private readableK(pos: XYZ, baseTextHeight: number, targetPx: number): number {
 		const worldPerPx = this.deps.worldPerPxAt(pos);
 		if (worldPerPx === null) return 1; // camera not ready: it doesn't pop (never a blind enlargement)
 		return Math.min(Math.max((targetPx * worldPerPx) / baseTextHeight, 1), MAX_MAGNIFY);
@@ -257,27 +259,28 @@ export class PolymorphicFocus {
 		const focus = this.deps.focusId();
 		if (!focus) return;
 		const n = this.deps.nodeMap().get(focus);
-		if (n) this.aimMagnify(n, true);
+		if (n) this.aimMagnify(n, true, false);
 	}
 
 	/** Aim a node's magnify multiplier; the rAF tick animates toward it. The raster follows the scale so magnified text stays crisp. */
-	private setMagnifyTarget(n: FGNode, to: number, focused: boolean, freshlyFocused = false): void {
+	private setMagnifyTarget(n: FGNode, to: number, focused: boolean, freshlyFocused: boolean): void {
 		const sprite = n.__sprite;
 		if (!sprite || !n.__baseScale) return;
 		const wantFont = Math.round(Math.min(MAX_FONT_SIZE, NODE_FONT_SIZE * Math.max(1, to)));
 		if (Math.abs(sprite.fontSize - wantFont) > 16) sprite.fontSize = wantFont; // setter regenerates the texture; tolerance avoids regen churn while zooming
 		sprite.renderOrder = focused ? FOCUS_RENDER_ORDER : NODE_RENDER_ORDER;
-		const current = n.__k ?? 1;
+		const current = n.__k === undefined ? NATURAL_K : n.__k;
 		const pending = this.magnifyAnims.get(n);
+		const aimed = pending === undefined ? current : pending.to;
 		const decorates = this.deps.decorates();
-		if (Math.abs((pending?.to ?? current) - to) < 0.05) {
+		if (Math.abs(aimed - to) < 0.05) {
 			// Already at readable size: acknowledge focus with a pop up-and-back instead of a resize, where decoration runs.
 			if (freshlyFocused && decorates) this.magnifyAnims.set(n, { from: current, to: current, start: performance.now(), pulse: true });
 			return;
 		}
 		if (!decorates) {
 			// The size is what makes the chip readable; the easing to it is decoration. At rest the chip takes the size at
-			// once, in the frame the change is drawn in.
+			// once, in the frame that draws the change.
 			this.magnifyAnims.delete(n);
 			n.__k = to;
 			sprite.scale.set(n.__baseScale.x * to, n.__baseScale.y * to, 1);
@@ -291,7 +294,7 @@ export class PolymorphicFocus {
 	 *  render loop draws it (a paused scene would freeze the breath mid-cycle, and an expiry the loop doesn't draw never
 	 *  ends). With `pulsing` false the breath rests: each glow is drawn once at its fullest and held, and a frame is
 	 *  needed only on the beat the set of worn glows changes. The scene's regulator selects which, from what a frame takes. */
-	updateHighlight(pulsing = true): boolean {
+	updateHighlight(pulsing: boolean): boolean {
 		const now = performance.now();
 		const id = this.deps.selectedId();
 		const glowing = new Set<FGNode>();
@@ -300,7 +303,7 @@ export class PolymorphicFocus {
 			if (now - born > NEWCOMER_GLOW_MS) {
 				this.freshGlows.delete(n);
 				if (n.id !== id) {
-					n.__visual?.setHighlighted(false); // the glow ends with the welcome, unless the reader made it the active node
+					n.__visual?.setHighlighted(false, FULL_BURN); // the glow ends with the welcome, unless the reader made it the active node
 					ended = true;
 				}
 				continue;

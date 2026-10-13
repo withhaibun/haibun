@@ -427,16 +427,7 @@
 	"modules/shu/src/graph/polymorphic/polymorphic-data-pipeline.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/shu/src/graph/polymorphic/polymorphic-drawing.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/graph/polymorphic/polymorphic-enclosure.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/graph/polymorphic/polymorphic-engine.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/graph/polymorphic/polymorphic-frame-time.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/graph/polymorphic/polymorphic-node-shapes.ts": {
@@ -471,11 +462,6 @@
 	},
 	"modules/shu/src/known-size-flow.ts": {
 		"isn't in a kind position": 1
-	},
-	"modules/shu/src/page/graph/machines/focus.ts": {
-		"imports a derivation: ../derivations/focus-policy.js": 1,
-		"imports a derivation: ../derivations/highlight.js": 1,
-		"imports a derivation: ../derivations/layout-forces.js": 1
 	},
 	"modules/shu/src/quads-snapshot.ts": {
 		"isn't in a kind position": 1

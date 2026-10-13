@@ -347,9 +347,6 @@
 		"fills an absent value with a constant through ??": 11,
 		"states a parameter's default value": 1
 	},
-	"modules/shu/src/graph/polymorphic/polymorphic-frame-time.ts": {
-		"states a parameter's default value": 1
-	},
 	"modules/shu/src/graph/polymorphic/polymorphic-node-shapes.ts": {
 		"fills an absent value with a constant through ??": 2
 	},
@@ -518,34 +515,6 @@
 	},
 	"modules/shu/src/page/derivations/step-input.ts": {
 		"fills an absent value with a constant through ??": 2
-	},
-	"modules/shu/src/page/graph/adapters/frame-time.ts": {
-		"states a parameter's default value": 1
-	},
-	"modules/shu/src/page/graph/derivations/highlight.ts": {
-		"fills an absent value with a constant through ??": 1
-	},
-	"modules/shu/src/page/graph/derivations/polymorphic-layout.ts": {
-		"fills an absent value with a constant through ??": 1,
-		"states a parameter's default value": 1
-	},
-	"modules/shu/src/page/graph/derivations/regulation.ts": {
-		"states a parameter's default value": 1
-	},
-	"modules/shu/src/page/graph/machines/camera.ts": {
-		"fills a falsy value with a constant through ||": 1,
-		"fills an absent value with a constant through ??": 24,
-		"states a parameter's default value": 1
-	},
-	"modules/shu/src/page/graph/machines/focus.ts": {
-		"fills an absent value with a constant through ??": 2,
-		"states a parameter's default value": 3
-	},
-	"modules/shu/src/page/graph/machines/frame-scheduler.ts": {
-		"states a parameter's default value": 1
-	},
-	"modules/shu/src/page/graph/machines/node-drag.ts": {
-		"fills an absent value with a constant through ??": 3
 	},
 	"modules/shu/src/quads-snapshot.ts": {
 		"fills an absent value with a constant through ??": 6,

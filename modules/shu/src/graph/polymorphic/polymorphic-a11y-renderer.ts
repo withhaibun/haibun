@@ -1,5 +1,5 @@
 /**
- * The graph as an accessible document: an IGraphRenderer whose medium is semantic HTML. It is given the same placed
+ * The graph as an accessible document: an TGraphRenderer whose medium is semantic HTML. It is given the same placed
  * nodes and links every renderer is given: a node arrives typed and titled, a link as a directed predicate-labelled
  * statement: so the accessible reading and the WebGL view can't drift.
  *
@@ -13,7 +13,8 @@
  * lands via textContent, so node names don't need escaping.
  */
 import { linkEndId, type FGNode } from "../../page/graph/domains/graph-types.js";
-import { graphSummary, type IGraphRenderer, type TDrawn } from "./polymorphic-renderer.js";
+import { graphSummary } from "./polymorphic-renderer.js";
+import type { TDrawn, TGraphRenderer } from "../../page/graph/ports.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 
 /** What the medium needs from its host. */
@@ -59,7 +60,7 @@ const created = (n: FGNode | undefined): number => n?.__created ?? Number.POSITI
 /** Oldest first, by name where two were made at once, so a reading is stable between draws. */
 const byCreated = (group: FGNode[]): FGNode[] => [...group].sort((a, b) => created(a) - created(b) || (a.name ?? a.id).localeCompare(b.name ?? b.id));
 
-export class A11yRenderer implements IGraphRenderer {
+export class A11yRenderer implements TGraphRenderer {
 	private lastIds = new Set<string>();
 	/** How much of the reading is stated now, and the draw it was stated from: a reader asks for more of the same
 	 *  reading, which is the last one drawn rather than a new one. */

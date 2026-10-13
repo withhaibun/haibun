@@ -1,7 +1,7 @@
 // A scene draws while something is moving and stops when motion ends. A-Frame's pause() stops the components and not
 // the renderer's loop, so the gate stops the loop itself. These cases hold the loop to the motion.
 import { describe, it, expect } from "vitest";
-import { Drawing, aframeLoop } from "./polymorphic-drawing.js";
+import { Drawing, aframeLoop } from "./frame-loop.js";
 
 function counted(): { loop: { start(): void; stop(): void }; starts: number; stops: number } {
 	const held = { starts: 0, stops: 0, loop: { start: () => undefined, stop: () => undefined } };

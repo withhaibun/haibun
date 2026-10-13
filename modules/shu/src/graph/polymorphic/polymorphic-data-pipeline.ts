@@ -10,14 +10,15 @@
 // caches (gantt/swimlane), the group anchors and the magnify pop; the pipeline reads/writes them through these deps
 // rather than owning render-type state the rest of the component also reads.
 
-import { groupKeyOf, type GroupKeyMode, type GroupAnchor, type XYZ } from "../../page/graph/derivations/grouping.js";
+import { groupKeyOf, type GroupKeyMode, type GroupAnchor } from "../../page/graph/derivations/grouping.js";
+import type { XYZ } from "../../page/graph/domains/graph-types.js";
 import { timeZScale, timeZ, spanZScale, spanZ, subjectValidTimes, type TimeZScale, type TSubjectTimes } from "../../page/graph/derivations/time-axis.js";
 import { quadsToGanttModel } from "../../page/graph/derivations/gantt-model.js";
 import { isSchemaType } from "../../derivations/ontology-projection.js";
 import { computeLayout, type Adornment } from "../../page/graph/derivations/graph-layout.js";
 import { hashModel, linkKey } from "../../page/graph/derivations/model-hash.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
-import { hasCatalog, relationOfPredicate } from "../../page/controllers/catalog-controller.js";
+import { relationOfPredicate } from "../../page/controllers/catalog-controller.js";
 import type { TQuad, TCluster } from "@haibun/core/lib/quad-types.js";
 import type { GraphModel } from "../../domains/graph-model.js";
 import { buildGraphModelFromQuads, omittedLabel } from "../../derivations/graph-model.js";
@@ -136,7 +137,7 @@ export class DataPipeline {
 			this.deps.setGanttShapeSig(""); // leaving gantt → boxes revert to chips on the next feed
 			return;
 		}
-		const tasks = quadsToGanttModel(this.renderableQuads(), (p, g) => (hasCatalog() ? relationOfPredicate(p, g) : p)).tasks;
+		const tasks = quadsToGanttModel(this.renderableQuads(), relationOfPredicate).tasks;
 		if (tasks.length === 0) {
 			this.deps.setGanttTargets(new Map());
 			this.deps.setGanttScale(undefined);

@@ -57,6 +57,7 @@ import type { TWritten } from "../pipelines/call-step.js";
 import type { TPageRefusal } from "../domains/refusal.js";
 import "./shu-refusal.js";
 import "./shu-spinner.js";
+import { ObserverController } from "../controllers/observer-controller.js";
 
 /** The name of the delay after which the copy button reads Copy again. */
 const COPY_RESULT = "copy-result";
@@ -174,6 +175,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	private edgeTargetCount = 0;
 	/** Whether the enclosing column pane is the active column. A column outside a pane, as a unit test's, stays active. */
 	#paneActive = true;
+	readonly #observers = new ObserverController(this);
 	/** Annotations anchored in the open individual's body, projected from the entity view; empty until resolved. */
 	private annotationsList: TAnnotationView[] = [];
 	/** A passage to reveal once the body renders, set by a Text Fragment reference into this individual. */
@@ -290,14 +292,12 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		const pane = this.closest(SHU_TAG.COLUMN_PANE) as HTMLElement | null;
 		if (pane === null) return;
 		this.#paneActive = pane.hasAttribute("active");
-		const observer = new MutationObserver(() => {
+		this.#observers.attributes(pane, ["active"], false, () => {
 			const active = pane.hasAttribute("active");
 			if (active === this.#paneActive) return;
 			this.#paneActive = active;
 			this.requestUpdate();
 		});
-		observer.observe(pane, { attributes: true, attributeFilter: ["active"] });
-		this.autoTeardown(() => observer.disconnect());
 	}
 
 	render(): TemplateResult {

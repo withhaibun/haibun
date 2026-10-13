@@ -13,7 +13,7 @@ export function contextDocument(): TGraphContextDocument {
 			if (!raw || typeof raw !== "object" || !("@context" in raw)) return undefined;
 			const context = raw["@context"];
 			if (typeof context !== "object" || context === null) return undefined;
-			// A JSON-LD context is a free-form map of prefix to term; no schema validates it.
+			// A JSON-LD context is a free-form map of prefix to term, outside what a schema validates.
 			return context as Record<string, unknown>;
 		},
 	};

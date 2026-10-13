@@ -441,7 +441,7 @@ export function manualClock(start: number): { clock: TClock; advance(ms: number)
 		return () => due.delete(id);
 	};
 	return {
-		clock: { now: () => now, after: (ms, fn) => hold(now + ms, fn), frame: (fn) => hold(now, fn) },
+		clock: { now: () => now, elapsed: () => now, after: (ms, fn) => hold(now + ms, fn), frame: (fn) => hold(now, fn) },
 		advance: (ms) => {
 			const until = now + ms;
 			for (let first = earliest(due, until); first !== undefined; first = earliest(due, until)) {

@@ -2,7 +2,7 @@
  * The ports of the graph view. `page/graph/root.ts` builds the frame loop, the engine pacing, the frame timing and the
  * context document, one set per scene; the scene's parts read the renderer contract and the render world as types. The
  * scene requests every timer and frame through the page's clock and observes its size through the page's observer, so the
- * scene and its parts perform no I/O.
+ * scene and its parts don't perform I/O.
  */
 import type { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { Vec3 } from "../../graph/polymorphic/polymorphic-enclosure.js";
@@ -22,18 +22,15 @@ export type TGraphRenderer = {
 };
 
 /** A 4x4 matrix's 16 entries, column-major, as three.js holds them in `Matrix4.elements`. */
-export type TMatrix4Elements = [
-	number, number, number, number,
-	number, number, number, number,
-	number, number, number, number,
-	number, number, number, number,
-];
+export type TMatrix4Elements = [number, number, number, number, number, number, number, number, number, number, number, number, number, number, number, number];
 
-/** The slice of the three.js camera the view drives: its framing, where it sits, and what it looks at. */
+/** The slice of the three.js camera the view drives: its framing, its position, and its orientation. */
 export type TSceneCamera = {
 	aspect: number;
-	fov?: number;
+	fov: number;
 	position?: Vec3;
+	/** The view's up vector, which a framing sets. */
+	up: Vec3;
 	updateProjectionMatrix(): void;
 	getWorldDirection?(target: Vec3): Vec3;
 	/** Columns 0/1 are the camera's right and up axes, for screen-oriented placement. */
@@ -71,7 +68,7 @@ export type TGraphEnginePacing = { cooldownTicks(n: number): unknown; cooldownTi
 export type TGraphEngineMode = "idle" | "settling" | "holding" | "frozen";
 
 /** The engine: what a scene does to the library engine's pacing. Every consumer states intent: settle after a data feed,
- *  hold for a tween or drag, freeze at rest. "Who controls the engine" has one answer, and the mode is observable. */
+ *  hold for a tween or drag, freeze at rest. The engine has one controller, and the mode is observable. */
 export type TGraphEngine = {
 	readonly mode: TGraphEngineMode;
 	attach(graph: TGraphEnginePacing): void;
@@ -97,7 +94,7 @@ export type TGraphFrameLoop = {
 
 /** The frame timing: what a drawn frame takes the renderer, measured from the page without stalling it. A WebGL2 fence
  *  placed after the draw signals when the GPU's work is complete; polling it on later frames doesn't block them. A
- *  context without fences measures nothing, and the regulator that reads this then never trips. */
+ *  context without fences doesn't measure a frame, and the regulator that reads this then never trips. */
 export type TGraphFrameTime = {
 	/** A frame was drawn: a fence is placed after it where a measurement is due. */
 	drew(): void;
@@ -107,14 +104,8 @@ export type TGraphFrameTime = {
 	end(): void;
 };
 
-/** The context document: what the graph view reads of its JSON-LD context, by the address the page serves it at. */
+/** The context document: what the graph view reads of its JSON-LD context, at the address the page serves. */
 export type TGraphContextDocument = {
-	/** Reads the context document at `address` and returns its `@context`, or undefined where it holds none. */
+	/** Reads the context document at `address` and returns its `@context`, or undefined where it lacks one. */
 	read(address: string): Promise<Record<string, unknown> | undefined>;
-};
-
-/** The size observer: what an element's size changes report. `observe` watches the element's box and fires `onResize`
- *  when it changes, returning a cancel that stops the observation. The view that owns the element reads this. */
-export type TSizeObserver = {
-	observe(target: Element, onResize: () => void): () => void;
 };

@@ -7,7 +7,7 @@
  * gate every other write goes through.
  */
 import { AccessLevelSchema, SCENE_LABEL } from "@haibun/core/lib/resources.js";
-import { hasCatalog, fromActorEdgeLabels, getEdgeRanges, getPropertyDefinition, getRels, getTypes, toActorEdgeLabels } from "./page/controllers/catalog-controller.js";
+import { fromActorEdgeLabels, getEdgeRanges, getPropertyDefinition, getRels, getTypes, toActorEdgeLabels } from "./page/controllers/catalog-controller.js";
 import type { TCallOutcome } from "./page/pipelines/call-step.js";
 import { SHU_TAG } from "./domains/elements.js";
 import type { ShuElement } from "./page/components/shu-element.js";
@@ -78,7 +78,6 @@ const EXCHANGE_IRIS = (iri: string): boolean => iri.startsWith("sec:") || iri ==
  * carries (its bodies, its selectors) does not. This module doesn't name a type: a deployment's own vocabulary decides.
  */
 export function networkSceneTypes(): string[] {
-	if (!hasCatalog()) return []; // a view that draws before the page reads actuality's steps derives no network scene
 	const declares = (label: string): boolean =>
 		Object.values(getRels(label) ?? {}).some((rel) => {
 			const iri = getPropertyDefinition(rel)?.iri;

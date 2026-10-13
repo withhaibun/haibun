@@ -1,14 +1,14 @@
 /**
  * The engine governor, the only code that touches the library engine's pacing. The library's forces are removed (the
- * scene places nodes itself), so its ticks only move sprites: a pinned node tracks its pin, an unpinned one has no
- * velocity and stays put. Every consumer states intent: settle after a data feed (tick briefly so the sprites reach
+ * scene places nodes itself), so its ticks only move sprites: a pinned node tracks its pin, an unpinned one stands
+ * still and stays put. Every consumer states intent: settle after a data feed (tick briefly so the sprites reach
  * their placed positions), hold for a tween or drag (tick continuously; pins move each frame), freeze at rest. "Who
- * controls the engine" has one answer, and the mode is observable.
+ * controls the engine" names one place, and the mode is observable.
  */
 import type { TGraphEngine, TGraphEngineMode, TGraphEnginePacing } from "../ports.js";
 
 const DATA_SETTLE_TICKS = 1; // the feed is placed before it lands, so one tick moves every sprite to its position
-const HOLD_TICKS = 1_000_000; // effectively "keep ticking until told otherwise" (tween/drag drive pins each frame)
+const HOLD_TICKS = 1_000_000; // effectively "keep ticking until `freeze`" (tween/drag drive pins each frame)
 
 /** Paces the graph's library engine. The scene reads it through `TGraphEngine`, which the page's graph root builds. */
 export class EngineGovernor implements TGraphEngine {

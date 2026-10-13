@@ -3,14 +3,18 @@
  * view hand-rolling countdown fields. `every: 1` runs each frame (camera-coupled work like label orientation);
  * a larger cadence samples (watchdogs, bounds). One place to see, and test, everything the frame does.
  */
-import { reportFailure } from "../../../client-log.js";
+/** The cadence of a job that runs each frame. */
+export const EVERY_FRAME = 1;
 
 type TFrameJob = { name: string; every: number; run: () => void };
 
+/** Runs the frame's jobs. A job that throws is disabled, and `failed` reports it with the job's name. */
 export class FrameScheduler {
 	private jobs: Array<TFrameJob & { countdown: number }> = [];
 
-	add(name: string, run: () => void, every = 1): void {
+	constructor(private readonly failed: (name: string, err: unknown) => void) {}
+
+	add(name: string, run: () => void, every: number): void {
 		this.jobs.push({ name, run, every: Math.max(1, every), countdown: 1 });
 	}
 
@@ -23,7 +27,7 @@ export class FrameScheduler {
 				j.run();
 			} catch (err) {
 				j.countdown = Number.POSITIVE_INFINITY;
-				reportFailure("polymorphic-frame", `the frame job "${j.name}" failed and is disabled`, err);
+				this.failed(j.name, err);
 			}
 		}
 	}

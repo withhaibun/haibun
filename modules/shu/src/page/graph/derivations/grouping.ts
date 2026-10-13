@@ -5,8 +5,7 @@
 
 import { HYPERMEDIA_ROLE_KEY } from "../../../domains/graph-model.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-
-export type XYZ = { x: number; y: number; z: number };
+import type { XYZ } from "../domains/graph-types.js";
 
 /** A grouping/container axis. `"type"` groups by `@type`; `"role"` by the highest-priority actor a node is attributed to
  *  (the catalog controller's `roleEdgeLabels()`: ontology + concern-catalog derived, ordered by each rel's / consumer edge's DECLARED
@@ -110,9 +109,6 @@ export function shelfPack(sizes: ReadonlyMap<string, { w: number; h: number }>, 
 }
 
 export type GroupBox = { cx: number; cy: number; cz: number; sx: number; sy: number; sz: number };
-
-/** Whether the layout has placed a node: it holds a position on every axis. */
-export const isPlaced = <N extends { x?: number; y?: number; z?: number }>(n: N): n is N & XYZ => n.x !== undefined && n.y !== undefined && n.z !== undefined;
 
 /** Padded axis-aligned bounding box (centre + size) of a set of placed members; null when the set is empty.
  * `extentOf` supplies each member's own half-extents (a node CHIP is a wide billboard, not a point, bounds over

@@ -1,5 +1,5 @@
 /** The page's hydration (`page/pipelines/hydrate.ts`), as the page's start reads it and a view and a read look it up. */
-import { hasHydration, installHydration, pageHydration, pageHydrationElement } from "../root.js";
+import { installHydration, pageHydration, pageHydrationElement } from "../root.js";
 import { readHydration } from "../pipelines/hydrate.js";
 import { HYDRATION_ID } from "../../domains/elements.js";
 import type { TCachePayload } from "../../domains/hydration.js";
@@ -12,7 +12,7 @@ export const hydrateFromDom = (): void => void installHydration(readHydration(pa
 export const hydratedActualityId = (): TActualityId => pageHydration().actualityId();
 
 /** Whether the page carries a record of actuality, which a site doesn't serve. */
-export const isOffline = (): boolean => hasHydration() && pageHydration().carried() !== undefined;
+export const isOffline = (): boolean => pageHydration().carried() !== undefined;
 
 /** Returns the record of actuality the page carries, or undefined for a page a site serves. */
 export const hydratedCache = (): TCachePayload | undefined => pageHydration().carried();

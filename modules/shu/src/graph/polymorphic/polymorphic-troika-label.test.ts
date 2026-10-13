@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 /** The measurements asked of troika's worker, landed by the test in the order it chooses. */
 const landings: (() => void)[] = [];
 vi.mock("troika-three-text", () => ({
+	configureTextBuilder: () => undefined,
 	Text: class {
 		material = {};
 		position = { x: 0 };

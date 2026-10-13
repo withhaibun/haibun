@@ -5,7 +5,7 @@ import { itemAt } from "@haibun/core/lib/util/item-at.js";
  *
  * One mechanism for every kind of mark: chip, sprite, and the marks whose own border is part of their texture and so
  * cannot be recoloured. A glow is a billboarded sprite carrying a radial-alpha texture, added as a child of the mark's
- * own object, so it sits behind the mark, follows it as the layout moves, and grows with it when the focus magnifier
+ * own object, so it draws behind the mark, follows it as the layout moves, and grows with it when the focus magnifier
  * scales it.
  *
  * The texture is shared: one canvas, built once, tinted per node through the material's colour. Blending is normal,
@@ -117,7 +117,7 @@ function glowTexture(three: GlowThree): unknown {
 	canvas.width = TEXTURE_PX;
 	canvas.height = TEXTURE_PX;
 	const ctx = canvas.getContext("2d");
-	if (!ctx) throw new Error("polymorphic glow: no 2d context to build the highlight texture");
+	if (!ctx) throw new Error("polymorphic glow: the canvas refused a 2d context, so the highlight texture can't be built");
 	const r = TEXTURE_PX / 2;
 	const g = ctx.createRadialGradient(r, r, 0, r, r, r);
 	g.addColorStop(0, `rgba(255,255,255,${GLOW_ALPHA})`);
@@ -131,6 +131,9 @@ function glowTexture(three: GlowThree): unknown {
 
 /** How a mark's glow burns right now: its strength (0..1) and its colour, both driven per frame by the focus pass. */
 export type TBurn = { intensity: number; color?: string };
+
+/** A glow at its full strength, in the colour it already wears. */
+export const FULL_BURN: TBurn = { intensity: 1 };
 
 /** The glow a mark carries, built on FIRST activation and kept: one node is active at a time, so a graph builds the
  *  few marks ever opened rather than a sprite per node. `size` is the mark's own sizing rule: a chip sizes its glow to
@@ -150,17 +153,17 @@ export class MarkGlow {
 	}
 
 	/** Show or hide the glow, at the given strength and colour. */
-	set(on: boolean, burn?: TBurn): void {
+	set(on: boolean, burn: TBurn): void {
 		this.lit = on;
 		if (on && !this.glow) this.glow = this.build();
 		const glow = this.glow;
 		if (!glow) return;
 		glow.visible = on;
-		const intensity = burn?.intensity ?? 1;
+		const { intensity } = burn;
 		glow.material.opacity = intensity;
-		// The ramp holds a few dozen colours, so most frames ask for the colour already set; a CSS-colour parse per
+		// The ramp holds a few dozen colours, so most frames request the colour already set; a CSS-colour parse per
 		// frame where the colour didn't change is the one avoidable frame in the breath.
-		if (burn?.color && burn.color !== this.lastColor) {
+		if (burn.color !== undefined && burn.color !== this.lastColor) {
 			glow.material.color?.set(burn.color);
 			this.lastColor = burn.color;
 		}

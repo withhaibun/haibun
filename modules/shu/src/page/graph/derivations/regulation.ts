@@ -7,7 +7,7 @@
  * cannot measure which from its main thread. The regulator reads what a drawn frame takes (see `FrameTime`), keeps
  * the median of the last few so one slow frame doesn't change the result, and compares the breath's share of wall time with
  * its limit. The breath rests over its limit: the glow is drawn once and held. It breathes again within its limit.
- * Decoration starts at rest and runs once a full window measures within the limit, so a slow renderer never pays for
+ * Decoration starts at rest and runs once a full window measures within the limit, so a slow renderer never spends frames on
  * decoration while it is being measured.
  *
  * The scene acts on the signal itself and records it as a blip, so a run can observe the regulation and the time
@@ -63,7 +63,7 @@ function breathShare(frameTimeMs: number, thresholds: TRegulationThresholds): nu
  * Evaluate the window against the thresholds. Returns the signal that tripped or cleared now, respecting the
  * cooldown, and moves the state with it; undefined when the state didn't change.
  */
-export function evaluateRegulation(state: TRegulationState, thresholds: TRegulationThresholds = DEFAULT_REGULATION_THRESHOLDS, now: number): TRegulationSignal | undefined {
+export function evaluateRegulation(state: TRegulationState, thresholds: TRegulationThresholds, now: number): TRegulationSignal | undefined {
 	if (state.frameTimes.length < thresholds.windowSamples) return undefined;
 	if (state.lastFiredAt !== undefined && now - state.lastFiredAt < thresholds.cooldownMs) return undefined;
 	const frameTimeMs = medianOf(state.frameTimes);

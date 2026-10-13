@@ -6,11 +6,12 @@
  * repool (the focus dimming re-sets a colour accessor, which restarts the lib's countdown) cannot tick past it.
  */
 import { describe, expect, it } from "vitest";
-import { EngineGovernor, type TPacedGraph } from "./polymorphic-engine.js";
+import { EngineGovernor } from "./engine.js";
+import type { TGraphEnginePacing } from "../ports.js";
 
 const paced = () => {
 	const calls: Array<[string, number]> = [];
-	const graph: TPacedGraph = {
+	const graph: TGraphEnginePacing = {
 		cooldownTicks: (n: number) => calls.push(["cooldownTicks", n]),
 		cooldownTime: (ms: number) => calls.push(["cooldownTime", ms]),
 		d3ReheatSimulation: () => calls.push(["reheat", 0]),

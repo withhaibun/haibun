@@ -3,7 +3,7 @@
  * full depth for ANY date range, so a multi-time graph is always a deep ribbon; framing by the 3D bounding-sphere radius
  * backed the camera so far the graph filled only ~20% of the view (right at the "graph fits the view" threshold, so it
  * flaked). Sizing the frustum to the XY extent and backing off by the z half-depth frames it far tighter while still
- * keeping the nearest-z node in front of the lens. This pins the distance the fit lands on.
+ * keeping the nearest-z node in front of the lens. This pins the distance the fit reaches.
  */
 import { describe, it, expect } from "vitest";
 import { PolymorphicCamera, clearStripOffset, coveredTogether, type CameraDeps } from "./camera.js";
@@ -204,7 +204,7 @@ describe("PolymorphicCamera.frame, fit keeps the user's orbit, the view aims res
 	it("the sequence frame restores the canonical lane plane from any orbit, over the PLACED extent", () => {
 		// The user orbited away from the lane plane; a lane view has ONE canonical frame (fitMove routes its fit here):
 		// look along +x with time reading DOWN, over the extent the view placed UNIONED WITH the node bounds on
-		// the plane's own axes: the nodes are pinned to the plane, so y/z agree, while x (the axis the camera looks
+		// the plane's own axes: the nodes are pinned to the plane, so y/z match, while x (the axis the camera looks
 		// along) is never unioned: depth would inflate the frame and shrink the diagram to a speck.
 		// extent y [-70,0] ∪ nodes y [-50,50] → [-70,50]; extent z [0,240] ∪ nodes z [0,400] → [0,400].
 		const { cam, target, position, up } = orbitedHarness(nodes, { x: 80, y: 200, z: 500 }, { mode: REFRAME.sequence, extent: { cy: -35, cz: 120, halfW: 120, halfH: 35 } });
@@ -319,7 +319,7 @@ describe("PolymorphicCamera.centerOn with an aim offset: the followed node lands
 		expect(target).toMatchObject({ x: 5, y: -3, z: 0 });
 	});
 
-	it("with an offset the target sits left of the node by world units equal to the offset, so the node projects right of centre", () => {
+	it("with an offset the target is left of the node by world units equal to the offset, so the node projects right of centre", () => {
 		const { cam, target, position } = centreHarness();
 		cam.centerOn({ x: 0, y: 0, z: 0 }, { dxPx: 100, dyPx: 0 });
 		// wpp at the node = 2·dist·tan(fov/2)/viewH = 2·100·tan(40°)/600; the target backs off -x by 100 px of it.

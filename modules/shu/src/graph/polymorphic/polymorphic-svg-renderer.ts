@@ -1,5 +1,5 @@
 /**
- * The graph as markup: an IGraphRenderer whose medium is SVG, for a report or a still image. It is given the same
+ * The graph as markup: an TGraphRenderer whose medium is SVG, for a report or a still image. It is given the same
  * placed nodes and links every renderer is given, so a still shows exactly what the WebGL view shows, same positions,
  * same type colours, without computing a position twice.
  *
@@ -11,7 +11,8 @@ import { xml } from "../svg-util.js";
 import { ellipsize } from "@haibun/core/lib/util/index.js";
 import { NODE_TEXT_COLOR } from "../../page/graph/derivations/layout-forces.js";
 import { linkEndId, type FGNode } from "../../page/graph/domains/graph-types.js";
-import { graphSummary, type IGraphRenderer, type TDrawn } from "./polymorphic-renderer.js";
+import { graphSummary } from "./polymorphic-renderer.js";
+import type { TDrawn, TGraphRenderer } from "../../page/graph/ports.js";
 
 /** What the medium needs from its host, read at draw time. */
 type TSvgRendererDeps = {
@@ -27,7 +28,7 @@ const LINE = "#9aa0a6";
 
 const round = (n: number): number => Math.round(n * 10) / 10;
 
-export class SvgRenderer implements IGraphRenderer {
+export class SvgRenderer implements TGraphRenderer {
 	/** The markup of the most recent draw, empty until one happens. */
 	markup = "";
 

@@ -11,22 +11,12 @@
 import { roleNounFor } from "../../page/controllers/catalog-controller.js";
 import SpriteText from "three-spritetext";
 import { colorForType } from "../../page/graph/derivations/type-colors.js";
-import {
-	groupKeyOf,
-	containerLabelOf,
-	shelfPack,
-	groupBounds,
-	isPlaced,
-	type GroupAnchor,
-	type GroupKeyMode,
-	ENCLOSURE_PAD,
-	GROUP_GAP,
-} from "../../page/graph/derivations/grouping.js";
+import { groupKeyOf, containerLabelOf, shelfPack, groupBounds, type GroupAnchor, type GroupKeyMode, ENCLOSURE_PAD, GROUP_GAP } from "../../page/graph/derivations/grouping.js";
 import { HYPERMEDIA_ROLE_REL_KEY } from "../../domains/graph-model.js";
-import { type FGNode, type TSprite } from "../../page/graph/domains/graph-types.js";
+import { type FGNode, type TSprite, isPlaced } from "../../page/graph/domains/graph-types.js";
 import { chipTextHeight, collideRadius } from "../../page/graph/derivations/layout-forces.js";
 import { groupCellSize } from "../../page/graph/derivations/group-grid.js";
-import { FOCUS_RENDER_ORDER } from "../../page/graph/machines/focus.js";
+import { FOCUS_RENDER_ORDER } from "../../page/graph/controllers/focus-controller.js";
 
 // Group enclosures: each group's members cohere toward a ring anchor (pure math in @haibun/shu/graph/grouping.ts), then a
 // translucent type-coloured box with a wire border is drawn around them: the 3D read of the SVG group box.

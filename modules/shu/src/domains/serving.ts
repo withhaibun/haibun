@@ -7,6 +7,9 @@ import { MODULE_OPTION_PREFIX } from "@haibun/core/schema/protocol.js";
 /** Where the graph view's bundle is served. */
 export const POLYMORPHIC_VIEW_JS = "/assets/shu-polymorphic-graph-view.js";
 
+/** Where the font of the graph's labels is served, so the scene draws its labels without a font service (CA3D10). */
+export const LABEL_FONT = "/assets/shu-label-font.woff";
+
 /** The address of the served page's source map. The bundle is inlined in the page, so the map is addressed absolutely
  *  rather than beside a file the page doesn't fetch. A reader with developer tools open reads it. */
 export const SPA_SOURCE_MAP = "/assets/shu-bundle.js.map";

@@ -38,7 +38,7 @@ export class FrameTime implements TGraphFrameTime {
 	constructor(
 		private readonly context: () => TFenceGl | undefined,
 		private readonly firstMeasured: number,
-		private readonly now: () => number = () => performance.now(),
+		private readonly now: () => number,
 	) {}
 
 	/** A frame was drawn. Without a measurement pending, a fence is placed after it while the first measurements are made,

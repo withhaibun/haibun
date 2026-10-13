@@ -16,7 +16,7 @@ import { linkEndId, type FGLink, type FGNode } from "../domains/graph-types.js";
 /** How a scene places its nodes. */
 export interface IGraphLayout {
 	/** Write x/y for every node, leaving pinned ones where they are pinned. */
-	place(nodes: FGNode[], links: FGLink[], opts?: { damped?: boolean }): void;
+	place(nodes: FGNode[], links: FGLink[], opts: { damped: boolean }): void;
 }
 
 /** Heavy friction for a streamed clump: newcomers settle near their seeds instead of flying across the layout. */
@@ -27,7 +27,7 @@ const PLACE_TICK_LIMIT = 40_000;
 const DAMPED_TICKS = 40;
 
 /** Ticks one placement runs: limit over size, clamped so a small graph settles fully and a big one stays responsive. */
-function placeTicksFor(nodeCount: number, damped = false): number {
+function placeTicksFor(nodeCount: number, damped: boolean): number {
 	if (damped) return DAMPED_TICKS;
 	return Math.max(30, Math.min(130, Math.round(PLACE_TICK_LIMIT / Math.max(nodeCount, 1))));
 }
@@ -54,7 +54,7 @@ export function forceLayout(ctx: ForceContext): IGraphLayout {
 
 	return {
 		place(nodes, links, opts) {
-			const damped = opts?.damped ?? false;
+			const { damped } = opts;
 			sim.velocityDecay(damped ? DAMPED_VELOCITY_DECAY : VELOCITY_DECAY);
 			sim.nodes(nodes);
 			const link = sim.force("link") as { links(l: unknown[]): unknown } | undefined;

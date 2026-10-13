@@ -5,6 +5,7 @@ import type { TClock } from "../ports.js";
 export function browserClock(page: Window): TClock {
 	return {
 		now: () => Date.now(),
+		elapsed: () => page.performance.now(),
 		after: (ms, fn) => {
 			const timer = page.setTimeout(fn, ms);
 			return () => page.clearTimeout(timer);
