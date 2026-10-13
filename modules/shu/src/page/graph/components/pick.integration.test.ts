@@ -1,7 +1,7 @@
 /**
  * Real-browser pick/projection agreement for shu-polymorphic-graph-view (jsdom doesn't prove THREE picking).
  *
- * The invariant: pickAt(projectedCentre(node)) === node: the pick and the projection must agree AT ANY INSTANT,
+ * The invariant: pickAt(projectedCentre(node)) === node: the pick and the projection must match AT ANY INSTANT,
  * including between an engine tick and the next render frame. The camera side of this held after pointerRay began
  * forcing a fresh camera matrix; this test pins the OBJECT side: when the engine's node coordinates have moved and
  * a frame hasn't rendered yet, every sprite's transform is one frame stale, and a pick raycast against those stale
@@ -26,8 +26,8 @@ type PickRow = { id: string; x: number; y: number; picked: string | null };
 let opened: TOpenedPage;
 let page: Page;
 
-/** In-page: ask the view where it draws each node, then probe the production pick at that pixel. Both sides are the
- * production pair: a copy of the projection here could only ever agree with itself, never catch the two drifting.
+/** In-page: read from the view where it draws each node, then probe the production pick at that pixel. Both sides are the
+ * production pair: a copy of the projection here could only ever match itself, never catch the two drifting.
  * Runs synchronously, so a frame can't re-sync the sprites between the projection and the pick. */
 const PICK_ALL = `(() => {
 	const el = document.querySelector("shu-polymorphic-graph-view");

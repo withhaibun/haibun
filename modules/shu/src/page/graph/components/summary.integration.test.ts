@@ -1,5 +1,5 @@
 /**
- * What the graph tells a model it shows, in a real browser: how many records the store holds of each type the graph read
+ * What the graph reports to a model about what it shows, in a real browser: how many records the store holds of each type the graph read
  * and how many the view draws, so a type the view draws in part, or hides, isn't read as a type without records.
  */
 import { afterAll, beforeAll, expect, test } from "vitest";

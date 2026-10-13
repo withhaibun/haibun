@@ -194,16 +194,16 @@ describe("per-scope snapshots, independent data sources over one store", () => {
 	});
 });
 
-describe("the graph a page caches, without a server to ask", () => {
+describe("the graph a page caches, without a server to query", () => {
 	// A page that carries its graph clusters it for itself: the sample, its totals and its `+N more` nodes are what the
-	// site's own answer would have been, rather than a captured copy of that answer riding in the page.
+	// site's own response would have held, rather than a captured copy of that response carried in the page.
 	beforeEach(() => {
 		newPage();
 		serveThePage();
 		installServedConduit("", requiredActionOf);
 		serveThePage();
 		installCarriedEventStream();
-		globalThis.fetch = () => Promise.reject(new TypeError("this page has no server"));
+		globalThis.fetch = () => Promise.reject(new TypeError("this page lacks a server"));
 	});
 
 	it("holds the store on the page, so a view in another bundle reads the graph the app installed", () => {
@@ -226,13 +226,13 @@ describe("the graph a page caches, without a server to ask", () => {
 		expect(Array.isArray(snapshot.clusters), "clustered by the store, not by a captured response").toBe(true);
 	});
 
-	it("reports that the graph is not available when it doesn't cache one and a server doesn't answer", async () => {
+	it("reports that the graph is not available when it doesn't cache one and a server doesn't respond", async () => {
 		installGraph(new QuadStore());
 		await expect(new GraphDataController("empty").readSnapshot(10, undefined)).rejects.toThrow();
 	});
 });
 
-describe("the dropdown values a reader is offered, without a server to ask", () => {
+describe("the dropdown values a reader is offered, without a server to query", () => {
 	// The site derives them from the fields a type declares as context; a page without a server derives them the same way
 	// over the graph it caches, so the reader is offered the same fields narrowed to the values there.
 	beforeEach(() => {
@@ -241,7 +241,7 @@ describe("the dropdown values a reader is offered, without a server to ask", () 
 		installServedConduit("", requiredActionOf);
 		serveThePage();
 		installCarriedEventStream();
-		globalThis.fetch = () => Promise.reject(new TypeError("this page has no server"));
+		globalThis.fetch = () => Promise.reject(new TypeError("this page lacks a server"));
 		declareGraphSpec({ types: ["Email"], rels: { Email: { folder: LinkRelations.CONTEXT.rel, subject: "name" } } });
 	});
 
@@ -264,15 +264,15 @@ describe("the dropdown values a reader is offered, without a server to ask", () 
 	});
 });
 
-describe("the rows a graph query names, without a server to ask", () => {
-	// The page answers with the same function the site's own inherent query uses, over the graph it caches.
+describe("the rows a graph query names, without a server to query", () => {
+	// The page responds with the same function the site's own inherent query uses, over the graph it caches.
 	beforeEach(() => {
 		newPage();
 		serveThePage();
 		installServedConduit("", requiredActionOf);
 		serveThePage();
 		installCarriedEventStream();
-		globalThis.fetch = () => Promise.reject(new TypeError("this page has no server"));
+		globalThis.fetch = () => Promise.reject(new TypeError("this page lacks a server"));
 		declareGraphSpec({ types: ["Email"], rels: { Email: { folder: LinkRelations.CONTEXT.rel } } });
 	});
 
@@ -320,7 +320,7 @@ describe("an individual the page holds a copy of", () => {
 		serveThePage();
 	});
 
-	it("is the site's answer where the site responds, a record it doesn't hold among them, since the copy may be of records it no longer holds", async () => {
+	it("is the site's response where the site responds, a record it doesn't hold among them, since the copy may be of records it no longer holds", async () => {
 		await pageHolding(() => {
 			throw new Error(NOT_HELD);
 		});

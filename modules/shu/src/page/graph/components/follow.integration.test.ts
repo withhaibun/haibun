@@ -37,7 +37,7 @@ async function following(id = FOLLOWED): Promise<void> {
 	await mounted.settle();
 }
 
-/** Whether the node draws inside the central half of the view, which is what following promises. */
+/** Whether the node draws inside the central half of the view, which is the position following guarantees. */
 async function centred(id: string): Promise<{ at: { x: number; y: number }; centred: boolean }> {
 	const at = await mounted.projection(id);
 	const box = await mounted.box();
@@ -82,7 +82,7 @@ test("a zoom that pushes the node out is followed by its return, at the zoom the
 	const chosen = await mounted.scene((scene) => {
 		scene.zoomBy(75, "percent", "in");
 		const c = scene.inspect().camera;
-		if (!c) throw new Error("no camera after the zoom");
+		if (!c) throw new Error("the scene lacks a camera after the zoom");
 		return Math.hypot(c.x - c.target.x, c.y - c.target.y, c.z - c.target.z);
 	});
 	const back = await centred(FOLLOWED);
@@ -177,7 +177,7 @@ test("a click on the followed record opens it when the same click uncovers the v
 
 test("a click on empty space makes the page's entry empty, so a record isn't active", { timeout: 60_000 }, async () => {
 	// Empty space is the reader choosing an empty entry on the page: the scene activates an empty entry in the page scope, and
-	// the views that read the active record are told that a record isn't active.
+	// the views that read the active record receive the news that a record isn't active.
 	await following();
 	expect(await mounted.click(await mounted.emptyPixel()), "the click didn't open a node").toBeNull();
 	const state = await mounted.subjectState();

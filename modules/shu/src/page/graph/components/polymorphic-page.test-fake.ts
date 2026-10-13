@@ -39,7 +39,7 @@ const pageEntry = (): Promise<string> => {
 
 type TBox = { width: number; height: number };
 
-/** The view's box on the page: fixed, so a test that resizes it knows what it started from. */
+/** The view's box on the page: fixed, so a test that resizes it has a known starting size. */
 export const BOX: TBox = { width: 1000, height: 700 };
 
 /** The page, its view the page's main graph, or a graph a host embeds to draw its own data (`data-external`). */
@@ -100,7 +100,7 @@ export type TMountedPage = {
 	 *  travels as `arg`. */
 	scene<T, A = undefined>(fn: (scene: TSceneApi, arg: A) => T, arg?: A): Promise<T>;
 	inspect(): Promise<TInspected>;
-	/** Where a node draws once the camera has stopped moving it: read until two reads agree to a pixel, and the canvas
+	/** Where a node draws once the camera has stopped moving it: read until two reads match to a pixel, and the canvas
 	 *  draws at the size it shows at, since the renderer takes a new size a frame before the canvas's own box does, and
 	 *  a read between the two maps the node onto a box that is no longer there. */
 	projection(id: string): Promise<{ x: number; y: number }>;
@@ -258,7 +258,7 @@ export async function mountPolymorphicPage({ external = false }: { external?: bo
 		},
 		async distance() {
 			const c = (await inspect()).camera;
-			if (!c) throw new Error("the scene has no camera to measure");
+			if (!c) throw new Error("the scene lacks a camera to measure");
 			return Math.hypot(c.x - c.target.x, c.y - c.target.y, c.z - c.target.z);
 		},
 		async click(at) {
@@ -294,7 +294,7 @@ export async function mountPolymorphicPage({ external = false }: { external?: bo
 				}
 				return null;
 			});
-			if (!found) throw new Error("the view has no empty pixel to click");
+			if (!found) throw new Error("the view lacks an empty pixel to click");
 			return found;
 		},
 		box: () =>
