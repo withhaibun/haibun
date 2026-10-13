@@ -30,5 +30,21 @@
 		},
 		"steps": 692,
 		"seconds": 52.5
+	},
+	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
+		"features": {
+			"/features/shu-self-test.feature.ts": {
+				"seconds": 113.1,
+				"steps": 690,
+				"declaredStepTextHash": "699e2a6cfbf7e723e94d48d3e36c3894fabb2a4bf89d4039d3a970a666ff109d"
+			},
+			"/features/z-post.feature.ts": {
+				"seconds": 0.1,
+				"steps": 8,
+				"declaredStepTextHash": "07d43189276bbf61896c4199cd023404fffe9fe965896283167fc0e7af4e53e6"
+			}
+		},
+		"steps": 698,
+		"seconds": 113.2
 	}
 }
