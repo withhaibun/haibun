@@ -830,7 +830,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		realPointerHoverIsCalm: {
 			// The PROPER hover test. The user's bug is the CAMERA/zoom/layout drifting while a real pointer rests/moves over
 			// the graph. A real page.mouse.move over a node DOES pop that node (the intended hover magnify: troika's Mesh chips
-			// ARE hit by the lib's hover raycaster, unlike the old SpriteText sprites synthetic events couldn't reach): that
+			// ARE hit by the lib's hover raycaster, which synthetic events reach): that
 			// per-node pop is fine as long as it stays readable-bounded. So jiggle a real pointer over the first node and assert
 			// the pop stays bounded AND the framing (camera/zoom/positions) holds: the node's own pop is NOT a graph move.
 			gwta: "moving the real pointer over the graph does not move the camera",
@@ -1680,18 +1680,17 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 						x?: number;
 						y?: number;
 						z?: number;
-						__sprite?: { visible?: boolean; position?: { x: number; y: number; z: number }; scale?: { x: number; y: number } };
-						__visual?: { pickTarget?: { visible?: boolean } };
+						__visual?: { object: { visible?: boolean; position?: { x: number; y: number; z: number }; scale?: { x: number; y: number } }; pickTarget?: { visible?: boolean } };
 				  }
 				| undefined;
 			if (!n) return "[not in nodeMap]";
-			const s = n.__sprite;
-			if (!s) return "[doesn't have a sprite]";
+			const s = n.__visual?.object;
+			if (!s) return "[doesn't have a visual]";
 			const t = n.__visual?.pickTarget;
 			const at = s.position ? `${s.position.x.toFixed(0)},${s.position.y.toFixed(0)},${s.position.z.toFixed(0)}` : "?";
 			const coordinate = (v: number | undefined): string => (v === undefined ? "?" : v.toFixed(0));
 			const node = `${coordinate(n.x)},${coordinate(n.y)},${coordinate(n.z)}`;
-			return `[sprite vis=${s.visible} at=${at} node=${node} scale=${s.scale ? `${s.scale.x.toFixed(2)}x${s.scale.y.toFixed(2)}` : "?"} target=${t ? `yes vis=${t.visible}` : "sprite"}]`;
+			return `[visual vis=${s.visible} at=${at} node=${node} scale=${s.scale ? `${s.scale.x.toFixed(2)}x${s.scale.y.toFixed(2)}` : "?"} target=${t ? `yes vis=${t.visible}` : "the object"}]`;
 		}, id);
 	}
 

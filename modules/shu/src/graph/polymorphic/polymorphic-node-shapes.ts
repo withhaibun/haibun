@@ -1,32 +1,21 @@
 /**
- * The polymorphic PAINT: translates a backend-neutral NodeMark (produced by a per-@type presenter) into a three.js object,
- * one builder per mark kind, dispatched by paintMarkScene. The SVG paint shares the SAME per-@type presenter, so a
- * data node's COLOUR can't drift between the two renders; the per-kind shape geometry (chip/box/image) is 3D-only today.
- * The mark carries the semantics (kind, label, colour, box length); the deps carry only the medium config (the THREE
- * namespace, a label factory, the theme text colours, the rendering constants), all injected so the geometry:
- * positions + dimensions, which are just numbers, is unit-tested with a recording stub, not a GPU.
+ * The polymorphic PAINT of the marks that aren't chips: translates a backend-neutral NodeMark (produced by a per-@type
+ * presenter) into a three.js object, one builder per mark kind, dispatched by paintMarkScene. A chip (an instance, or a
+ * schema Class's square token) is a troika chip the scene builds (`makeTroikaChip`). The mark carries the semantics (kind,
+ * label, colour, box length); the deps carry only the medium config (the THREE namespace, a label factory, the theme text
+ * colour, the rendering order), all injected so the geometry, positions and dimensions, is unit-tested with a recording
+ * stub, not a GPU.
  */
 import type { NodeMark } from "../../page/graph/domains/graph-scene.js";
 import { GANTT_BAR_H, GANTT_BAR_D, GANTT_MIN_BAR_W, GANTT_LABEL_INSET } from "../../page/graph/derivations/gantt-layout.js";
 import { chipTextHeight } from "../../page/graph/derivations/layout-forces.js";
+import type { LabelVisual } from "../../page/graph/domains/graph-types.js";
+import type { TTextAnchor } from "./polymorphic-troika-label.js";
 
 type V3 = { x: number; y: number; z: number; set(x: number, y: number, z: number): void };
 type Obj3D = { position: V3; scale: V3; renderOrder: number; add(o: Obj3D): void };
 type Mat = { depthTest: boolean; depthWrite: boolean };
 type SpriteObj = Obj3D & { center: { set(x: number, y: number): void }; material: Mat };
-/** The label surface this factory drives: the slice of a SpriteText (or its test stub) the shapes set. */
-export type ShapeLabel = Obj3D & {
-	material: Mat;
-	/** The billboard anchor, readable as well as settable: a sprite's center is a vector, and a caller checking where a chip sits reads it. */
-	center: { x: number; y: number; set(x: number, y: number): void };
-	fontSize: number;
-	fontWeight: string;
-	backgroundColor: string | false;
-	borderColor: string;
-	borderWidth: number;
-	borderRadius: number;
-	padding: number[];
-};
 /** The slice of THREE the shapes construct (the scene's own AFRAME.THREE at runtime, a stub in tests). */
 export type ShapeThree = {
 	Mesh: new (geometry: unknown, material: unknown) => Obj3D;
@@ -37,81 +26,42 @@ export type ShapeThree = {
 	CanvasTexture: new (canvas: unknown) => unknown;
 };
 export type NodeShapeDeps = {
-	three: ShapeThree | undefined; // undefined off-GPU (headless) → chip fallback
-	makeLabel: (text: string, height: number, color: string) => ShapeLabel;
-	textColor: string; // text ON a chip (over the light type-colour fill), dark in both themes
-	sceneTextColor: string; // text OFF a chip, on the scene background (the box label), foreground colour
+	three: ShapeThree;
+	/** Builds a plain text label `height` world units tall in `color`, standing at `anchor` against its position. */
+	makeLabel: (text: string, height: number, color: string, anchor: TTextAnchor) => LabelVisual;
+	textColor: string; // text ON a token (over the light type-colour fill), dark in both themes
+	sceneTextColor: string; // text OFF a token, on the scene background (the box label), foreground colour
 	borderColor: string;
-	fontSize: number;
 	renderOrder: number;
 	headerLabel?: boolean; // a box mark's label sits upright, centred above the bar's start face: a sequence participant's name over its vertical lifeline
 };
 
-/** A type-coloured label chip billboard, CENTRED on the node position: the shared builder for the default instance chip
- *  and the square schema-Class token (`radius` = corner rounding, `bold` = weight). Centring (not left-anchoring) is
- *  deliberate: the focus magnifier scales the sprite about its anchor, so a centred chip grows IN PLACE instead of
- *  ballooning sideways out of a clump; it also makes collideRadius (a node-centred circle) an accurate half-width. */
-function labelChip(mark: NodeMark, d: NodeShapeDeps, radius: number, bold: boolean): Obj3D {
-	const s = d.makeLabel(mark.label, chipTextHeight(mark), d.textColor);
-	s.fontWeight = bold ? "bold" : "normal";
-	s.fontSize = d.fontSize;
-	s.backgroundColor = mark.color;
-	s.borderColor = d.borderColor;
-	s.borderWidth = mark.isCluster ? 1 : 0.5;
-	s.borderRadius = radius;
-	s.padding = mark.isCluster ? [2, 6] : [3, 2];
-	s.center.set(0.5, 0.5);
-	s.renderOrder = d.renderOrder;
-	s.material.depthTest = false;
-	s.material.depthWrite = false;
-	return s;
-}
+/** What a mark paints: its object, and the labels the scene turns to the camera each frame. */
+export type TPainted = { object: Obj3D; labels: LabelVisual[] };
 
-/** The default instance chip: type-coloured, rounded (a cluster reads as a bold pill). */
-export function chipShape(mark: NodeMark, d: NodeShapeDeps): Obj3D {
-	return labelChip(mark, d, mark.isCluster ? 50 : 2, mark.isCluster ?? false);
-}
-
-/** The merged ontology's Class token: a solid SQUARE chip (sharp corners + bold), set apart from the rounded instances. */
-function squareShape(mark: NodeMark, d: NodeShapeDeps): Obj3D {
-	return labelChip(mark, d, 0, true);
-}
-
-/** A type-coloured 3D duration box spanning z by mark.zExtent, with a plain text label at its start face. Falls back to
- *  the chip when THREE isn't available (headless). */
-export function boxShape(mark: NodeMark, d: NodeShapeDeps): Obj3D {
-	if (!d.three) return chipShape(mark, d);
+/** A type-coloured 3D duration box spanning z by mark.zExtent, with a plain text label at its start face. */
+export function boxShape(mark: NodeMark, d: NodeShapeDeps): TPainted {
 	const zLen = Math.max(mark.zExtent ?? 0, GANTT_MIN_BAR_W);
 	// Time is the z axis: the box spans z by its duration (thin on x = depth, GANTT_BAR_H tall on y = its lane).
 	const box = new d.three.Mesh(new d.three.BoxGeometry(GANTT_BAR_D, GANTT_BAR_H, zLen), new d.three.MeshBasicMaterial({ color: mark.color, transparent: true, depthWrite: false }));
 	box.renderOrder = d.renderOrder;
 	// The bar label is plain text that overflows a short bar onto the dark scene, use the scene foreground, not the
 	// on-chip dark text, so it reads (white on black in dark mode) instead of vanishing black-on-black.
-	const label = d.makeLabel(mark.label, chipTextHeight(mark), d.sceneTextColor);
-	label.fontSize = d.fontSize;
-	label.renderOrder = d.renderOrder;
-	label.material.depthTest = false;
-	label.material.depthWrite = false;
 	// A sequence participant's name is an upright HEADER centred above its vertical lifeline (screen-up is earliest-z
-	// there), as a sequence diagram reads. A billboard sprite never rotates, so the name stays legible from any orbit:
-	// the old screen-space quarter-turn only lined up with the bars at the canonical aim and read down the bar besides.
-	if (d.headerLabel) {
-		label.center.set(0.5, 0); // bottom-centre anchor → the text caps the bar
-		label.position.set(0, 0, -zLen / 2); // at the bar's start (earliest-z) face: the lifeline's top on screen
-	} else {
-		label.center.set(0, 0.5); // read along the bar from its start face (a gantt row)
-		label.position.set(0, 0, -zLen / 2 + GANTT_LABEL_INSET);
-	}
-	box.add(label);
-	return box;
+	// there), as a sequence diagram reads. The label faces the camera, so the name stays legible from any orbit.
+	const label = d.makeLabel(mark.label, chipTextHeight(mark), d.sceneTextColor, d.headerLabel ? { x: "center", y: "bottom" } : { x: "left", y: "middle" });
+	label.object.renderOrder = d.renderOrder;
+	// At the bar's start (earliest-z) face: a header caps the lifeline's top on screen, a gantt row's label reads along the bar.
+	label.object.position.set(0, 0, d.headerLabel ? -zLen / 2 : -zLen / 2 + GANTT_LABEL_INSET);
+	box.add(label.object as unknown as Obj3D);
+	return { object: box, labels: [label] };
 }
 
 /** The merged ontology's Property (predicate) as an elongated diamond / lozenge: a solid token, the name centred, the
  *  ends drawn to points: a relation reads as a distinct SHAPE, not a chip. A canvas-textured billboard (always faces the
- *  camera, sized so the name matches a chip's text height); off-GPU (headless) it falls back to a chip. */
-function lozengeShape(mark: NodeMark, d: NodeShapeDeps): Obj3D {
+ *  camera, sized so the name matches a chip's text height). */
+function lozengeShape(mark: NodeMark, d: NodeShapeDeps): TPainted {
 	const T = d.three;
-	if (!T || typeof document === "undefined") return chipShape(mark, d);
 	const font = 64; // canvas-space font; the sprite scale below maps the text back to chipTextHeight world units
 	const canvas = document.createElement("canvas");
 	const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
@@ -149,17 +99,16 @@ function lozengeShape(mark: NodeMark, d: NodeShapeDeps): Obj3D {
 	sprite.renderOrder = d.renderOrder;
 	sprite.material.depthTest = false;
 	sprite.material.depthWrite = false;
-	return sprite;
+	return { object: sprite, labels: [] };
 }
 
-/** Translate a backend-neutral NodeMark into a polymorphic three.js object: one builder per kind. Unimplemented kinds
- *  throw (fail-fast) rather than rendering an empty object; the SVG paint mirrors this dispatch for the same marks. */
-export function paintMarkScene(mark: NodeMark, d: NodeShapeDeps): Obj3D {
+/** Translate a backend-neutral NodeMark into a polymorphic three.js object: one builder per kind. A chip is the scene's
+ *  troika chip, and unimplemented kinds throw (fail-fast) rather than rendering an empty object. */
+export function paintMarkScene(mark: NodeMark, d: NodeShapeDeps): TPainted {
 	switch (mark.kind) {
 		case "chip":
-			return chipShape(mark, d);
 		case "square":
-			return squareShape(mark, d);
+			throw new Error(`polymorphic paint: a ${mark.kind} mark is a troika chip (makeTroikaChip), not a painted shape`);
 		case "lozenge":
 			return lozengeShape(mark, d);
 		case "box":

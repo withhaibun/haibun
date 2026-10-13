@@ -10,7 +10,7 @@
 // OWNS those, this controller only reads them and owns the magnify animation state. (lovely-finding-babbage.)
 
 import { focusStateFor, opacityFor, isFullContrast, previewLights, type FocusState, type KindTiers, type TGraphPreview } from "../derivations/focus-policy.js";
-import { type FGNode, type FGLink, type TSprite, type ThreeObj, type XYZ, isPlaced, linkEndId } from "../domains/graph-types.js";
+import { type FGNode, type FGLink, type LabelVisual, type XYZ, isPlaced, linkEndId } from "../domains/graph-types.js";
 import { chipTextHeight } from "../derivations/layout-forces.js";
 import { FULL_BURN, NEWCOMER_GLOW_MS, RESTING_INTENSITY, glowColorAt, pulseAt } from "../derivations/highlight.js";
 /** The magnify multiplier of a chip at its natural size. */
@@ -27,8 +27,6 @@ export const FOCUS_RENDER_ORDER = 21; // the magnified chip is never occluded by
 // would need MORE than MAX_MAGNIFY to read is LEFT AS-IS (zoom in to read it) rather than enlarged into a huge blob.
 const MAX_MAGNIFY = 1.4; // the focus pop never enlarges a chip beyond this, kept low so that, on a z-deep graph (camera backed off, so readableK computes a large multiplier), the focus set pops only gently rather than dominating the view; a chip needing more is left small (zoom in to read it). Tune here.
 const MAGNIFY_MS = 500;
-export const NODE_FONT_SIZE = 96;
-const MAX_FONT_SIZE = 384;
 const PULSE_AMP = 0.1; // already readable → it doesn't resize, just an acknowledgement pop up and back
 
 /** easeOutBack with a gentle overshoot: the chip eases past its target and settles. */
@@ -67,17 +65,8 @@ const rgbTriplet = (() => {
 
 /** Set transparency on a three object and its children (link group = line + label sprite). Nodes dim through their
  *  NodeVisual (see applyFocus); this covers the edge lines + labels + enclosures, which are plain sprites/meshes. */
-const setOpacityDeep = (obj: ThreeObj | undefined, opacity: number): void => {
-	if (!obj) return;
-	if (obj.material) {
-		obj.material.transparent = true;
-		obj.material.opacity = opacity;
-	}
-	if (obj.children) for (const c of obj.children) setOpacityDeep(c, opacity);
-};
-
 /** A group enclosure's adjustable materials + label: the focus dim touches these exactly as it dims a node. */
-type FocusEnclosure = { boxMat: { opacity: number }; edgeMat: { opacity: number }; label: TSprite };
+type FocusEnclosure = { boxMat: { opacity: number }; edgeMat: { opacity: number }; label: LabelVisual };
 
 /** The graph-lib slice the focus re-pools through (per-link colour + arrow colour). */
 type FocusGraph = { linkColor(fn: (l: FGLink) => string): unknown; linkDirectionalArrowColor(fn: (l: FGLink) => string): unknown };
@@ -196,11 +185,11 @@ export class PolymorphicFocus {
 				neighbors.add(t);
 			}
 			const state = this.linkFocusState(l);
-			const label = l.__labelSprite;
+			const label = l.__label;
 			if (label) {
-				setOpacityDeep(label, opacityFor(state, this.deps.edgeLabelTiers));
+				label.opacity = opacityFor(state, this.deps.edgeLabelTiers);
 				const wantColor = isFullContrast(state) ? this.deps.focusEdgeColor() : this.deps.edgeLabelColor();
-				if (label.color !== wantColor) label.color = wantColor; // guarded: the colour setter re-rasters the texture
+				if (label.color !== wantColor) label.color = wantColor;
 			}
 		}
 		const freshFocus = focus !== this.lastMagnifiedFocus; // a NEW focus fires the attention pop; a re-assert (theme/camera, same focus) does not
@@ -233,7 +222,7 @@ export class PolymorphicFocus {
 		const litGroups = new Set(preview === null ? [] : [...nodeMap.values()].filter((n) => previewLights(preview, n)).map((n) => this.deps.groupOf(n)));
 		for (const [key, e] of enclosures) {
 			const state = focusStateFor({ focusActive: focusGroup !== null, isInFocus: key === focusGroup, previewActive: preview !== null, matchesPreview: litGroups.has(key) });
-			setOpacityDeep(e.label, opacityFor(state, this.deps.enclosureLabelTiers));
+			e.label.opacity = opacityFor(state, this.deps.enclosureLabelTiers);
 			e.boxMat.opacity = opacityFor(state, this.deps.enclosureFillTiers);
 			e.edgeMat.opacity = opacityFor(state, this.deps.enclosureEdgeTiers);
 		}
@@ -262,12 +251,10 @@ export class PolymorphicFocus {
 		if (n) this.aimMagnify(n, true, false);
 	}
 
-	/** Aim a node's magnify multiplier; the rAF tick animates toward it. The raster follows the scale so magnified text stays crisp. */
+	/** Aim a node's magnify multiplier; the rAF tick animates toward it. The text is an SDF, so it stays crisp at any scale. */
 	private setMagnifyTarget(n: FGNode, to: number, focused: boolean, freshlyFocused: boolean): void {
-		const sprite = n.__sprite;
+		const sprite = n.__visual?.object;
 		if (!sprite || !n.__baseScale) return;
-		const wantFont = Math.round(Math.min(MAX_FONT_SIZE, NODE_FONT_SIZE * Math.max(1, to)));
-		if (Math.abs(sprite.fontSize - wantFont) > 16) sprite.fontSize = wantFont; // setter regenerates the texture; tolerance avoids regen churn while zooming
 		sprite.renderOrder = focused ? FOCUS_RENDER_ORDER : NODE_RENDER_ORDER;
 		const current = n.__k === undefined ? NATURAL_K : n.__k;
 		const pending = this.magnifyAnims.get(n);
@@ -343,7 +330,7 @@ export class PolymorphicFocus {
 		if (this.magnifyAnims.size === 0) return;
 		const now = performance.now();
 		for (const [n, a] of this.magnifyAnims) {
-			const sprite = n.__sprite;
+			const sprite = n.__visual?.object;
 			const base = n.__baseScale;
 			if (!sprite || !base) {
 				// A grow-in is seeded before the lib builds the sprite, wait briefly; drop only if it never appears.

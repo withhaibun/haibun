@@ -96,7 +96,7 @@ describe("the focus magnify", () => {
 			z: 0,
 			__k: 1,
 			__baseScale: { x: 1, y: 1 },
-			__sprite: { fontSize: 32, renderOrder: 0, scale: { set: (...xyz: number[]) => scaled.push(xyz) } },
+			__visual: { object: { renderOrder: 0, scale: { set: (...xyz: number[]) => scaled.push(xyz) } } },
 		} as unknown as FGNode;
 		const deps = { focusId: () => "n1", nodeMap: () => new Map([[n.id, n]]), worldPerPxAt: () => 1, focusTextPx: () => 20, decorates: () => decorates } as unknown as FocusDeps;
 		return { focus: new PolymorphicFocus(deps), n, scaled };

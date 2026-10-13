@@ -52,7 +52,7 @@ beforeAll(async () => {
 	);
 	// Feed pinned nodes straight into the force-graph and frame them: the pick geometry under test is independent
 	// of the store pipeline. fx/fy/fz pin each node so the engine holds it exactly at its coordinates. The lib
-	// decorates these SAME objects (nodeThreeObject → __sprite/__baseScale), so pointing the pipeline's nodeMap at
+	// decorates these SAME objects (nodeThreeObject → __visual/__baseScale), so pointing the pipeline's nodeMap at
 	// them gives pickNodeAt its real node set without the store.
 	await page.evaluate((nodes) => {
 		const el = document.querySelector("shu-polymorphic-graph-view") as unknown as {
@@ -67,8 +67,8 @@ beforeAll(async () => {
 	// Wait until every node has its sprite and a rendered frame has synced the transforms (baseline picks succeed).
 	await page.waitForFunction(
 		(count) => {
-			const el = document.querySelector("shu-polymorphic-graph-view") as unknown as { nodeMap?: Map<string, { __sprite?: unknown }> };
-			return el.nodeMap?.size === count && [...el.nodeMap.values()].every((n) => n.__sprite);
+			const el = document.querySelector("shu-polymorphic-graph-view") as unknown as { nodeMap?: Map<string, { __visual?: unknown }> };
+			return el.nodeMap?.size === count && [...el.nodeMap.values()].every((n) => n.__visual);
 		},
 		NODES.length,
 		{ timeout: 30_000 },

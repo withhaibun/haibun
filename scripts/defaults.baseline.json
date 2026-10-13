@@ -342,7 +342,7 @@
 		"states a parameter's default value": 1
 	},
 	"modules/shu/src/graph/polymorphic/polymorphic-node-shapes.ts": {
-		"fills an absent value with a constant through ??": 2
+		"fills an absent value with a constant through ??": 1
 	},
 	"modules/shu/src/graph/polymorphic/polymorphic-pick-sync.ts": {
 		"states a destructured default value": 3
@@ -352,7 +352,7 @@
 	},
 	"modules/shu/src/graph/polymorphic/polymorphic-scene.ts": {
 		"fills a falsy value with a constant through ||": 3,
-		"fills an absent value with a constant through ??": 25,
+		"fills an absent value with a constant through ??": 24,
 		"states a parameter's default value": 1
 	},
 	"modules/shu/src/graph/polymorphic/polymorphic-svg-renderer.ts": {
@@ -360,7 +360,7 @@
 	},
 	"modules/shu/src/graph/polymorphic/polymorphic-troika-label.ts": {
 		"fills a falsy value with a constant through ||": 2,
-		"fills an absent value with a constant through ??": 2
+		"fills an absent value with a constant through ??": 1
 	},
 	"modules/shu/src/known-size-flow.ts": {
 		"fills an absent value with a constant through ??": 1

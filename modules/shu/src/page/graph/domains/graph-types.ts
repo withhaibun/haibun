@@ -37,24 +37,19 @@ export interface NodeVisual {
 	faceCamera(q: QLike): void; // orient to the camera (a chip group; a native-billboard sprite / fixed bar is a no-op)
 }
 
-type ThreeObj = { material?: { transparent: boolean; opacity: number }; children?: ThreeObj[] };
-export type { ThreeObj };
-
-/** The slice of a SpriteText billboard this view drives (three-spritetext's d.ts omits the inherited Object3D members). */
-export type TSprite = ThreeObj & {
-	renderOrder: number;
-	fontSize: number;
+/** A text label's render object behind one handle: the label text the scene writes, its colour and opacity, its measured
+ *  width, and how it faces the camera. troika draws every label (SH28), so a label is a mesh the scene turns each frame. */
+export interface LabelVisual {
+	readonly object: Obj3D; // the scene object a group parents and positions
 	text: string;
 	color: string;
-	center: { x: number; y: number; set(x: number, y: number): void };
-	scale: { x: number; y: number; set(x: number, y: number, z: number): void };
-	material: { transparent: boolean; opacity: number; depthTest: boolean; depthWrite: boolean };
-	position: { x: number; y: number; z: number; set(x: number, y: number, z: number): void };
-	parent?: { renderOrder: number; children?: ThreeObj[] } | null;
-	raycast?: () => void;
-	/** Release the texture that holds the label's text. */
-	dispose?(): void;
-};
+	opacity: number;
+	/** The measured world width of the text, 0 until its layout has landed. */
+	readonly width: number;
+	faceCamera(q: QLike): void;
+	/** Release what the label's text holds on the GPU. */
+	dispose(): void;
+}
 
 export type FGNode = {
 	id: string;
@@ -77,8 +72,7 @@ export type FGNode = {
 	__created?: number;
 	__degree?: number; // number of incident visible links: the depth value under the "# connections" z basis
 	__visual?: NodeVisual; // the uniform handle for pick/billboard/focus/opacity: the one place that names the render object's type
-	__sprite?: TSprite; // === __visual.object; kept typed for the magnifier, which drives scale/renderOrder/fontSize directly
-	__baseScale?: { x: number; y: number }; // the sprite's intrinsic scale (SpriteText derives it from textHeight); magnify multiplies it
+	__baseScale?: { x: number; y: number }; // the visual's object's scale as built; magnify multiplies it
 	__k?: number; // current magnify multiplier
 	__chipText?: string; // what the chip the factory built shows: the label-as-depth read, and the observable inspect reports
 	properties?: Record<string, unknown>; // carried from the model node, including the merged HypermediaRole that groupKeyOf(n, "role") reads
@@ -91,8 +85,8 @@ export type FGLink = {
 	// Read-only handle to the lib's current line mesh, refreshed every tick in linkPositionUpdate (never cached-once,
 	// so it can't go stale). The line's colour AND opacity are owned by the lib via linkColor (see lineRgbaFor); this
 	// is only read, by inspect() and the behaviour tests, never mutated.
-	__lineObj?: ThreeObj;
-	__labelSprite?: TSprite;
+	__lineObj?: { material?: { opacity: number } };
+	__label?: LabelVisual; // the edge's predicate, drawn at its midpoint
 	__curve?: { getPoint(t: number): { x: number; y: number; z: number } };
 };
 

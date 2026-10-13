@@ -21,6 +21,8 @@ declare module "troika-three-text" {
 		quaternion: { copy(q: unknown): void };
 		/** The laid-out text's bounds, once a sync has measured it. */
 		textRenderInfo?: { blockBounds: [number, number, number, number] };
+		/** A label isn't a pick target, so its raycast is replaced with one that doesn't hit. */
+		raycast: () => void;
 		sync(callback?: () => void): void;
 		dispose(): void;
 	}

@@ -177,7 +177,7 @@
 		"terminal-preposition": 1
 	},
 	"modules/shu/src/graph/polymorphic/polymorphic-enclosure.ts": {
-		"relation-verb": 2
+		"relation-verb": 1
 	},
 	"modules/shu/src/graph/polymorphic/polymorphic-external.integration.test.ts": {
 		"anthropomorphic": 1
@@ -187,7 +187,7 @@
 		"negated-noun": 1
 	},
 	"modules/shu/src/graph/polymorphic/polymorphic-node-shapes.ts": {
-		"relation-verb": 2
+		"relation-verb": 1
 	},
 	"modules/shu/src/graph/polymorphic/polymorphic-page.test-fake.ts": {
 		"anthropomorphic": 2,

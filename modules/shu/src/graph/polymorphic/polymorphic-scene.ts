@@ -1,7 +1,6 @@
 /// <reference path="./three-controls.d.ts" />
 import "aframe";
 import ForceGraphVR from "3d-force-graph-vr";
-import SpriteText from "three-spritetext";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { html, type TemplateResult } from "lit";
 import { z } from "zod";
@@ -18,7 +17,7 @@ import { reportFailure } from "../../client-log.js";
 import { type TGraphEnginePacing, type TGraphFrameLoop } from "../../page/graph/ports.js";
 import { type TAframeScene } from "../../page/graph/adapters/frame-loop.js";
 import { PolymorphicProfiler } from "../../page/graph/machines/profiler.js";
-import { makeTroikaChip, spriteVisual, type ChipThree } from "./polymorphic-troika-label.js";
+import { configureLabelFonts, makeTroikaChip, makeTroikaText, spriteVisual, type ChipThree } from "./polymorphic-troika-label.js";
 import { FULL_BURN, GLOW_RAMP, BREATH_MS } from "../../page/graph/derivations/highlight.js";
 import { typeAvatar } from "../../page/graph/derivations/type-avatar.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
@@ -72,13 +71,13 @@ import { LABEL_FONT_FALLBACKS } from "../../domains/serving.js";
 import { DEFAULT_REGULATION_THRESHOLDS, evaluateRegulation, medianOf, newRegulationState, recordFrameTime } from "../../page/graph/derivations/regulation.js";
 import { GRAPH_DRAWING_BLIP, GRAPH_FRAME_BLIP, GRAPH_REGULATION_BLIP, type TDrawingReason, type TWakeCause } from "../../graph-blips.js";
 import { SEQ_LANE_SPACING, actorBars, type TSeqModel } from "../../page/graph/derivations/sequence-model.js";
-import { type FGNode, type FGLink, type TSprite, type XYZ, GRAPH_SCENE_EVENT, isPlaced, linkEndId, neighboursOf } from "../../page/graph/domains/graph-types.js";
+import { type FGNode, type FGLink, type LabelVisual, type XYZ, GRAPH_SCENE_EVENT, isPlaced, linkEndId, neighboursOf } from "../../page/graph/domains/graph-types.js";
 import { forceLayout, type IGraphLayout } from "../../page/graph/derivations/polymorphic-layout.js";
 import { SvgRenderer } from "./polymorphic-svg-renderer.js";
 import { NodeDrag, DRAG_THRESHOLD_PX } from "../../page/graph/machines/node-drag.js";
 import { NODE_TEXT_COLOR, chipTextHeight } from "../../page/graph/derivations/layout-forces.js";
-import { paintMarkScene, type ShapeLabel, type ShapeThree } from "./polymorphic-node-shapes.js";
-import { PolymorphicFocus, NODE_RENDER_ORDER, NODE_FONT_SIZE } from "../../page/graph/controllers/focus-controller.js";
+import { paintMarkScene, type ShapeThree } from "./polymorphic-node-shapes.js";
+import { PolymorphicFocus, NODE_RENDER_ORDER } from "../../page/graph/controllers/focus-controller.js";
 import {
 	EnclosureController,
 	type EnclosureThree,
@@ -181,9 +180,9 @@ const NODE_BORDER_COLOR = "#cccccc";
 // surrounds a chip and a lane bar alike; its colour cycles through the theme's warm ramp (see polymorphic-highlight).
 
 // three-forcegraph forces link objects to renderOrder 10; draw nodes above that (edges sit behind), labels between.
-// NODE_RENDER_ORDER / FOCUS_RENDER_ORDER / NODE_FONT_SIZE live with the focus subsystem (it drives the chip raster + pop).
+// NODE_RENDER_ORDER / FOCUS_RENDER_ORDER live with the focus subsystem (it drives the chip pop).
 const EDGE_LABEL_RENDER_ORDER = 15;
-const EDGE_LABEL_TEXT_HEIGHT = 2; // edge label sprites' intrinsic world text height (readableK scales from it on focus)
+const EDGE_LABEL_TEXT_HEIGHT = 2; // edge labels' world text height
 // A persistent arrowhead on every edge so its direction (source → target) is always clear, not just during a
 // transient particle burst. Sized to the chip scale (~3) and placed past the link's midpoint toward the target.
 const ARROW_LENGTH = 3.5;
@@ -244,6 +243,22 @@ type ThreeNs = EnclosureThree &
 		Vector3: new (x?: number, y?: number, z?: number) => ProjectedPoint;
 	};
 const aframeThree = (): ThreeNs | undefined => (globalThis as { AFRAME?: { THREE?: ThreeNs } }).AFRAME?.THREE;
+
+/** The slice of A-Frame's component registry where the scene replaces a component. */
+type TAframeComponents = { components: Record<string, { schema: unknown } | undefined>; registerComponent(name: string, definition: { schema: unknown }): void };
+
+/** A-Frame's text component reads its font from a CDN when it draws. Its one user here is the graph library's hover
+ *  tooltip, which repeats the name every chip draws, and troika draws every label (SH28), so the component keeps its schema,
+ *  which the tooltip's attributes parse against, and doesn't draw. */
+function silenceAframeText(): void {
+	const aframe = (globalThis as { AFRAME?: TAframeComponents }).AFRAME;
+	if (aframe === undefined) throw new Error("shu-graph-scene: A-Frame isn't loaded, so its text component can't be replaced");
+	const text = aframe.components.text;
+	if (text === undefined) throw new Error("shu-graph-scene: A-Frame doesn't register a text component to replace");
+	delete aframe.components.text;
+	aframe.registerComponent("text", { schema: text.schema });
+}
+silenceAframeText();
 
 const FOCUS_DIM = 0.25; // dimmed-but-readable: a focused node de-emphasises its surroundings without making them vanish
 
@@ -668,7 +683,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private nodeRebuildPending = false;
 	private ganttShapeSig = "";
 	private ganttAxisGroup?: Obj3D; // the gantt calendar ruler (baseline + tick marks + date labels), parented like the enclosures; null off-gantt
-	private ganttGhost?: { group: Obj3D; edges: Obj3D; label: TSprite }; // transient drag affordance: a wireframe outline + the new date-time, attached to the dragged bar (disposed via disposeGroup)
+	private ganttAxisLabels: LabelVisual[] = []; // the ruler's date labels, which the scene turns to the camera
+	private ganttGhost?: { group: Obj3D; edges: Obj3D; label: LabelVisual }; // transient drag affordance: a wireframe outline + the new date-time, attached to the dragged bar (disposed via disposeGroup)
 
 	constructor() {
 		super(SceneStateSchema, {});
@@ -862,7 +878,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				sx: e.box.scale.x,
 				sy: e.box.scale.y,
 				sz: e.box.scale.z,
-				labelPos: { x: e.label.position.x, y: e.label.position.y, z: e.label.position.z },
+				labelPos: { x: e.label.object.position.x, y: e.label.object.position.y, z: e.label.object.position.z },
 			})),
 			gantt: this.renderType.axisLegend(),
 			sample: nodes
@@ -894,7 +910,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				t: linkEndId(l.target),
 				predicate: l.predicate,
 				lineOpacity: l.__lineObj?.material?.opacity ?? null,
-				labelOpacity: l.__labelSprite?.material?.opacity ?? null,
+				labelOpacity: l.__label === undefined ? null : l.__label.opacity,
 			})),
 		};
 	}
@@ -960,6 +976,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const container = this.querySelector<HTMLElement>("#polymorphic-canvas");
 		if (!container) throw new Error("shu-graph-scene: #polymorphic-canvas not found");
 
+		configureLabelFonts(this.labelFontFallbacks());
 		const VR = ForceGraphVR as unknown as new (el: HTMLElement) => FGInstance;
 		this.graph = new VR(container);
 		this.engine.attach(this.graph);
@@ -1027,9 +1044,9 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			const mark = this.markFor(n);
 			// The common instance node (a "chip") renders as an SDF glyph-atlas chip (troika), dark text on a solid
 			// type-coloured background, all labels sharing one atlas texture and one background geometry, so a node doesn't take
-			// a per-node canvas raster + GPU texture upload. Other marks (the gantt box, the ontology lozenge/square)
-			// keep the three-spritetext paint: they are few, and the box carries its label as a child. The billboard
-			// frame job keeps the chips facing the camera. fontSize is the WORLD text height (chipTextHeight), as SpriteText's.
+			// a per-node canvas raster + GPU texture upload; a schema Class's square token is a chip too. The gantt box and the
+			// ontology lozenge are painted, the box carrying its troika label as a child. The billboard frame job keeps every
+			// label facing the camera. fontSize is the WORLD text height (chipTextHeight).
 			// "Label as z factor" labels each chip with the value that places its depth: the date under a time basis, the
 			// connection count under connections, so the z factor reads straight off the graph. Off (or without a value), the usual label.
 			const chipLabel = (this.labelAsZ ? this.zFactor(n).chip : undefined) ?? mark.label;
@@ -1039,7 +1056,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			// pin is a position the reader chose, not a state to advertise, and the pin set persists across queries, so
 			// highlighting pins would mark nodes unrelated to what is being read.
 			const visual =
-				mark.kind === "chip"
+				mark.kind === "chip" || mark.kind === "square"
 					? makeTroikaChip(chipLabel, mark.color, three, {
 							fontSize: chipTextHeight(mark),
 							renderOrder: NODE_RENDER_ORDER,
@@ -1047,17 +1064,15 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 							borderColor: NODE_BORDER_COLOR,
 							highlightColor: this.activeHighlightColor,
 							avatar: typeAvatar(mark.type),
-							fallbackFonts: this.labelFontFallbacks(),
 							laidOut: () => this.markDirty("label"),
 						})
 					: spriteVisual(
 							paintMarkScene(mark, {
 								three,
-								makeLabel: (text, h, c) => new SpriteText(text, h, c) as unknown as ShapeLabel,
+								makeLabel: (text, h, color, anchor) => makeTroikaText(text, { fontSize: h, color, renderOrder: NODE_RENDER_ORDER, anchor, emphasis: false }),
 								textColor: this.chipTextColor, // on a chip: dark on the light type colour
 								sceneTextColor: this.sceneTextColor, // off a chip (box label): foreground on the scene bg
 								borderColor: NODE_BORDER_COLOR,
-								fontSize: NODE_FONT_SIZE,
 								renderOrder: NODE_RENDER_ORDER,
 								headerLabel: this.renderType.capsNodeLabels,
 							}),
@@ -1066,7 +1081,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			const obj = visual.object;
 			n.__visual = visual;
 			visual.setHighlighted(n.id === this.activeSubject, FULL_BURN); // a rebuilt object re-wears the glow if it is the active node
-			n.__sprite = obj as unknown as TSprite;
 			n.__baseScale = { x: obj.scale.x, y: obj.scale.y };
 			n.__k = 1;
 			// A visual built after the focus was applied wears it from the next pass at rest, however late the library builds it.
@@ -1089,6 +1103,10 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const q = this.fgCamera?.quaternion;
 		if (!q) return;
 		for (const n of this.nodeMap.values()) n.__visual?.faceCamera(q);
+		for (const l of this.currentLinks) l.__label?.faceCamera(q);
+		for (const label of this.enclosureCtl.labels()) label.faceCamera(q);
+		for (const label of this.ganttAxisLabels) label.faceCamera(q);
+		this.ganttGhost?.label.faceCamera(q);
 	}
 
 	private configureGraph(g: FGInstance): void {
@@ -1110,20 +1128,24 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			.linkDirectionalArrowColor((l) => this.focusCtl.lineRgbaFor(l))
 			.linkThreeObjectExtend(true)
 			.linkThreeObject((l) => {
-				const s = new SpriteText(l.predicate, EDGE_LABEL_TEXT_HEIGHT, this.edgeLabelColor);
-				const sprite = s as unknown as TSprite;
-				sprite.renderOrder = EDGE_LABEL_RENDER_ORDER;
-				l.__labelSprite = sprite;
-				return s;
+				const label = makeTroikaText(l.predicate, {
+					fontSize: EDGE_LABEL_TEXT_HEIGHT,
+					color: this.edgeLabelColor,
+					renderOrder: EDGE_LABEL_RENDER_ORDER,
+					anchor: { x: "center", y: "middle" },
+					emphasis: false,
+				});
+				l.__label = label;
+				return label.object;
 			})
 			.linkPositionUpdate((obj, { start, end }, link) => {
-				const sprite = obj as TSprite;
+				const sprite = obj as Obj3D;
 				// The lib sets the link GROUP's renderOrder to 10, and three.js uses a group's renderOrder as the
 				// children's groupOrder, the PRIMARY sort key, so links would always paint over the node chips
 				// (groupOrder 0) whatever the sprites' own flags state. Zero it; the secondary renderOrder then
 				// layers line (0) → edge label (15) → node chip (20), back to front.
 				if (sprite.parent && sprite.parent.renderOrder !== 0) sprite.parent.renderOrder = 0;
-				if (sprite.parent?.children) link.__lineObj = sprite.parent.children[0]; // refresh every tick, read-only handle for inspect()/tests; never cached-once, so never stale
+				if (sprite.parent?.children) link.__lineObj = sprite.parent.children[0] as { material?: { opacity: number } }; // refresh every tick, read-only handle for inspect()/tests; never cached-once, so never stale
 				const mid = link.__curve ? link.__curve.getPoint(0.5) : { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2, z: (start.z + end.z) / 2 };
 				sprite.position.set(mid.x, mid.y, mid.z);
 			})
@@ -1504,9 +1526,9 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.graph?.backgroundColor(this.themeColor("--shu-bg", "#ffffff"));
 		this.graph?.linkColor((l) => this.focusCtl.lineRgbaFor(l)); // re-pool line materials under the new theme colours
 		this.graph?.linkDirectionalArrowColor((l) => this.focusCtl.lineRgbaFor(l)); // arrows follow the same line rgba
-		// Label sprites keep their construction-time colour; recolour them in place: a graphData re-feed would
+		// Labels keep their construction-time colour; recolour them in place: a graphData re-feed would
 		// reheat the layout (and the unchanged-model skip would suppress it anyway, leaving labels bg-on-bg).
-		for (const l of this.currentLinks) if (l.__labelSprite) l.__labelSprite.color = this.edgeLabelColor;
+		for (const l of this.currentLinks) if (l.__label) l.__label.color = this.edgeLabelColor;
 		this.enclosureCtl.recolorLabels(this.edgeLabelColor);
 		if (this.focusId) this.applyFocus(); // re-assert focus colours under the new theme
 		this.markDirty("theme");
@@ -1778,15 +1800,13 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const sprites: unknown[] = [];
 		const restore: Array<[TPickObject, TScaleRestore]> = [];
 		for (const n of this.ctx.nodeMap.values()) {
-			const s = n.__sprite as
-				| (TSprite & { position?: { x: number; y: number; z: number; set(x: number, y: number, z: number): void }; updateMatrixWorld?: (f?: boolean) => void })
-				| undefined;
-			if (!s) continue;
+			const visual = n.__visual;
+			if (!visual) continue;
+			const s = visual.object;
 			// Raycast the visual's pick target: a troika chip's background quad (the geometry-less group can't be hit),
-			// a sprite/mesh is itself. Its world matrix follows the object's, so the transform writes below (on the object,
-			// n.__sprite) still position the pick target.
-			const target = (n.__visual?.pickTarget ?? s) as unknown;
-			if (!target) continue;
+			// a sprite/mesh is itself. Its world matrix follows the object's, so the transform writes below (on the
+			// visual's object) still position the pick target.
+			const target = visual.pickTarget as unknown;
 			sprites.push(target);
 			spriteToNode.set(target, n);
 			// Raycast against WHERE THE NODE IS (the engine's coordinates) at its resting size, with the matrix re-derived:
@@ -1878,7 +1898,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 
 	/**
 	 * A-Frame's raycaster aims by origin+direction and never sets its THREE.Raycaster.camera, but
-	 * `Sprite.raycast` needs that reference (billboard math), without it the SpriteText nodes throw.
+	 * `Sprite.raycast` needs that reference (billboard math), without it the lozenge sprites throw.
 	 * Point every cursor/laser raycaster at the active camera; harmless for the mesh/line objects.
 	 */
 	private enableSpriteRaycast(scene: TSceneElement): void {
@@ -2590,13 +2610,15 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		else this.clearGanttAxis();
 	}
 
-	/** Standard overlay-label styling (the gantt ruler ticks + the drag-ghost date): always-on-top, never depth-hidden,
-	 *  not pickable. Keeps the few SpriteText overlays consistent from one place. */
-	private configureOverlayLabel(label: TSprite): void {
-		label.renderOrder = ENCLOSURE_LABEL_RENDER_ORDER;
-		label.material.depthTest = false;
-		label.material.depthWrite = false;
-		if (label.raycast) label.raycast = () => undefined;
+	/** An overlay label (a gantt ruler tick, the drag-ghost date): always on top, never depth-hidden, not pickable. */
+	private overlayLabel(text: string): LabelVisual {
+		return makeTroikaText(text, {
+			fontSize: ENCLOSURE_LABEL_HEIGHT,
+			color: this.compassFgColor,
+			renderOrder: ENCLOSURE_LABEL_RENDER_ORDER,
+			anchor: { x: "center", y: "middle" },
+			emphasis: false,
+		});
 	}
 
 	/** Tear down a parented overlay group: dispose each child's material + texture and detach from its parent. Owned
@@ -2606,7 +2628,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			const c = child as unknown as { geometry?: Disposable; material?: Disposable; dispose?: () => void };
 			if (disposeGeometry) c.geometry?.dispose?.();
 			c.material?.dispose?.();
-			c.dispose?.(); // SpriteText owns a texture
+			c.dispose?.(); // a troika label owns its text's geometry
 		}
 		group.parent?.remove(group);
 	}
@@ -2636,10 +2658,10 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		lines.renderOrder = ENCLOSURE_RENDER_ORDER;
 		group.add(lines);
 		for (const tk of ticks) {
-			const s = new SpriteText(tk.label, ENCLOSURE_LABEL_HEIGHT, this.compassFgColor) as unknown as TSprite;
-			s.position.set(0, baseY - tickH, tk.z);
-			this.configureOverlayLabel(s);
-			group.add(s);
+			const label = this.overlayLabel(tk.label);
+			label.object.position.set(0, baseY - tickH, tk.z);
+			group.add(label.object);
+			this.ganttAxisLabels.push(label);
 		}
 		parent.add(group);
 		this.ganttAxisGroup = group;
@@ -2648,11 +2670,12 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private clearGanttAxis(): void {
 		if (this.ganttAxisGroup) this.disposeGroup(this.ganttAxisGroup, true); // owns its BufferGeometry → dispose it
 		this.ganttAxisGroup = undefined;
+		this.ganttAxisLabels = [];
 	}
 
 	/** The drag affordance for a gantt bar: a wireframe outline around the bar at its live position plus the new start
 	 *  date-time (formatInstant, which renders future dates fine), updated every move. Reuses the shared unit-box edges +
-	 *  the SpriteText label pattern; parented into node-coordinate space like the enclosures. */
+	 *  an overlay label; parented into node-coordinate space like the enclosures. */
 	private updateGanttGhost(node: FGNode): void {
 		const T = aframeThree();
 		const target = this.ganttTargets.get(node.id);
@@ -2666,11 +2689,10 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			const edges = new T.LineSegments(this.enclosureCtl.unitEdges, edgeMat);
 			edges.raycast = () => undefined;
 			edges.renderOrder = ENCLOSURE_LABEL_RENDER_ORDER;
-			const label = new SpriteText("", ENCLOSURE_LABEL_HEIGHT, this.compassFgColor) as unknown as TSprite;
-			this.configureOverlayLabel(label);
+			const label = this.overlayLabel("");
 			const group = new T.Group();
 			group.add(edges);
-			group.add(label);
+			group.add(label.object);
 			parent.add(group);
 			this.ganttGhost = { group, edges, label };
 		}
@@ -2682,7 +2704,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		edges.scale.set(GANTT_BAR_D + GANTT_GHOST_PAD, GANTT_BAR_H + GANTT_GHOST_PAD, zLen + GANTT_GHOST_PAD);
 		edges.position.set(x, y, node.z);
 		g.label.text = formatInstant(ganttBarTimes(node.z, target.zLen, scale).startedAtTime, new Date(), readerZone());
-		g.label.position.set(x, y + GANTT_BAR_H, node.z);
+		g.label.object.position.set(x, y + GANTT_BAR_H, node.z);
 	}
 
 	private clearGanttGhost(): void {

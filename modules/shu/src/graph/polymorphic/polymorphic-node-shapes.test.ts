@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import { paintMarkScene, chipShape, boxShape, type NodeShapeDeps, type ShapeLabel, type ShapeThree } from "./polymorphic-node-shapes.js";
+import { paintMarkScene, boxShape, type NodeShapeDeps, type ShapeThree } from "./polymorphic-node-shapes.js";
+import type { TTextAnchor } from "./polymorphic-troika-label.js";
+import type { LabelVisual } from "../../page/graph/domains/graph-types.js";
 import type { NodeMark } from "../../page/graph/domains/graph-scene.js";
 import { GANTT_BAR_H, GANTT_BAR_D, GANTT_MIN_BAR_W, GANTT_LABEL_INSET } from "../../page/graph/derivations/gantt-layout.js";
 
@@ -16,10 +17,10 @@ const boxMark = (zExtent: number, over: Partial<NodeMark> = {}): NodeMark => ({
 	...over,
 });
 
-// Recording stubs for THREE + the label: a 3D object is just numbers, so the paint's geometry (box dimensions, child
-// offsets, colours) is asserted without a GPU. The polymorphic injects the real AFRAME.THREE + a SpriteText factory at runtime.
-type RecBox = { geometry: { w: number; h: number; d: number }; material: { color: string }; renderOrder: number; children: RecLabel[]; add(o: unknown): void };
-type RecLabel = ShapeLabel & { text: string; color: string };
+// Recording stubs for THREE and the label factory: a 3D object is just numbers, so the paint's geometry (box dimensions,
+// child offsets, colours) is asserted without a GPU. The scene injects the real AFRAME.THREE and makeTroikaText at runtime.
+type RecBox = { geometry: { w: number; h: number; d: number }; material: { color: string }; renderOrder: number; children: unknown[] };
+type RecLabel = LabelVisual & { anchor: TTextAnchor; height: number };
 
 const v3 = () => {
 	const v = {
@@ -35,35 +36,22 @@ const v3 = () => {
 	return v;
 };
 
-const harness = (withThree = true): { deps: NodeShapeDeps; labels: RecLabel[] } => {
+const harness = (): { deps: NodeShapeDeps; labels: RecLabel[] } => {
 	const labels: RecLabel[] = [];
-	const makeLabel = (text: string, _h: number, color: string): ShapeLabel => {
-		const l = {
-			position: v3(),
-			scale: v3(),
-			renderOrder: 0,
-			add: (_o: unknown): void => undefined, // labels are leaves here; never receives children
-			material: { depthTest: true, depthWrite: true },
-			center: {
-				x: 0,
-				y: 0,
-				set(x: number, y: number) {
-					this.x = x;
-					this.y = y;
-				},
-			},
-			fontSize: 0,
-			fontWeight: "",
-			backgroundColor: "" as string | false,
-			borderColor: "",
-			borderWidth: 0,
-			borderRadius: 0,
-			padding: [] as number[],
+	const makeLabel = (text: string, height: number, color: string, anchor: TTextAnchor): LabelVisual => {
+		const label: RecLabel = {
+			object: { position: v3(), scale: v3(), renderOrder: 0 },
 			text,
 			color,
+			opacity: 1,
+			width: 0,
+			faceCamera: () => undefined,
+			dispose: () => undefined,
+			anchor,
+			height,
 		};
-		labels.push(l);
-		return l;
+		labels.push(label);
+		return label;
 	};
 	class BoxGeometry {
 		constructor(
@@ -91,52 +79,42 @@ const harness = (withThree = true): { deps: NodeShapeDeps; labels: RecLabel[] } 
 		}
 	}
 	const three = { Mesh, BoxGeometry, MeshBasicMaterial } as unknown as ShapeThree;
-	return { deps: { three: withThree ? three : undefined, makeLabel, textColor: "#111", sceneTextColor: "#eee", borderColor: "#ccc", fontSize: 96, renderOrder: 20 }, labels };
+	return { deps: { three, makeLabel, textColor: "#111", sceneTextColor: "#eee", borderColor: "#ccc", renderOrder: 20 }, labels };
 };
 
 describe("polymorphic paint (mark → three.js geometry, GPU-free)", () => {
-	it("chipShape paints the mark's colour as a centred chip billboard, depth-test off, on-chip text colour", () => {
-		const chip = chipShape(chipMark(), harness().deps) as unknown as RecLabel;
-		expect(chip.backgroundColor).toBe("colour:Person"); // the mark carries the colour (not a deps lookup)
-		expect(chip.center.x).toBe(0.5); // centred on the node, so the focus magnifier grows it in place (without sideways drift)
-		expect(chip.material.depthTest).toBe(false);
-		expect(chip.color).toBe("#111"); // textColor (dark on the light chip), NOT the scene colour
-	});
-
-	it("boxShape spans z by mark.zExtent (time is the z axis), label at the start face in the scene colour", () => {
-		const box = boxShape(boxMark(40), harness().deps) as unknown as RecBox;
+	it("boxShape spans z by mark.zExtent (time is the z axis), its label at the start face in the scene colour", () => {
+		const { deps, labels } = harness();
+		const painted = boxShape(boxMark(40), deps);
+		const box = painted.object as unknown as RecBox;
 		expect(box.geometry).toMatchObject({ w: GANTT_BAR_D, h: GANTT_BAR_H, d: 40 }); // depth (z) = duration; thin on x
 		expect(box.material.color).toBe("colour:Task");
-		expect(box.children.length).toBe(1);
-		expect(itemAt(box.children, 0).position.z).toBe(-20 + GANTT_LABEL_INSET); // inset from the bar's start (earliest-z) face
-		expect(itemAt(box.children, 0).position.x).toBe(0);
-		expect(itemAt(box.children, 0).backgroundColor).toBe(""); // plain text without a chip frame
-		expect(itemAt(box.children, 0).color).toBe("#eee"); // off-chip text → the SCENE colour (white-on-black in dark), not the chip's dark
+		const [label] = labels;
+		expect(painted.labels).toEqual([label]); // the scene turns it to the camera
+		expect(box.children).toEqual([label?.object]);
+		expect(label?.object.position.z).toBe(-20 + GANTT_LABEL_INSET); // inset from the bar's start (earliest-z) face
+		expect(label?.color).toBe("#eee"); // off-chip text → the SCENE colour (white-on-black in dark), not the chip's dark
 	});
 
 	it("boxShape floors a tiny zExtent to the minimum bar length", () => {
-		expect((boxShape(boxMark(0), harness().deps) as unknown as RecBox).geometry.d).toBe(GANTT_MIN_BAR_W);
+		expect((boxShape(boxMark(0), harness().deps).object as unknown as RecBox).geometry.d).toBe(GANTT_MIN_BAR_W);
 	});
 
 	it("boxShape places a headerLabel upright, centred above the bar's start face (a sequence participant's name); default reads along the bar", () => {
-		const along = boxShape(boxMark(40), harness().deps) as unknown as RecBox;
-		expect(itemAt(along.children, 0).center.x).toBe(0); // gantt row: left-anchored, reading along the bar
-		expect(itemAt(along.children, 0).center.y).toBe(0.5);
-		expect(itemAt(along.children, 0).position.z).toBe(-20 + GANTT_LABEL_INSET);
-		const header = boxShape(boxMark(40), { ...harness().deps, headerLabel: true }) as unknown as RecBox;
-		expect(itemAt(header.children, 0).center.x).toBe(0.5); // bottom-centre anchor → the upright name caps the lifeline
-		expect(itemAt(header.children, 0).center.y).toBe(0);
-		expect(itemAt(header.children, 0).position.z).toBe(-20); // exactly at the start (earliest-z) face: the lifeline's top on screen
+		const along = harness();
+		boxShape(boxMark(40), along.deps);
+		expect(along.labels[0]?.anchor).toEqual({ x: "left", y: "middle" }); // gantt row: reading along the bar
+		expect(along.labels[0]?.object.position.z).toBe(-20 + GANTT_LABEL_INSET);
+		const header = harness();
+		boxShape(boxMark(40), { ...header.deps, headerLabel: true });
+		expect(header.labels[0]?.anchor).toEqual({ x: "center", y: "bottom" }); // the upright name caps the lifeline
+		expect(header.labels[0]?.object.position.z).toBe(-20); // exactly at the start (earliest-z) face: the lifeline's top on screen
 	});
 
-	it("boxShape falls back to a chip without THREE (headless)", () => {
-		expect((boxShape(boxMark(40), harness(false).deps) as unknown as RecLabel).backgroundColor).toBe("colour:Task");
-	});
-
-	it("paintMarkScene dispatches by mark.kind and fails fast on an unimplemented kind", () => {
+	it("paintMarkScene dispatches by mark.kind, refuses a chip (a troika chip), and fails fast on an unimplemented kind", () => {
 		const { deps } = harness();
-		expect((paintMarkScene(boxMark(40), deps) as unknown as RecBox).geometry.d).toBe(40);
-		expect((paintMarkScene(chipMark(), deps) as unknown as RecLabel).backgroundColor).toBe("colour:Person");
+		expect((paintMarkScene(boxMark(40), deps).object as unknown as RecBox).geometry.d).toBe(40);
+		expect(() => paintMarkScene(chipMark(), deps)).toThrow(/troika chip/);
 		expect(() => paintMarkScene(chipMark({ kind: "mesh" }), deps)).toThrow(/not implemented/);
 	});
 });

@@ -1,37 +1,34 @@
 /// <reference path="./troika-three-text.d.ts" />
 /**
- * A node's render object behind ONE uniform handle, NodeVisual, so pick, billboard, focus dimming and the opacity
- * readback never branch on the object's concrete type. Two implementations:
+ * troika draws every label of the graph (SH28). A node's render object is behind ONE uniform handle, NodeVisual, so pick,
+ * billboard, focus dimming and the opacity readback never branch on the object's concrete type. Two implementations:
  *
  *  - makeTroikaChip: an SDF glyph-atlas chip (troika-three-text): a small group of a solid type-coloured background
  *    quad, an SDF text label, and a leading avatar badge carrying the type's initials. Every label shares ONE glyph
  *    atlas texture and every background shares ONE unit plane,
  *    so a chip takes a couple of small objects (a per-node material, a bit of glyph geometry against the shared atlas)
- *    instead of the per-node canvas raster + GPU texture upload three-spritetext takes (the time the profiler attributes
- *    to the per-type-limit stall). troika's Text is a Mesh (not a billboard) and its glyph alpha rides fillOpacity (a
+ *    instead of a per-node canvas raster and GPU texture upload. troika's Text is a Mesh (not a billboard) and its glyph alpha rides fillOpacity (a
  *    shared material.opacity doesn't affect it), so the chip carries its own faceCamera + opacity; the geometry-less group
  *    can't be raycast, so pickTarget is the background quad.
- *  - spriteVisual: the plain sprite/mesh the other marks paint to (box, lozenge, square). It billboards natively (or is
- *    a fixed 3D bar), raycasts as itself, and dims through its material, so faceCamera is a no-op and opacity is the
+ *  - spriteVisual: the plain sprite/mesh the other marks paint to (box, lozenge). It billboards natively (or is a fixed
+ *    3D bar), raycasts as itself, and dims through its material, so faceCamera turns only its labels and opacity is the
  *    material's.
  *
- * troika imports its own `three`; esbuild dedupes it to the scene's single super-three instance (the same way
- * three-spritetext resolves), so a chip is an object in the A-Frame scene. The text builds async on troika's
+ * makeTroikaText draws a plain label (an edge's predicate, a group's title, a gantt date) the same way.
+ *
+ * troika imports its own `three`; esbuild dedupes it to the scene's single super-three instance, so a chip is an object in the A-Frame scene. The text builds async on troika's
  * worker (off the main thread), sync() kicks it off and its callback sizes the background to the measured text bounds.
  */
 import { Text, configureTextBuilder } from "troika-three-text";
 import { LABEL_FONT } from "../../domains/serving.js";
 import { FULL_BURN, GLOW_SPREAD, type GlowThree, MarkGlow, makeGlow } from "../../page/graph/derivations/highlight.js";
-import type { NodeVisual, Obj3D } from "../../page/graph/domains/graph-types.js";
+import type { LabelVisual, NodeVisual, Obj3D } from "../../page/graph/domains/graph-types.js";
 
-let labelFontsSet = false;
-
-/** Every label reads the font shu serves beside its bundles, and looks up a character that font lacks at `fallbackFonts`,
- *  so the page draws its labels without a font service (CA3D10). troika's configuration holds for the page, so it is set
- *  once, at the first label. */
-function setLabelFonts(fallbackFonts: string | undefined): void {
-	if (labelFontsSet) return;
-	labelFontsSet = true;
+/** Every label reads the font shu serves beside its bundles, and looks up a character that font lacks at `fallbackFonts`
+ *  (an absolute address, since troika reads it in a worker), so the page draws its labels without a font service (CA3D10).
+ *  A page that carries a record of actuality, which a site doesn't serve, passes undefined and holds only the font. troika's
+ *  configuration holds for the page, so the scene sets it before it draws a label. */
+export function configureLabelFonts(fallbackFonts: string | undefined): void {
 	configureTextBuilder(fallbackFonts === undefined ? { defaultFontURL: LABEL_FONT } : { defaultFontURL: LABEL_FONT, unicodeFontsURL: fallbackFonts });
 }
 
@@ -53,13 +50,10 @@ export type ChipThree = GlowThree & {
 type ChipDeps = {
 	fontSize: number; // world height of the glyphs
 	renderOrder: number;
-	textColor: string; // dark, on the light type-colour background (as the three-spritetext chip)
+	textColor: string; // dark, on the light type-colour background (the chip's text)
 	borderColor: string; // the chip's own edge, so a pale type colour still has a shape against a light page
 	highlightColor: string; // the colour the active-node glow is drawn in when the chip wears one (setHighlighted)
 	avatar?: string; // the type's initials, badged at the chip's leading edge; absent for a chip without a type to show
-	/** Where troika looks up a font for a character the label font lacks: an absolute address, since troika reads it in a
-	 *  worker, or undefined on a page a site doesn't serve, which holds only the label font. */
-	fallbackFonts: string | undefined;
 	laidOut: () => void; // told each time the chip is laid out from measured text, which arrives off the main thread, so a resting scene draws it
 };
 /** Background padding around the measured text, in fontSize units. */
@@ -114,7 +108,6 @@ export function chipGeometry(textBounds: readonly [number, number, number, numbe
  *  exact point at the chip's TOP-LEFT corner (content flows right + down, so the point stays eyeball-able against the
  *  axes). sync() builds the SDF on troika's worker and, when done, sizes the background to the measured content. */
 export function makeTroikaChip(label: string, bgColor: string, three: ChipThree, d: ChipDeps): NodeVisual {
-	setLabelFonts(d.fallbackFonts);
 	if (!sharedPlane) sharedPlane = new three.PlaneGeometry(1, 1);
 	const group = new three.Group() as Group3D;
 
@@ -225,7 +218,7 @@ export function makeTroikaChip(label: string, bgColor: string, three: ChipThree,
 		},
 		setHighlighted: (on, burn) => glow.set(on, burn),
 		get opacity() {
-			return text.fillOpacity ?? 1;
+			return text.fillOpacity;
 		},
 		set opacity(o: number) {
 			borderMaterial.opacity = o;
@@ -242,11 +235,12 @@ export function makeTroikaChip(label: string, bgColor: string, three: ChipThree,
 	};
 }
 
-/** Wrap a plain sprite/mesh (the non-chip marks) as a NodeVisual: it raycasts as itself, dims through its material, and
- *  billboards natively (a sprite) or is a fixed 3D bar, so faceCamera is a no-op. `highlight` supplies the THREE slice
- *  and colour the active-node glow is built from; the glow rides as a child of the mark, so it sizes with it (the focus
- *  magnifier scales the parent) and works for a painted mark exactly as for a chip. */
-export function spriteVisual(obj: Obj3D, highlight: { three: GlowThree; color: string; renderOrder: number }): NodeVisual {
+/** Wrap a painted mark (a sprite or a mesh, the non-chip marks) as a NodeVisual: it raycasts as itself, dims through its
+ *  material, and billboards natively (a sprite) or is a fixed 3D bar, so facing the camera turns only its `labels`.
+ *  `highlight` supplies the THREE slice and colour the active-node glow is built from; the glow rides as a child of the
+ *  mark, so it sizes with it (the focus magnifier scales the parent) and works for a painted mark exactly as for a chip. */
+export function spriteVisual(painted: { object: Obj3D; labels: LabelVisual[] }, highlight: { three: GlowThree; color: string; renderOrder: number }): NodeVisual {
+	const obj = painted.object;
 	const glow = new MarkGlow(
 		() => {
 			const g = makeGlow(highlight.three, highlight.color, highlight.renderOrder);
@@ -280,8 +274,70 @@ export function spriteVisual(obj: Obj3D, highlight: { three: GlowThree; color: s
 				obj.material.opacity = o;
 			}
 		},
-		faceCamera() {
-			/* a native-billboard sprite / fixed bar orients itself, so this method is empty */
+		faceCamera(q) {
+			for (const label of painted.labels) label.faceCamera(q);
 		},
+	};
+}
+
+/** Where a label's text stands against its position. */
+export type TTextAnchor = { x: "left" | "center" | "right"; y: "top" | "middle" | "bottom" };
+
+/** The outline that emphasises a label, in the label's own colour, as a share of its font size: troika reads one font, so
+ *  weight is drawn rather than read from a bold face. */
+const EMPHASIS_OUTLINE = "6%";
+
+/** A plain text label: troika's SDF text in `color`, `fontSize` world units tall, standing at `anchor` against its position,
+ *  drawn over the scene without depth and not picked. `emphasis` draws it heavier, as a heading. The scene turns it to the
+ *  camera each frame through `faceCamera`. */
+export function makeTroikaText(content: string, d: { fontSize: number; color: string; renderOrder: number; anchor: TTextAnchor; emphasis: boolean }): LabelVisual {
+	const t = new Text();
+	t.text = content;
+	t.fontSize = d.fontSize;
+	t.color = d.color;
+	t.anchorX = d.anchor.x;
+	t.anchorY = d.anchor.y;
+	t.renderOrder = d.renderOrder;
+	if (d.emphasis) {
+		t.outlineWidth = EMPHASIS_OUTLINE;
+		t.outlineColor = d.color;
+	}
+	const mat = t.material as { depthTest?: boolean; depthWrite?: boolean };
+	mat.depthTest = false;
+	mat.depthWrite = false;
+	t.raycast = () => undefined;
+	t.sync();
+	return {
+		object: t as unknown as Obj3D,
+		get text() {
+			return t.text;
+		},
+		set text(content: string) {
+			if (content === t.text) return;
+			t.text = content;
+			t.sync();
+		},
+		get color() {
+			return String(t.color);
+		},
+		set color(color: string) {
+			t.color = color;
+			if (d.emphasis) t.outlineColor = color;
+		},
+		get opacity() {
+			return t.fillOpacity;
+		},
+		set opacity(o: number) {
+			t.fillOpacity = o;
+			t.outlineOpacity = o; // troika drives the glyph alpha from fill and outline, not the material
+		},
+		get width() {
+			const bounds = t.textRenderInfo?.blockBounds;
+			return bounds === undefined ? 0 : bounds[2] - bounds[0];
+		},
+		faceCamera(q) {
+			t.quaternion.copy(q);
+		},
+		dispose: () => t.dispose(),
 	};
 }

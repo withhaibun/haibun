@@ -45,7 +45,7 @@ export const MAX_LABEL_CHARS = 64;
  *  embedded JSON) is shortened for display, so the chip's world width stays bounded and matches collideRadius. */
 export const truncateLabel = (s: string): string => ellipsize(s, MAX_LABEL_CHARS);
 
-/** Approximate the SpriteText billboard's half-width so the collision force keeps labels from overlapping. Bounded by
+/** Approximate a label chip's half-width so the collision force keeps labels from overlapping. Bounded by
  *  MAX_LABEL_CHARS: past the cap the chip text is truncated, so the half-width stops growing with the raw label length. */
 export const collideRadius = (n: LayoutNode): number => {
 	const h = chipTextHeight(n);

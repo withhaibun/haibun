@@ -52,7 +52,6 @@
 		"jsonld-signatures": "^11.6.0",
 		"lit": "^3.3.3",
 		"markdown-it": "^14.0.0",
-		"three-spritetext": "^1.10.0",
 		"troika-three-text": "^0.52.4",
 		"zod": "4.4.2"
 	},

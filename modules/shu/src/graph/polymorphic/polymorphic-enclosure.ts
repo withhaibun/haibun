@@ -9,11 +9,11 @@
 // accessors) and delegates the enclosure concern entirely. (lovely-finding-babbage, step 2.)
 
 import { roleNounFor } from "../../page/controllers/catalog-controller.js";
-import SpriteText from "three-spritetext";
+import { makeTroikaText } from "./polymorphic-troika-label.js";
 import { colorForType } from "../../page/graph/derivations/type-colors.js";
 import { groupKeyOf, containerLabelOf, shelfPack, groupBounds, type GroupAnchor, type GroupKeyMode, ENCLOSURE_PAD, GROUP_GAP } from "../../page/graph/derivations/grouping.js";
 import { HYPERMEDIA_ROLE_REL_KEY } from "../../domains/graph-model.js";
-import { type FGNode, type TSprite, isPlaced } from "../../page/graph/domains/graph-types.js";
+import { type FGNode, type LabelVisual, isPlaced } from "../../page/graph/domains/graph-types.js";
 import { chipTextHeight, collideRadius } from "../../page/graph/derivations/layout-forces.js";
 import { groupCellSize } from "../../page/graph/derivations/group-grid.js";
 import { FOCUS_RENDER_ORDER } from "../../page/graph/controllers/focus-controller.js";
@@ -39,8 +39,8 @@ export type Obj3D = {
 	children: Obj3D[];
 	raycast: () => void;
 	/** A group holds meshes and the labels drawn beside them. */
-	add(o: Obj3D | TSprite): void;
-	remove(o: Obj3D | TSprite): void;
+	add(o: unknown): void;
+	remove(o: unknown): void;
 };
 type EnclMaterial = Disposable & { color: { set(c: string): void }; opacity: number };
 export interface EnclosureThree {
@@ -54,7 +54,7 @@ export interface EnclosureThree {
 	DoubleSide: number;
 }
 
-export type Enclosure = { box: Obj3D; boxMat: EnclMaterial; edges: Obj3D; edgeMat: EnclMaterial; label: TSprite };
+export type Enclosure = { box: Obj3D; boxMat: EnclMaterial; edges: Obj3D; edgeMat: EnclMaterial; label: LabelVisual };
 
 /** Live refs + queries the component exposes; every getter is read at CALL time so a per-repaint nodeMap or a
  *  theme-recoloured colour is always current, never copied. */
@@ -145,27 +145,29 @@ export class EnclosureController {
 		const box = new T.Mesh(this.unitBoxGeo, boxMat);
 		const edgeMat = new T.LineBasicMaterial({ color, transparent: true, opacity: ENCLOSURE_EDGE_OPACITY, depthWrite: false });
 		const edges = new T.LineSegments(this.unitEdgesGeo, edgeMat);
-		// The group title is distinct from node chips by typography alone: larger BOLD text in the theme's label
-		// colour, without a fill or border: an area heading, quiet enough not to compete with the nodes.
-		const label = new SpriteText(labelText, ENCLOSURE_LABEL_HEIGHT, this.deps.edgeLabelColor()) as unknown as TSprite & { fontWeight: string };
-		label.fontWeight = "bold";
-		// Box + border sit behind the graph; the title reads above the box but under node chips, and never depth-hides.
+		// The group title is distinct from node chips by typography alone: larger, heavier text in the theme's label colour,
+		// without a fill or border: an area heading, quiet enough not to compete with the nodes. It stands on the box's
+		// upper-left corner, reads above the box but under node chips, and never depth-hides.
+		const label = makeTroikaText(labelText, {
+			fontSize: ENCLOSURE_LABEL_HEIGHT,
+			color: this.deps.edgeLabelColor(),
+			renderOrder: ENCLOSURE_LABEL_RENDER_ORDER,
+			anchor: { x: "left", y: "bottom" },
+			emphasis: true,
+		});
+		// Box + border sit behind the graph.
 		for (const o of [box, edges]) {
 			o.raycast = () => undefined;
 			o.renderOrder = ENCLOSURE_RENDER_ORDER;
 		}
-		label.renderOrder = ENCLOSURE_LABEL_RENDER_ORDER;
-		label.material.depthTest = false;
-		label.material.depthWrite = false;
-		if (label.raycast) label.raycast = () => undefined;
 		return { box, boxMat, edges, edgeMat, label };
 	}
 
 	private disposeEnclosure(e: Enclosure): void {
-		for (const o of [e.box, e.edges, e.label]) this.enclosureGroup?.remove(o);
+		for (const o of [e.box, e.edges, e.label.object]) this.enclosureGroup?.remove(o);
 		e.boxMat.dispose();
 		e.edgeMat.dispose();
-		e.label.dispose?.();
+		e.label.dispose();
 	}
 
 	clearEnclosures(): void {
@@ -214,17 +216,15 @@ export class EnclosureController {
 			if (!e) {
 				e = this.createEnclosure(T, key, containerLabel(key));
 				this.enclosuresMap.set(key, e);
-				for (const o of [e.box, e.edges, e.label]) this.enclosureGroup.add(o);
+				for (const o of [e.box, e.edges, e.label.object]) this.enclosureGroup.add(o);
 			}
 			e.box.position.set(b.cx, b.cy, b.cz);
 			e.box.scale.set(b.sx, b.sy, b.sz);
 			e.edges.position.set(b.cx, b.cy, b.cz);
 			e.edges.scale.set(b.sx, b.sy, b.sz);
-			// The title sits at the box's WORLD upper-left corner: a fixed point ON the box, so orbiting moves it
-			// exactly with its group (the sprite billboards, so the text always reads). Centre-anchored sprite:
-			// inset by half its width so its LEFT edge starts at the corner; a title wider than its box clamps.
-			const inset = Math.min(e.label.scale.x / 2, b.sx / 2);
-			e.label.position.set(b.cx - b.sx / 2 + inset, b.cy + b.sy / 2 + ENCLOSURE_LABEL_HEIGHT / 2, b.cz);
+			// The title stands on the box's WORLD upper-left corner: a fixed point ON the box, so orbiting moves it exactly with
+			// its group, and it faces the camera, so the text always reads.
+			e.label.object.position.set(b.cx - b.sx / 2, b.cy + b.sy / 2, b.cz);
 		}
 		for (const [key, e] of this.enclosuresMap) {
 			if (byKey.has(key)) continue;
@@ -237,6 +237,11 @@ export class EnclosureController {
 	/** Recolour the area titles in place under a theme change: a graphData re-feed would reheat the layout. */
 	recolorLabels(color: string): void {
 		for (const e of this.enclosuresMap.values()) e.label.color = color;
+	}
+
+	/** The area titles, which the scene turns to the camera each frame. */
+	labels(): Iterable<LabelVisual> {
+		return [...this.enclosuresMap.values()].map((e) => e.label);
 	}
 
 	/** Teardown: drop the boxes + the shared geometries (the component's overlays already disposed their own copies). */
