@@ -97,10 +97,12 @@ export class ShuActivityHistory extends ShuElement<typeof EmptyStateSchema> {
 		this.#follow.stick();
 	}
 
-	#jumpToEnd(): void {
+	/** Scroll to the end on the next frame. A plain container holds every row it renders, so the jump always reaches its end. */
+	#jumpToEnd(): boolean {
 		requestAnimationFrame(() => {
 			this.scrollTop = this.scrollHeight;
 		});
+		return true;
 	}
 
 	/** This control returns a paused reader to the end. It exists for the view's life and stays hidden while the view follows. */

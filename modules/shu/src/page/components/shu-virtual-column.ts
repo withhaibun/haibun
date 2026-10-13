@@ -231,15 +231,25 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 	}
 
 	/** The follow kit's jump-to-live-edge for this virtualized scroller: put the last row at the bottom of the viewport.
-	 *  Always the virtualizer's own scrollToIndex, never a raw scrollTop (which conflicts with its scroll management). The target
-	 *  is convergeTarget's two-gait choice (see virtual-column-model.ts), re-driven by #onVisibility until the window
-	 *  caches the last row. */
-	#scrollToEnd(): void {
-		const el = this.#virt.value;
+	 *  Always the virtualizer's own scrollToIndex, never a raw scrollTop (which conflicts with its scroll management). The
+	 *  target is convergeTarget's two-gait choice, re-driven by #onVisibility until the window caches the last row. Returns
+	 *  whether the virtualizer holds the target. The target comes from the source's count, and the virtualizer takes in
+	 *  that count on its own update, so it ignores a target past the rows it holds, and #onRange issues the jump again. */
+	#scrollToEnd(): boolean {
 		const n = this.source?.count() ?? 0;
-		if (!el || n === 0) return;
-		el.scrollToIndex(convergeTarget(this.#window, n), "end");
+		if (n === 0) return true;
+		const el = this.#virt.value;
+		const target = convergeTarget(this.#window, n);
+		if (!el?.element(target)) return false;
+		el.scrollToIndex(target, "end");
+		return true;
 	}
+
+	/** The virtualizer took in rows, which it reports as a changed range. The follow kit issues again a jump that targeted
+	 *  a row the virtualizer didn't hold. Deferred until the update settles, as #onVisibility defers its jumps. */
+	#onRange = (): void => {
+		void this.updateComplete.then(() => this.#follow.rowsArrived());
+	};
 
 	/** The placeholder items array of length `count`, memoized so scrolling a million-row column never rebuilds it; the
 	 *  virtualizer reads only the visible indices, so a sparse array of that length is small. */
@@ -448,6 +458,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 				.keyFunction=${(_: unknown, i: number) => i}
 				.renderItem=${(_: unknown, i: number) => this.renderRow(i, this.source?.rowAt(i))}
 				@visibilityChanged=${this.#onVisibility}
+				@rangeChanged=${this.#onRange}
 			></lit-virtualizer>
 			${rail}`;
 	}
