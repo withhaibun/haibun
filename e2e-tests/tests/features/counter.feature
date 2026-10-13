@@ -15,8 +15,8 @@ Scenario: A form and counter
     When I enter username into user name
     And I click Submit
 
-    Then the URI query parameter "username" is username
     Then save URI query parameter "username" to "username parameter"
+    And variable "username parameter" is username
     Then matches WebPlaywright.currentURI with "{counter URI}*"
     And I should see username
     And the cookie "userid" is username

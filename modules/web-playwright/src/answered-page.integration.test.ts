@@ -12,9 +12,9 @@ import { answeredFor } from "@haibun/core/lib/call-step.js";
 import { allocateSyntheticSeqPath } from "@haibun/core/lib/host-id.js";
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
 import StorageMem from "@haibun/storage-mem/storage-mem.js";
-import WebPlaywright from "./web-playwright.js";
-import { BrowserFactory } from "./BrowserFactory.js";
-import { READS_THE_PAGE } from "./actions.js";
+import WebPlaywright from "./web-playwright-stepper.js";
+import { BrowserFactory } from "./adapters/browser-factory.js";
+import { READS_THE_PAGE } from "./domains/actions.js";
 
 afterAll(async () => {
 	await BrowserFactory.closeBrowsers();
@@ -27,7 +27,7 @@ const CALLS_THE_PAGE = "handing out the page's snapshot and its button's referen
 const REFERENCE = /\[ref=(e\d+)\]/;
 const answered: { clicked?: TStepResult; asked?: TStepResult } = {};
 
-/** Calls WebPlaywright's steps by name, as a model's tool call is made, and answers them as the turn does. */
+/** Calls WebPlaywright's steps by name, as a model's tool call does, and reads their results as the turn does. */
 class CallerProbe extends AStepper {
 	description = "Calls WebPlaywright's steps by name, as a model's tool call does.";
 	steps = {
@@ -54,7 +54,7 @@ class CallerProbe extends AStepper {
 }
 
 describe("an action a model calls", () => {
-	it("is answered with the page it left, whose snapshot names the reference a click takes, and a step dispatched alone answers without it", { timeout: 20_000 }, async () => {
+	it("returns the page it left, whose snapshot names the reference a click takes, and a step dispatched alone returns without it", { timeout: 20_000 }, async () => {
 		const server = createServer((_request, response) => response.end(`<title>a page</title><button onclick="document.title='${PRESSED}'">Press</button>`));
 		await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 		const { port } = server.address() as AddressInfo;
@@ -66,8 +66,8 @@ describe("an action a model calls", () => {
 			});
 			expect(res.ok, JSON.stringify(res.failure ?? res.featureResults?.[0]?.stepResults.filter((step) => !step.ok)).slice(0, 600)).toBe(true);
 			expect(answered.asked?.ok, "the click passes").toBe(true);
-			expect(answered.asked?.products, "and its step answers without reading the page").toBeUndefined();
-			expect(answered.clicked?.products?.title, "a caller is answered with the page it left").toBe(PRESSED);
+			expect(answered.asked?.products, "and its step returns without reading the page").toBeUndefined();
+			expect(answered.clicked?.products?.title, "a caller receives the page it left").toBe(PRESSED);
 			expect(String(answered.clicked?.products?.snapshot), "a snapshot of it").toMatch(REFERENCE);
 		} finally {
 			server.close();

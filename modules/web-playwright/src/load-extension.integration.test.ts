@@ -12,8 +12,8 @@ import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import { DEFAULT_DEST } from "@haibun/core/schema/protocol.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import StorageMem from "@haibun/storage-mem/storage-mem.js";
-import WebPlaywright from "./web-playwright.js";
-import { BrowserFactory } from "./BrowserFactory.js";
+import WebPlaywright from "./web-playwright-stepper.js";
+import { BrowserFactory } from "./adapters/browser-factory.js";
 
 const EXTENSION = path.resolve(import.meta.dirname, "../test/browser-extension");
 const steppers = [WebPlaywright, VariablesStepper, StorageMem];

@@ -3,9 +3,15 @@
 	"type": "module",
 	"version": "4.0.0-alpha.3",
 	"description": "",
-	"main": "build/web-playwright.js",
+	"main": "build/web-playwright-stepper.js",
 	"exports": {
-		".": "./build/web-playwright.js",
+		".": "./build/web-playwright-stepper.js",
+		"./web-playwright.js": "./build/web-playwright-stepper.js",
+		"./actions.js": "./build/domains/actions.js",
+		"./domains.js": "./build/domains/web-playwright.js",
+		"./BrowserFactory.js": "./build/adapters/browser-factory.js",
+		"./relay-client/relay-channel.js": "./build/relay-client/adapters/relay-channel.js",
+		"./relay-client/relayConnection.js": "./build/relay-client/root.js",
 		"./*": "./build/*"
 	},
 	"files": [

@@ -1,0 +1,276 @@
+/** The browser's domains: the ways a step locates an element, what reading a page and a response returns, the HTTP and network records the page's observer keeps, and the options a step takes. */
+import { HYPERMEDIA } from "@haibun/core/schema/protocol.js";
+import { RecordSchema, RecordsSchema } from "@haibun/core/lib/json-text.js";
+import { z } from "zod";
+import {
+	Access,
+	ENDPOINT_LABEL,
+	HTTP_CLIENT_LABEL,
+	HTTP_HOST_LABEL,
+	HTTP_REQUEST_LABEL,
+	LinkRelations,
+	PersistedVertexSchema,
+	TDomainDefinition,
+} from "@haibun/core/lib/resources.js";
+import { asDomainKey, createEnumDomainDefinition, NameSchema } from "@haibun/core/lib/domains.js";
+import { ENDPOINT_CLASS } from "@haibun/core/lib/http-observations.js";
+import {
+	BrowserTabSchema,
+	BrowserTabTextSchema,
+	BrowserTabsSchema,
+	DOMAIN_BROWSER_TAB,
+	DOMAIN_BROWSER_TABS,
+	DOMAIN_BROWSER_TAB_TEXT,
+	DOMAIN_RELAY_ATTACHMENT,
+	RelayAttachmentSchema,
+} from "./relay.js";
+
+/** A page the browser opened by navigation. */
+export const VISITED_PAGE_LABEL = "VisitedPage";
+
+export const DOMAIN_PAGE_LOCATOR = "page-locator";
+export const DOMAIN_PAGE_TEST_ID = "page-test-id";
+export const DOMAIN_PAGE_LABEL = "page-label";
+export const DOMAIN_PAGE_PLACEHOLDER = "page-placeholder";
+export const DOMAIN_PAGE_ROLE = "page-role";
+export const DOMAIN_PAGE_TITLE = "page-title";
+export const DOMAIN_PAGE_ALT_TEXT = "page-alt-text";
+/** Text a page shows, located by `getByText` with an exact match. */
+export const DOMAIN_PAGE_TEXT = "page-text";
+/** The locator domains. Each selects a Playwright `getBy` method, and each is a member of the page-target union. */
+const PAGE_LOCATOR_DOMAINS = [
+	DOMAIN_PAGE_ALT_TEXT,
+	DOMAIN_PAGE_LABEL,
+	DOMAIN_PAGE_LOCATOR,
+	DOMAIN_PAGE_PLACEHOLDER,
+	DOMAIN_PAGE_ROLE,
+	DOMAIN_PAGE_TEST_ID,
+	DOMAIN_PAGE_TEXT,
+	DOMAIN_PAGE_TITLE,
+];
+/** An element on a page, identified by a value of any locator domain. A literal is page text. */
+export const DOMAIN_PAGE_TARGET = asDomainKey([...PAGE_LOCATOR_DOMAINS]);
+/** A key as Playwright names it, such as Enter or Control+A. */
+export const DOMAIN_KEYBOARD_KEY = "keyboard-key";
+/** The name of a cookie a page holds. */
+export const DOMAIN_COOKIE_NAME = "cookie-name";
+/** The name of a parameter of a page's address query, as the line writes it. */
+export const DOMAIN_QUERY_PARAMETER = "query-parameter";
+/** A media type, such as application/json. */
+export const DOMAIN_MEDIA_TYPE = "media-type";
+/** A property of a JSON response's members, by name. */
+export const DOMAIN_JSON_PROPERTY = "json-property";
+
+const locatorSchema = z.string().min(1, "locator cannot be empty");
+const PageContentsSchema = z.object({ html: z.string() });
+const AccessibilitySnapshotSchema = z.object({
+	url: z.string(),
+	title: z.string(),
+	snapshot: z.string().describe("The page's aria snapshot, in YAML, each element with its reference, such as [ref=e2]."),
+	[HYPERMEDIA.LINKS]: z.record(z.string(), z.object({ method: z.string() }).strict()),
+});
+const RestJsonCountSchema = z.object({ summary: z.string(), details: z.object({ count: z.number() }) });
+/** The domains of what reading a page and a JSON response return. */
+export const DOMAIN_PAGE_CONTENTS = "page-contents";
+export const DOMAIN_ACCESSIBILITY_SNAPSHOT = "accessibility-snapshot";
+export const DOMAIN_JSON_RESPONSE_COUNT = "json-response-count";
+/** The domain of an extension loaded into the browser actuality launches: its id and the origin of its pages. */
+export const DOMAIN_BROWSER_EXTENSION = "browser-extension";
+const BrowserExtensionSchema = z.object({ id: z.string(), origin: z.string() });
+/** The domain of an extension the browser runs: its worker, where it declares one, and the side panel its toolbar button
+ *  opens, where it declares one. */
+export const DOMAIN_RUNNING_BROWSER_EXTENSION = "running-browser-extension";
+const RunningBrowserExtensionSchema = BrowserExtensionSchema.extend({
+	worker: z.string().optional(),
+	sidePanel: z.object({ path: z.string(), opensOnAction: z.boolean() }).optional(),
+});
+
+const HTTP_NS = { http: "http://www.w3.org/2011/http#" };
+const httpRequestSchema = PersistedVertexSchema.extend({
+	id: z.string(),
+	method: z.string().optional(),
+	status: z.number().optional(),
+	durationMs: z.number().optional(),
+	url: z.string().optional(),
+	endpointClass: z.enum([ENDPOINT_CLASS.route, ENDPOINT_CLASS.service, ENDPOINT_CLASS.external]).optional(),
+	generatedAtTime: z.string(),
+});
+const httpClientSchema = PersistedVertexSchema.extend({ id: z.string(), name: z.string().optional(), generatedAtTime: z.string() });
+const httpHostSchema = PersistedVertexSchema.extend({ id: z.string(), name: z.string().optional(), requestCount: z.number().optional(), generatedAtTime: z.string() });
+const visitedPageSchema = PersistedVertexSchema.extend({ id: z.string(), name: z.string().optional(), generatedAtTime: z.string() });
+
+/** The HTTP methods a request is made with: those that send a body, and those that don't. */
+export const HTTP_METHODS_WITH_BODY = ["POST", "PUT", "PATCH"] as const;
+const HTTP_METHODS_WITHOUT_BODY = ["GET", "DELETE", "HEAD"] as const;
+export const DOMAIN_HTTP_METHOD = "http-method";
+export const DOMAIN_HTTP_METHOD_WITH_BODY = "http-method-with-body";
+export const DOMAIN_HTTP_METHOD_WITHOUT_BODY = "http-method-without-body";
+/** The ways to find what a click presses, each a way to read the page. */
+const FIND_WAYS = ["alt text", "test id", "placeholder", "role", "label", "title", "text", "reference"] as const;
+export type TFindWay = (typeof FIND_WAYS)[number];
+export const DOMAIN_FIND_WAY = "page-find-way";
+/** The fate of the requests a page makes to a URL: refused, held without a response, or allowed. */
+export const REQUEST_STATE = { blocked: "blocked", unanswered: "unanswered", allowed: "allowed" } as const;
+export const DOMAIN_REQUEST_STATE = "request-state";
+/** What a dialog a page opened holds, as the step that accepts it keeps it. */
+export const DialogSaysSchema = z.object({ defaultValue: z.string(), message: z.string(), type: z.string() });
+const DIALOG_FIELDS = DialogSaysSchema.keyof().options;
+export type TDialogField = (typeof DIALOG_FIELDS)[number];
+export const DOMAIN_DIALOG_FIELD = "dialog-field";
+/** The browsers actuality drives. */
+export const BROWSER_TYPES = ["firefox", "chromium", "webkit"] as const;
+export type TBrowserTypes = (typeof BROWSER_TYPES)[number];
+export const DOMAIN_BROWSER_TYPE = "browser-type";
+/** A URL pattern as a page routes requests by it: `*` within a path segment, `**` across segments. */
+export const DOMAIN_URL_GLOB = "url-glob";
+
+/** A JSON response's body: a record, or a list of records. */
+const JsonResponseSchema = z.union([RecordSchema, RecordsSchema]);
+export type TJsonResponse = z.infer<typeof JsonResponseSchema>;
+
+/** A response as a step captured it, which actuality keeps as JSON text in a variable. */
+export const CapturedResponseSchema = z.object({
+	status: z.number(),
+	statusText: z.string(),
+	headers: z.record(z.string(), z.string()),
+	url: z.string(),
+	/** The body read as JSON, absent where it isn't JSON. */
+	json: JsonResponseSchema.optional(),
+	text: z.string(),
+	filtered: RecordsSchema.optional(),
+});
+export type TCapturedResponse = z.infer<typeof CapturedResponseSchema>;
+
+/** The lists of the last response a step counts: its JSON body, or the members a filter kept. */
+export const RESPONSE_LISTS = { json: "JSON", filtered: "filtered" } as const;
+export type TResponseList = (typeof RESPONSE_LISTS)[keyof typeof RESPONSE_LISTS];
+export const DOMAIN_RESPONSE_LIST = "response-list";
+
+export const WebPlaywrightDomains: TDomainDefinition[] = [
+	createEnumDomainDefinition({ name: DOMAIN_HTTP_METHOD, values: [...HTTP_METHODS_WITHOUT_BODY, ...HTTP_METHODS_WITH_BODY], description: "An HTTP method a request is made with" }),
+	createEnumDomainDefinition({ name: DOMAIN_HTTP_METHOD_WITH_BODY, values: [...HTTP_METHODS_WITH_BODY], description: "An HTTP method whose request sends a body" }),
+	createEnumDomainDefinition({ name: DOMAIN_HTTP_METHOD_WITHOUT_BODY, values: [...HTTP_METHODS_WITHOUT_BODY], description: "An HTTP method whose request doesn't send a body" }),
+	createEnumDomainDefinition({
+		name: DOMAIN_FIND_WAY,
+		values: [...FIND_WAYS],
+		description: "A way to find what a click presses; a reference is one an accessibility snapshot names, such as e2",
+	}),
+	createEnumDomainDefinition({
+		name: DOMAIN_REQUEST_STATE,
+		values: Object.values(REQUEST_STATE),
+		description: "Whether the requests a page makes are refused, held without a response, or allowed",
+	}),
+	createEnumDomainDefinition({
+		name: DOMAIN_DIALOG_FIELD,
+		values: [...DIALOG_FIELDS],
+		description: "What a dialog a page opened holds: its default value, its message or its type",
+	}),
+	createEnumDomainDefinition({ name: DOMAIN_BROWSER_TYPE, values: [...BROWSER_TYPES], description: "A browser actuality drives" }),
+	createEnumDomainDefinition({
+		name: DOMAIN_RESPONSE_LIST,
+		values: Object.values(RESPONSE_LISTS),
+		description: "A list of the last response: its JSON body, or the members a filter kept",
+	}),
+	{ selectors: [DOMAIN_URL_GLOB], schema: NameSchema, description: "A URL pattern as a page routes requests by it: * within a path segment, ** across segments" },
+	{ selectors: [DOMAIN_PAGE_CONTENTS], schema: PageContentsSchema, description: "A page's markup, as the browser holds it" },
+	{ selectors: [DOMAIN_ACCESSIBILITY_SNAPSHOT], schema: AccessibilitySnapshotSchema, description: "A page as its accessibility tree reads, with the steps that act on it" },
+	{ selectors: [DOMAIN_JSON_RESPONSE_COUNT], schema: RestJsonCountSchema, description: "How many entries the last JSON response held" },
+	{
+		selectors: [DOMAIN_BROWSER_EXTENSION],
+		schema: BrowserExtensionSchema,
+		description: "An extension loaded into the browser actuality launches, and the origin its pages are at",
+	},
+	{
+		selectors: [DOMAIN_RUNNING_BROWSER_EXTENSION],
+		schema: RunningBrowserExtensionSchema,
+		description: "An extension the browser runs: its worker, and the side panel its toolbar button opens",
+	},
+	{ selectors: [DOMAIN_RELAY_ATTACHMENT], schema: RelayAttachmentSchema, description: "What the browser relay holds: a person's attached browser, its holder and its tabs" },
+	{ selectors: [DOMAIN_BROWSER_TAB], schema: BrowserTabSchema, description: "A tab open in the attached browser: its id, title and address" },
+	{ selectors: [DOMAIN_BROWSER_TABS], schema: BrowserTabsSchema, description: "Every tab open in the attached browser" },
+	{ selectors: [DOMAIN_BROWSER_TAB_TEXT], schema: BrowserTabTextSchema, description: "A tab of the attached browser and the text its page shows" },
+	{
+		selectors: [HTTP_REQUEST_LABEL],
+		schema: httpRequestSchema,
+		description: "An HTTP request observed on the network: one record of a client, the site, or an external host exchanging a message.",
+		topology: {
+			persistedAs: HTTP_REQUEST_LABEL,
+			accessLevel: Access.private,
+			instrumentation: true,
+			type: "http:Request",
+			id: "id",
+			namespaces: HTTP_NS,
+			properties: {
+				id: LinkRelations.IDENTIFIER.rel,
+				method: LinkRelations.TAG.rel,
+				status: LinkRelations.TAG.rel,
+				durationMs: LinkRelations.TAG.rel,
+				url: LinkRelations.URL.rel,
+				endpointClass: LinkRelations.TAG.rel,
+			},
+			// The browser performs a request, or the site does where it requests something itself; a request targets the
+			// endpoint of this site it reached, or the external host that received it.
+			edges: {
+				performedBy: { rel: LinkRelations.PERFORMED_BY.rel, range: [HTTP_CLIENT_LABEL, HTTP_HOST_LABEL] },
+				target: { rel: LinkRelations.AS_TARGET.rel, range: [ENDPOINT_LABEL, HTTP_HOST_LABEL] },
+			},
+			// This type doesn't declare a displayLabel: the id ("GET /path") is the title; status and duration are fields, not a stored summary copy.
+		},
+	},
+	{
+		selectors: [HTTP_CLIENT_LABEL],
+		schema: httpClientSchema,
+		description: "The requesting party: the browser (user agent) that calls the site's routes and external resources.",
+		topology: {
+			persistedAs: HTTP_CLIENT_LABEL,
+			accessLevel: Access.private,
+			instrumentation: true,
+			type: "as:Application",
+			id: "id",
+			properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel },
+			displayLabel: "name",
+		},
+	},
+	{
+		selectors: [HTTP_HOST_LABEL],
+		schema: httpHostSchema,
+		description: "A host seen on the network, with how many requests reached it (the http-trace hosts aggregate).",
+		topology: {
+			persistedAs: HTTP_HOST_LABEL,
+			accessLevel: Access.private,
+			instrumentation: true,
+			type: "as:Service",
+			id: "id",
+			properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, requestCount: LinkRelations.TAG.rel },
+			displayLabel: "name",
+		},
+	},
+	{
+		selectors: [VISITED_PAGE_LABEL],
+		schema: visitedPageSchema,
+		description: "A page the browser navigated to during actuality, keyed by a per-navigation synthetic id; its name is the page URL.",
+		topology: {
+			persistedAs: VISITED_PAGE_LABEL,
+			accessLevel: Access.private,
+			instrumentation: true,
+			type: "schema:WebPage",
+			id: "id",
+			properties: { id: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel },
+			displayLabel: "name",
+		},
+	},
+	{ selectors: [DOMAIN_PAGE_LOCATOR], schema: locatorSchema, description: "Playwright selector such as css= or text=" },
+	{ selectors: [DOMAIN_PAGE_TEXT], schema: locatorSchema, description: "Text a page shows, located by getByText with an exact match" },
+	{ selectors: [...PAGE_LOCATOR_DOMAINS], schema: locatorSchema, description: "An element on a page, identified by a value of any locator domain; a literal is page text" },
+	{ selectors: [DOMAIN_KEYBOARD_KEY], schema: NameSchema, description: "A key as Playwright names it, such as Enter or Control+A" },
+	{ selectors: [DOMAIN_COOKIE_NAME], schema: NameSchema, description: "The name of a cookie a page holds" },
+	{ selectors: [DOMAIN_QUERY_PARAMETER], schema: NameSchema, written: true, description: "The name of a parameter of a page's address query, as the line writes it" },
+	{ selectors: [DOMAIN_MEDIA_TYPE], schema: z.string().regex(/^[\w.+-]+\/[\w.+*-]+/, "isn't a media type"), description: "A media type, such as application/json" },
+	{ selectors: [DOMAIN_JSON_PROPERTY], schema: NameSchema, description: "A property of a JSON response's members, by name" },
+	{ selectors: [DOMAIN_PAGE_TEST_ID], schema: locatorSchema, description: "Playwright getByTestId selector (data-testid attribute)" },
+	{ selectors: [DOMAIN_PAGE_LABEL], schema: locatorSchema, description: "Playwright getByLabel selector (label text)" },
+	{ selectors: [DOMAIN_PAGE_PLACEHOLDER], schema: locatorSchema, description: "Playwright getByPlaceholder selector (placeholder text)" },
+	{ selectors: [DOMAIN_PAGE_ROLE], schema: locatorSchema, description: "Playwright getByRole selector (ARIA role)" },
+	{ selectors: [DOMAIN_PAGE_TITLE], schema: locatorSchema, description: "Playwright getByTitle selector (title attribute)" },
+	{ selectors: [DOMAIN_PAGE_ALT_TEXT], schema: locatorSchema, description: "Playwright getByAltText selector (alt attribute)" },
+];

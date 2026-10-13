@@ -4,14 +4,15 @@
  * refused, stating which tab and why. Run against a real Chromium through the chrome.* fake, over an in-memory channel.
  */
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import type { TRelayMessage } from "../relay/relay-wire.js";
-import type { Tab } from "../relay/protocol.js";
+import type { TRelayMessage } from "../adapters/relay-wire.js";
+import type { Tab } from "../ports.js";
 import { ChromeOverCdp } from "./chrome.test-fake.js";
-import { RelayConnection, type TRelayChannel } from "./relayConnection.js";
+import type { TRelayChannel } from "./ports.js";
+import { RelayConnection } from "./root.js";
 
 let chrome: ChromeOverCdp;
 
-/** An in-memory channel: the relay's commands in, and each answer and event the extension sends. */
+/** An in-memory channel: the relay's commands in, and each result and event the extension sends. */
 function channelled() {
 	const sent: TRelayMessage[] = [];
 	const answers = new Map<number, (message: TRelayMessage) => void>();
@@ -24,7 +25,7 @@ function channelled() {
 		close: () => undefined,
 	};
 	let nextId = 1;
-	/** Send a command the way the relay does, and resolve with the extension's answer. */
+	/** Sends a command the way the relay does, and resolves with the extension's result. */
 	const command = (method: string, params: unknown[]) =>
 		new Promise<TRelayMessage>((resolve) => {
 			const id = nextId++;

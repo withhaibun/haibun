@@ -12,9 +12,10 @@ import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { HTTP_REQUEST_LABEL } from "@haibun/core/lib/resources.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import StorageMem from "@haibun/storage-mem/storage-mem.js";
-import WebPlaywright from "./web-playwright.js";
-import { BrowserFactory } from "./BrowserFactory.js";
-import { VISITED_PAGE_LABEL } from "./domains.js";
+import WebPlaywright from "./web-playwright-stepper.js";
+import { BrowserFactory } from "./adapters/browser-factory.js";
+import { browserPorts } from "./root.js";
+import { VISITED_PAGE_LABEL } from "./domains/web-playwright.js";
 
 const PAGE = `<title>owned</title><button onclick="this.textContent='pressed'">press me</button>`;
 const moduleOptions = { [getStepperOptionName(WebPlaywright, "STORAGE")]: "StorageMem", [getStepperOptionName(WebPlaywright, "HEADLESS")]: "true" };
@@ -77,12 +78,18 @@ describe("connect to the browser at {endpoint}", () => {
 	});
 
 	it("connects again when the connection ends outside actuality, rather than keeping the ended one", { timeout: 30_000 }, async () => {
-		const factory = BrowserFactory.getBrowserFactory(getDefaultWorld(), { options: {}, browserType: chromium, launchOptions: {}, cdp: endpoint });
-		const ended = await factory.getBrowser();
-		await ended.close();
-		const next = await factory.getBrowser();
+		const unobserved = { request: () => undefined, response: () => undefined, navigated: () => undefined };
+		const options = { options: {}, browserType: "chromium" as const, launchOptions: { headless: true, devtools: false, args: [] }, cdp: endpoint };
+		const pages = browserPorts(
+			getDefaultWorld(),
+			() => options,
+			() => unobserved,
+		).openPages();
+		const ended = (await pages.page(0, 0)).context().browser();
+		await ended?.close();
+		const next = (await pages.page(0, 0)).context().browser();
 		expect(next).not.toBe(ended);
-		expect(next.isConnected()).toBe(true);
+		expect(next?.isConnected()).toBe(true);
 		expect(ownersPage.isClosed(), "ending a connection doesn't close the owner's page").toBe(false);
 	});
 
@@ -105,7 +112,7 @@ describe("connect to the browser at {endpoint}", () => {
 			moduleOptions: options,
 		});
 		const failed = res.featureResults?.[0]?.stepResults.find((step) => !step.ok);
-		expect(JSON.stringify(failed)).toContain(`takes no ${WebPlaywright.PERSISTENT_DIRECTORY}`);
+		expect(JSON.stringify(failed)).toContain(`ignores ${WebPlaywright.PERSISTENT_DIRECTORY}`);
 	});
 
 	it("refuses to connect once a step has opened a page of a launched browser", { timeout: 30_000 }, async () => {

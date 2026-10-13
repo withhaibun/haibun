@@ -6,8 +6,8 @@
  */
 import { chromium, type Browser } from "playwright";
 import { freePort } from "@haibun/core/lib/test/lib.js";
-import type { Debuggee, DebuggerSession, Tab } from "../relay/protocol.js";
-import type { TChromeApi } from "./relayConnection.js";
+import type { Debuggee, DebuggerSession, Tab } from "../ports.js";
+import type { TChromeApi } from "./ports.js";
 
 type TListener<A extends unknown[]> = (...args: A) => void;
 
@@ -35,7 +35,7 @@ export class ChromeOverCdp implements TChromeApi {
 	private pages = new Map<number, TTargetInfo>();
 	private tabOfTarget = new Map<string, number>();
 	private sessionOfTab = new Map<number, string>();
-	/** Each CDP session the fake knows, and the tab it belongs to: the tab's own session, or a child of it. */
+	/** Each CDP session the fake holds, and the tab that holds it: the tab's own session, or a child of it. */
 	private tabOfSession = new Map<string, { tabId: number; child: boolean }>();
 	private discovering = true;
 
@@ -61,7 +61,7 @@ export class ChromeOverCdp implements TChromeApi {
 			detach: async ({ tabId }) => {
 				const sessionId = this.sessionOfTab.get(this.known(tabId));
 				if (!sessionId) throw new Error(`Debugger is not attached to the tab with id: ${tabId}.`);
-				// Chrome doesn't fire onDetach for a detach the extension asked for, so the session is forgotten before it ends.
+				// Chrome doesn't fire onDetach for a detach the extension requested, so the fake drops the session before it ends.
 				this.sessionOfTab.delete(this.known(tabId));
 				this.tabOfSession.delete(sessionId);
 				await this.cdp("Target.detachFromTarget", { sessionId });
@@ -114,7 +114,7 @@ export class ChromeOverCdp implements TChromeApi {
 		const socket = new WebSocket(webSocketDebuggerUrl);
 		await new Promise<void>((resolve, reject) => {
 			socket.addEventListener("open", () => resolve(), { once: true });
-			socket.addEventListener("error", () => reject(new Error(`no DevTools Protocol at ${webSocketDebuggerUrl}`)), { once: true });
+			socket.addEventListener("error", () => reject(new Error(`the DevTools Protocol at ${webSocketDebuggerUrl} refused a connection`)), { once: true });
 		});
 		const chrome = new ChromeOverCdp(socket, browser);
 		await chrome.cdp("Target.setDiscoverTargets", { discover: true });
@@ -126,7 +126,7 @@ export class ChromeOverCdp implements TChromeApi {
 	/** The tab a person has open, which they hand to the relay. */
 	firstTab(): Tab {
 		const [tabId] = this.pages.keys();
-		if (tabId === undefined) throw new Error("the browser has no tab open");
+		if (tabId === undefined) throw new Error("the browser lacks an open tab");
 		return this.tab(tabId);
 	}
 
@@ -153,7 +153,7 @@ export class ChromeOverCdp implements TChromeApi {
 		if (!message.sessionId) return this.browserEvent(message.method ?? "", params);
 		const owner = this.tabOfSession.get(message.sessionId);
 		if (!owner) return;
-		// A child session a tab's own session attached belongs to the tab, and its events carry their session.
+		// A child session that a tab's own session attached is the tab's, and its events carry their session.
 		const child = (params as { sessionId?: string }).sessionId;
 		if (message.method === "Target.attachedToTarget" && child) this.tabOfSession.set(child, { tabId: owner.tabId, child: true });
 		this.events.onEvent.fire(owner.child ? { tabId: owner.tabId, sessionId: message.sessionId } : { tabId: owner.tabId }, message.method ?? "", params);

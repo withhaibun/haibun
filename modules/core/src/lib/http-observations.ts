@@ -1,7 +1,7 @@
 /**
  * HTTP observation types and helpers.
  *
- * A stepper that tracks HTTP activity calls these helpers. PlaywrightEvents records a page's requests through
+ * A stepper that tracks HTTP activity calls these helpers. web-playwright's page observer records a page's requests through
  * `trackHttpRequest`, and `trackOutboundRequest` records a request the instance makes.
  */
 

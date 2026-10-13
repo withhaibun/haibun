@@ -7,7 +7,7 @@ import path from "node:path";
 import { expectStepGraphAsRecorded } from "@haibun/core/lib/test/step-graph-baseline.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import StorageMem from "@haibun/storage-mem/storage-mem.js";
-import WebPlaywright from "./web-playwright.js";
+import WebPlaywright from "./web-playwright-stepper.js";
 
 describe("the typed step graph of web-playwright's steppers", () => {
 	it("has only the findings its baseline records", { timeout: 60_000 }, async () => {

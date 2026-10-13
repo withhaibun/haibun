@@ -6,8 +6,8 @@ import { failWithDefaults } from "@haibun/core/lib/test/lib.js";
 import { DEFAULT_DEST } from "@haibun/core/schema/protocol.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import StorageMem from "@haibun/storage-mem/storage-mem.js";
-import WebPlaywright from "./web-playwright.js";
-import { BrowserFactory } from "./BrowserFactory.js";
+import WebPlaywright from "./web-playwright-stepper.js";
+import { BrowserFactory } from "./adapters/browser-factory.js";
 
 afterAll(async () => {
 	await BrowserFactory.closeBrowsers();
@@ -15,7 +15,7 @@ afterAll(async () => {
 
 const moduleOptions = { [getStepperOptionName(WebPlaywright, "STORAGE")]: "StorageMem", [getStepperOptionName(WebPlaywright, "HEADLESS")]: "true" };
 
-describe("go to a webpage", () => {
+describe("the step that opens a webpage", () => {
 	it("resolves a relative link against the page it was read from, and refuses one a page doesn't give an address", { timeout: 20_000 }, async () => {
 		const NEXT = "/next?page=2";
 		const server = createServer((request, response) => response.end(request.url === NEXT ? "<p>the next page</p>" : "<p>the first page</p>"));

@@ -286,13 +286,6 @@
 		"fills a falsy value with a constant through ||": 1,
 		"states a parameter's default value": 1
 	},
-	"modules/lsp/src/lsp-stepper.ts": {
-		"fills a falsy value with a constant through ||": 12,
-		"fills an absent value with a constant through ??": 2
-	},
-	"modules/lsp/src/semantic-tokens.ts": {
-		"fills an absent value with a constant through ??": 3
-	},
 	"modules/monitor-otel/src/index.ts": {
 		"fills a falsy value with a constant through ||": 9,
 		"fills an absent value with a constant through ??": 1
@@ -474,29 +467,6 @@
 	},
 	"modules/utils/vcapture/docker-compose.yml": {
 		"states a compose variable's default value": 3
-	},
-	"modules/web-playwright/src/BrowserFactory.ts": {
-		"states a parameter's default value": 4
-	},
-	"modules/web-playwright/src/cycles.ts": {
-		"fills a falsy value with a constant through ||": 1,
-		"fills an absent value with a constant through ??": 1,
-		"states a destructured default value": 1
-	},
-	"modules/web-playwright/src/interactionSteps.ts": {
-		"fills a falsy value with a constant through ||": 3,
-		"fills an absent value with a constant through ??": 1
-	},
-	"modules/web-playwright/src/relay-client/relayConnection.ts": {
-		"fills an absent value with a constant through ??": 3
-	},
-	"modules/web-playwright/src/relay/cdpRelay.ts": {
-		"fills an absent value with a constant through ??": 1
-	},
-	"modules/web-playwright/src/web-playwright.ts": {
-		"fills a falsy value with a constant through ||": 3,
-		"fills an absent value with a constant through ??": 6,
-		"states a parameter's default value": 5
 	},
 	"modules/web-server-hono/src/auth.ts": {
 		"states a parameter's default value": 1

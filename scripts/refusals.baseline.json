@@ -12,9 +12,6 @@
 	"modules/core/src/steps/variables-stepper.ts": {
 		"relays a caught error without stating what failed": 4
 	},
-	"modules/web-playwright/src/interactionSteps.ts": {
-		"relays a caught error without stating what failed": 4
-	},
 	"modules/web-server-hono/src/capability-auth.ts": {
 		"names what a caller can act on without carrying a remedy": 1
 	},

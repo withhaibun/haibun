@@ -6,7 +6,7 @@ import { getPackageLocation } from "@haibun/core/lib/util/node/workspace-lib.js"
 import { getCreateSteppers } from "@haibun/core/lib/test/lib.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
-const me = path.join(getPackageLocation(import.meta).replace(/\/src$/, "/build"), "web-playwright");
+const me = path.join(getPackageLocation(import.meta).replace(/\/src$/, "/build"), "web-playwright-stepper");
 
 describe("playwrightWeb", () => {
 	it("sets up steps", async () => {
@@ -14,20 +14,4 @@ describe("playwrightWeb", () => {
 		expect(Object.keys(itemAt(steppers, 0).steps).length > 0).toBe(true);
 		expect(Object.values(itemAt(steppers, 0).steps).every((s) => !!s.action)).toBe(true);
 	});
-	/*
-	it('sets browser type and device', async () => {
-		const { world, featureStep, steppers } = await getTestEnv([me], 'using firefox.Pixel 5 browser', getDefaultWorld());
-		await FeatureExecutor.doFeatureStep(steppers, featureStep, world);
-		const webPlaywright = findStepper<any>(steppers, 'WebPlaywright');
-		const bf = webPlaywright.getBrowserFactory();
-
-		expect(bf.browserType.name()).toBe('firefox');
-		expect(bf.device).toBe('Pixel 5');
-	});
-	it('fails setting browser type and device', async () => {
-		const { world, featureStep, steppers } = await getTestEnv([me], 'using nonexistent browser', getDefaultWorld());
-		const result = await FeatureExecutor.doFeatureStep(steppers, featureStep, world);
-		expect(result.actionResult.ok).toBe(false);
-	});
-	*/
 });

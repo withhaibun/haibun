@@ -18,7 +18,7 @@ import ActivitiesStepper from "@haibun/core/steps/activities-stepper.js";
 import BlipsStepper from "@haibun/core/steps/blips-stepper.js";
 import GoalResolutionStepper from "@haibun/core/steps/goal-resolution-stepper.js";
 import UrakataStepper from "@haibun/core/steps/urakata-stepper.js";
-import WebPlaywright from "./web-playwright.js";
+import WebPlaywright from "./web-playwright-stepper.js";
 
 const steppers = createSteppers([
 	Haibun,

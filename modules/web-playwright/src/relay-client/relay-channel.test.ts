@@ -4,8 +4,8 @@
  * return.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { RELAY_OPEN_MS } from "../relay/relay-wire.js";
-import { openRelayChannel } from "./relay-channel.js";
+import { RELAY_OPEN_MS } from "../adapters/relay-wire.js";
+import { openRelayChannel } from "./adapters/relay-channel.js";
 import { answeringTheHandshake } from "@haibun/core/lib/test/rpc-answer.js";
 
 const BASE = "http://instance.test:8123";

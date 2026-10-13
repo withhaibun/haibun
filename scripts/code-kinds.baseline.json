@@ -361,12 +361,6 @@
 	"modules/domain-storage/src/image-artifact.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/lsp/src/lsp-stepper.ts": {
-		"performs I/O through setTimeout": 1
-	},
-	"modules/lsp/src/semantic-tokens.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/monitor-otel/src/index.ts": {
 		"isn't in a kind position": 1
 	},
@@ -455,57 +449,6 @@
 		"isn't in a kind position": 1
 	},
 	"modules/web-accessibility-axe/src/lib/report.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/web-playwright/src/actions.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/web-playwright/src/BrowserFactory.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/web-playwright/src/cycles.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/web-playwright/src/domains.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/web-playwright/src/interactionSteps.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/web-playwright/src/PlaywrightEvents.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/web-playwright/src/relay-client/relay-channel.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/web-playwright/src/relay-client/relayConnection.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/web-playwright/src/relay/browserModel.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/web-playwright/src/relay/cdpRelay.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/web-playwright/src/relay/cdpRelayV2.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/web-playwright/src/relay/protocol.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/web-playwright/src/relay/relay-methods.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/web-playwright/src/relay/relay-wire.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/web-playwright/src/rest-playwright.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/web-playwright/src/twin-page.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/web-playwright/src/web-playwright.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/web-server-hono/src/auth.ts": {

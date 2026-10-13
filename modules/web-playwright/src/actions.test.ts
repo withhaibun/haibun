@@ -5,8 +5,8 @@
 import { describe, expect, it } from "vitest";
 import { mayCall, readAction, requiredAction } from "@haibun/core/lib/actions.js";
 import { Access } from "@haibun/core/lib/resources.js";
-import WebPlaywright from "./web-playwright.js";
-import { READS_THE_PAGE, WEB_PLAYWRIGHT, WEB_PLAYWRIGHT_ACTIONS } from "./actions.js";
+import WebPlaywright from "./web-playwright-stepper.js";
+import { READS_THE_PAGE, WEB_PLAYWRIGHT, WEB_PLAYWRIGHT_ACTIONS } from "./domains/actions.js";
 
 const wp = new WebPlaywright();
 const step = (name: string) => {

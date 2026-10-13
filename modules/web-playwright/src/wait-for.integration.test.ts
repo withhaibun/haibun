@@ -7,10 +7,10 @@ import { DEFAULT_DEST } from "@haibun/core/schema/protocol.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import StorageMem from "@haibun/storage-mem/storage-mem.js";
-import WebPlaywright from "./web-playwright.js";
-import { BrowserFactory } from "./BrowserFactory.js";
+import WebPlaywright from "./web-playwright-stepper.js";
+import { BrowserFactory } from "./adapters/browser-factory.js";
 
-/** The bound a run states for what a page waits on. */
+/** The bound of a page's waits in these features. */
 const TIMEOUT_MS = 500;
 
 afterAll(async () => {
