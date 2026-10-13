@@ -3,8 +3,8 @@
  *
  * A scene is a named record of the durable options of one or more views, keyed by element tag. Capture and apply are
  * the ShuElement primitives (`captureSceneState` / `applySceneState`), so a scene holds exactly what a view already
- * remembers across a reload; this module carries scenes to and from the graph through the ordinary step RPC, the same
- * gate every other write goes through.
+ * persists across a reload; this module carries scenes to and from the graph through the ordinary step RPC, the same
+ * gate that carries every other write.
  */
 import { AccessLevelSchema } from "@haibun/core/lib/resources.js";
 import { sceneRecord, sceneType, scenesOf, type TScene, type TSceneState } from "../derivations/scenes.js";
@@ -13,8 +13,7 @@ import type { TCallOutcome } from "../../pipelines/call-step.js";
 import { SHU_TAG } from "../../../domains/elements.js";
 import type { ShuElement } from "../../components/shu-element.js";
 import { appAccessLevel } from "../../../view-query.js";
-import { listRecords } from "../../controllers/read-controller.js";
-import { callStep } from "../../controllers/read-controller.js";
+import { callStep, listRecords } from "../../controllers/read-controller.js";
 
 /** Read the durable options of the given views, keyed by tag: what a scene saves. */
 export function captureScene(views: Array<ShuElement<never> | (Element & { captureSceneState(): Record<string, unknown> })>): TSceneState {
@@ -34,7 +33,7 @@ export function applyScene(views: Array<Element & { applySceneState(fields: Reco
 }
 
 /**
- * The level to store a new record at, given what the reader is looking at. `all` relaxes the READ ceiling and is not a
+ * The level that stores a new record, given the level the reader is viewing. `all` relaxes the READ ceiling and is not a
  * level anything can be stored at, so it maps to undefined: saving under it wrote a record the schemas don't accept,
  * and the page didn't show the failure, so saving didn't appear to act.
  */
@@ -66,21 +65,29 @@ const EXCHANGE_IRIS = (iri: string): boolean => iri.startsWith("sec:") || iri ==
  * what it required and what allowed it, a principal naming its keys, a capability naming its controller. Then one hop
  * along those types' ACTOR edges only, who a thing came from and what it was directed at, the same edges the sequence
  * view reads as lifelines, so where a request went and who held a capability come with it, while what a record merely
- * carries (its bodies, its selectors) does not. This module doesn't name a type: a deployment's own vocabulary decides.
+ * carries (its bodies, its selectors) does not. This module doesn't name a type: a deployment's own vocabulary selects them.
  */
 export function networkSceneTypes(): string[] {
-	const declares = (label: string): boolean =>
-		Object.values(getRels(label) ?? {}).some((rel) => {
+	// A type the catalog states without rels doesn't declare a rel of the exchange.
+	const declares = (label: string): boolean => {
+		const rels = getRels(label);
+		if (rels === undefined) return false;
+		return Object.values(rels).some((rel) => {
 			const iri = getPropertyDefinition(rel)?.iri;
 			return !!iri && EXCHANGE_IRIS(iri);
 		});
+	};
 	const actorEdges = new Set([...fromActorEdgeLabels(), ...toActorEdgeLabels()]);
 	const seed = getTypes().filter(declares);
-	const reached = seed.flatMap((label) =>
-		Object.entries(getEdgeRanges(label) ?? {})
-			.filter(([edge]) => actorEdges.has(edge))
-			.flatMap(([, ranges]) => ranges),
-	);
+	// A seed type without edges doesn't reach another type.
+	const reached = seed.flatMap((label) => {
+		const edges = getEdgeRanges(label);
+		return edges === undefined
+			? []
+			: Object.entries(edges)
+					.filter(([edge]) => actorEdges.has(edge))
+					.flatMap(([, ranges]) => ranges);
+	});
 	return [...new Set([...seed, ...reached])].filter((label) => getTypes().includes(label)).sort();
 }
 
@@ -95,7 +102,7 @@ export function builtInScenes(): TScene[] {
 	return [{ id: NETWORK_SCENE, state: { [SHU_TAG.POLYMORPHIC_GRAPH_VIEW]: { viewType: "sequence" }, "shu-graph-filter": { overrides } } }];
 }
 
-/** The scenes saved here, newest first, for a reader to pick from. */
+/** The scenes saved here, newest first, which a reader picks among. */
 export async function listScenes(why: string): Promise<TScene[]> {
 	const saved = await savedScenes(why);
 	// A saved scene of the same name is the reader's own adjustment of it, so it wins; otherwise the built-in is there

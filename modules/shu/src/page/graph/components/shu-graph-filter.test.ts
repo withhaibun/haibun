@@ -1,12 +1,12 @@
 // @vitest-environment jsdom
 // The filter's two host modes: the main graph's legend: its groups of chips (types, properties) plus the instance-data
 // controls: and a schema-scoped host (data-schema-only, the class browser) carrying only the Class + Property chips
-// with an independent persistence scope. Chips are rendered by <shu-chip-group>, so a chip lives one shadow deeper.
+// with an independent persistence scope. Chips are rendered by <shu-chip-group>, so a chip is one shadow deeper.
 import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
 import { CLASS_LABEL, PROPERTY_LABEL } from "@haibun/core/lib/resources.js";
 import { SHU_EVENT } from "../../../domains/elements.js";
 import { describe, it, expect, beforeEach } from "vitest";
-import { ShuGraphFilter } from "./shu-graph-filter.js";
+import { MAIN_GRAPH_SCOPE, ShuGraphFilter } from "./shu-graph-filter.js";
 import { declareSpec } from "../../../test/catalog-fixture.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import "./shu-chip-group.js";
@@ -78,18 +78,18 @@ describe("shu-graph-filter host modes", () => {
 		expect(detail?.hiddenPredicates).toEqual([]);
 	});
 
-	it("soloing a SHOWN type leaves it shown: the solo tool answers the tick, it does not also hide what it soloed", async () => {
+	it("soloing a SHOWN type leaves it shown: the solo tool acts on the tick, it does not also hide what it soloed", async () => {
 		const el = await mount(false);
 		const emailBox = (): HTMLInputElement => {
 			const group = Array.from(el.shadowRoot?.querySelectorAll("shu-chip-group") ?? []).find((g) => g.getAttribute("name") === "types");
 			const chip = Array.from(group?.shadowRoot?.querySelectorAll("label.chip") ?? []).find((l) => (l.textContent ?? "").trim().startsWith("Email"));
 			const box = chip?.querySelector("input");
-			if (!box) throw new Error("no Email type chip to solo");
+			if (!box) throw new Error("the filter doesn't render an Email type chip to solo");
 			return box as HTMLInputElement;
 		};
 		expect(emailBox().checked).toBe(true); // shown to begin with: the case that broke
 		const solo = el.shadowRoot?.querySelector(`[data-testid='${SHU_TEST_IDS.GRAPH_FILTER.SOLO}']`) as HTMLButtonElement | null;
-		if (!solo) throw new Error("no solo tool to select");
+		if (!solo) throw new Error("the filter doesn't render a solo tool to select");
 		solo.click();
 		await flush();
 		emailBox().click(); // press the shown chip: solo it
@@ -105,13 +105,13 @@ describe("shu-graph-filter host modes", () => {
 			detail = e.detail;
 		}) as EventListener);
 		const solo = el.shadowRoot?.querySelector(`[data-testid='${SHU_TEST_IDS.GRAPH_FILTER.SOLO}']`) as HTMLButtonElement | null;
-		if (!solo) throw new Error("no solo tool to select");
+		if (!solo) throw new Error("the filter doesn't render a solo tool to select");
 		solo.click();
 		await flush();
 		const group = Array.from(el.shadowRoot?.querySelectorAll("shu-chip-group") ?? []).find((g) => g.getAttribute("name") === "properties");
 		const chip = Array.from(group?.shadowRoot?.querySelectorAll("label.chip") ?? []).find((l) => (l.textContent ?? "").trim().startsWith("inReplyTo"));
 		const box = chip?.querySelector("input") as HTMLInputElement | undefined;
-		if (!box) throw new Error("no inReplyTo property chip to solo");
+		if (!box) throw new Error("the filter doesn't render an inReplyTo property chip to solo");
 		box.click();
 		await flush();
 		expect(detail?.hiddenPredicates, "only the soloed predicate keeps its edges").toEqual(["references"]);
@@ -127,16 +127,16 @@ describe("shu-graph-filter host modes", () => {
 
 	it("a scoped host persists under its own key, never the shared one", () => {
 		// The static read is per scope: the shared store and the class browser's store are independent.
-		const shared = ShuGraphFilter.getPersistedFilter();
+		const shared = ShuGraphFilter.getPersistedFilter(MAIN_GRAPH_SCOPE);
 		const scoped = ShuGraphFilter.getPersistedFilter("class-browser");
 		expect(shared).toBeDefined();
 		expect(scoped).toBeDefined();
-		// Both start from defaults here; the contract under test is that the keys differ (persistKey honors the scope).
+		// Both start from the initial state here; the contract under test is that the keys differ (persistKey honors the scope).
 		const el = document.createElement("shu-graph-filter") as ShuGraphFilter;
 		el.dataset.persistScope = "class-browser";
 		expect((el as unknown as { persistKey: string }).persistKey).toBe("class-browser");
 		const plain = document.createElement("shu-graph-filter") as ShuGraphFilter;
-		expect((plain as unknown as { persistKey: string }).persistKey).toBe("");
+		expect((plain as unknown as { persistKey: string }).persistKey).toBe(MAIN_GRAPH_SCOPE);
 	});
 });
 

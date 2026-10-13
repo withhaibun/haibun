@@ -10,7 +10,7 @@
  * directly and derives the visible cluster list from the host's snapshot
  * (`knownClusters`) plus the time-filtered subset of the host's quads. Hosts
  * call `setSource` whenever the data changes; the filter handles cursor moves
- * on its own. The shared projection lives in `graph-filter-projection.ts`.
+ * on its own. The shared projection is `graph-filter-projection.ts`.
  *
  * Visible only when the host carries `show-controls`: the column-pane's
  * settings toggle is the single switch for revealing every settings surface.
@@ -38,18 +38,31 @@ import type { TChip } from "./shu-chip-group.js";
 import { counted } from "@haibun/core/lib/hypermedia.js";
 import { TimelineViewController } from "../../controllers/timeline-view-controller.js";
 import { clamp } from "../../derivations/layout.js";
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 
 const StateSchema = z.object({
 	// The user's EXPLICIT per-type visibility choices (true = shown, false = hidden). A type absent here follows the
 	// instrumentation-default predicate. Persisted, and combined with that default via effectiveHiddenTypes.
 	// Storing only deliberate choices, never a seeded default, is what lets a default change re-apply and prevents
 	// writing the default irreversibly into the user's cookie.
-	overrides: z.record(z.string(), z.boolean()).default({}),
+	overrides: z.record(z.string(), z.boolean()),
 	// The user's explicit per-PREDICATE visibility choices (false = the edges drawn for that predicate are hidden).
 	// A predicate absent here is shown; only deliberate choices are stored, exactly as with the type overrides.
-	predicateOverrides: z.record(z.string(), z.boolean()).default({}),
-	perTypeLimit: z.number().int().positive().default(DEFAULT_PER_TYPE_LIMIT),
+	predicateOverrides: z.record(z.string(), z.boolean()),
+	perTypeLimit: z.number().int().positive(),
 });
+
+/** The filter's state before a reader chooses: every type and predicate follows its default, at the default sample limit (CA4D7). */
+const FILTER_INITIAL_STATE: z.input<typeof StateSchema> = { overrides: {}, predicateOverrides: {}, perTypeLimit: DEFAULT_PER_TYPE_LIMIT };
+
+/** The persistence scope of the main graph's choices, which every host without its own `data-persist-scope` shares. */
+export const MAIN_GRAPH_SCOPE = "";
+
+/** The persistence scope an element states through `data-persist-scope`, or the main graph's where the attribute is absent. */
+export const persistScopeOf = (element: HTMLElement): string => {
+	const scope = element.dataset.persistScope;
+	return scope === undefined ? MAIN_GRAPH_SCOPE : scope;
+};
 
 export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 	/** The instant this view shows, which is the page's time cursor or the moment `data-snapshot-time` states. */
@@ -79,23 +92,23 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		`,
 	];
 
-	/** The hidden/limit choice is remembered across reloads (ShuElement.persistFields). The default key is shared by every
+	/** The hidden/limit choice persists across reloads (ShuElement.persistFields). The main graph's key is shared by every
 	 *  embedded filter of the main graph; a host whose choices must stay independent (a class browser scoped to the schema)
 	 *  sets `data-persist-scope`, giving its filter its own store. */
 	static persistFields = ["overrides", "predicateOverrides", "perTypeLimit"] as const;
 
 	protected override get persistKey(): string {
-		return this.dataset.persistScope ?? "";
+		return persistScopeOf(this);
 	}
 
 	/** Hosts read this before their first fetch so the persisted overrides apply on initial load (without a second round-trip).
 	 * Reads the same persistFields store the instance restores from (per `scope`, matching `data-persist-scope`). Hosts
 	 * combine these overrides with the instrumentation-default predicate via `effectiveHiddenTypes`: the default is
-	 * never persisted here. */
-	static getPersistedFilter(scope = ""): { overrides: Record<string, boolean>; hiddenPredicates: string[]; perTypeLimit: number } {
-		const saved = storedFields("shu-graph-filter", scope);
-		const parsed = StateSchema.safeParse(saved ?? {});
-		if (!parsed.success) return { overrides: {}, hiddenPredicates: [], perTypeLimit: DEFAULT_PER_TYPE_LIMIT };
+	 * never persisted here. A field the store doesn't hold keeps its initial state; stored fields the schema refuses throw,
+	 * as the instance's own restore does. */
+	static getPersistedFilter(scope: string): { overrides: Record<string, boolean>; hiddenPredicates: string[]; perTypeLimit: number } {
+		const parsed = StateSchema.safeParse({ ...FILTER_INITIAL_STATE, ...storedFields(SHU_TAG.GRAPH_FILTER, scope) });
+		if (!parsed.success) throw new Error(`the fields stored for <${SHU_TAG.GRAPH_FILTER}> don't match its schema (${errorDetail(parsed.error)}). Remove its cookie.`);
 		return { overrides: parsed.data.overrides, hiddenPredicates: explicitlyHidden(parsed.data.predicateOverrides), perTypeLimit: parsed.data.perTypeLimit };
 	}
 
@@ -106,8 +119,8 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 	private soloWaiting = false;
 
 	constructor() {
-		// persistFields restores overrides/perTypeLimit on connect; defaults until then.
-		super(StateSchema);
+		// persistFields restores overrides/perTypeLimit on connect; the initial state holds until then.
+		super(StateSchema, FILTER_INITIAL_STATE);
 	}
 
 	/**
@@ -161,7 +174,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 
 	private dispatchChange(): void {
 		// overrides/perTypeLimit persist automatically via setState (persistFields); the dispatch just notifies hosts, which
-		// combine the overrides with the instrumentation-default predicate (effectiveHiddenTypes) to decide what renders.
+		// combine the overrides with the instrumentation-default predicate (effectiveHiddenTypes) to derive what renders.
 		this.dispatchEvent(
 			new CustomEvent(SHU_EVENT.GRAPH_FILTER_CHANGE, {
 				detail: { overrides: this.state.overrides, hiddenPredicates: this.hiddenPredicates(), perTypeLimit: this.state.perTypeLimit },
@@ -190,14 +203,14 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		this.setPredicateVisibility([predicate], checked);
 	};
 
-	/** The tool acts once: it stops waiting as it answers, so the next chip press is an ordinary tick. */
+	/** The tool acts once: it stops waiting as it acts, so the next chip press is an ordinary tick. */
 	private endSoloWait(): void {
 		this.soloWaiting = false;
 		this.toggleAttribute("data-solo-waiting", false);
 		this.requestUpdate();
 	}
 
-	/** Show ONLY these predicates' edges: every other predicate in the data is hidden. The solo tool's answer for a
+	/** Show ONLY these predicates' edges: every other predicate in the data is hidden. The solo tool's action on a
 	 *  property chip, and the counterpart of setVisibleTypes. */
 	setVisiblePredicates(predicates: string[]): void {
 		const keep = new Set(predicates);
@@ -230,7 +243,7 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		this.dispatchChange();
 	};
 
-	/** A host-driven raise (the +N-more cluster expand) goes through the SAME change path a slider release takes:
+	/** A host-driven raise (the +N-more cluster expand) takes the SAME change path a slider release takes:
 	 *  the filter owns the limit, persists it, and its dispatch drives the host's one refetch handler. */
 	raiseLimitTo(perTypeLimit: number): void {
 		this.setState({ perTypeLimit: clamp(perTypeLimit, 1, MAX_PER_TYPE_LIMIT) });

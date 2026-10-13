@@ -4,7 +4,7 @@
  * edge properties, and each group-by-reference axis, so a chip behaves the same wherever it appears: tick to show,
  * untick to hide, hover to preview.
  *
- * It does NOT own state. The host supplies the chips and hears intent back through `onToggle`/`onPreview`; what a chip's
+ * It does NOT own state. The host supplies the chips and receives intent back through `onToggle`/`onPreview`; what a chip's
  * visibility means (a hidden type, a hidden predicate, a hidden axis value) is the host's business.
  */
 import { SHU_TAG } from "../../../domains/elements.js";
@@ -30,7 +30,7 @@ class ShuChipGroup extends ShuElement<z.ZodObject> {
 	/** The group's name, shown before the chips ("types", "properties", "group by role"). */
 	declare name: string;
 	declare chips: TChip[];
-	/** Reports a chip ticked or unticked. The host decides what visibility means. */
+	/** Reports a chip ticked or unticked. The host defines what visibility means. */
 	declare onToggle: (id: string, checked: boolean) => void;
 	/** Reports a chip hovered (id) or the hover ending (null). Optional: a group without a preview doesn't pass one. */
 	declare onPreview?: (id: string | null) => void;
@@ -60,7 +60,7 @@ class ShuChipGroup extends ShuElement<z.ZodObject> {
 	}
 
 	/** The host owns what a chip's state means, so the box is put back to what the host had before the report and only a
-	 *  host state change moves it. A host that intercepts the toggle (the graph filter's solo tool answers a tick by
+	 *  host state change moves it. A host that intercepts the toggle (the graph filter's solo tool handles a tick by
 	 *  showing that type ALONE) would otherwise leave the box showing a state the host didn't set: the browser has already
 	 *  flipped it, and the binding sees its value unchanged and doesn't write to the box. */
 	private toggle(chip: TChip, e: Event): void {

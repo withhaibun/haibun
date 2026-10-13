@@ -16,7 +16,7 @@ import { getRels, instrumentationTypes } from "../../controllers/catalog-control
 import { DEFAULT_PER_TYPE_LIMIT, MAX_PER_TYPE_LIMIT, type TReadCounts } from "../domains/snapshot.js";
 import { GraphDataController, currentSnapshot, mergeIntoSnapshots } from "../controllers/graph-data-controller.js";
 import { SubjectController } from "../../controllers/subject-controller.js";
-import { ShuGraphFilter } from "./shu-graph-filter.js";
+import { MAIN_GRAPH_SCOPE, ShuGraphFilter } from "./shu-graph-filter.js";
 import "./scene.js";
 import { type ShuGraphScene, type GraphSceneModel } from "./scene.js";
 import { effectiveHiddenTypes } from "../derivations/graph-filter.js";
@@ -54,20 +54,30 @@ const ClusterFieldSchema = z.object({
 
 /** The state fields every clustered-graph view shares; a subclass spreads this into its own `z.object({...})`. */
 export const clusteredGraphStateShape = {
-	quads: z.array(QuadFieldSchema).default([]),
-	clusters: z.array(ClusterFieldSchema).default([]),
+	quads: z.array(QuadFieldSchema),
+	clusters: z.array(ClusterFieldSchema),
 	/** The responding instance's site principal: the serving site of every subject a cluster's `sites` doesn't override. */
 	site: z.string().optional(),
-	perTypeLimit: z.number().int().positive().default(DEFAULT_PER_TYPE_LIMIT),
-	hiddenGraphs: z.array(z.string()).default([]),
+	perTypeLimit: z.number().int().positive(),
+	hiddenGraphs: z.array(z.string()),
 	// The predicates whose edges are hidden (the filter's properties group). Node visibility is per type; edge
 	// visibility is per predicate: the two travel together from the one filter.
-	hiddenPredicates: z.array(z.string()).default([]),
-	expandedGraphs: z.array(z.string()).default([]),
+	hiddenPredicates: z.array(z.string()),
+	expandedGraphs: z.array(z.string()),
 };
 
 const ClusteredGraphStateSchema = z.object(clusteredGraphStateShape);
 type TClusteredGraphState = z.infer<typeof ClusteredGraphStateSchema>;
+
+/** The state every clustered-graph view opens with, before its first read (CA4D7); a subclass spreads it into its own. */
+export const clusteredGraphInitialState = {
+	quads: [],
+	clusters: [],
+	perTypeLimit: DEFAULT_PER_TYPE_LIMIT,
+	hiddenGraphs: [],
+	hiddenPredicates: [],
+	expandedGraphs: [],
+} satisfies z.input<typeof ClusteredGraphStateSchema>;
 
 export abstract class ShuClusteredGraphView<T extends z.ZodObject<typeof clusteredGraphStateShape>> extends ShuElement<T> {
 	protected knownClusters = new Map<string, TCluster>();
@@ -78,10 +88,10 @@ export abstract class ShuClusteredGraphView<T extends z.ZodObject<typeof cluster
 	// instrumentation's default-hidden is re-applied every load and a toggle is the only thing that sticks.
 	private filterOverrides: Record<string, boolean> = {};
 
-	/** The persistence scope of this view's filter choices: "" (the main graph's shared store) by default; a scoped host
+	/** The persistence scope of this view's filter choices: the main graph's shared store by default; a scoped host
 	 *  (a class browser) overrides with its own name and sets the same value as `data-persist-scope` on its filter. */
 	protected get filterPersistScope(): string {
-		return "";
+		return MAIN_GRAPH_SCOPE;
 	}
 
 	/** The view's snapshot scope: "" (the shared main-graph snapshot) by default. A view with its own scope fetches and
@@ -126,16 +136,23 @@ export abstract class ShuClusteredGraphView<T extends z.ZodObject<typeof cluster
 		return this;
 	}
 
-	/** The test id a feature waits on before driving this host, declared by the host it belongs to. */
+	/** The test id a feature waits on before driving this host, which each host declares as its own. */
 	protected abstract get rootTestId(): string;
 
-	/** The slice of the snapshot this host's scene shows: the whole graph, or the part a scoped host is a view of. */
+	/** The slice of the snapshot this host's scene shows: the whole graph, or the part of it that a scoped host shows. */
 	protected abstract buildSceneModel(): GraphSceneModel;
 
 	/** The scene is a child of the host, and on a host that hides it (a text tab) it is out of the DOM rather than
 	 *  hidden, so its render loop never runs where it is not shown. */
 	protected get scene(): ShuGraphScene | null {
 		return this.querySelector<ShuGraphScene>("shu-graph-scene");
+	}
+
+	/** The mounted scene, which an action on the scene reads: a host renders its scene before it offers such an action. */
+	protected get mountedScene(): ShuGraphScene {
+		const scene = this.scene;
+		if (!scene) throw new Error(`${this.localName} doesn't hold a <shu-graph-scene>, which its render mounts before it offers an action on the graph`);
+		return scene;
 	}
 
 	protected get filterEl(): ShuGraphFilter | null {
@@ -164,7 +181,7 @@ export abstract class ShuClusteredGraphView<T extends z.ZodObject<typeof cluster
 	protected onGraphData(): void {
 		this.pushSceneModel();
 	}
-	/** What the reader is on, as the machine decides it: the scene highlights it, and its neighborhood is fetched where
+	/** What the reader is on, as the machine states it: the scene highlights it, and its neighborhood is fetched where
 	 *  the graph does not hold it yet. */
 	#subject = new SubjectController(this, (record) => {
 		if (this.usesExternalData) return;
@@ -217,13 +234,11 @@ export abstract class ShuClusteredGraphView<T extends z.ZodObject<typeof cluster
 		if (this.graphInitialized) return;
 		this.graphInitialized = true;
 
-		this.autoListen(this, SHU_EVENT.GRAPH_FILTER_CHANGE, ((e: CustomEvent<{ overrides: Record<string, boolean>; hiddenPredicates?: string[]; perTypeLimit: number }>) => {
+		this.autoListen(this, SHU_EVENT.GRAPH_FILTER_CHANGE, ((e: CustomEvent<{ overrides: Record<string, boolean>; hiddenPredicates: string[]; perTypeLimit: number }>) => {
 			// The filter reports the user's explicit overrides; hidden = those combined with each cluster's declared default.
-			this.filterOverrides = e.detail.overrides ?? {};
-			this.setGraphState({ hiddenPredicates: e.detail.hiddenPredicates ?? [] });
-			const hiddenGraphs = this.computeHiddenGraphs();
-			const visibleTypes = [...this.allKnownGraphs()].filter((t) => !hiddenGraphs.includes(t));
-			this.commitHidden(hiddenGraphs, visibleTypes.length > 0 ? visibleTypes : undefined, e.detail.perTypeLimit);
+			this.filterOverrides = e.detail.overrides;
+			this.setGraphState({ hiddenPredicates: e.detail.hiddenPredicates });
+			this.commitOverrides(e.detail.perTypeLimit);
 		}) as EventListener);
 		this.autoListen(this, SHU_EVENT.GRAPH_CLUSTER_EXPAND, (() => {
 			// Raise the sample toward the SAME ceiling the filter slider expresses, never silently past it. The filter
@@ -265,8 +280,8 @@ export abstract class ShuClusteredGraphView<T extends z.ZodObject<typeof cluster
 					this.syncFromSnapshot();
 				},
 				// What was written while the stream was down didn't arrive in a batch, so the snapshot is read again through the
-				// same commit a visibility change makes, at the scope and limit the view is already reading at.
-				onReconnect: () => this.applyHiddenChange({}),
+				// same commit a visibility change makes, at the view's own scope and its current limit.
+				onReconnect: () => this.commitOverrides(this.cgState.perTypeLimit),
 			}),
 		);
 	}
@@ -303,20 +318,18 @@ export abstract class ShuClusteredGraphView<T extends z.ZodObject<typeof cluster
 		return true;
 	}
 
-	protected commitHidden(hiddenGraphs: string[], visibleTypes: string[] | undefined, perTypeLimit: number): void {
+	private commitHidden(hiddenGraphs: string[], visibleTypes: string[] | undefined, perTypeLimit: number): void {
 		this.setGraphState({ hiddenGraphs });
 		// An external host's graph is all there is: the view draws it again, and doesn't read from the store.
 		if (this.usesExternalData) this.onGraphData();
 		else void this.refetchSnapshot({ types: this.narrowsRefetchToVisible ? visibleTypes : undefined, perTypeLimit });
 	}
 
-	/** Hide/show delta: the control-products setter calls this; the on-screen filter sets the visible set directly via commitHidden. */
-	applyHiddenChange(change: { hide?: string[]; show?: string[] }): void {
-		for (const t of change.hide ?? []) this.filterOverrides[t] = false;
-		for (const t of change.show ?? []) this.filterOverrides[t] = true;
+	/** Commit the hidden set the current overrides state, read at `perTypeLimit`. */
+	private commitOverrides(perTypeLimit: number): void {
 		const hidden = this.computeHiddenGraphs();
 		const visibleTypes = [...this.allKnownGraphs()].filter((t) => !hidden.includes(t));
-		this.commitHidden(hidden, visibleTypes.length > 0 ? visibleTypes : undefined, this.cgState.perTypeLimit);
+		this.commitHidden(hidden, visibleTypes.length > 0 ? visibleTypes : undefined, perTypeLimit);
 	}
 
 	/** Read the scope's snapshot again and draw it, counted as one read that settles once the view holds what it returned. */
@@ -337,7 +350,8 @@ export abstract class ShuClusteredGraphView<T extends z.ZodObject<typeof cluster
 		}
 	}
 
-	protected syncFromSnapshot(extra: Partial<TClusteredGraphState> = {}): void {
+	/** Draw the scope's current snapshot, with the `extra` fields a caller sets beside it. */
+	protected syncFromSnapshot(extra?: Partial<TClusteredGraphState>): void {
 		const snap = currentSnapshot(this.snapshotScope);
 		for (const c of snap.clusters) this.knownClusters.set(c.type, c);
 		// Recompute hiddenGraphs on every live SSE batch so a graph that FIRST appears mid-run (e.g. a new observation/*
@@ -365,7 +379,7 @@ export abstract class ShuClusteredGraphView<T extends z.ZodObject<typeof cluster
 			const expanded = [...new Set([...this.cgState.expandedGraphs, ...types])];
 			this.syncFromSnapshot({ expandedGraphs: expanded });
 		} catch (err) {
-			// Forgotten, so a later selection of the subject reads its neighborhood again.
+			// Removed from the fetched set, so a later selection of the subject reads its neighborhood again.
 			this.fetchedSubjects.delete(subject);
 			reportToRun("warn", CLUSTERED_SOURCE, `the neighborhood of ${subject} could not be read: ${errorDetail(err)}`);
 		}

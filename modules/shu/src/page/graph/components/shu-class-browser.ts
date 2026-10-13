@@ -23,7 +23,7 @@ import { html, type TemplateResult } from "lit";
 import type { TLinkedData } from "../../components/shu-element.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
-import { ShuClusteredGraphView, clusteredGraphStateShape } from "./shu-clustered-graph-view.js";
+import { ShuClusteredGraphView, clusteredGraphInitialState, clusteredGraphStateShape } from "./shu-clustered-graph-view.js";
 import { jsonDisclosure } from "../../components/json-disclosure.js";
 import { scopeSchemaToType, scopeSchemaToConnected } from "../../../derivations/ontology-projection.js";
 import { contextOfType } from "../controllers/context-controller.js";
@@ -40,15 +40,18 @@ import { listRecords } from "../../controllers/read-controller.js";
 import "./shu-graph-filter.js";
 import "./scene.js";
 
+const MODES = ["type", "connected", "all", "context", "individuals"] as const;
+type ViewMode = (typeof MODES)[number];
+
 const BrowserStateSchema = z.object({
 	...clusteredGraphStateShape,
 	/** Which view: `type` = the focus type's own schema graph; `all` = every class and property; `context` = the focus
 	 *  type's JSON-LD @context (dereferenced from the served context document, the standard way a context is fetched). */
-	viewMode: z.enum(["type", "connected", "all", "context", "individuals"]).default("type"),
+	viewMode: z.enum(MODES),
 });
 
-type ViewMode = "type" | "connected" | "all" | "context" | "individuals";
-const MODES: readonly ViewMode[] = ["type", "connected", "all", "context", "individuals"];
+/** The browser before a reader picks a view: the focus type's own schema graph (CA4D7). */
+const BROWSER_INITIAL_STATE: z.input<typeof BrowserStateSchema> = { ...clusteredGraphInitialState, viewMode: "type" };
 const MODE_LABELS: Record<ViewMode, string> = { type: "type only", connected: "connected", all: "all types", context: "vocabulary", individuals: "individuals" };
 type VertexData = Record<string, unknown>;
 
@@ -73,7 +76,7 @@ const BROWSER_CSS = `
 `;
 
 class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
-	/** The chosen view mode is remembered across reloads, like every persisted view option. */
+	/** The chosen view mode persists across reloads, like every persisted view option. */
 	static persistFields = ["viewMode"] as const;
 
 	/** The schema as the scene states it, in the order a reader is reading it. The copy button keeps every statement. */
@@ -85,7 +88,7 @@ class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
 	/** The focus type's context as HTML: its JSON as disclosures, or why it couldn't be fetched. */
 	private contextHtml: string | null = null;
 
-	/** The focus type's individuals for the individuals view (null until fetched), and the focus they were fetched for. */
+	/** The focus type's individuals for the individuals view (null until fetched), and the focus of that fetch. */
 	private individuals: VertexData[] | null = null;
 	private individualsFocus = "";
 
@@ -99,7 +102,7 @@ class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
 	private focusType = "";
 
 	constructor() {
-		super(BrowserStateSchema);
+		super(BrowserStateSchema, BROWSER_INITIAL_STATE);
 	}
 
 	/** The browser's chip choices persist under their own scope, never the main graph's shared filter store. */
@@ -120,7 +123,7 @@ class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
 	}
 
 	/** Embedded mount (shu-product-view hands the product here): fit the schema around the focus type's Class node.
-	 *  The scene stages it: it emits graph-scope-revealed once the clusters are known (showing only the schema chips),
+	 *  The scene stages it: it emits graph-scope-revealed once it holds the clusters (showing only the schema chips),
 	 *  then fits when the node is built. */
 	openProducts(products: Record<string, unknown>): void {
 		const focusType = typeof products.focusType === "string" ? products.focusType : undefined;
@@ -162,7 +165,7 @@ class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
 		if (!this.focusType || this.individualsFocus === this.focusType) return; // already loaded (or loading) for this focus
 		this.individualsFocus = this.focusType;
 		const res = await listRecords(this.focusType, `class-browser individuals: ${this.focusType}`);
-		this.individuals = res.ok ? (res.value.vertices ?? []) : [];
+		this.individuals = res.ok ? res.value.vertices : [];
 		this.requestUpdate();
 	}
 
@@ -181,14 +184,14 @@ class ShuClassBrowser extends ShuClusteredGraphView<typeof BrowserStateSchema> {
 					</label>
 					${
 						// The browser's layout is fixed (BROWSER_CONFIG), so it doesn't have options to settle behind the ⚙, only the
-						// two actions every graph host offers, and only while a graph is on screen to act on.
+						// two actions every graph host offers, and only while a graph is on screen.
 						graphHidden
 							? html``
 							: viewActions({
 									fitId: SHU_TEST_IDS.CLASS_BROWSER.FIT,
 									copyId: SHU_TEST_IDS.CLASS_BROWSER.COPY_GRAPH,
 									onFit: () => this.scene?.fitGraph(),
-									getCopyText: () => this.scene?.graphCopyText() ?? "",
+									getCopyText: () => this.mountedScene.graphCopyText(),
 									rotate: { xyId: SHU_TEST_IDS.CLASS_BROWSER.ROTATE_XY, zId: SHU_TEST_IDS.CLASS_BROWSER.ROTATE_Z, onRotate: (aim) => this.scene?.rotateTo(aim) },
 								})
 					}

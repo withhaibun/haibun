@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * Capture and apply: a scene holds exactly what a view remembers across a reload, and returning to one sets those
+ * Capture and apply: a scene holds exactly what a view persists across a reload, and returning to one sets those
  * choices back through the view's ordinary state path.
  */
 import { type TCatalogSpec, declareSpec } from "../../../test/catalog-fixture.js";
@@ -56,7 +56,7 @@ describe("what a saved scene is stored at", () => {
 describe("scenes", () => {
 	beforeEach(() => clearStoredFields("test-scene-view"));
 
-	it("captures exactly the options a view remembers, and doesn't capture an option it does not", () => {
+	it("captures exactly the options a view persists, and doesn't capture an option it does not persist", () => {
 		const view = mount();
 		view.set({ overrides: { Email: false }, limit: 25, hovered: "Person" });
 		expect(captureScene([view])).toEqual({ "test-scene-view": { overrides: { Email: false }, limit: 25 } });
@@ -78,7 +78,7 @@ describe("scenes", () => {
 		expect(view.announced).toBe(1);
 	});
 
-	it("fails on a scene naming an option the view does not remember, rather than half-applying", () => {
+	it("fails on a scene naming an option the view does not persist, rather than half-applying", () => {
 		const view = mount();
 		expect(() => applyScene([view], { "test-scene-view": { hovered: "Person" } })).toThrow(/does not remember/);
 	});
@@ -90,7 +90,7 @@ describe("scenes", () => {
 
 describe("the scene every deployment has", () => {
 	/** A site that declares just enough: a request naming who performed it, a step naming what allowed it, and the
-	 *  types those point at. The site doesn't list scene members; the scene reads the declarations. */
+	 *  types those name. The site doesn't list scene members; the scene reads the declarations. */
 	const site = {
 		types: ["HttpRequest", "Endpoint", "SeqPath", "Principal", "Comment", "Email", "Body"],
 		idFields: {},

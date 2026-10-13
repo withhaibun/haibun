@@ -2,7 +2,7 @@ import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
 import { html, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
-import { ShuClusteredGraphView, clusteredGraphStateShape } from "./shu-clustered-graph-view.js";
+import { ShuClusteredGraphView, clusteredGraphInitialState, clusteredGraphStateShape } from "./shu-clustered-graph-view.js";
 import { statedTotal, type TLinkedData } from "@haibun/core/lib/hypermedia.js";
 import { SHU_EVENT, SHU_TAG } from "../../../domains/elements.js";
 import { defineElement } from "../../controllers/element-controller.js";
@@ -10,8 +10,7 @@ import { acts } from "../../domains/links.js";
 import { conduit } from "../../controllers/conduit-controller.js";
 import type { TPresenterNodeClick } from "../../ports.js";
 import { applyScene, captureScene, listScenes, readScene, saveScene } from "../controllers/scenes-controller.js";
-import type { TSceneState } from "../derivations/scenes.js";
-import { SCENE_LABEL } from "@haibun/core/lib/resources.js";
+import { sceneType, type TSceneState } from "../derivations/scenes.js";
 import { SCHEMA_TYPES } from "../../../domains/ontology.js";
 
 /** The time a reader is looking at, held in a scene beside the views' own options. It is not an element's option but the shared time signal, so it is recorded under its own key. */
@@ -34,7 +33,7 @@ export type TGraphViewState = TGraphState & { reads: TReadCounts };
 import { GRAPH_SCENE_EVENT } from "../domains/graph-types.js";
 import type { TMeasureUnit, TPanDirection, TZoomDirection } from "../machines/camera.js";
 import { type TPaneOpen } from "../../derivations/pane-kinds.js";
-import "./shu-graph-filter.js";
+import { persistScopeOf } from "./shu-graph-filter.js";
 import "./scene.js";
 
 // A cursor move re-styles (depth re-place, positions pinned), fast, so it paints promptly. NOT the streamed-data
@@ -46,7 +45,7 @@ const CURSOR_COALESCE_MS = 100;
 const FISHEYE_CSS = `
 	/* Positioned, so the scene's canvas (absolute, inset 0) is bounded by this view. Without it the nearest positioned
 	   ancestor is the column, and the canvas covers the column's own header: a reader could not press the controls of
-	   the pane the graph is in. */
+	   the pane that holds the graph. */
 	shu-polymorphic-graph-view { display: block; position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--shu-bg); }
 	shu-polymorphic-graph-view shu-graph-filter { flex: 0 0 auto; }
 	${viewHeadCss("shu-polymorphic-graph-view")}
@@ -61,26 +60,42 @@ const FISHEYE_CSS = `
 
 const PolymorphicStateSchema = z.object({
 	...clusteredGraphStateShape,
-	viewType: z.enum(VIEW_TYPES).default(VIEW.force),
-	flatten: z.boolean().default(false),
-	grouped: z.boolean().default(false),
-	groupBy: z.string().default("type"), // axis: "type" (@type), "role" (highest-priority actor), or an actor predicate (a rel)
+	viewType: z.enum(VIEW_TYPES),
+	flatten: z.boolean(),
+	grouped: z.boolean(),
+	groupBy: z.string(), // axis: "type" (@type), "role" (highest-priority actor), or an actor predicate (a rel)
 	/** What places depth (z): the object's valid time (the catalog's validTimeField), its indexed time (generatedAtTime), or its number of connections. */
-	zBasis: z.enum(["valid", "indexed", "connections"]).default("valid"),
+	zBasis: z.enum(["valid", "indexed", "connections"]),
 	/** Label chips with each node's z factor (the date under a time basis, the connection count under connections) instead of its usual name/subject, to read the depth value straight off the graph. */
-	labelAsZ: z.boolean().default(false),
+	labelAsZ: z.boolean(),
 	/** Positions the user pinned by dragging, id → [x,y]. Persisted so a dragged layout survives a reload (a page-wide layout choice). */
-	pins: z.record(z.string(), z.tuple([z.number(), z.number()])).default({}),
+	pins: z.record(z.string(), z.tuple([z.number(), z.number()])),
 	/** Keep the active (selected) node centred and readable through selection changes and re-layouts. */
-	follow: z.boolean().default(false),
+	follow: z.boolean(),
 	/** Prune nodes without a visible edge. */
-	prune: z.boolean().default(false),
+	prune: z.boolean(),
 	/** Hold the accessible reading of the graph open beside the scene. */
-	readAsDocument: z.boolean().default(false),
+	readAsDocument: z.boolean(),
 	/** Which settings group's row is open under the head, exclusive; null keeps the head to one row. Transient
 	 *  disclosure: not persisted, a reload starts with the head alone. */
-	openSettings: z.enum(SETTINGS_GROUP_NAMES).nullable().default(null),
+	openSettings: z.enum(SETTINGS_GROUP_NAMES).nullable(),
 });
+
+/** The graph view before a reader chooses an option: the force view, ungrouped and unflattened, depth by valid time, without pins, with the head alone (CA4D7). */
+const POLYMORPHIC_INITIAL_STATE: z.input<typeof PolymorphicStateSchema> = {
+	...clusteredGraphInitialState,
+	viewType: VIEW.force,
+	flatten: false,
+	grouped: false,
+	groupBy: "type",
+	zBasis: "valid",
+	labelAsZ: false,
+	pins: {},
+	follow: false,
+	prune: false,
+	readAsDocument: false,
+	openSettings: null,
+};
 
 /**
  * shu-polymorphic-graph-view: the data-feeding host for the extracted <shu-graph-scene>. It owns the ONE data pathway
@@ -98,7 +113,7 @@ const PolymorphicStateSchema = z.object({
  * the child scene chrome is positioned against this host; a shadow root would hide both.
  */
 export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof PolymorphicStateSchema> {
-	/** Layout choices are remembered across reloads (ShuElement.persistFields; singleton key). */
+	/** Layout choices persist across reloads (ShuElement.persistFields; singleton key). */
 	static persistFields = ["viewType", "flatten", "grouped", "groupBy", "zBasis", "labelAsZ", "pins", "follow", "prune", "readAsDocument"] as const;
 
 	// Control-bar inputs the scene derives from its data/layout (via graph-scene-changed): the axes that vary with the
@@ -114,7 +129,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	private sceneError: string | null = null;
 
 	constructor() {
-		super(PolymorphicStateSchema);
+		super(PolymorphicStateSchema, POLYMORPHIC_INITIAL_STATE);
 		this.buildSceneConfig();
 	}
 
@@ -124,18 +139,19 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		return this.hasAttribute("data-external");
 	}
 
-	/** The scope its settings and filter choices are remembered under: its host's (`data-persist-scope`), apart from the
-	 *  main graph's, or the main graph's own. */
+	/** The scope that holds its settings and filter choices: its host's (`data-persist-scope`), apart from the main
+	 *  graph's, or the main graph's own. */
 	protected override get persistKey(): string {
-		return this.dataset.persistScope ?? "";
+		return persistScopeOf(this);
 	}
 	protected override get filterPersistScope(): string {
 		return this.persistKey;
 	}
 
-	/** Draw a host's complete graph. */
-	setQuads(quads: TQuad[], clusters: TCluster[] = []): void {
-		this.setExternalData(quads, clusters);
+	/** Draw a host's complete graph. A host without cluster records for its types gives its quads alone, and each type
+	 *  is then drawn from its quads. */
+	setQuads(quads: TQuad[], clusters?: TCluster[]): void {
+		this.setExternalData(quads, clusters === undefined ? [] : clusters);
 	}
 
 	/** The node the host marks as active, held so a scene mounted later marks it too. */
@@ -181,7 +197,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	}
 	/** The current graph as a self-contained SVG still: the report and still-image medium. */
 	still(): string {
-		return this.scene?.still() ?? "";
+		return this.mountedScene.still();
 	}
 	resetProfile(): void {
 		this.scene?.resetProfile();
@@ -193,13 +209,13 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		return this.scene?.projectNodeToScreen(id) ?? null;
 	}
 	openNode(id: string): boolean {
-		return this.scene?.openNode(id) ?? false;
+		return this.mountedScene.openNode(id);
 	}
 	setHoveredNode(id: string | null): void {
 		this.scene?.setHoveredNode(id);
 	}
-	/** Fit ends following: the two ask for opposite framings (the whole graph vs the active node's context), and a fit
-	 *  under an active follow would be undone at the next settle. Asking for the whole graph is asking to stop following. */
+	/** Fit ends following: the two state opposite framings (the whole graph vs the active node's context), and a fit
+	 *  under an active follow would be undone at the next settle. A request for the whole graph is a request to stop following. */
 	fitGraph(): void {
 		this.endFollow();
 		this.scene?.fitGraph();
@@ -221,8 +237,8 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		this.scene?.rotateTo(aim);
 	}
 
-	/** Asking for a framing IS asking the camera to stop chasing: every deliberate re-frame a reader can take ends
-	 *  following, so the rule is stated once rather than at whichever button happened to be built first. */
+	/** A request for a framing IS a request for the camera to stop chasing: every deliberate re-frame a reader can take
+	 *  ends following, so the rule is stated once rather than at whichever button happened to be built first. */
 	private endFollow(): void {
 		if (this.state.follow) this.setOption({ follow: false });
 	}
@@ -241,7 +257,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 
 	/**
 	 * This view as a scene records it: the layout options and the filter's own, each read through the element that owns
-	 * them, plus the time the reader is looking at. The cursor is not a persisted option (it is the shared time signal),
+	 * them, plus the time the reader is viewing. The cursor is not a persisted option (it is the shared time signal),
 	 * so it is read from the signal and restored through the same interface a scrub uses.
 	 */
 	captureScene(): TSceneState {
@@ -258,7 +274,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		this.scene?.setConfig(this.buildSceneConfig());
 		if (cursor) this.setTimeCursor(typeof cursor.timeCursor === "number" ? cursor.timeCursor : null);
 		this.pushSceneModel();
-		// A scene remembers what the graph shows, not where the camera stood: what it shows is about to be laid out afresh,
+		// A scene records what the graph shows, not where the camera stood: what it shows is about to be laid out afresh,
 		// so the view frames it. The fit is deferred until that layout has come to rest.
 		this.scene?.fitGraph();
 	}
@@ -267,8 +283,8 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	private onSaveScene = (name: string): void => void this.saveSceneAs(name);
 	private onApplyScene = (name: string): void => void this.applySavedScene(name);
 
-	/** Save this view under a name, through the same step RPC every write goes through, then re-offer the saved scenes.
-	 *  A write that does not land is shown, beside the control that asked for it: a save that quietly didn't write looks
+	/** Save this view under a name, through the same step RPC that carries every write, then re-offer the saved scenes.
+	 *  A write that does not land is shown beside the control that requested it: a save that quietly didn't write looks
 	 *  exactly like a save that worked until the reader comes back for the scene. */
 	private async saveSceneAs(name: string): Promise<void> {
 		const written = await saveScene(name, this.captureScene(), "polymorphic: save this view as a scene");
@@ -278,7 +294,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	}
 
 	/** Return this view to the scene saved under a name. The view then shows which scene it is showing, so a reader (or a
-	 *  step) can tell the return has landed rather than guess at a moment. */
+	 *  step) can see that the return has landed rather than guess at a moment. */
 	private async applySavedScene(name: string): Promise<void> {
 		if (!name) return;
 		const scene = await readScene(name, "polymorphic: return to a saved scene");
@@ -292,7 +308,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		this.setAttribute("data-scene", name);
 	}
 
-	/** The saved scenes a reader can return to. Fetched by the host and handed down to the settings; a control never reaches the RPC. */
+	/** The saved scenes a reader can return to, fetched by the host and handed down to the settings; a control never reaches the RPC. */
 	private async loadScenes(): Promise<void> {
 		if (this.usesExternalData) return; // fed by its caller: this view doesn't have an RPC of its own
 		this.sceneNames = (await listScenes("polymorphic: offer the saved scenes")).map((scene) => scene.id);
@@ -310,7 +326,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 						fitId: POLYMORPHIC_IDS.FIT,
 						copyId: POLYMORPHIC_IDS.COPY_GRAPH,
 						onFit: () => this.fitGraph(),
-						getCopyText: () => this.scene?.graphCopyText() ?? "",
+						getCopyText: () => this.mountedScene.graphCopyText(),
 						toggles: [
 							{
 								id: POLYMORPHIC_IDS.FOLLOW,
@@ -339,7 +355,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 						settings: { openGroup: open, idFor: (group) => POLYMORPHIC_IDS.SETTINGS[group], onGroup: (group) => this.openGroup(group) },
 					})}
 					<span id="polymorphic-counts">${this.countsText}</span>
-					<span id="polymorphic-step" data-testid=${POLYMORPHIC_IDS.LATEST_STEP} ?hidden=${!this.latestStep}>${this.latestStep ?? ""}</span>
+					<span id="polymorphic-step" data-testid=${POLYMORPHIC_IDS.LATEST_STEP} ?hidden=${!this.latestStep}>${this.latestStep}</span>
 				</div>
 			</div>
 			${this.renderSettingsRow(open)}
@@ -390,7 +406,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		else f.removeAttribute("show-controls");
 	}
 
-	/** The view's own root, which every feature driving the graph waits on. */
+	/** The view's own root: every feature that drives the graph waits for it. */
 	protected override get rootTestId(): string {
 		return SHU_TEST_IDS.POLYMORPHIC_VIEW.ROOT;
 	}
@@ -414,8 +430,8 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 			void this.applyReschedule(e.detail.updates);
 		}) as EventListener);
 		this.autoListen(this, GRAPH_SCENE_EVENT.SCENE_CHANGED, ((e: CustomEvent<GraphSceneChangedDetail>) => this.onSceneChanged(e.detail)) as EventListener);
-		// A view that needs its actors asks for them: shown through the filter, so the chips report what the graph shows
-		// and the reader can put them away again.
+		// A view that needs its actors reveals them through the filter, so the chips report what the graph shows and the
+		// reader can put them away again.
 		this.autoListen(this, GRAPH_SCENE_EVENT.SCOPE_REVEALED, ((e: CustomEvent<{ types: string[] }>) => this.filterEl?.setTypeVisibility(e.detail.types, true)) as EventListener);
 		// Seed the persisted drag-pins BEFORE setConfig: setConfig emits a scene-changed carrying the scene's current
 		// pins, so if userPins were still empty that empty set would round-trip through onSceneChanged and clobber the
@@ -426,7 +442,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		if (this.usesExternalData) {
 			this.scene?.setSelectedSubject(this.hostSelection);
 			this.previewNodes(this.hostPreview);
-			// A node a reader opens is its host's to open: the host knows what its nodes name, where the main graph's are
+			// A node a reader opens is its host's to open: the host holds what its nodes name, where the main graph's are
 			// records. Reported as the node's id, in place of the record the scene would open.
 			this.autoListen(this, SHU_EVENT.PANE_OPEN, ((e: CustomEvent<TPaneOpen>) => {
 				const { pane } = e.detail;
@@ -502,7 +518,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	 * the live quads; the scene itself is still read through the step RPC, since an observation truncates long values.
 	 */
 	private offerNewScenes(): void {
-		const live = this.cgState.quads.filter((q) => q.namedGraph === SCENE_LABEL).map((q) => q.subject);
+		const live = this.cgState.quads.filter((q) => q.namedGraph === sceneType()).map((q) => q.subject);
 		if (live.some((name) => !this.sceneNames.includes(name))) void this.loadScenes();
 	}
 

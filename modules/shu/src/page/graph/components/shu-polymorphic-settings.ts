@@ -1,6 +1,6 @@
 /**
  * shu-polymorphic-settings: the controls of ONE settings group (`group`: layout or scenes), rendered inside the
- * head's open settings row. The head's group icons decide which group is open; this element renders that group's
+ * head's open settings row. The head's group icons select which group is open; this element renders that group's
  * controls. The surface is a property of the polymorphic view component, not of one embedding: every instance gets the same
  * options in the same place because they come from the same element.
  *
@@ -65,13 +65,13 @@ class ShuPolymorphicSettings extends ShuElement<z.ZodObject> {
 	/** What the active view FORCES: an option it settles is not offered here, since a control that cannot act is a
 	 *  control that lies. A lane view forces grouping, flatten and label-as-depth, so its rows carry only what applies. */
 	declare forces: TViewForces;
-	/** Reports the reader's intent. The host decides what it means. */
+	/** Reports the reader's intent. The host defines what it means. */
 	declare onChange: (change: TPolymorphicOptionChange) => void;
 	/** The scenes saved here, for a reader to return to one. Handed down; a component never reaches the RPC itself. */
 	declare scenes: string[];
-	/** What went wrong with the last scene asked for, shown beside the controls. Null when the last one succeeded. */
+	/** What went wrong with the last scene requested, shown beside the controls. Null when the last one succeeded. */
 	declare sceneError: string | null;
-	/** Reports that the reader picked a saved scene to return to. */
+	/** Reports that the reader picked a saved scene, to return the view to it. */
 	declare onApplyScene: (name: string) => void;
 	/** Reports that the reader named this view and saved it. */
 	declare onSaveScene: (name: string) => void;

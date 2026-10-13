@@ -90,7 +90,7 @@ export function viewActions(o: {
 }): TemplateResult {
 	const s = o.settings;
 	return html`<button type="button" data-testid=${o.fitId} title="fit the whole graph in view" @click=${o.onFit}>⛶ fit</button>
-		${(o.toggles ?? []).map((t) => iconToggle({ id: t.id, glyph: t.glyph, label: t.label, title: t.title, on: t.on, press: () => t.onToggle(!t.on) }))}
+		${o.toggles === undefined ? "" : o.toggles.map((t) => iconToggle({ id: t.id, glyph: t.glyph, label: t.label, title: t.title, on: t.on, press: () => t.onToggle(!t.on) }))}
 		${
 			s
 				? SETTINGS_GROUPS.map(({ group, glyph, title }) =>
