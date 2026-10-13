@@ -252,6 +252,12 @@ export class FeatureExecutor {
 				if (currentScenario) {
 					await doStepperCycle(this.steppers, "endScenario", undefined);
 					scopedVars = new FeatureVariables(world, await world.shared.carried());
+				} else {
+					// The background ends where the first scenario starts: every scenario, and the next feature, starts from
+					// what it left. Taken here once rather than after each background step, since a copy of the variables
+					// after every step grows with the steps a long background has run.
+					scopedVars = new FeatureVariables(world, await world.shared.carried());
+					baseVars = new FeatureVariables(world, await world.shared.carried());
 				}
 				currentScenario = currentScenario + 1;
 				world.eventLogger.emit(
@@ -282,10 +288,6 @@ export class FeatureExecutor {
 
 			if (world.options[STEP_DELAY]) {
 				await sleep(world.options[STEP_DELAY] as number);
-			}
-			if (!currentScenario) {
-				scopedVars = new FeatureVariables(world, await world.shared.carried());
-				baseVars = new FeatureVariables(world, await world.shared.carried());
 			}
 		}
 

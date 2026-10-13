@@ -37,9 +37,10 @@ import { AccessLevelSchema, BODY_LABEL, HELD_BY, LinkRelations, withinAccess, ty
 import { seenAt, writesAtEveryLevel, writtenAt } from "./actions.js";
 import { distinctOf, readFromRecords, recordsOfQuads, type THeldRecord, type TReadDeclarations } from "./records/derivations/read-records.js";
 import { quadsOfRead, readEvery, type TRecordReader } from "./records/pipelines/record-reads.js";
+import { QuadLayer } from "./records/machines/quad-layer.js";
 
 export class QuadStore implements IQuadStore {
-	private quads: TQuad[] = [];
+	private readonly quads = new QuadLayer();
 	/**
 	 * Named-graph → backing-store routing. Shared BY REFERENCE along a scenario/feature chain (each carried store is
 	 * constructed with its predecessor's map), so a registration exists in exactly one place and `unregisterStore`
@@ -151,7 +152,7 @@ export class QuadStore implements IQuadStore {
 			this.unregisterStore(store);
 			throw err;
 		}
-		this.quads = this.quads.filter((q) => !ngSet.has(q.namedGraph));
+		this.quads.removeWhere(this.quads, (q) => ngSet.has(q.namedGraph));
 	}
 
 	/**
@@ -174,7 +175,7 @@ export class QuadStore implements IQuadStore {
 	carryNonVariableQuadsTo(target: QuadStore): void {
 		for (const q of this.quads) {
 			if (q.namedGraph === SHARED_GRAPH) continue;
-			target.quads.push({ ...q });
+			target.quads.add({ ...q });
 		}
 	}
 
@@ -203,8 +204,8 @@ export class QuadStore implements IQuadStore {
 		const backing = this.storeFor(quad.namedGraph);
 		if (backing) return await backing.set(quad.subject, quad.predicate, quad.object, quad.namedGraph, quad.properties);
 		const classified = this.classified(quad);
-		this.quads = this.quads.filter((q) => !(q.subject === quad.subject && q.predicate === quad.predicate && q.namedGraph === quad.namedGraph));
-		this.quads.push({ ...classified, timestamp: Date.now() });
+		this.quads.removeWhere(this.quads.ofSubject(quad.namedGraph, quad.subject), (q) => q.predicate === quad.predicate);
+		this.quads.add({ ...classified, timestamp: Date.now() });
 	}
 
 	/**
@@ -214,7 +215,8 @@ export class QuadStore implements IQuadStore {
 	 */
 	private classified(quad: Omit<TQuad, "timestamp">): Omit<TQuad, "timestamp"> {
 		if (!this.levels) return quad;
-		const held = this.quads.find((q) => q.subject === quad.subject && q.namedGraph === quad.namedGraph)?.accessLevel;
+		const [first] = this.quads.ofSubject(quad.namedGraph, quad.subject);
+		const held = first?.accessLevel;
 		const accessLevel = writtenAt(quad.accessLevel ?? held, this.levels.declared(quad.namedGraph), this.levels.writeBound());
 		return { ...quad, accessLevel };
 	}
@@ -243,9 +245,10 @@ export class QuadStore implements IQuadStore {
 		}
 		// Search local first
 		const seen = this.seen(undefined);
-		for (let i = this.quads.length - 1; i >= 0; i--) {
-			const q = itemAt(this.quads, i);
-			if (q.subject === subject && q.predicate === predicate && (namedGraph === undefined || q.namedGraph === namedGraph) && seen(q)) return Promise.resolve(q.object);
+		const candidates = [...(namedGraph === undefined ? this.quads : this.quads.ofSubject(namedGraph, subject))];
+		for (let i = candidates.length - 1; i >= 0; i--) {
+			const q = itemAt(candidates, i);
+			if (q.subject === subject && q.predicate === predicate && seen(q)) return Promise.resolve(q.object);
 		}
 		// Then search backing stores if the query doesn't filter by namedGraph
 		if (namedGraph === undefined) {
@@ -266,7 +269,7 @@ export class QuadStore implements IQuadStore {
 		this.refuseDerived(quad.namedGraph);
 		const backing = this.storeFor(quad.namedGraph);
 		if (backing) return await backing.add(quad);
-		this.quads.push({ ...this.classified(quad), timestamp: Date.now() });
+		this.quads.add({ ...this.classified(quad), timestamp: Date.now() });
 	}
 
 	/**
@@ -308,7 +311,13 @@ export class QuadStore implements IQuadStore {
 
 	private localQuery(pattern: TQuadPattern): TQuad[] {
 		const seen = this.seen(undefined);
-		return this.quads.filter((q) => matchesQuadPattern(q, pattern) && seen(q));
+		return [...this.candidates(pattern)].filter((q) => matchesQuadPattern(q, pattern) && seen(q));
+	}
+
+	/** The quads of this layer a pattern can match: its subject's in its graph, its graph's, or every quad. */
+	private candidates(pattern: TQuadPattern): Iterable<TQuad> {
+		if (pattern.namedGraph === undefined) return this.quads;
+		return pattern.subject === undefined ? this.quads.ofGraph(pattern.namedGraph) : this.quads.ofSubject(pattern.namedGraph, pattern.subject);
 	}
 
 	// biome-ignore lint/suspicious/useAwait: a write, so a refused level rejects rather than throws, as setQuad states
@@ -316,12 +325,12 @@ export class QuadStore implements IQuadStore {
 		if (namedGraph) {
 			// Don't clear persistent backing stores, only clear ephemeral (local) data
 			if (this.routing.has(namedGraph)) return;
-			const cleared = new Set(this.removable(this.quads.filter((q) => q.namedGraph === namedGraph)));
-			this.quads = this.quads.filter((q) => !cleared.has(q));
+			this.removable([...this.quads.ofGraph(namedGraph)]);
+			this.quads.removeWhere(this.quads.ofGraph(namedGraph), () => true);
 		} else {
 			// Clear ephemeral only
-			this.removable(this.quads);
-			this.quads = [];
+			this.removable([...this.quads]);
+			this.quads.clear();
 		}
 	}
 
@@ -331,12 +340,12 @@ export class QuadStore implements IQuadStore {
 			const backing = this.storeFor(pattern.namedGraph);
 			if (backing) return await backing.remove(pattern);
 		}
-		const removed = new Set(this.removable(this.quads.filter((q) => matchesQuadPattern(q, pattern))));
-		this.quads = this.quads.filter((q) => !removed.has(q));
+		const removed = this.removable([...this.candidates(pattern)].filter((q) => matchesQuadPattern(q, pattern)));
+		for (const q of removed) this.quads.delete(q);
 	}
 
 	async all(): Promise<TQuad[]> {
-		const local = this.quads.filter(this.seen(undefined));
+		const local = [...this.quads].filter(this.seen(undefined));
 		const backingResults = await Promise.all(this.allStores.map((s) => s.all()));
 		return [...local, ...backingResults.flat()].sort((a, b) => a.timestamp - b.timestamp);
 	}
@@ -442,7 +451,7 @@ export class QuadStore implements IQuadStore {
 		}
 
 		const seen = this.seen(opts.accessLevel);
-		const localQuads = this.quads.filter((q) => (!requested || requested.has(q.namedGraph)) && seen(q));
+		const localQuads = [...this.quads].filter((q) => (!requested || requested.has(q.namedGraph)) && seen(q));
 		const localClustered = sliceQuadsPerType(localQuads, opts.perTypeLimit, allQuads, (type) => this.declarations?.().of(type)?.title);
 		allQuads.push(...localClustered.quads);
 		for (const c of localClustered.clusters) mergeCluster(c);
@@ -482,11 +491,11 @@ export class QuadStore implements IQuadStore {
 		if (declared) validated.accessLevel = accessLevel;
 		// Atomic replace: the code doesn't await between the remove and the adds, so a concurrent upsert (fire-and-forget writers), a
 		// scenario-boundary carry, or a mid-flight backing registration never observes a half-written individual.
-		this.quads = this.quads.filter((q) => !(q.subject === id && q.namedGraph === label));
+		this.quads.removeWhere(this.quads.ofSubject(label, id), () => true);
 		const timestamp = Date.now();
 		for (const [key, value] of Object.entries(validated)) {
 			if (value !== undefined && value !== null)
-				this.quads.push({ subject: id, predicate: key, object: value, namedGraph: label, timestamp, ...(accessLevel ? { accessLevel } : {}) });
+				this.quads.add({ subject: id, predicate: key, object: value, namedGraph: label, timestamp, ...(accessLevel ? { accessLevel } : {}) });
 		}
 		return id;
 	}
