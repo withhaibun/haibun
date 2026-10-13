@@ -16,7 +16,7 @@ import { SHU_EVENT, SHU_TAG, SHU_ATTR } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { shuBaseStyles } from "./styles.js";
 import { subscribeBatchedEvents } from "../controllers/event-stream-controller.js";
-import { variablesSetBy, type TVariableSet } from "../../quads-snapshot.js";
+import { variablesSetBy, type TVariableSet } from "../derivations/step-variables.js";
 import { anIndividual, type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { formatSeqPath, parseRecordName, stepLine, type TStepLine } from "@haibun/core/lib/seq-path.js";
 import { actionRef, calledRef, originLink, refTpl } from "./shu-ref.js";

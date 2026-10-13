@@ -113,7 +113,7 @@ describe("a refused read", () => {
 		});
 
 		// A view that reads a type the catalog declares reads the records the page holds where the site doesn't respond, as
-		// quads-snapshot.test.ts shows; jsdom doesn't lay out the result table that lists them.
+		// graph-data-controller.test.ts shows; jsdom doesn't lay out the result table that lists them.
 		if (!readsHeld) {
 			it(`offers a read again in ${name} where the read doesn't reach the site`, async () => {
 				handle = pageFailingReads(unreachable);

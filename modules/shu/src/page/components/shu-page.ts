@@ -22,7 +22,7 @@ import { followPaneLink } from "./ref-navigation.js";
 import { SCOPE, dispatchSubjectEvent, entryOf, entryOfContext } from "../../current-subject.js";
 import { PageContextSchema } from "../../schemas.js";
 import { type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
-import { setActiveViewId } from "../../quads-snapshot.js";
+import { setActiveViewId } from "../graph/controllers/graph-data-controller.js";
 import { readRunAt } from "../client-cache/controllers/run-controller.js";
 import { reportFailure } from "../../client-log.js";
 import type { ShuColumnStrip } from "./shu-column-strip.js";

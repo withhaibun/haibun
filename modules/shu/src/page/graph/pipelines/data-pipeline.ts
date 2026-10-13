@@ -10,29 +10,28 @@
 // caches (gantt/swimlane), the group anchors and the magnify pop; the pipeline reads/writes them through these deps
 // rather than owning render-type state the rest of the component also reads.
 
-import { groupKeyOf, type GroupKeyMode, type GroupAnchor } from "../../page/graph/derivations/grouping.js";
-import type { XYZ } from "../../page/graph/domains/graph-types.js";
-import { timeZScale, timeZ, spanZScale, spanZ, subjectValidTimes, type TimeZScale, type TSubjectTimes } from "../../page/graph/derivations/time-axis.js";
-import { quadsToGanttModel } from "../../page/graph/derivations/gantt-model.js";
-import type { GanttTarget } from "../../page/graph/derivations/gantt-layout.js";
-import { isSchemaType } from "../../derivations/ontology-projection.js";
-import { computeLayout, type Adornment } from "../../page/graph/derivations/graph-layout.js";
-import { hashModel, linkKey } from "../../page/graph/derivations/model-hash.js";
+import { groupKeyOf, type GroupKeyMode, type GroupAnchor } from "../derivations/grouping.js";
+import type { XYZ } from "../domains/graph-types.js";
+import { timeZScale, timeZ, spanZScale, spanZ, subjectValidTimes, type TimeZScale, type TSubjectTimes } from "../derivations/time-axis.js";
+import { quadsToGanttModel, type RelOf } from "../derivations/gantt-model.js";
+import type { GanttTarget } from "../derivations/gantt-layout.js";
+import { isSchemaType } from "../../../derivations/ontology-projection.js";
+import { computeLayout, type Adornment } from "../derivations/graph-layout.js";
+import { hashModel, linkKey } from "../derivations/model-hash.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
-import { relationOfPredicate } from "../../page/controllers/catalog-controller.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
-import type { GraphModel } from "../../domains/graph-model.js";
-import { omittedLabel } from "../../derivations/graph-model.js";
-import { type FGNode, type FGLink, linkEndId } from "../../page/graph/domains/graph-types.js";
+import type { GraphModel } from "../../../domains/graph-model.js";
+import { omittedLabel } from "../../../derivations/graph-model.js";
+import { type FGNode, type FGLink, linkEndId } from "../domains/graph-types.js";
 
 const NEWCOMER_SEED_SPREAD = 40; // a streamed node spawns within this radius of its neighbour/type so it eases in instead of flying from the origin
 const TIME_DEPTH_MAX = 700; // depth range in world units, full span of the visible dates fills this. The auto-fit frames the 3D bounds, so more depth mostly backs the camera off (it reads as separation only up to ~the x/y layout spread) and pushes the deepest nodes small enough that the focus magnifier pops them harder: a moderate range. The sqrt scale (time-axis) does the real work of making long gaps read deeper than short ones.
 
-import type { ViewType } from "../../page/graph/domains/views.js";
-import { VIEW, isLaneView } from "../../page/graph/domains/views.js";
-import { LAYERED_Z_FACTOR } from "../../page/graph/derivations/layered-solver.js";
-import { truncateLabel } from "../../page/graph/derivations/layout-forces.js";
-import { gridSlot } from "../../page/graph/derivations/group-grid.js";
+import type { ViewType } from "../domains/views.js";
+import { VIEW, isLaneView } from "../domains/views.js";
+import { LAYERED_Z_FACTOR } from "../derivations/layered-solver.js";
+import { truncateLabel } from "../derivations/layout-forces.js";
+import { gridSlot } from "../derivations/group-grid.js";
 export type GanttScale = { min: number; span: number };
 
 /** Accessors the component supplies; every getter is read at CALL time (per-repaint component fields stay current). */
@@ -48,6 +47,7 @@ export type DataPipelineDeps = {
 	lastModelHash: () => number | undefined; // undefined = first feed / post-reset (everything is "new", without arrival pops)
 	timeCursor: () => number | null; // the resolved cursor (a pinned view's frozen instant, else the global cursor); null = live
 	zBasis: () => "valid" | "indexed" | "connections"; // what places depth: the object's valid time (its declared field), its indexed time (generatedAtTime), or its number of connections
+	relationOf: RelOf; // the catalog's relation of a predicate, which the gantt reads a task's schedule by
 	validTimeFieldFor: (type: string) => string | undefined; // the catalog's validTimeField per label, undefined for a name it doesn't declare
 	groupAnchors: () => Map<string, GroupAnchor>;
 	groupSizes: () => Map<string, { w: number; h: number }>;
@@ -137,7 +137,7 @@ export class DataPipeline {
 			this.deps.setGanttShapeSig(""); // leaving gantt → boxes revert to chips on the next feed
 			return;
 		}
-		const tasks = quadsToGanttModel(this.renderableQuads(), relationOfPredicate).tasks;
+		const tasks = quadsToGanttModel(this.renderableQuads(), this.deps.relationOf).tasks;
 		if (tasks.length === 0) {
 			this.deps.setGanttTargets(new Map());
 			this.deps.setGanttScale(undefined);

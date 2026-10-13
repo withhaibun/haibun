@@ -167,15 +167,6 @@
 	"modules/shu/src/graph/polymorphic/polymorphic-chip-geometry.test.ts": {
 		"relation-verb": 1
 	},
-	"modules/shu/src/graph/polymorphic/polymorphic-data-pipeline.test.ts": {
-		"anthropomorphic": 1,
-		"relation-verb": 2
-	},
-	"modules/shu/src/graph/polymorphic/polymorphic-data-pipeline.ts": {
-		"anthropomorphic": 1,
-		"relation-verb": 3,
-		"terminal-preposition": 1
-	},
 	"modules/shu/src/graph/polymorphic/polymorphic-enclosure.ts": {
 		"relation-verb": 1
 	},
@@ -557,19 +548,23 @@
 	"modules/shu/src/page/derivations/step-input.ts": {
 		"relation-verb": 1
 	},
+	"modules/shu/src/page/graph/controllers/graph-data-controller.test.ts": {
+		"anthropomorphic": 7,
+		"negated-noun": 3
+	},
+	"modules/shu/src/page/graph/pipelines/data-pipeline.test.ts": {
+		"anthropomorphic": 1,
+		"relation-verb": 2
+	},
+	"modules/shu/src/page/graph/pipelines/data-pipeline.ts": {
+		"anthropomorphic": 1,
+		"relation-verb": 3,
+		"terminal-preposition": 1
+	},
 	"modules/shu/src/polymorphic-report.test.ts": {
 		"anthropomorphic": 9,
 		"terminal-preposition": 1,
 		"the-run": 2
-	},
-	"modules/shu/src/quads-snapshot.test.ts": {
-		"anthropomorphic": 7,
-		"negated-noun": 3
-	},
-	"modules/shu/src/quads-snapshot.ts": {
-		"anthropomorphic": 6,
-		"relation-verb": 1,
-		"terminal-preposition": 1
 	},
 	"modules/shu/src/recogito.ts": {
 		"relation-verb": 1

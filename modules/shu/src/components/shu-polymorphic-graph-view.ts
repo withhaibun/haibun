@@ -34,6 +34,10 @@ import {
 	type RescheduleUpdate,
 	type TGraphState,
 } from "../graph/polymorphic/polymorphic-scene.js";
+import type { TReadCounts } from "../page/graph/domains/snapshot.js";
+
+/** What a graph view states: what its scene draws, and the reads the view started and settled (SH22). */
+export type TGraphViewState = TGraphState & { reads: TReadCounts };
 import { GRAPH_SCENE_EVENT } from "../page/graph/domains/graph-types.js";
 import type { TMeasureUnit, TPanDirection, TZoomDirection } from "../page/graph/machines/camera.js";
 import { type TPaneOpen } from "../page/derivations/pane-kinds.js";
@@ -177,9 +181,10 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	get fgCamera() {
 		return this.scene?.fgCamera;
 	}
-	/** What the graph draws, as its scene states it, or null before the scene mounts. */
-	inspect(): TGraphState | null {
-		return this.scene?.inspect() ?? null;
+	/** What the graph draws, as its scene states it, with the reads the view started and settled, or null before the scene mounts. */
+	inspect(): TGraphViewState | null {
+		const scene = this.scene?.inspect();
+		return scene === undefined ? null : { ...scene, reads: this.reads };
 	}
 	/** The current graph as a self-contained SVG still: the report and still-image medium. */
 	still(): string {

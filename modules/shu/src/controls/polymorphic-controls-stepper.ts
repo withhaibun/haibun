@@ -68,7 +68,6 @@ const CHIP_FACET = { types: "types", predicates: "predicates" } as const;
 type TChipFacet = (typeof CHIP_FACET)[keyof typeof CHIP_FACET];
 /** The number of reads of the active node before the pointer step fails. A record arriving moves the node once. */
 const ACTIVE_PICK_TRIES = 30;
-const SCOPED_REFETCH_BEGIN_MS = 350; // covers the scoped refetch's RPC dispatch + the view's 250ms repaint debounce
 /** A node or edge drawn above this opacity is lit, and one below `DIM_OPACITY` is dim. A node without an opacity is drawn full. */
 const LIT_OPACITY = 0.9;
 const DIM_OPACITY = 0.5;
@@ -245,7 +244,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	/** Show the merged schema alongside the live data, or hide it, and wait for the refetch to land. */
 	private async revealSchema(page: Page, visible: boolean): Promise<void> {
 		await this.view(page).evaluate((view: ShuPolymorphicGraphView, on) => view.revealSchema(on), visible);
-		await this.settleScopedRefetch(page);
+		await this.settle(page);
 	}
 
 	/** Move the shared time cursor, or clear it with null. */
@@ -345,16 +344,18 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 		);
 	}
 
-	/** Wait for the layout and the camera to come to rest, so a read is stable and a camera op is not raced by a settling
-	 *  tween or by following's check after a pan or zoom. A debounced repaint that has not run leaves the engine idle
-	 *  while the scene still shows the previous placement, so settled means the engine and the camera are at rest AND the view doesn't owe a repaint. */
+	/** Wait for the view's reads and the scene to come to rest, so a read is stable and a camera op is not raced by a settling
+	 *  tween or by following's check after a pan or zoom. A read settles once the view holds what it returned, which schedules
+	 *  the repaint, and a debounced repaint that has not run leaves the engine idle while the scene still shows the previous
+	 *  placement, so settled means each read the view started has settled, the engine and the camera are at rest, and the view
+	 *  doesn't owe a repaint (SH22). */
 	private settle(page: Page): Promise<void> {
 		return this.untilGraph(
 			page,
-			"a settled scene, with its engine frozen and its tween, repaint and follow done",
+			"a settled view, with each read it started settled, its engine frozen and its tween, repaint and follow done",
 			({ el }) => {
 				const i = el.inspect();
-				return !!i && i.engineMode === "frozen" && i.tween === null && !i.repaintPending && !i.followPending;
+				return !!i && i.reads.started === i.reads.settled && i.engineMode === "frozen" && i.tween === null && !i.repaintPending && !i.followPending;
 			},
 			null,
 			SETTLES_MS,
@@ -408,25 +409,6 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			if (stable(now, prev)) return;
 			prev = now;
 		}
-	}
-
-	/** Poll until the node count stops changing: an async refetch can land in two stages, so one settle isn't enough. */
-	private async waitForStableCount(page: Page): Promise<void> {
-		await this.pollUntilStable(
-			page,
-			ARRIVAL_POLL_MS,
-			12,
-			async () => (await this.state(page)).nodes,
-			(now, prev) => now === prev,
-		);
-	}
-
-	/** A type-scope change refetches (RPC + repaint debounce) and can land in two stages (hide → refetch): give the
-	 *  refetch time to begin, then wait until the node count stops changing. */
-	private async settleScopedRefetch(page: Page): Promise<void> {
-		await page.waitForTimeout(SCOPED_REFETCH_BEGIN_MS);
-		await this.settle(page);
-		await this.waitForStableCount(page);
 	}
 
 	/** Wait until the camera's fov is calibrated to the canvas height it has now. A window or column resize lands on the
@@ -606,7 +588,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				const chip = filter.locator(FILTER_CHIP).filter({ hasText: new RegExp(`^\\s*${type}\\b`) });
 				if ((await chip.count()) === 0) return actionNotOK(`the filter doesn't show a type chip for ${type}`);
 				await chip.first().click(); // tap the type → show only it
-				await this.settleScopedRefetch(page);
+				await this.settle(page);
 				return actionOK();
 			},
 		},
@@ -1571,7 +1553,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 				if ((await slider.count()) === 0) return actionNotOK("the graph filter doesn't hold a per-type limit slider to profile");
 				await this.view(page).evaluate((view: ShuPolymorphicGraphView) => view.resetProfile()); // measure only the re-render this limit change triggers
 				await slider.fill(String(limit)); // drive the real slider: input tracks the label, change (release) dispatches the refetch
-				await this.settleScopedRefetch(page);
+				await this.settle(page);
 				const p = (await this.state(page)).profile;
 				const forceMs = Math.max(0, p.setMs - p.labelsMs);
 				this.getWorld().eventLogger.info(
@@ -1709,7 +1691,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 	private async showOnlyType(page: Page, type: string): Promise<TActionResult> {
 		if ((await this.filter(page).count()) === 0) return actionNotOK(NO_FILTER);
 		await this.filter(page).evaluate((filter: ShuGraphFilter, t) => filter.setVisibleTypes([t]), type);
-		await this.settleScopedRefetch(page);
+		await this.settle(page);
 		return actionOK();
 	}
 
@@ -1723,7 +1705,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 			list,
 			visible,
 		});
-		await this.settleScopedRefetch(page);
+		await this.settle(page);
 		return actionOK();
 	}
 

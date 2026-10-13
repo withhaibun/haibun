@@ -8,7 +8,7 @@ import { ShuElement, type TLinkedData } from "../../page/components/shu-element.
 import { SITE_KEY, type GraphModel } from "../../domains/graph-model.js";
 import { omittedOf } from "../../derivations/graph-model.js";
 import { readsEveryStatement, statedAboutFirst } from "../../page/graph/derivations/summary.js";
-import { DEFAULT_PER_TYPE_LIMIT } from "../../quads-snapshot.js";
+import { DEFAULT_PER_TYPE_LIMIT } from "../../page/graph/domains/snapshot.js";
 import { SCOPE, dispatchSubjectEvent, entryOf } from "../../current-subject.js";
 import { formatInstant, readerZone } from "../../page/derivations/time-format.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
@@ -41,7 +41,7 @@ import { defineElement } from "../../page/controllers/element-controller.js";
 import { framesGraph, type TClientPoint } from "../../page/graph/derivations/project.js";
 import { RenderContext } from "./polymorphic-render-context.js";
 import type { TGraphRenderer, TSceneCamera } from "../../page/graph/ports.js";
-import { DataPipeline } from "./polymorphic-data-pipeline.js";
+import { DataPipeline } from "../../page/graph/pipelines/data-pipeline.js";
 import { type RenderType, type TViewForces, buildRenderTypeRegistry } from "./polymorphic-render-type.js";
 import type { ViewType } from "../../page/graph/domains/views.js";
 import { FRAME, VIEW, viewChangeRebuildsNodes } from "../../page/graph/domains/views.js";
@@ -436,6 +436,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		lastModelHash: () => this.lastModelHash,
 		timeCursor: () => this.model.timeCursor, // the pinning-aware cursor the host resolved (a snapshot-pinned view reads its frozen instant)
 		zBasis: () => this.config.zBasis,
+		relationOf: relationOfPredicate,
 		validTimeFieldFor: (type) => validTimeFieldOf(type),
 		groupAnchors: () => this.enclosureCtl.anchors,
 		groupSizes: () => this.enclosureCtl.sizes,

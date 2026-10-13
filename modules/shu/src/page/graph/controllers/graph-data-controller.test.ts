@@ -12,42 +12,35 @@
  * import of the module in a new module-graph context (achieved here by
  * deleting the cached module) sees the same singleton store.
  */
-import { catalogOf, declareCatalog, declareRegistry, declareSpec, declareGraphSpec } from "./test/catalog-fixture.js";
-import { requiredActionOf } from "./page/controllers/registry-controller.js";
-import { serveThePage, setupShuTest, stepsShown, newPage } from "./test/setup.js";
+import { catalogOf, declareCatalog, declareRegistry, declareSpec, declareGraphSpec } from "../../../test/catalog-fixture.js";
+import { requiredActionOf } from "../../controllers/registry-controller.js";
+import { serveThePage, setupShuTest, stepsShown, newPage } from "../../../test/setup.js";
 import { describe, it, expect, beforeEach } from "vitest";
-import {
-	subscribeSnapshot,
-	setActiveViewId,
-	getViewContext,
-	mergeQuadsIntoSnapshot,
-	pinSubjects,
-	currentSnapshot,
-	DEFAULT_PER_TYPE_LIMIT,
-	getGraphSnapshot,
-} from "./quads-snapshot.js";
-import { cachedGraph, installGraph } from "./page/client-cache/controllers/device-controller.js";
+import { GraphDataController, currentSnapshot, mergeIntoSnapshots, pinSubjects, setActiveViewId, subscribeSnapshot, viewContext } from "./graph-data-controller.js";
+import { DEFAULT_PER_TYPE_LIMIT } from "../domains/snapshot.js";
+import type { SnapshotStore } from "../machines/snapshot-store.js";
+import { cachedGraph, installGraph } from "../../client-cache/controllers/device-controller.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { Access, BODY_LABEL } from "@haibun/core/lib/resources.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
-import { installServedConduit } from "./page/root.js";
+import { installServedConduit } from "../../root.js";
 import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
-import { installCarriedEventStream } from "./page/root.js";
-import { pagePinned } from "./page/adapters/page-held.js";
+import { installCarriedEventStream } from "../../root.js";
+import { pagePinned } from "../../adapters/page-held.js";
 import { storeDeclaring } from "@haibun/core/lib/test/declared-types.js";
-import { selectValuesFor, queryGraph, readIndividual } from "./page/controllers/read-controller.js";
+import { selectValuesFor, queryGraph, readIndividual } from "../../controllers/read-controller.js";
 
-const STORE_KEY = "__SHU_QUADS_SNAPSHOT_STORE__";
+const STORE_KEY = "__SHU_GRAPH_SNAPSHOTS__";
 
 /** Stream one subject's quads as a single batch, mirroring how SSE delivers an upsert. */
 function feedSubject(type: string, subject: string, props: number): void {
 	const batch: TQuad[] = [];
 	for (let p = 0; p < props; p++) batch.push({ subject, predicate: `p${p}`, object: `v${p}`, namedGraph: type, timestamp: 1 });
-	mergeQuadsIntoSnapshot(batch);
+	mergeIntoSnapshots(batch);
 }
 
-describe("quads-snapshot store singleton", () => {
+describe("the page's one store of graph snapshots", () => {
 	beforeEach(() => {
 		newPage();
 		serveThePage();
@@ -55,12 +48,15 @@ describe("quads-snapshot store singleton", () => {
 
 	it("holds the store on the page, where another bundle's copy of this module finds it", () => {
 		setActiveViewId("seed");
-		expect(pagePinned<{ viewContext: { activeViewId: string | null } }>(STORE_KEY, () => ({ viewContext: { activeViewId: null } })).viewContext.activeViewId).toBe("seed");
+		const held = pagePinned<SnapshotStore>(STORE_KEY, () => {
+			throw new Error("the page doesn't hold the graph's snapshots");
+		});
+		expect(held.context.activeViewId).toBe("seed");
 	});
 
 	it("subscribers see active-view updates from any caller (cross-bundle simulation)", () => {
 		const seen: Array<string | null> = [];
-		const unsub = subscribeSnapshot((_snap, ctx) => seen.push(ctx.activeViewId));
+		const unsub = subscribeSnapshot((_snap, ctx) => seen.push(ctx.activeViewId), "");
 		setActiveViewId("a");
 		setActiveViewId("b");
 		setActiveViewId(null);
@@ -70,12 +66,12 @@ describe("quads-snapshot store singleton", () => {
 
 	it("getViewContext reflects the latest setter, regardless of which import called it", () => {
 		setActiveViewId("x");
-		expect(getViewContext().activeViewId).toBe("x");
+		expect(viewContext().activeViewId).toBe("x");
 	});
 
 	it("dedups identical setActiveViewId calls (without spurious notifications)", () => {
 		let count = 0;
-		const unsub = subscribeSnapshot(() => count++);
+		const unsub = subscribeSnapshot(() => count++, "");
 		setActiveViewId("once");
 		setActiveViewId("once");
 		setActiveViewId("once");
@@ -86,8 +82,8 @@ describe("quads-snapshot store singleton", () => {
 	it("two listeners registered before any change both fire on a single update, proving the listener Set is one identity, not duplicated", () => {
 		const a: Array<string | null> = [];
 		const b: Array<string | null> = [];
-		const ua = subscribeSnapshot((_s, ctx) => a.push(ctx.activeViewId));
-		const ub = subscribeSnapshot((_s, ctx) => b.push(ctx.activeViewId));
+		const ua = subscribeSnapshot((_s, ctx) => a.push(ctx.activeViewId), "");
+		const ub = subscribeSnapshot((_s, ctx) => b.push(ctx.activeViewId), "");
 		setActiveViewId("shared");
 		ua();
 		ub();
@@ -96,7 +92,7 @@ describe("quads-snapshot store singleton", () => {
 	});
 });
 
-describe("mergeQuadsIntoSnapshot is bounded by the limit (the OOM fix)", () => {
+describe("a merge into the snapshots is bounded by the limit (the OOM fix)", () => {
 	beforeEach(() => {
 		newPage();
 		declareSpec({ types: [] });
@@ -109,7 +105,7 @@ describe("mergeQuadsIntoSnapshot is bounded by the limit (the OOM fix)", () => {
 		const PROPS = 3;
 		for (let t = 0; t < TYPES; t++) for (let s = 0; s < SUBJECTS_PER_TYPE; s++) feedSubject(`T${t}`, `T${t}-${s}`, PROPS);
 
-		const snap = currentSnapshot();
+		const snap = currentSnapshot("");
 		for (const c of snap.clusters) {
 			expect(c.sampledCount).toBe(DEFAULT_PER_TYPE_LIMIT); // sample capped at the limit
 			expect(c.omittedCount).toBe(SUBJECTS_PER_TYPE - DEFAULT_PER_TYPE_LIMIT); // the rest counted, not retained
@@ -120,35 +116,35 @@ describe("mergeQuadsIntoSnapshot is bounded by the limit (the OOM fix)", () => {
 	});
 
 	it("pinned (expanded) subjects are retained even past the limit", () => {
-		pinSubjects(["P-pinned"]);
+		pinSubjects(["P-pinned"], "");
 		for (let s = 0; s < 500; s++) feedSubject("P", `P-${s}`, 2); // fill far past the limit
 		feedSubject("P", "P-pinned", 2); // arrives after the limit is full
 
-		const snap = currentSnapshot();
+		const snap = currentSnapshot("");
 		const labels = snap.clusters.find((c) => c.type === "P")?.displayLabels ?? {};
 		expect(labels["P-pinned"]).toBeDefined(); // pinned subject kept despite the limit being full
 	});
 
 	it("titles a body-backed subject by its linked body when both arrive in one merge (create-time)", () => {
-		mergeQuadsIntoSnapshot([
+		mergeIntoSnapshots([
 			{ subject: "cmt-1", predicate: "id", object: "cmt-1", namedGraph: "Comment", timestamp: 1 },
 			{ subject: "cmt-1", predicate: "seqPath", object: "0.-1.26", namedGraph: "Comment", timestamp: 1 },
 			{ subject: "cmt-1", predicate: "hasBody", object: "body-cmt-1", namedGraph: "Comment", objectType: BODY_LABEL, timestamp: 1 },
 			{ subject: "body-cmt-1", predicate: "content", object: "Lawrence vouches for this neighbour", namedGraph: BODY_LABEL, timestamp: 1 },
 		]);
-		const label = currentSnapshot().clusters.find((c) => c.type === "Comment")?.displayLabels["cmt-1"];
+		const label = currentSnapshot("").clusters.find((c) => c.type === "Comment")?.displayLabels["cmt-1"];
 		expect(label).toContain("Lawrence vouches");
 		expect(label).not.toContain("seqPath");
 	});
 
 	it("relabels the parent when its linked body arrives in a later merge (the body is emitted before the hasBody edge)", () => {
-		mergeQuadsIntoSnapshot([
+		mergeIntoSnapshots([
 			{ subject: "cmt-2", predicate: "id", object: "cmt-2", namedGraph: "Comment", timestamp: 1 },
 			{ subject: "body-cmt-2", predicate: "content", object: "a later body", namedGraph: BODY_LABEL, timestamp: 1 },
 		]);
 		// The hasBody edge (emitted after the body) touches the comment, so it is relabelled with the body now present.
-		mergeQuadsIntoSnapshot([{ subject: "cmt-2", predicate: "hasBody", object: "body-cmt-2", namedGraph: "Comment", objectType: BODY_LABEL, timestamp: 2 }]);
-		const label = currentSnapshot().clusters.find((c) => c.type === "Comment")?.displayLabels["cmt-2"];
+		mergeIntoSnapshots([{ subject: "cmt-2", predicate: "hasBody", object: "body-cmt-2", namedGraph: "Comment", objectType: BODY_LABEL, timestamp: 2 }]);
+		const label = currentSnapshot("").clusters.find((c) => c.type === "Comment")?.displayLabels["cmt-2"];
 		expect(label).toBe("a later body");
 	});
 
@@ -159,7 +155,7 @@ describe("mergeQuadsIntoSnapshot is bounded by the limit (the OOM fix)", () => {
 		for (let s = 0; s * PROPS < N; s++) feedSubject("X", `X-${s}`, PROPS);
 		const ms = performance.now() - start;
 
-		expect(currentSnapshot().clusters[0]?.sampledCount).toBe(DEFAULT_PER_TYPE_LIMIT); // bounded regardless of N
+		expect(currentSnapshot("").clusters[0]?.sampledCount).toBe(DEFAULT_PER_TYPE_LIMIT); // bounded regardless of N
 		expect(ms).toBeLessThan(5_000); // O(n²) over ~20k batches would take minutes; linear is well under this
 	});
 });
@@ -174,7 +170,7 @@ describe("per-scope snapshots, independent data sources over one store", () => {
 	it("a merge extends every scope that holds a cache, each notified with ITS OWN snapshot", () => {
 		const sharedSeen: number[] = [];
 		const scopedSeen: number[] = [];
-		subscribeSnapshot((snap) => sharedSeen.push(snap?.quads.length ?? -1));
+		subscribeSnapshot((snap) => sharedSeen.push(snap?.quads.length ?? -1), "");
 		subscribeSnapshot((snap) => scopedSeen.push(snap?.quads.length ?? -1), "class-browser");
 		feedSubject("Email", "e-1", 2); // creates the default scope's cache; the scoped cache doesn't exist yet
 		expect(sharedSeen.at(-1)).toBe(2);
@@ -183,14 +179,14 @@ describe("per-scope snapshots, independent data sources over one store", () => {
 
 	it("pinning and reading are scoped: subjects pinned in one scope never appear in another's snapshot", () => {
 		feedSubject("Email", "e-1", 1);
-		pinSubjects(["e-1"]); // default scope
-		expect(currentSnapshot().quads.length).toBe(1);
+		pinSubjects(["e-1"], ""); // default scope
+		expect(currentSnapshot("").quads.length).toBe(1);
 		expect(currentSnapshot("class-browser").quads.length).toBe(0); // the scoped source is untouched
 	});
 
 	it("an active-view change is global: listeners of every scope receive it", () => {
 		const scopes: string[] = [];
-		subscribeSnapshot((_s, ctx) => scopes.push(`shared:${ctx.activeViewId}`));
+		subscribeSnapshot((_s, ctx) => scopes.push(`shared:${ctx.activeViewId}`), "");
 		subscribeSnapshot((_s, ctx) => scopes.push(`browser:${ctx.activeViewId}`), "class-browser");
 		setActiveViewId("Issuer");
 		expect(scopes).toContain("shared:Issuer");
@@ -225,14 +221,14 @@ describe("the graph a page caches, without a server to ask", () => {
 			{ subject: "c2", predicate: "content", object: "two", namedGraph: "Comment", timestamp: 2 },
 		]);
 		installGraph(store);
-		const snapshot = await getGraphSnapshot({ perTypeLimit: 10, scope: "carried" });
+		const snapshot = await new GraphDataController("carried").readSnapshot(10, undefined);
 		expect(snapshot.quads.length, "the graph it caches").toBe(2);
 		expect(Array.isArray(snapshot.clusters), "clustered by the store, not by a captured response").toBe(true);
 	});
 
 	it("reports that the graph is not available when it doesn't cache one and a server doesn't answer", async () => {
 		installGraph(new QuadStore());
-		await expect(getGraphSnapshot({ perTypeLimit: 10, scope: "empty" })).rejects.toThrow();
+		await expect(new GraphDataController("empty").readSnapshot(10, undefined)).rejects.toThrow();
 	});
 });
 
@@ -336,5 +332,19 @@ describe("an individual the page holds a copy of", () => {
 			throw new ServerUnreachable(READ.method, new TypeError("the site doesn't respond"));
 		});
 		expect((await readIndividual("Email", "a", "private")).vertex).toMatchObject({ folder: "INBOX" });
+	});
+});
+
+describe("the reads a view counts (SH22)", () => {
+	it("counts a read as started at once and as settled once its work ends, whether it returns or fails", async () => {
+		const data = new GraphDataController("counted");
+		let finish: (value: string) => void = () => undefined;
+		const returned = data.counted(() => new Promise<string>((resolve) => (finish = resolve)));
+		expect(data.reads).toEqual({ started: 1, settled: 0 });
+		finish("read");
+		await expect(returned).resolves.toBe("read");
+		expect(data.reads).toEqual({ started: 1, settled: 1 });
+		await expect(data.counted(() => Promise.reject(new Error("refused")))).rejects.toThrow("refused");
+		expect(data.reads).toEqual({ started: 2, settled: 2 });
 	});
 });

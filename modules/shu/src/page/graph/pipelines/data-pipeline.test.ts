@@ -9,8 +9,8 @@ import { describe, expect, it } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
-import { timeZScale, timeZ } from "../../page/graph/derivations/time-axis.js";
-import { DataPipeline, type DataPipelineDeps } from "./polymorphic-data-pipeline.js";
+import { timeZScale, timeZ } from "../derivations/time-axis.js";
+import { DataPipeline, type DataPipelineDeps } from "./data-pipeline.js";
 
 const GENERATED = LinkRelations.GENERATED_AT_TIME.rel;
 const NOW = Date.parse("2026-07-06T00:00:00.000Z");
@@ -103,6 +103,7 @@ const placementDeps = (over: Partial<DataPipelineDeps>): DataPipelineDeps =>
 		lastModelHash: () => 1,
 		timeCursor: () => null,
 		zBasis: () => "valid",
+		relationOf: (predicate) => predicate,
 		validTimeFieldFor,
 		groupAnchors: () => new Map(),
 		groupSizes: () => new Map(),

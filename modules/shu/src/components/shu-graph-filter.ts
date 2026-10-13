@@ -25,7 +25,7 @@ import { defineElement } from "../page/controllers/element-controller.js";
 import { SHU_TEST_IDS } from "../domains/test-ids.js";
 
 const FILTER_IDS = SHU_TEST_IDS.GRAPH_FILTER;
-import { DEFAULT_PER_TYPE_LIMIT, MAX_PER_TYPE_LIMIT } from "../quads-snapshot.js";
+import { DEFAULT_PER_TYPE_LIMIT, MAX_PER_TYPE_LIMIT } from "../page/graph/domains/snapshot.js";
 import { colorForType } from "../page/graph/derivations/type-colors.js";
 import { storedFields } from "../page/controllers/setting-controller.js";
 import { instrumentationTypes } from "../page/controllers/catalog-controller.js";

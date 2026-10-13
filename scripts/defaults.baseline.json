@@ -331,15 +331,8 @@
 	"modules/shu/src/current-subject.ts": {
 		"fills an absent value with a constant through ??": 1
 	},
-	"modules/shu/src/graph-expansion.ts": {
-		"fills an absent value with a constant through ??": 4
-	},
 	"modules/shu/src/graph/polymorphic/polymorphic-a11y-renderer.ts": {
 		"fills an absent value with a constant through ??": 3
-	},
-	"modules/shu/src/graph/polymorphic/polymorphic-data-pipeline.ts": {
-		"fills an absent value with a constant through ??": 11,
-		"states a parameter's default value": 1
 	},
 	"modules/shu/src/graph/polymorphic/polymorphic-node-shapes.ts": {
 		"fills an absent value with a constant through ??": 1
@@ -497,9 +490,9 @@
 	"modules/shu/src/page/derivations/step-input.ts": {
 		"fills an absent value with a constant through ??": 2
 	},
-	"modules/shu/src/quads-snapshot.ts": {
-		"fills an absent value with a constant through ??": 6,
-		"states a parameter's default value": 4
+	"modules/shu/src/page/graph/pipelines/data-pipeline.ts": {
+		"fills an absent value with a constant through ??": 11,
+		"states a parameter's default value": 1
 	},
 	"modules/shu/src/reveal.ts": {
 		"states a destructured default value": 3,

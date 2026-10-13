@@ -19,7 +19,7 @@ const G_DEPENDS = LinkRelations.GANTT_DEPENDS.rel;
 
 /** Map a quad's (predicate, graph) to its link relation. A consumer passes a resolver (the page's catalog, which keys off
  *  the graph type) for its own predicates. */
-type RelOf = (predicate: string, graph: string) => string;
+export type RelOf = (predicate: string, graph: string) => string;
 
 /** The relation of a quad whose predicate is a canonical rel: the predicate itself. */
 export const canonicalRel: RelOf = (predicate) => predicate;

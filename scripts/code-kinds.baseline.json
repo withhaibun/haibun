@@ -415,13 +415,7 @@
 	"modules/shu/src/graph-blips.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/shu/src/graph-expansion.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/graph/polymorphic/polymorphic-a11y-renderer.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/graph/polymorphic/polymorphic-data-pipeline.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/graph/polymorphic/polymorphic-enclosure.ts": {
@@ -449,9 +443,6 @@
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/known-size-flow.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/quads-snapshot.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/recogito.ts": {

@@ -13,9 +13,9 @@ import { reportToRun } from "../client-log.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { extractQuadsFromEvents, type TCluster, type TQuad } from "@haibun/core/lib/quad-types.js";
 import { getRels, instrumentationTypes } from "../page/controllers/catalog-controller.js";
-import { getGraphSnapshot, currentSnapshot, mergeQuadsIntoSnapshot, DEFAULT_PER_TYPE_LIMIT, MAX_PER_TYPE_LIMIT } from "../quads-snapshot.js";
+import { DEFAULT_PER_TYPE_LIMIT, MAX_PER_TYPE_LIMIT, type TReadCounts } from "../page/graph/domains/snapshot.js";
+import { GraphDataController, currentSnapshot, mergeIntoSnapshots } from "../page/graph/controllers/graph-data-controller.js";
 import { SubjectController } from "../page/controllers/subject-controller.js";
-import { expandNeighborhood } from "../graph-expansion.js";
 import { ShuGraphFilter } from "./shu-graph-filter.js";
 import "../graph/polymorphic/polymorphic-scene.js";
 import { type ShuGraphScene, type GraphSceneModel } from "../graph/polymorphic/polymorphic-scene.js";
@@ -88,6 +88,15 @@ export abstract class ShuClusteredGraphView<T extends z.ZodObject<typeof cluster
 	}
 
 	// The shared fields, typed by the constraint: every subclass schema includes clusteredGraphStateShape.
+	/** The view's data: its scope's snapshot, a record's neighbourhood, and the count of the reads it started and settled.
+	 *  A subclass states its scope as a constant through its getter, which the initialiser reads. */
+	protected readonly data = new GraphDataController(this.snapshotScope);
+
+	/** The scoped reads this view started and those that settled, which match while a read isn't in flight (SH22). */
+	get reads(): TReadCounts {
+		return this.data.reads;
+	}
+
 	protected get cgState(): TClusteredGraphState {
 		return this.state;
 	}
@@ -248,7 +257,7 @@ export abstract class ShuClusteredGraphView<T extends z.ZodObject<typeof cluster
 				onBatch: (events) => {
 					const quads = extractQuadsFromEvents(events);
 					if (quads.length === 0) return;
-					mergeQuadsIntoSnapshot(quads);
+					mergeIntoSnapshots(quads);
 					// Repaint on EVERY batch. Instrumentation graphs (SeqPath, observation/*, variables, facts) are ordinary
 					// toggleable graph elements, not a special case: they must stream in and render like any other type. The
 					// render→RPC→observe→render loop this once guarded against is gone: the overview now paints client-side
@@ -310,9 +319,14 @@ export abstract class ShuClusteredGraphView<T extends z.ZodObject<typeof cluster
 		this.commitHidden(hidden, visibleTypes.length > 0 ? visibleTypes : undefined, this.cgState.perTypeLimit);
 	}
 
-	protected async refetchSnapshot(opts: { perTypeLimit: number; types?: string[] }): Promise<void> {
+	/** Read the scope's snapshot again and draw it, counted as one read that settles once the view holds what it returned. */
+	protected refetchSnapshot(opts: { perTypeLimit: number; types?: string[] }): Promise<void> {
+		return this.data.counted(() => this.#refetch(opts));
+	}
+
+	async #refetch(opts: { perTypeLimit: number; types?: string[] }): Promise<void> {
 		try {
-			const snap = await getGraphSnapshot({ perTypeLimit: opts.perTypeLimit, types: opts.types, forceRefresh: true, scope: this.snapshotScope });
+			const snap = await this.data.readSnapshot(opts.perTypeLimit, opts.types);
 			for (const c of snap.clusters) this.knownClusters.set(c.type, c);
 			// On-demand subjects are in the fresh snapshot now; clearing lets one re-load if a new limit sampled it out.
 			this.fetchedSubjects.clear();
@@ -335,13 +349,17 @@ export abstract class ShuClusteredGraphView<T extends z.ZodObject<typeof cluster
 		this.onGraphData();
 	}
 
-	/** Reveal a selected subject's bounded neighborhood (both directions, pinned), once per view lifetime. */
+	/** Reveal a selected subject's bounded neighborhood (both directions, pinned), once per view lifetime, counted as one read. */
 	protected async fetchIfMissing(subject: string, label: string): Promise<void> {
 		if (this.fetchedSubjects.has(subject)) return;
 		if (!getRels(label)) return; // non-individual graphs (facts, observation/*, variables) don't have a neighborhood
 		this.fetchedSubjects.add(subject);
+		await this.data.counted(() => this.#expand(subject, label));
+	}
+
+	async #expand(subject: string, label: string): Promise<void> {
 		try {
-			const types = await expandNeighborhood(label, subject);
+			const types = await this.data.expand(label, subject);
 			if (types.size === 0) return;
 			// Expand every touched type so revealed nodes render instead of staying inside a collapsed cluster.
 			const expanded = [...new Set([...this.cgState.expandedGraphs, ...types])];

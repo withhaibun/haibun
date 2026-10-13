@@ -8,8 +8,8 @@ import { hasEventStream, pageRecords } from "../root.js";
 import { callStep, followCall, recordRead, recordReadAt } from "./read-controller.js";
 import { subscribeBatchedEvents } from "./event-stream-controller.js";
 import { isOffline } from "./hydration-controller.js";
-import { queryStoredQuads } from "../../quads-snapshot.js";
 import { reportToRun } from "../../client-log.js";
+import { cachedGraph } from "../client-cache/controllers/device-controller.js";
 
 /** What an open of a record reads: the page's records, its reads and calls, its stream of observed quads, and its report. */
 const scope = (): OpenRecord.TOpenScope => ({
@@ -18,7 +18,7 @@ const scope = (): OpenRecord.TOpenScope => ({
 	subscribe: hasEventStream() ? (onQuads) => subscribeBatchedEvents({ onBatch: (events) => onQuads(extractQuadsFromEvents(events)) }) : undefined,
 	readAt: recordReadAt,
 	read: recordRead,
-	annotations: { call: callStep, quads: queryStoredQuads },
+	annotations: { call: callStep, quads: (pattern) => cachedGraph().query(pattern) },
 	report: (message) => reportToRun("warn", "open-record", message),
 });
 
