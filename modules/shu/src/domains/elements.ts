@@ -157,7 +157,6 @@ export const SHU_TAG = {
 	VIEWS_PICKER: "shu-views-picker",
 	AFFORDANCES_PANEL: "shu-affordances-panel",
 	DOMAIN_CHAIN_VIEW: "shu-domain-chain-view",
-	GRAPH: "shu-graph",
 	COPY_BUTTON: "shu-copy-button",
 	REF: "shu-ref",
 	TYPE_COLUMN: "shu-type-column",

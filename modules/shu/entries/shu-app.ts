@@ -31,7 +31,6 @@ import "../src/page/components/shu-product-view.js";
 import "../src/page/components/shu-views-picker.js";
 import "../src/page/components/shu-affordances-panel.js";
 import "../src/page/components/shu-domain-chain-view.js";
-import "../src/components/shu-graph.js";
 import "../src/page/components/shu-copy-button.js";
 import "../src/page/components/shu-ref-element.js";
 import "../src/page/components/shu-type-column.js";

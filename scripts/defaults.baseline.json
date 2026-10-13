@@ -320,9 +320,6 @@
 		"states a parameter's default value": 1,
 		"states a schema's default value through .default()": 3
 	},
-	"modules/shu/src/components/shu-graph.ts": {
-		"fills an absent value with a constant through ??": 1
-	},
 	"modules/shu/src/components/shu-polymorphic-graph-view.ts": {
 		"fills an absent value with a constant through ??": 5,
 		"states a parameter's default value": 1,
@@ -336,9 +333,6 @@
 	},
 	"modules/shu/src/graph-expansion.ts": {
 		"fills an absent value with a constant through ??": 4
-	},
-	"modules/shu/src/graph/graph-neighbors.ts": {
-		"fills an absent value with a constant through ??": 1
 	},
 	"modules/shu/src/graph/polymorphic/polymorphic-a11y-renderer.ts": {
 		"fills an absent value with a constant through ??": 3
@@ -367,13 +361,6 @@
 	"modules/shu/src/graph/polymorphic/polymorphic-troika-label.ts": {
 		"fills a falsy value with a constant through ||": 2,
 		"fills an absent value with a constant through ??": 2
-	},
-	"modules/shu/src/graph/svg-renderer.ts": {
-		"fills a falsy value with a constant through ||": 2,
-		"fills an absent value with a constant through ??": 15
-	},
-	"modules/shu/src/graph/svg-util.ts": {
-		"states a parameter's default value": 2
 	},
 	"modules/shu/src/known-size-flow.ts": {
 		"fills an absent value with a constant through ??": 1
@@ -482,9 +469,6 @@
 		"fills a falsy value with a constant through ||": 1,
 		"fills an absent value with a constant through ??": 11,
 		"states a parameter's default value": 1
-	},
-	"modules/shu/src/page/components/shu-type-column.ts": {
-		"fills an absent value with a constant through ??": 3
 	},
 	"modules/shu/src/page/components/shu-virtual-column.ts": {
 		"fills an absent value with a constant through ??": 8,

@@ -7,12 +7,13 @@
  * report, printed, or opened on its own.
  */
 import { colorForType } from "../../page/graph/derivations/type-colors.js";
-import { xml } from "../svg-util.js";
 import { ellipsize } from "@haibun/core/lib/util/index.js";
 import { NODE_TEXT_COLOR } from "../../page/graph/derivations/layout-forces.js";
 import { linkEndId, type FGNode } from "../../page/graph/domains/graph-types.js";
 import { graphSummary } from "./polymorphic-renderer.js";
 import type { TDrawn, TGraphRenderer } from "../../page/graph/ports.js";
+/** `s` with the characters XML reserves escaped, for a label written into the SVG. */
+const xml = (s: string): string => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /** What the medium needs from its host, read at draw time. */
 type TSvgRendererDeps = {

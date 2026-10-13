@@ -1,11 +1,10 @@
 /**
- * <shu-type-column>: the column a `#Type` reference opens. Shows the type's description, a graph of its schema, and
- * its individuals in the shared result table, so a type's records read with their own fields and sort by the same
- * columns the query and filter views offer. When the site declares a
- * schema presenter (ui.presents === "schema", falling back to its general "graph" presenter), that presenter IS the
- * schema view, embedded through shu-product-view and scoped by focusType. Without a presenter (standalone), a static SVG
- * shows the type's own schema, with a toggle widening it to the entire vocabulary. Read-only: the schema comes from
- * getTypeDescription/getRels/getEdgeRanges/getTypes, the individuals from the graph query a page at a time.
+ * <shu-type-column>: the column a `#Type` reference opens. Shows the type's description, its schema, and its individuals
+ * in the shared result table, so a type's records read with their own fields and sort by the same columns the query and
+ * filter views offer. When the site declares a schema presenter (ui.presents === "schema", falling back to its general
+ * "graph" presenter), that presenter IS the schema view, embedded through shu-product-view and scoped by focusType. A page
+ * without the presenter shows the type's description, its joins and its individuals, without a schema graph (CA3D8).
+ * Read-only: the schema comes from the catalog, the individuals from the graph query a page at a time.
  */
 import { html, css, nothing, type TemplateResult } from "lit";
 import { createRef, ref } from "lit/directives/ref.js";
@@ -17,7 +16,7 @@ import { queryGraph, queryRead } from "../controllers/read-controller.js";
 import { LoadController } from "../controllers/load-controller.js";
 import type { TCallOutcome } from "../pipelines/call-step.js";
 import "./shu-refusal.js";
-import { getEdgeRanges, getQueryableFields, getRels, getTypeDescription, getTypes, getUiPresenting, isSystemSchemaType, refContext } from "../controllers/catalog-controller.js";
+import { getQueryableFields, getTypeDescription, getTypes, getUiPresenting, isSystemSchemaType, refContext } from "../controllers/catalog-controller.js";
 import { arrayWindowedSource, readWindowedSource, unmarked, type WindowedSource } from "../derivations/windowed-source.js";
 
 /** How many of a type's individuals one read answers. The column lists every individual the type has, a page at a time
@@ -34,61 +33,17 @@ import { stepRef } from "./shu-ref.js";
 import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 
 const IDS = SHU_TEST_IDS.TYPE_COLUMN;
-import { deepLinkOf, followDeepLink, openRef, paneHref, refHref } from "./ref-navigation.js";
+import { openRef, paneHref } from "./ref-navigation.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
 import { aType, type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
-import { NODE_KIND, type TGraph } from "../domains/graph.js";
 import { ShuProductView } from "./shu-product-view.js";
 import { appAccessLevel } from "../../view-query.js";
 import { renderRefProse } from "../derivations/markdown.js";
-import "../../components/shu-graph.js";
 import "./shu-result-table.js";
 
-const TypeColumnSchema = z.object({ persistedAs: z.string(), fullSchema: z.boolean() });
+const TypeColumnSchema = z.object({ persistedAs: z.string() });
 
 type VertexData = Record<string, unknown>;
-
-type TSchemaNode = TGraph["nodes"][number];
-
-/** A type's node, linked to the type's view. */
-const typeNode = (type: string, kind?: string): TSchemaNode => ({ id: type, label: type, ...(kind ? { kind } : {}), link: { href: refHref(REF_DENOTES.type, { domain: type }) } });
-
-/** Add one type's schema to a graph under construction: an outgoing edge per referenced type (getEdgeRanges) and a leaf
- *  per literal property (a rel that is not an edge). Property nodes are shared across types (`prop:` id): a rel IS one
- *  Property, so two types declaring `name` point at the same node, linked to the records of the first type that adds it,
- *  ordered by the property. Pure, derived entirely from concern metadata. */
-function addTypeSchema(nodes: Map<string, TSchemaNode>, edges: TGraph["edges"], persistedAs: string): void {
-	const ranges = getEdgeRanges(persistedAs) ?? {};
-	for (const [field, targets] of Object.entries(ranges))
-		for (const target of targets) {
-			if (!nodes.has(target)) nodes.set(target, typeNode(target));
-			edges.push({ from: persistedAs, to: target, label: field, rel: field });
-		}
-	for (const field of Object.keys(getRels(persistedAs) ?? {})) {
-		if (field in ranges) continue; // an edge to another type, already drawn
-		const pid = `prop:${field}`;
-		if (!nodes.has(pid)) nodes.set(pid, { id: pid, label: field, kind: NODE_KIND.argument, link: { href: paneHref({ paneType: "filter-prop", persistedAs, predicate: field }) } });
-		edges.push({ from: persistedAs, to: pid, label: field });
-	}
-}
-
-/** The type's own schema graph: the type at the centre (highlighted), its referenced types, and its properties. */
-export function buildTypeSchemaGraph(persistedAs: string): TGraph {
-	const nodes = new Map<string, TSchemaNode>([[persistedAs, typeNode(persistedAs, NODE_KIND.current)]]);
-	const edges: TGraph["edges"] = [];
-	addTypeSchema(nodes, edges, persistedAs);
-	return { nodes: [...nodes.values()], edges };
-}
-
-/** The ENTIRE schema, every declared type with its edges and properties, with the viewed type highlighted, so a
- *  reader sees where this type sits in the whole vocabulary. The same per-type builder as the local graph. */
-export function buildFullSchemaGraph(current: string): TGraph {
-	const nodes = new Map<string, TSchemaNode>();
-	const edges: TGraph["edges"] = [];
-	for (const type of getTypes()) nodes.set(type, typeNode(type, type === current ? NODE_KIND.current : undefined));
-	for (const type of getTypes()) addTypeSchema(nodes, edges, type);
-	return { nodes: [...nodes.values()], edges };
-}
 
 export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 	/** The type and its individuals: an rdfs:Class with its description and the instances currently listed. */
@@ -105,10 +60,8 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 			:host { display: flex; flex-direction: column; height: 100%; overflow: auto; }
 			.type-desc { padding: var(--shu-space-3) var(--shu-space-4); margin: 0; color: var(--shu-fg-muted); }
 			.system-schema-note { padding: 0 var(--shu-space-4) var(--shu-space-2); margin: 0; color: var(--shu-fg-faded); font-size: 0.85em; font-style: italic; }
-			/* The graph fills all column height left by the header, description and instances, scrolling any excess within
-			   its own box so it never paints over the Individuals list below it. */
-			shu-graph, ::slotted(shu-product-view) { display: block; flex: 1 1 auto; min-height: 160px; overflow: auto; border-bottom: var(--shu-border-w) solid var(--shu-border); }
-			.schema-scope { display: flex; align-items: center; gap: var(--shu-space-2); padding: var(--shu-space-1) var(--shu-space-4); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); }
+			/* The presenter fills all column height left by the header and description, scrolling any excess within its own box. */
+			::slotted(shu-product-view) { display: block; flex: 1 1 auto; min-height: 160px; overflow: auto; border-bottom: var(--shu-border-w) solid var(--shu-border); }
 			.instances { flex: 0 0 auto; padding: var(--shu-space-3) var(--shu-space-4); }
 			.joins { padding: 0 var(--shu-space-4); margin: var(--shu-space-2) 0; }
 			.joins .section-label { display: inline; margin-right: var(--shu-space-2); }
@@ -116,9 +69,6 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 			.instances ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--shu-space-1); }
 		`,
 	];
-
-	/** The full-schema toggle is remembered across reloads, like every persisted view option. */
-	static persistFields = ["fullSchema"] as const;
 
 	/** What the column reads of the type's individuals: each page the reader reaches, read as the table reaches it. */
 	#readInstances: () => Promise<TCallOutcome<WindowedSource<VertexData>>> = () => Promise.resolve({ ok: true, value: arrayWindowedSource<VertexData>([], []) });
@@ -141,7 +91,7 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 	}
 
 	constructor() {
-		super(TypeColumnSchema, { persistedAs: "", fullSchema: false });
+		super(TypeColumnSchema, { persistedAs: "" });
 	}
 
 	/** Called by the pane afterAttach hook with the referenced type. */
@@ -173,27 +123,10 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 
 	private tableRef = createRef<ShuResultTable>();
 
-	protected onConnected(): void {
-		this.autoListen(this, SHU_EVENT.GRAPH_NODE_CLICK, this.onSchemaNodeClick);
-	}
-
-	/** A schema node opens the view its link addresses; a press on the graph's background doesn't open a view. */
-	private onSchemaNodeClick = (e: Event): void => {
-		const node = (e as CustomEvent<{ node: TSchemaNode | null }>).detail.node;
-		if (!node) return;
-		const addressed = deepLinkOf(node.link?.href ?? "");
-		if (!addressed) throw new Error(`schema node ${node.id} doesn't address a view`);
-		followDeepLink(e, addressed);
-	};
-
 	/** A row opens the individual it is, exactly as a row in the query or filter view does. */
 	private onRowClick = (e: Event): void => {
 		const { individualId, label, ctrlKey } = (e as CustomEvent).detail;
 		if (individualId) openRef(e, REF_DENOTES.individual, { persistedAs: label || this.state.persistedAs, id: individualId }, ctrlKey);
-	};
-
-	private onScopeChange = (e: Event): void => {
-		this.setState({ fullSchema: (e.target as HTMLInputElement).checked });
 	};
 
 	/** The site's schema presenter (the class browser) if declared, else its general graph presenter. */
@@ -243,16 +176,10 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 		const type = this.state.persistedAs;
 		const domain = findDomain(type);
 		const desc = getTypeDescription(type) ?? domain?.description;
-		// The site's declared schema presenter (scoped by focusType), projected from light DOM through the slot;
-		// standalone falls back to the static SVG, rebuilt per render: a light pure projection of the metadata cache,
-		// so it doesn't keep a stored copy that could fall stale.
+		// The site's declared schema presenter (scoped by focusType), projected from light DOM through the slot.
 		const hasPresenter = ShuTypeColumn.schemaPresenter() !== undefined;
 		const persisted = getTypes().includes(type);
-		const graphView = hasPresenter
-			? html`<slot></slot>`
-			: html`
-				<label class="schema-scope"><input type="checkbox" data-testid=${IDS.SCHEMA_SCOPE} .checked=${this.state.fullSchema} @change=${this.onScopeChange} /> entire schema</label>
-				<shu-graph data-testid=${IDS.SCHEMA_GRAPH} .products=${{ graph: this.state.fullSchema ? buildFullSchemaGraph(type) : buildTypeSchemaGraph(type) }}></shu-graph>`;
+		const graphView = hasPresenter ? html`<slot></slot>` : nothing;
 		return html`
 			${desc ? html`<p class="type-desc" data-testid=${IDS.DESCRIPTION}>${unsafeHTML(renderRefProse(desc, refContext))}</p>` : ""}
 			${isSystemSchemaType(type) ? html`<p class="system-schema-note" data-testid=${IDS.SYSTEM_SCHEMA}>A system schema, defined in haibun's own vocabulary.</p>` : ""}

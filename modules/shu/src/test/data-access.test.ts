@@ -16,7 +16,7 @@ const { files, reachesRpc } = scanComponents(viewDirectories(fileURLToPath(new U
 
 describe("a view's reads", () => {
 	it("read through a controller, apart from the views PENDING_MIGRATION lists", () => {
-		expect(files, "the scan reads the page's views and the graph view's").toEqual(expect.arrayContaining(["shu-entity-column.ts", "shu-graph.ts"]));
+		expect(files, "the scan reads the page's views and the graph view's").toEqual(expect.arrayContaining(["shu-entity-column.ts", "shu-type-column.ts"]));
 		const offenders = files.filter((f) => reachesRpc(f) && !PENDING_MIGRATION.has(f));
 		expect(offenders, `${offenders.join(", ")} import a data-access primitive. Read the data through a ReactiveController the view holds (src/page/controllers).`).toEqual([]);
 	});

@@ -1,17 +1,15 @@
 /**
  * Renderer-agnostic graph shape.
  *
- * Consumed by view-specific projection functions (chain-lint, affordance paths,
- * monitor traces, quad-store visualisations) and rendered by an `IGraphRenderer`
- * implementation. The shape doesn't carry layout information, laying out is the
- * renderer's job.
+ * Consumed by view-specific projection functions (chain-lint, affordance paths), which
+ * turn it into quads the site's graph presenter draws (`graph-quads.ts`). The shape
+ * doesn't carry layout information, laying out is the presenter's job.
  *
  * Each node is a member of at most one group. Groups can nest via `groups[g].parent`.
- * Per-kind styling is keyed by `node.kind` and `edge.kind`; renderers ship sensible
- * defaults for a small built-in vocabulary and accept overrides via `styles`.
+ * Styling is keyed by `node.kind` and `edge.kind`.
  *
  * Path-aware views (affordance combined-graph) tag each edge with the ids of the paths
- * that include it, in `edge.paths`; renderers can highlight a subset of paths.
+ * that include it, in `edge.paths`.
  */
 
 /** The built-in kinds that style a node. */
@@ -87,14 +85,6 @@ export type TGraphGroup = {
 	kind?: string;
 };
 
-export type TGraphStyle = {
-	fill?: string;
-	stroke?: string;
-	strokeWidth?: number;
-	/** CSS class name to attach (for renderer-specific styling beyond fill/stroke). */
-	className?: string;
-};
-
 /** The node `id` names in `graph`, which `where` names. A node the graph doesn't hold is refused. */
 export function nodeIn(graph: TGraph | null | undefined, id: string, where: string): TGraphNode {
 	const node = graph?.nodes.find((n) => n.id === id);
@@ -109,30 +99,7 @@ export type TGraph = {
 	direction?: "LR" | "TB" | "RL" | "BT";
 	/** Group metadata keyed by group id (which nodes reference via `node.group`). */
 	groups?: Record<string, TGraphGroup>;
-	/** Style overrides keyed by `kind`. Both node and edge kinds share this namespace. */
-	styles?: Record<string, TGraphStyle>;
 };
-
-export type TGraphRenderOptions = {
-	/** When set, edges with `e.paths?.includes(highlightedPath)` are emphasised; others are dimmed. */
-	highlightedPath?: string;
-	/** Width and height hints for the rendering container. Renderer may ignore. */
-	width?: number;
-	height?: number;
-};
-
-/**
- * Renderer interface. Implemented by `SvgGraphRenderer`.
- *
- * Renderers dispatch interaction events on the container:
- *   - `graph-node-click` with `{ detail: { nodeId, node } }` for clicks.
- *
- * Renderers clear the container of any prior rendering before painting;
- * `render` can be called repeatedly with new graphs.
- */
-export interface IGraphRenderer {
-	render(graph: TGraph, container: HTMLElement, options?: TGraphRenderOptions): Promise<void>;
-}
 
 /** A node's kind: the kind it states, or NODE_KIND.default where it doesn't state one. */
 export const kindOfNode = (node: TGraphNode): string => (node.kind === undefined ? NODE_KIND.default : node.kind);

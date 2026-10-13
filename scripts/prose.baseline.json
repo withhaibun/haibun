@@ -129,9 +129,6 @@
 		"anthropomorphic": 4,
 		"relation-verb": 2
 	},
-	"modules/shu/src/components/shu-graph.ts": {
-		"relation-verb": 1
-	},
 	"modules/shu/src/components/shu-polymorphic-graph-view.ts": {
 		"anthropomorphic": 12,
 		"relation-verb": 1,
@@ -239,9 +236,6 @@
 	"modules/shu/src/graph/polymorphic/polymorphic-troika-label.ts": {
 		"anthropomorphic": 2,
 		"relation-verb": 2
-	},
-	"modules/shu/src/graph/svg-renderer.ts": {
-		"relation-verb": 1
 	},
 	"modules/shu/src/known-size-flow.test.ts": {
 		"anthropomorphic": 1
@@ -496,8 +490,7 @@
 		"anthropomorphic": 1
 	},
 	"modules/shu/src/page/components/shu-type-column.ts": {
-		"anthropomorphic": 3,
-		"relation-verb": 1
+		"anthropomorphic": 2
 	},
 	"modules/shu/src/page/components/shu-views-picker.test.ts": {
 		"anthropomorphic": 2

@@ -35,9 +35,8 @@
  * the domain name: the field slot itself stays a structural `field` node
  * because the typed value, not the slot, is supplied as an argument.
  *
- * `pathId(i)` is the stable id used in `TGraphEdge.paths` and in the
- * `TGraphRenderOptions.highlightedPath` option: the consumer chooses which
- * path to emphasise by passing the same id back.
+ * `pathId(i)` is the stable id used in `TGraphEdge.paths`: a consumer
+ * emphasises a path by that id.
  */
 import { GOAL_FINDING, type TBinding, type TFieldBinding, type TMichi } from "@haibun/core/lib/goal-resolver.js";
 import { EDGE_KIND, NODE_KIND, kindOfEdge, type TGraph, type TGraphEdge, type TGraphNode } from "../domains/graph.js";

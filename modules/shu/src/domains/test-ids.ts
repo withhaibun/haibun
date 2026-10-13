@@ -130,7 +130,6 @@ export const SHU_TEST_IDS = {
 	TYPE_COLUMN: {
 		DESCRIPTION: "type-description",
 		SYSTEM_SCHEMA: "type-system-schema",
-		SCHEMA_SCOPE: "type-schema-scope",
 		SCHEMA_GRAPH: "type-schema-graph",
 		VALUES: "type-values",
 		RETURNED_BY: "type-returned-by",
