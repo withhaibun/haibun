@@ -55,7 +55,7 @@ export type SeqRenderDeps = { seqNodes: () => ReadonlyArray<SeqNode>; seqEdges: 
 export type TViewForces = { grouped?: boolean; flatten?: boolean; labelAsZ?: boolean };
 
 /** What a LANE view (gantt, sequence) settles: its bars are its grouping, its axis is time, so grouping into container
- *  cells, flattening that axis, and labelling a chip with its depth all belong to the free views, not here. */
+ *  cells, flattening that axis, and labelling a chip with its depth are options of the free views, not of these. */
 const LANE_FORCES: TViewForces = { grouped: false, flatten: false, labelAsZ: false };
 
 /** One layout's behaviour, capturing both sides of every dispatch the view makes on its old `viewType` union. */
@@ -81,12 +81,12 @@ export interface RenderType {
 	/** The layout options this view OVERRIDES while it is active. A lane view draws on a time axis and its bars are its
 	 *  grouping, so a remembered "grouped" or "flatten" choice does not apply: it would place nodes in container cells
 	 *  or collapse the very axis the view reads along. Declared here so choosing the view settles the conflict once,
-	 *  rather than each consumer remembering which options a view can't honour. */
+	 *  rather than each consumer tracking which options a view can't honour. */
 	readonly forces: TViewForces;
-	/** The x every node of this view sits at, when the view lays out in ONE plane: the sequence draws on x=0 (its wide
+	/** The x of every node of this view, when the view lays out in ONE plane: the sequence draws on x=0 (its wide
 	 *  actor chips ARE the lifelines), so its placement doesn't carry an x of its own. undefined = the view places its own x. */
 	readonly lanePlaneX: number | undefined;
-	/** A node's label caps it, upright above the mark, rather than sitting on it: the sequence-diagram read of a
+	/** A node's label caps it, upright above the mark, rather than lying over it: the sequence-diagram read of a
 	 *  participant's name over its vertical lifeline. */
 	readonly capsNodeLabels: boolean;
 	/** This view draws the calendar ruler along its time axis (the baseline, its ticks and their dates). */
@@ -94,8 +94,8 @@ export interface RenderType {
 	/** What this view's axes mean, for the reader: gantt's z is a linear calendar span and its y is one row per task, so
 	 *  the legend names that span and that count. null = the axes don't carry a meaning of their own. */
 	axisLegend(): { from: string; to: string; count: number } | null;
-	/** The structural flow this view lays out along, for inspect() and its tests: which way the ranks read and which
-	 *  axis they advance on. null = the view is not a layered flow. */
+	/** The structural flow this view lays out along, for inspect() and its tests: which way the ranks read and along
+	 *  which axis they advance. null = the view is not a layered flow. */
 	layeredFlow(): { direction: "td" | "lr"; flowAxis: "x" | "y" } | null;
 	/** A LANE view (gantt) IS its own grouping, the lanes are the axis, so the generic group/group-by controls and the
 	 *  role/type enclosure boxes don't apply: true suppresses them while this view is active. The 2D sequence likewise
@@ -234,7 +234,7 @@ export class GanttRenderType extends BaseRenderType {
 
 /** sequence: a 3D sequence diagram aligned with gantt, participants are lanes on y, time is the SHARED z axis (the same
  *  z=time gantt uses), each participant a vertical lifeline (pillar along z) with its events on it at their time and
- *  cross-participant edges as the messages. Reuses gantt's {y,z} placement (so the force lane-y and the node-z agree)
+ *  cross-participant edges as the messages. Reuses gantt's {y,z} placement (so the force lane-y and the node-z match)
  *  and the lane-plane framing, rolled 90° so participants read across the top and time reads downward. The pure
  *  mapGraphToSeqLayout is cached per visible-model reference; lanePlacement feeds the same force + node-z path as gantt. */
 export class SequenceRenderType extends BaseRenderType {

@@ -1,5 +1,5 @@
 /**
- * The chip's quads are just numbers, so the layout is pinned here rather than against a GPU: that the avatar badge sits
+ * The chip's quads are just numbers, so the layout is pinned here rather than against a GPU: that the avatar badge lies
  * inside the chip, that the label clears it, and that adding a badge does not move the node's point off the chip.
  */
 import { describe, expect, it } from "vitest";

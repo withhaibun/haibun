@@ -2,13 +2,22 @@
 // A renderer doesn't hold a second model: a renderer is handed what the pipeline already produced, and what it displayed is read back
 // through the scene's own snapshot (inspect).
 
-import type { FGNode } from "../domains/graph-types.js";
+import { type FGNode, type XYZ, isPlaced } from "../domains/graph-types.js";
 import type { TDrawn, TGraphRenderer } from "../ports.js";
 
 /** Where each node was placed, by node id: what "it did not redraw" compares. */
 type TPlacement = Map<string, string>;
 
-const placementOf = (nodes: FGNode[]): TPlacement => new Map(nodes.map((n) => [n.id, `${Math.round(n.x ?? 0)},${Math.round(n.y ?? 0)},${Math.round(n.z ?? 0)}`]));
+/** The nodes of a draw, each placed: the scene places every node before it draws, so `medium` refuses one it didn't place. */
+export function placedNodes(nodes: FGNode[], medium: string): Array<FGNode & XYZ> {
+	return nodes.map((n) => {
+		if (!isPlaced(n)) throw new Error(`${medium}: node ${n.id} isn't placed; the scene's layout places every node before it draws`);
+		return n;
+	});
+}
+
+const placementOf = (nodes: FGNode[]): TPlacement =>
+	new Map(placedNodes(nodes, "RecordingRenderer").map((n) => [n.id, `${Math.round(n.x)},${Math.round(n.y)},${Math.round(n.z)}`]));
 
 /** Whether two displays placed the same nodes at the same positions. */
 export function samePlacement(a: TPlacement | undefined, b: TPlacement | undefined): boolean {
@@ -21,7 +30,10 @@ export function samePlacement(a: TPlacement | undefined, b: TPlacement | undefin
  *  accessible document's status line both use, so every medium describes the graph in the same words. */
 export function graphSummary({ nodes, links }: TDrawn): string {
 	const counts = new Map<string, number>();
-	for (const n of nodes) counts.set(n.type, (counts.get(n.type) ?? 0) + 1);
+	for (const n of nodes) {
+		const counted = counts.get(n.type);
+		counts.set(n.type, counted === undefined ? 1 : counted + 1); // the first node of its type counts one
+	}
 	const types = [...counts]
 		.sort(([a], [b]) => a.localeCompare(b))
 		.map(([t, c]) => `${c} ${t}`)
@@ -46,7 +58,7 @@ export function compositeRenderer(...media: TGraphRenderer[]): TGraphRenderer {
 }
 
 /**
- * A renderer that keeps what it was given, so a test can ask what a change displayed, did a view change place the nodes
+ * A renderer that keeps what it was given, so a test can read what a change displayed, did a view change place the nodes
  * differently, did a merge that didn't change the model display at all, without a browser.
  */
 export class RecordingRenderer implements TGraphRenderer {

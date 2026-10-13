@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-/** The measurements asked of troika's worker, landed by the test in the order it chooses. */
+/** The measurements requested of troika's worker, landed by the test in the order it chooses. */
 const landings: (() => void)[] = [];
 vi.mock("troika-three-text", () => ({
 	configureTextBuilder: () => undefined,
@@ -27,7 +27,7 @@ const three = { Group: part, Mesh: part, PlaneGeometry: part, MeshBasicMaterial:
 const deps = { fontSize: 1, renderOrder: 0, textColor: "#000", borderColor: "#000", highlightColor: "#fc0" };
 
 describe("a chip's measured text", () => {
-	it("is laying out until its label and its badge have both landed, and each landing asks for a frame", () => {
+	it("is laying out until its label and its badge have both landed, and each landing requests a frame", () => {
 		const laidOut = vi.fn();
 		const chip = makeTroikaChip("label", "#fff", three, { ...deps, avatar: "AB", laidOut });
 		expect(landings, "the badge and the label are measured").toHaveLength(2);

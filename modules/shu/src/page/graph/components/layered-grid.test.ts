@@ -18,7 +18,7 @@ const place = (nodes: ReadonlyArray<{ id: string; label: string }>, edges: Reado
 	);
 	return nodes.map((n) => {
 		const p = pos.get(n.id);
-		if (!p) throw new Error(`no position for ${n.id}`);
+		if (!p) throw new Error(`the layered layout didn't place ${n.id}`);
 		const h = half(n.label);
 		return { id: n.id, x: p.x, y: p.y, rx: h.rx, ry: h.ry };
 	});

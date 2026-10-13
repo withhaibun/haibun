@@ -27,7 +27,7 @@ function harness(over: Partial<TA11yRendererDeps> = {}) {
 }
 
 describe("A11yRenderer: the graph as an accessible document", () => {
-	it("reads as one script, in the order things were made, each line stating who it belongs to", () => {
+	it("reads as one script, in the order things were made, each line naming its actor", () => {
 		// A reading is a script, not a filing: the same events grouped into piles left a reader to reassemble them, and
 		// what a reader wants is what happened, in order.
 		const dated: FGNode[] = [
@@ -40,7 +40,7 @@ describe("A11yRenderer: the graph as an accessible document", () => {
 		const lists = region.querySelectorAll("ol");
 		expect(lists.length, "one reading, not a pile per type").toBe(1);
 		const speaker = (li: Element) => [...li.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE).map((n) => n.textContent?.trim() ?? "")[0] ?? "";
-		expect([...itemAt(lists, 0).children].map(speaker), "who each line belongs to, where it belongs to anyone").toEqual(["", "the agent:", "the agent:"]);
+		expect([...itemAt(lists, 0).children].map(speaker), "the actor of each line, where a line has one").toEqual(["", "the agent:", "the agent:"]);
 		expect(
 			[...itemAt(lists, 0).querySelectorAll(":scope > li > [data-node-id]")].map((b) => b.getAttribute("data-node-id")),
 			"oldest first, whatever type each is",

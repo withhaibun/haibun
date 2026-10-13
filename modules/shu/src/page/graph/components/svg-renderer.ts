@@ -9,8 +9,8 @@
 import { colorForType } from "../derivations/type-colors.js";
 import { ellipsize } from "@haibun/core/lib/util/index.js";
 import { NODE_TEXT_COLOR } from "../derivations/layout-forces.js";
-import { linkEndId, type FGNode } from "../domains/graph-types.js";
-import { graphSummary } from "./renderer.js";
+import { linkEndId, type XYZ } from "../domains/graph-types.js";
+import { graphSummary, placedNodes } from "./renderer.js";
 import type { TDrawn, TGraphRenderer } from "../ports.js";
 /** `s` with the characters XML reserves escaped, for a label written into the SVG. */
 const xml = (s: string): string => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -46,16 +46,17 @@ export class SvgRenderer implements TGraphRenderer {
 	draw({ nodes, links }: TDrawn): void {
 		// The still is 2D: the vertical axis is y (flipped, SVG y grows downward), and the horizontal axis is x, except
 		// in the lane views where z carries the calendar and the camera faces the lane plane: the still faces it too.
-		const h = this.deps.timeIsHorizontal() ? (n: FGNode): number => n.z ?? 0 : (n: FGNode): number => n.x ?? 0;
-		const v = (n: FGNode): number => -(n.y ?? 0);
-		const xs = nodes.map(h);
-		const ys = nodes.map(v);
+		const placed = placedNodes(nodes, "SvgRenderer");
+		const h = this.deps.timeIsHorizontal() ? (n: XYZ): number => n.z : (n: XYZ): number => n.x;
+		const v = (n: XYZ): number => -n.y;
+		const xs = placed.map(h);
+		const ys = placed.map(v);
 		const minX = Math.min(0, ...xs) - PAD;
 		const minY = Math.min(0, ...ys) - PAD;
 		const w = Math.max(...xs, 0) + PAD - minX;
 		const ht = Math.max(...ys, 0) + PAD - minY;
 
-		const byId = new Map(nodes.map((n) => [n.id, n]));
+		const byId = new Map(placed.map((n) => [n.id, n]));
 		const lines = links.map((l) => {
 			const s = byId.get(linkEndId(l.source));
 			const t = byId.get(linkEndId(l.target));
@@ -67,7 +68,7 @@ export class SvgRenderer implements TGraphRenderer {
 			const label = xml(l.predicate);
 			return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${LINE}" stroke-width="0.6"/><text x="${round((x1 + x2) / 2)}" y="${round((y1 + y2) / 2)}" font-size="5" fill="${LINE}" text-anchor="middle">${label}</text>`;
 		});
-		const chips = nodes.map((n) => {
+		const chips = placed.map((n) => {
 			const label = xml(ellipsize(n.name ?? n.id, LABEL_MAX));
 			const [x, y] = [round(h(n)), round(v(n))];
 			return `<circle cx="${x}" cy="${y}" r="${NODE_R}" fill="${colorForType(n.type)}" stroke="${NODE_TEXT_COLOR}" stroke-width="0.5"/><text x="${round(x + NODE_R + 2)}" y="${round(y + 2)}" font-size="6" fill="${NODE_TEXT_COLOR}">${label}</text>`;

@@ -11,7 +11,6 @@
 // rather than owning render-type state the rest of the component also reads.
 
 import { groupKeyOf, type GroupKeyMode, type GroupAnchor } from "../derivations/grouping.js";
-import type { XYZ } from "../domains/graph-types.js";
 import { timeZScale, timeZ, spanZScale, spanZ, subjectValidTimes, type TimeZScale, type TSubjectTimes } from "../derivations/time-axis.js";
 import { quadsToGanttModel, type RelOf } from "../derivations/gantt-model.js";
 import type { GanttTarget } from "../derivations/gantt-layout.js";
@@ -22,7 +21,7 @@ import { LinkRelations } from "@haibun/core/lib/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import type { GraphModel } from "../../../domains/graph-model.js";
 import { omittedLabel } from "../../../derivations/graph-model.js";
-import { type FGNode, type FGLink, linkEndId } from "../domains/graph-types.js";
+import { type FGNode, type FGLink, type XYZ, isPlaced, linkEndId } from "../domains/graph-types.js";
 
 const NEWCOMER_SEED_SPREAD = 40; // a streamed node spawns within this radius of its neighbour/type so it eases in instead of flying from the origin
 const TIME_DEPTH_MAX = 700; // depth range in world units, full span of the visible dates fills this. The auto-fit frames the 3D bounds, so more depth mostly backs the camera off (it reads as separation only up to ~the x/y layout spread) and pushes the deepest nodes small enough that the focus magnifier pops them harder: a moderate range. The sqrt scale (time-axis) does the real work of making long gaps read deeper than short ones.
@@ -33,6 +32,13 @@ import { LAYERED_Z_FACTOR } from "../derivations/layered-solver.js";
 import { truncateLabel } from "../derivations/layout-forces.js";
 import { gridSlot } from "../derivations/group-grid.js";
 export type GanttScale = { min: number; span: number };
+
+/** A node's degree, read from a map `degrees` seeds with every visible node. */
+const degreeOf = (degrees: ReadonlyMap<string, number>, id: string): number => {
+	const degree = degrees.get(id);
+	if (degree === undefined) throw new Error(`data pipeline: node ${id} is outside the visible set its degrees were counted over`);
+	return degree;
+};
 
 /** Accessors the component supplies; every getter is read at CALL time (per-repaint component fields stay current). */
 export type DataPipelineDeps = {
@@ -81,7 +87,7 @@ export class DataPipeline {
 	 *  visibleModel, so gantt and the force view never disagree about which graphs are shown. The gantt model MUST build
 	 *  from these (not raw visibleQuads) so the time scale and lanes match exactly what's on screen. Instrumentation
 	 *  graphs are hidden by default (the host derives hiddenGraphs via effectiveHiddenTypes), so they stay out of the
-	 *  gantt span/lanes unless the user toggles them on. */
+	 *  gantt span/lanes until the user shows them. */
 	renderableQuads(): TQuad[] {
 		const hidden = new Set(this.deps.hiddenGraphs());
 		return this.deps.visibleQuads().filter((q) => !hidden.has(q.namedGraph));
@@ -90,15 +96,16 @@ export class DataPipeline {
 	/** Hash the visible model for the unchanged-model skip. Gantt counts the time z in the hash (a reschedule moves bars
 	 *  without touching nodes/links); the scrub cursor counts too (a scrub re-places every node's depth without touching
 	 *  the node/link set, so a cursor-only move must still register as a change, else the skip drops it and the view
-	 *  refreshes only on an incidental resize). Both rules live HERE, not at each call site, repaint and repaintLayout
+	 *  refreshes only on an incidental resize). Both rules are stated HERE, not at each call site, repaint and repaintLayout
 	 *  share it and can't silently diverge. */
 	hashCurrentModel(nodes: FGNode[], links: FGLink[]): number {
 		return hashModel(nodes, links, this.deps.viewType() === VIEW.gantt, this.deps.timeCursor());
 	}
 
+	/** Where each placed node is now. A node the layout hasn't placed is left out, so a tween starts it at its target. */
 	capturePositions(): Map<string, XYZ> {
 		const m = new Map<string, XYZ>();
-		for (const n of this.nodeMap.values()) m.set(n.id, { x: n.x ?? 0, y: n.y ?? 0, z: n.z ?? 0 });
+		for (const n of this.nodeMap.values()) if (isPlaced(n)) m.set(n.id, { x: n.x, y: n.y, z: n.z });
 		return m;
 	}
 
@@ -117,11 +124,11 @@ export class DataPipeline {
 	/** Incident visible-link count per node: the depth value under the "# connections" z basis. Counts only edges whose
 	 *  BOTH ends are in the visible node set (the same set that becomes links), so a node's degree matches what is drawn. */
 	private degrees(nodeIds: Set<string>, edges: ReadonlyArray<{ from: string; to: string }>): Map<string, number> {
-		const d = new Map<string, number>();
+		const d = new Map<string, number>([...nodeIds].map((id) => [id, 0]));
 		for (const e of edges) {
-			if (!nodeIds.has(e.from) || !nodeIds.has(e.to)) continue;
-			d.set(e.from, (d.get(e.from) ?? 0) + 1);
-			d.set(e.to, (d.get(e.to) ?? 0) + 1);
+			if (!d.has(e.from) || !d.has(e.to)) continue;
+			d.set(e.from, degreeOf(d, e.from) + 1);
+			d.set(e.to, degreeOf(d, e.to) + 1);
 		}
 		return d;
 	}
@@ -162,7 +169,7 @@ export class DataPipeline {
 		this.deps.setGanttShapeSig([...targets].map(([id, t]) => `${id}:${t.zLen}`).join("|"));
 	}
 
-	toGraphData(refreshScale = false): { nodes: FGNode[]; links: FGLink[]; freshLinks: FGLink[] } {
+	toGraphData(refreshScale: boolean): { nodes: FGNode[]; links: FGLink[]; freshLinks: FGLink[] } {
 		const { nodes, edges } = this.deps.visibleModel();
 		this.recomputeGanttTargets(); // before the node loop reads ganttTargets for each node's z (the gantt time axis)
 		const { times, indexed: created } = this.extractTimes();
@@ -195,10 +202,12 @@ export class DataPipeline {
 		const { scale: zScale, cursorMs } = current;
 		// The "# connections" z basis: depth is node degree, not time. Its scale is derived FRESH each build (unlike the
 		// time scale), degree changes only when edges do, i.e. only on a data change that already repaints, so a
-		// per-frame teleport doesn't occur. HIGH degree sits toward the FRONT (small z) so hubs come forward.
+		// per-frame teleport doesn't occur. HIGH degree is toward the FRONT (small z) so hubs come forward.
 		const zBasis = this.deps.zBasis();
 		const degrees = zBasis === "connections" ? this.degrees(new Set(nodes.map((n) => n.id)), edges) : undefined;
-		const degreeScale = degrees ? spanZScale(degrees.values(), TIME_DEPTH_MAX) : undefined;
+		// The scale spans the linked nodes; a node without a visible link rests at the back with the least linked.
+		const linkedDegrees = degrees ? [...degrees.values()].filter((degree) => degree > 0) : undefined;
+		const degreeScale = linkedDegrees ? spanZScale(linkedDegrees, TIME_DEPTH_MAX) : undefined;
 		const viewType = this.deps.viewType();
 		const flatten = this.deps.flatten();
 		const grouped = this.deps.grouped();
@@ -230,7 +239,7 @@ export class DataPipeline {
 			const label = truncateLabel(n.displayLabel ?? n.id); // bound a long base64 id so the chip can't render hundreds of units wide
 			const name = n.isCluster && n.omitted ? omittedLabel(n.omitted) : label;
 			const existing = this.nodeMap.get(n.id);
-			// The deterministic PIN target. Grouped: the container cell (groupPin) wins in every view, so the member sits in
+			// The deterministic PIN target. Grouped: the container cell (groupPin) wins in every view, so the member lies in
 			// its shelf-packed cell and the box stays exclusive. Ungrouped: the lane pin wins: the td/lr Sugiyama {x,y} or the
 			// gantt/sequence lane. Both fixed via fx/fy. The key reads n.properties so the merged role resolves here (fgNode
 			// carries them below). A node without a pin keeps its parked place or seeds from a neighbour.
@@ -269,7 +278,7 @@ export class DataPipeline {
 					fgNode.x = parked.x;
 					fgNode.y = parked.y;
 				} else {
-					unseeded.push(fgNode); // ungrouped (or without an anchor): seed from a placed neighbour once links are known
+					unseeded.push(fgNode); // ungrouped (or without an anchor): seed from a placed neighbour once the links are built
 				}
 				if (!isInitial) this.deps.startNewcomerPop(fgNode); // newly arrived: welcomed, and grown in where decoration runs
 			}
@@ -278,19 +287,24 @@ export class DataPipeline {
 			fgNode.__t = subjectTime?.ms;
 			fgNode.__tField = subjectTime?.field;
 			fgNode.__created = created.get(n.id)?.ms;
-			fgNode.__degree = degrees ? (degrees.get(n.id) ?? 0) : undefined;
+			const degree = degrees ? degreeOf(degrees, n.id) : undefined;
+			fgNode.__degree = degree;
 			// The depth value: under the "# connections" basis it is node degree (high degree → front, small z); otherwise
 			// the recorded-time (sqrt-age) depth. A newcomer outside the cached age range (older than max → z>zMax behind the
 			// camera, or newer than min → z<0) clamps to the plane until the next coarse-tick recompute re-fits the scale.
-			const depthZ = degreeScale ? TIME_DEPTH_MAX - spanZ(fgNode.__degree ?? 0, degreeScale) : Math.min(TIME_DEPTH_MAX, timeZ(fgNode.__t ?? cursorMs, cursorMs, zScale));
+			// A node without a time reads as made at the cursor, the front plane.
+			const timeDepth = subjectTime === undefined ? 0 : Math.min(TIME_DEPTH_MAX, timeZ(subjectTime.ms, cursorMs, zScale));
+			const depthZ = degreeScale === undefined || degree === undefined ? timeDepth : TIME_DEPTH_MAX - spanZ(degree, degreeScale);
 			// z is the time axis. gantt/sequence place it on a LINEAR calendar (lane z); td/lr COMPRESS it so the rank
 			// structure dominates and the ranks pack close (a subtle depth cue, not flat); the force family uses the full
 			// sqrt-age depth; flatten collapses everything to one plane.
 			if (isSchemaType(n.type))
 				fgNode.z = 0; // schema is timeless: pinned to the front z=0 plane, off the sqrt-age axis (its t=0 would otherwise sink it to zMax)
 			else if (flatten) fgNode.z = 0;
-			else if (isLaneView(viewType)) fgNode.z = this.deps.laneZ(n.id) ?? 0;
-			else if (viewType === VIEW.td || viewType === VIEW.lr) fgNode.z = depthZ * LAYERED_Z_FACTOR;
+			else if (isLaneView(viewType)) {
+				const laneZ = this.deps.laneZ(n.id);
+				fgNode.z = laneZ === undefined ? 0 : laneZ; // a node off the calendar rests on the front z=0 plane
+			} else if (viewType === VIEW.td || viewType === VIEW.lr) fgNode.z = depthZ * LAYERED_Z_FACTOR;
 			else fgNode.z = depthZ;
 			nextMap.set(n.id, fgNode);
 			fgNodes.push(fgNode);
@@ -311,9 +325,10 @@ export class DataPipeline {
 			.filter((ed) => ids.has(ed.from) && ids.has(ed.to))
 			.map((ed) => {
 				const k = linkKey({ source: ed.from, target: ed.to, predicate: ed.predicate });
-				const l = prevLinkMap.get(k) ?? { source: ed.from, target: ed.to, predicate: ed.predicate };
+				const reused = prevLinkMap.get(k);
+				const l = reused === undefined ? { source: ed.from, target: ed.to, predicate: ed.predicate } : reused;
 				nextLinkMap.set(k, l);
-				if (!isInitial && !prevLinkMap.has(k)) freshLinks.push(l);
+				if (!isInitial && reused === undefined) freshLinks.push(l);
 				return l;
 			});
 		this.linkMap = nextLinkMap;
@@ -347,19 +362,18 @@ export class DataPipeline {
 		const typeCentroids = new Map<string, { x: number; y: number; n: number }>();
 		for (const n of this.nodeMap.values()) {
 			if (newIds.has(n.id) || n.x === undefined || n.y === undefined) continue;
-			const c = typeCentroids.get(n.type) ?? { x: 0, y: 0, n: 0 };
-			c.x += n.x;
-			c.y += n.y;
-			c.n += 1;
-			typeCentroids.set(n.type, c);
+			const c = typeCentroids.get(n.type);
+			if (c === undefined) typeCentroids.set(n.type, { x: n.x, y: n.y, n: 1 });
+			else {
+				c.x += n.x;
+				c.y += n.y;
+				c.n += 1;
+			}
 		}
 		const jitter = (): number => (Math.random() - 0.5) * 2 * NEWCOMER_SEED_SPREAD;
 		for (const n of newcomers) {
-			let base: { x: number; y: number } | undefined;
-			for (const m of neighbours.get(n.id) ?? []) {
-				base = placed(m);
-				if (base) break;
-			}
+			const linked = neighbours.get(n.id);
+			let base = linked?.map(placed).find((p) => p !== undefined);
 			if (!base) {
 				const c = typeCentroids.get(n.type);
 				if (c) base = { x: c.x / c.n, y: c.y / c.n };

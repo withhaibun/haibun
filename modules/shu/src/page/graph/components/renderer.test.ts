@@ -1,8 +1,8 @@
 /**
- * What a change drew, read from the renderer the scene draws through.
+ * What a change drew, read from the renderer through which the scene draws.
  *
- * "It did not redraw after changing the view" was a question only a browser could answer: drive a page, switch a view,
- * compare pixels, wait for the layout to settle. A renderer that records what it was given answers it here: a view
+ * "It did not redraw after changing the view" was a question only a browser could settle: drive a page, switch a view,
+ * compare pixels, wait for the layout to settle. A renderer that records what it was given settles it here: a view
  * change places the nodes differently, a repaint that doesn't change the graph places them identically, and a shape rebuild has
  * its place in the order.
  */

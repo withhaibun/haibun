@@ -212,8 +212,8 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 		return key !== null && key === activePane.get();
 	}
 
-	// A view states its initial state here, as a machine states its own (CA4D7). The graph views of CA3 still read some
-	// fields from their schemas' `.default()`, so the initial state is the schema's input type until CA3 states theirs.
+	// A view states its initial state here, as a machine states its own (CA4D7). An element whose state is empty passes its
+	// schema alone, which parses the empty object.
 	constructor(schema: T, defaults?: z.input<T>) {
 		super();
 		this._schema = schema;

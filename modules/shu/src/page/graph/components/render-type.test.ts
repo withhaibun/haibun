@@ -3,9 +3,9 @@ import { buildRenderTypeRegistry, type RenderTypeDeps, type SeqRenderDeps } from
 import { VIEW } from "../domains/views.js";
 import type { GanttTarget } from "../derivations/gantt-layout.js";
 
-// Everything a view type decides about its own axes, plane and labels is declared on the view type, so the scene can
-// draw any of them without asking which one it holds. These tests read those declarations through the registry the
-// scene builds, so a new view type that forgets one is visible here rather than in a scene branch.
+// Every choice a view type makes about its own axes, plane and labels is declared on the view type, so the scene can
+// draw any of them without testing which one it holds. These tests read those declarations through the registry the
+// scene builds, so a new view type that omits one is visible here rather than in a scene branch.
 
 const DAY = 86_400_000;
 const target = (start: number, len: number): GanttTarget => ({ y: 10, z: start + len / 2, start, end: start + len, zLen: len });

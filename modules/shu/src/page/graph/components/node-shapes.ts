@@ -33,7 +33,7 @@ export type NodeShapeDeps = {
 	sceneTextColor: string; // text OFF a token, on the scene background (the box label), foreground colour
 	borderColor: string;
 	renderOrder: number;
-	headerLabel?: boolean; // a box mark's label sits upright, centred above the bar's start face: a sequence participant's name over its vertical lifeline
+	headerLabel?: boolean; // a box mark's label stands upright, centred above the bar's start face: a sequence participant's name over its vertical lifeline
 };
 
 /** What a mark paints: its object, and the labels the scene turns to the camera each frame. */
@@ -41,7 +41,8 @@ export type TPainted = { object: Obj3D; labels: LabelVisual[] };
 
 /** A type-coloured 3D duration box spanning z by mark.zExtent, with a plain text label at its start face. */
 export function boxShape(mark: NodeMark, d: NodeShapeDeps): TPainted {
-	const zLen = Math.max(mark.zExtent ?? 0, GANTT_MIN_BAR_W);
+	if (mark.zExtent === undefined) throw new Error(`boxShape: box mark ${mark.id} lacks the zExtent its presenter supplies (assertNodeMark)`);
+	const zLen = Math.max(mark.zExtent, GANTT_MIN_BAR_W);
 	// Time is the z axis: the box spans z by its duration (thin on x = depth, GANTT_BAR_H tall on y = its lane).
 	const box = new d.three.Mesh(new d.three.BoxGeometry(GANTT_BAR_D, GANTT_BAR_H, zLen), new d.three.MeshBasicMaterial({ color: mark.color, transparent: true, depthWrite: false }));
 	box.renderOrder = d.renderOrder;

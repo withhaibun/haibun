@@ -52,7 +52,7 @@ describe("polymorphic valid-time placement from snapshot quads", () => {
 	});
 
 	it("reports when EVERY subject was written down, including one whose valid field is generatedAtTime itself", () => {
-		// The guide reads in creation order from this map. A comment's one time quad answers both questions: its valid
+		// The guide reads in creation order from this map. A comment's one time quad settles both questions: its valid
 		// time and its written-down time, and dropping it from `indexed` left the reading ordered only by the names.
 		const { indexed } = pipelineWith("valid").extractTimes();
 		expect(indexed.get("c1"), "the comment is in the creation order").toEqual({ ms: Date.parse(TODAY), field: GENERATED });
@@ -60,7 +60,7 @@ describe("polymorphic valid-time placement from snapshot quads", () => {
 		expect(indexed.get("f1")).toEqual({ ms: Date.parse(TODAY), field: GENERATED });
 	});
 
-	it("renders the difference: under the valid basis the year-old email sits deepest, under the indexed basis everything indexed today sits together at the front", () => {
+	it("renders the difference: under the valid basis the year-old email is deepest, under the indexed basis everything indexed today is together at the front", () => {
 		const depthOf = (basis: "valid" | "indexed"): { e1: number; f1: number; c1: number } => {
 			const { times } = pipelineWith(basis).extractTimes();
 			const scale = timeZScale(
@@ -145,20 +145,20 @@ describe("the depth a graph arriving in pieces places its nodes at", () => {
 		const { pipeline, arrive } = growing();
 		arrive(twoEmails().slice(0, 2), ["e1"]);
 		expect(
-			pipeline.toGraphData().nodes.map((n) => n.z),
+			pipeline.toGraphData(false).nodes.map((n) => n.z),
 			"one node, one age: z isn't spread",
 		).toEqual([0]);
 		arrive(twoEmails(), ["e1", "e2"]);
-		const z = pipeline.toGraphData().nodes.map((n) => n.z as number);
+		const z = pipeline.toGraphData(false).nodes.map((n) => n.z as number);
 		expect(itemAt(z, 0) > itemAt(z, 1), `the older email is deeper than the newer one, at ${z.join(" and ")}`).toBe(true);
 	});
 
 	it("keeps a scale that already spreads them, so a node that has settled is not moved by what arrives next", () => {
 		const { pipeline, arrive } = growing();
 		arrive(twoEmails(), ["e1", "e2"]);
-		const first = pipeline.toGraphData().nodes.map((n) => n.z as number);
+		const first = pipeline.toGraphData(false).nodes.map((n) => n.z as number);
 		arrive([...twoEmails(), quad("e3", "Email", "dateReceived", LAST_WEEK), quad("e3", "Email", GENERATED, TODAY)], ["e1", "e2", "e3"]);
-		const later = pipeline.toGraphData().nodes.map((n) => n.z as number);
+		const later = pipeline.toGraphData(false).nodes.map((n) => n.z as number);
 		expect(later.slice(0, 2), "the two already placed stay where they were").toEqual(first);
 	});
 });
@@ -166,19 +166,19 @@ describe("the depth a graph arriving in pieces places its nodes at", () => {
 describe("where a node the user dropped is placed", () => {
 	it("keeps the dropped position, so a drag is accepted rather than undone by the next repaint", () => {
 		const pipeline = new DataPipeline(placementDeps({ userPinXY: () => ({ x: 40, y: -25 }) }));
-		const { nodes } = pipeline.toGraphData();
+		const { nodes } = pipeline.toGraphData(false);
 		expect({ x: itemAt(nodes, 0).x, y: itemAt(nodes, 0).y, fx: itemAt(nodes, 0).fx }).toEqual({ x: 40, y: -25, fx: 40 });
 	});
 
 	it("keeps it in a view that has its own layout too: a placement by hand outranks the lane the view would give it", () => {
 		const pipeline = new DataPipeline(placementDeps({ viewType: () => "td", lanePinXY: () => ({ x: 300, y: 300 }), userPinXY: () => ({ x: 40, y: -25 }) }));
-		const { nodes } = pipeline.toGraphData();
+		const { nodes } = pipeline.toGraphData(false);
 		expect({ x: itemAt(nodes, 0).x, y: itemAt(nodes, 0).y }).toEqual({ x: 40, y: -25 });
 	});
 
 	it("leaves every other node to the view's own layout", () => {
 		const pipeline = new DataPipeline(placementDeps({ viewType: () => "td", lanePinXY: () => ({ x: 300, y: 300 }) }));
-		const { nodes } = pipeline.toGraphData();
+		const { nodes } = pipeline.toGraphData(false);
 		expect({ x: itemAt(nodes, 0).x, y: itemAt(nodes, 0).y }).toEqual({ x: 300, y: 300 });
 	});
 });

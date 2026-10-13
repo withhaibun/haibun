@@ -7,8 +7,8 @@
  * reads without moving focus), while the entries drive the graph through the host's own entries, activating an entry
  * opens the node, focusing one highlights it: the same paths a pointer takes.
  *
- * The reading is a script: one list in the order records were made, each line stating who it belongs to where it
- * belongs to anyone, with what it points at beneath it and a way to each of those. It states a stretch at a time and
+ * The reading is a script: one list in the order records were made, each line naming its actor where it has one,
+ * with what it points at beneath it and a way to each of those. It states a stretch at a time and
  * carries on from where it stopped, so a graph of any size is readable and a repaint doesn't build all of it. All text
  * lands via textContent, so node names don't need escaping.
  */
@@ -53,12 +53,15 @@ function linesFor(edges: Map<string, TEdgeLine> | undefined): { shown: TEdgeLine
 	return { shown: said.slice(0, EDGE_LINES), rest: Math.max(0, said.length - EDGE_LINES) };
 }
 
-/** When a node was made: the time it was written down, not the time it is about, and not whatever places depth. A node
- *  without such a time reads last, so an undated record never displaces a dated one. */
-const created = (n: FGNode | undefined): number => n?.__created ?? Number.POSITIVE_INFINITY;
+/** The order of two nodes by when each was made: the time it was written down, not the time it is about, and not whatever
+ *  places depth. A node without such a time reads after every dated one, so an undated record never displaces a dated one. */
+const createdOrder = ({ __created: a }: FGNode, { __created: b }: FGNode): number => {
+	if (a === undefined) return b === undefined ? 0 : 1;
+	return b === undefined ? -1 : a - b;
+};
 
 /** Oldest first, by name where two were made at once, so a reading is stable between draws. */
-const byCreated = (group: FGNode[]): FGNode[] => [...group].sort((a, b) => created(a) - created(b) || (a.name ?? a.id).localeCompare(b.name ?? b.id));
+const byCreated = (group: FGNode[]): FGNode[] => [...group].sort((a, b) => createdOrder(a, b) || (a.name ?? a.id).localeCompare(b.name ?? b.id));
 
 export class A11yRenderer implements TGraphRenderer {
 	private lastIds = new Set<string>();
@@ -73,7 +76,7 @@ export class A11yRenderer implements TGraphRenderer {
 	constructor(private readonly deps: TA11yRendererDeps) {}
 
 	size(): void {
-		// a document doesn't have a pixel size; the host's CSS decides how the region shows
+		// a document doesn't have a pixel size; the host's CSS sets how the region shows
 	}
 
 	rebuildNodes(): void {
@@ -119,12 +122,15 @@ export class A11yRenderer implements TGraphRenderer {
 			if (!s || !t) throw new Error(`A11yRenderer: link ${l.predicate} names a node that was not drawn`);
 			// An arrow, not a colon: a colon reads as "this field holds that value", and these are edges: this record
 			// points at that one. The reading states which way, since the picture does.
-			const lines = edgesOf.get(s.id) ?? new Map<string, TEdgeLine>();
+			let lines = edgesOf.get(s.id);
+			if (lines === undefined) {
+				lines = new Map<string, TEdgeLine>();
+				edgesOf.set(s.id, lines);
+			}
 			const key = `${l.predicate} → ${t.id}`;
 			const already = lines.get(key);
 			if (already) already.count++;
 			else lines.set(key, { predicate: l.predicate, targetId: t.id, targetName: t.name || t.id, count: 1 });
-			edgesOf.set(s.id, lines);
 		}
 
 		const ids = new Set(nodes.map((n) => n.id));
@@ -136,15 +142,16 @@ export class A11yRenderer implements TGraphRenderer {
 		status.textContent = this.lastIds.size && (added || removed) ? `${added} added, ${removed} removed, ${summary}` : summary;
 		this.lastIds = ids;
 
-		// A repaint must not throw the reader out: remember which entry holds focus and restore it on the new document.
+		// A repaint must not throw the reader out: note which entry holds focus and restore it on the new document.
 		const focusedId = doc.activeElement?.closest?.(`[${NODE_ID_ATTR}]`)?.getAttribute(NODE_ID_ATTR) ?? null;
 		let refocus: HTMLElement | undefined;
 
 		content.textContent = "";
-		// ONE reading, in the order things were made: a script of what happened, each line stating who it belongs to and
+		// ONE reading, in the order things were made: a script of what happened, each line naming its actor and
 		// what it is. Grouping split the same events into piles a reader had to reassemble; a script does not.
 		const actorOf = new Map<string, string>();
-		for (const bar of this.deps.bars() ?? []) for (const id of bar.nodeIds) actorOf.set(id, bar.label);
+		const bars = this.deps.bars(); // null off a view built on actors, where a line doesn't name one
+		if (bars !== null) for (const bar of bars) for (const id of bar.nodeIds) actorOf.set(id, bar.label);
 		const script = byCreated(nodes);
 		const stated = script.slice(0, Math.min(this.reading, script.length));
 		const list = doc.createElement("ol");

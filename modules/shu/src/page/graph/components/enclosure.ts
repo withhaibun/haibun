@@ -155,7 +155,7 @@ export class EnclosureController {
 			anchor: { x: "left", y: "bottom" },
 			emphasis: true,
 		});
-		// Box + border sit behind the graph.
+		// Box + border draw behind the graph.
 		for (const o of [box, edges]) {
 			o.raycast = () => undefined;
 			o.renderOrder = ENCLOSURE_RENDER_ORDER;

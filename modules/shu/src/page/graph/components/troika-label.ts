@@ -37,8 +37,8 @@ export function configureLabelFonts(fallbackFonts: string | undefined): void {
 type Group3D = Obj3D & { add(child: unknown): void };
 
 /** The uniform handle the view holds for a node's render object (FGNode.__visual). Every subsystem that used to reach
- *  into the concrete object, pick, billboard, focus dim, inspect, goes through this instead, so the object's type
- *  (a troika chip group vs a sprite/mesh) is known in exactly one place: whichever factory built it. */
+ *  into the concrete object, pick, billboard, focus dim, inspect, uses this instead, so the object's type
+ *  (a troika chip group vs a sprite/mesh) is named in exactly one place: whichever factory built it. */
 /** The slice of the scene's THREE a chip's background + highlight need, passed in (never a separately imported three). */
 export type ChipThree = GlowThree & {
 	Group: new () => Obj3D;
@@ -54,7 +54,7 @@ type ChipDeps = {
 	borderColor: string; // the chip's own edge, so a pale type colour still has a shape against a light page
 	highlightColor: string; // the colour the active-node glow is drawn in when the chip wears one (setHighlighted)
 	avatar?: string; // the type's initials, badged at the chip's leading edge; absent for a chip without a type to show
-	laidOut: () => void; // told each time the chip is laid out from measured text, which arrives off the main thread, so a resting scene draws it
+	laidOut: () => void; // called each time the chip is laid out from measured text, which arrives off the main thread, so a resting scene draws it
 };
 /** Background padding around the measured text, in fontSize units. */
 const PAD_X = 0.55;
@@ -168,7 +168,7 @@ export function makeTroikaChip(label: string, bgColor: string, three: ChipThree,
 
 	const boundsOf = (t: Text): [number, number, number, number] | undefined => t.textRenderInfo?.blockBounds;
 
-	// The chip's TOP-LEFT corner sits (all but exactly) at the node's point: a hair of pick margin up-and-left so the
+	// The chip's TOP-LEFT corner lies (all but exactly) at the node's point: a hair of pick margin up-and-left so the
 	// anchor point is pickable, real padding on the right and bottom. The chip extends right + down, never straddling
 	// the point; its leading content starts exactly on it, so the visible date is the top-left.
 	//
@@ -241,6 +241,8 @@ export function makeTroikaChip(label: string, bgColor: string, three: ChipThree,
  *  mark, so it sizes with it (the focus magnifier scales the parent) and works for a painted mark exactly as for a chip. */
 export function spriteVisual(painted: { object: Obj3D; labels: LabelVisual[] }, highlight: { three: GlowThree; color: string; renderOrder: number }): NodeVisual {
 	const obj = painted.object;
+	const material = obj.material;
+	if (material === undefined) throw new Error("spriteVisual: a painted mark dims through its material, which its paint (paintMarkScene) builds");
 	const glow = new MarkGlow(
 		() => {
 			const g = makeGlow(highlight.three, highlight.color, highlight.renderOrder);
@@ -251,8 +253,10 @@ export function spriteVisual(painted: { object: Obj3D; labels: LabelVisual[] }, 
 		// the parent's own size, since a child's scale multiplies its parent's. The halo is then the same thickness on
 		// all four sides whatever shape the mark is, and stays so while the magnifier scales it.
 		(g, swell) => {
-			const sx = Math.abs(obj.scale.x) || 1;
-			const sy = Math.abs(obj.scale.y) || 1;
+			const sx = Math.abs(obj.scale.x);
+			const sy = Math.abs(obj.scale.y);
+			// A mark with a zero side is invisible, and so is the halo it carries; a later set sizes the halo once the mark has a size.
+			if (sx === 0 || sy === 0) return;
 			const reach = Math.min(sx, sy) * GLOW_SPREAD * swell;
 			g.scale.set((sx + 2 * reach) / sx, (sy + 2 * reach) / sy, 1);
 		},
@@ -266,13 +270,11 @@ export function spriteVisual(painted: { object: Obj3D; labels: LabelVisual[] }, 
 		layingOut: false, // painted when built
 		setHighlighted: (on, burn) => glow.set(on, burn),
 		get opacity() {
-			return obj.material?.opacity ?? 1;
+			return material.opacity;
 		},
 		set opacity(o: number) {
-			if (obj.material) {
-				obj.material.transparent = true;
-				obj.material.opacity = o;
-			}
+			material.transparent = true;
+			material.opacity = o;
 		},
 		faceCamera(q) {
 			for (const label of painted.labels) label.faceCamera(q);

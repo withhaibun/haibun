@@ -447,56 +447,6 @@
 	"modules/shu/src/page/derivations/step-input.ts": {
 		"fills an absent value with a constant through ??": 2
 	},
-	"modules/shu/src/page/graph/components/a11y-renderer.ts": {
-		"fills an absent value with a constant through ??": 3
-	},
-	"modules/shu/src/page/graph/components/node-shapes.ts": {
-		"fills an absent value with a constant through ??": 1
-	},
-	"modules/shu/src/page/graph/components/renderer.ts": {
-		"fills an absent value with a constant through ??": 4
-	},
-	"modules/shu/src/page/graph/components/scene.ts": {
-		"fills a falsy value with a constant through ||": 3,
-		"fills an absent value with a constant through ??": 9,
-		"states a parameter's default value": 1
-	},
-	"modules/shu/src/page/graph/components/shu-class-browser.ts": {
-		"fills an absent value with a constant through ??": 2,
-		"states a schema's default value through .default()": 1
-	},
-	"modules/shu/src/page/graph/components/shu-clustered-graph-view.ts": {
-		"fills an absent value with a constant through ??": 4,
-		"states a parameter's default value": 1,
-		"states a schema's default value through .default()": 6
-	},
-	"modules/shu/src/page/graph/components/shu-graph-filter.ts": {
-		"fills an absent value with a constant through ??": 2,
-		"states a parameter's default value": 1,
-		"states a schema's default value through .default()": 3
-	},
-	"modules/shu/src/page/graph/components/shu-polymorphic-graph-view.ts": {
-		"fills an absent value with a constant through ??": 5,
-		"states a parameter's default value": 1,
-		"states a schema's default value through .default()": 11
-	},
-	"modules/shu/src/page/graph/components/svg-renderer.ts": {
-		"fills an absent value with a constant through ??": 3
-	},
-	"modules/shu/src/page/graph/components/troika-label.ts": {
-		"fills a falsy value with a constant through ||": 2,
-		"fills an absent value with a constant through ??": 1
-	},
-	"modules/shu/src/page/graph/components/view-head.ts": {
-		"fills an absent value with a constant through ??": 1
-	},
-	"modules/shu/src/page/graph/controllers/scenes-controller.ts": {
-		"fills an absent value with a constant through ??": 2
-	},
-	"modules/shu/src/page/graph/pipelines/data-pipeline.ts": {
-		"fills an absent value with a constant through ??": 11,
-		"states a parameter's default value": 1
-	},
 	"modules/shu/src/reveal.ts": {
 		"states a destructured default value": 3,
 		"states a parameter's default value": 1
