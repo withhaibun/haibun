@@ -74,7 +74,7 @@
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
 		"features": {
 			"/features/address.feature.ts": {
-				"seconds": 1.6,
+				"seconds": 1.7,
 				"steps": 199,
 				"declaredStepTextHash": "766e26d0505059a384b8e09cf8ddda62c6c0a4e5d9a4c82c275414b09017ae29"
 			},
@@ -105,7 +105,7 @@
 			}
 		},
 		"steps": 1180,
-		"seconds": 19.1
+		"seconds": 19.2
 	},
 	"linux-x64-4x-intel-xeon-processor-2-80ghz": {
 		"features": {
