@@ -1,0 +1,253 @@
+// The polymorphic's group-enclosure subsystem: the translucent type-coloured box + wire border + area title drawn around each
+// group's members (the 3D read of the SVG group box), plus the per-group ring anchors + footprint radii that drive the
+// cohesion force. The boxes only ever TRACK the settled members: they never trigger a relayout, so the layout the user
+// got is the layout that stays; geometry is drawn once after a data settle, not every frame.
+//
+// Wired like PolymorphicCamera/PolymorphicFocus: constructor-injected accessor deps read at CALL time, so a per-repaint-refreshed
+// nodeMap, a theme-recoloured label colour, or the late-bound forcegraph parent is always current; the component keeps
+// the leaf state it shares with the gantt/swimlane overlays (the shared unit geometries are owned here and read back via
+// accessors) and delegates the enclosure concern entirely. (lovely-finding-babbage, step 2.)
+
+import { roleNounFor } from "../../controllers/catalog-controller.js";
+import { makeTroikaText } from "./troika-label.js";
+import { colorForType } from "../derivations/type-colors.js";
+import { groupKeyOf, containerLabelOf, shelfPack, groupBounds, type GroupAnchor, type GroupKeyMode, ENCLOSURE_PAD, GROUP_GAP } from "../derivations/grouping.js";
+import { HYPERMEDIA_ROLE_REL_KEY } from "../../../domains/graph-model.js";
+import { type FGNode, type LabelVisual, isPlaced } from "../domains/graph-types.js";
+import { chipTextHeight, collideRadius } from "../derivations/layout-forces.js";
+import { groupCellSize } from "../derivations/group-grid.js";
+import { FOCUS_RENDER_ORDER } from "../controllers/focus-controller.js";
+
+// Group enclosures: each group's members cohere toward a ring anchor (pure math in @haibun/shu/graph/grouping.ts), then a
+// translucent type-coloured box with a wire border is drawn around them: the 3D read of the SVG group box.
+export const ENCLOSURE_FILL_OPACITY = 0.07;
+export const ENCLOSURE_EDGE_OPACITY = 0.55;
+export const ENCLOSURE_RENDER_ORDER = -1; // behind nodes/edges; depthWrite is off so it never occludes them
+// Group titles render above everything except the focus pop: an area heading shouldn't be occluded by chips
+// or edges, but the one thing the user is actively reading stays on top of it.
+export const ENCLOSURE_LABEL_RENDER_ORDER = FOCUS_RENDER_ORDER - 0.5;
+export const ENCLOSURE_LABEL_HEIGHT = 5;
+
+export type Disposable = { dispose(): void };
+export type Vec3 = { x: number; y: number; z: number; set(x: number, y: number, z: number): void };
+export type Obj3D = {
+	position: Vec3;
+	scale: Vec3;
+	renderOrder: number;
+	visible: boolean;
+	parent: Obj3D | null;
+	children: Obj3D[];
+	raycast: () => void;
+	/** A group holds meshes and the labels drawn beside them. */
+	add(o: unknown): void;
+	remove(o: unknown): void;
+};
+type EnclMaterial = Disposable & { color: { set(c: string): void }; opacity: number };
+export interface EnclosureThree {
+	Group: new () => Obj3D;
+	Mesh: new (geometry: unknown, material: unknown) => Obj3D;
+	LineSegments: new (geometry: unknown, material: unknown) => Obj3D;
+	BoxGeometry: new (w: number, h: number, d: number) => Disposable;
+	EdgesGeometry: new (geometry: unknown) => Disposable;
+	MeshBasicMaterial: new (params: Record<string, unknown>) => EnclMaterial;
+	LineBasicMaterial: new (params: Record<string, unknown>) => EnclMaterial;
+	DoubleSide: number;
+}
+
+export type Enclosure = { box: Obj3D; boxMat: EnclMaterial; edges: Obj3D; edgeMat: EnclMaterial; label: LabelVisual };
+
+/** Live refs + queries the component exposes; every getter is read at CALL time so a per-repaint nodeMap or a
+ *  theme-recoloured colour is always current, never copied. */
+type EnclosureDeps = {
+	three: () => EnclosureThree | undefined; // the scene's OWN bundled THREE (AFRAME.THREE), null until the scene loads
+	nodeMap: () => Map<string, FGNode>;
+	groupBy: () => GroupKeyMode;
+	grouped: () => boolean;
+	edgeLabelColor: () => string;
+	enclosureParent: () => Obj3D | undefined; // the forcegraph object3D the box group parents into (shared node coordinate space)
+	applyEnclosureFocus: () => void; // re-assert the active dim state on boxes created this pass
+};
+
+export class EnclosureController {
+	private groupAnchorsMap = new Map<string, GroupAnchor>();
+	private groupSizesMap = new Map<string, { w: number; h: number }>(); // per-group footprint RECTANGLE, from recomputeGroupAnchors
+	private enclosuresMap = new Map<string, Enclosure>();
+	private enclosureGroup?: Obj3D;
+	private unitBoxGeo?: Disposable; // shared unit BoxGeometry; each enclosure scales it, so geometry is never rebuilt per frame
+	private unitEdgesGeo?: Disposable; // shared unit-box EdgesGeometry (the wire border)
+
+	constructor(private deps: EnclosureDeps) {}
+
+	/** Live views for inspect()/the cohesion force/the focus subsystem: the controller owns the maps, callers only read. */
+	get anchors(): Map<string, GroupAnchor> {
+		return this.groupAnchorsMap;
+	}
+	get sizes(): Map<string, { w: number; h: number }> {
+		return this.groupSizesMap;
+	}
+	get enclosures(): Map<string, Enclosure> {
+		return this.enclosuresMap;
+	}
+	/** The shared unit geometries, reused by the component's gantt drag ghost (kept here so there's one owner). */
+	get unitBox(): Disposable | undefined {
+		return this.unitBoxGeo;
+	}
+	get unitEdges(): Disposable | undefined {
+		return this.unitEdgesGeo;
+	}
+
+	/** Each group's enclosure is placed by a RECTANGLE shelf-pack over its real {w,h} footprint, so the boxes can't
+	 * overlap AND one wide chip can't shove the others away (the old √Σradius² disc squared a wide member into a giant
+	 * square in both axes). The footprint is a √count grid of the members' ACTUAL collide size, bounded by
+	 * MAX_LABEL_CHARS, so one long id can't inflate it, so the FIRST packing is the final one, without a correction round. */
+	recomputeGroupAnchors(nodes: FGNode[]): void {
+		const groupBy = this.deps.groupBy();
+		const byGroup = new Map<string, FGNode[]>();
+		for (const n of nodes) {
+			const k = groupKeyOf(n, groupBy);
+			const arr = byGroup.get(k);
+			if (arr) arr.push(n);
+			else byGroup.set(k, [n]);
+		}
+		const sizes = new Map<string, { w: number; h: number }>();
+		for (const [k, members] of [...byGroup.entries()].sort(([a], [b]) => a.localeCompare(b))) sizes.set(k, groupCellSize(members));
+		this.groupSizesMap = sizes; // members pin to a deterministic grid (gridSlot) inside this footprint (see toGraphData)
+		this.groupAnchorsMap = shelfPack(sizes, GROUP_GAP);
+	}
+
+	/** The shared unit box + its wire edges (1×1×1), scaled per use. Built once, reused by the enclosures and the gantt
+	 *  drag ghost; disposed on teardown. */
+	ensureUnitBox(T: EnclosureThree): void {
+		if (!this.unitBoxGeo) this.unitBoxGeo = new T.BoxGeometry(1, 1, 1);
+		if (!this.unitEdgesGeo) this.unitEdgesGeo = new T.EdgesGeometry(this.unitBoxGeo);
+	}
+
+	/** Lazily build the shared geometries + the group that holds every enclosure, parented to the forcegraph object (re-attached if a relayout rebuilt it). Returns false until the scene is ready. */
+	private ensureEnclosureRoot(): boolean {
+		const T = this.deps.three();
+		if (!T) return false;
+		this.ensureUnitBox(T);
+		if (!this.enclosureGroup) {
+			this.enclosureGroup = new T.Group();
+			(this.enclosureGroup as Obj3D & { name: string }).name = "shu-group-enclosures";
+		}
+		if (!this.enclosureGroup.parent) {
+			const parent = this.deps.enclosureParent();
+			if (!parent) return false;
+			parent.add(this.enclosureGroup);
+		}
+		return true;
+	}
+
+	private createEnclosure(T: EnclosureThree, key: string, labelText: string): Enclosure {
+		const color = colorForType(key);
+		const boxMat = new T.MeshBasicMaterial({ color, transparent: true, opacity: ENCLOSURE_FILL_OPACITY, depthWrite: false, side: T.DoubleSide });
+		const box = new T.Mesh(this.unitBoxGeo, boxMat);
+		const edgeMat = new T.LineBasicMaterial({ color, transparent: true, opacity: ENCLOSURE_EDGE_OPACITY, depthWrite: false });
+		const edges = new T.LineSegments(this.unitEdgesGeo, edgeMat);
+		// The group title is distinct from node chips by typography alone: larger, heavier text in the theme's label colour,
+		// without a fill or border: an area heading, quiet enough not to compete with the nodes. It stands on the box's
+		// upper-left corner, reads above the box but under node chips, and never depth-hides.
+		const label = makeTroikaText(labelText, {
+			fontSize: ENCLOSURE_LABEL_HEIGHT,
+			color: this.deps.edgeLabelColor(),
+			renderOrder: ENCLOSURE_LABEL_RENDER_ORDER,
+			anchor: { x: "left", y: "bottom" },
+			emphasis: true,
+		});
+		// Box + border sit behind the graph.
+		for (const o of [box, edges]) {
+			o.raycast = () => undefined;
+			o.renderOrder = ENCLOSURE_RENDER_ORDER;
+		}
+		return { box, boxMat, edges, edgeMat, label };
+	}
+
+	private disposeEnclosure(e: Enclosure): void {
+		for (const o of [e.box, e.edges, e.label.object]) this.enclosureGroup?.remove(o);
+		e.boxMat.dispose();
+		e.edgeMat.dispose();
+		e.label.dispose();
+	}
+
+	clearEnclosures(): void {
+		for (const e of this.enclosuresMap.values()) this.disposeEnclosure(e);
+		this.enclosuresMap.clear();
+	}
+
+	/** Box geometry per group (sampled, not every frame): bounds, mesh placement, title at the box's world
+	 * upper-left, lifecycle. The boxes only ever TRACK the members: they never trigger relayouts, so the layout
+	 * the user got is the layout that stays. */
+	updateEnclosureGeometry(): void {
+		if (!this.deps.grouped()) {
+			if (this.enclosuresMap.size) this.clearEnclosures();
+			return;
+		}
+		const T = this.deps.three();
+		if (!T || !this.ensureEnclosureRoot() || !this.enclosureGroup) return;
+		const groupBy = this.deps.groupBy();
+		const byKey = new Map<string, FGNode[]>();
+		const labelById = new Map<string, string>(); // id → display label, so a role container reads the party's name not its DID
+		const typeById = new Map<string, string>(); // id → vertex type, the fallback designation when a party doesn't have a role rel
+		const roleRelById = new Map<string, unknown>(); // id → the role rel a party plays, so its container reads that role not its type
+		for (const n of this.deps.nodeMap().values()) {
+			const arr = byKey.get(groupKeyOf(n, groupBy));
+			if (arr) arr.push(n);
+			else byKey.set(groupKeyOf(n, groupBy), [n]);
+			if (n.name) labelById.set(n.id, n.name);
+			if (n.type) typeById.set(n.id, n.type);
+			if (n.properties?.[HYPERMEDIA_ROLE_REL_KEY] !== undefined) roleRelById.set(n.id, n.properties[HYPERMEDIA_ROLE_REL_KEY]);
+		}
+		// Under the role axis a container reads "<role>, <party>" (e.g. "Issuer, Coastal Fisheries Authority"). The role
+		// is the party's role designation, named from the role rel by which nodes attribute to it, not the party's vertex
+		// type (one Principal per DID). Under the type axis the plain type key (containerLabelOf) stands.
+		const containerLabel = (k: string): string => {
+			if (groupBy !== "role") return containerLabelOf(k, groupBy, labelById);
+			const party = labelById.get(k) ?? k;
+			const role = roleNounFor(roleRelById.get(k)) ?? typeById.get(k);
+			return role && role !== party ? `${role}, ${party}` : party;
+		};
+		for (const [key, members] of byKey) {
+			// Chips are centred on the node (sprite.center = (0.5, 0.5)), so the footprint is symmetric (± rx about node.x)
+			// groupBounds' own ± rx computation covers it directly, without a per-member x shift.
+			const b = groupBounds(members.filter(isPlaced), ENCLOSURE_PAD, (n) => ({ rx: collideRadius(n), ry: chipTextHeight(n) }));
+			if (!b) continue;
+			let e = this.enclosuresMap.get(key);
+			if (!e) {
+				e = this.createEnclosure(T, key, containerLabel(key));
+				this.enclosuresMap.set(key, e);
+				for (const o of [e.box, e.edges, e.label.object]) this.enclosureGroup.add(o);
+			}
+			e.box.position.set(b.cx, b.cy, b.cz);
+			e.box.scale.set(b.sx, b.sy, b.sz);
+			e.edges.position.set(b.cx, b.cy, b.cz);
+			e.edges.scale.set(b.sx, b.sy, b.sz);
+			// The title stands on the box's WORLD upper-left corner: a fixed point ON the box, so orbiting moves it exactly with
+			// its group, and it faces the camera, so the text always reads.
+			e.label.object.position.set(b.cx - b.sx / 2, b.cy + b.sy / 2, b.cz);
+		}
+		for (const [key, e] of this.enclosuresMap) {
+			if (byKey.has(key)) continue;
+			this.disposeEnclosure(e);
+			this.enclosuresMap.delete(key);
+		}
+		this.deps.applyEnclosureFocus(); // enclosures created this pass adopt the active dim state
+	}
+
+	/** Recolour the area titles in place under a theme change: a graphData re-feed would reheat the layout. */
+	recolorLabels(color: string): void {
+		for (const e of this.enclosuresMap.values()) e.label.color = color;
+	}
+
+	/** The area titles, which the scene turns to the camera each frame. */
+	labels(): Iterable<LabelVisual> {
+		return [...this.enclosuresMap.values()].map((e) => e.label);
+	}
+
+	/** Teardown: drop the boxes + the shared geometries (the component's overlays already disposed their own copies). */
+	dispose(): void {
+		this.clearEnclosures();
+		this.unitBoxGeo?.dispose();
+		this.unitEdgesGeo?.dispose();
+	}
+}

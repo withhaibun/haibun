@@ -1,0 +1,307 @@
+import { readFileSync } from "node:fs";
+import { build } from "esbuild";
+import { createServer, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { chromium, type Browser, type Page } from "playwright";
+import { SHU_EVENT } from "../../../domains/elements.js";
+import { SHARED_CELLS_KEY } from "../../adapters/shared-cell.js";
+import type { TSubjectState } from "../../../current-subject.js";
+import type { TMeasureUnit, TPanDirection, TZoomDirection } from "../machines/camera.js";
+import { type TPaneOpen } from "../../derivations/pane-kinds.js";
+import { POLYMORPHIC_ROUTE } from "../../../test/polymorphic-routes.js";
+import { LABEL_FONT, LABEL_FONT_FALLBACKS } from "../../../domains/serving.js";
+import { labelFontResponse } from "../../../pipelines/served-page.js";
+import { bundleFile } from "../../../adapters/bundle-file.js";
+
+/**
+ * A real page with the polymorphic graph view mounted on it, drawn by a headless browser through a software
+ * rasterizer. Every browser test of the scene needs the same page: the bundle served, the view mounted at a known
+ * size, a model fed the way the app feeds one, the layout waited to rest, and a node's projection read once it has
+ * stopped moving. Held here once, so a test states only what it does to the scene and what it expects of it.
+ */
+
+const HERE = dirname(fileURLToPath(import.meta.url));
+const BUNDLE_PATH = join(HERE, "..", "..", "..", "build", "assets", "shu-polymorphic-graph-view.js");
+const ENTRY_PATH = join(HERE, "..", "..", "test", "polymorphic-page-entry.ts");
+
+/** The page's entry, built once per test file: it starts the page and then loads the view's bundle. */
+let entry: Promise<string> | undefined;
+const pageEntry = (): Promise<string> => {
+	entry ??= build({ entryPoints: [ENTRY_PATH], bundle: true, write: false, format: "esm", platform: "browser", target: "es2022", conditions: ["haibun-source"] }).then((built) => {
+		const [file] = built.outputFiles;
+		if (file === undefined) throw new Error(`esbuild wrote an empty set of files for ${ENTRY_PATH}`);
+		return file.text;
+	});
+	return entry;
+};
+
+type TBox = { width: number; height: number };
+
+/** The view's box on the page: fixed, so a test that resizes it knows what it started from. */
+export const BOX: TBox = { width: 1000, height: 700 };
+
+/** The page, its view the page's main graph, or a graph a host embeds to draw its own data (`data-external`). */
+const pageWith = (external: boolean, box: TBox): string => `<!doctype html><html><head><meta charset="utf-8"><script type="module" src="${POLYMORPHIC_ROUTE.entry}"></script></head>
+<body style="margin:0">
+	<div id="box" style="position:fixed;left:0;top:0;width:${box.width}px;height:${box.height}px;">
+		<shu-polymorphic-graph-view ${external ? `data-external data-persist-scope="${EMBEDDED_SCOPE}"` : ""} style="display:block;width:100%;height:100%"></shu-polymorphic-graph-view>
+	</div>
+</body></html>`;
+
+/** The scope an embedded graph on the page keeps its settings under. */
+export const EMBEDDED_SCOPE = "embedded";
+
+export type TQuadFed = { subject: string; namedGraph: string; predicate: string; object: string; timestamp: number };
+/** One property quad per named node, as a snapshot holds them, so every node is built the way the app builds one. */
+export const quadsNamed = (ids: readonly string[]): TQuadFed[] => ids.map((id) => ({ subject: id, namedGraph: "Email", predicate: "name", object: id, timestamp: 0 }));
+
+export type TCamera = { fov: number | null; x: number; y: number; z: number; target: { x: number; y: number; z: number } };
+/** The scene as a test drives it: the moves a reader can make, and what it reports of itself. */
+export type TSceneApi = {
+	setConfig(patch: Record<string, unknown>): void;
+	setSelectedSubject(id: string | null): void;
+	fitGraph(): void;
+	panBy(amount: number, unit: TMeasureUnit, dir: TPanDirection): void;
+	zoomBy(amount: number, unit: TMeasureUnit, dir: TZoomDirection): void;
+	inspect(): { camera: TCamera | null };
+};
+type TInspected = {
+	nodes: number;
+	engineMode: string;
+	tween: unknown;
+	repaintPending: boolean;
+	followPending: boolean;
+	highlighted: number;
+	camera: TCamera | null;
+	render: { ticks: number; paused: boolean; welcoming: number; layingOut: number };
+};
+
+const VIEW = `document.querySelector("shu-polymorphic-graph-view")`;
+
+export type TMountedPage = {
+	page: Page;
+	/** The page's errors. */
+	errors(): string[];
+	/** Feed a model as the view does, and wait for every node of it to be laid out and the engine to rest. */
+	feed(quads: TQuadFed[]): Promise<void>;
+	/** Wait for the layout and the camera to rest: the simulation isn't running, a change isn't pending, and following has checked the view. */
+	settle(): Promise<void>;
+	/** Wait until the scene is at rest: its layout settled, its render loop paused, and a change isn't scheduled. */
+	atRest(): Promise<void>;
+	/** How many frames the renderer has drawn since the page loaded. */
+	framesDrawn(): Promise<number>;
+	/** Wait until the gate has ticked `ticks` more times, and return how many frames were drawn over them. */
+	framesOver(ticks: number): Promise<number>;
+	/** Select a node the way the app relays a selection, and wait for its glow. */
+	select(id: string): Promise<void>;
+	/** Run against the scene itself. The function is serialised into the page, so it doesn't see a closure: what it needs
+	 *  travels as `arg`. */
+	scene<T, A = undefined>(fn: (scene: TSceneApi, arg: A) => T, arg?: A): Promise<T>;
+	inspect(): Promise<TInspected>;
+	/** Where a node draws once the camera has stopped moving it: read until two reads agree to a pixel, and the canvas
+	 *  draws at the size it shows at, since the renderer takes a new size a frame before the canvas's own box does, and
+	 *  a read between the two maps the node onto a box that is no longer there. */
+	projection(id: string): Promise<{ x: number; y: number }>;
+	/** The camera's distance to what it looks at: the zoom, as the reader set it. */
+	distance(): Promise<number>;
+	/** Click the real pointer at a pixel, and return the id of the node the scene opened, or null when it didn't open one.
+	 *  The scene opens a node in the click's own task, so the id is set when the click dispatch returns. */
+	click(at: { x: number; y: number }): Promise<string | null>;
+	/** The active-record machine's state in the page, as the bundle holds it. */
+	subjectState(): Promise<TSubjectState>;
+	/** A pixel inside the view where a node isn't picked, for a click on empty space. */
+	emptyPixel(): Promise<{ x: number; y: number }>;
+	box(): Promise<{ x: number; y: number; w: number; h: number }>;
+	close(): Promise<void>;
+};
+
+/** The page as a test opens it: the page's entry started, the view mounted in a box of `box`, at `deviceScaleFactor`. */
+export type TOpenedPage = { page: Page; errors(): string[]; close(): Promise<void> };
+
+/** Opens the page with the view mounted, and waits for its scene to hold a camera and a sized canvas. */
+export async function openPolymorphicPage(opts: { external: boolean; box: TBox; deviceScaleFactor: number }): Promise<TOpenedPage> {
+	const html = pageWith(opts.external, opts.box);
+	const bundle = readFileSync(BUNDLE_PATH, "utf-8"); // throws if not built: run `npm run bundle:polymorphic` first
+	const started = await pageEntry();
+	const server: Server = createServer((req, res) => {
+		if (req.url === "/") res.writeHead(200, { "Content-Type": "text/html" }).end(html);
+		else if (req.url === POLYMORPHIC_ROUTE.entry) res.writeHead(200, { "Content-Type": "application/javascript" }).end(started);
+		else if (req.url === POLYMORPHIC_ROUTE.bundle) res.writeHead(200, { "Content-Type": "application/javascript" }).end(bundle);
+		else if (req.url === LABEL_FONT) res.writeHead(200, { "Content-Type": "font/woff" }).end(Buffer.from(bundleFile().labelFont()));
+		else if (req.url?.startsWith(`${LABEL_FONT_FALLBACKS}/`)) {
+			const response = labelFontResponse(bundleFile(), req.url.slice(LABEL_FONT_FALLBACKS.length + 1));
+			if (response === undefined) res.writeHead(404).end();
+			else if ("json" in response) res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify(response.json));
+			else res.writeHead(200, { "Content-Type": "font/woff" }).end(Buffer.from(response.font));
+		} else res.writeHead(404).end();
+	});
+	await new Promise<void>((res) => server.listen(0, "127.0.0.1", res));
+	const browser: Browser = await chromium.launch({ args: ["--enable-unsafe-swiftshader"] });
+	const page = await browser.newPage({ viewport: { width: 1400, height: 900 }, deviceScaleFactor: opts.deviceScaleFactor });
+	const pageErrors: string[] = [];
+	page.on("pageerror", (e) => pageErrors.push(e.message));
+	await page.goto(`http://127.0.0.1:${(server.address() as AddressInfo).port}/`);
+	await page.waitForFunction(
+		() => {
+			const fe = document.querySelector("shu-polymorphic-graph-view");
+			const scene = fe?.querySelector("a-scene") as (HTMLElement & { camera?: unknown }) | null;
+			const canvas = fe?.querySelector("canvas") as HTMLCanvasElement | null;
+			return Boolean(scene?.camera && canvas && canvas.width > 0);
+		},
+		undefined,
+		{ timeout: 30_000 },
+	);
+	return {
+		page,
+		errors: () => pageErrors,
+		async close() {
+			await browser.close();
+			await new Promise<void>((res) => server.close(() => res()));
+		},
+	};
+}
+
+export async function mountPolymorphicPage({ external = false }: { external?: boolean } = {}): Promise<TMountedPage> {
+	const { page, errors, close } = await openPolymorphicPage({ external, box: BOX, deviceScaleFactor: 1 });
+
+	const inspect = async (): Promise<TInspected> => (await page.evaluate(`${VIEW}.inspect()`)) as TInspected;
+	const settle = async (): Promise<void> => {
+		await page.waitForFunction(
+			() => {
+				const i = (
+					document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { engineMode: string; tween: unknown; repaintPending: boolean; followPending: boolean } }
+				).inspect();
+				return i.engineMode === "frozen" && i.tween === null && !i.repaintPending && !i.followPending;
+			},
+			undefined,
+			{ timeout: 45_000 },
+		);
+	};
+
+	const framesDrawn = async (): Promise<number> => (await page.evaluate(`document.querySelector("a-scene").renderer.info.render.frame`)) as number;
+
+	return {
+		page,
+		errors,
+		async atRest() {
+			await settle();
+			await page.waitForFunction(
+				() => {
+					const { render } = (
+						document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { render: { paused: boolean; welcoming: number; layingOut: number } } }
+					).inspect();
+					return render.paused && render.welcoming === 0 && render.layingOut === 0;
+				},
+				undefined,
+				{ timeout: 15_000 },
+			);
+		},
+		framesDrawn,
+		async framesOver(ticks) {
+			const before = await framesDrawn();
+			const from = (await inspect()).render.ticks;
+			await page.waitForFunction(
+				(until) => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { render: { ticks: number } } }).inspect().render.ticks >= until,
+				from + ticks,
+				{ timeout: 15_000 },
+			);
+			return (await framesDrawn()) - before;
+		},
+		async feed(quads) {
+			await page.evaluate((fed) => {
+				const el = document.querySelector("shu-polymorphic-graph-view") as unknown as { scene: { setModel(model: unknown): void } };
+				el.scene.setModel({ quads: fed, visibleQuads: fed, clusters: [], knownClusters: new Map(), hiddenGraphs: [], hiddenPredicates: [], perTypeLimit: 1000, timeCursor: null });
+			}, quads);
+			const count = new Set(quads.map((q) => q.subject)).size;
+			await page.waitForFunction((n) => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { nodes: number } }).inspect().nodes === n, count, {
+				timeout: 45_000,
+			});
+			await settle();
+		},
+		settle,
+		async select(id) {
+			await page.evaluate(
+				(nid) => (document.querySelector("shu-polymorphic-graph-view") as unknown as { scene: { setSelectedSubject(s: string): void } }).scene.setSelectedSubject(nid),
+				id,
+			);
+			await page.waitForFunction(
+				() => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { highlighted: number } }).inspect().highlighted === 1,
+				undefined,
+				{ timeout: 10_000 },
+			);
+		},
+		scene<T, A = undefined>(fn: (scene: TSceneApi, arg: A) => T, arg?: A): Promise<T> {
+			return page.evaluate(`(${fn.toString()})(${VIEW}.scene, ${JSON.stringify(arg ?? null)})`) as Promise<T>;
+		},
+		inspect,
+		async projection(id) {
+			await settle();
+			let previous: { x: number; y: number } | null = null;
+			for (let i = 0; i < 60; i++) {
+				const read = (await page.evaluate((nid) => {
+					const view = document.querySelector("shu-polymorphic-graph-view") as unknown as { projectNodeToScreen(n: string): { x: number; y: number } | null };
+					const canvas = document.querySelector("shu-polymorphic-graph-view canvas") as HTMLCanvasElement | null;
+					const shown = canvas?.getBoundingClientRect();
+					const dpr = window.devicePixelRatio || 1;
+					const sized = !!canvas && !!shown && Math.abs(canvas.width / dpr - shown.width) < 1 && Math.abs(canvas.height / dpr - shown.height) < 1;
+					return { at: view.projectNodeToScreen(nid), sized };
+				}, id)) as { at: { x: number; y: number } | null; sized: boolean };
+				const at = read.sized ? read.at : null;
+				if (at && previous && Math.abs(at.x - previous.x) < 1 && Math.abs(at.y - previous.y) < 1) return at;
+				previous = at;
+				await page.waitForTimeout(40);
+			}
+			if (!previous) throw new Error(`node ${id} never projected onto the canvas`);
+			return previous;
+		},
+		async distance() {
+			const c = (await inspect()).camera;
+			if (!c) throw new Error("the scene has no camera to measure");
+			return Math.hypot(c.x - c.target.x, c.y - c.target.y, c.z - c.target.z);
+		},
+		async click(at) {
+			await page.evaluate((evt) => {
+				const w = window as unknown as { __opened: string | null };
+				w.__opened = null;
+				document.addEventListener(
+					evt,
+					(e) => {
+						const { pane } = (e as CustomEvent<TPaneOpen>).detail;
+						w.__opened = pane.paneType === "entity" ? pane.id : null;
+					},
+					{ once: true },
+				);
+			}, SHU_EVENT.PANE_OPEN);
+			await page.mouse.click(at.x, at.y);
+			return page.evaluate(() => (window as unknown as { __opened: string | null }).__opened);
+		},
+		subjectState: () =>
+			page.evaluate((key) => {
+				const signals = (globalThis as unknown as Record<string, Map<string, { signal: { get(): TSubjectState } }>>)[key];
+				if (!signals) throw new Error(`the page doesn't hold shared signals at ${key}`);
+				return signals.get("currentSubject")?.signal.get() as TSubjectState;
+			}, SHARED_CELLS_KEY),
+		async emptyPixel() {
+			const found = await page.evaluate(() => {
+				const view = document.querySelector("shu-polymorphic-graph-view") as unknown as { pickAt(x: number, y: number): string | null } & HTMLElement;
+				const box = view.getBoundingClientRect();
+				for (let y = box.bottom - 12; y > box.top; y -= 24) {
+					for (let x = box.left + 12; x < box.right; x += 24) {
+						if (view.pickAt(x, y) === null && document.elementFromPoint(x, y)?.closest("shu-polymorphic-graph-view")) return { x, y };
+					}
+				}
+				return null;
+			});
+			if (!found) throw new Error("the view has no empty pixel to click");
+			return found;
+		},
+		box: () =>
+			page.evaluate(() => {
+				const r = (document.querySelector("#box") as HTMLElement).getBoundingClientRect();
+				return { x: r.x, y: r.y, w: r.width, h: r.height };
+			}),
+		close,
+	};
+}

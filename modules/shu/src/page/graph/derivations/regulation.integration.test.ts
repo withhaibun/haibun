@@ -7,7 +7,7 @@
  */
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { DEFAULT_REGULATION_THRESHOLDS } from "./regulation.js";
-import { BOX, mountPolymorphicPage, quadsNamed, type TMountedPage } from "../../../graph/polymorphic/polymorphic-page.test-fake.js";
+import { BOX, mountPolymorphicPage, quadsNamed, type TMountedPage } from "../components/polymorphic-page.test-fake.js";
 
 /** Enough marks that a software-rasterized frame is plainly slow. */
 const NODE_COUNT = 144;

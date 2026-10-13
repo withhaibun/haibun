@@ -31,10 +31,10 @@ import { saveImageArtifact } from "@haibun/domain-storage/image-artifact.js";
 import type { Locator, Page } from "playwright";
 import { VIEW, VIEW_TYPES, isLaneView } from "../page/graph/domains/views.js";
 import { MEASURE_UNIT, PAN_DIRECTION, ZOOM_DIRECTION, type TMeasureUnit, type TPanDirection, type TZoomDirection } from "../page/graph/machines/camera.js";
-import type { ShuGraphScene, TGraphState } from "../graph/polymorphic/polymorphic-scene.js";
+import type { ShuGraphScene, TGraphState } from "../page/graph/components/scene.js";
 
-import type { ShuPolymorphicGraphView } from "../components/shu-polymorphic-graph-view.js";
-import type { ShuGraphFilter } from "../components/shu-graph-filter.js";
+import type { ShuPolymorphicGraphView } from "../page/graph/components/shu-polymorphic-graph-view.js";
+import type { ShuGraphFilter } from "../page/graph/components/shu-graph-filter.js";
 import { NO_ELEMENT, ROUND_TRIP_MS, SETTLES_MS, STATE_MS } from "./domains/waits.js";
 import { attached, comesToHold, nodeMatching, percent, pollUntil, until } from "./pipelines/page-reads.js";
 import { controlled } from "./root.js";

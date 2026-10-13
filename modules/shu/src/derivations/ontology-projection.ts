@@ -4,7 +4,7 @@
  * to an instance graph's response with an `a` edge from each instance to its Class. A view draws the ontology as it draws
  * any other graph.
  */
-import { CLASS_LABEL, HAIBUN_NS, HAIBUN_PREFIXES, type TRegisteredDomain } from "@haibun/core/lib/resources.js";
+import { CLASS_LABEL, PROPERTY_LABEL, HAIBUN_NS, HAIBUN_PREFIXES, type TRegisteredDomain } from "@haibun/core/lib/resources.js";
 import type { TQuad, TClusteredQuads } from "@haibun/core/lib/quad-types.js";
 import { ancestorsWith, ontologyToQuads, superMap, withStandardTerms, type TStandardTerm } from "@haibun/core/lib/records/derivations/ontology.js";
 import { ONTOLOGY_FIELD } from "@haibun/core/lib/records/domains/ontology.js";
@@ -16,6 +16,31 @@ const INSTANCE_OF = "a";
 /** Whether a @type is one of the two schema clusters: the ONE predicate every schema-aware surface reuses: the filter
  *  (default-hide), the paint (distinct shape), and the layout (timeless, so pinned to the front z=0 plane, not the age axis). */
 export const isSchemaType = (type: string): boolean => SCHEMA_TYPES.includes(type);
+
+/** The schema terms a node can be: a class, which opens its own type, or a property, which opens the records that use it. */
+export const SCHEMA_TERM = { class: "class", property: "property" } as const;
+export type TSchemaTerm = (typeof SCHEMA_TERM)[keyof typeof SCHEMA_TERM];
+
+/** The schema term a type names, or undefined for a type of records. */
+export function schemaTermOf(type: string): TSchemaTerm | undefined {
+	if (type === CLASS_LABEL) return SCHEMA_TERM.class;
+	return type === PROPERTY_LABEL ? SCHEMA_TERM.property : undefined;
+}
+
+/** The schema's types, which a scope to the schema shows. */
+export const schemaTypes = (): string[] => [...SCHEMA_TYPES];
+
+/** Whether a view's known types include the schema's classes, which a scope to the schema reveals once they arrive. */
+export const holdsSchema = (types: ReadonlyMap<string, unknown>): boolean => types.has(CLASS_LABEL);
+
+/** A schema node's hover text: a class shows its label; a property shows its vocabulary (haibun's own or a standard's
+ *  prefix, from its IRI) and whether the data uses it, so a term a standard declares and the data never uses reads "declared". */
+export function schemaHoverText(n: { name: string; type: string; properties?: Record<string, unknown> }): string {
+	if (n.type !== PROPERTY_LABEL) return `${n.name} · ${n.type}`;
+	const uri = n.properties?.uri;
+	const vocab = typeof uri === "string" && uri !== "" ? propertyVocabulary(uri).prefix : PROPERTY_LABEL;
+	return `${n.name} · ${vocab} · ${n.properties?.inData === false ? "declared" : "in data"}`;
+}
 
 /** A property's provenance, keyed off its IRI. `haibun` when the term is haibun's own vocabulary: a CURIE under one of
  *  haibun's own prefixes, or an IRI under HAIBUN_NS. Otherwise the term is of a separate vocabulary (a standard, or a

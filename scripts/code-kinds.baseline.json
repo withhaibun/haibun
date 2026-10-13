@@ -403,43 +403,7 @@
 	"modules/shu/src/client-log.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/shu/src/components/shu-class-browser.ts": {
-		"performs I/O through fetch": 1
-	},
-	"modules/shu/src/components/shu-clustered-graph-view.ts": {
-		"performs I/O through setTimeout": 1
-	},
 	"modules/shu/src/current-subject.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/graph-blips.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/graph/polymorphic/polymorphic-a11y-renderer.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/graph/polymorphic/polymorphic-enclosure.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/graph/polymorphic/polymorphic-node-shapes.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/graph/polymorphic/polymorphic-render-context.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/graph/polymorphic/polymorphic-render-type.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/graph/polymorphic/polymorphic-renderer.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/graph/polymorphic/polymorphic-scene.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/graph/polymorphic/polymorphic-svg-renderer.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/graph/polymorphic/polymorphic-troika-label.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/known-size-flow.ts": {
@@ -449,9 +413,6 @@
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/reveal.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/scenes.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/schemas.ts": {

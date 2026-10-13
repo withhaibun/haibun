@@ -1,4 +1,4 @@
-/// <reference path="../../../graph/polymorphic/three-controls.d.ts" />
+/// <reference path="../components/three-controls.d.ts" />
 /**
  * The camera controller of a graph scene: the reader's orbit controls, the fitting of the frame to the column, following
  * the active node, the framing of a fit or of a node's neighbourhood, and the nudges of a control step or a key. The camera
@@ -12,9 +12,9 @@ import { FRAME, type FrameMove, type ReframeMode } from "../domains/views.js";
 import { isPlaced, neighboursOf, type FGLink, type FGNode, type XYZ } from "../domains/graph-types.js";
 import { PolymorphicCamera, clearStripOffset, coveredTogether, type GanttExtent, type TMeasureUnit, type TPanDirection, type TZoomDirection } from "../machines/camera.js";
 import type { TClientPoint } from "../derivations/project.js";
-import type { TWakeCause } from "../../../graph-blips.js";
+import type { TWakeCause } from "../../../domains/graph-blips.js";
 import type { TSceneCamera } from "../ports.js";
-import type { RenderContext } from "../../../graph/polymorphic/polymorphic-render-context.js";
+import type { RenderContext } from "../components/render-context.js";
 
 /** How long the camera holds still before a reader's pan or zoom counts as finished: longer than the damping's last visible easing. */
 const CAMERA_REST_MS = 150;

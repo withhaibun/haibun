@@ -68,3 +68,6 @@ export function assertNodeMark(m: NodeMark): NodeMark {
 	assertLayoutRole(m.role, m.id);
 	return m;
 }
+
+/** The cadence of a frame job that runs each frame. */
+export const EVERY_FRAME = 1;

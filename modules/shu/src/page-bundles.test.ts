@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 const source = dirname(fileURLToPath(import.meta.url));
 /** The condition haibun's packages export their TypeScript source under, which the page's bundles build from. */
 const HAIBUN_SOURCE = "haibun-source";
-const PAGE_ENTRIES = ["../entries/shu-app.ts", "components/polymorphic-bundle.ts"];
+const PAGE_ENTRIES = ["../entries/shu-app.ts", "../entries/polymorphic-bundle.ts"];
 
 describe("the page's bundles", () => {
 	it.each(PAGE_ENTRIES)("%s builds for a browser", async (entry) => {

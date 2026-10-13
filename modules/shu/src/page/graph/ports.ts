@@ -5,7 +5,7 @@
  * scene and its parts don't perform I/O.
  */
 import type { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
-import type { Vec3 } from "../../graph/polymorphic/polymorphic-enclosure.js";
+import type { Vec3 } from "./components/enclosure.js";
 import type { FGLink, FGNode } from "./domains/graph-types.js";
 
 /** What the scene displays each repaint: the pipeline's own output. */

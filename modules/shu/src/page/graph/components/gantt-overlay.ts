@@ -7,15 +7,8 @@ import { formatInstant, readerZone } from "../../derivations/time-format.js";
 import { ganttBarSpan, GANTT_BAR_D, GANTT_BAR_H, GANTT_GHOST_PAD, GANTT_MIN_BAR_W, GANTT_ROW_H, type GanttScale, type GanttTarget } from "../derivations/gantt-layout.js";
 import type { Adornment } from "../derivations/graph-layout.js";
 import { isPlaced, type FGNode, type LabelVisual } from "../domains/graph-types.js";
-import { makeTroikaText } from "../../../graph/polymorphic/polymorphic-troika-label.js";
-import {
-	ENCLOSURE_LABEL_HEIGHT,
-	ENCLOSURE_LABEL_RENDER_ORDER,
-	ENCLOSURE_RENDER_ORDER,
-	type Disposable,
-	type EnclosureThree,
-	type Obj3D,
-} from "../../../graph/polymorphic/polymorphic-enclosure.js";
+import { makeTroikaText } from "./troika-label.js";
+import { ENCLOSURE_LABEL_HEIGHT, ENCLOSURE_LABEL_RENDER_ORDER, ENCLOSURE_RENDER_ORDER, type Disposable, type EnclosureThree, type Obj3D } from "./enclosure.js";
 
 /** The enclosures' slice of THREE and the line geometry the ruler builds. */
 export type GanttThree = EnclosureThree & {

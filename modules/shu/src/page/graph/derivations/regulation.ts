@@ -16,7 +16,7 @@
 import { BREATH_MS } from "./highlight.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
-export const REGULATION_KINDS = ["decorativeOverLimit", "decorativeWithinLimit"] as const;
+import { REGULATION_KINDS } from "../../../domains/graph-blips.js";
 
 type TRegulationKind = (typeof REGULATION_KINDS)[number];
 

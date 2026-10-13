@@ -1,4 +1,4 @@
-/// <reference path="../../../graph/polymorphic/three-controls.d.ts" />
+/// <reference path="../components/three-controls.d.ts" />
 import type { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { FRAME, type FrameMove, type ReframeMode } from "../domains/views.js";
 import type { TMatrix4Elements } from "../ports.js";

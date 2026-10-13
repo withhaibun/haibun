@@ -23,3 +23,12 @@ export function prefixesReferencedBy(node: unknown): Set<string> {
 	scan(node);
 	return used;
 }
+
+/** A served context narrowed to one type: the type's node and only the prefixes its own terms reference, with the
+ *  context's version, so the context of one type reads without the whole store's vocabulary. */
+export function typeContext(context: Record<string, unknown>, type: string): Record<string, unknown> {
+	const node = context[type];
+	const used = prefixesReferencedBy(node);
+	const prefixes = Object.fromEntries(Object.entries(context).filter(([k, v]) => (typeof v === "string" && used.has(k)) || k === "@version"));
+	return node === undefined ? prefixes : { ...prefixes, [type]: node };
+}

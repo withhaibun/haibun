@@ -1,0 +1,373 @@
+/**
+ * Shared base for every view that hosts a <shu-graph-scene> over the clustered-quad snapshot: the graph view and the
+ * class browser today, and any other host of the same scene. It owns the one data pathway, fetch, live SSE merge,
+ * type filter, cluster + neighborhood expansion, selection, and the one scene pathway: the light DOM the scene needs,
+ * the model pushed to it, the cursor paint, and the scene outputs relayed as app events. A host declares what it is
+ * (`rootTestId`) and what slice of the data its scene shows (`buildSceneModel`), and overrides a hook only where it
+ * differs, so two hosts of one scene cannot drift apart.
+ */
+import { z } from "zod";
+import { ShuElement } from "../../components/shu-element.js";
+import { SHU_EVENT, SHU_ATTR } from "../../../domains/elements.js";
+import { reportToRun } from "../../../client-log.js";
+import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { extractQuadsFromEvents, type TCluster, type TQuad } from "@haibun/core/lib/quad-types.js";
+import { getRels, instrumentationTypes } from "../../controllers/catalog-controller.js";
+import { DEFAULT_PER_TYPE_LIMIT, MAX_PER_TYPE_LIMIT, type TReadCounts } from "../domains/snapshot.js";
+import { GraphDataController, currentSnapshot, mergeIntoSnapshots } from "../controllers/graph-data-controller.js";
+import { SubjectController } from "../../controllers/subject-controller.js";
+import { ShuGraphFilter } from "./shu-graph-filter.js";
+import "./scene.js";
+import { type ShuGraphScene, type GraphSceneModel } from "./scene.js";
+import { effectiveHiddenTypes } from "../derivations/graph-filter.js";
+import { ClockController } from "../../controllers/clock-controller.js";
+import { TimelineViewController } from "../../controllers/timeline-view-controller.js";
+
+/** The name the trailing paint of a cursor burst is held under. */
+const CURSOR_PAINT = "cursor-paint";
+
+/** The source the clustered graph view reports under. */
+const CLUSTERED_SOURCE = "clustered-graph-view";
+
+const QuadFieldSchema = z.object({
+	subject: z.string(),
+	predicate: z.string(),
+	object: z.unknown(),
+	namedGraph: z.string(),
+	// Omitting objectType makes setState's Zod parse strip it, leaving every edge (which resolves to its node via the range) undrawable.
+	objectType: z.string().optional(),
+	timestamp: z.number(),
+	properties: z.record(z.string(), z.unknown()).optional(),
+});
+
+const ClusterFieldSchema = z.object({
+	type: z.string(),
+	totalCount: z.number(),
+	sampledCount: z.number(),
+	omittedCount: z.number(),
+	saturated: z.boolean().optional(),
+	sampledSubjects: z.array(z.string()),
+	displayLabels: z.record(z.string(), z.string()),
+	// Site principal per sampled subject served by a FEDERATED peer (omitting it makes the parse strip the federation stamp).
+	sites: z.record(z.string(), z.string()).optional(),
+});
+
+/** The state fields every clustered-graph view shares; a subclass spreads this into its own `z.object({...})`. */
+export const clusteredGraphStateShape = {
+	quads: z.array(QuadFieldSchema).default([]),
+	clusters: z.array(ClusterFieldSchema).default([]),
+	/** The responding instance's site principal: the serving site of every subject a cluster's `sites` doesn't override. */
+	site: z.string().optional(),
+	perTypeLimit: z.number().int().positive().default(DEFAULT_PER_TYPE_LIMIT),
+	hiddenGraphs: z.array(z.string()).default([]),
+	// The predicates whose edges are hidden (the filter's properties group). Node visibility is per type; edge
+	// visibility is per predicate: the two travel together from the one filter.
+	hiddenPredicates: z.array(z.string()).default([]),
+	expandedGraphs: z.array(z.string()).default([]),
+};
+
+const ClusteredGraphStateSchema = z.object(clusteredGraphStateShape);
+type TClusteredGraphState = z.infer<typeof ClusteredGraphStateSchema>;
+
+export abstract class ShuClusteredGraphView<T extends z.ZodObject<typeof clusteredGraphStateShape>> extends ShuElement<T> {
+	protected knownClusters = new Map<string, TCluster>();
+	protected fetchedSubjects = new Set<string>();
+	private graphInitialized = false;
+	// The user's explicit per-type visibility choices (from <shu-graph-filter>, persisted there). hiddenGraphs is DERIVED
+	// from these + the instrumentation-default predicate via effectiveHiddenTypes, never stored as the truth, so
+	// instrumentation's default-hidden is re-applied every load and a toggle is the only thing that sticks.
+	private filterOverrides: Record<string, boolean> = {};
+
+	/** The persistence scope of this view's filter choices: "" (the main graph's shared store) by default; a scoped host
+	 *  (a class browser) overrides with its own name and sets the same value as `data-persist-scope` on its filter. */
+	protected get filterPersistScope(): string {
+		return "";
+	}
+
+	/** The view's snapshot scope: "" (the shared main-graph snapshot) by default. A view with its own scope fetches and
+	 *  holds an independent snapshot: its refetches (chip toggles, per-type limit) never replace another scope's data,
+	 *  and another view's never replace its. Live SSE observations extend every scope. */
+	protected get snapshotScope(): string {
+		return "";
+	}
+
+	// The shared fields, typed by the constraint: every subclass schema includes clusteredGraphStateShape.
+	/** The view's data: its scope's snapshot, a record's neighbourhood, and the count of the reads it started and settled.
+	 *  A subclass states its scope as a constant through its getter, which the initialiser reads. */
+	protected readonly data = new GraphDataController(this.snapshotScope);
+
+	/** The scoped reads this view started and those that settled, which match while a read isn't in flight (SH22). */
+	get reads(): TReadCounts {
+		return this.data.reads;
+	}
+
+	protected get cgState(): TClusteredGraphState {
+		return this.state;
+	}
+	protected setGraphState(partial: Partial<TClusteredGraphState>): void {
+		this.setState(partial as Partial<z.infer<T>>);
+	}
+
+	/** External-data mode: the host that embeds the view gives it all its data and its selection, so the view doesn't
+	 *  read from the store or follow the page selection. */
+	protected get usesExternalData(): boolean {
+		return false;
+	}
+
+	/** An external host's graph: its quads and clusters, drawn as given, with the types the reader hid kept hidden. */
+	protected setExternalData(quads: TQuad[], clusters: TCluster[]): void {
+		this.knownClusters = new Map(clusters.map((cluster) => [cluster.type, cluster]));
+		this.setGraphState({ quads, clusters, hiddenGraphs: this.hiddenForSnapshot({ clusters, quads }) });
+		this.onGraphData();
+	}
+
+	/** Light DOM: the scene resolves its A-Frame camera through the document, and its chrome positions against the host. */
+	createRenderRoot(): HTMLElement {
+		return this;
+	}
+
+	/** The test id a feature waits on before driving this host, declared by the host it belongs to. */
+	protected abstract get rootTestId(): string;
+
+	/** The slice of the snapshot this host's scene shows: the whole graph, or the part a scoped host is a view of. */
+	protected abstract buildSceneModel(): GraphSceneModel;
+
+	/** The scene is a child of the host, and on a host that hides it (a text tab) it is out of the DOM rather than
+	 *  hidden, so its render loop never runs where it is not shown. */
+	protected get scene(): ShuGraphScene | null {
+		return this.querySelector<ShuGraphScene>("shu-graph-scene");
+	}
+
+	protected get filterEl(): ShuGraphFilter | null {
+		return this.querySelector("shu-graph-filter");
+	}
+
+	/** Feed the scene the current data slice and refresh the filter's chip source (the filter is host-owned). */
+	protected pushSceneModel(): void {
+		this.filterEl?.setSource(this.knownClusters, this.cgState.quads);
+		this.scene?.setModel(this.buildSceneModel());
+	}
+
+	/** Awaited before the first load: the host's scene child exists by then, so the scene outputs every host takes the
+	 *  same way are wired here. A host adds its own outputs after awaiting this. */
+	protected async onGraphConnected(): Promise<void> {
+		await this.updateComplete; // renders the filter and creates the <shu-graph-scene> child
+		// A graph a host embeds is found by the host's test id, so a page holding it beside the main graph finds one of each.
+		if (!this.usesExternalData) this.setAttribute("data-testid", this.rootTestId);
+		// Hovering a type chip previews its cluster: every other type dims while the pointer is on it.
+		this.autoListen(this, SHU_EVENT.GRAPH_TYPE_PREVIEW, ((e: CustomEvent<{ type: string | null }>) => {
+			const type = e.detail?.type ?? null;
+			this.scene?.setPreview(type === null ? null : { type });
+		}) as EventListener);
+	}
+	/** Repaint after a data change: the scene takes the new slice. */
+	protected onGraphData(): void {
+		this.pushSceneModel();
+	}
+	/** What the reader is on, as the machine decides it: the scene highlights it, and its neighborhood is fetched where
+	 *  the graph does not hold it yet. */
+	#subject = new SubjectController(this, (record) => {
+		if (this.usesExternalData) return;
+		this.onGraphSelection(record?.id ?? null, record?.label ?? null);
+		if (record) void this.fetchIfMissing(record.id, record.label);
+	});
+
+	/** A selection (from any view): the scene highlights it; the base also fetches its neighborhood (below). */
+	protected onGraphSelection(subject: string | null, _label: string | null): void {
+		this.scene?.setSelectedSubject(subject);
+	}
+
+	/** The time-visible slice of the snapshot: quads at/before the global time cursor (all of them without a cursor).
+	 * The ONE time pathway every clustered graph view renders from, never `state.quads` directly, so scrubbing
+	 * the shared timeline hides/restores the same objects in every view. */
+	protected get visibleQuads(): TQuad[] {
+		return this.timeline.shownBy(this.cgState.quads);
+	}
+
+	private lastTimeSync = 0;
+	/** The page's clock, which holds the trailing paint of a cursor burst and cancels it as the view leaves the page. */
+	readonly #clock = new ClockController(this);
+	/** Coalesce window for cursor moves during a continuous scrub/play. Overridable: an imperative view that re-styles
+	 *  quickly on a cursor move uses a shorter window for a snappier scrub. */
+	protected get timeSyncCoalesceMs(): number {
+		return 500;
+	}
+	/** Imperative repaint for a cursor move. Default routes through the data path; an imperative view overrides to
+	 *  re-STYLE promptly: a cursor move re-places depth without changing the model, so it need not wait on the
+	 *  streamed-data coalesce (and must not stack a second debounce on top of this one). */
+	protected onTimeCursorPaint(): void {
+		this.pushSceneModel();
+		this.scene?.setTimeCursorValue(this.timeline.cursor);
+	}
+	/** The instant this view shows, which is the page's time cursor or the moment `data-snapshot-time` states. The cursor
+	 *  moves on each frame of a scrub or a play, so a move repaints the view at most once per `timeSyncCoalesceMs`: the
+	 *  first move of a burst paints at once, and a later call paints the final position. */
+	protected readonly timeline = new TimelineViewController(this, { onMove: () => this.#cursorMoved() });
+
+	#cursorMoved(): void {
+		const apply = () => {
+			this.lastTimeSync = this.#clock.now();
+			this.refresh(); // the reactive overview re-renders from visibleQuads
+			this.onTimeCursorPaint(); // an imperative renderer re-styles from visibleQuads
+		};
+		if (this.#clock.now() - this.lastTimeSync >= this.timeSyncCoalesceMs) apply();
+		else this.#clock.coalesce(CURSOR_PAINT, this.timeSyncCoalesceMs, apply);
+	}
+	protected override async onConnected(): Promise<void> {
+		if (this.graphInitialized) return;
+		this.graphInitialized = true;
+
+		this.autoListen(this, SHU_EVENT.GRAPH_FILTER_CHANGE, ((e: CustomEvent<{ overrides: Record<string, boolean>; hiddenPredicates?: string[]; perTypeLimit: number }>) => {
+			// The filter reports the user's explicit overrides; hidden = those combined with each cluster's declared default.
+			this.filterOverrides = e.detail.overrides ?? {};
+			this.setGraphState({ hiddenPredicates: e.detail.hiddenPredicates ?? [] });
+			const hiddenGraphs = this.computeHiddenGraphs();
+			const visibleTypes = [...this.allKnownGraphs()].filter((t) => !hiddenGraphs.includes(t));
+			this.commitHidden(hiddenGraphs, visibleTypes.length > 0 ? visibleTypes : undefined, e.detail.perTypeLimit);
+		}) as EventListener);
+		this.autoListen(this, SHU_EVENT.GRAPH_CLUSTER_EXPAND, (() => {
+			// Raise the sample toward the SAME ceiling the filter slider expresses, never silently past it. The filter
+			// owns the limit: raising it there persists the value and its dispatch drives the one refetch path a slider
+			// change takes.
+			const nextLimit = Math.min(MAX_PER_TYPE_LIMIT, Math.max(this.cgState.perTypeLimit * 2, this.cgState.perTypeLimit + 100));
+			if (nextLimit === this.cgState.perTypeLimit) return;
+			const filter = this.filterEl;
+			if (!filter) throw new Error(`${this.localName} doesn't hold a graph filter whose sample limit it raises`);
+			filter.raiseLimitTo(nextLimit);
+		}) as EventListener);
+
+		// One persistence source for the overrides + limit across every clustered view: the embedded <shu-graph-filter>,
+		// read per the view's declared scope (filterPersistScope) so a scoped host (a class browser, an embedded graph) never
+		// shares the main graph's choices. hiddenGraphs is computed (defaults + overrides) as the data arrives.
+		const initial = ShuGraphFilter.getPersistedFilter(this.filterPersistScope);
+		this.filterOverrides = initial.overrides;
+		this.setGraphState({ hiddenPredicates: initial.hiddenPredicates });
+		if (this.usesExternalData) {
+			await this.onGraphConnected();
+			this.onGraphData(); // what the host gave before the scene existed
+			return;
+		}
+		await this.onGraphConnected();
+		await this.refetchSnapshot({ perTypeLimit: initial.perTypeLimit });
+
+		if (this.hasAttribute(SHU_ATTR.SNAPSHOT_TIME)) return; // snapshot mode: one fetch, without live updates
+
+		this.autoTeardown(
+			this.subscribeBatched({
+				onBatch: (events) => {
+					const quads = extractQuadsFromEvents(events);
+					if (quads.length === 0) return;
+					mergeIntoSnapshots(quads);
+					// Repaint on EVERY batch. Instrumentation graphs (SeqPath, observation/*, variables, facts) are ordinary
+					// toggleable graph elements, not a special case: they must stream in and render like any other type. The
+					// render→RPC→observe→render loop this once guarded against is gone: the overview now paints client-side
+					// (graphToSvg), so a repaint doesn't issue an RPC to re-observe. Frequent batches are coalesced by the paint debounce.
+					this.syncFromSnapshot();
+				},
+				// What was written while the stream was down didn't arrive in a batch, so the snapshot is read again through the
+				// same commit a visibility change makes, at the scope and limit the view is already reading at.
+				onReconnect: () => this.applyHiddenChange({}),
+			}),
+		);
+	}
+
+	// Snapshot clusters plus types seen only in live quads.
+	protected allKnownGraphs(): Set<string> {
+		const all = new Set<string>(this.knownClusters.keys());
+		for (const q of this.cgState.quads) all.add(q.namedGraph);
+		return all;
+	}
+
+	/** hiddenGraphs is DERIVED, never the stored truth: the instrumentation-default predicate combined with the user's
+	 *  explicit overrides, applied to every known type (snapshot clusters AND types seen only in live quads, so a graph
+	 *  that streams in mid-run, without a server cluster yet, is classified the moment it appears). */
+	private hiddenGraphsFor(types: Iterable<string>): string[] {
+		return effectiveHiddenTypes(types, this.filterOverrides, instrumentationTypes());
+	}
+	private computeHiddenGraphs(): string[] {
+		return this.hiddenGraphsFor(this.allKnownGraphs());
+	}
+	/** The hidden set for a freshly-arrived snapshot: its clusters AND the named graphs of its quads (the latter catch a
+	 *  type that exists only as streamed quads, without a cluster record yet). */
+	private hiddenForSnapshot(snap: { clusters: ReadonlyArray<TCluster>; quads: ReadonlyArray<TQuad> }): string[] {
+		const types = new Set<string>();
+		for (const c of snap.clusters) types.add(c.type);
+		for (const q of snap.quads) types.add(q.namedGraph);
+		return this.hiddenGraphsFor(types);
+	}
+
+	/** Whether a visibility change narrows the refetch to the visible types (the main graph's limit optimization).
+	 *  A small-scope view (the class browser) overrides to false: it always fetches the full set and applies visibility
+	 *  client-side, so the served schema is always pruned against complete evidence. */
+	protected get narrowsRefetchToVisible(): boolean {
+		return true;
+	}
+
+	protected commitHidden(hiddenGraphs: string[], visibleTypes: string[] | undefined, perTypeLimit: number): void {
+		this.setGraphState({ hiddenGraphs });
+		// An external host's graph is all there is: the view draws it again, and doesn't read from the store.
+		if (this.usesExternalData) this.onGraphData();
+		else void this.refetchSnapshot({ types: this.narrowsRefetchToVisible ? visibleTypes : undefined, perTypeLimit });
+	}
+
+	/** Hide/show delta: the control-products setter calls this; the on-screen filter sets the visible set directly via commitHidden. */
+	applyHiddenChange(change: { hide?: string[]; show?: string[] }): void {
+		for (const t of change.hide ?? []) this.filterOverrides[t] = false;
+		for (const t of change.show ?? []) this.filterOverrides[t] = true;
+		const hidden = this.computeHiddenGraphs();
+		const visibleTypes = [...this.allKnownGraphs()].filter((t) => !hidden.includes(t));
+		this.commitHidden(hidden, visibleTypes.length > 0 ? visibleTypes : undefined, this.cgState.perTypeLimit);
+	}
+
+	/** Read the scope's snapshot again and draw it, counted as one read that settles once the view holds what it returned. */
+	protected refetchSnapshot(opts: { perTypeLimit: number; types?: string[] }): Promise<void> {
+		return this.data.counted(() => this.#refetch(opts));
+	}
+
+	async #refetch(opts: { perTypeLimit: number; types?: string[] }): Promise<void> {
+		try {
+			const snap = await this.data.readSnapshot(opts.perTypeLimit, opts.types);
+			for (const c of snap.clusters) this.knownClusters.set(c.type, c);
+			// On-demand subjects are in the fresh snapshot now; clearing lets one re-load if a new limit sampled it out.
+			this.fetchedSubjects.clear();
+			this.setGraphState({ quads: snap.quads, clusters: snap.clusters, site: snap.site, perTypeLimit: opts.perTypeLimit, hiddenGraphs: this.hiddenForSnapshot(snap) });
+			this.onGraphData();
+		} catch (err) {
+			reportToRun("warn", CLUSTERED_SOURCE, `the graph snapshot could not be read again, so the view shows the one it holds: ${errorDetail(err)}`);
+		}
+	}
+
+	protected syncFromSnapshot(extra: Partial<TClusteredGraphState> = {}): void {
+		const snap = currentSnapshot(this.snapshotScope);
+		for (const c of snap.clusters) this.knownClusters.set(c.type, c);
+		// Recompute hiddenGraphs on every live SSE batch so a graph that FIRST appears mid-run (e.g. a new observation/*
+		// type from a web interaction) is classified the moment it streams in, not left visible until the next refetch.
+		// Safe to do every batch because an imperative renderer keys its repaint off the VISIBLE model, not this set: a
+		// hidden-only change leaves the visible model untouched, so it never triggers a re-layout (it once did, which both
+		// showed mid-run instrumentation and re-spread the graph off-frame).
+		this.setGraphState({ quads: snap.quads, clusters: snap.clusters, site: snap.site, hiddenGraphs: this.hiddenForSnapshot(snap), ...extra });
+		this.onGraphData();
+	}
+
+	/** Reveal a selected subject's bounded neighborhood (both directions, pinned), once per view lifetime, counted as one read. */
+	protected async fetchIfMissing(subject: string, label: string): Promise<void> {
+		if (this.fetchedSubjects.has(subject)) return;
+		if (!getRels(label)) return; // non-individual graphs (facts, observation/*, variables) don't have a neighborhood
+		this.fetchedSubjects.add(subject);
+		await this.data.counted(() => this.#expand(subject, label));
+	}
+
+	async #expand(subject: string, label: string): Promise<void> {
+		try {
+			const types = await this.data.expand(label, subject);
+			if (types.size === 0) return;
+			// Expand every touched type so revealed nodes render instead of staying inside a collapsed cluster.
+			const expanded = [...new Set([...this.cgState.expandedGraphs, ...types])];
+			this.syncFromSnapshot({ expandedGraphs: expanded });
+		} catch (err) {
+			// Forgotten, so a later selection of the subject reads its neighborhood again.
+			this.fetchedSubjects.delete(subject);
+			reportToRun("warn", CLUSTERED_SOURCE, `the neighborhood of ${subject} could not be read: ${errorDetail(err)}`);
+		}
+	}
+}

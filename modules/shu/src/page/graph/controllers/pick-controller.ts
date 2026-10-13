@@ -7,8 +7,8 @@
 import { NodeDrag, DRAG_THRESHOLD_PX, type NodeDragDeps } from "../machines/node-drag.js";
 import { clientToNdc, ndcToClient, screenShare, type TClientPoint, type TScreenShare } from "../derivations/project.js";
 import { isPlaced, type FGLink, type FGNode } from "../domains/graph-types.js";
-import type { TWakeCause } from "../../../graph-blips.js";
-import type { RenderContext } from "../../../graph/polymorphic/polymorphic-render-context.js";
+import type { TWakeCause } from "../../../domains/graph-blips.js";
+import type { RenderContext } from "../components/render-context.js";
 
 type Vec3 = { x: number; y: number; z: number };
 type TPlane = { setFromNormalAndCoplanarPoint(normal: Vec3, point: Vec3): unknown };
