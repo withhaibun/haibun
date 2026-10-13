@@ -64,33 +64,33 @@
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
 		"features": {
 			"/features/a-a-run-to-come-back-to.feature.ts": {
-				"seconds": 3.8,
+				"seconds": 3.6,
 				"steps": 207,
 				"declaredStepTextHash": "03463ac4b1f1bacfcfe99e47ae68cb50159d7ca47b1bfaa209dd3a09b8b35ad8"
 			},
 			"/features/b-reading-a-cached-run.feature.ts": {
-				"seconds": 4.7,
+				"seconds": 4.9,
 				"steps": 217,
 				"declaredStepTextHash": "8377bece1182ca1daaab38a551c7699d1c00f2de4cf8eaf89a64f34e26ccdadd"
 			},
 			"/features/c-reading-a-report.feature.ts": {
-				"seconds": 3.4,
+				"seconds": 3.5,
 				"steps": 215,
 				"declaredStepTextHash": "7e31ccce239fa74edad64dfd124c776a8a90bdbd44eea1f31b432eed8e1731fd"
 			},
 			"/features/d-two-origins.feature.ts": {
-				"seconds": 3,
+				"seconds": 3.6,
 				"steps": 216,
 				"declaredStepTextHash": "ba086e4dad6826cb6ab9b178bef0ed787a8997046fb210cbf16228ae9e6d25ff"
 			},
 			"/features/e-deleting-a-run.feature.ts": {
-				"seconds": 21.5,
+				"seconds": 19.3,
 				"steps": 207,
 				"declaredStepTextHash": "bb221a904f4102a45f405d8749b877fa1f2cba67c391375a4302b7c692c18129"
 			}
 		},
 		"steps": 1062,
-		"seconds": 36.4
+		"seconds": 34.9
 	},
 	"linux-x64-4x-intel-xeon-processor-2-80ghz": {
 		"features": {
