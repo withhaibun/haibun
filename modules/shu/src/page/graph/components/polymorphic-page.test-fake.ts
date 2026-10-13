@@ -23,8 +23,8 @@ import { bundleFile } from "../../../adapters/bundle-file.js";
  */
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const BUNDLE_PATH = join(HERE, "..", "..", "..", "build", "assets", "shu-polymorphic-graph-view.js");
-const ENTRY_PATH = join(HERE, "..", "..", "test", "polymorphic-page-entry.ts");
+const BUNDLE_PATH = join(HERE, "..", "..", "..", "..", "build", "assets", "shu-polymorphic-graph-view.js");
+const ENTRY_PATH = join(HERE, "..", "..", "..", "test", "polymorphic-page-entry.ts");
 
 /** The page's entry, built once per test file: it starts the page and then loads the view's bundle. */
 let entry: Promise<string> | undefined;
