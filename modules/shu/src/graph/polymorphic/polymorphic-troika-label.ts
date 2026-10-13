@@ -24,8 +24,16 @@ import { LABEL_FONT } from "../../domains/serving.js";
 import { FULL_BURN, GLOW_SPREAD, type GlowThree, MarkGlow, makeGlow } from "../../page/graph/derivations/highlight.js";
 import type { NodeVisual, Obj3D } from "../../page/graph/domains/graph-types.js";
 
-// Every label reads the font shu serves beside its bundles, so the page draws its labels without a font service (CA3D10).
-configureTextBuilder({ defaultFontURL: LABEL_FONT });
+let labelFontsSet = false;
+
+/** Every label reads the font shu serves beside its bundles, and looks up a character that font lacks at `fallbackFonts`,
+ *  so the page draws its labels without a font service (CA3D10). troika's configuration holds for the page, so it is set
+ *  once, at the first label. */
+function setLabelFonts(fallbackFonts: string | undefined): void {
+	if (labelFontsSet) return;
+	labelFontsSet = true;
+	configureTextBuilder(fallbackFonts === undefined ? { defaultFontURL: LABEL_FONT } : { defaultFontURL: LABEL_FONT, unicodeFontsURL: fallbackFonts });
+}
 
 /** A scene object this module CONSTRUCTS or parents onto: the structural handle leaves `add` optional because a
  *  mark that doesn't parent a child never needs it. */
@@ -49,6 +57,9 @@ type ChipDeps = {
 	borderColor: string; // the chip's own edge, so a pale type colour still has a shape against a light page
 	highlightColor: string; // the colour the active-node glow is drawn in when the chip wears one (setHighlighted)
 	avatar?: string; // the type's initials, badged at the chip's leading edge; absent for a chip without a type to show
+	/** Where troika looks up a font for a character the label font lacks: an absolute address, since troika reads it in a
+	 *  worker, or undefined on a page a site doesn't serve, which holds only the label font. */
+	fallbackFonts: string | undefined;
 	laidOut: () => void; // told each time the chip is laid out from measured text, which arrives off the main thread, so a resting scene draws it
 };
 /** Background padding around the measured text, in fontSize units. */
@@ -103,6 +114,7 @@ export function chipGeometry(textBounds: readonly [number, number, number, numbe
  *  exact point at the chip's TOP-LEFT corner (content flows right + down, so the point stays eyeball-able against the
  *  axes). sync() builds the SDF on troika's worker and, when done, sizes the background to the measured content. */
 export function makeTroikaChip(label: string, bgColor: string, three: ChipThree, d: ChipDeps): NodeVisual {
+	setLabelFonts(d.fallbackFonts);
 	if (!sharedPlane) sharedPlane = new three.PlaneGeometry(1, 1);
 	const group = new three.Group() as Group3D;
 

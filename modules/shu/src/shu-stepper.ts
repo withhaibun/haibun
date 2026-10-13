@@ -18,8 +18,8 @@ import { DOMAIN_SHU_APPS, ShuAppsSchema } from "./schemas.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import type { IHasOptions } from "@haibun/core/lib/astepper.js";
 import { DOMAIN_ROUTE } from "@haibun/core/lib/domains.js";
-import { servedBuild, servedPage } from "./pipelines/served-page.js";
-import { LABEL_FONT, POLYMORPHIC_VIEW_JS, SPA_SOURCE_MAP } from "./domains/serving.js";
+import { labelFontResponse, servedBuild, servedPage } from "./pipelines/served-page.js";
+import { LABEL_FONT, LABEL_FONT_FALLBACK_ROUTES, LABEL_FONT_FALLBACKS, POLYMORPHIC_VIEW_JS, SPA_SOURCE_MAP } from "./domains/serving.js";
 import { graphLayout } from "./pipelines/graph-source.js";
 import { servedBundles } from "./root.js";
 
@@ -260,6 +260,14 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 			c.header("Cache-Control", "max-age=86400");
 			return c.body(servedBundles.labelFont());
 		});
+		for (const route of LABEL_FONT_FALLBACK_ROUTES)
+			webserver.addRouteIfAbsent("get", `${LABEL_FONT_FALLBACKS}/${route}`, { description: "The fallback fonts of the graph's labels" }, (c: Context) => {
+				const response = labelFontResponse(servedBundles, c.req.path.slice(LABEL_FONT_FALLBACKS.length + 1));
+				if (response === undefined) return c.body(null, 404);
+				if ("json" in response) return c.json(response.json);
+				c.header("Content-Type", "font/woff");
+				return c.body(response.font);
+			});
 		webserver.addRouteIfAbsent("get", SPA_SOURCE_MAP, { description: "Source map for the served shu bundle" }, (c: Context) => {
 			try {
 				const map = servedBundles.sourceMap();

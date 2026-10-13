@@ -24,7 +24,7 @@ function material() {
 	return { opacity: 1, transparent: true };
 }
 const three = { Group: part, Mesh: part, PlaneGeometry: part, MeshBasicMaterial: material } as unknown as ChipThree;
-const deps = { fontSize: 1, renderOrder: 0, textColor: "#000", borderColor: "#000", highlightColor: "#fc0" };
+const deps = { fontSize: 1, renderOrder: 0, textColor: "#000", borderColor: "#000", highlightColor: "#fc0", fallbackFonts: undefined };
 
 describe("a chip's measured text", () => {
 	it("is laying out until its label and its badge have both landed, and each landing asks for a frame", () => {

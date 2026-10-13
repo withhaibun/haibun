@@ -40,6 +40,16 @@ const PICK_ALL = `(() => {
 beforeAll(async () => {
 	opened = await openPolymorphicPage({ external: false, box: { width: 700, height: 500 }, deviceScaleFactor: 1 });
 	page = opened.page;
+	// The page starts as the app's does, so the view paints its first (empty) model; nodes written into the graph before that
+	// paint lands would be replaced by it.
+	await page.waitForFunction(
+		() => {
+			const i = (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { repaintPending: boolean; followPending: boolean; tween: unknown } }).inspect();
+			return !i.repaintPending && !i.followPending && i.tween === null;
+		},
+		undefined,
+		{ timeout: 30_000 },
+	);
 	// Feed pinned nodes straight into the force-graph and frame them: the pick geometry under test is independent
 	// of the store pipeline. fx/fy/fz pin each node so the engine holds it exactly at its coordinates. The lib
 	// decorates these SAME objects (nodeThreeObject → __sprite/__baseScale), so pointing the pipeline's nodeMap at

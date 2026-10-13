@@ -67,6 +67,8 @@ import { type TFenceGl } from "../../page/graph/adapters/frame-time.js";
 import { graphEngine, graphFrameLoop, graphFrameTime } from "../../page/graph/root.js";
 import { pageClock } from "../../page/root.js";
 import { ObserverController } from "../../page/controllers/observer-controller.js";
+import { pageAddress } from "../../page/controllers/hash-controller.js";
+import { LABEL_FONT_FALLBACKS } from "../../domains/serving.js";
 import { DEFAULT_REGULATION_THRESHOLDS, evaluateRegulation, medianOf, newRegulationState, recordFrameTime } from "../../page/graph/derivations/regulation.js";
 import { GRAPH_DRAWING_BLIP, GRAPH_FRAME_BLIP, GRAPH_REGULATION_BLIP, type TDrawingReason, type TWakeCause } from "../../graph-blips.js";
 import { SEQ_LANE_SPACING, actorBars, type TSeqModel } from "../../page/graph/derivations/sequence-model.js";
@@ -1045,6 +1047,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 							borderColor: NODE_BORDER_COLOR,
 							highlightColor: this.activeHighlightColor,
 							avatar: typeAvatar(mark.type),
+							fallbackFonts: this.labelFontFallbacks(),
 							laidOut: () => this.markDirty("label"),
 						})
 					: spriteVisual(
@@ -2255,6 +2258,13 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  party's own type. Declared vocabulary, read from the projection: a graph view doesn't name roles of its own. */
 	private roleNoun(roleRel: unknown, type: string | undefined): string | undefined {
 		return roleNounFor(roleRel) ?? type;
+	}
+
+	/** Where troika looks up a font for a character the label font lacks, absolute on the page's own address, or undefined
+	 *  on a page that carries a record of actuality, which a site doesn't serve. */
+	private labelFontFallbacks(): string | undefined {
+		const address = pageAddress();
+		return address === undefined ? undefined : new URL(LABEL_FONT_FALLBACKS, address).href;
 	}
 
 	private seqLabelFor(participantId: string): string {

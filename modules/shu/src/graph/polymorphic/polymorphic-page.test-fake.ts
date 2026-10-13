@@ -11,7 +11,8 @@ import type { TSubjectState } from "../../current-subject.js";
 import type { TMeasureUnit, TPanDirection, TZoomDirection } from "../../page/graph/machines/camera.js";
 import { type TPaneOpen } from "../../page/derivations/pane-kinds.js";
 import { POLYMORPHIC_ROUTE } from "../../test/polymorphic-routes.js";
-import { LABEL_FONT } from "../../domains/serving.js";
+import { LABEL_FONT, LABEL_FONT_FALLBACKS } from "../../domains/serving.js";
+import { labelFontResponse } from "../../pipelines/served-page.js";
 import { bundleFile } from "../../adapters/bundle-file.js";
 
 /**
@@ -129,7 +130,12 @@ export async function openPolymorphicPage(opts: { external: boolean; box: TBox; 
 		else if (req.url === POLYMORPHIC_ROUTE.entry) res.writeHead(200, { "Content-Type": "application/javascript" }).end(started);
 		else if (req.url === POLYMORPHIC_ROUTE.bundle) res.writeHead(200, { "Content-Type": "application/javascript" }).end(bundle);
 		else if (req.url === LABEL_FONT) res.writeHead(200, { "Content-Type": "font/woff" }).end(Buffer.from(bundleFile().labelFont()));
-		else res.writeHead(404).end();
+		else if (req.url?.startsWith(`${LABEL_FONT_FALLBACKS}/`)) {
+			const response = labelFontResponse(bundleFile(), req.url.slice(LABEL_FONT_FALLBACKS.length + 1));
+			if (response === undefined) res.writeHead(404).end();
+			else if ("json" in response) res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify(response.json));
+			else res.writeHead(200, { "Content-Type": "font/woff" }).end(Buffer.from(response.font));
+		} else res.writeHead(404).end();
 	});
 	await new Promise<void>((res) => server.listen(0, "127.0.0.1", res));
 	const browser: Browser = await chromium.launch({ args: ["--enable-unsafe-swiftshader"] });
