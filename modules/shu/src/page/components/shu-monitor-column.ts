@@ -9,7 +9,7 @@ import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { eventMarkerStyle, markFor, type TEventMarkerStyle } from "../derivations/event-marker.js";
-import { HAIBUN_LOG_LEVELS, ICON_DEFAULT, ICON_LOG_ERROR, ICON_LOG_INFO, ICON_LOG_WARN } from "@haibun/core/schema/protocol.js";
+import { HAIBUN_LOG_LEVELS, ICON_DEFAULT, ICON_LOG_ERROR, ICON_LOG_INFO, ICON_LOG_WARN, RECORDED_STATUS } from "@haibun/core/schema/protocol.js";
 import "./shu-virtual-column.js";
 import { virtualColumnCss } from "./shu-virtual-column.js";
 import { atLiveEdge, RunController, type RunSource } from "../client-cache/controllers/run-controller.js";
@@ -25,7 +25,7 @@ import { StepLineSchema, type TStepLine } from "@haibun/core/lib/seq-path.js";
 import { stepPathOfEvent } from "../derivations/steps.js";
 import { artifactOf } from "@haibun/core/lib/run-artifact.js";
 import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
-import { principalAddress, SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
+import { principalAddress } from "@haibun/core/lib/resources.js";
 import { cursorMark, rowAtCursor, timedRows, type TScrollMarker, type TTimedRows } from "../derivations/rail.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
 import { requestPaneFrom } from "../controllers/pane-controller.js";
@@ -431,7 +431,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 				: "";
 		return html`<div class="log-row${cls}" data-testid=${testId}>
 			<span class="time-group" @click=${this.onTimeClick(r.timestamp)}>${stepPath}<span class="time">${r.time}</span></span>
-			<span class="row-content" @click=${this.onRowClick(r)}>${r.status === SEQ_PATH_STATUS.running ? html`<span class="loader"></span>` : html`<span class="icon">${r.icon}</span>`} <span class="step">${r.step}</span> <span class="msg">${r.message}</span>${dispatchText ? html` <span class="dispatch">${dispatchText}</span>` : ""}${capability ? html` <span class="capability${capabilityRefused ? " refused" : ""}" title="capability required to run this step">${capability}</span>` : ""}${produced}</span>
+			<span class="row-content" @click=${this.onRowClick(r)}>${r.status === RECORDED_STATUS.running ? html`<span class="loader"></span>` : html`<span class="icon">${r.icon}</span>`} <span class="step">${r.step}</span> <span class="msg">${r.message}</span>${dispatchText ? html` <span class="dispatch">${dispatchText}</span>` : ""}${capability ? html` <span class="capability${capabilityRefused ? " refused" : ""}" title="capability required to run this step">${capability}</span>` : ""}${produced}</span>
 		</div>`;
 	};
 }

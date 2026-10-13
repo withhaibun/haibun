@@ -11,7 +11,8 @@ import type { TCalled } from "@haibun/core/lib/called.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { delegatedActions, readAction, readCeilingOf, seenAt } from "@haibun/core/lib/actions.js";
 import { Access, storeScopeFor } from "@haibun/core/lib/resources.js";
-import { ASK_PARAM, CONVERSATION_DOMAIN, TurnEnvelopeSchema, TurnKeySchema, type TTurnEnvelope } from "@haibun/core/lib/conversation/domains/conversation.js";
+import { ASK_PARAM, CONVERSATION_DOMAIN, TURN_STATUS, TurnEnvelopeSchema, TurnKeySchema, type TTurnEnvelope } from "@haibun/core/lib/conversation/domains/conversation.js";
+import { STATUS } from "@haibun/core/schema/protocol.js";
 import { acts } from "../../domains/links.js";
 import { recordOf } from "../../../current-subject.js";
 import type { TAskedTurn } from "../domains/conversation.js";
@@ -102,7 +103,7 @@ export async function startTurn(scope: TTurnScope, { prompt, envelope, target }:
 	scope.conversation.dispatch({ type: "ask", prompt, patterns: stated.patterns, session: stated.session, inReplyTo: stated.inReplyTo, delegated });
 	const abort = new AbortController();
 	const unsubscribe = scope.conversation.state.subscribe(({ asked: turn }) => {
-		if (turn?.stoppedBy && (turn.status === "asking" || turn.askId !== null)) abort.abort();
+		if (turn?.stoppedBy && (turn.status === TURN_STATUS.asking || turn.askId !== null)) abort.abort();
 	});
 	const chunks = new ChunkEvents(scope);
 	const params = { [ASK_PARAM.prompt]: prompt, [ASK_PARAM.question]: question, [ASK_PARAM.readLevel]: scope.readLevel(), [ASK_PARAM.model]: target };
@@ -124,6 +125,6 @@ export async function startTurn(scope: TTurnScope, { prompt, envelope, target }:
 	}
 	const ended = scope.conversation.state.get().asked;
 	if (!ended) throw new Error("the conversation doesn't hold the turn this page started, because the turn was cleared while it ran. Send the question again.");
-	if (ended.status === "failed" || ended.status === "stopped") scope.report(`chat turn ${ended.status}: ${ended.error}`);
+	if (ended.status === STATUS.failed || ended.status === STATUS.stopped) scope.report(`chat turn ${ended.status}: ${ended.error}`);
 	return ended;
 }

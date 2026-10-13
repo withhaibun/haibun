@@ -1,7 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import type { QuadStore } from "./quad-store.js";
-import { LinkRelations, READING_LABEL, SEQ_PATH_LABEL, SEQ_PATH_STATUS, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL } from "./resources.js";
+import { LinkRelations, READING_LABEL, SEQ_PATH_LABEL, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL } from "./resources.js";
 import { readTypedLinks } from "./records/pipelines/discourse-writes.js";
+import { RECORDED_STATUS } from "../schema/protocol.js";
 import { storeDeclaring } from "./test/declared-types.js";
 
 const REPORT = "FieldReport";
@@ -21,8 +22,8 @@ describe("statementsWith", () => {
 	beforeEach(async () => {
 		store = storeDeclaring(Object.fromEntries([REPORT, SEQ_PATH_LABEL, READING_LABEL, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL].map((label) => [label, {}])));
 		// An execution: the feature's step `0.1` is part of the root step `0`. The root step passed.
-		await store.upsertIndividual(SEQ_PATH_LABEL, { [SEQ_PATH_FIELD.id]: "0", [SEQ_PATH_FIELD.actionStatus]: SEQ_PATH_STATUS.passed, [SEQ_PATH_FIELD.stepText]: "a run" });
-		await store.upsertIndividual(SEQ_PATH_LABEL, { [SEQ_PATH_FIELD.id]: "0.1", [SEQ_PATH_FIELD.actionStatus]: SEQ_PATH_STATUS.running, [SEQ_PATH_FIELD.stepText]: "prose" });
+		await store.upsertIndividual(SEQ_PATH_LABEL, { [SEQ_PATH_FIELD.id]: "0", [SEQ_PATH_FIELD.actionStatus]: RECORDED_STATUS.completed, [SEQ_PATH_FIELD.stepText]: "a run" });
+		await store.upsertIndividual(SEQ_PATH_LABEL, { [SEQ_PATH_FIELD.id]: "0.1", [SEQ_PATH_FIELD.actionStatus]: RECORDED_STATUS.running, [SEQ_PATH_FIELD.stepText]: "prose" });
 		await store.createEdge(SEQ_PATH_LABEL, "0.1", SEQ_PATH_EDGE.isPartOf, SEQ_PATH_LABEL, "0");
 		// The cited document. The statement references a record that exists.
 		await store.upsertIndividual(REPORT, { id: "spec-1", generatedAtTime: "2026-07-01T00:00:00.000Z" });
@@ -46,7 +47,7 @@ describe("statementsWith", () => {
 		const row = itemAt(await statementsWith(store, LinkRelations.CITES_AS_EVIDENCE.rel), 0);
 		expect(row.reading).toEqual({ "@id": "reading:SeqPath:0.1", "@type": "Reading" });
 		expect(row.assertedBy).toEqual({ "@id": "0", "@type": SEQ_PATH_LABEL });
-		expect(row.outcome).toBe(SEQ_PATH_STATUS.passed);
+		expect(row.outcome).toBe(RECORDED_STATUS.completed);
 	});
 
 	it("reads a statement made by hand as a row without provenance, since a reading's stated records don't hold it", async () => {

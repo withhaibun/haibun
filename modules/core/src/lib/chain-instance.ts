@@ -23,6 +23,7 @@ import type { IQuadStore } from "./quad-types.js";
 import type { TMichi } from "./goal-resolver.js";
 import { actingAs, readingAt } from "./capability-context.js";
 import { Access } from "./resources.js";
+import { STATUS } from "../schema/protocol.js";
 
 /** The named graph that holds chain-instance facts. */
 export const CHAIN_INSTANCE_GRAPH = "chain/instance";
@@ -41,15 +42,16 @@ const CHAIN_INSTANCE_PREDICATE = {
 	OWNER: "owner",
 } as const;
 
+/** A walk's statuses, a subset of the status vocabulary. */
 export const CHAIN_INSTANCE_STATUS = {
 	/** The next step hasn't run yet. */
-	PENDING: "pending",
+	PENDING: STATUS.pending,
 	/** A step is dispatched and hasn't returned its result yet. */
-	RUNNING: "running",
+	RUNNING: STATUS.running,
 	/** Every step in the chosen michi passed, and the walk is complete. */
-	COMPLETED: "completed",
+	COMPLETED: STATUS.completed,
 	/** The step isn't registered, its arguments failed validation, or the step failed. The walk stops at the current step index. */
-	FAILED: "failed",
+	FAILED: STATUS.failed,
 } as const;
 
 type TChainInstanceStatus = (typeof CHAIN_INSTANCE_STATUS)[keyof typeof CHAIN_INSTANCE_STATUS];

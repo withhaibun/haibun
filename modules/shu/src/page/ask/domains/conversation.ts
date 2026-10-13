@@ -11,7 +11,8 @@
  */
 import type { TRefusedCall } from "@haibun/core/lib/step-stream-context.js";
 import type { TCalled } from "@haibun/core/lib/called.js";
-import type { TChatStatus, TContextPattern, TSessionTurn } from "@haibun/core/lib/conversation/domains/conversation.js";
+import { TURN_STATUS, type TChatStatus, type TContextPattern, type TSessionTurn } from "@haibun/core/lib/conversation/domains/conversation.js";
+import { STATUS } from "@haibun/core/schema/protocol.js";
 import type { TRecord } from "../../../current-subject.js";
 
 /** What a turn emitted while it ran. `progress` holds its latest status line, and its spinner shows that line.
@@ -83,7 +84,7 @@ export const PENDING_TURN = "pending";
 
 /** Whether a turn with the status was sent and hasn't ended. A turn without a status isn't in flight. */
 export function inFlight(status: TChatStatus | undefined): boolean {
-	return status === "asking" || status === "running";
+	return status === TURN_STATUS.asking || status === STATUS.running;
 }
 
 /** Whether a turn ended between two of its statuses. */

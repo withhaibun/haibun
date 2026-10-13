@@ -8,7 +8,7 @@
 import { AStepper, IHasCycles, IHasOptions, StepperKinds, IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { NameSchema } from "@haibun/core/lib/domains.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import { OK, type TBlipEvent } from "@haibun/core/schema/protocol.js";
+import { OK, SPECULATIVE_FAILURE, STATUS, type TBlipEvent } from "@haibun/core/schema/protocol.js";
 import { THaibunEvent, EventFormatter } from "@haibun/core/monitor/index.js";
 import { stringOrError, getStepperOption } from "@haibun/core/lib/util/index.js";
 
@@ -156,10 +156,10 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 					if (stepSpan) {
 						// getIndication separates a speculative failure from a failure.
 						const indication = EventFormatter.getIndication(event);
-						if (indication === "failure") {
+						if (indication === STATUS.failed) {
 							stepSpan.setStatus({ code: SpanStatusCode.ERROR, message: event.error });
 							stepSpan.setAttribute("haibun.error", event.error || "unknown error");
-						} else if (indication === "speculative-failure") {
+						} else if (indication === SPECULATIVE_FAILURE) {
 							stepSpan.setAttribute("haibun.speculative.failed", true);
 							stepSpan.setAttribute("haibun.error", event.error || "speculative failure");
 						}

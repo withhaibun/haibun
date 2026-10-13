@@ -8,7 +8,7 @@ import { itemAt } from "../lib/util/item-at.js";
 import { DOMAIN_STATEMENT, DOMAIN_STATEMENT_LINES, DOMAIN_TITLE, DOMAIN_WAYPOINT_ARGUMENT } from "../lib/domains.js";
 import { Resolver } from "../phases/Resolver.js";
 import { FlowRunner } from "../lib/core/flow-runner.js";
-import { ControlEvent, LifecycleEvent } from "../schema/protocol.js";
+import { ControlEvent, LifecycleEvent, STATUS } from "../schema/protocol.js";
 import { buildDomainChain } from "../lib/domain-chain.js";
 import { GOAL_FINDING, resolveGoal } from "../lib/goal-resolver.js";
 import { readFacts } from "../lib/records/pipelines/facts.js";
@@ -297,7 +297,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 						in: outcomeKey,
 						lineNumber: featureStep.source?.lineNumber,
 						featurePath: featureStep.source?.path,
-						status: "running",
+						status: STATUS.running,
 					}),
 				);
 
@@ -555,7 +555,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				in: outcomeKey,
 				lineNumber: featureStep.source?.lineNumber,
 				featurePath: featureStep.source?.path,
-				status: ok ? "completed" : "failed",
+				status: ok ? STATUS.completed : STATUS.failed,
 				error,
 			}),
 		);

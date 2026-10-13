@@ -3,7 +3,8 @@ import type { TCallLink } from "@haibun/core/lib/hypermedia.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
 import * as OpenRecord from "../pipelines/open-record.js";
 import type { TWritten } from "../pipelines/call-step.js";
-import { loadingView, type TAnnotationDraft, type TEntityView } from "../domains/entity.js";
+import { unreadView, type TAnnotationDraft, type TEntityView } from "../domains/entity.js";
+import { LOAD_STATUS } from "../domains/load.js";
 import { hasEventStream, pageRecords } from "../root.js";
 import { callStep, followCall, recordRead, recordReadAt } from "./read-controller.js";
 import { subscribeBatchedEvents } from "./event-stream-controller.js";
@@ -51,7 +52,7 @@ export class EntityController implements ReactiveController {
 	constructor(host: ReactiveControllerHost, onChange: (view: TEntityView) => void) {
 		this.host = host;
 		this.onChange = onChange;
-		this.view = loadingView();
+		this.view = unreadView(LOAD_STATUS.PENDING);
 		host.addController(this);
 	}
 
@@ -103,7 +104,7 @@ export class EntityController implements ReactiveController {
 	release(): void {
 		this.label = "";
 		this.id = "";
-		this.view = loadingView();
+		this.view = unreadView(LOAD_STATUS.PENDING);
 	}
 
 	private sync(): void {

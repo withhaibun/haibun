@@ -253,7 +253,7 @@ describe("following a test run", () => {
 		h.supervisor.ended = 0;
 		const waited = await h.waitFor(30);
 		expect(waited.ok).toBe(true);
-		expect(waited.products?.status).toBe(RUN_STATUS.passed);
+		expect(waited.products?.status).toBe(RUN_STATUS.completed);
 		expect(h.stepper.usage().inFlight, "a test run followed to its end isn't in flight").toBeUndefined();
 	});
 

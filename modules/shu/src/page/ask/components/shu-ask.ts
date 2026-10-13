@@ -41,6 +41,7 @@ import {
 } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { GraphQueryResultSchema, extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { STATUS } from "@haibun/core/schema/protocol.js";
 import { hasEventStream, subscribeBatchedEvents } from "../../controllers/event-stream-controller.js";
 import { currentSubjectState } from "../../../current-subject.js";
 import { SignalController } from "../../controllers/signal-controller.js";
@@ -313,7 +314,7 @@ export class ShuAsk extends ShuElement<typeof ChatSchema> {
 		this.#refusal = null;
 		const turn = conversation.asked;
 		if (!turn || !turnEnded(before?.asked?.status, turn.status)) return;
-		if (turn.status === "completed") {
+		if (turn.status === STATUS.completed) {
 			this.shadowRoot?.querySelectorAll<HTMLElement>("shu-voice-client").forEach((el) => {
 				const maybeSpeak = (el as { speak?: unknown }).speak;
 				if (typeof maybeSpeak === "function") maybeSpeak.call(el, turn.response);

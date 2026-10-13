@@ -1,7 +1,7 @@
 import { AStepper, type TStepperStep, type TFeatureStep, type TStepAction, type TBeforeStep, type TAfterStep, type TAfterStepResult } from "./astepper.js";
 import type { TWorld } from "./world.js";
 import type { TActionResult, TStepResult } from "../schema/protocol.js";
-import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, stepLevel, SUBSTEP_LEVEL, LIFECYCLE_STATUS, type TStepEnd } from "../schema/protocol.js";
+import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, stepLevel, SUBSTEP_LEVEL, STATUS, RECORDED_STATUS, type TStepEnd, type TRecordedStatus } from "../schema/protocol.js";
 import { streamContext } from "./step-stream-context.js";
 import type { TFeatureSteps } from "../schema/protocol.js";
 import { actionNotOK } from "./util/index.js";
@@ -11,7 +11,7 @@ import { assertFact, holdsFactOf } from "./records/pipelines/facts.js";
 import { doStepperCycle } from "./stepper-cycles.js";
 import { actingAs, callerHolds, readingAsStated, readScope, runInStep, runInvoking, runReadingAsHeld, runStatedAt } from "./capability-context.js";
 import { capabilityAllows } from "./actions.js";
-import { LinkRelations, SEQ_PATH_LABEL, SEQ_PATH_STATUS, type SeqPathStatus } from "./resources.js";
+import { LinkRelations, SEQ_PATH_LABEL } from "./resources.js";
 import { SEQ_PATH_FIELD, calledOf, executionOf, formatRecordName, type TRecordName } from "./seq-path.js";
 import { StepRegistry, stepMethodName, hostScopedMethodName, authorizeToolCapability } from "./step-registry.js";
 import { augmentViewHypermedia, isViewOnlyDomain } from "./step-hypermedia.js";
@@ -117,7 +117,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	const isLifecycle = action.actionName === FEATURE_START || action.actionName === SCENARIO_START;
 	if (isLifecycle) {
 		await emitSeqPathStart(world, featureStep, {}, { ranVia: "local" });
-		await emitSeqPathEnd(world, featureStep, SEQ_PATH_STATUS.passed);
+		await emitSeqPathEnd(world, featureStep, RECORDED_STATUS.completed);
 		return stepResultFromActionResult({ ok: true }, action, start, Timer.since(), featureStep);
 	}
 
@@ -207,7 +207,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	const ok = actionResult.ok;
 	if (!recorded) return lastStepResult;
 	// A step that doesn't pass while its caller's stream is aborted ends as stopped. The caller stopped it, so the step didn't fail.
-	const ended: TStepEnd = ok ? LIFECYCLE_STATUS.completed : streamContext.getStore()?.signal.aborted ? LIFECYCLE_STATUS.stopped : LIFECYCLE_STATUS.failed;
+	const ended: TStepEnd = ok ? STATUS.completed : streamContext.getStore()?.signal.aborted ? STATUS.stopped : STATUS.failed;
 	world.eventLogger.stepEnd(
 		stated,
 		action.stepperName,
@@ -218,7 +218,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		stated.action.stepValuesMap,
 		retainedProducts(actionResult.products, action.step.retainProducts),
 	);
-	await emitSeqPathEnd(world, featureStep, SEQ_PATH_STATUS_OF[ended], actionResult.ok ? undefined : actionResult.errorMessage, viewShown(actionResult.products));
+	await emitSeqPathEnd(world, featureStep, RECORDED_STATUS[ended], actionResult.ok ? undefined : actionResult.errorMessage, viewShown(actionResult.products));
 	return lastStepResult;
 }
 
@@ -337,7 +337,7 @@ async function emitSeqPathStart(world: TWorld, featureStep: TFeatureStep, author
 		// The stepper and action that ran, beside the line's text. Without this field a step's record states only the
 		// words of the line.
 		[SEQ_PATH_FIELD.called]: calledOf(featureStep.action.stepperName, featureStep.action.actionName),
-		[SEQ_PATH_FIELD.actionStatus]: SEQ_PATH_STATUS.running,
+		[SEQ_PATH_FIELD.actionStatus]: RECORDED_STATUS.running,
 		[SEQ_PATH_FIELD.generatedAtTime]: new Date().toISOString(),
 		// Written for every step, including the default mode. A query for the steps that weren't speculative matches only
 		// where ordinary steps state their mode as well.
@@ -369,10 +369,7 @@ function viewShown(products: Record<string, unknown> | undefined): string | unde
 	return typeof view === "string" ? view : undefined;
 }
 
-/** The status a step's record states for how the step ended. */
-const SEQ_PATH_STATUS_OF: Record<TStepEnd, SeqPathStatus> = { completed: SEQ_PATH_STATUS.passed, failed: SEQ_PATH_STATUS.failed, stopped: SEQ_PATH_STATUS.stopped };
-
-async function emitSeqPathEnd(world: TWorld, featureStep: TFeatureStep, status: SeqPathStatus, error?: string, showed?: string): Promise<void> {
+async function emitSeqPathEnd(world: TWorld, featureStep: TFeatureStep, status: TRecordedStatus, error?: string, showed?: string): Promise<void> {
 	const store = world.shared.getStore();
 	const id = formatRecordName({ execution: executionOf(world.tag), path: featureStep.seqPath });
 	await store.set(id, SEQ_PATH_FIELD.actionStatus, status, SEQ_PATH_LABEL);

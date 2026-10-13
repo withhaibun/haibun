@@ -19,13 +19,16 @@
  */
 import { z } from "zod";
 import { Access, COMMENT_LABEL, LinkRelations, PRINCIPAL_LABEL, type TDomainDefinition } from "@haibun/core/lib/resources.js";
+import { RECORDED_STATUS } from "@haibun/core/schema/protocol.js";
 
 export const FEATURE_EXECUTION_LABEL = "FeatureExecution";
 export const FEATURE_EXECUTION_DOMAIN = "feature-execution";
 
-/** A test run's status. The exit code determines `running`, `passed` and `failed`. A standing test run's failed step
- *  count determines `passed` and `failed`. stopTestRun writes `stopped`. A start that failed is recorded as `not started`. */
-export const RUN_STATUS = { running: "running", passed: "passed", failed: "failed", stopped: "stopped", notStarted: "not started" } as const;
+/** A test run's status, as its record stores it: the recorded words of the status vocabulary, and `not started`. The exit
+ *  code determines `running`, `passed` and `failed`. A standing test run's failed step count determines `passed` and
+ *  `failed`. stopTestRun writes `stopped`. A start that failed is recorded as `not started`: the test run ended before its
+ *  process ran, so it isn't `pending`, which marks work still to start, nor `failed`, which marks features that failed. */
+export const RUN_STATUS = { ...RECORDED_STATUS, notStarted: "not started" } as const;
 export type TRunStatus = (typeof RUN_STATUS)[keyof typeof RUN_STATUS];
 
 const FeatureExecutionSchema = z.object({
@@ -33,7 +36,7 @@ const FeatureExecutionSchema = z.object({
 	/** The directory that holds the features, and the filter that selects which of them ran. */
 	where: z.string(),
 	filter: z.string(),
-	status: z.enum([RUN_STATUS.running, RUN_STATUS.passed, RUN_STATUS.failed, RUN_STATUS.stopped, RUN_STATUS.notStarted]),
+	status: z.enum(RUN_STATUS),
 	/** Why a test run didn't start. Present only on a record whose status is `not started`. */
 	why: z.string().optional(),
 	/** The origin at which a standing test run responds. A caller probes the test run from this record alone. A test run
@@ -101,4 +104,4 @@ export const featureExecutionDomainDefinition: TDomainDefinition = {
 };
 
 /** The status a test run's exit code determines. A null code means its process is still running. */
-export const statusOfExit = (exitCode: number | null): TRunStatus => (exitCode === null ? RUN_STATUS.running : exitCode === 0 ? RUN_STATUS.passed : RUN_STATUS.failed);
+export const statusOfExit = (exitCode: number | null): TRunStatus => (exitCode === null ? RUN_STATUS.running : exitCode === 0 ? RUN_STATUS.completed : RUN_STATUS.failed);

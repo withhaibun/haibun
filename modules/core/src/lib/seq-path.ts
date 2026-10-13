@@ -7,14 +7,14 @@
  * references the step through an `isPartOf` edge or a `seqPath` property. A query follows
  * these links from any individual to the whole execution graph.
  *
- * resources.ts declares the label (SEQ_PATH_LABEL) and the lifecycle status enum
- * (SEQ_PATH_STATUS). This file declares the schema, the domain selectors and the
- * domain definition that steppers register.
+ * resources.ts declares the label (SEQ_PATH_LABEL), and protocol.ts the words a record
+ * stores for its status (RECORDED_STATUS). This file declares the schema, the domain
+ * selectors and the domain definition that steppers register.
  */
 import { itemAt } from "./util/item-at.js";
 import { z } from "zod";
-import { EXECUTION_MODES, HAIBUN_LOG_LEVELS } from "../schema/protocol.js";
-import { Access, LinkRelations, PersistedVertexSchema, PRINCIPAL_LABEL, SEQ_PATH_LABEL, SEQ_PATH_STATUS, type TDomainDefinition } from "./resources.js";
+import { EXECUTION_MODES, HAIBUN_LOG_LEVELS, RECORDED_STATUS } from "../schema/protocol.js";
+import { Access, LinkRelations, PersistedVertexSchema, PRINCIPAL_LABEL, SEQ_PATH_LABEL, type TDomainDefinition } from "./resources.js";
 
 const SEQ_PATH_DOMAIN = "seq-path";
 
@@ -196,8 +196,6 @@ export const SEQ_PATH_EDGE = {
 	performedBy: "performedBy",
 } as const;
 
-const STATUS_VALUES = Object.values(SEQ_PATH_STATUS) as [string, ...string[]];
-
 // Non-strict: emitSeqPathStart writes isPartOf, precededBy and performedBy in the
 // same upsert as the individual properties. The topology declares them as edges,
 // and the start record inlines them. Strict mode would reject those keys before
@@ -207,7 +205,7 @@ export const SeqPathSchema = PersistedVertexSchema.extend({
 	[SEQ_PATH_FIELD.id]: z.string(),
 	[SEQ_PATH_FIELD.stepText]: z.string(),
 	[SEQ_PATH_FIELD.called]: z.string().optional(),
-	[SEQ_PATH_FIELD.actionStatus]: z.enum(STATUS_VALUES),
+	[SEQ_PATH_FIELD.actionStatus]: z.enum(RECORDED_STATUS),
 	[SEQ_PATH_FIELD.error]: z.string().optional(),
 	[SEQ_PATH_FIELD.showed]: z.string().optional(),
 	[SEQ_PATH_FIELD.capabilityAction]: z.string().optional(),
@@ -229,7 +227,7 @@ export type TSeqPath = z.infer<typeof SeqPathSchema>;
 export const StepLineSchema = z.object({
 	text: z.string(),
 	called: z.string().optional(),
-	status: z.enum(STATUS_VALUES),
+	status: z.enum(RECORDED_STATUS),
 	error: z.string().optional(),
 	began: z.string(),
 	ended: z.string().optional(),

@@ -16,7 +16,8 @@ import { isReplyEdge } from "@haibun/core/lib/resources.js";
 import { EntityColumnSchema } from "../../schemas.js";
 import { anIndividual, type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { EntityController } from "../controllers/entity-controller.js";
-import type { TEntityResult, TEntityView, TAnnotationDraft } from "../domains/entity.js";
+import { unread, type TEntityResult, type TEntityView, type TAnnotationDraft } from "../domains/entity.js";
+import { LOAD_STATUS } from "../domains/load.js";
 import type { TAnnotationView } from "@haibun/core/lib/resources.js";
 import type { TPart, TQuoteAnchor } from "@haibun/core/lib/resources.js";
 import { assertFragmentReads, fragmentReads, isFragment, pageOfPassage, pdfPage, type TFragment } from "@haibun/core/lib/media-fragments.js";
@@ -233,14 +234,14 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	#refusal: TPageRefusal | undefined = undefined;
 
 	/** Project the entity handle's view onto the render fields: the entity (applied for the field table/roles/body), the
-	 *  annotations anchored in it, the text of any body already read, and the loading/error/provenance state the render
+	 *  annotations anchored in it, the text of any body already read, and the read's status and provenance the render
 	 *  branches read. */
 	private applyView(view: TEntityView): void {
 		if (view.entity) this.applyEntity(view.entity);
 		this.annotationsList = view.annotations;
-		this.#refusal = view.status === "error" ? view.refusal : undefined;
+		this.#refusal = view.status === LOAD_STATUS.FAILED ? view.refusal : undefined;
 		this.bodyText = view.bodies;
-		this.setState({ loading: view.status === "loading", fromStore: view.provenance === "cache" || view.provenance === "offline" ? view.provenance : undefined });
+		this.setState({ loading: unread(view), fromStore: view.provenance === "cache" || view.provenance === "offline" ? view.provenance : undefined });
 		// Read the body the reader is shown, only that one, only once (the handle no-ops for a body already read).
 		const bodyId = this.activeBodyId();
 		if (bodyId && view.bodies[bodyId] === undefined) this.entity.requestBody(bodyId);

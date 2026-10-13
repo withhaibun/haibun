@@ -23,7 +23,7 @@ import { itemAt } from "../lib/util/item-at.js";
 import { dispatchStep } from "../lib/step-dispatch.js";
 import { openRunRegistry, type StepRegistry } from "../lib/step-registry.js";
 import { featureAsData } from "../lib/features.js";
-import { SCENARIO_START } from "../schema/protocol.js";
+import { SCENARIO_START, STATUS } from "../schema/protocol.js";
 import { FeatureVariables } from "../lib/feature-variables.js";
 import { FACT_LABEL } from "../lib/resources.js";
 import { registerDomains, registerStepperNames } from "../lib/domains.js";
@@ -187,7 +187,7 @@ export class Executor {
 		}
 
 		world.eventLogger.emit(
-			LifecycleEvent.parse({ id: `execution-end`, timestamp: Date.now(), kind: "lifecycle", type: "execution", stage: "end", status: okSoFar ? "completed" : "failed" }),
+			LifecycleEvent.parse({ id: `execution-end`, timestamp: Date.now(), kind: "lifecycle", type: "execution", stage: "end", status: okSoFar ? STATUS.completed : STATUS.failed }),
 		);
 
 		// HAIBUN_STAY keeps the process serving requests after executeFeatures returns. Unsubscribing would stop routing
@@ -243,7 +243,7 @@ export class FeatureExecutor {
 						stage: "start",
 						featurePath: feature.path,
 						featureName: feature.name,
-						status: "running",
+						status: STATUS.running,
 					}),
 				);
 			}
@@ -268,7 +268,7 @@ export class FeatureExecutor {
 						type: "scenario",
 						stage: "start",
 						scenarioName: step.in.replace(/^Scenario:\s*/i, ""),
-						status: "running",
+						status: STATUS.running,
 					}),
 				);
 				await doStepperCycle(this.steppers, "startScenario", { scopedVars });

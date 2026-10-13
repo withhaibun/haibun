@@ -31,9 +31,8 @@ import { splitDocumentBlocks, finalizeBlocks, blocksByEvent, blockText, isArtifa
 import { cursorMark, rowAtCursor, rowTimeClass, timedRows, type TTimedRows } from "../derivations/rail.js";
 import type { TScrollMarker } from "../derivations/rail.js";
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel } from "@haibun/core/schema/protocol.js";
-import { SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
 import { eventMarkerStyle } from "../derivations/event-marker.js";
-import { HAIBUN_LOG_LEVELS } from "@haibun/core/schema/protocol.js";
+import { HAIBUN_LOG_LEVELS, RECORDED_STATUS } from "@haibun/core/schema/protocol.js";
 import { jsonDisclosure } from "./json-disclosure.js";
 import { refContext } from "../controllers/catalog-controller.js";
 import { artifactUrl } from "../../artifact-url.js";
@@ -89,7 +88,7 @@ function markersOf(rows: ReadonlyArray<{ index: number; event: TEventRecord }>):
 	const markers: TScrollMarker[] = [];
 	for (const { index, event } of rows) {
 		// A step is one row, so a failed step marks the rail where that row is.
-		if (event.kind !== "lifecycle" || event.status !== SEQ_PATH_STATUS.failed) continue;
+		if (event.kind !== "lifecycle" || event.status !== RECORDED_STATUS.failed) continue;
 		const { icon, color } = eventMarkerStyle(event);
 		markers.push({ index, id: String(event.id ?? ""), icon, color, label: `${String(event.in ?? "")} failed` });
 	}

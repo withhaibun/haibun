@@ -3,10 +3,10 @@
  * Each type a run records is counted by the field that states how its records turned out, and the divisions are merged,
  * so a step that failed and a message reporting an error both mark their division as a failure.
  */
-import { HAIBUN_LOG_LEVELS } from "@haibun/core/schema/protocol.js";
+import { HAIBUN_LOG_LEVELS, RECORDED_STATUS } from "@haibun/core/schema/protocol.js";
 import { LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
-import { SEQ_PATH_LABEL, SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
+import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { bucketMarkerStyle, type TEventMarkerStyle } from "../../derivations/event-marker.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
@@ -22,7 +22,7 @@ export const COUNTED = [
 		label: SEQ_PATH_LABEL,
 		timeField: SEQ_PATH_FIELD.generatedAtTime,
 		groupBy: SEQ_PATH_FIELD.actionStatus,
-		values: Object.values(SEQ_PATH_STATUS) as readonly string[],
+		values: Object.values(RECORDED_STATUS) as readonly string[],
 		shapeOf: (status: string) => ({ kind: "lifecycle", type: "step", stage: "end", status }),
 	},
 	{

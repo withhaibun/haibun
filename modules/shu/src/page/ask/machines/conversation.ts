@@ -14,6 +14,8 @@ import {
 	type TRequestEvent,
 	type TTurn,
 } from "../domains/conversation.js";
+import { STATUS } from "@haibun/core/schema/protocol.js";
+import { TURN_STATUS } from "@haibun/core/lib/conversation/domains/conversation.js";
 
 /** The conversation before a reader opens one, and after the reader closes it: the machine's initial state. */
 export const CLOSED_CONVERSATION: TConversationState = { status: "closed", session: null, turns: [], asked: null };
@@ -50,10 +52,10 @@ function withAsked(conversation: TConversationState): TConversationState {
 /** Returns the page's turn after a request event. Returns the turn unchanged where the event doesn't move it. */
 function movedAsked(asked: TAskedTurn, event: TRequestEvent): TAskedTurn {
 	if (!inFlight(asked.status)) return asked;
-	const running = asked.status === "running";
+	const running = asked.status === STATUS.running;
 	switch (event.type) {
 		case "started":
-			return running ? asked : { ...asked, status: "running" };
+			return running ? asked : { ...asked, status: STATUS.running };
 		case "text":
 			return running ? { ...asked, response: asked.response + event.piece } : asked;
 		case "status":
@@ -72,9 +74,9 @@ function movedAsked(asked: TAskedTurn, event: TRequestEvent): TAskedTurn {
 		case "stop":
 			return asked.stoppedBy ? asked : { ...asked, stoppedBy: event.reason };
 		case "ended":
-			return running ? { ...asked, status: "completed" } : { ...asked, status: "failed", error: NOT_STARTED };
+			return running ? { ...asked, status: STATUS.completed } : { ...asked, status: STATUS.failed, error: NOT_STARTED };
 		case "erred":
-			return asked.stoppedBy ? { ...asked, status: "stopped", error: `${asked.stoppedBy}: ${event.message}` } : { ...asked, status: "failed", error: event.message };
+			return asked.stoppedBy ? { ...asked, status: STATUS.stopped, error: `${asked.stoppedBy}: ${event.message}` } : { ...asked, status: STATUS.failed, error: event.message };
 	}
 }
 
@@ -122,7 +124,7 @@ export function transition(conversation: TConversationState, event: TConversatio
 				// Actuality's record of the turn supplies its time.
 				generatedAtTime: "",
 				...(inReplyTo ? { inReplyTo } : {}),
-				status: "asking",
+				status: TURN_STATUS.asking,
 				...NOTHING_STATED,
 				session: event.session ?? null,
 				stoppedBy: "",

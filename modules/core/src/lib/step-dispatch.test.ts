@@ -15,7 +15,7 @@ import {
 import { validateToolInput } from "./tool-validation.js";
 import { EVERY_DEFINITION } from "./step-discovery.js";
 import { AStepper, type IHasCycles, type TFeatureStep, type TStepperStep } from "./astepper.js";
-import { OK } from "../schema/protocol.js";
+import { OK, RECORDED_STATUS } from "../schema/protocol.js";
 import { itemAt } from "./util/item-at.js";
 import { FlowRunner } from "./core/flow-runner.js";
 import { actionOKWithProducts, actionNotOK } from "./util/index.js";
@@ -23,7 +23,7 @@ import { getDefaultWorld, testWithWorld } from "./test/lib.js";
 import { TEST_DOMAIN, declaresTestDomains, testDomainDefinitions } from "./test/test-domains.js";
 import { DOMAIN_DOMAIN_KEY, DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_RECORD_ID, DOMAIN_STRING, individualRefDomain, registerDomains } from "./domains.js";
 import type { TWorld } from "./world.js";
-import { Access, DOMAIN_PERSISTED_TYPE, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, SEQ_PATH_STATUS, type TDomainDefinition } from "./resources.js";
+import { Access, DOMAIN_PERSISTED_TYPE, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "./resources.js";
 import { SEQ_PATH_FIELD, executionOf, factIdOf, formatRecordName } from "./seq-path.js";
 import { readFacts } from "./records/pipelines/facts.js";
 import { streamContext, streamOver } from "./step-stream-context.js";
@@ -753,8 +753,8 @@ describe("step-dispatch", () => {
 				streamOver(() => undefined),
 				() => dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, buildFeatureStepForTransport(tool, {}, [0, 3, 7])),
 			);
-			expect(await statusOf([0, 3, 6]), "the stopped step's record").toBe(SEQ_PATH_STATUS.stopped);
-			expect(await statusOf([0, 3, 7]), "a step that failed on its own").toBe(SEQ_PATH_STATUS.failed);
+			expect(await statusOf([0, 3, 6]), "the stopped step's record").toBe(RECORDED_STATUS.stopped);
+			expect(await statusOf([0, 3, 7]), "a step that failed on its own").toBe(RECORDED_STATUS.failed);
 			expect(ended).toEqual(["stopped", "failed"]);
 		});
 
@@ -773,7 +773,7 @@ describe("step-dispatch", () => {
 			const id = formatRecordName({ execution: executionOf(world.tag), path: [0, 3, 5] });
 			const quads = await store.query({ subject: id, namedGraph: SEQ_PATH_LABEL });
 			const byPredicate = Object.fromEntries(quads.map((q) => [q.predicate, q.object]));
-			expect(byPredicate[SEQ_PATH_FIELD.actionStatus]).toBe(SEQ_PATH_STATUS.passed);
+			expect(byPredicate[SEQ_PATH_FIELD.actionStatus]).toBe(RECORDED_STATUS.completed);
 			expect(byPredicate[SEQ_PATH_FIELD.generatedAtTime]).toEqual(expect.any(String));
 			expect(byPredicate[SEQ_PATH_FIELD.endedAtTime]).toEqual(expect.any(String));
 			expect(byPredicate[LinkRelations.PART_OF.rel], "a step is part of its parent step of the same execution").toBe(
@@ -813,7 +813,7 @@ describe("step-dispatch", () => {
 
 			const store = world.shared.getStore();
 			const status = await store.get(formatRecordName({ execution: executionOf(world.tag), path: [0, 9] }), SEQ_PATH_FIELD.actionStatus, SEQ_PATH_LABEL);
-			expect(status).toBe(SEQ_PATH_STATUS.failed);
+			expect(status).toBe(RECORDED_STATUS.failed);
 		});
 	});
 

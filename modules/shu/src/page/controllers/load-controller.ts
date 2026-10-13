@@ -5,7 +5,8 @@
  */
 import type { ReactiveControllerHost } from "lit";
 import { machine, type Machine } from "@haibun/core/lib/machine.js";
-import { INITIAL_LOAD, LOAD_EVENT, LOAD_STATUS, loadTransition, type TLoadEvent, type TLoadState } from "../machines/load.js";
+import { INITIAL_LOAD, LOAD_EVENT, LOAD_STATUS, type TLoadEvent, type TLoadState } from "../domains/load.js";
+import { loadTransition } from "../machines/load.js";
 import type { TPageRefusal } from "../domains/refusal.js";
 import type { TCallOutcome } from "../pipelines/call-step.js";
 

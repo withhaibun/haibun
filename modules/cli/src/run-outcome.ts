@@ -7,7 +7,7 @@
  * exceeds any bounded tail.
  */
 import { formatSeqPath } from "@haibun/core/lib/seq-path.js";
-import { LIFECYCLE_STATUS, isHandedOutEvent, isSpeculativeEvent } from "@haibun/core/schema/protocol.js";
+import { STATUS, isHandedOutEvent, isSpeculativeEvent } from "@haibun/core/schema/protocol.js";
 
 /**
  * One event from a supervised run's output.
@@ -118,9 +118,9 @@ export function accrueRunOutcome(outcome: TRunOutcome, output: string): TRunOutc
 		}
 		if (event.stage !== "end") continue;
 		if (event.type === "execution") {
-			outcome.summary = `the test run ${event.status === LIFECYCLE_STATUS.completed ? "completed" : String(event.status ?? "ended")}`;
+			outcome.summary = `the test run ${event.status === STATUS.completed ? "completed" : String(event.status ?? "ended")}`;
 			outcome.finished = true;
-			outcome.succeeded = event.status === LIFECYCLE_STATUS.completed;
+			outcome.succeeded = event.status === STATUS.completed;
 		}
 		if (event.type !== "step") continue;
 		outcome.steps += 1;
@@ -129,7 +129,7 @@ export function accrueRunOutcome(outcome: TRunOutcome, output: string): TRunOutc
 		// A failed speculative step or handed-out call isn't a failure of the supervised run. A speculative step is tried
 		// in case it applies. A handed-out call returns its failure to its caller. The supervised run's own status doesn't
 		// count them as failures either.
-		if (event.status === LIFECYCLE_STATUS.completed || isSpeculativeEvent(event) || isHandedOutEvent(event)) continue;
+		if (event.status === STATUS.completed || isSpeculativeEvent(event) || isHandedOutEvent(event)) continue;
 		if (feature) feature.failed += 1;
 		outcome.failures.push({ seqPath: formatSeqPath(event.seqPath ?? []), step: String(event.in ?? ""), message: String(event.message ?? event.error ?? "") });
 	}

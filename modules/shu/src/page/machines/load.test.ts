@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { INITIAL_LOAD, LOAD_EVENT, LOAD_STATUS, loadTransition, type TLoadEvent, type TLoadState } from "./load.js";
+import { INITIAL_LOAD, LOAD_EVENT, LOAD_STATUS, type TLoadEvent, type TLoadState } from "../domains/load.js";
+import { loadTransition } from "./load.js";
 
 const REFUSAL = { error: "the site refused the read" };
 const after = (...events: TLoadEvent<string>[]): TLoadState<string> => events.reduce<TLoadState<string>>(loadTransition, INITIAL_LOAD);

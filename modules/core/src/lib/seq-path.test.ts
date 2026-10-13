@@ -11,9 +11,8 @@ import {
 	seqPathDomainDefinition,
 	stepLine,
 } from "./seq-path.js";
-import { SEQ_PATH_STATUS } from "./resources.js";
 import { LinkRelations, isPersisted } from "./resources.js";
-import { EXECUTION_MODES } from "../schema/protocol.js";
+import { EXECUTION_MODES, RECORDED_STATUS } from "../schema/protocol.js";
 import { queryableFields } from "./hypermedia.js";
 
 /** Returns the persisted topology a step's record declares. */
@@ -146,7 +145,7 @@ describe("a step's line", () => {
 		id: "1700000000000-1.0.1",
 		stepText: "the gate checks the ticket",
 		called: "GateStepper.check",
-		actionStatus: SEQ_PATH_STATUS.passed,
+		actionStatus: RECORDED_STATUS.completed,
 		level: "info",
 		generatedAtTime: "2026-01-01T00:00:00.000Z",
 		endedAtTime: "2026-01-01T00:00:00.250Z",
@@ -161,7 +160,7 @@ describe("a step's line", () => {
 		expect(stepLine(STEP)).toEqual({
 			text: "the gate checks the ticket",
 			called: "GateStepper.check",
-			status: SEQ_PATH_STATUS.passed,
+			status: RECORDED_STATUS.completed,
 			began: "2026-01-01T00:00:00.000Z",
 			ended: "2026-01-01T00:00:00.250Z",
 			tookMs: 250,
@@ -171,7 +170,7 @@ describe("a step's line", () => {
 	});
 
 	it("leaves out the end, dispatch and action a running step without a capability doesn't state", () => {
-		const { endedAtTime, ranVia, ranOn, capabilityAction, allowedAction, performedBy, ...running } = { ...STEP, actionStatus: SEQ_PATH_STATUS.running };
+		const { endedAtTime, ranVia, ranOn, capabilityAction, allowedAction, performedBy, ...running } = { ...STEP, actionStatus: RECORDED_STATUS.running };
 		const line = stepLine(running);
 		expect(line.ended).toBeUndefined();
 		expect(line.tookMs).toBeUndefined();

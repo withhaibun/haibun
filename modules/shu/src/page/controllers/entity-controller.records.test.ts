@@ -13,6 +13,7 @@ import { setupShuTest, makeEntityDispatch, annotationList, type TShuTestHandle }
 import { LinkRelations, SPECIFIC_RESOURCE_LABEL } from "@haibun/core/lib/resources.js";
 import type { TEvent } from "../ports.js";
 import { endPage } from "../adapters/page-held.js";
+import { LOAD_STATUS } from "../domains/load.js";
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 20));
 
@@ -50,9 +51,9 @@ describe("an open of a record", () => {
 	afterEach(() => handle.teardown());
 	beforeEach(endPage);
 
-	it("is a loading stub until an individual is opened", () => {
+	it("is a pending stub until an individual is opened", () => {
 		handle = setupShuTest(stubDispatch());
-		expect(recordView("Email", "e1")).toEqual({ status: "loading", annotations: [], bodies: {} });
+		expect(recordView("Email", "e1")).toEqual({ status: LOAD_STATUS.PENDING, annotations: [], bodies: {} });
 	});
 
 	it("serves a fetched individual and its anchored annotations with `live` provenance", async () => {
@@ -60,7 +61,7 @@ describe("an open of a record", () => {
 		handle = setupShuTest({ dispatch });
 		await openRecord("Email", "e1", "private");
 		const view = recordView("Email", "e1");
-		expect(view.status).toBe("ready");
+		expect(view.status).toBe(LOAD_STATUS.COMPLETED);
 		expect(view.provenance).toBe("live");
 		expect(view.entity?.vertex.subject).toBe("Hi");
 		expect(view.annotations.map((a) => a.body)).toEqual(["first note"]);
@@ -85,7 +86,7 @@ describe("an open of a record", () => {
 		handle = setupShuTest({ dispatch });
 		await openRecord("Email", "e1", "private");
 		const view = recordView("Email", "e1");
-		expect(view.status).toBe("error");
+		expect(view.status).toBe(LOAD_STATUS.FAILED);
 		expect(view.refusal?.error).toContain("Issuer not found");
 		expect(view.entity).toBeUndefined();
 	});
@@ -94,8 +95,8 @@ describe("an open of a record", () => {
 		const { dispatch } = stubDispatch();
 		handle = setupShuTest({ dispatch });
 		await openRecord("Draft Note", "b", "private"); // would key the same as ("Draft", "Note b") under a space separator
-		expect(recordView("Draft", "Note b").status).toBe("loading");
-		expect(recordView("Draft Note", "b").status).toBe("ready");
+		expect(recordView("Draft", "Note b").status).toBe(LOAD_STATUS.PENDING);
+		expect(recordView("Draft Note", "b").status).toBe(LOAD_STATUS.COMPLETED);
 	});
 
 	it("notifies subscribers as the individual resolves", async () => {
@@ -183,6 +184,6 @@ describe("an open record kept current", () => {
 		await openRecord("Email", "e1", "private");
 		handle.emit(quadEvent("Email", "e2", "subject", "Other"));
 		await flush();
-		expect(recordView("Email", "e2").status).toBe("loading");
+		expect(recordView("Email", "e2").status).toBe(LOAD_STATUS.PENDING);
 	});
 });

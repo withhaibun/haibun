@@ -302,7 +302,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 				tracked.cursor = cursor;
 				tracked.reported = read.products;
 				if (status === "ended" || read.products.finished) {
-					await this.finishRun(exitCode, status === "ended" ? undefined : read.products.failed > 0 ? RUN_STATUS.failed : RUN_STATUS.passed);
+					await this.finishRun(exitCode, status === "ended" ? undefined : read.products.failed > 0 ? RUN_STATUS.failed : RUN_STATUS.completed);
 					await this.recordOutcome(tracked);
 				}
 				return actionOKWithProducts({ run: tracked.id, status, exitCode: exitCode ?? null, output });
@@ -328,13 +328,13 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 				// Its status then comes from its failed step count, not from an exit code.
 				if (seen.status !== "ended" && !seen.finished)
 					return actionNotOK(`the test run "${tracked.filter}" had not ended after ${seconds} seconds; read it or stop it instead of waiting again`);
-				const status = seen.status === "ended" ? statusOfExit(seen.exitCode) : seen.failed > 0 ? RUN_STATUS.failed : RUN_STATUS.passed;
+				const status = seen.status === "ended" ? statusOfExit(seen.exitCode) : seen.failed > 0 ? RUN_STATUS.failed : RUN_STATUS.completed;
 				// finishRun reads the status from the exit code only for a test run that exited.
 				await this.finishRun(seen.exitCode, seen.status === "ended" ? undefined : status);
 				await this.recordOutcome(tracked);
 				// A test run that doesn't pass fails this step. An OK result would report a passing suite for a test run
 				// that didn't collect a feature.
-				if (status !== RUN_STATUS.passed)
+				if (status !== RUN_STATUS.completed)
 					return actionNotOK(`the test run "${tracked.filter}" ${status} (exit ${seen.exitCode}); examine it with TestRunnerStepper-examineTestRun. Its last output:\n${said}`);
 				return actionOKWithProducts({ run: tracked.id, status, exitCode: seen.exitCode ?? null, output: said });
 			},

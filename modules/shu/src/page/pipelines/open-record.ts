@@ -5,7 +5,8 @@
  */
 import { BODY_LABEL, LinkRelations } from "@haibun/core/lib/resources.js";
 import type { TIndividualWithEdges, TQuad } from "@haibun/core/lib/quad-types.js";
-import { loadingView, type TAnnotationDraft, type TEntityView } from "../domains/entity.js";
+import { unreadView, type TAnnotationDraft, type TEntityView } from "../domains/entity.js";
+import { LOAD_STATUS } from "../domains/load.js";
 import { annotationsHeld, annotationsOnSite, type TAnnotationScope } from "./annotations.js";
 import type { TCallOutcome, TWritten } from "./call-step.js";
 
@@ -37,7 +38,7 @@ function entryOf(store: TRecordStore, label: string, id: string): TEntry {
 	const key = keyOf(label, id);
 	const held = store.entries.get(key);
 	if (held !== undefined) return held;
-	const entry = { label, id, view: loadingView(), annotationSeq: 0 };
+	const entry = { label, id, view: unreadView(LOAD_STATUS.PENDING), annotationSeq: 0 };
 	store.entries.set(key, entry);
 	return entry;
 }
@@ -101,17 +102,17 @@ export async function openRecord(scope: TOpenScope, label: string, id: string, a
 	followQuads(scope);
 	const entry = entryOf(scope.store, label, id);
 	if (entry.view.entity !== undefined) {
-		entry.view = { ...entry.view, status: "ready", provenance: "cache" };
+		entry.view = { ...entry.view, status: LOAD_STATUS.COMPLETED, provenance: "cache" };
 		notify(scope, id);
 	} else {
-		entry.view = loadingView();
+		entry.view = unreadView(LOAD_STATUS.RUNNING);
 		notify(scope, id);
 		const read = await scope.readAt(label, id, accessLevel);
 		if (!read.ok) {
-			entry.view = { status: "error", annotations: [], refusal: read.refusal, bodies: {} };
+			entry.view = { status: LOAD_STATUS.FAILED, annotations: [], refusal: read.refusal, bodies: {} };
 			return notify(scope, id);
 		}
-		entry.view = { status: "ready", provenance: scope.offline ? "offline" : "live", entity: read.value, annotations: [], bodies: {} };
+		entry.view = { status: LOAD_STATUS.COMPLETED, provenance: scope.offline ? "offline" : "live", entity: read.value, annotations: [], bodies: {} };
 		notify(scope, id);
 	}
 	await readAnnotationsInto(scope, entry);
@@ -149,8 +150,8 @@ export async function refreshAnnotations(scope: TOpenScope, label: string, id: s
 	notify(scope, id);
 }
 
-/** Returns a record's view, or a loading view until the record first opens. */
-export const recordView = (store: TRecordStore, label: string, id: string): TEntityView => store.entries.get(keyOf(label, id))?.view ?? loadingView();
+/** Returns a record's view, or a pending view until the record first opens. */
+export const recordView = (store: TRecordStore, label: string, id: string): TEntityView => store.entries.get(keyOf(label, id))?.view ?? unreadView(LOAD_STATUS.PENDING);
 
 /** Adds a listener of changes to the records, by subject id, and returns its removal. */
 export function followRecords(store: TRecordStore, listener: TRecordListener): () => void {

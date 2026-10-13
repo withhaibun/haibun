@@ -8,6 +8,7 @@ import type { TEntityView } from "../domains/entity.js";
 import { setupShuTest, makeEntityDispatch, annotationList, type TShuTestHandle } from "../../test/setup.js";
 import type { TEvent } from "../ports.js";
 import { endPage } from "../adapters/page-held.js";
+import { LOAD_STATUS } from "../domains/load.js";
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 20));
 
@@ -55,7 +56,7 @@ describe("EntityController", () => {
 		const el = mount();
 		await el.entity.open("Email", "e1", "private");
 		const last = el.views.at(-1);
-		expect(last?.status).toBe("ready");
+		expect(last?.status).toBe(LOAD_STATUS.COMPLETED);
 		expect(last?.entity?.vertex.subject).toBe("Hi");
 	});
 

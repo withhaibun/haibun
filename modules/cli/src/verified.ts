@@ -21,9 +21,10 @@ import path from "node:path";
 import type { TSpecl } from "@haibun/core/lib/execution.js";
 import type { TRunPolicyConfig } from "@haibun/core/run-policy/run-policy-types.js";
 import { VERIFIED_FILE, dependencyRoots, dependencyState } from "@haibun/core/lib/util/node/dependency-state.js";
+import { RECORDED_STATUS } from "@haibun/core/schema/protocol.js";
 
-/** How a group ran: every feature passed, or one did not. */
-export type TOutcome = "passed" | "failed";
+/** How a group ran, as the record stores it: every feature passed, or one did not. */
+export type TOutcome = typeof RECORDED_STATUS.completed | typeof RECORDED_STATUS.failed;
 
 /** Recorded runs keyed by their conditions. Each entry holds a run's state, outcome, feature count and filter. The
  *  record doesn't store a value that varies between two runs against one state, so the file changes only when an entry
@@ -107,7 +108,7 @@ const writeRecord = (file: string, record: TVerifiedRecord): void => nodeFS.writ
  *  Returns undefined where the record doesn't hold that run or where the entry's outcome isn't passed or failed. */
 export function outcomeAgainst(v: TVerification): { outcome: TOutcome; features: number } | undefined {
 	const held = readRecord(v.file)[v.conditions];
-	if (!held || held.state !== v.state || (held.outcome !== "passed" && held.outcome !== "failed")) return undefined;
+	if (!held || held.state !== v.state || (held.outcome !== RECORDED_STATUS.completed && held.outcome !== RECORDED_STATUS.failed)) return undefined;
 	return { outcome: held.outcome, features: held.features };
 }
 

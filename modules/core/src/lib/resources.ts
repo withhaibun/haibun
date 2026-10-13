@@ -186,10 +186,6 @@ export const FACT_LABEL = "facts";
 export const CLASS_LABEL = "Class";
 export const PROPERTY_LABEL = "Property";
 
-/** The status values a step's SeqPath record states. `stopped` marks a step its caller stopped, and a stopped step isn't a failure. */
-export const SEQ_PATH_STATUS = { running: "running", passed: "passed", failed: "failed", stopped: "stopped" } as const;
-export type SeqPathStatus = (typeof SEQ_PATH_STATUS)[keyof typeof SEQ_PATH_STATUS];
-
 /**
  * The discourse rels. Each speech act is a sub-property of `inReplyTo`.
  * The discourse value is the edge predicate, as in (comment, narrate, parent).

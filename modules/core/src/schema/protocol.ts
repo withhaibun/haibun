@@ -56,10 +56,13 @@ export const ICON_STEP_RUNNING = "⫸"; // Active flow (Clear direction)
 export const ICON_STEP_FAILED = CHECK_NO;
 export const ICON_STEP_STOPPED = "◼";
 
+/** The intent modes, which `EXECUTION_MODES` describes. */
+export const EXECUTION_MODE = { authoritative: "authoritative", speculative: "speculative" } as const;
+
 /** Returns whether the event's intent mode is `speculative`. A statement under `maybe` runs speculatively, and its failure
  *  isn't a fault. */
 export function isSpeculativeEvent(event: { intent?: { mode?: string } }): boolean {
-	return event.intent?.mode === "speculative";
+	return event.intent?.mode === EXECUTION_MODE.speculative;
 }
 
 /** Returns whether the event's id has a negative seqPath segment. A negative segment marks a call actuality handed out,
@@ -119,12 +122,21 @@ export const declaresScenario = (called: string | undefined): boolean => called?
 /** Returns the name in a declaring step's text. The name is the trimmed text without its declaring prefix. */
 export const declaredName = (text: string, of: keyof typeof DECLARES): string => text.replace(new RegExp(`^${DECLARES[of]}\\s*`), "").trim();
 
-/** The statuses of a lifecycle event. `running` marks a lifecycle in progress, and the others state how it ended. `stopped`
- *  marks a step whose caller aborted it. A stop isn't a fault, so it doesn't count as a failure or a pass. */
-export const LIFECYCLE_STATUS = { running: "running", completed: "completed", failed: "failed", stopped: "stopped", skipped: "skipped" } as const;
-const LIFECYCLE_STATUS_SCHEMA = z.enum([LIFECYCLE_STATUS.running, LIFECYCLE_STATUS.completed, LIFECYCLE_STATUS.failed, LIFECYCLE_STATUS.stopped, LIFECYCLE_STATUS.skipped]);
+/** The status words, stated once. `pending` marks work that hasn't started, `running` work in progress, and `completed`,
+ *  `failed` and `stopped` how it ended. `stopped` marks work whose caller aborted it; a stop isn't a fault, so it doesn't count
+ *  as a failure or a pass. `skipped` marks a step that isn't run. Every other status set is a subset of these words or a
+ *  mapping of them. */
+export const STATUS = { pending: "pending", running: "running", completed: "completed", failed: "failed", stopped: "stopped", skipped: "skipped" } as const;
+export type TStatus = (typeof STATUS)[keyof typeof STATUS];
+/** The statuses of a lifecycle event: every word but `pending`, since an event marks a lifecycle that started. */
+const LIFECYCLE_STATUS_SCHEMA = z.enum([STATUS.running, STATUS.completed, STATUS.failed, STATUS.stopped, STATUS.skipped]);
 /** How a step ended. */
-export type TStepEnd = typeof LIFECYCLE_STATUS.completed | typeof LIFECYCLE_STATUS.failed | typeof LIFECYCLE_STATUS.stopped;
+export type TStepEnd = typeof STATUS.completed | typeof STATUS.failed | typeof STATUS.stopped;
+/** The word a persisted record or file stores for each status it holds: a step's SeqPath record, a test run's record and
+ *  the run-once file. Each has stored `passed` for `completed` since it began, and stores, pages, features and files read
+ *  that word, so a record keeps it; the other words are the vocabulary's own. */
+export const RECORDED_STATUS = { running: STATUS.running, completed: "passed", failed: STATUS.failed, stopped: STATUS.stopped } as const satisfies Partial<Record<TStatus, string>>;
+export type TRecordedStatus = (typeof RECORDED_STATUS)[keyof typeof RECORDED_STATUS];
 
 export const STAY_ALWAYS = "always";
 export const STAY_FAILURE = "failure";
@@ -176,7 +188,11 @@ export function shortenURI(uri: string): string {
 // Formatting
 // ============================================================================
 
-export type TIndication = "success" | "failure" | "speculative-failure" | "pending" | "neutral";
+/** The indication of a speculative statement's failure. */
+export const SPECULATIVE_FAILURE = `${EXECUTION_MODE.speculative}-${STATUS.failed}` as const;
+/** A lifecycle event's indication: its status, read with its intent mode where it failed. A speculative statement's failure
+ *  is expected, so it reads apart from an authoritative one. */
+export type TIndication = z.infer<typeof LIFECYCLE_STATUS_SCHEMA> | typeof SPECULATIVE_FAILURE;
 
 export class EventFormatter {
 	static shouldDisplay(event: THaibunEvent, minLevel: TShownLogLevel): boolean {
@@ -209,18 +225,16 @@ export class EventFormatter {
 	}
 
 	static getStatusIcon(event: THaibunEvent & { kind: "lifecycle" }): string {
-		if (event.status === "completed") return isSpeculativeEvent(event) ? ` ${MAYBE_CHECK_YES}` : ICON_STEP_COMPLETED;
-		if (event.status === "failed") return isSpeculativeEvent(event) ? ` ${MAYBE_CHECK_NO}` : isHandedOutEvent(event) ? RETURNED_TO_CALLER : ICON_STEP_FAILED;
-		if (event.status === "running") return ICON_STEP_RUNNING;
-		if (event.status === "stopped") return ICON_STEP_STOPPED;
+		if (event.status === STATUS.completed) return isSpeculativeEvent(event) ? ` ${MAYBE_CHECK_YES}` : ICON_STEP_COMPLETED;
+		if (event.status === STATUS.failed) return isSpeculativeEvent(event) ? ` ${MAYBE_CHECK_NO}` : isHandedOutEvent(event) ? RETURNED_TO_CALLER : ICON_STEP_FAILED;
+		if (event.status === STATUS.running) return ICON_STEP_RUNNING;
+		if (event.status === STATUS.stopped) return ICON_STEP_STOPPED;
 		return ` ${ICON_DEFAULT}`;
 	}
 
-	static getIndication(event: THaibunEvent & { kind: "lifecycle" }): TIndication {
-		if (event.status === "completed") return "success";
-		if (event.status === "failed") return isSpeculativeEvent(event) ? "speculative-failure" : "failure";
-		if (event.status === "running") return "pending";
-		return "neutral";
+	/** Returns a lifecycle event's indication, or undefined where the event doesn't state a status. */
+	static getIndication(event: THaibunEvent & { kind: "lifecycle" }): TIndication | undefined {
+		return event.status === STATUS.failed && isSpeculativeEvent(event) ? SPECULATIVE_FAILURE : event.status;
 	}
 
 	static formatLineElements(event: THaibunEvent, lastLevel?: string) {
@@ -284,9 +298,9 @@ export class EventFormatter {
  * The mode doesn't classify a line as prose. document-content classifies a line as prose or technical. A prose line
  * doesn't run a step, so it doesn't have an outcome or an execution mode.
  */
-export const EXECUTION_MODES = ["authoritative", "speculative"] as const;
+export const EXECUTION_MODES = [EXECUTION_MODE.authoritative, EXECUTION_MODE.speculative] as const;
 const ExecutionIntentSchema = z.object({
-	mode: z.enum(EXECUTION_MODES).default("authoritative"),
+	mode: z.enum(EXECUTION_MODES).default(EXECUTION_MODE.authoritative),
 	usage: z.enum(["testing", "debugging", "background", "polling"]).optional(),
 	stepperOptions: z.record(z.string(), z.unknown()).optional(),
 });
@@ -462,7 +476,7 @@ const LifecycleEventCommon = BaseEvent.extend({
 	error: z.string().optional(),
 
 	// Execution Intent
-	intent: z.object({ mode: z.enum(["speculative", "authoritative"]).optional() }).optional(),
+	intent: z.object({ mode: z.enum(EXECUTION_MODES).optional() }).optional(),
 });
 
 // Specific Events

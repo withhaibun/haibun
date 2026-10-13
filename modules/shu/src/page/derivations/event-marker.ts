@@ -22,8 +22,8 @@ import {
 	RETURNED_TO_CALLER,
 	isHandedOutEvent,
 	isSpeculativeEvent,
+	RECORDED_STATUS,
 } from "@haibun/core/schema/protocol.js";
-import { SEQ_PATH_STATUS } from "@haibun/core/lib/resources.js";
 
 export type TEventMarkerStyle = { color: string; icon: string };
 
@@ -51,13 +51,13 @@ export function eventMarkerStyle(event: unknown): TEventMarkerStyle {
 		if (e.type === "step") {
 			// A speculative statement's failure is expected. A handed-out call returns its failure to its caller.
 			// EventFormatter.getStatusIcon applies the same rule, so a mark doesn't show a failure where the log doesn't.
-			if (e.status === SEQ_PATH_STATUS.running) return { color: MARK_COLOUR.pending, icon: ICON_STEP_RUNNING };
-			if (isSpeculativeEvent(e)) return { color: MARK_COLOUR.undecided, icon: e.status === SEQ_PATH_STATUS.failed ? MAYBE_CHECK_NO : MAYBE_CHECK_YES };
-			if (e.status === SEQ_PATH_STATUS.failed)
+			if (e.status === RECORDED_STATUS.running) return { color: MARK_COLOUR.pending, icon: ICON_STEP_RUNNING };
+			if (isSpeculativeEvent(e)) return { color: MARK_COLOUR.undecided, icon: e.status === RECORDED_STATUS.failed ? MAYBE_CHECK_NO : MAYBE_CHECK_YES };
+			if (e.status === RECORDED_STATUS.failed)
 				return isHandedOutEvent(e) ? { color: MARK_COLOUR.undecided, icon: RETURNED_TO_CALLER } : { color: MARK_COLOUR.fault, icon: ICON_STEP_FAILED };
-			if (e.status === SEQ_PATH_STATUS.passed) return { color: MARK_COLOUR.ok, icon: ICON_STEP_COMPLETED };
+			if (e.status === RECORDED_STATUS.completed) return { color: MARK_COLOUR.ok, icon: ICON_STEP_COMPLETED };
 			// A step its caller stopped isn't a fault or a pass.
-			if (e.status === SEQ_PATH_STATUS.stopped) return { color: MARK_COLOUR.undecided, icon: ICON_STEP_STOPPED };
+			if (e.status === RECORDED_STATUS.stopped) return { color: MARK_COLOUR.undecided, icon: ICON_STEP_STOPPED };
 			return { color: MARK_COLOUR.undecided, icon: ICON_DEFAULT };
 		}
 	}
@@ -92,7 +92,7 @@ function shouldMarkEvent(event: unknown): boolean {
 	if (e.kind === "log" && (e.level === "error" || e.level === "warn")) return true;
 	if (e.kind === "artifact") return true;
 	if (e.kind === "lifecycle" && (e.type === "feature" || e.type === "scenario")) return true;
-	if (e.kind === "lifecycle" && e.status === SEQ_PATH_STATUS.failed) return true;
+	if (e.kind === "lifecycle" && e.status === RECORDED_STATUS.failed) return true;
 	if (e.kind === "lifecycle" && e.type === "step") {
 		// Each step is one row. A technical step's text starts with a lowercase letter. A reader looks for the prose steps on a rail.
 		const isTechnical = /^[a-z]/.test(e.in ?? "");
