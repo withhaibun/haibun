@@ -34,9 +34,9 @@
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
 		"features": {
 			"/features/shu-self-test.feature.ts": {
-				"seconds": 113.1,
-				"steps": 690,
-				"declaredStepTextHash": "699e2a6cfbf7e723e94d48d3e36c3894fabb2a4bf89d4039d3a970a666ff109d"
+				"seconds": 123.1,
+				"steps": 683,
+				"declaredStepTextHash": "a9ad010141694f90a38590f7ff05588c13584c02ad195c229faaa577864f8757"
 			},
 			"/features/z-post.feature.ts": {
 				"seconds": 0.1,
@@ -44,7 +44,7 @@
 				"declaredStepTextHash": "07d43189276bbf61896c4199cd023404fffe9fe965896283167fc0e7af4e53e6"
 			}
 		},
-		"steps": 698,
-		"seconds": 113.2
+		"steps": 691,
+		"seconds": 123.2
 	}
 }
