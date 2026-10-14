@@ -135,7 +135,7 @@ and follow".
 
 * [Architecture overview](docs/architecture.md)
 * [Guide for humans and LLMs](AGENTS.md)
-* [Dependency graph](dependency-graph.html)
+* Dependency graph: `npm run depcruise` writes `dependency-graph.html`
 * [Feature structure](docs/feature_structure.md)
 * [Developing new modules](docs/new_modules.md)
 * [Developing Haibun](docs/develop_haibun.md)

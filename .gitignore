@@ -20,3 +20,4 @@ e2e-tests/w
 verified.json
 # the CLI's unit tests run real fixtures; a fixture's timings are no measurement anyone reads
 modules/cli/test/**/timings.json
+dependency-graph.html
