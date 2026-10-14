@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { IStepperCycles } from "../astepper.js";
+import type { IStepperCycles } from "../steps/domains/stepper.js";
 import { AccessLevelSchema, type TDomainDefinition } from "../resources.js";
 import { listedSchema } from "../domains.js";
 import { FAKE_HOLDER_DOMAIN } from "./fake-authority.js";

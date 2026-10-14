@@ -66,4 +66,11 @@ describe("<shu-refusal>", () => {
 		expect(remedy?.getAttribute("href")).toBe("#?col=type%3AEmail");
 		expect(remedy?.textContent).toBe("Open Email");
 	});
+
+	it("offers the action a refused call lacks, with a control that copies it", async () => {
+		const view = await shown({ error: "Pool-drain: capability Pool:drain required", remedy: { do: "request", action: "Pool:drain" } });
+		expect(remedyOf(view)?.textContent).toBe("Request Pool:drain from a key that delegates it");
+		const copies = [...(view.shadowRoot?.querySelectorAll("shu-copy-button") ?? [])].map((button) => (button as unknown as { source: string }).source);
+		expect(copies, "the cause, then the action").toEqual(["Pool-drain: capability Pool:drain required", "Pool:drain"]);
+	});
 });

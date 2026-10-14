@@ -13,7 +13,7 @@ import {
 	syntheticSeqPathDirection,
 } from "./Executor.js";
 import { passWithDefaults, failWithDefaults } from "../lib/test/lib.js";
-import { AStepper } from "../lib/astepper.js";
+import { AStepper } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOK } from "../lib/util/index.js";
 import { DOMAIN_TEXT } from "../lib/domains.js";
 import { itemAt } from "../lib/util/item-at.js";

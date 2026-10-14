@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AStepper, TFeatureStep } from "./astepper.js";
+import { AStepper, TFeatureStep } from "./steps/domains/stepper.js";
 import { fromJsonText } from "./json-text.js";
 import { parseDotPath, navigateValue } from "./util/dot-path.js";
 import { itemAt } from "./util/item-at.js";
@@ -10,14 +10,17 @@ import { readDeclarationsOf } from "./records/derivations/read-records.js";
 import { readEvery, recordOf } from "./records/pipelines/record-reads.js";
 import { ontologyReader } from "./records/pipelines/ontology-records.js";
 import { VARIABLE_FIELD } from "./records/domains/variables.js";
-import { QuadStore } from "./quad-store.js";
+import { QuadStore, newStoreChain } from "./steps/pipelines/quad-store.js";
+import { OBSCURED_VALUE } from "./steps/domains/secrets.js";
+import type { TSecrets } from "./steps/ports.js";
 import { accessBound, readingAsStated, writeBound } from "./capability-context.js";
 import { EDGE, SEQ_PATH_LABEL, declaredAccessLevel } from "./resources.js";
 import { executionOf, formatRecordName } from "./seq-path.js";
-import { IQuadStore, SHARED_GRAPH, emitQuadObservation } from "./quad-types.js";
+import { IQuadStore } from "./steps/ports.js";
+import { SHARED_GRAPH } from "./steps/domains/quad-types.js";
+import { emitQuadObservation } from "./steps/pipelines/quad-observation.js";
 
 export { SHARED_GRAPH };
-export const OBSCURED_VALUE = "[o̴b̵s̵c̷u̶r̸e̵d̵]";
 
 /** A value as a message, an event or a record states it: a secret's value is obscured. */
 export const statedValue = (value: unknown, secret: boolean | undefined): unknown => (secret === true ? OBSCURED_VALUE : value);
@@ -47,10 +50,20 @@ function variableOf(record: Record<string, unknown>): TStepValue {
 	};
 }
 
+/** Whether a variable's name marks its value secret. */
+export const isSecretName = (name: string): boolean => /(password|secret)/i.test(name);
+
+/** The secrets the events hub of `world` obscures: each name that marks a value secret, and each secret value the world's
+ *  variables hold once the world holds its variables. */
+export const secretsOf = (world: Partial<Pick<TWorld, "shared">>): TSecrets => ({
+	isSecret: isSecretName,
+	values: () => (world.shared === undefined ? [] : world.shared.secretTexts()),
+});
+
 export class FeatureVariables {
 	private store: QuadStore;
 	/** Each secret variable's value, by name, apart from the graph, which holds the obscured value. Resolution, `carried`
-	 *  and `getSecrets` read this map. */
+	 *  and `secretTexts` read this map. */
 	private readonly secretValues = new Map<string, unknown>();
 
 	constructor(
@@ -62,9 +75,8 @@ export class FeatureVariables {
 		const prev = world.shared?.getStore();
 		const prevStore = prev instanceof QuadStore ? prev : undefined;
 		this.store = new QuadStore(
-			prevStore?.backingRouting(),
-			prevStore?.backingFederated(),
-			{ bound: accessBound, writeBound, declared: (label) => declaredAccessLevel(persistedDomainOf(world.domains, label)) },
+			prevStore === undefined ? newStoreChain() : prevStore.storeChain(),
+			{ bound: accessBound, writeBound, declared: (label: string) => declaredAccessLevel(persistedDomainOf(world.domains, label)) },
 			() => readDeclarationsOf(world.domains),
 			ontologyReader(
 				() => world.domains,
@@ -128,7 +140,7 @@ export class FeatureVariables {
 
 	async set(sv: TStepValue, provenance: TProvenanceIdentifier) {
 		if (sv.term.match(/.*\..*/)) throw Error("non-stepper variables cannot use dots");
-		if (runEnvVariables(this.world)[sv.term]) throw Error(`Cannot overwrite environment variable "${sv.term}"`);
+		if (runEnvVariables(this.world)[sv.term]) throw Error(`the environment holds "${sv.term}", which a feature reads and doesn't set; set a variable of another name`);
 		const existing = await this.getStoredEntry(sv.term);
 		if (existing?.readonly) throw Error(`Cannot overwrite read-only variable "${sv.term}"`);
 		return await this._set(sv, provenance);
@@ -253,7 +265,7 @@ export class FeatureVariables {
 				resolved.domain = writtenDomain;
 			}
 		} else {
-			throw new Error(`Unsupported origin type: ${input.origin}`);
+			throw new Error(`a term states the origin ${input.origin}, which isn't one of ${Object.keys(Origin).join(", ")}`);
 		}
 
 		if (resolved.value !== undefined) {
@@ -351,19 +363,13 @@ export class FeatureVariables {
 	}
 
 	isSecret(name: string): boolean {
-		return /(password|secret)/i.test(name);
+		return isSecretName(name);
 	}
 
-	async getSecrets(): Promise<{ [name: string]: string }> {
-		const secrets: { [name: string]: string } = {};
-		for (const [key, value] of Object.entries(runEnvVariables(this.world))) {
-			if (this.isSecret(key)) secrets[key] = String(value);
-		}
-		for (const record of await this.variableRecords()) {
-			const variable = variableOf(record);
-			if (variable.secret === true) secrets[variable.term] = String(this.valueOf(variable));
-		}
-		return secrets;
+	/** The value of each secret: each environment variable whose name marks it secret, and each secret variable. */
+	secretTexts(): string[] {
+		const fromEnvironment = Object.entries(runEnvVariables(this.world)).flatMap(([name, value]) => (isSecretName(name) ? [String(value)] : []));
+		return [...fromEnvironment, ...[...this.secretValues.values()].map(String)];
 	}
 
 	/**

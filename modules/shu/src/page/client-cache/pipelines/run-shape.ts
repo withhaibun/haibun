@@ -140,7 +140,8 @@ export function runShape(graph: TRunGraph, { minLevel, divisions }: { minLevel: 
 		beginningOf,
 		update: (to: number): Promise<void> => {
 			const taken = counting.then(() => count(to));
-			counting = taken.catch(() => undefined);
+			// The caller receives a count's failure, and the next count runs once this one settles either way.
+			counting = Promise.allSettled([taken]).then(() => undefined);
 			return taken;
 		},
 	};

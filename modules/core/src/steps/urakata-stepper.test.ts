@@ -4,7 +4,7 @@ import VariablesStepper from "./variables-stepper.js";
 import LogicStepper from "./logic-stepper.js";
 import Haibun from "./haibun.js";
 import UrakataStepper from "./urakata-stepper.js";
-import { AStepper } from "../lib/astepper.js";
+import { AStepper } from "../lib/steps/domains/stepper.js";
 import { actionOKWithProducts } from "../lib/util/index.js";
 import { URAKATA, URAKATA_ID_DOMAIN, type IUrakataRegistry, type IUrakataTicker } from "../lib/urakata.js";
 import { getFromRuntime } from "../lib/util/index.js";

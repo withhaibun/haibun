@@ -6,10 +6,10 @@
  * trusted delegate full store access, and it is distinct from the accessLevel-gated hypermedia surface.
  * Responses use a `{ result }` envelope, so a response with an undefined result serializes to JSON.
  */
-import { DensityQuerySchema, GraphQuerySchema } from "./quad-types.js";
+import { DensityQuerySchema, GraphQuerySchema } from "./steps/domains/quad-types.js";
 import { z } from "zod";
 import { AccessLevelSchema } from "./resources.js";
-import type { IQuadStore } from "./quad-types.js";
+import type { IQuadStore } from "./steps/ports.js";
 import type { TRpcMethod } from "./rpc-wire.js";
 
 export const STORE_METHOD_PREFIX = "store.";
@@ -71,7 +71,7 @@ export function storeMethods(getStore: () => IQuadStore): Record<string, TRpcMet
 export function requiredStoreCapability(method: string): string {
 	const name = method.slice(STORE_METHOD_PREFIX.length) as TStoreMethod;
 	const def = STORE_METHODS[name];
-	if (!def) throw new Error(`requiredStoreCapability: unknown store method ${method}`);
+	if (!def) throw new Error(`${method} isn't a store method; the store methods are ${Object.keys(STORE_METHODS).join(", ")}`);
 	return def.write ? STORE_WRITE : STORE_READ;
 }
 
@@ -82,7 +82,7 @@ export function requiredStoreCapability(method: string): string {
  */
 export async function handleStoreCall(store: IQuadStore, method: string, rawParams: unknown): Promise<{ result: unknown }> {
 	const name = method.slice(STORE_METHOD_PREFIX.length) as TStoreMethod;
-	if (!STORE_METHODS[name]) throw new Error(`handleStoreCall: unknown store method ${method}`);
+	if (!STORE_METHODS[name]) throw new Error(`${method} isn't a store method; the store methods are ${Object.keys(STORE_METHODS).join(", ")}`);
 	const raw = rawParams ?? {};
 	switch (name) {
 		case "set": {

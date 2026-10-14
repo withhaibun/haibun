@@ -206,7 +206,7 @@ const THINKING_SWITCHES = new Set([
 /** Nouns that name a person's question, so a participle `asked` after them is the person's act: `a question asked on the graph`. */
 const ASKED_THROUGH = new Set(["question", "questions", "ask", "asks", "turn", "turns", "prompt", "prompts"]);
 /** The parties a participle that opens a sentence (`Asked to run the suite, the model …`) leaves a person to ask. */
-const ASKED_PARTIES = /^\s*(?:(?:the|a|an|its|each)\s+)?(?:model|models|agent|agents|kihan)\b/i;
+const ASKED_PARTIES = /^\s*(?:(?:the|a|an|its|each)\s+)?(?:model|models|agent|agents)\b/i;
 /** Verbs whose noun form follows a modifier (`a second ask`); others are verbs there (`the two agree`). */
 const NOUN_CAPABLE = new Set(["ask", "answer", "notice", "promise", "say", "forget"]);
 /** Nouns that name a person, each with its plural ending in s. */

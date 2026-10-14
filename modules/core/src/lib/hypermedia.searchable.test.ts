@@ -11,12 +11,12 @@ import { z } from "zod";
 import { Access, LinkRelations, type THypermediaTopology } from "./resources.js";
 import { searchableFields, queryableFields } from "./hypermedia.js";
 
-const PersonSchema = z.object({ email: z.string(), name: z.string().optional(), generatedAtTime: z.date() });
+const PersonSchema = z.object({ letter: z.string(), name: z.string().optional(), generatedAtTime: z.date() });
 const personTopology: THypermediaTopology = {
 	persistedAs: "Person",
 	accessLevel: Access.private,
-	id: "email",
-	properties: { email: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel },
+	id: "letter",
+	properties: { letter: LinkRelations.IDENTIFIER.rel, name: LinkRelations.NAME.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel },
 };
 const person = { schema: PersonSchema, topology: personTopology };
 

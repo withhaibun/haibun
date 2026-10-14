@@ -131,7 +131,7 @@ export class RpcClient {
 			);
 			const res = await this.fetchImpl(call.url, { ...call.init, signal: controller.signal });
 			if (!res.ok || !res.body) {
-				const text = res.body ? await res.text().catch(() => "") : "";
+				const text = res.body ? await res.text().catch((unread: unknown) => `its body didn't read: ${errorDetail(unread)}`) : "";
 				throw new Error(`stream ${method}: HTTP ${res.status}${text ? `, ${text}` : ""}`);
 			}
 			yield* readNdjson<TChunk>(res.body);

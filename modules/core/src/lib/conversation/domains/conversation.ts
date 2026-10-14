@@ -8,7 +8,7 @@
  */
 import { z } from "zod";
 import { CountedFields } from "../../hypermedia.js";
-import { SearchConditionSchema, type TSearchCondition } from "../../quad-types.js";
+import { SearchConditionSchema, type TSearchCondition } from "../../steps/domains/quad-types.js";
 import { DENOTES, IndividualAddressSchema } from "../../typed-links.js";
 import type { TDomainDefinition } from "../../resources.js";
 import { STATUS } from "../../../schema/protocol.js";

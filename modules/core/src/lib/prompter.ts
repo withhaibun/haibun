@@ -1,7 +1,6 @@
-import { TAnyFixme } from "./fixme.js";
 import { ReadlinePrompter } from "./readline-prompter.js";
 
-export type TPrompt = { id: string; message: string; context?: TAnyFixme; options?: string[] };
+export type TPrompt = { id: string; message: string; context?: unknown; options?: string[] };
 export interface IPrompter {
 	prompt(prompt: TPrompt): Promise<TPromptResponse>;
 	cancel(id: string, reason?: string): void;
@@ -53,11 +52,8 @@ export class Prompter {
 							}
 						}
 					})
-					.catch(() => {
-						console.log("Prompt cancelled");
-						// Ignore rejections from cancelled prompts - expected when another
-						// subscriber responds first, cancelling the rest
-					});
+					// Another subscriber's response cancels this prompt, which rejects it with the reason the cancel states.
+					.catch((cancelled: unknown) => console.info(`the prompt ${prompt.id} was cancelled: ${String(cancelled)}`));
 			}
 		});
 	}
@@ -77,6 +73,6 @@ export class Prompter {
 	}
 }
 
-export function makePrompt(message: string, context?: TAnyFixme, options?: string[]): TPrompt {
+export function makePrompt(message: string, context?: unknown, options?: string[]): TPrompt {
 	return { id: "prompt-" + Math.random().toString(36).slice(2), message, context, options };
 }

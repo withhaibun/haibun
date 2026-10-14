@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import type { QuadStore } from "./quad-store.js";
+import type { QuadStore } from "./steps/pipelines/quad-store.js";
 import { COMMENT_LABEL, FRAGMENT_SELECTOR_LABEL, READING_LABEL, LinkRelations, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL } from "./resources.js";
 import { createComment, readTypedLinks, readingIdFor } from "./records/pipelines/discourse-writes.js";
 import { readEvery, recordOf } from "./records/pipelines/record-reads.js";

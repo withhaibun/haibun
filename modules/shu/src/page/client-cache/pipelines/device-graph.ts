@@ -7,7 +7,8 @@ import { withinAccess, type AccessLevel } from "@haibun/core/lib/resources.js";
 import type { TClusteredQuads, TDensityQuery, TDensityResult, TDistinctValues, TGraphQuery, TQuad, TQuadPattern, TRecordsPage } from "@haibun/core/lib/quad-types.js";
 import { distinctOf, type TReadDeclarations } from "@haibun/core/lib/records/derivations/read-records.js";
 import { readQuadRecords } from "@haibun/core/lib/records/pipelines/record-reads.js";
-import { densityOverQuadStore, sliceQuadsPerType } from "@haibun/core/lib/quad-store.js";
+import { densityOverQuadStore } from "@haibun/core/lib/quad-store.js";
+import { sliceQuadsPerType } from "@haibun/core/lib/steps/derivations/quad-sample.js";
 import type { TDeviceGraph, TDeviceQuads, TGraphSaturation } from "../ports.js";
 import { individualAsQuads, levelsOf, subjectKey } from "../derivations/quads.js";
 
@@ -92,9 +93,12 @@ export class DeviceGraph implements TDeviceGraph {
 		const types = opts.types;
 		const named = types === undefined ? await this.quads.all() : (await Promise.all(types.map((namedGraph) => this.quads.query({ namedGraph })))).flat();
 		const levels = levelsOf(named);
+		const declarations = this.declarations();
 		return sliceQuadsPerType(
 			named.filter((q) => withinAccess(levels.get(subjectKey(q)), opts.accessLevel)),
 			opts.perTypeLimit,
+			[],
+			(type) => declarations.of(type)?.title,
 		);
 	}
 }

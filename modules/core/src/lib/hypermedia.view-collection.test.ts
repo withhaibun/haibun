@@ -22,8 +22,8 @@ describe("a view's collection", () => {
 	});
 
 	it("carries what else the view states beside its members", () => {
-		const built = viewCollection({ id: "view:query", name: "the search results shown in this column", items: [], stated: { queryType: "Email", textQuery: "bakery" } });
-		expect(built.queryType).toBe("Email");
+		const built = viewCollection({ id: "view:query", name: "the search results shown in this column", items: [], stated: { queryType: "Letter", textQuery: "bakery" } });
+		expect(built.queryType).toBe("Letter");
 		expect(built.textQuery).toBe("bakery");
 	});
 

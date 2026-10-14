@@ -42,8 +42,11 @@ export function shownArtifact(url: string): Promise<string> {
 	if (isOffline() || !url.startsWith(`${ARTIFACTS_ROUTE}/`)) return Promise.resolve(url);
 	const reading = shown.get(url) ?? readArtifact(url);
 	shown.set(url, reading);
-	// A failed read is deleted from `shown`, so the next shownArtifact call reads the artifact again.
-	reading.catch(() => shown.delete(url));
+	// A failed read is deleted from `shown`, so the next shownArtifact call reads the artifact again. The caller receives
+	// the failure.
+	void Promise.allSettled([reading]).then(([read]) => {
+		if (read?.status === "rejected") shown.delete(url);
+	});
 	return reading;
 }
 

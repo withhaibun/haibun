@@ -39,7 +39,8 @@ import {
 	type TConversationModel,
 	type TConversationProvider,
 } from "@haibun/core/lib/conversation/domains/conversation.js";
-import { GraphQueryResultSchema, extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
+import { GraphQueryResultSchema } from "@haibun/core/lib/quad-types.js";
+import { extractQuadsFromEvents } from "@haibun/core/lib/steps/derivations/quad-events.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { STATUS } from "@haibun/core/schema/protocol.js";
 import { hasEventStream, subscribeBatchedEvents } from "../../controllers/event-stream-controller.js";

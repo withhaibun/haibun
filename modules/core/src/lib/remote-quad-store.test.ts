@@ -1,7 +1,7 @@
 import { ACTION_BEGIN } from "./rpc-wire.js";
 import { hostHandshake } from "./test/rpc-answer.js";
 import { describe, expect, it } from "vitest";
-import { QuadStore } from "./quad-store.js";
+import { QuadStore, newStoreChain } from "./steps/pipelines/quad-store.js";
 import { equalTo, readEvery, recordOf } from "./records/pipelines/record-reads.js";
 import { storeDeclaring } from "./test/declared-types.js";
 import { handleStoreCall, isStoreMethod } from "./store-protocol.js";
@@ -53,7 +53,7 @@ describe("RemoteQuadStore", () => {
 		const peer = servingPeer(backing);
 		const remote = new RemoteQuadStore({ url: "http://main:1", sign, graphs: ["Widget"], fetchImpl: peer.fetchImpl });
 		await remote.connect();
-		const satellite = new QuadStore();
+		const satellite = new QuadStore(newStoreChain());
 		await satellite.registerStore(remote, ["Widget"]);
 		await satellite.upsertIndividual("Widget", { id: "w-9", name: "Nine" });
 		const nine = { "@id": "w-9", "@type": "Widget", id: "w-9", name: "Nine" };
@@ -62,7 +62,7 @@ describe("RemoteQuadStore", () => {
 	});
 
 	it("stays mount-scoped: all() covers only the mounted graphs and clustered reads intersect the type filter", async () => {
-		const backing = new QuadStore();
+		const backing = new QuadStore(newStoreChain());
 		await backing.add({ subject: "w-1", predicate: "name", object: "One", namedGraph: "Widget" });
 		await backing.add({ subject: "p-1", predicate: "name", object: "Private", namedGraph: "Elsewhere" });
 		const peer = servingPeer(backing);

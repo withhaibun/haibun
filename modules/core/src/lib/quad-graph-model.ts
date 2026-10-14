@@ -12,7 +12,7 @@
  * server and IndexedDB on the client. The consumer injects its own identity, such as the `@id` IRI prefix, so core
  * doesn't name a downstream.
  */
-import type { TCluster, TClusteredQuads, TQuad } from "./quad-types.js";
+import type { TCluster, TClusteredQuads, TQuad } from "./steps/domains/quad-types.js";
 import { displayLabelForQuads, type TDeclaredTitle, type TTitledBy } from "./hypermedia.js";
 import { BODY_LABEL, LinkRelations } from "./resources.js";
 

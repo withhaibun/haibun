@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { z } from "zod";
 import { RemoteStepperProxy } from "./remote-stepper-proxy.js";
-import { buildFeatureStepForTransport, hostScopedMethodName, openRunRegistry, stepMethodName, StepRegistry } from "./step-registry.js";
+import { buildFeatureStepForTransport } from "./steps/pipelines/call-step.js";
+import { hostScopedMethodName, stepMethodName } from "./steps/domains/step-method.js";
+import { openRunRegistry, StepRegistry } from "./steps/pipelines/step-registry.js";
 import Haibun from "../steps/haibun.js";
-import { AStepper } from "./astepper.js";
+import { AStepper } from "./steps/domains/stepper.js";
 import { actionNotOK, actionOKWithProducts, errorDetail } from "./util/index.js";
 import { getDefaultWorld } from "./test/lib.js";
 import { TEST_DOMAIN, testDomainDefinitions } from "./test/test-domains.js";

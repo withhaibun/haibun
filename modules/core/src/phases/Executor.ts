@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { RUN_AUTHORITY, runAuthorizedWith } from "../lib/capability-context.js";
 import type { TWorld } from "../lib/world.js";
-import { TResolvedFeature, TEndFeature, type TEndExecution, type TFeatureStep } from "../lib/astepper.js";
+import { TResolvedFeature, TEndFeature, type TEndExecution, type TFeatureStep } from "../lib/steps/domains/stepper.js";
 import {
 	TExecutorResult,
 	TFeatureResult,
@@ -17,22 +17,22 @@ import {
 	STAY_ALWAYS,
 } from "../schema/protocol.js";
 import { LifecycleEvent, ResolvedFeaturesArtifact } from "../schema/protocol.js";
-import { AStepper, hasCycles } from "../lib/astepper.js";
+import { AStepper, hasCycles } from "../lib/steps/domains/stepper.js";
 import { sleep, setStepperWorldsAndDomains, constructorName } from "../lib/util/index.js";
 import { itemAt } from "../lib/util/item-at.js";
 import { dispatchStep } from "../lib/step-dispatch.js";
-import { openRunRegistry, type StepRegistry } from "../lib/step-registry.js";
+import { openRunRegistry, type StepRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { featureAsData } from "../lib/features.js";
 import { SCENARIO_START, STATUS } from "../schema/protocol.js";
 import { FeatureVariables } from "../lib/feature-variables.js";
 import { FACT_LABEL } from "../lib/resources.js";
 import { registerDomains, registerStepperNames } from "../lib/domains.js";
-import { doStepperCycle, doStepperCycleSync } from "../lib/stepper-cycles.js";
+import { doStepperCycle, doStepperCycleSync } from "../lib/steps/pipelines/stepper-cycles.js";
 import { basename } from "path";
 
 /**
- * Releases the payloads of a finished feature's passing steps. A reader reads a passing step's products, artifact, traces
- * and protocol while its feature executes. The caller that receives the feature's result reads them too. A reader doesn't
+ * Releases the payloads of a finished feature's passing steps. A reader reads a passing step's products, artifact and
+ * protocol while its feature executes. The caller that receives the feature's result reads them too. A reader doesn't
  * read them after actuality starts another feature. Holding them would hold every graph slice, response body and rendered
  * document that actuality produces. Over many features the process then exhausts the heap and exits without reporting a
  * failure. releasePayload doesn't clear a failed step, because the onFailure cycle and the verdict read it.
@@ -46,7 +46,6 @@ function releasePayload(step: TStepResult): void {
 	if (!step.ok) return;
 	step.products = undefined;
 	step.artifact = undefined;
-	step.traces = undefined;
 	step.protocol = undefined;
 }
 

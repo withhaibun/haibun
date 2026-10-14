@@ -1,4 +1,4 @@
-import { OBSCURED_VALUE } from "../feature-variables.js";
+import { OBSCURED_VALUE } from "../steps/domains/secrets.js";
 
 type SecretKeyMatcher = (key: string) => boolean;
 

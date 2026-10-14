@@ -312,7 +312,7 @@ describe("allowed forms", () => {
 		expect(violationsIn(MARKDOWN, "Names: answeredFor, llm-answer, DOMAIN_LLM_ANSWER, the-run, src/nothing.ts and $us.")).toEqual([]);
 	});
 
-	it("doesn't read code in backticks, an address or an email address", () => {
+	it("doesn't read code in backticks, an address or an letter address", () => {
 		expect(violationsIn(MARKDOWN, "Run `the run knows` at https://example.com/nothing or write to nobody@example.com.")).toEqual([]);
 	});
 
@@ -363,7 +363,7 @@ describe("allowed forms", () => {
 	it("doesn't read JSON, a record's content or a fixture person's question", () => {
 		const violations = violationsIn(
 			SOURCE,
-			'const line = \'{"in":"set answer to ready"}\';\nconst email = { subject: "We meet", body: "I will be there." };\nconst send = (id: string, body: string) => id + body;\nsend("1", "Let us meet.");\naskExchange("What did it say?");',
+			'const line = \'{"in":"set answer to ready"}\';\nconst letter = { subject: "We meet", body: "I will be there." };\nconst send = (id: string, body: string) => id + body;\nsend("1", "Let us meet.");\naskExchange("What did it say?");',
 		);
 		expect(violations).toEqual([]);
 	});
@@ -504,7 +504,7 @@ describe("other files", () => {
 	});
 
 	it("reads a shell script's comments as Markdown and the text it echoes, and not its first line", () => {
-		const violations = violationsIn(SHELL, '#!/bin/sh\n# With no filter the whole base runs.\n#\n# Ask the kihan to run it.\necho "kihan: no config.json in $BASE" >&2');
+		const violations = violationsIn(SHELL, '#!/bin/sh\n# With no filter the whole base runs.\n#\n# Ask the agent to run it.\necho "agent: no config.json in $BASE" >&2');
 		expect(linesOf(violations)).toEqual([
 			[2, NEGATED_NOUN],
 			[5, NEGATED_NOUN],

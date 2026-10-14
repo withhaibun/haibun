@@ -1,5 +1,5 @@
 import { itemAt } from "../lib/util/item-at.js";
-import { AStepper } from "../lib/astepper.js";
+import { AStepper } from "../lib/steps/domains/stepper.js";
 import { Resolver } from "../phases/Resolver.js";
 import { TActionExecutor, stepActions } from "./withAction.js";
 

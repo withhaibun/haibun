@@ -12,7 +12,8 @@
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import { z } from "zod";
-import { GraphQuerySchema, VIA_FIELD, type IQuadStore, type TQuad, type TSearchCondition } from "../quad-types.js";
+import { GraphQuerySchema, VIA_FIELD, type TQuad, type TSearchCondition } from "../steps/domains/quad-types.js";
+import { type IQuadStore } from "../steps/ports.js";
 import { COUNT_CEILING, MAX_PAGE_ROWS, readInPages } from "../hypermedia.js";
 import { Access, AccessLevelSchema, EDGE, LinkRelations, type TRegisteredDomain } from "../resources.js";
 

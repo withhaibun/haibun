@@ -5,12 +5,12 @@
  */
 import { describe, expect, it } from "vitest";
 import { getDefaultWorld, passWithDefaults } from "../lib/test/lib.js";
-import { AStepper } from "../lib/astepper.js";
+import { AStepper } from "../lib/steps/domains/stepper.js";
 import { OK } from "../schema/protocol.js";
 import { actionNotOK } from "../lib/util/index.js";
 import { readingAt, runActingAs } from "../lib/capability-context.js";
 import { getAuthority } from "../lib/session-authority.js";
-import { buildStepRegistry } from "../lib/step-registry.js";
+import { buildStepRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { DELEGATIONS_READ_ACTION, DELEGATIONS_READ_METHOD } from "../lib/authority-types.js";
 import { stubVerifier } from "../lib/test/fake-authority.js";
 import AuthorityStepper from "./authority-stepper.js";

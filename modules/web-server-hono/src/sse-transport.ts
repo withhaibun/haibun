@@ -3,15 +3,17 @@ import { z } from "zod";
 import { stream } from "hono/streaming";
 import { streamSSE } from "hono/streaming";
 import type { IWebServer } from "./defs.js";
-import type { IEventLogger } from "@haibun/core/lib/EventLogger.js";
+import type { IEventLogger } from "@haibun/core/lib/steps/ports.js";
 import { truncateForLog, errorDetail } from "@haibun/core/lib/util/index.js";
 import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { streamContext, streamOver, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import type { IStepTransport } from "./step-transport.js";
 import { ACTUALITY_HEADER, actualityRefusal, authorityFailed, REFUSED_INVOCATION, SSE_ROUTE, RpcRefusalSchema, RpcEnvelopeSchema } from "@haibun/core/lib/rpc-wire.js";
 import type { TRuntime } from "@haibun/core/lib/world.js";
+import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
+import { serializedEvent } from "@haibun/core/lib/steps/derivations/serialized-event.js";
 import { capabilityAllows, FOLLOWS_THE_RUN, readAction } from "@haibun/core/lib/actions.js";
-import { AccessLevelSchema, type AccessLevel } from "@haibun/core/lib/resources.js";
+import type { AccessLevel } from "@haibun/core/lib/resources.js";
 import { authorityAllowing, endWhenLapsed } from "./capability-auth.js";
 
 type TTransportRequestInfo = {
@@ -33,7 +35,7 @@ const RpcRouteSchema = RpcEnvelopeSchema.pick({ method: true, stream: true, asks
 const answerRefusal = (answer: unknown) => RpcRefusalSchema.safeParse(answer).data;
 
 export interface ITransport {
-	send(data: unknown): void;
+	sendEvent(event: THaibunEvent): void;
 	onMessage(handler: TMessageHandler): void;
 }
 
@@ -161,37 +163,26 @@ export class SSETransport implements ITransport, IStepTransport {
 		});
 	}
 
-	// biome-ignore lint/suspicious/noExplicitAny: event payload
-	public send(data: any) {
-		// An event that a stream doesn't follow isn't serialized for it.
+	/** Sends an event to each follower that may read at its level. The event's text is the one the events hub serialized,
+	 *  so an event is serialized once for every transport. An event that doesn't serialize is sent as a record of its
+	 *  drop, so the stream continues. */
+	public sendEvent(event: THaibunEvent): void {
 		if (this.hub.listenerCount("event") === 0) return;
-		let payload: string;
+		// EventLogger.emit states every event's level, and a follower receives the events its read level allows.
+		if (event.accessLevel === undefined) throw new Error(`SSETransport.sendEvent refuses an event that doesn't state its access level. Emit the event through EventLogger.emit, which states it.`);
+		this.hub.emit("event", this.payloadOf(event), event.accessLevel);
+	}
+
+	private payloadOf(event: THaibunEvent): string {
 		try {
-			payload = JSON.stringify(data);
+			return `{"type":"event","event":${serializedEvent(event)}}`;
 		} catch (err) {
-			// Payload too large to serialize (V8 raises RangeError around 512MB) or
-			// otherwise unstringifiable. Emit a replacement event so the SSE stream
-			// stays alive, losing one oversized broadcast is acceptable; losing
-			// every subsequent event because the transport silently throws is not.
-			const fallback = {
-				id: data?.id,
-				timestamp: data?.timestamp,
-				kind: data?.kind,
-				type: data?.type,
-				stage: data?.stage,
-				status: data?.status,
-				level: data?.level,
-				dropped: true,
-				droppedReason: errorDetail(err),
-			};
-			payload = JSON.stringify(fallback);
-			this.eventLogger.error(`SSE event dropped (payload too large to serialize): ${fallback.droppedReason}`);
+			// JSON.stringify throws for a text longer than V8's limit, around 512MB. The record of the drop keeps the stream open.
+			const { id, timestamp, kind, level, accessLevel } = event;
+			const droppedReason = errorDetail(err);
+			this.eventLogger.error(`the event ${id} was dropped from the stream, since it doesn't serialize: ${droppedReason}`);
+			return JSON.stringify({ type: "event", event: { id, timestamp, kind, level, accessLevel, dropped: true, droppedReason } });
 		}
-		// EventLogger.emit states every event's level, and a follower receives the events its read level allows. An event
-		// without a level is refused.
-		const level = data?.event?.accessLevel;
-		if (level === undefined) throw new Error(`SSETransport.send refuses an event that doesn't state its access level. Emit the event through EventLogger.emit, which states it.`);
-		this.hub.emit("event", payload, AccessLevelSchema.parse(level));
 	}
 
 	public onMessage(handler: TMessageHandler) {

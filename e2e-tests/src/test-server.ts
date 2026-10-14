@@ -5,8 +5,9 @@ import { setCookie } from "@haibun/web-server-hono/cookie.js";
 
 import { actionNotOK, actionOK, actionOKWithProducts, getFromRuntime, sleep } from "@haibun/core/lib/util/index.js";
 import { createEnumDomainDefinition, DOMAIN_BEARER_TOKEN, DOMAIN_STRING, DOMAIN_LINK, DOMAIN_TEXT, DOMAIN_STEP_METHOD, DOMAIN_ROUTE } from "@haibun/core/lib/domains.js";
-import { SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, STEP_DETAIL, readShownSteps } from "@haibun/core/lib/step-discovery.js";
-import { refusal } from "@haibun/core/lib/step-registry.js";
+import { SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, STEP_DETAIL } from "@haibun/core/lib/step-discovery.js";
+import { readShownSteps } from "@haibun/core/lib/step-discovery.js";
+import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import type { TFeatureStep, IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { OK, Origin, type TStepArgs, type TProvenanceIdentifier } from "@haibun/core/schema/protocol.js";
 import { type TRequestHandler, type IWebServer, WEBSERVER } from "@haibun/web-server-hono/defs.js";
@@ -233,7 +234,7 @@ class TestServer extends AStepper {
 			gwta: `mcp call to {url: ${DOMAIN_LINK}} with tool {toolName: ${DOMAIN_STEP_METHOD}} without a capability invocation is refused`,
 			action: async ({ url, toolName }: TStepArgs) => {
 				const response = await mcpCallTool(String(url), String(toolName));
-				const expected = refusal(String(toolName), undefined, undefined);
+				const expected = refusal(String(toolName), undefined, undefined).error;
 				return mcpToolResult(response).isError && mcpText(response) === expected ? actionOK() : actionNotOK(`Expected "${expected}", got ${JSON.stringify(response)}`);
 			},
 		},

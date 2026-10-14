@@ -1,11 +1,12 @@
 import type { TExpandedFeature, TExpandedLine, TFeatures, TFeature } from "../lib/execution.js";
 import type { TWorld } from "../lib/world.js";
 import { TStepValue, FEATURE_START, SCENARIO_START, Origin } from "../schema/protocol.js";
-import { AStepper, TStepAction, TResolvedFeature, TStepperStep, TFeatureStep } from "../lib/astepper.js";
-import { matchGwtaToAction, getMatch } from "../lib/namedVars.js";
+import { AStepper, TStepAction, TResolvedFeature, TStepperStep, TFeatureStep } from "../lib/steps/domains/stepper.js";
+import { matchGwtaToAction, getMatch } from "../lib/steps/derivations/named-vars.js";
 import { getActionable, dePolite, constructorName, actionNotOK, asError, errorDetail } from "../lib/util/index.js";
 import { itemAt } from "../lib/util/item-at.js";
 import { DOMAIN_STATEMENT } from "../lib/domains.js";
+import { heldPerEntries } from "../lib/steps/derivations/held-per-entries.js";
 import { expandLine } from "../lib/features.js";
 
 /** Matches a line written as a sentence. A sentence starts with a capital letter and ends with `.`, `!`, `?`, `:` or `;`. */
@@ -228,22 +229,31 @@ export class Resolver {
 		return { source: { path, lineNumber }, in: featureLine.line, seqPath: [seq], action };
 	}
 
-	/** Returns each step that `offers` allows and the stepper that declares it. */
+	/** Each step that `offers` allows and the stepper that declares it, derived again only where a stepper's steps change,
+	 *  as a waypoint adds a step and a feature's end clears its steps. */
+	private readonly offered = heldPerEntries(
+		(steppers: readonly AStepper[]) => steppers.flatMap((stepper) => [stepper, ...Object.entries(stepper.steps).flat()]),
+		(steppers: readonly AStepper[]): TStepAction[] =>
+			steppers.flatMap((stepper) => {
+				const stepperName = constructorName(stepper);
+				return Object.entries(stepper.steps)
+					.filter(([actionName, step]) => !this.offers || this.offers(stepperName, actionName, step))
+					.map(([actionName, step]) => ({ actionName, stepperName, step }));
+			}),
+	);
+
 	private offeredSteps(): TStepAction[] {
-		return this.steppers.flatMap((stepper) => {
-			const stepperName = constructorName(stepper);
-			return Object.entries(stepper.steps)
-				.filter(([actionName, step]) => !this.offers || this.offers(stepperName, actionName, step))
-				.map(([actionName, step]) => ({ actionName, stepperName, step }));
-		});
+		return this.offered(this.steppers);
 	}
 
 	private matchesAStep(actionable: string): boolean {
-		return this.offeredSteps().some(({ step, actionName, stepperName }) => this.stepApplies(step, actionable, actionName, stepperName));
+		const curt = dePolite(actionable);
+		return this.offeredSteps().some(({ step, actionName, stepperName }) => this.stepApplies(step, actionable, curt, actionName, stepperName));
 	}
 
 	private findActionableSteps(actionable: string): TStepAction[] {
-		return this.offeredSteps().flatMap(({ step, actionName, stepperName }) => this.stepApplies(step, actionable, actionName, stepperName) ?? []);
+		const curt = dePolite(actionable);
+		return this.offeredSteps().flatMap(({ step, actionName, stepperName }) => this.stepApplies(step, actionable, curt, actionName, stepperName) ?? []);
 	}
 
 	/** Returns the steps that declare `prose` in place of a pattern. A prose line resolves to one of them. */
@@ -251,8 +261,8 @@ export class Resolver {
 		return this.offeredSteps().filter(({ step }) => step.prose);
 	}
 
-	private stepApplies(step: TStepperStep, actionable: string, actionName: string, stepperName: string) {
-		const curt = dePolite(actionable);
+	/** The step action a line resolves to under a step, or undefined where it doesn't. `curt` is the line after dePolite. */
+	private stepApplies(step: TStepperStep, actionable: string, curt: string, actionName: string, stepperName: string) {
 		if (step.gwta) {
 			// A line that starts with an uppercase letter after dePolite matches only a gwta that starts with an uppercase letter.
 			// Prose starts with an uppercase letter and a step starts with a lowercase letter, so this check separates them.

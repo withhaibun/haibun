@@ -760,8 +760,8 @@ export const DOMAIN_PERSISTED_TYPE = "persisted-type";
 /** Parses a step value, or another proto, into the domain's native representation. */
 type TDomainCoercer = (
 	proto: import("../schema/protocol.js").TStepValue,
-	featureStep?: import("./astepper.js").TFeatureStep,
-	steppers?: import("./astepper.js").AStepper[],
+	featureStep?: import("./steps/domains/stepper.js").TFeatureStep,
+	steppers?: import("./steps/domains/stepper.js").AStepper[],
 ) => import("../schema/protocol.js").TStepValueValue;
 
 /** Comparator between two coerced domain values. */

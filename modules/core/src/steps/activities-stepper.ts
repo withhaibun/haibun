@@ -1,4 +1,4 @@
-import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TStepperStep, CycleWhen } from "../lib/astepper.js";
+import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TStepperStep, CycleWhen } from "../lib/steps/domains/stepper.js";
 import type { TFeatures, TStepInput } from "../lib/execution.js";
 import { runSteppers, type TWorld } from "../lib/world.js";
 import { TStepArgs, TRegisteredOutcomeEntry, OK } from "../schema/protocol.js";
@@ -7,14 +7,15 @@ import { actionOK, actionNotOK, actionOKWithProducts, getActionable, errorDetail
 import { itemAt } from "../lib/util/item-at.js";
 import { DOMAIN_STATEMENT, DOMAIN_STATEMENT_LINES, DOMAIN_TITLE, DOMAIN_WAYPOINT_ARGUMENT } from "../lib/domains.js";
 import { Resolver } from "../phases/Resolver.js";
-import { FlowRunner } from "../lib/core/flow-runner.js";
+import { FlowRunner } from "../lib/steps/pipelines/flow-runner.js";
 import { ControlEvent, LifecycleEvent, STATUS } from "../schema/protocol.js";
 import { buildDomainChain } from "../lib/domain-chain.js";
 import { GOAL_FINDING, resolveGoal } from "../lib/goal-resolver.js";
 import { readFacts } from "../lib/records/pipelines/facts.js";
-import { runRegistry, stepMethodName } from "../lib/step-registry.js";
+import { runRegistry } from "../lib/steps/pipelines/step-registry.js";
+import { stepMethodName } from "../lib/steps/domains/step-method.js";
 import { WAYPOINT_KIND, type TWaypointEntry, type TWaypointKind } from "../lib/affordances.js";
-import { namedInterpolation } from "../lib/namedVars.js";
+import { phraseParameters } from "../lib/steps/domains/phrase.js";
 import { callerHolds } from "../lib/capability-context.js";
 import { z } from "zod";
 import { Access, LinkRelations, PersistedVertexSchema, type TDomainDefinition } from "../lib/resources.js";
@@ -402,7 +403,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		const waypoints: TWaypointEntry[] = [];
 		for (const [outcome, metadata] of this.registeredOutcomeMetadata.entries()) {
 			const kind: TWaypointKind = metadata.resolvesDomain ? WAYPOINT_KIND.DECLARATIVE : WAYPOINT_KIND.IMPERATIVE;
-			const paramSlots = Object.keys(namedInterpolation(outcome).stepValuesMap ?? {});
+			const paramSlots = phraseParameters(outcome);
 			const method = stepMethodName("ActivitiesStepper", outcome);
 			let ensured = false;
 			let error: string | undefined;

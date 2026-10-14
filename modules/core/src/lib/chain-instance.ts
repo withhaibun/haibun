@@ -19,7 +19,7 @@
  * graph and assembles a `TChainInstance`.
  */
 import type { TWorld } from "./world.js";
-import type { IQuadStore } from "./quad-types.js";
+import type { IQuadStore } from "./steps/ports.js";
 import type { TMichi } from "./goal-resolver.js";
 import { actingAs, readingAt } from "./capability-context.js";
 import { Access } from "./resources.js";

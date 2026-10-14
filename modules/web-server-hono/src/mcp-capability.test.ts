@@ -6,7 +6,7 @@ import { AStepper } from "@haibun/core/lib/astepper.js";
 import { actionOKWithProducts, getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { actingAs, readingAt } from "@haibun/core/lib/capability-context.js";
-import { refusal } from "@haibun/core/lib/step-registry.js";
+import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import FakeAuthorityStepper, { DOMAIN_FAKE_HOLDER, FakeInvoker } from "@haibun/core/lib/test/fake-authority.js";
 
@@ -92,7 +92,7 @@ class ProtectedStepper extends AStepper {
 				for (const tool of ["ProtectedStepper-protectedAction", "Nowhere-nothing"]) {
 					const toolResult = getToolResult(await callTool(String(port), tool));
 					const text = toolResult.content?.[0]?.type === "text" ? toolResult.content[0].text : "";
-					if (!toolResult.isError || text !== refusal(tool, undefined, undefined)) throw new Error(`Expected ${tool} refused alike, got ${JSON.stringify(toolResult)}`);
+					if (!toolResult.isError || text !== refusal(tool, undefined, undefined).error) throw new Error(`Expected ${tool} refused alike, got ${JSON.stringify(toolResult)}`);
 				}
 				return OK;
 			},

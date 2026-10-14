@@ -15,7 +15,7 @@
  */
 import { z } from "zod";
 import type { THaibunEvent, TBlipEvent } from "../schema/protocol.js";
-import type { IEventLogger } from "./EventLogger.js";
+import type { IEventLogger } from "./steps/ports.js";
 
 /** How a blip maps onto an OpenTelemetry signal. A discrete occurrence maps to a span event, and a rate or distribution
  *  maps to a metric instrument. Traces give order and identity, and metrics give frequency. */

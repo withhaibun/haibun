@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { QuadStore } from "./quad-store.js";
+import { QuadStore, newStoreChain } from "./steps/pipelines/quad-store.js";
 import { handleStoreCall, isStoreMethod, requiredStoreCapability, STORE_READ, STORE_WRITE } from "./store-protocol.js";
 import { itemAt } from "./util/item-at.js";
-import { GraphQueryResultSchema } from "./quad-types.js";
+import { GraphQueryResultSchema } from "./steps/domains/quad-types.js";
 import { storeDeclaring } from "./test/declared-types.js";
 
 describe("store protocol capability classification", () => {
@@ -30,13 +30,13 @@ describe("handleStoreCall", () => {
 	});
 
 	it("fails fast on params that do not match the wire contract", async () => {
-		const store = new QuadStore();
+		const store = new QuadStore(newStoreChain());
 		await expect(handleStoreCall(store, "store.upsertIndividual", { data: {} })).rejects.toThrow();
 		await expect(handleStoreCall(store, "store.getClusteredQuads", { perTypeLimit: 10 })).rejects.toThrow();
 	});
 
 	it("honours the IQuadStore createEdge contract for a store without the edge primitive (documented add fallback)", async () => {
-		const store = new QuadStore();
+		const store = new QuadStore(newStoreChain());
 		await handleStoreCall(store, "store.createEdge", { fromLabel: "Widget", fromId: "w-1", edgeLabel: "references", toLabel: "Widget", toId: "w-2" });
 		const quads = await store.query({ subject: "w-1", predicate: "references" });
 		expect(quads).toHaveLength(1);
@@ -44,7 +44,7 @@ describe("handleStoreCall", () => {
 	});
 
 	it("serves clustered reads with scope passed through", async () => {
-		const store = new QuadStore();
+		const store = new QuadStore(newStoreChain());
 		await store.add({ subject: "w-1", predicate: "name", object: "One", namedGraph: "Widget" });
 		const r = (await handleStoreCall(store, "store.getClusteredQuads", { perTypeLimit: 10, accessLevel: "private", scope: "own" })).result as { clusters: Array<{ type: string }> };
 		expect(r.clusters.map((c) => c.type)).toEqual(["Widget"]);

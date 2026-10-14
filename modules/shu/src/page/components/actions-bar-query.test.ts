@@ -7,7 +7,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { html, render } from "lit";
 import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
-import { QuadStore } from "@haibun/core/lib/quad-store.js";
+import { QuadStore, newStoreChain } from "@haibun/core/lib/quad-store.js";
 import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
@@ -65,7 +65,7 @@ describe("the actions bar's search mode", () => {
 		// The site offers the values its records hold for each context field, as a site that declares the types does.
 		const shown = declaringSteps(() => stepsShown([SELECT_VALUES], {}, buildConcernCatalog(mapDefinitionsToDomains(declaredTypes))));
 		t = setupShuTest({ dispatch: (method, params, link) => (method === SELECT_VALUES.method ? { values: { folder: ["INBOX"] } } : shown(method, params, link)) });
-		const cached = new QuadStore();
+		const cached = new QuadStore(newStoreChain());
 		await cached.setMany(CACHED);
 		installGraph(cached);
 		viewQuery.set({ q: null });
@@ -154,7 +154,7 @@ describe("the actions bar's search mode", () => {
 		const quad = (namedGraph: string, object: string) => ({
 			kind: "artifact",
 			artifactType: "json",
-			json: { quadObservation: { subject: "m1", predicate: "folder", object, namedGraph } },
+			json: { quadObservation: { subject: "m1", predicate: "folder", object, namedGraph, timestamp: 1 } },
 		});
 		query.observe([quad("File", "Archive")] as never);
 		expect(host.updatesAsked, "a value for another type").toBe(before);

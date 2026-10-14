@@ -2,7 +2,7 @@ import { describe, it, test, expect } from "vitest";
 
 import type { TExpandedFeature } from "../lib/execution.js";
 import { OK } from "../schema/protocol.js";
-import { AStepper, type CStepper } from "../lib/astepper.js";
+import { AStepper, type CStepper } from "../lib/steps/domains/stepper.js";
 import { asExpandedFeatures } from "../lib/resolver-features.js";
 import TestSteps from "../lib/test/TestSteps.js";
 import { createSteppers } from "../lib/util/index.js";
@@ -145,5 +145,22 @@ describe("prose", () => {
 	});
 	it("resolves prose to the prose step that precludes another", () => {
 		expect(resolvedTo(ARTICLE_SENTENCE, SpokenProse)).toBe("SpokenProse.prose");
+	});
+});
+
+describe("the steps a resolver offers", () => {
+	it("are read again once a stepper adds a step, so a line resolves to a step added after the first resolution (CP7R3)", () => {
+		class GrowingStepper extends AStepper {
+			description = "Holds steps that a test adds after a line resolved.";
+			steps: AStepper["steps"] = { first: { exact: "first step", action: async () => Promise.resolve(OK) } };
+		}
+		const steppers = createSteppers([GrowingStepper as CStepper]);
+		const resolver = new Resolver(steppers);
+		expect(resolver.findSingleStepAction("first step").actionName).toBe("first");
+		expect(() => resolver.findSingleStepAction("added step")).toThrow(`"added step" doesn't match a step`);
+		itemAt(steppers, 0).steps.added = { exact: "added step", action: async () => Promise.resolve(OK) };
+		expect(resolver.findSingleStepAction("added step").actionName).toBe("added");
+		delete itemAt(steppers, 0).steps.added;
+		expect(() => resolver.findSingleStepAction("added step"), "and a step removed doesn't resolve").toThrow(`"added step" doesn't match a step`);
 	});
 });

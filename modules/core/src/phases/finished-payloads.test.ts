@@ -7,7 +7,7 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import { passWithDefaults, failWithDefaults } from "../lib/test/lib.js";
-import { AStepper } from "../lib/astepper.js";
+import { AStepper } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
 import { RESULTS_READ_IN_FULL, foldStep } from "../lib/step-dispatch.js";
 import { releasePayloads } from "./Executor.js";

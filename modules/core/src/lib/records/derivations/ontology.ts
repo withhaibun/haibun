@@ -5,7 +5,7 @@
  * the ontology's records reads the records.
  */
 import { Access, CLASS_LABEL, edgeRanges, edgeRel, isPersisted, LinkRelations, PROPERTY_LABEL, type TRegisteredDomain } from "../../resources.js";
-import type { TCluster, TClusteredQuads, TQuad } from "../../quad-types.js";
+import type { TCluster, TClusteredQuads, TQuad } from "../../steps/domains/quad-types.js";
 import { ONTOLOGY_FIELD } from "../domains/ontology.js";
 import { recordsOfQuads, type THeldRecord } from "./read-records.js";
 

@@ -223,15 +223,15 @@ describe("UrakataRegistry", () => {
 
 	it("throws on unknown id for get/stop", async () => {
 		const registry = makeRegistry();
-		expect(() => registry.get("nope")).toThrow(/not found/);
-		await expect(registry.stop("nope")).rejects.toThrow(/not found/);
+		expect(() => registry.get("nope")).toThrow(/isn't registered; list urakata/);
+		await expect(registry.stop("nope")).rejects.toThrow(/isn't registered; list urakata/);
 	});
 
 	it("`forget` stops the task and removes it, and a later lookup throws", async () => {
 		const registry = makeRegistry();
 		const u = registry.register({ needs: [], id: "f1", description: "", intervalMs: 1000, tick: () => undefined });
 		await registry.forget(u.id);
-		expect(() => registry.get(u.id)).toThrow(/not found/);
+		expect(() => registry.get(u.id)).toThrow(/isn't registered; list urakata/);
 	});
 
 	it("stopAll halts every registered urakata", async () => {

@@ -8,7 +8,7 @@
  */
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
-import type { AStepper, CStepper } from "../astepper.js";
+import type { AStepper, CStepper } from "../steps/domains/stepper.js";
 import { DEF_PROTO_OPTIONS, getTestWorldWithOptions } from "./lib.js";
 import { createSteppers, setStepperWorldsAndDomains } from "../util/index.js";
 import { itemAt } from "../util/item-at.js";

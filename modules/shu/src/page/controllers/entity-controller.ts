@@ -1,6 +1,6 @@
 import type { ReactiveController, ReactiveControllerHost } from "lit";
 import type { TCallLink } from "@haibun/core/lib/hypermedia.js";
-import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
+import { extractQuadsFromEvents } from "@haibun/core/lib/steps/derivations/quad-events.js";
 import * as OpenRecord from "../pipelines/open-record.js";
 import type { TWritten } from "../pipelines/call-step.js";
 import { unreadView, type TAnnotationDraft, type TEntityView } from "../domains/entity.js";

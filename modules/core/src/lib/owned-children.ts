@@ -1,6 +1,6 @@
 /**
  * A supervised child never outlives its owner. The supervisor's endFeature terminates children when a run closes, but
- * a process that STAYS (a kihan serve, any HAIBUN_STAY session) ends by signal or exit instead, and a child that
+ * a process that STAYS (any HAIBUN_STAY session) ends by signal or exit instead, and a child that
  * survives that is an orphan holding its port, refusing the owner's own next session without a way to send it a request.
  *
  * One process-wide registry: every supervised child is entered at fork and leaves at its own exit. The first entry

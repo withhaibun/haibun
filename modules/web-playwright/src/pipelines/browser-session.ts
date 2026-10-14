@@ -5,7 +5,6 @@
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { Download, Locator, Page } from "playwright";
-import type { TFeatureStep, TStepAction } from "@haibun/core/lib/astepper.js";
 import { stepInFlight } from "@haibun/core/lib/capability-context.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { VideoStartArtifact } from "@haibun/core/schema/protocol.js";
@@ -15,9 +14,6 @@ import type { TBrowserPages, TTwin } from "../ports.js";
 export type TPageScope = Page | Locator;
 /** An action on the page. */
 export type TPageAction<TReturn> = (page: Page) => TReturn | Promise<TReturn>;
-
-/** The step a feature's own artifact is recorded on: the feature's first position. */
-export const featureStepOf = (featureNum: number, label: string): TFeatureStep => ({ seqPath: [featureNum, 0, 0], in: label, action: {} as TStepAction });
 
 export type TSessionContext = {
 	world: TWorld;
@@ -41,8 +37,8 @@ export class BrowserSession {
 	errorMark = 0;
 	extraHTTPHeaders: Record<string, string> = {};
 	apiUserAgent: string | undefined;
-	/** The download a step expects, which the step that receives it saves. */
-	expectedDownload: Promise<Download> | undefined;
+	/** The download a step expects, which the step that receives it saves, or the failure of the wait for it. */
+	expectedDownload: Promise<{ download: Download } | { failed: string }> | undefined;
 	/** The files the feature's downloads were saved to, which its end removes. */
 	downloaded: string[] = [];
 	readonly #context: TSessionContext;
@@ -195,6 +191,6 @@ export class BrowserSession {
 			startTime: 0,
 			level: "debug",
 		});
-		world.eventLogger.artifact(featureStepOf(featureNum, "video recording started"), videoStart);
+		world.eventLogger.artifact(videoStart);
 	}
 }

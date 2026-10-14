@@ -6,7 +6,7 @@
  * Memory, not IndexedDB: a report is opened from a file, where every report shares one origin, so a report that held its
  * run on the device would mix it with the next report's.
  */
-import { QuadStore } from "@haibun/core/lib/quad-store.js";
+import { QuadStore, newStoreChain } from "@haibun/core/lib/quad-store.js";
 import type { TReadDeclarations } from "@haibun/core/lib/records/derivations/read-records.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import type { TCachePayload } from "../../../domains/hydration.js";
@@ -30,7 +30,7 @@ export async function readCarriedRun(scope: TCarriedScope, cache: TCachePayload)
 	if (cache.shape !== CACHE_SHAPE) throw new Error(`this report carries a run written as ${cache.shape}, which this build doesn't read (${CACHE_SHAPE})`);
 	const store = scope.installDeviceStore();
 	if (cache.registry !== undefined) await store.setRegistry(cache.registry);
-	const graph = new QuadStore(undefined, undefined, undefined, scope.declarations);
+	const graph = new QuadStore(newStoreChain(), undefined, scope.declarations);
 	if (cache.quads.length) await graph.setMany(cache.quads);
 	scope.installGraph(graph);
 	// The actuality this page carries is the actuality it reads: a site doesn't record another one.

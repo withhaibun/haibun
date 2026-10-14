@@ -1,4 +1,4 @@
-import { AStepper, type IHasCycles, type IHasOptions, type IStepperCycles } from "../astepper.js";
+import { AStepper, type IHasCycles, type IHasOptions, type IStepperCycles } from "../steps/domains/stepper.js";
 import { actionOKWithProducts, getStepperOption } from "../util/index.js";
 import { z } from "zod";
 

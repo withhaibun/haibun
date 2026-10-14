@@ -4,9 +4,10 @@
  * `world.runtime[URAKATA]` and register their tickers there.
  */
 import { z } from "zod";
-import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type TStepperSteps } from "../lib/astepper.js";
+import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts } from "../lib/util/index.js";
 import { Access, LinkRelations } from "../lib/resources.js";
+import { EVENT_ATTRIBUTE, STEP_FAILURE_EVENT } from "../schema/protocol.js";
 import { URAKATA, URAKATA_ID_DOMAIN, URAKATA_LABEL, UrakataRegistry, UrakataSchema, type IHasUrakata, type IUrakataRegistry, urakataIdDomainDefinition } from "../lib/urakata.js";
 
 const DOMAIN_URAKATA_LIST = "urakata-list";
@@ -51,7 +52,7 @@ class UrakataStepper extends AStepper implements IHasCycles, IHasUrakata {
 	private registry?: UrakataRegistry;
 
 	urakata(): IUrakataRegistry {
-		if (!this.registry) throw new Error("UrakataStepper not started");
+		if (!this.registry) throw new Error("UrakataStepper reads its registry before a feature started it; read it during a feature");
 		return this.registry;
 	}
 
@@ -67,8 +68,8 @@ class UrakataStepper extends AStepper implements IHasCycles, IHasUrakata {
 			const world = this.getWorld();
 			this.registry = new UrakataRegistry(world, (id, seqPath, err) => {
 				world.eventLogger.warn(`[urakata] tick failed in "${id}": ${err.message}`, {
-					"haibun.autonomic.event": "step.failure",
-					"haibun.autonomic.seqPath": seqPath.join("."),
+					[EVENT_ATTRIBUTE.event]: STEP_FAILURE_EVENT,
+					[EVENT_ATTRIBUTE.seqPath]: seqPath.join("."),
 					"haibun.urakata.id": id,
 					"exception.type": err.name || "Error",
 					"exception.message": err.message,

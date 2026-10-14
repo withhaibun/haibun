@@ -652,7 +652,7 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 		field: fieldByRel,
 		idField: (type) => {
 			const id = idFields.get(type);
-			if (!id) throw new Error(`Unknown resource type: ${type}`);
+			if (!id) throw new Error(`${type} isn't a declared resource type, so it doesn't have an id field; declare the type`);
 			return id;
 		},
 		createdField: (type) => {

@@ -73,7 +73,7 @@ class A11yStepper extends AStepper implements IHasOptions, IHasCycles {
 			path: saved.baseRelativePath,
 			mimetype: MEDIA_TYPE.html,
 		});
-		this.getWorld().eventLogger.artifact(featureStep, artifactEvent);
+		this.getWorld().eventLogger.artifact(artifactEvent);
 		return artifactEvent;
 	}
 }

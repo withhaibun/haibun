@@ -53,7 +53,7 @@ const runtimeWith = (authority: SessionAuthority): TRuntime => ({ keys: { [AUTHO
 
 const signedRequest = (action: string) => ({
 	method: "POST",
-	url: "http://site.test:8123/rpc/AutonomicStepper-grantPetition",
+	url: "http://site.test:8123/rpc/ApprovalStepper-grant",
 	headers: { "capability-invocation": `zcap capability="urn:uuid:x",action="${action}"` },
 });
 

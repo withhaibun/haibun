@@ -4,7 +4,7 @@ import { AStepper } from "@haibun/core/lib/astepper.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import { RpcCallFailed, RpcClient } from "@haibun/core/lib/rpc-client.js";
-import { refusal } from "@haibun/core/lib/step-registry.js";
+import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import { PRINCIPAL_LABEL } from "@haibun/core/lib/resources.js";
 import type { TRecordsPage } from "@haibun/core/lib/quad-types.js";
 import { recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";

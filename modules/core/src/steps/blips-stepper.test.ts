@@ -2,14 +2,13 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { z } from "zod";
 import { declareBlips, blipWatch, WATCH_WINDOW } from "../lib/blips.js";
 import { recordBlip } from "../lib/record-blip.js";
-import { EventLogger } from "../lib/EventLogger.js";
 import BlipsStepper, { renderWatch } from "./blips-stepper.js";
 import LogicStepper from "./logic-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun.js";
-import { AStepper } from "../lib/astepper.js";
+import { AStepper } from "../lib/steps/domains/stepper.js";
 import { OK } from "../schema/protocol.js";
-import { failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
+import { eventHubOfTest, failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
 import type { TWorld } from "../lib/world.js";
 import { runInStep } from "../lib/capability-context.js";
 import { itemAt } from "../lib/util/item-at.js";
@@ -24,7 +23,7 @@ const SCROLL = {
 const REQUEST = { name: "haibun.test.http.request", instrument: "span-event" as const, description: "A request completed." };
 
 const make = () => {
-	const eventLogger = new EventLogger();
+	const eventLogger = eventHubOfTest();
 	return { eventLogger, world: { runtime: {}, eventLogger } as unknown as TWorld };
 };
 

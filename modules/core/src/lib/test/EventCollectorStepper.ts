@@ -1,4 +1,4 @@
-import { AStepper } from "../astepper.js";
+import { AStepper } from "../steps/domains/stepper.js";
 import type { TWorld } from "../world.js";
 
 import { THaibunEvent } from "../../schema/protocol.js";

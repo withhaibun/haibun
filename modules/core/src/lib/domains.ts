@@ -230,7 +230,7 @@ export const normalizeDomainKey = (domain: string) => {
 		.filter(Boolean);
 	const normalized = asDomainKey(parts);
 	if (domain !== normalized) {
-		throw Error(`domain key "${domain}", expected "${normalized}"`);
+		throw Error(`the domain key "${domain}" states its parts out of order; write it as "${normalized}"`);
 	}
 	return normalized;
 };
@@ -248,7 +248,7 @@ const normalizeEnumValues = (domainName: string, values: string[], requireMultip
 	const unique: string[] = [];
 	for (const value of cleaned) {
 		if (unique.includes(value)) {
-			throw new Error(`Domain "${domainName}" has duplicate value "${value}"`);
+			throw new Error(`the domain "${domainName}" lists the value "${value}" twice; list each value once`);
 		}
 		unique.push(value);
 	}
@@ -261,7 +261,7 @@ export const NameSchema = z.string().min(1, "is empty");
 export const createEnumDomainDefinition = ({ name, values, description, ordered = false }: TEnumDomainInput): TDomainDefinition => {
 	const domainName = sanitizeToken(name);
 	if (!domainName) {
-		throw new Error("Domain name must be provided");
+		throw new Error(`a domain declaration names a domain of "${name}", which doesn't hold a letter or a digit; name the domain`);
 	}
 	const uniqueValues = normalizeEnumValues(domainName, values, ordered);
 	const descriptor = description ?? `${domainName} values: ${uniqueValues.join(", ")}`;

@@ -6,7 +6,7 @@ import { VideoArtifact } from "@haibun/core/schema/protocol.js";
 import type { AStorage } from "@haibun/domain-storage/AStorage.js";
 import { relative, resolve } from "node:path";
 import type { TFiles } from "../ports.js";
-import { featureStepOf, type BrowserSession } from "./browser-session.js";
+import type { BrowserSession } from "./browser-session.js";
 
 export type TFeatureEnd = { session: BrowserSession; world: TWorld; storage: AStorage; files: TFiles; captureVideo: boolean };
 
@@ -38,7 +38,7 @@ export async function endFeature({ session, world, storage, files, captureVideo 
 			mimetype: "video/webm",
 			isTimeLined: true,
 		});
-		world.eventLogger.artifact(featureStepOf(featureNum, "feature video"), artifact);
+		world.eventLogger.artifact(artifact);
 	}
 	await session.close();
 }

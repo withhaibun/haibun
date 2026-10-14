@@ -19,7 +19,9 @@ import { OK } from "@haibun/core/schema/protocol.js";
 import { getFromRuntime, getStepperOption, getStepperOptionName, stringOrError, errorDetail } from "@haibun/core/lib/util/index.js";
 import { currentVersion as version } from "@haibun/core/currentVersion.js";
 import { dispatchStep } from "@haibun/core/lib/step-dispatch.js";
-import { buildFeatureStepForTransport, refusal, type StepRegistry } from "@haibun/core/lib/step-registry.js";
+import { buildFeatureStepForTransport } from "@haibun/core/lib/call-step.js";
+import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
+import { type StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { lackedByCall, type TCallAuthority } from "@haibun/core/lib/actions.js";
 import { stepsInstructions, toolDefinition } from "@haibun/core/lib/step-discovery.js";
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
@@ -31,7 +33,7 @@ import type { IStepTransport } from "./step-transport.js";
 import { delegateOf, grantedCapabilityForRequest, PRESENTED_REQUEST_HEADERS, refuseInvocation } from "./capability-auth.js";
 import { actingAs, authorizedWith, callerHolds, restingOn, runActingAs, runInvoking, shownTo } from "@haibun/core/lib/capability-context.js";
 import { DOMAIN_ROUTE } from "@haibun/core/lib/domains.js";
-import { ACTUALITY_HEADER, actualityRefusal } from "@haibun/core/lib/rpc-wire.js";
+import { ACTUALITY_HEADER, actualityRefusal, refusalSaid } from "@haibun/core/lib/rpc-wire.js";
 /** The port the MCP endpoint listens on where neither it nor the web server states one. */
 const DEFAULT_MCP_PORT = 8128;
 
@@ -97,7 +99,7 @@ export default class McpStepper extends AStepper implements IHasOptions, IHasCyc
 		// A call is refused before its input is read, and alike whether its step exists, as it is over RPC.
 		const lacked = tool && lackedByCall(call, tool.descriptor);
 		if (!tool || lacked)
-			return { isError: true, content: [{ type: "text", text: refusal(name, lacked, delegateOf({ held: [call.held ?? []].flat(), principal }, this.webserver())) }] };
+			return { isError: true, content: [{ type: "text", text: refusalSaid(refusal(name, lacked, delegateOf({ held: [call.held ?? []].flat(), principal }, this.webserver()))) }] };
 		try {
 			const world = this.getWorld();
 			// MCP callers don't have a haibun seqPath; the server synthesises one.

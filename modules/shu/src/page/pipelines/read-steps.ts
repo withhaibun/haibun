@@ -8,7 +8,8 @@
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { STEPS_CHANGED } from "@haibun/core/schema/protocol.js";
-import { EVERY_DEFINITION, SHOW_STEPS_METHOD, readShownSteps } from "@haibun/core/lib/step-discovery.js";
+import { EVERY_DEFINITION, SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
+import { readShownSteps } from "@haibun/core/lib/step-discovery.js";
 import type { Machine } from "@haibun/core/lib/machine.js";
 import { reads } from "../domains/links.js";
 import { REGISTRY_EVENT, REGISTRY_STATUS, type TRegistryEvent, type TRegistryRead, type TRegistryState, type TStepList } from "../machines/registry.js";
@@ -103,9 +104,9 @@ function followActuality(scope: TReadStepsScope): () => void {
 function readAgain(scope: TReadStepsScope): void {
 	if (scope.reads.againQueued) return;
 	scope.reads.againQueued = true;
-	const under = scope.reads.pending === undefined ? Promise.resolve() : scope.reads.pending.then(() => undefined);
+	// The read under way reports its own failure, so the read again waits for it to settle either way.
+	const under = scope.reads.pending === undefined ? Promise.resolve() : Promise.allSettled([scope.reads.pending]);
 	void under
-		.catch(() => undefined)
 		.then(async () => {
 			scope.reads.againQueued = false;
 			await (scope.reads.pending === undefined ? read(scope, REGISTRY_EVENT.READ_AGAIN) : scope.reads.pending);

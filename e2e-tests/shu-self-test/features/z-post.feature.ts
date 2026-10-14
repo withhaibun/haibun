@@ -1,5 +1,5 @@
 import { type TKirejiExport } from "@haibun/core/kireji/withAction.js";
-import { OBSCURED_VALUE } from "@haibun/core/lib/feature-variables.js";
+import { OBSCURED_VALUE } from "@haibun/core/lib/steps/domains/secrets.js";
 import { SECRETS } from "./shu-self-test.feature.ts";
 
 // The negative assertion below checks the full secret value (SECRETS.TEST_PASSWORD) and not the bare fragment

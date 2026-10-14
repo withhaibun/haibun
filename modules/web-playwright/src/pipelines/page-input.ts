@@ -1,6 +1,7 @@
 /** What a step does to the page: keys, text, fields, clicks, uploads, the window's size, the page's requests, its timeouts and its dialogs. */
 import type { Dialog, Locator, Page } from "playwright";
 import type { TActionResult, TStepValue } from "@haibun/core/schema/protocol.js";
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { REQUEST_STATE, type TFindWay } from "../domains/web-playwright.js";
 import type { BrowserSession, TPageScope } from "./browser-session.js";
 import { attempted, locateByDomain } from "./locate.js";
@@ -18,7 +19,11 @@ export const enterInto = (session: BrowserSession, what: string, field: TStepVal
 		session.withScope(async (scope) => {
 			const locator = locateByDomain(scope, field);
 			if ((await locator.evaluate((element) => element.tagName.toLowerCase())) !== "select") return void (await locator.fill(what));
-			await locator.selectOption({ value: what }).catch(() => locator.selectOption({ label: what }));
+			await locator.selectOption({ value: what }).catch((byValue: unknown) =>
+				locator.selectOption({ label: what }).catch((byLabel: unknown) => {
+					throw new Error(`the select doesn't hold an option whose value or label is "${what}": ${errorDetail(byValue)}; ${errorDetail(byLabel)}`);
+				}),
+			);
 		}),
 	);
 

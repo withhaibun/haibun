@@ -32,7 +32,7 @@ export const ACTION_BEGIN = "action.begin";
 /** The RPC protocol version this code implements. Every call states it. The handshake response holds it. An instance
  *  refuses a call at another version. A client refuses a handshake response at another version. A change to the wire
  *  requires a higher version. rpc-wire.test.ts compares the wire's shape with the shape recorded for this version. */
-export const RPC_PROTOCOL = 1;
+export const RPC_PROTOCOL = 2;
 
 /** What every call's envelope holds. */
 export const RpcEnvelopeSchema = z.object({
@@ -67,14 +67,18 @@ type TRpcRequest = z.infer<typeof RpcRequestSchema>;
 export const HandshakeSchema = z.object({ protocol: z.literal(RPC_PROTOCOL), hostId: z.number(), site: z.string().min(1), actualityId: ActualityIdSchema, serving: z.boolean() });
 export type THandshake = z.infer<typeof HandshakeSchema>;
 
-/** What the person can do about a refused call. A page offers each remedy as a control. `sign-in` holds the URL of the
- *  site where the person signs in. That site responded in front of the instance. `reload` names what the caller reads
- *  again: the client, the actuality or the authority. A client older than the instance reloads itself. A caller that
- *  read an earlier actuality reads the instance's actuality again. A caller whose presented authority failed verification
- *  reads what its key holds again. Authority that was revoked or has lapsed fails verification. */
+/** What the person can do about a refused call or a refused step. A page offers each remedy as a control. `sign-in` holds
+ *  the URL of the site where the person signs in. That site responded in front of the instance. `reload` names what the
+ *  caller reads again: the client, the actuality or the authority. A client older than the instance reloads itself. A
+ *  caller that read an earlier actuality reads the instance's actuality again. A caller whose presented authority failed
+ *  verification reads what its key holds again. Authority that was revoked or has lapsed fails verification. `request`
+ *  names the action a caller lacks, which it requests from a key that delegates it. `open` names a reference to open in
+ *  place of what was refused, such as the collection of a type whose record actuality doesn't hold. */
 export const RemedySchema = z.discriminatedUnion("do", [
 	z.object({ do: z.literal("sign-in"), at: z.url() }),
 	z.object({ do: z.literal("reload"), what: z.enum(["client", "actuality", "authority"]) }),
+	z.object({ do: z.literal("request"), action: z.string().min(1) }),
+	z.object({ do: z.literal("open"), ref: z.object({ kind: z.string().min(1), target: z.record(z.string(), z.unknown()) }) }),
 ]);
 export type TRemedy = z.infer<typeof RemedySchema>;
 
@@ -133,8 +137,15 @@ export type TRpcRefusal = z.infer<typeof RpcRefusalSchema>;
 type TRpcAnswer = { kind: "answered"; body: unknown } | ({ kind: "refused" } & TRpcRefusal);
 
 /** Formats a remedy as text for a place that can't offer it as a control, such as a log. */
-const remedySaid = (remedy: TRemedy): string =>
-	remedy.do === "sign-in" ? `sign in at ${remedy.at}` : remedy.what === "client" ? "reload the client" : `read the ${remedy.what} again`;
+export function remedySaid(remedy: TRemedy): string {
+	if (remedy.do === "sign-in") return `sign in at ${remedy.at}`;
+	if (remedy.do === "request") return `request ${remedy.action} from a key that delegates it`;
+	if (remedy.do === "open") return `open the ${remedy.ref.kind} ${JSON.stringify(remedy.ref.target)}`;
+	return remedy.what === "client" ? "reload the client" : `read the ${remedy.what} again`;
+}
+
+/** A refusal as a place that can't offer its remedy as a control states it: its cause, then its remedy in words. */
+export const refusalSaid = ({ error, remedy }: TRpcRefusal): string => (remedy === undefined ? error : `${error} (${remedySaid(remedy)})`);
 
 const REFUSED_CALL = "RefusedCall";
 
@@ -143,7 +154,7 @@ export class RefusedCall extends Error {
 	readonly refusal: TRpcRefusal;
 	/** Takes a refusal or a refused response and keeps its reason and remedy. The message appends the remedy as text. */
 	constructor({ error, remedy }: TRpcRefusal) {
-		super(remedy ? `${error} (${remedySaid(remedy)})` : error);
+		super(refusalSaid({ error, remedy }));
 		this.name = REFUSED_CALL;
 		this.refusal = { error, remedy };
 	}
@@ -166,7 +177,7 @@ export const REFUSED_INVOCATION = 403;
 export const authorityRefusal = (error: string): TRpcRefusal => ({ error, remedy: RELOAD.authority });
 
 /** Returns the refusal of a call that failed. The error names the method, so a page shows which call failed. */
-export const callFailed = (method: string, failure: string): TRpcRefusal => ({ error: `${method}: ${failure}` });
+export const callFailed = (method: string, failure: string, remedy?: TRemedy): TRpcRefusal => ({ error: `${method}: ${failure}`, ...(remedy === undefined ? {} : { remedy }) });
 
 /** Returns the refusal of a call whose response didn't come from actuality. Actuality responds to every call with JSON, so
  *  a response of another media type came from a proxy or server in front of it. The remedy of a 401 or 407 status signs

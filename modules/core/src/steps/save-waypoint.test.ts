@@ -4,9 +4,11 @@
  */
 import { describe, it, expect } from "vitest";
 import { failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
-import { AStepper, type TFeatureStep } from "../lib/astepper.js";
+import { AStepper, type TFeatureStep } from "../lib/steps/domains/stepper.js";
 import { actionOK } from "../lib/util/index.js";
-import { buildFeatureStepForTransport, runRegistry, stepMethodName } from "../lib/step-registry.js";
+import { buildFeatureStepForTransport } from "../lib/steps/pipelines/call-step.js";
+import { runRegistry } from "../lib/steps/pipelines/step-registry.js";
+import { stepMethodName } from "../lib/steps/domains/step-method.js";
 import { dispatchStep } from "../lib/step-dispatch.js";
 import ActivitiesStepper, { SAVED_WAYPOINT_LABEL } from "./activities-stepper.js";
 import AuthorityStepper from "./authority-stepper.js";

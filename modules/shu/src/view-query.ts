@@ -19,7 +19,7 @@ import { Signal } from "@lit-labs/signals";
 import { z } from "zod";
 import { AccessQuery, AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
 import { parseFilterParam, serializeFilterParam } from "./schemas.js";
-import { SearchConditionSchema, type TSearchCondition } from "@haibun/core/lib/quad-types.js";
+import { SearchConditionSchema, SortOrderSchema, type TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { pagePinned } from "./page/adapters/page-held.js";
 import * as Address from "./page/derivations/address.js";
 import * as PageHash from "./page/controllers/hash-controller.js";
@@ -31,7 +31,7 @@ export const ViewQuerySchema = z.object({
 	label: z.string().min(1).nullable().default(null),
 	q: z.string().min(1).nullable().default(null),
 	sort: z.string().min(1).nullable().default(null),
-	order: z.enum(["asc", "desc"]).default("desc"),
+	order: SortOrderSchema.default("desc"),
 	offset: z.number().int().nonnegative().default(0),
 	access: AccessQueryLevelSchema.default(AccessQuery.all),
 	f: z.array(SearchConditionSchema).default([]),

@@ -1,6 +1,6 @@
-import type { AStepper } from "./astepper.js";
+import type { AStepper } from "./steps/domains/stepper.js";
 import { constructorName } from "./util/index.js";
-import type { TStepperOption } from "./astepper.js";
+import type { TStepperOption } from "./steps/domains/stepper.js";
 
 /**
  * A declarative bound on a tunable option. The four kinds state only simple

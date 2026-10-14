@@ -182,9 +182,7 @@ describe("a server that does not respond", () => {
 		serveThePage();
 		globalThis.fetch = () => Promise.reject(new TypeError("Failed to fetch"));
 		try {
-			await installServedConduit("", requiredActionOf)
-				.follow(acts(SHOW_STEPS_METHOD), "test")
-				.catch(() => undefined);
+			await expect(installServedConduit("", requiredActionOf).follow(acts(SHOW_STEPS_METHOD), "test")).rejects.toThrow();
 			expect(serverLastRespondedAt(), "a page that hasn't reached a server doesn't hold such a time").toBeUndefined();
 			// The second part starts a new page, so the state the first part left doesn't affect it.
 			newPage();
@@ -192,9 +190,7 @@ describe("a server that does not respond", () => {
 			// An error the server returns still counts as a response, so a reader sees that the page reached the server.
 			globalThis.fetch = () => Promise.resolve(rpcAnswer({ error: "no such step" }, 422));
 			const before = Date.now();
-			await installServedConduit("", requiredActionOf)
-				.follow(acts(SHOW_STEPS_METHOD), "test")
-				.catch(() => undefined);
+			await expect(installServedConduit("", requiredActionOf).follow(acts(SHOW_STEPS_METHOD), "test")).rejects.toThrow();
 			expect(serverLastRespondedAt() ?? 0).toBeGreaterThanOrEqual(before);
 		} finally {
 			globalThis.fetch = fetchWas;
@@ -269,9 +265,7 @@ describe("a server that does not respond", () => {
 			return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new DOMException("timed out", "TimeoutError")), { once: true }));
 		}) as unknown as typeof globalThis.fetch;
 		try {
-			await installServedConduit("", requiredActionOf)
-				.follow(acts(SHOW_STEPS_METHOD), "a read the page awaits")
-				.catch(() => undefined);
+			await expect(installServedConduit("", requiredActionOf).follow(acts(SHOW_STEPS_METHOD), "a read the page awaits")).rejects.toThrow();
 			expect(bounds.at(-1), "a read the page awaits carries a timeout").toBe(true);
 			// The call that opens an action carries a timeout like any other awaited call. This part starts a page that
 			// hasn't found the site unreachable.
@@ -279,7 +273,8 @@ describe("a server that does not respond", () => {
 			serveThePage();
 			const streaming = installServedConduit("", requiredActionOf)
 				.followStream(acts(SHOW_STEPS_METHOD), () => undefined, { why: "actuality's own stream" })
-				.catch(() => undefined);
+				// The stream stays open until the test ends, and its end at teardown is the test's, not a failure it reads.
+				.catch((endedAtTeardown: unknown) => endedAtTeardown);
 			await new Promise((r) => setTimeout(r, 60));
 			expect(bounds.at(-1), "and a stream doesn't carry one, so a timeout doesn't close it while actuality writes to it").toBe(false);
 			void streaming;
@@ -301,10 +296,10 @@ describe("a server that does not respond", () => {
 		}) as unknown as typeof globalThis.fetch;
 		try {
 			const conduit = installServedConduit("", requiredActionOf);
-			await conduit.follow(reads(SHOW_STEPS_METHOD), "the first read").catch(() => undefined);
+			await expect(conduit.follow(reads(SHOW_STEPS_METHOD), "the first read")).rejects.toThrow();
 			const afterFirst = made;
 			const began = Date.now();
-			await Promise.all(Array.from({ length: 8 }, () => conduit.follow(reads(SHOW_STEPS_METHOD), "a view reading").catch(() => undefined)));
+			await Promise.all(Array.from({ length: 8 }, () => expect(conduit.follow(reads(SHOW_STEPS_METHOD), "a view reading")).rejects.toThrow()));
 			expect(made, "the following reads didn't call fetch, since the first read's timeout stands for them").toBe(afterFirst);
 			expect(Date.now() - began, "so they didn't wait for the timeout again").toBeLessThan(60);
 		} finally {
@@ -327,13 +322,13 @@ describe("a server that does not respond", () => {
 		}) as unknown as typeof globalThis.fetch;
 		try {
 			const conduit = installServedConduit("", requiredActionOf);
-			await conduit.follow(reads(SHOW_STEPS_METHOD), "the first read").catch(() => undefined);
+			await expect(conduit.follow(reads(SHOW_STEPS_METHOD), "the first read")).rejects.toThrow();
 			expect(made).toBe(1);
-			await conduit.follow(reads(SHOW_STEPS_METHOD), "a read within the span").catch(() => undefined);
+			await expect(conduit.follow(reads(SHOW_STEPS_METHOD), "a read within the span")).rejects.toThrow();
 			expect(made, "the page doesn't call the site within the span, since the first call's timeout stands for it").toBe(1);
 			vi.useFakeTimers({ toFake: ["Date"] });
 			vi.setSystemTime(Date.now() + UNREACHABLE_RETRY_AFTER_MS);
-			await conduit.follow(reads(SHOW_STEPS_METHOD), "a read after it").catch(() => undefined);
+			await expect(conduit.follow(reads(SHOW_STEPS_METHOD), "a read after it")).rejects.toThrow();
 			expect(made, "and the page calls the site again after the span").toBe(2);
 		} finally {
 			vi.useRealTimers();
@@ -358,9 +353,9 @@ describe("a server that does not respond", () => {
 		}) as unknown as typeof globalThis.fetch;
 		try {
 			const conduit = installServedConduit("", requiredActionOf);
-			await conduit.follow(reads(SHOW_STEPS_METHOD), "a view reading").catch(() => undefined);
+			await expect(conduit.follow(reads(SHOW_STEPS_METHOD), "a view reading")).rejects.toThrow();
 			const afterRead = asked.length;
-			await conduit.follow(acts("chatWithContext"), "the reader's question").catch(() => undefined);
+			await expect(conduit.follow(acts("chatWithContext"), "the reader's question")).rejects.toThrow();
 			expect(asked.slice(afterRead), "the page sent the act to the server, starting with the handshake that places it in actuality").toContain(HANDSHAKE_PATH);
 			expect(asked.slice(afterRead), "and then the act itself").toContain("/rpc/chatWithContext");
 		} finally {
@@ -379,8 +374,8 @@ describe("a server that does not respond", () => {
 		}) as unknown as typeof globalThis.fetch;
 		try {
 			const conduit = installServedConduit("", requiredActionOf);
-			await conduit.follow(acts(SHOW_STEPS_METHOD), "the first read").catch(() => undefined);
-			await conduit.follow(acts(SHOW_STEPS_METHOD), "the read after it").catch(() => undefined);
+			await expect(conduit.follow(acts(SHOW_STEPS_METHOD), "the first read")).rejects.toThrow();
+			await expect(conduit.follow(acts(SHOW_STEPS_METHOD), "the read after it")).rejects.toThrow();
 			expect(made, "each call reached fetch, since the network refusal returned at once").toBeGreaterThan(1);
 		} finally {
 			globalThis.fetch = fetchWas;

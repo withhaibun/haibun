@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
 
-import { AStepper, type TStepperSteps } from "./astepper.js";
+import { AStepper, type TStepperSteps } from "./steps/domains/stepper.js";
 import { deriveNamingDomains, mapDefinitionsToDomains, refDomainKey } from "./domains.js";
 import { Access, LinkRelations } from "./resources.js";
 import { OK } from "../schema/protocol.js";
@@ -12,20 +12,20 @@ import { executionOf, factIdOf } from "./seq-path.js";
 import { RUN_AUTHORITY } from "./capability-context.js";
 
 const PERSON = "person";
-const EMAIL = "email";
+const EMAIL = "letter";
 const SESSION = "session";
 
 function fixedDomains() {
 	return mapDefinitionsToDomains([
 		{ selectors: [PERSON], schema: z.object({ id: z.string() }), description: "person" },
-		{ selectors: [EMAIL], schema: z.object({ id: z.string() }), description: "email" },
+		{ selectors: [EMAIL], schema: z.object({ id: z.string() }), description: "letter" },
 		{ selectors: [SESSION], schema: z.object({ id: z.string() }), description: "session" },
 	]);
 }
 
 class EmailFromPerson extends AStepper {
-	description = "Issues an email for a person.";
-	steps: TStepperSteps = { issueEmail: { gwta: `issue email for {who: ${PERSON}}`, productsDomain: EMAIL, action: () => actionOKWithProducts({ id: "e1" }) } };
+	description = "Issues an letter for a person.";
+	steps: TStepperSteps = { issueEmail: { gwta: `issue letter for {who: ${PERSON}}`, productsDomain: EMAIL, action: () => actionOKWithProducts({ id: "e1" }) } };
 }
 
 /** A registered producer of Person. It makes Person a typed-fact domain instead of an argument. */
@@ -90,14 +90,14 @@ describe("buildAffordances", () => {
 				{
 					selectors: [EMAIL],
 					schema: z.object({ id: z.string() }),
-					description: "email",
-					topology: { persistedAs: "Email", accessLevel: Access.private, id: "id", properties: { id: LinkRelations.IDENTIFIER.rel } },
+					description: "letter",
+					topology: { persistedAs: "Letter", accessLevel: Access.private, id: "id", properties: { id: LinkRelations.IDENTIFIER.rel } },
 				},
 			]),
 		);
 		class EmailRefFromPerson extends AStepper {
-			description = "Returns a reference to a person's email.";
-			steps: TStepperSteps = { refer: { gwta: `refer to the email of {who: ${PERSON}}`, productsDomain: refDomainKey(EMAIL), action: () => actionOKWithProducts({ id: "e1" }) } };
+			description = "Returns a reference to a person's letter.";
+			steps: TStepperSteps = { refer: { gwta: `refer to the letter of {who: ${PERSON}}`, productsDomain: refDomainKey(EMAIL), action: () => actionOKWithProducts({ id: "e1" }) } };
 		}
 		const result = buildAffordances({ steppers: [new EmailFromPerson(), new EmailRefFromPerson(), new PersonSource()], domains, facts: [], held: RUN_AUTHORITY });
 		const goals = result.goals.map((g) => g.domain);

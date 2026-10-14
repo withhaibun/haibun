@@ -6,15 +6,8 @@
  * catalog declares, and otherwise the site's failure is what the read throws.
  */
 import { z } from "zod";
-import {
-	GraphQuerySchema,
-	type IQuadStore,
-	type TDensityQuery,
-	type TDensityResult,
-	type TGraphQueryResult,
-	type TIncomingEdges,
-	type TIndividualWithEdges,
-} from "@haibun/core/lib/quad-types.js";
+import { GraphQuerySchema, type TDensityQuery, type TDensityResult, type TGraphQueryResult, type TIncomingEdges, type TIndividualWithEdges } from "@haibun/core/lib/quad-types.js";
+import { type IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { incomingEdges as incomingEdgesHeld, recordWithEdges } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import * as Steps from "../derivations/steps.js";

@@ -5,10 +5,11 @@ import type { BrowserSession } from "./browser-session.js";
 
 /** Expects the page's next download. Waiting for an event isn't an action on the page, so it doesn't hold the page from the action that causes it. */
 export function expectDownload(session: BrowserSession): TActionResult {
-	const expected = session.page().then((page) => page.waitForEvent("download"));
-	// The step that receives the download reads its failure; until then it is held.
-	void expected.catch(() => undefined);
-	session.expectedDownload = expected;
+	// The wait's outcome is held as data, so the step that receives the download reads its failure.
+	session.expectedDownload = session.page().then(
+		(page) => page.waitForEvent("download").then((download) => ({ download }), (error: unknown) => ({ failed: errorDetail(error) })),
+		(error: unknown) => ({ failed: errorDetail(error) }),
+	);
 	return OK;
 }
 
@@ -16,8 +17,10 @@ export function expectDownload(session: BrowserSession): TActionResult {
 export async function receiveDownload(session: BrowserSession, file: string): Promise<TActionResult> {
 	const expected = session.expectedDownload;
 	if (expected === undefined) return actionNotOK("receiving a download follows `expect a download`, and a download isn't expected");
+	const arrived = await expected;
+	if ("failed" in arrived) return actionNotOK(`the expected download didn't arrive: ${arrived.failed}`);
 	try {
-		await (await expected).saveAs(file);
+		await arrived.download.saveAs(file);
 		session.downloaded.push(file);
 		return OK;
 	} catch (e) {

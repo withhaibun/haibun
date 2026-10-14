@@ -13,7 +13,7 @@ import { authorityFailed, refusalCarried } from "@haibun/core/lib/rpc-wire.js";
 import { failFastOrLog, isDev } from "@haibun/core/lib/dev-mode.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { requiredAction } from "@haibun/core/lib/actions.js";
-import { stepMethodName } from "@haibun/core/lib/step-registry.js";
+import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { acts } from "./page/domains/links.js";
 import { conduit, hasConduit } from "./page/controllers/conduit-controller.js";
 import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";

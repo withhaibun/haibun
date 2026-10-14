@@ -110,7 +110,7 @@ export class UrakataRegistry implements IUrakataRegistry {
 	) {}
 
 	register(spec: IUrakataTicker): TUrakata {
-		if (this.entries.has(spec.id)) throw new Error(`urakata id "${spec.id}" already registered`);
+		if (this.entries.has(spec.id)) throw new Error(`an urakata of id "${spec.id}" is already registered; stop it or register another id`);
 		// The registry checks the starting step here once, so a missing action fails at the start rather than on every tick.
 		// Outside a dispatch callerHolds() returns undefined, and the check passes. A feature statement of actuality holds
 		// RUN_AUTHORITY, which allows every action.
@@ -244,13 +244,13 @@ export class UrakataRegistry implements IUrakataRegistry {
 
 	get(id: string): TUrakata {
 		const e = this.entries.get(id);
-		if (!e) throw new Error(`urakata "${id}" not found`);
+		if (!e) throw new Error(`an urakata of id "${id}" isn't registered; list urakata to read the ids registered`);
 		return e.urakata;
 	}
 
 	async stop(id: string): Promise<void> {
 		const e = this.entries.get(id);
-		if (!e) throw new Error(`urakata "${id}" not found`);
+		if (!e) throw new Error(`an urakata of id "${id}" isn't registered; list urakata to read the ids registered`);
 		await e.stop();
 	}
 

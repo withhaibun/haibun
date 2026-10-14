@@ -6,8 +6,8 @@ import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getCreateSteppers } from "../test
 import TestSteps from "../test/TestSteps.js";
 import TestStepsWithOptions from "../test/TestStepsWithOptions.js";
 import { OK } from "../../schema/protocol.js";
-import { IHasOptions, StepperKinds, type TStepperSteps } from "../astepper.js";
-import { AStepper } from "../astepper.js";
+import { IHasOptions, StepperKinds, type TStepperSteps } from "../steps/domains/stepper.js";
+import { AStepper } from "../steps/domains/stepper.js";
 import { constructorName } from "./index.js";
 import { itemAt } from "./item-at.js";
 

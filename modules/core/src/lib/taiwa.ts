@@ -8,7 +8,7 @@
  */
 
 import { z } from "zod";
-import { AStepper, StepperKinds } from "./astepper.js";
+import { AStepper, StepperKinds } from "./steps/domains/stepper.js";
 
 const AskOptionsSchema = z.object({
 	/** The model a call is sent to, where it isn't the standing default. */
@@ -24,9 +24,8 @@ export type TAskOptions = z.infer<typeof AskOptionsSchema> & { signal?: AbortSig
 export interface ITaiwa {
 	ask(prompt: string, opts?: TAskOptions): Promise<string>;
 	/**
-	 * True iff the local-provider allow-list names the active provider, so content sent
-	 * to it stays on the host. A caller that gates private content on locality reads this.
-	 * A consumer's autonomic loop is one such caller. findTaiwa throws for a taiwa stepper without it.
+	 * True where the local-provider allow-list names the active provider, so content sent to it stays on the host. A caller
+	 * that gates private content on locality reads this. findTaiwa throws for a taiwa stepper without it.
 	 */
 	isLocal(): boolean;
 }

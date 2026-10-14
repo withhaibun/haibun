@@ -9,7 +9,7 @@ function reg(schema: z.ZodType, topology?: TRegisteredDomain["topology"]): TRegi
 
 const IssuerSchema = z.object({ did: z.string(), name: z.string().optional() });
 const ProofSchema = z.object({ proofValue: z.string() });
-const VcSchema = z.object({
+const PermitSchema = z.object({
 	id: z.string().optional(),
 	type: z.array(z.string()),
 	issuer: z.string(),
@@ -59,15 +59,15 @@ describe("getCompositeFields", () => {
 		const registry: Record<string, TRegisteredDomain> = {
 			issuer: reg(IssuerSchema),
 			proof: reg(ProofSchema),
-			"verifiable-credential": reg(VcSchema, {
-				persistedAs: "VerifiableCredential",
+			"signed-permit": reg(PermitSchema, {
+				persistedAs: "SignedPermit",
 				accessLevel: Access.private,
 				id: "id",
 				properties: {},
 				ranges: { issuer: "issuer", proof: "proof" },
 			}),
 		};
-		const fields = getCompositeFields("verifiable-credential", registry);
+		const fields = getCompositeFields("signed-permit", registry);
 		const issuer = fields?.find((f) => f.fieldName === "issuer");
 		const proof = fields?.find((f) => f.fieldName === "proof");
 		expect(issuer?.fieldDomain).toBe("issuer");
@@ -76,16 +76,16 @@ describe("getCompositeFields", () => {
 
 	it("drops a ranges entry that points at an unregistered domain (silent fall-back to primitive)", () => {
 		const registry: Record<string, TRegisteredDomain> = {
-			"verifiable-credential": reg(VcSchema, { persistedAs: "VerifiableCredential", accessLevel: Access.private, id: "id", properties: {}, ranges: { issuer: "not-registered" } }),
+			"signed-permit": reg(PermitSchema, { persistedAs: "SignedPermit", accessLevel: Access.private, id: "id", properties: {}, ranges: { issuer: "not-registered" } }),
 		};
-		const fields = getCompositeFields("verifiable-credential", registry);
+		const fields = getCompositeFields("signed-permit", registry);
 		const issuer = fields?.find((f) => f.fieldName === "issuer");
 		expect(issuer?.fieldDomain).toBeUndefined();
 	});
 
 	it("unwraps nullable wrappers and reports the field as optional", () => {
-		const registry: Record<string, TRegisteredDomain> = { "verifiable-credential": reg(VcSchema) };
-		const fields = getCompositeFields("verifiable-credential", registry);
+		const registry: Record<string, TRegisteredDomain> = { "signed-permit": reg(PermitSchema) };
+		const fields = getCompositeFields("signed-permit", registry);
 		const validUntil = fields?.find((f) => f.fieldName === "validUntil");
 		expect(validUntil?.optional).toBe(true);
 		expect(validUntil?.primitive).toBe(true);

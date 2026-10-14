@@ -13,15 +13,8 @@ import { fromJsonText } from "@haibun/core/lib/json-text.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { Access, AccessQueryLevelSchema, DOMAIN_PERSISTED_TYPE, type TDomainDefinition } from "@haibun/core/lib/resources.js";
 import { actionNotOK, actionOKWithProducts, errorDetail } from "@haibun/core/lib/util/index.js";
-import {
-	DOMAIN_GRAPH_QUERY,
-	GraphQueryResultSchema,
-	type TGraphQuery,
-	DOMAIN_DENSITY_QUERY,
-	DensityResultSchema,
-	type TDensityQuery,
-	IndividualWithEdgesSchema,
-} from "@haibun/core/lib/quad-types.js";
+import { typeCollectionRemedy } from "@haibun/core/lib/typed-links.js";
+import { DOMAIN_GRAPH_QUERY, GraphQueryResultSchema, type TGraphQuery, DOMAIN_DENSITY_QUERY, DensityResultSchema, type TDensityQuery, IndividualWithEdgesSchema } from "@haibun/core/lib/quad-types.js";
 import { recordWithEdges } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { DOMAIN_RECORD_ID, DOMAIN_LINK, DOMAIN_PRINCIPAL_REF, type TIndividualRef } from "@haibun/core/lib/domains.js";
 import { clusteredQuads, federate, selectValues, servingSite } from "./pipelines/graph-source.js";
@@ -101,7 +94,9 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			// read by what a reader may see declares its own step, and the page reads through that one instead.
 			action: async ({ label, id }: { label: string; id: string }) => {
 				const held = await recordWithEdges(this.getWorld().shared.getStore(), label, id);
-				return held === undefined ? actionNotOK(`${label} ${id} isn't held here`) : actionOKWithProducts(held);
+				return held === undefined
+					? actionNotOK(`actuality doesn't hold the ${label} record ${id}; the ${label} collection lists the records it holds`, { remedy: typeCollectionRemedy(label) })
+					: actionOKWithProducts(held);
 			},
 		},
 		getSelectValues: {

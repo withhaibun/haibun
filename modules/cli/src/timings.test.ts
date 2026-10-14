@@ -50,14 +50,13 @@ describe("a run's timings", () => {
 		});
 	});
 
-	it("replaces an entry that doesn't parse against the timings schema, without comparing against it or keeping its features", () => {
+	it("refuses an entry that doesn't parse against the timings schema, and a file that doesn't hold an object, since replacing either loses its history", () => {
 		const dir = tempDir("haibun-earlier-form-");
-		nodeFS.writeFileSync(
-			path.join(dir, TIMINGS_FILE),
-			JSON.stringify({ [machineKey()]: { features: { "/features/slow.feature": { seconds: 99, steps: 1 } }, steps: 1, seconds: 99 } }),
-		);
-		expect(recordTimings(dir, runOf(featureRan("/features/quick.feature", 0, 100, 1)), true)).toEqual([]);
-		expect(Object.keys(writtenIn(dir)[machineKey()].features)).toEqual(["/features/quick.feature"]);
+		const file = path.join(dir, TIMINGS_FILE);
+		nodeFS.writeFileSync(file, JSON.stringify({ [machineKey()]: { features: { "/features/slow.feature": { seconds: 99, steps: 1 } }, steps: 1, seconds: 99 } }));
+		expect(() => recordTimings(dir, runOf(featureRan("/features/quick.feature", 0, 100, 1)), true)).toThrow("that isn't a set of timings");
+		nodeFS.writeFileSync(file, "{ not json");
+		expect(() => recordTimings(dir, runOf(featureRan("/features/quick.feature", 0, 100, 1)), true)).toThrow("doesn't hold an object of timings by machine");
 	});
 
 	it("reports a feature whose duration differs from the recorded run by both a fifth and a second", () => {

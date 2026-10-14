@@ -1,4 +1,4 @@
-import { AStepper } from "../astepper.js";
+import { AStepper } from "../steps/domains/stepper.js";
 import { actionNotOK, actionOK } from "../util/index.js";
 
 const TestSteps = class TestSteps extends AStepper {

@@ -9,7 +9,7 @@ import { z } from "zod";
 import { ActivitiesStepper } from "./activities-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun.js";
-import { AStepper, type IStepperCycles, type TStepperSteps } from "../lib/astepper.js";
+import { AStepper, type IStepperCycles, type TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { actionOK } from "../lib/util/index.js";
 import { fromJsonText } from "../lib/json-text.js";
 import { passWithDefaults } from "../lib/test/lib.js";

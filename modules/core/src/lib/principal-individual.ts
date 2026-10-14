@@ -1,8 +1,7 @@
 /**
- * Persist a Principal individual: the public, durable descriptor a DID resolves to (a site principal, an agent, or a
- * VC issuer). Crypto-free: writes through the abstract store, public material only (publicKeyMultibase, never a
- * private key). Shared by every stepper that names a principal, so one DID is one Principal node: its VC-issuance and
- * capability roles converge.
+ * Writes a Principal individual: the public, durable descriptor a DID resolves to, such as a site principal or an agent.
+ * It writes through the store port, and only public material: a publicKeyMultibase, never a private key. Every stepper
+ * that names a principal writes it through this module, so one DID is one Principal node, whatever roles it holds.
  */
 import type { TWorld } from "./world.js";
 import { PRINCIPAL_DOMAIN, PRINCIPAL_LABEL, type TPrincipal } from "./resources.js";

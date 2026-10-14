@@ -192,10 +192,10 @@ function environmentIn(cwd: string, env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
 
 /** Returns the recorded outcome of a run's features against their present state, under the conditions a run would receive.
  *  It computes those conditions as a run does: from `cwd`, with the environment a run reads there.
- *  Returns undefined when the features haven't executed against that state or when the state can't be read. startRun then forks the child. */
+ *  Returns undefined when the features haven't executed against that state, and throws where the configuration doesn't read.
+ *  startRun forks the child where it returns undefined. */
 export function verifiedRun(config: string, dir: string, filter: string, cwd: string, env: NodeJS.ProcessEnv): TOutcome | undefined {
 	const specl = getConfigFromBase([dir]);
-	if (!specl) return undefined;
 	const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(environmentIn(cwd, env), specl);
 	const v = verificationOf({ configPath: config, specl, bases: [dir], cwd, filter: filter ? filter.split(",") : [], options, moduleOptions });
 	return v === undefined ? undefined : outcomeAgainst(v)?.outcome;
@@ -205,7 +205,6 @@ export function verifiedRun(config: string, dir: string, filter: string, cwd: st
  *  It reads the option as a run does: from `env`, the .env file in `cwd`, and the config. */
 function signInOf(dir: string, cwd: string, env: NodeJS.ProcessEnv): TBasicAuthUser | undefined {
 	const specl = getConfigFromBase([dir]);
-	if (!specl) return undefined;
 	const listed = processBaseEnvToOptionsAndErrors(environmentIn(cwd, env), specl).moduleOptions[BASIC_AUTH_OPTION];
 	return listed ? basicAuthUsers(String(listed))[0] : undefined;
 }

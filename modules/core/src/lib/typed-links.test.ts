@@ -20,7 +20,7 @@ import { FRAGMENT_SPEC, assertFragmentReads } from "./media-fragments.js";
 const TYPES = new Set(["Document", "Comment", "FieldReport"]);
 /** The declared ontology as a consumer's registration would supply it: core rels plus one consumer edge. */
 const vocab: TLinkVocabulary = {
-	relRange: (rel) => (rel === "credentialSubject" ? "iri" : Object.values(LinkRelations).find((e) => e.rel === rel && !(e as { abstract?: boolean }).abstract)?.range),
+	relRange: (rel) => (rel === "permitHolder" ? "iri" : Object.values(LinkRelations).find((e) => e.rel === rel && !(e as { abstract?: boolean }).abstract)?.range),
 	isType: (name) => TYPES.has(name),
 };
 const isType = vocab.isType;
@@ -131,7 +131,7 @@ describe("classifyLinkText", () => {
 		expect(classifyLinkText("the design it exercises:cites", vocab)).toEqual({ rel: "cites", linkText: "the design it exercises" });
 	});
 	it("states a consumer's own property type, so a consumer vocabulary is writable in prose", () => {
-		expect(classifyLinkText("the person it is about:credentialSubject", vocab)).toEqual({ rel: "credentialSubject", linkText: "the person it is about" });
+		expect(classifyLinkText("the person it is about:permitHolder", vocab)).toEqual({ rel: "permitHolder", linkText: "the person it is about" });
 	});
 	it("reads a leading colon as a property type without words of its own", () => {
 		expect(classifyLinkText(":cites", vocab)).toEqual({ rel: "cites" });
@@ -140,7 +140,7 @@ describe("classifyLinkText", () => {
 		expect(classifyLinkText("the design document", vocab)).toBeNull();
 		expect(classifyLinkText("Section 3: Overview", vocab)).toBeNull();
 		expect(classifyLinkText("cites", vocab)).toBeNull();
-		expect(classifyLinkText("credentialSubject", vocab)).toBeNull();
+		expect(classifyLinkText("permitHolder", vocab)).toBeNull();
 	});
 	it("fails on a rel the ontology does not declare", () => {
 		expect(() => classifyLinkText("a task:notARel", vocab)).toThrow(/not a declared rel/);

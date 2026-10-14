@@ -3,51 +3,15 @@ import { tmpdir } from "node:os";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { REQUEST_BODY_LIMIT_BYTES, ServerHono } from "./server-hono.js";
-import type { IEventLogger } from "@haibun/core/lib/EventLogger.js";
-import { QuadStore } from "@haibun/core/lib/quad-store.js";
+import { QuadStore, newStoreChain } from "@haibun/core/lib/quad-store.js";
 import { EndpointLabels } from "./defs.js";
 import { whyNotSignedInOnly } from "./auth.js";
 import { basicAuthUsers } from "@haibun/core/lib/basic-auth.js";
-import { freePort } from "@haibun/core/lib/test/lib.js";
+import { eventHubOfTest, freePort } from "@haibun/core/lib/test/lib.js";
 import { recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { storeDeclaring } from "@haibun/core/lib/test/declared-types.js";
 
-const mockLogger: IEventLogger = {
-	subscribe: () => {
-		/* noop */
-	},
-	unsubscribe: () => {
-		/* noop */
-	},
-	hasSubscribers: () => false,
-	info: () => {
-		/* noop */
-	},
-	warn: () => {
-		/* noop */
-	},
-	error: () => {
-		/* noop */
-	},
-	debug: () => {
-		/* noop */
-	},
-	artifact: () => {
-		/* noop */
-	},
-	emit: () => {
-		/* noop */
-	},
-	log: () => {
-		/* noop */
-	},
-	stepStart: () => {
-		/* noop */
-	},
-	stepEnd: () => {
-		/* noop */
-	},
-};
+const mockLogger = eventHubOfTest();
 
 const P = { description: "test route" };
 
@@ -180,8 +144,8 @@ describe("ServerHono", () => {
 
 	describe("listen/close", () => {
 		it("throws on invalid port", () => {
-			expect(() => server.listen("test", -1)).toThrow("invalid port");
-			expect(() => server.listen("test", NaN)).toThrow("invalid port");
+			expect(() => server.listen("test", -1)).toThrow("takes a port above 0");
+			expect(() => server.listen("test", NaN)).toThrow("takes a port above 0");
 		});
 
 		it("listens on a free port and closes", async () => {
@@ -260,7 +224,7 @@ describe("a server that admits people by basic auth", () => {
 	const ADMITTED = "reader:a-password-for-this-test";
 	const signIn = (entry: string) => ({ authorization: `Basic ${Buffer.from(entry).toString("base64")}` });
 	const serving = () => {
-		const server = new ServerHono(mockLogger, "/tmp", () => new QuadStore(), [], basicAuthUsers(ADMITTED));
+		const server = new ServerHono(mockLogger, "/tmp", () => new QuadStore(newStoreChain()), [], basicAuthUsers(ADMITTED));
 		server.addRoute("get", "/held", { description: "a route every feature might add" }, (c) => c.text("held"));
 		return server.app;
 	};
@@ -276,7 +240,7 @@ describe("a server that admits people by basic auth", () => {
 	});
 
 	it("still asks after a feature's routes are cleared, since the next feature's routes are as held", async () => {
-		const server = new ServerHono(mockLogger, "/tmp", () => new QuadStore(), [], basicAuthUsers(ADMITTED));
+		const server = new ServerHono(mockLogger, "/tmp", () => new QuadStore(newStoreChain()), [], basicAuthUsers(ADMITTED));
 		server.clearMounted();
 		expect((await server.app.request("/held")).status).toBe(401);
 	});
@@ -284,7 +248,7 @@ describe("a server that admits people by basic auth", () => {
 	it("passes the check that an address asks every visitor to sign in, which a server that doesn't ask fails with what to change", async () => {
 		const asking = serving();
 		expect(await whyNotSignedInOnly("https://site.test/held", (at) => Promise.resolve(asking.request(at)))).toBeUndefined();
-		const open = new ServerHono(mockLogger, "/tmp", () => new QuadStore(), []);
+		const open = new ServerHono(mockLogger, "/tmp", () => new QuadStore(newStoreChain()), []);
 		open.addRoute("get", "/held", { description: "a route anyone reaches" }, (c) => c.text("held"));
 		expect(await whyNotSignedInOnly("https://site.test/held", (at) => Promise.resolve(open.app.request(at)))).toBe(
 			"https://site.test/held answered 200 without a sign-in; it must answer 401. Put basic auth on its proxy, or set the web server's BASIC_AUTH option.",

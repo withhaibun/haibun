@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { QuadGraphModel } from "./quad-graph-model.js";
-import type { TQuad } from "./quad-types.js";
+import type { TQuad } from "./steps/domains/quad-types.js";
 import { LinkRelations, TEXT_QUOTE_SELECTOR_LABEL, SPECIFIC_RESOURCE_LABEL } from "./resources.js";
 import { itemAt } from "./util/item-at.js";
 
@@ -19,8 +19,8 @@ const noRels = (): undefined => undefined;
 describe("QuadGraphModel", () => {
 	it("admits subjects under the per-type limit and clusters them", () => {
 		const m = new QuadGraphModel(2, noRels);
-		m.merge([q("a", "name", "A", "Email"), q("b", "name", "B", "Email")]);
-		const c = m.clusters.find((c) => c.type === "Email");
+		m.merge([q("a", "name", "A", "Letter"), q("b", "name", "B", "Letter")]);
+		const c = m.clusters.find((c) => c.type === "Letter");
 		expect(c?.sampledCount).toBe(2);
 		expect(c?.sampledSubjects).toEqual(["a", "b"]);
 		expect(c?.omittedCount).toBe(0);
@@ -29,8 +29,8 @@ describe("QuadGraphModel", () => {
 
 	it("omits a new subject once its type is at its limit, counts it and drops its quad", () => {
 		const m = new QuadGraphModel(1, noRels);
-		m.merge([q("a", "name", "A", "Email"), q("b", "name", "B", "Email")]);
-		const c = m.clusters.find((c) => c.type === "Email");
+		m.merge([q("a", "name", "A", "Letter"), q("b", "name", "B", "Letter")]);
+		const c = m.clusters.find((c) => c.type === "Letter");
 		expect(c?.sampledCount).toBe(1);
 		expect(c?.totalCount).toBe(2);
 		expect(c?.omittedCount).toBe(1);
@@ -40,8 +40,8 @@ describe("QuadGraphModel", () => {
 	it("keeps a pinned subject's quad as an extra even when its type is at its limit", () => {
 		const m = new QuadGraphModel(1, noRels);
 		m.pin(["b"]);
-		m.merge([q("a", "name", "A", "Email"), q("b", "name", "B", "Email")]);
-		const c = m.clusters.find((c) => c.type === "Email");
+		m.merge([q("a", "name", "A", "Letter"), q("b", "name", "B", "Letter")]);
+		const c = m.clusters.find((c) => c.type === "Letter");
 		expect(m.quads).toHaveLength(2); // b kept despite limit 1 (not dropped)
 		expect(m.quads.some((x) => x.subject === "b")).toBe(true);
 		expect(c?.omittedCount).toBe(0); // pinned, not omitted
@@ -65,8 +65,8 @@ describe("QuadGraphModel", () => {
 
 	it("dedups a scalar property by (namedGraph|subject|predicate) and replaces it in place", () => {
 		const m = new QuadGraphModel(10, noRels);
-		m.merge([q("a", "name", "A", "Email", 1)]);
-		m.merge([q("a", "name", "A2", "Email", 2)]);
+		m.merge([q("a", "name", "A", "Letter", 1)]);
+		m.merge([q("a", "name", "A2", "Letter", 2)]);
 		expect(m.quads).toHaveLength(1);
 		expect(itemAt(m.quads, 0).object).toBe("A2");
 	});
@@ -92,8 +92,8 @@ describe("QuadGraphModel", () => {
 
 	it("replaces totalCount with the store's total", () => {
 		const m = new QuadGraphModel(10, noRels);
-		m.merge([q("a", "name", "A", "Email")], { totalCounts: new Map([["Email", 500]]) });
-		const c = m.clusters.find((c) => c.type === "Email");
+		m.merge([q("a", "name", "A", "Letter")], { totalCounts: new Map([["Letter", 500]]) });
+		const c = m.clusters.find((c) => c.type === "Letter");
 		expect(c?.totalCount).toBe(500);
 		expect(c?.sampledCount).toBe(1);
 		expect(c?.omittedCount).toBe(499);
@@ -101,8 +101,8 @@ describe("QuadGraphModel", () => {
 
 	it("sets a display label for each touched subject", () => {
 		const m = new QuadGraphModel(10, noRels);
-		m.merge([q("a", "name", "A", "Email")]);
-		const c = m.clusters.find((c) => c.type === "Email");
+		m.merge([q("a", "name", "A", "Letter")]);
+		const c = m.clusters.find((c) => c.type === "Letter");
 		expect(typeof c?.displayLabels["a"]).toBe("string");
 	});
 

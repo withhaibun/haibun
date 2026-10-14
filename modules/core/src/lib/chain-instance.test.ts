@@ -14,8 +14,8 @@ import {
 
 const sampleMichi: TMichi = {
 	steps: [
-		{ stepperName: "Issue", stepName: "issueCredential", gwta: "issue credential", productsDomain: "credential" },
-		{ stepperName: "Verify", stepName: "verifyCredential", gwta: "verify credential", productsDomain: "verified-credential" },
+		{ stepperName: "Issue", stepName: "issuePermit", gwta: "issue permit", productsDomain: "permit" },
+		{ stepperName: "Verify", stepName: "verifyPermit", gwta: "verify permit", productsDomain: "verified-permit" },
 	],
 	bindings: [{ kind: "argument", domain: "issuer" }],
 };
@@ -27,9 +27,9 @@ describe("chain-instance", () => {
 	});
 
 	it("seeds a new instance with one quad per declared predicate and returns the assembled value", async () => {
-		const inst = await createChainInstance(world, "credential-verified", sampleMichi);
+		const inst = await createChainInstance(world, "permit-verified", sampleMichi);
 		expect(inst.id).toMatch(/^ci_/);
-		expect(inst.goal).toBe("credential-verified");
+		expect(inst.goal).toBe("permit-verified");
 		expect(inst.michi.steps).toHaveLength(2);
 		expect(inst.stepIndex).toBe(0);
 		expect(inst.status).toBe(CHAIN_INSTANCE_STATUS.PENDING);
@@ -40,10 +40,10 @@ describe("chain-instance", () => {
 	});
 
 	it("reads an instance back from the quad store", async () => {
-		const created = await createChainInstance(world, "credential-verified", sampleMichi);
+		const created = await createChainInstance(world, "permit-verified", sampleMichi);
 		const loaded = await getChainInstance(world, created.id);
 		expect(loaded).toBeDefined();
-		expect(loaded?.goal).toBe("credential-verified");
+		expect(loaded?.goal).toBe("permit-verified");
 		expect(loaded?.michi.steps[0]?.stepperName).toBe("Issue");
 	});
 
@@ -53,7 +53,7 @@ describe("chain-instance", () => {
 	});
 
 	it("updateChainInstance only writes the supplied predicates and refreshes updatedAt", async () => {
-		const inst = await createChainInstance(world, "credential-verified", sampleMichi);
+		const inst = await createChainInstance(world, "permit-verified", sampleMichi);
 		const before = inst.updatedAt;
 		await new Promise((r) => setTimeout(r, 5));
 		await updateChainInstance(world, inst.id, { stepIndex: 1, status: CHAIN_INSTANCE_STATUS.RUNNING, stepFactIds: [["chain/ci_x/0"], []] });
@@ -62,7 +62,7 @@ describe("chain-instance", () => {
 		expect(after?.status).toBe(CHAIN_INSTANCE_STATUS.RUNNING);
 		expect(after?.stepFactIds[0]).toEqual(["chain/ci_x/0"]);
 		expect(after?.updatedAt).toBeGreaterThan(before);
-		expect(after?.goal).toBe("credential-verified");
+		expect(after?.goal).toBe("permit-verified");
 	});
 
 	it("listChainInstances returns every instance the store carries", async () => {
@@ -74,7 +74,7 @@ describe("chain-instance", () => {
 	});
 
 	it("deleteChainInstance removes every predicate for that instance", async () => {
-		const inst = await createChainInstance(world, "credential-verified", sampleMichi);
+		const inst = await createChainInstance(world, "permit-verified", sampleMichi);
 		await deleteChainInstance(world, inst.id);
 		const remaining = await world.shared.getStore().query({ namedGraph: CHAIN_INSTANCE_GRAPH, subject: inst.id });
 		expect(remaining).toEqual([]);

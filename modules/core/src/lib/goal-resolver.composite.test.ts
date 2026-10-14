@@ -14,7 +14,7 @@ import { RUN_AUTHORITY } from "./capability-context.js";
 
 const IssuerSchema = z.object({ did: z.string(), name: z.string().optional() });
 const ProofSchema = z.object({ value: z.string() });
-const VcSchema = z.object({
+const PermitSchema = z.object({
 	subject: z.string(),
 	issuer: z.string(), // ranged to issuer
 	proof: z.object({ value: z.string() }), // ranged to proof
@@ -28,31 +28,31 @@ function makeDomains(): Record<string, TRegisteredDomain> {
 	return {
 		issuer: reg(IssuerSchema, { persistedAs: "Issuer", accessLevel: Access.private, id: "did", properties: {} }),
 		proof: reg(ProofSchema, { persistedAs: "Proof", accessLevel: Access.private, id: "value", properties: {} }),
-		vc: reg(VcSchema, { persistedAs: "VerifiableCredential", accessLevel: Access.private, id: "subject", properties: {}, ranges: { issuer: "issuer", proof: "proof" } }),
-		"verifiable-credential": reg(z.object({ id: z.string() })),
+		permit: reg(PermitSchema, { persistedAs: "SignedPermit", accessLevel: Access.private, id: "subject", properties: {}, ranges: { issuer: "issuer", proof: "proof" } }),
+		"signed-permit": reg(z.object({ id: z.string() })),
 	};
 }
 
-function graphIssuingCredential(): TDomainChainGraph {
-	// One step produces verifiable-credential from vc. vc doesn't have a producer. The resolver decomposes vc as a
+function graphIssuingPermit(): TDomainChainGraph {
+	// One step produces signed-permit from permit. permit doesn't have a producer. The resolver decomposes permit as a
 	// composite leaf where composite decomposition is on.
 	return {
 		domains: [
-			{ key: "vc", hasTopology: true },
-			{ key: "verifiable-credential", hasTopology: true },
+			{ key: "permit", hasTopology: true },
+			{ key: "signed-permit", hasTopology: true },
 		],
 		steps: [
 			{
-				stepperName: "Credentials",
-				stepName: "issueCredential",
-				gwta: "issue credential",
-				params: { what: "vc" },
-				inputDomains: ["vc"],
-				outputDomains: ["verifiable-credential"],
-				capability: "Credentials:issueCredential",
+				stepperName: "Permits",
+				stepName: "issuePermit",
+				gwta: "issue permit",
+				params: { what: "permit" },
+				inputDomains: ["permit"],
+				outputDomains: ["signed-permit"],
+				capability: "Permits:issuePermit",
 			},
 		],
-		edges: [{ from: "vc", to: "verifiable-credential", stepperName: "Credentials", stepName: "issueCredential" }],
+		edges: [{ from: "permit", to: "signed-permit", stepperName: "Permits", stepName: "issuePermit" }],
 	};
 }
 
@@ -62,17 +62,17 @@ function withComposite(inputs: TResolverInputs): TResolverInputs {
 
 describe("resolveGoal, composite decomposition", () => {
 	it("emits a flat `argument` binding for the composite when decomposition isn't enabled", () => {
-		const graph = graphIssuingCredential();
-		const result = resolveGoal("verifiable-credential", { graph, facts: [], held: RUN_AUTHORITY });
+		const graph = graphIssuingPermit();
+		const result = resolveGoal("signed-permit", { graph, facts: [], held: RUN_AUTHORITY });
 		if (result.finding !== GOAL_FINDING.MICHI) throw new Error(`expected MICHI, got ${result.finding}`);
 		const m = result.michi[0];
 		expect(m.bindings).toHaveLength(1);
-		expect(m.bindings[0]).toMatchObject({ kind: "argument", domain: "vc" });
+		expect(m.bindings[0]).toMatchObject({ kind: "argument", domain: "permit" });
 	});
 
 	it("emits a composite binding with an `argument` field binding for each field without a range", () => {
-		const graph = graphIssuingCredential();
-		const result = resolveGoal("verifiable-credential", withComposite({ graph, facts: [], held: RUN_AUTHORITY }));
+		const graph = graphIssuingPermit();
+		const result = resolveGoal("signed-permit", withComposite({ graph, facts: [], held: RUN_AUTHORITY }));
 		if (result.finding !== GOAL_FINDING.MICHI) throw new Error(`expected MICHI, got ${result.finding}`);
 		const composite = findComposite(result.michi[0].bindings);
 		expect(composite).toBeTruthy();
@@ -81,9 +81,9 @@ describe("resolveGoal, composite decomposition", () => {
 	});
 
 	it("binds an existing fact to a ranged field instead of an argument", () => {
-		const graph = graphIssuingCredential();
+		const graph = graphIssuingPermit();
 		const issuerFact: TFact = { id: "fact-issuer-1", domain: "issuer", value: { did: "did:example:alice" } };
-		const result = resolveGoal("verifiable-credential", withComposite({ graph, facts: [issuerFact], held: RUN_AUTHORITY }));
+		const result = resolveGoal("signed-permit", withComposite({ graph, facts: [issuerFact], held: RUN_AUTHORITY }));
 		if (result.finding !== GOAL_FINDING.MICHI) throw new Error(`expected MICHI, got ${result.finding}`);
 		const composite = findComposite(result.michi[0].bindings);
 		const issuer = composite?.fields.find((f) => f.fieldName === "issuer");
@@ -111,7 +111,7 @@ describe("resolveGoal, composite decomposition", () => {
 	});
 
 	it("emits one michi for a step whose inputs share a domain, not one per edge", () => {
-		// Each input of `verify credential {id: string} as {verifierId: string}` has its own graph edge to the products
+		// Each input of `verify permit {id: string} as {verifierId: string}` has its own graph edge to the products
 		// domain. The resolver enumerates the step once, not once per edge, and the michi carries both bindings.
 		const graph: TDomainChainGraph = {
 			domains: [
@@ -141,10 +141,10 @@ describe("resolveGoal, composite decomposition", () => {
 	});
 
 	it("emits a flat argument binding when the domains map is missing, even with the flag on", () => {
-		const graph = graphIssuingCredential();
-		const result = resolveGoal("verifiable-credential", { graph, facts: [], held: RUN_AUTHORITY, compositeDecomposition: true });
+		const graph = graphIssuingPermit();
+		const result = resolveGoal("signed-permit", { graph, facts: [], held: RUN_AUTHORITY, compositeDecomposition: true });
 		if (result.finding !== GOAL_FINDING.MICHI) throw new Error(`expected MICHI, got ${result.finding}`);
-		expect(result.michi[0].bindings[0]).toMatchObject({ kind: "argument", domain: "vc" });
+		expect(result.michi[0].bindings[0]).toMatchObject({ kind: "argument", domain: "permit" });
 	});
 });
 

@@ -1,7 +1,6 @@
 import type { z } from "zod";
 import { z as zr } from "zod";
 
-import type { TAnyFixme } from "./fixme.js";
 import { MODULE_OPTION_PREFIX } from "../schema/protocol.js";
 
 // ============================================================================
@@ -88,4 +87,5 @@ export function registeredPaths(registry: IRouteRegistry): Set<string> {
 // Misc
 // ============================================================================
 
-export type TOptionValue = TAnyFixme;
+/** An option's value as its parse returns it. */
+export type TOptionValue = string | number | boolean | object;

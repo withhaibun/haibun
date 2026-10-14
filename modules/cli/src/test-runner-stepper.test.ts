@@ -21,9 +21,10 @@ import { AStepper, type IHasCycles, type IStepperCycles } from "@haibun/core/lib
 import { actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { addStepperConcerns } from "@haibun/core/phases/Executor.js";
-import { hostScopedMethodName, openRunRegistry, runRegistry } from "@haibun/core/lib/step-registry.js";
+import { hostScopedMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
+import { openRunRegistry, runRegistry } from "@haibun/core/lib/step-registry.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
-import { QuadStore } from "@haibun/core/lib/quad-store.js";
+import { QuadStore, newStoreChain } from "@haibun/core/lib/quad-store.js";
 import nodeFS from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -111,7 +112,7 @@ function harness({ supervised = true, standing = false }: { supervised?: boolean
 	const stepper = new TestRunnerStepper();
 	const supervisor = new InstanceStepper();
 	// Wraps upsertIndividual on the framework's in-memory QuadStore to list each write in order.
-	const store = new QuadStore();
+	const store = new QuadStore(newStoreChain());
 	const upsert = store.upsertIndividual.bind(store);
 	store.upsertIndividual = async (label: string, data: Record<string, unknown>) => {
 		written.push({ label, data });

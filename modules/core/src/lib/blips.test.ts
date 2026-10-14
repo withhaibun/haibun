@@ -2,13 +2,13 @@ import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import { declareBlips, blipDeclarations, BlipRollup } from "./blips.js";
 import { recordBlip } from "./record-blip.js";
-import { EventLogger } from "./EventLogger.js";
+import { eventHubOfTest } from "./test/lib.js";
 import type { THaibunEvent } from "../schema/protocol.js";
 import type { TWorld } from "./world.js";
 import { runInStep } from "./capability-context.js";
 
 const make = () => {
-	const eventLogger = new EventLogger();
+	const eventLogger = eventHubOfTest();
 	const world = { runtime: {}, eventLogger } as unknown as TWorld;
 	return { eventLogger, world };
 };

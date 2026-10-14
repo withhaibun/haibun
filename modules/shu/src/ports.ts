@@ -3,7 +3,7 @@
  * instance's graph.
  */
 import type { TRequestSigner } from "@haibun/core/lib/authority-types.js";
-import type { TFederatedGraphSource } from "@haibun/core/lib/quad-types.js";
+import type { TFederatedGraphSource } from "@haibun/core/lib/steps/ports.js";
 
 /** A served asset's text, and the tag through which a browser revalidates it. */
 export type TServedAsset = { content: string; etag: string };

@@ -17,7 +17,7 @@ import {
 	type TQuerySurface,
 	type TTitledBy,
 } from "../../hypermedia.js";
-import { ORDER_KEY, VIA_FIELD, type TDistinctValues, type TGraphQuery, type TOrderKey, type TQuad, type TRecordsPage, type TSearchCondition } from "../../quad-types.js";
+import { ORDER_KEY, VIA_FIELD, statedQuery, type TDistinctValues, type TGraphQuery, type TOrderKey, type TQuad, type TRecordsPage, type TSearchCondition, type TStatedQuery } from "../../steps/domains/quad-types.js";
 import { AccessQuery, LinkRelations, isPersisted, statedLevel, type THeldBy, type TRegisteredDomain } from "../../resources.js";
 
 /** The name a refusal and a rejected bound state for the read function. */
@@ -87,7 +87,7 @@ export function readDeclarationsOfCatalog(catalog: TConcernCatalog): TReadDeclar
 }
 
 /** Returns the page a read states. Throws where `limit` or `perType` is outside 1 to `MAX_PAGE_ROWS`. */
-export function readPage({ limit, offset, perType }: Pick<TGraphQuery, "limit" | "offset" | "perType">): TReadPage {
+export function readPage({ limit, offset, perType }: Pick<TStatedQuery, "limit" | "offset" | "perType">): TReadPage {
 	return perType === undefined ? { limit: pageLimit(READ_RECORDS, limit), offset } : { perType: pageLimit(READ_RECORDS, perType) };
 }
 
@@ -156,7 +156,7 @@ const NOTHING_NAMED = `${READ_RECORDS} reads one type, a term across the types a
  * reach the records.
  */
 export function readRefusal(query: TGraphQuery, declarations: Pick<TReadDeclarations, "of">, reach: TReadReach): string | undefined {
-	const { label, textQuery, references, referencedBy, named, filters, sortBy } = query;
+	const { label, textQuery, references, referencedBy, named, filters, sortBy } = statedQuery(query);
 	if (label === undefined && textQuery === undefined && !references && !referencedBy && !named) return NOTHING_NAMED;
 	if (named && label === undefined) return `${READ_RECORDS} reads the named records of one type: name their type in label`;
 	const unheld = [...(references?.via ?? []), ...(referencedBy?.via ?? [])].filter((relation) => !reach.relations.includes(relation));
@@ -200,7 +200,7 @@ const SCORE_ASCENDING: TOrderKey = { key: ORDER_KEY.score, order: "asc" };
  * read orders by the order of `named`. A term orders by type and score, and a reference read by type, and then by score
  * where a term narrows it. A page of one type orders by its sort field, or by `defaultSort`, with ties in the same direction.
  */
-export function readOrder(query: Pick<TGraphQuery, "named" | "references" | "referencedBy" | "textQuery" | "sortBy" | "sortOrder">, defaultSort: string | undefined): TOrderKey[] {
+export function readOrder(query: Pick<TStatedQuery, "named" | "references" | "referencedBy" | "textQuery" | "sortBy" | "sortOrder">, defaultSort: string | undefined): TOrderKey[] {
 	if (query.named) return [{ key: ORDER_KEY.named, order: "asc" }, ID_ASCENDING];
 	if (query.textQuery !== undefined) return [TYPE_ASCENDING, SCORE_ASCENDING, ID_ASCENDING];
 	if (query.references || query.referencedBy) return [TYPE_ASCENDING, ID_ASCENDING];
@@ -339,7 +339,8 @@ function byOrder(keys: readonly TOrderKey[]): (a: TReached, b: TReached) => numb
  * through this derivation, so their pages hold the same records in the same order. Throws the text of `readRefusal` for a
  * read the declarations don't reach, and a store of held records doesn't search text.
  */
-export function readFromRecords(records: readonly THeldRecord[], query: TGraphQuery, declarations: TReadDeclarations): TRecordsPage {
+export function readFromRecords(records: readonly THeldRecord[], read: TGraphQuery, declarations: TReadDeclarations): TRecordsPage {
+	const query = statedQuery(read);
 	const refusal = readRefusal(query, declarations, { search: false, types: declarations.types, relations: declarations.relations });
 	if (refusal) throw new Error(refusal);
 	const page = readPage(query);

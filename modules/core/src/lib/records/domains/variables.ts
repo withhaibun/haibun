@@ -4,7 +4,7 @@
  */
 import { z } from "zod";
 import { Access, EDGE, HELD_BY, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "../../resources.js";
-import { SHARED_GRAPH } from "../../quad-types.js";
+import { SHARED_GRAPH } from "../../steps/domains/quad-types.js";
 
 const VARIABLE_DOMAIN = "variable";
 

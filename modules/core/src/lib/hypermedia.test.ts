@@ -151,7 +151,7 @@ describe("queryableFields: the one declaration-side derivation of a type's query
 		attachments: z.array(z.object({ name: z.string() })),
 	});
 	const topology: THypermediaTopology = {
-		persistedAs: "Email",
+		persistedAs: "Letter",
 		accessLevel: Access.private,
 		id: "messageId",
 		properties: { subject: LinkRelations.NAME.rel, folder: LinkRelations.CONTEXT.rel, generatedAtTime: LinkRelations.GENERATED_AT_TIME.rel },

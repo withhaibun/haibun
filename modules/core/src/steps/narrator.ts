@@ -2,7 +2,7 @@ import { resolve } from "path";
 
 import type { TWorld } from "../lib/world.js";
 import { Origin } from "../schema/protocol.js";
-import { IHasCycles, IHasOptions, AStepper, TFeatureStep, IStepperCycles, TStartFeature, type TStepperSteps } from "../lib/astepper.js";
+import { IHasCycles, IHasOptions, AStepper, TFeatureStep, IStepperCycles, TStartFeature, type TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOK, getStepperOption, sleep, stringOrError } from "../lib/util/index.js";
 import { actualURI } from "../lib/util/node/actualURI.js";
 import { copyPreRenderedAudio, doExec, doSpawn, playAudioFile, preRenderFeatureProse, TRenderedAudioMap } from "./lib/tts.js";

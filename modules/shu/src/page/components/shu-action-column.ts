@@ -56,7 +56,8 @@ export class ShuActionColumn extends ShuElement<typeof StateSchema> {
 	async open(action: string): Promise<void> {
 		this.setState({ action });
 		await this.updateComplete;
-		await this.#load.taskComplete.catch(() => undefined);
+		// The task renders a failed read as its refusal, so opening waits for the read to settle either way.
+		await Promise.allSettled([this.#load.taskComplete]);
 	}
 
 	render(): TemplateResult {

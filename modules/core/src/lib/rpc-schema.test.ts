@@ -10,14 +10,14 @@ describe("JSON-RPC 2.0 schema compliance", () => {
 			protocol: RPC_PROTOCOL,
 			id: "1",
 			method: "RemoteSteps-getLabelRels",
-			params: { label: "Email" },
+			params: { label: "Letter" },
 			actualityId: ACTUALITY,
 		});
 		expect(result.success).toBe(true);
 	});
 
 	it("rejects a request with a `type` field in place of `jsonrpc`", () => {
-		const result = RpcRequestSchema.safeParse({ type: "rpc", id: "1", method: "RemoteSteps-getLabelRels", params: { label: "Email" } });
+		const result = RpcRequestSchema.safeParse({ type: "rpc", id: "1", method: "RemoteSteps-getLabelRels", params: { label: "Letter" } });
 		expect(result.success).toBe(false);
 	});
 

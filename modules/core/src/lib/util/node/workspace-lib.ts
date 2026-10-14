@@ -2,7 +2,7 @@ import path, { dirname } from "path";
 import nodeFS from "fs";
 
 import { type TStepperEntry } from "../../execution.js";
-import { CStepper } from "../../astepper.js";
+import { CStepper } from "../../steps/domains/stepper.js";
 import { createSteppers } from "../index.js";
 import { use } from "./module-loader.js";
 import { fileURLToPath } from "url";
@@ -83,7 +83,7 @@ export function getModuleLocation(name: string) {
 		if (parts.length === 2) return pkgDir;
 		const subpath = `./${parts.slice(2).join("/")}`;
 		const pkgJsonPath = path.join(pkgDir, "package.json");
-		if (!nodeFS.existsSync(pkgJsonPath)) throw new Error(`package ${pkgName} not found at ${pkgDir}`);
+		if (!nodeFS.existsSync(pkgJsonPath)) throw new Error(`the package ${pkgName} isn't installed at ${pkgDir}; install it in the workspace`);
 		const pkg: Record<string, unknown> = pkgJsonCache.get(pkgJsonPath) ?? JSON.parse(nodeFS.readFileSync(pkgJsonPath, "utf-8"));
 		pkgJsonCache.set(pkgJsonPath, pkg);
 		const exports = pkg.exports as Record<string, string | Record<string, string>> | undefined;

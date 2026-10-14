@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
 
-import { AStepper, type TStepperSteps } from "./astepper.js";
+import { AStepper, type TStepperSteps } from "./steps/domains/stepper.js";
 import type { TRegisteredDomain } from "./resources.js";
 import { mapDefinitionsToDomains } from "./domains.js";
 import { OK } from "../schema/protocol.js";
@@ -9,20 +9,20 @@ import { actionOKWithProducts } from "./util/index.js";
 import { buildDomainChain } from "./domain-chain.js";
 
 const PERSON_DOMAIN = "person";
-const EMAIL_DOMAIN = "email";
+const EMAIL_DOMAIN = "letter";
 const SESSION_DOMAIN = "session";
 
 function fixedDomains(): Record<string, TRegisteredDomain> {
 	return mapDefinitionsToDomains([
 		{ selectors: [PERSON_DOMAIN], schema: z.object({ id: z.string() }), description: "person" },
-		{ selectors: [EMAIL_DOMAIN], schema: z.object({ id: z.string() }), description: "email" },
+		{ selectors: [EMAIL_DOMAIN], schema: z.object({ id: z.string() }), description: "letter" },
 		{ selectors: [SESSION_DOMAIN], schema: z.object({ id: z.string() }), description: "session" },
 	]);
 }
 
 class EmailFromPerson extends AStepper {
-	description = "Issues an email for a person.";
-	steps: TStepperSteps = { issue: { gwta: `issue email for {who: ${PERSON_DOMAIN}}`, productsDomain: EMAIL_DOMAIN, action: () => actionOKWithProducts({ id: "e1" }) } };
+	description = "Issues an letter for a person.";
+	steps: TStepperSteps = { issue: { gwta: `issue letter for {who: ${PERSON_DOMAIN}}`, productsDomain: EMAIL_DOMAIN, action: () => actionOKWithProducts({ id: "e1" }) } };
 }
 
 class SessionFromPerson extends AStepper {

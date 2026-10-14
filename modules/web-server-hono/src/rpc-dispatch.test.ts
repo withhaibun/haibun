@@ -19,18 +19,19 @@ import { z } from "zod";
 import { passWithDefaults, DEF_PROTO_OPTIONS, freePort } from "@haibun/core/lib/test/lib.js";
 import { TEST_DOMAIN, declaresTestDomains } from "@haibun/core/lib/test/test-domains.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
-import { OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
+import { LogEvent, OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import FakeAuthorityStepper, { DOMAIN_FAKE_HOLDER, FakeInvoker, fakeGrant } from "@haibun/core/lib/test/fake-authority.js";
 import WebServerStepper from "./web-server-stepper.js";
 import { WEBSERVER, type IWebServer } from "./defs.js";
 import Haibun from "@haibun/core/steps/haibun.js";
-import { EVERY_DEFINITION, SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, readShownSteps, type TStepDefinition } from "@haibun/core/lib/step-discovery.js";
-import { refusal } from "@haibun/core/lib/step-registry.js";
+import { EVERY_DEFINITION, SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, type TStepDefinition } from "@haibun/core/lib/step-discovery.js";
+import { readShownSteps } from "@haibun/core/lib/step-discovery.js";
+import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import { streamContext, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import { authorizedWith, readingAt } from "@haibun/core/lib/capability-context.js";
-import { Access, LinkRelations, PersistedVertexSchema } from "@haibun/core/lib/resources.js";
+import { Access, LinkRelations, PersistedVertexSchema, type AccessLevel } from "@haibun/core/lib/resources.js";
 import { TRANSPORT, type ITransport } from "./sse-transport.js";
 import { DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_STEP_METHOD, DOMAIN_TEXT } from "@haibun/core/lib/domains.js";
 
@@ -138,9 +139,9 @@ async function levelsFollowed(base: string, signer: { holder: string; action: st
 	const stopped = new AbortController();
 	const res = await fetch(url, { headers, signal: stopped.signal });
 	if (res.status !== 200 || !res.body) throw new Error(`the stream answered ${res.status}`);
-	const event = (id: string, accessLevel: string) => ({ type: "event", event: { id, timestamp: Date.now(), kind: "log", level: "info", message: id, accessLevel } });
-	for (const level of SENT_LEVELS) transport.send(event(level, level));
-	transport.send(event(FOLLOWED_TO_HERE, Access.public));
+	const event = (id: string, accessLevel: AccessLevel) => LogEvent.parse({ id, timestamp: Date.now(), kind: "log", level: "info", message: id, accessLevel });
+	for (const level of SENT_LEVELS) transport.sendEvent(event(level, level));
+	transport.sendEvent(event(FOLLOWED_TO_HERE, Access.public));
 	const reader = res.body.getReader();
 	const decoder = new TextDecoder();
 	const sent: string[] = [];
@@ -239,7 +240,7 @@ class RpcVerifyStepper extends AStepper {
 					body: await rpcBody(String(url), { method: String(method), seqPath: [0, 1, 1, 1], asks: "read" }),
 				});
 				const data = (await res.json()) as { error?: string };
-				const expected = refusal(String(method), undefined, undefined);
+				const expected = refusal(String(method), undefined, undefined).error;
 				return res.status === 422 && data.error === expected ? OK : actionNotOK(`Expected "${expected}", got ${res.status} ${JSON.stringify(data)}`);
 			},
 		},
@@ -297,7 +298,7 @@ class RpcVerifyStepper extends AStepper {
 			action: async ({ url, method }: TStepArgs) => {
 				const res = await postRpc(String(url), String(method));
 				const data = (await res.json()) as { error?: string; pong?: boolean };
-				const expected = refusal(String(method), undefined, undefined);
+				const expected = refusal(String(method), undefined, undefined).error;
 				return res.status === 422 && data.error === expected ? OK : actionNotOK(`Expected "${expected}", got ${res.status} ${JSON.stringify(data)}`);
 			},
 		},
@@ -306,7 +307,7 @@ class RpcVerifyStepper extends AStepper {
 			action: async ({ url, method, holder, action }: TStepArgs) => {
 				const res = await postRpc(String(url), String(method), { holder: String(holder), action: String(action) });
 				const data = (await res.json()) as { error?: string };
-				const expected = refusal(String(method), undefined, String(holder));
+				const expected = refusal(String(method), undefined, String(holder)).error;
 				return res.status === 422 && data.error === expected ? OK : actionNotOK(`Expected "${expected}", got ${res.status} ${JSON.stringify(data)}`);
 			},
 		},
@@ -1081,6 +1082,6 @@ stream rpc call to "http://localhost:${port}/rpc/StreamingStepper-fail" method "
 			makeOptions(port, "StreamingStepper:refuse,StreamingStepper:fail"),
 		);
 		expect(result.ok).toBe(true);
-		expect(collectedChunks.map((chunk) => chunk.error)).toEqual(["StreamingStepper-refuse: nope", "StreamingStepper-fail: broke"]);
+		expect(collectedChunks.map((chunk) => chunk.error)).toEqual(["StreamingStepper-refuse: nope", "StreamingStepper-fail: the step threw: broke"]);
 	});
 });

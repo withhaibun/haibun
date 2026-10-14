@@ -2,7 +2,7 @@
 // records in the main instance's store, so what a reader is given must not depend on which side holds them.
 import { ACTION_BEGIN, callFailed } from "./rpc-wire.js";
 import { errorDetail } from "./util/index.js";
-import { QuadStore } from "./quad-store.js";
+import { QuadStore, newStoreChain } from "./steps/pipelines/quad-store.js";
 import { RemoteQuadStore } from "./remote-quad-store.js";
 import { handleStoreCall, isStoreMethod } from "./store-protocol.js";
 import { CONFORMANCE_TYPES, describeQuadStore } from "./test/quad-store-conformance.js";
@@ -29,6 +29,6 @@ function servedBy(store: QuadStore): typeof fetch {
 }
 
 describeQuadStore("served by another instance", (domains) => {
-	const serving = new QuadStore(undefined, undefined, undefined, () => readDeclarationsOf(domains));
+	const serving = new QuadStore(newStoreChain(), undefined, () => readDeclarationsOf(domains));
 	return new RemoteQuadStore({ url: "http://serving.example", sign: new FakeInvoker("delegated").sign, graphs: Object.values(CONFORMANCE_TYPES), fetchImpl: servedBy(serving) });
 });

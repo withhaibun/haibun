@@ -32,7 +32,7 @@ import { loadSlotExtensions } from "./slot-extensions.js";
 import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { closeConversation, conversationState, dispatchConversationEvent, openConversation, STOPPED_BY_THE_READER } from "../ask/controllers/conversation-controller.js";
 import { hashParam, onHashChanged } from "../controllers/hash-controller.js";
-import { eventsAffectLabel } from "@haibun/core/lib/quad-types.js";
+import { eventsAffectLabel } from "@haibun/core/lib/steps/derivations/quad-events.js";
 import { isOffline } from "../controllers/hydration-controller.js";
 import { getActionBarChatExtensionTags } from "../controllers/catalog-controller.js";
 import { reportToRun } from "../../client-log.js";

@@ -24,6 +24,7 @@ import { itemAt } from "./util/item-at.js";
 import MarkdownIt from "markdown-it";
 import { LinkRelations, type TPart, type TQuoteAnchor, type TRelRange } from "./resources.js";
 import { MEDIA_FRAGMENTS, isFragment, type TFragment } from "./media-fragments.js";
+import type { TRemedy } from "./rpc-wire.js";
 
 /**
  * What a reference denotes: one persisted individual or a type. Every surface that distinguishes the two uses these
@@ -35,6 +36,10 @@ export const DENOTES = { individual: "individual", type: "type" } as const;
  * documents already contain these words, so the words don't change. Each place that tests them reads them from here.
  */
 export const REF_DENOTES = { individual: "entity", type: "domain" } as const;
+
+/** The remedy of a refused read of a record that actuality doesn't hold: the collection of the record's type, which lists
+ *  the records actuality holds (CA1G6). */
+export const typeCollectionRemedy = (persistedAs: string): TRemedy => ({ do: "open", ref: { kind: REF_DENOTES.type, target: { domain: persistedAs } } });
 
 export const DOMAIN_INDIVIDUAL_ADDRESS = "individual-address";
 

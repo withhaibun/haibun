@@ -1,6 +1,6 @@
 import type { TWorld, TProtoOptions } from "../world.js";
 import { newActualityId } from "../rpc-wire.js";
-import { CStepper } from "../astepper.js";
+import { CStepper } from "../steps/domains/stepper.js";
 import { DEFAULT_DEST, TExecutorResult, TEST_BASE } from "../../schema/protocol.js";
 import { getRunTag } from "../ttag.js";
 import { resolveSitePrincipal } from "../host-id.js";
@@ -10,12 +10,13 @@ export { getDefaultTag } from "../ttag.js";
 import { Timer } from "../../schema/protocol.js";
 import { asFeatures } from "../resolver-features.js";
 import { Runner } from "../../runner.js";
-import { FeatureVariables } from "../feature-variables.js";
+import { FeatureVariables, secretsOf } from "../feature-variables.js";
 import { Prompter } from "../prompter.js";
 import { getCoreDomains } from "../core-domains.js";
 import assert from "assert";
 import { createServer } from "node:net";
-import { EventLogger } from "../EventLogger.js";
+import { EventLogger } from "../steps/pipelines/event-logger.js";
+import { eventSink } from "../steps/root.js";
 
 const DEF_PROTO_DEFAULT_OPTIONS = { DEST: DEFAULT_DEST };
 export const DEF_PROTO_OPTIONS = { options: DEF_PROTO_DEFAULT_OPTIONS, moduleOptions: {} };
@@ -90,6 +91,13 @@ export function getTestWorldWithOptions(protoOptions: TProtoOptions = DEF_PROTO_
 	return world;
 }
 
+/** An events hub that doesn't hold a secret and doesn't write to the console. A test reads its events through subscribers. */
+export function eventHubOfTest(): EventLogger {
+	const hub = new EventLogger({ isSecret: () => false, values: () => [] }, eventSink(), false);
+	hub.suppressConsole = true;
+	return hub;
+}
+
 export function getDefaultWorld(env: NodeJS.ProcessEnv = process.env): TWorld {
 	const world: Partial<TWorld> = {
 		timer: new Timer(),
@@ -100,8 +108,9 @@ export function getDefaultWorld(env: NodeJS.ProcessEnv = process.env): TWorld {
 		moduleOptions: {},
 		bases: ["/features/"],
 	};
-	const eventLogger = new EventLogger((name: string) => world.shared?.isSecret(name) ?? false);
-	eventLogger.suppressConsole = true; // Suppress NDJSON in tests
+	const eventLogger = new EventLogger(secretsOf(world), eventSink(), false);
+	// A test doesn't write its events to the console.
+	eventLogger.suppressConsole = true;
 	world.eventLogger = eventLogger;
 	world.domains = getCoreDomains(world as TWorld);
 	world.shared = new FeatureVariables(world as TWorld);

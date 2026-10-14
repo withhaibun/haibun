@@ -6,6 +6,58 @@
 	"author": "",
 	"exports": {
 		".": "./build/index.js",
+		"./lib/astepper.js": {
+			"haibun-source": "./src/lib/steps/domains/stepper.js",
+			"default": "./build/lib/steps/domains/stepper.js"
+		},
+		"./lib/step-discovery.js": {
+			"haibun-source": "./src/lib/steps/domains/step-discovery.js",
+			"default": "./build/lib/steps/domains/step-discovery.js"
+		},
+		"./lib/quad-types.js": {
+			"haibun-source": "./src/lib/steps/domains/quad-types.js",
+			"default": "./build/lib/steps/domains/quad-types.js"
+		},
+		"./lib/namedVars.js": {
+			"haibun-source": "./src/lib/steps/derivations/named-vars.js",
+			"default": "./build/lib/steps/derivations/named-vars.js"
+		},
+		"./lib/tool-validation.js": {
+			"haibun-source": "./src/lib/steps/derivations/tool-validation.js",
+			"default": "./build/lib/steps/derivations/tool-validation.js"
+		},
+		"./lib/step-registry.js": {
+			"haibun-source": "./src/lib/steps/pipelines/step-registry.js",
+			"default": "./build/lib/steps/pipelines/step-registry.js"
+		},
+		"./lib/call-step.js": {
+			"haibun-source": "./src/lib/steps/pipelines/call-step.js",
+			"default": "./build/lib/steps/pipelines/call-step.js"
+		},
+		"./lib/core/flow-runner.js": {
+			"haibun-source": "./src/lib/steps/pipelines/flow-runner.js",
+			"default": "./build/lib/steps/pipelines/flow-runner.js"
+		},
+		"./lib/PhaseRunner.js": {
+			"haibun-source": "./src/lib/steps/pipelines/phase-runner.js",
+			"default": "./build/lib/steps/pipelines/phase-runner.js"
+		},
+		"./lib/stepper-cycles.js": {
+			"haibun-source": "./src/lib/steps/pipelines/stepper-cycles.js",
+			"default": "./build/lib/steps/pipelines/stepper-cycles.js"
+		},
+		"./lib/quad-store.js": {
+			"haibun-source": "./src/lib/steps/pipelines/quad-store.js",
+			"default": "./build/lib/steps/pipelines/quad-store.js"
+		},
+		"./lib/statements.js": {
+			"haibun-source": "./src/lib/steps/pipelines/statements.js",
+			"default": "./build/lib/steps/pipelines/statements.js"
+		},
+		"./lib/EventLogger.js": {
+			"haibun-source": "./src/lib/steps/pipelines/event-logger.js",
+			"default": "./build/lib/steps/pipelines/event-logger.js"
+		},
 		"./*": {
 			"haibun-source": "./src/*",
 			"default": "./build/*"

@@ -172,8 +172,8 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			// held again here. The live page still receives the announcement over the stream.
 			if (event.kind === "log") this.beganWriting(recordSaid(this.getWorld(), event, this.saidCount++), "what actuality logged");
 			if (event.kind === "artifact") this.beganWriting(recordProduced(this.getWorld(), event, this.producedCount++), "what actuality produced");
-			this.transport?.send({ type: "event", event });
-			this.monitorTransport?.send({ type: "event", event });
+			this.transport?.sendEvent(event);
+			this.monitorTransport?.sendEvent(event);
 		},
 		endFeature: async ({ shouldClose }: TEndFeature) => {
 			// An explicit `saves shu to <path>` step is honored regardless of HAIBUN_STAY (shouldClose=false).

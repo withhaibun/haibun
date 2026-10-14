@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { getDefaultWorld, testWithWorld } from "../lib/test/lib.js";
 import { resolveSitePrincipal } from "../lib/host-id.js";
-import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "../lib/astepper.js";
+import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { Access, COMMENT_LABEL, LinkRelations, type TDomainDefinition } from "../lib/resources.js";
 import { getAuthority } from "../lib/session-authority.js";
 import { readAction } from "../lib/actions.js";

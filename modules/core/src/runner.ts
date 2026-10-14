@@ -1,13 +1,13 @@
 import type { TWorld } from "./lib/world.js";
 import { MEDIA_TYPE } from "./lib/media-types.js";
 import { TExecutorResult } from "./schema/protocol.js";
-import { AStepper, StepperKinds, CStepper } from "./lib/astepper.js";
+import { AStepper, StepperKinds, CStepper } from "./lib/steps/domains/stepper.js";
 import { expand } from "./lib/features.js";
 import { createSteppers, setStepperWorldsAndDomains } from "./lib/util/index.js";
 import { TFeaturesBackgrounds } from "./phases/collector.js";
 import { Executor, addStepperConcerns } from "./phases/Executor.js";
 import { Resolver } from "./phases/Resolver.js";
-import { PhaseBailError, PhaseRunner } from "./lib/PhaseRunner.js";
+import { PhaseBailError, PhaseRunner } from "./lib/steps/pipelines/phase-runner.js";
 import { DOMAIN_CHAIN_LINT_ARTIFACT, lintRunStepGraph } from "./lib/domain-chain-lint.js";
 
 export class Runner {

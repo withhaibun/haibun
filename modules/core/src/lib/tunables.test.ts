@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { AStepper, type TStepperSteps } from "./astepper.js";
+import { AStepper, type TStepperSteps } from "./steps/domains/stepper.js";
 import { getTunableOptions, type IHasTunables, type TTunableOption } from "./tunables.js";
 import { intOrError } from "./util/index.js";
 import { itemAt } from "./util/item-at.js";

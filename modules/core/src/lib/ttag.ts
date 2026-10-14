@@ -21,7 +21,7 @@ export const getRunTag = (featureNum: TTagValue, featureName?: string, params = 
 	(["featureNum", "hostId"] as const).forEach((w) => {
 		const val = res[w];
 		if (parseInt(String(val)) !== val) {
-			throw Error(`non - numeric ${w} from ${JSON.stringify(res)} `);
+			throw Error(`the tag field ${w} isn't a whole number in ${JSON.stringify(res)}; state it as a whole number`);
 		}
 	});
 	return res;

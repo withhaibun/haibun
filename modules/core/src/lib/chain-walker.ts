@@ -1,9 +1,9 @@
 import type { DispatchContext } from "./step-dispatch.js";
-import { stepMethodName } from "./step-registry.js";
-import { callStepByName } from "./call-step.js";
+import { stepMethodName } from "./steps/domains/step-method.js";
+import { callStepByName } from "./steps/pipelines/call-step.js";
 import { executionOf, factIdOf } from "./seq-path.js";
 import { actingAs } from "./capability-context.js";
-import { validateToolInput } from "./tool-validation.js";
+import { validateToolInput } from "./steps/derivations/tool-validation.js";
 import { errorDetail } from "./util/index.js";
 import { itemAt } from "./util/item-at.js";
 import { CHAIN_INSTANCE_STATUS, getChainInstance, updateChainInstance, type TChainInstance } from "./chain-instance.js";
@@ -28,7 +28,7 @@ type TChainWalkerContext = DispatchContext;
 export async function advanceChainInstance(ctx: TChainWalkerContext, instanceId: string, stepArgs: Record<string, unknown>): Promise<TChainAdvanceResult> {
 	const { registry, world, steppers, grantedCapability } = ctx;
 	const inst = await getChainInstance(world, instanceId);
-	if (!inst) throw new Error(`chain instance not found: ${instanceId}`);
+	if (!inst) throw new Error(`actuality doesn't hold the chain instance ${instanceId}; start a chain to walk it`);
 	// A walk is one reader's. Whoever is acting must be who began it, so a handle to a walk is not authority over it:
 	// the arguments each step runs with are the walker's own, and another reader supplying them is another reader acting.
 	const acting = actingAs();

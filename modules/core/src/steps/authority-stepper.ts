@@ -2,12 +2,12 @@ import { z } from "zod";
 import { fromJsonText } from "../lib/json-text.js";
 import { persistPrincipalIndividual } from "../lib/principal-individual.js";
 import type { TWorld } from "../lib/world.js";
-import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type TFeatureStep, type TStepperSteps } from "../lib/astepper.js";
+import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type TFeatureStep, type TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
 import { AUTHORITY_KEY, SessionAuthority } from "../lib/session-authority.js";
 import { DELEGATIONS_READ_ACTION, DOMAIN_HELD_CALLS, HeldCallsSchema, type IAuthority } from "../lib/authority-types.js";
 import { DOMAIN_ACTIONS, DOMAIN_JSON, DOMAIN_LINK, DOMAIN_PRINCIPAL_REF } from "../lib/domains.js";
-import { FlowRunner } from "../lib/core/flow-runner.js";
+import { FlowRunner } from "../lib/steps/pipelines/flow-runner.js";
 import { actingAs, actingFor, callerHolds, runActingAs, runAuthorizedWith } from "../lib/capability-context.js";
 import { AUTHORITY_CAPABILITIES, capabilityAllows, delegatedActions, readAction } from "../lib/actions.js";
 import { activeSitePrincipal, SITE_DID_PREFIX } from "../lib/host-id.js";
@@ -173,7 +173,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 
 	private getAuthority(): IAuthority {
 		if (!this.authority) {
-			throw new Error("AuthorityStepper authority not initialized");
+			throw new Error("AuthorityStepper reads its authority before setWorld built it; read it from a step or a cycle after setWorld");
 		}
 		return this.authority;
 	}

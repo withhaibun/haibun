@@ -13,7 +13,7 @@ const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 20));
 const observation = (subject: string, predicate: string, object: string): Record<string, unknown> => ({
 	kind: "artifact",
 	artifactType: "json",
-	json: { quadObservation: { subject, predicate, object, namedGraph: "Task" } },
+	json: { quadObservation: { subject, predicate, object, namedGraph: "Task", timestamp: 1 } },
 });
 
 describe("shu-entity-column live refresh", () => {

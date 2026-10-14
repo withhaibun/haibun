@@ -9,7 +9,9 @@ import { AStepper, type IHasCycles, type IHasOptions, type TEndExecution, type T
 import { dispatchStep } from "@haibun/core/lib/step-dispatch.js";
 import { ACTION_BEGIN, ANSWERED_WITHOUT_PRODUCTS, parseRpcRequest, authorityRefusal, callFailed, RPC_PROTOCOL, type THandshake } from "@haibun/core/lib/rpc-wire.js";
 import { runWithRequestContext, requestBaseIri } from "@haibun/core/lib/request-context.js";
-import { buildFeatureStepForTransport, refusal, runRegistry, type StepRegistry } from "@haibun/core/lib/step-registry.js";
+import { buildFeatureStepForTransport } from "@haibun/core/lib/call-step.js";
+import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
+import { runRegistry, type StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { actionList, EVERY_ACTION, lackedByCall, mayCall } from "@haibun/core/lib/actions.js";
 import { DOMAIN_TEXT, DOMAIN_FILE_PATH, DOMAIN_ROUTE, DOMAIN_LINK } from "@haibun/core/lib/domains.js";
 import { STORE_METHOD_PREFIX, storeMethods } from "@haibun/core/lib/store-protocol.js";
@@ -341,7 +343,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			// is, without an ungated default.
 			const served = webserver.rpcMethod(method);
 			if (served) {
-				if (!mayCall(granted, { capability: served.action })) return { error: refusal(method, served.action, delegateOf(authority, this)) };
+				if (!mayCall(granted, { capability: served.action })) return refusal(method, served.action, delegateOf(authority, this));
 				if (msg.asks === "read") return { error: notARead(method) };
 				try {
 					// Whoever proved themselves at this boundary is who acts inside it, holding what it presented and reading no
@@ -361,7 +363,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 				// about the steps it may not call.
 				const tool = registry.get(method);
 				const lacked = tool && lackedByCall({ invoked: granted, held }, tool.descriptor);
-				if (!tool || lacked) return { error: refusal(method, lacked, delegateOf(authority, this)) };
+				if (!tool || lacked) return refusal(method, lacked, delegateOf(authority, this));
 				if (msg.asks === "read" && !tool.descriptor.read) return { error: notARead(method) };
 				// External callers (without a feature-step context) get a server-synthesised seqPath, matching MCP.
 				const seqPath = msg.seqPath && msg.seqPath.length > 0 ? msg.seqPath : allocateSyntheticSeqPath(world);
@@ -383,7 +385,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 					),
 				);
 				if (hr.ok) return hr.products ?? ANSWERED_WITHOUT_PRODUCTS;
-				return callFailed(method, hr.errorMessage);
+				return callFailed(method, hr.errorMessage, hr.remedy);
 			} catch (err) {
 				const detail = errorDetail(err);
 				logger.error(`[RPC] ${method}: ${detail}`);

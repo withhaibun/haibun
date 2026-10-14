@@ -4,8 +4,8 @@ import { ENDPOINT_LABEL, HTTP_REQUEST_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL 
 import { activeSitePrincipal } from "./host-id.js";
 import { registeredPaths, type IRouteRegistry } from "./execution.js";
 import type { TWorld } from "./world.js";
-import type { TQuad } from "./quad-types.js";
-import type { QuadStore } from "./quad-store.js";
+import type { TQuad } from "./steps/domains/quad-types.js";
+import type { QuadStore } from "./steps/pipelines/quad-store.js";
 import { storeDeclaring } from "./test/declared-types.js";
 
 const MOUNTED: IRouteRegistry = {

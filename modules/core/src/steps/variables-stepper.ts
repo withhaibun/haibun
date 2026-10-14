@@ -1,13 +1,13 @@
 import { z } from "zod";
 
 import { runEnvVariables, type TWorld } from "../lib/world.js";
-import { OK, Origin, TProvenanceIdentifier, TOrigin, TActionResult, TStepValue } from "../schema/protocol.js";
-import { TAnyFixme } from "../lib/fixme.js";
-import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TStartScenario } from "../lib/astepper.js";
+import { OK, Origin, TProvenanceIdentifier, TOrigin, TActionResult, TStepValue, type TStepValueValue } from "../schema/protocol.js";
+import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TStartScenario } from "../lib/steps/domains/stepper.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getStepTerm, errorDetail } from "../lib/util/index.js";
 import { itemAt } from "../lib/util/item-at.js";
-import { FlowRunner } from "../lib/core/flow-runner.js";
-import { FeatureVariables, OBSCURED_VALUE, statedValue } from "../lib/feature-variables.js";
+import { FlowRunner } from "../lib/steps/pipelines/flow-runner.js";
+import { FeatureVariables, statedValue } from "../lib/feature-variables.js";
+import { OBSCURED_VALUE } from "../lib/steps/domains/secrets.js";
 import { sanitizeObjectSecrets } from "../lib/util/secret-utils.js";
 import {
 	DOMAIN_DOMAIN_KEY,
@@ -190,7 +190,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const effectiveDomain = resolved.domain;
 
 				if (presentVal === undefined) {
-					return actionNotOK(`${term} not set`);
+					return actionNotOK(`the variable ${term} isn't set; set it before this step reads it`);
 				}
 
 				// If domain is an ordered enum, advance to the next enum value
@@ -345,7 +345,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const resolved = await this.getWorld().shared.resolveVariable({ term, origin: Origin.var }, featureStep);
 				if (resolved.value !== undefined) return OK;
 				const envVars = runEnvVariables(this.getWorld());
-				return envVars[term] !== undefined ? OK : actionNotOK(`${term} not set`);
+				return envVars[term] !== undefined ? OK : actionNotOK(`the variable ${term} isn't set, and the environment doesn't hold it`);
 			},
 		},
 		showVar: {
@@ -374,7 +374,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				}
 				const items = Object.entries(this.getWorld().domains).map(([name, { description, values, topology }]) => {
 					const persistedAs = isPersisted(topology) ? topology.persistedAs : undefined;
-					// Edges from topology (persisted-type→persisted-type relationships like Email→Contact)
+					// The edges a persisted type's topology declares to another persisted type.
 					const _edges = Object.entries((isPersisted(topology) && topology.edges) || {}).flatMap(([type, edge]) =>
 						edgeRanges(edge)
 							.filter((range) => range !== persistedAs)
@@ -397,7 +397,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			productsDomain: DOMAIN_DOMAIN_SNAPSHOT,
 			action: async ({ name }: { name: string }) => {
 				const domain = registeredDomain(this.getWorld().domains, name, "show domain");
-				const members: Record<string, TAnyFixme> = {};
+				const members: Record<string, TStepValueValue> = {};
 				for (const [key, variable] of Object.entries(await this.getWorld().shared.all())) {
 					if (variable.domain && normalizeDomainKey(variable.domain) === name) members[key] = variable.value;
 				}
@@ -424,7 +424,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				const domainDef = this.getWorld().domains[domainKey];
 
 				if (!domainDef) {
-					return actionNotOK(`Domain "${domainName}" is not defined`);
+					return actionNotOK(`the domain "${domainName}" isn't registered; declare it with set of, or load the stepper that declares it`);
 				}
 
 				// Check enum values first
@@ -494,7 +494,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		if (operator === "<") {
 			return comparison < 0 ? OK : actionNotOK(mismatch(term, { ...stored, value: left }, right, value));
 		}
-		return actionNotOK(`Unsupported operator: ${operator}`);
+		return actionNotOK(`the comparison ${operator} isn't one a variable takes; compare with is, is less than or is more than`);
 	}
 
 	private registerSubdomainFromStatement(domain: string, superdomains: TFeatureStep[] | undefined, featureStep: TFeatureStep) {
@@ -507,7 +507,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			const uniqueNames = Array.from(new Set(superdomainNames));
 			const domainKey = normalizeDomainKey(domain);
 			if (this.getWorld().domains[domainKey]) {
-				return actionNotOK(`Domain "${domainKey}" already exists`);
+				return actionNotOK(`the domain "${domainKey}" is already registered; declare a domain of another name`);
 			}
 			const superdomainDefs: TRegisteredDomain[] = uniqueNames.map((name) => {
 				const normalized = normalizeDomainKey(name);
@@ -544,7 +544,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			const values = extractValuesFromFragments(valueFragments, getStepTerm(featureStep, "values") ?? featureStep.in);
 			const domainKey = normalizeDomainKey(domain);
 			if (this.getWorld().domains[domainKey]) {
-				return actionNotOK(`Domain "${domainKey}" already exists`);
+				return actionNotOK(`the domain "${domainKey}" is already registered; declare a domain of another name`);
 			}
 			const definition = createEnumDomainDefinition({ name: domainKey, values, description: options?.description, ordered: options?.ordered });
 			registerDomains(this.getWorld(), [[definition]]);
@@ -560,7 +560,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			const { topology, schema } = hypermediaDomainFromContext(domain, doc);
 			const selector = domain.toLowerCase();
 			const domainKey = normalizeDomainKey(selector);
-			if (this.getWorld().domains[domainKey]) return actionNotOK(`Domain "${domainKey}" already exists`);
+			if (this.getWorld().domains[domainKey]) return actionNotOK(`the domain "${domainKey}" is already registered; declare a domain of another name`);
 			registerDomains(this.getWorld(), [[{ selectors: [selector], schema: fromJsonText(schema), description: domain, topology, ui: { declared: true } }]]);
 			return OK;
 		} catch (error) {
@@ -655,7 +655,7 @@ const extractValuesFromFragments = (valueFragments?: TFeatureStep[], fallback?: 
 	if (fallback) {
 		return parseBracketedValues(fallback);
 	}
-	throw new Error("Set statement missing values");
+	throw new Error("the set statement doesn't state its values; state them in brackets, such as [a b]");
 };
 
 const parseBracketedValues = (raw: string) => {
@@ -663,7 +663,7 @@ const parseBracketedValues = (raw: string) => {
 	const start = trimmed.indexOf("[");
 	const end = trimmed.lastIndexOf("]");
 	if (start === -1 || end === -1 || end <= start) {
-		throw new Error("Set values must include [ ]");
+		throw new Error("the set's values aren't in brackets; state them in brackets, such as [a b]");
 	}
 	const inner = trimmed.substring(start + 1, end).trim();
 	return parseQuotedOrWordList(inner);
@@ -694,7 +694,7 @@ async function shouldSkipEmpty(featureStep: TFeatureStep, term: string, shared: 
 // Wraps shared.set in try/catch
 async function trySetVariable(
 	shared: FeatureVariables,
-	opts: { term: string; value: TAnyFixme; domain: string; origin: TOrigin; readonly?: boolean; secret?: boolean },
+	opts: { term: string; value: TStepValueValue; domain: string; origin: TOrigin; readonly?: boolean; secret?: boolean },
 	provenance: TProvenanceIdentifier,
 ): Promise<TActionResult> {
 	try {

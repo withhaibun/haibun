@@ -5,7 +5,7 @@ import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { Access, AccessLevelSchema, LinkRelations, commentDomainDefinition } from "@haibun/core/lib/resources.js";
 import { MAX_PAGE_ROWS } from "@haibun/core/lib/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
-import type { IQuadStore } from "@haibun/core/lib/quad-types.js";
+import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { distinctOf } from "@haibun/core/lib/records/derivations/read-records.js";
 import { z } from "zod";
 import GraphSourceStepper from "./graph-source-stepper.js";

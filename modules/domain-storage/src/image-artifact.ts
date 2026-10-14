@@ -28,6 +28,6 @@ export async function saveImageArtifact(
 		featureRelativePath: saved.featureRelativePath,
 		mimetype,
 	});
-	world.eventLogger.artifact(featureStep as TFeatureStep, artifact);
+	world.eventLogger.artifact(artifact);
 	return saved;
 }

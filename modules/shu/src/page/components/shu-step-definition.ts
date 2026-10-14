@@ -71,7 +71,8 @@ export class ShuStepDefinition extends ShuElement<typeof StateSchema> {
 	async open(method: string): Promise<void> {
 		this.setState({ method });
 		await this.updateComplete;
-		await this.#load.taskComplete.catch(() => undefined);
+		// The task renders a failed read as its refusal, so opening waits for the read to settle either way.
+		await Promise.allSettled([this.#load.taskComplete]);
 	}
 
 	private onChoose = (): void => {

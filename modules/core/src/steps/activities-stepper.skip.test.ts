@@ -4,7 +4,7 @@ import { ActivitiesStepper } from "./activities-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun.js";
 import type { TWorld } from "../lib/world.js";
-import { AStepper } from "../lib/astepper.js";
+import { AStepper } from "../lib/steps/domains/stepper.js";
 
 describe("ActivitiesStepper - Skipped Steps Reproduction", () => {
 	const steppers = [Haibun, VariablesStepper, ActivitiesStepper];

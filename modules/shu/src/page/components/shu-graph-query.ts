@@ -28,7 +28,7 @@ import { arrayWindowedSource, readWindowedSource, unmarked, type WindowedSource 
 import { SettingController } from "../controllers/setting-controller.js";
 import { INITIAL_WINDOW_SIZE, WindowSizeSchema } from "../domains/settings.js";
 import { windowRows } from "../derivations/settings.js";
-import { extractQuadsFromEvents } from "@haibun/core/lib/quad-types.js";
+import { extractQuadsFromEvents } from "@haibun/core/lib/steps/derivations/quad-events.js";
 import { ClockController } from "../controllers/clock-controller.js";
 import { refusalOf } from "../derivations/refusal.js";
 import type { TPageRefusal } from "../domains/refusal.js";

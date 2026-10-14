@@ -14,7 +14,7 @@ import { callStepByName } from "@haibun/core/lib/call-step.js";
 import { runAuthorizedWith } from "@haibun/core/lib/capability-context.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { addStepperConcerns } from "@haibun/core/phases/Executor.js";
-import { QuadStore } from "@haibun/core/lib/quad-store.js";
+import { QuadStore, newStoreChain } from "@haibun/core/lib/quad-store.js";
 import { principalDomainDefinition } from "@haibun/core/lib/resources.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
@@ -24,7 +24,7 @@ const NOWHERE = "/nonexistent-base-for-capability-tests";
 /** Builds a world from getDefaultWorld and gives it a store, without a type assertion. */
 function supervisedWorld(): TWorld {
 	const world = getDefaultWorld();
-	const store = new QuadStore();
+	const store = new QuadStore(newStoreChain());
 	world.shared.getStore = () => store;
 	// Actuality registers the Principal domain through a stepper that this harness doesn't load.
 	world.domains = { ...world.domains, ...mapDefinitionsToDomains([principalDomainDefinition]) };

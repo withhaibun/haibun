@@ -23,7 +23,7 @@ import {
 } from "@haibun/core/lib/domains.js";
 import { DOMAIN_IMAGE_REFERENCE } from "@haibun/core/lib/media-object.js";
 import { Access } from "@haibun/core/lib/resources.js";
-import { stepMethodName } from "@haibun/core/lib/step-registry.js";
+import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import {
 	actionNotOK,
 	actionOKWithProducts,

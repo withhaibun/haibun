@@ -22,7 +22,6 @@ import { recordOutcome, verificationOf } from "./verified.js";
 import { emptyOutcome, accrueRunOutcome } from "./run-outcome.js";
 import type { ChildProcess } from "child_process";
 import { EventEmitter } from "node:events";
-import type { TSpecl } from "@haibun/core/lib/execution.js";
 
 /** InstanceStepper with a method that holds a run without a process. The products of the listing, reading, waiting and
  *  stopping steps don't depend on a child process. The feature tests start a real one. */
@@ -205,8 +204,8 @@ describe("whether a run would repeat the outcome of an earlier run", () => {
 		const env = runEnvironment({}, 0, false);
 		expect(verifiedRun(config, dir, "", dir, env)).toBeUndefined();
 		// v() computes the verification that the child would record from the same environment.
-		const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env, getConfigFromBase([dir]) as TSpecl);
-		const v = () => verificationOf({ configPath: config, specl: getConfigFromBase([dir]) as never, bases: [dir], cwd: dir, filter: [], options, moduleOptions }) as never;
+		const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env, getConfigFromBase([dir]));
+		const v = () => verificationOf({ configPath: config, specl: getConfigFromBase([dir]), bases: [dir], cwd: dir, filter: [], options, moduleOptions }) as never;
 		recordOutcome(v(), "failed", 1);
 		expect(verifiedRun(config, dir, "", dir, env), "a run that failed against this state would fail the same way").toBe("failed");
 		recordOutcome(v(), "passed", 1);
@@ -219,9 +218,9 @@ describe("whether a run would repeat the outcome of an earlier run", () => {
 	it("reads the .env file in a run's starting directory as the child does, so an option set there changes the conditions verifiedRun compares", () => {
 		const { dir, config } = aGroup();
 		const env = runEnvironment({}, 0, false);
-		const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env, getConfigFromBase([dir]) as TSpecl);
+		const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env, getConfigFromBase([dir]));
 		recordOutcome(
-			verificationOf({ configPath: config, specl: getConfigFromBase([dir]) as never, bases: [dir], cwd: dir, filter: [], options, moduleOptions }) as never,
+			verificationOf({ configPath: config, specl: getConfigFromBase([dir]), bases: [dir], cwd: dir, filter: [], options, moduleOptions }) as never,
 			"passed",
 			1,
 		);

@@ -37,25 +37,8 @@
 	"modules/core/src/lib/media-fragments.ts": {
 		"terminal-preposition": 2
 	},
-	"modules/core/src/lib/populateActionArgs.ts": {
-		"terminal-preposition": 1
-	},
 	"modules/core/src/lib/port-occupant.ts": {
 		"terminal-preposition": 1
-	},
-	"modules/core/src/lib/quad-store.identity.test.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/core/src/lib/quad-store.test.ts": {
-		"anthropomorphic": 8
-	},
-	"modules/core/src/lib/quad-store.ts": {
-		"anthropomorphic": 8
-	},
-	"modules/core/src/lib/quad-types.ts": {
-		"anthropomorphic": 13,
-		"relation-verb": 1,
-		"terminal-preposition": 2
 	},
 	"modules/core/src/lib/record-blip.ts": {
 		"terminal-preposition": 1
@@ -72,9 +55,6 @@
 	"modules/core/src/lib/sse-subscriber.ts": {
 		"terminal-preposition": 2
 	},
-	"modules/core/src/lib/step-registry.ts": {
-		"terminal-preposition": 1
-	},
 	"modules/core/src/lib/taiwa.ts": {
 		"anthropomorphic": 1
 	},
@@ -83,9 +63,6 @@
 	},
 	"modules/core/src/lib/test/refusal-rules.ts": {
 		"terminal-preposition": 1
-	},
-	"modules/core/src/lib/tool-validation.ts": {
-		"terminal-preposition": 6
 	},
 	"modules/core/src/phases/Resolver.ts": {
 		"terminal-preposition": 1

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { AccessLevelSchema } from "../lib/resources.js";
+import type { TRemedy } from "../lib/rpc-wire.js";
 
 // ============================================================================
 // Constants
@@ -163,7 +164,6 @@ export const CAPTURE = "capture";
 // Utilities
 // ============================================================================
 
-export type TAnyFixme = unknown;
 
 export class Timer {
 	static startTime = new Date();
@@ -314,7 +314,7 @@ export const TRACE_SEQ_PATH = "_seqPath";
 
 /** Hypermedia product field keys. Use these constants instead of string literals. */
 export const HYPERMEDIA = {
-	/** Domain label for this result (e.g. "Email", "Contact") */
+	/** The domain label of the result, such as a persisted type's name. */
 	TYPE: "_type",
 	/** Human-readable one-liner for CLI output and document view captions */
 	SUMMARY: "_summary",
@@ -358,8 +358,9 @@ export type THypermediaProducts = {
  * The one result type of step execution. Step actions, FlowRunner, the feature loop and RPC transports use it.
  */
 type TActionResultCarries = { products?: THypermediaProducts; controlSignal?: TDebugSignal; artifact?: TArtifactEvent; protocol?: SystemMessage };
-/** A step passed or failed. A failure carries an `errorMessage` that states the reason. */
-export type TActionResult = (TActionResultCarries & { ok: true; errorMessage?: undefined }) | (TActionResultCarries & { ok: false; errorMessage: string });
+/** A step passed or failed. A failure carries an `errorMessage` that states the reason, and the remedy a caller can act
+ *  on where one exists, as data a page renders as a control. */
+export type TActionResult = (TActionResultCarries & { ok: true; errorMessage?: undefined }) | (TActionResultCarries & { ok: false; errorMessage: string; remedy?: TRemedy });
 
 export const OK: TActionResult = { ok: true };
 
@@ -371,7 +372,6 @@ export type TStepValue = { term: string; domain: string; value?: TStepValueValue
 export type TProvenanceIdentifier = { in?: string; seq: number[]; when: string };
 
 // Result Types
-type TTrace = { [name: string]: { url: string; since: number; trace: TAnyFixme } };
 
 export type TSeqPath = number[];
 
@@ -389,7 +389,6 @@ export type TStepResult = TActionResult & {
 	intent?: ExecutionIntent;
 	start?: number;
 	end?: number;
-	traces?: TTrace[];
 };
 
 /**
@@ -429,7 +428,6 @@ export type TFeatureResult = {
 	declaredStepTextHash: string;
 	/** The full results of the most recent steps the feature ran, up to RESULTS_READ_IN_FULL. `steps` summarizes every step. */
 	stepResults: TStepResult[];
-	failure?: { message: string; error: TAnyFixme; expected?: TAnyFixme };
 };
 
 export type TExecutorResult = {
@@ -437,7 +435,7 @@ export type TExecutorResult = {
 	tag: unknown;
 	shared: unknown;
 	featureResults: TFeatureResult[];
-	failure?: { stage: string; error: { details: Record<string, TAnyFixme>; message: string } };
+	failure?: { stage: string; error: { details: Record<string, unknown>; message: string } };
 	steppers?: unknown[];
 };
 
@@ -494,7 +492,6 @@ const StepEvent = LifecycleEventCommon.extend({
 	lineNumber: z.number().optional(),
 	stepperName: z.string().optional(),
 	actionName: z.string().optional(),
-	stepArgs: z.union([z.record(z.string(), z.unknown()), z.array(z.unknown())]).optional(),
 	stepValuesMap: z.record(z.string(), z.unknown()).optional(),
 	products: z.record(z.string(), z.unknown()).optional(),
 	isAsync: z.boolean().optional(),
@@ -513,6 +510,13 @@ const GenericLifecycleEvent = LifecycleEventCommon.extend({
 export const LifecycleEvent = z.union([FeatureEvent, ScenarioEvent, StepEvent, GenericLifecycleEvent]);
 
 // Log Events
+/** The attributes of a log event that reports a failure outside a step's own result, such as a background task's tick: the
+ *  event it reports and the step of that event. A reader of actuality's log reads a failure by these keys. Dotted keys are
+ *  OpenTelemetry's convention, so an exporter carries them without a translation. */
+export const EVENT_ATTRIBUTE = { event: "haibun.event", seqPath: "haibun.seqPath" } as const;
+/** The value of the event attribute of a log event that reports a step's failure. */
+export const STEP_FAILURE_EVENT = "step.failure";
+
 export const LogEvent = BaseEvent.extend({
 	kind: z.literal("log"),
 	level: HaibunLogLevel,

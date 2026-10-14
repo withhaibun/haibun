@@ -1,7 +1,8 @@
 /**
  * A run's graph (`TRunGraph`) over one store, and one run's records of a graph.
  */
-import type { IQuadStore, TDensityQuery, TGraphQuery } from "@haibun/core/lib/quad-types.js";
+import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
+import type { TDensityQuery, TGraphQuery } from "@haibun/core/lib/quad-types.js";
 import { EXECUTION_FIELD } from "@haibun/core/lib/seq-path.js";
 import type { TRunGraph } from "../ports.js";
 

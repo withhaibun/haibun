@@ -10,18 +10,8 @@ import { RemoteInstance } from "./rpc-client.js";
 import { STORE_METHOD_PREFIX, requiredStoreCapability } from "./store-protocol.js";
 import type { TRequestSigner } from "./authority-types.js";
 import type { AccessLevel } from "./resources.js";
-import type {
-	IQuadStore,
-	TClusteredQuads,
-	TClusteredQuadsOpts,
-	TDensityQuery,
-	TDensityResult,
-	TDistinctValues,
-	TGraphQuery,
-	TQuad,
-	TQuadPattern,
-	TRecordsPage,
-} from "./quad-types.js";
+import type { IQuadStore } from "./steps/ports.js";
+import type { TClusteredQuads, TClusteredQuadsOpts, TDensityQuery, TDensityResult, TDistinctValues, TGraphQuery, TQuad, TQuadPattern, TRecordsPage } from "./steps/domains/quad-types.js";
 
 type TRemoteQuadStoreConfig = { url: string; sign: TRequestSigner; graphs: string[]; fetchImpl?: typeof fetch };
 

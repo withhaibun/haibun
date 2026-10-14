@@ -84,7 +84,7 @@ export class TestConduit implements TConduit {
 		try {
 			const running = stream.run(send, signal);
 			// What a stream does after its caller aborted it doesn't reach the caller.
-			running.catch(() => undefined);
+			void Promise.allSettled([running]);
 			await Promise.race([running, aborted]);
 		} finally {
 			open = false;
@@ -108,9 +108,10 @@ import { onStepsChanged } from "../page/controllers/registry-controller.js";
 import { CLIENT_LOG_ACTION, CLIENT_LOG_METHOD, type TClientLogLevel } from "../client-log.js";
 import { authorityPort, openPageAuthority, type TPageAuthority } from "../page/authority/controllers/page-authority-controller.js";
 import type { TDelegations } from "@haibun/core/lib/authority-types.js";
-import { SHOW_STEPS_METHOD, STEP_DETAIL, readShownSteps, stepDefinition, type TStepDefinition, type TStepDefinitions } from "@haibun/core/lib/step-discovery.js";
+import { SHOW_STEPS_METHOD, STEP_DETAIL, type TStepDefinition, type TStepDefinitions } from "@haibun/core/lib/step-discovery.js";
+import { readShownSteps, stepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { requiredAction, type TStepReads } from "@haibun/core/lib/actions.js";
-import { steppersOf } from "@haibun/core/lib/step-registry.js";
+import { steppersOf } from "@haibun/core/lib/steps/derivations/discover-steps.js";
 import { ARTIFACTS_ROUTE } from "@haibun/core/lib/run-artifact.js";
 import { buildConcernCatalog, type TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { Access, LinkRelations, type TDomainDefinition, type TEdgeDef, type TRel, type TAnnotationView } from "@haibun/core/lib/resources.js";

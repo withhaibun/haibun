@@ -2,9 +2,9 @@ import { z } from "zod";
 import type { TSpecl } from "../execution.js";
 import type { TWorld, TRuntime, TModuleOptions } from "../world.js";
 import { TActionResult, OK, TDebugSignal, MODULE_OPTION_PREFIX } from "../../schema/protocol.js";
-import { TAnyFixme } from "../fixme.js";
-import { IHasOptions, AStepper, CStepper, TFeatureStep } from "../astepper.js";
+import { IHasOptions, AStepper, CStepper, TFeatureStep } from "../steps/domains/stepper.js";
 import { TArtifactEvent, type TJsonArtifact } from "../../schema/protocol.js";
+import type { TRemedy } from "../rpc-wire.js";
 
 /** Returns `s` where it fits in `max` characters. Otherwise returns its first `max - 1` characters and an ellipsis.
  *  Callers truncate with this function so each truncation has the same form. */
@@ -19,14 +19,14 @@ export function getStepTerm(featureStep: TFeatureStep, key: string): string | un
 
 export const basesFrom = (s: string | undefined): string[] => (s === undefined ? [] : s.split(",").map((b) => b.trim()));
 
-export function actionNotOK(errorMessage: string, w?: { artifact?: TArtifactEvent; controlSignal?: TDebugSignal }): TActionResult {
-	const { artifact, controlSignal } = w || {};
+export function actionNotOK(errorMessage: string, w?: { artifact?: TArtifactEvent; controlSignal?: TDebugSignal; remedy?: TRemedy }): TActionResult {
+	const { artifact, controlSignal, remedy } = w || {};
 	// The parameter is typed string. A caller can pass a caught Error through a cast or an `any` value.
 	// This converts an Error to its message and converts any other non-string with String().
 	// TActionResult declares errorMessage as a string, so each reader of a step's result reads a string.
 	const raw = errorMessage as unknown;
 	const message = typeof raw === "string" ? raw : raw instanceof Error ? raw.message : String(raw);
-	return { ok: false, errorMessage: message, artifact, controlSignal };
+	return { ok: false, errorMessage: message, artifact, controlSignal, ...(remedy === undefined ? {} : { remedy }) };
 }
 export function actionOK(w?: { artifact?: TArtifactEvent; controlSignal?: TDebugSignal }): TActionResult {
 	const { artifact, controlSignal } = w || {};
@@ -264,7 +264,7 @@ export function findStepperFromOptionOrKind<Type>(steppers: AStepper[], stepper:
 }
 
 export function findStepper<Type>(steppers: AStepper[], name: string): Type {
-	const stepper = <Type>(steppers.find((s) => constructorName(s) === name) as TAnyFixme);
+	const stepper = steppers.find((s) => constructorName(s) === name) as Type | undefined;
 	if (!stepper) {
 		throw Error(
 			`stepper ${name} isn't loaded. Load it or name one of the loaded steppers ${JSON.stringify(

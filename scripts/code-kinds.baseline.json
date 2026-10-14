@@ -46,9 +46,6 @@
 	"modules/core/src/lib/affordances.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/core/src/lib/astepper.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/core/src/lib/authority-types.ts": {
 		"isn't in a kind position": 1
 	},
@@ -56,9 +53,6 @@
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/blips.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/call-step.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/called.ts": {
@@ -85,9 +79,6 @@
 	"modules/core/src/lib/core-domains.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/core/src/lib/core/flow-runner.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/core/src/lib/dev-mode.ts": {
 		"isn't in a kind position": 1
 	},
@@ -103,9 +94,6 @@
 	"modules/core/src/lib/domains.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/core/src/lib/EventLogger.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/core/src/lib/execution.ts": {
 		"isn't in a kind position": 1
 	},
@@ -113,9 +101,6 @@
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/features.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/fixme.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/goal-resolver.ts": {
@@ -157,16 +142,7 @@
 	"modules/core/src/lib/media-types.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/core/src/lib/namedVars.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/core/src/lib/owned-children.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/PhaseRunner.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/populateActionArgs.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/port-occupant.ts": {
@@ -182,12 +158,6 @@
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/quad-graph-model.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/quad-store.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/quad-types.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/quote-anchor.ts": {
@@ -238,19 +208,7 @@
 	"modules/core/src/lib/sse-subscriber.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/core/src/lib/statements.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/step-discovery.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/core/src/lib/step-dispatch.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/step-hypermedia.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/step-registry.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/step-stream-context.ts": {
@@ -259,16 +217,10 @@
 	"modules/core/src/lib/step-validation.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/core/src/lib/stepper-cycles.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/core/src/lib/store-protocol.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/taiwa.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/tool-validation.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/ttag.ts": {

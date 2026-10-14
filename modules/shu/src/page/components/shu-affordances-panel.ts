@@ -23,7 +23,7 @@ import {
 	type TWaypointEntry,
 	satisfiedGoalDomains,
 } from "@haibun/core/lib/affordances.js";
-import { stepMethodName } from "@haibun/core/lib/step-registry.js";
+import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { SHU_EVENT, AFFORDANCE_PARAM, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import * as PageHash from "../controllers/hash-controller.js";

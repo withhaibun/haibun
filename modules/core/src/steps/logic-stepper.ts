@@ -1,10 +1,10 @@
-import { AStepper, TStepperSteps, IHasCycles, TFeatureStep, IObservationSource, IStepperCycles, hasCycles } from "../lib/astepper.js";
+import { AStepper, TStepperSteps, IHasCycles, TFeatureStep, IObservationSource, IStepperCycles, hasCycles } from "../lib/steps/domains/stepper.js";
 import type { TWorld } from "../lib/world.js";
 import { OK, TActionResult, Origin } from "../schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, sleep } from "../lib/util/index.js";
 import { itemAt } from "../lib/util/item-at.js";
 import { z } from "zod";
-import { FlowRunner } from "../lib/core/flow-runner.js";
+import { FlowRunner } from "../lib/steps/pipelines/flow-runner.js";
 import { DOMAIN_NUMBER, DOMAIN_STATEMENT, DOMAIN_STRING } from "../lib/domains.js";
 import { readEvery, equalTo } from "../lib/records/pipelines/record-reads.js";
 import { SEQ_PATH_LABEL } from "../lib/resources.js";
@@ -228,7 +228,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			description: "Succeeds if at least one item in the collection satisfies the condition.",
 			action: async (_: unknown, featureStep: TFeatureStep): Promise<TActionResult> => {
 				const match = featureStep.in.match(/^some (.*?) (in|observed in) (.*?) is (.*)/);
-				if (!match) return actionNotOK("some: invalid syntax");
+				if (!match) return actionNotOK(`some: "${featureStep.in}" isn't written as some {name} in {domain} is {statement}; write it in that form`);
 				const [what, connector, sourceOrDomain, quotedStatement] = [itemAt(match, 1), itemAt(match, 2), itemAt(match, 3), itemAt(match, 4)] as const;
 				// stripQuotes removes the quotes around a quoted inner statement. A quoted statement doesn't match a gwta. It
 				// resolves as prose, and prose always passes, so the quantifier wouldn't check the statement.
@@ -264,7 +264,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			description: "Succeeds only if all items in the collection satisfy the condition.",
 			action: async (_: unknown, featureStep: TFeatureStep): Promise<TActionResult> => {
 				const match = featureStep.in.match(/^every (.*?) (in|observed in) (.*?) is (.*)/);
-				if (!match) return actionNotOK("every: invalid syntax");
+				if (!match) return actionNotOK(`every: "${featureStep.in}" isn't written as every {name} in {domain} is {statement}; write it in that form`);
 				const [what, connector, sourceOrDomain, quotedStatement] = [itemAt(match, 1), itemAt(match, 2), itemAt(match, 3), itemAt(match, 4)] as const;
 				const statementStr = this.stripQuotes(quotedStatement.trim());
 

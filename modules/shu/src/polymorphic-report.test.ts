@@ -15,7 +15,7 @@ import { openRunRegistry } from "@haibun/core/lib/step-registry.js";
 import { RUN_AUTHORITY, runAuthorizedWith } from "@haibun/core/lib/capability-context.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { DOMAIN_GRAPH_QUERY } from "@haibun/core/lib/quad-types.js";
-import { QuadStore } from "@haibun/core/lib/quad-store.js";
+import { QuadStore, newStoreChain } from "@haibun/core/lib/quad-store.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import MonitorStepper from "./monitor-stepper.js";
 import StorageMem from "@haibun/storage-mem/storage-mem.js";
@@ -66,10 +66,9 @@ async function generateReport(finalView: string | undefined, writes = 1, queries
 		world,
 		steppers.map((s) => (s as { cycles?: IStepperCycles }).cycles?.getConcerns?.().domains ?? []).filter((d) => d.length > 0),
 	);
-	// Actuality's records are where the report reads what its views showed; secrets are irrelevant to that rule.
-	const store = new QuadStore();
+	// The report reads what its views showed from actuality's records.
+	const store = new QuadStore(newStoreChain());
 	(world.shared as unknown as { getStore: () => unknown }).getStore = () => store;
-	(world.shared as unknown as { getSecrets: () => Promise<Record<string, string>> }).getSecrets = async () => ({});
 	for (const s of steppers) await s.setWorld(world, steppers);
 	world.runtime.steppers = steppers;
 	openRunRegistry(world, steppers);

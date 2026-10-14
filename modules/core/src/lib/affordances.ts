@@ -13,10 +13,10 @@
  * Affordances implement the HATEOAS step layer. A client that doesn't hold the registry requests them and receives
  * typed entries with the RPC name of each step.
  */
-import type { AStepper, TFeatureStep } from "./astepper.js";
+import type { AStepper, TFeatureStep } from "./steps/domains/stepper.js";
 import type { TRegisteredDomain } from "./resources.js";
 import type { TFact } from "./records/domains/facts.js";
-import { stepMethodName } from "./step-registry.js";
+import { stepMethodName } from "./steps/domains/step-method.js";
 import { mayCall } from "./actions.js";
 import { buildDomainChain, SOURCE_DOMAIN, type TDomainChainGraph } from "./domain-chain.js";
 import { isPrimitiveDomain, refTargetOf } from "./domains.js";

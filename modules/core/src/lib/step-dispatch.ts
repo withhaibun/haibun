@@ -1,4 +1,4 @@
-import { AStepper, type TStepperStep, type TFeatureStep, type TStepAction, type TBeforeStep, type TAfterStep, type TAfterStepResult } from "./astepper.js";
+import { AStepper, type TStepperStep, type TFeatureStep, type TStepAction, type TBeforeStep, type TAfterStep, type TAfterStepResult } from "./steps/domains/stepper.js";
 import type { TWorld } from "./world.js";
 import type { TActionResult, TStepResult } from "../schema/protocol.js";
 import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, stepLevel, SUBSTEP_LEVEL, STATUS, RECORDED_STATUS, type TStepEnd, type TRecordedStatus } from "../schema/protocol.js";
@@ -8,13 +8,15 @@ import { actionNotOK } from "./util/index.js";
 import { itemAt } from "./util/item-at.js";
 import { isWrittenByCaller, normalizeDomainKey } from "./domains.js";
 import { assertFact, holdsFactOf } from "./records/pipelines/facts.js";
-import { doStepperCycle } from "./stepper-cycles.js";
+import { doStepperCycle } from "./steps/pipelines/stepper-cycles.js";
 import { actingAs, callerHolds, readingAsStated, readScope, runInStep, runInvoking, runReadingAsHeld, runStatedAt } from "./capability-context.js";
 import { capabilityAllows } from "./actions.js";
 import { LinkRelations, SEQ_PATH_LABEL } from "./resources.js";
 import { SEQ_PATH_FIELD, calledOf, executionOf, formatRecordName, type TRecordName } from "./seq-path.js";
-import { StepRegistry, stepMethodName, hostScopedMethodName, authorizeToolCapability } from "./step-registry.js";
-import { augmentViewHypermedia, isViewOnlyDomain } from "./step-hypermedia.js";
+import { StepRegistry } from "./steps/pipelines/step-registry.js";
+import { stepMethodName, hostScopedMethodName } from "./steps/domains/step-method.js";
+import { authorizeToolCapability } from "./steps/pipelines/gate.js";
+import { augmentViewHypermedia, isViewOnlyDomain } from "./steps/derivations/step-hypermedia.js";
 
 /** The products kept on a step's lifecycle event: all by default, undefined for `false`, else the subset the filter returns. */
 export function retainedProducts(
@@ -106,7 +108,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	};
 
 	if (world.runtime.exhaustionError) {
-		return pushAndReturn(stepResultFromActionResult(actionNotOK(`Execution halted: ${world.runtime.exhaustionError}`), action, start, Timer.since(), featureStep));
+		return pushAndReturn(stepResultFromActionResult(actionNotOK(`actuality halted every dispatch after an exhaustion: ${world.runtime.exhaustionError}`), action, start, Timer.since(), featureStep));
 	}
 	if (featureStep.seqPath.length > MAX_DISPATCH_SEQPATH) {
 		const msg = `Step depth ${featureStep.seqPath.length} exceeds the limit of ${MAX_DISPATCH_SEQPATH}. Check this step for infinite recursion: ${featureStep.in}`;
@@ -148,7 +150,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	// The step as its records state it. A domain's `recordedAs` replaces a value too large to repeat in the records.
 	const stated = asRecorded(featureStep, world.domains);
 	if (recorded) {
-		world.eventLogger.stepStart(stated, action.stepperName, action.actionName, {}, stated.action.stepValuesMap, tool.isAsync);
+		world.eventLogger.stepStart(stated, action.stepperName, action.actionName, stated.action.stepValuesMap, tool.isAsync);
 		await emitSeqPathStart(world, stated, authorization, { ranVia: tool.transport, ranOn: tool.descriptor.remoteOrigin });
 	}
 	// A log written while a substep runs doesn't report above the substep's level, except a warning or an error. The web
@@ -172,7 +174,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 							lastStepResult = stepResultFromActionResult(actionResult, action, start, Timer.since(), stated);
 							keep(lastStepResult);
 							// Each step that runs a beforeStep cycle also runs an afterStep cycle, so a stepper closes what it opened for that step.
-							await doStepperCycle(steppers, "afterStep", <TAfterStep>{ featureStep, actionResult }, action.actionName);
+							await doStepperCycle(steppers, "afterStep", <TAfterStep>{ featureStep, actionResult });
 							doAction = false;
 							continue;
 						}
@@ -190,7 +192,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 						}
 						const placed = stepResultFromActionResult(actionResult, action, start, Timer.since(), stated);
 						place(placed);
-						const instructions: Array<TAfterStepResult | undefined> = await doStepperCycle(steppers, "afterStep", <TAfterStep>{ featureStep, actionResult }, action.actionName);
+						const instructions: Array<TAfterStepResult | undefined> = await doStepperCycle(steppers, "afterStep", <TAfterStep>{ featureStep, actionResult });
 						doAction = instructions.some((i) => i?.rerunStep);
 						// An afterStep cycle can fail a step that passed, so actuality counts the outcome afterStepOutcome computes.
 						actionResult = afterStepOutcome(actionResult, instructions);
@@ -214,7 +216,6 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		action.actionName,
 		ended,
 		actionResult.ok ? undefined : actionResult.errorMessage,
-		{},
 		stated.action.stepValuesMap,
 		retainedProducts(actionResult.products, action.step.retainProducts),
 	);

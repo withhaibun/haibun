@@ -5,10 +5,11 @@
 import type { AStepper } from "@haibun/core/lib/astepper.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { OBSCURED_VALUE } from "@haibun/core/lib/feature-variables.js";
+import { obscuredText } from "@haibun/core/lib/steps/derivations/obscured.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { SEQ_PATH_FIELD, executionOf } from "@haibun/core/lib/seq-path.js";
-import { discoverSteps, runRegistry } from "@haibun/core/lib/step-registry.js";
+import { discoverSteps } from "@haibun/core/lib/steps/derivations/discover-steps.js";
+import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import { EVERY_DEFINITION } from "@haibun/core/lib/step-discovery.js";
 import { shownTo } from "@haibun/core/lib/capability-context.js";
 import { SHU_TAG } from "../domains/elements.js";
@@ -103,7 +104,6 @@ export async function reportHtml(scope: TReportScope): Promise<string> {
 		actualityId: world.runtime.actualityId,
 		cache: carriedRun(executionOf(world.tag), registry, graph === undefined ? [] : graph.quads),
 	} satisfies THydration);
-	let payload = JSON.stringify({ bundle: scope.reportBundle, hydration, scripts: inlineScriptsForView(world.domains, components) });
-	for (const value of Object.values(await world.shared.getSecrets())) if (value) payload = payload.replaceAll(value, OBSCURED_VALUE);
-	return buildReportHtml(".", payload, scope.compressed);
+	const payload = JSON.stringify({ bundle: scope.reportBundle, hydration, scripts: inlineScriptsForView(world.domains, components) });
+	return buildReportHtml(".", obscuredText(payload, world.shared.secretTexts()), scope.compressed);
 }

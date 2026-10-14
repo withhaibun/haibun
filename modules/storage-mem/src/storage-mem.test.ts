@@ -6,7 +6,6 @@ import { OK } from "@haibun/core/schema/protocol.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import StorageMem from "./storage-mem.js";
 import { describeStorage } from "@haibun/domain-storage/test/storage-conformance.js";
-import { TAnyFixme } from "@haibun/core/lib/fixme.js";
 
 // The capture key is the WORLD's own tag.key (getCaptureLocation reads loc.tag.key); assert against that, never a
 // separately-imported Timer.key: a different value when the module loads twice under vitest (its own static startTime).
@@ -19,7 +18,7 @@ describeStorage("memory", () => new StorageMem(), "/");
 
 describe("BASE_FS", () => {
 	afterEach(() => {
-		(StorageMem.BASE_FS as TAnyFixme) = undefined;
+		StorageMem.BASE_FS = {};
 	});
 	it("finds BASE_FS file", () => {
 		StorageMem.BASE_FS = { hello: "world" };

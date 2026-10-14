@@ -1,16 +1,15 @@
 import { z } from "zod";
 import type { TActualityId } from "./rpc-wire.js";
-import type { TAnyFixme } from "./fixme.js";
 import type { TTag } from "./ttag.js";
 import type { FeatureVariables } from "./feature-variables.js";
 import type { Prompter } from "./prompter.js";
-import type { IEventLogger } from "./EventLogger.js";
+import type { IEventLogger } from "./steps/ports.js";
 import type { TStepResult, Timer, TFeatureSteps } from "../schema/protocol.js";
 import { CONTINUE_AFTER_ERROR, NDJSON, ShownLogLevelSchema } from "../schema/protocol.js";
 import type { TRegisteredDomain } from "./resources.js";
-import type { StepRegistry } from "./step-registry.js";
+import type { StepRegistry } from "./steps/pipelines/step-registry.js";
 import type { TFeature } from "./execution.js";
-import type { AStepper } from "./astepper.js";
+import type { AStepper } from "./steps/domains/stepper.js";
 
 export type TWorld = {
 	tag: TTag;
@@ -58,7 +57,8 @@ export type TRuntime = {
 	 * every feature path.
 	 */
 	adHocSeq?: number;
-	[name: string]: TAnyFixme;
+	/** Each value a stepper holds for actuality under its own name, which `getFromRuntime` reads. */
+	[name: string]: unknown;
 };
 
 /** Returns the steppers that execute actuality's steps. The Executor sets them before a step runs. */

@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { passWithDefaults, failWithDefaults, getDefaultWorld } from "../lib/test/lib.js";
 import { runInStep } from "../lib/capability-context.js";
-import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "../lib/astepper.js";
+import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { actionOKWithProducts } from "../lib/util/index.js";
 import VariablesStepper from "./variables-stepper.js";
 import LogicStepper from "./logic-stepper.js";

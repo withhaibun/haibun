@@ -7,13 +7,15 @@
  */
 
 import { RecordSchema } from "./json-text.js";
-import { AStepper } from "./astepper.js";
+import { AStepper } from "./steps/domains/stepper.js";
 import { runSteppers, type TWorld } from "./world.js";
 import type { TActionResult } from "../schema/protocol.js";
 import { actionNotOK } from "./util/index.js";
-import { type StepTool, type StepRegistry, hostScopedMethodName } from "./step-registry.js";
-import { callInput } from "./populateActionArgs.js";
-import { EVERY_DEFINITION, SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, readShownSteps, type TStepDescriptor } from "./step-discovery.js";
+import { type StepTool, type StepRegistry } from "./steps/pipelines/step-registry.js";
+import { hostScopedMethodName } from "./steps/domains/step-method.js";
+import { callInput } from "./steps/pipelines/populate-action-args.js";
+import { EVERY_DEFINITION, SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, type TStepDescriptor } from "./steps/domains/step-discovery.js";
+import { readShownSteps } from "./steps/domains/step-discovery.js";
 import { RpcCallFailed, RpcClient } from "./rpc-client.js";
 import { requestSigner } from "./session-authority.js";
 

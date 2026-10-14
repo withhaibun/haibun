@@ -10,7 +10,7 @@
  */
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { AStepper, type IStepperCycles } from "../astepper.js";
+import { AStepper, type IStepperCycles } from "../steps/domains/stepper.js";
 import { DOMAIN_ACTIONS } from "../domains.js";
 import type { TDomainDefinition } from "../resources.js";
 import { OK } from "../../schema/protocol.js";

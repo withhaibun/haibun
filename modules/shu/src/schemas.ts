@@ -2,10 +2,10 @@
  * SPA-side schemas for graph query results and shared UI components.
  */
 import { z } from "zod";
-import { SearchConditionSchema, type TSearchCondition } from "@haibun/core/lib/quad-types.js";
+import { SearchConditionSchema, SortOrderSchema, type TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
 import { CountedSchema } from "@haibun/core/lib/hypermedia.js";
-import { stepMethodName } from "@haibun/core/lib/step-registry.js";
+import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { ChatStatusSchema, ContextQuerySchema } from "@haibun/core/lib/conversation/domains/conversation.js";
 
 // --- Combobox ---
@@ -77,7 +77,7 @@ export function serializeFilterParam(c: TSearchCondition): string {
 
 // --- Query view schema (for shu-graph-query component state) ---
 
-export const QueryViewSchema = z.object({ label: z.string().optional(), textQuery: z.string().optional(), sortBy: z.string().optional(), sortOrder: z.enum(["asc", "desc"]) });
+export const QueryViewSchema = z.object({ label: z.string().optional(), textQuery: z.string().optional(), sortBy: z.string().optional(), sortOrder: SortOrderSchema });
 
 // --- Context patterns (for LLM / actions bar) ---
 
@@ -145,7 +145,7 @@ export const PageKeySchema = z.object({
 
 export const ResultTableSchema = z.object({
 	sortBy: z.string().optional(),
-	sortOrder: z.enum(["asc", "desc"]),
+	sortOrder: SortOrderSchema,
 	selectable: z.boolean(),
 	displayMode: z.enum(["full", "objects", "pairs"]),
 	fixedProperty: z.string().optional(),

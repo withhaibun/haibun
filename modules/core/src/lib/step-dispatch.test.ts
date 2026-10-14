@@ -2,22 +2,17 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { z } from "zod";
 
 import { dispatchStep, retainedProducts } from "./step-dispatch.js";
-import {
-	buildStepRegistry,
-	stepMethodName,
-	createStepHandler,
-	discoverSteps,
-	buildFeatureStepForTransport,
-	authorizeToolCapability,
-	StepRegistry,
-	type StepTool,
-} from "./step-registry.js";
-import { validateToolInput } from "./tool-validation.js";
-import { EVERY_DEFINITION } from "./step-discovery.js";
-import { AStepper, type IHasCycles, type TFeatureStep, type TStepperStep } from "./astepper.js";
+import { buildStepRegistry, createStepHandler, StepRegistry, type StepTool } from "./steps/pipelines/step-registry.js";
+import { stepMethodName } from "./steps/domains/step-method.js";
+import { discoverSteps } from "./steps/derivations/discover-steps.js";
+import { buildFeatureStepForTransport } from "./steps/pipelines/call-step.js";
+import { authorizeToolCapability } from "./steps/pipelines/gate.js";
+import { validateToolInput } from "./steps/derivations/tool-validation.js";
+import { EVERY_DEFINITION } from "./steps/domains/step-discovery.js";
+import { AStepper, type IHasCycles, type TFeatureStep, type TStepperStep } from "./steps/domains/stepper.js";
 import { OK, RECORDED_STATUS } from "../schema/protocol.js";
 import { itemAt } from "./util/item-at.js";
-import { FlowRunner } from "./core/flow-runner.js";
+import { FlowRunner } from "./steps/pipelines/flow-runner.js";
 import { actionOKWithProducts, actionNotOK } from "./util/index.js";
 import { getDefaultWorld, testWithWorld } from "./test/lib.js";
 import { TEST_DOMAIN, declaresTestDomains, testDomainDefinitions } from "./test/test-domains.js";
@@ -189,22 +184,22 @@ describe("step-dispatch", () => {
 
 		it("rejects missing or wrong capability", () => {
 			const tool = { method: "CapabilityStepper-protectedPing", capability: "CapabilityStepper:protected" };
-			expect(() => authorizeToolCapability(tool, { invoked: undefined, held: undefined })).toThrow(/capability CapabilityStepper:protected required/);
-			expect(() => authorizeToolCapability(tool, { invoked: "Other:*", held: "Other:*" })).toThrow(/capability CapabilityStepper:protected required/);
+			expect(() => authorizeToolCapability(tool, { invoked: undefined, held: undefined }, undefined)).toThrow(/capability CapabilityStepper:protected required/);
+			expect(() => authorizeToolCapability(tool, { invoked: "Other:*", held: "Other:*" }, undefined)).toThrow(/capability CapabilityStepper:protected required/);
 		});
 
 		it("authorizes a call for the action it invoked, and not for another its caller holds", () => {
 			const tool = { method: "CapabilityStepper-protectedPing", capability: "CapabilityStepper:protected" };
 			const held = ["CapabilityStepper:protected", "LlmStepper:ask"];
-			expect(() => authorizeToolCapability(tool, { invoked: "LlmStepper:ask", held })).toThrow(/capability CapabilityStepper:protected required/);
-			expect(() => authorizeToolCapability(tool, { invoked: "CapabilityStepper:protected", held })).not.toThrow();
+			expect(() => authorizeToolCapability(tool, { invoked: "LlmStepper:ask", held }, undefined)).toThrow(/capability CapabilityStepper:protected required/);
+			expect(() => authorizeToolCapability(tool, { invoked: "CapabilityStepper:protected", held }, undefined)).not.toThrow();
 		});
 
 		it("refuses a step that reads above its caller's read or above the read ceiling in force for the call", () => {
 			const tool = { method: "CapabilityStepper-look", capability: "CapabilityStepper:look", readsAt: Access.private };
 			const invoked = "CapabilityStepper:look";
-			expect(() => authorizeToolCapability(tool, { invoked, held: [invoked, "Read:public"] })).toThrow(/capability Read:private required/);
-			expect(() => authorizeToolCapability(tool, { invoked, held: [invoked, "Read:private"] }), "the read is bounded by what the caller holds").not.toThrow();
+			expect(() => authorizeToolCapability(tool, { invoked, held: [invoked, "Read:public"] }, undefined)).toThrow(/capability Read:private required/);
+			expect(() => authorizeToolCapability(tool, { invoked, held: [invoked, "Read:private"] }, undefined), "the read is bounded by what the caller holds").not.toThrow();
 			expect(() => authorizeToolCapability(tool, { invoked: "*", held: "*" }, Access.public)).toThrow("CapabilityStepper-look reads at private, and this call reads at public");
 			expect(() => authorizeToolCapability(tool, { invoked: "*", held: "*" }, Access.private)).not.toThrow();
 		});
@@ -358,7 +353,7 @@ describe("step-dispatch", () => {
 			const handler = createStepHandler("ProductStepper", "throwStep", stepper.steps.throwStep);
 			const result = await handler(synth({ stepperName: "ProductStepper", stepName: "throwStep", description: "" }, {}), world);
 			expect(result.ok).toBe(false);
-			expect(result.errorMessage, "the message it threw, as a step's refusal").toBe("boom");
+			expect(result.errorMessage, "the message it threw, as a step's refusal").toBe("the step threw: boom");
 		});
 
 		it("populates stepValuesMap from input", async () => {
@@ -497,7 +492,7 @@ describe("step-dispatch", () => {
 			const read = (id: unknown, path: number[]) =>
 				dispatchStep(
 					{ registry, world, steppers, grantedCapability: RUN_AUTHORITY },
-					buildFeatureStepForTransport(tool, validateToolInput(path, tool, { label: "Email", id }, world), path),
+					buildFeatureStepForTransport(tool, validateToolInput(path, tool, { label: "Letter", id }, world), path),
 				);
 			for (const [given, path] of [
 				["e1", [0, 31, 1]],
@@ -635,9 +630,9 @@ describe("step-dispatch", () => {
 			it("refuses each read of records to a caller that doesn't hold a read action, naming the read it lacks", async () => {
 				const { call } = held();
 				const ceiling = await call("readsAtCeiling", ["Held:readsAtCeiling"], [0, 23, 1]);
-				expect(ceiling.ok ? ceiling.products : ceiling.errorMessage, "the step's read of its ceiling is refused").toBe(WITHOUT_READ_REFUSAL);
+				expect(ceiling.ok ? ceiling.products : ceiling.errorMessage, "the step's read of its ceiling is refused").toBe(`the step threw: ${WITHOUT_READ_REFUSAL}`);
 				const records = await call("readsRecords", ["Held:readsRecords"], [0, 23, 2]);
-				expect(records.ok ? records.products : records.errorMessage, "and so is its read of the store's records").toBe(WITHOUT_READ_REFUSAL);
+				expect(records.ok ? records.products : records.errorMessage, "and so is its read of the store's records").toBe(`the step threw: ${WITHOUT_READ_REFUSAL}`);
 				expect((await call("readsRecords", ["Held:readsRecords", "Read:public"], [0, 23, 3])).ok, "a caller that holds a read reads").toBe(true);
 			});
 
@@ -650,7 +645,7 @@ describe("step-dispatch", () => {
 				const stored = await world.shared.getStore().query({ subject: NOTICE_ID, namedGraph: NOTICE_LABEL });
 				expect(new Set(stored.map(({ accessLevel }) => accessLevel)), "at the level its type declares").toEqual(new Set([Access.opened]));
 				const read = await call("readsRecords", ["Held:readsRecords"], [0, 24, 2]);
-				expect(read.ok ? read.products : read.errorMessage, "and the same caller's read is refused").toBe(WITHOUT_READ_REFUSAL);
+				expect(read.ok ? read.products : read.errorMessage, "and the same caller's read is refused").toBe(`the step threw: ${WITHOUT_READ_REFUSAL}`);
 			});
 
 			it("records what a caller's step required and held and who proved it, and doesn't record authority for actuality's own", async () => {
@@ -821,17 +816,17 @@ describe("step-dispatch", () => {
 		const TestEmailSchema = z.object({ id: z.string(), subject: z.string() });
 
 		class DomainEchoStepper extends AStepper {
-			description = "A step that produces a test email, and steps that declare domains wrongly.";
+			description = "A step that produces a test letter, and steps that declare domains wrongly.";
 			steps = {
-				produceEmail: { gwta: "produce an email", productsDomain: "test-email", action: () => actionOKWithProducts({ id: "e1", subject: "hi" }) },
+				produceEmail: { gwta: "produce an letter", productsDomain: "test-letter", action: () => actionOKWithProducts({ id: "e1", subject: "hi" }) },
 				unregisteredInput: { gwta: "consume {who: no-such-domain}", action: () => OK },
-				dualOutput: { gwta: "produce two outputs", productsDomain: "test-email", productsDomains: { x: "string" }, action: () => actionOKWithProducts({ id: "e", subject: "s" }) },
+				dualOutput: { gwta: "produce two outputs", productsDomain: "test-letter", productsDomains: { x: "string" }, action: () => actionOKWithProducts({ id: "e", subject: "s" }) },
 				unknownDomain: { gwta: "produce a ghost", productsDomain: "not-registered", action: () => actionOKWithProducts({}) },
 			};
 		}
 
 		beforeEach(() => {
-			registerDomains(world, [[{ selectors: ["test-email"], schema: TestEmailSchema, description: "Test email" }]]);
+			registerDomains(world, [[{ selectors: ["test-letter"], schema: TestEmailSchema, description: "Test letter" }]]);
 		});
 
 		it("records the view a step showed by its declared name", async () => {
@@ -852,7 +847,7 @@ describe("step-dispatch", () => {
 
 		it("registers a step with productsDomain referencing a known domain", () => {
 			class JustProduce extends AStepper {
-				description = "A step that produces a test email.";
+				description = "A step that produces a test letter.";
 				steps = { produceEmail: new DomainEchoStepper().steps.produceEmail };
 			}
 			const registry = buildStepRegistry([new JustProduce()], world);
@@ -888,15 +883,15 @@ describe("step-dispatch", () => {
 	});
 
 	describe("_links derivation, H1 next-action affordances from paramDomains", () => {
-		const VcSchema = z.object({ id: z.string(), subject: z.string() }).describe("A signed claim about a subject.");
-		const VcRefSchema = z.object({ id: z.string() }).describe("Reference to a credential by id.");
+		const PermitSchema = z.object({ id: z.string(), subject: z.string() }).describe("A signed claim about a subject.");
+		const PermitRefSchema = z.object({ id: z.string() }).describe("Reference to a permit by id.");
 
 		class IssuerStepper extends AStepper {
-			description = "Steps that issue, revoke and suspend a demo credential.";
+			description = "Steps that issue, revoke and suspend a demo permit.";
 			steps = {
-				issueDemoCredential: { gwta: "issue demo credential", productsDomain: "demo-vc", action: () => actionOKWithProducts({ id: "vc-1", subject: "did:example:alice" }) },
-				revokeDemo: { gwta: "revoke {credential: demo-vc}", productsDomain: "demo-vc", action: () => actionOKWithProducts({ id: "vc-1", subject: "did:example:alice" }) },
-				suspendDemo: { gwta: "suspend {credential: demo-vc}", productsDomain: "demo-vc", action: () => actionOKWithProducts({ id: "vc-1", subject: "did:example:alice" }) },
+				issueDemoPermit: { gwta: "issue demo permit", productsDomain: "demo-permit", action: () => actionOKWithProducts({ id: "permit-1", subject: "did:example:alice" }) },
+				revokeDemo: { gwta: "revoke {permit: demo-permit}", productsDomain: "demo-permit", action: () => actionOKWithProducts({ id: "permit-1", subject: "did:example:alice" }) },
+				suspendDemo: { gwta: "suspend {permit: demo-permit}", productsDomain: "demo-permit", action: () => actionOKWithProducts({ id: "permit-1", subject: "did:example:alice" }) },
 				unrelatedStep: { gwta: "do unrelated thing {name: string}", action: () => OK },
 			};
 		}
@@ -904,8 +899,8 @@ describe("step-dispatch", () => {
 		beforeEach(() => {
 			registerDomains(world, [
 				[
-					{ selectors: ["demo-vc"], schema: VcSchema, description: "Verifiable credential vertex" },
-					{ selectors: ["demo-vc-ref"], schema: VcRefSchema, description: "Credential reference" },
+					{ selectors: ["demo-permit"], schema: PermitSchema, description: "Verifiable permit vertex" },
+					{ selectors: ["demo-permit-ref"], schema: PermitRefSchema, description: "Permit reference" },
 				],
 			]);
 		});
@@ -914,8 +909,8 @@ describe("step-dispatch", () => {
 			const stepper = new IssuerStepper();
 			const steppers = [stepper];
 			const registry = new StepRegistry(steppers, world);
-			const tool = registry.get("IssuerStepper-issueDemoCredential");
-			if (!tool) throw new Error("Expected IssuerStepper-issueDemoCredential to be registered");
+			const tool = registry.get("IssuerStepper-issueDemoPermit");
+			if (!tool) throw new Error("Expected IssuerStepper-issueDemoPermit to be registered");
 
 			const featureStep = buildFeatureStepForTransport(tool, {}, [0, 1]);
 			const result = await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, featureStep);
@@ -924,11 +919,11 @@ describe("step-dispatch", () => {
 			const products = result.products as Record<string, unknown>;
 			const links = products._links as Record<string, { method: string; params?: Record<string, unknown> }> | undefined;
 			expect(links).toBeDefined();
-			// Two steps take demo-vc as input: revoke and suspend. The issue step doesn't take demo-vc as input, so `_links` doesn't list it.
+			// Two steps take demo-permit as input: revoke and suspend. The issue step doesn't take demo-permit as input, so `_links` doesn't list it.
 			expect(Object.keys(links ?? {}).sort()).toEqual(["revokeDemo", "suspendDemo"]);
 			// The method is the full dispatch address. The params skeleton holds the product's `id`.
-			expect(links?.revokeDemo).toEqual({ method: "IssuerStepper-revokeDemo", params: { credential: { id: "vc-1" } } });
-			expect(links?.suspendDemo).toEqual({ method: "IssuerStepper-suspendDemo", params: { credential: { id: "vc-1" } } });
+			expect(links?.revokeDemo).toEqual({ method: "IssuerStepper-revokeDemo", params: { permit: { id: "permit-1" } } });
+			expect(links?.suspendDemo).toEqual({ method: "IssuerStepper-suspendDemo", params: { permit: { id: "permit-1" } } });
 		});
 
 		it("doesn't emit `_links` when the other steps don't accept this product's domain", async () => {
@@ -952,27 +947,27 @@ describe("step-dispatch", () => {
 			expect(products._links).toBeUndefined();
 		});
 
-		it("follows topology.ranges.id from a ref domain to the persisted domain, so a `vc-vertex` product links `revoke {credential: vc-ref}`", async () => {
+		it("follows topology.ranges.id from a ref domain to the persisted domain, so a `permit-vertex` product links `revoke {permit: permit-ref}`", async () => {
 			// A step takes a ref domain whose schema is `{id}` and whose topology.ranges.id names the persisted domain a step produces. The link derivation follows that range. individualRefDomain declares this range on the ref domain that a step takes to name a record by reference.
 			class VertexRefStepper extends AStepper {
-				description = "Steps that produce a credential vertex and revoke it by reference.";
+				description = "Steps that produce a permit vertex and revoke it by reference.";
 				steps = {
-					produceVc: { gwta: "produce a vc", productsDomain: "vc-vertex", action: () => actionOKWithProducts({ id: "vc-1" }) },
-					revokeVc: { gwta: "revoke {credential: vc-ref}", productsDomain: "vc-revocation", action: () => actionOKWithProducts({ revoked: true }) },
+					producePermit: { gwta: "produce a permit", productsDomain: "permit-vertex", action: () => actionOKWithProducts({ id: "permit-1" }) },
+					revokePermit: { gwta: "revoke {permit: permit-ref}", productsDomain: "permit-revocation", action: () => actionOKWithProducts({ revoked: true }) },
 				};
 			}
 			registerDomains(world, [
 				[
-					{ selectors: ["vc-vertex"], schema: z.object({ id: z.string() }), description: "VC vertex" },
-					{ selectors: ["vc-ref"], schema: z.object({ id: z.string() }), description: "Reference to a VC by id", topology: { ranges: { id: "vc-vertex" } } },
-					{ selectors: ["vc-revocation"], schema: z.object({ revoked: z.boolean() }), description: "Revocation outcome" },
+					{ selectors: ["permit-vertex"], schema: z.object({ id: z.string() }), description: "Permit vertex" },
+					{ selectors: ["permit-ref"], schema: z.object({ id: z.string() }), description: "Reference to a permit by id", topology: { ranges: { id: "permit-vertex" } } },
+					{ selectors: ["permit-revocation"], schema: z.object({ revoked: z.boolean() }), description: "Revocation outcome" },
 				],
 			]);
 			const stepper = new VertexRefStepper();
 			const steppers = [stepper];
 			const registry = new StepRegistry(steppers, world);
-			const tool = registry.get("VertexRefStepper-produceVc");
-			if (!tool) throw new Error("Expected VertexRefStepper-produceVc to be registered");
+			const tool = registry.get("VertexRefStepper-producePermit");
+			if (!tool) throw new Error("Expected VertexRefStepper-producePermit to be registered");
 
 			const featureStep = buildFeatureStepForTransport(tool, {}, [0, 1]);
 			const result = await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, featureStep);
@@ -981,8 +976,8 @@ describe("step-dispatch", () => {
 			const products = result.products as Record<string, unknown>;
 			const links = products._links as Record<string, { method: string; params?: Record<string, unknown> }> | undefined;
 			expect(links).toBeDefined();
-			// revokeVc takes `vc-ref`, and the topology.ranges.id of `vc-ref` is "vc-vertex". The derivation follows that range and links revokeVc with the product's id as the ref's `{id}`.
-			expect(links?.revokeVc).toEqual({ method: "VertexRefStepper-revokeVc", params: { credential: { id: "vc-1" } } });
+			// revokePermit takes `permit-ref`, and the topology.ranges.id of `permit-ref` is "permit-vertex". The derivation follows that range and links revokePermit with the product's id as the ref's `{id}`.
+			expect(links?.revokePermit).toEqual({ method: "VertexRefStepper-revokePermit", params: { permit: { id: "permit-1" } } });
 		});
 
 		it("omits params skeleton when the product doesn't have an `id`: the consumer fills params from the step's shown schema", async () => {

@@ -42,7 +42,8 @@ import {
 	type TRunStatus,
 } from "./feature-execution.js";
 import { RUN_DOMAIN, SUPERVISOR_CAPABILITIES, featureFilterDomainDefinition, runReadSchema, runStartedSchema } from "./instance-stepper.js";
-import { bareMethodName, hostOfMethodName, hostScopedMethodName, runRegistry } from "@haibun/core/lib/step-registry.js";
+import { bareMethodName, hostOfMethodName, hostScopedMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
+import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import { examineRun } from "./run-outcome.js";
 import { forgetOutcomes } from "./verified.js";
 import { DOMAIN_FILE_PATH } from "@haibun/core/lib/domains.js";

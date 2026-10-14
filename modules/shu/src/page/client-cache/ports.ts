@@ -2,7 +2,8 @@
  * The client cache's ports: the graph of a run's records, the device's databases and its registry, and the source of a
  * view's rows of actuality.
  */
-import type { IQuadStore, TDensityQuery, TDensityResult, TGraphQuery, TGraphQueryResult, TQuad } from "@haibun/core/lib/quad-types.js";
+import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
+import type { TDensityQuery, TDensityResult, TGraphQuery, TGraphQueryResult, TQuad } from "@haibun/core/lib/quad-types.js";
 import type { THaibunLogLevel } from "@haibun/core/schema/protocol.js";
 import type { WindowedSource } from "../derivations/windowed-source.js";
 import type { Range } from "../derivations/rail.js";

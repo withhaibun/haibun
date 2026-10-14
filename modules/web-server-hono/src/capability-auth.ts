@@ -4,7 +4,7 @@ import { sentByAnotherSite } from "@haibun/core/lib/request-context.js";
 import type { Context, MiddlewareHandler } from "hono";
 import type { TRuntime } from "@haibun/core/lib/world.js";
 import { capabilityAllows } from "@haibun/core/lib/actions.js";
-import { refusal } from "@haibun/core/lib/step-registry.js";
+import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import { getAuthority, heldAuthority } from "@haibun/core/lib/session-authority.js";
 import { DELEGATIONS_READ_ACTION, type TRestsOn } from "@haibun/core/lib/authority-types.js";
 import type { IWebServer } from "./defs.js";
@@ -80,7 +80,7 @@ export const refuseInvocation = (c: Context, error: string): Response => c.json(
 export async function authorityAllowing(c: Context, action: string, runtime: TRuntime, served: TServed): Promise<TRequestAuthority | Response> {
 	const authority = await grantedCapabilityForRequest({ method: c.req.method, url: c.req.url, headers: c.req.header() }, runtime, served);
 	if (authority.refused) return refuseInvocation(c, `${c.req.path}: ${authority.refused}`);
-	if (!capabilityAllows(authority.granted, action)) return c.json({ error: refusal(c.req.path, action, delegateOf(authority, served)) }, REFUSED_INVOCATION);
+	if (!capabilityAllows(authority.granted, action)) return c.json(refusal(c.req.path, action, delegateOf(authority, served)), REFUSED_INVOCATION);
 	return authority;
 }
 

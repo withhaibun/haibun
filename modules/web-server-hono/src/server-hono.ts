@@ -9,10 +9,10 @@ import { resolve, sep } from "path";
 import { isIP } from "node:net";
 import { esc } from "@haibun/core/lib/document-content.js";
 import type { MiddlewareHandler } from "hono";
-import type { IEventLogger } from "@haibun/core/lib/EventLogger.js";
+import type { IEventLogger } from "@haibun/core/lib/steps/ports.js";
 import { describePortOccupant } from "@haibun/core/lib/port-occupant.js";
 import { ENDPOINT_CLASS, isServicePath } from "@haibun/core/lib/http-observations.js";
-import type { IQuadStore } from "@haibun/core/lib/quad-types.js";
+import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import type { TRpcMethod } from "@haibun/core/lib/rpc-wire.js";
 import { basicAuth } from "./auth.js";
 import type { TBasicAuthUser } from "@haibun/core/lib/basic-auth.js";
@@ -97,7 +97,7 @@ export class ServerHono implements IWebServer {
 
 	listen(why: string, port: number, hostname?: string): Promise<void> {
 		if (typeof port !== "number" || Number.isNaN(port) || port <= 0) {
-			throw new Error(`ServerHono.listen: invalid port "${port}"`);
+			throw new Error(`ServerHono.listen takes a port above 0, and was given "${port}"; state the port as a whole number above 0`);
 		}
 		const host = hostname || "127.0.0.1";
 		this.boundToLoopback = isLoopback(host);
@@ -248,7 +248,7 @@ export class ServerHono implements IWebServer {
 	}
 
 	private validateRouteType(type: TRouteTypes): void {
-		if (!ROUTE_TYPES.includes(type)) throw new Error(`ServerHono: invalid route type "${type}"`);
+		if (!ROUTE_TYPES.includes(type)) throw new Error(`ServerHono doesn't serve a route of the method "${type}"; serve one of ${ROUTE_TYPES.join(", ")}`);
 	}
 
 	private validatePath(path: string): void {

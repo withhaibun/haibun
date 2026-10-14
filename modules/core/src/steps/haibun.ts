@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { TFeatures } from "../lib/execution.js";
 import type { TWorld } from "../lib/world.js";
 import { OK } from "../schema/protocol.js";
-import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TEndFeature, CycleWhen } from "../lib/astepper.js";
+import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TEndFeature, CycleWhen } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts, sleep } from "../lib/util/index.js";
 import { findFeatureStepsFromStatement } from "../phases/Resolver.js";
 import {
@@ -19,13 +19,15 @@ import {
 	createEnumDomainDefinition,
 } from "../lib/domains.js";
 import { findFeatures } from "../lib/features.js";
-import { FlowRunner } from "../lib/core/flow-runner.js";
-import { QuadStore } from "../lib/quad-store.js";
+import { FlowRunner } from "../lib/steps/pipelines/flow-runner.js";
+import { QuadStore } from "../lib/steps/pipelines/quad-store.js";
 import { RemoteQuadStore } from "../lib/remote-quad-store.js";
 import { requestSigner } from "../lib/session-authority.js";
 import { SERVING } from "../lib/serving.js";
-import { discoverSteps, runRegistry, stepMethodName } from "../lib/step-registry.js";
-import { DOMAIN_STEP_DETAIL, SHOW_STEPS_ACTION, SHOW_STEPS_DESCRIPTION, StepDetailSchema, StepDiscoverySchema, type TStepsQuery } from "../lib/step-discovery.js";
+import { discoverSteps } from "../lib/steps/derivations/discover-steps.js";
+import { runRegistry } from "../lib/steps/pipelines/step-registry.js";
+import { stepMethodName } from "../lib/steps/domains/step-method.js";
+import { DOMAIN_STEP_DETAIL, SHOW_STEPS_ACTION, SHOW_STEPS_DESCRIPTION, StepDetailSchema, StepDiscoverySchema, type TStepsQuery } from "../lib/steps/domains/step-discovery.js";
 import { shownTo } from "../lib/capability-context.js";
 import { validateStep } from "../lib/step-validation.js";
 import { Access, SEQ_PATH_LABEL } from "../lib/resources.js";
@@ -264,7 +266,7 @@ class Haibun extends AStepper implements IHasCycles {
 				return OK;
 			},
 		},
-		endsWith: { gwta: `ends with {result: ${DOMAIN_ENDING}}`, action: ({ result }: { result: string }) => (result === ENDING.ok ? actionOK() : actionNotOK("ends with not ok")) },
+		endsWith: { gwta: `ends with {result: ${DOMAIN_ENDING}}`, action: ({ result }: { result: string }) => (result === ENDING.ok ? actionOK() : actionNotOK(`the feature states that it ends with ${result}, so this step fails`)) },
 		pause: {
 			description: 'Pause for a duration. Accepts seconds or milliseconds with an optional space, e.g. `pause for "2s"` or `pause for "30 ms"`.',
 			gwta: `pause for {duration: ${DOMAIN_DURATION}}`,

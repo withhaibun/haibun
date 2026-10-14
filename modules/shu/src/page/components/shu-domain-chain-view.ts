@@ -23,7 +23,7 @@ import * as PageHash from "../controllers/hash-controller.js";
 import { deepLinkOf, followDeepLink, openRef } from "./ref-navigation.js";
 import { domainRef, stepRef } from "./shu-ref.js";
 import { LINT_FINDING, LintFindingSchema, type TLintFinding } from "@haibun/core/lib/domain-chain-lint.js";
-import { stepMethodName } from "@haibun/core/lib/step-registry.js";
+import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { noteExecution } from "../client-cache/controllers/device-controller.js";
 import { ShuElement, EmptyStateSchema, type TLinkedData } from "./shu-element.js";

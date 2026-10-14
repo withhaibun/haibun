@@ -6,7 +6,7 @@
  * in order. The counts state how many occurrences each name had. The window states their order. `observed in` reads both
  * observation sources.
  */
-import { AStepper, type IHasCycles, type IObservationSource, type IStepperCycles, type TStepperSteps } from "../lib/astepper.js";
+import { AStepper, type IHasCycles, type IObservationSource, type IStepperCycles, type TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { blipDeclarations, blipDeclared, blipRollup, blipWatch, WATCH_WINDOW, type TBlipSeries } from "../lib/blips.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
 import { OK } from "../schema/protocol.js";

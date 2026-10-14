@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { z } from "zod";
-import { AStepper, type TStepperSteps } from "./astepper.js";
+import { AStepper, type TStepperSteps } from "./steps/domains/stepper.js";
 import { actionOKWithProducts, actionNotOK } from "./util/index.js";
-import { StepRegistry } from "./step-registry.js";
+import { StepRegistry } from "./steps/pipelines/step-registry.js";
 import { registerDomains } from "./domains.js";
 import { getDefaultWorld } from "./test/lib.js";
 import type { TWorld } from "./world.js";
@@ -14,25 +14,25 @@ import { RUN_AUTHORITY, runActingAs } from "./capability-context.js";
 import { itemAt } from "./util/item-at.js";
 
 const ISSUER_DOMAIN = "issuer";
-const VC_DOMAIN = "vc";
+const PERMIT_DOMAIN = "permit";
 
 const IssuerSchema = z.object({ issuerId: z.string() });
-const VcSchema = z.object({ vcId: z.string() });
+const PermitSchema = z.object({ permitId: z.string() });
 
 class IssueStepper extends AStepper {
-	description = "Issues a credential's issuer.";
+	description = "Issues a permit's issuer.";
 	steps: TStepperSteps = {
-		issueCredential: {
-			gwta: "issue credential",
+		issuePermit: {
+			gwta: "issue permit",
 			productsDomain: ISSUER_DOMAIN,
 			action: ({ issuerId }: { issuerId: string }) => Promise.resolve(actionOKWithProducts({ issuerId: issuerId ?? "default-issuer" })),
 		},
 	};
 }
 
-class VcStepper extends AStepper {
-	description = "Issues a credential.";
-	steps: TStepperSteps = { issueVc: { gwta: "issue a credential", productsDomain: VC_DOMAIN, action: () => Promise.resolve(actionOKWithProducts({ vcId: "vc-001" })) } };
+class PermitStepper extends AStepper {
+	description = "Issues a permit.";
+	steps: TStepperSteps = { issuePermit: { gwta: "issue a permit", productsDomain: PERMIT_DOMAIN, action: () => Promise.resolve(actionOKWithProducts({ permitId: "permit-001" })) } };
 }
 
 class CountingStepper extends AStepper {
@@ -57,7 +57,7 @@ function buildContext(world: TWorld, steppers: AStepper[]): { registry: StepRegi
 	registerDomains(world, [
 		[
 			{ selectors: [ISSUER_DOMAIN], schema: IssuerSchema, description: "issuer identity" },
-			{ selectors: [VC_DOMAIN], schema: VcSchema, description: "verifiable credential" },
+			{ selectors: [PERMIT_DOMAIN], schema: PermitSchema, description: "signed permit" },
 		],
 	]);
 	const registry = new StepRegistry(steppers, world);
@@ -66,8 +66,8 @@ function buildContext(world: TWorld, steppers: AStepper[]): { registry: StepRegi
 
 const twoStepMichi: TMichi = {
 	steps: [
-		{ stepperName: "IssueStepper", stepName: "issueCredential", gwta: "issue credential", productsDomain: ISSUER_DOMAIN },
-		{ stepperName: "VcStepper", stepName: "issueVc", gwta: "issue a credential", productsDomain: VC_DOMAIN },
+		{ stepperName: "IssueStepper", stepName: "issuePermit", gwta: "issue permit", productsDomain: ISSUER_DOMAIN },
+		{ stepperName: "PermitStepper", stepName: "issuePermit", gwta: "issue a permit", productsDomain: PERMIT_DOMAIN },
 	],
 	bindings: [{ kind: "argument", domain: ISSUER_DOMAIN }],
 };
@@ -79,8 +79,8 @@ describe("chain-walker", () => {
 	});
 
 	it("advances one step at a time, recording the produced fact id per step", async () => {
-		const ctx = buildContext(world, [new IssueStepper(), new VcStepper()]);
-		const inst = await createChainInstance(world, VC_DOMAIN, twoStepMichi);
+		const ctx = buildContext(world, [new IssueStepper(), new PermitStepper()]);
+		const inst = await createChainInstance(world, PERMIT_DOMAIN, twoStepMichi);
 
 		const first = await advanceChainInstance(ctx, inst.id, { issuerId: "alice" });
 		expect(first.kind).toBe("advanced");
@@ -119,8 +119,8 @@ describe("chain-walker", () => {
 	});
 
 	it("returns completed again after every step has produced a fact", async () => {
-		const ctx = buildContext(world, [new VcStepper()]);
-		const inst = await createChainInstance(world, VC_DOMAIN, { steps: [{ stepperName: "VcStepper", stepName: "issueVc", productsDomain: VC_DOMAIN }], bindings: [] });
+		const ctx = buildContext(world, [new PermitStepper()]);
+		const inst = await createChainInstance(world, PERMIT_DOMAIN, { steps: [{ stepperName: "PermitStepper", stepName: "issuePermit", productsDomain: PERMIT_DOMAIN }], bindings: [] });
 		await advanceChainInstance(ctx, inst.id, {});
 		const again = await advanceChainInstance(ctx, inst.id, {});
 		expect(again.kind).toBe("completed");
@@ -139,23 +139,23 @@ describe("a walk owned by whoever began it", () => {
 	});
 
 	it("is advanced by the reader who began it", async () => {
-		const ctx = buildContext(world, [new IssueStepper(), new VcStepper()]);
-		const inst = await runActingAs("did:example:alice", () => createChainInstance(world, VC_DOMAIN, twoStepMichi));
+		const ctx = buildContext(world, [new IssueStepper(), new PermitStepper()]);
+		const inst = await runActingAs("did:example:alice", () => createChainInstance(world, PERMIT_DOMAIN, twoStepMichi));
 		expect(inst.owner, "the walk records who began it").toBe("did:example:alice");
 		const advanced = await runActingAs("did:example:alice", () => advanceChainInstance(ctx, inst.id, { issuerId: "alice" }));
 		expect(advanced.kind).toBe("advanced");
 	});
 
 	it("is refused to anyone else, and to a call without a principal", async () => {
-		const ctx = buildContext(world, [new IssueStepper(), new VcStepper()]);
-		const inst = await runActingAs("did:example:alice", () => createChainInstance(world, VC_DOMAIN, twoStepMichi));
+		const ctx = buildContext(world, [new IssueStepper(), new PermitStepper()]);
+		const inst = await runActingAs("did:example:alice", () => createChainInstance(world, PERMIT_DOMAIN, twoStepMichi));
 		await expect(runActingAs("did:example:mallory", () => advanceChainInstance(ctx, inst.id, { issuerId: "mallory" }))).rejects.toThrow(/begun by did:example:alice/);
 		await expect(advanceChainInstance(ctx, inst.id, { issuerId: "nobody" }), "and to a call without a principal").rejects.toThrow(/begun by did:example:alice/);
 	});
 
 	it("a walk an unnamed caller began isn't advanced by a named one", async () => {
-		const ctx = buildContext(world, [new IssueStepper(), new VcStepper()]);
-		const inst = await createChainInstance(world, VC_DOMAIN, twoStepMichi);
+		const ctx = buildContext(world, [new IssueStepper(), new PermitStepper()]);
+		const inst = await createChainInstance(world, PERMIT_DOMAIN, twoStepMichi);
 		expect(inst.owner).toBeUndefined();
 		await expect(runActingAs("did:example:mallory", () => advanceChainInstance(ctx, inst.id, {}))).rejects.toThrow(/begun by an unnamed caller/);
 	});

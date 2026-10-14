@@ -1,6 +1,6 @@
 import { itemAt } from "./util/item-at.js";
 import { TExpandedFeature, TExpandedLine, TFeature, TFeatures } from "./execution.js";
-import type { TResolvedFeature } from "./astepper.js";
+import type { TResolvedFeature } from "./steps/domains/stepper.js";
 import { backgroundNamesSchema } from "./domains.js";
 
 /** A resolved feature as data: each step's action names its stepper and step and holds its values, without the step's

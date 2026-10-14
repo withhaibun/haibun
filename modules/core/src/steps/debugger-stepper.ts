@@ -1,10 +1,10 @@
-import { AStepper, IHasCycles, IHasOptions, TStepperSteps, IStepperCycles, TBeforeStep, TAfterStep, TAfterStepResult, TFeatureStep } from "../lib/astepper.js";
+import { AStepper, IHasCycles, IHasOptions, TStepperSteps, IStepperCycles, TBeforeStep, TAfterStep, TAfterStepResult, TFeatureStep } from "../lib/steps/domains/stepper.js";
 import type { TWorld } from "../lib/world.js";
 import { TActionResult, OK, TDebugSignal } from "../schema/protocol.js";
 import { makePrompt } from "../lib/prompter.js";
 import { formatSeqPath } from "../lib/seq-path.js";
 import { actionOK, getStepperOption, stringOrError, errorDetail } from "../lib/util/index.js";
-import { FlowRunner } from "../lib/core/flow-runner.js";
+import { FlowRunner } from "../lib/steps/pipelines/flow-runner.js";
 import { DOMAIN_STEPPER_NAME } from "../lib/domains.js";
 import { advanceSyntheticSeqPath, syntheticBranchSeqPath, syntheticSeqPathDirection } from "../phases/Executor.js";
 
@@ -72,7 +72,7 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 		if (debugSteppersStart) {
 			for (const stepper of debugSteppersStart.split(",").map((name) => name.trim())) {
 				if (!this.steppers.some((s) => s.constructor.name === stepper)) {
-					throw new Error(`DEBUG_STEPPER ${stepper} not found`);
+					throw new Error(`DEBUG_STEPPER names ${stepper}, which isn't a loaded stepper; name one of ${this.steppers.map((s) => s.constructor.name).join(", ")}`);
 				}
 				this.debugSteppers.push(stepper);
 			}

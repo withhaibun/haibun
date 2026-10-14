@@ -1,4 +1,4 @@
-import { AStepper, type TStepAction } from "./astepper.js";
+import { AStepper, type TStepAction } from "./steps/domains/stepper.js";
 import type { TFeatures } from "./execution.js";
 import { Resolver } from "../phases/Resolver.js";
 import { errorDetail } from "./util/index.js";

@@ -7,7 +7,7 @@ import type { TWorld } from "./world.js";
 import { Origin, TStepValue } from "../schema/protocol.js";
 import { FeatureVariables } from "./feature-variables.js";
 import { fromJsonText } from "./json-text.js";
-import { DOMAIN_GRAPH_QUERY, type TGraphQuery } from "./quad-types.js";
+import { DOMAIN_GRAPH_QUERY, type TGraphQuery } from "./steps/domains/quad-types.js";
 
 const p = (value: string, domain = DOMAIN_STRING): TStepValue => ({ term: String(value), value, domain, origin: Origin.var });
 
@@ -120,15 +120,15 @@ describe("domain coercion", () => {
 		const q = (query: object) => domainOf(DOMAIN_GRAPH_QUERY).coerce(p(JSON.stringify(query), DOMAIN_GRAPH_QUERY)) as TGraphQuery;
 
 		it("leaves an unstated access level unstated", () => {
-			expect(q({ label: "Email" }).accessLevel).toBeUndefined();
+			expect(q({ label: "Letter" }).accessLevel).toBeUndefined();
 		});
 
 		it("keeps a stated access level", () => {
-			expect(q({ label: "Email", accessLevel: "public" }).accessLevel).toBe("public");
+			expect(q({ label: "Letter", accessLevel: "public" }).accessLevel).toBe("public");
 		});
 
 		it("refuses a key the query does not declare", () => {
-			expect(() => q({ label: "Email", account: "acl" })).toThrow(/account/);
+			expect(() => q({ label: "Letter", account: "acl" })).toThrow(/account/);
 		});
 	});
 
@@ -140,9 +140,9 @@ describe("domain coercion", () => {
 		registerDomains(structuredWorld, [[{ selectors: [DOMAIN_STRUCTURED], schema: fromJsonText(structuredSchema), description: "a structured object" }]]);
 
 		it("parses JSON string into validated object", () => {
-			const json = JSON.stringify({ conditions: [{ field: "a", value: "b" }], type: "Email" });
+			const json = JSON.stringify({ conditions: [{ field: "a", value: "b" }], type: "Letter" });
 			const result = domainOf(DOMAIN_STRUCTURED, structuredWorld).coerce(p(json, DOMAIN_STRUCTURED));
-			expect(result).toEqual({ conditions: [{ field: "a", value: "b" }], type: "Email" });
+			expect(result).toEqual({ conditions: [{ field: "a", value: "b" }], type: "Letter" });
 		});
 
 		it("passes object through directly", () => {

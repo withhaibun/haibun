@@ -13,11 +13,11 @@ import { BaseOptions } from "./BaseOptions.js";
 import { TFileSystem, getCreateSteppers, getSteppers } from "@haibun/core/lib/util/node/workspace-lib.js";
 import { getDefaultTag } from "@haibun/core/lib/ttag.js";
 import { Runner } from "@haibun/core/runner.js";
-import { FeatureVariables } from "@haibun/core/lib/feature-variables.js";
+import { FeatureVariables, secretsOf } from "@haibun/core/lib/feature-variables.js";
 import { Prompter } from "@haibun/core/lib/prompter.js";
 import { getCoreDomains } from "@haibun/core/lib/core-domains.js";
 import { EventLogger } from "@haibun/core/lib/EventLogger.js";
-import { TAnyFixme } from "@haibun/core/lib/fixme.js";
+import { eventSink } from "@haibun/core/lib/steps/root.js";
 import { OPTION_RUN_POLICY, OPTION_DRY_RUN, HAIBUN_RUN_POLICY, parseRunPolicyArgs, parseRunPolicyEnv, type TRunPolicyConfig } from "@haibun/core/run-policy/run-policy-types.js";
 import { loadAndValidateRunPolicy } from "@haibun/core/run-policy/run-policy-schema.js";
 import { PhaseRunner, PhaseBailError } from "@haibun/core/lib/PhaseRunner.js";
@@ -220,20 +220,19 @@ async function reportAndExit(executorResult: TExecutorResult, world: TWorld, pro
 function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 	const { KEY: keyIn } = protoOptions.options;
 	const tag = getDefaultTag();
-	const eventLogger = new EventLogger((name: string) => world.shared?.isSecret(name) ?? false, protoOptions.options[NDJSON] === true);
 	const timer = new Timer();
 
 	Timer.key = keyIn || Timer.key;
 
 	const world: Partial<TWorld> = {
 		tag,
-		runtime: { actualityId: newActualityId(), stepResults: [], observations: new Map<string, TAnyFixme>(), keys: { principal: resolveSitePrincipal() } },
-		eventLogger,
+		runtime: { actualityId: newActualityId(), stepResults: [], keys: { principal: resolveSitePrincipal() } },
 		prompter: new Prompter(),
 		...protoOptions,
 		timer,
 		bases,
 	};
+	world.eventLogger = new EventLogger(secretsOf(world), eventSink(), protoOptions.options[NDJSON] === true);
 	const shared = new FeatureVariables(world as TWorld);
 	world.shared = shared;
 	const fullWorld = world as TWorld;
@@ -242,8 +241,12 @@ function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 }
 
 async function getSpeclOrExit(bases: TBase): Promise<TSpecl> {
-	const specl = getConfigFromBase(bases);
-	if (specl === null) return await usageThenExit(getDefaultOptions(), `missing or unusable config.json from ${bases} in ${process.cwd()}`);
+	let specl: TSpecl;
+	try {
+		specl = getConfigFromBase(bases);
+	} catch (e: unknown) {
+		return await usageThenExit(getDefaultOptions(), `${errorDetail(e)}; the bases are ${bases} in ${process.cwd()}`);
+	}
 	if (bases.length < 1) return await usageThenExit(specl, "the command doesn't name a base");
 	return specl;
 }
@@ -430,24 +433,18 @@ function configFileFrom(bases: TBase, fs: TFileSystem = nodeFS): string {
 	return configCandidate.endsWith("json") ? configCandidate : `${configCandidate}/config.json`;
 }
 
-export function getConfigFromBase(bases: TBase, fs: TFileSystem = nodeFS): TSpecl | null {
-	// Accepts a path to a JSON config file or a directory that contains config.json.
+/** Returns the configuration the bases name: a JSON config file, or the config.json of a directory. Throws where the bases
+ *  name more than one configuration, or where the configuration doesn't read or parse. */
+export function getConfigFromBase(bases: TBase, fs: TFileSystem = nodeFS): TSpecl {
 	const found = bases?.filter((b) => (b.endsWith("json") && fs.existsSync(b)) || fs.existsSync(`${b}/config.json`));
-	if (found?.length > 1) {
-		console.error(`Found multiple config.json files: ${found.join(", ")}. Use --config to specify one.`);
-		return null;
-	}
+	if (found?.length > 1) throw new Error(`the bases name several configurations: ${found.join(", ")}. Name one of them with --config.`);
 	const f = configFileFrom(bases, fs);
+	let specl: TSpecl;
 	try {
-		const speclRaw = JSON.parse(fs.readFileSync(f, "utf-8"));
-		const specl = SpeclSchema.parse(speclRaw);
-		if (!specl.options) {
-			specl.options = { DEST: DEFAULT_DEST };
-		}
-		return specl;
+		specl = SpeclSchema.parse(JSON.parse(fs.readFileSync(f, "utf-8")));
 	} catch (e: unknown) {
-		const message = errorDetail(e);
-		console.error(`Could not read or parse ${f}: ${message}`);
-		return null;
+		throw new Error(`the configuration ${f} doesn't read or parse: ${errorDetail(e)}`);
 	}
+	if (!specl.options) specl.options = { DEST: DEFAULT_DEST };
+	return specl;
 }

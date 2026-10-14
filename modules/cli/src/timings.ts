@@ -94,15 +94,18 @@ export function varianceLine(v: TVariance): string {
 	return `${v.feature} took ${v.seconds}s, was ${v.was}s${percent}, ${steps}${v.declaredStepsChanged ? ", its declared steps changed" : ""}`;
 }
 
-/** Reads every machine's timings from the file. Returns an empty record where the file doesn't exist or doesn't hold a
- *  JSON object. */
+/** Every machine's timings, as the file holds them. */
+const TimingsFileSchema = z.record(z.string(), z.unknown());
+
+/** Reads every machine's timings from the file, or an empty record where the file doesn't exist. Throws where the file
+ *  doesn't hold a JSON object, since replacing it would lose the timings of every machine it records. */
 function recordedIn(file: string): TTimingsFile {
 	if (!nodeFS.existsSync(file)) return {};
+	const text = nodeFS.readFileSync(file, "utf-8");
 	try {
-		const held = JSON.parse(nodeFS.readFileSync(file, "utf-8")) as TTimingsFile;
-		return held && typeof held === "object" && !Array.isArray(held) ? held : {};
-	} catch {
-		return {};
+		return TimingsFileSchema.parse(JSON.parse(text));
+	} catch (e) {
+		throw new Error(`${file} doesn't hold an object of timings by machine: ${e instanceof Error ? e.message : String(e)}. Restore it from git or remove it.`);
 	}
 }
 
@@ -113,15 +116,17 @@ function recordedIn(file: string): TTimingsFile {
  *
  * An unfiltered run holds every feature of the group, so its timings replace this machine's entry and drop a removed
  * feature. A run filtered to some features holds only those features. Each of those features replaces its own entry.
- * Every other feature keeps its recorded timing, and withTotals sums the totals again. An entry that doesn't parse
- * against TimingsSchema is replaced without a comparison.
+ * Every other feature keeps its recorded timing, and withTotals sums the totals again. Throws where this machine's entry
+ * doesn't parse against TimingsSchema, since replacing it would lose its history.
  */
 export function recordTimings(configDir: string, result: TExecutorResult, filtered: boolean): TVariance[] {
 	const file = path.join(configDir, TIMINGS_FILE);
 	const machine = machineKey();
 	const now = timingsOf(result);
 	const held = recordedIn(file);
-	const parsed = TimingsSchema.safeParse(held[machine]);
+	const entry = held[machine];
+	const parsed = TimingsSchema.safeParse(entry);
+	if (entry !== undefined && !parsed.success) throw new Error(`${file} holds an entry for ${machine} that isn't a set of timings: ${z.prettifyError(parsed.error)}. Restore it from git or remove the entry.`);
 	const recorded = parsed.success ? parsed.data : undefined;
 	const variances = variancesBetween(recorded, now);
 	const written = filtered && recorded ? withTotals({ ...recorded.features, ...now.features }) : now;

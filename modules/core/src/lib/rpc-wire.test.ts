@@ -26,6 +26,8 @@ import {
 	RpcRefusalSchema,
 	RpcResponseSchema,
 	RpcStreamSchema,
+	callFailed,
+	refusalSaid,
 } from "./rpc-wire.js";
 import { createHash } from "node:crypto";
 import { z } from "zod";
@@ -111,6 +113,13 @@ describe("a call a host parses", () => {
 		expect(refusal({ actualityId: held, params: "not an object" })?.remedy).toBeUndefined();
 	});
 
+	it("states each remedy in words where a place can't offer it as a control, and carries a step's remedy in a failed call", () => {
+		expect(refusalSaid({ error: "refused", remedy: { do: "request", action: "Pool:drain" } })).toBe("refused (request Pool:drain from a key that delegates it)");
+		expect(refusalSaid({ error: "not held", remedy: { do: "open", ref: { kind: "domain", target: { domain: "Letter" } } } })).toBe('not held (open the domain {"domain":"Letter"})');
+		expect(callFailed("Pool-get", "not held", { do: "request", action: "Pool:get" })).toEqual({ error: "Pool-get: not held", remedy: { do: "request", action: "Pool:get" } });
+		expect(callFailed("Pool-get", "not held"), "a failure without a remedy doesn't state one").toEqual({ error: "Pool-get: not held" });
+	});
+
 	it("carries its refusal when thrown, and its message includes the remedy as text", () => {
 		const refused = new RefusedCall({ error: "refused", remedy: { do: "sign-in", at: "https://site.example" } });
 		expect(refused.refusal.remedy).toEqual({ do: "sign-in", at: "https://site.example" });
@@ -124,7 +133,7 @@ describe("a call a host parses", () => {
 
 /** The wire's shape at each protocol version. A change to the fields of a call, a response, a stream chunk, a refusal or
  *  the handshake response requires a higher RPC_PROTOCOL. Record the new shape here under the new version. */
-const WIRE_AT: Record<number, string> = { 1: "8779e89c5a24b9f7" };
+const WIRE_AT: Record<number, string> = { 1: "8779e89c5a24b9f7", 2: "f60f4cdcf2dc2f1f" };
 const wireShape = (): string =>
 	createHash("sha256")
 		.update(

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { AStepper } from "../lib/astepper.js";
+import { AStepper } from "../lib/steps/domains/stepper.js";
 import { OK } from "../schema/protocol.js";
 import { asExpandedFeatures } from "../lib/resolver-features.js";
 import { Resolver } from "./Resolver.js";

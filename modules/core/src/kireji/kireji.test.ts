@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { withAction, TActionExecutor } from "./withAction.js";
 import { toBdd, fromBdd } from "./converter.js";
-import { AStepper, TStepperSteps } from "../lib/astepper.js";
+import { AStepper, TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { OK } from "../schema/protocol.js";
 import { ActivitiesStepper } from "../steps/activities-stepper.js";
 
@@ -129,10 +129,10 @@ describe("withAction object argument encoding", () => {
 		description = "Steps that take an object argument.";
 		steps = {
 			createIssuer: { gwta: "create issuer {issuer}", action: () => Promise.resolve(OK) },
-			issueCredential: { gwta: "issue credential {credential}", action: () => Promise.resolve(OK) },
+			issuePermit: { gwta: "issue permit {permit}", action: () => Promise.resolve(OK) },
 		} as const satisfies TStepperSteps;
 	}
-	const { createIssuer, issueCredential } = withAction(new ObjectArgStepper());
+	const { createIssuer, issuePermit } = withAction(new ObjectArgStepper());
 
 	it("plain object argument is encoded as JSON, not the haibun composite-literal form", () => {
 		const action = createIssuer({ issuer: { did: "did:example:issuer", name: "Example Issuer" } })();
@@ -141,8 +141,8 @@ describe("withAction object argument encoding", () => {
 
 	it("a pre-stringified inner field (e.g. W3C VC claims as z.string()) survives round-trip through JSON.parse on the rendered gwta arg", () => {
 		const claims = '{"sector":"unlicensed","commune":"Lux"}';
-		const action = issueCredential({ credential: { type: ["VC"], issuer: "did:x", claims } })();
-		const jsonMatch = action.gwta.match(/^issue credential (.+)$/);
+		const action = issuePermit({ permit: { type: ["Permit"], issuer: "did:x", claims } })();
+		const jsonMatch = action.gwta.match(/^issue permit (.+)$/);
 		expect(jsonMatch).not.toBeNull();
 		const parsed = JSON.parse(jsonMatch?.[1] ?? "") as { claims: string };
 		expect(parsed.claims).toBe(claims);
@@ -150,8 +150,8 @@ describe("withAction object argument encoding", () => {
 	});
 
 	it("nested object values stay as JSON objects (not strings) so the runtime receives the same shape it would from JSON.parse", () => {
-		const action = issueCredential({ credential: { issuer: "did:x", nested: { key: "value" } } })();
-		const jsonMatch = action.gwta.match(/^issue credential (.+)$/);
+		const action = issuePermit({ permit: { issuer: "did:x", nested: { key: "value" } } })();
+		const jsonMatch = action.gwta.match(/^issue permit (.+)$/);
 		const parsed = JSON.parse(jsonMatch?.[1] ?? "") as { nested: { key: string } };
 		expect(parsed.nested).toEqual({ key: "value" });
 	});

@@ -1,6 +1,7 @@
 /**
  * <shu-refusal>: a refusal's cause, a control that copies it, and its remedy as a native control (CA4F4): a link that signs
- * in, a button that reloads or reads again, and a link to what a reference names. The page performs a reload through its
+ * in, a button that reloads or reads again, the action to request with a control that copies it, and a link to what a
+ * reference names. The page performs a reload through its
  * remedies port.
  */
 import { html, css, nothing, type TemplateResult } from "lit";
@@ -53,6 +54,9 @@ export class ShuRefusal extends ShuElement<typeof EmptyStateSchema> {
 			if (readAgain === undefined) throw new Error("<shu-refusal> offers a read again, and isn't given the read");
 			return html`<button type="button" data-testid=${id} @click=${() => readAgain()}>Read again</button>`;
 		}
+		if (remedy.do === "request")
+			return html`<span data-testid=${id}>Request ${remedy.action} from a key that delegates it</span>
+				<shu-copy-button label="copy the action" title="copy the action to request" .source=${remedy.action}></shu-copy-button>`;
 		const { kind, target } = remedy.ref;
 		if (!isRefKind(kind)) throw new Error(`<shu-refusal> opens a reference of the kind ${kind}, which isn't a reference's`);
 		return html`<a href=${refHref(kind, target) ?? nothing} data-testid=${id}>Open ${refLabel(kind, JSON.stringify(target))}</a>`;

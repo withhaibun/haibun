@@ -9,7 +9,7 @@
  * passage still resolves, and reads the statements made with a predicate.
  */
 import { z } from "zod";
-import { AStepper, IHasCycles, TStepperSteps, IStepperCycles, type TBeforeStep } from "../lib/astepper.js";
+import { AStepper, IHasCycles, TStepperSteps, IStepperCycles, type TBeforeStep } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
 import { requirePrincipal } from "../lib/principal.js";
 import {
@@ -48,7 +48,7 @@ import { DOMAIN_LINK_REL, DOMAIN_RECORD_ID, DOMAIN_TEXT, linkVocabularyFor } fro
 import { executionOf, formatRecordName, formatSeqPath } from "../lib/seq-path.js";
 import { logMessageDomainDefinition } from "../lib/log-message.js";
 import { runArtifactDomainDefinition } from "../lib/run-artifact.js";
-import { statementsWith, type TStatementRow } from "../lib/statements.js";
+import { statementsWith, type TStatementRow } from "../lib/steps/pipelines/statements.js";
 import { typedLinkFacts } from "../lib/typed-links.js";
 
 /** Describes an anchored passage for a message: the quote, and the recorded words before and after it. */

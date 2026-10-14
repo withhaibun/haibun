@@ -9,7 +9,7 @@ import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import type { THaibunLogLevel } from "@haibun/core/schema/protocol.js";
-import type { IQuadStore } from "@haibun/core/lib/quad-types.js";
+import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { runWindow } from "./run-window.js";
 import { producedUnderSteps, type TRunRow } from "../derivations/run-rows.js";
 import { runGraphOf as graphOver } from "../derivations/run-graph.js";

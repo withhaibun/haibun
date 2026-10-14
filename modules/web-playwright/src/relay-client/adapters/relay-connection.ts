@@ -158,7 +158,10 @@ export class ChromeRelayConnection {
 
 	async #tryReattach(tabId: number): Promise<void> {
 		if (this.#ended || !this.#tabs.reattaching(tabId)) return;
-		const tab = await this.#chrome.tabs.get(tabId).catch(() => undefined);
+		const tab = await this.#chrome.tabs.get(tabId).catch((unread: unknown) => {
+			this.#log(`tab ${tabId} isn't reattached: the browser doesn't return the tab:`, unread);
+			return undefined;
+		});
 		if (tab === undefined) {
 			this.#tabs.reattachEnded(tabId);
 			this.#closeWhereClosed();

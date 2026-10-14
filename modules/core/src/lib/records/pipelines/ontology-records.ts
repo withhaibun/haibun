@@ -4,7 +4,7 @@
  * `readFromRecords`.
  */
 import type { TRegisteredDomain } from "../../resources.js";
-import type { TGraphQuery, TRecordsPage } from "../../quad-types.js";
+import type { TGraphQuery, TRecordsPage } from "../../steps/domains/quad-types.js";
 import { ontologyRecords, ontologyToQuads, withStandardTerms } from "../derivations/ontology.js";
 import { readDeclarationsOf, readFromRecords, type THeldRecord } from "../derivations/read-records.js";
 import { enumerateStandardVocab, type TVocabularyWarning } from "./standard-vocabulary.js";

@@ -15,17 +15,7 @@
  */
 import { z } from "zod";
 import { JsonObjectSchema } from "../lib/json-text.js";
-import {
-	AStepper,
-	type IHasCycles,
-	type IStepperCycles,
-	type TAfterStep,
-	type TFeatureStep,
-	type TAfterStepResult,
-	type TStepperSteps,
-	type IHasOptions,
-	type TStepperOption,
-} from "../lib/astepper.js";
+import { AStepper, type IHasCycles, type IStepperCycles, type TAfterStep, type TFeatureStep, type TAfterStepResult, type TStepperSteps, type IHasOptions, type TStepperOption } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOKWithProducts, getStepperOption, stringOrError } from "../lib/util/index.js";
 import {
 	DOMAIN_AFFORDANCES,
@@ -43,8 +33,9 @@ import { advanceChainInstance } from "../lib/chain-walker.js";
 import { buildDomainChain } from "../lib/domain-chain.js";
 import { lintDomainChain } from "../lib/domain-chain-lint.js";
 import { resolveGoal, GOAL_FINDING, type TGoalResolution, type TMichi, type TBinding } from "../lib/goal-resolver.js";
-import { runRegistry, stepMethodName, type StepRegistry } from "../lib/step-registry.js";
-import { callStepByName } from "../lib/call-step.js";
+import { runRegistry, type StepRegistry } from "../lib/steps/pipelines/step-registry.js";
+import { stepMethodName } from "../lib/steps/domains/step-method.js";
+import { callStepByName, NO_INPUT } from "../lib/steps/pipelines/call-step.js";
 import { buildAffordances, providesWaypoints, AFFORDANCE_EVENT_PREFIX, type TWaypointEntry, satisfiedGoalDomains } from "../lib/affordances.js";
 import { readFacts } from "../lib/records/pipelines/facts.js";
 import { executionOf, factIdOf } from "../lib/seq-path.js";
@@ -168,7 +159,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		const factIds: string[] = [];
 		for (const [i, step] of michi.steps.entries()) {
 			const method = stepMethodName(step.stepperName, step.stepName);
-			const call = await callStepByName({ registry, world, steppers: this.steppers }, method);
+			const call = await callStepByName({ registry, world, steppers: this.steppers }, method, NO_INPUT);
 			if (!call.result.ok) return actionNotOK(`pursue ${goal}: step ${i} (${method}) failed: ${call.result.errorMessage}`);
 			factIds.push(factIdOf({ execution: executionOf(world.tag), path: call.seqPath }));
 		}
@@ -222,7 +213,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		 *  unreachable → refuses with the list of missing producers
 		 *  refused     → refuses with the resolver's reason
 		 *
-		 *  The step follows the activities pattern: check the world, act only where needed, and state what is missing when a step can't run. A Kihan reading affordances follows the same primitives.
+		 *  The step follows the activities pattern: check the world, act only where needed, and state what is missing when a step can't run. An agent reading affordances follows the same primitives.
 		 */
 		pursue: {
 			gwta: `pursue {goal: ${DOMAIN_DOMAIN_KEY}}`,

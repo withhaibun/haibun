@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DOMAIN_GRAPH_QUERY, GraphQuerySchema, DOMAIN_DENSITY_QUERY, DensityQuerySchema } from "./quad-types.js";
+import { DOMAIN_GRAPH_QUERY, GraphQuerySchema, DOMAIN_DENSITY_QUERY, DensityQuerySchema } from "./steps/domains/quad-types.js";
 import { fromJsonText, JsonObjectTextSchema } from "./json-text.js";
 import { DOMAIN_FILE_DATA, DOMAIN_IMAGE_REFERENCE, FileDataSchema, ImageReferenceSchema, recordedFileData } from "./media-object.js";
 import { extractSeqPathPrefix, parseSeqPath, seqPathDomainDefinition } from "./seq-path.js";
@@ -7,7 +7,7 @@ import { factDomainDefinition } from "./records/domains/facts.js";
 import { variableDomainDefinition } from "./records/domains/variables.js";
 import { classDomainDefinition, propertyDomainDefinition } from "./records/domains/ontology.js";
 import { LintFindingSchema, LintSummarySchema } from "./domain-chain-lint.js";
-import { AStepper, TFeatureStep } from "./astepper.js";
+import { AStepper, TFeatureStep } from "./steps/domains/stepper.js";
 import { TDomainDefinition } from "./resources.js";
 import type { TWorld } from "./world.js";
 import { TStepValue } from "../schema/protocol.js";

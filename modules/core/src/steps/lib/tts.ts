@@ -4,11 +4,15 @@ import { existsSync, mkdirSync, readdirSync, cpSync, unlinkSync } from "fs";
 import * as nodePath from "path";
 import { createRequire } from "module";
 
-import { TResolvedFeature } from "../../lib/astepper.js";
+import { TResolvedFeature } from "../../lib/steps/domains/stepper.js";
 import { FEATURE_START } from "../../schema/protocol.js";
 import { SCENARIO_START } from "../../schema/protocol.js";
-import { TAnyFixme } from "../../lib/fixme.js";
 import { itemAt } from "../../lib/util/item-at.js";
+
+/** The part of kokoro-js's KokoroTTS that synthesis calls: a model loaded by its id, which renders a transcript as audio. */
+type TKokoroTTS = {
+	from_pretrained(modelId: string, options: { dtype: string; device: string }): Promise<{ generate(text: string, options: { voice: string }): Promise<{ save(path: string): Promise<void> }> }>;
+};
 
 type TCachedAudio = { transcript: string; durationS: number; cachedPath: string };
 export type TRenderedAudioMap = { [hash: string]: TCachedAudio };
@@ -84,12 +88,11 @@ async function renderSpeech(transcript: string): Promise<string> {
 		}
 	}
 
-	// Use require to resolve from the local node_modules path
-	let KokoroTTS: TAnyFixme;
+	// require resolves kokoro-js from the local node_modules path.
+	let KokoroTTS: TKokoroTTS;
 	try {
-		// biome-disable-next-line @typescript-eslint/no-explicit-any
 		const require = createRequire(localKokoroPath + "/package.json");
-		const kokoroModule = require("kokoro-js") as { KokoroTTS: TAnyFixme };
+		const kokoroModule = require("kokoro-js") as { KokoroTTS: TKokoroTTS };
 		KokoroTTS = kokoroModule.KokoroTTS;
 	} catch (e) {
 		throw new Error(`Failed to import kokoro-js: ${(e as Error).message}`);
@@ -97,8 +100,7 @@ async function renderSpeech(transcript: string): Promise<string> {
 
 	try {
 		const model_id = "onnx-community/Kokoro-82M-v1.0-ONNX";
-		// biome-ignore lint/suspicious/noExplicitAny: library needs strict typing
-		const tts = await (KokoroTTS as any).from_pretrained(model_id, {
+		const tts = await KokoroTTS.from_pretrained(model_id, {
 			dtype: "q8", // Options: "fp32", "fp16", "q8", "q4", "q4f16"
 			device: "cpu", // Options: "wasm", "webgpu" (web) or "cpu" (node)
 		});

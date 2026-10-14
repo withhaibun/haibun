@@ -22,7 +22,7 @@ import type { SnapshotStore } from "../machines/snapshot-store.js";
 import { cachedGraph, installGraph } from "../../client-cache/controllers/device-controller.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { Access, BODY_LABEL } from "@haibun/core/lib/resources.js";
-import { QuadStore } from "@haibun/core/lib/quad-store.js";
+import { QuadStore, newStoreChain } from "@haibun/core/lib/quad-store.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { installServedConduit } from "../../root.js";
 import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
@@ -207,7 +207,7 @@ describe("the graph a page caches, without a server to query", () => {
 	});
 
 	it("holds the store on the page, so a view in another bundle reads the graph the app installed", () => {
-		const store = new QuadStore();
+		const store = new QuadStore(newStoreChain());
 		installGraph(store);
 		// A second bundle has its own copy of this module's bindings and reaches the store through the page, as here.
 		expect(pagePinned<{ installed?: unknown }>("__SHU_CACHED_GRAPH_STORE__", () => ({})).installed).toBe(store);
@@ -215,7 +215,7 @@ describe("the graph a page caches, without a server to query", () => {
 	});
 
 	it("groups what it caches by type, as the site would have", async () => {
-		const store = new QuadStore();
+		const store = new QuadStore(newStoreChain());
 		await store.setMany([
 			{ subject: "c1", predicate: "content", object: "one", namedGraph: "Comment", timestamp: 1 },
 			{ subject: "c2", predicate: "content", object: "two", namedGraph: "Comment", timestamp: 2 },
@@ -227,7 +227,7 @@ describe("the graph a page caches, without a server to query", () => {
 	});
 
 	it("reports that the graph is not available when it doesn't cache one and a server doesn't respond", async () => {
-		installGraph(new QuadStore());
+		installGraph(new QuadStore(newStoreChain()));
 		await expect(new GraphDataController("empty").readSnapshot(10, undefined)).rejects.toThrow();
 	});
 });
@@ -246,7 +246,7 @@ describe("the dropdown values a reader is offered, without a server to query", (
 	});
 
 	it("offers the distinct values its context fields hold, and doesn't offer a field the type does not declare as one", async () => {
-		const store = new QuadStore();
+		const store = new QuadStore(newStoreChain());
 		await store.setMany([
 			{ subject: "a", predicate: "folder", object: "INBOX", namedGraph: "Email", timestamp: 1 },
 			{ subject: "b", predicate: "folder", object: "Sent", namedGraph: "Email", timestamp: 2 },
@@ -258,7 +258,7 @@ describe("the dropdown values a reader is offered, without a server to query", (
 
 	it("doesn't offer a dropdown for a declared type that doesn't have a context field, and reports the failure for a type the site never declared", async () => {
 		declareCatalog(catalogOf({ types: ["Email", "Note"], rels: { Email: { folder: LinkRelations.CONTEXT.rel }, Note: { body: "hasBody" } } }));
-		installGraph(new QuadStore());
+		installGraph(new QuadStore(newStoreChain()));
 		expect(await selectValuesFor("Note")).toEqual({});
 		await expect(selectValuesFor("NeverDeclared")).rejects.toThrow();
 	});
@@ -293,7 +293,7 @@ describe("the rows a graph query names, without a server to query", () => {
 	});
 
 	it("reports the failure for a type the site never declared, rather than an empty list", async () => {
-		installGraph(new QuadStore());
+		installGraph(new QuadStore(newStoreChain()));
 		await expect(queryGraph({ label: "NeverDeclared" })).rejects.toThrow();
 	});
 });
