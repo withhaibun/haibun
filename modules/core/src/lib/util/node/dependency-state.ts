@@ -64,7 +64,7 @@ function dependedModules(moduleDir: string): string[] {
 	if (!nodeFS.existsSync(pkgJson)) return [];
 	const pkg = JSON.parse(nodeFS.readFileSync(pkgJson, "utf-8")) as { dependencies?: Record<string, string> };
 	const found: string[] = [];
-	for (const name of Object.keys(pkg.dependencies ?? {})) {
+	for (const name of (pkg.dependencies === undefined ? [] : Object.keys(pkg.dependencies))) {
 		if (!name.startsWith("@haibun/")) continue;
 		for (let dir = moduleDir; ; dir = path.dirname(dir)) {
 			const candidate = path.join(dir, "node_modules", name);

@@ -20,22 +20,20 @@ export function getStepTerm(featureStep: TFeatureStep, key: string): string | un
 export const basesFrom = (s: string | undefined): string[] => (s === undefined ? [] : s.split(",").map((b) => b.trim()));
 
 export function actionNotOK(errorMessage: string, w?: { artifact?: TArtifactEvent; controlSignal?: TDebugSignal; remedy?: TRemedy }): TActionResult {
-	const { artifact, controlSignal, remedy } = w || {};
+	const remedy = w?.remedy;
 	// The parameter is typed string. A caller can pass a caught Error through a cast or an `any` value.
 	// This converts an Error to its message and converts any other non-string with String().
 	// TActionResult declares errorMessage as a string, so each reader of a step's result reads a string.
 	const raw = errorMessage as unknown;
 	const message = typeof raw === "string" ? raw : raw instanceof Error ? raw.message : String(raw);
-	return { ok: false, errorMessage: message, artifact, controlSignal, ...(remedy === undefined ? {} : { remedy }) };
+	return { ok: false, errorMessage: message, artifact: w?.artifact, controlSignal: w?.controlSignal, ...(remedy === undefined ? {} : { remedy }) };
 }
 export function actionOK(w?: { artifact?: TArtifactEvent; controlSignal?: TDebugSignal }): TActionResult {
-	const { artifact, controlSignal } = w || {};
-	return { ...OK, artifact, controlSignal };
+	return { ...OK, artifact: w?.artifact, controlSignal: w?.controlSignal };
 }
 
 export function actionOKWithProducts(products: Record<string, unknown>, w?: { artifact?: TArtifactEvent; controlSignal?: TDebugSignal }): TActionResult {
-	const { artifact, controlSignal } = w || {};
-	return { ok: true, products, artifact, controlSignal };
+	return { ok: true, products, artifact: w?.artifact, controlSignal: w?.controlSignal };
 }
 
 let artifactCounter = 0;
@@ -172,7 +170,7 @@ export function verifyRequiredOptions(steppers: CStepper[], options: TModuleOpti
 		const stepper = new Stepper();
 		const ao = stepper as IHasOptions;
 
-		for (const [option, { required, altSource }] of Object.entries(ao.options ?? {})) {
+		for (const [option, { required, altSource }] of ao.options === undefined ? [] : Object.entries(ao.options)) {
 			const optionName = getStepperOptionName(stepper, option);
 			if (required && !options[optionName] && !(altSource && options[getStepperOptionName(stepper, altSource)])) requiredMissing.push(optionName);
 		}
@@ -369,7 +367,7 @@ export function truncateForDisplay(s: string): string {
 }
 
 /** Returns a copy of a value for logging. truncateForDisplay truncates each string in the copy. A value nested deeper than MAX_TRUNCATE_DEPTH becomes "[truncated at depth]". */
-export function truncateForLog(obj: unknown, depth = 0): unknown {
+export function truncateForLog(obj: unknown, depth: number): unknown {
 	if (depth > MAX_TRUNCATE_DEPTH) return "[truncated at depth]";
 	if (typeof obj === "string") return truncateForDisplay(obj);
 	if (obj === null || obj === undefined || typeof obj !== "object") return obj;

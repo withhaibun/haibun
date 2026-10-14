@@ -84,7 +84,7 @@ export class ShuColumnStrip extends ShuElement<typeof EmptyStateSchema> {
 		this.updateQueryAlone();
 		this.updateEdges();
 		this.publishPanes();
-		if (!minimized) requestAnimationFrame(() => revealInDocument(pane, { behavior: "smooth", inline: "end" }));
+		if (!minimized) requestAnimationFrame(() => revealInDocument(pane, { behavior: "smooth", block: "start", inline: "end" }));
 		// A maximized column is the ONLY one visible. A column opened while one is maximized ends the maximize rather
 		// than arriving hidden: it was opened to be read. The strip owns this because it owns which panes exist; a pane
 		// never arrives already maximized (the flag applies once the whole desired set is attached, via setMaximized).
@@ -268,7 +268,7 @@ export class ShuColumnStrip extends ShuElement<typeof EmptyStateSchema> {
 			this.activatePane(index);
 			this.updateAccordion();
 			this.publishPanes();
-			requestAnimationFrame(() => revealInDocument(pane, { behavior: "smooth", inline: "center" }));
+			requestAnimationFrame(() => revealInDocument(pane, { behavior: "smooth", block: "start", inline: "center" }));
 		}
 	};
 

@@ -4,7 +4,7 @@
  * these functions, so each read states its bound, its count and its order.
  */
 import { z } from "zod";
-import { readInPages, type TCounted } from "../../hypermedia.js";
+import { MAX_PAGE_ROWS, readInPages, type TCounted } from "../../hypermedia.js";
 import { GraphQuerySchema, statedQuery, VIA_FIELD, type TGraphQuery, type TGraphQueryInput, type TIncomingEdges, type TIndividualWithEdges, type TQuad, type TQuadEdge, type TQuadPattern, type TRecordsPage, type TSearchCondition } from "../../steps/domains/quad-types.js";
 import { type IQuadStore } from "../../steps/ports.js";
 import { BODY_LABEL, HAS_BODY_EDGE, LinkRelations, type AccessQueryLevel } from "../../resources.js";
@@ -32,9 +32,12 @@ export type TRecordBody = z.infer<typeof RecordBodySchema>;
 
 /** Reads the quads of each subject of each graph that `of` names, with one read of each graph. */
 async function quadsOfSubjects(of: ReadonlyArray<{ graph: string; subject: string }>, read: TPatternRead): Promise<TQuad[]> {
-	const byGraph = new Map<string, Set<string>>();
-	for (const { graph, subject } of of) byGraph.set(graph, (byGraph.get(graph) ?? new Set()).add(subject));
-	const held = await Promise.all([...byGraph].map(async ([namedGraph, subjects]) => (await read({ namedGraph })).filter((quad) => subjects.has(quad.subject))));
+	const held = await Promise.all(
+		[...Map.groupBy(of, ({ graph }) => graph)].map(async ([namedGraph, named]) => {
+			const subjects = new Set(named.map(({ subject }) => subject));
+			return (await read({ namedGraph })).filter((quad) => subjects.has(quad.subject));
+		}),
+	);
 	return held.flat();
 }
 
@@ -167,5 +170,5 @@ export async function readEvery(store: TRecordReader, input: TGraphQueryInput): 
 	const query = GraphQuerySchema.parse(input);
 	if (query.perType !== undefined) throw new Error("readEvery reads every record of a read, and a perType read states the first records of each type");
 	const read = (from: number, to: number) => store.readRecords({ ...query, offset: from, limit: to - from, skipCount: true });
-	return (await readInPages(read, statedQuery(query).offset, Number.POSITIVE_INFINITY)).vertices;
+	return (await readInPages(read, statedQuery(query).offset, Number.POSITIVE_INFINITY, MAX_PAGE_ROWS)).vertices;
 }

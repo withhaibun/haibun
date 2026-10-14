@@ -11,7 +11,8 @@ const WRITE_PREFIX = "Write:";
 
 /** Returns the actions a comma-separated list names. A feature, an option and a delegation write actions in this form. */
 export function actionList(listed: string | undefined): string[] {
-	return (listed ?? "")
+	if (listed === undefined) return [];
+	return listed
 		.split(",")
 		.map((action) => action.trim())
 		.filter((action) => action.length > 0);

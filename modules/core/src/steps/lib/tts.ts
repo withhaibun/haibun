@@ -57,7 +57,7 @@ export async function preRenderFeatureProse(feature: TResolvedFeature): Promise<
 function getMediafileDuration(filePath: string): Promise<number> {
 	try {
 		const command = `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${filePath}"`;
-		const durationStr = doExec(command);
+		const durationStr = doExec(command, true);
 		const duration = parseFloat(durationStr);
 
 		if (isNaN(duration)) {
@@ -183,7 +183,7 @@ export function playAudioFile(audioPath: string): Promise<void> {
 	});
 }
 
-export function doExec(command: string, throwOnError = true): string {
+export function doExec(command: string, throwOnError: boolean): string {
 	try {
 		const stdout = execSync(command, { encoding: "utf8", stdio: "pipe" }).toString();
 		return stdout.trim();

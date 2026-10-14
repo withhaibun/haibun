@@ -127,11 +127,11 @@ export function generateDocumentMarkdown(
 	};
 	// Each artifact attaches to the first id in its step's ancestor list that this page renders as a row.
 	const rows = new Set(events.filter((e) => e.kind === "lifecycle" && !belowLevel(e)).map((e) => normalizeId(e.id)));
-	const claimable = new Map<string, TArtifactEvent[]>();
-	for (const [stepId, artifacts] of artifactsByStep) {
+	const claims = [...artifactsByStep].flatMap(([stepId, artifacts]) => {
 		const claimer = stepAncestors(stepId).find((id) => rows.has(id));
-		if (claimer) claimable.set(claimer, [...(claimable.get(claimer) ?? []), ...artifacts]);
-	}
+		return claimer ? artifacts.map((artifact) => ({ claimer, artifact })) : [];
+	});
+	const claimable = new Map([...Map.groupBy(claims, ({ claimer }) => claimer)].map(([claimer, held]) => [claimer, held.map(({ artifact }) => artifact)]));
 
 	const claimArtifacts = (id: string, excludeTypes: string[] = []) => {
 		const nid = normalizeId(id);

@@ -70,7 +70,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 		verification =
 			parsed.statements.length === 0 && !parsed.dryRun
 				? verificationOf({
-						configPath: configFileFrom(configBases),
+						configPath: configFileFrom(configBases, nodeFS),
 						specl,
 						bases,
 						cwd: process.cwd(),
@@ -112,7 +112,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 		// Writes each feature's duration to timings.json beside the config. The file's git history holds the durations at
 		// each commit. Timings measure durations and don't verify a state, so they are written whether or not a run is verified.
 		if (parsed.statements.length === 0 && result.featureResults.length > 0) {
-			const variances = recordTimings(path.dirname(path.resolve(configFileFrom(configBases))), result, featureFilter !== undefined);
+			const variances = recordTimings(path.dirname(path.resolve(configFileFrom(configBases, nodeFS))), result, featureFilter !== undefined);
 			for (const variance of variances) console.info(`timings: ${varianceLine(variance)}`);
 		}
 
@@ -243,7 +243,7 @@ function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 async function getSpeclOrExit(bases: TBase): Promise<TSpecl> {
 	let specl: TSpecl;
 	try {
-		specl = getConfigFromBase(bases);
+		specl = getConfigFromBase(bases, nodeFS);
 	} catch (e: unknown) {
 		return await usageThenExit(getDefaultOptions(), `${errorDetail(e)}; the bases are ${bases} in ${process.cwd()}`);
 	}
@@ -427,7 +427,7 @@ export function processArgs(args: string[]) {
 
 /** Returns the configuration file a run reads. The first base that is an existing JSON file or a directory that
  *  contains config.json gives that file. The working directory's config.json is the fallback. */
-function configFileFrom(bases: TBase, fs: TFileSystem = nodeFS): string {
+function configFileFrom(bases: TBase, fs: TFileSystem): string {
 	const found = bases?.filter((b) => (b.endsWith("json") && fs.existsSync(b)) || fs.existsSync(`${b}/config.json`));
 	const configCandidate = (found && found[0]) || ".";
 	return configCandidate.endsWith("json") ? configCandidate : `${configCandidate}/config.json`;
@@ -435,7 +435,7 @@ function configFileFrom(bases: TBase, fs: TFileSystem = nodeFS): string {
 
 /** Returns the configuration the bases name: a JSON config file, or the config.json of a directory. Throws where the bases
  *  name more than one configuration, or where the configuration doesn't read or parse. */
-export function getConfigFromBase(bases: TBase, fs: TFileSystem = nodeFS): TSpecl {
+export function getConfigFromBase(bases: TBase, fs: TFileSystem): TSpecl {
 	const found = bases?.filter((b) => (b.endsWith("json") && fs.existsSync(b)) || fs.existsSync(`${b}/config.json`));
 	if (found?.length > 1) throw new Error(`the bases name several configurations: ${found.join(", ")}. Name one of them with --config.`);
 	const f = configFileFrom(bases, fs);

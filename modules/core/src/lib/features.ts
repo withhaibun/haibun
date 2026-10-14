@@ -80,7 +80,7 @@ export function findFeatures(name: string, backgrounds: TFeatures, type = "featu
 	return ftype.filter((f) => f.path.endsWith(`/${name}.${fileTypeToExt(type)}`) || f.path.endsWith(`/${name}.feature.ts`));
 }
 
-function findFeaturesOfType(backgrounds: TFeatures, type = "feature"): TFeatures {
+function findFeaturesOfType(backgrounds: TFeatures, type: string): TFeatures {
 	// Match both .feature and .feature.ts files
 	return backgrounds.filter((f) => f.path.endsWith(`.${fileTypeToExt(type)}`) || f.path.endsWith(".feature.ts"));
 }

@@ -205,8 +205,8 @@ describe("whether a run would repeat the outcome of an earlier run", () => {
 		const env = runEnvironment({}, 0, false);
 		expect(verifiedRun(config, dir, "", dir, env)).toBeUndefined();
 		// v() computes the verification that the child would record from the same environment.
-		const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env, getConfigFromBase([dir]));
-		const v = () => verificationOf({ configPath: config, specl: getConfigFromBase([dir]), bases: [dir], cwd: dir, filter: [], options, moduleOptions }) as never;
+		const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env, getConfigFromBase([dir], nodeFS));
+		const v = () => verificationOf({ configPath: config, specl: getConfigFromBase([dir], nodeFS), bases: [dir], cwd: dir, filter: [], options, moduleOptions }) as never;
 		recordOutcome(v(), "failed", 1);
 		expect(verifiedRun(config, dir, "", dir, env), "a run that failed against this state would fail the same way").toBe("failed");
 		recordOutcome(v(), "passed", 1);
@@ -219,9 +219,9 @@ describe("whether a run would repeat the outcome of an earlier run", () => {
 	it("reads the .env file in a run's starting directory as the child does, so an option set there changes the conditions verifiedRun compares", () => {
 		const { dir, config } = aGroup();
 		const env = runEnvironment({}, 0, false);
-		const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env, getConfigFromBase([dir]));
+		const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env, getConfigFromBase([dir], nodeFS));
 		recordOutcome(
-			verificationOf({ configPath: config, specl: getConfigFromBase([dir]), bases: [dir], cwd: dir, filter: [], options, moduleOptions }) as never,
+			verificationOf({ configPath: config, specl: getConfigFromBase([dir], nodeFS), bases: [dir], cwd: dir, filter: [], options, moduleOptions }) as never,
 			"passed",
 			1,
 		);

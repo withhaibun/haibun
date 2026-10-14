@@ -404,7 +404,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 							.slice(0, 12)
 							.join(", ")}`,
 					);
-				const takes = Object.keys(target?.inputSchema.properties ?? {});
+				const takes = (target?.inputSchema.properties === undefined ? [] : Object.keys(target?.inputSchema.properties));
 				const given = askParams(params, target?.inputSchema.properties);
 				// A step called without a required parameter fails inside the test run with a message that appears to describe
 				// a fault of the test run. This message names the step's own parameters so the caller can correct the call.
@@ -639,8 +639,8 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 	/** Deletes the recorded outcomes of the named features, so they run again whatever their state. A caller notes a
 	 *  change that doesn't show in the features' dependencies, or notes one to require another test run regardless. An
 	 *  empty filter selects every feature of the base. */
-	noteApplied(filter: string, where = ""): void {
-		forgetOutcomes(path.resolve(where || "."), filter || undefined);
+	noteApplied(filter: string, where: string): void {
+		forgetOutcomes(path.resolve(where), filter || undefined);
 	}
 
 	/** Closes the record of the test run in flight with its status, and clears the test run in flight so the next one

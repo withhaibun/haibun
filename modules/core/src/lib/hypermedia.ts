@@ -54,7 +54,7 @@ function schemaShape(schema: z.ZodType | undefined): Record<string, z.ZodType> {
  *  so what a client is offered is what a store accepts. */
 export function queryableFields(domain: { schema: z.ZodType | undefined; topology: THypermediaTopology }): string[] {
 	const topology = domain.topology;
-	const out = new Set<string>(Object.keys(topology.sortColumns ?? {}));
+	const out = new Set<string>((topology.sortColumns === undefined ? [] : Object.keys(topology.sortColumns)));
 	for (const [field, def] of Object.entries(topology.properties)) {
 		const rel = relOf(def);
 		if (rel === LinkRelations.CONTEXT.rel || rel === LinkRelations.GENERATED_AT_TIME.rel) out.add(field);
@@ -177,13 +177,9 @@ export function pointsThrough(surface: TQuerySurface): string[] {
 /** Which primitive reaches each property of a type, and the type each of its relations points at. A property reached two
  *  ways states both. */
 export function querySurface(domain: { schema: z.ZodType | undefined; topology: THypermediaTopology }): TQuerySurface {
-	const properties: Record<string, TReachedBy[]> = {};
-	const reach = (field: string, by: TReachedBy) => {
-		properties[field] = [...(properties[field] ?? []), by];
-	};
-	for (const field of queryableFields(domain)) reach(field, REACHED_BY.filter);
-	for (const field of searchableFields(domain)) reach(field, REACHED_BY.search);
-	const references = Object.fromEntries(Object.entries(domain.topology.edges ?? {}).map(([relation, edge]) => [relation, edgeRanges(edge)]));
+	const reached: Array<[string, TReachedBy]> = [...queryableFields(domain).map((field): [string, TReachedBy] => [field, REACHED_BY.filter]), ...searchableFields(domain).map((field): [string, TReachedBy] => [field, REACHED_BY.search])];
+	const properties = Object.fromEntries([...Map.groupBy(reached, ([field]) => field)].map(([field, held]) => [field, held.map(([, by]) => by)]));
+	const references = Object.fromEntries((domain.topology.edges === undefined ? [] : Object.entries(domain.topology.edges)).map(([relation, edge]) => [relation, edgeRanges(edge)]));
 	return QuerySurfaceSchema.parse({ label: domain.topology.persistedAs, properties, references });
 }
 
@@ -298,13 +294,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 		if (!topology.id) throw new Error(`persisted domain "${label}" (${domainKey}) is missing required "id" field`);
 		if (!topology.properties || Object.keys(topology.properties).length === 0) throw new Error(`persisted domain "${label}" (${domainKey}) doesn't have properties`);
 
-		const propertiesByRel = new Map<string, string[]>();
-		for (const [field, def] of Object.entries(topology.properties)) {
-			const rel = relOf(def);
-			const list = propertiesByRel.get(rel) ?? [];
-			list.push(field);
-			propertiesByRel.set(rel, list);
-		}
+		const propertiesByRel = new Map([...Map.groupBy(Object.entries(topology.properties), ([, def]) => relOf(def))].map(([rel, held]) => [rel, held.map(([field]) => field)]));
 
 		const identifierFields = propertiesByRel.get(LinkRelations.IDENTIFIER.rel) ?? [];
 		if (identifierFields.length === 0) throw new Error(`persisted domain "${label}" (${domainKey}) doesn't have a property with rel "${LinkRelations.IDENTIFIER.rel}"`);
@@ -334,7 +324,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 		}
 
 		const edges: Record<string, TEdgeConcern> = {};
-		for (const [edgeField, edgeDef] of Object.entries(topology.edges ?? {})) {
+		for (const [edgeField, edgeDef] of (topology.edges === undefined ? [] : Object.entries(topology.edges))) {
 			const rel = edgeDef.rel ?? edgeRel(edgeField);
 			if (!rel) throw new Error(`persisted domain "${label}" edge "${edgeField}" doesn't have a rel: add it to EdgePredicates or give an explicit rel`);
 			if (!REL_CONTEXT[rel]) throw new Error(`persisted domain "${label}" edge "${edgeField}" has unknown rel "${rel}"`);
@@ -500,7 +490,7 @@ export async function readInPages<T>(
 	readPage: (from: number, to: number) => Promise<TCountedPage<T>>,
 	start: number,
 	end: number,
-	size = MAX_PAGE_ROWS,
+	size: number,
 ): Promise<{ vertices: T[] } & TCounted> {
 	pageLimit("readInPages", size);
 	const vertices: T[] = [];
@@ -519,7 +509,7 @@ export async function readInPages<T>(
  *  members given, unless the view states that it holds more. */
 export function viewCollection(states: { id: string; name: string; items: ReadonlyArray<unknown>; totalItems?: number; stated?: Record<string, unknown> }): TViewCollection {
 	const { id, name, items, totalItems, stated } = states;
-	return ViewCollectionSchema.parse({ ...(stated ?? {}), "@id": id, name, items: [...items], totalItems: totalItems ?? items.length });
+	return ViewCollectionSchema.parse({ ...stated, "@id": id, name, items: [...items], totalItems: totalItems ?? items.length });
 }
 
 /** Type hint (xsd / primitive) → {zod, sql}. Defaults to string/TEXT. */
@@ -628,7 +618,7 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 		if (title) titledBy.set(type, title);
 		if (topology.instrumentation) instrumentation.add(type);
 		const rels: Record<string, string> = {};
-		for (const [field, def] of Object.entries(topology.properties ?? {})) {
+		for (const [field, def] of (topology.properties === undefined ? [] : Object.entries(topology.properties))) {
 			rels[field] = relOf(def);
 		}
 		// Universal rdfs:label: every persisted type may carry a `label` that titles it (the explicit, type-agnostic
@@ -822,7 +812,7 @@ function resolveDeclaredLabel(args: { getProperty: (field: string) => unknown; d
 function linkedBodyContents(
 	subjectQuads: ReadonlyArray<{ object: unknown; objectType?: string }>,
 	contentOfBody: (bodySubject: string) => string | undefined,
-	bodyLabel: string = BODY_LABEL,
+	bodyLabel: string,
 ): string[] {
 	const out: string[] = [];
 	for (const q of subjectQuads) {
@@ -849,7 +839,7 @@ export function displayLabelForQuads(
 	rels: Record<string, string> | undefined,
 	declared?: TDeclaredTitle,
 ): string {
-	const bodyContents = type === BODY_LABEL ? [] : linkedBodyContents(subjectQuads, bodyContentOf);
+	const bodyContents = type === BODY_LABEL ? [] : linkedBodyContents(subjectQuads, bodyContentOf, BODY_LABEL);
 	// A list arrives as one quad holding it or as a quad for each member.
 	const getProperty = (field: string) => {
 		const values = subjectQuads
@@ -934,15 +924,15 @@ function curiePrefix(term: string): string {
  * hold a type to its own vocabulary; this holds it to the standards it names.
  */
 function assertBoundPrefixes(label: string, domainKey: string, topology: THypermediaTopology): void {
-	const bound = new Set([...Object.keys(STANDARD_NAMESPACES), "hbn", ...Object.keys(topology.namespaces ?? {})]);
+	const bound = new Set([...Object.keys(STANDARD_NAMESPACES), "hbn", ...(topology.namespaces === undefined ? [] : Object.keys(topology.namespaces))]);
 	const claims: Array<[string, string]> = [];
 	if (topology.type) claims.push(["type", topology.type]);
-	for (const superClass of [topology.subClassOf ?? []].flat()) claims.push(["subClassOf", superClass]);
+	if (topology.subClassOf !== undefined) for (const superClass of [topology.subClassOf].flat()) claims.push(["subClassOf", superClass]);
 	for (const [field, def] of Object.entries(topology.properties)) {
 		const iri = propertyIriOf(def);
 		if (iri) claims.push([`property "${field}"`, iri]);
 	}
-	for (const [edgeField, edgeDef] of Object.entries(topology.edges ?? {})) {
+	for (const [edgeField, edgeDef] of (topology.edges === undefined ? [] : Object.entries(topology.edges))) {
 		if (edgeDef.iri) claims.push([`edge "${edgeField}"`, edgeDef.iri]);
 	}
 	for (const [where, term] of claims) {
@@ -1021,7 +1011,7 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>, hai
 		const topology = domain.topology;
 		// A type's own vocabulary prefixes (CURIEs its @types/rels use beyond the standards + haibun's own), merged into the
 		// served context. First declaration wins; core doesn't declare one of these itself.
-		for (const [prefix, iri] of Object.entries(topology.namespaces ?? {})) context[prefix] ??= iri;
+		for (const [prefix, iri] of (topology.namespaces === undefined ? [] : Object.entries(topology.namespaces))) context[prefix] ??= iri;
 		const scoped: Record<string, unknown> = {};
 		const put = (key: string, node: Record<string, string>): void => {
 			scoped[key] = node;
@@ -1038,7 +1028,7 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>, hai
 			put(prop, node);
 			declareProp(uri, linkRel, subPropertyAxiom(rel));
 		}
-		for (const [edge, edgeDef] of Object.entries(topology.edges ?? {})) {
+		for (const [edge, edgeDef] of (topology.edges === undefined ? [] : Object.entries(topology.edges))) {
 			const rel = edgeDef.rel ?? edgeRel(edge);
 			const uri = edgeDef.iri ?? (rel && REL_CONTEXT[rel]) ?? `hbn:${edge}`;
 			put(edge, { "@id": uri, "@type": "@id" });

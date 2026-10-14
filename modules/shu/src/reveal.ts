@@ -3,7 +3,7 @@
  * what is under the person's pointer there: a click aimed at a control of the embedding page lands in shu's frame.
  */
 
-export type TReveal = { block?: ScrollLogicalPosition; inline?: ScrollLogicalPosition; behavior?: ScrollBehavior };
+export type TReveal = { block: ScrollLogicalPosition; inline: ScrollLogicalPosition; behavior: ScrollBehavior };
 
 /** How far a view scrolls to place the span [from, to] at `align` in the view [start, end], as `scrollIntoView` places it. */
 export function alignedBy(from: number, to: number, start: number, end: number, align: ScrollLogicalPosition): number {
@@ -25,7 +25,7 @@ const scrolls = (element: Element): boolean => {
 
 /** Scroll each of `element`'s scrolling ancestors, from the nearest out to its document's scroller, to place it as
  *  `scrollIntoView` places it. Each ancestor's scroll is measured before any scrolls, so a smooth scroll places it too. */
-export function revealInDocument(element: Element, { block = "start", inline = "nearest", behavior = "auto" }: TReveal = {}): void {
+export function revealInDocument(element: Element, { block, inline, behavior }: TReveal): void {
 	const root = element.ownerDocument.scrollingElement;
 	let { top, bottom, left, right } = element.getBoundingClientRect();
 	for (let scroller = flatParent(element); scroller; scroller = scroller === root ? null : flatParent(scroller)) {

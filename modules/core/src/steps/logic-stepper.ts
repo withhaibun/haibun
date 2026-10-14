@@ -4,7 +4,7 @@ import { OK, TActionResult, Origin } from "../schema/protocol.js";
 import { actionNotOK, actionOKWithProducts, sleep } from "../lib/util/index.js";
 import { itemAt } from "../lib/util/item-at.js";
 import { z } from "zod";
-import { FlowRunner } from "../lib/steps/pipelines/flow-runner.js";
+import { FlowRunner, inheritedMode } from "../lib/steps/pipelines/flow-runner.js";
 import { DOMAIN_NUMBER, DOMAIN_STATEMENT, DOMAIN_STRING } from "../lib/domains.js";
 import { readEvery, equalTo } from "../lib/records/pipelines/record-reads.js";
 import { SEQ_PATH_LABEL } from "../lib/resources.js";
@@ -17,12 +17,8 @@ const DOMAIN_MAYBE_OUTCOME = "maybe-outcome";
 /** Counts the step records of the feature's execution by the step each called, as `Stepper.action`. */
 async function stepCounts(world: TWorld): Promise<Map<string, number>> {
 	const steps = await readEvery(world.shared.getStore(), { label: SEQ_PATH_LABEL, filters: equalTo({ [SEQ_PATH_FIELD.execution]: executionOf(world.tag) }) });
-	const counts = new Map<string, number>();
-	for (const step of steps) {
-		const called = step[SEQ_PATH_FIELD.called];
-		if (typeof called === "string") counts.set(called, (counts.get(called) ?? 0) + 1);
-	}
-	return counts;
+	const called = steps.map((step) => step[SEQ_PATH_FIELD.called]).filter((one): one is string => typeof one === "string");
+	return new Map([...Map.groupBy(called, (one) => one)].map(([one, held]) => [one, held.length]));
 }
 
 /** Returns each counted item and its count as a source's items and metrics. */
@@ -34,12 +30,8 @@ const builtInSources: IObservationSource[] = [
 	{
 		name: "stepper usage",
 		observe: async (world: TWorld) => {
-			const byStepper = new Map<string, number>();
-			for (const [called, count] of await stepCounts(world)) {
-				const { stepperName } = calledParts(called);
-				byStepper.set(stepperName, (byStepper.get(stepperName) ?? 0) + count);
-			}
-			return observedCounts(byStepper);
+			const calls = [...(await stepCounts(world))].map(([called, count]) => ({ stepperName: calledParts(called).stepperName, count }));
+			return observedCounts(new Map([...Map.groupBy(calls, ({ stepperName }) => stepperName)].map(([name, held]) => [name, held.reduce((sum, { count }) => sum + count, 0)])));
 		},
 	},
 ];
@@ -85,7 +77,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 	private async bindItem(what: string, item: string, metrics: Record<string, unknown> | undefined, featureStep: TFeatureStep): Promise<void> {
 		const at = { in: featureStep.in, seq: featureStep.seqPath };
 		await this.getWorld().shared.set({ term: what, value: String(item), domain: DOMAIN_STRING, origin: Origin.var }, { ...at, when: "quantifier" });
-		for (const [metric, value] of Object.entries(metrics ?? {})) {
+		for (const [metric, value] of metrics === undefined ? [] : Object.entries(metrics)) {
 			const domain = typeof value === "number" ? DOMAIN_NUMBER : DOMAIN_STRING;
 			await this.getWorld().shared.set({ term: `${what}/${metric}`, value: String(value), domain, origin: Origin.var }, { ...at, when: "observation" });
 		}
@@ -116,7 +108,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 		// Otherwise the phrase is a domain name.
 		const domainName = this.stripQuotes(phrase);
 		const result = await this.getWorld().shared.getDomainValues(domainName);
-		return { values: (result.values as string[]) || [], error: result.error };
+		return { values: result.values === undefined ? [] : (result.values as string[]), error: result.error };
 	}
 
 	steps = {
@@ -131,7 +123,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			action: async ({ condition, action }: { condition: TFeatureStep[]; action: TFeatureStep[] }, featureStep: TFeatureStep): Promise<TActionResult> => {
 				let loopCount = 0;
 				const MAX_LOOPS = 1000;
-				const mode = featureStep.intent?.mode ?? "authoritative";
+				const mode = inheritedMode(featureStep);
 				const usage = featureStep.intent?.usage;
 
 				while (true) {
@@ -163,7 +155,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 				// Vacuously true if condition is false
 				if (!check.ok) return OK;
 
-				const mode = featureStep.intent?.mode ?? "authoritative";
+				const mode = inheritedMode(featureStep);
 				const result = await this.runner.runSteps(action, { intent: { mode, usage }, parentStep: featureStep });
 
 				return result.ok ? OK : actionNotOK(`Constraint failed: Condition was true, but Action failed: ${result.errorMessage}`);
@@ -273,7 +265,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 
 				if (values.length === 0) return OK;
 
-				const mode = featureStep.intent?.mode ?? "authoritative";
+				const mode = inheritedMode(featureStep);
 
 				for (const val of values) {
 					await this.bindItem(what, val, metrics?.[val], featureStep);

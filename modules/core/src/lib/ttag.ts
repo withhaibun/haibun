@@ -1,5 +1,5 @@
 import { Timer } from "../schema/protocol.js";
-import { DEFAULT_HOST_ID, resolveHostId } from "./host-id.js";
+import { resolveHostId } from "./host-id.js";
 
 type TTagValue = number;
 export type TTag = {
@@ -15,7 +15,7 @@ export type TTag = {
 	params: unknown;
 	trace: boolean;
 };
-export const getRunTag = (featureNum: TTagValue, featureName?: string, params = {}, trace = false, hostId: number = DEFAULT_HOST_ID) => {
+export const getRunTag = (featureNum: TTagValue, featureName: string | undefined, params: unknown, trace: boolean, hostId: number) => {
 	const key = Timer.key;
 	const res: TTag = { key, hostId, featureNum, featureName, params, trace };
 	(["featureNum", "hostId"] as const).forEach((w) => {
@@ -28,4 +28,4 @@ export const getRunTag = (featureNum: TTagValue, featureName?: string, params = 
 };
 
 /** The tag of actuality's run outside a feature, on the host this process resolves. */
-export const getDefaultTag = (desc?: string): TTag => getRunTag(0, undefined, desc ? { desc } : undefined, false, resolveHostId());
+export const getDefaultTag = (desc?: string): TTag => getRunTag(0, undefined, desc ? { desc } : {}, false, resolveHostId());

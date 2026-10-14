@@ -26,8 +26,8 @@ import type { THandshake } from "@haibun/core/lib/rpc-wire.js";
 import { fork, type ChildProcess } from "child_process";
 import { createRequire } from "module";
 import { superviseChild, terminate } from "@haibun/core/lib/owned-children.js";
-import { describePortOccupant } from "@haibun/core/lib/port-occupant.js";
-import { existsSync, readFileSync } from "fs";
+import { describePortOccupant, PROBE_TIMEOUT_MS } from "@haibun/core/lib/port-occupant.js";
+import nodeFS, { existsSync, readFileSync } from "fs";
 import { parseEnv } from "node:util";
 import path from "path";
 import { z } from "zod";
@@ -198,7 +198,7 @@ function environmentIn(cwd: string, env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
  *  Returns undefined when the features haven't executed against that state, and throws where the configuration doesn't read.
  *  startRun forks the child where it returns undefined. */
 export function verifiedRun(config: string, dir: string, filter: string, cwd: string, env: NodeJS.ProcessEnv): TOutcome | undefined {
-	const specl = getConfigFromBase([dir]);
+	const specl = getConfigFromBase([dir], nodeFS);
 	const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(environmentIn(cwd, env), specl);
 	const v = verificationOf({ configPath: config, specl, bases: [dir], cwd, filter: filter ? filter.split(",") : [], options, moduleOptions });
 	return v === undefined ? undefined : outcomeAgainst(v)?.outcome;
@@ -207,7 +207,7 @@ export function verifiedRun(config: string, dir: string, filter: string, cwd: st
 /** Returns the first user that the BASIC_AUTH option lists for the web server of a run in `dir`, or undefined when the option is unset.
  *  It reads the option as a run does: from `env`, the .env file in `cwd`, and the config. */
 function signInOf(dir: string, cwd: string, env: NodeJS.ProcessEnv): TBasicAuthUser | undefined {
-	const specl = getConfigFromBase([dir]);
+	const specl = getConfigFromBase([dir], nodeFS);
 	const listed = processBaseEnvToOptionsAndErrors(environmentIn(cwd, env), specl).moduleOptions[BASIC_AUTH_OPTION];
 	return listed ? basicAuthUsers(String(listed))[0] : undefined;
 }
@@ -462,7 +462,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		// A run given a port in use fails at boot, and its own output holds the EADDRINUSE error. This refusal describes
 		// the process on the port and the remedy instead.
 		if (port > 0) {
-			const answering = await describePortOccupant(port);
+			const answering = await describePortOccupant(port, PROBE_TIMEOUT_MS);
 			if (answering) return actionNotOK(`start run: port ${port} is already in use: ${answering}. Stop the process on that port, or choose another port`);
 		}
 		const cliEntry = createRequire(import.meta.url).resolve("@haibun/cli");

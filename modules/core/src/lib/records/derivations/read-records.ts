@@ -19,6 +19,7 @@ import {
 } from "../../hypermedia.js";
 import { ORDER_KEY, VIA_FIELD, statedQuery, type TDistinctValues, type TGraphQuery, type TOrderKey, type TQuad, type TRecordsPage, type TSearchCondition, type TStatedQuery } from "../../steps/domains/quad-types.js";
 import { AccessQuery, LinkRelations, isPersisted, statedLevel, type THeldBy, type TRegisteredDomain } from "../../resources.js";
+import { itemAt } from "../../util/item-at.js";
 
 /** The name a refusal and a rejected bound state for the read function. */
 export const READ_RECORDS = "readRecords";
@@ -59,7 +60,7 @@ export function readDeclarationsOf(domains: Record<string, TRegisteredDomain>): 
 	};
 	const declarations: TReadDeclarations = {
 		types: unique(persisted.map(({ topology }) => topology.persistedAs)),
-		relations: unique(persisted.flatMap(({ topology }) => Object.keys(topology.edges ?? {}))),
+		relations: unique(persisted.flatMap(({ topology }) => (topology.edges === undefined ? [] : Object.keys(topology.edges)))),
 		of(label) {
 			if (!derived.has(label)) derived.set(label, declarationOf(label));
 			return derived.get(label);
@@ -302,15 +303,11 @@ function reached(records: readonly THeldRecord[], query: TGraphQuery): TReached[
 	if (referencedBy) {
 		const source = byKey.get(keyOf(referencedBy.label, referencedBy.id));
 		if (!source) return [];
-		const targets = new Map<string, TReached>();
-		for (const edge of source.edges) {
+		const reached = source.edges.flatMap((edge) => {
 			const target = byKey.get(keyOf(edge.label, edge.id));
-			if (!target || (referencedBy.via && !referencedBy.via.includes(edge.rel))) continue;
-			const held = targets.get(keyOf(edge.label, edge.id)) ?? { record: target, via: [] };
-			held.via = unique([...(held.via ?? []), edge.rel]);
-			targets.set(keyOf(edge.label, edge.id), held);
-		}
-		return [...targets.values()];
+			return !target || (referencedBy.via && !referencedBy.via.includes(edge.rel)) ? [] : [{ edge, target }];
+		});
+		return [...Map.groupBy(reached, ({ edge }) => keyOf(edge.label, edge.id))].map(([, held]) => ({ record: itemAt(held, 0).target, via: unique(held.map(({ edge }) => edge.rel)) }));
 	}
 	return records.filter((record) => record.label === label).map((record) => ({ record }));
 }
@@ -346,7 +343,7 @@ export function readFromRecords(records: readonly THeldRecord[], read: TGraphQue
 	const page = readPage(query);
 	const ceiling = countCeiling(query);
 	const declared = query.label === undefined ? undefined : declarations.of(query.label);
-	const relations = Object.keys(declared?.surface.references ?? {});
+	const relations = (declared?.surface.references === undefined ? [] : Object.keys(declared?.surface.references));
 	const order = readOrder(query, declared?.defaultSort);
 	const narrowed = reached(records, query).filter(
 		({ record }) =>
@@ -357,8 +354,7 @@ export function readFromRecords(records: readonly THeldRecord[], read: TGraphQue
 	const matched = query.named ? narrowed : narrowed.sort(byOrder(order));
 	const vertexOf = ({ record, via }: TReached): Record<string, unknown> => ({ ...record.fields, "@id": record.id, "@type": record.label, ...(via ? { [VIA_FIELD]: via } : {}) });
 	if ("perType" in page) {
-		const byType = new Map<string, TReached[]>();
-		for (const one of matched) byType.set(one.record.label, [...(byType.get(one.record.label) ?? []), one]);
+		const byType = Map.groupBy(matched, (one) => one.record.label);
 		const kept = [...byType.values()].flatMap((ofType) => ofType.slice(0, page.perType));
 		const perType = Object.fromEntries(
 			[...byType].map(([type, ofType]) => [type, query.skipCount ? skippedCount(Math.min(ofType.length, page.perType), page) : heldCount(ofType.length, ceiling)]),

@@ -4,7 +4,7 @@
  * an arbitrarily long set stays reachable. It is renderer-agnostic: the DOM virtualizer and a future 3D chip-mesh rail
  * read the same three calls (count, rowAt, ensureRange), so the same column data can drive both media.
  */
-import { counted, readInPages, type TCounted, type TCountedPage } from "@haibun/core/lib/hypermedia.js";
+import { counted, MAX_PAGE_ROWS, readInPages, type TCounted, type TCountedPage } from "@haibun/core/lib/hypermedia.js";
 import type { TScrollMarker } from "./rail.js";
 import type { Range } from "./rail.js";
 
@@ -188,7 +188,7 @@ function makePagedSource<T>(opts: TPagedSourceOptions<T>): TPagedSource<T> {
 		// A partial first page holds that page's first rows, so the read starts after them.
 		const partial = pages.get(firstPage);
 		const held = partial === undefined ? [] : partial;
-		const rows = [...held, ...(await readInPages(opts.fetch, startRow + held.length, endRow)).vertices];
+		const rows = [...held, ...(await readInPages(opts.fetch, startRow + held.length, endRow, MAX_PAGE_ROWS)).vertices];
 		readEnd = Math.max(readEnd, startRow + rows.length);
 		if (rows.length < endRow - startRow) dataEnd = startRow + rows.length; // the read reached the end of the data
 		for (let p = firstPage; p <= lastPage; p++) {

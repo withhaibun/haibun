@@ -19,7 +19,7 @@ import {
 	createEnumDomainDefinition,
 } from "../lib/domains.js";
 import { findFeatures } from "../lib/features.js";
-import { FlowRunner } from "../lib/steps/pipelines/flow-runner.js";
+import { FlowRunner, inheritedMode } from "../lib/steps/pipelines/flow-runner.js";
 import { QuadStore } from "../lib/steps/pipelines/quad-store.js";
 import { RemoteQuadStore } from "../lib/transport/adapters/remote-quad-store.js";
 import { requestSigner } from "../lib/session-authority.js";
@@ -108,7 +108,7 @@ class Haibun extends AStepper implements IHasCycles {
 				const stepsToRun = afterEvery.filter((aeStep) => aeStep.action.actionName !== featureStep.action.actionName);
 
 				if (stepsToRun.length > 0) {
-					const mode = featureStep.intent?.mode ?? "authoritative";
+					const mode = inheritedMode(featureStep);
 					// Marks these steps as afterEvery steps to prevent recursion.
 					const markedSteps = stepsToRun.map((s) => ({ ...s, isAfterEveryStep: true }));
 					const res = await this.runner.runSteps(markedSteps, { intent: { mode }, parentStep: featureStep });
@@ -145,7 +145,7 @@ class Haibun extends AStepper implements IHasCycles {
 			gwta: `on host {hostId: number}, {statement:${DOMAIN_STATEMENT}}`,
 			productsOf: "statement",
 			action: ({ hostId, statement }: { hostId: number; statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
-				const mode = featureStep.intent?.mode ?? "authoritative";
+				const mode = inheritedMode(featureStep);
 				return this.runner.runSteps(statement, { intent: { mode }, parentStep: featureStep, targetHostId: hostId });
 			},
 		},
@@ -200,7 +200,7 @@ class Haibun extends AStepper implements IHasCycles {
 			description: 'Run statements again until they pass, and fail when they haven\'t passed within the duration, e.g. `until passes within "2s"`.',
 			gwta: `until {statements:${DOMAIN_STATEMENT}} within {duration: ${DOMAIN_DURATION}}`,
 			action: async ({ statements, duration }: { statements: TFeatureStep[]; duration: number }, featureStep: TFeatureStep) => {
-				const mode = featureStep.intent?.mode ?? "authoritative";
+				const mode = inheritedMode(featureStep);
 				const ends = Date.now() + duration;
 				for (;;) {
 					const signal = await this.runner.runSteps(statements, { intent: { mode, usage: "polling" }, parentStep: featureStep });
@@ -244,7 +244,7 @@ class Haibun extends AStepper implements IHasCycles {
 				const world = this.getWorld();
 				// Prepends 'Backgrounds: ' so expandLine reads the line as a background directive.
 				const expanded = findFeatureStepsFromStatement(`Backgrounds: ${names.join(", ")}`, this.steppers, world, featureStep.source?.path, featureStep.seqPath, 1);
-				const mode = featureStep.intent?.mode ?? "authoritative";
+				const mode = inheritedMode(featureStep);
 				const result = await this.runner.runSteps(expanded, { intent: { mode }, parentStep: featureStep });
 				return result.ok ? OK : actionNotOK(`backgrounds failed: ${result.errorMessage}`);
 			},

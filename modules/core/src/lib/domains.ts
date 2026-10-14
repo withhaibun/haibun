@@ -170,7 +170,7 @@ export function refTargetOf(domain: TRegisteredDomain, domains: Record<string, T
  *  a reference don't name domains this way. */
 export function fieldRangesOf(domain: TRegisteredDomain | undefined, domains: Record<string, TRegisteredDomain>): string[] {
 	if (!domain?.topology || isPersisted(domain.topology) || refTargetOf(domain, domains) !== undefined) return [];
-	return Object.values(domain.topology.ranges ?? {});
+	return (domain.topology.ranges === undefined ? [] : Object.values(domain.topology.ranges));
 }
 
 /** The key of the domain whose value is a reference to a record of the type a domain key names. */
@@ -239,7 +239,7 @@ export const normalizeDomainKey = (domain: string) => {
 
 const sanitizeToken = (value: string) => value.trim();
 
-const normalizeEnumValues = (domainName: string, values: string[], requireMultiple = false) => {
+const normalizeEnumValues = (domainName: string, values: string[], requireMultiple: boolean) => {
 	const cleaned = values.map(sanitizeToken).filter(Boolean);
 	if (cleaned.length === 0) {
 		throw new Error(`Domain "${domainName}" must declare at least one value`);
@@ -260,12 +260,12 @@ const normalizeEnumValues = (domainName: string, values: string[], requireMultip
 /** What a domain that holds a name takes: any text but empty. Every domain that holds a name declares this one schema. */
 export const NameSchema = z.string().min(1, "is empty");
 
-export const createEnumDomainDefinition = ({ name, values, description, ordered = false }: TEnumDomainInput): TDomainDefinition => {
+export const createEnumDomainDefinition = ({ name, values, description, ordered }: TEnumDomainInput): TDomainDefinition => {
 	const domainName = sanitizeToken(name);
 	if (!domainName) {
 		throw new Error(`a domain declaration names a domain of "${name}", which doesn't hold a letter or a digit; name the domain`);
 	}
-	const uniqueValues = normalizeEnumValues(domainName, values, ordered);
+	const uniqueValues = normalizeEnumValues(domainName, values, ordered === true);
 	const descriptor = description ?? `${domainName} values: ${uniqueValues.join(", ")}`;
 	const schema = z.enum(uniqueValues as [string, ...string[]]).describe(descriptor);
 	return {
@@ -402,7 +402,7 @@ export function linkVocabularyFromDomains(domains: Record<string, TRegisteredDom
 	const types = new Set<string>();
 	for (const domain of getPersistedDomains(domains)) {
 		types.add(domain.topology.persistedAs);
-		for (const key of Object.keys(domain.topology.edges ?? {})) ranges.set(key, "iri");
+		for (const key of (domain.topology.edges === undefined ? [] : Object.keys(domain.topology.edges))) ranges.set(key, "iri");
 	}
 	return { relRange: (rel) => ranges.get(rel), isType: (name) => types.has(name) };
 }

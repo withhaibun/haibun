@@ -12,9 +12,10 @@
 import { localOrigin } from "./local-origin.js";
 import { ACTION_BEGIN, RPC_ROUTE, rpcEnvelope } from "./transport/ports.js";
 
-const PROBE_TIMEOUT_MS = 1_500;
+/** How long a probe of a port is given to reply, in milliseconds. */
+export const PROBE_TIMEOUT_MS = 1_500;
 
-export async function describePortOccupant(port: number, timeoutMs = PROBE_TIMEOUT_MS): Promise<string | undefined> {
+export async function describePortOccupant(port: number, timeoutMs: number): Promise<string | undefined> {
 	let res: Response;
 	try {
 		res = await fetch(`${localOrigin(port)}${RPC_ROUTE}${encodeURIComponent(ACTION_BEGIN)}`, {

@@ -23,17 +23,16 @@ export function ancestorsWith(term: string, supers: Map<string, string[]>): Set<
 	while (stack.length) {
 		const at = stack.pop();
 		if (at === undefined) break;
-		for (const parent of supers.get(at) ?? []) if (!out.has(parent)) out.add(parent), stack.push(parent);
+		const parents = supers.get(at);
+		if (parents !== undefined) for (const parent of parents) if (!out.has(parent)) out.add(parent), stack.push(parent);
 	}
 	return out;
 }
 
 /** Returns the immediate `subClassOf` and `subPropertyOf` parents of every term of a projected ontology. */
 export function superMap(quads: readonly TQuad[]): Map<string, string[]> {
-	const supers = new Map<string, string[]>();
-	for (const q of quads)
-		if (q.predicate === ONTOLOGY_FIELD.subClassOf || q.predicate === ONTOLOGY_FIELD.subPropertyOf) supers.set(q.subject, [...(supers.get(q.subject) ?? []), String(q.object)]);
-	return supers;
+	const parents = quads.filter((q) => q.predicate === ONTOLOGY_FIELD.subClassOf || q.predicate === ONTOLOGY_FIELD.subPropertyOf);
+	return new Map([...Map.groupBy(parents, (q) => q.subject)].map(([subject, held]) => [subject, held.map((q) => String(q.object))]));
 }
 
 /** Maps each PROV and SOSA class to the designation of its subclasses. `sosa:Observation` is a subclass of `prov:Activity`, so it precedes Activity. */
@@ -54,7 +53,7 @@ export function typesDeclaringRel(domains: Record<string, TRegisteredDomain>, re
 	for (const d of Object.values(domains)) {
 		if (!isPersisted(d.topology)) continue;
 		const t = d.topology;
-		const inEdges = Object.values(t.edges ?? {}).some((e) => (e.rel ?? "") === rel);
+		const inEdges = (t.edges === undefined ? [] : Object.values(t.edges)).some((e) => (e.rel ?? "") === rel);
 		const inProps = Object.values(t.properties).some((p) => (typeof p === "string" ? p : p.rel) === rel);
 		if (inEdges || inProps) labels.push(t.persistedAs);
 	}
@@ -134,7 +133,7 @@ export function ontologyToQuads(domains: Record<string, TRegisteredDomain> = {})
 	// rdfs:range: an edge from each edge's Property to each class in the edge's range.
 	for (const d of Object.values(domains)) {
 		if (!isPersisted(d.topology)) continue;
-		for (const [edge, edgeDef] of Object.entries(d.topology.edges ?? {})) {
+		for (const [edge, edgeDef] of (d.topology.edges === undefined ? [] : Object.entries(d.topology.edges))) {
 			const rel = edgeDef.rel ?? edgeRel(edge);
 			if (!rel) continue;
 			addProp(rel);

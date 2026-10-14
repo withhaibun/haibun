@@ -191,7 +191,7 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 		const below = window.innerHeight - rect.bottom;
 		list.style.top = below < list.offsetHeight && rect.top > below ? `${Math.max(0, rect.top - list.offsetHeight)}px` : `${rect.bottom}px`;
 		const focused = list.querySelector("li.focused");
-		if (focused !== null) revealInDocument(focused, { block: "nearest" });
+		if (focused !== null) revealInDocument(focused, { block: "nearest", inline: "nearest", behavior: "auto" });
 	}
 
 	private renderList(): TemplateResult {

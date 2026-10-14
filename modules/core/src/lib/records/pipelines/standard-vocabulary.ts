@@ -84,7 +84,7 @@ export async function enumerateStandardVocab(domains: Record<string, TRegistered
 		const parts: unknown[] = Array.isArray(typeCtx) ? typeCtx : [typeCtx];
 		const scopedObj = parts.find(isObject);
 		const urls = parts.filter((p): p is string => typeof p === "string");
-		const presentNames = new Set(Object.keys(scopedObj ?? {}).filter((k) => !k.startsWith("@")));
+		const presentNames = new Set((scopedObj === undefined ? [] : Object.keys(scopedObj)).filter((k) => !k.startsWith("@")));
 		const seen = new Set<string>();
 		const declared: TStandardTerm[] = [];
 		for (const url of urls) {

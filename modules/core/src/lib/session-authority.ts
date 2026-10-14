@@ -85,12 +85,17 @@ export class SessionAuthority implements IAuthority {
 	}
 
 	revoked(capabilityId: string): void {
-		for (const call of this.held.get(capabilityId) ?? []) call.abort(`${capabilityId} was revoked`);
+		const calls = this.held.get(capabilityId);
+		if (calls !== undefined) for (const call of calls) call.abort(`${capabilityId} was revoked`);
 	}
 
 	holdWhile({ capabilities, expires }: TRestsOn): { signal: AbortSignal; release(): void } {
 		const call = new AbortController();
-		for (const id of capabilities) this.held.set(id, (this.held.get(id) ?? new Set()).add(call));
+		for (const id of capabilities) {
+			const calls = this.held.get(id);
+			if (calls === undefined) this.held.set(id, new Set([call]));
+			else calls.add(call);
+		}
 		let timer: ReturnType<typeof setTimeout> | undefined;
 		const until = expires === undefined ? undefined : Date.parse(expires);
 		if (Number.isNaN(until)) throw new Error(`a held call rests on authority with an expiry that isn't a time: ${expires}`);

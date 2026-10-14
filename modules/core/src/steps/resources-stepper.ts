@@ -289,16 +289,13 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 				const selectorOfSr = new Map<string, string>();
 				for (const q of await store.query({ predicate: LinkRelations.HAS_SELECTOR.rel, namedGraph: SPECIFIC_RESOURCE_LABEL }))
 					selectorOfSr.set(String(q.subject), String(q.object));
-				const linkSrsOfComment = new Map<string, string[]>();
-				for (const q of await store.query({ predicate: LinkRelations.LINKS_TO.rel, namedGraph: COMMENT_LABEL })) {
-					const list = linkSrsOfComment.get(String(q.subject)) ?? [];
-					list.push(String(q.object));
-					linkSrsOfComment.set(String(q.subject), list);
-				}
+				const linkQuads = await store.query({ predicate: LinkRelations.LINKS_TO.rel, namedGraph: COMMENT_LABEL });
+				const linkSrsOfComment = new Map([...Map.groupBy(linkQuads, (q) => String(q.subject))].map(([comment, held]) => [comment, held.map((q) => String(q.object))]));
 				const selectorById = new Map<string, Record<string, unknown>>();
 				for (const s of await readEvery(store, { label: TEXT_QUOTE_SELECTOR_LABEL })) selectorById.set(String(s.id), s);
 				const quoteOf = (srId: string | undefined): TQuoteAnchor | undefined => {
-					const sel = srId ? selectorById.get(selectorOfSr.get(srId) ?? "") : undefined;
+					const selectorId = srId ? selectorOfSr.get(srId) : undefined;
+					const sel = selectorId === undefined ? undefined : selectorById.get(selectorId);
 					if (!sel) return undefined;
 					return {
 						exact: String(sel.exact),

@@ -214,7 +214,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 				// live edge (following, cursor null), so a scrolled-up reader is left alone. Only a changed row count moves
 				// the live edge; a notify that recomputed the same rows (a filter pass over a buffer that gained only
 				// filtered-out events) must not re-stick, or it overrides a scroll position that a visible change didn't request.
-				const count = this.source?.count() ?? 0;
+				const count = this.#rowCount();
 				const moved = count !== lastCount;
 				lastCount = count;
 				if (moved && this.follow) void this.updateComplete.then(() => this.#follow.stick());
@@ -225,7 +225,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 	scrollToIndex(index: number, position: "start" | "center" | "end" = "start"): void {
 		// Held to the rows there are: requested one past the end, the virtualizer reaches for an element that was never
 		// rendered and throws inside its own scrollIntoView.
-		const rows = this.source?.count() ?? 0;
+		const rows = this.#rowCount();
 		if (rows === 0) return;
 		this.#virt.value?.scrollToIndex(Math.max(0, Math.min(index, rows - 1)), position);
 	}
@@ -236,7 +236,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 	 *  whether the virtualizer holds the target. The target comes from the source's count, and the virtualizer takes in
 	 *  that count on its own update, so it ignores a target past the rows it holds, and #onRange issues the jump again. */
 	#scrollToEnd(): boolean {
-		const n = this.source?.count() ?? 0;
+		const n = this.#rowCount();
 		if (n === 0) return true;
 		const el = this.#virt.value;
 		const target = convergeTarget(this.#window, n);
@@ -290,7 +290,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 			}
 		}
 		if (this.source && e.last >= e.first) void this.source.ensureRange(e.first, e.last + 1);
-		const count = this.source?.count() ?? 0;
+		const count = this.#rowCount();
 		const short = Math.max(0, count - (this.#window.first + this.#window.visible));
 		if (short !== this.#lastWindowShort) {
 			this.#lastWindowShort = short;
@@ -358,7 +358,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 		if (this.follow) {
 			this.#follow.setAtBottom(true);
 		}
-		const rows = this.source?.count() ?? 0;
+		const rows = this.#rowCount();
 		if (rows > 0) this.scrollToIndex(rows - 1, "end");
 	}
 
@@ -392,7 +392,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 			// The rail reports which ROW; a window cannot start past the last one, so what the strip shows is clamped even
 			// though what the reader picked is not. The rows of that window are requested as they would be by scrolling,
 			// so a source that pages actuality in caches what the strip points at when the column is opened there.
-			const count = this.source?.count() ?? 0;
+			const count = this.#rowCount();
 			const last = Math.max(0, count - this.#window.visible);
 			this.#window = { first: Math.min(index, last), visible: this.#window.visible };
 			if (this.source && count > 0) void this.source.ensureRange(this.#window.first, Math.min(count, this.#window.first + Math.max(1, this.#window.visible)));
@@ -417,10 +417,15 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 	 *  didn't move a mark would make it sort every mark on every scrolled frame. */
 	#placed: { of: TScrollMarker[]; on: TScrollMarker[]; marks: TScrollMarker[] } | null = null;
 
+	/** How many rows the source holds. A column without a source holds zero. */
+	#rowCount(): number {
+		return this.source === null ? 0 : this.source.count();
+	}
+
 	/** What the rail is drawn over: the places the source's rail has, else the rows this column holds. */
 	#rail(total: number): { total: number; window: TWindow; markers: TScrollMarker[] } {
 		const rail = this.source?.rail;
-		const own = (this.source?.markers() ?? []) as TScrollMarker[];
+		const own = this.source === null ? [] : this.source.markers();
 		if (!rail) return { total, window: this.#railWindow(total), markers: own };
 		const shown = this.#railWindow(total);
 		const first = rail.placeOf(shown.first);
@@ -434,7 +439,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 	}
 
 	render(): TemplateResult {
-		const total = this.source?.count() ?? 0;
+		const total = this.#rowCount();
 		const drawn = this.#rail(total);
 		const rail = html`<shu-scrollbar .total=${drawn.total} .window=${drawn.window} .viewportFraction=${this.#viewportFraction} .markers=${drawn.markers} .cursor=${this.cursor}></shu-scrollbar>`;
 		// Serving as a column's spine: the strip has room for the rail alone. The rows are not rendered, and

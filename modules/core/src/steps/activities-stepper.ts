@@ -7,7 +7,7 @@ import { actionOK, actionNotOK, actionOKWithProducts, getActionable, errorDetail
 import { itemAt } from "../lib/util/item-at.js";
 import { DOMAIN_STATEMENT, DOMAIN_STATEMENT_LINES, DOMAIN_TITLE, DOMAIN_WAYPOINT_ARGUMENT } from "../lib/domains.js";
 import { Resolver } from "../lib/actuality/pipelines/resolver.js";
-import { FlowRunner } from "../lib/steps/pipelines/flow-runner.js";
+import { FlowRunner, inheritedMode } from "../lib/steps/pipelines/flow-runner.js";
 import { ControlEvent, LifecycleEvent, STATUS, type TStatus } from "../schema/protocol.js";
 import { buildDomainChain } from "../lib/domain-chain.js";
 import { GOAL_FINDING, resolveGoal } from "../lib/goal-resolver.js";
@@ -618,7 +618,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 					if (ensuring) return actionNotOK(`ActivitiesStepper: outcome "${outcome}" doesn't have an activity body to ensure it`);
 					return proofStatements.length > 0 ? actionNotOK(`ActivitiesStepper: proof failed for outcome "${outcome}"`) : OK;
 				}
-				const intent = { mode: featureStep.intent?.mode ?? "authoritative", usage: featureStep.intent?.usage };
+				const intent = { mode: inheritedMode(featureStep), usage: featureStep.intent?.usage };
 				const act = await run(normalizedActivitySteps, intent);
 				if (!act.ok) return actionNotOK(`ActivitiesStepper: activity body failed for outcome "${outcome}": ${act.errorMessage}`);
 				// `ensure` verifies the proof after the activity body runs.

@@ -14,7 +14,7 @@ import { existsSync, statSync, readdirSync } from "fs";
 import { resolve, sep } from "path";
 import { esc } from "@haibun/core/lib/document-content.js";
 import type { IEventLogger, IQuadStore } from "@haibun/core/lib/steps/ports.js";
-import { describePortOccupant } from "@haibun/core/lib/port-occupant.js";
+import { describePortOccupant, PROBE_TIMEOUT_MS } from "@haibun/core/lib/port-occupant.js";
 import { ENDPOINT_CLASS, isServicePath } from "@haibun/core/lib/http-observations.js";
 import type { TRpcMethod } from "@haibun/core/lib/rpc-wire.js";
 import type { TBasicAuthUser } from "@haibun/core/lib/basic-auth.js";
@@ -132,7 +132,7 @@ export class ServerHono implements IWebServer {
 				server.on("error", (e: Error) => {
 					// A failed bind names the occupant where it can: "EADDRINUSE" alone reads as a dead server, when the
 					// situation is a held port and the recourse is to stop what holds it or serve elsewhere.
-					void describePortOccupant(port).then((answering) =>
+					void describePortOccupant(port, PROBE_TIMEOUT_MS).then((answering) =>
 						reject(new Error(`ServerHono.listen: failed on port ${port} (${host}): ${e.message}${answering ? `, ${answering}` : ""}`)),
 					);
 				});

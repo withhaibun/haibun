@@ -3,6 +3,7 @@ import { newActualityId } from "../transport/ports.js";
 import { CStepper } from "../steps/domains/stepper.js";
 import { DEFAULT_DEST, TExecutorResult, TEST_BASE } from "../../schema/protocol.js";
 import { getRunTag } from "../ttag.js";
+import { DEFAULT_HOST_ID } from "../host-id.js";
 import { resolveSitePrincipal } from "../host-id.js";
 import { getCreateSteppers } from "../util/node/workspace-lib.js";
 export { getCreateSteppers };
@@ -102,7 +103,7 @@ export function eventHubOfTest(): EventLogger {
 export function getDefaultWorld(env: NodeJS.ProcessEnv = process.env): TWorld {
 	const world: Partial<TWorld> = {
 		clock: actualityClock(),
-		tag: getRunTag(0),
+		tag: getRunTag(0, undefined, {}, false, DEFAULT_HOST_ID),
 		prompter: new Prompter(),
 		runtime: {
 			actualityId: newActualityId(),

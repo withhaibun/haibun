@@ -417,7 +417,7 @@ function* cartesian<T>(arrays: T[][], limit: number): Generator<T[]> {
 
 /** Splits each path in `where` into its segments and pairs it with its filter. resolveGoal computes the pairs once and checks every fact against them. */
 function whereFilters(where: Record<string, TShibari | unknown> | undefined): [string[], TShibari][] {
-	return Object.entries(where ?? {}).map(([path, raw]) => [path.split("."), normaliseShibari(raw)]);
+	return (where === undefined ? [] : Object.entries(where)).map(([path, raw]) => [path.split("."), normaliseShibari(raw)]);
 }
 
 /** True when the fact's value matches every path's filter. An empty `where` always matches. */

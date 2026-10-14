@@ -1,4 +1,3 @@
-import nodeFS from "fs";
 import path from "path";
 import { TFileSystem } from "./util/node/workspace-lib.js";
 
@@ -20,7 +19,7 @@ interface HaibunWorkspace {
  * @param fs - File system interface (for testing)
  * @returns Workspace info or null if a features/ parent isn't found
  */
-export function findHaibunWorkspace(featurePath: string, fs: TFileSystem = nodeFS): HaibunWorkspace | null {
+export function findHaibunWorkspace(featurePath: string, fs: TFileSystem): HaibunWorkspace | null {
 	// Normalize path
 	const normalized = path.normalize(featurePath);
 	const parts = normalized.split(path.sep);
@@ -56,7 +55,7 @@ export function findHaibunWorkspace(featurePath: string, fs: TFileSystem = nodeF
 /**
  * Recursively find all .feature files in a directory
  */
-async function findFeatureFiles(dir: string, fs: TFileSystem = nodeFS): Promise<string[]> {
+async function findFeatureFiles(dir: string, fs: TFileSystem): Promise<string[]> {
 	const results: string[] = [];
 	if (!fs.existsSync(dir)) return results;
 
@@ -80,7 +79,7 @@ async function findFeatureFiles(dir: string, fs: TFileSystem = nodeFS): Promise<
 /**
  * Count features in the workspace (base/features)
  */
-export async function countFeatures(base: string, fs: TFileSystem = nodeFS): Promise<number> {
+export async function countFeatures(base: string, fs: TFileSystem): Promise<number> {
 	const featuresPath = path.join(base, "features");
 	const files = await findFeatureFiles(featuresPath, fs);
 	return files.length;
@@ -89,7 +88,7 @@ export async function countFeatures(base: string, fs: TFileSystem = nodeFS): Pro
 /**
  * Load all background files from a backgrounds directory
  */
-export async function loadBackgroundsFromPath(backgroundsPath: string, fs: TFileSystem = nodeFS): Promise<Array<{ path: string; content: string; name: string; base: string }>> {
+export async function loadBackgroundsFromPath(backgroundsPath: string, fs: TFileSystem): Promise<Array<{ path: string; content: string; name: string; base: string }>> {
 	const backgrounds: Array<{ path: string; content: string; name: string; base: string }> = [];
 
 	if (!fs.existsSync(backgroundsPath)) {

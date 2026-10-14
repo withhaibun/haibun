@@ -144,7 +144,7 @@ export class SSETransport implements ITransport, IStepTransport {
 
 			// A step declared a read is served without a line of its own here, since a page following a run reads it on every
 			// announcement.
-			if (!this.servesARead(method)) eventLogger.debug(`RPC: ${JSON.stringify(truncateForLog(data))}`);
+			if (!this.servesARead(method)) eventLogger.debug(`RPC: ${JSON.stringify(truncateForLog(data, 0))}`);
 			const result = await this.handleMessage(data, request);
 			if (result === undefined) return c.json({ ok: false, error: `RPC method ${method} doesn't have a handler` }, 404);
 			// A request whose presented authority failed is refused as forbidden, which differs from a call refused for lack of

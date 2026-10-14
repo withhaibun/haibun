@@ -610,7 +610,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		else if (openGoal !== this.lastScrolledGoal) {
 			const card = findByAttr("data-goal-domain", openGoal);
 			if (card) {
-				requestAnimationFrame(() => revealInDocument(card, { block: "start" }));
+				requestAnimationFrame(() => revealInDocument(card, { block: "start", inline: "nearest", behavior: "auto" }));
 				this.lastScrolledGoal = openGoal;
 			}
 		}
@@ -618,7 +618,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		else if (openWaypoint !== this.lastScrolledWaypoint) {
 			const card = findByAttr("data-testid", `waypoint-${openWaypoint}`);
 			if (card) {
-				requestAnimationFrame(() => revealInDocument(card, { block: "start" }));
+				requestAnimationFrame(() => revealInDocument(card, { block: "start", inline: "nearest", behavior: "auto" }));
 				this.lastScrolledWaypoint = openWaypoint;
 			}
 		}

@@ -27,7 +27,7 @@ const DOMAIN_DECLARED_BLIPS = "declared-blips";
 
 /** Renders one occurrence as a line: ordinal, name, value, step, attributes. */
 export function renderOccurrence(blip: TBlipEvent, index: number): string {
-	const detail = Object.entries(blip.attributes ?? {}).map(([k, v]) => `${k}=${String(v)}`);
+	const detail = (blip.attributes === undefined ? [] : Object.entries(blip.attributes)).map(([k, v]) => `${k}=${String(v)}`);
 	const parts = [`${index + 1}`, blip.name, ...(blip.value === undefined ? [] : [`value=${blip.value}`]), ...(blip.seqPath ? [`step=${blip.seqPath}`] : []), ...detail];
 	return parts.join(" ");
 }

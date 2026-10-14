@@ -6,13 +6,11 @@
 	},
 	"modules/cli/src/lib.ts": {
 		"fills a falsy value with a constant through ||": 4,
-		"fills an absent value with a constant through ??": 6,
-		"states a parameter's default value": 2
+		"fills an absent value with a constant through ??": 6
 	},
 	"modules/cli/src/test-runner-stepper.ts": {
-		"fills a falsy value with a constant through ||": 1,
-		"fills an absent value with a constant through ??": 4,
-		"states a parameter's default value": 4
+		"fills an absent value with a constant through ??": 3,
+		"states a parameter's default value": 3
 	},
 	"modules/cli/src/timings.ts": {
 		"fills a falsy value with a constant through ||": 1,
@@ -22,11 +20,10 @@
 		"fills an absent value with a constant through ??": 2
 	},
 	"modules/core/src/lib/actions.ts": {
-		"fills an absent value with a constant through ??": 1,
 		"states a parameter's default value": 1
 	},
 	"modules/core/src/lib/affordances.ts": {
-		"fills an absent value with a constant through ??": 2
+		"fills an absent value with a constant through ??": 1
 	},
 	"modules/core/src/lib/blips.ts": {
 		"fills an absent value with a constant through ??": 5
@@ -45,20 +42,18 @@
 	},
 	"modules/core/src/lib/document-content.ts": {
 		"fills a falsy value with a constant through ||": 7,
-		"fills an absent value with a constant through ??": 3,
+		"fills an absent value with a constant through ??": 2,
 		"states a parameter's default value": 3
 	},
 	"modules/core/src/lib/domains.ts": {
 		"fills a falsy value with a constant through ||": 1,
-		"fills an absent value with a constant through ??": 4,
-		"states a destructured default value": 1,
-		"states a parameter's default value": 1
+		"fills an absent value with a constant through ??": 2
 	},
 	"modules/core/src/lib/features.ts": {
-		"states a parameter's default value": 2
+		"states a parameter's default value": 1
 	},
 	"modules/core/src/lib/goal-resolver.ts": {
-		"fills an absent value with a constant through ??": 6
+		"fills an absent value with a constant through ??": 5
 	},
 	"modules/core/src/lib/host-id.ts": {
 		"fills an absent value with a constant through ??": 2,
@@ -71,8 +66,8 @@
 	},
 	"modules/core/src/lib/hypermedia.ts": {
 		"fills a falsy value with a constant through ||": 2,
-		"fills an absent value with a constant through ??": 26,
-		"states a parameter's default value": 3,
+		"fills an absent value with a constant through ??": 14,
+		"states a parameter's default value": 1,
 		"states a schema's default value through .default()": 6
 	},
 	"modules/core/src/lib/media-fragments.ts": {
@@ -80,9 +75,6 @@
 	},
 	"modules/core/src/lib/media-object.ts": {
 		"fills an absent value with a constant through ??": 2
-	},
-	"modules/core/src/lib/port-occupant.ts": {
-		"states a parameter's default value": 1
 	},
 	"modules/core/src/lib/principal.ts": {
 		"fills an absent value with a constant through ??": 1
@@ -101,26 +93,17 @@
 		"fills an absent value with a constant through ??": 1
 	},
 	"modules/core/src/lib/records/derivations/ontology.ts": {
-		"fills an absent value with a constant through ??": 6,
+		"fills an absent value with a constant through ??": 2,
 		"states a parameter's default value": 1
 	},
 	"modules/core/src/lib/records/derivations/read-records.ts": {
-		"fills an absent value with a constant through ??": 11
+		"fills an absent value with a constant through ??": 6
 	},
 	"modules/core/src/lib/records/pipelines/discourse-writes.ts": {
 		"fills an absent value with a constant through ??": 2
 	},
-	"modules/core/src/lib/records/pipelines/record-reads.ts": {
-		"fills an absent value with a constant through ??": 1
-	},
-	"modules/core/src/lib/records/pipelines/standard-vocabulary.ts": {
-		"fills an absent value with a constant through ??": 1
-	},
 	"modules/core/src/lib/resolver-features.ts": {
 		"fills a falsy value with a constant through ||": 1
-	},
-	"modules/core/src/lib/session-authority.ts": {
-		"fills an absent value with a constant through ??": 2
 	},
 	"modules/core/src/lib/step-validation.ts": {
 		"fills a falsy value with a constant through ||": 1
@@ -128,22 +111,14 @@
 	"modules/core/src/lib/store-protocol.ts": {
 		"fills an absent value with a constant through ??": 1
 	},
-	"modules/core/src/lib/ttag.ts": {
-		"states a parameter's default value": 3
-	},
 	"modules/core/src/lib/typed-links.ts": {
 		"fills an absent value with a constant through ??": 1
 	},
 	"modules/core/src/lib/urakata.ts": {
 		"states a schema's default value through .default()": 1
 	},
-	"modules/core/src/lib/util/index.ts": {
-		"fills a falsy value with a constant through ||": 3,
-		"fills an absent value with a constant through ??": 1,
-		"states a parameter's default value": 1
-	},
 	"modules/core/src/lib/util/node/dependency-state.ts": {
-		"fills an absent value with a constant through ??": 3,
+		"fills an absent value with a constant through ??": 2,
 		"states a parameter's default value": 1
 	},
 	"modules/core/src/lib/util/node/module-loader.ts": {
@@ -152,11 +127,8 @@
 	"modules/core/src/lib/util/node/workspace-lib.ts": {
 		"states a parameter's default value": 1
 	},
-	"modules/core/src/lib/workspace-discovery.ts": {
-		"states a parameter's default value": 4
-	},
 	"modules/core/src/run-policy/run-policy-schema.ts": {
-		"fills an absent value with a constant through ??": 4,
+		"fills an absent value with a constant through ??": 3,
 		"states a schema's default value through .default()": 2
 	},
 	"modules/core/src/schema/protocol.ts": {
@@ -166,37 +138,23 @@
 	},
 	"modules/core/src/steps/activities-stepper.ts": {
 		"fills a falsy value with a constant through ||": 1,
-		"fills an absent value with a constant through ??": 6,
+		"fills an absent value with a constant through ??": 5,
 		"states a parameter's default value": 1
 	},
 	"modules/core/src/steps/authority-stepper.ts": {
 		"fills an absent value with a constant through ??": 1
 	},
-	"modules/core/src/steps/blips-stepper.ts": {
-		"fills an absent value with a constant through ??": 1
-	},
 	"modules/core/src/steps/goal-resolution-stepper.ts": {
 		"fills an absent value with a constant through ??": 4
 	},
-	"modules/core/src/steps/haibun.ts": {
-		"fills an absent value with a constant through ??": 4
-	},
-	"modules/core/src/steps/lib/tts.ts": {
-		"states a parameter's default value": 1
-	},
-	"modules/core/src/steps/logic-stepper.ts": {
-		"fills a falsy value with a constant through ||": 1,
-		"fills an absent value with a constant through ??": 6
-	},
 	"modules/core/src/steps/resources-stepper.ts": {
-		"fills an absent value with a constant through ??": 3
+		"fills an absent value with a constant through ??": 1
 	},
 	"modules/core/src/steps/urakata-stepper.ts": {
 		"fills a falsy value with a constant through ||": 1
 	},
 	"modules/core/src/steps/variables-stepper.ts": {
-		"fills a falsy value with a constant through ||": 1,
-		"fills an absent value with a constant through ??": 7
+		"fills an absent value with a constant through ??": 6
 	},
 	"modules/domain-storage/src/AStorage.ts": {
 		"fills a falsy value with a constant through ||": 1,
@@ -319,7 +277,7 @@
 		"states a parameter's default value": 1
 	},
 	"modules/shu/src/page/components/shu-step-caller.ts": {
-		"fills an absent value with a constant through ??": 10
+		"fills an absent value with a constant through ??": 6
 	},
 	"modules/shu/src/page/components/shu-thread-column.ts": {
 		"fills a falsy value with a constant through ||": 1,
@@ -327,7 +285,6 @@
 		"states a parameter's default value": 1
 	},
 	"modules/shu/src/page/components/shu-virtual-column.ts": {
-		"fills an absent value with a constant through ??": 8,
 		"states a parameter's default value": 1
 	},
 	"modules/shu/src/page/components/slot-extensions.ts": {
@@ -355,10 +312,6 @@
 	},
 	"modules/shu/src/page/derivations/step-input.ts": {
 		"fills an absent value with a constant through ??": 2
-	},
-	"modules/shu/src/reveal.ts": {
-		"states a destructured default value": 3,
-		"states a parameter's default value": 1
 	},
 	"modules/shu/src/schemas.ts": {
 		"fills a falsy value with a constant through ||": 3

@@ -510,7 +510,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 		} catch {
 			return; // the range crosses element boundaries, skip the flash, still scroll below
 		}
-		revealInDocument(mark, { block: "center", behavior: "smooth" });
+		revealInDocument(mark, { block: "center", inline: "nearest", behavior: "smooth" });
 		this.#clock.trailing(QUOTE_FLASH, QUOTE_FLASH_MS, () => {
 			const parent = mark.parentNode;
 			if (parent) {

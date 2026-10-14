@@ -12,7 +12,7 @@
  * holds that many.
  */
 import { GraphQuerySchema } from "@haibun/core/lib/quad-types.js";
-import { readInPages } from "@haibun/core/lib/hypermedia.js";
+import { MAX_PAGE_ROWS, readInPages } from "@haibun/core/lib/hypermedia.js";
 import { SUBSTEP_LEVEL, type THaibunLogLevel } from "@haibun/core/schema/protocol.js";
 import { RECORDED_AT_TIME_FIELD } from "@haibun/core/lib/seq-path.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
@@ -77,7 +77,7 @@ async function side(
 	const filters = [...when, ...shown];
 	const readPage = (from: number, to: number) =>
 		graph.query(GraphQuerySchema.parse({ label, filters, sortBy: timeField, sortOrder, offset: from, limit: to - from, skipCount: true }));
-	return (await readInPages(readPage, 0, limit)).vertices;
+	return (await readInPages(readPage, 0, limit, MAX_PAGE_ROWS)).vertices;
 }
 
 /**

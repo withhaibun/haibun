@@ -160,13 +160,13 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 		const schema = desc.inputSchema as TInputSchema;
 		const properties = { ...schema.properties };
 		const fixed = this.#fixed;
-		for (const [data, typeParam] of Object.entries(desc.recordData ?? {})) {
+		for (const [data, typeParam] of (desc.recordData === undefined ? [] : Object.entries(desc.recordData))) {
 			const chosen = typeParam in fixed ? fixed[typeParam] : this.formValues[typeParam];
 			if (typeof chosen !== "string" || chosen === "") continue;
 			const typeSchema = getConcernCatalog().persisted[chosen]?.jsonSchema as TInputProperty | undefined;
 			if (typeSchema === undefined) throw new Error(`<shu-step-caller> offers the type ${chosen}, which the catalog doesn't declare`);
 			// The catalog states what a record holds, so a field its schema fills by default is one a caller may leave out.
-			const defaulted = new Set(Object.entries(typeSchema.properties ?? {}).flatMap(([field, prop]) => ("default" in prop ? [field] : [])));
+			const defaulted = new Set((typeSchema.properties === undefined ? [] : Object.entries(typeSchema.properties)).flatMap(([field, prop]) => ("default" in prop ? [field] : [])));
 			properties[data] = { ...typeSchema, required: (typeSchema.required ?? []).filter((field) => !defaulted.has(field)) };
 		}
 		return { ...schema, properties };
@@ -241,7 +241,7 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 			this.dispatchEvent(new CustomEvent(SHU_EVENT.STEP_SUCCESS, { bubbles: true, composed: true, detail: returned.result }));
 		}
 		await this.updateComplete;
-		revealInDocument(this, { behavior: "smooth", block: "nearest" });
+		revealInDocument(this, { behavior: "smooth", block: "nearest", inline: "nearest" });
 	}
 
 	#refuseInput(error: string, fieldErrors: Record<string, string>): void {
@@ -296,10 +296,10 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 		if (paramName in fixed) return html`<span class="step-fixed">${String(fixed[paramName])}</span>`;
 		const prop = properties[paramName];
 		// A parameter naming the type of a record's fields offers the types the catalog declares.
-		const names = Object.values(desc.recordData ?? {}).includes(paramName) ? Object.keys(getConcernCatalog().persisted).sort() : prop?.enum;
+		const names = (desc.recordData === undefined ? [] : Object.values(desc.recordData)).includes(paramName) ? Object.keys(getConcernCatalog().persisted).sort() : prop?.enum;
 		if (names !== undefined) {
 			const saved = this.formValues[paramName];
-			const typeChoice = Object.values(desc.recordData ?? {}).includes(paramName);
+			const typeChoice = (desc.recordData === undefined ? [] : Object.values(desc.recordData)).includes(paramName);
 			return html`<select name=${paramName} class="inline-select" data-testid=${this.#testId(`step-input-${paramName}`)} @change=${typeChoice ? this.#onTypeChosen : nothing}>
 				<option value="" ?selected=${saved === undefined}>${paramName}</option>${names.map((v) => html`<option value=${v} ?selected=${v === saved}>${v}</option>`)}</select>`;
 		}

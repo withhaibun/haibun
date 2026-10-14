@@ -33,6 +33,9 @@ function intentOf(stated: ExecutionIntent | undefined, parentStep: TFeatureStep 
 	return parentStep?.intent === undefined ? AUTHORITATIVE : parentStep.intent;
 }
 
+/** The mode a statement run under `parentStep` takes where it doesn't state one: the step's own, else actuality's claim. */
+export const inheritedMode = (parentStep: TFeatureStep): ExecutionIntent["mode"] => intentOf(undefined, parentStep).mode;
+
 export class FlowRunner {
 	private resolver: Resolver;
 

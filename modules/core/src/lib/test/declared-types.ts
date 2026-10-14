@@ -16,7 +16,7 @@ export type TDeclaredType = { id?: string; filters?: readonly string[]; relation
 /** Returns read declarations of the types `types` names. Each type's id field is the one it names or `id`, its filters
  *  compare the fields it names, and a page of it orders by `generatedAtTime`. */
 export function declaredTypes(types: Record<string, TDeclaredType>): TReadDeclarations {
-	const relations = [...new Set(Object.values(types).flatMap((type) => Object.keys(type.relations ?? {})))].sort();
+	const relations = [...new Set(Object.values(types).flatMap((type) => (type.relations === undefined ? [] : Object.keys(type.relations))))].sort();
 	return {
 		types: Object.keys(types).sort(),
 		relations,
@@ -24,7 +24,7 @@ export function declaredTypes(types: Record<string, TDeclaredType>): TReadDeclar
 			const type = types[label];
 			if (!type) return undefined;
 			const properties = Object.fromEntries((type.filters ?? []).map((field) => [field, [REACHED_BY.filter]]));
-			const references = Object.fromEntries(Object.entries(type.relations ?? {}).map(([relation, ranges]) => [relation, [...ranges]]));
+			const references = Object.fromEntries((type.relations === undefined ? [] : Object.entries(type.relations)).map(([relation, ranges]) => [relation, [...ranges]]));
 			return { id: type.id === undefined ? "id" : type.id, surface: { label, properties, references }, defaultSort: LinkRelations.GENERATED_AT_TIME.rel };
 		},
 	};

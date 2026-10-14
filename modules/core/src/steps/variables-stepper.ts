@@ -365,15 +365,12 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: "show domains",
 			productsDomain: DOMAIN_DOMAINS_SNAPSHOT,
 			action: async () => {
-				const members = new Map<string, number>();
-				for (const { domain } of Object.values(await this.getWorld().shared.all())) {
-					const key = domain && normalizeDomainKey(domain);
-					if (key) members.set(key, (members.get(key) ?? 0) + 1);
-				}
+				const keys = Object.values(await this.getWorld().shared.all()).flatMap(({ domain }) => (domain && normalizeDomainKey(domain) ? [normalizeDomainKey(domain)] : []));
+				const members = new Map([...Map.groupBy(keys, (key) => key)].map(([key, held]) => [key, held.length]));
 				const items = Object.entries(this.getWorld().domains).map(([name, { description, values, topology }]) => {
 					const persistedAs = isPersisted(topology) ? topology.persistedAs : undefined;
 					// The edges a persisted type's topology declares to another persisted type.
-					const _edges = Object.entries((isPersisted(topology) && topology.edges) || {}).flatMap(([type, edge]) =>
+					const _edges = (isPersisted(topology) && topology.edges ? Object.entries(topology.edges) : []).flatMap(([type, edge]) =>
 						edgeRanges(edge)
 							.filter((range) => range !== persistedAs)
 							.map((targetId) => ({ type, targetId })),

@@ -128,8 +128,7 @@ export function buildAffordances(inputs: TAffordancesInputs): TAffordances {
 	const graph = buildDomainChain(inputs.steppers, inputs.domains);
 	const facts = inputs.asOfSeqPath ? filterFactsAsOf(inputs.facts, inputs.asOfSeqPath) : inputs.facts;
 	const satisfiedDomains = [...new Set(facts.map((fact) => fact.domain))].sort();
-	const satisfiedFacts: Record<string, string[]> = {};
-	for (const fact of facts) satisfiedFacts[fact.domain] = [...(satisfiedFacts[fact.domain] ?? []), fact.id];
+	const satisfiedFacts = Object.fromEntries([...Map.groupBy(facts, (fact) => fact.domain)].map(([domain, held]) => [domain, held.map((fact) => fact.id)]));
 	return {
 		forward: buildForwardFrontier(graph, facts, inputs.held),
 		goals: buildGoalFrontier(graph, facts, inputs.held, inputs.domains, inputs.compositeDecomposition, inputs.compositeMaxDepth),
