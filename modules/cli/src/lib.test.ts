@@ -13,6 +13,9 @@ import type { TProtoOptions } from "@haibun/core/lib/world.js";
 import { OPTION_RUN_POLICY, OPTION_DRY_RUN, type TRunPolicyConfig } from "@haibun/core/run-policy/run-policy-types.js";
 import * as lib from "./lib.js";
 
+// Mocks loadAndValidateRunPolicy so a test does not read test-policy.json.
+vitest.mock("@haibun/core/run-policy/run-policy-schema.js", () => ({ loadAndValidateRunPolicy: vitest.fn() }));
+
 const s = (s: string) => s.split(" ");
 
 const expectExitAndThrow = (expectedCode: number) => (code?: number | string | null) => {
@@ -212,9 +215,6 @@ describe("resolveRunPolicy", () => {
 		const protoOptions = { options: { envVariables: {} }, moduleOptions: {} } as TProtoOptions;
 		const specl = { steppers: [], runPolicy: "test-policy.json", appParameters: { prod: { API_KEY: "secret-123", TIMEOUT: "5000" } } } as TSpecl;
 		const policyConfig = { place: "prod", dirFilters: [] } as TRunPolicyConfig;
-
-		// Mocks loadAndValidateRunPolicy so the test doesn't read test-policy.json.
-		vitest.mock("@haibun/core/run-policy/run-policy-schema.js", () => ({ loadAndValidateRunPolicy: vitest.fn() }));
 
 		lib.resolveRunPolicy(policyConfig, {}, protoOptions, specl);
 
