@@ -1,6 +1,6 @@
-import { transform } from "esbuild";
-import { defaultClientConditions, defineConfig, type Plugin, UserConfig as ViteUserConfig } from "vite";
+import { defaultClientConditions, defineConfig, UserConfig as ViteUserConfig } from "vite";
 import type { UserConfig as VitestUserConfig } from "vitest/config";
+import { standardDecorators } from "./vite-standard-decorators.js";
 
 interface Config extends ViteUserConfig {
 	test?: VitestUserConfig["test"];
@@ -17,19 +17,6 @@ const HAIBUN_SOURCE = "haibun-source";
 /** The conditions a test run in Node resolves a package by, as Vitest's own are: without `module`, since a package's
  *  `module` build may import paths without the extension Node requires (@opentelemetry/api). */
 const SERVER_CONDITIONS = ["node", "development|production"];
-
-/** shu's elements use standard decorators (`@property accessor`), which Vite's own transformer passes through for Node to
- *  reject, so esbuild lowers them before it sees the file. */
-const SHU_SOURCE = /\/modules\/shu\/src\/.*\.ts$/;
-const standardDecorators: Plugin = {
-	name: "standard-decorators",
-	enforce: "pre",
-	async transform(code, id) {
-		if (!SHU_SOURCE.test(id)) return undefined;
-		const { code: lowered, map } = await transform(code, { loader: "ts", target: "es2022", sourcemap: true, sourcefile: id, tsconfigRaw: { compilerOptions: { experimentalDecorators: false } } });
-		return { code: lowered, map };
-	},
-};
 
 const config: Config = {
 	plugins: [standardDecorators],
