@@ -5,6 +5,7 @@ import {
 	SSE_ROUTE,
 	actualityRefusal,
 	readNdjson,
+	REFUSED_CALL_STATUS,
 	REFUSED_INVOCATION,
 	RELOAD,
 	RPC_PROTOCOL,
@@ -227,7 +228,7 @@ class RpcVerifyStepper extends AStepper {
 					body: await rpcBody(String(url), { method: String(method), seqPath: [0, 1, 1, 1], asks: "read" }),
 				});
 				const data = (await res.json()) as { error?: string };
-				if (res.status !== 422) return actionNotOK(`answered a read of a step that declares none: HTTP ${res.status}`);
+				if (res.status !== REFUSED_CALL_STATUS) return actionNotOK(`answered a read of a step that declares none: HTTP ${res.status}`);
 				return typeof data.error === "string" && data.error.includes("does not declare itself one") ? OK : actionNotOK(`refused without stating why: ${JSON.stringify(data)}`);
 			},
 		},
@@ -241,7 +242,7 @@ class RpcVerifyStepper extends AStepper {
 				});
 				const data = (await res.json()) as { error?: string };
 				const expected = refusal(String(method), undefined, undefined).error;
-				return res.status === 422 && data.error === expected ? OK : actionNotOK(`Expected "${expected}", got ${res.status} ${JSON.stringify(data)}`);
+				return res.status === REFUSED_CALL_STATUS && data.error === expected ? OK : actionNotOK(`Expected "${expected}", got ${res.status} ${JSON.stringify(data)}`);
 			},
 		},
 		rpcReadOfStepAnswered: {
@@ -286,7 +287,7 @@ class RpcVerifyStepper extends AStepper {
 			action: async ({ url, method, capability, holder, action }: TStepArgs) => {
 				const res = await postRpc(String(url), String(method), { holder: String(holder), action: String(action) });
 				const data = await res.json();
-				if (res.status !== 422) return actionNotOK(`Expected HTTP 422, got ${res.status}`);
+				if (res.status !== REFUSED_CALL_STATUS) return actionNotOK(`Expected HTTP ${REFUSED_CALL_STATUS}, got ${res.status}`);
 				if (typeof data.error !== "string" || !data.error.includes(`capability ${String(capability)} required`)) {
 					return actionNotOK(`Expected capability error, got ${JSON.stringify(data)}`);
 				}
@@ -299,7 +300,7 @@ class RpcVerifyStepper extends AStepper {
 				const res = await postRpc(String(url), String(method));
 				const data = (await res.json()) as { error?: string; pong?: boolean };
 				const expected = refusal(String(method), undefined, undefined).error;
-				return res.status === 422 && data.error === expected ? OK : actionNotOK(`Expected "${expected}", got ${res.status} ${JSON.stringify(data)}`);
+				return res.status === REFUSED_CALL_STATUS && data.error === expected ? OK : actionNotOK(`Expected "${expected}", got ${res.status} ${JSON.stringify(data)}`);
 			},
 		},
 		rpcUnknownSigned: {
@@ -308,7 +309,7 @@ class RpcVerifyStepper extends AStepper {
 				const res = await postRpc(String(url), String(method), { holder: String(holder), action: String(action) });
 				const data = (await res.json()) as { error?: string };
 				const expected = refusal(String(method), undefined, String(holder)).error;
-				return res.status === 422 && data.error === expected ? OK : actionNotOK(`Expected "${expected}", got ${res.status} ${JSON.stringify(data)}`);
+				return res.status === REFUSED_CALL_STATUS && data.error === expected ? OK : actionNotOK(`Expected "${expected}", got ${res.status} ${JSON.stringify(data)}`);
 			},
 		},
 		probeHolds: {

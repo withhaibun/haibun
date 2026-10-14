@@ -175,6 +175,9 @@ export const authorityFailed = (refusal: TRpcRefusal | undefined): boolean => re
  *  sign-in can be a proxy's basic auth. The proxy in front of the instance then refuses each later call to the site. */
 export const REFUSED_INVOCATION = 403;
 
+/** The HTTP status of a call its handler or the gate refused: 422, Unprocessable Content. */
+export const REFUSED_CALL_STATUS = 422;
+
 /** Returns the refusal of a call whose presented authority failed verification. Its remedy reads what the key holds again. */
 export const authorityRefusal = (error: string): TRpcRefusal => ({ error, remedy: RELOAD.authority });
 

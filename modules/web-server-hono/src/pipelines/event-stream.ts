@@ -10,7 +10,16 @@ import type { IEventLogger } from "@haibun/core/lib/steps/ports.js";
 import { truncateForLog, errorDetail } from "@haibun/core/lib/util/index.js";
 import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { streamContext, streamOver, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
-import { ACTUALITY_HEADER, actualityRefusal, authorityFailed, REFUSED_INVOCATION, SSE_ROUTE, RpcRefusalSchema, RpcEnvelopeSchema } from "@haibun/core/lib/rpc-wire.js";
+import {
+	ACTUALITY_HEADER,
+	actualityRefusal,
+	authorityFailed,
+	REFUSED_CALL_STATUS,
+	REFUSED_INVOCATION,
+	SSE_ROUTE,
+	RpcRefusalSchema,
+	RpcEnvelopeSchema,
+} from "@haibun/core/lib/rpc-wire.js";
 import type { TRuntime } from "@haibun/core/lib/world.js";
 import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
 import { serializedEvent } from "@haibun/core/lib/steps/derivations/serialized-event.js";
@@ -26,8 +35,6 @@ const RpcRouteSchema = RpcEnvelopeSchema.pick({ stream: true, asks: true }).part
 /** The refusal a result states, where it refuses its call. */
 const resultRefusal = (result: unknown) => RpcRefusalSchema.safeParse(result).data;
 
-/** Unprocessable Content: a call its handler refused. */
-const REFUSED_CALL = 422;
 /** Payload Too Large: a result too long to serialize. */
 const TOO_LARGE = 413;
 
@@ -143,7 +150,7 @@ export class SSETransport implements ITransport, IStepTransport {
 			// A request whose presented authority failed is refused as forbidden, which differs from a call refused for lack of
 			// a capability it didn't present.
 			const refused = resultRefusal(result);
-			const status = !refused ? 200 : authorityFailed(refused) ? REFUSED_INVOCATION : REFUSED_CALL;
+			const status = !refused ? 200 : authorityFailed(refused) ? REFUSED_INVOCATION : REFUSED_CALL_STATUS;
 			try {
 				return c.json(result, status);
 			} catch (serializeErr) {

@@ -16,7 +16,7 @@ import { createDynamicAuthMiddleware, authSchemes, type TSchemeType, type AuthSc
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { FakeInvoker, DOMAIN_FAKE_HOLDER } from "@haibun/core/lib/test/fake-authority.js";
 import { TEST_DOMAIN, testDomainDefinitions } from "@haibun/core/lib/test/test-domains.js";
-import { REFUSED_INVOCATION, RPC_PROTOCOL } from "@haibun/core/lib/rpc-wire.js";
+import { REFUSED_CALL_STATUS, REFUSED_INVOCATION, RPC_PROTOCOL } from "@haibun/core/lib/rpc-wire.js";
 
 const TALLY = "tally";
 
@@ -70,9 +70,9 @@ const mcpText = (response: Record<string, unknown>): string => {
 	return content?.type === "text" ? (content.text ?? "") : "";
 };
 
-/** Returns OK when the status is 422 and the error includes `capability ${capability} required`. Returns a failure with the status and the error otherwise. */
+/** Returns OK when the status is REFUSED_CALL_STATUS and the error includes `capability ${capability} required`. Returns a failure with the status and the error otherwise. */
 const deniedFor = (status: number, error: unknown, capability: string) =>
-	status === 422 && typeof error === "string" && error.includes(`capability ${capability} required`)
+	status === REFUSED_CALL_STATUS && typeof error === "string" && error.includes(`capability ${capability} required`)
 		? actionOK()
 		: actionNotOK(`Expected a denial for ${capability}, got ${status} ${String(error)}`);
 
@@ -242,7 +242,9 @@ class TestServer extends AStepper {
 			gwta: `mcp call to {url: ${DOMAIN_LINK}} with tool {toolName: ${DOMAIN_STEP_METHOD}} is denied for capability {capability: ${TEST_DOMAIN.action}} when signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}}`,
 			action: async ({ url, toolName, capability, holder, action }: TStepArgs) => {
 				const response = await mcpCallTool(String(url), String(toolName), { holder: String(holder), action: String(action) });
-				return mcpToolResult(response).isError ? deniedFor(422, mcpText(response), String(capability)) : actionNotOK(`Expected MCP denial, got ${JSON.stringify(response)}`);
+				return mcpToolResult(response).isError
+					? deniedFor(REFUSED_CALL_STATUS, mcpText(response), String(capability))
+					: actionNotOK(`Expected MCP denial, got ${JSON.stringify(response)}`);
 			},
 		},
 		mcpAllowedSigned: {
@@ -259,8 +261,10 @@ class TestServer extends AStepper {
 			action: async ({ url, method }: TStepArgs) => {
 				const response = await post(String(url), await rpcCall(String(url), "rpc-refused", String(method)), undefined);
 				const error = ((await response.json()) as { error?: unknown }).error;
-				const expected = refusal(String(method), undefined, undefined);
-				return response.status === 422 && error === expected ? actionOK() : actionNotOK(`Expected "${expected}", got ${response.status} ${String(error)}`);
+				const expected = refusal(String(method), undefined, undefined).error;
+				return response.status === REFUSED_CALL_STATUS && error === expected
+					? actionOK()
+					: actionNotOK(`Expected status ${REFUSED_CALL_STATUS} with "${expected}", got ${response.status} ${String(error)}`);
 			},
 		},
 		rpcAllowedSigned: {
