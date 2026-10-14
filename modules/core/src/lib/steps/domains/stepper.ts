@@ -2,9 +2,9 @@
  * A stepper as haibun declares it: its steps, its options and its cycles, a step's shape and the feature step a line
  * resolves to, and the cycle methods a stepper may implement.
  */
-import type { FeatureVariables } from "../../feature-variables.js";
-import type { TWorld, TEnvVariables } from "../../world.js";
-import type { TOptionValue, TFeatures, TSourceLocation } from "../../execution.js";
+import type { FeatureVariables } from "../../actuality/pipelines/feature-variables.js";
+import type { TWorld, TEnvVariables } from "../../actuality/domains/world.js";
+import type { TOptionValue, TFeatures, TSourceLocation } from "../../actuality/domains/execution.js";
 import type { ExecutionIntent, TSeqPath, TActionResult, TStepArgs, TStepValue, TStepResult, TFeatureResult, TExecutorResult, THaibunEvent } from "../../../schema/protocol.js";
 import type { TDomainDefinition } from "../../resources.js";
 import type { TStepReads } from "../../actions.js";

@@ -13,7 +13,7 @@
  */
 import { READING_LABEL, SEQ_PATH_LABEL, StatedRecordSchema } from "../../resources.js";
 import { fromJsonText } from "../../json-text.js";
-import { SEQ_PATH_FIELD, SEQ_PATH_EDGE } from "../../seq-path.js";
+import { SEQ_PATH_FIELD, SEQ_PATH_EDGE } from "../../actuality/domains/seq-path.js";
 import type { IQuadStore } from "../ports.js";
 import { readEvery, recordOf } from "../../records/pipelines/record-reads.js";
 

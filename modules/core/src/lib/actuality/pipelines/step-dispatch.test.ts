@@ -1,29 +1,30 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { z } from "zod";
 
-import { dispatchStep, retainedProducts } from "./step-dispatch.js";
-import { buildStepRegistry, createStepHandler, StepRegistry, type StepTool } from "./steps/pipelines/step-registry.js";
-import { stepMethodName } from "./steps/domains/step-method.js";
-import { discoverSteps } from "./steps/derivations/discover-steps.js";
-import { buildFeatureStepForTransport } from "./steps/pipelines/call-step.js";
-import { authorizeToolCapability } from "./steps/pipelines/gate.js";
-import { validateToolInput } from "./steps/derivations/tool-validation.js";
-import { EVERY_DEFINITION } from "./steps/domains/step-discovery.js";
-import { AStepper, type IHasCycles, type TFeatureStep, type TStepperStep } from "./steps/domains/stepper.js";
-import { OK, RECORDED_STATUS } from "../schema/protocol.js";
-import { itemAt } from "./util/item-at.js";
-import { FlowRunner } from "./steps/pipelines/flow-runner.js";
-import { actionOKWithProducts, actionNotOK } from "./util/index.js";
-import { getDefaultWorld, testWithWorld } from "./test/lib.js";
-import { TEST_DOMAIN, declaresTestDomains, testDomainDefinitions } from "./test/test-domains.js";
-import { DOMAIN_DOMAIN_KEY, DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_RECORD_ID, DOMAIN_STRING, individualRefDomain, registerDomains } from "./domains.js";
-import type { TWorld } from "./world.js";
-import { Access, DOMAIN_PERSISTED_TYPE, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "./resources.js";
-import { SEQ_PATH_FIELD, executionOf, factIdOf, formatRecordName } from "./seq-path.js";
-import { readFacts } from "./records/pipelines/facts.js";
-import { streamContext, streamOver } from "./step-stream-context.js";
-import { capabilityAllows } from "./actions.js";
-import { RUN_AUTHORITY, readingAt, runActingAs, runReadingAt, WITHOUT_READ_REFUSAL } from "./capability-context.js";
+import { dispatchStep } from "./step-dispatch.js";
+import { retainedProducts } from "../derivations/step-results.js";
+import { buildStepRegistry, createStepHandler, StepRegistry, type StepTool } from "../../steps/pipelines/step-registry.js";
+import { stepMethodName } from "../../steps/domains/step-method.js";
+import { discoverSteps } from "../../steps/derivations/discover-steps.js";
+import { buildFeatureStepForTransport } from "../../steps/pipelines/call-step.js";
+import { authorizeToolCapability } from "../../steps/pipelines/gate.js";
+import { validateToolInput } from "../../steps/derivations/tool-validation.js";
+import { EVERY_DEFINITION } from "../../steps/domains/step-discovery.js";
+import { AStepper, type IHasCycles, type TFeatureStep, type TStepperStep } from "../../steps/domains/stepper.js";
+import { OK, RECORDED_STATUS } from "../../../schema/protocol.js";
+import { itemAt } from "../../util/item-at.js";
+import { FlowRunner } from "../../steps/pipelines/flow-runner.js";
+import { actionOKWithProducts, actionNotOK } from "../../util/index.js";
+import { getDefaultWorld, testWithWorld } from "../../test/lib.js";
+import { TEST_DOMAIN, declaresTestDomains, testDomainDefinitions } from "../../test/test-domains.js";
+import { DOMAIN_DOMAIN_KEY, DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_RECORD_ID, DOMAIN_STRING, individualRefDomain, registerDomains } from "../../domains.js";
+import type { TWorld } from "../domains/world.js";
+import { Access, DOMAIN_PERSISTED_TYPE, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "../../resources.js";
+import { SEQ_PATH_FIELD, executionOf, factIdOf, formatRecordName } from "../domains/seq-path.js";
+import { readFacts } from "../../records/pipelines/facts.js";
+import { streamContext, streamOver } from "../../step-stream-context.js";
+import { capabilityAllows } from "../../actions.js";
+import { RUN_AUTHORITY, readingAt, runActingAs, runReadingAt, WITHOUT_READ_REFUSAL } from "../../capability-context.js";
 
 // --- Test Steppers ---
 
@@ -809,6 +810,38 @@ describe("step-dispatch", () => {
 			const store = world.shared.getStore();
 			const status = await store.get(formatRecordName({ execution: executionOf(world.tag), path: [0, 9] }), SEQ_PATH_FIELD.actionStatus, SEQ_PATH_LABEL);
 			expect(status).toBe(RECORDED_STATUS.failed);
+		});
+
+		it("writes a step's record once at its start and once at its end, and doesn't read it (PF26)", async () => {
+			const steppers = [new ProductStepper()];
+			const registry = new StepRegistry(steppers, world);
+			const tool = registry.get("ProductStepper-failStep");
+			if (!tool) throw new Error("Expected ProductStepper-failStep to be registered");
+			const store = world.shared.getStore();
+			const stepWrites: string[] = [];
+			const upsert = store.upsertIndividual.bind(store);
+			const set = store.set.bind(store);
+			const get = store.get.bind(store);
+			store.upsertIndividual = (label, data) => (label === SEQ_PATH_LABEL && stepWrites.push("upsert"), upsert(label, data));
+			store.set = (subject, predicate, object, namedGraph, properties) => (namedGraph === SEQ_PATH_LABEL && stepWrites.push("set"), set(subject, predicate, object, namedGraph, properties));
+			store.get = (subject, predicate, namedGraph) => (namedGraph === SEQ_PATH_LABEL && stepWrites.push("get"), get(subject, predicate, namedGraph));
+			await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, buildFeatureStepForTransport(tool, {}, [0, 9, 2]));
+			expect(stepWrites).toEqual(["upsert", "upsert"]);
+			const record = (await store.query({ subject: formatRecordName({ execution: executionOf(world.tag), path: [0, 9, 2] }), namedGraph: SEQ_PATH_LABEL })).map((q) => q.predicate);
+			expect(record, "the end's write holds the start's fields with how it ended").toEqual(expect.arrayContaining([SEQ_PATH_FIELD.stepText, SEQ_PATH_FIELD.generatedAtTime, SEQ_PATH_FIELD.endedAtTime, SEQ_PATH_FIELD.error]));
+		});
+
+		it("moves the actuality machine with the step's start and end, and counts its failure", async () => {
+			const steppers = [new ProductStepper()];
+			const registry = new StepRegistry(steppers, world);
+			const tool = registry.get("ProductStepper-failStep");
+			if (!tool) throw new Error("Expected ProductStepper-failStep to be registered");
+			const before = world.runtime.actuality.state.get();
+			await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, buildFeatureStepForTransport(tool, {}, [0, 9, 3]));
+			const after = world.runtime.actuality.state.get();
+			expect(after.steps).toBe(before.steps + 1);
+			expect(after.open.has("0.9.3"), "the step's end closed it").toBe(false);
+			expect(after.failures.at(-1)).toMatchObject({ id: "0.9.3", message: "intentional failure" });
 		});
 	});
 

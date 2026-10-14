@@ -2,7 +2,7 @@
  * The ports of the step infrastructure: the events hub and the sinks it writes through, the secrets it obscures, and the
  * store of quads that working memory and the backing stores implement.
  */
-import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TEventKind, TStepEnd } from "../../schema/protocol.js";
+import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TEventKind } from "../../schema/protocol.js";
 import type { TAccessBound } from "../actions.js";
 import type { AccessLevel } from "../resources.js";
 import type { TFeatureStep } from "./domains/stepper.js";
@@ -29,8 +29,8 @@ export type TSubscribeOptions = { kinds?: readonly TEventKind[]; names?: readonl
 /** Writes the serialized form of each narrated event, such as to the console. */
 export type TEventSink = { write: (serialized: string) => void };
 
-/** The secrets an event may hold: whether a variable's name marks it secret, and the value of each secret actuality holds. */
-export type TSecrets = { isSecret: (name: string) => boolean; values: () => readonly string[] };
+/** The secrets an event may hold: the value of each secret actuality holds. */
+export type TSecrets = { values: () => readonly string[] };
 
 /** The events hub. Every event of actuality is emitted through it once, and it delivers each to its subscribers and its sink. */
 export interface IEventLogger {
@@ -47,16 +47,6 @@ export interface IEventLogger {
 	debug(message: string, attributes?: Record<string, unknown>): void;
 	warn(message: string, attributes?: Record<string, unknown>): void;
 	error(message: string, attributes?: Record<string, unknown>): void;
-	stepStart(featureStep: TFeatureStep, stepperName: string, actionName: string, stepValuesMap: Record<string, unknown> | undefined, isAsync: boolean): void;
-	stepEnd(
-		featureStep: TFeatureStep,
-		stepperName: string,
-		actionName: string,
-		ended: TStepEnd,
-		error: string | Error | undefined,
-		stepValuesMap: Record<string, unknown> | undefined,
-		products: Record<string, unknown> | undefined,
-	): void;
 	artifact(artifact: TArtifactEvent): void;
 }
 

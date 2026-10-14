@@ -1,6 +1,6 @@
 import { resolve } from "path";
 
-import type { TWorld } from "../lib/world.js";
+import type { TWorld } from "../lib/actuality/domains/world.js";
 import { Origin } from "../schema/protocol.js";
 import { IHasCycles, IHasOptions, AStepper, TFeatureStep, IStepperCycles, TStartFeature, type TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOK, getStepperOption, sleep, stringOrError } from "../lib/util/index.js";

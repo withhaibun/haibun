@@ -4,7 +4,7 @@
  * invoker signs each request in which actuality presents its authority to another host. haibun-core doesn't contain
  * cryptography, so it doesn't read a proof or sign a request itself.
  */
-import type { TRuntime } from "./world.js";
+import type { TRuntime } from "./actuality/domains/world.js";
 import { actingFor, runReadingAsTheInstance } from "./capability-context.js";
 import type {
 	IAuthority,

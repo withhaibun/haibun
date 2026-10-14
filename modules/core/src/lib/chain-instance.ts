@@ -18,7 +18,7 @@
  * `getChainInstance` reads each predicate of that subject in the chain named
  * graph and assembles a `TChainInstance`.
  */
-import type { TWorld } from "./world.js";
+import type { TWorld } from "./actuality/domains/world.js";
 import type { IQuadStore } from "./steps/ports.js";
 import type { TMichi } from "./goal-resolver.js";
 import { actingAs, readingAt } from "./capability-context.js";

@@ -1,24 +1,24 @@
 import { z } from "zod";
-import { AStepper, TFeatureStep } from "./steps/domains/stepper.js";
-import { fromJsonText } from "./json-text.js";
-import { parseDotPath, navigateValue } from "./util/dot-path.js";
-import { itemAt } from "./util/item-at.js";
-import { runEnvVariables, type TWorld } from "./world.js";
-import { Origin, TOrigin, TProvenanceIdentifier, TStepValue } from "../schema/protocol.js";
-import { DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STRING, DOMAIN_UNION, domainParts, namesMember, normalizeDomainKey, persistedDomainOf, registeredDomain } from "./domains.js";
-import { readDeclarationsOf } from "./records/derivations/read-records.js";
-import { readEvery, recordOf } from "./records/pipelines/record-reads.js";
-import { ontologyReader } from "./records/pipelines/ontology-records.js";
-import { VARIABLE_FIELD } from "./records/domains/variables.js";
-import { QuadStore, newStoreChain } from "./steps/pipelines/quad-store.js";
-import { OBSCURED_VALUE } from "./steps/domains/secrets.js";
-import type { TSecrets } from "./steps/ports.js";
-import { accessBound, readingAsStated, writeBound } from "./capability-context.js";
-import { EDGE, SEQ_PATH_LABEL, declaredAccessLevel } from "./resources.js";
-import { executionOf, formatRecordName } from "./seq-path.js";
-import { IQuadStore } from "./steps/ports.js";
-import { SHARED_GRAPH } from "./steps/domains/quad-types.js";
-import { emitQuadObservation } from "./steps/pipelines/quad-observation.js";
+import { AStepper, TFeatureStep } from "../../steps/domains/stepper.js";
+import { fromJsonText } from "../../json-text.js";
+import { parseDotPath, navigateValue } from "../../util/dot-path.js";
+import { itemAt } from "../../util/item-at.js";
+import { runEnvEntries, runEnvVariable, type TWorld } from "../domains/world.js";
+import { Origin, TOrigin, TProvenanceIdentifier, TStepValue } from "../../../schema/protocol.js";
+import { DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STRING, DOMAIN_UNION, domainOfTerm, domainParts, namesMember, normalizeDomainKey, persistedDomainOf, registeredDomain } from "../../domains.js";
+import { readDeclarationsOf } from "../../records/derivations/read-records.js";
+import { readEvery, recordOf } from "../../records/pipelines/record-reads.js";
+import { ontologyReader } from "../../records/pipelines/ontology-records.js";
+import { VARIABLE_FIELD } from "../../records/domains/variables.js";
+import { QuadStore, newStoreChain } from "../../steps/pipelines/quad-store.js";
+import { OBSCURED_VALUE, isSecretName } from "../../steps/domains/secrets.js";
+import type { TSecrets } from "../../steps/ports.js";
+import { accessBound, readingAsStated, writeBound } from "../../capability-context.js";
+import { EDGE, SEQ_PATH_LABEL, declaredAccessLevel } from "../../resources.js";
+import { executionOf, formatRecordName } from "../domains/seq-path.js";
+import { IQuadStore } from "../../steps/ports.js";
+import { SHARED_GRAPH } from "../../steps/domains/quad-types.js";
+import { emitQuadObservation } from "../../steps/pipelines/quad-observation.js";
 
 export { SHARED_GRAPH };
 
@@ -29,8 +29,8 @@ export const statedValue = (value: unknown, secret: boolean | undefined): unknow
  *  boolean or null as the JSON it is. */
 const jsonValueDomain = (value: unknown): string => (typeof value === "number" ? DOMAIN_NUMBER : typeof value === "string" ? DOMAIN_STRING : DOMAIN_JSON);
 
-/** A variable a next scope starts from, with the record names of the steps that set it. */
-export type TCarriedVariable = TStepValue & { generatedBy?: string[] };
+/** A variable that starts a next scope, with the record names of the steps that set it. */
+export type TCarriedVariable = TStepValue & { generatedBy: string[] };
 
 const isOrigin = (value: unknown): value is TOrigin => typeof value === "string" && value in Origin;
 
@@ -50,15 +50,18 @@ function variableOf(record: Record<string, unknown>): TStepValue {
 	};
 }
 
-/** Whether a variable's name marks its value secret. */
-export const isSecretName = (name: string): boolean => /(password|secret)/i.test(name);
-
-/** The secrets the events hub of `world` obscures: each name that marks a value secret, and each secret value the world's
- *  variables hold once the world holds its variables. */
+/** The secrets the events hub of `world` obscures: each secret value the world's variables hold once the world holds its
+ *  variables. */
 export const secretsOf = (world: Partial<Pick<TWorld, "shared">>): TSecrets => ({
-	isSecret: isSecretName,
 	values: () => (world.shared === undefined ? [] : world.shared.secretTexts()),
 });
+
+/** The steps that set a variable, from the steps `stepsThatSet` read for the names it was given. */
+function stepsOf(stepsThatSet: ReadonlyMap<string, string[]>, name: string): string[] {
+	const steps = stepsThatSet.get(name);
+	if (steps === undefined) throw new Error(`the steps that set "${name}" weren't read; read them for every variable a caller names`);
+	return steps;
+}
 
 export class FeatureVariables {
 	private store: QuadStore;
@@ -86,7 +89,7 @@ export class FeatureVariables {
 		prevStore?.carryNonVariableQuadsTo(this.store);
 		if (initial) {
 			for (const [name, { generatedBy, ...sv }] of Object.entries(initial)) {
-				void this.writeRecord(name, sv, generatedBy ?? []);
+				void this.writeRecord(name, sv, generatedBy);
 			}
 		}
 	}
@@ -100,16 +103,12 @@ export class FeatureVariables {
 		return Object.fromEntries((await this.variableRecords()).map((record) => [String(record[VARIABLE_FIELD.name]), variableOf(record)]));
 	}
 
-	/** The variables a next scope starts from. Each holds its value and the steps that set it, and a secret holds its value
+	/** The variables that start a next scope. Each holds its value and the steps that set it, and a secret holds its value
 	 *  from `secretValues`. */
 	async carried(): Promise<{ [name: string]: TCarriedVariable }> {
-		const generatedBy = await this.stepsThatSet();
-		return Object.fromEntries(
-			(await this.variableRecords()).map((record) => {
-				const variable = variableOf(record);
-				return [variable.term, { ...variable, value: this.valueOf(variable), generatedBy: generatedBy.get(variable.term) ?? [] }];
-			}),
-		);
+		const variables = (await this.variableRecords()).map(variableOf);
+		const generatedBy = await this.stepsThatSet(variables.map((variable) => variable.term));
+		return Object.fromEntries(variables.map((variable) => [variable.term, { ...variable, value: this.valueOf(variable), generatedBy: stepsOf(generatedBy, variable.term) }]));
 	}
 
 	/** Removes every quad of the store and every secret's value. */
@@ -140,7 +139,7 @@ export class FeatureVariables {
 
 	async set(sv: TStepValue, provenance: TProvenanceIdentifier) {
 		if (sv.term.match(/.*\..*/)) throw Error("non-stepper variables cannot use dots");
-		if (runEnvVariables(this.world)[sv.term]) throw Error(`the environment holds "${sv.term}", which a feature reads and doesn't set; set a variable of another name`);
+		if (runEnvVariable(this.world, sv.term)) throw Error(`the environment holds "${sv.term}", which a feature reads and doesn't set; set a variable of another name`);
 		const existing = await this.getStoredEntry(sv.term);
 		if (existing?.readonly) throw Error(`Cannot overwrite read-only variable "${sv.term}"`);
 		return await this._set(sv, provenance);
@@ -154,7 +153,7 @@ export class FeatureVariables {
 		const normalized = { ...sv, domain: domainKey };
 		domain.coerce(normalized);
 		const setBy = formatRecordName({ execution: executionOf(this.world.tag), path: provenance.seq });
-		const generatedBy = [...new Set([...((await this.stepsThatSet(sv.term)).get(sv.term) ?? []), setBy])];
+		const generatedBy = [...new Set([...stepsOf(await this.stepsThatSet([sv.term]), sv.term), setBy])];
 		await this.writeRecord(sv.term, normalized, generatedBy);
 		for (const [index, quad] of (await this.store.query({ subject: sv.term, namedGraph: SHARED_GRAPH })).entries())
 			emitQuadObservation(this.world.eventLogger, `quad-${quad.timestamp}-${index}`, quad);
@@ -172,12 +171,12 @@ export class FeatureVariables {
 	}
 
 	/** Resolve a term a statement names. A statement's terms are its author's, so they are read at the ceiling the statement
-	 *  was stated at, whatever the step it states narrows its own reads to. */
+	 *  was stated at, whatever ceiling the step it states narrows its own reads within. */
 	resolveVariable(
 		input: { term: string; origin: TOrigin; domain?: string },
 		featureStep?: TFeatureStep,
 		steppers?: AStepper[],
-		options: { secure: boolean } = { secure: false },
+		options?: { secure: boolean },
 	): Promise<TStepValue> {
 		return readingAsStated(() => this.resolveTerm(input, featureStep, steppers, options));
 	}
@@ -213,19 +212,19 @@ export class FeatureVariables {
 		input: { term: string; origin: TOrigin; domain?: string },
 		featureStep?: TFeatureStep,
 		steppers?: AStepper[],
-		options: { secure: boolean } = { secure: false },
+		options?: { secure: boolean },
 	): Promise<TStepValue> {
 		const resolved: Partial<TStepValue> = { term: input.term, value: undefined };
 		// A literal, an environment variable's value and a runtime argument are coerced by the parameter's domain.
-		const writtenDomain = input.domain ?? DOMAIN_STRING;
+		const writtenDomain = domainOfTerm(input.domain);
 		let lookupTerm = input.term;
 		if (lookupTerm.startsWith("{") && lookupTerm.endsWith("}")) lookupTerm = lookupTerm.slice(1, -1);
 
 		if (!input.origin || (input.domain && this.world.domains[input.domain]?.written)) {
-			resolved.value = this.world.domains[input.domain ?? ""]?.filled ? await this.filledName(input.term, featureStep) : input.term;
+			resolved.value = input.domain !== undefined && this.world.domains[input.domain]?.filled ? await this.filledName(input.term, featureStep) : input.term;
 			resolved.domain = input.domain;
 		} else if (input.origin === Origin.env) {
-			resolved.value = runEnvVariables(this.world)[lookupTerm];
+			resolved.value = runEnvVariable(this.world, lookupTerm);
 			resolved.domain = writtenDomain;
 			resolved.origin = Origin.env;
 			resolved.secret = this.isSecret(lookupTerm);
@@ -236,8 +235,8 @@ export class FeatureVariables {
 				resolved.value = featureStep.runtimeArgs[lookupTerm];
 				resolved.domain = writtenDomain;
 				resolved.origin = Origin.var;
-			} else if (runEnvVariables(this.world)[lookupTerm]) {
-				resolved.value = runEnvVariables(this.world)[lookupTerm];
+			} else if (runEnvVariable(this.world, lookupTerm)) {
+				resolved.value = runEnvVariable(this.world, lookupTerm);
 				resolved.domain = writtenDomain;
 				resolved.origin = Origin.env;
 				resolved.secret = this.isSecret(lookupTerm);
@@ -269,7 +268,7 @@ export class FeatureVariables {
 		}
 
 		if (resolved.value !== undefined) {
-			const rawDomainKey = resolved.domain ?? DOMAIN_STRING;
+			const rawDomainKey = domainOfTerm(resolved.domain);
 			const parts = domainParts(rawDomainKey)
 				.map((s) => s.trim())
 				.filter(Boolean)
@@ -281,7 +280,7 @@ export class FeatureVariables {
 			resolved.value = domain.coerce({ ...(resolved as TStepValue), domain: domainKey }, featureStep, steppers);
 			resolved.domain = domainKey;
 			const isSecretValue = resolved.secret === true || this.isSecret(lookupTerm);
-			if (!options.secure && (resolved.origin === Origin.env || resolved.origin === Origin.var) && isSecretValue) resolved.value = OBSCURED_VALUE;
+			if (options?.secure !== true && (resolved.origin === Origin.env || resolved.origin === Origin.var) && isSecretValue) resolved.value = OBSCURED_VALUE;
 		}
 
 		return resolved as TStepValue;
@@ -306,11 +305,13 @@ export class FeatureVariables {
 		return readEvery(this.store, { label: SHARED_GRAPH });
 	}
 
-	/** Returns the record names of the steps that set each variable, or that set the one variable `name` names. */
-	private async stepsThatSet(name?: string): Promise<Map<string, string[]>> {
-		const edges = await this.store.query({ ...(name === undefined ? {} : { subject: name }), predicate: EDGE.wasGeneratedBy, namedGraph: SHARED_GRAPH });
-		const bySubject = new Map<string, string[]>();
-		for (const edge of edges) bySubject.set(edge.subject, [...(bySubject.get(edge.subject) ?? []), String(edge.object)]);
+	/** Returns the record names of the steps that set each named variable: an empty list for a variable that a step didn't
+	 *  set. One name reads that variable's edges alone. */
+	private async stepsThatSet(names: readonly string[]): Promise<Map<string, string[]>> {
+		const [only] = names;
+		const edges = await this.store.query({ ...(names.length === 1 && only !== undefined ? { subject: only } : {}), predicate: EDGE.wasGeneratedBy, namedGraph: SHARED_GRAPH });
+		const bySubject = new Map(names.map((name): [string, string[]] => [name, []]));
+		for (const edge of edges) bySubject.get(edge.subject)?.push(String(edge.object));
 		return bySubject;
 	}
 
@@ -358,8 +359,8 @@ export class FeatureVariables {
 	}
 
 	/** A variable as the step in progress reads it, within its own ceiling. */
-	async get(term: string, secure: boolean = false) {
-		return (await this.resolveTerm({ term, origin: Origin.defined }, undefined, undefined, { secure })).value;
+	async get(term: string, secure?: boolean) {
+		return (await this.resolveTerm({ term, origin: Origin.defined }, undefined, undefined, { secure: secure === true })).value;
 	}
 
 	isSecret(name: string): boolean {
@@ -368,7 +369,7 @@ export class FeatureVariables {
 
 	/** The value of each secret: each environment variable whose name marks it secret, and each secret variable. */
 	secretTexts(): string[] {
-		const fromEnvironment = Object.entries(runEnvVariables(this.world)).flatMap(([name, value]) => (isSecretName(name) ? [String(value)] : []));
+		const fromEnvironment = runEnvEntries(this.world).flatMap(([name, value]) => (isSecretName(name) ? [String(value)] : []));
 		return [...fromEnvironment, ...[...this.secretValues.values()].map(String)];
 	}
 

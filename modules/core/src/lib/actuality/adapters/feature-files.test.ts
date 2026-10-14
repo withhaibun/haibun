@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 
-import { basesFrom } from "../lib/util/index.js";
-import { TFileSystem } from "../lib/util/node/workspace-lib.js";
-import { getFeaturesAndBackgrounds, shouldProcess } from "./collector.js";
+import { basesFrom } from "../../util/index.js";
+import { TFileSystem } from "../../util/node/workspace-lib.js";
+import { featureFiles, shouldProcess } from "./feature-files.js";
 
 /** The files of each directory, by name. */
 type TMockFiles = Record<string, Record<string, string>>;
@@ -30,7 +30,7 @@ class MockFS {
 
 const nfs = (files: TMockFiles) => <TFileSystem>(new MockFS(files) as unknown);
 
-describe("getFeaturesAndBackgrounds", () => {
+describe("the feature files of a file system", () => {
 	// A base must offer features. Every refusal below is the same claim: given bases that don't hold a feature are an error,
 	// whether the directory is missing, empty, or holds backgrounds alone.
 	const feature = (base: string, dir: "features" | "backgrounds", name: string) => ({ base, path: `/${dir}/${name}.feature`, name: `${base}/${dir}/${name}`, content: "#" });
@@ -44,7 +44,7 @@ describe("getFeaturesAndBackgrounds", () => {
 		["the first base doesn't hold a file", basesFrom("/0,/1"), nfs({ "/1/backgrounds": { "a.feature": "#" } })],
 		["the second base doesn't hold a file", basesFrom("/0,/1"), nfs({ "/0/backgrounds": { "a.feature": "#" } })],
 	])("refuses when %s", async (_, bases, fs) => {
-		await expect(getFeaturesAndBackgrounds(bases as string[], [], undefined, fs as TFileSystem)).rejects.toThrow();
+		await expect(featureFiles(fs as TFileSystem).collect(bases as string[], [], undefined)).rejects.toThrow();
 	});
 
 	it.each([
@@ -68,7 +68,7 @@ describe("getFeaturesAndBackgrounds", () => {
 			{ features: [feature("/1", "features", "b")], backgrounds: [feature("/0", "backgrounds", "a")] },
 		],
 	])("collects %s", async (_, bases, files, expected) => {
-		expect(await getFeaturesAndBackgrounds(bases as string[], [], undefined, nfs(files))).toEqual(expected);
+		expect(await featureFiles(nfs(files)).collect(bases as string[], [], undefined)).toEqual(expected);
 	});
 });
 

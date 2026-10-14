@@ -15,10 +15,12 @@ import {
 import type { TLinkVocabulary } from "./typed-links.js";
 import { parseJsonText } from "./json-text.js";
 import { actionList } from "./actions.js";
-import type { TWorld } from "./world.js";
+import type { TWorld } from "./actuality/domains/world.js";
 
 export const DOMAIN_STATEMENT = "statement";
 export const DOMAIN_STRING = "string";
+/** The domain of a term: the domain its parameter declares, or text where its parameter doesn't declare a domain. */
+export const domainOfTerm = (declared: string | undefined): string => (declared === undefined ? DOMAIN_STRING : declared);
 /** Free text a person writes: a note, a question, a reason or a passage quoted, read as written. */
 export const DOMAIN_TEXT = "text";
 export const DOMAIN_LINK = "link";

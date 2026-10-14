@@ -58,6 +58,38 @@
 			"haibun-source": "./src/lib/steps/pipelines/event-logger.js",
 			"default": "./build/lib/steps/pipelines/event-logger.js"
 		},
+		"./lib/world.js": {
+			"haibun-source": "./src/lib/actuality/domains/world.js",
+			"default": "./build/lib/actuality/domains/world.js"
+		},
+		"./lib/execution.js": {
+			"haibun-source": "./src/lib/actuality/domains/execution.js",
+			"default": "./build/lib/actuality/domains/execution.js"
+		},
+		"./lib/seq-path.js": {
+			"haibun-source": "./src/lib/actuality/domains/seq-path.js",
+			"default": "./build/lib/actuality/domains/seq-path.js"
+		},
+		"./lib/feature-variables.js": {
+			"haibun-source": "./src/lib/actuality/pipelines/feature-variables.js",
+			"default": "./build/lib/actuality/pipelines/feature-variables.js"
+		},
+		"./lib/step-dispatch.js": {
+			"haibun-source": "./src/lib/actuality/pipelines/step-dispatch.js",
+			"default": "./build/lib/actuality/pipelines/step-dispatch.js"
+		},
+		"./phases/Executor.js": {
+			"haibun-source": "./src/lib/actuality/pipelines/executor.js",
+			"default": "./build/lib/actuality/pipelines/executor.js"
+		},
+		"./phases/Resolver.js": {
+			"haibun-source": "./src/lib/actuality/pipelines/resolver.js",
+			"default": "./build/lib/actuality/pipelines/resolver.js"
+		},
+		"./phases/collector.js": {
+			"haibun-source": "./src/lib/actuality/adapters/feature-files.js",
+			"default": "./build/lib/actuality/adapters/feature-files.js"
+		},
 		"./*": {
 			"haibun-source": "./src/*",
 			"default": "./build/*"

@@ -31,7 +31,7 @@ import { capabilityAllows } from "./actions.js";
 import type { TRestsOn } from "./authority-types.js";
 import { getAuthority } from "./session-authority.js";
 import { errorDetail } from "./util/index.js";
-import type { TWorld } from "./world.js";
+import type { TWorld } from "./actuality/domains/world.js";
 import type { TSeqPath } from "../schema/protocol.js";
 import { PersistedVertexSchema, type TDomainDefinition } from "./resources.js";
 

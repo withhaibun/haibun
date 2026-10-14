@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { AStepper, type TStepperSteps } from "./steps/domains/stepper.js";
-import { OK } from "../schema/protocol.js";
-import { passWithDefaults } from "./test/lib.js";
-import { DOMAIN_FILE_DATA } from "./media-object.js";
+import { AStepper, type TStepperSteps } from "../../steps/domains/stepper.js";
+import { OK } from "../../../schema/protocol.js";
+import { passWithDefaults } from "../../test/lib.js";
+import { DOMAIN_FILE_DATA } from "../../media-object.js";
 
 const NOTE = "hello";
 const NOTE_DATA = `data:text/plain;base64,${Buffer.from(NOTE).toString("base64")}`;

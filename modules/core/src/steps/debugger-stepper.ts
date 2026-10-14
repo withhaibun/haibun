@@ -1,12 +1,12 @@
 import { AStepper, IHasCycles, IHasOptions, TStepperSteps, IStepperCycles, TBeforeStep, TAfterStep, TAfterStepResult, TFeatureStep } from "../lib/steps/domains/stepper.js";
-import type { TWorld } from "../lib/world.js";
+import type { TWorld } from "../lib/actuality/domains/world.js";
 import { TActionResult, OK, TDebugSignal } from "../schema/protocol.js";
 import { makePrompt } from "../lib/prompter.js";
-import { formatSeqPath } from "../lib/seq-path.js";
+import { formatSeqPath } from "../lib/actuality/domains/seq-path.js";
 import { actionOK, getStepperOption, stringOrError, errorDetail } from "../lib/util/index.js";
 import { FlowRunner } from "../lib/steps/pipelines/flow-runner.js";
 import { DOMAIN_STEPPER_NAME } from "../lib/domains.js";
-import { advanceSyntheticSeqPath, syntheticBranchSeqPath, syntheticSeqPathDirection } from "../phases/Executor.js";
+import { advanceSyntheticSeqPath, syntheticBranchSeqPath, syntheticSeqPathDirection } from "../lib/actuality/domains/seq-path.js";
 
 export enum TDebuggingType {
 	StepByStep = "stepByStep",

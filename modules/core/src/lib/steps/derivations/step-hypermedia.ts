@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { jsonSchemaOf } from "../../json-schema-of.js";
 import { AStepper, type TStepperStep } from "../domains/stepper.js";
-import type { TWorld } from "../../world.js";
+import type { TWorld } from "../../actuality/domains/world.js";
 import type { TActionResult } from "../../../schema/protocol.js";
 import { HYPERMEDIA } from "../../../schema/protocol.js";
 import { namedInterpolation } from "./named-vars.js";

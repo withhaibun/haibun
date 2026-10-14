@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { fromJsonText } from "../lib/json-text.js";
 import { persistPrincipalIndividual } from "../lib/principal-individual.js";
-import type { TWorld } from "../lib/world.js";
+import type { TWorld } from "../lib/actuality/domains/world.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type TFeatureStep, type TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
 import { AUTHORITY_KEY, SessionAuthority } from "../lib/session-authority.js";

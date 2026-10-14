@@ -3,7 +3,7 @@ import ResourcesStepper from "./resources-stepper.js";
 import { getDefaultWorld } from "../lib/test/lib.js";
 import { Access, LinkRelations } from "../lib/resources.js";
 import { setPrincipal } from "../lib/principal.js";
-import { type TWorld } from "../lib/world.js";
+import { type TWorld } from "../lib/actuality/domains/world.js";
 import { itemAt } from "../lib/util/item-at.js";
 import { registerDomains } from "../lib/domains.js";
 

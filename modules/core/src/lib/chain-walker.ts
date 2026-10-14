@@ -1,7 +1,7 @@
-import type { DispatchContext } from "./step-dispatch.js";
+import type { DispatchContext } from "./actuality/pipelines/step-dispatch.js";
 import { stepMethodName } from "./steps/domains/step-method.js";
 import { callStepByName } from "./steps/pipelines/call-step.js";
-import { executionOf, factIdOf } from "./seq-path.js";
+import { executionOf, factIdOf } from "./actuality/domains/seq-path.js";
 import { actingAs } from "./capability-context.js";
 import { validateToolInput } from "./steps/derivations/tool-validation.js";
 import { errorDetail } from "./util/index.js";

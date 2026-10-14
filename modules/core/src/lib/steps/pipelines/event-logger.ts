@@ -2,12 +2,10 @@
  * The events hub. Every event of actuality is emitted through it once: the hub states the event's access level, obscures
  * the secret values it states, delivers it to each subscriber of its kind, and writes its serialized form to the sink.
  */
-import { errorDetail } from "../../util/index.js";
-import { HAIBUN_LOG_LEVELS, LogEvent, LifecycleEvent, STATUS, stepLevel } from "../../../schema/protocol.js";
-import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TEventKind, TStepEnd } from "../../../schema/protocol.js";
+import { HAIBUN_LOG_LEVELS, LogEvent } from "../../../schema/protocol.js";
+import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TEventKind } from "../../../schema/protocol.js";
 import type { TFeatureStep } from "../domains/stepper.js";
-import { sanitizeObjectSecrets } from "../../util/secret-utils.js";
-import { formatSeqPath } from "../../seq-path.js";
+import { formatSeqPath } from "../../actuality/domains/seq-path.js";
 import { failFastOrLog } from "../../dev-mode.js";
 import { stepInFlight, writeBound } from "../../capability-context.js";
 import { writtenAt } from "../../actions.js";
@@ -142,65 +140,6 @@ export class EventLogger implements IEventLogger {
 		const ceiling = stepInFlight()?.reportsAt;
 		if (ceiling === undefined || HAIBUN_LOG_LEVELS.indexOf(level) >= HAIBUN_LOG_LEVELS.indexOf(UNCAPPED_LEVEL)) return level;
 		return HAIBUN_LOG_LEVELS.indexOf(level) > HAIBUN_LOG_LEVELS.indexOf(ceiling) ? ceiling : level;
-	}
-
-	/** A step's values with each secret variable's value obscured, by the variable's name. */
-	private safeValues(stepValuesMap: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
-		return stepValuesMap === undefined ? undefined : sanitizeObjectSecrets(stepValuesMap, this.secrets.isSecret);
-	}
-
-	stepStart(featureStep: TFeatureStep, stepperName: string, actionName: string, stepValuesMap: Record<string, unknown> | undefined, isAsync: boolean): void {
-		this.emit(
-			LifecycleEvent.parse({
-				id: formatSeqPath(featureStep.seqPath),
-				timestamp: Date.now(),
-				kind: "lifecycle",
-				type: "step",
-				stage: "start",
-				in: featureStep.in,
-				lineNumber: featureStep.source?.lineNumber,
-				featurePath: featureStep.source?.path,
-				status: STATUS.running,
-				level: stepLevel(featureStep.isSubStep),
-				intent: featureStep.intent ? { mode: featureStep.intent.mode } : undefined,
-				stepperName,
-				actionName,
-				stepValuesMap: this.safeValues(stepValuesMap),
-				isAsync,
-			}),
-		);
-	}
-
-	stepEnd(
-		featureStep: TFeatureStep,
-		stepperName: string,
-		actionName: string,
-		ended: TStepEnd,
-		error: string | Error | undefined,
-		stepValuesMap: Record<string, unknown> | undefined,
-		products: Record<string, unknown> | undefined,
-	): void {
-		this.emit(
-			LifecycleEvent.parse({
-				id: formatSeqPath(featureStep.seqPath),
-				timestamp: Date.now(),
-				kind: "lifecycle",
-				type: "step",
-				stage: "end",
-				in: featureStep.in,
-				lineNumber: featureStep.source?.lineNumber,
-				featurePath: featureStep.source?.path,
-				status: ended,
-				level: stepLevel(featureStep.isSubStep),
-				// The event leaves out the error field where the step didn't fail, so a view doesn't show an error.
-				error: error === undefined ? undefined : errorDetail(error),
-				intent: featureStep.intent ? { mode: featureStep.intent.mode } : undefined,
-				stepperName,
-				actionName,
-				stepValuesMap: this.safeValues(stepValuesMap),
-				products,
-			}),
-		);
 	}
 
 	/** Emits an artifact event, which the caller parses with its Zod schema, such as ImageArtifact, and identifies. An

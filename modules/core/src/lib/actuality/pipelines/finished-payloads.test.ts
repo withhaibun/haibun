@@ -6,13 +6,13 @@
  */
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
-import { passWithDefaults, failWithDefaults } from "../lib/test/lib.js";
-import { AStepper } from "../lib/steps/domains/stepper.js";
-import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
-import { RESULTS_READ_IN_FULL, foldStep } from "../lib/step-dispatch.js";
-import { releasePayloads } from "./Executor.js";
-import type { TFeatureSteps, TStepResult } from "../schema/protocol.js";
-import { itemAt } from "../lib/util/item-at.js";
+import { passWithDefaults, failWithDefaults } from "../../test/lib.js";
+import { AStepper } from "../../steps/domains/stepper.js";
+import { actionNotOK, actionOKWithProducts } from "../../util/index.js";
+import { RESULTS_READ_IN_FULL, foldStep } from "../derivations/step-results.js";
+import { releasePayloads } from "./executor.js";
+import type { TFeatureSteps, TStepResult } from "../../../schema/protocol.js";
+import { itemAt } from "../../util/item-at.js";
 
 const LARGE_ANSWER = "test-large-answer";
 

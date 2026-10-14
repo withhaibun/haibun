@@ -1,23 +1,24 @@
+/**
+ * The feature files of a set of bases: each base's `features` and `backgrounds` directories, read from a file system. A
+ * kireji file is imported and converted, and each of its top-level keys is a feature of its own.
+ */
 import nodeFS from "fs";
 import path from "path";
-import type { TFeature } from "../lib/execution.js";
-import type { TBase } from "../lib/world.js";
-import { withName } from "../lib/features.js";
-import { TFileSystem } from "../lib/util/node/workspace-lib.js";
-import { toBdd } from "../kireji/converter.js";
-import { type TRunPolicyConfig, type TDirFilter, featureMatchesFilter } from "../run-policy/run-policy-types.js";
+import type { TFeature, TFeaturesBackgrounds } from "../domains/execution.js";
+import type { TBase } from "../domains/world.js";
+import { BASE_WITHOUT_FEATURES, type TFeatureSource } from "../ports.js";
+import { withName } from "../../features.js";
+import type { TFileSystem } from "../../util/node/workspace-lib.js";
+import { toBdd } from "../../../kireji/converter.js";
+import { type TRunPolicyConfig, type TDirFilter, featureMatchesFilter } from "../../../run-policy/run-policy-types.js";
 
-/** How a base that doesn't hold a feature or a background is refused. */
-export const BASE_WITHOUT_FEATURES = "doesn't hold a feature or a background";
+/** The feature source that reads a file system. */
+export const featureFiles = (fs: TFileSystem): TFeatureSource => ({ collect: (bases, featureFilter, policyConfig) => getFeaturesAndBackgrounds(bases, featureFilter, policyConfig, fs) });
 
-export type TFeaturesBackgrounds = { features: TFeature[]; backgrounds: TFeature[] };
+/** The feature source that reads this process's file system. */
+export const nodeFeatureFiles: TFeatureSource = featureFiles(nodeFS);
 
-export async function getFeaturesAndBackgrounds(
-	bases: TBase,
-	featureFilter: string[] | undefined,
-	policyConfig?: TRunPolicyConfig,
-	fs: TFileSystem = nodeFS,
-): Promise<TFeaturesBackgrounds> {
+async function getFeaturesAndBackgrounds(bases: TBase, featureFilter: string[] | undefined, policyConfig: TRunPolicyConfig | undefined, fs: TFileSystem): Promise<TFeaturesBackgrounds> {
 	const ret: TFeaturesBackgrounds = { features: [], backgrounds: [] };
 	for (const abase of bases) {
 		// Only filter features, not backgrounds - backgrounds should always be loaded
@@ -44,14 +45,7 @@ export async function getFeaturesAndBackgrounds(
 	return ret;
 }
 
-async function recurse(
-	base: string,
-	dir: string,
-	type: string,
-	featureFilter: string[] | undefined = undefined,
-	policyConfig?: TRunPolicyConfig,
-	fs: TFileSystem = nodeFS,
-): Promise<TFeature[]> {
+async function recurse(base: string, dir: string, type: string, featureFilter: string[] | undefined, policyConfig: TRunPolicyConfig | undefined, fs: TFileSystem): Promise<TFeature[]> {
 	const files = fs.readdirSync(`${base}${dir}`);
 	let all: TFeature[] = [];
 	for (const file of files) {

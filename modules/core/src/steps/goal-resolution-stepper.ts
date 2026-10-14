@@ -38,7 +38,7 @@ import { stepMethodName } from "../lib/steps/domains/step-method.js";
 import { callStepByName, NO_INPUT } from "../lib/steps/pipelines/call-step.js";
 import { buildAffordances, providesWaypoints, AFFORDANCE_EVENT_PREFIX, type TWaypointEntry, satisfiedGoalDomains } from "../lib/affordances.js";
 import { readFacts } from "../lib/records/pipelines/facts.js";
-import { executionOf, factIdOf } from "../lib/seq-path.js";
+import { executionOf, factIdOf } from "../lib/actuality/domains/seq-path.js";
 import { callerHolds, RUN_AUTHORITY, stepInFlight } from "../lib/capability-context.js";
 import { Access } from "../lib/resources.js";
 
@@ -71,7 +71,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 
 	private steppers: AStepper[] = [];
 
-	override async setWorld(world: import("../lib/world.js").TWorld, steppers: AStepper[]) {
+	override async setWorld(world: import("../lib/actuality/domains/world.js").TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
 		this.steppers = steppers;
 	}
@@ -134,7 +134,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 	 * and a missing or invalid depth defaults to COMPOSITE_MAX_DEPTH_DEFAULT. startExecution's smoke-goal check and
 	 * runResolution pass these options to resolveGoal. computeAffordances passes them to buildAffordances.
 	 */
-	private compositeOptions(): { domains: import("../lib/world.js").TWorld["domains"]; compositeDecomposition: boolean; compositeMaxDepth: number } {
+	private compositeOptions(): { domains: import("../lib/actuality/domains/world.js").TWorld["domains"]; compositeDecomposition: boolean; compositeMaxDepth: number } {
 		const world = this.getWorld();
 		const decompositionRaw = getStepperOption(this, COMPOSITE_DECOMPOSITION, world.moduleOptions);
 		const compositeDecomposition = decompositionRaw === undefined ? COMPOSITE_DECOMPOSITION_DEFAULT : decompositionRaw !== "false";

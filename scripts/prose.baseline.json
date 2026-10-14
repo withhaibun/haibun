@@ -20,9 +20,6 @@
 	"modules/core/src/lib/domains.ts": {
 		"terminal-preposition": 3
 	},
-	"modules/core/src/lib/feature-variables.ts": {
-		"terminal-preposition": 2
-	},
 	"modules/core/src/lib/goal-resolver.composite.test.ts": {
 		"terminal-preposition": 1
 	},
@@ -62,9 +59,6 @@
 		"terminal-preposition": 4
 	},
 	"modules/core/src/lib/test/refusal-rules.ts": {
-		"terminal-preposition": 1
-	},
-	"modules/core/src/phases/Resolver.ts": {
 		"terminal-preposition": 1
 	},
 	"modules/core/src/steps/activities-actions.ts": {

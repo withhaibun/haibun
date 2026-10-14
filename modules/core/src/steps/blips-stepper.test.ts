@@ -9,7 +9,7 @@ import Haibun from "./haibun.js";
 import { AStepper } from "../lib/steps/domains/stepper.js";
 import { OK } from "../schema/protocol.js";
 import { eventHubOfTest, failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
-import type { TWorld } from "../lib/world.js";
+import type { TWorld } from "../lib/actuality/domains/world.js";
 import { runInStep } from "../lib/capability-context.js";
 import { itemAt } from "../lib/util/item-at.js";
 

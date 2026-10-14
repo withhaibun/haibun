@@ -4,7 +4,7 @@ import { DEF_PROTO_OPTIONS, getTestWorldWithOptions, testWithWorld } from "../li
 import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun.js";
 import { OBSCURED_VALUE } from "../lib/steps/domains/secrets.js";
-import { SHARED_GRAPH } from "../lib/feature-variables.js";
+import { SHARED_GRAPH } from "../lib/actuality/pipelines/feature-variables.js";
 import { readFacts } from "../lib/records/pipelines/facts.js";
 import { readEvery } from "../lib/records/pipelines/record-reads.js";
 import { VARIABLE_FIELD } from "../lib/records/domains/variables.js";

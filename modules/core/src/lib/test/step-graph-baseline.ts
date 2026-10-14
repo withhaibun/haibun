@@ -12,7 +12,7 @@ import type { AStepper, CStepper } from "../steps/domains/stepper.js";
 import { DEF_PROTO_OPTIONS, getTestWorldWithOptions } from "./lib.js";
 import { createSteppers, setStepperWorldsAndDomains } from "../util/index.js";
 import { itemAt } from "../util/item-at.js";
-import { addStepperConcerns } from "../../phases/Executor.js";
+import { addStepperConcerns } from "../actuality/pipelines/executor.js";
 import { buildDomainChain } from "../domain-chain.js";
 import { LINT_FINDING, lintDomainChain, lintFindingLine, type TLintFinding } from "../domain-chain-lint.js";
 

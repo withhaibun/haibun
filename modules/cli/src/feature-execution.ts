@@ -20,6 +20,7 @@
 import { z } from "zod";
 import { Access, COMMENT_LABEL, LinkRelations, PRINCIPAL_LABEL, type TDomainDefinition } from "@haibun/core/lib/resources.js";
 import { RECORDED_STATUS } from "@haibun/core/schema/protocol.js";
+import type { TLevelEnd } from "@haibun/core/lib/actuality/machines/actuality.js";
 
 export const FEATURE_EXECUTION_LABEL = "FeatureExecution";
 export const FEATURE_EXECUTION_DOMAIN = "feature-execution";
@@ -105,3 +106,7 @@ export const featureExecutionDomainDefinition: TDomainDefinition = {
 
 /** The status a test run's exit code determines. A null code means its process is still running. */
 export const statusOfExit = (exitCode: number | null): TRunStatus => (exitCode === null ? RUN_STATUS.running : exitCode === 0 ? RUN_STATUS.completed : RUN_STATUS.failed);
+
+/** The status a test run's ended execution determines, as the actuality machine that read its events holds it. A
+ *  standing test run's execution ends while its process keeps serving, so its status is its execution's. */
+export const statusOfExecution = (ended: TLevelEnd): TRunStatus => RECORDED_STATUS[ended];

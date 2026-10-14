@@ -4,3 +4,6 @@
 
 /** The text that stands in place of a secret's value. */
 export const OBSCURED_VALUE = "[o̴b̵s̵c̷u̶r̸e̵d̵]";
+
+/** Whether a variable's name marks its value secret. */
+export const isSecretName = (name: string): boolean => /(password|secret)/i.test(name);

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { AStepper } from "../domains/stepper.js";
+import { AStepper } from "./stepper.js";
 import { OK } from "../../../schema/protocol.js";
 import { Access } from "../../resources.js";
 import { getDefaultWorld } from "../../test/lib.js";
 import { createStepTool } from "../pipelines/step-registry.js";
-import { StepDescriptorSchema } from "../domains/step-discovery.js";
+import { StepDescriptorSchema } from "./step-discovery.js";
 import { toolDefinition } from "./step-discovery.js";
 
 class DescribedSteps extends AStepper {

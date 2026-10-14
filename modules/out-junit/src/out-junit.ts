@@ -4,12 +4,27 @@ import { EOL } from "os";
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import { findStepperFromOptionOrKind, getStepperOption, stringOrError } from "@haibun/core/lib/util/index.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import { TExecutorResult, TStepResult } from "@haibun/core/schema/protocol.js";
+import type { TExecutorResult } from "@haibun/core/schema/protocol.js";
+import { LEVEL_STATUS, type TFeatureState } from "@haibun/core/lib/actuality/machines/actuality.js";
 import { AStepper, IHasCycles, IHasOptions, StepperKinds, IStepperCycles } from "@haibun/core/lib/astepper.js";
 
-type TTestCase = { "@name": string; "@id": string; skipped?: object; ok?: boolean; "system-out"?: string; failure?: TFailResult };
+type TFailResult = { "@message": string; "@type": string };
 
-type TFailResult = { "@message": string; "@type": string; type?: string };
+type TTestCase = { "@name": string; "@id": string; failure?: TFailResult };
+
+type TJunit = {
+	testsuites: { "@tests": number; "@name": string; "@failures": number; testsuite: { "@name": string; "@tests": number; "@failures": number; testcase: TTestCase[] } };
+};
+
+/** A feature's test case: failed where the feature failed, with the step the machine holds as its first failure. */
+function testCaseOf(feature: TFeatureState): TTestCase {
+	const testCase: TTestCase = { "@name": feature.path ?? feature.id, "@id": feature.id };
+	if (feature.status !== LEVEL_STATUS.failed) return testCase;
+	const first = feature.firstFailure;
+	// A feature fails without a failure of its own where only a handed-out call or a speculative step failed in it.
+	const message = first === undefined ? `${feature.id} failed without a failed step of its own` : [first.id, first.step, first.message].filter((part) => part !== undefined).join(": ");
+	return { ...testCase, failure: { "@message": message, "@type": "fail" } };
+}
 
 /** The file the report is written to, where the OUTPUT_FILE option doesn't name one. */
 const JUNIT_OUTPUT_FILE = "junit.xml";
@@ -45,37 +60,21 @@ export default class OutJUnit extends AStepper implements IHasOptions, IHasCycle
 		await Promise.resolve();
 	}
 
+	/** The report of an execution's features, as the actuality machine held them once the execution ended: a test case for
+	 *  each feature that ran, failed where the feature failed, with its first failed step. */
 	featureResultAsJunit(result: TExecutorResult) {
-		const failures = result.featureResults?.filter((t) => !t.ok)?.length || 0;
-		const skipped = result.featureResults?.filter((t) => t.skip)?.length || 0;
-		const count = result.featureResults?.length || 0;
-		// biome-ignore lint/suspicious/noExplicitAny: xml builder
-		const forXML: any = {
+		const { features } = result.actuality;
+		const failures = features.filter((feature) => feature.status === LEVEL_STATUS.failed).length;
+		const forXML: TJunit = {
 			testsuites: {
-				"@tests": count,
+				"@tests": features.length,
 				"@name": this.name,
 				"@failures": failures,
-				testsuite: { "@name": this.classname, "@tests": count, "@skipped": skipped, "@failures": failures, testcase: [] },
+				testsuite: { "@name": this.classname, "@tests": features.length, "@failures": failures, testcase: features.map((feature) => testCaseOf(feature)) },
 			},
 		};
-		for (const t of result.featureResults || []) {
-			const testCase: TTestCase = { "@name": t.path, "@id": t.path };
-
-			if (!t.ok) {
-				// The step actuality reports as having failed, which a feature longer than the steps it holds still names.
-				testCase.failure = this.getFailResult(t.steps.failed);
-			}
-
-			forXML.testsuites.testsuite.testcase.push(testCase);
-		}
-		const junit = create(forXML).end({ prettyPrint: this.prettyPrint, newline: EOL });
-		return Promise.resolve(junit);
+		return Promise.resolve(create(forXML).end({ prettyPrint: this.prettyPrint, newline: EOL }));
 	}
 
-	getFailResult(failure: TStepResult | undefined) {
-		const failResult: TFailResult = { "@message": `${failure?.name || "nofeaturename"}: ${failure?.errorMessage || failure?.toString()}`, "@type": "fail" };
-
-		return failResult;
-	}
 	steps = {};
 }

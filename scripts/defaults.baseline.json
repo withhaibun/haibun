@@ -9,9 +9,6 @@
 		"fills an absent value with a constant through ??": 6,
 		"states a parameter's default value": 2
 	},
-	"modules/cli/src/run-outcome.ts": {
-		"fills an absent value with a constant through ??": 6
-	},
 	"modules/cli/src/test-runner-stepper.ts": {
 		"fills a falsy value with a constant through ||": 1,
 		"fills an absent value with a constant through ??": 4,
@@ -56,10 +53,6 @@
 		"fills an absent value with a constant through ??": 4,
 		"states a destructured default value": 1,
 		"states a parameter's default value": 1
-	},
-	"modules/core/src/lib/feature-variables.ts": {
-		"fills an absent value with a constant through ??": 7,
-		"states a parameter's default value": 3
 	},
 	"modules/core/src/lib/features.ts": {
 		"states a parameter's default value": 2
@@ -145,9 +138,6 @@
 		"fills an absent value with a constant through ??": 3,
 		"states a parameter's default value": 2
 	},
-	"modules/core/src/lib/step-dispatch.ts": {
-		"fills an absent value with a constant through ??": 5
-	},
 	"modules/core/src/lib/step-stream-context.ts": {
 		"states a parameter's default value": 1
 	},
@@ -183,21 +173,6 @@
 	},
 	"modules/core/src/lib/workspace-discovery.ts": {
 		"states a parameter's default value": 4
-	},
-	"modules/core/src/lib/world.ts": {
-		"fills an absent value with a constant through ??": 1
-	},
-	"modules/core/src/phases/collector.ts": {
-		"states a parameter's default value": 3
-	},
-	"modules/core/src/phases/Executor.ts": {
-		"fills a falsy value with a constant through ||": 1,
-		"fills an absent value with a constant through ??": 2,
-		"states a parameter's default value": 7
-	},
-	"modules/core/src/phases/Resolver.ts": {
-		"fills an absent value with a constant through ??": 5,
-		"states a parameter's default value": 2
 	},
 	"modules/core/src/run-policy/run-policy-schema.ts": {
 		"fills an absent value with a constant through ??": 4,
@@ -247,14 +222,14 @@
 		"states a parameter's default value": 1
 	},
 	"modules/monitor-otel/src/index.ts": {
-		"fills a falsy value with a constant through ||": 9,
+		"fills a falsy value with a constant through ||": 8,
 		"fills an absent value with a constant through ??": 1
 	},
 	"modules/monitor-tui/src/index.tsx": {
 		"fills a falsy value with a constant through ||": 1
 	},
 	"modules/out-junit/src/out-junit.ts": {
-		"fills a falsy value with a constant through ||": 6
+		"fills a falsy value with a constant through ||": 1
 	},
 	"modules/recorder/src/recorder-stepper.ts": {
 		"fills a falsy value with a constant through ||": 1

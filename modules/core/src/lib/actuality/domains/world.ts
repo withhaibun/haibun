@@ -1,15 +1,17 @@
 import { z } from "zod";
-import type { TActualityId } from "./rpc-wire.js";
-import type { TTag } from "./ttag.js";
-import type { FeatureVariables } from "./feature-variables.js";
-import type { Prompter } from "./prompter.js";
-import type { IEventLogger } from "./steps/ports.js";
-import type { TStepResult, Timer, TFeatureSteps } from "../schema/protocol.js";
-import { CONTINUE_AFTER_ERROR, NDJSON, ShownLogLevelSchema } from "../schema/protocol.js";
-import type { TRegisteredDomain } from "./resources.js";
-import type { StepRegistry } from "./steps/pipelines/step-registry.js";
+import type { TActualityId } from "../../rpc-wire.js";
+import type { TTag } from "../../ttag.js";
+import type { FeatureVariables } from "../pipelines/feature-variables.js";
+import type { Prompter } from "../../prompter.js";
+import type { IEventLogger } from "../../steps/ports.js";
+import type { TStepResult, TFeatureSteps } from "../../../schema/protocol.js";
+import { CONTINUE_AFTER_ERROR, NDJSON, ShownLogLevelSchema } from "../../../schema/protocol.js";
+import type { TRegisteredDomain } from "../../resources.js";
+import type { StepRegistry } from "../../steps/pipelines/step-registry.js";
 import type { TFeature } from "./execution.js";
-import type { AStepper } from "./steps/domains/stepper.js";
+import type { AStepper } from "../../steps/domains/stepper.js";
+import type { TActualityMachine } from "../machines/actuality.js";
+import type { TClock } from "../ports.js";
 
 export type TWorld = {
 	tag: TTag;
@@ -18,7 +20,8 @@ export type TWorld = {
 	prompter: Prompter;
 	options: TBaseOptions;
 	moduleOptions: TModuleOptions;
-	timer: Timer;
+	/** The clock of actuality's events and records, which actuality's composition root builds. */
+	clock: TClock;
 	bases: TBase;
 	domains: Record<string, TRegisteredDomain>;
 	eventLogger: IEventLogger;
@@ -28,6 +31,8 @@ export type TRuntime = {
 	/** The id of the actuality that owns the records in the store. Each call to this instance after the handshake states
 	 *  this id. A stepper whose store keeps its records across processes replaces this id with the id that the store holds. */
 	actualityId: TActualityId;
+	/** The levels of the execution: every lifecycle event of a level that actuality emits is a move of this machine. */
+	actuality: TActualityMachine;
 	/** Generic keyed store for subsystem runtime state. */
 	keys?: Record<string, unknown>;
 	backgrounds?: TFeature[];
@@ -39,9 +44,9 @@ export type TRuntime = {
 	stepResults: TStepResult[];
 	/** The reduction of the feature's steps so far: the count, the first start, the last end and the failed step. It is
 	 *  updated as each step runs. */
-	steps?: TFeatureSteps;
+	steps: TFeatureSteps;
 	/** The last index allocated under each parent path, per direction. The next path under that parent counts from it. */
-	seqPaths?: Map<string, number>;
+	seqPaths: Map<string, number>;
 	/** Active steppers for this execution. Set by Executor, used by populateActionArgs / domain coercion. */
 	steppers?: AStepper[];
 	/** Shared step registry. Set by Executor, used for dynamic step registration. */
@@ -67,10 +72,11 @@ export function runSteppers(world: TWorld): AStepper[] {
 	return world.runtime.steppers;
 }
 
-/** Returns the environment variables actuality declares, or an empty record where it doesn't declare any. */
-export function runEnvVariables(world: TWorld): TEnvVariables {
-	return world.options.envVariables ?? {};
-}
+/** Returns the value of an environment variable actuality declares, or undefined where it doesn't declare that name. */
+export const runEnvVariable = (world: TWorld, name: string): string | undefined => world.options.envVariables?.[name];
+
+/** Returns each environment variable actuality declares with its value: an empty list where it declares zero variables. */
+export const runEnvEntries = (world: TWorld): [string, string][] => (world.options.envVariables === undefined ? [] : Object.entries(world.options.envVariables));
 
 /** Actuality's base options from the environment. The schema is strict, so it rejects an option the cli declares and this
  *  schema doesn't, rather than dropping it. */

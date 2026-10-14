@@ -1,7 +1,7 @@
 import type { z } from "zod";
 import { z as zr } from "zod";
 
-import { MODULE_OPTION_PREFIX } from "../schema/protocol.js";
+import { MODULE_OPTION_PREFIX } from "../../../schema/protocol.js";
 
 // ============================================================================
 // Specl (runtime config file)
@@ -45,6 +45,9 @@ export type TFeature = TFeatureMeta & {
 };
 
 export type TFeatures = TFeature[];
+
+/** The features and the backgrounds a set of bases holds. */
+export type TFeaturesBackgrounds = { features: TFeature[]; backgrounds: TFeature[] };
 
 export type TExpandedFeature = TFeatureMeta & { expanded: TExpandedLine[] };
 

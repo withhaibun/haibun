@@ -37,6 +37,7 @@ import {
 	FEATURE_EXECUTION_LABEL,
 	FEATURE_EXECUTION_DOMAIN,
 	statusOfExit,
+	statusOfExecution,
 	featureExecutionDomainDefinition,
 	type TFeatureExecution,
 	type TRunStatus,
@@ -45,6 +46,7 @@ import { RUN_DOMAIN, SUPERVISOR_CAPABILITIES, featureFilterDomainDefinition, run
 import { bareMethodName, hostOfMethodName, hostScopedMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import { examineRun } from "./run-outcome.js";
+import { StepFailureSchema, isLevelEnd } from "@haibun/core/lib/actuality/machines/actuality.js";
 import { forgetOutcomes } from "./verified.js";
 import { DOMAIN_FILE_PATH } from "@haibun/core/lib/domains.js";
 
@@ -182,8 +184,8 @@ const TestRunReadSchema = z.object({ run: z.string(), status: z.string(), exitCo
 const TestRunExaminedSchema = z.object({
 	run: z.string(),
 	summary: z.string(),
-	failures: z.array(z.object({ seqPath: z.string(), step: z.string(), message: z.string() })),
-	report: z.string(),
+	failures: z.array(StepFailureSchema),
+	report: z.string().optional(),
 	steps: z.number().optional(),
 	features: z.number().optional(),
 });
@@ -292,7 +294,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			gwta: `read the test run`,
 			capability: SUPERVISOR_CAPABILITIES.read,
 			description:
-				"Read the output of the test run in flight since the last read, and its status. This step closes the test run's record and clears the test run in flight when the test run has exited or its features have finished, so the next test run can start. The status comes from the exit code, or from the failed step count of a standing test run.",
+				"Read the output of the test run in flight since the last read, and its status. This step closes the test run's record and clears the test run in flight when the test run has exited or its execution has ended, so the next test run can start. The status comes from the exit code, or from the execution's status of a standing test run.",
 			productsDomain: DOMAIN_TEST_RUN_READ,
 			action: async () => {
 				const tracked = this.inFlight;
@@ -302,8 +304,9 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 				const { status, exitCode, cursor, output } = read.products;
 				tracked.cursor = cursor;
 				tracked.reported = read.products;
-				if (status === "ended" || read.products.finished) {
-					await this.finishRun(exitCode, status === "ended" ? undefined : read.products.failed > 0 ? RUN_STATUS.failed : RUN_STATUS.completed);
+				const { execution } = read.products;
+				if (status === "ended" || isLevelEnd(execution)) {
+					await this.finishRun(exitCode, status === "ended" || !isLevelEnd(execution) ? undefined : statusOfExecution(execution));
 					await this.recordOutcome(tracked);
 				}
 				return actionOKWithProducts({ run: tracked.id, status, exitCode: exitCode ?? null, output });
@@ -325,11 +328,12 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 				tracked.cursor = seen.cursor;
 				tracked.reported = seen;
 				const said = lastOf(seen.output);
-				// A standing test run reports that its features finished and keeps serving, so it is done without an exit.
-				// Its status then comes from its failed step count, not from an exit code.
-				if (seen.status !== "ended" && !seen.finished)
+				// A standing test run's execution ends and its process keeps serving, so it is done without an exit. Its status then
+				// comes from its execution's status, not from an exit code.
+				const { execution } = seen;
+				if (seen.status !== "ended" && !isLevelEnd(execution))
 					return actionNotOK(`the test run "${tracked.filter}" had not ended after ${seconds} seconds; read it or stop it instead of waiting again`);
-				const status = seen.status === "ended" ? statusOfExit(seen.exitCode) : seen.failed > 0 ? RUN_STATUS.failed : RUN_STATUS.completed;
+				const status = seen.status === "ended" || !isLevelEnd(execution) ? statusOfExit(seen.exitCode) : statusOfExecution(execution);
 				// finishRun reads the status from the exit code only for a test run that exited.
 				await this.finishRun(seen.exitCode, seen.status === "ended" ? undefined : status);
 				await this.recordOutcome(tracked);

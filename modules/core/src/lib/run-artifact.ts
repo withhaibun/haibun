@@ -7,7 +7,7 @@
  */
 import { z } from "zod";
 import { HAIBUN_LOG_LEVELS } from "../schema/protocol.js";
-import { EXECUTION_FIELD, RECORDED_AT_TIME_FIELD } from "./seq-path.js";
+import { EXECUTION_FIELD, RECORDED_AT_TIME_FIELD } from "./actuality/domains/seq-path.js";
 import { Access, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "./resources.js";
 
 const RUN_ARTIFACT_DOMAIN = "run-artifact";

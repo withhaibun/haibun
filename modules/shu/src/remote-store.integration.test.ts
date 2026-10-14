@@ -5,6 +5,7 @@ import { OK } from "@haibun/core/schema/protocol.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import { RpcCallFailed, RpcClient } from "@haibun/core/lib/rpc-client.js";
 import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
+import { refusalSaid } from "@haibun/core/lib/rpc-wire.js";
 import { PRINCIPAL_LABEL } from "@haibun/core/lib/resources.js";
 import type { TRecordsPage } from "@haibun/core/lib/quad-types.js";
 import { recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
@@ -91,7 +92,7 @@ probe the delegated store surface
 		// The main itself holds the record, asked directly under the satellite's delegation.
 		expect(heldByMain).toHaveLength(1);
 		// Without a grant a caller doesn't have access: reads and writes are refused a caller that doesn't present one, and the refusal doesn't state more.
-		expect(deniedRead).toBe(refusal("store.readRecords", undefined, undefined));
-		expect(deniedWrite).toBe(refusal("store.upsertIndividual", undefined, undefined));
+		expect(deniedRead).toBe(refusalSaid(refusal("store.readRecords", undefined, undefined)));
+		expect(deniedWrite).toBe(refusalSaid(refusal("store.upsertIndividual", undefined, undefined)));
 	});
 });

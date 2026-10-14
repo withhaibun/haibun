@@ -8,7 +8,7 @@ import { OK } from "../schema/protocol.js";
 import { actionOKWithProducts } from "./util/index.js";
 import { buildAffordances } from "./affordances.js";
 import type { TFact } from "./records/domains/facts.js";
-import { executionOf, factIdOf } from "./seq-path.js";
+import { executionOf, factIdOf } from "./actuality/domains/seq-path.js";
 import { RUN_AUTHORITY } from "./capability-context.js";
 
 const PERSON = "person";

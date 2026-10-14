@@ -6,7 +6,7 @@ import { RECORDED_STATUS } from "../../../schema/protocol.js";
 import { storeDeclaring } from "../../test/declared-types.js";
 
 const REPORT = "FieldReport";
-import { SEQ_PATH_EDGE, SEQ_PATH_FIELD } from "../../seq-path.js";
+import { SEQ_PATH_EDGE, SEQ_PATH_FIELD } from "../../actuality/domains/seq-path.js";
 import { statementsWith } from "./statements.js";
 import { itemAt } from "../../util/item-at.js";
 import type { TLinkVocabulary } from "../../typed-links.js";

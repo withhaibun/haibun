@@ -12,7 +12,7 @@ import { describe, expect, it, beforeEach } from "vitest";
 import TestRunnerStepper, { RUNNER_DEFAULTS, TEST_RUNNER_AUTHOR } from "./test-runner-stepper.js";
 import { answerOfRun, askParams, stepAtRun } from "./test-runner-stepper.js";
 import type { TStepDescriptor } from "@haibun/core/lib/step-discovery.js";
-import { examineRun, runEvents } from "./run-outcome.js";
+import { examineRun, failureLine, runEvents } from "./run-outcome.js";
 import { FEATURE_EXECUTION_LABEL, RUN_STATUS, featureExecutionDomainDefinition } from "./feature-execution.js";
 import { Access, principalDomainDefinition } from "@haibun/core/lib/resources.js";
 import { readAction } from "@haibun/core/lib/actions.js";
@@ -62,7 +62,7 @@ class InstanceStepper extends AStepper implements IHasCycles {
 			action: (input: { run: string; cursor: number }) => {
 				this.calls.push({ step: "readRun", input });
 				const status = this.ended === null ? "running" : "ended";
-				// The real supervisor accrues a test run's outcome from its output as the output arrives. This double computes the same products from fixed output.
+				// The real supervisor moves the actuality machine with a test run's events as its output arrives. This double reads fixed output.
 				const outcome = examineRun(this.output);
 				const [first] = outcome.failures;
 				return Promise.resolve(
@@ -74,12 +74,12 @@ class InstanceStepper extends AStepper implements IHasCycles {
 						output: this.output,
 						dropped: 0,
 						features: outcome.features.length,
-						finished: this.ended !== null,
+						execution: outcome.execution,
 						steps: outcome.steps,
 						failed: outcome.failures.length,
-						firstFailure: first ? `${first.seqPath}: ${first.step}${first.message ? ` (${first.message})` : ""}` : "",
+						...(first === undefined ? {} : { firstFailure: failureLine(first) }),
 						summary: outcome.summary,
-						report: outcome.report,
+						...(outcome.report === undefined ? {} : { report: outcome.report }),
 					}),
 				);
 			},
@@ -302,8 +302,8 @@ describe("following a test run", () => {
 describe("what a test run reports", () => {
 	const OUTPUT = [
 		"Haibun Monitor: /features/one.feature.ts",
-		'{"id":"[0.1.1.1]","kind":"lifecycle","stage":"end","status":"completed","type":"step","in":"set answer to ready","seqPath":[0,1,1,1]}',
-		'{"id":"[0.1.1.2]","kind":"lifecycle","stage":"end","status":"failed","type":"step","in":"variable answer is other","seqPath":[0,1,1,2],"message":"answer is ready, not other"}',
+		'{"id":"0.1.1.1","kind":"lifecycle","stage":"end","status":"completed","type":"step","in":"set answer to ready"}',
+		'{"id":"0.1.1.2","kind":"lifecycle","stage":"end","status":"failed","type":"step","in":"variable answer is other","error":"answer is ready, not other"}',
 		'{"id":"log.1","kind":"log","level":"info","message":"shu standalone report: file:///tmp/capture/featn-1/shu.html"}',
 		'{"id":"execution-end","kind":"lifecycle","stage":"end","status":"failed","type":"execution"}',
 		"not json {",
@@ -321,7 +321,7 @@ describe("what a test run reports", () => {
 	it("returns the failed step with its seqPath and logged message", () => {
 		const { failures, steps } = examineRun(OUTPUT);
 		expect(steps).toBe(2);
-		expect(failures).toEqual([{ seqPath: "0.1.1.2", step: "variable answer is other", message: "answer is ready, not other" }]);
+		expect(failures).toEqual([{ id: "0.1.1.2", step: "variable answer is other", message: "answer is ready, not other" }]);
 	});
 
 	it("reads where the test run wrote its report, so a reader finds the report from the record", () => {
@@ -330,7 +330,7 @@ describe("what a test run reports", () => {
 
 	it("reads the test run's summary from the event that ends the execution", () => {
 		expect(examineRun(OUTPUT).summary).toBe("the test run failed");
-		expect(examineRun('{"kind":"lifecycle","stage":"end","status":"completed","type":"execution"}').summary).toBe("the test run completed");
+		expect(examineRun('{"id":"execution-end","kind":"lifecycle","stage":"end","status":"completed","type":"execution"}').summary).toBe("the test run completed");
 	});
 
 	it("returns a summary that states the test run didn't report an outcome", () => {
@@ -363,11 +363,12 @@ describe("the record of a finished test run", () => {
 		await h.run("tests", "polymorphic");
 		h.supervisor.ended = 0;
 		h.supervisor.output = [
-			'{"kind":"lifecycle","stage":"end","status":"completed","type":"step","in":"a step","seqPath":[0,1,1,1]}',
-			'{"kind":"lifecycle","stage":"end","status":"failed","type":"step","in":"another","seqPath":[0,1,1,2],"message":"it logged no"}',
 			'{"id":"feat-1","kind":"lifecycle","stage":"start","status":"running","type":"feature"}',
 			'{"id":"feat-1","kind":"lifecycle","stage":"start","status":"running","type":"feature"}',
-			'{"kind":"lifecycle","stage":"end","status":"failed","type":"execution"}',
+			'{"id":"0.1.1.1","kind":"lifecycle","stage":"end","status":"completed","type":"step","in":"a step"}',
+			'{"id":"0.1.1.2","kind":"lifecycle","stage":"end","status":"failed","type":"step","in":"another","error":"it logged no"}',
+			'{"id":"feat-1","kind":"lifecycle","stage":"end","status":"failed","type":"feature"}',
+			'{"id":"execution-end","kind":"lifecycle","stage":"end","status":"failed","type":"execution"}',
 		].join("\n");
 		await h.waitFor(30);
 		const record = h.written.filter((w) => w.label === FEATURE_EXECUTION_LABEL).at(-1);

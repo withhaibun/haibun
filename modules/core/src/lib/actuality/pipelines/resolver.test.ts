@@ -1,20 +1,20 @@
 import { describe, it, test, expect } from "vitest";
 
-import type { TExpandedFeature } from "../lib/execution.js";
-import { OK } from "../schema/protocol.js";
-import { AStepper, type CStepper } from "../lib/steps/domains/stepper.js";
-import { asExpandedFeatures } from "../lib/resolver-features.js";
-import TestSteps from "../lib/test/TestSteps.js";
-import { createSteppers } from "../lib/util/index.js";
-import { itemAt } from "../lib/util/item-at.js";
-import { Resolver } from "./Resolver.js";
-import Haibun from "../steps/haibun.js";
+import type { TExpandedFeature } from "../domains/execution.js";
+import { OK } from "../../../schema/protocol.js";
+import { AStepper, type CStepper } from "../../steps/domains/stepper.js";
+import { asExpandedFeatures } from "../../resolver-features.js";
+import TestSteps from "../../test/TestSteps.js";
+import { createSteppers } from "../../util/index.js";
+import { itemAt } from "../../util/item-at.js";
+import { Resolver } from "./resolver.js";
+import Haibun from "../../../steps/haibun.js";
 
 describe("resolve steps", () => {
 	it("resolves steps", async () => {
 		const features = asExpandedFeatures([{ path: "l1", content: "Then it passes" }]);
 		const steppers = createSteppers([TestSteps]);
-		const resolver = new Resolver(steppers);
+		const resolver = new Resolver(steppers, []);
 		const steps = await resolver.resolveStepsFromFeatures(features);
 		expect(steps.length).toBe(1);
 	});
@@ -33,7 +33,7 @@ describe("validate map steps", () => {
 
 	const getResolvedSteps = async (features: TExpandedFeature[]) => {
 		const steppers = createSteppers([TestStepper]);
-		const resolver = new Resolver(steppers);
+		const resolver = new Resolver(steppers, []);
 		return await resolver.resolveStepsFromFeatures(features);
 	};
 	describe("exact", () => {
@@ -89,7 +89,7 @@ describe("unique stepper", () => {
 	test("uses unique step when multiple match", async () => {
 		const features = asExpandedFeatures([{ path: "l1", content: astep }]);
 		const steppers = createSteppers([UniqueStepper]);
-		const resolver = new Resolver(steppers);
+		const resolver = new Resolver(steppers, []);
 		const steps = await resolver.resolveStepsFromFeatures(features);
 		expect(steps.length).toBe(1);
 		expect(itemAt(steps, 0).featureSteps.length).toBe(1);
@@ -108,7 +108,7 @@ describe("preclude stepper", () => {
 	test("precludes stepper", async () => {
 		const features = asExpandedFeatures([{ path: "l1", content: "does something else" }]);
 		const steppers = createSteppers([PrecludedStepper, PrecluderStepper]);
-		const resolver = new Resolver(steppers);
+		const resolver = new Resolver(steppers, []);
 		const steps = await resolver.resolveStepsFromFeatures(features);
 		expect(steps.length).toBe(1);
 		expect(itemAt(steps, 0).featureSteps.length).toBe(1);
@@ -126,7 +126,7 @@ describe("prose", () => {
 		steps = { prose: { prose: true, precludes: ["Haibun.prose"], action: async () => Promise.resolve(OK) } };
 	}
 	const resolvedTo = (line: string, ...steppers: CStepper[]) => {
-		const { stepperName, actionName } = new Resolver(createSteppers([Haibun, ...steppers])).findSingleStepAction(line);
+		const { stepperName, actionName } = new Resolver(createSteppers([Haibun, ...steppers]), []).findSingleStepAction(line);
 		return `${stepperName}.${actionName}`;
 	};
 	const PROSE = "Haibun.prose";
@@ -155,7 +155,7 @@ describe("the steps a resolver offers", () => {
 			steps: AStepper["steps"] = { first: { exact: "first step", action: async () => Promise.resolve(OK) } };
 		}
 		const steppers = createSteppers([GrowingStepper as CStepper]);
-		const resolver = new Resolver(steppers);
+		const resolver = new Resolver(steppers, []);
 		expect(resolver.findSingleStepAction("first step").actionName).toBe("first");
 		expect(() => resolver.findSingleStepAction("added step")).toThrow(`"added step" doesn't match a step`);
 		itemAt(steppers, 0).steps.added = { exact: "added step", action: async () => Promise.resolve(OK) };

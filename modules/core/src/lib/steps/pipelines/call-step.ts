@@ -10,13 +10,13 @@
  * calls `named` itself and catches the error. `callStepByName` returns the seqPath because a caller that records the call
  * needs its identity.
  */
-import type { TWorld } from "../../world.js";
+import type { TWorld } from "../../actuality/domains/world.js";
 import { runRegistry, type StepTool } from "./step-registry.js";
 import { hostOfMethodName, stepMethodName } from "../domains/step-method.js";
 import type { AStepper, TStepperStep, TFeatureStep } from "../domains/stepper.js";
 import { mapInputToStepValues, literalTerm, renderStepLine } from "../derivations/named-vars.js";
 import { actionNotOK } from "../../util/index.js";
-import { dispatchStep, type DispatchContext } from "../../step-dispatch.js";
+import { dispatchStep, type DispatchContext } from "../../actuality/pipelines/step-dispatch.js";
 import { allocateSyntheticSeqPath } from "../../host-id.js";
 import type { TSeqPath, TStepResult } from "../../../schema/protocol.js";
 

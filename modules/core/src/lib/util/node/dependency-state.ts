@@ -16,7 +16,7 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import nodeFS from "node:fs";
 import path from "node:path";
-import type { TSpecl } from "../../execution.js";
+import type { TSpecl } from "../../actuality/domains/execution.js";
 import { getModuleLocation } from "./workspace-lib.js";
 import { itemAt } from "../item-at.js";
 

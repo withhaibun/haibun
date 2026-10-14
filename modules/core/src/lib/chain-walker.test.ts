@@ -5,7 +5,7 @@ import { actionOKWithProducts, actionNotOK } from "./util/index.js";
 import { StepRegistry } from "./steps/pipelines/step-registry.js";
 import { registerDomains } from "./domains.js";
 import { getDefaultWorld } from "./test/lib.js";
-import type { TWorld } from "./world.js";
+import type { TWorld } from "./actuality/domains/world.js";
 import { readFacts } from "./records/pipelines/facts.js";
 import type { TMichi } from "./goal-resolver.js";
 import { CHAIN_INSTANCE_STATUS, createChainInstance } from "./chain-instance.js";

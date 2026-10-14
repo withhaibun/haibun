@@ -11,12 +11,33 @@
  * stores for its status (RECORDED_STATUS). This file declares the schema, the domain
  * selectors and the domain definition that steppers register.
  */
-import { itemAt } from "./util/item-at.js";
+import { itemAt } from "../../util/item-at.js";
 import { z } from "zod";
-import { EXECUTION_MODES, HAIBUN_LOG_LEVELS, RECORDED_STATUS } from "../schema/protocol.js";
-import { Access, LinkRelations, PersistedVertexSchema, PRINCIPAL_LABEL, SEQ_PATH_LABEL, type TDomainDefinition } from "./resources.js";
+import { EXECUTION_MODES, HAIBUN_LOG_LEVELS, RECORDED_STATUS } from "../../../schema/protocol.js";
+import { Access, LinkRelations, PersistedVertexSchema, PRINCIPAL_LABEL, SEQ_PATH_LABEL, type TDomainDefinition } from "../../resources.js";
 
 const SEQ_PATH_DOMAIN = "seq-path";
+
+// SeqPath conventions:
+// - Feature execution uses [hostId, feature, scenario, step, ...].
+// - Feature-scoped synthetic work uses [hostId, feature, 0, ordinal].
+// - A speculative or debug branch extends its parent step's path with a negative segment.
+// - An ad hoc transport call uses [hostId, SYNTHETIC_FEATURE_NUM, adHocSeq] (host-id.ts).
+
+/** The direction of a synthetic path: a speculative branch counts down from its parent, and other work counts up. */
+export function syntheticSeqPathDirection(speculative: boolean): 1 | -1 {
+	return speculative ? -1 : 1;
+}
+
+/** The first path of a branch under a parent step, in a direction. */
+export function syntheticBranchSeqPath(parentSeqPath: readonly number[], dir: 1 | -1): number[] {
+	return [...parentSeqPath, dir];
+}
+
+/** The next path after a synthetic path, in a direction. */
+export function advanceSyntheticSeqPath(seqPath: readonly number[], dir: 1 | -1): number[] {
+	return [...seqPath.slice(0, -1), itemAt(seqPath, seqPath.length - 1) + dir];
+}
 
 /** Format a hierarchical seqPath number array as the canonical string id (e.g. [0,1,2,5] → "0.1.2.5"). */
 export function formatSeqPath(seqPath: number[]): string {

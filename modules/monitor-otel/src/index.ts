@@ -7,10 +7,10 @@
 
 import { AStepper, IHasCycles, IHasOptions, StepperKinds, IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { NameSchema } from "@haibun/core/lib/domains.js";
-import type { TWorld } from "@haibun/core/lib/world.js";
 import { OK, SPECULATIVE_FAILURE, STATUS, type TBlipEvent } from "@haibun/core/schema/protocol.js";
 import { THaibunEvent, EventFormatter } from "@haibun/core/monitor/index.js";
 import { stringOrError, getStepperOption } from "@haibun/core/lib/util/index.js";
+import { LEVEL_STATUS, actualityMachine, isActualityMove, runningFeature, type TActualityMove } from "@haibun/core/lib/actuality/machines/actuality.js";
 
 import { trace, Tracer, Span, SpanStatusCode, context } from "@opentelemetry/api";
 import { NodeTracerProvider, SimpleSpanProcessor } from "@opentelemetry/sdk-trace-node";
@@ -35,20 +35,14 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 	private featureSpan: Span | undefined;
 	private stepSpans: Map<string, Span> = new Map();
 	private detachBlips: (() => void) | undefined;
+	/** The execution's levels, moved by the lifecycle events this stepper receives: a feature's span starts where the
+	 *  machine starts the feature, and ends where the machine ends it. */
+	private readonly actuality = actualityMachine();
 
 	options = {
 		OTEL_ENDPOINT: { desc: "OpenTelemetry OTLP endpoint (default: http://localhost:4318)", parse: stringOrError },
 		SERVICE_NAME: { desc: "Service name for traces and logs (default: haibun)", parse: stringOrError },
 	};
-
-	async setWorld(world: TWorld, steppers: AStepper[]) {
-		await super.setWorld(world, steppers);
-
-		// Exports feature, step and artifact events as spans and log events as log records.
-		world.eventLogger.subscribe((event: THaibunEvent) => {
-			this.onEvent(event);
-		});
-	}
 
 	private initializeIfNeeded() {
 		if (this.tracerProvider) return;
@@ -85,7 +79,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 			this.initializeIfNeeded();
 			// Actuality doesn't retain a blip. recordBlip adds each blip as a span event on its step span. A trace backend can
 			// then query the blips in order and by step. Only a subscription that lists the blip kind receives blips. The
-			// subscription in setWorld doesn't list kinds, so it doesn't receive blips.
+			// onEvent cycle doesn't receive blips.
 			if (!this.detachBlips) {
 				const { eventLogger } = this.getWorld();
 				const onBlip = (event: THaibunEvent) => event.kind === "blip" && this.recordBlip(event);
@@ -93,17 +87,11 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 				this.detachBlips = () => eventLogger.unsubscribe(onBlip);
 			}
 		},
+		// Exports feature, step and artifact events as spans and log events as log records. The Executor delivers each event
+		// through this cycle once.
 		onEvent: async (event: THaibunEvent) => {
 			await Promise.resolve();
 			this.processEvent(event);
-		},
-		endFeature: async () => {
-			await Promise.resolve();
-			if (this.featureSpan) {
-				this.featureSpan.end();
-				this.featureSpan = undefined;
-			}
-			this.stepSpans.clear();
 		},
 		endExecution: async () => {
 			await Promise.resolve();
@@ -113,30 +101,42 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 		},
 	};
 
-	private onEvent(event: THaibunEvent) {
-		this.processEvent(event);
+	/** Moves the machine with a level's event, and starts or ends the feature's span where the move starts or ends a feature. */
+	private moveFeature(tracer: Tracer | undefined, move: TActualityMove): void {
+		const before = runningFeature(this.actuality.state.get());
+		const after = runningFeature(this.actuality.dispatch(move));
+		if (before !== undefined && after?.id !== before.id && this.featureSpan) {
+			const ended = this.actuality.state.get().features.find((feature) => feature.id === before.id);
+			if (ended?.status === LEVEL_STATUS.failed) this.featureSpan.setStatus({ code: SpanStatusCode.ERROR, message: `${before.id} failed` });
+			this.featureSpan.end();
+			this.featureSpan = undefined;
+			this.stepSpans.clear();
+		}
+		// The feature span is the root span of the feature's spans.
+		if (tracer !== undefined && after !== undefined && after.id !== before?.id)
+			this.featureSpan = tracer.startSpan(`feature: ${after.path ?? after.id}`, { attributes: { "haibun.event.type": "feature", "haibun.event.id": after.id } });
 	}
 
 	private processEvent(event: THaibunEvent) {
-		if (!this.tracer) return;
+		const tracer = this.tracer;
+		// The machine takes every move, so it holds the levels whether or not the tracer has started.
+		if (event.kind === "lifecycle" && isActualityMove(event)) this.moveFeature(tracer, event);
+		if (!tracer) return;
 
 		const logger = logs.getLogger("haibun-monitor-otel");
 
 		if (event.kind === "lifecycle") {
-			if (event.type === "feature" && event.stage === "start") {
-				// The feature span is the root span of the feature's spans.
-				this.featureSpan = this.tracer.startSpan(`feature: ${event.featurePath || "unknown"}`, { attributes: { "haibun.event.type": "feature", "haibun.event.id": event.id } });
-			} else if (event.type === "step") {
+			if (event.type === "step") {
 				if (event.stage === "start") {
 					// Starts a feature span when this stepper didn't receive a feature start event.
 					if (!this.featureSpan) {
-						this.featureSpan = this.tracer.startSpan("feature: haibun-execution", { attributes: { "haibun.event.type": "feature", "haibun.auto.created": true } });
+						this.featureSpan = tracer.startSpan("feature: haibun-execution", { attributes: { "haibun.event.type": "feature", "haibun.auto.created": true } });
 					}
 
 					// Each step span is a child of the feature span.
 					const parentContext = this.featureSpan ? trace.setSpan(context.active(), this.featureSpan) : context.active();
 
-					const stepSpan = this.tracer.startSpan(
+					const stepSpan = tracer.startSpan(
 						`step: ${event.in || event.id}`,
 						{
 							attributes: {
@@ -192,7 +192,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 
 			const artifactPath = "path" in event ? event.path : undefined;
 			const artifactMimetype = "mimetype" in event ? event.mimetype : undefined;
-			const artifactSpan = this.tracer.startSpan(
+			const artifactSpan = tracer.startSpan(
 				`artifact: ${event.artifactType}`,
 				{
 					attributes: {

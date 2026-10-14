@@ -21,7 +21,7 @@ import { mayCall } from "./actions.js";
 import { buildDomainChain, SOURCE_DOMAIN, type TDomainChainGraph } from "./domain-chain.js";
 import { isPrimitiveDomain, refTargetOf } from "./domains.js";
 import { resolveGoal, GOAL_FINDING, type TGoalResolution } from "./goal-resolver.js";
-import { compareSeqPath, factSeqPath } from "./seq-path.js";
+import { compareSeqPath, factSeqPath } from "./actuality/domains/seq-path.js";
 
 /** The event-id prefix of the `affordances.<seqPath>` change signal. The goal-resolution stepper emits it in afterStep for
  *  each step that isn't a read or a projection. SPA views filter the event stream on it and re-fetch the affordances

@@ -7,6 +7,7 @@
  * reads only what has happened since it last read, which is what keeps a run of years readable.
  */
 import { machine } from "@haibun/core/lib/machine.js";
+import { ActualityMoveSchema, actualityMachine, executionEnded } from "@haibun/core/lib/actuality/machines/actuality.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { EventLevelSchema, HAIBUN_LOG_LEVELS, type THaibunLogLevel } from "@haibun/core/schema/protocol.js";
 import type { TClock, TEvent, TEventStream } from "../../ports.js";
@@ -143,6 +144,9 @@ export function makeGraphRunSource(scope: TRunSourceScope, level: THaibunLogLeve
 	// every announcement numbered so far once it finishes, and the stream is down or not. Numbers rather than clocks,
 	// so an announcement and a read in the same instant are still ordered. A view waits on these, never on time.
 	const currency = machine<TReadingState, TReadingEvent>(INITIAL_READING, readingTransition);
+	// The execution's levels, moved by the lifecycle events the stream carries: actuality is finished where the machine
+	// holds its execution ended. A source that joins after the execution ended reads the records and not that end.
+	const actuality = actualityMachine();
 	const subs = new Set<() => void>();
 	// Each change of what the source holds or states increments its version, so a view derives from the source again
 	// only where the version differs from the one of its last derivation.
@@ -259,7 +263,13 @@ export function makeGraphRunSource(scope: TRunSourceScope, level: THaibunLogLeve
 	};
 	const unsubscribe = batchedEvents(scope.events, scope.clock, {
 		onBatch: (events) => {
+			const wasEnded = executionEnded(actuality.state.get());
+			for (const event of events) {
+				const move = event.kind === "lifecycle" ? ActualityMoveSchema.safeParse(event) : undefined;
+				if (move?.success) actuality.dispatch(move.data);
+			}
 			if (events.some((e) => shows.has(levelOf(e)))) announce();
+			else if (wasEnded !== executionEnded(actuality.state.get())) notify();
 		},
 		// What actuality recorded while the stream was down didn't arrive in a batch: the stream coming back is the same
 		// reason to read again, on the same schedule, and until that read has finished the reading is behind.
@@ -344,7 +354,7 @@ export function makeGraphRunSource(scope: TRunSourceScope, level: THaibunLogLeve
 			return null;
 		},
 		get ended() {
-			return false;
+			return executionEnded(actuality.state.get());
 		},
 		get disconnected() {
 			return readingStatus(currency.state.get()) === READING_STATUS.CUT_OFF;

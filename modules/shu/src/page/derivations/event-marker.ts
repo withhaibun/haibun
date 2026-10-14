@@ -83,7 +83,7 @@ export function markFor(event: unknown): TEventMarkerStyle | undefined {
 }
 
 /**
- * Determines whether an event gets a slider mark. Error and warning logs, artifacts, feature and scenario events, failed
+ * Determines whether an event gets a slider mark. Error and warning logs, artifacts, feature and scenario starts, failed
  * lifecycle events and steps whose text doesn't start with a lowercase letter get a mark. Technical steps, other logs and
  * other events don't get a mark, so the slider's marks stay distinct.
  */
@@ -91,7 +91,8 @@ function shouldMarkEvent(event: unknown): boolean {
 	const e = event as TPartialEvent & { in?: string };
 	if (e.kind === "log" && (e.level === "error" || e.level === "warn")) return true;
 	if (e.kind === "artifact") return true;
-	if (e.kind === "lifecycle" && (e.type === "feature" || e.type === "scenario")) return true;
+	// A feature's or a scenario's start marks it once; its end carries its id again, so it doesn't mark it a second time.
+	if (e.kind === "lifecycle" && (e.type === "feature" || e.type === "scenario") && e.stage !== "end") return true;
 	if (e.kind === "lifecycle" && e.status === RECORDED_STATUS.failed) return true;
 	if (e.kind === "lifecycle" && e.type === "step") {
 		// Each step is one row. A technical step's text starts with a lowercase letter. A reader looks for the prose steps on a rail.

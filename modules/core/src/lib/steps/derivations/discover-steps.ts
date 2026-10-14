@@ -3,7 +3,7 @@
  * the steps that matched. The catalog is built once for each set of registered domains.
  */
 import { jsonSchemaFor } from "../../json-schema-of.js";
-import type { TWorld } from "../../world.js";
+import type { TWorld } from "../../actuality/domains/world.js";
 import { buildConcernCatalog } from "../../hypermedia.js";
 import { HYPERMEDIA } from "../../../schema/protocol.js";
 import { isPersisted, type TRegisteredDomain } from "../../resources.js";

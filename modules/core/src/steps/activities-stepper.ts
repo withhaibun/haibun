@@ -1,14 +1,14 @@
 import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TStepperStep, CycleWhen } from "../lib/steps/domains/stepper.js";
-import type { TFeatures, TStepInput } from "../lib/execution.js";
-import { runSteppers, type TWorld } from "../lib/world.js";
+import type { TFeatures, TStepInput } from "../lib/actuality/domains/execution.js";
+import { runSteppers, type TWorld } from "../lib/actuality/domains/world.js";
 import { TStepArgs, TRegisteredOutcomeEntry, OK } from "../schema/protocol.js";
-import { formatSeqPath } from "../lib/seq-path.js";
+import { formatSeqPath } from "../lib/actuality/domains/seq-path.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getActionable, errorDetail } from "../lib/util/index.js";
 import { itemAt } from "../lib/util/item-at.js";
 import { DOMAIN_STATEMENT, DOMAIN_STATEMENT_LINES, DOMAIN_TITLE, DOMAIN_WAYPOINT_ARGUMENT } from "../lib/domains.js";
-import { Resolver } from "../phases/Resolver.js";
+import { Resolver } from "../lib/actuality/pipelines/resolver.js";
 import { FlowRunner } from "../lib/steps/pipelines/flow-runner.js";
-import { ControlEvent, LifecycleEvent, STATUS } from "../schema/protocol.js";
+import { ControlEvent, LifecycleEvent, STATUS, type TStatus } from "../schema/protocol.js";
 import { buildDomainChain } from "../lib/domain-chain.js";
 import { GOAL_FINDING, resolveGoal } from "../lib/goal-resolver.js";
 import { readFacts } from "../lib/records/pipelines/facts.js";
@@ -288,19 +288,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				}
 
 				// Emits the ensure start event for monitors.
-				this.getWorld().eventLogger.emit(
-					LifecycleEvent.parse({
-						id: formatSeqPath(featureStep.seqPath) + ".ensure",
-						timestamp: Date.now(),
-						kind: "lifecycle",
-						type: "ensure",
-						stage: "start",
-						in: outcomeKey,
-						lineNumber: featureStep.source?.lineNumber,
-						featurePath: featureStep.source?.path,
-						status: STATUS.running,
-					}),
-				);
+				this.emitEnsure(featureStep, outcomeKey, { stage: "start", status: STATUS.running });
 
 				const pattern = outcome[0]?.action?.actionName || outcomeKey;
 
@@ -472,7 +460,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	private registerSavedWaypoints(saved: Pick<TSavedWaypoint, "id" | "lines" | "source">[]): void {
 		const world = this.getWorld();
 		const steppers = runSteppers(world);
-		const resolver = new Resolver(steppers);
+		const resolver = new Resolver(steppers, []);
 		const refused = saved.flatMap(({ id, lines }) => [
 			...(this.steps[id] ? [`the outcome "${id}" is already registered`] : []),
 			...lines.flatMap((line) => {
@@ -546,19 +534,14 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	}
 
 	private emitEnsureEnd(featureStep: TFeatureStep, outcomeKey: string, ok: boolean, error?: string): void {
+		this.emitEnsure(featureStep, outcomeKey, { stage: "end", status: ok ? STATUS.completed : STATUS.failed, error });
+	}
+
+	/** Emits an ensure's lifecycle event at its start or its end, which monitors read: one event, built here once. */
+	private emitEnsure(featureStep: TFeatureStep, outcomeKey: string, at: { stage: "start" | "end"; status: TStatus; error?: string }): void {
+		const where = { lineNumber: featureStep.source?.lineNumber, featurePath: featureStep.source?.path };
 		this.getWorld().eventLogger.emit(
-			LifecycleEvent.parse({
-				id: formatSeqPath(featureStep.seqPath) + ".ensure",
-				timestamp: Date.now(),
-				kind: "lifecycle",
-				type: "ensure",
-				stage: "end",
-				in: outcomeKey,
-				lineNumber: featureStep.source?.lineNumber,
-				featurePath: featureStep.source?.path,
-				status: ok ? STATUS.completed : STATUS.failed,
-				error,
-			}),
+			LifecycleEvent.parse({ id: `${formatSeqPath(featureStep.seqPath)}.ensure`, timestamp: this.getWorld().clock.now(), kind: "lifecycle", type: "ensure", in: outcomeKey, ...where, ...at }),
 		);
 	}
 

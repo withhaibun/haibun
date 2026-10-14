@@ -14,8 +14,8 @@
  * A run with a host above 0 stays up after its features finish, so a caller can still query what it produced.
  *
  * This process reads a run's events as they arrive. A run writes its events as NDJSON on its output.
- * Each chunk accrues into the outcome a caller reads: the features that ran, the step count, the failures,
- * and whether the child reports that its features finished.
+ * Each chunk moves the actuality machine whose state a caller reads: the features that ran, the step count, the
+ * failures, and whether the child's execution has ended.
  * This process also keeps the child's process output as a bounded tail that a caller reads from a cursor.
  * That output is the only record of a run that fails before it serves. The bound keeps a long run's output from growing without limit.
  * `SseSubscriber` subscribes to a serving run that this process didn't fork.
@@ -43,7 +43,8 @@ import { RemoteStepperProxy } from "@haibun/core/lib/remote-stepper-proxy.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import { MODULE_OPTION_PREFIX, BASE_PREFIX, NDJSON, OK, ONCE, STAY, STAY_ALWAYS } from "@haibun/core/schema/protocol.js";
 import { HAIBUN_HOST_ID_ENV } from "@haibun/core/lib/host-id.js";
-import { type TRunOutcome, emptyOutcome, accrueRunOutcome } from "./run-outcome.js";
+import { type TRunOutcome, emptyOutcome, failureLine, readRunOutput, runSummary } from "./run-outcome.js";
+import { LEVEL_STATUS, executionEnded } from "@haibun/core/lib/actuality/machines/actuality.js";
 import { getConfigFromBase, processBaseEnvToOptionsAndErrors } from "./lib.js";
 import { outcomeAgainst, verificationOf, type TOutcome } from "./verified.js";
 import { DOMAIN_FILE_PATH, DOMAIN_NUMBER, NameSchema } from "@haibun/core/lib/domains.js";
@@ -111,13 +112,15 @@ export const runReadSchema = z.object({
 	// stay complete when the output exceeds the tail.
 	features: z.number(),
 	steps: z.number(),
-	/** Whether a run's features have finished. A standing run reports this and keeps serving without exiting, so a caller
-	 *  waits on this flag rather than on an exit. */
-	finished: z.boolean(),
+	/** The status of a run's execution, as the actuality machine that read its events holds it. A standing run's
+	 *  execution ends and its process keeps serving without exiting, so a caller waits on this status rather than on an exit. */
+	execution: z.enum(LEVEL_STATUS),
 	failed: z.number(),
-	firstFailure: z.string(),
+	/** The first failed step, as its id, its text and its failure message, where a step failed. */
+	firstFailure: z.string().optional(),
 	summary: z.string(),
-	report: z.string(),
+	/** Where a run wrote its report, where it wrote one. */
+	report: z.string().optional(),
 });
 
 /**
@@ -486,10 +489,10 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		const take = (data: Buffer): void => {
 			const text = data.toString();
 			held.tail.append(text);
-			const wasFinished = held.outcome.finished;
-			accrueRunOutcome(held.outcome, text);
-			// A run's report that its features finished wakes its waiters, whether or not it keeps serving.
-			if (!wasFinished && held.outcome.finished) for (const wake of held.waiters.splice(0)) wake();
+			const wasFinished = executionEnded(held.outcome.actuality);
+			readRunOutput(held.outcome, text);
+			// A run's report that its execution ended wakes its waiters, whether or not it keeps serving.
+			if (!wasFinished && executionEnded(held.outcome.actuality)) for (const wake of held.waiters.splice(0)) wake();
 		};
 		child.stdout?.on("data", take);
 		child.stderr?.on("data", take);
@@ -551,7 +554,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 	 *  report wake the wait, so this step doesn't poll. */
 	private async waitRun(run: string, seconds: number, cursor: number) {
 		const held = this.startedRun("wait for run", run);
-		if (held.ended === null && !held.outcome.finished) {
+		if (held.ended === null && !executionEnded(held.outcome.actuality)) {
 			await new Promise<void>((resolve) => {
 				const done = () => {
 					clearTimeout(timer);
@@ -571,19 +574,20 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 	/** Returns a run's output since `cursor`, its status, and the outcome accrued from its events. */
 	private readRun(run: string, cursor: number) {
 		const held = this.startedRun("read run", run);
-		const [first] = held.outcome.failures;
+		const { actuality, report } = held.outcome;
+		const [first] = actuality.failures;
 		return actionOKWithProducts({
 			run,
 			status: runStatus(held),
 			exitCode: held.ended,
 			...held.tail.since(cursor),
-			features: held.outcome.features.size,
-			finished: held.outcome.finished,
-			steps: held.outcome.steps,
-			failed: held.outcome.failures.length,
-			firstFailure: first ? `${first.seqPath}: ${first.step}${first.message ? ` (${first.message})` : ""}` : "",
-			summary: held.outcome.summary,
-			report: held.outcome.report,
+			features: actuality.features.length,
+			execution: actuality.status,
+			steps: actuality.steps,
+			failed: actuality.failures.length,
+			...(first === undefined ? {} : { firstFailure: failureLine(first) }),
+			summary: runSummary(actuality),
+			...(report === undefined ? {} : { report }),
 		});
 	}
 

@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { AStepper, TFeatureStep } from "../lib/steps/domains/stepper.js";
-import { OK, TStepArgs } from "../schema/protocol.js";
-import { passWithDefaults, DEF_PROTO_OPTIONS, failWithDefaults } from "../lib/test/lib.js";
-import { actionNotOK } from "../lib/util/index.js";
-import { FlowRunner } from "../lib/steps/pipelines/flow-runner.js";
-import { DOMAIN_STATEMENT } from "../lib/domains.js";
-import Haibun from "../steps/haibun.js";
+import { AStepper, TFeatureStep } from "../../steps/domains/stepper.js";
+import { OK, TStepArgs } from "../../../schema/protocol.js";
+import { passWithDefaults, DEF_PROTO_OPTIONS, failWithDefaults } from "../../test/lib.js";
+import { actionNotOK } from "../../util/index.js";
+import { FlowRunner } from "../../steps/pipelines/flow-runner.js";
+import { DOMAIN_STATEMENT } from "../../domains.js";
+import Haibun from "../../../steps/haibun.js";
 
 class StatementTestStepper extends AStepper {
 	description = "Declares the steps alpha and beta and a step that executes its statement argument.";

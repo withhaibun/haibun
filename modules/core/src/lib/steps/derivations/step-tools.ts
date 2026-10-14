@@ -8,7 +8,7 @@ import { requiredAction } from "../../actions.js";
 import { constructorName } from "../../util/index.js";
 import { stepMethodName } from "../domains/step-method.js";
 import { namedInterpolation } from "./named-vars.js";
-import type { TWorld } from "../../world.js";
+import type { TWorld } from "../../actuality/domains/world.js";
 import { DOMAIN_DOMAIN_KEY, DOMAIN_RECORD_ID, DOMAIN_STATEMENT, paramDomainKey, registeredDomain } from "../../domains.js";
 import type { TInputSchema, TStepDescriptor } from "../domains/step-discovery.js";
 import { resolveOutputSchema } from "./tool-validation.js";

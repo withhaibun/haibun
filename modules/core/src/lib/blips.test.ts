@@ -4,7 +4,7 @@ import { declareBlips, blipDeclarations, BlipRollup } from "./blips.js";
 import { recordBlip } from "./record-blip.js";
 import { eventHubOfTest } from "./test/lib.js";
 import type { THaibunEvent } from "../schema/protocol.js";
-import type { TWorld } from "./world.js";
+import type { TWorld } from "./actuality/domains/world.js";
 import { runInStep } from "./capability-context.js";
 
 const make = () => {

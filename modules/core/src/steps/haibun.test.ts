@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { z } from "zod";
 
 import { DEF_PROTO_OPTIONS, failWithDefaults, getTestWorldWithOptions, passWithDefaults } from "../lib/test/lib.js";
-import { Resolver } from "../phases/Resolver.js";
+import { Resolver } from "../lib/actuality/pipelines/resolver.js";
 import { FlowRunner } from "../lib/steps/pipelines/flow-runner.js";
 import TestSteps from "../lib/test/TestSteps.js";
 import Haibun from "./haibun.js";
@@ -14,7 +14,7 @@ import { actionOK } from "../lib/util/index.js";
 import { itemAt } from "../lib/util/item-at.js";
 import { hostScopedMethodName } from "../lib/steps/domains/step-method.js";
 import { openRunRegistry, runRegistry, type StepRegistry } from "../lib/steps/pipelines/step-registry.js";
-import { addStepperConcerns } from "../phases/Executor.js";
+import { addStepperConcerns } from "../lib/actuality/pipelines/executor.js";
 import { STEPS_CHANGED, type THaibunEvent } from "../schema/protocol.js";
 import { STEP_DETAIL, type TStepDefinitions } from "../lib/steps/domains/step-discovery.js";
 import { readShownSteps } from "../lib/steps/domains/step-discovery.js";
@@ -215,7 +215,7 @@ describe("line comment", () => {
 		await haibun.setWorld(world, [haibun]);
 		addStepperConcerns(world, [haibun]);
 		openRunRegistry(world, [haibun]);
-		expect(new Resolver([haibun]).findSingleStepAction(NOTE).actionName).toBe("comment");
+		expect(new Resolver([haibun], []).findSingleStepAction(NOTE).actionName).toBe("comment");
 		expect((await runAuthorizedWith(RUN_AUTHORITY, () => new FlowRunner(world, [haibun]).runStatement(NOTE, { seqPath: [0, 1] }))).ok).toBe(true);
 	});
 });

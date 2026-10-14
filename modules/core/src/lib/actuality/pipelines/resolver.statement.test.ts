@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
 
-import { AStepper } from "../lib/steps/domains/stepper.js";
-import { OK } from "../schema/protocol.js";
-import { asExpandedFeatures } from "../lib/resolver-features.js";
-import { Resolver } from "./Resolver.js";
-import { createSteppers } from "../lib/util/index.js";
-import { DOMAIN_STATEMENT } from "../lib/domains.js";
-import { itemAt } from "../lib/util/item-at.js";
+import { AStepper } from "../../steps/domains/stepper.js";
+import { OK } from "../../../schema/protocol.js";
+import { asExpandedFeatures } from "../../resolver-features.js";
+import { Resolver } from "./resolver.js";
+import { createSteppers } from "../../util/index.js";
+import { DOMAIN_STATEMENT } from "../../domains.js";
+import { itemAt } from "../../util/item-at.js";
 
 // A test stepper that uses a statement typed placeholder
 class StatementStepper extends AStepper {
@@ -18,7 +18,7 @@ describe("statement variable validation", () => {
 	it("accepts valid statement expansion", async () => {
 		const features = asExpandedFeatures([{ path: "f1", content: "meta base action" }]);
 		const steppers = createSteppers([StatementStepper]);
-		const resolver = new Resolver(steppers);
+		const resolver = new Resolver(steppers, []);
 		const resolved = await resolver.resolveStepsFromFeatures(features);
 		const { featureSteps } = itemAt(resolved, 0);
 		expect(featureSteps.length).toBe(1);
@@ -27,7 +27,7 @@ describe("statement variable validation", () => {
 	it("rejects invalid statement expansion", async () => {
 		const features = asExpandedFeatures([{ path: "f1", content: "meta not-an-action" }]);
 		const steppers = createSteppers([StatementStepper]);
-		const resolver = new Resolver(steppers);
+		const resolver = new Resolver(steppers, []);
 		await expect(resolver.resolveStepsFromFeatures(features)).rejects.toThrow(/statement 'not-an-action' doesn't resolve/);
 	});
 });

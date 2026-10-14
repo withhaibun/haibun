@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { EventFormatter, HaibunEvent, shownLogLevel, type THaibunEvent, type THaibunLogLevel } from "./protocol.js";
-import { BaseOptionsSchema } from "../lib/world.js";
+import { BaseOptionsSchema } from "../lib/actuality/domains/world.js";
 
 describe("Haibun Event Schemas", () => {
 	it("validates a correct LifecycleEvent", () => {

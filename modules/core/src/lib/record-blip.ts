@@ -3,7 +3,7 @@
  * shared with the page, which declares what it records; recording reads the step in flight, which only a run has.
  */
 import { BlipEvent } from "../schema/protocol.js";
-import type { TWorld } from "./world.js";
+import type { TWorld } from "./actuality/domains/world.js";
 import { stepInFlight } from "./capability-context.js";
 import { blipDeclared } from "./blips.js";
 

@@ -3,9 +3,10 @@
  * failed and why.
  */
 import { z } from "zod";
-import type { TWorld } from "../../world.js";
+import type { TWorld } from "../../actuality/domains/world.js";
 import type { TExecutorResult } from "../../../schema/protocol.js";
 import type { AStepper } from "../domains/stepper.js";
+import { INITIAL_ACTUALITY } from "../../actuality/machines/actuality.js";
 
 /** The error a phase throws once it fails. It carries the executor result that reports the failure. */
 export class PhaseBailError extends Error {
@@ -37,6 +38,8 @@ export class PhaseRunner {
 	private createFailureResult(stage: string, error: unknown): TExecutorResult {
 		return {
 			ok: false,
+			// A phase that fails before the world is built fails before an execution starts.
+			actuality: this.world === undefined ? INITIAL_ACTUALITY : this.world.runtime.actuality.state.get(),
 			shared: this.world?.shared,
 			tag: this.world?.tag,
 			failure: { stage, error: { message: PhaseRunner.formatError(error), details: { stack: error instanceof Error ? error.stack : undefined } } },

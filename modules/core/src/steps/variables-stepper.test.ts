@@ -6,17 +6,17 @@ import { DEFAULT_DEST, Origin } from "../schema/protocol.js";
 import Haibun from "./haibun.js";
 import LogicStepper from "./logic-stepper.js";
 import { OBSCURED_VALUE } from "../lib/steps/domains/secrets.js";
-import { SHARED_GRAPH } from "../lib/feature-variables.js";
+import { SHARED_GRAPH } from "../lib/actuality/pipelines/feature-variables.js";
 import { recordWithEdges } from "../lib/records/pipelines/record-reads.js";
 import { readFacts } from "../lib/records/pipelines/facts.js";
 import { Access, EDGE, FACT_LABEL, SEQ_PATH_LABEL } from "../lib/resources.js";
 import { readAction } from "../lib/actions.js";
-import { SEQ_PATH_FIELD } from "../lib/seq-path.js";
+import { SEQ_PATH_FIELD } from "../lib/actuality/domains/seq-path.js";
 import EventCollectorStepper from "../lib/test/EventCollectorStepper.js";
-import { dispatchStep } from "../lib/step-dispatch.js";
+import { dispatchStep } from "../lib/actuality/pipelines/step-dispatch.js";
 import { buildFeatureStepForTransport } from "../lib/steps/pipelines/call-step.js";
 import { StepRegistry } from "../lib/steps/pipelines/step-registry.js";
-import { addStepperConcerns } from "../phases/Executor.js";
+import { addStepperConcerns } from "../lib/actuality/pipelines/executor.js";
 
 const steppers = [VariablesStepper, Haibun, LogicStepper];
 

@@ -1,10 +1,10 @@
 import { z } from "zod";
-import type { TFeatures } from "../lib/execution.js";
-import type { TWorld } from "../lib/world.js";
+import type { TFeatures } from "../lib/actuality/domains/execution.js";
+import type { TWorld } from "../lib/actuality/domains/world.js";
 import { OK } from "../schema/protocol.js";
 import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TEndFeature, CycleWhen } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts, sleep } from "../lib/util/index.js";
-import { findFeatureStepsFromStatement } from "../phases/Resolver.js";
+import { findFeatureStepsFromStatement } from "../lib/actuality/pipelines/resolver.js";
 import {
 	DOMAIN_BACKGROUND_NAMES,
 	DOMAIN_DURATION,
@@ -32,7 +32,7 @@ import { shownTo } from "../lib/capability-context.js";
 import { validateStep } from "../lib/step-validation.js";
 import { Access, SEQ_PATH_LABEL } from "../lib/resources.js";
 import { recordOf } from "../lib/records/pipelines/record-reads.js";
-import { SEQ_PATH_FIELD, executionOf, formatRecordName } from "../lib/seq-path.js";
+import { SEQ_PATH_FIELD, executionOf, formatRecordName } from "../lib/actuality/domains/seq-path.js";
 import { itemAt } from "../lib/util/item-at.js";
 
 /** Whether a line resolves to one step, and the method of that step or why it doesn't resolve to exactly one. */

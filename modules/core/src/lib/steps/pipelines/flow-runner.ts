@@ -2,14 +2,15 @@
  * Runs statements and steps that a step runs within itself, such as a condition, a proof or an activity. Each runs as a
  * substep of the step that runs it, through dispatch, and inherits that step's intent.
  */
-import type { TStepInput } from "../../execution.js";
-import type { TWorld } from "../../world.js";
+import type { TStepInput } from "../../actuality/domains/execution.js";
+import type { TWorld } from "../../actuality/domains/world.js";
 import type { TSeqPath, TActionResult, TStepResult, ExecutionIntent } from "../../../schema/protocol.js";
 import type { AStepper, TFeatureStep } from "../domains/stepper.js";
 import { actionNotOK, errorDetail } from "../../util/index.js";
-import { Resolver } from "../../../phases/Resolver.js";
-import { nextSeqPath, syntheticSeqPathDirection } from "../../../phases/Executor.js";
-import { dispatchStep } from "../../step-dispatch.js";
+import { Resolver } from "../../actuality/pipelines/resolver.js";
+import { nextSeqPath } from "../../actuality/pipelines/step-dispatch.js";
+import { syntheticSeqPathDirection } from "../../actuality/domains/seq-path.js";
+import { dispatchStep } from "../../actuality/pipelines/step-dispatch.js";
 import { runRegistry, type StepRegistry } from "./step-registry.js";
 
 /** How a step runs: its intent, its parent step and its target host. */
@@ -39,7 +40,7 @@ export class FlowRunner {
 		private world: TWorld,
 		private steppers: AStepper[],
 	) {
-		this.resolver = new Resolver(steppers);
+		this.resolver = new Resolver(steppers, []);
 	}
 
 	/** Read at dispatch time: Executor assigns actuality's registry after the steppers' setWorld. */

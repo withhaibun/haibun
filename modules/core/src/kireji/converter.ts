@@ -1,6 +1,6 @@
 import { itemAt } from "../lib/util/item-at.js";
 import { AStepper } from "../lib/steps/domains/stepper.js";
-import { Resolver } from "../phases/Resolver.js";
+import { Resolver } from "../lib/actuality/pipelines/resolver.js";
 import { TActionExecutor, stepActions } from "./withAction.js";
 
 // A kireji feature: steps are either TActionExecutor functions or plain prose strings.
@@ -52,7 +52,7 @@ export const fromBdd = (bdd: string, steppers: AStepper[]): Promise<TkirejiFeatu
 		.map((l) => l.trim())
 		.filter((l) => l.length > 0);
 
-	const resolver = new Resolver(steppers);
+	const resolver = new Resolver(steppers, []);
 	const stepperActions = steppers.map(stepActions);
 
 	const kirejiSteps = steps.map((step) => {

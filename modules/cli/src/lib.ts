@@ -2,10 +2,13 @@ import nodeFS from "fs";
 import { newActualityId } from "@haibun/core/lib/rpc-wire.js";
 import path from "node:path";
 
-import { type TSpecl, SpeclSchema } from "@haibun/core/lib/execution.js";
+import { type TSpecl, type TFeaturesBackgrounds, SpeclSchema } from "@haibun/core/lib/execution.js";
+import { BASE_WITHOUT_FEATURES } from "@haibun/core/lib/actuality/ports.js";
 import { BaseOptionsSchema, type TBase, type TBaseOptions, type TModuleOptions, type TProtoOptions, type TWorld } from "@haibun/core/lib/world.js";
 import { BASE_PREFIX, CHECK_NO, CHECK_YES, DEFAULT_DEST, MODULE_OPTION_PREFIX, NDJSON, RECORDED_STATUS, STAY, Timer, TExecutorResult } from "@haibun/core/schema/protocol.js";
-import { staysAfterExecution } from "@haibun/core/phases/Executor.js";
+import { staysAfterExecution } from "@haibun/core/lib/actuality/derivations/execution-end.js";
+import { actualityMachine } from "@haibun/core/lib/actuality/machines/actuality.js";
+import { actualityClock, featureSource } from "@haibun/core/lib/actuality/root.js";
 import { IHasOptions } from "@haibun/core/lib/astepper.js";
 import { resolveSitePrincipal } from "@haibun/core/lib/host-id.js";
 import { formattedSteppers, getPre, getDefaultOptions, basesFrom, verifyRequiredOptions, verifyExtraOptions, errorDetail } from "@haibun/core/lib/util/index.js";
@@ -21,7 +24,6 @@ import { eventSink } from "@haibun/core/lib/steps/root.js";
 import { OPTION_RUN_POLICY, OPTION_DRY_RUN, HAIBUN_RUN_POLICY, parseRunPolicyArgs, parseRunPolicyEnv, type TRunPolicyConfig } from "@haibun/core/run-policy/run-policy-types.js";
 import { loadAndValidateRunPolicy } from "@haibun/core/run-policy/run-policy-schema.js";
 import { PhaseRunner, PhaseBailError } from "@haibun/core/lib/PhaseRunner.js";
-import { BASE_WITHOUT_FEATURES, getFeaturesAndBackgrounds, TFeaturesBackgrounds } from "@haibun/core/phases/collector.js";
 import { withName } from "@haibun/core/lib/features.js";
 import { forgetOutcome, outcomeAgainst, recordOutcome, verificationOf } from "./verified.js";
 import { recordTimings, varianceLine } from "./timings.js";
@@ -220,16 +222,14 @@ async function reportAndExit(executorResult: TExecutorResult, world: TWorld, pro
 function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 	const { KEY: keyIn } = protoOptions.options;
 	const tag = getDefaultTag();
-	const timer = new Timer();
-
 	Timer.key = keyIn || Timer.key;
 
 	const world: Partial<TWorld> = {
 		tag,
-		runtime: { actualityId: newActualityId(), stepResults: [], keys: { principal: resolveSitePrincipal() } },
+		runtime: { actualityId: newActualityId(), actuality: actualityMachine(), stepResults: [], steps: { count: 0 }, seqPaths: new Map(), keys: { principal: resolveSitePrincipal() } },
 		prompter: new Prompter(),
 		...protoOptions,
-		timer,
+		clock: actualityClock(),
 		bases,
 	};
 	world.eventLogger = new EventLogger(secretsOf(world), eventSink(), protoOptions.options[NDJSON] === true);
@@ -350,16 +350,16 @@ const emptyIfNoFeatures = (e: unknown): TFeaturesBackgrounds => {
  * run against the base's backgrounds.
  */
 export async function collect(bases: TBase, featureFilter: string[] | undefined, statements: string[], policyConfig?: TRunPolicyConfig): Promise<TFeaturesBackgrounds> {
-	if (statements.length === 0) return await getFeaturesAndBackgrounds(bases, featureFilter, policyConfig);
+	if (statements.length === 0) return await featureSource().collect(bases, featureFilter, policyConfig);
 	const statementFeature = withName(bases[0] ?? ".", "statement.feature", statements.join("\n"));
 	if (featureFilter) {
-		const collected = await getFeaturesAndBackgrounds(bases, featureFilter, policyConfig);
+		const collected = await featureSource().collect(bases, featureFilter, policyConfig);
 		return { features: [...collected.features, statementFeature], backgrounds: collected.backgrounds };
 	}
 	// A filter that doesn't match a feature collects the base's backgrounds alone. Statements still run against a base
 	// that doesn't exist or doesn't hold features or backgrounds. emptyIfNoFeatures rethrows any other collector error.
 	const holdsNothing = !nodeFS.existsSync(bases[0] ?? ".");
-	const backgrounds = holdsNothing ? [] : (await getFeaturesAndBackgrounds(bases, [NO_FEATURE_MATCHES], policyConfig).catch(emptyIfNoFeatures)).backgrounds;
+	const backgrounds = holdsNothing ? [] : (await featureSource().collect(bases, [NO_FEATURE_MATCHES], policyConfig).catch(emptyIfNoFeatures)).backgrounds;
 	return { features: [statementFeature], backgrounds };
 }
 

@@ -1,20 +1,26 @@
-import type { TExpandedFeature, TExpandedLine, TFeatures, TFeature } from "../lib/execution.js";
-import type { TWorld } from "../lib/world.js";
-import { TStepValue, FEATURE_START, SCENARIO_START, Origin } from "../schema/protocol.js";
-import { AStepper, TStepAction, TResolvedFeature, TStepperStep, TFeatureStep } from "../lib/steps/domains/stepper.js";
-import { matchGwtaToAction, getMatch } from "../lib/steps/derivations/named-vars.js";
-import { getActionable, dePolite, constructorName, actionNotOK, asError, errorDetail } from "../lib/util/index.js";
-import { itemAt } from "../lib/util/item-at.js";
-import { DOMAIN_STATEMENT } from "../lib/domains.js";
-import { heldPerEntries } from "../lib/steps/derivations/held-per-entries.js";
-import { expandLine } from "../lib/features.js";
+import type { TExpandedFeature, TExpandedLine, TFeatures, TFeature } from "../domains/execution.js";
+import type { TWorld } from "../domains/world.js";
+import { TStepValue, FEATURE_START, SCENARIO_START, Origin } from "../../../schema/protocol.js";
+import { AStepper, TStepAction, TResolvedFeature, TStepperStep, TFeatureStep } from "../../steps/domains/stepper.js";
+import { matchGwtaToAction, getMatch } from "../../steps/derivations/named-vars.js";
+import { getActionable, dePolite, constructorName, actionNotOK, asError, errorDetail } from "../../util/index.js";
+import { itemAt } from "../../util/item-at.js";
+import { DOMAIN_STATEMENT } from "../../domains.js";
+import { heldPerEntries } from "../../steps/derivations/held-per-entries.js";
+import { expandLine } from "../../features.js";
 
 /** Matches a line written as a sentence. A sentence starts with a capital letter and ends with `.`, `!`, `?`, `:` or `;`. */
 const SENTENCE = /^[A-Z].*[.!?:;]$/;
 /** Matches a line that starts with a character other than a letter. A heading, a list item, a table row and a link start this way. */
 const STARTS_WITH_NON_LETTER = /^[^a-zA-Z]/;
 /** Returns whether a step's pattern starts with a capital letter. The pattern of the `Scenario:` heading step starts with one. */
-const writtenCapitalized = (step: TStepperStep) => /^[A-Z]/.test(step.gwta ?? step.exact ?? "");
+const writtenCapitalized = (step: TStepperStep): boolean => {
+	const pattern = step.gwta ?? step.exact;
+	return pattern !== undefined && /^[A-Z]/.test(pattern);
+};
+
+/** The base of a statement a caller sent without a source file, such as over RPC or MCP: an empty path. */
+const WITHOUT_SOURCE = "";
 
 export class Resolver {
 	public backgroundWarnings: { path: string; line: string; error: string }[] = [];
@@ -25,7 +31,7 @@ export class Resolver {
 	 */
 	constructor(
 		private steppers: AStepper[],
-		private backgrounds: TFeatures = [],
+		private backgrounds: TFeatures,
 		private offers?: (stepperName: string, actionName: string, step: TStepperStep) => boolean,
 	) {
 		// Resolves each background line so steppers register their metadata. A waypoint statement is one kind of metadata.
@@ -162,7 +168,7 @@ export class Resolver {
 		return { steps, errors };
 	}
 	/**
-	 * Returns the one step a line resolves to. The form of a line determines whether it is prose. A sentence matches only a
+	 * Returns the one step that a line matches. The form of a line determines whether it is prose. A sentence matches only a
 	 * step whose pattern starts with a capital letter. The sentence `Scenario: Sign in.` matches the `Scenario:` heading
 	 * step. A sentence that doesn't match such a step resolves to a prose step. A line that starts with a character other
 	 * than a letter resolves to a prose step when it doesn't match a step. A pattern matches a line after `dePolite`
@@ -183,7 +189,8 @@ export class Resolver {
 	 * text without them doesn't match a step and its text with them does.
 	 */
 	private withStatementsAsWritten(action: TStepAction): TStepAction {
-		for (const value of Object.values(action.stepValuesMap ?? {})) {
+		if (action.stepValuesMap === undefined) return action;
+		for (const value of Object.values(action.stepValuesMap)) {
 			// Only a statement that contains a quote can lose the quotes of its own terms, so other statements aren't matched again.
 			if (value.domain !== DOMAIN_STATEMENT || value.origin !== Origin.quoted || !value.term?.includes('"')) continue;
 			const written = `"${value.term}"`;
@@ -209,7 +216,7 @@ export class Resolver {
 			}
 			// Removes each step that another candidate precludes when several candidates remain.
 			if (stepActions.length > 1) {
-				const precludes = stepActions.flatMap((a) => a.step.precludes ?? []);
+				const precludes = stepActions.flatMap((a) => (a.step.precludes === undefined ? [] : a.step.precludes));
 				stepActions = stepActions.filter((a) => !precludes.includes(`${a.stepperName}.${a.actionName}`));
 			}
 			if (stepActions.length !== 1) {
@@ -253,7 +260,10 @@ export class Resolver {
 
 	private findActionableSteps(actionable: string): TStepAction[] {
 		const curt = dePolite(actionable);
-		return this.offeredSteps().flatMap(({ step, actionName, stepperName }) => this.stepApplies(step, actionable, curt, actionName, stepperName) ?? []);
+		return this.offeredSteps().flatMap(({ step, actionName, stepperName }) => {
+			const applied = this.stepApplies(step, actionable, curt, actionName, stepperName);
+			return applied === undefined ? [] : [applied];
+		});
 	}
 
 	/** Returns the steps that declare `prose` in place of a pattern. A prose line resolves to one of them. */
@@ -284,7 +294,7 @@ export class Resolver {
 }
 
 function getActionableStatement(steppers: AStepper[], statement: string, path: string, seqPath: number[], lineNumber?: number) {
-	const resolver = new Resolver(steppers);
+	const resolver = new Resolver(steppers, []);
 	const action = resolver.findSingleStepAction(statement);
 	const step = action.step;
 
@@ -293,7 +303,7 @@ function getActionableStatement(steppers: AStepper[], statement: string, path: s
 	return { featureStep, steppers };
 }
 
-export function findFeatureStepsFromStatement(statement: string, steppers: AStepper[], world: TWorld, base: string | undefined, seqStart: number[], inc = 1): TFeatureStep[] {
+export function findFeatureStepsFromStatement(statement: string, steppers: AStepper[], world: TWorld, base: string | undefined, seqStart: number[], inc: 1 | -1): TFeatureStep[] {
 	const featureSteps: TFeatureStep[] = [];
 	if (!world.runtime.backgrounds) {
 		throw new Error("runtime.backgrounds is undefined, so an inline Backgrounds: line can't expand. Set world.runtime.backgrounds before resolving a statement.");
@@ -302,7 +312,7 @@ export function findFeatureStepsFromStatement(statement: string, steppers: AStep
 	// world.runtime.backgrounds. A regular statement takes its source path from the context. The `base` argument holds the
 	// full path. contextFeature.base holds that path, and contextFeature.path is empty. A statement passed to a step called
 	// over RPC or MCP doesn't have a source file, so its base path is empty.
-	const contextFeature: TFeature = { path: "", base: base ?? "", name: "statement-context", content: statement };
+	const contextFeature: TFeature = { path: "", base: base === undefined ? WITHOUT_SOURCE : base, name: "statement-context", content: statement };
 	const expanded = expandLine(statement, undefined, world.runtime.backgrounds, contextFeature);
 	// Increments the last segment of seqStart by inc for each expanded line that resolves to a step.
 	const prefix = seqStart.slice(0, -1);
@@ -322,7 +332,7 @@ export function findFeatureStepsFromStatement(statement: string, steppers: AStep
 				seqPath,
 				// The line didn't resolve to a step, so it becomes a Resolver error step. The registry doesn't hold that step. Its
 				// action returns the resolution error.
-				action: { actionName: "error", stepperName: "Resolver", step: { description: why, action: async () => actionNotOK(why) } },
+				action: { actionName: "error", stepperName: "Resolver", step: { description: why, action: async () => actionNotOK(`"${x.line}" doesn't resolve to a step: ${why}`) } },
 			});
 		}
 	}

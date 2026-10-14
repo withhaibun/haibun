@@ -1,22 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { foldStep } from "../lib/step-dispatch.js";
-import { STAY_ALWAYS, STAY_FAILURE, type TFeatureResult, type TFeatureSteps, type TStepResult } from "../schema/protocol.js";
-import {
-	Executor,
-	advanceSyntheticSeqPath,
-	featureSyntheticSeqPath,
-	nextSeqPath,
-	calculateShouldClose,
-	staysAfterExecution,
-	syntheticBranchSeqPath,
-	syntheticSeqPathDirection,
-} from "./Executor.js";
-import { passWithDefaults, failWithDefaults } from "../lib/test/lib.js";
-import { AStepper } from "../lib/steps/domains/stepper.js";
-import { actionNotOK, actionOK } from "../lib/util/index.js";
-import { DOMAIN_TEXT } from "../lib/domains.js";
-import { itemAt } from "../lib/util/item-at.js";
+import { nextSeqPath } from "./step-dispatch.js";
+import { foldStep } from "../derivations/step-results.js";
+import { STAY_ALWAYS, STAY_FAILURE, type TFeatureResult, type TFeatureSteps, type TStepResult } from "../../../schema/protocol.js";
+import { calculateShouldClose, executionFailure, staysAfterExecution } from "../derivations/execution-end.js";
+import { advanceSyntheticSeqPath, syntheticBranchSeqPath, syntheticSeqPathDirection } from "../domains/seq-path.js";
+import { passWithDefaults, failWithDefaults } from "../../test/lib.js";
+import { AStepper } from "../../steps/domains/stepper.js";
+import { actionNotOK, actionOK } from "../../util/index.js";
+import { DOMAIN_TEXT } from "../../domains.js";
+import { itemAt } from "../../util/item-at.js";
 
 describe("syntheticSeqPathDirection", () => {
 	it("uses positive direction for authoritative branches", () => {
@@ -28,23 +21,9 @@ describe("syntheticSeqPathDirection", () => {
 	});
 });
 
-describe("featureSyntheticSeqPath", () => {
-	it("creates a feature-scoped synthetic branch that starts with hostId 0 by default", () => {
-		expect(featureSyntheticSeqPath(3, 2)).toEqual([0, 3, 0, 2]);
-	});
-
-	it("accepts a non-default synthetic branch", () => {
-		expect(featureSyntheticSeqPath(3, 2, -1)).toEqual([0, 3, -1, 2]);
-	});
-
-	it("accepts an explicit hostId, so synthetic paths from different hosts don't collide", () => {
-		expect(featureSyntheticSeqPath(3, 2, 0, 7)).toEqual([7, 3, 0, 2]);
-	});
-});
-
 describe("syntheticBranchSeqPath", () => {
 	it("creates an authoritative branch under a parent step", () => {
-		expect(syntheticBranchSeqPath([1, 1, 2])).toEqual([1, 1, 2, 1]);
+		expect(syntheticBranchSeqPath([1, 1, 2], 1)).toEqual([1, 1, 2, 1]);
 	});
 
 	it("creates a speculative branch under a parent step", () => {
@@ -54,7 +33,7 @@ describe("syntheticBranchSeqPath", () => {
 
 describe("advanceSyntheticSeqPath", () => {
 	it("advances an authoritative synthetic branch", () => {
-		expect(advanceSyntheticSeqPath([1, 1, 2, 1])).toEqual([1, 1, 2, 2]);
+		expect(advanceSyntheticSeqPath([1, 1, 2, 1], 1)).toEqual([1, 1, 2, 2]);
 	});
 
 	it("advances a speculative synthetic branch", () => {
@@ -63,20 +42,20 @@ describe("advanceSyntheticSeqPath", () => {
 });
 
 describe("the path allocated under a parent step", () => {
-	const aWorld = () => ({ runtime: {} }) as unknown as Parameters<typeof nextSeqPath>[0];
+	const aWorld = () => ({ runtime: { seqPaths: new Map<string, number>() } }) as unknown as Parameters<typeof nextSeqPath>[0];
 
 	it("starts at one under a parent and advances by one for each allocation", () => {
 		const world = aWorld();
-		expect(nextSeqPath(world, [1, 2])).toEqual([1, 2, 1]);
-		expect(nextSeqPath(world, [1, 2])).toEqual([1, 2, 2]);
-		expect(nextSeqPath(world, [1, 2])).toEqual([1, 2, 3]);
+		expect(nextSeqPath(world, [1, 2], 1)).toEqual([1, 2, 1]);
+		expect(nextSeqPath(world, [1, 2], 1)).toEqual([1, 2, 2]);
+		expect(nextSeqPath(world, [1, 2], 1)).toEqual([1, 2, 3]);
 	});
 
 	it("counts each parent separately", () => {
 		const world = aWorld();
-		expect(nextSeqPath(world, [1])).toEqual([1, 1]);
-		expect(nextSeqPath(world, [2])).toEqual([2, 1]);
-		expect(nextSeqPath(world, [1])).toEqual([1, 2]);
+		expect(nextSeqPath(world, [1], 1)).toEqual([1, 1]);
+		expect(nextSeqPath(world, [2], 1)).toEqual([2, 1]);
+		expect(nextSeqPath(world, [1], 1)).toEqual([1, 2]);
 	});
 
 	it("counts a speculative substep in the negative direction", () => {
@@ -94,9 +73,9 @@ describe("the path allocated under a parent step", () => {
 
 	it("takes constant time however many steps the feature has executed, because it counts instead of searching", () => {
 		const world = aWorld();
-		for (let i = 0; i < 20000; i++) nextSeqPath(world, [1, i % 50]);
+		for (let i = 0; i < 20000; i++) nextSeqPath(world, [1, i % 50], 1);
 		const began = performance.now();
-		for (let i = 0; i < 1000; i++) nextSeqPath(world, [1, i % 50]);
+		for (let i = 0; i < 1000; i++) nextSeqPath(world, [1, i % 50], 1);
 		expect(performance.now() - began, "a thousand allocations after twenty thousand allocations").toBeLessThan(50);
 	});
 });
@@ -172,7 +151,7 @@ describe("calculateShouldClose", () => {
 	});
 });
 
-describe("createExecutionFailure", () => {
+describe("executionFailure", () => {
 	const step = (seqPath: number[], ok: boolean, errorMessage?: string) => ({ ok, errorMessage, in: `step ${seqPath.join(".")}`, seqPath }) as unknown as TStepResult;
 	// The helper reduces each step result with foldStep. dispatchStep calls foldStep in actuality.
 	const feature = (stepResults: TStepResult[]) => {
@@ -184,13 +163,13 @@ describe("createExecutionFailure", () => {
 	it("names the failed feature step instead of an earlier failed synthetic dispatch", () => {
 		// A synthetic dispatch carries a negative seqPath segment. A model's tool call and an RPC dispatch are synthetic
 		// dispatches. The step that made the dispatch can handle its failure. A handled failure doesn't fail actuality.
-		const failure = Executor.createExecutionFailure(feature([step([0, -1, 1], false, "tool call failed"), step([0, 2, 4], false, "the real failure")]));
+		const failure = executionFailure(feature([step([0, -1, 1], false, "tool call failed"), step([0, 2, 4], false, "the real failure")]));
 		expect(failure?.error.message).toBe("the real failure");
 		expect(failure?.error.details.seqPath).toEqual([0, 2, 4]);
 	});
 
 	it("names a failed synthetic dispatch when a feature step didn't fail, so actuality still reports a failure", () => {
-		const failure = Executor.createExecutionFailure(feature([step([0, -1, 1], false, "only this failed")]));
+		const failure = executionFailure(feature([step([0, -1, 1], false, "only this failed")]));
 		expect(failure?.error.message).toBe("only this failed");
 	});
 });
@@ -218,5 +197,39 @@ describe("the hash of a feature's declared step text", () => {
 		const hashAfterRefusal = async (last: string) =>
 			itemAt((await failWithDefaults([{ path: "/features/refused.feature", content: `note one\nrefuse here\n${last}` }], [NotingStepper])).featureResults, 0).declaredStepTextHash;
 		expect(await hashAfterRefusal("note three")).not.toBe(await hashAfterRefusal("note four"));
+	});
+});
+
+describe("the actuality the Executor moves", () => {
+	class SceneStepper extends AStepper {
+		description = "Starts a scenario, notes a text, and refuses.";
+		steps = {
+			scenario: { gwta: `Scenario: {what: ${DOMAIN_TEXT}}`, action: () => Promise.resolve(actionOK()) },
+			note: { gwta: `note {what: ${DOMAIN_TEXT}}`, action: () => Promise.resolve(actionOK()) },
+			refuse: { gwta: "refuse here", action: () => Promise.resolve(actionNotOK("refused")) },
+		};
+	}
+
+	it("starts and ends the execution, each feature and each scenario, so its result holds every level ended", async () => {
+		const result = await failWithDefaults(
+			[
+				{ path: "/features/a.feature", content: 'note "one"\nScenario: "first"\nnote "two"\nScenario: "second"\nnote "three"' },
+				{ path: "/features/b.feature", content: 'note "one"\nrefuse here' },
+			],
+			[SceneStepper],
+		);
+		const { actuality } = result;
+		expect(actuality.status).toBe("failed");
+		expect(actuality.open.size, "every step that started has ended").toBe(0);
+		expect(actuality.features.map((f) => [f.id, f.status, f.steps, f.failed])).toEqual([
+			// A scenario heading is a level of its own, so its line counts as a scenario and not as a step.
+			["feat-1", "completed", 3, 0],
+			["feat-2", "failed", 2, 1],
+		]);
+		expect(actuality.features[0]?.scenarios.map((s) => [s.name, s.status])).toEqual([
+			['"first"', "completed"],
+			['"second"', "completed"],
+		]);
+		expect(actuality.features[1]?.firstFailure).toMatchObject({ step: "refuse here", message: "refused" });
 	});
 });

@@ -3,7 +3,7 @@
  * value its domain refuses, is a refusal that names the step, the parameter and the cause.
  */
 import type { AStepper, TFeatureStep } from "../domains/stepper.js";
-import type { TWorld } from "../../world.js";
+import type { TWorld } from "../../actuality/domains/world.js";
 import type { TStepArgs, TStepValue } from "../../../schema/protocol.js";
 import { DOMAIN_STRING, DOMAIN_VARIABLE_VALUE, domainParts, isPrimitiveDomain, paramDomainKey, registeredDomain } from "../../domains.js";
 import { errorDetail } from "../../util/index.js";

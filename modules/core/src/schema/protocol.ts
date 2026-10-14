@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { AccessLevelSchema } from "../lib/resources.js";
 import type { TRemedy } from "../lib/rpc-wire.js";
+import type { TActuality } from "../lib/actuality/machines/actuality.js";
 
 // ============================================================================
 // Constants
@@ -414,7 +415,6 @@ export type TFeatureSteps = {
 };
 
 export type TFeatureResult = {
-	skip?: boolean;
 	path: string;
 	ok: boolean;
 	/** The summary of its steps. */
@@ -432,6 +432,9 @@ export type TFeatureResult = {
 
 export type TExecutorResult = {
 	ok: boolean;
+	/** The execution's levels as the actuality machine holds them once the execution ended, or as they stood where a phase
+	 *  before the execution failed. */
+	actuality: TActuality;
 	tag: unknown;
 	shared: unknown;
 	featureResults: TFeatureResult[];

@@ -1,7 +1,7 @@
 import path, { dirname } from "path";
 import nodeFS from "fs";
 
-import { type TStepperEntry } from "../../execution.js";
+import { type TStepperEntry } from "../../actuality/domains/execution.js";
 import { CStepper } from "../../steps/domains/stepper.js";
 import { createSteppers } from "../index.js";
 import { use } from "./module-loader.js";

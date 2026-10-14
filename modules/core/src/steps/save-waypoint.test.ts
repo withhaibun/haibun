@@ -9,7 +9,7 @@ import { actionOK } from "../lib/util/index.js";
 import { buildFeatureStepForTransport } from "../lib/steps/pipelines/call-step.js";
 import { runRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { stepMethodName } from "../lib/steps/domains/step-method.js";
-import { dispatchStep } from "../lib/step-dispatch.js";
+import { dispatchStep } from "../lib/actuality/pipelines/step-dispatch.js";
 import ActivitiesStepper, { SAVED_WAYPOINT_LABEL } from "./activities-stepper.js";
 import AuthorityStepper from "./authority-stepper.js";
 import { ACTIVITIES_ACTIONS, ACTIVITIES_STEPPER } from "./activities-actions.js";

@@ -19,7 +19,8 @@ import os from "node:os";
 import path from "node:path";
 import { getConfigFromBase, processBaseEnvToOptionsAndErrors } from "./lib.js";
 import { recordOutcome, verificationOf } from "./verified.js";
-import { emptyOutcome, accrueRunOutcome } from "./run-outcome.js";
+import { emptyOutcome, readRunOutput } from "./run-outcome.js";
+import { executionEnded } from "@haibun/core/lib/actuality/machines/actuality.js";
 import type { ChildProcess } from "child_process";
 import { EventEmitter } from "node:events";
 
@@ -32,9 +33,9 @@ class SupervisorWithHeldRun extends InstanceStepper {
 		const waiters: Array<() => void> = [];
 		const take = (text: string) => {
 			tail.append(text);
-			const wasFinished = outcome.finished;
-			accrueRunOutcome(outcome, text);
-			if (!wasFinished && outcome.finished) for (const wake of waiters.splice(0)) wake();
+			const wasFinished = executionEnded(outcome.actuality);
+			readRunOutput(outcome, text);
+			if (!wasFinished && executionEnded(outcome.actuality)) for (const wake of waiters.splice(0)) wake();
 		};
 		take(said);
 		// A held run replaces a forked run in these tests. Its EventEmitter child emits `exit` when the held run ends, as a
@@ -290,13 +291,13 @@ describe("waiting for a run", () => {
 });
 
 describe("a run left standing", () => {
-	it("is finished when its features finish, since its process doesn't exit", async () => {
+	it("is done when its execution ends, since its process doesn't exit", async () => {
 		const s = stepper();
 		const { say } = s.hold("standing-run", "");
 		const waited = (s.steps.waitRun.action as (a: { run: string; seconds: number; cursor: number }) => Promise<TRead>)({ run: "standing-run", seconds: 30, cursor: 0 });
-		setTimeout(() => say('{"kind":"lifecycle","stage":"end","status":"completed","type":"execution"}\n'), 5);
+		setTimeout(() => say('{"id":"execution-end","kind":"lifecycle","stage":"end","status":"completed","type":"execution"}\n'), 5);
 		const result = await waited;
-		expect(result.products?.finished, "the child reported its features finished, and its process kept serving").toBe(true);
+		expect(result.products?.execution, "the child reported its execution ended, and its process kept serving").toBe("completed");
 		expect(result.products?.status, "the process didn't exit, so it is still running").toBe("running");
 	});
 });

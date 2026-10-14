@@ -1,12 +1,12 @@
 import { z } from "zod";
 
-import { runEnvVariables, type TWorld } from "../lib/world.js";
+import { runEnvEntries, runEnvVariable, type TWorld } from "../lib/actuality/domains/world.js";
 import { OK, Origin, TProvenanceIdentifier, TOrigin, TActionResult, TStepValue, type TStepValueValue } from "../schema/protocol.js";
 import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TStartScenario } from "../lib/steps/domains/stepper.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getStepTerm, errorDetail } from "../lib/util/index.js";
 import { itemAt } from "../lib/util/item-at.js";
 import { FlowRunner } from "../lib/steps/pipelines/flow-runner.js";
-import { FeatureVariables, statedValue } from "../lib/feature-variables.js";
+import { FeatureVariables, statedValue } from "../lib/actuality/pipelines/feature-variables.js";
 import { OBSCURED_VALUE } from "../lib/steps/domains/secrets.js";
 import { sanitizeObjectSecrets } from "../lib/util/secret-utils.js";
 import {
@@ -231,9 +231,8 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: "show env",
 			productsDomain: DOMAIN_ENV_SNAPSHOT,
 			action: () => {
-				const envVars = runEnvVariables(this.getWorld());
 				const shared = this.getWorld().shared;
-				const safeEnv = sanitizeObjectSecrets(envVars, (key) => shared.isSecret(key));
+				const safeEnv = sanitizeObjectSecrets(Object.fromEntries(runEnvEntries(this.getWorld())), (key) => shared.isSecret(key));
 				return actionOKWithProducts({ env: safeEnv });
 			},
 		},
@@ -344,8 +343,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				// `bar` key is defined, contradicting the rest of the variables-stepper.
 				const resolved = await this.getWorld().shared.resolveVariable({ term, origin: Origin.var }, featureStep);
 				if (resolved.value !== undefined) return OK;
-				const envVars = runEnvVariables(this.getWorld());
-				return envVars[term] !== undefined ? OK : actionNotOK(`the variable ${term} isn't set, and the environment doesn't hold it`);
+				return runEnvVariable(this.getWorld(), term) !== undefined ? OK : actionNotOK(`the variable ${term} isn't set, and the environment doesn't hold it`);
 			},
 		},
 		showVar: {

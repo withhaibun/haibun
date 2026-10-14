@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { z } from "zod";
 import { FeatureVariables } from "./feature-variables.js";
-import type { TWorld } from "./world.js";
-import { TFeatureStep } from "./steps/domains/stepper.js";
-import { TStepValue, Origin } from "../schema/protocol.js";
-import { getDefaultWorld } from "./test/lib.js";
-import { DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STRING, registerDomains } from "./domains.js";
-import { Access, DOMAIN_PERSISTED_TYPE } from "./resources.js";
-import { executionOf, formatRecordName } from "./seq-path.js";
+import type { TWorld } from "../domains/world.js";
+import { TFeatureStep } from "../../steps/domains/stepper.js";
+import { TStepValue, Origin } from "../../../schema/protocol.js";
+import { getDefaultWorld } from "../../test/lib.js";
+import { DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STRING, registerDomains } from "../../domains.js";
+import { Access, DOMAIN_PERSISTED_TYPE } from "../../resources.js";
+import { executionOf, formatRecordName } from "../domains/seq-path.js";
 
 describe("FeatureVariables", () => {
 	let world: TWorld;
@@ -31,9 +31,9 @@ describe("FeatureVariables", () => {
 		});
 
 		it("should initialize with initial values", async () => {
-			const initial: { [name: string]: TStepValue } = { foo: { term: "foo", value: "bar", domain: DOMAIN_STRING, origin: Origin.var } };
-			const vars = new FeatureVariables(world, initial);
-			expect(await vars.all()).toEqual(initial);
+			const foo: TStepValue = { term: "foo", value: "bar", domain: DOMAIN_STRING, origin: Origin.var };
+			const vars = new FeatureVariables(world, { foo: { ...foo, generatedBy: [] } });
+			expect(await vars.all()).toEqual({ foo });
 		});
 	});
 

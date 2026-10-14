@@ -16,7 +16,7 @@ import { stubVerifier } from "../lib/test/fake-authority.js";
 import AuthorityStepper from "./authority-stepper.js";
 import LogicStepper from "./logic-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
-import { addStepperConcerns } from "../phases/Executor.js";
+import { addStepperConcerns } from "../lib/actuality/pipelines/executor.js";
 import { DOMAIN_TEXT } from "../lib/domains.js";
 import { readAction } from "../lib/actions.js";
 import { Access } from "../lib/resources.js";

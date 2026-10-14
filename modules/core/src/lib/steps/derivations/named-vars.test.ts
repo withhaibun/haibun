@@ -3,7 +3,7 @@ import { describe, it, test, expect } from "vitest";
 import { OK, TStepArgs, Origin, TEST_BASE } from "../../../schema/protocol.js";
 import { AStepper, TStepperStep } from "../domains/stepper.js";
 import { getNamedMatches, namedInterpolation } from "./named-vars.js";
-import { Resolver } from "../../../phases/Resolver.js";
+import { Resolver } from "../../actuality/pipelines/resolver.js";
 import { actionNotOK, createSteppers } from "../../util/index.js";
 import { getDefaultWorld } from "../../test/lib.js";
 import { asExpandedFeatures } from "../../resolver-features.js";
@@ -45,7 +45,7 @@ describe("getNamedWithVars", () => {
 	const world = getDefaultWorld();
 	test("gets var", async () => {
 		const steppers = createSteppers([TestStepper]);
-		const resolver = new Resolver(steppers);
+		const resolver = new Resolver(steppers, []);
 		await world.shared.set({ term: "exact", value: "res", domain: DOMAIN_STRING, origin: Origin.var }, { seq: [0], when: "test" });
 		const features = asExpandedFeatures([withName(TEST_BASE, "l1", "is `exact`")]);
 		const steps = await resolver.resolveStepsFromFeatures(features);

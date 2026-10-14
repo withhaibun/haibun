@@ -1,6 +1,6 @@
 import { z } from "zod";
-import type { TSpecl } from "../execution.js";
-import type { TWorld, TRuntime, TModuleOptions } from "../world.js";
+import type { TSpecl } from "../actuality/domains/execution.js";
+import type { TWorld, TRuntime, TModuleOptions } from "../actuality/domains/world.js";
 import { TActionResult, OK, TDebugSignal, MODULE_OPTION_PREFIX } from "../../schema/protocol.js";
 import { IHasOptions, AStepper, CStepper, TFeatureStep } from "../steps/domains/stepper.js";
 import { TArtifactEvent, type TJsonArtifact } from "../../schema/protocol.js";

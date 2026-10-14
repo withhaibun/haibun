@@ -32,7 +32,7 @@ const steppers = createSteppers([
 	UrakataStepper,
 	WebPlaywright,
 ]);
-const resolver = new Resolver(steppers);
+const resolver = new Resolver(steppers, []);
 
 /** A step's parameters, by name, with the domain each takes. */
 const paramsOf = (gwta: string): Array<[string, string | undefined]> =>

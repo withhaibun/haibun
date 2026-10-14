@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { EventLogger } from "./event-logger.js";
-import { TFeatureStep } from "../domains/stepper.js";
 import { OBSCURED_VALUE } from "../domains/secrets.js";
 import type { TEventSink, TSecrets } from "../ports.js";
 import { serializedEvent } from "../derivations/serialized-event.js";
@@ -10,137 +9,22 @@ import { readAction, writeAction } from "../../actions.js";
 import { Access } from "../../resources.js";
 import { itemAt } from "../../util/item-at.js";
 
-const OK = { ok: true as const };
-
-/** The secrets a test hub obscures: the names that mark a value secret, and the secret values actuality holds. */
-const secretsOf = (names: readonly string[], values: readonly string[]): TSecrets => ({ isSecret: (name) => names.includes(name), values: () => values });
+/** The secrets a test hub obscures: the secret values actuality holds. */
+const secretsOf = (values: readonly string[]): TSecrets => ({ values: () => values });
 /** A sink that holds each text the hub writes. */
 const heldSink = (): TEventSink & { written: string[] } => {
 	const written: string[] = [];
 	return { written, write: (serialized) => written.push(serialized) };
 };
 /** A hub that doesn't hold a secret and writes to a sink a test doesn't read. */
-const plainLogger = () => new EventLogger(secretsOf([], []), heldSink(), false);
+const plainLogger = () => new EventLogger(secretsOf([]), heldSink(), false);
 
 describe("EventLogger", () => {
 	let logger: EventLogger;
 
 	beforeEach(() => {
-		logger = new EventLogger(secretsOf(["password", "apiKey"], []), heldSink(), false);
+		logger = new EventLogger(secretsOf([]), heldSink(), false);
 		logger.suppressConsole = true;
-	});
-
-	describe("obscure secret values", () => {
-		// The mock is partial, so it is cast through unknown to TFeatureStep.
-		const mockFeatureStep = {
-			source: { path: "/test/feature.ts", lineNumber: 1 },
-			in: 'set password to "secret123"',
-			seqPath: [1, 1, 1],
-			action: { actionName: "set", stepperName: "VariablesStepper", step: { gwta: "set {what} to {value}", action: async () => OK } },
-		} as unknown as TFeatureStep;
-
-		it("should obscure secret values in stepStart", () => {
-			const emitted: unknown[] = [];
-			logger.subscribe((event) => emitted.push(event));
-
-			const stepValuesMap = {
-				password: { term: "password", value: "secret123", domain: "string", origin: "var" },
-				username: { term: "username", value: "testuser", domain: "string", origin: "var" },
-			};
-
-			logger.stepStart(mockFeatureStep, "VariablesStepper", "set", stepValuesMap, false);
-
-			expect(emitted.length).toBe(1);
-			const event = emitted[0] as { stepValuesMap?: Record<string, { value: unknown }> };
-			expect(event.stepValuesMap).toBeDefined();
-			expect(event.stepValuesMap?.password?.value).toBe(OBSCURED_VALUE);
-			expect(event.stepValuesMap?.username?.value).toBe("testuser");
-		});
-
-		it("should obscure secret values in stepEnd", () => {
-			const emitted: unknown[] = [];
-			logger.subscribe((event) => emitted.push(event));
-
-			const stepValuesMap = {
-				apiKey: { term: "apiKey", value: "key-abc-123", domain: "string", origin: "var" },
-				count: { term: "count", value: "42", domain: "string", origin: "var" },
-			};
-
-			logger.stepEnd(mockFeatureStep, "VariablesStepper", "set", "completed", undefined, stepValuesMap, undefined);
-
-			expect(emitted.length).toBe(1);
-			const event = emitted[0] as { stepValuesMap?: Record<string, { value: unknown }> };
-			expect(event.stepValuesMap).toBeDefined();
-			expect(event.stepValuesMap?.apiKey?.value).toBe(OBSCURED_VALUE);
-			expect(event.stepValuesMap?.count?.value).toBe("42");
-		});
-
-		it("doesn't obscure a value where a name doesn't mark it secret", () => {
-			const emitted: unknown[] = [];
-			logger.subscribe((event) => emitted.push(event));
-
-			const stepValuesMap = { password: { term: "password", value: "secret123", domain: "string", origin: "var" } };
-
-			logger = plainLogger();
-			logger.suppressConsole = true;
-			logger.subscribe((event) => emitted.push(event));
-			logger.stepStart(mockFeatureStep, "VariablesStepper", "set", stepValuesMap, false);
-
-			expect(emitted.length).toBe(1);
-			const event = emitted[0] as { stepValuesMap?: Record<string, { value: unknown }> };
-			expect(event.stepValuesMap?.password?.value).toBe("secret123");
-		});
-
-		it("should handle an undefined stepValuesMap", () => {
-			const emitted: unknown[] = [];
-			logger.subscribe((event) => emitted.push(event));
-
-			logger.stepStart(mockFeatureStep, "VariablesStepper", "set", undefined, false);
-
-			expect(emitted.length).toBe(1);
-			const event = emitted[0] as { stepValuesMap?: Record<string, unknown> };
-			expect(event.stepValuesMap).toBeUndefined();
-		});
-
-		it("should handle primitive values in stepValuesMap", () => {
-			const emitted: unknown[] = [];
-			logger.subscribe((event) => emitted.push(event));
-
-			const stepValuesMap = { password: "secret123", username: "testuser" };
-
-			logger.stepStart(mockFeatureStep, "VariablesStepper", "set", stepValuesMap, false);
-
-			expect(emitted.length).toBe(1);
-			const event = emitted[0] as { stepValuesMap?: Record<string, unknown> };
-			expect(event.stepValuesMap?.password).toBe(OBSCURED_VALUE);
-			expect(event.stepValuesMap?.username).toBe("testuser");
-		});
-	});
-
-	describe("the error a step's end event states", () => {
-		const step = { source: { path: "/test/feature.ts", lineNumber: 1 }, in: "set count to 1", seqPath: [1, 1, 1] } as unknown as TFeatureStep;
-
-		it("doesn't state an error for a step that didn't fail, so a view doesn't show one", () => {
-			const emitted: unknown[] = [];
-			logger.subscribe((event) => emitted.push(event));
-
-			logger.stepEnd(step, "VariablesStepper", "set", "completed", undefined, undefined, undefined);
-
-			const event = emitted[0] as { status?: string; error?: unknown };
-			expect(event.status).toBe("completed");
-			expect(event.error, "errorDetail(undefined) returns the string `undefined`, which a view would show as an error").toBeUndefined();
-		});
-
-		it("states the error of a step that failed", () => {
-			const emitted: unknown[] = [];
-			logger.subscribe((event) => emitted.push(event));
-
-			logger.stepEnd(step, "VariablesStepper", "set", "failed", new Error("the variable isn't set"), undefined, undefined);
-
-			const event = emitted[0] as { status?: string; error?: unknown };
-			expect(event.status).toBe("failed");
-			expect(event.error).toBe("the variable isn't set");
-		});
 	});
 
 	describe("subscribe/unsubscribe", () => {
@@ -236,7 +120,7 @@ describe("EventLogger", () => {
 
 		it("never writes a blip to the sink", () => {
 			const sink = heldSink();
-			const hub = new EventLogger(secretsOf([], []), sink, false);
+			const hub = new EventLogger(secretsOf([]), sink, false);
 			hub.subscribe(() => undefined, { kinds: ["blip"] });
 			hub.emit(blip());
 			expect(sink.written).toHaveLength(0);
@@ -325,7 +209,7 @@ describe("the level an event states", () => {
 describe("an event's secrets", () => {
 	it("reach every subscriber and the sink obscured in a log's message and attributes (ZH13)", () => {
 		const sink = heldSink();
-		const hub = new EventLogger(secretsOf([], ["s3cr3t-pass"]), sink, false);
+		const hub = new EventLogger(secretsOf(["s3cr3t-pass"]), sink, false);
 		const emitted: THaibunEvent[] = [];
 		hub.subscribe((event) => emitted.push(event));
 		hub.subscribe((event) => emitted.push(event));
@@ -340,7 +224,7 @@ describe("an event's secrets", () => {
 describe("an event's serialization", () => {
 	it("serializes an event once for the sink and every transport that reads it, and doesn't name an emitter the event doesn't state (PF28)", () => {
 		const sink = heldSink();
-		const hub = new EventLogger(secretsOf([], []), sink, false);
+		const hub = new EventLogger(secretsOf([]), sink, false);
 		let serializations = 0;
 		const counted = { toJSON: () => (serializations++, "counted") };
 		let received: THaibunEvent | undefined;

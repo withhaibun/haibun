@@ -8,10 +8,10 @@ import { ReadlinePrompter } from "../lib/readline-prompter.js";
 import { AStepper } from "../lib/steps/domains/stepper.js";
 import { actionNotOK } from "../lib/util/index.js";
 import { OK } from "../schema/protocol.js";
-import { dispatchStep } from "../lib/step-dispatch.js";
+import { dispatchStep } from "../lib/actuality/pipelines/step-dispatch.js";
 import { buildFeatureStepForTransport } from "../lib/steps/pipelines/call-step.js";
 import { StepRegistry } from "../lib/steps/pipelines/step-registry.js";
-import { addStepperConcerns } from "../phases/Executor.js";
+import { addStepperConcerns } from "../lib/actuality/pipelines/executor.js";
 import { DOMAIN_TEXT } from "../lib/domains.js";
 import { itemAt } from "../lib/util/item-at.js";
 

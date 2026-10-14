@@ -10,7 +10,7 @@ import { actionNotOK, actionOK } from "../../util/index.js";
 import { RefusedCall } from "../../rpc-wire.js";
 import { typeCollectionRemedy } from "../../typed-links.js";
 import { getDefaultWorld } from "../../test/lib.js";
-import type { TWorld } from "../../world.js";
+import type { TWorld } from "../../actuality/domains/world.js";
 import type { TStepperStep } from "../domains/stepper.js";
 import { EVERY_DEFINITION, STEP_DETAIL, SHOW_STEPS_METHOD, StepDiscoverySchema } from "../domains/step-discovery.js";
 import { RUN_AUTHORITY } from "../../capability-context.js";

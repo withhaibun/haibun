@@ -8,7 +8,7 @@
 
 import { RecordSchema } from "./json-text.js";
 import { AStepper } from "./steps/domains/stepper.js";
-import { runSteppers, type TWorld } from "./world.js";
+import { runSteppers, type TWorld } from "./actuality/domains/world.js";
 import type { TActionResult } from "../schema/protocol.js";
 import { actionNotOK } from "./util/index.js";
 import { type StepTool, type StepRegistry } from "./steps/pipelines/step-registry.js";

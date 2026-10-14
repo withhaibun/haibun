@@ -1,4 +1,4 @@
-import type { TWorld, TProtoOptions } from "../world.js";
+import type { TWorld, TProtoOptions } from "../actuality/domains/world.js";
 import { newActualityId } from "../rpc-wire.js";
 import { CStepper } from "../steps/domains/stepper.js";
 import { DEFAULT_DEST, TExecutorResult, TEST_BASE } from "../../schema/protocol.js";
@@ -7,10 +7,11 @@ import { resolveSitePrincipal } from "../host-id.js";
 import { getCreateSteppers } from "../util/node/workspace-lib.js";
 export { getCreateSteppers };
 export { getDefaultTag } from "../ttag.js";
-import { Timer } from "../../schema/protocol.js";
+import { actualityClock } from "../actuality/root.js";
+import { actualityMachine } from "../actuality/machines/actuality.js";
 import { asFeatures } from "../resolver-features.js";
 import { Runner } from "../../runner.js";
-import { FeatureVariables, secretsOf } from "../feature-variables.js";
+import { FeatureVariables, secretsOf } from "../actuality/pipelines/feature-variables.js";
 import { Prompter } from "../prompter.js";
 import { getCoreDomains } from "../core-domains.js";
 import assert from "assert";
@@ -93,17 +94,17 @@ export function getTestWorldWithOptions(protoOptions: TProtoOptions = DEF_PROTO_
 
 /** An events hub that doesn't hold a secret and doesn't write to the console. A test reads its events through subscribers. */
 export function eventHubOfTest(): EventLogger {
-	const hub = new EventLogger({ isSecret: () => false, values: () => [] }, eventSink(), false);
+	const hub = new EventLogger({ values: () => [] }, eventSink(), false);
 	hub.suppressConsole = true;
 	return hub;
 }
 
 export function getDefaultWorld(env: NodeJS.ProcessEnv = process.env): TWorld {
 	const world: Partial<TWorld> = {
-		timer: new Timer(),
+		clock: actualityClock(),
 		tag: getRunTag(0),
 		prompter: new Prompter(),
-		runtime: { actualityId: newActualityId(), stepResults: [], steppers: [], feature: "test-feature", stepUsage: new Map(), keys: { principal: resolveSitePrincipal() } },
+		runtime: { actualityId: newActualityId(), actuality: actualityMachine(), stepResults: [], steps: { count: 0 }, seqPaths: new Map(), steppers: [], feature: "test-feature", stepUsage: new Map(), keys: { principal: resolveSitePrincipal() } },
 		options: { DEST: DEFAULT_DEST, envVariables: Object.fromEntries(Object.entries(env).flatMap(([name, value]) => (value === undefined ? [] : [[name, value]]))) },
 		moduleOptions: {},
 		bases: ["/features/"],

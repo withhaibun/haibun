@@ -8,7 +8,7 @@ import { actionOKWithProducts } from "../lib/util/index.js";
 import VariablesStepper from "./variables-stepper.js";
 import LogicStepper from "./logic-stepper.js";
 import { GoalResolutionStepper } from "./goal-resolution-stepper.js";
-import { executionOf } from "../lib/seq-path.js";
+import { executionOf } from "../lib/actuality/domains/seq-path.js";
 import { ActivitiesStepper } from "./activities-stepper.js";
 import { DOMAIN_USER_NAME } from "../lib/domains.js";
 import { itemAt } from "../lib/util/item-at.js";

@@ -308,6 +308,20 @@ describe("the actuality a view reads, over the records it wrote", () => {
 		expect(source.behind, "the read the announcement scheduled has finished").toBe(false);
 	});
 
+	it("is ended once the stream carries its execution's end, as the actuality machine holds it", async () => {
+		const source = graphRunSource("debug", { reReadAfterMs: 0 });
+		await source.ready();
+		const lifecycle = (type: string, stage: string, id: string, status: string) => ({ level: "info", kind: "lifecycle", type, stage, id, status, timestamp: 1600 }) as never;
+		handle.eventStream.emit(lifecycle("execution", "start", "execution-start", "running"));
+		handle.eventStream.emit(lifecycle("feature", "start", "feat-1", "running"));
+		await new Promise((r) => requestAnimationFrame(() => r(undefined)));
+		expect(source.ended, "the execution has started and hasn't ended").toBe(false);
+		handle.eventStream.emit(lifecycle("feature", "end", "feat-1", "completed"));
+		handle.eventStream.emit(lifecycle("execution", "end", "execution-end", "completed"));
+		await new Promise((r) => requestAnimationFrame(() => r(undefined)));
+		expect(source.ended, "the execution's end moved the machine to completed").toBe(true);
+	});
+
 	it("reports it is cut off while the stream is down, and behind from the stream's return until it has read again", async () => {
 		const source = graphRunSource("debug", { reReadAfterMs: 0 });
 		await source.ready();

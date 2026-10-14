@@ -4,7 +4,7 @@
  * establishes it by running a statement as a principal through `runActingAs`. Core doesn't implement credential signing
  * or verification.
  */
-import type { TWorld } from "./world.js";
+import type { TWorld } from "./actuality/domains/world.js";
 import { actingAs } from "./capability-context.js";
 import { activeSitePrincipal } from "./host-id.js";
 

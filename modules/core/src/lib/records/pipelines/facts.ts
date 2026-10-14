@@ -6,7 +6,7 @@
 import { EDGE, FACT_LABEL, SEQ_PATH_LABEL } from "../../resources.js";
 import { GraphQuerySchema } from "../../steps/domains/quad-types.js";
 import { type IQuadStore } from "../../steps/ports.js";
-import { factIdOf, formatRecordName, type TRecordName } from "../../seq-path.js";
+import { factIdOf, formatRecordName, type TRecordName } from "../../actuality/domains/seq-path.js";
 import { FACT_FIELD, type TFact } from "../domains/facts.js";
 import { equalTo, readEvery, type TRecordReader } from "./record-reads.js";
 
