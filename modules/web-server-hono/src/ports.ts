@@ -50,9 +50,14 @@ export const isLoopback = (host: string): boolean => host === "localhost" || hos
 const IPV4_LOOPBACK = /^127(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}$/;
 
 export interface IWebServer extends IRouteRegistry {
-	checkAddStaticFolder(relativeFolder: string, mountAt: string, purpose: TRoutePurpose): void;
-	checkAddIndexFolder(relativeFolder: string, mountAt: string, purpose: TRoutePurpose): void;
-	/** Serve a folder at `mountAt`, each request passing `before` first, such as a middleware that requires an action. */
+	/** Serve the folder `relativeFolder` names under the server's base at `mountAt`, each request for a file it holds passing
+	 *  `before` first, such as a middleware that requires an action. */
+	checkAddStaticFolder(relativeFolder: string, mountAt: string, purpose: TRoutePurpose, ...before: MiddlewareHandler[]): void;
+	/** Serve an index of the folder `relativeFolder` names under the server's base at `mountAt`, each request for what it holds
+	 *  passing `before` first. */
+	checkAddIndexFolder(relativeFolder: string, mountAt: string, purpose: TRoutePurpose, ...before: MiddlewareHandler[]): void;
+	/** Serve a folder at `mountAt`, each request for a file it holds passing `before` first, such as a middleware that
+	 *  requires an action. */
 	addKnownStaticFolder(folder: string, mountAt: string, purpose: TRoutePurpose, ...before: MiddlewareHandler[]): void;
 	/** Listens on `port` at `hostname`, or on this machine's loopback interface where `hostname` is absent. */
 	listen(why: string, port: number, hostname?: string): Promise<void>;

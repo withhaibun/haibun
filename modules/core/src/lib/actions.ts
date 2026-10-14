@@ -118,6 +118,10 @@ export const FOLLOWS_THE_RUN = readAction(Access.public);
  *  actuality's steps opened, and one of those pages can be a person's own page. */
 export const READS_THE_RUNS_ARTIFACTS = readAction(Access.private);
 
+/** The action that reading a served folder's files requires. It is a read at the narrowest level: a deployment serves a
+ *  site to every browser by allowing it without a delegation. */
+export const READS_A_SERVED_FOLDER = readAction(Access.public);
+
 /** Returns the action that writing a record at `level` requires where `level` is more public than the writer's read
  *  level. Such a write exposes what the writer read to more readers. A caller holds it only by the action's name or by an
  *  entry ending in `*` that matches it. */

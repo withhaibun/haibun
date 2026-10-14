@@ -20,16 +20,16 @@ import { actualURI } from "@haibun/core/lib/util/node/actualURI.js";
 import { fromJsonText } from "@haibun/core/lib/json-text.js";
 import { TRANSPORT, type ITransport } from "@haibun/web-server-hono/sse-transport.js";
 import type WebServerStepper from "@haibun/web-server-hono/web-server-stepper.js";
-import { WEBSERVER, type IWebServer, type MiddlewareHandler } from "@haibun/web-server-hono/defs.js";
+import { WEBSERVER, type IWebServer } from "@haibun/web-server-hono/defs.js";
 import { AStorage } from "@haibun/domain-storage/AStorage.js";
 import { Access } from "@haibun/core/lib/resources.js";
 import { CLIENT_RING, SHU_TAG } from "./domains/elements.js";
-import { ARTIFACT_POLICY } from "./domains/serving.js";
 import { MONITOR_OPENS_AT, reportHtml } from "./pipelines/monitor-report.js";
 import { recordProduced, recordSaid } from "./pipelines/run-records.js";
 import { reportWriter, servedBundles } from "./root.js";
 import { READS_THE_RUNS_ARTIFACTS } from "@haibun/core/lib/actions.js";
 import { requiring } from "@haibun/web-server-hono/capability-auth.js";
+import { sandboxed } from "@haibun/web-server-hono/served-folder.js";
 import { logMessageDomainDefinition } from "@haibun/core/lib/log-message.js";
 import { ARTIFACTS_ROUTE, runArtifactDomainDefinition } from "@haibun/core/lib/run-artifact.js";
 import type ShuStepper from "./shu-stepper.js";
@@ -40,12 +40,6 @@ import { DOMAIN_FILE_PATH } from "@haibun/core/lib/domains.js";
 // heap over months. The store holds the graph and the disk log holds the events.
 
 const DOMAIN_LOG_EVENT = "shu-log-event";
-
-/** Serves a response under the artifact policy, which the response is given as it leaves. */
-const sandboxed: MiddlewareHandler = async (c, next) => {
-	await next();
-	c.res.headers.set("Content-Security-Policy", ARTIFACT_POLICY);
-};
 
 /** Where the monitor serves the shu views of actuality on its own port. */
 export const MONITOR_PATH = "/monitor";

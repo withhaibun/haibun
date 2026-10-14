@@ -7,6 +7,7 @@ import { Hono } from "hono";
 import { LinearRouter } from "hono/router/linear-router";
 import { bodyLimit } from "hono/body-limit";
 import { basicAuth } from "hono/basic-auth";
+import { every } from "hono/combine";
 import { serve, type ServerType } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { existsSync, statSync, readdirSync } from "fs";
@@ -18,6 +19,7 @@ import { ENDPOINT_CLASS, isServicePath } from "@haibun/core/lib/http-observation
 import type { TRpcMethod } from "@haibun/core/lib/rpc-wire.js";
 import type { TBasicAuthUser } from "@haibun/core/lib/basic-auth.js";
 import {
+	type Context,
 	type IWebServer,
 	type MiddlewareHandler,
 	type TRouteMap,
@@ -32,8 +34,11 @@ import {
 
 const EMPTY_MOUNTS = (): TRouteMap => ROUTE_TYPES.reduce((acc, type) => ({ ...acc, [type]: {} }), {} as TRouteMap);
 
-/** The path an index names for its own mount point. */
-const INDEX_ROOT = "/";
+/** The root path. A folder mounted there shares its addresses with the server's other routes, and an index names its own
+ *  mount point by it. */
+const ROOT = "/";
+/** The file a served folder serves for its own address and for each folder it holds. */
+const INDEX_FILE = "index.html";
 /** Payload Too Large. */
 const TOO_LARGE = 413;
 /** Misdirected Request: the request names a host this server doesn't serve. */
@@ -198,10 +203,10 @@ export class ServerHono implements IWebServer {
 		this.addRoute(type, path, purpose, ...handlers);
 	}
 
-	checkAddStaticFolder(relativeFolder: string, mountAt: string, purpose: TRoutePurpose): void {
+	checkAddStaticFolder(relativeFolder: string, mountAt: string, purpose: TRoutePurpose, ...before: MiddlewareHandler[]): void {
 		if (!relativeFolder) throw new Error("ServerHono.checkAddStaticFolder: relativeFolder is required");
 		if (!mountAt) throw new Error("ServerHono.checkAddStaticFolder: mountAt is required");
-		this.addStaticFolderInternal(withinFolder(this.base, relativeFolder), mountAt, purpose, []);
+		this.addStaticFolderInternal(withinFolder(this.base, relativeFolder), mountAt, purpose, before);
 	}
 
 	addKnownStaticFolder(folder: string, mountAt: string, purpose: TRoutePurpose, ...before: MiddlewareHandler[]): void {
@@ -210,7 +215,7 @@ export class ServerHono implements IWebServer {
 		this.addStaticFolderInternal(folder, mountAt, purpose, before);
 	}
 
-	checkAddIndexFolder(relativeFolder: string, mountAt: string, purpose: TRoutePurpose): void {
+	checkAddIndexFolder(relativeFolder: string, mountAt: string, purpose: TRoutePurpose, ...before: MiddlewareHandler[]): void {
 		if (!relativeFolder) throw new Error("ServerHono.checkAddIndexFolder: relativeFolder is required");
 		if (!mountAt) throw new Error("ServerHono.checkAddIndexFolder: mountAt is required");
 		this.validatePurpose(purpose);
@@ -220,14 +225,15 @@ export class ServerHono implements IWebServer {
 		this.eventLogger.debug(`ServerHono: serving index from ${folder} at ${mountAt}`);
 
 		const indexPath = mountAt.endsWith("/") ? `${mountAt}*` : `${mountAt}/*`;
-		this._app.get(indexPath, async (c) => {
-			const requestPath = c.req.path.replace(mountAt, "").replace(/^\//, "");
+		const relativeOf = (c: Context) => c.req.path.replace(mountAt, "").replace(/^\//, "");
+		this._app.get(indexPath, forHeld(mountAt, (c) => holds(folder, relativeOf(c), undefined), before), async (c) => {
+			const requestPath = relativeOf(c);
 			const fullPath = resolve(folder, requestPath);
 			if (!isWithin(folder, fullPath) || !existsSync(fullPath)) return c.notFound();
 			const stat = statSync(fullPath);
 			if (stat.isDirectory()) {
 				const files = readdirSync(fullPath);
-				return c.html(this.generateDirectoryListing(requestPath === "" ? INDEX_ROOT : requestPath, files, mountAt));
+				return c.html(this.generateDirectoryListing(requestPath === "" ? ROOT : requestPath, files, mountAt));
 			}
 			let notFoundCalled = false;
 			const response = await serveStatic({ root: folder })(c, () => {
@@ -246,9 +252,9 @@ export class ServerHono implements IWebServer {
 		this.validateFolderExists(folder);
 		this.eventLogger.debug(`ServerHono: serving static files from ${folder} at ${mountAt}`);
 		const staticPath = mountAt.endsWith("/") ? `${mountAt}*` : `${mountAt}/*`;
-		for (const gate of before) for (const path of [staticPath, mountAt]) this._app.use(path, gate);
-		this._app.get(staticPath, serveStatic({ root: folder, rewriteRequestPath: (path) => path.replace(mountAt, "") }));
-		this._app.get(mountAt, serveStatic({ root: folder, rewriteRequestPath: () => "/index.html" }));
+		const relativeOf = (path: string) => path.replace(mountAt, "");
+		this._app.get(staticPath, forHeld(mountAt, (c) => holds(folder, relativeOf(c.req.path), INDEX_FILE), before), serveStatic({ root: folder, rewriteRequestPath: relativeOf }));
+		this._app.get(mountAt, forHeld(mountAt, () => holds(folder, INDEX_FILE, INDEX_FILE), before), serveStatic({ root: folder, rewriteRequestPath: () => `/${INDEX_FILE}` }));
 		this.mount("get", mountAt, folder, purpose);
 	}
 
@@ -319,6 +325,22 @@ export class ServerHono implements IWebServer {
 
 /** Whether `path` is `folder` or under it. */
 const isWithin = (folder: string, path: string): boolean => path === resolve(folder) || path.startsWith(`${resolve(folder)}${sep}`);
+
+/** Whether `folder` holds what `relative` names: a file, or a folder, which holds `index` where one is named. */
+function holds(folder: string, relative: string, index: string | undefined): boolean {
+	const target = resolve(folder, `./${relative}`);
+	if (!isWithin(folder, target) || !existsSync(target)) return false;
+	return index === undefined || !statSync(target).isDirectory() || existsSync(resolve(target, index));
+}
+
+/** `gates` in turn, for each request a folder mounted at `mountAt` serves. A folder mounted elsewhere than the root serves
+ *  every address under its mount, held or not, so a gate refuses a caller before the folder shows what it holds. A folder
+ *  mounted at the root shares its addresses with the server's other routes, so its gates take only a request for a file
+ *  that `held` states it holds, and another request passes them by to the routes after the folder's. */
+const forHeld = (mountAt: string, held: (c: Context) => boolean, gates: MiddlewareHandler[]): MiddlewareHandler => {
+	const gated = every(...gates);
+	return (c, next) => (mountAt !== ROOT || held(c) ? gated(c, next) : next());
+};
 
 /** The folder `relative` names under `base`, refused where it leads out of `base`: a feature serves what its base holds. */
 export function withinFolder(base: string, relative: string): string {

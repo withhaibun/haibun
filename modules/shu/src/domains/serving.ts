@@ -1,6 +1,6 @@
 /**
- * What serving the page names: the addresses of the served assets, and the Content-Security-Policy values every page and
- * artifact carries.
+ * What serving the page names: the addresses of the served assets, and the Content-Security-Policy values every page
+ * carries. Core's `run-artifact.ts` states the policy an artifact carries.
  */
 import { MODULE_OPTION_PREFIX } from "@haibun/core/schema/protocol.js";
 
@@ -25,11 +25,3 @@ export const OWN_PAGES = "'self'";
 
 /** ShuStepper's option that names the embedding page's origin. A page that can't frame shu names this option as the setting to change. */
 export const EMBEDDER_ORIGIN_OPTION = `${MODULE_OPTION_PREFIX}SHUSTEPPER_EMBEDDER_ORIGIN`;
-
-/** The sandbox flags of an artifact a step saved, wherever the artifact is shown. An artifact can hold the page a step
- *  checked, so it doesn't run a script or access an origin. It can open a link in a tab of its own. A frame states these
- *  flags as its sandbox. */
-export const ARTIFACT_SANDBOX = "allow-popups allow-popups-to-escape-sandbox";
-
-/** The policy each served artifact carries. An artifact opened by its address doesn't run a script on this site's origin. */
-export const ARTIFACT_POLICY = `sandbox ${ARTIFACT_SANDBOX}`;

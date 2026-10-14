@@ -4,7 +4,7 @@
  * packages read it as `@haibun/web-server-hono/capability-auth.js`.
  */
 import type { MiddlewareHandler } from "hono";
-import { authorityRefusal, REFUSED_INVOCATION } from "@haibun/core/lib/rpc-wire.js";
+import { authorityRefusal, REFUSED_INVOCATION, type TRpcRefusal } from "@haibun/core/lib/rpc-wire.js";
 import { sentByAnotherSite } from "@haibun/core/lib/request-context.js";
 import type { TRuntime } from "@haibun/core/lib/world.js";
 import { capabilityAllows } from "@haibun/core/lib/actions.js";
@@ -64,23 +64,40 @@ export function delegateOf({ held, principal }: Pick<TRequestAuthority, "held" |
  *  what the key holds. */
 export const refuseInvocation = (c: Context, error: string): Response => c.json(authorityRefusal(error), REFUSED_INVOCATION);
 
+/** The refusal of a request at `path` whose authority doesn't allow the route's action. */
+export type TLacking = (path: string, authority: TRequestAuthority) => TRpcRefusal;
+
+/** The refusal of a route that requires `action`, which names the action to a caller whose proof holds a delegation. */
+const lackingAction =
+	(action: string, served: TServed): TLacking =>
+	(path, authority) =>
+		refusal(path, action, delegateOf(authority, served));
+
 /** A request's authority where it allows `action`, or else the response that refuses it, 403 whether its proof fails or its
- *  authority doesn't allow the action, each naming why. */
-export async function authorityAllowing(c: Context, action: string, runtime: TRuntime, served: TServed): Promise<TRequestAuthority | Response> {
+ *  authority doesn't allow the action, each naming why: a failed proof as itself, and a lacked action as `lacking` states it. */
+async function authorityElse(c: Context, action: string, runtime: TRuntime, served: TServed, lacking: TLacking): Promise<TRequestAuthority | Response> {
 	const authority = await grantedCapabilityForRequest({ method: c.req.method, url: c.req.url, headers: c.req.header() }, runtime, served);
 	if (authority.refused) return refuseInvocation(c, `${c.req.path}: ${authority.refused}`);
-	if (!capabilityAllows(authority.granted, action)) return c.json(refusal(c.req.path, action, delegateOf(authority, served)), REFUSED_INVOCATION);
+	if (!capabilityAllows(authority.granted, action)) return c.json(lacking(c.req.path, authority), REFUSED_INVOCATION);
 	return authority;
 }
 
-/** A route's middleware that serves only a request whose authority allows `action`. */
-export const requiring =
-	(action: string, runtime: TRuntime, served: TServed): MiddlewareHandler =>
+/** A request's authority where it allows `action`, or else the response that refuses it, 403 whether its proof fails or its
+ *  authority doesn't allow the action, each naming why. */
+export const authorityAllowing = (c: Context, action: string, runtime: TRuntime, served: TServed): Promise<TRequestAuthority | Response> =>
+	authorityElse(c, action, runtime, served, lackingAction(action, served));
+
+/** A route's middleware that serves only a request whose authority allows `action`, and refuses another as `lacking` states. */
+export const requiringElse =
+	(action: string, runtime: TRuntime, served: TServed, lacking: TLacking): MiddlewareHandler =>
 	async (c, next) => {
-		const allowing = await authorityAllowing(c, action, runtime, served);
+		const allowing = await authorityElse(c, action, runtime, served, lacking);
 		if (allowing instanceof Response) return allowing;
 		await next();
 	};
+
+/** A route's middleware that serves only a request whose authority allows `action`. */
+export const requiring = (action: string, runtime: TRuntime, served: TServed): MiddlewareHandler => requiringElse(action, runtime, served, lackingAction(action, served));
 
 /**
  * Holds a call open only while the authority it was allowed under holds: `end` receives the reason once a capability its

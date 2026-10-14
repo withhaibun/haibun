@@ -1,6 +1,6 @@
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { OK } from "@haibun/core/schema/protocol.js";
-import { actionNotOK, actionOKWithProducts, getFromRuntime, intOrError, errorDetail } from "@haibun/core/lib/util/index.js";
+import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOptionName, intOrError, errorDetail } from "@haibun/core/lib/util/index.js";
 import { AStepper, type IHasCycles, type IHasOptions, type TEndExecution, type TEndFeature, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { actionList } from "@haibun/core/lib/actions.js";
@@ -10,13 +10,14 @@ import { resolveHostId, syntheticSeqPath } from "@haibun/core/lib/host-id.js";
 import { Access, ENDPOINT_LABEL, HTTP_HOST_LABEL, LinkRelations } from "@haibun/core/lib/resources.js";
 import { fromJsonText } from "@haibun/core/lib/json-text.js";
 import { basicAuthUsers, type TBasicAuthUser } from "@haibun/core/lib/basic-auth.js";
-import type { IWebServer, TRoutePurpose } from "./ports.js";
+import type { IWebServer, MiddlewareHandler, TRoutePurpose } from "./ports.js";
 import { TRANSPORT, type ITransport } from "./domains/transport.js";
 import { DEFAULT_PORT, DOMAIN_ENDPOINT, DOMAIN_LISTENING_PORTS, EndpointSchema, ListeningPortsSchema, listeningSummary, WEB_SERVER_CAPABILITIES } from "./domains/web-server.js";
 import { FOLLOWER_WRITES_IN_FLIGHT } from "./machines/follower.js";
 import { capabilityVerifier } from "./pipelines/capability-verifier.js";
 import { SSETransport } from "./pipelines/event-stream.js";
 import { serveRpc } from "./pipelines/serve-rpc.js";
+import { servedFolderGates } from "./pipelines/served-folder.js";
 import { serverSettings } from "./pipelines/server-settings.js";
 import { heldServer, holdServer, listeningPorts, newServer, stopProcess, whyNotSignedIn } from "./root.js";
 
@@ -164,17 +165,17 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		},
 		serveFiles: {
 			gwta: `serve files from {loc: ${DOMAIN_FILE_PATH}}`,
-			action: ({ loc }: { loc: string }) => this.mounting(`the files of ${loc}`, (server) => server.checkAddStaticFolder(loc, "/", filesFrom(loc))),
+			action: ({ loc }: { loc: string }) => this.mounting(`the files of ${loc}`, (server) => server.checkAddStaticFolder(loc, "/", filesFrom(loc), ...this.servedFolderGates(server))),
 		},
 		serveFilesAt: {
 			gwta: `serve files at {where: ${DOMAIN_ROUTE}} from {loc: ${DOMAIN_FILE_PATH}}`,
 			action: ({ where, loc }: { where: string; loc: string }) =>
-				this.mounting(`the files of ${loc} at ${where}`, (server) => server.checkAddStaticFolder(loc, where, filesFrom(loc))),
+				this.mounting(`the files of ${loc} at ${where}`, (server) => server.checkAddStaticFolder(loc, where, filesFrom(loc), ...this.servedFolderGates(server))),
 		},
 		indexFiles: {
 			gwta: `index files from {loc: ${DOMAIN_FILE_PATH}}`,
 			action: ({ loc }: { loc: string }) =>
-				this.mounting(`an index of ${loc}`, (server) => server.checkAddIndexFolder(loc, "/", { description: `An index of the files in ${loc}` })),
+				this.mounting(`an index of ${loc}`, (server) => server.checkAddIndexFolder(loc, "/", { description: `An index of the files in ${loc}` }, ...this.servedFolderGates(server))),
 		},
 		enableRpc: {
 			gwta: "enable rpc",
@@ -207,6 +208,13 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		} catch (e) {
 			return actionNotOK(`${what} weren't served: ${errorDetail(e)}`);
 		}
+	}
+
+	/** The middleware each request for a file of a folder a step serves on `server` passes: the read the file requires, and the
+	 *  artifact policy while the feature's server dispatches `/rpc` calls, which `enable rpc` starts. */
+	private servedFolderGates(server: IWebServer): MiddlewareHandler[] {
+		const allowingOption = getStepperOptionName(this, "ALLOW_WITHOUT_DELEGATION");
+		return servedFolderGates({ runtime: this.getWorld().runtime, served: server, allowingOption, dispatchesRpc: () => this.stepRegistry !== undefined });
 	}
 
 	/** A server for this instance: its files, its store, and who it admits, as every server of this instance has them. */

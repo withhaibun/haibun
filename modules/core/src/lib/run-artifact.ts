@@ -15,6 +15,15 @@ const RUN_ARTIFACT_DOMAIN = "run-artifact";
 /** The route under which actuality serves the artifacts its steps captured. */
 export const ARTIFACTS_ROUTE = "/artifacts";
 
+/** The sandbox flags of an artifact a step saved, wherever the artifact is shown. An artifact can hold the page a step
+ *  checked, so it doesn't run a script or access an origin. It can open a link in a tab of its own. A frame states these
+ *  flags as its sandbox. */
+export const ARTIFACT_SANDBOX = "allow-popups allow-popups-to-escape-sandbox";
+
+/** The Content-Security-Policy each served artifact carries, and each file of a served folder on a server that dispatches
+ *  `/rpc` calls. A file opened by its address doesn't run a script on that server's origin. */
+export const ARTIFACT_POLICY = `sandbox ${ARTIFACT_SANDBOX}`;
+
 /** Returns the address of the artifact at `path` under ARTIFACTS_ROUTE. */
 export const artifactAddress = (path: string): string => `${ARTIFACTS_ROUTE}/${path}`;
 export const RUN_ARTIFACT_LABEL = "Artifact";

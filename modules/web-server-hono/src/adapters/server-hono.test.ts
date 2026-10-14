@@ -209,6 +209,16 @@ describe("ServerHono", () => {
 			expect((await held.app.request("/listing/%2e%2e/%2e%2e/")).status, "a request that leads out of the folder").toBe(404);
 		});
 
+		it("gates the files a folder at the root holds, and passes a request for a route beside it to that route", async () => {
+			const base = mkdtempSync(join(tmpdir(), "rooted-"));
+			writeFileSync(join(base, "page.html"), "a page");
+			const rooted = new ServerHono(mockLogger, base, () => store, [], []);
+			rooted.checkAddStaticFolder(".", "/", P, (c) => Promise.resolve(c.text("held back", 403)));
+			rooted.addRoute("get", "/beside", P, (c) => c.text("beside"));
+			expect((await rooted.app.request("/page.html")).status, "a file the folder holds").toBe(403);
+			expect(await (await rooted.app.request("/beside")).text(), "a route mounted after the folder").toBe("beside");
+		});
+
 		it("serves a request for a folder only once the folder's gates pass it", async () => {
 			server.addKnownStaticFolder(tmpdir(), "/held", { description: "files a gate holds" }, (c) => Promise.resolve(c.text("held back", 403)));
 			for (const path of ["/held", "/held/any.png"]) {

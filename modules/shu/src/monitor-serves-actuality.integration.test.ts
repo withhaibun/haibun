@@ -4,7 +4,7 @@ import { AStepper } from "@haibun/core/lib/astepper.js";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { findStepper, getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import { artifactAddress } from "@haibun/core/lib/run-artifact.js";
+import { ARTIFACT_POLICY, artifactAddress } from "@haibun/core/lib/run-artifact.js";
 import { RpcClient } from "@haibun/core/lib/rpc-client.js";
 import { localOrigin } from "@haibun/core/lib/local-origin.js";
 import { Access, SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
@@ -20,7 +20,6 @@ import { MONITOR_OPENS_AT } from "./pipelines/monitor-report.js";
 import GraphSourceStepper from "./graph-source-stepper.js";
 import ShuStepper from "./shu-stepper.js";
 import { RPC_METHOD } from "./domains/elements.js";
-import { ARTIFACT_POLICY } from "./domains/serving.js";
 
 const PORT = await freePort();
 const MONITOR = localOrigin(PORT);

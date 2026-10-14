@@ -9,7 +9,7 @@
  * Product views are embedded inside their row (once per element, so the virtualizer recycling a row does not re-open it).
  */
 import { html, css, type TemplateResult } from "lit";
-import { ARTIFACT_SANDBOX } from "../../domains/serving.js";
+import { ARTIFACT_SANDBOX } from "@haibun/core/lib/run-artifact.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import DOMPurify from "dompurify";

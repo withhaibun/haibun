@@ -9,6 +9,10 @@ import { getStepperOptionName, actionNotOK, perProcessOptionNames } from "@haibu
 import WebServerStepper from "./web-server-stepper.js";
 import { BASIC_AUTH_OPTION } from "@haibun/core/lib/basic-auth.js";
 import { DOMAIN_LINK, DOMAIN_TEXT } from "@haibun/core/lib/domains.js";
+import { READS_A_SERVED_FOLDER } from "@haibun/core/lib/actions.js";
+import { ARTIFACT_POLICY } from "@haibun/core/lib/run-artifact.js";
+import { REFUSED_INVOCATION } from "@haibun/core/lib/rpc-wire.js";
+import { servedFileRefusal } from "./pipelines/served-folder.js";
 
 // WebServerStepper expects a 'files' directory in cwd
 const FILES_DIR = path.join(process.cwd(), "files");
@@ -49,8 +53,29 @@ class VerifyStepper extends AStepper {
 				}
 			},
 		},
+		refusedFrom: {
+			gwta: `fetch from {url: ${DOMAIN_LINK}} is refused with the read it requires as its remedy`,
+			action: async ({ url }: TStepArgs) => {
+				const res = await fetch(String(url));
+				const refused = servedFileRefusal(new URL(String(url)).pathname, ALLOWING);
+				const body: unknown = await res.json();
+				return res.status === REFUSED_INVOCATION && JSON.stringify(body) === JSON.stringify(refused) ? OK : actionNotOK(`${url} returned ${res.status} ${JSON.stringify(body)}`);
+			},
+		},
+		policyOf: {
+			gwta: `fetch from {url: ${DOMAIN_LINK}} carries the policy {policy: ${DOMAIN_TEXT}}`,
+			action: async ({ url, policy }: TStepArgs) => {
+				const carried = String((await fetch(String(url))).headers.get("content-security-policy"));
+				return carried === String(policy) ? OK : actionNotOK(`${url} carries the policy ${carried}`);
+			},
+		},
 	};
 }
+
+/** The option through which a deployment allows a read without a delegation. */
+const ALLOWING = getStepperOptionName(WebServerStepper, "ALLOW_WITHOUT_DELEGATION");
+/** A deployment that serves its files to every browser. */
+const SERVES_A_SITE = { [ALLOWING]: READS_A_SERVED_FOLDER };
 
 describe("what an instance a run launches holds", () => {
 	it("states what it allows without a delegation in its own configuration, rather than holding its launcher's", () => {
@@ -78,6 +103,41 @@ describe("WebServerStepper Integration", () => {
 		expect((await passWithDefaults("", [WebServerStepper], options({ [INTERFACE]: "0.0.0.0", [BASIC_AUTH_OPTION]: "reader:secret" }))).ok, "behind basic auth").toBe(true);
 	});
 
+	it("refuses a served file to a caller that doesn't hold the read it requires, stating the cause and the remedy", async () => {
+		const port = 8134;
+		const feature = {
+			path: "/features/refused.feature",
+			content: `
+webserver is listening for "webserverstepper refuses a served file"
+serve files at "/pub" from "test-content"
+fetch from "http://localhost:${port}/pub/hello.txt" is refused with the read it requires as its remedy
+`,
+		};
+		const moduleOptions = { [getStepperOptionName(WebServerStepper, "PORT")]: String(port) };
+		const result = await passWithDefaults([feature], [WebServerStepper, VerifyStepper], { ...DEF_PROTO_OPTIONS, moduleOptions });
+		expect(result.ok, JSON.stringify(result.failure)).toBe(true);
+	});
+
+	it("serves a file to a caller that holds the read, under the artifact policy once the server dispatches rpc calls", async () => {
+		const port = 8135;
+		const hello = `http://localhost:${port}/pub/hello.txt`;
+		const feature = {
+			path: "/features/policy.feature",
+			content: `
+webserver is listening for "webserverstepper serves under the artifact policy"
+serve files at "/pub" from "test-content"
+fetch from "${hello}" includes "Hello World"
+fetch from "${hello}" carries the policy "null"
+enable rpc
+fetch from "${hello}" includes "Hello World"
+fetch from "${hello}" carries the policy "${ARTIFACT_POLICY}"
+`,
+		};
+		const moduleOptions = { [getStepperOptionName(WebServerStepper, "PORT")]: String(port), ...SERVES_A_SITE };
+		const result = await passWithDefaults([feature], [WebServerStepper, VerifyStepper], { ...DEF_PROTO_OPTIONS, moduleOptions });
+		expect(result.ok, JSON.stringify(result.failure)).toBe(true);
+	});
+
 	it("serves files from a directory", async () => {
 		const port = 8132;
 		// Serve 'test-content' which is inside 'files'
@@ -90,7 +150,7 @@ fetch from "http://localhost:${port}/pub/hello.txt" includes "Hello World"
 `,
 		};
 
-		const moduleOptions = { [getStepperOptionName(WebServerStepper, "PORT")]: String(port) };
+		const moduleOptions = { [getStepperOptionName(WebServerStepper, "PORT")]: String(port), ...SERVES_A_SITE };
 
 		const result = await passWithDefaults([feature], [WebServerStepper, VerifyStepper], { ...DEF_PROTO_OPTIONS, moduleOptions });
 		if (!result.ok) {
@@ -110,7 +170,7 @@ fetch from "http://localhost:${port}/" includes "hello.txt"
 `,
 		};
 
-		const moduleOptions = { [getStepperOptionName(WebServerStepper, "PORT")]: String(port) };
+		const moduleOptions = { [getStepperOptionName(WebServerStepper, "PORT")]: String(port), ...SERVES_A_SITE };
 
 		const result = await passWithDefaults([feature], [WebServerStepper, VerifyStepper], { ...DEF_PROTO_OPTIONS, moduleOptions });
 		if (!result.ok) {
