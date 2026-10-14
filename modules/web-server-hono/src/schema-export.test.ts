@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
 
-import { RouteTypeSchema, ROUTE_TYPES } from "./defs.js";
+import { RouteTypeSchema, ROUTE_TYPES } from "./ports.js";
 
 describe("JSON Schema / OpenAPI exports", () => {
 	describe("RouteTypeSchema", () => {

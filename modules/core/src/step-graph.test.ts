@@ -5,7 +5,7 @@
 import { describe, it } from "vitest";
 import path from "node:path";
 import { expectStepGraphAsRecorded } from "./lib/test/step-graph-baseline.js";
-import { RemoteStepperProxy } from "./lib/remote-stepper-proxy.js";
+import { RemoteStepperProxy } from "./lib/transport/remote-proxy-stepper.js";
 import ActivitiesStepper from "./steps/activities-stepper.js";
 import AuthorityStepper from "./steps/authority-stepper.js";
 import BlipsStepper from "./steps/blips-stepper.js";

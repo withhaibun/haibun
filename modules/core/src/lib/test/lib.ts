@@ -1,5 +1,5 @@
 import type { TWorld, TProtoOptions } from "../actuality/domains/world.js";
-import { newActualityId } from "../rpc-wire.js";
+import { newActualityId } from "../transport/ports.js";
 import { CStepper } from "../steps/domains/stepper.js";
 import { DEFAULT_DEST, TExecutorResult, TEST_BASE } from "../../schema/protocol.js";
 import { getRunTag } from "../ttag.js";
@@ -104,7 +104,17 @@ export function getDefaultWorld(env: NodeJS.ProcessEnv = process.env): TWorld {
 		clock: actualityClock(),
 		tag: getRunTag(0),
 		prompter: new Prompter(),
-		runtime: { actualityId: newActualityId(), actuality: actualityMachine(), stepResults: [], steps: { count: 0 }, seqPaths: new Map(), steppers: [], feature: "test-feature", stepUsage: new Map(), keys: { principal: resolveSitePrincipal() } },
+		runtime: {
+			actualityId: newActualityId(),
+			actuality: actualityMachine(),
+			stepResults: [],
+			steps: { count: 0 },
+			seqPaths: new Map(),
+			steppers: [],
+			feature: "test-feature",
+			stepUsage: new Map(),
+			keys: { principal: resolveSitePrincipal() },
+		},
 		options: { DEST: DEFAULT_DEST, envVariables: Object.fromEntries(Object.entries(env).flatMap(([name, value]) => (value === undefined ? [] : [[name, value]]))) },
 		moduleOptions: {},
 		bases: ["/features/"],

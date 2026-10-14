@@ -1,53 +1,24 @@
-import path from "path";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import { z } from "zod";
-
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { OK } from "@haibun/core/schema/protocol.js";
-import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOption, intOrError, errorDetail } from "@haibun/core/lib/util/index.js";
+import { actionNotOK, actionOKWithProducts, getFromRuntime, intOrError, errorDetail } from "@haibun/core/lib/util/index.js";
 import { AStepper, type IHasCycles, type IHasOptions, type TEndExecution, type TEndFeature, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
-import { dispatchStep } from "@haibun/core/lib/step-dispatch.js";
-import { ACTION_BEGIN, ANSWERED_WITHOUT_PRODUCTS, parseRpcRequest, authorityRefusal, callFailed, RPC_PROTOCOL, type THandshake } from "@haibun/core/lib/rpc-wire.js";
-import { runWithRequestContext, requestBaseIri } from "@haibun/core/lib/request-context.js";
-import { buildFeatureStepForTransport } from "@haibun/core/lib/call-step.js";
-import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
-import { runRegistry, type StepRegistry } from "@haibun/core/lib/step-registry.js";
-import { actionList, EVERY_ACTION, lackedByCall, mayCall } from "@haibun/core/lib/actions.js";
+import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
+import { actionList } from "@haibun/core/lib/actions.js";
 import { DOMAIN_TEXT, DOMAIN_FILE_PATH, DOMAIN_ROUTE, DOMAIN_LINK } from "@haibun/core/lib/domains.js";
 import { STORE_METHOD_PREFIX, storeMethods } from "@haibun/core/lib/store-protocol.js";
-import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
-import { activeSitePrincipal, allocateSyntheticSeqPath, resolveHostId, syntheticSeqPath } from "@haibun/core/lib/host-id.js";
-import { SERVING } from "@haibun/core/lib/serving.js";
-import { streamContext } from "@haibun/core/lib/step-stream-context.js";
-import { Access, HTTP_HOST_LABEL, LinkRelations } from "@haibun/core/lib/resources.js";
-import { runInvoking, runReadingAsHeld, runReadingAt, runActingAs } from "@haibun/core/lib/capability-context.js";
+import { resolveHostId, syntheticSeqPath } from "@haibun/core/lib/host-id.js";
+import { Access, ENDPOINT_LABEL, HTTP_HOST_LABEL, LinkRelations } from "@haibun/core/lib/resources.js";
 import { fromJsonText } from "@haibun/core/lib/json-text.js";
-
-import { type IWebServer, WEBSERVER, DOMAIN_ENDPOINT, EndpointLabels, EndpointSchema } from "./defs.js";
-import { delegateOf, endWhenLapsed, grantedCapabilityForRequest } from "./capability-auth.js";
-import { whyNotSignedInOnly } from "./auth.js";
 import { basicAuthUsers, type TBasicAuthUser } from "@haibun/core/lib/basic-auth.js";
-import { ServerHono, DEFAULT_PORT, isLoopback } from "./server-hono.js";
-import { SSETransport, TRANSPORT, type ITransport } from "./sse-transport.js";
-import type { IStepTransport } from "./step-transport.js";
-
-/** What holding authority over this instance's web server means: ending the process that serves it. */
-const WEB_SERVER_CAPABILITIES = { stop: "WebServer:stop" } as const;
-/**
- * A call that asks to read, refused where what it calls doesn't declare itself a read. Actuality holds a call to the step's
- * own declaration, so a reading isn't recorded as something actuality did. It is checked after the gate, so a caller is told
- * this only about a call it may make, on every transport.
- */
-const notARead = (method: string): string =>
-	`${method} was asked to answer a read, and does not declare itself one: a read is answered and doesn't leave a record, so a step read by a page declares read: true`;
-
-/** The domain of the ports this process listens on, each with why it listens. */
-const DOMAIN_LISTENING_PORTS = "listening-ports";
-const ListeningPortsSchema = z.object({ ports: z.record(z.string(), z.string()) });
-const listeningSummary = (p: Record<string, unknown>) =>
-	`listening: ${Object.entries(p.ports as Record<string, string>)
-		.map(([port, why]) => `${port} (${why})`)
-		.join(", ")}`;
+import type { IWebServer, TRoutePurpose } from "./ports.js";
+import { TRANSPORT, type ITransport } from "./domains/transport.js";
+import { DEFAULT_PORT, DOMAIN_ENDPOINT, DOMAIN_LISTENING_PORTS, EndpointSchema, ListeningPortsSchema, listeningSummary, WEB_SERVER_CAPABILITIES } from "./domains/web-server.js";
+import { FOLLOWER_WRITES_IN_FLIGHT } from "./machines/follower.js";
+import { capabilityVerifier } from "./pipelines/capability-verifier.js";
+import { SSETransport } from "./pipelines/event-stream.js";
+import { serveRpc } from "./pipelines/serve-rpc.js";
+import { serverSettings } from "./pipelines/server-settings.js";
+import { heldServer, holdServer, listeningPorts, newServer, stopProcess, whyNotSignedIn } from "./root.js";
 
 const cycles = (wss: WebServerStepper): IStepperCycles => ({
 	getConcerns: () => ({
@@ -57,7 +28,7 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 				schema: fromJsonText(EndpointSchema),
 				description: "HTTP endpoint, route registered on the web server",
 				topology: {
-					persistedAs: EndpointLabels.Endpoint,
+					persistedAs: ENDPOINT_LABEL,
 					accessLevel: Access.private,
 					type: "as:Service",
 					instrumentation: true,
@@ -73,20 +44,19 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 		],
 	}),
 	async startFeature() {
-		if (wss.webserver) {
-			wss.webserver.clearMounted();
-		} else {
-			wss.webserver = wss.newServer();
-		}
-		// The delegated store surface: a sibling instance keeping its records in this instance's store. Reached only once RPC
-		// is enabled, since only the RPC transport calls a family's methods.
-		wss.webserver.addRpcMethods(
+		const { runtime } = wss.getWorld();
+		if (wss.webserver === undefined) wss.webserver = wss.newServer();
+		else wss.webserver.clearMounted();
+		const webserver = wss.webserver;
+		// The delegated store surface: a sibling instance keeping its records in this instance's store. It is reached only
+		// once RPC is enabled, since only the RPC transport calls a family's methods.
+		webserver.addRpcMethods(
 			STORE_METHOD_PREFIX,
 			{ description: "This instance's store, for an instance delegated to keep its records here" },
 			storeMethods(() => wss.getWorld().shared.getStore()),
 		);
-		wss.getWorld().runtime[WEBSERVER] = wss.webserver;
-		wss.getWorld().runtime[TRANSPORT] = new SSETransport(wss.webserver, wss.getWorld().eventLogger, wss.getWorld().runtime);
+		holdServer(runtime, webserver);
+		runtime[TRANSPORT] = wss.eventStream(webserver);
 		await Promise.resolve();
 	},
 	// A server that lasts the whole of actuality closes as it ends, unless actuality stays.
@@ -96,19 +66,18 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 		wss.executionServers = [];
 	},
 	async endFeature(wtw: TEndFeature) {
-		if (wtw.shouldClose) {
-			for (const s of wss.steppers) if ("detach" in s && typeof s.detach === "function") s.detach();
-			wss.stepRegistry = undefined;
-			await wss.webserver?.close();
-			wss.webserver = undefined;
-		}
+		if (!wtw.shouldClose) return;
+		for (const s of wss.steppers) if ("detach" in s && typeof s.detach === "function") s.detach();
+		wss.stepRegistry = undefined;
+		await wss.webserver?.close();
+		wss.webserver = undefined;
 	},
 });
 
 class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 	description = "Serve static files, create directory indexes, and host web content";
 
-	webserver: ServerHono | undefined;
+	webserver: IWebServer | undefined;
 	steppers: AStepper[] = [];
 	stepRegistry: StepRegistry | undefined;
 	cycles: IStepperCycles = cycles(this);
@@ -128,7 +97,7 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			parse: (input: string) => (actionList(input).length > 0 ? { result: input } : { parseError: "ALLOW_WITHOUT_DELEGATION: name at least one action, comma-separated" }),
 		},
 		BASIC_AUTH: {
-			desc: "Require HTTP basic auth on every route, as a proxy's basic auth does: user:password entries, comma-separated. A request that doesn't sign in is refused 401 before anything else reads it. Unset, the server doesn't ask",
+			desc: "Require HTTP basic auth on every route, as a proxy's basic auth does: user:password entries, comma-separated. A request that doesn't sign in is refused 401 before anything else reads it. Unset, the server admits every visitor",
 			parse: (input: string) => {
 				try {
 					basicAuthUsers(input);
@@ -146,15 +115,11 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 	/** The people every route admits by HTTP basic auth. */
 	admitted: TBasicAuthUser[] = [];
 
-	/** Monotonic counter for session-allocated seqPath roots. Never resets while process runs. */
+	/** The count behind each session's seqPath root, which this process doesn't reset. */
 	private sessionActionSeq = 0;
 
-	/**
-	 * Allocate a new seqPath root for a client session action. Uses this
-	 * host's hostId + SYNTHETIC_FEATURE_NUM so session paths sort
-	 * distinctly from feature paths and remain globally unique across
-	 * client reloads (counter is process-lifetime).
-	 */
+	/** A new seqPath root for a client session's action: this host's hostId and the synthetic feature number, so session
+	 *  paths sort apart from feature paths and stay unique across a client's reloads while the process runs. */
 	private allocateSessionSeqPath(): number[] {
 		this.sessionActionSeq += 1;
 		return syntheticSeqPath(resolveHostId(), this.sessionActionSeq);
@@ -163,27 +128,11 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
 		this.steppers = steppers;
-		const portOption = getStepperOption(this, "PORT", world.moduleOptions);
-		if (portOption) {
-			const parsed = parseInt(String(portOption), 10);
-			if (Number.isNaN(parsed) || parsed <= 0) {
-				throw new Error(`WebServerStepper: PORT option "${portOption}" must be a positive integer`);
-			}
-			this.port = parsed;
-		}
-		const interfaceOption = getStepperOption(this, "INTERFACE", world.moduleOptions);
-		if (interfaceOption) {
-			this.hostname = String(interfaceOption);
-		}
-		this.allowedWithoutDelegation = actionList(getStepperOption(this, "ALLOW_WITHOUT_DELEGATION", world.moduleOptions));
-		const basicAuth = getStepperOption(this, "BASIC_AUTH", world.moduleOptions);
-		this.admitted = basicAuth ? basicAuthUsers(basicAuth) : [];
-		// Every action, allowed to every caller of a server other hosts reach and that doesn't ask who they are, is every
-		// action given to the network.
-		if (this.allowedWithoutDelegation.includes(EVERY_ACTION) && this.hostname && !isLoopback(this.hostname) && this.admitted.length === 0)
-			throw new Error(
-				`WebServerStepper: ALLOW_WITHOUT_DELEGATION allows every action, and INTERFACE ${this.hostname} lets other hosts reach the server without BASIC_AUTH. Name the actions a caller may take, set BASIC_AUTH, or serve on 127.0.0.1.`,
-			);
+		const settings = serverSettings(this, world.moduleOptions);
+		this.port = settings.port;
+		this.hostname = settings.hostname;
+		this.allowedWithoutDelegation = settings.allowedWithoutDelegation;
+		this.admitted = settings.admitted;
 	}
 
 	steps = {
@@ -193,21 +142,19 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			description: "End this instance's process, stating why, so its log records what stopped it.",
 			action: ({ reason }: { reason: string }) => {
 				this.getWorld().eventLogger.info(`stopping this instance: ${reason}`);
-				// The signal is deferred so the answer is sent first, and SIGTERM rather than exit, so every shutdown handler
-				// runs: a persistent store flushing its write-ahead log would be corrupted by an exit that skipped it.
-				setTimeout(() => process.kill(process.pid, "SIGTERM"), 100);
+				stopProcess();
 				return OK;
 			},
 		},
 		asksToSignIn: {
 			gwta: `every visitor to {address: ${DOMAIN_LINK}} is asked to sign in`,
-			description: "Check that an address refuses a request that doesn't sign in, as a site behind basic auth does. It fails with what the address answered and what to change.",
+			description: "Check that an address refuses a request that doesn't sign in, as a site behind basic auth does. It fails with what the address returned and what to change.",
 			action: async ({ address }: { address: string }) => {
-				const why = await whyNotSignedInOnly(address);
+				const why = await whyNotSignedIn(address);
 				return why ? actionNotOK(why) : OK;
 			},
 		},
-		showPorts: { gwta: "show ports", productsDomain: DOMAIN_LISTENING_PORTS, action: () => actionOKWithProducts({ ports: Object.fromEntries(ServerHono.listeningPorts) }) },
+		showPorts: { gwta: "show ports", productsDomain: DOMAIN_LISTENING_PORTS, action: () => actionOKWithProducts({ ports: Object.fromEntries(listeningPorts()) }) },
 		isListening: {
 			gwta: `webserver is listening for {why: ${DOMAIN_TEXT}}`,
 			action: async ({ why }: { why: string }) => {
@@ -217,45 +164,22 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		},
 		serveFiles: {
 			gwta: `serve files from {loc: ${DOMAIN_FILE_PATH}}`,
-			action: ({ loc }: { loc: string }) => {
-				try {
-					this.webserver?.checkAddStaticFolder(loc, "/", { description: `Files from ${loc}` });
-					return OK;
-				} catch (e) {
-					const message = errorDetail(e);
-					return actionNotOK(message);
-				}
-			},
+			action: ({ loc }: { loc: string }) => this.mounting(`the files of ${loc}`, (server) => server.checkAddStaticFolder(loc, "/", filesFrom(loc))),
 		},
 		serveFilesAt: {
 			gwta: `serve files at {where: ${DOMAIN_ROUTE}} from {loc: ${DOMAIN_FILE_PATH}}`,
-			action: ({ where, loc }: { where: string; loc: string }) => {
-				try {
-					this.webserver?.checkAddStaticFolder(loc, where, { description: `Files from ${loc}` });
-					return OK;
-				} catch (e) {
-					const message = errorDetail(e);
-					return actionNotOK(message);
-				}
-			},
+			action: ({ where, loc }: { where: string; loc: string }) =>
+				this.mounting(`the files of ${loc} at ${where}`, (server) => server.checkAddStaticFolder(loc, where, filesFrom(loc))),
 		},
 		indexFiles: {
 			gwta: `index files from {loc: ${DOMAIN_FILE_PATH}}`,
-			action: ({ loc }: { loc: string }) => {
-				try {
-					this.webserver?.checkAddIndexFolder(loc, "/", { description: `An index of the files in ${loc}` });
-					return OK;
-				} catch (e) {
-					const message = errorDetail(e);
-					return actionNotOK(message);
-				}
-			},
+			action: ({ loc }: { loc: string }) =>
+				this.mounting(`an index of ${loc}`, (server) => server.checkAddIndexFolder(loc, "/", { description: `An index of the files in ${loc}` })),
 		},
 		enableRpc: {
 			gwta: "enable rpc",
 			action: () => {
-				const webserver = getFromRuntime(this.getWorld().runtime, WEBSERVER) as IWebServer;
-				this.stepRegistry = this.serveRpc(webserver, getFromRuntime(this.getWorld().runtime, TRANSPORT) as ITransport);
+				this.stepRegistry = this.serveRpc(this.server(), getFromRuntime(this.getWorld().runtime, TRANSPORT) as ITransport);
 				return OK;
 			},
 		},
@@ -270,19 +194,40 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		},
 	} as const satisfies TStepperSteps;
 
+	/** The feature's server, which its start cycle made. */
+	private server(): IWebServer {
+		return heldServer(this.getWorld().runtime, "WebServerStepper");
+	}
+
+	/** Mounts what a step serves on the feature's server, failing the step with why where the mount is refused. */
+	private mounting(what: string, mount: (server: IWebServer) => void) {
+		try {
+			mount(this.server());
+			return OK;
+		} catch (e) {
+			return actionNotOK(`${what} weren't served: ${errorDetail(e)}`);
+		}
+	}
+
 	/** A server for this instance: its files, its store, and who it admits, as every server of this instance has them. */
-	newServer(): ServerHono {
-		return new ServerHono(this.getWorld().eventLogger, path.join(process.cwd(), "files"), () => this.getWorld().shared.getStore(), this.allowedWithoutDelegation, this.admitted);
+	newServer(): IWebServer {
+		return newServer(this.getWorld(), this.allowedWithoutDelegation, this.admitted);
+	}
+
+	/** The event stream of `server`, and the `/rpc` calls it carries, each request verified through actuality's authority. */
+	eventStream(server: IWebServer): SSETransport {
+		const { eventLogger, runtime } = this.getWorld();
+		return new SSETransport({ webserver: server, eventLogger, runtime, verifier: capabilityVerifier(runtime, server), writesInFlight: FOLLOWER_WRITES_IN_FLIGHT });
 	}
 
 	/** The servers that last the whole of actuality, apart from each feature's. */
-	executionServers: ServerHono[] = [];
+	executionServers: IWebServer[] = [];
 
-	/** A server of this instance that lasts the whole of actuality, apart from each feature's: it answers RPC, carries its
+	/** A server of this instance that lasts the whole of actuality, apart from each feature's: it serves RPC, carries its
 	 *  own event stream, serves what `mount` adds, and closes as actuality ends unless actuality stays. */
 	async serveForExecution(why: string, port: number, mount: (server: IWebServer) => void): Promise<ITransport> {
 		const server = this.newServer();
-		const transport = new SSETransport(server, this.getWorld().eventLogger, this.getWorld().runtime);
+		const transport = this.eventStream(server);
 		this.serveRpc(server, transport);
 		mount(server);
 		await server.listen(why, port, this.hostname);
@@ -290,121 +235,23 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		return transport;
 	}
 
-	/**
-	 * Answer RPC calls to actuality's steps on a server's transport, under the authority each request presents. Actuality's
-	 * own registry holds what actuality's transports injected, so a caller reaching actuality by RPC dispatches and discovers
-	 * the same steps as every other caller of actuality. Returns the registry the calls dispatch through.
-	 */
+	/** Serves RPC calls to actuality's steps on a server's transport, under the authority each request presents, and returns
+	 *  the registry that dispatches them. */
 	serveRpc(webserver: IWebServer, transport: ITransport): StepRegistry {
-		const registry = runRegistry(this.getWorld());
-		// What the registry answers is which methods are reads, which the transport asks before narrating that it served a
-		// call: reading a run is not an act of the run, so serving a read is not announced as one.
-		(transport as Partial<IStepTransport>).attach?.(registry, webserver);
-		const logger = this.getWorld().eventLogger;
-		transport.onMessage(async (raw: unknown, requestInfo) => {
-			// A call states the actuality whose records it reads, and one stating another actuality doesn't parse.
-			const parsed = parseRpcRequest(raw, this.getWorld().runtime.actualityId);
-			if (!parsed.success) return parsed.refusal;
-			const msg = parsed.data;
-			const { method, params } = msg;
-
-			// Action bootstrap: client asks for a globally-unique seqPath
-			// root before issuing any state-changing RPC. Returns the
-			// root; client appends monotonic sub-seqs for each call
-			// within the action scope.
-			if (method === ACTION_BEGIN) {
-				const seqPath = this.allocateSessionSeqPath();
-				// seqPath[0] is the hostId; returning it explicitly saves remote
-				// callers from having to reach into the seqPath to learn which
-				// host they're talking to. `site` is this instance's site
-				// principal: the federation handshake reads it to stamp and
-				// de-collide merged reads.
-				// `serving` reports whether this instance's feature has finished setting up (see the SERVING runtime key), so a
-				// caller can wait for the instance rather than for its port.
-				const { runtime } = this.getWorld();
-				const handshake: THandshake = {
-					protocol: RPC_PROTOCOL,
-					hostId: itemAt(seqPath, 0),
-					site: activeSitePrincipal(this.getWorld()),
-					actualityId: runtime.actualityId,
-					serving: runtime[SERVING] === true,
-				};
-				return { seqPath, ...handshake };
-			}
-
-			const authority = await grantedCapabilityForRequest(requestInfo, this.getWorld().runtime, this);
-			const { granted, held, principal, refused, restsOn } = authority;
-			if (refused) return authorityRefusal(`${method}: ${refused}`);
-			// A streamed call is held open only while the authority it was allowed under holds.
-			const stream = streamContext.getStore();
-			if (stream) endWhenLapsed(this.getWorld().runtime, authority, stream.signal, stream.end);
-
-			// A method of a served family: gated by the action it declares, verified through the path a step's capability
-			// is, without an ungated default.
-			const served = webserver.rpcMethod(method);
-			if (served) {
-				if (!mayCall(granted, { capability: served.action })) return refusal(method, served.action, delegateOf(authority, this));
-				if (msg.asks === "read") return { error: notARead(method) };
-				try {
-					// Whoever proved themselves at this boundary is who acts inside it, holding what it presented and reading no
-					// more broadly than the read it holds, or the level it asked, as in a dispatched step. A caller that doesn't
-					// hold a read action is refused each read and write of records.
-					return await runInvoking({ invoked: granted, held }, () =>
-						runActingAs(principal, () => runReadingAsHeld(held, () => runReadingAt(msg.readingAt, () => served.handle(params))), restsOn),
-					);
-				} catch (err) {
-					return callFailed(method, errorDetail(err));
-				}
-			}
-
-			const world = this.getWorld();
-			try {
-				// A call is refused before its input is read, and alike whether its step exists, so a refusal doesn't tell the caller
-				// about the steps it may not call.
-				const tool = registry.get(method);
-				const lacked = tool && lackedByCall({ invoked: granted, held }, tool.descriptor);
-				if (!tool || lacked) return refusal(method, lacked, delegateOf(authority, this));
-				if (msg.asks === "read" && !tool.descriptor.read) return { error: notARead(method) };
-				// External callers (without a feature-step context) get a server-synthesised seqPath, matching MCP.
-				const seqPath = msg.seqPath && msg.seqPath.length > 0 ? msg.seqPath : allocateSyntheticSeqPath(world);
-				const validatedParams = validateToolInput(seqPath, tool, params, world);
-				const featureStep = buildFeatureStepForTransport(tool, validatedParams, seqPath);
-				// RPC dispatches are SPA-initiated (constant polling like getClusteredQuads), not feature steps;
-				// log them at trace so they don't bury actuality's own steps in the timeline. Still visible at debug.
-				featureStep.isSubStep = true;
-				// Whoever proved themselves at this boundary is who acts inside it, so what a step records names the
-				// reader who asked for it rather than the process that carried it out. What it reads is bounded by the read it
-				// holds, in dispatch, and by the level the call asked to read at, which can only be narrower.
-				const hr = await runWithRequestContext({ baseIri: requestBaseIri(requestInfo?.headers) }, () =>
-					// A request holds only what it presented: the server was started inside a step of actuality, and
-					// a caller doesn't hold what that step held.
-					runActingAs(
-						principal,
-						() => runReadingAt(msg.readingAt, () => dispatchStep({ registry, world, steppers: this.steppers, grantedCapability: granted, held }, featureStep)),
-						restsOn,
-					),
-				);
-				if (hr.ok) return hr.products ?? ANSWERED_WITHOUT_PRODUCTS;
-				return callFailed(method, hr.errorMessage, hr.remedy);
-			} catch (err) {
-				const detail = errorDetail(err);
-				logger.error(`[RPC] ${method}: ${detail}`);
-				return callFailed(method, detail);
-			}
-		});
-		return registry;
+		const { runtime } = this.getWorld();
+		const verifier = capabilityVerifier(runtime, webserver);
+		return serveRpc({ world: this.getWorld(), steppers: this.steppers, webserver, transport, verifier, sessionSeqPath: () => this.allocateSessionSeqPath() });
 	}
 
 	async listen(why: string) {
-		if (!this.webserver) {
-			throw new Error("WebServerStepper: webserver not initialized - ensure startFeature cycle ran");
-		}
-		if (ServerHono.listeningPorts.has(this.port)) {
-			return;
-		}
+		if (!this.webserver) throw new Error("WebServerStepper: the web server isn't made yet; its feature's start cycle makes it, so listen within a feature");
+		if (listeningPorts().has(this.port)) return;
 		// A held port fails the bind, naming what holds it: only whoever holds the authority to stop an instance may stop it.
 		await this.webserver.listen(why, this.port, this.hostname);
 	}
 }
+
+/** The purpose of a folder of files a step serves. */
+const filesFrom = (loc: string): TRoutePurpose => ({ description: `Files from ${loc}` });
 
 export default WebServerStepper;

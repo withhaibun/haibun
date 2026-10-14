@@ -22,7 +22,7 @@ import type { TWorld } from "../domains/world.js";
 import { Access, DOMAIN_PERSISTED_TYPE, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "../../resources.js";
 import { SEQ_PATH_FIELD, executionOf, factIdOf, formatRecordName } from "../domains/seq-path.js";
 import { readFacts } from "../../records/pipelines/facts.js";
-import { streamContext, streamOver } from "../../step-stream-context.js";
+import { streamContext, streamOver } from "../../transport/domains/step-stream-context.js";
 import { capabilityAllows } from "../../actions.js";
 import { RUN_AUTHORITY, readingAt, runActingAs, runReadingAt, WITHOUT_READ_REFUSAL } from "../../capability-context.js";
 
@@ -746,7 +746,7 @@ describe("step-dispatch", () => {
 				() => dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, buildFeatureStepForTransport(tool, {}, [0, 3, 6])),
 			);
 			await streamContext.run(
-				streamOver(() => undefined),
+				streamOver(() => undefined, new AbortController()),
 				() => dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, buildFeatureStepForTransport(tool, {}, [0, 3, 7])),
 			);
 			expect(await statusOf([0, 3, 6]), "the stopped step's record").toBe(RECORDED_STATUS.stopped);
@@ -823,12 +823,16 @@ describe("step-dispatch", () => {
 			const set = store.set.bind(store);
 			const get = store.get.bind(store);
 			store.upsertIndividual = (label, data) => (label === SEQ_PATH_LABEL && stepWrites.push("upsert"), upsert(label, data));
-			store.set = (subject, predicate, object, namedGraph, properties) => (namedGraph === SEQ_PATH_LABEL && stepWrites.push("set"), set(subject, predicate, object, namedGraph, properties));
+			store.set = (subject, predicate, object, namedGraph, properties) => (
+				namedGraph === SEQ_PATH_LABEL && stepWrites.push("set"), set(subject, predicate, object, namedGraph, properties)
+			);
 			store.get = (subject, predicate, namedGraph) => (namedGraph === SEQ_PATH_LABEL && stepWrites.push("get"), get(subject, predicate, namedGraph));
 			await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, buildFeatureStepForTransport(tool, {}, [0, 9, 2]));
 			expect(stepWrites).toEqual(["upsert", "upsert"]);
 			const record = (await store.query({ subject: formatRecordName({ execution: executionOf(world.tag), path: [0, 9, 2] }), namedGraph: SEQ_PATH_LABEL })).map((q) => q.predicate);
-			expect(record, "the end's write holds the start's fields with how it ended").toEqual(expect.arrayContaining([SEQ_PATH_FIELD.stepText, SEQ_PATH_FIELD.generatedAtTime, SEQ_PATH_FIELD.endedAtTime, SEQ_PATH_FIELD.error]));
+			expect(record, "the end's write holds the start's fields with how it ended").toEqual(
+				expect.arrayContaining([SEQ_PATH_FIELD.stepText, SEQ_PATH_FIELD.generatedAtTime, SEQ_PATH_FIELD.endedAtTime, SEQ_PATH_FIELD.error]),
+			);
 		});
 
 		it("moves the actuality machine with the step's start and end, and counts its failure", async () => {

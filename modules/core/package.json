@@ -90,6 +90,34 @@
 			"haibun-source": "./src/lib/actuality/adapters/feature-files.js",
 			"default": "./build/lib/actuality/adapters/feature-files.js"
 		},
+		"./lib/rpc-wire.js": {
+			"haibun-source": "./src/lib/transport/ports.js",
+			"default": "./build/lib/transport/ports.js"
+		},
+		"./lib/step-stream-context.js": {
+			"haibun-source": "./src/lib/transport/domains/step-stream-context.js",
+			"default": "./build/lib/transport/domains/step-stream-context.js"
+		},
+		"./lib/request-context.js": {
+			"haibun-source": "./src/lib/transport/domains/request-context.js",
+			"default": "./build/lib/transport/domains/request-context.js"
+		},
+		"./lib/rpc-client.js": {
+			"haibun-source": "./src/lib/transport/adapters/rpc-client.js",
+			"default": "./build/lib/transport/adapters/rpc-client.js"
+		},
+		"./lib/sse-subscriber.js": {
+			"haibun-source": "./src/lib/transport/adapters/sse-subscriber.js",
+			"default": "./build/lib/transport/adapters/sse-subscriber.js"
+		},
+		"./lib/remote-quad-store.js": {
+			"haibun-source": "./src/lib/transport/adapters/remote-quad-store.js",
+			"default": "./build/lib/transport/adapters/remote-quad-store.js"
+		},
+		"./lib/remote-stepper-proxy.js": {
+			"haibun-source": "./src/lib/transport/remote-proxy-stepper.js",
+			"default": "./build/lib/transport/remote-proxy-stepper.js"
+		},
 		"./*": {
 			"haibun-source": "./src/*",
 			"default": "./build/*"

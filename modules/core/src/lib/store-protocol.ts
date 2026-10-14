@@ -10,7 +10,7 @@ import { DensityQuerySchema, GraphQuerySchema } from "./steps/domains/quad-types
 import { z } from "zod";
 import { AccessLevelSchema } from "./resources.js";
 import type { IQuadStore } from "./steps/ports.js";
-import type { TRpcMethod } from "./rpc-wire.js";
+import type { TRpcMethod } from "./transport/ports.js";
 
 export const STORE_METHOD_PREFIX = "store.";
 

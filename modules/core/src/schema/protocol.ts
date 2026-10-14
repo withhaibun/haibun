@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { AccessLevelSchema } from "../lib/resources.js";
-import type { TRemedy } from "../lib/rpc-wire.js";
+import type { TRemedy } from "../lib/transport/ports.js";
 import type { TActuality } from "../lib/actuality/machines/actuality.js";
 
 // ============================================================================
@@ -164,7 +164,6 @@ export const CAPTURE = "capture";
 // ============================================================================
 // Utilities
 // ============================================================================
-
 
 export class Timer {
 	static startTime = new Date();

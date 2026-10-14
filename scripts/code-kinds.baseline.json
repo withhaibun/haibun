@@ -163,25 +163,10 @@
 	"modules/core/src/lib/record-blip.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/core/src/lib/remote-quad-store.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/remote-stepper-proxy.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/request-context.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/core/src/lib/resolver-features.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/resources.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/rpc-client.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/rpc-wire.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/run-artifact.ts": {
@@ -194,12 +179,6 @@
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/signature-header.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/sse-subscriber.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/step-stream-context.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/step-validation.ts": {
@@ -378,32 +357,5 @@
 	},
 	"modules/web-accessibility-axe/src/lib/report.ts": {
 		"isn't in a kind position": 1
-	},
-	"modules/web-server-hono/src/auth.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/web-server-hono/src/capability-auth.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/web-server-hono/src/cookie.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/web-server-hono/src/defs.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/web-server-hono/src/mcp-stepper.ts": {
-		"imports a stepper: ./web-server-stepper.js": 1
-	},
-	"modules/web-server-hono/src/server-hono.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/web-server-hono/src/sse-transport.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/web-server-hono/src/step-transport.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/web-server-hono/src/web-server-stepper.ts": {
-		"performs I/O through setTimeout": 1
 	}
 }

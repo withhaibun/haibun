@@ -6,7 +6,7 @@ import { CStepper } from "../../steps/domains/stepper.js";
 import { createSteppers } from "../index.js";
 import { use } from "./module-loader.js";
 import { fileURLToPath } from "url";
-import { RemoteStepperProxy } from "../../remote-stepper-proxy.js";
+import { RemoteStepperProxy } from "../../transport/remote-proxy-stepper.js";
 
 /** The file-system calls feature collection and workspace discovery make, which a test gives in place of node's. */
 export type TFileSystem = Pick<typeof nodeFS, "existsSync" | "readdirSync" | "statSync" | "readFileSync">;

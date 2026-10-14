@@ -5,7 +5,7 @@
  * `trackHttpRequest`, and `trackOutboundRequest` records a request the instance makes.
  */
 
-import { RPC_ROUTE, SSE_ROUTE } from "./rpc-wire.js";
+import { RPC_ROUTE, SSE_ROUTE } from "./transport/ports.js";
 import { z } from "zod";
 import type { TWorld } from "./actuality/domains/world.js";
 import { ENDPOINT_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL, HTTP_REQUEST_LABEL, LinkRelations, writeEdge, writeReferenceEdge } from "./resources.js";

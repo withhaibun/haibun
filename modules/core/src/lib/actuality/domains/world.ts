@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { TActualityId } from "../../rpc-wire.js";
+import type { TActualityId } from "../../transport/ports.js";
 import type { TTag } from "../../ttag.js";
 import type { FeatureVariables } from "../pipelines/feature-variables.js";
 import type { Prompter } from "../../prompter.js";

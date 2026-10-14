@@ -1,4 +1,4 @@
-import { ACTION_BEGIN, RPC_PROTOCOL, RPC_ROUTE, newActualityId, type THandshake } from "../rpc-wire.js";
+import { ACTION_BEGIN, RPC_PROTOCOL, RPC_ROUTE, newActualityId, type THandshake } from "../transport/ports.js";
 
 /** Returns a host response as actuality sends one. The body is JSON, and `status` reports whether the host served the call. */
 export const rpcAnswer = (body: unknown, status: number): Response => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });

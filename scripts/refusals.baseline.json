@@ -1,15 +1,5 @@
 {
 	"modules/core/src/steps/variables-stepper.ts": {
 		"relays a caught error without stating what failed": 4
-	},
-	"modules/web-server-hono/src/mcp-stepper.ts": {
-		"doesn't state its cause in words": 1,
-		"relays a caught error without stating what failed": 1
-	},
-	"modules/web-server-hono/src/sse-transport.ts": {
-		"relays a caught error without stating what failed": 1
-	},
-	"modules/web-server-hono/src/web-server-stepper.ts": {
-		"relays a caught error without stating what failed": 5
 	}
 }

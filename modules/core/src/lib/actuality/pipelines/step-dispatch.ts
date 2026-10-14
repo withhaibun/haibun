@@ -6,7 +6,7 @@ import type { AStepper, TStepperStep, TFeatureStep, TBeforeStep, TAfterStep, TAf
 import type { TWorld } from "../domains/world.js";
 import type { TActionResult, TStepResult, TSeqPath } from "../../../schema/protocol.js";
 import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, SUBSTEP_LEVEL, STATUS, RECORDED_STATUS, type TStepEnd } from "../../../schema/protocol.js";
-import { streamContext } from "../../step-stream-context.js";
+import { streamContext } from "../../transport/domains/step-stream-context.js";
 import { actionNotOK } from "../../util/index.js";
 import { isWrittenByCaller, normalizeDomainKey } from "../../domains.js";
 import { assertFact, holdsFactOf } from "../../records/pipelines/facts.js";
@@ -116,7 +116,9 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	};
 
 	if (world.runtime.exhaustionError) {
-		return pushAndReturn(stepResultOf(actionNotOK(`actuality halted every dispatch after an exhaustion: ${world.runtime.exhaustionError}`), action, start, Timer.since(), featureStep));
+		return pushAndReturn(
+			stepResultOf(actionNotOK(`actuality halted every dispatch after an exhaustion: ${world.runtime.exhaustionError}`), action, start, Timer.since(), featureStep),
+		);
 	}
 	if (featureStep.seqPath.length > MAX_DISPATCH_SEQPATH) {
 		const msg = `Step depth ${featureStep.seqPath.length} exceeds the limit of ${MAX_DISPATCH_SEQPATH}. Check this step for infinite recursion: ${featureStep.in}`;

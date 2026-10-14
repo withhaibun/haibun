@@ -3,7 +3,6 @@ import {
 	ACTION_BEGIN,
 	ACTUALITY_HEADER,
 	SSE_ROUTE,
-	actualityAt,
 	actualityRefusal,
 	readNdjson,
 	REFUSED_INVOCATION,
@@ -12,6 +11,7 @@ import {
 	RpcRefusalSchema,
 	rpcEnvelope,
 } from "@haibun/core/lib/rpc-wire.js";
+import { actualityAt } from "@haibun/core/lib/transport/adapters/rpc-call.js";
 import { FOLLOWS_THE_RUN, readAction } from "@haibun/core/lib/actions.js";
 import { STORE_METHOD_PREFIX, STORE_READ } from "@haibun/core/lib/store-protocol.js";
 import { GraphQuerySchema } from "@haibun/core/lib/quad-types.js";
@@ -24,7 +24,7 @@ import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOptionName
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import FakeAuthorityStepper, { DOMAIN_FAKE_HOLDER, FakeInvoker, fakeGrant } from "@haibun/core/lib/test/fake-authority.js";
 import WebServerStepper from "./web-server-stepper.js";
-import { WEBSERVER, type IWebServer } from "./defs.js";
+import { WEBSERVER, type IWebServer } from "./ports.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import { EVERY_DEFINITION, SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, type TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { readShownSteps } from "@haibun/core/lib/step-discovery.js";
@@ -32,7 +32,7 @@ import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import { streamContext, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import { authorizedWith, readingAt } from "@haibun/core/lib/capability-context.js";
 import { Access, LinkRelations, PersistedVertexSchema, type AccessLevel } from "@haibun/core/lib/resources.js";
-import { TRANSPORT, type ITransport } from "./sse-transport.js";
+import { TRANSPORT, type ITransport } from "./domains/transport.js";
 import { DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_STEP_METHOD, DOMAIN_TEXT } from "@haibun/core/lib/domains.js";
 
 /** A family of protocol methods a test serves, and the action its method declares. */

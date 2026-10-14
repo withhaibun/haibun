@@ -9,6 +9,26 @@
 	],
 	"exports": {
 		".": "./build/web-server-stepper.js",
+		"./defs.js": {
+			"haibun-source": "./src/ports.js",
+			"default": "./build/ports.js"
+		},
+		"./sse-transport.js": {
+			"haibun-source": "./src/domains/transport.js",
+			"default": "./build/domains/transport.js"
+		},
+		"./capability-auth.js": {
+			"haibun-source": "./src/pipelines/capability-verifier.js",
+			"default": "./build/pipelines/capability-verifier.js"
+		},
+		"./auth.js": {
+			"haibun-source": "./src/adapters/auth.js",
+			"default": "./build/adapters/auth.js"
+		},
+		"./cookie.js": {
+			"haibun-source": "./src/adapters/cookie.js",
+			"default": "./build/adapters/cookie.js"
+		},
 		"./*": "./build/*"
 	},
 	"scripts": {

@@ -40,17 +40,8 @@
 	"modules/core/src/lib/record-blip.ts": {
 		"terminal-preposition": 1
 	},
-	"modules/core/src/lib/request-context.ts": {
-		"terminal-preposition": 2
-	},
 	"modules/core/src/lib/resources.ts": {
 		"terminal-preposition": 4
-	},
-	"modules/core/src/lib/rpc-client.ts": {
-		"terminal-preposition": 1
-	},
-	"modules/core/src/lib/sse-subscriber.ts": {
-		"terminal-preposition": 2
 	},
 	"modules/core/src/lib/taiwa.ts": {
 		"anthropomorphic": 1
@@ -521,34 +512,12 @@
 	"modules/web-accessibility-axe/src/lib/report.ts": {
 		"negated-noun": 3
 	},
-	"modules/web-server-hono/src/auth.ts": {
-		"anthropomorphic": 6,
-		"negated-noun": 1,
-		"terminal-preposition": 1
-	},
-	"modules/web-server-hono/src/capability-auth.test.ts": {
-		"anthropomorphic": 5,
-		"negated-noun": 2
-	},
-	"modules/web-server-hono/src/capability-auth.ts": {
-		"anthropomorphic": 11,
-		"negated-noun": 1,
-		"terminal-preposition": 2
-	},
-	"modules/web-server-hono/src/defs.ts": {
-		"terminal-preposition": 1
-	},
 	"modules/web-server-hono/src/mcp-capability.test.ts": {
 		"anthropomorphic": 2,
 		"negated-noun": 1
 	},
 	"modules/web-server-hono/src/mcp-protocol.test.ts": {
 		"anthropomorphic": 3
-	},
-	"modules/web-server-hono/src/mcp-stepper.ts": {
-		"anthropomorphic": 7,
-		"negated-noun": 1,
-		"terminal-preposition": 1
 	},
 	"modules/web-server-hono/src/mcp-tools.test.ts": {
 		"anthropomorphic": 2,
@@ -559,28 +528,8 @@
 		"negated-noun": 8,
 		"terminal-preposition": 1
 	},
-	"modules/web-server-hono/src/server-hono.test.ts": {
-		"anthropomorphic": 6
-	},
-	"modules/web-server-hono/src/server-hono.ts": {
-		"anthropomorphic": 5,
-		"negated-noun": 1,
-		"terminal-preposition": 2
-	},
-	"modules/web-server-hono/src/sse-transport.ts": {
-		"anthropomorphic": 11,
-		"relation-verb": 1,
-		"terminal-preposition": 1,
-		"the-run": 1
-	},
 	"modules/web-server-hono/src/web-server-stepper.test.ts": {
 		"anthropomorphic": 1
-	},
-	"modules/web-server-hono/src/web-server-stepper.ts": {
-		"anthropomorphic": 18,
-		"negated-noun": 1,
-		"terminal-preposition": 2,
-		"the-run": 1
 	},
 	"scripts/graduate-version.mjs": {
 		"negated-noun": 2

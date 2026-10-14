@@ -21,7 +21,7 @@ import {
 import { findFeatures } from "../lib/features.js";
 import { FlowRunner } from "../lib/steps/pipelines/flow-runner.js";
 import { QuadStore } from "../lib/steps/pipelines/quad-store.js";
-import { RemoteQuadStore } from "../lib/remote-quad-store.js";
+import { RemoteQuadStore } from "../lib/transport/adapters/remote-quad-store.js";
 import { requestSigner } from "../lib/session-authority.js";
 import { SERVING } from "../lib/serving.js";
 import { discoverSteps } from "../lib/steps/derivations/discover-steps.js";
@@ -266,7 +266,10 @@ class Haibun extends AStepper implements IHasCycles {
 				return OK;
 			},
 		},
-		endsWith: { gwta: `ends with {result: ${DOMAIN_ENDING}}`, action: ({ result }: { result: string }) => (result === ENDING.ok ? actionOK() : actionNotOK(`the feature states that it ends with ${result}, so this step fails`)) },
+		endsWith: {
+			gwta: `ends with {result: ${DOMAIN_ENDING}}`,
+			action: ({ result }: { result: string }) => (result === ENDING.ok ? actionOK() : actionNotOK(`the feature states that it ends with ${result}, so this step fails`)),
+		},
 		pause: {
 			description: 'Pause for a duration. Accepts seconds or milliseconds with an optional space, e.g. `pause for "2s"` or `pause for "30 ms"`.',
 			gwta: `pause for {duration: ${DOMAIN_DURATION}}`,

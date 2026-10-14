@@ -37,7 +37,7 @@ import type { TDomainDefinition } from "@haibun/core/lib/resources.js";
 import { actionNotOK, actionOKWithProducts, perProcessOptionNames } from "@haibun/core/lib/util/index.js";
 import { localOrigin } from "@haibun/core/lib/local-origin.js";
 import { RpcClient } from "@haibun/core/lib/rpc-client.js";
-import { holdSignIn, releaseSignIn } from "@haibun/core/lib/rpc-wire.js";
+import { instanceSignIns } from "./root.js";
 import { BASIC_AUTH_OPTION, basicAuthUsers, type TBasicAuthUser } from "@haibun/core/lib/basic-auth.js";
 import { RemoteStepperProxy } from "@haibun/core/lib/remote-stepper-proxy.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
@@ -326,7 +326,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		endFeature: async (endFeature?: TEndFeature) => {
 			if (!endFeature?.shouldClose) return;
 			await Promise.all([...this.children.map(({ child }) => terminate(child)), ...[...this.runs.values()].map((r) => terminate(r.child))]);
-			for (const origin of this.signedInAt) releaseSignIn(origin);
+			for (const origin of this.signedInAt) instanceSignIns.release(origin);
 			this.signedInAt.clear();
 			this.children = [];
 			this.runs.clear();
@@ -525,7 +525,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 	private holdSignInAt(port: number, user: TBasicAuthUser | undefined): void {
 		if (!user) return;
 		const url = localOrigin(port);
-		holdSignIn(url, user);
+		instanceSignIns.hold(url, user);
 		this.signedInAt.add(url);
 	}
 

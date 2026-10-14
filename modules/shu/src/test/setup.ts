@@ -15,7 +15,7 @@
  * what was missed.
  */
 
-import { actualityAt } from "@haibun/core/lib/rpc-wire.js";
+import { actualityAt } from "@haibun/core/lib/transport/adapters/rpc-call.js";
 import { HYDRATION_ID } from "../domains/elements.js";
 import { RESPONSE_TIMEOUT_MS, type TDeploymentSettings } from "../domains/hydration.js";
 import { installAuthority, installConduit, installHydration } from "../page/root.js";

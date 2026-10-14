@@ -1,5 +1,5 @@
 import { rmSync, writeFileSync, readFileSync } from "fs";
-import { actualityAt } from "@haibun/core/lib/rpc-wire.js";
+import { actualityAt } from "@haibun/core/lib/transport/adapters/rpc-call.js";
 import type { Context } from "@haibun/web-server-hono/defs.js";
 import { setCookie } from "@haibun/web-server-hono/cookie.js";
 

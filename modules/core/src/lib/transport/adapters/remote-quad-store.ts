@@ -1,0 +1,123 @@
+/**
+ * RemoteQuadStore: the full IQuadStore served by ANOTHER instance's store, over the capability-gated
+ * `store.*` protocol (store-protocol.ts). Registered as a backing store (QuadStore.registerStore) for the
+ * graphs it is mounted for, so a satellite instance keeps those records in the main instance's store
+ * instead of its own: writes route through, reads come back: one store, one custodian. Every call
+ * is signed, invoking the action its method takes; a peer that doesn't hold a delegation for it is refused by the serving side.
+ * Mount-scoped: clustered reads and all() cover only the mounted graphs, never the peer's whole store.
+ */
+import { RemoteInstance } from "./rpc-client.js";
+import { STORE_METHOD_PREFIX, requiredStoreCapability } from "../../store-protocol.js";
+import type { TRequestSigner } from "../../authority-types.js";
+import type { AccessLevel } from "../../resources.js";
+import type { IQuadStore } from "../../steps/ports.js";
+import type {
+	TClusteredQuads,
+	TClusteredQuadsOpts,
+	TDensityQuery,
+	TDensityResult,
+	TDistinctValues,
+	TGraphQuery,
+	TQuad,
+	TQuadPattern,
+	TRecordsPage,
+} from "../../steps/domains/quad-types.js";
+
+type TRemoteQuadStoreConfig = { url: string; sign: TRequestSigner; graphs: string[]; fetchImpl?: typeof fetch };
+
+export class RemoteQuadStore implements IQuadStore {
+	readonly isRemote = true;
+	private remote: RemoteInstance;
+
+	constructor(private config: TRemoteQuadStoreConfig) {
+		this.remote = new RemoteInstance(config.url, config.sign, config.fetchImpl);
+	}
+
+	/** Handshake before use: the serving instance self-reports its site principal: the custodian of everything mounted here. */
+	connect(): Promise<string> {
+		return this.remote.connect();
+	}
+
+	get site(): string {
+		return this.remote.site;
+	}
+
+	get graphs(): readonly string[] {
+		return this.config.graphs;
+	}
+
+	private async call<T>(method: string, params: Record<string, unknown>): Promise<T> {
+		const storeMethod = `${STORE_METHOD_PREFIX}${method}`;
+		return (await this.remote.rpc.call<{ result: T }>(storeMethod, params, [], { action: requiredStoreCapability(storeMethod) })).result;
+	}
+
+	set(subject: string, predicate: string, object: unknown, namedGraph: string, properties?: Record<string, unknown>): Promise<void> {
+		return this.call("set", { subject, predicate, object, namedGraph, properties });
+	}
+
+	get(subject: string, predicate: string, namedGraph?: string): Promise<unknown | undefined> {
+		return this.call("get", { subject, predicate, namedGraph });
+	}
+
+	add(quad: Omit<TQuad, "timestamp">): Promise<void> {
+		return this.call("add", { quad });
+	}
+
+	query(pattern: TQuadPattern): Promise<TQuad[]> {
+		return this.call("query", { pattern });
+	}
+
+	clear(namedGraph?: string): Promise<void> {
+		return this.call("clear", { namedGraph });
+	}
+
+	remove(pattern: TQuadPattern): Promise<void> {
+		return this.call("remove", { pattern });
+	}
+
+	/** Mount-scoped: the mounted graphs' quads, not the peer's whole store: one bounded query per mounted graph. */
+	async all(): Promise<TQuad[]> {
+		const perGraph = await Promise.all(this.config.graphs.map((namedGraph) => this.query({ namedGraph })));
+		return perGraph.flat();
+	}
+
+	readRecords(query: TGraphQuery): Promise<TRecordsPage> {
+		return this.call("readRecords", { query });
+	}
+
+	upsertIndividual(label: string, data: unknown): Promise<string> {
+		return this.call("upsertIndividual", { label, data });
+	}
+
+	deleteIndividual(label: string, id: string): Promise<void> {
+		return this.call("deleteIndividual", { label, id });
+	}
+
+	distinctPropertyValues(label: string, property: string): Promise<TDistinctValues> {
+		return this.call("distinctPropertyValues", { label, property });
+	}
+
+	density(query: TDensityQuery): Promise<TDensityResult> {
+		return this.call("density", { query });
+	}
+
+	/**
+	 * Mount-scoped: a caller's type filter intersects the mounted graphs; a call without a filter reads exactly the mounted graphs.
+	 * Every subject is stamped with the serving site: a mounted record's location IS the serving instance's store (a
+	 * read-time store fact), so this instance's own view already shows it under the site that holds it, and doesn't need
+	 * federation. A subject the peer itself stamped (transitive mount) keeps that deeper stamp.
+	 */
+	async getClusteredQuads(opts: TClusteredQuadsOpts): Promise<TClusteredQuads> {
+		const types = opts.types ? opts.types.filter((t) => this.config.graphs.includes(t)) : [...this.config.graphs];
+		if (types.length === 0) return { quads: [], clusters: [] };
+		const site = this.site;
+		const r = await this.call<TClusteredQuads>("getClusteredQuads", { perTypeLimit: opts.perTypeLimit, types, accessLevel: opts.accessLevel as AccessLevel, scope: opts.scope });
+		const defaultSite = r.site ?? site;
+		const clusters = r.clusters.map((c) => ({ ...c, sites: Object.fromEntries(c.sampledSubjects.map((s) => [s, c.sites?.[s] ?? defaultSite])) }));
+		return { quads: r.quads, clusters, site };
+	}
+
+	createEdge(fromLabel: string, fromId: string, edgeLabel: string, toLabel: string, toId: string): Promise<void> {
+		return this.call("createEdge", { fromLabel, fromId, edgeLabel, toLabel, toId });
+	}
+}

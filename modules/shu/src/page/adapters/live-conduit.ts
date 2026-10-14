@@ -7,7 +7,6 @@
 import { z } from "zod";
 import {
 	ACTION_BEGIN,
-	buildRpcCall,
 	readNdjson,
 	type TProveRequest,
 	type TActualityId,
@@ -17,6 +16,7 @@ import {
 	authorityFailed,
 	refusalCarried,
 } from "@haibun/core/lib/rpc-wire.js";
+import { buildRpcCall } from "@haibun/core/lib/transport/adapters/rpc-call.js";
 import type { TConduit } from "../ports.js";
 import type { TLink, TRepresentation, TStreamChunk } from "../domains/links.js";
 
@@ -42,6 +42,9 @@ const ActionBeganSchema = z.object({ seqPath: z.array(z.number()).min(1) });
 
 /** The conduit of a served page. `held` is what the page holds of its calls. `scope` is the place a group's calls share, and
  *  is null for the page's own conduit, which allocates a place for each act. */
+/** The arguments a link's call states: a link without params calls its step without arguments, as an empty record. */
+const argumentsOf = (link: TLink): Record<string, unknown> => (link.params === undefined ? {} : link.params);
+
 export class LiveConduit implements TConduit {
 	constructor(
 		private readonly source: TConduitSource,
@@ -54,7 +57,7 @@ export class LiveConduit implements TConduit {
 		// A read doesn't begin an act, since actuality doesn't record a read and an act's place takes a call of its own. An
 		// act begins one, since actuality records what the act does at that place.
 		const seqPath = link.asks === "read" ? undefined : await this.allocateSeqPath(why);
-		const res = await this.post(link.method, { method: link.method, params: link.params, seqPath, asks: link.asks });
+		const res = await this.post(link.method, { method: link.method, params: argumentsOf(link), seqPath, asks: link.asks });
 		return (await this.answerOf(link.method, res)) as T;
 	}
 
@@ -65,7 +68,7 @@ export class LiveConduit implements TConduit {
 	): Promise<{ seqPath: number[] }> {
 		const seqPath = await this.allocateSeqPath(opts.why);
 		opts.onStart?.(seqPath);
-		const res = await this.post(link.method, { method: link.method, params: link.params, seqPath, stream: true, asks: link.asks }, opts.signal);
+		const res = await this.post(link.method, { method: link.method, params: argumentsOf(link), seqPath, stream: true, asks: link.asks }, opts.signal);
 		// A refused stream returns its refusal, as any refused call does.
 		if (!res.ok) await this.answerOf(link.method, res);
 		if (!res.body) throw new Error(`${link.method}: stream RPC didn't return a body`);

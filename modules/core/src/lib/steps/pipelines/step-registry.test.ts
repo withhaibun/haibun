@@ -7,7 +7,7 @@ import { discoverSteps, steppersOf } from "../derivations/discover-steps.js";
 import { hostScopedMethodName } from "../domains/step-method.js";
 import { AStepper, type TFeatureStep } from "../domains/stepper.js";
 import { actionNotOK, actionOK } from "../../util/index.js";
-import { RefusedCall } from "../../rpc-wire.js";
+import { RefusedCall } from "../../transport/ports.js";
 import { typeCollectionRemedy } from "../../typed-links.js";
 import { getDefaultWorld } from "../../test/lib.js";
 import type { TWorld } from "../../actuality/domains/world.js";
@@ -234,7 +234,10 @@ describe("the refusal a caller from outside actuality receives", () => {
 	});
 
 	it("names the action a caller with a proven key lacks with its request as the remedy, or states that the step doesn't exist", () => {
-		expect(refusal("Pool-drain", "Pool:drain", "did:key:zSwimmer")).toEqual({ error: "Pool-drain: capability Pool:drain required", remedy: { do: "request", action: "Pool:drain" } });
+		expect(refusal("Pool-drain", "Pool:drain", "did:key:zSwimmer")).toEqual({
+			error: "Pool-drain: capability Pool:drain required",
+			remedy: { do: "request", action: "Pool:drain" },
+		});
 		expect(refusal("Pool-nowhere", undefined, "did:key:zSwimmer")).toEqual({
 			error: "Pool-nowhere: actuality doesn't register a step of this method; show steps lists the methods it registers",
 		});
@@ -253,10 +256,18 @@ describe("a step's refusal", () => {
 	it("carries the remedy a step states, and the remedy a refused call it threw carries (CA1G6)", async () => {
 		const world = getDefaultWorld();
 		const stepper = new RefusingStepper();
-		const featureStepOf = (name: keyof RefusingStepper["steps"]): TFeatureStep => ({ in: name, seqPath: [0, 1], action: { stepperName: "RefusingStepper", actionName: name, step: stepper.steps[name] } });
+		const featureStepOf = (name: keyof RefusingStepper["steps"]): TFeatureStep => ({
+			in: name,
+			seqPath: [0, 1],
+			action: { stepperName: "RefusingStepper", actionName: name, step: stepper.steps[name] },
+		});
 		const refused = await createStepHandler("RefusingStepper", "refuses", stepper.steps.refuses)(featureStepOf("refuses"), world);
 		expect(refused).toMatchObject({ ok: false, remedy: { do: "open", ref: { kind: "domain", target: { domain: "Letter" } } } });
 		const thrown = await createStepHandler("RefusingStepper", "throwsARefusal", stepper.steps.throwsARefusal)(featureStepOf("throwsARefusal"), world);
-		expect(thrown).toMatchObject({ ok: false, errorMessage: "the step threw: a call refused (request Pool:drain from a key that delegates it)", remedy: { do: "request", action: "Pool:drain" } });
+		expect(thrown).toMatchObject({
+			ok: false,
+			errorMessage: "the step threw: a call refused (request Pool:drain from a key that delegates it)",
+			remedy: { do: "request", action: "Pool:drain" },
+		});
 	});
 });

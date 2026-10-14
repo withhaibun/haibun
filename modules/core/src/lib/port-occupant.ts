@@ -10,7 +10,7 @@
  */
 
 import { localOrigin } from "./local-origin.js";
-import { ACTION_BEGIN, RPC_ROUTE, rpcEnvelope } from "./rpc-wire.js";
+import { ACTION_BEGIN, RPC_ROUTE, rpcEnvelope } from "./transport/ports.js";
 
 const PROBE_TIMEOUT_MS = 1_500;
 

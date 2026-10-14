@@ -24,7 +24,7 @@ import { itemAt } from "./util/item-at.js";
 import MarkdownIt from "markdown-it";
 import { LinkRelations, type TPart, type TQuoteAnchor, type TRelRange } from "./resources.js";
 import { MEDIA_FRAGMENTS, isFragment, type TFragment } from "./media-fragments.js";
-import type { TRemedy } from "./rpc-wire.js";
+import type { TRemedy } from "./transport/ports.js";
 
 /**
  * What a reference denotes: one persisted individual or a type. Every surface that distinguishes the two uses these
