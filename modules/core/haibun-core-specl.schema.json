@@ -54,6 +54,7 @@
       "type": "object",
       "propertyNames": {
         "type": "string",
+        "format": "starts_with",
         "pattern": "^HAIBUN_O_.*"
       },
       "additionalProperties": {

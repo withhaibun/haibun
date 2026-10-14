@@ -28,8 +28,8 @@ export const createAuthMiddleware = {
 
 export const createDynamicAuthMiddleware = (ts: TestServer): MiddlewareHandler => {
 	const handlers: Record<TSchemeType, MiddlewareHandler> = { basic: createAuthMiddleware.basic(ts), bearer: createAuthMiddleware.bearer(ts) };
-	return async (c, next) => {
-		if (!ts.currentAuthScheme) return c.text("Unauthorized", 401);
+	return (c, next) => {
+		if (!ts.currentAuthScheme) return Promise.resolve(c.text("Unauthorized", 401));
 		return handlers[ts.currentAuthScheme](c, next);
 	};
 };

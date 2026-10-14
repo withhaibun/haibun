@@ -348,7 +348,7 @@ async function startClient(context: ExtensionContext) {
 			revealCurrentFile();
 		});
 
-		client.onDidChangeState(async (e) => {
+		client.onDidChangeState((e) => {
 			if (e.newState === State.Stopped) {
 				configProvider.setLspStatus("stopped");
 				configProvider.setMcpStatus("stopped");

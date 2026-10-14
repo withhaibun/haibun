@@ -34,9 +34,9 @@
 	"scripts": {
 		"prepublishOnly": "tsc -b .",
 		"build": "tsc -b .",
-		"build-watch": "tsc -b . --watch",
+		"build:watch": "tsc -b . --watch",
 		"test": "vitest run",
-		"test-watch": "vitest"
+		"test:watch": "vitest"
 	},
 	"keywords": [
 		"haibun",
@@ -52,10 +52,9 @@
 		"@hono/node-server": "^1.19.9",
 		"@modelcontextprotocol/sdk": "^1.27.0",
 		"hono": "^4.12.0",
-		"zod": "4.4.2"
+		"zod": "4.6.7"
 	},
 	"devDependencies": {
-		"@types/node": "^25.3.0",
-		"vitest": "^4.0.18"
+		"@types/node": "^25.3.0"
 	}
 }

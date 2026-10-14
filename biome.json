@@ -59,6 +59,7 @@
 			},
 			"suspicious": {
 				"noExplicitAny": "error",
+				"useAwait": "error",
 				"noDoubleEquals": "error",
 				"noAsyncPromiseExecutor": "error",
 				"noCatchAssign": "error",
@@ -88,7 +89,7 @@
 				"useGetterReturn": "error"
 			}
 		},
-		"includes": ["**", "**/build/**", "**/.eslintrc.cjs"]
+		"includes": ["**"]
 	},
 	"javascript": {
 		"formatter": {
@@ -100,19 +101,6 @@
 		{
 			"includes": ["**/*.feature.ts", "**/backgrounds/**/*.ts"],
 			"javascript": { "formatter": { "expand": "auto" } }
-		},
-		{
-			"includes": ["modules/**/*.ts"],
-			"linter": {
-				"rules": {
-					"correctness": {
-						"noUnusedVariables": "warn"
-					},
-					"suspicious": {
-						"useAwait": "warn"
-					}
-				}
-			}
 		},
 		{
 			"includes": ["*.js", "*.ts", "*.cjs", "!modules/**/*"],

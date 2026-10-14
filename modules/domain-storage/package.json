@@ -15,10 +15,9 @@
 	"scripts": {
 		"test": "vitest run",
 		"coverage": "vitest --coverage",
-		"test-watch": "vitest",
+		"test:watch": "vitest",
 		"build": "tsc -b .",
-		"build-watch": "tsc -b . --watch",
-		"tsc-watch": "tsc --watch",
+		"build:watch": "tsc -b . --watch",
 		"tsc": "tsc",
 		"xprepare": "npm run build",
 		"prepublishOnly": "tsc -b ."

@@ -14,7 +14,7 @@
 	"scripts": {
 		"build": "tsc -b .",
 		"start": "node build/index.js",
-		"test": "vitest"
+		"test": "vitest run"
 	},
 	"dependencies": {
 		"@haibun/core": "*",
@@ -22,7 +22,6 @@
 		"react": "^19.2.4"
 	},
 	"devDependencies": {
-		"@types/react": "^19.2.14",
-		"vitest": "^4.0.18"
+		"@types/react": "^19.2.14"
 	}
 }

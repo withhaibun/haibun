@@ -516,9 +516,6 @@
 		"anthropomorphic": 2,
 		"negated-noun": 1
 	},
-	"modules/web-server-hono/src/mcp-protocol.test.ts": {
-		"anthropomorphic": 3
-	},
 	"modules/web-server-hono/src/mcp-tools.test.ts": {
 		"anthropomorphic": 2,
 		"negated-noun": 1

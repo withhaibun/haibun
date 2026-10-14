@@ -10,14 +10,13 @@
 	],
 	"scripts": {
 		"build": "tsc -b",
-		"test": "vitest"
+		"test": "vitest run"
 	},
 	"dependencies": {
 		"@haibun/core": "*",
 		"@haibun/web-playwright": "*"
 	},
 	"devDependencies": {
-		"@types/node": "^25.3.0",
-		"vitest": "^4.0.18"
+		"@types/node": "^25.3.0"
 	}
 }

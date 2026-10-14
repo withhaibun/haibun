@@ -13,10 +13,10 @@
 	],
 	"scripts": {
 		"build": "tsc -b .",
-		"build-watch": "tsc -b . --watch",
+		"build:watch": "tsc -b . --watch",
 		"prepublishOnly": "tsc -b .",
 		"test": "vitest run",
-		"test-watch": "vitest"
+		"test:watch": "vitest"
 	},
 	"keywords": [],
 	"author": "",
@@ -30,7 +30,6 @@
 	"gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5",
 	"devDependencies": {
 		"@haibun/storage-mem": "*",
-		"@types/node": "^25.3.0",
-		"vitest": "^4.0.18"
+		"@types/node": "^25.3.0"
 	}
 }

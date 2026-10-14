@@ -160,5 +160,3 @@ When using storage-mem in tests, it may be helpful to use `vi.spyOn(process, 'cw
 
 It can be handy to access the memfs directoy; use this: `(this.publishStorage as any).debug(`${publishRoot}/tracks/`);``
 
-A few test steppers are provided, such as SetTimeStepper, from '@haibun/core/lib/test/SetTimeStepper.js'.
-

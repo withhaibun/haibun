@@ -12,7 +12,7 @@ type TRouteHandler = (c: Context) => Response | Promise<Response>;
  */
 export const restRoutes = (testServer: TestServer): Record<string, TRouteHandler> => {
 	return {
-		async createAuthToken(c: Context): Promise<Response> {
+		createAuthToken(c: Context): Response {
 			testServer.authToken = newToken;
 
 			return c.json({
@@ -27,12 +27,12 @@ export const restRoutes = (testServer: TestServer): Record<string, TRouteHandler
 			});
 		},
 
-		async checkAuth(c: Context): Promise<Response> {
+		checkAuth(c: Context): Response {
 			// Auth is checked by middleware before this runs
 			return c.json({ type: "profile" });
 		},
 
-		async logOut(c: Context): Promise<Response> {
+		logOut(c: Context): Response {
 			testServer.authSchemeHandler?.logout();
 			const redirectTo = c.req.query("post_logout_redirect_uri");
 			if (redirectTo) {
@@ -41,7 +41,7 @@ export const restRoutes = (testServer: TestServer): Record<string, TRouteHandler
 			return c.body(null, 204);
 		},
 
-		async resourceGet(c: Context): Promise<Response> {
+		resourceGet(c: Context): Response | Promise<Response> {
 			// Auth is checked by middleware before this runs
 			const id = parseInt(c.req.param("id") ?? "", 10);
 			const resource = testServer.resources.find((r) => r.id === id);
@@ -51,7 +51,7 @@ export const restRoutes = (testServer: TestServer): Record<string, TRouteHandler
 			return c.notFound();
 		},
 
-		async resourceDelete(c: Context): Promise<Response> {
+		resourceDelete(c: Context): Response | Promise<Response> {
 			// Auth is checked by middleware before this runs
 			const id = parseInt(c.req.param("id") ?? "", 10);
 			const resource = testServer.resources.find((r) => r.id === id);
@@ -62,7 +62,7 @@ export const restRoutes = (testServer: TestServer): Record<string, TRouteHandler
 			return c.notFound();
 		},
 
-		async resources(c: Context): Promise<Response> {
+		resources(c: Context): Response {
 			// Auth is checked by middleware before this runs
 			if (c.req.header("accept") !== "application/json") {
 				return c.text(`Must use application/json, not ${c.req.header("accept")}`, 401);

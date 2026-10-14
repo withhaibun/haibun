@@ -157,7 +157,6 @@ describe("check module is class", () => {
 		expect(checkModuleIsClass(class a {}, "a")).toEqual(undefined);
 	});
 	it("should fail a function", () => {
-		// biome-disable-next-line @typescript-eslint/no-empty-function
 		expect(() =>
 			checkModuleIsClass(function a() {
 				/* */

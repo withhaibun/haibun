@@ -134,7 +134,6 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 				const mode = featureStep.intent?.mode ?? "authoritative";
 				const usage = featureStep.intent?.usage;
 
-				// eslint-disable-next-line no-constant-condition
 				while (true) {
 					if (loopCount++ > MAX_LOOPS) return actionNotOK("whenever: the condition still held after the maximum number of loops. Make the action change the condition.");
 

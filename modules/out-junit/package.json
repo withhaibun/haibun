@@ -11,7 +11,7 @@
 		"build": "tsc -b .",
 		"prepublishOnly": "tsc -b .",
 		"test": "vitest run",
-		"test-watch": "vitest"
+		"test:watch": "vitest"
 	},
 	"keywords": [],
 	"author": "",

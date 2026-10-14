@@ -17,9 +17,9 @@
 	"scripts": {
 		"prepublishOnly": "tsc -b .",
 		"build": "tsc -b .",
-		"build-watch": "tsc -b --watch .",
+		"build:watch": "tsc -b --watch .",
 		"test": "vitest run",
-		"test-watch": "vitest"
+		"test:watch": "vitest"
 	},
 	"keywords": [],
 	"author": "",
@@ -27,7 +27,7 @@
 	"dependencies": {
 		"@haibun/core": "*",
 		"source-map-support": "^0.5.21",
-		"zod": "4.4.2"
+		"zod": "4.6.7"
 	},
 	"gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5",
 	"devDependencies": {

@@ -162,7 +162,6 @@ describe("RpcClient.stream", () => {
 	it("sets stream:true in the request body", async () => {
 		const { fetchImpl, calls } = makeFakeFetch([{ ok: true, bodyStream: [] }]);
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl });
-		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		for await (const _ of client.stream("m", {}, [0])) {
 			/* empty */
 		}
@@ -174,7 +173,6 @@ describe("RpcClient.stream", () => {
 		const { fetchImpl } = makeFakeFetch([{ ok: false, status: 500, bodyStream: [] }]);
 		const client = new RpcClient({ baseUrl: "http://host", fetchImpl });
 		await expect(async () => {
-			// eslint-disable-next-line @typescript-eslint/no-unused-vars
 			for await (const _ of client.stream("m", {}, [0])) {
 				/* empty */
 			}

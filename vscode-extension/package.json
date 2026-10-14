@@ -111,7 +111,7 @@
 	"scripts": {
 		"vscode:prepublish": "npm run build",
 		"build": "tsc -p ./",
-		"watch": "tsc -watch -p ./"
+		"build:watch": "tsc -watch -p ./"
 	},
 	"dependencies": {
 		"vscode-languageclient": "^9.0.1"

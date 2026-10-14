@@ -6,7 +6,7 @@ import Haibun from "./haibun.js";
 import type { TWorld } from "../lib/actuality/domains/world.js";
 import { AStepper } from "../lib/steps/domains/stepper.js";
 
-describe("ActivitiesStepper - Skipped Steps Reproduction", () => {
+describe("ActivitiesStepper runs the steps after an ensure", () => {
 	const steppers = [Haibun, VariablesStepper, ActivitiesStepper];
 
 	it("should run steps following an immediately satisfied ensure", async () => {
@@ -59,7 +59,7 @@ describe("ActivitiesStepper - Skipped Steps Reproduction", () => {
 		expect(result.ok).toBe(true);
 	});
 
-	it("should fail if steps are passed as a single multiline string (programmatic usage)", async () => {
+	it("runs an outcome registered in code with its block's steps", async () => {
 		const feature = { path: "/features/test-manual.feature", content: "ensure Manual Outcome" };
 
 		class ManualRegStepper extends ActivitiesStepper {
@@ -78,6 +78,5 @@ describe("ActivitiesStepper - Skipped Steps Reproduction", () => {
 		const result = await passWithDefaults([feature], customSteppers, undefined);
 
 		expect(result.ok).toBe(true);
-		// expect(result.failure?.error?.message).toContain('max attempts exceeded');
 	});
 });

@@ -1,39 +1,29 @@
 # Developing Haibun
 
-Clone this repo, then install and build:
+Clone this repository, then install its packages and build every module:
 
-`npm install ` - this will also do a first build via npm prepare
+`npm install`
 
-During development of modules, use
+`npm run build`
 
-`npm run build-watch`
+While modules change, `npm run build:watch` rebuilds them and shu's bundles.
 
-Top level tests for all modules are also available:
+`npm test` runs every module's unit and integration tests from the root, and `npm run test:watch` runs them on each change.
+A module's own `build` and `test` scripts run the same tools for that module alone.
 
-`npm run test`
+`npm run lint` runs biome and type-checks the features and the tests.
 
-or
+The end-to-end features run from `e2e-tests` with `npm run test:e2e`. Their browsers come from Playwright:
+`npx playwright install chromium`.
 
-`npm run test-watch`
-
-
-The same build/test commands are available in individual modules, but are not needed if running the command in the main directory.
-
-Use `npm run depcruise` to view Haibun's [dependencies](dependencygraph.svg).
+`npm run depcruise` writes `dependency-graph.html`, a graph of the modules' imports, which needs Graphviz's `dot`.
 
 ## Developing modules and Haibun core together
 
-To develop your own separate module while developing Haibun modules, use:
+To develop a separate module beside Haibun's modules, link each Haibun library into that module's repository:
 
 `npx @haibun/utils -p link`
 
-This will link every Haibun library in a repo to a locally linked Haibun repo;
-you may need to run `npm link` in each Haibun module directory first.
+This links each Haibun library to a Haibun repository linked with `npm link`, which runs once in each Haibun module's
+directory.
 
-
-## Testing note
-
-Since switching to vitest, circular dependencies have to be avoided for tests.
-Use this approach to find them for a particular file:
-
-`npx dpdm modules/storage-mem/src/storage-mem.test.ts`

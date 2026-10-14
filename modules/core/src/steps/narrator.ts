@@ -4,13 +4,13 @@ import type { TWorld } from "../lib/actuality/domains/world.js";
 import { Origin } from "../schema/protocol.js";
 import { IHasCycles, IHasOptions, AStepper, TFeatureStep, IStepperCycles, TStartFeature, type TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOK, getStepperOption, sleep, stringOrError } from "../lib/util/index.js";
-import { actualURI } from "../lib/util/node/actualURI.js";
 import { copyPreRenderedAudio, doExec, doSpawn, playAudioFile, preRenderFeatureProse, TRenderedAudioMap } from "./lib/tts.js";
 import { captureLocator } from "../lib/capture-locator.js";
 import { SpeechArtifact, VideoArtifact } from "../schema/protocol.js";
 import { DOMAIN_TITLE } from "../lib/domains.js";
 
-const CAPTURE_FILENAME = "vcapture.webm";
+/** How long the capture holds the feature's last frame before its stop command runs. */
+const CAPTURE_TAIL_MS = 2000;
 
 const cycles = (narrator: Narrator): IStepperCycles => ({
 	async startFeature({ resolvedFeature }: TStartFeature) {
@@ -21,8 +21,7 @@ const cycles = (narrator: Narrator): IStepperCycles => ({
 	},
 	async endFeature() {
 		if (narrator.captureStop) {
-			actualURI(CAPTURE_FILENAME);
-			await sleep(2000);
+			await sleep(CAPTURE_TAIL_MS);
 			await doExec(narrator.captureStop, false);
 			const world = narrator.getWorld();
 			const path = captureLocator(world.options, world.tag);

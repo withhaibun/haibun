@@ -108,7 +108,7 @@ export default class TuiMonitorStepper extends AStepper implements IHasCycles, I
 		world.eventLogger.suppressConsole = true;
 	}
 
-	async prompt(prompt: TPrompt): Promise<TPromptResponse> {
+	prompt(prompt: TPrompt): Promise<TPromptResponse> {
 		this.currentPrompt = prompt;
 		this.updateRender();
 		return new Promise((resolve, reject) => {
@@ -146,7 +146,7 @@ export default class TuiMonitorStepper extends AStepper implements IHasCycles, I
 	}
 
 	cycles = {
-		startExecution: async () => {
+		startExecution: () => {
 			this.minLevel = shownLogLevel(this.getWorld().options);
 			if (!this.terminal) return;
 			const onResolve = (val: string) => {
@@ -191,9 +191,10 @@ export default class TuiMonitorStepper extends AStepper implements IHasCycles, I
 			this.updateRender();
 		},
 
-		endExecution: async () => {
+		endExecution: () => {
 			this.finished = true;
 			this.updateRender();
+			return Promise.resolve();
 		},
 	};
 }

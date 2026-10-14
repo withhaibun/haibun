@@ -1,4 +1,5 @@
 import { rmSync, writeFileSync, readFileSync } from "fs";
+import { createRequire } from "module";
 import { actualityAt } from "@haibun/core/lib/transport/adapters/rpc-call.js";
 import type { Context } from "@haibun/web-server-hono/defs.js";
 import { setCookie } from "@haibun/web-server-hono/cookie.js";
@@ -19,6 +20,9 @@ import { TEST_DOMAIN, testDomainDefinitions } from "@haibun/core/lib/test/test-d
 import { REFUSED_CALL_STATUS, REFUSED_INVOCATION, RPC_PROTOCOL } from "@haibun/core/lib/rpc-wire.js";
 
 const TALLY = "tally";
+
+/** The QR code page's drawing library, from the installed `qrcanvas` package, so the page doesn't reach a CDN. */
+const QRCANVAS_SCRIPT = createRequire(import.meta.url).resolve("qrcanvas/lib/qrcanvas.min.js");
 
 const setTally = (value: number) => ({ term: TALLY, value: String(value), domain: DOMAIN_STRING, origin: Origin.var });
 
@@ -184,6 +188,8 @@ class TestServer extends AStepper {
 		return c.html(`<h1>Counter test</h1>tally: ${cur}<br />username ${username} `);
 	};
 
+	qrcanvasScript: TRequestHandler = (c: Context): Promise<Response> => Promise.resolve(c.body(readFileSync(QRCANVAS_SCRIPT, "utf-8"), 200, { "Content-Type": "text/javascript" }));
+
 	download: TRequestHandler = (c: Context): Promise<Response> => {
 		if (!this.toDelete.uploaded) {
 			return Promise.resolve(c.text("A file hasn't been uploaded. Upload a file before downloading it.", 404));
@@ -309,6 +315,7 @@ class TestServer extends AStepper {
 				}
 			},
 		},
+		addQrcanvasRoute: { gwta: `serve the qrcanvas script at {loc: ${DOMAIN_ROUTE}}`, action: this.addRoute(this.qrcanvasScript) },
 		addDownloadRoute: { gwta: `start download route at {loc: ${DOMAIN_ROUTE}}`, action: this.addRoute(this.download) },
 		addCreateAuthTokenRoute: { gwta: `start create auth token route at {loc: ${DOMAIN_ROUTE}}`, action: this.addRoute(restRoutes(this).createAuthToken) },
 		changeServerAuthToken: {

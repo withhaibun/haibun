@@ -1,6 +1,6 @@
 import { PRESENTED_REQUEST_HEADERS } from "./ports.js";
 import { describe, it, expect } from "vitest";
-import { passWithDefaults, DEF_PROTO_OPTIONS } from "@haibun/core/lib/test/lib.js";
+import { passWithDefaults, DEF_PROTO_OPTIONS, freePort } from "@haibun/core/lib/test/lib.js";
 import McpStepper from "./mcp-stepper.js";
 import WebServerStepper from "./web-server-stepper.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
@@ -36,7 +36,7 @@ class TestStepper extends AStepper {
 			gwta: `verify mcp protocol on port {port: ${DOMAIN_NUMBER}}`,
 			action: async ({ port }: { port: string }) => {
 				const mcpUrl = `http://localhost:${port}/mcp`;
-				// A browser asks before it sends the headers a signed invocation carries, and sends them only where the answer allows each.
+				// A browser sends a preflight before the headers a signed invocation carries, and sends each header only where the preflight's response allows it.
 				const preflight = await fetch(mcpUrl, { method: "OPTIONS" });
 				const allowed = (preflight.headers.get("access-control-allow-headers") ?? "").toLowerCase().split(", ");
 				const refused = PRESENTED_REQUEST_HEADERS.filter((header) => !allowed.includes(header));
@@ -47,7 +47,7 @@ class TestStepper extends AStepper {
 					id: 1,
 					method: "initialize",
 					params: {
-						protocolVersion: "2024-11-05", // Latest known or similar
+						protocolVersion: "2024-11-05",
 						capabilities: {},
 						clientInfo: { name: "test-client", version: "1.0" },
 					},
@@ -65,7 +65,6 @@ class TestStepper extends AStepper {
 				}
 
 				const json = await response.json(); // as any
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				// biome-ignore lint/suspicious/noExplicitAny: json response
 				const result = (json as any).result;
 
@@ -89,9 +88,8 @@ class TestStepper extends AStepper {
 }
 
 describe("McpStepper Protocol Conformance", () => {
-	// TODO: Fix auto-focus session state with StreamableHTTP transport
-	it("supports StreamableHTTP protocol flow via SDK client", async () => {
-		const port = 8128;
+	it("allows a browser's preflight and completes the MCP initialize handshake over HTTP", async () => {
+		const port = await freePort();
 		const feature = {
 			path: "/features/test.feature",
 			content: `

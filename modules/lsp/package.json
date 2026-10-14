@@ -13,10 +13,10 @@
 	},
 	"scripts": {
 		"build": "tsc -b .",
-		"build-watch": "tsc -b . --watch",
+		"build:watch": "tsc -b . --watch",
 		"prepublishOnly": "tsc -b .",
 		"test": "vitest run",
-		"test-watch": "vitest"
+		"test:watch": "vitest"
 	},
 	"keywords": [
 		"haibun",

@@ -17,8 +17,8 @@
 	},
 	"scripts": {
 		"test": "vitest run",
-		"test-watch": "vitest",
-		"build-watch": "tsc -b tsconfig.json --watch",
+		"test:watch": "vitest",
+		"build:watch": "tsc -b tsconfig.json --watch",
 		"build": "tsc -b tsconfig.json"
 	},
 	"author": "",
