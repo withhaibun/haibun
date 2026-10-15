@@ -9,7 +9,7 @@
 		"fills an absent value with a constant through ??": 6
 	},
 	"modules/cli/src/test-runner-stepper.ts": {
-		"fills an absent value with a constant through ??": 3,
+		"fills an absent value with a constant through ??": 2,
 		"states a parameter's default value": 3
 	},
 	"modules/cli/src/timings.ts": {
@@ -100,16 +100,13 @@
 		"fills an absent value with a constant through ??": 6
 	},
 	"modules/core/src/lib/records/pipelines/discourse-writes.ts": {
-		"fills an absent value with a constant through ??": 2
+		"fills an absent value with a constant through ??": 1
 	},
 	"modules/core/src/lib/resolver-features.ts": {
 		"fills a falsy value with a constant through ||": 1
 	},
 	"modules/core/src/lib/step-validation.ts": {
 		"fills a falsy value with a constant through ||": 1
-	},
-	"modules/core/src/lib/store-protocol.ts": {
-		"fills an absent value with a constant through ??": 1
 	},
 	"modules/core/src/lib/typed-links.ts": {
 		"fills an absent value with a constant through ??": 1
@@ -154,7 +151,7 @@
 		"fills a falsy value with a constant through ||": 1
 	},
 	"modules/core/src/steps/variables-stepper.ts": {
-		"fills an absent value with a constant through ??": 6
+		"fills an absent value with a constant through ??": 5
 	},
 	"modules/domain-storage/src/AStorage.ts": {
 		"fills a falsy value with a constant through ||": 1,
@@ -245,7 +242,7 @@
 	},
 	"modules/shu/src/page/components/shu-entity-column.ts": {
 		"fills a falsy value with a constant through ||": 3,
-		"fills an absent value with a constant through ??": 3,
+		"fills an absent value with a constant through ??": 2,
 		"states a parameter's default value": 1
 	},
 	"modules/shu/src/page/components/shu-filter-column.ts": {
@@ -258,7 +255,7 @@
 	},
 	"modules/shu/src/page/components/shu-monitor-column.ts": {
 		"fills a falsy value with a constant through ||": 5,
-		"fills an absent value with a constant through ??": 5
+		"fills an absent value with a constant through ??": 4
 	},
 	"modules/shu/src/page/components/shu-page-strip.ts": {
 		"fills a falsy value with a constant through ||": 2,

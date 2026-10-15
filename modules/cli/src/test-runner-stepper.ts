@@ -520,7 +520,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 	): Promise<{ ok: true; products: z.infer<S> } | { ok: false; why: string }> {
 		const called = await callStepFrom(this, method, input);
 		if (!called.result.ok) return { ok: false, why: `${method}: ${called.result.errorMessage}` };
-		const parsed = schema.safeParse(called.result.products ?? {});
+		const parsed = schema.safeParse(called.result.products);
 		if (!parsed.success) return { ok: false, why: `${method} returned products that don't match its declared schema: ${parsed.error.message}` };
 		return { ok: true, products: parsed.data as z.infer<S> };
 	}

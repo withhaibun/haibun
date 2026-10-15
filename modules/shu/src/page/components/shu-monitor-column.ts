@@ -232,7 +232,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	};
 
 	#onRailSeek = (e: Event): void => {
-		const { index, by } = (e as CustomEvent<{ index: number; by: TSeekBy }>).detail ?? {};
+		const { index, by } = (e as CustomEvent<{ index: number; by: TSeekBy }>).detail;
 		if (by !== "press") return; // a wheel over the rail is reading, the same as wheeling the rows
 		const event = typeof index === "number" ? this.#run.rowAt(index) : undefined;
 		if (event) this.#cursorTo((event.timestamp as number) || 0); // a cached row is a moment; a page not yet landed lands first

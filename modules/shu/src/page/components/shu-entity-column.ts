@@ -250,7 +250,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	/** Apply one entity result (from the shared store or a fresh fetch) to the render fields. */
 	private applyEntity(result: TEntityResult): void {
 		this.vertex = result.vertex;
-		this.edges = (result.edges as EdgeData[]) ?? [];
+		this.edges = result.edges as EdgeData[];
 		this.incomingCount = result.incomingCount;
 		this.products = result;
 	}

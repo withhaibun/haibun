@@ -83,61 +83,60 @@ export function requiredStoreCapability(method: string): string {
 export async function handleStoreCall(store: IQuadStore, method: string, rawParams: unknown): Promise<{ result: unknown }> {
 	const name = method.slice(STORE_METHOD_PREFIX.length) as TStoreMethod;
 	if (!STORE_METHODS[name]) throw new Error(`${method} isn't a store method; the store methods are ${Object.keys(STORE_METHODS).join(", ")}`);
-	const raw = rawParams ?? {};
 	switch (name) {
 		case "set": {
-			const { subject, predicate, object, namedGraph, properties } = STORE_METHODS.set.params.parse(raw);
+			const { subject, predicate, object, namedGraph, properties } = STORE_METHODS.set.params.parse(rawParams);
 			return { result: await store.set(subject, predicate, object, namedGraph, properties) };
 		}
 		case "add": {
-			const { quad } = STORE_METHODS.add.params.parse(raw);
+			const { quad } = STORE_METHODS.add.params.parse(rawParams);
 			return { result: await store.add(quad) };
 		}
 		case "remove": {
-			const { pattern } = STORE_METHODS.remove.params.parse(raw);
+			const { pattern } = STORE_METHODS.remove.params.parse(rawParams);
 			return { result: await store.remove(pattern) };
 		}
 		case "clear": {
-			const { namedGraph } = STORE_METHODS.clear.params.parse(raw);
+			const { namedGraph } = STORE_METHODS.clear.params.parse(rawParams);
 			return { result: await store.clear(namedGraph) };
 		}
 		case "upsertIndividual": {
-			const { label, data } = STORE_METHODS.upsertIndividual.params.parse(raw);
+			const { label, data } = STORE_METHODS.upsertIndividual.params.parse(rawParams);
 			return { result: await store.upsertIndividual(label, data) };
 		}
 		case "deleteIndividual": {
-			const { label, id } = STORE_METHODS.deleteIndividual.params.parse(raw);
+			const { label, id } = STORE_METHODS.deleteIndividual.params.parse(rawParams);
 			return { result: await store.deleteIndividual(label, id) };
 		}
 		case "createEdge": {
-			const { fromLabel, fromId, edgeLabel, toLabel, toId } = STORE_METHODS.createEdge.params.parse(raw);
+			const { fromLabel, fromId, edgeLabel, toLabel, toId } = STORE_METHODS.createEdge.params.parse(rawParams);
 			if (store.createEdge) return { result: await store.createEdge(fromLabel, fromId, edgeLabel, toLabel, toId) };
 			return { result: await store.add({ subject: fromId, predicate: edgeLabel, object: toId, namedGraph: fromLabel, objectType: toLabel }) };
 		}
 		case "get": {
-			const { subject, predicate, namedGraph } = STORE_METHODS.get.params.parse(raw);
+			const { subject, predicate, namedGraph } = STORE_METHODS.get.params.parse(rawParams);
 			return { result: await store.get(subject, predicate, namedGraph) };
 		}
 		case "query": {
-			const { pattern } = STORE_METHODS.query.params.parse(raw);
+			const { pattern } = STORE_METHODS.query.params.parse(rawParams);
 			return { result: await store.query(pattern) };
 		}
 		case "all":
 			return { result: await store.all() };
 		case "readRecords": {
-			const { query } = STORE_METHODS.readRecords.params.parse(raw);
+			const { query } = STORE_METHODS.readRecords.params.parse(rawParams);
 			return { result: await store.readRecords(query) };
 		}
 		case "distinctPropertyValues": {
-			const { label, property } = STORE_METHODS.distinctPropertyValues.params.parse(raw);
+			const { label, property } = STORE_METHODS.distinctPropertyValues.params.parse(rawParams);
 			return { result: await store.distinctPropertyValues(label, property) };
 		}
 		case "density": {
-			const { query } = STORE_METHODS.density.params.parse(raw);
+			const { query } = STORE_METHODS.density.params.parse(rawParams);
 			return { result: await store.density(query) };
 		}
 		case "getClusteredQuads": {
-			const { perTypeLimit, types, accessLevel, scope } = STORE_METHODS.getClusteredQuads.params.parse(raw);
+			const { perTypeLimit, types, accessLevel, scope } = STORE_METHODS.getClusteredQuads.params.parse(rawParams);
 			return { result: await store.getClusteredQuads({ perTypeLimit, types, accessLevel, scope }) };
 		}
 	}
