@@ -7,12 +7,12 @@
  */
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { expectWithinBaseline } from "@haibun/core/lib/test/baseline.js";
+import { expectWithinBaseline, REPOSITORY_SCAN_MS } from "@haibun/core/lib/test/baseline.js";
 import { codeKindFindings, UNPOSITIONED } from "@haibun/core/lib/test/code-kinds.js";
 import { composeFiles, defaultFindings } from "@haibun/core/lib/test/default-rules.js";
 import { refusalFindings } from "@haibun/core/lib/test/refusal-rules.js";
 import { parsedSources, sourceFiles } from "@haibun/core/lib/test/repository-files.js";
-import { MODULE_PACKAGES, MODULE_SOURCES, REPOSITORY, REPOSITORY_SCAN_MS } from "./roots.js";
+import { MODULE_PACKAGES, MODULE_SOURCES, REPOSITORY } from "./roots.js";
 
 const TEST_FILE = "scripts/code-pattern.test.ts";
 const files = sourceFiles(REPOSITORY, MODULE_SOURCES);

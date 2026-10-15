@@ -4,9 +4,9 @@
  */
 import { join } from "node:path";
 import { describe, it } from "vitest";
-import { expectWithinBaseline } from "@haibun/core/lib/test/baseline.js";
+import { expectWithinBaseline, REPOSITORY_SCAN_MS } from "@haibun/core/lib/test/baseline.js";
 import { proseFindings } from "@haibun/core/lib/test/prose-baseline.js";
-import { PROSE_ROOTS, REPOSITORY, REPOSITORY_SCAN_MS } from "./roots.js";
+import { PROSE_ROOTS, REPOSITORY } from "./roots.js";
 
 const FIX = "rewrite the prose, or allow its text in prose.allowed.json with the reason it doesn't break the rule";
 

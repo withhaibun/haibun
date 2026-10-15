@@ -30,7 +30,3 @@ export const PROSE_ROOTS = [
 	"docs",
 	"scripts",
 ];
-
-/** How long a rule test that reads every source of the repository may take: a read of thousands of files, longer under a
- *  parallel run than a unit test's default. */
-export const REPOSITORY_SCAN_MS = 30_000;

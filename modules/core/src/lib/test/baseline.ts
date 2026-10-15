@@ -12,6 +12,10 @@ export type TFound = { file: string; finding: string; line?: number };
 /** The environment variable that sets a baseline test to write its baseline with the findings that remain. */
 export const LOWER_BASELINE = "HAIBUN_LOWER_BASELINE";
 
+/** How long a rule test that reads every source of the repository may take: a read of thousands of files, longer under a
+ *  parallel run than a unit test's default. */
+export const REPOSITORY_SCAN_MS = 30_000;
+
 /** The findings a check holds to its baseline: counted already, or each found at its line, which a count that exceeds its
  *  record lists. */
 type TBaselineCheck = {

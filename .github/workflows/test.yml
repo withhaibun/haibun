@@ -38,6 +38,10 @@ jobs:
       - name: build
         run: npm run build
 
+      # npm ci links a workspace's command only where its target exists, and the cli's target is a build output.
+      - name: Link the workspaces' commands
+        run: npm rebuild --ignore-scripts
+
       - name: Lint
         run: npm run lint
 

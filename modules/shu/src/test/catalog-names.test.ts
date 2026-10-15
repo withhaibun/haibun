@@ -6,7 +6,7 @@
 import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
-import { expectWithinBaseline } from "@haibun/core/lib/test/baseline.js";
+import { expectWithinBaseline, REPOSITORY_SCAN_MS } from "@haibun/core/lib/test/baseline.js";
 import { DEF_PROTO_OPTIONS, getTestWorldWithOptions } from "@haibun/core/lib/test/lib.js";
 import { sourceFiles, workspacePackages } from "@haibun/core/lib/test/repository-files.js";
 import { createSteppers, setStepperWorldsAndDomains } from "@haibun/core/lib/util/index.js";
@@ -48,15 +48,19 @@ const STEPPERS = [
 const FIX = "read the type or field from the concern catalog through a controller, as page/controllers/catalog-controller.ts reads it";
 
 describe("a view's types and fields", () => {
-	it("come from the catalog, apart from the names catalog-names.baseline.json records (CR4)", async () => {
-		const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);
-		const steppers = createSteppers(STEPPERS);
-		await setStepperWorldsAndDomains(steppers, world);
-		addStepperConcerns(world, steppers);
-		const names = catalogNames(buildConcernCatalog(world.domains));
-		expect([...names.types]).toEqual(expect.arrayContaining(["Comment", "SeqPath", "Principal"]));
-		const files = sourceFiles(REPOSITORY, VIEW_SOURCES);
-		const found = catalogNameFindings(REPOSITORY, { files, packages: workspacePackages(REPOSITORY, "modules"), names });
-		expectWithinBaseline({ baselineFile: join(import.meta.dirname, "catalog-names.baseline.json"), found, testFile: "modules/shu/src/test/catalog-names.test.ts", fix: FIX });
-	});
+	it(
+		"come from the catalog, apart from the names catalog-names.baseline.json records (CR4)",
+		async () => {
+			const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);
+			const steppers = createSteppers(STEPPERS);
+			await setStepperWorldsAndDomains(steppers, world);
+			addStepperConcerns(world, steppers);
+			const names = catalogNames(buildConcernCatalog(world.domains));
+			expect([...names.types]).toEqual(expect.arrayContaining(["Comment", "SeqPath", "Principal"]));
+			const files = sourceFiles(REPOSITORY, VIEW_SOURCES);
+			const found = catalogNameFindings(REPOSITORY, { files, packages: workspacePackages(REPOSITORY, "modules"), names });
+			expectWithinBaseline({ baselineFile: join(import.meta.dirname, "catalog-names.baseline.json"), found, testFile: "modules/shu/src/test/catalog-names.test.ts", fix: FIX });
+		},
+		REPOSITORY_SCAN_MS,
+	);
 });
