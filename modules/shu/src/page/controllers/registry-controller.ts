@@ -5,7 +5,7 @@
  */
 import type { ReactiveController, ReactiveControllerHost } from "lit";
 import type { TDomainDiscoveryInfo, TStepDefinition } from "@haibun/core/lib/step-discovery.js";
-import { SHOW_STEPS_ACTION, SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
+import { PAGE_CALL_ACTIONS } from "../domains/page-calls.js";
 import { pageRegistry, registryScope } from "../root.js";
 import { readSteps } from "../pipelines/read-steps.js";
 import { REGISTRY_EVENT, REGISTRY_STATUS, type TRegistryOrigin, type TStepList } from "../machines/registry.js";
@@ -84,9 +84,10 @@ export function registryOrigin(): TRegistryOrigin | undefined {
 	return read.from === "site" ? { from: "site" } : { from: "device", savedAt: read.savedAt };
 }
 
-/** Returns the action a call of `method` requires: discovery's own action for discovery, which the page holds without a
- *  read, and the action the step declares otherwise, or undefined where the page doesn't hold the step. */
-export const requiredActionOf = (method: string): string | undefined => (method === SHOW_STEPS_METHOD ? SHOW_STEPS_ACTION : findStep(method)?.capability);
+/** Returns the action a call of `method` requires: the action the page states for a call of its own (discovery, a diagnostic,
+ *  its occurrences), which it holds without a read of actuality's steps, and the action the step declares otherwise, or
+ *  undefined where the page doesn't hold the step. */
+export const requiredActionOf = (method: string): string | undefined => (method in PAGE_CALL_ACTIONS ? PAGE_CALL_ACTIONS[method] : findStep(method)?.capability);
 
 /** Calls `listener` each time the page reads actuality's steps again. Returns the call that stops it. */
 export const onStepsChanged = (listener: () => Promise<void> | void): (() => void) =>

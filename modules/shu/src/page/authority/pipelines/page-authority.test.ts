@@ -16,7 +16,10 @@ import {
 	pageHolds,
 	pageMay,
 	signedHeaders,
+	authorityPort,
 } from "../controllers/page-authority-controller.js";
+import { requiredActionOf } from "../../controllers/registry-controller.js";
+import { CLIENT_LOG_METHOD, RECORD_BLIPS_METHOD } from "../../domains/page-calls.js";
 
 const SITE = "http://localhost:8123";
 const delegatedAll = { id: "urn:uuid:owner", invocationTarget: SITE, allowedAction: ["*"], expires: "2099-01-01T00:00:00Z" };
@@ -64,6 +67,15 @@ describe("the key a page controls", () => {
 		expect(pageMay("Read:opened"), "a private read allows a narrower one").toBe(true);
 		expect(pageMay("ResourcesStepper:comment"), "and doesn't allow a call it wasn't given").toBe(false);
 		expect(pageAuthority()?.records, "and where each delegation is recorded").toEqual(records);
+	});
+
+	it("signs a diagnostic and a batch of occurrences once it holds its delegations, before it reads actuality's steps, as after a reload (TX20)", async () => {
+		const { controller } = await opened([delegatedAll]);
+		for (const method of [CLIENT_LOG_METHOD, RECORD_BLIPS_METHOD]) {
+			const request = { url: `${SITE}/rpc/${method}`, method: "POST", headers: { host: "localhost:8123" }, body: "{}" };
+			const headers = await authorityPort().prove(method, requiredActionOf(method))(request);
+			expect(headers[SIGNATURE_HEADER], `${method} is signed by the page's key`).toContain(controller);
+		}
 	});
 
 	it("doesn't prove a key it hasn't opened", async () => {

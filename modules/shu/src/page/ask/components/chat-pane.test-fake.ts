@@ -11,7 +11,7 @@ import { buildConcernCatalog, counted, type TConcernCatalog } from "@haibun/core
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
-import { CLIENT_LOG_METHOD } from "../../../client-log.js";
+import { CLIENT_LOG_METHOD } from "../../domains/page-calls.js";
 import { ASK_PARAM, CONVERSATION_DOMAIN, CONVERSATION_MODEL_CLASS, FILE_PARAM, SESSION_PARAM, type TSessionTurn } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { persistedTypeDefinition, stepsShown, type TDispatch } from "../../../test/setup.js";
 

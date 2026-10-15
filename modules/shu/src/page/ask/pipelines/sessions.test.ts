@@ -64,6 +64,26 @@ describe("the page follows actuality's turns in the open conversation", () => {
 		await vi.waitFor(() => expect(conversationState.get().turns).toHaveLength(2));
 	});
 
+	it("reads the session again once it opens where a turn's step ended while it opened, since the open's read may predate the end (TX21)", async () => {
+		followRunningTurns();
+		await getAvailableSteps();
+		dispatchConversationEvent({ type: "close" });
+		dispatchConversationEvent({ type: "open", session: SESSION });
+		t.emit(reportOf("end"));
+		await batchSettled();
+		expect(read.reads, "a conversation that opens holds a read under way, so the report waits for it").toBe(0);
+		read.turns = [aReadBack("0.1.1"), aReadBack("0.1.2", SESSION)];
+		dispatchConversationEvent({ type: "read", session: SESSION, turns: [aReadBack("0.1.1")] });
+		await vi.waitFor(() => expect(conversationState.get().turns).toHaveLength(2));
+	});
+
+	it("reads the session again once it reads actuality's steps, since a report that arrives before then can't be recognized (TX21)", async () => {
+		read.turns = [aReadBack("0.1.1"), aReadBack("0.1.2", SESSION)];
+		followRunningTurns();
+		t.emit(reportOf("end"));
+		await vi.waitFor(() => expect(conversationState.get().turns).toHaveLength(2));
+	});
+
 	it("activates the newest comment of another page's turn once a read returns it", async () => {
 		followRunningTurns();
 		// A report names the step that sends a turn, which the page reads from actuality's steps first.

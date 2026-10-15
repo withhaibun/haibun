@@ -12,18 +12,12 @@ import { authorityFailed, refusalCarried } from "@haibun/core/lib/rpc-wire.js";
  */
 import { failFastOrLog, isDev } from "@haibun/core/lib/dev-mode.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { requiredAction } from "@haibun/core/lib/actions.js";
-import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { acts } from "./page/domains/links.js";
 import { conduit, hasConduit } from "./page/controllers/conduit-controller.js";
 import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { pageAuthorityPort } from "./page/root.js";
+import { CLIENT_LOG_ACTION, CLIENT_LOG_METHOD } from "./page/domains/page-calls.js";
 
-/** The monitor's step a page reports a diagnostic through. */
-const CLIENT_LOG = { stepper: "MonitorStepper", step: "logClient" } as const;
-export const CLIENT_LOG_METHOD = stepMethodName(CLIENT_LOG.stepper, CLIENT_LOG.step);
-/** The action that reporting a diagnostic to actuality requires. A page is delegated this action with its other actions. */
-export const CLIENT_LOG_ACTION = requiredAction(CLIENT_LOG.stepper, CLIENT_LOG.step, {});
 export type TClientLogLevel = "debug" | "info" | "warn" | "error";
 
 /**

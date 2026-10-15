@@ -5,18 +5,14 @@
  * ring holds an occurrence. Actuality takes each occurrence into the channel a recording on its side reaches, and doesn't
  * retain it.
  */
-import { readAction } from "@haibun/core/lib/actions.js";
-import { Access } from "@haibun/core/lib/resources.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { reads } from "../domains/links.js";
+import { RECORD_BLIPS_ACTION, RECORD_BLIPS_METHOD } from "../domains/page-calls.js";
 import { reportToRun } from "../../client-log.js";
 import type { TBlipRing, TClock, TConduit } from "../ports.js";
 
 /** How long the page waits before it sends, so a burst of frames leaves as one batch. */
 const FLUSH_DELAY_MS = 250;
-
-/** The step that takes a page's batch of occurrences. */
-const RECORD_BLIPS_METHOD = "MonitorStepper-recordClientBlips";
 
 /** The send the page holds: the call that cancels it, or undefined where the page doesn't hold one. */
 export type TBlipSending = { cancel: (() => void) | undefined };
@@ -42,7 +38,7 @@ export function recordClientBlip(channel: TBlipChannel, name: string, value: num
  *  since actuality doesn't retain one. */
 export async function flushClientBlips({ ring, may, conduit }: TBlipChannel): Promise<void> {
 	if (conduit === undefined) throw new Error("a page that holds its occurrences without a conduit doesn't send them");
-	if (!may(readAction(Access.private))) return;
+	if (!may(RECORD_BLIPS_ACTION)) return;
 	const batch = ring.take();
 	if (batch.length === 0) return;
 	// A read: actuality doesn't retain a blip, so it doesn't record the batch as a step, whose events would reach the page

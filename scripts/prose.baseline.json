@@ -67,9 +67,6 @@
 	"modules/core/src/steps/resources-stepper.test.ts": {
 		"terminal-preposition": 1
 	},
-	"modules/shu/src/client-log.ts": {
-		"terminal-preposition": 1
-	},
 	"modules/shu/src/current-subject.ts": {
 		"terminal-preposition": 1
 	},

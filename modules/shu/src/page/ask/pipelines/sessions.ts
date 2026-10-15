@@ -68,22 +68,29 @@ export function closeConversation(scope: TConversationScope): void {
 
 /** Calls `onReport` when actuality's stream reports a turn's step starting or ending, and when the stream reconnects.
  *  Any page can send the turn, and a page that didn't send it reads a session's new turns this way. A report names the
- *  step that sends a turn, which the page reads from actuality's steps. A page without an event stream doesn't receive
+ *  step that sends a turn, which the page reads from actuality's steps, so a report that arrives before that read can't be
+ *  recognized, and `onReport` is called once the read returns (TX21). A page without an event stream doesn't receive
  *  reports. Returns a function that stops following. */
 export function followReportedTurns(scope: TConversationScope, onReport: () => void): () => void {
 	if (!scope.streams()) return () => undefined;
-	scope.readSteps().catch((err: unknown) => scope.report(`actuality's steps were not read, so its turns are not followed: ${errorDetail(err)}`));
+	scope.readSteps().then(onReport, (err: unknown) => scope.report(`actuality's steps were not read, so its turns are not followed: ${errorDetail(err)}`));
 	const reportsATurn = (event: TEvent): boolean => event.kind === "lifecycle" && event.type === "step" && event.actionName === scope.steps()?.ask.stepName;
 	return scope.batched({ filter: reportsATurn, onBatch: onReport, onReconnect: onReport });
 }
 
 /** Reads the open conversation's session again on each report of a turn, one read at a time: a report that arrives during
- *  a read causes one more read after that read returns. Returns a function that stops following. */
+ *  a read causes one more read after that read returns. A report that arrives while the conversation opens causes a read once
+ *  it opens, since the open's read may have read the session before the turn the report names reached its record (TX21).
+ *  Returns a function that stops following. */
 export function followRunningTurns(scope: TConversationScope): () => void {
 	let reading = false;
 	let reportedMeanwhile = false;
 	const readAgain = (): void => {
 		const { status, session } = scope.conversation.state.get();
+		if (status === "opening") {
+			reportedMeanwhile = true;
+			return;
+		}
 		if (status !== "open" || session === null) return;
 		if (reading) {
 			reportedMeanwhile = true;
@@ -102,12 +109,23 @@ export function followRunningTurns(scope: TConversationScope): () => void {
 			)
 			.finally(() => {
 				reading = false;
-				if (!reportedMeanwhile) return;
-				reportedMeanwhile = false;
-				readAgain();
+				readReported();
 			});
 	};
-	return followReportedTurns(scope, readAgain);
+	/** Reads again where a report arrived during the last read or while the conversation opened. */
+	const readReported = (): void => {
+		if (!reportedMeanwhile) return;
+		reportedMeanwhile = false;
+		readAgain();
+	};
+	const stopOpening = scope.conversation.follow(({ before, after }) => {
+		if (before.status === "opening" && after.status === "open") readReported();
+	});
+	const stopReports = followReportedTurns(scope, readAgain);
+	return () => {
+		stopOpening();
+		stopReports();
+	};
 }
 
 /** The actions bar's entry for a record of the turn `askId` names. Its bundle holds the patterns the turn's question references. */
