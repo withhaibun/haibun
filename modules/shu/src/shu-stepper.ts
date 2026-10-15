@@ -19,9 +19,11 @@ import type { TWorld } from "@haibun/core/lib/world.js";
 import type { IHasOptions } from "@haibun/core/lib/astepper.js";
 import { DOMAIN_ROUTE } from "@haibun/core/lib/domains.js";
 import { labelFontResponse, servedBuild, servedPage } from "./pipelines/served-page.js";
-import { LABEL_FONT, LABEL_FONT_FALLBACK_ROUTES, LABEL_FONT_FALLBACKS, POLYMORPHIC_VIEW_JS, SPA_SOURCE_MAP } from "./domains/serving.js";
+import { LABEL_FONT, LABEL_FONT_FALLBACK_ROUTES, LABEL_FONT_FALLBACKS, PAGE_ASSETS, PAGE_CHUNKS, POLYMORPHIC_VIEW_JS } from "./domains/serving.js";
 import { graphLayout } from "./pipelines/graph-source.js";
 import { servedBundles } from "./root.js";
+import type { TServedAsset } from "./ports.js";
+import { BUNDLE_NAMES, bundleFileName } from "./domains/bundle-files.js";
 
 /** The domain of where a graph view placed each node. */
 const DOMAIN_GRAPH_LAYOUT = "graph-layout";
@@ -39,17 +41,35 @@ const GraphLayoutSchema = z.object({
 /** What a deployment sets for the pages a ShuStepper serves, from its options. */
 type TOptionSettings = Pick<TDeploymentSettings, "responseTimeoutMs" | "streamReconnectAfterMs" | "embedderOrigin" | "askToolLimit">;
 
-/** The page's response. The bundle is read on each request, so a rebuilt bundle is served after `npm run build` without a
- *  restart. `no-store` forbids a cached copy, since the bundle is inlined in the page and a revalidated copy could serve a
- *  stale bundle. */
+/** The page's response. `no-store` forbids a cached copy, since the page carries the hydration of its request. */
 function createSpaHandler(basePath: string, hydration: () => TServedHydration) {
 	return (c: Context) => {
-		const { html, policy } = servedPage(servedBundles, basePath, hydration());
+		const { html, policy } = servedPage(basePath, hydration());
 		c.header("Cache-Control", "no-store, must-revalidate");
 		c.header("Pragma", "no-cache");
 		c.header("Content-Security-Policy", policy);
 		return c.html(html);
 	};
+}
+
+/** An Accept-Encoding header that accepts gzip. */
+const GZIP = /\bgzip\b/;
+/** The media type of a served bundle file, by its name's extension. */
+const assetType = (path: string): string => (path.endsWith(".map") ? "application/json" : "application/javascript");
+
+/** A served bundle file's response. The file is read on each request, so a rebuilt one is served after `npm run build`
+ *  without a restart. `no-cache` revalidates it, so an unchanged file returns 304 and a rebuilt one gets a fresh ETag and a full
+ *  body, gzipped where the request accepts gzip. */
+function assetResponse(c: Context, asset: TServedAsset, path: string): Response {
+	c.header("ETag", asset.etag);
+	c.header("Cache-Control", "no-cache");
+	c.header("Vary", "Accept-Encoding");
+	if (c.req.header("if-none-match") === asset.etag) return c.body(null, 304);
+	c.header("Content-Type", assetType(path));
+	const accepted = c.req.header("accept-encoding");
+	if (accepted === undefined || !GZIP.test(accepted)) return c.body(asset.content);
+	c.header("Content-Encoding", "gzip");
+	return c.body(asset.gzipped());
 }
 
 /** An origin as a page states it: a scheme and a host, such as `https://example.com` or `chrome-extension://<id>`. */
@@ -77,8 +97,8 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 		const responseTimeoutMs = timing("RESPONSE_TIMEOUT_MS");
 		const embedderOrigin = getStepperOption(this, "EMBEDDER_ORIGIN", world.moduleOptions);
 		const askToolLimit = timing("ASK_TOOL_LIMIT");
-		// A served page inlines the app's bundle, so a stepper without a built bundle refuses to start.
-		servedBundles.appBuiltAt();
+		// A served page loads the page's bundle, so a stepper without a built bundle refuses to start.
+		servedBuild(servedBundles);
 		this.settings = {
 			responseTimeoutMs: responseTimeoutMs === undefined ? RESPONSE_TIMEOUT_MS : responseTimeoutMs,
 			...(streamReconnectAfterMs === undefined ? {} : { streamReconnectAfterMs }),
@@ -103,7 +123,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 					ui: {
 						component: SHU_TAG.POLYMORPHIC_GRAPH_VIEW,
 						js: POLYMORPHIC_VIEW_JS,
-						jsContent: servedBundles.polymorphic().content,
+						jsContent: servedBundles.whole(bundleFileName(BUNDLE_NAMES.polymorphic)),
 						summary: "Graph view",
 						// The site's graph presenter: a view embedding "the graph" finds this through ui.presents rather than
 						// naming a component.
@@ -118,7 +138,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 						component: "shu-class-browser",
 						// Defined in the SAME bundle as the graph view: one served asset registers both.
 						js: POLYMORPHIC_VIEW_JS,
-						jsContent: servedBundles.polymorphic().content,
+						jsContent: servedBundles.whole(bundleFileName(BUNDLE_NAMES.polymorphic)),
 						summary: "Class browser",
 						// The site's schema presenter: the type column embeds this for its schema view.
 						presents: "schema",
@@ -244,17 +264,15 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 		// The context is built from the domains as they stand, so a type declared after the page was served is in it, and for
 		// the host the request names, which a caller writes, so nothing is kept per host.
 		const jsonLdHandler = (c: Context) => c.json(getJsonLdContext(this.getWorld().domains, haibunNsForHost(requestBaseIri(c.req.header()))));
-		// What every app of a server shares is served once per server, however many apps it mounts: the graph view's bundle,
-		// its source map and the JSON-LD context. `no-cache` revalidates the bundle, so an unchanged one answers 304 and a
-		// rebuilt one gets a fresh ETag and a full body.
-		webserver.addRouteIfAbsent("get", POLYMORPHIC_VIEW_JS, { description: "The polymorphic graph view and the class browser" }, (c: Context) => {
-			const { content, etag } = servedBundles.polymorphic();
-			c.header("ETag", etag);
-			c.header("Cache-Control", "no-cache");
-			if (c.req.header("if-none-match") === etag) return c.body(null, 304);
-			c.header("Content-Type", "application/javascript");
-			return c.body(content);
-		});
+		// What every app of a server shares is served once per server, however many apps it mounts: the page's bundles with their
+		// chunks and source maps, and the JSON-LD context.
+		for (const route of [`${PAGE_ASSETS}/:file`, `${PAGE_CHUNKS}/:file`])
+			webserver.addRouteIfAbsent("get", route, { description: "The page's bundles, the graph view's among them, their chunks and their source maps" }, (c: Context) => {
+				const path = c.req.path.slice(PAGE_ASSETS.length + 1);
+				const asset = servedBundles.pageFile(path);
+				if (asset === undefined) return c.body(`${path} isn't a file of the page's present build. Reload the page, which names the present build's files.`, 404);
+				return assetResponse(c, asset, path);
+			});
 		webserver.addRouteIfAbsent("get", LABEL_FONT, { description: "The font of the graph's labels" }, (c: Context) => {
 			c.header("Content-Type", "font/woff");
 			c.header("Cache-Control", "max-age=86400");
@@ -268,15 +286,6 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 				c.header("Content-Type", "font/woff");
 				return c.body(response.font);
 			});
-		webserver.addRouteIfAbsent("get", SPA_SOURCE_MAP, { description: "Source map for the served shu bundle" }, (c: Context) => {
-			try {
-				const map = servedBundles.sourceMap();
-				c.header("Content-Type", "application/json");
-				return c.body(map);
-			} catch (err) {
-				return c.body(errorDetail(err), 404);
-			}
-		});
 		webserver.addRouteIfAbsent("get", CONTEXT_DOCUMENT.wellKnown, { description: "JSON-LD @context for haibun domain vocabulary" }, jsonLdHandler);
 		webserver.addRouteIfAbsent("get", CONTEXT_DOCUMENT.namespace, { description: "JSON-LD @context (namespace alias of haibun-context.jsonld)" }, jsonLdHandler);
 	}

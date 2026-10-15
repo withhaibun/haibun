@@ -43,13 +43,12 @@ import {
 } from "../lib/resources.js";
 import { MEDIA_TYPE } from "../lib/media-types.js";
 import { bodyByMediaType, markdownOf, readEvery, recordOf } from "../lib/records/pipelines/record-reads.js";
-import { createComment, readTypedLinks, writeAnnotation } from "../lib/records/pipelines/discourse-writes.js";
+import { createComment, readProseLinks, writeAnnotation } from "../lib/records/pipelines/discourse-writes.js";
 import { DOMAIN_LINK_REL, DOMAIN_RECORD_ID, DOMAIN_TEXT, linkVocabularyFor } from "../lib/domains.js";
 import { executionOf, formatRecordName, formatSeqPath } from "../lib/actuality/domains/seq-path.js";
 import { logMessageDomainDefinition } from "../lib/log-message.js";
 import { runArtifactDomainDefinition } from "../lib/run-artifact.js";
 import { statementsWith, type TStatementRow } from "../lib/steps/pipelines/statements.js";
-import { typedLinkFacts } from "../lib/typed-links.js";
 
 /** Describes an anchored passage for a message: the quote, and the recorded words before and after it. */
 function describeAnchor(selector: TQuoteAnchor): string {
@@ -145,14 +144,9 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 	async readFeatureProse({ featureStep }: TBeforeStep): Promise<void> {
 		if (!featureStep.action.step.prose) return;
 		const text = featureStep.in;
-		const vocab = this.linkVocabulary;
-		// Prose without a fact doesn't change a record. readTypedLinks receives the facts parsed here, so the text is parsed once.
-		const facts = typedLinkFacts(text, vocab);
-		if (facts.length === 0) return;
 		// The prose step's record id: its path under its execution.
-		const seqPath = formatSeqPath(featureStep.seqPath);
 		const named = formatRecordName({ execution: executionOf(this.getWorld().tag), path: featureStep.seqPath });
-		await readTypedLinks(this.getWorld().shared.getStore(), vocab, { label: SEQ_PATH_LABEL, id: named }, text, { seqPath, facts });
+		await readProseLinks(this.getWorld().shared.getStore(), this.linkVocabulary, { label: SEQ_PATH_LABEL, id: named }, text, formatSeqPath(featureStep.seqPath));
 	}
 
 	/** Writes the annotation of every `annotate` step, resolves its conversation root, and returns both. Each step only

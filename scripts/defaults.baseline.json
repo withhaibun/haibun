@@ -108,9 +108,6 @@
 	"modules/core/src/lib/step-validation.ts": {
 		"fills a falsy value with a constant through ||": 1
 	},
-	"modules/core/src/lib/typed-links.ts": {
-		"fills an absent value with a constant through ??": 1
-	},
 	"modules/core/src/lib/urakata.ts": {
 		"states a schema's default value through .default()": 1
 	},

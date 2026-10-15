@@ -103,9 +103,6 @@
 		"negated-noun": 1,
 		"the-run": 5
 	},
-	"modules/shu/src/page-bundles.test.ts": {
-		"terminal-preposition": 1
-	},
 	"modules/shu/src/page/components/actions-bar-query.test.ts": {
 		"anthropomorphic": 2,
 		"terminal-preposition": 1
@@ -435,7 +432,7 @@
 		"anthropomorphic": 1
 	},
 	"modules/shu/src/shu-stepper.ts": {
-		"anthropomorphic": 2,
+		"anthropomorphic": 1,
 		"negated-noun": 1
 	},
 	"modules/shu/src/test-setup.test.ts": {

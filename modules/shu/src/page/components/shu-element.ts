@@ -221,7 +221,7 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 		this.#initial = this.state;
 		// Fail fast on a typo'd persistFields entry: a name absent from the schema would otherwise silently never persist.
 		const persisted = (this.constructor as typeof ShuElement).persistFields;
-		for (const f of persisted) if (!schema.shape[f]) throw new Error(`${this.constructor.name}: persistFields names "${f}", which is absent from the schema`);
+		for (const f of persisted) if (!schema.shape[f]) throw new Error(`<${this.localName}>: persistFields names "${f}", which is absent from the schema`);
 		this.#assertSealedLifecycle();
 	}
 
@@ -231,7 +231,7 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 		for (const m of ["connectedCallback", "disconnectedCallback", "attributeChangedCallback"] as const) {
 			if (this[m] !== ShuElement.prototype[m]) {
 				const hook = m === "connectedCallback" ? "onConnected" : m === "disconnectedCallback" ? "onDisconnected" : "onAttributeChanged";
-				throw new Error(`${this.constructor.name} overrides sealed ShuElement.${m}(), override protected ${hook}() instead.`);
+				throw new Error(`<${this.localName}> overrides sealed ShuElement.${m}(), override protected ${hook}() instead.`);
 			}
 		}
 	}
@@ -365,7 +365,7 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 		const field = (this.constructor as typeof ShuElement).attributeFields[name];
 		if (!field) return;
 		const fieldSchema = this._schema.shape[field];
-		if (!fieldSchema) throw new Error(`${this.constructor.name}: attributeFields maps "${name}" → state field "${field}", which is absent from the schema`);
+		if (!fieldSchema) throw new Error(`<${this.localName}>: attributeFields maps "${name}" → state field "${field}", which is absent from the schema`);
 		// An absent attribute reads as the field's initial state (CA4D7): the inverse write removes an attribute that holds
 		// the initial state, so reading the removal back as another value would reject state the element holds.
 		const value = val === null ? (this.#initial as Record<string, unknown>)[field] : coerceAttribute(fieldSchema, val);
@@ -474,7 +474,7 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 
 	/** Wrap a view's hypermedia products as a W3C `<script type="application/ld+json">` block. Used when a view wants to embed its structured payload for the chat-context harvester / a downstream agent following `_links`. */
 	protected emitHypermediaScript(products: unknown): string {
-		if (products == null) throw new Error(`${this.constructor.name}.emitHypermediaScript called with ${products === null ? "null" : "undefined"} products`);
+		if (products == null) throw new Error(`<${this.localName}>.emitHypermediaScript called with ${products === null ? "null" : "undefined"} products`);
 		return `<script type="application/ld+json">${JSON.stringify(products).replaceAll("</", "<\\/")}</script>`;
 	}
 

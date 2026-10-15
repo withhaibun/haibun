@@ -22,7 +22,8 @@ import {
 	type TStatedRecord,
 } from "../../resources.js";
 import { MEDIA_TYPE } from "../../media-types.js";
-import { typedLinkFacts, type TLinkVocabulary, type TTypedLinkFact } from "../../typed-links.js";
+import { typedLinkFacts } from "../derivations/typed-link-facts.js";
+import type { TLinkVocabulary, TTypedLinkFact } from "../../typed-links.js";
 import { recordOf, type TRecordReader } from "./record-reads.js";
 
 /** The store a reading writes and reads: the discourse writes and the read of records. */
@@ -112,6 +113,14 @@ export async function readTypedLinks(
 	);
 	await writeReferenceEdge(store, READING_LABEL, readingId, LinkRelations.USED.rel, source.label, source.id);
 	return { readingId, statements: stated.filter((d) => d.kind === "edge").length };
+}
+
+/** Reads a feature's prose line as a text: its links become facts about the prose step. Prose without a fact leaves the records
+ *  as they are, and the facts parsed here pass to `readTypedLinks`, so the text is parsed once. */
+export async function readProseLinks(store: TReadingStore, vocab: TLinkVocabulary, source: { label: string; id: string }, prose: string, seqPath: string): Promise<void> {
+	const facts = typedLinkFacts(prose, vocab);
+	if (facts.length === 0) return;
+	await readTypedLinks(store, vocab, source, prose, { seqPath, facts });
 }
 
 /** Creates a Comment individual with its markdown body as a Body sub-resource. The `comment` and `annotate` acts both

@@ -5,21 +5,23 @@
 import type { TRequestSigner } from "@haibun/core/lib/authority-types.js";
 import type { TFederatedGraphSource } from "@haibun/core/lib/steps/ports.js";
 
-/** A served asset's text, and the tag through which a browser revalidates it. */
-export type TServedAsset = { content: string; etag: string };
+/** A served asset's text, the same gzipped, and the tag through which a browser revalidates it. */
+export type TServedAsset = { content: string; gzipped(): Uint8Array<ArrayBuffer>; etag: string };
 
-/** The bundles `npm run build` writes in `modules/shu/build`. Each read refuses a bundle that isn't built, and names the build command. */
+/** The folders shu's build writes its bundles in, from the package root, under `build/assets/`, so the per-file emit of `tsc`
+ *  doesn't overwrite them: the page's bundles with their chunks, and the bundles a report inlines whole. */
+export const BUNDLE_DIRS = { page: "build/assets/page", whole: "build/assets" } as const;
+
+/** The bundles `npm run build` writes in `modules/shu/build`, each by its file name. A read of a bundle refuses a bundle that
+ *  isn't built, and names the build command. */
 export type TBundleFile = {
-	/** The app's bundle, which the served page inlines. */
-	app(): string;
-	/** When the app's bundle was written, which a served page states as its build. */
-	appBuiltAt(): string;
-	/** The report's bundle, which a report inlines. */
-	report(): string;
-	/** The polymorphic graph view and the class browser, which one asset registers. */
-	polymorphic(): TServedAsset;
-	/** The app bundle's source map. */
-	sourceMap(): string;
+	/** A file of the page's bundles by its path below their folder: a bundle, a chunk, or a source map. Undefined where the
+	 *  build didn't write one at that path. */
+	pageFile(path: string): TServedAsset | undefined;
+	/** When a page's bundle was written, which a served page states as its build. */
+	pageBuiltAt(file: string): string;
+	/** A bundle as one script without imports, which a report inlines. */
+	whole(file: string): string;
 	/** The font of the graph's labels. */
 	labelFont(): ArrayBuffer;
 };

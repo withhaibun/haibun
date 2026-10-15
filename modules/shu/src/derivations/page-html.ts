@@ -1,11 +1,11 @@
 /**
- * The documents shu serves: the page a server serves with its bundle inlined, the standalone report that carries its
+ * The documents shu serves: the page a server serves, which loads its bundle, the standalone report that carries its
  * bundle and hydration as a payload, and the component scripts a report inlines.
  */
 import { gzipSync } from "node:zlib";
 import { HYDRATION_ID } from "../domains/elements.js";
 import type { TServedHydration } from "../domains/hydration.js";
-import { SPA_SOURCE_MAP } from "../domains/serving.js";
+import { PAGE_BUNDLE_JS } from "../domains/serving.js";
 
 /** The document around the page's scripts: the app's mount point, into which the bundle renders. */
 function spaDocument(basePath: string, scriptsHtml: string): string {
@@ -35,9 +35,9 @@ ${scriptsHtml}
 </html>`;
 }
 
-/** The page a server serves: its hydration element, and the bundle inlined under the response's script nonce. */
-export function buildSpaHtml(basePath: string, bundle: string, hydration: TServedHydration, nonce: string): string {
-	const scripts = `  <script type="application/json" id="${HYDRATION_ID}">${JSON.stringify(hydration)}</script>\n\n  <script nonce="${nonce}">${bundle}\n//# sourceMappingURL=${SPA_SOURCE_MAP}</script>`;
+/** The page a server serves: its hydration element, and its bundle loaded as a module under the response's script nonce. */
+export function buildSpaHtml(basePath: string, hydration: TServedHydration, nonce: string): string {
+	const scripts = `  <script type="application/json" id="${HYDRATION_ID}">${JSON.stringify(hydration)}</script>\n\n  <script type="module" nonce="${nonce}" src="${PAGE_BUNDLE_JS}"></script>`;
 	return spaDocument(basePath, scripts);
 }
 

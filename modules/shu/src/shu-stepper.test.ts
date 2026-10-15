@@ -11,7 +11,8 @@ import { LinkRelations } from "@haibun/core/lib/resources.js";
 import ShuStepper from "./shu-stepper.js";
 import { buildSpaHtml } from "./derivations/page-html.js";
 import { mayFrame } from "./derivations/content-security-policy.js";
-import { EMBEDDER_ORIGIN_OPTION } from "./domains/serving.js";
+import { EMBEDDER_ORIGIN_OPTION, PAGE_ASSETS, PAGE_BUNDLE_JS } from "./domains/serving.js";
+import { gunzipSync } from "node:zlib";
 
 /** A page's script nonce, as a test states one. */
 const NONCE = "a-test-nonce";
@@ -135,6 +136,26 @@ describe("the app a deployment serves", () => {
 		expect(getStepperOptionName(ShuStepper, "EMBEDDER_ORIGIN"), "a page that can't frame shu names the option").toBe(EMBEDDER_ORIGIN_OPTION);
 	});
 
+	it("serves the page's bundle with an ETag, gzipped where the request accepts gzip, a 304 for an unchanged one, and a 404 for a file the build didn't write", async () => {
+		await stepper.steps.serveShuApp.action({ path: "/spa" });
+		const serve = addRoute.mock.calls.find(([, path]) => path === `${PAGE_ASSETS}/:file`)?.[3] as (c: unknown) => Response;
+		const request = (file: string, headers: Record<string, string>) => {
+			const sent: Record<string, string> = {};
+			const c = {
+				req: { path: `${PAGE_ASSETS}/${file}`, header: (name: string) => headers[name] },
+				header: (name: string, value: string) => (sent[name] = value),
+				body: (body: unknown, status = 200) => ({ body, status }),
+			};
+			return { answer: serve(c) as unknown as { body: unknown; status: number }, sent };
+		};
+		const bundle = PAGE_BUNDLE_JS.slice(PAGE_ASSETS.length + 1);
+		const gzipped = request(bundle, { "accept-encoding": "gzip, deflate" });
+		expect(gzipped.sent["Content-Encoding"]).toBe("gzip");
+		expect(gunzipSync(gzipped.answer.body as Uint8Array).toString("utf-8")).toBe(request(bundle, {}).answer.body);
+		expect(request(bundle, { "if-none-match": gzipped.sent.ETag ?? "" }).answer.status).toBe(304);
+		expect(request("absent.js", {}).answer.status).toBe(404);
+	});
+
 	it("runs the script it serves with the response's nonce, which the response's policy names, and a nonce of its own for each response", async () => {
 		await stepper.steps.serveShuApp.action({ path: "/spa" });
 		const serve = addRoute.mock.calls.find(([, path]) => path === "/spa")?.[3] as (c: unknown) => string;
@@ -145,21 +166,21 @@ describe("the app a deployment serves", () => {
 			return { page, nonce };
 		};
 		const first = respond();
-		expect(first.page, "the page's script carries the nonce its policy names").toContain(`<script nonce="${first.nonce}">`);
-		expect(first.page.match(/<script nonce=/g), "and only that script").toHaveLength(1);
+		expect(first.page, "the page's script carries the nonce its policy names").toContain(`<script type="module" nonce="${first.nonce}" src="${PAGE_BUNDLE_JS}">`);
+		expect(first.page.match(/ nonce=/g), "and only that script").toHaveLength(1);
 		expect(respond().nonce, "a second response names another").not.toBe(first.nonce);
 	});
 });
 
 describe("the page a deployment serves", () => {
 	it("carries the timings the deployment set, so the page applies them from its first paint", () => {
-		const page = buildSpaHtml("/spa", "/* bundle */", { actualityId: PAGE_ACTUALITY, settings: servedWith({ streamReconnectAfterMs: 500 }) }, NONCE);
+		const page = buildSpaHtml("/spa", { actualityId: PAGE_ACTUALITY, settings: servedWith({ streamReconnectAfterMs: 500 }) }, NONCE);
 		expect(page).toContain(`id="${HYDRATION_ID}"`);
 		expect(page).toContain(JSON.stringify({ actualityId: PAGE_ACTUALITY, settings: servedWith({ streamReconnectAfterMs: 500 }) }));
 	});
 
 	it("doesn't carry a timing where the deployment didn't set one", () => {
-		expect(buildSpaHtml("/spa", "/* bundle */", { actualityId: PAGE_ACTUALITY, settings: SERVED_SETTINGS }, NONCE)).toContain(
+		expect(buildSpaHtml("/spa", { actualityId: PAGE_ACTUALITY, settings: SERVED_SETTINGS }, NONCE)).toContain(
 			JSON.stringify({ actualityId: PAGE_ACTUALITY, settings: SERVED_SETTINGS }),
 		);
 	});

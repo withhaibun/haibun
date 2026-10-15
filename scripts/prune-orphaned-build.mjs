@@ -22,7 +22,7 @@
 //     build record is removed, with the record of each module that imports it, and those modules are compiled again in
 //     one build, dependencies first. A package's dependencies are not read, since a module can import one it doesn't list.
 //
-// A file is compiler output iff a same-basename TS source sibling exists, so bundles (build/shu-bundle.js, build/assets/*),
+// A file is compiler output iff a same-basename TS source sibling exists, so bundles (build/assets/**, build/metafiles/*),
 // hand-written .d.ts (no .ts sibling), and pure-JS modules are never touched.
 //
 // Usage: node scripts/prune-orphaned-build.mjs [--dry-run] [dir ...]
