@@ -1,12 +1,9 @@
 {
 	"$schema": "../node_modules/@haibun/core/haibun-core-specl.schema.json",
+	"extends": "../../../config.base.json",
 	"steppers": [
-		"haibun",
-		"variables-stepper",
-		"resources-stepper",
 		"authority-stepper",
 		"@haibun/core/lib/test/fake-authority",
-		"logic-stepper",
 		"blips-stepper",
 		"activities-stepper",
 		"@haibun/web-server-hono/web-server-stepper",
@@ -21,5 +18,11 @@
 		"./build/controls/monitor-controls-stepper",
 		"./build/test/voice-ui-test-stepper",
 		"@haibun/monitor-tui"
-	]
+	],
+	"moduleOptions": {
+		"HAIBUN_O_WEBSERVERSTEPPER_PORT": "8237",
+		"HAIBUN_O_MONITORSTEPPER_PORT": "8238",
+		"HAIBUN_O_WEBPLAYWRIGHT_STORAGE": "StorageFS",
+		"HAIBUN_O_WEBSERVERSTEPPER_ALLOW_WITHOUT_DELEGATION": "*"
+	}
 }

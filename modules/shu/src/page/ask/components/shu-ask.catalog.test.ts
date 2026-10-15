@@ -54,7 +54,11 @@ describe("the models the ask pane offers", () => {
 		expect(pane.shadowRoot?.querySelector(".model-select")).toBeNull();
 
 		models = [MODEL];
-		t.emit({ kind: "artifact", artifactType: "json", json: { quadObservation: { subject: MODEL.id, predicate: "name", object: MODEL.displayName, namedGraph: MODELS, timestamp: 1 } } });
+		t.emit({
+			kind: "artifact",
+			artifactType: "json",
+			json: { quadObservation: { subject: MODEL.id, predicate: "name", object: MODEL.displayName, namedGraph: MODELS, timestamp: 1 } },
+		});
 		await flush();
 		await pane.updateComplete;
 		expect(pane.shadowRoot?.querySelector('[data-testid$="no-models"]')).toBeNull();

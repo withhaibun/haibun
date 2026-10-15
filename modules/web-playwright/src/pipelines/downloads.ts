@@ -7,7 +7,11 @@ import type { BrowserSession } from "./browser-session.js";
 export function expectDownload(session: BrowserSession): TActionResult {
 	// The wait's outcome is held as data, so the step that receives the download reads its failure.
 	session.expectedDownload = session.page().then(
-		(page) => page.waitForEvent("download").then((download) => ({ download }), (error: unknown) => ({ failed: errorDetail(error) })),
+		(page) =>
+			page.waitForEvent("download").then(
+				(download) => ({ download }),
+				(error: unknown) => ({ failed: errorDetail(error) }),
+			),
 		(error: unknown) => ({ failed: errorDetail(error) }),
 	);
 	return OK;

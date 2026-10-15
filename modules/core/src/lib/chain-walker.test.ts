@@ -32,7 +32,9 @@ class IssueStepper extends AStepper {
 
 class PermitStepper extends AStepper {
 	description = "Issues a permit.";
-	steps: TStepperSteps = { issuePermit: { gwta: "issue a permit", productsDomain: PERMIT_DOMAIN, action: () => Promise.resolve(actionOKWithProducts({ permitId: "permit-001" })) } };
+	steps: TStepperSteps = {
+		issuePermit: { gwta: "issue a permit", productsDomain: PERMIT_DOMAIN, action: () => Promise.resolve(actionOKWithProducts({ permitId: "permit-001" })) },
+	};
 }
 
 class CountingStepper extends AStepper {
@@ -120,7 +122,10 @@ describe("chain-walker", () => {
 
 	it("returns completed again after every step has produced a fact", async () => {
 		const ctx = buildContext(world, [new PermitStepper()]);
-		const inst = await createChainInstance(world, PERMIT_DOMAIN, { steps: [{ stepperName: "PermitStepper", stepName: "issuePermit", productsDomain: PERMIT_DOMAIN }], bindings: [] });
+		const inst = await createChainInstance(world, PERMIT_DOMAIN, {
+			steps: [{ stepperName: "PermitStepper", stepName: "issuePermit", productsDomain: PERMIT_DOMAIN }],
+			bindings: [],
+		});
 		await advanceChainInstance(ctx, inst.id, {});
 		const again = await advanceChainInstance(ctx, inst.id, {});
 		expect(again.kind).toBe("completed");

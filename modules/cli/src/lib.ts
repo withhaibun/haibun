@@ -2,7 +2,7 @@ import nodeFS from "fs";
 import { newActualityId } from "@haibun/core/lib/rpc-wire.js";
 import path from "node:path";
 
-import { type TSpecl, type TFeaturesBackgrounds, SpeclSchema } from "@haibun/core/lib/execution.js";
+import { type TSpecl, type TStepperEntry, type TFeaturesBackgrounds, SpeclSchema } from "@haibun/core/lib/execution.js";
 import { BASE_WITHOUT_FEATURES } from "@haibun/core/lib/actuality/ports.js";
 import { BaseOptionsSchema, type TBase, type TBaseOptions, type TModuleOptions, type TProtoOptions, type TWorld } from "@haibun/core/lib/world.js";
 import { BASE_PREFIX, CHECK_NO, CHECK_YES, DEFAULT_DEST, MODULE_OPTION_PREFIX, NDJSON, RECORDED_STATUS, STAY, Timer, TExecutorResult } from "@haibun/core/schema/protocol.js";
@@ -11,6 +11,7 @@ import { actualityMachine } from "@haibun/core/lib/actuality/machines/actuality.
 import { actualityClock, featureSource } from "@haibun/core/lib/actuality/root.js";
 import { IHasOptions } from "@haibun/core/lib/astepper.js";
 import { resolveSitePrincipal } from "@haibun/core/lib/host-id.js";
+import { holdModuleOptions } from "@haibun/core/lib/held-module-options.js";
 import { formattedSteppers, getPre, getDefaultOptions, basesFrom, verifyRequiredOptions, verifyExtraOptions, errorDetail } from "@haibun/core/lib/util/index.js";
 import { BaseOptions } from "./BaseOptions.js";
 import { TFileSystem, getCreateSteppers, getSteppers } from "@haibun/core/lib/util/node/workspace-lib.js";
@@ -59,6 +60,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 	try {
 		const pr = new PhaseRunner();
 		protoOptions = await pr.tryPhase("processBaseEnvToOptionsAndErrors", () => processBaseEnvToOptionsAndErrors(env, specl));
+		holdModuleOptions(protoOptions.moduleOptions);
 
 		world = getCliWorld(protoOptions, bases);
 		pr.world = world;
@@ -226,7 +228,14 @@ function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 
 	const world: Partial<TWorld> = {
 		tag,
-		runtime: { actualityId: newActualityId(), actuality: actualityMachine(), stepResults: [], steps: { count: 0 }, seqPaths: new Map(), keys: { principal: resolveSitePrincipal() } },
+		runtime: {
+			actualityId: newActualityId(),
+			actuality: actualityMachine(),
+			stepResults: [],
+			steps: { count: 0 },
+			seqPaths: new Map(),
+			keys: { principal: resolveSitePrincipal() },
+		},
 		prompter: new Prompter(),
 		...protoOptions,
 		clock: actualityClock(),
@@ -433,18 +442,55 @@ function configFileFrom(bases: TBase, fs: TFileSystem): string {
 	return configCandidate.endsWith("json") ? configCandidate : `${configCandidate}/config.json`;
 }
 
+const sameEntry = (a: TStepperEntry, b: TStepperEntry): boolean => JSON.stringify(a) === JSON.stringify(b);
+const withoutExtends = (specl: TSpecl): TSpecl => Object.fromEntries(Object.entries(specl).filter(([key]) => key !== "extends")) as TSpecl;
+
+/** Returns the configuration `own` states with the configuration `base` that it extends. The base's steppers come first, then the
+ *  config's own. The other keys the config states replace the base's, apart from the options, module options and parameters, which
+ *  add to the base's, and the `dependsOn` paths and environments, which join the base's. A base's `dependsOn` path is read from the
+ *  config that extends it. Throws where the config lists a stepper that its base lists. */
+function extendedSpecl(base: TSpecl, own: TSpecl, ownFile: string, baseFile: string): TSpecl {
+	const repeated = own.steppers.filter((added) => base.steppers.some((held) => sameEntry(held, added)));
+	if (repeated.length > 0)
+		throw new Error(`the configuration ${ownFile} lists ${repeated.map((s) => JSON.stringify(s)).join(", ")}, which its base ${baseFile} lists. Remove them from ${ownFile}.`);
+	const fromHere = (dep: string): string => path.relative(path.dirname(ownFile), path.resolve(path.dirname(baseFile), dep));
+	const joined = <T>(held: T[] | undefined, added: T[] | undefined): T[] | undefined =>
+		held === undefined ? added : added === undefined ? held : [...new Set([...held, ...added])];
+	const merged = {
+		...base,
+		...withoutExtends(own),
+		steppers: [...base.steppers, ...own.steppers],
+		dependsOn: joined(base.dependsOn?.map(fromHere), own.dependsOn),
+		environments: joined(base.environments, own.environments),
+	};
+	for (const key of ["options", "moduleOptions", "appParameters"] as const)
+		if (base[key] !== undefined || own[key] !== undefined) Object.assign(merged, { [key]: { ...base[key], ...own[key] } });
+	return merged;
+}
+
+/** Returns the configuration a file states, with the configuration it extends. Throws where a configuration doesn't read or parse,
+ *  or where the extends chain returns to a file already in the chain. */
+function readSpecl(file: string, fs: TFileSystem, passed: readonly string[]): TSpecl {
+	const at = path.resolve(file);
+	if (passed.includes(at)) throw new Error(`the configuration ${file} extends itself through ${[...passed, at].join(" -> ")}. Remove one extends from the chain.`);
+	let own: TSpecl;
+	try {
+		own = SpeclSchema.parse(JSON.parse(fs.readFileSync(file, "utf-8")));
+	} catch (e: unknown) {
+		throw new Error(`the configuration ${file} doesn't read or parse: ${errorDetail(e)}`);
+	}
+	if (own.extends === undefined) return own;
+	const baseFile = path.resolve(path.dirname(file), own.extends);
+	return extendedSpecl(readSpecl(baseFile, fs, [...passed, at]), own, file, baseFile);
+}
+
 /** Returns the configuration the bases name: a JSON config file, or the config.json of a directory. Throws where the bases
  *  name more than one configuration, or where the configuration doesn't read or parse. */
 export function getConfigFromBase(bases: TBase, fs: TFileSystem): TSpecl {
 	const found = bases?.filter((b) => (b.endsWith("json") && fs.existsSync(b)) || fs.existsSync(`${b}/config.json`));
 	if (found?.length > 1) throw new Error(`the bases name several configurations: ${found.join(", ")}. Name one of them with --config.`);
 	const f = configFileFrom(bases, fs);
-	let specl: TSpecl;
-	try {
-		specl = SpeclSchema.parse(JSON.parse(fs.readFileSync(f, "utf-8")));
-	} catch (e: unknown) {
-		throw new Error(`the configuration ${f} doesn't read or parse: ${errorDetail(e)}`);
-	}
+	const specl = readSpecl(f, fs, []);
 	if (!specl.options) specl.options = { DEST: DEFAULT_DEST };
 	return specl;
 }

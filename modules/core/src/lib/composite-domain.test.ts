@@ -59,13 +59,7 @@ describe("getCompositeFields", () => {
 		const registry: Record<string, TRegisteredDomain> = {
 			issuer: reg(IssuerSchema),
 			proof: reg(ProofSchema),
-			"signed-permit": reg(PermitSchema, {
-				persistedAs: "SignedPermit",
-				accessLevel: Access.private,
-				id: "id",
-				properties: {},
-				ranges: { issuer: "issuer", proof: "proof" },
-			}),
+			"signed-permit": reg(PermitSchema, { persistedAs: "SignedPermit", accessLevel: Access.private, id: "id", properties: {}, ranges: { issuer: "issuer", proof: "proof" } }),
 		};
 		const fields = getCompositeFields("signed-permit", registry);
 		const issuer = fields?.find((f) => f.fieldName === "issuer");

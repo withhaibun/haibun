@@ -13,6 +13,10 @@ export type TStepperEntry = z.infer<typeof StepperEntrySchema>;
 
 export const SpeclSchema = zr.looseObject({
 	$schema: zr.string().optional(),
+	/** The config, by its path from this config, which this config extends: it adds its steppers, options, module options,
+	 *  parameters, `dependsOn` paths and environments to the base's. A stepper the base lists isn't listed again here, and a
+	 *  key this config states replaces the base's. */
+	extends: zr.string().optional(),
 	steppers: zr.array(StepperEntrySchema),
 	runPolicy: zr.string().optional(),
 	appParameters: zr.record(zr.string(), zr.record(zr.string(), zr.unknown())).optional(),

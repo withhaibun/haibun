@@ -6,17 +6,7 @@ import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TEventKind } from "
 import type { TAccessBound } from "../actions.js";
 import type { AccessLevel } from "../resources.js";
 import type { TFeatureStep } from "./domains/stepper.js";
-import type {
-	TClusteredQuads,
-	TClusteredQuadsOpts,
-	TDensityQuery,
-	TDensityResult,
-	TDistinctValues,
-	TGraphQuery,
-	TQuad,
-	TQuadPattern,
-	TRecordsPage,
-} from "./domains/quad-types.js";
+import type { TClusteredQuads, TClusteredQuadsOpts, TDensityQuery, TDensityResult, TDistinctValues, TGraphQuery, TQuad, TQuadPattern, TRecordsPage } from "./domains/quad-types.js";
 
 /** A subscriber of the events hub. It receives each event once the hub has obscured its secrets and stated its level. */
 export type TEventSubscriber = (event: THaibunEvent) => void;

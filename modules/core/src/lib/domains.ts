@@ -170,7 +170,7 @@ export function refTargetOf(domain: TRegisteredDomain, domains: Record<string, T
  *  a reference don't name domains this way. */
 export function fieldRangesOf(domain: TRegisteredDomain | undefined, domains: Record<string, TRegisteredDomain>): string[] {
 	if (!domain?.topology || isPersisted(domain.topology) || refTargetOf(domain, domains) !== undefined) return [];
-	return (domain.topology.ranges === undefined ? [] : Object.values(domain.topology.ranges));
+	return domain.topology.ranges === undefined ? [] : Object.values(domain.topology.ranges);
 }
 
 /** The key of the domain whose value is a reference to a record of the type a domain key names. */
@@ -402,7 +402,7 @@ export function linkVocabularyFromDomains(domains: Record<string, TRegisteredDom
 	const types = new Set<string>();
 	for (const domain of getPersistedDomains(domains)) {
 		types.add(domain.topology.persistedAs);
-		for (const key of (domain.topology.edges === undefined ? [] : Object.keys(domain.topology.edges))) ranges.set(key, "iri");
+		for (const key of domain.topology.edges === undefined ? [] : Object.keys(domain.topology.edges)) ranges.set(key, "iri");
 	}
 	return { relRange: (rel) => ranges.get(rel), isType: (name) => types.has(name) };
 }

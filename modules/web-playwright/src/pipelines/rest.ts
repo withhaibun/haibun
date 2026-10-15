@@ -68,7 +68,8 @@ export async function request(
 export async function requestToken(context: TRestContext, featureStep: TFeatureStep, endpoint: string): Promise<TActionResult> {
 	const response = await fetchInPage(context, endpoint, "GET", {});
 	const token = response.json !== undefined && !Array.isArray(response.json) ? response.json[ACCESS_TOKEN] : undefined;
-	if (typeof token !== "string") return actionNotOK(`${endpoint} returned ${response.status} without an ${ACCESS_TOKEN}. Check the token request's credentials and the endpoint's address.`);
+	if (typeof token !== "string")
+		return actionNotOK(`${endpoint} returned ${response.status} without an ${ACCESS_TOKEN}. Check the token request's credentials and the endpoint's address.`);
 	await setExtraHTTPHeaders(context.session, { [AUTHORIZATION]: `Bearer ${token}` });
 	await keepResponse(context.world, response, featureStep);
 	return OK;

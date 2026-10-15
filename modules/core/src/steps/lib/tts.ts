@@ -11,7 +11,10 @@ import { itemAt } from "../../lib/util/item-at.js";
 
 /** The part of kokoro-js's KokoroTTS that synthesis calls: a model loaded by its id, which renders a transcript as audio. */
 type TKokoroTTS = {
-	from_pretrained(modelId: string, options: { dtype: string; device: string }): Promise<{ generate(text: string, options: { voice: string }): Promise<{ save(path: string): Promise<void> }> }>;
+	from_pretrained(
+		modelId: string,
+		options: { dtype: string; device: string },
+	): Promise<{ generate(text: string, options: { voice: string }): Promise<{ save(path: string): Promise<void> }> }>;
 };
 
 type TCachedAudio = { transcript: string; durationS: number; cachedPath: string };

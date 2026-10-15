@@ -160,7 +160,7 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 		const schema = desc.inputSchema as TInputSchema;
 		const properties = { ...schema.properties };
 		const fixed = this.#fixed;
-		for (const [data, typeParam] of (desc.recordData === undefined ? [] : Object.entries(desc.recordData))) {
+		for (const [data, typeParam] of desc.recordData === undefined ? [] : Object.entries(desc.recordData)) {
 			const chosen = typeParam in fixed ? fixed[typeParam] : this.formValues[typeParam];
 			if (typeof chosen !== "string" || chosen === "") continue;
 			const typeSchema = getConcernCatalog().persisted[chosen]?.jsonSchema as TInputProperty | undefined;

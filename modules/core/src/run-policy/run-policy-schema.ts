@@ -157,7 +157,7 @@ function evaluateCondition(node: unknown, config: Record<string, unknown>, ctx: 
 		}
 	}
 
-	for (const [k, v] of (conditionObj.properties === undefined ? [] : Object.entries(conditionObj.properties))) {
+	for (const [k, v] of conditionObj.properties === undefined ? [] : Object.entries(conditionObj.properties)) {
 		allowedKeys.add(k);
 		const property = conditionsOf(v);
 		if (config[k] !== undefined) {

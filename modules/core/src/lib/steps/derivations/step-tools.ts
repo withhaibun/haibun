@@ -77,7 +77,8 @@ function assertRecordPairings(step: string, stepDef: TStepperStep, paramDomainKe
 			assertNamesAType(step, "recordIds", id, type, paramDomainKeys);
 		}
 	for (const [param, domain] of paramDomainKeys)
-		if (domain === DOMAIN_RECORD_ID && recordIds?.[param] === undefined) throw new Error(`${step}: {${param}} is a ${DOMAIN_RECORD_ID} that its recordIds doesn't pair with a type`);
+		if (domain === DOMAIN_RECORD_ID && recordIds?.[param] === undefined)
+			throw new Error(`${step}: {${param}} is a ${DOMAIN_RECORD_ID} that its recordIds doesn't pair with a type`);
 	if (recordData !== undefined)
 		for (const [data, type] of Object.entries(recordData)) {
 			if (!paramDomainKeys.has(data)) throw new Error(`${step}: recordData names {${data}}, which its phrase doesn't take`);

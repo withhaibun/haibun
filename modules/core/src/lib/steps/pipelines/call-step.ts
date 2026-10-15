@@ -29,7 +29,10 @@ export function buildFeatureStepForTransport(tool: StepTool, input: Readonly<Rec
 	// A proxy tool (RemoteStepperProxy) dispatches out of process and doesn't hold a step definition in this process. The
 	// carrier holds the step's pattern and an action that refuses, so the handler runs.
 	const { descriptor } = tool;
-	const step: TStepperStep = tool.stepDef === undefined ? { gwta: descriptor.pattern, action: () => actionNotOK(`${descriptor.method} runs at another host, so this process doesn't run its action`) } : tool.stepDef;
+	const step: TStepperStep =
+		tool.stepDef === undefined
+			? { gwta: descriptor.pattern, action: () => actionNotOK(`${descriptor.method} runs at another host, so this process doesn't run its action`) }
+			: tool.stepDef;
 	// A tool of another host is registered under a host-scoped method. Its stepper and step names are the names that host
 	// registers, and dispatch resolves a step by those names. A call to a remote tool without targetHostId resolves the
 	// local step of the same name and runs it in this process.

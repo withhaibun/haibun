@@ -126,7 +126,8 @@ export function recordTimings(configDir: string, result: TExecutorResult, filter
 	const held = recordedIn(file);
 	const entry = held[machine];
 	const parsed = TimingsSchema.safeParse(entry);
-	if (entry !== undefined && !parsed.success) throw new Error(`${file} holds an entry for ${machine} that isn't a set of timings: ${z.prettifyError(parsed.error)}. Restore it from git or remove the entry.`);
+	if (entry !== undefined && !parsed.success)
+		throw new Error(`${file} holds an entry for ${machine} that isn't a set of timings: ${z.prettifyError(parsed.error)}. Restore it from git or remove the entry.`);
 	const recorded = parsed.success ? parsed.data : undefined;
 	const variances = variancesBetween(recorded, now);
 	const written = filtered && recorded ? withTotals({ ...recorded.features, ...now.features }) : now;

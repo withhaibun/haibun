@@ -15,10 +15,7 @@ const cycling = (name: string, cyclesWhen: IStepperWhen): AStepper & IHasCycles 
 		description = `Records ${name} as each cycle runs.`;
 		steps = {};
 		cyclesWhen = cyclesWhen;
-		cycles: IStepperCycles = {
-			startFeature: () => void ran.push(name),
-			onEvent: () => void ran.push(name),
-		};
+		cycles: IStepperCycles = { startFeature: () => void ran.push(name), onEvent: () => void ran.push(name) };
 	})();
 
 describe("the order of a cycle", () => {

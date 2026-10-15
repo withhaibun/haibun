@@ -1,14 +1,8 @@
 {
 	"$schema": "../../modules/core/haibun-core-specl.schema.json",
-	"steppers": [
-		"@haibun/web-playwright",
-		"@haibun/storage-fs/storage-fs",
-		"@haibun/recorder",
-		"@haibun/monitor-tui",
-		"haibun",
-		"debugger-stepper",
-		"logic-stepper",
-		"variables-stepper",
-		"resources-stepper"
-	]
+	"extends": "../../config.base.json",
+	"steppers": ["@haibun/web-playwright", "@haibun/storage-fs/storage-fs", "@haibun/recorder", "@haibun/monitor-tui", "debugger-stepper"],
+	"moduleOptions": {
+		"HAIBUN_O_RECORDERSTEPPER_OUTPUT": "recorded.feature"
+	}
 }

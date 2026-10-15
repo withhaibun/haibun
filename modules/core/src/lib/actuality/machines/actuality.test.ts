@@ -5,10 +5,35 @@ import { assertTable, pickWith, runSequences, staying } from "../../test/machine
 import { INITIAL_ACTUALITY, LEVEL_STATUS, actualityMachine, runningFeature, transition, type TActuality, type TActualityMove } from "./actuality.js";
 
 const fold = (moves: readonly TActualityMove[], from: TActuality = INITIAL_ACTUALITY): TActuality => moves.reduce(transition, from);
-const execution = (stage: "start" | "end", status?: string): TActualityMove => ({ type: "execution", stage, id: `execution-${stage}`, ...(status === undefined ? {} : { status }) });
-const feature = (id: string, stage: "start" | "end", status?: string): TActualityMove => ({ type: "feature", stage, id, featurePath: `/features/${id}.feature`, featureName: id, ...(status === undefined ? {} : { status }) });
-const scenario = (id: string, stage: "start" | "end", status?: string): TActualityMove => ({ type: "scenario", stage, id, scenarioName: id, ...(status === undefined ? {} : { status }) });
-const step = (id: string, stage: "start" | "end", status?: string, more: Partial<TActualityMove> = {}): TActualityMove => ({ type: "step", stage, id, in: `step ${id}`, ...(status === undefined ? {} : { status }), ...more });
+const execution = (stage: "start" | "end", status?: string): TActualityMove => ({
+	type: "execution",
+	stage,
+	id: `execution-${stage}`,
+	...(status === undefined ? {} : { status }),
+});
+const feature = (id: string, stage: "start" | "end", status?: string): TActualityMove => ({
+	type: "feature",
+	stage,
+	id,
+	featurePath: `/features/${id}.feature`,
+	featureName: id,
+	...(status === undefined ? {} : { status }),
+});
+const scenario = (id: string, stage: "start" | "end", status?: string): TActualityMove => ({
+	type: "scenario",
+	stage,
+	id,
+	scenarioName: id,
+	...(status === undefined ? {} : { status }),
+});
+const step = (id: string, stage: "start" | "end", status?: string, more: Partial<TActualityMove> = {}): TActualityMove => ({
+	type: "step",
+	stage,
+	id,
+	in: `step ${id}`,
+	...(status === undefined ? {} : { status }),
+	...more,
+});
 
 describe("the execution level", () => {
 	const EVENTS = ["start", "completed", "failed", "featureStart", "stepFailed"] as const;

@@ -13,12 +13,19 @@ import { toBdd } from "../../../kireji/converter.js";
 import { type TRunPolicyConfig, type TDirFilter, featureMatchesFilter } from "../../../run-policy/run-policy-types.js";
 
 /** The feature source that reads a file system. */
-export const featureFiles = (fs: TFileSystem): TFeatureSource => ({ collect: (bases, featureFilter, policyConfig) => getFeaturesAndBackgrounds(bases, featureFilter, policyConfig, fs) });
+export const featureFiles = (fs: TFileSystem): TFeatureSource => ({
+	collect: (bases, featureFilter, policyConfig) => getFeaturesAndBackgrounds(bases, featureFilter, policyConfig, fs),
+});
 
 /** The feature source that reads this process's file system. */
 export const nodeFeatureFiles: TFeatureSource = featureFiles(nodeFS);
 
-async function getFeaturesAndBackgrounds(bases: TBase, featureFilter: string[] | undefined, policyConfig: TRunPolicyConfig | undefined, fs: TFileSystem): Promise<TFeaturesBackgrounds> {
+async function getFeaturesAndBackgrounds(
+	bases: TBase,
+	featureFilter: string[] | undefined,
+	policyConfig: TRunPolicyConfig | undefined,
+	fs: TFileSystem,
+): Promise<TFeaturesBackgrounds> {
 	const ret: TFeaturesBackgrounds = { features: [], backgrounds: [] };
 	for (const abase of bases) {
 		// Only filter features, not backgrounds - backgrounds should always be loaded
@@ -45,7 +52,14 @@ async function getFeaturesAndBackgrounds(bases: TBase, featureFilter: string[] |
 	return ret;
 }
 
-async function recurse(base: string, dir: string, type: string, featureFilter: string[] | undefined, policyConfig: TRunPolicyConfig | undefined, fs: TFileSystem): Promise<TFeature[]> {
+async function recurse(
+	base: string,
+	dir: string,
+	type: string,
+	featureFilter: string[] | undefined,
+	policyConfig: TRunPolicyConfig | undefined,
+	fs: TFileSystem,
+): Promise<TFeature[]> {
 	const files = fs.readdirSync(`${base}${dir}`);
 	let all: TFeature[] = [];
 	for (const file of files) {

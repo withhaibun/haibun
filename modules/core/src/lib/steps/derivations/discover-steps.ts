@@ -7,7 +7,15 @@ import type { TWorld } from "../../actuality/domains/world.js";
 import { buildConcernCatalog } from "../../hypermedia.js";
 import { HYPERMEDIA } from "../../../schema/protocol.js";
 import { isPersisted, type TRegisteredDomain } from "../../resources.js";
-import { STEP_DETAIL, type TDomainDiscoveryInfo, type TStepDefinitions, type TStepDescriptor, type TStepSummaries, type TStepperSummary, type TStepsQuery } from "../domains/step-discovery.js";
+import {
+	STEP_DETAIL,
+	type TDomainDiscoveryInfo,
+	type TStepDefinitions,
+	type TStepDescriptor,
+	type TStepSummaries,
+	type TStepperSummary,
+	type TStepsQuery,
+} from "../domains/step-discovery.js";
 import { hostOfMethodName, hostScopedMethodName } from "../domains/step-method.js";
 import { containsText, domainSummary, stepDefinition, stepSummary, stepperStepsLink } from "../domains/step-discovery.js";
 import { heldPerEntries, recordEntries } from "./held-per-entries.js";
@@ -92,5 +100,11 @@ function valuesOf(key: string, domain: TRegisteredDomain): string[] | undefined 
  *  domain names. */
 function domainDiscoveryInfo(key: string, domain: TRegisteredDomain): TDomainDiscoveryInfo {
 	const ui = domain.ui ? (({ jsContent: _source, ...rest }) => rest)(domain.ui) : undefined;
-	return { description: domain.description, values: valuesOf(key, domain), stepperName: domain.stepperName, persistedAs: isPersisted(domain.topology) ? domain.topology.persistedAs : undefined, ui };
+	return {
+		description: domain.description,
+		values: valuesOf(key, domain),
+		stepperName: domain.stepperName,
+		persistedAs: isPersisted(domain.topology) ? domain.topology.persistedAs : undefined,
+		ui,
+	};
 }

@@ -165,7 +165,8 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		},
 		serveFiles: {
 			gwta: `serve files from {loc: ${DOMAIN_FILE_PATH}}`,
-			action: ({ loc }: { loc: string }) => this.mounting(`the files of ${loc}`, (server) => server.checkAddStaticFolder(loc, "/", filesFrom(loc), ...this.servedFolderGates(server))),
+			action: ({ loc }: { loc: string }) =>
+				this.mounting(`the files of ${loc}`, (server) => server.checkAddStaticFolder(loc, "/", filesFrom(loc), ...this.servedFolderGates(server))),
 		},
 		serveFilesAt: {
 			gwta: `serve files at {where: ${DOMAIN_ROUTE}} from {loc: ${DOMAIN_FILE_PATH}}`,
@@ -175,7 +176,9 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 		indexFiles: {
 			gwta: `index files from {loc: ${DOMAIN_FILE_PATH}}`,
 			action: ({ loc }: { loc: string }) =>
-				this.mounting(`an index of ${loc}`, (server) => server.checkAddIndexFolder(loc, "/", { description: `An index of the files in ${loc}` }, ...this.servedFolderGates(server))),
+				this.mounting(`an index of ${loc}`, (server) =>
+					server.checkAddIndexFolder(loc, "/", { description: `An index of the files in ${loc}` }, ...this.servedFolderGates(server)),
+				),
 		},
 		enableRpc: {
 			gwta: "enable rpc",

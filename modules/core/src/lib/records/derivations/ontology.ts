@@ -133,7 +133,7 @@ export function ontologyToQuads(domains: Record<string, TRegisteredDomain> = {})
 	// rdfs:range: an edge from each edge's Property to each class in the edge's range.
 	for (const d of Object.values(domains)) {
 		if (!isPersisted(d.topology)) continue;
-		for (const [edge, edgeDef] of (d.topology.edges === undefined ? [] : Object.entries(d.topology.edges))) {
+		for (const [edge, edgeDef] of d.topology.edges === undefined ? [] : Object.entries(d.topology.edges)) {
 			const rel = edgeDef.rel ?? edgeRel(edge);
 			if (!rel) continue;
 			addProp(rel);

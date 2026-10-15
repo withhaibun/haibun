@@ -31,7 +31,7 @@
 		"test": "vitest run",
 		"test:e2e": "npm test -w e2e-tests",
 		"test:integration": "vitest run --project integration",
-		"start:mcp": "HAIBUN_O_WEBSERVERSTEPPER_PORT=8129 haibun-cli --config mcp-server/config.json mcp-server serve-mcp",
+		"start:mcp": "haibun-cli --config mcp-server/config.json mcp-server serve-mcp",
 		"test:watch": "vitest --hideSkippedTests",
 		"clean": "rm -rf modules/*/build modules/*/tsconfig.tsbuildinfo",
 		"build:watch:tsc": "tsc -b modules/ --watch --preserveWatchOutput",
@@ -40,10 +40,9 @@
 		"prune:build": "node scripts/prune-orphaned-build.mjs",
 		"build:watch": "concurrently --restart-tries -1 --restart-after 1000 \"npm:build:watch:tsc\" \"npm:build:watch:shu-bundles\"",
 		"format": "biome format --write .",
-		"lint": "biome lint . && npm run typecheck:features && npm run typecheck:tests",
+		"lint": "biome check . && npm run typecheck:features && npm run typecheck:tests",
 		"typecheck:features": "tsc -p tsconfig.features.json",
 		"typecheck:tests": "tsc -p tsconfig.tests.json",
-		"check": "biome check .",
 		"depcruise": "depcruise -c .dependency-cruiser.cjs -T dot modules | dot -T svg | depcruise-wrap-stream-in-html > dependency-graph.html",
 		"preversion": "npm run test",
 		"version": "node scripts/sync-versions.mjs",
@@ -61,7 +60,9 @@
 		"publish-all:alpha": "node scripts/publish-all.mjs alpha",
 		"publish-all:beta": "node scripts/publish-all.mjs beta",
 		"publish-all:rc": "node scripts/publish-all.mjs rc",
-		"build:watch:shu-bundles": "npm run bundle:watch -w @haibun/shu"
+		"build:watch:shu-bundles": "npm run bundle:watch -w @haibun/shu",
+		"verify": "node scripts/verify.mjs",
+		"prepare": "node scripts/install-hooks.mjs .githooks"
 	},
 	"version": "4.0.0-alpha.3",
 	"overrides": {
@@ -69,5 +70,31 @@
 		"@types/react": "^19.0.0",
 		"three": "npm:super-three@0.173.5",
 		"three-bmfont-text": "3.0.1"
-	}
+	},
+	"verify": [
+		{
+			"lane": "build",
+			"command": "npm run build"
+		},
+		{
+			"lane": "lint",
+			"command": "npm run lint"
+		},
+		{
+			"lane": "unit",
+			"command": "npx vitest run --project unit"
+		},
+		{
+			"lane": "integration",
+			"command": "npx vitest run --project integration"
+		},
+		{
+			"lane": "e2e",
+			"command": "npm run test:e2e"
+		},
+		{
+			"lane": "shu e2e",
+			"command": "npm run test:e2e -w @haibun/shu"
+		}
+	]
 }

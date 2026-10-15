@@ -240,7 +240,9 @@ function makePagedSource<T>(opts: TPagedSourceOptions<T>): TPagedSource<T> {
 					})
 					.catch((e: unknown) => {
 						for (let p = a; p <= b; p++) inflight.delete(p);
-						console.warn(`the read of pages ${a} to ${b} failed (${e instanceof Error ? e.message : String(e)}); the pages stay unread until the next scroll over them reads them again`);
+						console.warn(
+							`the read of pages ${a} to ${b} failed (${e instanceof Error ? e.message : String(e)}); the pages stay unread until the next scroll over them reads them again`,
+						);
 					});
 				for (let p = a; p <= b; p++) inflight.set(p, promise);
 				waits.push(promise);

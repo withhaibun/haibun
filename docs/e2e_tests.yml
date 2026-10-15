@@ -9,7 +9,7 @@ on:
         type: environment
 
 env:
-  NODE_VERSION: 22
+  NODE_VERSION: 24
 
 jobs:
   setup-and-run-e2e-tests:
@@ -19,7 +19,7 @@ jobs:
         ${{ github.event.inputs.environment }}
     container:
       # note this should use the same playwright docker version as the haibun version
-      image: mcr.microsoft.com/playwright:v1.56.1-noble
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
       options: --user 1001
     steps:
       - name: Checkout repository

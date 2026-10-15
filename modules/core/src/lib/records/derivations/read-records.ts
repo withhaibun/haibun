@@ -17,7 +17,18 @@ import {
 	type TQuerySurface,
 	type TTitledBy,
 } from "../../hypermedia.js";
-import { ORDER_KEY, VIA_FIELD, statedQuery, type TDistinctValues, type TGraphQuery, type TOrderKey, type TQuad, type TRecordsPage, type TSearchCondition, type TStatedQuery } from "../../steps/domains/quad-types.js";
+import {
+	ORDER_KEY,
+	VIA_FIELD,
+	statedQuery,
+	type TDistinctValues,
+	type TGraphQuery,
+	type TOrderKey,
+	type TQuad,
+	type TRecordsPage,
+	type TSearchCondition,
+	type TStatedQuery,
+} from "../../steps/domains/quad-types.js";
 import { AccessQuery, LinkRelations, isPersisted, statedLevel, type THeldBy, type TRegisteredDomain } from "../../resources.js";
 import { itemAt } from "../../util/item-at.js";
 
@@ -307,7 +318,10 @@ function reached(records: readonly THeldRecord[], query: TGraphQuery): TReached[
 			const target = byKey.get(keyOf(edge.label, edge.id));
 			return !target || (referencedBy.via && !referencedBy.via.includes(edge.rel)) ? [] : [{ edge, target }];
 		});
-		return [...Map.groupBy(reached, ({ edge }) => keyOf(edge.label, edge.id))].map(([, held]) => ({ record: itemAt(held, 0).target, via: unique(held.map(({ edge }) => edge.rel)) }));
+		return [...Map.groupBy(reached, ({ edge }) => keyOf(edge.label, edge.id))].map(([, held]) => ({
+			record: itemAt(held, 0).target,
+			via: unique(held.map(({ edge }) => edge.rel)),
+		}));
 	}
 	return records.filter((record) => record.label === label).map((record) => ({ record }));
 }
@@ -343,7 +357,7 @@ export function readFromRecords(records: readonly THeldRecord[], read: TGraphQue
 	const page = readPage(query);
 	const ceiling = countCeiling(query);
 	const declared = query.label === undefined ? undefined : declarations.of(query.label);
-	const relations = (declared?.surface.references === undefined ? [] : Object.keys(declared?.surface.references));
+	const relations = declared?.surface.references === undefined ? [] : Object.keys(declared?.surface.references);
 	const order = readOrder(query, declared?.defaultSort);
 	const narrowed = reached(records, query).filter(
 		({ record }) =>

@@ -9,7 +9,13 @@ export const standardDecorators: Plugin = {
 	enforce: "pre",
 	async transform(code, id) {
 		if (!SHU_SOURCE.test(id)) return undefined;
-		const { code: lowered, map } = await transform(code, { loader: "ts", target: "es2022", sourcemap: true, sourcefile: id, tsconfigRaw: { compilerOptions: { experimentalDecorators: false } } });
+		const { code: lowered, map } = await transform(code, {
+			loader: "ts",
+			target: "es2022",
+			sourcemap: true,
+			sourcefile: id,
+			tsconfigRaw: { compilerOptions: { experimentalDecorators: false } },
+		});
 		return { code: lowered, map };
 	},
 };

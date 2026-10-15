@@ -18,12 +18,18 @@ The end-to-end features run from `e2e-tests` with `npm run test:e2e`. Their brow
 
 `npm run depcruise` writes `dependency-graph.html`, a graph of the modules' imports, which needs Graphviz's `dot`.
 
-## Developing modules and Haibun core together
+## Verifying a change
 
-To develop a separate module beside Haibun's modules, link each Haibun library into that module's repository:
+`npm run verify` runs each lane that the root package.json lists under `verify`, one after another, and stops at the first that
+fails: the build, lint, the unit and integration tests, and the end-to-end features of `e2e-tests` and shu. It runs the features with
+`HAIBUN_ONCE`, so a group whose last pass holds against its present dependencies isn't run again. It prints each lane's duration
+and the lines the working tree changes.
 
-`npx @haibun/utils -p link`
+`npm install` points git at `.githooks`, whose pre-commit hook runs lint and the unit tests, so a commit passes them.
 
-This links each Haibun library to a Haibun repository linked with `npm link`, which runs once in each Haibun module's
-directory.
+## Developing a repository beside Haibun
 
+A repository that builds on Haibun's modules keeps a Haibun checkout beside it, links that checkout as its `haibun` folder, and lists
+`haibun/modules/*` as its npm workspaces. Spopg is one: `ln -s ../haibun haibun`, then `npm run setup` installs its packages, builds
+Haibun, fetches the browsers and models, and builds spopg. Its postinstall refuses a `haibun` that is missing, that isn't a link, or
+that is on another branch than the repository's, and states the next step.

@@ -178,7 +178,8 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			action: async ({ what, statement }: { what: string; statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				const result = await this.runner.runSteps(statement, { intent: { mode: "authoritative" }, parentStep: featureStep });
 				if (!result.ok) return actionNotOK(`set from statement failed: ${result.errorMessage}`);
-				if (result.products === undefined) return actionNotOK(`set ${what} from a statement: the statement returned without products to set. Use a statement that produces products`);
+				if (result.products === undefined)
+					return actionNotOK(`set ${what} from a statement: the statement returned without products to set. Use a statement that produces products`);
 				await this.getWorld().shared.setJSON(what, result.products, Origin.var, featureStep);
 				return actionOK();
 			},

@@ -226,22 +226,26 @@ export class ServerHono implements IWebServer {
 
 		const indexPath = mountAt.endsWith("/") ? `${mountAt}*` : `${mountAt}/*`;
 		const relativeOf = (c: Context) => c.req.path.replace(mountAt, "").replace(/^\//, "");
-		this._app.get(indexPath, forHeld(mountAt, (c) => holds(folder, relativeOf(c), undefined), before), async (c) => {
-			const requestPath = relativeOf(c);
-			const fullPath = resolve(folder, requestPath);
-			if (!isWithin(folder, fullPath) || !existsSync(fullPath)) return c.notFound();
-			const stat = statSync(fullPath);
-			if (stat.isDirectory()) {
-				const files = readdirSync(fullPath);
-				return c.html(this.generateDirectoryListing(requestPath === "" ? ROOT : requestPath, files, mountAt));
-			}
-			let notFoundCalled = false;
-			const response = await serveStatic({ root: folder })(c, () => {
-				notFoundCalled = true;
-				return Promise.resolve();
-			});
-			return notFoundCalled || !response ? c.notFound() : response;
-		});
+		this._app.get(
+			indexPath,
+			forHeld(mountAt, (c) => holds(folder, relativeOf(c), undefined), before),
+			async (c) => {
+				const requestPath = relativeOf(c);
+				const fullPath = resolve(folder, requestPath);
+				if (!isWithin(folder, fullPath) || !existsSync(fullPath)) return c.notFound();
+				const stat = statSync(fullPath);
+				if (stat.isDirectory()) {
+					const files = readdirSync(fullPath);
+					return c.html(this.generateDirectoryListing(requestPath === "" ? ROOT : requestPath, files, mountAt));
+				}
+				let notFoundCalled = false;
+				const response = await serveStatic({ root: folder })(c, () => {
+					notFoundCalled = true;
+					return Promise.resolve();
+				});
+				return notFoundCalled || !response ? c.notFound() : response;
+			},
+		);
 		this.mount("get", mountAt, folder, purpose);
 	}
 
@@ -253,8 +257,16 @@ export class ServerHono implements IWebServer {
 		this.eventLogger.debug(`ServerHono: serving static files from ${folder} at ${mountAt}`);
 		const staticPath = mountAt.endsWith("/") ? `${mountAt}*` : `${mountAt}/*`;
 		const relativeOf = (path: string) => path.replace(mountAt, "");
-		this._app.get(staticPath, forHeld(mountAt, (c) => holds(folder, relativeOf(c.req.path), INDEX_FILE), before), serveStatic({ root: folder, rewriteRequestPath: relativeOf }));
-		this._app.get(mountAt, forHeld(mountAt, () => holds(folder, INDEX_FILE, INDEX_FILE), before), serveStatic({ root: folder, rewriteRequestPath: () => `/${INDEX_FILE}` }));
+		this._app.get(
+			staticPath,
+			forHeld(mountAt, (c) => holds(folder, relativeOf(c.req.path), INDEX_FILE), before),
+			serveStatic({ root: folder, rewriteRequestPath: relativeOf }),
+		);
+		this._app.get(
+			mountAt,
+			forHeld(mountAt, () => holds(folder, INDEX_FILE, INDEX_FILE), before),
+			serveStatic({ root: folder, rewriteRequestPath: () => `/${INDEX_FILE}` }),
+		);
 		this.mount("get", mountAt, folder, purpose);
 	}
 

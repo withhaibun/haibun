@@ -3,6 +3,7 @@ import WebPlaywright from "@haibun/web-playwright";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import { localOrigin } from "@haibun/core/lib/local-origin.js";
+import { requiredModuleOption } from "@haibun/core/lib/held-module-options.js";
 import { MONITOR_PATH } from "../../build/monitor-stepper.js";
 import { SHU_TEST_IDS } from "../../build/domains/test-ids.js";
 import { flattenTestIds } from "@haibun/shu/test/step-ui.js";
@@ -11,9 +12,8 @@ const { waitFor, gotoPage } = withAction(new WebPlaywright());
 const { setAs } = withAction(new VariablesStepper());
 const { feature, scenario } = withAction(new Haibun());
 
-const MONITOR_PORT = process.env.HAIBUN_O_MONITORSTEPPER_PORT;
-if (!MONITOR_PORT) throw new Error("HAIBUN_O_MONITORSTEPPER_PORT names the port the monitor serves on, which this feature opens, and isn't set");
-const MONITOR = `${localOrigin(Number(MONITOR_PORT))}${MONITOR_PATH}`;
+/** The port the monitor serves on, which this feature opens. */
+const MONITOR = `${localOrigin(Number(requiredModuleOption("HAIBUN_O_MONITORSTEPPER_PORT")))}${MONITOR_PATH}`;
 const IDS = SHU_TEST_IDS;
 const testIdSetup = flattenTestIds(IDS).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
 

@@ -1,3 +1,6 @@
+import nodeFS, { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { vitest, describe, it, expect } from "vitest";
 
 import { CONTINUE_AFTER_ERROR, DEFAULT_DEST, MODULE_OPTION_PREFIX, STEP_DELAY } from "@haibun/core/schema/protocol.js";
@@ -220,5 +223,45 @@ describe("resolveRunPolicy", () => {
 
 		expect(protoOptions.options.envVariables?.API_KEY).toBe("secret-123");
 		expect(protoOptions.options.envVariables?.TIMEOUT).toBe("5000");
+	});
+});
+
+describe("getConfigFromBase with extends", () => {
+	const BASE = { steppers: ["variables-stepper", "haibun"], options: { DEST: "base" }, moduleOptions: { [OTHER_OPTION]: "base" }, environments: ["model"], dependsOn: ["shared"] };
+	/** A directory holding the base config in its parent folder and the given config beside its own folder. */
+	const group = (own: Record<string, unknown>): string => {
+		const root = mkdtempSync(join(tmpdir(), "extends-"));
+		mkdirSync(join(root, "shared"));
+		mkdirSync(join(root, "group"));
+		writeFileSync(join(root, "base.json"), JSON.stringify(BASE));
+		writeFileSync(join(root, "group", "config.json"), JSON.stringify(own));
+		return join(root, "group");
+	};
+
+	it("adds the config's steppers after the base's, and lets the config's keys replace the base's", () => {
+		const specl = lib.getConfigFromBase(
+			[group({ extends: "../base.json", steppers: ["logic-stepper"], options: { DEST: "own" }, moduleOptions: { [`${OTHER_OPTION}2`]: "own" } })],
+			nodeFS,
+		);
+		expect(specl.steppers).toEqual(["variables-stepper", "haibun", "logic-stepper"]);
+		expect(specl.options).toEqual({ DEST: "own" });
+		expect(specl.moduleOptions).toEqual({ [OTHER_OPTION]: "base", [`${OTHER_OPTION}2`]: "own" });
+		expect(specl).not.toHaveProperty("extends");
+	});
+
+	it("reads a base's dependsOn path from the config that extends it, and joins the environments", () => {
+		const specl = lib.getConfigFromBase([group({ extends: "../base.json", steppers: [], environments: ["mail"] })], nodeFS);
+		expect(specl.dependsOn).toEqual(["../shared"]);
+		expect(specl.environments).toEqual(["model", "mail"]);
+	});
+
+	it("refuses a stepper the base lists", () => {
+		expect(() => lib.getConfigFromBase([group({ extends: "../base.json", steppers: ["haibun"] })], nodeFS)).toThrow(
+			/lists "haibun", which its base .*base\.json lists\. Remove them from/,
+		);
+	});
+
+	it("refuses a config that extends itself", () => {
+		expect(() => lib.getConfigFromBase([group({ extends: "config.json", steppers: [] })], nodeFS)).toThrow(/extends itself through/);
 	});
 });

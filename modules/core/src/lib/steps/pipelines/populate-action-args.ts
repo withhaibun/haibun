@@ -57,7 +57,9 @@ async function readParams(featureStep: TFeatureStep, world: TWorld, steppers: AS
 export async function argumentsOf(featureStep: TFeatureStep, world: TWorld, steppers: AStepper[]): Promise<TArgumentsRead> {
 	const read = await readParams(featureStep, world, steppers);
 	if ("refused" in read) return read;
-	return { args: Object.fromEntries(read.params.map(({ name, takes, read: value }) => [name, domainParts(takes).length > 1 || takes === DOMAIN_VARIABLE_VALUE ? value : value.value])) };
+	return {
+		args: Object.fromEntries(read.params.map(({ name, takes, read: value }) => [name, domainParts(takes).length > 1 || takes === DOMAIN_VARIABLE_VALUE ? value : value.value])),
+	};
 }
 
 /** A step's arguments. Throws the refusal of the first parameter that doesn't read. */
@@ -82,7 +84,14 @@ export async function callInput(featureStep: TFeatureStep, world: TWorld, steppe
  * primitive value, and a record reference domain reads the record that the value names. Any other value is refused,
  * naming both domains.
  */
-function readInDomain(inStep: string, takes: string, resolved: TStepValue, world: TWorld, featureStep: TFeatureStep, steppers: AStepper[]): { value: unknown } | { refused: string } {
+function readInDomain(
+	inStep: string,
+	takes: string,
+	resolved: TStepValue,
+	world: TWorld,
+	featureStep: TFeatureStep,
+	steppers: AStepper[],
+): { value: unknown } | { refused: string } {
 	const holds = resolved.domain;
 	const parts = domainParts(takes);
 	if (holds === takes || parts.includes(holds) || parts.includes(DOMAIN_STRING) || parts.includes(DOMAIN_VARIABLE_VALUE)) return { value: resolved.value };

@@ -9,7 +9,15 @@
  */
 import { z } from "zod";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import { ActualityMoveSchema, INITIAL_ACTUALITY, LEVEL_STATUS, executionEnded, transition, type TActuality, type TStepFailure } from "@haibun/core/lib/actuality/machines/actuality.js";
+import {
+	ActualityMoveSchema,
+	INITIAL_ACTUALITY,
+	LEVEL_STATUS,
+	executionEnded,
+	transition,
+	type TActuality,
+	type TStepFailure,
+} from "@haibun/core/lib/actuality/machines/actuality.js";
 
 /**
  * One event from a supervised run's output, as the fields a reader of its outcome reads.

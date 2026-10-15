@@ -3,8 +3,6 @@ name: 'Haibun unit tests'
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
   pull_request:
 
 permissions:
@@ -40,8 +38,14 @@ jobs:
       - name: build
         run: npm run build
 
+      - name: Lint
+        run: npm run lint
+
       - name: Run tests
         run: npm test
+
+      - name: Run shu e2e tests
+        run: npm run test:e2e -w @haibun/shu
 
       - name: Run e2e tests
         run: |

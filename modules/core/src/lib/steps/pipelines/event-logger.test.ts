@@ -216,7 +216,10 @@ describe("an event's secrets", () => {
 		hub.info("signing in with s3cr3t-pass as the DB_PASSWORD", { form: { field: "s3cr3t-pass" }, tries: ["s3cr3t-pass"] });
 		expect(emitted).toHaveLength(2);
 		for (const event of emitted) expect(JSON.stringify(event)).not.toContain("s3cr3t-pass");
-		expect(itemAt(emitted, 0)).toMatchObject({ message: `signing in with ${OBSCURED_VALUE} as the DB_PASSWORD`, attributes: { form: { field: OBSCURED_VALUE }, tries: [OBSCURED_VALUE] } });
+		expect(itemAt(emitted, 0)).toMatchObject({
+			message: `signing in with ${OBSCURED_VALUE} as the DB_PASSWORD`,
+			attributes: { form: { field: OBSCURED_VALUE }, tries: [OBSCURED_VALUE] },
+		});
 		expect(sink.written.join("")).not.toContain("s3cr3t-pass");
 	});
 });

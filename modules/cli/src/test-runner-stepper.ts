@@ -404,7 +404,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 							.slice(0, 12)
 							.join(", ")}`,
 					);
-				const takes = (target?.inputSchema.properties === undefined ? [] : Object.keys(target?.inputSchema.properties));
+				const takes = target?.inputSchema.properties === undefined ? [] : Object.keys(target?.inputSchema.properties);
 				const given = askParams(params, target?.inputSchema.properties);
 				// A step called without a required parameter fails inside the test run with a message that appears to describe
 				// a fault of the test run. This message names the step's own parameters so the caller can correct the call.

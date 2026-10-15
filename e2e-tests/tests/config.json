@@ -1,5 +1,6 @@
 {
 	"$schema": "../../modules/core/haibun-core-specl.schema.json",
+	"extends": "../../config.base.json",
 	"steppers": [
 		"@haibun/web-playwright/web-playwright",
 		"@haibun/out-junit/out-junit",
@@ -7,18 +8,20 @@
 		"@haibun/storage-fs/storage-fs",
 		"@haibun/web-accessibility-axe/a11y-axe-stepper",
 		"@haibun/monitor-tui",
-		"variables-stepper",
 		"@haibun/core/steps/goal-resolution-stepper",
-		"resources-stepper",
-		"logic-stepper",
 		"activities-stepper",
 		"@haibun/core/steps/authority-stepper",
 		"@haibun/core/lib/test/fake-authority",
 		"@haibun/cli/instance-stepper",
 		"@haibun/cli/test-runner-stepper",
-		"haibun",
 		"./build-local/test-server",
 		"@haibun/web-server-hono/mcp-stepper"
 	],
-	"unused": ["@haibun/monitor-tui/index", "console-monitor-stepper"]
+	"unused": ["@haibun/monitor-tui/index", "console-monitor-stepper"],
+	"moduleOptions": {
+		"HAIBUN_O_WEBSERVERSTEPPER_ALLOW_WITHOUT_DELEGATION": "Read:public",
+		"HAIBUN_O_OUTJUNIT_STORAGE": "StorageFS",
+		"HAIBUN_O_WEBPLAYWRIGHT_STORAGE": "StorageFS",
+		"HAIBUN_O_MCPSTEPPER_PORT": "8138"
+	}
 }

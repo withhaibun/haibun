@@ -62,13 +62,7 @@ export type TFeatureState = {
 
 /** An execution's levels. `open` counts each step id in flight, since two callers may carry one id. `steps` counts the
  *  steps that ended, within a feature or outside every feature, and `failures` lists the execution's own failures. */
-export type TActuality = {
-	status: TLevelStatus;
-	features: readonly TFeatureState[];
-	open: ReadonlyMap<string, number>;
-	steps: number;
-	failures: readonly TStepFailure[];
-};
+export type TActuality = { status: TLevelStatus; features: readonly TFeatureState[]; open: ReadonlyMap<string, number>; steps: number; failures: readonly TStepFailure[] };
 
 export const INITIAL_ACTUALITY: TActuality = { status: LEVEL_STATUS.pending, features: [], open: new Map(), steps: 0, failures: [] };
 
@@ -97,7 +91,15 @@ function featureMove(state: TActuality, move: TActualityMove): TActuality {
 	const { id } = move;
 	if (move.stage === "start") {
 		if (state.features.some((feature) => feature.id === id) || runningFeature(state) !== undefined) return state;
-		const feature: TFeatureState = { id, ...named(move.featureName), ...(move.featurePath === undefined ? {} : { path: move.featurePath }), status: LEVEL_STATUS.running, scenarios: [], steps: 0, failed: 0 };
+		const feature: TFeatureState = {
+			id,
+			...named(move.featureName),
+			...(move.featurePath === undefined ? {} : { path: move.featurePath }),
+			status: LEVEL_STATUS.running,
+			scenarios: [],
+			steps: 0,
+			failed: 0,
+		};
 		return { ...state, status: LEVEL_STATUS.running, features: [...state.features, feature] };
 	}
 	const running = runningFeature(state);

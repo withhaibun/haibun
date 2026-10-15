@@ -132,7 +132,14 @@ function bareTerm(ph: TStepValue, t: string): void {
 
 /** The step action a line resolves to under an expression, with each placeholder given the term and the origin its capture
  *  states, or undefined where the line doesn't match. */
-export const getMatch = (actionable: string, r: RegExp, actionName: string, stepperName: string, step: TStepperStep, stepValuesMap?: Record<string, TStepValue>): TStepAction | undefined => {
+export const getMatch = (
+	actionable: string,
+	r: RegExp,
+	actionName: string,
+	stepperName: string,
+	step: TStepperStep,
+	stepValuesMap?: Record<string, TStepValue>,
+): TStepAction | undefined => {
 	const matched = r.exec(actionable);
 	if (matched === null) return undefined;
 	const { groups } = matched;

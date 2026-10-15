@@ -1,5 +1,3 @@
-
-
 type TFrameJob = { name: string; every: number; run: () => void };
 
 /** Runs the frame's jobs. A job that throws is disabled, and `failed` reports it with the job's name. */

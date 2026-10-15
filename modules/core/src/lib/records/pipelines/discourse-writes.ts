@@ -39,7 +39,9 @@ async function retractReading(store: TReadingStore, readingId: string): Promise<
 	if (!prior) return;
 	const entries = prior.stated;
 	if (!Array.isArray(entries))
-		throw new Error(`${READING_LABEL} "${readingId}" records what it stated as ${typeof entries}, not a list, so the record cannot be undone. Write the reading again, so that it records what it stated`);
+		throw new Error(
+			`${READING_LABEL} "${readingId}" records what it stated as ${typeof entries}, not a list, so the record cannot be undone. Write the reading again, so that it records what it stated`,
+		);
 	for (const entry of entries as string[]) {
 		const record = fromJsonText(StatedRecordSchema).parse(entry);
 		if (record.kind === "edge") await store.remove({ subject: record.s, predicate: record.rel, object: record.o, namedGraph: record.sLabel });

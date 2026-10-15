@@ -58,6 +58,10 @@
 			"haibun-source": "./src/lib/steps/pipelines/event-logger.js",
 			"default": "./build/lib/steps/pipelines/event-logger.js"
 		},
+		"./lib/held-module-options.js": {
+			"haibun-source": "./src/lib/actuality/domains/held-module-options.js",
+			"default": "./build/lib/actuality/domains/held-module-options.js"
+		},
 		"./lib/world.js": {
 			"haibun-source": "./src/lib/actuality/domains/world.js",
 			"default": "./build/lib/actuality/domains/world.js"

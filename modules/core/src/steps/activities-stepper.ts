@@ -541,7 +541,15 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	private emitEnsure(featureStep: TFeatureStep, outcomeKey: string, at: { stage: "start" | "end"; status: TStatus; error?: string }): void {
 		const where = { lineNumber: featureStep.source?.lineNumber, featurePath: featureStep.source?.path };
 		this.getWorld().eventLogger.emit(
-			LifecycleEvent.parse({ id: `${formatSeqPath(featureStep.seqPath)}.ensure`, timestamp: this.getWorld().clock.now(), kind: "lifecycle", type: "ensure", in: outcomeKey, ...where, ...at }),
+			LifecycleEvent.parse({
+				id: `${formatSeqPath(featureStep.seqPath)}.ensure`,
+				timestamp: this.getWorld().clock.now(),
+				kind: "lifecycle",
+				type: "ensure",
+				in: outcomeKey,
+				...where,
+				...at,
+			}),
 		);
 	}
 

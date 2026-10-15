@@ -54,7 +54,7 @@ function schemaShape(schema: z.ZodType | undefined): Record<string, z.ZodType> {
  *  so what a client is offered is what a store accepts. */
 export function queryableFields(domain: { schema: z.ZodType | undefined; topology: THypermediaTopology }): string[] {
 	const topology = domain.topology;
-	const out = new Set<string>((topology.sortColumns === undefined ? [] : Object.keys(topology.sortColumns)));
+	const out = new Set<string>(topology.sortColumns === undefined ? [] : Object.keys(topology.sortColumns));
 	for (const [field, def] of Object.entries(topology.properties)) {
 		const rel = relOf(def);
 		if (rel === LinkRelations.CONTEXT.rel || rel === LinkRelations.GENERATED_AT_TIME.rel) out.add(field);
@@ -177,7 +177,10 @@ export function pointsThrough(surface: TQuerySurface): string[] {
 /** Which primitive reaches each property of a type, and the type each of its relations points at. A property reached two
  *  ways states both. */
 export function querySurface(domain: { schema: z.ZodType | undefined; topology: THypermediaTopology }): TQuerySurface {
-	const reached: Array<[string, TReachedBy]> = [...queryableFields(domain).map((field): [string, TReachedBy] => [field, REACHED_BY.filter]), ...searchableFields(domain).map((field): [string, TReachedBy] => [field, REACHED_BY.search])];
+	const reached: Array<[string, TReachedBy]> = [
+		...queryableFields(domain).map((field): [string, TReachedBy] => [field, REACHED_BY.filter]),
+		...searchableFields(domain).map((field): [string, TReachedBy] => [field, REACHED_BY.search]),
+	];
 	const properties = Object.fromEntries([...Map.groupBy(reached, ([field]) => field)].map(([field, held]) => [field, held.map(([, by]) => by)]));
 	const references = Object.fromEntries((domain.topology.edges === undefined ? [] : Object.entries(domain.topology.edges)).map(([relation, edge]) => [relation, edgeRanges(edge)]));
 	return QuerySurfaceSchema.parse({ label: domain.topology.persistedAs, properties, references });
@@ -324,7 +327,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 		}
 
 		const edges: Record<string, TEdgeConcern> = {};
-		for (const [edgeField, edgeDef] of (topology.edges === undefined ? [] : Object.entries(topology.edges))) {
+		for (const [edgeField, edgeDef] of topology.edges === undefined ? [] : Object.entries(topology.edges)) {
 			const rel = edgeDef.rel ?? edgeRel(edgeField);
 			if (!rel) throw new Error(`persisted domain "${label}" edge "${edgeField}" doesn't have a rel: add it to EdgePredicates or give an explicit rel`);
 			if (!REL_CONTEXT[rel]) throw new Error(`persisted domain "${label}" edge "${edgeField}" has unknown rel "${rel}"`);
@@ -618,7 +621,7 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 		if (title) titledBy.set(type, title);
 		if (topology.instrumentation) instrumentation.add(type);
 		const rels: Record<string, string> = {};
-		for (const [field, def] of (topology.properties === undefined ? [] : Object.entries(topology.properties))) {
+		for (const [field, def] of topology.properties === undefined ? [] : Object.entries(topology.properties)) {
 			rels[field] = relOf(def);
 		}
 		// Universal rdfs:label: every persisted type may carry a `label` that titles it (the explicit, type-agnostic
@@ -932,7 +935,7 @@ function assertBoundPrefixes(label: string, domainKey: string, topology: THyperm
 		const iri = propertyIriOf(def);
 		if (iri) claims.push([`property "${field}"`, iri]);
 	}
-	for (const [edgeField, edgeDef] of (topology.edges === undefined ? [] : Object.entries(topology.edges))) {
+	for (const [edgeField, edgeDef] of topology.edges === undefined ? [] : Object.entries(topology.edges)) {
 		if (edgeDef.iri) claims.push([`edge "${edgeField}"`, edgeDef.iri]);
 	}
 	for (const [where, term] of claims) {
@@ -1011,7 +1014,7 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>, hai
 		const topology = domain.topology;
 		// A type's own vocabulary prefixes (CURIEs its @types/rels use beyond the standards + haibun's own), merged into the
 		// served context. First declaration wins; core doesn't declare one of these itself.
-		for (const [prefix, iri] of (topology.namespaces === undefined ? [] : Object.entries(topology.namespaces))) context[prefix] ??= iri;
+		for (const [prefix, iri] of topology.namespaces === undefined ? [] : Object.entries(topology.namespaces)) context[prefix] ??= iri;
 		const scoped: Record<string, unknown> = {};
 		const put = (key: string, node: Record<string, string>): void => {
 			scoped[key] = node;
@@ -1028,7 +1031,7 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>, hai
 			put(prop, node);
 			declareProp(uri, linkRel, subPropertyAxiom(rel));
 		}
-		for (const [edge, edgeDef] of (topology.edges === undefined ? [] : Object.entries(topology.edges))) {
+		for (const [edge, edgeDef] of topology.edges === undefined ? [] : Object.entries(topology.edges)) {
 			const rel = edgeDef.rel ?? edgeRel(edge);
 			const uri = edgeDef.iri ?? (rel && REL_CONTEXT[rel]) ?? `hbn:${edge}`;
 			put(edge, { "@id": uri, "@type": "@id" });

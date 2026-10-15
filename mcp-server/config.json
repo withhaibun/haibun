@@ -6,5 +6,8 @@
 		"@haibun/storage-fs/storage-fs",
 		"haibun",
 		"@haibun/web-server-hono/mcp-stepper"
-	]
+	],
+	"moduleOptions": {
+		"HAIBUN_O_WEBSERVERSTEPPER_PORT": "8129"
+	}
 }

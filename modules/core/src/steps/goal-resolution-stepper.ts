@@ -15,7 +15,17 @@
  */
 import { z } from "zod";
 import { JsonObjectSchema } from "../lib/json-text.js";
-import { AStepper, type IHasCycles, type IStepperCycles, type TAfterStep, type TFeatureStep, type TAfterStepResult, type TStepperSteps, type IHasOptions, type TStepperOption } from "../lib/steps/domains/stepper.js";
+import {
+	AStepper,
+	type IHasCycles,
+	type IStepperCycles,
+	type TAfterStep,
+	type TFeatureStep,
+	type TAfterStepResult,
+	type TStepperSteps,
+	type IHasOptions,
+	type TStepperOption,
+} from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOKWithProducts, getStepperOption, stringOrError } from "../lib/util/index.js";
 import {
 	DOMAIN_AFFORDANCES,

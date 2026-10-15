@@ -10,7 +10,20 @@
  */
 import { RecordSchema } from "../../json-text.js";
 import { itemAt } from "../../util/item-at.js";
-import { SHARED_GRAPH, matchesQuadPattern, type TCluster, type TClusteredQuads, type TClusteredQuadsOpts, type TDensityQuery, type TDensityResult, type TDistinctValues, type TGraphQuery, type TQuad, type TQuadPattern, type TRecordsPage } from "../domains/quad-types.js";
+import {
+	SHARED_GRAPH,
+	matchesQuadPattern,
+	type TCluster,
+	type TClusteredQuads,
+	type TClusteredQuadsOpts,
+	type TDensityQuery,
+	type TDensityResult,
+	type TDistinctValues,
+	type TGraphQuery,
+	type TQuad,
+	type TQuadPattern,
+	type TRecordsPage,
+} from "../domains/quad-types.js";
 import type { IQuadStore, TFederatedGraphSource, TStoreLevels } from "../ports.js";
 import { AccessLevelSchema, HELD_BY, LinkRelations, withinAccess, type AccessLevel } from "../../resources.js";
 import { seenAt, writesAtEveryLevel, writtenAt } from "../../actions.js";
@@ -443,7 +456,8 @@ export class QuadStore implements IQuadStore {
 		this.quads.removeWhere(this.quads.ofSubject(label, id), () => true);
 		const timestamp = Date.now();
 		for (const [key, value] of Object.entries(validated)) {
-			if (value !== undefined && value !== null) this.quads.add({ subject: id, predicate: key, object: value, namedGraph: label, timestamp, ...(accessLevel ? { accessLevel } : {}) });
+			if (value !== undefined && value !== null)
+				this.quads.add({ subject: id, predicate: key, object: value, namedGraph: label, timestamp, ...(accessLevel ? { accessLevel } : {}) });
 		}
 		return id;
 	}

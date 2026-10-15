@@ -6,7 +6,8 @@ import type { THaibunEvent } from "../../../schema/protocol.js";
 import { OBSCURED_VALUE } from "../domains/secrets.js";
 
 /** A text with each secret value it holds replaced by the obscured value. An empty value doesn't name a secret. */
-export const obscuredText = (text: string, secrets: readonly string[]): string => secrets.reduce((obscured, secret) => (secret === "" ? obscured : obscured.replaceAll(secret, OBSCURED_VALUE)), text);
+export const obscuredText = (text: string, secrets: readonly string[]): string =>
+	secrets.reduce((obscured, secret) => (secret === "" ? obscured : obscured.replaceAll(secret, OBSCURED_VALUE)), text);
 
 /** A value with every text it holds obscured, at any depth of its lists and objects. */
 export function obscuredValue(value: unknown, secrets: readonly string[]): unknown {

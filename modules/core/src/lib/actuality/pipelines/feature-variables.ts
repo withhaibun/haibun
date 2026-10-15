@@ -5,7 +5,18 @@ import { parseDotPath, navigateValue } from "../../util/dot-path.js";
 import { itemAt } from "../../util/item-at.js";
 import { runEnvEntries, runEnvVariable, type TWorld } from "../domains/world.js";
 import { Origin, TOrigin, TProvenanceIdentifier, TStepValue } from "../../../schema/protocol.js";
-import { DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STRING, DOMAIN_UNION, domainOfTerm, domainParts, namesMember, normalizeDomainKey, persistedDomainOf, registeredDomain } from "../../domains.js";
+import {
+	DOMAIN_JSON,
+	DOMAIN_NUMBER,
+	DOMAIN_STRING,
+	DOMAIN_UNION,
+	domainOfTerm,
+	domainParts,
+	namesMember,
+	normalizeDomainKey,
+	persistedDomainOf,
+	registeredDomain,
+} from "../../domains.js";
 import { readDeclarationsOf } from "../../records/derivations/read-records.js";
 import { readEvery, recordOf } from "../../records/pipelines/record-reads.js";
 import { ontologyReader } from "../../records/pipelines/ontology-records.js";
@@ -52,9 +63,7 @@ function variableOf(record: Record<string, unknown>): TStepValue {
 
 /** The secrets the events hub of `world` obscures: each secret value the world's variables hold once the world holds its
  *  variables. */
-export const secretsOf = (world: Partial<Pick<TWorld, "shared">>): TSecrets => ({
-	values: () => (world.shared === undefined ? [] : world.shared.secretTexts()),
-});
+export const secretsOf = (world: Partial<Pick<TWorld, "shared">>): TSecrets => ({ values: () => (world.shared === undefined ? [] : world.shared.secretTexts()) });
 
 /** The steps that set a variable, from the steps `stepsThatSet` read for the names it was given. */
 function stepsOf(stepsThatSet: ReadonlyMap<string, string[]>, name: string): string[] {

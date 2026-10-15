@@ -5,7 +5,20 @@
  */
 import { z } from "zod";
 import { MAX_PAGE_ROWS, readInPages, type TCounted } from "../../hypermedia.js";
-import { GraphQuerySchema, statedQuery, VIA_FIELD, type TGraphQuery, type TGraphQueryInput, type TIncomingEdges, type TIndividualWithEdges, type TQuad, type TQuadEdge, type TQuadPattern, type TRecordsPage, type TSearchCondition } from "../../steps/domains/quad-types.js";
+import {
+	GraphQuerySchema,
+	statedQuery,
+	VIA_FIELD,
+	type TGraphQuery,
+	type TGraphQueryInput,
+	type TIncomingEdges,
+	type TIndividualWithEdges,
+	type TQuad,
+	type TQuadEdge,
+	type TQuadPattern,
+	type TRecordsPage,
+	type TSearchCondition,
+} from "../../steps/domains/quad-types.js";
 import { type IQuadStore } from "../../steps/ports.js";
 import { BODY_LABEL, HAS_BODY_EDGE, LinkRelations, type AccessQueryLevel } from "../../resources.js";
 import { MEDIA_TYPE } from "../../media-types.js";

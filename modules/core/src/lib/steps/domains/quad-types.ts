@@ -226,7 +226,6 @@ export const QuadSchema = z
 	})
 	.strict() satisfies z.ZodType<TQuad>;
 
-
 export interface TQuadPattern {
 	subject?: string;
 	predicate?: string;
@@ -246,7 +245,6 @@ export function matchesQuadPattern(q: TQuad, p: TQuadPattern): boolean {
 		(p.object === undefined || objectEquals(q.object, p.object))
 	);
 }
-
 
 /**
  * The options of the clustered read. `scope` states whether federated peers join the merge. `"federated"`, or an unstated

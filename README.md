@@ -22,7 +22,7 @@ Conceptually, there are three "layers" to Haibun:
   with testable descriptions of flows in a project features in plain language
 * A domain layer,
   with abstract representations of functionality & data,
-  for example, the [Web domains](modules/web-playwright/src/domains.ts)
+  for example, the [Web domains](modules/web-playwright/src/domains)
 * An implementation layer,
   where specific testers are written,
   for example,

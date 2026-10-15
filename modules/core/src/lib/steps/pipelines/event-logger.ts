@@ -50,7 +50,8 @@ export class EventLogger implements IEventLogger {
 	/** Without options, delivers every narrated kind and never a blip. `{ kinds }` delivers those kinds only, and is the
 	 *  only way to receive `"blip"`. `{ names }` narrows the blips to a declared name or dotted namespace. */
 	subscribe(callback: TEventSubscriber, options?: TSubscribeOptions): void {
-		if (options?.names && !options.kinds?.includes("blip")) throw new Error(`subscribe: names filters blips, and the subscription doesn't list the blip kind; include kinds: ["blip"]`);
+		if (options?.names && !options.kinds?.includes("blip"))
+			throw new Error(`subscribe: names filters blips, and the subscription doesn't list the blip kind; include kinds: ["blip"]`);
 		const kinds = options?.kinds ? new Set(options.kinds) : undefined;
 		this.subscribers.push({ callback, kinds, names: options?.names });
 		for (const kind of receivedKinds(kinds)) this.kindCounts.set(kind, this.countOf(kind) + 1);
