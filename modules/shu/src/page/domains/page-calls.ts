@@ -7,7 +7,6 @@
 import { Access } from "@haibun/core/lib/resources.js";
 import { readAction, requiredAction } from "@haibun/core/lib/actions.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
-import { SHOW_STEPS_ACTION, SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 
 /** The monitor's step that takes a page's diagnostic. */
 export const CLIENT_LOG = { stepper: "MonitorStepper", step: "logClient" } as const;
@@ -20,9 +19,7 @@ export const RECORD_BLIPS = { stepper: "MonitorStepper", step: "recordClientBlip
 export const RECORD_BLIPS_METHOD = stepMethodName(RECORD_BLIPS.stepper, RECORD_BLIPS.step);
 export const RECORD_BLIPS_ACTION = readAction(Access.private);
 
-/** The action each of the page's own calls requires, by its method: discovery's, the diagnostic's and the occurrences'. */
-export const PAGE_CALL_ACTIONS: Readonly<Record<string, string>> = {
-	[SHOW_STEPS_METHOD]: SHOW_STEPS_ACTION,
-	[CLIENT_LOG_METHOD]: CLIENT_LOG_ACTION,
-	[RECORD_BLIPS_METHOD]: RECORD_BLIPS_ACTION,
-};
+/** The action each of the page's own calls requires, by its method: the diagnostic's and the occurrences'. The module leaves
+ *  discovery's to the registry's controller, since discovery's module carries the schemas of every step, which a view's
+ *  bundle that reports a diagnostic doesn't load. */
+export const PAGE_CALL_ACTIONS: Readonly<Record<string, string>> = { [CLIENT_LOG_METHOD]: CLIENT_LOG_ACTION, [RECORD_BLIPS_METHOD]: RECORD_BLIPS_ACTION };
