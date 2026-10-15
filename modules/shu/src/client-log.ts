@@ -17,8 +17,6 @@ import { conduit, hasConduit } from "./page/controllers/conduit-controller.js";
 import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { pageAuthorityPort } from "./page/root.js";
 import { CLIENT_LOG_ACTION, CLIENT_LOG_METHOD } from "./page/domains/page-calls.js";
-// spopg's checked-in extension build reads CLIENT_LOG_ACTION here until spopg reads it from page-calls.ts; the next commit removes this line.
-export { CLIENT_LOG_ACTION } from "./page/domains/page-calls.js";
 
 export type TClientLogLevel = "debug" | "info" | "warn" | "error";
 
