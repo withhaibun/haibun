@@ -40,7 +40,7 @@ import type { TGraphRenderer, TSceneCamera } from "../ports.js";
 import { SceneController } from "../controllers/scene-controller.js";
 import { type RenderType, type TViewForces, buildRenderTypeRegistry } from "./render-type.js";
 import type { ViewType } from "../domains/views.js";
-import { FRAME, VIEW, viewChangeRebuildsNodes } from "../domains/views.js";
+import { FRAME, VIEW, isLaneView, viewChangeRebuildsNodes } from "../domains/views.js";
 import { SCHEMA_TERM, holdsSchema, isSchemaType, schemaHoverText, schemaTermOf, schemaTypes } from "../../../derivations/ontology-projection.js";
 import { actorTypesFor, fromActorEdgeLabels, relationOfPredicate, roleEdgeLabels, roleNounFor, toActorEdgeLabels, validTimeFieldOf } from "../../controllers/catalog-controller.js";
 import { compositeRenderer, threeRenderer } from "./renderer.js";
@@ -1734,9 +1734,11 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	}
 
 	/** Rewind every node to where it was and glide its pin to where the solved layout places it, keeping the engine ticking
-	 *  so it applies the pins and redraws links and chips; pinned nodes ignore the forces, so only the eased motion shows. */
+	 *  so it applies the pins and redraws links and chips; pinned nodes ignore the forces, so only the eased motion shows.
+	 *  The tween translates the layout so the chosen node holds its place, except in a lane view. A lane view places each
+	 *  node on its plane at its lane and time, and a translated layout would draw every node away from that placement. */
 	private beginLayoutTween(from: Map<string, XYZ>, nodes: FGNode[]): void {
-		this.#parts.tween.begin(this.#parts.clock.now(), from, nodes, this.selectedSubject);
+		this.#parts.tween.begin(this.#parts.clock.now(), from, nodes, isLaneView(this.viewType) ? null : this.selectedSubject);
 		this.#parts.engine.hold();
 		if (this.hoverSubject || this.selectedSubject) this.requestFocusAtRest();
 	}
