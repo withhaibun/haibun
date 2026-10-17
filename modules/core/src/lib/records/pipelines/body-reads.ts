@@ -1,13 +1,14 @@
 /**
  * Reads the bodies of records through a store's read function: one record's bodies with their text, the text of a form of a
- * record's body in a media type, and a record's markdown.
+ * record's body in a media type, a body's maximal text, and a record's markdown.
  */
 import { GraphQuerySchema } from "../../steps/domains/quad-types.js";
 import { type IQuadStore } from "../../steps/ports.js";
 import { BODY_LABEL, LinkRelations, type AccessQueryLevel } from "../../resources.js";
 import { MEDIA_TYPE } from "../../media-types.js";
-import { LinkedBodySchema, type TLinkedBody } from "../domains/body.js";
+import { BodyTextSchema, LinkedBodySchema, type TLinkedBody } from "../domains/body.js";
 import { formIn } from "../derivations/bodies.js";
+import { maximalText } from "../derivations/body-text.js";
 import { levelOf, OUTGOING_EDGE_LIMIT, readEvery, recordOf, type TRecordReader } from "./record-reads.js";
 
 /** Reads the bodies of one record with their text, in two reads: the bodies its edges reach, and those bodies by id. A page
@@ -21,6 +22,10 @@ export async function bodiesOf(store: TRecordReader, label: string, id: string, 
 	return read.vertices.map((body) => LinkedBodySchema.parse(body));
 }
 
+/** Returns the first of `bodies` that holds a form in the first of `mediaTypes` any of them holds. */
+const bodyIn = (bodies: readonly TLinkedBody[], mediaTypes: readonly string[]): TLinkedBody | undefined =>
+	mediaTypes.map((mediaType) => bodies.find((body) => formIn(body, [mediaType]) !== undefined)).find((body) => body !== undefined);
+
 /** Reads the text of one record's first form of a body in the order of `mediaTypes`: a body's text or one of its
  *  representations. Returns undefined where the record doesn't hold a form in one of them. */
 export async function bodyByMediaTypes(
@@ -29,8 +34,17 @@ export async function bodyByMediaTypes(
 	mediaTypes: readonly string[],
 	accessLevel?: AccessQueryLevel,
 ): Promise<string | undefined> {
-	const bodies = await bodiesOf(store, record.label, record.id, accessLevel);
-	return mediaTypes.map((mediaType) => bodies.map((body) => formIn(body, [mediaType])).find((text) => text !== undefined)).find((text) => text !== undefined);
+	const body = bodyIn(await bodiesOf(store, record.label, record.id, accessLevel), mediaTypes);
+	return body === undefined ? undefined : formIn(body, mediaTypes);
+}
+
+/** Reads the maximal text of one record's first body that holds a form in the order of `mediaTypes`: the body's text, with
+ *  each line of its other forms that holds a word its text doesn't (`maximalText`). A reader that forwards a record's text
+ *  reads it, so the text it sends holds what each form holds. Returns undefined where the record doesn't hold a form in one
+ *  of them. */
+export async function maximalTextIn(store: TRecordReader, record: { label: string; id: string }, mediaTypes: readonly string[]): Promise<string | undefined> {
+	const body = bodyIn(await bodiesOf(store, record.label, record.id), mediaTypes);
+	return body === undefined ? undefined : maximalText(BodyTextSchema.parse(body));
 }
 
 /** Reads the text of one record's form of a body in a media type. Returns undefined where the record doesn't hold a form

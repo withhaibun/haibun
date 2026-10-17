@@ -990,8 +990,9 @@ export type TRepresentation = z.infer<typeof RepresentationSchema>;
  * on the Body and not metadata on the parent resource's topology, so JSON-LD round-trips and graph queries read
  * mediaType as a triple.
  *
- * A Body's `content` is its text in `mediaType`: the form a search indexes and a reader reads first. `representations`
+ * A Body's `content` is its text in `mediaType`: the form a reader reads first. `representations`
  * holds each other form of the same text, such as the HTML part of an email whose text is the markdown converted from it.
+ * A search indexes the text of every form, and a reader that forwards the text sends its maximal text (`body-text.ts`).
  * A Body without `representations` holds one form. The Body schema has the same constraint as Comment: parent nodes supply
  * content fields that the partition step extracts before persistence.
  */

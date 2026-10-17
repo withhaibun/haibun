@@ -6,7 +6,7 @@
 import { z } from "zod";
 import { MEDIA_TYPE } from "../../media-types.js";
 import { HAS_BODY_EDGE, isContentPropertyDef, type TPropertyDef, type TRepresentation } from "../../resources.js";
-import { LinkedBodySchema, type TLinkedBody } from "../domains/body.js";
+import { LinkedBodySchema, type TBodyText, type TLinkedBody } from "../domains/body.js";
 
 /**
  * The order of preference among the forms of one text. Markdown comes first because it carries the structure without the
@@ -62,9 +62,6 @@ export function bodyKindsOf(label: string, properties: Readonly<Record<string, T
 		);
 	return kinds;
 }
-
-/** A Body as a write states it: its text in the form preferred, and each other form as a representation. */
-export type TBodyText = { mediaType: string; content: string; representations?: TRepresentation[] };
 
 /** Returns the Body that holds `forms`: its text is the form `preferredMediaType` chooses, and each other form is a
  *  representation. `of` names the Body in a refusal. */

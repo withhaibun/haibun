@@ -1,4 +1,4 @@
-/** A Body as a record names it: the media type of each of its forms, each with its text where the read carries it. */
+/** A Body as a record names it, and a Body with the text of each of its forms. */
 import { z } from "zod";
 import { RepresentationSchema } from "../../resources.js";
 
@@ -9,3 +9,7 @@ const LinkedFormSchema = RepresentationSchema.partial({ content: true });
  *  text where the read carries it. */
 export const LinkedBodySchema = LinkedFormSchema.extend({ id: z.string(), representations: z.array(LinkedFormSchema).optional() }).loose();
 export type TLinkedBody = z.infer<typeof LinkedBodySchema>;
+
+/** A Body with the text of each of its forms: its text in the form preferred, and each other form as a representation. */
+export const BodyTextSchema = RepresentationSchema.extend({ representations: z.array(RepresentationSchema).optional() });
+export type TBodyText = z.infer<typeof BodyTextSchema>;
