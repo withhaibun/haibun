@@ -8,8 +8,9 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { ShuEntityColumn } from "./shu-entity-column.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
+import { readingKey } from "@haibun/core/lib/records/derivations/bodies.js";
 
-type Body = { id: string; content: string; mediaType: string };
+type Body = { id: string; content: string; mediaType: string; representations?: Array<{ mediaType: string; content: string }> };
 
 /** Longer than the text annotator's redraw debounce, which a removed view's annotator still runs. */
 const ANNOTATOR_SETTLE_MS = 30;
@@ -44,6 +45,23 @@ describe("entity body content renders for every type and view that should show i
 		expect(html).toContain('class="content-switcher"'); // the rendered switcher container, not the CSS rule
 		expect(html).toContain("text/html");
 		expect(html).toContain("text/plain");
+	});
+
+	it("email with one Body whose text is markdown and whose representations are html and plain text: a switcher button per form", async () => {
+		const html = await render("Email", { id: "e1", subject: "Hi" }, [
+			{
+				id: "b",
+				content: "**hello**",
+				mediaType: "text/markdown",
+				representations: [
+					{ mediaType: "text/html", content: "<p>hello</p>" },
+					{ mediaType: "text/plain", content: "hello" },
+				],
+			},
+		]);
+		const switches = [...html.matchAll(new RegExp(`data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_READING}"[^>]*>([^<]+)<`, "g"))].map(([, media]) => media);
+		expect(switches).toEqual(["text/markdown", "text/html", "text/plain"]);
+		expect(html).toContain(`aria-pressed="true" data-reading="${readingKey("b", "text/markdown")}"`);
 	});
 
 	it("file with a single markdown body: shows the iframe (one type doesn't need a switcher)", async () => {
@@ -86,9 +104,10 @@ describe("entity body content renders for every type and view that should show i
 // A graph read names a record's bodies by id and media type and doesn't carry their text, which is read on request.
 // The reading shown is chosen from that listing, whatever order the store lists the bodies in.
 describe("the reading a record shows, chosen from a listing that doesn't carry text", () => {
+	// One Body whose text is plain text, as an email without markdown is written, and a Body of each other form, so the
+	// reading shown is chosen across Bodies and across one Body's forms alike.
 	const LISTED = [
-		{ id: "b-plain", mediaType: "text/plain" },
-		{ id: "b-html", mediaType: "text/html" },
+		{ id: "b-plain", mediaType: "text/plain", representations: [{ mediaType: "text/html" }] },
 		{ id: "b-md", mediaType: "text/markdown" },
 	];
 	const openListing = async (): Promise<ShuEntityColumn> => {
@@ -128,7 +147,9 @@ describe("the reading a record shows, chosen from a listing that doesn't carry t
 
 	it("reads and shows the reading a reader switches to, whose text was not read yet", async () => {
 		const el = await openListing();
-		const switchToHtml = el.shadowRoot?.querySelector<HTMLElement>(`[data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_READING}"][data-body-id="b-html"]`);
+		const switchToHtml = el.shadowRoot?.querySelector<HTMLElement>(
+			`[data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_READING}"][data-reading="${readingKey("b-plain", "text/html")}"]`,
+		);
 		if (!switchToHtml) throw new Error("the column offers no html reading to switch to");
 		switchToHtml.click();
 		await el.updateComplete;

@@ -1,6 +1,6 @@
 /**
- * Reads records through a store's read function: one record, one record with its edges, the edges that reach a record, a
- * record's bodies and every record of a read. Reads the quads a read of a store of quads needs. Every caller reads through
+ * Reads records through a store's read function: one record, one record with its edges, the edges that reach a record and
+ * every record of a read. Reads the quads a read of a store of quads needs. Every caller reads through
  * these functions, so each read states its bound, its count and its order.
  */
 import { z } from "zod";
@@ -20,8 +20,7 @@ import {
 	type TSearchCondition,
 } from "../../steps/domains/quad-types.js";
 import { type IQuadStore } from "../../steps/ports.js";
-import { BODY_LABEL, HAS_BODY_EDGE, LinkRelations, type AccessQueryLevel } from "../../resources.js";
-import { MEDIA_TYPE } from "../../media-types.js";
+import { HAS_BODY_EDGE, LinkRelations, type AccessQueryLevel } from "../../resources.js";
 import { readFromRecords, recordsOfQuads, type TReadDeclarations } from "../derivations/read-records.js";
 
 /** The store port's read function. */
@@ -38,10 +37,6 @@ export const OUTGOING_EDGE_LIMIT = 200;
 export type TRecordWithEdges = TIndividualWithEdges & { outgoingCount: TCounted };
 
 const ViaSchema = z.array(z.string()).min(1);
-
-const RecordBodySchema = z.looseObject({ id: z.string(), mediaType: z.string(), content: z.string().optional() });
-/** A body of a record: its id, its media type and its text, where the read returns the text. */
-export type TRecordBody = z.infer<typeof RecordBodySchema>;
 
 /** Reads the quads of each subject of each graph that `of` names, with one read of each graph. */
 async function quadsOfSubjects(of: ReadonlyArray<{ graph: string; subject: string }>, read: TPatternRead): Promise<TQuad[]> {
@@ -82,7 +77,7 @@ export async function readQuadRecords(query: TGraphQuery, read: TPatternRead, de
 	return readFromRecords(recordsOfQuads(await quadsOfRead(query, read)), query, declarations);
 }
 
-const levelOf = (accessLevel: AccessQueryLevel | undefined) => (accessLevel === undefined ? {} : { accessLevel });
+export const levelOf = (accessLevel: AccessQueryLevel | undefined) => (accessLevel === undefined ? {} : { accessLevel });
 
 /** Returns a condition for each field that compares the field's value for equality. */
 export function equalTo(fields: Record<string, string>): TSearchCondition[] {
@@ -133,66 +128,6 @@ export async function incomingEdges(
 ): Promise<TIncomingEdges> {
 	const page = await store.readRecords(GraphQuerySchema.parse({ references: { label, id }, ...window, ...levelOf(accessLevel) }));
 	return { edges: edgesOf(page.vertices, "in"), total: page.total, saturated: page.saturated };
-}
-
-/** Reads the bodies of one record with their text, in two reads: the bodies its edges reach, and those bodies by id. A page
- *  of bodies doesn't hold their text, and a read of named bodies holds it. */
-export async function bodiesOf(store: TRecordReader, label: string, id: string, accessLevel?: AccessQueryLevel): Promise<TRecordBody[]> {
-	const level = levelOf(accessLevel);
-	const linked = await store.readRecords(GraphQuerySchema.parse({ referencedBy: { label, id }, label: BODY_LABEL, limit: OUTGOING_EDGE_LIMIT, skipCount: true, ...level }));
-	const named = linked.vertices.map((body) => RecordBodySchema.parse(body).id);
-	if (named.length === 0) return [];
-	const read = await store.readRecords(GraphQuerySchema.parse({ label: BODY_LABEL, named, limit: named.length, skipCount: true, ...level }));
-	return read.vertices.map((body) => RecordBodySchema.parse(body));
-}
-
-/** Reads the text of one record's first body in the order of `mediaTypes`. Returns undefined where the record doesn't hold
- *  a body of one of them. */
-export async function bodyByMediaTypes(
-	store: TRecordReader,
-	record: { label: string; id: string },
-	mediaTypes: readonly string[],
-	accessLevel?: AccessQueryLevel,
-): Promise<string | undefined> {
-	const bodies = await bodiesOf(store, record.label, record.id, accessLevel);
-	return mediaTypes.map((mediaType) => bodies.find((body) => body.mediaType === mediaType)?.content).find((content) => content !== undefined);
-}
-
-/** Reads the text of one record's body in a media type. Returns undefined where the record doesn't hold a body of that
- *  media type. */
-export function bodyByMediaType(store: TRecordReader, record: { label: string; id: string }, mediaType: string, accessLevel?: AccessQueryLevel): Promise<string | undefined> {
-	return bodyByMediaTypes(store, record, [mediaType], accessLevel);
-}
-
-/** Reads the text of the body in `mediaType` of each record of `label` that `ids` names, in two reads: the body edges of the
- *  type, and the bodies those edges reach from `ids` by id. Returns the text by the id of each record that holds a body of
- *  that media type, the first where it holds several, as `bodyByMediaType` reads one record's. */
-export async function bodiesByMediaType(store: Pick<IQuadStore, "readRecords" | "query">, label: string, ids: readonly string[], mediaType: string): Promise<Map<string, string>> {
-	const named = new Set(ids);
-	const recordOfBody = new Map<string, string>();
-	for (const { subject, object } of await store.query({ predicate: LinkRelations.HAS_BODY.rel, namedGraph: label }))
-		if (named.has(String(subject))) recordOfBody.set(String(object), String(subject));
-	const texts = new Map<string, string>();
-	if (recordOfBody.size === 0) return texts;
-	for (const body of await readEvery(store, { label: BODY_LABEL, named: [...recordOfBody.keys()] })) {
-		const { id, mediaType: held, content } = RecordBodySchema.parse(body);
-		const record = recordOfBody.get(id);
-		if (record !== undefined && held === mediaType && content !== undefined && !texts.has(record)) texts.set(record, content);
-	}
-	return texts;
-}
-
-/**
- * Reads one record's markdown text. Returns the record's `body` or `content` field where the store holds the text in the
- * record, and the record's markdown body otherwise. Returns undefined where the store doesn't hold the record or its
- * markdown.
- */
-export async function markdownOf(store: TRecordReader, label: string, id: string): Promise<string | undefined> {
-	const held = await recordOf(store, label, id);
-	if (!held) return undefined;
-	const inline = held.body ?? held.content;
-	if (typeof inline === "string") return inline;
-	return bodyByMediaType(store, { label, id }, MEDIA_TYPE.markdown);
 }
 
 /** Reads every record of a read, a page at a time from the read's offset to the first short page. Throws for a `perType` read,

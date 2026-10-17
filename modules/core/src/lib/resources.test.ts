@@ -29,9 +29,6 @@ import {
 	assertCommentGrounded,
 	isPersisted,
 	type TDiscourseStore,
-	bodiesOf,
-	preferredBody,
-	withBodyTexts,
 } from "./resources.js";
 import { RelSchema, getJsonLdContext, buildConcernCatalog, counted } from "./hypermedia.js";
 import { mapDefinitionsToDomains } from "./domains.js";
@@ -761,40 +758,5 @@ describe("writeAnnotation, self-contained on a plain quad store (without createE
 		const selector = nodes.get(`${TEXT_QUOTE_SELECTOR_LABEL}:${String(selEdge?.object)}`);
 		expect(selector?.exact).toBe("a passage");
 		expect(selector?.suffix).toBe(" of the document");
-	});
-});
-
-describe("the bodies a record links", () => {
-	const plain = { id: "p", mediaType: "text/plain", content: "plain text" };
-	const md = { id: "m", mediaType: "text/markdown", content: "*md*" };
-	const html = { id: "h", mediaType: "text/html", content: "<p>html</p>" };
-
-	it("reads each body's id, media type and text, one body or several", () => {
-		expect(bodiesOf({ hasBody: [plain, { id: "h", mediaType: "text/html" }] })).toEqual([
-			{ id: "p", media: "text/plain", text: "plain text" },
-			{ id: "h", media: "text/html" },
-		]);
-		expect(bodiesOf({ hasBody: md })).toEqual([{ id: "m", media: "text/markdown", text: "*md*" }]);
-		expect(bodiesOf({})).toEqual([]);
-	});
-
-	it("refuses a body that doesn't state its media type", () => {
-		expect(() => bodiesOf({ hasBody: [{ id: "x", content: "no media type" }] })).toThrow();
-	});
-
-	it("prefers markdown, then plain text, then HTML, then the first body with text, leaving out an empty body", () => {
-		const read = (...bodies: object[]) => preferredBody(bodiesOf({ hasBody: bodies }))?.id;
-		expect(read(plain, md, html)).toBe("m");
-		expect(read(plain, html)).toBe("p");
-		expect(read(html)).toBe("h");
-		expect(read({ id: "c", mediaType: "text/calendar", content: "BEGIN:VCALENDAR" })).toBe("c");
-		expect(read({ id: "e", mediaType: "text/markdown", content: "" }, plain)).toBe("p");
-		expect(read({ id: "p", mediaType: "text/plain" }, { id: "m", mediaType: "text/markdown" })).toBe("m");
-		expect(preferredBody([])).toBeUndefined();
-	});
-
-	it("sets the text a reader opened on each body that doesn't carry its own", () => {
-		const record = { id: "r", hasBody: [{ id: "p", mediaType: "text/plain" }, md] };
-		expect(withBodyTexts(record, { p: "read", m: "other" })).toEqual({ id: "r", hasBody: [{ id: "p", mediaType: "text/plain", content: "read" }, md] });
 	});
 });

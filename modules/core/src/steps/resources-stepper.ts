@@ -42,7 +42,8 @@ import {
 	Access,
 } from "../lib/resources.js";
 import { MEDIA_TYPE } from "../lib/media-types.js";
-import { bodiesByMediaType, markdownOf, readEvery, recordOf } from "../lib/records/pipelines/record-reads.js";
+import { readEvery, recordOf } from "../lib/records/pipelines/record-reads.js";
+import { bodiesByMediaType, markdownOf } from "../lib/records/pipelines/body-reads.js";
 import { createComment, readProseLinks, writeAnnotation } from "../lib/records/pipelines/discourse-writes.js";
 import { DOMAIN_LINK_REL, DOMAIN_RECORD_ID, DOMAIN_TEXT, linkVocabularyFor } from "../lib/domains.js";
 import { executionOf, formatRecordName, formatSeqPath } from "../lib/actuality/domains/seq-path.js";

@@ -4,6 +4,7 @@
  * held record in place, and a note anchored in a held record from any page reads its notes again.
  */
 import { BODY_LABEL, LinkRelations } from "@haibun/core/lib/resources.js";
+import { LinkedBodySchema } from "@haibun/core/lib/records/domains/body.js";
 import type { TIndividualWithEdges, TQuad } from "@haibun/core/lib/quad-types.js";
 import { unreadView, type TAnnotationDraft, type TEntityView } from "../domains/entity.js";
 import { LOAD_STATUS } from "../domains/load.js";
@@ -119,17 +120,15 @@ export async function openRecord(scope: TOpenScope, label: string, id: string, a
 	notify(scope, id);
 }
 
-/** Reads one body's text into a held record's view, when a reader opens it. A body already read, or a record the page
- *  doesn't hold, returns at once, so a render doesn't read again. A body that isn't read is reported and its area stays
- *  loading. */
+/** Reads one body whole, with the text of each of its forms, into a held record's view, when a reader opens it. A body
+ *  already read, or a record the page doesn't hold, returns at once, so a render doesn't read again. A body that isn't read
+ *  is reported and its area stays loading. */
 export async function requestBody(scope: TOpenScope, label: string, id: string, bodyId: string): Promise<void> {
 	const entry = scope.store.entries.get(keyOf(label, id));
 	if (entry?.view.entity === undefined || entry.view.bodies[bodyId] !== undefined) return;
 	const read = await scope.read(BODY_LABEL, bodyId);
 	if (!read.ok) return scope.report(`the body ${bodyId} of ${label}:${id} wasn't read: ${read.refusal.error}`);
-	const content = read.value.vertex.content;
-	if (typeof content !== "string") throw new Error(`the body ${bodyId} of ${label}:${id} holds content of type ${typeof content}, not text`);
-	entry.view = { ...entry.view, bodies: { ...entry.view.bodies, [bodyId]: content } };
+	entry.view = { ...entry.view, bodies: { ...entry.view.bodies, [bodyId]: LinkedBodySchema.parse({ ...read.value.vertex, id: bodyId }) } };
 	notify(scope, id);
 }
 

@@ -3,6 +3,7 @@
  * how the page read it.
  */
 import type { TAnnotationView } from "@haibun/core/lib/resources.js";
+import type { TLinkedBody } from "@haibun/core/lib/records/domains/body.js";
 import type { TIndividualWithEdges } from "@haibun/core/lib/quad-types.js";
 import type { TPageRefusal } from "./refusal.js";
 import { LOAD_STATUS, type TLoadStatus } from "./load.js";
@@ -24,9 +25,10 @@ export type TEntityView = {
 	annotations: TAnnotationView[];
 	/** Why the record wasn't read, where the read was refused. */
 	refusal?: TPageRefusal;
-	/** The text of each body read, by the body's id. A record names its bodies by id and media type, and a body's text is
-	 *  read when a reader opens it. A body id absent here is unread, so its area renders as loading. */
-	bodies: Record<string, string>;
+	/** Each body read whole, with the text of each of its forms, by the body's id. A record names its bodies and the media
+	 *  type of each of their forms, and a body's text is read when a reader opens it. A body absent here is unread, so its
+	 *  area renders as loading. */
+	bodies: Record<string, TLinkedBody>;
 };
 
 /** A note draft: the passage the reader selected, and the note's text. */

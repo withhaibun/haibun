@@ -82,8 +82,8 @@ export class EntityController implements ReactiveController {
 		if (this.id) void refreshAnnotations(this.label, this.id);
 	}
 
-	/** Reads the text of one of the open record's bodies into `view.bodies`, by its id. The open names the bodies, and a
-	 *  body's text is read only here. */
+	/** Reads one of the open record's bodies whole into `view.bodies`, by its id. The open names the bodies, and a body's text
+	 *  is read only here. */
 	requestBody(bodyId: string): void {
 		if (this.id && bodyId) void OpenRecord.requestBody(scope(), this.label, this.id, bodyId);
 	}

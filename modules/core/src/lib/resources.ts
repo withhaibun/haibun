@@ -560,15 +560,16 @@ export function toActorRels(): ReadonlySet<string> {
 
 /**
  * A content property definition. The plain-string form (`TRel`) declares only a property's rel. The object form
- * declares a content-shaped property: its rel, the Body sub-resource's media type and an optional discriminating
- * `kind`. The writer partitions such fields from the parent into Body sub-resources linked through hasBody at upsert
- * time.
+ * declares a content-shaped property: its rel, the media type of the form of text it holds and an optional `kind`. The
+ * writer partitions such fields from the parent into Body sub-resources linked through hasBody at upsert time.
  *
  * The object form keeps each content field's declaration in one place. It matches the JSON-LD model, where mediaType
  * is data on the Body resource and not on the parent's stored state.
  *
- * `kind` distinguishes several bodies of one media type on one parent, such as a Proposal that carries both rationale
- * and proposedAction in markdown.
+ * `kind` names one Body of the parent, and a field without `kind` holds a form of the parent's one Body. The content fields
+ * of one kind are the forms of one text, each in its own media type, such as an email's plain part, its HTML part and the
+ * markdown converted from the HTML. The Body's text is the form `BODY_PREFERENCE` orders first, and its other forms are its
+ * representations. Two texts are two kinds, such as a tool call's parameters and its result.
  */
 type TContentPropertyDef = { rel: "content"; mediaType: string; kind?: string; iri?: string };
 
@@ -980,64 +981,29 @@ export const principalDomainDefinition: TDomainDefinition = {
 // Body schema + domain definition
 // ============================================================================
 
+/** One form of a Body's text other than the form its `content` holds: its media type and its text. */
+export const RepresentationSchema = z.object({ mediaType: z.string(), content: z.string() });
+export type TRepresentation = z.infer<typeof RepresentationSchema>;
+
 /**
  * A Body holds opaque content with a declared media type. Any resource links it through `hasBody`. The format is data
  * on the Body and not metadata on the parent resource's topology, so JSON-LD round-trips and graph queries read
  * mediaType as a triple.
+ *
+ * A Body's `content` is its text in `mediaType`: the form a search indexes and a reader reads first. `representations`
+ * holds each other form of the same text, such as the HTML part of an email whose text is the markdown converted from it.
+ * A Body without `representations` holds one form. The Body schema has the same constraint as Comment: parent nodes supply
+ * content fields that the partition step extracts before persistence.
  */
-// The Body schema has the same constraint as Comment: parent nodes supply content fields that the partition step
-// extracts before persistence.
-export const BodySchema = PersistedVertexSchema.extend({ id: z.string(), content: z.string(), mediaType: z.string(), generatedAtTime: z.string() });
+export const BodySchema = PersistedVertexSchema.extend({
+	id: z.string(),
+	content: z.string(),
+	mediaType: z.string(),
+	generatedAtTime: z.string(),
+	representations: z.array(RepresentationSchema).optional(),
+});
 
 export type TBody = z.infer<typeof BodySchema>;
-
-/**
- * The order of preference among a record's readings where it holds several.
- *
- * A record is stored as it was written, and readings of it are extracted beside the original. An email is stored as
- * html, as plain text and as markdown converted from the html. The preferred reading is both shown to a reader and sent
- * to a model. Markdown comes first because it carries the structure without the markup. Plain text comes next and the
- * markup last.
- */
-export const BODY_PREFERENCE: readonly string[] = [MEDIA_TYPE.markdown, MEDIA_TYPE.plain, MEDIA_TYPE.html];
-
-/** A body a record links, as a reader opens it: its id, its media type, and its text where the record carries it. A
- *  record read from the graph names its bodies, and a body's text is read when a reader opens it. */
-export type TLinkedBody = { id: string; media: string; text?: string };
-
-const LinkedBodySchema = z.object({ id: z.string(), mediaType: z.string(), content: z.string().optional() });
-
-/** Returns the bodies a record links through `hasBody`. Throws for a body that doesn't state its id and media type. */
-export function bodiesOf(record: Record<string, unknown>): TLinkedBody[] {
-	const linked = record[HAS_BODY_EDGE];
-	if (linked === undefined) return [];
-	return z
-		.array(LinkedBodySchema)
-		.parse(Array.isArray(linked) ? linked : [linked])
-		.map(({ id, mediaType, content }) => (content === undefined ? { id, media: mediaType } : { id, media: mediaType, text: content }));
-}
-
-/** Returns the body a reader reads first: the first media type of BODY_PREFERENCE among the bodies with text to show. */
-export function preferredBody(bodies: readonly TLinkedBody[]): TLinkedBody | undefined {
-	const usable = bodies.filter((b) => b.text !== "");
-	for (const media of BODY_PREFERENCE) {
-		const hit = usable.find((b) => b.media === media);
-		if (hit !== undefined) return hit;
-	}
-	return usable[0];
-}
-
-/** Returns a record with each linked body's text in `texts` set on that body, by its id, where the body doesn't carry text. */
-export function withBodyTexts(record: Record<string, unknown>, texts: Readonly<Record<string, string>>): Record<string, unknown> {
-	const linked = record[HAS_BODY_EDGE];
-	if (!Array.isArray(linked)) return record;
-	const withText = (body: unknown): unknown => {
-		const parsed = LinkedBodySchema.parse(body);
-		const text = texts[parsed.id];
-		return text === undefined || parsed.content !== undefined ? body : { ...(body as Record<string, unknown>), content: text };
-	};
-	return { ...record, [HAS_BODY_EDGE]: linked.map(withText) };
-}
 
 export const bodyDomainDefinition: TDomainDefinition = {
 	selectors: [BODY_DOMAIN],
@@ -1047,7 +1013,12 @@ export const bodyDomainDefinition: TDomainDefinition = {
 		persistedAs: BODY_LABEL,
 		accessLevel: Access.private,
 		id: "id",
-		properties: { id: LinkRelations.IDENTIFIER.rel, content: LinkRelations.CONTENT.rel, mediaType: LinkRelations.MEDIA_TYPE.rel },
+		properties: {
+			id: LinkRelations.IDENTIFIER.rel,
+			content: LinkRelations.CONTENT.rel,
+			mediaType: LinkRelations.MEDIA_TYPE.rel,
+			representations: { rel: LinkRelations.TAG.rel, iri: "schema:encoding" },
+		},
 		// The declared query surface for the one-path graph-store. Callers can filter or sort Body rows by mediaType,
 		// such as "all PDF bodies", or by generatedAtTime.
 		sortColumns: { mediaType: "TEXT", generatedAtTime: "TIMESTAMPTZ" },
