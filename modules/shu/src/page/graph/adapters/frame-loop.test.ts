@@ -49,6 +49,19 @@ describe("drawing on demand", () => {
 		stilled.end();
 		expect(still.stops, "stopped by motion ending; the end doesn't stop it again").toBe(1);
 	});
+
+	it("doesn't start again when a frame in progress reports motion after the scene ended", () => {
+		const drawing = counted();
+		const ended = new Drawing(drawing.loop);
+		ended.end();
+		ended.moving(true);
+		const still = counted();
+		const stilled = new Drawing(still.loop);
+		stilled.moving(false);
+		stilled.end();
+		stilled.moving(true);
+		expect({ drawing: drawing.starts, still: still.starts }, "the end stops the loop for good").toEqual({ drawing: 0, still: 0 });
+	});
 });
 
 describe("an A-Frame scene's loop", () => {
@@ -111,6 +124,14 @@ describe("an A-Frame scene's loop", () => {
 		aframeLoop({ ...s, renderStarted: true }, () => void order.push("drew"));
 		held.loop?.(0, undefined);
 		expect(order).toEqual(["render", "drew"]);
+	});
+
+	it("takes A-Frame's loop away as A-Frame installs it, where the loop stopped before the scene started rendering", () => {
+		const { held, s } = following();
+		aframeLoop(s, () => undefined).stop();
+		s.renderer.setAnimationLoop(s.render);
+		held.listeners.get("renderstart")?.();
+		expect(held.loop, "a scene that ended before its first frame doesn't draw one").toBeNull();
 	});
 
 	it("leaves A-Frame's loop alone when a callback after a draw isn't given", () => {

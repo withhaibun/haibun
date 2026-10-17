@@ -1,7 +1,7 @@
 /**
  * What a scene element runs on, built for one scene: the engine that paces its graph, the frame scheduler, the profiler,
- * the layout tween and the data pipeline, and the page's clock, frame loop and frame timing. The scene is a view, which
- * reads machines, pipelines and ports through this controller alone (CA3D3, CA3D5).
+ * the layout tween and the data pipeline, the scene's clock, and the page's frame loop and frame timing. The scene is a view,
+ * which reads machines, pipelines and ports through this controller alone (CA3D3, CA3D5).
  */
 import { reportFailure } from "../../../client-log.js";
 import { pageClock } from "../../root.js";
@@ -25,9 +25,38 @@ export class SceneController {
 	readonly profiler = new PolymorphicProfiler();
 	readonly tween = new LayoutTween(TWEEN_MS, easeInOutCubic);
 
-	/** The page's clock, through which the scene requests every timer and frame. */
-	get clock(): TClock {
-		return pageClock();
+	/** The scene's connections, counted: a request calls its callback only in the connection that made it. */
+	#connection = 0;
+	#ended = false;
+
+	/** The scene's clock: the page's clock, whose timers and frames call back only in the connection that requested them,
+	 *  before the scene ends. A frame in progress can request the next frame as the scene ends, and that frame doesn't call
+	 *  its callback. */
+	readonly clock: TClock = {
+		now: () => pageClock().now(),
+		elapsed: () => pageClock().elapsed(),
+		after: (ms, fn) => pageClock().after(ms, this.#inConnection(fn)),
+		frame: (fn) => pageClock().frame(this.#inConnection(fn)),
+	};
+
+	/** The scene connected: an ended scene counts a new connection, and a request of an earlier one doesn't call back. */
+	begin(): void {
+		if (!this.#ended) return;
+		this.#ended = false;
+		this.#connection++;
+	}
+
+	/** The scene ended: each timer and frame it requested, before or after, doesn't call back. */
+	end(): void {
+		this.#ended = true;
+	}
+
+	/** Returns `fn` as a call that calls it in the current connection, before the scene ends. */
+	#inConnection(fn: () => void): () => void {
+		const connection = this.#connection;
+		return () => {
+			if (!this.#ended && connection === this.#connection) fn();
+		};
 	}
 
 	/** The scene's data pipeline, which turns the visible model into the nodes and links the scene draws. */

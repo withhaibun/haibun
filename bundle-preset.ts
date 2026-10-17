@@ -97,6 +97,22 @@ const zodEnglishLocale: Plugin = {
 	},
 };
 
+/** The packages of three-forcegraph's ngraph engine. A page's graph runs the library's d3 engine, which `forceEngine` "d3"
+ *  selects, so a bundle doesn't hold the ngraph engine's 31 KiB. */
+const NGRAPH_ENGINE = /^ngraph\.(graph|forcelayout)$/;
+
+/** Resolves each package of three-forcegraph's ngraph engine to a call that refuses, naming the engine a page runs. */
+const d3EngineAlone: Plugin = {
+	name: "d3-engine-alone",
+	setup(builder) {
+		builder.onResolve({ filter: NGRAPH_ENGINE }, (args) => ({ path: args.path, namespace: d3EngineAlone.name }));
+		builder.onLoad({ filter: /.*/, namespace: d3EngineAlone.name }, (args) => ({
+			contents: `export default () => { throw new Error("${args.path} isn't bundled: a page's graph runs three-forcegraph's d3 engine. Set forceEngine to \\"d3\\""); };`,
+			loader: "js",
+		}));
+	},
+};
+
 /** The options that build a bundle of the repository at `root` for a browser. */
 export const bundleOptions = (root: string, bundle: TBundle): BuildOptions & { metafile: true; plugins: Plugin[] } => ({
 	absWorkingDir: root,
@@ -111,7 +127,7 @@ export const bundleOptions = (root: string, bundle: TBundle): BuildOptions & { m
 	target: "es2022",
 	minify: true,
 	conditions: [HAIBUN_SOURCE],
-	plugins: [onePackageCopy(root), zodEnglishLocale],
+	plugins: [onePackageCopy(root), zodEnglishLocale, d3EngineAlone],
 	metafile: true,
 	logLevel: "warning",
 });

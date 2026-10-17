@@ -12,7 +12,7 @@ import { DEFAULT_PER_TYPE_LIMIT } from "../domains/snapshot.js";
 import { SCOPE, dispatchSubjectEvent, entryOf } from "../../../current-subject.js";
 import { formatInstant, readerZone } from "../../derivations/time-format.js";
 import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
-import { type TGraphEnginePacing, type TGraphFrameLoop } from "../ports.js";
+import { type TGraphEnginePacing, type TGraphFrameLoop, type TGraphFrameTime } from "../ports.js";
 import { type TAframeScene } from "../adapters/frame-loop.js";
 import { configureLabelFonts, makeTroikaChip, makeTroikaText, spriteVisual, type ChipThree } from "./troika-label.js";
 import { FULL_BURN, GLOW_RAMP, BREATH_MS } from "../derivations/highlight.js";
@@ -284,6 +284,10 @@ type TSceneRenderer = {
 };
 
 /** The a-scene element as A-Frame extends it: the renderer and camera it holds once loaded, and the events it emits. */
+/** The object the library's A-Frame component sets on its entity each time the library laid out its data. */
+const FORCEGRAPH_OBJECT = "forcegraphGroup";
+/** The library's A-Frame entity: its component, which holds the inner three-forcegraph instance, and its objects. */
+type TForcegraphElement = Element & { components?: { forcegraph?: { forceGraph?: TGraphEnginePacing } }; getObject3D(type: string): unknown };
 type TSceneElement = HTMLElement & TAframeScene & { renderer?: TSceneRenderer; camera?: TSceneCamera; emit(name: string, detail?: unknown, bubbles?: boolean): void };
 
 /** What a graph scene draws, as its `inspect()` states it. */
@@ -305,13 +309,21 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	/** The ForceGraphVR instance, public so the host can delegate its `graph` accessor 1:1. The renderer displays the graph;
 	 *  what remains here is the camera, the controls, and the force simulation (see the plan doc). */
 	graph?: FGInstance;
-	private rafCancel?: () => void;
 	// Render-on-demand bookkeeping: a monotonic frame counter, the frame up to which a discrete change keeps the scene
 	// drawing, and whether the A-Frame render loop is currently paused because motion has ended.
 	private rafFrame = 0;
 	private dirtyUntilFrame = 0;
 	private dirtyCause: TWakeCause = "data"; // what set dirtyUntilFrame, named while its grace lasts
 	private drawing?: TGraphFrameLoop; // the gate on the renderer's loop; the scene is paused while it is not drawing
+	/** The library's entity once the scene loaded. The library sets its object on the entity once it laid out its first
+	 *  data, and until then its engine doesn't hold a layout to tick, so the scene doesn't feed or pace it: a reheat before
+	 *  then makes the library's next frame read a layout that doesn't exist. */
+	private forcegraphEl?: TForcegraphElement;
+
+	/** Whether the library laid out its first data. */
+	private get libraryLaidOut(): boolean {
+		return this.forcegraphEl?.getObject3D(FORCEGRAPH_OBJECT) !== undefined;
+	}
 	private lastBreathAt = 0; // when the active node's glow was last redrawn; the breath runs on BREATH_MS, not on frames
 	private regulation = newRegulationState(); // the scene's own regulator of decorative motion, on what a frame takes
 	/** Why the scene draws now, since when and which frame, and how many changes woke it since, so each change of reason
@@ -607,7 +619,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private fgCanvas?: HTMLCanvasElement;
 	private fgContainer?: HTMLElement;
 	private fgSceneEl?: HTMLElement & { emit(name: string, detail?: unknown, bubbles?: boolean): void };
-	private freshTimers: (() => void)[] = [];
 	// Gantt layout: per-node calendar-grid target (subject id → world x/y of the bar CENTRE, plus the bar width = its
 	// duration), recomputed in toGraphData when viewType is "gantt". The groupX/groupY forces pull each task to its
 	// slot; the node object is a duration bar of width `w`. Non-task nodes don't have an entry.
@@ -671,8 +682,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	setConfig(patch: Partial<GraphSceneConfig>): void {
 		const prev = this.config;
 		this.config = { ...prev, ...patch };
-		// Config seeded before the scene mounts: stored only; the first repaint reads it.
-		if (!this.graph) {
+		// Config seeded before the library laid out its first data: stored only; the first repaint reads it.
+		if (!this.libraryLaidOut) {
 			this.emitSceneChanged();
 			return;
 		}
@@ -903,6 +914,10 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 
 	protected override async onConnected(): Promise<void> {
 		await this.updateComplete;
+		// The scene's timers and frames end with it, before the teardowns below release what they read.
+		this.#parts.begin();
+		this.autoTeardown(() => this.#parts.end());
+		this.forcegraphEl = undefined;
 		this.infoEl = this.querySelector("#polymorphic-info");
 		this.compassEl = this.querySelector<HTMLCanvasElement>("#polymorphic-compass");
 		if (this.compassEl) {
@@ -919,8 +934,34 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const address = pageAddress();
 		configureLabelFonts(address === undefined ? carriedLabelFont() : { fallbacks: new URL(LABEL_FONT_FALLBACKS, address).href });
 		const VR = ForceGraphVR as unknown as new (el: HTMLElement) => FGInstance;
+		// The library builds its scene while the canvas holder is out of the page, so A-Frame reads the attributes set here as
+		// it attaches the scene.
+		const holder = container.parentNode;
+		if (!holder) throw new Error("shu-graph-scene: #polymorphic-canvas is detached");
+		const following = container.nextSibling;
+		container.remove();
 		this.graph = new VR(container);
-		this.#parts.engine.attach(this.graph);
+		const scene = container.querySelector<TSceneElement>("a-scene");
+		if (!scene) throw new Error("shu-graph-scene: the graph library didn't make an a-scene");
+		// A-Frame's loading screen draws on a loop of its own, started on a timer, which would draw after a scene that ends
+		// before it loads; the scene draws its own state, so it doesn't show one.
+		scene.setAttribute("loading-screen", "enabled: false");
+		// The VR lib sets embedded="" (falsy), so A-Frame's own resize() repeatedly sizes the canvas/camera to
+		// document.body and clobbers the fit. A truthy value makes A-Frame size to the embedding element instead.
+		scene.setAttribute("embedded", "true");
+		scene.setAttribute("data-testid", SHU_TEST_IDS.POLYMORPHIC_VIEW.SCENE);
+		// Plain HTTP (without a secure context, e.g. http://<host>: dev): WebXR and the device sensors can't be granted, so
+		// don't offer VR at all: don't show an enter-VR button or an A-Frame "use HTTPS" alert. HTTPS keeps the full XR UI.
+		if (!window.isSecureContext) {
+			scene.setAttribute("device-orientation-permission-ui", "enabled: false");
+			scene.setAttribute("xr-mode-ui", "enabled: false");
+		}
+		holder.insertBefore(container, following);
+		// The gate on the renderer's loop exists from the scene's creation, so a scene that ends before its first frame stops
+		// A-Frame's loop as A-Frame installs it, and the end stops the loop before the renderer is released.
+		const frameTime = this.#parts.frameTime(() => scene.renderer?.getContext?.() as TFenceGl | undefined, DEFAULT_REGULATION_THRESHOLDS.windowSamples);
+		const drawing = this.#parts.frameLoop(scene, () => frameTime.drew());
+		this.drawing = drawing;
 		this.configureGraph(this.graph);
 		// One draw, two media: WebGL shows the graph, the accessible document reads it. The a11y entries drive the same
 		// scene entries a pointer does (activate opens, focus highlights), so keyboard and pointer take one path.
@@ -937,32 +978,23 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.cameraCtl.fitFrame(container);
 
 		this.autoTeardown(() => {
-			this.repaintTimer?.();
-			this.layoutTimer?.();
+			drawing.end();
+			frameTime.end();
+			// The scene's clock cancelled the timers these name, so a scene connected again schedules its own.
+			this.repaintTimer = undefined;
+			this.layoutTimer = undefined;
 			this.cameraCtl.end();
-			for (const cancel of this.freshTimers) cancel();
 			this.ganttOverlay.dispose();
 			this.enclosureCtl.dispose(); // boxes + the shared unit geometries (the gantt ghost reuses unitEdges but never disposes it)
 			// Release the scene's WebGL context deterministically: a context otherwise frees only at GC, and past the
 			// browser's concurrent-context cap the OLDEST context is silently lost, closed views must never be able to
-			// take a live view's context with them.
-			this.fgRenderer?.dispose?.();
-			this.fgRenderer?.forceContextLoss?.();
+			// take a live view's context with them. The renderer exists from the scene's attach, so a scene that ends
+			// before it loads releases it too.
+			scene.renderer?.dispose?.();
+			scene.renderer?.forceContextLoss?.();
 		});
 
-		const scene = container.querySelector<TSceneElement>("a-scene");
-		// The VR lib sets embedded="" (falsy), so A-Frame's own resize() repeatedly sizes the canvas/camera to
-		// document.body and clobbers the fit. A truthy value makes A-Frame size to the embedding element instead.
-		scene?.setAttribute("embedded", "true");
-		scene?.setAttribute("data-testid", SHU_TEST_IDS.POLYMORPHIC_VIEW.SCENE);
-		scene?.querySelector("[camera]")?.setAttribute("data-testid", SHU_TEST_IDS.POLYMORPHIC_VIEW.CAMERA);
-		// Plain HTTP (without a secure context, e.g. http://<host>: dev): WebXR and the device sensors can't be granted, so
-		// don't offer VR at all: don't show an enter-VR button or an A-Frame "use HTTPS" alert. HTTPS keeps the full XR UI.
-		if (!window.isSecureContext) {
-			scene?.setAttribute("device-orientation-permission-ui", "enabled: false");
-			scene?.setAttribute("xr-mode-ui", "enabled: false");
-		}
-		if (scene) scene.addEventListener("loaded", () => this.onSceneLoaded(scene, container), { once: true });
+		this.autoListen(scene, "loaded", () => this.onSceneLoaded(scene, container, drawing, frameTime), { once: true });
 	}
 
 	/** Hand a node off to its @type presenter for a backend-neutral mark: the single place the calendar placement (the
@@ -1237,18 +1269,18 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.repaint();
 	}
 
-	private onSceneLoaded(scene: TSceneElement, container: HTMLElement): void {
-		// Re-attach the governor to the INNER three-forcegraph instance: its pacing props apply synchronously,
-		// where the VR wrapper forwards them through two debounced digests (a cooldown set from inside the engine's
-		// stop callback would land frames late and the engine would re-stop on the stale value). The wrapper attach
-		// at construction covers only the pre-scene boot window.
-		const fgEl = scene.querySelector("[forcegraph]") as (Element & { components?: { forcegraph?: { forceGraph?: TGraphEnginePacing } } }) | null;
+	private onSceneLoaded(scene: TSceneElement, container: HTMLElement, drawing: TGraphFrameLoop, frameTime: TGraphFrameTime): void {
+		// Attach the governor to the INNER three-forcegraph instance: its pacing props apply synchronously, where the VR
+		// wrapper forwards them through two debounced digests (a cooldown set from inside the engine's stop callback would
+		// land frames late and the engine would re-stop on the stale value).
+		const fgEl = scene.querySelector("[forcegraph]") as TForcegraphElement | null;
 		const inner = fgEl?.components?.forcegraph?.forceGraph;
-		if (!inner) throw new Error("shu-graph-scene: inner forcegraph instance unavailable at scene load");
+		if (!fgEl || !inner) throw new Error("shu-graph-scene: inner forcegraph instance unavailable at scene load");
 		this.#parts.engine.attach(inner);
-		// Re-assert after load: A-Frame may swap in its own camera entity during scene init.
+		this.forcegraphEl = fgEl;
+		// Named after load, since A-Frame may swap in its own camera entity during scene init.
 		scene.querySelector("[camera]")?.setAttribute("data-testid", SHU_TEST_IDS.POLYMORPHIC_VIEW.CAMERA);
-		this.startFrameLoop(scene, this.cameraCtl.attach(scene));
+		this.startFrameLoop(scene, this.cameraCtl.attach(scene), drawing, frameTime);
 		this.removeLibraryForces();
 		this.applyTheme();
 		// Own the size end-to-end: the lib's wrapper frame (fitGraphFrame) plus the drawing buffer + camera. A genuine
@@ -1480,7 +1512,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	}
 
 	/** Start the scene's frame loop: the frame jobs, and the gate that draws while something moves and rests otherwise. */
-	private startFrameLoop(scene: TSceneElement, controls: OrbitControls): void {
+	private startFrameLoop(scene: TSceneElement, controls: OrbitControls, drawing: TGraphFrameLoop, frameTime: TGraphFrameTime): void {
 		// The frame's jobs, declared with their cadences in one place (see FrameScheduler).
 		this.#parts.frame.add("controls", () => controls.update(), EVERY_FRAME);
 		this.#parts.frame.add("compass", () => this.drawCompass(), 2);
@@ -1508,9 +1540,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		// comparison, so a change wakes the scene within one frame.
 		// What a drawn frame takes is measured after the draw (see `FrameTime`) and read in the gate below, where the
 		// regulator sets whether the breath may keep requesting frames.
-		const frameTime = this.#parts.frameTime(() => scene.renderer?.getContext?.() as TFenceGl | undefined, DEFAULT_REGULATION_THRESHOLDS.windowSamples);
-		const drawing = this.#parts.frameLoop(scene, () => frameTime.drew());
-		this.drawing = drawing;
 		const tick = () => {
 			this.rafFrame++;
 			const now = this.#parts.clock.now();
@@ -1545,14 +1574,9 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				}
 				this.#parts.frame.tick();
 			}
-			this.rafCancel = this.#parts.clock.frame(tick);
+			this.#parts.clock.frame(tick);
 		};
-		this.rafCancel = this.#parts.clock.frame(tick);
-		this.autoTeardown(() => {
-			this.rafCancel?.();
-			drawing.end();
-			frameTime.end();
-		});
+		this.#parts.clock.frame(tick);
 	}
 
 	private cursorPaintPending = false;
@@ -1595,8 +1619,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	}
 
 	private repaint(): void {
-		// The scene boots asynchronously; a model set before the graph exists retries here once it has mounted.
-		if (!this.graph) {
+		// The scene boots asynchronously; a model set before the library laid out its first data retries here until it has.
+		if (!this.libraryLaidOut) {
 			this.scheduleData();
 			return;
 		}
@@ -1705,7 +1729,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 * one redraw the user requested. New nodes (rare on a layout change) appear at their target.
 	 */
 	private repaintLayout(): void {
-		if (!this.graph) return;
+		if (!this.libraryLaidOut) return;
 		this.parkedPositions.clear(); // layout changes move everything; parked positions would be stale
 		this.linkMap.clear(); // layout rebuilds all link objects; old __lineObj refs point at orphaned meshes
 		// The model doesn't hold a node to lay out yet (e.g. a persisted grouping restored before any data): bail rather than run an
@@ -1798,15 +1822,12 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  it takes to cross its link. */
 	private animateFreshLinks(fresh: FGLink[]): void {
 		if (!this.graph || fresh.length === 0 || !this.decorates()) return;
-		this.freshTimers = this.freshTimers.slice(-120);
 		for (const l of fresh.slice(0, 20)) {
 			for (const delay of [80, 480, 880]) {
-				this.freshTimers.push(
-					this.#parts.clock.after(delay, () => {
-						this.graph?.emitParticle(l);
-						this.markDirty("particles", PARTICLE_CROSSING_FRAMES);
-					}),
-				);
+				this.#parts.clock.after(delay, () => {
+					this.graph?.emitParticle(l);
+					this.markDirty("particles", PARTICLE_CROSSING_FRAMES);
+				});
 			}
 		}
 	}
