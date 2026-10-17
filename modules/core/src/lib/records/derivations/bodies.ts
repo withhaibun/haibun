@@ -40,6 +40,25 @@ export function preferredMediaType(mediaTypes: readonly string[], of: string): s
 	return preferred;
 }
 
+/** The start of every Body id. */
+export const BODY_ID_PREFIX = "body-";
+
+/**
+ * Returns the end of the id of a record's Body of `kind`, after the record's id. It names the kind and the media type of
+ * the form `preferredMediaType` chooses among the forms the kind declares, so a Body's id doesn't change with the forms one
+ * write holds.
+ */
+export function bodyIdSuffix(kind: string, declared: readonly TBodyForm[]): string {
+	const named = preferredMediaType(
+		declared.map(({ mediaType }) => mediaType),
+		`the Body "${kind}"`,
+	);
+	return `-${kind}-${named.replace(/[^a-z0-9]+/gi, "-")}`;
+}
+
+/** Returns the id of the Body that holds the record `parentId`'s content of `kind`. */
+export const bodyIdOf = (parentId: string, kind: string, declared: readonly TBodyForm[]): string => `${BODY_ID_PREFIX}${parentId}${bodyIdSuffix(kind, declared)}`;
+
 /**
  * Returns each Body a type's properties declare, by its kind, with the content field of each of its forms. Throws where a
  * kind's forms don't let `preferredMediaType` choose its text, so a type that declares them is refused where its declaration

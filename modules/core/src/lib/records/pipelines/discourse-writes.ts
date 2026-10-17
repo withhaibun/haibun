@@ -7,6 +7,7 @@ import { fromJsonText } from "../../json-text.js";
 import {
 	BODY_LABEL,
 	COMMENT_LABEL,
+	COMMENT_TOPOLOGY,
 	LinkRelations,
 	READING_LABEL,
 	SPECIFIC_RESOURCE_LABEL,
@@ -22,6 +23,7 @@ import {
 	type TStatedRecord,
 } from "../../resources.js";
 import { MEDIA_TYPE } from "../../media-types.js";
+import { DEFAULT_BODY_KIND, bodyIdOf, bodyKindsOf } from "../derivations/bodies.js";
 import { typedLinkFacts } from "../derivations/typed-link-facts.js";
 import type { TLinkVocabulary, TTypedLinkFact } from "../../typed-links.js";
 import { recordOf, type TRecordReader } from "./record-reads.js";
@@ -123,6 +125,15 @@ export async function readProseLinks(store: TReadingStore, vocab: TLinkVocabular
 	await readTypedLinks(store, vocab, source, prose, { seqPath, facts });
 }
 
+/** The forms of the one Body a Comment's topology declares. */
+const COMMENT_BODY = bodyKindsOf(COMMENT_LABEL, COMMENT_TOPOLOGY.properties).get(DEFAULT_BODY_KIND);
+
+/** Returns the id of the Comment `commentId`'s Body. Throws where the Comment's topology doesn't declare its Body. */
+export function commentBodyIdOf(commentId: string): string {
+	if (COMMENT_BODY === undefined) throw new Error(`${COMMENT_LABEL}'s topology doesn't declare a ${DEFAULT_BODY_KIND} content field for its text. Declare its body field`);
+	return bodyIdOf(commentId, DEFAULT_BODY_KIND, COMMENT_BODY);
+}
+
 /** Creates a Comment individual with its markdown body as a Body sub-resource. The `comment` and `annotate` acts both
  *  call it. `name` titles the node by the truncated note text and not by its id. The note is markdown, so readTypedLinks
  *  derives the facts its links state with the Comment as their subject. */
@@ -144,7 +155,7 @@ export async function createComment(
 		...(period?.end ? { endedAtTime: period.end } : {}),
 		name: commentName(text),
 	});
-	const bodyId = `body-${commentId}-text-markdown`;
+	const bodyId = commentBodyIdOf(commentId);
 	await store.upsertIndividual(BODY_LABEL, { id: bodyId, content: text, mediaType: MEDIA_TYPE.markdown, generatedAtTime: now });
 	await writeEdge(store, COMMENT_LABEL, commentId, LinkRelations.HAS_BODY.rel, BODY_LABEL, bodyId);
 	await readTypedLinks(store, vocab, { label: COMMENT_LABEL, id: commentId }, text, provenance);

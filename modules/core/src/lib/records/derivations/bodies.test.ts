@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { LinkRelations } from "../../resources.js";
 import { MEDIA_TYPE } from "../../media-types.js";
-import { bodyKindsOf, bodyOfForms, DEFAULT_BODY_KIND, formIn, preferredMediaType, preferredReading, readingKey, readingsOf, withBodiesRead } from "./bodies.js";
+import { bodyIdOf, bodyKindsOf, bodyOfForms, DEFAULT_BODY_KIND, formIn, preferredMediaType, preferredReading, readingKey, readingsOf, withBodiesRead } from "./bodies.js";
 
 const CONTENT = LinkRelations.CONTENT.rel;
 const plain = { mediaType: MEDIA_TYPE.plain, content: "plain text" };
@@ -46,6 +46,17 @@ describe("the Bodies a type declares", () => {
 	it("are refused where one kind holds two texts whose forms BODY_PREFERENCE doesn't order", () => {
 		const declared = { params: { rel: CONTENT, mediaType: MEDIA_TYPE.json }, result: { rel: CONTENT, mediaType: MEDIA_TYPE.plain } } as const;
 		expect(() => bodyKindsOf("ToolCall", declared)).toThrow(`ToolCall's Body "${DEFAULT_BODY_KIND}" holds the forms`);
+	});
+});
+
+describe("a Body's id", () => {
+	it("names its record, its kind and the media type its kind's declaration prefers, whatever forms one write holds", () => {
+		const forms = [
+			{ field: "body", mediaType: MEDIA_TYPE.plain },
+			{ field: "bodyMarkdown", mediaType: MEDIA_TYPE.markdown },
+		];
+		expect(bodyIdOf("m-1", DEFAULT_BODY_KIND, forms)).toBe("body-m-1-default-text-markdown");
+		expect(bodyIdOf("t-1", "result", [{ field: "result", mediaType: MEDIA_TYPE.json }])).toBe("body-t-1-result-application-json");
 	});
 });
 

@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import type { QuadStore } from "./steps/pipelines/quad-store.js";
-import { COMMENT_LABEL, FRAGMENT_SELECTOR_LABEL, READING_LABEL, LinkRelations, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL } from "./resources.js";
-import { createComment, readTypedLinks, readingIdFor } from "./records/pipelines/discourse-writes.js";
+import { BODY_LABEL, COMMENT_LABEL, FRAGMENT_SELECTOR_LABEL, READING_LABEL, LinkRelations, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL } from "./resources.js";
+import { commentBodyIdOf, createComment, readTypedLinks, readingIdFor } from "./records/pipelines/discourse-writes.js";
+import { DEFAULT_BODY_KIND } from "./records/derivations/bodies.js";
+import { MEDIA_TYPE } from "./media-types.js";
 import { readEvery, recordOf } from "./records/pipelines/record-reads.js";
 import { storeDeclaring } from "./test/declared-types.js";
 import { z } from "zod";
@@ -11,7 +13,7 @@ import { itemAt } from "./util/item-at.js";
 
 // A registered fixture type, as a consumer would declare one. Statements connect records of registered types only.
 const REPORT = "FieldReport";
-const TYPES = new Set([REPORT, COMMENT_LABEL, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL, READING_LABEL]);
+const TYPES = new Set([REPORT, COMMENT_LABEL, BODY_LABEL, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL, READING_LABEL]);
 /** The types the derivation writes and reads, declared so the store reads their records. */
 const DECLARED = Object.fromEntries([...TYPES, FRAGMENT_SELECTOR_LABEL].map((label) => [label, {}]));
 const vocab: TLinkVocabulary = {
@@ -123,5 +125,16 @@ describe("a note's own links", () => {
 		);
 		const anchorId = itemAt(await edgesOf(store, commentId, LinkRelations.LINKS_TO.rel), 0);
 		expect(await edgesOf(store, anchorId, LinkRelations.HAS_SOURCE.rel)).toEqual(["spec-1"]);
+	});
+});
+
+describe("a Comment's Body", () => {
+	it("is named by the rule that names a record's Body from its declaration", async () => {
+		const store = storeDeclaring(DECLARED);
+		const commentId = await createComment(store, vocab, "did:example:reviewer", "A *note*.", "2026-07-01T00:00:00.000Z");
+		const bodyId = `body-${commentId}-${DEFAULT_BODY_KIND}-text-markdown`;
+		expect(bodyId).toBe(commentBodyIdOf(commentId));
+		expect(await edgesOf(store, commentId, LinkRelations.HAS_BODY.rel)).toEqual([bodyId]);
+		expect(await recordOf(store, BODY_LABEL, bodyId)).toMatchObject({ content: "A *note*.", mediaType: MEDIA_TYPE.markdown });
 	});
 });

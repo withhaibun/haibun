@@ -852,57 +852,58 @@ export const PRINCIPAL_LABEL = "Principal";
 /** The domain selector. It differs from the runtime "principal" key (see lib/principal.ts) to avoid a collision. */
 export const PRINCIPAL_DOMAIN = "principal-individual";
 
-/**
- * The Comment domain definition. Register it in a stepper's `getConcerns().domains` to expose Comment as a graph node.
- * The topology uses existing LinkRelations for every property and doesn't introduce rels.
- */
+/** The Comment's topology. It uses existing LinkRelations for every property and doesn't introduce rels. A Comment's write
+ *  names its Body by the Body its `body` field declares. */
+export const COMMENT_TOPOLOGY: THypermediaTopology = {
+	persistedAs: COMMENT_LABEL,
+	accessLevel: Access.private,
+	// A Comment carries oa:hasBody and oa:hasTarget in the W3C Web Annotation shape. The class relationship is an
+	// RDFS axiom and doesn't make @type multi-valued.
+	subClassOf: "oa:Annotation",
+	id: "id",
+	properties: {
+		id: LinkRelations.IDENTIFIER.rel,
+		name: LinkRelations.NAME.rel,
+		author: LinkRelations.ATTRIBUTED_TO.rel,
+		startedAtTime: LinkRelations.STARTED_AT_TIME.rel,
+		endedAtTime: LinkRelations.ENDED_AT_TIME.rel,
+		seqPath: LinkRelations.SEQ_PATH.rel,
+		body: { rel: LinkRelations.CONTENT.rel, mediaType: MEDIA_TYPE.markdown },
+		unverified: LinkRelations.TAG.rel,
+		// The conversation a comment is part of, by the id of its first question. A read of a conversation filters
+		// comments by this field.
+		[LinkRelations.CONTEXT.rel]: LinkRelations.CONTEXT.rel,
+	},
+	edges: {
+		[HAS_BODY_EDGE]: { rel: LinkRelations.HAS_BODY.rel, range: BODY_LABEL },
+		// The author as a navigable edge to that agent. A comment links to the person, service or model that wrote it
+		// and doesn't only name it in a string. The edge ranges over Principal, which is a sec:Controller and a
+		// prov:Agent, so every kind of author is well-formed against it. The property with the same rel remains
+		// because author is a sort and filter column.
+		[LinkRelations.ATTRIBUTED_TO.rel]: { rel: LinkRelations.ATTRIBUTED_TO.rel, range: PRINCIPAL_LABEL },
+		// The comment's subject: any Resource, such as an entity or another Comment in a thread.
+		[LinkRelations.TARGET.rel]: { rel: LinkRelations.TARGET.rel, range: RESOURCE_LABEL },
+		// The comment's addressee (as:to, the rel an email's recipients carry). A question addresses the agent expected
+		// to respond. A response addresses the person who asked. A decision addresses the party that requested it. This
+		// edge and attributedTo let a view read a discourse as messages between agents. oa:hasTarget holds the
+		// comment's subject.
+		[LinkRelations.AUDIENCE.rel]: { rel: LinkRelations.AUDIENCE.rel, range: RESOURCE_LABEL },
+		// The record the comment carries: a petition carries the proposal it requests, and a measure carries its
+		// observation. The edge is declared so a view can follow it to the carried record.
+		[LinkRelations.ATTACHMENT.rel]: { rel: LinkRelations.ATTACHMENT.rel, range: RESOURCE_LABEL },
+		// A linking annotation's cross-reference: the note points at another SpecificResource (a section) in the source.
+		[LinkRelations.LINKS_TO.rel]: { rel: LinkRelations.LINKS_TO.rel, range: SPECIFIC_RESOURCE_LABEL },
+		...Object.fromEntries(DISCOURSE_RELS.map((r) => [r, { rel: r, subPropertyOf: LinkRelations.IN_REPLY_TO.rel, range: COMMENT_LABEL }])),
+	},
+	sortColumns: { author: "TEXT", seqPath: "TEXT" },
+};
+
+/** The Comment domain definition. Register it in a stepper's `getConcerns().domains` to expose Comment as a graph node. */
 export const commentDomainDefinition: TDomainDefinition = {
 	selectors: [COMMENT_DOMAIN],
 	schema: CommentSchema,
 	description: "A note about another record. It links to its subject and to any replies, so a conversation stays attached to its subject.",
-	topology: {
-		persistedAs: COMMENT_LABEL,
-		accessLevel: Access.private,
-		// A Comment carries oa:hasBody and oa:hasTarget in the W3C Web Annotation shape. The class relationship is an
-		// RDFS axiom and doesn't make @type multi-valued.
-		subClassOf: "oa:Annotation",
-		id: "id",
-		properties: {
-			id: LinkRelations.IDENTIFIER.rel,
-			name: LinkRelations.NAME.rel,
-			author: LinkRelations.ATTRIBUTED_TO.rel,
-			startedAtTime: LinkRelations.STARTED_AT_TIME.rel,
-			endedAtTime: LinkRelations.ENDED_AT_TIME.rel,
-			seqPath: LinkRelations.SEQ_PATH.rel,
-			body: { rel: LinkRelations.CONTENT.rel, mediaType: MEDIA_TYPE.markdown },
-			unverified: LinkRelations.TAG.rel,
-			// The conversation a comment is part of, by the id of its first question. A read of a conversation filters
-			// comments by this field.
-			[LinkRelations.CONTEXT.rel]: LinkRelations.CONTEXT.rel,
-		},
-		edges: {
-			[HAS_BODY_EDGE]: { rel: LinkRelations.HAS_BODY.rel, range: BODY_LABEL },
-			// The author as a navigable edge to that agent. A comment links to the person, service or model that wrote it
-			// and doesn't only name it in a string. The edge ranges over Principal, which is a sec:Controller and a
-			// prov:Agent, so every kind of author is well-formed against it. The property with the same rel remains
-			// because author is a sort and filter column.
-			[LinkRelations.ATTRIBUTED_TO.rel]: { rel: LinkRelations.ATTRIBUTED_TO.rel, range: PRINCIPAL_LABEL },
-			// The comment's subject: any Resource, such as an entity or another Comment in a thread.
-			[LinkRelations.TARGET.rel]: { rel: LinkRelations.TARGET.rel, range: RESOURCE_LABEL },
-			// The comment's addressee (as:to, the rel an email's recipients carry). A question addresses the agent expected
-			// to respond. A response addresses the person who asked. A decision addresses the party that requested it. This
-			// edge and attributedTo let a view read a discourse as messages between agents. oa:hasTarget holds the
-			// comment's subject.
-			[LinkRelations.AUDIENCE.rel]: { rel: LinkRelations.AUDIENCE.rel, range: RESOURCE_LABEL },
-			// The record the comment carries: a petition carries the proposal it requests, and a measure carries its
-			// observation. The edge is declared so a view can follow it to the carried record.
-			[LinkRelations.ATTACHMENT.rel]: { rel: LinkRelations.ATTACHMENT.rel, range: RESOURCE_LABEL },
-			// A linking annotation's cross-reference: the note points at another SpecificResource (a section) in the source.
-			[LinkRelations.LINKS_TO.rel]: { rel: LinkRelations.LINKS_TO.rel, range: SPECIFIC_RESOURCE_LABEL },
-			...Object.fromEntries(DISCOURSE_RELS.map((r) => [r, { rel: r, subPropertyOf: LinkRelations.IN_REPLY_TO.rel, range: COMMENT_LABEL }])),
-		},
-		sortColumns: { author: "TEXT", seqPath: "TEXT" },
-	},
+	topology: COMMENT_TOPOLOGY,
 };
 
 // ============================================================================
