@@ -55,8 +55,13 @@ export type TDeploymentSettings = z.infer<typeof DeploymentSettingsSchema>;
 export const CachePayloadSchema = z.object({ shape: z.string(), execution: z.string(), registry: z.unknown().optional(), quads: z.array(QuadSchema) }).strict();
 export type TCachePayload = z.infer<typeof CachePayloadSchema>;
 
+/** The font a page that carries a record of actuality draws its labels with, as a data URL, and the source of a pattern that
+ *  matches each character the font lacks, so the page draws every label without a server or a font service. */
+export const CarriedLabelFontSchema = z.object({ font: z.string(), uncovered: z.string() }).strict();
+export type TCarriedLabelFont = z.infer<typeof CarriedLabelFontSchema>;
+
 /** A page's hydration. A served page states the deployment's settings; a page that carries a record of actuality states the
- *  record and what each view showed, by the step that produces it. */
+ *  record, what each view showed, by the step that produces it, and the font of its labels. */
 export const HydrationSchema = z
 	.object({
 		actualityId: ActualityIdSchema,
@@ -65,6 +70,7 @@ export const HydrationSchema = z
 		settings: DeploymentSettingsSchema.optional(),
 		cache: CachePayloadSchema.optional(),
 		viewProducts: z.record(z.string(), z.unknown()).optional(),
+		labelFont: CarriedLabelFontSchema.optional(),
 	})
 	.strict();
 export type THydration = z.infer<typeof HydrationSchema>;

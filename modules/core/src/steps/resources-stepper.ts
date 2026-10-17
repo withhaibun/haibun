@@ -42,7 +42,7 @@ import {
 	Access,
 } from "../lib/resources.js";
 import { MEDIA_TYPE } from "../lib/media-types.js";
-import { bodyByMediaType, markdownOf, readEvery, recordOf } from "../lib/records/pipelines/record-reads.js";
+import { bodiesByMediaType, markdownOf, readEvery, recordOf } from "../lib/records/pipelines/record-reads.js";
 import { createComment, readProseLinks, writeAnnotation } from "../lib/records/pipelines/discourse-writes.js";
 import { DOMAIN_LINK_REL, DOMAIN_RECORD_ID, DOMAIN_TEXT, linkVocabularyFor } from "../lib/domains.js";
 import { executionOf, formatRecordName, formatSeqPath } from "../lib/actuality/domains/seq-path.js";
@@ -275,7 +275,7 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 				// Walks the W3C Web Annotation chain backward from the annotated individual with bulk reads scoped by label,
 				// then joins the results in memory. An unscoped or per-note quad query on a property-graph store reloads every
 				// type and every body, including this document's own, so a per-note walk takes note count × document size.
-				// This walk takes five scoped reads, plus a read of each matched comment and its body.
+				// This walk takes eight scoped reads: five of the chain, the matched comments by id, and their bodies' edges and bodies.
 				// SpecificResource: hasSource → id, hasSelector → TextQuoteSelector.
 				// Comment: hasTarget → SpecificResource, and optionally linksTo → another SpecificResource.
 				const srIds = new Set((await store.query({ predicate: LinkRelations.HAS_SOURCE.rel, object: id, namedGraph: SPECIFIC_RESOURCE_LABEL })).map((q) => String(q.subject)));
@@ -297,29 +297,38 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 						...(sel.suffix !== undefined ? { suffix: String(sel.suffix) } : {}),
 					};
 				};
-				const annotations: Array<Record<string, unknown>> = [];
-				for (const tq of await store.query({ predicate: LinkRelations.TARGET.rel, namedGraph: COMMENT_LABEL })) {
+				const anchored = (await store.query({ predicate: LinkRelations.TARGET.rel, namedGraph: COMMENT_LABEL })).flatMap((tq) => {
 					const specificResourceId = String(tq.object);
-					if (!srIds.has(specificResourceId)) continue;
-					const quote = quoteOf(specificResourceId);
-					if (!quote) continue; // a target without a selector doesn't anchor a passage
-					const commentId = String(tq.subject);
-					const comment = await recordOf(store, COMMENT_LABEL, commentId);
-					if (!comment) continue;
-					const noteText = await bodyByMediaType(store, { label: COMMENT_LABEL, id: commentId }, MEDIA_TYPE.markdown);
+					// A target without a selector doesn't anchor a passage.
+					const quote = srIds.has(specificResourceId) ? quoteOf(specificResourceId) : undefined;
+					return quote ? [{ commentId: String(tq.subject), specificResourceId, quote }] : [];
+				});
+				if (anchored.length === 0) return actionOKWithProducts({ annotations: [], total: 0 });
+				const commentIds = [...new Set(anchored.map(({ commentId }) => commentId))];
+				const [comments, noteTexts] = await Promise.all([
+					readEvery(store, { label: COMMENT_LABEL, named: commentIds }),
+					bodiesByMediaType(store, COMMENT_LABEL, commentIds, MEDIA_TYPE.markdown),
+				]);
+				const commentById = new Map(comments.map((comment) => [String(comment.id), comment]));
+				const annotations = anchored.flatMap(({ commentId, specificResourceId, quote }) => {
+					const comment = commentById.get(commentId);
+					if (!comment) return [];
+					const noteText = noteTexts.get(commentId);
 					const links = (linkSrsOfComment.get(commentId) ?? []).map((srId) => quoteOf(srId)).filter((l): l is NonNullable<typeof l> => l !== undefined);
-					annotations.push({
-						commentId,
-						...(comment.author !== undefined ? { author: String(comment.author) } : {}),
-						...(comment.generatedAtTime !== undefined ? { generatedAtTime: String(comment.generatedAtTime) } : {}),
-						...(comment.startedAtTime !== undefined ? { startedAtTime: String(comment.startedAtTime) } : {}),
-						...(comment.endedAtTime !== undefined ? { endedAtTime: String(comment.endedAtTime) } : {}),
-						...(noteText !== undefined ? { body: noteText } : {}),
-						...quote,
-						specificResourceId,
-						...(links.length > 0 ? { links } : {}),
-					});
-				}
+					return [
+						{
+							commentId,
+							...(comment.author !== undefined ? { author: String(comment.author) } : {}),
+							...(comment.generatedAtTime !== undefined ? { generatedAtTime: String(comment.generatedAtTime) } : {}),
+							...(comment.startedAtTime !== undefined ? { startedAtTime: String(comment.startedAtTime) } : {}),
+							...(comment.endedAtTime !== undefined ? { endedAtTime: String(comment.endedAtTime) } : {}),
+							...(noteText !== undefined ? { body: noteText } : {}),
+							...quote,
+							specificResourceId,
+							...(links.length > 0 ? { links } : {}),
+						},
+					];
+				});
 				return actionOKWithProducts({ annotations, total: annotations.length });
 			},
 		},

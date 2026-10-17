@@ -43,18 +43,51 @@ const measureFit = (): Promise<Fit> =>
 		};
 	});
 
-const expectFitted = (fit: Fit, w: number, h: number) => {
-	// The canvas fills the view's graph area: the box below the in-flow view head + filter rows, whose height is
-	// the container's minus that chrome. Width spans the container; height is asserted against the measured area.
-	expect(Math.abs(fit.rect.w - w), `canvas display width ${fit.rect.w} should be ${w}`).toBeLessThanOrEqual(2);
-	expect(fit.area.h, `graph area height must be most of the ${h} container (chrome only above)`).toBeGreaterThan(h * 0.7);
-	expect(Math.abs(fit.rect.h - fit.area.h), `canvas display height ${fit.rect.h} should fill its graph area ${fit.area.h}`).toBeLessThanOrEqual(2);
-	expect(Math.abs(fit.buffer.w - fit.rect.w * fit.pixelRatio), `buffer ${fit.buffer.w} must be rect×pixelRatio (else blurry)`).toBeLessThanOrEqual(2 * fit.pixelRatio);
-	expect(Math.abs(fit.buffer.h - fit.rect.h * fit.pixelRatio), `buffer ${fit.buffer.h} must be rect×pixelRatio (else blurry)`).toBeLessThanOrEqual(2 * fit.pixelRatio);
-	expect(Math.abs(fit.cameraAspect - fit.rect.w / fit.rect.h), `camera aspect ${fit.cameraAspect} must match display aspect (else stretched)`).toBeLessThanOrEqual(0.02);
-	expect(fit.scrollW, "page must not overflow horizontally (scrollbars)").toBeLessThanOrEqual(1400);
-	expect(fit.scrollH, "page must not overflow vertically (scrollbars)").toBeLessThanOrEqual(900);
-};
+/** Returns each fit invariant `fit` breaks for a container of `w` × `h`, as a message that names the measured values. */
+const fitViolations = (fit: Fit, w: number, h: number): string[] =>
+	[
+		// The canvas fills the view's graph area: the box below the in-flow view head + filter rows, whose height is the
+		// container's minus that chrome. Width spans the container; height is checked against the measured area.
+		Math.abs(fit.rect.w - w) > 2 && `canvas display width ${fit.rect.w} should be ${w}`,
+		fit.area.h <= h * 0.7 && `graph area height ${fit.area.h} must be most of the ${h} container (chrome only above)`,
+		Math.abs(fit.rect.h - fit.area.h) > 2 && `canvas display height ${fit.rect.h} should fill its graph area ${fit.area.h}`,
+		Math.abs(fit.buffer.w - fit.rect.w * fit.pixelRatio) > 2 * fit.pixelRatio && `buffer ${fit.buffer.w} must be rect×pixelRatio (else blurry)`,
+		Math.abs(fit.buffer.h - fit.rect.h * fit.pixelRatio) > 2 * fit.pixelRatio && `buffer ${fit.buffer.h} must be rect×pixelRatio (else blurry)`,
+		Math.abs(fit.cameraAspect - fit.rect.w / fit.rect.h) > 0.02 && `camera aspect ${fit.cameraAspect} must match display aspect (else stretched)`,
+		fit.scrollW > 1400 && `page width ${fit.scrollW} overflows horizontally (scrollbars)`,
+		fit.scrollH > 900 && `page height ${fit.scrollH} overflows vertically (scrollbars)`,
+	].filter((violation): violation is string => violation !== false);
+
+/** How long the view has to fit a new container: its ResizeObserver, the frame that resizes the renderer, and the debounced
+ *  refresh of the cursor's bounds. */
+const REFIT_TIMEOUT_MS = 10_000;
+
+/** Waits until the canvas fits a container of `w` × `h`, and fails with each invariant it still breaks at the timeout. */
+const expectFitted = (w: number, h: number) => expect.poll(async () => fitViolations(await measureFit(), w, h), { timeout: REFIT_TIMEOUT_MS }).toEqual([]);
+
+/** The cursor's cached bounds of the canvas and the canvas's own bounds, each rounded to a pixel. */
+const cursorBounds = () =>
+	page.evaluate(() => {
+		const fe = document.querySelector("shu-polymorphic-graph-view") as HTMLElement;
+		const canvas = fe.querySelector("canvas") as HTMLCanvasElement;
+		const cursorEl = fe.querySelector("[cursor]") as HTMLElement & { components: { cursor: { canvasBounds: DOMRect } } };
+		const box = (r: DOMRect) => ({ left: Math.round(r.left), w: Math.round(r.width), h: Math.round(r.height) });
+		return { cached: box(cursorEl.components.cursor.canvasBounds), fresh: box(canvas.getBoundingClientRect()) };
+	});
+
+/** Waits until the cursor's cached bounds match the canvas's, and fails with both at the timeout. */
+const expectCursorBoundsFresh = () =>
+	expect
+		.poll(
+			async () => {
+				const { cached, fresh } = await cursorBounds();
+				return JSON.stringify(cached) === JSON.stringify(fresh)
+					? []
+					: [`cursor's cached canvas bounds ${JSON.stringify(cached)} don't match the canvas's ${JSON.stringify(fresh)}`];
+			},
+			{ timeout: REFIT_TIMEOUT_MS },
+		)
+		.toEqual([]);
 
 beforeAll(async () => {
 	opened = await openPolymorphicPage({ external: false, box: { width: 700, height: 500 }, deviceScaleFactor: 2 });
@@ -64,10 +97,9 @@ beforeAll(async () => {
 afterAll(() => opened.close());
 
 test("canvas fits its container at mount: display == box, buffer == display×dpr, aspect matches", { timeout: 30_000 }, async () => {
-	await page.waitForTimeout(500); // let the rAF enforce loop assert once
+	await expectFitted(700, 500);
 	const fit = await measureFit();
 	expect(fit.pixelRatio, "renderer must honor devicePixelRatio (else blurry on retina)").toBe(fit.dpr);
-	expectFitted(fit, 700, 500);
 });
 
 test("canvas refits after the container resizes", { timeout: 30_000 }, async () => {
@@ -76,35 +108,18 @@ test("canvas refits after the container resizes", { timeout: 30_000 }, async () 
 		box.style.width = "900px";
 		box.style.height = "400px";
 	});
-	await page.waitForTimeout(500); // ResizeObserver + rAF
-	expectFitted(await measureFit(), 900, 400);
+	await expectFitted(900, 400);
 });
 
 test("mouse-pick bounds refresh after the container resizes (hover/click translation)", { timeout: 30_000 }, async () => {
-	await page.waitForTimeout(700); // the cursor's bounds refresh is debounced behind the rendererresize event
-	const d = await page.evaluate(() => {
-		const fe = document.querySelector("shu-polymorphic-graph-view") as HTMLElement;
-		const canvas = fe.querySelector("canvas") as HTMLCanvasElement;
-		const cursorEl = fe.querySelector("[cursor]") as HTMLElement & { components: { cursor: { canvasBounds: DOMRect } } };
-		const cached = cursorEl.components.cursor.canvasBounds;
-		const fresh = canvas.getBoundingClientRect();
-		return { cached: { w: Math.round(cached.width), h: Math.round(cached.height) }, fresh: { w: Math.round(fresh.width), h: Math.round(fresh.height) } };
-	});
-	expect(d.cached, "cursor's cached canvas bounds must match the resized canvas (else picks translate against the old rect)").toEqual(d.fresh);
+	await expectCursorBoundsFresh();
 });
 
 test("mouse-pick bounds refresh after the canvas MOVES without resizing (strip scroll / column shifts)", { timeout: 30_000 }, async () => {
 	await page.evaluate(() => {
 		(document.querySelector("#box") as HTMLElement).style.left = "150px";
 	});
-	await page.waitForTimeout(1500); // rAF position sample (~0.5s) + A-Frame's debounced bounds refresh
-	const d = await page.evaluate(() => {
-		const fe = document.querySelector("shu-polymorphic-graph-view") as HTMLElement;
-		const canvas = fe.querySelector("canvas") as HTMLCanvasElement;
-		const cursorEl = fe.querySelector("[cursor]") as HTMLElement & { components: { cursor: { canvasBounds: DOMRect } } };
-		return { cachedLeft: Math.round(cursorEl.components.cursor.canvasBounds.left), freshLeft: Math.round(canvas.getBoundingClientRect().left) };
-	});
-	expect(d.cachedLeft, "cursor's cached bounds must track a pure position change").toBe(d.freshLeft);
+	await expectCursorBoundsFresh();
 });
 
 test("the view boots and runs without page errors", () => {

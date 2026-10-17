@@ -2,7 +2,7 @@
 import { installHydration, pageHydration, pageHydrationElement } from "../root.js";
 import { readHydration } from "../pipelines/hydrate.js";
 import { HYDRATION_ID } from "../../domains/elements.js";
-import type { TCachePayload } from "../../domains/hydration.js";
+import type { TCachePayload, TCarriedLabelFont } from "../../domains/hydration.js";
 import type { TActualityId } from "@haibun/core/lib/rpc-wire.js";
 
 /** Reads the page's hydration element, before any call, and holds what it parses. */
@@ -19,6 +19,14 @@ export const hydratedCache = (): TCachePayload | undefined => pageHydration().ca
 
 /** Returns the address the page opens at for a reader who arrives without one, or undefined where it doesn't state one. */
 export const getHydratedViewHash = (): string | undefined => pageHydration().opensAt();
+
+/** Returns the font of the labels the page carries. Throws for a page that doesn't carry it, since a page a site serves reads
+ *  the site's font, and the writer of a report (`pipelines/monitor-report.ts`) states it. */
+export function carriedLabelFont(): TCarriedLabelFont {
+	const font = pageHydration().labelFont();
+	if (font === undefined) throw new Error("this report lacks its label font: write it again with MonitorStepper");
+	return font;
+}
 
 /** Returns what the page carries of a view's products, by the step that produces them. */
 export const carriedProducts = (method: string): unknown => pageHydration().carriedProducts(method);

@@ -32,6 +32,7 @@ export function readHydration(element: THydrationElement): THydrationRead {
 		carried: () => hydration?.cache,
 		opensAt: () => hydration?.viewHash,
 		carriedProducts: (method) => hydration?.viewProducts?.[method],
+		labelFont: () => hydration?.labelFont,
 		settings: served,
 		askToolLimit: () => hydration?.settings?.askToolLimit,
 	};

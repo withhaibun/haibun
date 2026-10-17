@@ -10,7 +10,7 @@ import type { TLinkedData } from "@haibun/core/lib/hypermedia.js";
 import type { TDelegation } from "@haibun/core/lib/actions.js";
 import type { TProveRequest } from "@haibun/core/lib/rpc-wire.js";
 import type { TPageAuthority } from "./authority/pipelines/page-authority.js";
-import type { TCachePayload, TDeploymentSettings } from "../domains/hydration.js";
+import type { TCachePayload, TCarriedLabelFont, TDeploymentSettings } from "../domains/hydration.js";
 import type { TActualityId } from "@haibun/core/lib/rpc-wire.js";
 
 /** An element's stored fields, by its tag and its instance's key. Each tag holds one record of its instances' fields. */
@@ -146,6 +146,8 @@ export type THydrationRead = {
 	opensAt(): string | undefined;
 	/** Returns what the page carries of a view's products, by the step that produces them, or undefined where it doesn't. */
 	carriedProducts(method: string): unknown;
+	/** Returns the font of the labels the page carries, or undefined for a page a site serves, which reads the site's font. */
+	labelFont(): TCarriedLabelFont | undefined;
 	/** Returns what the deployment set for the page it served. Throws for a page a site didn't serve with them. */
 	settings(): TDeploymentSettings;
 	/** Returns the rounds of tool calls an ask starts with, or undefined where the deployment doesn't set them or a site

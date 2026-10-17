@@ -18,6 +18,9 @@ import { hashOf, hashWithColumns } from "../page/derivations/address.js";
 import { carriedRun } from "../page/client-cache/pipelines/carried-run.js";
 import { buildReportHtml, inlineScriptsForView } from "../derivations/page-html.js";
 import { NOT_CLUSTERED, clusters, graphSource } from "./graph-source.js";
+import { carriedLabelFont } from "../derivations/carried-label-font.js";
+import { BUNDLE_NAMES, bundleFileName } from "../domains/bundle-files.js";
+import type { TBundleFile } from "../ports.js";
 
 /** The hash parameter that names the type a graph query reads. */
 const LABEL_PARAM = "label";
@@ -35,8 +38,8 @@ export const reportOpensAt = (queriedLabel: string | undefined): string | undefi
 type TReadStep = () => Promise<unknown> | unknown;
 
 /** What a report is built from: actuality's world, the monitor's view steps by name, the type a graph query read last,
- *  the report bundle, and whether the payload is compressed. */
-export type TReportScope = { world: TWorld; viewSteps: [string, TReadStep][]; queriedLabel: string | undefined; reportBundle: string; compressed: boolean };
+ *  the built bundles, which hold the report bundle and the label font, and whether the payload is compressed. */
+export type TReportScope = { world: TWorld; viewSteps: [string, TReadStep][]; queriedLabel: string | undefined; bundles: TBundleFile; compressed: boolean };
 
 /** The steps whose products the report refreshes at its end, under the name through which the affordances panel reads them. */
 const REFRESHED_AT_THE_END = ["affordancesOnOffer"];
@@ -83,8 +86,9 @@ function componentOfView(domains: TWorld["domains"], view: string): string {
 
 /**
  * The standalone report of actuality: its records and the graph in the client cache, the site's declarations as the
- * registry, what the views showed, and the scripts of the views actuality showed, with every secret obscured. The report
- * opens at the type a graph query read last.
+ * registry, what the views showed, the scripts of the views actuality showed, and the label font, with every secret
+ * obscured. The report opens at the type a graph query read last. The font rides in the hydration rather than in the report
+ * bundle, so a report opened from a file draws its labels offline while the bundle keeps its budget.
  */
 export async function reportHtml(scope: TReportScope): Promise<string> {
 	const { world } = scope;
@@ -103,7 +107,9 @@ export async function reportHtml(scope: TReportScope): Promise<string> {
 		viewHash: reportOpensAt(scope.queriedLabel),
 		actualityId: world.runtime.actualityId,
 		cache: carriedRun(executionOf(world.tag), registry, graph === undefined ? [] : graph.quads),
+		labelFont: carriedLabelFont(scope.bundles.labelFont(), scope.bundles.labelFontRanges()),
 	} satisfies THydration);
-	const payload = JSON.stringify({ bundle: scope.reportBundle, hydration, scripts: inlineScriptsForView(world.domains, components) });
+	const bundle = scope.bundles.whole(bundleFileName(BUNDLE_NAMES.report));
+	const payload = JSON.stringify({ bundle, hydration, scripts: inlineScriptsForView(world.domains, components) });
 	return buildReportHtml(".", obscuredText(payload, world.shared.secretTexts()), scope.compressed);
 }

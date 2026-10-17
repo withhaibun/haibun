@@ -21,15 +21,53 @@
  */
 import { Text, configureTextBuilder } from "troika-three-text";
 import { LABEL_FONT } from "../../../domains/serving.js";
+import type { TCarriedLabelFont } from "../../../domains/hydration.js";
+import { UNCOVERED_FLAGS, coveredText } from "../../../derivations/carried-label-font.js";
 import { FULL_BURN, GLOW_SPREAD, type GlowThree, MarkGlow, makeGlow } from "../derivations/highlight.js";
 import type { LabelVisual, NodeVisual, Obj3D } from "../domains/graph-types.js";
 
-/** Every label reads the font shu serves beside its bundles, and looks up a character that font lacks at `fallbackFonts`
- *  (an absolute address, since troika reads it in a worker), so the page draws its labels without a font service (CA3D10).
- *  A page that carries a record of actuality, which a site doesn't serve, passes undefined and holds only the font. troika's
- *  configuration holds for the page, so the scene sets it before it draws a label. */
-export function configureLabelFonts(fallbackFonts: string | undefined): void {
-	configureTextBuilder(fallbackFonts === undefined ? { defaultFontURL: LABEL_FONT } : { defaultFontURL: LABEL_FONT, unicodeFontsURL: fallbackFonts });
+/** The font of a page's labels. A served page reads the font shu serves beside its bundles, and troika looks up a character
+ *  that font lacks at `fallbacks`, an absolute address, since troika reads it in a worker. A page that carries a record of
+ *  actuality opens from a file, where the two addresses don't resolve, so it holds the font as a data URL with the pattern
+ *  of the characters the font lacks. */
+export type TLabelFonts = { fallbacks: string } | TCarriedLabelFont;
+
+/** The pattern of the characters the carried font lacks, or undefined on a served page, whose site serves troika's lookup
+ *  of each such character. */
+let carriedUncovered: RegExp | undefined;
+
+/** Sets the font of every label, so the page draws its labels without a font service (CA3D10). troika's configuration holds
+ *  for the page, so the scene sets it before it draws a label. */
+export function configureLabelFonts(fonts: TLabelFonts): void {
+	const served = "fallbacks" in fonts;
+	carriedUncovered = served ? undefined : new RegExp(fonts.uncovered, UNCOVERED_FLAGS);
+	configureTextBuilder(served ? { defaultFontURL: LABEL_FONT, unicodeFontsURL: fonts.fallbacks } : { defaultFontURL: fonts.font });
+}
+
+/** Returns `content` as troika draws it: on a page that carries its font, with each character the font lacks replaced. */
+const drawnText = (content: string): string => (carriedUncovered === undefined ? content : coveredText(content, carriedUncovered));
+
+/** Where a label's text stands against its position. */
+export type TTextAnchor = { x: "left" | "center" | "right"; y: "top" | "middle" | "bottom" };
+
+/** A chip's text starts at the node's point, its top-left corner, and flows right and down, so the point stays visible
+ *  against the axes. A centred anchor places the point inside the chip. */
+const CHIP_ANCHOR: TTextAnchor = { x: "left", y: "top" };
+
+/** Returns troika's SDF text of `content` in `color`, `fontSize` world units tall, standing at `anchor` against its position,
+ *  drawn over the scene without depth. */
+function depthlessText(content: string, d: { fontSize: number; color: string; renderOrder: number; anchor: TTextAnchor }): Text {
+	const t = new Text();
+	t.text = drawnText(content);
+	t.fontSize = d.fontSize;
+	t.color = d.color;
+	t.anchorX = d.anchor.x;
+	t.anchorY = d.anchor.y;
+	t.renderOrder = d.renderOrder;
+	const mat = t.material as { depthTest?: boolean; depthWrite?: boolean };
+	mat.depthTest = false;
+	mat.depthWrite = false;
+	return t;
 }
 
 /** A scene object this module CONSTRUCTS or parents onto: the structural handle leaves `add` optional because a
@@ -134,19 +172,7 @@ export function makeTroikaChip(label: string, bgColor: string, three: ChipThree,
 		},
 	);
 
-	const makeText = (content: string, color: string, renderOrder: number) => {
-		const t = new Text();
-		t.text = content;
-		t.fontSize = d.fontSize;
-		t.color = color;
-		t.anchorX = "left"; // the node's exact point is the chip's TOP-LEFT corner, content flows right and down, so the
-		t.anchorY = "top"; //  point stays eyeball-able against the axes; centring (either way) buries it mid-chip
-		t.renderOrder = renderOrder;
-		const mat = t.material as { depthTest?: boolean; depthWrite?: boolean };
-		mat.depthTest = false;
-		mat.depthWrite = false;
-		return t;
-	};
+	const makeText = (content: string, color: string, renderOrder: number) => depthlessText(content, { fontSize: d.fontSize, color, renderOrder, anchor: CHIP_ANCHOR });
 
 	const text = makeText(label, d.textColor, d.renderOrder + 2);
 
@@ -282,9 +308,6 @@ export function spriteVisual(painted: { object: Obj3D; labels: LabelVisual[] }, 
 	};
 }
 
-/** Where a label's text stands against its position. */
-export type TTextAnchor = { x: "left" | "center" | "right"; y: "top" | "middle" | "bottom" };
-
 /** The outline that emphasises a label, in the label's own colour, as a share of its font size: troika reads one font, so
  *  weight is drawn rather than read from a bold face. */
 const EMPHASIS_OUTLINE = "6%";
@@ -293,30 +316,23 @@ const EMPHASIS_OUTLINE = "6%";
  *  drawn over the scene without depth and not picked. `emphasis` draws it heavier, as a heading. The scene turns it to the
  *  camera each frame through `faceCamera`. */
 export function makeTroikaText(content: string, d: { fontSize: number; color: string; renderOrder: number; anchor: TTextAnchor; emphasis: boolean }): LabelVisual {
-	const t = new Text();
-	t.text = content;
-	t.fontSize = d.fontSize;
-	t.color = d.color;
-	t.anchorX = d.anchor.x;
-	t.anchorY = d.anchor.y;
-	t.renderOrder = d.renderOrder;
+	let shown = content;
+	const t = depthlessText(content, d);
 	if (d.emphasis) {
 		t.outlineWidth = EMPHASIS_OUTLINE;
 		t.outlineColor = d.color;
 	}
-	const mat = t.material as { depthTest?: boolean; depthWrite?: boolean };
-	mat.depthTest = false;
-	mat.depthWrite = false;
 	t.raycast = () => undefined;
 	t.sync();
 	return {
 		object: t as unknown as Obj3D,
 		get text() {
-			return t.text;
+			return shown;
 		},
 		set text(content: string) {
-			if (content === t.text) return;
-			t.text = content;
+			if (content === shown) return;
+			shown = content;
+			t.text = drawnText(content);
 			t.sync();
 		},
 		get color() {

@@ -35,7 +35,6 @@ import { ARTIFACTS_ROUTE, runArtifactDomainDefinition } from "@haibun/core/lib/r
 import type ShuStepper from "./shu-stepper.js";
 import { DOMAIN_GRAPH_QUERY } from "@haibun/core/lib/quad-types.js";
 import { DOMAIN_FILE_PATH } from "@haibun/core/lib/domains.js";
-import { BUNDLE_NAMES, bundleFileName } from "./domains/bundle-files.js";
 
 // The monitor holds a window of what actuality sends, never actuality itself: an unbounded buffer exhausts the process's
 // heap over months. The store holds the graph and the disk log holds the events.
@@ -242,7 +241,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 			.filter(([, step]) => !step.gwta.includes("{"))
 			.map(([name, step]): [string, () => unknown] => [name, step.action as () => unknown]);
 		const world = this.getWorld();
-		const html = await reportHtml({ world, viewSteps, queriedLabel: this.queriedLabel, reportBundle: servedBundles.whole(bundleFileName(BUNDLE_NAMES.report)), compressed });
+		const html = await reportHtml({ world, viewSteps, queriedLabel: this.queriedLabel, bundles: servedBundles, compressed });
 		const written = fixedPath === undefined ? (await this.storage.saveArtifact("shu.html", html)).absolutePath : fixedPath;
 		if (fixedPath !== undefined) reportWriter.write(fixedPath, html);
 		world.eventLogger.info(`shu standalone report: ${actualURI(written)}`);

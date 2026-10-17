@@ -14,6 +14,7 @@ import { POLYMORPHIC_ROUTE } from "../../../test/polymorphic-routes.js";
 import { LABEL_FONT, LABEL_FONT_FALLBACKS } from "../../../domains/serving.js";
 import { labelFontResponse } from "../../../pipelines/served-page.js";
 import { bundleFile } from "../../../adapters/bundle-file.js";
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 
 /**
  * A real page with the polymorphic graph view mounted on it, drawn by a headless browser through a software
@@ -117,6 +118,9 @@ export type TMountedPage = {
 	close(): Promise<void>;
 };
 
+/** How long the page has to mount its scene: its entry started, the bundle run and the first frame sized. */
+const PAGE_OPEN_TIMEOUT_MS = 30_000;
+
 /** The page as a test opens it: the page's entry started, the view mounted in a box of `box`, at `deviceScaleFactor`. */
 export type TOpenedPage = { page: Page; errors(): string[]; close(): Promise<void> };
 
@@ -141,26 +145,44 @@ export async function openPolymorphicPage(opts: { external: boolean; box: TBox; 
 	const browser: Browser = await chromium.launch({ args: ["--enable-unsafe-swiftshader"] });
 	const page = await browser.newPage({ viewport: { width: 1400, height: 900 }, deviceScaleFactor: opts.deviceScaleFactor });
 	const pageErrors: string[] = [];
+	const consoleErrors: string[] = [];
+	const failedRequests: string[] = [];
 	page.on("pageerror", (e) => pageErrors.push(e.message));
-	await page.goto(`http://127.0.0.1:${(server.address() as AddressInfo).port}/`);
-	await page.waitForFunction(
-		() => {
-			const fe = document.querySelector("shu-polymorphic-graph-view");
-			const scene = fe?.querySelector("a-scene") as (HTMLElement & { camera?: unknown }) | null;
-			const canvas = fe?.querySelector("canvas") as HTMLCanvasElement | null;
-			return Boolean(scene?.camera && canvas && canvas.width > 0);
-		},
-		undefined,
-		{ timeout: 30_000 },
-	);
-	return {
-		page,
-		errors: () => pageErrors,
-		async close() {
-			await browser.close();
-			await new Promise<void>((res) => server.close(() => res()));
-		},
+	page.on("console", (message) => {
+		if (message.type() === "error") consoleErrors.push(message.text());
+	});
+	page.on("requestfailed", (request) => failedRequests.push(`${request.method()} ${request.url()}: ${request.failure()?.errorText}`));
+	page.on("response", (response) => {
+		if (response.status() >= 400) failedRequests.push(`${response.request().method()} ${response.url()}: ${response.status()}`);
+	});
+	const close = async () => {
+		await browser.close();
+		await new Promise<void>((res) => server.close(() => res()));
 	};
+	const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/`;
+	try {
+		await page.goto(url);
+		await page.waitForFunction(
+			() => {
+				const fe = document.querySelector("shu-polymorphic-graph-view");
+				const scene = fe?.querySelector("a-scene") as (HTMLElement & { camera?: unknown }) | null;
+				const canvas = fe?.querySelector("canvas") as HTMLCanvasElement | null;
+				return Boolean(scene?.camera && canvas && canvas.width > 0);
+			},
+			undefined,
+			{ timeout: PAGE_OPEN_TIMEOUT_MS },
+		);
+	} catch (cause) {
+		await close();
+		const listed = (held: string[]) => (held.length > 0 ? held.join(" | ") : "(empty)");
+		throw new Error(
+			`the polymorphic page at ${url} didn't mount a scene with a camera and a sized canvas within ${PAGE_OPEN_TIMEOUT_MS} ms (${errorDetail(cause)}). ` +
+				`Page errors: ${listed(pageErrors)}. Console errors: ${listed(consoleErrors)}. Failed requests: ${listed(failedRequests)}. ` +
+				"Fix the first error listed; where the lists are empty or hold only the stub's expected 404s, the page was short of CPU, so run the file alone to confirm.",
+			{ cause },
+		);
+	}
+	return { page, errors: () => pageErrors, close };
 }
 
 export async function mountPolymorphicPage({ external = false }: { external?: boolean } = {}): Promise<TMountedPage> {

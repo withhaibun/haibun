@@ -164,6 +164,24 @@ export function bodyByMediaType(store: TRecordReader, record: { label: string; i
 	return bodyByMediaTypes(store, record, [mediaType], accessLevel);
 }
 
+/** Reads the text of the body in `mediaType` of each record of `label` that `ids` names, in two reads: the body edges of the
+ *  type, and the bodies those edges reach from `ids` by id. Returns the text by the id of each record that holds a body of
+ *  that media type, the first where it holds several, as `bodyByMediaType` reads one record's. */
+export async function bodiesByMediaType(store: Pick<IQuadStore, "readRecords" | "query">, label: string, ids: readonly string[], mediaType: string): Promise<Map<string, string>> {
+	const named = new Set(ids);
+	const recordOfBody = new Map<string, string>();
+	for (const { subject, object } of await store.query({ predicate: LinkRelations.HAS_BODY.rel, namedGraph: label }))
+		if (named.has(String(subject))) recordOfBody.set(String(object), String(subject));
+	const texts = new Map<string, string>();
+	if (recordOfBody.size === 0) return texts;
+	for (const body of await readEvery(store, { label: BODY_LABEL, named: [...recordOfBody.keys()] })) {
+		const { id, mediaType: held, content } = RecordBodySchema.parse(body);
+		const record = recordOfBody.get(id);
+		if (record !== undefined && held === mediaType && content !== undefined && !texts.has(record)) texts.set(record, content);
+	}
+	return texts;
+}
+
 /**
  * Reads one record's markdown text. Returns the record's `body` or `content` field where the store holds the text in the
  * record, and the record's markdown body otherwise. Returns undefined where the store doesn't hold the record or its

@@ -24,6 +24,8 @@ export type TBundleFile = {
 	whole(file: string): string;
 	/** The font of the graph's labels. */
 	labelFont(): ArrayBuffer;
+	/** The code points the font of the graph's labels covers, as a CSS `unicode-range`. */
+	labelFontRanges(): string;
 };
 
 /** Writes a report at a path. */

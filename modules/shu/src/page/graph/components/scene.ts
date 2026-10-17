@@ -48,6 +48,7 @@ import { A11yRenderer } from "./a11y-renderer.js";
 import { type TFenceGl } from "../adapters/frame-time.js";
 import { ObserverController } from "../../controllers/observer-controller.js";
 import { pageAddress } from "../../controllers/hash-controller.js";
+import { carriedLabelFont } from "../../controllers/hydration-controller.js";
 import { LABEL_FONT_FALLBACKS } from "../../../domains/serving.js";
 import { DEFAULT_REGULATION_THRESHOLDS, evaluateRegulation, medianOf, newRegulationState, recordFrameTime } from "../derivations/regulation.js";
 import { GRAPH_DRAWING_BLIP, GRAPH_FRAME_BLIP, GRAPH_REGULATION_BLIP, type TDrawingReason, type TWakeCause } from "../../../domains/graph-blips.js";
@@ -913,7 +914,10 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const container = this.querySelector<HTMLElement>("#polymorphic-canvas");
 		if (!container) throw new Error("shu-graph-scene: #polymorphic-canvas not found");
 
-		configureLabelFonts(this.labelFontFallbacks());
+		// A served page reads troika's lookup of a character the label font lacks at an address absolute on its own. A page that
+		// carries a record of actuality, which a site doesn't serve, reads the font it carries.
+		const address = pageAddress();
+		configureLabelFonts(address === undefined ? carriedLabelFont() : { fallbacks: new URL(LABEL_FONT_FALLBACKS, address).href });
 		const VR = ForceGraphVR as unknown as new (el: HTMLElement) => FGInstance;
 		this.graph = new VR(container);
 		this.#parts.engine.attach(this.graph);
@@ -1844,13 +1848,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		if (this.seqNodesCache) return this.seqNodesCache;
 		this.seqNodesCache = seqNodesOf(this.visibleModel().nodes, this.pipeline.extractTimes().times);
 		return this.seqNodesCache;
-	}
-
-	/** Where troika looks up a font for a character the label font lacks, absolute on the page's own address, or undefined
-	 *  on a page that carries a record of actuality, which a site doesn't serve. */
-	private labelFontFallbacks(): string | undefined {
-		const address = pageAddress();
-		return address === undefined ? undefined : new URL(LABEL_FONT_FALLBACKS, address).href;
 	}
 
 	/** Request that the host show the actor types, through the same reveal the schema scope uses. A no-op when they are all

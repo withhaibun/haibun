@@ -17,8 +17,12 @@ const WHOLE_DIR = join(PACKAGE_ROOT, BUNDLE_DIRS.whole);
  *  folder deep. */
 const PAGE_FILE = /^(?:[\w-]+\/)?[\w-]+\.js(?:\.map)?$/;
 
+/** The subset of Noto Sans that draws the graph's labels. */
+const LABEL_FONT_SUBSET = "latin";
 /** The font of the graph's labels, a dependency of the package: Noto Sans, the Latin subset, in the WOFF troika reads. */
-const LABEL_FONT_FILE = createRequire(import.meta.url).resolve("@fontsource/noto-sans/files/noto-sans-latin-400-normal.woff");
+const LABEL_FONT_FILE = createRequire(import.meta.url).resolve(`@fontsource/noto-sans/files/noto-sans-${LABEL_FONT_SUBSET}-400-normal.woff`);
+/** The package's `unicode-range` of each subset, beside its folder of font files. */
+const LABEL_FONT_RANGES_FILE = join(dirname(LABEL_FONT_FILE), "..", "unicode.json");
 
 /** The command that writes every bundle. */
 export const BUILD_COMMAND = "npm run build in modules/shu";
@@ -66,6 +70,11 @@ export function bundleFile(): TBundleFile {
 		labelFont: () => {
 			const font = readFileSync(LABEL_FONT_FILE);
 			return font.buffer.slice(font.byteOffset, font.byteOffset + font.byteLength) as ArrayBuffer;
+		},
+		labelFontRanges: () => {
+			const ranges: unknown = JSON.parse(text(LABEL_FONT_RANGES_FILE))[LABEL_FONT_SUBSET];
+			if (typeof ranges !== "string") throw new Error(`${LABEL_FONT_RANGES_FILE} doesn't state the range of the ${LABEL_FONT_SUBSET} subset: reinstall @fontsource/noto-sans`);
+			return ranges;
 		},
 	};
 }
