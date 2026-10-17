@@ -20,7 +20,6 @@ const SEQ_PATH_DOMAIN = "seq-path";
 
 // SeqPath conventions:
 // - Feature execution uses [hostId, feature, scenario, step, ...].
-// - Feature-scoped synthetic work uses [hostId, feature, 0, ordinal].
 // - A speculative or debug branch extends its parent step's path with a negative segment.
 // - An ad hoc transport call uses [hostId, SYNTHETIC_FEATURE_NUM, adHocSeq] (host-id.ts).
 

@@ -1,6 +1,6 @@
 import type { TExpandedFeature, TExpandedLine, TFeatures, TFeature } from "../domains/execution.js";
 import type { TWorld } from "../domains/world.js";
-import { TStepValue, FEATURE_START, SCENARIO_START, Origin } from "../../../schema/protocol.js";
+import { TStepValue, SCENARIO_START, Origin } from "../../../schema/protocol.js";
 import { AStepper, TStepAction, TResolvedFeature, TStepperStep, TFeatureStep } from "../../steps/domains/stepper.js";
 import { matchGwtaToAction, getMatch } from "../../steps/derivations/named-vars.js";
 import { getActionable, dePolite, constructorName, actionNotOK, asError, errorDetail } from "../../util/index.js";
@@ -142,9 +142,7 @@ export class Resolver {
 			try {
 				const stepAction = this.findSingleStepAction(actionable);
 
-				if (stepAction.actionName === FEATURE_START || stepAction.actionName === SCENARIO_START) {
-					seq = 0;
-				}
+				if (stepAction.actionName === SCENARIO_START) seq = 0;
 
 				if (stepAction.stepValuesMap) {
 					const statements = Object.values(stepAction.stepValuesMap).filter((v: TStepValue & { label?: string }) => v.domain === DOMAIN_STATEMENT && v.term);

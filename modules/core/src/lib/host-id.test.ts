@@ -50,7 +50,7 @@ describe("syntheticSeqPath", () => {
 	});
 
 	it("distinguishable from any valid feature seqPath (featureNum >= 1)", () => {
-		// Feature seqPaths are [hostId, featureNum >= 1, scenarioNum >= 1, ...].
+		// Feature seqPaths are [hostId, featureNum >= 1, scenarioNum >= 0, ...].
 		// Synthetic's featureNum is -1 (SYNTHETIC_FEATURE_NUM), so they can never collide.
 		const synthetic = syntheticSeqPath(0, 1);
 		expect(synthetic[1]).toBeLessThan(1);

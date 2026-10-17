@@ -176,13 +176,11 @@ export class FeatureExecutor {
 		world.runtime.currentFeaturePath = feature.path;
 		moveActuality(world, featureEvent(featureNum, { path: feature.path, name: featureNameOf(feature) }, { stage: "start" }, world.clock.now()));
 
-		// The scenario a step is in, numbered within the feature's steps, where its heading has started one. A feature heading
-		// in the feature's steps ends the running scenario and numbers the next from one again, so each scenario's events
-		// take an ordinal that counts every scenario of the feature.
-		let currentScenario = 0;
+		// The scenario a step is in, by its ordinal among the feature's scenarios, or 0 before the first scenario. A feature
+		// heading after a scenario starts a scenario too, from the variables the feature's steps before its first scenario
+		// left, so each step's path and its scenario's events state one number, and a number doesn't repeat.
 		let running: { ordinal: number; name: string } | undefined;
 		let ordinal = 0;
-		let scopedVars = new FeatureVariables(world, {});
 		let baseVars = new FeatureVariables(world, {});
 		/** Ends the running scenario: its event, then the cycle that closes what its steppers opened for it. */
 		const endScenario = async (scenarioOk: boolean): Promise<void> => {
@@ -193,29 +191,18 @@ export class FeatureExecutor {
 		};
 
 		for (const step of feature.featureSteps) {
-			if (step.action.actionName === FEATURE_START && currentScenario) {
-				await endScenario(true);
-				world.shared = new FeatureVariables(world, await baseVars.carried());
-				scopedVars = new FeatureVariables(world, await world.shared.carried());
-				currentScenario = 0;
-			}
-
-			if (step.action.actionName === SCENARIO_START) {
-				if (currentScenario) {
-					await endScenario(true);
-					scopedVars = new FeatureVariables(world, await world.shared.carried());
-				} else {
-					// The background ends where the first scenario starts: every scenario, and the next feature, starts from
-					// what it left. Taken here once rather than after each background step, since a copy of the variables
-					// after every step grows with the steps a long background has run.
-					scopedVars = new FeatureVariables(world, await world.shared.carried());
-					baseVars = new FeatureVariables(world, await world.shared.carried());
-				}
-				currentScenario = currentScenario + 1;
+			const { actionName } = step.action;
+			if (actionName === SCENARIO_START || (actionName === FEATURE_START && running)) {
+				if (running) await endScenario(true);
+				// The steps before the first scenario end where it starts: every scenario, and the next feature, starts from
+				// what they left. Taken here once rather than after each of them, since a copy of the variables after every
+				// step grows with the steps a long background has run.
+				if (ordinal === 0) baseVars = new FeatureVariables(world, await world.shared.carried());
+				else if (actionName === FEATURE_START) world.shared = new FeatureVariables(world, await baseVars.carried());
 				ordinal = ordinal + 1;
-				running = { ordinal, name: step.in.replace(/^Scenario:\s*/i, "") };
+				running = { ordinal, name: step.in.replace(/^\w+:\s*/, "") };
 				moveActuality(world, scenarioEvent(featureNum, running.ordinal, running.name, { stage: "start" }, world.clock.now()));
-				await doStepperCycle(this.steppers, "startScenario", { scopedVars });
+				await doStepperCycle(this.steppers, "startScenario", { scopedVars: new FeatureVariables(world, await world.shared.carried()) });
 			}
 
 			const augmentedStep = {
@@ -223,7 +210,7 @@ export class FeatureExecutor {
 				// The seqPath is [hostId, featureNum, scenarioNum, ...resolverStepSeq]. A multi-host deployment sets a hostId
 				// for each instance, so observations from different instances don't collide. A cross-host join can union them
 				// by seqPath.
-				seqPath: [world.tag.hostId, featureNum, currentScenario + 1, ...step.seqPath],
+				seqPath: [world.tag.hostId, featureNum, ordinal, ...step.seqPath],
 			};
 
 			const result = await dispatchStep({ registry: this.registry, world, steppers: this.steppers }, augmentedStep);
@@ -234,7 +221,7 @@ export class FeatureExecutor {
 			if (stepDelay) await sleep(stepDelay);
 		}
 
-		if (currentScenario) await endScenario(ok);
+		if (running) await endScenario(ok);
 
 		return { path: feature.path, ok, steps: world.runtime.steps, declaredStepTextHash: declaredStepTextHash(feature.featureSteps), stepResults: world.runtime.stepResults };
 	}

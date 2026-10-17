@@ -120,7 +120,7 @@ describe("seqPath ordering", () => {
 	// seqPath format: [hostId, featureNum, scenarioNum, ...stepPath]
 	// hostId: 0 by default; distinct per haibun instance for multi-host uniqueness
 	// featureNum: 1-based feature number
-	// scenarioNum: 1-based scenario number (1 when a scenario isn't declared)
+	// scenarioNum: the scenario's ordinal among the feature's scenarios, 0 before the first scenario
 	// stepPath: hierarchical step numbering with negative numbers for conditions
 
 	it("linear steps increment the last element of the seqPath", async () => {
@@ -129,9 +129,9 @@ describe("seqPath ordering", () => {
 		expect(result.ok).toBe(true);
 		const seqs = itemAt(result.featureResults, 0).stepResults.map((r) => r.seqPath);
 		expect(seqs).toEqual([
-			[0, 1, 1, 1],
-			[0, 1, 1, 2],
-			[0, 1, 1, 3],
+			[0, 1, 0, 1],
+			[0, 1, 0, 2],
+			[0, 1, 0, 3],
 		]);
 	});
 
@@ -141,10 +141,10 @@ describe("seqPath ordering", () => {
 		expect(result.ok).toBe(true);
 		const seqs = itemAt(result.featureResults, 0).stepResults.map((r) => r.seqPath);
 		expect(seqs).toEqual([
-			[0, 1, 1, 1],
-			[0, 1, 1, 2, -1],
-			[0, 1, 1, 2],
-			[0, 1, 1, 3],
+			[0, 1, 0, 1],
+			[0, 1, 0, 2, -1],
+			[0, 1, 0, 2],
+			[0, 1, 0, 3],
 		]);
 	});
 
@@ -154,11 +154,11 @@ describe("seqPath ordering", () => {
 		expect(result.ok).toBe(true);
 		const seqs = itemAt(result.featureResults, 0).stepResults.map((r) => r.seqPath);
 		expect(seqs).toEqual([
-			[0, 1, 1, 1],
-			[0, 1, 1, 2, -1, -1],
-			[0, 1, 1, 2, -1],
-			[0, 1, 1, 2],
-			[0, 1, 1, 3],
+			[0, 1, 0, 1],
+			[0, 1, 0, 2, -1, -1],
+			[0, 1, 0, 2, -1],
+			[0, 1, 0, 2],
+			[0, 1, 0, 3],
 		]);
 	});
 });
@@ -188,13 +188,13 @@ describe("afterEvery", () => {
 		expect(result.ok).toBe(true);
 		const seqs = itemAt(result.featureResults, 0).stepResults.map((r) => r.seqPath);
 		// An afterEvery substep has a negative index, since it isn't a step of the feature.
-		// Step [0,1,1,4] "passes" doesn't run the after-every step, since the after-every step is the same action.
+		// Step [0,1,0,4] "passes" doesn't run the after-every step, since the after-every step is the same action.
 		expect(seqs).toEqual([
-			[0, 1, 1, 1],
-			[0, 1, 1, 2],
-			[0, 1, 1, 3],
-			[0, 1, 1, 3, -1],
-			[0, 1, 1, 4],
+			[0, 1, 0, 1],
+			[0, 1, 0, 2],
+			[0, 1, 0, 3],
+			[0, 1, 0, 3, -1],
+			[0, 1, 0, 4],
 		]);
 	});
 
@@ -364,12 +364,12 @@ describe("backgrounds", () => {
 		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 		const seqs = itemAt(result.featureResults, 0).stepResults.map((r) => r.seqPath);
-		// Condition uses dir=-1, body uses dir=1: condition [0,1,1,1,-1], background steps [0,1,1,1,1] and [0,1,1,1,2], parent [0,1,1,1]
+		// Condition uses dir=-1, body uses dir=1: condition [0,1,0,1,-1], background steps [0,1,0,1,1] and [0,1,0,1,2], parent [0,1,0,1]
 		expect(seqs).toEqual([
-			[0, 1, 1, 1, -1],
-			[0, 1, 1, 1, 1],
-			[0, 1, 1, 1, 2],
-			[0, 1, 1, 1],
+			[0, 1, 0, 1, -1],
+			[0, 1, 0, 1, 1],
+			[0, 1, 0, 1, 2],
+			[0, 1, 0, 1],
 		]);
 	});
 

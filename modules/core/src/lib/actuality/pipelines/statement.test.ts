@@ -91,7 +91,5 @@ describe("statement type", () => {
 		const beta = steps.find((s) => s.in === "beta");
 		if (!beta) throw new Error("Missing beta step");
 		expect(beta.seqPath[3]).toBe(1);
-		// The scenario numbers differ.
-		expect(doAlpha.seqPath[2]).not.toBe(beta.seqPath[2]);
 	});
 });

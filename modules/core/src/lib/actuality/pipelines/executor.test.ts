@@ -6,6 +6,7 @@ import { STAY_ALWAYS, STAY_FAILURE, type TFeatureResult, type TFeatureSteps, typ
 import { calculateShouldClose, executionFailure, staysAfterExecution } from "../derivations/execution-end.js";
 import { advanceSyntheticSeqPath, syntheticBranchSeqPath, syntheticSeqPathDirection } from "../domains/seq-path.js";
 import { passWithDefaults, failWithDefaults } from "../../test/lib.js";
+import { scenarioEventId } from "../derivations/lifecycle-events.js";
 import { AStepper } from "../../steps/domains/stepper.js";
 import { actionNotOK, actionOK } from "../../util/index.js";
 import { DOMAIN_TEXT } from "../../domains.js";
@@ -202,18 +203,20 @@ describe("the hash of a feature's declared step text", () => {
 
 describe("the actuality the Executor moves", () => {
 	class SceneStepper extends AStepper {
-		description = "Starts a scenario, notes a text, and refuses.";
+		description = "Starts a feature or a scenario, notes a text, and refuses.";
 		steps = {
+			feature: { gwta: `Feature: {what: ${DOMAIN_TEXT}}`, action: () => Promise.resolve(actionOK()) },
 			scenario: { gwta: `Scenario: {what: ${DOMAIN_TEXT}}`, action: () => Promise.resolve(actionOK()) },
 			note: { gwta: `note {what: ${DOMAIN_TEXT}}`, action: () => Promise.resolve(actionOK()) },
 			refuse: { gwta: "refuse here", action: () => Promise.resolve(actionNotOK("refused")) },
 		};
 	}
 
-	it("starts and ends the execution, each feature and each scenario, so its result holds every level ended", async () => {
+	it("starts and ends each level, and numbers each scenario once in its events and its steps' paths, a second feature heading starting the next", async () => {
+		const a = 'note "before"\nFeature: "first"\nnote "background"\nScenario: "a"\nnote "in a"\nScenario: "b"\nnote "in b"\nFeature: "second"\nnote "in second"';
 		const result = await failWithDefaults(
 			[
-				{ path: "/features/a.feature", content: 'note "one"\nScenario: "first"\nnote "two"\nScenario: "second"\nnote "three"' },
+				{ path: "/features/a.feature", content: a },
 				{ path: "/features/b.feature", content: 'note "one"\nrefuse here' },
 			],
 			[SceneStepper],
@@ -222,13 +225,21 @@ describe("the actuality the Executor moves", () => {
 		expect(actuality.status).toBe("failed");
 		expect(actuality.open.size, "every step that started has ended").toBe(0);
 		expect(actuality.features.map((f) => [f.id, f.status, f.steps, f.failed])).toEqual([
-			// A scenario heading is a level of its own, so its line counts as a scenario and not as a step.
-			["feat-1", "completed", 3, 0],
+			// A heading is a level of its own, so its line counts as a scenario and not as a step.
+			["feat-1", "completed", 5, 0],
 			["feat-2", "failed", 2, 1],
 		]);
-		expect(actuality.features[0]?.scenarios.map((s) => [s.name, s.status])).toEqual([
-			['"first"', "completed"],
-			['"second"', "completed"],
+		expect(itemAt(result.featureResults, 0).stepResults.map((r) => [r.in, r.seqPath.slice(2).join(".")])).toEqual([
+			['note "before"', "0.1"],
+			['note "background"', "0.3"],
+			['note "in a"', "1.1"],
+			['note "in b"', "2.1"],
+			['note "in second"', "3.3"],
+		]);
+		expect(actuality.features[0]?.scenarios.map((s) => [s.id, s.name, s.status])).toEqual([
+			[scenarioEventId(1, 1), '"a"', "completed"],
+			[scenarioEventId(1, 2), '"b"', "completed"],
+			[scenarioEventId(1, 3), '"second"', "completed"],
 		]);
 		expect(actuality.features[1]?.firstFailure).toMatchObject({ step: "refuse here", message: "refused" });
 	});
