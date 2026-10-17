@@ -7,7 +7,7 @@ import type { TFeatureStep } from "../../steps/domains/stepper.js";
 import { LinkRelations } from "../../resources.js";
 import { itemAt } from "../../util/item-at.js";
 import type { TWorld } from "../domains/world.js";
-import { SEQ_PATH_FIELD, calledOf, executionOf, formatRecordName, type TRecordName } from "../domains/seq-path.js";
+import { SEQ_PATH_FIELD, STEP_LEVEL, calledOf, executionOf, formatRecordName, type TRecordName } from "../domains/seq-path.js";
 import type { TActuality, TActualityMove, TStepFailure } from "../machines/actuality.js";
 
 /** The authorization a step's own record states. A step actuality runs as itself holds every action, so its record
@@ -43,7 +43,7 @@ export function startRecord(execution: string, featureStep: TFeatureStep, author
 		// A call made into a running instance is a step actuality records. Its record has the same level as its events. That
 		// level is below the level of actuality's own steps, so a reader of actuality isn't shown the calls of other readers.
 		[SEQ_PATH_FIELD.level]: stepLevel(featureStep.isSubStep),
-		[SEQ_PATH_FIELD.actualityLevel]: "step",
+		[SEQ_PATH_FIELD.actualityLevel]: STEP_LEVEL,
 		...(ran.ranOn === undefined ? {} : { [SEQ_PATH_FIELD.ranOn]: ran.ranOn }),
 		...(authorization.invoked === undefined ? {} : { [SEQ_PATH_FIELD.capabilityAction]: authorization.invoked }),
 		...(authorization.held === undefined ? {} : { [SEQ_PATH_FIELD.allowedAction]: authorization.held }),

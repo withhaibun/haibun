@@ -6,7 +6,8 @@
  */
 import { describe, expect, it } from "vitest";
 import { CHECK_NO, ICON_STEP_COMPLETED, MAYBE_CHECK_NO, RETURNED_TO_CALLER } from "@haibun/core/schema/protocol.js";
-import { MARK_COLOUR, bucketMarkerStyle, eventMarkerStyle } from "./event-marker.js";
+import { bucketMarkerStyle, eventMarkerStyle } from "./event-marker.js";
+import { MARK_COLOUR } from "./status-mark.js";
 
 const step = (over: Record<string, unknown>) => ({ kind: "lifecycle", type: "step", id: "1700000000000-1.0.1.2", ...over });
 

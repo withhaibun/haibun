@@ -6,8 +6,8 @@ import { TFeatureStep } from "../../steps/domains/stepper.js";
 import { TStepValue, Origin } from "../../../schema/protocol.js";
 import { getDefaultWorld } from "../../test/lib.js";
 import { DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STRING, registerDomains } from "../../domains.js";
-import { Access, DOMAIN_PERSISTED_TYPE } from "../../resources.js";
-import { executionOf, formatRecordName } from "../domains/seq-path.js";
+import { Access, DOMAIN_PERSISTED_TYPE, SEQ_PATH_LABEL } from "../../resources.js";
+import { STEP_LEVEL, executionOf, formatRecordName } from "../domains/seq-path.js";
 
 describe("FeatureVariables", () => {
 	let world: TWorld;
@@ -38,13 +38,16 @@ describe("FeatureVariables", () => {
 	});
 
 	describe("clear", () => {
-		it("should clear all variables", async () => {
+		it("removes the variables and the steps' records, and keeps the levels' records, so the store holds every feature's", async () => {
 			await variables.set({ term: "foo", value: "bar", domain: DOMAIN_STRING, origin: Origin.var }, { in: "test", seq: [1], when: "test.action" });
-			expect(await variables.get("foo")).toBe("bar");
-
-			await variables.getStore().clear();
+			const store = variables.getStore();
+			await store.upsertIndividual(SEQ_PATH_LABEL, { id: "1-0.1.0", stepText: "a feature", actualityLevel: "feature", accessLevel: Access.public });
+			await store.upsertIndividual(SEQ_PATH_LABEL, { id: "1-0.1.1.1", stepText: "a step", actualityLevel: STEP_LEVEL, accessLevel: Access.public });
+			await variables.clear();
 			expect(await variables.all()).toEqual({});
 			expect(await variables.get("foo")).toBeUndefined();
+			expect(await store.get("1-0.1.0", "stepText", SEQ_PATH_LABEL)).toBe("a feature");
+			expect(await store.get("1-0.1.1.1", "stepText", SEQ_PATH_LABEL)).toBeUndefined();
 		});
 	});
 

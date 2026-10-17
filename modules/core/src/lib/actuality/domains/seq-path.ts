@@ -13,7 +13,7 @@
  */
 import { itemAt } from "../../util/item-at.js";
 import { z } from "zod";
-import { ACTUALITY_LEVELS, EXECUTION_MODES, HAIBUN_LOG_LEVELS, RECORDED_STATUS } from "../../../schema/protocol.js";
+import { ACTUALITY_LEVELS, EXECUTION_MODES, HAIBUN_LOG_LEVELS, RECORDED_STATUS, type TActualityLevel } from "../../../schema/protocol.js";
 import { Access, COMMENT_LABEL, LinkRelations, PersistedVertexSchema, PRINCIPAL_LABEL, SEQ_PATH_LABEL, type TDomainDefinition } from "../../resources.js";
 
 const SEQ_PATH_DOMAIN = "seq-path";
@@ -166,6 +166,10 @@ export function compareSeqPath(a: number[], b: number[]): number {
 	if (a.length !== b.length) return a.length < b.length ? -1 : 1;
 	return 0;
 }
+
+/** The actuality level of a dispatched step's record. Every other record of the type is a level's: the execution's, a
+ *  feature's or a scenario's. */
+export const STEP_LEVEL: TActualityLevel = "step";
 
 /** SeqPath individual field names. The schema, the topology and the emitters read them from here. */
 export const SEQ_PATH_FIELD = {

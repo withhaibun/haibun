@@ -4,7 +4,8 @@
 import { describe, it, expect } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { opens, railMarkers, type TLogRow } from "./shu-monitor-column.js";
-import { markFor, MARK_COLOUR } from "../derivations/event-marker.js";
+import { markFor } from "../derivations/event-marker.js";
+import { MARK_COLOUR } from "../derivations/status-mark.js";
 
 /** A log row, with only what the rail reads off it. */
 const row = (over: Partial<TLogRow> = {}): TLogRow => ({ time: "0.0s", timestamp: 0, level: "info", step: "a-step", message: "", icon: "", ...over });

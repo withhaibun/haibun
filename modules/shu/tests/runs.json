@@ -1,18 +1,18 @@
 {
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
 		"209c0d17103d85fd": {
-			"state": "d65282883f2f8ee9669976acd509b4b798be4f239f321c154457077b1f7f6abe",
+			"state": "30a0a44e5ff1463639bdb6385d7e87b19d6a8f30375107ca27910fb15ee67f15",
 			"filter": "",
 			"execution": {
 				"text": "modules/shu/tests",
 				"status": "passed",
-				"tookMs": 15000
+				"tookMs": 15100
 			},
 			"features": {
 				"/features/address.feature.ts": {
 					"text": "An address names a type",
 					"status": "passed",
-					"tookMs": 900,
+					"tookMs": 1000,
 					"steps": 199,
 					"declaredStepTextHash": "766e26d0505059a384b8e09cf8ddda62c6c0a4e5d9a4c82c275414b09017ae29"
 				},
@@ -26,7 +26,7 @@
 				"/features/monitor-serves.feature.ts": {
 					"text": "The monitor serves shu on a port of its own",
 					"status": "passed",
-					"tookMs": 1400,
+					"tookMs": 1300,
 					"steps": 195,
 					"declaredStepTextHash": "aae9fc8419174422404ea48bc3e7871cbf8d5c41a52b2f09f27c172f084cb852"
 				},
@@ -47,7 +47,7 @@
 				"/features/voice-ui.feature.ts": {
 					"text": "UI extension propagation: domain ui → concern catalog → SPA actions bar",
 					"status": "passed",
-					"tookMs": 1200,
+					"tookMs": 1300,
 					"steps": 207,
 					"declaredStepTextHash": "a3961ca67f9653dbfa712294c72fce6d5ddf2ea92bfd2f10c6595751a146326c"
 				}

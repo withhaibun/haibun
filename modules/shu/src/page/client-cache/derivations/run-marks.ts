@@ -7,7 +7,8 @@ import { HAIBUN_LOG_LEVELS, RECORDED_STATUS } from "@haibun/core/schema/protocol
 import { LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
-import { bucketMarkerStyle, type TEventMarkerStyle } from "../../derivations/event-marker.js";
+import { bucketMarkerStyle } from "../../derivations/event-marker.js";
+import type { TEventMarkerStyle } from "../../derivations/status-mark.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 /** A mark of actuality: what it looks like, and the moment it marks. A rail places it by that moment, so the same marks

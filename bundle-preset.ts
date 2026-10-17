@@ -113,6 +113,22 @@ const d3EngineAlone: Plugin = {
 	},
 };
 
+/** Resolves `polished`, which 3d-force-graph-vr reads a background colour's alpha with and makes it opaque with, to those
+ *  two functions over tinycolor2, the colour library three-forcegraph bundles, so a bundle doesn't hold polished's 11 KiB. */
+const oneColourLibrary: Plugin = {
+	name: "one-colour-library",
+	setup(builder) {
+		builder.onResolve({ filter: /^polished$/ }, (args) => ({ path: args.path, namespace: oneColourLibrary.name, pluginData: args.resolveDir }));
+		builder.onLoad({ filter: /.*/, namespace: oneColourLibrary.name }, (args) => ({
+			contents: `import tinycolor from "tinycolor2";
+export const parseToRgb = (color) => ({ alpha: tinycolor(color).getAlpha() });
+export const opacify = (amount, color) => { const c = tinycolor(color); return c.setAlpha(Math.min(1, c.getAlpha() + amount)).toRgbString(); };`,
+			loader: "js",
+			resolveDir: args.pluginData,
+		}));
+	},
+};
+
 /** The options that build a bundle of the repository at `root` for a browser. */
 export const bundleOptions = (root: string, bundle: TBundle): BuildOptions & { metafile: true; plugins: Plugin[] } => ({
 	absWorkingDir: root,
@@ -127,7 +143,7 @@ export const bundleOptions = (root: string, bundle: TBundle): BuildOptions & { m
 	target: "es2022",
 	minify: true,
 	conditions: [HAIBUN_SOURCE],
-	plugins: [onePackageCopy(root), zodEnglishLocale, d3EngineAlone],
+	plugins: [onePackageCopy(root), zodEnglishLocale, d3EngineAlone, oneColourLibrary],
 	metafile: true,
 	logLevel: "warning",
 });

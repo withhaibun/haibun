@@ -10,7 +10,7 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { recordJson } from "./json-disclosure.js";
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
-import { eventMarkerStyle } from "../derivations/event-marker.js";
+import { STATUS_MARKS } from "../derivations/status-mark.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT, SHU_TAG, SHU_ATTR } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
@@ -154,12 +154,12 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 	}
 
 	/** A step's words, its action and how it ended, where and how long it ran, and the capability it required. The glyph
-	 *  is the one the log and the rail use, so a speculative try or a handed-out call isn't shown as a fault. */
+	 *  of how it ended is the one the log and the rail use. */
 	private renderLine(line: TStepLine): TemplateResult {
 		const { dispatch, action } = line;
 		return html`
 			<div class="field"><span class="label">Step:</span> <span class="value">${line.text}</span></div>
-			<div class="field"><span class="label">Action:</span> <span class="value">${eventMarkerStyle({ status: line.status, kind: "lifecycle", type: "step" }).icon} ${line.called === undefined ? "" : calledRef(line.called)}</span></div>
+			<div class="field"><span class="label">Action:</span> <span class="value">${STATUS_MARKS.get(line.status)?.icon} ${line.called === undefined ? "" : calledRef(line.called)}</span></div>
 			${line.error === undefined ? "" : html`<div class="field"><span class="label">Error:</span> <span class="value" style="color:var(--shu-error)">${line.error}</span></div>`}
 			<div class="section"><span class="label">Ran:</span> <span class="value">${dispatch === undefined ? "" : dispatch.via}${dispatch?.on === undefined ? "" : html` ${originLink(dispatch.on)}`}${line.tookMs === undefined ? "" : ` ${line.tookMs}ms`}</span></div>
 			${action === undefined ? "" : html`<div class="field"><span class="label">Capability:</span> <span class="value">${actionRef(action.required)}${action.allowed === undefined ? "" : html` allowed by ${actionRef(action.allowed)}`}</span></div>`}`;

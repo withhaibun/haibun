@@ -8,7 +8,7 @@
  * rendered rows changes with the content on screen, and a thumb sized from it resizes and moves every mark during a
  * scroll. `shu-scrollbar.ts` renders the rail from these functions.
  */
-import type { TEventMarkerStyle } from "./event-marker.js";
+import type { TEventMarkerStyle } from "./status-mark.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { clamp } from "./layout.js";
 

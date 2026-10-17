@@ -6,7 +6,9 @@
  * the shared per-type colour (one source of truth across 3D + SVG); the paints translate the mark to their medium.
  */
 import { colorForType } from "./type-colors.js";
-import { CLASS_LABEL, PROPERTY_LABEL } from "@haibun/core/lib/resources.js";
+import { CLASS_LABEL, LinkRelations, PROPERTY_LABEL } from "@haibun/core/lib/resources.js";
+import { SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
+import { eventMarkerStyle } from "../../derivations/event-marker.js";
 import { assertNodeMark, type NodeMark } from "../domains/graph-scene.js";
 
 /** The slice of a node a presenter reads, identity + display name + @type. */
@@ -20,11 +22,21 @@ interface NodePresenter {
 	present(node: SceneNode, ctx: PresentContext): NodeMark;
 }
 
+/** A node's colour: the mark colour of the outcome its record states as its action status, or its type's colour where the
+ *  record doesn't state one. The record's id and mode read as its step's event does, so a node marks a speculative try or
+ *  a handed-out call as its timeline row does, and not as a fault. */
+const colourOf = (n: SceneNode): string => {
+	const status = n.properties?.[LinkRelations.ACTION_STATUS.rel];
+	if (typeof status !== "string") return colorForType(n.type);
+	const mode = n.properties?.[SEQ_PATH_FIELD.mode];
+	return eventMarkerStyle({ kind: "lifecycle", type: "step", status, id: n.id, intent: { mode } }).color;
+};
+
 /** The fallback presenter for any unregistered @type: capability-driven. A node placed as a calendar task renders as a
- *  duration box on its time span; otherwise a type-coloured label chip in the free (force) layout. */
+ *  duration box on its time span; otherwise a label chip in the free (force) layout, coloured by its outcome or type. */
 export const CAPABILITY_PRESENTER: NodePresenter = {
 	present(n, ctx) {
-		const color = colorForType(n.type);
+		const color = colourOf(n);
 		if (ctx.time && !n.isCluster) {
 			return assertNodeMark({
 				id: n.id,

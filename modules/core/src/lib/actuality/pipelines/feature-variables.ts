@@ -26,7 +26,7 @@ import { OBSCURED_VALUE, isSecretName } from "../../steps/domains/secrets.js";
 import type { TSecrets } from "../../steps/ports.js";
 import { accessBound, readingAsStated, writeBound } from "../../capability-context.js";
 import { EDGE, SEQ_PATH_LABEL, declaredAccessLevel } from "../../resources.js";
-import { executionOf, formatRecordName } from "../domains/seq-path.js";
+import { SEQ_PATH_FIELD, STEP_LEVEL, executionOf, formatRecordName } from "../domains/seq-path.js";
 import { IQuadStore } from "../../steps/ports.js";
 import { SHARED_GRAPH } from "../../steps/domains/quad-types.js";
 import { emitQuadObservation } from "../../steps/pipelines/quad-observation.js";
@@ -120,9 +120,14 @@ export class FeatureVariables {
 		return Object.fromEntries(variables.map((variable) => [variable.term, { ...variable, value: this.valueOf(variable), generatedBy: stepsOf(generatedBy, variable.term) }]));
 	}
 
-	/** Removes every quad of the store and every secret's value. */
+	/** Removes every record but the SeqPath records of actuality's levels, and every secret's value. The store then holds the
+	 *  record of the execution and of every feature and scenario it ran, and an observation such as a feature's requests
+	 *  reads only that feature's records. */
 	async clear(): Promise<void> {
-		await this.store.clear();
+		const graphs = new Set((await this.store.all()).map((quad) => quad.namedGraph));
+		for (const graph of graphs) if (graph !== SEQ_PATH_LABEL) await this.store.clear(graph);
+		const steps = await this.store.query({ namedGraph: SEQ_PATH_LABEL, predicate: SEQ_PATH_FIELD.actualityLevel, object: STEP_LEVEL });
+		for (const { subject } of steps) await this.store.deleteIndividual(SEQ_PATH_LABEL, subject);
 		this.secretValues.clear();
 	}
 

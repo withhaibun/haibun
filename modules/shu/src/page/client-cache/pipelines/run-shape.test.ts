@@ -7,7 +7,7 @@ import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
 import { DensityQuerySchema, type TDensityQuery } from "@haibun/core/lib/quad-types.js";
-import { MARK_COLOUR } from "../../derivations/event-marker.js";
+import { MARK_COLOUR } from "../../derivations/status-mark.js";
 import { ofExecution, runGraphOf } from "../derivations/run-graph.js";
 import type { TRunGraph } from "../ports.js";
 import { runShape as shapeOver } from "./run-shape.js";

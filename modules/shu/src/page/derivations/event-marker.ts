@@ -8,10 +8,6 @@
 import {
 	ICON_FEATURE,
 	ICON_SCENARIO,
-	ICON_STEP_RUNNING,
-	ICON_STEP_FAILED,
-	ICON_STEP_COMPLETED,
-	ICON_STEP_STOPPED,
 	ICON_LOG_INFO,
 	ICON_LOG_WARN,
 	ICON_LOG_ERROR,
@@ -24,24 +20,9 @@ import {
 	isSpeculativeEvent,
 	RECORDED_STATUS,
 } from "@haibun/core/schema/protocol.js";
-
-export type TEventMarkerStyle = { color: string; icon: string };
+import { MARK_COLOUR, STATUS_MARKS, type TEventMarkerStyle } from "./status-mark.js";
 
 type TPartialEvent = { kind?: string; type?: string; status?: string; level?: string; stage?: string; id?: string; intent?: { mode?: string } };
-
-/** The mark palette. Each colour is named by what a mark shows rather than by its hue. Every surface that marks an event
- *  reads its colours here. `undecided` marks an outcome that isn't a fault or a success: a speculative try, a failed call
- *  actuality handed out, a stopped step or an event that doesn't match a case. */
-export const MARK_COLOUR = {
-	feature: "#c084fc",
-	scenario: "#60a5fa",
-	pending: "#eab308",
-	fault: "#ef4444",
-	ok: "#22c55e",
-	artifact: "#10b981",
-	info: "#3b82f6",
-	undecided: "#94a3b8",
-} as const;
 
 export function eventMarkerStyle(event: unknown): TEventMarkerStyle {
 	const e = event as TPartialEvent;
@@ -51,14 +32,11 @@ export function eventMarkerStyle(event: unknown): TEventMarkerStyle {
 		if (e.type === "step") {
 			// A speculative statement's failure is expected. A handed-out call returns its failure to its caller.
 			// EventFormatter.getStatusIcon applies the same rule, so a mark doesn't show a failure where the log doesn't.
-			if (e.status === RECORDED_STATUS.running) return { color: MARK_COLOUR.pending, icon: ICON_STEP_RUNNING };
-			if (isSpeculativeEvent(e)) return { color: MARK_COLOUR.undecided, icon: e.status === RECORDED_STATUS.failed ? MAYBE_CHECK_NO : MAYBE_CHECK_YES };
-			if (e.status === RECORDED_STATUS.failed)
-				return isHandedOutEvent(e) ? { color: MARK_COLOUR.undecided, icon: RETURNED_TO_CALLER } : { color: MARK_COLOUR.fault, icon: ICON_STEP_FAILED };
-			if (e.status === RECORDED_STATUS.completed) return { color: MARK_COLOUR.ok, icon: ICON_STEP_COMPLETED };
-			// A step its caller stopped isn't a fault or a pass.
-			if (e.status === RECORDED_STATUS.stopped) return { color: MARK_COLOUR.undecided, icon: ICON_STEP_STOPPED };
-			return { color: MARK_COLOUR.undecided, icon: ICON_DEFAULT };
+			if (e.status !== RECORDED_STATUS.running && isSpeculativeEvent(e))
+				return { color: MARK_COLOUR.undecided, icon: e.status === RECORDED_STATUS.failed ? MAYBE_CHECK_NO : MAYBE_CHECK_YES };
+			if (e.status === RECORDED_STATUS.failed && isHandedOutEvent(e)) return { color: MARK_COLOUR.undecided, icon: RETURNED_TO_CALLER };
+			const marked = STATUS_MARKS.get(e.status);
+			return marked === undefined ? { color: MARK_COLOUR.undecided, icon: ICON_DEFAULT } : marked;
 		}
 	}
 	if (e.kind === "log") {
@@ -89,17 +67,13 @@ export function markFor(event: unknown): TEventMarkerStyle | undefined {
  */
 function shouldMarkEvent(event: unknown): boolean {
 	const e = event as TPartialEvent & { in?: string };
-	if (e.kind === "log" && (e.level === "error" || e.level === "warn")) return true;
-	if (e.kind === "artifact") return true;
+	if (e.kind === "artifact" || (e.kind === "log" && (e.level === "error" || e.level === "warn"))) return true;
+	if (e.kind !== "lifecycle") return false;
+	if (e.status === RECORDED_STATUS.failed) return true;
 	// A feature's or a scenario's start marks it once; its end carries its id again, so it doesn't mark it a second time.
-	if (e.kind === "lifecycle" && (e.type === "feature" || e.type === "scenario") && e.stage !== "end") return true;
-	if (e.kind === "lifecycle" && e.status === RECORDED_STATUS.failed) return true;
-	if (e.kind === "lifecycle" && e.type === "step") {
-		// Each step is one row. A technical step's text starts with a lowercase letter. A reader looks for the prose steps on a rail.
-		const isTechnical = /^[a-z]/.test(e.in ?? "");
-		return !isTechnical;
-	}
-	return false;
+	if (e.type === "feature" || e.type === "scenario") return e.stage !== "end";
+	// Each step is one row. A technical step's text starts with a lowercase letter. A reader looks for the prose steps on a rail.
+	return e.type === "step" && !/^[a-z]/.test(e.in ?? "");
 }
 
 /**

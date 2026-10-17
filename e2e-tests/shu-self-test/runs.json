@@ -1,25 +1,25 @@
 {
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
 		"8ab38b63a9cc83ca": {
-			"state": "1622283470b6d55391849608029c32ad0e6fc7ab2a1c50cd24d9f0f265b3154e",
+			"state": "d4707f8ae55d79ce501c116a6ea3fd43e5f8dca1595fb12f62de87b4b9fcb828",
 			"filter": "",
 			"execution": {
 				"text": "e2e-tests/shu-self-test",
 				"status": "passed",
-				"tookMs": 130700
+				"tookMs": 119900
 			},
 			"features": {
 				"/features/shu-self-test.feature.ts": {
 					"text": "Shu SPA Self-Test",
 					"status": "passed",
-					"tookMs": 129100,
-					"steps": 684,
+					"tookMs": 118300,
+					"steps": 682,
 					"declaredStepTextHash": "a9ad010141694f90a38590f7ff05588c13584c02ad195c229faaa577864f8757"
 				},
 				"/features/z-post.feature.ts": {
 					"text": "Verify Shu Standalone Output Doesn't Hold Secrets",
 					"status": "passed",
-					"tookMs": 0,
+					"tookMs": 100,
 					"steps": 8,
 					"declaredStepTextHash": "07d43189276bbf61896c4199cd023404fffe9fe965896283167fc0e7af4e53e6"
 				}

@@ -1,18 +1,18 @@
 {
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
 		"e4b6ae70b0c0e10e": {
-			"state": "2b43db67707c3c22fd8883780ad6f370d04ec76938dae840de528987de6b8207",
+			"state": "2868462890248eeef1328b46e14c86b1ace6783cf426c9dbabb10cbde81c2e4f",
 			"filter": "",
 			"execution": {
 				"text": "e2e-tests/tests",
 				"status": "passed",
-				"tookMs": 16600
+				"tookMs": 15400
 			},
 			"features": {
 				"/features/a11y-fail.feature": {
 					"text": "/features/a11y-fail",
 					"status": "passed",
-					"tookMs": 800,
+					"tookMs": 700,
 					"steps": 12,
 					"declaredStepTextHash": "5a76c771445a220203a7eab76f27f428e25697d9a984395e5bc5ede0aa55ffef"
 				},
@@ -40,14 +40,14 @@
 				"/features/agents-examples.feature": {
 					"text": "/features/agents-examples",
 					"status": "passed",
-					"tookMs": 400,
+					"tookMs": 300,
 					"steps": 354,
 					"declaredStepTextHash": "21975836a8d8dc1c98fd6751ebb98ed0eab60297e903e4b22845040245c6a8eb"
 				},
 				"/features/auth-basic.feature": {
 					"text": "/features/auth-basic",
 					"status": "passed",
-					"tookMs": 800,
+					"tookMs": 700,
 					"steps": 42,
 					"declaredStepTextHash": "6a8788f30679ff0009508a4313b0895d2862e38b09df70793e7ea86ca1b6bb16"
 				},
@@ -68,14 +68,14 @@
 				"/features/counter.feature": {
 					"text": "/features/counter",
 					"status": "passed",
-					"tookMs": 1300,
+					"tookMs": 800,
 					"steps": 20,
 					"declaredStepTextHash": "c375ca3a2da5090c9704566e9175768ab6250de89aa9a0e5d4f8c79f27c27174"
 				},
 				"/features/counter.feature.ts": {
 					"text": "Counts feature",
 					"status": "passed",
-					"tookMs": 1800,
+					"tookMs": 1300,
 					"steps": 20,
 					"declaredStepTextHash": "b8135dd4e89931d0dc6b7665fa064808d6723daea973b7cf54bc992f541d823a"
 				},
@@ -131,21 +131,21 @@
 				"/features/once.feature.ts": {
 					"text": "A group of features runs once per state of what it depends on",
 					"status": "passed",
-					"tookMs": 1000,
+					"tookMs": 900,
 					"steps": 20,
 					"declaredStepTextHash": "e9fbbbaca778b5d638d6359d648c1b65c4c48a6e50274ac870dce6fe36f01355"
 				},
 				"/features/page-visits.feature.ts": {
 					"text": "Visit pages",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 600,
 					"steps": 64,
 					"declaredStepTextHash": "b2e407c6ed2a4ab0bdd92877e35ee3a2c2ba1ae61e098a1c7da072358f2598ba"
 				},
 				"/features/popup.feature": {
 					"text": "/features/popup",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 700,
 					"steps": 13,
 					"declaredStepTextHash": "94d2694ac524d72db66b5a093c77648ec1c808852fc3f4a11d761b77a0e8e0e6"
 				},
@@ -159,7 +159,7 @@
 				"/features/recurse.feature": {
 					"text": "/features/recurse",
 					"status": "passed",
-					"tookMs": 100,
+					"tookMs": 0,
 					"steps": 48,
 					"declaredStepTextHash": "973f020efebbbef86f06cda006feef3d98d079e5ecdc0fa7be02b881b43fbe33"
 				},

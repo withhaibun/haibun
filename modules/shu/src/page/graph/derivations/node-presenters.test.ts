@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { CLASS_LABEL, PROPERTY_LABEL } from "@haibun/core/lib/resources.js";
+import { CLASS_LABEL, LinkRelations, PROPERTY_LABEL, SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
+import { EXECUTION_MODE, RECORDED_STATUS } from "@haibun/core/schema/protocol.js";
+import { SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
+import { MARK_COLOUR } from "../../derivations/status-mark.js";
+import { colorForType } from "./type-colors.js";
 import { presenterForType, CAPABILITY_PRESENTER } from "./node-presenters.js";
 
 describe("node presenters (per-@type, capability-driven default)", () => {
@@ -23,6 +27,20 @@ describe("node presenters (per-@type, capability-driven default)", () => {
 		const p = presenterForType(PROPERTY_LABEL);
 		expect(p.present({ id: "unusedTerm", name: "unusedTerm", type: PROPERTY_LABEL, properties: { inData: false } }, {}).faint).toBe(true);
 		expect(p.present({ id: "maker", name: "maker", type: PROPERTY_LABEL }, {}).faint).toBeFalsy();
+	});
+
+	it.each([
+		{ said: "a passed step", properties: { [LinkRelations.ACTION_STATUS.rel]: RECORDED_STATUS.completed }, color: MARK_COLOUR.ok },
+		{ said: "a failed step", properties: { [LinkRelations.ACTION_STATUS.rel]: RECORDED_STATUS.failed }, color: MARK_COLOUR.fault },
+		{ said: "a running level", properties: { [LinkRelations.ACTION_STATUS.rel]: RECORDED_STATUS.running }, color: MARK_COLOUR.pending },
+		{
+			said: "a speculative try that failed",
+			properties: { [LinkRelations.ACTION_STATUS.rel]: RECORDED_STATUS.failed, [SEQ_PATH_FIELD.mode]: EXECUTION_MODE.speculative },
+			color: MARK_COLOUR.undecided,
+		},
+		{ said: "a record that doesn't state an outcome", properties: {}, color: colorForType(SEQ_PATH_LABEL) },
+	])("colours $said by the outcome its record states, as a timeline marks its row", ({ properties, color }) => {
+		expect(CAPABILITY_PRESENTER.present({ id: "1-0.1.1.1", name: "a step", type: SEQ_PATH_LABEL, properties }, {}).color).toBe(color);
 	});
 
 	it("presenterForType gives a schema type its own mark, and every other type the default", () => {
