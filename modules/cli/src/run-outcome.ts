@@ -9,15 +9,8 @@
  */
 import { z } from "zod";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import {
-	ActualityMoveSchema,
-	INITIAL_ACTUALITY,
-	LEVEL_STATUS,
-	executionEnded,
-	transition,
-	type TActuality,
-	type TStepFailure,
-} from "@haibun/core/lib/actuality/machines/actuality.js";
+import { ActualityMoveSchema, INITIAL_ACTUALITY, transition, type TActuality } from "@haibun/core/lib/actuality/machines/actuality.js";
+import type { TLevelMoved } from "@haibun/core/lib/actuality/pipelines/move-actuality.js";
 
 /**
  * One event from a supervised run's output, as the fields a reader of its outcome reads.
@@ -25,7 +18,7 @@ import {
  * This process reads the output of a run it forked. `SseSubscriber` reads the events of a run that this process didn't
  * fork. It reads them from that run's endpoint. Both read the same events.
  */
-const RunEventSchema = z.looseObject({ kind: z.string(), artifactType: z.string().optional(), path: z.unknown().optional() });
+const RunEventSchema = z.looseObject({ kind: z.string(), timestamp: z.number().optional(), artifactType: z.string().optional(), path: z.unknown().optional() });
 type TRunEvent = z.infer<typeof RunEventSchema>;
 
 /** Parses one line of a run's output as an event. Returns undefined for a line of console prose. */
@@ -58,23 +51,14 @@ export type TRunOutcome = { actuality: TActuality; report?: string; pending: str
 
 export const emptyOutcome = (): TRunOutcome => ({ actuality: INITIAL_ACTUALITY, pending: "" });
 
-/** A run's summary from its execution's status: how it ended, where its execution has ended. */
-export function runSummary(actuality: TActuality): string {
-	if (!executionEnded(actuality)) return "the test run didn't report an outcome";
-	return `the test run ${actuality.status === LEVEL_STATUS.completed ? "completed" : actuality.status}`;
-}
-
-/** A failed step as one line: its id, and its text and its message where its end states them. */
-export const failureLine = (failure: TStepFailure): string =>
-	[`${failure.id}:`, failure.step, failure.message === undefined ? undefined : `(${failure.message})`].filter((part) => part !== undefined).join(" ");
-
 /**
- * Reads a chunk of a run's output into its outcome.
+ * Reads a chunk of a run's output into its outcome, and returns each move of a level above a step that the machine took.
  *
  * A read usually ends mid-line. The unfinished line is held in `pending` and joined to the next read. Without
  * `pending`, an event that spans two reads would be dropped without an error.
  */
-export function readRunOutput(outcome: TRunOutcome, output: string): TRunOutcome {
+export function readRunOutput(outcome: TRunOutcome, output: string): TLevelMoved[] {
+	const moved: TLevelMoved[] = [];
 	const lines = (outcome.pending + output).split("\n");
 	// A split returns at least one part, and its last part is the line the read ended within.
 	outcome.pending = itemAt(lines, lines.length - 1);
@@ -84,19 +68,19 @@ export function readRunOutput(outcome: TRunOutcome, output: string): TRunOutcome
 		// A level's event moves the machine. Another lifecycle type, such as an activity, isn't a move. A feature start
 		// appears twice, once as an event and once from the console formatter, and the machine holds the feature once.
 		const move = ActualityMoveSchema.safeParse(event);
-		if (move.success) outcome.actuality = transition(outcome.actuality, move.data);
+		if (!move.success) continue;
+		const after = transition(outcome.actuality, move.data);
+		if (after !== outcome.actuality && move.data.type !== "step") {
+			if (event.timestamp === undefined)
+				throw new Error(`a run's ${move.data.type} ${move.data.stage} of ${move.data.id} doesn't state when it happened; a lifecycle event states its timestamp`);
+			moved.push({ move: move.data, after, timestamp: event.timestamp });
+		}
+		outcome.actuality = after;
 	}
 	// A run that writes its report path only to a log line doesn't emit an artifact event. The last HTML file URL in
 	// this chunk sets the report.
 	const announced = output.match(/(file:\/\/\S+\.html)/g);
 	const report = announced?.at(-1);
 	if (report) outcome.report = report;
-	return outcome;
-}
-
-/** Reads a finished run's whole output at once and returns its outcome. */
-export function examineRun(output: string) {
-	// A finished run's output ends with a complete line. The appended newline keeps that line out of `pending`.
-	const { actuality, report } = readRunOutput(emptyOutcome(), `${output}\n`);
-	return { failures: actuality.failures, report, steps: actuality.steps, features: actuality.features, execution: actuality.status, summary: runSummary(actuality) };
+	return moved;
 }

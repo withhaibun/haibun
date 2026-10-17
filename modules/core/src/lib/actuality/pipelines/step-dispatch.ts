@@ -162,7 +162,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	const called = { stepperName: action.stepperName, actionName: action.actionName, stepValuesMap: stated.action.stepValuesMap };
 	let started: TStepRecord | undefined;
 	if (recorded) {
-		moveActuality(world, stepStartEvent(stated, called, tool.isAsync, world.clock.now()));
+		await moveActuality(world, stepStartEvent(stated, called, tool.isAsync, world.clock.now()));
 		started = await writeStepStart(world, stated, authorization, { ranVia: tool.transport, ranOn: tool.descriptor.remoteOrigin });
 	}
 	// A log written while a substep runs doesn't report above the substep's level, except a warning or an error. The web
@@ -224,7 +224,10 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	const ended: TStepEnd = ok ? STATUS.completed : streamContext.getStore()?.signal.aborted ? STATUS.stopped : STATUS.failed;
 	if (!started) throw new Error(`${action.stepperName}.${action.actionName} ended without the record its start writes`);
 	const error = actionResult.ok ? undefined : actionResult.errorMessage;
-	moveActuality(world, stepEndEvent(stated, called, { status: ended, error, products: retainedProducts(actionResult.products, action.step.retainProducts) }, world.clock.now()));
+	await moveActuality(
+		world,
+		stepEndEvent(stated, called, { status: ended, error, products: retainedProducts(actionResult.products, action.step.retainProducts) }, world.clock.now()),
+	);
 	await writeStepEnd(world, started, { status: RECORDED_STATUS[ended], ...(error === undefined ? {} : { error }), ...shown(viewShown(actionResult.products)) });
 	return lastStepResult;
 }

@@ -1,18 +1,43 @@
 /**
  * The one way a lifecycle event of a level leaves actuality: as a move of the actuality machine. The machine takes the
- * event, then the events hub emits it, so a reader of the stream holds the levels the machine holds.
+ * event, the record of the level it starts or ends is written, then the events hub emits it, so a reader of the stream
+ * holds the levels the machine holds and a reader of the store holds their records.
  */
 import type { TLifecycleEvent } from "../../../schema/protocol.js";
 import type { TWorld } from "../domains/world.js";
-import { isActualityMove } from "../machines/actuality.js";
+import type { IQuadStore } from "../../steps/ports.js";
+import { SEQ_PATH_LABEL } from "../../resources.js";
+import { isActualityMove, type TActuality, type TActualityMove } from "../machines/actuality.js";
+import { levelRecord, type TLevelNaming, type TStepRecord } from "../derivations/step-records.js";
 
-/** Moves the actuality machine with a level's event and emits the event. Throws where the event isn't a level's, or where
- *  the machine refuses it: the Executor moves each level in order, a start before its end, so a refused move is a fault. */
-export function moveActuality(world: TWorld, event: TLifecycleEvent): void {
+/** The records of the levels that started and haven't ended, by their events' id, which a level's end extends. */
+export type TOpenLevels = Map<string, TStepRecord>;
+
+/** A move of the actuality machine, the state after it and when it happened, from which a level's record is written. */
+export type TLevelMoved = { move: TActualityMove; after: TActuality; timestamp: number };
+
+/** Writes the record of the level a move starts or ends, with the fields `stated` adds to the execution's record, and
+ *  returns it. A step's move doesn't write a record here, since dispatchStep writes a step's record. */
+export async function writeLevelRecord(store: IQuadStore, open: TOpenLevels, { move, after, timestamp }: TLevelMoved, naming: TLevelNaming, stated?: TStepRecord) {
+	const record = levelRecord(move, after, naming, open.get(move.id), timestamp);
+	if (record === undefined) return undefined;
+	const written = move.type === "execution" ? { ...record, ...stated } : record;
+	if (move.stage === "start") open.set(move.id, written);
+	else open.delete(move.id);
+	await store.upsertIndividual(SEQ_PATH_LABEL, written);
+	return written;
+}
+
+/** Moves the actuality machine with a level's event, writes the level's record, and emits the event. Throws where the event
+ *  isn't a level's, or where the machine refuses it: the Executor moves each level in order, a start before its end, so a
+ *  refused move is a fault. */
+export async function moveActuality(world: TWorld, event: TLifecycleEvent): Promise<void> {
 	if (!isActualityMove(event)) throw new Error(`a ${event.type} event isn't a move of actuality's levels; emit it through the events hub`);
 	const held = world.runtime.actuality;
 	const before = held.state.get();
-	if (held.dispatch(event) === before)
+	const after = held.dispatch(event);
+	if (after === before)
 		throw new Error(`actuality refused the ${event.type} ${event.stage} of ${event.id} while the execution is ${before.status}; start a level before its end, and end it once`);
+	await writeLevelRecord(world.shared.getStore(), world.runtime.levels, { move: event, after, timestamp: event.timestamp }, { key: world.tag.key, hostId: world.tag.hostId });
 	world.eventLogger.emit(event);
 }

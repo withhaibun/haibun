@@ -5,9 +5,6 @@
 	"modules/cli/src/cli.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/cli/src/feature-execution.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/cli/src/instance-stepper.ts": {
 		"performs I/O through child_process": 1,
 		"performs I/O through fs": 1,

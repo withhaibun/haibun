@@ -49,6 +49,9 @@ describe("a level's lifecycle events", () => {
 			scenarioName: "signs in",
 			status: STATUS.completed,
 		});
-		expect(executionEvent({ stage: "start" }, 4)).toMatchObject({ id: "execution-start", type: "execution", status: STATUS.running });
+		expect([executionEvent({ stage: "start" }, 4, "/tests"), executionEvent({ stage: "end", status: STATUS.completed }, 5)]).toMatchObject([
+			{ id: "execution", type: "execution", status: STATUS.running, in: "/tests" },
+			{ id: "execution", type: "execution", status: STATUS.completed },
+		]);
 	});
 });

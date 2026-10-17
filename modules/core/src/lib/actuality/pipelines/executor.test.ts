@@ -7,6 +7,10 @@ import { calculateShouldClose, executionFailure, staysAfterExecution } from "../
 import { advanceSyntheticSeqPath, syntheticBranchSeqPath, syntheticSeqPathDirection } from "../domains/seq-path.js";
 import { passWithDefaults, failWithDefaults } from "../../test/lib.js";
 import { scenarioEventId } from "../derivations/lifecycle-events.js";
+import { readEvery } from "../../records/pipelines/record-reads.js";
+import { SEQ_PATH_LABEL } from "../../resources.js";
+import { SEQ_PATH_EDGE, SEQ_PATH_FIELD } from "../domains/seq-path.js";
+import { RECORDED_STATUS, TEST_BASE } from "../../../schema/protocol.js";
 import { AStepper } from "../../steps/domains/stepper.js";
 import { actionNotOK, actionOK } from "../../util/index.js";
 import { DOMAIN_TEXT } from "../../domains.js";
@@ -242,5 +246,30 @@ describe("the actuality the Executor moves", () => {
 			[scenarioEventId(1, 3), '"second"', "completed"],
 		]);
 		expect(actuality.features[1]?.firstFailure).toMatchObject({ step: "refuse here", message: "refused" });
+		const records = await readEvery(result.world.shared.getStore(), { label: SEQ_PATH_LABEL, sortBy: SEQ_PATH_FIELD.generatedAtTime, sortOrder: "asc" });
+		const ids = new Set(records.map((record) => record[SEQ_PATH_FIELD.id]));
+		expect(
+			records.filter((record) => record[SEQ_PATH_EDGE.isPartOf] !== undefined && !ids.has(record[SEQ_PATH_EDGE.isPartOf])),
+			"every isPartOf names a record",
+		).toEqual([]);
+		const levels = records.filter((record) => record[SEQ_PATH_FIELD.actualityLevel] !== "step");
+		const key = result.world.tag.key;
+		expect(
+			levels.map((record) => [
+				record[SEQ_PATH_FIELD.id],
+				record[SEQ_PATH_FIELD.actualityLevel],
+				record[SEQ_PATH_FIELD.stepText],
+				record[SEQ_PATH_FIELD.actionStatus],
+				record[SEQ_PATH_EDGE.isPartOf],
+			]),
+		).toEqual([
+			[`${key}-0`, "execution", TEST_BASE, RECORDED_STATUS.failed, undefined],
+			[`${key}-1.0.1.0`, "feature", "/features/a", RECORDED_STATUS.completed, `${key}-0`],
+			[`${key}-1.0.1.1`, "scenario", '"a"', RECORDED_STATUS.completed, `${key}-1.0.1.0`],
+			[`${key}-1.0.1.2`, "scenario", '"b"', RECORDED_STATUS.completed, `${key}-1.0.1.0`],
+			[`${key}-1.0.1.3`, "scenario", '"second"', RECORDED_STATUS.completed, `${key}-1.0.1.0`],
+			[`${key}-2.0.2.0`, "feature", "/features/b", RECORDED_STATUS.failed, `${key}-0`],
+		]);
+		expect(levels.at(-1)?.[SEQ_PATH_FIELD.error], "a feature's record states its first failure").toMatch(/refuse here \(refused\)$/);
 	});
 });

@@ -9,8 +9,8 @@
 		"fills an absent value with a constant through ??": 6
 	},
 	"modules/cli/src/test-runner-stepper.ts": {
-		"fills an absent value with a constant through ??": 2,
-		"states a parameter's default value": 3
+		"fills an absent value with a constant through ??": 1,
+		"states a parameter's default value": 2
 	},
 	"modules/cli/src/timings.ts": {
 		"fills a falsy value with a constant through ||": 1,

@@ -42,9 +42,14 @@ import { BASIC_AUTH_OPTION, basicAuthUsers, type TBasicAuthUser } from "@haibun/
 import { RemoteStepperProxy } from "@haibun/core/lib/remote-stepper-proxy.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import { MODULE_OPTION_PREFIX, BASE_PREFIX, NDJSON, OK, ONCE, STAY, STAY_ALWAYS } from "@haibun/core/schema/protocol.js";
-import { HAIBUN_HOST_ID_ENV } from "@haibun/core/lib/host-id.js";
-import { type TRunOutcome, emptyOutcome, failureLine, readRunOutput, runSummary } from "./run-outcome.js";
-import { LEVEL_STATUS, executionEnded } from "@haibun/core/lib/actuality/machines/actuality.js";
+import { DEFAULT_HOST_ID, HAIBUN_HOST_ID_ENV } from "@haibun/core/lib/host-id.js";
+import { type TRunOutcome, emptyOutcome, readRunOutput } from "./run-outcome.js";
+import { LEVEL_STATUS, StepFailureSchema, executionEnded, transition, type TActualityMove } from "@haibun/core/lib/actuality/machines/actuality.js";
+import { writeLevelRecord, type TLevelMoved, type TOpenLevels } from "@haibun/core/lib/actuality/pipelines/move-actuality.js";
+import type { TLevelNaming, TStepRecord } from "@haibun/core/lib/actuality/derivations/step-records.js";
+import { SEQ_PATH_EDGE, SEQ_PATH_FIELD, executionOf, formatRecordName } from "@haibun/core/lib/seq-path.js";
+import { ACTUALITY_LEVELS } from "@haibun/core/schema/protocol.js";
+import { actingAs, askedIn } from "@haibun/core/lib/capability-context.js";
 import { getConfigFromBase, processBaseEnvToOptionsAndErrors } from "./lib.js";
 import { outcomeAgainst, verificationOf, type TOutcome } from "./verified.js";
 import { DOMAIN_FILE_PATH, DOMAIN_NUMBER, NameSchema } from "@haibun/core/lib/domains.js";
@@ -55,6 +60,8 @@ import { DOMAIN_FILE_PATH, DOMAIN_NUMBER, NameSchema } from "@haibun/core/lib/do
 const STAY_ENV = `${BASE_PREFIX}${STAY}`;
 const ONCE_ENV = `${BASE_PREFIX}${ONCE}`;
 const NDJSON_ENV = `${BASE_PREFIX}${NDJSON}`;
+/** The environment name of a process's key, which names its executions and so its records. */
+const KEY_ENV = `${BASE_PREFIX}KEY`;
 
 /**
  * The environment name an instance reads its serving port from. It is the web server's own option.
@@ -100,7 +107,7 @@ export const SUPERVISOR_CAPABILITIES = {
 
 const instanceStartedSchema = z.object({ url: z.string(), site: z.string(), hostId: z.number() });
 /** The products that starting a run and reading a run return. Both schemas are exported so a caller parses the products rather than asserting a shape. */
-export const runStartedSchema = z.object({ run: z.string(), where: z.string(), filter: z.string() });
+export const runStartedSchema = z.object({ run: z.string(), where: z.string(), filter: z.string(), record: z.string() });
 export const runReadSchema = z.object({
 	run: z.string(),
 	status: z.string(),
@@ -115,10 +122,8 @@ export const runReadSchema = z.object({
 	/** The status of a run's execution, as the actuality machine that read its events holds it. A standing run's
 	 *  execution ends and its process keeps serving without exiting, so a caller waits on this status rather than on an exit. */
 	execution: z.enum(LEVEL_STATUS),
-	failed: z.number(),
-	/** The first failed step, as its id, its text and its failure message, where a step failed. */
-	firstFailure: z.string().optional(),
-	summary: z.string(),
+	/** The steps that failed as the execution's own failures, each as its id, its text and its failure message. */
+	failures: z.array(StepFailureSchema),
 	/** Where a run wrote its report, where it wrote one. */
 	report: z.string().optional(),
 });
@@ -213,8 +218,20 @@ function signInOf(dir: string, cwd: string, env: NodeJS.ProcessEnv): TBasicAuthU
 }
 
 /** A supervised run: the child, its output tail, the outcome accrued from its events, its exit code, and the callbacks
- *  waiting for its features to finish. `ended` is null until the child exits. */
-type TRun = { child: ChildProcess; tail: RunTail; outcome: TRunOutcome; ended: number | null; waiters: Array<() => void> };
+ *  waiting for its features to finish. `ended` is null until the child exits. `naming` names the records of its levels,
+ *  `stated` holds what its execution's record states of how it started, `levels` the records of the levels that haven't
+ *  ended, and `writing` the writes of those records in the order of the moves. */
+export type TRun = {
+	child: ChildProcess;
+	tail: RunTail;
+	outcome: TRunOutcome;
+	ended: number | null;
+	waiters: Array<() => void>;
+	naming: TLevelNaming;
+	stated: TStepRecord;
+	levels: TOpenLevels;
+	writing: Promise<unknown>;
+};
 
 /** The arguments an instance was launched with. restartInstance launches the same instance again from them. */
 type TLaunch = { dir: string; config: string; port: number; hostId: number };
@@ -253,7 +270,7 @@ export const featureFilterDomainDefinition: TDomainDefinition = {
 export const runDomainDefinitions: TDomainDefinition[] = [
 	{ selectors: [RUN_DOMAIN.name], schema: NameSchema, description: "The name of a started run. Reading, waiting for and stopping a run take this name" },
 	featureFilterDomainDefinition,
-	{ selectors: [RUN_DOMAIN.started], schema: runStartedSchema, description: "A run a process started, with its directory and feature filter" },
+	{ selectors: [RUN_DOMAIN.started], schema: runStartedSchema, description: "A run a process started: its directory, its feature filter, and the id of its execution's record" },
 	{ selectors: [RUN_DOMAIN.read], schema: runReadSchema, description: "A run's output since a cursor, its status, and the outcome accrued from its events" },
 	{ selectors: [RUN_DOMAIN.stopped], schema: z.object({ run: z.string() }), description: "A run a process ended" },
 ];
@@ -299,6 +316,8 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 	private children: Array<{ child: ChildProcess; label: string; launch: TLaunch }> = [];
 	/** Protected so a test subclass can hold a run without a child process. Code outside the class hierarchy can't access it. */
 	protected runs = new Map<string, TRun>();
+	/** The key this process gave its last run. */
+	private lastKey = 0;
 
 	/** Returns the TRun this process holds under the name `run`. Throws with `doing` as the prefix when this process didn't start a run of that name. */
 	private startedRun(doing: string, run: string): TRun {
@@ -374,7 +393,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			action: async ({ where, filter, from, port, run, hostId }: { where: string; filter: string; from: string; port: number; run: string; hostId: number }) => {
 				const standing = hostId > 0;
 				if (standing && port <= 0) return actionNotOK("start run: a run with a host above 0 stays up and needs a port above 0. Pass a port, or use host 0");
-				const started = await this.startRun({ where, filter, from, port, run, standing, hostId: standing ? hostId : undefined });
+				const started = await this.startRun({ where, filter, from, port, run, standing, hostId: standing ? hostId : DEFAULT_HOST_ID });
 				if (!started.ok || !standing) return started;
 				// Callers call a standing run's steps. A standing run whose steps don't register fails at start rather than at a
 				// later call. The child is terminated so it doesn't hold a port that a caller can't reach.
@@ -415,7 +434,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			description:
 				"A run's process output since a cursor, whether it is still running, and the counts and first failure accrued from its events. The process output is the only record of a run that fails before it serves. A serving run's events carry seqPaths and outcomes. The returned cursor is where the next read starts, so a read doesn't return the same output twice.",
 			productsDomain: RUN_DOMAIN.read,
-			action: ({ run, cursor }: { run: string; cursor: number }) => Promise.resolve(this.readRun(run, cursor)),
+			action: ({ run, cursor }: { run: string; cursor: number }) => this.readRun(run, cursor),
 		},
 		waitRun: {
 			gwta: `wait for the haibun run {run: ${RUN_DOMAIN.name}} to end within {seconds: number} seconds`,
@@ -428,11 +447,14 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		stopRun: {
 			gwta: `stop the haibun run {run: ${RUN_DOMAIN.name}}`,
 			capability: SUPERVISOR_CAPABILITIES.stop,
-			description: "End a run this process started, whether or not it has finished. A run left standing holds its port until it is stopped.",
+			description:
+				"End a run this process started, whether or not it has finished. A run left standing holds its port until it is stopped. The records of its levels that hadn't ended state that they stopped.",
 			productsDomain: RUN_DOMAIN.stopped,
 			action: async ({ run }: { run: string }) => {
 				const held = this.startedRun("stop run", run);
 				await terminate(held.child);
+				await this.stopLevels(held);
+				await held.writing;
 				this.runs.delete(run);
 				return actionOKWithProducts({ run });
 			},
@@ -455,7 +477,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		port: number;
 		run: string;
 		standing: boolean;
-		hostId?: number;
+		hostId: number;
 	}) {
 		if (this.runs.has(run)) return actionNotOK(`start run: this process already holds a run named "${run}". Read it, stop it, or choose another name`);
 		const { dir, config } = configIn("start run", where);
@@ -469,7 +491,11 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		// A port above zero makes a run addressable. A standing run also gets STAY, so its endpoint stays up after its
 		// features finish. Port 0 leaves a run on the ports its features declare. A feature that asserts a default port
 		// needs port 0. A run that isn't standing ends when its features end.
-		const env = runEnvironment(process.env, port, standing, hostId, perProcessOptionNames(this.steppers));
+		// A run's key names its executions, so this process writes the records of its levels under the names its own
+		// records take. A key is the time a run started, later than every key this process gave before.
+		this.lastKey = Math.max(this.getWorld().clock.now(), this.lastKey + 1);
+		const naming = { key: String(this.lastKey), hostId };
+		const env = { ...runEnvironment(process.env, port, standing, hostId, perProcessOptionNames(this.steppers)), [KEY_ENV]: naming.key };
 		// A run whose features have a recorded outcome against their present dependencies isn't started, since it would
 		// repeat that outcome. The child records each outcome with the conditions of its execution. verifiedRun computes
 		// those conditions from the environment the child would receive, and looks up an outcome under them.
@@ -485,22 +511,49 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		if (port > 0) this.holdSignInAt(port, signInOf(dir, cwd, env));
 		const child = fork(cliEntry, ["-c", config, dir, filter], { cwd, env, silent: true, execArgv: [] });
 		superviseChild(child); // a standing run can outlive its feature, but not this process
-		const held: TRun = { child, tail: new RunTail(), outcome: emptyOutcome(), ended: null, waiters: [] };
-		const take = (data: Buffer): void => {
-			const text = data.toString();
-			held.tail.append(text);
-			const wasFinished = executionEnded(held.outcome.actuality);
-			readRunOutput(held.outcome, text);
-			// A run's report that its execution ended wakes its waiters, whether or not it keeps serving.
-			if (!wasFinished && executionEnded(held.outcome.actuality)) for (const wake of held.waiters.splice(0)) wake();
+		const performedBy = actingAs();
+		const ask = askedIn();
+		const stated = {
+			...(performedBy === undefined ? {} : { [SEQ_PATH_EDGE.performedBy]: performedBy }),
+			...(ask === undefined ? {} : { [SEQ_PATH_EDGE.askedIn]: ask }),
+			...(standing ? { [SEQ_PATH_FIELD.ranOn]: localOrigin(port) } : {}),
 		};
+		const held: TRun = { child, tail: new RunTail(), outcome: emptyOutcome(), ended: null, waiters: [], naming, stated, levels: new Map(), writing: Promise.resolve() };
+		const take = (data: Buffer): void => this.take(held, data.toString());
 		child.stdout?.on("data", take);
 		child.stderr?.on("data", take);
 		child.once("exit", (code) => {
 			held.ended = typeof code === "number" ? code : -1;
 		});
 		this.runs.set(run, held);
-		return actionOKWithProducts({ run, where: dir, filter });
+		return actionOKWithProducts({ run, where: dir, filter, record: formatRecordName({ execution: executionOf({ key: naming.key, featureNum: 0 }), path: [] }) });
+	}
+
+	/** Reads a chunk of a run's output: it keeps the chunk in its tail, moves its machine, writes the records of the levels
+	 *  the chunk moved, and wakes its waiters where the chunk ended its execution, whether or not it keeps serving. */
+	protected take(held: TRun, text: string): void {
+		held.tail.append(text);
+		const wasFinished = executionEnded(held.outcome.actuality);
+		for (const moved of readRunOutput(held.outcome, text)) this.writeLevel(held, moved);
+		if (!wasFinished && executionEnded(held.outcome.actuality)) for (const wake of held.waiters.splice(0)) wake();
+	}
+
+	/** Writes the record of the level a run's move started or ended into this process's store, after the records of the
+	 *  moves before it. A read of a run awaits the writes, so a write that fails fails the read with its cause. */
+	private writeLevel(held: TRun, moved: TLevelMoved): void {
+		held.writing = held.writing.then(() => writeLevelRecord(this.getWorld().shared.getStore(), held.levels, moved, held.naming, held.stated));
+	}
+
+	/** Ends as stopped each level of a run that hasn't ended, innermost first, so the records of a stopped run state that
+	 *  it stopped. It reads the levels once the records of a run's moves are written. */
+	private async stopLevels(held: TRun): Promise<void> {
+		await held.writing;
+		const timestamp = this.getWorld().clock.now();
+		for (const [id, record] of [...held.levels].reverse()) {
+			const move: TActualityMove = { type: z.enum(ACTUALITY_LEVELS).parse(record[SEQ_PATH_FIELD.actualityLevel]), stage: "end", id, status: LEVEL_STATUS.stopped };
+			held.outcome.actuality = transition(held.outcome.actuality, move);
+			this.writeLevel(held, { move, after: held.outcome.actuality, timestamp });
+		}
 	}
 
 	/**
@@ -571,11 +624,12 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		return this.readRun(run, cursor);
 	}
 
-	/** Returns a run's output since `cursor`, its status, and the outcome accrued from its events. */
-	private readRun(run: string, cursor: number) {
+	/** Returns a run's output since `cursor`, its status, and the outcome accrued from its events, once the records of its
+	 *  levels are written. */
+	private async readRun(run: string, cursor: number) {
 		const held = this.startedRun("read run", run);
+		await held.writing;
 		const { actuality, report } = held.outcome;
-		const [first] = actuality.failures;
 		return actionOKWithProducts({
 			run,
 			status: runStatus(held),
@@ -584,9 +638,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			features: actuality.features.length,
 			execution: actuality.status,
 			steps: actuality.steps,
-			failed: actuality.failures.length,
-			...(first === undefined ? {} : { firstFailure: failureLine(first) }),
-			summary: runSummary(actuality),
+			failures: actuality.failures,
 			...(report === undefined ? {} : { report }),
 		});
 	}

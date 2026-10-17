@@ -130,6 +130,13 @@ describe("federated clustered reads (reads-first federation)", () => {
 			}),
 	});
 
+	it("reads a relation its type declares to one type as an edge in a graph read, so the graph draws a record written whole", async () => {
+		const store = storeDeclaring({ Step: { relations: { isPartOf: ["Step"], seenBy: ["Step", "Other"] } } });
+		await store.upsertIndividual("Step", { id: "s1", isPartOf: "s0", seenBy: "s0", name: "one" });
+		const { quads } = await store.getClusteredQuads({ perTypeLimit: 10, accessLevel: "private" });
+		expect(Object.fromEntries(quads.map((q) => [q.predicate, q.objectType]))).toMatchObject({ isPartOf: "Step", seenBy: undefined, name: undefined });
+	});
+
 	it("merges a peer's clusters into getClusteredQuads with per-subject site stamps intact; local subjects stay unstamped", async () => {
 		const store = new QuadStore(newStoreChain());
 		await store.add({ subject: "local-1", predicate: "name", object: "local-1", namedGraph: "Letter" });

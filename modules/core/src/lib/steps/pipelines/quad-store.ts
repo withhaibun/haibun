@@ -424,13 +424,20 @@ export class QuadStore implements IQuadStore {
 
 		const seen = this.seen(opts.accessLevel);
 		const held = opts.types === undefined ? [...this.quads] : opts.types.flatMap((type) => [...this.quads.ofGraph(type)]);
-		const localClustered = sliceQuadsPerType(held.filter(seen), opts.perTypeLimit, allQuads, (type) => this.declarations?.().of(type)?.title);
+		const localClustered = sliceQuadsPerType(held.filter(seen).map(this.asDeclared), opts.perTypeLimit, allQuads, (type) => this.declarations?.().of(type)?.title);
 		allQuads.push(...localClustered.quads);
 		for (const c of localClustered.clusters) mergeCluster(c);
 
 		allQuads.sort((a, b) => a.timestamp - b.timestamp);
 		return { quads: allQuads, clusters: [...clustersByType.values()] };
 	}
+
+	/** A held quad as a graph reads it: an edge where its type declares its predicate a relation to one type. A record written
+	 *  whole states its relations as fields, and the graph draws each as an edge to the record it names. */
+	private readonly asDeclared = (quad: TQuad): TQuad => {
+		const ranges = quad.objectType === undefined ? this.declarations?.().of(quad.namedGraph)?.surface.references[quad.predicate] : undefined;
+		return ranges?.length === 1 && typeof quad.object === "string" ? { ...quad, objectType: ranges[0] } : quad;
+	};
 
 	// async so a rejected identity reaches a caller's .catch like every other failure, rather than throwing
 	// synchronously out of a method that returns a promise.

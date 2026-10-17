@@ -15,15 +15,18 @@ type TStage = "start" | "end";
 type TAtStage = { stage: "start" } | { stage: "end"; status: TLevelEnd };
 const statusAt = (at: TAtStage): { stage: TStage; status: typeof STATUS.running | TLevelEnd } => (at.stage === "start" ? { stage: "start", status: STATUS.running } : at);
 
+/** The id of the execution's events, at its start and its end, as each level's events carry one id at both. */
+const EXECUTION_EVENT_ID = "execution";
+
 /** The id of a feature's events, by its number in the execution. */
 export const featureEventId = (featureNum: number): string => `feat-${featureNum}`;
 
 /** The id of a scenario's events, by its feature's number and its own. */
 export const scenarioEventId = (featureNum: number, scenarioNum: number): string => `${featureEventId(featureNum)}.scen-${scenarioNum}`;
 
-/** The execution's event at a stage. */
-export const executionEvent = (at: TAtStage, timestamp: number): TLifecycleEvent =>
-	LifecycleEvent.parse({ id: `execution-${at.stage}`, timestamp, kind: "lifecycle", type: "execution", ...statusAt(at) });
+/** The execution's event at a stage. Its start states the execution's heading: the bases that hold its features. */
+export const executionEvent = (at: TAtStage, timestamp: number, heading?: string): TLifecycleEvent =>
+	LifecycleEvent.parse({ id: EXECUTION_EVENT_ID, timestamp, kind: "lifecycle", type: "execution", ...(heading === undefined ? {} : { in: heading }), ...statusAt(at) });
 
 /** A feature's event at a stage. */
 export const featureEvent = (featureNum: number, feature: { path: string; name: string }, at: TAtStage, timestamp: number): TLifecycleEvent =>

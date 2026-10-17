@@ -13,8 +13,8 @@
  */
 import { itemAt } from "../../util/item-at.js";
 import { z } from "zod";
-import { EXECUTION_MODES, HAIBUN_LOG_LEVELS, RECORDED_STATUS } from "../../../schema/protocol.js";
-import { Access, LinkRelations, PersistedVertexSchema, PRINCIPAL_LABEL, SEQ_PATH_LABEL, type TDomainDefinition } from "../../resources.js";
+import { ACTUALITY_LEVELS, EXECUTION_MODES, HAIBUN_LOG_LEVELS, RECORDED_STATUS } from "../../../schema/protocol.js";
+import { Access, COMMENT_LABEL, LinkRelations, PersistedVertexSchema, PRINCIPAL_LABEL, SEQ_PATH_LABEL, type TDomainDefinition } from "../../resources.js";
 
 const SEQ_PATH_DOMAIN = "seq-path";
 
@@ -205,6 +205,9 @@ export const SEQ_PATH_FIELD = {
 	execution: EXECUTION_FIELD,
 	/** When this record was written. It is written again at the step's end. */
 	recordedAtTime: RECORDED_AT_TIME_FIELD,
+	/** The level of the execution the record is of: the execution, a feature, a scenario or a step. Every writer writes it.
+	 *  A record without one predates the field, and a reader can't select it by its level. */
+	actualityLevel: "actualityLevel",
 } as const;
 
 /** SeqPath edge names. */
@@ -214,6 +217,8 @@ export const SEQ_PATH_EDGE = {
 	/** The principal whose capability allowed this step, where one did. It is an actor edge, so a sequence view draws
 	 *  the step on that principal's lifeline and not as a step that references the principal. */
 	performedBy: "performedBy",
+	/** The Comment that holds the ask under which an execution started, where one did. Its rel is `as:inReplyTo`. */
+	askedIn: "askedIn",
 } as const;
 
 // Non-strict: emitSeqPathStart writes isPartOf, precededBy and performedBy in the
@@ -221,6 +226,9 @@ export const SEQ_PATH_EDGE = {
 // and the start record inlines them. Strict mode would reject those keys before
 // upsertIndividual routes them. CommentSchema and BodySchema are non-strict for
 // the same reason.
+/** Where a step ran: in this process, or on another host. */
+const RAN_VIA = ["local", "remote"] as const;
+
 export const SeqPathSchema = PersistedVertexSchema.extend({
 	[SEQ_PATH_FIELD.id]: z.string(),
 	[SEQ_PATH_FIELD.stepText]: z.string(),
@@ -234,11 +242,12 @@ export const SeqPathSchema = PersistedVertexSchema.extend({
 	[SEQ_PATH_FIELD.endedAtTime]: z.string().optional(),
 	[SEQ_PATH_FIELD.path]: z.string().optional(),
 	[SEQ_PATH_FIELD.mode]: z.enum(EXECUTION_MODES).optional(),
-	[SEQ_PATH_FIELD.ranVia]: z.enum(["local", "remote"]).optional(),
+	[SEQ_PATH_FIELD.ranVia]: z.enum(RAN_VIA).optional(),
 	[SEQ_PATH_FIELD.ranOn]: z.string().optional(),
 	[SEQ_PATH_FIELD.level]: z.enum(HAIBUN_LOG_LEVELS),
 	[SEQ_PATH_FIELD.execution]: z.string().optional(),
 	[SEQ_PATH_FIELD.recordedAtTime]: z.string().optional(),
+	[SEQ_PATH_FIELD.actualityLevel]: z.enum(ACTUALITY_LEVELS).optional(),
 });
 export type TSeqPath = z.infer<typeof SeqPathSchema>;
 
@@ -252,7 +261,7 @@ export const StepLineSchema = z.object({
 	began: z.string(),
 	ended: z.string().optional(),
 	tookMs: z.number().optional(),
-	dispatch: z.object({ via: z.enum(["local", "remote"]), on: z.string().optional() }).optional(),
+	dispatch: z.object({ via: z.enum(RAN_VIA), on: z.string().optional() }).optional(),
 	action: z.object({ required: z.string(), allowed: z.string().optional(), holder: z.string().optional() }).optional(),
 });
 export type TStepLine = z.infer<typeof StepLineSchema>;
@@ -285,14 +294,15 @@ export function stepLine(record: Record<string, unknown>): TStepLine {
 export const seqPathDomainDefinition: TDomainDefinition = {
 	selectors: [SEQ_PATH_DOMAIN],
 	schema: SeqPathSchema,
-	description:
-		"A step in an automated run: its text, the action it called, and how it ended. Each record made during the step references it, so you can see when and where the record was produced.",
+	description: "A run, feature, scenario or step.",
 	// A step opens as the view of its record (CA4D9), as core declares the affordances panel's view.
 	ui: { component: "shu-step-detail" },
 	topology: {
 		persistedAs: SEQ_PATH_LABEL,
 		accessLevel: Access.private,
 		id: SEQ_PATH_FIELD.id,
+		// A record is titled by its heading or its step's text, so a graph of a run reads as its features, scenarios and steps.
+		displayLabel: SEQ_PATH_FIELD.stepText,
 		instrumentation: true,
 		properties: {
 			[SEQ_PATH_FIELD.id]: LinkRelations.IDENTIFIER.rel,
@@ -315,11 +325,14 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 			[SEQ_PATH_FIELD.level]: LinkRelations.CONTEXT.rel,
 			[SEQ_PATH_FIELD.execution]: LinkRelations.CONTEXT.rel,
 			[SEQ_PATH_FIELD.recordedAtTime]: LinkRelations.RECORDED_AT_TIME.rel,
+			// Grouped-as, so the type offers each level as a filter, such as "the executions" or "the scenarios".
+			[SEQ_PATH_FIELD.actualityLevel]: LinkRelations.CONTEXT.rel,
 		},
 		edges: {
 			[SEQ_PATH_EDGE.isPartOf]: { rel: LinkRelations.PART_OF.rel, range: SEQ_PATH_LABEL },
 			[SEQ_PATH_EDGE.precededBy]: { rel: LinkRelations.PRECEDED_BY.rel, range: SEQ_PATH_LABEL },
 			[SEQ_PATH_EDGE.performedBy]: { rel: LinkRelations.PERFORMED_BY.rel, range: PRINCIPAL_LABEL },
+			[SEQ_PATH_EDGE.askedIn]: { rel: LinkRelations.IN_REPLY_TO.rel, range: COMMENT_LABEL },
 		},
 		// endedAtTime orders steps by their end. A reader that follows actuality compares recordedAtTime with the time of
 		// its last read. execution selects one execution's steps.

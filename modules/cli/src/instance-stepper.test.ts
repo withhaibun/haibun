@@ -12,37 +12,36 @@
  */
 import { describe, expect, it } from "vitest";
 import type { z } from "zod";
-import InstanceStepper, { RunTail, featureFilterDomainDefinition, runEnvironment, runReadSchema, verifiedRun } from "./instance-stepper.js";
+import InstanceStepper, { RunTail, featureFilterDomainDefinition, runEnvironment, runReadSchema, verifiedRun, type TRun } from "./instance-stepper.js";
 import { execFileSync } from "node:child_process";
 import nodeFS from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { getConfigFromBase, processBaseEnvToOptionsAndErrors } from "./lib.js";
 import { recordOutcome, verificationOf } from "./verified.js";
-import { emptyOutcome, readRunOutput } from "./run-outcome.js";
-import { executionEnded } from "@haibun/core/lib/actuality/machines/actuality.js";
+import { emptyOutcome } from "./run-outcome.js";
+import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
+import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
+import { SEQ_PATH_EDGE, SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
+import { RECORDED_STATUS } from "@haibun/core/schema/protocol.js";
 import type { ChildProcess } from "child_process";
 import { EventEmitter } from "node:events";
+
+/** The names of a held run's records: its key and its host. */
+const HELD_NAMING = { key: "1700000000000", hostId: 0 };
 
 /** InstanceStepper with a method that holds a run without a process. The products of the listing, reading, waiting and
  *  stopping steps don't depend on a child process. The feature tests start a real one. */
 class SupervisorWithHeldRun extends InstanceStepper {
 	hold(run: string, said = "", ended: number | null = null) {
-		const tail = new RunTail();
-		const outcome = emptyOutcome();
-		const waiters: Array<() => void> = [];
-		const take = (text: string) => {
-			tail.append(text);
-			const wasFinished = executionEnded(outcome.actuality);
-			readRunOutput(outcome, text);
-			if (!wasFinished && executionEnded(outcome.actuality)) for (const wake of waiters.splice(0)) wake();
-		};
-		take(said);
 		// A held run replaces a forked run in these tests. Its EventEmitter child emits `exit` when the held run ends, as a
 		// child process does.
-		const child = Object.assign(new EventEmitter(), { kill: () => true }) as unknown as ChildProcess;
-		this.runs.set(run, { child, tail, outcome, ended, waiters });
-		return { say: take, end: (code: number) => this.endHeld(run, code) };
+		const child: ChildProcess = Object.assign(new EventEmitter(), { exitCode: null, kill: () => child.emit("exit", null) }) as unknown as ChildProcess;
+		const held: TRun = { child, tail: new RunTail(), outcome: emptyOutcome(), ended, waiters: [], naming: HELD_NAMING, stated: {}, levels: new Map(), writing: Promise.resolve() };
+		this.runs.set(run, held);
+		this.take(held, said);
+		return { say: (text: string) => this.take(held, text), end: (code: number) => this.endHeld(run, code) };
 	}
 
 	private endHeld(run: string, code: number) {
@@ -58,7 +57,11 @@ type TRead = { ok: boolean; errorMessage?: string; products?: z.infer<typeof run
 
 const read = async (stepper: InstanceStepper, run: string, cursor: number) =>
 	(await (stepper.steps.readRun.action as (a: { run: string; cursor: number }) => Promise<TRead>)({ run, cursor })) as TRead;
-const stepper = () => new SupervisorWithHeldRun();
+const stepper = () => {
+	const supervisor = new SupervisorWithHeldRun();
+	void supervisor.setWorld(getDefaultWorld(), []);
+	return supervisor;
+};
 
 describe("a run's tail", () => {
 	it("returns only the output after the cursor, and returns the cursor where the next read starts", () => {
@@ -295,10 +298,37 @@ describe("a run left standing", () => {
 		const s = stepper();
 		const { say } = s.hold("standing-run", "");
 		const waited = (s.steps.waitRun.action as (a: { run: string; seconds: number; cursor: number }) => Promise<TRead>)({ run: "standing-run", seconds: 30, cursor: 0 });
-		setTimeout(() => say('{"id":"execution-end","kind":"lifecycle","stage":"end","status":"completed","type":"execution"}\n'), 5);
+		say('{"id":"execution","timestamp":1,"kind":"lifecycle","stage":"start","status":"running","type":"execution","in":"/tests"}\n');
+		setTimeout(() => say('{"id":"execution","timestamp":2,"kind":"lifecycle","stage":"end","status":"completed","type":"execution"}\n'), 5);
 		const result = await waited;
 		expect(result.products?.execution, "the child reported its execution ended, and its process kept serving").toBe("completed");
 		expect(result.products?.status, "the process didn't exit, so it is still running").toBe("running");
+	});
+});
+
+describe("the records of a run's levels", () => {
+	const event = (fields: Record<string, unknown>) => `${JSON.stringify({ kind: "lifecycle", timestamp: 1700000000000, ...fields })}\n`;
+
+	it("are written in this process's store from a run's moves, and a stopped run's levels that hadn't ended state that they stopped", async () => {
+		const s = stepper();
+		const { say } = s.hold("a-run");
+		say(event({ id: "execution", type: "execution", stage: "start", status: "running", in: "/tests" }));
+		say(event({ id: "feat-1", type: "feature", stage: "start", status: "running", featurePath: "/features/a.feature", featureName: "a" }));
+		say(event({ id: "0.1.0.1", type: "step", stage: "end", status: "failed", in: "a step", error: "it failed" }));
+		say(event({ id: "feat-1", type: "feature", stage: "end", status: "failed", featurePath: "/features/a.feature", featureName: "a" }));
+		say(event({ id: "feat-2", type: "feature", stage: "start", status: "running", featurePath: "/features/b.feature", featureName: "b" }));
+		say(event({ id: "feat-2.scen-1", type: "scenario", stage: "start", status: "running", scenarioName: "first" }));
+		await (s.steps.stopRun.action as (a: { run: string }) => Promise<TResult>)({ run: "a-run" });
+		const records = (await readEvery(s.getWorld().shared.getStore(), { label: SEQ_PATH_LABEL })).sort((a, b) =>
+			String(a[SEQ_PATH_FIELD.id]).localeCompare(String(b[SEQ_PATH_FIELD.id])),
+		);
+		const { key } = HELD_NAMING;
+		expect(records.map((r) => [r[SEQ_PATH_FIELD.id], r[SEQ_PATH_FIELD.stepText], r[SEQ_PATH_FIELD.actionStatus], r[SEQ_PATH_EDGE.isPartOf], r[SEQ_PATH_FIELD.error]])).toEqual([
+			[`${key}-0`, "/tests", RECORDED_STATUS.stopped, undefined, "0.1.0.1: a step (it failed)"],
+			[`${key}-1.0.1.0`, "a", RECORDED_STATUS.failed, `${key}-0`, "0.1.0.1: a step (it failed)"],
+			[`${key}-2.0.2.0`, "b", RECORDED_STATUS.stopped, `${key}-0`, undefined],
+			[`${key}-2.0.2.1`, "first", RECORDED_STATUS.stopped, `${key}-2.0.2.0`, undefined],
+		]);
 	});
 });
 

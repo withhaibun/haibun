@@ -2,12 +2,12 @@
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
 		"features": {
 			"/features/behind-basic-auth.feature.ts": {
-				"seconds": 1.7,
+				"seconds": 1.9,
 				"steps": 212,
 				"declaredStepTextHash": "045652ba5f61d3fa7c1a6a2db088bc1e7baa8da64d2959be64a4769a279c7214"
 			}
 		},
 		"steps": 212,
-		"seconds": 1.7
+		"seconds": 1.9
 	}
 }

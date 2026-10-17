@@ -96,7 +96,7 @@ export class Executor {
 			}),
 		);
 
-		moveActuality(world, executionEvent({ stage: "start" }, world.clock.now()));
+		await moveActuality(world, executionEvent({ stage: "start" }, world.clock.now(), [...new Set(features.map((feature) => feature.base))].join(", ")));
 		await doStepperCycle(steppers, "startExecution", features);
 		let okSoFar = true;
 		const featureResults: TFeatureResult[] = [];
@@ -132,7 +132,7 @@ export class Executor {
 				const failedStep = featureResult.steps.failed;
 				await doStepperCycle(steppers, "onFailure", { featureResult, failedStep });
 			}
-			moveActuality(world, featureEvent(featureNum, { path: feature.path, name: featureName }, endOf(thisFeatureOK), world.clock.now()));
+			await moveActuality(world, featureEvent(featureNum, { path: feature.path, name: featureName }, endOf(thisFeatureOK), world.clock.now()));
 			okSoFar = okSoFar && thisFeatureOK;
 			// The feature that finished keeps its payloads for the caller that receives this result. The previous feature's
 			// payloads don't have a reader, so releasePayloads clears its passing steps' payloads.
@@ -145,7 +145,7 @@ export class Executor {
 			if (!okSoFar && !continueAfterError && !isLast) break;
 		}
 
-		moveActuality(world, executionEvent(endOf(okSoFar), world.clock.now()));
+		await moveActuality(world, executionEvent(endOf(okSoFar), world.clock.now()));
 		const failure = okSoFar ? undefined : executionFailure(featureResults);
 		const results: TExecutorResult = { ok: okSoFar, featureResults, actuality: world.runtime.actuality.state.get(), tag: world.tag, shared: world.shared, steppers, failure };
 
@@ -174,7 +174,7 @@ export class FeatureExecutor {
 		world.runtime.steps = { count: 0 };
 		world.runtime.seqPaths = new Map<string, number>();
 		world.runtime.currentFeaturePath = feature.path;
-		moveActuality(world, featureEvent(featureNum, { path: feature.path, name: featureNameOf(feature) }, { stage: "start" }, world.clock.now()));
+		await moveActuality(world, featureEvent(featureNum, { path: feature.path, name: featureNameOf(feature) }, { stage: "start" }, world.clock.now()));
 
 		// The scenario a step is in, by its ordinal among the feature's scenarios, or 0 before the first scenario. A feature
 		// heading after a scenario starts a scenario too, from the variables the feature's steps before its first scenario
@@ -185,7 +185,7 @@ export class FeatureExecutor {
 		/** Ends the running scenario: its event, then the cycle that closes what its steppers opened for it. */
 		const endScenario = async (scenarioOk: boolean): Promise<void> => {
 			if (running === undefined) throw new Error(`feature ${feature.path} ended a scenario that didn't start; a scenario heading starts one`);
-			moveActuality(world, scenarioEvent(featureNum, running.ordinal, running.name, endOf(scenarioOk), world.clock.now()));
+			await moveActuality(world, scenarioEvent(featureNum, running.ordinal, running.name, endOf(scenarioOk), world.clock.now()));
 			running = undefined;
 			await doStepperCycle(this.steppers, "endScenario", undefined);
 		};
@@ -201,7 +201,7 @@ export class FeatureExecutor {
 				else if (actionName === FEATURE_START) world.shared = new FeatureVariables(world, await baseVars.carried());
 				ordinal = ordinal + 1;
 				running = { ordinal, name: step.in.replace(/^\w+:\s*/, "") };
-				moveActuality(world, scenarioEvent(featureNum, running.ordinal, running.name, { stage: "start" }, world.clock.now()));
+				await moveActuality(world, scenarioEvent(featureNum, running.ordinal, running.name, { stage: "start" }, world.clock.now()));
 				await doStepperCycle(this.steppers, "startScenario", { scopedVars: new FeatureVariables(world, await world.shared.carried()) });
 			}
 

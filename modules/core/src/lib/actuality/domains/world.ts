@@ -11,6 +11,7 @@ import type { StepRegistry } from "../../steps/pipelines/step-registry.js";
 import type { TFeature } from "./execution.js";
 import type { AStepper } from "../../steps/domains/stepper.js";
 import type { TActualityMachine } from "../machines/actuality.js";
+import type { TOpenLevels } from "../pipelines/move-actuality.js";
 import type { TClock } from "../ports.js";
 
 export type TWorld = {
@@ -33,6 +34,8 @@ export type TRuntime = {
 	actualityId: TActualityId;
 	/** The levels of the execution: every lifecycle event of a level that actuality emits is a move of this machine. */
 	actuality: TActualityMachine;
+	/** The records of the levels that started and haven't ended, by their events' id. A level's end extends its start's record. */
+	levels: TOpenLevels;
 	/** Generic keyed store for subsystem runtime state. */
 	keys?: Record<string, unknown>;
 	backgrounds?: TFeature[];

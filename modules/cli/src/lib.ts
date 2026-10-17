@@ -231,6 +231,7 @@ function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 		runtime: {
 			actualityId: newActualityId(),
 			actuality: actualityMachine(),
+			levels: new Map(),
 			stepResults: [],
 			steps: { count: 0 },
 			seqPaths: new Map(),

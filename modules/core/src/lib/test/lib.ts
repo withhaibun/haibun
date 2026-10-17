@@ -108,6 +108,7 @@ export function getDefaultWorld(env: NodeJS.ProcessEnv = process.env): TWorld {
 		runtime: {
 			actualityId: newActualityId(),
 			actuality: actualityMachine(),
+			levels: new Map(),
 			stepResults: [],
 			steps: { count: 0 },
 			seqPaths: new Map(),

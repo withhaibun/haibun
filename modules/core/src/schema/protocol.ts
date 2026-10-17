@@ -110,6 +110,11 @@ const STEP_LEVEL: THaibunLogLevel = "info";
  *  have the same level. */
 export const stepLevel = (isSubStep?: boolean): THaibunLogLevel => (isSubStep ? SUBSTEP_LEVEL : STEP_LEVEL);
 
+/** The levels of an execution, outermost first. A lifecycle event of a level is a move of the actuality machine, and the
+ *  record of each level states its level. */
+export const ACTUALITY_LEVELS = ["execution", "feature", "scenario", "step"] as const;
+export type TActualityLevel = (typeof ACTUALITY_LEVELS)[number];
+
 export const SCENARIO_START = "scenario";
 export const FEATURE_START = "feature";
 

@@ -1,19 +1,20 @@
 /**
- * Tests the test-runner agent's limits, the record it writes for each test run, and the functions that read a test run's output.
+ * Tests the test-runner agent's limits, the principal it starts each test run as, and the functions that read a test run's output.
  * The code enforces the limits, so they don't depend on the model's response. The agent allows one test run in flight
  * at a time. MAX_RUNS caps the test runs started between beginAsk calls. A start past that cap is refused with a message
  * that states the limit is reached. The supervisor refuses a test run of features that already ran against their present
  * state. noteApplied deletes the record of those test runs, so the features run again.
  *
- * The store is an in-memory QuadStore. The tests assert the agent's own bookkeeping and the record it writes for each
- * test run. They don't test a graph engine. A consumer's agent feature tests the agent loop against a live model.
+ * The store is an in-memory QuadStore. The tests assert the agent's own bookkeeping and the Principal it writes. The
+ * supervisor's tests assert the records of a test run's levels. They don't test a graph engine. A consumer's agent feature tests the agent loop against a live model.
  */
 import { describe, expect, it, beforeEach } from "vitest";
 import TestRunnerStepper, { RUNNER_DEFAULTS, TEST_RUNNER_AUTHOR } from "./test-runner-stepper.js";
 import { answerOfRun, askParams, stepAtRun } from "./test-runner-stepper.js";
 import type { TStepDescriptor } from "@haibun/core/lib/step-discovery.js";
-import { examineRun, failureLine, runEvents } from "./run-outcome.js";
-import { FEATURE_EXECUTION_LABEL, RUN_STATUS, featureExecutionDomainDefinition } from "./feature-execution.js";
+import { emptyOutcome, readRunOutput, runEvents } from "./run-outcome.js";
+import { RECORDED_STATUS } from "@haibun/core/schema/protocol.js";
+import { actingAs } from "@haibun/core/lib/capability-context.js";
 import { Access, principalDomainDefinition } from "@haibun/core/lib/resources.js";
 import { readAction } from "@haibun/core/lib/actions.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
@@ -32,7 +33,14 @@ import { VERIFIED_FILE } from "@haibun/core/lib/util/node/dependency-state.js";
 import { RUN_AUTHORITY, runAuthorizedWith } from "@haibun/core/lib/capability-context.js";
 import { RUN_DOMAIN, SUPERVISOR_CAPABILITIES, runDomainDefinitions } from "./instance-stepper.js";
 
-type TResult = { ok: boolean; errorMessage?: string; products?: { run: string; status: string; endpoint: string } };
+type TResult = { ok: boolean; errorMessage?: string; products?: { run: string; status: string; record: string } };
+
+/** A run's outcome from its whole output, as the supervisor accrues it chunk by chunk. */
+const outcomeOf = (output: string) => {
+	const outcome = emptyOutcome();
+	readRunOutput(outcome, `${output}\n`);
+	return outcome;
+};
 
 /** Test double for the CLI's run supervisor. Its class name matches the stepper name the agent calls. Its steps require
  *  the same capabilities as the real supervisor's steps. The agent calls it by dispatching a step, so the tests exercise
@@ -41,7 +49,7 @@ type TResult = { ok: boolean; errorMessage?: string; products?: { run: string; s
 class InstanceStepper extends AStepper implements IHasCycles {
 	description = "A test double for the run supervisor. Its steps return fixed output.";
 	cycles: IStepperCycles = { getConcerns: () => ({ domains: runDomainDefinitions }) };
-	calls: Array<{ step: string; input: Record<string, unknown> }> = [];
+	calls: Array<{ step: string; input: Record<string, unknown>; actingAs?: string }> = [];
 	ended: number | null = null;
 	/** The output the test run has logged. A test run writes its events to its output. The agent reads the events from that output. */
 	output = "a line of output";
@@ -53,9 +61,9 @@ class InstanceStepper extends AStepper implements IHasCycles {
 			capability: SUPERVISOR_CAPABILITIES.run,
 			productsDomain: RUN_DOMAIN.started,
 			action: (input: { where: string; filter: string; from: string; port: number; run: string; hostId: number }) => {
-				this.calls.push({ step: "startRun", input });
+				this.calls.push({ step: "startRun", input, actingAs: actingAs() });
 				if (this.refusal !== undefined) return Promise.resolve(actionNotOK(this.refusal));
-				return Promise.resolve(actionOKWithProducts({ run: input.run, where: input.where, filter: input.filter }));
+				return Promise.resolve(actionOKWithProducts({ run: input.run, where: input.where, filter: input.filter, record: "1700000000000-0" }));
 			},
 		},
 		readRun: {
@@ -66,8 +74,7 @@ class InstanceStepper extends AStepper implements IHasCycles {
 				this.calls.push({ step: "readRun", input });
 				const status = this.ended === null ? "running" : "ended";
 				// The real supervisor moves the actuality machine with a test run's events as its output arrives. This double reads fixed output.
-				const outcome = examineRun(this.output);
-				const [first] = outcome.failures;
+				const { actuality, report } = outcomeOf(this.output);
 				return Promise.resolve(
 					actionOKWithProducts({
 						run: input.run,
@@ -76,13 +83,11 @@ class InstanceStepper extends AStepper implements IHasCycles {
 						cursor: 12,
 						output: this.output,
 						dropped: 0,
-						features: outcome.features.length,
-						execution: outcome.execution,
-						steps: outcome.steps,
-						failed: outcome.failures.length,
-						...(first === undefined ? {} : { firstFailure: failureLine(first) }),
-						summary: outcome.summary,
-						...(outcome.report === undefined ? {} : { report: outcome.report }),
+						features: actuality.features.length,
+						execution: actuality.status,
+						steps: actuality.steps,
+						failures: actuality.failures,
+						...(report === undefined ? {} : { report }),
 					}),
 				);
 			},
@@ -171,7 +176,7 @@ describe("the test-runner agent's limits", () => {
 	it("refuses a test run past MAX_RUNS for an ask and states the reason", async () => {
 		for (const filter of ["one", "two", "three"]) {
 			expect((await h.run("tests", filter)).ok).toBe(true);
-			await h.stepper.finishRun(0);
+			h.stepper.finishRun();
 		}
 		const past = await h.run("tests", "four");
 		expect(past.ok).toBe(false);
@@ -181,54 +186,37 @@ describe("the test-runner agent's limits", () => {
 	it("counts test runs against the limit until beginAsk resets the count", async () => {
 		for (const filter of ["one", "two", "three"]) {
 			await h.run("tests", filter);
-			await h.stepper.finishRun(0);
+			h.stepper.finishRun();
 		}
 		h.stepper.beginAsk();
 		expect((await h.run("tests", "four")).ok).toBe(true);
 	});
 });
 
-describe("the record the agent writes for a test run", () => {
+describe("who a test run names as its starter", () => {
 	let h: ReturnType<typeof harness>;
 	beforeEach(() => {
 		h = harness();
 		h.stepper.beginAsk();
 	});
 
-	it("records the test run as an individual with its filter, status and author, so a finding can reference it", async () => {
-		await h.run("tests", "polymorphic");
-		const record = h.written.find((w) => w.label === FEATURE_EXECUTION_LABEL);
-		expect(record?.data.filter).toBe("polymorphic");
-		expect(record?.data.status).toBe(RUN_STATUS.running);
-		expect(record?.data.endpoint, "the record of a test run that doesn't stand omits the endpoint instead of holding an empty one").toBeUndefined();
-		expect(record?.data.attributedTo, "the record names the principal that started the test run, so the graph holds who started it").toBe(TEST_RUNNER_AUTHOR);
+	it("starts the test run as the agent where the call didn't verify a principal, so the run's record names the agent", async () => {
+		const started = await h.run("tests", "polymorphic");
+		expect(started.products?.record, "the products name the execution record of the test run, which a finding can reference").toBe("1700000000000-0");
+		expect(h.supervisor.calls.find((c) => c.step === "startRun")?.actingAs, "the supervisor writes the run's record as the principal that started it").toBe(TEST_RUNNER_AUTHOR);
 		expect(
 			h.written.some((w) => w.data.id === TEST_RUNNER_AUTHOR),
 			"the agent writes its own Principal, so the attribution references a record",
 		).toBe(true);
 	});
 
-	it("records a start the supervisor refuses as a test run that didn't start, with why, and a later read returns that cause", async () => {
+	it("fails a start the supervisor refuses with why, and a later read returns that cause", async () => {
 		const why = "start run: every feature in tests passed against its present dependencies";
 		h.supervisor.refusal = why;
 		const refused = await h.run("tests", "");
-		expect(refused.ok).toBe(false);
 		const refusedAs = `InstanceStepper-startRun: ${why}`;
 		expect(refused.errorMessage, "the refusal names the supervisor's step that refused").toBe(refusedAs);
-		const record = h.written.filter((w) => w.label === FEATURE_EXECUTION_LABEL).at(-1);
-		expect(record?.data.status).toBe(RUN_STATUS.notStarted);
-		expect(record?.data.why).toBe(refusedAs);
-		expect(record?.data.attributedTo, "the refused attempt names who asked for it, as a test run that started does").toBe(TEST_RUNNER_AUTHOR);
 		expect((await h.read()).errorMessage).toBe(`this step doesn't have a test run to read, because the last one didn't start: ${refusedAs}`);
-	});
-
-	it("closes the test run's record with the status its exit code determines, so the graph holds the outcome", async () => {
-		await h.run("tests", "polymorphic");
-		await h.stepper.finishRun(1);
-		const last = h.written.filter((w) => w.label === FEATURE_EXECUTION_LABEL).at(-1);
-		expect(last?.data.status).toBe(RUN_STATUS.failed);
-		expect(last?.data.endedAt).toBeDefined();
-		expect(h.stepper.usage().inFlight, "a finished test run isn't in flight, so the next one may start").toBeUndefined();
 	});
 });
 
@@ -249,7 +237,7 @@ describe("following a test run", () => {
 			port: RUNNER_DEFAULTS.port,
 		});
 		expect(RUNNER_DEFAULTS.port, "a test run uses the ports its own features declare by default").toBe(0);
-		expect(started.products?.endpoint, "a test run that doesn't stand doesn't serve an endpoint after its features finish, so its record omits the endpoint").toBeUndefined();
+		expect(started.ok).toBe(true);
 	});
 
 	it("fails when the test run failed, so a suite that didn't collect a feature isn't reported as passing", async () => {
@@ -271,7 +259,7 @@ describe("following a test run", () => {
 		h.supervisor.ended = 0;
 		const waited = await h.waitFor(30);
 		expect(waited.ok).toBe(true);
-		expect(waited.products?.status).toBe(RUN_STATUS.completed);
+		expect(waited.products?.status).toBe(RECORDED_STATUS.completed);
 		expect(h.stepper.usage().inFlight, "a test run followed to its end isn't in flight").toBeUndefined();
 	});
 
@@ -293,19 +281,18 @@ describe("following a test run", () => {
 		).toEqual([0, 12]);
 	});
 
-	it("closes the record of a test run that has ended and clears the test run in flight, so the next one can start", async () => {
+	it("clears the test run in flight once it has ended, so the next one can start", async () => {
 		await h.run("tests", "polymorphic");
 		h.supervisor.ended = 1;
 		await h.read();
-		expect(h.written.filter((w) => w.label === FEATURE_EXECUTION_LABEL).at(-1)?.data.status).toBe(RUN_STATUS.failed);
 		expect(h.stepper.usage().inFlight).toBeUndefined();
 	});
 
-	it("records a stopped test run as stopped, since its exit code doesn't state the outcome", async () => {
+	it("stops a test run through the supervisor, which records its levels as stopped", async () => {
 		await h.run("tests", "polymorphic");
 		expect((await h.stop()).ok).toBe(true);
 		expect(h.supervisor.calls.some((c) => c.step === "stopRun")).toBe(true);
-		expect(h.written.filter((w) => w.label === FEATURE_EXECUTION_LABEL).at(-1)?.data.status).toBe(RUN_STATUS.stopped);
+		expect(h.stepper.usage().inFlight).toBeUndefined();
 	});
 
 	it("throws with the name of the missing supervisor step when InstanceStepper isn't registered, and doesn't track a test run that didn't start", async () => {
@@ -319,10 +306,10 @@ describe("following a test run", () => {
 describe("what a test run reports", () => {
 	const OUTPUT = [
 		"Haibun Monitor: /features/one.feature.ts",
-		'{"id":"0.1.1.1","kind":"lifecycle","stage":"end","status":"completed","type":"step","in":"set answer to ready"}',
-		'{"id":"0.1.1.2","kind":"lifecycle","stage":"end","status":"failed","type":"step","in":"variable answer is other","error":"answer is ready, not other"}',
+		'{"id":"0.1.1.1","timestamp":1,"kind":"lifecycle","stage":"end","status":"completed","type":"step","in":"set answer to ready"}',
+		'{"id":"0.1.1.2","timestamp":2,"kind":"lifecycle","stage":"end","status":"failed","type":"step","in":"variable answer is other","error":"answer is ready, not other"}',
 		'{"id":"log.1","kind":"log","level":"info","message":"shu standalone report: file:///tmp/capture/featn-1/shu.html"}',
-		'{"id":"execution-end","kind":"lifecycle","stage":"end","status":"failed","type":"execution"}',
+		'{"id":"execution","timestamp":3,"kind":"lifecycle","stage":"end","status":"failed","type":"execution"}',
 		"not json {",
 	].join("\n");
 
@@ -336,27 +323,14 @@ describe("what a test run reports", () => {
 	});
 
 	it("returns the failed step with its seqPath and logged message", () => {
-		const { failures, steps } = examineRun(OUTPUT);
-		expect(steps).toBe(2);
-		expect(failures).toEqual([{ id: "0.1.1.2", step: "variable answer is other", message: "answer is ready, not other" }]);
-	});
-
-	it("reads where the test run wrote its report, so a reader finds the report from the record", () => {
-		expect(examineRun(OUTPUT).report).toBe("file:///tmp/capture/featn-1/shu.html");
-	});
-
-	it("reads the test run's summary from the event that ends the execution", () => {
-		expect(examineRun(OUTPUT).summary).toBe("the test run failed");
-		expect(examineRun('{"id":"execution-end","kind":"lifecycle","stage":"end","status":"completed","type":"execution"}').summary).toBe("the test run completed");
-	});
-
-	it("returns a summary that states the test run didn't report an outcome", () => {
-		expect(examineRun("       i █ 1.2:step-dispatch ｜ ✅ [0.1.1.1] set answer to ready\n").summary).toBe("the test run didn't report an outcome");
+		const { actuality } = outcomeOf(OUTPUT);
+		expect(actuality.steps).toBe(2);
+		expect(actuality.failures).toEqual([{ id: "0.1.1.2", step: "variable answer is other", message: "answer is ready, not other" }]);
 	});
 
 	it("reads the report path from the artifact event, or else from the test run's log line", () => {
-		expect(examineRun('{"kind":"artifact","artifactType":"html","path":"file:///tmp/capture/one/shu.html"}').report).toBe("file:///tmp/capture/one/shu.html");
-		expect(examineRun(OUTPUT).report, "a log line holds the path when an artifact event doesn't").toBe("file:///tmp/capture/featn-1/shu.html");
+		expect(outcomeOf('{"kind":"artifact","artifactType":"html","path":"file:///tmp/capture/one/shu.html"}').report).toBe("file:///tmp/capture/one/shu.html");
+		expect(outcomeOf(OUTPUT).report, "a log line holds the path when an artifact event doesn't").toBe("file:///tmp/capture/featn-1/shu.html");
 	});
 });
 
@@ -373,41 +347,43 @@ describe("the working directory of a test run", () => {
 	});
 });
 
-describe("the record of a finished test run", () => {
-	it("holds the test run's counts and first failure, so a reader of the record has the outcome without another request", async () => {
+describe("examining a finished test run", () => {
+	it("returns how it ended, its counts and its failed steps, as the supervisor read them from every event", async () => {
 		const h = harness();
 		h.stepper.beginAsk();
 		await h.run("tests", "polymorphic");
-		h.supervisor.ended = 0;
+		h.supervisor.ended = 1;
 		h.supervisor.output = [
-			'{"id":"feat-1","kind":"lifecycle","stage":"start","status":"running","type":"feature"}',
-			'{"id":"feat-1","kind":"lifecycle","stage":"start","status":"running","type":"feature"}',
-			'{"id":"0.1.1.1","kind":"lifecycle","stage":"end","status":"completed","type":"step","in":"a step"}',
-			'{"id":"0.1.1.2","kind":"lifecycle","stage":"end","status":"failed","type":"step","in":"another","error":"it logged no"}',
-			'{"id":"feat-1","kind":"lifecycle","stage":"end","status":"failed","type":"feature"}',
-			'{"id":"execution-end","kind":"lifecycle","stage":"end","status":"failed","type":"execution"}',
+			'{"id":"feat-1","timestamp":1,"kind":"lifecycle","stage":"start","status":"running","type":"feature"}',
+			'{"id":"feat-1","timestamp":1,"kind":"lifecycle","stage":"start","status":"running","type":"feature"}',
+			'{"id":"0.1.1.1","timestamp":2,"kind":"lifecycle","stage":"end","status":"completed","type":"step","in":"a step"}',
+			'{"id":"0.1.1.2","timestamp":3,"kind":"lifecycle","stage":"end","status":"failed","type":"step","in":"another","error":"it logged no"}',
+			'{"id":"feat-1","timestamp":4,"kind":"lifecycle","stage":"end","status":"failed","type":"feature"}',
+			'{"id":"execution","timestamp":5,"kind":"lifecycle","stage":"end","status":"failed","type":"execution"}',
 		].join("\n");
 		await h.waitFor(30);
-		const record = h.written.filter((w) => w.label === FEATURE_EXECUTION_LABEL).at(-1);
-		expect(record?.data.steps, "the number of steps the test run ran").toBe(2);
-		expect(record?.data.features, "a feature reported twice is one feature").toBe(1);
-		expect(record?.data.failed).toBe(1);
-		expect(record?.data.firstFailure, "the first failure with its seqPath and message").toBe("0.1.1.2: another (it logged no)");
+		const examined = await h.asRun(() => (h.stepper.steps.examineTestRun.action as () => Promise<TResult & { products?: Record<string, unknown> }>)());
+		expect(examined.products, "a feature reported twice is one feature").toMatchObject({
+			status: RECORDED_STATUS.failed,
+			steps: 2,
+			features: 1,
+			failures: [{ id: "0.1.1.2", step: "another", message: "it logged no" }],
+		});
 	});
 
 	describe("running a test as a goal", () => {
-		it("resolves feature-execution to the steps that start a test run, so the resolver offers running a test as a step and not only as prose", async () => {
-			// The test run's record is the step's declared product, so the goal graph holds a producer edge to it. Resolving
-			// `feature-execution` returns runTest or runAllTests as the michi. The resolver selects the step by its declared
+		it("resolves run-started to the steps that start a test run, so the resolver offers running a test as a step and not only as prose", async () => {
+			// The started test run is the step's declared product, so the goal graph holds a producer edge to it. Resolving
+			// `run-started` returns runTest or runAllTests as the michi. The resolver selects the step by its declared
 			// product and not by a naming convention.
 			const { buildDomainChain } = await import("@haibun/core/lib/domain-chain.js");
 			const { resolveGoal, GOAL_FINDING } = await import("@haibun/core/lib/goal-resolver.js");
 			const stepper = new TestRunnerStepper();
-			const domains = mapDefinitionsToDomains([featureExecutionDomainDefinition]);
+			const domains = mapDefinitionsToDomains(runDomainDefinitions);
 			const graph = buildDomainChain([stepper as never], domains);
-			const producers = graph.edges.filter((e) => e.to === "feature-execution").map((e) => e.stepName);
+			const producers = graph.edges.filter((e) => e.to === RUN_DOMAIN.started).map((e) => e.stepName);
 			expect(producers, "both steps that start a test run produce the record").toEqual(expect.arrayContaining(["runTest", "runAllTests"]));
-			const resolved = resolveGoal("feature-execution", { graph, facts: [], held: ["Instance:run"] });
+			const resolved = resolveGoal(RUN_DOMAIN.started, { graph, facts: [], held: ["Instance:run"] });
 			expect(resolved.finding, "the resolver returns a michi to the goal").toBe(GOAL_FINDING.MICHI);
 			const steps = "michi" in resolved ? resolved.michi.flatMap((m) => m.steps.map((s) => s.stepName)) : [];
 			expect(steps).toContain("runTest");
