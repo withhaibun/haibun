@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import ResourcesStepper from "./resources-stepper.js";
-import { getDefaultWorld } from "../lib/test/lib.js";
-import { Access, LinkRelations } from "../lib/resources.js";
+import Haibun from "./haibun.js";
+import { getDefaultWorld, getTestWorldWithOptions, testWithWorld } from "../lib/test/lib.js";
+import { Access, BODY_LABEL, LinkRelations, READING_LABEL, SEQ_PATH_LABEL, SPECIFIC_RESOURCE_LABEL } from "../lib/resources.js";
+import { MEDIA_TYPE } from "../lib/media-types.js";
 import { setPrincipal } from "../lib/principal.js";
 import { type TWorld } from "../lib/actuality/domains/world.js";
 import { itemAt } from "../lib/util/item-at.js";
@@ -50,5 +52,37 @@ describe("ResourcesStepper comment (reply-threaded)", () => {
 		const first = await stepper.steps.comment.action({ label: "Letter", id: "root-letter", text: "First" });
 		const reply = await stepper.steps.comment.action({ label: "Comment", id: first.products?.commentId as string, text: "A reply to the first" });
 		expect(reply.products?.contextRoot).toBe("root-letter");
+	});
+});
+
+describe("ResourcesStepper typed links in a feature's prose", () => {
+	const PASSAGE = "Boatbuilding, dye preparation and knot work are practiced ways of doing.";
+	/** A world whose store holds the passage as the Body `practice`, which a prose link cites. */
+	const worldHoldingPassage = async () => {
+		const world = getTestWorldWithOptions();
+		const body = { id: "practice", content: PASSAGE, mediaType: MEDIA_TYPE.markdown, generatedAtTime: new Date(0).toISOString(), accessLevel: Access.public };
+		await world.shared.getStore().upsertIndividual(BODY_LABEL, body);
+		return world;
+	};
+
+	it("states a prose link as a fact about its step, checks that the quoted passage resolves, and reads the statement with its reading", async () => {
+		const world = await worldHoldingPassage();
+		const feature = ["This scenario demonstrates [a passage:citesAsEvidence](#Body:practice:~:text=Boatbuilding).", "check citations resolve", 'statements with "citesAsEvidence"'];
+		const ran = await testWithWorld(world, feature.join("\n"), [Haibun, ResourcesStepper]);
+		expect(ran.ok, JSON.stringify(ran.failure)).toBe(true);
+		const read = itemAt(ran.featureResults, 0).stepResults.at(-1)?.products;
+		expect(read).toMatchObject({
+			total: 1,
+			statements: [{ subject: { "@type": SEQ_PATH_LABEL }, object: { "@type": SPECIFIC_RESOURCE_LABEL }, reading: { "@type": READING_LABEL } }],
+		});
+	});
+
+	it("refuses a citation whose quoted passage its source no longer states", async () => {
+		const world = await worldHoldingPassage();
+		const ran = await testWithWorld(world, "This scenario demonstrates [a passage:citesAsEvidence](#Body:practice:~:text=Shipwrighting).\ncheck citations resolve", [
+			Haibun,
+			ResourcesStepper,
+		]);
+		expect(ran.failure?.error.message).toMatch(/1 of 1 citations no longer resolve:\nBody "practice" no longer states/);
 	});
 });

@@ -154,7 +154,7 @@ export class FeatureVariables {
 		return await this._set(sv, provenance);
 	}
 
-	/** Writes a variable's record with an edge to each step that set it, and emits the record's quads as the graph holds them. */
+	/** Writes a variable's record with an edge to the step that set it, and emits the record's quads as the graph holds them. */
 	async _set(sv: TStepValue, provenance: TProvenanceIdentifier) {
 		const domainKey = normalizeDomainKey(sv.domain);
 		const domain = this.world.domains[domainKey];
@@ -162,8 +162,9 @@ export class FeatureVariables {
 		const normalized = { ...sv, domain: domainKey };
 		domain.coerce(normalized);
 		const setBy = formatRecordName({ execution: executionOf(this.world.tag), path: provenance.seq });
-		const generatedBy = [...new Set([...stepsOf(await this.stepsThatSet([sv.term]), sv.term), setBy])];
-		await this.writeRecord(sv.term, normalized, generatedBy);
+		// A record's write keeps its edges, so only an edge to a step that hadn't set the variable is written.
+		const held = stepsOf(await this.stepsThatSet([sv.term]), sv.term);
+		await this.writeRecord(sv.term, normalized, held.includes(setBy) ? [] : [setBy]);
 		for (const [index, quad] of (await this.store.query({ subject: sv.term, namedGraph: SHARED_GRAPH })).entries())
 			emitQuadObservation(this.world.eventLogger, `quad-${quad.timestamp}-${index}`, quad);
 	}

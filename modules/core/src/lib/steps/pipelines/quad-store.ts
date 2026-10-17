@@ -299,8 +299,7 @@ export class QuadStore implements IQuadStore {
 		if (namedGraph) {
 			// A backing store holds what persists, so a clear removes only what this store's own layer holds.
 			if (this.chain.routing.has(namedGraph)) return;
-			this.removable([...this.quads.ofGraph(namedGraph)]);
-			this.quads.removeWhere(this.quads.ofGraph(namedGraph), () => true);
+			for (const q of this.removable([...this.quads.ofGraph(namedGraph)])) this.quads.delete(q);
 		} else {
 			this.removable([...this.quads]);
 			this.quads.clear();
@@ -460,7 +459,8 @@ export class QuadStore implements IQuadStore {
 		if (declared) validated.accessLevel = accessLevel;
 		// The code doesn't await between the removal and the additions, so a concurrent write, a carry at a scenario's end or a
 		// backing registration during the write never reads a record that is half written.
-		this.quads.removeWhere(this.quads.ofSubject(label, id), () => true);
+		// A write replaces the record's properties and keeps its edges, as a graph store does.
+		this.quads.removeWhere(this.quads.ofSubject(label, id), (q) => !q.objectType);
 		const timestamp = Date.now();
 		for (const [key, value] of Object.entries(validated)) {
 			if (value !== undefined && value !== null)
