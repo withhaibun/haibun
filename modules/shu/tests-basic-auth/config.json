@@ -1,0 +1,20 @@
+{
+	"$schema": "../node_modules/@haibun/core/haibun-core-specl.schema.json",
+	"extends": "../../../config.base.json",
+	"steppers": [
+		"@haibun/web-server-hono/web-server-stepper",
+		"@haibun/web-playwright/web-playwright",
+		"@haibun/storage-fs/storage-fs",
+		"@haibun/shu/shu-stepper",
+		"@haibun/shu/monitor-stepper",
+		"@haibun/shu/graph-source-stepper",
+		"@haibun/shu/client-cache-stepper"
+	],
+	"description": "An instance whose every route requires HTTP basic auth, as one behind a proxy's basic auth does, and a page a person opens through it once they sign in.",
+	"moduleOptions": {
+		"HAIBUN_O_WEBSERVERSTEPPER_PORT": "8244",
+		"HAIBUN_O_WEBSERVERSTEPPER_BASIC_AUTH": "reader:a-password-for-this-run",
+		"HAIBUN_O_WEBSERVERSTEPPER_ALLOW_WITHOUT_DELEGATION": "*",
+		"HAIBUN_O_WEBPLAYWRIGHT_STORAGE": "StorageFS"
+	}
+}

@@ -2,6 +2,9 @@ import { withAction, type TKirejiStep } from "@haibun/core/kireji/withAction.js"
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import type WebPlaywright from "@haibun/web-playwright";
 import { dePolite } from "@haibun/core/lib/util/index.js";
+import { BASIC_AUTH_OPTION, basicAuthUsers } from "@haibun/core/lib/basic-auth.js";
+import { requiredModuleOption } from "@haibun/core/lib/held-module-options.js";
+import { MODULE_OPTION_PREFIX } from "@haibun/core/schema/protocol.js";
 import { SHU_TEST_IDS } from "../domains/test-ids.js";
 import { CHAT_MESSAGE_MATCH, SHU_TAG } from "../domains/elements.js";
 
@@ -25,6 +28,19 @@ export function serviceHost(defaultPort: string): string {
 	const target = process.env.HAIBUN_TEST_HOST;
 	if (target) return target.includes("://") ? target : `https://${target}`;
 	return `http://localhost:${process.env.HAIBUN_O_WEBSERVERSTEPPER_PORT ?? defaultPort}`;
+}
+
+/** The web server's option that states its listening port. */
+const WEB_SERVER_PORT_OPTION = `${MODULE_OPTION_PREFIX}WEBSERVERSTEPPER_PORT`;
+
+/** The origin of the feature's own web server at the port its group's config states. Throws where the config doesn't state one. */
+export const configuredServiceHost = (): string => serviceHost(requiredModuleOption(WEB_SERVER_PORT_OPTION));
+
+/** `address` as a person who signed in reaches it: the first person the group's basic auth admits, in the address's user
+ *  part. A browser keeps that sign-in for the site's other requests. Throws where the group's config doesn't state basic auth. */
+export function signedInAddress(address: string): string {
+	const { username, password } = itemAt(basicAuthUsers(requiredModuleOption(BASIC_AUTH_OPTION)), 0);
+	return address.replace("://", `://${encodeURIComponent(username)}:${encodeURIComponent(password)}@`);
 }
 
 /** Declare one id under the `page-test-id` domain so the variable resolver maps the bare name to that test id. */

@@ -18,7 +18,7 @@ import { Access, principalDomainDefinition } from "@haibun/core/lib/resources.js
 import { readAction } from "@haibun/core/lib/actions.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
 import { AStepper, type IHasCycles, type IStepperCycles } from "@haibun/core/lib/astepper.js";
-import { actionOKWithProducts } from "@haibun/core/lib/util/index.js";
+import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { addStepperConcerns } from "@haibun/core/phases/Executor.js";
 import { hostScopedMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
@@ -45,6 +45,8 @@ class InstanceStepper extends AStepper implements IHasCycles {
 	ended: number | null = null;
 	/** The output the test run has logged. A test run writes its events to its output. The agent reads the events from that output. */
 	output = "a line of output";
+	/** The reason the supervisor refuses the next start, as it refuses features that ran against their present dependencies. */
+	refusal: string | undefined;
 	steps = {
 		startRun: {
 			gwta: `start a haibun run of {where} matching {filter} from {from} on port {port: number} as run {run} host {hostId: number}`,
@@ -52,6 +54,7 @@ class InstanceStepper extends AStepper implements IHasCycles {
 			productsDomain: RUN_DOMAIN.started,
 			action: (input: { where: string; filter: string; from: string; port: number; run: string; hostId: number }) => {
 				this.calls.push({ step: "startRun", input });
+				if (this.refusal !== undefined) return Promise.resolve(actionNotOK(this.refusal));
 				return Promise.resolve(actionOKWithProducts({ run: input.run, where: input.where, filter: input.filter }));
 			},
 		},
@@ -203,6 +206,20 @@ describe("the record the agent writes for a test run", () => {
 			h.written.some((w) => w.data.id === TEST_RUNNER_AUTHOR),
 			"the agent writes its own Principal, so the attribution references a record",
 		).toBe(true);
+	});
+
+	it("records a start the supervisor refuses as a test run that didn't start, with why, and a later read returns that cause", async () => {
+		const why = "start run: every feature in tests passed against its present dependencies";
+		h.supervisor.refusal = why;
+		const refused = await h.run("tests", "");
+		expect(refused.ok).toBe(false);
+		const refusedAs = `InstanceStepper-startRun: ${why}`;
+		expect(refused.errorMessage, "the refusal names the supervisor's step that refused").toBe(refusedAs);
+		const record = h.written.filter((w) => w.label === FEATURE_EXECUTION_LABEL).at(-1);
+		expect(record?.data.status).toBe(RUN_STATUS.notStarted);
+		expect(record?.data.why).toBe(refusedAs);
+		expect(record?.data.attributedTo, "the refused attempt names who asked for it, as a test run that started does").toBe(TEST_RUNNER_AUTHOR);
+		expect((await h.read()).errorMessage).toBe(`this step doesn't have a test run to read, because the last one didn't start: ${refusedAs}`);
 	});
 
 	it("closes the test run's record with the status its exit code determines, so the graph holds the outcome", async () => {
