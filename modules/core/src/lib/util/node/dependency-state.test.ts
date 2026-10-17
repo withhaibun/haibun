@@ -5,7 +5,7 @@ import { execFileSync } from "node:child_process";
 import nodeFS from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { TIMINGS_FILE, VERIFIED_FILE, dependencyRoots, dependencyState, moduleRootOf } from "./dependency-state.js";
+import { RUNS_FILE, dependencyRoots, dependencyState, moduleRootOf } from "./dependency-state.js";
 
 /** Creates a temporary git repository with the given files and returns its real path. The files aren't committed,
  *  because the state is read from the working tree. */
@@ -45,11 +45,10 @@ describe("the state of a group's dependencies", () => {
 		expect(dependencyState([repo])).toBe(before);
 	});
 
-	it("excludes the files a run writes about itself, so recording an outcome or a timing doesn't change the state", () => {
+	it("excludes the file a run writes about itself, so recording an outcome or a duration doesn't change the state", () => {
 		const repo = aRepository({ "features/a.feature": "Feature: a\n" });
 		const before = dependencyState([repo]);
-		nodeFS.writeFileSync(path.join(repo, VERIFIED_FILE), "{}\n");
-		nodeFS.writeFileSync(path.join(repo, TIMINGS_FILE), "{}\n");
+		nodeFS.writeFileSync(path.join(repo, RUNS_FILE), "{}\n");
 		expect(dependencyState([repo])).toBe(before);
 	});
 

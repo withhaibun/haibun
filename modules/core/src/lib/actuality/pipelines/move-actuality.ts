@@ -10,20 +10,19 @@ import { SEQ_PATH_LABEL } from "../../resources.js";
 import { isActualityMove, type TActuality, type TActualityMove } from "../machines/actuality.js";
 import { levelRecord, type TLevelNaming, type TStepRecord } from "../derivations/step-records.js";
 
-/** The records of the levels that started and haven't ended, by their events' id, which a level's end extends. */
-export type TOpenLevels = Map<string, TStepRecord>;
+/** The records of an execution's levels by their events' id: a level's start writes its record, and its end extends it. */
+export type TLevelRecords = Map<string, TStepRecord>;
 
 /** A move of the actuality machine, the state after it and when it happened, from which a level's record is written. */
 export type TLevelMoved = { move: TActualityMove; after: TActuality; timestamp: number };
 
 /** Writes the record of the level a move starts or ends, with the fields `stated` adds to the execution's record, and
  *  returns it. A step's move doesn't write a record here, since dispatchStep writes a step's record. */
-export async function writeLevelRecord(store: IQuadStore, open: TOpenLevels, { move, after, timestamp }: TLevelMoved, naming: TLevelNaming, stated?: TStepRecord) {
-	const record = levelRecord(move, after, naming, open.get(move.id), timestamp);
+export async function writeLevelRecord(store: IQuadStore, levels: TLevelRecords, { move, after, timestamp }: TLevelMoved, naming: TLevelNaming, stated?: TStepRecord) {
+	const record = levelRecord(move, after, naming, move.stage === "end" ? levels.get(move.id) : undefined, timestamp);
 	if (record === undefined) return undefined;
 	const written = move.type === "execution" ? { ...record, ...stated } : record;
-	if (move.stage === "start") open.set(move.id, written);
-	else open.delete(move.id);
+	levels.set(move.id, written);
 	await store.upsertIndividual(SEQ_PATH_LABEL, written);
 	return written;
 }

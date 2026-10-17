@@ -1,0 +1,50 @@
+{
+	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
+		"e553ffc10f48128b": {
+			"state": "300a69017172bce78737c3529a69dd7d2b0de8699d81e1a503e70caf29106573",
+			"filter": "",
+			"execution": {
+				"text": "./tests-profile",
+				"status": "passed",
+				"tookMs": 31600
+			},
+			"features": {
+				"/features/a-a-run-to-come-back-to.feature.ts": {
+					"text": "A run to come back to",
+					"status": "passed",
+					"tookMs": 3000,
+					"steps": 207,
+					"declaredStepTextHash": "03463ac4b1f1bacfcfe99e47ae68cb50159d7ca47b1bfaa209dd3a09b8b35ad8"
+				},
+				"/features/b-reading-a-cached-run.feature.ts": {
+					"text": "Reading an execution this device holds",
+					"status": "passed",
+					"tookMs": 3900,
+					"steps": 217,
+					"declaredStepTextHash": "8377bece1182ca1daaab38a551c7699d1c00f2de4cf8eaf89a64f34e26ccdadd"
+				},
+				"/features/c-reading-a-report.feature.ts": {
+					"text": "Reading a report of this run",
+					"status": "passed",
+					"tookMs": 2400,
+					"steps": 215,
+					"declaredStepTextHash": "7e31ccce239fa74edad64dfd124c776a8a90bdbd44eea1f31b432eed8e1731fd"
+				},
+				"/features/d-two-origins.feature.ts": {
+					"text": "What a reader holds is held per address",
+					"status": "passed",
+					"tookMs": 2000,
+					"steps": 216,
+					"declaredStepTextHash": "ba086e4dad6826cb6ab9b178bef0ed787a8997046fb210cbf16228ae9e6d25ff"
+				},
+				"/features/e-deleting-a-run.feature.ts": {
+					"text": "Deleting a run this device holds",
+					"status": "passed",
+					"tookMs": 19400,
+					"steps": 207,
+					"declaredStepTextHash": "bb221a904f4102a45f405d8749b877fa1f2cba67c391375a4302b7c692c18129"
+				}
+			}
+		}
+	}
+}

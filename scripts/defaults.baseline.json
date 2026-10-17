@@ -12,10 +12,6 @@
 		"fills an absent value with a constant through ??": 1,
 		"states a parameter's default value": 2
 	},
-	"modules/cli/src/timings.ts": {
-		"fills a falsy value with a constant through ||": 1,
-		"fills an absent value with a constant through ??": 2
-	},
 	"modules/cli/src/verified.ts": {
 		"fills an absent value with a constant through ??": 2
 	},

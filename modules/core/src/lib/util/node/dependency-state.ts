@@ -20,15 +20,10 @@ import type { TSpecl } from "../../actuality/domains/execution.js";
 import { getModuleLocation } from "./workspace-lib.js";
 import { itemAt } from "../item-at.js";
 
-/** The name of the file that records the outcomes of a group's runs against the state. The file is written beside the
- *  group's configuration. The state excludes every file with this name, because the record isn't part of the state. */
-export const VERIFIED_FILE = "verified.json";
-/** The name of the file that records the duration of each feature in a group's runs. The file is written beside the
- *  group's configuration. The state excludes every file with this name, because a measurement of a run isn't part of
- *  the state. */
-export const TIMINGS_FILE = "timings.json";
-/** The names of the files a run writes about itself beside a group's configuration. The state excludes them. */
-const WRITTEN_BY_A_RUN = new Set([VERIFIED_FILE, TIMINGS_FILE]);
+/** The name of the file that records how a group's runs went: the state each read, and each level's outcome and duration.
+ *  The file is written beside the group's configuration. The state excludes every file with this name, because a run's
+ *  record of itself isn't part of the state it read. */
+export const RUNS_FILE = "runs.json";
 
 /** Returns the directory of the module that contains a path. That directory is the nearest directory at or above the
  *  path that contains a package.json. Returns undefined for a path that isn't inside a module. */
@@ -168,7 +163,7 @@ function repositoryFiles(dir: string): TRepositoryFile[] | undefined {
 	const files: string[] = [];
 	const links: TRepositoryFile[] = [];
 	for (const listed of git(dir, ["ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "."]).split("\0")) {
-		if (listed.length === 0 || WRITTEN_BY_A_RUN.has(path.basename(listed))) continue;
+		if (listed.length === 0 || path.basename(listed) === RUNS_FILE) continue;
 		const file = path.join(rel, listed);
 		let stat: nodeFS.Stats;
 		try {

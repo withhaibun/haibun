@@ -45,10 +45,10 @@ import { MODULE_OPTION_PREFIX, BASE_PREFIX, NDJSON, OK, ONCE, STAY, STAY_ALWAYS 
 import { DEFAULT_HOST_ID, HAIBUN_HOST_ID_ENV } from "@haibun/core/lib/host-id.js";
 import { type TRunOutcome, emptyOutcome, readRunOutput } from "./run-outcome.js";
 import { LEVEL_STATUS, StepFailureSchema, executionEnded, transition, type TActualityMove } from "@haibun/core/lib/actuality/machines/actuality.js";
-import { writeLevelRecord, type TLevelMoved, type TOpenLevels } from "@haibun/core/lib/actuality/pipelines/move-actuality.js";
+import { writeLevelRecord, type TLevelMoved, type TLevelRecords } from "@haibun/core/lib/actuality/pipelines/move-actuality.js";
 import type { TLevelNaming, TStepRecord } from "@haibun/core/lib/actuality/derivations/step-records.js";
 import { SEQ_PATH_EDGE, SEQ_PATH_FIELD, executionOf, formatRecordName } from "@haibun/core/lib/seq-path.js";
-import { ACTUALITY_LEVELS } from "@haibun/core/schema/protocol.js";
+import { ACTUALITY_LEVELS, RECORDED_STATUS } from "@haibun/core/schema/protocol.js";
 import { actingAs, askedIn } from "@haibun/core/lib/capability-context.js";
 import { getConfigFromBase, processBaseEnvToOptionsAndErrors } from "./lib.js";
 import { outcomeAgainst, verificationOf, type TOutcome } from "./verified.js";
@@ -206,7 +206,7 @@ export function verifiedRun(config: string, dir: string, filter: string, cwd: st
 	const specl = getConfigFromBase([dir], nodeFS);
 	const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(environmentIn(cwd, env), specl);
 	const v = verificationOf({ configPath: config, specl, bases: [dir], cwd, filter: filter ? filter.split(",") : [], options, moduleOptions });
-	return v === undefined ? undefined : outcomeAgainst(v)?.outcome;
+	return v === undefined ? undefined : outcomeAgainst(v);
 }
 
 /** Returns the first user that the BASIC_AUTH option lists for the web server of a run in `dir`, or undefined when the option is unset.
@@ -219,8 +219,8 @@ function signInOf(dir: string, cwd: string, env: NodeJS.ProcessEnv): TBasicAuthU
 
 /** A supervised run: the child, its output tail, the outcome accrued from its events, its exit code, and the callbacks
  *  waiting for its features to finish. `ended` is null until the child exits. `naming` names the records of its levels,
- *  `stated` holds what its execution's record states of how it started, `levels` the records of the levels that haven't
- *  ended, and `writing` the writes of those records in the order of the moves. */
+ *  `stated` holds what its execution's record states of how it started, `levels` the records of its levels, and
+ *  `writing` the writes of those records in the order of the moves. */
 export type TRun = {
 	child: ChildProcess;
 	tail: RunTail;
@@ -229,7 +229,7 @@ export type TRun = {
 	waiters: Array<() => void>;
 	naming: TLevelNaming;
 	stated: TStepRecord;
-	levels: TOpenLevels;
+	levels: TLevelRecords;
 	writing: Promise<unknown>;
 };
 
@@ -549,7 +549,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 	private async stopLevels(held: TRun): Promise<void> {
 		await held.writing;
 		const timestamp = this.getWorld().clock.now();
-		for (const [id, record] of [...held.levels].reverse()) {
+		for (const [id, record] of [...held.levels].reverse().filter(([, level]) => level[SEQ_PATH_FIELD.actionStatus] === RECORDED_STATUS.running)) {
 			const move: TActualityMove = { type: z.enum(ACTUALITY_LEVELS).parse(record[SEQ_PATH_FIELD.actualityLevel]), stage: "end", id, status: LEVEL_STATUS.stopped };
 			held.outcome.actuality = transition(held.outcome.actuality, move);
 			this.writeLevel(held, { move, after: held.outcome.actuality, timestamp });

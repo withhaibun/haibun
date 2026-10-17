@@ -18,7 +18,7 @@ import nodeFS from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { getConfigFromBase, processBaseEnvToOptionsAndErrors } from "./lib.js";
-import { recordOutcome, verificationOf } from "./verified.js";
+import { recordRun, verificationOf } from "./verified.js";
 import { emptyOutcome } from "./run-outcome.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
@@ -27,6 +27,27 @@ import { SEQ_PATH_EDGE, SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
 import { RECORDED_STATUS } from "@haibun/core/schema/protocol.js";
 import type { ChildProcess } from "child_process";
 import { EventEmitter } from "node:events";
+
+/** Records a run of a group that ended as `status`, as a run records itself in the runs file. */
+const recordOutcome = (v: Parameters<typeof recordRun>[0], status: string) =>
+	recordRun(
+		v,
+		{ ok: true, featureResults: [] } as never,
+		new Map([
+			[
+				"execution",
+				{
+					id: "1-0",
+					stepText: "a run",
+					actionStatus: status,
+					level: "info",
+					actualityLevel: "execution",
+					generatedAtTime: new Date(0).toISOString(),
+					endedAtTime: new Date(1).toISOString(),
+				},
+			],
+		]),
+	);
 
 /** The names of a held run's records: its key and its host. */
 const HELD_NAMING = { key: "1700000000000", hostId: 0 };
@@ -210,9 +231,9 @@ describe("whether a run would repeat the outcome of an earlier run", () => {
 		// v() computes the verification that the child would record from the same environment.
 		const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env, getConfigFromBase([dir], nodeFS));
 		const v = () => verificationOf({ configPath: config, specl: getConfigFromBase([dir], nodeFS), bases: [dir], cwd: dir, filter: [], options, moduleOptions }) as never;
-		recordOutcome(v(), "failed", 1);
+		recordOutcome(v(), "failed");
 		expect(verifiedRun(config, dir, "", dir, env), "a run that failed against this state would fail the same way").toBe("failed");
-		recordOutcome(v(), "passed", 1);
+		recordOutcome(v(), "passed");
 		expect(verifiedRun(config, dir, "", dir, env), "verifiedRun returns the recorded pass for the same features, state and conditions").toBe("passed");
 		expect(verifiedRun(config, dir, "a", dir, env), "a run narrowed to some of the features is a different run").toBeUndefined();
 		nodeFS.writeFileSync(path.join(dir, "features/a.feature"), "Feature: a, changed\n");
@@ -223,11 +244,7 @@ describe("whether a run would repeat the outcome of an earlier run", () => {
 		const { dir, config } = aGroup();
 		const env = runEnvironment({}, 0, false);
 		const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env, getConfigFromBase([dir], nodeFS));
-		recordOutcome(
-			verificationOf({ configPath: config, specl: getConfigFromBase([dir], nodeFS), bases: [dir], cwd: dir, filter: [], options, moduleOptions }) as never,
-			"passed",
-			1,
-		);
+		recordOutcome(verificationOf({ configPath: config, specl: getConfigFromBase([dir], nodeFS), bases: [dir], cwd: dir, filter: [], options, moduleOptions }) as never, "passed");
 		expect(verifiedRun(config, dir, "", dir, env)).toBe("passed");
 		nodeFS.writeFileSync(path.join(dir, ".env"), "HAIBUN_O_WEBSERVERSTEPPER_PORT=8399\n");
 		expect(verifiedRun(config, dir, "", dir, env), "the child would read that file, so its conditions differ from the recorded conditions").toBeUndefined();
@@ -324,7 +341,7 @@ describe("the records of a run's levels", () => {
 		);
 		const { key } = HELD_NAMING;
 		expect(records.map((r) => [r[SEQ_PATH_FIELD.id], r[SEQ_PATH_FIELD.stepText], r[SEQ_PATH_FIELD.actionStatus], r[SEQ_PATH_EDGE.isPartOf], r[SEQ_PATH_FIELD.error]])).toEqual([
-			[`${key}-0`, "/tests", RECORDED_STATUS.stopped, undefined, "0.1.0.1: a step (it failed)"],
+			[`${key}-0`, "/tests", RECORDED_STATUS.stopped, undefined, undefined],
 			[`${key}-1.0.1.0`, "a", RECORDED_STATUS.failed, `${key}-0`, "0.1.0.1: a step (it failed)"],
 			[`${key}-2.0.2.0`, "b", RECORDED_STATUS.stopped, `${key}-0`, undefined],
 			[`${key}-2.0.2.1`, "first", RECORDED_STATUS.stopped, `${key}-2.0.2.0`, undefined],

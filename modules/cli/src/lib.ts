@@ -26,8 +26,7 @@ import { OPTION_RUN_POLICY, OPTION_DRY_RUN, HAIBUN_RUN_POLICY, parseRunPolicyArg
 import { loadAndValidateRunPolicy } from "@haibun/core/run-policy/run-policy-schema.js";
 import { PhaseRunner, PhaseBailError } from "@haibun/core/lib/PhaseRunner.js";
 import { withName } from "@haibun/core/lib/features.js";
-import { forgetOutcome, outcomeAgainst, recordOutcome, verificationOf } from "./verified.js";
-import { recordTimings, varianceLine } from "./timings.js";
+import { forgetOutcome, outcomeAgainst, recordRun, varianceLine, verificationOf } from "./verified.js";
 
 const OPTION_CONFIG = "--config";
 const OPTION_HELP = "--help";
@@ -91,7 +90,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 			// A group whose last run passed against the present dependency state would pass again, so it exits as passed
 			// without running. A group whose last run failed runs again, so a person can retry a failure whose cause is
 			// outside the sources without changing anything.
-			else if (outcomeAgainst(verification)?.outcome === RECORDED_STATUS.completed) return verifiedExit(bases);
+			else if (outcomeAgainst(verification) === RECORDED_STATUS.completed) return verifiedExit(bases);
 		}
 
 		const featuresBackgrounds = await pr.tryPhase("Collector", () => collect(bases, featureFilter, parsed.statements, policyConfig));
@@ -108,15 +107,11 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 
 		const runner = new Runner(world);
 		const result = await runner.runFeaturesAndBackgrounds(csteppers, featuresBackgrounds);
-		// A run without a feature result isn't evidence about the dependency state, so its entry in the record is deleted.
+		// A run without a feature result isn't evidence about the dependency state, so its state is cleared from the runs file.
+		// Otherwise the runs file holds its outcome against the state and each feature's duration, and the commit holds
+		// the runs file, so its history holds the durations at each commit.
 		if (verification && result.featureResults.length === 0) forgetOutcome(verification);
-		else if (verification) recordOutcome(verification, result.ok ? RECORDED_STATUS.completed : RECORDED_STATUS.failed, result.featureResults.length);
-		// Writes each feature's duration to timings.json beside the config. The file's git history holds the durations at
-		// each commit. Timings measure durations and don't verify a state, so they are written whether or not a run is verified.
-		if (parsed.statements.length === 0 && result.featureResults.length > 0) {
-			const variances = recordTimings(path.dirname(path.resolve(configFileFrom(configBases, nodeFS))), result, featureFilter !== undefined);
-			for (const variance of variances) console.info(`timings: ${varianceLine(variance)}`);
-		}
+		else if (verification) for (const variance of recordRun(verification, result, world.runtime.levels)) console.info(`timings: ${varianceLine(variance)}`);
 
 		await reportAndExit(result, world, protoOptions);
 	} catch (error) {

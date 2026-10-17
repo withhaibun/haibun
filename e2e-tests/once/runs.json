@@ -1,0 +1,22 @@
+{
+	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
+		"174b1161f2773a27": {
+			"state": "7960ca15e686913c2111375c23a8f86b4219397912e386d0ae7282dc17fe1670",
+			"filter": "",
+			"execution": {
+				"text": "/home/user/haibun/e2e-tests/once",
+				"status": "passed",
+				"tookMs": 0
+			},
+			"features": {
+				"/features/once.feature": {
+					"text": "/home/user/haibun/e2e-tests/once/features/once",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 1,
+					"declaredStepTextHash": "8791f58bb41a852e25455b6098dc0a9cd34adca1341af0d9987190b2b6905f78"
+				}
+			}
+		}
+	}
+}

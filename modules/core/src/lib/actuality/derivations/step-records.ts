@@ -113,11 +113,11 @@ function levelAt(move: TActualityMove, after: TActuality, naming: TLevelNaming):
 }
 
 /**
- * The record of the level a move of the actuality machine starts or ends, from the state after the move: the execution's,
- * a feature's or a scenario's. Its start states the level's heading, the record it is part of and the record of the level
- * before it. Its end is its start with how the level ended, and with the first failure of a feature or of the execution.
- * The move happened at `timestamp`. Returns undefined for a step's move, whose record dispatchStep writes. Throws for an end
- * without its start's record.
+ * The record of the level a move of the actuality machine starts or ends, from the state after the move: the
+ * execution's, a feature's or a scenario's. Its start states the level's heading, the record it is part of and the
+ * record of the level before it. Its end is its start with how the level ended, and with the first failure of a
+ * feature or of the execution that failed. The move happened at `timestamp`. Returns undefined for a step's move,
+ * whose record dispatchStep writes. Throws for an end without its start's record.
  */
 export function levelRecord(move: TActualityMove, after: TActuality, naming: TLevelNaming, started: TStepRecord | undefined, timestamp: number): TStepRecord | undefined {
 	if (move.type === "step") return undefined;
@@ -126,7 +126,8 @@ export function levelRecord(move: TActualityMove, after: TActuality, naming: TLe
 		if (started === undefined) throw new Error(`the ${move.type} ${move.id} ended without the record of its start; move a level's start before its end`);
 		const status = Object.entries(RECORDED_STATUS).find(([word]) => word === move.status && word !== STATUS.running)?.[1];
 		if (status === undefined) throw new Error(`the ${move.type} ${move.id} ended as ${move.status}, which doesn't end a level`);
-		const failure = move.type === "execution" ? after.failures[0] : move.type === "feature" ? after.features.at(-1)?.firstFailure : undefined;
+		const failed = status === RECORDED_STATUS.failed ? after : undefined;
+		const failure = move.type === "execution" ? failed?.failures[0] : move.type === "feature" ? failed?.features.at(-1)?.firstFailure : undefined;
 		return endRecord(started, { status, ...(failure === undefined ? {} : { error: failureText(failure) }) }, at);
 	}
 	const { name, heading, source, partOf, precededBy } = levelAt(move, after, naming);

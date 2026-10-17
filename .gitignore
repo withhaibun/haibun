@@ -16,8 +16,6 @@ jitData.json
 result
 mcp.sh
 e2e-tests/w
-# how a group of features last ran against the state of what it depends on: evidence about this working tree, so it stays here
-verified.json
-# the CLI's unit tests run real fixtures; a fixture's timings are no measurement anyone reads
-modules/cli/test/**/timings.json
+# the CLI's unit tests run real fixtures, and a fixture's run file isn't a measurement a reader compares
+modules/cli/test/**/runs.json
 dependency-graph.html

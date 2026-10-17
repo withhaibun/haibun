@@ -19,9 +19,6 @@
 	"modules/cli/src/test-runner-stepper.ts": {
 		"imports a stepper: ./instance-stepper.js": 1
 	},
-	"modules/cli/src/timings.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/cli/src/verified.ts": {
 		"isn't in a kind position": 1
 	},

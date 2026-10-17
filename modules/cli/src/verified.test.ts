@@ -1,11 +1,12 @@
-// Tests the record of a group's runs against the state of its dependencies. A caller reads the record to determine
-// whether the group runs again.
+// Tests the runs file: how a group last ran against the state of its dependencies, and how long each feature took.
 import { describe, it, expect } from "vitest";
 import { execFileSync } from "node:child_process";
 import nodeFS from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { forgetOutcome, forgetOutcomes, outcomeAgainst, recordOutcome, runConditions, verificationOf } from "./verified.js";
+import { RUNS_FILE } from "@haibun/core/lib/util/node/dependency-state.js";
+import { RECORDED_STATUS } from "@haibun/core/schema/protocol.js";
+import { forgetOutcome, forgetOutcomes, machineKey, outcomeAgainst, recordRun, runConditions, varianceLine, verificationOf } from "./verified.js";
 
 /** Creates a group of features in its own git repository. The group doesn't load steppers, so its only dependency is
  *  its own directory. */
@@ -28,35 +29,65 @@ const conditions = (dir: string, config: string, more: Partial<Parameters<typeof
 	moduleOptions: {},
 	...more,
 });
+const verified = (dir: string, config: string, more: Partial<Parameters<typeof verificationOf>[0]> = {}) => {
+	const v = verificationOf(conditions(dir, config, more));
+	if (!v) throw new Error(`${dir} doesn't have a readable state`);
+	return v;
+};
+
+/** A level's record as moveActuality writes it, begun at 0 and ended after `ms`. */
+const level = (actualityLevel: string, id: string, stepText: string, status: string, ms: number, featurePath?: string) => ({
+	id,
+	stepText,
+	actionStatus: status,
+	level: "info",
+	actualityLevel,
+	generatedAtTime: new Date(0).toISOString(),
+	endedAtTime: new Date(ms).toISOString(),
+	...(featurePath ? { path: featurePath } : {}),
+});
+/** A run of features, each by its path and how long it took, with its result and the records of its levels. */
+function aRun(status: string, features: Record<string, number>, declared = "declared") {
+	const levels = new Map<string, Record<string, unknown>>([["execution", level("execution", "1-0", "tests", status, 9000)]]);
+	const featureResults = Object.entries(features).map(([featurePath, ms], at) => {
+		levels.set(`feat-${at + 1}`, level("feature", `1-${at + 1}.0.${at + 1}.0`, featurePath, status, ms, featurePath));
+		return { path: featurePath, ok: true, steps: { count: 2 }, declaredStepTextHash: `${declared} ${featurePath}`, stepResults: [] };
+	});
+	return { result: { ok: status === RECORDED_STATUS.completed, featureResults } as never, levels };
+}
+const runsIn = (dir: string) => JSON.parse(nodeFS.readFileSync(path.join(dir, RUNS_FILE), "utf-8"));
 
 describe("how a group last ran against its state", () => {
 	it("doesn't return a run until one is recorded, returns it while the state is unchanged, and doesn't return it after a dependency changes", () => {
 		const { dir, config } = aGroup();
-		const v = () => verificationOf(conditions(dir, config));
-		expect(outcomeAgainst(v() as never)).toBeUndefined();
-		recordOutcome(v() as never, "passed", 1);
-		expect(outcomeAgainst(v() as never)).toEqual({ outcome: "passed", features: 1 });
+		expect(outcomeAgainst(verified(dir, config))).toBeUndefined();
+		const { result, levels } = aRun(RECORDED_STATUS.completed, { "/features/a.feature": 1000 });
+		recordRun(verified(dir, config), result, levels);
+		expect(outcomeAgainst(verified(dir, config))).toBe(RECORDED_STATUS.completed);
 		nodeFS.writeFileSync(path.join(dir, "features/a.feature"), "Feature: a, changed\n");
-		expect(outcomeAgainst(v() as never), "a changed dependency is a new state, and the record doesn't hold a run against it").toBeUndefined();
+		expect(outcomeAgainst(verified(dir, config)), "a changed dependency is a new state, and the file doesn't hold a run against it").toBeUndefined();
 	});
 
 	it("records a failure as a run against the state, so InstanceStepper refuses a second run over unchanged features", () => {
 		const { dir, config } = aGroup();
-		const v = verificationOf(conditions(dir, config)) as never;
-		recordOutcome(v, "failed", 1);
-		expect(outcomeAgainst(v)).toEqual({ outcome: "failed", features: 1 });
+		const { result, levels } = aRun(RECORDED_STATUS.failed, { "/features/a.feature": 1000 });
+		recordRun(verified(dir, config), result, levels);
+		expect(outcomeAgainst(verified(dir, config))).toBe(RECORDED_STATUS.failed);
 	});
 
 	it("keeps a separate run for each way of running the group: other module options, another filter, a policy or added steppers each key a separate run", () => {
 		const { dir, config } = aGroup();
-		const plain = verificationOf(conditions(dir, config)) as never;
-		const onAnotherPort = verificationOf(conditions(dir, config, { moduleOptions: { WEBSERVER_PORT: "8300" } })) as never;
-		const narrowed = verificationOf(conditions(dir, config, { filter: ["a"] })) as never;
-		const underPolicy = verificationOf(conditions(dir, config, { policy: { place: "local", dirFilters: [{ dir: "smoke", access: "r" }] } as never })) as never;
-		const withMore = verificationOf(conditions(dir, config, { withSteppers: ["debugger-stepper"] })) as never;
-		recordOutcome(plain, "passed", 1);
-		for (const other of [onAnotherPort, narrowed, underPolicy, withMore]) expect(outcomeAgainst(other)).toBeUndefined();
-		expect(outcomeAgainst(plain)).toEqual({ outcome: "passed", features: 1 });
+		const plain = verified(dir, config);
+		const others = [
+			{ moduleOptions: { WEBSERVER_PORT: "8300" } },
+			{ filter: ["a"] },
+			{ policy: { place: "local", dirFilters: [{ dir: "smoke", access: "r" }] } as never },
+			{ withSteppers: ["debugger-stepper"] },
+		];
+		const { result, levels } = aRun(RECORDED_STATUS.completed, { "/features/a.feature": 1000 });
+		recordRun(plain, result, levels);
+		for (const other of others) expect(outcomeAgainst(verified(dir, config, other))).toBeUndefined();
+		expect(outcomeAgainst(plain)).toBe(RECORDED_STATUS.completed);
 	});
 
 	it("gives one key to runs that differ only in options that don't change what runs", () => {
@@ -65,32 +96,77 @@ describe("how a group last ran against its state", () => {
 		expect(c({ DEST: "d" })).not.toBe(c({ DEST: "e" }));
 	});
 
-	it("deletes the runs of the named features and the runs of the whole group that include them, and keeps every other run", () => {
+	it("clears the runs of the named features and of the whole group that includes them, and a run that didn't reach its features, and keeps their durations", () => {
 		const { dir, config } = aGroup();
-		const whole = verificationOf(conditions(dir, config)) as never;
-		const a = verificationOf(conditions(dir, config, { filter: ["a"] })) as never;
-		const b = verificationOf(conditions(dir, config, { filter: ["b"] })) as never;
-		for (const v of [whole, a, b]) recordOutcome(v, "passed", 1);
+		const [whole, a, b] = [verified(dir, config), verified(dir, config, { filter: ["a"] }), verified(dir, config, { filter: ["b"] })];
+		const { result, levels } = aRun(RECORDED_STATUS.completed, { "/features/a.feature": 1000 });
+		for (const v of [whole, a, b]) recordRun(v, result, levels);
 		forgetOutcomes(dir, "a");
-		expect(outcomeAgainst(a)).toBeUndefined();
-		expect(outcomeAgainst(whole), "the whole group includes a").toBeUndefined();
-		expect(outcomeAgainst(b), "b wasn't named").toEqual({ outcome: "passed", features: 1 });
-	});
-
-	it("deletes a run that didn't reach its features, and deletes every run when a change is noted", () => {
-		const { dir, config } = aGroup();
-		const v = verificationOf(conditions(dir, config)) as never;
-		recordOutcome(v, "passed", 1);
-		forgetOutcome(v);
-		expect(outcomeAgainst(v), "a run that didn't reach its features isn't evidence about the state").toBeUndefined();
-		recordOutcome(v, "passed", 1);
-		forgetOutcomes(dir);
-		expect(outcomeAgainst(v)).toBeUndefined();
+		expect([outcomeAgainst(a), outcomeAgainst(whole), outcomeAgainst(b)], "the whole group includes a, and b wasn't named").toEqual([
+			undefined,
+			undefined,
+			RECORDED_STATUS.completed,
+		]);
+		forgetOutcome(b);
+		expect(outcomeAgainst(b), "a run that didn't reach its features isn't evidence about the state").toBeUndefined();
+		expect(runsIn(dir)[machineKey()][b.conditions].features["/features/a.feature"].tookMs).toBe(1000);
 	});
 
 	it("doesn't verify a group outside a git repository against a state", () => {
 		const dir = nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-norepo-"));
 		nodeFS.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ steppers: [] }));
 		expect(verificationOf(conditions(dir, path.join(dir, "config.json")))).toBeUndefined();
+	});
+});
+
+describe("how long a group's features took", () => {
+	it("holds the lines of a run's execution and features under this machine, each duration in tenths of a second, with a feature's steps and declared step text hash", () => {
+		const { dir, config } = aGroup();
+		const v = verified(dir, config);
+		const { result, levels } = aRun(RECORDED_STATUS.completed, { "/features/a.feature": 1234 });
+		recordRun(v, result, levels);
+		expect(runsIn(dir)[machineKey()][v.conditions]).toEqual({
+			state: v.state,
+			filter: "",
+			execution: { text: "tests", status: RECORDED_STATUS.completed, tookMs: 9000 },
+			features: {
+				"/features/a.feature": { text: "/features/a.feature", status: RECORDED_STATUS.completed, tookMs: 1200, steps: 2, declaredStepTextHash: "declared /features/a.feature" },
+			},
+		});
+	});
+
+	it("reports a feature whose duration differs from this machine's last run by both a fifth and a second, and whether its declared steps changed", () => {
+		const { dir, config } = aGroup();
+		const first = aRun(RECORDED_STATUS.completed, { "/a.feature": 10_000, "/b.feature": 10_000, "/c.feature": 500 });
+		expect(recordRun(verified(dir, config), first.result, first.levels), "a machine without a recorded run doesn't have times to compare").toEqual([]);
+		const second = aRun(RECORDED_STATUS.completed, { "/a.feature": 20_000, "/b.feature": 11_000, "/c.feature": 1200, "/d.feature": 9000 }, "changed");
+		expect(
+			recordRun(verified(dir, config), second.result, second.levels).map((variance) => [variance.feature, variance.was, variance.seconds, variance.declaredStepsChanged]),
+			"/b differs by less than a fifth, /c by less than a second, and /d wasn't in the last run",
+		).toEqual([["/a.feature", 10, 20, true]]);
+	});
+
+	it("names the class of machine by its processor, core count, architecture and platform, and doesn't include the host name", () => {
+		const key = machineKey();
+		expect([key.includes(os.platform()), key.includes(os.arch()), key.includes(`${os.cpus().length}x`), key.includes(os.hostname().toLowerCase())]).toEqual([
+			true,
+			true,
+			true,
+			false,
+		]);
+	});
+
+	it("formats the feature, both durations, the percentage change, the step counts and a change to the declared steps", () => {
+		expect(varianceLine({ feature: "/a.feature", seconds: 20, was: 10, steps: 7, wasSteps: 5, declaredStepsChanged: true })).toBe(
+			"/a.feature took 20s, was 10s (+100%), 7 steps, was 5, its declared steps changed",
+		);
+		expect(varianceLine({ feature: "/a.feature", seconds: 5, was: 10, steps: 5, wasSteps: 5, declaredStepsChanged: false })).toBe("/a.feature took 5s, was 10s (-50%), 5 steps");
+	});
+
+	it("refuses a runs file that doesn't hold runs by machine and conditions, since replacing it would lose them", () => {
+		const { dir, config } = aGroup();
+		nodeFS.writeFileSync(path.join(dir, RUNS_FILE), JSON.stringify({ [machineKey()]: { features: {} } }));
+		const { result, levels } = aRun(RECORDED_STATUS.completed, { "/a.feature": 100 });
+		expect(() => recordRun(verified(dir, config), result, levels)).toThrow("doesn't hold runs by machine and conditions");
 	});
 });
