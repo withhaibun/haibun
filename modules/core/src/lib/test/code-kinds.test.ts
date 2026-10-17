@@ -132,8 +132,14 @@ describe("a file's findings against the kinds", () => {
 	});
 
 	it("name I/O outside an adapter, and allow it in one", () => {
-		const io = 'import { readFileSync } from "node:fs";\nimport pg from "pg";\nexport const read = () => fetch("https://example.com");\n';
-		expect(findingsOf(PIPELINE, { [PIPELINE]: io })).toEqual(["performs I/O through node:fs", "performs I/O through pg", "performs I/O through fetch"]);
+		const io =
+			'import { readFileSync } from "node:fs";\nimport pg from "pg";\nimport { PGlite } from "@electric-sql/pglite-04";\nexport const read = () => fetch("https://example.com");\n';
+		expect(findingsOf(PIPELINE, { [PIPELINE]: io })).toEqual([
+			"performs I/O through node:fs",
+			"performs I/O through pg",
+			"performs I/O through @electric-sql/pglite-04",
+			"performs I/O through fetch",
+		]);
 		expect(findingsOf(ADAPTER, { [ADAPTER]: io })).toEqual([]);
 	});
 

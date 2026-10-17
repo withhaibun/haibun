@@ -75,6 +75,10 @@ const IO_PACKAGES = new Set([
 	"@opentelemetry/exporter-trace-otlp-http",
 	"@opentelemetry/exporter-logs-otlp-http",
 ]);
+/** The prefix of a database driver's packages that are I/O beside `IO_PACKAGES`: PGlite's extensions and an alias of one of its versions. */
+const IO_PACKAGE_PREFIX = "@electric-sql/pglite-";
+/** Returns whether a package performs I/O. */
+const isIoPackage = (name: string): boolean => IO_PACKAGES.has(name) || name.startsWith(IO_PACKAGE_PREFIX);
 /** The globals that perform I/O, which only an adapter calls: the network, a socket, a browser's database and the timers. */
 const IO_GLOBALS = new Set(["fetch", "WebSocket", "EventSource", "XMLHttpRequest", "indexedDB", "setTimeout", "setInterval", "setImmediate"]);
 /** The objects whose property is a global. */
@@ -187,7 +191,7 @@ export function codeKindFindings(repository: string, { sources, packages }: TCod
 		});
 		if (kind === "adapter") return kindImports;
 		const ioImports = valueImports
-			.filter(({ specifier }) => !RELATIVE.test(specifier) && IO_PACKAGES.has(packageOf(specifier)))
+			.filter(({ specifier }) => !RELATIVE.test(specifier) && isIoPackage(packageOf(specifier)))
 			.map(({ specifier, line }) => ({ file, finding: performsIo(specifier), line }));
 		const ioGlobals = globalIoOf(source).map((name) => ({ file, finding: performsIo(name.text), line: lineOf(name) }));
 		return [...kindImports, ...ioImports, ...ioGlobals];
