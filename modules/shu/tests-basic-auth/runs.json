@@ -1,10 +1,10 @@
 {
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
-		"1ded687a4b8adf94": {
+		"db07d69b7857762a": {
 			"state": "466df854591e3d3c8984e0470d21d22f8b5e2c206d2995939f8455102bb2d7cf",
 			"filter": "",
 			"execution": {
-				"text": "./tests-basic-auth",
+				"text": "modules/shu/tests-basic-auth",
 				"status": "passed",
 				"tookMs": 2200
 			},

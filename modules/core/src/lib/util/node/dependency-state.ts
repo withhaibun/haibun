@@ -134,7 +134,7 @@ const git = (dir: string, args: string[], input?: string): string =>
 /** Returns the top-level directory of the repository that contains a directory. Returns undefined where the directory
  *  isn't in a repository. Throws on any other git failure. An undefined result for that failure would make every group
  *  run without consulting its record and wouldn't report the failure. */
-function repositoryTop(dir: string): string | undefined {
+export function repositoryTop(dir: string): string | undefined {
 	try {
 		return git(dir, ["rev-parse", "--show-toplevel"]).trim();
 	} catch (err: unknown) {
@@ -152,11 +152,11 @@ type TRepositoryFile = { file: string; digest: string };
  *  line and unquotes a line that begins with a quotation mark. */
 const unnameable = (file: string): boolean => file.includes("\n") || file.startsWith('"');
 
-/** Returns the path and the working-tree content digest of each file under a directory that its repository tracks or
- *  would track. A symbolic link's digest is its target path. A listed directory is a nested repository or a submodule.
+/** Returns the directory's path relative to its repository's top, and the path and the working-tree content digest of
+ *  each file under the directory that its repository tracks or would track. A symbolic link's digest is its target path. A listed directory is a nested repository or a submodule.
  *  The result skips it, because that directory's own repository holds its content. The result excludes the files a run
  *  writes about itself. Returns undefined where the directory isn't in a repository. */
-function repositoryFiles(dir: string): TRepositoryFile[] | undefined {
+function repositoryFiles(dir: string): { rel: string; files: TRepositoryFile[] } | undefined {
 	const top = repositoryTop(dir);
 	if (top === undefined) return undefined;
 	const rel = path.relative(top, dir);
@@ -188,14 +188,15 @@ function repositoryFiles(dir: string): TRepositoryFile[] | undefined {
 				.update(nodeFS.readFileSync(path.join(top, file)))
 				.digest("hex"),
 		});
-	return [...out, ...links].sort((a, b) => (a.file < b.file ? -1 : 1));
+	return { rel, files: [...out, ...links].sort((a, b) => (a.file < b.file ? -1 : 1)) };
 }
 
 /**
  * Returns one digest of the content of every file under every root and of the declared environments. The digest
- * includes each root's absolute path, so the same content under another root path gives another digest. The
- * environments are sorted, so their order doesn't change the digest. Throws where git fails in a root for a reason
- * other than a missing repository.
+ * includes each root's path relative to its repository's top, so the same content under another root path gives
+ * another digest, and a checkout at another directory gives the same digest. The roots are taken in the order of those
+ * paths and their content, and the environments are sorted, so the order of each doesn't change the digest. Throws where git fails
+ * in a root for a reason other than a missing repository.
  *
  * Returns undefined where a root's state can't be read. Undefined is an unknown state and differs from an empty state.
  * A root's state can't be read where the root isn't in a repository or doesn't contain a file its repository tracks or
@@ -204,12 +205,13 @@ function repositoryFiles(dir: string): TRepositoryFile[] | undefined {
  */
 export function dependencyState(roots: readonly string[], environments: readonly string[] = []): string | undefined {
 	const hash = createHash("sha256");
+	const stated: string[] = [];
 	for (const root of roots) {
-		const files = repositoryFiles(root);
-		if (files === undefined || files.length === 0) return undefined;
-		hash.update(`root ${root}\n`);
-		for (const { file, digest } of files) hash.update(`${digest} ${file}\n`);
+		const held = repositoryFiles(root);
+		if (held === undefined || held.files.length === 0) return undefined;
+		stated.push(`root ${held.rel}\n${held.files.map(({ file, digest }) => `${digest} ${file}\n`).join("")}`);
 	}
+	for (const root of stated.sort()) hash.update(root);
 	for (const environment of [...environments].sort()) hash.update(`environment ${environment}\n`);
 	return hash.digest("hex");
 }

@@ -36,7 +36,7 @@ async function getFeaturesAndBackgrounds(
 			const p = `${t}s` as keyof TFeaturesBackgrounds;
 			const checkPath = `${abase}/${p}`;
 			if (fs.existsSync(checkPath)) {
-				const more = debase(abase, await recurse(abase, `/${p}`, t, ff[t], policyConfig, fs));
+				const more = await recurse(abase, `/${p}`, t, ff[t], policyConfig, fs);
 				rawFeaturesAndBackgrounds[p] = rawFeaturesAndBackgrounds[p].concat(more);
 			}
 		}
@@ -63,9 +63,10 @@ async function recurse(
 	const files = fs.readdirSync(`${base}${dir}`);
 	let all: TFeature[] = [];
 	for (const file of files) {
-		const here = `${base}${dir}/${file}`;
+		const at = `${dir}/${file}`;
+		const here = `${base}${at}`;
 		if (fs.statSync(here).isDirectory()) {
-			all = all.concat(await recurse(base, `${dir}/${file}`, type, featureFilter, policyConfig, fs));
+			all = all.concat(await recurse(base, at, type, featureFilter, policyConfig, fs));
 		} else if (shouldProcess(here, type, featureFilter, policyConfig?.dirFilters ? { dir, dirFilters: policyConfig.dirFilters } : undefined)) {
 			if (here.endsWith(".feature.ts")) {
 				const module = await import(path.resolve(here));
@@ -91,17 +92,17 @@ async function recurse(
 				// into one TFeature since they're meant to be inlined into other features.
 				if (type === "background") {
 					const bddResult = toBdd(kirejiContent);
-					all.push(withName(base, here, bddResult.content, bddResult.lineMap));
+					all.push(withName(base, at, bddResult.content, bddResult.lineMap));
 				} else {
 					for (const [featureName, steps] of Object.entries(kirejiContent)) {
 						const single: TKirejiContent = { [featureName]: steps };
 						const bddResult = toBdd(single);
-						all.push(withName(base, here, bddResult.content, bddResult.lineMap, featureName));
+						all.push(withName(base, at, bddResult.content, bddResult.lineMap, featureName));
 					}
 				}
 			} else {
 				const contents = fs.readFileSync(here, "utf-8");
-				all.push(withName(base, here, contents));
+				all.push(withName(base, at, contents));
 			}
 		}
 	}
@@ -133,8 +134,4 @@ export function shouldProcess(file: string, type: undefined | string, featureFil
 	}
 
 	return true;
-}
-
-function debase(abase: string, features: TFeature[]) {
-	return features.map((f) => ({ ...f, path: f.path.replace(abase, "") }));
 }

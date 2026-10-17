@@ -128,11 +128,21 @@ describe("how long a group's features took", () => {
 		expect(runsIn(dir)[machineKey()][v.conditions]).toEqual({
 			state: v.state,
 			filter: "",
-			execution: { text: "tests", status: RECORDED_STATUS.completed, tookMs: 9000 },
+			execution: { text: ".", status: RECORDED_STATUS.completed, tookMs: 9000 },
 			features: {
 				"/features/a.feature": { text: "/features/a.feature", status: RECORDED_STATUS.completed, tookMs: 1200, steps: 2, declaredStepTextHash: "declared /features/a.feature" },
 			},
 		});
+	});
+
+	it("is the same file for the same group checked out at another directory, its paths relative to the repository's top", () => {
+		const [one, other] = [aGroup(), aGroup()];
+		const [first, second] = [verified(one.dir, one.config), verified(other.dir, other.config, { cwd: path.dirname(other.dir), bases: [path.basename(other.dir)] })];
+		for (const v of [first, second]) {
+			const { result, levels } = aRun(RECORDED_STATUS.completed, { "/features/a.feature": 1000 });
+			recordRun(v, result, levels);
+		}
+		expect(nodeFS.readFileSync(path.join(other.dir, RUNS_FILE), "utf-8")).toBe(nodeFS.readFileSync(path.join(one.dir, RUNS_FILE), "utf-8"));
 	});
 
 	it("reports a feature whose duration differs from this machine's last run by both a fifth and a second, and whether its declared steps changed", () => {

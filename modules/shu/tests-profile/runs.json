@@ -1,10 +1,10 @@
 {
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
-		"e553ffc10f48128b": {
+		"5d988f677644e14a": {
 			"state": "300a69017172bce78737c3529a69dd7d2b0de8699d81e1a503e70caf29106573",
 			"filter": "",
 			"execution": {
-				"text": "./tests-profile",
+				"text": "modules/shu/tests-profile",
 				"status": "passed",
 				"tookMs": 31600
 			},

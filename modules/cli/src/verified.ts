@@ -17,7 +17,7 @@ import { z } from "zod";
 import type { TSpecl } from "@haibun/core/lib/execution.js";
 import type { TRunPolicyConfig } from "@haibun/core/run-policy/run-policy-types.js";
 import { RECORDED_STATUS, type TExecutorResult } from "@haibun/core/schema/protocol.js";
-import { RUNS_FILE, dependencyRoots, dependencyState } from "@haibun/core/lib/util/node/dependency-state.js";
+import { RUNS_FILE, dependencyRoots, dependencyState, repositoryTop } from "@haibun/core/lib/util/node/dependency-state.js";
 import { SEQ_PATH_FIELD, StepLineSchema, stepLine } from "@haibun/core/lib/seq-path.js";
 import type { TLevelRecords } from "@haibun/core/lib/actuality/pipelines/move-actuality.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
@@ -56,7 +56,7 @@ export function machineKey(): string {
  *  directory, the feature filter, the options, the module options, the policy and the steppers added beyond the
  *  configuration. verificationOf reads the dependency state through the configuration, the bases and the working
  *  directory. runConditions derives the key from every condition except the bases, the working directory and
- *  PER_RUN_OPTIONS. */
+ *  PER_RUN_OPTIONS, with the configuration path relative to the top of its repository. */
 type TRunConditions = {
 	configPath: string;
 	specl: TSpecl;
@@ -78,11 +78,13 @@ const stable = (value: unknown): string =>
 	JSON.stringify(value, (_, v: unknown) => (v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => (a < b ? -1 : 1))) : v));
 
 /** Returns a key that distinguishes one way of running a group from another. The key doesn't include the bases or the
- *  working directory. They determine the dependency roots, and the content of the roots determines the state. */
+ *  working directory. They determine the dependency roots, and the content of the roots determines the state. The
+ *  configuration's path is the one the caller states, so a caller states it relative to the repository's top and the
+ *  key is the same in every checkout. */
 export function runConditions(c: TRunConditions): string {
 	const options = Object.fromEntries(Object.entries(c.options).filter(([k]) => !PER_RUN_OPTIONS.has(k)));
 	const keyed = {
-		configPath: path.resolve(c.configPath),
+		configPath: c.configPath,
 		specl: c.specl,
 		filter: [...c.filter],
 		options,
@@ -93,17 +95,22 @@ export function runConditions(c: TRunConditions): string {
 	return createHash("sha256").update(stable(keyed)).digest("hex").slice(0, 16);
 }
 
-/** A run's place in the runs file: the file, the machine, the conditions, the filter comma-joined, and the digest of the
- *  present content of every dependency. */
-type TVerification = { file: string; machine: string; conditions: string; filter: string; state: string };
+/** A run's place in the runs file: the file, the machine, the conditions, the filter comma-joined, the digest of the
+ *  present content of every dependency, and the bases relative to the repository's top, comma-joined, which the
+ *  execution's line states. */
+type TVerification = { file: string; machine: string; conditions: string; filter: string; state: string; bases: string };
 
 /** Returns the present state of a group's dependencies with a run's place in the runs file. Returns undefined where the
- *  state can't be read. A caller then runs the group without consulting the file and doesn't record it. */
+ *  state can't be read. A caller then runs the group without consulting the file and doesn't record it. Every path the
+ *  file records is relative to the top of the configuration's repository, so the file is the same in every checkout. */
 export function verificationOf(c: TRunConditions): TVerification | undefined {
 	const configDir = path.dirname(path.resolve(c.configPath));
+	const top = repositoryTop(configDir);
 	const state = dependencyState(dependencyRoots(c.specl, c.bases, configDir, c.cwd), c.specl.environments ?? []);
-	if (state === undefined) return undefined;
-	return { file: path.join(configDir, RUNS_FILE), machine: machineKey(), conditions: runConditions(c), filter: c.filter.join(","), state };
+	if (top === undefined || state === undefined) return undefined;
+	const fromTop = (at: string) => path.join(".", path.relative(top, path.resolve(c.cwd, at)));
+	const conditions = runConditions({ ...c, configPath: fromTop(c.configPath) });
+	return { file: path.join(configDir, RUNS_FILE), machine: machineKey(), conditions, filter: c.filter.join(","), state, bases: c.bases.map(fromTop).join(", ") };
 }
 
 /** Reads the runs file, or an empty record where the file doesn't exist. Throws where it doesn't parse, since replacing it
@@ -143,7 +150,8 @@ function levelLine(record: Record<string, unknown>) {
 }
 
 /** Returns a run's entry: the state it read, and the lines of its execution's record and of each feature's record by
- *  its path, with the feature's step count and declared step text hash from its result. */
+ *  its path, with the feature's step count and declared step text hash from its result. The execution's line states its
+ *  bases relative to the repository's top in place of the bases its caller named. */
 function entryOf(v: TVerification, result: TExecutorResult, levels: TLevelRecords): TRunEntry {
 	const records = [...levels.values()];
 	const [execution, ...others] = records.filter((record) => record[SEQ_PATH_FIELD.actualityLevel] === "execution");
@@ -154,7 +162,7 @@ function entryOf(v: TVerification, result: TExecutorResult, levels: TLevelRecord
 		if (ran === undefined) throw new Error(`the feature record ${record[SEQ_PATH_FIELD.id]} names ${record[SEQ_PATH_FIELD.path]}, which the results don't hold`);
 		return [[ran.path, { ...levelLine(record), steps: ran.steps.count, declaredStepTextHash: ran.declaredStepTextHash }]];
 	});
-	return { state: v.state, filter: v.filter, execution: levelLine(execution), features: Object.fromEntries(features) };
+	return { state: v.state, filter: v.filter, execution: { ...levelLine(execution), text: v.bases }, features: Object.fromEntries(features) };
 }
 
 /** Writes a run under its conditions on this machine, and returns every feature whose duration differs from the entry it

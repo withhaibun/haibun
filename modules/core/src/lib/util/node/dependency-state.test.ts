@@ -28,6 +28,14 @@ describe("the state of a group's dependencies", () => {
 		expect(dependencyState([repo])).not.toBe(before);
 	});
 
+	it("is the same for the same repositories checked out at other directories, in either order of their roots", () => {
+		const files = (name: string) => ({ [`${name}/features/a.feature`]: `Feature: ${name}\n` });
+		const [first, second] = [aRepository({ ...files("one"), ...files("two") }), aRepository({ ...files("one"), ...files("two") })];
+		const roots = (repo: string) => [path.join(repo, "one"), path.join(repo, "two")];
+		expect(dependencyState(roots(first))).toBe(dependencyState(roots(second)));
+		expect(dependencyState(roots(first)), "the roots in another order").toBe(dependencyState(roots(second).reverse()));
+	});
+
 	it("includes a file the repository would track, whether or not it is committed", () => {
 		const repo = aRepository({ "features/a.feature": "Feature: a\n" });
 		const before = dependencyState([repo]);

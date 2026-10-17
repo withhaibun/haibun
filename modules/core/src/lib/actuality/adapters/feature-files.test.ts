@@ -33,7 +33,7 @@ const nfs = (files: TMockFiles) => <TFileSystem>(new MockFS(files) as unknown);
 describe("the feature files of a file system", () => {
 	// A base must offer features. Every refusal below is the same claim: given bases that don't hold a feature are an error,
 	// whether the directory is missing, empty, or holds backgrounds alone.
-	const feature = (base: string, dir: "features" | "backgrounds", name: string) => ({ base, path: `/${dir}/${name}.feature`, name: `${base}/${dir}/${name}`, content: "#" });
+	const feature = (base: string, dir: "features" | "backgrounds", name: string) => ({ base, path: `/${dir}/${name}.feature`, name: `/${dir}/${name}`, content: "#" });
 
 	it.each([
 		["the directory does not exist", ["/"], { existsSync: () => false }],
