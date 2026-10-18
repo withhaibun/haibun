@@ -1,4 +1,4 @@
-import { withAction, type TKirejiExport } from "@haibun/core/kireji/withAction.js";
+import { withAction, type TKirejiExport } from "@haibun/core/kireji/derivations/withAction.js";
 import WebPlaywright from "@haibun/web-playwright";
 import ShuStepper from "../../build/shu-stepper.js";
 import VoiceUITestStepper from "../../build/test/voice-ui-test-stepper.js";

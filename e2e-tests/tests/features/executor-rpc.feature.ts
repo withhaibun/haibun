@@ -7,8 +7,8 @@
  * - two variables that separate steps set and read
  * - an activity on the same executor path
  */
-import type { TKirejiExport } from "@haibun/core/kireji/withAction.js";
-import { withAction } from "@haibun/core/kireji/withAction.js";
+import type { TKirejiExport } from "@haibun/core/kireji/derivations/withAction.js";
+import { withAction } from "@haibun/core/kireji/derivations/withAction.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import ActivitiesStepper from "@haibun/core/steps/activities-stepper.js";

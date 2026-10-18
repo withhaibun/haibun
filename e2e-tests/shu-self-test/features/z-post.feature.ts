@@ -1,4 +1,4 @@
-import { type TKirejiExport } from "@haibun/core/kireji/withAction.js";
+import { type TKirejiExport } from "@haibun/core/kireji/derivations/withAction.js";
 import { OBSCURED_VALUE } from "@haibun/core/lib/steps/domains/secrets.js";
 import { SECRETS } from "./shu-self-test.feature.ts";
 

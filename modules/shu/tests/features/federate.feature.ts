@@ -1,4 +1,4 @@
-import { withAction, type TKirejiExport } from "@haibun/core/kireji/withAction.js";
+import { withAction, type TKirejiExport } from "@haibun/core/kireji/derivations/withAction.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import FakeAuthorityStepper from "@haibun/core/lib/test/fake-authority.js";
 import GraphSourceStepper from "../../build/graph-source-stepper.js";

@@ -1,4 +1,4 @@
-import type { TKirejiExport } from "@haibun/core/kireji/withAction.js";
+import type { TKirejiExport } from "@haibun/core/kireji/derivations/withAction.js";
 
 export const features: TKirejiExport = {
 	"Counts feature": [

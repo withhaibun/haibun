@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { withAction, TActionExecutor } from "./withAction.js";
+import { withAction, TActionExecutor } from "./derivations/withAction.js";
 import { toBdd, fromBdd } from "./converter.js";
 import { AStepper, TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { OK } from "../lib/domains/protocol.js";

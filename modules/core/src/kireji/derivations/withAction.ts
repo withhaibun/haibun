@@ -1,5 +1,5 @@
-import { AStepper, TStepperSteps } from "../lib/steps/domains/stepper.js";
-import { namedInterpolation, renderStepLine } from "../lib/steps/derivations/named-vars.js";
+import { AStepper, TStepperSteps } from "../../lib/steps/domains/stepper.js";
+import { namedInterpolation, renderStepLine } from "../../lib/steps/derivations/named-vars.js";
 
 type TStepWithGwta = TStepperSteps[keyof TStepperSteps] & { gwta: string };
 

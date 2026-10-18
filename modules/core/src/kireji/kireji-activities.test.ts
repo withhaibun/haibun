@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { withAction } from "./withAction.js";
+import { withAction } from "./derivations/withAction.js";
 import { toBdd } from "./converter.js";
 import { ActivitiesStepper } from "../steps/activities-stepper.js";
 import VariablesStepper from "../steps/variables-stepper.js";

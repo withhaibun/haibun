@@ -1,6 +1,6 @@
-import type { TKirejiExport } from "@haibun/core/kireji/withAction.js";
+import type { TKirejiExport } from "@haibun/core/kireji/derivations/withAction.js";
 
-import { withAction } from "@haibun/core/kireji/withAction.js";
+import { withAction } from "@haibun/core/kireji/derivations/withAction.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import WebPlaywright from "@haibun/web-playwright";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";

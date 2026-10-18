@@ -1,4 +1,4 @@
-import { withAction, type TKirejiExport } from "@haibun/core/kireji/withAction.js";
+import { withAction, type TKirejiExport } from "@haibun/core/kireji/derivations/withAction.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import { serviceHost } from "@haibun/shu/test/step-ui.js";
 import { DEFAULT_PORT } from "@haibun/web-server-hono/domains/web-server.js";

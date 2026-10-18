@@ -28,9 +28,6 @@
 	"modules/core/src/kireji/converter.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/core/src/kireji/withAction.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/core/src/lib/actions.ts": {
 		"isn't in a kind position": 1
 	},
@@ -98,9 +95,6 @@
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/store-protocol.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/tunables.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/urakata.ts": {

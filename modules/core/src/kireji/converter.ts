@@ -1,7 +1,7 @@
 import { itemAt } from "../lib/util/item-at.js";
 import { AStepper } from "../lib/steps/domains/stepper.js";
 import { Resolver } from "../lib/actuality/pipelines/resolver.js";
-import { TActionExecutor, stepActions } from "./withAction.js";
+import { TActionExecutor, stepActions } from "./derivations/withAction.js";
 
 // A kireji feature: steps are either TActionExecutor functions or plain prose strings.
 type TkirejiFeature = { [key: string]: (TActionExecutor<string> | string)[] };

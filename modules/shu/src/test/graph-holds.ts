@@ -3,7 +3,7 @@
  * line, then one `variable {name}.{fact} is {value}` line per fact. A fact is a field of the snapshot's schema, so a
  * feature names a field the snapshot has and gives a value of that field's type.
  */
-import { withAction, type TKirejiStep } from "@haibun/core/kireji/withAction.js";
+import { withAction, type TKirejiStep } from "@haibun/core/kireji/derivations/withAction.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import ShuPolymorphicGraphViewControls, { type TGraphSnapshot } from "../controls/polymorphic-controls-stepper.js";
 
