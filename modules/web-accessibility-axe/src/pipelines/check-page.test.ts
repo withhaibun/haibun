@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { EARL_ASSERTION_EDGE, EARL_LABEL, EARL_MODE, EARL_OUTCOME, earlDomainDefinitions, writeEarlAssertions, type TEarlAssertions } from "./earl.js";
+import { EARL_ASSERTION_EDGE, EARL_LABEL, EARL_MODE, EARL_OUTCOME, earlDomainDefinitions, type TEarlAssertions } from "../domains/earl.js";
+import { writeEarlAssertions } from "./check-page.js";
+import { systemClock } from "@haibun/core/lib/actuality/adapters/system-clock.js";
 import { buildConcernCatalog, getJsonLdContext } from "@haibun/core/lib/hypermedia.js";
 import { toRegisteredDomain } from "@haibun/core/lib/domains.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
@@ -66,7 +68,7 @@ describe("EARL types", () => {
 describe("writeEarlAssertions", () => {
 	it("records each result as an assertion the step made, linked to the assertor, the subject, the test case and the result", async () => {
 		const store = storeDeclaring(EARL_TYPES);
-		const ids = await writeEarlAssertions(store, assertions(STEP));
+		const ids = await writeEarlAssertions({ store, clock: systemClock }, assertions(STEP));
 		expect(ids).toEqual([`${STEP} ${IMAGE_ALT.id}`, `${STEP} ${TITLE.id}`]);
 		const edges = await store.query({ subject: itemAt(ids, 0), namedGraph: EARL_LABEL.assertion });
 		const target = (edge: string) => edges.find((quad) => quad.predicate === edge);
@@ -85,8 +87,8 @@ describe("writeEarlAssertions", () => {
 	});
 	it("shares one record of a test case, an assertor and a subject among the assertions that name them", async () => {
 		const store = storeDeclaring(EARL_TYPES);
-		await writeEarlAssertions(store, assertions(STEP));
-		await writeEarlAssertions(store, assertions(`${STEP}.1`));
+		await writeEarlAssertions({ store, clock: systemClock }, assertions(STEP));
+		await writeEarlAssertions({ store, clock: systemClock }, assertions(`${STEP}.1`));
 		expect(await readEvery(store, { label: EARL_LABEL.assertion })).toHaveLength(4);
 		expect(await readEvery(store, { label: EARL_LABEL.testResult })).toHaveLength(4);
 		expect(await readEvery(store, { label: EARL_LABEL.testCase })).toHaveLength(2);

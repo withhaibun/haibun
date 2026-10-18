@@ -7,7 +7,7 @@
  */
 import type { AxeResults, Result } from "axe-core";
 import { isWebAddress } from "@haibun/core/lib/document-content.js";
-import { EARL_MODE, EARL_OUTCOME, type TEarlAssertions } from "./earl.js";
+import { EARL_MODE, EARL_OUTCOME, type TEarlAssertions } from "../domains/earl.js";
 
 /** Each list of rules axe states that is recorded, by the EARL outcome it is, the most severe first. */
 const OUTCOME_OF = { violations: EARL_OUTCOME.failed, incomplete: EARL_OUTCOME.cantTell, passes: EARL_OUTCOME.passed } as const;
@@ -45,4 +45,14 @@ export function axeAssertions(results: AxeResults, step: string): TEarlAssertion
 				result: resultOf(rule, outcome),
 			})),
 	};
+}
+
+/** The counts of serious and moderate violations a check accepts. */
+export type TSeverity = { serious: number; moderate: number };
+
+/** Whether the serious and moderate violations axe found are within the counts accepted, with the counts found. */
+export function evalSeverity(axeResults: AxeResults, acceptable: TSeverity) {
+	const serious = axeResults.violations.filter((violation) => violation.impact === "serious");
+	const moderate = axeResults.violations.filter((violation) => violation.impact === "moderate");
+	return { ok: serious.length <= acceptable.serious && moderate.length <= acceptable.moderate, acceptable, found: { serious: serious.length, moderate: moderate.length } };
 }

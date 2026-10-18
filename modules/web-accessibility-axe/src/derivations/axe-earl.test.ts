@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { EARL_MODE, EARL_OUTCOME } from "./earl.js";
+import { EARL_MODE, EARL_OUTCOME } from "../domains/earl.js";
 import { axeAssertions } from "./axe-earl.js";
 import { axeResults, axeRule } from "./axe-results.test-fake.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";

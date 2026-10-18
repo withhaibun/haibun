@@ -336,20 +336,5 @@
 	},
 	"modules/utils/src/vcapture/vcapture-lib.ts": {
 		"isn't in a kind position": 1
-	},
-	"modules/web-accessibility-axe/src/a11y-axe-stepper.ts": {
-		"performs I/O through playwright": 1
-	},
-	"modules/web-accessibility-axe/src/lib/a11y-axe.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/web-accessibility-axe/src/lib/axe-earl.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/web-accessibility-axe/src/lib/earl.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/web-accessibility-axe/src/lib/report.ts": {
-		"isn't in a kind position": 1
 	}
 }

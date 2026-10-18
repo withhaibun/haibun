@@ -478,22 +478,22 @@
 	"modules/shu/tests/features/voice-ui.feature.ts": {
 		"anthropomorphic": 1
 	},
-	"modules/web-accessibility-axe/src/lib/axe-earl.test.ts": {
+	"modules/web-accessibility-axe/src/derivations/axe-earl.test.ts": {
 		"anthropomorphic": 1
 	},
-	"modules/web-accessibility-axe/src/lib/axe-earl.ts": {
+	"modules/web-accessibility-axe/src/derivations/axe-earl.ts": {
 		"anthropomorphic": 1,
 		"negated-noun": 1,
 		"terminal-preposition": 1
 	},
-	"modules/web-accessibility-axe/src/lib/earl.ts": {
-		"terminal-preposition": 1
-	},
-	"modules/web-accessibility-axe/src/lib/report.test.ts": {
+	"modules/web-accessibility-axe/src/derivations/report.test.ts": {
 		"negated-noun": 2
 	},
-	"modules/web-accessibility-axe/src/lib/report.ts": {
+	"modules/web-accessibility-axe/src/derivations/report.ts": {
 		"negated-noun": 3
+	},
+	"modules/web-accessibility-axe/src/domains/earl.ts": {
+		"terminal-preposition": 1
 	},
 	"modules/web-server-hono/src/mcp-capability.test.ts": {
 		"anthropomorphic": 2,

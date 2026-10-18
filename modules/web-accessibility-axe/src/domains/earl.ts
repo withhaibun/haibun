@@ -7,16 +7,7 @@
  * step that made it, so what a step found is read the same way as what a step produced.
  */
 import { z } from "zod";
-import {
-	Access,
-	LinkRelations,
-	PersistedVertexSchema,
-	SEQ_PATH_LABEL,
-	writeEdge,
-	writeReferenceEdge,
-	type TDiscourseStore,
-	type TDomainDefinition,
-} from "@haibun/core/lib/resources.js";
+import { Access, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "@haibun/core/lib/resources.js";
 
 /** The types the EARL classes are recorded as. */
 export const EARL_LABEL = { assertion: "Assertion", assertor: "Assertor", testSubject: "TestSubject", testCase: "TestCase", testResult: "TestResult" } as const;
@@ -160,33 +151,3 @@ export type TEarlAssertions = {
 	step: string;
 	results: { test: Omit<TTestCase, "generatedAtTime">; result: Omit<TTestResult, "id" | "generatedAtTime"> }[];
 };
-
-/** Record what an assertor states of a subject: each result as an assertion the step made, linked to the assertor, the
- *  subject, the test case and the result. Returns the assertions' ids. */
-export async function writeEarlAssertions(store: TDiscourseStore, { assertor, subject, mode, step, results }: TEarlAssertions): Promise<string[]> {
-	const generatedAtTime = new Date().toISOString();
-	await Promise.all([
-		store.upsertIndividual(EARL_LABEL.assertor, { ...assertor, generatedAtTime }),
-		store.upsertIndividual(EARL_LABEL.testSubject, { ...subject, generatedAtTime }),
-	]);
-	return await Promise.all(
-		results.map(async ({ test, result }) => {
-			const id = `${step} ${test.id}`;
-			const resultId = `${id} result`;
-			await Promise.all([
-				store.upsertIndividual(EARL_LABEL.testCase, { ...test, generatedAtTime }),
-				store.upsertIndividual(EARL_LABEL.testResult, { ...result, id: resultId, generatedAtTime }),
-				store.upsertIndividual(EARL_LABEL.assertion, { id, mode, generatedAtTime }),
-			]);
-			const edge = (key: string, label: string, to: string) => writeEdge(store, EARL_LABEL.assertion, id, key, label, to);
-			await Promise.all([
-				edge(EARL_ASSERTION_EDGE.assertedBy, EARL_LABEL.assertor, assertor.id),
-				edge(EARL_ASSERTION_EDGE.subject, EARL_LABEL.testSubject, subject.id),
-				edge(EARL_ASSERTION_EDGE.test, EARL_LABEL.testCase, test.id),
-				edge(EARL_ASSERTION_EDGE.result, EARL_LABEL.testResult, resultId),
-				writeReferenceEdge(store, EARL_LABEL.assertion, id, EARL_ASSERTION_EDGE.wasGeneratedBy, SEQ_PATH_LABEL, step),
-			]);
-			return id;
-		}),
-	);
-}
