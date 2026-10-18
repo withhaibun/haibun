@@ -16,7 +16,7 @@ import "./shu-combobox.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { activePane, dockedPane, pageContext, pageStatus, pageTrail, pageTypes, stripPanes } from "../controllers/page-cell-controller.js";
-import { carryARun, setupShuTest } from "../../test/setup.js";
+import { carryAnActuality, setupShuTest } from "../../test/setup.js";
 
 provideLayout();
 
@@ -64,7 +64,7 @@ describe("the page strip", () => {
 	beforeEach(() => {
 		teardown = setupShuTest().teardown;
 		// The page is a record of actuality, and actuality doesn't declare an extension for the strip.
-		carryARun();
+		carryAnActuality();
 		declareCatalog(buildConcernCatalog(mapDefinitionsToDomains([])));
 		document.body.innerHTML = "";
 		pageContext.set(null);

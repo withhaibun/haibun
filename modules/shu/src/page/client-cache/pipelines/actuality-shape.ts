@@ -1,7 +1,7 @@
 /**
- * What a run holds, counted as it grows: counts held per division, and only the stretch recorded since the last count.
+ * What an actuality holds, counted as it grows: counts held per division, and only the stretch recorded since the last count.
  *
- * Counting a run's whole span again whenever the window is read is a read proportional to its length, made repeatedly.
+ * Counting an actuality's whole span again whenever the window is read is a read proportional to its length, made repeatedly.
  * A count of a stretch of the actuality that has passed cannot change, so it is counted once and held.
  *
  * A division is a fixed stretch of time rather than a share of actuality's reach, which is what makes a held count still
@@ -15,18 +15,18 @@ import type { THaibunLogLevel } from "@haibun/core/schema/protocol.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
 import type { TDensityQuery } from "@haibun/core/lib/quad-types.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import type { TRunGraph } from "../ports.js";
-import { COUNTED, marksOf, type TRunMark } from "../derivations/run-marks.js";
-import { levelsFrom } from "../derivations/run-rows.js";
-import { runExtent } from "./run-window.js";
+import type { TActualityGraph } from "../ports.js";
+import { COUNTED, marksOf, type TActualityMark } from "../derivations/actuality-marks.js";
+import { levelsFrom } from "../derivations/actuality-rows.js";
+import { actualityExtent } from "./actuality-window.js";
 
-/** How many divisions a run is counted in, whatever its length. The count is what a rail of any run takes, so it is
- *  the same for a run of an hour and a run of a year. */
-export const RUN_DIVISIONS = 200;
+/** How many divisions an actuality is counted in, whatever its length. The count is what a rail of any actuality takes, so it is
+ *  the same for an actuality of an hour and an actuality of a year. */
+export const ACTUALITY_DIVISIONS = 200;
 
-export type TRunShape = {
+export type TActualityShape = {
 	/** One mark per division that holds anything, as the counts stand. */
-	readonly marks: TRunMark[];
+	readonly marks: TActualityMark[];
 	/** The instant a division begins, which is the moment a mark of it carries. */
 	beginningOf(division: number): number;
 	/** Count what actuality has recorded since the last count, up to the moment given. */
@@ -55,8 +55,8 @@ const uncounted = (divisions: number): Record<string, number>[] => Array.from({ 
 /** How many records of each counted type fall in each division of a span, by how each turned out: one array per type,
  *  in the order the types are counted, each holding one set of counts per division. What a division holds and what it
  *  looks like are two rules, so this function doesn't choose a mark. */
-export function runCounts(
-	graph: TRunGraph,
+export function actualityCounts(
+	graph: TActualityGraph,
 	{ from, to, divisions, minLevel }: { from: number; to: number; divisions: number; minLevel: THaibunLogLevel },
 ): Promise<Record<string, number>[][]> {
 	const levels = levelsFrom(minLevel);
@@ -79,29 +79,29 @@ export function runCounts(
 	);
 }
 
-/** The instant a run's first record was written at `minLevel`, or undefined while it hasn't written one. */
-async function beginningOfRun(graph: TRunGraph, minLevel: THaibunLogLevel): Promise<number | undefined> {
-	const reached = await runExtent(graph, minLevel);
+/** The instant an actuality's first record was written at `minLevel`, or undefined while it hasn't written one. */
+async function beginningOfActuality(graph: TActualityGraph, minLevel: THaibunLogLevel): Promise<number | undefined> {
+	const reached = await actualityExtent(graph, minLevel);
 	return reached.last === 0 ? undefined : reached.first;
 }
 
-/** The marks of one run at `minLevel`, counted in `divisions` as it grows. */
-export function runShape(graph: TRunGraph, { minLevel, divisions }: { minLevel: THaibunLogLevel; divisions: number }): TRunShape {
+/** The marks of one actuality at `minLevel`, counted in `divisions` as it grows. */
+export function actualityShape(graph: TActualityGraph, { minLevel, divisions }: { minLevel: THaibunLogLevel; divisions: number }): TActualityShape {
 	let first: number | undefined;
 	let divisionMs = 0;
 	let countedThrough: number | undefined;
 	let held: Record<string, number>[][] = COUNTED.map(() => uncounted(divisions));
-	let marks: TRunMark[] = [];
+	let marks: TActualityMark[] = [];
 	const divisionOf = (at: number): number => Math.floor((at - (first as number)) / divisionMs);
 	const beginningOf = (division: number): number => {
-		if (first === undefined) throw new Error(`division ${division} of a run doesn't begin before its first record at ${minLevel}`);
+		if (first === undefined) throw new Error(`division ${division} of an actuality doesn't begin before its first record at ${minLevel}`);
 		return first + division * divisionMs;
 	};
 	const count = async (to: number): Promise<void> => {
 		if (countedThrough !== undefined && to <= countedThrough) return;
 		if (first === undefined) {
-			// Its first record, read once: where a run begins does not change while it runs.
-			first = await beginningOfRun(graph, minLevel);
+			// Its first record, read once: where an actuality begins does not change while it runs.
+			first = await beginningOfActuality(graph, minLevel);
 			if (first === undefined) return; // actuality hasn't recorded at this level, so it doesn't have a record to count
 		}
 		if (to < first) return;
@@ -114,7 +114,7 @@ export function runShape(graph: TRunGraph, { minLevel, divisions }: { minLevel: 
 		// divisions before it are counted already and cannot change.
 		const from = countedThrough === undefined ? 0 : divisionOf(countedThrough);
 		const through = divisionOf(to);
-		const counted = await runCounts(graph, {
+		const counted = await actualityCounts(graph, {
 			from: first + from * divisionMs,
 			// One moment short of where the next division begins, so a record on a boundary is counted in its own
 			// division rather than in the one being read.

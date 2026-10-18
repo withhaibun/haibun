@@ -1,7 +1,7 @@
 /**
  * The executions this device holds, and what it deletes to hold another.
  *
- * A run's records name their execution, so the ids themselves separate what a device holds of many runs, rather than a
+ * An actuality's records name their execution, so the ids themselves separate what a device holds of many actualities, rather than a
  * second index beside them. The executions are read from the step records: a step that declared a
  * feature names an execution for a reader.
  */
@@ -11,7 +11,7 @@ import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import type { TCachedGraph, TDeviceReport } from "../ports.js";
-import { RUN_TYPES } from "../derivations/run-rows.js";
+import { ACTUALITY_TYPES } from "../derivations/actuality-rows.js";
 
 /** An execution as this device holds it: the graph of its actuality's records, the features it ran, and the moments
  *  its features span. */
@@ -20,7 +20,7 @@ export type THeldExecution = { execution: string; store: TCachedGraph; features:
 /** How many feature declarations the listing reads: what names the executions a reader is offered. */
 export const EXECUTIONS_READ = 500;
 
-/** What holding a run reads and writes: the graphs of every actuality the device holds, the graph of the one the site
+/** What holding an actuality reads and writes: the graphs of every actuality the device holds, the graph of the one the site
  *  serves, the execution the page reads, and the report of what the device couldn't hold. */
 export type THoldScope = { held: () => Promise<TCachedGraph[]>; served: () => TCachedGraph; reading: () => string | undefined; report: TDeviceReport };
 
@@ -61,7 +61,7 @@ async function executionsIn(store: TCachedGraph): Promise<THeldExecution[]> {
  *  execution, so what to delete is read off the records themselves rather than a second index beside them. */
 export async function deleteExecution({ execution, store }: THeldExecution): Promise<number> {
 	let gone = 0;
-	for (const type of RUN_TYPES) {
+	for (const type of ACTUALITY_TYPES) {
 		const ids = (await readEvery(store, { label: type.label })).map((record) => recordId(record, type.label)).filter((id) => parseRecordName(id)?.execution === execution);
 		for (const id of ids) await store.deleteIndividual(type.label, id);
 		gone += ids.length;
@@ -69,7 +69,7 @@ export async function deleteExecution({ execution, store }: THeldExecution): Pro
 	return gone;
 }
 
-/** A record's id, which every record of a run states. */
+/** A record's id, which every record of an actuality states. */
 function recordId(record: Record<string, unknown>, label: string): string {
 	const id = record[SEQ_PATH_FIELD.id];
 	if (typeof id !== "string") throw new Error(`a record of ${label} states its id as ${typeof id}, not a string`);
@@ -82,9 +82,9 @@ const storageIsFull = (err: unknown): boolean => err instanceof DOMException && 
 /**
  * Holds what a window read on this device, in one write.
  *
- * What a device holds is the runs a reader can come back to, and it holds them until the browser lacks room. At that
- * point the oldest run the reader isn't reading is deleted and the write is tried once more, so what is kept is the runs
- * nearest to what a reader reads rather than whichever ones were written first. A device without a run it can delete
+ * What a device holds is the actualities a reader can come back to, and it holds them until the browser lacks room. At that
+ * point the oldest actuality the reader isn't reading is deleted and the write is tried once more, so what is kept is the actualities
+ * nearest to what a reader reads rather than whichever ones were written first. A device without an actuality it can delete
  * reports so: reading carries on against the site, and a reader who loses the site loses what this write would have
  * held.
  */
@@ -99,11 +99,11 @@ export async function holdOnDevice(scope: THoldScope, quads: TQuad[]): Promise<v
 		if (oldest === undefined) return scope.report.failure("this device is full, and it holds only the execution being read", err);
 		const gone = await deleteExecution(oldest);
 		// Making room is what a full device does rather than a failure of the page, so it is reported rather than thrown:
-		// a reader whose earlier run is gone reads why.
+		// a reader whose earlier actuality is gone reads why.
 		scope.report.warn(`this device is full, so actuality ${oldest.execution} and its ${gone} records were deleted`);
 		await scope
 			.served()
 			.setMany(quads)
-			.catch((again: unknown) => scope.report.failure("actuality's records could not be held on this device after deleting a run", again));
+			.catch((again: unknown) => scope.report.failure("actuality's records could not be held on this device after deleting an actuality", again));
 	}
 }

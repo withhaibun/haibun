@@ -1,5 +1,5 @@
-// What a device holds of the runs it has read, and what it does when it can't hold more. A record's id names its
-// execution, so deleting a run reads the records rather than a second index beside them.
+// What a device holds of the actualities it has read, and what it does when it can't hold more. A record's id names its
+// execution, so deleting an actuality reads the records rather than a second index beside them.
 import { newPage } from "../../../test/setup.js";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
@@ -20,15 +20,15 @@ import {
 	subscribeExecutionSwitch,
 	type THeldExecution,
 } from "./device-controller.js";
-import { runStore } from "../run-store.test-fake.js";
+import { actualityStore } from "../actuality-store.test-fake.js";
 
 const OLDER = "1700000000000-1";
 const NEWER = "1700000009000-2";
 const iso = (n: number): string => new Date(n).toISOString();
 
-/** A device holding two runs, each declaring the feature it ran and logging one thing. */
+/** A device holding two actualities, each declaring the feature it ran and logging one thing. */
 const aDevice = async (): Promise<QuadStore> => {
-	const store = runStore();
+	const store = actualityStore();
 	for (const [i, execution] of [OLDER, NEWER].entries()) {
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
 			id: `${execution}.0`,
@@ -52,39 +52,39 @@ const aDevice = async (): Promise<QuadStore> => {
 	return store;
 };
 
-/** One run as the device lists it. */
+/** One actuality as the device lists it. */
 const held = async (execution: string): Promise<THeldExecution> => {
 	const found = (await executionsHeld()).find((one) => one.execution === execution);
 	if (!found) throw new Error(`the device doesn't list ${execution}`);
 	return found;
 };
 
-/** The records of one run the device still holds, over every type a run writes. */
+/** The records of one actuality the device still holds, over every type an actuality writes. */
 const heldOf = async (store: QuadStore, execution: string): Promise<number> => {
 	const quads = await store.query({});
 	return new Set(quads.filter((q) => q.subject.startsWith(`${execution}.`)).map((q) => q.subject)).size;
 };
 
-describe("what a device holds of the runs it has read", () => {
+describe("what a device holds of the actualities it has read", () => {
 	beforeEach(newPage);
 	afterEach(() => vi.restoreAllMocks());
 
-	it("names the runs it holds, newest first, by the features each ran", async () => {
+	it("names the actualities it holds, newest first, by the features each ran", async () => {
 		await aDevice();
 		expect((await executionsHeld()).map((one) => one.execution)).toEqual([NEWER, OLDER]);
 		expect(itemAt(await executionsHeld(), 0).features).toEqual(["run 1"]);
 	});
 
-	it("reports a change of the execution being read when a run starts while the page follows the one before it", () => {
+	it("reports a change of the execution being read when an execution starts while the page follows the one before it", () => {
 		let told = 0;
 		const stop = subscribeExecutionSwitch(() => told++);
 		noteExecution(OLDER);
 		expect(readingExecution()).toBe(OLDER);
-		expect(told, "a page reading its first execution has not changed run").toBe(0);
+		expect(told, "a page reading its first execution hasn't switched from another").toBe(0);
 		noteExecution(OLDER);
-		expect(told, "the same run again is not a change either").toBe(0);
+		expect(told, "the same actuality again is not a change either").toBe(0);
 		noteExecution(NEWER);
-		expect(told, "the execution that started is the one being read, and what is drawn of a run follows it").toBe(1);
+		expect(told, "the execution that started is the one being read, and what is drawn of an execution follows it").toBe(1);
 		stop();
 	});
 
@@ -94,7 +94,7 @@ describe("what a device holds of the runs it has read", () => {
 		const stop = subscribeExecutionSwitch(() => told++);
 		noteExecution(NEWER);
 		expect(readingExecution(), "actuality the reader chose").toBe(OLDER);
-		expect(told, "a reader who is reading a run of their own choosing isn't told of a change").toBe(0);
+		expect(told, "a reader who is reading an actuality of their own choosing isn't told of a change").toBe(0);
 		stop();
 	});
 
@@ -110,14 +110,14 @@ describe("what a device holds of the runs it has read", () => {
 		stop();
 	});
 
-	it("deletes one run entirely and holds the rest of what it has read", async () => {
+	it("deletes one actuality entirely and holds the rest of what it has read", async () => {
 		const store = await aDevice();
 		expect(await deleteExecution(await held(OLDER))).toBe(3);
 		expect(await heldOf(store, OLDER), "it doesn't hold a record of the actuality it deleted").toBe(0);
 		expect(await heldOf(store, NEWER), "every record of the actuality it kept").toBe(3);
 	});
 
-	it("makes room by deleting the oldest run it is not reading, and holds what it was given", async () => {
+	it("makes room by deleting the oldest actuality it is not reading, and holds what it was given", async () => {
 		const store = await aDevice();
 		readExecution(NEWER);
 		vi.spyOn(console, "warn").mockImplementation(() => undefined);

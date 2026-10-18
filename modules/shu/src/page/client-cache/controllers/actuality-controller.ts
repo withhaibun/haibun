@@ -8,36 +8,36 @@ import { SHU_TAG } from "../../../domains/elements.js";
 import { INITIAL_WINDOW_SIZE, PAGE_SETTING_KEY, WindowSizeSchema } from "../../domains/settings.js";
 import { storedSetting, windowRows } from "../../derivations/settings.js";
 import { pageClock, pageEventStream, pagePreferences, timeCursor } from "../../root.js";
-import { pageRunGraph, selectValuesFor } from "../../controllers/read-controller.js";
+import { pageActualityGraph, selectValuesFor } from "../../controllers/read-controller.js";
 import { componentOfView, declaredViews } from "../../controllers/catalog-controller.js";
-import { graphRunSources, runRegistry, runReport } from "../root.js";
-import type { RunSource } from "../ports.js";
-import { RUN_WINDOW_SIZE } from "../derivations/run-rows.js";
-import * as Sources from "../pipelines/run-sources.js";
+import { graphActualitySources, actualityRegistry, actualityReport } from "../root.js";
+import type { ActualitySource } from "../ports.js";
+import { ACTUALITY_WINDOW_SIZE } from "../derivations/actuality-rows.js";
+import * as Sources from "../pipelines/actuality-sources.js";
 import * as ViewsShown from "../pipelines/views-shown.js";
 import { currentExecution, holdOnDevice, noteExecution, readingExecution, subscribeExecutionSwitch } from "./device-controller.js";
 
-export type { RunSource, TEventRecord, TRunExtent } from "../ports.js";
+export type { ActualitySource, TEventRecord, TActualityExtent } from "../ports.js";
 
 /** How long a burst of changes is collected before the window is read again. */
 const RE_READ_AFTER_MS = 250;
 
 /** What a reading of actuality reads and writes on this page. */
-export const runSourceScope = (): Sources.TRunSourceScope => ({
-	registry: runRegistry(),
-	graph: pageRunGraph,
+export const actualitySourceScope = (): Sources.TActualitySourceScope => ({
+	registry: actualityRegistry(),
+	graph: pageActualityGraph,
 	executions: { chosen: currentExecution, reading: readingExecution, observe: noteExecution, onSwitch: subscribeExecutionSwitch },
 	hold: holdOnDevice,
 	events: pageEventStream(),
 	clock: pageClock(),
 	setCursor: (moment) => timeCursor.set(moment),
 	pageSize: windowRows(storedSetting(`<${SHU_TAG.WINDOW_SIZE}>`, WindowSizeSchema, pagePreferences().read(SHU_TAG.WINDOW_SIZE, PAGE_SETTING_KEY), INITIAL_WINDOW_SIZE)),
-	report: runReport,
+	report: actualityReport,
 });
 
-/** Stops reading a run the views don't show, and drops it, so the next view to read at that level reads afresh. */
+/** Stops reading an actuality the views don't show, and drops it, so the next view to read at that level reads afresh. */
 function release(key: string): void {
-	const sources = graphRunSources();
+	const sources = graphActualitySources();
 	const held = sources.get(key);
 	if (held === undefined) return;
 	sources.delete(key);
@@ -45,35 +45,40 @@ function release(key: string): void {
 }
 
 /** Returns actuality as a view reads it at `level`. A reading is its level and whether it shows the steps run to carry
- *  other steps out: two views reading the same share one, and a view reading substeps reads a run of its own rather
+ *  other steps out: two views reading the same share one, and a view reading substeps reads one of its own rather
  *  than filtering one. */
-export function graphRunSource(level: THaibunLogLevel, substeps: boolean): RunSource {
+export function graphActualitySource(level: THaibunLogLevel, substeps: boolean): ActualitySource {
 	const key = substeps ? `${level}+substeps` : level;
-	const sources = graphRunSources();
+	const sources = graphActualitySources();
 	const held = sources.get(key);
 	if (held) return held;
-	const made = Sources.makeGraphRunSource(runSourceScope(), level, { size: RUN_WINDOW_SIZE, reReadAfterMs: RE_READ_AFTER_MS, substeps, release: () => release(key) });
+	const made = Sources.makeGraphActualitySource(actualitySourceScope(), level, {
+		size: ACTUALITY_WINDOW_SIZE,
+		reReadAfterMs: RE_READ_AFTER_MS,
+		substeps,
+		release: () => release(key),
+	});
 	sources.set(key, made);
 	return made;
 }
 
 /** The readings of actuality the views read, in level order. */
-export const runSources = (): RunSource[] => Sources.runSources(runRegistry());
+export const actualitySources = (): ActualitySource[] => Sources.actualitySources(actualityRegistry());
 
 /** Calls `fn` with each reading as it is made. Returns the unsubscribe. */
-export const subscribeRunSources = (fn: (source: RunSource) => void): (() => void) => Sources.subscribeRunSources(runRegistry(), fn);
+export const subscribeActualitySources = (fn: (source: ActualitySource) => void): (() => void) => Sources.subscribeActualitySources(actualityRegistry(), fn);
 
 /** The moment actuality is read around, or undefined while the newest records are being followed. */
-export const runReadingAt = (): number | undefined => Sources.runReadingAt(runRegistry());
+export const actualityReadingAt = (): number | undefined => Sources.actualityReadingAt(actualityRegistry());
 
 /** When actuality the page reads starts and ends, over every level read. */
-export const runSpan = (): { first: number; last: number } => Sources.runSpan(runRegistry());
+export const actualitySpan = (): { first: number; last: number } => Sources.actualitySpan(actualityRegistry());
 
 /** Whether an instant is actuality's live edge: at or past its newest row. */
-export const atLiveEdge = (instant: number): boolean => Sources.atLiveEdge(runRegistry(), instant);
+export const atLiveEdge = (instant: number): boolean => Sources.atLiveEdge(actualityRegistry(), instant);
 
 /** Reads actuality around a moment on every reading a view reads by; `null` follows the newest records again. */
-export const readRunAt = (at: number | null): Promise<void> => Sources.readRunAt(runRegistry(), at);
+export const readActualityAt = (at: number | null): Promise<void> => Sources.readActualityAt(actualityRegistry(), at);
 
 /** The elements of the views the execution being read has shown, in the order the site declares the views. */
 export const viewsShown = (): Promise<string[]> => ViewsShown.viewsShown({ selectValues: selectValuesFor, declared: declaredViews, componentOf: componentOfView });
@@ -83,8 +88,8 @@ export const viewsShown = (): Promise<string[]> => ViewsShown.viewsShown({ selec
  * the reading's version it derived at, and derives again only where the reading's version differs, so a render for any
  * other reason, a move of the time cursor among them, reads the window it holds (PF29).
  */
-export class RunController<T> implements ReactiveController {
-	#source: RunSource | undefined;
+export class ActualityController<T> implements ReactiveController {
+	#source: ActualitySource | undefined;
 	#unsubscribe: (() => void) | undefined;
 	#version = -1;
 	#derived: T | undefined;
@@ -92,15 +97,15 @@ export class RunController<T> implements ReactiveController {
 	/** `derive` returns the view's window from the reading. */
 	constructor(
 		private readonly host: ReactiveControllerHost,
-		private readonly derive: (source: RunSource) => T,
+		private readonly derive: (source: ActualitySource) => T,
 	) {
 		host.addController(this);
 	}
 
 	/** Reads actuality at `level`, letting go of the reading held before. Returns the reading. */
-	read(level: THaibunLogLevel, substeps: boolean): RunSource {
+	read(level: THaibunLogLevel, substeps: boolean): ActualitySource {
 		this.#unsubscribe?.();
-		const source = graphRunSource(level, substeps);
+		const source = graphActualitySource(level, substeps);
 		this.#source = source;
 		this.#version = -1;
 		this.#unsubscribe = source.subscribe(() => this.host.requestUpdate());
@@ -109,7 +114,7 @@ export class RunController<T> implements ReactiveController {
 	}
 
 	/** The reading the view reads. */
-	get source(): RunSource {
+	get source(): ActualitySource {
 		if (this.#source === undefined) throw new Error("a view read its reading of actuality before it read one");
 		return this.#source;
 	}

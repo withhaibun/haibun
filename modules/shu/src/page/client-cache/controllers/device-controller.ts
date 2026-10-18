@@ -1,6 +1,6 @@
 /**
  * What the device holds of actuality, as the views read it: the graph the page reads (the site's, a report's, or another
- * actuality's the device holds), the executions the device holds and which one the page reads, a run a report carries,
+ * actuality's the device holds), the executions the device holds and which one the page reads, an actuality a report carries,
  * and the device's store of the site's registry.
  */
 import { readDeclarationsOfCatalog, type TReadDeclarations } from "@haibun/core/lib/records/derivations/read-records.js";
@@ -11,7 +11,7 @@ import { deviceQuads, deviceReport, graphSlot, heldDatabases, installMemoryDevic
 import type { TCachedGraph, TDeviceGraph, TGraphSaturation } from "../ports.js";
 import { DeviceGraph } from "../pipelines/device-graph.js";
 import * as Executions from "../pipelines/executions.js";
-import { readCarriedRun } from "../pipelines/carried-run.js";
+import { readCarriedActuality } from "../pipelines/carried-actuality.js";
 import { EXECUTIONS_EVENT, readingOf } from "../machines/executions.js";
 
 export { followDeviceWrites, pageDeviceStore, deviceSummary } from "../root.js";
@@ -88,7 +88,7 @@ export function readExecution(execution: string | undefined): void {
 	pageExecutions().dispatch({ type: EXECUTIONS_EVENT.CHOOSE, execution });
 }
 
-/** Calls `fn` each time the execution being read changes, whether a reader chose it or a run that started while the
+/** Calls `fn` each time the execution being read changes, whether a reader chose it or an execution that started while the
  *  page followed the one before it became the one being read. Returns the unsubscribe. */
 export const subscribeExecutionSwitch = (fn: () => void): (() => void) =>
 	pageExecutions().follow(({ before, after }) => {
@@ -114,11 +114,11 @@ export const executionsHeld = async (): Promise<Executions.THeldExecution[]> => 
 /** Deletes every record of one execution this device holds, and returns how many went. */
 export const deleteExecution = (held: Executions.THeldExecution): Promise<number> => Executions.deleteExecution(held);
 
-/** Holds what a window read on this device, in one write, deleting the oldest run the reader isn't reading where the
+/** Holds what a window read on this device, in one write, deleting the oldest actuality the reader isn't reading where the
  *  device is full. */
 export const holdOnDevice = (quads: TQuad[]): Promise<void> =>
 	Executions.holdOnDevice({ held: heldGraphs, served: servedGraph, reading: readingExecution, report: deviceReport }, quads);
 
-/** Reads what a report carries of a run, from then. */
+/** Reads what a report carries of an actuality, from then. */
 export const hydrateClientCache = (cache: TCachePayload): Promise<void> =>
-	readCarriedRun({ installDeviceStore: installMemoryDeviceStore, installGraph, readExecution, declarations: pageReadDeclarations }, cache);
+	readCarriedActuality({ installDeviceStore: installMemoryDeviceStore, installGraph, readExecution, declarations: pageReadDeclarations }, cache);

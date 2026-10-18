@@ -24,7 +24,7 @@ import { ShuArtifactFrame } from "./shu-artifact-frame.js";
 import type { ShuVirtualColumn } from "./shu-virtual-column.js";
 import "./shu-virtual-column.js";
 import { virtualColumnCss } from "./shu-virtual-column.js";
-import { atLiveEdge, RunController, type RunSource, type TEventRecord } from "../client-cache/controllers/run-controller.js";
+import { atLiveEdge, ActualityController, type ActualitySource, type TEventRecord } from "../client-cache/controllers/actuality-controller.js";
 import { renderedAt } from "../client-cache/derivations/rendered-rows.js";
 import type { WindowedSource } from "../derivations/windowed-source.js";
 import { splitDocumentBlocks, finalizeBlocks, blocksByEvent, blockText, isArtifactOf, type TDocBlock } from "../derivations/document-blocks.js";
@@ -106,7 +106,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	// as they arrive. One source per level, shared across views, swapped when the level changes.
 	/** The reading this view reads, made when it connects: a view constructed and never connected would otherwise
 	 *  leave a reading of the actuality that a view doesn't read. */
-	#runs = new RunController<TDocWindow>(this, (run) => this.#windowOf(run));
+	#runs = new ActualityController<TDocWindow>(this, (run) => this.#windowOf(run));
 	#source: WindowedSource<TDocRow> = this.#rowsOver(() => this.#run);
 	#pages = new Map<number, TPageRows>();
 	#windowRows: Array<{ index: number; event: TEventRecord }> = []; // the rows of the window a reader is looking at, read once per update
@@ -189,13 +189,13 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		this.#source = this.#rowsOver(() => run);
 	}
 
-	get #run(): RunSource {
+	get #run(): ActualitySource {
 		return this.#runs.source;
 	}
 
 	/** A WindowedSource of rows over actuality source: actuality's extent, each cached event as a row, the rest undefined
 	 *  until their page lands. The rail marks come from the cached rows. */
-	#rowsOver(run: () => RunSource): WindowedSource<TDocRow> {
+	#rowsOver(run: () => ActualitySource): WindowedSource<TDocRow> {
 		return {
 			count: () => run().count(),
 			rowAt: (i) => this.#rowAt(i),
@@ -285,7 +285,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	 * built a page at a time, when a page is rendered, so a window of any length is one read rather than the whole
 	 * document being written out on every update.
 	 */
-	#windowOf(run: RunSource): TDocWindow {
+	#windowOf(run: ActualitySource): TDocWindow {
 		const rows: Array<{ index: number; event: TEventRecord }> = [];
 		for (const { from, to } of run.cachedRanges())
 			for (let i = from; i < to; i++) {

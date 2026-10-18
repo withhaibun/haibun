@@ -1,5 +1,5 @@
 /**
- * The client cache's ports: the graph of a run's records, the device's databases and its registry, and the source of a
+ * The client cache's ports: the graph of an actuality's records, the device's databases and its registry, and the source of a
  * view's rows of actuality.
  */
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
@@ -9,11 +9,11 @@ import type { WindowedSource } from "../derivations/windowed-source.js";
 import type { Range } from "../derivations/rail.js";
 
 /**
- * What reading a run needs of the graph. A run is read three ways: the records of one type by time, how many fall in each
- * division of a span, and whether the graph carries a type at all. Every reading of a run states which graph it reads, so
+ * What reading an actuality needs of the graph. An actuality is read three ways: the records of one type by time, how many
+ * fall in each division of a span, and whether the graph carries a type at all. Every reading states which graph it reads, so
  * a page reads through its site and its own copy, a report reads the copy it carries, and a test reads a store it made.
  */
-export type TRunGraph = {
+export type TActualityGraph = {
 	/** The records of one type the query names. */
 	query(query: TGraphQuery): Promise<TGraphQueryResult>;
 	/** How many records of one type fall in each division of a span, by how each turned out. */
@@ -25,7 +25,7 @@ export type TRunGraph = {
 /** What the cached data means, apart from the database's structure. Change it whenever data written by an earlier build
  *  would be read wrongly by this one: the device then clears what it cached rather than serving it, and a report written
  *  by another build isn't read. */
-export const CACHE_SHAPE = "run-records/1";
+export const CACHE_SHAPE = "actuality-records/1";
 
 /** The stores of one actuality's database on the device. */
 export const DEVICE_STORES = { META: "meta", QUADS: "quads" } as const;
@@ -77,16 +77,16 @@ export interface TDeviceStore {
 export type TEventRecord = Record<string, unknown>;
 
 /** What actuality spans at one level: how many rows, when it began, and the instant of its newest. */
-export type TRunExtent = { total: number; first?: number; last?: number };
+export type TActualityExtent = { total: number; first?: number; last?: number };
 
 /** A reading of actuality at one level, the source of a view's rows. */
-export interface RunSource extends WindowedSource<TEventRecord> {
+export interface ActualitySource extends WindowedSource<TEventRecord> {
 	/** The level this source reads at (its rows are at this level and up). */
 	readonly level: THaibunLogLevel;
 	/** The count of changes of what the source holds or states: a view derives from the source again only where it differs. */
 	readonly version: number;
 	/** Actuality's extent as read: how many rows at this level, when actuality began, and the instant of its newest. */
-	extent(): TRunExtent;
+	extent(): TActualityExtent;
 	/** The index spans held, in order: what a view derives its marks and cursor from, never a scan of the extent. */
 	cachedRanges(): Range[];
 	/** How many rows a page holds: a view that derives per page (the document's blocks) aligns to it. */
@@ -110,4 +110,4 @@ export interface RunSource extends WindowedSource<TEventRecord> {
 
 /** What the page reads actuality by: the sources the views read, each made source's listeners, the moment every view reads
  *  around (undefined follows the newest records), and what actuality spans as any reading has seen it. */
-export type TRunRegistry = { reading: Set<RunSource>; made: Set<(source: RunSource) => void>; at?: number; span: { first?: number; last?: number } };
+export type TActualityRegistry = { reading: Set<ActualitySource>; made: Set<(source: ActualitySource) => void>; at?: number; span: { first?: number; last?: number } };

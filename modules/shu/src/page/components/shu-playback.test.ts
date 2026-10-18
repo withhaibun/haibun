@@ -12,10 +12,10 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { ShuPlayback } from "./shu-playback.js";
 import { timeCursor } from "../controllers/page-cell-controller.js";
 import { setupShuTest, type TShuTestHandle } from "../../test/setup.js";
-import { runStore } from "../client-cache/run-store.test-fake.js";
+import { actualityStore } from "../client-cache/actuality-store.test-fake.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { currentExecution, installGraph, readExecution } from "../client-cache/controllers/device-controller.js";
-import { graphRunSource } from "../client-cache/controllers/run-controller.js";
+import { graphActualitySource } from "../client-cache/controllers/actuality-controller.js";
 
 import { SHU_EVENT } from "../../domains/elements.js";
 import { endPage } from "../adapters/page-held.js";
@@ -25,8 +25,8 @@ const FIRST = 1_000_000;
 const EARLIER_EXECUTION = "1600000000000-1";
 const LAST = 1_000_500;
 /** The actuality this control plays through: two steps, the first and the last of it. */
-async function aRun(): Promise<void> {
-	const store = runStore();
+async function anActuality(): Promise<void> {
+	const store = actualityStore();
 	for (const [i, at] of [FIRST, LAST].entries())
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
 			id: `1700000000000-1.0.${i}`,
@@ -50,7 +50,7 @@ async function playing(): Promise<ShuPlayback> {
 	await el.updateComplete;
 	// Actuality's span comes from actuality sources the open views read: so actuality is read at a level (as an open monitor or
 	// document would read it), and its extent is what the control plays between.
-	await graphRunSource("info", false).ready();
+	await graphActualitySource("info", false).ready();
 	await el.updateComplete;
 	return el;
 }
@@ -100,7 +100,7 @@ describe("playing through a run", () => {
 				throw new ServerUnreachable("/rpc", new Error("actuality is read from its records"));
 			},
 		});
-		await aRun();
+		await anActuality();
 		frames.install();
 		timeCursor.set(null);
 	});
@@ -167,7 +167,7 @@ describe("going back to now", () => {
 				throw new ServerUnreachable("/rpc", new Error("actuality is read from its records"));
 			},
 		});
-		await aRun();
+		await anActuality();
 		frames.install();
 		timeCursor.set(null);
 	});

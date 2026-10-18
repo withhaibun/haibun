@@ -5,25 +5,25 @@
 import { stepLine } from "@haibun/core/lib/seq-path.js";
 import { declaredName, declaresFeature, declaresScenario } from "@haibun/core/schema/protocol.js";
 import type { TEventRecord } from "../ports.js";
-import type { TRunRow } from "./run-rows.js";
+import type { TActualityRow } from "./actuality-rows.js";
 
 /** What a step declared, where it declared one: a feature or a scenario is the step that named it, and a view titles it
  *  by the name that step carries rather than by a second announcement of the same thing. */
-function declared(row: TRunRow): Record<string, unknown> {
+function declared(row: TActualityRow): Record<string, unknown> {
 	if (declaresFeature(row.called)) return { type: "feature", featureName: declaredName(row.text, "feature") };
 	if (declaresScenario(row.called)) return { type: "scenario", scenarioName: declaredName(row.text, "scenario") };
 	return { type: "step" };
 }
 
 /** Which record a rendered row is: its type and its own name. A row shows a step's path, and what was logged under a step
- *  shows that step's, so without this a row of what a run logged reads as the step it was logged during, and a reader
+ *  shows that step's, so without this a row of what an actuality logged reads as the step it was logged during, and a reader
  *  pressing it doesn't have a record to open. */
-const recordOf = (row: TRunRow): { persistedAs: string; id: string } => ({ persistedAs: row.label, id: row.id });
+const recordOf = (row: TActualityRow): { persistedAs: string; id: string } => ({ persistedAs: row.label, id: row.id });
 
 /** A row as a view renders it. A step carries how it went and how long it took; what was logged carries its own level. */
-export function asRendered(row: TRunRow): TEventRecord {
+export function asRendered(row: TActualityRow): TEventRecord {
 	// The step path a view shows and navigates by is the path within the execution: the execution separates the records
-	// of different runs, and a reader of one run isn't shown it on every row.
+	// of different actualities, and a reader of one actuality isn't shown it on every row.
 	const seqPath = row.under.length ? row.under : undefined;
 	if (row.kind === "said") return { id: row.step, kind: "log", level: row.level, message: row.text, timestamp: row.at, seqPath, record: recordOf(row) };
 	// A produced thing is claimed by the step it came from, which a document reads from the identity it carries.
@@ -32,7 +32,7 @@ export function asRendered(row: TRunRow): TEventRecord {
 }
 
 /** What a step produced, as a view renders it. */
-function producedRecord(row: TRunRow): TEventRecord {
+function producedRecord(row: TActualityRow): TEventRecord {
 	const seqPath = row.under?.length ? row.under : undefined;
 	return {
 		id: row.id,
@@ -50,7 +50,7 @@ function producedRecord(row: TRunRow): TEventRecord {
 }
 
 /** A step's own record, as a view renders it, carrying what that step produced. */
-function stepRecord(row: TRunRow, seqPath: number[] | undefined): TEventRecord {
+function stepRecord(row: TActualityRow, seqPath: number[] | undefined): TEventRecord {
 	return {
 		id: row.step,
 		kind: "lifecycle",

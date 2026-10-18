@@ -66,7 +66,7 @@ import {
 } from "../src/page/controllers/hydration-controller.js";
 import { getAvailableSteps, requiredActionOf } from "../src/page/controllers/registry-controller.js";
 import { hydrateClientCache } from "../src/page/client-cache/controllers/device-controller.js";
-import { viewsShown } from "../src/page/client-cache/controllers/run-controller.js";
+import { viewsShown } from "../src/page/client-cache/controllers/actuality-controller.js";
 import { followRunningTurns } from "../src/page/ask/controllers/conversation-controller.js";
 
 /** The id of the served document's main element, which holds the page. */

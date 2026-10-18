@@ -1,13 +1,13 @@
 /**
- * A run's graph (`TRunGraph`) over one store, and one run's records of a graph.
+ * An actuality's graph (`TActualityGraph`) over one store, and one actuality's records of a graph.
  */
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import type { TDensityQuery, TGraphQuery } from "@haibun/core/lib/quad-types.js";
 import { EXECUTION_FIELD } from "@haibun/core/lib/seq-path.js";
-import type { TRunGraph } from "../ports.js";
+import type { TActualityGraph } from "../ports.js";
 
-/** A run read over one store: what a report reads of the copy it carries, and what a test reads of a store it made. */
-export function runGraphOf(store: IQuadStore, declares: (label: string) => boolean): TRunGraph {
+/** An actuality read over one store: what a report reads of the copy it carries, and what a test reads of a store it made. */
+export function actualityGraphOf(store: IQuadStore, declares: (label: string) => boolean): TActualityGraph {
 	return { query: (query) => store.readRecords(query), density: (query) => store.density(query), declares };
 }
 
@@ -19,7 +19,7 @@ export function runGraphOf(store: IQuadStore, declares: (label: string) => boole
  * rather than a second store. Where an execution isn't named the graph is read as it is, which is what a page reads
  * before its first read names the execution it shows.
  */
-export function ofExecution(graph: TRunGraph, execution: string | undefined): TRunGraph {
+export function ofExecution(graph: TActualityGraph, execution: string | undefined): TActualityGraph {
 	if (execution === undefined) return graph;
 	const named = { predicate: EXECUTION_FIELD, operator: "eq", value: execution };
 	return {

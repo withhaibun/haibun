@@ -13,7 +13,7 @@ import type { TEventMarkerStyle } from "../derivations/status-mark.js";
 import { HAIBUN_LOG_LEVELS, ICON_DEFAULT, ICON_LOG_ERROR, ICON_LOG_INFO, ICON_LOG_WARN, RECORDED_STATUS } from "@haibun/core/schema/protocol.js";
 import "./shu-virtual-column.js";
 import { virtualColumnCss } from "./shu-virtual-column.js";
-import { atLiveEdge, RunController, type RunSource } from "../client-cache/controllers/run-controller.js";
+import { atLiveEdge, ActualityController, type ActualitySource } from "../client-cache/controllers/actuality-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { SCROLL_TO_INDEX, type TSeekBy } from "./shu-scrollbar.js";
 import { SHU_EVENT, SHU_TAG, TIME_SYNC_CLASS } from "../../domains/elements.js";
@@ -158,14 +158,14 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	// swapped when the level changes.
 	/** The reading this view reads, made when it connects: a view constructed and never connected would otherwise
 	 *  leave a reading of the actuality that a view doesn't read. The window derives from it once per change of it. */
-	#runs = new RunController<TMonitorWindow>(this, (run) => this.#windowOf(run));
+	#runs = new ActualityController<TMonitorWindow>(this, (run) => this.#windowOf(run));
 	#rowCache = new WeakMap<object, TLogRow>();
 	#source: WindowedSource<TLogRow> = this.#rowsOver(() => this.#run);
 	#currentIdx = -1;
 	#cursorMark = -1;
 	#marks: TScrollMarker[] = []; // the rail's marks, derived when the window changes rather than when the rail draws
 
-	get #run(): RunSource {
+	get #run(): ActualitySource {
 		return this.#runs.source;
 	}
 	static styles = [
@@ -248,7 +248,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 
 	/** A WindowedSource of rows over actuality source: actuality's extent, each record it holds as a row (derived once per
 	 *  record and held), the rest undefined until the window reaches them. The rail marks come from those rows. */
-	#rowsOver(run: () => RunSource): WindowedSource<TLogRow> {
+	#rowsOver(run: () => ActualitySource): WindowedSource<TLogRow> {
 		return {
 			count: () => run().count(),
 			rowAt: (i) => {
@@ -309,7 +309,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 
 	/** The window of a reading: its cached rows in index order, the rail's marks over them, and the rows the time cursor
 	 *  reads. Walked from the spans the source caches, never a scan of actuality's extent. */
-	#windowOf(run: RunSource): TMonitorWindow {
+	#windowOf(run: ActualitySource): TMonitorWindow {
 		const cached: Array<{ index: number; row: TLogRow }> = [];
 		for (const { from, to } of run.cachedRanges())
 			for (let i = from; i < to; i++) {

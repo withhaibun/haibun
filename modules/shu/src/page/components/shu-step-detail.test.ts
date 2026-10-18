@@ -7,7 +7,7 @@
 import { declareGraphSpec } from "../../test/catalog-fixture.js";
 import { requiredActionOf } from "../controllers/registry-controller.js";
 import { serveThePage, newPage } from "../../test/setup.js";
-import { runStore } from "../client-cache/run-store.test-fake.js";
+import { actualityStore } from "../client-cache/actuality-store.test-fake.js";
 import { describe, it, expect, beforeEach } from "vitest";
 import "./shu-step-detail.js"; // the module defines the element
 import { SHU_TAG } from "../../domains/elements.js";
@@ -37,7 +37,7 @@ describe("shu-step-detail", () => {
 		installCarriedEventStream();
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
 		// One step of the execution being read: what it asked for, what ran, how it went and where.
-		const store = runStore();
+		const store = actualityStore();
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
 			id: STEP,
 			stepText: "a step",

@@ -335,7 +335,7 @@ export const servedWith = (settings: Partial<TDeploymentSettings>): TDeploymentS
 export const PAGE_ACTUALITY = crypto.randomUUID();
 
 /** Make this page a record of a run: it carries one, so it doesn't have a server behind it. */
-export function carryARun(): void {
+export function carryAnActuality(): void {
 	hydrate({ actualityId: PAGE_ACTUALITY, cache: CARRIED_RUN });
 	hydrateFromDom();
 }

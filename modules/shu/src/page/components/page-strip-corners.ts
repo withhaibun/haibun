@@ -8,7 +8,7 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { AccessQueryLevelSchema, type AccessQueryLevel } from "@haibun/core/lib/resources.js";
 import { AuthorityController } from "../controllers/authority-controller.js";
 import { AWAITING_DECISION, PERMISSIONS_SLOT, SHU_TAG } from "../../domains/elements.js";
-import { runSpan } from "../client-cache/controllers/run-controller.js";
+import { actualitySpan } from "../client-cache/controllers/actuality-controller.js";
 import { getUiExtensionTags } from "../controllers/catalog-controller.js";
 import { PERMISSIONS_SUMMARY, summaryOf, type TPermissionsSummary } from "./shu-permissions.js";
 import type { TControllerHost } from "./controller-host.js";
@@ -64,7 +64,7 @@ export function timeOffsetLabel(cursor: number | null, firstEventTime: number, l
  *  session and a window it held would page the entire run in and pin it there. */
 function timeOffsetOf(cursor: number | null): string {
 	if (cursor === null || cursor <= 0) return "now";
-	const { first, last } = runSpan();
+	const { first, last } = actualitySpan();
 	return timeOffsetLabel(cursor, first, last);
 }
 

@@ -120,7 +120,7 @@ describe("an individual in the page's cache", () => {
 	it("holds a record by the identity it states, whether that is its @id or the id it records", async () => {
 		const store = servedGraph();
 		expect(await store.upsertIndividual("Comment", { "@id": "c1", content: "served" }), "what a site serves names itself @id").toBe("c1");
-		expect(await store.upsertIndividual("SeqPath", { id: "1700000000000-1.0.1", stepText: "a step" }), "what a run records names itself id").toBe("1700000000000-1.0.1");
+		expect(await store.upsertIndividual("SeqPath", { id: "1700000000000-1.0.1", stepText: "a step" }), "what an actuality records names itself id").toBe("1700000000000-1.0.1");
 	});
 });
 

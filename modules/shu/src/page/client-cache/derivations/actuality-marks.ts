@@ -1,6 +1,6 @@
 /**
- * The marks of a run: one mark per division of a span that holds something, as each counted type's records turned out.
- * Each type a run records is counted by the field that states how its records turned out, and the divisions are merged,
+ * The marks of an actuality: one mark per division of a span that holds something, as each counted type's records turned out.
+ * Each type an actuality records is counted by the field that states how its records turned out, and the divisions are merged,
  * so a step that failed and a message reporting an error both mark their division as a failure.
  */
 import { HAIBUN_LOG_LEVELS, RECORDED_STATUS } from "@haibun/core/schema/protocol.js";
@@ -13,7 +13,7 @@ import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 /** A mark of actuality: what it looks like, and the moment it marks. A rail places it by that moment, so the same marks
  *  draw on a rail of any scale. */
-export type TRunMark = TEventMarkerStyle & { at: number };
+export type TActualityMark = TEventMarkerStyle & { at: number };
 
 /** What a type of record is counted by, the values that field takes, and the event shape that shows how one of its
  *  groups turned out. `eventMarkerStyle` states a group's appearance, so a division and a row can never disagree about
@@ -38,8 +38,8 @@ export const COUNTED = [
 /** The mark each division takes from what it holds, over every type counted, at the moment its division begins: one
  *  mark per division that holds anything, in the order actuality reached them. The caller states where a division
  *  begins, since it is the caller that laid the grid out. */
-export function marksOf(counts: Record<string, number>[][], { divisions, beginningOf }: { divisions: number; beginningOf: (division: number) => number }): TRunMark[] {
-	const marks: TRunMark[] = [];
+export function marksOf(counts: Record<string, number>[][], { divisions, beginningOf }: { divisions: number; beginningOf: (division: number) => number }): TActualityMark[] {
+	const marks: TActualityMark[] = [];
 	for (let division = 0; division < divisions; division++) {
 		const held = counts.flatMap((perType, type) => Object.entries(itemAt(perType, division)).map(([group, count]) => ({ event: itemAt(COUNTED, type).shapeOf(group), count })));
 		const style = bucketMarkerStyle(held);

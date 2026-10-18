@@ -15,7 +15,7 @@
  *
  * This process reads a run's events as they arrive. A run writes its events as NDJSON on its output.
  * Each chunk moves the actuality machine whose state a caller reads: the features that ran, the step count, the
- * failures, and whether the child's execution has ended.
+ * failures, and whether the child's actuality has ended.
  * This process also keeps the child's process output as a bounded tail that a caller reads from a cursor.
  * That output is the only record of a run that fails before it serves. The bound keeps a long run's output from growing without limit.
  * `SseSubscriber` subscribes to a serving run that this process didn't fork.
@@ -218,9 +218,9 @@ function signInOf(dir: string, cwd: string, env: NodeJS.ProcessEnv): TBasicAuthU
 }
 
 /** A supervised run: the child, its output tail, the outcome accrued from its events, its exit code, and the callbacks
- *  waiting for its features to finish. `ended` is null until the child exits. `naming` names the records of its levels,
- *  `stated` holds what its execution's record states of how it started, `levels` the records of its levels, and
- *  `writing` the writes of those records in the order of the moves. */
+ *  waiting for its features to finish. `ended` is null until the child exits. `naming` names the records of the levels of
+ *  the child's actuality, `stated` holds what the actuality's record states of how it started, `levels` the records of
+ *  its levels, and `writing` the writes of those records in the order of the moves. */
 export type TRun = {
 	child: ChildProcess;
 	tail: RunTail;
@@ -270,7 +270,7 @@ export const featureFilterDomainDefinition: TDomainDefinition = {
 export const runDomainDefinitions: TDomainDefinition[] = [
 	{ selectors: [RUN_DOMAIN.name], schema: NameSchema, description: "The name of a started run. Reading, waiting for and stopping a run take this name" },
 	featureFilterDomainDefinition,
-	{ selectors: [RUN_DOMAIN.started], schema: runStartedSchema, description: "A run a process started: its directory, its feature filter, and the id of its execution's record" },
+	{ selectors: [RUN_DOMAIN.started], schema: runStartedSchema, description: "A run a process started: its directory, its feature filter, and the id of its actuality's record" },
 	{ selectors: [RUN_DOMAIN.read], schema: runReadSchema, description: "A run's output since a cursor, its status, and the outcome accrued from its events" },
 	{ selectors: [RUN_DOMAIN.stopped], schema: z.object({ run: z.string() }), description: "A run a process ended" },
 ];
@@ -491,8 +491,9 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		// A port above zero makes a run addressable. A standing run also gets STAY, so its endpoint stays up after its
 		// features finish. Port 0 leaves a run on the ports its features declare. A feature that asserts a default port
 		// needs port 0. A run that isn't standing ends when its features end.
-		// A run's key names its executions, so this process writes the records of its levels under the names its own
-		// records take. A key is the time a run started, later than every key this process gave before.
+		// A run's key names the child's actuality and the executions of its features, so this process writes the records of
+		// the actuality's levels under the names the child's own records take. A key is the time a run started, later than
+		// every key this process gave before.
 		this.lastKey = Math.max(this.getWorld().clock.now(), this.lastKey + 1);
 		const naming = { key: String(this.lastKey), hostId };
 		const env = { ...runEnvironment(process.env, port, standing, hostId, perProcessOptionNames(this.steppers)), [KEY_ENV]: naming.key };
@@ -538,14 +539,14 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		if (!wasFinished && executionEnded(held.outcome.actuality)) for (const wake of held.waiters.splice(0)) wake();
 	}
 
-	/** Writes the record of the level a run's move started or ended into this process's store, after the records of the
-	 *  moves before it. A read of a run awaits the writes, so a write that fails fails the read with its cause. */
+	/** Writes the record of the actuality level that a run's move started or ended into this process's store, after the
+	 *  records of the moves before it. A read of a run awaits the writes, so a write that fails fails the read with its cause. */
 	private writeLevel(held: TRun, moved: TLevelMoved): void {
 		held.writing = held.writing.then(() => writeLevelRecord(this.getWorld().shared.getStore(), held.levels, moved, held.naming, held.stated));
 	}
 
-	/** Ends as stopped each level of a run that hasn't ended, innermost first, so the records of a stopped run state that
-	 *  it stopped. It reads the levels once the records of a run's moves are written. */
+	/** Ends as stopped each level of a run's actuality that hasn't ended, innermost first, so the records of a stopped
+	 *  run's actuality state that it stopped. It reads the levels once the records of a run's moves are written. */
 	private async stopLevels(held: TRun): Promise<void> {
 		await held.writing;
 		const timestamp = this.getWorld().clock.now();

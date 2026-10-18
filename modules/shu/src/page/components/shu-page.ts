@@ -23,7 +23,7 @@ import { SCOPE, dispatchSubjectEvent, entryOf, entryOfContext } from "../../curr
 import { PageContextSchema } from "../../schemas.js";
 import { type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { setActiveViewId } from "../graph/controllers/graph-data-controller.js";
-import { readRunAt } from "../client-cache/controllers/run-controller.js";
+import { readActualityAt } from "../client-cache/controllers/actuality-controller.js";
 import { reportFailure } from "../../client-log.js";
 import type { ShuColumnStrip } from "./shu-column-strip.js";
 import type { ShuGraphQuery } from "./shu-graph-query.js";
@@ -178,7 +178,9 @@ export class ShuPage extends ShuElement<typeof EmptyStateSchema> {
 		// The time cursor holds the moment of each read of actuality. A window holds a few thousand records, so the page reads
 		// actuality around each moment the cursor names.
 		this.autoTeardown(
-			timeCursor.subscribe((at) => void readRunAt(at).catch((err: unknown) => reportFailure(SHU_TAG.PAGE, "actuality could not be read at the moment the cursor names", err))),
+			timeCursor.subscribe(
+				(at) => void readActualityAt(at).catch((err: unknown) => reportFailure(SHU_TAG.PAGE, "actuality could not be read at the moment the cursor names", err)),
+			),
 		);
 		this.autoListen(this, SHU_EVENT.FILTER_CHANGE, ((e: CustomEvent) => {
 			const { asked, ...filters } = FilterChangeSchema.parse(e.detail);

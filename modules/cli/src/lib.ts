@@ -26,7 +26,7 @@ import { OPTION_RUN_POLICY, OPTION_DRY_RUN, HAIBUN_RUN_POLICY, parseRunPolicyArg
 import { loadAndValidateRunPolicy } from "@haibun/core/run-policy/run-policy-schema.js";
 import { PhaseRunner, PhaseBailError } from "@haibun/core/lib/PhaseRunner.js";
 import { withName } from "@haibun/core/lib/features.js";
-import { forgetOutcome, outcomeAgainst, recordRun, varianceLine, verificationOf } from "./verified.js";
+import { forgetOutcome, outcomeAgainst, recordActuality, varianceLine, verificationOf } from "./verified.js";
 
 const OPTION_CONFIG = "--config";
 const OPTION_HELP = "--help";
@@ -107,17 +107,17 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 
 		const runner = new Runner(world);
 		const result = await runner.runFeaturesAndBackgrounds(csteppers, featuresBackgrounds);
-		// A run without a feature result isn't evidence about the dependency state, so its state is cleared from the runs file.
-		// Otherwise the runs file holds its outcome against the state and each feature's duration, and the commit holds
-		// the runs file, so its history holds the durations at each commit.
+		// An actuality without a feature result isn't evidence about the dependency state, so its state is cleared from the
+		// actualities file. Otherwise the file holds its outcome against the state and each feature's duration, and the commit
+		// holds the file, so its history holds the durations at each commit.
 		if (verification && result.featureResults.length === 0) forgetOutcome(verification);
-		else if (verification) for (const variance of recordRun(verification, result, world.runtime.levels)) console.info(`timings: ${varianceLine(variance)}`);
+		else if (verification) for (const variance of recordActuality(verification, result, world.runtime.levels)) console.info(`timings: ${varianceLine(variance)}`);
 
 		await reportAndExit(result, world, protoOptions);
 	} catch (error) {
 		// A PhaseBailError carries a result to report. Any other error ends the process with exit code 1.
 		if (error instanceof PhaseBailError) {
-			// A run that stopped before its features isn't evidence about the dependency state.
+			// An actuality that stopped before its features isn't evidence about the dependency state.
 			if (verification) forgetOutcome(verification);
 			if (!world || !protoOptions) {
 				const failure = error.result.failure;
@@ -134,8 +134,8 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 		// Tests mock process.exit to throw `exit with code N`. This branch rethrows that error to the test.
 		if (message.startsWith("exit with code ")) throw error;
 
-		// A run that ended in an error without a result isn't evidence about the dependency state. Deleting its entry in
-		// the record keeps a later --once run from skipping the group.
+		// An actuality that ended in an error without a result isn't evidence about the dependency state. Clearing its entry
+		// in the file keeps a later --once run from skipping the group.
 		if (verification) forgetOutcome(verification);
 		console.error(`\n${CHECK_NO} ${message}`);
 		process.exit(1);

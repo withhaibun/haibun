@@ -20,10 +20,10 @@ import type { TSpecl } from "../../actuality/domains/execution.js";
 import { getModuleLocation } from "./workspace-lib.js";
 import { itemAt } from "../item-at.js";
 
-/** The name of the file that records how a group's runs went: the state each read, and each level's outcome and duration.
- *  The file is written beside the group's configuration. The state excludes every file with this name, because a run's
- *  record of itself isn't part of the state it read. */
-export const RUNS_FILE = "runs.json";
+/** The name of the file that records a group's actualities: the state each read, and the outcome and duration of each of its
+ *  levels. The file is written beside the group's configuration. The state excludes every file with this name, because an
+ *  actuality's record of itself isn't part of the state it read. */
+export const ACTUALITIES_FILE = "actualities.json";
 
 /** Returns the directory of the module that contains a path. That directory is the nearest directory at or above the
  *  path that contains a package.json. Returns undefined for a path that isn't inside a module. */
@@ -154,7 +154,7 @@ const unnameable = (file: string): boolean => file.includes("\n") || file.starts
 
 /** Returns the directory's path relative to its repository's top, and the path and the working-tree content digest of
  *  each file under the directory that its repository tracks or would track. A symbolic link's digest is its target path. A listed directory is a nested repository or a submodule.
- *  The result skips it, because that directory's own repository holds its content. The result excludes the files a run
+ *  The result skips it, because that directory's own repository holds its content. The result excludes the files an actuality
  *  writes about itself. Returns undefined where the directory isn't in a repository. */
 function repositoryFiles(dir: string): { rel: string; files: TRepositoryFile[] } | undefined {
 	const top = repositoryTop(dir);
@@ -163,7 +163,7 @@ function repositoryFiles(dir: string): { rel: string; files: TRepositoryFile[] }
 	const files: string[] = [];
 	const links: TRepositoryFile[] = [];
 	for (const listed of git(dir, ["ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "."]).split("\0")) {
-		if (listed.length === 0 || path.basename(listed) === RUNS_FILE) continue;
+		if (listed.length === 0 || path.basename(listed) === ACTUALITIES_FILE) continue;
 		const file = path.join(rel, listed);
 		let stat: nodeFS.Stats;
 		try {

@@ -17,7 +17,7 @@ import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { followRecordedExecution } from "../client-cache/controllers/device-controller.js";
-import { runSpan } from "../client-cache/controllers/run-controller.js";
+import { actualitySpan } from "../client-cache/controllers/actuality-controller.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
 
 /** Playback rates. The two below 1 run slower than actuality did, for a dense burst to watch as it plays. */
@@ -63,7 +63,7 @@ export class ShuPlayback extends ShuElement<typeof StateSchema> {
 	/** What playing runs between: the shared log's span, read without asking for a window of it. This control doesn't keep
 	 *  running bounds of its own, and doesn't register a subscription that would hold actuality in memory after it is put away. */
 	get #span(): { first: number; last: number } {
-		return runSpan();
+		return actualitySpan();
 	}
 
 	/** Whether the cursor has reached the end of actuality. Derived rather than kept: every place that would have written

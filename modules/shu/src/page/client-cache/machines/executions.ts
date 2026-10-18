@@ -1,7 +1,7 @@
 /**
  * The execution the page reads, as a machine: the one a reader chose, else the one the last window read. A reader's choice
  * switches the reading whenever it changes; the page observing another execution switches it only where it read a named
- * execution before, since a page reading its first execution hasn't changed run.
+ * execution before, since a page reading its first execution hasn't switched from another.
  */
 export type TExecutionsState = { chosen?: string; observed?: string; switches: number };
 

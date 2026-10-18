@@ -1,5 +1,5 @@
 /**
- * The client cache is the page's one path to a run. A view reads actuality through a run source over the device's store;
+ * The client cache is the page's one path to an actuality. A view reads actuality through an actuality source over the device's store;
  * the graph through the store the page caches it in; the site's declarations through the registry the cache holds. This
  * test fails the build when a second path appears, so the next change extends the cache rather than reaching around it.
  *
@@ -30,19 +30,19 @@ function sources(dir = SRC, from = ""): string[] {
 const outsideTheLibrary = sources().filter((f) => !f.startsWith(`${LIBRARY}/`));
 const text = (f: string): string => readFileSync(join(SRC, f), "utf8");
 
-describe("the client cache is the one path to a run", () => {
+describe("the client cache is the one path to an actuality", () => {
 	it("the files outside the library don't build a store of their own", () => {
 		// The test harness installs a store of its own, which is how a test drives the cache; everything else reads through the library.
 		const offenders = outsideTheLibrary.filter((f) => f !== "test-setup.ts" && /new (IndexedDbDeviceStore|IndexedDbQuads|MemoryDeviceStore|DeviceGraph)\(/.test(text(f)));
 		expect(offenders, `${offenders.join(", ")} builds a store. A store is installed through the client cache (installDeviceStore, installGraph) and read through it.`).toEqual([]);
 	});
 
-	it("only the report writer and the boot path read that a page can carry its run", () => {
+	it("only the report writer and the boot path read that a page can carry its actuality", () => {
 		const allowed = new Set(["monitor-stepper.ts", "domains/hydration.ts", "page/ports.ts", "page/pipelines/hydrate.ts", "page/controllers/hydration-controller.ts"]);
 		const offenders = outsideTheLibrary.filter((f) => !allowed.has(f) && /hydrateClientCache|TCachePayload/.test(text(f)));
 		expect(
 			offenders,
-			`${offenders.join(", ")} reads the payload a page carries. Views read actuality through a run source, which is the same whether a server or the page carries it.`,
+			`${offenders.join(", ")} reads the payload a page carries. Views read actuality through an actuality source, which is the same whether a server or the page carries it.`,
 		).toEqual([]);
 	});
 
@@ -55,7 +55,7 @@ describe("the client cache is the one path to a run", () => {
 		).toEqual([]);
 	});
 
-	it("the files don't serve a page the responses a live run received: the replay is gone and stays gone", () => {
+	it("the files don't serve a page the responses a live actuality received: the replay is gone and stays gone", () => {
 		const offenders = outsideTheLibrary.filter((f) => /getCachedResponse|findCachedMethod|setRpcCache|rpc-cache\.js/.test(text(f)));
 		expect(
 			offenders,

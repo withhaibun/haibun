@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
- * A run carried in a page: what a standalone report embeds is the graph its execution wrote, filled into a store of the
- * page's own at boot, and the window then reads that run exactly as it reads one a site is recording. A payload written to
+ * An actuality carried in a page: what a standalone report embeds is the graph its execution wrote, filled into a store of the
+ * page's own at boot, and the window then reads that actuality exactly as it reads one a site is recording. A payload written to
  * another rule is refused rather than read wrongly.
  */
 import { declareRegistry, GRAPH_READ_STEPS } from "../../../test/catalog-fixture.js";
@@ -12,17 +12,17 @@ import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { CACHE_SHAPE } from "../ports.js";
 import type { TCachePayload } from "../../../domains/hydration.js";
 import { cachedGraph, currentExecution, hydrateClientCache, pageDeviceStore } from "./device-controller.js";
-import { runWindow } from "../pipelines/run-window.js";
-import { RUN_WINDOW_SIZE } from "../derivations/run-rows.js";
+import { actualityWindow } from "../pipelines/actuality-window.js";
+import { ACTUALITY_WINDOW_SIZE } from "../derivations/actuality-rows.js";
 import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
-import { RUN_DOMAIN_DEFINITIONS } from "../run-store.test-fake.js";
+import { ACTUALITY_DOMAIN_DEFINITIONS } from "../actuality-store.test-fake.js";
 import { setupShuTest, stepsShown, type TShuTestHandle } from "../../../test/setup.js";
-import { pageRunGraph } from "../../controllers/read-controller.js";
+import { pageActualityGraph } from "../../controllers/read-controller.js";
 
 const EXECUTION = "1700000000000-1";
 const iso = (n: number): string => new Date(n).toISOString();
-/** The steps of the reported run, as the quads a report carries. */
+/** The steps of the reported actuality, as the quads a report carries. */
 const stepQuads = Array.from({ length: 12 }, (_, i) => [
 	{ subject: `${EXECUTION}.0.${i}`, predicate: "id", object: `${EXECUTION}.0.${i}`, namedGraph: SEQ_PATH_LABEL, timestamp: 1 },
 	{ subject: `${EXECUTION}.0.${i}`, predicate: "stepText", object: `step ${i}`, namedGraph: SEQ_PATH_LABEL, timestamp: 1 },
@@ -39,7 +39,7 @@ const payload = (over: Partial<TCachePayload> = {}): TCachePayload => ({
 	...over,
 });
 
-describe("a run carried in a page", () => {
+describe("an actuality carried in a page", () => {
 	let handle: TShuTestHandle;
 	beforeEach(() => {
 		// A page without a site: every request fails, as it does for a report opened from a file.
@@ -49,17 +49,17 @@ describe("a run carried in a page", () => {
 			},
 		});
 		// What the site declared, which a report carries as its registry: the graph's reads, and the declarations through which
-		// the page reads a carried run's records.
-		declareRegistry(stepsShown(GRAPH_READ_STEPS, {}, buildConcernCatalog(mapDefinitionsToDomains(RUN_DOMAIN_DEFINITIONS))));
+		// the page reads a carried actuality's records.
+		declareRegistry(stepsShown(GRAPH_READ_STEPS, {}, buildConcernCatalog(mapDefinitionsToDomains(ACTUALITY_DOMAIN_DEFINITIONS))));
 	});
 	afterEach(() => {
 		handle.teardown();
 	});
 
-	it("is read as any run is read: the window over the records its execution wrote", async () => {
+	it("is read as any actuality is read: the window over the records its execution wrote", async () => {
 		await hydrateClientCache(payload({ registry: undefined }));
-		// A page carrying a run reads it through the page's own graph, which this case asserts.
-		const window = await runWindow(pageRunGraph(), { execution: EXECUTION, size: RUN_WINDOW_SIZE, minLevel: "info", substeps: false });
+		// A page carrying an actuality reads it through the page's own graph, which this case asserts.
+		const window = await actualityWindow(pageActualityGraph(), { execution: EXECUTION, size: ACTUALITY_WINDOW_SIZE, minLevel: "info", substeps: false });
 		expect(window.rows.length, "actuality the page carries").toBe(12);
 		expect(itemAt(window.rows, 0).text).toBe("step 0");
 		expect(itemAt(window.rows, 11).text).toBe("step 11");

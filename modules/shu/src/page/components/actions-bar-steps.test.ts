@@ -19,7 +19,7 @@ import { declaringSteps, setupShuTest, stepsChanged, stepsReadAgain, stepsShown,
 /** The steps actuality offers. */
 const offered: TStepDefinition[] = [];
 /** A page on a run that offers the steps `offered` holds when the page reads them. */
-const aRun = () => setupShuTest({ dispatch: declaringSteps(() => stepsShown(offered, CHAT_DOMAINS)) });
+const anActuality = () => setupShuTest({ dispatch: declaringSteps(() => stepsShown(offered, CHAT_DOMAINS)) });
 
 const step = (method: string, pattern: string, extra: Partial<TStepDefinition> = {}) => {
 	const [stepperName, stepName] = method.split("-");
@@ -62,7 +62,7 @@ describe("the actions bar's step mode", () => {
 	beforeEach(() => {
 		provideLayout();
 		offered.splice(0, offered.length, SHOW, LIST);
-		t = aRun();
+		t = anActuality();
 	});
 	afterEach(() => t.teardown());
 
@@ -104,7 +104,7 @@ describe("the actions bar's step mode", () => {
 		expect((await aStepsPage()).steps.offersAsk).toBe(false);
 		t.teardown();
 		offered.push(ASK);
-		t = aRun();
+		t = anActuality();
 		expect((await aStepsPage()).steps.offersAsk).toBe(true);
 	});
 

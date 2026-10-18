@@ -1,7 +1,7 @@
 /**
  * The device's databases: one per actuality, named by its actuality id, each holding the graph the page holds of that
- * actuality and the site's registry, off the JS heap and surviving a reload. A device holds each run a page read, and a
- * tab without a server still reads those runs and the site's declarations.
+ * actuality and the site's registry, off the JS heap and surviving a reload. A device holds each actuality a page read, and a
+ * tab without a server still reads those actualities and the site's declarations.
  *
  * Without IndexedDB (a standalone report, a context without it) a transaction resolves undefined: every read returns
  * empty and every write drops. It uses raw IndexedDB, promisified, without a dependency.
@@ -56,7 +56,7 @@ function openDb(name: string, connections: TDeviceConnections, replacesFormer: b
 			index(quads, QUAD_INDEX.OBJECT, "object");
 			index(quads, QUAD_INDEX.TIME, "timestamp");
 			store(DEVICE_STORES.META);
-			// What an earlier build kept its events in: a run is records now, and they are read from the graph.
+			// What an earlier build kept its events in: an actuality is records now, and they are read from the graph.
 			if (db.objectStoreNames.contains("events")) db.deleteObjectStore("events");
 		};
 		// Another page of this origin is upgrading: this connection closes at once so it isn't the reason that page waits.

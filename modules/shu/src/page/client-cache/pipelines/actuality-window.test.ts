@@ -1,4 +1,4 @@
-// Reading a run is a query over the records it wrote: a step and what it logged while it ran. What a reader is shown is
+// Reading an actuality is a query over the records it wrote: a step and what it logged while it ran. What a reader is shown is
 // a window of a stated size around where they are, so looking takes the same whether actuality has lasted an hour or a
 // decade. These pin the place of a window, what it holds and how a level narrows it.
 import { describe, it, expect } from "vitest";
@@ -10,25 +10,25 @@ import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import type { THaibunLogLevel } from "@haibun/core/schema/protocol.js";
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
-import { runWindow } from "./run-window.js";
-import { producedUnderSteps, type TRunRow } from "../derivations/run-rows.js";
-import { runGraphOf as graphOver } from "../derivations/run-graph.js";
-import type { TRunGraph } from "../ports.js";
-import { runStore } from "../run-store.test-fake.js";
+import { actualityWindow } from "./actuality-window.js";
+import { producedUnderSteps, type TActualityRow } from "../derivations/actuality-rows.js";
+import { actualityGraphOf as graphOver } from "../derivations/actuality-graph.js";
+import type { TActualityGraph } from "../ports.js";
+import { actualityStore } from "../actuality-store.test-fake.js";
 
 const RUN = "1700000000000-1";
 
-/** A graph over a store that declares every type a run writes. */
-const runGraphOf = (store: IQuadStore): TRunGraph => graphOver(store, () => true);
+/** A graph over a store that declares every type an actuality writes. */
+const actualityGraphOf = (store: IQuadStore): TActualityGraph => graphOver(store, () => true);
 
 /** A window of `size` rows at the level a step reports at, without the steps run to carry other steps out, unless named. */
-const windowOn = (graph: TRunGraph, options: { size: number; at?: number; since?: number; minLevel?: THaibunLogLevel; substeps?: boolean }) =>
-	runWindow(graph, { minLevel: "info", substeps: false, ...options });
+const windowOn = (graph: TActualityGraph, options: { size: number; at?: number; since?: number; minLevel?: THaibunLogLevel; substeps?: boolean }) =>
+	actualityWindow(graph, { minLevel: "info", substeps: false, ...options });
 const iso = (n: number): string => new Date(n).toISOString();
 
-/** A run of `steps` steps a second apart, each logging one thing at the level given. */
-async function aRunOf(steps: number, saying: string = "info"): Promise<QuadStore> {
-	const store = runStore();
+/** An actuality of `steps` steps a second apart, each logging one thing at the level given. */
+async function anActualityOf(steps: number, saying: string = "info"): Promise<QuadStore> {
+	const store = actualityStore();
 	for (let i = 0; i < steps; i++) {
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
 			id: `${RUN}.0.${i}`,
@@ -51,9 +51,9 @@ async function aRunOf(steps: number, saying: string = "info"): Promise<QuadStore
 	return store;
 }
 
-describe("the window of a run a reader is looking at", () => {
+describe("the window of an actuality a reader is looking at", () => {
 	it("holds the steps and what they logged, oldest first, and reports what it spans", async () => {
-		const graph = runGraphOf(await aRunOf(3));
+		const graph = actualityGraphOf(await anActualityOf(3));
 		const window = await windowOn(graph, { size: 10 });
 		expect(window.rows.map((r) => r.text)).toEqual(["step 0", "said 0", "step 1", "said 1", "step 2", "said 2"]);
 		expect(window.from).toBe(1000);
@@ -63,13 +63,13 @@ describe("the window of a run a reader is looking at", () => {
 	});
 
 	it("holds the newest records when a moment isn't named, and doesn't hold a record before them", async () => {
-		const graph = runGraphOf(await aRunOf(20));
+		const graph = actualityGraphOf(await anActualityOf(20));
 		const window = await windowOn(graph, { size: 4 });
 		expect(window.rows.map((r) => r.text)).toEqual(["step 18", "said 18", "step 19", "said 19"]);
 	});
 
 	it("around a moment, holds half before it and half after", async () => {
-		const graph = runGraphOf(await aRunOf(20));
+		const graph = actualityGraphOf(await anActualityOf(20));
 		const window = await windowOn(graph, { at: 1020, size: 4 });
 		expect(window.rows.every((r) => r.at >= 1016 && r.at <= 1023)).toBe(true);
 		expect(window.rows.filter((r) => r.at < 1020)).toHaveLength(2);
@@ -77,7 +77,7 @@ describe("the window of a run a reader is looking at", () => {
 	});
 
 	it("makes a short side up from the other, so a window is the size requested", async () => {
-		const graph = runGraphOf(await aRunOf(20));
+		const graph = actualityGraphOf(await anActualityOf(20));
 		const atTheStart = await windowOn(graph, { at: 1000, size: 6 });
 		expect(atTheStart.rows, "the window doesn't hold a row before the first record, so six after it").toHaveLength(6);
 		expect(itemAt(atTheStart.rows, 0).at).toBe(1000);
@@ -86,19 +86,19 @@ describe("the window of a run a reader is looking at", () => {
 	});
 
 	it("tops up a window larger than one page by reading pages, as a store rejects a page past its maximum", async () => {
-		const graph = runGraphOf(await aRunOf(3));
+		const graph = actualityGraphOf(await anActualityOf(3));
 		const atTheStart = await windowOn(graph, { at: 1000, size: MAX_PAGE_ROWS });
 		expect(atTheStart.rows.map((r) => r.text)).toEqual(["step 0", "said 0", "step 1", "said 1", "step 2", "said 2"]);
 	});
 
 	it("doesn't hold more than actuality does", async () => {
-		const graph = runGraphOf(await aRunOf(2));
+		const graph = actualityGraphOf(await anActualityOf(2));
 		expect((await windowOn(graph, { size: 100 })).rows).toHaveLength(4);
 		expect((await windowOn(graph, { at: 1002, size: 100 })).rows).toHaveLength(4);
 	});
 
 	it("narrows to the levels at or above the one requested, since a reader reading warnings is not shown everything under them", async () => {
-		const graph = runGraphOf(await aRunOf(3, "debug"));
+		const graph = actualityGraphOf(await anActualityOf(3, "debug"));
 		const everything = await windowOn(graph, { size: 10, minLevel: "debug" });
 		expect(everything.rows).toHaveLength(6);
 		const stepsOnly = await windowOn(graph, { size: 10, minLevel: "info" });
@@ -109,20 +109,20 @@ describe("the window of a run a reader is looking at", () => {
 	});
 
 	it("is empty when actuality hasn't written a record, rather than failing", async () => {
-		const graph = runGraphOf(runStore());
+		const graph = actualityGraphOf(actualityStore());
 		expect(await windowOn(graph, { size: 10 })).toEqual({ rows: [] });
 	});
 });
 
-describe("the order a run put its records in", () => {
-	// A run outpaces a millisecond, so a clock alone leaves the records of one instant in whatever order they were read.
+describe("the order an actuality put its records in", () => {
+	// An actuality outpaces a millisecond, so a clock alone leaves the records of one instant in whatever order they were read.
 	// Where a clock reads two as one instant, their place in actuality orders them.
 	it("puts the records of one instant in the order actuality made them", async () => {
-		const store = runStore();
-		// Written newest first, as a store reading the newest of a run returns them, and all within one millisecond.
+		const store = actualityStore();
+		// Written newest first, as a store reading the newest of an actuality returns them, and all within one millisecond.
 		for (const i of [30, 29, 28, 27, 26])
 			await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.${i}`, stepText: `step ${i}`, actionStatus: "passed", level: "info", generatedAtTime: iso(1000) });
-		const graph = runGraphOf(store);
+		const graph = actualityGraphOf(store);
 		const window = await windowOn(graph, { size: 10 });
 		expect(
 			window.rows.map((r) => r.text),
@@ -131,11 +131,11 @@ describe("the order a run put its records in", () => {
 	});
 });
 
-describe("what a run reports outside every step", () => {
+describe("what an actuality reports outside every step", () => {
 	// A step that fails is reported after it ends, so what actuality reports about it is outside every step. Such a
 	// statement must not name the execution a window shows, or a reader watching a step fail loses what they were reading.
 	it("keeps the actuality it is read with, rather than emptying the window", async () => {
-		const store = runStore();
+		const store = actualityStore();
 		const execution = RUN;
 		for (const i of [1, 2, 3])
 			await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${execution}.0.${i}`, stepText: `step ${i}`, actionStatus: "passed", level: "info", generatedAtTime: iso(1000 + i) });
@@ -145,7 +145,7 @@ describe("what a run reports outside every step", () => {
 			level: "error",
 			generatedAtTime: iso(1010),
 		});
-		const graph = runGraphOf(store);
+		const graph = actualityGraphOf(store);
 		const window = await windowOn(graph, { size: 10 });
 		expect(
 			window.rows.map((r) => r.text),
@@ -154,18 +154,18 @@ describe("what a run reports outside every step", () => {
 	});
 
 	it("is read even when it doesn't name an execution", async () => {
-		const store = runStore();
+		const store = actualityStore();
 		await store.upsertIndividual(SEQ_PATH_LABEL, { id: "1700000000000-1.0.1", stepText: "a step", actionStatus: "passed", level: "info", generatedAtTime: iso(1000) });
 		await store.upsertIndividual(LOG_MESSAGE_LABEL, { id: "log.1700000009999", message: "said by nothing in particular", level: "warn", generatedAtTime: iso(1010) });
-		const graph = runGraphOf(store);
+		const graph = actualityGraphOf(store);
 		const window = await windowOn(graph, { size: 10 });
 		expect(window.rows.map((r) => r.text)).toEqual(["a step", "said by nothing in particular"]);
 	});
 });
 
-describe("following a run that is still happening", () => {
+describe("following an actuality that is still happening", () => {
 	// A view holding the window reads only what was recorded since the newest recording it holds. Reading the whole
-	// window again to find a few new records is what makes following a long run take as long as its whole length.
+	// window again to find a few new records is what makes following a long actuality take as long as its whole length.
 	const step = (store: QuadStore, i: number, at: number, recordedAt: number, more: Record<string, unknown> = {}) =>
 		store.upsertIndividual(SEQ_PATH_LABEL, {
 			id: `${RUN}.0.${i}`,
@@ -176,12 +176,12 @@ describe("following a run that is still happening", () => {
 			recordedAtTime: iso(recordedAt),
 			...more,
 		});
-	const newestRecording = (rows: TRunRow[]) => Math.max(...rows.map((r) => r.recordedAt ?? 0));
+	const newestRecording = (rows: TActualityRow[]) => Math.max(...rows.map((r) => r.recordedAt ?? 0));
 
 	it("reads what was recorded since the last read, and doesn't read a record from before it", async () => {
-		const store = runStore();
+		const store = actualityStore();
 		for (const i of [1, 2, 3]) await step(store, i, 1000 + i, 1000 + i);
-		const graph = runGraphOf(store);
+		const graph = actualityGraphOf(store);
 		const first = await windowOn(graph, { size: 10 });
 		expect(first.rows.map((r) => r.text)).toEqual(["step 1", "step 2", "step 3"]);
 		for (const i of [4, 5]) await step(store, i, 1000 + i, 1000 + i);
@@ -193,13 +193,13 @@ describe("following a run that is still happening", () => {
 	});
 
 	it("finds a record of an earlier moment than the newest row held, when it was recorded after the last read", async () => {
-		// A record is written after the moment it records. What a run logged or produced during a step is announced at
+		// A record is written after the moment it records. What an actuality logged or produced during a step is announced at
 		// once and recorded a moment later, and the next step can begin in between: a query for records of a later
 		// moment than the newest row would pass such a record over for good.
-		const store = runStore();
+		const store = actualityStore();
 		await step(store, 1, 1000, 1000);
 		await step(store, 2, 1004, 1004);
-		const graph = runGraphOf(store);
+		const graph = actualityGraphOf(store);
 		const first = await windowOn(graph, { size: 10 });
 		expect(first.rows.map((r) => r.text)).toEqual(["step 1", "step 2"]);
 		await store.upsertIndividual(LOG_MESSAGE_LABEL, {
@@ -215,11 +215,11 @@ describe("following a run that is still happening", () => {
 	});
 
 	it("includes a step that ended after the last read, because its record was written again when it ended", async () => {
-		const store = runStore();
+		const store = actualityStore();
 		await step(store, 1, 1000, 1000, { stepText: "the feature", actionStatus: "running" });
 		await step(store, 2, 1001, 1002, { stepText: "a step that ended", endedAtTime: iso(1002) });
 		await step(store, 3, 1003, 1003, { stepText: "the step now running", actionStatus: "running" });
-		const graph = runGraphOf(store);
+		const graph = actualityGraphOf(store);
 		const first = await windowOn(graph, { size: 10 });
 		await step(store, 3, 1003, 1004, { stepText: "the step now running", actionStatus: "failed", endedAtTime: iso(1004) });
 		const since = await windowOn(graph, { size: 10, since: newestRecording(first.rows) });
@@ -230,7 +230,7 @@ describe("following a run that is still happening", () => {
 	});
 
 	it("names the step whose row carries what it produced, and keeps the produced row for the views that place it", async () => {
-		const store = runStore();
+		const store = actualityStore();
 		await step(store, 1, 1000, 1002, { stepText: "a step of the feature" });
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
 			id: `${RUN}.0.1.-1`,
@@ -251,7 +251,7 @@ describe("following a run that is still happening", () => {
 			recordedAtTime: iso(1001),
 		});
 		// The claim is made where a window is assembled from what more than one read returned, so this reads a window.
-		const window = await windowOn(runGraphOf(store), { size: 10 });
+		const window = await windowOn(actualityGraphOf(store), { size: 10 });
 		producedUnderSteps(window.rows);
 		const carried = window.rows.find((r) => r.kind === "produced");
 		expect(carried?.carriedBy, "the step a reader is shown claims the shot the machinery under it took").toBe(`${RUN}.0.1`);
@@ -262,7 +262,7 @@ describe("following a run that is still happening", () => {
 	});
 
 	it("leaves out the steps run to carry other steps out, and reads them when a reader asks for them", async () => {
-		const store = runStore();
+		const store = actualityStore();
 		await step(store, 1, 1000, 1002, { stepText: "a step of the feature" });
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
 			id: `${RUN}.0.1.-1`,
@@ -273,7 +273,7 @@ describe("following a run that is still happening", () => {
 			generatedAtTime: iso(1001),
 			recordedAtTime: iso(1001),
 		});
-		const graph = runGraphOf(store);
+		const graph = actualityGraphOf(store);
 		expect(
 			(await windowOn(graph, { size: 10 })).rows.map((r) => r.text),
 			"a reader reading what the feature did",
@@ -288,9 +288,9 @@ describe("following a run that is still happening", () => {
 	});
 
 	it("doesn't return a new record when a record wasn't added since the last read", async () => {
-		const store = runStore();
+		const store = actualityStore();
 		await step(store, 1, 1000, 1000, { stepText: "a step" });
-		const graph = runGraphOf(store);
+		const graph = actualityGraphOf(store);
 		const first = await windowOn(graph, { size: 10 });
 		const since = await windowOn(graph, { size: 10, since: newestRecording(first.rows) });
 		expect(

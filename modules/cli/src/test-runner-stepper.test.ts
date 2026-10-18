@@ -29,7 +29,7 @@ import { QuadStore, newStoreChain } from "@haibun/core/lib/quad-store.js";
 import nodeFS from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { RUNS_FILE } from "@haibun/core/lib/util/node/dependency-state.js";
+import { ACTUALITIES_FILE } from "@haibun/core/lib/util/node/dependency-state.js";
 import { RUN_AUTHORITY, runAuthorizedWith } from "@haibun/core/lib/capability-context.js";
 import { RUN_DOMAIN, SUPERVISOR_CAPABILITIES, runDomainDefinitions } from "./instance-stepper.js";
 
@@ -166,12 +166,12 @@ describe("the test-runner agent's limits", () => {
 		expect(h.stepper.usage().runs).toBe(1);
 	});
 
-	it("clears the state of every run of a base's features when a change to every feature is noted, so the features run again in any state", () => {
+	it("clears the state of every actuality of a base's features when a change to every feature is noted, so the features run again in any state", () => {
 		const dir = nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-noted-"));
-		const run = { state: "s", filter: "", execution: { text: "a run", status: "passed", tookMs: 0 }, features: {} };
-		nodeFS.writeFileSync(path.join(dir, RUNS_FILE), JSON.stringify({ machine: { conditions: run } }));
+		const actuality = { state: "s", filter: "", execution: { text: "an actuality", status: "passed", tookMs: 0 }, features: {} };
+		nodeFS.writeFileSync(path.join(dir, ACTUALITIES_FILE), JSON.stringify({ machine: { conditions: actuality } }));
 		h.stepper.noteApplied("", dir);
-		expect(JSON.parse(nodeFS.readFileSync(path.join(dir, RUNS_FILE), "utf-8")).machine.conditions.state, "the supervisor doesn't refuse the test run").toBeUndefined();
+		expect(JSON.parse(nodeFS.readFileSync(path.join(dir, ACTUALITIES_FILE), "utf-8")).machine.conditions.state, "the supervisor doesn't refuse the test run").toBeUndefined();
 	});
 
 	it("refuses a test run past MAX_RUNS for an ask and states the reason", async () => {

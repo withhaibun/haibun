@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-// The client cache view is THE reading of what the page holds of a run: each source's extent, the rows it holds and the
+// The client cache view is THE reading of what the page holds of an actuality: each source's extent, the rows it holds and the
 // cursor's row in it, the live stream by level, and the executions this device holds; every value under its own test
 // id, so a feature reads what the page holds from here with the generic steps. It doesn't make a source of its own.
 import { declareGraphSpec, declareRegistry, GRAPH_READ_STEPS } from "../../../test/catalog-fixture.js";
@@ -13,12 +13,12 @@ import { ShuClientCacheColumn } from "./shu-client-cache-column.js";
 import "../../components/shu-monitor-column.js";
 import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
 import { setupShuTest, stepsShown, type TShuTestHandle } from "../../../test/setup.js";
-import { RUN_DOMAIN_DEFINITIONS, runStore } from "../run-store.test-fake.js";
+import { ACTUALITY_DOMAIN_DEFINITIONS, actualityStore } from "../actuality-store.test-fake.js";
 import { timeCursor } from "../../controllers/page-cell-controller.js";
 import { currentExecution, deviceGraph, installGraph } from "../controllers/device-controller.js";
 import { servedDatabase } from "../root.js";
 import { GRAPH_BOUND } from "../adapters/quad-store.js";
-import { graphRunSource } from "../controllers/run-controller.js";
+import { graphActualitySource } from "../controllers/actuality-controller.js";
 import { endPage } from "../../adapters/page-held.js";
 
 const IDS = SHU_TEST_IDS.CLIENT_CACHE;
@@ -51,8 +51,8 @@ describe("the client cache view", () => {
 			},
 		});
 		// The execution being recorded, and an earlier one this device still holds, each named by the feature it ran.
-		const store = runStore();
-		await store.upsertIndividual(SEQ_PATH_LABEL, step(EARLIER, 0, { stepText: "Feature: An earlier run", called: "Haibun.feature", generatedAtTime: iso(500) }));
+		const store = actualityStore();
+		await store.upsertIndividual(SEQ_PATH_LABEL, step(EARLIER, 0, { stepText: "Feature: An earlier actuality", called: "Haibun.feature", generatedAtTime: iso(500) }));
 		await store.upsertIndividual(SEQ_PATH_LABEL, step(RUN, 0, { stepText: "Feature: The actuality being recorded", called: "Haibun.feature" }));
 		for (let i = 1; i < STEPS; i++) await store.upsertIndividual(SEQ_PATH_LABEL, step(RUN, i));
 		installGraph(store);
@@ -65,9 +65,9 @@ describe("the client cache view", () => {
 
 	/** A view reading actuality at info, which is what this view reports on: the source, not whoever opened it. The view
 	 *  reads after the page reads actuality's steps. */
-	const readingTheRun = async (): Promise<void> => {
+	const readingTheActuality = async (): Promise<void> => {
 		declareGraphSpec({ types: [SEQ_PATH_LABEL] });
-		await graphRunSource("info", false).ready();
+		await graphActualitySource("info", false).ready();
 		await flush();
 	};
 
@@ -81,7 +81,7 @@ describe("the client cache view", () => {
 	const text = (view: ShuClientCacheColumn): string => view.shadowRoot?.textContent?.replace(/\s+/g, " ").trim() ?? "";
 
 	it("reports what it hasn't read as pending, never as absent", async () => {
-		installGraph(runStore());
+		installGraph(actualityStore());
 		const view = new ShuClientCacheColumn();
 		document.body.appendChild(view);
 		await view.updateComplete; // before what the device holds has been read once
@@ -99,7 +99,7 @@ describe("the client cache view", () => {
 	});
 
 	it("reads a source's extent, the rows it holds and its state, each under its id", async () => {
-		await readingTheRun();
+		await readingTheActuality();
 		const view = await open();
 		await settle();
 		expect(value(view, `${IDS.SOURCE}info-events`), "actuality's extent at info").toBe(String(STEPS));
@@ -117,7 +117,7 @@ describe("the client cache view", () => {
 		expect(text(view), "what the live counts are measured from: the device's time when the view opened").toMatch(
 			/Live stream since this view opened \(device time \d\d:\d\d:\d\d\.\d\d\d\)/,
 		);
-		await readingTheRun(); // a source made after this view opened
+		await readingTheActuality(); // a source made after this view opened
 		expect(value(view, `${IDS.SOURCE}info-events`), "listed from the moment it exists").toBe(String(STEPS));
 		timeCursor.set(1010);
 		await view.updateComplete;
@@ -131,7 +131,7 @@ describe("the client cache view", () => {
 	});
 
 	it("lists the executions this device holds and reads the one a reader chooses", async () => {
-		await readingTheRun();
+		await readingTheActuality();
 		const view = await open();
 		await settle();
 		const row = (view.shadowRoot as ShadowRoot).querySelector(`[data-testid="${IDS.RUN}${EARLIER}"]`) as HTMLElement;
@@ -142,11 +142,11 @@ describe("the client cache view", () => {
 		await settle();
 		expect(currentExecution(), "the reader's execution is the one being read").toBe(EARLIER);
 		expect(value(view, `${IDS.RUN}${EARLIER}-reading`)).toBe("reading");
-		expect(value(view, `${IDS.RUN}${EARLIER}-features`), "an execution is presented by what it ran").toBe("An earlier run");
+		expect(value(view, `${IDS.RUN}${EARLIER}-features`), "an execution is presented by what it ran").toBe("An earlier actuality");
 	});
 
 	it("every instant it reports is clickable: clicking one scrubs every view to that moment, and the live edge is one click away", async () => {
-		await readingTheRun();
+		await readingTheActuality();
 		const view = await open();
 		await settle();
 		const button = (id: string): HTMLButtonElement | null => (view.shadowRoot as ShadowRoot).querySelector(`[data-testid="${id}"] button`);
@@ -181,8 +181,8 @@ describe("the graph the device holds", () => {
 	});
 
 	it("states how full each database's graph is, its bound, and how many quads it dropped to keep within it", async () => {
-		// The site's declarations of a run's types, which state how the device's graph reads a run's records.
-		declareRegistry(stepsShown(GRAPH_READ_STEPS, {}, buildConcernCatalog(mapDefinitionsToDomains(RUN_DOMAIN_DEFINITIONS))));
+		// The site's declarations of an actuality's types, which state how the device's graph reads an actuality's records.
+		declareRegistry(stepsShown(GRAPH_READ_STEPS, {}, buildConcernCatalog(mapDefinitionsToDomains(ACTUALITY_DOMAIN_DEFINITIONS))));
 		const database = servedDatabase();
 		await deviceGraph(database).setMany([{ subject: "c1", predicate: "content", object: "hello", namedGraph: "Comment", timestamp: 1 }]);
 		const view = new ShuClientCacheColumn();

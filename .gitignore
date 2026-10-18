@@ -16,6 +16,6 @@ jitData.json
 result
 mcp.sh
 e2e-tests/w
-# the CLI's unit tests run real fixtures, and a fixture's run file isn't a measurement a reader compares
-modules/cli/test/**/runs.json
+# the CLI's unit tests run real fixtures, and a fixture's actualities file isn't a measurement a reader compares
+modules/cli/test/**/actualities.json
 dependency-graph.html

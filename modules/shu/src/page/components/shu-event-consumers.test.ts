@@ -16,7 +16,7 @@ import { html } from "lit";
 import { timeCursor } from "../controllers/page-cell-controller.js";
 import { setupShuTest, storeFields, type TShuTestHandle } from "../../test/setup.js";
 import { PAGE_SETTING_KEY } from "../domains/settings.js";
-import { runStore } from "../client-cache/run-store.test-fake.js";
+import { actualityStore } from "../client-cache/actuality-store.test-fake.js";
 import { SHU_TAG } from "../../domains/elements.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
@@ -61,8 +61,8 @@ const producedRecord = (i: number, over: Record<string, unknown> = {}): Record<s
 /** A step record opens in the step detail, as core's SeqPath domain declares. */
 const SEQ_PATH_OPENS = { [SEQ_PATH_LABEL]: { component: SHU_TAG.STEP_DETAIL } };
 
-async function aRun(records: Array<Record<string, unknown>>, said: Array<Record<string, unknown>> = [], produced: Array<Record<string, unknown>> = []): Promise<void> {
-	const store = runStore();
+async function anActuality(records: Array<Record<string, unknown>>, said: Array<Record<string, unknown>> = [], produced: Array<Record<string, unknown>> = []): Promise<void> {
+	const store = actualityStore();
 	for (const record of records) await store.upsertIndividual(SEQ_PATH_LABEL, record);
 	for (const record of said) await store.upsertIndividual(LOG_MESSAGE_LABEL, record);
 	for (const record of produced) await store.upsertIndividual(RUN_ARTIFACT_LABEL, record);
@@ -81,7 +81,7 @@ describe("the views of a run, over the records it wrote", () => {
 				throw new ServerUnreachable("/rpc", new Error("the views read actuality's records, not a server"));
 			},
 		});
-		await aRun([stepRecord(1), stepRecord(2)]);
+		await anActuality([stepRecord(1), stepRecord(2)]);
 	});
 	afterEach(() => handle.teardown());
 
@@ -97,7 +97,7 @@ describe("the views of a run, over the records it wrote", () => {
 		// The shot was taken by a step of the machinery, under the step a reader is reading. A record names its run, which
 		// is how a row knows its own place in it.
 		const RUN = "1700000000000-1";
-		await aRun(
+		await anActuality(
 			[stepRecord(1, { id: `${RUN}.0.1` }), stepRecord(2, { id: `${RUN}.0.1.-1`, isPartOf: `${RUN}.0.1`, stepText: "take a screenshot", level: "trace" })],
 			[],
 			[producedRecord(1, { id: `${RUN}.0.1.-1@0`, isPartOf: `${RUN}.0.1.-1` })],
@@ -116,7 +116,7 @@ describe("the views of a run, over the records it wrote", () => {
 
 	it("shows the steps run to carry other steps out when a reader asks for them, each naming the step that established it", async () => {
 		const RUN = "1700000000000-1";
-		await aRun([stepRecord(1, { id: `${RUN}.0.1` }), stepRecord(2, { id: `${RUN}.0.1.-1`, isPartOf: `${RUN}.0.1`, stepText: "take a screenshot", level: "trace" })]);
+		await anActuality([stepRecord(1, { id: `${RUN}.0.1` }), stepRecord(2, { id: `${RUN}.0.1.-1`, isPartOf: `${RUN}.0.1`, stepText: "take a screenshot", level: "trace" })]);
 		const mon = await open(ShuMonitorColumn);
 		expect(
 			mon.rows.map((row) => row.step),
@@ -137,7 +137,7 @@ describe("the views of a run, over the records it wrote", () => {
 	});
 
 	it("carries one glyph per row: how a step went, and the level a message reports at", async () => {
-		await aRun(
+		await anActuality(
 			[stepRecord(1), stepRecord(2, { actionStatus: "failed" })],
 			[{ id: "0.1@0", isPartOf: "0.1", message: "something to note", level: "warn", generatedAtTime: iso(1) }],
 		);
@@ -163,13 +163,13 @@ describe("the views of a run, over the records it wrote", () => {
 	});
 
 	it("shows what a step logged as its own row, under the step it was logged during", async () => {
-		await aRun([stepRecord(1)], [{ id: "0.1@said", message: "it said this", level: "warn", generatedAtTime: iso(1), isPartOf: "0.1" }]);
+		await anActuality([stepRecord(1)], [{ id: "0.1@said", message: "it said this", level: "warn", generatedAtTime: iso(1), isPartOf: "0.1" }]);
 		const mon = await open(ShuMonitorColumn);
 		expect(mon.rows.map((r) => r.message)).toContain("it said this");
 	});
 
 	it("does not show a reader the traffic of whoever is reading actuality", async () => {
-		await aRun([stepRecord(1), stepRecord(2, { stepText: "graph query", called: "MonitorStepper.graphQuery", level: "trace" })]);
+		await anActuality([stepRecord(1), stepRecord(2, { stepText: "graph query", called: "MonitorStepper.graphQuery", level: "trace" })]);
 		const mon = await open(ShuMonitorColumn);
 		expect(
 			mon.rows.map((r) => r.step),
@@ -212,7 +212,7 @@ describe("the views of a run, over the records it wrote", () => {
 	});
 
 	it("titles a feature and a scenario by the step that declared them", async () => {
-		await aRun([
+		await anActuality([
 			stepRecord(1, { id: "0.1", stepText: "Feature: A run to read", called: "Haibun.feature" }),
 			stepRecord(2, { id: "0.2", stepText: "Scenario: Something happens", called: "Haibun.scenario" }),
 			stepRecord(3, { id: "0.3", stepText: "A step of it" }),
@@ -224,7 +224,7 @@ describe("the views of a run, over the records it wrote", () => {
 	});
 
 	it("records the step that showed a view, and doesn't open a copy of that view in the manual", async () => {
-		await aRun([stepRecord(1), stepRecord(2, { stepText: "show the graph", called: "TestStepper.showGraph", showed: "test-view" })]);
+		await anActuality([stepRecord(1), stepRecord(2, { stepText: "show the graph", called: "TestStepper.showGraph", showed: "test-view" })]);
 		declareGraphSpec({ types: [SEQ_PATH_LABEL], ui: { ...SEQ_PATH_OPENS, "test-view": { component: "test-view-element" } } });
 		const doc = await open(ShuDocumentColumn);
 		expect(doc.shadowRoot?.textContent).toContain("show the graph");
@@ -241,7 +241,7 @@ describe("the views of a run, over the records it wrote", () => {
 		const shooter = `${RUN}.0.${PAGE}`;
 		const steps = Array.from({ length: PAGE }, (_, i) => stepRecord(i + 1, { id: `${RUN}.0.${i + 1}` }));
 		itemAt(steps, PAGE - 1).stepText = "take a screenshot";
-		await aRun(
+		await anActuality(
 			[...steps, stepRecord(PAGE + 1, { id: `${shooter}.-1`, isPartOf: shooter, stepText: "capture the page", level: "trace" })],
 			[],
 			[producedRecord(PAGE + 2, { id: `${shooter}.-1@0`, isPartOf: `${shooter}.-1` }), producedRecord(PAGE + 3, { id: `${shooter}@0`, isPartOf: shooter })],
@@ -260,7 +260,7 @@ describe("the views of a run, over the records it wrote", () => {
 	});
 
 	it("doesn't show a row when actuality hasn't recorded a step, rather than a false one", async () => {
-		await aRun([]);
+		await anActuality([]);
 		const doc = await open(ShuDocumentColumn);
 		expect(doc.shadowRoot?.querySelectorAll(".doc-row").length ?? 0).toBe(0);
 	});

@@ -18,7 +18,7 @@ import nodeFS from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { getConfigFromBase, processBaseEnvToOptionsAndErrors } from "./lib.js";
-import { recordRun, verificationOf } from "./verified.js";
+import { recordActuality, verificationOf } from "./verified.js";
 import { emptyOutcome } from "./run-outcome.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
@@ -28,9 +28,9 @@ import { RECORDED_STATUS } from "@haibun/core/schema/protocol.js";
 import type { ChildProcess } from "child_process";
 import { EventEmitter } from "node:events";
 
-/** Records a run of a group that ended as `status`, as a run records itself in the runs file. */
-const recordOutcome = (v: Parameters<typeof recordRun>[0], status: string) =>
-	recordRun(
+/** Records an actuality of a group that ended as `status`, as an actuality records itself in the actualities file. */
+const recordOutcome = (v: Parameters<typeof recordActuality>[0], status: string) =>
+	recordActuality(
 		v,
 		{ ok: true, featureResults: [] } as never,
 		new Map([

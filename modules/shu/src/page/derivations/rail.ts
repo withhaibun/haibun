@@ -116,10 +116,10 @@ export function pressTarget(pressedPx: number, marks: ReadonlyArray<{ index: num
 }
 
 /** Actuality's span: the instants of its first and last records. */
-export type TRunSpan = { first: number; last: number };
+export type TActualitySpan = { first: number; last: number };
 
 /** The rail's focus: the moment a reader reads, and the window of records the page holds around it. */
-export type TRunFocus = { at: number; from: number; to: number };
+export type TActualityFocus = { at: number; from: number; to: number };
 
 /**
  * The share of the rail that the window the page holds takes. The rest places what actuality recorded outside the window,
@@ -138,7 +138,7 @@ const onRail = (n: number): number => clamp(n, 0, 1);
 
 /** Returns the shares of the two ends outside the window, by the logarithm of the time each places. An end that doesn't
  *  place a record takes zero, and the other end takes the whole share. */
-function ends(span: TRunSpan, focus: TRunFocus): { before: number; after: number; beforeLen: number; afterLen: number } {
+function ends(span: TActualitySpan, focus: TActualityFocus): { before: number; after: number; beforeLen: number; afterLen: number } {
 	const beforeLen = Math.max(0, focus.from - span.first);
 	const afterLen = Math.max(0, span.last - focus.to);
 	const weight = Math.log1p(beforeLen) + Math.log1p(afterLen);
@@ -148,10 +148,10 @@ function ends(span: TRunSpan, focus: TRunFocus): { before: number; after: number
 }
 
 /** Whether the window the page holds covers all of actuality's span. */
-const holdsItAll = (span: TRunSpan, focus: TRunFocus): boolean => focus.from <= span.first && focus.to >= span.last;
+const holdsItAll = (span: TActualitySpan, focus: TActualityFocus): boolean => focus.from <= span.first && focus.to >= span.last;
 
 /** Returns a moment's place on the rail, as a fraction from actuality's first record to its last. */
-export function railAt(moment: number, span: TRunSpan, focus: TRunFocus): number {
+export function railAt(moment: number, span: TActualitySpan, focus: TActualityFocus): number {
 	const reach = span.last - span.first;
 	if (reach <= 0) return 0;
 	if (holdsItAll(span, focus)) return onRail((moment - span.first) / reach);
@@ -163,7 +163,7 @@ export function railAt(moment: number, span: TRunSpan, focus: TRunFocus): number
 }
 
 /** Returns the moment at a fraction of the rail, the inverse of `railAt`. A press on the rail reads actuality at it. */
-export function momentAt(fraction: number, span: TRunSpan, focus: TRunFocus): number {
+export function momentAt(fraction: number, span: TActualitySpan, focus: TActualityFocus): number {
 	const reach = span.last - span.first;
 	if (reach <= 0) return span.first;
 	const f = onRail(fraction);

@@ -14,7 +14,7 @@ import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { RPC_METHOD } from "../../domains/elements.js";
 import { cachedGraph, readsHeldGraph } from "../client-cache/controllers/device-controller.js";
 import { appAccessLevel } from "../../view-query.js";
-import type { TRunGraph } from "../client-cache/ports.js";
+import type { TActualityGraph } from "../client-cache/ports.js";
 
 /** What a read reads. A page that carries a record of actuality, or reads another actuality's records, reads what it holds. */
 const scope = (): Reads.TReadScope => ({
@@ -91,7 +91,7 @@ export async function listRecords(label: string, why: string): Promise<CallStep.
 
 /** Returns actuality as the page reads it: what the site returns, and what the page holds where the site doesn't respond. A view
  *  reads actuality through it where the view is made. */
-export const pageRunGraph = (): TRunGraph => ({
+export const pageActualityGraph = (): TActualityGraph => ({
 	query: queryGraph,
 	density: densityOf,
 	declares: (label) => heldCatalog(pageRegistry(), `whether the catalog declares ${label}`).rels[label] !== undefined,

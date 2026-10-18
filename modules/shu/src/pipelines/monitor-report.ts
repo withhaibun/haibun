@@ -15,7 +15,7 @@ import { shownTo } from "@haibun/core/lib/capability-context.js";
 import { SHU_TAG } from "../domains/elements.js";
 import type { THydration } from "../domains/hydration.js";
 import { hashOf, hashWithColumns } from "../page/derivations/address.js";
-import { carriedRun } from "../page/client-cache/pipelines/carried-run.js";
+import { carriedActuality } from "../page/client-cache/pipelines/carried-actuality.js";
 import { buildReportHtml, inlineScriptsForView } from "../derivations/page-html.js";
 import { NOT_CLUSTERED, clusters, graphSource } from "./graph-source.js";
 import { carriedLabelFont } from "../derivations/carried-label-font.js";
@@ -106,7 +106,7 @@ export async function reportHtml(scope: TReportScope): Promise<string> {
 		viewProducts,
 		viewHash: reportOpensAt(scope.queriedLabel),
 		actualityId: world.runtime.actualityId,
-		cache: carriedRun(executionOf(world.tag), registry, graph === undefined ? [] : graph.quads),
+		cache: carriedActuality(executionOf(world.tag), registry, graph === undefined ? [] : graph.quads),
 		labelFont: carriedLabelFont(scope.bundles.labelFont(), scope.bundles.labelFontRanges()),
 	} satisfies THydration);
 	const bundle = scope.bundles.whole(bundleFileName(BUNDLE_NAMES.report));

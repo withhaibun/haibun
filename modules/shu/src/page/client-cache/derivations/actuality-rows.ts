@@ -10,10 +10,10 @@ import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 /** How many records a reader is shown around where they are. */
-export const RUN_WINDOW_SIZE = 10000;
+export const ACTUALITY_WINDOW_SIZE = 10000;
 
 /** One thing that happened: a step, something logged while it ran, or something it produced. */
-export type TRunRow = {
+export type TActualityRow = {
 	kind: "step" | "said" | "produced";
 	/** The step this row is, or the step it was logged during, and its path within the execution: empty for a record that
 	 *  doesn't name a step, which is a record of its execution itself. */
@@ -28,9 +28,9 @@ export type TRunRow = {
 	/** When this record was written, or last written again: the instant a reader following actuality reads what happened
 	 *  since. Absent on a record written before it was declared. */
 	recordedAt?: number;
-	/** What this step produced, named on the row a reader sees rather than on rows of its own: a run records a
+	/** What this step produced, named on the row a reader sees rather than on rows of its own: an actuality records a
 	 *  produced thing under the step that made it, and that step can be part of the machinery a reader is not reading. */
-	produced?: TRunRow[];
+	produced?: TActualityRow[];
 	/** The step whose row carries this produced thing, where one in the window claims it. A view showing rows of steps
 	 *  draws it there and doesn't give this row room; a view reading actuality's own document places it by its own reading. */
 	carriedBy?: string;
@@ -58,20 +58,20 @@ export type TRunRow = {
 };
 
 /** The records a reader is looking at, oldest first, and the moments they span. */
-export type TRunWindow = { rows: TRunRow[]; from?: number; to?: number };
+export type TActualityWindow = { rows: TActualityRow[]; from?: number; to?: number };
 
 /** The place of a row of one kind among the rows of one step: the step itself, then what it logged, then what it produced. */
-const KIND_ORDER: Record<TRunRow["kind"], number> = { step: 0, said: 1, produced: 2 };
+const KIND_ORDER: Record<TActualityRow["kind"], number> = { step: 0, said: 1, produced: 2 };
 
 /**
  * Two rows in the order actuality put them: by when; where a clock reads them as one instant, by their place in actuality;
  * within one step, by what the row is and which of those it is.
  *
- * A run outpaces a millisecond, so time alone leaves the rows of one instant in whatever order they were read, and a
+ * An actuality outpaces a millisecond, so time alone leaves the rows of one instant in whatever order they were read, and a
  * reader watching actuality would see them settle into a different order on the next reading. Every part of a name is
  * compared, so the order is the same however the records were read.
  */
-export function inRunOrder(a: TRunRow, b: TRunRow): number {
+export function inActualityOrder(a: TActualityRow, b: TActualityRow): number {
 	if (a.at !== b.at) return a.at - b.at;
 	const byPath = compareSeqPath(a.under, b.under);
 	if (byPath !== 0) return byPath;
@@ -89,7 +89,7 @@ const recorded = (at: string | undefined): { recordedAt?: number } => {
 };
 
 /** The step a logged or produced record names as its own, else the record itself: what is logged outside every step,
- *  which is where a run reports what went wrong after a step ended, is a record of its execution by its own name. */
+ *  which is where an actuality reports what went wrong after a step ended, is a record of its execution by its own name. */
 const stepOf = (record: Record<string, unknown>, id: string): string => {
 	const partOf = record.isPartOf;
 	if (partOf === undefined) return id;
@@ -106,7 +106,7 @@ const named = (id: string, step: string): { name?: TRecordName; under: number[] 
 };
 
 /** A step, as a row. */
-function stepRow(record: Record<string, unknown>): TRunRow {
+function stepRow(record: Record<string, unknown>): TActualityRow {
 	const step = SeqPathSchema.parse(record);
 	const ended = instant(step[SEQ_PATH_FIELD.endedAtTime]);
 	const level = step[SEQ_PATH_FIELD.level];
@@ -141,7 +141,7 @@ function stepRow(record: Record<string, unknown>): TRunRow {
 }
 
 /** Something logged, as a row. */
-function saidRow(record: Record<string, unknown>): TRunRow {
+function saidRow(record: Record<string, unknown>): TActualityRow {
 	const said = LogMessageSchema.parse(record);
 	const id = said[LOG_MESSAGE_FIELD.id];
 	const step = stepOf(record, id);
@@ -161,9 +161,9 @@ function saidRow(record: Record<string, unknown>): TRunRow {
 	};
 }
 
-/** Something produced, as a row. What a run produced as its work reports where its steps do; a trace of its own
+/** Something produced, as a row. What an actuality produced as its work reports where its steps do; a trace of its own
  *  machinery reports under them, which is what its level states. */
-function producedRow(record: Record<string, unknown>): TRunRow {
+function producedRow(record: Record<string, unknown>): TActualityRow {
 	const made = RunArtifactSchema.parse(record);
 	const id = made[RUN_ARTIFACT_FIELD.id];
 	const step = stepOf(record, id);
@@ -191,29 +191,29 @@ function producedRow(record: Record<string, unknown>): TRunRow {
 }
 
 /** One record as the row it is, whichever type it is: the one place a record becomes a row. */
-export function rowOfRecord(label: string, record: Record<string, unknown>): TRunRow {
+export function rowOfRecord(label: string, record: Record<string, unknown>): TActualityRow {
 	if (label === LOG_MESSAGE_LABEL) return saidRow(record);
 	if (label === RUN_ARTIFACT_LABEL) return producedRow(record);
 	return stepRow(record);
 }
 
 /** Each record once, in the order actuality put them: two readings of one record are one row. */
-export function oneEach(rows: TRunRow[]): TRunRow[] {
-	return [...new Map(rows.map((r) => [r.id, r])).values()].sort(inRunOrder);
+export function oneEach(rows: TActualityRow[]): TActualityRow[] {
+	return [...new Map(rows.map((r) => [r.id, r])).values()].sort(inActualityOrder);
 }
 
 /**
  * What a step produced, named on the row of the step a reader sees.
  *
- * A run records a produced thing under the step that made it, and that step is often part of the machinery: a
+ * An actuality records a produced thing under the step that made it, and that step is often part of the machinery: a
  * screenshot taken after every step is recorded under a step of its own. A reader reads the step they wrote, so the
  * shot is claimed by the nearest step among the rows of the window, and that step's row states it carries it. The row
  * itself stays in the window, because a window is one reading that every view reads: a view of actuality's steps draws
  * the shot on the step's row, and actuality's document places it where its own reading puts it. A produced thing whose
  * step is not among the rows is unclaimed and is read as the row it is.
  */
-export function producedUnderSteps(rows: TRunRow[]): TRunRow[] {
-	const byPath = new Map<string, TRunRow>();
+export function producedUnderSteps(rows: TActualityRow[]): TActualityRow[] {
+	const byPath = new Map<string, TActualityRow>();
 	// A row is the same object across reads, and a step's shot can be recorded after the step: each pass states what the
 	// rows of this window hold rather than adding to what an earlier pass over other rows stated.
 	for (const row of rows) {
@@ -223,10 +223,10 @@ export function producedUnderSteps(rows: TRunRow[]): TRunRow[] {
 			byPath.set(row.name.path.join("."), row);
 		}
 	}
-	const carried = new Map<TRunRow, TRunRow[]>();
+	const carried = new Map<TActualityRow, TActualityRow[]>();
 	for (const row of rows) {
 		if (row.kind !== "produced") continue;
-		let host: TRunRow | undefined;
+		let host: TActualityRow | undefined;
 		for (let i = row.under.length; i > 0 && host === undefined; i--) host = byPath.get(row.under.slice(0, i).join("."));
 		if (host === undefined) continue;
 		const held = carried.get(host);
@@ -240,12 +240,12 @@ export function producedUnderSteps(rows: TRunRow[]): TRunRow[] {
 
 /** A window and the moments it spans: its first and last row's instants. What a step produced is claimed where the
  *  window is assembled, since one read returns part of it. */
-export function windowOf(rows: TRunRow[]): TRunWindow {
+export function windowOf(rows: TActualityRow[]): TActualityWindow {
 	return { rows, ...(rows.length ? { from: itemAt(rows, 0).at, to: itemAt(rows, rows.length - 1).at } : {}) };
 }
 
 /** The execution of the newest row that names one, which is the execution a window of these rows shows. */
-export function newestExecution(rows: TRunRow[]): string | undefined {
+export function newestExecution(rows: TActualityRow[]): string | undefined {
 	for (let i = rows.length - 1; i >= 0; i--) {
 		const { name } = itemAt(rows, i);
 		if (name) return name.execution;
@@ -253,10 +253,10 @@ export function newestExecution(rows: TRunRow[]): string | undefined {
 	return undefined;
 }
 
-/** The types of a run's records, each with the field that places one in time. What a reader is shown of a run, what
- *  draws the shape of a run and what a device deletes when it deletes a run are the same records, so all of them read
+/** The types of an actuality's records, each with the field that places one in time. What a reader is shown of an actuality, what
+ *  draws the shape of an actuality and what a device deletes when it deletes an actuality are the same records, so all of them read
  *  this. */
-export type TRunType = {
+export type TActualityType = {
 	label: string;
 	timeField: string;
 	/** Read whatever it reports at: the row of the step that produced it is what shows it, so the level a reader chose
@@ -266,7 +266,7 @@ export type TRunType = {
 	widensBySubsteps?: boolean;
 };
 
-export const RUN_TYPES: ReadonlyArray<TRunType> = [
+export const ACTUALITY_TYPES: ReadonlyArray<TActualityType> = [
 	{ label: SEQ_PATH_LABEL, timeField: SEQ_PATH_FIELD.generatedAtTime, widensBySubsteps: true },
 	{ label: LOG_MESSAGE_LABEL, timeField: LOG_MESSAGE_FIELD.generatedAtTime },
 	{ label: RUN_ARTIFACT_LABEL, timeField: RUN_ARTIFACT_FIELD.generatedAtTime, atEveryLevel: true },

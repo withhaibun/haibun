@@ -12,8 +12,8 @@ import { arrayWindowedSource, lazyWindowedSource, MAX_RESIDENT_PAGES, readWindow
 import { describeWindowedSource, CONFORMANCE_ROWS } from "../../test/windowed-source-conformance.js";
 import { installGraph } from "../client-cache/controllers/device-controller.js";
 import { setupShuTest } from "../../test/setup.js";
-import { runStore } from "../client-cache/run-store.test-fake.js";
-import { graphRunSource } from "../client-cache/controllers/run-controller.js";
+import { actualityStore } from "../client-cache/actuality-store.test-fake.js";
+import { graphActualitySource } from "../client-cache/controllers/actuality-controller.js";
 import { endPage } from "../adapters/page-held.js";
 
 type TRow = { name: string };
@@ -67,7 +67,7 @@ describeWindowedSource("the window of a run", async () => {
 		},
 	});
 	declareGraphSpec({ types: [SEQ_PATH_LABEL, LOG_MESSAGE_LABEL, RUN_ARTIFACT_LABEL] });
-	const store = runStore();
+	const store = actualityStore();
 	for (let i = 0; i < CONFORMANCE_ROWS; i++) {
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
 			id: `${RUN}.0.${i}`,
@@ -80,7 +80,7 @@ describeWindowedSource("the window of a run", async () => {
 		});
 	}
 	installGraph(store);
-	const source = graphRunSource("info", false);
+	const source = graphActualitySource("info", false);
 	await source.ready();
 	return { source, named: (row: Record<string, unknown>): string => String(row.in), shouldName, done: () => handle.teardown() };
 });

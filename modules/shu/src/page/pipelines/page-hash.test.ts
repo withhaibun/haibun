@@ -8,7 +8,7 @@
 import { describe, expect, it } from "vitest";
 import { canonicalizeArrival, hashParams } from "../derivations/address.js";
 import { hashParam, mergeHashParams, onHashChanged, pageAddress, pushHash } from "../controllers/hash-controller.js";
-import { carryARun, serveThePage } from "../../test/setup.js";
+import { carryAnActuality, serveThePage } from "../../test/setup.js";
 
 describe("canonicalizeArrival", () => {
 	const base = "#?label=File&sort=dateModified&col=shu-monitor-column&active=shu-monitor-column";
@@ -52,7 +52,7 @@ describe("pageAddress", () => {
 	it("is the page address without its fragment when a server serves it, and empty when the page carries its own run", () => {
 		serveThePage();
 		expect(pageAddress()).toBe(location.origin + location.pathname + location.search);
-		carryARun();
+		carryAnActuality();
 		expect(pageAddress(), "a record of actuality doesn't have an address a site serves").toBeUndefined();
 		serveThePage();
 	});
@@ -86,7 +86,7 @@ describe("params a view writes into the hash", () => {
 	});
 
 	it("round-trips in a record of a run, where the page doesn't have an address to write to", () => {
-		carryARun();
+		carryAnActuality();
 		pushHash("#?");
 		let announced = 0;
 		const heard = onHashChanged(() => announced++);
@@ -113,7 +113,7 @@ describe("the page's hash, across its bundles", () => {
 		window.dispatchEvent(new HashChangeEvent("hashchange"));
 		expect(heard, "the page follows an arrival once, whatever bundles it loads").toBe(2);
 		stop();
-		carryARun();
+		carryAnActuality();
 		pushHash("#?aff-goal=offline");
 		expect(other.hashParam("aff-goal"), "a record of a run holds one hash for the page").toBe("offline");
 		serveThePage();

@@ -11,27 +11,27 @@ import { databaseOf, deviceDatabase, heldDatabaseNames, IndexedDbDeviceStore, Me
 import { GRAPH_BOUND, IndexedDbQuads } from "./adapters/quad-store.js";
 import { indexedDbSummary, type TIdbDatabaseSummary } from "./adapters/idb-summary.js";
 import { INITIAL_EXECUTIONS, executionsTransition, type TExecutionsEvent, type TExecutionsState } from "./machines/executions.js";
-import type { TCachedGraph, TDeviceDatabase, TDeviceQuads, TDeviceReport, TDeviceStore, TRunRegistry } from "./ports.js";
+import type { TCachedGraph, TDeviceDatabase, TDeviceQuads, TDeviceReport, TDeviceStore, TActualityRegistry } from "./ports.js";
 
 export { CACHE_SHAPE } from "./ports.js";
-import type { TGraphRunSource } from "./pipelines/run-sources.js";
+import type { TGraphActualitySource } from "./pipelines/actuality-sources.js";
 
 /** The source the device reports under. */
 const DEVICE_STORE = "device-store";
 /** The source a reading of actuality reports under. */
-const RUN_SOURCE = "graph-run-source";
+const ACTUALITY_SOURCE = "actuality-source";
 
 const CONNECTIONS_KEY = "__SHU_DEVICE_DB__";
 const WRITE_LISTENERS_KEY = "__SHU_CLIENT_CACHE_WRITE_LISTENERS__";
 const STORE_KEY = "__SHU_DEVICE_STORE__";
 const EXECUTIONS_KEY = "__SHU_READING_EXECUTION__";
-const RUN_REGISTRY_KEY = "__SHU_RUN_REGISTRY__";
-const RUN_SOURCES_KEY = "__SHU_GRAPH_RUN_SOURCES__";
+const ACTUALITY_REGISTRY_KEY = "__SHU_READINGS__";
+const ACTUALITY_SOURCES_KEY = "__SHU_ACTUALITY_SOURCES__";
 const GRAPH_SLOT_KEY = "__SHU_CACHED_GRAPH_STORE__";
 
 export const deviceReport: TDeviceReport = { warn: (message) => reportToRun("warn", DEVICE_STORE, message), failure: (message, err) => reportFailure(DEVICE_STORE, message, err) };
 /** Reports a reading of actuality that failed. */
-export const runReport = (message: string, err: unknown): void => reportFailure(RUN_SOURCE, message, err);
+export const actualityReport = (message: string, err: unknown): void => reportFailure(ACTUALITY_SOURCE, message, err);
 const connections = (): TDeviceConnections => pagePinned(CONNECTIONS_KEY, () => ({ opened: new Map<string, Promise<IDBDatabase | null>>(), report: deviceReport }));
 
 /** The name of the database of the actuality the page reads. */
@@ -93,13 +93,14 @@ export const deviceSummary = (): Promise<TIdbDatabaseSummary[]> => indexedDbSumm
 export const pageExecutions = (): Machine<TExecutionsState, TExecutionsEvent> => pagePinned(EXECUTIONS_KEY, () => machine(INITIAL_EXECUTIONS, executionsTransition));
 
 /** The readings of actuality the views share. */
-export const runRegistry = (): TRunRegistry => pagePinned(RUN_REGISTRY_KEY, (): TRunRegistry => ({ reading: new Set(), made: new Set(), at: undefined, span: {} }));
+export const actualityRegistry = (): TActualityRegistry =>
+	pagePinned(ACTUALITY_REGISTRY_KEY, (): TActualityRegistry => ({ reading: new Set(), made: new Set(), at: undefined, span: {} }));
 
 /** The readings made, by their level and whether they read substeps. Ending the page stops each. */
-export const graphRunSources = (): Map<string, TGraphRunSource> =>
+export const graphActualitySources = (): Map<string, TGraphActualitySource> =>
 	pagePinned(
-		RUN_SOURCES_KEY,
-		() => new Map<string, TGraphRunSource>(),
+		ACTUALITY_SOURCES_KEY,
+		() => new Map<string, TGraphActualitySource>(),
 		(held) => {
 			for (const source of held.values()) source.close();
 		},

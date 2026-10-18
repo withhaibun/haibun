@@ -10,7 +10,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { READS_THE_RUNS_ARTIFACTS } from "@haibun/core/lib/actions.js";
 import { artifactUrl, shownArtifact, shownOrReported } from "./artifact-url.js";
-import { carryARun, openReportingPage, reportingTo, setupShuTest, type TReportedToRun, type TShuTestHandle } from "./test/setup.js";
+import { carryAnActuality, openReportingPage, reportingTo, setupShuTest, type TReportedToRun, type TShuTestHandle } from "./test/setup.js";
 
 const SCREENSHOT = "/artifacts/featn-1/image/event-0.1.png";
 /** The source a view reports under. */
@@ -18,7 +18,7 @@ const VIEW = "a view";
 /** Actuality's response to a read it allows. */
 const readable = () => new Response(new Blob(["png"]), { status: 200 });
 /** Actuality's delegation of READS_THE_RUNS_ARTIFACTS to the page's key. */
-const readingTheRun = () => ({ id: "urn:uuid:reader", invocationTarget: location.origin, allowedAction: [READS_THE_RUNS_ARTIFACTS], expires: "2099-01-01T00:00:00Z" });
+const readingTheActuality = () => ({ id: "urn:uuid:reader", invocationTarget: location.origin, allowedAction: [READS_THE_RUNS_ARTIFACTS], expires: "2099-01-01T00:00:00Z" });
 
 describe("where a view shows an artifact of actuality", () => {
 	const fetched: Array<{ url: string; headers: Record<string, string> }> = [];
@@ -37,7 +37,7 @@ describe("where a view shows an artifact of actuality", () => {
 		};
 		t = setupShuTest({ dispatch: reportingTo(reported), artifact });
 		URL.createObjectURL = () => `blob:shown-${fetched.length}`;
-		({ controller } = await openReportingPage(() => Promise.resolve({ delegations: [readingTheRun()] })));
+		({ controller } = await openReportingPage(() => Promise.resolve({ delegations: [readingTheActuality()] })));
 	});
 	afterEach(() => t.teardown());
 
@@ -52,7 +52,7 @@ describe("where a view shows an artifact of actuality", () => {
 
 	it("doesn't change an address outside actuality's artifacts or any artifact address of a page opened as a file", async () => {
 		expect(await shownArtifact("https://example.com/door.png")).toBe("https://example.com/door.png");
-		carryARun();
+		carryAnActuality();
 		expect(await shownArtifact("./image/event-0.2.png")).toBe("./image/event-0.2.png");
 		expect(fetched).toEqual([]);
 	});
@@ -61,7 +61,7 @@ describe("where a view shows an artifact of actuality", () => {
 		const SCRIPT = "javascript:alert(1)";
 		expect(artifactUrl({ url: SCRIPT }), "a record's own address").toBeUndefined();
 		expect(artifactUrl({ url: "https://example.com/door.png" })).toBe("https://example.com/door.png");
-		carryARun();
+		carryAnActuality();
 		expect(artifactUrl({ featureRelativePath: SCRIPT, path: "featn-1/image/event-0.4.png" }), "a page opened as a file reads the artifact from its own directory").toBe(
 			"./image/event-0.4.png",
 		);
