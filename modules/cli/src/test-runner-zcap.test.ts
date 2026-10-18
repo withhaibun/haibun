@@ -8,7 +8,8 @@
  */
 import { describe, expect, it, beforeEach } from "vitest";
 import TestRunnerStepper from "./test-runner-stepper.js";
-import InstanceStepper, { SUPERVISOR_CAPABILITIES } from "./instance-stepper.js";
+import InstanceStepper from "./instance-stepper.js";
+import { SUPERVISOR_CAPABILITIES } from "./domains/run.js";
 import { openRunRegistry } from "@haibun/core/lib/step-registry.js";
 import { callStepByName } from "@haibun/core/lib/call-step.js";
 import { runAuthorizedWith } from "@haibun/core/lib/domains/capability-context.js";

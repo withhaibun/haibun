@@ -1,30 +1,4 @@
 {
-	"modules/cli/src/BaseOptions.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/cli/src/instance-stepper.ts": {
-		"performs I/O through child_process": 1,
-		"performs I/O through fs": 1,
-		"performs I/O through setTimeout": 4
-	},
-	"modules/cli/src/lib.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/cli/src/run-outcome.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/cli/src/test-runner-stepper.ts": {
-		"imports a stepper: ./instance-stepper.js": 1
-	},
-	"modules/cli/src/verified.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/owned-children.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/port-occupant.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/artifact-url.ts": {
 		"isn't in a kind position": 1
 	},

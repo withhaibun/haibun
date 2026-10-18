@@ -8,7 +8,8 @@ import { LinkRelations } from "../../domains/resources.js";
 import { itemAt } from "../../domains/item-at.js";
 import type { TWorld } from "../domains/world.js";
 import { SEQ_PATH_FIELD, STEP_LEVEL, calledOf, executionOf, formatRecordName, type TRecordName } from "../domains/seq-path.js";
-import type { TActuality, TActualityMove, TStepFailure } from "../machines/actuality.js";
+import type { TActuality, TActualityMove } from "../machines/actuality.js";
+import type { TStepFailure } from "../domains/step-failure.js";
 
 /** The authorization a step's own record states. A step actuality runs as itself holds every action, so its record
  *  doesn't state the invoked and held actions. The record of a caller's step states both. A record states the principal

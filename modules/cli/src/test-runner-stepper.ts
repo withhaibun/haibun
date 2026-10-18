@@ -31,12 +31,13 @@ import { actingAs, runActingAs } from "@haibun/core/lib/domains/capability-conte
 import { persistPrincipalIndividual } from "@haibun/core/lib/domains/principal-individual.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { RECORDED_STATUS, type TRecordedStatus } from "@haibun/core/lib/domains/protocol.js";
+import { StepFailureSchema } from "@haibun/core/lib/actuality/domains/step-failure.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
-import { RUN_DOMAIN, SUPERVISOR_CAPABILITIES, runDomainDefinitions, runReadSchema, runStartedSchema } from "./instance-stepper.js";
+import { RUN_DOMAIN, SUPERVISOR_CAPABILITIES, runDomainDefinitions, runReadSchema, runStartedSchema } from "./domains/run.js";
 import { bareMethodName, hostOfMethodName, hostScopedMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
-import { StepFailureSchema, isLevelEnd } from "@haibun/core/lib/actuality/machines/actuality.js";
-import { forgetOutcomes } from "./verified.js";
+import { isLevelEnd } from "@haibun/core/lib/actuality/machines/actuality.js";
+import { supervisorPorts } from "./root.js";
 import { DOMAIN_FILE_PATH } from "@haibun/core/lib/domains/domains.js";
 
 /** The InstanceStepper steps this stepper's tools call. InstanceStepper starts, reads and stops each test run. This
@@ -540,7 +541,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 	 *  change that doesn't show in the features' dependencies, or notes one to require another test run regardless. An
 	 *  empty filter selects every feature of the base. */
 	noteApplied(filter: string, where: string): void {
-		forgetOutcomes(path.resolve(where), filter || undefined);
+		supervisorPorts.actualities.forgetOutcomes(path.resolve(where), filter || undefined);
 	}
 
 	/** Clears the test run in flight, so the next one can start. */

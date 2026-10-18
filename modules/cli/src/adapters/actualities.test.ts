@@ -6,7 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { ACTUALITIES_FILE } from "@haibun/core/lib/adapters/dependency-state.js";
 import { RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
-import { forgetOutcome, forgetOutcomes, machineKey, outcomeAgainst, recordActuality, actualityConditions, varianceLine, verificationOf } from "./verified.js";
+import { forgetOutcome, forgetOutcomes, machineKey, outcomeAgainst, recordActuality, actualityConditions, varianceLine, verificationOf } from "./actualities.js";
 
 /** Creates a group of features in its own git repository. The group doesn't load steppers, so its only dependency is
  *  its own directory. */

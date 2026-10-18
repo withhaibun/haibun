@@ -6,7 +6,10 @@
 		"terminal-preposition": 2
 	},
 	"modules/cli/src/instance-stepper.ts": {
-		"terminal-preposition": 6
+		"terminal-preposition": 4
+	},
+	"modules/core/src/lib/adapters/port-occupant.ts": {
+		"terminal-preposition": 1
 	},
 	"modules/core/src/lib/derivations/goal-resolver.composite.test.ts": {
 		"terminal-preposition": 1
@@ -41,9 +44,6 @@
 		"anthropomorphic": 1
 	},
 	"modules/core/src/lib/pipelines/record-blip.ts": {
-		"terminal-preposition": 1
-	},
-	"modules/core/src/lib/port-occupant.ts": {
 		"terminal-preposition": 1
 	},
 	"modules/core/src/lib/test/prose-sources.ts": {

@@ -4,8 +4,9 @@ import { EOL } from "os";
 import { AStorage } from "@haibun/domain-storage/domains/storage.js";
 import { findStepperFromOptionOrKind, getStepperOption, stringOrError } from "@haibun/core/lib/domains/util.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import type { TExecutorResult } from "@haibun/core/lib/domains/protocol.js";
-import { LEVEL_STATUS, type TFeatureState } from "@haibun/core/lib/actuality/machines/actuality.js";
+import { type TExecutorResult } from "@haibun/core/lib/domains/protocol.js";
+import { LEVEL_STATUS } from "@haibun/core/lib/actuality/domains/level-status.js";
+import { type TFeatureState } from "@haibun/core/lib/actuality/machines/actuality.js";
 import { AStepper, IHasCycles, IHasOptions, StepperKinds, IStepperCycles } from "@haibun/core/lib/astepper.js";
 
 type TFailResult = { "@message": string; "@type": string };

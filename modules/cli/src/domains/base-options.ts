@@ -1,6 +1,18 @@
-import type { TEnvVariables } from "@haibun/core/lib/world.js";
-import { CONTINUE_AFTER_ERROR, ONCE, SHOWN_LOG_LEVELS, STAY_ALWAYS, STAY_FAILURE, STEP_DELAY } from "@haibun/core/lib/domains/protocol.js";
-import { IHasOptions } from "@haibun/core/lib/astepper.js";
+import { BaseOptionsSchema, type TEnvVariables, type TModuleOptions, type TProtoOptions } from "@haibun/core/lib/world.js";
+import type { TSpecl } from "@haibun/core/lib/execution.js";
+import { HAIBUN_RUN_POLICY } from "@haibun/core/run-policy/domains/run-policy.js";
+import {
+	BASE_PREFIX,
+	CONTINUE_AFTER_ERROR,
+	DEFAULT_DEST,
+	MODULE_OPTION_PREFIX,
+	ONCE,
+	SHOWN_LOG_LEVELS,
+	STAY_ALWAYS,
+	STAY_FAILURE,
+	STEP_DELAY,
+} from "@haibun/core/lib/domains/protocol.js";
+import type { IHasOptions } from "@haibun/core/lib/astepper.js";
 import { boolOrError, intOrError, optionOrError, stringOrError } from "@haibun/core/lib/domains/util.js";
 
 export class BaseOptions implements IHasOptions {
@@ -48,4 +60,50 @@ export class BaseOptions implements IHasOptions {
 			},
 		},
 	};
+}
+
+export type TEnv = { [name: string]: string | undefined };
+
+/** Returns a run's options. A base option takes its default unless the environment sets it. A module option takes the
+ *  base config's value unless an environment variable sets it. Throws where an environment value doesn't parse or
+ *  doesn't name an option. */
+export function processBaseEnvToOptionsAndErrors(env: TEnv, specl: TSpecl): TProtoOptions {
+	const options: Record<string, unknown> = { DEST: DEFAULT_DEST };
+	const moduleOptions: TModuleOptions = { ...specl.moduleOptions };
+
+	const errors: string[] = [];
+	let nenv = {};
+
+	const baseOptions = (BaseOptions as IHasOptions).options ?? {};
+	for (const [k, v] of Object.entries(baseOptions)) if (v.default !== undefined) options[k] = v.default;
+
+	for (const [k, value] of Object.entries(env)) {
+		if (value === undefined || !k.startsWith(BASE_PREFIX) || k === HAIBUN_RUN_POLICY) continue;
+		const opt = k.replace(BASE_PREFIX, "");
+		const baseOption = baseOptions[opt];
+
+		if (baseOption) {
+			const res = baseOption.parse(value, nenv);
+			if (res.parseError) {
+				errors.push(res.parseError);
+			} else if (res.env) {
+				nenv = { ...nenv, ...res.env };
+			} else if (res.result === undefined) {
+				errors.push(`option ${opt} doesn't accept ${JSON.stringify(value)}`);
+			} else {
+				options[opt] = res.result;
+			}
+		} else if (k.startsWith(MODULE_OPTION_PREFIX)) {
+			moduleOptions[k] = value;
+		} else {
+			errors.push(`${opt} isn't an option`);
+		}
+	}
+	options.envVariables = nenv;
+
+	if (errors.length > 0) {
+		throw new Error(errors.join("\n"));
+	}
+
+	return { options: BaseOptionsSchema.parse(options), moduleOptions };
 }

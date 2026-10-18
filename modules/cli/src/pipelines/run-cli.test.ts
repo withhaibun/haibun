@@ -14,7 +14,10 @@ import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { SpeclSchema, type TSpecl } from "@haibun/core/lib/execution.js";
 import type { TProtoOptions } from "@haibun/core/lib/world.js";
 import { OPTION_RUN_POLICY, OPTION_DRY_RUN, type TRunPolicyConfig } from "@haibun/core/run-policy/domains/run-policy.js";
-import * as lib from "./lib.js";
+import * as lib from "./run-cli.js";
+import { getConfigFromBase } from "./specl.js";
+import { processBaseEnvToOptionsAndErrors } from "../domains/base-options.js";
+import { cliPorts } from "../root.js";
 
 // Mocks loadAndValidateRunPolicy so a test does not read test-policy.json.
 vitest.mock("@haibun/core/run-policy/pipelines/policy-file.js", () => ({ loadAndValidateRunPolicy: vitest.fn() }));
@@ -29,11 +32,11 @@ const expectExitAndThrow = (expectedCode: number) => (code?: number | string | n
 describe("usageThenExit", () => {
 	it("exits with success code 0", async () => {
 		vitest.spyOn(process, "exit").mockImplementationOnce(expectExitAndThrow(0));
-		await expect(lib.usageThenExit({ ...getDefaultOptions(), steppers: [] })).rejects.toThrow("exit with code 0");
+		await expect(lib.usageThenExit({ ...getDefaultOptions(), steppers: [] }, cliPorts().steppers)).rejects.toThrow("exit with code 0");
 	});
 	it("exits with error code 1", async () => {
 		vitest.spyOn(process, "exit").mockImplementationOnce(expectExitAndThrow(1));
-		await expect(lib.usageThenExit({ ...getDefaultOptions(), steppers: [] }, "Test Error Message")).rejects.toThrow("exit with code 1");
+		await expect(lib.usageThenExit({ ...getDefaultOptions(), steppers: [] }, cliPorts().steppers, "Test Error Message")).rejects.toThrow("exit with code 1");
 	});
 });
 
@@ -54,40 +57,40 @@ const NO_CONFIG: TSpecl = { steppers: [] };
 describe("processEnv", () => {
 	it("takes module options from a base's config, and an environment variable replaces the config's value", () => {
 		const specl = SpeclSchema.parse({ steppers: [], moduleOptions: { [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: "from the config", [OTHER_OPTION]: "kept" } });
-		const { moduleOptions } = lib.processBaseEnvToOptionsAndErrors({ [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: "from the environment" }, specl);
+		const { moduleOptions } = processBaseEnvToOptionsAndErrors({ [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: "from the environment" }, specl);
 		expect(moduleOptions).toEqual({ [HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS]: "from the environment", [OTHER_OPTION]: "kept" });
 		expect(() => SpeclSchema.parse({ steppers: [], moduleOptions: { EXISTS: "unnamed" } }), "and refuses a module option whose name lacks the module option prefix").toThrow(
 			`a module option is named ${MODULE_OPTION_PREFIX}{STEPPER}_{OPTION}`,
 		);
 	});
 	it("assigns boolean true", () => {
-		const protoOptions = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${CONTINUE_AFTER_ERROR}`]: "true" }, NO_CONFIG);
+		const protoOptions = processBaseEnvToOptionsAndErrors({ [`HAIBUN_${CONTINUE_AFTER_ERROR}`]: "true" }, NO_CONFIG);
 		expect(protoOptions.options[CONTINUE_AFTER_ERROR]).toBeDefined();
 		expect(protoOptions.options[CONTINUE_AFTER_ERROR]).toBe(true);
 	});
 	it("assigns boolean false", () => {
-		expect(lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${CONTINUE_AFTER_ERROR}`]: "false" }, NO_CONFIG).options[CONTINUE_AFTER_ERROR]).toBe(false);
+		expect(processBaseEnvToOptionsAndErrors({ [`HAIBUN_${CONTINUE_AFTER_ERROR}`]: "false" }, NO_CONFIG).options[CONTINUE_AFTER_ERROR]).toBe(false);
 	});
 	it("errors for non-boolean value ", () => {
-		expect(() => lib.processBaseEnvToOptionsAndErrors({ HAIBUN_TRACE: "wtw" }, NO_CONFIG)).toThrow();
+		expect(() => processBaseEnvToOptionsAndErrors({ HAIBUN_TRACE: "wtw" }, NO_CONFIG)).toThrow();
 	});
 	it("runs once when HAIBUN_ONCE or --once is set, so a script can set HAIBUN_ONCE for every run it chains", () => {
-		const { options } = lib.processBaseEnvToOptionsAndErrors({ HAIBUN_ONCE: "true" }, NO_CONFIG);
+		const { options } = processBaseEnvToOptionsAndErrors({ HAIBUN_ONCE: "true" }, NO_CONFIG);
 		expect(lib.runsOnce({ once: false }, options), "the environment alone").toBe(true);
-		expect(lib.runsOnce({ once: true }, lib.processBaseEnvToOptionsAndErrors({}, NO_CONFIG).options), "the command line alone").toBe(true);
-		expect(lib.runsOnce({ once: false }, lib.processBaseEnvToOptionsAndErrors({}, NO_CONFIG).options), "without either").toBe(false);
-		expect(lib.runsOnce({ once: false }, lib.processBaseEnvToOptionsAndErrors({ HAIBUN_ONCE: "false" }, NO_CONFIG).options), "the environment set to false").toBe(false);
-		expect(() => lib.processBaseEnvToOptionsAndErrors({ HAIBUN_ONCE: "yes" }, NO_CONFIG), "a value other than true or false").toThrow();
+		expect(lib.runsOnce({ once: true }, processBaseEnvToOptionsAndErrors({}, NO_CONFIG).options), "the command line alone").toBe(true);
+		expect(lib.runsOnce({ once: false }, processBaseEnvToOptionsAndErrors({}, NO_CONFIG).options), "without either").toBe(false);
+		expect(lib.runsOnce({ once: false }, processBaseEnvToOptionsAndErrors({ HAIBUN_ONCE: "false" }, NO_CONFIG).options), "the environment set to false").toBe(false);
+		expect(() => processBaseEnvToOptionsAndErrors({ HAIBUN_ONCE: "yes" }, NO_CONFIG), "a value other than true or false").toThrow();
 	});
 	it("assigns int", () => {
-		const { options } = lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${STEP_DELAY}`]: "1" }, NO_CONFIG);
+		const { options } = processBaseEnvToOptionsAndErrors({ [`HAIBUN_${STEP_DELAY}`]: "1" }, NO_CONFIG);
 		expect(options[STEP_DELAY]).toBe(1);
 	});
 	it("errors for string passed as int", () => {
-		expect(() => lib.processBaseEnvToOptionsAndErrors({ [`HAIBUN_${STEP_DELAY}`]: "x.2" }, NO_CONFIG)).toThrow();
+		expect(() => processBaseEnvToOptionsAndErrors({ [`HAIBUN_${STEP_DELAY}`]: "x.2" }, NO_CONFIG)).toThrow();
 	});
 	it("errors for non option", () => {
-		expect(() => lib.processBaseEnvToOptionsAndErrors({ HAIBUN_WTW: "x.2" }, NO_CONFIG)).toThrow();
+		expect(() => processBaseEnvToOptionsAndErrors({ HAIBUN_WTW: "x.2" }, NO_CONFIG)).toThrow();
 	});
 });
 
@@ -95,17 +98,17 @@ const POLICY_BASE = "e2e-tests/policy-test";
 
 describe("collect", () => {
 	it("runs the statements as one feature, in the order given", async () => {
-		const { features } = await lib.collect(["tests"], undefined, ["create graph store", "enable rpc"]);
+		const { features } = await lib.collect(cliPorts(), ["tests"], undefined, ["create graph store", "enable rpc"]);
 		expect(features).toHaveLength(1);
 		expect(itemAt(features, 0)).toMatchObject({ content: "create graph store\nenable rpc" });
 	});
 	it("runs the statements against a base that doesn't exist", async () => {
-		const { features, backgrounds } = await lib.collect(["/nonexistent-base"], undefined, ["create graph store"]);
+		const { features, backgrounds } = await lib.collect(cliPorts(), ["/nonexistent-base"], undefined, ["create graph store"]);
 		expect(itemAt(features, 0).content).toBe("create graph store");
 		expect(backgrounds).toEqual([]);
 	});
 	it("runs the filtered features before the statements, so the statements act on the state the features leave", async () => {
-		const { features } = await lib.collect([POLICY_BASE], ["health"], ["create graph store"]);
+		const { features } = await lib.collect(cliPorts(), [POLICY_BASE], ["health"], ["create graph store"]);
 		expect(features.length).toBeGreaterThan(1);
 		expect(features.at(-1)?.content, "the statements run after the features").toBe("create graph store");
 		expect(
@@ -114,7 +117,7 @@ describe("collect", () => {
 		).toBe(true);
 	});
 	it("collects only the filtered features when a statement isn't given", async () => {
-		const { features } = await lib.collect([POLICY_BASE], ["health"], []);
+		const { features } = await lib.collect(cliPorts(), [POLICY_BASE], ["health"], []);
 		expect(features.every((f) => f.path.includes("health"))).toBe(true);
 	});
 });
@@ -192,24 +195,24 @@ describe("processArgs", () => {
 describe("runCli", () => {
 	it("runs with --show-steppers", async () => {
 		vitest.spyOn(process, "exit").mockImplementationOnce(expectExitAndThrow(0));
-		await expect(lib.runCli(s("--config modules/cli/test --show-steppers"), {})).rejects.toThrow("exit with code 0");
+		await expect(lib.runCli(s("--config modules/cli/test --show-steppers"), {}, cliPorts())).rejects.toThrow("exit with code 0");
 	});
 	it("fails without a config", async () => {
 		vitest.spyOn(process, "exit").mockImplementationOnce(expectExitAndThrow(1));
-		await expect(lib.runCli(s("--config nowhere/noway"), {})).rejects.toThrow("exit with code 1");
+		await expect(lib.runCli(s("--config nowhere/noway"), {}, cliPorts())).rejects.toThrow("exit with code 1");
 	});
 	it("runs a basic test", async () => {
 		vitest.spyOn(process, "exit").mockImplementationOnce(expectExitAndThrow(0));
-		await expect(() => lib.runCli(s("--config modules/cli/test modules/cli/test/tests"), {})).rejects.toThrow("exit with code 0");
+		await expect(() => lib.runCli(s("--config modules/cli/test modules/cli/test/tests"), {}, cliPorts())).rejects.toThrow("exit with code 0");
 	});
 	it("runs a kireji test with backgrounds and features", async () => {
 		vitest.spyOn(process, "exit").mockImplementationOnce(expectExitAndThrow(0));
-		await expect(lib.runCli(s("--config modules/cli/test/kireji modules/cli/test/kireji"), {})).rejects.toThrow("exit with code 0");
+		await expect(lib.runCli(s("--config modules/cli/test/kireji modules/cli/test/kireji"), {}, cliPorts())).rejects.toThrow("exit with code 0");
 	});
 
 	it("runs a kireji test with outcomes", async () => {
 		vitest.spyOn(process, "exit").mockImplementationOnce(expectExitAndThrow(0));
-		await expect(lib.runCli(s("--config modules/cli/test/kireji-outcomes modules/cli/test/kireji-outcomes"), {})).rejects.toThrow("exit with code 0");
+		await expect(lib.runCli(s("--config modules/cli/test/kireji-outcomes modules/cli/test/kireji-outcomes"), {}, cliPorts())).rejects.toThrow("exit with code 0");
 	});
 });
 
@@ -219,7 +222,7 @@ describe("resolveRunPolicy", () => {
 		const specl = { steppers: [], runPolicy: "test-policy.json", appParameters: { prod: { API_KEY: "secret-123", TIMEOUT: "5000" } } } as TSpecl;
 		const policyConfig = { place: "prod", dirFilters: [] } as TRunPolicyConfig;
 
-		lib.resolveRunPolicy(policyConfig, {}, protoOptions, specl);
+		lib.resolveRunPolicy(policyConfig, {}, protoOptions, specl, nodeFS);
 
 		expect(protoOptions.options.envVariables?.API_KEY).toBe("secret-123");
 		expect(protoOptions.options.envVariables?.TIMEOUT).toBe("5000");
@@ -245,7 +248,7 @@ describe("getConfigFromBase with extends", () => {
 	};
 
 	it("adds the config's steppers after the base's, and lets the config's keys replace the base's", () => {
-		const specl = lib.getConfigFromBase(
+		const specl = getConfigFromBase(
 			[group({ extends: "../base.json", steppers: ["logic-stepper"], options: { DEST: "own" }, moduleOptions: { [`${OTHER_OPTION}2`]: "own" } })],
 			nodeFS,
 		);
@@ -256,18 +259,18 @@ describe("getConfigFromBase with extends", () => {
 	});
 
 	it("reads a base's dependsOn path from the config that extends it, and joins the environments", () => {
-		const specl = lib.getConfigFromBase([group({ extends: "../base.json", steppers: [], environments: ["mail"] })], nodeFS);
+		const specl = getConfigFromBase([group({ extends: "../base.json", steppers: [], environments: ["mail"] })], nodeFS);
 		expect(specl.dependsOn).toEqual(["../shared"]);
 		expect(specl.environments).toEqual(["model", "mail"]);
 	});
 
 	it("refuses a stepper the base lists", () => {
-		expect(() => lib.getConfigFromBase([group({ extends: "../base.json", steppers: ["haibun-stepper"] })], nodeFS)).toThrow(
+		expect(() => getConfigFromBase([group({ extends: "../base.json", steppers: ["haibun-stepper"] })], nodeFS)).toThrow(
 			/lists "haibun-stepper", which its base .*base\.json lists\. Remove them from/,
 		);
 	});
 
 	it("refuses a config that extends itself", () => {
-		expect(() => lib.getConfigFromBase([group({ extends: "config.json", steppers: [] })], nodeFS)).toThrow(/extends itself through/);
+		expect(() => getConfigFromBase([group({ extends: "config.json", steppers: [] })], nodeFS)).toThrow(/extends itself through/);
 	});
 });

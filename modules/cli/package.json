@@ -10,6 +10,7 @@
 	"files": ["build/**"],
 	"exports": {
 		".": "./build/cli.js",
+		"./lib.js": "./build/pipelines/specl.js",
 		"./*": "./build/*"
 	},
 	"scripts": {

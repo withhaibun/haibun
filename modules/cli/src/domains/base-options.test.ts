@@ -1,7 +1,7 @@
 import { it, expect, describe } from "vitest";
 
 import { DEFAULT_DEST } from "@haibun/core/lib/domains/protocol.js";
-import { BaseOptions } from "./BaseOptions.js";
+import { BaseOptions } from "./base-options.js";
 
 const defaultEnv = { DEST: DEFAULT_DEST };
 

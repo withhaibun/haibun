@@ -14,7 +14,7 @@ import { existsSync, statSync, readdirSync } from "fs";
 import { resolve, sep } from "path";
 import { esc } from "@haibun/core/lib/domains/document-content.js";
 import type { IEventLogger, IQuadStore } from "@haibun/core/lib/steps/ports.js";
-import { describePortOccupant, PROBE_TIMEOUT_MS } from "@haibun/core/lib/port-occupant.js";
+import { describePortOccupant, PROBE_TIMEOUT_MS } from "@haibun/core/lib/adapters/port-occupant.js";
 import { ENDPOINT_CLASS } from "@haibun/core/lib/domains/resources.js";
 import type { TRpcMethod } from "@haibun/core/lib/rpc-wire.js";
 import type { TBasicAuthUser } from "@haibun/core/lib/domains/basic-auth.js";

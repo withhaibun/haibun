@@ -12,7 +12,7 @@ import { describe, expect, it, beforeEach } from "vitest";
 import TestRunnerStepper, { RUNNER_DEFAULTS, TEST_RUNNER_AUTHOR } from "./test-runner-stepper.js";
 import { answerOfRun, askParams, stepAtRun } from "./test-runner-stepper.js";
 import type { TStepDescriptor } from "@haibun/core/lib/step-discovery.js";
-import { emptyOutcome, readRunOutput, runEvents } from "./run-outcome.js";
+import { emptyOutcome, readRunOutput, runEvents } from "./pipelines/run-outcome.js";
 import { RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
 import { actingAs } from "@haibun/core/lib/domains/capability-context.js";
 import { Access, principalDomainDefinition } from "@haibun/core/lib/domains/resources.js";
@@ -31,7 +31,7 @@ import os from "node:os";
 import path from "node:path";
 import { ACTUALITIES_FILE } from "@haibun/core/lib/adapters/dependency-state.js";
 import { RUN_AUTHORITY, runAuthorizedWith } from "@haibun/core/lib/domains/capability-context.js";
-import { RUN_DOMAIN, SUPERVISOR_CAPABILITIES, runDomainDefinitions } from "./instance-stepper.js";
+import { RUN_DOMAIN, SUPERVISOR_CAPABILITIES, runDomainDefinitions } from "./domains/run.js";
 
 type TResult = { ok: boolean; errorMessage?: string; products?: { run: string; status: string; record: string } };
 

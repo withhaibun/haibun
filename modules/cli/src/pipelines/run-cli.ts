@@ -1,33 +1,32 @@
-import nodeFS from "fs";
+/**
+ * A run of the cli: it parses the command line and the environment, reads the configuration its bases name, and runs their
+ * features or statements, each through the ports the program's entry point builds.
+ */
 import { newActualityId } from "@haibun/core/lib/rpc-wire.js";
-import path from "node:path";
-
-import { type TSpecl, type TStepperEntry, type TFeaturesBackgrounds, SpeclSchema } from "@haibun/core/lib/execution.js";
+import type { TSpecl, TFeaturesBackgrounds } from "@haibun/core/lib/execution.js";
 import { BASE_WITHOUT_FEATURES } from "@haibun/core/lib/actuality/ports.js";
-import { BaseOptionsSchema, type TBase, type TBaseOptions, type TModuleOptions, type TProtoOptions, type TWorld } from "@haibun/core/lib/world.js";
-import { BASE_PREFIX, CHECK_NO, CHECK_YES, DEFAULT_DEST, MODULE_OPTION_PREFIX, NDJSON, RECORDED_STATUS, STAY, Timer, TExecutorResult } from "@haibun/core/lib/domains/protocol.js";
+import type { TBase, TBaseOptions, TProtoOptions, TWorld } from "@haibun/core/lib/world.js";
+import { BASE_PREFIX, CHECK_NO, CHECK_YES, NDJSON, RECORDED_STATUS, STAY, Timer, TExecutorResult } from "@haibun/core/lib/domains/protocol.js";
 import { staysAfterExecution } from "@haibun/core/lib/actuality/derivations/execution-end.js";
 import { actualityMachine } from "@haibun/core/lib/actuality/machines/actuality.js";
-import { actualityClock, featureSource } from "@haibun/core/lib/actuality/root.js";
-import { IHasOptions } from "@haibun/core/lib/astepper.js";
+import type { IHasOptions } from "@haibun/core/lib/astepper.js";
 import { resolveSitePrincipal } from "@haibun/core/lib/domains/host-id.js";
 import { holdModuleOptions } from "@haibun/core/lib/held-module-options.js";
-import { formattedSteppers, getPre, getDefaultOptions, basesFrom, verifyRequiredOptions, verifyExtraOptions, errorDetail } from "@haibun/core/lib/domains/util.js";
-import { BaseOptions } from "./BaseOptions.js";
-import { TFileSystem, getCreateSteppers, getSteppers } from "@haibun/core/lib/adapters/workspace-lib.js";
+import { formattedSteppers, getPre, getDefaultOptions, basesFrom, verifyRequiredOptions, verifyExtraOptions, errorDetail, createSteppers } from "@haibun/core/lib/domains/util.js";
+import { BaseOptions, processBaseEnvToOptionsAndErrors } from "../domains/base-options.js";
+import type { TFileSystem } from "@haibun/core/lib/adapters/workspace-lib.js";
 import { getDefaultTag } from "@haibun/core/lib/domains/ttag.js";
 import { Runner } from "@haibun/core/lib/pipelines/runner.js";
 import { FeatureVariables, secretsOf } from "@haibun/core/lib/feature-variables.js";
 import { Prompter } from "@haibun/core/lib/prompts/pipelines/prompter.js";
-import { consolePrompter } from "@haibun/core/lib/prompts/root.js";
 import { getCoreDomains } from "@haibun/core/lib/pipelines/core-domains.js";
 import { EventLogger } from "@haibun/core/lib/EventLogger.js";
-import { eventSink } from "@haibun/core/lib/steps/root.js";
 import { OPTION_RUN_POLICY, OPTION_DRY_RUN, HAIBUN_RUN_POLICY, parseRunPolicyArgs, parseRunPolicyEnv, type TRunPolicyConfig } from "@haibun/core/run-policy/domains/run-policy.js";
 import { loadAndValidateRunPolicy } from "@haibun/core/run-policy/pipelines/policy-file.js";
 import { PhaseRunner, PhaseBailError } from "@haibun/core/lib/PhaseRunner.js";
 import { withName } from "@haibun/core/lib/domains/features.js";
-import { forgetOutcome, outcomeAgainst, recordActuality, varianceLine, verificationOf } from "./verified.js";
+import { configFileFrom, getConfigFromBase } from "./specl.js";
+import type { TCliPorts } from "../ports.js";
 
 const OPTION_CONFIG = "--config";
 const OPTION_HELP = "--help";
@@ -41,38 +40,36 @@ const OPTION_STATEMENT = "--statement";
  *  record when this option or HAIBUN_ONCE is given. */
 const OPTION_ONCE = "--once";
 
-type TEnv = { [name: string]: string | undefined };
-
-export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
-	if (nodeFS.existsSync(".env")) process.loadEnvFile();
+export async function runCli(args: string[], env: NodeJS.ProcessEnv, ports: TCliPorts) {
+	if (ports.fs.existsSync(".env")) process.loadEnvFile();
 	const parsed = processArgs(args);
 	const bases = basesFrom(parsed.params[0]?.replace(/\/$/, ""));
 	const configBases = parsed.configLoc ? [parsed.configLoc] : bases;
-	const specl = await getSpeclOrExit(configBases);
+	const specl = await getSpeclOrExit(configBases, ports);
 
-	if (parsed.showHelp) return await usageThenExit(specl);
-	if (parsed.showSteppers) return await showSteppersAndExit(specl);
+	if (parsed.showHelp) return await usageThenExit(specl, ports.steppers);
+	if (parsed.showSteppers) return await showSteppersAndExit(specl, ports.steppers);
 
 	let world: TWorld | undefined;
 	let protoOptions: TProtoOptions | undefined;
-	let verification: ReturnType<typeof verificationOf>;
+	let verification: ReturnType<TCliPorts["actualities"]["verificationOf"]>;
 
 	try {
 		const pr = new PhaseRunner();
 		protoOptions = await pr.tryPhase("processBaseEnvToOptionsAndErrors", () => processBaseEnvToOptionsAndErrors(env, specl));
 		holdModuleOptions(protoOptions.moduleOptions);
 
-		world = getCliWorld(protoOptions, bases);
+		world = getCliWorld(protoOptions, bases, ports);
 		pr.world = world;
-		const policyConfig = resolveRunPolicy(parsed.policyConfig, env, protoOptions, specl);
+		const policyConfig = resolveRunPolicy(parsed.policyConfig, env, protoOptions, specl, ports.fs);
 		const featureFilter = parsed.params[1] ? parsed.params[1].split(",") : undefined;
 
 		// Holds the record file, the conditions key and the present dependency state of a run of features. It is undefined
 		// for a run of statements, a rehearsal, or a run whose dependency state can't be read.
 		verification =
 			parsed.statements.length === 0 && !parsed.dryRun
-				? verificationOf({
-						configPath: configFileFrom(configBases, nodeFS),
+				? ports.actualities.verificationOf({
+						configPath: configFileFrom(configBases, ports.fs),
 						specl,
 						bases,
 						cwd: process.cwd(),
@@ -91,16 +88,16 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 			// A group whose last run passed against the present dependency state would pass again, so it exits as passed
 			// without running. A group whose last run failed runs again, so a person can retry a failure whose cause is
 			// outside the sources without changing anything.
-			else if (outcomeAgainst(verification) === RECORDED_STATUS.completed) return verifiedExit(bases);
+			else if (ports.actualities.outcomeAgainst(verification) === RECORDED_STATUS.completed) return verifiedExit(bases);
 		}
 
-		const featuresBackgrounds = await pr.tryPhase("Collector", () => collect(bases, featureFilter, parsed.statements, policyConfig));
+		const featuresBackgrounds = await pr.tryPhase("Collector", () => collect(ports, bases, featureFilter, parsed.statements, policyConfig));
 
 		if (parsed.dryRun) return dryRunExit(featuresBackgrounds, policyConfig, featureFilter); // Exits process
 
 		const { moduleOptions } = world;
 		const csteppers = await pr.tryPhase("Steppers", async () => {
-			const s = await getSteppers([...specl.steppers, ...parsed.withSteppers]);
+			const s = await ports.steppers([...specl.steppers, ...parsed.withSteppers]);
 			verifyRequiredOptions(s, moduleOptions);
 			verifyExtraOptions(moduleOptions, s);
 			return s;
@@ -111,15 +108,16 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 		// An actuality without a feature result isn't evidence about the dependency state, so its state is cleared from the
 		// actualities file. Otherwise the file holds its outcome against the state and each feature's duration, and the commit
 		// holds the file, so its history holds the durations at each commit.
-		if (verification && result.featureResults.length === 0) forgetOutcome(verification);
-		else if (verification) for (const variance of recordActuality(verification, result, world.runtime.levels)) console.info(`timings: ${varianceLine(variance)}`);
+		if (verification && result.featureResults.length === 0) ports.actualities.forgetOutcome(verification);
+		else if (verification)
+			for (const variance of ports.actualities.recordActuality(verification, result, world.runtime.levels)) console.info(`timings: ${ports.actualities.varianceLine(variance)}`);
 
-		await reportAndExit(result, world, protoOptions);
+		await reportAndExit(result, world, protoOptions, ports);
 	} catch (error) {
 		// A PhaseBailError carries a result to report. Any other error ends the process with exit code 1.
 		if (error instanceof PhaseBailError) {
 			// An actuality that stopped before its features isn't evidence about the dependency state.
-			if (verification) forgetOutcome(verification);
+			if (verification) ports.actualities.forgetOutcome(verification);
 			if (!world || !protoOptions) {
 				const failure = error.result.failure;
 				const stage = failure?.stage ?? "?";
@@ -127,7 +125,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 				if (failure?.error?.details) console.error("Additional details:", failure.error.details);
 				process.exit(1);
 			}
-			return await reportAndExit(error.result, world, protoOptions);
+			return await reportAndExit(error.result, world, protoOptions, ports);
 		}
 
 		const message = PhaseRunner.formatError(error);
@@ -137,14 +135,14 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv) {
 
 		// An actuality that ended in an error without a result isn't evidence about the dependency state. Clearing its entry
 		// in the file keeps a later --once run from skipping the group.
-		if (verification) forgetOutcome(verification);
+		if (verification) ports.actualities.forgetOutcome(verification);
 		console.error(`\n${CHECK_NO} ${message}`);
 		process.exit(1);
 	}
 }
 
-async function showSteppersAndExit(specl: TSpecl) {
-	const allSteppers = await getAllSteppers(specl);
+async function showSteppersAndExit(specl: TSpecl, steppers: TCliPorts["steppers"]) {
+	const allSteppers = formattedSteppers(createSteppers(await steppers(specl.steppers)));
 	console.info("Steppers:", JSON.stringify(allSteppers, null, 2));
 	console.info(
 		"Write each step as the text after its name. Quote a literal for a {placeholder}, or name a variable that a set step or the environment defines.\nStart a prose line with a capital letter and end it with one of [.!?:;]. ",
@@ -152,7 +150,13 @@ async function showSteppersAndExit(specl: TSpecl) {
 	process.exit(0);
 }
 
-export function resolveRunPolicy(cliPolicyConfig: TRunPolicyConfig | undefined, env: NodeJS.ProcessEnv, protoOptions: TProtoOptions, specl: TSpecl): TRunPolicyConfig | undefined {
+export function resolveRunPolicy(
+	cliPolicyConfig: TRunPolicyConfig | undefined,
+	env: NodeJS.ProcessEnv,
+	protoOptions: TProtoOptions,
+	specl: TSpecl,
+	fs: Pick<TFileSystem, "readFileSync">,
+): TRunPolicyConfig | undefined {
 	let policyConfig = cliPolicyConfig;
 	if (!policyConfig && env[HAIBUN_RUN_POLICY]) {
 		policyConfig = parseRunPolicyEnv(env[HAIBUN_RUN_POLICY]);
@@ -169,7 +173,7 @@ export function resolveRunPolicy(cliPolicyConfig: TRunPolicyConfig | undefined, 
 			};
 		}
 
-		loadAndValidateRunPolicy(policyConfig, specl.runPolicy, nodeFS);
+		loadAndValidateRunPolicy(policyConfig, specl.runPolicy, fs);
 	}
 	return policyConfig;
 }
@@ -192,7 +196,7 @@ function dryRunExit(featuresBackgrounds: TFeaturesBackgrounds, policyConfig?: TR
 	process.exit(0);
 }
 
-async function reportAndExit(executorResult: TExecutorResult, world: TWorld, protoOptions: TProtoOptions): Promise<never> {
+async function reportAndExit(executorResult: TExecutorResult, world: TWorld, protoOptions: TProtoOptions, ports: TCliPorts): Promise<never> {
 	const showSummary = world.eventLogger.suppressConsole;
 
 	if (executorResult.ok) {
@@ -213,11 +217,11 @@ async function reportAndExit(executorResult: TExecutorResult, world: TWorld, pro
 		}
 	}
 
-	if (staysAfterExecution(protoOptions.options[STAY], executorResult.ok)) await new Promise((resolve) => setTimeout(resolve, 1e9));
+	if (staysAfterExecution(protoOptions.options[STAY], executorResult.ok)) await ports.clock.wait(1e9);
 	process.exit(executorResult.ok ? 0 : 1);
 }
 
-function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
+function getCliWorld(protoOptions: TProtoOptions, bases: TBase, ports: TCliPorts): TWorld {
 	const { KEY: keyIn } = protoOptions.options;
 	const tag = getDefaultTag();
 	Timer.key = keyIn || Timer.key;
@@ -233,12 +237,12 @@ function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 			seqPaths: new Map(),
 			keys: { principal: resolveSitePrincipal() },
 		},
-		prompter: new Prompter(consolePrompter()),
+		prompter: new Prompter(ports.prompter),
 		...protoOptions,
-		clock: actualityClock(),
+		clock: ports.clock,
 		bases,
 	};
-	world.eventLogger = new EventLogger(secretsOf(world), eventSink(), protoOptions.options[NDJSON] === true);
+	world.eventLogger = new EventLogger(secretsOf(world), ports.events, protoOptions.options[NDJSON] === true);
 	const shared = new FeatureVariables(world as TWorld);
 	world.shared = shared;
 	const fullWorld = world as TWorld;
@@ -246,29 +250,24 @@ function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 	return fullWorld;
 }
 
-async function getSpeclOrExit(bases: TBase): Promise<TSpecl> {
+async function getSpeclOrExit(bases: TBase, ports: TCliPorts): Promise<TSpecl> {
 	let specl: TSpecl;
 	try {
-		specl = getConfigFromBase(bases, nodeFS);
+		specl = getConfigFromBase(bases, ports.fs);
 	} catch (e: unknown) {
-		return await usageThenExit(getDefaultOptions(), `${errorDetail(e)}; the bases are ${bases} in ${process.cwd()}`);
+		return await usageThenExit(getDefaultOptions(), ports.steppers, `${errorDetail(e)}; the bases are ${bases} in ${process.cwd()}`);
 	}
-	if (bases.length < 1) return await usageThenExit(specl, "the command doesn't name a base");
+	if (bases.length < 1) return await usageThenExit(specl, ports.steppers, "the command doesn't name a base");
 	return specl;
 }
-export async function usageThenExit(specl: TSpecl, message?: string): Promise<never> {
-	const output = await usage(specl, message);
+export async function usageThenExit(specl: TSpecl, steppers: TCliPorts["steppers"], message?: string): Promise<never> {
+	const output = await usage(specl, steppers, message);
 	console[message ? "error" : "info"](output);
 	process.exit(message ? 1 : 0);
 }
 
-async function getAllSteppers(specl: TSpecl) {
-	const steppers = await getCreateSteppers(specl.steppers);
-	return formattedSteppers(steppers);
-}
-
-export async function usage(specl: TSpecl, message?: string) {
-	const steppers = await getCreateSteppers(specl.steppers);
+export async function usage(specl: TSpecl, loaded: TCliPorts["steppers"], message?: string) {
+	const steppers = createSteppers(await loaded(specl.steppers));
 	let a: { [name: string]: { desc: string } } = {};
 	steppers.forEach((s) => {
 		const { options } = s as IHasOptions;
@@ -293,50 +292,6 @@ export async function usage(specl: TSpecl, message?: string) {
 	return [...ret, ""].join("\n");
 }
 
-/** Returns a run's options. A base option takes its default unless the environment sets it. A module option takes the
- *  base config's value unless an environment variable sets it. Throws where an environment value doesn't parse or
- *  doesn't name an option. */
-export function processBaseEnvToOptionsAndErrors(env: TEnv, specl: TSpecl): TProtoOptions {
-	const options: Record<string, unknown> = { DEST: DEFAULT_DEST };
-	const moduleOptions: TModuleOptions = { ...specl.moduleOptions };
-
-	const errors: string[] = [];
-	let nenv = {};
-
-	const baseOptions = (BaseOptions as IHasOptions).options ?? {};
-	for (const [k, v] of Object.entries(baseOptions)) if (v.default !== undefined) options[k] = v.default;
-
-	for (const [k, value] of Object.entries(env)) {
-		if (value === undefined || !k.startsWith(BASE_PREFIX) || k === HAIBUN_RUN_POLICY) continue;
-		const opt = k.replace(BASE_PREFIX, "");
-		const baseOption = baseOptions[opt];
-
-		if (baseOption) {
-			const res = baseOption.parse(value, nenv);
-			if (res.parseError) {
-				errors.push(res.parseError);
-			} else if (res.env) {
-				nenv = { ...nenv, ...res.env };
-			} else if (res.result === undefined) {
-				errors.push(`option ${opt} doesn't accept ${JSON.stringify(value)}`);
-			} else {
-				options[opt] = res.result;
-			}
-		} else if (k.startsWith(MODULE_OPTION_PREFIX)) {
-			moduleOptions[k] = value;
-		} else {
-			errors.push(`${opt} isn't an option`);
-		}
-	}
-	options.envVariables = nenv;
-
-	if (errors.length > 0) {
-		throw new Error(errors.join("\n"));
-	}
-
-	return { options: BaseOptionsSchema.parse(options), moduleOptions };
-}
-
 /** A filter that a feature path can't contain. Collecting with it returns the base's backgrounds without its features. */
 const NO_FEATURE_MATCHES = "\u0000no-feature-matches";
 
@@ -355,17 +310,23 @@ const emptyIfNoFeatures = (e: unknown): TFeaturesBackgrounds => {
  * order to try lines without copying the setup into the command or writing a temporary feature file. Statements alone
  * run against the base's backgrounds.
  */
-export async function collect(bases: TBase, featureFilter: string[] | undefined, statements: string[], policyConfig?: TRunPolicyConfig): Promise<TFeaturesBackgrounds> {
-	if (statements.length === 0) return await featureSource().collect(bases, featureFilter, policyConfig);
+export async function collect(
+	{ features, fs }: Pick<TCliPorts, "features" | "fs">,
+	bases: TBase,
+	featureFilter: string[] | undefined,
+	statements: string[],
+	policyConfig?: TRunPolicyConfig,
+): Promise<TFeaturesBackgrounds> {
+	if (statements.length === 0) return await features.collect(bases, featureFilter, policyConfig);
 	const statementFeature = withName(bases[0] ?? ".", "statement.feature", statements.join("\n"));
 	if (featureFilter) {
-		const collected = await featureSource().collect(bases, featureFilter, policyConfig);
+		const collected = await features.collect(bases, featureFilter, policyConfig);
 		return { features: [...collected.features, statementFeature], backgrounds: collected.backgrounds };
 	}
 	// A filter that doesn't match a feature collects the base's backgrounds alone. Statements still run against a base
 	// that doesn't exist or doesn't hold features or backgrounds. emptyIfNoFeatures rethrows any other collector error.
-	const holdsNothing = !nodeFS.existsSync(bases[0] ?? ".");
-	const backgrounds = holdsNothing ? [] : (await featureSource().collect(bases, [NO_FEATURE_MATCHES], policyConfig).catch(emptyIfNoFeatures)).backgrounds;
+	const holdsNothing = !fs.existsSync(bases[0] ?? ".");
+	const backgrounds = holdsNothing ? [] : (await features.collect(bases, [NO_FEATURE_MATCHES], policyConfig).catch(emptyIfNoFeatures)).backgrounds;
 	return { features: [statementFeature], backgrounds };
 }
 
@@ -429,65 +390,4 @@ export function processArgs(args: string[]) {
 		}
 	}
 	return { params, configLoc, showHelp, showSteppers, withSteppers, policyConfig, dryRun, once, statements };
-}
-
-/** Returns the configuration file a run reads. The first base that is an existing JSON file or a directory that
- *  contains config.json gives that file. The working directory's config.json is the fallback. */
-function configFileFrom(bases: TBase, fs: TFileSystem): string {
-	const found = bases?.filter((b) => (b.endsWith("json") && fs.existsSync(b)) || fs.existsSync(`${b}/config.json`));
-	const configCandidate = (found && found[0]) || ".";
-	return configCandidate.endsWith("json") ? configCandidate : `${configCandidate}/config.json`;
-}
-
-const sameEntry = (a: TStepperEntry, b: TStepperEntry): boolean => JSON.stringify(a) === JSON.stringify(b);
-const withoutExtends = (specl: TSpecl): TSpecl => Object.fromEntries(Object.entries(specl).filter(([key]) => key !== "extends")) as TSpecl;
-
-/** Returns the configuration `own` states with the configuration `base` that it extends. The base's steppers come first, then the
- *  config's own. The other keys the config states replace the base's, apart from the options, module options and parameters, which
- *  add to the base's, and the `dependsOn` paths and environments, which join the base's. A base's `dependsOn` path is read from the
- *  config that extends it. Throws where the config lists a stepper that its base lists. */
-function extendedSpecl(base: TSpecl, own: TSpecl, ownFile: string, baseFile: string): TSpecl {
-	const repeated = own.steppers.filter((added) => base.steppers.some((held) => sameEntry(held, added)));
-	if (repeated.length > 0)
-		throw new Error(`the configuration ${ownFile} lists ${repeated.map((s) => JSON.stringify(s)).join(", ")}, which its base ${baseFile} lists. Remove them from ${ownFile}.`);
-	const fromHere = (dep: string): string => path.relative(path.dirname(ownFile), path.resolve(path.dirname(baseFile), dep));
-	const joined = <T>(held: T[] | undefined, added: T[] | undefined): T[] | undefined =>
-		held === undefined ? added : added === undefined ? held : [...new Set([...held, ...added])];
-	const merged = {
-		...base,
-		...withoutExtends(own),
-		steppers: [...base.steppers, ...own.steppers],
-		dependsOn: joined(base.dependsOn?.map(fromHere), own.dependsOn),
-		environments: joined(base.environments, own.environments),
-	};
-	for (const key of ["options", "moduleOptions", "appParameters"] as const)
-		if (base[key] !== undefined || own[key] !== undefined) Object.assign(merged, { [key]: { ...base[key], ...own[key] } });
-	return merged;
-}
-
-/** Returns the configuration a file states, with the configuration it extends. Throws where a configuration doesn't read or parse,
- *  or where the extends chain returns to a file already in the chain. */
-function readSpecl(file: string, fs: TFileSystem, passed: readonly string[]): TSpecl {
-	const at = path.resolve(file);
-	if (passed.includes(at)) throw new Error(`the configuration ${file} extends itself through ${[...passed, at].join(" -> ")}. Remove one extends from the chain.`);
-	let own: TSpecl;
-	try {
-		own = SpeclSchema.parse(JSON.parse(fs.readFileSync(file, "utf-8")));
-	} catch (e: unknown) {
-		throw new Error(`the configuration ${file} doesn't read or parse: ${errorDetail(e)}`);
-	}
-	if (own.extends === undefined) return own;
-	const baseFile = path.resolve(path.dirname(file), own.extends);
-	return extendedSpecl(readSpecl(baseFile, fs, [...passed, at]), own, file, baseFile);
-}
-
-/** Returns the configuration the bases name: a JSON config file, or the config.json of a directory. Throws where the bases
- *  name more than one configuration, or where the configuration doesn't read or parse. */
-export function getConfigFromBase(bases: TBase, fs: TFileSystem): TSpecl {
-	const found = bases?.filter((b) => (b.endsWith("json") && fs.existsSync(b)) || fs.existsSync(`${b}/config.json`));
-	if (found?.length > 1) throw new Error(`the bases name several configurations: ${found.join(", ")}. Name one of them with --config.`);
-	const f = configFileFrom(bases, fs);
-	const specl = readSpecl(f, fs, []);
-	if (!specl.options) specl.options = { DEST: DEFAULT_DEST };
-	return specl;
 }

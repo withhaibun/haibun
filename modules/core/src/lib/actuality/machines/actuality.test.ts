@@ -2,7 +2,8 @@
 import { describe, expect, it } from "vitest";
 import { EXECUTION_MODE, STATUS } from "../../domains/protocol.js";
 import { assertTable, pickWith, runSequences, staying } from "../../test/machine-table.js";
-import { INITIAL_ACTUALITY, LEVEL_STATUS, actualityMachine, runningFeature, transition, type TActuality, type TActualityMove } from "./actuality.js";
+import { INITIAL_ACTUALITY, actualityMachine, runningFeature, transition, type TActuality, type TActualityMove } from "./actuality.js";
+import { LEVEL_STATUS } from "../domains/level-status.js";
 
 const fold = (moves: readonly TActualityMove[], from: TActuality = INITIAL_ACTUALITY): TActuality => moves.reduce(transition, from);
 const execution = (stage: "start" | "end", status?: string): TActualityMove => ({

@@ -11,10 +11,9 @@
 import { z } from "zod";
 import { ACTUALITY_LEVELS, STATUS, isHandedOutEvent, isSpeculativeEvent, type TActualityLevel } from "../../domains/protocol.js";
 import { machine, type Machine } from "../../machines/machine.js";
+import { LEVEL_STATUS, type TLevelStatus } from "../domains/level-status.js";
+import type { TStepFailure } from "../domains/step-failure.js";
 
-/** The words of a level's status: pending until it starts, running until it ends, and how it ended. */
-export const LEVEL_STATUS = { pending: STATUS.pending, running: STATUS.running, completed: STATUS.completed, failed: STATUS.failed, stopped: STATUS.stopped } as const;
-export type TLevelStatus = (typeof LEVEL_STATUS)[keyof typeof LEVEL_STATUS];
 /** The statuses that end a level. */
 export type TLevelEnd = Exclude<TLevelStatus, typeof STATUS.pending | typeof STATUS.running>;
 const ENDS: ReadonlySet<string> = new Set<TLevelEnd>([LEVEL_STATUS.completed, LEVEL_STATUS.failed, LEVEL_STATUS.stopped]);
@@ -36,11 +35,6 @@ export const ActualityMoveSchema = z.object({
 	intent: z.object({ mode: z.string().optional() }).optional(),
 });
 export type TActualityMove = z.infer<typeof ActualityMoveSchema>;
-
-/** A step that ended without completing, where its failure is the execution's own: its id, and its text and why it
- *  failed where its end states them. */
-export const StepFailureSchema = z.object({ id: z.string(), step: z.string().optional(), message: z.string().optional() });
-export type TStepFailure = z.infer<typeof StepFailureSchema>;
 
 export type TScenarioState = { id: string; name?: string; status: TLevelStatus };
 
