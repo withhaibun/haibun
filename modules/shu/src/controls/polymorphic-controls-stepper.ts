@@ -18,15 +18,15 @@
  *
  * Steps never lead with the article "the", haibun treats such lines as narrative prose, not matchable steps.
  */
-import { MEDIA_TYPE } from "@haibun/core/lib/media-types.js";
+import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { SHU_TEST_IDS } from "../domains/test-ids.js";
 import { SETTINGS_GROUP, SHU_EVENT, SHU_TAG, type TSettingsGroup } from "../domains/elements.js";
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps, type TFeatureStep } from "@haibun/core/lib/astepper.js";
 import { DOMAIN_PERSISTED_TYPE, type TDomainDefinition } from "@haibun/core/lib/resources.js";
-import { DOMAIN_NUMBER, DOMAIN_PERSISTED_TYPES, individualRefInputSchema, listedSchema, NameSchema } from "@haibun/core/lib/domains.js";
+import { DOMAIN_NUMBER, DOMAIN_PERSISTED_TYPES, individualRefInputSchema, listedSchema, NameSchema } from "@haibun/core/lib/domains/domains.js";
 import { actionOK, actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
-import type { TActionResult } from "@haibun/core/schema/protocol.js";
+import type { TActionResult } from "@haibun/core/lib/domains/protocol.js";
 import { saveImageArtifact } from "@haibun/domain-storage/pipelines/image-artifact.js";
 import type { Locator, Page } from "playwright";
 import { VIEW, VIEW_TYPES, isLaneView } from "../page/graph/domains/views.js";

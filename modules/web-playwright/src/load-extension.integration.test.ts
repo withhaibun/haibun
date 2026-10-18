@@ -9,7 +9,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { failWithDefaults, passWithDefaults } from "@haibun/core/lib/test/lib.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
-import { DEFAULT_DEST } from "@haibun/core/schema/protocol.js";
+import { DEFAULT_DEST } from "@haibun/core/lib/domains/protocol.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import StorageMem from "@haibun/storage-mem/storage-mem-stepper.js";
 import WebPlaywright from "./web-playwright-stepper.js";

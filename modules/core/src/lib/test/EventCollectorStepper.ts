@@ -1,7 +1,7 @@
 import { AStepper } from "../steps/domains/stepper.js";
 import type { TWorld } from "../actuality/domains/world.js";
 
-import { THaibunEvent } from "../../schema/protocol.js";
+import { THaibunEvent } from "../domains/protocol.js";
 
 /**
  * Collects events for test inspection.

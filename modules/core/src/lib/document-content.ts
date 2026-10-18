@@ -4,10 +4,10 @@
  */
 import { RecordsSchema } from "./json-text.js";
 import { itemAt } from "./util/item-at.js";
-import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TStepEvent, TLifecycleEvent, TLogEvent, TJsonArtifact } from "../schema/protocol.js";
-import { HAIBUN_LOG_LEVELS } from "../schema/protocol.js";
+import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TStepEvent, TLifecycleEvent, TLogEvent, TJsonArtifact } from "./domains/protocol.js";
+import { HAIBUN_LOG_LEVELS } from "./domains/protocol.js";
 import { parseRecordName } from "./actuality/domains/seq-path.js";
-import { MEDIA_TYPE } from "./media-types.js";
+import { MEDIA_TYPE } from "./domains/media-types.js";
 
 /** The classes of a row of a step or a log message in the document. */
 const LOG_ROW_CLASS = "log-row font-mono text-[11px] text-slate-500 my-0 leading-tight";

@@ -3,7 +3,7 @@
  * cluster per type, held per scope and extended by the live stream. Where the site doesn't respond, the graph the page
  * holds returns the sample, its totals and its clusters as the site would have.
  */
-import type { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
+import type { QuadGraphModel } from "@haibun/core/lib/derivations/quad-graph-model.js";
 import type { AccessLevel } from "@haibun/core/lib/resources.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import * as Steps from "../../derivations/steps.js";

@@ -5,7 +5,7 @@
  */
 import { z } from "zod";
 import { PartSchema, type TPart } from "@haibun/core/lib/resources.js";
-import { PART_DIRECTIVE, partDirectiveFor, splitPart } from "@haibun/core/lib/typed-links.js";
+import { PART_DIRECTIVE, partDirectiveFor, splitPart } from "@haibun/core/lib/domains/typed-links.js";
 import { SHU_ATTR, SHU_TAG } from "../../domains/elements.js";
 import { splitPaneEntry } from "./address.js";
 import { objectId } from "./record-fields.js";

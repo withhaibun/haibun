@@ -3,7 +3,7 @@ import { EventLogger } from "./event-logger.js";
 import { OBSCURED_VALUE } from "../domains/secrets.js";
 import type { TEventSink, TSecrets } from "../ports.js";
 import { serializedEvent } from "../derivations/serialized-event.js";
-import { BlipEvent, ImageArtifact, LogEvent, type THaibunEvent } from "../../../schema/protocol.js";
+import { BlipEvent, ImageArtifact, LogEvent, type THaibunEvent } from "../../domains/protocol.js";
 import { runAuthorizedWith, runInStep, runReadingAt } from "../../capability-context.js";
 import { readAction, writeAction } from "../../actions.js";
 import { Access } from "../../resources.js";

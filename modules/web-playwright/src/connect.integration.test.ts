@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { chromium, type BrowserContext, type Page } from "playwright";
 
 import { failWithDefaults, freePort, getDefaultWorld, passWithDefaults } from "@haibun/core/lib/test/lib.js";
-import { DEFAULT_DEST } from "@haibun/core/schema/protocol.js";
+import { DEFAULT_DEST } from "@haibun/core/lib/domains/protocol.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { HTTP_REQUEST_LABEL } from "@haibun/core/lib/resources.js";

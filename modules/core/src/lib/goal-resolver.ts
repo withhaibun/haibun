@@ -20,7 +20,7 @@ import { itemAt } from "./util/item-at.js";
 import { navigateValue } from "./util/dot-path.js";
 import { SOURCE_DOMAIN, type TDomainChainGraph, type TDomainChainStep } from "./domain-chain.js";
 import type { TFact } from "./records/domains/facts.js";
-import { getCompositeFields, zodTypeLabel, type TCompositeField } from "./composite-domain.js";
+import { getCompositeFields, zodTypeLabel, type TCompositeField } from "./domains/composite-domain.js";
 import type { TRegisteredDomain } from "./resources.js";
 import { mayCall } from "./actions.js";
 

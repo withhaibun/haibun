@@ -2,8 +2,8 @@
  * The events hub. Every event of actuality is emitted through it once: the hub states the event's access level, obscures
  * the secret values it states, delivers it to each subscriber of its kind, and writes its serialized form to the sink.
  */
-import { HAIBUN_LOG_LEVELS, LogEvent } from "../../../schema/protocol.js";
-import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TEventKind } from "../../../schema/protocol.js";
+import { HAIBUN_LOG_LEVELS, LogEvent } from "../../domains/protocol.js";
+import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TEventKind } from "../../domains/protocol.js";
 import type { TFeatureStep } from "../domains/stepper.js";
 import { formatSeqPath } from "../../actuality/domains/seq-path.js";
 import { failFastOrLog } from "../../dev-mode.js";

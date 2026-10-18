@@ -9,7 +9,7 @@
  * `describeStorage` with its own factory and a writable directory.
  */
 import { describe, it, expect } from "vitest";
-import { CAPTURE, DEFAULT_DEST } from "@haibun/core/schema/protocol.js";
+import { CAPTURE, DEFAULT_DEST } from "@haibun/core/lib/domains/protocol.js";
 import { getDefaultWorld, getTestWorldWithOptions } from "@haibun/core/lib/test/lib.js";
 import type { AStorage } from "../domains/storage.js";
 

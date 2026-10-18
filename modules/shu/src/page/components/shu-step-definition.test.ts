@@ -6,7 +6,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
-import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
+import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { ShuStepDefinition } from "./shu-step-definition.js";
 import "./shu-ref-element.js";
 

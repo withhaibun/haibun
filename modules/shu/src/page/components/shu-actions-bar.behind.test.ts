@@ -4,8 +4,8 @@
  * those results as behind, whatever recorded it; an event that doesn't change a record doesn't.
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
-import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
+import { buildConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
+import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
 import { ShuActionsBar } from "./shu-actions-bar.js";
 import { SHU_EVENT } from "../../domains/elements.js";
 import { persistedTypeDefinition, serveThePage, setupShuTest, type TShuTestHandle } from "../../test/setup.js";

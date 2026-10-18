@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { DOMAIN_GRAPH_QUERY, GraphQuerySchema, DOMAIN_DENSITY_QUERY, DensityQuerySchema } from "./steps/domains/quad-types.js";
 import { fromJsonText, JsonObjectTextSchema } from "./json-text.js";
-import { DOMAIN_FILE_DATA, DOMAIN_IMAGE_REFERENCE, FileDataSchema, ImageReferenceSchema, recordedFileData } from "./media-object.js";
+import { DOMAIN_FILE_DATA, DOMAIN_IMAGE_REFERENCE, FileDataSchema, ImageReferenceSchema, recordedFileData } from "./domains/media-object.js";
 import { extractSeqPathPrefix, parseSeqPath, seqPathDomainDefinition } from "./actuality/domains/seq-path.js";
 import { factDomainDefinition } from "./records/domains/facts.js";
 import { variableDomainDefinition } from "./records/domains/variables.js";
@@ -10,8 +10,8 @@ import { LintFindingSchema, LintSummarySchema } from "./domain-chain-lint.js";
 import { AStepper, TFeatureStep } from "./steps/domains/stepper.js";
 import { TDomainDefinition } from "./resources.js";
 import type { TWorld } from "./actuality/domains/world.js";
-import { TStepValue } from "../schema/protocol.js";
-import { DOMAIN_INDIVIDUAL_ADDRESS, IndividualAddressSchema } from "./typed-links.js";
+import { TStepValue } from "./domains/protocol.js";
+import { DOMAIN_INDIVIDUAL_ADDRESS, IndividualAddressSchema } from "./domains/typed-links.js";
 import {
 	DOMAIN_ACTIONS,
 	DOMAIN_AFFORDANCES,
@@ -59,7 +59,7 @@ import {
 	mapDefinitionsToDomains,
 	recordIdInputSchema,
 	NameSchema,
-} from "./domains.js";
+} from "./domains/domains.js";
 import { findFeatureStepsFromStatement } from "./actuality/pipelines/resolver.js";
 
 const numberSchema = z.coerce.number({ error: "invalid number" }).refine((value) => Number.isFinite(value), "invalid number");

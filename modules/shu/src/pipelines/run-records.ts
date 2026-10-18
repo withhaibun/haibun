@@ -3,12 +3,12 @@
  * actuality logs it, over the stream; the record is the durable copy a reader reads afterwards. A record's type declares
  * that writing it isn't announced, so a statement logged once is announced once.
  */
-import type { TTag } from "@haibun/core/lib/ttag.js";
+import type { TTag } from "@haibun/core/lib/domains/ttag.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import type { TArtifactEvent, THaibunEvent } from "@haibun/core/schema/protocol.js";
+import type { TArtifactEvent, THaibunEvent } from "@haibun/core/lib/domains/protocol.js";
 import { executionOf, extractSeqPathPrefix, formatRecordName, parseSeqPath } from "@haibun/core/lib/seq-path.js";
-import { LOG_MESSAGE_EDGE, LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
-import { RUN_ARTIFACT_EDGE, RUN_ARTIFACT_FIELD, RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
+import { LOG_MESSAGE_EDGE, LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL } from "@haibun/core/lib/domains/log-message.js";
+import { RUN_ARTIFACT_EDGE, RUN_ARTIFACT_FIELD, RUN_ARTIFACT_LABEL } from "@haibun/core/lib/domains/run-artifact.js";
 
 /** The step an event happened in, as the path actuality walks. An event that doesn't name a step has an empty path. */
 function stepOf(e: THaibunEvent): number[] {

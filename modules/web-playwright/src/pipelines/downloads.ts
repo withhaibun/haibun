@@ -1,6 +1,6 @@
 /** A download the page starts: expected before the action that causes it, and saved to a file once it arrives. */
 import { actionNotOK, errorDetail } from "@haibun/core/lib/util/index.js";
-import { OK, type TActionResult } from "@haibun/core/schema/protocol.js";
+import { OK, type TActionResult } from "@haibun/core/lib/domains/protocol.js";
 import type { BrowserSession } from "./browser-session.js";
 
 /** Expects the page's next download. Waiting for an event isn't an action on the page, so it doesn't hold the page from the action that causes it. */

@@ -9,7 +9,7 @@ import { readSteps } from "../pipelines/read-steps.js";
 import { heldCatalog } from "../pipelines/held-catalog.js";
 import * as Reads from "../pipelines/read-records.js";
 import * as CallStep from "../pipelines/call-step.js";
-import type { TCallLink } from "@haibun/core/lib/hypermedia.js";
+import type { TCallLink } from "@haibun/core/lib/domains/hypermedia.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { RPC_METHOD } from "../../domains/elements.js";
 import { cachedGraph, readsHeldGraph } from "../client-cache/controllers/device-controller.js";

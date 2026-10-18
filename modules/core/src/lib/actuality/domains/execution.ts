@@ -1,7 +1,7 @@
 import type { z } from "zod";
 import { z as zr } from "zod";
 
-import { MODULE_OPTION_PREFIX } from "../../../schema/protocol.js";
+import { MODULE_OPTION_PREFIX } from "../../domains/protocol.js";
 
 // ============================================================================
 // Specl (runtime config file)

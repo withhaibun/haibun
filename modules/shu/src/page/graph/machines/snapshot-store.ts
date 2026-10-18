@@ -4,7 +4,7 @@
  * reads and chip choices never replace another scope's snapshot. The page root pins one store on the page, so the app and
  * an external view, each a bundle of its own, read the same snapshots.
  */
-import type { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
+import type { QuadGraphModel } from "@haibun/core/lib/derivations/quad-graph-model.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import type { TGraphSnapshot, TSnapshotKey, TSnapshotListener, TViewContext } from "../domains/snapshot.js";
 

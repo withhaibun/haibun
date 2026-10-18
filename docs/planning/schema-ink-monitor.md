@@ -1,6 +1,6 @@
 # Schema and Monitor Redesign Plan
 
-**Status:** This plan dates from December 2025. Its "Current" sections and its progress notes describe the code at that date. Core doesn't define `TMessageContext`, `EExecutionMessageType`, `ILogOutput` or a `Logger` class. The world's `eventLogger` field holds the logger. Its type is `IEventLogger`. The `EventLogger` class implements `IEventLogger`. `modules/core/src/schema/protocol.ts` defines the event schemas and `EventFormatter`. `IStepperCycles` declares `onEvent` in `modules/core/src/lib/astepper.ts`. The `@haibun/monitor-tui` and `@haibun/monitor-otel` modules exist. `@haibun/monitor-core` and `monitor-cli` don't exist.
+**Status:** This plan dates from December 2025. Its "Current" sections and its progress notes describe the code at that date. Core doesn't define `TMessageContext`, `EExecutionMessageType`, `ILogOutput` or a `Logger` class. The world's `eventLogger` field holds the logger. Its type is `IEventLogger`. The `EventLogger` class implements `IEventLogger`. `modules/core/src/lib/domains/protocol.ts` defines the event schemas and `EventFormatter`. `IStepperCycles` declares `onEvent` in `modules/core/src/lib/astepper.ts`. The `@haibun/monitor-tui` and `@haibun/monitor-otel` modules exist. `@haibun/monitor-core` and `monitor-cli` don't exist.
 
 ## Overview
 

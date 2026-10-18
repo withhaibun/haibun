@@ -5,7 +5,7 @@
  * thumb's size and its visible row window on each change, and states whether the reader or the page moved it.
  */
 import { z } from "zod";
-import { declareBlips, type TBlipDeclaration } from "@haibun/core/lib/blips.js";
+import { declareBlips, type TBlipDeclaration } from "@haibun/core/lib/domains/blips.js";
 
 /** A frame held the page's main thread past the browser's long-frame threshold: `value` is the frame's duration. */
 export const PAGE_LONG_FRAME_BLIP = "haibun.shu.page.long_frame";

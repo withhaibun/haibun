@@ -17,8 +17,8 @@ import type { AStepper, TStepperStep, TFeatureStep } from "../domains/stepper.js
 import { mapInputToStepValues, literalTerm, renderStepLine } from "../derivations/named-vars.js";
 import { actionNotOK } from "../../util/index.js";
 import { dispatchStep, type DispatchContext } from "../../actuality/pipelines/step-dispatch.js";
-import { allocateSyntheticSeqPath } from "../../host-id.js";
-import type { TSeqPath, TStepResult } from "../../../schema/protocol.js";
+import { allocateSyntheticSeqPath } from "../../domains/host-id.js";
+import type { TSeqPath, TStepResult } from "../../domains/protocol.js";
 
 /**
  * Returns the feature step that a call from a transport (RPC, MCP) runs as. A feature line holds its feature step; a call

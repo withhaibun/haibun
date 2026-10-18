@@ -2,7 +2,7 @@
 import type { TResolvedFeature } from "@haibun/core/lib/astepper.js";
 import { featureAsData } from "@haibun/core/lib/features.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import { VideoArtifact } from "@haibun/core/schema/protocol.js";
+import { VideoArtifact } from "@haibun/core/lib/domains/protocol.js";
 import type { AStorage } from "@haibun/domain-storage/domains/storage.js";
 import { relative, resolve } from "node:path";
 import type { TFiles } from "../ports.js";

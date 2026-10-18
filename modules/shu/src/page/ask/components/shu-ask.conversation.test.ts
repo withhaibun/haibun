@@ -8,8 +8,8 @@
  * closes. A session is read back from the store, a new conversation leaves it, and the view hash addresses it. A turn of
  * the conversation activates the actions bar's scope with each comment it records.
  */
-import { fileDataParts } from "@haibun/core/lib/media-object.js";
-import { DENOTES } from "@haibun/core/lib/typed-links.js";
+import { fileDataParts } from "@haibun/core/lib/domains/media-object.js";
+import { DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
@@ -30,7 +30,7 @@ import { INITIAL_SUBJECT, SCOPE, activeEntry, currentSubject, currentSubjectStat
 import { EMBEDDED_PAGE_TYPE } from "../../../domains/embedding.js";
 import { embeddedPageView } from "../../root.js";
 import { activePane } from "../../controllers/page-cell-controller.js";
-import { counted } from "@haibun/core/lib/hypermedia.js";
+import { counted } from "@haibun/core/lib/domains/hypermedia.js";
 
 /** The pane the reader is on, the view it holds, and what a turn is sent of the page: that view's statement, then the
  *  columns open in the workspace. */

@@ -4,9 +4,9 @@
  */
 import { NOTHING_SELECTED_LABEL } from "../../schemas.js";
 import { type TContextPattern, type TContextIndividual } from "@haibun/core/lib/conversation/domains/conversation.js";
-import { DENOTES } from "@haibun/core/lib/typed-links.js";
+import { DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import { statedTotal, type TCounted } from "@haibun/core/lib/hypermedia.js";
+import { statedTotal, type TCounted } from "@haibun/core/lib/domains/hypermedia.js";
 
 /** Constrains `x` to [min, max]. */
 export const clamp = (x: number, min: number, max: number): number => Math.min(max, Math.max(min, x));

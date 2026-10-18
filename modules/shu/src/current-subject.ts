@@ -13,7 +13,7 @@
  * the ask and the context status each read an output of the state rather than holding a piece of it.
  */
 import type { AccessQueryLevel } from "@haibun/core/lib/resources.js";
-import { DENOTES } from "@haibun/core/lib/typed-links.js";
+import { DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import type { TBundle, TPageContext } from "./schemas.js";
 import type { TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { sharedMachine } from "./page/root.js";

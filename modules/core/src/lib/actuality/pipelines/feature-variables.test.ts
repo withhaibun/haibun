@@ -3,9 +3,9 @@ import { z } from "zod";
 import { FeatureVariables } from "./feature-variables.js";
 import type { TWorld } from "../domains/world.js";
 import { TFeatureStep } from "../../steps/domains/stepper.js";
-import { TStepValue, Origin } from "../../../schema/protocol.js";
+import { TStepValue, Origin } from "../../domains/protocol.js";
 import { getDefaultWorld } from "../../test/lib.js";
-import { DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STRING, registerDomains } from "../../domains.js";
+import { DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STRING, registerDomains } from "../../domains/domains.js";
 import { Access, DOMAIN_PERSISTED_TYPE, SEQ_PATH_LABEL } from "../../resources.js";
 import { STEP_LEVEL, executionOf, formatRecordName } from "../domains/seq-path.js";
 

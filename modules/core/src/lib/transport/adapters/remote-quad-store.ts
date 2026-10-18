@@ -8,7 +8,7 @@
  */
 import { RemoteInstance } from "./rpc-client.js";
 import { STORE_METHOD_PREFIX, requiredStoreCapability } from "../../store-protocol.js";
-import type { TRequestSigner } from "../../authority-types.js";
+import type { TRequestSigner } from "../../domains/authority-types.js";
 import type { AccessLevel } from "../../resources.js";
 import type { IQuadStore } from "../../steps/ports.js";
 import type {

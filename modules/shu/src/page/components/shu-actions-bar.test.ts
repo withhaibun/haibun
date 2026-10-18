@@ -7,8 +7,8 @@
 import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { Access } from "@haibun/core/lib/resources.js";
-import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
-import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
+import { buildConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
+import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
 import { ShuActionsBar } from "./shu-actions-bar.js";
 import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";

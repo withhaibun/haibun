@@ -5,7 +5,7 @@
  * needs the key.
  */
 import { actionUnder, capabilityAllows, delegatedActions, type TDelegation } from "@haibun/core/lib/actions.js";
-import { DELEGATIONS_READ_ACTION, DELEGATIONS_READ_METHOD, type TDelegationRecord, type TDelegations } from "@haibun/core/lib/authority-types.js";
+import { DELEGATIONS_READ_ACTION, DELEGATIONS_READ_METHOD, type TDelegationRecord, type TDelegations } from "@haibun/core/lib/domains/authority-types.js";
 import type { TProveRequest } from "@haibun/core/lib/rpc-wire.js";
 import { didKeyOf } from "../derivations/did-key.js";
 import type { TInvocationSigner, TKeyStore, TProvedRequest, TSigningKey } from "../ports.js";

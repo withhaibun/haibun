@@ -1,12 +1,12 @@
 import type { TWorld } from "@haibun/core/lib/world.js";
-import { OK } from "@haibun/core/schema/protocol.js";
+import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOptionName, intOrError, errorDetail } from "@haibun/core/lib/util/index.js";
 import { AStepper, type IHasCycles, type IHasOptions, type TEndExecution, type TEndFeature, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { actionList } from "@haibun/core/lib/actions.js";
-import { DOMAIN_TEXT, DOMAIN_FILE_PATH, DOMAIN_ROUTE, DOMAIN_LINK } from "@haibun/core/lib/domains.js";
+import { DOMAIN_TEXT, DOMAIN_FILE_PATH, DOMAIN_ROUTE, DOMAIN_LINK } from "@haibun/core/lib/domains/domains.js";
 import { STORE_METHOD_PREFIX, storeMethods } from "@haibun/core/lib/store-protocol.js";
-import { resolveHostId, syntheticSeqPath } from "@haibun/core/lib/host-id.js";
+import { resolveHostId, syntheticSeqPath } from "@haibun/core/lib/domains/host-id.js";
 import { Access, ENDPOINT_LABEL, HTTP_HOST_LABEL, LinkRelations } from "@haibun/core/lib/resources.js";
 import { fromJsonText } from "@haibun/core/lib/json-text.js";
 import { basicAuthUsers, type TBasicAuthUser } from "@haibun/core/lib/basic-auth.js";

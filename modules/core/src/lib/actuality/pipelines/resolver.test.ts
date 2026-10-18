@@ -1,9 +1,9 @@
 import { describe, it, test, expect } from "vitest";
 
 import type { TExpandedFeature } from "../domains/execution.js";
-import { OK } from "../../../schema/protocol.js";
+import { OK } from "../../domains/protocol.js";
 import { AStepper, type CStepper } from "../../steps/domains/stepper.js";
-import { asExpandedFeatures } from "../../resolver-features.js";
+import { asExpandedFeatures } from "../../test/resolver-features.js";
 import TestSteps from "../../test/TestSteps.js";
 import { createSteppers } from "../../util/index.js";
 import { itemAt } from "../../util/item-at.js";

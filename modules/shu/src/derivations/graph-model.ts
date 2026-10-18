@@ -1,5 +1,5 @@
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
-import { statedTotal, type TCounted } from "@haibun/core/lib/hypermedia.js";
+import { statedTotal, type TCounted } from "@haibun/core/lib/domains/hypermedia.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { HYPERMEDIA_ROLE_KEY, HYPERMEDIA_ROLE_REL_KEY, SITE_KEY, type GraphEdge, type GraphModel, type GraphNode, type TBuildGraphModelOptions } from "../domains/graph-model.js";
 

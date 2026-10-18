@@ -5,7 +5,7 @@ import { checkModuleIsClass } from "./node/module-loader.js";
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getCreateSteppers } from "../test/lib.js";
 import TestSteps from "../test/TestSteps.js";
 import TestStepsWithOptions from "../test/TestStepsWithOptions.js";
-import { OK } from "../../schema/protocol.js";
+import { OK } from "../domains/protocol.js";
 import { IHasOptions, StepperKinds, type TStepperSteps } from "../steps/domains/stepper.js";
 import { AStepper } from "../steps/domains/stepper.js";
 import { constructorName } from "./index.js";

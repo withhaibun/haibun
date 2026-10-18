@@ -5,12 +5,12 @@
  */
 import { html, nothing, type TemplateResult } from "lit";
 import { calledParts, factSeqPath } from "@haibun/core/lib/seq-path.js";
-import { DENOTES, REF_DENOTES } from "@haibun/core/lib/typed-links.js";
+import { DENOTES, REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import type { TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { findDomain } from "../controllers/registry-controller.js";
 import { edgeRecordType } from "../controllers/catalog-controller.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
-import { statedTotal, type TCounted } from "@haibun/core/lib/hypermedia.js";
+import { statedTotal, type TCounted } from "@haibun/core/lib/domains/hypermedia.js";
 import { esc, refLabel, renderRef, stepPathRef, type TRefKind } from "../derivations/markdown.js";
 import "./shu-ref-element.js";
 

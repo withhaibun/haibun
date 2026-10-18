@@ -5,7 +5,7 @@ import { readingAt, runActingAs, runAuthorizedWith, runReadingAt } from "./capab
 import { EVERY_ACTION, readAction } from "./actions.js";
 import { AUTHORITY_CAPABILITIES } from "./actions.js";
 import { Access } from "./resources.js";
-import type { IAuthorityVerifier, TActingFor, TAuthorityEvidence, TOutgoingRequest } from "./authority-types.js";
+import type { IAuthorityVerifier, TActingFor, TAuthorityEvidence, TOutgoingRequest } from "./domains/authority-types.js";
 import { stubVerifier } from "./test/fake-authority.js";
 
 describe("SessionAuthority", () => {

@@ -2,7 +2,7 @@
  * A read a view shows: pending before it starts, running, completed with what it read, or failed with its refusal.
  * `machines/load.ts` moves it.
  */
-import { STATUS } from "@haibun/core/schema/protocol.js";
+import { STATUS } from "@haibun/core/lib/domains/protocol.js";
 import type { TPageRefusal } from "./refusal.js";
 
 /** A read's statuses, a subset of the status vocabulary. */

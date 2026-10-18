@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildGraphModelFromQuads, omittedLabel } from "./graph-model.js";
 import { HYPERMEDIA_ROLE_KEY, SITE_KEY } from "../domains/graph-model.js";
-import { COUNT_CEILING, statedTotal } from "@haibun/core/lib/hypermedia.js";
+import { COUNT_CEILING, statedTotal } from "@haibun/core/lib/domains/hypermedia.js";
 // An injected, ordered role list, consumers derive theirs from the catalog controller's roleEdgeLabels() (declared rolePriority);
 // the merge itself is generic, so the fixture doesn't name a consumer vocabulary.
 const TEST_ROLE_ORDER: readonly string[] = ["archive", "keeper", "maker", "subjectOf", "performedBy", "author", "wasAttributedTo", "attributedTo"];

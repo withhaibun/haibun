@@ -9,7 +9,7 @@ import { readFacts } from "../lib/records/pipelines/facts.js";
 import { readEvery } from "../lib/records/pipelines/record-reads.js";
 import { VARIABLE_FIELD } from "../lib/records/domains/variables.js";
 import { Access, SEQ_PATH_LABEL } from "../lib/resources.js";
-import type { THaibunEvent } from "../schema/protocol.js";
+import type { THaibunEvent } from "../lib/domains/protocol.js";
 
 const SECRET = "pg-pass-456";
 const SECRET_ENV = "DB_PASSWORD";

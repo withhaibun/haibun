@@ -28,9 +28,9 @@ import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js
 import type { TAnnotationDraft } from "../domains/entity.js";
 import type { TAnnotationView } from "@haibun/core/lib/resources.js";
 import { type TW3CTextAnnotation, toW3CAnnotations } from "../derivations/annotations.js";
-import { locateQuoteOffsets } from "@haibun/core/lib/quote-anchor.js";
+import { locateQuoteOffsets } from "@haibun/core/lib/domains/quote-anchor.js";
 import { principalAddress, type TQuoteAnchor } from "@haibun/core/lib/resources.js";
-import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
+import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { refTpl } from "./shu-ref.js";
 import "./shu-scrollbar.js";
 import { SCROLL_TO_INDEX } from "./shu-scrollbar.js";

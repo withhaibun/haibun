@@ -1,14 +1,14 @@
 import { z } from "zod";
 
 import { runEnvEntries, runEnvVariable, type TWorld } from "../lib/actuality/domains/world.js";
-import { OK, Origin, TProvenanceIdentifier, TOrigin, TActionResult, TStepValue, type TStepValueValue } from "../schema/protocol.js";
+import { OK, Origin, TProvenanceIdentifier, TOrigin, TActionResult, TStepValue, type TStepValueValue } from "../lib/domains/protocol.js";
 import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TStartScenario } from "../lib/steps/domains/stepper.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getStepTerm, errorDetail } from "../lib/util/index.js";
 import { itemAt } from "../lib/util/item-at.js";
 import { FlowRunner } from "../lib/steps/pipelines/flow-runner.js";
 import { FeatureVariables, statedValue } from "../lib/actuality/pipelines/feature-variables.js";
 import { OBSCURED_VALUE } from "../lib/steps/domains/secrets.js";
-import { sanitizeObjectSecrets } from "../lib/util/secret-utils.js";
+import { sanitizeObjectSecrets } from "../lib/domains/secret-utils.js";
 import {
 	DOMAIN_DOMAIN_KEY,
 	DOMAIN_DOMAIN_NAME,
@@ -26,10 +26,10 @@ import {
 	globSource,
 	registerDomains,
 	registeredDomain,
-} from "../lib/domains.js";
+} from "../lib/domains/domains.js";
 import { fromJsonText } from "../lib/json-text.js";
-import { typeCollectionRemedy } from "../lib/typed-links.js";
-import { HypermediaContextSchema, hypermediaDomainFromContext, type THypermediaContext } from "../lib/hypermedia.js";
+import { typeCollectionRemedy } from "../lib/domains/typed-links.js";
+import { HypermediaContextSchema, hypermediaDomainFromContext, type THypermediaContext } from "../lib/domains/hypermedia.js";
 import { AccessLevelSchema, edgeRanges, isPersisted, REL_CONTEXT, LinkRelations, type TRel, type TRegisteredDomain, type TDomainDefinition } from "../lib/resources.js";
 
 const clearVars = (vars: VariablesStepper) => async () => {

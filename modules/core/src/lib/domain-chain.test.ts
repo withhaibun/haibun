@@ -3,8 +3,8 @@ import { z } from "zod";
 
 import { AStepper, type TStepperSteps } from "./steps/domains/stepper.js";
 import type { TRegisteredDomain } from "./resources.js";
-import { mapDefinitionsToDomains } from "./domains.js";
-import { OK } from "../schema/protocol.js";
+import { mapDefinitionsToDomains } from "./domains/domains.js";
+import { OK } from "./domains/protocol.js";
 import { actionOKWithProducts } from "./util/index.js";
 import { buildDomainChain } from "./domain-chain.js";
 

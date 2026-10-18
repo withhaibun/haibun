@@ -13,7 +13,7 @@ import { fromJsonText } from "@haibun/core/lib/json-text.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { Access, AccessQueryLevelSchema, DOMAIN_PERSISTED_TYPE, type TDomainDefinition } from "@haibun/core/lib/resources.js";
 import { actionNotOK, actionOKWithProducts, errorDetail } from "@haibun/core/lib/util/index.js";
-import { typeCollectionRemedy } from "@haibun/core/lib/typed-links.js";
+import { typeCollectionRemedy } from "@haibun/core/lib/domains/typed-links.js";
 import {
 	DOMAIN_GRAPH_QUERY,
 	GraphQueryResultSchema,
@@ -24,7 +24,7 @@ import {
 	IndividualWithEdgesSchema,
 } from "@haibun/core/lib/quad-types.js";
 import { recordWithEdges } from "@haibun/core/lib/records/pipelines/record-reads.js";
-import { DOMAIN_RECORD_ID, DOMAIN_LINK, DOMAIN_PRINCIPAL_REF, type TIndividualRef } from "@haibun/core/lib/domains.js";
+import { DOMAIN_RECORD_ID, DOMAIN_LINK, DOMAIN_PRINCIPAL_REF, type TIndividualRef } from "@haibun/core/lib/domains/domains.js";
 import { clusteredQuads, federate, selectValues, servingSite } from "./pipelines/graph-source.js";
 import { openPeerGraphSource } from "./root.js";
 

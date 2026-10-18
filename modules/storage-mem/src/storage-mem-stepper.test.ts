@@ -2,7 +2,7 @@ import { vitest, describe, it, expect, vi } from "vitest";
 import { afterEach } from "node:test";
 
 vitest.useFakeTimers();
-import { OK } from "@haibun/core/schema/protocol.js";
+import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import StorageMem from "./storage-mem-stepper.js";
 import { describeStorage } from "@haibun/domain-storage/test/storage-conformance.js";

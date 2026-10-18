@@ -19,7 +19,7 @@ import type { TFact } from "./records/domains/facts.js";
 import { stepMethodName } from "./steps/domains/step-method.js";
 import { mayCall } from "./actions.js";
 import { buildDomainChain, SOURCE_DOMAIN, type TDomainChainGraph } from "./domain-chain.js";
-import { isPrimitiveDomain, refTargetOf } from "./domains.js";
+import { isPrimitiveDomain, refTargetOf } from "./domains/domains.js";
 import { resolveGoal, GOAL_FINDING, type TGoalResolution } from "./goal-resolver.js";
 import { compareSeqPath, factSeqPath } from "./actuality/domains/seq-path.js";
 

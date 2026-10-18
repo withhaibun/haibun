@@ -1,8 +1,8 @@
 /** Locating an element where a step finds it, and running an action that states what it attempted where it fails. */
 import type { Locator, Page } from "playwright";
-import { DOMAIN_STRING } from "@haibun/core/lib/domains.js";
+import { DOMAIN_STRING } from "@haibun/core/lib/domains/domains.js";
 import { actionNotOK, errorDetail } from "@haibun/core/lib/util/index.js";
-import { OK, type TActionResult, type TStepValue } from "@haibun/core/schema/protocol.js";
+import { OK, type TActionResult, type TStepValue } from "@haibun/core/lib/domains/protocol.js";
 import {
 	DOMAIN_PAGE_ALT_TEXT,
 	DOMAIN_PAGE_LABEL,

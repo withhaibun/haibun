@@ -34,7 +34,7 @@ Releases are automated by [semantic-release](https://semantic-release.gitbook.io
 
 ## One version for all modules
 
-Every module under `modules/tsconfig.json` ships at the same version. When the root bumps, `scripts/sync-versions.mjs` propagates the new version to every module's `package.json` and to `modules/core/src/currentVersion.ts`. Internal `@haibun/*` deps use `*`, so they always resolve to the matching workspace version.
+Every module under `modules/tsconfig.json` ships at the same version. When the root bumps, `scripts/sync-versions.mjs` propagates the new version to every module's `package.json` and to `modules/core/src/lib/domains/current-version.ts`. Internal `@haibun/*` deps use `*`, so they always resolve to the matching workspace version.
 
 To add a new module to the release: add it to `modules/tsconfig.json` references. It's then built, versioned, and published automatically.
 

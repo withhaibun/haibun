@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { classifyDocument } from "./semantic-tokens.js";
 import type { TPlacedStep, TToken } from "../domains/lsp.js";
 import type { TStepAction, TFeatureStep } from "@haibun/core/lib/astepper.js";
-import { Origin, type TStepValue } from "@haibun/core/schema/protocol.js";
+import { Origin, type TStepValue } from "@haibun/core/lib/domains/protocol.js";
 
 /**
  * What an editor paints, asserted against the classification itself. It used to be asserted through a mocked language

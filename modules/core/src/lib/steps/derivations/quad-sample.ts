@@ -2,7 +2,7 @@
  * A sample of a store's quads by type, and the division of a span of time into a fixed count of buckets. A store that
  * holds its quads in memory samples and counts them through these derivations.
  */
-import { displayLabelForQuads } from "../../hypermedia.js";
+import { displayLabelForQuads } from "../../domains/hypermedia.js";
 import { compareByOrder, readOrder, type TReadDeclaration } from "../../records/derivations/read-records.js";
 import { BODY_LABEL, LinkRelations } from "../../resources.js";
 import { GraphQuerySchema, ORDER_KEY, statedQuery, type TCluster, type TClusteredQuads, type TOrderKey, type TQuad } from "../domains/quad-types.js";

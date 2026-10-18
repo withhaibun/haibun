@@ -3,8 +3,8 @@
  * A note is a Comment whose `oa:hasTarget` is a SpecificResource that points back at the record (`oa:hasSource`) through a
  * TextQuoteSelector (`oa:hasSelector`).
  */
-import { locateQuoteOffsets } from "@haibun/core/lib/quote-anchor.js";
-import { MEDIA_TYPE } from "@haibun/core/lib/media-types.js";
+import { locateQuoteOffsets } from "@haibun/core/lib/domains/quote-anchor.js";
+import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import type { TAnnotationView } from "@haibun/core/lib/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 

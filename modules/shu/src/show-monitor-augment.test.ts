@@ -6,7 +6,7 @@
  * the "show monitor" affordance a no-op.
  */
 import { describe, it, expect } from "vitest";
-import { HYPERMEDIA } from "@haibun/core/schema/protocol.js";
+import { HYPERMEDIA } from "@haibun/core/lib/domains/protocol.js";
 import { buildFeatureStepForTransport } from "@haibun/core/lib/call-step.js";
 import { type StepTool } from "@haibun/core/lib/step-registry.js";
 import { parseAffordanceProduct } from "./page/derivations/affordances.js";

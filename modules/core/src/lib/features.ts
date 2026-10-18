@@ -1,7 +1,7 @@
 import { itemAt } from "./util/item-at.js";
 import { TExpandedFeature, TExpandedLine, TFeature, TFeatures } from "./actuality/domains/execution.js";
 import type { TResolvedFeature } from "./steps/domains/stepper.js";
-import { backgroundNamesSchema } from "./domains.js";
+import { backgroundNamesSchema } from "./domains/domains.js";
 
 /** A resolved feature as data: each step's action names its stepper and step and holds its values, without the step's
  *  definition, which holds functions and schemas. A recursive schema a step has parsed with holds a reference cycle, so

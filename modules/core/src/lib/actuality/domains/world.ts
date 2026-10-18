@@ -1,11 +1,11 @@
 import { z } from "zod";
 import type { TActualityId } from "../../transport/ports.js";
-import type { TTag } from "../../ttag.js";
+import type { TTag } from "../../domains/ttag.js";
 import type { FeatureVariables } from "../pipelines/feature-variables.js";
 import type { Prompter } from "../../prompter.js";
 import type { IEventLogger } from "../../steps/ports.js";
-import type { TStepResult, TFeatureSteps } from "../../../schema/protocol.js";
-import { CONTINUE_AFTER_ERROR, NDJSON, ShownLogLevelSchema } from "../../../schema/protocol.js";
+import type { TStepResult, TFeatureSteps } from "../../domains/protocol.js";
+import { CONTINUE_AFTER_ERROR, NDJSON, ShownLogLevelSchema } from "../../domains/protocol.js";
 import type { TRegisteredDomain } from "../../resources.js";
 import type { StepRegistry } from "../../steps/pipelines/step-registry.js";
 import type { TFeature } from "./execution.js";

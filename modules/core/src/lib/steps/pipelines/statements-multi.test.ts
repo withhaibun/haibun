@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { OK } from "../../../schema/protocol.js";
+import { OK } from "../../domains/protocol.js";
 import { AStepper, TStepperStep } from "../domains/stepper.js";
 import { passWithDefaults, DEF_PROTO_OPTIONS, failWithDefaults } from "../../test/lib.js";
-import { DOMAIN_STATEMENT } from "../../domains.js";
+import { DOMAIN_STATEMENT } from "../../domains/domains.js";
 
 class StatementTestStepper extends AStepper {
 	description = "Steps alpha and beta, and a step taking two statements.";

@@ -14,7 +14,7 @@ import "../../components/shu-combobox.js";
 import { ShuAsk } from "./shu-ask.js";
 import { SHU_ATTR } from "../../../domains/elements.js";
 import { CLOSED_CONVERSATION, conversationState } from "../controllers/conversation-controller.js";
-import { counted } from "@haibun/core/lib/hypermedia.js";
+import { counted } from "@haibun/core/lib/domains/hypermedia.js";
 
 const listed: Array<{ session: string; label: string; generatedAtTime: string; turns: number }> = [];
 let onStartSeqPath: number[] | null = null;

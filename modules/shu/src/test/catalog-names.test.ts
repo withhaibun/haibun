@@ -5,7 +5,7 @@
  */
 import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
-import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
+import { buildConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import { expectWithinBaseline, REPOSITORY_SCAN_MS } from "@haibun/core/lib/test/baseline.js";
 import { DEF_PROTO_OPTIONS, getTestWorldWithOptions } from "@haibun/core/lib/test/lib.js";
 import { sourceFiles, workspacePackages } from "@haibun/core/lib/test/repository-files.js";

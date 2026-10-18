@@ -2,7 +2,7 @@
  * A step's result, and its feature's step totals: the result a step's action and its cycles determine, the products its
  * events and facts retain, and the totals that grow with each finished step.
  */
-import type { TActionResult, TFeatureSteps, TStepResult } from "../../../schema/protocol.js";
+import type { TActionResult, TFeatureSteps, TStepResult } from "../../domains/protocol.js";
 import type { TAfterStepResult, TFeatureStep, TStepAction } from "../../steps/domains/stepper.js";
 
 /** The number of a feature's most recent finished steps whose results a reader can read in full. foldStep reduces every

@@ -1,9 +1,9 @@
 import { z } from "zod";
 import type { TSpecl } from "../actuality/domains/execution.js";
 import type { TWorld, TRuntime, TModuleOptions } from "../actuality/domains/world.js";
-import { TActionResult, OK, TDebugSignal, MODULE_OPTION_PREFIX } from "../../schema/protocol.js";
+import { TActionResult, OK, TDebugSignal, MODULE_OPTION_PREFIX } from "../domains/protocol.js";
 import { IHasOptions, AStepper, CStepper, TFeatureStep } from "../steps/domains/stepper.js";
-import { TArtifactEvent, type TJsonArtifact } from "../../schema/protocol.js";
+import { TArtifactEvent, type TJsonArtifact } from "../domains/protocol.js";
 import type { TRemedy } from "../transport/ports.js";
 
 /** Returns `s` where it fits in `max` characters. Otherwise returns its first `max - 1` characters and an ellipsis.

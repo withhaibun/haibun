@@ -22,9 +22,6 @@
 	"modules/cli/src/verified.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/core/src/currentVersion.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/core/src/index.ts": {
 		"isn't in a kind position": 1
 	},
@@ -40,34 +37,10 @@
 	"modules/core/src/lib/affordances.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/core/src/lib/authority-types.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/core/src/lib/basic-auth.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/core/src/lib/blips.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/called.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/core/src/lib/capability-context.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/capture-locator.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/cell.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/chain-instance.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/chain-walker.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/composite-domain.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/core-domains.ts": {
@@ -85,25 +58,13 @@
 	"modules/core/src/lib/domain-chain.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/core/src/lib/domains.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/core/src/lib/features.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/goal-resolver.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/core/src/lib/host-id.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/core/src/lib/http-observations.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/hypermedia.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/json-schema-of.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/json-text.ts": {
@@ -115,58 +76,19 @@
 	"modules/core/src/lib/local-origin.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/core/src/lib/log-message.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/machine.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/media-fragments.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/media-object.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/media-types.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/core/src/lib/owned-children.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/port-occupant.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/core/src/lib/principal-individual.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/principal.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/core/src/lib/prompter.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/quad-graph-model.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/quote-anchor.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/readline-prompter.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/core/src/lib/record-blip.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/resolver-features.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/core/src/lib/resources.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/run-artifact.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/serving.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/session-authority.ts": {
@@ -175,22 +97,10 @@
 	"modules/core/src/lib/signature-header.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/core/src/lib/step-validation.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/core/src/lib/store-protocol.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/core/src/lib/taiwa.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/ttag.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/core/src/lib/tunables.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/typed-links.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/urakata.ts": {
@@ -217,13 +127,7 @@
 	"modules/core/src/lib/util/node/workspace-lib.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/core/src/lib/util/secret-utils.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/core/src/lib/workspace-discovery.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/zod-unwrap.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/monitor/index.ts": {
@@ -233,15 +137,6 @@
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/run-policy/run-policy-types.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/runner.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/schema/protocol.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/steps/activities-actions.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/steps/haibun.ts": {

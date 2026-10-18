@@ -16,7 +16,7 @@ import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { addStepperConcerns } from "@haibun/core/phases/Executor.js";
 import { QuadStore, newStoreChain } from "@haibun/core/lib/quad-store.js";
 import { principalDomainDefinition } from "@haibun/core/lib/resources.js";
-import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
+import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 
 const NOWHERE = "/nonexistent-base-for-capability-tests";

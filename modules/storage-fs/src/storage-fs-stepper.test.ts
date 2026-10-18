@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { CAPTURE } from "@haibun/core/schema/protocol.js";
+import { CAPTURE } from "@haibun/core/lib/domains/protocol.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import StorageFS from "./storage-fs-stepper.js";
 import { describeStorage } from "@haibun/domain-storage/test/storage-conformance.js";

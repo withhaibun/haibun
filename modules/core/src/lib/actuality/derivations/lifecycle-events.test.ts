@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import type { TFeatureStep } from "../../steps/domains/stepper.js";
 import { OBSCURED_VALUE } from "../../steps/domains/secrets.js";
-import { STATUS } from "../../../schema/protocol.js";
+import { STATUS } from "../../domains/protocol.js";
 import { executionEvent, featureEvent, scenarioEvent, stepEndEvent, stepStartEvent } from "./lifecycle-events.js";
 
 // The step is partial, so it is cast through unknown to TFeatureStep.

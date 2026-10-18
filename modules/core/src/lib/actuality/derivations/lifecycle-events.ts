@@ -2,11 +2,11 @@
  * The lifecycle events of an execution's levels: the execution, a feature, a scenario and a step, each at its start and
  * its end. Each is the move the actuality machine takes and the event the stream carries, built here once.
  */
-import { LifecycleEvent, STATUS, stepLevel, type TLifecycleEvent, type TStepEnd } from "../../../schema/protocol.js";
+import { LifecycleEvent, STATUS, stepLevel, type TLifecycleEvent, type TStepEnd } from "../../domains/protocol.js";
 import type { TFeatureStep } from "../../steps/domains/stepper.js";
 import { isSecretName } from "../../steps/domains/secrets.js";
 import { errorDetail } from "../../util/index.js";
-import { sanitizeObjectSecrets } from "../../util/secret-utils.js";
+import { sanitizeObjectSecrets } from "../../domains/secret-utils.js";
 import { formatSeqPath } from "../domains/seq-path.js";
 import type { TLevelEnd } from "../machines/actuality.js";
 

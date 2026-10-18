@@ -4,8 +4,8 @@
 import { declareCatalog } from "../../test/catalog-fixture.js";
 import { describe, it, expect, beforeEach } from "vitest";
 import { ShuEntityColumn } from "./shu-entity-column.js";
-import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
-import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
+import { buildConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
+import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { TIME_SYNC_CLASS } from "../../domains/elements.js";
 import { persistedTypeDefinition } from "../../test/setup.js";

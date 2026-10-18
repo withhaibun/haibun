@@ -1,7 +1,7 @@
 /**
  * The composition root of the transport: the client through which a proxy calls a remote host's steps.
  */
-import type { TRequestSigner } from "../authority-types.js";
+import type { TRequestSigner } from "../domains/authority-types.js";
 import type { TRemoteCall, TRemoteSteps } from "./ports.js";
 import { RpcCallFailed, RpcClient } from "./adapters/rpc-client.js";
 

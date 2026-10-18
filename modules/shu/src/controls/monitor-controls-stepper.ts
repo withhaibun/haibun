@@ -8,7 +8,7 @@
  */
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK } from "@haibun/core/lib/util/index.js";
-import { DOMAIN_NUMBER, DOMAIN_TEXT, createEnumDomainDefinition } from "@haibun/core/lib/domains.js";
+import { DOMAIN_NUMBER, DOMAIN_TEXT, createEnumDomainDefinition } from "@haibun/core/lib/domains/domains.js";
 import type { Page } from "playwright";
 import { FOLLOW_EDGE_SLACK_PX } from "../page/domains/scroll-follow.js";
 import { SHU_TAG } from "../domains/elements.js";

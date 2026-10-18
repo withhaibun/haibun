@@ -7,7 +7,7 @@
  * rather than something to colour.
  */
 import type { TStepAction } from "@haibun/core/lib/astepper.js";
-import type { TStepValue } from "@haibun/core/schema/protocol.js";
+import type { TStepValue } from "@haibun/core/lib/domains/protocol.js";
 import type { TPlacedStep, TToken } from "../domains/lsp.js";
 
 type TClassifyInput = {

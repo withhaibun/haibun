@@ -10,7 +10,7 @@ import type { TRuntime } from "@haibun/core/lib/world.js";
 import { capabilityAllows } from "@haibun/core/lib/actions.js";
 import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import { getAuthority, heldAuthority } from "@haibun/core/lib/session-authority.js";
-import { DELEGATIONS_READ_ACTION } from "@haibun/core/lib/authority-types.js";
+import { DELEGATIONS_READ_ACTION } from "@haibun/core/lib/domains/authority-types.js";
 import {
 	PRESENTED_AUTHORITY_HEADER,
 	type Context,

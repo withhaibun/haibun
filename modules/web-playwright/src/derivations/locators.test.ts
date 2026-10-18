@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
-import { domainParts } from "@haibun/core/lib/domains.js";
-import { OK, type TStepValue } from "@haibun/core/schema/protocol.js";
+import { domainParts } from "@haibun/core/lib/domains/domains.js";
+import { OK, type TStepValue } from "@haibun/core/lib/domains/protocol.js";
 import { failWithDefaults, passWithDefaults } from "@haibun/core/lib/test/lib.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import { locatorDomainOf, pickLocatorDomain } from "./locators.js";

@@ -2,7 +2,7 @@
  * The grammar of a step's phrase: a placeholder `{name}` or `{name: domain}` names a parameter and the domain it takes.
  * A placeholder that doesn't name a domain takes a string.
  */
-import { DOMAIN_STRING } from "../../domains.js";
+import { DOMAIN_STRING } from "../../domains/domains.js";
 import { itemAt } from "../../util/item-at.js";
 
 /** A placeholder of a phrase, with its name and its domain inside the braces. */

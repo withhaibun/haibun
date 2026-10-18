@@ -3,8 +3,8 @@
 // cursor's row in it, the live stream by level, and the actualities this device holds; every value under its own test
 // id, so a feature reads what the page holds from here with the generic steps. It doesn't make a source of its own.
 import { declareGraphSpec, declareRegistry, GRAPH_READ_STEPS } from "../../../test/catalog-fixture.js";
-import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
-import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
+import { buildConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
+import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
 import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";

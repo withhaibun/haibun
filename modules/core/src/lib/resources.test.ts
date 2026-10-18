@@ -30,8 +30,8 @@ import {
 	isPersisted,
 	type TDiscourseStore,
 } from "./resources.js";
-import { RelSchema, getJsonLdContext, buildConcernCatalog, counted } from "./hypermedia.js";
-import { mapDefinitionsToDomains } from "./domains.js";
+import { RelSchema, getJsonLdContext, buildConcernCatalog, counted } from "./domains/hypermedia.js";
+import { mapDefinitionsToDomains } from "./domains/domains.js";
 import { itemAt } from "./util/item-at.js";
 import { writeAnnotation } from "./records/pipelines/discourse-writes.js";
 import type { TRecordReader } from "./records/pipelines/record-reads.js";

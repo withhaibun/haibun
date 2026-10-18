@@ -5,7 +5,7 @@
  * read the same three calls (count, rowAt, ensureRange), so the same column data can drive both media.
  */
 import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { counted, MAX_PAGE_ROWS, readInPages, type TCounted, type TCountedPage } from "@haibun/core/lib/hypermedia.js";
+import { counted, MAX_PAGE_ROWS, readInPages, type TCounted, type TCountedPage } from "@haibun/core/lib/domains/hypermedia.js";
 import type { TScrollMarker } from "./rail.js";
 import type { Range } from "./rail.js";
 

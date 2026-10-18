@@ -2,7 +2,7 @@
 import { describe, it, expect } from "vitest";
 import { parseAffordanceProduct } from "./affordances.js";
 import { SHU_TYPE } from "../../domains/elements.js";
-import { HYPERMEDIA } from "@haibun/core/schema/protocol.js";
+import { HYPERMEDIA } from "@haibun/core/lib/domains/protocol.js";
 import MonitorStepper from "../../monitor-stepper.js";
 import ShuStepper from "../../shu-stepper.js";
 

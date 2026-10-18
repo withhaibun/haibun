@@ -2,7 +2,7 @@
  * The composition root of the extension's side of the relay: a connection over the channel and the chrome.* API the
  * extension gives it, with the system clock and the relay connection machine for its tabs.
  */
-import { machine } from "@haibun/core/lib/machine.js";
+import { machine } from "@haibun/core/lib/machines/machine.js";
 import { ChromeRelayConnection } from "./adapters/relay-connection.js";
 import { timerClock } from "./adapters/clock.js";
 import { CLOSE, debugged, INITIAL_RELAY_CONNECTION, RELAY_TAB_EVENT, relayConnectionTransition, TAB_STATUS, tabStatusOf, usable } from "./machines/relay-connection.js";

@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ACTUALITY_HEADER, SSE_ROUTE } from "@haibun/core/lib/rpc-wire.js";
 import { FOLLOWS_THE_RUN } from "@haibun/core/lib/actions.js";
 import { Access } from "@haibun/core/lib/resources.js";
-import { LogEvent } from "@haibun/core/schema/protocol.js";
+import { LogEvent } from "@haibun/core/lib/domains/protocol.js";
 import { eventHubOfTest, getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { storeDeclaring } from "@haibun/core/lib/test/declared-types.js";
 import type { TWorld } from "@haibun/core/lib/world.js";

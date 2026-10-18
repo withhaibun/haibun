@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { getTestWorldWithOptions, testWithWorld, DEF_PROTO_OPTIONS } from "@haibun/core/lib/test/lib.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
-import { OK } from "@haibun/core/schema/protocol.js";
+import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
-import { activeSitePrincipal } from "@haibun/core/lib/host-id.js";
+import { activeSitePrincipal } from "@haibun/core/lib/domains/host-id.js";
 import { PRINCIPAL_LABEL } from "@haibun/core/lib/resources.js";
 import { recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import type { TClusteredQuads } from "@haibun/core/lib/quad-types.js";

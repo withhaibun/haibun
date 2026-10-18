@@ -2,7 +2,7 @@
  * An event with each secret value it states replaced by the obscured value. The events hub obscures an event once, so
  * every subscriber and every sink receives it obscured.
  */
-import type { THaibunEvent } from "../../../schema/protocol.js";
+import type { THaibunEvent } from "../../domains/protocol.js";
 import { OBSCURED_VALUE } from "../domains/secrets.js";
 
 /** A text with each secret value it holds replaced by the obscured value. An empty value doesn't name a secret. */

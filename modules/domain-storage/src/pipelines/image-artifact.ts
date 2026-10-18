@@ -5,7 +5,7 @@
  */
 import type { TWorld } from "@haibun/core/lib/world.js";
 import type { AStorage, TSavedArtifact } from "../domains/storage.js";
-import { ImageArtifact } from "@haibun/core/schema/protocol.js";
+import { ImageArtifact } from "@haibun/core/lib/domains/protocol.js";
 import type { TFeatureStep } from "@haibun/core/lib/astepper.js";
 
 export async function saveImageArtifact(

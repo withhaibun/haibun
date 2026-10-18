@@ -6,7 +6,7 @@
 import { declareSpec } from "./test/catalog-fixture.js";
 import { vi } from "vitest";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
-import type { TLinkedData } from "@haibun/core/lib/hypermedia.js";
+import type { TLinkedData } from "@haibun/core/lib/domains/hypermedia.js";
 import { presenterIn } from "./page/controllers/presenter-controller.js";
 import type { TGraphPresenter, TPresenterNodeClick } from "./page/ports.js";
 import { SHU_EVENT } from "./domains/elements.js";

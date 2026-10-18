@@ -13,8 +13,8 @@ import { ChatMessageSchema, FORK_CONTROLS, ShuChatMessage } from "./shu-chat-mes
 import { SHU_EVENT } from "../../../domains/elements.js";
 import "../../components/shu-ref-element.js";
 import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
-import { REF_DENOTES, markdownRef } from "@haibun/core/lib/typed-links.js";
-import { ICON_STEP_COMPLETED, RETURNED_TO_CALLER } from "@haibun/core/schema/protocol.js";
+import { REF_DENOTES, markdownRef } from "@haibun/core/lib/domains/typed-links.js";
+import { ICON_STEP_COMPLETED, RETURNED_TO_CALLER } from "@haibun/core/lib/domains/protocol.js";
 import { followPaneRequests } from "../../../test/pane-requests.js";
 
 const BUNDLE = { patterns: [anIndividual("Email", "a@test.com"), aType("Email", [])], accessLevel: "private" };

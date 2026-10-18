@@ -17,8 +17,8 @@
  */
 
 import { AsyncLocalStorage } from "node:async_hooks";
-import type { TIndividualAddress } from "../../typed-links.js";
-import type { TCalled } from "../../called.js";
+import type { TIndividualAddress } from "../../domains/typed-links.js";
+import type { TCalled } from "../../domains/called.js";
 
 /** A call that a step made for its caller and that the authority the step holds didn't allow. It holds the called step and the
  *  action that step requires. The caller may hold that action and allow the call. */

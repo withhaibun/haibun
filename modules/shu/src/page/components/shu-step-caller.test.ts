@@ -5,8 +5,8 @@
  * form's values without a call, a step the site refuses shows the site's refusal, and a result's rows read as one table.
  */
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from "vitest";
-import { buildConcernCatalog, type TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
-import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
+import { buildConcernCatalog, type TConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
+import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { rpcAnswer, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
 import { declareRegistry } from "../../test/catalog-fixture.js";

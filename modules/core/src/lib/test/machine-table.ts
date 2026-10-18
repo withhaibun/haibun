@@ -4,7 +4,7 @@
  * failing sequence is replayed by its seed.
  */
 import { expect } from "vitest";
-import type { TTransition } from "../machine.js";
+import type { TTransition } from "../machines/machine.js";
 import { itemAt } from "../util/item-at.js";
 
 /** A generator of numbers in [0, 1) from the seed. */

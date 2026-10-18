@@ -44,7 +44,7 @@
 
 ## Message consistency
 
- [ ] review the feature definitions (TFeatureMeta, TExpandedFeature, TResolvedFeature, AStepper, CStepper, TAfterStepResult) in modules/core/src/lib/execution.ts and modules/core/src/lib/astepper.ts. Review the result definitions (TActionResult, TFeatureResult and others) in modules/core/src/schema/protocol.ts. Note where the schema-based event definitions overlap them.
+ [ ] review the feature definitions (TFeatureMeta, TExpandedFeature, TResolvedFeature, AStepper, CStepper, TAfterStepResult) in modules/core/src/lib/execution.ts and modules/core/src/lib/astepper.ts. Review the result definitions (TActionResult, TFeatureResult and others) in modules/core/src/lib/domains/protocol.ts. Note where the schema-based event definitions overlap them.
  [ ] summarize how they are used, where they overlap and how they can be combined
  [ ] make feature results a superset of feature definitions
 

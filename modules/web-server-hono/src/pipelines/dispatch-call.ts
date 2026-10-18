@@ -7,8 +7,8 @@
 import type { TWorld } from "@haibun/core/lib/world.js";
 import type { AStepper } from "@haibun/core/lib/astepper.js";
 import type { TFeatureStep } from "@haibun/core/lib/astepper.js";
-import type { TStepResult } from "@haibun/core/schema/protocol.js";
-import type { TRestsOn } from "@haibun/core/lib/authority-types.js";
+import type { TStepResult } from "@haibun/core/lib/domains/protocol.js";
+import type { TRestsOn } from "@haibun/core/lib/domains/authority-types.js";
 import type { TRpcRefusal } from "@haibun/core/lib/rpc-wire.js";
 import { dispatchStep, type DispatchContext } from "@haibun/core/lib/step-dispatch.js";
 import { buildFeatureStepForTransport } from "@haibun/core/lib/call-step.js";
@@ -16,7 +16,7 @@ import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import type { StepRegistry, StepTool } from "@haibun/core/lib/step-registry.js";
 import { lackedByCall } from "@haibun/core/lib/actions.js";
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
-import { allocateSyntheticSeqPath } from "@haibun/core/lib/host-id.js";
+import { allocateSyntheticSeqPath } from "@haibun/core/lib/domains/host-id.js";
 import { runActingAs } from "@haibun/core/lib/capability-context.js";
 import { notARead } from "../domains/web-server.js";
 

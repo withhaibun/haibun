@@ -14,8 +14,8 @@ import {
 	stepLine,
 } from "./seq-path.js";
 import { LinkRelations, isPersisted } from "../../resources.js";
-import { EXECUTION_MODES, RECORDED_STATUS } from "../../../schema/protocol.js";
-import { queryableFields } from "../../hypermedia.js";
+import { EXECUTION_MODES, RECORDED_STATUS } from "../../domains/protocol.js";
+import { queryableFields } from "../../domains/hypermedia.js";
 
 /** Returns the persisted topology a step's record declares. */
 const seqPathTopology = () => {

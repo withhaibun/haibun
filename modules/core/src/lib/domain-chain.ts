@@ -11,7 +11,7 @@
 import type { AStepper, TStepperStep } from "./steps/domains/stepper.js";
 import type { TRegisteredDomain } from "./resources.js";
 import { constructorName } from "./util/index.js";
-import { isPrimitiveDomain, normalizeDomainKey } from "./domains.js";
+import { isPrimitiveDomain, normalizeDomainKey } from "./domains/domains.js";
 import { requiredAction } from "./actions.js";
 import { stepParamDomains } from "./steps/derivations/step-tools.js";
 

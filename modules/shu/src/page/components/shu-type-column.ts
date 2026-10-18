@@ -34,7 +34,7 @@ import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 
 const IDS = SHU_TEST_IDS.TYPE_COLUMN;
 import { openRef, paneHref } from "./ref-navigation.js";
-import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
+import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { aType, type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { ShuProductView } from "./shu-product-view.js";
 import { appAccessLevel } from "../../view-query.js";

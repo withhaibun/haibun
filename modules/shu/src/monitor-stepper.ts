@@ -8,12 +8,12 @@ import { resolve } from "node:path";
 import { z } from "zod";
 
 import { AStepper, type IHasCycles, type IHasOptions, type TStepperSteps, StepperKinds, CycleWhen, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
-import { recordBlip } from "@haibun/core/lib/record-blip.js";
+import { recordBlip } from "@haibun/core/lib/pipelines/record-blip.js";
 // The view vocabulary declares itself at import, so an arriving batch finds its names already declared here.
 import "./domains/blips.js";
 import "./domains/graph-blips.js";
 import { type TWorld } from "@haibun/core/lib/world.js";
-import { OK, type THaibunEvent } from "@haibun/core/schema/protocol.js";
+import { OK, type THaibunEvent } from "@haibun/core/lib/domains/protocol.js";
 import { actionOKWithProducts, stringOrError, intOrError, findStepper, findStepperFromOptionOrKind, getStepperOption, errorDetail } from "@haibun/core/lib/util/index.js";
 import { localOrigin } from "@haibun/core/lib/local-origin.js";
 import { actualURI } from "@haibun/core/lib/util/node/actualURI.js";
@@ -30,11 +30,11 @@ import { reportWriter, servedBundles } from "./root.js";
 import { READS_THE_RUNS_ARTIFACTS } from "@haibun/core/lib/actions.js";
 import { requiring } from "@haibun/web-server-hono/capability-auth.js";
 import { sandboxed } from "@haibun/web-server-hono/served-folder.js";
-import { logMessageDomainDefinition } from "@haibun/core/lib/log-message.js";
-import { ARTIFACTS_ROUTE, runArtifactDomainDefinition } from "@haibun/core/lib/run-artifact.js";
+import { logMessageDomainDefinition } from "@haibun/core/lib/domains/log-message.js";
+import { ARTIFACTS_ROUTE, runArtifactDomainDefinition } from "@haibun/core/lib/domains/run-artifact.js";
 import type ShuStepper from "./shu-stepper.js";
 import { DOMAIN_GRAPH_QUERY } from "@haibun/core/lib/quad-types.js";
-import { DOMAIN_FILE_PATH } from "@haibun/core/lib/domains.js";
+import { DOMAIN_FILE_PATH } from "@haibun/core/lib/domains/domains.js";
 
 // The monitor holds a window of what actuality sends, never actuality itself: an unbounded buffer exhausts the process's
 // heap over months. The store holds the graph and the disk log holds the events.

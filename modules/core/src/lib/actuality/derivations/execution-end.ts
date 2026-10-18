@@ -3,7 +3,7 @@
  * close, the step that fails an execution, and the digest of the steps a feature declares.
  */
 import { createHash } from "node:crypto";
-import { STAY_ALWAYS, STAY_FAILURE, type TExecutorResult, type TFeatureResult } from "../../../schema/protocol.js";
+import { STAY_ALWAYS, STAY_FAILURE, type TExecutorResult, type TFeatureResult } from "../../domains/protocol.js";
 import type { TFeatureStep } from "../../steps/domains/stepper.js";
 
 /** Returns whether actuality keeps serving after its features end. `HAIBUN_STAY` selects always or only after a failure. */

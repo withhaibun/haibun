@@ -40,7 +40,7 @@ import "../src/page/components/shu-theme-switch.js";
 import { readAction } from "@haibun/core/lib/actions.js";
 import { Access } from "@haibun/core/lib/resources.js";
 import { SSE_ROUTE } from "@haibun/core/lib/rpc-wire.js";
-import { DELEGATIONS_READ_METHOD, type TDelegations } from "@haibun/core/lib/authority-types.js";
+import { DELEGATIONS_READ_METHOD, type TDelegations } from "@haibun/core/lib/domains/authority-types.js";
 import { SHU_TAG } from "../src/domains/elements.js";
 import { embeddedPageView, givenDelegation, pageAuthorityPort, pageClock, pageEmbedder, pageEventStream, pageObservers, startPage } from "../src/page/root.js";
 import { authorityPort, openPageAuthority, pageMay } from "../src/page/authority/controllers/page-authority-controller.js";

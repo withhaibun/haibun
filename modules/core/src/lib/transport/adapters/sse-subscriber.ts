@@ -34,7 +34,7 @@
  */
 
 import { ACTUALITY_HEADER, type TActualityId } from "../ports.js";
-import type { THaibunEvent } from "../../../schema/protocol.js";
+import type { THaibunEvent } from "../../domains/protocol.js";
 import { REPLAY_BUFFER_LIMIT, StreamListeners } from "./stream-listeners.js";
 
 /** Whether a break connects the stream again: a refused connection stays down, and a stream that ended connects again. */

@@ -19,7 +19,7 @@ import {
 	isHandedOutEvent,
 	isSpeculativeEvent,
 	RECORDED_STATUS,
-} from "@haibun/core/schema/protocol.js";
+} from "@haibun/core/lib/domains/protocol.js";
 import { MARK_COLOUR, STATUS_MARKS, type TEventMarkerStyle } from "./status-mark.js";
 
 type TPartialEvent = { kind?: string; type?: string; status?: string; level?: string; stage?: string; id?: string; intent?: { mode?: string } };

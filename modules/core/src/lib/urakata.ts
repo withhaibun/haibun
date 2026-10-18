@@ -24,15 +24,15 @@
  */
 
 import { z } from "zod";
-import { NameSchema } from "./domains.js";
-import { allocateSyntheticSeqPath } from "./host-id.js";
+import { NameSchema } from "./domains/domains.js";
+import { allocateSyntheticSeqPath } from "./domains/host-id.js";
 import { actingAs, callerHolds, restingOn, runAsTicking } from "./capability-context.js";
 import { capabilityAllows } from "./actions.js";
-import type { TRestsOn } from "./authority-types.js";
+import type { TRestsOn } from "./domains/authority-types.js";
 import { getAuthority } from "./session-authority.js";
 import { errorDetail } from "./util/index.js";
 import type { TWorld } from "./actuality/domains/world.js";
-import type { TSeqPath } from "../schema/protocol.js";
+import type { TSeqPath } from "./domains/protocol.js";
 import { PersistedVertexSchema, type TDomainDefinition } from "./resources.js";
 
 export const URAKATA = "urakata";

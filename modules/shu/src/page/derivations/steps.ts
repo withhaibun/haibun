@@ -2,10 +2,10 @@
  * The steps the page reads of actuality, as a view and a call look one up: by its friendly name or its method, the steps
  * that join a domain, the steps an action allows, the steps of a type, and the domain options a selector offers.
  */
-import { domainParts } from "@haibun/core/lib/domains.js";
+import { domainParts } from "@haibun/core/lib/domains/domains.js";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { capabilityAllows } from "@haibun/core/lib/actions.js";
-import type { TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
+import type { TConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import type { TDomainDiscoveryInfo, TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import type { TStepList } from "../machines/registry.js";
 import { acts, reads, type TLink } from "../domains/links.js";

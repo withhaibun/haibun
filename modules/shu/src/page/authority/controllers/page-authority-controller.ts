@@ -3,7 +3,7 @@
  * (`pipelines/page-authority.ts`), and as the page's root holds it (`authorityPort`).
  */
 import type { TDelegation } from "@haibun/core/lib/actions.js";
-import type { TDelegations } from "@haibun/core/lib/authority-types.js";
+import type { TDelegations } from "@haibun/core/lib/domains/authority-types.js";
 import type { TProveRequest } from "@haibun/core/lib/rpc-wire.js";
 import { authorityScope, pageKeyStore } from "../root.js";
 import * as Authority from "../pipelines/page-authority.js";

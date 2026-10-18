@@ -10,7 +10,7 @@ import { MAIN_GRAPH_SCOPE, ShuGraphFilter } from "./shu-graph-filter.js";
 import { declareSpec } from "../../../test/catalog-fixture.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import "./shu-chip-group.js";
-import { COUNT_CEILING, statedTotal } from "@haibun/core/lib/hypermedia.js";
+import { COUNT_CEILING, statedTotal } from "@haibun/core/lib/domains/hypermedia.js";
 
 const cluster = (type: string): TCluster => ({ type, totalCount: 2, sampledCount: 2, omittedCount: 0, sampledSubjects: [`${type}-1`, `${type}-2`], displayLabels: {} });
 

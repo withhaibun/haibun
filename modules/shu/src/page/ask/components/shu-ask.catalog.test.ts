@@ -6,8 +6,8 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { CONVERSATION_MODEL_CLASS } from "@haibun/core/lib/conversation/domains/conversation.js";
-import { buildConcernCatalog, counted } from "@haibun/core/lib/hypermedia.js";
-import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
+import { buildConcernCatalog, counted } from "@haibun/core/lib/domains/hypermedia.js";
+import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
 import { CHAT_STEP, chatDispatch, type TDriven } from "./chat-pane.test-fake.js";
 import { persistedTypeDefinition, setupShuTest, type TShuTestHandle } from "../../../test/setup.js";
 import "../../components/shu-combobox.js";

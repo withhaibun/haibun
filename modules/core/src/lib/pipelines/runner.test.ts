@@ -1,0 +1,24 @@
+import TestSteps from "../test/TestSteps.js";
+import { asFeatures } from "../test/resolver-features.js";
+import { getDefaultWorld } from "../test/lib.js";
+import { Runner } from "./runner.js";
+import { describe, it, expect } from "vitest";
+
+describe("runFeaturesAndBackgrounds", () => {
+	it("should pass a basic test", async () => {
+		const world = getDefaultWorld({ HAIBUN_LOG_LEVEL: "debug" });
+		const runner = new Runner(world);
+		const features = asFeatures([{ path: "/features/test.feature", content: `passes` }]);
+		const steppers = [TestSteps];
+		const result = await runner.runFeaturesAndBackgrounds(steppers, { features, backgrounds: [] });
+		expect(result.ok).toBe(true);
+	});
+	it("should fail a basic test", async () => {
+		const world = getDefaultWorld({ HAIBUN_LOG_LEVEL: "debug" });
+		const runner = new Runner(world);
+		const features = asFeatures([{ path: "/features/test.feature", content: `fails` }]);
+		const steppers = [TestSteps];
+		const result = await runner.runFeaturesAndBackgrounds(steppers, { features, backgrounds: [] });
+		expect(result.ok).toBe(false);
+	});
+});

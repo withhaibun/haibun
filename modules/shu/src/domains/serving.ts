@@ -2,7 +2,7 @@
  * What serving the page names: the addresses of the served assets, and the Content-Security-Policy values every page
  * carries. Core's `run-artifact.ts` states the policy an artifact carries.
  */
-import { MODULE_OPTION_PREFIX } from "@haibun/core/schema/protocol.js";
+import { MODULE_OPTION_PREFIX } from "@haibun/core/lib/domains/protocol.js";
 import { BUNDLE_NAMES, PAGE_CHUNK_DIR, bundleFileName } from "./bundle-files.js";
 
 /** Where the font of the graph's labels is served, so the scene draws its labels without a font service (CA3D10). */

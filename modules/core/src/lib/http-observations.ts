@@ -9,9 +9,9 @@ import { RPC_ROUTE, SSE_ROUTE } from "./transport/ports.js";
 import { z } from "zod";
 import type { TWorld } from "./actuality/domains/world.js";
 import { ENDPOINT_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL, HTTP_REQUEST_LABEL, LinkRelations, writeEdge, writeReferenceEdge } from "./resources.js";
-import { activeSitePrincipal } from "./host-id.js";
-import { declareBlips } from "./blips.js";
-import { recordBlip } from "./record-blip.js";
+import { activeSitePrincipal } from "./domains/host-id.js";
+import { declareBlips } from "./domains/blips.js";
+import { recordBlip } from "./pipelines/record-blip.js";
 import { recordOf } from "./records/pipelines/record-reads.js";
 
 const CLIENT_ID = "client";

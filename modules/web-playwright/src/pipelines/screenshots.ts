@@ -1,10 +1,10 @@
 /** A screenshot of the page, saved into actuality's storage as an image artifact of the step it shows. */
 import { pathToFileURL } from "node:url";
-import type { TImageReference } from "@haibun/core/lib/media-object.js";
-import { MEDIA_TYPE } from "@haibun/core/lib/media-types.js";
-import { artifactAddress } from "@haibun/core/lib/run-artifact.js";
+import type { TImageReference } from "@haibun/core/lib/domains/media-object.js";
+import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
+import { artifactAddress } from "@haibun/core/lib/domains/run-artifact.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import type { TStepResult } from "@haibun/core/schema/protocol.js";
+import type { TStepResult } from "@haibun/core/lib/domains/protocol.js";
 import type { AStorage } from "@haibun/domain-storage/domains/storage.js";
 import { saveImageArtifact } from "@haibun/domain-storage/pipelines/image-artifact.js";
 import type { BrowserSession } from "./browser-session.js";

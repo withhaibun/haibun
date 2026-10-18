@@ -17,7 +17,7 @@ import { html, css, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { shuBaseStyles } from "./styles.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { viewCollection } from "@haibun/core/lib/hypermedia.js";
+import { viewCollection } from "@haibun/core/lib/domains/hypermedia.js";
 import { SHU_EVENT, SHU_TAG, TIME_SYNC_CLASS } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { z } from "zod";

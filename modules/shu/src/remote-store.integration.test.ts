@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getTestWorldWithOptions, testWithWorld, DEF_PROTO_OPTIONS } from "@haibun/core/lib/test/lib.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
-import { OK } from "@haibun/core/schema/protocol.js";
+import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import { RpcCallFailed, RpcClient } from "@haibun/core/lib/rpc-client.js";
 import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";

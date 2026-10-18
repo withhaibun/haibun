@@ -2,10 +2,10 @@
  * What actuality declares to a caller: the steps a caller may call, the domains, the concern catalog, and the steppers of
  * the steps that matched. The catalog is built once for each set of registered domains.
  */
-import { jsonSchemaFor } from "../../json-schema-of.js";
+import { jsonSchemaFor } from "../../domains/json-schema-of.js";
 import type { TWorld } from "../../actuality/domains/world.js";
-import { buildConcernCatalog } from "../../hypermedia.js";
-import { HYPERMEDIA } from "../../../schema/protocol.js";
+import { buildConcernCatalog } from "../../domains/hypermedia.js";
+import { HYPERMEDIA } from "../../domains/protocol.js";
 import { isPersisted, type TRegisteredDomain } from "../../resources.js";
 import {
 	STEP_DETAIL,

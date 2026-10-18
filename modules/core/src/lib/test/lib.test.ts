@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
-import { asFeatures } from "../resolver-features.js";
-import { TEST_BASE } from "../../schema/protocol.js";
+import { asFeatures } from "./resolver-features.js";
+import { TEST_BASE } from "../domains/protocol.js";
 
 describe("asFeatures", () => {
 	it("should add base to path", () => {

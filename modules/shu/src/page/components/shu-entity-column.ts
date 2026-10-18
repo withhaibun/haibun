@@ -21,7 +21,7 @@ import { LOAD_STATUS } from "../domains/load.js";
 import type { TAnnotationView } from "@haibun/core/lib/resources.js";
 import type { TLinkedBody } from "@haibun/core/lib/records/domains/body.js";
 import type { TPart, TQuoteAnchor } from "@haibun/core/lib/resources.js";
-import { assertFragmentReads, fragmentReads, isFragment, pageOfPassage, pdfPage, type TFragment } from "@haibun/core/lib/media-fragments.js";
+import { assertFragmentReads, fragmentReads, isFragment, pageOfPassage, pdfPage, type TFragment } from "@haibun/core/lib/domains/media-fragments.js";
 import "./shu-annotated-body.js";
 import {
 	edgeRecordType,
@@ -38,13 +38,13 @@ import {
 } from "../controllers/catalog-controller.js";
 import { propertyVocabulary } from "../../derivations/ontology-projection.js";
 import { linkHtml, paneHref, refHref } from "./ref-navigation.js";
-import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
+import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { pageAddress } from "../controllers/hash-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { z } from "zod";
-import { CallLinkSchema, counted, statedTotal, type TCallLink, type TCounted } from "@haibun/core/lib/hypermedia.js";
-import { SentFileSchema, fileDataBlob } from "@haibun/core/lib/media-object.js";
-import { MEDIA_TYPE, viewedInBrowser } from "@haibun/core/lib/media-types.js";
+import { CallLinkSchema, counted, statedTotal, type TCallLink, type TCounted } from "@haibun/core/lib/domains/hypermedia.js";
+import { SentFileSchema, fileDataBlob } from "@haibun/core/lib/domains/media-object.js";
+import { MEDIA_TYPE, viewedInBrowser } from "@haibun/core/lib/domains/media-types.js";
 import { reportFailure } from "../../client-log.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { ClockController } from "../controllers/clock-controller.js";

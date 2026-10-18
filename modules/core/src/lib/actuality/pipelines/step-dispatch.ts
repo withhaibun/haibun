@@ -4,11 +4,11 @@
  */
 import type { AStepper, TStepperStep, TFeatureStep, TBeforeStep, TAfterStep, TAfterStepResult } from "../../steps/domains/stepper.js";
 import type { TWorld } from "../domains/world.js";
-import type { TActionResult, TStepResult, TSeqPath } from "../../../schema/protocol.js";
-import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, SUBSTEP_LEVEL, STATUS, RECORDED_STATUS, type TStepEnd } from "../../../schema/protocol.js";
+import type { TActionResult, TStepResult, TSeqPath } from "../../domains/protocol.js";
+import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, SUBSTEP_LEVEL, STATUS, RECORDED_STATUS, type TStepEnd } from "../../domains/protocol.js";
 import { streamContext } from "../../transport/domains/step-stream-context.js";
 import { actionNotOK } from "../../util/index.js";
-import { isWrittenByCaller, normalizeDomainKey } from "../../domains.js";
+import { isWrittenByCaller, normalizeDomainKey } from "../../domains/domains.js";
 import { assertFact, holdsFactOf } from "../../records/pipelines/facts.js";
 import { doStepperCycle } from "../../steps/pipelines/stepper-cycles.js";
 import { actingAs, callerHolds, readingAsStated, readScope, runInStep, runInvoking, runReadingAsHeld, runStatedAt } from "../../capability-context.js";

@@ -5,7 +5,7 @@ import { newPage } from "../../../test/setup.js";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import type { QuadStore } from "@haibun/core/lib/quad-store.js";
-import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
+import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/domains/log-message.js";
 import { SEQ_PATH_FIELD, executionOf } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { individualAsQuads } from "../derivations/quads.js";

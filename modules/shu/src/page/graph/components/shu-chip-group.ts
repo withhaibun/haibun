@@ -13,7 +13,7 @@ import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "../../components/shu-element.js";
 import { shuBaseStyles } from "../../components/styles.js";
-import { statedTotal, type TCounted } from "@haibun/core/lib/hypermedia.js";
+import { statedTotal, type TCounted } from "@haibun/core/lib/domains/hypermedia.js";
 
 /** One chip: its identity, what it shows, whether it is on, and (optionally) how many it stands for and its swatch. A count
  *  that stopped at its ceiling renders as a floor. */

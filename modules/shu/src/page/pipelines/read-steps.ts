@@ -7,10 +7,10 @@
  */
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
-import { STEPS_CHANGED } from "@haibun/core/schema/protocol.js";
+import { STEPS_CHANGED } from "@haibun/core/lib/domains/protocol.js";
 import { EVERY_DEFINITION, SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { readShownSteps } from "@haibun/core/lib/step-discovery.js";
-import type { Machine } from "@haibun/core/lib/machine.js";
+import type { Machine } from "@haibun/core/lib/machines/machine.js";
 import { reads } from "../domains/links.js";
 import { REGISTRY_EVENT, REGISTRY_STATUS, type TRegistryEvent, type TRegistryRead, type TRegistryState, type TStepList } from "../machines/registry.js";
 import { reportFailure, reportToRun } from "../../client-log.js";

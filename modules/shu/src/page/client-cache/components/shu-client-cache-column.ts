@@ -18,7 +18,7 @@ import { shuBaseStyles } from "../../components/styles.js";
 import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
 import { subscribeBatchedEvents } from "../../controllers/event-stream-controller.js";
 import { rowAtCursor, timedRows, type Range } from "../../derivations/rail.js";
-import { EventLevelSchema, HAIBUN_LOG_LEVELS } from "@haibun/core/schema/protocol.js";
+import { EventLevelSchema, HAIBUN_LOG_LEVELS } from "@haibun/core/lib/domains/protocol.js";
 import { registryOrigin } from "../../controllers/registry-controller.js";
 import { serverLastRespondedAt } from "../../controllers/conduit-controller.js";
 import { emptyOrLoading } from "../../components/empty-state.js";

@@ -4,7 +4,7 @@
  */
 import type { TStepInput } from "../../actuality/domains/execution.js";
 import type { TWorld } from "../../actuality/domains/world.js";
-import type { TSeqPath, TActionResult, TStepResult, ExecutionIntent } from "../../../schema/protocol.js";
+import type { TSeqPath, TActionResult, TStepResult, ExecutionIntent } from "../../domains/protocol.js";
 import type { AStepper, TFeatureStep } from "../domains/stepper.js";
 import { actionNotOK, errorDetail } from "../../util/index.js";
 import { Resolver } from "../../actuality/pipelines/resolver.js";

@@ -2,7 +2,7 @@
  * A catalog a test declares: a compact spec of types, their fields by relation, their edges and their declarations, built
  * into the concern catalog a site returns, and declared as the page's step registry, as a read of actuality's steps holds it.
  */
-import type { TConcernCatalog, TTitledBy } from "@haibun/core/lib/hypermedia.js";
+import type { TConcernCatalog, TTitledBy } from "@haibun/core/lib/domains/hypermedia.js";
 import type { TDomainDiscoveryInfo } from "@haibun/core/lib/step-discovery.js";
 import { Access } from "@haibun/core/lib/resources.js";
 import { pageRegistry } from "../page/root.js";

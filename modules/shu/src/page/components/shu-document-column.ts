@@ -9,7 +9,7 @@
  * Product views are embedded inside their row (once per element, so the virtualizer recycling a row does not re-open it).
  */
 import { html, css, type TemplateResult } from "lit";
-import { ARTIFACT_SANDBOX } from "@haibun/core/lib/run-artifact.js";
+import { ARTIFACT_SANDBOX } from "@haibun/core/lib/domains/run-artifact.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import DOMPurify from "dompurify";
@@ -30,9 +30,9 @@ import type { WindowedSource } from "../derivations/windowed-source.js";
 import { splitDocumentBlocks, finalizeBlocks, blocksByEvent, blockText, isArtifactOf, type TDocBlock } from "../derivations/document-blocks.js";
 import { cursorMark, rowAtCursor, rowTimeClass, timedRows, type TTimedRows } from "../derivations/rail.js";
 import type { TScrollMarker } from "../derivations/rail.js";
-import type { THaibunEvent, TArtifactEvent, THaibunLogLevel } from "@haibun/core/schema/protocol.js";
+import type { THaibunEvent, TArtifactEvent, THaibunLogLevel } from "@haibun/core/lib/domains/protocol.js";
 import { eventMarkerStyle } from "../derivations/event-marker.js";
-import { HAIBUN_LOG_LEVELS, RECORDED_STATUS } from "@haibun/core/schema/protocol.js";
+import { HAIBUN_LOG_LEVELS, RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
 import { jsonDisclosure } from "./json-disclosure.js";
 import { refContext } from "../controllers/catalog-controller.js";
 import { artifactUrl } from "../../artifact-url.js";

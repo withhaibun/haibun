@@ -3,8 +3,8 @@ import { getDefaultWorld } from "../lib/test/lib.js";
 import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun.js";
 import ConsoleMonitorStepper from "./console-monitor-stepper.js";
-import { Runner } from "../runner.js";
-import { asFeatures } from "../lib/resolver-features.js";
+import { Runner } from "../lib/pipelines/runner.js";
+import { asFeatures } from "../lib/test/resolver-features.js";
 
 describe("ConsoleMonitorStepper", () => {
 	it("receives events via onEvent hook", async () => {

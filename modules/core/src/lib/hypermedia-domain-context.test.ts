@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { hypermediaDomainFromContext, buildConcernCatalog } from "./hypermedia.js";
+import { hypermediaDomainFromContext, buildConcernCatalog } from "./domains/hypermedia.js";
 import { Access, LinkRelations, REL_CONTEXT } from "./resources.js";
-import { toRegisteredDomain } from "./domains.js";
+import { toRegisteredDomain } from "./domains/domains.js";
 import { fromJsonText } from "./json-text.js";
 
 const iri = (rel: keyof typeof REL_CONTEXT) => REL_CONTEXT[rel];

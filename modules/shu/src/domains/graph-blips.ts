@@ -8,7 +8,7 @@
  * frame time that determined the rest.
  */
 import { z } from "zod";
-import { declareBlips, type TBlipDeclaration } from "@haibun/core/lib/blips.js";
+import { declareBlips, type TBlipDeclaration } from "@haibun/core/lib/domains/blips.js";
 import { viewAttributes } from "./blips.js";
 
 /** The signals the scene's regulator of decorative motion raises: a frame over the limit, or back within it. */

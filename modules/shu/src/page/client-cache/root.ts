@@ -3,7 +3,7 @@
  * of each actuality, the readers told of a write to the device, the execution the page reads, and the readings of
  * actuality the views share. Each is held on the page by key, so every bundle on the page shares it.
  */
-import { machine, type Machine } from "@haibun/core/lib/machine.js";
+import { machine, type Machine } from "@haibun/core/lib/machines/machine.js";
 import { pagePinned } from "../adapters/page-held.js";
 import { pageHydration } from "../root.js";
 import { reportFailure, reportToRun } from "../../client-log.js";

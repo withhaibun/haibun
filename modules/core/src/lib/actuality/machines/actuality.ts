@@ -9,8 +9,8 @@
  * or joins it after an execution started, holds each level once.
  */
 import { z } from "zod";
-import { ACTUALITY_LEVELS, STATUS, isHandedOutEvent, isSpeculativeEvent, type TActualityLevel } from "../../../schema/protocol.js";
-import { machine, type Machine } from "../../machine.js";
+import { ACTUALITY_LEVELS, STATUS, isHandedOutEvent, isSpeculativeEvent, type TActualityLevel } from "../../domains/protocol.js";
+import { machine, type Machine } from "../../machines/machine.js";
 
 /** The words of a level's status: pending until it starts, running until it ends, and how it ended. */
 export const LEVEL_STATUS = { pending: STATUS.pending, running: STATUS.running, completed: STATUS.completed, failed: STATUS.failed, stopped: STATUS.stopped } as const;

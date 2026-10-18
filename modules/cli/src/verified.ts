@@ -17,7 +17,7 @@ import path from "node:path";
 import { z } from "zod";
 import type { TSpecl } from "@haibun/core/lib/execution.js";
 import type { TRunPolicyConfig } from "@haibun/core/run-policy/run-policy-types.js";
-import { RECORDED_STATUS, type TExecutorResult } from "@haibun/core/schema/protocol.js";
+import { RECORDED_STATUS, type TExecutorResult } from "@haibun/core/lib/domains/protocol.js";
 import { ACTUALITIES_FILE, dependencyRoots, dependencyState, repositoryTop } from "@haibun/core/lib/util/node/dependency-state.js";
 import { SEQ_PATH_FIELD, StepLineSchema, stepLine } from "@haibun/core/lib/seq-path.js";
 import type { TLevelRecords } from "@haibun/core/lib/actuality/pipelines/move-actuality.js";

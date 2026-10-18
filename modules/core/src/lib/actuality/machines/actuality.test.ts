@@ -1,6 +1,6 @@
 /** The actuality machine moves each level as its table states, and a reader of the stream holds the counts. */
 import { describe, expect, it } from "vitest";
-import { EXECUTION_MODE, STATUS } from "../../../schema/protocol.js";
+import { EXECUTION_MODE, STATUS } from "../../domains/protocol.js";
 import { assertTable, pickWith, runSequences, staying } from "../../test/machine-table.js";
 import { INITIAL_ACTUALITY, LEVEL_STATUS, actualityMachine, runningFeature, transition, type TActuality, type TActualityMove } from "./actuality.js";
 

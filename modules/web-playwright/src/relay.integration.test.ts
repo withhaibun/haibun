@@ -11,7 +11,7 @@ import { createServer, type Server } from "node:http";
 import { failWithDefaults, freePort, passWithDefaults } from "@haibun/core/lib/test/lib.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { actionNotOK, errorDetail, getStepperOptionName } from "@haibun/core/lib/util/index.js";
-import { DEFAULT_DEST, OK, type TStepArgs } from "@haibun/core/schema/protocol.js";
+import { DEFAULT_DEST, OK, type TStepArgs } from "@haibun/core/lib/domains/protocol.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import FakeAuthorityStepper, { FakeInvoker, fakeGrant, DOMAIN_FAKE_HOLDER } from "@haibun/core/lib/test/fake-authority.js";
@@ -24,7 +24,7 @@ import { ChromeOverCdp } from "./relay-client/chrome.test-fake.js";
 import { RelayConnection } from "./relay-client/root.js";
 import { openRelayChannel } from "./relay-client/adapters/relay-channel.js";
 import type { TProveRequest } from "@haibun/core/lib/rpc-wire.js";
-import { DOMAIN_LINK, DOMAIN_TEXT } from "@haibun/core/lib/domains.js";
+import { DOMAIN_LINK, DOMAIN_TEXT } from "@haibun/core/lib/domains/domains.js";
 
 const PAGE = `<title>attached</title><button onclick="this.textContent='pressed'">press me</button><input aria-label="note" oninput="document.getElementById('echo').textContent=this.value"><p id="echo"></p>`;
 

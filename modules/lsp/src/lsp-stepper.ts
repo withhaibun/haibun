@@ -4,7 +4,7 @@
  */
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import { OK } from "@haibun/core/schema/protocol.js";
+import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { LanguageServer } from "./pipelines/language-server.js";
 import { lspPorts } from "./root.js";
 

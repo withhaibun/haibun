@@ -19,7 +19,7 @@
 		[
 			"@semantic-release/git",
 			{
-				"assets": ["CHANGELOG.md", "package.json", "modules/*/package.json", "modules/core/src/currentVersion.ts"],
+				"assets": ["CHANGELOG.md", "package.json", "modules/*/package.json", "modules/core/src/lib/domains/current-version.ts"],
 				"message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
 			}
 		],

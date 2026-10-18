@@ -43,8 +43,8 @@ import { z } from "zod";
 import { SHU_TAG, SHU_ATTR, SHU_EVENT, SPINE_SLOT } from "../../domains/elements.js";
 import { activePane } from "../controllers/page-cell-controller.js";
 import type { TSharedCell } from "../ports.js";
-import type { TLinkedData } from "@haibun/core/lib/hypermedia.js";
-import { unwrap as unwrapWrappers } from "@haibun/core/lib/zod-unwrap.js";
+import type { TLinkedData } from "@haibun/core/lib/domains/hypermedia.js";
+import { unwrap as unwrapWrappers } from "@haibun/core/lib/domains/zod-unwrap.js";
 // Re-exported so every view can annotate its summarizeForContext as `TLinkedData | null` from the same import it already
 // takes for ShuElement, instead of each reaching into core for the node-object type.
 /** The state of a component that doesn't hold any of its own. */

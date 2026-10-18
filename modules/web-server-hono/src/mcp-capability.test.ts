@@ -4,7 +4,7 @@ import { passWithDefaults, DEF_PROTO_OPTIONS, freePort } from "@haibun/core/lib/
 import { TEST_DOMAIN, declaresTestDomains } from "@haibun/core/lib/test/test-domains.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { actionOKWithProducts, getStepperOptionName } from "@haibun/core/lib/util/index.js";
-import { OK } from "@haibun/core/schema/protocol.js";
+import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { actingAs, readingAt } from "@haibun/core/lib/capability-context.js";
 import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
@@ -12,7 +12,7 @@ import FakeAuthorityStepper, { DOMAIN_FAKE_HOLDER, FakeInvoker } from "@haibun/c
 
 import McpStepper from "./mcp-stepper.js";
 import WebServerStepper from "./web-server-stepper.js";
-import { DOMAIN_NUMBER } from "@haibun/core/lib/domains.js";
+import { DOMAIN_NUMBER } from "@haibun/core/lib/domains/domains.js";
 import { Access } from "@haibun/core/lib/resources.js";
 import { ACTUALITY_HEADER, REFUSED_INVOCATION } from "@haibun/core/lib/rpc-wire.js";
 

@@ -2,7 +2,7 @@
  * A record's fields as a view shows them: its type, its id, its title, the fields its field table shows, its governance
  * fields and its body literals, each read through the relations its type declares, and an object's handle.
  */
-import { TITLE_RELS, composeDisplayLabel, parseTimestampValue, type TTitledBy } from "@haibun/core/lib/hypermedia.js";
+import { TITLE_RELS, composeDisplayLabel, parseTimestampValue, type TTitledBy } from "@haibun/core/lib/domains/hypermedia.js";
 import { getRelPresentation, LinkRelations } from "@haibun/core/lib/resources.js";
 import { STORED_TYPE_PROP } from "../../domains/elements.js";
 

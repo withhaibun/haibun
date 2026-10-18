@@ -1,13 +1,13 @@
 import { resolve } from "path";
 
 import type { TWorld } from "../lib/actuality/domains/world.js";
-import { Origin } from "../schema/protocol.js";
+import { Origin } from "../lib/domains/protocol.js";
 import { IHasCycles, IHasOptions, AStepper, TFeatureStep, IStepperCycles, TStartFeature, type TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOK, getStepperOption, sleep, stringOrError } from "../lib/util/index.js";
 import { copyPreRenderedAudio, doExec, doSpawn, playAudioFile, preRenderFeatureProse, TRenderedAudioMap } from "./lib/tts.js";
-import { captureLocator } from "../lib/capture-locator.js";
-import { SpeechArtifact, VideoArtifact } from "../schema/protocol.js";
-import { DOMAIN_TITLE } from "../lib/domains.js";
+import { captureLocator } from "../lib/domains/capture-locator.js";
+import { SpeechArtifact, VideoArtifact } from "../lib/domains/protocol.js";
+import { DOMAIN_TITLE } from "../lib/domains/domains.js";
 
 /** How long the capture holds the feature's last frame before its stop command runs. */
 const CAPTURE_TAIL_MS = 2000;

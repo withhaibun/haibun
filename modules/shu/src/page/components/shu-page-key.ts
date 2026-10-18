@@ -14,7 +14,7 @@ import { PageKeySchema } from "../../schemas.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { refTpl } from "./shu-ref.js";
 import { principalAddress } from "@haibun/core/lib/resources.js";
-import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
+import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import "./shu-copy-button.js";
 
 export class ShuPageKey extends ShuElement<typeof PageKeySchema> {

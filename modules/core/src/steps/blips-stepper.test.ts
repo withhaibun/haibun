@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { z } from "zod";
-import { declareBlips, blipWatch, WATCH_WINDOW } from "../lib/blips.js";
-import { recordBlip } from "../lib/record-blip.js";
+import { declareBlips, blipWatch, WATCH_WINDOW } from "../lib/domains/blips.js";
+import { recordBlip } from "../lib/pipelines/record-blip.js";
 import BlipsStepper, { renderWatch } from "./blips-stepper.js";
 import LogicStepper from "./logic-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun.js";
 import { AStepper } from "../lib/steps/domains/stepper.js";
-import { OK } from "../schema/protocol.js";
+import { OK } from "../lib/domains/protocol.js";
 import { eventHubOfTest, failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
 import type { TWorld } from "../lib/actuality/domains/world.js";
 import { runInStep } from "../lib/capability-context.js";

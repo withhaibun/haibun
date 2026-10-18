@@ -5,14 +5,14 @@ import { passWithDefaults, DEF_PROTO_OPTIONS } from "@haibun/core/lib/test/lib.j
 import McpStepper from "./mcp-stepper.js";
 import WebServerStepper from "./web-server-stepper.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
-import { OK } from "@haibun/core/schema/protocol.js";
+import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import { SHOW_STEPS_METHOD, STEP_DETAIL } from "@haibun/core/lib/step-discovery.js";
 import { readShownSteps } from "@haibun/core/lib/step-discovery.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import { ToolListChangedNotificationSchema } from "@modelcontextprotocol/sdk/types.js";
-import { DOMAIN_NUMBER } from "@haibun/core/lib/domains.js";
+import { DOMAIN_NUMBER } from "@haibun/core/lib/domains/domains.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 
 class TestStepper extends AStepper {

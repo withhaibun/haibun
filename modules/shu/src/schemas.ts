@@ -4,7 +4,7 @@
 import { z } from "zod";
 import { SearchConditionSchema, SortOrderSchema, type TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
-import { CountedSchema } from "@haibun/core/lib/hypermedia.js";
+import { CountedSchema } from "@haibun/core/lib/domains/hypermedia.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { ChatStatusSchema, ContextQuerySchema } from "@haibun/core/lib/conversation/domains/conversation.js";
 

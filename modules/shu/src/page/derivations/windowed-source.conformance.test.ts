@@ -4,10 +4,10 @@
 import { declareGraphSpec } from "../../test/catalog-fixture.js";
 import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { beforeEach } from "vitest";
-import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
-import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
+import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/domains/log-message.js";
+import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/domains/run-artifact.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
-import { counted } from "@haibun/core/lib/hypermedia.js";
+import { counted } from "@haibun/core/lib/domains/hypermedia.js";
 import { arrayWindowedSource, lazyWindowedSource, MAX_RESIDENT_PAGES, readWindowedSource } from "./windowed-source.js";
 import { describeWindowedSource, CONFORMANCE_ROWS } from "../../test/windowed-source-conformance.js";
 import { installGraph } from "../client-cache/controllers/device-controller.js";

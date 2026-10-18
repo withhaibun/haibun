@@ -6,7 +6,7 @@
  */
 import { z } from "zod";
 import { jsonld as jsonldRaw, documentLoader } from "../../jsonld-loader.js";
-import { getJsonLdContext } from "../../hypermedia.js";
+import { getJsonLdContext } from "../../domains/hypermedia.js";
 import { errorDetail } from "../../util/index.js";
 import { isPersisted, type TRegisteredDomain } from "../../resources.js";
 import type { TStandardTerm } from "../derivations/ontology.js";

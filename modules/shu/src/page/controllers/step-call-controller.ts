@@ -3,7 +3,7 @@
  * the values the form refused, and what the call returned or its refusal. The view draws again at each move.
  */
 import type { ReactiveControllerHost } from "lit";
-import { machine, type Machine } from "@haibun/core/lib/machine.js";
+import { machine, type Machine } from "@haibun/core/lib/machines/machine.js";
 import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { INITIAL_STEP_CALL, STEP_CALL_EVENT, STEP_CALL_STATUS, stepCallTransition, type TStepCallEvent, type TStepCallState } from "../machines/step-call.js";
 import type { TPageRefusal } from "../domains/refusal.js";

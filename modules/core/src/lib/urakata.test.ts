@@ -7,7 +7,7 @@ import { actionsToReadAndWrite, EVERY_ACTION, readAction, writeAction, writtenAt
 import { Access } from "./resources.js";
 import { itemAt } from "./util/item-at.js";
 import { recordOf } from "./records/pipelines/record-reads.js";
-import { mapDefinitionsToDomains } from "./domains.js";
+import { mapDefinitionsToDomains } from "./domains/domains.js";
 import { urakataTaskDomainDefinition } from "../steps/urakata-stepper.js";
 
 const noOpErrorHandler = () => undefined;

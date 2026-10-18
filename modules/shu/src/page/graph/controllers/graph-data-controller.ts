@@ -3,7 +3,7 @@
  * and the neighbourhood of a record a reader chooses. A view counts each scoped read it starts and each that settles, and
  * its readout states both, so a control waits until they match rather than for a fixed time (SH22, CA3D7).
  */
-import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
+import { QuadGraphModel } from "@haibun/core/lib/derivations/quad-graph-model.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import type { AccessLevel } from "@haibun/core/lib/resources.js";
 import { pageConduit, registryScope } from "../../root.js";

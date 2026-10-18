@@ -3,12 +3,12 @@ import type { QuadStore } from "./steps/pipelines/quad-store.js";
 import { BODY_LABEL, COMMENT_LABEL, FRAGMENT_SELECTOR_LABEL, READING_LABEL, LinkRelations, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL } from "./resources.js";
 import { commentBodyIdOf, createComment, readTypedLinks, readingIdFor } from "./records/pipelines/discourse-writes.js";
 import { DEFAULT_BODY_KIND } from "./records/derivations/bodies.js";
-import { MEDIA_TYPE } from "./media-types.js";
+import { MEDIA_TYPE } from "./domains/media-types.js";
 import { readEvery, recordOf } from "./records/pipelines/record-reads.js";
 import { storeDeclaring } from "./test/declared-types.js";
 import { z } from "zod";
-import { FRAGMENT_SPEC } from "./media-fragments.js";
-import type { TLinkVocabulary } from "./typed-links.js";
+import { FRAGMENT_SPEC } from "./domains/media-fragments.js";
+import type { TLinkVocabulary } from "./domains/typed-links.js";
 import { itemAt } from "./util/item-at.js";
 
 // A registered fixture type, as a consumer would declare one. Statements connect records of registered types only.

@@ -1,15 +1,15 @@
 import { describe, it, test, expect } from "vitest";
 
-import { OK, TStepArgs, Origin, TEST_BASE } from "../../../schema/protocol.js";
+import { OK, TStepArgs, Origin, TEST_BASE } from "../../domains/protocol.js";
 import { AStepper, TStepperStep } from "../domains/stepper.js";
 import { getNamedMatches, namedInterpolation } from "./named-vars.js";
 import { Resolver } from "../../actuality/pipelines/resolver.js";
 import { actionNotOK, createSteppers } from "../../util/index.js";
 import { getDefaultWorld } from "../../test/lib.js";
-import { asExpandedFeatures } from "../../resolver-features.js";
+import { asExpandedFeatures } from "../../test/resolver-features.js";
 import { withName } from "../../features.js";
 import { populateActionArgs } from "../pipelines/populate-action-args.js";
-import { DOMAIN_STRING } from "../../domains.js";
+import { DOMAIN_STRING } from "../../domains/domains.js";
 import { itemAt } from "../../util/item-at.js";
 
 describe("namedMatches", () => {

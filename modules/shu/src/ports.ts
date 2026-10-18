@@ -2,7 +2,7 @@
  * What serving the page reads and writes outside the process: the bundles shu builds, the report it writes, and a peer
  * instance's graph.
  */
-import type { TRequestSigner } from "@haibun/core/lib/authority-types.js";
+import type { TRequestSigner } from "@haibun/core/lib/domains/authority-types.js";
 import type { TFederatedGraphSource } from "@haibun/core/lib/steps/ports.js";
 
 /** A served asset's text, the same gzipped, and the tag through which a browser revalidates it. */

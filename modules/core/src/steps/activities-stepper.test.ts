@@ -4,7 +4,7 @@ import { ActivitiesStepper } from "./activities-stepper.js";
 import { getDefaultWorld, passWithDefaults } from "../lib/test/lib.js";
 import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun.js";
-import { DOMAIN_WAYPOINT_ARGUMENT } from "../lib/domains.js";
+import { DOMAIN_WAYPOINT_ARGUMENT } from "../lib/domains/domains.js";
 
 describe("ActivitiesStepper", () => {
 	describe("registerOutcome", () => {

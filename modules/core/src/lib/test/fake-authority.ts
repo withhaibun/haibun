@@ -11,12 +11,12 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 import { AStepper, type IStepperCycles } from "../steps/domains/stepper.js";
-import { DOMAIN_ACTIONS } from "../domains.js";
+import { DOMAIN_ACTIONS } from "../domains/domains.js";
 import type { TDomainDefinition } from "../resources.js";
-import { OK } from "../../schema/protocol.js";
+import { OK } from "../domains/protocol.js";
 import { getAuthority, heldAuthority } from "../session-authority.js";
 import { capabilityAllows } from "../actions.js";
-import type { IAuthorityInvoker, IAuthorityVerifier, TAuthorityAct, TAuthorityEvidence, TDelegations, TOutgoingRequest, TVerdict } from "../authority-types.js";
+import type { IAuthorityInvoker, IAuthorityVerifier, TAuthorityAct, TAuthorityEvidence, TDelegations, TOutgoingRequest, TVerdict } from "../domains/authority-types.js";
 
 const HOLDER_HEADER = "fake-holder";
 /** The domain of a holder's name. The stand-in invoker presents the name on each request it signs, and a test grants actions to it. */

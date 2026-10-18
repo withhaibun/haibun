@@ -10,7 +10,7 @@ import { gunzipSync } from "node:zlib";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
-import { registerDomains } from "@haibun/core/lib/domains.js";
+import { registerDomains } from "@haibun/core/lib/domains/domains.js";
 import { openRunRegistry } from "@haibun/core/lib/step-registry.js";
 import { RUN_AUTHORITY, runAuthorizedWith } from "@haibun/core/lib/capability-context.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";

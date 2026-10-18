@@ -4,7 +4,7 @@
  */
 import { z } from "zod";
 import type { TWorld } from "../../actuality/domains/world.js";
-import type { TExecutorResult } from "../../../schema/protocol.js";
+import type { TExecutorResult } from "../../domains/protocol.js";
 import type { AStepper } from "../domains/stepper.js";
 import { INITIAL_ACTUALITY } from "../../actuality/machines/actuality.js";
 

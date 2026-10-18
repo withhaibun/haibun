@@ -15,7 +15,7 @@ import { execSync } from "child_process";
 const rootPkg = JSON.parse(readFileSync("./package.json", "utf-8"));
 const version = rootPkg.version;
 
-const currentVersionFile = "./modules/core/src/currentVersion.ts";
+const currentVersionFile = "./modules/core/src/lib/domains/current-version.ts";
 writeFileSync(currentVersionFile, `export const currentVersion = '${version}';\n`);
 console.info(`updated ${currentVersionFile} to ${version}`);
 

@@ -4,7 +4,7 @@
  */
 import { pagePinned } from "./adapters/page-held.js";
 import { SharedCell } from "./adapters/shared-cell.js";
-import { Machine, machine, type TMove, type TTransition } from "@haibun/core/lib/machine.js";
+import { Machine, machine, type TMove, type TTransition } from "@haibun/core/lib/machines/machine.js";
 import type {
 	TAuthority,
 	TBlipRing,

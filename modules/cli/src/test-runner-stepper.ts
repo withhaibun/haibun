@@ -28,16 +28,16 @@ import { AStepper, type IHasCycles, type IHasOptions, type IStepperCycles } from
 import { actionNotOK, actionOK, actionOKWithProducts, boolOrError, getStepperOption, intOrError } from "@haibun/core/lib/util/index.js";
 import { callStepFrom } from "@haibun/core/lib/call-step.js";
 import { actingAs, runActingAs } from "@haibun/core/lib/capability-context.js";
-import { persistPrincipalIndividual } from "@haibun/core/lib/principal-individual.js";
+import { persistPrincipalIndividual } from "@haibun/core/lib/domains/principal-individual.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import { RECORDED_STATUS, type TRecordedStatus } from "@haibun/core/schema/protocol.js";
+import { RECORDED_STATUS, type TRecordedStatus } from "@haibun/core/lib/domains/protocol.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { RUN_DOMAIN, SUPERVISOR_CAPABILITIES, runDomainDefinitions, runReadSchema, runStartedSchema } from "./instance-stepper.js";
 import { bareMethodName, hostOfMethodName, hostScopedMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import { StepFailureSchema, isLevelEnd } from "@haibun/core/lib/actuality/machines/actuality.js";
 import { forgetOutcomes } from "./verified.js";
-import { DOMAIN_FILE_PATH } from "@haibun/core/lib/domains.js";
+import { DOMAIN_FILE_PATH } from "@haibun/core/lib/domains/domains.js";
 
 /** The InstanceStepper steps this stepper's tools call. InstanceStepper starts, reads and stops each test run. This
  *  stepper determines which test runs may start and records their outcomes. It doesn't hold a process or a port.

@@ -6,10 +6,10 @@
  * all on one record. The window reads again when actuality reports something changed, and a view following the newest
  * reads only what has happened since it last read, which is what keeps an actuality of years readable.
  */
-import { machine } from "@haibun/core/lib/machine.js";
+import { machine } from "@haibun/core/lib/machines/machine.js";
 import { ActualityMoveSchema, actualityMachine, executionEnded } from "@haibun/core/lib/actuality/machines/actuality.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
-import { EventLevelSchema, HAIBUN_LOG_LEVELS, type THaibunLogLevel } from "@haibun/core/schema/protocol.js";
+import { EventLevelSchema, HAIBUN_LOG_LEVELS, type THaibunLogLevel } from "@haibun/core/lib/domains/protocol.js";
 import type { TClock, TEvent, TEventStream } from "../../ports.js";
 import { batchedEvents } from "../../pipelines/batched-events.js";
 import { railAt, momentAt, type Range, type TActualityFocus, type TActualitySpan, type TScrollMarker } from "../../derivations/rail.js";

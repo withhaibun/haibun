@@ -2,7 +2,7 @@
  * The ports of the step infrastructure: the events hub and the sinks it writes through, the secrets it obscures, and the
  * store of quads that working memory and the backing stores implement.
  */
-import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TEventKind } from "../../schema/protocol.js";
+import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TEventKind } from "../domains/protocol.js";
 import type { TAccessBound } from "../actions.js";
 import type { AccessLevel } from "../resources.js";
 import type { TFeatureStep } from "./domains/stepper.js";

@@ -3,7 +3,7 @@
  * extension to load into the browser actuality launches. Each is set before a step opens a page.
  */
 import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
-import type { TActionResult } from "@haibun/core/schema/protocol.js";
+import type { TActionResult } from "@haibun/core/lib/domains/protocol.js";
 import { z } from "zod";
 import { extensionIdOf } from "../derivations/extension.js";
 import type { TBrowserOptions, TFiles } from "../ports.js";

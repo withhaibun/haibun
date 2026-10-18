@@ -6,14 +6,14 @@
  * malformed col= entries are skipped (never crashed-on).
  */
 import { type TCatalogSpec, declareCatalog, declareSpec } from "../../test/catalog-fixture.js";
-import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
-import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
+import { buildConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
+import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
 import { seqPathDomainDefinition } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { SHU_TAG } from "../../domains/elements.js";
 import { requiredActionOf } from "./registry-controller.js";
 import { describe, it, expect, beforeEach } from "vitest";
-import { FRAGMENT_SPEC } from "@haibun/core/lib/media-fragments.js";
+import { FRAGMENT_SPEC } from "@haibun/core/lib/domains/media-fragments.js";
 import { ShuElement } from "../components/shu-element.js";
 import * as Address from "../derivations/address.js";
 import { installConduit, installServedConduit } from "../root.js";

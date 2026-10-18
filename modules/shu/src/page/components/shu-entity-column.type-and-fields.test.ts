@@ -3,10 +3,10 @@
 import { declareCatalog } from "../../test/catalog-fixture.js";
 import { describe, it, expect, beforeEach } from "vitest";
 import { ShuEntityColumn, foldedTargets } from "./shu-entity-column.js";
-import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
-import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
+import { buildConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
+import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
-import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
+import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { refHref } from "./ref-navigation.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { RECORD_JSON } from "./json-disclosure.js";

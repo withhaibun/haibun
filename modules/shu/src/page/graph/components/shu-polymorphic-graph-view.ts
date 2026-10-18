@@ -3,7 +3,7 @@ import { html, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import { ShuClusteredGraphView, clusteredGraphInitialState, clusteredGraphStateShape } from "./shu-clustered-graph-view.js";
-import { statedTotal, type TLinkedData } from "@haibun/core/lib/hypermedia.js";
+import { statedTotal, type TLinkedData } from "@haibun/core/lib/domains/hypermedia.js";
 import { SHU_EVENT, SHU_TAG } from "../../../domains/elements.js";
 import { defineElement } from "../../controllers/element-controller.js";
 import { acts } from "../../domains/links.js";

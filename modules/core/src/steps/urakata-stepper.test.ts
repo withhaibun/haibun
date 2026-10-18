@@ -8,7 +8,7 @@ import { AStepper } from "../lib/steps/domains/stepper.js";
 import { actionOKWithProducts } from "../lib/util/index.js";
 import { URAKATA, URAKATA_ID_DOMAIN, type IUrakataRegistry, type IUrakataTicker } from "../lib/urakata.js";
 import { getFromRuntime } from "../lib/util/index.js";
-import type { TStepResult } from "../schema/protocol.js";
+import type { TStepResult } from "../lib/domains/protocol.js";
 import { itemAt } from "../lib/util/item-at.js";
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));

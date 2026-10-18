@@ -3,7 +3,7 @@
  * runs only the scripts that nonce names and the modules they load.
  */
 import { randomBytes } from "node:crypto";
-import { currentVersion } from "@haibun/core/currentVersion.js";
+import { currentVersion } from "@haibun/core/lib/domains/current-version.js";
 import type { TPageBuild, TServedHydration } from "../domains/hydration.js";
 import { buildSpaHtml } from "../derivations/page-html.js";
 import { pagePolicy } from "../derivations/content-security-policy.js";

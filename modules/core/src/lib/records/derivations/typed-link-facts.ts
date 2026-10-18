@@ -1,11 +1,11 @@
 /**
- * The facts a markdown text's links state, read with markdown-it, by the grammar `lib/typed-links.ts` holds. The parser is apart
+ * The facts a markdown text's links state, read with markdown-it, by the grammar `lib/domains/typed-links.ts` holds. The parser is apart
  * from the grammar, so a page that reads a reference loads the grammar alone.
  */
 import MarkdownIt from "markdown-it";
 import { itemAt } from "../../util/item-at.js";
 import { LinkRelations } from "../../resources.js";
-import { DENOTES, classifyLinkText, resolveLinkTarget, type TLinkVocabulary, type TTypedLinkFact } from "../../typed-links.js";
+import { DENOTES, classifyLinkText, resolveLinkTarget, type TLinkVocabulary, type TTypedLinkFact } from "../../domains/typed-links.js";
 
 /** One markdown-it instance parses every text. linkify is off, so a bare URL in prose stays prose and only a written link is data. */
 let linkParser: MarkdownIt | undefined;

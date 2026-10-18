@@ -5,7 +5,7 @@
  * for a call it handed out and a statement it merely tried.
  */
 import { describe, expect, it } from "vitest";
-import { CHECK_NO, ICON_STEP_COMPLETED, MAYBE_CHECK_NO, RETURNED_TO_CALLER } from "@haibun/core/schema/protocol.js";
+import { CHECK_NO, ICON_STEP_COMPLETED, MAYBE_CHECK_NO, RETURNED_TO_CALLER } from "@haibun/core/lib/domains/protocol.js";
 import { bucketMarkerStyle, eventMarkerStyle } from "./event-marker.js";
 import { MARK_COLOUR } from "./status-mark.js";
 

@@ -8,12 +8,12 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { getDefaultWorld, testWithWorld } from "../lib/test/lib.js";
-import { resolveSitePrincipal } from "../lib/host-id.js";
+import { resolveSitePrincipal } from "../lib/domains/host-id.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { Access, COMMENT_LABEL, LinkRelations, type TDomainDefinition } from "../lib/resources.js";
 import { getAuthority } from "../lib/session-authority.js";
 import { readAction } from "../lib/actions.js";
-import type { TAuthorityEvidence } from "../lib/authority-types.js";
+import type { TAuthorityEvidence } from "../lib/domains/authority-types.js";
 import { stubVerifier } from "../lib/test/fake-authority.js";
 import { itemAt } from "../lib/util/item-at.js";
 import { readEvery } from "../lib/records/pipelines/record-reads.js";

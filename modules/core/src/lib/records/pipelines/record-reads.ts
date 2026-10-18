@@ -4,7 +4,7 @@
  * these functions, so each read states its bound, its count and its order.
  */
 import { z } from "zod";
-import { MAX_PAGE_ROWS, readInPages, type TCounted } from "../../hypermedia.js";
+import { MAX_PAGE_ROWS, readInPages, type TCounted } from "../../domains/hypermedia.js";
 import {
 	GraphQuerySchema,
 	statedQuery,

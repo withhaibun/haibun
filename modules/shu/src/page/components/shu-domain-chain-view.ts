@@ -30,7 +30,7 @@ import { ShuElement, EmptyStateSchema, type TLinkedData } from "./shu-element.js
 import { NODE_KIND, nodeIn, type TGraph, type TGraphNode } from "../domains/graph.js";
 import { graphPresenterTag, mountGraphPresenter, presenterIn } from "../controllers/presenter-controller.js";
 import type { TGraphPresenter, TPresenterNodeClick } from "../ports.js";
-import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
+import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { typeShownIn } from "../controllers/catalog-controller.js";
 import "./shu-spinner.js";
 

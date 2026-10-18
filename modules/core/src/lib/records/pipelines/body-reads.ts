@@ -5,7 +5,7 @@
 import { GraphQuerySchema } from "../../steps/domains/quad-types.js";
 import { type IQuadStore } from "../../steps/ports.js";
 import { BODY_LABEL, LinkRelations, type AccessQueryLevel } from "../../resources.js";
-import { MEDIA_TYPE } from "../../media-types.js";
+import { MEDIA_TYPE } from "../../domains/media-types.js";
 import { BodyTextSchema, LinkedBodySchema, type TLinkedBody } from "../domains/body.js";
 import { formIn } from "../derivations/bodies.js";
 import { maximalText } from "../derivations/body-text.js";

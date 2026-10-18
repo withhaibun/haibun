@@ -4,7 +4,7 @@
  *
  * A step doesn't lead with the article "the", since haibun reads such a line as narrative prose and not as a step.
  */
-import { NameSchema } from "@haibun/core/lib/domains.js";
+import { NameSchema } from "@haibun/core/lib/domains/domains.js";
 import type { Page } from "playwright";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK } from "@haibun/core/lib/util/index.js";

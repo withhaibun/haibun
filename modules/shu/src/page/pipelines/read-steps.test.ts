@@ -4,7 +4,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { hydrateFromDom, hydratedCache } from "../controllers/hydration-controller.js";
 import { getAvailableSteps, registryOrigin, requireStep, stepsJoining } from "../controllers/registry-controller.js";
-import { asDomainKey } from "@haibun/core/lib/domains.js";
+import { asDomainKey } from "@haibun/core/lib/domains/domains.js";
 import { setupShuTest, stepsShown, type TShuTestHandle, hydrate, PAGE_ACTUALITY, SERVED_SETTINGS } from "../../test/setup.js";
 import { CACHE_SHAPE } from "../client-cache/ports.js";
 import { hydrateClientCache } from "../client-cache/controllers/device-controller.js";

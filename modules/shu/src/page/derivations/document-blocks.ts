@@ -8,8 +8,8 @@
  * page, so a test runs them without a live column.
  */
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import { artifactOf } from "@haibun/core/lib/run-artifact.js";
-import type { TArtifactEvent } from "@haibun/core/schema/protocol.js";
+import { artifactOf } from "@haibun/core/lib/domains/run-artifact.js";
+import type { TArtifactEvent } from "@haibun/core/lib/domains/protocol.js";
 
 /** One document block: its final HTML, the event id it came from, and its raw time. Jump-to and product embedding read
  *  the id. Time-cursor dimming reads the raw time, which is the offset from the column's start. A spacer has an empty

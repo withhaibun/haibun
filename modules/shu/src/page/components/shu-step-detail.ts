@@ -20,7 +20,7 @@ import { variablesSetBy, type TVariableSet } from "../derivations/step-variables
 import { anIndividual, type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { formatSeqPath, parseRecordName, stepLine, type TStepLine } from "@haibun/core/lib/seq-path.js";
 import { actionRef, calledRef, originLink, refTpl } from "./shu-ref.js";
-import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
+import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { ClockController } from "../controllers/clock-controller.js";
 import { appAccessLevel } from "../../view-query.js";
 import { typeShownIn } from "../controllers/catalog-controller.js";

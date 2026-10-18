@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { FeatureVariables } from "./feature-variables.js";
 import type { TWorld } from "../domains/world.js";
-import { Origin } from "../../../schema/protocol.js";
+import { Origin } from "../../domains/protocol.js";
 import { getDefaultWorld } from "../../test/lib.js";
-import { DOMAIN_STRING } from "../../domains.js";
+import { DOMAIN_STRING } from "../../domains/domains.js";
 
 describe("FeatureVariables - Union Domains", () => {
 	let world: TWorld;

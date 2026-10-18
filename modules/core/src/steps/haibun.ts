@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { TFeatures } from "../lib/actuality/domains/execution.js";
 import type { TWorld } from "../lib/actuality/domains/world.js";
-import { OK } from "../schema/protocol.js";
+import { OK } from "../lib/domains/protocol.js";
 import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TEndFeature, CycleWhen } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts, sleep } from "../lib/util/index.js";
 import { findFeatureStepsFromStatement } from "../lib/actuality/pipelines/resolver.js";
@@ -17,19 +17,19 @@ import {
 	DOMAIN_TITLE,
 	backgroundNamesSchema,
 	createEnumDomainDefinition,
-} from "../lib/domains.js";
+} from "../lib/domains/domains.js";
 import { findFeatures } from "../lib/features.js";
 import { FlowRunner, inheritedMode } from "../lib/steps/pipelines/flow-runner.js";
 import { QuadStore } from "../lib/steps/pipelines/quad-store.js";
 import { RemoteQuadStore } from "../lib/transport/adapters/remote-quad-store.js";
 import { requestSigner } from "../lib/session-authority.js";
-import { SERVING } from "../lib/serving.js";
+import { SERVING } from "../lib/domains/serving.js";
 import { discoverSteps } from "../lib/steps/derivations/discover-steps.js";
 import { runRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { stepMethodName } from "../lib/steps/domains/step-method.js";
 import { DOMAIN_STEP_DETAIL, SHOW_STEPS_ACTION, SHOW_STEPS_DESCRIPTION, StepDetailSchema, StepDiscoverySchema, type TStepsQuery } from "../lib/steps/domains/step-discovery.js";
 import { shownTo } from "../lib/capability-context.js";
-import { validateStep } from "../lib/step-validation.js";
+import { validateStep } from "../lib/pipelines/step-validation.js";
 import { Access, SEQ_PATH_LABEL } from "../lib/resources.js";
 import { recordOf } from "../lib/records/pipelines/record-reads.js";
 import { SEQ_PATH_FIELD, executionOf, formatRecordName } from "../lib/actuality/domains/seq-path.js";

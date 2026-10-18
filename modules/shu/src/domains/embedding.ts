@@ -4,7 +4,7 @@
  */
 import { z } from "zod";
 import { QuoteAnchorSchema } from "@haibun/core/lib/resources.js";
-import { CallLinkSchema, PAGE_TERMS } from "@haibun/core/lib/hypermedia.js";
+import { CallLinkSchema, PAGE_TERMS } from "@haibun/core/lib/domains/hypermedia.js";
 
 /** The ActivityStreams type of the page the reader has open. */
 export const EMBEDDED_PAGE_TYPE = "as:Page";

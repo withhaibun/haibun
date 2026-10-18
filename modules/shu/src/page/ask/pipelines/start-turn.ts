@@ -7,12 +7,12 @@
  * that the page doesn't receive; where the reader sends the question again, actuality records it a second time.
  */
 import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
-import type { TCalled } from "@haibun/core/lib/called.js";
+import type { TCalled } from "@haibun/core/lib/domains/called.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { delegatedActions, readAction, readCeilingOf, seenAt } from "@haibun/core/lib/actions.js";
 import { Access, storeScopeFor } from "@haibun/core/lib/resources.js";
 import { ASK_PARAM, CONVERSATION_DOMAIN, TURN_STATUS, TurnEnvelopeSchema, TurnKeySchema, type TTurnEnvelope } from "@haibun/core/lib/conversation/domains/conversation.js";
-import { STATUS } from "@haibun/core/schema/protocol.js";
+import { STATUS } from "@haibun/core/lib/domains/protocol.js";
 import { acts } from "../../domains/links.js";
 import { recordOf } from "../../../current-subject.js";
 import type { TAskedTurn } from "../domains/conversation.js";

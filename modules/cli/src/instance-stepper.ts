@@ -41,18 +41,18 @@ import { instanceSignIns } from "./root.js";
 import { BASIC_AUTH_OPTION, basicAuthUsers, type TBasicAuthUser } from "@haibun/core/lib/basic-auth.js";
 import { RemoteStepperProxy } from "@haibun/core/lib/remote-stepper-proxy.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
-import { MODULE_OPTION_PREFIX, BASE_PREFIX, NDJSON, OK, ONCE, STAY, STAY_ALWAYS } from "@haibun/core/schema/protocol.js";
-import { DEFAULT_HOST_ID, HAIBUN_HOST_ID_ENV } from "@haibun/core/lib/host-id.js";
+import { MODULE_OPTION_PREFIX, BASE_PREFIX, NDJSON, OK, ONCE, STAY, STAY_ALWAYS } from "@haibun/core/lib/domains/protocol.js";
+import { DEFAULT_HOST_ID, HAIBUN_HOST_ID_ENV } from "@haibun/core/lib/domains/host-id.js";
 import { type TRunOutcome, emptyOutcome, readRunOutput } from "./run-outcome.js";
 import { LEVEL_STATUS, StepFailureSchema, executionEnded, transition, type TActualityMove } from "@haibun/core/lib/actuality/machines/actuality.js";
 import { writeLevelRecord, type TLevelMoved, type TLevelRecords } from "@haibun/core/lib/actuality/pipelines/move-actuality.js";
 import type { TLevelNaming, TStepRecord } from "@haibun/core/lib/actuality/derivations/step-records.js";
 import { SEQ_PATH_EDGE, SEQ_PATH_FIELD, executionOf, formatRecordName } from "@haibun/core/lib/seq-path.js";
-import { ACTUALITY_LEVELS, RECORDED_STATUS } from "@haibun/core/schema/protocol.js";
+import { ACTUALITY_LEVELS, RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
 import { actingAs, askedIn } from "@haibun/core/lib/capability-context.js";
 import { getConfigFromBase, processBaseEnvToOptionsAndErrors } from "./lib.js";
 import { outcomeAgainst, verificationOf, type TOutcome } from "./verified.js";
-import { DOMAIN_FILE_PATH, DOMAIN_NUMBER, NameSchema } from "@haibun/core/lib/domains.js";
+import { DOMAIN_FILE_PATH, DOMAIN_NUMBER, NameSchema } from "@haibun/core/lib/domains/domains.js";
 
 /** Environment names of the per-process options that core owns: whether a process stays up, and whether it skips a group
  *  that passed. NDJSON_ENV selects NDJSON events on a child's output. `HAIBUN_HOST_ID_ENV` holds a process's host id.

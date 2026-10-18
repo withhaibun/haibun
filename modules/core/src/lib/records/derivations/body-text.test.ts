@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MEDIA_TYPE } from "../../media-types.js";
+import { MEDIA_TYPE } from "../../domains/media-types.js";
 import { htmlText, indexedText, maximalText, termWords, textOfForm } from "./body-text.js";
 
 const HTML = [

@@ -8,7 +8,7 @@
 import { describe, it, expect } from "vitest";
 import { lazyWindowedSource, MAX_RESIDENT_PAGES, readWindowedSource, unmarked } from "./windowed-source.js";
 import { seededRandom } from "@haibun/core/lib/test/machine-table.js";
-import { MAX_PAGE_ROWS, counted, countedTo, pageLimit } from "@haibun/core/lib/hypermedia.js";
+import { MAX_PAGE_ROWS, counted, countedTo, pageLimit } from "@haibun/core/lib/domains/hypermedia.js";
 
 /** A row's value is its index, so a wrong row is detectable by inspection. */
 const rowFor = (index: number): number => index;

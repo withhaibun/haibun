@@ -11,7 +11,7 @@
  * a read. A mark carries the moment its division begins, so a rail places it by that moment at any scale, and the grid
  * the counting uses is independent of the scale that draws the marks.
  */
-import type { THaibunLogLevel } from "@haibun/core/schema/protocol.js";
+import type { THaibunLogLevel } from "@haibun/core/lib/domains/protocol.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
 import type { TDensityQuery } from "@haibun/core/lib/quad-types.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";

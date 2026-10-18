@@ -9,7 +9,7 @@ import { ENDPOINT_LABEL } from "@haibun/core/lib/resources.js";
 import { SIGNATURE_HEADER } from "@haibun/core/lib/signature-header.js";
 import type { IRouteRegistry } from "@haibun/core/lib/execution.js";
 import type { TRpcMethod } from "@haibun/core/lib/rpc-wire.js";
-import type { TRestsOn } from "@haibun/core/lib/authority-types.js";
+import type { TRestsOn } from "@haibun/core/lib/domains/authority-types.js";
 
 export type { Context, MiddlewareHandler, Hono };
 

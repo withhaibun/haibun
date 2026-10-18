@@ -2,7 +2,7 @@
  * The catalog of the step registry the page holds, derived once per read (`derivations/catalog.ts`). A read before the page
  * reads actuality's steps throws and names what read it.
  */
-import type { Machine } from "@haibun/core/lib/machine.js";
+import type { Machine } from "@haibun/core/lib/machines/machine.js";
 import { REGISTRY_STATUS, type TRegistryEvent, type TRegistryState } from "../machines/registry.js";
 import { catalogOf, type TCatalog } from "../derivations/catalog.js";
 

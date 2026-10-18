@@ -23,4 +23,4 @@ export {
 	Timer,
 	EventFormatter,
 	shortenURI,
-} from "../schema/protocol.js";
+} from "../lib/domains/protocol.js";

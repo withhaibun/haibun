@@ -6,8 +6,8 @@
  */
 
 import { AStepper, IHasCycles, IHasOptions, StepperKinds, IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
-import { NameSchema } from "@haibun/core/lib/domains.js";
-import { OK, SPECULATIVE_FAILURE, STATUS, type TBlipEvent } from "@haibun/core/schema/protocol.js";
+import { NameSchema } from "@haibun/core/lib/domains/domains.js";
+import { OK, SPECULATIVE_FAILURE, STATUS, type TBlipEvent } from "@haibun/core/lib/domains/protocol.js";
 import { THaibunEvent, EventFormatter } from "@haibun/core/monitor/index.js";
 import { stringOrError, getStepperOption } from "@haibun/core/lib/util/index.js";
 import { LEVEL_STATUS, actualityMachine, isActualityMove, runningFeature, type TActualityMove } from "@haibun/core/lib/actuality/machines/actuality.js";

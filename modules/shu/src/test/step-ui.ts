@@ -4,7 +4,7 @@ import type WebPlaywright from "@haibun/web-playwright";
 import { dePolite } from "@haibun/core/lib/util/index.js";
 import { BASIC_AUTH_OPTION, basicAuthUsers } from "@haibun/core/lib/basic-auth.js";
 import { requiredModuleOption } from "@haibun/core/lib/held-module-options.js";
-import { MODULE_OPTION_PREFIX } from "@haibun/core/schema/protocol.js";
+import { MODULE_OPTION_PREFIX } from "@haibun/core/lib/domains/protocol.js";
 import { SHU_TEST_IDS } from "../domains/test-ids.js";
 import { CHAT_MESSAGE_MATCH, SHU_TAG } from "../domains/elements.js";
 

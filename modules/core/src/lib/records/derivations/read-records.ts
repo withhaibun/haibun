@@ -16,7 +16,7 @@ import {
 	type TCounted,
 	type TQuerySurface,
 	type TTitledBy,
-} from "../../hypermedia.js";
+} from "../../domains/hypermedia.js";
 import {
 	ORDER_KEY,
 	VIA_FIELD,

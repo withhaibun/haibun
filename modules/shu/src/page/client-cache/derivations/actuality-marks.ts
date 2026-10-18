@@ -3,8 +3,8 @@
  * Each type an actuality records is counted by the field that states how its records turned out, and the divisions are merged,
  * so a step that failed and a message reporting an error both mark their division as a failure.
  */
-import { HAIBUN_LOG_LEVELS, RECORDED_STATUS } from "@haibun/core/schema/protocol.js";
-import { LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
+import { HAIBUN_LOG_LEVELS, RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
+import { LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL } from "@haibun/core/lib/domains/log-message.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { bucketMarkerStyle } from "../../derivations/event-marker.js";

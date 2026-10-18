@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
 import { dispatchAffordanceFromResponse } from "./affordance-dispatch.js";
-import { HYPERMEDIA } from "@haibun/core/schema/protocol.js";
+import { HYPERMEDIA } from "@haibun/core/lib/domains/protocol.js";
 import { ShuElement } from "../components/shu-element.js";
 import { installConduit } from "../root.js";
 import { TestConduit, newPage } from "../../test/setup.js";

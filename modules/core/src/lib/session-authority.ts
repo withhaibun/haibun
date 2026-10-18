@@ -19,7 +19,7 @@ import type {
 	TRequestSigner,
 	TRestsOn,
 	TVerdict,
-} from "./authority-types.js";
+} from "./domains/authority-types.js";
 
 export const AUTHORITY_KEY = "authority";
 

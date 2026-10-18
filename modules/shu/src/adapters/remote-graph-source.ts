@@ -4,7 +4,7 @@
  * queries or writes to the peer; those require capability-gated federation.
  */
 import { RemoteInstance } from "@haibun/core/lib/rpc-client.js";
-import type { TRequestSigner } from "@haibun/core/lib/authority-types.js";
+import type { TRequestSigner } from "@haibun/core/lib/domains/authority-types.js";
 import { readAction } from "@haibun/core/lib/actions.js";
 import type { AccessLevel } from "@haibun/core/lib/resources.js";
 import type { TCluster, TClusteredQuads, TQuad } from "@haibun/core/lib/quad-types.js";

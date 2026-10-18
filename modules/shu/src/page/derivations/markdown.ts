@@ -2,7 +2,7 @@
  * A text as the page shows it: HTML escaping, a reference's markup, the markdown renderers with their in-app references,
  * and a body's HTML by media type.
  *
- * A reference follows the typed-link grammar (`@haibun/core/lib/typed-links.js`), the grammar from which the server derives
+ * A reference follows the typed-link grammar (`@haibun/core/lib/domains/typed-links.js`), the grammar from which the server derives
  * facts: an href of `#Type` names a persisted type, `#Type:id` an individual of that type, and a text directive
  * (`#Type:id:~:text=[prefix-,]exact[,-suffix]`) a passage inside it, which maps one-to-one onto the Web Annotation
  * TextQuoteSelector the graph persists. A rendered reference is a `<shu-ref>`, which opens its target in a column.
@@ -11,7 +11,7 @@ import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
 import { esc, headingAnchor } from "@haibun/core/lib/document-content.js";
 import { jsonCarried, JsonObjectTextSchema } from "@haibun/core/lib/json-text.js";
-import { REF_DENOTES, parseRefHref } from "@haibun/core/lib/typed-links.js";
+import { REF_DENOTES, parseRefHref } from "@haibun/core/lib/domains/typed-links.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import type { TPropertyDefinition } from "./catalog.js";
 

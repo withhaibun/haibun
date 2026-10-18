@@ -3,7 +3,7 @@
  * event, the record of the level it starts or ends is written, then the events hub emits it, so a reader of the stream
  * holds the levels the machine holds and a reader of the store holds their records.
  */
-import type { TLifecycleEvent } from "../../../schema/protocol.js";
+import type { TLifecycleEvent } from "../../domains/protocol.js";
 import type { TWorld } from "../domains/world.js";
 import type { IQuadStore } from "../../steps/ports.js";
 import { SEQ_PATH_LABEL } from "../../resources.js";

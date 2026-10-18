@@ -4,8 +4,8 @@
  */
 import type { AStepper, TFeatureStep } from "../domains/stepper.js";
 import type { TWorld } from "../../actuality/domains/world.js";
-import type { TStepArgs, TStepValue } from "../../../schema/protocol.js";
-import { DOMAIN_STRING, DOMAIN_VARIABLE_VALUE, domainParts, isPrimitiveDomain, paramDomainKey, registeredDomain } from "../../domains.js";
+import type { TStepArgs, TStepValue } from "../../domains/protocol.js";
+import { DOMAIN_STRING, DOMAIN_VARIABLE_VALUE, domainParts, isPrimitiveDomain, paramDomainKey, registeredDomain } from "../../domains/domains.js";
 import { errorDetail } from "../../util/index.js";
 
 /** One parameter read: its name, the domain it takes, and its resolved value coerced to that domain. */

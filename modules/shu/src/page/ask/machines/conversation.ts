@@ -14,7 +14,7 @@ import {
 	type TRequestEvent,
 	type TTurn,
 } from "../domains/conversation.js";
-import { STATUS } from "@haibun/core/schema/protocol.js";
+import { STATUS } from "@haibun/core/lib/domains/protocol.js";
 import { TURN_STATUS } from "@haibun/core/lib/conversation/domains/conversation.js";
 
 /** The conversation before a reader opens one, and after the reader closes it: the machine's initial state. */

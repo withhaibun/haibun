@@ -20,7 +20,7 @@ import { defineElement } from "../controllers/element-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { describeSearch } from "./shu-search-summary.js";
 import { viewQuery } from "../../view-query.js";
-import { CountedSchema, type TCounted } from "@haibun/core/lib/hypermedia.js";
+import { CountedSchema, type TCounted } from "@haibun/core/lib/domains/hypermedia.js";
 import { countRef } from "./shu-ref.js";
 
 /** What the strip shows the column is. The index pane doesn't carry a label, and an open index doesn't show a header, so the strip

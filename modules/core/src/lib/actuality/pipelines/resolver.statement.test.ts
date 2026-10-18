@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
 
 import { AStepper } from "../../steps/domains/stepper.js";
-import { OK } from "../../../schema/protocol.js";
-import { asExpandedFeatures } from "../../resolver-features.js";
+import { OK } from "../../domains/protocol.js";
+import { asExpandedFeatures } from "../../test/resolver-features.js";
 import { Resolver } from "./resolver.js";
 import { createSteppers } from "../../util/index.js";
-import { DOMAIN_STATEMENT } from "../../domains.js";
+import { DOMAIN_STATEMENT } from "../../domains/domains.js";
 import { itemAt } from "../../util/item-at.js";
 
 // A test stepper that uses a statement typed placeholder

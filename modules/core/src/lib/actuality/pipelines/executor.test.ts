@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { nextSeqPath } from "./step-dispatch.js";
 import { foldStep } from "../derivations/step-results.js";
-import { STAY_ALWAYS, STAY_FAILURE, type TFeatureResult, type TFeatureSteps, type TStepResult } from "../../../schema/protocol.js";
+import { STAY_ALWAYS, STAY_FAILURE, type TFeatureResult, type TFeatureSteps, type TStepResult } from "../../domains/protocol.js";
 import { calculateShouldClose, executionFailure, staysAfterExecution } from "../derivations/execution-end.js";
 import { advanceSyntheticSeqPath, syntheticBranchSeqPath, syntheticSeqPathDirection } from "../domains/seq-path.js";
 import { passWithDefaults, failWithDefaults } from "../../test/lib.js";
@@ -10,10 +10,10 @@ import { scenarioEventId } from "../derivations/lifecycle-events.js";
 import { readEvery } from "../../records/pipelines/record-reads.js";
 import { SEQ_PATH_LABEL } from "../../resources.js";
 import { SEQ_PATH_EDGE, SEQ_PATH_FIELD } from "../domains/seq-path.js";
-import { RECORDED_STATUS, TEST_BASE } from "../../../schema/protocol.js";
+import { RECORDED_STATUS, TEST_BASE } from "../../domains/protocol.js";
 import { AStepper } from "../../steps/domains/stepper.js";
 import { actionNotOK, actionOK } from "../../util/index.js";
-import { DOMAIN_TEXT } from "../../domains.js";
+import { DOMAIN_TEXT } from "../../domains/domains.js";
 import { itemAt } from "../../util/item-at.js";
 
 describe("syntheticSeqPathDirection", () => {

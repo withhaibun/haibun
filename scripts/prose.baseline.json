@@ -17,8 +17,19 @@
 	"modules/core/src/lib/document-content.test.ts": {
 		"terminal-preposition": 1
 	},
-	"modules/core/src/lib/domains.ts": {
+	"modules/core/src/lib/domains/domains.ts": {
 		"terminal-preposition": 3
+	},
+	"modules/core/src/lib/domains/hypermedia.ts": {
+		"anthropomorphic": 11,
+		"relation-verb": 1,
+		"terminal-preposition": 6
+	},
+	"modules/core/src/lib/domains/media-fragments.ts": {
+		"terminal-preposition": 2
+	},
+	"modules/core/src/lib/domains/taiwa.ts": {
+		"anthropomorphic": 1
 	},
 	"modules/core/src/lib/goal-resolver.composite.test.ts": {
 		"terminal-preposition": 1
@@ -26,25 +37,14 @@
 	"modules/core/src/lib/goal-resolver.ts": {
 		"terminal-preposition": 1
 	},
-	"modules/core/src/lib/hypermedia.ts": {
-		"anthropomorphic": 11,
-		"relation-verb": 1,
-		"terminal-preposition": 6
-	},
-	"modules/core/src/lib/media-fragments.ts": {
-		"terminal-preposition": 2
+	"modules/core/src/lib/pipelines/record-blip.ts": {
+		"terminal-preposition": 1
 	},
 	"modules/core/src/lib/port-occupant.ts": {
 		"terminal-preposition": 1
 	},
-	"modules/core/src/lib/record-blip.ts": {
-		"terminal-preposition": 1
-	},
 	"modules/core/src/lib/resources.ts": {
 		"terminal-preposition": 4
-	},
-	"modules/core/src/lib/taiwa.ts": {
-		"anthropomorphic": 1
 	},
 	"modules/core/src/lib/test/prose-sources.ts": {
 		"terminal-preposition": 4
@@ -52,13 +52,13 @@
 	"modules/core/src/lib/test/refusal-rules.ts": {
 		"terminal-preposition": 1
 	},
-	"modules/core/src/steps/activities-actions.ts": {
-		"terminal-preposition": 1
-	},
 	"modules/core/src/steps/authority-stepper.test.ts": {
 		"terminal-preposition": 1
 	},
 	"modules/core/src/steps/authority-stepper.ts": {
+		"terminal-preposition": 1
+	},
+	"modules/core/src/steps/domains/activities-actions.ts": {
 		"terminal-preposition": 1
 	},
 	"modules/core/src/steps/goal-resolution-stepper.test.ts": {

@@ -7,8 +7,8 @@
  * descriptors it reads. The browser imports this module, so it doesn't import the code that builds schemas.
  */
 import { z } from "zod";
-import { ConcernCatalogSchema } from "../../hypermedia.js";
-import { HYPERMEDIA, productData } from "../../../schema/protocol.js";
+import { ConcernCatalogSchema } from "../../domains/hypermedia.js";
+import { HYPERMEDIA, productData } from "../../domains/protocol.js";
 import { readAction } from "../../actions.js";
 import { Access, AccessLevelSchema } from "../../resources.js";
 

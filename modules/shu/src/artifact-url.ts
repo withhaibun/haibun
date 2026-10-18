@@ -8,7 +8,7 @@ import { until } from "lit/directives/until.js";
 import { READS_THE_RUNS_ARTIFACTS } from "@haibun/core/lib/actions.js";
 import { isOffline } from "./page/controllers/hydration-controller.js";
 import { pageAuthorityPort } from "./page/root.js";
-import { ARTIFACTS_ROUTE, artifactAddress } from "@haibun/core/lib/run-artifact.js";
+import { ARTIFACTS_ROUTE, artifactAddress } from "@haibun/core/lib/domains/run-artifact.js";
 import { reportToRun } from "./client-log.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { isWebAddress } from "@haibun/core/lib/document-content.js";

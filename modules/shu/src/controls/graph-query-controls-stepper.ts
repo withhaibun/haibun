@@ -3,7 +3,7 @@ import type { Page } from "playwright";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { DOMAIN_PERSISTED_TYPE, type TDomainDefinition } from "@haibun/core/lib/resources.js";
 import { actionOK, actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
-import { DOMAIN_RECORD_ID, NameSchema } from "@haibun/core/lib/domains.js";
+import { DOMAIN_RECORD_ID, NameSchema } from "@haibun/core/lib/domains/domains.js";
 import { SHU_TAG } from "../domains/elements.js";
 import { ViewQueryControlSchema } from "./domains/view-query-control.js";
 import { ROUND_TRIP_MS } from "./domains/waits.js";

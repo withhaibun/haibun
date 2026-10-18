@@ -5,7 +5,7 @@
  * `@haibun/web-server-hono/served-folder.js`.
  */
 import { READS_A_SERVED_FOLDER } from "@haibun/core/lib/actions.js";
-import { ARTIFACT_POLICY } from "@haibun/core/lib/run-artifact.js";
+import { ARTIFACT_POLICY } from "@haibun/core/lib/domains/run-artifact.js";
 import type { TRpcRefusal } from "@haibun/core/lib/rpc-wire.js";
 import type { TRuntime } from "@haibun/core/lib/world.js";
 import type { MiddlewareHandler, TServed } from "../ports.js";

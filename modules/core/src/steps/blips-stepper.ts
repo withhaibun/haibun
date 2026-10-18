@@ -1,5 +1,5 @@
 /**
- * Steps and observation sources for blips. `lib/blips.ts` implements recording.
+ * Steps and observation sources for blips. `lib/domains/blips.ts` implements recording.
  *
  * The rollup counts occurrences per name. The stepper attaches it when an execution starts, clears it at the end of each
  * feature and detaches it when the execution ends. A watch names blips and holds a bounded window of their occurrences
@@ -7,12 +7,12 @@
  * observation sources.
  */
 import { AStepper, type IHasCycles, type IObservationSource, type IStepperCycles, type TStepperSteps } from "../lib/steps/domains/stepper.js";
-import { blipDeclarations, blipDeclared, blipRollup, blipWatch, WATCH_WINDOW, type TBlipSeries } from "../lib/blips.js";
+import { blipDeclarations, blipDeclared, blipRollup, blipWatch, WATCH_WINDOW, type TBlipSeries } from "../lib/domains/blips.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
-import { OK } from "../schema/protocol.js";
-import type { TBlipEvent } from "../schema/protocol.js";
+import { OK } from "../lib/domains/protocol.js";
+import type { TBlipEvent } from "../lib/domains/protocol.js";
 import { z } from "zod";
-import { listedSchema } from "../lib/domains.js";
+import { listedSchema } from "../lib/domains/domains.js";
 
 const WatchSchema = z.object({ watching: z.array(z.string()), window: z.number() });
 const SeriesSchema = z.object({ name: z.string(), labels: z.record(z.string(), z.string()), count: z.number(), sum: z.number().optional(), max: z.number().optional() });

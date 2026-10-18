@@ -3,7 +3,7 @@
  * node read them, so both mark one outcome alike. The module holds only these, so a bundle that marks a node by its
  * outcome doesn't load the marks of events.
  */
-import { ICON_STEP_COMPLETED, ICON_STEP_FAILED, ICON_STEP_RUNNING, ICON_STEP_STOPPED, RECORDED_STATUS } from "@haibun/core/schema/protocol.js";
+import { ICON_STEP_COMPLETED, ICON_STEP_FAILED, ICON_STEP_RUNNING, ICON_STEP_STOPPED, RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
 
 export type TEventMarkerStyle = { color: string; icon: string };
 

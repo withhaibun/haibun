@@ -17,7 +17,7 @@ import AuthorityStepper from "./authority-stepper.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { actionOK, actionOKWithProducts } from "../lib/util/index.js";
 import { z } from "zod";
-import { DOMAIN_USER_NAME } from "../lib/domains.js";
+import { DOMAIN_USER_NAME } from "../lib/domains/domains.js";
 
 // The `getConcerns` blocks of the steppers below declare this domain key.
 const DOMAIN_AUTH_SESSION = "domain-auth-session";

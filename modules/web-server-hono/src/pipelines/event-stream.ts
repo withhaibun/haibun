@@ -21,7 +21,7 @@ import {
 	RpcEnvelopeSchema,
 } from "@haibun/core/lib/rpc-wire.js";
 import type { TRuntime } from "@haibun/core/lib/world.js";
-import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
+import type { THaibunEvent } from "@haibun/core/lib/domains/protocol.js";
 import { serializedEvent } from "@haibun/core/lib/steps/derivations/serialized-event.js";
 import { capabilityAllows, FOLLOWS_THE_RUN, readAction } from "@haibun/core/lib/actions.js";
 import type { AccessLevel } from "@haibun/core/lib/resources.js";

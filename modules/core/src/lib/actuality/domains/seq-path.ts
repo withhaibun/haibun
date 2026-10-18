@@ -13,7 +13,7 @@
  */
 import { itemAt } from "../../util/item-at.js";
 import { z } from "zod";
-import { ACTUALITY_LEVELS, EXECUTION_MODES, HAIBUN_LOG_LEVELS, RECORDED_STATUS, type TActualityLevel } from "../../../schema/protocol.js";
+import { ACTUALITY_LEVELS, EXECUTION_MODES, HAIBUN_LOG_LEVELS, RECORDED_STATUS, type TActualityLevel } from "../../domains/protocol.js";
 import { Access, COMMENT_LABEL, LinkRelations, PersistedVertexSchema, PRINCIPAL_LABEL, SEQ_PATH_LABEL, type TDomainDefinition } from "../../resources.js";
 
 const SEQ_PATH_DOMAIN = "seq-path";

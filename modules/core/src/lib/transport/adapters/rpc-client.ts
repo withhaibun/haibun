@@ -3,7 +3,7 @@ import { errorDetail } from "../../util/index.js";
 import { readingAt } from "../../capability-context.js";
 import { provesNothing, readNdjson, readRpcAnswer, type TActualityId, type THandshake, type TProveRequest } from "../ports.js";
 import { buildRpcCall, handshakeAt } from "./rpc-call.js";
-import type { TRequestSigner } from "../../authority-types.js";
+import type { TRequestSigner } from "../../domains/authority-types.js";
 
 /**
  * rpc-client is the client for a haibun host's RPC transport (web-server-hono's event stream adapter).

@@ -7,7 +7,7 @@ import { describe, it, expect } from "vitest";
 import { Resolver } from "@haibun/core/phases/Resolver.js";
 import { createSteppers } from "@haibun/core/lib/util/index.js";
 import { literalTerm, namedInterpolation, renderStepLine } from "@haibun/core/lib/namedVars.js";
-import { DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STATEMENT, domainParts } from "@haibun/core/lib/domains.js";
+import { DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STATEMENT, domainParts } from "@haibun/core/lib/domains/domains.js";
 import type { AStepper } from "@haibun/core/lib/astepper.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";

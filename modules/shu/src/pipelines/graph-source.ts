@@ -2,16 +2,16 @@
  * The graph a page draws: the clustered sample of the store with the schema its terms use, the same sample as the report
  * carries it, the layout a feature reads as tokens, and a federated peer's graph merged into this instance's.
  */
-import { MAX_PAGE_ROWS, buildResourceRels, pageLimit, relOf } from "@haibun/core/lib/hypermedia.js";
-import { hypermediaDomainMap } from "@haibun/core/lib/domains.js";
+import { MAX_PAGE_ROWS, buildResourceRels, pageLimit, relOf } from "@haibun/core/lib/domains/hypermedia.js";
+import { hypermediaDomainMap } from "@haibun/core/lib/domains/domains.js";
 import { Access, LinkRelations, storeScopeFor, type AccessLevel, type AccessQueryLevel } from "@haibun/core/lib/resources.js";
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import type { TClusteredQuads, TQuad } from "@haibun/core/lib/quad-types.js";
-import { QuadGraphModel } from "@haibun/core/lib/quad-graph-model.js";
+import { QuadGraphModel } from "@haibun/core/lib/derivations/quad-graph-model.js";
 import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { enumerateStandardVocab } from "@haibun/core/lib/records/pipelines/standard-vocabulary.js";
-import { activeSitePrincipal, adoptSitePrincipal, hasDefaultSitePrincipal } from "@haibun/core/lib/host-id.js";
-import { persistPrincipalIndividual } from "@haibun/core/lib/principal-individual.js";
+import { activeSitePrincipal, adoptSitePrincipal, hasDefaultSitePrincipal } from "@haibun/core/lib/domains/host-id.js";
+import { persistPrincipalIndividual } from "@haibun/core/lib/domains/principal-individual.js";
 import { requestSigner } from "@haibun/core/lib/session-authority.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { withOntologySchema } from "../derivations/ontology-projection.js";

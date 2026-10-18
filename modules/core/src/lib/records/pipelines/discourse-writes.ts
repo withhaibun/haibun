@@ -22,10 +22,10 @@ import {
 	type TQuoteAnchor,
 	type TStatedRecord,
 } from "../../resources.js";
-import { MEDIA_TYPE } from "../../media-types.js";
+import { MEDIA_TYPE } from "../../domains/media-types.js";
 import { DEFAULT_BODY_KIND, bodyIdOf, bodyKindsOf } from "../derivations/bodies.js";
 import { typedLinkFacts } from "../derivations/typed-link-facts.js";
-import type { TLinkVocabulary, TTypedLinkFact } from "../../typed-links.js";
+import type { TLinkVocabulary, TTypedLinkFact } from "../../domains/typed-links.js";
 import { recordOf, type TRecordReader } from "./record-reads.js";
 
 /** The store a reading writes and reads: the discourse writes and the read of records. */

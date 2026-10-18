@@ -5,7 +5,7 @@
  */
 import { z } from "zod";
 import { AccessLevelSchema, AccessQueryLevelSchema, type AccessLevel } from "../../resources.js";
-import { CountedFields, CountedSchema } from "../../hypermedia.js";
+import { CountedFields, CountedSchema } from "../../domains/hypermedia.js";
 
 /**
  * The named graph of the variables actuality holds. The quad store reads it here, so it doesn't import feature-variables.

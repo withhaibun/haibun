@@ -1,8 +1,8 @@
 import { z } from "zod";
 import type { TStepperStep } from "../domains/stepper.js";
 import type { TWorld } from "../../actuality/domains/world.js";
-import { Origin, productData, type THypermediaProducts, type TSeqPath, type TStepArgs } from "../../../schema/protocol.js";
-import { normalizeDomainKey, registeredDomain } from "../../domains.js";
+import { Origin, productData, type THypermediaProducts, type TSeqPath, type TStepArgs } from "../../domains/protocol.js";
+import { normalizeDomainKey, registeredDomain } from "../../domains/domains.js";
 import type { StepTool } from "../pipelines/step-registry.js";
 import { errorDetail } from "../../util/index.js";
 

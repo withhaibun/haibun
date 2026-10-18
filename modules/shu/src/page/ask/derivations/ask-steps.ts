@@ -5,7 +5,7 @@
  * conversation model.
  */
 import { CONVERSATION_DOMAIN, CONVERSATION_MODEL_CLASS } from "@haibun/core/lib/conversation/domains/conversation.js";
-import type { TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
+import type { TConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import type { TStepList } from "../../machines/registry.js";
 import { stepsJoining } from "../../derivations/steps.js";

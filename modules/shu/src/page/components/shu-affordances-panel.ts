@@ -39,7 +39,7 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { noteExecution } from "../client-cache/controllers/device-controller.js";
 import { revealInDocument } from "./reveal.js";
 import { ClockController } from "../controllers/clock-controller.js";
-import { REF_DENOTES } from "@haibun/core/lib/typed-links.js";
+import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { typeShownIn } from "../controllers/catalog-controller.js";
 import "./shu-spinner.js";
 import "./shu-copy-button.js";

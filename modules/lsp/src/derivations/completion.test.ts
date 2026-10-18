@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { AStepper } from "@haibun/core/lib/astepper.js";
-import { OK } from "@haibun/core/schema/protocol.js";
+import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { buildStepRegistry } from "@haibun/core/lib/step-registry.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { completionItem, patternToSnippet } from "./completion.js";

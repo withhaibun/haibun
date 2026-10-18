@@ -4,8 +4,8 @@
  * reads the compiled pattern, so resolving a statement at runtime doesn't compile a step's pattern again.
  */
 import type { TStepperStep, TStepAction } from "../domains/stepper.js";
-import { type TStepValue, type TOrigin, Origin } from "../../../schema/protocol.js";
-import { DOMAIN_DURATION, DOMAIN_STATEMENT, DOMAIN_STRING, DURATION_TERM } from "../../domains.js";
+import { type TStepValue, type TOrigin, Origin } from "../../domains/protocol.js";
+import { DOMAIN_DURATION, DOMAIN_STATEMENT, DOMAIN_STRING, DURATION_TERM } from "../../domains/domains.js";
 import { itemAt } from "../../util/item-at.js";
 import { placeholderOf } from "../domains/phrase.js";
 

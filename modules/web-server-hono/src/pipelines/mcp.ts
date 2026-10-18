@@ -18,7 +18,7 @@ import {
 import type { TWorld } from "@haibun/core/lib/world.js";
 import type { AStepper } from "@haibun/core/lib/astepper.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { currentVersion as version } from "@haibun/core/currentVersion.js";
+import { currentVersion as version } from "@haibun/core/lib/domains/current-version.js";
 import { answeredFor } from "@haibun/core/lib/call-step.js";
 import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { stepsInstructions, toolDefinition } from "@haibun/core/lib/step-discovery.js";

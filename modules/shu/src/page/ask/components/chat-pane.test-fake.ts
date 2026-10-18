@@ -7,8 +7,8 @@
  * one per file.
  */
 
-import { buildConcernCatalog, counted, type TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
-import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
+import { buildConcernCatalog, counted, type TConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
+import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { CLIENT_LOG_METHOD } from "../../domains/page-calls.js";

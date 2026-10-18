@@ -1,6 +1,6 @@
 /** What a step reads of the page: its accessibility snapshot, its text, its elements, its address, its cookies, a canvas, and an element's screenshot. */
-import { HYPERMEDIA, OK, type TActionResult, type TStepValue } from "@haibun/core/schema/protocol.js";
-import { globSource } from "@haibun/core/lib/domains.js";
+import { HYPERMEDIA, OK, type TActionResult, type TStepValue } from "@haibun/core/lib/domains/protocol.js";
+import { globSource } from "@haibun/core/lib/domains/domains.js";
 import { actionNotOK, errorDetail } from "@haibun/core/lib/util/index.js";
 import { DOMAIN_PAGE_TEST_ID } from "../domains/web-playwright.js";
 import { locatorDomainOf } from "../derivations/locators.js";

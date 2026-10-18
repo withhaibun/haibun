@@ -13,11 +13,11 @@ import TestRunnerStepper, { RUNNER_DEFAULTS, TEST_RUNNER_AUTHOR } from "./test-r
 import { answerOfRun, askParams, stepAtRun } from "./test-runner-stepper.js";
 import type { TStepDescriptor } from "@haibun/core/lib/step-discovery.js";
 import { emptyOutcome, readRunOutput, runEvents } from "./run-outcome.js";
-import { RECORDED_STATUS } from "@haibun/core/schema/protocol.js";
+import { RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
 import { actingAs } from "@haibun/core/lib/capability-context.js";
 import { Access, principalDomainDefinition } from "@haibun/core/lib/resources.js";
 import { readAction } from "@haibun/core/lib/actions.js";
-import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
+import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
 import { AStepper, type IHasCycles, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";

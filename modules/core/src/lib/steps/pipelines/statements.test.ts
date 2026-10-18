@@ -2,14 +2,14 @@ import { describe, it, expect, beforeEach } from "vitest";
 import type { QuadStore } from "./quad-store.js";
 import { LinkRelations, READING_LABEL, SEQ_PATH_LABEL, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL } from "../../resources.js";
 import { readTypedLinks } from "../../records/pipelines/discourse-writes.js";
-import { RECORDED_STATUS } from "../../../schema/protocol.js";
+import { RECORDED_STATUS } from "../../domains/protocol.js";
 import { storeDeclaring } from "../../test/declared-types.js";
 
 const REPORT = "FieldReport";
 import { SEQ_PATH_EDGE, SEQ_PATH_FIELD } from "../../actuality/domains/seq-path.js";
 import { statementsWith } from "./statements.js";
 import { itemAt } from "../../util/item-at.js";
-import type { TLinkVocabulary } from "../../typed-links.js";
+import type { TLinkVocabulary } from "../../domains/typed-links.js";
 
 const vocab: TLinkVocabulary = {
 	relRange: (rel) => Object.values(LinkRelations).find((e) => e.rel === rel && !(e as { abstract?: boolean }).abstract)?.range,

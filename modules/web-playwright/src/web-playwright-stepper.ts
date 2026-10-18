@@ -20,8 +20,8 @@ import {
 	DOMAIN_TEXT,
 	DOMAIN_USER_NAME,
 	DOMAIN_VARIABLE_NAME,
-} from "@haibun/core/lib/domains.js";
-import { DOMAIN_IMAGE_REFERENCE } from "@haibun/core/lib/media-object.js";
+} from "@haibun/core/lib/domains/domains.js";
+import { DOMAIN_IMAGE_REFERENCE } from "@haibun/core/lib/domains/media-object.js";
 import { Access } from "@haibun/core/lib/resources.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import {
@@ -36,7 +36,7 @@ import {
 	stringOrError,
 } from "@haibun/core/lib/util/index.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import { OK, Origin, type TActionResult, type TStepValue } from "@haibun/core/schema/protocol.js";
+import { OK, Origin, type TActionResult, type TStepValue } from "@haibun/core/lib/domains/protocol.js";
 import type { AStorage } from "@haibun/domain-storage/domains/storage.js";
 import { WEBSERVER, type IWebServer } from "@haibun/web-server-hono/defs.js";
 import type { Page } from "playwright";

@@ -5,7 +5,7 @@
  * out records. A new catalog is a new key, so the page derives it again.
  */
 import { LinkRelations, RESOURCE_LABEL, fromActorRels, getPropertyDefinitions, isSubPropertyOf, roleRels, toActorRels } from "@haibun/core/lib/resources.js";
-import type { TConcernCatalog, TTitledBy } from "@haibun/core/lib/hypermedia.js";
+import type { TConcernCatalog, TTitledBy } from "@haibun/core/lib/domains/hypermedia.js";
 import type { TDomainDiscoveryInfo } from "@haibun/core/lib/step-discovery.js";
 import { ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, SHU_TAG, isMarkerType } from "../../domains/elements.js";
 import { propertyVocabulary } from "../../derivations/ontology-projection.js";

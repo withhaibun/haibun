@@ -2,7 +2,7 @@
  * A step's record: the SeqPath individual a step writes once at its start and once at its end. Its start states every
  * field a reader requires, and its end is its start with how it ended, so each is one write.
  */
-import { EXECUTION_MODE, RECORDED_STATUS, STATUS, stepLevel, type TActualityLevel, type TRecordedStatus } from "../../../schema/protocol.js";
+import { EXECUTION_MODE, RECORDED_STATUS, STATUS, stepLevel, type TActualityLevel, type TRecordedStatus } from "../../domains/protocol.js";
 import type { TFeatureStep } from "../../steps/domains/stepper.js";
 import { LinkRelations } from "../../resources.js";
 import { itemAt } from "../../util/item-at.js";

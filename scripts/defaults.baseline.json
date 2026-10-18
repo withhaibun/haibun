@@ -21,29 +21,51 @@
 	"modules/core/src/lib/affordances.ts": {
 		"fills an absent value with a constant through ??": 1
 	},
-	"modules/core/src/lib/blips.ts": {
-		"fills an absent value with a constant through ??": 5
-	},
-	"modules/core/src/lib/capture-locator.ts": {
-		"fills a falsy value with a constant through ||": 2
-	},
-	"modules/core/src/lib/chain-walker.ts": {
-		"fills an absent value with a constant through ??": 2
-	},
-	"modules/core/src/lib/composite-domain.ts": {
-		"fills an absent value with a constant through ??": 2
-	},
 	"modules/core/src/lib/core-domains.ts": {
 		"states a schema's default value through .default()": 2
+	},
+	"modules/core/src/lib/derivations/quad-graph-model.ts": {
+		"fills an absent value with a constant through ??": 4,
+		"states a parameter's default value": 3
 	},
 	"modules/core/src/lib/document-content.ts": {
 		"fills a falsy value with a constant through ||": 7,
 		"fills an absent value with a constant through ??": 2,
 		"states a parameter's default value": 3
 	},
-	"modules/core/src/lib/domains.ts": {
+	"modules/core/src/lib/domains/blips.ts": {
+		"fills an absent value with a constant through ??": 5
+	},
+	"modules/core/src/lib/domains/capture-locator.ts": {
+		"fills a falsy value with a constant through ||": 2
+	},
+	"modules/core/src/lib/domains/composite-domain.ts": {
+		"fills an absent value with a constant through ??": 2
+	},
+	"modules/core/src/lib/domains/domains.ts": {
 		"fills a falsy value with a constant through ||": 1,
 		"fills an absent value with a constant through ??": 2
+	},
+	"modules/core/src/lib/domains/host-id.ts": {
+		"fills an absent value with a constant through ??": 2,
+		"states a parameter's default value": 4
+	},
+	"modules/core/src/lib/domains/hypermedia.ts": {
+		"fills a falsy value with a constant through ||": 2,
+		"fills an absent value with a constant through ??": 14,
+		"states a parameter's default value": 1,
+		"states a schema's default value through .default()": 6
+	},
+	"modules/core/src/lib/domains/media-fragments.ts": {
+		"fills an absent value with a constant through ??": 2
+	},
+	"modules/core/src/lib/domains/media-object.ts": {
+		"fills an absent value with a constant through ??": 2
+	},
+	"modules/core/src/lib/domains/protocol.ts": {
+		"fills a falsy value with a constant through ||": 1,
+		"fills an absent value with a constant through ??": 2,
+		"states a schema's default value through .default()": 13
 	},
 	"modules/core/src/lib/features.ts": {
 		"states a parameter's default value": 1
@@ -51,41 +73,27 @@
 	"modules/core/src/lib/goal-resolver.ts": {
 		"fills an absent value with a constant through ??": 5
 	},
-	"modules/core/src/lib/host-id.ts": {
-		"fills an absent value with a constant through ??": 2,
-		"states a parameter's default value": 4
-	},
 	"modules/core/src/lib/http-observations.ts": {
 		"fills an absent value with a constant through ??": 1,
 		"states a parameter's default value": 1,
 		"states a schema's default value through .default()": 1
 	},
-	"modules/core/src/lib/hypermedia.ts": {
-		"fills a falsy value with a constant through ||": 2,
-		"fills an absent value with a constant through ??": 14,
-		"states a parameter's default value": 1,
-		"states a schema's default value through .default()": 6
-	},
-	"modules/core/src/lib/media-fragments.ts": {
+	"modules/core/src/lib/pipelines/chain-walker.ts": {
 		"fills an absent value with a constant through ??": 2
 	},
-	"modules/core/src/lib/media-object.ts": {
-		"fills an absent value with a constant through ??": 2
-	},
-	"modules/core/src/lib/principal.ts": {
+	"modules/core/src/lib/pipelines/principal.ts": {
 		"fills an absent value with a constant through ??": 1
+	},
+	"modules/core/src/lib/pipelines/record-blip.ts": {
+		"fills an absent value with a constant through ??": 1
+	},
+	"modules/core/src/lib/pipelines/step-validation.ts": {
+		"fills a falsy value with a constant through ||": 1
 	},
 	"modules/core/src/lib/prompter.ts": {
 		"states a parameter's default value": 1
 	},
-	"modules/core/src/lib/quad-graph-model.ts": {
-		"fills an absent value with a constant through ??": 4,
-		"states a parameter's default value": 3
-	},
 	"modules/core/src/lib/readline-prompter.ts": {
-		"fills an absent value with a constant through ??": 1
-	},
-	"modules/core/src/lib/record-blip.ts": {
 		"fills an absent value with a constant through ??": 1
 	},
 	"modules/core/src/lib/records/derivations/ontology.ts": {
@@ -97,12 +105,6 @@
 	},
 	"modules/core/src/lib/records/pipelines/discourse-writes.ts": {
 		"fills an absent value with a constant through ??": 1
-	},
-	"modules/core/src/lib/resolver-features.ts": {
-		"fills a falsy value with a constant through ||": 1
-	},
-	"modules/core/src/lib/step-validation.ts": {
-		"fills a falsy value with a constant through ||": 1
 	},
 	"modules/core/src/lib/urakata.ts": {
 		"states a schema's default value through .default()": 1
@@ -120,11 +122,6 @@
 	"modules/core/src/run-policy/run-policy-schema.ts": {
 		"fills an absent value with a constant through ??": 3,
 		"states a schema's default value through .default()": 2
-	},
-	"modules/core/src/schema/protocol.ts": {
-		"fills a falsy value with a constant through ||": 1,
-		"fills an absent value with a constant through ??": 2,
-		"states a schema's default value through .default()": 13
 	},
 	"modules/core/src/steps/activities-stepper.ts": {
 		"fills a falsy value with a constant through ||": 1,

@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { freePort, getTestWorldWithOptions, testWithWorld, DEF_PROTO_OPTIONS } from "@haibun/core/lib/test/lib.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
-import { OK } from "@haibun/core/schema/protocol.js";
+import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { findStepper, getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import { ARTIFACT_POLICY, artifactAddress } from "@haibun/core/lib/run-artifact.js";
+import { ARTIFACT_POLICY, artifactAddress } from "@haibun/core/lib/domains/run-artifact.js";
 import { RpcClient } from "@haibun/core/lib/rpc-client.js";
 import { localOrigin } from "@haibun/core/lib/local-origin.js";
 import { Access, SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";

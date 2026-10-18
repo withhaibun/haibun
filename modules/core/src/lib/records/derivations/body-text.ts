@@ -5,7 +5,7 @@
  * each line of another form that holds a word the text before it doesn't.
  */
 import { defaultTreeAdapter, parse, type DefaultTreeAdapterMap } from "parse5";
-import { MEDIA_TYPE } from "../../media-types.js";
+import { MEDIA_TYPE } from "../../domains/media-types.js";
 import type { TRepresentation } from "../../resources.js";
 import type { TBodyText } from "../domains/body.js";
 import { BODY_PREFERENCE } from "./bodies.js";

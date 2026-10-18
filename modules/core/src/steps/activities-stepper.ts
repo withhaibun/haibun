@@ -1,14 +1,14 @@
 import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TStepperStep, CycleWhen } from "../lib/steps/domains/stepper.js";
 import type { TFeatures, TStepInput } from "../lib/actuality/domains/execution.js";
 import { runSteppers, type TWorld } from "../lib/actuality/domains/world.js";
-import { TStepArgs, TRegisteredOutcomeEntry, OK } from "../schema/protocol.js";
+import { TStepArgs, TRegisteredOutcomeEntry, OK } from "../lib/domains/protocol.js";
 import { formatSeqPath } from "../lib/actuality/domains/seq-path.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getActionable, errorDetail } from "../lib/util/index.js";
 import { itemAt } from "../lib/util/item-at.js";
-import { DOMAIN_STATEMENT, DOMAIN_STATEMENT_LINES, DOMAIN_TITLE, DOMAIN_WAYPOINT_ARGUMENT } from "../lib/domains.js";
+import { DOMAIN_STATEMENT, DOMAIN_STATEMENT_LINES, DOMAIN_TITLE, DOMAIN_WAYPOINT_ARGUMENT } from "../lib/domains/domains.js";
 import { Resolver } from "../lib/actuality/pipelines/resolver.js";
 import { FlowRunner, inheritedMode } from "../lib/steps/pipelines/flow-runner.js";
-import { ControlEvent, LifecycleEvent, STATUS, type TStatus } from "../schema/protocol.js";
+import { ControlEvent, LifecycleEvent, STATUS, type TStatus } from "../lib/domains/protocol.js";
 import { buildDomainChain } from "../lib/domain-chain.js";
 import { GOAL_FINDING, resolveGoal } from "../lib/goal-resolver.js";
 import { readFacts } from "../lib/records/pipelines/facts.js";
@@ -19,8 +19,8 @@ import { phraseParameters } from "../lib/steps/domains/phrase.js";
 import { callerHolds } from "../lib/capability-context.js";
 import { z } from "zod";
 import { Access, LinkRelations, PersistedVertexSchema, type TDomainDefinition } from "../lib/resources.js";
-import { refDomainKey, type TIndividualRef } from "../lib/domains.js";
-import { ACTIVITIES_ACTIONS } from "./activities-actions.js";
+import { refDomainKey, type TIndividualRef } from "../lib/domains/domains.js";
+import { ACTIVITIES_ACTIONS } from "./domains/activities-actions.js";
 import { readEvery, recordOf } from "../lib/records/pipelines/record-reads.js";
 
 // The steps this stepper always has. The stepper adds a step for each waypoint a feature declares and for each saved waypoint.

@@ -2,9 +2,9 @@ import { describe, it, expect } from "vitest";
 import { z } from "zod";
 
 import { AStepper, type TStepperSteps } from "./steps/domains/stepper.js";
-import { deriveNamingDomains, mapDefinitionsToDomains, refDomainKey } from "./domains.js";
+import { deriveNamingDomains, mapDefinitionsToDomains, refDomainKey } from "./domains/domains.js";
 import { Access, LinkRelations } from "./resources.js";
-import { OK } from "../schema/protocol.js";
+import { OK } from "./domains/protocol.js";
 import { actionOKWithProducts } from "./util/index.js";
 import { buildAffordances } from "./affordances.js";
 import type { TFact } from "./records/domains/facts.js";

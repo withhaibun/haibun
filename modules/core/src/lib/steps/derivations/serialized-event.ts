@@ -2,7 +2,7 @@
  * An event as JSON text, serialized once. The events hub writes the text to its sink, and each transport that sends the
  * event reads the same text, so an event is serialized once whatever the count of its readers.
  */
-import type { THaibunEvent } from "../../../schema/protocol.js";
+import type { THaibunEvent } from "../../domains/protocol.js";
 
 /** Each event's text, held while the event is held. */
 const serialized = new WeakMap<THaibunEvent, string>();

@@ -13,8 +13,8 @@ import { ShuElement, type TLinkedData } from "../../components/shu-element.js";
 import { shuBaseStyles } from "../../components/styles.js";
 import { acts, reads } from "../../domains/links.js";
 import { conduit } from "../../controllers/conduit-controller.js";
-import { isImageFormat } from "@haibun/core/lib/media-types.js";
-import { IndividualAddressSchema } from "@haibun/core/lib/typed-links.js";
+import { isImageFormat } from "@haibun/core/lib/domains/media-types.js";
+import { IndividualAddressSchema } from "@haibun/core/lib/domains/typed-links.js";
 import { deploymentAskToolLimit } from "../../controllers/hydration-controller.js";
 import { conversationSteps, findStep, getAvailableSteps, requireStep } from "../../controllers/registry-controller.js";
 import {
@@ -42,7 +42,7 @@ import {
 import { GraphQueryResultSchema } from "@haibun/core/lib/quad-types.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/steps/derivations/quad-events.js";
 import { LinkRelations } from "@haibun/core/lib/resources.js";
-import { STATUS } from "@haibun/core/schema/protocol.js";
+import { STATUS } from "@haibun/core/lib/domains/protocol.js";
 import { hasEventStream, subscribeBatchedEvents } from "../../controllers/event-stream-controller.js";
 import { currentSubjectState } from "../../../current-subject.js";
 import { SignalController } from "../../controllers/signal-controller.js";

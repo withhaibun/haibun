@@ -3,7 +3,7 @@
  * its options, and the option the keys focus. The view draws again at each move.
  */
 import type { ReactiveControllerHost } from "lit";
-import { machine, type Machine } from "@haibun/core/lib/machine.js";
+import { machine, type Machine } from "@haibun/core/lib/machines/machine.js";
 import { COMBO_EVENT, COMBO_STATUS, INITIAL_COMBO, UNFOCUSED, comboTransition, type TComboEvent, type TComboState } from "../machines/combobox.js";
 
 export class ComboboxController {

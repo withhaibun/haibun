@@ -8,7 +8,7 @@ import { hostScopedMethodName } from "../domains/step-method.js";
 import { AStepper, type TFeatureStep } from "../domains/stepper.js";
 import { actionNotOK, actionOK } from "../../util/index.js";
 import { RefusedCall } from "../../transport/ports.js";
-import { typeCollectionRemedy } from "../../typed-links.js";
+import { typeCollectionRemedy } from "../../domains/typed-links.js";
 import { getDefaultWorld } from "../../test/lib.js";
 import type { TWorld } from "../../actuality/domains/world.js";
 import type { TStepperStep } from "../domains/stepper.js";

@@ -35,7 +35,7 @@ import { SCHEMA_TYPES } from "../../../domains/ontology.js";
 import "./shu-chip-group.js";
 import "../../components/shu-field.js";
 import type { TChip } from "./shu-chip-group.js";
-import { counted } from "@haibun/core/lib/hypermedia.js";
+import { counted } from "@haibun/core/lib/domains/hypermedia.js";
 import { TimelineViewController } from "../../controllers/timeline-view-controller.js";
 import { clamp } from "../../derivations/layout.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";

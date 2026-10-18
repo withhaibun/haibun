@@ -6,7 +6,17 @@
  * error mark was too small to see beside the marks around it.
  */
 import { describe, expect, it } from "vitest";
-import { CHECK_NO, CHECK_YES, EventFormatter, ICON_LOG_ERROR, ICON_LOG_INFO, MAYBE_CHECK_NO, MAYBE_CHECK_YES, RETURNED_TO_CALLER, type THaibunEvent } from "./protocol.js";
+import {
+	CHECK_NO,
+	CHECK_YES,
+	EventFormatter,
+	ICON_LOG_ERROR,
+	ICON_LOG_INFO,
+	MAYBE_CHECK_NO,
+	MAYBE_CHECK_YES,
+	RETURNED_TO_CALLER,
+	type THaibunEvent,
+} from "../lib/domains/protocol.js";
 
 const step = (over: Record<string, unknown>) =>
 	({ kind: "lifecycle", type: "step", stage: "end", id: "0.1.2", timestamp: 0, source: "haibun", level: "info", in: "a step", ...over }) as unknown as THaibunEvent & {

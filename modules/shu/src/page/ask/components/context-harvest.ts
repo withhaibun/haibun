@@ -12,7 +12,7 @@
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { activePane } from "../../controllers/page-cell-controller.js";
 import { paneKeyOf } from "../../derivations/pane-kinds.js";
-import { PAGE_TERMS, ViewCollectionSchema, viewCollection, type TLinkedData, type TViewCollection } from "@haibun/core/lib/hypermedia.js";
+import { PAGE_TERMS, ViewCollectionSchema, viewCollection, type TLinkedData, type TViewCollection } from "@haibun/core/lib/domains/hypermedia.js";
 
 type TSummarizes = Element & { summarizeForContext(): TLinkedData | null };
 

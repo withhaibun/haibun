@@ -3,7 +3,7 @@
  * controller that derives the view's window from the reading's version (PF29).
  */
 import type { ReactiveController, ReactiveControllerHost } from "lit";
-import type { THaibunLogLevel } from "@haibun/core/schema/protocol.js";
+import type { THaibunLogLevel } from "@haibun/core/lib/domains/protocol.js";
 import { SHU_TAG } from "../../../domains/elements.js";
 import { INITIAL_WINDOW_SIZE, PAGE_SETTING_KEY, WindowSizeSchema } from "../../domains/settings.js";
 import { storedSetting, windowRows } from "../../derivations/settings.js";

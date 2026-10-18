@@ -4,7 +4,7 @@
  */
 import type { Page, Response } from "playwright";
 import { actionNotOK, jsonArtifact } from "@haibun/core/lib/util/index.js";
-import { OK, type TActionResult } from "@haibun/core/schema/protocol.js";
+import { OK, type TActionResult } from "@haibun/core/lib/domains/protocol.js";
 import type { BrowserSession } from "./browser-session.js";
 import { attempted } from "./locate.js";
 

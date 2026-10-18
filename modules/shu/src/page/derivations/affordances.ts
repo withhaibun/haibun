@@ -6,7 +6,7 @@
  * response (`page/controllers/affordance-dispatch.ts`).
  */
 import { z } from "zod";
-import { HYPERMEDIA, SUBSTEP_LEVEL, type THaibunEvent, type THypermediaProducts } from "@haibun/core/schema/protocol.js";
+import { HYPERMEDIA, SUBSTEP_LEVEL, type THaibunEvent, type THypermediaProducts } from "@haibun/core/lib/domains/protocol.js";
 import { SHU_TYPE } from "../../domains/elements.js";
 import type { TEvent } from "../ports.js";
 

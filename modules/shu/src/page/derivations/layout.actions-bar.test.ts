@@ -4,7 +4,7 @@
 import { describe, it, expect } from "vitest";
 import { anIndividual, aType } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { contextLabel, isEntitySelection } from "./layout.js";
-import { counted, countedTo, statedTotal } from "@haibun/core/lib/hypermedia.js";
+import { counted, countedTo, statedTotal } from "@haibun/core/lib/domains/hypermedia.js";
 
 const CEILING = 1_000;
 

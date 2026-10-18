@@ -3,7 +3,7 @@
 // these read a store made here and don't install a store.
 import { describe, it, expect } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
+import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/domains/log-message.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
 import { DensityQuerySchema, type TDensityQuery } from "@haibun/core/lib/quad-types.js";

@@ -2,7 +2,7 @@
  * The document that renders a record's body inside a sandboxed frame. A markdown or plain body doesn't read from the
  * network; an HTML body opts out of the policy, and the frame's sandbox still blocks its scripts.
  */
-import { MEDIA_TYPE } from "@haibun/core/lib/media-types.js";
+import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import { BODY_READING_STYLE, escAttr } from "./markdown.js";
 
 /** The policy of a body that doesn't read from the network. `base-uri` admits the app's origin, or the policy discards the

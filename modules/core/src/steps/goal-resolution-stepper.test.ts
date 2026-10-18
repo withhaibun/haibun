@@ -10,7 +10,7 @@ import LogicStepper from "./logic-stepper.js";
 import { GoalResolutionStepper } from "./goal-resolution-stepper.js";
 import { executionOf } from "../lib/actuality/domains/seq-path.js";
 import { ActivitiesStepper } from "./activities-stepper.js";
-import { DOMAIN_USER_NAME } from "../lib/domains.js";
+import { DOMAIN_USER_NAME } from "../lib/domains/domains.js";
 import { itemAt } from "../lib/util/item-at.js";
 
 const DOMAIN_AUTH_SESSION = "domain-auth-session-test";

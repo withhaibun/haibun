@@ -1,7 +1,7 @@
 /**
  * A step as a tool every transport reads: its descriptor and the domain of each parameter.
  */
-import { jsonSchemaFor } from "../../json-schema-of.js";
+import { jsonSchemaFor } from "../../domains/json-schema-of.js";
 import type { AStepper, TStepperStep } from "../domains/stepper.js";
 import { DOMAIN_PERSISTED_TYPE } from "../../resources.js";
 import { requiredAction } from "../../actions.js";
@@ -9,7 +9,7 @@ import { constructorName } from "../../util/index.js";
 import { stepMethodName } from "../domains/step-method.js";
 import { namedInterpolation } from "./named-vars.js";
 import type { TWorld } from "../../actuality/domains/world.js";
-import { DOMAIN_DOMAIN_KEY, DOMAIN_RECORD_ID, DOMAIN_STATEMENT, paramDomainKey, registeredDomain } from "../../domains.js";
+import { DOMAIN_DOMAIN_KEY, DOMAIN_RECORD_ID, DOMAIN_STATEMENT, paramDomainKey, registeredDomain } from "../../domains/domains.js";
 import type { TInputSchema, TStepDescriptor } from "../domains/step-discovery.js";
 import { resolveOutputSchema } from "./tool-validation.js";
 

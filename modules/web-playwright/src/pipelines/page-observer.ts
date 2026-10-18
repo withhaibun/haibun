@@ -3,12 +3,12 @@
  * observation of each response, and for each navigation of the page's main frame the page's address, the count of its
  * navigations, and a VisitedPage record.
  */
-import { DOMAIN_LINK, DOMAIN_NUMBER } from "@haibun/core/lib/domains.js";
+import { DOMAIN_LINK, DOMAIN_NUMBER } from "@haibun/core/lib/domains/domains.js";
 import { registeredPaths, type IRouteRegistry } from "@haibun/core/lib/execution.js";
 import { trackHttpRequest } from "@haibun/core/lib/http-observations.js";
 import { errorDetail } from "@haibun/core/lib/util/index.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import { HttpTraceArtifact, Origin } from "@haibun/core/schema/protocol.js";
+import { HttpTraceArtifact, Origin } from "@haibun/core/lib/domains/protocol.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import { WEB_PLAYWRIGHT } from "../domains/actions.js";
 import { VISITED_PAGE_LABEL } from "../domains/web-playwright.js";

@@ -5,8 +5,8 @@ import * as nodePath from "path";
 import { createRequire } from "module";
 
 import { TResolvedFeature } from "../../lib/steps/domains/stepper.js";
-import { FEATURE_START } from "../../schema/protocol.js";
-import { SCENARIO_START } from "../../schema/protocol.js";
+import { FEATURE_START } from "../../lib/domains/protocol.js";
+import { SCENARIO_START } from "../../lib/domains/protocol.js";
 import { itemAt } from "../../lib/util/item-at.js";
 
 /** The part of kokoro-js's KokoroTTS that synthesis calls: a model loaded by its id, which renders a transcript as audio. */

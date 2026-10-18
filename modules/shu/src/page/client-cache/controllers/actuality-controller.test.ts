@@ -4,10 +4,10 @@
 import { declareGraphSpec } from "../../../test/catalog-fixture.js";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import type { QuadStore } from "@haibun/core/lib/quad-store.js";
-import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
-import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
+import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/domains/log-message.js";
+import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/domains/run-artifact.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
-import type { THaibunLogLevel } from "@haibun/core/schema/protocol.js";
+import type { THaibunLogLevel } from "@haibun/core/lib/domains/protocol.js";
 import { clearStoredFields, setupShuTest, storeFields, type TShuTestHandle } from "../../../test/setup.js";
 import { SHU_TAG } from "../../../domains/elements.js";
 import { PAGE_SETTING_KEY } from "../../domains/settings.js";

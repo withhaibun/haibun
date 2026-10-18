@@ -8,7 +8,7 @@ import { accessBound, runAuthorizedWith, runReadingAt, writeBound } from "../../
 import { readAction, readCeilingOf, writeAction } from "../../actions.js";
 import { Access, type AccessLevel } from "../../resources.js";
 import { itemAt } from "../../util/item-at.js";
-import { COUNT_CEILING } from "../../hypermedia.js";
+import { COUNT_CEILING } from "../../domains/hypermedia.js";
 
 describe("QuadStore Contexts", () => {
 	let store: QuadStore;

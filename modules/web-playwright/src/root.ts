@@ -3,7 +3,7 @@
  * and page; the twin; the files a step reads and leaves; the page's fetch; and the relay a person's browser attaches
  * through, served over the web server's `/rpc`.
  */
-import { machine } from "@haibun/core/lib/machine.js";
+import { machine } from "@haibun/core/lib/machines/machine.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import type { AStorage } from "@haibun/domain-storage/domains/storage.js";
 import type { IWebServer } from "@haibun/web-server-hono/defs.js";

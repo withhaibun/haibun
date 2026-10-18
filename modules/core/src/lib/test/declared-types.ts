@@ -2,11 +2,11 @@
  * Read declarations for a test store's own types. A store of quads reads a type's records only where it holds the type's
  * declaration, so a test that writes records of a type it names declares that type here.
  */
-import { REACHED_BY } from "../hypermedia.js";
+import { REACHED_BY } from "../domains/hypermedia.js";
 import { QuadStore, newStoreChain } from "../steps/pipelines/quad-store.js";
 import type { TStoreLevels } from "../steps/ports.js";
 import { LinkRelations, type TDomainDefinition } from "../resources.js";
-import { mapDefinitionsToDomains } from "../domains.js";
+import { mapDefinitionsToDomains } from "../domains/domains.js";
 import { readDeclarationsOf, type TReadDeclarations } from "../records/derivations/read-records.js";
 
 /** The fields and relations of one test type, and the field that identifies its records where it isn't `id`. A relation

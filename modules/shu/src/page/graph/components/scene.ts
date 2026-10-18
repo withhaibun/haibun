@@ -18,7 +18,7 @@ import { configureLabelFonts, makeTroikaChip, makeTroikaText, spriteVisual, type
 import { FULL_BURN, GLOW_RAMP, BREATH_MS } from "../derivations/highlight.js";
 import { typeAvatar } from "../derivations/type-avatar.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
-import { PAGE_TERMS, type TCounted } from "@haibun/core/lib/hypermedia.js";
+import { PAGE_TERMS, type TCounted } from "@haibun/core/lib/domains/hypermedia.js";
 import { isSubPropertyOf } from "@haibun/core/lib/resources.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { type GroupKeyMode, groupKeyOf } from "../derivations/grouping.js";

@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { getDefaultWorld } from "../../test/lib.js";
-import { registerDomains } from "../../domains.js";
+import { registerDomains } from "../../domains/domains.js";
 import { Access, LinkRelations } from "../../resources.js";
 import { concernCatalogOf } from "./discover-steps.js";
 

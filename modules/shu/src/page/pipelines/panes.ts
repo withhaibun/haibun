@@ -7,7 +7,7 @@
  *   a step       ──┼──► the pane machine ──► the strip and the address
  *   a view       ──┘
  */
-import type { Machine } from "@haibun/core/lib/machine.js";
+import type { Machine } from "@haibun/core/lib/machines/machine.js";
 import { INDEX_PANE_KEY } from "../../domains/elements.js";
 import * as Address from "../derivations/address.js";
 import * as Kinds from "../derivations/pane-kinds.js";

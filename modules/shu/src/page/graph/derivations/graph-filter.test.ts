@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { declareCatalog } from "../../../test/catalog-fixture.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
-import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
-import { mapDefinitionsToDomains } from "@haibun/core/lib/domains.js";
+import { buildConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
+import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
 import { seqPathDomainDefinition } from "@haibun/core/lib/seq-path.js";
 import { factDomainDefinition } from "@haibun/core/lib/records/domains/facts.js";
 import {

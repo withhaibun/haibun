@@ -19,13 +19,13 @@ import { PAGE_SETTING_KEY } from "../domains/settings.js";
 import { actualityStore } from "../client-cache/actuality-store.test-fake.js";
 import { SHU_TAG } from "../../domains/elements.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
-import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
-import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
+import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/domains/log-message.js";
+import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/domains/run-artifact.js";
 import { installGraph } from "../client-cache/controllers/device-controller.js";
 
 import { pagePreferences } from "../root.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import { ICON_LOG_INFO, ICON_LOG_WARN, ICON_STEP_COMPLETED } from "@haibun/core/schema/protocol.js";
+import { ICON_LOG_INFO, ICON_LOG_WARN, ICON_STEP_COMPLETED } from "@haibun/core/lib/domains/protocol.js";
 import { endPage } from "../adapters/page-held.js";
 
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 30));

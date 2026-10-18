@@ -3,7 +3,7 @@
  * own level, and what a step produced carries the step that produced it.
  */
 import { stepLine } from "@haibun/core/lib/seq-path.js";
-import { declaredName, declaresFeature, declaresScenario } from "@haibun/core/schema/protocol.js";
+import { declaredName, declaresFeature, declaresScenario } from "@haibun/core/lib/domains/protocol.js";
 import type { TEventRecord } from "../ports.js";
 import type { TActualityRow } from "./actuality-rows.js";
 

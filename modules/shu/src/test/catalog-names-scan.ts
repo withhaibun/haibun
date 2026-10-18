@@ -7,7 +7,7 @@
  */
 import ts from "typescript";
 import type { TFound } from "@haibun/core/lib/test/baseline.js";
-import type { TConcernCatalog } from "@haibun/core/lib/hypermedia.js";
+import type { TConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import { lineOf, parsedSource, resolvedSource, type TPackages } from "@haibun/core/lib/test/repository-files.js";
 
 /** A word in the form of a type's label, such as `Comment` or `SeqPath`. */

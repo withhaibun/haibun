@@ -4,7 +4,7 @@
  * produced then, since a step without arguments produces the same thing again and the page doesn't have a site to call. A
  * call returns what the step returned, or the refusal.
  */
-import type { TCallLink } from "@haibun/core/lib/hypermedia.js";
+import type { TCallLink } from "@haibun/core/lib/domains/hypermedia.js";
 import * as Steps from "../derivations/steps.js";
 import { refusalOf } from "../derivations/refusal.js";
 import type { TPageRefusal } from "../domains/refusal.js";

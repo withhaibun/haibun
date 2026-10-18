@@ -2,7 +2,7 @@ import { it, expect, describe } from "vitest";
 
 import { DEF_PROTO_OPTIONS, failWithDefaults, getTestWorldWithOptions, passWithDefaults } from "../lib/test/lib.js";
 import VariablesStepper from "./variables-stepper.js";
-import { DEFAULT_DEST, Origin } from "../schema/protocol.js";
+import { DEFAULT_DEST, Origin } from "../lib/domains/protocol.js";
 import Haibun from "./haibun.js";
 import LogicStepper from "./logic-stepper.js";
 import { OBSCURED_VALUE } from "../lib/steps/domains/secrets.js";
@@ -17,7 +17,7 @@ import { dispatchStep } from "../lib/actuality/pipelines/step-dispatch.js";
 import { buildFeatureStepForTransport } from "../lib/steps/pipelines/call-step.js";
 import { StepRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { addStepperConcerns } from "../lib/actuality/pipelines/executor.js";
-import { typeCollectionRemedy } from "../lib/typed-links.js";
+import { typeCollectionRemedy } from "../lib/domains/typed-links.js";
 
 const steppers = [VariablesStepper, Haibun, LogicStepper];
 

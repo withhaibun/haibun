@@ -11,7 +11,7 @@
 import { z } from "zod";
 import { AStepper, IHasCycles, TStepperSteps, IStepperCycles, type TBeforeStep } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
-import { requirePrincipal } from "../lib/principal.js";
+import { requirePrincipal } from "../lib/pipelines/principal.js";
 import {
 	COMMENT_LABEL,
 	SEQ_PATH_LABEL,
@@ -41,14 +41,14 @@ import {
 	type TQuoteAnchor,
 	Access,
 } from "../lib/resources.js";
-import { MEDIA_TYPE } from "../lib/media-types.js";
+import { MEDIA_TYPE } from "../lib/domains/media-types.js";
 import { readEvery, recordOf } from "../lib/records/pipelines/record-reads.js";
 import { bodiesByMediaType, markdownOf } from "../lib/records/pipelines/body-reads.js";
 import { createComment, readProseLinks, writeAnnotation } from "../lib/records/pipelines/discourse-writes.js";
-import { DOMAIN_LINK_REL, DOMAIN_RECORD_ID, DOMAIN_TEXT, linkVocabularyFor } from "../lib/domains.js";
+import { DOMAIN_LINK_REL, DOMAIN_RECORD_ID, DOMAIN_TEXT, linkVocabularyFor } from "../lib/domains/domains.js";
 import { executionOf, formatRecordName, formatSeqPath } from "../lib/actuality/domains/seq-path.js";
-import { logMessageDomainDefinition } from "../lib/log-message.js";
-import { runArtifactDomainDefinition } from "../lib/run-artifact.js";
+import { logMessageDomainDefinition } from "../lib/domains/log-message.js";
+import { runArtifactDomainDefinition } from "../lib/domains/run-artifact.js";
 import { statementsWith, type TStatementRow } from "../lib/steps/pipelines/statements.js";
 
 /** Describes an anchored passage for a message: the quote, and the recorded words before and after it. */

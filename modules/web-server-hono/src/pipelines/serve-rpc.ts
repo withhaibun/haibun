@@ -12,8 +12,8 @@ import { runWithRequestContext, requestBaseIri } from "@haibun/core/lib/request-
 import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import { runRegistry, type StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { mayCall } from "@haibun/core/lib/actions.js";
-import { activeSitePrincipal } from "@haibun/core/lib/host-id.js";
-import { SERVING } from "@haibun/core/lib/serving.js";
+import { activeSitePrincipal } from "@haibun/core/lib/domains/host-id.js";
+import { SERVING } from "@haibun/core/lib/domains/serving.js";
 import { streamContext } from "@haibun/core/lib/step-stream-context.js";
 import { runInvoking, runReadingAsHeld, runReadingAt, runActingAs } from "@haibun/core/lib/capability-context.js";
 import type { IWebServer, TCapabilityVerifier } from "../ports.js";

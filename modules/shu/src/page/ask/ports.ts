@@ -1,8 +1,8 @@
 /**
  * The ask's ports: what reading and following a conversation reads and writes, and what sending a turn reads and writes.
  */
-import type { ICell } from "@haibun/core/lib/cell.js";
-import type { Machine } from "@haibun/core/lib/machine.js";
+import type { ICell } from "@haibun/core/lib/machines/cell.js";
+import type { Machine } from "@haibun/core/lib/machines/machine.js";
 import type { AccessQueryLevel } from "@haibun/core/lib/resources.js";
 import type { TClock, TConduit } from "../ports.js";
 import type { TBatchedEvents } from "../pipelines/batched-events.js";

@@ -1,6 +1,6 @@
 /** The graph model the overview and the polymorphic view draw: nodes, the edges between them, and the property keys a build merges onto a node. */
 import type { TCluster } from "@haibun/core/lib/quad-types.js";
-import type { TCounted } from "@haibun/core/lib/hypermedia.js";
+import type { TCounted } from "@haibun/core/lib/domains/hypermedia.js";
 
 export type GraphNode = { id: string; type: string; isCluster?: boolean; omitted?: TCounted; displayLabel?: string; properties: Record<string, unknown> };
 

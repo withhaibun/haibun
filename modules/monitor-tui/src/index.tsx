@@ -6,7 +6,7 @@ import { useState } from "react";
 import { render, Text, Box, Static, useInput } from "ink";
 import { AStepper, IHasCycles, StepperKinds, TStartFeature } from "@haibun/core/lib/astepper.js";
 import { TWorld } from "@haibun/core/lib/world.js";
-import { shownLogLevel, type THaibunEvent, type TShownLogLevel } from "@haibun/core/schema/protocol.js";
+import { shownLogLevel, type THaibunEvent, type TShownLogLevel } from "@haibun/core/lib/domains/protocol.js";
 import { EventFormatter } from "@haibun/core/monitor/index.js";
 import { IPrompter, TPrompt, TPromptResponse } from "@haibun/core/lib/prompter.js";
 

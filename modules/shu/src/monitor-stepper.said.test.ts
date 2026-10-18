@@ -6,10 +6,10 @@ import { executionOf, formatRecordName } from "@haibun/core/lib/seq-path.js";
 import type { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { storeDeclaring } from "@haibun/core/lib/test/declared-types.js";
-import { asDomainKey } from "@haibun/core/lib/domains.js";
-import { LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL, logMessageDomainDefinition } from "@haibun/core/lib/log-message.js";
-import { RUN_ARTIFACT_FIELD, RUN_ARTIFACT_LABEL, runArtifactDomainDefinition } from "@haibun/core/lib/run-artifact.js";
-import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
+import { asDomainKey } from "@haibun/core/lib/domains/domains.js";
+import { LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL, logMessageDomainDefinition } from "@haibun/core/lib/domains/log-message.js";
+import { RUN_ARTIFACT_FIELD, RUN_ARTIFACT_LABEL, runArtifactDomainDefinition } from "@haibun/core/lib/domains/run-artifact.js";
+import type { THaibunEvent } from "@haibun/core/lib/domains/protocol.js";
 import MonitorStepper from "./monitor-stepper.js";
 
 const said = (over: Partial<THaibunEvent> = {}): THaibunEvent =>

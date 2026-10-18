@@ -4,8 +4,8 @@
 import type { TDomainDefinition } from "@haibun/core/lib/resources.js";
 import { storeOfDomains } from "@haibun/core/lib/test/declared-types.js";
 import { seqPathDomainDefinition } from "@haibun/core/lib/seq-path.js";
-import { logMessageDomainDefinition } from "@haibun/core/lib/log-message.js";
-import { runArtifactDomainDefinition } from "@haibun/core/lib/run-artifact.js";
+import { logMessageDomainDefinition } from "@haibun/core/lib/domains/log-message.js";
+import { runArtifactDomainDefinition } from "@haibun/core/lib/domains/run-artifact.js";
 
 /** The declarations of the types actuality writes as it runs: its steps, what it logged and what it produced. */
 export const ACTUALITY_DOMAIN_DEFINITIONS: TDomainDefinition[] = [seqPathDomainDefinition, logMessageDomainDefinition, runArtifactDomainDefinition];

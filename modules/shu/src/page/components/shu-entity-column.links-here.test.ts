@@ -2,7 +2,7 @@
 /** An individual that other records point at links to them, with how many there are: "or more" where the site's count
  *  stopped at its ceiling, since a stopped count is a floor. */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { countedTo } from "@haibun/core/lib/hypermedia.js";
+import { countedTo } from "@haibun/core/lib/domains/hypermedia.js";
 import { ShuEntityColumn } from "./shu-entity-column.js";
 import { setupShuTest, makeEntityDispatch, type TShuTestHandle } from "../../test/setup.js";
 import { endPage } from "../adapters/page-held.js";

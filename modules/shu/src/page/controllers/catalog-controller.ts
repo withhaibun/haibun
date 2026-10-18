@@ -4,7 +4,7 @@
  * values each type offers are held in the root, across the page's bundles.
  */
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
-import type { TConcernCatalog, TTitledBy } from "@haibun/core/lib/hypermedia.js";
+import type { TConcernCatalog, TTitledBy } from "@haibun/core/lib/domains/hypermedia.js";
 import { pageRegistry, selectValues } from "../root.js";
 import { REGISTRY_STATUS } from "../machines/registry.js";
 import * as Catalog from "../derivations/catalog.js";

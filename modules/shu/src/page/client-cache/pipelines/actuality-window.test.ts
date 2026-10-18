@@ -3,12 +3,12 @@
 // decade. These pin the place of a window, what it holds and how a level narrows it.
 import { describe, it, expect } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import { MAX_PAGE_ROWS } from "@haibun/core/lib/hypermedia.js";
+import { MAX_PAGE_ROWS } from "@haibun/core/lib/domains/hypermedia.js";
 import type { QuadStore } from "@haibun/core/lib/quad-store.js";
-import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
-import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/run-artifact.js";
+import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/domains/log-message.js";
+import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/domains/run-artifact.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
-import type { THaibunLogLevel } from "@haibun/core/schema/protocol.js";
+import type { THaibunLogLevel } from "@haibun/core/lib/domains/protocol.js";
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { actualityWindow } from "./actuality-window.js";
 import { producedUnderSteps, type TActualityRow } from "../derivations/actuality-rows.js";

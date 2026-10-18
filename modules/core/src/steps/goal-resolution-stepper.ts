@@ -36,10 +36,10 @@ import {
 	DOMAIN_JSON_OBJECT,
 	DOMAIN_STEP_PATH,
 	DOMAIN_WALK_ID,
-} from "../lib/domains.js";
+} from "../lib/domains/domains.js";
 import { affordancesSchema, chainLintSchema, chainWalkSchema, goalResolutionSchema } from "../lib/core-domains.js";
-import { createChainInstance, type TChainInstance } from "../lib/chain-instance.js";
-import { advanceChainInstance } from "../lib/chain-walker.js";
+import { createChainInstance, type TChainInstance } from "../lib/pipelines/chain-instance.js";
+import { advanceChainInstance } from "../lib/pipelines/chain-walker.js";
 import { buildDomainChain } from "../lib/domain-chain.js";
 import { lintDomainChain } from "../lib/domain-chain-lint.js";
 import { resolveGoal, GOAL_FINDING, type TGoalResolution, type TMichi, type TBinding } from "../lib/goal-resolver.js";

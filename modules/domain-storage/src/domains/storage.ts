@@ -4,14 +4,14 @@
  */
 import { resolve, relative } from "path";
 import { z } from "zod";
-import { OK } from "@haibun/core/schema/protocol.js";
-import { captureLocator } from "@haibun/core/lib/capture-locator.js";
+import { OK } from "@haibun/core/lib/domains/protocol.js";
+import { captureLocator } from "@haibun/core/lib/domains/capture-locator.js";
 import type { TModuleOptions, TBaseOptions } from "@haibun/core/lib/world.js";
-import type { TTag } from "@haibun/core/lib/ttag.js";
+import type { TTag } from "@haibun/core/lib/domains/ttag.js";
 import type { IFile, TStorageFiles } from "../ports.js";
 import { AStepper, StepperKinds, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
-import { DOMAIN_NUMBER, DOMAIN_FILE_PATH, DOMAIN_TEXT } from "@haibun/core/lib/domains.js";
+import { DOMAIN_NUMBER, DOMAIN_FILE_PATH, DOMAIN_TEXT } from "@haibun/core/lib/domains/domains.js";
 
 const FileContentsSchema = z.object({ contents: z.string() });
 /** The domain of a file's contents, as a storage read them. */

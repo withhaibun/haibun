@@ -5,7 +5,7 @@
  * separate what a device holds of many actualities, rather than a second index beside them. The actualities are read from
  * the step records: a step that declared a feature names a feature of an actuality for a reader.
  */
-import { FEATURE_START, declaredName } from "@haibun/core/schema/protocol.js";
+import { FEATURE_START, declaredName } from "@haibun/core/lib/domains/protocol.js";
 import { SEQ_PATH_FIELD, SeqPathSchema, actualityOf, parseRecordName } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";

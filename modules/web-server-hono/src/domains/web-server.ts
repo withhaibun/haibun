@@ -5,7 +5,7 @@
 import { z } from "zod";
 import { PersistedVertexSchema } from "@haibun/core/lib/resources.js";
 import { ENDPOINT_CLASS } from "@haibun/core/lib/http-observations.js";
-import { MODULE_OPTION_PREFIX } from "@haibun/core/schema/protocol.js";
+import { MODULE_OPTION_PREFIX } from "@haibun/core/lib/domains/protocol.js";
 
 /** The port the web server listens on where its PORT option isn't set. */
 export const DEFAULT_PORT = 8123;

@@ -4,7 +4,7 @@
  * `@haibun/web-server-hono/sse-transport.js`.
  */
 import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
-import type { THaibunEvent } from "@haibun/core/schema/protocol.js";
+import type { THaibunEvent } from "@haibun/core/lib/domains/protocol.js";
 import type { TAuthorizedRequest } from "../ports.js";
 
 /** The runtime key that holds the event stream of the feature in progress. */
