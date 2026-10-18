@@ -98,7 +98,7 @@ export class DeviceGraph implements TDeviceGraph {
 			named.filter((q) => withinAccess(levels.get(subjectKey(q)), opts.accessLevel)),
 			opts.perTypeLimit,
 			[],
-			(type) => declarations.of(type)?.title,
+			(type) => declarations.of(type),
 		);
 	}
 }

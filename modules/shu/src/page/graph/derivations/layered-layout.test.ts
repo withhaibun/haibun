@@ -89,3 +89,32 @@ describe("layeredLayout", () => {
 		expect(p.depth).toBeLessThan(c.depth);
 	});
 });
+
+describe("the parts of a node", () => {
+	/** A root with a part that has three parts of its own, and a leaf part beside it: each part points to its whole. */
+	const parts: TGraph = {
+		direction: "TB",
+		nodes: ["root", "mid", "leaf", "a", "b", "c"].map((id) => ({ id, label: id })),
+		edges: [{ from: "mid", to: "root" }, { from: "leaf", to: "root" }, ...["a", "b", "c"].map((from) => ({ from, to: "mid" }))],
+	};
+
+	it("take the layer next to their whole, however deep each part goes", () => {
+		const out = layeredLayout(parts, PIXEL_METRICS);
+		const y = (id: string): number | undefined => out.nodes.get(id)?.y;
+		expect(y("leaf"), "a leaf part takes the layer of its sibling that has parts, not the deepest layer").toBe(y("mid"));
+		expect(y("a")).not.toBe(y("mid"));
+	});
+
+	it("wrap into rows where one whole has more parts than a row holds, so the parts draw as a block under it", () => {
+		const many: TGraph = {
+			direction: "TB",
+			nodes: [{ id: "whole", label: "whole" }, ...Array.from({ length: 20 }, (_, i) => ({ id: `p${i}`, label: "part" }))],
+			edges: Array.from({ length: 20 }, (_, i) => ({ from: `p${i}`, to: "whole" })),
+		};
+		const out = layeredLayout(many, PIXEL_METRICS);
+		const rows = new Set(Array.from({ length: 20 }, (_, i) => out.nodes.get(`p${i}`)?.y));
+		const columns = new Set(Array.from({ length: 20 }, (_, i) => out.nodes.get(`p${i}`)?.x));
+		expect(rows.size, "20 parts in rows of 8").toBe(3);
+		expect(columns.size).toBe(8);
+	});
+});

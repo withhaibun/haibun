@@ -407,6 +407,7 @@ export class QuadStore implements IQuadStore {
 			existing.displayLabels = { ...existing.displayLabels, ...c.displayLabels };
 			if (c.saturated) existing.saturated = true;
 			if (c.sites) existing.sites = { ...existing.sites, ...c.sites };
+			if (c.omittedUnder) existing.omittedUnder = { ...existing.omittedUnder, ...c.omittedUnder };
 		};
 
 		// Federated peers and remote backing stores merge beside local backing stores; each states the site of its subjects
@@ -423,7 +424,7 @@ export class QuadStore implements IQuadStore {
 
 		const seen = this.seen(opts.accessLevel);
 		const held = opts.types === undefined ? [...this.quads] : opts.types.flatMap((type) => [...this.quads.ofGraph(type)]);
-		const localClustered = sliceQuadsPerType(held.filter(seen).map(this.asDeclared), opts.perTypeLimit, allQuads, (type) => this.declarations?.().of(type)?.title);
+		const localClustered = sliceQuadsPerType(held.filter(seen).map(this.asDeclared), opts.perTypeLimit, allQuads, (type) => this.declarations?.().of(type));
 		allQuads.push(...localClustered.quads);
 		for (const c of localClustered.clusters) mergeCluster(c);
 

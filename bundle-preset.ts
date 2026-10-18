@@ -129,6 +129,29 @@ export const opacify = (amount, color) => { const c = tinycolor(color); return c
 	},
 };
 
+/** Resolves `aframe-extras`, which 3d-force-graph-vr imports whole for the movement controls of its camera, to its controls,
+ *  so a bundle doesn't hold its model loaders, its pathfinding, its primitives and its other components, about 110 KiB. */
+const extrasControlsAlone: Plugin = {
+	name: "extras-controls-alone",
+	setup(builder) {
+		builder.onResolve({ filter: /^aframe-extras$/ }, (args) => builder.resolve("aframe-extras/controls/index.js", { kind: args.kind, resolveDir: args.resolveDir }));
+	},
+};
+
+/** Resolves `pako`, which http-signature-zcap-invoke gzips a delegated capability with, to its deflate half, so a bundle
+ *  doesn't hold the inflate code a page doesn't call. */
+const gzipAlone: Plugin = {
+	name: "gzip-alone",
+	setup(builder) {
+		builder.onResolve({ filter: /^pako$/ }, (args) => ({ path: args.path, namespace: gzipAlone.name, pluginData: args.resolveDir }));
+		builder.onLoad({ filter: /.*/, namespace: gzipAlone.name }, (args) => ({
+			contents: `import { gzip } from "pako/lib/deflate.js";\nexport default { gzip };`,
+			loader: "js",
+			resolveDir: args.pluginData,
+		}));
+	},
+};
+
 /** The options that build a bundle of the repository at `root` for a browser. */
 export const bundleOptions = (root: string, bundle: TBundle): BuildOptions & { metafile: true; plugins: Plugin[] } => ({
 	absWorkingDir: root,
@@ -143,7 +166,7 @@ export const bundleOptions = (root: string, bundle: TBundle): BuildOptions & { m
 	target: "es2022",
 	minify: true,
 	conditions: [HAIBUN_SOURCE],
-	plugins: [onePackageCopy(root), zodEnglishLocale, d3EngineAlone, oneColourLibrary],
+	plugins: [onePackageCopy(root), zodEnglishLocale, d3EngineAlone, oneColourLibrary, extrasControlsAlone, gzipAlone],
 	metafile: true,
 	logLevel: "warning",
 });

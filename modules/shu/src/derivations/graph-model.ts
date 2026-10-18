@@ -1,5 +1,6 @@
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { statedTotal, type TCounted } from "@haibun/core/lib/hypermedia.js";
+import { LinkRelations } from "@haibun/core/lib/resources.js";
 import { HYPERMEDIA_ROLE_KEY, HYPERMEDIA_ROLE_REL_KEY, SITE_KEY, type GraphEdge, type GraphModel, type GraphNode, type TBuildGraphModelOptions } from "../domains/graph-model.js";
 
 /** Returns the records of a type that a sample leaves out, as a node names them: "+N more", or "+N or more" where the type's
@@ -11,9 +12,8 @@ export const omittedOf = (cluster: TCluster): TCounted => ({ total: cluster.omit
 
 const CLUSTER_PREDICATE = "clusterOf";
 
-function clusterId(type: string): string {
-	return `cluster:${type}`;
-}
+/** The id of the node of a type's omitted records: those under one record, or the rest. */
+const clusterId = (type: string, under?: string): string => (under === undefined ? `cluster:${type}` : `cluster:${type}:${under}`);
 
 /** Returns whether a quad draws as an edge, independent of which nodes the model holds. An edge is a typed reference.
  *  The quad carries `objectType`, which is the JSON-LD range of its target. A plain-string property without an
@@ -30,9 +30,10 @@ export function isEdgeQuad(q: TQuad): boolean {
 }
 
 /**
- * Builds a normalized graph model from quads. Where `clusters` are given, the model holds a cluster node for each type
- * with `omittedCount > 0`. A `clusterOf` edge connects the cluster node to each sampled subject the model holds, so force
- * layout places the cluster inside its type's neighbourhood.
+ * Builds a normalized graph model from quads. Where `clusters` are given, the model holds a node for the records a
+ * cluster omits under each record it holds, linked to that record as its part, and a node for the rest of the records it
+ * omits, which a `clusterOf` edge connects to each sampled subject that isn't part of another the model holds, so force
+ * layout places it inside its type's neighbourhood.
  */
 export function buildGraphModelFromQuads(quads: TQuad[], options?: TBuildGraphModelOptions): GraphModel {
 	const nodeMap = new Map<string, GraphNode>();
@@ -70,12 +71,21 @@ export function buildGraphModelFromQuads(quads: TQuad[], options?: TBuildGraphMo
 				node.displayLabel = label;
 			}
 		}
+		const parts = new Set(edges.filter((e) => e.predicate === LinkRelations.PART_OF.rel).map((e) => e.from));
 		for (const c of options.clusters) {
-			if (c.omittedCount <= 0) continue;
+			let rest = c.omittedCount;
+			for (const [under, total] of c.omittedUnder === undefined ? [] : Object.entries(c.omittedUnder)) {
+				if (!nodeMap.has(under)) continue;
+				const cid = clusterId(c.type, under);
+				nodeMap.set(cid, { id: cid, type: c.type, isCluster: true, omitted: { total, saturated: false }, properties: {} });
+				edges.push({ from: cid, to: under, predicate: LinkRelations.PART_OF.rel, graph: c.type });
+				rest -= total;
+			}
+			if (rest <= 0) continue;
 			const cid = clusterId(c.type);
-			nodeMap.set(cid, { id: cid, type: c.type, isCluster: true, omitted: omittedOf(c), properties: {} });
+			nodeMap.set(cid, { id: cid, type: c.type, isCluster: true, omitted: { ...omittedOf(c), total: rest }, properties: {} });
 			for (const sampledSubject of c.sampledSubjects) {
-				if (!nodeMap.has(sampledSubject)) continue;
+				if (!nodeMap.has(sampledSubject) || parts.has(sampledSubject)) continue;
 				edges.push({ from: cid, to: sampledSubject, predicate: CLUSTER_PREDICATE, graph: c.type });
 			}
 		}

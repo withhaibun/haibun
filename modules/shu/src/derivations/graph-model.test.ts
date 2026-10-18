@@ -199,3 +199,23 @@ describe("the label of the records a sample leaves out", () => {
 		expect(node?.omitted).toEqual({ total: COUNT_CEILING - 1, saturated: true });
 	});
 });
+
+describe("the records a sample leaves out under a record it holds", () => {
+	const parts = [q("whole", "name", "W", "Part"), q("part", "name", "P", "Part"), q("part", "isPartOf", "whole", "Part", "Part")];
+	const clusters: TCluster[] = [
+		{ type: "Part", totalCount: 9, sampledCount: 2, omittedCount: 7, sampledSubjects: ["whole", "part"], omittedUnder: { part: 5 }, displayLabels: {} },
+	];
+	const model = buildGraphModelFromQuads(parts, { clusters });
+
+	it("draw as a node under that record, linked to it as its part", () => {
+		const under = model.nodes.find((n) => n.isCluster && n.omitted?.total === 5);
+		expect(under).toBeDefined();
+		expect(model.edges).toContainEqual(expect.objectContaining({ from: under?.id, to: "part", predicate: "isPartOf" }));
+	});
+
+	it("leave the rest to the type's node, which links to the records that aren't part of another", () => {
+		const rest = model.nodes.find((n) => n.isCluster && n.omitted?.total === 2);
+		expect(rest).toBeDefined();
+		expect(model.edges.filter((e) => e.from === rest?.id).map((e) => e.to)).toEqual(["whole"]);
+	});
+});

@@ -42,6 +42,7 @@ const ClusteredQuadsSchema = z.object({
 			omittedCount: z.number(),
 			saturated: z.boolean().optional(),
 			sampledSubjects: z.array(z.string()),
+			omittedUnder: z.record(z.string(), z.number()).optional(),
 			displayLabels: z.record(z.string(), z.string()).optional(),
 			// Site principal per sampled subject SERVED BY A FEDERATED PEER; a subject without an entry was served by `site` below.
 			sites: z.record(z.string(), z.string()).optional(),

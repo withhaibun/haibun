@@ -1,41 +1,41 @@
 {
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
 		"209c0d17103d85fd": {
-			"state": "30a0a44e5ff1463639bdb6385d7e87b19d6a8f30375107ca27910fb15ee67f15",
+			"state": "758004f92a49d5ad340e1a77a32ff3363fa5d6fcfeef8341cc2b7f0580a88c4a",
 			"filter": "",
 			"execution": {
 				"text": "modules/shu/tests",
 				"status": "passed",
-				"tookMs": 15100
+				"tookMs": 14000
 			},
 			"features": {
 				"/features/address.feature.ts": {
 					"text": "An address names a type",
 					"status": "passed",
-					"tookMs": 1000,
+					"tookMs": 800,
 					"steps": 199,
-					"declaredStepTextHash": "766e26d0505059a384b8e09cf8ddda62c6c0a4e5d9a4c82c275414b09017ae29"
+					"declaredStepTextHash": "61b18ce0a42e63f5aefe7a724bab09ebf144c995f872e7f25cedf8833e721876"
 				},
 				"/features/federate.feature.ts": {
 					"text": "Federated graph reads from a sibling instance",
 					"status": "passed",
-					"tookMs": 1000,
+					"tookMs": 700,
 					"steps": 6,
 					"declaredStepTextHash": "ab37731cb50813b783e0aa872bb80a9b995c504e308a5603c48f254263f91584"
 				},
 				"/features/monitor-serves.feature.ts": {
 					"text": "The monitor serves shu on a port of its own",
 					"status": "passed",
-					"tookMs": 1300,
+					"tookMs": 1200,
 					"steps": 195,
-					"declaredStepTextHash": "aae9fc8419174422404ea48bc3e7871cbf8d5c41a52b2f09f27c172f084cb852"
+					"declaredStepTextHash": "f2179e90a8ba0ddc11874cee823c958ba9af79ed1a2d675b9b9309f175ea49cf"
 				},
 				"/features/monitor.feature.ts": {
 					"text": "Monitor view collects and displays execution events",
 					"status": "passed",
-					"tookMs": 8500,
+					"tookMs": 7800,
 					"steps": 577,
-					"declaredStepTextHash": "579a3b7d4f00bb9631016562590de68a26a8adf311c93ccdcc30b05fdecc87eb"
+					"declaredStepTextHash": "393454bf5334c0e4596961db49d85acaad2b729a3da77003b00982cc50e2ebfb"
 				},
 				"/features/remote-store.feature.ts": {
 					"text": "A satellite instance keeps its records in the main instance's store",
@@ -48,8 +48,8 @@
 					"text": "UI extension propagation: domain ui → concern catalog → SPA actions bar",
 					"status": "passed",
 					"tookMs": 1300,
-					"steps": 207,
-					"declaredStepTextHash": "a3961ca67f9653dbfa712294c72fce6d5ddf2ea92bfd2f10c6595751a146326c"
+					"steps": 209,
+					"declaredStepTextHash": "7b1a76d4b7f2bac96f117475e06755e50510475834a6fa4c802f50358c798bc6"
 				}
 			}
 		}

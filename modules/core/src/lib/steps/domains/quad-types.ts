@@ -267,6 +267,9 @@ export interface TCluster {
 	saturated?: boolean;
 	/** Subjects for which quads are present, in sample order. */
 	sampledSubjects: string[];
+	/** The count of the individuals the sample leaves out under each sampled subject that contains them, by that subject.
+	 *  The sample doesn't hold a subject that contains the rest of `omittedCount`. */
+	omittedUnder?: Record<string, number>;
 	/**
 	 * Display label for every sampled subject: the single source of a node's title.
 	 * Required and total: each producer fills one entry per `sampledSubjects` via the

@@ -16,6 +16,8 @@ const NODE_PAD_X = 12;
 const LAYER_GAP = 64; // space between adjacent layers, along the flow axis
 const SIBLING_GAP = 20; // space between nodes within a layer, along the cross axis
 const GROUP_PAD = 12; // breathing room a group box adds around its members per nesting level
+/** The most parts of one node a layer places in a row before it wraps them into another. */
+const LAYER_ROW_NODES = 8;
 
 export const nodeWidth = (label: string): number => Math.max(56, Math.round(label.length * CHAR_W) + NODE_PAD_X * 2);
 
@@ -26,29 +28,25 @@ export type LayeredMetrics = { node: (id: string, label: string) => { w: number;
 /** The pixel estimate of a node (nodeWidth × NODE_H) and the gaps of a paint in pixels. */
 export const PIXEL_METRICS: LayeredMetrics = { node: (_id, label) => ({ w: nodeWidth(label), h: NODE_H }), layerGap: LAYER_GAP, siblingGap: SIBLING_GAP };
 
-/** Longest-path layering: layer(n) = max over incoming edges of layer(src)+1, computed in topological order; nodes left
- * in a cycle keep the layer they reached. */
-function assignLayers(ids: string[], out: Map<string, string[]>, indeg: Map<string, number>): Map<string, number> {
-	const remaining = new Map(indeg);
-	const queue = ids.filter((id) => valueAt(indeg, id, "the in-degrees") === 0);
-	const topo: string[] = [];
-	const seen = new Set<string>();
-	while (queue.length) {
-		const u = queue.shift() as string;
-		if (seen.has(u)) continue;
-		seen.add(u);
-		topo.push(u);
-		for (const v of valueAt(out, u, "the out-edges")) {
-			const left = valueAt(remaining, v, "the remaining in-degrees") - 1;
-			remaining.set(v, left);
-			if (left <= 0) queue.push(v);
-		}
-	}
-	for (const id of ids) if (!seen.has(id)) topo.push(id); // cycle remnants, stable order
-	const layer = new Map<string, number>(ids.map((id) => [id, 0]));
-	const layerOf = (id: string): number => valueAt(layer, id, "the layers");
-	for (const u of topo) for (const v of valueAt(out, u, "the out-edges")) layer.set(v, Math.max(layerOf(v), layerOf(u) + 1));
-	return layer;
+/** Longest-path layering towards the sinks: a node sinks to the layer just before the nearest layer of the nodes it points
+ * to, so the layout places a node beside its targets and keeps the parts of a node together, however deep each part goes.
+ * layer(n) = min over out-edges of layer(target) − 1, with the sinks on the last layer; nodes left in a cycle keep the
+ * layer they reached. */
+function assignLayers(ids: string[], out: Map<string, string[]>): Map<string, number> {
+	const height = new Map<string, number>();
+	const heightOf = (id: string, path: Set<string>): number => {
+		const held = height.get(id);
+		if (held !== undefined) return held;
+		path.add(id);
+		const targets = valueAt(out, id, "the out-edges").filter((to) => !path.has(to));
+		const h = targets.length === 0 ? 0 : Math.max(...targets.map((to) => heightOf(to, path))) + 1;
+		path.delete(id);
+		height.set(id, h);
+		return h;
+	};
+	for (const id of ids) heightOf(id, new Set());
+	const top = Math.max(0, ...height.values());
+	return new Map(ids.map((id) => [id, top - valueAt(height, id, "the heights")]));
 }
 
 export function layeredLayout(graph: TGraph, metrics: LayeredMetrics): LaidOutGraph {
@@ -60,14 +58,9 @@ export function layeredLayout(graph: TGraph, metrics: LayeredMetrics): LaidOutGr
 	const sizeOf = new Map(graph.nodes.map((n) => [n.id, metrics.node(n.id, n.label)]));
 
 	const out = new Map<string, string[]>(ids.map((id) => [id, []]));
-	const indeg = new Map<string, number>(ids.map((id) => [id, 0]));
-	for (const e of graph.edges) {
-		if (!idSet.has(e.from) || !idSet.has(e.to) || e.from === e.to) continue;
-		valueAt(out, e.from, "the out-edges").push(e.to);
-		indeg.set(e.to, valueAt(indeg, e.to, "the in-degrees") + 1);
-	}
+	for (const e of graph.edges) if (idSet.has(e.from) && idSet.has(e.to) && e.from !== e.to) valueAt(out, e.from, "the out-edges").push(e.to);
 
-	const layer = assignLayers(ids, out, indeg);
+	const layer = assignLayers(ids, out);
 	const layerOf = (id: string): number => valueAt(layer, id, "the layers");
 	const maxLayer = ids.reduce((m, id) => Math.max(m, layerOf(id)), 0);
 	const byLayer = new Map<number, string[]>(Array.from({ length: maxLayer + 1 }, (_, l) => [l, []]));
@@ -77,33 +70,61 @@ export function layeredLayout(graph: TGraph, metrics: LayeredMetrics): LaidOutGr
 	const flowSize = (id: string): number => (horizontal ? sizeWH(id).w : sizeWH(id).h);
 	const crossSize = (id: string): number => (horizontal ? sizeWH(id).h : sizeWH(id).w);
 
-	// Flow-axis band per layer: widest node in the layer + a gap.
+	// Each layer's nodes follow the order of the nodes they point to, so the parts of one node stay together. A run of parts
+	// of one node longer than LAYER_ROW_NODES wraps into rows, so a node of many parts draws as a block under it rather
+	// than as one row as wide as its parts.
+	for (let l = maxLayer - 1; l >= 0; l--) {
+		const above = new Map(valueAt(byLayer, l + 1, "the layers' nodes").map((id, at) => [id, at]));
+		const rank = (id: string): number => Math.min(...valueAt(out, id, "the out-edges").flatMap((to) => (above.has(to) ? [valueAt(above, to, "the order above")] : [])));
+		valueAt(byLayer, l, "the layers' nodes").sort((a, b) => rank(a) - rank(b));
+	}
+	const rowOf = new Map<string, number>();
+	const crossCenterOf = new Map<string, number>();
+	const layerCrossExtent: number[] = [];
+	const layerRows: number[] = [];
+	for (let l = 0; l <= maxLayer; l++) {
+		const layerIds = valueAt(byLayer, l, "the layers' nodes");
+		let c = 0;
+		let rows = 1;
+		for (let start = 0; start < layerIds.length; ) {
+			const parent = itemAt(valueAt(out, itemAt(layerIds, start), "the out-edges").slice(0, 1).concat(""), 0);
+			let end = start + 1;
+			while (end < layerIds.length && itemAt(valueAt(out, itemAt(layerIds, end), "the out-edges").slice(0, 1).concat(""), 0) === parent) end++;
+			const run = layerIds.slice(start, end);
+			const cols = parent === "" ? run.length : Math.min(LAYER_ROW_NODES, run.length);
+			// A column is as wide as its widest node, so a run in one row packs to its nodes' own widths.
+			const widths = Array.from({ length: cols }, (_, col) => run.reduce((m, id, at) => (at % cols === col ? Math.max(m, crossSize(id)) : m), 0) + metrics.siblingGap);
+			const starts = widths.map((_, col) => widths.slice(0, col).reduce((sum, w) => sum + w, c));
+			run.forEach((id, at) => {
+				rowOf.set(id, Math.floor(at / cols));
+				crossCenterOf.set(id, itemAt(starts, at % cols) + crossSize(id) / 2);
+			});
+			rows = Math.max(rows, Math.ceil(run.length / cols));
+			c += widths.reduce((sum, w) => sum + w, 0);
+			start = end;
+		}
+		layerCrossExtent[l] = Math.max(0, c - metrics.siblingGap);
+		layerRows[l] = rows;
+	}
+	const maxCross = layerCrossExtent.reduce((m, e) => Math.max(m, e), 0);
+
+	// Flow-axis band per layer: the widest node in the layer per row, and a gap.
 	const layerFlow: number[] = [];
+	const rowFlow: number[] = [];
 	let flowAcc = 0;
 	for (let l = 0; l <= maxLayer; l++) {
 		const band = valueAt(byLayer, l, "the layers' nodes").reduce((m, id) => Math.max(m, flowSize(id)), 0);
+		const row = band + metrics.siblingGap;
 		layerFlow[l] = flowAcc + band / 2;
-		flowAcc += band + metrics.layerGap;
+		rowFlow[l] = row;
+		flowAcc += itemAt(layerRows, l) * row - metrics.siblingGap + metrics.layerGap;
 	}
 	const totalFlow = Math.max(0, flowAcc - metrics.layerGap);
-
-	// Cross-axis stack within each layer; record each layer's extent so layers can be centred against the widest one.
-	const crossCenterOf = new Map<string, number>();
-	const layerCrossExtent: number[] = [];
-	for (let l = 0; l <= maxLayer; l++) {
-		let c = 0;
-		for (const id of valueAt(byLayer, l, "the layers' nodes")) {
-			crossCenterOf.set(id, c + crossSize(id) / 2);
-			c += crossSize(id) + metrics.siblingGap;
-		}
-		layerCrossExtent[l] = Math.max(0, c - metrics.siblingGap);
-	}
-	const maxCross = layerCrossExtent.reduce((m, e) => Math.max(m, e), 0);
 
 	const nodes = new Map<string, NodeBox>();
 	for (const n of graph.nodes) {
 		const l = layerOf(n.id);
-		const flowAt = itemAt(layerFlow, l);
+		const flowAt = itemAt(layerFlow, l) + valueAt(rowOf, n.id, "the rows") * itemAt(rowFlow, l);
 		const flowCenter = reverse ? totalFlow - flowAt : flowAt;
 		const crossCenter = valueAt(crossCenterOf, n.id, "the cross-axis centres") + (maxCross - itemAt(layerCrossExtent, l)) / 2;
 		const { w, h } = sizeWH(n.id);
