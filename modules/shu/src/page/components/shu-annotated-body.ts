@@ -11,7 +11,7 @@
  * gate as every step-write, showing an optimistic card until the reload brings the stored one.
  *
  * Light DOM (createRenderRoot → this): the annotator's positioned highlight layer and this component's own scoped
- * `<style>` live in one scope, so highlights are styled wherever the component is mounted (including nested in a
+ * `<style>` share one scope, so highlights are styled wherever the component is mounted (including nested in a
  * host shadow root, where the annotator's document-level style injection would not reach).
  *
  * The `.annotated-content` node does NOT carry lit bindings, so lit creates it once and never re-diffs it, leaving the
@@ -115,8 +115,8 @@ function installPurifyHook(): void {
 	});
 }
 
-/** A note card ready to place: the annotation, the top its passage wants (aligned to the highlight), and the top it is
- *  finally drawn at (pushed down so it never covers the card above, see the measured restack in `updated`). */
+/** A note card ready to place: the annotation, the top its passage requires (aligned to the highlight), and the top at
+ *  which it is finally drawn (pushed down so it never covers the card above, see the measured restack in `updated`). */
 type PlacedCard = { annotation: TAnnotationView; idealTop: number; top: number };
 
 export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
@@ -150,7 +150,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 	@property({ attribute: false }) accessor sourceLabel = "";
 	@property({ attribute: false }) accessor annotations: TAnnotationView[] = [];
 	@property({ type: Boolean }) accessor show = true;
-	/** How this view asks for a note to be written: the host owns the individual, so it owns the write and the re-resolve
+	/** How this view requests that a note be written: the host owns the individual, so it owns the write and the re-resolve
 	 *  that follows. Null leaves the body read-only (the view doesn't write notes), which is what a host that does not offer
 	 *  annotating passes. */
 	@property({ attribute: false }) accessor annotate: ((draft: TAnnotationDraft) => Promise<TWritten>) | null = null;
@@ -222,7 +222,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 		this.#scrollEl.addEventListener("scroll", this.#onScroll, { passive: true });
 		this.autoTeardown(() => this.#scrollEl?.removeEventListener("scroll", this.#onScroll));
 		this.#syncRailWindow();
-		this.placeCards(); // recompute marks now the scroll element is known (an earlier placeCards ran without one)
+		this.placeCards(); // recompute marks now the scroll element is set (an earlier placeCards ran without one)
 	}
 
 	/** Update the rail's total + window from the scroll container (a fast read on every scroll). */
@@ -282,7 +282,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 		const container = this.contentEl();
 		if (!container) return;
 		if (this.contentSignature() !== this.mountedSignature) {
-			// A different body is being shown: any note optimistically authored against the last one does not belong to it.
+			// A different body is being shown: any note optimistically authored against the last one isn't part of it.
 			if (this.pending.length > 0) this.pending = [];
 			// A large body's render blocks the thread for seconds and lit paints only after this returns, so mounting inline
 			// would freeze before the indicator shows. Two frames defer it: a callback runs before its own frame paints, so
@@ -383,7 +383,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 			const containerText = container.textContent ?? "";
 			const layoutTop = this.renderRoot.querySelector<HTMLElement>(".annotated-layout")?.getBoundingClientRect().top ?? 0;
 			const raw: PlacedCard[] = [];
-			// Rail marks are in the scroll region's pixel space (offset down its content), so a mark sits where the reader
+			// Rail marks are in the scroll region's pixel space (offset down its content), so a mark is placed where the reader
 			// scrolls to reach the note; the card idealTop stays in the layout's own space for the margin stack.
 			const located: { commentId: string; offset: number; label: string }[] = [];
 			const scrollTop = this.#scrollEl?.getBoundingClientRect().top ?? 0;
@@ -424,8 +424,8 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 
 	// --- Authoring: select text → annotate ---
 
-	/** The active selection scoped to this component's root. When mounted in a host shadow root, a user selection lives
-	 *  inside that root and `window.getSelection()` retargets it to the shadow host (losing the inner nodes); the shadow
+	/** The active selection scoped to this component's root. When mounted in a host shadow root, that root holds a user
+	 *  selection, and `window.getSelection()` retargets it to the shadow host (losing the inner nodes); the shadow
 	 *  root's own `getSelection` (supported where shadow DOM is) returns it with the real text nodes. Falls back to the
 	 *  window selection at the document top level. */
 	private rootSelection(): Selection | null {
@@ -582,7 +582,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 
 	/** The authoring affordance, floating over the content at the selection: an "Annotate" button once a selection is
 	 *  offered, then a note input. Positioned at the selection's own x/y (not in the rail), so it appears in the same place
-	 *  whether or not the document already has annotations. Present only when the body knows its individual (sourceLabel). */
+	 *  whether or not the document already has annotations. Present only when the body holds its individual (sourceLabel). */
 	private renderAuthoring(): TemplateResult {
 		if (!this.draft || !this.sourceLabel) return html``;
 		const pos = `top: ${Math.round(this.draft.top)}px; left: ${Math.round(this.draft.left)}px`;
@@ -601,7 +601,7 @@ export class ShuAnnotatedBody extends ShuElement<typeof EmptyStateSchema> {
 }
 
 /** The flat offset (over a container's textContent) of a DOM point (node + offset): the inverse of rangeForOffsets,
- *  used to turn a live selection's boundaries into the offsets a TextQuoteSelector's prefix/suffix are sliced from. */
+ *  used to turn a live selection's boundaries into the offsets from which a TextQuoteSelector's prefix/suffix are sliced. */
 function offsetOfPoint(container: HTMLElement, node: Node, offset: number): number {
 	const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
 	let pos = 0;

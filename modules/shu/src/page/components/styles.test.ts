@@ -17,7 +17,7 @@ describe("design-token cascade", () => {
 		expect(SHU_TOKENS).toMatch(/:root\[data-theme="dark"\]/);
 	});
 
-	test("SHU_BASE is consumers only: no `--shu-…:` declarations that would block inheritance from a shadow root", () => {
+	test("SHU_BASE is consumers only: it doesn't declare `--shu-…:`, which would block inheritance from a shadow root", () => {
 		expect(SHU_BASE).not.toMatch(/--shu-[a-z0-9-]+:\s*#/);
 		expect(SHU_BASE).toMatch(/var\(--shu-bg-/);
 		expect(SHU_BASE).toMatch(/var\(--shu-fg/);

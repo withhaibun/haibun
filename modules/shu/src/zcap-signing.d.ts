@@ -7,9 +7,9 @@ type TSigningLoaderResult = { contextUrl: string | null; documentUrl: string; do
 type TSigningDocumentLoader = (url: string) => Promise<TSigningLoaderResult>;
 
 declare module "@digitalbazaar/zcap" {
-	/** The vocabulary a capability document is written in. */
+	/** The vocabulary of a capability document. */
 	export const constants: { ZCAP_CONTEXT_URL: string };
-	/** A loader that answers the zcap context from the library itself, and everything else from the loader it wraps. */
+	/** A loader that returns the zcap context from the library itself, and everything else from the loader it wraps. */
 	export function extendDocumentLoader(documentLoader: TSigningDocumentLoader): TSigningDocumentLoader;
 	/** The proof purpose a delegation is signed under, naming the capability it narrows. */
 	export class CapabilityDelegation {

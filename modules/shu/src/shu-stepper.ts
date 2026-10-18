@@ -159,7 +159,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 	/** What a deployment sets for the app this stepper serves: the timings its page applies. */
 	options = {
 		RESPONSE_TIMEOUT_MS: {
-			desc: `How long a call to this site may take before the page reads it as not answering and reads what the device holds, in milliseconds. Unset, the page allows ${RESPONSE_TIMEOUT_MS}`,
+			desc: `How long a call to this site may take before the page reads it as not responding and reads what the device holds, in milliseconds. Unset, the page allows ${RESPONSE_TIMEOUT_MS}`,
 			parse: (input: string) => intOrError(input),
 		},
 		STREAM_RECONNECT_AFTER_MS: {
@@ -260,7 +260,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 		});
 		webserver.addRoute("get", path, { description: `Shu SPA mounted at ${path}` }, createSpaHandler(path, hydration));
 		// The context is built from the domains as they stand, so a type declared after the page was served is in it, and for
-		// the host the request names, which a caller writes, so nothing is kept per host.
+		// the host the request names, which a caller writes, so the handler doesn't keep anything per host.
 		const jsonLdHandler = (c: Context) => c.json(getJsonLdContext(this.getWorld().domains, haibunNsForHost(requestBaseIri(c.req.header()))));
 		// What every app of a server shares is served once per server, however many apps it mounts: the page's bundles with their
 		// chunks and source maps, and the JSON-LD context.

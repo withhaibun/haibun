@@ -60,7 +60,7 @@ export class ShuPlayback extends ShuElement<typeof StateSchema> {
 		this.autoTeardown(() => this.#stop());
 	}
 
-	/** What playing runs between: the shared log's span, read without asking for a window of it. This control doesn't keep
+	/** What playing runs between: the shared log's span, read without requesting a window of it. This control doesn't keep
 	 *  running bounds of its own, and doesn't register a subscription that would hold actuality in memory after it is put away. */
 	get #span(): { first: number; last: number } {
 		return actualitySpan();

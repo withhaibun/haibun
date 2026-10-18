@@ -13,6 +13,6 @@ describe("<shu-spinner>", () => {
 		await spinner.updateComplete;
 		const status = spinner.shadowRoot?.querySelector(".spinner-status");
 		expect(status?.textContent).toBe("Fetching Email <a@b>...");
-		expect(status?.children.length, "and holds no element").toBe(0);
+		expect(status?.children.length, "and doesn't hold an element").toBe(0);
 	});
 });

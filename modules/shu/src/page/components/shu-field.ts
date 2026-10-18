@@ -1,9 +1,9 @@
 /**
  * <shu-field>: one named control: a name and the control it names, on one line, centred against each other.
  *
- * Every settings row is a run of these, so a select, a checkbox and a text box sit on the same centre line whatever
- * their intrinsic heights are: the alignment is decided once here rather than by each row's own markup. `trailing`
- * puts the name after the control, which is where a checkbox's name belongs.
+ * Every settings row is a run of these, so a select, a checkbox and a text box share the same centre line whatever
+ * their intrinsic heights are: the alignment is set once here rather than by each row's own markup. `trailing`
+ * puts the name after the control, which is the place of a checkbox's name.
  *
  * It doesn't own the control: the control is the host's, slotted in, keeping its own id, value and events.
  */
@@ -35,7 +35,7 @@ class ShuField extends ShuElement<z.ZodObject> {
 			/* The slot doesn't carry a box of its own, so several slotted controls are each a flex item here and take the gap
 			   between them: a name, its box and its button read as three things, not one run. */
 			slot { display: contents; }
-			/* The control keeps its own look; only its alignment is decided here, so a row of fields shares one centre line. */
+			/* The control keeps its own look; only its alignment is set here, so a row of fields shares one centre line. */
 			::slotted(*) { vertical-align: middle; margin: 0; }
 		`,
 	];

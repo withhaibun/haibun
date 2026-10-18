@@ -32,7 +32,7 @@ describe("what the bar calls the current context", () => {
 		expect(contextLabel([])).toBe("All");
 	});
 
-	it("tells a selection of records from a type to query over", () => {
+	it("distinguishes a selection of records from a type to query", () => {
 		expect(isEntitySelection([anIndividual("Email", "msg-1"), anIndividual("Email", "msg-2")])).toBe(true);
 		expect(isEntitySelection([aType("Email", [])])).toBe(false);
 		expect(isEntitySelection([])).toBe(false);

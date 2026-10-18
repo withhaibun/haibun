@@ -102,7 +102,7 @@ describe("entity body content renders for every type and view that should show i
 });
 
 // A graph read names a record's bodies by id and media type and doesn't carry their text, which is read on request.
-// The reading shown is chosen from that listing, whatever order the store lists the bodies in.
+// The reading shown is chosen from that listing, whatever order the store gives the bodies.
 describe("the reading a record shows, chosen from a listing that doesn't carry text", () => {
 	// One Body whose text is plain text, as an email without markdown is written, and a Body of each other form, so the
 	// reading shown is chosen across Bodies and across one Body's forms alike.
@@ -150,7 +150,7 @@ describe("the reading a record shows, chosen from a listing that doesn't carry t
 		const switchToHtml = el.shadowRoot?.querySelector<HTMLElement>(
 			`[data-testid="${SHU_TEST_IDS.COLUMN_BROWSER.BODY_READING}"][data-reading="${readingKey("b-plain", "text/html")}"]`,
 		);
-		if (!switchToHtml) throw new Error("the column offers no html reading to switch to");
+		if (!switchToHtml) throw new Error("the column doesn't offer an html reading to switch to");
 		switchToHtml.click();
 		await el.updateComplete;
 		expect(reading(el), "the column reads the html body now").toContain("text/html");

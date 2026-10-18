@@ -1,10 +1,10 @@
 /**
- * One specification, every event stream. A view subscribes through `pageEventStream()` and does not know which
+ * One specification, every event stream. A view subscribes through `pageEventStream()` and doesn't read which
  * implementation is installed: the live one over `/sse`, or the serialized one a report and a scripted scenario drive.
- * A difference between them is a difference in what a view is told, so each answers these cases rather than carrying a
+ * A difference between them is a difference in what a view receives, so each passes these cases rather than carrying a
  * suite of its own.
  *
- * What is specified is what a subscriber is told: the events, in order, including those that arrived before it
+ * What is specified is what a subscriber receives: the events, in order, including those that arrived before it
  * subscribed; what a filter narrows; what an unsubscribed handler stops receiving; how many events were recorded; and
  * what reports that the stream broke and came back. How events reach the stream is its own: a wire message for the live one,
  * `emit` for the serialized one, which is what `TStreamUnderTest` supplies.
@@ -42,7 +42,7 @@ export function describeEventStream(name: string, make: () => TStreamUnderTest |
 			};
 		});
 
-		it("tells a subscriber every event, in the order the stream carried them", async () => {
+		it("sends a subscriber every event, in the order the stream carried them", async () => {
 			const got: TEvent[] = [];
 			stream.subscribe((e) => got.push(e));
 			await held.deliver(event(1));
@@ -50,7 +50,7 @@ export function describeEventStream(name: string, make: () => TStreamUnderTest |
 			expect(messages(got)).toEqual(["event 1", "event 2"]);
 		});
 
-		it("tells a subscriber what arrived before it subscribed, before anything that arrives after", async () => {
+		it("sends a subscriber what arrived before it subscribed, before what arrives after", async () => {
 			await held.deliver(event(1));
 			const got: TEvent[] = [];
 			stream.subscribe((e) => got.push(e));
@@ -71,7 +71,7 @@ export function describeEventStream(name: string, make: () => TStreamUnderTest |
 			expect(messages(got)).toEqual(["event 2", "event 4"]);
 		});
 
-		it("doesn't tell a handler after it unsubscribes, and keeps telling the others", async () => {
+		it("doesn't call a handler after it unsubscribes, and keeps calling the others", async () => {
 			const first: TEvent[] = [];
 			const second: TEvent[] = [];
 			const stop = stream.subscribe((e) => first.push(e));
@@ -90,21 +90,21 @@ export function describeEventStream(name: string, make: () => TStreamUnderTest |
 			expect(stream.totalRecorded()).toBe(2);
 		});
 
-		it("tells a listener the stream broke, once for the break", async () => {
+		it("notifies a listener that the stream broke, once for the break", async () => {
 			let told = 0;
 			stream.disconnected(() => told++);
 			await held.breakStream();
 			expect(told).toBe(1);
 		});
 
-		it("tells a listener that starts after the break that the stream is down, so a view doesn't present itself as current", async () => {
+		it("notifies a listener that starts after the break that the stream is down, so a view doesn't present itself as current", async () => {
 			await held.breakStream();
 			let told = 0;
 			stream.disconnected(() => told++);
 			expect(told).toBe(1);
 		});
 
-		it("tells a listener the stream came back, which is when a view has something to read again for", async () => {
+		it("notifies a listener that the stream came back, which is when a view has new data to read", async () => {
 			let told = 0;
 			stream.reconnected(() => told++);
 			await held.breakStream();
@@ -113,7 +113,7 @@ export function describeEventStream(name: string, make: () => TStreamUnderTest |
 			expect(told).toBe(1);
 		});
 
-		it("tells a listener the stream is open, at once while it is, and again when it comes back after a break", async () => {
+		it("notifies a listener that the stream is open, at once while it is, and again when it comes back after a break", async () => {
 			let told = 0;
 			stream.opened(() => told++);
 			expect(told, "the stream is open").toBe(1);
@@ -123,7 +123,7 @@ export function describeEventStream(name: string, make: () => TStreamUnderTest |
 			expect(told).toBe(2);
 		});
 
-		it("tells a listener that starts while the stream is down only once it opens", async () => {
+		it("notifies a listener that starts while the stream is down only once it opens", async () => {
 			await held.breakStream();
 			let told = 0;
 			stream.opened(() => told++);
@@ -132,7 +132,7 @@ export function describeEventStream(name: string, make: () => TStreamUnderTest |
 			expect(told).toBe(1);
 		});
 
-		it("doesn't tell a listener about the connection after it unsubscribes", async () => {
+		it("doesn't notify a listener about the connection after it unsubscribes", async () => {
 			let broke = 0;
 			let returned = 0;
 			stream.disconnected(() => broke++)();
@@ -144,7 +144,7 @@ export function describeEventStream(name: string, make: () => TStreamUnderTest |
 			expect([broke, returned, opened]).toEqual([0, 0, 1]);
 		});
 
-		it("doesn't tell a subscriber an event once it is closed", async () => {
+		it("doesn't send a subscriber an event once it is closed", async () => {
 			const got: TEvent[] = [];
 			stream.subscribe((e) => got.push(e));
 			stream.close();

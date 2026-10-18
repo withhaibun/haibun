@@ -1,7 +1,7 @@
 /**
  * <shu-step-detail>: one step of a run, as its own record states it.
  *
- * A step is a record: what was asked for, what ran, how it went and why it failed, how long it took, where it ran, and
+ * A step is a record: what was requested, what ran, how it went and why it failed, how long it took, where it ran, and
  * what it had to hold to run. This reads that record and the variables whose records link the step, so the pane is a
  * read of the graph rather than a second account of the same act. The read is a load controller's, so opening another
  * step ends the earlier read without showing it, and a refused read shows the refusal and its remedy.

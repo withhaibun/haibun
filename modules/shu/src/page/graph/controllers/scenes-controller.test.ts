@@ -80,7 +80,7 @@ describe("scenes", () => {
 
 	it("fails on a scene naming an option the view does not persist, rather than half-applying", () => {
 		const view = mount();
-		expect(() => applyScene([view], { "test-scene-view": { hovered: "Person" } })).toThrow(/does not remember/);
+		expect(() => applyScene([view], { "test-scene-view": { hovered: "Person" } })).toThrow(/doesn't keep/);
 	});
 
 	it("fails on a scene naming a view that is not on the page", () => {

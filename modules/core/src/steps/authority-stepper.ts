@@ -119,7 +119,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			read: true,
 			capability: readAction(Access.private),
 			gwta: "show held calls",
-			description: "Returns the calls held open at this instance, by the capability each rests on. Revoking a capability ends the calls that rest on it.",
+			description: "Returns the calls held open at this instance, by the capability on which each rests. Revoking a capability ends the calls that rest on it.",
 			productsDomain: DOMAIN_HELD_CALLS,
 			action: () => Promise.resolve(actionOKWithProducts(this.getAuthority().heldCalls())),
 		},

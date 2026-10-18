@@ -24,7 +24,7 @@ import { RPC_METHOD } from "./domains/elements.js";
 const PORT = await freePort();
 const MONITOR = localOrigin(PORT);
 
-/** What the monitor answered while the second feature ran: its page, and the records it read. */
+/** What the monitor served while the second feature ran: its page, and the records it read. */
 let page: { status: number; body: string } | undefined;
 let read: TClusteredQuads | undefined;
 /** The policy an HTML artifact a step saved is served with, read by its address. */
@@ -84,7 +84,7 @@ describe("the monitor serves the shu views of actuality on its own port", () => 
 		const steps = read?.quads.filter((quad) => quad.namedGraph === SEQ_PATH_LABEL).map((quad) => String(quad.subject)) ?? [];
 		expect(steps.some((id) => id.startsWith(`${executionOf({ ...world.tag, featureNum: 2 })}.`))).toBe(true);
 
-		// An artifact opened by its address runs no script here, as one in a frame of the page doesn't.
+		// An artifact opened by its address doesn't run a script here, as one in a frame of the page doesn't.
 		expect(artifactPolicy).toBe(ARTIFACT_POLICY);
 
 		await expect(fetch(`${MONITOR}${MONITOR_PATH}`)).rejects.toThrow();

@@ -25,12 +25,12 @@
  * reloads names them in `persistFields`, which `PreferencesController` stores. The active-view signal (`activePane`) is
  * wired by #installActiveView, and a subclass overrides `onViewActive(active)` to react.
  *
- * Inbound event subscriptions go through `subscribeBatched({onBatch, filter})`
+ * Inbound event subscriptions call `subscribeBatched({onBatch, filter})`,
  * which coalesces every event arriving between paints into one handler call
  * inside an animation frame. The transport is the installed `TEventStream`
  * (`event-stream.ts`); subscribers never construct `SseSubscriber` directly.
  *
- * Light DOM: components that must live in the host's light DOM (e.g.
+ * Light DOM: components that render into the host's light DOM (e.g.
  * embedded 3D scenes whose `document.querySelector` lookups need to
  * resolve their children) override `createRenderRoot()` to return `this`.
  */
@@ -71,7 +71,7 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 		PageHash.pushHash(newHash);
 	}
 
-	/** Extra HTML attributes a subclass wants observed, beyond lit's reactive-property attributes. Declare this static array instead of overriding `observedAttributes` directly: lit computes `elementStyles` lazily inside its `observedAttributes` getter, so a raw override that skips `super` never triggers `finalize()` and the component silently inherits the base's empty styles: every `static styles` rule is dropped from the shadow root. */
+	/** Extra HTML attributes a subclass declares as observed, beyond lit's reactive-property attributes. Declare this static array instead of overriding `observedAttributes` directly: lit computes `elementStyles` lazily inside its `observedAttributes` getter, so a raw override that skips `super` never triggers `finalize()` and the component silently inherits the base's empty styles: every `static styles` rule is dropped from the shadow root. */
 	static observedHtmlAttributes: string[] = [];
 
 	/** Map of observed HTML attribute → state field. The base reflects each into `state` through the Zod schema:
@@ -87,45 +87,45 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 		return [...super.observedAttributes, ...Object.keys(this.attributeFields), SHU_ATTR.SHOW_CONTROLS, ...this.observedHtmlAttributes];
 	}
 
-	/** State fields remembered across reloads: THE mechanism for any persisted UI option, declared like
+	/** State fields kept across reloads: THE mechanism for any persisted UI option, declared like
 	 * `attributeFields` and wired by the base: `setState` write-through-persists them (debounced, via
 	 * element-prefs) and the sealed connect path restores them before `onConnected`. A field set explicitly
 	 * via setState earlier in this element's lifetime (e.g. a URL-hash flag applied before attach) is never
-	 * overwritten by the remembered value. Do not hand-roll component cookies, declare the field here. */
+	 * overwritten by the kept value. Do not hand-roll component cookies, declare the field here. */
 	static persistFields: readonly string[] = [];
 
 	/** Set by a column whose spine is a narrow form of ITSELF rather than a separate view the pane mounts. The pane keeps
 	 *  rendering such a column while it is collapsed and marks it as serving as the spine; the column renders only what
 	 *  fits the strip. This is for a column whose strip is a part it already owns: the log's own scroll rail, which is
-	 *  already the right shape and already drives the scroll a separate copy would have to be kept in step with. */
+	 *  already the right shape and already drives the scroll. A separate copy would have to be kept in step with that scroll. */
 	static rendersOwnSpine = false;
 
 	/** Whether a reader acting in this view's pane makes that pane the active pane. A view the reader uses to act on another
-	 *  view, as the actions bar is, doesn't, so the pane the page reads as active stays the view the reader acts on. */
+	 *  view, as the actions bar is, doesn't, so the pane the page reads as active stays the view on which the reader acts. */
 	static activates = true;
 
 	/**
-	 * A spine view stays attached while its column is open, so it keeps hearing what it needs to be current the moment
+	 * A spine view stays attached while its column is open, so it keeps receiving what it needs to be current the moment
 	 * the column collapses. Attached is not shown, though: until the pane's spine slot takes it, the page doesn't show what it
-	 * renders, and rendering it anyway takes the same as rendering it for a reader. So it holds off, and the pane asks
-	 * it to catch up when the spine slot takes it.
+	 * renders, and rendering it anyway takes the same work as rendering it for a reader. So it holds off, and the pane
+	 * requests its update when the spine slot takes it.
 	 */
 	protected override shouldUpdate(changed: Map<PropertyKey, unknown>): boolean {
 		// Only a view MOUNTED into the pane's spine slot holds off: a view that isn't assigned to a slot is the one the pane is not
 		// showing. A column rendering its own spine is marked `spine` without being slotted at all, and it is on screen,
-		// so it renders, which is why this asks about the slot rather than about serving as a spine.
+		// so it renders. This check reads the slot rather than whether the view serves as a spine.
 		if (this.getAttribute("slot") === SPINE_SLOT && !this.assignedSlot) return false;
 		return super.shouldUpdate(changed);
 	}
 
 	/** Identity under which `persistFields` store: "" (default) is a per-tag singleton; a multi-instance
-	 * component overrides this with its instance identity (e.g. a column key); null means "the identity isn't known yet,
+	 * component overrides this with its instance identity (e.g. a column key); null means "the identity isn't set yet,
 	 * don't persist". */
 	protected get persistKey(): string | null {
 		return "";
 	}
 
-	/** Reactive state. Subclasses read via `this.state`; mutations go through `setState`. The Zod schema is the runtime contract. */
+	/** Reactive state. Subclasses read via `this.state`; mutations call `setState`. The Zod schema is the runtime contract. */
 	@property({ attribute: false })
 	accessor state!: z.infer<T>;
 
@@ -138,7 +138,7 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 	/** Record one fine-grained occurrence of this view's behaviour, at whatever rate it happens: held in the page's
 	 *  fixed ring and handed to actuality in batches, which doesn't retain them. The view attribution is this element's
 	 *  hosting column (or the element itself when unhosted), so any control emits with one call and without plumbing of its
-	 *  own. The name must be declared in `view-blips.ts`, where the vocabulary lives. */
+	 *  own. The name must be declared in `view-blips.ts`, which holds the vocabulary. */
 	protected recordBlip(name: string, value?: number, attributes?: Record<string, unknown>): void {
 		const root = this.getRootNode();
 		const view = root instanceof ShadowRoot ? root.host.localName : this.localName;
@@ -150,9 +150,9 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 	/**
 	 * Whether the column hosting this view is collapsed to its strip, rather than open.
 	 *
-	 * Ambient, and true at any depth: a view nested inside another view's shadow root gets the same answer as the column
-	 * itself, without each layer between passing it down. That threading is what it replaces: the pane told the column,
-	 * the column told the scroller, and anything below that could not be told at all.
+	 * Ambient, and true at any depth: a view nested inside another view's shadow root reads the same value as the column
+	 * itself, without each layer between passing it down. It replaces that threading: the pane set it on the column,
+	 * the column set it on the scroller, and a view below that couldn't receive it at all.
 	 *
 	 * Distinct from the `spine` attribute, which is an INSTRUCTION to one column ("you are the strip now, render
 	 * narrow"). This is a fact about the surroundings that anything may read: a scroll rail doesn't draw a thumb in a strip,
@@ -197,7 +197,7 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 	}
 
 	/** The context patterns of what this view shows, where it shows a record or a type: what the reader is on while this
-	 *  is the active pane, and what an ask from here is about. A view without a subject of its own (a log, a document, a
+	 *  is the active pane, and the subject of an ask from here. A view without a subject of its own (a log, a document, a
 	 *  conversation) doesn't state one, so activating it doesn't move the reader. */
 	paneSubject(): TContextPattern[] | null {
 		return null;
@@ -283,13 +283,13 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 
 	/**
 	 * Set the options a scene recorded, through the ordinary `setState`, so the element validates them against its own
-	 * schema, re-renders, and remembers them exactly as if a reader had chosen them. A scene naming an option this
-	 * element does not remember is a scene for a different view: it fails rather than half-applying.
+	 * schema, re-renders, and keeps them exactly as if a reader had chosen them. A scene naming an option this
+	 * element doesn't keep is a scene for a different view: it fails rather than half-applying.
 	 */
 	applySceneState(fields: Record<string, unknown>): void {
 		const declared = (this.constructor as typeof ShuElement).persistFields;
 		for (const name of Object.keys(fields)) {
-			if (!declared.includes(name)) throw new Error(`<${this.tagName.toLowerCase()}>: a scene names the option "${name}", which this view does not remember`);
+			if (!declared.includes(name)) throw new Error(`<${this.tagName.toLowerCase()}>: a scene names the option "${name}", which this view doesn't keep`);
 		}
 		this.setState(fields as Partial<z.infer<T>>);
 	}
@@ -376,7 +376,7 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 		try {
 			this.setState({ [field]: value } as Partial<z.infer<T>>);
 		} catch (error) {
-			// Name the attribute that drove the write: setState reports the state it rejected, not where that state came from.
+			// Name the attribute that drove the write: setState reports the state it rejected, not the origin of that state.
 			throw new Error(`<${this.tagName.toLowerCase()}> attribute ${name}=${JSON.stringify(val)} → state.${field}: ${errorDetail(error)}`, { cause: error });
 		}
 	}
@@ -449,7 +449,7 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 	}
 
 	/** React to a {@link TSharedCell} for this element's lifetime: THE one way a component tracks shared reactive
-	 * state RELIABLY regardless of which bundle it lives in. A SignalWatcher's auto-tracking does not cross an esbuild
+	 * state RELIABLY regardless of the bundle that holds it. A SignalWatcher's auto-tracking does not cross an esbuild
 	 * IIFE boundary, so an external view (a separately-bundled viewer) would silently never re-render on a `get()` read;
 	 * the cell's subscribers this adds to does cross it. Auto-torn-down on disconnect. Default handler re-renders. */
 	protected watchSignal<V>(signal: TSharedCell<V>, handler: (value: V) => void = () => this.requestUpdate()): void {
@@ -472,7 +472,7 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 		return rels === undefined ? null : recordTime(vertex, rels);
 	}
 
-	/** Wrap a view's hypermedia products as a W3C `<script type="application/ld+json">` block. Used when a view wants to embed its structured payload for the chat-context harvester / a downstream agent following `_links`. */
+	/** Wrap a view's hypermedia products as a W3C `<script type="application/ld+json">` block. Used when a view embeds its structured payload for the chat-context harvester / a downstream agent following `_links`. */
 	protected emitHypermediaScript(products: unknown): string {
 		if (products == null) throw new Error(`<${this.localName}>.emitHypermediaScript called with ${products === null ? "null" : "undefined"} products`);
 		return `<script type="application/ld+json">${JSON.stringify(products).replaceAll("</", "<\\/")}</script>`;
@@ -487,7 +487,7 @@ export abstract class ShuElement<T extends z.ZodObject> extends SignalWatcher(Li
 /** Longest a single value runs in a state-write description before it is cut, enough to recognize, short of a whole graph. */
 const DESCRIBE_VALUE_MAX = 60;
 
-/** The write a setState was asked to make, as `{field: value, …}`: the field names alone leave "received undefined"
+/** The write a setState call requested, as `{field: value, …}`: the field names alone leave "received undefined"
  *  ambiguous between "the caller passed undefined" and "the caller omitted a field the merge needed". */
 function describeStateWrite(partial: object): string {
 	const fields = Object.entries(partial).map(([field, value]) => {

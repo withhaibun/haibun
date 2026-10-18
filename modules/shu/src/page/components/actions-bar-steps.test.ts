@@ -82,7 +82,7 @@ describe("the actions bar's step mode", () => {
 		const removed = stepsReadAgain();
 		stepsChanged(t, 2);
 		await removed;
-		expect(host.updatesAsked, "and a bar no longer shown is not told").toBe(shown);
+		expect(host.updatesAsked, "and a bar no longer shown isn't updated").toBe(shown);
 		expect(steps.offersAsk).toBe(true);
 	});
 
@@ -100,7 +100,7 @@ describe("the actions bar's step mode", () => {
 		]);
 	});
 
-	it("offers the Ask mode only where the run offers the step an ask runs", async () => {
+	it("offers the ask mode only where actuality offers the step an ask runs", async () => {
 		expect((await aStepsPage()).steps.offersAsk).toBe(false);
 		t.teardown();
 		offered.push(ASK);

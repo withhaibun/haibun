@@ -52,7 +52,7 @@ export function findTaiwa(steppers: AStepper[]): ITaiwa | undefined {
 function assertTaiwa(stepper: AStepper): asserts stepper is AStepper & ITaiwa {
 	const name = stepper.constructor.name;
 	if (!("ask" in stepper) || typeof stepper.ask !== "function" || stepper.ask.length < 1) {
-		throw new Error(`${name} declares kind=${StepperKinds.TAIWA} but does not implement ask(prompt, opts?).`);
+		throw new Error(`${name} declares kind=${StepperKinds.TAIWA} but does not implement \`ask(prompt, opts?)\`.`);
 	}
 	if (!("isLocal" in stepper) || typeof stepper.isLocal !== "function") {
 		throw new Error(`${name} declares kind=${StepperKinds.TAIWA} but does not implement isLocal(): boolean.`);

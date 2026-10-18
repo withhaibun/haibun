@@ -1,4 +1,4 @@
-// A rail carries the whole run, however long it ran: the window a reader holds is where they pick a moment, and what
+// A rail carries all of actuality, however long it ran: the window a reader holds is where they pick a moment, and what
 // actuality did outside it still has a place at the ends.
 import { describe, it, expect } from "vitest";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
@@ -7,7 +7,7 @@ import { FOCUS_SHARE, momentAt, railAt, type TActualityFocus, type TActualitySpa
 const HOUR = 3600_000;
 const YEAR = 365 * 24 * HOUR;
 
-describe("where a moment of a run sits on a rail", () => {
+describe("the position of a moment of a run on a rail", () => {
 	it("spreads a run its window covers evenly, so a short run is not drawn as a long one", () => {
 		const span: TActualitySpan = { first: 0, last: 1000 };
 		const focus: TActualityFocus = { at: 500, from: 0, to: 1000 };
@@ -32,16 +32,16 @@ describe("where a moment of a run sits on a rail", () => {
 		expect(aYearBack).toBeLessThan(anHourBack);
 	});
 
-	it("runs one way from the run's first record to its last", () => {
+	it("runs one way from actuality's first record to its last", () => {
 		const span: TActualitySpan = { first: 0, last: YEAR };
 		const focus: TActualityFocus = { at: YEAR / 2, from: YEAR / 2 - HOUR, to: YEAR / 2 + HOUR };
 		const at = Array.from({ length: 40 }, (_, i) => railAt((i * YEAR) / 39, span, focus));
-		for (let i = 1; i < at.length; i++) expect(itemAt(at, i), `moment ${i} sits after moment ${i - 1}`).toBeGreaterThanOrEqual(itemAt(at, i - 1));
+		for (let i = 1; i < at.length; i++) expect(itemAt(at, i), `moment ${i} is placed after moment ${i - 1}`).toBeGreaterThanOrEqual(itemAt(at, i - 1));
 		expect(at[0]).toBe(0);
 		expect(at[at.length - 1]).toBe(1);
 	});
 
-	it("answers with the moment a place on the rail names, which is what a press asks actuality for", () => {
+	it("returns the moment a place on the rail names, which a press requests from actuality", () => {
 		const span: TActualitySpan = { first: 0, last: YEAR };
 		const focus: TActualityFocus = { at: YEAR - HOUR, from: YEAR - 2 * HOUR, to: YEAR };
 		for (const moment of [0, YEAR / 4, YEAR - 3 * HOUR, YEAR - HOUR, YEAR]) {
@@ -49,7 +49,7 @@ describe("where a moment of a run sits on a rail", () => {
 		}
 	});
 
-	it("answers the first record for a run of one instant, since the run doesn't have another place to be", () => {
+	it("returns the first record for a run of one instant, since that actuality doesn't have another place", () => {
 		const span: TActualitySpan = { first: 5, last: 5 };
 		const focus: TActualityFocus = { at: 5, from: 5, to: 5 };
 		expect(railAt(5, span, focus)).toBe(0);

@@ -2,7 +2,7 @@
  * The one hypermedia navigation router, kept free of any custom-element (HTMLElement) definition so it is importable in
  * any context, a component, a graph click handler, a node test, without dragging a DOM class into the module graph.
  * A link is an anchor whose href is the address of a pane (`paneHref`), and the page follows its own addresses
- * (`followPaneLink`): a click opens the addressed pane beside the one it was clicked in. A typed reference (seqPath /
+ * (`followPaneLink`): a click opens the addressed pane beside the one in which it was clicked. A typed reference (seqPath /
  * entity / domain / step) is addressed through `refHref`, and a view that isn't an anchor, a row or a card, opens the
  * same pane with `openRef`.
  */
@@ -69,7 +69,7 @@ export function deepLinkOf(href: string): TDeepLink | null {
 	return { pane, state: Object.fromEntries(params) };
 }
 
-/** Follow a link: set the view state it names, then open its pane beside the one it was followed from. */
+/** Follow a link: set the view state it names, then open its pane beside the one from which it was followed. */
 export function followDeepLink(from: Element | Event, link: TDeepLink, addToSelection = false): void {
 	if (Object.keys(link.state).length > 0) mergeHashParams(link.state);
 	requestPaneFrom(from, link.pane, addToSelection);

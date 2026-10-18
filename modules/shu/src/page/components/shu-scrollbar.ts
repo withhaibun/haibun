@@ -28,8 +28,8 @@ export const SCROLL_TO_INDEX = "scroll-to-index";
  *  reading, the same as wheeling the rows. A view that acts on more than scrolling, moving the shared time cursor,
  *  for example: cares which, and would otherwise drag every other view along with a scroll gesture. */
 export type TSeekBy = "press" | "wheel";
-/** A press on one of the rail's position glyphs: the top one asks for the START of actuality, the bottom one for its live
- *  END: beyond what the rail's rows hold, which a host that pages its data answers by loading to that edge. */
+/** A press on one of the rail's position glyphs: the top one requests the START of actuality, the bottom one its live
+ *  END: beyond what the rail's rows hold, which a host that pages its data serves by loading to that edge. */
 type TSeekEdge = "start" | "end";
 
 export class ShuScrollbar extends ShuElement<typeof EmptyStateSchema> {
@@ -47,11 +47,11 @@ export class ShuScrollbar extends ShuElement<typeof EmptyStateSchema> {
 	@property({ attribute: false }) accessor markers: TScrollMarker[] = [];
 	/** The viewport's share of the column (0..1), measured by the host; unset falls back to the visible row share. */
 	@property({ attribute: false }) accessor viewportFraction: number | undefined;
-	/** Show the position glyphs (first-visible ordinal / total). A row-list column wants them; a rail over continuous prose,
+	/** Show the position glyphs (first-visible ordinal / total). A row-list column shows them; a rail over continuous prose,
 	 *  where the numbers would read as raw pixels, sets this false and keeps only the marks and the thumb. */
 	@property({ type: Boolean }) accessor showPosition = true;
 
-	/** Where the shared time cursor sits, as an absolute index, or -1 where a cursor isn't set. The thumb shows what is on
+	/** The position of the shared time cursor, as an absolute index, or -1 where a cursor isn't set. The thumb shows what is on
 	 *  screen; this shows which moment every view is showing. They are different things and are drawn differently: the
 	 *  thumb fills the track, the cursor is a mark down its left edge. */
 	@property({ attribute: false }) accessor cursor = -1;
@@ -62,15 +62,15 @@ export class ShuScrollbar extends ShuElement<typeof EmptyStateSchema> {
 			:host { display: flex; flex-direction: column; align-items: center; width: var(--shu-scrollbar-w); flex-shrink: 0; user-select: none; touch-action: none; }
 			.pos { font-size: var(--shu-font-sm); color: var(--shu-fg-muted); padding: var(--shu-space-1) 0; line-height: 1; font-weight: 500; font-variant-numeric: tabular-nums; cursor: pointer; min-height: 1em; }
 			.pos-bottom { margin-top: auto; }
-			/* The rail takes the WHOLE width of the control, because that is the target a reader aims at: a 14px track asks
-			   for a precision a reader shouldn't need, least of all in a collapsed column where this is the only control there
+			/* The rail takes the WHOLE width of the control, because that is the target at which a reader aims: a 14px track requires
+			   a precision a reader shouldn't need, least of all in a collapsed column where this is the only control there
 			   is. What is drawn stays narrow, the track below is the visible band, while every pixel across is live. */
 			.rail { position: relative; flex: 1; width: 100%; cursor: pointer; }
 			.track {
 				position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%);
 				width: var(--shu-rail-track-w); background: var(--shu-bg-input); border-radius: var(--shu-radius); pointer-events: none;
 			}
-			/* The in-view thumb wants clear contrast against the rail track so the reader sees where they are at a glance. */
+			/* The in-view thumb needs clear contrast against the rail track so the reader sees where they are at a glance. */
 			/* Above the marks, so a press on the thumb is a drag: the marks come after it in the DOM and would otherwise take
 			   it, which on a densely marked rail means the thumb can barely be grabbed at all. Translucent so the marks it
 			   covers still show through: they are the rows on screen, and the reader should still see what is among them. */
@@ -84,7 +84,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptyStateSchema> {
 			/* A LINE ACROSS the rail, not a block on it. Everything else here is a block: the thumb is a bar down the
 			   track, every event is a chip on it, so a cursor drawn as one more block reads as one more of them however
 			   it is coloured. Crossing the rail is a shape the other marks don't use, which is what makes it findable at a glance
-			   down a dense rail, and it sits above the marks so a chip can never hide it. The caret at the left end gives
+			   down a dense rail, and it is drawn above the marks so a chip can never hide it. The caret at the left end gives
 			   the line a definite anchor, and the shadow keeps both readable where they cross a bright chip. */
 			.cursor {
 				position: absolute; left: 0; right: 0;
@@ -156,9 +156,9 @@ export class ShuScrollbar extends ShuElement<typeof EmptyStateSchema> {
 				<div class="track"></div>
 				${
 					// A thumb shows how much of the column is on screen. A collapsed column doesn't show rows, and before the first
-					// window is reported the size isn't known; in both cases a thumb would state a size the column hasn't reported, and in a
-					// strip a large one sits over the marks a reader is trying to point at. It appears when there is a
-					// viewport for it to be the size of.
+					// window is reported the size isn't set; in both cases a thumb would state a size the column hasn't reported, and in a
+					// strip a large one covers the marks a reader is trying to press. It appears when a viewport
+					// determines its size.
 					this.window.visible > 0 && !this.columnCollapsed
 						? html`<div class="thumb" data-testid=${SHU_TEST_IDS.SCROLLBAR.THUMB} style=${`top:${topPx}px;height:${heightPx}px`} @pointerdown=${this.#onThumbDown}></div>`
 						: nothing
@@ -198,7 +198,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptyStateSchema> {
 		if (!rect) return this.window.first;
 		const heightPx = this.#thumbPx(rect.height);
 		// A drag takes the window scale: the thumb has to stay under the pointer that is dragging it. A press takes the
-		// row scale, through pressTarget, so every row can be pointed at.
+		// row scale, through pressTarget, so a press can select every row.
 		const at = clientY - rect.top;
 		if (!snapToMarks) return firstAtPointer(this.total, this.window.visible, at, rect.height, heightPx);
 		return pressTarget(at, this.#marks(rect.height), this.total, rect.height);
@@ -231,7 +231,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptyStateSchema> {
 		if (this.#dragId !== null) return; // a drag is already in flight; a second finger must not hijack it (mirrors #onRailDown)
 		e.stopPropagation();
 		this.#dragId = e.pointerId;
-		// A press that never moves is a click, and a click on the rail goes to where it landed: the same as pressing the
+		// A press that never moves is a click, and a click on the rail seeks to the place it landed: the same as pressing the
 		// track beside the thumb. Without this, a press that the pointer never moves doesn't scroll the column, which is
 		// what a tap is on a touch screen and what a click is on anything the thumb happens to be covering.
 		const pressedAt = e.clientY;
@@ -243,9 +243,9 @@ export class ShuScrollbar extends ShuElement<typeof EmptyStateSchema> {
 			},
 			onEnd: () => {
 				// A click means the row at that height: the same as a click anywhere else on the rail. Only the DRAG above
-				// uses the window scale, and only because a thumb has to stay under the pointer dragging it. Answering a
+				// uses the window scale, and only because a thumb has to stay under the pointer dragging it. Reading a
 				// click that way put every press inside the thumb at the thumb's own top row, which is most of the rail
-				// once a viewport holds a good share of the log, and sits over exactly the later moments.
+				// once a viewport holds a good share of the log, and covers exactly the later moments.
 				if (!carried) this.#emit(this.#pointerToIndex(pressedAt, true), "press");
 				this.#stopDrag = null;
 				this.#dragId = null;

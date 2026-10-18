@@ -24,7 +24,7 @@ import ShuStepper from "./shu-stepper.js";
  * (the federate-peer fixture, which grants the satellite `store.read` and `store.write`), and this world
  * as the satellite mounting the main's store for its Principal records, signing each call. Writes travel
  * through; reads come back; the surface refuses a caller without the delegated capability. The peer only
- * lives for the feature, so every wire probe runs inside it (a capture stepper) and is asserted after.
+ * exists for the feature, so every wire probe runs inside it (a capture stepper) and is asserted after.
  */
 const SATELLITE = "satellite";
 const PEER_PORT = 8251;
@@ -33,11 +33,11 @@ let heldByMain: TRecordsPage["vertices"] | undefined;
 let deniedRead: string | undefined;
 let deniedWrite: string | undefined;
 
-/** Why the instance refused a call; a call it answers fails the probe. */
+/** Why the instance refused a call; a call it serves fails the probe. */
 const reasonRefused = (call: Promise<unknown>): Promise<string> =>
 	call.then(
 		() => {
-			throw new Error("the instance answered a call from a caller without the grant");
+			throw new Error("the instance served a call from a caller without the grant");
 		},
 		(e: unknown) => {
 			if (e instanceof RpcCallFailed) return e.reason;
@@ -89,7 +89,7 @@ probe the delegated store surface
 
 		// The satellite's naming persisted THROUGH the mounted store, and reading back through its own world store (routed to the main) finds it.
 		expect(readBack?.controller).toBe("did:site:0.1");
-		// The main itself holds the record, asked directly under the satellite's delegation.
+		// The main itself holds the record, read directly under the satellite's delegation.
 		expect(heldByMain).toHaveLength(1);
 		// Without a grant a caller doesn't have access: reads and writes are refused a caller that doesn't present one, and the refusal doesn't state more.
 		expect(deniedRead).toBe(refusalSaid(refusal("store.readRecords", undefined, undefined)));

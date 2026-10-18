@@ -137,7 +137,7 @@ export class ShuColumnStrip extends ShuElement<typeof EmptyStateSchema> {
 	}
 
 	/**
-	 * While panes are open, one of them is the pane you are on. The strip owns that invariant because it owns which
+	 * While panes are open, one of them is the active pane. The strip owns that invariant because it owns which
 	 * panes exist: a pane can be added by a restore, a reconcile, or a step, and not every path names one.
 	 *
 	 * Only a signal that does NOT name a pane is repaired. A signal naming a pane that is not open yet is a restore in flight:
@@ -206,7 +206,7 @@ export class ShuColumnStrip extends ShuElement<typeof EmptyStateSchema> {
 			avail -= COLLAPSED_WIDTH;
 			flexCount--;
 		}
-		// Auto-collapse just changed which panes are fixed at a strip's width, so which pane grows is decided again here.
+		// Auto-collapse just changed which panes are fixed at a strip's width, so which pane grows is determined again here.
 		this.updateEdges();
 	}
 
@@ -298,7 +298,7 @@ export class ShuColumnStrip extends ShuElement<typeof EmptyStateSchema> {
 			}
 			if (target !== -1) this.activatePane(target);
 		}
-		// A minimize always changes which pane can grow. updateAccordion decides that too, but it returns early when
+		// A minimize always changes which pane can grow. updateAccordion determines that too, but it returns early when
 		// the strip doesn't have width to share (one pane, a maximized strip, the wrapped narrow layout), so it is stated here.
 		this.updateAccordion();
 		this.updateEdges();

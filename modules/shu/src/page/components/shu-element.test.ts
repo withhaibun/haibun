@@ -349,7 +349,7 @@ describe("ShuElement invalid state reporting", () => {
 	});
 });
 
-describe("knowing whether the hosting column is collapsed", () => {
+describe("reading whether the hosting column is collapsed", () => {
 	// Ambient, at any depth: this is what the pane→column→scroller threading replaced, which could not reach a view
 	// nested inside another view's shadow root at all.
 	const EmptySchema = z.object({});
@@ -408,7 +408,7 @@ describe("knowing whether the hosting column is collapsed", () => {
 		expect(deep.collapsed, "open to begin with").toBe(false);
 		pane.setMinimized(true);
 		await deep.updateComplete;
-		expect(deep.collapsed, "and told when its column becomes a strip, without the wrapper passing it down").toBe(true);
+		expect(deep.collapsed, "and updated when its column becomes a strip, without the wrapper passing it down").toBe(true);
 	});
 
 	it("follows the column back open", async () => {

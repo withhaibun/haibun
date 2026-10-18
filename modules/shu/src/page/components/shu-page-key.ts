@@ -41,7 +41,7 @@ export class ShuPageKey extends ShuElement<typeof PageKeySchema> {
 	render(): TemplateResult {
 		const { controller } = this.state;
 		// The key a delegation names is recorded as the Principal it is, so it opens as that record.
-		return html`<p>This is the page's public key, which a holder delegates to. It isn't a secret: the private key stays in this browser and isn't sent.</p>
+		return html`<p>This is the page's public key, to which a holder delegates. It isn't a secret: the private key stays in this browser and isn't sent.</p>
 			<div class="key"><code data-testid=${SHU_TEST_IDS.APP.PAGE_KEY}>${refTpl(REF_DENOTES.individual, principalAddress(controller), controller)}</code><shu-copy-button label="copy" title="copy this page's public key, which a holder delegates to" .source=${controller}></shu-copy-button></div>`;
 	}
 }

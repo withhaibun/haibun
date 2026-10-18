@@ -64,7 +64,7 @@ const COPY_RESULT = "copy-result";
 
 /** The links a record carries, by rel. */
 const OfferedLinksSchema = z.record(z.string(), CallLinkSchema);
-/** A file saved rather than opened: its bytes, typed as bytes, under the name it was sent with. */
+/** A file saved rather than opened: its bytes, typed as bytes, under the name with which it was sent. */
 function saveFile(blob: Blob, name: string): void {
 	const anchor = document.createElement("a");
 	anchor.href = URL.createObjectURL(new Blob([blob], { type: MEDIA_TYPE.bytes }));
@@ -80,7 +80,7 @@ type EdgeData = { type: string; target: VertexData; direction?: "out" | "in" };
  *  starts closed behind a summary naming how many, and a reader opens it when a field is the question. */
 const FIELDS_FOLD_AT = 6;
 
-/** How many targets a reference group shows before the rest fold behind a summary naming how many. */
+/** How many targets a reference group shows before the rest collapse behind a summary naming how many. */
 const TARGETS_FOLD_AT = 4;
 
 /** A reference group's rendered targets: the first `TARGETS_FOLD_AT`, and the rest behind a disclosure naming how many. */
@@ -142,12 +142,12 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		.detail-table { width: 100%; border-collapse: collapse; }
 		.detail-table td { padding: 1px var(--shu-space-2); vertical-align: top; overflow-wrap: anywhere; }
 		.fields-table { margin: var(--shu-space-1) 0 var(--shu-space-2); }
-		/* The field table folded behind a disclosure: the summary line names how many fields it holds, and the table
+		/* The field table collapsed behind a disclosure: the summary line names how many fields it holds, and the table
 		   opens on demand. A reader reads the summary first and opens the table when a field is the question. */
 		.fields-disclosure { margin: var(--shu-space-1) 0 var(--shu-space-2); }
 		.fields-disclosure > summary { color: var(--shu-fg-muted); font-size: 0.85em; cursor: pointer; padding: 2px 0; list-style-position: inside; }
 		.fields-disclosure[open] > summary { margin-bottom: var(--shu-space-1); }
-		/* A reference group folded the same way: the first few targets stay visible, and the rest open on demand. */
+		/* A reference group collapsed the same way: the first few targets stay visible, and the rest open on demand. */
 		.ref-more > summary { color: var(--shu-fg-faded); font-size: 0.85em; cursor: pointer; }
 		.field-json { margin: 0; padding: var(--shu-space-2); background: var(--shu-bg-soft); border-radius: var(--shu-radius); font-size: 0.8em; white-space: pre-wrap; word-break: break-word; overflow-x: auto; }
 		.literal-body { margin: var(--shu-space-2) 0 0; padding: var(--shu-space-2); background: var(--shu-bg-soft); border-radius: var(--shu-radius); white-space: pre-wrap; word-break: break-word; overflow-x: auto; }
@@ -165,7 +165,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		.loading, .empty { color: var(--shu-fg-faded); padding: var(--shu-space-4); }
 		`,
 	];
-	/** The showAnnotations toggle is remembered per column across reloads, like every persisted view option. */
+	/** The showAnnotations toggle is kept per column across reloads, like every persisted view option. */
 	static persistFields = ["showAnnotations"] as const;
 
 	private vertex: VertexData | null = null;
@@ -180,7 +180,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	private annotationsList: TAnnotationView[] = [];
 	/** A passage to reveal once the body renders, set by a Text Fragment reference into this individual. */
 	private revealTarget: TQuoteAnchor | null = null;
-	/** A part of the individual's media a reference names, as a PDF's page, which a file the individual offers opens at. */
+	/** A part of the individual's media a reference names, as a PDF's page, at which a file the individual offers opens. */
 	private fragment: TFragment | null = null;
 	/** Each body that has been read whole, by its id, projected from the entity view. A body the reader has not opened is
 	 *  absent, so the body area reads as loading rather than empty. */
@@ -262,7 +262,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			this.requestUpdate();
 			return;
 		}
-		// The latest reference decides where a file the record offers opens: at the page of the passage it quotes.
+		// The latest reference determines where a file the record offers opens: at the page of the passage it quotes.
 		this.fragment = null;
 		this.revealTarget = part;
 		this.setState({ showAnnotations: true });
@@ -382,7 +382,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		)}`;
 	}
 
-	/** Follow a call the record offers. A call that answers with a file of a type a browser shows as it is
+	/** Follow a call the record offers. A call that returns a file of a type a browser shows as it is
 	 *  (`viewedInBrowser`) opens it in a tab of its own: a PDF in its own viewer, at the fragment a reference named, as its
 	 *  page. A file of any other type is saved under its name, since its sender chose its type, and a browser runs a page of
 	 *  that type, as HTML or SVG, with this page's origin. A browser opens a tab only shortly after a click, so a file read
@@ -413,7 +413,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	}
 
 	/** Where the view came from when it was not fetched: a copy held this session, or the browser store when offline.
-	 *  Absent for a live fetch, so its presence tells a reader why the view appeared without one. */
+	 *  Absent for a live fetch, so its presence shows a reader why the view appeared without one. */
 	private renderFromStore(): TemplateResult {
 		const { fromStore } = this.state;
 		if (!fromStore) return html``;
@@ -631,7 +631,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	/** The body area. A text body (markdown / plain) that carries annotations, with the gutter on (the default when any
 	 *  exist), renders inline via shu-annotated-body: the passages highlighted and the notes shown in a margin rail
 	 *  beside them, the toolbar's pencil toggling back to the plain iframe. Any other case (without annotations, gutter off, or a
-	 *  non-text body such as an original HTML email) keeps the sandboxed body iframe, whose pencil toggles the gutter on. */
+	 *  non-text body such as an original HTML email) keeps the sandboxed body iframe, whose pencil turns the gutter on. */
 	private renderBodyArea(iframeHtml: string): TemplateResult {
 		if (!iframeHtml) return html``;
 		const annBody = this.annotatableBody();
@@ -675,7 +675,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	}
 
 	/** The record's governance fields: who may see it, what it allows, whether it is revoked. The field table drops them
-	 *  (their rel indicates they belong here), so without this they don't render. */
+	 *  (their rel indicates this section), so without this they don't render. */
 	private renderGovernance(persistedAs: string): string {
 		if (!this.vertex) return "";
 		const fields = governanceFields(this.vertex, persistedAs);

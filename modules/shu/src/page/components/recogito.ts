@@ -3,8 +3,8 @@
  *
  * The package's shipped `.d.ts` files use extensionless relative specifiers that this project's `node16` module
  * resolution rejects, so its own exports do not surface as types (the runtime resolves fine, esbuild bundles the
- * ES module). This one file re-declares the minimal surface the annotation display uses, so the workaround lives in
- * a single place instead of at every call site.
+ * ES module). This one file re-declares the minimal surface the annotation display uses, so a single place holds
+ * the workaround instead of every call site.
  */
 // @ts-expect-error -- package ships node16-incompatible relative type specifiers; the runtime import resolves via esbuild.
 import { createTextAnnotator as _createTextAnnotator, W3CTextFormat as _W3CTextFormat } from "@recogito/text-annotator";

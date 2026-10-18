@@ -38,7 +38,7 @@ const TYPED_SEARCH = "typed-search";
 export const SEARCH_DEBOUNCE_MS = 300;
 
 /** What a view states about the context it offers the bar: its total, the label the query surface can use, and the
- *  conditions it was opened with. */
+ *  conditions with which it was opened. */
 type TQueryContextExtra = TContextExtra & { textQuery?: string; conditions?: TSearchCondition[] };
 
 /** The conditions a search runs: each select filter with a value, then each filter row that names a field. A row without a
@@ -51,7 +51,7 @@ export function searchConditions(selectFilters: Record<string, string>, rows: re
 }
 
 /** What the query reads from the bar: its test-id prefix, the history searches are recorded in, the status it reports
- *  on, and the breadcrumb it asks to read the trail label again. */
+ *  on, and the breadcrumb it requests to read the trail label again. */
 type TActionsBarQueryDeps = { testIdPrefix: () => string; history: ShuActivityHistory; setStatus: (message: string) => void; onTrailChange: () => void };
 
 export class ActionsBarQuery implements ReactiveController {
@@ -111,7 +111,7 @@ export class ActionsBarQuery implements ReactiveController {
 		return this.#trailLabel;
 	}
 
-	/** Take the context a view offers: its patterns, the access it reads at, and the label and conditions it opened with. A
+	/** Take the context a view offers: its patterns, the access it reads at, and the label and conditions with which it opened. A
 	 *  view offers a label only when the query surface can use one, so a schema view leaves the label as it is. */
 	setContext(patterns: TContextPattern[], readLevel: AccessQueryLevel, extra?: TQueryContextExtra): void {
 		this.#contextPatterns = patterns;
@@ -138,7 +138,7 @@ export class ActionsBarQuery implements ReactiveController {
 
 	/**
 	 * Read the types the query surface offers and settle on one: the label and field filters the address names, else the
-	 * first type. The search it describes is announced as not asked for, since the bar restoring itself isn't a reader
+	 * first type. The search it describes is announced as not requested, since the bar restoring itself isn't a reader
 	 * looking for results.
 	 */
 	async loadDomains(): Promise<void> {
@@ -177,14 +177,14 @@ export class ActionsBarQuery implements ReactiveController {
 		this.#host.requestUpdate();
 	}
 
-	/** Take the distinct values a batch of events adds for the selected type, rather than asking the server again: the
-	 *  question would itself be recorded, and that record would be another change to answer. */
+	/** Take the distinct values a batch of events adds for the selected type, rather than requesting them from the server
+	 *  again: the request would itself be recorded, and that record would be another change to read. */
 	observe(events: TEvent[]): void {
 		if (this.#selectedLabel && addObservedSelectValues(this.#selectedLabel, extractQuadsFromEvents(events))) this.#host.requestUpdate();
 	}
 
-	/** The search mode's input line: the mode and the text to search for. The type the search reads stands on the page
-	 *  strip, beside what the search found. */
+	/** The search mode's input line: the mode and the text the search reads. The page strip shows the type the search reads,
+	 *  beside what the search found. */
 	template(modeToggle: TemplateResult): TemplateResult {
 		const prefix = this.#deps.testIdPrefix();
 		return html`<div class="filter-bar">
@@ -258,7 +258,7 @@ export class ActionsBarQuery implements ReactiveController {
 		if (!this.#selectedLabel) throw new Error(`Concern option ${first.key} is missing queryLabel`);
 	}
 
-	/** Read the select values, and report a server that did not answer: the reader then types the value. */
+	/** Read the select values, and report a server that didn't respond: the reader then types the value. */
 	#loadSelectValuesReported(force = false): void {
 		void this.loadSelectValues(force).catch((err) => {
 			if (isServerUnreachable(err)) return this.#deps.setStatus(`the values for this step are not available: ${errorDetail(err)}`);
@@ -308,7 +308,7 @@ export class ActionsBarQuery implements ReactiveController {
 		history.append(entry);
 	}
 
-	/** Read the type the key names, as the page strip's type control asks. The search states the type it reads, so a
+	/** Read the type the key names, as the page strip's type control requests. The search states the type it reads, so a
 	 *  choice the strip makes and one the address restores take the same path. */
 	chooseType(key: string): void {
 		this.#selectedDomainKey = key;
@@ -320,7 +320,7 @@ export class ActionsBarQuery implements ReactiveController {
 		this.#announce();
 	}
 
-	/** State the types the page offers and the one the search reads, which the page strip shows. A page told what it
+	/** State the types the page offers and the one the search reads, which the page strip shows. A page given what it
 	 *  already holds renders again without a change, so the types are stated as they change. */
 	#statePageTypes(): void {
 		const stated = pageTypes.get();
@@ -393,8 +393,8 @@ export class ActionsBarQuery implements ReactiveController {
 	}
 }
 
-/** The text a search box's value searches for. A value opening with a slash command is a command until Enter runs it, and
- *  isn't searched for; a value opening with a double slash searches for its text with one slash. */
+/** The text that a search box's value searches. A value opening with a slash command is a command until Enter runs it, and
+ *  isn't searched; a value opening with a double slash searches for its text with one slash. */
 function searchText(value: string): string | undefined {
 	const command = readSlashCommand(value);
 	if (!command) return value;

@@ -19,7 +19,7 @@ import "./shu-refusal.js";
 import { getQueryableFields, getTypeDescription, getTypes, getUiPresenting, isSystemSchemaType, refContext } from "../controllers/catalog-controller.js";
 import { arrayWindowedSource, readWindowedSource, unmarked, type WindowedSource } from "../derivations/windowed-source.js";
 
-/** How many of a type's individuals one read answers. The column lists every individual the type has, a page at a time
+/** How many of a type's individuals one read returns. The column lists every individual the type has, a page at a time
  *  as a reader reaches it, rather than the first page without a statement that the rest are there. */
 const INSTANCES_PAGE = 100;
 
@@ -98,8 +98,8 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 	async open(persistedAs: string): Promise<void> {
 		// Surface the subject: in the ontology projection a Class node's id IS the persistedAs, so a graph view drawing
 		// the schema can find this type by it. It is not published on the selection axis, which names a record the store
-		// holds: a Class is a projection of the registry and isn't a record, and naming one there asks every reader of that
-		// axis for a record of a type that does not exist.
+		// holds: a Class is a projection of the registry and isn't a record, and naming one there sends every reader of that
+		// axis a request for a record of a type that does not exist.
 		this.setState({ persistedAs });
 		// An ask from here is about the type: its members. This column holds a type without an id, so `aType` is the
 		// only thing it can show, and it doesn't offer a query-surface label, since a schema view doesn't have one to give.

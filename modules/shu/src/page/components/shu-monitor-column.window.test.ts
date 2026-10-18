@@ -23,12 +23,12 @@ describe("what a log marks on its rail", () => {
 
 	it("places a mark at the row's index in the log it was given, which is the log a reader scrolls", () => {
 		// The rows passed in are the FILTERED log. An index into the unfiltered one would scroll to the wrong row, or
-		// past the end, whenever a level filter is on.
+		// past the end, whenever a level filter applies.
 		const marks = railMarkers([row({ mark: { icon: "❌", color: MARK_COLOUR.fault } }), row(), row({ mark: { icon: "⚠️", color: MARK_COLOUR.pending } })]);
 		expect(marks.map((m) => m.index)).toEqual([0, 2]);
 	});
 
-	it("labels a mark with what the row is about and what happened to it, so marks are told apart", () => {
+	it("labels a mark with what the row is about and what happened to it, so marks are distinguished", () => {
 		const marks = railMarkers([
 			row({ mark: { icon: "❌", color: MARK_COLOUR.fault }, step: "check the total", message: "it went wrong" }),
 			row({ mark: { icon: "▸", color: MARK_COLOUR.feature }, step: "a-feature", message: "▸ feature" }),
@@ -39,8 +39,8 @@ describe("what a log marks on its rail", () => {
 		expect(itemAt(marks, 2).label, "a row without a step is labelled by what it shows").toBe("saved");
 	});
 
-	it("places a mark at the row's index in the RUN when the rows are the resident part of a longer run", () => {
-		// The monitor's rail spans the whole run; what it holds is a resident window of it, so a mark on a resident row sits
+	it("places a mark at the row's index in ACTUALITY when the rows are the resident part of a longer log", () => {
+		// The monitor's rail spans all of actuality; what it holds is a resident window of it, so a mark on a resident row is placed
 		// at that row's index in actuality, not at its position in the resident list.
 		const marks = railMarkers([row(), row({ mark: { icon: "❌", color: MARK_COLOUR.fault } })], [4000, 4001]);
 		expect(marks.map((m) => m.index)).toEqual([4001]);
@@ -75,9 +75,9 @@ describe("the rail marks what the timeline marks", () => {
 });
 
 describe("what pressing a row of the log opens", () => {
-	// Every row is a record of actuality, so every row answers a press with the record it is. Pressed only where a row
+	// Every row is a record of actuality, so every row opens its record on a press. Pressed only where a row
 	// carried a step, a reader met rows that didn't open a record, what a run logged over a connection among them, and the
-	// row didn't show which would answer.
+	// row didn't show which would open.
 	it("opens a step at its own place in actuality", () => {
 		expect(opens(row({ path: [0, 1, 2], record: { persistedAs: "SeqPath", id: "a-step" } }))).toEqual({ paneType: "entity", persistedAs: "SeqPath", id: "a-step" });
 	});

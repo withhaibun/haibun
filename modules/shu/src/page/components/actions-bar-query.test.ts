@@ -22,7 +22,7 @@ import { declaringSteps, persistedTypeDefinition, setupShuTest, stepsChanged, st
 
 /** The fields each type takes as filters: the folder a record is filed in, whose values the search offers, and its subject. */
 const FILED = { folder: LinkRelations.CONTEXT.rel, subject: LinkRelations.NAME.rel };
-/** The types actuality declares, which a case adds to. */
+/** The types actuality declares, to which a case adds. */
 const declaredTypes = [
 	persistedTypeDefinition("Email", { selector: "email-domain", properties: FILED, declared: true }),
 	persistedTypeDefinition("File", { selector: "file-domain", properties: FILED, declared: true }),
@@ -102,7 +102,7 @@ describe("the actions bar's search mode", () => {
 		declaredTypes.pop();
 	});
 
-	it("reads the type and field filters the address names, and announces that search as not asked for", async () => {
+	it("reads the type and field filters the address names, and announces that search as not requested", async () => {
 		const { query, changes } = await aQueryPage("#?label=File&f=folder|eq|Drafts");
 		expect(query.selectedLabel).toBe("File");
 		expect(changes).toEqual([{ asked: false, readLevel: query.readLevel, label: "File", conditions: [{ predicate: "folder", operator: "eq", value: "Drafts" }] }]);
@@ -118,7 +118,7 @@ describe("the actions bar's search mode", () => {
 		expect(statuses).toContain(typeNotHeld(NOT_HELD, []).error);
 	});
 
-	it("announces a type the strip states once, as asked for, with its select filters cleared, and states it as the type read", async () => {
+	it("announces a type the strip states once, as requested, with its select filters cleared, and states it as the type read", async () => {
 		const { query, changes } = await aQueryPage("#?f=folder|eq|Drafts");
 		changes.length = 0;
 		query.chooseType("file-domain");

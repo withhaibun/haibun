@@ -11,7 +11,7 @@ import "./shu-virtual-column.js";
 import { SCROLL_TO_INDEX } from "./shu-scrollbar.js";
 
 describe("a column whose rows are a window of something longer", () => {
-	it("draws the rail the source states, and asks the source where a press lands", async () => {
+	it("draws the rail the source states, and requests from the source where a press lands", async () => {
 		const asked: number[] = [];
 		const rows = Array.from({ length: 5 }, (_, i) => ({ id: i }));
 		const source: WindowedSource<{ id: number }> & { rail: NonNullable<WindowedSource<unknown>["rail"]> } = {
@@ -25,7 +25,7 @@ describe("a column whose rows are a window of something longer", () => {
 		const column = document.createElement("shu-virtual-column") as ShuVirtualColumn;
 		column.source = source as unknown as WindowedSource<unknown>;
 		column.renderRow = (i: number) => html`<div>${i}</div>`;
-		// The rail is what a column shows as a strip, which is where a reader reads a long run from.
+		// The rail is what a column shows as a strip, from which a reader reads a long run.
 		column.spine = true;
 		document.body.append(column);
 		await column.updateComplete;
@@ -34,6 +34,6 @@ describe("a column whose rows are a window of something longer", () => {
 		expect(rail?.markers.map((m) => m.id).sort(), "what actuality marks and what this column holds, in actuality's places").toEqual(["held", "long ago"]);
 		expect(rail?.markers.find((m) => m.id === "held")?.index, "the held row is placed where actuality has it").toBe(10);
 		column.dispatchEvent(new CustomEvent(SCROLL_TO_INDEX, { detail: { index: 42 }, bubbles: true, composed: true }));
-		expect(asked, "the press is the source's to answer").toEqual([42]);
+		expect(asked, "the source serves the press").toEqual([42]);
 	});
 });

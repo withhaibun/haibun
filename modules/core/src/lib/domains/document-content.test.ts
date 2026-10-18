@@ -49,7 +49,7 @@ describe("what a run logged is text", () => {
 		}) as unknown as THaibunEvent;
 
 	it("places a message's markup as text, so what a run reported never becomes elements of the document", () => {
-		// A failure report quotes the elements it looked at. Placed as markup, those became a list item carrying a
+		// A failure report quotes the elements it inspected. Placed as markup, those became a list item carrying a
 		// test id and three canvases the rendering library sized, which the next run found and pressed.
 		const events = [featureEvent("/f.feature", "F"), said(`saw <li data-testid="views-picker-row-x">…</li> and <canvas class="a-canvas"></canvas>`)];
 		const { md } = generateDocumentMarkdown(events, buildArtifactIndex(events).artifactsByStep);

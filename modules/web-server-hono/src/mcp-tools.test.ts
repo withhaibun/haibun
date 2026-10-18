@@ -33,7 +33,7 @@ class TestStepper extends AStepper {
 					}
 					const verifyTool = tools.find((tool) => tool.name === "TestStepper-verifyTools");
 					if (!verifyTool || !(verifyTool.inputSchema as { properties?: Record<string, unknown> }).properties?.port)
-						throw Error(`verifyTools lists no port: ${JSON.stringify(verifyTool)}`);
+						throw Error(`verifyTools doesn't list a port: ${JSON.stringify(verifyTool)}`);
 					let listChanged = (): void => undefined;
 					const toldOfChange = new Promise<void>((resolve) => (listChanged = resolve));
 					client.setNotificationHandler(ToolListChangedNotificationSchema, () => listChanged());
@@ -43,7 +43,7 @@ class TestStepper extends AStepper {
 					registry.inject([{ ...passes, descriptor: { ...passes.descriptor, method: "Injected-testA", stepperName: "Injected" } }]);
 					await toldOfChange;
 					if (!(await client.listTools()).tools.some((tool) => tool.name === "Injected-testA"))
-						throw Error("a step injected into actuality is not listed after the client was told the list changed");
+						throw Error("a step injected into actuality is not listed after the client was notified that the list changed");
 					const instructions = client.getInstructions() ?? "";
 					if (instructions.includes("TestStepper")) throw Error(`the instructions, set before any caller connects, name a stepper: ${instructions}`);
 					if (!instructions.includes(SHOW_STEPS_METHOD)) throw Error(`the instructions don't state how to find a step: ${instructions}`);
@@ -65,7 +65,7 @@ class TestStepper extends AStepper {
 }
 
 describe("McpStepper tools", () => {
-	it("states in its instructions how to find a step without naming a stepper, lists the caller's steps as tools, show steps among them, tells a client when the list changes, and calls one", async () => {
+	it("states in its instructions how to find a step without naming a stepper, lists the caller's steps as tools, show steps among them, notifies a client when the list changes, and calls one", async () => {
 		const port = 8130;
 		const feature = {
 			path: "/features/tools.feature",

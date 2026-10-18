@@ -18,7 +18,7 @@ const STEP_REFUSAL = "actionNotOK";
 const BUILDERS: Record<string, number> = { authorityRefusal: 0, refuseInvocation: 1, callFailed: 1 };
 /** The gate's refusals, which name the action a caller lacks, and which a caller acts on by requesting it from a holder. */
 const GATE_REFUSALS = new Set(["refusal", "namedRefusal"]);
-/** The statuses that refuse the caller's sign-in or authority, which a caller acts on. */
+/** The statuses that refuse the caller's sign-in or authority, on which a caller acts. */
 const AUTHORITY_STATUSES = new Set(["401", "403", "407", "REFUSED_INVOCATION"]);
 const REFUSAL_PROPERTIES = new Set(["ok", "error", "remedy"]);
 const ERROR = "error";

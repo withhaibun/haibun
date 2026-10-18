@@ -20,7 +20,7 @@ export type { TPrincipalRow };
 type TRecordRef = { persistedAs: string; id: string };
 
 /** What holds here: the key this page signs as, what it may do, the delegation that granted each action it was
- *  delegated, and who the deployment knows. */
+ *  delegated, and the principals the deployment holds. */
 export type TAuthority = { controller?: string; holds: string[]; grantedBy: Record<string, TRecordRef>; principals: TPrincipalRow[] };
 
 /**
@@ -35,7 +35,7 @@ export class AuthorityController implements ReactiveController {
 		host.addController(this);
 	}
 
-	hostConnected(): void {} // read on demand, so a view that never opens its permissions doesn't ask
+	hostConnected(): void {} // read on demand, so a view that never opens its permissions doesn't read it
 
 	async read(): Promise<TAuthority> {
 		await getAvailableSteps();

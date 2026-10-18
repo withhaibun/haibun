@@ -6,7 +6,7 @@ import { currentSubjectState, dispatchSubjectEvent, SubjectController } from "./
 import { SCOPE, entryOf, type TRecord } from "../domains/current-subject.js";
 import { nextQuestion } from "../ask/controllers/conversation-controller.js";
 
-/** A host as a controller sees one: it registers controllers and can be asked to update. */
+/** A host as a controller reads one: it registers controllers and receives requests to update. */
 function aHost(): ReactiveControllerHost & { controllers: ReactiveController[]; updates: number } {
 	const host = {
 		controllers: [] as ReactiveController[],
@@ -33,7 +33,7 @@ describe("SubjectController", () => {
 		currentSubjectState.set(INITIAL_SUBJECT);
 	});
 
-	it("tells a view the active record as soon as it connects, then on every change of it", () => {
+	it("gives a view the active record as soon as it connects, then on every change of it", () => {
 		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: PANE });
 		const host = aHost();
 		const seen: Array<TRecord | null> = [];
@@ -55,7 +55,7 @@ describe("SubjectController", () => {
 		expect(seen).toEqual([null, { id: "a@test.com", label: "Email" }]);
 	});
 
-	it("tells a view that reads more than the active entry when what it reads changes", () => {
+	it("notifies a view that reads more than the active entry when what it reads changes", () => {
 		const host = aHost();
 		const told: string[] = [];
 		new SubjectController(host, (_record, state) => told.push(nextQuestion(state).repliesTo?.turn ?? "none"), nextQuestion).hostConnected();
@@ -64,7 +64,7 @@ describe("SubjectController", () => {
 		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: PANE });
 		dispatchSubjectEvent({ type: "update", scope: SCOPE.actionsBar, entry: { record: { id: "cmt-say-0.1.2", label: "Comment" }, turn: "cmt-ask-0.1.2", bundle: PANE.bundle } });
 		expect(told, "a restored conversation changes the turn a question replies to while the page's record leads").toEqual(["none", "none", "cmt-ask-0.1.2"]);
-		expect(activeOnly, "a view of the active record alone is not told").toEqual([null, { id: "a@test.com", label: "Email" }]);
+		expect(activeOnly, "a view of the active record alone isn't notified").toEqual([null, { id: "a@test.com", label: "Email" }]);
 	});
 
 	it("stops relaying when the view disconnects", () => {
@@ -75,6 +75,6 @@ describe("SubjectController", () => {
 		controller.hostDisconnected();
 		dispatchSubjectEvent({ type: "activate", scope: SCOPE.page, entry: PANE });
 		expect(seen).toEqual([null]);
-		expect(controller.record, "the current answer is still readable on demand").toEqual({ id: "a@test.com", label: "Email" });
+		expect(controller.record, "the current record is still readable on demand").toEqual({ id: "a@test.com", label: "Email" });
 	});
 });

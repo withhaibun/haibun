@@ -44,7 +44,7 @@ const CHAIN_GRAPH = { slot: SHU_TEST_IDS.DOMAIN_CHAIN.GRAPH, scope: "domain-chai
 function snapshotOf(p: Record<string, unknown>): TAffordancesSnapshot {
 	if (!Array.isArray(p.forward) || !Array.isArray(p.goals) || !Array.isArray(p.satisfiedDomains) || typeof p.execution !== "string") {
 		throw new Error(
-			`shu-domain-chain-view takes \`forward\`, \`goals\` and \`satisfiedDomains\` arrays and the \`execution\` they are of. Received keys: [${Object.keys(p).join(", ")}].`,
+			`shu-domain-chain-view takes \`forward\`, \`goals\` and \`satisfiedDomains\` arrays and the \`execution\` that holds them. Received keys: [${Object.keys(p).join(", ")}].`,
 		);
 	}
 	const snapshot: TAffordancesSnapshot = {

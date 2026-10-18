@@ -242,7 +242,7 @@ export function writeBound(): TAccessBound {
 }
 
 /**
- * Runs `within` as the instance itself, without the ceiling of the call it is part of. Only the authority's own
+ * Runs `within` as the instance itself, without the ceiling of the call that contains it. Only the authority's own
  * operations call it. They verify a chain a caller presents, return the delegations of a key, and delegate, invoke or
  * revoke for a caller that holds the action each act requires. Each reads the instance's records and returns the
  * verdict, the delegations the key already holds, or the act's result.
@@ -254,7 +254,7 @@ export function runReadingAsTheInstance<T>(within: () => Promise<T>): Promise<T>
 /** Runs `within` as a tick, for work that outlives the step that started it. The tick holds only `needs` and reads at the
  *  broadest level `needs` allows. Where `needs` doesn't hold a read action, the tick's reads of records are refused. It
  *  acts as `startedBy` under `restsOn`. `startedBy` is the principal that started the ticker, and `restsOn` is
- *  what that start's proof rests on. */
+ *  the basis of that start's proof. */
 export function runAsTicking<T>(needs: readonly string[], startedBy: string | undefined, restsOn: TRestsOn | undefined, within: () => Promise<T>): Promise<T> {
 	const held = [...needs];
 	return runAuthorizedWith(held, () => readScopeStore.exit(() => runReadingAsHeld(held, () => runActingAs(startedBy, within, restsOn))));

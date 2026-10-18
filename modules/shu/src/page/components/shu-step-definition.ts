@@ -1,6 +1,6 @@
 /**
  * <shu-step-definition>: one step as actuality declares it. Its line, what it does, the stepper that declares it, the
- * domain of each argument and of what it returns, the action a caller holds to call it, and the host it runs at. Each
+ * domain of each argument and of what it returns, the action a caller holds to call it, and the host on which it runs. Each
  * domain links to its view, so a reader follows a step to the domains it joins and from a domain to the steps that
  * take and make it. The step can be chosen in the actions bar from here. The steps a page reads are the steps it may
  * call, so a step actuality declares for other callers only is refused here, named.

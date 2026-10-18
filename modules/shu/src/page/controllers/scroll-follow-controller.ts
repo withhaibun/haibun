@@ -28,9 +28,9 @@ export class ScrollFollowController implements ReactiveController {
 	/** The reader's intent to follow: true until they scroll away, true again when they return or the page goes live. */
 	#following = true;
 	/** What the host holds after the reader's place, read rather than counted, so a record removed while they read
-	 *  doesn't leave a count behind. A host that doesn't state one doesn't offer the reader a place to return to. */
+	 *  doesn't leave a count behind. A host that doesn't state one doesn't offer the reader a place to which to return. */
 	#arrivedAfter: () => number;
-	/** Where the reader is on the timeline as they stop following, which the view holds from then on. */
+	/** The reader's place on the timeline as they stop following, which the view holds after that. */
 	#placeNow: () => number | null;
 	#unwatch?: () => void;
 

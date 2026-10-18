@@ -1,6 +1,6 @@
 /**
- * HTTP basic auth as haibun states it: the people a web server admits, named `user:password`, and the header a caller
- * signs in to it with.
+ * HTTP basic auth as haibun states it: the people a web server admits, named `user:password`, and the header with which a caller
+ * signs in to it.
  */
 import { MODULE_OPTION_PREFIX } from "./protocol.js";
 

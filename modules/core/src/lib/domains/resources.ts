@@ -242,7 +242,7 @@ export const LinkRelations = {
 	STEP: { rel: "step", uri: "schema:step", range: "container" },
 	PUBLISHED: { rel: "published", uri: "as:published", range: "literal", subPropertyOf: "ganttStart" },
 	ATTRIBUTED_TO: { rel: "attributedTo", uri: "as:attributedTo", range: "iri", subPropertyOf: "fromActor", rolePriority: 10 },
-	// The addressee of an act: a message's recipients, a question's addressee, or the requester a decision responds to.
+	// The addressee of an act: a message's recipients, a question's addressee, or the requester to whom a decision responds.
 	// It is a toActor member, so an addressed act reads as a message from its attributed agent to its audience.
 	AUDIENCE: { rel: "audience", uri: "as:to", range: "iri", subPropertyOf: "toActor", rolePriority: 45 },
 	CONTEXT: { rel: "groupedAs", uri: "as:context", range: "container" },
@@ -380,8 +380,8 @@ export const LinkRelations = {
 	// the served IRI per field (TTermPropertyDef).
 	VALID_FROM: { rel: "validFrom", uri: "hbn:validFrom", range: "literal" },
 	VALID_UNTIL: { rel: "validUntil", uri: "hbn:validUntil", range: "literal" },
-	// The role attribution super-property. It is the broad term over every predicate that names the party a node is
-	// attributed to. It is broader than prov:wasAttributedTo because a role target need not be a prov:Agent. An artifact
+	// The role attribution super-property. It is the broad term over every predicate that names the party to which a node is
+	// attributed. It is broader than prov:wasAttributedTo because a role target need not be a prov:Agent. An artifact
 	// published to a registry groups under that registry, which is a publication target and not an agent. So
 	// prov:wasAttributedTo is a sub-property of inRoleOf and not the reverse. The role grouping axis derives its predicate
 	// set from every rel declared subPropertyOf inRoleOf (roleRels below) and every consumer edge declared with an actor
@@ -965,7 +965,7 @@ export const principalDomainDefinition: TDomainDefinition = {
 	// This description defines a DID for a reader because a Principal's identity is a DID. Other descriptions link the
 	// word here and don't explain it again.
 	description:
-		"A person or service that acts in this system: the author of records, comments and decisions. Each is identified by a DID. A DID is a decentralized identifier: a stable web address of its own (written did:…) that anyone can look up to find the keys it signs with. A central directory doesn't assign these identities.",
+		"A person or service that acts in this system: the author of records, comments and decisions. Each is identified by a DID. A DID is a decentralized identifier: a stable web address of its own (written did:…) that anyone can look up to find the keys with which it signs. A central directory doesn't assign these identities.",
 	topology: {
 		persistedAs: PRINCIPAL_LABEL,
 		type: "sec:Controller",
@@ -1335,7 +1335,7 @@ export async function anchorPart(
 	const selectorId = crypto.randomUUID();
 	await store.upsertIndividual(selector.label, { id: selectorId, ...selector.fields, generatedAtTime: now });
 	const specificResourceId = crypto.randomUUID();
-	// An anchor reads as the part it stands for. Its id is a generated string. Resolving the title through its selector
+	// An anchor reads as the part it represents. Its id is a generated string. Resolving the title through its selector
 	// is a hop through a second proxy, and that hop ends at the id. A node without a label reads as that string.
 	await store.upsertIndividual(SPECIFIC_RESOURCE_LABEL, { id: specificResourceId, generatedAtTime: now, label: opts?.label ?? selector.reads });
 	const writeSourceEdge = opts?.sourceMayBeAbsent ? writeReferenceEdge : writeEdge;

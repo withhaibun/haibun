@@ -1,7 +1,7 @@
 /**
  * Test IDs for Playwright targeting of components defined in @haibun/shu.
- * External-component test ids (declared by domains via getConcerns()) live with
- * those components; shu must not name them here.
+ * The components that declare external-component test ids (domains via getConcerns()) hold
+ * them; shu must not name them here.
  */
 export const SHU_TEST_IDS = {
 	APP: {
@@ -26,7 +26,7 @@ export const SHU_TEST_IDS = {
 		CHAT_ARRIVED: "app-chat-arrived",
 		/** On a reply where another branch of the conversation leaves the one shown: follows that branch. */
 		CHAT_OTHER_BRANCH: "app-chat-other-branch",
-		/** On a question in the history: fork the conversation, asking the question again as it was. */
+		/** On a question in the history: fork the conversation, sending the question again as it was. */
 		CHAT_FORK: "app-chat-fork",
 		/** On a question in the history: fork the conversation after putting the question in the input to edit. */
 		CHAT_EDIT: "app-chat-edit",
@@ -58,11 +58,11 @@ export const SHU_TEST_IDS = {
 
 		/** The permissions panel, inside the access popover. */
 		PERMISSIONS: "app-permissions",
-		/** The row stating how many await a decision. A reference, so pressing it opens what it is about. */
+		/** The row stating how many await a decision. A reference, so pressing it opens its subject. */
 		AWAITING: "permissions-awaiting",
 		/** An action this reader caches. A reference, so pressing it opens the record of what granted it. */
 		HELD: "permissions-held",
-		/** The page's own key, as the did:key a holder delegates to. */
+		/** The page's own key, as the did:key to which a holder delegates. */
 		PAGE_KEY: "page-key",
 		/** The build the page's code is from, stated where the page didn't start. */
 		PAGE_BUILD: "page-build",
@@ -113,7 +113,7 @@ export const SHU_TEST_IDS = {
 		ESTABLISHED_BY: "monitor-established-by",
 		LOG_STREAM: "monitor-log-stream",
 		LOG_ROW: "monitor-log-row",
-		/** Actuality's first row: on the page only once the start of actuality has been reached and paged in. */
+		/** Actuality's first row: on the page only once a reader has reached the start of actuality and it has loaded. */
 		FIRST_ROW: "monitor-log-row-first",
 	},
 	/** The scroll rail every virtualized column and the annotated body share. */
@@ -212,7 +212,7 @@ export const SHU_TEST_IDS = {
 	},
 	/**
 	 * The polymorphic graph view: one graph painted as a force cloud, a layered flow, a gantt or a sequence, with the
-	 * controls that switch between them. Its ids live here because the view is shu's.
+	 * controls that switch between them. This file holds its ids because the view is shu's.
 	 */
 	CLASS_BROWSER: {
 		ROOT: "class-browser-root",

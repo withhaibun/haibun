@@ -1,12 +1,12 @@
 /**
- * GraphSourceStepper declares the steps that answer a page's reads of the graph. A page reads the site's graph the same
- * way whatever answers the read: a query, a count over a span, one individual with its edges, the clustered sample a
- * graph view draws, and the reads a federated peer answers.
+ * GraphSourceStepper declares the steps that serve a page's reads of the graph. A page reads the site's graph the same
+ * way whatever serves the read: a query, a count over a span, one individual with its edges, the clustered sample a
+ * graph view draws, and the reads a federated peer serves.
  *
- * Each answers from the store this instance holds. The reads a consumer may answer for itself declare `fallback`, so a
- * consumer with an engine of its own answers those instead, and the page asks no differently.
+ * Each step reads the store this instance holds. The reads a consumer may serve for itself declare `fallback`, so a
+ * consumer with an engine of its own serves those instead, and the page sends the same request.
  *
- * The monitor records one run. This stepper answers reads of the graph, which every view draws on.
+ * The monitor records one run. This stepper serves reads of the graph, from which every view draws.
  */
 import { z } from "zod";
 import { fromJsonText } from "@haibun/core/lib/domains/json-text.js";
@@ -48,12 +48,12 @@ const ClusteredQuadsSchema = z.object({
 			sites: z.record(z.string(), z.string()).optional(),
 		}),
 	),
-	// The responding instance's site principal: the serving site of every subject a cluster does not name one for.
+	// The responding instance's site principal: the serving site of every subject for which a cluster doesn't name one.
 	site: z.string().optional(),
 });
 
-/** What the graph a page reads answers with: core's one shape for each, so a site answering for its own store and a page
- *  reading what it holds answer alike. */
+/** What the graph a page reads returns: core's one shape for each, so a site serving its own store and a page
+ *  reading what it holds return the same shape. */
 const DOMAIN_INDIVIDUAL_WITH_EDGES = "individual-with-edges";
 const DOMAIN_SELECT_VALUES = "select-values";
 const DOMAIN_CLUSTERED_QUADS = "clustered-quads";
@@ -63,7 +63,7 @@ const DOMAIN_DENSITY = "density";
 const DOMAIN_GRAPH_ROWS = "graph-rows";
 /** A subject the merged graph holds, and the site that serves it. */
 const SubjectServedSchema = z.object({ subject: z.string(), site: z.string() });
-/** The site a peer's reads were federated from. */
+/** The site from which a peer's reads were federated. */
 const SiteFederatedSchema = z.object({ site: z.string() });
 const GRAPH_SOURCE_DOMAINS: TDomainDefinition[] = [
 	{ selectors: [DOMAIN_INDIVIDUAL_WITH_EDGES], schema: IndividualWithEdgesSchema, description: "A record, the edges either way, and how many edges point at it" },
@@ -87,7 +87,7 @@ const ClusteredQuadsAskSchema = z.object({
 });
 
 export default class GraphSourceStepper extends AStepper implements IHasCycles {
-	description = "The graph a page reads: a query, a count over a span, the clustered sample a graph view draws, and the reads a federated peer answers.";
+	description = "The graph a page reads: a query, a count over a span, the clustered sample a graph view draws, and the reads a federated peer serves.";
 	cycles: IStepperCycles = { getConcerns: () => ({ domains: GRAPH_SOURCE_DOMAINS }) };
 
 	steps = {
@@ -98,7 +98,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			recordIds: { id: "label" },
 			fallback: true,
 			productsDomain: DOMAIN_INDIVIDUAL_WITH_EDGES,
-			// A page reads an individual with its edges the same way whatever answers the read. This answers from the store
+			// A page reads an individual with its edges the same way whatever serves the read. This step reads the store
 			// this instance holds, which is what a site without a graph engine of its own has; a deployment that gates a
 			// read by what a reader may see declares its own step, and the page reads through that one instead.
 			action: async ({ label, id }: { label: string; id: string }) => {
@@ -168,9 +168,9 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			gwta: `run shape {query: ${DOMAIN_DENSITY_QUERY}}`,
 			fallback: true,
 			productsDomain: DOMAIN_DENSITY,
-			// The counts are the answer; keeping them on the event too is the per-read bloat.
+			// The counts are the products; keeping them on the event too is the per-read bloat.
 			retainProducts: false,
-			// The same answer a page counting over its own copy of the graph gives itself, so the two never drift.
+			// The same counts a page computes over its own copy of the graph, so the two never drift.
 			action: async ({ query }: { query: TDensityQuery }) => actionOKWithProducts(await this.getWorld().shared.getStore().density(query)),
 		},
 
@@ -182,7 +182,7 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 			productsDomain: DOMAIN_GRAPH_ROWS,
 			// The vertex rows are the RPC response; keeping them on the event too is the per-query bloat.
 			retainProducts: false,
-			// The same answer a page reading its own copy of the graph gives itself, so the two never drift.
+			// The same records a page reads from its own copy of the graph, so the two never drift.
 			action: async ({ query }: { query: TGraphQuery }) => actionOKWithProducts(await this.getWorld().shared.getStore().readRecords(query)),
 		},
 	} as const satisfies TStepperSteps;

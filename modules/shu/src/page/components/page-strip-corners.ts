@@ -24,7 +24,7 @@ export const CORNERS = ["settings", "playback", "access", "status"] as const;
 type TCorner = (typeof CORNERS)[number];
 
 /** How each corner's popover closes. A picker closes on a click away. Playback is a panel used beside the view (set the
- *  run playing, then open a node to see it at that moment), so only its own control closes it. A new corner states
+ *  playback running, then open a node to see it at that moment), so only its own control closes it. A new corner states
  *  which it is. */
 const CORNER_DISMISS: Record<TCorner, "click-away" | "panel"> = { settings: "click-away", access: "click-away", playback: "panel", status: "click-away" };
 
@@ -47,7 +47,7 @@ const spanLabel = (ms: number): { n: number; unit: "s" | "m" } => {
 };
 
 /**
- * How far along a run the time cursor sits: the moment it is at, out of how long the run is, "11/40s". A bare "11s"
+ * The time cursor's position along actuality: the moment it is at, out of actuality's length, "11/40s". A bare "11s"
  * doesn't show whether that is near the beginning or the end, which is the thing a reader wants from a readout
  * this small. "now" at the latest moment seen, since actuality doesn't have an upper bound for the fraction.
  */
@@ -59,9 +59,9 @@ export function timeOffsetLabel(cursor: number | null, firstEventTime: number, l
 	return at.unit === whole.unit ? `${at.n}/${whole.n}${whole.unit}` : `${Math.round((cursor - firstEventTime) / 1000)}/${whole.n * 60}s`;
 }
 
-/** The time offset the strip shows for a cursor: `now` at the live edge, and how far along the actuality it sits otherwise.
+/** The time offset the strip shows for a cursor: `now` at the live edge, and its position along actuality otherwise.
  *  Actuality's span is read off the shared event log without registering a window, since the strip is mounted for the whole
- *  session and a window it held would page the entire run in and pin it there. */
+ *  session and a window it held would load all of actuality and pin it there. */
 function timeOffsetOf(cursor: number | null): string {
 	if (cursor === null || cursor <= 0) return "now";
 	const { first, last } = actualitySpan();
@@ -80,7 +80,7 @@ type TPageStripCornersDeps = {
 export class PageStripCorners implements ReactiveController {
 	readonly #host: TControllerHost;
 	readonly #deps: TPageStripCornersDeps;
-	/** What this reader holds and how many principals this deployment knows: the access indicator shows both beside the level. */
+	/** What this reader holds and how many principals this deployment holds: the access indicator shows both beside the level. */
 	readonly #authority: AuthorityController;
 	#open: TCorner | null = null;
 	#status = "";

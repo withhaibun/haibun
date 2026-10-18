@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
  * The list of views a deployment declares. It draws a row per view and opens the one a reader presses; whoever
- * declares the views decides what they are.
+ * declares the views determines what they are.
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
@@ -36,7 +36,7 @@ describe("the views a deployment offers", () => {
 		expect(rowsOf(picker).map((row) => row.dataset.testid)).toEqual([`${IDS.ROW}${SHU_TAG.MONITOR_COLUMN}`, `${IDS.ROW}${SHU_TAG.CLIENT_CACHE_COLUMN}`]);
 	});
 
-	it("asks for the view a pressed row names, so a press opens that view and doesn't open another", async () => {
+	it("requests the view a pressed row names, so a press opens that view and doesn't open another", async () => {
 		const asked = followPaneRequests();
 		const picker = await pickerOf();
 		itemAt(rowsOf(picker), 1).click();

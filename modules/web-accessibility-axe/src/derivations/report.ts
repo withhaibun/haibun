@@ -1,6 +1,6 @@
 /**
- * An accessibility check's report as a page a reviewer reads: one static, self-contained HTML document, which holds no
- * script and loads nothing, so it reads the same offline and in a frame that runs no script. Every rule is a `<details>`
+ * An accessibility check's report as a page a reviewer reads: one static, self-contained HTML document, which doesn't hold a
+ * script or load a resource, so it reads the same offline and in a frame that doesn't run scripts. Every rule is a `<details>`
  * section, the violations open. Each states its impact, what it checks, axe's link to the rule's guidance, and each element
  * it found, by selector, by the element's HTML and by what axe states fails there. Everything the checked page supplied is
  * escaped, since the page is the one under test.

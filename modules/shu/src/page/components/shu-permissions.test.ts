@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
- * What a reader is told about their own authority: the key their page signs as, the actions delegated to it, where each
- * was recorded, and who this deployment knows.
+ * What a reader is shown about their own authority: the key their page signs as, the actions delegated to it, where each
+ * was recorded, and the principals this deployment holds.
  */
 import { describe, it, expect } from "vitest";
 import { ShuPermissions, type TPermissionsSummary } from "./shu-permissions.js";
@@ -64,7 +64,7 @@ describe("what a reader may do here", () => {
 		expect((el.shadowRoot?.querySelector("#read-access") as HTMLSelectElement | null)?.value, "showing the one in force").toBe("public");
 	});
 
-	it("shows how many principals the deployment knows, and names each on asking as a way to its record", async () => {
+	it("shows how many principals the deployment holds, and names each on request as a way to its record", async () => {
 		const el = await mounted();
 		expect(el.shadowRoot?.textContent, "the count, so the panel opens the size of a panel").toContain("principals (2)");
 		expect(refTexts(el, "entity"), "and doesn't link them until a reader asks for them").toEqual([]);
@@ -96,7 +96,7 @@ describe("what a reader may do here", () => {
 	});
 });
 
-describe("what the indicator is told", () => {
+describe("what the indicator receives", () => {
 	it("counts each thing the panel lists", async () => {
 		const heard: TPermissionsSummary[] = [];
 		document.addEventListener("permissions-summary", (e) => heard.push((e as CustomEvent<TPermissionsSummary>).detail));

@@ -233,7 +233,7 @@ function enumerate(target: string, walk: TWalk, depth: number, path: string): TE
 	}
 
 	// Branch 2: a target without a registered producer or a fact takes its value from a step argument.
-	// A target whose registered schema declares fields becomes a composite binding when composite decomposition is on.
+	// A target whose registered schema declares fields becomes a composite binding when composite decomposition is enabled.
 	// Each of its fields resolves independently.
 	if (producers.length === 0 && factsOfTarget.length === 0) {
 		const composite = tryComposite(target, walk, depth, path);

@@ -1,5 +1,5 @@
 /**
- * Describes the process that responds on a port, in words an operator can act on. Returns undefined when the port is
+ * Describes the process that responds on a port, in words on which an operator can act. Returns undefined when the port is
  * free.
  *
  * The probe sends the ACTION_BEGIN handshake once with fetch. Every RPC client sends this handshake before its first

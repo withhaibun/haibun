@@ -11,7 +11,7 @@
  * reaches the last row, real reader input (wheel/touch, rail seek) pauses the tail, the window reaching the last row
  * resumes it, and the `timeCursor` signal reaching the live edge (null) re-engages it.
  *
- * It renders in LIGHT DOM, like lit-virtualizer itself, so the whole subtree lives in the HOST column's shadow and the
+ * It renders in LIGHT DOM, like lit-virtualizer itself, so the HOST column's shadow holds the whole subtree and the
  * host's row styles reach the virtualized rows (a shadow-DOM wrapper would trap them). The host includes
  * `virtualColumnCss` in its own `static styles` for the layout the element needs; the rows are styled by the host.
  */
@@ -47,7 +47,7 @@ const MAX_CONVERGE = 40;
 type TVirtualRow = (index: number, row: unknown) => TemplateResult;
 
 /** Layout the element needs, for the HOST column to include in its own `static styles`: the element renders in light DOM
- *  (so it doesn't have shadow styles of its own), and its subtree lives in the host's shadow where these rules and the host's
+ *  (so it doesn't have shadow styles of its own), and the host's shadow holds its subtree, where these rules and the host's
  *  own row rules both apply. */
 export const virtualColumnCss: CSSResultGroup = css`
 	shu-virtual-column { display: flex; min-height: 0; flex: 1; }
@@ -77,15 +77,15 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 	@property({ attribute: false }) accessor source: WindowedSource<unknown> | null = null;
 	@property({ attribute: false }) accessor renderRow: TVirtualRow = () => html``;
 	/** Whether this view tails at all: its live-log capability (a monitor's tail toggle). When on, the follow kit's rules
-	 *  decide moment to moment whether to stick to the live edge; when off, the view never auto-scrolls. */
+	 *  determine moment to moment whether to stick to the live edge; when off, the view never auto-scrolls. */
 	@property({ type: Boolean }) accessor follow = false;
 
 	/** Serving as its column's spine: render the rail and not the rows. The element itself stays, which is the point:
 	 *  the window it is showing is its own field, so collapsing a column does not lose where the reader was. */
 	@property({ type: Boolean }) accessor spine = false;
 
-	/** The row the shared time cursor sits on, or -1 where the cursor isn't on a row. Passed straight to the rail, which draws it: this column
-	 *  knows about rows, not about time, so it carries the index its host worked out rather than deciding one. */
+	/** The row at the shared time cursor, or -1 where the cursor isn't on a row. Passed straight to the rail, which draws it: this column
+	 *  reads rows, not time, so it carries the index its host computed rather than computing one. */
 	@property({ attribute: false }) accessor cursor = -1;
 
 	/** Light DOM: the virtualized rows must be styled by the host column, and lit-virtualizer itself renders in light DOM. */
@@ -131,7 +131,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 	}
 
 	/**
-	 * The row a reader is on, and where it sits in the view. A virtualizer measures a row when it reaches it, so the
+	 * The row a reader is on, and its position in the view. A virtualizer measures a row when it reaches it, so the
 	 * content above a reader grows as they scroll up into it; a scroll position in pixels then names a different row,
 	 * and the reader arrives somewhere they did not go. Holding the row they are on keeps them there while that settles.
 	 */
@@ -196,9 +196,9 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 		if (changed.get("spine") === true && this.#window.visible > 0) {
 			// The virtualizer was just rendered again and hasn't measured a row, so one scroll lands short. The row is cached
 			// and re-driven by #onVisibility until the window reports it, on the same bound as the live-edge convergence.
-			// Only RECORDED here, never scrolled: the virtualizer has just been created and doesn't have a layout yet, and asking it
-			// to scroll before it has one throws inside its own internals. #onVisibility drives it instead: the first
-			// report is the first moment a layout is known to exist.
+			// Only RECORDED here, never scrolled: the virtualizer has just been created and doesn't have a layout yet, and a request that it
+			// scroll before it has one throws inside its own internals. #onVisibility drives it instead: the first
+			// report is the first moment a layout exists.
 			this.#wantedFirst = this.#window.first;
 			this.#wantedCount = 0;
 		}
@@ -335,7 +335,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 			// Quantised: the virtualizer revises its total-height estimate continuously while a reader scrolls, and a
 			// revision too small to move the thumb a whole pixel must not re-render the rail (the thumb would twitch).
 			const fraction = total > 0 ? Math.round((window.visible / total) * FRACTION_STEPS) / FRACTION_STEPS : undefined;
-			// Every raw movement records, before quantisation decides whether the thumb redraws: the revisions
+			// Every raw movement records, before quantisation determines whether the thumb redraws: the revisions
 			// quantisation absorbs are where a jitter hides. `rendered` marks the ones that reached the screen.
 			const raw = total > 0 ? window.visible / total : undefined;
 			if (raw !== undefined && raw !== this.#lastRawFraction) {
@@ -374,12 +374,12 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 		// pause the follow. Otherwise the convergence, seeing the seeked window short of the last row, would re-jump the
 		// tail back to the bottom and conflict with the seek. It also has to STAY paused when the row picked happens to be the
 		// last one: reading that as "scrolled back to the live edge" re-engaged the tail, and every later press was then
-		// undone by a jump back to the edge. Scrolling resumes it, and so does asking to go live.
+		// undone by a jump back to the edge. Scrolling resumes it, and so does a request to go live.
 		if (this.follow) this.#follow.setAtBottom(false);
 		this.#pressedAway = true;
 		const index = (e as CustomEvent<{ index: number }>).detail.index;
 		// A source whose rows are a window of something longer states the rail: a press names a place in the whole of it,
-		// which is the source's to answer (a run reads itself around the moment that place names, and every view of it
+		// which the source serves (a source reads around the moment that place names, and every view of it
 		// follows). Scrolling this column to a row of the window it holds would leave a reader where they were.
 		const rail = this.source?.rail;
 		if (rail) {
@@ -412,7 +412,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 		return this.#window;
 	}
 
-	/** The marks last placed on the source's rail, and what they were placed from. The scrollbar clusters its markers
+	/** The marks last placed on the source's rail, and the marks from which they were placed. The scrollbar clusters its markers
 	 *  and holds that clustering while the array it was given is the same one, so placing them again for a render that
 	 *  didn't move a mark would make it sort every mark on every scrolled frame. */
 	#placed: { of: TScrollMarker[]; on: TScrollMarker[]; marks: TScrollMarker[] } | null = null;
@@ -432,7 +432,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 		const last = rail.placeOf(Math.max(shown.first, shown.first + shown.visible - 1));
 		const runs = rail.marks();
 		if (this.#placed?.of !== own || this.#placed.on !== runs) {
-			// A row's mark sits where actuality has that row, so what this column holds is marked in actuality's own places.
+			// A row's mark is placed where actuality has that row, so what this column holds is marked in actuality's own places.
 			this.#placed = { of: own, on: runs, marks: [...runs, ...own.map((mark) => ({ ...mark, index: rail.placeOf(mark.index) }))] };
 		}
 		return { total: rail.places, window: { first, visible: Math.max(1, last - first + 1) }, markers: this.#placed.marks };

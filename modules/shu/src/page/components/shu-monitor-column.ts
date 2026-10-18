@@ -48,7 +48,7 @@ const MonitorColumnSchema = z.object({
  *
  * Every row of the log is a record of actuality: a step, something actuality logged, or something it produced. A step has a
  * view of its own; every other record is opened the way any record of the graph is. Opened only where a row carried a
- * step, a reader learned that some rows answer a press and others don't, and the row didn't show
+ * step, a reader learned that some rows respond to a press and others don't, and the row didn't show
  * which: what a run logged over a connection is as much a record as the step it was logged during.
  *
  * A row that doesn't name a record doesn't open a view: it is a row of something actuality never wrote down.
@@ -70,19 +70,19 @@ export type TLogRow = {
 	level: string;
 	step: string;
 	message: string;
-	/** The one glyph the row carries: how the step went, or the level a message reports at. */
+	/** The one glyph the row carries: how the step went, or the level at which a message reports. */
 	icon: string;
 	/** The path of the step the row is of, or was logged or produced during. */
 	path?: number[];
 	/** The record this row is: pressing a row opens it, and a row that is not a step is opened the way any record of
 	 *  the graph is. */
 	record?: { persistedAs: string; id: string };
-	/** What this step produced, as the images a reader sees beside its words: a screenshot taken after a step belongs to
+	/** What this step produced, as the images a reader sees beside its words: a screenshot taken after a step is part of
 	 *  the step a reader was reading, so the row of that step shows it. */
 	produced?: Array<{ url: string; what: string }>;
 	/** On a substep, the step it was run to carry out: the step that established it, which a reader reads from its row. */
 	partOf?: number[];
-	/** How this row marks the rail, for the rows to mark. Decided from the event when the row is built, by the
+	/** How this row marks the rail, for the rows to mark. Determined from the event when the row is built, by the
 	 *  same two calls the timeline marks its track with, so the rail and the timeline never disagree about which
 	 *  events matter or what they look like. */
 	mark?: TEventMarkerStyle;
@@ -112,14 +112,14 @@ const LEVEL_ORDER: readonly string[] = HAIBUN_LOG_LEVELS;
  * The marks a filtered log puts on its rail: every row whose event has one, at its place in that log.
  *
  * The rail carries what the timeline carries: the same events, in the same colours and glyphs, since both take their
- * mark from `markFor`. All this decides is WHERE each mark goes, which on a log is the row's index rather than a
- * moment in time. Indices are into the list passed in, so they address the rows the reader can scroll to.
+ * mark from `markFor`. This determines only WHERE each mark is placed, which on a log is the row's index rather than a
+ * moment in time. Indices are into the list passed in, so they address the rows to which the reader can scroll.
  * Pure, so which rows mark the rail is tested without a virtualizer.
  */
 export function railMarkers(rows: readonly TLogRow[], indices?: readonly number[]): TScrollMarker[] {
 	const markers: TScrollMarker[] = [];
 	rows.forEach((row, i) => {
-		// A mark sits at the row's index in the RUN (`indices`, when the rows are the cached part of a longer run), so it
+		// A mark is placed at the row's index in ACTUALITY (`indices`, when the rows are the cached part of a longer list), so it
 		// is placed on the rail where actuality has it, not where the cached list does. Both halves of what the row reports:
 		// what it is about and what happened to it. Either alone leaves marks a reader cannot tell apart: every feature
 		// boundary reads "▸ feature" without the first, and a log line doesn't name a step without the second.
@@ -211,7 +211,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 
 	@property({ attribute: false }) accessor rows: TLogRow[] = [];
 
-	/** The reader's own choice of what to show, remembered across reloads. */
+	/** The reader's own choice of what to show, kept across reloads. */
 	static persistFields = ["level", "substeps"] as const;
 
 	constructor() {
@@ -224,7 +224,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		// the cursor every other view reads moves with it. Wheeling does not, over the rail or over the rows: that is
 		// reading, and a reader scrolling their own log should not drag every other view along. The rail reports which.
 		this.autoListen(this, SCROLL_TO_INDEX, this.#onRailSeek as EventListener);
-		// Asked from anywhere on the page: the playback control sits in the actions bar, not in this column.
+		// Sent from anywhere on the page: the actions bar holds the playback control, not this column.
 		this.autoListen(document, SHU_EVENT.GO_LIVE, this.#onGoLive);
 	}
 
@@ -270,13 +270,13 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		const ts = (e.timestamp as number) || 0;
 		const first = this.#run.extent().first ?? ts;
 		const level = String(e.level || "info");
-		// The step's own words. What was logged during a step, or produced by one, doesn't have its own words: the path beside it indicates which
-		// step it belongs to, and a raw id in its place isn't readable to a reader.
+		// The step's own words. What was logged during a step, or produced by one, doesn't have its own words: the path beside it indicates the
+		// step that contains it, and a raw id in its place isn't readable to a reader.
 		const step = String(e.in ?? "");
 		// What a row shows beside the step it names: what was logged, what was produced, or how the step it names turned out.
 		const said = e.kind === "artifact" ? producedName(e) : String(e.called || e.type || "");
 		const message = e.kind === "log" ? String((e as { message?: string }).message || "") : said;
-		// One glyph per row, and the one that indicates something: how a step went, and the level a message reports at. Every
+		// One glyph per row, and the one that indicates something: how a step went, and the level at which a message reports. Every
 		// step of a run reports at the same level, so a level glyph on a step row doesn't separate the rows.
 		const icon = e.kind === "log" ? (LEVEL_ICONS[level] ?? ICON_DEFAULT) : eventMarkerStyle(e).icon;
 		const path = stepPathOfEvent(e);
@@ -329,7 +329,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 
 	private onLevelChange = (e: Event): void => {
 		this.setState({ level: (e.target as HTMLSelectElement).value as z.infer<typeof MonitorColumnSchema>["level"] });
-		this.#readRun(); // another level is another run source: the run at that level
+		this.#readRun(); // another level is another source: actuality at that level
 	};
 
 	/** Place the shared cursor at a row's instant; the newest row is the live edge, so the cursor there is null (every view follows again). */
@@ -394,7 +394,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 
 	/** One log row at its absolute index. The time-cursor and future classes read the derived state; `row` is always
 	 *  cached (the source caches the whole filtered list), so the skeleton is only a defensive fallback. An arrow so its
-	 *  identity is stable across renders, which lit-virtualizer relies on. */
+	 *  identity is stable across renders, as lit-virtualizer requires. */
 	private renderLogRow = (index: number, row: unknown): TemplateResult => {
 		const r = row as TLogRow | undefined;
 		if (!r) return html`<div class="log-row" data-testid="monitor-log-row"></div>`; // its page has not landed yet: a skeleton row

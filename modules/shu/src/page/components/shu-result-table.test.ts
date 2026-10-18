@@ -34,10 +34,10 @@ async function settle(el: ShuResultTable): Promise<void> {
 
 const rows = (n: number, type = "Person"): Row[] => Array.from({ length: n }, (_, i) => ({ "@id": `${type}/${i}`, "@type": type, name: `n${i}`, age: i }));
 const q = (el: ShuResultTable, sel: string): Element[] => Array.from(el.shadowRoot?.querySelectorAll(sel) ?? []);
-/** The one element a case acts on. Absent means the render did not produce it, which is what the case should report. */
+/** The one element on which a case acts. Absent means the render did not produce it, which is what the case should report. */
 const one = (el: ShuResultTable, sel: string): HTMLElement => {
 	const found = el.shadowRoot?.querySelector(sel);
-	if (!found) throw new Error(`shu-result-table rendered no ${sel}`);
+	if (!found) throw new Error(`shu-result-table didn't render ${sel}`);
 	return found as HTMLElement;
 };
 const clickEvents = (el: ShuResultTable, name: string): CustomEvent[] => {

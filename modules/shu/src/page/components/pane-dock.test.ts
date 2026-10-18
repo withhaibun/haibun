@@ -47,7 +47,7 @@ function aDockedPane(initial: Partial<TState> = {}): TDocked {
 	return docked;
 }
 
-/** Tell the pane's controllers it rendered, as lit does after each update. */
+/** Notify the pane's controllers that it rendered, as lit does after each update. */
 const rendered = (pane: TDocked) => {
 	for (const controller of pane.host.controllers) controller.hostUpdated?.();
 };
@@ -78,7 +78,7 @@ describe("how a docked pane stands", () => {
 		expect(pane.host.hasAttribute(SHU_ATTR.DATA_COVERS_VIEWS)).toBe(false);
 	});
 
-	it("remembers a drag of its top edge as a share of its container, within the bounds", () => {
+	it("keeps a drag of its top edge as a share of its container, within the bounds", () => {
 		const pane = aDockedPane({ closed: false });
 		pane.dock.onResizeDown(pointer("pointerdown", 800));
 		pane.sizes.pane = 950;

@@ -189,7 +189,7 @@ export const features: TKirejiExport = {
 		waitFor({ target: IDS.SCROLLBAR.CURSOR }),
 		waitFor({ target: IDS.POLYMORPHIC_VIEW.ROOT }),
 
-		"The show document step opens the document beside the monitor. Both views read actuality the same way. Each reads at the level it shows. Each view spans all of actuality by index and pages a region in as a person scrolls to it. The views don't request a region twice. The document opens at the live edge with its newest events. The top glyph of its rail represents actuality's first row. Pressing the top glyph pages that region in. The feature's own heading then appears on the page.",
+		"The show document step opens the document beside the monitor. Both views read actuality the same way. Each reads at the level it shows. Each view spans all of actuality by index and pages a region in as a person scrolls to it. The views don't request a region twice. The document opens at the live edge with its newest events. The top glyph of its rail represents actuality's first row. Pressing the top glyph loads that region. The feature's own heading then appears on the page.",
 		"show document",
 		waitFor({ target: IDS.DOCUMENT.ROOT }),
 		setAs({ what: FEATURE_HEADING, domain: "page-test-id", value: `"${FEATURE_HEADING}"` }),
@@ -207,7 +207,7 @@ export const features: TKirejiExport = {
 		`save text from ${CACHE_LOG_EVENTS} to cacheLogEvents`,
 		'not variable cacheLogEvents is "0"',
 
-		"The monitor's rail also spans all of actuality by index, whatever the monitor caches. Its top glyph represents actuality's first row. Pressing the top glyph pages that region in. The first row then appears on the page, although the log cached only its newest page before the press. The page strip's current-time control still opens the playback controls after the reload.",
+		"The monitor's rail also spans all of actuality by index, whatever the monitor caches. Its top glyph represents actuality's first row. Pressing the top glyph loads that region. The first row then appears on the page, although the log cached only its newest page before the press. The page strip's current-time control still opens the playback controls after the reload.",
 		`in "${MONITOR_CONTAINER}", click ${IDS.SCROLLBAR.POS_TOP}`,
 		waitFor({ target: IDS.MONITOR.FIRST_ROW }),
 		click({ target: IDS.APP.TIME_OFFSET }),

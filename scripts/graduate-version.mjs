@@ -3,7 +3,7 @@
 /**
  * Strip the prerelease suffix from the current version.
  * e.g. 3.8.5-rc.1 -> 3.8.5
- * Errors if the current version has no prerelease suffix.
+ * Errors if the current version doesn't have a prerelease suffix.
  */
 
 import { readFileSync } from "fs";
@@ -13,7 +13,7 @@ const { version } = JSON.parse(readFileSync("./package.json", "utf-8"));
 const dashIndex = version.indexOf("-");
 
 if (dashIndex === -1) {
-	console.error(`Current version ${version} is already a release (no -alpha/-beta/-rc suffix). Nothing to graduate.`);
+	console.error(`Current version ${version} is already a release: it doesn't have an -alpha, -beta or -rc suffix. Run this script only on a prerelease version.`);
 	process.exit(1);
 }
 

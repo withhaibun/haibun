@@ -82,7 +82,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		return this.getAttribute("testid-prefix") || "";
 	}
 
-	/** The mode is remembered across reloads (ShuElement.persistFields; singleton key). Its pane remembers its height and pin. */
+	/** The mode is kept across reloads (ShuElement.persistFields; singleton key). Its pane keeps its height and pin. */
 	static persistFields = ["mode"] as const;
 
 	constructor() {
@@ -120,13 +120,13 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.#steps.pick(method, args, auto);
 	}
 
-	/** Ask a question from the history again, in Ask mode, where the ask pane asks it. */
+	/** Send a question from the history again, in the ask mode, through the ask pane. */
 	private async forkAtQuestion(forking: TQuestionFork): Promise<void> {
 		this.setState({ mode: "ask" });
 		this.openPane();
 		await this.updateComplete;
 		const pane = this.renderRoot.querySelector<ShuAsk>(SHU_TAG.ASK);
-		if (!pane) this.failFast("a question can be asked again only where actuality offers asking");
+		if (!pane) this.failFast("a question is sent again only where actuality offers an ask step");
 		await pane.fork(forking);
 	}
 
@@ -153,19 +153,19 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	};
 
 	protected override onConnected(): void {
-		// The shared output region carries the one output test id every mode's assertions point at.
+		// The shared output region carries the one output test id that every mode's assertions read.
 		this._history.setAttribute("data-testid", `${this.testIdPrefix}chat-output`);
 		this.#query.loadProperties();
 		this.followConversationAddress();
 		this.autoTeardown(onHashChanged(this.followConversationAddress));
-		// A view raises a step choice wherever it is placed, and the bar is not its ancestor, so the document is where both meet.
+		// A view raises a step choice wherever it is placed, and the bar is not its ancestor, so the bar listens for it on the document.
 		this.autoListen(document, SHU_EVENT.STEP_CHOOSE, (e: Event) => {
 			const { method, args, auto } = StepChoiceSchema.parse((e as CustomEvent).detail);
 			void this.chooseStep(method, args, auto);
 		});
 		// A slash command in any mode's input line is read before the line's own Enter reads it.
 		this.autoListen(this.renderRoot, "keydown", this.onInputLineKeydown as EventListener, { capture: true });
-		// A question in the history is asked again from the bar the history sits in, in any mode.
+		// A question in the history is sent again from the bar that holds the history, in any mode.
 		this.autoListen(this, SHU_EVENT.QUESTION_FORK, (e: Event) => void this.forkAtQuestion(QuestionForkSchema.parse((e as CustomEvent).detail)));
 		// The page strip offers the types beside what the search found, and states the one a reader chooses on the document.
 		this.autoListen(document, SHU_EVENT.TYPE_CHOOSE, (e: Event) => this.#query.chooseType(TypeChoiceSchema.parse((e as CustomEvent).detail).key));
@@ -211,14 +211,14 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		const hasAsk = this.#steps.offersAsk;
 		const expanded = this.isOpen;
 		// Every mode shares ONE output region (this._history, the same node every render) with the mode's input line
-		// beneath: switching modes changes only the input line. Ask renders only when an ask-capable step exists, so a
-		// chosen Ask mode renders search until the steps load, and on a deployment without an ask-capable step.
+		// beneath: switching modes changes only the input line. The ask mode renders only when an ask-capable step exists, so a
+		// chosen ask mode renders search until the steps load, and on a deployment without an ask-capable step.
 		const mode = this.state.mode === "ask" && !hasAsk ? "search" : this.state.mode;
 		// The input line's own extensions (dictation among them) serve every mode, and the ask pane renders them where it
 		// owns that line; the bar renders them for every other mode. What is about the ask itself rides the ask's slot,
 		// which the pane alone renders: rendered in every mode, the context status stood under a search bar reporting a
 		// conversation the reader was not having.
-		// Ask holds the output region between its own settings and its input line, so the settings stand above the
+		// The ask mode holds the output region between its own settings and its input line, so the settings stand above the
 		// transcript. Every other mode holds it above the input line the bar renders.
 		// The search's filters are settings, which the pane's settings control shows above the transcript, as the ask's are.
 		const searchSettings = mode === "search" && this.showControls ? this.#query.settingsTemplate() : nothing;
@@ -285,7 +285,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 	private async runSlashCommand(command: Exclude<TSlashCommand, { kind: "literal" }>): Promise<void> {
 		if (command.kind === "unknown") return this.setStatus(`/${command.name} isn't a command. The commands are ${commandList()}.`);
 		if (command.kind === "stop") return void dispatchConversationEvent({ type: "stop", reason: STOPPED_BY_THE_READER });
-		if (command.mode === "ask" && !this.#steps.offersAsk) return this.setStatus("this run doesn't offer asking");
+		if (command.mode === "ask" && !this.#steps.offersAsk) return this.setStatus("actuality doesn't offer an ask step");
 		this.setState({ mode: command.mode });
 		await this.updateComplete;
 		if (command.rest) await this.#inputLine(command.mode).enter(command.rest);
@@ -296,7 +296,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		if (mode === "search") return this.#query;
 		if (mode === "step") return this.#steps;
 		const pane = this.renderRoot.querySelector<ShuAsk>(SHU_TAG.ASK);
-		if (!pane) this.failFast("a question can be asked only where actuality offers asking");
+		if (!pane) this.failFast("a question is sent only where actuality offers an ask step");
 		return pane;
 	}
 }

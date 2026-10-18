@@ -1,7 +1,7 @@
 /**
- * The element a controller is held by, as the controller sees it: it holds controllers, can be asked to
+ * The element that holds a controller, as the controller reads it: it holds controllers, receives requests to
  * render, and renders into itself. A case renders by calling the controller's hooks, or by rendering a template the
- * controller returns into the element, and reads how many renders were asked for.
+ * controller returns into the element, and reads how many renders were requested.
  */
 import type { ReactiveController } from "lit";
 import type { TControllerHost } from "./controller-host.js";
@@ -24,11 +24,11 @@ export class ControllerHostFake extends HTMLElement implements TControllerHost {
 	requestUpdate(): void {
 		this.updatesAsked++;
 	}
-	/** Tell each controller the host connected, as lit does when the element enters the page. */
+	/** Notify each controller that the host connected, as lit does when the element enters the page. */
 	connect(): void {
 		for (const controller of this.controllers) controller.hostConnected?.();
 	}
-	/** Tell each controller the host disconnected, as lit does when the element leaves the page. */
+	/** Notify each controller that the host disconnected, as lit does when the element leaves the page. */
 	disconnect(): void {
 		for (const controller of this.controllers) controller.hostDisconnected?.();
 	}

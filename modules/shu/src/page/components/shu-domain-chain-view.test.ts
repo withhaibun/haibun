@@ -21,7 +21,7 @@ import { NODE_KIND, type TGraphNode } from "../domains/graph.js";
 import { followPaneRequests } from "../../test/pane-requests.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 
-/** The actuality a snapshot records its facts from. */
+/** The actuality from which a snapshot records its facts. */
 const EXECUTION = "1790000000000-1";
 const GRAPH = SHU_TEST_IDS.DOMAIN_CHAIN.GRAPH;
 
@@ -54,7 +54,7 @@ describe("shu-domain-chain-view", () => {
 	beforeEach(() => {
 		document.body.innerHTML = "";
 		handle = setupShuTest();
-		// Clear the deep link left over from previous tests so each one starts clean: it lives in the view hash, which
+		// Clear the deep link left over from previous tests so each one starts clean: the view hash holds it, which
 		// is module state rather than the document's.
 		clearDeepLink();
 		// The site declares the affordances panel as core does, titled by its summary.
@@ -106,7 +106,7 @@ describe("shu-domain-chain-view", () => {
 		const heard = PageHash.onHashChanged(() => announced++);
 		presenter.openNode("vc");
 		expect(deepLink(AFFORDANCE_PARAM.GOAL)).toBe("vc");
-		expect(announced, "and every view reading the same deep link hears that it moved").toBeGreaterThanOrEqual(1);
+		expect(announced, "and every view reading the same deep link receives its move").toBeGreaterThanOrEqual(1);
 		expect(opened.requested).toEqual([{ paneType: "component", tag: SHU_TAG.AFFORDANCES_PANEL, label: AFFORDANCES_TITLE }]);
 		// A listener's error is the page's to report, not the dispatcher's to catch.
 		expect(reportedErrors(() => presenter.openNode("nowhere")).join(), "a node the chain does not hold is refused").toMatch(/the chain graph doesn't hold a node "nowhere"/);
@@ -133,13 +133,13 @@ describe("shu-domain-chain-view", () => {
 		opened.stop();
 	});
 
-	it("takes the run it names as the run the page reads, where a fact's step opens, and refuses one that doesn't name a run", () => {
+	it("takes the actuality it names as the actuality the page reads, where a fact's step opens, and refuses one that doesn't name an actuality", () => {
 		const view = mount();
 		view.products = mkSnap(1);
 		expect(readingExecution()).toBe(EXECUTION);
 		expect(() => {
 			view.products = { satisfiedDomains: [], forward: [], goals: [] };
-		}).toThrow(/the `execution` they are of/);
+		}).toThrow(/the `execution` that holds them/);
 	});
 
 	it("marks the goal or waypoint the address names as the graph's active node", async () => {

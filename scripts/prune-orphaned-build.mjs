@@ -5,16 +5,16 @@
 //     source module resolves to a stale artifact through the package "./*" -> "./build/*" exports map instead of failing
 //     loudly (a deleted stepper survived its own deletion this way and loaded pre-rename code).
 //
-//  2. Stray output IN THE SOURCE TREE: a .js/.d.ts/.map sitting next to its .ts/.tsx source ANYWHERE outside build/
-//     (src/, test fixtures, root config like vite.config.ts), where a misfired `tsc` (run with no outDir, e.g. from the
+//  2. Stray output IN THE SOURCE TREE: a .js/.d.ts/.map in the directory of its .ts/.tsx source ANYWHERE outside build/
+//     (src/, test fixtures, root config like vite.config.ts), where a misfired `tsc` (run without an outDir, e.g. from the
 //     wrong cwd) emitted compiled output into the tree. esbuild's development condition ("./*" -> "./src/*") then resolves
 //     a `.js` import to that stale compiled file instead of the source and breaks the bundle ("No matching export … for
-//     import 'TActionResult'": it value-imports types the source elides). Build output belongs only in build/.
+//     import 'TActionResult'": it value-imports types the source elides). Only build/ holds build output.
 //
-//  3. Missing BUILD output: a compiled src/<rel> source with no build/<rel>.js. `tsc -b` judges a module current by
+//  3. Missing BUILD output: a compiled src/<rel> source without a build/<rel>.js. `tsc -b` judges a module current by
 //     modification time alone, so a source older than the module's build record (a file moved or restored with its
 //     time) is never compiled, and the build succeeds without it. The module's build record is removed, so the next build
-//     compiles every source, and this run fails naming each source it did not compile.
+//     compiles every source, and this script fails naming each source it didn't compile.
 //
 //  4. Stale BUILD record: a module's build record older than the declarations of a haibun module its sources import.
 //     `tsc -b` tracks the projects a module references and not the packages it imports, so a module whose dependency's
@@ -76,7 +76,7 @@ function pruneOrphanedBuild(moduleDir, dryRun) {
 /** The sources a module's build excludes, as `tsconfig.settings.json` states: its tests and test fakes. */
 const EXCLUDED_SOURCE = /\.test(-fake)?\.tsx?$/;
 
-/** Case 3, each compiled source under `moduleDir`/src with no build output, by its path under src without its extension. */
+/** Case 3, each compiled source under `moduleDir`/src without build output, by its path under src without its extension. */
 export function missingBuildOutput(moduleDir) {
 	const buildDir = join(moduleDir, "build");
 	const srcDir = join(moduleDir, "src");
@@ -87,7 +87,7 @@ export function missingBuildOutput(moduleDir) {
 		.filter((rel) => !existsSync(join(buildDir, `${rel}.js`)));
 }
 
-/** The newest modification time of the declarations under `buildDir`, or 0 where it holds none. */
+/** The newest modification time of the declarations under `buildDir`, or 0 where it doesn't hold a declaration. */
 function newestDeclaration(buildDir) {
 	if (!existsSync(buildDir)) return 0;
 	return walk(buildDir, new Set()).reduce((newest, file) => (file.endsWith(".d.ts") ? Math.max(newest, statSync(file).mtimeMs) : newest), 0);
@@ -138,13 +138,13 @@ export function staleBuildRecords(modulesDir) {
 	return ordered.filter((moduleDir) => stale.has(moduleDir));
 }
 
-/** Case 2, compiler output (.js/.d.ts/.map) sitting next to its TS source, anywhere under `rootDir` except build/. */
+/** Case 2, compiler output (.js/.d.ts/.map) in the directory of its TS source, anywhere under `rootDir` except build/. */
 function pruneStrayOutput(rootDir, dryRun) {
 	if (!existsSync(rootDir)) return [];
 	const removed = [];
 	for (const file of walk(rootDir, STRAY_SKIP)) {
 		const ext = OUTPUT_EXTS.find((e) => file.endsWith(e));
-		if (!ext || !hasSource(file.slice(0, -ext.length))) continue; // no TS source sibling → hand-written .d.ts / real .js, keep
+		if (!ext || !hasSource(file.slice(0, -ext.length))) continue; // without a TS source beside it, it is a hand-written .d.ts or a real .js, so keep it
 		if (!dryRun) rmSync(file);
 		removed.push(relative(rootDir, file));
 	}

@@ -4,7 +4,7 @@
  * product via openProducts(), or self-fetches (the _component views: graph/monitor/sequence). One path,
  * without shape-sniffing.
  *
- * The mounted component lives in LIGHT DOM (slot-projected), never in this element's shadow root: a WebXR/A-Frame
+ * The mounted component renders in LIGHT DOM (slot-projected), never in this element's shadow root: a WebXR/A-Frame
  * presenter resolves its own camera and UI anchors through document.querySelector, which cannot see into a shadow
  * root: mounted there, its scene boots but its graph component dies on the camera lookup. Light DOM keeps the
  * mounted subtree document-reachable wherever the product view is embedded.

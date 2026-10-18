@@ -317,7 +317,7 @@ function readSource(source: ts.SourceFile, path: string): TSourceRead {
 	return { comments: [...comments.values()].sort((a, b) => a.pos - b.pos), strings, facts };
 }
 
-/** A block comment's lines without its markers or its JSDoc margin, from the source line it starts on. */
+/** A block comment's lines without its markers or its JSDoc margin, from the source line on which it starts. */
 function blockCommentLines(raw: string, line: number): TLine[] {
 	return raw
 		.replace(BLOCK_COMMENT_OPEN, "")
@@ -359,7 +359,7 @@ function commentBlocks(source: ts.SourceFile, comments: readonly ts.CommentRange
 	return groups.flatMap(commentParagraphs);
 }
 
-/** The lines of a literal's text, each by the source line it starts on. An escaped line break (`\n`) starts a line on the same source line. */
+/** The lines of a literal's text, each by the source line on which it starts. An escaped line break (`\n`) starts a line on the same source line. */
 function literalLines(source: ts.SourceFile, start: number, raw: string, cooked: string): TLine[] {
 	const first = source.getLineAndCharacterOfPosition(start).line + 1;
 	const texts = cooked.split("\n");
@@ -432,7 +432,7 @@ function stringLines(source: ts.SourceFile, node: TStringNode, inPlace: Set<ts.N
 	return lines.map(({ line, text }) => ({ line, text: text.trim() }));
 }
 
-/** A string's lines without the quotes haibun wraps a literal in. */
+/** A string's lines without the quotes in which haibun wraps a literal. */
 function unquoted(lines: readonly TLine[]): TLine[] {
 	return lines.map(({ line, text }) => ({ line, text: QUOTED_LITERAL.exec(text)?.[1] ?? text }));
 }
@@ -762,7 +762,7 @@ function isCssTemplate(node: ts.Node): boolean {
 	return ts.isTaggedTemplateExpression(node.parent) && node.parent.template === node && ts.isIdentifier(node.parent.tag) && node.parent.tag.text === CSS_TAG;
 }
 
-/** A stylesheet's comments, each read as a comment by the source line it starts on. */
+/** A stylesheet's comments, each read as a comment by the source line on which it starts. */
 function cssCommentBlocks(source: ts.SourceFile, node: ts.Node): TProseBlock[] {
 	const start = node.getStart(source);
 	return [...node.getText(source).matchAll(BLOCK_COMMENT)].flatMap((found) =>

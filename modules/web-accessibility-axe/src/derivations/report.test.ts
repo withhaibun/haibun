@@ -20,7 +20,7 @@ describe("axeReportHtml", () => {
 		expect(html).toContain("&lt;img src=x onerror=&quot;alert(1)&quot;&gt;");
 		expect(html).toContain("https://example.com/?q=&lt;b&gt;");
 	});
-	it("holds no script and loads nothing", () => {
+	it("doesn't hold a script or load a resource", () => {
 		expect(html).not.toMatch(/<(script|link)\b/i);
 		expect(html).not.toMatch(/<[a-z][^>]*\s(src|srcset)=/i);
 	});

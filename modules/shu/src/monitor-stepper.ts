@@ -47,8 +47,8 @@ export const MONITOR_PATH = "/monitor";
 
 /**
  * The type a graph query named, read off the step that ran it. The match is the argument's DOMAIN, not the step's name:
- * a deployment answers graph queries with its own step, and every one of them takes an argument of this domain, so this
- * reads the type from whichever step answered. Undefined for every other event.
+ * a deployment serves graph queries through its own step, and every one of them takes an argument of this domain, so this
+ * reads the type from whichever step served the query. Undefined for every other event.
  */
 function queriedLabelOf(event: THaibunEvent): string | undefined {
 	const values = (event as { stepValuesMap?: Record<string, { domain?: string; value?: unknown }> }).stepValuesMap;
@@ -85,10 +85,10 @@ type TClientBlips = z.infer<typeof ClientBlipsSchema>;
 
 export default class MonitorStepper extends AStepper implements IHasCycles, IHasOptions {
 	description = "Records what a run logs and produces, and serves the shu views what it holds";
-	/** The type a reader is looking at: the last one a graph query named, so a record of this run opens where the run
-	 *  left off. Per feature, like everything else a report carries. */
+	/** The type a reader is looking at: the last one a graph query named, so a record of this actuality opens where
+	 *  actuality left off. Per feature, like everything else a report carries. */
 	private queriedLabel: string | undefined = undefined;
-	/** Occurrences accepted from the SPA, so a page whose buffer overflowed between batches can be told apart from a quiet one. */
+	/** Occurrences accepted from the SPA, so a page whose buffer overflowed between batches is distinguished from a quiet one. */
 	private clientBlipsReceived = 0;
 	private storage!: AStorage;
 	private outputPath?: string;
@@ -134,7 +134,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	}
 
 	/** What actuality's steps captured, served on a server. A capture shows what the steps saw, so only a caller holding a
-	 *  private read is served one, and each is served sandboxed, so one opened by its address runs no script here. */
+	 *  private read is served one, and each is served sandboxed, so one opened by its address doesn't run a script here. */
 	private serveArtifacts(webserver: IWebServer): void {
 		const artifactDir = resolve(this.storage.getArtifactBasePath());
 		this.storage.ensureDirExists(artifactDir);
@@ -191,12 +191,12 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	 * Build the standalone HTML report from the live event/quad buffers and write it.
 	 * Callable any time during a feature so a feature can capture a snapshot at a
 	 * chosen point, `saves shu to <path>` triggers a write, and `endFeature` writes
-	 * once more so the final state always reflects the full run.
+	 * once more so the final state always reflects all of actuality.
 	 */
 	/**
-	 * What a run logged, written as a record under the step it was logged during. A reader is told it by the run logging it,
-	 * over the stream; this is the durable copy of that same statement, which is what a reader asks for when they were
-	 * not there to hear it. The type declares that writing it is not announced, so logging it once is logging it once.
+	 * What a run logged, written as a record under the step it was logged during. A reader receives it over the stream as
+	 * actuality logs it; this is the durable copy of that same statement, which a reader requests when they weren't
+	 * following the stream. The type declares that writing it is not announced, so logging it once is logging it once.
 	 */
 	/** How many statements have been recorded, so two logged in one millisecond are two records rather than one written
 	 *  over the other. A record's identity cannot rest on a clock a run can outpace. */
@@ -253,7 +253,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 		savesShuTo: {
 			gwta: `saves shu to {where: ${DOMAIN_FILE_PATH}}`,
 			description:
-				"Write the standalone shu HTML report to the given path. Invokable any time during a feature; endFeature writes once more so the final file always reflects the full run.",
+				"Write the standalone shu HTML report to the given path. Invokable any time during a feature; endFeature writes once more so the final file always reflects all of actuality.",
 			productsDomain: DOMAIN_SHU_REPORT,
 			action: async ({ where }: { where: string }) => {
 				this.outputPath = where;

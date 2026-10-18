@@ -23,7 +23,7 @@ describe("axeAssertions", () => {
 		expect(earl.subject).toEqual({ id: results.url, url: results.url });
 		expect([earl.mode, earl.step]).toEqual([EARL_MODE.automatic, STEP]);
 	});
-	it("states each rule's outcome as EARL defines it, a rule that needs review as one it can't tell, and doesn't record a rule that doesn't apply", () => {
+	it("states each rule's outcome as EARL defines it, a rule that needs review as one it can't determine, and doesn't record a rule that doesn't apply", () => {
 		expect(earl.results.map(({ test, result }) => [test.name, result.outcome])).toEqual([
 			["image-alt help", EARL_OUTCOME.failed],
 			["color-contrast help", EARL_OUTCOME.cantTell],

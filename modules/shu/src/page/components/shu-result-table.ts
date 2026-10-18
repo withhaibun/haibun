@@ -1,6 +1,6 @@
 /**
  * <shu-result-table>: the shared sortable, clickable individual table for the main query pane and filter columns. It
- * renders a fixed header row plus a virtualized body: the rows live in a WindowedSource and are painted through
+ * renders a fixed header row plus a virtualized body: a WindowedSource holds the rows, which are painted through
  * <shu-virtual-column>, so a result set of millions renders only the rows in view (with the custom glyph scrollbar for
  * position and jump), never a full DOM table. The parent owns the RPC and the source; this element owns the header,
  * sort indicators, row selection, group headers, and time dimming, all derived declaratively from the source and state
@@ -89,7 +89,7 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 	];
 
 	/** The rows this table shows: the resident window where the set is paged, and the count the whole set holds. Usually
-	 *  reached through the query view's summary; standalone tables answer for themselves. */
+	 *  reached through the query view's summary; standalone tables summarize themselves. */
 	summarizeForContext(): TLinkedData | null {
 		const { total, saturated } = statedCountOf(this.#source);
 		if (total === 0) return null;

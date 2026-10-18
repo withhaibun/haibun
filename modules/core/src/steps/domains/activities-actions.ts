@@ -1,4 +1,4 @@
-/** The stepper's name, which its actions and its steps' methods begin with. */
+/** The stepper's name, with which its actions and its steps' methods begin. */
 export const ACTIVITIES_STEPPER = "ActivitiesStepper";
 
 /** The actions a delegation names to let another party save a waypoint, and run a waypoint saved while actuality ran. Each

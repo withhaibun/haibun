@@ -26,7 +26,7 @@ const AFFORDANCES_STEP = {
 	readsAt: Access.public,
 };
 
-/** The actuality a snapshot records its facts from. */
+/** The actuality from which a snapshot records its facts. */
 const EXECUTION = "1790000000000-1";
 
 /** `products` applies synchronously (app.ts coalesces the replay upstream), so just await the lit render. */
@@ -50,7 +50,7 @@ describe("shu-affordances-panel", () => {
 		document.body.innerHTML = "";
 		handle = setupShuTest();
 		provideLayout();
-		// The deep link lives in the view hash, which is module state: clear it the way the app does, or one test's
+		// The view hash holds the deep link, which is module state: clear it the way the app does, or one test's
 		// open goal is the next one's starting point.
 		PageHash.mergeHashParams({ [AFFORDANCE_PARAM.GOAL]: undefined, [AFFORDANCE_PARAM.WAYPOINT]: undefined });
 		if (!customElements.get("shu-spinner")) {
@@ -384,13 +384,13 @@ describe("shu-affordances-panel", () => {
 		expect(snapshotCalls).toBe(1);
 	});
 
-	it("takes the run its snapshot names as the run the page reads, where a fact's step opens, and refuses one that doesn't name a run", () => {
+	it("takes the actuality its snapshot names as the actuality the page reads, where a fact's step opens, and refuses one that doesn't name an actuality", () => {
 		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
 		panel.products = { execution: EXECUTION, satisfiedDomains: [], forward: [], goals: [] };
 		expect(readingExecution()).toBe(EXECUTION);
 		expect(() => {
 			panel.products = { satisfiedDomains: [], forward: [], goals: [] };
-		}).toThrow(/the `execution` they are of/);
+		}).toThrow(/the `execution` that holds them/);
 	});
 });

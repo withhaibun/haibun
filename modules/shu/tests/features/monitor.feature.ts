@@ -74,7 +74,7 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "The monitor opens at the newest of a long run" }),
 		"What a reader sees of a long run is a window of it, which the rail below moves; that is what keeps a run of any length readable.",
-		"On load the monitor sits at the live edge, not the top: it followed the newest buffered event, so the first visible row is not row one.",
+		"On load the monitor is placed at the live edge, not the top: it followed the newest buffered event, so the first visible row is not row one.",
 		monitorFirstVisibleRowIsNot({ ordinal: '"1"' }),
 
 		scenario({ scenario: "A live event at the edge scrolls the monitor to the newest row" }),
@@ -99,11 +99,11 @@ export const features: TKirejiExport = {
 		seekMonitorRail({ where: `"${RAIL_END.top}"` }),
 		monitorFirstVisibleRow({ ordinal: '"1"' }),
 
-		"The thumb is what a reader grabs to drag, so a press aimed at the middle of it has to reach it. Every event to mark is drawn on this rail, and a mark drawn over the thumb would take that press and jump to itself instead, leaving the thumb ungrabbable on exactly the runs that have the most to look through.",
+		"The thumb is what a reader grabs to drag, so a press aimed at the middle of it has to reach it. Every event to mark is drawn on this rail, and a mark drawn over the thumb would take that press and jump to itself instead, leaving the thumb ungrabbable on exactly the runs that hold the most rows.",
 		railThumbTakesAPress({ host: `"${SHU_TAG.MONITOR_COLUMN}"` }),
 
 		scenario({ scenario: "A manual scroll up pauses the tail; returning to the bottom resumes it" }),
-		"A reader scrolling back through the log must not be yanked to the newest row every time an event streams in. Scrolled to the top, a streamed event leaves the view where it is: the tail is paused because the reader is no longer at the bottom, not because any cursor was scrubbed. Scroll back to the bottom and the tail re-engages, so the next event is followed again.",
+		"A reader scrolling back through the log must not be yanked to the newest row every time an event arrives. Scrolled to the top, a streamed event leaves the view where it is: the tail is paused because the reader is no longer at the bottom, not because any cursor was scrubbed. Scroll back to the bottom and the tail re-engages, so the next event is followed again.",
 		setAs({ what: "scrollPausedEvent", domain: "page-test-id", value: '"scroll-paused-marker"' }),
 		monitorFirstVisibleRow({ ordinal: '"1"' }),
 		seekMonitorRail({ where: `"${RAIL_END.bottom}"` }),
@@ -129,12 +129,12 @@ export const features: TKirejiExport = {
 		documentAtLiveEdge({}),
 
 		scenario({ scenario: "Actuality's screenshots render as tiles that flow in the column" }),
-		"The screenshots this very run just took stream in as artifact events and render as thumbnail tiles in the document: each frame sits in a thumbnail grid row, sized as a tile of the column's grid (never shrink-wrapped small, never blown up to the whole column), with the real image served and filling its frame. Grouping a run of screenshots into one strip is covered by the document-blocks unit tests; this measures the real rendered result.",
+		"The screenshots this very run just took stream in as artifact events and render as thumbnail tiles in the document: each frame is placed in a thumbnail grid row, sized as a tile of the column's grid (never shrink-wrapped small, never blown up to the whole column), with the real image served and filling its frame. Grouping a run of screenshots into one strip is covered by the document-blocks unit tests; this measures the real rendered result.",
 		documentThumbnailsFlow({}),
 		"The same caches where the blocks differ in height: a screen of prose and a screen of screenshots put very different numbers of blocks on screen, and the thumb must not resize between them.",
 		railThumbHoldsSize({ host: `"${SHU_TAG.DOCUMENT_COLUMN}"` }),
 
-		"The document column's own micro-movement reached actuality: every raw change of its thumb measurement, including the ones too small to redraw, recorded from the browser and cached in order. This is the record a smoothness problem is diagnosed from.",
+		"The document column's own micro-movement reached actuality: every raw change of its thumb measurement, including the ones too small to redraw, recorded from the browser and cached in order. This is the record from which a smoothness problem is diagnosed.",
 		`some occurrence observed in watched blips is "variable occurrence/view is "${SHU_TAG.DOCUMENT_COLUMN}""`,
 
 		scenario({ scenario: "A thumbnail expands with its step caption and arrows walk actuality's screenshots" }),

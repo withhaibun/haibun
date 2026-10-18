@@ -57,7 +57,7 @@ export function stepOptions(steps: readonly TStepDefinition[], forTheType: reado
 	return [...forTheType.map((step) => option(step, true)), ...steps.filter((step) => !typeMethods.has(step.method)).map((step) => option(step, false))];
 }
 
-/** What the steps read from the bar: its test-id prefix, the selected type, and the history callers open in. */
+/** What the steps read from the bar: its test-id prefix, the selected type, and the history in which callers open. */
 type TActionsBarStepsDeps = { testIdPrefix: () => string; selectedLabel: () => string; history: ShuActivityHistory };
 
 /** A step caller as the steps address it: whether it has run its step. */

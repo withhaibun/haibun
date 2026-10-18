@@ -1,5 +1,5 @@
 /**
- * Recording a blip, which a run does inside a step: the occurrence names the step it happened in. Declaring a blip is
+ * Recording a blip, which a run does inside a step: the occurrence names the step in which it happened. Declaring a blip is
  * shared with the page, which declares what it records; recording reads the step in flight, which only a run has.
  */
 import { BlipEvent } from "../domains/protocol.js";

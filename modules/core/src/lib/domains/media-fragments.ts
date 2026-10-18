@@ -13,7 +13,7 @@ export const FRAGMENT_SPEC = { pdf: "http://tools.ietf.org/rfc/rfc8118", media: 
 /** A part of a document or media located by a fragment of its address (a Web Annotation FragmentSelector's fields): its
  *  value, as `page=2`, `t=30,60` or `xywh=0,0,100,100`, and the specification that defines it. */
 export const FragmentSchema = z.object({
-	conformsTo: z.enum([FRAGMENT_SPEC.pdf, FRAGMENT_SPEC.media]).describe("The specification the value conforms to."),
+	conformsTo: z.enum([FRAGMENT_SPEC.pdf, FRAGMENT_SPEC.media]).describe("The specification to which the value conforms."),
 	value: z.string().describe("The fragment, as `page=2`, `t=30,60` or `xywh=0,0,100,100`."),
 });
 export type TFragment = z.infer<typeof FragmentSchema>;
@@ -38,7 +38,7 @@ export const MEDIA_FRAGMENTS = [
 	{ key: "xywh", conformsTo: FRAGMENT_SPEC.media, form: /^(pixel:|percent:)?\d+,\d+,\d+,\d+$/, of: "an image", reads: isImageFormat },
 ] as const;
 
-/** The kind of fragment a fragment is, by the key it is written with. */
+/** The kind of fragment a fragment is, by the key with which it is written. */
 const specOf = (fragment: TFragment) => MEDIA_FRAGMENTS.find(({ key }) => fragment.value.startsWith(`${key}=`));
 
 /** Whether a fragment is read for a media type, as a PDF's page is for a PDF. */

@@ -13,7 +13,7 @@ const PEER_URL = `"http://localhost:${PEER_PORT}"`;
 export const features: TKirejiExport = {
 	"A satellite instance keeps its records in the main instance's store": [
 		feature({ feature: "Keep records in another instance's store" }),
-		"A main instance starts and accepts this satellite for reading and writing its store. The satellite mounts the main's store for its principal records, so anything it persists lands in the main's store, one store, one custodian, under what the main accepts it for.",
+		"A main instance starts and accepts this satellite for reading and writing its store. The satellite mounts the main's store for its principal records, so anything it persists lands in the main's store, one store, one custodian, under the grant the main accepts.",
 		presentAuthorityAs({ holder: '"satellite"' }),
 		`start a haibun instance from "tests/federate-peer" on port ${PEER_PORT} as host 7`,
 		useStoreAt({ where: PEER_URL, types: '"Principal"' }),

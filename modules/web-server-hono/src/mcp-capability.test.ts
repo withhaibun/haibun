@@ -53,7 +53,7 @@ class ProtectedStepper extends AStepper {
 				const call = (holder: string) => rpc(url, 1, "tools/call", { name: "ProtectedStepper-echoesItsCaller", arguments: {} }, { holder, action: "ProtectedStepper:wait" });
 				const answered = await Promise.all([call(first), call(second)]);
 				const echoed = answered.map((result) => JSON.parse(getToolResult(result).content?.[0]?.text ?? "{}").echoed);
-				if (echoed[0] !== first || echoed[1] !== second) throw new Error(`Expected ${first} and ${second} each answered with their own result, got ${JSON.stringify(answered)}`);
+				if (echoed[0] !== first || echoed[1] !== second) throw new Error(`Expected ${first} and ${second} each served with their own result, got ${JSON.stringify(answered)}`);
 				return OK;
 			},
 		},
@@ -88,7 +88,7 @@ class ProtectedStepper extends AStepper {
 			action: async ({ port }: { port: string }) => {
 				// A client that doesn't present authority gets an empty tool list, and is refused alike a tool that exists and one that doesn't.
 				const listed = (await rpc(`http://localhost:${port}/mcp`, 2, "tools/list", {})).result as { tools?: unknown[] } | undefined;
-				if (listed?.tools?.length !== 0) throw new Error(`Expected no tools listed, got ${JSON.stringify(listed)}`);
+				if (listed?.tools?.length !== 0) throw new Error(`Expected an empty tool list, got ${JSON.stringify(listed)}`);
 				for (const tool of ["ProtectedStepper-protectedAction", "Nowhere-nothing"]) {
 					const toolResult = getToolResult(await callTool(String(port), tool));
 					const text = toolResult.content?.[0]?.type === "text" ? toolResult.content[0].text : "";
@@ -197,7 +197,7 @@ verify mcp read signed by "owner" for "Read:private" on port ${port} reads at "p
 		expect(result.ok).toBe(true);
 	});
 
-	it("answers each caller with its own result where two callers chose one id", async () => {
+	it("returns each caller its own result where two callers chose one id", async () => {
 		const port = await freePort();
 		const feature = {
 			path: "/features/mcp-callers-apart.feature",

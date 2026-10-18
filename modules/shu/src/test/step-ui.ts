@@ -11,7 +11,7 @@ import { CHAT_MESSAGE_MATCH, SHU_TAG } from "../domains/elements.js";
 const { setAs } = withAction(new VariablesStepper());
 
 /**
- * The origin a browser-driving feature navigates to.
+ * The origin to which a browser-driving feature navigates.
  *
  * Default: the feature's own webserver at `http://localhost:<port>`: the port from
  * `HAIBUN_O_WEBSERVERSTEPPER_PORT`, else `defaultPort`. A self-contained feature serves its own app and seeds its
@@ -147,13 +147,13 @@ export function createStepUI(wp: WebPlaywright) {
 		waitFor({ target: IDS.APP.MODE_SELECT }),
 	];
 
-	/** Close the actions bar if it is open: the inverse of expandActionsBar (MODE_SELECT present ⇒ its pane's minimize control closes it to its strip). Idempotent: skipped when already closed. The open docked bar floats over lower content (e.g. a graph), so close it before interacting with what sits beneath. */
+	/** Close the actions bar if it is open: the inverse of expandActionsBar (MODE_SELECT present ⇒ its pane's minimize control closes it to its strip). Idempotent: skipped when already closed. The open docked bar floats over lower content (e.g. a graph), so close it before interacting with the content beneath it. */
 	const collapseActionsBar: TKirejiStep[] = [...actionsPaneAttached, `where has test id ${IDS.APP.MODE_SELECT}, in "${ACTIONS_PANE}", click ${IDS.COLUMN_PANE.MINIMIZE}`];
 
 	const enterStepMode: TKirejiStep[] = [...expandActionsBar, selectionOption({ option: '"Step"', field: IDS.APP.MODE_SELECT }), waitFor({ target: IDS.APP.STEP_SELECT })];
 
-	/** Open the actions bar and switch to Search mode, which holds the text to search for. The type the search reads stands
-	 *  on the page strip, and its filters are settings the pane's control shows. Search is the default mode, so a fresh bar
+	/** Open the actions bar and switch to Search mode, which holds the text the search reads. The page strip shows the type
+	 *  the search reads, and its filters are settings the pane's control shows. Search is the default mode, so a fresh bar
 	 *  is already here. */
 	const enterSearchMode: TKirejiStep[] = [...expandActionsBar, selectionOption({ option: '"Search"', field: IDS.APP.MODE_SELECT }), waitFor({ target: IDS.APP.TEXT_SEARCH })];
 
@@ -182,13 +182,13 @@ export function createStepUI(wp: WebPlaywright) {
 			typeText({ text: `"${prompt}"` }),
 			click({ target: IDS.APP.CHAT_SUBMIT }),
 			waitFor({ target: IDS.APP.CHAT_OUTPUT }),
-			// Text arriving is the turn answering. The session selector is always rendered, so its presence doesn't
-			// indicate a turn; a feature that must know a turn finished asserts on actuality's own exchange record.
+			// Text arriving is the turn's response. The session selector is always rendered, so its presence doesn't
+			// indicate a turn; a feature that requires a finished turn asserts on actuality's own exchange record.
 			waitFor({ target: IDS.APP.CHAT_TEXT }),
 		];
 	}
 
-	/** Wait until the transcript holds at least `count` completed answers. */
+	/** Wait until the transcript holds at least `count` completed responses. */
 	function askAnswered(count: number): TKirejiStep[] {
 		return [
 			setAs({ what: ASK_LOCATOR.ANSWERED, domain: "page-locator", value: `"${nthChatMessage(CHAT_MESSAGE_MATCH.COMPLETED_REPLY, count)}"` }),
@@ -204,7 +204,7 @@ export function createStepUI(wp: WebPlaywright) {
 		return [setAs({ what: ASK_LOCATOR.TURNS_SHOWN, domain: "page-locator", value }), waitFor({ target: ASK_LOCATOR.TURNS_SHOWN })];
 	}
 
-	/** Wait until a turn states `statement` among the context it sent and the conversation it followed from. The
+	/** Wait until a turn states `statement` among the context it sent and the conversation it continued. The
 	 *  statement is embedded in a single-quoted selector, so it may not hold a single quote. */
 	function askStates(statement: string): TKirejiStep[] {
 		if (statement.includes("'")) throw new Error(`askStates: "${statement}" holds a single quote, which ends the selector it is embedded in`);
@@ -263,7 +263,7 @@ export function createStepUI(wp: WebPlaywright) {
 			click({ target: IDS.APP.STEP_SELECT }),
 			setValue({ what: `"${method}"`, field: IDS.APP.STEP_SELECT }),
 			press({ key: '"Enter"' }),
-			// A choice comes first: the form asks for what follows from it, such as the fields of the type a record is of.
+			// A choice comes first: the form then requests what follows from it, such as the fields of the record's type.
 			...Object.entries(chosen).flatMap(([name, option]) => [
 				waitFor({ target: stepInput(method, callIndex, name) }),
 				selectionOption({ option: `"${option}"`, field: stepInput(method, callIndex, name) }),
@@ -281,7 +281,7 @@ export function createStepUI(wp: WebPlaywright) {
 		return body;
 	}
 
-	/** Flat (inline) form: the ~9 mechanics emitted directly. Kept for callers that don't want the activity wrapper. */
+	/** Flat (inline) form: the ~9 mechanics emitted directly. Kept for callers that don't use the activity wrapper. */
 	function runStep(method: string, passes: boolean, params: Record<string, unknown> = {}, chosen: Record<string, string> = {}): TKirejiStep[] {
 		return buildStepBody(method, passes, params, chosen);
 	}

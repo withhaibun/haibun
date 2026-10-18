@@ -100,7 +100,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 			padding: var(--shu-space-4) var(--shu-space-2);
 			flex: 1;
 			align-items: center;
-			/* The label runs from the top of the strip and the controls sit at the bottom of it. Without this they pack
+			/* The label runs from the top of the strip and the controls are placed at its bottom. Without this they pack
 			   against the label, which leaves them wherever the label's text happens to end. A header sized to its
 			   content (one with a spine below it) doesn't have free space, so this doesn't change its layout. */
 			justify-content: space-between;
@@ -113,7 +113,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		}
 		:host([collapsed][has-spine]) .pane-header { flex: 0 0 auto; }
 		/* The spine box takes the height the header does not, but only once a column has a spine view to put in it. A
-		   column that doesn't declare one renders the slot (so one attached later is still noticed) without an element assigned to
+		   column that doesn't declare one renders the slot (so one attached later still renders) without an element assigned to
 		   it, and an empty box claiming half the strip is what pushed that column's controls to the middle of it. */
 		.pane-spine { flex: 0 0 auto; min-height: 0; overflow: hidden; display: flex; justify-content: center; }
 		:host([has-spine]) .pane-spine { flex: 1; }
@@ -179,7 +179,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		}
 		.pane-content { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
 		.pane-content ::slotted(*) { flex: 1; min-height: 0; overflow: auto; }
-		/* A spine is the width of the strip and no wider: its view sizes to that rather than scrolling inside it, or a
+		/* A spine is the width of the strip and doesn't grow wider: its view sizes to that rather than scrolling inside it, or a
 		   few pixels of spill, a slider knob's label for example, become native scrollbars in a strip too narrow to use them. */
 		.pane-spine ::slotted(*) { flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
 		/* A declared spine view is a line down the strip, so it keeps its own width and the box centres it. A column
@@ -216,7 +216,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 
 	static attributeFields = { label: "label", active: "active", closable: "closable", pinned: "pinned", "column-type": "columnType" };
 
-	/** Width, user-minimize, and pin are remembered per column across reloads (ShuElement.persistFields), keyed by the column's identity; `pinned` is a bidirectional attributeField, so restoring it re-asserts the `pinned` attribute the pane strip's prune reads. Maximize is deliberately not remembered: it lives in the URL hash only. */
+	/** Width, user-minimize, and pin are kept per column across reloads (ShuElement.persistFields), keyed by the column's identity; `pinned` is a bidirectional attributeField, so restoring it re-asserts the `pinned` attribute the pane strip's prune reads. Maximize is deliberately not kept: the URL hash alone holds it. */
 	static persistFields = ["width", "height", "minimized", "pinned"] as const;
 
 	/** A pane's persistence identity is its column key (assigned before attach by the pane strip; "query" for the root pane). A pane without one doesn't persist. */
@@ -269,13 +269,13 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		this.#reflectLayout();
 	}
 
-	/** Open the pane: a docked pane opens from its strip, and a collapsed column asks the strip to expand it. */
+	/** Open the pane: a docked pane opens from its strip, and a collapsed column requests that the strip expand it. */
 	open(): void {
 		if (this.docked) return this.#setDockClosed(false);
 		if (this.isCollapsed) this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_EXPAND, { bubbles: true, composed: true }));
 	}
 
-	/** Close a docked pane to its strip. A column closes by its minimize control, which the reader's address remembers. */
+	/** Close a docked pane to its strip. A column closes by its minimize control, which the reader's address records. */
 	close(): void {
 		if (this.docked) this.#setDockClosed(true);
 	}
@@ -325,7 +325,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		else this.style.flex = `0 0 ${(Math.min(w, this.#maxShare()) * 100).toFixed(3)}%`;
 	}
 
-	/** A dragged pixel width as a share of the strip it was dragged in. */
+	/** A dragged pixel width as a share of the strip in which it was dragged. */
 	#asShare(px: number): number {
 		const strip = this.#stripWidth();
 		if (!strip) throw new Error("shu-column-pane: resized in a strip without a width");
@@ -345,7 +345,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	}
 
 	/** Set the user-resized width as this pane's share of the strip (0..1), persisted. Undefined = auto (flex: 1).
-	 *  A share, not pixels: the one unit the pane keeps, so a width outlives the window it was set in. Pixels exist
+	 *  A share, not pixels: the one unit the pane keeps, so a width outlives the window in which it was set. Pixels exist
 	 *  only in the drag, which measures the strip and divides. */
 	setWidth(share: number | undefined): void {
 		this.setState({ width: share === undefined ? undefined : Math.min(1, Math.max(share, 0.01)) });
@@ -365,7 +365,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		return share === undefined ? undefined : Math.round(share * this.#stripWidth());
 	}
 
-	/** Accordion auto-collapse (strip layout only). User minimize goes through setMinimized. */
+	/** Accordion auto-collapse (strip layout only). User minimize calls setMinimized. */
 	setCollapsed(collapsed: boolean): void {
 		this.#accordionCollapsed = collapsed;
 		this.#reflectLayout();
@@ -390,8 +390,8 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.COLUMN_MINIMIZE, { detail: { minimized: minimize }, bubbles: true, composed: true }));
 	};
 
-	/** The one path that owns the maximize state: the button and a resize both land here, so the strip always hears
-	 *  the change and a caller can't set the attribute without announcing it. Maximize lives in the URL hash, not the
+	/** The one path that owns the maximize state: the button and a resize both call it, so the strip always receives
+	 *  the change and a caller can't set the attribute without announcing it. The URL hash holds maximize, not the
 	 *  persisted prefs. */
 	setMaximized(maximized: boolean): void {
 		if (maximized === this.hasAttribute(SHU_ATTR.DATA_MAXIMIZED)) return;
@@ -422,7 +422,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		this.requestUpdate();
 	};
 
-	/** Dock the pane, open, or return it to the strip, and tell the strip and the address. */
+	/** Dock the pane, open, or return it to the strip, and announce it to the strip and the address. */
 	private onDock = (e: Event): void => {
 		e.stopPropagation();
 		const docked = !this.docked;
@@ -437,7 +437,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 
 	/** Closing is the reader dismissing this column, so its remembered width, minimize and pin go with it: a column
 	 *  opened again at the same identity is a new one, and would otherwise arrive still pinned (or still minimized) from
-	 *  a column the reader had closed. A pane removed by a prune or a reload keeps its memory: that is what it is for. */
+	 *  a column the reader had closed. A pane removed by a prune or a reload keeps what it persisted, which is the purpose of persisting it. */
 	private onClose = (e: Event): void => {
 		e.stopPropagation();
 		this.forgetPersisted();
@@ -472,7 +472,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 
 	private onSlotChange = (e: Event): void => {
 		// A spine view holds its render while the page doesn't show it (ShuElement.shouldUpdate). The spine slot taking it is
-		// the moment it becomes visible, so it is asked to catch up on everything it heard and did not render.
+		// the moment it becomes visible, so the pane requests its update for everything it received and didn't render.
 		const slot = e.target as HTMLSlotElement;
 		if (slot.name === SPINE_SLOT) for (const view of slot.assignedElements()) (view as Element & { requestUpdate?: () => void }).requestUpdate?.();
 		this.requestUpdate();
@@ -538,7 +538,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	render(): TemplateResult {
 		const { label, closable, columnType, pinned } = this.state;
 		const collapsed = this.isCollapsed;
-		// A column whose spine is a narrow form of itself keeps being rendered while collapsed, and is told it is
+		// A column whose spine is a narrow form of itself keeps being rendered while collapsed, and is marked as
 		// serving as the spine so it can render only what fits the strip. Everything else is swapped for the view
 		// mounted in the spine slot.
 		const view = this.columnView;

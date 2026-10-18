@@ -77,7 +77,7 @@ describe("the app a deployment serves", () => {
 		expect(servedAt("/spa"), "a page served without one opens as its reader or actuality arranges").not.toContain('"viewHash"');
 	});
 
-	it("tells the page what the deployment allows without a delegation, and whether a delegation verifies here, as each page is served", async () => {
+	it("sends the page what the deployment allows without a delegation, and whether a delegation verifies here, as each page is served", async () => {
 		await stepper.steps.serveShuApp.action({ path: "/spa" });
 		const serve = addRoute.mock.calls.find(([, path]) => path === "/spa")?.[3] as (c: unknown) => string;
 		const served = () => serve({ header: () => undefined, html: (body: string) => body });

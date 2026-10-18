@@ -20,7 +20,7 @@ import { css, unsafeCSS, type CSSResult } from "lit";
  *   --shu-fg          the content itself
  *   --shu-fg-muted    supporting text read alongside the content (metadata, counts, captions)
  *   --shu-fg-faded    text that is structure rather than content (field names, separators, placeholders)
- * Anything below 4.5:1 belongs to a BORDER token (--shu-border, --shu-border-strong), which draws lines, not text. A
+ * Anything below 4.5:1 is a BORDER token (--shu-border, --shu-border-strong), which draws lines, not text. A
  * divider drawn in a text colour and a label drawn in a border colour are the same mistake. `--shu-invert` is 1 in a dark
  * theme, where a locally rendered, black-on-white embedded document is colour-inverted to match.
  */
@@ -127,7 +127,7 @@ export const SHU_TOKENS = `
 		/* The band DRAWN as a scroll rail's track. The control's own width is the press target, and is wider. */
 		--shu-rail-track-w: calc(14px * var(--shu-scale));
 
-		/* Text sitting ON a type-colour swatch/chip (graph node chips, filter type labels). The palette is always light
+		/* Text drawn ON a type-colour swatch/chip (graph node chips, filter type labels). The palette is always light
 		   pastels, so this stays dark in BOTH themes. It is declared only here, and the dark palette doesn't set it.
 		   ONLY for text whose own background is a swatch: on any themed background it is dark-on-dark in the dark theme. */
 		--shu-fg-on-swatch: #1a1a1a;
@@ -167,8 +167,8 @@ ${LIGHT_PALETTE}
 `;
 
 /** Base reset + element defaults reused by every shu component. Tokens must be in scope (i.e. `${SHU_TOKENS}` precedes this in the template). */
-/** A JSON value as disclosures: what holds parts indents under what it belongs to, and a name reads before its value. The
- *  disclosure itself is the browser's, styled only with the indent that shows what belongs to what. A view that renders
+/** A JSON value as disclosures: what holds parts indents under its container, and a name reads before its value. The
+ *  disclosure itself is the browser's, styled only with the indent that shows what contains what. A view that renders
  *  in light DOM, outside the base sheet, includes these rules itself. */
 export const JSON_DISCLOSURE_CSS = `
 	.json-disclosure { margin: 0 0 0 var(--shu-space-2); }

@@ -56,7 +56,7 @@ function normalizeItem(item: Record<string, unknown>): ThreadVertex {
 }
 
 export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
-	/** A conversation thread as an ordered collection: each item's public fields plus the reply it answers. */
+	/** A conversation thread as an ordered collection: each item's public fields plus the message to which it replies. */
 	summarizeForContext(): TLinkedData | null {
 		if (this.thread.length === 0) return null;
 		const items = this.thread.map((v) => {

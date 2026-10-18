@@ -13,7 +13,7 @@ export const dispatchSubjectEvent = (event: TSubjectEvent): TSubjectState => sub
 
 /**
  * SubjectController: the per-view handle to the active record. A view that dims, highlights or follows the active
- * record HOLDS one (`#subject = new SubjectController(this, record => …)`) and is told the record each time what it reads
+ * record HOLDS one (`#subject = new SubjectController(this, record => …)`) and receives the record each time what it reads
  * changes. See ./index.ts for the pattern; data-access.test.ts enforces it.
  */
 export class SubjectController extends SignalController<TSubjectState> {

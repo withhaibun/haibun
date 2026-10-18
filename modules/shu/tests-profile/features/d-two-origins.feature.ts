@@ -38,9 +38,9 @@ export const features: TKirejiExport = {
 		`save text from ${IDS.CLIENT_CACHE.ROOT} to atFirstAddress`,
 		'matches atFirstAddress with "*An actuality to come back to*"',
 
-		scenario({ scenario: "The same server at another of its addresses holds nothing of them" }),
+		scenario({ scenario: "The same server at another of its addresses doesn't hold them" }),
 
-		"The same server, reached at another of its own addresses, is another address to the browser: what was read at the first is not there to be read. The reader is not shown an earlier actuality, because on this address they have read none. Nothing was moved or hidden to arrange that.",
+		"The same server, reached at another of its own addresses, is another address to the browser: what was read at the first is not there to be read. The reader is not shown an earlier actuality, because they haven't read one on this address. The test didn't move or hide anything to arrange that.",
 		gotoPage({ name: `"${otherAddress}/spa"` }),
 		"show monitor",
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),

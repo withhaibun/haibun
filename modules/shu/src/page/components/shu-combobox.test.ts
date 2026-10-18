@@ -29,7 +29,7 @@ async function aCombobox(): Promise<TCombobox> {
 
 const input = (combo: TCombobox): HTMLInputElement => {
 	const found = combo.shadowRoot?.querySelector<HTMLInputElement>(".combo-input");
-	if (!found) throw new Error("the combobox rendered no input");
+	if (!found) throw new Error("the combobox didn't render an input");
 	return found;
 };
 

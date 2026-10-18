@@ -1,7 +1,7 @@
 /**
  * TimelineViewController: a view's own place on actuality's timeline.
  *
- * The page has one cursor, `timeCursor`: null at the live edge, or an instant the reader scrubbed to. A view tracks
+ * The page has one cursor, `timeCursor`: null at the live edge, or an instant to which the reader scrubbed. A view tracks
  * that cursor, so playing and scrubbing actuality move the view with the page. A view whose reader scrolls away from the
  * live edge holds the instant it was showing, and keeps it while the rest of the page moves, until the reader returns
  * to the live edge.
@@ -87,7 +87,7 @@ export class TimelineViewController implements ReactiveController {
 		return at;
 	}
 
-	/** Whether this view shows the live edge, which is what a following view sticks to. */
+	/** Whether this view shows the live edge, to which a following view sticks. */
 	get atLiveEdge(): boolean {
 		return this.cursor === null;
 	}

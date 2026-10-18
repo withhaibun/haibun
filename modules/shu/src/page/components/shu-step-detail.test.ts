@@ -36,7 +36,7 @@ describe("shu-step-detail", () => {
 		serveThePage();
 		installCarriedEventStream();
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
-		// One step of the execution being read: what it asked for, what ran, how it went and where.
+		// One step of the execution being read: what it requested, what ran, how it went and where.
 		const store = actualityStore();
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
 			id: STEP,
@@ -83,7 +83,7 @@ describe("shu-step-detail", () => {
 		await el.open(`${EXECUTION}.0.1`, SEQ_PATH_LABEL);
 		await el.updateComplete;
 		expect(text(el)).toContain("myVar");
-		await el.open(`${EXECUTION}.0.2`, SEQ_PATH_LABEL); // the page doesn't hold a record of this step, and it doesn't have a site to ask
+		await el.open(`${EXECUTION}.0.2`, SEQ_PATH_LABEL); // the page doesn't hold a record of this step, and it doesn't have a site to call
 		await el.updateComplete;
 		const t = text(el);
 		expect(t, "a step the page cannot read reports that, rather than claiming that the step doesn't exist").toContain("Step [0.2] wasn't read.");

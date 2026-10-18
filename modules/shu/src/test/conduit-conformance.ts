@@ -1,35 +1,35 @@
 /**
- * One specification, every conduit. A view calls a step through `conduit()` and does not know which implementation is
- * installed: the live one over `/rpc`, or the one a test installs to answer from its own function. A difference
- * between them is a difference in what a view is given, so each answers these cases rather than carrying a suite of
+ * One specification, every conduit. A view calls a step through `conduit()` and doesn't read which implementation is
+ * installed: the live one over `/rpc`, or the one a test installs to respond from its own function. A difference
+ * between them is a difference in what a view is given, so each passes these cases rather than carrying a suite of
  * its own.
  *
- * What is specified is what a caller is given: the answer to a follow, the failure of one the server refused, the
- * order a stream arrives in, the seqPath a stream starts with, and what a grouped call returns. How an answer is
- * arranged is each implementation's own, which is what `TConduitUnderTest` supplies.
+ * What is specified is what a caller is given: the result of a follow, the failure of one the server refused, the
+ * order in which a stream arrives, the seqPath with which a stream starts, and what a grouped call returns. Each
+ * implementation arranges its own results, which `TConduitUnderTest` supplies.
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import type { TConduit } from "../page/ports.js";
 import type { TStreamChunk } from "../page/domains/links.js";
 import { reads } from "../page/domains/links.js";
 
-/** A conduit ready to call, with the answers a case arranges for it. */
+/** A conduit ready to call, with the results a case arranges for it. */
 export type TConduitUnderTest = {
 	conduit: TConduit;
-	/** A call to `method` is answered with `value`. */
+	/** A call to `method` returns `value`. */
 	answers(method: string, value: unknown): void;
 	/** A call to `method` fails, as a server refusing it makes it fail. */
 	fails(method: string, message: string): void;
 	/** A stream of `method` delivers these chunks in order. */
 	streams(method: string, chunks: TStreamChunk[]): void;
-	/** What the steps were asked, in the order they were called. */
+	/** The calls the steps received, in the order they were called. */
 	asked(): Array<{ method: string; params: Record<string, unknown> }>;
 	done?(): void | Promise<void>;
 };
 
 const METHOD = "TestStepper-read";
 
-/** Run the specification against one conduit. `make` returns a conduit without an answer arranged. */
+/** Run the specification against one conduit. `make` returns a conduit without a result arranged. */
 export function describeConduit(name: string, make: () => TConduitUnderTest | Promise<TConduitUnderTest>): void {
 	describe(`the conduit (${name})`, () => {
 		let held: TConduitUnderTest;
@@ -42,20 +42,20 @@ export function describeConduit(name: string, make: () => TConduitUnderTest | Pr
 			};
 		});
 
-		it("gives a follow what the step answered", async () => {
+		it("gives a follow what the step returned", async () => {
 			held.answers(METHOD, { rows: [1, 2] });
 			expect(await conduit.follow(reads(METHOD, {}), "read the rows")).toEqual({ rows: [1, 2] });
 		});
 
-		it("asks the step for what the link named, with the parameters the link carried", async () => {
+		it("calls the step the link named, with the parameters the link carried", async () => {
 			held.answers(METHOD, { ok: true });
 			await conduit.follow(reads(METHOD, { label: "Email", id: "a" }), "read one");
 			expect(held.asked().filter((call) => call.method === METHOD)).toEqual([{ method: METHOD, params: { label: "Email", id: "a" } }]);
 		});
 
 		it("fails a follow the step refused, and gives the reason the step returned", async () => {
-			held.fails(METHOD, "the step would not answer");
-			await expect(conduit.follow(reads(METHOD, {}), "read the rows")).rejects.toThrow(/the step would not answer/);
+			held.fails(METHOD, "the step refused the call");
+			await expect(conduit.follow(reads(METHOD, {}), "read the rows")).rejects.toThrow(/the step refused the call/);
 		});
 
 		it("starts a stream with a seqPath before a chunk arrives, and resolves with that seqPath", async () => {
@@ -75,7 +75,7 @@ export function describeConduit(name: string, make: () => TConduitUnderTest | Pr
 			expect(arrived.map((c) => (c as { text?: string }).text)).toEqual(["one"]);
 		});
 
-		it("gives a group what its own function returned, and answers a follow made through the conduit it passes", async () => {
+		it("gives a group what its own function returned, and serves a follow made through the conduit it passes", async () => {
 			held.answers(METHOD, { rows: [7] });
 			const got = await conduit.group("read a few", async (g) => {
 				const one = await g.follow<{ rows: number[] }>(reads(METHOD, {}), "read the rows");

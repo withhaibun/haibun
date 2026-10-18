@@ -29,7 +29,7 @@ const pointerdown = (target: Element, clientY = 0): void => {
  *  is all geometry, can be driven here rather than only in a browser. */
 function railBox(el: ShuScrollbar, top: number, height: number): void {
 	const rail = el.shadowRoot?.querySelector('[data-testid="scrollbar-rail"]');
-	if (!rail) throw new Error("no rail rendered to measure");
+	if (!rail) throw new Error("the scrollbar didn't render a rail to measure");
 	Object.defineProperty(rail, "getBoundingClientRect", { configurable: true, value: () => ({ top, height, bottom: top + height, left: 0, right: 32, width: 32, x: 0, y: top }) });
 }
 
@@ -43,9 +43,9 @@ describe("shu-scrollbar interaction", () => {
 		const { el, seeks } = await mount(1000, { first: 990, visible: 20 }, [{ index: 999, id: "z", icon: "📝", color: "#000" }]);
 		railBox(el, 0, RAIL);
 		expect(el.shadowRoot?.querySelector("[data-testid=scrollbar-marker]"), "the mark is drawn").toBeTruthy();
-		// Pressed where that mark sits on a rail of this height. The mark does not take the press itself: the rail does,
+		// Pressed at that mark's position on a rail of this height. The mark does not take the press itself: the rail does,
 		// and returns which ROW was picked. Row 999 doesn't begin a window (the last starts at 980), and returning 980 instead would
-		// mean the last twenty rows could never be pointed at.
+		// mean that a press could never select the last twenty rows.
 		const at = markerTopPx(999, 1000, RAIL);
 		pointerdown(el.shadowRoot?.querySelector("[data-testid=scrollbar-rail]") as Element, at);
 		expect(seeks).toEqual([999]);
@@ -99,9 +99,9 @@ describe("shu-scrollbar interaction", () => {
 });
 
 describe("showing which moment is being shown", () => {
-	// The thumb shows what is ON SCREEN; the cursor shows WHEN. They are different questions, so the rail answers them
-	// with different marks, and the cursor is drawn on the same scale as the event marks, so it lines up with the one
-	// it is sitting on rather than being a few pixels off it.
+	// The thumb shows what is ON SCREEN; the cursor shows WHEN. They are different values, so the rail draws them
+	// with different marks, and the cursor is drawn on the same scale as the event marks, so it lines up with the mark
+	// at its position rather than being a few pixels off it.
 	const cursorEl = (el: ShuScrollbar) => el.shadowRoot?.querySelector('[data-testid="scrollbar-cursor"]') as HTMLElement | null;
 
 	it("doesn't show a cursor when a moment isn't pinned, since every view is then showing now", async () => {
@@ -131,7 +131,7 @@ describe("showing which moment is being shown", () => {
 });
 
 describe("before anything has reported what is on screen", () => {
-	// A thumb needs a viewport to be about. Before a viewport is reported the height clamps to its minimum and sits at the top,
+	// A thumb measures a viewport. Before a viewport is reported the height clamps to its minimum and is placed at the top,
 	// which reads as "you are at the start, looking at very little": a claim about the reader made before anything knows
 	// it, and the grey box that used to appear on load until the first window arrived.
 	const thumb = (el: ShuScrollbar) => el.shadowRoot?.querySelector('[data-testid="scrollbar-thumb"]');
@@ -148,7 +148,7 @@ describe("before anything has reported what is on screen", () => {
 		expect(thumb(el)).toBeTruthy();
 	});
 
-	it("still marks the events, which are known whether or not anything is on screen", async () => {
+	it("still marks the events, which the rail holds whether or not a row is on screen", async () => {
 		const marks: TScrollMarker[] = [{ index: 10, id: "m", icon: "x", color: "#fff" }];
 		const { el } = await mount(500, { first: 0, visible: 0 }, marks);
 		expect(el.shadowRoot?.querySelectorAll('[data-testid="scrollbar-marker"]').length).toBe(1);
@@ -156,14 +156,14 @@ describe("before anything has reported what is on screen", () => {
 });
 
 describe("aiming at the rail", () => {
-	// The whole width of the control is the target: a 14px track asks for a precision that a reader shouldn't need, least of all
+	// The whole width of the control is the target: a 14px track requires a precision that a reader shouldn't need, least of all
 	// in a collapsed column where the rail is the only control there is. The widths themselves are CSS, which this
 	// environment does not apply to a shadow root, so they are checked in the browser; what is structural is that the
 	// drawn band is its OWN element, so the target can be widened without widening what is drawn.
 	it("takes a press on the target and seeks from it", async () => {
 		const { el, seeks } = await mount(100, { first: 0, visible: 10 });
 		const rail = el.shadowRoot?.querySelector('[data-testid="scrollbar-rail"]') as HTMLElement | null;
-		if (!rail) throw new Error("no rail rendered");
+		if (!rail) throw new Error("the scrollbar didn't render a rail");
 		pointerdown(rail);
 		expect(seeks.length).toBe(1);
 	});
@@ -178,12 +178,12 @@ describe("aiming at the rail", () => {
 });
 
 describe("a press on the thumb that never moves", () => {
-	// A press the pointer never carries anywhere is a click, and a click goes to where it landed. That is a tap on a
-	// touch screen, and it is what a click on anything the thumb happens to be covering has to do: the thumb sits above
+	// A press the pointer never carries anywhere is a click, and a click seeks to the place it landed. That is a tap on a
+	// touch screen, and it is what a click on anything the thumb happens to be covering has to do: the thumb is drawn above
 	// the marks, so without this a click on a covered mark doesn't seek.
 	const press = (el: ShuScrollbar) => {
 		const thumb = el.shadowRoot?.querySelector('[data-testid="scrollbar-thumb"]');
-		if (!thumb) throw new Error("no thumb rendered to press");
+		if (!thumb) throw new Error("the scrollbar didn't render a thumb to press");
 		thumb.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, composed: true, pointerId: 1, clientY: 40 }));
 	};
 	const release = () => document.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, pointerId: 1, clientY: 40 }));
@@ -208,8 +208,8 @@ describe("a press on the thumb that never moves", () => {
 });
 
 describe("the position glyphs are presses to actuality's edges", () => {
-	// The rail's rows are what a view holds; the top glyph asks for the START of actuality and the bottom one for its live
-	// END, beyond what is held, which a host that pages its data answers by loading to that edge.
+	// The rail's rows are what a view holds; the top glyph requests the START of actuality and the bottom one its live
+	// END, beyond what is held, which a host that pages its data serves by loading to that edge.
 	beforeAll(() => {
 		provideLayout();
 	});

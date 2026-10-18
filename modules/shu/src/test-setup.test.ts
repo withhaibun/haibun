@@ -22,7 +22,7 @@ describe("setupShuTest", () => {
 		expect(pageEventStream()).toBeDefined();
 	});
 
-	it("default dispatch throws with the missing method name when no `dispatch` is configured", async () => {
+	it("default dispatch throws with the missing method name when a test doesn't configure `dispatch`", async () => {
 		setupShuTest();
 		await expect(conduit().follow(acts("Nothing-configured"), "test")).rejects.toThrow(/a dispatch for "Nothing-configured" isn't configured/);
 	});

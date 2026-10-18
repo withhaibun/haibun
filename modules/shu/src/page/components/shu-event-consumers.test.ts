@@ -31,7 +31,7 @@ import { endPage } from "../adapters/page-held.js";
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 30));
 const iso = (n: number): string => new Date(n).toISOString();
 
-/** A step actuality recorded: what it asked for, what it called, how it went, and when. */
+/** A step actuality recorded: what it requested, what it called, how it went, and when. */
 const stepRecord = (i: number, over: Record<string, unknown> = {}): Record<string, unknown> => ({
 	id: `0.${i}`,
 	stepText: `step ${i}`,
@@ -44,7 +44,7 @@ const stepRecord = (i: number, over: Record<string, unknown> = {}): Record<strin
 	...over,
 });
 
-/** Something a step produced: what it is, where it is, and the step it came from. */
+/** Something a step produced: what it is, where it is, and the step that produced it. */
 const producedRecord = (i: number, over: Record<string, unknown> = {}): Record<string, unknown> => ({
 	id: `0.${i}@0`,
 	isPartOf: `0.${i}`,
@@ -57,7 +57,7 @@ const producedRecord = (i: number, over: Record<string, unknown> = {}): Record<s
 	...over,
 });
 
-/** Actuality in the graph, without a server to ask: the views read the records. */
+/** Actuality in the graph, without a server to call: the views read the records. */
 /** A step record opens in the step detail, as core's SeqPath domain declares. */
 const SEQ_PATH_OPENS = { [SEQ_PATH_LABEL]: { component: SHU_TAG.STEP_DETAIL } };
 
@@ -95,7 +95,7 @@ describe("the views of a run, over the records it wrote", () => {
 
 	it("shows what a step produced on that step's own row, rather than as a row of its own", async () => {
 		// The shot was taken by a step of the machinery, under the step a reader is reading. A record names its run, which
-		// is how a row knows its own place in it.
+		// is how a row determines its own place in it.
 		const RUN = "1700000000000-1";
 		await anActuality(
 			[stepRecord(1, { id: `${RUN}.0.1` }), stepRecord(2, { id: `${RUN}.0.1.-1`, isPartOf: `${RUN}.0.1`, stepText: "take a screenshot", level: "trace" })],
@@ -285,7 +285,7 @@ describe("the virtual column over a paged source", () => {
 		};
 	};
 
-	it("as a strip that has never shown rows, a following column's rail sits at the live edge, not at row one", async () => {
+	it("as a strip that has never shown rows, a following column's rail is placed at the live edge, not at row one", async () => {
 		const col = document.createElement("shu-virtual-column") as ShuVirtualColumn;
 		col.source = spy(100);
 		col.follow = true;
@@ -323,6 +323,6 @@ describe("the virtual column over a paged source", () => {
 		col.dispatchEvent(new CustomEvent(SCROLL_TO_INDEX, { detail: { index: 400, by: "press" }, bubbles: true, composed: true }));
 		await col.updateComplete;
 		expect(src.requested.at(-1)?.[0], "the rows from where the rail was dragged to").toBe(400);
-		expect(moves.at(-1), "and the strip reports where its window went, over the whole run").toMatchObject({ first: 400, total: 1000 });
+		expect(moves.at(-1), "and the strip reports where its window moved, over all of actuality").toMatchObject({ first: 400, total: 1000 });
 	});
 });

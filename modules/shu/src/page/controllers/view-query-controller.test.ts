@@ -4,7 +4,7 @@
  * restore the exact view. These pin the two invariants that guarantee it: (1) object round-trip:
  * parse(serialize(q)) deep-equals q for any valid query; (2) canonical string round-trip:
  * serialize(parse(h)) === h for a canonical hash. Plus fail-fast: a malformed param throws, never
- * silently resets (no `|| default`, no `parseInt || 0`).
+ * silently resets (the code doesn't write `|| default` or `parseInt || 0`).
  */
 import { newPage } from "../../test/setup.js";
 import { describe, expect, it, beforeEach } from "vitest";
@@ -59,14 +59,14 @@ describe("viewQuery serialize/parse", () => {
 });
 
 describe("the level a reader chose survives a reload", () => {
-	// The hash is where a reload reads the level from, and what it omits it reads back as the level a reader opens on.
+	// A reload reads the level from the hash, and what the hash omits it reads back as the level at which a reader opens.
 	// Written for one level and read back as another, a deliberate narrowing was replaced by every level on reload.
 	it.each(["private", "public", "opened", "all"])("round-trips %s", (access) => {
 		const parsed = parseViewQuery(serializeViewQuery(ViewQuerySchema.parse({ access })));
 		expect(parsed.access).toBe(access);
 	});
 
-	it("reads an absent level as the one appAccessLevel opens on, so the two agree", () => {
+	it("reads an absent level as the one at which appAccessLevel opens, so the two match", () => {
 		expect(parseViewQuery("").access).toBe(appAccessLevel());
 	});
 });

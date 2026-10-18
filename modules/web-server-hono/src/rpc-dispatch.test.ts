@@ -42,7 +42,7 @@ const [PROBE_PREFIX, PROBE_NAME, PROBE_ACTION] = ["probe.", "held", "Probe:held"
 const PROBE_METHOD = `${PROBE_PREFIX}${PROBE_NAME}`;
 
 class PingStepper extends AStepper {
-	description = "Steps that answer a ping, one of them protected and one gated by an admin capability.";
+	description = "Steps that respond to a ping, one of them protected and one gated by an admin capability.";
 	cycles = declaresTestDomains();
 	steps = {
 		ping: { gwta: "ping", productsDomain: TEST_DOMAIN.pong, action: async () => actionOKWithProducts({ pong: true }) },
@@ -59,10 +59,10 @@ class PingStepper extends AStepper {
 			gwta: "serve the probe family",
 			action: () => {
 				const webserver = getFromRuntime<IWebServer>(this.getWorld().runtime, WEBSERVER);
-				// A family's method answers with what the call holds and the level it reads at, inside the call.
+				// A family's method returns what the call holds and the level at which it reads, inside the call.
 				webserver.addRpcMethods(
 					PROBE_PREFIX,
-					{ description: "answers what a call holds" },
+					{ description: "returns what a call holds" },
 					{ [PROBE_NAME]: { action: PROBE_ACTION, handle: async () => ({ held: authorizedWith(), at: readingAt() ?? "unbounded" }) } },
 				);
 				return OK;
@@ -82,10 +82,10 @@ class PingStepper extends AStepper {
 	};
 }
 
-/** The header that follows the stream of the host at `base` for the actuality its handshake answers. */
+/** The header that follows the stream of the host at `base` for the actuality its handshake returns. */
 const following = async (base: string): Promise<Record<string, string>> => ({ [ACTUALITY_HEADER]: await actualityAt(base) });
 
-/** A call's envelope to `url`, stating the actuality the host at `url` answers its handshake with. */
+/** A call's envelope to `url`, stating the actuality that the handshake of the host at `url` returns. */
 async function rpcBody(url: string, fields: { method: string } & Record<string, unknown>): Promise<string> {
 	return JSON.stringify({ jsonrpc: "2.0", protocol: RPC_PROTOCOL, id: "1", params: {}, ...fields, actualityId: await actualityAt(new URL(url).origin) });
 }
@@ -99,7 +99,7 @@ async function shownSteps(url: string, holder?: string): Promise<TStepDefinition
 	return readShownSteps(await res.json(), EVERY_DEFINITION.detail).steps;
 }
 
-/** A call to `method` at `url`, signed by `holder` for `action` where a holder is named, asking to read at `readingAt`
+/** A call to `method` at `url`, signed by `holder` for `action` where a holder is named, requesting a read at `readingAt`
  *  where it names one. */
 async function postRpc(url: string, method: string, signer?: { holder: string; action: string }, readingAt?: string): Promise<Response> {
 	const body = await rpcBody(url, { method, seqPath: [0, 1, 1, 1], ...(readingAt ? { readingAt } : {}) });
@@ -107,14 +107,14 @@ async function postRpc(url: string, method: string, signer?: { holder: string; a
 	return fetch(url, { method: "POST", headers: signer ? await new FakeInvoker(signer.holder).sign({ method: "POST", url, headers, body }, signer.action) : headers, body });
 }
 
-/** The level a call of `url` read at, where it was answered. */
+/** The level at which a call of `url` read, where the host served it. */
 async function readAtLevel(res: Response): Promise<string> {
 	const data = (await res.json()) as { at?: string; error?: string };
 	if (!res.ok || data.error) throw new Error(`the read was refused: ${res.status} ${JSON.stringify(data)}`);
 	return String(data.at);
 }
 
-/** Open actuality's event stream at `url`, signed by `holder` for `action` where a holder is named, and answer its status. */
+/** Open actuality's event stream at `url`, signed by `holder` for `action` where a holder is named, and return its status. */
 async function openStream(base: string, signer?: { holder: string; action: string }): Promise<number> {
 	const url = `${base}${SSE_ROUTE}`;
 	const headers = { ...(await following(base)), ...(signer ? await new FakeInvoker(signer.holder).sign({ method: "GET", url, headers: {} }, signer.action) : {}) };
@@ -132,15 +132,15 @@ const SENT_LEVELS = [Access.public, Access.opened, Access.private];
 
 /**
  * Follow actuality's event stream at `url` as `signer`, send an event at each access level through `transport` and then
- * the end marker, and answer the levels of the events the follower was sent. The stream subscribes before it answers,
- * so what is sent after the answer arrives reaches it.
+ * the end marker, and return the levels of the events the follower was sent. The stream subscribes before it responds,
+ * so what is sent after the response arrives reaches it.
  */
 async function levelsFollowed(base: string, signer: { holder: string; action: string }, transport: ITransport): Promise<string[]> {
 	const url = `${base}${SSE_ROUTE}`;
 	const headers = { ...(await following(base)), ...(await new FakeInvoker(signer.holder).sign({ method: "GET", url, headers: {} }, signer.action)) };
 	const stopped = new AbortController();
 	const res = await fetch(url, { headers, signal: stopped.signal });
-	if (res.status !== 200 || !res.body) throw new Error(`the stream answered ${res.status}`);
+	if (res.status !== 200 || !res.body) throw new Error(`the stream responded ${res.status}`);
 	const event = (id: string, accessLevel: AccessLevel) => LogEvent.parse({ id, timestamp: Date.now(), kind: "log", level: "info", message: id, accessLevel });
 	for (const level of SENT_LEVELS) transport.sendEvent(event(level, level));
 	transport.sendEvent(event(FOLLOWED_TO_HERE, Access.public));
@@ -168,7 +168,7 @@ async function levelsFollowed(base: string, signer: { holder: string; action: st
 }
 
 class RpcVerifyStepper extends AStepper {
-	description = "Steps that call a run over RPC and check what it answers.";
+	description = "Steps that call a run over RPC and check what it returns.";
 	cycles = declaresTestDomains();
 	private heldStream?: ReadableStreamDefaultReader<Uint8Array>;
 	private heldCall?: AsyncGenerator<TStreamChunk>;
@@ -217,7 +217,7 @@ class RpcVerifyStepper extends AStepper {
 					return actionNotOK(`the call wasn't refused naming the actuality held, offering to read it again: ${JSON.stringify(called)}`);
 				return streamed.status === 400 && JSON.stringify(streamRefusal) === JSON.stringify(refused)
 					? OK
-					: actionNotOK(`the stream answered ${streamed.status}: ${JSON.stringify(streamRefusal)}`);
+					: actionNotOK(`the stream responded ${streamed.status}: ${JSON.stringify(streamRefusal)}`);
 			},
 		},
 		rpcReadOfStepRefused: {
@@ -229,7 +229,7 @@ class RpcVerifyStepper extends AStepper {
 					body: await rpcBody(String(url), { method: String(method), seqPath: [0, 1, 1, 1], asks: "read" }),
 				});
 				const data = (await res.json()) as { error?: string };
-				if (res.status !== REFUSED_CALL_STATUS) return actionNotOK(`answered a read of a step that declares none: HTTP ${res.status}`);
+				if (res.status !== REFUSED_CALL_STATUS) return actionNotOK(`served a read of a step that doesn't declare itself a read: HTTP ${res.status}`);
 				return typeof data.error === "string" && data.error.includes("does not declare itself one") ? OK : actionNotOK(`refused without stating why: ${JSON.stringify(data)}`);
 			},
 		},
@@ -280,7 +280,7 @@ class RpcVerifyStepper extends AStepper {
 				if (!res.ok) return actionNotOK(`HTTP ${res.status}: ${await res.text()}`);
 				const data = await res.json();
 				if (data.error) return actionNotOK(data.error);
-				return data.pong === true ? OK : actionNotOK(`Expected the protected ping answered, got ${JSON.stringify(data)}`);
+				return data.pong === true ? OK : actionNotOK(`Expected the protected ping to return pong, got ${JSON.stringify(data)}`);
 			},
 		},
 		rpcCallDeniedForCapability: {
@@ -346,14 +346,14 @@ class RpcVerifyStepper extends AStepper {
 			gwta: `event stream at {url: ${DOMAIN_LINK}} presenting nothing answers {status: ${DOMAIN_NUMBER}}`,
 			action: async ({ url, status }: TStepArgs) => {
 				const answered = await openStream(String(url));
-				return answered === Number(status) ? OK : actionNotOK(`answered ${answered}`);
+				return answered === Number(status) ? OK : actionNotOK(`responded ${answered}`);
 			},
 		},
 		streamAnswersSigned: {
 			gwta: `event stream at {url: ${DOMAIN_LINK}} signed by {holder: ${DOMAIN_FAKE_HOLDER}} for {action: ${TEST_DOMAIN.action}} answers {status: ${DOMAIN_NUMBER}}`,
 			action: async ({ url, holder, action, status }: TStepArgs) => {
 				const answered = await openStream(String(url), { holder: String(holder), action: String(action) });
-				return answered === Number(status) ? OK : actionNotOK(`answered ${answered}`);
+				return answered === Number(status) ? OK : actionNotOK(`responded ${answered}`);
 			},
 		},
 		streamSendsLevels: {
@@ -361,7 +361,7 @@ class RpcVerifyStepper extends AStepper {
 			action: async ({ url, holder, action, levels }: TStepArgs) => {
 				const transport = this.getWorld().runtime[TRANSPORT] as ITransport;
 				const sent = await levelsFollowed(String(url), { holder: String(holder), action: String(action) }, transport);
-				return sent.join(",") === String(levels) ? OK : actionNotOK(`was sent the events at ${sent.join(",") || "no level"}`);
+				return sent.join(",") === String(levels) ? OK : actionNotOK(`the follower was sent the events at levels [${sent.join(",")}]`);
 			},
 		},
 		holdEventStream: {
@@ -370,7 +370,7 @@ class RpcVerifyStepper extends AStepper {
 				const at = `${String(url)}${SSE_ROUTE}`;
 				const headers = { ...(await following(String(url))), ...(await new FakeInvoker(String(holder)).sign({ method: "GET", url: at, headers: {} }, String(action))) };
 				const res = await fetch(at, { headers });
-				if (res.status !== 200 || !res.body) return actionNotOK(`the stream answered ${res.status}`);
+				if (res.status !== 200 || !res.body) return actionNotOK(`the stream responded ${res.status}`);
 				this.heldStream = res.body.getReader();
 				return OK;
 			},
@@ -379,7 +379,7 @@ class RpcVerifyStepper extends AStepper {
 			gwta: "held event stream ends",
 			action: async () => {
 				const reader = this.heldStream;
-				if (!reader) return actionNotOK("no event stream is held");
+				if (!reader) return actionNotOK("an event stream isn't held");
 				while (!(await reader.read()).done);
 				return OK;
 			},
@@ -394,7 +394,7 @@ class RpcVerifyStepper extends AStepper {
 					headers: await new FakeInvoker(String(holder)).sign({ method: "POST", url: String(url), headers, body }, String(action)),
 					body,
 				});
-				if (!res.body) return actionNotOK(`the call answered ${res.status} with no stream`);
+				if (!res.body) return actionNotOK(`the call responded ${res.status} without a stream`);
 				this.heldCall = readNdjson<TStreamChunk>(res.body);
 				const first = await this.heldCall.next();
 				return first.value?.status === "held" ? OK : actionNotOK(`the call was not held open: ${JSON.stringify(first.value)}`);
@@ -403,7 +403,7 @@ class RpcVerifyStepper extends AStepper {
 		heldCallEnds: {
 			gwta: `held streamed call ends with {reason: ${DOMAIN_TEXT}}`,
 			action: async ({ reason }: TStepArgs) => {
-				if (!this.heldCall) return actionNotOK("no streamed call is held");
+				if (!this.heldCall) return actionNotOK("a streamed call isn't held");
 				const rest: TStreamChunk[] = [];
 				for await (const chunk of this.heldCall) rest.push(chunk);
 				return rest.at(-1)?.error === String(reason) ? OK : actionNotOK(`ended with ${JSON.stringify(rest)}`);
@@ -580,10 +580,10 @@ run narrated the call that acted on it and not the call that read it
 		expect(result.ok).toBe(true);
 	});
 
-	it("answers a read of a step that declares itself one, and refuses to answer a read of a step that does not", async () => {
-		// A read is answered and doesn't leave a record of the reading, so what may be read that way is what the step itself
-		// declares. Asked to read a step that doesn't declare itself a read, actuality refuses rather than answering and recording the
-		// reading as something it did, which is a run that writes about being read for as long as a page follows it.
+	it("serves a read of a step that declares itself one, and refuses a read of a step that doesn't", async () => {
+		// A read is served and doesn't leave a record of the reading, so the step itself declares what may be read that way.
+		// Actuality refuses a read of a step that doesn't declare itself a read, rather than serving it and recording the reading
+		// as something it did. Such a record would write about being read for as long as a page follows it.
 		const port = await freePort();
 		const feature = {
 			path: "/features/test.feature",
@@ -602,7 +602,7 @@ rpc read at "http://localhost:${port}/rpc/Nowhere-nothing" of "Nowhere-nothing" 
 
 	it("refuses a call presenting authority that actuality can't verify, as unauthenticated, and doesn't run a step", async () => {
 		// A proof that isn't checked doesn't grant an action, and a request running with an empty grant would still run every
-		// step that doesn't ask for a capability, so a request presenting one is refused whole.
+		// step that doesn't require a capability, so a request presenting one is refused whole.
 		const port = await freePort();
 		const feature = {
 			path: "/features/test.feature",
@@ -700,7 +700,7 @@ probe family at "http://localhost:${port}/rpc/${PROBE_METHOD}" presenting nothin
 		expect(result.ok, JSON.stringify(result.failure ?? "")).toBe(true);
 	});
 
-	it("bounds what a caller reads by the broadest read it holds, and by the level it asks for, which can only be narrower", async () => {
+	it("bounds what a caller reads by the broadest read it holds, and by the level it requests, which can only be narrower", async () => {
 		const port = await freePort();
 		const url = `http://localhost:${port}/rpc/PingStepper-readsAt`;
 		const feature = {
@@ -806,7 +806,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "Pi
 					action: () => {
 						const registry = this.getWorld().runtime.stepRegistry;
 						const ping = registry?.get("PingStepper-ping");
-						if (!registry || !ping) return Promise.resolve(actionNotOK("actuality holds no ping to copy"));
+						if (!registry || !ping) return Promise.resolve(actionNotOK("actuality doesn't hold a ping to copy"));
 						registry.inject([{ ...ping, descriptor: { ...ping.descriptor, method: "Injected-ping", stepperName: "Injected", stepName: "ping" } }]);
 						return Promise.resolve(OK);
 					},
@@ -833,7 +833,7 @@ rpc call to "http://localhost:${port}/rpc/Injected-ping" with method "Injected-p
 		let second: number[] | undefined;
 
 		class BeginActionStepper extends AStepper {
-			description = "Begins an action over RPC twice, keeping the seqPath each answer states.";
+			description = "Begins an action over RPC twice, keeping the seqPath each response states.";
 			steps = {
 				callBeginActionTwice: {
 					gwta: `begin action twice at {url: ${DOMAIN_LINK}}`,
@@ -985,7 +985,7 @@ rpc call to "http://localhost:${port}/rpc/PingStepper-adminPing" with method "Pi
 							body: await rpcBody(String(url), { method: String(method), seqPath: [0, 1, 1, 1], stream: true }),
 						});
 						if (!res.ok) return actionNotOK(`HTTP ${res.status}`);
-						if (!res.body) return actionNotOK("no response body");
+						if (!res.body) return actionNotOK("the response doesn't have a body");
 						const reader = res.body.getReader();
 						const decoder = new TextDecoder();
 						let buf = "";
@@ -1048,7 +1048,7 @@ stream rpc call to "http://localhost:${port}/rpc/StreamingStepper-stream3" metho
 							headers: { "Content-Type": "application/json" },
 							body: await rpcBody(String(url), { method: String(method), seqPath: [0, 1, 1, 1], stream: true }),
 						});
-						if (!res.body) return actionNotOK("no response body");
+						if (!res.body) return actionNotOK("the response doesn't have a body");
 						const reader = res.body.getReader();
 						const decoder = new TextDecoder();
 						let buf = "";

@@ -1,8 +1,8 @@
 // @vitest-environment node
 // What a report carries, driven through the real writer and read back out of the compressed payload it embeds.
 // A report is the page with the actuality it reports held inside it: actuality in the client cache, the site's declarations
-// beside it, and the component bundles of the views that were open. It doesn't carry the answers a live page happened to
-// receive, since every read a view makes is answered from what the page holds.
+// beside it, and the component bundles of the views that were open. It doesn't carry the responses a live page happened to
+// receive, since every read a view makes is served from what the page holds.
 import { describe, it, expect } from "vitest";
 import type { IStepperCycles } from "@haibun/core/lib/astepper.js";
 import { readFileSync } from "node:fs";
@@ -40,7 +40,7 @@ function reportHydration(html: string): { cache: { registry?: { steps?: unknown[
 }
 
 /** A step that ran a graph query, as actuality records one: the argument it took carries the graph-query domain and the
- *  type the query named, whichever step a deployment answers queries with. */
+ *  type the query named, whichever step serves a deployment's queries. */
 const queryEvent = (stepperName: string, label: string) => ({
 	id: "0.2",
 	timestamp: 0,
@@ -55,7 +55,7 @@ const queryEvent = (stepperName: string, label: string) => ({
 });
 
 /** Generate a report with `finalView` (a domain key) as the final-view column, using the real GraphStepper domains.
- *  `writes` is how many reports the same run writes, since a run writes one whenever it is asked and one at its end. */
+ *  `writes` is how many reports the same run writes, since a run writes one on each request and one at its end. */
 async function generateReport(finalView: string | undefined, writes = 1, queries: Array<Record<string, unknown>> = []): Promise<string> {
 	const world = getDefaultWorld();
 	const shu = new ShuStepper();
@@ -72,7 +72,7 @@ async function generateReport(finalView: string | undefined, writes = 1, queries
 	for (const s of steppers) await s.setWorld(world, steppers);
 	world.runtime.steppers = steppers;
 	openRunRegistry(world, steppers);
-	// The step that showed the view, as actuality records it: what the report reads to know which column was open.
+	// The step that showed the view, as actuality records it: what the report reads to determine which column was open.
 	if (finalView)
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
 			id: "1700000000000-1.0.1",
@@ -103,14 +103,14 @@ describe("serialized report bundles an external component's JS iff its view is u
 	});
 });
 
-describe("a report carries actuality and the site's declarations, and doesn't carry a captured answer", () => {
-	it("carries the run's declarations, as a page reads them, and still does when the same run writes a second report", async () => {
+describe("a report carries actuality and the site's declarations, and doesn't carry a captured response", () => {
+	it("carries actuality's declarations, as a page reads them, and still does when actuality writes a second report", async () => {
 		const declared = (html: string) => (reportHydration(html).cache.registry as { steps: Array<{ method: string }> }).steps.map((step) => step.method);
 		expect(declared(await generateReport(undefined)), "the first report").toContain("MonitorStepper-savesShuTo");
 		expect(declared(await generateReport(undefined, 2)), "and the one written when actuality ends").toContain("MonitorStepper-savesShuTo");
 	});
 
-	it("carries what its views showed, and doesn't carry an answer a live page received", async () => {
+	it("carries what its views showed, and doesn't carry a response a live page received", async () => {
 		const carried = Object.keys(reportHydration(await generateReport(undefined)).viewProducts);
 		expect(
 			carried.filter((k) => k.includes("graphQuery")),
@@ -121,11 +121,11 @@ describe("a report carries actuality and the site's declarations, and doesn't ca
 });
 
 describe("a report opens on the type the reader was looking at", () => {
-	// Switching type in the actions bar runs a graph query, and the run records that step. The type is read from the
-	// argument's domain, so a deployment answering queries with its own step is read the same way as the inherent one.
+	// Switching type in the actions bar runs a graph query, and actuality records that step. The type is read from the
+	// argument's domain, so a deployment serving queries through its own step is read the same way as the inherent one.
 	const viewHash = (html: string): string | undefined => (reportHydration(html) as unknown as { viewHash?: string }).viewHash;
 
-	it("opens on the type the last query named, whichever step answered it", async () => {
+	it("opens on the type the last query named, whichever step served it", async () => {
 		expect(viewHash(await generateReport(undefined, 1, [queryEvent("MonitorStepper", "Comment")]))).toContain("label=Comment");
 		expect(viewHash(await generateReport(undefined, 1, [queryEvent("GraphStepper", "Email")]))).toContain("label=Email");
 	});

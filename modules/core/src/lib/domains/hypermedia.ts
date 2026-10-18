@@ -35,7 +35,7 @@ const BOUNDED_PRIMITIVE_KINDS = new Set(["number", "int", "boolean", "date", "en
 export type TBoundedPrimitiveKind = typeof BOUNDED_PRIMITIVE_KINDS extends Set<infer K> ? K : never;
 
 /** THE classification of a schema field's queryable kind (wrapper-unwrapped; a safe-int number reports "int").
- *  Consumers that must agree, the offered surface here, a store's column mapping, all read this one function. */
+ *  Consumers that must match, the offered surface here and a store's column mapping, all read this one function. */
 export function boundedPrimitiveKind(field: z.ZodType): TBoundedPrimitiveKind | undefined {
 	const { inner } = unwrap(field);
 	const def = (inner as { _zod?: { def?: { type?: string; format?: string } } })._zod?.def;
@@ -84,11 +84,11 @@ export function typeDescribedBy(domains: Record<string, TRegisteredDomain>, labe
  * An allowlist rather than a list of exceptions: a rel added later states a new kind of value, and a search reading
  * every rel it doesn't yet exclude would read that one. Times, a level, a place in a run and a media type each name
  * something about a record rather than its subject, and `tag` names a value that is only a value, so a search
- * reading any of them answers every record carrying the value named.
+ * reading any of them returns every record carrying the value named.
  *
  * `identifier` is absent. A type's identifier holds a handle a reader knows a record by, such as an address, and holds a
- * handle the system generated, such as a record's own sequence id. A search reading it answers an ordinary question
- * with the records of whatever asked it, since every record of a type carries ordinary words in its generated handle.
+ * handle the system generated, such as a record's own sequence id. A search reading it returns, for an ordinary term,
+ * every record of the type that requested it, since every record of a type carries ordinary words in its generated handle.
  * Separating the two needs a type to state which kind its identifier holds, which a topology doesn't state.
  */
 const SEARCHED_RELS: ReadonlySet<string> = new Set([
@@ -174,7 +174,7 @@ export function pointsThrough(surface: TQuerySurface): string[] {
 		.map(([relation, ranges]) => `${relation} (${ranges.join(DOMAIN_UNION)})`);
 }
 
-/** Which primitive reaches each property of a type, and the type each of its relations points at. A property reached two
+/** Which primitive reaches each property of a type, and the type at which each of its relations points. A property reached two
  *  ways states both. */
 export function querySurface(domain: { schema: z.ZodType | undefined; topology: THypermediaTopology }): TQuerySurface {
 	const reached: Array<[string, TReachedBy]> = [
@@ -219,7 +219,7 @@ type TPropertyConcern = z.infer<typeof PropertyConcernSchema>;
 const EdgeConcernSchema = z.object({
 	term: z.string(),
 	rel: RelSchema,
-	/** The types the edge may point at. */
+	/** The types at which the edge may point. */
 	targets: z.array(z.string()).min(1),
 	rolePriority: z.number().optional(),
 	/** Declared display phrase for the edge (rdfs:label), e.g. a consumer's "Issued by". */
@@ -247,10 +247,10 @@ const HypermediaConcernSchema = z.object({
 	queryable: z.array(z.string()).default([]),
 	/** The field carrying the type's VALID time, when the thing happened in the world (an email's received time, a
 	 *  file's own date; the declared defaultSort), as distinct from generatedAtTime, its INDEXED time. Every time-aware
-	 *  consumer reads this one derivation, so an individual places by its own time unless indexed time is asked for. */
+	 *  consumer reads this one derivation, so an individual places by its own time unless a reader requests indexed time. */
 	validTimeField: z.string(),
 	/** The property or edge that titles this type (`topology.displayLabel`): a property by its value, an edge by the
-	 *  title of the record it points at. Absent for a type titled by the cross-domain rdfs:label / as:name / content. */
+	 *  title of the record at which it points. Absent for a type titled by the cross-domain rdfs:label / as:name / content. */
 	displayLabel: z.string().optional(),
 	/** True when declared at runtime (`set of {domain} by …`) vs by a compiled stepper. */
 	declared: z.boolean().default(false),
@@ -348,7 +348,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 
 		// The domain's own description, carried onto its served schema: a type describes itself ONCE, and every surface:
 		// the type's view, a product's `_description`, a step's tool schema, reads that one text. A `.describe()` on the
-		// schema would be a second answer to the same question, free to drift from the one a reader is shown. Spread, never
+		// schema would be a second description of the same type, free to drift from the one a reader is shown. Spread, never
 		// mutated: jsonSchemaFor memoizes by schema identity, and schemas are shared.
 		const jsonSchema = { ...jsonSchemaFor(`type ${label}`, domain.schema, "output"), description: domain.description };
 
@@ -395,7 +395,7 @@ export function buildConcernCatalog(domains: Record<string, TRegisteredDomain>):
 const IRI_TO_REL: Record<string, TRel> = Object.fromEntries(Object.entries(REL_CONTEXT).map(([rel, iri]) => [iri, rel as TRel]));
 
 /** A JSON-LD @context as a feature declares a type by one: each term's IRI, or its IRI with its type and range, the
- *  terms a reader filters by, and the level the type's records are stored at. */
+ *  terms a reader filters by, and the level at which the type's records are stored. */
 export const HypermediaContextSchema = z.object({
 	"@context": z.record(z.string(), z.union([z.string(), z.object({ "@id": z.string(), "@type": z.string().optional(), range: z.string().optional() })])),
 	"@queryable": z.array(z.string()).optional(),
@@ -419,8 +419,8 @@ export type TLinkedData = {
  *
  * A view describes what a reader is looking at while they look at it. A store doesn't persist it, so it doesn't carry a vocabulary
  * type: a type states what a persisted resource is. It keeps its `@id`, since a reader of the block reads statements
- * about that subject, and every projection this system makes stays JSON-LD compatible. Members go under `items`, in the
- * order the view wants them read, and `totalItems` states how many the view holds.
+ * about that subject, and every projection this system makes stays JSON-LD compatible. `items` holds the members, in the
+ * order the view states for reading, and `totalItems` states how many the view holds.
  *
  * A collection built through `viewCollection` states its `name` and its count. A page's summary of a view states its
  * members under `items` and may state a name or a count. A page that carries fewer members states the page terms.
@@ -448,7 +448,7 @@ export const CallLinkSchema = z.object({
 export type TCallLink = z.infer<typeof CallLinkSchema>;
 
 /**
- * The fields a read answers a count in: how many records it found, and whether it stopped at a ceiling rather than
+ * The fields that hold a read's count: how many records it found, and whether it stopped at a ceiling rather than
  * reaching the end.
  *
  * Counting every record of a type is work that grows with the records, so a read counts to a ceiling and stops. A total
@@ -694,11 +694,11 @@ const DISPLAY_LABEL_WEAK: ReadonlyArray<{ rel: string; bare: boolean }> = [
 ];
 /**
  * Whether a declared label resolves THROUGH the property, to the label of the individual it points at, rather than
- * reading the property's own value. The rel's declared range decides, so a type states only WHICH property titles it,
+ * reading the property's own value. The rel's declared range determines it, so a type states only WHICH property titles it,
  * never how that property resolves.
  */
 /** What titles a type: the property or edge it declares (`topology.displayLabel`), and whether it is an edge, which
- *  titles it by the record it points at. */
+ *  titles it by the record at which it points. */
 export type TTitledBy = { key: string; through: boolean };
 
 /** Returns the property or edge that titles a type's records, where the type declares one (`topology.displayLabel`). */
@@ -980,9 +980,9 @@ export function getJsonLdContext(domains: Record<string, TRegisteredDomain>, hai
 	// CONTEXT, id via IDENTIFIER, item/select via linkRelFromSemantic) without a flat global collision.
 	//
 	// A term is ALSO emitted at the top level as a fallback for a type-less reference, but ONLY when every domain that
-	// declares it agrees on the same @id. A term that maps to differing IRIs across domains (e.g. `author` → schema:author
+	// declares it states the same @id. A term that maps to differing IRIs across domains (e.g. `author` → schema:author
 	// in one type but as:tag in another) is left OUT of the top level: a last-wins emission there would be
-	// non-deterministic (registration order decides the winner) and could give a type-less reference the wrong IRI. Such
+	// non-deterministic (registration order determines the winner) and could give a type-less reference the wrong IRI. Such
 	// a term is still resolved correctly under each type's scoped @context, which is what a 1.1 processor applies.
 	// The @context holds ONLY JSON-LD term definitions (a term → its IRI, `@type: @id` for links, a type-scoped @context).
 	// The ontology it describes: the rdfs:subClassOf / rdfs:subPropertyOf axioms and haibun's own `hbn:rel` presentation

@@ -28,7 +28,7 @@ function resetPanePrefs(): void {
 }
 
 beforeAll(() => {
-	installTestMediaQueries(); // the strip asks the viewport whether it is narrow or portrait; jsdom doesn't answer such a question
+	installTestMediaQueries(); // the strip reads whether the viewport is narrow or portrait from media queries, which jsdom doesn't evaluate
 	provideLayout(); // a pane observes its own size for the footprint it reserves when docked
 });
 
@@ -191,12 +191,12 @@ describe("shu-column-pane buttons", () => {
 		expect(again.hasAttribute("pinned")).toBe(true); // pin survives reload and re-asserts the attribute the pane strip's prune reads
 	});
 
-	it("forgets a closed column's width, minimize and pin, reopening one is a new column, not the dismissed one", async () => {
+	it("drops a closed column's width, minimize and pin, so reopening one is a new column, not the dismissed one", async () => {
 		await click(".pane-pin");
 		pane.setWidth(280);
 		pane.setMinimized(true);
 		await click(".pane-close"); // the reader dismisses the column
-		pagePreferences().flush(); // a write still owed must not put back what the close forgot
+		pagePreferences().flush(); // a pending write must not restore what the close dropped
 		const again = makePane(); // same label → same columnKey
 		document.body.appendChild(again);
 		await nextFrame(again);
@@ -233,13 +233,13 @@ describe("shu-column-pane buttons", () => {
 		document.dispatchEvent(new PointerEvent("pointermove", { bubbles: true, clientX: 400 }));
 		document.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
 		expect(pane.hasAttribute(SHU_ATTR.DATA_MAXIMIZED)).toBe(false);
-		expect((maximizeEvent as unknown as { maximized: boolean } | null)?.maximized).toBe(false); // the strip hears it, so the panes it hid come back
+		expect((maximizeEvent as unknown as { maximized: boolean } | null)?.maximized).toBe(false); // the strip receives it, so the panes it hid come back
 		expect(pane.style.flex).toBe("0 0 30.000%");
 	});
 
 	it("resize handle drag updates inline flex as the pointer moves and reports the width when it is released", () => {
 		// jsdom does not lay out, so offsetWidth starts at 0 and the drag's 160px is the whole width; the stated strip
-		// width is what those pixels become a share of.
+		// width is the whole of which those pixels become a share.
 		stripWidth(pane.parentElement as HTMLElement, 1000);
 		const handle = pane.shadowRoot?.querySelector(".resize-handle") as HTMLElement;
 		expect(handle).toBeTruthy();
@@ -359,7 +359,7 @@ describe("what a pane renders when it collapses", () => {
 		expect(pane.hasAttribute(SHU_ATTR.HAS_SPINE)).toBe(true);
 	});
 
-	it("answers the column's own view, not its spine view, when asked which child is the column", () => {
+	it("returns the column's own view, not its spine view, as the child that is the column", () => {
 		expect(pane.columnView?.tagName).toBe("DIV");
 	});
 
@@ -369,7 +369,7 @@ describe("what a pane renders when it collapses", () => {
 		let expanded = 0;
 		pane.addEventListener(SHU_EVENT.COLUMN_EXPAND, () => expanded++);
 		const spineBox = pane.shadowRoot?.querySelector(".pane-spine") as HTMLElement | null;
-		if (!spineBox) throw new Error("collapsed pane rendered no spine to click");
+		if (!spineBox) throw new Error("a collapsed pane didn't render a spine to click");
 		spineBox.click();
 		expect(expanded).toBe(1);
 	});
@@ -383,7 +383,7 @@ describe("what a pane renders when it collapses", () => {
 		expect(expanded).toBe(1);
 	});
 
-	it("leaves a control in the spine its own clicks, so using one is not asking for the column", async () => {
+	it("leaves a control in the spine its own clicks, so using one doesn't open the column", async () => {
 		const button = document.createElement("button");
 		(pane.querySelector(`[slot="${SPINE_SLOT}"]`) as HTMLElement).appendChild(button);
 		pane.setMinimized(true);
@@ -427,7 +427,7 @@ describe("a column whose spine is a narrow form of itself", () => {
 		expect(pane.hasAttribute(SHU_ATTR.HAS_SPINE), "and the strip is sized for a spine").toBe(true);
 	});
 
-	it("tells the column it is serving as the strip, which is how it knows to render narrow", async () => {
+	it("marks the column as serving as the strip, which makes it render narrow", async () => {
 		const pane = await spined();
 		expect(pane.columnView?.hasAttribute(SHU_ATTR.SPINE)).toBe(true);
 		pane.setMinimized(false);
@@ -440,7 +440,7 @@ describe("a column whose spine is a narrow form of itself", () => {
 		let expanded = 0;
 		pane.addEventListener(SHU_EVENT.COLUMN_EXPAND, () => expanded++);
 		const strip = pane.shadowRoot?.querySelector(".pane-spine") as HTMLElement | null;
-		if (!strip) throw new Error("a collapsed pane rendered no strip to click");
+		if (!strip) throw new Error("a collapsed pane didn't render a strip to click");
 		strip.click();
 		expect(expanded, "using the rail must not put the rows back under the reader").toBe(0);
 	});
@@ -450,7 +450,7 @@ describe("a column whose spine is a narrow form of itself", () => {
 		let expanded = 0;
 		pane.addEventListener(SHU_EVENT.COLUMN_EXPAND, () => expanded++);
 		const header = pane.shadowRoot?.querySelector(".pane-header") as HTMLElement | null;
-		if (!header) throw new Error("a collapsed pane rendered no header to click");
+		if (!header) throw new Error("a collapsed pane didn't render a header to click");
 		header.click();
 		expect(expanded).toBe(1);
 	});
@@ -458,7 +458,7 @@ describe("a column whose spine is a narrow form of itself", () => {
 	it("is opened again by the control that minimized it, which is the only way back when the strip keeps its clicks", async () => {
 		const pane = await spined();
 		const restore = pane.shadowRoot?.querySelector(`[data-testid="${SHU_TEST_IDS.COLUMN_PANE.MINIMIZE}"]`) as HTMLButtonElement | null;
-		if (!restore) throw new Error("a collapsed pane rendered no control to open it with");
+		if (!restore) throw new Error("a collapsed pane didn't render a control that opens it");
 		expect(restore.title, "and shows which way it goes").toBe("Restore");
 		restore.click();
 		await nextFrame(pane);
@@ -500,18 +500,18 @@ describe("a docked pane", () => {
 	const inShadow = (selector: string) => pane.shadowRoot?.querySelector(selector) as HTMLElement | null;
 	const press = async (selector: string) => {
 		const control = inShadow(selector);
-		if (!control) throw new Error(`nothing addresses ${selector}`);
+		if (!control) throw new Error(`an element doesn't match ${selector}`);
 		control.click();
 		await nextFrame(pane);
 	};
 
-	it("docks open from its control, tells the strip and its view, and returns to the strip from it", async () => {
+	it("docks open from its control, marks the strip and its view, and returns to the strip from it", async () => {
 		const told: boolean[] = [];
 		pane.addEventListener(SHU_EVENT.COLUMN_DOCK, (e) => told.push((e as CustomEvent).detail.docked));
 		await press(`[data-testid="${SHU_TEST_IDS.COLUMN_PANE.DOCK}"]`);
 		expect(pane.docked).toBe(true);
 		expect(pane.isCollapsed, "a pane the reader docks opens").toBe(false);
-		expect(view.hasAttribute(SHU_ATTR.DOCKED), "its view is told the axis it is laid out along").toBe(true);
+		expect(view.hasAttribute(SHU_ATTR.DOCKED), "its view holds the axis along which it is laid out").toBe(true);
 		await press(`[data-testid="${SHU_TEST_IDS.COLUMN_PANE.DOCK}"]`);
 		expect(pane.docked).toBe(false);
 		expect(view.hasAttribute(SHU_ATTR.DOCKED)).toBe(false);
@@ -555,7 +555,7 @@ describe("a docked pane", () => {
 		expect(pane.hasAttribute(SHU_ATTR.DATA_MAXIMIZED), "a drag of its edge ends the maximize").toBe(false);
 	});
 
-	it("asks to expand as a minimized column when its view's controls show", async () => {
+	it("requests to expand as a minimized column when its view's controls show", async () => {
 		pane.setMinimized(true);
 		await nextFrame(pane);
 		const asked: Event[] = [];
@@ -572,10 +572,10 @@ describe("a docked pane", () => {
 		await press(".pane-minimize");
 		expect(pane.isCollapsed).toBe(true);
 		expect(pane.hasAttribute(SHU_ATTR.DATA_MINIMIZED), "the column's remembered minimize is untouched").toBe(false);
-		expect(minimized, "and the address isn't told").toHaveLength(0);
+		expect(minimized, "and the address doesn't receive a minimize").toHaveLength(0);
 	});
 
-	it("doesn't ask to be the active pane when its view doesn't take activation", () => {
+	it("doesn't request to be the active pane when its view doesn't take activation", () => {
 		class ActingView extends HTMLElement {
 			static activates = false;
 		}

@@ -3,10 +3,10 @@
  *
  * A reader who is refused something needs to see why, and an operator deciding on an agent's request needs to see what
  * they themselves hold. Three things show that: the key this page signs as, the actions delegated to it, and the
- * principals this deployment knows.
+ * principals this deployment holds.
  *
- * Shown from the access indicator, beside the level a read is bounded by: a capability decides whether a question may
- * be put, the level decides how much of the answer comes back, and a reader is looking at both in one place.
+ * Shown from the access indicator, beside the level a read is bounded by: a capability determines whether a call may
+ * be made, the level determines how much of the result comes back, and a reader is looking at both in one place.
  */
 import { SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
@@ -35,7 +35,7 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 	#authority = new AuthorityController(this);
 	/** What holds here, read when the panel connects. */
 	readonly #held = new LoadController<TAuthority>(this, () => this.#authority.readOutcome());
-	/** How many items await the reader's decision, and the reference that leads to them. Set by the host, which hears
+	/** How many items await the reader's decision, and the reference that leads to them. Set by the host, which receives
 	 *  it from whichever extension reports it: the panel states the count in a row of its own beside the access level. */
 	awaiting = 0;
 	awaitingRef: { kind: TRefKind; target: Record<string, unknown> } | null = null;

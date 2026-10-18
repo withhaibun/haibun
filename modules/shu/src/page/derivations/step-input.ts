@@ -30,7 +30,7 @@ const DATE_TIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
 function validateAgainstSchema(value: unknown, schema: TJsonSchema, fieldPath: string): TFieldError[] {
 	const errors: TFieldError[] = [];
 	if (value === undefined || value === null || value === "") {
-		// Required-checking lives at the parent level (whether this node is
+		// The parent level checks whether a value is required (whether this node is
 		// required isn't knowable without context). Empty values short-circuit
 		// other checks since "must be a uri" on undefined is unhelpful noise.
 		return errors;

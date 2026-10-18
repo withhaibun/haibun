@@ -11,7 +11,7 @@
  * returns them to the end.
  *
  * Light DOM: entries are real children (test-id walks and text capture see them), styled by the host scope.
- * Carries the `chat-output` test id: the one output surface every mode's assertions already point at.
+ * Carries the `chat-output` test id: the one output surface that every mode's assertions already read.
  */
 import { type TemplateResult, html } from "lit";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
@@ -50,16 +50,16 @@ export class ShuActivityHistory extends ShuElement<typeof EmptyStateSchema> {
 		// they haven't read. The page's cursor is null while actuality is live, which wouldn't hold a place.
 		placeNow: () => this.#newestShown,
 	});
-	/** When the newest turn this view shows was asked. */
+	/** When the newest turn this view shows was sent. */
 	#newestShown: number | null = null;
-	/** The turns asked after the place this reader holds, which is what the history offers to take them to. */
+	/** The turns sent after the place this reader holds, which the history offers as a place to scroll. */
 	#turnsAfterThePlace = 0;
 	/** What the control last stated, so a render that doesn't change the arrived count leaves its text as it is. */
 	#stated = -1;
 	/** The press a reader who scrolled away takes back to the end, which states what arrived meanwhile. */
 	#arrived = this.#arrivedControl();
 	#conversation = new SignalController(this, conversationState, () => this.syncTranscript());
-	/** The current message is the active record, and the branch shown ends at the turn the next question replies to. */
+	/** The current message is the active record, and the branch shown ends at the turn to which the next question replies. */
 	#subject = new SubjectController(
 		this,
 		() => this.syncTranscript(),

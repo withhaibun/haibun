@@ -70,7 +70,7 @@ describe("shu-entity-column type and fields", () => {
 		expect(record?.querySelector(".json-disclosure")?.textContent, "the record is last, as JSON").toContain(`"${error}"`);
 	});
 
-	it("folds a field table that holds many fields behind a summary naming how many, and leaves a small one open", async () => {
+	it("collapses a field table that holds many fields behind a summary naming how many, and leaves a small one open", async () => {
 		const open = async (fields: Record<string, unknown>) => {
 			const el = document.createElement("shu-entity-column") as ShuEntityColumn;
 			document.body.appendChild(el);
@@ -84,7 +84,7 @@ describe("shu-entity-column type and fields", () => {
 		expect(await open({ extra: "one" }), "a small table stays open").not.toContain('data-testid="entity-fields-disclosure"');
 	});
 
-	it("shows a reference group's first targets and folds the rest behind a disclosure naming how many", () => {
+	it("shows a reference group's first targets and collapses the rest behind a disclosure naming how many", () => {
 		const targets = ["a", "b", "c", "d", "e", "f"];
 		expect(foldedTargets(targets)).toBe('a, b, c, d<details class="ref-more"><summary class="ref-more-count">2 more</summary>e, f</details>');
 		expect(foldedTargets(targets.slice(0, 4)), "a group within the threshold is listed whole").toBe("a, b, c, d");

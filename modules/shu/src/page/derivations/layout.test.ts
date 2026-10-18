@@ -9,7 +9,7 @@ describe("how tall a docked pane opens", () => {
 		expect(openAtProportion(0.5)).toBe(0.5);
 	});
 
-	it("opens at its default where the remembered height falls outside the bounds, and where it doesn't remember one", () => {
+	it("opens at its default where the kept height falls outside the bounds, and where it doesn't keep one", () => {
 		expect(openAtProportion(0.01)).toBe(PROPORTION.default);
 		expect(openAtProportion(0.99)).toBe(PROPORTION.default);
 		expect(openAtProportion(0)).toBe(PROPORTION.default);
@@ -30,7 +30,7 @@ describe("where a drag leaves a docked pane", () => {
 		expect(draggedHeight(300, 700, -2000, container)).toBe(container);
 	});
 
-	it("remembers a finished drag as a fraction, so the pane stays proportionate at another window size", () => {
+	it("keeps a finished drag as a fraction, so the pane stays proportionate at another window size", () => {
 		expect(draggedProportion(400, container)).toBe(0.4);
 		expect(draggedProportion(10, container)).toBe(PROPORTION.min);
 		expect(draggedProportion(990, container)).toBe(PROPORTION.max);

@@ -109,7 +109,7 @@ export const EntityColumnSchema = z.object({
 	 *  live fetch (undefined). Surfaced as a badge so a reader knows the view may be a stored copy, not freshly fetched. */
 	fromStore: z.enum(["cache", "offline"]).optional(),
 	/** Show annotations anchored in this body inline (on by default). When the body has annotations this renders the
-	 *  inline annotated view; off returns to the plain body iframe. Remembered per column via persistFields. */
+	 *  inline annotated view; off returns to the plain body iframe. Kept per column via persistFields. */
 	showAnnotations: z.boolean(),
 	/** Enter the inline annotated view to author the first annotation on a body that doesn't have one yet (transient). */
 	annotateMode: z.boolean(),
@@ -133,11 +133,11 @@ export const BreadcrumbSchema = z.object({ queryLabel: z.string(), columns: z.ar
 
 // --- Permissions ---
 
-/** What the permissions view remembers: whether the principals this deployment knows are shown. */
+/** What the permissions view keeps: whether the principals this deployment holds are shown. */
 export const PermissionsSchema = z.object({ showPrincipals: z.boolean() });
 
 export const PageKeySchema = z.object({
-	/** The page's key as a did:key: what a holder delegates to. */
+	/** The page's key as a did:key: the key to which a holder delegates. */
 	controller: z.string(),
 });
 
@@ -155,8 +155,8 @@ export const ResultTableSchema = z.object({
 	paginated: z.boolean(),
 });
 
-/** What a view states it shows, as the page's actions read it: the patterns, the level they are read at, and what the
- *  view knows of them. A view states it with `CONTEXT_CHANGE`, and the app checks it against this schema. */
+/** What a view states it shows, as the page's actions read it: the patterns, the level at which they are read, and what the
+ *  view holds of them. A view states it with `CONTEXT_CHANGE`, and the app checks it against this schema. */
 export const PageContextSchema = z.object({
 	patterns: ContextQuerySchema,
 	readLevel: AccessQueryLevelSchema,
@@ -168,15 +168,15 @@ export const PageContextSchema = z.object({
 });
 export type TPageContext = z.infer<typeof PageContextSchema>;
 
-/** A step a view asks the actions bar to open with `STEP_CHOOSE`: its method, the arguments it fixes, and whether the
+/** A step a view requests the actions bar to open with `STEP_CHOOSE`: its method, the arguments it fixes, and whether the
  *  step runs as soon as its caller mounts. */
 export const StepChoiceSchema = z.object({ method: z.string().min(1), args: z.record(z.string(), z.unknown()).optional(), auto: z.boolean().optional() });
 
 /** The context that goes with an active record: the patterns an ask about the record carries, and the access level
- *  they are read at. */
+ *  at which they are read. */
 export const BundleSchema = z.object({ patterns: ContextQuerySchema, accessLevel: AccessQueryLevelSchema });
 
-/** A question from the history asked again: its words, the records it was about, the turn it replied to, and whether it
+/** A question from the history sent again: its words, the records it was about, the turn it replied to, and whether it
  *  is sent as it was or put in the input to edit. Either way it replies where the question did, as a branch there. */
 export const QuestionForkSchema = z.object({ prompt: z.string().min(1), patterns: ContextQuerySchema, inReplyTo: z.string().optional(), send: z.boolean() });
 export type TQuestionFork = z.infer<typeof QuestionForkSchema>;
@@ -184,8 +184,8 @@ export type TBundle = z.infer<typeof BundleSchema>;
 
 // --- Actions bar ---
 
-/** The actions bar's modes. search browses and filters the graph, and is the default. step runs a haibun step. ask chats
- *  with a model, and the mode control offers it only where actuality registers an ask-capable step. */
+/** The actions bar's modes. search browses and filters the graph, and is the default. step runs a haibun step. The ask mode
+ *  converses with a model, and the mode control offers it only where actuality registers an ask-capable step. */
 export const BAR_MODES = ["search", "ask", "step"] as const;
 export const ActionsBarSchema = z.object({ mode: z.enum(BAR_MODES) });
 

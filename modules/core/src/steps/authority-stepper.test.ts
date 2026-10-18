@@ -45,7 +45,7 @@ class PingStepper extends AStepper {
 	};
 }
 
-/** The capability a held call rests on. */
+/** The capability on which a held call rests. */
 const HELD_ON = "urn:uuid:held-on";
 
 /** A variable that actuality sets. A narrowed statement names this variable. */

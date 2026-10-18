@@ -1,7 +1,7 @@
 /**
- * One specification, every windowed source. A column renders rows by index and does not know what is under it: a list
+ * One specification, every windowed source. A column renders rows by index and doesn't read what source holds them: a list
  * already in memory, pages fetched as a reader reaches them, or the window of a run over the records it wrote. A
- * difference between them is a difference in what a reader sees, so each answers these cases rather than carrying a
+ * difference between them is a difference in what a reader sees, so each passes these cases rather than carrying a
  * suite of its own.
  *
  * What is specified is the reading: how many rows there are, what the row at an index is, what a range that has been
@@ -11,7 +11,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import type { WindowedSource } from "../page/derivations/windowed-source.js";
 
-/** A source ready to read, over a known number of rows. `named` names a row the source answers, and `shouldName` is
+/** A source ready to read, over a known number of rows. `named` names a row the source returns, and `shouldName` is
  *  what the row at an index is called, so a case names which row it read rather than that it read something. */
 type TSourceUnderTest<T> = { source: WindowedSource<T>; named(row: T): string; shouldName(index: number): string; done?(): void | Promise<void> };
 
@@ -52,7 +52,7 @@ export function describeWindowedSource<T>(name: string, make: () => TSourceUnder
 			expect(source.count()).toBe(CONFORMANCE_ROWS);
 		});
 
-		it("answers every row of a range that has been read, in the order the rows are in", async () => {
+		it("returns every row of a range that has been read, in the order of the rows", async () => {
 			await source.ensureRange(0, source.count());
 			for (let i = 0; i < CONFORMANCE_ROWS; i++) expect(nameAt(i)).toBe(held.shouldName(i));
 		});
@@ -62,7 +62,7 @@ export function describeWindowedSource<T>(name: string, make: () => TSourceUnder
 			for (let i = MIDDLE; i < MIDDLE + WINDOW; i++) expect(nameAt(i)).toBe(held.shouldName(i));
 		});
 
-		it("answers undefined for an index outside the rows it has", async () => {
+		it("returns undefined for an index outside the rows it holds", async () => {
 			await source.ensureRange(0, source.count());
 			expect(source.rowAt(-1)).toBeUndefined();
 			expect(source.rowAt(CONFORMANCE_ROWS)).toBeUndefined();
@@ -74,7 +74,7 @@ export function describeWindowedSource<T>(name: string, make: () => TSourceUnder
 			expect(source.count()).toBe(CONFORMANCE_ROWS);
 		});
 
-		it("reads a range that runs past the end, and answers the rows within it", async () => {
+		it("reads a range that runs past the end, and returns the rows within it", async () => {
 			await source.ensureRange(CONFORMANCE_ROWS - 2, CONFORMANCE_ROWS + 50);
 			expect(nameAt(CONFORMANCE_ROWS - 1)).toBe(held.shouldName(CONFORMANCE_ROWS - 1));
 			expect(source.rowAt(CONFORMANCE_ROWS)).toBeUndefined();
@@ -94,7 +94,7 @@ export function describeWindowedSource<T>(name: string, make: () => TSourceUnder
 			}
 		});
 
-		it("stops telling a subscriber that has been dropped", async () => {
+		it("stops notifying a subscriber that has been dropped", async () => {
 			let told = 0;
 			const stop = source.subscribe(() => told++);
 			stop();
@@ -103,11 +103,11 @@ export function describeWindowedSource<T>(name: string, make: () => TSourceUnder
 		});
 
 		if (nature.pages === true) {
-			it("answers undefined for a row it has not read, so a column gives that row its place rather than a row it does not have", () => {
+			it("returns undefined for a row it has not read, so a column gives that row its place rather than a row it does not have", () => {
 				expect(source.rowAt(MIDDLE)).toBeUndefined();
 			});
 
-			it("tells a subscriber when the rows it fetched arrive", async () => {
+			it("notifies a subscriber when the rows it fetched arrive", async () => {
 				let told = 0;
 				const stop = source.subscribe(() => told++);
 				await source.ensureRange(MIDDLE, MIDDLE + WINDOW);

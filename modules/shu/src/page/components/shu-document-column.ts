@@ -1,7 +1,7 @@
 /**
  * <shu-document-column>: actuality as an academic-paper document: execution events rendered as headings, step lines,
  * prose, and embedded artifacts. It reads actuality the way every event view does (event-source): one source per level,
- * spanning the whole run by index, paged in as the reader reaches for a region, bounded in what it caches, live events
+ * spanning all of actuality by index, paged in as the reader reaches for a region, bounded in what it caches, live events
  * taking their place at the edge. One row per event. An event's blocks (document-blocks) are generated a page at a time
  * from the cached events of that page and given to the events they came from, so only what is cached is rendered and an
  * arbitrarily long run stays reachable from its first heading to its live edge, without requesting an event twice. Time-cursor
@@ -78,7 +78,7 @@ const MAX_FRAME_HOPS = 50;
 const FRAME_ORDINAL = /data-frame-ordinal="(\d+):(\d+)"/g;
 
 /** A mark on the rail for every step that failed, so a reader jumps to it in a long run without scrolling for it.
- *  The mark sits on the step's own row (its start, which carries its blocks), found from the end that failed. Its
+ *  The mark is placed on the step's own row (its start, which carries its blocks), found from the end that failed. Its
  *  glyph comes from the shared marker vocabulary, so a speculative try and a handed-out call are marked as what
  *  they are rather than as actuality failing. */
 function markersOf(rows: ReadonlyArray<{ index: number; event: TEventRecord }>): TScrollMarker[] {
@@ -98,8 +98,8 @@ type TDocWindow = { rows: Array<{ index: number; event: TEventRecord }>; marks: 
 export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	/** The instant this view shows, which is the page's time cursor or the moment `data-snapshot-time` states. */
 	readonly #timeline = new TimelineViewController(this);
-	// The run this view reads is the run at its level, spanning the whole run by index (event-source): the rail is the
-	// run's extent, any region of it pages in on demand, the cached pages are bounded, and live events take their place
+	// This view reads actuality at its level, spanning all of it by index (event-source): the rail is actuality's
+	// extent, any region of it pages in on demand, the cached pages are bounded, and live events take their place
 	// as they arrive. One source per level, shared across views, swapped when the level changes.
 	/** The reading this view reads, made when it connects: a view constructed and never connected would otherwise
 	 *  leave a reading of the actuality that a view doesn't read. */
@@ -143,7 +143,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 			/* A run of per-step screenshots flows as a grid of TILE-SIZED thumbnails across the column width: fixed ~160px
 			   minimum tracks (auto-fill caches the unused tracks, so a lone screenshot stays a tile instead of blowing up to
 			   the whole column), each frame stretching only to its track, wrapping to new rows. The strip spans the column;
-			   the tiles stay thumbnails, expanding is what the fullscreen click is for. */
+			   the tiles stay thumbnails, and the fullscreen click expands one. */
 			.thumb-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(160px, 100%), 1fr)); gap: var(--shu-space-2); margin-left: 32px; }
 			.thumb-row > * { margin: 0; }
 			shu-artifact-frame { margin: var(--shu-space-3) 0; }
@@ -157,7 +157,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		super(DocumentColumnSchema, { level: "log" });
 	}
 
-	/** When actuality began, as actuality source knows it: the epoch every row's raw time is measured from. */
+	/** When actuality began, as actuality's source holds it: the epoch from which every row's raw time is measured. */
 	get #first(): number {
 		return this.#run.extent().first ?? 0;
 	}
@@ -174,7 +174,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		this.#readRun();
 		// A framed row a reader clicked in another view requests the document to scroll to that instant and reveal the row.
 		this.autoListen(this, SHU_EVENT.CURSOR_TO_ROW, (e) => this.jumpToRow((e as CustomEvent<{ row: Element }>).detail.row));
-		// ←/→ from an expanded thumbnail: only this column can navigate the whole run: the off-screen frames are not in the DOM.
+		// ←/→ from an expanded thumbnail: only this column can navigate all of actuality, since the off-screen frames are not in the DOM.
 		this.autoListen(this, SHU_EVENT.FRAME_NAV, (e) => void this.#frameNav((e as CustomEvent<{ dir: number; from: HTMLElement }>).detail));
 	}
 
@@ -200,7 +200,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 			subscribe: (cb) => run().subscribe(cb),
 			markers: () => this.#marks,
 			// A row of zero height, taken from what the row renders rather than from the record behind it: a row without
-			// blocks doesn't draw, and every other row is measured when it renders. A virtualizer told which rows are
+			// blocks doesn't draw, and every other row is measured when it renders. A virtualizer given the rows that are
 			// empty estimates the rest steadily, which is what keeps the rail thumb from resizing as a reader scrolls.
 			// A page that is not built doesn't return a height, so rowSize doesn't build a page to return a row's height.
 			rowSize: (i) => {
@@ -261,7 +261,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 			renderRefBody(generateDocumentMarkdown(typed, artifactsByStep, this.state.level as THaibunLogLevel, this.#first).md, refContext),
 			SANITIZE_OPTS,
 		);
-		// Every artifact the index knows, by id: the ones recorded as events and the ones embedded in a step's products.
+		// Every artifact the index holds, by id: the ones recorded as events and the ones embedded in a step's products.
 		const artifactsById = new Map<string, TArtifactEvent>();
 		for (const list of artifactsByStep.values()) for (const a of list) artifactsById.set(a.id, a);
 		const blocks = finalizeBlocks(
@@ -278,7 +278,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 
 	/**
 	 * The rows of the window a reader is looking at, in index order: what the rail marks, the cursor and the summary
-	 * read. A row here is the record and where it sits, which is all any of those ask of it. What a row LOOKS like is
+	 * read. A row here is the record and its position, which is all that any of those read of it. What a row LOOKS like is
 	 * built a page at a time, when a page is rendered, so a window of any length is one read rather than the whole
 	 * document being written out on every update.
 	 */
@@ -299,7 +299,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 
 	protected willUpdate(): void {
 		// The window, its marks and the cursor's row derive from the reading once per change of it, rather than when the
-		// rail draws: the rail reads its marks on every frame a reader scrolls, and a cursor at the live edge doesn't sit on
+		// rail draws: the rail reads its marks on every frame a reader scrolls, and a cursor at the live edge isn't placed on
 		// a row. A move of the cursor finds its row by a binary search of the window's times.
 		const { rows, marks, timed } = this.#runs.derived;
 		this.#windowRows = rows;
@@ -317,8 +317,8 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		this.requestUpdate(); // refresh even when the value is unchanged (the setter no-ops an equal value)
 	}
 
-	/** A click in a row scrubs to that row. A click on a link to a heading of this document goes to that heading
-	 *  instead: the reader requested somewhere else in actuality, not for the moment they clicked in. A link naming
+	/** A click in a row scrubs to that row. A click on a link to a heading of this document scrolls to that heading
+	 *  instead: the reader requested another place in actuality, not the moment of the row they clicked. A link naming
 	 *  anything else is left alone, so a link out of the document still leads out of it. */
 	private onBlockClick(e: Event, rawTime: number): void {
 		const href = (e.composedPath().find((n) => n instanceof HTMLAnchorElement) as HTMLAnchorElement | undefined)?.getAttribute("href") ?? "";
@@ -326,7 +326,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		this.cursorToRow(rawTime);
 	}
 
-	/** Go to the heading a link names, and return whether the cached part of this document has one. The heading's own name is
+	/** Scroll to the heading a link names, and return whether the cached part of this document has one. The heading's own name is
 	 *  the handle, stamped on its block when the page was built (headingAnchor), so a feature can link to its own scenarios. */
 	#goToHeading(anchor: string): boolean {
 		if (anchor === "") return false;
@@ -369,7 +369,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		return rows.flatMap((row) => row.blocks.flatMap((b) => [...b.html.matchAll(FRAME_ORDINAL)].map((m) => ({ row, stamp: `data-frame-ordinal="${m[1]}:${m[2]}"` }))));
 	}
 
-	/** ←/→ from an expanded thumbnail: move to the previous/next thumbnail in the WHOLE run, not just the rendered window.
+	/** ←/→ from an expanded thumbnail: move to the previous/next thumbnail in ALL of actuality, not just the rendered window.
 	 *  Each frame carries its page and ordinal in it, stamped at build; the neighbour is found in the same page, or the
 	 *  next page with a thumbnail in that direction is delivered in and its nearest end taken; the row is scrolled into the
 	 *  virtualizer's window and its rendered frame expanded once it exists. */
@@ -445,7 +445,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 
 	private onLevelChange(e: Event): void {
 		this.setState({ level: (e.target as HTMLSelectElement).value as THaibunLogLevel });
-		this.#readRun(); // another level is another run source: the run at that level
+		this.#readRun(); // another level is another source: actuality at that level
 	}
 }
 

@@ -47,7 +47,7 @@ describe("a view's place on the timeline", () => {
 		expect(view.cursor, "and the page's again once they return to the live edge").toBe(LATER);
 	});
 
-	it("tells its host the page's cursor moved only while it tracks, so playing a run leaves a held view alone", () => {
+	it("notifies its host that the page's cursor moved only while it tracks, so playing a run leaves a held view alone", () => {
 		let moves = 0;
 		const view = mount(undefined, () => {
 			moves += 1;

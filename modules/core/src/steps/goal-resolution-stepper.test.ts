@@ -44,7 +44,7 @@ class AuthStepper extends AStepper implements IHasCycles {
 /**
  * Composite-decomposition fixture. `CompositeStepper.produceComposite` takes a composite input whose `session` field
  * ranges over a registered fact domain. `AuthStepper.signIn` produces that domain. The resolver decomposes the `session`
- * field when composite decomposition is on. It emits the chain `signIn → composite binding → produceComposite` and
+ * field when composite decomposition is enabled. It emits the chain `signIn → composite binding → produceComposite` and
  * doesn't flatten the composite into one opaque argument.
  */
 const CompositeInputSchema = z.object({ session: z.string(), label: z.string() });

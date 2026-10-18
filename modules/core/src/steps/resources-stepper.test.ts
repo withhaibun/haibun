@@ -31,7 +31,7 @@ describe("ResourcesStepper comment (reply-threaded)", () => {
 		const commentId = result.products?.commentId as string;
 		expect(commentId).toBeTruthy();
 
-		// narrate is a sub-property of inReplyTo: it grounds the comment and threads it on what it is about.
+		// narrate is a sub-property of inReplyTo: it grounds the comment and threads it on its subject.
 		const replyQuads = await store.query({ subject: commentId, predicate: LinkRelations.NARRATE.rel });
 		expect(replyQuads.length).toBe(1);
 		expect(itemAt(replyQuads, 0).object).toBe("letter-1");

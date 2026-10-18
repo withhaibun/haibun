@@ -71,7 +71,7 @@ export type TRun = {
 	writing: Promise<unknown>;
 };
 
-/** The arguments an instance was launched with. restartInstance launches the same instance again from them. */
+/** The arguments with which an instance was launched. restartInstance launches the same instance again from them. */
 type TLaunch = { dir: string; config: string; port: number; hostId: number };
 
 /** Whether a run is running or ended. */
@@ -85,7 +85,7 @@ const DOMAIN_INSTANCE_STARTED = "instance-started";
 const InstancesSchema = z.object({
 	instances: z
 		.array(z.object({ hostId: z.number(), origin: z.string(), label: z.string() }))
-		.describe("Each instance this process launched and still supervises: its host id, its origin, and the directory it was launched from."),
+		.describe("Each instance this process launched and still supervises: its host id, its origin, and the directory from which it was launched."),
 	runs: z.array(z.object({ run: z.string(), status: z.string() })).describe("Each run this process started, and whether it is running or ended."),
 });
 
@@ -110,7 +110,7 @@ function configIn(doing: string, where: string): { dir: string; config: string }
 export default class InstanceStepper extends AStepper implements IHasCycles {
 	description = "Start and supervise sibling haibun instances (forked cli.js, readiness via action.begin, terminated at endFeature)";
 
-	/** The steppers this process was set up with. Their declarations name the options a child doesn't inherit. */
+	/** The steppers this process holds. Their declarations name the options a child doesn't inherit. */
 	private steppers: AStepper[] = [];
 	/** The origins of the sign-ins this process holds. endFeature releases them when it terminates the children. */
 	private readonly signedInAt = new Set<string>();
@@ -198,7 +198,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			gwta: `start a haibun run of {where: ${DOMAIN_FILE_PATH}} matching {filter: ${RUN_DOMAIN.featureFilter}} from {from: ${DOMAIN_FILE_PATH}} on port {port: ${DOMAIN_NUMBER}} as run {run: ${RUN_DOMAIN.name}} host {hostId: ${DOMAIN_NUMBER}}`,
 			capability: SUPERVISOR_CAPABILITIES.run,
 			description:
-				"Run features from a directory in a child of this process. The filter selects the features. The step doesn't await the child, so the caller can watch it while it executes (see `read the haibun run`). The child starts in the `from` directory, because a config's relative stepper paths and a base's served files resolve against the directory a run starts in. That directory is usually the base itself. For a base whose runs start in its parent directory, it is that parent. The child's web server takes the given port, so two runs can execute at once without both taking a default port. Port zero leaves a run on the ports its features declare. With host zero, a run ends when its features finish. With a host above zero, a run stays up and takes that host id, and this process registers its steps. A caller then calls one of those steps as `on host {id}, <step>`, without a second calling mechanism. A run that stays up needs a port of its own, since a caller can't reach a run that doesn't have an address.",
+				"Run features from a directory in a child of this process. The filter selects the features. The step doesn't await the child, so the caller can watch it while it executes (see `read the haibun run`). The child starts in the `from` directory, because a config's relative stepper paths and a base's served files resolve against the directory in which a run starts. That directory is usually the base itself. For a base whose runs start in its parent directory, it is that parent. The child's web server takes the given port, so two runs can execute at once without both taking a default port. Port zero leaves a run on the ports its features declare. With host zero, a run ends when its features finish. With a host above zero, a run stays up and takes that host id, and this process registers its steps. A caller then calls one of those steps as `on host {id}, <step>`, without a second calling mechanism. A run that stays up needs a port of its own, since a caller can't reach a run that doesn't have an address.",
 			productsDomain: RUN_DOMAIN.started,
 			action: async ({ where, filter, from, port, run, hostId }: { where: string; filter: string; from: string; port: number; run: string; hostId: number }) => {
 				const standing = hostId > 0;

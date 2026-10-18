@@ -36,7 +36,7 @@ function makeDomains(): Record<string, TRegisteredDomain> {
 
 function graphIssuingPermit(): TDomainChainGraph {
 	// One step produces signed-permit from permit. permit doesn't have a producer. The resolver decomposes permit as a
-	// composite leaf where composite decomposition is on.
+	// composite leaf where composite decomposition is enabled.
 	return {
 		domains: [
 			{ key: "permit", hasTopology: true },

@@ -6,7 +6,7 @@
  * Drives the end-to-end "spa renders ui-extension components" pipeline:
  *   - ui flows through TDomainDefinition → TRegisteredDomain → concern catalog.
  *   - SPA's whenSiteMetadataReady resolves; loadUiExtensions imports the JS.
- *   - Custom element renders inside shu-actions-bar in ask mode.
+ *   - Custom element renders inside shu-actions-bar in the `ask` mode.
  *
  * Used by tests/features/voice-ui.feature.ts.
  */

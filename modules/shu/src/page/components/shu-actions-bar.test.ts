@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 /**
  * The actions bar reads the page's state wherever it is placed: the context a view states and a step a view chooses. It
- * is not told them by the app through its place in the page. It is a pane's view, so it opens its pane for a chosen
- * step, and its scope of the active record follows its pane. What its search describes goes to the page strip.
+ * doesn't receive them from the app through its place in the page. It is a pane's view, so it opens its pane for a chosen
+ * step, and its scope of the active record follows its pane. The page strip shows what its search describes.
  */
 import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
@@ -27,7 +27,7 @@ import { CHAT_STEP, chatDispatch } from "../ask/components/chat-pane.test-fake.j
 
 provideLayout();
 
-/** The run the bar reads: it offers the step an ask runs, so a chosen Ask mode renders, declares one type to search, and
+/** The actuality the bar reads: it offers the step an ask runs, so a chosen ask mode renders, declares one type to search, and
  *  doesn't declare an extension for the bar. */
 /** The page's site declares the values its records hold for a context field, and doesn't respond, as a report's doesn't. */
 const SELECT_VALUES = "getSelectValues";
@@ -70,7 +70,7 @@ describe("the actions bar reads the page's state", () => {
 	let teardown: () => void;
 	beforeEach(() => {
 		teardown = setupShuTest({ dispatch: AN_ASK_AND_A_TYPE }).teardown;
-		// The page is a record of actuality, so what the bar reports doesn't go to a server.
+		// The page is a record of actuality, so the bar doesn't send its reports to a server.
 		carryAnActuality();
 		document.body.innerHTML = "";
 		pageContext.set(null);

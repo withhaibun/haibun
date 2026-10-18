@@ -46,5 +46,5 @@ export function revealInDocument(element: Element, { block, inline, behavior }: 
 	}
 }
 
-/** How far a scroller at `at` moves when asked to move `by`, since it stops at 0 and at `most`. */
+/** How far a scroller at `at` moves on a request to move `by`, since it stops at 0 and at `most`. */
 const clampedScroll = (at: number, by: number, most: number): number => Math.min(Math.max(at + by, 0), Math.max(most, 0)) - at;

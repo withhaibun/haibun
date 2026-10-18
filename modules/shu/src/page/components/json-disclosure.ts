@@ -6,7 +6,7 @@
  * there in full either way. Every other disclosure starts open, and every part of the value is shown.
  *
  * What this adds over printing the JSON is structure: each object and array is named, states what it holds, and indents
- * under what it belongs to, so a reader can follow it and can collapse the parts they are done with. The disclosure is
+ * under its container, so a reader can follow it and can collapse the parts they have read. The disclosure is
  * the browser's own, as every other disclosure here is.
  */
 import { jsonCarried } from "@haibun/core/lib/domains/json-text.js";
@@ -15,7 +15,7 @@ import { esc, escAttr } from "../derivations/markdown.js";
 /** The test id of the whole record as JSON. */
 export const RECORD_JSON = "record-json";
 
-/** The vocabulary a record is written in. It is there in full, under a disclosure that starts closed: a reader reads
+/** The vocabulary of a record. It is there in full, under a disclosure that starts closed: a reader reads
  *  what a record holds first, and opens what its terms mean when that is the question. */
 const WRITTEN_IN = "@context";
 
@@ -29,7 +29,7 @@ function holds(value: object): string {
 /**
  * One value, written so its type is visible: a string in quotes, a number bare, `null` as null. A record holding the
  * string "3" and one holding the number 3 read differently, because they are different, and a reader deciding what a
- * run did cannot be left to guess which they are looking at.
+ * run did cannot be left to guess which of the two they are reading.
  */
 function scalar(value: unknown): string {
 	if (value === null) return "null";
@@ -57,7 +57,7 @@ export function jsonDisclosure(value: unknown, name = ""): string {
 }
 
 /** The whole of a record as JSON, last in the view that shows it, so what the view's fields leave out reads there. It starts
- *  closed where a body follows it, so the body keeps the height it reads in. */
+ *  closed where a body follows it, so the body keeps the height in which it reads. */
 export const recordJson = (value: unknown, open: boolean): string =>
 	`<details class="record-json"${open ? " open" : ""} data-testid="${RECORD_JSON}"><summary>Data</summary>${jsonDisclosure(value)}</details>`;
 

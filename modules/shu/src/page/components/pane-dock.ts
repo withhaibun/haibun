@@ -129,7 +129,7 @@ export class PaneDock implements ReactiveController {
 		});
 	}
 
-	/** Remembers the dragged height as a bounded share of the container, so the pane keeps its proportion at any size. */
+	/** Keeps the dragged height as a bounded share of the container, so the pane keeps its proportion at any size. */
 	#onResizeEnd(): void {
 		const drag = this.#drag;
 		this.#drag = null;

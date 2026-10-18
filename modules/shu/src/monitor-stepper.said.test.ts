@@ -15,16 +15,16 @@ import MonitorStepper from "./monitor-stepper.js";
 const said = (over: Partial<THaibunEvent> = {}): THaibunEvent =>
 	({ id: "0.1.2", timestamp: 1700, kind: "log", level: "warn", message: "what it said", ...over }) as unknown as THaibunEvent;
 
-/** The actuality these records belong to: one feature of one process, which is what an execution is. */
+/** The actuality that holds these records: one feature of one process, which is what an execution is. */
 const TAG = { key: "1700000000000", featureNum: 1 };
 
 /** What the monitor's event logger does with a warning: `IGNORED` drops it, and `LOGGED` emits it as a log event to the
  *  monitor, as actuality's logger does. */
 const WARNINGS = { IGNORED: "ignored", LOGGED: "logged" } as const;
 
-/** The monitor with a store to write to, its event hook reachable, and the end of a feature to wait on. Recording is
+/** The monitor with a store to write to, its event hook reachable, and the end of a feature that a test awaits. Recording is
  *  started from the event hook, which returns before the store has the record; the feature ends with every record
- *  written, so that is what a reader of the store waits for. */
+ *  written, so a reader of the store waits until the feature ends. */
 function monitorOver(store: QuadStore, warnings: (typeof WARNINGS)[keyof typeof WARNINGS]): { onEvent: (e: THaibunEvent) => void; ended: () => Promise<void> } {
 	const stepper = new MonitorStepper() as unknown as {
 		getWorld: () => unknown;
@@ -46,7 +46,7 @@ describe("what a run logged, as a record", () => {
 		store = storeDeclaring({ [LOG_MESSAGE_LABEL]: {}, [RUN_ARTIFACT_LABEL]: {} });
 	});
 
-	it("records the statement, its level, when it was said and the step it was said during", async () => {
+	it("records the statement, its level, when it was logged and the step it was logged during", async () => {
 		const monitor = monitorOver(store, WARNINGS.IGNORED);
 		monitor.onEvent(said());
 		await monitor.ended();
@@ -54,10 +54,10 @@ describe("what a run logged, as a record", () => {
 		expect(record?.[LOG_MESSAGE_FIELD.message]).toBe("what it said");
 		expect(record?.[LOG_MESSAGE_FIELD.level]).toBe("warn");
 		expect(record?.[LOG_MESSAGE_FIELD.generatedAtTime]).toBe(new Date(1700).toISOString());
-		expect(record?.isPartOf, "the step it was said during").toBe(formatRecordName({ execution: executionOf(TAG), path: [0, 1, 2] }));
+		expect(record?.isPartOf, "the step it was logged during").toBe(formatRecordName({ execution: executionOf(TAG), path: [0, 1, 2] }));
 	});
 
-	it("keeps two statements of one step apart, including two said in the same millisecond, which a clock cannot tell apart", async () => {
+	it("keeps two statements of one step apart, including two logged in the same millisecond, which a clock doesn't separate", async () => {
 		const monitor = monitorOver(store, WARNINGS.IGNORED);
 		monitor.onEvent(said({ message: "first", timestamp: 1700 }));
 		monitor.onEvent(said({ message: "second", timestamp: 1700 }));
@@ -73,7 +73,7 @@ describe("what a run logged, as a record", () => {
 		expect(await readEvery(store, { label: LOG_MESSAGE_LABEL })).toEqual([]);
 	});
 
-	it("belongs to the step it was said during, named as any record of actuality is named", async () => {
+	it("is part of the step it was logged during, named as any record of actuality is named", async () => {
 		const store = storeDeclaring({ [LOG_MESSAGE_LABEL]: {}, [RUN_ARTIFACT_LABEL]: {} });
 		const monitor = monitorOver(store, WARNINGS.IGNORED);
 		monitor.onEvent(said({ id: "0.-1.525", message: "what went wrong" }));

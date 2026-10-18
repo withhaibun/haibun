@@ -136,7 +136,7 @@ export const earlDomainDefinitions: TDomainDefinition[] = [
 				[EARL_ASSERTION_EDGE.result]: { rel: LinkRelations.CONTEXT.rel, iri: "earl:result", range: EARL_LABEL.testResult },
 				[EARL_ASSERTION_EDGE.wasGeneratedBy]: { rel: LinkRelations.WAS_GENERATED_BY.rel, range: SEQ_PATH_LABEL },
 			},
-			// Titled by the test case it states a result of.
+			// Titled by the test case whose result it states.
 			displayLabel: EARL_ASSERTION_EDGE.test,
 		},
 	},

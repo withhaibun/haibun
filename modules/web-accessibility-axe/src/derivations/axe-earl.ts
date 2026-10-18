@@ -1,9 +1,9 @@
 /**
  * An axe check's results as EARL assertions: one for each rule axe applied, by the outcome axe states for it. axe states
- * a rule it couldn't decide as needing review, which EARL states as `cantTell`. axe lists a rule under each outcome its
+ * a rule it couldn't determine as needing review, which EARL states as `cantTell`. axe lists a rule under each outcome its
  * elements had, so a rule that fails on one element and passes on another is in both lists. EARL states one result of a
- * test on a subject, so the rule's assertion states its most severe outcome, with the elements axe found it at. A rule
- * that doesn't apply to the page states nothing about it, so it is listed in the report and isn't recorded.
+ * test on a subject, so the rule's assertion states its most severe outcome, with the elements at which axe found it. A rule
+ * that doesn't apply to the page doesn't state anything about it, so it is listed in the report and isn't recorded.
  */
 import type { AxeResults, Result } from "axe-core";
 import { isWebAddress } from "@haibun/core/lib/domains/document-content.js";

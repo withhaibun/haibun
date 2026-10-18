@@ -1,16 +1,16 @@
 /**
- * A flow layout for lit-virtualizer that knows the size of some rows without measuring them.
+ * A flow layout for lit-virtualizer that holds the size of some rows without measuring them.
  *
  * The flow layout positions the rows it has not measured by the average of the ones it has. A column whose rows
  * include many that are empty (actuality document: an event that didn't produce a block at its level) measures ever more
  * empty rows as it goes, the average caches falling, every position above the viewport is estimated again on each row,
- * and the reader sees the document jitter and its scroll range never settle. Here the source reports which rows are known
+ * and the reader sees the document jitter and its scroll range never settle. Here the source reports which rows are
  * empty (`rowSize` responds 0): they take zero room without being measured, the average is over rows with content only,
  * and an unknown stretch is estimated at that average times the share of rows seen to have content.
  */
 import { FlowLayout, flow } from "@lit-labs/virtualizer/layouts/flow.js";
 
-/** The size of a row known without rendering it (0 for an empty row), or undefined to measure and estimate. */
+/** The size of a row read without rendering it (0 for an empty row), or undefined to measure and estimate. */
 type TRowSize = (index: number) => number | undefined;
 
 type TSizes = { [key: number]: { width: number; height: number } };
@@ -18,9 +18,9 @@ type TBounds = { pos: number; size: number };
 
 export class KnownSizeFlowLayout extends FlowLayout {
 	rowSize: TRowSize = () => undefined;
-	#measured = new Map<number, number>(); // the measured size of each row whose size is not known
+	#measured = new Map<number, number>(); // the measured size of each row whose size the source doesn't report
 	#sum = 0;
-	#known = new Set<number>(); // the rows seen whose size is known (rendered empty), for the share of rows with content
+	#known = new Set<number>(); // the rows seen whose size the source reports (rendered empty), for the share of rows with content
 
 	override updateItemSizes(sizes: TSizes): void {
 		const dim = this.direction === "horizontal" ? "width" : "height";

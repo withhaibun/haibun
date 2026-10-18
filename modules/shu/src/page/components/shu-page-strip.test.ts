@@ -152,6 +152,6 @@ describe("the page strip", () => {
 		permissions.onLevelChange(Access.public);
 		expect(asked).toHaveBeenCalledWith({ asked: true, readLevel: Access.public });
 		await strip.updateComplete;
-		expect(control(strip, `${PREFIX}access-indicator`).textContent, "the indicator shows the level asked").toContain(Access.public);
+		expect(control(strip, `${PREFIX}access-indicator`).textContent, "the indicator shows the level requested").toContain(Access.public);
 	});
 });

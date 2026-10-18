@@ -94,7 +94,7 @@ describe("playing through a run", () => {
 	beforeEach(async () => {
 		endPage();
 		shu?.teardown();
-		// The sources are one per page, so a run read by the last test is still being read by the next unless forgotten.
+		// The sources are one per page, so a run read by the last test is still being read by the next unless dropped.
 		shu = setupShuTest({
 			dispatch: () => {
 				throw new ServerUnreachable("/rpc", new Error("actuality is read from its records"));
@@ -112,7 +112,7 @@ describe("playing through a run", () => {
 		}
 	});
 
-	it("puts the cursor at the start of actuality when asked to go back", async () => {
+	it("puts the cursor at the start of actuality on a press of go back", async () => {
 		const el = await playing();
 		await click(el, "playback-restart");
 		expect(timeCursor.get(), "just before the first event, so that event is still ahead").toBe(FIRST - 1);
@@ -123,7 +123,7 @@ describe("playing through a run", () => {
 		await click(el, "playback-restart");
 		expect(timeCursor.get(), "started in the past").toBe(FIRST - 1);
 		await click(el, "playback-play");
-		await frames.run(1); // one frame long enough to cover the whole run
+		await frames.run(1); // one frame long enough to cover all of actuality
 		await el.updateComplete;
 		expect(timeCursor.get(), "the end of a run is 'now', without an upper bound, not the last event's time").toBeNull();
 	});
@@ -137,7 +137,7 @@ describe("playing through a run", () => {
 		expect(timeCursor.get(), "still a moment in the past, not now").toBe(FIRST + 150);
 	});
 
-	it("stops asking for frames once it reaches the end, rather than looping on", async () => {
+	it("stops requesting frames once it reaches the end, rather than looping", async () => {
 		const el = await playing();
 		await click(el, "playback-restart");
 		await click(el, "playback-play");
@@ -158,7 +158,7 @@ describe("playing through a run", () => {
 
 describe("going back to now", () => {
 	// A press on a rail is meant to stay where it was put, so a view doesn't take a reader off a chosen moment by itself. This
-	// is what does: the cursor is released, and any view that tails is asked to return to the live edge and follow again.
+	// is what does: the cursor is released, and any view that tails receives a request to return to the live edge and follow again.
 	beforeEach(async () => {
 		endPage();
 		shu?.teardown();
@@ -172,7 +172,7 @@ describe("going back to now", () => {
 		timeCursor.set(null);
 	});
 
-	it("releases the cursor and asks the tailing views to catch up", async () => {
+	it("releases the cursor and requests that the tailing views catch up", async () => {
 		const el = await playing();
 		const asked: string[] = [];
 		document.addEventListener(SHU_EVENT.GO_LIVE, () => asked.push("go-live"));
@@ -180,7 +180,7 @@ describe("going back to now", () => {
 		await el.updateComplete;
 		await click(el, "playback-live");
 		expect(timeCursor.get(), "the cursor doesn't have an upper bound any more, which is what now means").toBeNull();
-		expect(asked, "and the views that tail are told").toEqual(["go-live"]);
+		expect(asked, "and the views that tail receive it").toEqual(["go-live"]);
 	});
 
 	it("takes a reader who chose an earlier execution back to the one being recorded", async () => {

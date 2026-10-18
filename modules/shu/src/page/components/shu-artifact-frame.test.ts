@@ -46,7 +46,7 @@ describe("shu-artifact-frame fullscreen step caption", () => {
 });
 
 describe("shu-artifact-frame cursor and navigation events", () => {
-	it("asks the column to move the cursor on open (carrying itself for step resolution) but not on exit", async () => {
+	it("requests that the column move the cursor on open (carrying itself for step resolution) but not on exit", async () => {
 		const frame = await frameIn(stamped);
 		const onCursorToRow = vi.fn();
 		document.addEventListener(SHU_EVENT.CURSOR_TO_ROW, onCursorToRow);

@@ -76,24 +76,24 @@ export class ShuPageStrip extends ShuElement<typeof EmptyStateSchema> {
 		void loadSlotExtensions(SHU_TAG.PAGE_STRIP, [PERMISSIONS_SLOT], this.getAttribute("api-base") || "", () => this.requestUpdate()).catch((err) =>
 			reportToRun("warn", SHU_TAG.PAGE_STRIP, "optional UI extensions failed to load", { error: errorDetail(err) }),
 		);
-		// Actuality moving on changes where the cursor sits in it.
+		// Actuality moving on changes the cursor's position in it.
 		if (!isOffline()) this.autoTeardown(this.subscribeBatched({ onBatch: () => this.#corners.showTime(this.#timeline.cursor) }));
 	}
 
-	/** Shows where the cursor sits in actuality. It reads `now` while every view shows now, and an offset once a reader pins a moment. */
+	/** Shows the cursor's position in actuality. It reads `now` while every view shows now, and an offset once a reader pins a moment. */
 
 	protected updated(): void {
 		this.#updateBreadcrumb();
 	}
 
-	/** Change the read access level the query reads at, as the access panel asks. */
+	/** Change the read access level at which the query reads, as the access panel requests. */
 	#setReadLevel(level: AccessQueryLevel): void {
 		this.#readLevel = level;
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.FILTER_CHANGE, { detail: { asked: true, readLevel: level }, bubbles: true, composed: true }));
 		this.requestUpdate();
 	}
 
-	/** Names the search, then the columns, then the column the reader is on. A docked pane isn't a column. */
+	/** Names the search, then the columns, then the reader's active column. A docked pane isn't a column. */
 	#updateBreadcrumb(): void {
 		const breadcrumb = this.shadowRoot?.querySelector(SHU_TAG.BREADCRUMB) as (HTMLElement & { setTrail?: (label: string, cols: string[], active: number) => void }) | null;
 		if (!breadcrumb?.setTrail) return;

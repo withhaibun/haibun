@@ -16,7 +16,7 @@ import "./shu-ref-element.js";
 
 /**
  * The lit form of the same reference, for a view that renders a template rather than a string of markup: one place
- * decides what a reference is made of, so a panel writing `<shu-ref>` by hand cannot drift from what `renderRef`
+ * determines what a reference is made of, so a panel writing `<shu-ref>` by hand cannot drift from what `renderRef`
  * writes. The display text is also child text, as in the string form, so a surface where the element is undefined
  * shows the text rather than an empty element.
  */

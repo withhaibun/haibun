@@ -11,7 +11,7 @@ import { statedTotal, type TCounted } from "@haibun/core/lib/domains/hypermedia.
 /** Constrains `x` to [min, max]. */
 export const clamp = (x: number, min: number, max: number): number => Math.min(max, Math.max(min, x));
 
-/** Height of an open docked pane as a share of the app: dragged, remembered, and bounded. */
+/** Height of an open docked pane as a share of the app: dragged, kept, and bounded. */
 export const PROPORTION = { min: 0.12, max: 0.9, default: 0.38 } as const;
 
 /** A drag doesn't leave a docked pane shorter than this, so the pane keeps a usable strip. */

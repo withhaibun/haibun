@@ -54,7 +54,7 @@ type TAffordances = {
  *  steps, the goals or the actuality they are of is missing. */
 function snapshotOf(p: Record<string, unknown>): TAffordances {
 	if (!Array.isArray(p.forward) || !Array.isArray(p.goals) || typeof p.execution !== "string") {
-		throw new Error(`shu-affordances-panel takes \`forward\` and \`goals\` arrays and the \`execution\` they are of. Received keys: [${Object.keys(p).join(", ")}].`);
+		throw new Error(`shu-affordances-panel takes \`forward\` and \`goals\` arrays and the \`execution\` that holds them. Received keys: [${Object.keys(p).join(", ")}].`);
 	}
 	return {
 		execution: p.execution,
@@ -99,7 +99,7 @@ type TSelection = { goal: string | undefined; waypoint: string | undefined };
 /** The scope every goal's graph keeps its settings under. */
 const GOAL_GRAPH_SCOPE = "goal-graph";
 
-/** The slot a goal's graph is shown in, which is also the test id its graph is found by. */
+/** The slot that shows a goal's graph, which is also the test id that finds its graph. */
 const goalGraphSlot = (domain: string): string => `goal-graph-${domain}`;
 
 /** Draw a goal's projected paths in its presenter. */
@@ -149,7 +149,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 
 	protected override onConnected(): void {
 		if (!this.hasAttribute("data-testid")) this.setAttribute("data-testid", "shu-affordances");
-		// Each open goal's graph announces a click on a node, which crosses the shadow root to the host: heard here once.
+		// Each open goal's graph announces a click on a node, which crosses the shadow root to the host: received here once.
 		this.autoListen(this, SHU_EVENT.GRAPH_NODE_CLICK, (e) => this.onGraphNodeClick(e));
 		// Hash restoration mounts the panel without products. Fetch the current snapshot
 		// directly so real data shows instead of a forever-spinner. The setter path
@@ -513,7 +513,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 				<div class="explanation-body">
 					<p>This view is a projection over the loaded steppers, registered domains, and the current working memory.</p>
 					<ul>
-						<li><strong>Goals</strong> are the domains some step can produce. For each, the resolver reports one of: <em>satisfied</em> (a fact already exists), <em>reachable</em> (one or more paths exist from the current state, pick one to start), <em>unreachable</em> (a producer chain doesn't reach it), or <em>refused</em> (resolver cannot decide without more information).</li>
+						<li><strong>Goals</strong> are the domains some step can produce. For each, the resolver reports one of: <em>satisfied</em> (a fact already exists), <em>reachable</em> (one or more paths exist from the current state, pick one to start), <em>unreachable</em> (a producer chain doesn't reach it), or <em>refused</em> (the resolver can't determine one without more information).</li>
 						<li>Clicking a step or <em>Start this path</em> opens the first step in the actions bar so you can supply any inputs and run it. Subsequent steps in a path become reachable through normal affordances after each step asserts its fact.</li>
 					</ul>
 				</div>

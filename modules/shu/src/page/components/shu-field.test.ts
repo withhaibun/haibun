@@ -43,7 +43,7 @@ describe("shu-field names its control", () => {
 		box.type = "checkbox";
 		const el = await field("group", box);
 		const name = el.shadowRoot?.querySelector(".name") as HTMLElement | null;
-		if (!name) throw new Error("the field renders no name to press");
+		if (!name) throw new Error("the field doesn't render a name to press");
 		name.click();
 		expect(box.checked).toBe(true);
 	});

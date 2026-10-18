@@ -8,7 +8,7 @@ import { getAvailableSteps } from "../controllers/registry-controller.js";
 import { reportToRun } from "../controllers/client-log-controller.js";
 import type { TClientLogLevel } from "../ports.js";
 
-/** Load each extension declared for one of the slots, telling the component after each loads, and throw naming every one
+/** Load each extension declared for one of the slots, notifying the component after each loads, and throw naming every one
  *  that didn't load. */
 export async function loadSlotExtensions(source: string, slots: ReadonlyArray<string>, apiBase: string, onLoaded: () => void): Promise<void> {
 	const report = (level: TClientLogLevel, message: string, attributes: Record<string, unknown> = {}): void =>

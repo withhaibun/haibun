@@ -23,7 +23,7 @@ function searching(hash: string): void {
 	viewQuery.hydrate(hash);
 }
 
-/** The index reporting how many it found, from where the index sits: outside the pane, not under it. */
+/** The index reporting how many it found, from the index's position: outside the pane, not under it. */
 function publish(from: string, detail: Record<string, unknown>): void {
 	const source = document.createElement(from);
 	document.body.appendChild(source);
@@ -32,7 +32,7 @@ function publish(from: string, detail: Record<string, unknown>): void {
 }
 
 beforeAll(() => {
-	installTestMediaQueries(); // the pane asks the viewport whether it is narrow; jsdom doesn't answer such a question
+	installTestMediaQueries(); // the pane reads whether the viewport is narrow from a media query, which jsdom doesn't evaluate
 	provideLayout(); // the pane observes its size, to reserve its strip's height where it is docked
 });
 
@@ -51,7 +51,7 @@ describe("the index's spine summary", () => {
 	});
 
 	// What a reader would see, and only that. jsdom doesn't have adoptedStyleSheets, so lit puts the component's CSS in a
-	// <style> inside the shadow root, and lit's own bookkeeping sits there as comment markers; reading the root's text
+	// <style> inside the shadow root, and lit's own bookkeeping is held there as comment markers; reading the root's text
 	// whole would read both, and every assertion below would be about the stylesheet.
 	const shown = () =>
 		Array.from(summary.shadowRoot?.childNodes ?? [])
@@ -92,7 +92,7 @@ describe("the index's spine summary", () => {
 		expect(shown()).toContain("42");
 	});
 
-	it("follows the search itself, which it reads rather than being told", async () => {
+	it("follows the search itself, which it reads rather than receives", async () => {
 		searching("#?label=Person");
 		await summary.updateComplete;
 		expect(shown()).toContain("Person");
@@ -104,7 +104,7 @@ describe("the index's spine summary", () => {
 });
 
 describe("a spine view while its column is open", () => {
-	// Attached but unslotted is how a spine view keeps hearing what it needs, and it must not take what being shown
+	// Attached but unslotted is how a spine view keeps receiving what it needs, and it must not take what being shown
 	// takes: a reader can't see what it renders, so it doesn't render until the spine slot takes it.
 	let handle: TShuTestHandle;
 	afterEach(() => handle.teardown());
@@ -112,7 +112,7 @@ describe("a spine view while its column is open", () => {
 		handle = setupShuTest();
 	});
 
-	it("hears the index without rendering, and is current the moment the column collapses", async () => {
+	it("receives the index without rendering, and is current the moment the column collapses", async () => {
 		document.body.innerHTML = "";
 		const pane = new ShuColumnPane();
 		pane.setAttribute("label", "Index");
@@ -132,6 +132,6 @@ describe("a spine view while its column is open", () => {
 		pane.setMinimized(true);
 		await pane.updateComplete;
 		await summary.updateComplete;
-		expect(summary.shadowRoot?.querySelector(".count")?.textContent, "collapsed, it shows what it heard while it was open").toBe("42");
+		expect(summary.shadowRoot?.querySelector(".count")?.textContent, "collapsed, it shows what it received while it was open").toBe("42");
 	});
 });

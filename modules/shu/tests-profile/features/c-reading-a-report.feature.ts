@@ -25,9 +25,9 @@ export const features: TKirejiExport = {
 		feature({ feature: "Reading a report of this actuality" }),
 		...testIdSetup,
 
-		scenario({ scenario: "A report carries its actuality, and a page with no site reads it" }),
+		scenario({ scenario: "A report carries its actuality, and a page without a site reads it" }),
 
-		"A report is this page with the actuality it reports carried inside it: the graph the actuality wrote, which is the actuality, and the site's declarations. Opened from a file, with no site to read anything from, the monitor shows the actuality's rows because it reads them the way it reads any actuality.",
+		"A report is this page with the actuality it reports carried inside it: the graph the actuality wrote, which is the actuality, and the site's declarations. Opened from a file, without a site to read, the monitor shows the actuality's rows because it reads them the way it reads any actuality.",
 		"enable rpc",
 		serveShuApp({ path: '"/spa"' }),
 		'webserver is listening for "reading a report of this actuality"',
@@ -40,7 +40,7 @@ export const features: TKirejiExport = {
 		monitorHoldsRows({ n: "8" }),
 		`saves shu to "${REPORT}"`,
 
-		"The same page, opened as a file: nothing it asks of a site is answered, and actuality is still there to read. The views it had open come back with it, and what the page carries is what they read.",
+		"The same page, opened as a file: a site doesn't serve any of its requests, and actuality is still there to read. The views it had open come back with it, and what the page carries is what they read.",
 		gotoPage({ name: `"file://${REPORT}"` }),
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
 		monitorHoldsRows({ n: "8" }),

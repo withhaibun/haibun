@@ -40,7 +40,7 @@ const ARRIVAL = "arrival";
 /** A vertex row: flat property object. */
 type VertexRow = Record<string, unknown>;
 
-/** How long the view waits after a record arrives before asking again. One record arrives as many quads and mail
+/** How long the view waits after a record arrives before querying again. One record arrives as many quads and mail
  *  arrives in bursts, so a trailing pause turns a burst into one query. */
 const ARRIVAL_DEBOUNCE_MS = 400;
 
@@ -61,7 +61,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	private results: VertexRow[] = [];
 	private sortableFields: string[] = [];
 	private labels: string[] = [];
-	/** The read of actuality's types, which a query waits on: a type is asked for only where actuality holds it. */
+	/** The read of actuality's types, which a query awaits: a query names a type only where actuality holds it. */
 	#metadata: Promise<void> = Promise.resolve();
 	/** The query's row count and whether that count stopped at a ceiling. */
 	#counted: TCounted = counted(0);
@@ -94,7 +94,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	#remedies: THeldTypeLink[] = [];
 
 	// The query (type, search, sort, page, access, filters) IS the hash-backed viewQuery store: the single,
-	// schema-validated, reload-safe source of truth. These getters read it; writes go through viewQuery.set().
+	// schema-validated, reload-safe source of truth. These getters read it; writes call viewQuery.set().
 	private get qLabel(): string | undefined {
 		return viewQuery.signals.label.get() ?? undefined;
 	}
@@ -247,7 +247,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 		await this.#metadata;
 		const label = this.qLabel;
 		const textQuery = this.qText;
-		// The server rejects a query that doesn't name a type or text, or a type actuality doesn't hold; asking anyway fails
+		// The server rejects a query that doesn't name a type or text, or a type actuality doesn't hold; querying anyway fails
 		// identically on every retrigger (each SSE batch fires one), flooding the server and actuality log. Report why once
 		// instead. An address outlives the actuality it was made in, so it keeps the type it names.
 		if (!label && !textQuery?.trim()) return this.#refuse("a query needs a record type or search text");
@@ -324,11 +324,11 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 	}
 
 	/**
-	 * Apply what a live batch carries to the rows on screen, instead of asking the server again.
+	 * Apply what a live batch carries to the rows on screen, instead of querying the server again.
 	 *
-	 * A change arrives AS the quads that changed, so a row already shown is brought up to date from them. Answering a
+	 * A change arrives AS the quads that changed, so a row already shown is brought up to date from them. Following a
 	 * change with a fresh query is what made a view of actuality's own records feed itself: the query is dispatched as a
-	 * step, the step is recorded in the graph, and that recording is another change to answer, without end. Rows past
+	 * step, the step is recorded in the graph, and that recording is another change to follow, without end. Rows past
 	 * the ones on screen are read when a reader reaches them, which is what the windowed source already does.
 	 */
 	private applyLiveQuads(events: Record<string, unknown>[]): void {
@@ -340,7 +340,7 @@ export class ShuGraphQuery extends ShuElement<typeof QueryViewSchema> {
 			if (quad.namedGraph !== this.qLabel) continue;
 			const row = this.results.find((r) => String(r.id) === quad.subject);
 			// A record this view holds takes the new value in place. One it does not hold is a record that arrived: which
-			// rows the query matches, and in what order, is the server's answer, so the view asks again rather than
+			// rows the query matches, and in what order, the server determines, so the view queries again rather than
 			// placing the record itself. Without this a record that arrived showed only after a reload.
 			if (!row) {
 				arrived = true;

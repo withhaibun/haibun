@@ -33,7 +33,7 @@ afterAll(() => {
 });
 
 class VerifyStepper extends AStepper {
-	description = "Fetches from the web server and checks what it answers.";
+	description = "Fetches from the web server and checks what it returns.";
 	steps = {
 		fetchFrom: {
 			gwta: `fetch from {url: ${DOMAIN_LINK}} includes {text: ${DOMAIN_TEXT}}`,

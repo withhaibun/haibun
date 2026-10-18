@@ -85,9 +85,9 @@ export const DOMAIN_PERSISTED_TYPES = "persisted-types";
 export const DOMAIN_BACKGROUND_NAMES = "background-names";
 /** A token whose holder is granted what it grants, sent as `Authorization: Bearer` (RFC 6750). */
 export const DOMAIN_BEARER_TOKEN = "bearer-token";
-/** The name an account signs in with. */
+/** The name with which an account signs in. */
 export const DOMAIN_USER_NAME = "user-name";
-/** The secret an account signs in with. */
+/** The secret with which an account signs in. */
 export const DOMAIN_PASSWORD = "password";
 
 /** What separates the parts of a union domain's key. */
@@ -208,7 +208,7 @@ export const deriveNamingDomains = (domains: Record<string, TRegisteredDomain>) 
 	return domains;
 };
 
-/** A bare term naming a member of a domain: one of its values, or one its membership test holds for. */
+/** A bare term naming a member of a domain: one of its values, or one for which its membership test holds. */
 export const namesMember = (domain: TRegisteredDomain | undefined, term: string): boolean => domain?.values?.includes(term) === true || domain?.names?.(term) === true;
 
 /** The names of the loaded steppers, as the domain a step naming a stepper takes. */
