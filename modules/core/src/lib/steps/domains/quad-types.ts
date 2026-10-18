@@ -153,8 +153,9 @@ export type TDensityResult = z.infer<typeof DensityResultSchema>;
 export const DistinctValuesSchema = z.object({ values: z.array(z.string()), ...CountedFields });
 export type TDistinctValues = z.infer<typeof DistinctValuesSchema>;
 
-/** The keys that order a page besides a field: the record's id, its type, a search's score and the order of a named read. */
-export const ORDER_KEY = { id: "@id", type: "@type", score: "score", named: "named" } as const;
+/** The keys that order a page besides a field: the record's id, its type, a search's score and the order of a named read. A
+ *  type's sample also orders by a record's containment depth and by whether the type's records are part of it. */
+export const ORDER_KEY = { id: "@id", type: "@type", score: "score", named: "named", depth: "containmentDepth", hasParts: "hasParts" } as const;
 const OrderKeySchema = z.object({ key: z.string(), order: SortOrderSchema });
 export type TOrderKey = z.infer<typeof OrderKeySchema>;
 

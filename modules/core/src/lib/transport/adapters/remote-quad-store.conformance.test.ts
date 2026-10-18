@@ -28,7 +28,15 @@ function servedBy(store: QuadStore): typeof fetch {
 	}) as unknown as typeof fetch;
 }
 
-describeQuadStore("served by another instance", (domains) => {
+// The store connects before use, as an instance that mounts it does, so it holds the serving site's principal.
+describeQuadStore("served by another instance", async (domains) => {
 	const serving = new QuadStore(newStoreChain(), undefined, () => readDeclarationsOf(domains));
-	return new RemoteQuadStore({ url: "http://serving.example", sign: new FakeInvoker("delegated").sign, graphs: Object.values(CONFORMANCE_TYPES), fetchImpl: servedBy(serving) });
+	const remote = new RemoteQuadStore({
+		url: "http://serving.example",
+		sign: new FakeInvoker("delegated").sign,
+		graphs: Object.values(CONFORMANCE_TYPES),
+		fetchImpl: servedBy(serving),
+	});
+	await remote.connect();
+	return remote;
 });

@@ -3,9 +3,9 @@
  * and a consumer's graph engine. A view reads the graph through `IQuadStore` and doesn't depend on the store under it, so
  * each store runs these cases. Core exports the suite, since the contract is core's. A consumer runs it against its own store.
  *
- * The suite declares the types `Comment` and `Issue`, with two relations from a comment to an issue, and builds each store
- * over those declarations. A type states `generatedAtTime`, the time every persisted type states, and `status`. The density
- * cases group records by `status`.
+ * The suite declares the types `Comment` and `Issue`, with two relations from a comment to an issue and one from an issue
+ * to the issue that contains it, and builds each store over those declarations. A type states `generatedAtTime`, the time every
+ * persisted type states, and `status`. The density cases group records by `status`.
  *
  * An authoritative store requires the identity field a type declares, and a page holds what it read under its `@id`. Each
  * store tests its own identity rule in its own suite.
@@ -19,12 +19,13 @@ import { Access, AccessLevelSchema, EDGE, LinkRelations, type TRegisteredDomain 
 
 /** The types the suite declares. */
 export const CONFORMANCE_TYPES = { comment: "Comment", issue: "Issue" } as const;
-/** The relations from a comment to an issue. A comment reaches its issue through one or both. */
-export const CONFORMANCE_RELATIONS = { about: EDGE.hasTarget, mentions: EDGE.mentions } as const;
+/** The relations from a comment to an issue, and from an issue to the issue that contains it. A comment reaches its issue
+ *  through one or both. */
+export const CONFORMANCE_RELATIONS = { about: EDGE.hasTarget, mentions: EDGE.mentions, partOf: EDGE.isPartOf } as const;
 
 const COMMENT = CONFORMANCE_TYPES.comment;
 const ISSUE = CONFORMANCE_TYPES.issue;
-const { about: ABOUT, mentions: MENTIONS } = CONFORMANCE_RELATIONS;
+const { about: ABOUT, mentions: MENTIONS, partOf: PART_OF } = CONFORMANCE_RELATIONS;
 
 const RecordSchema = z
 	.object({
@@ -63,7 +64,7 @@ const domainOf = (persistedAs: string, edges: Record<string, { range: string }>)
 /** The declarations every store under the suite holds. */
 export const CONFORMANCE_DOMAINS: Record<string, TRegisteredDomain> = {
 	"conformance-comment": domainOf(COMMENT, { [ABOUT]: { range: ISSUE }, [MENTIONS]: { range: ISSUE } }),
-	"conformance-issue": domainOf(ISSUE, {}),
+	"conformance-issue": domainOf(ISSUE, { [PART_OF]: { range: ISSUE } }),
 };
 
 /** How a store differs from the others by design. */
@@ -215,6 +216,52 @@ export function describeQuadStore(
 			expect(await store.get("c", "content", OTHER), "and the other graph is held").toBe("three");
 			await store.clear();
 			expect(await store.all()).toEqual([]);
+		});
+
+		describe("samples each type's records in the order of their containment", () => {
+			const at = (minute: number): string => new Date(Date.UTC(2026, 0, 1, 0, minute)).toISOString();
+			/** Writes a public record of `label` generated at `minute`. */
+			const hold = (label: string, id: string, minute: number): Promise<string> => store.upsertIndividual(label, { id, generatedAtTime: at(minute), accessLevel: Access.public });
+			/** Writes the edge from an issue to the issue that contains it. A store without `createEdge` holds an edge as a quad that states its object's type. */
+			const partOf = (part: string, whole: string): Promise<void> =>
+				store.createEdge
+					? store.createEdge(ISSUE, part, PART_OF, ISSUE, whole)
+					: store.add({ subject: part, predicate: PART_OF, object: whole, namedGraph: ISSUE, objectType: ISSUE });
+			/** Writes an issue's edge to an issue the store doesn't hold. A store that keeps edges strictly holds a reference in its place. */
+			const partOfAbsent = (part: string, whole: string): Promise<void> => (store.referenceEdge ? store.referenceEdge(ISSUE, part, PART_OF, ISSUE, whole) : partOf(part, whole));
+
+			it("holds each issue after the issue it is part of, the issues with parts before the leaves, and counts the parts it leaves out under each", async () => {
+				const parts = { "part-1": { minute: 1, leaves: [2, 3, 4] }, "part-2": { minute: 5, leaves: [6, 7, 8] } };
+				await hold(ISSUE, "whole", 0);
+				for (const [part, { minute, leaves }] of Object.entries(parts)) {
+					await hold(ISSUE, part, minute);
+					for (const leaf of leaves) await hold(ISSUE, `leaf-${leaf}`, leaf);
+				}
+				for (const [part, { leaves }] of Object.entries(parts)) {
+					await partOf(part, "whole");
+					for (const minute of leaves) await partOf(`leaf-${minute}`, part);
+				}
+				for (const minute of [1, 2, 3, 4, 5]) await hold(COMMENT, `c${minute}`, minute);
+				const { clusters } = await store.getClusteredQuads({ perTypeLimit: 4, accessLevel: Access.public });
+				expect(
+					clusters.find((cluster) => cluster.type === ISSUE),
+					"the whole, its parts by the declared sort, then the latest leaf",
+				).toMatchObject({ sampledSubjects: ["whole", "part-2", "part-1", "leaf-8"], omittedCount: 5, omittedUnder: { "part-1": 3, "part-2": 2 } });
+				const comments = clusters.find((cluster) => cluster.type === COMMENT);
+				expect(comments, "a type without parts in its declared sort, the latest first").toMatchObject({ sampledSubjects: ["c5", "c4", "c3", "c2"], omittedCount: 1 });
+				expect(comments?.omittedUnder).toBeUndefined();
+			});
+
+			it("holds an issue whose containment doesn't reach an issue the store holds, or returns to itself, after every issue of the held hierarchy", async () => {
+				for (const [id, minute] of Object.entries({ part: 1, top: 2, leaf: 3, "loop-a": 4, "loop-b": 5 })) await hold(ISSUE, id, minute);
+				await partOfAbsent("part", "absent");
+				for (const [part, whole] of Object.entries({ leaf: "top", "loop-a": "loop-b", "loop-b": "loop-a" })) await partOf(part, whole);
+				const { clusters } = await store.getClusteredQuads({ perTypeLimit: 10, accessLevel: Access.public });
+				expect(
+					clusters.find((cluster) => cluster.type === ISSUE)?.sampledSubjects,
+					"the held hierarchy, then the loop's issues with parts, then the part of an absent issue",
+				).toEqual(["top", "leaf", "loop-b", "loop-a", "part"]);
+			});
 		});
 
 		describe("reads records through readRecords", () => {

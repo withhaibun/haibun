@@ -3,9 +3,9 @@
  * holds its quads in memory samples and counts them through these derivations.
  */
 import { displayLabelForQuads } from "../../hypermedia.js";
-import type { TReadDeclaration } from "../../records/derivations/read-records.js";
+import { compareByOrder, readOrder, type TReadDeclaration } from "../../records/derivations/read-records.js";
 import { BODY_LABEL, LinkRelations } from "../../resources.js";
-import type { TCluster, TClusteredQuads, TQuad } from "../domains/quad-types.js";
+import { GraphQuerySchema, ORDER_KEY, statedQuery, type TCluster, type TClusteredQuads, type TOrderKey, type TQuad } from "../domains/quad-types.js";
 
 /** What a sample reads of a type's declaration, where the type declares one: the property or edge that titles its records,
  *  and the field that orders its records. */
@@ -41,29 +41,51 @@ function heldList<T>(map: Map<string, T[]>, key: string): T[] {
 	return made;
 }
 
+/** The depth of a record whose containment doesn't reach a record of its type that isn't part of another: a record the
+ *  store doesn't hold contains it, or its containment returns to itself. Such a record follows every record of the held
+ *  hierarchy. */
+export const UNREACHED_DEPTH = Number.POSITIVE_INFINITY;
+
 /**
- * Orders a type's subjects for a sample: each subject after the subject it is part of, where both are of the type, and
- * subjects of one depth with parts of their own before those without, then by the type's declared sort, then as the
- * store holds them. A subject that is part of one the store doesn't hold comes after every subject of the held hierarchy. A sample within a limit then holds a type's top
- * records and their nearest parts, and the records it leaves out hang from the records it holds.
+ * Returns the keys that order a type's sample. A record follows the record of its type it is part of: the sample orders by
+ * the depth of each record's containment, 1 for a record that isn't part of another, then holds the records with parts of
+ * their own before the leaves of one depth, then orders by the type's read order: `defaultSort` in the direction a read
+ * that doesn't state one sorts in, then by id. A sample within a limit then holds a type's top records and their nearest
+ * parts, and the records it leaves out are parts of the records it holds.
  */
-function sampleOrder(subjects: readonly string[], parentOf: ReadonlyMap<string, string>, sortValueOf: (subject: string) => string | undefined): string[] {
+export function sampleOrder(defaultSort: string | undefined): TOrderKey[] {
+	const { sortOrder } = statedQuery(GraphQuerySchema.parse({}));
+	const declared = defaultSort === undefined ? [{ key: ORDER_KEY.id, order: sortOrder }] : readOrder({ sortOrder }, defaultSort);
+	return [{ key: ORDER_KEY.depth, order: "asc" }, { key: ORDER_KEY.hasParts, order: "desc" }, ...declared];
+}
+
+/**
+ * Returns a type's cluster: its count, the subjects its sample holds in sample order, the count it leaves out under each
+ * held subject that contains them, and the label of each held subject. A cluster states `omittedUnder` only where the sample
+ * leaves out a part of a held subject. Every store returns its clusters through this function.
+ */
+export function sampledCluster(type: string, totalCount: number, sampledSubjects: string[], omittedUnder: Record<string, number>, displayLabels: Record<string, string>): TCluster {
+	const under = Object.keys(omittedUnder).length > 0 ? { omittedUnder } : {};
+	return { type, totalCount, sampledCount: sampledSubjects.length, omittedCount: Math.max(0, totalCount - sampledSubjects.length), sampledSubjects, displayLabels, ...under };
+}
+
+/** Returns a type's subjects in `sampleOrder`. `parentOf` holds the subject of the type each subject is part of, and
+ *  `sortValueOf` the value of a declared field of a subject. */
+function inSampleOrder(subjects: readonly string[], parentOf: ReadonlyMap<string, string>, defaultSort: string | undefined, sortValueOf: (subject: string) => unknown): string[] {
 	const held = new Set(subjects);
 	const depthOf = (subject: string): number => {
 		const seen = new Set([subject]);
-		let parent = parentOf.get(subject);
-		while (parent !== undefined && !seen.has(parent)) {
-			if (!held.has(parent)) return Number.POSITIVE_INFINITY;
+		for (let parent = parentOf.get(subject); parent !== undefined; parent = parentOf.get(parent)) {
+			if (!held.has(parent) || seen.has(parent)) return UNREACHED_DEPTH;
 			seen.add(parent);
-			parent = parentOf.get(parent);
 		}
 		return seen.size;
 	};
 	const parents = new Set(parentOf.values());
-	const keyed = subjects.map((subject, at) => ({ subject, at, depth: depthOf(subject), leaf: parents.has(subject) ? 0 : 1, sort: sortValueOf(subject) }));
-	// A record without the sort field comes after the records that state it.
-	const bySort = (a?: string, b?: string): number => (a === b ? 0 : a === undefined ? 1 : b === undefined ? -1 : a < b ? -1 : 1);
-	return keyed.sort((a, b) => (a.depth === b.depth ? 0 : a.depth - b.depth) || a.leaf - b.leaf || bySort(a.sort, b.sort) || a.at - b.at).map(({ subject }) => subject);
+	const keyed = subjects.map((subject) => ({ subject, depth: depthOf(subject), hasParts: parents.has(subject) ? 1 : 0 }));
+	const keyValue = (key: string, item: (typeof keyed)[number]): unknown =>
+		key === ORDER_KEY.depth ? item.depth : key === ORDER_KEY.hasParts ? item.hasParts : key === ORDER_KEY.id ? item.subject : sortValueOf(item.subject);
+	return keyed.sort(compareByOrder(sampleOrder(defaultSort), keyValue)).map(({ subject }) => subject);
 }
 
 /**
@@ -93,12 +115,9 @@ export function sliceQuadsPerType(quads: readonly TQuad[], perTypeLimit: number,
 	for (const [type, subjectSet] of subjectsByType) {
 		const declaration = declared(type);
 		const sortField = declaration?.defaultSort;
-		const sortValueOf = (subject: string): string | undefined => {
-			const value = quadsBySubject.get(subject)?.find((q) => q.namedGraph === type && q.predicate === sortField)?.object;
-			return value === undefined ? undefined : String(value);
-		};
+		const sortValueOf = (subject: string): unknown => quadsBySubject.get(subject)?.find((q) => q.namedGraph === type && q.predicate === sortField)?.object;
 		const alreadySampled = heldSet(sampledByType, type);
-		const newSubjects = sampleOrder([...subjectSet], parentOf, sortValueOf).filter((s) => !alreadySampled.has(s));
+		const newSubjects = inSampleOrder([...subjectSet], parentOf, sortField, sortValueOf).filter((s) => !alreadySampled.has(s));
 		const kept = Math.max(0, perTypeLimit - alreadySampled.size);
 		const keep = new Set([...alreadySampled, ...newSubjects.slice(0, kept)]);
 		for (const q of heldList(quadsByType, type)) if (keep.has(q.subject)) sampledQuads.push(q);
@@ -111,9 +130,7 @@ export function sliceQuadsPerType(quads: readonly TQuad[], perTypeLimit: number,
 			const held = quadsBySubject.get(subject);
 			if (held !== undefined) displayLabels[subject] = displayLabelForQuads(type, subject, held, (b) => bodyContentBySubject.get(b), undefined, declaration?.title);
 		}
-		const total = alreadySampled.size + subjectSet.size;
-		const under = Object.keys(omittedUnder).length > 0 ? { omittedUnder } : {};
-		clusters.push({ type, totalCount: total, sampledCount: keep.size, omittedCount: Math.max(0, total - keep.size), sampledSubjects: [...keep], displayLabels, ...under });
+		clusters.push(sampledCluster(type, alreadySampled.size + subjectSet.size, [...keep], omittedUnder, displayLabels));
 	}
 	return { quads: sampledQuads, clusters };
 }

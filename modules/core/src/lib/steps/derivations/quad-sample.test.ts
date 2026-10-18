@@ -26,19 +26,35 @@ const tree = (): TQuad[] => [
 describe("a sample of a type's records", () => {
 	it("holds each record after the record it is part of, and the records that have parts before the leaves of one depth", () => {
 		const [cluster] = sliceQuadsPerType(tree(), 4, [], declared).clusters;
-		expect(cluster?.sampledSubjects, "the whole, its parts, then the first leaf by the declared sort").toEqual(["whole", "part-1", "part-2", "leaf-1-2"]);
+		expect(cluster?.sampledSubjects, "the whole, its parts, then the latest leaf by the declared sort").toEqual(["whole", "part-2", "part-1", "leaf-2-8"]);
+	});
+
+	it("orders a type whose records aren't parts of one another by its declared sort, the latest first", () => {
+		const [cluster] = sliceQuadsPerType(
+			[1, 2, 3].flatMap((at) => record(`flat-${at}`, at)),
+			2,
+			[],
+			declared,
+		).clusters;
+		expect(cluster?.sampledSubjects).toEqual(["flat-3", "flat-2"]);
+		expect(cluster?.omittedUnder).toBeUndefined();
 	});
 
 	it("counts the records it leaves out under the record it holds that they are part of", () => {
 		const [cluster] = sliceQuadsPerType(tree(), 4, [], declared).clusters;
 		expect(cluster?.omittedCount).toBe(5);
-		expect(cluster?.omittedUnder).toEqual({ "part-1": 2, "part-2": 3 });
+		expect(cluster?.omittedUnder).toEqual({ "part-1": 3, "part-2": 2 });
 	});
 
 	it("holds a record that is part of one the store doesn't hold after every record of the held hierarchy", () => {
 		const [cluster] = sliceQuadsPerType([...record("orphan", -1, "absent"), ...tree()], 3, [], declared).clusters;
-		expect(cluster?.sampledSubjects).toEqual(["whole", "part-1", "part-2"]);
+		expect(cluster?.sampledSubjects).toEqual(["whole", "part-2", "part-1"]);
 		expect(cluster?.omittedUnder, "the sample doesn't hold the orphan's parent").toEqual({ "part-1": 3, "part-2": 3 });
+	});
+
+	it("holds records whose containment returns to itself after every record of the held hierarchy", () => {
+		const [cluster] = sliceQuadsPerType([...record("loop-a", 10, "loop-b"), ...record("loop-b", 11, "loop-a"), ...tree()], 11, [], declared).clusters;
+		expect(cluster?.sampledSubjects.slice(-2)).toEqual(["loop-b", "loop-a"]);
 	});
 
 	it("doesn't state omitted records under a record where it holds every record", () => {

@@ -333,17 +333,21 @@ function filtered(record: THeldRecord, filter: TSearchCondition, relations: read
 	return record.edges.some((edge) => edge.rel === filter.predicate && ids.includes(edge.id));
 }
 
-/** Returns a comparison of two reached records by the read's order keys. */
-function byOrder(keys: readonly TOrderKey[]): (a: TReached, b: TReached) => number {
-	const keyValue = (key: string, record: THeldRecord): unknown => (key === ORDER_KEY.id ? record.id : key === ORDER_KEY.type ? record.label : record.fields[key]);
+/** Returns a comparison of two items by `keys`, each compared by `compareHeld` in its key's direction. `keyValue` returns an
+ *  item's value of one key. */
+export function compareByOrder<T>(keys: readonly TOrderKey[], keyValue: (key: string, item: T) => unknown): (a: T, b: T) => number {
 	return (a, b) => {
 		for (const { key, order } of keys) {
-			const compared = compareHeld(keyValue(key, a.record), keyValue(key, b.record));
+			const compared = compareHeld(keyValue(key, a), keyValue(key, b));
 			if (compared !== 0) return order === "asc" ? compared : -compared;
 		}
 		return 0;
 	};
 }
+
+/** Returns a comparison of two reached records by the read's order keys. */
+const byOrder = (keys: readonly TOrderKey[]): ((a: TReached, b: TReached) => number) =>
+	compareByOrder<TReached>(keys, (key, { record }) => (key === ORDER_KEY.id ? record.id : key === ORDER_KEY.type ? record.label : record.fields[key]));
 
 /**
  * Returns a page of the records a set of held records holds for a read. The in-memory store and the device store read
