@@ -5,7 +5,6 @@
 	"description": "",
 	"author": "",
 	"exports": {
-		".": "./build/index.js",
 		"./lib/astepper.js": {
 			"haibun-source": "./src/lib/steps/domains/stepper.js",
 			"default": "./build/lib/steps/domains/stepper.js"
@@ -279,7 +278,6 @@
 			"default": "./build/*"
 		}
 	},
-	"main": "./build/index.js",
 	"files": [
 		"build/**",
 		"haibun-core-specl.schema.json"

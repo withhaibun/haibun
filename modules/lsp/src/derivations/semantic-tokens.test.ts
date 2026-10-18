@@ -70,7 +70,7 @@ describe("classifyDocument", () => {
 	});
 
 	it("doesn't paint an unresolved line outside a feature, where prose is code", () => {
-		expect(classify('import { withAction } from "@haibun/core";', undefined, { prose: false })).toEqual([]);
+		expect(classify('import { withAction } from "@haibun/core/kireji/withAction.js";', undefined, { prose: false })).toEqual([]);
 	});
 
 	it("doesn't paint a blank line", () => {

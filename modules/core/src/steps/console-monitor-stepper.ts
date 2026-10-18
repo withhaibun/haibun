@@ -1,7 +1,7 @@
 import { AStepper, IHasCycles, StepperKinds } from "../lib/steps/domains/stepper.js";
 import { getStepperOption } from "../lib/util/index.js";
 import { shownLogLevel, type THaibunEvent, type TShownLogLevel } from "../lib/domains/protocol.js";
-import { EventFormatter } from "../monitor/index.js";
+import { EventFormatter } from "../lib/domains/protocol.js";
 
 /**
  * ConsoleMonitorStepper - Console monitor using the onEvent pattern.

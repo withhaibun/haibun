@@ -3,7 +3,7 @@
 Start a new module with the [scaffold command](https://github.com/withhaibun/haibun/blob/main/modules/utils/README.md#scaffolding).
 It adds Haibun to a new or existing project.
 
-A Haibun module defines a stepper class that extends the `AStepper` abstract class from `@haibun/core`.
+A Haibun module defines a stepper class that extends the `AStepper` abstract class that `@haibun/core/lib/astepper.js` exports.
 The test project lists the module as a dependency in its `package.json`.
 A test base loads each stepper that the `steppers` list of its `config.json` names.
 The e2e-tests [package.json](../e2e-tests/package.json) and [tests/config.json](../e2e-tests/tests/config.json) show both.

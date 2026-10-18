@@ -52,7 +52,7 @@ npm pkg get version
 git describe --tags --abbrev=0                 # latest tag
 ```
 
-At runtime, `currentVersion` is exported from `@haibun/core`.
+At runtime, `@haibun/core/currentVersion.js` exports `currentVersion`.
 
 ## Required one-time setup in GitHub
 
