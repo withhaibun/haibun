@@ -23,7 +23,7 @@ import { queryRead } from "../controllers/read-controller.js";
 import { StepCallController } from "../controllers/step-call-controller.js";
 import { validateStepInput, type TFieldError } from "../derivations/step-input.js";
 import { prettifyGwta, normalizeStepKey } from "../derivations/steps.js";
-import { dispatchAffordanceFromResponse } from "../controllers/pane-controller.js";
+import { dispatchAffordanceFromResponse } from "../controllers/affordance-dispatch.js";
 import { revealInDocument } from "./reveal.js";
 import type { TComboboxOption } from "../../schemas.js";
 import type { TPageRefusal } from "../domains/refusal.js";

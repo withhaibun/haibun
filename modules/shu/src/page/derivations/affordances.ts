@@ -3,7 +3,7 @@
  * view or a component opens that view, and a view collection offers its views in a picker. Only a step a reader sees in
  * the log opens a view: a hidden substep, at the trace level the log hides, and a view's own read of its data can return
  * a product that names a view, and a reader didn't request either. A reader's own call of a step opens its view from the
- * response (`dispatchAffordanceFromResponse` in `pane-controller.ts`).
+ * response (`page/controllers/affordance-dispatch.ts`).
  */
 import { z } from "zod";
 import { HYPERMEDIA, SUBSTEP_LEVEL, type THaibunEvent, type THypermediaProducts } from "@haibun/core/schema/protocol.js";
