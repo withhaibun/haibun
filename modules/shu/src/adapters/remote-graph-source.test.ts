@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { hostHandshake, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
 import { RemoteGraphSource } from "./remote-graph-source.js";
 import { PEER_CALLS } from "../pipelines/graph-source.js";

@@ -6,11 +6,11 @@
  * trusted delegate full store access, and it is distinct from the accessLevel-gated hypermedia surface.
  * Responses use a `{ result }` envelope, so a response with an undefined result serializes to JSON.
  */
-import { DensityQuerySchema, GraphQuerySchema } from "./steps/domains/quad-types.js";
+import { DensityQuerySchema, GraphQuerySchema } from "../steps/domains/quad-types.js";
 import { z } from "zod";
 import { AccessLevelSchema } from "./resources.js";
-import type { IQuadStore } from "./steps/ports.js";
-import type { TRpcMethod } from "./transport/ports.js";
+import type { IQuadStore } from "../steps/ports.js";
+import type { TRpcMethod } from "../transport/ports.js";
 
 export const STORE_METHOD_PREFIX = "store.";
 

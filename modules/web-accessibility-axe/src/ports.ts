@@ -1,7 +1,7 @@
 /** The ports of an accessibility check: axe run in a page, the store its assertions are written to, and the clock. */
 import type { Page } from "playwright";
 import type { AxeResults } from "axe-core";
-import type { TDiscourseStore } from "@haibun/core/lib/resources.js";
+import type { TDiscourseStore } from "@haibun/core/lib/domains/resources.js";
 import type { TClock } from "@haibun/core/lib/actuality/ports.js";
 
 /** axe run in a page: its results over the page's document. */

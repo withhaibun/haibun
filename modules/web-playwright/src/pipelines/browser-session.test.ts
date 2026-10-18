@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from "vitest";
 import type { Page } from "playwright";
-import { runInStep } from "@haibun/core/lib/capability-context.js";
+import { runInStep } from "@haibun/core/lib/domains/capability-context.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import type { TBrowserPages } from "../ports.js";
 import { BrowserSession } from "./browser-session.js";

@@ -3,7 +3,7 @@
  * statements a text's typed links state, as a Reading of the text that undoes the previous Reading of the same text. Reads
  * the previous Reading and each link's target through the read of records.
  */
-import { fromJsonText } from "../../json-text.js";
+import { fromJsonText } from "../../domains/json-text.js";
 import {
 	BODY_LABEL,
 	COMMENT_LABEL,
@@ -21,7 +21,7 @@ import {
 	type TPart,
 	type TQuoteAnchor,
 	type TStatedRecord,
-} from "../../resources.js";
+} from "../../domains/resources.js";
 import { MEDIA_TYPE } from "../../domains/media-types.js";
 import { DEFAULT_BODY_KIND, bodyIdOf, bodyKindsOf } from "../derivations/bodies.js";
 import { typedLinkFacts } from "../derivations/typed-link-facts.js";

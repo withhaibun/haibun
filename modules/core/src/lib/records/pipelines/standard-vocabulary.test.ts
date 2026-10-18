@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { z } from "zod";
-import { registerContext, clearKeyDocuments } from "../../jsonld-loader.js";
-import { Access, CLASS_LABEL, LinkRelations, PROPERTY_LABEL } from "../../resources.js";
+import { registerContext, clearKeyDocuments } from "../../domains/jsonld-loader.js";
+import { Access, CLASS_LABEL, LinkRelations, PROPERTY_LABEL } from "../../domains/resources.js";
 import { mapDefinitionsToDomains } from "../../domains/domains.js";
 import { ontologyToQuads, withStandardTerms } from "../derivations/ontology.js";
 import { ONTOLOGY_FIELD } from "../domains/ontology.js";

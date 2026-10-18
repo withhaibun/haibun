@@ -7,7 +7,7 @@
  * its place in the order.
  */
 import { describe, expect, it } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { compositeRenderer, graphSummary, RecordingRenderer, samePlacement, threeRenderer } from "./renderer.js";
 import type { FGLink, FGNode } from "../domains/graph-types.js";
 

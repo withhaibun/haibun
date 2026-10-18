@@ -3,9 +3,9 @@ import { z } from "zod";
 
 import { AStepper, type TStepperSteps } from "./steps/domains/stepper.js";
 import { deriveNamingDomains, mapDefinitionsToDomains, refDomainKey } from "./domains/domains.js";
-import { Access, LinkRelations } from "./resources.js";
-import { actionOKWithProducts } from "./util/index.js";
-import { itemAt } from "./util/item-at.js";
+import { Access, LinkRelations } from "./domains/resources.js";
+import { actionOKWithProducts } from "./domains/util.js";
+import { itemAt } from "./domains/item-at.js";
 import { OK } from "./domains/protocol.js";
 import { buildDomainChain } from "./domain-chain.js";
 import { LINT_FINDING, lintDomainChain, lintFindingLine } from "./domain-chain-lint.js";

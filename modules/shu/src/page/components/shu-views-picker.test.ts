@@ -4,7 +4,7 @@
  * declares the views decides what they are.
  */
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { SHU_TAG } from "../../domains/elements.js";
 import { ShuViewsPicker } from "./shu-views-picker.js";

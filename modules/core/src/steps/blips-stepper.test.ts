@@ -10,8 +10,8 @@ import { AStepper } from "../lib/steps/domains/stepper.js";
 import { OK } from "../lib/domains/protocol.js";
 import { eventHubOfTest, failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
 import type { TWorld } from "../lib/actuality/domains/world.js";
-import { runInStep } from "../lib/capability-context.js";
-import { itemAt } from "../lib/util/item-at.js";
+import { runInStep } from "../lib/domains/capability-context.js";
+import { itemAt } from "../lib/domains/item-at.js";
 
 const SCROLL = {
 	name: "haibun.test.view.scroll_adjust",

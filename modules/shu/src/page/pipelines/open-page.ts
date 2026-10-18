@@ -5,7 +5,7 @@
  * before a view reads actuality, since a site sends the events after a page connects, and follows the running turns. A
  * reader whose address doesn't name a view is shown the views actuality showed.
  */
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import type { TPageAuthority } from "../authority/pipelines/page-authority.js";
 

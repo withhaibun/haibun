@@ -22,7 +22,7 @@ import { recordActuality, verificationOf } from "./verified.js";
 import { emptyOutcome } from "./run-outcome.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
-import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
+import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { SEQ_PATH_EDGE, SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
 import { RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
 import type { ChildProcess } from "child_process";

@@ -8,8 +8,8 @@ import { CONTINUE_AFTER_ERROR, DEFAULT_DEST, MODULE_OPTION_PREFIX, STEP_DELAY } 
 const OTHER_OPTION = `${MODULE_OPTION_PREFIX}TESTSTEPSWITHOPTIONS_OTHER`;
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, passWithDefaults } from "@haibun/core/lib/test/lib.js";
 import TestStepsWithOptions from "@haibun/core/lib/test/TestStepsWithOptions.js";
-import { getDefaultOptions } from "@haibun/core/lib/util/index.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { getDefaultOptions } from "@haibun/core/lib/domains/util.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 
 import { SpeclSchema, type TSpecl } from "@haibun/core/lib/execution.js";
 import type { TProtoOptions } from "@haibun/core/lib/world.js";

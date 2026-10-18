@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { AStepper, TFeatureStep } from "../../steps/domains/stepper.js";
 import { OK, TStepArgs } from "../../domains/protocol.js";
 import { passWithDefaults, DEF_PROTO_OPTIONS, failWithDefaults } from "../../test/lib.js";
-import { actionNotOK } from "../../util/index.js";
+import { actionNotOK } from "../../domains/util.js";
 import { FlowRunner } from "../../steps/pipelines/flow-runner.js";
 import { DOMAIN_STATEMENT } from "../../domains/domains.js";
 import Haibun from "../../../steps/haibun-stepper.js";

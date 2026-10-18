@@ -6,14 +6,14 @@ import Haibun from "./haibun-stepper.js";
 import { IPrompter, TPrompt, TPromptResponse } from "../lib/prompter.js";
 import { ReadlinePrompter } from "../lib/readline-prompter.js";
 import { AStepper } from "../lib/steps/domains/stepper.js";
-import { actionNotOK } from "../lib/util/index.js";
+import { actionNotOK } from "../lib/domains/util.js";
 import { OK } from "../lib/domains/protocol.js";
 import { dispatchStep } from "../lib/actuality/pipelines/step-dispatch.js";
 import { buildFeatureStepForTransport } from "../lib/steps/pipelines/call-step.js";
 import { StepRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { addStepperConcerns } from "../lib/actuality/pipelines/executor.js";
 import { DOMAIN_TEXT } from "../lib/domains/domains.js";
-import { itemAt } from "../lib/util/item-at.js";
+import { itemAt } from "../lib/domains/item-at.js";
 
 class TestPrompter implements IPrompter {
 	prompt = (_p: TPrompt) => Promise.resolve("continue");

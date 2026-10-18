@@ -5,8 +5,8 @@ import { OK } from "../../domains/protocol.js";
 import { AStepper, type CStepper } from "../../steps/domains/stepper.js";
 import { asExpandedFeatures } from "../../test/resolver-features.js";
 import TestSteps from "../../test/TestSteps.js";
-import { createSteppers } from "../../util/index.js";
-import { itemAt } from "../../util/item-at.js";
+import { createSteppers } from "../../domains/util.js";
+import { itemAt } from "../../domains/item-at.js";
 import { Resolver } from "./resolver.js";
 import Haibun from "../../../steps/haibun-stepper.js";
 

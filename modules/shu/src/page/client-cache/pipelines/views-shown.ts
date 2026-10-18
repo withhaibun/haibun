@@ -6,7 +6,7 @@
  * would read those instead of the views shown once each. A page arriving without an address of its own starts on these.
  */
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
-import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
+import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 
 /** What finding the views shown reads: a type's select values by field, the views the site declares in its order, and the
  *  element that shows each. */

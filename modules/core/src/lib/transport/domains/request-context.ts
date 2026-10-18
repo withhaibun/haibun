@@ -3,7 +3,7 @@
 // isolates the context per async chain.
 
 import { AsyncLocalStorage } from "node:async_hooks";
-import { haibunNsForHost } from "../../resources.js";
+import { haibunNsForHost } from "../../domains/resources.js";
 
 type TRequestContext = { baseIri?: string };
 

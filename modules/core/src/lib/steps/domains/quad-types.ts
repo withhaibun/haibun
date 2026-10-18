@@ -4,7 +4,7 @@
  * so a store with an engine writes a quad's properties as they are.
  */
 import { z } from "zod";
-import { AccessLevelSchema, AccessQueryLevelSchema, type AccessLevel } from "../../resources.js";
+import { AccessLevelSchema, AccessQueryLevelSchema, type AccessLevel } from "../../domains/resources.js";
 import { CountedFields, CountedSchema } from "../../domains/hypermedia.js";
 
 /**

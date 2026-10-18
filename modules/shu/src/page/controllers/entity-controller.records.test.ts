@@ -10,8 +10,8 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { openRecord, refreshAnnotations, recordView, followRecords } from "./entity-controller.js";
 import { setupShuTest, makeEntityDispatch, annotationList, type TShuTestHandle } from "../../test/setup.js";
-import { BODY_LABEL, HAS_BODY_EDGE, LinkRelations, SPECIFIC_RESOURCE_LABEL } from "@haibun/core/lib/resources.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { BODY_LABEL, HAS_BODY_EDGE, LinkRelations, SPECIFIC_RESOURCE_LABEL } from "@haibun/core/lib/domains/resources.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import type { TEvent } from "../ports.js";
 import { endPage } from "../adapters/page-held.js";
 import { LOAD_STATUS } from "../domains/load.js";

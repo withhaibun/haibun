@@ -2,7 +2,7 @@
  * The browser a feature drives, as its options state it: a running browser to connect to in place of a launch, and an
  * extension to load into the browser actuality launches. Each is set before a step opens a page.
  */
-import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
+import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/domains/util.js";
 import type { TActionResult } from "@haibun/core/lib/domains/protocol.js";
 import { z } from "zod";
 import { extensionIdOf } from "../derivations/extension.js";

@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SessionAuthority } from "./session-authority.js";
-import { readingAt, runActingAs, runAuthorizedWith, runReadingAt } from "./capability-context.js";
-import { EVERY_ACTION, readAction } from "./actions.js";
-import { AUTHORITY_CAPABILITIES } from "./actions.js";
-import { Access } from "./resources.js";
+import { readingAt, runActingAs, runAuthorizedWith, runReadingAt } from "./domains/capability-context.js";
+import { EVERY_ACTION, readAction } from "./domains/actions.js";
+import { AUTHORITY_CAPABILITIES } from "./domains/actions.js";
+import { Access } from "./domains/resources.js";
 import type { IAuthorityVerifier, TActingFor, TAuthorityEvidence, TOutgoingRequest } from "./domains/authority-types.js";
 import { stubVerifier } from "./test/fake-authority.js";
 

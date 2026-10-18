@@ -1,8 +1,8 @@
 import { AStepper, type TStepAction } from "../steps/domains/stepper.js";
 import type { TFeatures } from "../actuality/domains/execution.js";
 import { Resolver } from "../actuality/pipelines/resolver.js";
-import { errorDetail } from "../util/index.js";
-import { mayCall, requiredAction } from "../actions.js";
+import { errorDetail } from "../domains/util.js";
+import { mayCall, requiredAction } from "../domains/actions.js";
 
 /**
  * Result of validating a step text against registered steppers.

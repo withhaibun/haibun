@@ -7,8 +7,8 @@
 import { declareRegistry, GRAPH_READ_STEPS } from "../../../test/catalog-fixture.js";
 import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
+import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { CACHE_SHAPE } from "../ports.js";
 import type { TCachePayload } from "../../../domains/hydration.js";
 import { cachedGraph, currentExecution, hydrateClientCache, pageDeviceStore } from "./device-controller.js";

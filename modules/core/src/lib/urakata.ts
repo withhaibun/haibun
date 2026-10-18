@@ -26,14 +26,14 @@
 import { z } from "zod";
 import { NameSchema } from "./domains/domains.js";
 import { allocateSyntheticSeqPath } from "./domains/host-id.js";
-import { actingAs, callerHolds, restingOn, runAsTicking } from "./capability-context.js";
-import { capabilityAllows } from "./actions.js";
+import { actingAs, callerHolds, restingOn, runAsTicking } from "./domains/capability-context.js";
+import { capabilityAllows } from "./domains/actions.js";
 import type { TRestsOn } from "./domains/authority-types.js";
 import { getAuthority } from "./session-authority.js";
-import { errorDetail } from "./util/index.js";
+import { errorDetail } from "./domains/util.js";
 import type { TWorld } from "./actuality/domains/world.js";
 import type { TSeqPath } from "./domains/protocol.js";
-import { PersistedVertexSchema, type TDomainDefinition } from "./resources.js";
+import { PersistedVertexSchema, type TDomainDefinition } from "./domains/resources.js";
 
 export const URAKATA = "urakata";
 export const URAKATA_ID_DOMAIN = "urakata-id";

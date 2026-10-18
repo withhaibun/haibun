@@ -1,4 +1,4 @@
-import { itemAt } from "../lib/util/item-at.js";
+import { itemAt } from "../lib/domains/item-at.js";
 import { AStepper } from "../lib/steps/domains/stepper.js";
 import { Resolver } from "../lib/actuality/pipelines/resolver.js";
 import { TActionExecutor, stepActions } from "./derivations/withAction.js";

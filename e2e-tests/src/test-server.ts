@@ -4,7 +4,7 @@ import { actualityAt } from "@haibun/core/lib/transport/adapters/rpc-call.js";
 import type { Context } from "@haibun/web-server-hono/defs.js";
 import { setCookie } from "@haibun/web-server-hono/cookie.js";
 
-import { actionNotOK, actionOK, actionOKWithProducts, getFromRuntime, sleep } from "@haibun/core/lib/util/index.js";
+import { actionNotOK, actionOK, actionOKWithProducts, getFromRuntime } from "@haibun/core/lib/domains/util.js";
 import { createEnumDomainDefinition, DOMAIN_BEARER_TOKEN, DOMAIN_STRING, DOMAIN_LINK, DOMAIN_TEXT, DOMAIN_STEP_METHOD, DOMAIN_ROUTE } from "@haibun/core/lib/domains/domains.js";
 import { SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, STEP_DETAIL } from "@haibun/core/lib/step-discovery.js";
 import { readShownSteps } from "@haibun/core/lib/step-discovery.js";
@@ -183,7 +183,7 @@ class TestServer extends AStepper {
 		await this.getWorld().shared.set(setTally(cur), { when: "tally", seq: [cur] });
 		this.getWorld().eventLogger.info(`tally ${cur}`);
 		const username = c.req.query("username");
-		await sleep(Math.random() * 2000);
+		await this.getWorld().clock.wait(Math.random() * 2000);
 		setCookie(c, "userid", String(username));
 		return c.html(`<h1>Counter test</h1>tally: ${cur}<br />username ${username} `);
 	};

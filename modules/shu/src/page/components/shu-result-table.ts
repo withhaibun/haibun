@@ -23,7 +23,7 @@ import { defineElement } from "../controllers/element-controller.js";
 import { z } from "zod";
 import { ResultTableSchema } from "../../schemas.js";
 import { formatInstant, isDateValue, readerZone } from "../derivations/time-format.js";
-import { ellipsize } from "@haibun/core/lib/util/index.js";
+import { ellipsize } from "@haibun/core/lib/domains/util.js";
 import { getIdField, getPropertyOrder } from "../controllers/catalog-controller.js";
 import "./shu-virtual-column.js";
 import { virtualColumnCss } from "./shu-virtual-column.js";

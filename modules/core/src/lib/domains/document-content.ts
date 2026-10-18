@@ -3,11 +3,11 @@
  * these functions to render actuality's document. The functions are pure and don't import the DOM.
  */
 import { RecordsSchema } from "./json-text.js";
-import { itemAt } from "./util/item-at.js";
-import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TStepEvent, TLifecycleEvent, TLogEvent, TJsonArtifact } from "./domains/protocol.js";
-import { HAIBUN_LOG_LEVELS } from "./domains/protocol.js";
-import { parseRecordName } from "./actuality/domains/seq-path.js";
-import { MEDIA_TYPE } from "./domains/media-types.js";
+import { itemAt } from "./item-at.js";
+import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TStepEvent, TLifecycleEvent, TLogEvent, TJsonArtifact } from "./protocol.js";
+import { HAIBUN_LOG_LEVELS } from "./protocol.js";
+import { parseRecordName } from "../actuality/domains/seq-path.js";
+import { MEDIA_TYPE } from "./media-types.js";
 
 /** The classes of a row of a step or a log message in the document. */
 const LOG_ROW_CLASS = "log-row font-mono text-[11px] text-slate-500 my-0 leading-tight";

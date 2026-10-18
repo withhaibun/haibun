@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
-import { commentDomainDefinition } from "@haibun/core/lib/resources.js";
+import { commentDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 import { catalogOf, rangeOf, type TCatalogSource } from "./catalog.js";
 import { catalogOf as specCatalog } from "../../test/catalog-fixture.js";
 

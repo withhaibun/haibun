@@ -9,7 +9,7 @@
  * `summarizeForContext` method and not by `instanceof`. The polymorphic view is built into a separate bundle, which defines
  * its own ShuElement class.
  */
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { activePane } from "../../controllers/page-cell-controller.js";
 import { paneKeyOf } from "../../derivations/pane-kinds.js";
 import { PAGE_TERMS, ViewCollectionSchema, viewCollection, type TLinkedData, type TViewCollection } from "@haibun/core/lib/domains/hypermedia.js";

@@ -4,7 +4,7 @@
  * and dependency-free so it lays out the same in a browser paint and in a report generated in Node, and is asserted without a DOM.
  */
 import { directionOf, type TGraph } from "../../domains/graph.js";
-import { itemAt, valueAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt, valueAt } from "@haibun/core/lib/domains/item-at.js";
 
 export type NodeBox = { x: number; y: number; w: number; h: number };
 export type GroupBox = { id: string; label: string; depth: number; x: number; y: number; w: number; h: number };

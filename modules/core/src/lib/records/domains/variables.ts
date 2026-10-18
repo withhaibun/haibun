@@ -3,7 +3,7 @@
  * that set it through `prov:wasGeneratedBy`. A secret's record holds the obscured value.
  */
 import { z } from "zod";
-import { Access, EDGE, HELD_BY, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "../../resources.js";
+import { Access, EDGE, HELD_BY, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "../../domains/resources.js";
 import { SHARED_GRAPH } from "../../steps/domains/quad-types.js";
 
 const VARIABLE_DOMAIN = "variable";

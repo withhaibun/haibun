@@ -6,9 +6,9 @@
  * another field, and that the depth ordering the renderer derives from those times flips between the bases.
  */
 import { describe, expect, it } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
-import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { timeZScale, timeZ } from "../derivations/time-axis.js";
 import { DataPipeline, type DataPipelineDeps } from "./data-pipeline.js";
 

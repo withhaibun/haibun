@@ -3,7 +3,7 @@
 // report and a scripted scenario drive the carried one.
 import { PAGE_ACTUALITY, hydrate, newPage, servedWith } from "./test/setup.js";
 import { vi, expect } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { installCarriedEventStream, installServedEventStream } from "./page/root.js";
 import { type TEvent } from "./page/ports.js";
 import { hydrateFromDom } from "./page/controllers/hydration-controller.js";

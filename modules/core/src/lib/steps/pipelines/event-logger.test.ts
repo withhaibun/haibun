@@ -4,10 +4,10 @@ import { OBSCURED_VALUE } from "../domains/secrets.js";
 import type { TEventSink, TSecrets } from "../ports.js";
 import { serializedEvent } from "../derivations/serialized-event.js";
 import { BlipEvent, ImageArtifact, LogEvent, type THaibunEvent } from "../../domains/protocol.js";
-import { runAuthorizedWith, runInStep, runReadingAt } from "../../capability-context.js";
-import { readAction, writeAction } from "../../actions.js";
-import { Access } from "../../resources.js";
-import { itemAt } from "../../util/item-at.js";
+import { runAuthorizedWith, runInStep, runReadingAt } from "../../domains/capability-context.js";
+import { readAction, writeAction } from "../../domains/actions.js";
+import { Access } from "../../domains/resources.js";
+import { itemAt } from "../../domains/item-at.js";
 
 /** The secrets a test hub obscures: the secret values actuality holds. */
 const secretsOf = (values: readonly string[]): TSecrets => ({ values: () => values });

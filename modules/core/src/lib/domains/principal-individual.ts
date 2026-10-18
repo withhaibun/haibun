@@ -4,7 +4,7 @@
  * that names a principal writes it through this module, so one DID is one Principal node, whatever roles it holds.
  */
 import type { TWorld } from "../actuality/domains/world.js";
-import { PRINCIPAL_DOMAIN, PRINCIPAL_LABEL, type TPrincipal } from "../resources.js";
+import { PRINCIPAL_DOMAIN, PRINCIPAL_LABEL, type TPrincipal } from "./resources.js";
 
 /** Idempotent + best-effort: runs only when the Principal label is registered and a store is available (e.g. after
  *  `create graph store`). */

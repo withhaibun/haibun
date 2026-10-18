@@ -4,7 +4,7 @@
  * both from the declarations, so each type states `heldBy: declarations`.
  */
 import { z } from "zod";
-import { Access, CLASS_LABEL, DOMAIN_PERSISTED_TYPE, HELD_BY, LinkRelations, PROPERTY_LABEL, PersistedVertexSchema, type TDomainDefinition } from "../../resources.js";
+import { Access, CLASS_LABEL, DOMAIN_PERSISTED_TYPE, HELD_BY, LinkRelations, PROPERTY_LABEL, PersistedVertexSchema, type TDomainDefinition } from "../../domains/resources.js";
 
 const CLASS_DOMAIN = "ontology-class";
 const PROPERTY_DOMAIN = "ontology-property";

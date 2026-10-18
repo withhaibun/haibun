@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
 import { buildConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
-import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { persistedTypeDefinition } from "./setup.js";
 import { catalogNameFindings, catalogNames } from "./catalog-names-scan.js";
 

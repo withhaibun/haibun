@@ -10,7 +10,7 @@ import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { QuadStore, newStoreChain } from "@haibun/core/lib/quad-store.js";
 import { buildConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
-import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { pageTypes } from "../controllers/page-cell-controller.js";
 import { ActionsBarQuery, SEARCH_DEBOUNCE_MS, searchConditions } from "./actions-bar-query.js";
 import { aControllerHost } from "./controller-host.test-fake.js";

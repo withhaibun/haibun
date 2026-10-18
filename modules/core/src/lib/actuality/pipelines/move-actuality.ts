@@ -6,7 +6,7 @@
 import type { TLifecycleEvent } from "../../domains/protocol.js";
 import type { TWorld } from "../domains/world.js";
 import type { IQuadStore } from "../../steps/ports.js";
-import { SEQ_PATH_LABEL } from "../../resources.js";
+import { SEQ_PATH_LABEL } from "../../domains/resources.js";
 import { isActualityMove, type TActuality, type TActualityMove } from "../machines/actuality.js";
 import { levelRecord, type TLevelNaming, type TStepRecord } from "../derivations/step-records.js";
 

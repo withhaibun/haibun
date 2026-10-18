@@ -4,7 +4,7 @@
  * holds returns the sample, its totals and its clusters as the site would have.
  */
 import type { QuadGraphModel } from "@haibun/core/lib/derivations/quad-graph-model.js";
-import type { AccessLevel } from "@haibun/core/lib/resources.js";
+import type { AccessLevel } from "@haibun/core/lib/domains/resources.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import * as Steps from "../../derivations/steps.js";
 import { reads } from "../../domains/links.js";

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
-import type { TPart } from "@haibun/core/lib/resources.js";
+import type { TPart } from "@haibun/core/lib/domains/resources.js";
 import { columnEntryOf, parseColEntry, PANE_KINDS, paneIdOf, seedView, updateView, type DesiredPane, type TPaneContext } from "./pane-kinds.js";
 
 /** A context whose catalog doesn't declare a record component, and titles a component by its tag. */

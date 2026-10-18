@@ -5,7 +5,7 @@
  */
 import { type TCatalogSpec, declareSpec } from "../../../test/catalog-fixture.js";
 import { beforeEach, describe, it, expect } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { html, type TemplateResult } from "lit";
 import { z } from "zod";
 import { ShuElement } from "../../components/shu-element.js";

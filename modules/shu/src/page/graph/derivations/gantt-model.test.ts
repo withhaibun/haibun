@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { quadsToGanttModel, isGanttable, cascadeReschedule, canonicalRel } from "./gantt-model.js";
 import type { TGanttTask } from "./gantt-model.js";
-import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
 const DAY_MS = 86400000;

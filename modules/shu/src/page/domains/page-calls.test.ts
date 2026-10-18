@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { requiredAction } from "@haibun/core/lib/actions.js";
+import { requiredAction } from "@haibun/core/lib/domains/actions.js";
 import type { TStepperSteps } from "@haibun/core/lib/astepper.js";
 import MonitorStepper from "../../monitor-stepper.js";
 import { CLIENT_LOG, CLIENT_LOG_ACTION, RECORD_BLIPS, RECORD_BLIPS_ACTION } from "./page-calls.js";

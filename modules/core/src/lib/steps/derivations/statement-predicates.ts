@@ -1,7 +1,7 @@
 /**
  * The predicates a statement read takes: each relation whose range is an IRI.
  */
-import { LinkRelations } from "../../resources.js";
+import { LinkRelations } from "../../domains/resources.js";
 
 /** Returns every rel in LinkRelations whose range is an IRI and that isn't abstract. A reader picks a predicate from
  *  this list and doesn't guess one. */

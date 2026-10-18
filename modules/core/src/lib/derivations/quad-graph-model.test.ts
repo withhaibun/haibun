@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { QuadGraphModel } from "./quad-graph-model.js";
 import type { TQuad } from "../steps/domains/quad-types.js";
-import { LinkRelations, TEXT_QUOTE_SELECTOR_LABEL, SPECIFIC_RESOURCE_LABEL } from "../resources.js";
-import { itemAt } from "../util/item-at.js";
+import { LinkRelations, TEXT_QUOTE_SELECTOR_LABEL, SPECIFIC_RESOURCE_LABEL } from "../domains/resources.js";
+import { itemAt } from "../domains/item-at.js";
 
 const q = (subject: string, predicate: string, object: unknown, namedGraph: string, timestamp = 1): TQuad => ({ subject, predicate, object, namedGraph, timestamp });
 /** Builds an edge quad. Its objectType holds the target's range and distinguishes a typed reference from a scalar property. */

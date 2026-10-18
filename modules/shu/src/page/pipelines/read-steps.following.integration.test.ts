@@ -7,7 +7,7 @@ import { requiredActionOf } from "../controllers/registry-controller.js";
 import { SSE_ROUTE } from "@haibun/core/lib/rpc-wire.js";
 import { describe, it } from "vitest";
 import { AStepper } from "@haibun/core/lib/astepper.js";
-import { actionOK, getStepperOptionName } from "@haibun/core/lib/util/index.js";
+import { actionOK, getStepperOptionName } from "@haibun/core/lib/domains/util.js";
 import { DEF_PROTO_OPTIONS, freePort, getTestWorldWithOptions, testWithWorld } from "@haibun/core/lib/test/lib.js";
 import { hostScopedMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";

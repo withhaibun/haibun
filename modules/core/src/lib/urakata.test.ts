@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { UrakataRegistry, URAKATA_LABEL, type IUrakataTicker } from "./urakata.js";
 import { getDefaultWorld } from "./test/lib.js";
-import { accessBound, actingAs, runActingAs, runAuthorizedWith } from "./capability-context.js";
+import { accessBound, actingAs, runActingAs, runAuthorizedWith } from "./domains/capability-context.js";
 import { AUTHORITY_KEY, SessionAuthority } from "./session-authority.js";
-import { actionsToReadAndWrite, EVERY_ACTION, readAction, writeAction, writtenAt } from "./actions.js";
-import { Access } from "./resources.js";
-import { itemAt } from "./util/item-at.js";
+import { actionsToReadAndWrite, EVERY_ACTION, readAction, writeAction, writtenAt } from "./domains/actions.js";
+import { Access } from "./domains/resources.js";
+import { itemAt } from "./domains/item-at.js";
 import { recordOf } from "./records/pipelines/record-reads.js";
 import { mapDefinitionsToDomains } from "./domains/domains.js";
 import { urakataTaskDomainDefinition } from "../steps/urakata-stepper.js";

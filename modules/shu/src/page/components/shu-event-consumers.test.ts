@@ -5,7 +5,7 @@
 import { declareGraphSpec } from "../../test/catalog-fixture.js";
 import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { describe, it, expect, beforeEach, afterEach, onTestFinished } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { ShuMonitorColumn } from "./shu-monitor-column.js";
 import { ShuDocumentColumn } from "./shu-document-column.js";
 import type { ShuArtifactFrame } from "./shu-artifact-frame.js";
@@ -18,7 +18,7 @@ import { setupShuTest, storeFields, type TShuTestHandle } from "../../test/setup
 import { PAGE_SETTING_KEY } from "../domains/settings.js";
 import { actualityStore } from "../client-cache/actuality-store.test-fake.js";
 import { SHU_TAG } from "../../domains/elements.js";
-import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
+import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/domains/log-message.js";
 import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/domains/run-artifact.js";
 import { installGraph } from "../client-cache/controllers/device-controller.js";

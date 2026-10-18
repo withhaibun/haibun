@@ -12,7 +12,7 @@ import { actualityClock, featureSource } from "@haibun/core/lib/actuality/root.j
 import { IHasOptions } from "@haibun/core/lib/astepper.js";
 import { resolveSitePrincipal } from "@haibun/core/lib/domains/host-id.js";
 import { holdModuleOptions } from "@haibun/core/lib/held-module-options.js";
-import { formattedSteppers, getPre, getDefaultOptions, basesFrom, verifyRequiredOptions, verifyExtraOptions, errorDetail } from "@haibun/core/lib/util/index.js";
+import { formattedSteppers, getPre, getDefaultOptions, basesFrom, verifyRequiredOptions, verifyExtraOptions, errorDetail } from "@haibun/core/lib/domains/util.js";
 import { BaseOptions } from "./BaseOptions.js";
 import { TFileSystem, getCreateSteppers, getSteppers } from "@haibun/core/lib/util/node/workspace-lib.js";
 import { getDefaultTag } from "@haibun/core/lib/domains/ttag.js";
@@ -25,7 +25,7 @@ import { eventSink } from "@haibun/core/lib/steps/root.js";
 import { OPTION_RUN_POLICY, OPTION_DRY_RUN, HAIBUN_RUN_POLICY, parseRunPolicyArgs, parseRunPolicyEnv, type TRunPolicyConfig } from "@haibun/core/run-policy/run-policy-types.js";
 import { loadAndValidateRunPolicy } from "@haibun/core/run-policy/run-policy-schema.js";
 import { PhaseRunner, PhaseBailError } from "@haibun/core/lib/PhaseRunner.js";
-import { withName } from "@haibun/core/lib/features.js";
+import { withName } from "@haibun/core/lib/domains/features.js";
 import { forgetOutcome, outcomeAgainst, recordActuality, varianceLine, verificationOf } from "./verified.js";
 
 const OPTION_CONFIG = "--config";

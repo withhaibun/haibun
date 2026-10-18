@@ -4,14 +4,14 @@
  */
 import type { AStepper } from "@haibun/core/lib/astepper.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { obscuredText } from "@haibun/core/lib/steps/derivations/obscured.js";
-import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
+import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { SEQ_PATH_FIELD, executionOf } from "@haibun/core/lib/seq-path.js";
 import { discoverSteps } from "@haibun/core/lib/steps/pipelines/discover-steps.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import { EVERY_DEFINITION } from "@haibun/core/lib/step-discovery.js";
-import { shownTo } from "@haibun/core/lib/capability-context.js";
+import { shownTo } from "@haibun/core/lib/domains/capability-context.js";
 import { SHU_TAG } from "../domains/elements.js";
 import type { THydration } from "../domains/hydration.js";
 import { hashOf, hashWithColumns } from "../page/derivations/address.js";

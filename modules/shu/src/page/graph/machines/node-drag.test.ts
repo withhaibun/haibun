@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { NodeDrag, type NodeDragDeps } from "./node-drag.js";
 import type { FGNode } from "../domains/graph-types.js";
 

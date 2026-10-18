@@ -1,11 +1,11 @@
 import { describe, it, test, expect } from "vitest";
 
-import { DEFAULT_DEST, OK } from "./domains/protocol.js";
+import { DEFAULT_DEST, OK } from "./protocol.js";
 import * as steps from "./features.js";
-import { passWithDefaults, failWithDefaults } from "./test/lib.js";
-import { asFeatures } from "./test/resolver-features.js";
-import { itemAt } from "./util/item-at.js";
-import VariablesStepper from "../steps/variables-stepper.js";
+import { passWithDefaults, failWithDefaults } from "../test/lib.js";
+import { asFeatures } from "../test/resolver-features.js";
+import { itemAt } from "./item-at.js";
+import VariablesStepper from "../../steps/variables-stepper.js";
 
 const varsStepper = [VariablesStepper];
 

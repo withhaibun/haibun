@@ -9,7 +9,7 @@ import { buildConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import { expectWithinBaseline, REPOSITORY_SCAN_MS } from "@haibun/core/lib/test/baseline.js";
 import { DEF_PROTO_OPTIONS, getTestWorldWithOptions } from "@haibun/core/lib/test/lib.js";
 import { sourceFiles, workspacePackages } from "@haibun/core/lib/test/repository-files.js";
-import { createSteppers, setStepperWorldsAndDomains } from "@haibun/core/lib/util/index.js";
+import { createSteppers, setStepperWorldsAndDomains } from "@haibun/core/lib/domains/util.js";
 import { addStepperConcerns } from "@haibun/core/phases/Executor.js";
 import ActivitiesStepper from "@haibun/core/steps/activities-stepper.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";

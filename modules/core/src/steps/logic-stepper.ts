@@ -1,13 +1,13 @@
 import { AStepper, TStepperSteps, IHasCycles, TFeatureStep, IObservationSource, IStepperCycles, hasCycles } from "../lib/steps/domains/stepper.js";
 import type { TWorld } from "../lib/actuality/domains/world.js";
 import { OK, TActionResult, Origin } from "../lib/domains/protocol.js";
-import { actionNotOK, actionOKWithProducts, sleep } from "../lib/util/index.js";
-import { itemAt } from "../lib/util/item-at.js";
+import { actionNotOK, actionOKWithProducts } from "../lib/domains/util.js";
+import { itemAt } from "../lib/domains/item-at.js";
 import { z } from "zod";
 import { FlowRunner, inheritedMode } from "../lib/steps/pipelines/flow-runner.js";
 import { DOMAIN_NUMBER, DOMAIN_STATEMENT, DOMAIN_STRING } from "../lib/domains/domains.js";
 import { readEvery, equalTo } from "../lib/records/pipelines/record-reads.js";
-import { SEQ_PATH_LABEL } from "../lib/resources.js";
+import { SEQ_PATH_LABEL } from "../lib/domains/resources.js";
 import { SEQ_PATH_FIELD, calledParts, executionOf } from "../lib/actuality/domains/seq-path.js";
 
 /** The outcome of a statement run as `maybe`. A failed outcome doesn't fail the step. */
@@ -138,7 +138,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 					if (!result.ok) {
 						return actionNotOK(`whenever: action failed: ${result.errorMessage}`);
 					}
-					await sleep(0);
+					await this.getWorld().clock.wait(0);
 				}
 				return OK;
 			},

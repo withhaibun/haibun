@@ -9,7 +9,7 @@
  * failed bind both call this function, so both describe the occupant the same way.
  */
 
-import { localOrigin } from "./local-origin.js";
+import { localOrigin } from "./domains/local-origin.js";
 import { ACTION_BEGIN, RPC_ROUTE, rpcEnvelope } from "./transport/ports.js";
 
 /** How long a probe of a port is given to reply, in milliseconds. */

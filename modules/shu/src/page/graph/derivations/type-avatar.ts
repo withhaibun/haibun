@@ -1,4 +1,4 @@
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 
 /**
  * A node's type avatar: the initials of its @type, so a reader tells a Principal from a Person, or a SpecificResource

@@ -3,7 +3,7 @@ import { notFromActuality } from "../ports.js";
 import { describe, it, expect } from "vitest";
 import { RpcCallFailed, RpcClient } from "./rpc-client.js";
 import type { TOutgoingRequest, TRequestSigner } from "../../domains/authority-types.js";
-import { itemAt } from "../../util/item-at.js";
+import { itemAt } from "../../domains/item-at.js";
 
 /**
  * Builds a fake fetch that records calls and returns scripted responses. Each call takes the next response from the

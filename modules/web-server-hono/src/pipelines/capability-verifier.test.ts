@@ -10,7 +10,7 @@ import { grantedCapabilityForRequest, requiring } from "./capability-verifier.js
 import { DELEGATIONS_READ_ACTION } from "@haibun/core/lib/domains/authority-types.js";
 import { REFUSED_INVOCATION, RELOAD } from "@haibun/core/lib/rpc-wire.js";
 import { SessionAuthority, AUTHORITY_KEY } from "@haibun/core/lib/session-authority.js";
-import { runActingAs } from "@haibun/core/lib/capability-context.js";
+import { runActingAs } from "@haibun/core/lib/domains/capability-context.js";
 import { currentPrincipal } from "@haibun/core/lib/pipelines/principal.js";
 import type { TRuntime, TWorld } from "@haibun/core/lib/world.js";
 import type { IAuthorityVerifier, TAuthorityAct, TAuthorityEvidence, TDelegations, TVerdict } from "@haibun/core/lib/domains/authority-types.js";

@@ -11,9 +11,9 @@ import type { TExpandedFeature, TExpandedLine, TFeature } from "@haibun/core/lib
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { Resolver } from "@haibun/core/phases/Resolver.js";
-import { expand } from "@haibun/core/lib/features.js";
-import { constructorName, errorDetail } from "@haibun/core/lib/util/index.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { expand } from "@haibun/core/lib/domains/features.js";
+import { constructorName, errorDetail } from "@haibun/core/lib/domains/util.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { OUTSIDE_A_WORKSPACE, TOKEN_TYPES, type TExecuteToolParams, type TPlacedStep, type TToken, type TWorkspaceStatus } from "../domains/lsp.js";
 import { completionItem } from "../derivations/completion.js";
 import { backgroundNotFound, unresolvedLine, unresolvedString } from "../derivations/diagnostics.js";

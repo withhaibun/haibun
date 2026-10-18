@@ -1,6 +1,6 @@
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { statedTotal, type TCounted } from "@haibun/core/lib/domains/hypermedia.js";
-import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { HYPERMEDIA_ROLE_KEY, HYPERMEDIA_ROLE_REL_KEY, SITE_KEY, type GraphEdge, type GraphModel, type GraphNode, type TBuildGraphModelOptions } from "../domains/graph-model.js";
 
 /** Returns the records of a type that a sample leaves out, as a node names them: "+N more", or "+N or more" where the type's

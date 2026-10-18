@@ -8,7 +8,7 @@
 import { describe, it, expect } from "vitest";
 import { PolymorphicCamera, clearStripOffset, coveredTogether, type CameraDeps } from "./camera.js";
 import { FRAME, REFRAME, type ReframeMode } from "../domains/views.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { FRAMED_SPAN, NDC_SPAN, screenShare, type TProjected } from "../derivations/project.js";
 
 type XYZ = { x: number; y: number; z: number };

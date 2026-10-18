@@ -9,7 +9,7 @@
  * reads the refusals it states.
  */
 import { z } from "zod";
-import { AccessLevelSchema } from "../resources.js";
+import { AccessLevelSchema } from "../domains/resources.js";
 
 /** Identifies the actuality whose records a host holds. A host starts with a new one. A store that keeps its records
  *  across processes replaces it with the id stored beside those records. */

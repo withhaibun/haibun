@@ -6,7 +6,7 @@ import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { beforeEach } from "vitest";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/domains/log-message.js";
 import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/domains/run-artifact.js";
-import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
+import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { counted } from "@haibun/core/lib/domains/hypermedia.js";
 import { arrayWindowedSource, lazyWindowedSource, MAX_RESIDENT_PAGES, readWindowedSource } from "./windowed-source.js";
 import { describeWindowedSource, CONFORMANCE_ROWS } from "../../test/windowed-source-conformance.js";

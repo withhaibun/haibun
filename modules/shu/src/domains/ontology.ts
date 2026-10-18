@@ -1,5 +1,5 @@
 /** The schema's two types, and how a term outside a prefixed vocabulary is named. */
-import { CLASS_LABEL, PROPERTY_LABEL } from "@haibun/core/lib/resources.js";
+import { CLASS_LABEL, PROPERTY_LABEL } from "@haibun/core/lib/domains/resources.js";
 
 /** The two types a schema's graph draws, Class and Property. */
 export const SCHEMA_TYPES: readonly string[] = [CLASS_LABEL, PROPERTY_LABEL];

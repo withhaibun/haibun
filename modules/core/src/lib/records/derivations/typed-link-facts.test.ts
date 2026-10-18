@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { linkMentions, typedLinkFacts } from "./typed-link-facts.js";
 import type { TLinkVocabulary } from "../../domains/typed-links.js";
-import { LinkRelations } from "../../resources.js";
+import { LinkRelations } from "../../domains/resources.js";
 
 const TYPES = new Set(["Document", "Comment", "FieldReport"]);
 /** The declared ontology as a consumer's registration would supply it: core rels plus one consumer edge. */

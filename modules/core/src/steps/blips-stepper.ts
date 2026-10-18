@@ -8,7 +8,7 @@
  */
 import { AStepper, type IHasCycles, type IObservationSource, type IStepperCycles, type TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { blipDeclarations, blipDeclared, blipRollup, blipWatch, WATCH_WINDOW, type TBlipSeries } from "../lib/domains/blips.js";
-import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
+import { actionNotOK, actionOKWithProducts } from "../lib/domains/util.js";
 import { OK } from "../lib/domains/protocol.js";
 import type { TBlipEvent } from "../lib/domains/protocol.js";
 import { z } from "zod";

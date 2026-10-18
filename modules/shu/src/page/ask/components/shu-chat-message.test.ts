@@ -12,7 +12,7 @@ import { followPaneLink } from "../../components/ref-navigation.js";
 import { ChatMessageSchema, FORK_CONTROLS, ShuChatMessage } from "./shu-chat-message.js";
 import { SHU_EVENT } from "../../../domains/elements.js";
 import "../../components/shu-ref-element.js";
-import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
+import { COMMENT_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { REF_DENOTES, markdownRef } from "@haibun/core/lib/domains/typed-links.js";
 import { ICON_STEP_COMPLETED, RETURNED_TO_CALLER } from "@haibun/core/lib/domains/protocol.js";
 import { followPaneRequests } from "../../../test/pane-requests.js";

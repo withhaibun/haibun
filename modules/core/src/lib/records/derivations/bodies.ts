@@ -5,7 +5,7 @@
  */
 import { z } from "zod";
 import { MEDIA_TYPE } from "../../domains/media-types.js";
-import { HAS_BODY_EDGE, isContentPropertyDef, type TPropertyDef, type TRepresentation } from "../../resources.js";
+import { HAS_BODY_EDGE, isContentPropertyDef, type TPropertyDef, type TRepresentation } from "../../domains/resources.js";
 import { LinkedBodySchema, type TBodyText, type TLinkedBody } from "../domains/body.js";
 
 /**

@@ -3,7 +3,7 @@
  */
 import { AStepper, IHasCycles, IHasOptions, CycleWhen, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { OK, TActionResult } from "@haibun/core/lib/domains/protocol.js";
-import { errorDetail, stringOrError } from "@haibun/core/lib/util/index.js";
+import { errorDetail, stringOrError } from "@haibun/core/lib/domains/util.js";
 import type { WebPlaywright } from "@haibun/web-playwright";
 import { DOMAIN_FILE_PATH } from "@haibun/core/lib/domains/domains.js";
 import { startRecording, type TRecording } from "./pipelines/recording.js";

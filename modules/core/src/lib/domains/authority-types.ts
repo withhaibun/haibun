@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { AccessLevel } from "../resources.js";
+import type { AccessLevel } from "./resources.js";
 
 /**
  * This module declares only the framework's model of authority. A step declares the action it requires, a caller

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { validateStepInput } from "./step-input.js";
 
 describe("validateStepInput", () => {

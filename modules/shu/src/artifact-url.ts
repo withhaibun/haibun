@@ -5,13 +5,13 @@
  */
 import { nothing } from "lit";
 import { until } from "lit/directives/until.js";
-import { READS_THE_RUNS_ARTIFACTS } from "@haibun/core/lib/actions.js";
+import { READS_THE_RUNS_ARTIFACTS } from "@haibun/core/lib/domains/actions.js";
 import { isOffline } from "./page/controllers/hydration-controller.js";
 import { pageAuthorityPort } from "./page/root.js";
 import { ARTIFACTS_ROUTE, artifactAddress } from "@haibun/core/lib/domains/run-artifact.js";
 import { reportToRun } from "./client-log.js";
-import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { isWebAddress } from "@haibun/core/lib/document-content.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
+import { isWebAddress } from "@haibun/core/lib/domains/document-content.js";
 
 /** Returns a record's address if it is a path or a web address, and undefined for any other scheme. A `javascript:`
  *  address runs in the page. A `data:` address holds a document the record wrote. */

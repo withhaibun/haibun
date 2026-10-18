@@ -2,7 +2,7 @@
  * The Hono server of an instance: it listens on its ports, serves the routes, folders and `/rpc` method families mounted
  * on it, and records each mounted route as an endpoint.
  */
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { Hono } from "hono";
 import { LinearRouter } from "hono/router/linear-router";
 import { bodyLimit } from "hono/body-limit";
@@ -12,12 +12,12 @@ import { serve, type ServerType } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
 import { existsSync, statSync, readdirSync } from "fs";
 import { resolve, sep } from "path";
-import { esc } from "@haibun/core/lib/document-content.js";
+import { esc } from "@haibun/core/lib/domains/document-content.js";
 import type { IEventLogger, IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { describePortOccupant, PROBE_TIMEOUT_MS } from "@haibun/core/lib/port-occupant.js";
 import { ENDPOINT_CLASS, isServicePath } from "@haibun/core/lib/http-observations.js";
 import type { TRpcMethod } from "@haibun/core/lib/rpc-wire.js";
-import type { TBasicAuthUser } from "@haibun/core/lib/basic-auth.js";
+import type { TBasicAuthUser } from "@haibun/core/lib/domains/basic-auth.js";
 import {
 	type Context,
 	type IWebServer,

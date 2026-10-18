@@ -30,12 +30,12 @@ import {
 	isPersisted,
 	type TDiscourseStore,
 } from "./resources.js";
-import { RelSchema, getJsonLdContext, buildConcernCatalog, counted } from "./domains/hypermedia.js";
-import { mapDefinitionsToDomains } from "./domains/domains.js";
-import { itemAt } from "./util/item-at.js";
-import { writeAnnotation } from "./records/pipelines/discourse-writes.js";
-import type { TRecordReader } from "./records/pipelines/record-reads.js";
-import { ORDER_KEY, type TGraphQuery } from "./steps/domains/quad-types.js";
+import { RelSchema, getJsonLdContext, buildConcernCatalog, counted } from "./hypermedia.js";
+import { mapDefinitionsToDomains } from "./domains.js";
+import { itemAt } from "./item-at.js";
+import { writeAnnotation } from "../records/pipelines/discourse-writes.js";
+import type { TRecordReader } from "../records/pipelines/record-reads.js";
+import { ORDER_KEY, type TGraphQuery } from "../steps/domains/quad-types.js";
 
 describe("LinkRelations extensions", () => {
 	// These tests don't restate the vocabulary. A copy would make every addition a two-file edit and would assert only

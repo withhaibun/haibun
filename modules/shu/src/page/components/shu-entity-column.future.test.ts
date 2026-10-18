@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { ShuEntityColumn } from "./shu-entity-column.js";
 import { buildConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
-import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { TIME_SYNC_CLASS } from "../../domains/elements.js";
 import { persistedTypeDefinition } from "../../test/setup.js";
 import { timeCursor } from "../root.js";

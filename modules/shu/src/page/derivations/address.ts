@@ -2,7 +2,7 @@
  * The page's address: the hash parameters that name its columns and its active pane, the one form every hash the page
  * writes takes, an entry's pane and the endings that place it, and an arrival's canonical form.
  */
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 
 /** The hash parameter that names one open column by its pane id, once for each column, in order. */
 export const COLUMN_PARAM = "col";

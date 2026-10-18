@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from "vitest";
 import { buildConcernCatalog, type TConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
-import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { rpcAnswer, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
 import { declareRegistry } from "../../test/catalog-fixture.js";
 import { provideLayout } from "../../test/jsdom-layout.js";

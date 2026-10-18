@@ -9,7 +9,7 @@ import { type TCatalogSpec, declareCatalog, declareSpec } from "../../test/catal
 import { buildConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
 import { seqPathDomainDefinition } from "@haibun/core/lib/seq-path.js";
-import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
+import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { SHU_TAG } from "../../domains/elements.js";
 import { requiredActionOf } from "./registry-controller.js";
 import { describe, it, expect, beforeEach } from "vitest";

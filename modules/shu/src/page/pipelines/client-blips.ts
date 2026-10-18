@@ -5,7 +5,7 @@
  * ring holds an occurrence. Actuality takes each occurrence into the channel a recording on its side reaches, and doesn't
  * retain it.
  */
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { reads } from "../domains/links.js";
 import { RECORD_BLIPS_ACTION, RECORD_BLIPS_METHOD } from "../domains/page-calls.js";
 import { reportToRun } from "../../client-log.js";

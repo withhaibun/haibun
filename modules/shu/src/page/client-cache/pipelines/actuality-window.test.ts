@@ -2,12 +2,12 @@
 // a window of a stated size around where they are, so looking takes the same whether actuality has lasted an hour or a
 // decade. These pin the place of a window, what it holds and how a level narrows it.
 import { describe, it, expect } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { MAX_PAGE_ROWS } from "@haibun/core/lib/domains/hypermedia.js";
 import type { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/domains/log-message.js";
 import { RUN_ARTIFACT_LABEL } from "@haibun/core/lib/domains/run-artifact.js";
-import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
+import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import type { THaibunLogLevel } from "@haibun/core/lib/domains/protocol.js";
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { actualityWindow } from "./actuality-window.js";

@@ -18,7 +18,7 @@ import nodeFS from "node:fs";
 import path from "node:path";
 import type { TSpecl } from "../../actuality/domains/execution.js";
 import { getModuleLocation } from "./workspace-lib.js";
-import { itemAt } from "../item-at.js";
+import { itemAt } from "../../domains/item-at.js";
 
 /** The name of the file that records a group's actualities: the state each read, and the outcome and duration of each of its
  *  levels. The file is written beside the group's configuration. The state excludes every file with this name, because an

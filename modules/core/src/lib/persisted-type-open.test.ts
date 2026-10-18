@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { getDefaultWorld } from "./test/lib.js";
-import { DOMAIN_PERSISTED_TYPE } from "./resources.js";
+import { DOMAIN_PERSISTED_TYPE } from "./domains/resources.js";
 import { registeredDomain } from "./domains/domains.js";
 
 // The graph and column views read any type without an enumeration: the store holds what exists, so a type declared in

@@ -14,10 +14,10 @@
  * typed entries with the RPC name of each step.
  */
 import type { AStepper, TFeatureStep } from "./steps/domains/stepper.js";
-import type { TRegisteredDomain } from "./resources.js";
+import type { TRegisteredDomain } from "./domains/resources.js";
 import type { TFact } from "./records/domains/facts.js";
 import { stepMethodName } from "./steps/domains/step-method.js";
-import { mayCall } from "./actions.js";
+import { mayCall } from "./domains/actions.js";
 import { buildDomainChain, SOURCE_DOMAIN, type TDomainChainGraph } from "./domain-chain.js";
 import { isPrimitiveDomain, refTargetOf } from "./domains/domains.js";
 import { resolveGoal, GOAL_FINDING, type TGoalResolution } from "./goal-resolver.js";

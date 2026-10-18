@@ -17,12 +17,12 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import type { AStepper } from "@haibun/core/lib/astepper.js";
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { currentVersion as version } from "@haibun/core/lib/domains/current-version.js";
 import { answeredFor } from "@haibun/core/lib/call-step.js";
 import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { stepsInstructions, toolDefinition } from "@haibun/core/lib/step-discovery.js";
-import { actingAs, authorizedWith, callerHolds, restingOn, runActingAs, runInvoking, shownTo } from "@haibun/core/lib/capability-context.js";
+import { actingAs, authorizedWith, callerHolds, restingOn, runActingAs, runInvoking, shownTo } from "@haibun/core/lib/domains/capability-context.js";
 import { ACTUALITY_HEADER, actualityRefusal, refusalSaid } from "@haibun/core/lib/rpc-wire.js";
 import { PRESENTED_REQUEST_HEADERS, type Context, type IWebServer, type TCapabilityVerifier } from "../ports.js";
 import { actionsOf } from "../derivations/actions.js";

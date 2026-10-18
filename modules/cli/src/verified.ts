@@ -21,7 +21,7 @@ import { RECORDED_STATUS, type TExecutorResult } from "@haibun/core/lib/domains/
 import { ACTUALITIES_FILE, dependencyRoots, dependencyState, repositoryTop } from "@haibun/core/lib/util/node/dependency-state.js";
 import { SEQ_PATH_FIELD, StepLineSchema, stepLine } from "@haibun/core/lib/seq-path.js";
 import type { TLevelRecords } from "@haibun/core/lib/actuality/pipelines/move-actuality.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 
 /** How a group ran, as the file stores it: every feature passed, or one didn't. */
 export type TOutcome = typeof RECORDED_STATUS.completed | typeof RECORDED_STATUS.failed;

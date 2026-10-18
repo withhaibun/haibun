@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { passWithDefaults } from "../lib/test/lib.js";
 import VariablesStepper from "./variables-stepper.js";
-import { Access } from "../lib/resources.js";
+import { Access } from "../lib/domains/resources.js";
 
 type Products = { topology?: { persistedAs?: string; id?: string; edges?: Record<string, { range: string; rel: string }>; sortColumns?: Record<string, string> } };
 const showProducts = (res: Awaited<ReturnType<typeof passWithDefaults>>, line: string): Products =>

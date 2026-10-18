@@ -11,7 +11,7 @@ import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { buildFeatureStepForTransport } from "@haibun/core/lib/call-step.js";
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
-import { DOMAIN_PERSISTED_TYPE } from "@haibun/core/lib/resources.js";
+import { DOMAIN_PERSISTED_TYPE } from "@haibun/core/lib/domains/resources.js";
 import { asDomainKey } from "@haibun/core/lib/domains/domains.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 

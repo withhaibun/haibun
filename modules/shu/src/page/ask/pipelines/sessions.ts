@@ -4,8 +4,8 @@
  * page holds a turn that a reader sends on another page. Following the conversation activates each record of the page's
  * turn in the actions bar's scope, and writes the session to the view hash.
  */
-import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { COMMENT_LABEL } from "@haibun/core/lib/domains/resources.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { CONVERSATION_DOMAIN, SESSION_PARAM, SessionReadSchema, type TContextPattern, type TSessionTurn } from "@haibun/core/lib/conversation/domains/conversation.js";
 import type { TEvent } from "../../ports.js";
 import { reads } from "../../domains/links.js";

@@ -1,5 +1,5 @@
 /** The ports of the reader's authority on the page: its key, and the signatures it makes. */
-import type { TDelegation } from "@haibun/core/lib/actions.js";
+import type { TDelegation } from "@haibun/core/lib/domains/actions.js";
 
 /** The page's key pair: its public half as a JSON Web Key, and a signature with its private half, which isn't readable. */
 export type TKeyPair = { publicJwk: JsonWebKey; sign(data: Uint8Array<ArrayBuffer>): Promise<Uint8Array> };

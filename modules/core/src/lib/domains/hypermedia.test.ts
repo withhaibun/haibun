@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import { buildConcernCatalog, composeDisplayLabel, composeTitle, MAX_DISPLAY_LABEL_LEN, queryableFields } from "./hypermedia.js";
-import type { TDomainDefinition, THypermediaTopology } from "../resources.js";
+import type { TDomainDefinition, THypermediaTopology } from "./resources.js";
 import { mapDefinitionsToDomains } from "./domains.js";
 import {
 	Access,
@@ -11,7 +11,7 @@ import {
 	textQuoteSelectorDomainDefinition,
 	commentDomainDefinition,
 	principalDomainDefinition,
-} from "../resources.js";
+} from "./resources.js";
 
 const props = (o: Record<string, unknown>) => (f: string) => o[f];
 

@@ -10,7 +10,7 @@
  */
 import { z } from "zod";
 import { AStepper, IHasCycles, TStepperSteps, IStepperCycles, type TBeforeStep } from "../lib/steps/domains/stepper.js";
-import { actionNotOK, actionOKWithProducts } from "../lib/util/index.js";
+import { actionNotOK, actionOKWithProducts } from "../lib/domains/util.js";
 import { requirePrincipal } from "../lib/pipelines/principal.js";
 import {
 	COMMENT_LABEL,
@@ -40,7 +40,7 @@ import {
 	AnnotationListSchema,
 	type TQuoteAnchor,
 	Access,
-} from "../lib/resources.js";
+} from "../lib/domains/resources.js";
 import { MEDIA_TYPE } from "../lib/domains/media-types.js";
 import { readEvery, recordOf } from "../lib/records/pipelines/record-reads.js";
 import { bodiesByMediaType, markdownOf } from "../lib/records/pipelines/body-reads.js";

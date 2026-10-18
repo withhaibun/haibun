@@ -8,7 +8,7 @@
  * exceeds any bounded tail.
  */
 import { z } from "zod";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { ActualityMoveSchema, INITIAL_ACTUALITY, transition, type TActuality } from "@haibun/core/lib/actuality/machines/actuality.js";
 import type { TLevelMoved } from "@haibun/core/lib/actuality/pipelines/move-actuality.js";
 

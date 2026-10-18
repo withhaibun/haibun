@@ -3,7 +3,7 @@ import { resolve } from "path";
 import type { TWorld } from "../lib/actuality/domains/world.js";
 import { Origin } from "../lib/domains/protocol.js";
 import { IHasCycles, IHasOptions, AStepper, TFeatureStep, IStepperCycles, TStartFeature, type TStepperSteps } from "../lib/steps/domains/stepper.js";
-import { actionNotOK, actionOK, getStepperOption, stringOrError } from "../lib/util/index.js";
+import { actionNotOK, actionOK, getStepperOption, stringOrError } from "../lib/domains/util.js";
 import { narratedAudio } from "./pipelines/narration.js";
 import { hostSpeech } from "./root.js";
 import type { TRenderedAudioMap } from "./ports.js";

@@ -8,7 +8,7 @@ import { existsSync, mkdirSync, readdirSync, cpSync, unlinkSync } from "fs";
 import * as nodePath from "path";
 import { createRequire } from "module";
 
-import { itemAt } from "../../lib/util/item-at.js";
+import { itemAt } from "../../lib/domains/item-at.js";
 import type { TRenderedAudioMap, TSpeech } from "../ports.js";
 
 /** The part of kokoro-js's KokoroTTS that synthesis calls: a model loaded by its id, which renders a transcript as audio. */

@@ -15,7 +15,7 @@ import { ActivitiesStepper } from "./activities-stepper.js";
 import Haibun from "./haibun-stepper.js";
 import AuthorityStepper from "./authority-stepper.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "../lib/steps/domains/stepper.js";
-import { actionOK, actionOKWithProducts } from "../lib/util/index.js";
+import { actionOK, actionOKWithProducts } from "../lib/domains/util.js";
 import { z } from "zod";
 import { DOMAIN_USER_NAME } from "../lib/domains/domains.js";
 

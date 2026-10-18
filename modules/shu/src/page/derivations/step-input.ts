@@ -5,7 +5,7 @@
  * `enum`, `required`, `minLength`, `minimum`, and nested objects and arrays, and passes any other keyword. The site
  * validates every call again and rejects an invalid input with 422.
  */
-import { RecordSchema } from "@haibun/core/lib/json-text.js";
+import { RecordSchema } from "@haibun/core/lib/domains/json-text.js";
 import { BAR_MODES } from "../../schemas.js";
 
 export type TFieldError = { field: string; message: string };

@@ -4,9 +4,9 @@
  * makes announces the search the bar now describes as a filter change, which the query runs. The trail label names what
  * the search is about, for the bar's breadcrumb.
  */
-import type { AccessQueryLevel } from "@haibun/core/lib/resources.js";
+import type { AccessQueryLevel } from "@haibun/core/lib/domains/resources.js";
 import { html, nothing, type ReactiveController, type TemplateResult } from "lit";
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/steps/derivations/quad-events.js";
 import { type TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
@@ -26,7 +26,7 @@ import type { TControllerHost } from "./controller-host.js";
 import type { ShuActivityHistory } from "./shu-activity-history.js";
 import { ShuSearchSummary } from "./shu-search-summary.js";
 import { readSlashCommand } from "../derivations/step-input.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { ClockController } from "../controllers/clock-controller.js";
 import { appAccessLevel } from "../../view-query.js";
 import { selectValuesFor } from "../controllers/read-controller.js";

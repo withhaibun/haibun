@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
-import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { actorTypesFor, addObservedSelectValues, getEdgeRelMap, getSelectValues, getTypes, hasSelectValues, setSelectValues } from "./catalog-controller.js";
 import { declareSpec } from "../../test/catalog-fixture.js";
 import { newPage } from "../../test/setup.js";

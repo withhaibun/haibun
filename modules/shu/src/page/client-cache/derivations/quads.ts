@@ -2,7 +2,7 @@
  * A record as the quads that state it, which the device holds.
  */
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
-import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
 
 /** One individual as the quads that state it. Exported so what a page holds a window of records by is one write of the
  *  same quads a single upsert would have written. A record's identity is its `@id`, else the `id` it states: the page holds

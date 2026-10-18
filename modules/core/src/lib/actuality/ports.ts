@@ -5,8 +5,8 @@ import type { TRunPolicyConfig } from "../../run-policy/run-policy-types.js";
 import type { TFeaturesBackgrounds } from "./domains/execution.js";
 import type { TBase } from "./domains/world.js";
 
-/** The time of an event or a record, in milliseconds since the epoch. */
-export type TClock = { now: () => number };
+/** The time of an event or a record, in milliseconds since the epoch, and a wait of a number of milliseconds. */
+export type TClock = { now: () => number; wait: (ms: number) => Promise<void> };
 
 /** How a feature source refuses a base that doesn't hold a feature or a background. */
 export const BASE_WITHOUT_FEATURES = "doesn't hold a feature or a background";

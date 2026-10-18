@@ -48,10 +48,11 @@ describe("the kind of a file", () => {
 		expect(kindOf("src/lib/util.ts")).toBeUndefined();
 	});
 
-	it("is a composition root where the file is a program's entry point", () => {
-		expect(findingsOf("src/bin.ts", { "src/bin.ts": '#!/usr/bin/env node\nimport { store } from "./area/adapters/store.js";\n', [ADAPTER]: "export const store = 1;\n" })).toEqual(
-			[],
-		);
+	it("is a composition root where the file is a program's entry point, which also imports the pipeline it starts", () => {
+		const imported = 'import { store } from "./area/adapters/store.js";\nimport { read } from "./area/pipelines/read.js";\n';
+		const sources = { [ADAPTER]: "export const store = 1;\n", [PIPELINE]: "export const read = 1;\n" };
+		expect(findingsOf("src/bin.ts", { ...sources, "src/bin.ts": `#!/usr/bin/env node\n${imported}` })).toEqual([]);
+		expect(findingsOf("src/root.ts", { ...sources, "src/root.ts": imported })).toEqual(["imports a pipeline: ./area/pipelines/read.js"]);
 	});
 });
 
@@ -130,8 +131,12 @@ describe("a file's findings against the kinds", () => {
 		expect(findingsOf(CONTROLLER, sources)).toEqual(["imports another area's composition root: ../../other/root.js"]);
 	});
 
-	it("don't name a composition root's import of a machine, which it builds the area's instances from", () => {
-		const sources = { [ROOT]: 'import { panes } from "./machines/panes.js";\n', "src/area/machines/panes.ts": "export const panes = 1;\n" };
+	it("don't name a composition root's import of a machine, which it builds the area's instances from, or of a domain", () => {
+		const sources = {
+			[ROOT]: 'import { panes } from "./machines/panes.js";\nimport { NOTE } from "./domains/note.js";\n',
+			"src/area/machines/panes.ts": "export const panes = 1;\n",
+			"src/area/domains/note.ts": 'export const NOTE = "note";\n',
+		};
 		expect(findingsOf(ROOT, sources)).toEqual([]);
 	});
 

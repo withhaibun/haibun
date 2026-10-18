@@ -10,7 +10,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createServer, type Server } from "node:http";
 import { failWithDefaults, freePort, passWithDefaults } from "@haibun/core/lib/test/lib.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
-import { actionNotOK, errorDetail, getStepperOptionName } from "@haibun/core/lib/util/index.js";
+import { actionNotOK, errorDetail, getStepperOptionName } from "@haibun/core/lib/domains/util.js";
 import { DEFAULT_DEST, OK, type TStepArgs } from "@haibun/core/lib/domains/protocol.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";

@@ -5,7 +5,7 @@
 import { LifecycleEvent, STATUS, stepLevel, type TLifecycleEvent, type TStepEnd } from "../../domains/protocol.js";
 import type { TFeatureStep } from "../../steps/domains/stepper.js";
 import { isSecretName } from "../../steps/domains/secrets.js";
-import { errorDetail } from "../../util/index.js";
+import { errorDetail } from "../../domains/util.js";
 import { sanitizeObjectSecrets } from "../../domains/secret-utils.js";
 import { formatSeqPath } from "../domains/seq-path.js";
 import type { TLevelEnd } from "../machines/actuality.js";

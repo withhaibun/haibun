@@ -12,7 +12,7 @@ import { fileDataParts } from "@haibun/core/lib/domains/media-object.js";
 import { DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import type { TChatMessage } from "./shu-chat-message.js";
 import { anIndividual } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { A_CATALOG, CHAT_STEP, answer, chatDispatch, question, readBack, type TDriven as Driven } from "./chat-pane.test-fake.js";

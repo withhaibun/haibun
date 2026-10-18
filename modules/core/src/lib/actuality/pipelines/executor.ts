@@ -5,17 +5,17 @@
  * the next feature heading or the feature's last step ends it.
  */
 import { basename } from "path";
-import { RUN_AUTHORITY, runAuthorizedWith } from "../../capability-context.js";
+import { RUN_AUTHORITY, runAuthorizedWith } from "../../domains/capability-context.js";
 import type { TWorld } from "../domains/world.js";
 import { hasCycles, type AStepper, type TResolvedFeature, type TEndFeature, type TEndExecution } from "../../steps/domains/stepper.js";
 import { STAY, STEP_DELAY, CONTINUE_AFTER_ERROR, FEATURE_START, SCENARIO_START, STATUS, ResolvedFeaturesArtifact } from "../../domains/protocol.js";
 import type { TExecutorResult, TFeatureResult, TStepResult, THaibunEvent } from "../../domains/protocol.js";
-import { sleep, setStepperWorldsAndDomains, constructorName } from "../../util/index.js";
+import { setStepperWorldsAndDomains, constructorName } from "../../domains/util.js";
 import { dispatchStep } from "./step-dispatch.js";
 import { openRunRegistry, type StepRegistry } from "../../steps/pipelines/step-registry.js";
-import { featureAsData } from "../../features.js";
+import { featureAsData } from "../../domains/features.js";
 import { FeatureVariables } from "./feature-variables.js";
-import { FACT_LABEL, type TDomainDefinition } from "../../resources.js";
+import { FACT_LABEL, type TDomainDefinition } from "../../domains/resources.js";
 import { registerDomains, registerStepperNames } from "../../domains/domains.js";
 import { doStepperCycle, doStepperCycleSync } from "../../steps/pipelines/stepper-cycles.js";
 import { calculateShouldClose, declaredStepTextHash, executionFailure, staysAfterExecution } from "../derivations/execution-end.js";
@@ -218,7 +218,7 @@ export class FeatureExecutor {
 			if (!ok) break;
 
 			const stepDelay = world.options[STEP_DELAY];
-			if (stepDelay) await sleep(stepDelay);
+			if (stepDelay) await world.clock.wait(stepDelay);
 		}
 
 		if (running) await endScenario(ok);

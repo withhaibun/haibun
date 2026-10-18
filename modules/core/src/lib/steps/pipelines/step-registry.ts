@@ -6,8 +6,8 @@
 import type { AStepper, TStepperStep, TFeatureStep } from "../domains/stepper.js";
 import { runSteppers, type TWorld } from "../../actuality/domains/world.js";
 import { ControlEvent, STEPS_CHANGED, type TActionResult } from "../../domains/protocol.js";
-import { actionNotOK, errorDetail } from "../../util/index.js";
-import { mayCall } from "../../actions.js";
+import { actionNotOK, errorDetail } from "../../domains/util.js";
+import { mayCall } from "../../domains/actions.js";
 import { refusalCarried } from "../../transport/ports.js";
 import type { TStepDescriptor } from "../domains/step-discovery.js";
 import { stepDeclaration } from "../derivations/step-tools.js";

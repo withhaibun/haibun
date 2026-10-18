@@ -6,7 +6,7 @@ import { ServerHono } from "./server-hono.js";
 import { QuadStore, newStoreChain } from "@haibun/core/lib/quad-store.js";
 import { EndpointLabels, REQUEST_BODY_LIMIT_BYTES } from "../ports.js";
 import { whyNotSignedInOnly } from "./auth.js";
-import { basicAuthUsers } from "@haibun/core/lib/basic-auth.js";
+import { basicAuthUsers } from "@haibun/core/lib/domains/basic-auth.js";
 import { eventHubOfTest, freePort } from "@haibun/core/lib/test/lib.js";
 import { recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { storeDeclaring } from "@haibun/core/lib/test/declared-types.js";

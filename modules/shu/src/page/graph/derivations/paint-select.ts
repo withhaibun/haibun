@@ -7,7 +7,7 @@
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { isGanttable } from "./gantt-model.js";
 import type { TCatalog } from "../../derivations/catalog.js";
-import { edgeRel as coreEdgeRel } from "@haibun/core/lib/resources.js";
+import { edgeRel as coreEdgeRel } from "@haibun/core/lib/domains/resources.js";
 
 type TPaintView = { id: string; label: string };
 

@@ -5,7 +5,7 @@
  * projection shape and the empty→null contract, not layout.
  */
 import { describe, it, expect } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { ShuThreadColumn } from "./shu-thread-column.js";
 import { ShuAnnotatedBody } from "./shu-annotated-body.js";
 import { ShuProductView } from "./shu-product-view.js";

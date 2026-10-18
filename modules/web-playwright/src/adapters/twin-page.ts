@@ -3,7 +3,7 @@ import { chromium, type Locator, type Page } from "playwright";
 import { join } from "node:path";
 import type { AStorage } from "@haibun/domain-storage/domains/storage.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import { actualURI } from "@haibun/core/lib/util/node/actualURI.js";
+import { actualURI } from "@haibun/core/lib/domains/actual-uri.js";
 import type { TTwin } from "../ports.js";
 
 type TElementData = {

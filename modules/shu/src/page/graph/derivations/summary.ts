@@ -9,7 +9,7 @@
 import { RPC_METHOD } from "../../../domains/elements.js";
 import { reads, type TLink } from "../../domains/links.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
-import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
+import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 
 type TStated = Pick<TQuad, "subject" | "object">;
 

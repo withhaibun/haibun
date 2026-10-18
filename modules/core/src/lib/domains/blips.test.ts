@@ -5,7 +5,7 @@ import { recordBlip } from "../pipelines/record-blip.js";
 import { eventHubOfTest } from "../test/lib.js";
 import type { THaibunEvent } from "./protocol.js";
 import type { TWorld } from "../actuality/domains/world.js";
-import { runInStep } from "../capability-context.js";
+import { runInStep } from "./capability-context.js";
 
 const make = () => {
 	const eventLogger = eventHubOfTest();

@@ -5,7 +5,7 @@ import McpStepper from "./mcp-stepper.js";
 import WebServerStepper from "./web-server-stepper.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { OK } from "@haibun/core/lib/domains/protocol.js";
-import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
+import { getStepperOptionName } from "@haibun/core/lib/domains/util.js";
 import { DOMAIN_NUMBER, DOMAIN_TEXT } from "@haibun/core/lib/domains/domains.js";
 
 interface _ListToolsResult {

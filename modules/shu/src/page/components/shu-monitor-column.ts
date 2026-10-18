@@ -26,7 +26,7 @@ import { StepLineSchema, type TStepLine } from "@haibun/core/lib/seq-path.js";
 import { stepPathOfEvent } from "../derivations/steps.js";
 import { artifactOf } from "@haibun/core/lib/domains/run-artifact.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
-import { principalAddress } from "@haibun/core/lib/resources.js";
+import { principalAddress } from "@haibun/core/lib/domains/resources.js";
 import { cursorMark, rowAtCursor, timedRows, type TScrollMarker, type TTimedRows } from "../derivations/rail.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
 import { requestPaneFrom } from "../controllers/pane-controller.js";

@@ -6,13 +6,13 @@ import { hostScopedMethodName, stepMethodName } from "../steps/domains/step-meth
 import { openRunRegistry, StepRegistry } from "../steps/pipelines/step-registry.js";
 import Haibun from "../../steps/haibun-stepper.js";
 import { AStepper } from "../steps/domains/stepper.js";
-import { actionNotOK, actionOKWithProducts, errorDetail } from "../util/index.js";
+import { actionNotOK, actionOKWithProducts, errorDetail } from "../domains/util.js";
 import { getDefaultWorld } from "../test/lib.js";
 import { TEST_DOMAIN, testDomainDefinitions } from "../test/test-domains.js";
 import { addStepperConcerns } from "../actuality/pipelines/executor.js";
 import { FakeInvoker } from "../test/fake-authority.js";
 import { AUTHORITY_KEY, SessionAuthority } from "../session-authority.js";
-import { RUN_AUTHORITY, runAuthorizedWith } from "../capability-context.js";
+import { RUN_AUTHORITY, runAuthorizedWith } from "../domains/capability-context.js";
 import type { TWorld } from "../actuality/domains/world.js";
 import { SITE_DID_PREFIX } from "../domains/host-id.js";
 import { DOMAIN_STRING, asDomainKey, DOMAIN_TEXT } from "../domains/domains.js";

@@ -5,7 +5,7 @@
  */
 import { locateQuoteOffsets } from "@haibun/core/lib/domains/quote-anchor.js";
 import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
-import type { TAnnotationView } from "@haibun/core/lib/resources.js";
+import type { TAnnotationView } from "@haibun/core/lib/domains/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
 /** The W3C Web Annotation the annotator library reads: a TextualBody, and a target that carries both a TextQuoteSelector

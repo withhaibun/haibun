@@ -1,7 +1,7 @@
 // A rail carries the whole run, however long it ran: the window a reader holds is where they pick a moment, and what
 // actuality did outside it still has a place at the ends.
 import { describe, it, expect } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { FOCUS_SHARE, momentAt, railAt, type TActualityFocus, type TActualitySpan } from "./rail.js";
 
 const HOUR = 3600_000;

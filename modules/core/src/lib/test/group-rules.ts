@@ -6,7 +6,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { z } from "zod";
-import { itemAt } from "../util/item-at.js";
+import { itemAt } from "../domains/item-at.js";
 import type { TFound } from "./baseline.js";
 
 const HAIBUN_CLI = /\bhaibun-cli\b/;

@@ -1,7 +1,7 @@
 import type { TEnvVariables } from "@haibun/core/lib/world.js";
 import { CONTINUE_AFTER_ERROR, ONCE, SHOWN_LOG_LEVELS, STAY_ALWAYS, STAY_FAILURE, STEP_DELAY } from "@haibun/core/lib/domains/protocol.js";
 import { IHasOptions } from "@haibun/core/lib/astepper.js";
-import { boolOrError, intOrError, optionOrError, stringOrError } from "@haibun/core/lib/util/index.js";
+import { boolOrError, intOrError, optionOrError, stringOrError } from "@haibun/core/lib/domains/util.js";
 
 export class BaseOptions implements IHasOptions {
 	static options = {

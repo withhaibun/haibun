@@ -4,7 +4,7 @@
  * the edge's label. The scene draws only quads, so a view showing a projection shows it with the scene and its controls.
  */
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
-import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { kindOfEdge, kindOfNode, type TGraph } from "../domains/graph.js";
 
 /** The quads of a projected graph, and one cluster per kind titling each of its nodes. */

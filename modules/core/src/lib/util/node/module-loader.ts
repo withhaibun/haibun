@@ -4,7 +4,7 @@
  */
 import nodeFS from "fs";
 import path from "path";
-import { itemAt } from "../item-at.js";
+import { itemAt } from "../../domains/item-at.js";
 
 type TClass = { new <T>(...args: unknown[]): T };
 

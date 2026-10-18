@@ -5,7 +5,7 @@
  * each time actuality signals they changed, and each time its stream opens after its first read began, since a change
  * actuality signals while the stream is closed doesn't reach the page.
  */
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { STEPS_CHANGED } from "@haibun/core/lib/domains/protocol.js";
 import { EVERY_DEFINITION, SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";

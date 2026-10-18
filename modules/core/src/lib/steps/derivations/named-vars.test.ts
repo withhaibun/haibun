@@ -4,13 +4,13 @@ import { OK, TStepArgs, Origin, TEST_BASE } from "../../domains/protocol.js";
 import { AStepper, TStepperStep } from "../domains/stepper.js";
 import { getNamedMatches, namedInterpolation } from "./named-vars.js";
 import { Resolver } from "../../actuality/pipelines/resolver.js";
-import { actionNotOK, createSteppers } from "../../util/index.js";
+import { actionNotOK, createSteppers } from "../../domains/util.js";
 import { getDefaultWorld } from "../../test/lib.js";
 import { asExpandedFeatures } from "../../test/resolver-features.js";
-import { withName } from "../../features.js";
+import { withName } from "../../domains/features.js";
 import { populateActionArgs } from "../pipelines/populate-action-args.js";
 import { DOMAIN_STRING } from "../../domains/domains.js";
-import { itemAt } from "../../util/item-at.js";
+import { itemAt } from "../../domains/item-at.js";
 
 describe("namedMatches", () => {
 	const step: TStepperStep = { match: /^(?<one>.*?) is (?<two>.*?)$/, action: async () => Promise.resolve(actionNotOK("test")) };

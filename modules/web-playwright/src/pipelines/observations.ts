@@ -1,6 +1,6 @@
 /** The observation sources of the browser's records: each host with the count of requests that reached it, each request with its fields, and each page visited in order. */
 import type { IObservationSource } from "@haibun/core/lib/astepper.js";
-import { HTTP_HOST_LABEL, HTTP_REQUEST_LABEL } from "@haibun/core/lib/resources.js";
+import { HTTP_HOST_LABEL, HTTP_REQUEST_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { VISITED_PAGE_LABEL } from "../domains/web-playwright.js";
 
 type TMetrics = Record<string, Record<string, unknown>>;

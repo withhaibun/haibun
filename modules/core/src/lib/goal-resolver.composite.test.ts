@@ -3,8 +3,8 @@ import { z } from "zod";
 import { GOAL_FINDING, resolveGoal, type TBinding, type TResolverInputs } from "./goal-resolver.js";
 import type { TDomainChainGraph } from "./domain-chain.js";
 import type { TFact } from "./records/domains/facts.js";
-import { Access, type TRegisteredDomain } from "./resources.js";
-import { RUN_AUTHORITY } from "./capability-context.js";
+import { Access, type TRegisteredDomain } from "./domains/resources.js";
+import { RUN_AUTHORITY } from "./domains/capability-context.js";
 
 /**
  * Tests the resolver's composite decomposition. The resolver recurses into the fields of an input domain that registers

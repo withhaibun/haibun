@@ -29,8 +29,8 @@ import {
 	type TSearchCondition,
 	type TStatedQuery,
 } from "../../steps/domains/quad-types.js";
-import { AccessQuery, LinkRelations, isPersisted, statedLevel, type THeldBy, type TRegisteredDomain } from "../../resources.js";
-import { itemAt } from "../../util/item-at.js";
+import { AccessQuery, LinkRelations, isPersisted, statedLevel, type THeldBy, type TRegisteredDomain } from "../../domains/resources.js";
+import { itemAt } from "../../domains/item-at.js";
 
 /** The name a refusal and a rejected bound state for the read function. */
 export const READ_RECORDS = "readRecords";

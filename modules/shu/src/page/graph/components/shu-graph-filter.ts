@@ -38,7 +38,7 @@ import type { TChip } from "./shu-chip-group.js";
 import { counted } from "@haibun/core/lib/domains/hypermedia.js";
 import { TimelineViewController } from "../../controllers/timeline-view-controller.js";
 import { clamp } from "../../derivations/layout.js";
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 
 const StateSchema = z.object({
 	// The user's EXPLICIT per-type visibility choices (true = shown, false = hidden). A type absent here follows the

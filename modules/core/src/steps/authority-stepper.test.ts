@@ -7,8 +7,8 @@ import { describe, expect, it } from "vitest";
 import { getDefaultWorld, passWithDefaults } from "../lib/test/lib.js";
 import { AStepper } from "../lib/steps/domains/stepper.js";
 import { OK } from "../lib/domains/protocol.js";
-import { actionNotOK } from "../lib/util/index.js";
-import { readingAt, runActingAs } from "../lib/capability-context.js";
+import { actionNotOK } from "../lib/domains/util.js";
+import { readingAt, runActingAs } from "../lib/domains/capability-context.js";
 import { getAuthority } from "../lib/session-authority.js";
 import { buildStepRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { DELEGATIONS_READ_ACTION, DELEGATIONS_READ_METHOD } from "../lib/domains/authority-types.js";
@@ -18,8 +18,8 @@ import LogicStepper from "./logic-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
 import { addStepperConcerns } from "../lib/actuality/pipelines/executor.js";
 import { DOMAIN_TEXT } from "../lib/domains/domains.js";
-import { readAction } from "../lib/actions.js";
-import { Access } from "../lib/resources.js";
+import { readAction } from "../lib/domains/actions.js";
+import { Access } from "../lib/domains/resources.js";
 
 const READS_PUBLIC = readAction(Access.public);
 

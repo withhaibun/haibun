@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { COMMENT_LABEL, PRINCIPAL_LABEL, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL } from "@haibun/core/lib/resources.js";
+import { COMMENT_LABEL, PRINCIPAL_LABEL, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { AVATAR_MAX_CHARS, typeAvatar } from "./type-avatar.js";
 
 describe("typeAvatar", () => {

@@ -4,7 +4,7 @@
  */
 import { BlipEvent } from "../domains/protocol.js";
 import type { TWorld } from "../actuality/domains/world.js";
-import { stepInFlight } from "../capability-context.js";
+import { stepInFlight } from "../domains/capability-context.js";
 import { blipDeclared } from "../domains/blips.js";
 
 /**

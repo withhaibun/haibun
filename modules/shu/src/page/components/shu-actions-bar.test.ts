@@ -6,7 +6,7 @@
  */
 import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { Access } from "@haibun/core/lib/resources.js";
+import { Access } from "@haibun/core/lib/domains/resources.js";
 import { buildConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
 import { provideLayout } from "../../test/jsdom-layout.js";

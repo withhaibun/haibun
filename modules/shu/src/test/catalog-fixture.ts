@@ -4,7 +4,7 @@
  */
 import type { TConcernCatalog, TTitledBy } from "@haibun/core/lib/domains/hypermedia.js";
 import type { TDomainDiscoveryInfo } from "@haibun/core/lib/step-discovery.js";
-import { Access } from "@haibun/core/lib/resources.js";
+import { Access } from "@haibun/core/lib/domains/resources.js";
 import { pageRegistry } from "../page/root.js";
 import { stepsShown } from "./setup.js";
 import { REGISTRY_EVENT, REGISTRY_STATUS, type TStepList } from "../page/machines/registry.js";

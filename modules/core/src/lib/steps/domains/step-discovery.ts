@@ -9,8 +9,8 @@
 import { z } from "zod";
 import { ConcernCatalogSchema } from "../../domains/hypermedia.js";
 import { HYPERMEDIA, productData } from "../../domains/protocol.js";
-import { readAction } from "../../actions.js";
-import { Access, AccessLevelSchema } from "../../resources.js";
+import { readAction } from "../../domains/actions.js";
+import { Access, AccessLevelSchema } from "../../domains/resources.js";
 
 /** The method of the step that shows actuality's declarations. The `Haibun` stepper declares it, so the configuration of
  *  an instance that serves callers lists `haibun`. */

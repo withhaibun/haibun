@@ -12,19 +12,19 @@ import { validateToolInput } from "../../steps/derivations/tool-validation.js";
 import { EVERY_DEFINITION } from "../../steps/domains/step-discovery.js";
 import { AStepper, type IHasCycles, type TFeatureStep, type TStepperStep } from "../../steps/domains/stepper.js";
 import { OK, RECORDED_STATUS } from "../../domains/protocol.js";
-import { itemAt } from "../../util/item-at.js";
+import { itemAt } from "../../domains/item-at.js";
 import { FlowRunner } from "../../steps/pipelines/flow-runner.js";
-import { actionOKWithProducts, actionNotOK } from "../../util/index.js";
+import { actionOKWithProducts, actionNotOK } from "../../domains/util.js";
 import { getDefaultWorld, testWithWorld } from "../../test/lib.js";
 import { TEST_DOMAIN, declaresTestDomains, testDomainDefinitions } from "../../test/test-domains.js";
 import { DOMAIN_DOMAIN_KEY, DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_RECORD_ID, DOMAIN_STRING, individualRefDomain, registerDomains } from "../../domains/domains.js";
 import type { TWorld } from "../domains/world.js";
-import { Access, DOMAIN_PERSISTED_TYPE, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "../../resources.js";
+import { Access, DOMAIN_PERSISTED_TYPE, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "../../domains/resources.js";
 import { SEQ_PATH_FIELD, executionOf, factIdOf, formatRecordName } from "../domains/seq-path.js";
 import { readFacts } from "../../records/pipelines/facts.js";
 import { streamContext, streamOver } from "../../transport/domains/step-stream-context.js";
-import { capabilityAllows } from "../../actions.js";
-import { RUN_AUTHORITY, readingAt, runActingAs, runReadingAt, WITHOUT_READ_REFUSAL } from "../../capability-context.js";
+import { capabilityAllows } from "../../domains/actions.js";
+import { RUN_AUTHORITY, readingAt, runActingAs, runReadingAt, WITHOUT_READ_REFUSAL } from "../../domains/capability-context.js";
 
 // --- Test Steppers ---
 

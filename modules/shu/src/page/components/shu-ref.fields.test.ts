@@ -7,7 +7,7 @@
 import { type TCatalogSpec, declareSpec } from "../../test/catalog-fixture.js";
 import { beforeEach, describe, expect, it } from "vitest";
 import { render } from "lit";
-import { LinkRelations, PRINCIPAL_LABEL } from "@haibun/core/lib/resources.js";
+import { LinkRelations, PRINCIPAL_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { provideLayout } from "../../test/jsdom-layout.js";

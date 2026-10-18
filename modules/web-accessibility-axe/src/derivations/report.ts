@@ -6,7 +6,7 @@
  * escaped, since the page is the one under test.
  */
 import type { AxeResults, NodeResult, Result } from "axe-core";
-import { esc, isWebAddress } from "@haibun/core/lib/document-content.js";
+import { esc, isWebAddress } from "@haibun/core/lib/domains/document-content.js";
 
 /** The outcomes axe states, in the order a reviewer reads them, and whether each opens by default. */
 const OUTCOMES = [

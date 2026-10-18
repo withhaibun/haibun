@@ -8,7 +8,7 @@ import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
 import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
+import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { actualityOf } from "@haibun/core/lib/seq-path.js";
 import { ShuClientCacheColumn } from "./shu-client-cache-column.js";
 import "../../components/shu-monitor-column.js";

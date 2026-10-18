@@ -10,7 +10,7 @@ import { z } from "zod";
 import { CountedFields } from "../../domains/hypermedia.js";
 import { SearchConditionSchema, type TSearchCondition } from "../../steps/domains/quad-types.js";
 import { DENOTES, IndividualAddressSchema } from "../../domains/typed-links.js";
-import type { TDomainDefinition } from "../../resources.js";
+import type { TDomainDefinition } from "../../domains/resources.js";
 import { STATUS } from "../../domains/protocol.js";
 
 /** The domains of a conversation's steps. */

@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { AStepper, TFeatureStep } from "../../steps/domains/stepper.js";
-import { fromJsonText } from "../../json-text.js";
-import { parseDotPath, navigateValue } from "../../util/dot-path.js";
-import { itemAt } from "../../util/item-at.js";
+import { fromJsonText } from "../../domains/json-text.js";
+import { parseDotPath, navigateValue } from "../../domains/dot-path.js";
+import { itemAt } from "../../domains/item-at.js";
 import { runEnvEntries, runEnvVariable, type TWorld } from "../domains/world.js";
 import { Origin, TOrigin, TProvenanceIdentifier, TStepValue } from "../../domains/protocol.js";
 import {
@@ -24,8 +24,8 @@ import { VARIABLE_FIELD } from "../../records/domains/variables.js";
 import { QuadStore, newStoreChain } from "../../steps/pipelines/quad-store.js";
 import { OBSCURED_VALUE, isSecretName } from "../../steps/domains/secrets.js";
 import type { TSecrets } from "../../steps/ports.js";
-import { accessBound, readingAsStated, writeBound } from "../../capability-context.js";
-import { EDGE, SEQ_PATH_LABEL, declaredAccessLevel } from "../../resources.js";
+import { accessBound, readingAsStated, writeBound } from "../../domains/capability-context.js";
+import { EDGE, SEQ_PATH_LABEL, declaredAccessLevel } from "../../domains/resources.js";
 import { executionOf, formatRecordName } from "../domains/seq-path.js";
 import { IQuadStore } from "../../steps/ports.js";
 import { SHARED_GRAPH } from "../../steps/domains/quad-types.js";

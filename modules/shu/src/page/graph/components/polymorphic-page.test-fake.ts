@@ -14,7 +14,7 @@ import { POLYMORPHIC_ROUTE } from "../../../test/polymorphic-routes.js";
 import { LABEL_FONT, LABEL_FONT_FALLBACKS } from "../../../domains/serving.js";
 import { labelFontResponse } from "../../../pipelines/served-page.js";
 import { bundleFile } from "../../../adapters/bundle-file.js";
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 
 /**
  * A real page with the polymorphic graph view mounted on it, drawn by a headless browser through a software

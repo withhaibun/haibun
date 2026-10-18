@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { arrayWindowedSource, lazyWindowedSource, MAX_RESIDENT_PAGES, unmarked } from "./windowed-source.js";
 
 /** A fetcher whose row value equals its absolute index, so tests can assert exact rows, with a call counter. */

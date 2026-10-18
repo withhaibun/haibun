@@ -5,7 +5,7 @@
  * or verification.
  */
 import type { TWorld } from "../actuality/domains/world.js";
-import { actingAs } from "../capability-context.js";
+import { actingAs } from "../domains/capability-context.js";
 import { activeSitePrincipal } from "../domains/host-id.js";
 
 const PRINCIPAL = "principal";

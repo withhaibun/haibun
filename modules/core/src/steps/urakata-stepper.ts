@@ -5,8 +5,8 @@
  */
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type TStepperSteps } from "../lib/steps/domains/stepper.js";
-import { actionNotOK, actionOK, actionOKWithProducts } from "../lib/util/index.js";
-import { Access, LinkRelations } from "../lib/resources.js";
+import { actionNotOK, actionOK, actionOKWithProducts } from "../lib/domains/util.js";
+import { Access, LinkRelations } from "../lib/domains/resources.js";
 import { EVENT_ATTRIBUTE, STEP_FAILURE_EVENT } from "../lib/domains/protocol.js";
 import { URAKATA, URAKATA_ID_DOMAIN, URAKATA_LABEL, UrakataRegistry, UrakataSchema, type IHasUrakata, type IUrakataRegistry, urakataIdDomainDefinition } from "../lib/urakata.js";
 

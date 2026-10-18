@@ -6,7 +6,7 @@
 import type { TStepperStep, TStepAction } from "../domains/stepper.js";
 import { type TStepValue, type TOrigin, Origin } from "../../domains/protocol.js";
 import { DOMAIN_DURATION, DOMAIN_STATEMENT, DOMAIN_STRING, DURATION_TERM } from "../../domains/domains.js";
-import { itemAt } from "../../util/item-at.js";
+import { itemAt } from "../../domains/item-at.js";
 import { placeholderOf } from "../domains/phrase.js";
 
 const TYPE_QUOTED = "q_";

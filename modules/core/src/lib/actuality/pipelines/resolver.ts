@@ -3,11 +3,11 @@ import type { TWorld } from "../domains/world.js";
 import { TStepValue, SCENARIO_START, Origin } from "../../domains/protocol.js";
 import { AStepper, TStepAction, TResolvedFeature, TStepperStep, TFeatureStep } from "../../steps/domains/stepper.js";
 import { matchGwtaToAction, getMatch } from "../../steps/derivations/named-vars.js";
-import { getActionable, dePolite, constructorName, actionNotOK, asError, errorDetail } from "../../util/index.js";
-import { itemAt } from "../../util/item-at.js";
+import { getActionable, dePolite, constructorName, actionNotOK, asError, errorDetail } from "../../domains/util.js";
+import { itemAt } from "../../domains/item-at.js";
 import { DOMAIN_STATEMENT } from "../../domains/domains.js";
 import { heldPerEntries } from "../../steps/derivations/held-per-entries.js";
-import { expandLine } from "../../features.js";
+import { expandLine } from "../../domains/features.js";
 
 /** Matches a line written as a sentence. A sentence starts with a capital letter and ends with `.`, `!`, `?`, `:` or `;`. */
 const SENTENCE = /^[A-Z].*[.!?:;]$/;

@@ -18,8 +18,8 @@
  */
 import { stripTrailingSlash } from "./local-origin.js";
 import { z } from "zod";
-import { MEDIA_TYPE } from "./domains/media-types.js";
-import { FragmentSchema, isFragment } from "./domains/media-fragments.js";
+import { MEDIA_TYPE } from "./media-types.js";
+import { FragmentSchema, isFragment } from "./media-fragments.js";
 import { fromJsonText } from "./json-text.js";
 
 // ============================================================================
@@ -760,13 +760,13 @@ export const DOMAIN_PERSISTED_TYPE = "persisted-type";
 
 /** Parses a step value, or another proto, into the domain's native representation. */
 type TDomainCoercer = (
-	proto: import("./domains/protocol.js").TStepValue,
-	featureStep?: import("./steps/domains/stepper.js").TFeatureStep,
-	steppers?: import("./steps/domains/stepper.js").AStepper[],
-) => import("./domains/protocol.js").TStepValueValue;
+	proto: import("./protocol.js").TStepValue,
+	featureStep?: import("../steps/domains/stepper.js").TFeatureStep,
+	steppers?: import("../steps/domains/stepper.js").AStepper[],
+) => import("./protocol.js").TStepValueValue;
 
 /** Comparator between two coerced domain values. */
-type TDomainComparator = (value: import("./domains/protocol.js").TStepValueValue, baseline: import("./domains/protocol.js").TStepValueValue) => number;
+type TDomainComparator = (value: import("./protocol.js").TStepValueValue, baseline: import("./protocol.js").TStepValueValue) => number;
 
 export type TDomainDefinition = {
 	selectors: string[];

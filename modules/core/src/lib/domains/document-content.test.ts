@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { generateDocumentMarkdown, buildArtifactIndex, headingAnchor, artifactStepId, stepAncestors, isWebAddress } from "./document-content.js";
-import type { THaibunEvent } from "./domains/protocol.js";
-import { LifecycleEvent } from "./domains/protocol.js";
+import type { THaibunEvent } from "./protocol.js";
+import { LifecycleEvent } from "./protocol.js";
 
 function featureEvent(featurePath: string, featureName: string): THaibunEvent {
 	return {

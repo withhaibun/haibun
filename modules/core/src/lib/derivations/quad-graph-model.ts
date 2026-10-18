@@ -14,7 +14,7 @@
  */
 import type { TCluster, TClusteredQuads, TQuad } from "../steps/domains/quad-types.js";
 import { displayLabelForQuads, type TDeclaredTitle, type TTitledBy } from "../domains/hypermedia.js";
-import { BODY_LABEL, LinkRelations } from "../resources.js";
+import { BODY_LABEL, LinkRelations } from "../domains/resources.js";
 
 // A scalar property quad (without objectType) keys by named graph, subject and predicate. A later value for the same fact
 // replaces it in place, such as an updated `subject`, a rescheduled gantt `startedAtTime` or an `accessLevel` change. An

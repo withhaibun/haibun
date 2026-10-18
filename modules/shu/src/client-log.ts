@@ -10,8 +10,8 @@ import { authorityFailed, refusalCarried } from "@haibun/core/lib/rpc-wire.js";
  * A view sends the occurrences it records at their own rate to the blip channel (client-blips.ts). This channel carries
  * the few diagnostics a reader of actuality reads beside actuality's own events.
  */
-import { failFastOrLog, isDev } from "@haibun/core/lib/dev-mode.js";
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { failFastOrLog, isDev } from "@haibun/core/lib/domains/dev-mode.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { acts } from "./page/domains/links.js";
 import { conduit, hasConduit } from "./page/controllers/conduit-controller.js";
 import { isServerUnreachable } from "@haibun/core/lib/rpc-wire.js";

@@ -1,6 +1,6 @@
 // The quads a device holds, read as each subject's access level: one map, built in one pass, whatever the read.
 import { describe, it, expect } from "vitest";
-import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { levelsOf, subjectKey } from "./quads.js";
 

@@ -20,7 +20,7 @@ import {
 	type TSearchCondition,
 } from "../../steps/domains/quad-types.js";
 import { type IQuadStore } from "../../steps/ports.js";
-import { HAS_BODY_EDGE, LinkRelations, type AccessQueryLevel } from "../../resources.js";
+import { HAS_BODY_EDGE, LinkRelations, type AccessQueryLevel } from "../../domains/resources.js";
 import { readFromRecords, recordsOfQuads, type TReadDeclarations } from "../derivations/read-records.js";
 
 /** The store port's read function. */

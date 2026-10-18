@@ -5,7 +5,7 @@
  * cryptography, so it doesn't read a proof or sign a request itself.
  */
 import type { TRuntime } from "./actuality/domains/world.js";
-import { actingFor, runReadingAsTheInstance } from "./capability-context.js";
+import { actingFor, runReadingAsTheInstance } from "./domains/capability-context.js";
 import type {
 	IAuthority,
 	IAuthorityInvoker,

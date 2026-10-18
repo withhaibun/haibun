@@ -7,7 +7,7 @@ import { EventEmitter } from "events";
 import { z } from "zod";
 import { stream, streamSSE } from "hono/streaming";
 import type { IEventLogger } from "@haibun/core/lib/steps/ports.js";
-import { truncateForLog, errorDetail } from "@haibun/core/lib/util/index.js";
+import { truncateForLog, errorDetail } from "@haibun/core/lib/domains/util.js";
 import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { streamContext, streamOver, type TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import {
@@ -23,8 +23,8 @@ import {
 import type { TRuntime } from "@haibun/core/lib/world.js";
 import type { THaibunEvent } from "@haibun/core/lib/domains/protocol.js";
 import { serializedEvent } from "@haibun/core/lib/steps/derivations/serialized-event.js";
-import { capabilityAllows, FOLLOWS_THE_RUN, readAction } from "@haibun/core/lib/actions.js";
-import type { AccessLevel } from "@haibun/core/lib/resources.js";
+import { capabilityAllows, FOLLOWS_THE_RUN, readAction } from "@haibun/core/lib/domains/actions.js";
+import type { AccessLevel } from "@haibun/core/lib/domains/resources.js";
 import { pathParam, type IWebServer, type TAuthorizedRequest, type TCapabilityVerifier } from "../ports.js";
 import type { IStepTransport, ITransport, TMessageHandler } from "../domains/transport.js";
 import { follower } from "../machines/follower.js";

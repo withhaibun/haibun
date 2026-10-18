@@ -8,13 +8,13 @@
 	"modules/cli/src/instance-stepper.ts": {
 		"terminal-preposition": 6
 	},
-	"modules/core/src/lib/basic-auth.ts": {
+	"modules/core/src/lib/domains/basic-auth.ts": {
 		"terminal-preposition": 1
 	},
-	"modules/core/src/lib/capability-context.ts": {
+	"modules/core/src/lib/domains/capability-context.ts": {
 		"terminal-preposition": 2
 	},
-	"modules/core/src/lib/document-content.test.ts": {
+	"modules/core/src/lib/domains/document-content.test.ts": {
 		"terminal-preposition": 1
 	},
 	"modules/core/src/lib/domains/domains.ts": {
@@ -27,6 +27,9 @@
 	},
 	"modules/core/src/lib/domains/media-fragments.ts": {
 		"terminal-preposition": 2
+	},
+	"modules/core/src/lib/domains/resources.ts": {
+		"terminal-preposition": 4
 	},
 	"modules/core/src/lib/domains/taiwa.ts": {
 		"anthropomorphic": 1
@@ -42,9 +45,6 @@
 	},
 	"modules/core/src/lib/port-occupant.ts": {
 		"terminal-preposition": 1
-	},
-	"modules/core/src/lib/resources.ts": {
-		"terminal-preposition": 4
 	},
 	"modules/core/src/lib/test/prose-sources.ts": {
 		"terminal-preposition": 4

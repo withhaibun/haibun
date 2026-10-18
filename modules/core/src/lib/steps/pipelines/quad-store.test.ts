@@ -4,10 +4,10 @@ import { GraphQuerySchema } from "../domains/quad-types.js";
 import { readEvery } from "../../records/pipelines/record-reads.js";
 import { storeDeclaring } from "../../test/declared-types.js";
 import { describe, it, expect, beforeEach, beforeAll } from "vitest";
-import { accessBound, runAuthorizedWith, runReadingAt, writeBound } from "../../capability-context.js";
-import { readAction, readCeilingOf, writeAction } from "../../actions.js";
-import { Access, type AccessLevel } from "../../resources.js";
-import { itemAt } from "../../util/item-at.js";
+import { accessBound, runAuthorizedWith, runReadingAt, writeBound } from "../../domains/capability-context.js";
+import { readAction, readCeilingOf, writeAction } from "../../domains/actions.js";
+import { Access, type AccessLevel } from "../../domains/resources.js";
+import { itemAt } from "../../domains/item-at.js";
 import { COUNT_CEILING } from "../../domains/hypermedia.js";
 
 describe("QuadStore Contexts", () => {

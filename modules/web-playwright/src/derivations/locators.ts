@@ -1,7 +1,7 @@
 /** The locator domain of a page target, which selects the Playwright `getBy` method that finds it. */
 import { domainParts } from "@haibun/core/lib/domains/domains.js";
 import type { TStepValue } from "@haibun/core/lib/domains/protocol.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import {
 	DOMAIN_PAGE_ALT_TEXT,
 	DOMAIN_PAGE_LABEL,

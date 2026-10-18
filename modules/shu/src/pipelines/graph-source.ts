@@ -4,7 +4,7 @@
  */
 import { MAX_PAGE_ROWS, buildResourceRels, pageLimit, relOf } from "@haibun/core/lib/domains/hypermedia.js";
 import { hypermediaDomainMap } from "@haibun/core/lib/domains/domains.js";
-import { Access, LinkRelations, storeScopeFor, type AccessLevel, type AccessQueryLevel } from "@haibun/core/lib/resources.js";
+import { Access, LinkRelations, storeScopeFor, type AccessLevel, type AccessQueryLevel } from "@haibun/core/lib/domains/resources.js";
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import type { TClusteredQuads, TQuad } from "@haibun/core/lib/quad-types.js";
 import { QuadGraphModel } from "@haibun/core/lib/derivations/quad-graph-model.js";
@@ -18,7 +18,7 @@ import { withOntologySchema } from "../derivations/ontology-projection.js";
 import { buildGraphModelFromQuads } from "../derivations/graph-model.js";
 import type { TOpenPeerGraphSource, TPeerCalls } from "../ports.js";
 import { RPC_METHOD } from "../domains/elements.js";
-import { AUTHORITY_CAPABILITIES } from "@haibun/core/lib/actions.js";
+import { AUTHORITY_CAPABILITIES } from "@haibun/core/lib/domains/actions.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 
 type TClusters = Awaited<ReturnType<NonNullable<IQuadStore["getClusteredQuads"]>>>["clusters"];

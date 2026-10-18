@@ -15,7 +15,7 @@ import { z } from "zod";
 import { GraphQuerySchema, VIA_FIELD, type TQuad, type TSearchCondition } from "../steps/domains/quad-types.js";
 import { type IQuadStore } from "../steps/ports.js";
 import { COUNT_CEILING, MAX_PAGE_ROWS, readInPages } from "../domains/hypermedia.js";
-import { Access, AccessLevelSchema, EDGE, LinkRelations, type TRegisteredDomain } from "../resources.js";
+import { Access, AccessLevelSchema, EDGE, LinkRelations, type TRegisteredDomain } from "../domains/resources.js";
 
 /** The types the suite declares. */
 export const CONFORMANCE_TYPES = { comment: "Comment", issue: "Issue" } as const;

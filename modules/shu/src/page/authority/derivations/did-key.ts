@@ -1,7 +1,7 @@
 /// <reference path="../../../base58-universal.d.ts" />
 /** Names a P-256 public key as a did:key, which a holder delegates to, and the verification method its signatures name. */
 import { encode } from "base58-universal";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 
 /** The multicodec prefix of a P-256 public key, as a did:key names one: 0x1200 as an unsigned varint. */
 const P256_PUBLIC = [0x80, 0x24];

@@ -14,7 +14,7 @@ import { presenterIn } from "../controllers/presenter-controller.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
 import { declareRegistry } from "../../test/catalog-fixture.js";
 import { stepsShown } from "../../test/setup.js";
-import { Access } from "@haibun/core/lib/resources.js";
+import { Access } from "@haibun/core/lib/domains/resources.js";
 
 /** The step that reads the affordances on offer, as the show steps step describes it. */
 const AFFORDANCES_STEP = {

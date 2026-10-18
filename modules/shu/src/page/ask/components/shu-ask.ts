@@ -5,7 +5,7 @@
  * activity history renders the transcript from them into this element's transcript slot. This element doesn't hold either, so
  * the bar removes it when it closes and the conversation continues.
  */
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { z } from "zod";
 import { nothing, html, css, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
@@ -41,7 +41,7 @@ import {
 } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { GraphQueryResultSchema } from "@haibun/core/lib/quad-types.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/steps/derivations/quad-events.js";
-import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { STATUS } from "@haibun/core/lib/domains/protocol.js";
 import { hasEventStream, subscribeBatchedEvents } from "../../controllers/event-stream-controller.js";
 import { currentSubjectState } from "../../../current-subject.js";
@@ -71,7 +71,7 @@ import { actionRef, recordRef, stepRef } from "../../components/shu-ref.js";
 import { reportToRun } from "../../../client-log.js";
 import { embeddedPageView } from "../../controllers/page-cell-controller.js";
 import { embeddedViewLd } from "../../derivations/embedding.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { readerZone } from "../../derivations/time-format.js";
 import { sessionLabel, type TListedSession } from "../derivations/session-label.js";
 import "../../components/shu-combobox.js";

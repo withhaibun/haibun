@@ -8,13 +8,13 @@ import { advanceSyntheticSeqPath, syntheticBranchSeqPath, syntheticSeqPathDirect
 import { passWithDefaults, failWithDefaults } from "../../test/lib.js";
 import { scenarioEventId } from "../derivations/lifecycle-events.js";
 import { readEvery } from "../../records/pipelines/record-reads.js";
-import { SEQ_PATH_LABEL } from "../../resources.js";
+import { SEQ_PATH_LABEL } from "../../domains/resources.js";
 import { SEQ_PATH_EDGE, SEQ_PATH_FIELD } from "../domains/seq-path.js";
 import { RECORDED_STATUS, TEST_BASE } from "../../domains/protocol.js";
 import { AStepper } from "../../steps/domains/stepper.js";
-import { actionNotOK, actionOK } from "../../util/index.js";
+import { actionNotOK, actionOK } from "../../domains/util.js";
 import { DOMAIN_TEXT } from "../../domains/domains.js";
-import { itemAt } from "../../util/item-at.js";
+import { itemAt } from "../../domains/item-at.js";
 
 describe("syntheticSeqPathDirection", () => {
 	it("uses positive direction for authoritative branches", () => {

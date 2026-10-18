@@ -12,10 +12,10 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { AStepper, type IStepperCycles } from "../steps/domains/stepper.js";
 import { DOMAIN_ACTIONS } from "../domains/domains.js";
-import type { TDomainDefinition } from "../resources.js";
+import type { TDomainDefinition } from "../domains/resources.js";
 import { OK } from "../domains/protocol.js";
 import { getAuthority, heldAuthority } from "../session-authority.js";
-import { capabilityAllows } from "../actions.js";
+import { capabilityAllows } from "../domains/actions.js";
 import type { IAuthorityInvoker, IAuthorityVerifier, TAuthorityAct, TAuthorityEvidence, TDelegations, TOutgoingRequest, TVerdict } from "../domains/authority-types.js";
 
 const HOLDER_HEADER = "fake-holder";

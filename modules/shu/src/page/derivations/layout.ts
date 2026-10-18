@@ -5,7 +5,7 @@
 import { NOTHING_SELECTED_LABEL } from "../../schemas.js";
 import { type TContextPattern, type TContextIndividual } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { DENOTES } from "@haibun/core/lib/domains/typed-links.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { statedTotal, type TCounted } from "@haibun/core/lib/domains/hypermedia.js";
 
 /** Constrains `x` to [min, max]. */

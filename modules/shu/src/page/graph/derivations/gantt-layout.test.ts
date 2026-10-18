@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { timeToGanttX, ganttBarSpan, ganttAxisTicks, ganttExtentOf, laneExtent, GANTT_ROW_H, GANTT_WORLD_W, type GanttScale } from "./gantt-layout.js";
 
 const DAY = 86400000;

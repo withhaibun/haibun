@@ -2,10 +2,10 @@ import { describe, it, expect } from "vitest";
 import { z } from "zod";
 
 import { AStepper, type TStepperSteps } from "./steps/domains/stepper.js";
-import type { TRegisteredDomain } from "./resources.js";
+import type { TRegisteredDomain } from "./domains/resources.js";
 import { mapDefinitionsToDomains } from "./domains/domains.js";
 import { OK } from "./domains/protocol.js";
-import { actionOKWithProducts } from "./util/index.js";
+import { actionOKWithProducts } from "./domains/util.js";
 import { buildDomainChain } from "./domain-chain.js";
 
 const PERSON_DOMAIN = "person";

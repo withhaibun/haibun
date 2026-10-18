@@ -11,10 +11,10 @@
  * stores for its status (RECORDED_STATUS). This file declares the schema, the domain
  * selectors and the domain definition that steppers register.
  */
-import { itemAt } from "../../util/item-at.js";
+import { itemAt } from "../../domains/item-at.js";
 import { z } from "zod";
 import { ACTUALITY_LEVELS, EXECUTION_MODES, HAIBUN_LOG_LEVELS, RECORDED_STATUS, type TActualityLevel } from "../../domains/protocol.js";
-import { Access, COMMENT_LABEL, LinkRelations, PersistedVertexSchema, PRINCIPAL_LABEL, SEQ_PATH_LABEL, type TDomainDefinition } from "../../resources.js";
+import { Access, COMMENT_LABEL, LinkRelations, PersistedVertexSchema, PRINCIPAL_LABEL, SEQ_PATH_LABEL, type TDomainDefinition } from "../../domains/resources.js";
 
 const SEQ_PATH_DOMAIN = "seq-path";
 

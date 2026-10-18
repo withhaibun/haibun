@@ -4,8 +4,8 @@
  */
 import { EXECUTION_MODE, RECORDED_STATUS, STATUS, stepLevel, type TActualityLevel, type TRecordedStatus } from "../../domains/protocol.js";
 import type { TFeatureStep } from "../../steps/domains/stepper.js";
-import { LinkRelations } from "../../resources.js";
-import { itemAt } from "../../util/item-at.js";
+import { LinkRelations } from "../../domains/resources.js";
+import { itemAt } from "../../domains/item-at.js";
 import type { TWorld } from "../domains/world.js";
 import { SEQ_PATH_FIELD, STEP_LEVEL, calledOf, executionOf, formatRecordName, type TRecordName } from "../domains/seq-path.js";
 import type { TActuality, TActualityMove, TStepFailure } from "../machines/actuality.js";

@@ -7,7 +7,7 @@
  * image thumbnails in one `.thumb-row` strip. The functions parse through a detached `<template>` and don't modify the
  * page, so a test runs them without a live column.
  */
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { artifactOf } from "@haibun/core/lib/domains/run-artifact.js";
 import type { TArtifactEvent } from "@haibun/core/lib/domains/protocol.js";
 

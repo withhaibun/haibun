@@ -10,7 +10,7 @@
  */
 import type { Page } from "playwright";
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
-import { actionOK, actionNotOK } from "@haibun/core/lib/util/index.js";
+import { actionOK, actionNotOK } from "@haibun/core/lib/domains/util.js";
 import { DOMAIN_PAGE_LOCATOR } from "@haibun/web-playwright/domains.js";
 import { SHU_TEST_IDS } from "../domains/test-ids.js";
 import { thumbAcrossScroll, thumbPressReaches, type TThumbReading } from "./pipelines/page-reads.js";

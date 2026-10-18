@@ -3,7 +3,7 @@
  * which the ask sends as a turn's view, and a delegation to shu's page key, which shu requests by posting the key.
  */
 import { z } from "zod";
-import { QuoteAnchorSchema } from "@haibun/core/lib/resources.js";
+import { QuoteAnchorSchema } from "@haibun/core/lib/domains/resources.js";
 import { CallLinkSchema, PAGE_TERMS } from "@haibun/core/lib/domains/hypermedia.js";
 
 /** The ActivityStreams type of the page the reader has open. */

@@ -6,10 +6,10 @@
 import { HAIBUN_LOG_LEVELS, RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
 import { LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL } from "@haibun/core/lib/domains/log-message.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
-import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
+import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { bucketMarkerStyle } from "../../derivations/event-marker.js";
 import type { TEventMarkerStyle } from "../../derivations/status-mark.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 
 /** A mark of actuality: what it looks like, and the moment it marks. A rail places it by that moment, so the same marks
  *  draw on a rail of any scale. */

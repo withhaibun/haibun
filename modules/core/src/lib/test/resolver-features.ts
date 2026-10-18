@@ -1,7 +1,7 @@
 import { TExpandedLine, TExpandedFeature } from "../actuality/domains/execution.js";
 
 import { TEST_BASE } from "../domains/protocol.js";
-import { featureSplit, withName } from "../features.js";
+import { featureSplit, withName } from "../domains/features.js";
 
 type TProtoFeature = { base?: string; path: string; content: string }[];
 

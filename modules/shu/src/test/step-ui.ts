@@ -1,8 +1,8 @@
 import { withAction, type TKirejiStep } from "@haibun/core/kireji/derivations/withAction.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import type WebPlaywright from "@haibun/web-playwright";
-import { dePolite } from "@haibun/core/lib/util/index.js";
-import { BASIC_AUTH_OPTION, basicAuthUsers } from "@haibun/core/lib/basic-auth.js";
+import { dePolite } from "@haibun/core/lib/domains/util.js";
+import { BASIC_AUTH_OPTION, basicAuthUsers } from "@haibun/core/lib/domains/basic-auth.js";
 import { requiredModuleOption } from "@haibun/core/lib/held-module-options.js";
 import { MODULE_OPTION_PREFIX } from "@haibun/core/lib/domains/protocol.js";
 import { SHU_TEST_IDS } from "../domains/test-ids.js";
@@ -89,7 +89,7 @@ const ASK_LOCATOR = { ANSWERED: "ask-answered", TURNS_SHOWN: "ask-turns-shown", 
 /** The page-locator variable the actions bar helpers set: the minimize control of the bar's pane. */
 const ACTIONS_PANE_CONTROL = "actions-pane-control";
 
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { normalizeStepKey } from "../page/derivations/steps.js";
 export { normalizeStepKey };
 const stepRun = (method: string, callIndex: number) => `${normalizeStepKey(method)}-${callIndex}-step-run`;

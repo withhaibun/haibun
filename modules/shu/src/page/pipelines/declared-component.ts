@@ -4,7 +4,7 @@
  * the graph presenter load a component through this one pipeline, so an embedded view doesn't depend on a pane that
  * loaded the script first.
  */
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { uiOfComponent, type TCatalog } from "../derivations/catalog.js";
 import { reportToRun } from "../../client-log.js";
 import type { TElements } from "../ports.js";

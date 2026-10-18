@@ -8,8 +8,8 @@
  * store with a query engine behind it reads the same records from an index, and actuality too large to hold in memory
  * reads its records through such a store.
  */
-import { RecordSchema } from "../../json-text.js";
-import { itemAt } from "../../util/item-at.js";
+import { RecordSchema } from "../../domains/json-text.js";
+import { itemAt } from "../../domains/item-at.js";
 import {
 	SHARED_GRAPH,
 	matchesQuadPattern,
@@ -25,8 +25,8 @@ import {
 	type TRecordsPage,
 } from "../domains/quad-types.js";
 import type { IQuadStore, TFederatedGraphSource, TStoreLevels } from "../ports.js";
-import { AccessLevelSchema, HELD_BY, LinkRelations, withinAccess, type AccessLevel } from "../../resources.js";
-import { seenAt, writesAtEveryLevel, writtenAt } from "../../actions.js";
+import { AccessLevelSchema, HELD_BY, LinkRelations, withinAccess, type AccessLevel } from "../../domains/resources.js";
+import { seenAt, writesAtEveryLevel, writtenAt } from "../../domains/actions.js";
 import { distinctOf, readFromRecords, recordsOfQuads, type THeldRecord, type TReadDeclarations } from "../../records/derivations/read-records.js";
 import { quadsOfRead, readEvery, type TRecordReader } from "../../records/pipelines/record-reads.js";
 import { QuadLayer } from "../../records/machines/quad-layer.js";

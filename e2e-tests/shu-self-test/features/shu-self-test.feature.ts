@@ -7,8 +7,8 @@ import ShuStepper from "@haibun/shu/shu-stepper.js";
 import { SHU_TEST_IDS } from "@haibun/shu/domains/test-ids.js";
 import { SHU_TAG } from "@haibun/shu/domains/elements.js";
 import { createStepUI, flattenTestIds } from "@haibun/shu/test/step-ui.js";
-import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
-import { headingAnchor } from "@haibun/core/lib/document-content.js";
+import { COMMENT_LABEL } from "@haibun/core/lib/domains/resources.js";
+import { headingAnchor } from "@haibun/core/lib/domains/document-content.js";
 
 const wp = new WebPlaywright();
 const { waitFor, click, gotoPage, reloadPage, inElement } = withAction(wp);

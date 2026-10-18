@@ -4,7 +4,7 @@
  * to an instance graph's response with an `a` edge from each instance to its Class. A view draws the ontology as it draws
  * any other graph.
  */
-import { CLASS_LABEL, PROPERTY_LABEL, HAIBUN_NS, HAIBUN_PREFIXES, type TRegisteredDomain } from "@haibun/core/lib/resources.js";
+import { CLASS_LABEL, PROPERTY_LABEL, HAIBUN_NS, HAIBUN_PREFIXES, type TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
 import type { TQuad, TClusteredQuads } from "@haibun/core/lib/quad-types.js";
 import { ancestorsWith, ontologyToQuads, superMap, withStandardTerms, type TStandardTerm } from "@haibun/core/lib/records/derivations/ontology.js";
 import { ONTOLOGY_FIELD } from "@haibun/core/lib/records/domains/ontology.js";

@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { AStepper, type TStepperSteps } from "../steps/domains/stepper.js";
 import { getTunableOptions, type IHasTunables, type TTunableOption } from "./tunables.js";
-import { intOrError } from "../util/index.js";
-import { itemAt } from "../util/item-at.js";
+import { intOrError } from "../domains/util.js";
+import { itemAt } from "../domains/item-at.js";
 
 class PlainStepper extends AStepper {
 	description = "doesn't declare tunables";

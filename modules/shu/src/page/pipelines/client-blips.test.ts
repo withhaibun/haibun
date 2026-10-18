@@ -1,15 +1,15 @@
 // @vitest-environment jsdom
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import type { TLink } from "../domains/links.js";
 import { CLIENT_RING } from "../../domains/elements.js";
 import { flushClientBlips } from "./client-blips.js";
 import { pageBlipChannel, recordClientBlip } from "../controllers/blip-controller.js";
 import { carryAnActuality, openReportingPage, setupShuTest, type TShuTestHandle, newPage } from "../../test/setup.js";
 import { CLIENT_LOG_METHOD } from "../domains/page-calls.js";
-import { readAction } from "@haibun/core/lib/actions.js";
-import { Access } from "@haibun/core/lib/resources.js";
+import { readAction } from "@haibun/core/lib/domains/actions.js";
+import { Access } from "@haibun/core/lib/domains/resources.js";
 
 /** The read a page holds to send its occurrences to actuality. */
 const PRIVATE_READ = readAction(Access.private);

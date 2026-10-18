@@ -7,7 +7,7 @@
  */
 import { FEATURE_START, declaredName } from "@haibun/core/lib/domains/protocol.js";
 import { SEQ_PATH_FIELD, SeqPathSchema, actualityOf, parseRecordName } from "@haibun/core/lib/seq-path.js";
-import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
+import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import type { TCachedGraph, TDeviceReport } from "../ports.js";

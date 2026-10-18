@@ -3,8 +3,8 @@
  * parses its hydration element by `HydrationSchema` once, at its start, and the element is emptied, so the page doesn't
  * hold the record twice.
  */
-import { jsonCarried } from "@haibun/core/lib/json-text.js";
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { jsonCarried } from "@haibun/core/lib/domains/json-text.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import type { TActualityId } from "@haibun/core/lib/rpc-wire.js";
 import { HydrationSchema, type TDeploymentSettings, type THydration } from "../../domains/hydration.js";
 import type { THydrationElement, THydrationRead } from "../ports.js";

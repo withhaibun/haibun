@@ -9,7 +9,7 @@
  *     grow, which is not the rightmost pane when that one is collapsed
  */
 import { describe, it, expect, beforeEach, beforeAll } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { ShuColumnPane } from "./shu-column-pane.js";
 import { ShuColumnStrip } from "./shu-column-strip.js";
 import { SHU_EVENT, SHU_ATTR, SHU_TAG } from "../../domains/elements.js";

@@ -7,7 +7,7 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import { unwrap, unwrapToObject, unwrapToShape } from "./zod-unwrap.js";
-import { fromJsonText } from "../json-text.js";
+import { fromJsonText } from "./json-text.js";
 
 const objectType = z.object({ a: z.string(), b: z.number() });
 

@@ -3,7 +3,7 @@ import type { AddressInfo } from "node:net";
 import { afterAll, describe, expect, it } from "vitest";
 
 import { AStepper } from "@haibun/core/lib/astepper.js";
-import { actionOK, actionNotOK, getStepperOptionName } from "@haibun/core/lib/util/index.js";
+import { actionOK, actionNotOK, getStepperOptionName } from "@haibun/core/lib/domains/util.js";
 import { failWithDefaults } from "@haibun/core/lib/test/lib.js";
 import { DEFAULT_DEST, type TStepResult } from "@haibun/core/lib/domains/protocol.js";
 import { buildFeatureStepForTransport } from "@haibun/core/lib/call-step.js";

@@ -10,7 +10,7 @@ import type { TModuleOptions, TBaseOptions } from "@haibun/core/lib/world.js";
 import type { TTag } from "@haibun/core/lib/domains/ttag.js";
 import type { IFile, TStorageFiles } from "../ports.js";
 import { AStepper, StepperKinds, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
-import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
+import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/domains/util.js";
 import { DOMAIN_NUMBER, DOMAIN_FILE_PATH, DOMAIN_TEXT } from "@haibun/core/lib/domains/domains.js";
 
 const FileContentsSchema = z.object({ contents: z.string() });

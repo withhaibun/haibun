@@ -1,5 +1,5 @@
 /** The port of a delegation the page gives. */
-import type { TDelegation } from "@haibun/core/lib/actions.js";
+import type { TDelegation } from "@haibun/core/lib/domains/actions.js";
 import type { TSigningKey } from "../ports.js";
 
 /** The signature of a delegation the page gives from one it holds. */

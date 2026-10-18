@@ -1,4 +1,4 @@
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 
 /**
  * The active node's highlight: a soft glow behind the mark.

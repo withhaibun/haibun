@@ -1,10 +1,10 @@
 // The store another instance serves, held to the same specification as the store it serves from: a satellite keeps its
 // records in the main instance's store, so what a reader is given must not depend on which side holds them.
 import { ACTION_BEGIN, callFailed } from "../ports.js";
-import { errorDetail } from "../../util/index.js";
+import { errorDetail } from "../../domains/util.js";
 import { QuadStore, newStoreChain } from "../../steps/pipelines/quad-store.js";
 import { RemoteQuadStore } from "./remote-quad-store.js";
-import { handleStoreCall, isStoreMethod } from "../../store-protocol.js";
+import { handleStoreCall, isStoreMethod } from "../../domains/store-protocol.js";
 import { CONFORMANCE_TYPES, describeQuadStore } from "../../test/quad-store-conformance.js";
 import { readDeclarationsOf } from "../../records/derivations/read-records.js";
 import { hostHandshake, rpcAnswer } from "../../test/rpc-answer.js";

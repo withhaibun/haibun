@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { CLASS_LABEL, LinkRelations, PROPERTY_LABEL, SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
+import { CLASS_LABEL, LinkRelations, PROPERTY_LABEL, SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { EXECUTION_MODE, RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { MARK_COLOUR } from "../../derivations/status-mark.js";

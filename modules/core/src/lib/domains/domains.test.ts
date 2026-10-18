@@ -16,7 +16,7 @@ import {
 	registeredDomain,
 	toRegisteredDomain,
 } from "./domains.js";
-import { Access, LinkRelations, PersistedVertexSchema, type THypermediaTopology, type TPropertyDef } from "../resources.js";
+import { Access, LinkRelations, PersistedVertexSchema, type THypermediaTopology, type TPropertyDef } from "./resources.js";
 
 const steppers = [VariablesStepper, Haibun, LogicStepper];
 

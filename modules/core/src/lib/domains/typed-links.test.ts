@@ -12,7 +12,7 @@ import {
 	typedHref,
 	type TLinkVocabulary,
 } from "./typed-links.js";
-import { LinkRelations } from "../resources.js";
+import { LinkRelations } from "./resources.js";
 import { FRAGMENT_SPEC, assertFragmentReads } from "./media-fragments.js";
 
 const TYPES = new Set(["Document", "Comment", "FieldReport"]);

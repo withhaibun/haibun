@@ -1,6 +1,6 @@
 /** The extension the browser runs: its worker, once it starts, and the side panel its toolbar button opens, as the worker reads it. */
 import type { Worker } from "playwright";
-import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
+import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/domains/util.js";
 import type { TActionResult } from "@haibun/core/lib/domains/protocol.js";
 import type { BrowserSession } from "./browser-session.js";
 import type { TLoadedExtension } from "./browser-options.js";

@@ -21,7 +21,7 @@
  */
 import { unwrap, unwrapToShape } from "./zod-unwrap.js";
 import { z } from "zod";
-import type { TRegisteredDomain } from "../resources.js";
+import type { TRegisteredDomain } from "./resources.js";
 
 /** Decomposition of one field within a composite domain. */
 export type TCompositeField = {

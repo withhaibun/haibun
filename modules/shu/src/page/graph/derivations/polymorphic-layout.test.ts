@@ -6,7 +6,7 @@
  * ends closer than an unlinked one, a pin holds, and the same input places the same way.
  */
 import { describe, expect, it } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { forceLayout } from "./polymorphic-layout.js";
 import type { ForceContext } from "./force-layout.js";
 import type { FGLink, FGNode } from "../domains/graph-types.js";

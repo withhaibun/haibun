@@ -15,7 +15,7 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
 import { PermissionsSchema } from "../../schemas.js";
 import { AuthorityController, type TAuthority } from "../controllers/authority-controller.js";
-import { principalAddress } from "@haibun/core/lib/resources.js";
+import { principalAddress } from "@haibun/core/lib/domains/resources.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { actionRef, refTpl } from "./shu-ref.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";

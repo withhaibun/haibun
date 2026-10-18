@@ -14,7 +14,7 @@
 import type { THaibunLogLevel } from "@haibun/core/lib/domains/protocol.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
 import type { TDensityQuery } from "@haibun/core/lib/quad-types.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import type { TActualityGraph } from "../ports.js";
 import { COUNTED, marksOf, type TActualityMark } from "../derivations/actuality-marks.js";
 import { levelsFrom } from "../derivations/actuality-rows.js";

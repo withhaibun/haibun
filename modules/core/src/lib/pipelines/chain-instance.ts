@@ -21,8 +21,8 @@
 import type { TWorld } from "../actuality/domains/world.js";
 import type { IQuadStore } from "../steps/ports.js";
 import type { TMichi } from "../goal-resolver.js";
-import { actingAs, readingAt } from "../capability-context.js";
-import { Access } from "../resources.js";
+import { actingAs, readingAt } from "../domains/capability-context.js";
+import { Access } from "../domains/resources.js";
 import { STATUS } from "../domains/protocol.js";
 
 /** The named graph that holds chain-instance facts. */

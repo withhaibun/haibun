@@ -40,7 +40,7 @@
  */
 import { GOAL_FINDING, type TBinding, type TFieldBinding, type TMichi } from "@haibun/core/lib/goal-resolver.js";
 import { EDGE_KIND, NODE_KIND, kindOfEdge, type TGraph, type TGraphEdge, type TGraphNode } from "../domains/graph.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { stepLabelOf } from "./steps.js";
 
 export function pathId(index: number): string {

@@ -4,8 +4,8 @@
  * held record in place, an observed edge of a held record reads the record again, and a note anchored in a held record from
  * any page reads its notes again.
  */
-import { errorDetail } from "@haibun/core/lib/util/index.js";
-import { BODY_LABEL, LinkRelations } from "@haibun/core/lib/resources.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
+import { BODY_LABEL, LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { LinkedBodySchema } from "@haibun/core/lib/records/domains/body.js";
 import type { TIndividualWithEdges, TQuad } from "@haibun/core/lib/quad-types.js";
 import { unreadView, type TAnnotationDraft, type TEntityView } from "../domains/entity.js";

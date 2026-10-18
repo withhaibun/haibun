@@ -3,7 +3,7 @@
  * at the same moments. It holds the listeners, the events replayed to a listener that subscribes late, and whether the
  * stream is open, and records every dispatched event in a fixed-size replay buffer.
  */
-import { failFastOrLog } from "../../dev-mode.js";
+import { failFastOrLog } from "../../domains/dev-mode.js";
 
 /** How many events a replay buffer holds, where its stream doesn't state how many. */
 export const REPLAY_BUFFER_LIMIT = 5000;

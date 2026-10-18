@@ -7,7 +7,7 @@
  * needs, so the cadence is even and the scene still idles between breaths.
  */
 import { describe, expect, it } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { PULSE_MS, pulseAt } from "../derivations/highlight.js";
 
 /** The loop as the scene runs it: rAF frames always advance; the scene draws only while within the dirty grace. */

@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { QuadStore, newStoreChain } from "../../steps/pipelines/quad-store.js";
 import { equalTo, readEvery, recordOf } from "../../records/pipelines/record-reads.js";
 import { storeDeclaring } from "../../test/declared-types.js";
-import { handleStoreCall, isStoreMethod } from "../../store-protocol.js";
+import { handleStoreCall, isStoreMethod } from "../../domains/store-protocol.js";
 import { RemoteQuadStore } from "./remote-quad-store.js";
 import { FakeInvoker } from "../../test/fake-authority.js";
 

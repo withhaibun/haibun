@@ -5,7 +5,7 @@ import { ShuEntityColumn } from "./shu-entity-column.js";
 import { setupShuTest, makeEntityDispatch, type TShuTestHandle } from "../../test/setup.js";
 import { endPage } from "../adapters/page-held.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import { BODY_LABEL } from "@haibun/core/lib/resources.js";
+import { BODY_LABEL } from "@haibun/core/lib/domains/resources.js";
 
 const BODY = "the body a reader copies";
 

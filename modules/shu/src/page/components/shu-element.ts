@@ -35,7 +35,7 @@
  * resolve their children) override `createRenderRoot()` to return `this`.
  */
 
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { LitElement, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { SignalWatcher } from "@lit-labs/signals";

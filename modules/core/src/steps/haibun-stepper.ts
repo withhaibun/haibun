@@ -3,7 +3,7 @@ import type { TFeatures } from "../lib/actuality/domains/execution.js";
 import type { TWorld } from "../lib/actuality/domains/world.js";
 import { OK } from "../lib/domains/protocol.js";
 import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TEndFeature, CycleWhen } from "../lib/steps/domains/stepper.js";
-import { actionNotOK, actionOK, actionOKWithProducts, sleep } from "../lib/util/index.js";
+import { actionNotOK, actionOK, actionOKWithProducts } from "../lib/domains/util.js";
 import { findFeatureStepsFromStatement } from "../lib/actuality/pipelines/resolver.js";
 import {
 	DOMAIN_BACKGROUND_NAMES,
@@ -18,7 +18,7 @@ import {
 	backgroundNamesSchema,
 	createEnumDomainDefinition,
 } from "../lib/domains/domains.js";
-import { findFeatures } from "../lib/features.js";
+import { findFeatures } from "../lib/domains/features.js";
 import { FlowRunner, inheritedMode } from "../lib/steps/pipelines/flow-runner.js";
 import { QuadStore } from "../lib/steps/pipelines/quad-store.js";
 import { remoteQuadStore } from "./root.js";
@@ -28,12 +28,12 @@ import { discoverSteps } from "../lib/steps/pipelines/discover-steps.js";
 import { runRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { stepMethodName } from "../lib/steps/domains/step-method.js";
 import { DOMAIN_STEP_DETAIL, SHOW_STEPS_ACTION, SHOW_STEPS_DESCRIPTION, StepDetailSchema, StepDiscoverySchema, type TStepsQuery } from "../lib/steps/domains/step-discovery.js";
-import { shownTo } from "../lib/capability-context.js";
+import { shownTo } from "../lib/domains/capability-context.js";
 import { validateStep } from "../lib/pipelines/step-validation.js";
-import { Access, SEQ_PATH_LABEL } from "../lib/resources.js";
+import { Access, SEQ_PATH_LABEL } from "../lib/domains/resources.js";
 import { recordOf } from "../lib/records/pipelines/record-reads.js";
 import { SEQ_PATH_FIELD, executionOf, formatRecordName } from "../lib/actuality/domains/seq-path.js";
-import { itemAt } from "../lib/util/item-at.js";
+import { itemAt } from "../lib/domains/item-at.js";
 
 /** Whether a line resolves to one step, and the method of that step or why it doesn't resolve to exactly one. */
 const StepValidationSchema = z.discriminatedUnion("valid", [z.object({ valid: z.literal(true), method: z.string() }), z.object({ valid: z.literal(false), error: z.string() })]);
@@ -206,7 +206,7 @@ class Haibun extends AStepper implements IHasCycles {
 					const signal = await this.runner.runSteps(statements, { intent: { mode, usage: "polling" }, parentStep: featureStep });
 					if (signal.ok) return OK;
 					if (Date.now() >= ends) return actionNotOK(`the statements didn't pass within ${duration}ms: ${signal.errorMessage}`);
-					await sleep(UNTIL_RETRY_MS);
+					await this.getWorld().clock.wait(UNTIL_RETRY_MS);
 				}
 			},
 		},
@@ -274,7 +274,7 @@ class Haibun extends AStepper implements IHasCycles {
 			description: 'Pause for a duration. Accepts seconds or milliseconds with an optional space, e.g. `pause for "2s"` or `pause for "30 ms"`.',
 			gwta: `pause for {duration: ${DOMAIN_DURATION}}`,
 			action: async ({ duration }: { duration: number }) => {
-				await sleep(duration);
+				await this.getWorld().clock.wait(duration);
 				return OK;
 			},
 		},

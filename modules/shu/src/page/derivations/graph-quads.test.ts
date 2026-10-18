@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { graphToQuads } from "./graph-quads.js";
 import { buildGraphModelFromQuads } from "../../derivations/graph-model.js";
 import { EDGE_KIND, NODE_KIND, type TGraph } from "../domains/graph.js";

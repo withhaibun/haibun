@@ -8,11 +8,11 @@ import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import { passWithDefaults, failWithDefaults } from "../../test/lib.js";
 import { AStepper } from "../../steps/domains/stepper.js";
-import { actionNotOK, actionOKWithProducts } from "../../util/index.js";
+import { actionNotOK, actionOKWithProducts } from "../../domains/util.js";
 import { RESULTS_READ_IN_FULL, foldStep } from "../derivations/step-results.js";
 import { releasePayloads } from "./executor.js";
 import type { TFeatureSteps, TStepResult } from "../../domains/protocol.js";
-import { itemAt } from "../../util/item-at.js";
+import { itemAt } from "../../domains/item-at.js";
 
 const LARGE_ANSWER = "test-large-answer";
 

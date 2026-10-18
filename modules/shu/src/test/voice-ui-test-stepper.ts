@@ -12,7 +12,7 @@
  */
 import { z } from "zod";
 import { AStepper, IHasCycles, type IStepperCycles } from "@haibun/core/lib/astepper.js";
-import { actionOK, getFromRuntime } from "@haibun/core/lib/util/index.js";
+import { actionOK, getFromRuntime } from "@haibun/core/lib/domains/util.js";
 import { WEBSERVER, type IWebServer, type Context } from "@haibun/web-server-hono/defs.js";
 
 const TEST_COMPONENT_URL = "/assets/voice-ui-test-component.js";

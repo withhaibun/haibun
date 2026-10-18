@@ -1,5 +1,5 @@
 /** A download the page starts: expected before the action that causes it, and saved to a file once it arrives. */
-import { actionNotOK, errorDetail } from "@haibun/core/lib/util/index.js";
+import { actionNotOK, errorDetail } from "@haibun/core/lib/domains/util.js";
 import { OK, type TActionResult } from "@haibun/core/lib/domains/protocol.js";
 import type { BrowserSession } from "./browser-session.js";
 

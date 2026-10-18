@@ -19,7 +19,7 @@ import { declareFakeGraphPresenter, mountedPresenter } from "../../graph-present
 import { reportedErrors, setupShuTest, type TShuTestHandle } from "../../test/setup.js";
 import { NODE_KIND, type TGraphNode } from "../domains/graph.js";
 import { followPaneRequests } from "../../test/pane-requests.js";
-import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
+import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 
 /** The actuality a snapshot records its facts from. */
 const EXECUTION = "1790000000000-1";

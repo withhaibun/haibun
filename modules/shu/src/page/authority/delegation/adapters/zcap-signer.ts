@@ -12,7 +12,7 @@ import * as securityContext from "@digitalbazaar/security-context";
 import * as multikeyContext from "@digitalbazaar/multikey-context";
 import * as zcapContext from "@digitalbazaar/zcap-context";
 import * as didContext from "did-context";
-import { documentLoader, registerContext } from "@haibun/core/lib/jsonld-loader.js";
+import { documentLoader, registerContext } from "@haibun/core/lib/domains/jsonld-loader.js";
 import type { TDelegationSigner } from "../ports.js";
 
 /** Returns the delegation signer, which names the zcap-LD context in each delegation it signs. */

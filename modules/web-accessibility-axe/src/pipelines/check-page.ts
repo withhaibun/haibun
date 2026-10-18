@@ -3,7 +3,7 @@
  * assertion the step made, and the page's serious and moderate violations evaluated against the counts accepted.
  */
 import type { Page } from "playwright";
-import { SEQ_PATH_LABEL, writeEdge, writeReferenceEdge } from "@haibun/core/lib/resources.js";
+import { SEQ_PATH_LABEL, writeEdge, writeReferenceEdge } from "@haibun/core/lib/domains/resources.js";
 import { EARL_ASSERTION_EDGE, EARL_LABEL, type TEarlAssertions } from "../domains/earl.js";
 import { axeAssertions, evalSeverity, type TSeverity } from "../derivations/axe-earl.js";
 import { axeReportHtml } from "../derivations/report.js";

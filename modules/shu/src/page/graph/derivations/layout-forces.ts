@@ -5,7 +5,7 @@
  * one source of truth (e.g. "feeding a new node must not move the existing ones").
  */
 import { forceCollide } from "d3-force-3d";
-import { ellipsize } from "@haibun/core/lib/util/index.js";
+import { ellipsize } from "@haibun/core/lib/domains/util.js";
 
 export const CHARGE = -90;
 export const GROUPED_CHARGE = -45;

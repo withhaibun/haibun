@@ -6,7 +6,7 @@
  *
  * Light DOM (an activity-history entry must be visible to test-id walks and text capture).
  */
-import { AccessQuery } from "@haibun/core/lib/resources.js";
+import { AccessQuery } from "@haibun/core/lib/domains/resources.js";
 import type { TemplateResult } from "lit";
 import { html } from "lit";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";

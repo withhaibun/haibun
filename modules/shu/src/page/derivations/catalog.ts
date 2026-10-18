@@ -4,7 +4,7 @@
  * time, its title, the component it declares, the instrumentation types, and the actor and role edges by which a view lays
  * out records. A new catalog is a new key, so the page derives it again.
  */
-import { LinkRelations, RESOURCE_LABEL, fromActorRels, getPropertyDefinitions, isSubPropertyOf, roleRels, toActorRels } from "@haibun/core/lib/resources.js";
+import { LinkRelations, RESOURCE_LABEL, fromActorRels, getPropertyDefinitions, isSubPropertyOf, roleRels, toActorRels } from "@haibun/core/lib/domains/resources.js";
 import type { TConcernCatalog, TTitledBy } from "@haibun/core/lib/domains/hypermedia.js";
 import type { TDomainDiscoveryInfo } from "@haibun/core/lib/step-discovery.js";
 import { ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, SHU_TAG, isMarkerType } from "../../domains/elements.js";

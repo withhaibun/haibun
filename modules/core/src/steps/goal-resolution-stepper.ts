@@ -14,7 +14,7 @@
  *   advance the walk {walk: walk-id} with {args: json}  → DOMAIN_CHAIN_WALK (runs the next step with what it takes)
  */
 import { z } from "zod";
-import { JsonObjectSchema } from "../lib/json-text.js";
+import { JsonObjectSchema } from "../lib/domains/json-text.js";
 import {
 	AStepper,
 	type IHasCycles,
@@ -26,7 +26,7 @@ import {
 	type IHasOptions,
 	type TStepperOption,
 } from "../lib/steps/domains/stepper.js";
-import { actionNotOK, actionOKWithProducts, getStepperOption, stringOrError } from "../lib/util/index.js";
+import { actionNotOK, actionOKWithProducts, getStepperOption, stringOrError } from "../lib/domains/util.js";
 import {
 	DOMAIN_AFFORDANCES,
 	DOMAIN_CHAIN_LINT,
@@ -49,8 +49,8 @@ import { callStepByName, NO_INPUT } from "../lib/steps/pipelines/call-step.js";
 import { buildAffordances, providesWaypoints, AFFORDANCE_EVENT_PREFIX, type TWaypointEntry, satisfiedGoalDomains } from "../lib/affordances.js";
 import { readFacts } from "../lib/records/pipelines/facts.js";
 import { executionOf, factIdOf } from "../lib/actuality/domains/seq-path.js";
-import { callerHolds, RUN_AUTHORITY, stepInFlight } from "../lib/capability-context.js";
-import { Access } from "../lib/resources.js";
+import { callerHolds, RUN_AUTHORITY, stepInFlight } from "../lib/domains/capability-context.js";
+import { Access } from "../lib/domains/resources.js";
 
 const SMOKE_GOALS = "SMOKE_GOALS";
 const COMPOSITE_DECOMPOSITION = "COMPOSITE_DECOMPOSITION";

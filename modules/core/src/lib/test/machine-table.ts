@@ -5,7 +5,7 @@
  */
 import { expect } from "vitest";
 import type { TTransition } from "../machines/machine.js";
-import { itemAt } from "../util/item-at.js";
+import { itemAt } from "../domains/item-at.js";
 
 /** A generator of numbers in [0, 1) from the seed. */
 export function seededRandom(seed: number): () => number {

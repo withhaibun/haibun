@@ -1,15 +1,15 @@
 import { describe, it, test, expect, vi } from "vitest";
 
-import * as util from "./index.js";
-import { checkModuleIsClass } from "./node/module-loader.js";
+import * as util from "../domains/util.js";
+import { checkModuleIsClass } from "../util/node/module-loader.js";
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getCreateSteppers } from "../test/lib.js";
 import TestSteps from "../test/TestSteps.js";
 import TestStepsWithOptions from "../test/TestStepsWithOptions.js";
 import { OK } from "../domains/protocol.js";
 import { IHasOptions, StepperKinds, type TStepperSteps } from "../steps/domains/stepper.js";
 import { AStepper } from "../steps/domains/stepper.js";
-import { constructorName } from "./index.js";
-import { itemAt } from "./item-at.js";
+import { constructorName } from "../domains/util.js";
+import { itemAt } from "../domains/item-at.js";
 
 describe("isLowerCase", () => {
 	it("is lower case", () => {

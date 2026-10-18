@@ -12,7 +12,7 @@
  * a layout coming to rest) is not an event here, so it cannot move the active record. The graph's follow and highlight,
  * the ask and the context status each read an output of the state rather than holding a piece of it.
  */
-import type { AccessQueryLevel } from "@haibun/core/lib/resources.js";
+import type { AccessQueryLevel } from "@haibun/core/lib/domains/resources.js";
 import { DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import type { TBundle, TPageContext } from "./schemas.js";
 import type { TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";

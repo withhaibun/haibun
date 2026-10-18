@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { declareCatalog } from "../../../test/catalog-fixture.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { buildConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
@@ -16,7 +16,7 @@ import {
 	bodyDomainDefinition,
 	specificResourceDomainDefinition,
 	textQuoteSelectorDomainDefinition,
-} from "@haibun/core/lib/resources.js";
+} from "@haibun/core/lib/domains/resources.js";
 import { projectFilterClusters, effectiveHiddenTypes } from "./graph-filter.js";
 import { getTitledBy, instrumentationTypes } from "../../controllers/catalog-controller.js";
 

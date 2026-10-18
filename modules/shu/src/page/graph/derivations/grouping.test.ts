@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { groupKeyOf, containerLabelOf, ringAnchors, shelfPack, groupBounds, ENCLOSURE_MIN_THICK, easeInOutCubic, UNATTRIBUTED_ROLE } from "./grouping.js";
 import { isPlaced } from "../domains/graph-types.js";
 import { SITE_KEY, HYPERMEDIA_ROLE_KEY } from "../../../domains/graph-model.js";

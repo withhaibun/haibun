@@ -3,7 +3,7 @@
  */
 import type { IEventLogger } from "../ports.js";
 import type { TQuad } from "../domains/quad-types.js";
-import { ellipsize } from "../../util/index.js";
+import { ellipsize } from "../../domains/util.js";
 
 /** The most of a string value a quad OBSERVATION carries. Events carry references and previews, never payloads:
  *  an emitted body would otherwise ride into every event buffer and SSE frame (a first-time index of a large

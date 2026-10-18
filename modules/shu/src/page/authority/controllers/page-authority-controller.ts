@@ -2,7 +2,7 @@
  * The reader's authority on the page, as a view, the page's start and the browser extension read and use it
  * (`pipelines/page-authority.ts`), and as the page's root holds it (`authorityPort`).
  */
-import type { TDelegation } from "@haibun/core/lib/actions.js";
+import type { TDelegation } from "@haibun/core/lib/domains/actions.js";
 import type { TDelegations } from "@haibun/core/lib/domains/authority-types.js";
 import type { TProveRequest } from "@haibun/core/lib/rpc-wire.js";
 import { authorityScope, pageKeyStore } from "../root.js";

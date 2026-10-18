@@ -14,7 +14,7 @@
  * behind it.
  */
 import { BREATH_MS } from "./highlight.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 
 import { REGULATION_KINDS } from "../../../domains/graph-blips.js";
 

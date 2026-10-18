@@ -3,7 +3,7 @@
  * with that host's prefix. Every transport, every caller and the registry key a step by this one method.
  */
 import type { AStepper } from "./stepper.js";
-import { constructorName } from "../../util/index.js";
+import { constructorName } from "../../domains/util.js";
 
 const HOST_SCOPE = /^host(\d+)_/;
 

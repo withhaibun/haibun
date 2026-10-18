@@ -1,4 +1,4 @@
-import { itemAt } from "../util/item-at.js";
+import { itemAt } from "./item-at.js";
 import { z } from "zod";
 import {
 	AccessLevelSchema,
@@ -11,10 +11,10 @@ import {
 	type TRegisteredDomain,
 	type THypermediaTopology,
 	type TRelRange,
-} from "../resources.js";
+} from "./resources.js";
 import type { TLinkVocabulary } from "./typed-links.js";
-import { parseJsonText } from "../json-text.js";
-import { actionList } from "../actions.js";
+import { parseJsonText } from "./json-text.js";
+import { actionList } from "./actions.js";
 import type { TWorld } from "../actuality/domains/world.js";
 
 export const DOMAIN_STATEMENT = "statement";

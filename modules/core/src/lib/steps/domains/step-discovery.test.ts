@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { AStepper } from "./stepper.js";
 import { OK } from "../../domains/protocol.js";
-import { Access } from "../../resources.js";
+import { Access } from "../../domains/resources.js";
 import { getDefaultWorld } from "../../test/lib.js";
 import { createStepTool } from "../pipelines/step-registry.js";
 import { StepDescriptorSchema } from "./step-discovery.js";

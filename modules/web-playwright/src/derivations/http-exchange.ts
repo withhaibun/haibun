@@ -4,7 +4,7 @@
  * record: actuality doesn't record or narrate it, and the observer doesn't trace or observe it. An observed read returns to
  * the page as a request individual and a host count, and a page that records what it draws then draws what it recorded.
  */
-import { fromJsonText } from "@haibun/core/lib/json-text.js";
+import { fromJsonText } from "@haibun/core/lib/domains/json-text.js";
 import { RpcEnvelopeSchema } from "@haibun/core/lib/rpc-wire.js";
 import type { TPageRequest } from "../ports.js";
 

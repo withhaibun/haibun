@@ -3,8 +3,8 @@
  * from the grammar, so a page that reads a reference loads the grammar alone.
  */
 import MarkdownIt from "markdown-it";
-import { itemAt } from "../../util/item-at.js";
-import { LinkRelations } from "../../resources.js";
+import { itemAt } from "../../domains/item-at.js";
+import { LinkRelations } from "../../domains/resources.js";
 import { DENOTES, classifyLinkText, resolveLinkTarget, type TLinkVocabulary, type TTypedLinkFact } from "../../domains/typed-links.js";
 
 /** One markdown-it instance parses every text. linkify is off, so a bare URL in prose stays prose and only a written link is data. */

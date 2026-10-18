@@ -2,7 +2,7 @@
  * The UI extensions a consumer declares for slots of the page's chrome, loaded from where each is served. A missing or
  * unserved extension is reported by itself, and the others load.
  */
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { slotExtensions } from "../controllers/catalog-controller.js";
 import { getAvailableSteps } from "../controllers/registry-controller.js";
 import { reportToRun, type TClientLogLevel } from "../../client-log.js";

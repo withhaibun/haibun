@@ -1,6 +1,6 @@
 /** The browser's domains: the ways a step locates an element, what reading a page and a response returns, the HTTP and network records the page's observer keeps, and the options a step takes. */
 import { HYPERMEDIA } from "@haibun/core/lib/domains/protocol.js";
-import { RecordSchema, RecordsSchema } from "@haibun/core/lib/json-text.js";
+import { RecordSchema, RecordsSchema } from "@haibun/core/lib/domains/json-text.js";
 import { z } from "zod";
 import {
 	Access,
@@ -11,7 +11,7 @@ import {
 	LinkRelations,
 	PersistedVertexSchema,
 	TDomainDefinition,
-} from "@haibun/core/lib/resources.js";
+} from "@haibun/core/lib/domains/resources.js";
 import { asDomainKey, createEnumDomainDefinition, NameSchema } from "@haibun/core/lib/domains/domains.js";
 import { ENDPOINT_CLASS } from "@haibun/core/lib/http-observations.js";
 import {

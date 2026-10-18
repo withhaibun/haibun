@@ -2,8 +2,8 @@
  * The calls a process sends to the `/rpc` of a haibun host: each call built over the wire's envelope with the proof its
  * sender computes, the sign-ins this process holds for the sites it calls, and the handshake that begins every surface.
  */
-import { stripTrailingSlash } from "../../local-origin.js";
-import { basicAuthorization, type TBasicAuthUser } from "../../basic-auth.js";
+import { stripTrailingSlash } from "../../domains/local-origin.js";
+import { basicAuthorization, type TBasicAuthUser } from "../../domains/basic-auth.js";
 import {
 	ACTION_BEGIN,
 	answerBody,

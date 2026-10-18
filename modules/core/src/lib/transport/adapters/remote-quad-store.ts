@@ -7,9 +7,9 @@
  * Mount-scoped: clustered reads and all() cover only the mounted graphs, never the peer's whole store.
  */
 import { RemoteInstance } from "./rpc-client.js";
-import { STORE_METHOD_PREFIX, requiredStoreCapability } from "../../store-protocol.js";
+import { STORE_METHOD_PREFIX, requiredStoreCapability } from "../../domains/store-protocol.js";
 import type { TRequestSigner } from "../../domains/authority-types.js";
-import type { AccessLevel } from "../../resources.js";
+import type { AccessLevel } from "../../domains/resources.js";
 import type { IQuadStore } from "../../steps/ports.js";
 import type {
 	TClusteredQuads,

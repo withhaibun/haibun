@@ -17,7 +17,7 @@
  */
 import { Signal } from "@lit-labs/signals";
 import { z } from "zod";
-import { AccessQuery, AccessQueryLevelSchema } from "@haibun/core/lib/resources.js";
+import { AccessQuery, AccessQueryLevelSchema } from "@haibun/core/lib/domains/resources.js";
 import { parseFilterParam, serializeFilterParam } from "./schemas.js";
 import { SearchConditionSchema, SortOrderSchema, type TSearchCondition } from "@haibun/core/lib/quad-types.js";
 import { pagePinned } from "./page/adapters/page-held.js";

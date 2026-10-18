@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { QuadStore, newStoreChain } from "./steps/pipelines/quad-store.js";
+import { QuadStore, newStoreChain } from "../steps/pipelines/quad-store.js";
 import { handleStoreCall, isStoreMethod, requiredStoreCapability, STORE_READ, STORE_WRITE } from "./store-protocol.js";
-import { itemAt } from "./util/item-at.js";
-import { GraphQueryResultSchema } from "./steps/domains/quad-types.js";
-import { storeDeclaring } from "./test/declared-types.js";
+import { itemAt } from "./item-at.js";
+import { GraphQueryResultSchema } from "../steps/domains/quad-types.js";
+import { storeDeclaring } from "../test/declared-types.js";
 
 describe("store protocol capability classification", () => {
 	it("requires store.write for anything that changes the store and store.read otherwise", () => {

@@ -3,7 +3,7 @@
  * the step declares. The fact links the step that produced it through `prov:wasGeneratedBy`.
  */
 import { z } from "zod";
-import { Access, EDGE, FACT_LABEL, HELD_BY, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "../../resources.js";
+import { Access, EDGE, FACT_LABEL, HELD_BY, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "../../domains/resources.js";
 
 const FACT_DOMAIN = "fact";
 

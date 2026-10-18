@@ -111,12 +111,12 @@ import { authorityPort, openPageAuthority, type TPageAuthority } from "../page/a
 import type { TDelegations } from "@haibun/core/lib/domains/authority-types.js";
 import { SHOW_STEPS_METHOD, STEP_DETAIL, type TStepDefinition, type TStepDefinitions } from "@haibun/core/lib/step-discovery.js";
 import { readShownSteps, stepDefinition } from "@haibun/core/lib/step-discovery.js";
-import { requiredAction, type TStepReads } from "@haibun/core/lib/actions.js";
+import { requiredAction, type TStepReads } from "@haibun/core/lib/domains/actions.js";
 import { steppersOf } from "@haibun/core/lib/steps/pipelines/discover-steps.js";
 import { ARTIFACTS_ROUTE } from "@haibun/core/lib/domains/run-artifact.js";
 import { buildConcernCatalog, type TConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
-import { Access, LinkRelations, type TDomainDefinition, type TEdgeDef, type TRel, type TAnnotationView } from "@haibun/core/lib/resources.js";
-import { fromJsonText } from "@haibun/core/lib/json-text.js";
+import { Access, LinkRelations, type TDomainDefinition, type TEdgeDef, type TRel, type TAnnotationView } from "@haibun/core/lib/domains/resources.js";
+import { fromJsonText } from "@haibun/core/lib/domains/json-text.js";
 import { z } from "zod";
 import { STEPS_CHANGED } from "@haibun/core/lib/domains/protocol.js";
 import { installCarriedEventStream, pagePreferences } from "../page/root.js";

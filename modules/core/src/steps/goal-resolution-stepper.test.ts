@@ -2,16 +2,16 @@ import { describe, it, expect } from "vitest";
 import { z } from "zod";
 
 import { passWithDefaults, failWithDefaults, getDefaultWorld } from "../lib/test/lib.js";
-import { runInStep } from "../lib/capability-context.js";
+import { runInStep } from "../lib/domains/capability-context.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "../lib/steps/domains/stepper.js";
-import { actionOKWithProducts } from "../lib/util/index.js";
+import { actionOKWithProducts } from "../lib/domains/util.js";
 import VariablesStepper from "./variables-stepper.js";
 import LogicStepper from "./logic-stepper.js";
 import { GoalResolutionStepper } from "./goal-resolution-stepper.js";
 import { executionOf } from "../lib/actuality/domains/seq-path.js";
 import { ActivitiesStepper } from "./activities-stepper.js";
 import { DOMAIN_USER_NAME } from "../lib/domains/domains.js";
-import { itemAt } from "../lib/util/item-at.js";
+import { itemAt } from "../lib/domains/item-at.js";
 
 const DOMAIN_AUTH_SESSION = "domain-auth-session-test";
 /** A domain this test registers and the steps don't produce. `resolve` returns unreachable for it. */

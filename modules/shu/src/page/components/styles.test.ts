@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, test } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { shuBaseStyles, SHU_BASE, SHU_TOKENS, installShuTokens } from "./styles.js";
 
 describe("the base sheet", () => {

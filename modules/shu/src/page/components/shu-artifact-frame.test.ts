@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import type { ShuArtifactFrame } from "./shu-artifact-frame.js";
 import "./shu-artifact-frame.js";
 import { SHU_EVENT } from "../../domains/elements.js";

@@ -4,8 +4,8 @@
  * delegation the embedding page gives shu's page key. Each refusal is reported to actuality.
  */
 import { z } from "zod";
-import type { TDelegation } from "@haibun/core/lib/actions.js";
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import type { TDelegation } from "@haibun/core/lib/domains/actions.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { EMBED_MESSAGE, EmbedderMessageSchema, type TEmbeddedPageView } from "../../domains/embedding.js";
 import { reportToRun } from "../../client-log.js";
 import type { TAuthority, TClock, TEmbedderChannel, TSharedCell } from "../ports.js";

@@ -7,7 +7,7 @@
 import { NameSchema } from "@haibun/core/lib/domains/domains.js";
 import type { Page } from "playwright";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
-import { actionOK, actionNotOK } from "@haibun/core/lib/util/index.js";
+import { actionOK, actionNotOK } from "@haibun/core/lib/domains/util.js";
 import { INPUT_EVENT, STATE_MS } from "./domains/waits.js";
 import { columnKeys, findsAtLeast, panesMatching, scrollingOf } from "./pipelines/page-reads.js";
 import { controlled } from "./root.js";

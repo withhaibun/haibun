@@ -2,8 +2,8 @@
  * The gate of a call: it refuses a call whose caller doesn't hold the action a step requires, or doesn't hold a read at the
  * step's level. A refusal of a lacked action carries the request of that action as its remedy.
  */
-import { withinAccess, type AccessLevel } from "../../resources.js";
-import { lackedByCall, type TCallAuthority } from "../../actions.js";
+import { withinAccess, type AccessLevel } from "../../domains/resources.js";
+import { lackedByCall, type TCallAuthority } from "../../domains/actions.js";
 import { RefusedCall, type TRemedy, type TRpcRefusal } from "../../transport/ports.js";
 import type { TStepDescriptor } from "../domains/step-discovery.js";
 

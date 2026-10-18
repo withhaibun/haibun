@@ -2,10 +2,10 @@ import type { DispatchContext } from "../actuality/pipelines/step-dispatch.js";
 import { stepMethodName } from "../steps/domains/step-method.js";
 import { callStepByName } from "../steps/pipelines/call-step.js";
 import { executionOf, factIdOf } from "../actuality/domains/seq-path.js";
-import { actingAs } from "../capability-context.js";
+import { actingAs } from "../domains/capability-context.js";
 import { validateToolInput } from "../steps/derivations/tool-validation.js";
-import { errorDetail } from "../util/index.js";
-import { itemAt } from "../util/item-at.js";
+import { errorDetail } from "../domains/util.js";
+import { itemAt } from "../domains/item-at.js";
 import { CHAIN_INSTANCE_STATUS, getChainInstance, updateChainInstance, type TChainInstance } from "./chain-instance.js";
 
 type TChainAdvanceResult =

@@ -6,14 +6,14 @@ import { refusal } from "./gate.js";
 import { discoverSteps, steppersOf } from "./discover-steps.js";
 import { hostScopedMethodName } from "../domains/step-method.js";
 import { AStepper, type TFeatureStep } from "../domains/stepper.js";
-import { actionNotOK, actionOK } from "../../util/index.js";
+import { actionNotOK, actionOK } from "../../domains/util.js";
 import { RefusedCall } from "../../transport/ports.js";
 import { typeCollectionRemedy } from "../../domains/typed-links.js";
 import { getDefaultWorld } from "../../test/lib.js";
 import type { TWorld } from "../../actuality/domains/world.js";
 import type { TStepperStep } from "../domains/stepper.js";
 import { EVERY_DEFINITION, STEP_DETAIL, SHOW_STEPS_METHOD, StepDiscoverySchema } from "../domains/step-discovery.js";
-import { RUN_AUTHORITY } from "../../capability-context.js";
+import { RUN_AUTHORITY } from "../../domains/capability-context.js";
 
 /** A domain with date fields and a defaulted field. A persisted type's generatedAtTime is a defaulted date field. */
 const RecordSchema = z.object({ subject: z.string(), dateSent: z.coerce.date(), generatedAtTime: z.coerce.date().default(() => new Date()) }).strict();

@@ -15,7 +15,7 @@ import { GraphQuerySchema } from "@haibun/core/lib/quad-types.js";
 import { MAX_PAGE_ROWS, readInPages } from "@haibun/core/lib/domains/hypermedia.js";
 import { SUBSTEP_LEVEL, type THaibunLogLevel } from "@haibun/core/lib/domains/protocol.js";
 import { RECORDED_AT_TIME_FIELD } from "@haibun/core/lib/seq-path.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import type { TActualityGraph } from "../ports.js";
 import {
 	ACTUALITY_TYPES,

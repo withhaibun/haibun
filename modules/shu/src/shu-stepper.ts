@@ -4,10 +4,10 @@
  */
 import { z } from "zod";
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
-import { actionOK, actionNotOK, actionOKWithProducts, errorDetail, getFromRuntime, getStepperOption, intOrError } from "@haibun/core/lib/util/index.js";
+import { actionOK, actionNotOK, actionOKWithProducts, errorDetail, getFromRuntime, getStepperOption, intOrError } from "@haibun/core/lib/domains/util.js";
 import { RESPONSE_TIMEOUT_MS, type TDeploymentSettings, type TServedHydration } from "./domains/hydration.js";
 import { getJsonLdContext } from "@haibun/core/lib/domains/hypermedia.js";
-import { Access, haibunNsForHost, isPersisted } from "@haibun/core/lib/resources.js";
+import { Access, haibunNsForHost, isPersisted } from "@haibun/core/lib/domains/resources.js";
 import { requestBaseIri } from "@haibun/core/lib/request-context.js";
 import { getAuthority } from "@haibun/core/lib/session-authority.js";
 import type { IWebServer } from "@haibun/web-server-hono/defs.js";

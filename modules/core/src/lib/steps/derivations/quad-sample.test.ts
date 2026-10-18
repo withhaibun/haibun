@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LinkRelations } from "../../resources.js";
+import { LinkRelations } from "../../domains/resources.js";
 import type { TQuad } from "../domains/quad-types.js";
 import { sliceQuadsPerType } from "./quad-sample.js";
 

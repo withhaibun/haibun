@@ -7,7 +7,7 @@
  * step that made it, so what a step found is read the same way as what a step produced.
  */
 import { z } from "zod";
-import { Access, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "@haibun/core/lib/resources.js";
+import { Access, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 
 /** The types the EARL classes are recorded as. */
 export const EARL_LABEL = { assertion: "Assertion", assertor: "Assertor", testSubject: "TestSubject", testCase: "TestCase", testResult: "TestResult" } as const;

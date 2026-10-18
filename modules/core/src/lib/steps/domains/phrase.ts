@@ -3,7 +3,7 @@
  * A placeholder that doesn't name a domain takes a string.
  */
 import { DOMAIN_STRING } from "../../domains/domains.js";
-import { itemAt } from "../../util/item-at.js";
+import { itemAt } from "../../domains/item-at.js";
 
 /** A placeholder of a phrase, with its name and its domain inside the braces. */
 const PLACEHOLDER = /\{([^}]*)\}/g;

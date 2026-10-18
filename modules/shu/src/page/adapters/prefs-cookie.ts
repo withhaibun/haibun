@@ -5,9 +5,9 @@
  * sets a partitioned cookie, which the browser keys to the framing site, since a framed page can't set another cookie.
  */
 import { z } from "zod";
-import { jsonCarried } from "@haibun/core/lib/json-text.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { jsonCarried } from "@haibun/core/lib/domains/json-text.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import type { TPreferences } from "../ports.js";
 
 /** The prefix of each tag's cookie name. */

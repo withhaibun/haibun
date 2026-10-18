@@ -11,7 +11,7 @@
  */
 import { SHU_TAG, SHU_ATTR } from "../../domains/elements.js";
 import { defineElement, isDefined, loadComponent } from "../controllers/element-controller.js";
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { html, css, type TemplateResult } from "lit";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";

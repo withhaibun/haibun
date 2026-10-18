@@ -4,7 +4,7 @@
  * brightens; the ramp cycles, wraps without a jump, and starts warm on the light theme where white would not show.
  */
 import { describe, expect, it } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { GLOW_RAMP, GLOW_SPREAD, PULSE_MS, glowColorAt, pulseAt, swellAt } from "./highlight.js";
 
 describe("the active-node glow breathes", () => {

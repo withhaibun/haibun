@@ -1,5 +1,5 @@
 import { AStepper } from "../steps/domains/stepper.js";
-import { actionNotOK, actionOK } from "../util/index.js";
+import { actionNotOK, actionOK } from "../domains/util.js";
 
 const TestSteps = class TestSteps extends AStepper {
 	description = "Steps that pass, fail or throw, for tests of how a run treats each outcome.";

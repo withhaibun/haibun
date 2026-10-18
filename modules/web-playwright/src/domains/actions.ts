@@ -1,4 +1,4 @@
-import { Access } from "@haibun/core/lib/resources.js";
+import { Access } from "@haibun/core/lib/domains/resources.js";
 
 /** The stepper's name, the prefix of its actions and of its steps' methods. */
 export const WEB_PLAYWRIGHT = "WebPlaywright";

@@ -7,7 +7,7 @@ import type { TLongFrame } from "../domains/blips.js";
 import type { TFrameMessage } from "../domains/embedding.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import type { TLinkedData } from "@haibun/core/lib/domains/hypermedia.js";
-import type { TDelegation } from "@haibun/core/lib/actions.js";
+import type { TDelegation } from "@haibun/core/lib/domains/actions.js";
 import type { TProveRequest } from "@haibun/core/lib/rpc-wire.js";
 import type { TPageAuthority } from "./authority/pipelines/page-authority.js";
 import type { TCachePayload, TCarriedLabelFont, TDeploymentSettings } from "../domains/hydration.js";

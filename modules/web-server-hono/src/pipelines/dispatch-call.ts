@@ -14,10 +14,10 @@ import { dispatchStep, type DispatchContext } from "@haibun/core/lib/step-dispat
 import { buildFeatureStepForTransport } from "@haibun/core/lib/call-step.js";
 import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import type { StepRegistry, StepTool } from "@haibun/core/lib/step-registry.js";
-import { lackedByCall } from "@haibun/core/lib/actions.js";
+import { lackedByCall } from "@haibun/core/lib/domains/actions.js";
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
 import { allocateSyntheticSeqPath } from "@haibun/core/lib/domains/host-id.js";
-import { runActingAs } from "@haibun/core/lib/capability-context.js";
+import { runActingAs } from "@haibun/core/lib/domains/capability-context.js";
 import { notARead } from "../domains/web-server.js";
 
 /** Who makes a call and under what: the actions the request invoked and those its caller holds, who proved themselves,

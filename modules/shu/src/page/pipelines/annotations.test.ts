@@ -1,7 +1,7 @@
 /** The notes anchored in a record: parsed from the site's annotations step, or walked from the quads the page holds. */
 import { describe, expect, it } from "vitest";
 import { matchesQuadPattern, type TQuad } from "@haibun/core/lib/quad-types.js";
-import { BODY_LABEL, COMMENT_LABEL, LinkRelations, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL } from "@haibun/core/lib/resources.js";
+import { BODY_LABEL, COMMENT_LABEL, LinkRelations, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { annotationsHeld, annotationsOnSite, type TAnnotationScope } from "./annotations.js";
 
 const quad = (namedGraph: string, subject: string, predicate: string, object: string, objectType?: string): TQuad => ({

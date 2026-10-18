@@ -9,7 +9,7 @@
  * `onTurn` to the newest leaf below `onTurn`. It offers the newest other branch at each turn where other branches leave.
  */
 import { describe, expect, it } from "vitest";
-import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
+import { COMMENT_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { type TTurnStatus } from "../../../schemas.js";
 import { anIndividual, type TChatStatus, type TSessionTurn } from "@haibun/core/lib/conversation/domains/conversation.js";
 import type { TRecord } from "../../../current-subject.js";

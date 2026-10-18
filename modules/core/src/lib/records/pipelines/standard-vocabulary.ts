@@ -5,10 +5,10 @@
  * returned. A context the processor can't resolve returns an empty list for that context.
  */
 import { z } from "zod";
-import { jsonld as jsonldRaw, documentLoader } from "../../jsonld-loader.js";
+import { jsonld as jsonldRaw, documentLoader } from "../../domains/jsonld-loader.js";
 import { getJsonLdContext } from "../../domains/hypermedia.js";
-import { errorDetail } from "../../util/index.js";
-import { isPersisted, type TRegisteredDomain } from "../../resources.js";
+import { errorDetail } from "../../domains/util.js";
+import { isPersisted, type TRegisteredDomain } from "../../domains/resources.js";
 import type { TStandardTerm } from "../derivations/ontology.js";
 
 /** A context jsonld has processed: each term with its definition. */

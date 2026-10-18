@@ -6,7 +6,7 @@ import { jsonSchemaFor } from "../../domains/json-schema-of.js";
 import type { TWorld } from "../../actuality/domains/world.js";
 import { buildConcernCatalog } from "../../domains/hypermedia.js";
 import { HYPERMEDIA } from "../../domains/protocol.js";
-import { isPersisted, type TRegisteredDomain } from "../../resources.js";
+import { isPersisted, type TRegisteredDomain } from "../../domains/resources.js";
 import {
 	STEP_DETAIL,
 	type TDomainDiscoveryInfo,

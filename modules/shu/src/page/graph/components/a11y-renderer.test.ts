@@ -5,7 +5,7 @@
  * the status line's delta announcements, and that focus survives a repaint.
  */
 import { describe, it, expect, vi } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { A11yRenderer, type TA11yRendererDeps } from "./a11y-renderer.js";
 import type { FGLink, FGNode } from "../domains/graph-types.js";
 import { SHU_TEST_IDS } from "../../../domains/test-ids.js";

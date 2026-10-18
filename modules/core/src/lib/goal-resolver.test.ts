@@ -3,8 +3,8 @@ import { describe, it, expect } from "vitest";
 import { GOAL_FINDING, REFUSAL_REASON, resolveGoal, type TResolverInputs } from "./goal-resolver.js";
 import type { TDomainChainGraph } from "./domain-chain.js";
 import type { TFact } from "./records/domains/facts.js";
-import { RUN_AUTHORITY } from "./capability-context.js";
-import { itemAt } from "./util/item-at.js";
+import { RUN_AUTHORITY } from "./domains/capability-context.js";
+import { itemAt } from "./domains/item-at.js";
 
 function emptyGraph(): TDomainChainGraph {
 	return { domains: [], steps: [], edges: [] };

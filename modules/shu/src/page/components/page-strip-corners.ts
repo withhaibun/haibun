@@ -5,7 +5,7 @@
  */
 import { html, nothing, type ReactiveController, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
-import { AccessQueryLevelSchema, type AccessQueryLevel } from "@haibun/core/lib/resources.js";
+import { AccessQueryLevelSchema, type AccessQueryLevel } from "@haibun/core/lib/domains/resources.js";
 import { AuthorityController } from "../controllers/authority-controller.js";
 import { AWAITING_DECISION, PERMISSIONS_SLOT, SHU_TAG } from "../../domains/elements.js";
 import { actualitySpan } from "../client-cache/controllers/actuality-controller.js";
@@ -13,7 +13,7 @@ import { getUiExtensionTags } from "../controllers/catalog-controller.js";
 import { PERMISSIONS_SUMMARY, summaryOf, type TPermissionsSummary } from "./shu-permissions.js";
 import type { TControllerHost } from "./controller-host.js";
 import { reportToRun } from "../../client-log.js";
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { isRefKind, type TRefKind } from "../derivations/markdown.js";
 import { requestPane, showsPane } from "../controllers/pane-controller.js";
 import "./shu-theme-switch.js";

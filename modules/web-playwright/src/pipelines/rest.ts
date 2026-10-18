@@ -3,8 +3,8 @@
  * keeps as JSON text in a variable for the steps that read it.
  */
 import type { TFeatureStep } from "@haibun/core/lib/astepper.js";
-import { fromJsonText } from "@haibun/core/lib/json-text.js";
-import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
+import { fromJsonText } from "@haibun/core/lib/domains/json-text.js";
+import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/domains/util.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { OK, Origin, type TActionResult } from "@haibun/core/lib/domains/protocol.js";
 import { CapturedResponseSchema, HTTP_METHODS_WITH_BODY, RESPONSE_LISTS, type TCapturedResponse, type TResponseList } from "../domains/web-playwright.js";

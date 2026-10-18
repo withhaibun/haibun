@@ -5,7 +5,7 @@
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 import type { Download, Locator, Page } from "playwright";
-import { stepInFlight } from "@haibun/core/lib/capability-context.js";
+import { stepInFlight } from "@haibun/core/lib/domains/capability-context.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { VideoStartArtifact } from "@haibun/core/lib/domains/protocol.js";
 import type { TBrowserPages, TTwin } from "../ports.js";

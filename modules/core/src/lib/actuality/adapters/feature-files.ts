@@ -7,7 +7,7 @@ import path from "path";
 import type { TFeature, TFeaturesBackgrounds } from "../domains/execution.js";
 import type { TBase } from "../domains/world.js";
 import { BASE_WITHOUT_FEATURES, type TFeatureSource } from "../ports.js";
-import { withName } from "../../features.js";
+import { withName } from "../../domains/features.js";
 import type { TFileSystem } from "../../util/node/workspace-lib.js";
 import { toBdd } from "../../../kireji/converter.js";
 import { type TRunPolicyConfig, type TDirFilter, featureMatchesFilter } from "../../../run-policy/run-policy-types.js";

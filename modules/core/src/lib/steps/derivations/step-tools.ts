@@ -3,9 +3,9 @@
  */
 import { jsonSchemaFor } from "../../domains/json-schema-of.js";
 import type { AStepper, TStepperStep } from "../domains/stepper.js";
-import { DOMAIN_PERSISTED_TYPE } from "../../resources.js";
-import { requiredAction } from "../../actions.js";
-import { constructorName } from "../../util/index.js";
+import { DOMAIN_PERSISTED_TYPE } from "../../domains/resources.js";
+import { requiredAction } from "../../domains/actions.js";
+import { constructorName } from "../../domains/util.js";
 import { stepMethodName } from "../domains/step-method.js";
 import { namedInterpolation } from "./named-vars.js";
 import type { TWorld } from "../../actuality/domains/world.js";

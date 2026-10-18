@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { availablePaints } from "./paint-select.js";
-import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
 const q = (subject: string, predicate: string, object: unknown): TQuad => ({ subject, predicate, object, namedGraph: "Task", timestamp: 1 }) as TQuad;

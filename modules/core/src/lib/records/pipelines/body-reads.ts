@@ -4,7 +4,7 @@
  */
 import { GraphQuerySchema } from "../../steps/domains/quad-types.js";
 import { type IQuadStore } from "../../steps/ports.js";
-import { BODY_LABEL, LinkRelations, type AccessQueryLevel } from "../../resources.js";
+import { BODY_LABEL, LinkRelations, type AccessQueryLevel } from "../../domains/resources.js";
 import { MEDIA_TYPE } from "../../domains/media-types.js";
 import { BodyTextSchema, LinkedBodySchema, type TLinkedBody } from "../domains/body.js";
 import { formIn } from "../derivations/bodies.js";

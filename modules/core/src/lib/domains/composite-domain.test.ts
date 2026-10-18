@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
-import { Access, type TRegisteredDomain } from "../resources.js";
+import { Access, type TRegisteredDomain } from "./resources.js";
 import { getCompositeFields, isPrimitiveZodType } from "./composite-domain.js";
 
 function reg(schema: z.ZodType, topology?: TRegisteredDomain["topology"]): TRegisteredDomain {

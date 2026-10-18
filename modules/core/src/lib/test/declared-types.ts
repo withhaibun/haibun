@@ -5,7 +5,7 @@
 import { REACHED_BY } from "../domains/hypermedia.js";
 import { QuadStore, newStoreChain } from "../steps/pipelines/quad-store.js";
 import type { TStoreLevels } from "../steps/ports.js";
-import { LinkRelations, type TDomainDefinition } from "../resources.js";
+import { LinkRelations, type TDomainDefinition } from "../domains/resources.js";
 import { mapDefinitionsToDomains } from "../domains/domains.js";
 import { readDeclarationsOf, type TReadDeclarations } from "../records/derivations/read-records.js";
 

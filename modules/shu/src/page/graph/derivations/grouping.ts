@@ -4,7 +4,7 @@
  */
 
 import { HYPERMEDIA_ROLE_KEY } from "../../../domains/graph-model.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import type { XYZ } from "../domains/graph-types.js";
 
 /** A grouping/container axis. `"type"` groups by `@type`; `"role"` by the highest-priority actor a node is attributed to

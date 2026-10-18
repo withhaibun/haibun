@@ -3,7 +3,7 @@
  * and holds what was delegated to it here, so what proves a request is a signature over that request under a
  * delegation to the page's key, rather than possession of anything that could be copied out of the page.
  */
-import { SIGNATURE_HEADER } from "@haibun/core/lib/signature-header.js";
+import { SIGNATURE_HEADER } from "@haibun/core/lib/domains/signature-header.js";
 import "fake-indexeddb/auto";
 import { describe, it, expect, afterEach } from "vitest";
 import {

@@ -2,7 +2,7 @@
  * HTTP basic auth as haibun states it: the people a web server admits, named `user:password`, and the header a caller
  * signs in to it with.
  */
-import { MODULE_OPTION_PREFIX } from "./domains/protocol.js";
+import { MODULE_OPTION_PREFIX } from "./protocol.js";
 
 /** A person a server admits by HTTP basic auth. */
 export type TBasicAuthUser = { username: string; password: string };

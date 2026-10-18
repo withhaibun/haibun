@@ -5,7 +5,7 @@
 import { describe, it, expect } from "vitest";
 import { failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
 import { AStepper, type TFeatureStep } from "../lib/steps/domains/stepper.js";
-import { actionOK } from "../lib/util/index.js";
+import { actionOK } from "../lib/domains/util.js";
 import { buildFeatureStepForTransport } from "../lib/steps/pipelines/call-step.js";
 import { runRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { stepMethodName } from "../lib/steps/domains/step-method.js";
@@ -13,8 +13,8 @@ import { dispatchStep } from "../lib/actuality/pipelines/step-dispatch.js";
 import ActivitiesStepper, { SAVED_WAYPOINT_LABEL } from "./activities-stepper.js";
 import AuthorityStepper from "./authority-stepper.js";
 import { ACTIVITIES_ACTIONS, ACTIVITIES_STEPPER } from "./domains/activities-actions.js";
-import { readAction, requiredAction } from "../lib/actions.js";
-import { Access } from "../lib/resources.js";
+import { readAction, requiredAction } from "../lib/domains/actions.js";
+import { Access } from "../lib/domains/resources.js";
 import VariablesStepper from "./variables-stepper.js";
 import { readEvery } from "../lib/records/pipelines/record-reads.js";
 

@@ -1,5 +1,5 @@
 import type { AStepper } from "../steps/domains/stepper.js";
-import { constructorName } from "../util/index.js";
+import { constructorName } from "../domains/util.js";
 import type { TStepperOption } from "../steps/domains/stepper.js";
 
 /**

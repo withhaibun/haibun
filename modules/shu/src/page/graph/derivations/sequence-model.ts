@@ -14,7 +14,7 @@
  *
  * Unit-tested without a scene (see sequence-model.test.ts).
  */
-import { valueAt } from "@haibun/core/lib/util/item-at.js";
+import { valueAt } from "@haibun/core/lib/domains/item-at.js";
 import { HYPERMEDIA_ROLE_REL_KEY, type GraphModel } from "../../../domains/graph-model.js";
 import { collideRadius } from "./layout-forces.js";
 import { GANTT_ROW_H, laneExtent } from "./gantt-layout.js";

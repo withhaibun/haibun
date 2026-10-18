@@ -21,8 +21,8 @@
  * records/pipelines/typed-link-reading.ts writes the facts and resolves each target against the store.
  */
 import { z } from "zod";
-import { itemAt } from "../util/item-at.js";
-import type { TPart, TQuoteAnchor, TRelRange } from "../resources.js";
+import { itemAt } from "./item-at.js";
+import type { TPart, TQuoteAnchor, TRelRange } from "./resources.js";
 import { MEDIA_FRAGMENTS, isFragment, type TFragment } from "./media-fragments.js";
 import type { TRemedy } from "../transport/ports.js";
 

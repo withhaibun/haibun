@@ -4,7 +4,7 @@ import { afterAll, describe, expect, it } from "vitest";
 
 import { failWithDefaults } from "@haibun/core/lib/test/lib.js";
 import { DEFAULT_DEST } from "@haibun/core/lib/domains/protocol.js";
-import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
+import { getStepperOptionName } from "@haibun/core/lib/domains/util.js";
 import StorageMem from "@haibun/storage-mem/storage-mem-stepper.js";
 import WebPlaywright from "./web-playwright-stepper.js";
 import { BrowserFactory } from "./adapters/browser-factory.js";

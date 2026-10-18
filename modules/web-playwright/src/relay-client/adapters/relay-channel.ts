@@ -5,7 +5,7 @@
  * delegation. The channel opens once the relay states it holds the extension, and a refused attachment throws its
  * refusal, as does an attachment the relay doesn't open within `RELAY_OPEN_MS`.
  */
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { readNdjson, type TProveRequest } from "@haibun/core/lib/rpc-wire.js";
 import { actualityAt, postRpc } from "@haibun/core/lib/transport/adapters/rpc-call.js";
 import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";

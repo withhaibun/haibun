@@ -42,12 +42,14 @@ const DEPENDS_ON: Record<TCodeKind, readonly TCodeKind[]> = {
 	pipeline: ["domain", "derivation", "machine", "port"],
 	port: ["domain"],
 	adapter: ["port", "domain"],
-	"composition root": ["port", "adapter", "machine"],
+	"composition root": ["port", "adapter", "machine", "domain"],
 	stepper: ["domain", "pipeline", "machine", "composition root"],
 	feature: ["stepper", "domain", "derivation"],
 	controller: ["domain", "derivation", "machine", "pipeline", "composition root"],
 	view: ["controller", "domain", "derivation"],
 };
+/** The kind a program's entry point imports beside a composition root's: the pipeline that performs the program's operation. */
+const ENTRY_DEPENDS_ON: readonly TCodeKind[] = [...DEPENDS_ON["composition root"], "pipeline"];
 /** The kind that doesn't import its own kind: a stepper calls another stepper's steps through dispatch. */
 const DISPATCHED: TCodeKind = "stepper";
 /** The kinds that import only the composition root of their own area or of an enclosing area. */
@@ -173,9 +175,9 @@ function globalIoOf(source: ts.SourceFile): ts.Identifier[] {
 }
 
 /** The finding an import of a positioned file is, where a file of `kind` at `file` doesn't depend on it. */
-function importFinding(kind: TCodeKind, file: string, target: string, targetKind: TCodeKind, specifier: string): string | undefined {
+function importFinding(kind: TCodeKind, dependsOn: readonly TCodeKind[], file: string, target: string, targetKind: TCodeKind, specifier: string): string | undefined {
 	if (targetKind === kind && kind !== DISPATCHED) return undefined;
-	if (!DEPENDS_ON[kind].includes(targetKind)) return imports(targetKind, specifier);
+	if (!dependsOn.includes(targetKind)) return imports(targetKind, specifier);
 	// An area is its composition root's directory and every directory within it, so a stepper or a controller can import the
 	// root of its own area and of each enclosing area.
 	return AREA_BOUND.includes(kind) && targetKind === "composition root" && !file.startsWith(`${posix.dirname(target)}/`) ? importsAnotherRoot(specifier) : undefined;
@@ -186,11 +188,12 @@ export function codeKindFindings(repository: string, { sources, packages }: TCod
 	return [...sources].flatMap(([file, source]): TFound[] => {
 		const kind = kindOf(file, source);
 		if (kind === undefined) return [{ file, finding: UNPOSITIONED }];
+		const dependsOn = source.text.startsWith(ENTRY_POINT) ? ENTRY_DEPENDS_ON : DEPENDS_ON[kind];
 		const valueImports = importsOf(source).filter(({ typeOnly }) => !typeOnly);
 		const kindImports = valueImports.flatMap(({ specifier, line }) => {
 			const target = resolvedSource(repository, file, specifier, packages);
 			const targetKind = target === undefined ? undefined : kindOf(target, sources.get(target));
-			const finding = target === undefined || targetKind === undefined ? undefined : importFinding(kind, file, target, targetKind, specifier);
+			const finding = target === undefined || targetKind === undefined ? undefined : importFinding(kind, dependsOn, file, target, targetKind, specifier);
 			return finding === undefined ? [] : [{ file, finding, line }];
 		});
 		if (kind === "adapter") return kindImports;

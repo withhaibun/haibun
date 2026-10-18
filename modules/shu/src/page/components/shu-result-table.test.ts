@@ -6,7 +6,7 @@
  * (thumb, marker jump, O(viewport) window) needs real layout and is covered by shu-scrollbar's tests and the browser e2e.
  */
 import { beforeEach, describe, it, expect } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import "./shu-result-table.js"; // side-effect import runs the module so customElements.define registers the element
 import type { ShuResultTable } from "./shu-result-table.js";
 import { arrayWindowedSource } from "../derivations/windowed-source.js";

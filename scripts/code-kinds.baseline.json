@@ -22,25 +22,10 @@
 	"modules/core/src/kireji/converter.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/core/src/lib/actions.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/core/src/lib/affordances.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/core/src/lib/basic-auth.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/capability-context.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/core/src/lib/core-domains.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/dev-mode.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/document-content.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/domain-chain-lint.ts": {
@@ -49,22 +34,10 @@
 	"modules/core/src/lib/domain-chain.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/core/src/lib/features.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/core/src/lib/goal-resolver.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/http-observations.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/json-text.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/jsonld-loader.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/local-origin.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/owned-children.ts": {
@@ -79,31 +52,10 @@
 	"modules/core/src/lib/readline-prompter.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/core/src/lib/resources.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/core/src/lib/session-authority.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/core/src/lib/signature-header.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/store-protocol.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/core/src/lib/urakata.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/util/dot-path.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/util/index.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/util/item-at.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/util/node/actualURI.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/util/node/dependency-state.ts": {

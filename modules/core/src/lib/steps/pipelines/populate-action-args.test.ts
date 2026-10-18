@@ -5,7 +5,7 @@ import { populateActionArgs } from "./populate-action-args.js";
 import { Origin } from "../../domains/protocol.js";
 import { AStepper, type TFeatureStep } from "../domains/stepper.js";
 import { DOMAIN_NUMBER, DOMAIN_STRING, DOMAIN_TITLE, DOMAIN_VARIABLE_NAME, individualRefDomain, registerDomains } from "../../domains/domains.js";
-import { fromJsonText } from "../../json-text.js";
+import { fromJsonText } from "../../domains/json-text.js";
 
 function makeStep(name: string, label: string, domain: string, origin: Origin): TFeatureStep {
 	return {

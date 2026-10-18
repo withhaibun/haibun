@@ -3,7 +3,7 @@
  * delegation by the exact actions its parent lists, so for each requested action the page delegates the action of its own
  * delegation that allows it, and a delegation it gives expires at or before its parent's expiry.
  */
-import { narrowing } from "@haibun/core/lib/actions.js";
+import { narrowing } from "@haibun/core/lib/domains/actions.js";
 import { pageAuthority, pageSigner, type TAuthorityScope } from "../../pipelines/page-authority.js";
 import type { TDelegationSigner } from "../ports.js";
 

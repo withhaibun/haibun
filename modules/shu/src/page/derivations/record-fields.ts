@@ -3,7 +3,7 @@
  * fields and its body literals, each read through the relations its type declares, and an object's handle.
  */
 import { TITLE_RELS, composeDisplayLabel, parseTimestampValue, type TTitledBy } from "@haibun/core/lib/domains/hypermedia.js";
-import { getRelPresentation, LinkRelations } from "@haibun/core/lib/resources.js";
+import { getRelPresentation, LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { STORED_TYPE_PROP } from "../../domains/elements.js";
 
 /** A type's fields by the relation each declares. */

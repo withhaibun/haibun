@@ -4,8 +4,8 @@ import { writeFileSync, unlinkSync, readFileSync, mkdirSync, existsSync } from "
 import { tmpdir } from "os";
 
 import { getPackageLocation, workspaceRoot } from "@haibun/core/lib/util/node/workspace-lib.js";
-import { HOST_PROJECT_DIR } from "@haibun/core/lib/util/node/actualURI.js";
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { HOST_PROJECT_DIR } from "@haibun/core/lib/domains/actual-uri.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 
 export type TCaptureOptions = {
 	recreate: boolean;

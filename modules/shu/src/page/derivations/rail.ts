@@ -9,7 +9,7 @@
  * scroll. `shu-scrollbar.ts` renders the rail from these functions.
  */
 import type { TEventMarkerStyle } from "./status-mark.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { clamp } from "./layout.js";
 
 /** A mark on the scroll rail: a row of the whole column (an annotation, a failed step, a feature's start) at its index,

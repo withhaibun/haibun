@@ -1,6 +1,6 @@
 /** A feature's end: its downloads removed, its video recorded as an artifact, and its context and browser closed. */
 import type { TResolvedFeature } from "@haibun/core/lib/astepper.js";
-import { featureAsData } from "@haibun/core/lib/features.js";
+import { featureAsData } from "@haibun/core/lib/domains/features.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { VideoArtifact } from "@haibun/core/lib/domains/protocol.js";
 import type { AStorage } from "@haibun/domain-storage/domains/storage.js";

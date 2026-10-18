@@ -4,11 +4,11 @@
  * the capability the remote step declares where the step declares one.
  */
 
-import { RecordSchema } from "../json-text.js";
+import { RecordSchema } from "../domains/json-text.js";
 import { AStepper } from "../steps/domains/stepper.js";
 import { runSteppers, type TWorld } from "../actuality/domains/world.js";
 import type { TActionResult } from "../domains/protocol.js";
-import { actionNotOK } from "../util/index.js";
+import { actionNotOK } from "../domains/util.js";
 import { type StepTool, type StepRegistry } from "../steps/pipelines/step-registry.js";
 import { hostScopedMethodName } from "../steps/domains/step-method.js";
 import { callInput } from "../steps/pipelines/populate-action-args.js";

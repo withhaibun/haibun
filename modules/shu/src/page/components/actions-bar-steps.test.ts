@@ -5,7 +5,7 @@
  * newest output kept in view as a step settles.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { CHAT_DECLARED, CHAT_DOMAINS, CHAT_STEP, CHAT_STEPPER } from "../ask/components/chat-pane.test-fake.js";

@@ -4,8 +4,8 @@
  * proof signs under the action the page states for its method, so such a call is signed once the page holds its key and its
  * delegations, whether or not the page has read actuality's steps (TX20).
  */
-import { Access } from "@haibun/core/lib/resources.js";
-import { readAction, requiredAction } from "@haibun/core/lib/actions.js";
+import { Access } from "@haibun/core/lib/domains/resources.js";
+import { readAction, requiredAction } from "@haibun/core/lib/domains/actions.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 
 /** The monitor's step that takes a page's diagnostic. */

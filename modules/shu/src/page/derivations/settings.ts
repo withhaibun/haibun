@@ -1,6 +1,6 @@
 /** Reads a page setting from the fields its element stored. */
 import type { z } from "zod";
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import type { TWindowSize } from "../domains/settings.js";
 
 /** Returns the setting `schema` parses from `stored`, or `initial` where the element didn't store one. Throws where the stored

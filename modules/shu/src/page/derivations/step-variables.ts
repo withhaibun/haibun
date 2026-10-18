@@ -2,7 +2,7 @@
  * The variables a step set, read from the quads of the variables' records.
  */
 import { SHARED_GRAPH, type TQuad } from "@haibun/core/lib/quad-types.js";
-import { EDGE } from "@haibun/core/lib/resources.js";
+import { EDGE } from "@haibun/core/lib/domains/resources.js";
 import { VARIABLE_FIELD } from "@haibun/core/lib/records/domains/variables.js";
 
 /** One variable a step set: its name, the value its record holds, and the type of its record. */

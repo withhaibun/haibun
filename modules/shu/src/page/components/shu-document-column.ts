@@ -18,7 +18,7 @@ import { SHU_ATTR, SHU_EVENT, SHU_TAG, TIME_SYNC_CLASS } from "../../domains/ele
 import { defineElement } from "../controllers/element-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { shuBaseStyles } from "./styles.js";
-import { artifactStepId, buildArtifactIndex, generateDocumentMarkdown, stepAncestors } from "@haibun/core/lib/document-content.js";
+import { artifactStepId, buildArtifactIndex, generateDocumentMarkdown, stepAncestors } from "@haibun/core/lib/domains/document-content.js";
 import "./shu-artifact-frame.js";
 import { ShuArtifactFrame } from "./shu-artifact-frame.js";
 import type { ShuVirtualColumn } from "./shu-virtual-column.js";
@@ -36,7 +36,7 @@ import { HAIBUN_LOG_LEVELS, RECORDED_STATUS } from "@haibun/core/lib/domains/pro
 import { jsonDisclosure } from "./json-disclosure.js";
 import { refContext } from "../controllers/catalog-controller.js";
 import { artifactUrl } from "../../artifact-url.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
 import { esc, renderRefBody } from "../derivations/markdown.js";
 

@@ -6,7 +6,7 @@
  * persists across a reload; this module carries scenes to and from the graph through the ordinary step RPC, the same
  * gate that carries every other write.
  */
-import { AccessLevelSchema } from "@haibun/core/lib/resources.js";
+import { AccessLevelSchema } from "@haibun/core/lib/domains/resources.js";
 import { sceneRecord, sceneType, scenesOf, type TScene, type TSceneState } from "../derivations/scenes.js";
 import { fromActorEdgeLabels, getEdgeRanges, getPropertyDefinition, getRels, getTypes, toActorEdgeLabels } from "../../controllers/catalog-controller.js";
 import type { TCallOutcome } from "../../pipelines/call-step.js";

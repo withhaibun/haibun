@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { fromJsonText } from "../lib/json-text.js";
+import { fromJsonText } from "../lib/domains/json-text.js";
 import { readFileSync } from "fs";
 import { RUN_ACCESS_LEVELS, type TRunPolicyConfig } from "./run-policy-types.js";
 

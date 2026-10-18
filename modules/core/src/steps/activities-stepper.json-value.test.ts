@@ -10,8 +10,8 @@ import { ActivitiesStepper } from "./activities-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun-stepper.js";
 import { AStepper, type IStepperCycles, type TStepperSteps } from "../lib/steps/domains/stepper.js";
-import { actionOK } from "../lib/util/index.js";
-import { fromJsonText } from "../lib/json-text.js";
+import { actionOK } from "../lib/domains/util.js";
+import { fromJsonText } from "../lib/domains/json-text.js";
 import { passWithDefaults } from "../lib/test/lib.js";
 
 const PersonSchema = z.object({ did: z.url(), name: z.string() }).strict();

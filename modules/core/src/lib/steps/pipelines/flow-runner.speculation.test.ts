@@ -7,7 +7,7 @@ import { describe, it, expect } from "vitest";
 import { AStepper, type TFeatureStep } from "../domains/stepper.js";
 import { OK, type TStepArgs } from "../../domains/protocol.js";
 import { passWithDefaults, DEF_PROTO_OPTIONS } from "../../test/lib.js";
-import { actionNotOK } from "../../util/index.js";
+import { actionNotOK } from "../../domains/util.js";
 import { FlowRunner } from "./flow-runner.js";
 
 class SpeculationStepper extends AStepper {

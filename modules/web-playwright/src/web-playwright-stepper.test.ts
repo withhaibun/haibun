@@ -1,10 +1,10 @@
 import { describe, it, expect } from "vitest";
 
-import { createSteppers } from "@haibun/core/lib/util/index.js";
+import { createSteppers } from "@haibun/core/lib/domains/util.js";
 import { Resolver } from "@haibun/core/phases/Resolver.js";
 import { asExpandedFeatures } from "@haibun/core/lib/test/resolver-features.js";
 import WebPlaywright from "./web-playwright-stepper.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 
 describe("click", () => {
 	it("click", async () => {

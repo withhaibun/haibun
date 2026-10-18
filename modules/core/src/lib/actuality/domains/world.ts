@@ -6,7 +6,7 @@ import type { Prompter } from "../../prompter.js";
 import type { IEventLogger } from "../../steps/ports.js";
 import type { TStepResult, TFeatureSteps } from "../../domains/protocol.js";
 import { CONTINUE_AFTER_ERROR, NDJSON, ShownLogLevelSchema } from "../../domains/protocol.js";
-import type { TRegisteredDomain } from "../../resources.js";
+import type { TRegisteredDomain } from "../../domains/resources.js";
 import type { StepRegistry } from "../../steps/pipelines/step-registry.js";
 import type { TFeature } from "./execution.js";
 import type { AStepper } from "../../steps/domains/stepper.js";

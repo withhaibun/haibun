@@ -4,7 +4,7 @@
  */
 import { domainParts } from "@haibun/core/lib/domains/domains.js";
 import { parseSeqPath } from "@haibun/core/lib/seq-path.js";
-import { capabilityAllows } from "@haibun/core/lib/actions.js";
+import { capabilityAllows } from "@haibun/core/lib/domains/actions.js";
 import type { TConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import type { TDomainDiscoveryInfo, TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import type { TStepList } from "../machines/registry.js";

@@ -8,7 +8,7 @@ import { WEBSERVER, type IWebServer } from "./ports.js";
 import { ServerHono } from "./adapters/server-hono.js";
 import { unsignedRequest, whyNotSignedInOnly } from "./adapters/auth.js";
 import { stopProcessAfter } from "./adapters/process.js";
-import type { TBasicAuthUser } from "@haibun/core/lib/basic-auth.js";
+import type { TBasicAuthUser } from "@haibun/core/lib/domains/basic-auth.js";
 
 /** The folder whose files a feature serves by a relative path: `files` in the process's starting directory. */
 const SERVED_FILES = "files";

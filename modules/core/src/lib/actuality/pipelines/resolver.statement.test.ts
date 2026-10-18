@@ -4,9 +4,9 @@ import { AStepper } from "../../steps/domains/stepper.js";
 import { OK } from "../../domains/protocol.js";
 import { asExpandedFeatures } from "../../test/resolver-features.js";
 import { Resolver } from "./resolver.js";
-import { createSteppers } from "../../util/index.js";
+import { createSteppers } from "../../domains/util.js";
 import { DOMAIN_STATEMENT } from "../../domains/domains.js";
-import { itemAt } from "../../util/item-at.js";
+import { itemAt } from "../../domains/item-at.js";
 
 // A test stepper that uses a statement typed placeholder
 class StatementStepper extends AStepper {

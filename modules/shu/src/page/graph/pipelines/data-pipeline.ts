@@ -17,7 +17,7 @@ import type { GanttTarget } from "../derivations/gantt-layout.js";
 import { isSchemaType } from "../../../derivations/ontology-projection.js";
 import { computeLayout, type Adornment } from "../derivations/graph-layout.js";
 import { hashModel, linkKey } from "../derivations/model-hash.js";
-import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import type { GraphModel } from "../../../domains/graph-model.js";
 import { omittedLabel } from "../../../derivations/graph-model.js";

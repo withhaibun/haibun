@@ -1,4 +1,4 @@
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 
 /**
  * Single source of truth for node-type colors. Both the SVG render (group

@@ -9,10 +9,10 @@
  * here: that is the anti-drift property of this design.
  */
 import type { AStepper, TStepperStep } from "./steps/domains/stepper.js";
-import type { TRegisteredDomain } from "./resources.js";
-import { constructorName } from "./util/index.js";
+import type { TRegisteredDomain } from "./domains/resources.js";
+import { constructorName } from "./domains/util.js";
 import { isPrimitiveDomain, normalizeDomainKey } from "./domains/domains.js";
-import { requiredAction } from "./actions.js";
+import { requiredAction } from "./domains/actions.js";
 import { stepParamDomains } from "./steps/derivations/step-tools.js";
 
 /** Sentinel source domain for terminal producers (steps that don't need inputs). */

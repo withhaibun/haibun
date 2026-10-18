@@ -1,6 +1,6 @@
 /** A Body as a record names it, and a Body with the text of each of its forms. */
 import { z } from "zod";
-import { RepresentationSchema } from "../../resources.js";
+import { RepresentationSchema } from "../../domains/resources.js";
 
 /** A form of a Body as a record names it: its media type, and its text where the read carries it. */
 const LinkedFormSchema = RepresentationSchema.partial({ content: true });

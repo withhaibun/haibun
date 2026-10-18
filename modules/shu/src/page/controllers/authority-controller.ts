@@ -1,6 +1,6 @@
 import type { ReactiveController, ReactiveControllerHost } from "lit";
-import { Access, principalRow, principalsQuery, type TPrincipalRow } from "@haibun/core/lib/resources.js";
-import { delegatedActions, readAction, recordReadAction } from "@haibun/core/lib/actions.js";
+import { Access, principalRow, principalsQuery, type TPrincipalRow } from "@haibun/core/lib/domains/resources.js";
+import { delegatedActions, readAction, recordReadAction } from "@haibun/core/lib/domains/actions.js";
 import { getAvailableSteps } from "./registry-controller.js";
 import { pageAuthorityPort } from "../root.js";
 import { queryGraph } from "./read-controller.js";

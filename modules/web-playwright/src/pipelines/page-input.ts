@@ -1,7 +1,7 @@
 /** What a step does to the page: keys, text, fields, clicks, uploads, the window's size, the page's requests, its timeouts and its dialogs. */
 import type { Dialog, Locator, Page } from "playwright";
 import type { TActionResult, TStepValue } from "@haibun/core/lib/domains/protocol.js";
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { REQUEST_STATE, type TFindWay } from "../domains/web-playwright.js";
 import type { BrowserSession, TPageScope } from "./browser-session.js";
 import { attempted, locateByDomain } from "./locate.js";

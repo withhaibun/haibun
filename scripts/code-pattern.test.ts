@@ -22,7 +22,7 @@ describe(
 	"the source of this repository",
 	() => {
 		it("reads every module's source", () => {
-			expect(files).toEqual(expect.arrayContaining(["modules/core/src/lib/util/index.ts", "modules/shu/src/page/components/shu-element.ts"]));
+			expect(files).toEqual(expect.arrayContaining(["modules/core/src/lib/domains/util.ts", "modules/shu/src/page/components/shu-element.ts"]));
 		});
 
 		it("places each file in a kind position that imports only its row's kinds, apart from what code-kinds.baseline.json records (CR1)", () => {

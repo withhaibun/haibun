@@ -9,11 +9,11 @@
 import { ACTIVE_PARAM, COLUMN_PARAM, hashParams, hashWithColumns } from "../derivations/address.js";
 import { mergeHashParams } from "../controllers/hash-controller.js";
 import { DEEP_LINK_PREFIX } from "../../domains/elements.js";
-import { PartSchema } from "@haibun/core/lib/resources.js";
+import { PartSchema } from "@haibun/core/lib/domains/resources.js";
 import { formatRecordName } from "@haibun/core/lib/seq-path.js";
 import { readingExecution } from "../client-cache/controllers/device-controller.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { esc, escAttr, stepPathOf, type TRefKind } from "../derivations/markdown.js";
 import { paneOfEntry, requestPaneFrom } from "../controllers/pane-controller.js";
 import { addsToSelection, columnEntryOf, type DesiredPane } from "../derivations/pane-kinds.js";

@@ -3,7 +3,7 @@
  */
 import type { ICell } from "@haibun/core/lib/machines/cell.js";
 import type { Machine } from "@haibun/core/lib/machines/machine.js";
-import type { AccessQueryLevel } from "@haibun/core/lib/resources.js";
+import type { AccessQueryLevel } from "@haibun/core/lib/domains/resources.js";
 import type { TClock, TConduit } from "../ports.js";
 import type { TBatchedEvents } from "../pipelines/batched-events.js";
 import type { TSubjectEvent } from "../../current-subject.js";

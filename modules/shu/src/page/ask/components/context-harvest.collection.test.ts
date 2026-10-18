@@ -13,7 +13,7 @@
  * names is such a view.
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { HARVEST_MEMBERS, harvested, harvestChatViewLd } from "./context-harvest.js";
 import { activePane } from "../../root.js";
 

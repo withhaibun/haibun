@@ -17,8 +17,8 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { Access, narrowerCeiling, type AccessLevel } from "./resources.js";
 import { capabilityAllows, EVERY_ACTION, readAction, readCeilingOf, type TAccessBound, type TCallAuthority } from "./actions.js";
-import type { TActingFor, TRestsOn } from "./domains/authority-types.js";
-import type { THaibunLogLevel } from "./domains/protocol.js";
+import type { TActingFor, TRestsOn } from "./authority-types.js";
+import type { THaibunLogLevel } from "./protocol.js";
 
 const capabilityStore = new AsyncLocalStorage<TCallAuthority>();
 

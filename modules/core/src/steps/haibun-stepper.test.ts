@@ -10,8 +10,8 @@ import VariablesSteppers from "./variables-stepper.js";
 import LogicStepper from "./logic-stepper.js";
 import { ActivitiesStepper } from "./activities-stepper.js";
 import { AStepper } from "../lib/steps/domains/stepper.js";
-import { actionOK } from "../lib/util/index.js";
-import { itemAt } from "../lib/util/item-at.js";
+import { actionOK } from "../lib/domains/util.js";
+import { itemAt } from "../lib/domains/item-at.js";
 import { hostScopedMethodName } from "../lib/steps/domains/step-method.js";
 import { openRunRegistry, runRegistry, type StepRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { addStepperConcerns } from "../lib/actuality/pipelines/executor.js";
@@ -20,9 +20,9 @@ import { STEP_DETAIL, type TStepDefinitions } from "../lib/steps/domains/step-di
 import { readShownSteps } from "../lib/steps/domains/step-discovery.js";
 import type { TStepResult } from "../lib/domains/protocol.js";
 import { validateStep } from "../lib/pipelines/step-validation.js";
-import { RUN_AUTHORITY, runAuthorizedWith, runShowing } from "../lib/capability-context.js";
+import { RUN_AUTHORITY, runAuthorizedWith, runShowing } from "../lib/domains/capability-context.js";
 import { recordOf } from "../lib/records/pipelines/record-reads.js";
-import { SEQ_PATH_LABEL } from "../lib/resources.js";
+import { SEQ_PATH_LABEL } from "../lib/domains/resources.js";
 
 describe("until", () => {
 	it("passes once its statements pass", async () => {

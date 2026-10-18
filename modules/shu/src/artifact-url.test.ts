@@ -4,11 +4,11 @@
  * holds a private read. A served page reads an artifact under its delegation and shows it at an object URL. A page
  * opened as a file reads its artifacts from its own directory.
  */
-import { SIGNATURE_HEADER } from "@haibun/core/lib/signature-header.js";
+import { SIGNATURE_HEADER } from "@haibun/core/lib/domains/signature-header.js";
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import { READS_THE_RUNS_ARTIFACTS } from "@haibun/core/lib/actions.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
+import { READS_THE_RUNS_ARTIFACTS } from "@haibun/core/lib/domains/actions.js";
 import { artifactUrl, shownArtifact, shownOrReported } from "./artifact-url.js";
 import { carryAnActuality, openReportingPage, reportingTo, setupShuTest, type TReportedToRun, type TShuTestHandle } from "./test/setup.js";
 

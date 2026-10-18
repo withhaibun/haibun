@@ -18,7 +18,7 @@
  */
 import { CONTEXT_DOCUMENT, SHU_TAG } from "../../../domains/elements.js";
 import { defineElement } from "../../controllers/element-controller.js";
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { html, type TemplateResult } from "lit";
 import type { TLinkedData } from "../../components/shu-element.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";

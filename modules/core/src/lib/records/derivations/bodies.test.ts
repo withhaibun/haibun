@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LinkRelations } from "../../resources.js";
+import { LinkRelations } from "../../domains/resources.js";
 import { MEDIA_TYPE } from "../../domains/media-types.js";
 import { bodyIdOf, bodyKindsOf, bodyOfForms, DEFAULT_BODY_KIND, formIn, preferredMediaType, preferredReading, readingKey, readingsOf, withBodiesRead } from "./bodies.js";
 

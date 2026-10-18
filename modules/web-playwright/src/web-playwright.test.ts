@@ -4,7 +4,7 @@ import path from "path";
 import { getPackageLocation } from "@haibun/core/lib/util/node/workspace-lib.js";
 
 import { getCreateSteppers } from "@haibun/core/lib/test/lib.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 
 const me = path.join(getPackageLocation(import.meta).replace(/\/src$/, "/build"), "web-playwright-stepper");
 

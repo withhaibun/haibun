@@ -4,9 +4,9 @@
  */
 import type { AStepper } from "@haibun/core/lib/astepper.js";
 import type { TModuleOptions } from "@haibun/core/lib/world.js";
-import { getStepperOption } from "@haibun/core/lib/util/index.js";
-import { actionList, EVERY_ACTION } from "@haibun/core/lib/actions.js";
-import { basicAuthUsers, type TBasicAuthUser } from "@haibun/core/lib/basic-auth.js";
+import { getStepperOption } from "@haibun/core/lib/domains/util.js";
+import { actionList, EVERY_ACTION } from "@haibun/core/lib/domains/actions.js";
+import { basicAuthUsers, type TBasicAuthUser } from "@haibun/core/lib/domains/basic-auth.js";
 import { isLoopback } from "../ports.js";
 import { DEFAULT_PORT, WEB_SERVER_STEPPER } from "../domains/web-server.js";
 

@@ -10,7 +10,7 @@ import { z } from "zod";
 import { ShuElement } from "../../components/shu-element.js";
 import { SHU_EVENT, SHU_ATTR } from "../../../domains/elements.js";
 import { reportToRun } from "../../../client-log.js";
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/steps/derivations/quad-events.js";
 import { type TCluster, type TQuad } from "@haibun/core/lib/quad-types.js";
 import { getRels, instrumentationTypes } from "../../controllers/catalog-controller.js";

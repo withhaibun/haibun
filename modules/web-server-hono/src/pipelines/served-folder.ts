@@ -4,7 +4,7 @@
  * script on the origin that holds a page's key and its calls. Other packages read it as
  * `@haibun/web-server-hono/served-folder.js`.
  */
-import { READS_A_SERVED_FOLDER } from "@haibun/core/lib/actions.js";
+import { READS_A_SERVED_FOLDER } from "@haibun/core/lib/domains/actions.js";
 import { ARTIFACT_POLICY } from "@haibun/core/lib/domains/run-artifact.js";
 import type { TRpcRefusal } from "@haibun/core/lib/rpc-wire.js";
 import type { TRuntime } from "@haibun/core/lib/world.js";

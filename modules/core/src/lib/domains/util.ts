@@ -1,9 +1,9 @@
 import { z } from "zod";
 import type { TSpecl } from "../actuality/domains/execution.js";
 import type { TWorld, TRuntime, TModuleOptions } from "../actuality/domains/world.js";
-import { TActionResult, OK, TDebugSignal, MODULE_OPTION_PREFIX } from "../domains/protocol.js";
+import { TActionResult, OK, TDebugSignal, MODULE_OPTION_PREFIX } from "./protocol.js";
 import { IHasOptions, AStepper, CStepper, TFeatureStep } from "../steps/domains/stepper.js";
-import { TArtifactEvent, type TJsonArtifact } from "../domains/protocol.js";
+import { TArtifactEvent, type TJsonArtifact } from "./protocol.js";
 import type { TRemedy } from "../transport/ports.js";
 
 /** Returns `s` where it fits in `max` characters. Otherwise returns its first `max - 1` characters and an ellipsis.
@@ -89,8 +89,6 @@ export function constructorName(stepper: AStepper) {
 export function isLowerCase(str: string) {
 	return str.toLowerCase() && str !== str.toUpperCase();
 }
-
-export const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Returns a diagnostic string for a thrown value. The string for a ZodError lists each issue with its path. The string for an Error contains its
  *  message, its code where set and its cause chain. The string for another value is String(value). */

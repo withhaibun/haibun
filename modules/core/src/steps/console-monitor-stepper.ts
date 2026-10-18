@@ -1,5 +1,5 @@
 import { AStepper, IHasCycles, StepperKinds } from "../lib/steps/domains/stepper.js";
-import { getStepperOption } from "../lib/util/index.js";
+import { getStepperOption } from "../lib/domains/util.js";
 import { shownLogLevel, type THaibunEvent, type TShownLogLevel } from "../lib/domains/protocol.js";
 import { EventFormatter } from "../lib/domains/protocol.js";
 

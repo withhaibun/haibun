@@ -5,7 +5,7 @@
  */
 import { QuadGraphModel } from "@haibun/core/lib/derivations/quad-graph-model.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
-import type { AccessLevel } from "@haibun/core/lib/resources.js";
+import type { AccessLevel } from "@haibun/core/lib/domains/resources.js";
 import { pageConduit, registryScope } from "../../root.js";
 import { pageGraphSnapshots } from "../root.js";
 import { readSteps } from "../../pipelines/read-steps.js";

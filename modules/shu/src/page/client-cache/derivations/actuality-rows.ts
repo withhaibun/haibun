@@ -6,8 +6,8 @@ import { HAIBUN_LOG_LEVELS, SUBSTEP_LEVEL, type THaibunLogLevel } from "@haibun/
 import { LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL, LogMessageSchema } from "@haibun/core/lib/domains/log-message.js";
 import { RUN_ARTIFACT_FIELD, RUN_ARTIFACT_LABEL, RunArtifactSchema } from "@haibun/core/lib/domains/run-artifact.js";
 import { SEQ_PATH_FIELD, SeqPathSchema, compareSeqPath, parseRecordName, type TRecordName } from "@haibun/core/lib/seq-path.js";
-import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 
 /** How many records a reader is shown around where they are. */
 export const ACTUALITY_WINDOW_SIZE = 10000;

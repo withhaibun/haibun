@@ -9,7 +9,7 @@
  * module and the history must select the same active entry for any order of events.
  */
 import { describe, expect, it } from "vitest";
-import { COMMENT_LABEL } from "@haibun/core/lib/resources.js";
+import { COMMENT_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { anIndividual, aType } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { pickWith, runSequences } from "@haibun/core/lib/test/machine-table.js";
 import {

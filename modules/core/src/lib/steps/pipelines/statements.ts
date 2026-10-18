@@ -11,8 +11,8 @@
  * report. Each row of the table holds a cited requirement and the status of the outermost step that contains the
  * citing step.
  */
-import { READING_LABEL, SEQ_PATH_LABEL, StatedRecordSchema } from "../../resources.js";
-import { fromJsonText } from "../../json-text.js";
+import { READING_LABEL, SEQ_PATH_LABEL, StatedRecordSchema } from "../../domains/resources.js";
+import { fromJsonText } from "../../domains/json-text.js";
 import { SEQ_PATH_FIELD, SEQ_PATH_EDGE } from "../../actuality/domains/seq-path.js";
 import type { IQuadStore } from "../ports.js";
 import { readEvery, recordOf } from "../../records/pipelines/record-reads.js";

@@ -2,11 +2,11 @@ import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import { getDefaultWorld } from "./test/lib.js";
 import { DOMAIN_STRING, DOMAIN_NUMBER, DOMAIN_JSON, DOMAIN_DATE, registerDomains, asDomainKey, createEnumDomainDefinition, registeredDomain } from "./domains/domains.js";
-import { TDomainDefinition } from "./resources.js";
+import { TDomainDefinition } from "./domains/resources.js";
 import type { TWorld } from "./actuality/domains/world.js";
 import { Origin, TStepValue } from "./domains/protocol.js";
 import { FeatureVariables } from "./actuality/pipelines/feature-variables.js";
-import { fromJsonText } from "./json-text.js";
+import { fromJsonText } from "./domains/json-text.js";
 import { DOMAIN_GRAPH_QUERY, type TGraphQuery } from "./steps/domains/quad-types.js";
 
 const p = (value: string, domain = DOMAIN_STRING): TStepValue => ({ term: String(value), value, domain, origin: Origin.var });

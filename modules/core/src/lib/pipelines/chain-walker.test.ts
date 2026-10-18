@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { z } from "zod";
 import { AStepper, type TStepperSteps } from "../steps/domains/stepper.js";
-import { actionOKWithProducts, actionNotOK } from "../util/index.js";
+import { actionOKWithProducts, actionNotOK } from "../domains/util.js";
 import { StepRegistry } from "../steps/pipelines/step-registry.js";
 import { registerDomains } from "../domains/domains.js";
 import { getDefaultWorld } from "../test/lib.js";
@@ -10,8 +10,8 @@ import { readFacts } from "../records/pipelines/facts.js";
 import type { TMichi } from "../goal-resolver.js";
 import { CHAIN_INSTANCE_STATUS, createChainInstance } from "./chain-instance.js";
 import { advanceChainInstance } from "./chain-walker.js";
-import { RUN_AUTHORITY, runActingAs } from "../capability-context.js";
-import { itemAt } from "../util/item-at.js";
+import { RUN_AUTHORITY, runActingAs } from "../domains/capability-context.js";
+import { itemAt } from "../domains/item-at.js";
 
 const ISSUER_DOMAIN = "issuer";
 const PERMIT_DOMAIN = "permit";

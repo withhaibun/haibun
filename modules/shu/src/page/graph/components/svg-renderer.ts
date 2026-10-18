@@ -7,7 +7,7 @@
  * report, printed, or opened on its own.
  */
 import { colorForType } from "../derivations/type-colors.js";
-import { ellipsize } from "@haibun/core/lib/util/index.js";
+import { ellipsize } from "@haibun/core/lib/domains/util.js";
 import { NODE_TEXT_COLOR } from "../derivations/layout-forces.js";
 import { linkEndId, type XYZ } from "../domains/graph-types.js";
 import { graphSummary, placedNodes } from "./renderer.js";

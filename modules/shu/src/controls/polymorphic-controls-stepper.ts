@@ -23,9 +23,9 @@ import { SHU_TEST_IDS } from "../domains/test-ids.js";
 import { SETTINGS_GROUP, SHU_EVENT, SHU_TAG, type TSettingsGroup } from "../domains/elements.js";
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps, type TFeatureStep } from "@haibun/core/lib/astepper.js";
-import { DOMAIN_PERSISTED_TYPE, type TDomainDefinition } from "@haibun/core/lib/resources.js";
+import { DOMAIN_PERSISTED_TYPE, type TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 import { DOMAIN_NUMBER, DOMAIN_PERSISTED_TYPES, individualRefInputSchema, listedSchema, NameSchema } from "@haibun/core/lib/domains/domains.js";
-import { actionOK, actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
+import { actionOK, actionNotOK, actionOKWithProducts } from "@haibun/core/lib/domains/util.js";
 import type { TActionResult } from "@haibun/core/lib/domains/protocol.js";
 import { saveImageArtifact } from "@haibun/domain-storage/pipelines/image-artifact.js";
 import type { Locator, Page } from "playwright";
@@ -38,7 +38,7 @@ import type { ShuGraphFilter } from "../page/graph/components/shu-graph-filter.j
 import { NO_ELEMENT, ROUND_TRIP_MS, SETTLES_MS, STATE_MS } from "./domains/waits.js";
 import { attached, comesToHold, nodeMatching, percent, pollUntil, until } from "./pipelines/page-reads.js";
 import { controlled } from "./root.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { SCHEMA_TYPES } from "../domains/ontology.js";
 import { type TPaneOpen } from "../page/derivations/pane-kinds.js";
 

@@ -6,7 +6,7 @@ import type { TStepInput } from "../../actuality/domains/execution.js";
 import type { TWorld } from "../../actuality/domains/world.js";
 import type { TSeqPath, TActionResult, TStepResult, ExecutionIntent } from "../../domains/protocol.js";
 import type { AStepper, TFeatureStep } from "../domains/stepper.js";
-import { actionNotOK, errorDetail } from "../../util/index.js";
+import { actionNotOK, errorDetail } from "../../domains/util.js";
 import { Resolver } from "../../actuality/pipelines/resolver.js";
 import { nextSeqPath } from "../../actuality/pipelines/step-dispatch.js";
 import { syntheticSeqPathDirection } from "../../actuality/domains/seq-path.js";

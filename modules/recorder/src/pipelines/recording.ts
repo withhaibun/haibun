@@ -3,7 +3,7 @@
  * appended to the file as it happens. A navigation to the address the page is at, or to an `about:` page, isn't recorded.
  */
 import type { Page } from "playwright";
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import type { TInteraction, TRecordedStep } from "../domains/interaction.js";
 import { interactionToStep } from "../derivations/interaction-step.js";
 import type { TRecordingPorts } from "../ports.js";

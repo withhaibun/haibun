@@ -10,7 +10,7 @@ import { html, nothing, type TemplateResult } from "lit-html";
 import { classMap } from "lit-html/directives/class-map.js";
 import { unsafeHTML } from "lit-html/directives/unsafe-html.js";
 import type { CSSResultGroup } from "lit";
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { ActionsBarSteps } from "./actions-bar-steps.js";
 import { ActionsBarQuery } from "./actions-bar-query.js";
@@ -36,7 +36,7 @@ import { eventsAffectLabel } from "@haibun/core/lib/steps/derivations/quad-event
 import { isOffline } from "../controllers/hydration-controller.js";
 import { getActionBarChatExtensionTags } from "../controllers/catalog-controller.js";
 import { reportToRun } from "../../client-log.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import "../ask/components/shu-ask.js";
 
 export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {

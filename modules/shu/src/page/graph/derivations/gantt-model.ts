@@ -3,7 +3,7 @@
  * fields are recognised by their declared upper concept (isSubPropertyOf), so ANY concrete vocabulary under
  * `ganttStart`/`ganttEnd`/`ganttDuration`/`ganttEffort`/`ganttDepends` is picked up, not a fixed predicate list.
  */
-import { LinkRelations, isSubPropertyOf } from "@haibun/core/lib/resources.js";
+import { LinkRelations, isSubPropertyOf } from "@haibun/core/lib/domains/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
 /** A schedulable node: an id + label, a start/end on the calendar (epoch ms), optional effort (work, in the same unit

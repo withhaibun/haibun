@@ -4,7 +4,7 @@
  * A pane carries only what identifies it; its id, tag and label derive from its kind.
  */
 import { z } from "zod";
-import { PartSchema, type TPart } from "@haibun/core/lib/resources.js";
+import { PartSchema, type TPart } from "@haibun/core/lib/domains/resources.js";
 import { PART_DIRECTIVE, partDirectiveFor, splitPart } from "@haibun/core/lib/domains/typed-links.js";
 import { SHU_ATTR, SHU_TAG } from "../../domains/elements.js";
 import { splitPaneEntry } from "./address.js";

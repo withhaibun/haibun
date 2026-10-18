@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { groupCellSize, gridSlot } from "./group-grid.js";
 import { shelfPack, groupBounds, GROUP_GAP, ENCLOSURE_PAD } from "./grouping.js";
 import { collideRadius, chipTextHeight } from "./layout-forces.js";

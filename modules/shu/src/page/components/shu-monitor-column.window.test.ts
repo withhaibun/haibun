@@ -2,7 +2,7 @@
 // What the log marks on its rail: the rows whose events have a mark, at the place a reader can scroll to; and where it
 // marks the moment being shown (cursorMark, shared with the document through virtual-column-model).
 import { describe, it, expect } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { opens, railMarkers, type TLogRow } from "./shu-monitor-column.js";
 import { markFor } from "../derivations/event-marker.js";
 import { MARK_COLOUR } from "../derivations/status-mark.js";

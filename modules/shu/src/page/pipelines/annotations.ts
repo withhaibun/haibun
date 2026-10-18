@@ -11,7 +11,7 @@ import {
 	TEXT_QUOTE_SELECTOR_LABEL,
 	type TAnnotationView,
 	type TQuoteAnchor,
-} from "@haibun/core/lib/resources.js";
+} from "@haibun/core/lib/domains/resources.js";
 import type { TQuad, TQuadPattern } from "@haibun/core/lib/quad-types.js";
 import { bySubject, edgeOf, literalOf } from "../derivations/annotations.js";
 import type { TCallOutcome } from "./call-step.js";

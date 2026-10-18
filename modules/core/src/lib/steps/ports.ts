@@ -3,8 +3,8 @@
  * store of quads that working memory and the backing stores implement.
  */
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TEventKind } from "../domains/protocol.js";
-import type { TAccessBound } from "../actions.js";
-import type { AccessLevel } from "../resources.js";
+import type { TAccessBound } from "../domains/actions.js";
+import type { AccessLevel } from "../domains/resources.js";
 import type { TFeatureStep } from "./domains/stepper.js";
 import type { TClusteredQuads, TClusteredQuadsOpts, TDensityQuery, TDensityResult, TDistinctValues, TGraphQuery, TQuad, TQuadPattern, TRecordsPage } from "./domains/quad-types.js";
 

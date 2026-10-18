@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { EARL_MODE, EARL_OUTCOME } from "../domains/earl.js";
 import { axeAssertions } from "./axe-earl.js";
 import { axeResults, axeRule } from "./axe-results.test-fake.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 
 const STEP = "1791034142780-1.0.1.2";
 const SUMMARY = "Fix any of the following:\n  Element does not have an alt attribute";

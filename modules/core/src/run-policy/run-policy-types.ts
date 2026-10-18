@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { itemAt } from "../lib/util/item-at.js";
+import { itemAt } from "../lib/domains/item-at.js";
 
 // ============================================================================
 // Constants

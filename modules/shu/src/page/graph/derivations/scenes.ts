@@ -1,7 +1,7 @@
 /**
  * A saved scene as the graph holds it: the record a save writes, and the scenes among the records a read returns.
  */
-import { SCENE_LABEL } from "@haibun/core/lib/resources.js";
+import { SCENE_LABEL } from "@haibun/core/lib/domains/resources.js";
 
 /** The options of every view a scene holds, keyed by element tag. Opaque to the graph; each view validates its own. */
 export type TSceneState = Record<string, Record<string, unknown>>;

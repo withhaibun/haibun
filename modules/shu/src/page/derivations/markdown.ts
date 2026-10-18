@@ -9,10 +9,10 @@
  */
 import MarkdownIt from "markdown-it";
 import DOMPurify from "dompurify";
-import { esc, headingAnchor } from "@haibun/core/lib/document-content.js";
-import { jsonCarried, JsonObjectTextSchema } from "@haibun/core/lib/json-text.js";
+import { esc, headingAnchor } from "@haibun/core/lib/domains/document-content.js";
+import { jsonCarried, JsonObjectTextSchema } from "@haibun/core/lib/domains/json-text.js";
 import { REF_DENOTES, parseRefHref } from "@haibun/core/lib/domains/typed-links.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import type { TPropertyDefinition } from "./catalog.js";
 
 export { esc };

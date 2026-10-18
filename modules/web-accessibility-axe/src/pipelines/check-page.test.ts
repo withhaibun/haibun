@@ -4,8 +4,8 @@ import { writeEarlAssertions } from "./check-page.js";
 import { systemClock } from "@haibun/core/lib/actuality/adapters/system-clock.js";
 import { buildConcernCatalog, getJsonLdContext } from "@haibun/core/lib/domains/hypermedia.js";
 import { toRegisteredDomain } from "@haibun/core/lib/domains/domains.js";
-import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { readEvery, recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { storeDeclaring } from "@haibun/core/lib/test/declared-types.js";
 

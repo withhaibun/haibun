@@ -6,7 +6,7 @@
  * that doesn't apply to the page states nothing about it, so it is listed in the report and isn't recorded.
  */
 import type { AxeResults, Result } from "axe-core";
-import { isWebAddress } from "@haibun/core/lib/document-content.js";
+import { isWebAddress } from "@haibun/core/lib/domains/document-content.js";
 import { EARL_MODE, EARL_OUTCOME, type TEarlAssertions } from "../domains/earl.js";
 
 /** Each list of rules axe states that is recorded, by the EARL outcome it is, the most severe first. */

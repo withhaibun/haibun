@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import type { TAnnotationView } from "@haibun/core/lib/resources.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
+import type { TAnnotationView } from "@haibun/core/lib/domains/resources.js";
 import { toW3CAnnotations } from "./annotations.js";
 
 const view = (over: Partial<TAnnotationView>): TAnnotationView => ({ commentId: "c1", specificResourceId: "sr1", exact: "the quote", ...over });

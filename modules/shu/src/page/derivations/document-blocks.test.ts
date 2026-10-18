@@ -6,7 +6,7 @@
  * ends a sequence.
  */
 import { describe, it, expect } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { splitDocumentBlocks, finalizeBlocks, blocksByEvent, blockIndexForHeading, type TArtifactResolver, type TDocBlock } from "./document-blocks.js";
 import { withHeadingAnchors } from "./markdown.js";
 

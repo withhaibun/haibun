@@ -13,7 +13,7 @@ import {
 	seqPathDomainDefinition,
 	stepLine,
 } from "./seq-path.js";
-import { LinkRelations, isPersisted } from "../../resources.js";
+import { LinkRelations, isPersisted } from "../../domains/resources.js";
 import { EXECUTION_MODES, RECORDED_STATUS } from "../../domains/protocol.js";
 import { queryableFields } from "../../domains/hypermedia.js";
 

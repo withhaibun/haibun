@@ -2,7 +2,7 @@
  * One record as the page shows it: the record with its edges, the notes anchored in it, the bodies the reader opened, and
  * how the page read it.
  */
-import type { TAnnotationView } from "@haibun/core/lib/resources.js";
+import type { TAnnotationView } from "@haibun/core/lib/domains/resources.js";
 import type { TLinkedBody } from "@haibun/core/lib/records/domains/body.js";
 import type { TIndividualWithEdges } from "@haibun/core/lib/quad-types.js";
 import type { TPageRefusal } from "./refusal.js";

@@ -9,10 +9,10 @@
  * The monitor records one run. This stepper answers reads of the graph, which every view draws on.
  */
 import { z } from "zod";
-import { fromJsonText } from "@haibun/core/lib/json-text.js";
+import { fromJsonText } from "@haibun/core/lib/domains/json-text.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
-import { Access, AccessQueryLevelSchema, DOMAIN_PERSISTED_TYPE, type TDomainDefinition } from "@haibun/core/lib/resources.js";
-import { actionNotOK, actionOKWithProducts, errorDetail } from "@haibun/core/lib/util/index.js";
+import { Access, AccessQueryLevelSchema, DOMAIN_PERSISTED_TYPE, type TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
+import { actionNotOK, actionOKWithProducts, errorDetail } from "@haibun/core/lib/domains/util.js";
 import { typeCollectionRemedy } from "@haibun/core/lib/domains/typed-links.js";
 import {
 	DOMAIN_GRAPH_QUERY,

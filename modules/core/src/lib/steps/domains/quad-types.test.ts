@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { emitQuadObservation, OBSERVATION_VALUE_MAX } from "../pipelines/quad-observation.js";
 import { extractQuadsFromEvents, eventsAffectLabel } from "../derivations/quad-events.js";
 import { type TQuad, matchesQuadPattern } from "./quad-types.js";
-import { itemAt } from "../../util/item-at.js";
+import { itemAt } from "../../domains/item-at.js";
 
 const quadEvent = (namedGraph: string) => ({
 	id: `q-${namedGraph}`,

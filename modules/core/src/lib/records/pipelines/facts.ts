@@ -3,7 +3,7 @@
  * produced it, followed by the product's field where the step declares a domain for each field. So a step that runs again
  * replaces its fact. Each fact links its step's record through `prov:wasGeneratedBy`.
  */
-import { EDGE, FACT_LABEL, SEQ_PATH_LABEL } from "../../resources.js";
+import { EDGE, FACT_LABEL, SEQ_PATH_LABEL } from "../../domains/resources.js";
 import { GraphQuerySchema } from "../../steps/domains/quad-types.js";
 import { type IQuadStore } from "../../steps/ports.js";
 import { factIdOf, formatRecordName, type TRecordName } from "../../actuality/domains/seq-path.js";

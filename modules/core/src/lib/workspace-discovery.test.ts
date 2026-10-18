@@ -3,7 +3,7 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import { findHaibunWorkspace, loadBackgroundsFromPath } from "./workspace-discovery.js";
-import { itemAt } from "./util/item-at.js";
+import { itemAt } from "./domains/item-at.js";
 
 describe("workspace-discovery", () => {
 	let tmpDir: string;

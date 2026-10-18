@@ -8,7 +8,7 @@
  */
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
-import { Access, LinkRelations, type THypermediaTopology } from "../resources.js";
+import { Access, LinkRelations, type THypermediaTopology } from "./resources.js";
 import { searchableFields, queryableFields } from "./hypermedia.js";
 
 const PersonSchema = z.object({ letter: z.string(), name: z.string().optional(), generatedAtTime: z.date() });

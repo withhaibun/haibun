@@ -5,7 +5,7 @@
  */
 import type { Page } from "playwright";
 import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
-import { actionOK, actionNotOK } from "@haibun/core/lib/util/index.js";
+import { actionOK, actionNotOK } from "@haibun/core/lib/domains/util.js";
 import { FOLLOW_EDGE_SLACK_PX } from "../page/domains/scroll-follow.js";
 import { STATE_MS } from "./domains/waits.js";
 import { comesToHold, historyOf, historyShortOfNewest, pollUntil, scrollHistoryToStart } from "./pipelines/page-reads.js";

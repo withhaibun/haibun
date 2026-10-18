@@ -4,7 +4,7 @@
  * the ones actuality records after, as discovery writes them.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { CONVERSATION_MODEL_CLASS } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { buildConcernCatalog, counted } from "@haibun/core/lib/domains/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";

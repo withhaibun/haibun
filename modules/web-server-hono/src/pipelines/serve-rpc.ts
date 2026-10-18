@@ -3,19 +3,19 @@
  * Actuality's own registry holds what actuality's transports injected, so a caller reaching actuality by RPC dispatches
  * and discovers the same steps as every other caller of actuality.
  */
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import type { AStepper } from "@haibun/core/lib/astepper.js";
 import { ACTION_BEGIN, ANSWERED_WITHOUT_PRODUCTS, parseRpcRequest, authorityRefusal, callFailed, RPC_PROTOCOL, type THandshake } from "@haibun/core/lib/rpc-wire.js";
 import { runWithRequestContext, requestBaseIri } from "@haibun/core/lib/request-context.js";
 import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import { runRegistry, type StepRegistry } from "@haibun/core/lib/step-registry.js";
-import { mayCall } from "@haibun/core/lib/actions.js";
+import { mayCall } from "@haibun/core/lib/domains/actions.js";
 import { activeSitePrincipal } from "@haibun/core/lib/domains/host-id.js";
 import { SERVING } from "@haibun/core/lib/domains/serving.js";
 import { streamContext } from "@haibun/core/lib/step-stream-context.js";
-import { runInvoking, runReadingAsHeld, runReadingAt, runActingAs } from "@haibun/core/lib/capability-context.js";
+import { runInvoking, runReadingAsHeld, runReadingAt, runActingAs } from "@haibun/core/lib/domains/capability-context.js";
 import type { IWebServer, TCapabilityVerifier } from "../ports.js";
 import type { IStepTransport, ITransport } from "../domains/transport.js";
 import { notARead } from "../domains/web-server.js";

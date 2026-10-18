@@ -6,21 +6,21 @@
 import { html, css, type TemplateResult } from "lit";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { jsonDisclosure, literalWithJson, recordJson } from "./json-disclosure.js";
-import { jsonCarried, RecordsSchema, isRecord } from "@haibun/core/lib/json-text.js";
+import { jsonCarried, RecordsSchema, isRecord } from "@haibun/core/lib/domains/json-text.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { SHU_EVENT, ANNOTATION_GLYPH, SHU_TAG, TIME_SYNC_CLASS } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { copyText } from "../controllers/clipboard-controller.js";
-import { isReplyEdge } from "@haibun/core/lib/resources.js";
+import { isReplyEdge } from "@haibun/core/lib/domains/resources.js";
 import { EntityColumnSchema } from "../../schemas.js";
 import { anIndividual, type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { EntityController } from "../controllers/entity-controller.js";
 import { unread, type TEntityResult, type TEntityView, type TAnnotationDraft } from "../domains/entity.js";
 import { LOAD_STATUS } from "../domains/load.js";
-import type { TAnnotationView } from "@haibun/core/lib/resources.js";
+import type { TAnnotationView } from "@haibun/core/lib/domains/resources.js";
 import type { TLinkedBody } from "@haibun/core/lib/records/domains/body.js";
-import type { TPart, TQuoteAnchor } from "@haibun/core/lib/resources.js";
+import type { TPart, TQuoteAnchor } from "@haibun/core/lib/domains/resources.js";
 import { assertFragmentReads, fragmentReads, isFragment, pageOfPassage, pdfPage, type TFragment } from "@haibun/core/lib/domains/media-fragments.js";
 import "./shu-annotated-body.js";
 import {
@@ -46,7 +46,7 @@ import { CallLinkSchema, counted, statedTotal, type TCallLink, type TCounted } f
 import { SentFileSchema, fileDataBlob } from "@haibun/core/lib/domains/media-object.js";
 import { MEDIA_TYPE, viewedInBrowser } from "@haibun/core/lib/domains/media-types.js";
 import { reportFailure } from "../../client-log.js";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { ClockController } from "../controllers/clock-controller.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
 import { appAccessLevel } from "../../view-query.js";

@@ -4,7 +4,7 @@
  */
 import { displayLabelForQuads } from "../../domains/hypermedia.js";
 import { compareByOrder, readOrder, type TReadDeclaration } from "../../records/derivations/read-records.js";
-import { BODY_LABEL, LinkRelations } from "../../resources.js";
+import { BODY_LABEL, LinkRelations } from "../../domains/resources.js";
 import { GraphQuerySchema, ORDER_KEY, statedQuery, type TCluster, type TClusteredQuads, type TOrderKey, type TQuad } from "../domains/quad-types.js";
 
 /** What a sample reads of a type's declaration, where the type declares one: the property or edge that titles its records,

@@ -4,7 +4,7 @@
  * an arbitrarily long set stays reachable. It is renderer-agnostic: the DOM virtualizer and a future 3D chip-mesh rail
  * read the same three calls (count, rowAt, ensureRange), so the same column data can drive both media.
  */
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { counted, MAX_PAGE_ROWS, readInPages, type TCounted, type TCountedPage } from "@haibun/core/lib/domains/hypermedia.js";
 import type { TScrollMarker } from "./rail.js";
 import type { Range } from "./rail.js";

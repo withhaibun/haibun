@@ -5,7 +5,7 @@ import type { TWorld } from "../../actuality/domains/world.js";
 import type { TActionResult } from "../../domains/protocol.js";
 import { HYPERMEDIA } from "../../domains/protocol.js";
 import { namedInterpolation } from "./named-vars.js";
-import { constructorName } from "../../util/index.js";
+import { constructorName } from "../../domains/util.js";
 import { normalizeDomainKey } from "../../domains/domains.js";
 
 /**

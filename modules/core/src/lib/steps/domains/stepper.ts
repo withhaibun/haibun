@@ -6,10 +6,10 @@ import type { FeatureVariables } from "../../actuality/pipelines/feature-variabl
 import type { TWorld, TEnvVariables } from "../../actuality/domains/world.js";
 import type { TOptionValue, TFeatures, TSourceLocation } from "../../actuality/domains/execution.js";
 import type { ExecutionIntent, TSeqPath, TActionResult, TStepArgs, TStepValue, TStepResult, TFeatureResult, TExecutorResult, THaibunEvent } from "../../domains/protocol.js";
-import type { TDomainDefinition } from "../../resources.js";
-import type { TStepReads } from "../../actions.js";
+import type { TDomainDefinition } from "../../domains/resources.js";
+import type { TStepReads } from "../../domains/actions.js";
 import type { IQuadStore } from "../ports.js";
-import { constructorName } from "../../util/index.js";
+import { constructorName } from "../../domains/util.js";
 
 export const StepperKinds = {
 	MONITOR: "MONITOR",

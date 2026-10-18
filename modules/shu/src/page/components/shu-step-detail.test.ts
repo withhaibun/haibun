@@ -12,7 +12,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import "./shu-step-detail.js"; // the module defines the element
 import { SHU_TAG } from "../../domains/elements.js";
 import type { ShuStepDetail } from "./shu-step-detail.js";
-import { EDGE, SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
+import { EDGE, SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { SHARED_GRAPH } from "@haibun/core/lib/quad-types.js";
 import { VARIABLE_FIELD } from "@haibun/core/lib/records/domains/variables.js";
 import { installServedConduit } from "../root.js";

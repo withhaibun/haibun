@@ -6,7 +6,7 @@
  * the shared per-type colour (one source of truth across 3D + SVG); the paints translate the mark to their medium.
  */
 import { colorForType } from "./type-colors.js";
-import { CLASS_LABEL, LinkRelations, PROPERTY_LABEL } from "@haibun/core/lib/resources.js";
+import { CLASS_LABEL, LinkRelations, PROPERTY_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { eventMarkerStyle } from "../../derivations/event-marker.js";
 import { assertNodeMark, type NodeMark } from "../domains/graph-scene.js";

@@ -5,7 +5,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { ShuEntityColumn, foldedTargets } from "./shu-entity-column.js";
 import { buildConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
-import { LinkRelations } from "@haibun/core/lib/resources.js";
+import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { refHref } from "./ref-navigation.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";

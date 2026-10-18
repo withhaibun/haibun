@@ -2,7 +2,7 @@
  * <shu-thread-column>: Displays a conversation thread for any individual type with inReplyTo edges.
  * Fetches thread via getRelated RPC, renders flat (chronological) or tree (indented reply structure).
  */
-import { RecordsSchema } from "@haibun/core/lib/json-text.js";
+import { RecordsSchema } from "@haibun/core/lib/domains/json-text.js";
 import { html, css, type TemplateResult } from "lit";
 import { z } from "zod";
 import { shuBaseStyles } from "./styles.js";
@@ -12,14 +12,14 @@ import { defineElement } from "../controllers/element-controller.js";
 import { openRef } from "./ref-navigation.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { anIndividual, type TContextPattern } from "@haibun/core/lib/conversation/domains/conversation.js";
-import { ellipsize } from "@haibun/core/lib/util/index.js";
+import { ellipsize } from "@haibun/core/lib/domains/util.js";
 import { getFieldRel, getValidTimeField } from "../controllers/catalog-controller.js";
 import { fieldRef, typeRef } from "./shu-ref.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { graphPresenterTag, mountGraphPresenter, presenterIn } from "../controllers/presenter-controller.js";
 import type { TGraphPresenter, TPresenterNodeClick } from "../ports.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
-import { LinkRelations, isCommentType, isReplyEdge } from "@haibun/core/lib/resources.js";
+import { LinkRelations, isCommentType, isReplyEdge } from "@haibun/core/lib/domains/resources.js";
 import { appAccessLevel } from "../../view-query.js";
 import { extractBodyLiterals, idOf, instanceLabel, titleFields } from "../controllers/record-controller.js";
 import { persistedTypeOf } from "../derivations/record-fields.js";

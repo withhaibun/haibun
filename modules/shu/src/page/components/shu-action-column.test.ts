@@ -5,8 +5,8 @@
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
-import { readAction } from "@haibun/core/lib/actions.js";
-import { Access } from "@haibun/core/lib/resources.js";
+import { readAction } from "@haibun/core/lib/domains/actions.js";
+import { Access } from "@haibun/core/lib/domains/resources.js";
 import { ShuActionColumn } from "./shu-action-column.js";
 import "./shu-ref-element.js";
 

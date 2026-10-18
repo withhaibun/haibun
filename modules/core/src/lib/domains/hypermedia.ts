@@ -22,7 +22,7 @@ import {
 	type TRel,
 	type THypermediaTopology,
 	PersistedVertexSchema,
-} from "../resources.js";
+} from "./resources.js";
 
 /** Resolve a property def to its rel, regardless of plain-string or object (content / term) form. */
 export function relOf(def: TPropertyDef): TRel {
@@ -195,13 +195,13 @@ function subPropertyOfRel(rel: string): string | string[] | undefined {
 	}
 	return undefined;
 }
-import { AccessLevelSchema, DOMAIN_PERSISTED_TYPE, HAIBUN_NS, type TRegisteredDomain } from "../resources.js";
+import { AccessLevelSchema, DOMAIN_PERSISTED_TYPE, HAIBUN_NS, type TRegisteredDomain } from "./resources.js";
 import { DOMAIN_UNION, hypermediaDomainMap, refTargetOf } from "./domains.js";
 import { jsonSchemaFor } from "./json-schema-of.js";
 import { unwrap, unwrapToShape } from "./zod-unwrap.js";
 import { zodTypeLabel } from "./composite-domain.js";
-import { ellipsize } from "../util/index.js";
-import { itemAt } from "../util/item-at.js";
+import { ellipsize } from "./util.js";
+import { itemAt } from "./item-at.js";
 
 // ============================================================================
 // Schemas  (Zod → TypeScript, Zod → JSON Schema, single source of truth)

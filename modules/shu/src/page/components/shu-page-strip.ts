@@ -5,8 +5,8 @@
  * and the settings.
  */
 import { html, type CSSResultGroup, type TemplateResult } from "lit";
-import type { AccessQueryLevel } from "@haibun/core/lib/resources.js";
-import { errorDetail } from "@haibun/core/lib/util/index.js";
+import type { AccessQueryLevel } from "@haibun/core/lib/domains/resources.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import { PageStripCorners } from "./page-strip-corners.js";
 import { FootprintController } from "./footprint.js";

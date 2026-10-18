@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { itemAt } from "@haibun/core/lib/util/item-at.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { layeredPositions, type LayeredDirection } from "../derivations/layered-solver.js";
 import { collideRadius, chipTextHeight, truncateLabel, LAYERED_SIBLING_GAP } from "../derivations/layout-forces.js";
 

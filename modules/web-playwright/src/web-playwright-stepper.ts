@@ -4,10 +4,10 @@
  * calls a pipeline over the session's page; the cycles start and end a feature's session.
  */
 import { AStepper, CycleWhen, StepperKinds, type IHasCycles, type IHasOptions, type IStepperCycles, type TFeatureStep, type TStepperSteps } from "@haibun/core/lib/astepper.js";
-import { readAction } from "@haibun/core/lib/actions.js";
-import { stepInFlight } from "@haibun/core/lib/capability-context.js";
+import { readAction } from "@haibun/core/lib/domains/actions.js";
+import { stepInFlight } from "@haibun/core/lib/domains/capability-context.js";
 import { FlowRunner } from "@haibun/core/lib/core/flow-runner.js";
-import { basicAuthorization } from "@haibun/core/lib/basic-auth.js";
+import { basicAuthorization } from "@haibun/core/lib/domains/basic-auth.js";
 import {
 	DOMAIN_BEARER_TOKEN,
 	DOMAIN_FILE_PATH,
@@ -22,7 +22,7 @@ import {
 	DOMAIN_VARIABLE_NAME,
 } from "@haibun/core/lib/domains/domains.js";
 import { DOMAIN_IMAGE_REFERENCE } from "@haibun/core/lib/domains/media-object.js";
-import { Access } from "@haibun/core/lib/resources.js";
+import { Access } from "@haibun/core/lib/domains/resources.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import {
 	actionNotOK,
@@ -34,7 +34,7 @@ import {
 	getStepperOption,
 	intOrError,
 	stringOrError,
-} from "@haibun/core/lib/util/index.js";
+} from "@haibun/core/lib/domains/util.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { OK, Origin, type TActionResult, type TStepValue } from "@haibun/core/lib/domains/protocol.js";
 import type { AStorage } from "@haibun/domain-storage/domains/storage.js";

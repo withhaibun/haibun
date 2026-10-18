@@ -3,7 +3,7 @@
 // controls: and a schema-scoped host (data-schema-only, the class browser) carrying only the Class + Property chips
 // with an independent persistence scope. Chips are rendered by <shu-chip-group>, so a chip is one shadow deeper.
 import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
-import { CLASS_LABEL, PROPERTY_LABEL } from "@haibun/core/lib/resources.js";
+import { CLASS_LABEL, PROPERTY_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { SHU_EVENT } from "../../../domains/elements.js";
 import { describe, it, expect, beforeEach } from "vitest";
 import { MAIN_GRAPH_SCOPE, ShuGraphFilter } from "./shu-graph-filter.js";

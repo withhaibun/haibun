@@ -1,7 +1,7 @@
 import { AStepper, type IHasCycles, type IHasOptions, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { OK } from "@haibun/core/lib/domains/protocol.js";
-import { getStepperOption, stringOrError } from "@haibun/core/lib/util/index.js";
+import { getStepperOption, stringOrError } from "@haibun/core/lib/domains/util.js";
 import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { DOMAIN_ROUTE } from "@haibun/core/lib/domains/domains.js";
 import type { IStepTransport } from "./domains/transport.js";

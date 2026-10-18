@@ -15,9 +15,6 @@
 	"modules/cli/src/verified.ts": {
 		"fills an absent value with a constant through ??": 2
 	},
-	"modules/core/src/lib/actions.ts": {
-		"states a parameter's default value": 1
-	},
 	"modules/core/src/lib/affordances.ts": {
 		"fills an absent value with a constant through ??": 1
 	},
@@ -28,10 +25,8 @@
 		"fills an absent value with a constant through ??": 4,
 		"states a parameter's default value": 3
 	},
-	"modules/core/src/lib/document-content.ts": {
-		"fills a falsy value with a constant through ||": 7,
-		"fills an absent value with a constant through ??": 2,
-		"states a parameter's default value": 3
+	"modules/core/src/lib/domains/actions.ts": {
+		"states a parameter's default value": 1
 	},
 	"modules/core/src/lib/domains/blips.ts": {
 		"fills an absent value with a constant through ??": 5
@@ -42,9 +37,17 @@
 	"modules/core/src/lib/domains/composite-domain.ts": {
 		"fills an absent value with a constant through ??": 2
 	},
+	"modules/core/src/lib/domains/document-content.ts": {
+		"fills a falsy value with a constant through ||": 7,
+		"fills an absent value with a constant through ??": 2,
+		"states a parameter's default value": 3
+	},
 	"modules/core/src/lib/domains/domains.ts": {
 		"fills a falsy value with a constant through ||": 1,
 		"fills an absent value with a constant through ??": 2
+	},
+	"modules/core/src/lib/domains/features.ts": {
+		"states a parameter's default value": 1
 	},
 	"modules/core/src/lib/domains/host-id.ts": {
 		"fills an absent value with a constant through ??": 2,
@@ -66,9 +69,6 @@
 		"fills a falsy value with a constant through ||": 1,
 		"fills an absent value with a constant through ??": 2,
 		"states a schema's default value through .default()": 13
-	},
-	"modules/core/src/lib/features.ts": {
-		"states a parameter's default value": 1
 	},
 	"modules/core/src/lib/goal-resolver.ts": {
 		"fills an absent value with a constant through ??": 5

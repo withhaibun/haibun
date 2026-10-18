@@ -7,7 +7,7 @@ import type { MiddlewareHandler } from "hono";
 import { authorityRefusal, REFUSED_INVOCATION, type TRpcRefusal } from "@haibun/core/lib/rpc-wire.js";
 import { sentByAnotherSite } from "@haibun/core/lib/request-context.js";
 import type { TRuntime } from "@haibun/core/lib/world.js";
-import { capabilityAllows } from "@haibun/core/lib/actions.js";
+import { capabilityAllows } from "@haibun/core/lib/domains/actions.js";
 import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import { getAuthority, heldAuthority } from "@haibun/core/lib/session-authority.js";
 import { DELEGATIONS_READ_ACTION } from "@haibun/core/lib/domains/authority-types.js";

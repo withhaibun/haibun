@@ -5,7 +5,7 @@
  * a read again (CA4F4).
  */
 import { afterEach, describe, expect, it } from "vitest";
-import { Access, LinkRelations } from "@haibun/core/lib/resources.js";
+import { Access, LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { RefusedCall, ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import { SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { catalogOf, declareRegistry } from "../../test/catalog-fixture.js";

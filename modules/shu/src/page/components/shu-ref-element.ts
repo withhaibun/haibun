@@ -14,7 +14,7 @@ import { html, css, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
 import { SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
-import { JsonObjectTextSchema } from "@haibun/core/lib/json-text.js";
+import { JsonObjectTextSchema } from "@haibun/core/lib/domains/json-text.js";
 import { refHref } from "./ref-navigation.js";
 import { isRefKind } from "../derivations/markdown.js";
 import { ShuElement, EmptyStateSchema, type TLinkedData } from "./shu-element.js";

@@ -1,5 +1,5 @@
 import { AStepper, type IHasCycles, type IHasOptions, type IStepperCycles } from "../steps/domains/stepper.js";
-import { actionOKWithProducts, getStepperOption } from "../util/index.js";
+import { actionOKWithProducts, getStepperOption } from "../domains/util.js";
 import { z } from "zod";
 
 const TestOptionResultSchema = z.object({ summary: z.string() });

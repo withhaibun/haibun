@@ -19,7 +19,7 @@
  * step graph test (`test/step-graph-baseline.ts`) compares the findings with a baseline file.
  */
 import { z } from "zod";
-import { isPersisted, type TRegisteredDomain } from "./resources.js";
+import { isPersisted, type TRegisteredDomain } from "./domains/resources.js";
 import { SOURCE_DOMAIN, buildDomainChain, type TDomainChainGraph } from "./domain-chain.js";
 import type { AStepper } from "./steps/domains/stepper.js";
 import { DOMAIN_STRING, domainParts, fieldRangesOf, isPrimitiveDomain, isWrittenByCaller, refTargetOf } from "./domains/domains.js";

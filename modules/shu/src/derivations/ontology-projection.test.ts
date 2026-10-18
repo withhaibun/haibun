@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { pruneOntologyToUse, withOntologySchema, scopeSchemaToType, isSchemaType, propertyVocabulary, isHaibunTerm } from "./ontology-projection.js";
 import { categoryOf, ontologyToQuads, typesDeclaringRel } from "@haibun/core/lib/records/derivations/ontology.js";
 import { ONTOLOGY_FIELD } from "@haibun/core/lib/records/domains/ontology.js";
-import { CLASS_LABEL, PROPERTY_LABEL } from "@haibun/core/lib/resources.js";
-import { LinkRelations, principalDomainDefinition, HAIBUN_NS, type TRegisteredDomain } from "@haibun/core/lib/resources.js";
+import { CLASS_LABEL, PROPERTY_LABEL } from "@haibun/core/lib/domains/resources.js";
+import { LinkRelations, principalDomainDefinition, HAIBUN_NS, type TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
 const edge = (quads: ReturnType<typeof ontologyToQuads>["quads"], predicate: string, from: string, to: string): boolean =>

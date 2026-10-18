@@ -5,7 +5,7 @@
  * only the key that attached the browser sends for it.
  */
 import { streamContext } from "@haibun/core/lib/step-stream-context.js";
-import { actingAs } from "@haibun/core/lib/capability-context.js";
+import { actingAs } from "@haibun/core/lib/domains/capability-context.js";
 import type { TRpcMethod } from "@haibun/core/lib/rpc-wire.js";
 import type { BrowserRelay } from "./cdp-relay.js";
 import { RELAY_ATTACHED, RelayBatchSchema, type TRelayCall, type TRelayMessage } from "./relay-wire.js";
