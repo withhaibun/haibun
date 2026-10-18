@@ -16,7 +16,7 @@ import { defineElement } from "../controllers/element-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { getAvailableSteps } from "../controllers/registry-controller.js";
 import { actionRef, domainRef, originLink } from "./shu-ref.js";
-import "./shu-spinner.js";
+import { readingRenders } from "./shu-spinner.js";
 
 const StateSchema = z.object({ method: z.string() });
 
@@ -80,12 +80,7 @@ export class ShuStepDefinition extends ShuElement<typeof StateSchema> {
 	};
 
 	render(): TemplateResult {
-		return this.#load.render({
-			initial: () => html`<div class="empty"><shu-spinner></shu-spinner></div>`,
-			pending: () => html`<div class="empty"><shu-spinner></shu-spinner> Reading ${this.state.method}…</div>`,
-			error: (err) => html`<div class="empty error" data-testid=${IDS.ERROR}>${err instanceof Error ? err.message : String(err)}</div>`,
-			complete: (step) => (step ? this.renderStep(step) : html``),
-		});
+		return this.#load.render({ ...readingRenders(html`Reading ${this.state.method}`, IDS.ERROR), complete: (step) => (step ? this.renderStep(step) : html``) });
 	}
 
 	private renderStep(step: TStepDefinition): TemplateResult {

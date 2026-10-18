@@ -9,6 +9,9 @@ import { HAIBUN_LOG_LEVELS } from "../schema/protocol.js";
 import { parseRecordName } from "./actuality/domains/seq-path.js";
 import { MEDIA_TYPE } from "./media-types.js";
 
+/** The classes of a row of a step or a log message in the document. */
+const LOG_ROW_CLASS = "log-row font-mono text-[11px] text-slate-500 my-0 leading-tight";
+
 type TArtifactIndex = { artifactsByStep: Map<string, TArtifactEvent[]>; allArtifactIds: Set<string> };
 
 /** The artifacts a log event's attributes or a lifecycle event's products embed. */
@@ -227,7 +230,7 @@ export function generateDocumentMarkdown(
 					visibleIds.add(nid);
 					const claimed = claimWithHolder(nid, nid);
 
-					md += `<div class="log-row font-mono text-[11px] text-slate-500 my-0 leading-tight" data-depth="${depth}" data-nested="${isNested}" data-instigator="${isInstigator}" data-show-symbol="${showSymbol}" data-id="${nid}" data-ids="${claimed.ids}" data-time="${time}" data-raw-time="${rawTime}" data-action="${esc(actionName)}" data-has-artifacts="${!!claimed.ids}">${esc(step.in)}</div>\n`;
+					md += `<div class="${LOG_ROW_CLASS}" data-depth="${depth}" data-nested="${isNested}" data-instigator="${isInstigator}" data-show-symbol="${showSymbol}" data-id="${nid}" data-ids="${claimed.ids}" data-time="${time}" data-raw-time="${rawTime}" data-action="${esc(actionName)}" data-has-artifacts="${!!claimed.ids}">${esc(step.in)}</div>\n`;
 					md += claimed.holder;
 					lastType = "technical";
 					previousRenderedDepth = depth;
@@ -251,7 +254,7 @@ export function generateDocumentMarkdown(
 			const time = (rawTime / 1000).toFixed(3);
 			const nid = normalizeId(logEv.id);
 			visibleIds.add(nid);
-			md += `<div class="log-row font-mono text-[11px] text-slate-500 my-0 leading-tight" data-id="${nid}" data-raw-time="${rawTime}" data-time="${time}">${esc(logEv.message)}</div>\n`;
+			md += `<div class="${LOG_ROW_CLASS}" data-id="${nid}" data-raw-time="${rawTime}" data-time="${time}">${esc(logEv.message)}</div>\n`;
 			lastType = "technical";
 			continue;
 		}

@@ -1,8 +1,10 @@
 /**
  * The records the page shows (`page/domains/entity.ts`), each read once and kept current: a record opens from the copy the
  * page holds, or reads through the site, and its notes read by the same provenance. An observed quad updates a field of a
- * held record in place, and a note anchored in a held record from any page reads its notes again.
+ * held record in place, an observed edge of a held record reads the record again, and a note anchored in a held record from
+ * any page reads its notes again.
  */
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { BODY_LABEL, LinkRelations } from "@haibun/core/lib/resources.js";
 import { LinkedBodySchema } from "@haibun/core/lib/records/domains/body.js";
 import type { TIndividualWithEdges, TQuad } from "@haibun/core/lib/quad-types.js";
@@ -11,8 +13,9 @@ import { LOAD_STATUS } from "../domains/load.js";
 import { annotationsHeld, annotationsOnSite, type TAnnotationScope } from "./annotations.js";
 import type { TCallOutcome, TWritten } from "./call-step.js";
 
-/** A held record: its view, and a count of the reads of its notes started, so only the newest read writes its result. */
-type TEntry = { label: string; id: string; view: TEntityView; annotationSeq: number };
+/** A held record: its view, the level it was read at, the newest read of the record, and a count of the reads of its notes
+ *  started. Only the newest read of each writes its result. */
+type TEntry = { label: string; id: string; accessLevel: string; view: TEntityView; reading: Promise<void>; annotationSeq: number };
 export type TRecordListener = (subject: string) => void;
 
 /** The records the page holds, the views that follow them, and the subscription to observed quads, which the first open
@@ -35,11 +38,15 @@ export type TOpenScope = {
 // part can hold would give `label "A B" + id "C"` and `label "A" + id "B C"` one key.
 const keyOf = (label: string, id: string): string => `${label}\0${id}`;
 
-function entryOf(store: TRecordStore, label: string, id: string): TEntry {
+/** Returns the entry of a record the page opens at `accessLevel`. A later read of the record reads at that level. */
+function entryOf(store: TRecordStore, label: string, id: string, accessLevel: string): TEntry {
 	const key = keyOf(label, id);
 	const held = store.entries.get(key);
-	if (held !== undefined) return held;
-	const entry = { label, id, view: unreadView(LOAD_STATUS.PENDING), annotationSeq: 0 };
+	if (held !== undefined) {
+		held.accessLevel = accessLevel;
+		return held;
+	}
+	const entry = { label, id, accessLevel, view: unreadView(LOAD_STATUS.PENDING), reading: Promise.resolve(), annotationSeq: 0 };
 	store.entries.set(key, entry);
 	return entry;
 }
@@ -50,29 +57,54 @@ function notify(scope: TOpenScope, subject: string): void {
 		try {
 			listener(subject);
 		} catch (err) {
-			scope.report(`a listener of ${subject} failed: ${err instanceof Error ? err.message : String(err)}`);
+			scope.report(`a listener of ${subject} failed: ${errorDetail(err)}`);
 		}
 	}
 }
 
-/** Applies observed quads. A field quad updates the held copy in place, without a read. An `oa:hasSource` quad whose object
- *  is a held record reads that record's notes again. An edge quad changes structure, so a reopen reads it. */
+/** Applies observed quads. A field quad updates the held copy in place, without a read. An edge quad of a record the page
+ *  holds or reads changes what the record links, as its bodies, so the record is read again: a read that started before the
+ *  edge was written doesn't hold it. An `oa:hasSource` quad whose object is a held record reads that record's notes again. */
 function onQuads(scope: TOpenScope, quads: TQuad[]): void {
 	const touched = new Set<string>();
+	const restructured = new Set<TEntry>();
 	const reanchored = new Set<string>();
 	for (const q of quads) {
 		if (q.predicate === LinkRelations.HAS_SOURCE.rel && typeof q.object === "string") {
 			reanchored.add(q.object);
 			continue;
 		}
-		if (q.objectType) continue;
-		const entity = scope.store.entries.get(keyOf(q.namedGraph, q.subject))?.view.entity;
-		if (entity === undefined) continue;
-		entity.vertex[q.predicate] = q.object;
+		const entry = scope.store.entries.get(keyOf(q.namedGraph, q.subject));
+		if (q.objectType) {
+			if (entry) restructured.add(entry);
+			continue;
+		}
+		if (entry?.view.entity === undefined) continue;
+		entry.view.entity.vertex[q.predicate] = q.object;
 		touched.add(q.subject);
 	}
 	for (const subject of touched) notify(scope, subject);
+	for (const entry of restructured) void readRecordInto(scope, entry);
 	for (const entry of scope.store.entries.values()) if (reanchored.has(entry.id)) void refreshAnnotations(scope, entry.label, entry.id);
+}
+
+/**
+ * Reads a record at the level it was opened at, keeps its notes and the bodies the reader read, and calls the listeners. A
+ * refused read of a record the page holds keeps the held record and is reported, and a refused first read holds the refusal.
+ * Only the newest read writes, so a read that started before an edge was written can't replace a read that holds it. A
+ * superseded read resolves with the newest, so a caller awaits the record as the newest read returns it.
+ */
+function readRecordInto(scope: TOpenScope, entry: TEntry): Promise<void> {
+	const reading: Promise<void> = scope.readAt(entry.label, entry.id, entry.accessLevel).then((read) => {
+		if (entry.reading !== reading) return entry.reading;
+		if (!read.ok && entry.view.entity) return scope.report(`${entry.label}:${entry.id} wasn't read again: ${read.refusal.error}`);
+		entry.view = read.ok
+			? { ...entry.view, status: LOAD_STATUS.COMPLETED, provenance: scope.offline ? "offline" : "live", entity: read.value }
+			: { status: LOAD_STATUS.FAILED, annotations: [], refusal: read.refusal, bodies: {} };
+		notify(scope, entry.id);
+	});
+	entry.reading = reading;
+	return reading;
 }
 
 function followQuads(scope: TOpenScope): void {
@@ -101,20 +133,15 @@ async function readAnnotationsInto(scope: TOpenScope, entry: TEntry): Promise<vo
  *  read holds the refusal. */
 export async function openRecord(scope: TOpenScope, label: string, id: string, accessLevel: string): Promise<void> {
 	followQuads(scope);
-	const entry = entryOf(scope.store, label, id);
+	const entry = entryOf(scope.store, label, id, accessLevel);
 	if (entry.view.entity !== undefined) {
 		entry.view = { ...entry.view, status: LOAD_STATUS.COMPLETED, provenance: "cache" };
 		notify(scope, id);
 	} else {
 		entry.view = unreadView(LOAD_STATUS.RUNNING);
 		notify(scope, id);
-		const read = await scope.readAt(label, id, accessLevel);
-		if (!read.ok) {
-			entry.view = { status: LOAD_STATUS.FAILED, annotations: [], refusal: read.refusal, bodies: {} };
-			return notify(scope, id);
-		}
-		entry.view = { status: LOAD_STATUS.COMPLETED, provenance: scope.offline ? "offline" : "live", entity: read.value, annotations: [], bodies: {} };
-		notify(scope, id);
+		await readRecordInto(scope, entry);
+		if (entry.view.entity === undefined) return;
 	}
 	await readAnnotationsInto(scope, entry);
 	notify(scope, id);

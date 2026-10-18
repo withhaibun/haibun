@@ -55,6 +55,10 @@ const KEPT_TYPE = "KeptFile";
 const keptAs = (name: string) => ({ persistedAs: KEPT_TYPE, id: `added/${name}` });
 /** Each file the pane sent actuality to keep. */
 const keptFiles: Array<{ file: string; name: string }> = [];
+/** The keeps a case holds open, each resolved when the case releases it. A case that doesn't hold keeps leaves it empty. */
+const heldKeeps: Array<() => void> = [];
+/** Whether the keep step holds each keep open until a case releases it. */
+let holdingKeeps = false;
 /** The seqPath each turn the stream starts is given, in order; a turn beyond them is given 0.1.2. Actuality records the
  *  turn's question as the step starts and its response when it finishes, each named by the turn. */
 const turnSeqPaths: number[][] = [];
@@ -107,6 +111,7 @@ function respond(step: string, params: Record<string, unknown>): unknown {
 	if (step === CHAT_STEP.keepFile) {
 		const kept = { file: String(params.file), name: String(params.name) };
 		keptFiles.push(kept);
+		if (holdingKeeps) return new Promise((resolve) => heldKeeps.push(() => resolve(keptAs(kept.name))));
 		return keptAs(kept.name);
 	}
 	if (step === CHAT_STEP.sessions)
@@ -520,6 +525,25 @@ describe("the ask and the active record", () => {
 			expect.arrayContaining([DOOR, LEASE].map((file) => ({ kind: DENOTES.individual, ...keptAs(file.name) }))),
 		);
 		expect(pane.shadowRoot?.querySelectorAll(".ask-files"), "the files went with the question").toHaveLength(0);
+		keptFiles.length = 0;
+	});
+
+	it("sends a question asked while its file is kept once the keep ends, naming the file", async () => {
+		const NOTE = { name: "note.txt", type: "text/plain" };
+		holdingKeeps = true;
+		const { pane } = await aPage();
+		const control = inside<HTMLInputElement>(pane.shadowRoot, "input[type=file]");
+		Object.defineProperty(control, "files", { value: [new File(["a note"], NOTE.name, { type: NOTE.type })], configurable: true });
+		control.dispatchEvent(new Event("change"));
+		await vi.waitFor(() => expect(heldKeeps).toHaveLength(1));
+		const asked = sent.length;
+		await submit(pane, "what does the note say");
+		expect(sent, "the question waits for the keep").toHaveLength(asked);
+		itemAt(heldKeeps, 0)();
+		await vi.waitFor(() => expect(sent).toHaveLength(asked + 1));
+		expect(sent.at(-1)?.patterns, "the question names the kept file").toEqual(expect.arrayContaining([{ kind: DENOTES.individual, ...keptAs(NOTE.name) }]));
+		holdingKeeps = false;
+		heldKeeps.length = 0;
 		keptFiles.length = 0;
 	});
 

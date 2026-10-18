@@ -6,7 +6,7 @@
  */
 import { SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
-import { html, css, type TemplateResult } from "lit";
+import { html, css, nothing, type TemplateResult } from "lit";
 import { Task } from "@lit/task";
 import { z } from "zod";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
@@ -15,7 +15,7 @@ import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { getAvailableSteps, stepsAllowedBy } from "../controllers/registry-controller.js";
 import { stepRef } from "./shu-ref.js";
 import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
-import "./shu-spinner.js";
+import { readingRenders } from "./shu-spinner.js";
 
 const StateSchema = z.object({ action: z.string() });
 
@@ -63,9 +63,7 @@ export class ShuActionColumn extends ShuElement<typeof StateSchema> {
 	render(): TemplateResult {
 		const { action } = this.state;
 		return this.#load.render({
-			initial: () => html`<div class="empty"><shu-spinner></shu-spinner></div>`,
-			pending: () => html`<div class="empty"><shu-spinner></shu-spinner> Reading what ${action} allows…</div>`,
-			error: (err) => html`<div class="empty error">${err instanceof Error ? err.message : String(err)}</div>`,
+			...readingRenders(html`Reading what ${action} allows`, nothing),
 			complete: (allowed) =>
 				allowed
 					? html`<div class="action-column" data-testid=${IDS.ROOT}>

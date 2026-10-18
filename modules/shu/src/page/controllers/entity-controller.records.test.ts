@@ -10,7 +10,8 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { openRecord, refreshAnnotations, recordView, followRecords } from "./entity-controller.js";
 import { setupShuTest, makeEntityDispatch, annotationList, type TShuTestHandle } from "../../test/setup.js";
-import { LinkRelations, SPECIFIC_RESOURCE_LABEL } from "@haibun/core/lib/resources.js";
+import { BODY_LABEL, HAS_BODY_EDGE, LinkRelations, SPECIFIC_RESOURCE_LABEL } from "@haibun/core/lib/resources.js";
+import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import type { TEvent } from "../ports.js";
 import { endPage } from "../adapters/page-held.js";
 import { LOAD_STATUS } from "../domains/load.js";
@@ -18,6 +19,10 @@ import { LOAD_STATUS } from "../domains/load.js";
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 20));
 
 const entity = (subject: string) => ({ vertex: { "@id": "e1", "@type": "Email", subject }, edges: [], incomingCount: { total: 0, saturated: false } });
+/** The id of the body a record links once its edge is written. */
+const BODY_ID = "e1-body";
+/** Returns a read of a record that links its body. */
+const withBody = (read: ReturnType<typeof entity>) => ({ ...read, vertex: { ...read.vertex, [HAS_BODY_EDGE]: [{ id: BODY_ID }] } });
 const note = (commentId: string, body: string) => ({ commentId, specificResourceId: `sr-${commentId}`, exact: "a passage", body });
 
 const quadEvent = (namedGraph: string, subject: string, predicate: string, object: unknown, objectType?: string): TEvent =>
@@ -169,13 +174,30 @@ describe("an open record kept current", () => {
 		expect(calls.entity).toBe(1);
 	});
 
-	it("leaves an edge quad to a full reopen rather than merging it as a field", async () => {
-		const { dispatch } = stubDispatch();
+	it("reads a held record again when an edge of it is written, so a record read before its body's edge links the body", async () => {
+		const reads = [entity("Hi"), withBody(entity("Hi"))];
+		const { dispatch, calls } = stubDispatch({ entity: () => itemAt(reads, calls.entity - 1) });
 		handle = setupShuTest({ dispatch });
 		await openRecord("Email", "e1", "private");
-		handle.emit(quadEvent("Email", "e1", "inReplyTo", "e0", "Email"));
+		expect(recordView("Email", "e1").entity?.vertex[HAS_BODY_EDGE], "the record is read before its body's edge is written").toBeUndefined();
+		handle.emit(quadEvent("Email", "e1", HAS_BODY_EDGE, BODY_ID, BODY_LABEL));
 		await flush();
-		expect(recordView("Email", "e1").entity?.vertex.inReplyTo).toBeUndefined();
+		expect(recordView("Email", "e1").entity?.vertex[HAS_BODY_EDGE]).toEqual([{ id: BODY_ID }]);
+		expect(calls.entity).toBe(2);
+	});
+
+	it("reads a record again when an edge of it is written during its first read, and the first read doesn't replace the second", async () => {
+		const first = Promise.withResolvers<unknown>();
+		const reads = [() => first.promise, () => withBody(entity("Hi"))];
+		const { dispatch, calls } = stubDispatch({ entity: () => itemAt(reads, calls.entity - 1)() });
+		handle = setupShuTest({ dispatch });
+		const opened = openRecord("Email", "e1", "private");
+		await flush();
+		handle.emit(quadEvent("Email", "e1", HAS_BODY_EDGE, BODY_ID, BODY_LABEL));
+		await flush();
+		first.resolve(entity("Hi"));
+		await opened;
+		expect(recordView("Email", "e1").entity?.vertex[HAS_BODY_EDGE], "the read that started after the edge was written").toEqual([{ id: BODY_ID }]);
 	});
 
 	it("doesn't fetch an individual the store doesn't hold when a live change names it", async () => {

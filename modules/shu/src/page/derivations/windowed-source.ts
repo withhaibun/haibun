@@ -4,6 +4,7 @@
  * an arbitrarily long set stays reachable. It is renderer-agnostic: the DOM virtualizer and a future 3D chip-mesh rail
  * read the same three calls (count, rowAt, ensureRange), so the same column data can drive both media.
  */
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { counted, MAX_PAGE_ROWS, readInPages, type TCounted, type TCountedPage } from "@haibun/core/lib/hypermedia.js";
 import type { TScrollMarker } from "./rail.js";
 import type { Range } from "./rail.js";
@@ -240,9 +241,7 @@ function makePagedSource<T>(opts: TPagedSourceOptions<T>): TPagedSource<T> {
 					})
 					.catch((e: unknown) => {
 						for (let p = a; p <= b; p++) inflight.delete(p);
-						console.warn(
-							`the read of pages ${a} to ${b} failed (${e instanceof Error ? e.message : String(e)}); the pages stay unread until the next scroll over them reads them again`,
-						);
+						console.warn(`the read of pages ${a} to ${b} failed (${errorDetail(e)}); the pages stay unread until the next scroll over them reads them again`);
 					});
 				for (let p = a; p <= b; p++) inflight.set(p, promise);
 				waits.push(promise);

@@ -2,8 +2,9 @@
  * <shu-spinner>: what a view waits for, as text beside a turning dot. The dot pulses at each new status, so a reader sees
  * the wait advance.
  */
-import { html, css, type TemplateResult } from "lit";
+import { html, css, nothing, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { ShuElement, EmptyStateSchema, type TLinkedData } from "./shu-element.js";
@@ -54,3 +55,11 @@ export class ShuSpinner extends ShuElement<typeof EmptyStateSchema> {
 }
 
 defineElement(SHU_TAG.SPINNER, ShuSpinner);
+
+/** Returns the renders of a task that reads what a column shows: a spinner before the read, a spinner that states `reading`
+ *  during it, and the read's failure, under `errorTestId` where the column names its failure. */
+export const readingRenders = (reading: TemplateResult, errorTestId: string | typeof nothing) => ({
+	initial: (): TemplateResult => html`<div class="empty"><shu-spinner></shu-spinner></div>`,
+	pending: (): TemplateResult => html`<div class="empty"><shu-spinner></shu-spinner> ${reading}…</div>`,
+	error: (err: unknown): TemplateResult => html`<div class="empty error" data-testid=${errorTestId}>${errorDetail(err)}</div>`,
+});

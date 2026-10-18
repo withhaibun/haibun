@@ -13,6 +13,8 @@ import { objectId } from "./record-fields.js";
 const FlagSchema = z.enum(["min", "max"]).optional();
 /** Where a pane stands: minimized or maximized, and docked along the bottom of the page or a column. */
 const PLACEMENT = { flag: FlagSchema, docked: z.boolean().optional() };
+/** The fields of a pane that shows a record by its type and id, and its placement. */
+const OF_SUBJECT = { persistedAs: z.string(), subject: z.string(), ...PLACEMENT };
 const TagSchema = z.string().regex(/^[a-z][a-z0-9-]*$/);
 
 export const DesiredPaneSchema = z.discriminatedUnion("paneType", [
@@ -30,8 +32,8 @@ export const DesiredPaneSchema = z.discriminatedUnion("paneType", [
 	z.object({ paneType: z.literal("type"), persistedAs: z.string(), ...PLACEMENT }),
 	z.object({ paneType: z.literal("filter-eq"), persistedAs: z.string(), predicate: z.string(), value: z.string(), ...PLACEMENT }),
 	z.object({ paneType: z.literal("filter-prop"), persistedAs: z.string(), predicate: z.string(), ...PLACEMENT }),
-	z.object({ paneType: z.literal("filter-incoming"), persistedAs: z.string(), subject: z.string(), ...PLACEMENT }),
-	z.object({ paneType: z.literal("thread"), persistedAs: z.string(), subject: z.string(), ...PLACEMENT }),
+	z.object({ paneType: z.literal("filter-incoming"), ...OF_SUBJECT }),
+	z.object({ paneType: z.literal("thread"), ...OF_SUBJECT }),
 	/** A step as actuality declares it, by its method. */
 	z.object({ paneType: z.literal("step"), method: z.string().min(1), ...PLACEMENT }),
 	/** An action a caller holds, by what it allows. */

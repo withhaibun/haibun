@@ -603,6 +603,8 @@ export class ShuAsk extends ShuElement<typeof ChatSchema> {
 		if (!chatInput || !prompt) return;
 		try {
 			await this.loadModels();
+			// A file the reader added is kept before the question names it, so a question sent during the keep carries it.
+			await this.#keeping;
 			const { carries, repliesTo } = nextQuestion(currentSubjectState.get());
 			const forking = this.#forking;
 			this.#forking = null;
@@ -647,9 +649,14 @@ export class ShuAsk extends ShuElement<typeof ChatSchema> {
 		});
 	}
 
+	/** The keep of the files the reader chose last, which a question sent before it ends awaits. */
+	#keeping: Promise<void> = Promise.resolve();
+
 	/** Keep each file the reader chose as a record of actuality's, which the question then names. */
-	private readonly onFilesChosen = async (e: Event): Promise<void> => {
-		const input = e.target as HTMLInputElement;
+	private readonly onFilesChosen = (e: Event): Promise<void> => (this.#keeping = this.keepFiles(e.target as HTMLInputElement));
+
+	/** Keeps each file `input` holds, and adds each record to the files the next question names. A refusal is shown. */
+	private async keepFiles(input: HTMLInputElement): Promise<void> {
 		try {
 			if (input.files === null) throw new Error("the file input changed without a file list; the ask reads files only from an input of type file");
 			for (const file of input.files) {
@@ -666,7 +673,7 @@ export class ShuAsk extends ShuElement<typeof ChatSchema> {
 		}
 		input.value = "";
 		this.requestUpdate();
-	};
+	}
 
 	private removeFile(file: TAddedFile): void {
 		if (file.shown) URL.revokeObjectURL(file.shown);

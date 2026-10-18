@@ -9,6 +9,7 @@
  * `summarizeForContext` method and not by `instanceof`. The polymorphic view is built into a separate bundle, which defines
  * its own ShuElement class.
  */
+import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { activePane } from "../../controllers/page-cell-controller.js";
 import { paneKeyOf } from "../../derivations/pane-kinds.js";
 import { PAGE_TERMS, ViewCollectionSchema, viewCollection, type TLinkedData, type TViewCollection } from "@haibun/core/lib/hypermedia.js";
@@ -94,7 +95,7 @@ export function harvestChatViewLd(root: ParentNode): TLinkedData[] {
 		} catch (err) {
 			// A summary that ViewCollectionSchema rejects is a fault in its view. The error names the view's tag, so a
 			// developer can find the view.
-			throw new Error(`${el.tagName.toLowerCase()}: ${err instanceof Error ? err.message : String(err)}`);
+			throw new Error(`${el.tagName.toLowerCase()}: ${errorDetail(err)}`);
 		}
 	}
 	const manifest = viewCollection({
