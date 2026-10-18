@@ -7,9 +7,8 @@
 import { html, nothing, type ReactiveController, type TemplateResult } from "lit";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
-import { conversationSteps, getAvailableSteps, stepsForContext } from "../controllers/registry-controller.js";
-import { StepsChangedController } from "../controllers/registry-controller.js";
-import type { TComboboxOption } from "../../schemas.js";
+import { conversationSteps, getAvailableSteps, stepsForContext, StepsChangedController } from "../controllers/registry-controller.js";
+import type { TComboboxOption } from "../../domains/schemas.js";
 import type { TControllerHost } from "./controller-host.js";
 import type { ShuActivityHistory } from "./shu-activity-history.js";
 import type { ShuCombobox } from "./shu-combobox.js";

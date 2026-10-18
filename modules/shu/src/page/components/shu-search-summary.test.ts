@@ -1,10 +1,9 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
-import { ViewQuerySchema } from "../../view-query.js";
+import { ViewQuerySchema, type TViewQuery } from "../domains/view-query.js";
 import { SHU_EVENT } from "../../domains/elements.js";
 import { describeSearch, ShuSearchSummary } from "./shu-search-summary.js";
 import { ShuActivityHistory } from "./shu-activity-history.js";
-import type { TViewQuery } from "../../view-query.js";
 import { newPage } from "../../test/setup.js";
 
 const query = (over: Partial<TViewQuery>): TViewQuery => ViewQuerySchema.parse(over);

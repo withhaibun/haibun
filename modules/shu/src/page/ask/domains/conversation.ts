@@ -13,7 +13,7 @@ import type { TRefusedCall } from "@haibun/core/lib/step-stream-context.js";
 import type { TCalled } from "@haibun/core/lib/domains/called.js";
 import { TURN_STATUS, type TChatStatus, type TContextPattern, type TSessionTurn } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { STATUS } from "@haibun/core/lib/domains/protocol.js";
-import type { TRecord } from "../../../current-subject.js";
+import type { TRecord } from "../../domains/current-subject.js";
 
 /** What a turn emitted while it ran. `progress` holds its latest status line, and its spinner shows that line.
  *  `context` holds the lines it sent, and `calls` holds the calls it made. */

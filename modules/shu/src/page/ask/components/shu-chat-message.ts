@@ -11,14 +11,15 @@ import { z } from "zod";
 import { refContext } from "../../controllers/catalog-controller.js";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "../../components/shu-element.js";
 import "../../components/shu-spinner.js";
-import { SCOPE, dispatchSubjectEvent } from "../../../current-subject.js";
+import { dispatchSubjectEvent } from "../../controllers/subject-controller.js";
+import { SCOPE } from "../../domains/current-subject.js";
 import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../../domains/elements.js";
 import { defineElement } from "../../controllers/element-controller.js";
 import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
 import { patternRef, recordRef } from "../../components/shu-ref.js";
 import { CalledSchema } from "@haibun/core/lib/domains/called.js";
 import { ICON_STEP_COMPLETED, RETURNED_TO_CALLER } from "@haibun/core/lib/domains/protocol.js";
-import { BundleSchema, ChatRoleSchema, type TBundle, type TChatRole, type TQuestionFork } from "../../../schemas.js";
+import { BundleSchema, ChatRoleSchema, type TBundle, type TChatRole, type TQuestionFork } from "../../../domains/schemas.js";
 import { ChatStatusSchema, UNVERIFIED_TURN } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { proseText, renderRefAnswer, renderRefProse } from "../../derivations/markdown.js";
 

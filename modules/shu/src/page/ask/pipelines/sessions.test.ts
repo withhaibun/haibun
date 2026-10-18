@@ -7,7 +7,10 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { CHAT_STEP, answer, chatDispatch, question, readBack as aReadBack } from "../components/chat-pane.test-fake.js";
 import { COMMENT_LABEL } from "@haibun/core/lib/domains/resources.js";
-import { INITIAL_SUBJECT, SCOPE, currentSubjectState, scopeEntry } from "../../../current-subject.js";
+import { INITIAL_SUBJECT } from "../../machines/current-subject.js";
+import { currentSubjectState } from "../../controllers/subject-controller.js";
+import { scopeEntry } from "../../derivations/current-subject.js";
+import { SCOPE } from "../../domains/current-subject.js";
 import { carryAnActuality, setupShuTest, type TShuTestHandle } from "../../../test/setup.js";
 import { getAvailableSteps } from "../../controllers/registry-controller.js";
 import { conversationState, dispatchConversationEvent, followRunningTurns, gainedSince, openConversation } from "../controllers/conversation-controller.js";

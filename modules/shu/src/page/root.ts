@@ -8,6 +8,8 @@ import { Machine, machine, type TMove, type TTransition } from "@haibun/core/lib
 import type {
 	TAuthority,
 	TBlipRing,
+	TClientLog,
+	TClientLogLevel,
 	TClipboard,
 	TClock,
 	TConduit,
@@ -28,8 +30,12 @@ import type {
 	TRemedies,
 } from "./ports.js";
 import type { TDockedPane, TPageTypes, TStripPane } from "./domains/page-state.js";
-import { NOTHING_SELECTED_LABEL, type TPageContext } from "../schemas.js";
-import type { TProveRequest } from "@haibun/core/lib/rpc-wire.js";
+import { NOTHING_SELECTED_LABEL, type TPageContext } from "../domains/schemas.js";
+import { authorityFailed, isServerUnreachable, refusalCarried, type TProveRequest } from "@haibun/core/lib/rpc-wire.js";
+import { failFastOrLog, isDev } from "@haibun/core/lib/domains/dev-mode.js";
+import { errorDetail } from "@haibun/core/lib/domains/util.js";
+import { acts } from "./domains/links.js";
+import { CLIENT_LOG_ACTION, CLIENT_LOG_METHOD } from "./domains/page-calls.js";
 import { initialConduitHeld, LiveConduit } from "./adapters/live-conduit.js";
 import { carriedConduit } from "./adapters/carried-conduit.js";
 import { cookiePreferences } from "./adapters/prefs-cookie.js";
@@ -44,7 +50,7 @@ import { blipRing } from "./adapters/blip-ring.js";
 import { documentHydration } from "./adapters/hydration.js";
 import type { TBlipChannel, TBlipSending } from "./pipelines/client-blips.js";
 import type { TEmbeddedPageView } from "../domains/embedding.js";
-import type { TDelegation } from "@haibun/core/lib/domains/actions.js";
+import { type TDelegation, FOLLOWS_THE_RUN, READS_THE_RUNS_ARTIFACTS } from "@haibun/core/lib/domains/actions.js";
 import type { THashScope, TPageHash } from "./pipelines/page-hash.js";
 import type { TPanesHeld } from "./pipelines/panes.js";
 import { browserPaneStrip } from "./adapters/pane-strip.js";
@@ -52,12 +58,15 @@ import { browserRemedies } from "./adapters/remedies.js";
 import { INITIAL_PANES, panesTransition, type TPanesEvent, type TPanesState } from "./machines/panes.js";
 import { liveEventStream, type TLiveStreamSource } from "./adapters/live-event-stream.js";
 import { CarriedEventStream } from "./adapters/carried-event-stream.js";
-import { FOLLOWS_THE_RUN } from "@haibun/core/lib/domains/actions.js";
 import { INITIAL_STREAM_STATUS, STREAM_EVENT, streamTransition, type TStreamEvent, type TStreamStatus } from "./machines/event-stream.js";
 import { INITIAL_REGISTRY, registryTransition, type TRegistryEvent, type TRegistryState } from "./machines/registry.js";
 import type { TReadStepsScope, TRegistryReads } from "./pipelines/read-steps.js";
 import type { TRecordStore } from "./pipelines/open-record.js";
 import { pageDeviceStore } from "./client-cache/root.js";
+import { Signal } from "@lit-labs/signals";
+import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
+import { ViewQuerySchema, type TAccessQueryLevel } from "./domains/view-query.js";
+import { INITIAL_SUBJECT, transition as subjectTransition, type TSubjectEvent, type TSubjectState } from "./machines/current-subject.js";
 
 const PREFERENCES_KEY = "__SHU_PREFERENCES__";
 const CLOCK_KEY = "__SHU_CLOCK__";
@@ -81,6 +90,7 @@ const PANES_KEY = "__SHU_PANES__";
 const PANES_HELD_KEY = "__SHU_PANES_HELD__";
 const REMEDIES_KEY = "__SHU_REMEDIES__";
 const RECORDS_KEY = "__SHU_ENTITY_STORE__";
+const VIEW_QUERY_KEY = "__SHU_VIEW_QUERY__";
 
 /** Returns the page's preferences, stored in the page's cookies. */
 export const pagePreferences = (): TPreferences => pagePinned(PREFERENCES_KEY, () => cookiePreferences(window));
@@ -153,13 +163,7 @@ export function pageBlips(capacity: number): TBlipChannel {
 		(): { ring: TBlipRing; sending: TBlipSending } => ({ ring: blipRing(capacity), sending: { cancel: undefined } }),
 		(held) => held.sending.cancel?.(),
 	);
-	return {
-		ring,
-		sending,
-		clock: pageClock(),
-		may: (action) => pageAuthorityPort().may(action),
-		conduit: pageHydration().carried() === undefined && hasConduit() ? pageConduit() : undefined,
-	};
+	return { ring, sending, clock: pageClock(), may: (action) => pageAuthorityPort().may(action), conduit: !pageOffline() && hasConduit() ? pageConduit() : undefined, log: pageLog };
 }
 
 /** Returns the page's hydration element, by its id `id`. */
@@ -178,7 +182,14 @@ export const registryReads = (): TRegistryReads =>
 	);
 
 /** Returns what a read of actuality's steps reads: the registry, the reads under way, the conduit and the stream. */
-export const registryScope = (): TReadStepsScope => ({ registry: pageRegistry(), reads: registryReads(), conduit: pageConduit, stream: pageEventStream, device: pageDeviceStore });
+export const registryScope = (): TReadStepsScope => ({
+	registry: pageRegistry(),
+	reads: registryReads(),
+	conduit: pageConduit,
+	stream: pageEventStream,
+	device: pageDeviceStore,
+	log: pageLog,
+});
 
 /** Returns the status of the page's event stream, which its adapter moves as the stream opens, breaks and closes. */
 export const streamStatus = (): Machine<TStreamStatus, TStreamEvent> => pagePinned(STREAM_STATUS_KEY, () => machine(INITIAL_STREAM_STATUS, streamTransition));
@@ -358,3 +369,83 @@ export const embeddedPageView = new SharedCell<TEmbeddedPageView | null>("embedd
 
 /** The delegation the embedding page last gave shu's page key, or null where it hasn't given one. */
 export const givenDelegation = new SharedCell<TDelegation | null>("givenDelegation", null);
+
+/** The view query's signals: one for each query param, and the hash the page last wrote, which a hashchange listener reads to
+ *  skip the echo of its own write. */
+export type TViewQueryStore = {
+	label: Signal.State<string | null>;
+	q: Signal.State<string | null>;
+	sort: Signal.State<string | null>;
+	order: Signal.State<"asc" | "desc">;
+	offset: Signal.State<number>;
+	access: Signal.State<TAccessQueryLevel>;
+	f: Signal.State<TSearchCondition[]>;
+	lastWrittenHash: string;
+};
+
+/** Returns the view query's signals, which the page holds once, so every importer on the page reads one instance. */
+export const viewQueryStore = (): TViewQueryStore =>
+	pagePinned(VIEW_QUERY_KEY, () => {
+		const d = ViewQuerySchema.parse({});
+		return {
+			label: new Signal.State(d.label),
+			q: new Signal.State(d.q),
+			sort: new Signal.State(d.sort),
+			order: new Signal.State(d.order),
+			offset: new Signal.State(d.offset),
+			access: new Signal.State<TAccessQueryLevel>(d.access),
+			f: new Signal.State(d.f),
+			lastWrittenHash: "",
+		};
+	});
+
+/** The current-subject machine: one instance, shared across every component and bundle. */
+const subjectMachine = sharedMachine<TSubjectState, TSubjectEvent>("currentSubject", INITIAL_SUBJECT, subjectTransition);
+export const currentSubjectState = subjectMachine.state;
+export const dispatchSubjectEvent = (event: TSubjectEvent): TSubjectState => subjectMachine.dispatch(event);
+
+/** Whether the page is a report that carries actuality's records, rather than a page a site serves. */
+export const pageOffline = (): boolean => pageHydration().carried() !== undefined;
+
+/**
+ * Reports a diagnostic to actuality: the page's diagnostic channel. A page reports a diagnostic to actuality through the monitor's client-log
+ * step. A page doesn't report a diagnostic without a server or a conduit to one. A report is such a page. A page writes the
+ * diagnostic to the browser console where it doesn't hold the step's action or its authority fails verification. The call
+ * writes a warning to the browser console and returns where the server isn't reachable. Any other failure is an RPC fault.
+ * It would hide every later diagnostic, so it throws in development and is logged to the console otherwise.
+ *
+ * A view sends the occurrences it records at their own rate to the blip channel (client-blips.ts). This channel carries
+ * the few diagnostics a reader of actuality reads beside actuality's own events.
+ */
+export function reportToRun(level: TClientLogLevel, source: string, message: string, attributes?: Record<string, unknown>): void {
+	if (pageOffline() || !hasConduit()) return;
+	// A page that doesn't hold the report's action logs the diagnostic to the console, as before its key holds its delegated actions.
+	if (!pageAuthorityPort().may(CLIENT_LOG_ACTION))
+		return console.warn(`[${source}] not reported to actuality, since the page doesn't hold ${CLIENT_LOG_ACTION}: ${message}`, attributes);
+	void pageConduit()
+		.follow(acts(CLIENT_LOG_METHOD, { event: { level, source, message, attributes } }), `${source}: ${level}`)
+		.catch((err: unknown) => {
+			if (isServerUnreachable(err)) return console.warn(`[${source}] not reported to actuality: ${errorDetail(err)}`, { level, message });
+			// The conduit discards a revoked or expired page authority (forgetPageAuthority), so this report and later reports are
+			// written to the console.
+			if (authorityFailed(refusalCarried(err))) {
+				return console.warn(`[${source}] not reported to actuality, since the page's authority failed verification: ${errorDetail(err)}`, { level, message });
+			}
+			failFastOrLog(`[${source}] reporting to actuality failed: ${errorDetail(err)}`, err);
+		});
+}
+
+/** Reports a failure the page caught, so the failure doesn't stop the page's other work. In development it also throws, so a
+ *  test or a developer sees it at once. */
+export function reportFailure(source: string, what: string, err: unknown): void {
+	reportToRun("error", source, `${what}: ${errorDetail(err)}`);
+	if (isDev()) throw err;
+}
+
+/** The page's diagnostic channel to actuality, as the pipelines that report take it. */
+export const pageLog: TClientLog = { report: reportToRun, failure: reportFailure };
+
+/** Reads an artifact at `url` of actuality's artifact route under the page's delegation, and returns an object URL of its content.
+ *  A page that doesn't show an artifact doesn't load the adapter that reads one. */
+export const readArtifact = async (url: string): Promise<string> =>
+	(await import("./adapters/artifact-read.js")).fetchArtifact(url, await pageAuthorityPort().readingHeaders(new URL(url, location.href).toString(), READS_THE_RUNS_ARTIFACTS));

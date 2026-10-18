@@ -4,6 +4,8 @@
 	"type": "module",
 	"description": "Haibun hypermedia SPA — renders any domain-driven application from stepper concerns",
 	"exports": {
+		"./schemas.js": { "haibun-source": "./src/domains/schemas.js", "default": "./build/domains/schemas.js" },
+		"./current-subject.js": { "haibun-source": "./src/page/domains/current-subject.js", "default": "./build/page/domains/current-subject.js" },
 		"./*": { "haibun-source": "./src/*", "default": "./build/*" },
 		"./bundle": "./build/shu-bundle.js"
 	},

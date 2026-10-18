@@ -6,7 +6,7 @@
  */
 import { uiPresenting, type TCatalog } from "../derivations/catalog.js";
 import { loadDeclaredComponent } from "./declared-component.js";
-import type { TElements, TGraphPresenter, TPresenterMount } from "../ports.js";
+import type { TClientLog, TElements, TGraphPresenter, TPresenterMount } from "../ports.js";
 
 /** Returns the component `catalog` declares as the site's graph presenter, or undefined where the deployment doesn't declare one. */
 export function graphPresenterTag(catalog: TCatalog): string | undefined {
@@ -27,10 +27,11 @@ export async function mountGraphPresenter(
 	host: HTMLElement,
 	slot: string,
 	scope: string,
+	log: TClientLog,
 ): Promise<TGraphPresenter | undefined> {
 	const tag = graphPresenterTag(catalog());
 	if (tag === undefined) return undefined;
-	await loadDeclaredComponent(elements, catalog, tag);
+	await loadDeclaredComponent(elements, catalog, tag, log);
 	if (mount.presenterIn(host, slot) !== undefined) return undefined;
 	return mount.mount(host, slot, tag, scope);
 }

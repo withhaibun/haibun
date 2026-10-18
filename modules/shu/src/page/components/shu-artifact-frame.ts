@@ -6,7 +6,7 @@ import { html, css, unsafeCSS, nothing, type TemplateResult } from "lit";
 import { property, state } from "lit/decorators.js";
 import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
-import { shownOrReported } from "../../artifact-url.js";
+import { shownOrReported } from "../controllers/artifact-controller.js";
 import { ShuElement, EmptyStateSchema, type TLinkedData } from "./shu-element.js";
 
 const STYLES = `

@@ -8,7 +8,7 @@
 import { html, css, type TemplateResult } from "lit";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
-import { BreadcrumbSchema, NOTHING_SELECTED_LABEL } from "../../schemas.js";
+import { BreadcrumbSchema, NOTHING_SELECTED_LABEL } from "../../domains/schemas.js";
 import { SEARCH_SLOT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 

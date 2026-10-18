@@ -18,10 +18,10 @@
 import { actualityAt } from "@haibun/core/lib/transport/adapters/rpc-call.js";
 import { HYDRATION_ID } from "../domains/elements.js";
 import { RESPONSE_TIMEOUT_MS, type TDeploymentSettings } from "../domains/hydration.js";
-import { installAuthority, installConduit, installHydration } from "../page/root.js";
+import { installAuthority, installConduit, installHydration, installCarriedEventStream, pagePreferences } from "../page/root.js";
 import { readHydration } from "../page/pipelines/hydrate.js";
-import { type TConduit } from "../page/ports.js";
-import { type TLink, type TRepresentation, type TStreamChunk } from "../page/domains/links.js";
+import type { TConduit, TEvent, TClientLogLevel, TClock } from "../page/ports.js";
+import type { TLink, TRepresentation, TStreamChunk } from "../page/domains/links.js";
 
 // ─── The conduit a test installs ─────────────────────────────────────────────
 
@@ -99,18 +99,15 @@ export class TestConduit implements TConduit {
 }
 
 import { CarriedEventStream } from "../page/adapters/carried-event-stream.js";
-import { type TEvent } from "../page/ports.js";
 import { endPage } from "../page/adapters/page-held.js";
 import { CACHE_SHAPE } from "../page/client-cache/ports.js";
 import { installMemoryDeviceStore } from "../page/client-cache/root.js";
 import { hydrateFromDom } from "../page/controllers/hydration-controller.js";
 import { onStepsChanged } from "../page/controllers/registry-controller.js";
-import type { TClientLogLevel } from "../client-log.js";
 import { CLIENT_LOG_ACTION, CLIENT_LOG_METHOD } from "../page/domains/page-calls.js";
 import { authorityPort, openPageAuthority, type TPageAuthority } from "../page/authority/controllers/page-authority-controller.js";
 import type { TDelegations } from "@haibun/core/lib/domains/authority-types.js";
-import { SHOW_STEPS_METHOD, STEP_DETAIL, type TStepDefinition, type TStepDefinitions } from "@haibun/core/lib/step-discovery.js";
-import { readShownSteps, stepDefinition } from "@haibun/core/lib/step-discovery.js";
+import { SHOW_STEPS_METHOD, STEP_DETAIL, type TStepDefinition, type TStepDefinitions, readShownSteps, stepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { requiredAction, type TStepReads } from "@haibun/core/lib/domains/actions.js";
 import { steppersOf } from "@haibun/core/lib/steps/pipelines/discover-steps.js";
 import { ARTIFACTS_ROUTE } from "@haibun/core/lib/domains/run-artifact.js";
@@ -119,8 +116,6 @@ import { Access, LinkRelations, type TDomainDefinition, type TEdgeDef, type TRel
 import { fromJsonText } from "@haibun/core/lib/domains/json-text.js";
 import { z } from "zod";
 import { STEPS_CHANGED } from "@haibun/core/lib/domains/protocol.js";
-import { installCarriedEventStream, pagePreferences } from "../page/root.js";
-import type { TClock } from "../page/ports.js";
 import { PREFERENCES_COOKIE_PREFIX } from "../page/adapters/prefs-cookie.js";
 
 type TShuTestConfig = {

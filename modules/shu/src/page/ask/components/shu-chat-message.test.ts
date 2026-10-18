@@ -6,7 +6,10 @@
 import { declareSpec } from "../../../test/catalog-fixture.js";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { anIndividual, aType } from "@haibun/core/lib/conversation/domains/conversation.js";
-import { INITIAL_SUBJECT, SCOPE, currentSubjectState, scopeEntry } from "../../../current-subject.js";
+import { INITIAL_SUBJECT } from "../../machines/current-subject.js";
+import { currentSubjectState } from "../../controllers/subject-controller.js";
+import { scopeEntry } from "../../derivations/current-subject.js";
+import { SCOPE } from "../../domains/current-subject.js";
 import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
 import { followPaneLink } from "../../components/ref-navigation.js";
 import { ChatMessageSchema, FORK_CONTROLS, ShuChatMessage } from "./shu-chat-message.js";

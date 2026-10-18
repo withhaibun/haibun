@@ -3,7 +3,7 @@
  * the layout tween and the data pipeline, the scene's clock, and the page's frame loop and frame timing. The scene is a view,
  * which reads machines, pipelines and ports through this controller alone (CA3D3, CA3D5).
  */
-import { reportFailure } from "../../../client-log.js";
+import { reportFailure } from "../../controllers/client-log-controller.js";
 import { pageClock } from "../../root.js";
 import { graphEngine, graphFrameLoop, graphFrameTime } from "../root.js";
 import { FrameScheduler } from "../machines/frame-scheduler.js";

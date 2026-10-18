@@ -7,8 +7,7 @@ import { z } from "zod";
 import type { TDelegation } from "@haibun/core/lib/domains/actions.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { EMBED_MESSAGE, EmbedderMessageSchema, type TEmbeddedPageView } from "../../domains/embedding.js";
-import { reportToRun } from "../../client-log.js";
-import type { TAuthority, TClock, TEmbedderChannel, TSharedCell } from "../ports.js";
+import type { TAuthority, TClientLog, TClock, TEmbedderChannel, TSharedCell } from "../ports.js";
 
 /** The source each report of this pipeline names. */
 const EMBEDDER_SOURCE = "embedder";
@@ -21,15 +20,16 @@ export type TEmbedding = {
 	given: TSharedCell<TDelegation | null>;
 	authority: TAuthority;
 	clock: TClock;
+	log: TClientLog;
 };
 
 /** Receives the messages the embedding page posts. Refuses and reports a message from another origin, a message its schema
  *  refuses and a delegation the reader's authority refuses. Returns the call that stops receiving. */
-export function receiveFromEmbedder({ channel, pageView, given, authority }: TEmbedding): () => void {
+export function receiveFromEmbedder({ channel, pageView, given, authority, log }: TEmbedding): () => void {
 	return channel.receive(
 		(data) => {
 			const parsed = EmbedderMessageSchema.safeParse(data);
-			if (!parsed.success) return reportToRun("warn", EMBEDDER_SOURCE, "refused a message from the embedding page", { error: z.prettifyError(parsed.error) });
+			if (!parsed.success) return log.report("warn", EMBEDDER_SOURCE, "refused a message from the embedding page", { error: z.prettifyError(parsed.error) });
 			const message = parsed.data;
 			if (message.kind === EMBED_MESSAGE.pageView) return pageView.set(message.view);
 			const held = given.get();
@@ -37,17 +37,17 @@ export function receiveFromEmbedder({ channel, pageView, given, authority }: TEm
 				authority.hold(message.delegation, held === null ? undefined : held);
 				given.set(message.delegation);
 			} catch (err) {
-				reportToRun("warn", EMBEDDER_SOURCE, "refused a delegation from the embedding page", { error: errorDetail(err) });
+				log.report("warn", EMBEDDER_SOURCE, "refused a delegation from the embedding page", { error: errorDetail(err) });
 			}
 		},
-		(origin) => reportToRun("warn", EMBEDDER_SOURCE, "refused a message from an embedding page at another origin", { origin }),
+		(origin) => log.report("warn", EMBEDDER_SOURCE, "refused a message from an embedding page at another origin", { origin }),
 	);
 }
 
 /** Posts shu's page key to the embedding page to request a delegation to it. Resolves once shu holds a new delegation, or
  *  after `waitMs`, where it reports to actuality that the embedding page didn't give one, and the page continues with the
  *  delegations it holds. */
-export function askEmbedderToDelegate({ channel, given, clock }: TEmbedding, controller: string, waitMs: number): Promise<void> {
+export function askEmbedderToDelegate({ channel, given, clock, log }: TEmbedding, controller: string, waitMs: number): Promise<void> {
 	return new Promise((resolve) => {
 		const done = (): void => {
 			cancel();
@@ -55,7 +55,7 @@ export function askEmbedderToDelegate({ channel, given, clock }: TEmbedding, con
 			resolve();
 		};
 		const cancel = clock.after(waitMs, () => {
-			reportToRun("warn", EMBEDDER_SOURCE, "the embedding page didn't give a delegation to shu's page key", { controller, waitedMs: waitMs });
+			log.report("warn", EMBEDDER_SOURCE, "the embedding page didn't give a delegation to shu's page key", { controller, waitedMs: waitMs });
 			done();
 		});
 		const stop = given.subscribe(done);

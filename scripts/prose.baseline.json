@@ -67,8 +67,12 @@
 	"modules/core/src/steps/resources-stepper.test.ts": {
 		"terminal-preposition": 1
 	},
-	"modules/shu/src/current-subject.ts": {
-		"terminal-preposition": 1
+	"modules/shu/src/domains/schemas.test.ts": {
+		"anthropomorphic": 1
+	},
+	"modules/shu/src/domains/schemas.ts": {
+		"anthropomorphic": 7,
+		"terminal-preposition": 2
 	},
 	"modules/shu/src/domains/test-ids.ts": {
 		"anthropomorphic": 1,
@@ -387,6 +391,11 @@
 	"modules/shu/src/page/controllers/timeline-view-controller.ts": {
 		"terminal-preposition": 2
 	},
+	"modules/shu/src/page/controllers/view-query-controller.test.ts": {
+		"anthropomorphic": 1,
+		"negated-noun": 2,
+		"terminal-preposition": 1
+	},
 	"modules/shu/src/page/derivations/layout.actions-bar.test.ts": {
 		"anthropomorphic": 1
 	},
@@ -418,13 +427,6 @@
 		"anthropomorphic": 3,
 		"relation-verb": 1
 	},
-	"modules/shu/src/schemas.test.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/shu/src/schemas.ts": {
-		"anthropomorphic": 7,
-		"terminal-preposition": 2
-	},
 	"modules/shu/src/shu-stepper.test.ts": {
 		"anthropomorphic": 1
 	},
@@ -451,11 +453,6 @@
 	},
 	"modules/shu/src/test/windowed-source-conformance.ts": {
 		"anthropomorphic": 9
-	},
-	"modules/shu/src/view-query.test.ts": {
-		"anthropomorphic": 1,
-		"negated-noun": 2,
-		"terminal-preposition": 1
 	},
 	"modules/shu/src/zcap-signing.d.ts": {
 		"anthropomorphic": 1,

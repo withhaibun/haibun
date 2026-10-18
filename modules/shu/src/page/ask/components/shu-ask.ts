@@ -25,7 +25,7 @@ import {
 	getEdgeRanges,
 	getFieldRel,
 } from "../../controllers/catalog-controller.js";
-import { type TComboboxOption, type TQuestionFork } from "../../../schemas.js";
+import type { TComboboxOption, TQuestionFork } from "../../../domains/schemas.js";
 import {
 	anIndividual,
 	ContextReadBySchema,
@@ -44,9 +44,9 @@ import { extractQuadsFromEvents } from "@haibun/core/lib/steps/derivations/quad-
 import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { STATUS } from "@haibun/core/lib/domains/protocol.js";
 import { hasEventStream, subscribeBatchedEvents } from "../../controllers/event-stream-controller.js";
-import { currentSubjectState } from "../../../current-subject.js";
+import { currentSubjectState } from "../../controllers/subject-controller.js";
 import { SignalController } from "../../controllers/signal-controller.js";
-import { nextQuestion, startTurn } from "../controllers/conversation-controller.js";
+import { nextQuestion, startTurn, allowForTurns, readTurnAllowance, turnAllowance, withdrawFromTurns } from "../controllers/conversation-controller.js";
 import {
 	askDraft,
 	closeConversation,
@@ -63,12 +63,11 @@ import {
 	type TConversationState,
 } from "../controllers/conversation-controller.js";
 import { pageMay } from "../../controllers/authority-controller.js";
-import { allowForTurns, readTurnAllowance, turnAllowance, withdrawFromTurns } from "../controllers/conversation-controller.js";
 import { harvestChatViewLd } from "./context-harvest.js";
 import { SHU_TAG } from "../../../domains/elements.js";
 import { defineElement } from "../../controllers/element-controller.js";
 import { actionRef, recordRef, stepRef } from "../../components/shu-ref.js";
-import { reportToRun } from "../../../client-log.js";
+import { reportToRun } from "../../controllers/client-log-controller.js";
 import { embeddedPageView } from "../../controllers/page-cell-controller.js";
 import { embeddedViewLd } from "../../derivations/embedding.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";

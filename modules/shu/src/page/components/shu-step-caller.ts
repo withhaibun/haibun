@@ -25,7 +25,7 @@ import { validateStepInput, type TFieldError } from "../derivations/step-input.j
 import { prettifyGwta, normalizeStepKey } from "../derivations/steps.js";
 import { dispatchAffordanceFromResponse } from "../controllers/affordance-dispatch.js";
 import { revealInDocument } from "./reveal.js";
-import type { TComboboxOption } from "../../schemas.js";
+import type { TComboboxOption } from "../../domains/schemas.js";
 import type { TPageRefusal } from "../domains/refusal.js";
 import { ShuElement, EmptyStateSchema, type TLinkedData } from "./shu-element.js";
 import { jsonDisclosure } from "./json-disclosure.js";

@@ -4,9 +4,9 @@
  * builds, and the page follows its conversation from the moment a bundle loads this module.
  */
 import { CONVERSATION_PARAM } from "../../../domains/elements.js";
-import { appAccessLevel } from "../../../view-query.js";
-import { reportToRun } from "../../../client-log.js";
-import { dispatchSubjectEvent } from "../../../current-subject.js";
+import { appAccessLevel } from "../../controllers/view-query-controller.js";
+import { reportToRun } from "../../controllers/client-log-controller.js";
+import { dispatchSubjectEvent } from "../../controllers/subject-controller.js";
 import { pageClock } from "../../root.js";
 import { conduit } from "../../controllers/conduit-controller.js";
 import { conversationSteps, getAvailableSteps } from "../../controllers/registry-controller.js";

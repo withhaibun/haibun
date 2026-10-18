@@ -14,7 +14,7 @@ import { Access, storeScopeFor } from "@haibun/core/lib/domains/resources.js";
 import { ASK_PARAM, CONVERSATION_DOMAIN, TURN_STATUS, TurnEnvelopeSchema, TurnKeySchema, type TTurnEnvelope } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { STATUS } from "@haibun/core/lib/domains/protocol.js";
 import { acts } from "../../domains/links.js";
-import { recordOf } from "../../../current-subject.js";
+import { recordOf } from "../../domains/current-subject.js";
 import type { TAskedTurn } from "../domains/conversation.js";
 import { askRefusal } from "../machines/conversation.js";
 import type { TTurnScope } from "../ports.js";

@@ -29,7 +29,7 @@ import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { PAGE_STRIP_FOOTPRINT, SHU_EVENT, SHU_ATTR, SPINE_SLOT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import { ColumnPaneSchema } from "../../schemas.js";
+import { ColumnPaneSchema } from "../../domains/schemas.js";
 import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { storeFields } from "../controllers/setting-controller.js";
 import { shownControlsKey } from "../domains/settings.js";

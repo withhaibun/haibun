@@ -9,7 +9,7 @@ import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { CONVERSATION_DOMAIN, SESSION_PARAM, SessionReadSchema, type TContextPattern, type TSessionTurn } from "@haibun/core/lib/conversation/domains/conversation.js";
 import type { TEvent } from "../../ports.js";
 import { reads } from "../../domains/links.js";
-import { SCOPE, recordOf, type TEntry, type TRecord } from "../../../current-subject.js";
+import { SCOPE, recordOf, type TEntry, type TRecord } from "../../domains/current-subject.js";
 import type { TConversationState } from "../domains/conversation.js";
 import { asksIn } from "../machines/conversation.js";
 import type { TConversationScope } from "../ports.js";

@@ -8,10 +8,9 @@ import type { TFrameMessage } from "../domains/embedding.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import type { TLinkedData } from "@haibun/core/lib/domains/hypermedia.js";
 import type { TDelegation } from "@haibun/core/lib/domains/actions.js";
-import type { TProveRequest } from "@haibun/core/lib/rpc-wire.js";
+import type { TProveRequest, TActualityId } from "@haibun/core/lib/rpc-wire.js";
 import type { TPageAuthority } from "./authority/pipelines/page-authority.js";
 import type { TCachePayload, TCarriedLabelFont, TDeploymentSettings } from "../domains/hydration.js";
-import type { TActualityId } from "@haibun/core/lib/rpc-wire.js";
 
 /** An element's stored fields, by its tag and its instance's key. Each tag holds one record of its instances' fields. */
 export type TPreferences = {
@@ -305,3 +304,12 @@ export type TPaneStrip = {
 
 /** The remedies the page performs itself: a reload of the page. */
 export type TRemedies = { reloadPage(): void };
+
+/** The level of a diagnostic the page reports to actuality. */
+export type TClientLogLevel = "debug" | "info" | "warn" | "error";
+
+/** The page's diagnostic channel to actuality: a diagnostic it reports, and a failure it caught, which in development it also throws. */
+export type TClientLog = {
+	report(level: TClientLogLevel, source: string, message: string, attributes?: Record<string, unknown>): void;
+	failure(source: string, what: string, err: unknown): void;
+};

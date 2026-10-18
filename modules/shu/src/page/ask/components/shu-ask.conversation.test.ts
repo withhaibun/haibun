@@ -24,11 +24,13 @@ import { CONVERSATION_OPENING, TURN_IN_FLIGHT } from "../domains/conversation.js
 import { CLOSED_CONVERSATION, STOPPED_BY_THE_READER, askDraft, conversationState, dispatchConversationEvent, openConversation } from "../controllers/conversation-controller.js";
 import { CONVERSATION_PARAM, SHU_ATTR, SHU_TAG } from "../../../domains/elements.js";
 import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
-import { pagePreferences } from "../../root.js";
+import { pagePreferences, embeddedPageView } from "../../root.js";
 import { hashParam, mergeHashParams } from "../../controllers/hash-controller.js";
-import { INITIAL_SUBJECT, SCOPE, activeEntry, currentSubject, currentSubjectState, dispatchSubjectEvent, entryOf, scopeEntry } from "../../../current-subject.js";
+import { INITIAL_SUBJECT } from "../../machines/current-subject.js";
+import { currentSubjectState, dispatchSubjectEvent } from "../../controllers/subject-controller.js";
+import { activeEntry, currentSubject, scopeEntry } from "../../derivations/current-subject.js";
+import { SCOPE, entryOf } from "../../domains/current-subject.js";
 import { EMBEDDED_PAGE_TYPE } from "../../../domains/embedding.js";
-import { embeddedPageView } from "../../root.js";
 import { activePane } from "../../controllers/page-cell-controller.js";
 import { counted } from "@haibun/core/lib/domains/hypermedia.js";
 

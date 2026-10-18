@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import type { ReactiveController, ReactiveControllerHost } from "lit";
 import { anIndividual } from "@haibun/core/lib/conversation/domains/conversation.js";
-import { INITIAL_SUBJECT, SCOPE, currentSubjectState, dispatchSubjectEvent, entryOf, type TRecord } from "../../current-subject.js";
-import { SubjectController } from "./subject-controller.js";
+import { INITIAL_SUBJECT } from "../machines/current-subject.js";
+import { currentSubjectState, dispatchSubjectEvent, SubjectController } from "./subject-controller.js";
+import { SCOPE, entryOf, type TRecord } from "../domains/current-subject.js";
 import { nextQuestion } from "../ask/controllers/conversation-controller.js";
 
 /** A host as a controller sees one: it registers controllers and can be asked to update. */

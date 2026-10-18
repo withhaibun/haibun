@@ -2,7 +2,7 @@
  *  details of the events its views send the page. */
 import { z } from "zod";
 import { SearchConditionSchema } from "@haibun/core/lib/quad-types.js";
-import type { TComboboxOption } from "../../schemas.js";
+import type { TComboboxOption } from "../../domains/schemas.js";
 
 /** A pane in the column strip: its key in the active pane, the label a breadcrumb names, whether it is the query pane, and
  *  whether it is docked along the bottom of the page or laid out as a column. */

@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { EMBED_MESSAGE, EMBEDDED_PAGE_TYPE } from "../../domains/embedding.js";
 import { askEmbedderToDelegate, receiveFromEmbedder, type TEmbedding } from "./embedding.js";
 import { embedderChannel } from "../adapters/embedder-channel.js";
-import { embeddedPageView, givenDelegation, pageAuthorityPort, pageClock } from "../root.js";
+import { embeddedPageView, givenDelegation, pageAuthorityPort, pageClock, pageLog } from "../root.js";
 import { pageMay } from "../authority/controllers/page-authority-controller.js";
 import { openReportingPage, reportingTo, setupShuTest, type TReportedToRun, type TShuTestHandle } from "../../test/setup.js";
 
@@ -47,6 +47,7 @@ const embedding = (frame: Window): TEmbedding => ({
 	given: givenDelegation,
 	authority: pageAuthorityPort(),
 	clock: pageClock(),
+	log: pageLog,
 });
 
 describe("what the page embedding shu posts", () => {

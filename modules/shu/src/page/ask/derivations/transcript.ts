@@ -3,10 +3,9 @@
  * turn a reader holds, and the other branch that leaves each turn on it.
  */
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
-import { COMMENT_LABEL } from "@haibun/core/lib/domains/resources.js";
-import type { AccessQueryLevel } from "@haibun/core/lib/domains/resources.js";
+import { COMMENT_LABEL, type AccessQueryLevel } from "@haibun/core/lib/domains/resources.js";
 import type { TChatMessage } from "../components/shu-chat-message.js";
-import type { TBundle } from "../../../schemas.js";
+import type { TBundle } from "../../../domains/schemas.js";
 import { PENDING_TURN, SENDING, inFlight, type TConversationState, type TTurn } from "../domains/conversation.js";
 
 /** A turn as the transcript shows it, with the bundle its messages carry. Its key is its question's record id, or

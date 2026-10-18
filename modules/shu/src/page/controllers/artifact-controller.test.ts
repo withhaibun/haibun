@@ -9,8 +9,8 @@ import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { READS_THE_RUNS_ARTIFACTS } from "@haibun/core/lib/domains/actions.js";
-import { artifactUrl, shownArtifact, shownOrReported } from "./artifact-url.js";
-import { carryAnActuality, openReportingPage, reportingTo, setupShuTest, type TReportedToRun, type TShuTestHandle } from "./test/setup.js";
+import { artifactUrl, shownArtifact, shownOrReported } from "./artifact-controller.js";
+import { carryAnActuality, openReportingPage, reportingTo, setupShuTest, type TReportedToRun, type TShuTestHandle } from "../../test/setup.js";
 
 const SCREENSHOT = "/artifacts/featn-1/image/event-0.1.png";
 /** The source a view reports under. */

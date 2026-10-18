@@ -12,7 +12,7 @@ import { actualitySpan } from "../client-cache/controllers/actuality-controller.
 import { getUiExtensionTags } from "../controllers/catalog-controller.js";
 import { PERMISSIONS_SUMMARY, summaryOf, type TPermissionsSummary } from "./shu-permissions.js";
 import type { TControllerHost } from "./controller-host.js";
-import { reportToRun } from "../../client-log.js";
+import { reportToRun } from "../controllers/client-log-controller.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { isRefKind, type TRefKind } from "../derivations/markdown.js";
 import { requestPane, showsPane } from "../controllers/pane-controller.js";

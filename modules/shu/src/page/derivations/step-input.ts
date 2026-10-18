@@ -6,7 +6,7 @@
  * validates every call again and rejects an invalid input with 422.
  */
 import { RecordSchema } from "@haibun/core/lib/domains/json-text.js";
-import { BAR_MODES } from "../../schemas.js";
+import { BAR_MODES } from "../../domains/schemas.js";
 
 export type TFieldError = { field: string; message: string };
 

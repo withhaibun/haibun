@@ -9,7 +9,7 @@
 import { describe, it, expect, afterEach, beforeAll, beforeEach } from "vitest";
 import { ShuIndexSummary } from "./shu-index-summary.js";
 import { SHU_EVENT, SPINE_SLOT } from "../../domains/elements.js";
-import { viewQuery } from "../../view-query.js";
+import { viewQuery } from "../controllers/view-query-controller.js";
 import { ShuColumnPane } from "./shu-column-pane.js";
 import { installTestMediaQueries, setupShuTest, type TShuTestHandle } from "../../test/setup.js";
 import { provideLayout } from "../../test/jsdom-layout.js";

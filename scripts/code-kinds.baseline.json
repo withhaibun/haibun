@@ -1,17 +1,1 @@
-{
-	"modules/shu/src/artifact-url.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/client-log.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/current-subject.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/schemas.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/view-query.ts": {
-		"isn't in a kind position": 1
-	}
-}
+{}

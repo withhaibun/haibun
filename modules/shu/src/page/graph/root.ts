@@ -10,8 +10,8 @@ import { contextDocument } from "./adapters/context-document.js";
 import { EngineGovernor } from "./adapters/engine.js";
 import { aframeLoop, Drawing, type TAframeScene } from "./adapters/frame-loop.js";
 import { FrameTime, type TFenceGl } from "./adapters/frame-time.js";
-import { reportFailure } from "../../client-log.js";
 import { SnapshotStore } from "./machines/snapshot-store.js";
+import { pageLog } from "../root.js";
 import type { TGraphContextDocument, TGraphEngine, TGraphFrameLoop, TGraphFrameTime } from "./ports.js";
 
 const CONTEXT_DOCUMENT_KEY = "__SHU_GRAPH_CONTEXT_DOCUMENT__";
@@ -35,4 +35,4 @@ export const pageGraphContextDocument = (): TGraphContextDocument => pagePinned(
 /** The page's graph snapshots, one store for the page: the app and an external view, each a bundle of its own, read the
  *  same snapshots and view context. */
 export const pageGraphSnapshots = (): SnapshotStore =>
-	pagePinned(SNAPSHOTS_KEY, () => new SnapshotStore((err) => reportFailure("graph-snapshots", "a listener to the graph snapshot failed", err)));
+	pagePinned(SNAPSHOTS_KEY, () => new SnapshotStore((err) => pageLog.failure("graph-snapshots", "a listener to the graph snapshot failed", err)));

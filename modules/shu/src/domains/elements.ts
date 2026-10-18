@@ -1,5 +1,5 @@
 /** Shared constants for custom events and data attributes across shu components. */
-import { ChatRoleSchema } from "../schemas.js";
+import { ChatRoleSchema } from "./schemas.js";
 import { ChatStatusSchema } from "@haibun/core/lib/conversation/domains/conversation.js";
 
 /** How many occurrences the browser holds between batches, and so the most a batch of them holds. The size is fixed, so

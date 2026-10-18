@@ -1,5 +1,5 @@
 /** The site's graph presenter, as a view that draws a graph of its own mounts it (`page/pipelines/graph-presenter.ts`). */
-import { pageElements, pagePresenterMount, pageRegistry } from "../root.js";
+import { pageElements, pageLog, pagePresenterMount, pageRegistry } from "../root.js";
 import { graphPresenterTag as presenterTagOf, mountGraphPresenter as mountIn } from "../pipelines/graph-presenter.js";
 import { heldCatalog } from "../pipelines/held-catalog.js";
 import type { TCatalog } from "../derivations/catalog.js";
@@ -16,4 +16,4 @@ export const presenterIn = (host: HTMLElement, slot: string): TGraphPresenter | 
 
 /** Mounts the site's graph presenter in `host` at `slot`, with its settings under `scope`. */
 export const mountGraphPresenter = (host: HTMLElement, slot: string, scope: string): Promise<TGraphPresenter | undefined> =>
-	mountIn(pagePresenterMount(), pageElements(), presenterCatalog, host, slot, scope);
+	mountIn(pagePresenterMount(), pageElements(), presenterCatalog, host, slot, scope, pageLog);

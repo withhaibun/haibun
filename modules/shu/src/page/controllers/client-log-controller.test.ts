@@ -5,10 +5,10 @@ import "fake-indexeddb/auto";
  * fails fast; a page without a run to report to doesn't report.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { reportFailure, reportToRun } from "./client-log.js";
+import { reportFailure, reportToRun } from "./client-log-controller.js";
 import { authorityRefusal, RefusedCall } from "@haibun/core/lib/rpc-wire.js";
-import { carryAnActuality, serveThePage, openReportingPage, reportingTo, setupShuTest, type TReportedToRun, type TShuTestHandle, newPage } from "./test/setup.js";
-import { openPageAuthority } from "./page/authority/controllers/page-authority-controller.js";
+import { carryAnActuality, serveThePage, openReportingPage, reportingTo, setupShuTest, type TReportedToRun, type TShuTestHandle, newPage } from "../../test/setup.js";
+import { openPageAuthority } from "../authority/controllers/page-authority-controller.js";
 
 const SOURCE = "a view";
 

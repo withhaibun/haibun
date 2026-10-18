@@ -5,29 +5,15 @@
  */
 import { nothing } from "lit";
 import { until } from "lit/directives/until.js";
-import { READS_THE_RUNS_ARTIFACTS } from "@haibun/core/lib/domains/actions.js";
-import { isOffline } from "./page/controllers/hydration-controller.js";
-import { pageAuthorityPort } from "./page/root.js";
-import { ARTIFACTS_ROUTE, artifactAddress } from "@haibun/core/lib/domains/run-artifact.js";
-import { reportToRun } from "./client-log.js";
+import { isOffline } from "./hydration-controller.js";
+import { readArtifact } from "../root.js";
+import { ARTIFACTS_ROUTE } from "@haibun/core/lib/domains/run-artifact.js";
+import { artifactAddressOf, type TArtifactRecord } from "../derivations/artifact-url.js";
+import { reportToRun } from "./client-log-controller.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
-import { isWebAddress } from "@haibun/core/lib/domains/document-content.js";
 
-/** Returns a record's address if it is a path or a web address, and undefined for any other scheme. A `javascript:`
- *  address runs in the page. A `data:` address holds a document the record wrote. */
-const followable = (address: unknown): string | undefined => (typeof address === "string" && (!URL.canParse(address) || isWebAddress(address)) ? address : undefined);
-
-/** Returns the address of one artifact from the event's record of it: its own URL, its path under actuality, or its
- *  path relative to the feature's directory. A report is written into the feature's directory. */
-export function artifactUrl(artifact: { url?: unknown; path?: unknown; featureRelativePath?: unknown }): string | undefined {
-	const url = followable(artifact.url);
-	const base = artifact.path ? String(artifact.path).replace(/^\.?\//, "") : undefined;
-	// A report is written into its feature's directory. The path's leading `featn-N/` segment names that directory, so
-	// removing it gives the artifact's address relative to the report.
-	const besideTheFile = base ? `./${base.split("/").slice(1).join("/")}` : undefined;
-	if (isOffline()) return followable(artifact.featureRelativePath) ?? url ?? besideTheFile;
-	return url ?? (base ? artifactAddress(base) : undefined);
-}
+/** Returns the address of one artifact from the event's record of it, for the kind of page this page is. */
+export const artifactUrl = (artifact: TArtifactRecord): string | undefined => artifactAddressOf(artifact, isOffline());
 
 /** Maps each artifact address to its read from actuality. A read resolves to the object URL a view shows. */
 const shown = new Map<string, Promise<string>>();
@@ -65,12 +51,3 @@ export const artifactAt = (url: string, source: string) =>
 		shownOrReported(url, source).then((at) => at ?? nothing),
 		nothing,
 	);
-
-async function readArtifact(url: string): Promise<string> {
-	const response = await fetch(url, {
-		headers: await pageAuthorityPort().readingHeaders(new URL(url, location.href).toString(), READS_THE_RUNS_ARTIFACTS),
-		credentials: "include",
-	});
-	if (!response.ok) throw new Error(`actuality refused its artifact ${url}: ${response.status} ${await response.text()}`);
-	return URL.createObjectURL(await response.blob());
-}

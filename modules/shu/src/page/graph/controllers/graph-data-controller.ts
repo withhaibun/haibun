@@ -16,7 +16,7 @@ import { getRels, getTitledBy } from "../../controllers/catalog-controller.js";
 import { idOf } from "../../controllers/record-controller.js";
 import { incomingEdges, readIndividual } from "../../controllers/read-controller.js";
 import { cachedGraph, servedGraph } from "../../client-cache/controllers/device-controller.js";
-import { appAccessLevel } from "../../../view-query.js";
+import { appAccessLevel } from "../../controllers/view-query-controller.js";
 
 const accessLevel = (): AccessLevel => appAccessLevel() as AccessLevel;
 const model = (perTypeLimit: number): QuadGraphModel => new QuadGraphModel(perTypeLimit, getRels, getTitledBy);

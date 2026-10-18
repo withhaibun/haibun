@@ -22,7 +22,7 @@ import { formatSeqPath, parseRecordName, stepLine, type TStepLine } from "@haibu
 import { actionRef, calledRef, originLink, refTpl } from "./shu-ref.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { ClockController } from "../controllers/clock-controller.js";
-import { appAccessLevel } from "../../view-query.js";
+import { appAccessLevel } from "../controllers/view-query-controller.js";
 import { typeShownIn } from "../controllers/catalog-controller.js";
 import { clusteredQuads, recordRead } from "../controllers/read-controller.js";
 import { LoadController } from "../controllers/load-controller.js";

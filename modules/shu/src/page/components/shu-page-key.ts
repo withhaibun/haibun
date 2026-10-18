@@ -10,7 +10,7 @@ import { defineElement } from "../controllers/element-controller.js";
 import { html, css, type TemplateResult } from "lit";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { shuBaseStyles } from "./styles.js";
-import { PageKeySchema } from "../../schemas.js";
+import { PageKeySchema } from "../../domains/schemas.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { refTpl } from "./shu-ref.js";
 import { principalAddress } from "@haibun/core/lib/domains/resources.js";

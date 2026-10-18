@@ -8,7 +8,7 @@ import { state } from "lit/decorators.js";
 import { SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
-import { ComboboxSchema, type TComboboxOption } from "../../schemas.js";
+import { ComboboxSchema, type TComboboxOption } from "../../domains/schemas.js";
 import { shuBaseStyles } from "./styles.js";
 import { revealInDocument } from "./reveal.js";
 import { ClockController } from "../controllers/clock-controller.js";

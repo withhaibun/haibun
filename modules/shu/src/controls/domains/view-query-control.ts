@@ -1,4 +1,4 @@
-import { ViewQuerySchema } from "../../view-query.js";
+import { ViewQuerySchema } from "../../page/domains/view-query.js";
 
 /**
  * A view-query control product: the partial set of query fields a control step changes. shu-graph-query's

@@ -8,7 +8,7 @@
  */
 import { newPage } from "../../test/setup.js";
 import { beforeEach, describe, expect, it } from "vitest";
-import { viewQuery } from "../../view-query.js";
+import { viewQuery } from "../controllers/view-query-controller.js";
 import { ShuGraphQuery } from "./shu-graph-query.js";
 
 const make = () => new ShuGraphQuery();

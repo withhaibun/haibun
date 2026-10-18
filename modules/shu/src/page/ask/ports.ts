@@ -6,7 +6,7 @@ import type { Machine } from "@haibun/core/lib/machines/machine.js";
 import type { AccessQueryLevel } from "@haibun/core/lib/domains/resources.js";
 import type { TClock, TConduit } from "../ports.js";
 import type { TBatchedEvents } from "../pipelines/batched-events.js";
-import type { TSubjectEvent } from "../../current-subject.js";
+import type { TSubjectEvent } from "../machines/current-subject.js";
 import type { TConversationEvent, TConversationState } from "./domains/conversation.js";
 import type { TAskSteps } from "./derivations/ask-steps.js";
 import type { TDelegationTo } from "../authority/delegation/pipelines/delegate.js";

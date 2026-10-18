@@ -9,7 +9,7 @@ import { hasEventStream, pageRecords } from "../root.js";
 import { callStep, followCall, recordRead, recordReadAt } from "./read-controller.js";
 import { subscribeBatchedEvents } from "./event-stream-controller.js";
 import { isOffline } from "./hydration-controller.js";
-import { reportToRun } from "../../client-log.js";
+import { reportToRun } from "./client-log-controller.js";
 import { cachedGraph } from "../client-cache/controllers/device-controller.js";
 
 /** What an open of a record reads: the page's records, its reads and calls, its stream of observed quads, and its report. */

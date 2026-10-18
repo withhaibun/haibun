@@ -20,7 +20,7 @@ import { graphPresenterTag, mountGraphPresenter, presenterIn } from "../controll
 import type { TGraphPresenter, TPresenterNodeClick } from "../ports.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { LinkRelations, isCommentType, isReplyEdge } from "@haibun/core/lib/domains/resources.js";
-import { appAccessLevel } from "../../view-query.js";
+import { appAccessLevel } from "../controllers/view-query-controller.js";
 import { extractBodyLiterals, idOf, instanceLabel, titleFields } from "../controllers/record-controller.js";
 import { persistedTypeOf } from "../derivations/record-fields.js";
 import { addsToSelection } from "../derivations/pane-kinds.js";

@@ -21,7 +21,7 @@ import { viewCollection } from "@haibun/core/lib/domains/hypermedia.js";
 import { SHU_EVENT, SHU_TAG, TIME_SYNC_CLASS } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { z } from "zod";
-import { ResultTableSchema } from "../../schemas.js";
+import { ResultTableSchema } from "../../domains/schemas.js";
 import { formatInstant, isDateValue, readerZone } from "../derivations/time-format.js";
 import { ellipsize } from "@haibun/core/lib/domains/util.js";
 import { getIdField, getPropertyOrder } from "../controllers/catalog-controller.js";

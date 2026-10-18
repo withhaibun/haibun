@@ -13,8 +13,7 @@
  * Light DOM: entries are real children (test-id walks and text capture see them), styled by the host scope.
  * Carries the `chat-output` test id: the one output surface every mode's assertions already point at.
  */
-import type { TemplateResult } from "lit";
-import { html } from "lit";
+import { type TemplateResult, html } from "lit";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import { ShuChatMessage } from "../ask/components/shu-chat-message.js";
 import { CHAT_VIEW_PARAM, SHU_TAG } from "../../domains/elements.js";
@@ -25,10 +24,9 @@ import { FOLLOW_EDGE_SLACK_PX } from "../domains/scroll-follow.js";
 import { SignalController } from "../controllers/signal-controller.js";
 import { SubjectController } from "../controllers/subject-controller.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
-import { nextQuestion } from "../ask/controllers/conversation-controller.js";
-import { conversationState, transcript, turnEnded } from "../ask/controllers/conversation-controller.js";
-import { currentSubject } from "../../current-subject.js";
-import { appAccessLevel } from "../../view-query.js";
+import { nextQuestion, conversationState, transcript, turnEnded } from "../ask/controllers/conversation-controller.js";
+import { currentSubject } from "../derivations/current-subject.js";
+import { appAccessLevel } from "../controllers/view-query-controller.js";
 
 export class ShuActivityHistory extends ShuElement<typeof EmptyStateSchema> {
 	/** The actions-bar output region, not a column pane: the harvest reads only column panes, so this is never the

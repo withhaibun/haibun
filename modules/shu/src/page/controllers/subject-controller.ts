@@ -1,6 +1,12 @@
 import type { ReactiveControllerHost } from "lit";
-import { activeEntry, currentSubject, currentSubjectState, type TRecord, type TSubjectState } from "../../current-subject.js";
+import type { TSubjectState } from "../machines/current-subject.js";
+import { currentSubjectState } from "../root.js";
+import { activeEntry, currentSubject } from "../derivations/current-subject.js";
+import type { TRecord } from "../domains/current-subject.js";
 import { SignalController } from "./signal-controller.js";
+
+/** The page's current-subject state, as a view follows it, and the dispatch of a reader's act on it. */
+export { currentSubjectState, dispatchSubjectEvent } from "../root.js";
 
 /**
  * SubjectController: the per-view handle to the active record. A view that dims, highlights or follows the active

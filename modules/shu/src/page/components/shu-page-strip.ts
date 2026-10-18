@@ -16,11 +16,11 @@ import { activePane, dockedPane, pageContext, pageStatus, pageTrail, pageTypes, 
 import { PAGE_STRIP_FOOTPRINT, PERMISSIONS_SLOT, SEARCH_SLOT, SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { isOffline } from "../controllers/hydration-controller.js";
-import { reportToRun } from "../../client-log.js";
+import { reportToRun } from "../controllers/client-log-controller.js";
 import { PAGE_STRIP_STYLES } from "./page-strip-styles.js";
 import type { ShuColumnPane } from "./shu-column-pane.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
-import { appAccessLevel } from "../../view-query.js";
+import { appAccessLevel } from "../controllers/view-query-controller.js";
 import "./shu-breadcrumb.js";
 import "./shu-combobox.js";
 

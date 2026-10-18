@@ -12,20 +12,9 @@ import { describe, expect, it } from "vitest";
 import { COMMENT_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { anIndividual, aType } from "@haibun/core/lib/conversation/domains/conversation.js";
 import { pickWith, runSequences } from "@haibun/core/lib/test/machine-table.js";
-import {
-	INITIAL_SUBJECT,
-	SCOPE,
-	SUBJECT_EVENTS,
-	activeEntry,
-	activeScope,
-	currentSubject,
-	entryOf,
-	scopeEntry,
-	transition,
-	type TEntry,
-	type TSubjectEvent,
-	type TSubjectState,
-} from "./current-subject.js";
+import { INITIAL_SUBJECT, SUBJECT_EVENTS, transition, type TSubjectEvent, type TSubjectState } from "./current-subject.js";
+import { SCOPE, entryOf, type TEntry } from "../domains/current-subject.js";
+import { activeEntry, activeScope, currentSubject, scopeEntry } from "../derivations/current-subject.js";
 
 const EMAIL = entryOf([anIndividual("Email", "a@test.com")], "private");
 const OTHER = entryOf([anIndividual("Email", "b@test.com")], "private");

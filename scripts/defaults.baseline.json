@@ -166,8 +166,8 @@
 	"modules/recorder/src/recorder-stepper.ts": {
 		"fills a falsy value with a constant through ||": 1
 	},
-	"modules/shu/src/current-subject.ts": {
-		"fills an absent value with a constant through ??": 1
+	"modules/shu/src/domains/schemas.ts": {
+		"fills a falsy value with a constant through ||": 3
 	},
 	"modules/shu/src/page/components/actions-bar-query.ts": {
 		"fills a falsy value with a constant through ||": 4,
@@ -296,6 +296,9 @@
 	"modules/shu/src/page/controllers/timeline-view-controller.ts": {
 		"states a parameter's default value": 1
 	},
+	"modules/shu/src/page/controllers/view-query-controller.ts": {
+		"states a parameter's default value": 1
+	},
 	"modules/shu/src/page/derivations/document-blocks.ts": {
 		"fills a falsy value with a constant through ||": 2,
 		"fills an absent value with a constant through ??": 3
@@ -306,12 +309,11 @@
 	"modules/shu/src/page/derivations/step-input.ts": {
 		"fills an absent value with a constant through ??": 2
 	},
-	"modules/shu/src/schemas.ts": {
-		"fills a falsy value with a constant through ||": 3
-	},
-	"modules/shu/src/view-query.ts": {
-		"states a parameter's default value": 1,
+	"modules/shu/src/page/domains/view-query.ts": {
 		"states a schema's default value through .default()": 7
+	},
+	"modules/shu/src/page/machines/current-subject.ts": {
+		"fills an absent value with a constant through ??": 1
 	},
 	"modules/utils/src/scaffold/adapters/scaffold.ts": {
 		"fills a falsy value with a constant through ||": 1

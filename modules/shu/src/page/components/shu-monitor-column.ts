@@ -19,7 +19,7 @@ import { SCROLL_TO_INDEX, type TSeekBy } from "./shu-scrollbar.js";
 import { SHU_EVENT, SHU_TAG, TIME_SYNC_CLASS } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import type { WindowedSource } from "../derivations/windowed-source.js";
-import { artifactAt, artifactUrl } from "../../artifact-url.js";
+import { artifactAt, artifactUrl } from "../controllers/artifact-controller.js";
 import { unavailableOrEmpty } from "./empty-state.js";
 import { actionRef, originLink, refTpl, stepPathTpl } from "./shu-ref.js";
 import { StepLineSchema, type TStepLine } from "@haibun/core/lib/seq-path.js";

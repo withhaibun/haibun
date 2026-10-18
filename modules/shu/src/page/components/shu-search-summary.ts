@@ -7,12 +7,11 @@
  * Light DOM (an activity-history entry must be visible to test-id walks and text capture).
  */
 import { AccessQuery } from "@haibun/core/lib/domains/resources.js";
-import type { TemplateResult } from "lit";
-import { html } from "lit";
+import { type TemplateResult, html } from "lit";
 import { ShuElement, type TLinkedData, EmptyStateSchema } from "./shu-element.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
-import type { TViewQuery } from "../../view-query.js";
+import type { TViewQuery } from "../domains/view-query.js";
 
 /** The human-readable one-line description of a search: type, text, per-field conditions, non-default access. */
 export function describeSearch(q: TViewQuery): string {

@@ -42,7 +42,7 @@ import { Access } from "@haibun/core/lib/domains/resources.js";
 import { SSE_ROUTE } from "@haibun/core/lib/rpc-wire.js";
 import { DELEGATIONS_READ_METHOD, type TDelegations } from "@haibun/core/lib/domains/authority-types.js";
 import { SHU_TAG } from "../src/domains/elements.js";
-import { embeddedPageView, givenDelegation, pageAuthorityPort, pageClock, pageEmbedder, pageEventStream, pageObservers, startPage } from "../src/page/root.js";
+import { embeddedPageView, givenDelegation, pageAuthorityPort, pageClock, pageEmbedder, pageEventStream, pageLog, pageObservers, startPage } from "../src/page/root.js";
 import { authorityPort, openPageAuthority, pageMay } from "../src/page/authority/controllers/page-authority-controller.js";
 import { conduit } from "../src/page/controllers/conduit-controller.js";
 import { getHash, pushHash } from "../src/page/controllers/hash-controller.js";
@@ -86,7 +86,7 @@ async function start(): Promise<void> {
 	const embedding: TEmbedding | undefined =
 		embedder === undefined
 			? undefined
-			: { channel: pageEmbedder(embedder), pageView: embeddedPageView, given: givenDelegation, authority: pageAuthorityPort(), clock: pageClock() };
+			: { channel: pageEmbedder(embedder), pageView: embeddedPageView, given: givenDelegation, authority: pageAuthorityPort(), clock: pageClock(), log: pageLog };
 	if (embedding !== undefined) receiveFromEmbedder(embedding);
 	// The long frames of the page's main thread, from its start, including the frames before this call.
 	recordLongFrames(pageObservers(), pageBlipChannel);
@@ -141,6 +141,6 @@ async function start(): Promise<void> {
 	main.replaceChildren(page);
 }
 
-reportRefusedScripts(pageObservers());
+reportRefusedScripts(pageObservers(), pageLog);
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", () => void start());
 else void start();

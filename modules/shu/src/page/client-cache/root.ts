@@ -5,8 +5,7 @@
  */
 import { machine, type Machine } from "@haibun/core/lib/machines/machine.js";
 import { pagePinned } from "../adapters/page-held.js";
-import { pageHydration } from "../root.js";
-import { reportFailure, reportToRun } from "../../client-log.js";
+import { pageHydration, pageLog } from "../root.js";
 import { databaseOf, deviceDatabase, heldDatabaseNames, IndexedDbDeviceStore, MemoryDeviceStore, type TDeviceConnections } from "./adapters/device-store.js";
 import { GRAPH_BOUND, IndexedDbQuads } from "./adapters/quad-store.js";
 import { indexedDbSummary, type TIdbDatabaseSummary } from "./adapters/idb-summary.js";
@@ -29,9 +28,12 @@ const ACTUALITY_REGISTRY_KEY = "__SHU_READINGS__";
 const ACTUALITY_SOURCES_KEY = "__SHU_ACTUALITY_SOURCES__";
 const GRAPH_SLOT_KEY = "__SHU_CACHED_GRAPH_STORE__";
 
-export const deviceReport: TDeviceReport = { warn: (message) => reportToRun("warn", DEVICE_STORE, message), failure: (message, err) => reportFailure(DEVICE_STORE, message, err) };
+export const deviceReport: TDeviceReport = {
+	warn: (message) => pageLog.report("warn", DEVICE_STORE, message),
+	failure: (message, err) => pageLog.failure(DEVICE_STORE, message, err),
+};
 /** Reports a reading of actuality that failed. */
-export const actualityReport = (message: string, err: unknown): void => reportFailure(ACTUALITY_SOURCE, message, err);
+export const actualityReport = (message: string, err: unknown): void => pageLog.failure(ACTUALITY_SOURCE, message, err);
 const connections = (): TDeviceConnections => pagePinned(CONNECTIONS_KEY, () => ({ opened: new Map<string, Promise<IDBDatabase | null>>(), report: deviceReport }));
 
 /** The name of the database of the actuality the page reads. */

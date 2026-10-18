@@ -12,7 +12,7 @@ import { fromActorEdgeLabels, getEdgeRanges, getPropertyDefinition, getRels, get
 import type { TCallOutcome } from "../../pipelines/call-step.js";
 import { SHU_TAG } from "../../../domains/elements.js";
 import type { ShuElement } from "../../components/shu-element.js";
-import { appAccessLevel } from "../../../view-query.js";
+import { appAccessLevel } from "../../controllers/view-query-controller.js";
 import { callStep, listRecords } from "../../controllers/read-controller.js";
 
 /** Read the durable options of the given views, keyed by tag: what a scene saves. */

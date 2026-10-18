@@ -3,17 +3,16 @@
  * (`page/pipelines/read-records.ts`), as a view and a read take them: a read calls the site, and reads the graph the page
  * holds where the site doesn't respond.
  */
-import type { TDensityQuery, TDensityResult, TGraphQueryResult, TIncomingEdges, TIndividualWithEdges } from "@haibun/core/lib/quad-types.js";
+import type { TDensityQuery, TDensityResult, TGraphQueryResult, TIncomingEdges, TIndividualWithEdges, TQuad } from "@haibun/core/lib/quad-types.js";
 import { pageConduit, pageHydration, pageRegistry, registryScope } from "../root.js";
 import { readSteps } from "../pipelines/read-steps.js";
 import { heldCatalog } from "../pipelines/held-catalog.js";
 import * as Reads from "../pipelines/read-records.js";
 import * as CallStep from "../pipelines/call-step.js";
 import type { TCallLink } from "@haibun/core/lib/domains/hypermedia.js";
-import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { RPC_METHOD } from "../../domains/elements.js";
 import { cachedGraph, readsHeldGraph } from "../client-cache/controllers/device-controller.js";
-import { appAccessLevel } from "../../view-query.js";
+import { appAccessLevel } from "./view-query-controller.js";
 import type { TActualityGraph } from "../client-cache/ports.js";
 
 /** What a read reads. A page that carries a record of actuality, or reads another actuality's records, reads what it holds. */

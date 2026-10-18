@@ -17,9 +17,10 @@ import { ActionsBarQuery } from "./actions-bar-query.js";
 import { ACTIONS_BAR_STYLES } from "./actions-bar-styles.js";
 import { SHU_EVENT, ACTION_BAR_ASK_SLOT, ACTION_BAR_CHAT_SLOT, SHU_TAG, CONVERSATION_PARAM } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
-import { SCOPE, dispatchSubjectEvent } from "../../current-subject.js";
+import { dispatchSubjectEvent } from "../controllers/subject-controller.js";
+import { SCOPE } from "../domains/current-subject.js";
 import type { ShuColumnPane } from "./shu-column-pane.js";
-import { ActionsBarSchema, BAR_MODES, QuestionForkSchema, StepChoiceSchema, TypeChoiceSchema, type TQuestionFork } from "../../schemas.js";
+import { ActionsBarSchema, BAR_MODES, QuestionForkSchema, StepChoiceSchema, TypeChoiceSchema, type TQuestionFork } from "../../domains/schemas.js";
 import { commandList, readSlashCommand, type TBarMode, type TInputLine, type TSlashCommand } from "../derivations/step-input.js";
 import type { ShuAsk } from "../ask/components/shu-ask.js";
 // Constructed with `new` (not createElement + type-cast): the value use keeps the registering module in the
@@ -35,7 +36,7 @@ import { hashParam, onHashChanged } from "../controllers/hash-controller.js";
 import { eventsAffectLabel } from "@haibun/core/lib/steps/derivations/quad-events.js";
 import { isOffline } from "../controllers/hydration-controller.js";
 import { getActionBarChatExtensionTags } from "../controllers/catalog-controller.js";
-import { reportToRun } from "../../client-log.js";
+import { reportToRun } from "../controllers/client-log-controller.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import "../ask/components/shu-ask.js";
 

@@ -5,7 +5,8 @@
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { slotExtensions } from "../controllers/catalog-controller.js";
 import { getAvailableSteps } from "../controllers/registry-controller.js";
-import { reportToRun, type TClientLogLevel } from "../../client-log.js";
+import { reportToRun } from "../controllers/client-log-controller.js";
+import type { TClientLogLevel } from "../ports.js";
 
 /** Load each extension declared for one of the slots, telling the component after each loads, and throw naming every one
  *  that didn't load. */

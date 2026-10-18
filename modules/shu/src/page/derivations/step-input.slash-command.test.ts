@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { BAR_MODES } from "../../schemas.js";
+import { BAR_MODES } from "../../domains/schemas.js";
 import { SLASH_COMMANDS, STOP_COMMAND, commandList, readSlashCommand } from "./step-input.js";
 
 describe("a slash command in an input line", () => {
