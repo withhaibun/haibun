@@ -1,6 +1,6 @@
 /**
  * The kinds of code that haibun's docs/architecture.md states in "How code is organized", each determined by a file's
- * directory or name, and a repository's findings against them. A file in a kind position imports values only from its own
+ * directory or name, or by the `#!` line that starts a program's entry point, and a repository's findings against them. A file in a kind position imports values only from its own
  * kind and the kinds its row lists, and only an adapter performs I/O. A stepper doesn't import another stepper. A stepper
  * and a controller import only the composition root of their own area or of an area that encloses it. A file outside a kind position is a finding,
  * and its imports aren't read.
@@ -10,22 +10,25 @@ import ts from "typescript";
 import type { TFound } from "./baseline.js";
 import { importsOf, lineOf, RELATIVE, resolvedSource, type TPackages, type TSources } from "./repository-files.js";
 
-export const CODE_KINDS = ["domain", "derivation", "machine", "pipeline", "port", "adapter", "composition root", "stepper", "controller", "view"] as const;
+export const CODE_KINDS = ["domain", "derivation", "machine", "pipeline", "port", "adapter", "composition root", "stepper", "feature", "controller", "view"] as const;
 export type TCodeKind = (typeof CODE_KINDS)[number];
 
-/** The directory of an area that holds each kind. A view is a component, and a controller is a Lit `ReactiveController`. */
+/** The directory of an area that holds each kind. A view is a component, a controller is a Lit `ReactiveController`, and a feature builds features. */
 const KIND_DIRECTORIES: Record<string, TCodeKind> = {
 	domains: "domain",
 	derivations: "derivation",
 	machines: "machine",
 	pipelines: "pipeline",
 	adapters: "adapter",
+	features: "feature",
 	controllers: "controller",
 	components: "view",
 };
 const PORTS_FILE = "ports.ts";
 const ROOT_FILE = "root.ts";
 const STEPPER_FILE = /-stepper\.tsx?$/;
+/** The line a program's entry point starts with, which makes the file a composition root. */
+const ENTRY_POINT = "#!";
 
 /**
  * The kinds each kind imports values from, as the table's "Depends on" column lists them. A type import is allowed from any
@@ -37,10 +40,11 @@ const DEPENDS_ON: Record<TCodeKind, readonly TCodeKind[]> = {
 	derivation: ["domain", "derivation"],
 	machine: ["domain"],
 	pipeline: ["domain", "derivation", "machine", "port"],
-	port: [],
-	adapter: ["port"],
+	port: ["domain"],
+	adapter: ["port", "domain"],
 	"composition root": ["port", "adapter", "machine"],
 	stepper: ["domain", "pipeline", "machine", "composition root"],
+	feature: ["stepper", "domain", "derivation"],
 	controller: ["domain", "derivation", "machine", "pipeline", "composition root"],
 	view: ["controller", "domain", "derivation"],
 };
@@ -94,11 +98,11 @@ const importsAnotherRoot = (specifier: string) => `imports another area's compos
 /** What a check reads of a repository: its parsed source files, and its workspace packages, each by its name and its source directory. */
 export type TCodeScope = { sources: TSources; packages: TPackages };
 
-/** The kind of a file by its path from the repository root, where its directory or name is a kind position. */
-export function kindOf(path: string): TCodeKind | undefined {
+/** The kind of a file by its path from the repository root, where its directory or name is a kind position, or by its source, where it is a program's entry point. */
+export function kindOf(path: string, source?: ts.SourceFile): TCodeKind | undefined {
 	const name = posix.basename(path);
 	if (name === PORTS_FILE) return "port";
-	if (name === ROOT_FILE) return "composition root";
+	if (name === ROOT_FILE || source?.text.startsWith(ENTRY_POINT)) return "composition root";
 	if (STEPPER_FILE.test(name)) return "stepper";
 	const directory = posix
 		.dirname(path)
@@ -180,12 +184,12 @@ function importFinding(kind: TCodeKind, file: string, target: string, targetKind
 /** The findings of each file against the kinds: a file outside a kind position, an import of a kind it doesn't depend on, and I/O outside an adapter. */
 export function codeKindFindings(repository: string, { sources, packages }: TCodeScope): TFound[] {
 	return [...sources].flatMap(([file, source]): TFound[] => {
-		const kind = kindOf(file);
+		const kind = kindOf(file, source);
 		if (kind === undefined) return [{ file, finding: UNPOSITIONED }];
 		const valueImports = importsOf(source).filter(({ typeOnly }) => !typeOnly);
 		const kindImports = valueImports.flatMap(({ specifier, line }) => {
 			const target = resolvedSource(repository, file, specifier, packages);
-			const targetKind = target === undefined ? undefined : kindOf(target);
+			const targetKind = target === undefined ? undefined : kindOf(target, sources.get(target));
 			const finding = target === undefined || targetKind === undefined ? undefined : importFinding(kind, file, target, targetKind, specifier);
 			return finding === undefined ? [] : [{ file, finding, line }];
 		});

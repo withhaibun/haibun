@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { getContainerSetup, parseVCaptureArgs, TCaptureOptions } from "./vcapture-lib.js";
+import { getContainerSetup, parseVCaptureArgs, TCaptureOptions } from "./adapters/vcapture.js";
 
 /** Each of these invocations is complete, so printing help, which exits, is a fault. */
 const printHelp = (exitCode?: number): never => {

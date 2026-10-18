@@ -58,7 +58,7 @@ ${asYamlOptions(composeEnvironment)}
 };
 
 export function getContainerSetup(thisRunOptions: TCaptureOptions, includeDirs: string[], testToRun: string) {
-	const utilDir = resolve(getPackageLocation(import.meta), "..", "..", "vcapture");
+	const utilDir = resolve(getPackageLocation(import.meta), "..", "..", "..", "vcapture");
 	const projectDir = workspaceRoot;
 	const tmpFile = resolve(tmpdir(), `docker-compose.override-${Date.now()}.yml`);
 

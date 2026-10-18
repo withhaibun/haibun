@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 import * as readline from "node:readline/promises"; // This uses the promise-based APIs
 import { stdin as input, stdout as output } from "node:process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
@@ -10,7 +8,7 @@ import { currentVersion } from "@haibun/core/lib/domains/current-version.js";
 
 type Tkv = { [name: string]: string };
 
-const refDir = path.join(getPackageLocation(import.meta), "..", "..");
+const refDir = path.join(getPackageLocation(import.meta), "..", "..", "..");
 
 export async function scaffoldHaibun(dest: string, opts?: { out?: typeof console.info; addDeps?: Tkv; addDevDeps?: Tkv; addDirs?: string[]; noPrompt?: boolean }): Promise<void> {
 	const { noPrompt, out: outIn } = opts || {};

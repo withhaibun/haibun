@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { scaffoldHaibun } from "./scaffold.js";
+import { scaffoldHaibun } from "./adapters/scaffold.js";
 
 try {
 	await scaffoldHaibun(".", { out: console.info });

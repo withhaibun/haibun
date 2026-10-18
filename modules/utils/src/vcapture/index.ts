@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { parseVCaptureArgs, runContainer } from "./vcapture-lib.js";
+import { parseVCaptureArgs, runContainer } from "./adapters/vcapture.js";
 
 process.on("unhandledRejection", (err: unknown) => {
 	console.error("cli Unhandled Rejection:", err);

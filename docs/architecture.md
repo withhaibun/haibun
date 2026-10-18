@@ -407,10 +407,11 @@ them from `getConcerns` and names their keys in its step patterns.
 | Derivation | A pure function from declarations: a read surface, a title, the concern catalog | domains, derivations |
 | Machine | Statuses that events move: one state type, one event type, one pure transition and one table test | domains |
 | Pipeline | One operation as pure steps over ports | domains, derivations, machines, ports |
-| Port | An interface a pipeline reads or writes through: a store, an endpoint, a mailbox, a clock. An area's `ports.ts` holds only port types | types |
-| Adapter | I/O through a database driver, HTTP, a mail server, a model endpoint, a browser or the filesystem. An adapter implements a port, raises a machine's events and returns data. It doesn't hold policy | ports, libraries |
-| Composition root | The function in an area's `root.ts` that builds the area's ports from its adapters, and the area's machine instances from its machines, for the steppers and controllers that use them | ports, adapters, machines |
+| Port | An interface a pipeline reads or writes through: a store, an endpoint, a mailbox, a clock. An area's `ports.ts` holds only port types | domains, types |
+| Adapter | I/O through a database driver, HTTP, a mail server, a model endpoint, a browser or the filesystem. An adapter implements a port, raises a machine's events and returns data. It doesn't hold policy | domains, ports, libraries |
+| Composition root | The function in an area's `root.ts` that builds the area's ports from its adapters, and the area's machine instances from its machines, for the steppers and controllers that use them. A program's entry point, a file that starts with `#!`, is a composition root | ports, adapters, machines |
 | Stepper | Steps that parse their input by domain, call one pipeline or send one machine event, and return products or a refusal. Its cycles connect lifecycle events to the same pipelines and machines | domains, pipelines, machines, the composition root of its area or of an enclosing area |
+| Feature | A builder of features in an area's `features/` directory. It composes the steps of steppers into the steps a feature written in TypeScript calls | steppers, domains, derivations |
 | Controller | A Lit `ReactiveController` a view holds. It reads the catalog's derivations and a machine's status, calls one pipeline or sends one machine event, and requests its host's update | domains, derivations, machines, pipelines, the composition root of its area or of an enclosing area |
 | View | A `ShuElement` that renders from the concern catalog and machine statuses, through controllers. A view imports another view | controllers, domains, derivations |
 

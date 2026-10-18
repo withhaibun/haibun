@@ -12,6 +12,7 @@ const ROOT = "src/area/root.ts";
 const STEPPER = "src/area/area-stepper.ts";
 const VIEW = "src/components/shu-list.ts";
 const CONTROLLER = "src/area/controllers/list-controller.ts";
+const FEATURE = "src/area/features/visit.ts";
 const PACKAGE = "@example/area";
 
 const made: string[] = [];
@@ -43,7 +44,14 @@ describe("the kind of a file", () => {
 		expect(kindOf(STEPPER)).toBe("stepper");
 		expect(kindOf(VIEW)).toBe("view");
 		expect(kindOf(CONTROLLER)).toBe("controller");
+		expect(kindOf(FEATURE)).toBe("feature");
 		expect(kindOf("src/lib/util.ts")).toBeUndefined();
+	});
+
+	it("is a composition root where the file is a program's entry point", () => {
+		expect(findingsOf("src/bin.ts", { "src/bin.ts": '#!/usr/bin/env node\nimport { store } from "./area/adapters/store.js";\n', [ADAPTER]: "export const store = 1;\n" })).toEqual(
+			[],
+		);
 	});
 });
 
@@ -125,6 +133,29 @@ describe("a file's findings against the kinds", () => {
 	it("don't name a composition root's import of a machine, which it builds the area's instances from", () => {
 		const sources = { [ROOT]: 'import { panes } from "./machines/panes.js";\n', "src/area/machines/panes.ts": "export const panes = 1;\n" };
 		expect(findingsOf(ROOT, sources)).toEqual([]);
+	});
+
+	it("don't name a port's or an adapter's import of a domain", () => {
+		const domain = { "src/area/domains/note.ts": 'export const NOTE = "note";\n' };
+		const imported = 'import { NOTE } from "./domains/note.js";\n';
+		expect(findingsOf(PORTS, { ...domain, [PORTS]: imported })).toEqual([]);
+		expect(findingsOf(ADAPTER, { ...domain, [ADAPTER]: imported.replace("./", "../") })).toEqual([]);
+	});
+
+	it("don't name a feature's import of a stepper, a domain or a derivation, and name its import of a pipeline", () => {
+		const sources = {
+			[FEATURE]: [
+				'import { Area } from "../area-stepper.js";',
+				'import { NOTE } from "../domains/note.js";',
+				'import { title } from "../derivations/title.js";',
+				'import { read } from "../pipelines/read.js";',
+			].join("\n"),
+			[STEPPER]: "export class Area {}\n",
+			"src/area/domains/note.ts": 'export const NOTE = "note";\n',
+			"src/area/derivations/title.ts": "export const title = 1;\n",
+			[PIPELINE]: "export const read = 1;\n",
+		};
+		expect(findingsOf(FEATURE, sources)).toEqual(["imports a pipeline: ../pipelines/read.js"]);
 	});
 
 	it("resolve a workspace package's import to its source", () => {

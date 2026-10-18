@@ -307,18 +307,15 @@
 		"states a parameter's default value": 1,
 		"states a schema's default value through .default()": 7
 	},
-	"modules/utils/src/npm-link-haibuns.ts": {
-		"fills a falsy value with a constant through ||": 2
-	},
-	"modules/utils/src/scaffold/scaffold.ts": {
+	"modules/utils/src/scaffold/adapters/scaffold.ts": {
 		"fills a falsy value with a constant through ||": 1
 	},
-	"modules/utils/src/vcapture/index.ts": {
-		"states a parameter's default value": 1
-	},
-	"modules/utils/src/vcapture/vcapture-lib.ts": {
+	"modules/utils/src/vcapture/adapters/vcapture.ts": {
 		"fills a falsy value with a constant through ||": 1,
 		"fills an absent value with a constant through ??": 1,
+		"states a parameter's default value": 1
+	},
+	"modules/utils/src/vcapture/index.ts": {
 		"states a parameter's default value": 1
 	},
 	"modules/utils/vcapture/docker-compose.yml": {
