@@ -4,35 +4,15 @@
 	"version": "4.0.0-alpha.3",
 	"description": "Hono-based web server for haibun with MCP support",
 	"main": "build/web-server-stepper.js",
-	"files": [
-		"build/**"
-	],
+	"files": ["build/**"],
 	"exports": {
 		".": "./build/web-server-stepper.js",
-		"./defs.js": {
-			"haibun-source": "./src/ports.js",
-			"default": "./build/ports.js"
-		},
-		"./sse-transport.js": {
-			"haibun-source": "./src/domains/transport.js",
-			"default": "./build/domains/transport.js"
-		},
-		"./capability-auth.js": {
-			"haibun-source": "./src/pipelines/capability-verifier.js",
-			"default": "./build/pipelines/capability-verifier.js"
-		},
-		"./auth.js": {
-			"haibun-source": "./src/adapters/auth.js",
-			"default": "./build/adapters/auth.js"
-		},
-		"./cookie.js": {
-			"haibun-source": "./src/adapters/cookie.js",
-			"default": "./build/adapters/cookie.js"
-		},
-		"./served-folder.js": {
-			"haibun-source": "./src/pipelines/served-folder.js",
-			"default": "./build/pipelines/served-folder.js"
-		},
+		"./defs.js": { "haibun-source": "./src/ports.js", "default": "./build/ports.js" },
+		"./sse-transport.js": { "haibun-source": "./src/domains/transport.js", "default": "./build/domains/transport.js" },
+		"./capability-auth.js": { "haibun-source": "./src/pipelines/capability-verifier.js", "default": "./build/pipelines/capability-verifier.js" },
+		"./auth.js": { "haibun-source": "./src/adapters/auth.js", "default": "./build/adapters/auth.js" },
+		"./cookie.js": { "haibun-source": "./src/adapters/cookie.js", "default": "./build/adapters/cookie.js" },
+		"./served-folder.js": { "haibun-source": "./src/pipelines/served-folder.js", "default": "./build/pipelines/served-folder.js" },
 		"./*": "./build/*"
 	},
 	"scripts": {
@@ -42,12 +22,7 @@
 		"test": "vitest run",
 		"test:watch": "vitest"
 	},
-	"keywords": [
-		"haibun",
-		"hono",
-		"mcp",
-		"web-server"
-	],
+	"keywords": ["haibun", "hono", "mcp", "web-server"],
 	"author": "",
 	"license": "ISC",
 	"dependencies": {

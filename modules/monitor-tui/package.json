@@ -4,9 +4,7 @@
 	"description": "Ink-based TUI monitor stepper for Haibun",
 	"main": "build/monitor-tui-stepper.js",
 	"type": "module",
-	"files": [
-		"build/"
-	],
+	"files": ["build/"],
 	"exports": {
 		".": "./build/monitor-tui-stepper.js",
 		"./index.js": "./build/monitor-tui-stepper.js",

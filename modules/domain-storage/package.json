@@ -5,9 +5,7 @@
 	"description": "",
 	"author": "",
 	"main": "index.js",
-	"files": [
-		"build/**"
-	],
+	"files": ["build/**"],
 	"exports": {
 		".": "./build/domains/storage.js",
 		"./AStorage.js": "./build/domains/storage.js",

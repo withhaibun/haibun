@@ -4,9 +4,7 @@
 	"version": "4.0.0-alpha.3",
 	"description": "",
 	"main": "index.js",
-	"files": [
-		"build/"
-	],
+	"files": ["build/"],
 	"exports": {
 		".": "./build/storage-fs-stepper.js",
 		"./storage-fs.js": "./build/storage-fs-stepper.js",

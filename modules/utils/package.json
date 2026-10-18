@@ -4,12 +4,7 @@
 	"version": "4.0.0-alpha.3",
 	"description": "",
 	"main": "index.js",
-	"files": [
-		"ref.package.json",
-		"build/**",
-		"scaffold/**",
-		"vcapture/**"
-	],
+	"files": ["ref.package.json", "build/**", "scaffold/**", "vcapture/**"],
 	"bin": {
 		"scaffold": "build/scaffold/index.js",
 		"link": "build/npm-link-haibuns.js",

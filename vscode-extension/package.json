@@ -11,14 +11,8 @@
 	"engines": {
 		"vscode": "^1.108.x"
 	},
-	"categories": [
-		"Programming Languages"
-	],
-	"activationEvents": [
-		"onLanguage:haibun",
-		"workspaceContains:**/*.feature",
-		"workspaceContains:**/*.feature.ts"
-	],
+	"categories": ["Programming Languages"],
+	"activationEvents": ["onLanguage:haibun", "workspaceContains:**/*.feature", "workspaceContains:**/*.feature.ts"],
 	"main": "./out/extension.js",
 	"contributes": {
 		"viewsContainers": {
@@ -54,13 +48,8 @@
 		"languages": [
 			{
 				"id": "haibun",
-				"extensions": [
-					".feature"
-				],
-				"aliases": [
-					"Haibun",
-					"Haibun Feature"
-				]
+				"extensions": [".feature"],
+				"aliases": ["Haibun", "Haibun Feature"]
 			}
 		],
 		"configuration": {

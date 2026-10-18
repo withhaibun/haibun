@@ -4,9 +4,7 @@
 	"description": "OpenTelemetry monitor for Haibun - exports traces and logs via OTLP",
 	"type": "module",
 	"main": "build/monitor-otel-stepper.js",
-	"files": [
-		"build/"
-	],
+	"files": ["build/"],
 	"exports": {
 		".": "./build/monitor-otel-stepper.js",
 		"./index.js": "./build/monitor-otel-stepper.js",

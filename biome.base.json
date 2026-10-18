@@ -101,6 +101,14 @@
 					"expand": "auto"
 				}
 			}
+		},
+		{
+			"includes": ["**/package.json"],
+			"json": {
+				"formatter": {
+					"expand": "auto"
+				}
+			}
 		}
 	],
 	"assist": {

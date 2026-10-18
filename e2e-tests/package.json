@@ -4,12 +4,7 @@
 	"name": "@haibun/e2e-tests",
 	"version": "1.56.0",
 	"description": "e2e tests for haibun",
-	"files": [
-		"build",
-		"local",
-		"publish",
-		"files"
-	],
+	"files": ["build", "local", "publish", "files"],
 	"engines": {
 		"node": ">=14"
 	},

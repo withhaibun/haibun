@@ -7,9 +7,7 @@
 		"haibun-cli": "build/cli.js"
 	},
 	"main": "build/cli.js",
-	"files": [
-		"build/**"
-	],
+	"files": ["build/**"],
 	"exports": {
 		".": "./build/cli.js",
 		"./*": "./build/*"

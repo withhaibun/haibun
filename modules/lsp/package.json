@@ -4,9 +4,7 @@
 	"version": "4.0.0-alpha.3",
 	"description": "Language Server Protocol stepper for Haibun IDE integration",
 	"main": "build/lsp-stepper.js",
-	"files": [
-		"build/"
-	],
+	"files": ["build/"],
 	"exports": {
 		".": "./build/lsp-stepper.js",
 		"./*": "./build/*"
@@ -18,11 +16,7 @@
 		"test": "vitest run",
 		"test:watch": "vitest"
 	},
-	"keywords": [
-		"haibun",
-		"lsp",
-		"language-server"
-	],
+	"keywords": ["haibun", "lsp", "language-server"],
 	"author": "",
 	"license": "ISC",
 	"dependencies": {

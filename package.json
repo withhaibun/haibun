@@ -2,10 +2,7 @@
 	"name": "haibun",
 	"type": "module",
 	"private": false,
-	"workspaces": [
-		"modules/*",
-		"e2e-tests"
-	],
+	"workspaces": ["modules/*", "e2e-tests"],
 	"engines": {
 		"node": ">=24.0.0",
 		"npm": ">=11.0.0"

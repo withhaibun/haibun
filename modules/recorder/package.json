@@ -5,9 +5,7 @@
 	"description": "Record browser interactions and generate Haibun .feature files",
 	"main": "build/recorder-stepper.js",
 	"type": "module",
-	"files": [
-		"build"
-	],
+	"files": ["build"],
 	"scripts": {
 		"build": "tsc -b",
 		"test": "vitest run"

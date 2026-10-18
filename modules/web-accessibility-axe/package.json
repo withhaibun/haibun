@@ -8,9 +8,7 @@
 		".": "./build/a11y-axe-stepper.js",
 		"./*": "./build/*"
 	},
-	"files": [
-		"build/"
-	],
+	"files": ["build/"],
 	"scripts": {
 		"build": "tsc -b .",
 		"build:watch": "tsc -b . --watch",
