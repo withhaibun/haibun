@@ -16,11 +16,11 @@
  *   - blocked    →  inputs unsatisfied; dashed arrow
  *   - capability-gated  →  step requires an unmet capability
  */
-import { SOURCE_DOMAIN } from "@haibun/core/lib/domain-chain.js";
+import { SOURCE_DOMAIN } from "@haibun/core/lib/derivations/domain-chain.js";
 import { AFFORDANCE_PARAM, SHU_TAG } from "../../domains/elements.js";
 import { hashWithColumns } from "./address.js";
-import { GOAL_FINDING } from "@haibun/core/lib/goal-resolver.js";
-import type { TForwardAffordance, TWaypointEntry, TCompositeRanges } from "@haibun/core/lib/affordances.js";
+import { GOAL_FINDING, type TWaypointEntry } from "@haibun/core/lib/domains/goal-resolution.js";
+import type { TForwardAffordance, TCompositeRanges } from "@haibun/core/lib/derivations/affordances.js";
 import { EDGE_KIND, NODE_KIND, type TGraph, type TGraphEdge, type TGraphNode } from "../domains/graph.js";
 import { producingStepRecord } from "@haibun/core/lib/seq-path.js";
 import { stepLabelOf } from "./steps.js";

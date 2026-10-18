@@ -14,7 +14,7 @@ import { AStepper, type IStepperCycles } from "../steps/domains/stepper.js";
 import { DOMAIN_ACTIONS } from "../domains/domains.js";
 import type { TDomainDefinition } from "../domains/resources.js";
 import { OK } from "../domains/protocol.js";
-import { getAuthority, heldAuthority } from "../session-authority.js";
+import { getAuthority, heldAuthority } from "../domains/session-authority.js";
 import { capabilityAllows } from "../domains/actions.js";
 import type { IAuthorityInvoker, IAuthorityVerifier, TAuthorityAct, TAuthorityEvidence, TDelegations, TOutgoingRequest, TVerdict } from "../domains/authority-types.js";
 

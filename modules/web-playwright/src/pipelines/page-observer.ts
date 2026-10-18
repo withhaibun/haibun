@@ -5,7 +5,7 @@
  */
 import { DOMAIN_LINK, DOMAIN_NUMBER } from "@haibun/core/lib/domains/domains.js";
 import { registeredPaths, type IRouteRegistry } from "@haibun/core/lib/execution.js";
-import { trackHttpRequest } from "@haibun/core/lib/http-observations.js";
+import { trackHttpRequest } from "@haibun/core/lib/pipelines/http-observations.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { HttpTraceArtifact, Origin } from "@haibun/core/lib/domains/protocol.js";

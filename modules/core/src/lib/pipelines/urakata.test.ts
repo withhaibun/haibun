@@ -1,14 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
-import { UrakataRegistry, URAKATA_LABEL, type IUrakataTicker } from "./urakata.js";
-import { getDefaultWorld } from "./test/lib.js";
-import { accessBound, actingAs, runActingAs, runAuthorizedWith } from "./domains/capability-context.js";
-import { AUTHORITY_KEY, SessionAuthority } from "./session-authority.js";
-import { actionsToReadAndWrite, EVERY_ACTION, readAction, writeAction, writtenAt } from "./domains/actions.js";
-import { Access } from "./domains/resources.js";
-import { itemAt } from "./domains/item-at.js";
-import { recordOf } from "./records/pipelines/record-reads.js";
-import { mapDefinitionsToDomains } from "./domains/domains.js";
-import { urakataTaskDomainDefinition } from "../steps/urakata-stepper.js";
+import { UrakataRegistry } from "./urakata.js";
+import { URAKATA_LABEL, type IUrakataTicker } from "../domains/urakata.js";
+import { getDefaultWorld } from "../test/lib.js";
+import { accessBound, actingAs, runActingAs, runAuthorizedWith } from "../domains/capability-context.js";
+import { SessionAuthority } from "./session-authority.js";
+import { AUTHORITY_KEY } from "../domains/session-authority.js";
+import { actionsToReadAndWrite, EVERY_ACTION, readAction, writeAction, writtenAt } from "../domains/actions.js";
+import { Access } from "../domains/resources.js";
+import { itemAt } from "../domains/item-at.js";
+import { recordOf } from "../records/pipelines/record-reads.js";
+import { mapDefinitionsToDomains } from "../domains/domains.js";
+import { urakataTaskDomainDefinition } from "../../steps/urakata-stepper.js";
+import { actualityClock } from "../actuality/root.js";
 
 const noOpErrorHandler = () => undefined;
 const STARTER = "did:example:starter";
@@ -84,7 +87,7 @@ describe("UrakataRegistry", () => {
 
 	it("stops a ticker once the authority its starter proved is revoked, and records the reason in stopReason", async () => {
 		const world = getDefaultWorld();
-		const authority = new SessionAuthority();
+		const authority = new SessionAuthority(actualityClock());
 		world.runtime.keys = { ...world.runtime.keys, [AUTHORITY_KEY]: authority };
 		const registry = new UrakataRegistry(world, noOpErrorHandler);
 		const ticker: IUrakataTicker = { id: "resting", description: "test", intervalMs: 5, needs: [readAction(Access.private)], tick: () => undefined };

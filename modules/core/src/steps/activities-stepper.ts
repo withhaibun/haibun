@@ -9,12 +9,10 @@ import { DOMAIN_STATEMENT, DOMAIN_STATEMENT_LINES, DOMAIN_TITLE, DOMAIN_WAYPOINT
 import { Resolver } from "../lib/actuality/pipelines/resolver.js";
 import { FlowRunner, inheritedMode } from "../lib/steps/pipelines/flow-runner.js";
 import { ControlEvent, LifecycleEvent, STATUS, type TStatus } from "../lib/domains/protocol.js";
-import { buildDomainChain } from "../lib/domain-chain.js";
-import { GOAL_FINDING, resolveGoal } from "../lib/goal-resolver.js";
-import { readFacts } from "../lib/records/pipelines/facts.js";
+import { GOAL_FINDING, WAYPOINT_KIND, type TWaypointEntry, type TWaypointKind } from "../lib/domains/goal-resolution.js";
+import { resolveGoals } from "../lib/pipelines/goal-resolution.js";
 import { runRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { stepMethodName } from "../lib/steps/domains/step-method.js";
-import { WAYPOINT_KIND, type TWaypointEntry, type TWaypointKind } from "../lib/affordances.js";
 import { phraseParameters } from "../lib/steps/domains/phrase.js";
 import { callerHolds } from "../lib/domains/capability-context.js";
 import { z } from "zod";
@@ -478,15 +476,18 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		if (saved.length > 0) runRegistry(world).refresh(steppers, world);
 	}
 
+	/** Resolves a goal domain against actuality's steppers and facts, for the steps the caller may call. */
+	private async resolveGoal(domainKey: string) {
+		const world = this.getWorld();
+		return itemAt(await resolveGoals({ steppers: runSteppers(world), domains: world.domains, store: world.shared.getStore() }, [domainKey], { held: callerHolds() }), 0);
+	}
+
 	/**
 	 * Checks whether working memory holds a fact of the goal domain. Returns `satisfied: true` where one exists. Returns
 	 * the reason and detail of the resolver's `refused` finding in `refused`.
 	 */
 	private async checkDeclarativeGoal(domainKey: string): Promise<{ satisfied: boolean; refused?: string }> {
-		const world = this.getWorld();
-		const graph = buildDomainChain(runSteppers(world), world.domains);
-		const facts = await readFacts(world.shared.getStore());
-		const resolution = resolveGoal(domainKey, { graph, facts, held: callerHolds() });
+		const resolution = await this.resolveGoal(domainKey);
 		if (resolution.finding === GOAL_FINDING.SATISFIED) return { satisfied: true };
 		if (resolution.finding === GOAL_FINDING.REFUSED) return { satisfied: false, refused: `${resolution.refusalReason}: ${resolution.detail}` };
 		return { satisfied: false };
@@ -500,10 +501,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	 */
 	private async runDeclarativeEnsure(domainKey: string, featureStep: TFeatureStep): Promise<{ handled: boolean; ok: boolean; errorMessage?: string }> {
 		const world = this.getWorld();
-		const steppers = runSteppers(world);
-		const graph = buildDomainChain(steppers, world.domains);
-		const facts = await readFacts(world.shared.getStore());
-		const resolution = resolveGoal(domainKey, { graph, facts, held: callerHolds() });
+		const resolution = await this.resolveGoal(domainKey);
 
 		if (resolution.finding === GOAL_FINDING.SATISFIED) return { handled: true, ok: true };
 		if (resolution.finding === GOAL_FINDING.REFUSED) return { handled: false, ok: false, errorMessage: `goal-${resolution.refusalReason}: ${resolution.detail}` };

@@ -5,18 +5,16 @@
  * `trackHttpRequest`, and `trackOutboundRequest` records a request the instance makes.
  */
 
-import { RPC_ROUTE, SSE_ROUTE } from "./transport/ports.js";
+import { RPC_ROUTE, SSE_ROUTE } from "../transport/ports.js";
 import { z } from "zod";
-import type { TWorld } from "./actuality/domains/world.js";
-import { ENDPOINT_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL, HTTP_REQUEST_LABEL, LinkRelations, writeEdge, writeReferenceEdge } from "./domains/resources.js";
-import { activeSitePrincipal } from "./domains/host-id.js";
-import { declareBlips } from "./domains/blips.js";
-import { recordBlip } from "./pipelines/record-blip.js";
-import { recordOf } from "./records/pipelines/record-reads.js";
+import type { TWorld } from "../actuality/domains/world.js";
+import { ENDPOINT_CLASS, ENDPOINT_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL, HTTP_REQUEST_LABEL, LinkRelations, writeEdge, writeReferenceEdge } from "../domains/resources.js";
+import { activeSitePrincipal } from "../domains/host-id.js";
+import { declareBlips } from "../domains/blips.js";
+import { recordBlip } from "./record-blip.js";
+import { recordOf } from "../records/pipelines/record-reads.js";
 
 const CLIENT_ID = "client";
-/** The endpoint classes: a page route of this site, a service route of the app (/rpc, /sse), or another host. */
-export const ENDPOINT_CLASS = { route: "route", service: "service", external: "external" } as const;
 /** The blip for every observed request. The graph and the sequence read the persisted record. A trace shows this blip
  *  in order, under the step that caused the request. trackHttpRequest records it for every request, and recordBlip
  *  returns early when the blip doesn't have a subscriber. */
@@ -31,6 +29,11 @@ declareBlips({
 	origin: true,
 });
 
+const SERVICE_PATH_PREFIXES = [SSE_ROUTE, RPC_ROUTE] as const;
+
+/** True when a path is one of the app's service routes (/rpc, /sse) and not a page route. */
+const isServicePath = (path: string): boolean => SERVICE_PATH_PREFIXES.some((p) => path === p || path.startsWith(p));
+
 /** The site's own host node's display name. */
 const SITE_NAME = "This site";
 
@@ -42,11 +45,6 @@ const HostCountSchema = z.object({ requestCount: z.number().default(0) });
  *  sequence view draws that target as the message's source lifeline, so each message points from requester to
  *  destination. */
 type THttpOrigin = "client" | "site";
-
-const SERVICE_PATH_PREFIXES = [SSE_ROUTE, RPC_ROUTE] as const;
-
-/** True when a path is one of the app's service routes (/rpc, /sse) and not a page route. */
-export const isServicePath = (path: string): boolean => SERVICE_PATH_PREFIXES.some((p) => path === p || path.startsWith(p));
 
 /** Classifies an HTTP path against registered route paths. Returns the endpoint class and the endpoint path. The endpoint
  *  path is the registered route the path matches, or the path itself when a registered route doesn't match. A

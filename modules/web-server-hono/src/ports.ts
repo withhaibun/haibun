@@ -35,6 +35,8 @@ export function pathParam(c: Context, name: string): string {
 export type TRoutePurpose = {
 	/** The purpose in words, such as "OID4VCI issuer metadata". */
 	description: string;
+	/** Set on a service route of the app (/rpc, /sse), which its endpoint records as a service rather than a page route. */
+	service?: true;
 };
 
 /** The type of the record that persists each mounted route, which an observed HTTP request edges toward. */

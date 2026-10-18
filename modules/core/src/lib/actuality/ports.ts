@@ -5,8 +5,9 @@ import type { TRunPolicyConfig } from "../../run-policy/domains/run-policy.js";
 import type { TFeaturesBackgrounds } from "./domains/execution.js";
 import type { TBase } from "./domains/world.js";
 
-/** The time of an event or a record, in milliseconds since the epoch, and a wait of a number of milliseconds. */
-export type TClock = { now: () => number; wait: (ms: number) => Promise<void> };
+/** The time of an event or a record in milliseconds since the epoch, a wait of a number of milliseconds, and a task after a
+ *  number of milliseconds, which the returned function cancels. A task that doesn't hold the process lets it exit first. */
+export type TClock = { now: () => number; wait: (ms: number) => Promise<void>; after: (ms: number, task: () => void, holdsProcess: boolean) => () => void };
 
 /** How a feature source refuses a base that doesn't hold a feature or a background. */
 export const BASE_WITHOUT_FEATURES = "doesn't hold a feature or a background";

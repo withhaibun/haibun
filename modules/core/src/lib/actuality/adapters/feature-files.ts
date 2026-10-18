@@ -9,8 +9,45 @@ import type { TBase } from "../domains/world.js";
 import { BASE_WITHOUT_FEATURES, type TFeatureSource } from "../ports.js";
 import { withName } from "../../domains/features.js";
 import type { TFileSystem } from "../../adapters/workspace-lib.js";
-import { toBdd } from "../../../kireji/converter.js";
+import type { TActionExecutor } from "../../../kireji/derivations/withAction.js";
 import { type TRunPolicyConfig, type TDirFilter, featureMatchesFilter } from "../../../run-policy/domains/run-policy.js";
+
+// A kireji feature: steps are either TActionExecutor functions or plain prose strings.
+type TkirejiFeature = { [key: string]: (TActionExecutor<string> | string)[] };
+
+type TBddWithLineMap = {
+	content: string;
+	lineMap: Map<number, number>; // bddLineNumber (1-indexed) -> stepIndex (0-indexed in source array)
+};
+
+/**
+ * Convert a kireji feature object into a BDD-formatted string, executing functional steps to
+ * obtain their GWTA and mapping each output line to its source step index.
+ */
+export const toBdd = (feature: TkirejiFeature): TBddWithLineMap => {
+	let bddString = "";
+	const lineMap = new Map<number, number>();
+	let currentLine = 1; // 1-indexed line number in output
+
+	for (const [featureName, steps] of Object.entries(feature)) {
+		bddString += `Feature: ${featureName}\n`;
+		currentLine++; // Feature line doesn't map to a step
+
+		for (const [stepIdx, step] of steps.entries()) {
+			// Handle both function executors and plain prose strings
+			if (typeof step === "string") {
+				bddString += `  ${step}\n`;
+			} else {
+				const { gwta } = step();
+				bddString += `  ${gwta}\n`;
+			}
+			lineMap.set(currentLine, stepIdx);
+			currentLine++;
+		}
+	}
+
+	return { content: bddString, lineMap };
+};
 
 /** The feature source that reads a file system. */
 export const featureFiles = (fs: TFileSystem): TFeatureSource => ({

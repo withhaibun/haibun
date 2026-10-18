@@ -838,6 +838,8 @@ export type TComment = z.infer<typeof CommentSchema>;
 /** A registered route as a graph vertex. The web server persists it at mount. Observed requests target it, and the
  *  principal that serves it publishes it. */
 export const ENDPOINT_LABEL = "Endpoint";
+/** The endpoint classes: a page route of this site, a service route of the app (/rpc, /sse), or another host. */
+export const ENDPOINT_CLASS = { route: "route", service: "service", external: "external" } as const;
 /** The type of every observed HTTP request and the only network-interaction record. Its `performedBy` and `target`
  *  edges make it a message in the polymorphic view's sequence view. */
 export const HTTP_REQUEST_LABEL = "HttpRequest";

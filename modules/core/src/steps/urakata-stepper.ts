@@ -8,7 +8,8 @@ import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type 
 import { actionNotOK, actionOK, actionOKWithProducts } from "../lib/domains/util.js";
 import { Access, LinkRelations } from "../lib/domains/resources.js";
 import { EVENT_ATTRIBUTE, STEP_FAILURE_EVENT } from "../lib/domains/protocol.js";
-import { URAKATA, URAKATA_ID_DOMAIN, URAKATA_LABEL, UrakataRegistry, UrakataSchema, type IHasUrakata, type IUrakataRegistry, urakataIdDomainDefinition } from "../lib/urakata.js";
+import { UrakataRegistry } from "../lib/pipelines/urakata.js";
+import { URAKATA, URAKATA_ID_DOMAIN, URAKATA_LABEL, UrakataSchema, type IHasUrakata, type IUrakataRegistry, urakataIdDomainDefinition } from "../lib/domains/urakata.js";
 
 const DOMAIN_URAKATA_LIST = "urakata-list";
 const UrakataListSchema = z.object({ urakata: z.array(UrakataSchema) });

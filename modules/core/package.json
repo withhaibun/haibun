@@ -84,6 +84,9 @@
 		"./lib/capability-context.js": { "haibun-source": "./src/lib/domains/capability-context.js", "default": "./build/lib/domains/capability-context.js" },
 		"./lib/util/index.js": { "haibun-source": "./src/lib/domains/util.js", "default": "./build/lib/domains/util.js" },
 		"./lib/jsonld-loader.js": { "haibun-source": "./src/lib/domains/jsonld-loader.js", "default": "./build/lib/domains/jsonld-loader.js" },
+		"./lib/session-authority.js": { "haibun-source": "./src/lib/domains/session-authority.js", "default": "./build/lib/domains/session-authority.js" },
+		"./lib/urakata.js": { "haibun-source": "./src/lib/domains/urakata.js", "default": "./build/lib/domains/urakata.js" },
+		"./lib/http-observations.js": { "haibun-source": "./src/lib/pipelines/http-observations.js", "default": "./build/lib/pipelines/http-observations.js" },
 		"./*": { "haibun-source": "./src/*", "default": "./build/*" }
 	},
 	"files": ["build/**", "haibun-core-specl.schema.json"],

@@ -11,9 +11,9 @@ import {
 	LinkRelations,
 	PersistedVertexSchema,
 	TDomainDefinition,
+	ENDPOINT_CLASS,
 } from "@haibun/core/lib/domains/resources.js";
 import { asDomainKey, createEnumDomainDefinition, NameSchema } from "@haibun/core/lib/domains/domains.js";
-import { ENDPOINT_CLASS } from "@haibun/core/lib/http-observations.js";
 import {
 	BrowserTabSchema,
 	BrowserTabTextSchema,

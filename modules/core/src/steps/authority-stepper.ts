@@ -4,7 +4,8 @@ import { persistPrincipalIndividual } from "../lib/domains/principal-individual.
 import type { TWorld } from "../lib/actuality/domains/world.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type TFeatureStep, type TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/domains/util.js";
-import { AUTHORITY_KEY, SessionAuthority } from "../lib/session-authority.js";
+import { SessionAuthority } from "../lib/pipelines/session-authority.js";
+import { AUTHORITY_KEY } from "../lib/domains/session-authority.js";
 import { DELEGATIONS_READ_ACTION, DOMAIN_HELD_CALLS, HeldCallsSchema, type IAuthority } from "../lib/domains/authority-types.js";
 import { DOMAIN_ACTIONS, DOMAIN_JSON, DOMAIN_LINK, DOMAIN_PRINCIPAL_REF } from "../lib/domains/domains.js";
 import { FlowRunner } from "../lib/steps/pipelines/flow-runner.js";
@@ -49,7 +50,7 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 		// setWorld creates the authority before any feature starts. A stepper registers a verifier or an issuer in its
 		// startFeature cycle, and the startFeature cycles run in the order a deployment lists the steppers. The authority
 		// exists before every startFeature cycle, so registration doesn't depend on that order.
-		this.authority = new SessionAuthority();
+		this.authority = new SessionAuthority(world.clock);
 		(world.runtime.keys ??= {})[AUTHORITY_KEY] = this.authority;
 	}
 

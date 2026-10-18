@@ -7,7 +7,7 @@ import { registerDomains } from "../domains/domains.js";
 import { getDefaultWorld } from "../test/lib.js";
 import type { TWorld } from "../actuality/domains/world.js";
 import { readFacts } from "../records/pipelines/facts.js";
-import type { TMichi } from "../goal-resolver.js";
+import type { TMichi } from "../derivations/goal-resolver.js";
 import { CHAIN_INSTANCE_STATUS, createChainInstance } from "./chain-instance.js";
 import { advanceChainInstance } from "./chain-walker.js";
 import { RUN_AUTHORITY, runActingAs } from "../domains/capability-context.js";

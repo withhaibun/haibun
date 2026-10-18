@@ -377,8 +377,9 @@ describe("examining a finished test run", () => {
 			// The started test run is the step's declared product, so the goal graph holds a producer edge to it. Resolving
 			// `run-started` returns runTest or runAllTests as the michi. The resolver selects the step by its declared
 			// product and not by a naming convention.
-			const { buildDomainChain } = await import("@haibun/core/lib/domain-chain.js");
-			const { resolveGoal, GOAL_FINDING } = await import("@haibun/core/lib/goal-resolver.js");
+			const { buildDomainChain } = await import("@haibun/core/lib/derivations/domain-chain.js");
+			const { resolveGoal } = await import("@haibun/core/lib/derivations/goal-resolver.js");
+			const { GOAL_FINDING } = await import("@haibun/core/lib/domains/goal-resolution.js");
 			const stepper = new TestRunnerStepper();
 			const domains = mapDefinitionsToDomains(runDomainDefinitions);
 			const graph = buildDomainChain([stepper as never], domains);

@@ -16,13 +16,14 @@
  *   - This module only searches, and it doesn't execute a michi. A step such as `pursue {goal}` executes one.
  */
 import { z } from "zod";
-import { itemAt } from "./domains/item-at.js";
-import { navigateValue } from "./domains/dot-path.js";
+import { itemAt } from "../domains/item-at.js";
+import { navigateValue } from "../domains/dot-path.js";
 import { SOURCE_DOMAIN, type TDomainChainGraph, type TDomainChainStep } from "./domain-chain.js";
-import type { TFact } from "./records/domains/facts.js";
-import { getCompositeFields, zodTypeLabel, type TCompositeField } from "./domains/composite-domain.js";
-import type { TRegisteredDomain } from "./domains/resources.js";
-import { mayCall } from "./domains/actions.js";
+import type { TFact } from "../records/domains/facts.js";
+import { getCompositeFields, zodTypeLabel, type TCompositeField } from "../domains/composite-domain.js";
+import type { TRegisteredDomain } from "../domains/resources.js";
+import { mayCall } from "../domains/actions.js";
+import { GOAL_FINDING } from "../domains/goal-resolution.js";
 
 type TPlanStep = {
 	stepperName: string;
@@ -91,8 +92,6 @@ const ShibariSchema = z.union([
 type TShibari = z.infer<typeof ShibariSchema>;
 
 const SHIBARI_OPERATORS = ShibariSchema.options.flatMap((option) => Object.keys(option.shape));
-
-export const GOAL_FINDING = { SATISFIED: "satisfied", MICHI: "michi", UNREACHABLE: "unreachable", REFUSED: "refused" } as const;
 
 export const REFUSAL_REASON = { CAPABILITY_CONTEXT_REQUIRED: "capability-context-required" } as const;
 

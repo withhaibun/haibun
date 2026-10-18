@@ -9,11 +9,13 @@ import { Hono } from "hono";
 import { grantedCapabilityForRequest, requiring } from "./capability-verifier.js";
 import { DELEGATIONS_READ_ACTION } from "@haibun/core/lib/domains/authority-types.js";
 import { REFUSED_INVOCATION, RELOAD } from "@haibun/core/lib/rpc-wire.js";
-import { SessionAuthority, AUTHORITY_KEY } from "@haibun/core/lib/session-authority.js";
+import { SessionAuthority } from "@haibun/core/lib/pipelines/session-authority.js";
+import { AUTHORITY_KEY } from "@haibun/core/lib/domains/session-authority.js";
 import { runActingAs } from "@haibun/core/lib/domains/capability-context.js";
 import { currentPrincipal } from "@haibun/core/lib/pipelines/principal.js";
 import type { TRuntime, TWorld } from "@haibun/core/lib/world.js";
 import type { IAuthorityVerifier, TAuthorityAct, TAuthorityEvidence, TDelegations, TVerdict } from "@haibun/core/lib/domains/authority-types.js";
+import { actualityClock } from "@haibun/core/lib/actuality/root.js";
 
 const READER = "did:key:zReader";
 const ACTION = "comment.grant";
@@ -59,7 +61,7 @@ const signedRequest = (action: string) => ({
 
 describe("what a request carries to a boundary", () => {
 	it("grants the action a proof invokes, holds what its chain allows, and states who proved it, so what is done under it can name them", async () => {
-		const authority = new SessionAuthority();
+		const authority = new SessionAuthority(actualityClock());
 		authority.registerVerifier(new StubVerifier());
 		const carried = await grantedCapabilityForRequest(signedRequest(ACTION), runtimeWith(authority), NOBODY);
 		expect(carried.granted, "the action the request invoked, and not another its delegation allows").toEqual([ACTION]);
@@ -68,13 +70,13 @@ describe("what a request carries to a boundary", () => {
 	});
 
 	it("grants what the deployment allows without a delegation beside what a proof invokes", async () => {
-		const authority = new SessionAuthority();
+		const authority = new SessionAuthority(actualityClock());
 		authority.registerVerifier(new StubVerifier());
 		expect((await grantedCapabilityForRequest(signedRequest(ACTION), runtimeWith(authority), PUBLIC_SITE)).granted).toEqual([READ_PUBLIC, ACTION]);
 	});
 
 	it("refuses a request whose proof fails, without granting an action or naming a principal", async () => {
-		const authority = new SessionAuthority();
+		const authority = new SessionAuthority(actualityClock());
 		authority.registerVerifier(new StubVerifier());
 		const carried = await grantedCapabilityForRequest(signedRequest("comment.revoke"), runtimeWith(authority), PUBLIC_SITE);
 		expect(carried.refused, "the request is refused, with the verifier's reason").toBe("the presented authority failed verification: not this one");
@@ -83,12 +85,12 @@ describe("what a request carries to a boundary", () => {
 	});
 
 	it("refuses a request presenting a proof that the runtime can't verify", async () => {
-		const carried = await grantedCapabilityForRequest(signedRequest(ACTION), runtimeWith(new SessionAuthority()), NOBODY);
+		const carried = await grantedCapabilityForRequest(signedRequest(ACTION), runtimeWith(new SessionAuthority(actualityClock())), NOBODY);
 		expect(carried.refused).toBe("the request presents authority, and a verifier isn't registered to check it");
 	});
 
 	it("holds what doesn't need a delegation and doesn't name a principal for a request that doesn't present authority, whatever else it carries", async () => {
-		const authority = new SessionAuthority();
+		const authority = new SessionAuthority(actualityClock());
 		authority.registerVerifier(new StubVerifier());
 		const presentingNothing = { method: "POST", url: "http://site.test:8123/rpc/x", headers: { authorization: "Bearer tkn" } };
 		expect(await grantedCapabilityForRequest(presentingNothing, runtimeWith(authority), NOBODY), "a secret it carries isn't authority").toEqual({ granted: [], held: [] });
@@ -99,7 +101,7 @@ describe("what a request carries to a boundary", () => {
 	});
 
 	it("doesn't hold what a caller holds without a delegation for a page of another site sending through a reader's browser, where a proof still does", async () => {
-		const authority = new SessionAuthority();
+		const authority = new SessionAuthority(actualityClock());
 		authority.registerVerifier(new StubVerifier());
 		const fromAnotherSite = { host: "site.test:8123", origin: "https://elsewhere.example" };
 		const unproven = { method: "POST", url: "http://site.test:8123/rpc/x", headers: fromAnotherSite };
@@ -114,7 +116,7 @@ describe("what a request carries to a boundary", () => {
 describe("a route that requires an action", () => {
 	/** A route serving only a request that allows the action, at a deployment allowing `allowed` without a delegation. */
 	const held = (allowed: string[]) => {
-		const authority = new SessionAuthority();
+		const authority = new SessionAuthority(actualityClock());
 		authority.registerVerifier(new StubVerifier());
 		const app = new Hono();
 		app.get("/held/*", requiring(ACTION, runtimeWith(authority), serving(allowed)), (c) => c.text("held"));

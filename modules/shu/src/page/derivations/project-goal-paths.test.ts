@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { TMichi } from "@haibun/core/lib/goal-resolver.js";
+import type { TMichi } from "@haibun/core/lib/derivations/goal-resolver.js";
 import { pathId, projectGoalPaths } from "./project-goal-paths.js";
 
 const michiA: TMichi = {

@@ -19,37 +19,10 @@
 	"modules/cli/src/verified.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/core/src/kireji/converter.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/affordances.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/core-domains.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/domain-chain-lint.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/domain-chain.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/goal-resolver.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/http-observations.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/core/src/lib/owned-children.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/port-occupant.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/session-authority.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/urakata.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/artifact-url.ts": {

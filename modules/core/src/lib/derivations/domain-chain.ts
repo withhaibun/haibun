@@ -8,12 +8,12 @@
  * Forward dispatch and goal resolution traverse the same graph the executor builds
  * here: that is the anti-drift property of this design.
  */
-import type { AStepper, TStepperStep } from "./steps/domains/stepper.js";
-import type { TRegisteredDomain } from "./domains/resources.js";
-import { constructorName } from "./domains/util.js";
-import { isPrimitiveDomain, normalizeDomainKey } from "./domains/domains.js";
-import { requiredAction } from "./domains/actions.js";
-import { stepParamDomains } from "./steps/derivations/step-tools.js";
+import type { AStepper, TStepperStep } from "../steps/domains/stepper.js";
+import type { TRegisteredDomain } from "../domains/resources.js";
+import { constructorName } from "../domains/util.js";
+import { isPrimitiveDomain, normalizeDomainKey } from "../domains/domains.js";
+import { requiredAction } from "../domains/actions.js";
+import { stepParamDomains } from "../steps/derivations/step-tools.js";
 
 /** Sentinel source domain for terminal producers (steps that don't need inputs). */
 export const SOURCE_DOMAIN = "∅";

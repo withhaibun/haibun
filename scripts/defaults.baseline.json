@@ -25,11 +25,11 @@
 	"modules/core/src/lib/adapters/workspace-lib.ts": {
 		"states a parameter's default value": 1
 	},
-	"modules/core/src/lib/affordances.ts": {
+	"modules/core/src/lib/derivations/affordances.ts": {
 		"fills an absent value with a constant through ??": 1
 	},
-	"modules/core/src/lib/core-domains.ts": {
-		"states a schema's default value through .default()": 2
+	"modules/core/src/lib/derivations/goal-resolver.ts": {
+		"fills an absent value with a constant through ??": 5
 	},
 	"modules/core/src/lib/derivations/quad-graph-model.ts": {
 		"fills an absent value with a constant through ??": 4,
@@ -80,16 +80,19 @@
 		"fills an absent value with a constant through ??": 2,
 		"states a schema's default value through .default()": 13
 	},
-	"modules/core/src/lib/goal-resolver.ts": {
-		"fills an absent value with a constant through ??": 5
-	},
-	"modules/core/src/lib/http-observations.ts": {
-		"fills an absent value with a constant through ??": 1,
-		"states a parameter's default value": 1,
+	"modules/core/src/lib/domains/urakata.ts": {
 		"states a schema's default value through .default()": 1
 	},
 	"modules/core/src/lib/pipelines/chain-walker.ts": {
 		"fills an absent value with a constant through ??": 2
+	},
+	"modules/core/src/lib/pipelines/core-domains.ts": {
+		"states a schema's default value through .default()": 2
+	},
+	"modules/core/src/lib/pipelines/http-observations.ts": {
+		"fills an absent value with a constant through ??": 1,
+		"states a parameter's default value": 1,
+		"states a schema's default value through .default()": 1
 	},
 	"modules/core/src/lib/pipelines/principal.ts": {
 		"fills an absent value with a constant through ??": 1
@@ -112,9 +115,6 @@
 	},
 	"modules/core/src/lib/records/pipelines/discourse-writes.ts": {
 		"fills an absent value with a constant through ??": 1
-	},
-	"modules/core/src/lib/urakata.ts": {
-		"states a schema's default value through .default()": 1
 	},
 	"modules/core/src/run-policy/pipelines/policy-file.ts": {
 		"fills an absent value with a constant through ??": 3,

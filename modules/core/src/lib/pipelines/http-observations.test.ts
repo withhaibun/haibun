@@ -1,12 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { trackHttpRequest, classifyHttpPath, ENDPOINT_CLASS } from "./http-observations.js";
-import { ENDPOINT_LABEL, HTTP_REQUEST_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL } from "./domains/resources.js";
-import { activeSitePrincipal } from "./domains/host-id.js";
-import { registeredPaths, type IRouteRegistry } from "./actuality/domains/execution.js";
-import type { TWorld } from "./actuality/domains/world.js";
-import type { TQuad } from "./steps/domains/quad-types.js";
-import type { QuadStore } from "./steps/pipelines/quad-store.js";
-import { storeDeclaring } from "./test/declared-types.js";
+import { trackHttpRequest, classifyHttpPath } from "./http-observations.js";
+import { ENDPOINT_CLASS, ENDPOINT_LABEL, HTTP_REQUEST_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL } from "../domains/resources.js";
+import { activeSitePrincipal } from "../domains/host-id.js";
+import { registeredPaths, type IRouteRegistry } from "../actuality/domains/execution.js";
+import type { TWorld } from "../actuality/domains/world.js";
+import type { TQuad } from "../steps/domains/quad-types.js";
+import type { QuadStore } from "../steps/pipelines/quad-store.js";
+import { storeDeclaring } from "../test/declared-types.js";
 
 const MOUNTED: IRouteRegistry = {
 	mounted: { get: { "/app": "1", "/.well-known/did.json": "1", "/status/:purpose": "1", "/sse": "1" }, post: { "/rpc/:_method": "1", "/reports/check": "1" } },

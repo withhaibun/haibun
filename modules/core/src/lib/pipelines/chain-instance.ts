@@ -20,7 +20,7 @@
  */
 import type { TWorld } from "../actuality/domains/world.js";
 import type { IQuadStore } from "../steps/ports.js";
-import type { TMichi } from "../goal-resolver.js";
+import type { TMichi } from "../derivations/goal-resolver.js";
 import { actingAs, readingAt } from "../domains/capability-context.js";
 import { Access } from "../domains/resources.js";
 import { STATUS } from "../domains/protocol.js";

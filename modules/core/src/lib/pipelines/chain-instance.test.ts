@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { getDefaultWorld } from "../test/lib.js";
 import type { TWorld } from "../actuality/domains/world.js";
-import type { TMichi } from "../goal-resolver.js";
+import type { TMichi } from "../derivations/goal-resolver.js";
 import {
 	CHAIN_INSTANCE_GRAPH,
 	CHAIN_INSTANCE_STATUS,

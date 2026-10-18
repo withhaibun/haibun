@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { SOURCE_DOMAIN } from "@haibun/core/lib/domain-chain.js";
+import { SOURCE_DOMAIN } from "@haibun/core/lib/derivations/domain-chain.js";
 import { projectDomainChain, waypointNodeId, factNodeId, type TAffordancesSnapshot } from "./project-domain-chain.js";
 import { graphToQuads } from "./graph-quads.js";
 

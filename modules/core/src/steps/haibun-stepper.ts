@@ -22,7 +22,7 @@ import { findFeatures } from "../lib/domains/features.js";
 import { FlowRunner, inheritedMode } from "../lib/steps/pipelines/flow-runner.js";
 import { QuadStore } from "../lib/steps/pipelines/quad-store.js";
 import { remoteQuadStore } from "./root.js";
-import { requestSigner } from "../lib/session-authority.js";
+import { requestSigner } from "../lib/domains/session-authority.js";
 import { SERVING } from "../lib/domains/serving.js";
 import { discoverSteps } from "../lib/steps/pipelines/discover-steps.js";
 import { runRegistry } from "../lib/steps/pipelines/step-registry.js";

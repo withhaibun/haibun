@@ -1,18 +1,18 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
 
-import { AStepper, type TStepperSteps } from "./steps/domains/stepper.js";
-import { deriveNamingDomains, mapDefinitionsToDomains, refDomainKey } from "./domains/domains.js";
-import { Access, LinkRelations } from "./domains/resources.js";
-import { actionOKWithProducts } from "./domains/util.js";
-import { itemAt } from "./domains/item-at.js";
-import { OK } from "./domains/protocol.js";
+import { AStepper, type TStepperSteps } from "../steps/domains/stepper.js";
+import { deriveNamingDomains, mapDefinitionsToDomains, refDomainKey } from "../domains/domains.js";
+import { Access, LinkRelations } from "../domains/resources.js";
+import { actionOKWithProducts } from "../domains/util.js";
+import { itemAt } from "../domains/item-at.js";
+import { OK } from "../domains/protocol.js";
 import { buildDomainChain } from "./domain-chain.js";
 import { LINT_FINDING, lintDomainChain, lintFindingLine } from "./domain-chain-lint.js";
-import { getCoreDomains } from "./core-domains.js";
-import { failWithDefaults, getDefaultWorld, passWithDefaults } from "./test/lib.js";
-import { DOMAIN_TEXT } from "./domains/domains.js";
-import { DOMAIN_INDIVIDUAL_ADDRESS } from "./domains/typed-links.js";
+import { getCoreDomains } from "../pipelines/core-domains.js";
+import { failWithDefaults, getDefaultWorld, passWithDefaults } from "../test/lib.js";
+import { DOMAIN_TEXT } from "../domains/domains.js";
+import { DOMAIN_INDIVIDUAL_ADDRESS } from "../domains/typed-links.js";
 
 const PERSON = "person";
 const EMAIL = "letter";

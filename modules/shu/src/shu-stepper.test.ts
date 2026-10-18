@@ -5,7 +5,8 @@ import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { getStepperOptionName } from "@haibun/core/lib/domains/util.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
-import { AUTHORITY_KEY, SessionAuthority } from "@haibun/core/lib/session-authority.js";
+import { SessionAuthority } from "@haibun/core/lib/pipelines/session-authority.js";
+import { AUTHORITY_KEY } from "@haibun/core/lib/domains/session-authority.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import ShuStepper from "./shu-stepper.js";
@@ -13,6 +14,7 @@ import { buildSpaHtml } from "./derivations/page-html.js";
 import { mayFrame } from "./derivations/content-security-policy.js";
 import { EMBEDDER_ORIGIN_OPTION, PAGE_ASSETS, PAGE_BUNDLE_JS } from "./domains/serving.js";
 import { gunzipSync } from "node:zlib";
+import { actualityClock } from "@haibun/core/lib/actuality/root.js";
 
 /** A page's script nonce, as a test states one. */
 const NONCE = "a-test-nonce";
@@ -83,7 +85,7 @@ describe("the app a deployment serves", () => {
 		expect(served(), "and the build its code is from, so a deployment serving an old page is recognized").toMatch(
 			new RegExp(`"build":\\{"version":"${currentVersion}","builtAt":"\\d{4}-\\d{2}-\\d{2}T`),
 		);
-		const authority = new SessionAuthority();
+		const authority = new SessionAuthority(actualityClock());
 		const recordsNothing = async () => ({ ok: false as const, error: "records nothing" });
 		authority.registerVerifier({
 			verify: async () => ({ ok: false as const, error: "the stand-in refuses every proof" }),

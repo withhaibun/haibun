@@ -14,7 +14,7 @@ import { hostScopedMethodName } from "../steps/domains/step-method.js";
 import { callInput } from "../steps/pipelines/populate-action-args.js";
 import { EVERY_DEFINITION, SHOW_STEPS_ACTION, SHOW_STEPS_METHOD, type TStepDescriptor } from "../steps/domains/step-discovery.js";
 import { readShownSteps } from "../steps/domains/step-discovery.js";
-import { requestSigner } from "../session-authority.js";
+import { requestSigner } from "../domains/session-authority.js";
 import type { TRemoteSteps } from "./ports.js";
 import { remoteSteps } from "./root.js";
 

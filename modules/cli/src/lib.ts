@@ -20,7 +20,7 @@ import { Runner } from "@haibun/core/lib/pipelines/runner.js";
 import { FeatureVariables, secretsOf } from "@haibun/core/lib/feature-variables.js";
 import { Prompter } from "@haibun/core/lib/prompts/pipelines/prompter.js";
 import { consolePrompter } from "@haibun/core/lib/prompts/root.js";
-import { getCoreDomains } from "@haibun/core/lib/core-domains.js";
+import { getCoreDomains } from "@haibun/core/lib/pipelines/core-domains.js";
 import { EventLogger } from "@haibun/core/lib/EventLogger.js";
 import { eventSink } from "@haibun/core/lib/steps/root.js";
 import { OPTION_RUN_POLICY, OPTION_DRY_RUN, HAIBUN_RUN_POLICY, parseRunPolicyArgs, parseRunPolicyEnv, type TRunPolicyConfig } from "@haibun/core/run-policy/domains/run-policy.js";

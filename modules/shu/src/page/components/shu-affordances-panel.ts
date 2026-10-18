@@ -14,15 +14,9 @@ import { affordancesOnOffer } from "../controllers/read-controller.js";
 import { LoadController } from "../controllers/load-controller.js";
 import "./shu-refusal.js";
 import { type TEvent } from "../ports.js";
-import { GOAL_FINDING, type TMichi, type TBinding, type TFieldBinding } from "@haibun/core/lib/goal-resolver.js";
-import {
-	isArgumentDomain,
-	AFFORDANCE_EVENT_PREFIX,
-	type TForwardAffordance,
-	type TGoalAffordance,
-	type TWaypointEntry,
-	satisfiedGoalDomains,
-} from "@haibun/core/lib/affordances.js";
+import type { TMichi, TBinding, TFieldBinding } from "@haibun/core/lib/derivations/goal-resolver.js";
+import { GOAL_FINDING, AFFORDANCE_EVENT_PREFIX, type TWaypointEntry } from "@haibun/core/lib/domains/goal-resolution.js";
+import { isArgumentDomain, type TForwardAffordance, type TGoalAffordance, satisfiedGoalDomains } from "@haibun/core/lib/derivations/affordances.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { SHU_EVENT, AFFORDANCE_PARAM, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";

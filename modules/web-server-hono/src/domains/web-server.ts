@@ -3,8 +3,7 @@
  * is recorded as, the ports this process listens on, and what holding authority over the server means.
  */
 import { z } from "zod";
-import { PersistedVertexSchema } from "@haibun/core/lib/domains/resources.js";
-import { ENDPOINT_CLASS } from "@haibun/core/lib/http-observations.js";
+import { ENDPOINT_CLASS, PersistedVertexSchema } from "@haibun/core/lib/domains/resources.js";
 import { MODULE_OPTION_PREFIX } from "@haibun/core/lib/domains/protocol.js";
 
 /** The port the web server listens on where its PORT option isn't set. */

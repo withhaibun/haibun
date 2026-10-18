@@ -15,7 +15,7 @@ import { Runner } from "../pipelines/runner.js";
 import { FeatureVariables, secretsOf } from "../actuality/pipelines/feature-variables.js";
 import { Prompter } from "../prompts/pipelines/prompter.js";
 import { consolePrompter } from "../prompts/root.js";
-import { getCoreDomains } from "../core-domains.js";
+import { getCoreDomains } from "../pipelines/core-domains.js";
 import assert from "assert";
 import { createServer } from "node:net";
 import { EventLogger } from "../steps/pipelines/event-logger.js";

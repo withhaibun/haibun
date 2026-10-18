@@ -13,20 +13,16 @@
  * Affordances implement the HATEOAS step layer. A client that doesn't hold the registry requests them and receives
  * typed entries with the RPC name of each step.
  */
-import type { AStepper, TFeatureStep } from "./steps/domains/stepper.js";
-import type { TRegisteredDomain } from "./domains/resources.js";
-import type { TFact } from "./records/domains/facts.js";
-import { stepMethodName } from "./steps/domains/step-method.js";
-import { mayCall } from "./domains/actions.js";
+import type { AStepper } from "../steps/domains/stepper.js";
+import type { TRegisteredDomain } from "../domains/resources.js";
+import type { TFact } from "../records/domains/facts.js";
+import { stepMethodName } from "../steps/domains/step-method.js";
+import { mayCall } from "../domains/actions.js";
 import { buildDomainChain, SOURCE_DOMAIN, type TDomainChainGraph } from "./domain-chain.js";
-import { isPrimitiveDomain, refTargetOf } from "./domains/domains.js";
-import { resolveGoal, GOAL_FINDING, type TGoalResolution } from "./goal-resolver.js";
-import { compareSeqPath, factSeqPath } from "./actuality/domains/seq-path.js";
-
-/** The event-id prefix of the `affordances.<seqPath>` change signal. The goal-resolution stepper emits it in afterStep for
- *  each step that isn't a read or a projection. SPA views filter the event stream on it and re-fetch the affordances
- *  snapshot after matching events. */
-export const AFFORDANCE_EVENT_PREFIX = "affordances.";
+import { isPrimitiveDomain, refTargetOf } from "../domains/domains.js";
+import { resolveGoal, type TGoalResolution } from "./goal-resolver.js";
+import { GOAL_FINDING } from "../domains/goal-resolution.js";
+import { compareSeqPath, factSeqPath } from "../actuality/domains/seq-path.js";
 
 /**
  * Returns whether a domain's value comes from a step argument. It returns true where the domain is a primitive, or where
@@ -53,31 +49,6 @@ export type TForwardAffordance = {
 
 export type TGoalAffordance = { domain: string; description: string; resolution: TGoalResolution };
 
-export const WAYPOINT_KIND = { IMPERATIVE: "imperative", DECLARATIVE: "declarative" } as const;
-export type TWaypointKind = (typeof WAYPOINT_KIND)[keyof typeof WAYPOINT_KIND];
-
-export type TWaypointEntry = {
-	outcome: string;
-	kind: TWaypointKind;
-	method: string;
-	paramSlots: string[];
-	proofStatements: string[];
-	resolvesDomain?: string;
-	/** True where this waypoint is ensured: `ensure` ran its proof and the proof passed, or a fact satisfies its declarative goal. */
-	ensured: boolean;
-	error?: string;
-	source: { path: string; lineNumber?: number };
-	isBackground: boolean;
-};
-
-/** A stepper that contributes waypoint entries to the affordances snapshot. `show affordances` calls `waypointEntries` on
- * every registered stepper that implements it, and merges the results. `satisfiedDomains` comes from the snapshot
- * already built, so a contributor doesn't derive it again. */
-export interface ProvidesWaypoints {
-	waypointEntries(featureStep: TFeatureStep, satisfiedDomains: Set<string>): Promise<TWaypointEntry[]>;
-}
-export const providesWaypoints = (s: unknown): s is ProvidesWaypoints => typeof (s as { waypointEntries?: unknown })?.waypointEntries === "function";
-
 /**
  * Maps each composite domain to its fields. Each field maps to the registered domain of that schema field, as
  * `topology.ranges` declares it. An atomic domain doesn't have an entry. The chain view reads it to emit synthetic field
@@ -103,7 +74,7 @@ export type TAffordances = {
 	satisfiedFacts: Record<string, string[]>;
 };
 
-interface TAffordancesInputs {
+export interface TAffordancesInputs {
 	steppers: AStepper[];
 	domains: Record<string, TRegisteredDomain>;
 	facts: TFact[];

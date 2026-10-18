@@ -8,6 +8,12 @@
 	"modules/cli/src/instance-stepper.ts": {
 		"terminal-preposition": 6
 	},
+	"modules/core/src/lib/derivations/goal-resolver.composite.test.ts": {
+		"terminal-preposition": 1
+	},
+	"modules/core/src/lib/derivations/goal-resolver.ts": {
+		"terminal-preposition": 1
+	},
 	"modules/core/src/lib/domains/basic-auth.ts": {
 		"terminal-preposition": 1
 	},
@@ -33,12 +39,6 @@
 	},
 	"modules/core/src/lib/domains/taiwa.ts": {
 		"anthropomorphic": 1
-	},
-	"modules/core/src/lib/goal-resolver.composite.test.ts": {
-		"terminal-preposition": 1
-	},
-	"modules/core/src/lib/goal-resolver.ts": {
-		"terminal-preposition": 1
 	},
 	"modules/core/src/lib/pipelines/record-blip.ts": {
 		"terminal-preposition": 1

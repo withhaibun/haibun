@@ -11,7 +11,7 @@ import { getDefaultWorld, testWithWorld } from "../lib/test/lib.js";
 import { resolveSitePrincipal } from "../lib/domains/host-id.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { Access, COMMENT_LABEL, LinkRelations, type TDomainDefinition } from "../lib/domains/resources.js";
-import { getAuthority } from "../lib/session-authority.js";
+import { getAuthority } from "../lib/domains/session-authority.js";
 import { readAction } from "../lib/domains/actions.js";
 import type { TAuthorityEvidence } from "../lib/domains/authority-types.js";
 import { stubVerifier } from "../lib/test/fake-authority.js";

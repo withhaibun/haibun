@@ -84,7 +84,7 @@ describe("ServerHono", () => {
 		const settled = () => new Promise((r) => setTimeout(r, 0)); // let the mount's fire-and-forget persist complete
 
 		it("persists a service route as an Endpoint record classed 'service'", async () => {
-			server.addRoute("get", "/sse", P, (c) => c.text("ok"));
+			server.addRoute("get", "/sse", { ...P, service: true }, (c) => c.text("ok"));
 			await settled();
 			const ep = await recordOf(store, EndpointLabels.Endpoint, "/sse");
 			expect(ep?.endpointClass).toBe("service");

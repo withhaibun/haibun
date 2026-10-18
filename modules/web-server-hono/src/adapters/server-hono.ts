@@ -15,7 +15,7 @@ import { resolve, sep } from "path";
 import { esc } from "@haibun/core/lib/domains/document-content.js";
 import type { IEventLogger, IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { describePortOccupant, PROBE_TIMEOUT_MS } from "@haibun/core/lib/port-occupant.js";
-import { ENDPOINT_CLASS, isServicePath } from "@haibun/core/lib/http-observations.js";
+import { ENDPOINT_CLASS } from "@haibun/core/lib/domains/resources.js";
 import type { TRpcMethod } from "@haibun/core/lib/rpc-wire.js";
 import type { TBasicAuthUser } from "@haibun/core/lib/domains/basic-auth.js";
 import {
@@ -175,7 +175,7 @@ export class ServerHono implements IWebServer {
 		if (!prefix.endsWith(".")) throw new Error(`ServerHono.addRpcMethods: a family's prefix ends in ".", not "${prefix}"`);
 		if (this.rpcFamilies.has(prefix)) throw new Error(`ServerHono.addRpcMethods: the ${prefix} family is already served`);
 		this.rpcFamilies.set(prefix, methods);
-		this.persistEndpoint("post", `/rpc/${prefix}*`, purpose);
+		this.persistEndpoint("post", `/rpc/${prefix}*`, { ...purpose, service: true });
 	}
 
 	rpcMethod(method: string): TRpcMethod | undefined {
@@ -310,7 +310,6 @@ export class ServerHono implements IWebServer {
 	/** Persist the mounted route as an Endpoint vertex: the existing object that an observed HttpRequest edges toward. `id`
 	 *  satisfies the transitory store's default identity field; `url` is the topology's. */
 	private persistEndpoint(type: TRouteTypes, path: string, purpose: TRoutePurpose): void {
-		const isService = isServicePath(path);
 		// fire-and-forget from this sync mount path; a persist failure is a real error and must surface.
 		this.getStore()
 			.upsertIndividual(EndpointLabels.Endpoint, {
@@ -318,7 +317,7 @@ export class ServerHono implements IWebServer {
 				url: path,
 				method: type.toUpperCase(),
 				description: purpose.description,
-				endpointClass: isService ? ENDPOINT_CLASS.service : ENDPOINT_CLASS.route,
+				endpointClass: purpose.service ? ENDPOINT_CLASS.service : ENDPOINT_CLASS.route,
 				generatedAtTime: new Date().toISOString(),
 			})
 			.catch((e) => this.eventLogger.error(`persistEndpoint ${type} ${path}: ${e}`));

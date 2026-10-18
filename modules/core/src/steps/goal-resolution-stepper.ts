@@ -37,17 +37,16 @@ import {
 	DOMAIN_STEP_PATH,
 	DOMAIN_WALK_ID,
 } from "../lib/domains/domains.js";
-import { affordancesSchema, chainLintSchema, chainWalkSchema, goalResolutionSchema } from "../lib/core-domains.js";
+import { affordancesSchema, chainLintSchema, chainWalkSchema, goalResolutionSchema } from "../lib/pipelines/core-domains.js";
 import { createChainInstance, type TChainInstance } from "../lib/pipelines/chain-instance.js";
 import { advanceChainInstance } from "../lib/pipelines/chain-walker.js";
-import { buildDomainChain } from "../lib/domain-chain.js";
-import { lintDomainChain } from "../lib/domain-chain-lint.js";
-import { resolveGoal, GOAL_FINDING, type TGoalResolution, type TMichi, type TBinding } from "../lib/goal-resolver.js";
+import type { TGoalResolution, TMichi, TBinding } from "../lib/derivations/goal-resolver.js";
+import { GOAL_FINDING, providesWaypoints, AFFORDANCE_EVENT_PREFIX, type TWaypointEntry } from "../lib/domains/goal-resolution.js";
+import { itemAt } from "../lib/domains/item-at.js";
+import { affordancesOf, chainLintOf, resolveGoals, type TChainScope } from "../lib/pipelines/goal-resolution.js";
 import { runRegistry, type StepRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { stepMethodName } from "../lib/steps/domains/step-method.js";
 import { callStepByName, NO_INPUT } from "../lib/steps/pipelines/call-step.js";
-import { buildAffordances, providesWaypoints, AFFORDANCE_EVENT_PREFIX, type TWaypointEntry, satisfiedGoalDomains } from "../lib/affordances.js";
-import { readFacts } from "../lib/records/pipelines/facts.js";
 import { executionOf, factIdOf } from "../lib/actuality/domains/seq-path.js";
 import { callerHolds, RUN_AUTHORITY, stepInFlight } from "../lib/domains/capability-context.js";
 import { Access } from "../lib/domains/resources.js";
@@ -92,17 +91,13 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			const world = this.getWorld();
 			const smokeRaw = getStepperOption(this, SMOKE_GOALS, world.moduleOptions);
 			if (smokeRaw) {
-				const graph = buildDomainChain(this.steppers, world.domains);
 				const goals = smokeRaw
 					.split(",")
 					.map((s: string) => s.trim())
 					.filter((s: string) => s.length > 0);
-				const facts = await readFacts(world.shared.getStore());
-				const smokeFindings = goals.map((goal: string) => {
-					// Actuality makes this check with RUN_AUTHORITY, so the check reaches every step actuality offers.
-					const resolution = resolveGoal(goal, { graph, facts, held: RUN_AUTHORITY, ...this.compositeOptions() });
-					return { goal, finding: resolution.finding };
-				});
+				// Actuality makes this check with RUN_AUTHORITY, so the check reaches every step actuality offers.
+				const resolutions = await resolveGoals(this.chainScope(), goals, { held: RUN_AUTHORITY, ...this.compositeOptions() });
+				const smokeFindings = resolutions.map(({ goal, finding }) => ({ goal, finding }));
 				world.eventLogger.emit({
 					id: "domain-chain.smoke.startup",
 					timestamp: Date.now(),
@@ -154,11 +149,14 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		return { domains: world.domains, compositeDecomposition, compositeMaxDepth };
 	}
 
-	private async runResolution(goal: string): Promise<TGoalResolution> {
+	/** The steppers and the domains whose chain this stepper reads, and the store that holds actuality's facts. */
+	private chainScope(): TChainScope {
 		const world = this.getWorld();
-		const graph = buildDomainChain(this.steppers, world.domains);
-		const facts = await readFacts(world.shared.getStore());
-		return resolveGoal(goal, { graph, facts, held: callerHolds(), ...this.compositeOptions() });
+		return { steppers: this.steppers, domains: world.domains, store: world.shared.getStore() };
+	}
+
+	private async runResolution(goal: string): Promise<TGoalResolution> {
+		return itemAt(await resolveGoals(this.chainScope(), [goal], { held: callerHolds(), ...this.compositeOptions() }), 0);
 	}
 
 	/** Runs a michi's steps in order. callStepByName calls each step with a synthetic seqPath, as other transports call steps.
@@ -185,20 +183,10 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 	 */
 	private async computeAffordances(asOf: number[] | undefined, featureStep: TFeatureStep) {
 		const world = this.getWorld();
-		const facts = await readFacts(world.shared.getStore());
-		const composite = this.compositeOptions();
-		const affordances = buildAffordances({
-			steppers: this.steppers,
-			domains: world.domains,
-			facts,
-			held: callerHolds(),
-			compositeDecomposition: composite.compositeDecomposition,
-			compositeMaxDepth: composite.compositeMaxDepth,
-			asOfSeqPath: asOf,
-		});
+		const { compositeDecomposition, compositeMaxDepth } = this.compositeOptions();
+		const { affordances, satisfied } = await affordancesOf(this.chainScope(), { held: callerHolds(), compositeDecomposition, compositeMaxDepth, asOfSeqPath: asOf });
 		const waypoints: TWaypointEntry[] = [];
 		if (!asOf) {
-			const satisfied = satisfiedGoalDomains(affordances.goals, GOAL_FINDING.SATISFIED);
 			for (const stepper of this.steppers) if (providesWaypoints(stepper)) waypoints.push(...(await stepper.waypointEntries(featureStep, satisfied)));
 		}
 		return actionOKWithProducts(affordancesSchema.parse({ ...affordances, waypoints, execution: executionOf(world.tag) }));
@@ -310,14 +298,10 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			gwta: "show chain lint",
 			productsDomain: DOMAIN_CHAIN_LINT,
 			action: async () => {
-				const world = this.getWorld();
-				const graph = buildDomainChain(this.steppers, world.domains);
-				const report = lintDomainChain(graph, world.domains);
 				// The bound view (`shu-domain-chain-view`) draws the chain from the affordance snapshot the product carries (forward edges,
 				// goal verdicts, the satisfied domains and their facts), with the lint findings that mark orphan, unsupplied and unreachable nodes.
-				const facts = await readFacts(world.shared.getStore());
-				const affordances = buildAffordances({ steppers: this.steppers, domains: world.domains, facts, held: callerHolds() });
-				return actionOKWithProducts(chainLintSchema.parse({ ...report, ...affordances, execution: executionOf(world.tag) }));
+				const lint = await chainLintOf(this.chainScope(), callerHolds());
+				return actionOKWithProducts(chainLintSchema.parse({ ...lint, execution: executionOf(this.getWorld().tag) }));
 			},
 		},
 	} as const satisfies TStepperSteps;

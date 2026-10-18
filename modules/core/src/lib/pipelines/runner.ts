@@ -8,7 +8,7 @@ import type { TFeaturesBackgrounds } from "../actuality/domains/execution.js";
 import { Executor, addStepperConcerns } from "../actuality/pipelines/executor.js";
 import { Resolver } from "../actuality/pipelines/resolver.js";
 import { PhaseBailError, PhaseRunner } from "../steps/pipelines/phase-runner.js";
-import { DOMAIN_CHAIN_LINT_ARTIFACT, lintRunStepGraph } from "../domain-chain-lint.js";
+import { DOMAIN_CHAIN_LINT_ARTIFACT, lintRunStepGraph } from "../derivations/domain-chain-lint.js";
 
 export class Runner {
 	steppers: AStepper[] = [];

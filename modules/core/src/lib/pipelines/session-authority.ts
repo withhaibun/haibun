@@ -4,8 +4,8 @@
  * invoker signs each request in which actuality presents its authority to another host. haibun-core doesn't contain
  * cryptography, so it doesn't read a proof or sign a request itself.
  */
-import type { TRuntime } from "./actuality/domains/world.js";
-import { actingFor, runReadingAsTheInstance } from "./domains/capability-context.js";
+import type { TClock } from "../actuality/ports.js";
+import { actingFor, runReadingAsTheInstance } from "../domains/capability-context.js";
 import type {
 	IAuthority,
 	IAuthorityInvoker,
@@ -16,17 +16,16 @@ import type {
 	TDelegations,
 	THeldCalls,
 	TOutgoingRequest,
-	TRequestSigner,
 	TRestsOn,
 	TVerdict,
-} from "./domains/authority-types.js";
+} from "../domains/authority-types.js";
 
-export const AUTHORITY_KEY = "authority";
-
-/** The longest delay setTimeout accepts. A longer delay fires at once. */
+/** The longest delay a timer accepts. A longer delay fires at once. */
 const LONGEST_TIMER_MS = 2 ** 31 - 1;
 
 export class SessionAuthority implements IAuthority {
+	/** Reads the time an expiry is compared with, and runs the task that ends a held call at its expiry. */
+	constructor(private readonly clock: TClock) {}
 	private verifier?: IAuthorityVerifier;
 	private invoker?: IAuthorityInvoker;
 	/** The held calls that rest on each capability, keyed by the capability's id. */
@@ -96,17 +95,17 @@ export class SessionAuthority implements IAuthority {
 			if (calls === undefined) this.held.set(id, new Set([call]));
 			else calls.add(call);
 		}
-		let timer: ReturnType<typeof setTimeout> | undefined;
+		let cancel: (() => void) | undefined;
 		const until = expires === undefined ? undefined : Date.parse(expires);
 		if (Number.isNaN(until)) throw new Error(`a held call rests on authority with an expiry that isn't a time: ${expires}`);
 		const expiring = () => {
-			const left = (until as number) - Date.now();
+			const left = (until as number) - this.clock.now();
 			if (left <= 0) call.abort(`the authority it rests on expired at ${expires}`);
-			else timer = setTimeout(expiring, Math.min(left, LONGEST_TIMER_MS));
+			else cancel = this.clock.after(Math.min(left, LONGEST_TIMER_MS), expiring, true);
 		};
 		if (until !== undefined) expiring();
 		const release = () => {
-			clearTimeout(timer);
+			cancel?.();
 			for (const id of capabilities) {
 				const calls = this.held.get(id);
 				calls?.delete(call);
@@ -121,22 +120,4 @@ export class SessionAuthority implements IAuthority {
 		this.verifier = undefined;
 		this.invoker = undefined;
 	}
-}
-
-export function getAuthority(runtime: TRuntime): IAuthority | undefined {
-	return runtime.keys?.[AUTHORITY_KEY] as IAuthority | undefined;
-}
-
-/** Returns actuality's authority. Throws where actuality doesn't hold one, and the error names `need` as the operation
- *  that requires it. */
-export function heldAuthority(runtime: TRuntime, need: string): IAuthority {
-	const authority = getAuthority(runtime);
-	if (!authority) throw new Error(`actuality doesn't hold an authority, which ${need} requires`);
-	return authority;
-}
-
-/** Returns the signer a client in this process uses for its requests to other hosts. The signer reads actuality's
- *  authority at each call, so a client created before the invoker's registration still signs with that invoker. */
-export function requestSigner(runtime: TRuntime): TRequestSigner {
-	return (request, action) => heldAuthority(runtime, `invoking ${action} at ${request.url}`).signRequest(request, action);
 }

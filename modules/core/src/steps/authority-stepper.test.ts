@@ -9,7 +9,7 @@ import { AStepper } from "../lib/steps/domains/stepper.js";
 import { OK } from "../lib/domains/protocol.js";
 import { actionNotOK } from "../lib/domains/util.js";
 import { readingAt, runActingAs } from "../lib/domains/capability-context.js";
-import { getAuthority } from "../lib/session-authority.js";
+import { getAuthority } from "../lib/domains/session-authority.js";
 import { buildStepRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { DELEGATIONS_READ_ACTION, DELEGATIONS_READ_METHOD } from "../lib/domains/authority-types.js";
 import { stubVerifier } from "../lib/test/fake-authority.js";

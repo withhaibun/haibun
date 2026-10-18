@@ -1,9 +1,47 @@
 import { describe, it, expect } from "vitest";
-import { withAction, TActionExecutor } from "./derivations/withAction.js";
-import { toBdd, fromBdd } from "./converter.js";
+import { withAction, stepActions, TActionExecutor } from "./derivations/withAction.js";
+import { toBdd } from "../lib/actuality/adapters/feature-files.js";
+import { itemAt } from "../lib/domains/item-at.js";
+import { Resolver } from "../lib/actuality/pipelines/resolver.js";
 import { AStepper, TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { OK } from "../lib/domains/protocol.js";
 import { ActivitiesStepper } from "../steps/activities-stepper.js";
+
+/**
+ * Convert a BDD-formatted string back into a kireji feature object, resolving each step's prose
+ * to a functional action with arguments via the provided steppers.
+ */
+const fromBdd = (bdd: string, steppers: AStepper[]): Promise<Record<string, TActionExecutor<string>[]>> => {
+	const lines = bdd.split("\n");
+	const featureName = itemAt(lines, 0).replace("Feature: ", "").trim();
+	const steps = lines
+		.slice(1)
+		.map((l) => l.trim())
+		.filter((l) => l.length > 0);
+
+	const resolver = new Resolver(steppers, []);
+	const stepperActions = steppers.map(stepActions);
+
+	const kirejiSteps = steps.map((step) => {
+		const action = resolver.findSingleStepAction(step);
+		const { actionName, stepValuesMap } = action;
+		const args: { [key: string]: string } = {};
+		if (stepValuesMap) {
+			for (const [key, value] of Object.entries(stepValuesMap)) {
+				args[key] = value.term;
+			}
+		}
+
+		const actionFunction = stepperActions.find((actions) => actions[actionName])?.[actionName];
+
+		if (!actionFunction) {
+			throw new Error(`Action "${actionName}" not found in provided steppers.`);
+		}
+		return actionFunction(args);
+	});
+
+	return Promise.resolve({ [featureName]: kirejiSteps });
+};
 
 // A mock stepper for testing purposes
 class TestStepper extends AStepper {

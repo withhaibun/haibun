@@ -9,7 +9,7 @@ import { RESPONSE_TIMEOUT_MS, type TDeploymentSettings, type TServedHydration } 
 import { getJsonLdContext } from "@haibun/core/lib/domains/hypermedia.js";
 import { Access, haibunNsForHost, isPersisted } from "@haibun/core/lib/domains/resources.js";
 import { requestBaseIri } from "@haibun/core/lib/request-context.js";
-import { getAuthority } from "@haibun/core/lib/session-authority.js";
+import { getAuthority } from "@haibun/core/lib/domains/session-authority.js";
 import type { IWebServer } from "@haibun/web-server-hono/defs.js";
 import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
 import type { Context } from "@haibun/web-server-hono/defs.js";

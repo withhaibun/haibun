@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { withAction } from "./derivations/withAction.js";
-import { toBdd } from "./converter.js";
+import { toBdd } from "../lib/actuality/adapters/feature-files.js";
 import { ActivitiesStepper } from "../steps/activities-stepper.js";
 import VariablesStepper from "../steps/variables-stepper.js";
 import { failWithDefaults, passWithDefaults } from "../lib/test/lib.js";

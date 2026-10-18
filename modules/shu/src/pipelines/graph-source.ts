@@ -12,7 +12,7 @@ import { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { enumerateStandardVocab } from "@haibun/core/lib/records/pipelines/standard-vocabulary.js";
 import { activeSitePrincipal, adoptSitePrincipal, hasDefaultSitePrincipal } from "@haibun/core/lib/domains/host-id.js";
 import { persistPrincipalIndividual } from "@haibun/core/lib/domains/principal-individual.js";
-import { requestSigner } from "@haibun/core/lib/session-authority.js";
+import { requestSigner } from "@haibun/core/lib/domains/session-authority.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { withOntologySchema } from "../derivations/ontology-projection.js";
 import { buildGraphModelFromQuads } from "../derivations/graph-model.js";

@@ -57,7 +57,7 @@ export class SSETransport implements ITransport, IStepTransport {
 
 	private followRoute(): void {
 		const { webserver, eventLogger, runtime, verifier } = this.parts;
-		webserver.addRoute("get", SSE_ROUTE, { description: "Server-Sent Events stream for live framework events" }, async (c) => {
+		webserver.addRoute("get", SSE_ROUTE, { description: "Server-Sent Events stream for live framework events", service: true }, async (c) => {
 			const authority = await verifier.allowing(c, FOLLOWS_THE_RUN);
 			if (authority instanceof Response) return authority;
 			// Following is what the request invoked; which events it is sent is bounded by the reads its caller holds.
@@ -98,7 +98,7 @@ export class SSETransport implements ITransport, IStepTransport {
 
 	private callRoute(): void {
 		const { webserver, eventLogger } = this.parts;
-		webserver.addRoute("post", "/rpc/:_method", { description: "JSON-RPC dispatch for stepper methods" }, async (c) => {
+		webserver.addRoute("post", "/rpc/:_method", { description: "JSON-RPC dispatch for stepper methods", service: true }, async (c) => {
 			const method = pathParam(c, "_method");
 			// The body is read once, as the bytes that arrived, and what the request requests is read from those same bytes: a
 			// proof covers a digest of what was sent, so parsing a second reading would leave what is checked and what is

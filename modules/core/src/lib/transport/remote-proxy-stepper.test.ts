@@ -11,7 +11,8 @@ import { getDefaultWorld } from "../test/lib.js";
 import { TEST_DOMAIN, testDomainDefinitions } from "../test/test-domains.js";
 import { addStepperConcerns } from "../actuality/pipelines/executor.js";
 import { FakeInvoker } from "../test/fake-authority.js";
-import { AUTHORITY_KEY, SessionAuthority } from "../session-authority.js";
+import { SessionAuthority } from "../pipelines/session-authority.js";
+import { AUTHORITY_KEY } from "../domains/session-authority.js";
 import { RUN_AUTHORITY, runAuthorizedWith } from "../domains/capability-context.js";
 import type { TWorld } from "../actuality/domains/world.js";
 import { SITE_DID_PREFIX } from "../domains/host-id.js";
@@ -21,6 +22,7 @@ import { ACTION_BEGIN, ANSWERED_WITHOUT_PRODUCTS, callFailed } from "./ports.js"
 import { hostHandshake } from "../test/rpc-answer.js";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
+import { actualityClock } from "../actuality/root.js";
 
 const ECHOED_LABEL = "test-echoed-label";
 /** Two domains whose union a parameter takes. */
@@ -87,7 +89,7 @@ describe("RemoteStepperProxy", () => {
 		// Start a minimal RPC server with EchoStepper
 		world = getDefaultWorld() as TWorld;
 		// Every step the host serves requires an action, so the proxy signs each call to a step as the holder it presents.
-		const authority = new SessionAuthority();
+		const authority = new SessionAuthority(actualityClock());
 		authority.registerInvoker(new FakeInvoker("proxy"));
 		(world.runtime.keys ??= {})[AUTHORITY_KEY] = authority;
 		// The host serves its declarations through the show steps step and dispatches that step like any other.

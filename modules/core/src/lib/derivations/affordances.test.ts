@@ -1,15 +1,15 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
 
-import { AStepper, type TStepperSteps } from "./steps/domains/stepper.js";
-import { deriveNamingDomains, mapDefinitionsToDomains, refDomainKey } from "./domains/domains.js";
-import { Access, LinkRelations } from "./domains/resources.js";
-import { OK } from "./domains/protocol.js";
-import { actionOKWithProducts } from "./domains/util.js";
+import { AStepper, type TStepperSteps } from "../steps/domains/stepper.js";
+import { deriveNamingDomains, mapDefinitionsToDomains, refDomainKey } from "../domains/domains.js";
+import { Access, LinkRelations } from "../domains/resources.js";
+import { OK } from "../domains/protocol.js";
+import { actionOKWithProducts } from "../domains/util.js";
 import { buildAffordances } from "./affordances.js";
-import type { TFact } from "./records/domains/facts.js";
-import { executionOf, factIdOf } from "./actuality/domains/seq-path.js";
-import { RUN_AUTHORITY } from "./domains/capability-context.js";
+import type { TFact } from "../records/domains/facts.js";
+import { executionOf, factIdOf } from "../actuality/domains/seq-path.js";
+import { RUN_AUTHORITY } from "../domains/capability-context.js";
 
 const PERSON = "person";
 const EMAIL = "letter";

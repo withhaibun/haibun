@@ -1,10 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
-import { GOAL_FINDING, resolveGoal, type TBinding, type TResolverInputs } from "./goal-resolver.js";
+import { resolveGoal, type TBinding, type TResolverInputs } from "./goal-resolver.js";
+import { GOAL_FINDING } from "../domains/goal-resolution.js";
 import type { TDomainChainGraph } from "./domain-chain.js";
-import type { TFact } from "./records/domains/facts.js";
-import { Access, type TRegisteredDomain } from "./domains/resources.js";
-import { RUN_AUTHORITY } from "./domains/capability-context.js";
+import type { TFact } from "../records/domains/facts.js";
+import { Access, type TRegisteredDomain } from "../domains/resources.js";
+import { RUN_AUTHORITY } from "../domains/capability-context.js";
 
 /**
  * Tests the resolver's composite decomposition. The resolver recurses into the fields of an input domain that registers

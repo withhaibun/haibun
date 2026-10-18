@@ -13,8 +13,8 @@ import { DEF_PROTO_OPTIONS, getTestWorldWithOptions } from "./lib.js";
 import { createSteppers, setStepperWorldsAndDomains } from "../domains/util.js";
 import { itemAt } from "../domains/item-at.js";
 import { addStepperConcerns } from "../actuality/pipelines/executor.js";
-import { buildDomainChain } from "../domain-chain.js";
-import { LINT_FINDING, lintDomainChain, lintFindingLine, type TLintFinding } from "../domain-chain-lint.js";
+import { buildDomainChain } from "../derivations/domain-chain.js";
+import { LINT_FINDING, lintDomainChain, lintFindingLine, type TLintFinding } from "../derivations/domain-chain-lint.js";
 
 /** What fixes each kind of finding. */
 const FIX: Record<TLintFinding["kind"], string> = {
