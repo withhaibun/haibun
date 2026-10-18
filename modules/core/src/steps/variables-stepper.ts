@@ -28,6 +28,7 @@ import {
 	registeredDomain,
 } from "../lib/domains.js";
 import { fromJsonText } from "../lib/json-text.js";
+import { typeCollectionRemedy } from "../lib/typed-links.js";
 import { HypermediaContextSchema, hypermediaDomainFromContext, type THypermediaContext } from "../lib/hypermedia.js";
 import { AccessLevelSchema, edgeRanges, isPersisted, REL_CONTEXT, LinkRelations, type TRel, type TRegisteredDomain, type TDomainDefinition } from "../lib/resources.js";
 
@@ -527,7 +528,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			registerDomains(this.getWorld(), [[definition]]);
 			return OK;
 		} catch (error) {
-			return actionNotOK(errorDetail(error));
+			return actionNotOK(`the set of "${domain}" isn't registered from its superdomains: ${errorDetail(error)}`);
 		}
 	}
 
@@ -547,7 +548,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			registerDomains(this.getWorld(), [[definition]]);
 			return OK;
 		} catch (error) {
-			return actionNotOK(errorDetail(error));
+			return actionNotOK(`the set of "${domain}" isn't registered from its values: ${errorDetail(error)}`);
 		}
 	}
 
@@ -561,7 +562,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			registerDomains(this.getWorld(), [[{ selectors: [selector], schema: fromJsonText(schema), description: domain, topology, ui: { declared: true } }]]);
 			return OK;
 		} catch (error) {
-			return actionNotOK(errorDetail(error));
+			return actionNotOK(`the set of "${domain}" isn't registered from its declaration: ${errorDetail(error)}`);
 		}
 	}
 }
@@ -688,7 +689,8 @@ async function shouldSkipEmpty(featureStep: TFeatureStep, term: string, shared: 
 	return resolved.value !== undefined ? OK : undefined;
 }
 
-// Wraps shared.set in try/catch
+/** Sets a variable. Refuses a value its domain's schema rejects with the domain to open, which states the values the domain
+ *  takes, and refuses any other failure with what failed and why. */
 async function trySetVariable(
 	shared: FeatureVariables,
 	opts: { term: string; value: TStepValueValue; domain: string; origin: TOrigin; readonly?: boolean; secret?: boolean },
@@ -697,7 +699,13 @@ async function trySetVariable(
 	try {
 		await shared.set({ term: opts.term, value: opts.value, domain: opts.domain, origin: opts.origin, readonly: opts.readonly, secret: opts.secret }, provenance);
 		return OK;
-	} catch (e: unknown) {
-		return actionNotOK((e as Error).message);
+	} catch (error) {
+		if (error instanceof z.ZodError) {
+			const domainKey = normalizeDomainKey(opts.domain);
+			return actionNotOK(`the domain ${domainKey} rejects the value of ${opts.term}: ${errorDetail(error)}. Set a value the domain takes`, {
+				remedy: typeCollectionRemedy(domainKey),
+			});
+		}
+		return actionNotOK(`the variable ${opts.term} isn't set: ${errorDetail(error)}`);
 	}
 }

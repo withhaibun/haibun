@@ -37,8 +37,9 @@ export const DENOTES = { individual: "individual", type: "type" } as const;
  */
 export const REF_DENOTES = { individual: "entity", type: "domain" } as const;
 
-/** The remedy of a refused read of a record that actuality doesn't hold: the collection of the record's type, which lists
- *  the records actuality holds (CA1G6). */
+/** The remedy that opens a domain. A refused read of a record that actuality doesn't hold opens the collection of the
+ *  record's type, which lists the records actuality holds (CA1G6). A value that a domain rejects opens the domain, which
+ *  states the values it takes. */
 export const typeCollectionRemedy = (persistedAs: string): TRemedy => ({ do: "open", ref: { kind: REF_DENOTES.type, target: { domain: persistedAs } } });
 
 export const DOMAIN_INDIVIDUAL_ADDRESS = "individual-address";

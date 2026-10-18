@@ -95,13 +95,13 @@ describe("FeatureVariables", () => {
 		it("should throw error for variables with dots", async () => {
 			await expect(async () => {
 				await variables.set({ term: "invalid.var", value: "value", domain: DOMAIN_STRING, origin: Origin.var }, { in: "test", seq: [1], when: "test.action" });
-			}).rejects.toThrow("non-stepper variables cannot use dots");
+			}).rejects.toThrow("holds a dot, which only a stepper's variable holds; name the variable without a dot");
 		});
 
 		it("should throw error for unknown domain", async () => {
 			await expect(async () => {
 				await variables.set({ term: "myVar", value: "value", domain: "unknownDomain", origin: Origin.var }, { in: "test", seq: [1], when: "test.action" });
-			}).rejects.toThrow('Cannot set variable "myVar": unknown domain "unknownDomain"');
+			}).rejects.toThrow('the variable "myVar" names the domain "unknownDomain", which isn\'t registered');
 		});
 
 		it("should track provenance when setting variable", async () => {

@@ -17,6 +17,7 @@ import { dispatchStep } from "../lib/actuality/pipelines/step-dispatch.js";
 import { buildFeatureStepForTransport } from "../lib/steps/pipelines/call-step.js";
 import { StepRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { addStepperConcerns } from "../lib/actuality/pipelines/executor.js";
+import { typeCollectionRemedy } from "../lib/typed-links.js";
 
 const steppers = [VariablesStepper, Haibun, LogicStepper];
 
@@ -78,7 +79,7 @@ describe("random vars", () => {
 		const content = 'set x as read-only string to "1"\nset x to "2"';
 		const result = await failWithDefaults(content, [VariablesStepper]);
 		expect(result.ok).toBe(false);
-		expect(result.failure?.error?.message).toContain('Cannot overwrite read-only variable "x"');
+		expect(result.failure?.error?.message).toContain('the variable x isn\'t set: the variable "x" is read-only; set a variable of another name');
 	});
 
 	it("auto-detects password in variable name as secret", async () => {
@@ -367,10 +368,40 @@ variable choice is less than no`;
 });
 
 describe("enum superdomains", () => {
-	it("fails when a superdomain is missing", async () => {
-		const content = `set of derived as [missingSuperdomain]`;
-		const res = await failWithDefaults(content, steppers);
+	it("refuses a set whose superdomain isn't registered, and states what failed and why", async () => {
+		const res = await failWithDefaults("set of derived as [missingSuperdomain]", steppers);
 		expect(res.ok).toBe(false);
+		expect(res.failure?.error?.message).toContain(`the set of "derived" isn't registered from its superdomains: the set of derived names the domain "missingSuperdomain"`);
+	});
+});
+
+describe("a set's refusal", () => {
+	it("refuses a set whose values aren't stated, and states what failed and why", async () => {
+		const res = await failWithDefaults("set of empty is []", steppers);
+		expect(res.ok).toBe(false);
+		expect(res.failure?.error?.message).toContain(`the set of "empty" isn't registered from its values: `);
+	});
+
+	it("refuses a hypermedia declaration that its schema rejects, and states what failed and why", async () => {
+		const res = await failWithDefaults(`set of Recipe by ${JSON.stringify({ "@context": 3 })}`, steppers);
+		expect(res.ok).toBe(false);
+		expect(res.failure?.error?.message).toContain(`the set of "Recipe" isn't registered from its declaration: @context: `);
+	});
+
+	it("refuses a value that its domain rejects, with the domain to open as its remedy", async () => {
+		const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);
+		const variables = new VariablesStepper();
+		const callers = [variables];
+		await variables.setWorld(world, callers);
+		addStepperConcerns(world, callers);
+		const registry = new StepRegistry(callers, world);
+		const tool = registry.get(`${VariablesStepper.name}-setAs`);
+		if (!tool) throw new Error("setAs isn't registered");
+		const call = buildFeatureStepForTransport(tool, { what: "count", domain: "number", value: "many" }, [0, 1]);
+		const result = await dispatchStep({ registry, world, steppers: callers, grantedCapability: [tool.descriptor.capability, readAction(Access.public)] }, call);
+		expect(result).toMatchObject({ ok: false, remedy: typeCollectionRemedy("number") });
+		expect(result.errorMessage).toContain("the domain number rejects the value of count: ");
+		expect(result.errorMessage).toContain("Set a value the domain takes");
 	});
 });
 

@@ -150,10 +150,10 @@ export class FeatureVariables {
 	}
 
 	async set(sv: TStepValue, provenance: TProvenanceIdentifier) {
-		if (sv.term.match(/.*\..*/)) throw Error("non-stepper variables cannot use dots");
+		if (sv.term.match(/.*\..*/)) throw Error(`the name "${sv.term}" holds a dot, which only a stepper's variable holds; name the variable without a dot`);
 		if (runEnvVariable(this.world, sv.term)) throw Error(`the environment holds "${sv.term}", which a feature reads and doesn't set; set a variable of another name`);
 		const existing = await this.getStoredEntry(sv.term);
-		if (existing?.readonly) throw Error(`Cannot overwrite read-only variable "${sv.term}"`);
+		if (existing?.readonly) throw Error(`the variable "${sv.term}" is read-only; set a variable of another name`);
 		return await this._set(sv, provenance);
 	}
 
@@ -161,7 +161,7 @@ export class FeatureVariables {
 	async _set(sv: TStepValue, provenance: TProvenanceIdentifier) {
 		const domainKey = normalizeDomainKey(sv.domain);
 		const domain = this.world.domains[domainKey];
-		if (domain === undefined) throw Error(`Cannot set variable "${sv.term}": unknown domain "${sv.domain}"`);
+		if (domain === undefined) throw Error(`the variable "${sv.term}" names the domain "${sv.domain}", which isn't registered; declare it with set of or load its stepper`);
 		const normalized = { ...sv, domain: domainKey };
 		domain.coerce(normalized);
 		const setBy = formatRecordName({ execution: executionOf(this.world.tag), path: provenance.seq });
