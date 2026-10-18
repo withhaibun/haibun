@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The client cache view is THE reading of what the page holds of an actuality: each source's extent, the rows it holds and the
-// cursor's row in it, the live stream by level, and the executions this device holds; every value under its own test
+// cursor's row in it, the live stream by level, and the actualities this device holds; every value under its own test
 // id, so a feature reads what the page holds from here with the generic steps. It doesn't make a source of its own.
 import { declareGraphSpec, declareRegistry, GRAPH_READ_STEPS } from "../../../test/catalog-fixture.js";
 import { buildConcernCatalog } from "@haibun/core/lib/hypermedia.js";
@@ -9,6 +9,7 @@ import { ServerUnreachable } from "@haibun/core/lib/rpc-wire.js";
 import "fake-indexeddb/auto";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
+import { actualityOf } from "@haibun/core/lib/seq-path.js";
 import { ShuClientCacheColumn } from "./shu-client-cache-column.js";
 import "../../components/shu-monitor-column.js";
 import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
@@ -50,7 +51,7 @@ describe("the client cache view", () => {
 				throw new ServerUnreachable("/rpc", new Error("the views read actuality's records"));
 			},
 		});
-		// The execution being recorded, and an earlier one this device still holds, each named by the feature it ran.
+		// The execution being recorded, and an earlier actuality's this device still holds, each named by the feature it ran.
 		const store = actualityStore();
 		await store.upsertIndividual(SEQ_PATH_LABEL, step(EARLIER, 0, { stepText: "Feature: An earlier actuality", called: "Haibun.feature", generatedAtTime: iso(500) }));
 		await store.upsertIndividual(SEQ_PATH_LABEL, step(RUN, 0, { stepText: "Feature: The actuality being recorded", called: "Haibun.feature" }));
@@ -86,9 +87,9 @@ describe("the client cache view", () => {
 		document.body.appendChild(view);
 		await view.updateComplete; // before what the device holds has been read once
 		expect(text(view), "what this device holds has not been read yet, so the view doesn't make a claim about it").toContain("Waiting");
-		expect(text(view)).not.toContain("This device doesn't hold an execution");
+		expect(text(view)).not.toContain("This device doesn't hold an actuality");
 		await settle();
-		expect(text(view), "read, and now empty").toContain("This device doesn't hold an execution");
+		expect(text(view), "read, and now empty").toContain("This device doesn't hold an actuality");
 	});
 
 	it("doesn't list a source until a view has read actuality, and doesn't make one itself", async () => {
@@ -130,19 +131,20 @@ describe("the client cache view", () => {
 		expect(value(view, `${IDS.LIVE}debug`), "and one at debug, which the open views don't show").toBe("1");
 	});
 
-	it("lists the executions this device holds and reads the one a reader chooses", async () => {
+	it("lists the actualities this device holds and reads the one a reader chooses", async () => {
 		await readingTheActuality();
 		const view = await open();
 		await settle();
-		const row = (view.shadowRoot as ShadowRoot).querySelector(`[data-testid="${IDS.RUN}${EARLIER}"]`) as HTMLElement;
-		expect(row, "the earlier execution is listed").not.toBeNull();
-		expect(value(view, `${IDS.RUN}${RUN}-reading`), "the execution the sources read shows it").toBe("reading");
-		(row.querySelector(`[data-testid="${IDS.RUN}${EARLIER}-read"]`) as HTMLButtonElement).click();
+		const earlier = `${IDS.ACTUALITY}${actualityOf(EARLIER)}`;
+		const row = (view.shadowRoot as ShadowRoot).querySelector(`[data-testid="${earlier}"]`) as HTMLElement;
+		expect(row, "the earlier actuality is listed").not.toBeNull();
+		expect(value(view, `${IDS.ACTUALITY}${actualityOf(RUN)}-reading`), "the actuality the sources read shows it").toBe("reading");
+		(row.querySelector(`[data-testid="${earlier}-read"]`) as HTMLButtonElement).click();
 		await flush();
 		await settle();
-		expect(currentExecution(), "the reader's execution is the one being read").toBe(EARLIER);
-		expect(value(view, `${IDS.RUN}${EARLIER}-reading`)).toBe("reading");
-		expect(value(view, `${IDS.RUN}${EARLIER}-features`), "an execution is presented by what it ran").toBe("An earlier actuality");
+		expect(currentExecution(), "the reader's actuality is read from its newest feature's execution").toBe(EARLIER);
+		expect(value(view, `${earlier}-reading`)).toBe("reading");
+		expect(value(view, `${earlier}-features`), "an actuality is presented by the features it ran").toBe("An earlier actuality");
 	});
 
 	it("every instant it reports is clickable: clicking one scrubs every view to that moment, and the live edge is one click away", async () => {

@@ -1,7 +1,7 @@
 /**
  * <shu-client-cache-column>: what this page caches of actuality, as it stands: each actuality source (one per level read) with
  * its extent, the index spans it caches and the shared cursor's row in it; what the live stream has delivered since the
- * view opened, by level; the executions the device holds; every IndexedDB database of the origin with its stores and
+ * view opened, by level; the actualities the device holds; every IndexedDB database of the origin with its stores and
  * their counts; and how full each database's graph is. It doesn't request data from the server: a source is listed once
  * a view has read its level, and the store is read as it is. A reader makes one change here, which is to delete an actuality
  * this device holds. It follows everything that moves: each source as it is made and as it changes, every live batch,
@@ -23,20 +23,17 @@ import { registryOrigin } from "../../controllers/registry-controller.js";
 import { serverLastRespondedAt } from "../../controllers/conduit-controller.js";
 import { emptyOrLoading } from "../../components/empty-state.js";
 import { atLiveEdge, actualityReadingAt, actualitySources, subscribeActualitySources, type ActualitySource } from "../controllers/actuality-controller.js";
+import { actualityOf } from "@haibun/core/lib/seq-path.js";
+import { actualitiesHeld, deleteActuality, FEATURES_READ, readHeldActuality, type THeldActuality } from "../controllers/held-actualities-controller.js";
 import {
 	CACHE_SHAPE,
 	currentExecution,
 	deviceSummary,
-	executionsHeld,
-	EXECUTIONS_READ,
 	followDeviceWrites,
-	deleteExecution,
 	graphSaturations,
 	pageDeviceStore,
-	readHeldExecution,
 	subscribeExecutionSwitch,
 	type TGraphSaturation,
-	type THeldExecution,
 	type TIdbDatabaseSummary,
 	type TStoredRegistry,
 } from "../controllers/device-controller.js";
@@ -81,7 +78,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 	/** The instant this view shows, which is the page's time cursor or the moment `data-snapshot-time` states. */
 	readonly #timeline = new TimelineViewController(this);
 	#unsubscribes = new Map<ActualitySource, () => void>();
-	#held: THeldExecution[] = [];
+	#held: THeldActuality[] = [];
 	#registry: TStoredRegistry | undefined; // the site's registry as the device holds it, for when it was cached
 	#databases: TIdbDatabaseSummary[] = [];
 	#graphs: Array<{ database: string; saturation: TGraphSaturation }> = [];
@@ -92,7 +89,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 	#liveByLevel = new Map<string, { count: number; newest?: number }>(); // what the live stream delivered since this view opened
 	#openedAt = 0; // the device's time when this view opened: what "since this view opened" is measured from
 	#deletions = 0; // how many actualities a reader has deleted here: a device read begun before a deletion still lists that actuality
-	#deleted: { execution: string; records: number } | undefined; // what the last deletion removed
+	#deleted: { actuality: string; records: number } | undefined; // what the last deletion removed
 
 	static styles = [
 		shuBaseStyles,
@@ -167,7 +164,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 			sources: actualitySources().map((s) => ({ level: s.level, ...s.extent(), cached: spans(s.cachedRanges()), cursorRow: this.#cursorRowIn(s) })),
 			openedAt: this.#openedAt,
 			live: Object.fromEntries(this.#liveByLevel),
-			executions: this.#held,
+			actualities: this.#held,
 			deleted: this.#deleted === undefined ? null : this.#deleted,
 			indexedDb: this.#databases,
 		};
@@ -179,7 +176,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 		void this.#readDevice(); // the device at once on open; after changes, at the bounded cadence
 		// A source made from now on (a view opened at another level) is watched from the moment it exists.
 		this.autoTeardown(subscribeActualitySources(() => this.#changed()));
-		// An actuality the reader chose, or a new one the server began: both change what every view reads.
+		// An execution the reader chose, or a new one the server began: both change what every view reads.
 		this.autoTeardown(subscribeExecutionSwitch(() => this.#changed()));
 		// The sources persist what they read after they report it, so what the device caches is read again when it is written.
 		this.autoTeardown(followDeviceWrites(() => this.#changed()));
@@ -230,7 +227,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 		this.#reading = true;
 		const began = this.#deletions;
 		try {
-			const [held, databases, registry, graphs] = await Promise.all([executionsHeld(), deviceSummary(), pageDeviceStore().registry(), graphSaturations()]);
+			const [held, databases, registry, graphs] = await Promise.all([actualitiesHeld(), deviceSummary(), pageDeviceStore().registry(), graphSaturations()]);
 			// An actuality deleted while this read was running is still in what it read, so the read made after the deletion stands.
 			if (began === this.#deletions) {
 				this.#held = held;
@@ -249,15 +246,15 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 		}
 	}
 
-	/** Delete one actuality this device holds, and report what went. The execution being read doesn't have a control for it: a
-	 *  reader reads another actuality first, so an actuality isn't deleted under a view drawing it. The executions are read again here rather than on
-	 *  the ordinary cadence, so the list a reader sees after the deletion is the list the device holds. */
-	async #delete(held: THeldExecution): Promise<void> {
-		const { execution } = held;
-		const records = await deleteExecution(held);
+	/** Delete one actuality this device holds, and report what went. The actuality being read doesn't have a control for it:
+	 *  a reader reads another actuality first, so an actuality isn't deleted under a view drawing it. The actualities are
+	 *  read again here rather than on the ordinary cadence, so the list a reader sees after the deletion is the list the
+	 *  device holds. */
+	async #delete(held: THeldActuality): Promise<void> {
+		const records = await deleteActuality(held);
 		this.#deletions += 1;
-		this.#held = await executionsHeld();
-		this.#deleted = { execution, records };
+		this.#held = await actualitiesHeld();
+		this.#deleted = { actuality: held.actuality, records };
 		this.requestUpdate();
 	}
 
@@ -308,21 +305,22 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 		// The moment every source reads around, which is the cursor once a reader has moved it: what is read is what a
 		// reader is looking at, and this shows it rather than leaving it to be inferred from the rows.
 		const readingMoment = actualityReadingAt();
-		// The execution being read: the one a reader chose, else the newest this device holds, which is the one being
-		// recorded while a site is recording one.
-		const reading = currentExecution() ?? this.#held[0]?.execution;
-		const earlier = this.#held.find((e) => e.execution !== reading);
+		// The actuality being read: the one of the execution a reader chose, else the newest this device holds, which is the
+		// one being recorded while a site is recording one.
+		const chosen = currentExecution();
+		const reading = chosen === undefined ? this.#held[0]?.actuality : actualityOf(chosen);
+		const earlier = this.#held.find((a) => a.actuality !== reading);
 		const registry = registryOrigin();
 		const respondedAt = serverLastRespondedAt();
 		const cached = this.#registry;
-		// What the execution being read ran, from the actuality being read rather than from a read of the device: a page
-		// names what it is reading as soon as it has read it.
-		const named = (execution: string | undefined): string => {
-			const held = this.#held.find((e) => e.execution === execution);
+		// What the actuality being read ran, from the device's list, else from the rows read: a page names what it is reading
+		// as soon as it has read it.
+		const named = (actuality: string | undefined): string => {
+			const held = this.#held.find((a) => a.actuality === actuality);
 			if (held !== undefined && held.features.length > 0) return held.features.join(", ");
 			const declared = featureBeingRead(sources);
 			if (declared !== "") return declared;
-			return execution === undefined ? "" : execution;
+			return actuality === undefined ? "" : actuality;
 		};
 		const cell = (id: string, value: unknown): TemplateResult => html`<td data-testid=${id}>${value}</td>`;
 		return html`<div data-testid=${IDS.ROOT}>
@@ -385,40 +383,40 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 							})}
 						</table>`
 			}
-			<h4>Executions this device holds <small>(named by the features each ran, from the newest ${EXECUTIONS_READ} feature declarations held)</small></h4>
+			<h4>Actualities this device holds <small>(by their features, from the newest ${FEATURES_READ} declared)</small></h4>
 			<div>
 				reading
-				<span data-testid=${IDS.READING}>${named(reading) === "" ? "not reading an execution yet" : named(reading)}</span>
-				${earlier === undefined ? "" : html` <button data-testid=${IDS.READ_EARLIER} @click=${() => readHeldExecution(earlier)}>read the execution before it</button>`}
+				<span data-testid=${IDS.READING}>${named(reading) === "" ? "not reading an actuality yet" : named(reading)}</span>
+				${earlier === undefined ? "" : html` <button data-testid=${IDS.READ_EARLIER} @click=${() => readHeldActuality(earlier)}>read the one before it</button>`}
 			</div>
 			${
 				this.#held.length === 0
-					? emptyOrLoading(this.#deviceRead, "This device doesn't hold an execution.")
+					? emptyOrLoading(this.#deviceRead, "This device doesn't hold an actuality.")
 					: html`<table data-testid=${IDS.HELD}>
 							<tr>
-								<th>execution</th>
+								<th>actuality</th>
 								<th>features</th>
 								<th>reading</th>
 								<th>began</th>
 								<th>newest</th>
 								<th>delete</th>
 							</tr>
-							${this.#held.map((e) => {
-								const id = (field: string): string => `${IDS.RUN}${e.execution}-${field}`;
-								return html`<tr data-testid=${`${IDS.RUN}${e.execution}`} class=${e.execution === reading ? "reading" : ""}>
+							${this.#held.map((a) => {
+								const id = (field: string): string => `${IDS.ACTUALITY}${a.actuality}-${field}`;
+								return html`<tr data-testid=${`${IDS.ACTUALITY}${a.actuality}`} class=${a.actuality === reading ? "reading" : ""}>
 								<td>
-									${e.execution === reading ? e.execution : html`<button class="link" data-testid=${id("read")} title="read this execution" @click=${() => readHeldExecution(e)}>${e.execution}</button>`}
+									${a.actuality === reading ? a.actuality : html`<button class="link" data-testid=${id("read")} title="read it" @click=${() => readHeldActuality(a)}>${a.actuality}</button>`}
 								</td>
-								${cell(id("features"), e.features.join(", "))}${cell(id("reading"), e.execution === reading ? "reading" : "")}
-								${this.#instant(id("began"), e.first)}${this.#instant(id("newest"), e.last)}
+								${cell(id("features"), a.features.join(", "))}${cell(id("reading"), a.actuality === reading ? "reading" : "")}
+								${this.#instant(id("began"), a.first)}${this.#instant(id("newest"), a.last)}
 								<td>
-									${e.execution === reading ? "" : html`<button class="link" data-testid=${id("delete")} title="delete this execution on this device" @click=${() => void this.#delete(e)}>delete</button>`}
+									${a.actuality === reading ? "" : html`<button class="link" data-testid=${id("delete")} title="delete on this device" @click=${() => void this.#delete(a)}>delete</button>`}
 								</td>
 							</tr>`;
 							})}
 						</table>`
 			}
-			${this.#deleted === undefined ? "" : html`<div data-testid=${IDS.DELETED}>actuality ${this.#deleted.execution} and its ${this.#deleted.records} records are deleted</div>`}
+			${this.#deleted === undefined ? "" : html`<div data-testid=${IDS.DELETED}>actuality ${this.#deleted.actuality} and its ${this.#deleted.records} records are deleted</div>`}
 			<h4>IndexedDB <small>(this build reads ${CACHE_SHAPE}; a cache written to another rule is cleared on open)</small></h4>
 			${
 				this.#databases.length === 0

@@ -1,78 +1,78 @@
 // What a device holds of the actualities it has read, and what it does when it can't hold more. A record's id names its
-// execution, so deleting an actuality reads the records rather than a second index beside them.
+// execution, and the execution names its actuality, so deleting an actuality reads the records rather than a second index
+// beside them.
 import { newPage } from "../../../test/setup.js";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import type { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/log-message.js";
-import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
+import { SEQ_PATH_FIELD, executionOf } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { individualAsQuads } from "../derivations/quads.js";
-import {
-	executionsHeld,
-	followRecordedExecution,
-	deleteExecution,
-	holdOnDevice,
-	noteExecution,
-	readExecution,
-	readingExecution,
-	installGraph,
-	subscribeExecutionSwitch,
-	type THeldExecution,
-} from "./device-controller.js";
+import { followRecordedExecution, noteExecution, readExecution, readingExecution, installGraph, subscribeExecutionSwitch } from "./device-controller.js";
+import { actualitiesHeld, deleteActuality, holdOnDevice, type THeldActuality } from "./held-actualities-controller.js";
 import { actualityStore } from "../actuality-store.test-fake.js";
 
-const OLDER = "1700000000000-1";
-const NEWER = "1700000009000-2";
+const OLDER_ACTUALITY = "1700000000000";
+const NEWER_ACTUALITY = "1700000009000";
+const OLDER = executionOf({ key: OLDER_ACTUALITY, featureNum: 1 });
+const NEWER = executionOf({ key: NEWER_ACTUALITY, featureNum: 1 });
+const NEWER_SECOND = executionOf({ key: NEWER_ACTUALITY, featureNum: 2 });
 const iso = (n: number): string => new Date(n).toISOString();
 
-/** A device holding two actualities, each declaring the feature it ran and logging one thing. */
+/** Writes a feature's execution: the step that declared it, a step, and what that step logged. */
+const aFeature = async (store: QuadStore, execution: string, feature: string, at: number): Promise<void> => {
+	const record = { actionStatus: "passed", level: "info" };
+	await store.upsertIndividual(SEQ_PATH_LABEL, { ...record, id: `${execution}.0`, stepText: `Feature: ${feature}`, called: "Haibun.feature", generatedAtTime: iso(at) });
+	await store.upsertIndividual(SEQ_PATH_LABEL, { ...record, id: `${execution}.0.1`, stepText: "a step", called: "Stepper.act", generatedAtTime: iso(at + 100) });
+	await store.upsertIndividual(LOG_MESSAGE_LABEL, { id: `${execution}.0.1@0`, message: "it said this", level: "info", generatedAtTime: iso(at + 200) });
+};
+
+/** A device holding two actualities: the older ran one feature, and the newer ran two. Each actuality's own record is
+ *  the record of its execution of feature 0. */
 const aDevice = async (): Promise<QuadStore> => {
 	const store = actualityStore();
-	for (const [i, execution] of [OLDER, NEWER].entries()) {
+	for (const [key, at] of [
+		[OLDER_ACTUALITY, 900],
+		[NEWER_ACTUALITY, 9900],
+	] as const)
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
-			id: `${execution}.0`,
-			stepText: `Feature: run ${i}`,
-			called: "Haibun.feature",
+			id: executionOf({ key, featureNum: 0 }),
+			stepText: "tests",
 			actionStatus: "passed",
 			level: "info",
-			generatedAtTime: iso(1000 + i * 9000),
+			actualityLevel: "execution",
+			generatedAtTime: iso(at),
 		});
-		await store.upsertIndividual(SEQ_PATH_LABEL, {
-			id: `${execution}.0.1`,
-			stepText: "a step",
-			called: "Stepper.act",
-			actionStatus: "passed",
-			level: "info",
-			generatedAtTime: iso(1100 + i * 9000),
-		});
-		await store.upsertIndividual(LOG_MESSAGE_LABEL, { id: `${execution}.0.1@0`, message: "it said this", level: "info", generatedAtTime: iso(1200 + i * 9000) });
-	}
+	await aFeature(store, OLDER, "the older one", 1000);
+	await aFeature(store, NEWER, "the first of the newer", 10000);
+	await aFeature(store, NEWER_SECOND, "the second of the newer", 11000);
 	installGraph(store);
 	return store;
 };
 
 /** One actuality as the device lists it. */
-const held = async (execution: string): Promise<THeldExecution> => {
-	const found = (await executionsHeld()).find((one) => one.execution === execution);
-	if (!found) throw new Error(`the device doesn't list ${execution}`);
+const held = async (actuality: string): Promise<THeldActuality> => {
+	const found = (await actualitiesHeld()).find((one) => one.actuality === actuality);
+	if (!found) throw new Error(`the device doesn't list ${actuality}`);
 	return found;
 };
 
 /** The records of one actuality the device still holds, over every type an actuality writes. */
-const heldOf = async (store: QuadStore, execution: string): Promise<number> => {
+const heldOf = async (store: QuadStore, actuality: string): Promise<number> => {
 	const quads = await store.query({});
-	return new Set(quads.filter((q) => q.subject.startsWith(`${execution}.`)).map((q) => q.subject)).size;
+	return new Set(quads.filter((q) => q.subject.startsWith(`${actuality}-`)).map((q) => q.subject)).size;
 };
 
 describe("what a device holds of the actualities it has read", () => {
 	beforeEach(newPage);
 	afterEach(() => vi.restoreAllMocks());
 
-	it("names the actualities it holds, newest first, by the features each ran", async () => {
+	it("names the actualities it holds, newest first, by the features each ran in the order it ran them", async () => {
 		await aDevice();
-		expect((await executionsHeld()).map((one) => one.execution)).toEqual([NEWER, OLDER]);
-		expect(itemAt(await executionsHeld(), 0).features).toEqual(["run 1"]);
+		expect((await actualitiesHeld()).map((one) => one.actuality)).toEqual([NEWER_ACTUALITY, OLDER_ACTUALITY]);
+		expect(itemAt(await actualitiesHeld(), 0).features).toEqual(["the first of the newer", "the second of the newer"]);
+		expect(itemAt(await actualitiesHeld(), 0).newest, "a reader of the actuality reads its newest feature").toBe(NEWER_SECOND);
 	});
 
 	it("reports a change of the execution being read when an execution starts while the page follows the one before it", () => {
@@ -82,19 +82,19 @@ describe("what a device holds of the actualities it has read", () => {
 		expect(readingExecution()).toBe(OLDER);
 		expect(told, "a page reading its first execution hasn't switched from another").toBe(0);
 		noteExecution(OLDER);
-		expect(told, "the same actuality again is not a change either").toBe(0);
+		expect(told, "the same execution again is not a change either").toBe(0);
 		noteExecution(NEWER);
 		expect(told, "the execution that started is the one being read, and what is drawn of an execution follows it").toBe(1);
 		stop();
 	});
 
-	it("leaves the actuality being read alone while a reader has chosen one, whatever the newest records belong to", () => {
+	it("leaves the execution being read alone while a reader has chosen one, whatever the newest records belong to", () => {
 		readExecution(OLDER);
 		let told = 0;
 		const stop = subscribeExecutionSwitch(() => told++);
 		noteExecution(NEWER);
-		expect(readingExecution(), "actuality the reader chose").toBe(OLDER);
-		expect(told, "a reader who is reading an actuality of their own choosing isn't told of a change").toBe(0);
+		expect(readingExecution(), "the execution the reader chose").toBe(OLDER);
+		expect(told, "a reader who is reading an execution of their own choosing isn't told of a change").toBe(0);
 		stop();
 	});
 
@@ -110,11 +110,11 @@ describe("what a device holds of the actualities it has read", () => {
 		stop();
 	});
 
-	it("deletes one actuality entirely and holds the rest of what it has read", async () => {
+	it("deletes one actuality entirely, its own record and every feature's, and holds the rest of what it has read", async () => {
 		const store = await aDevice();
-		expect(await deleteExecution(await held(OLDER))).toBe(3);
-		expect(await heldOf(store, OLDER), "it doesn't hold a record of the actuality it deleted").toBe(0);
-		expect(await heldOf(store, NEWER), "every record of the actuality it kept").toBe(3);
+		expect(await deleteActuality(await held(NEWER_ACTUALITY))).toBe(7);
+		expect(await heldOf(store, NEWER_ACTUALITY), "it doesn't hold a record of the actuality it deleted").toBe(0);
+		expect(await heldOf(store, OLDER_ACTUALITY), "every record of the actuality it kept").toBe(4);
 	});
 
 	it("makes room by deleting the oldest actuality it is not reading, and holds what it was given", async () => {
@@ -130,14 +130,14 @@ describe("what a device holds of the actualities it has read", () => {
 			generatedAtTime: iso(20000),
 		});
 		await holdOnDevice(quads);
-		expect(await heldOf(store, OLDER), "the actuality it was not reading is what made room").toBe(0);
+		expect(await heldOf(store, OLDER_ACTUALITY), "the actuality it was not reading is what made room").toBe(0);
 		expect(setMany, "what it was given is written once the room is there").toHaveBeenCalledTimes(2);
-		expect(await heldOf(store, NEWER)).toBe(4);
+		expect(await heldOf(store, NEWER_ACTUALITY), "the actuality of the execution being read, with every feature's records").toBe(8);
 	});
 
 	it("reports a device is full when it can't free a record there, and goes on reading", async () => {
 		const store = await aDevice();
-		await deleteExecution(await held(OLDER));
+		await deleteActuality(await held(OLDER_ACTUALITY));
 		readExecution(NEWER);
 		vi.spyOn(store, "setMany").mockRejectedValue(new DOMException("the device is full", "QuotaExceededError"));
 		const [, quads] = individualAsQuads(SEQ_PATH_LABEL, {

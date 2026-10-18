@@ -15,7 +15,8 @@ import type { ActualitySource } from "../ports.js";
 import { ACTUALITY_WINDOW_SIZE } from "../derivations/actuality-rows.js";
 import * as Sources from "../pipelines/actuality-sources.js";
 import * as ViewsShown from "../pipelines/views-shown.js";
-import { currentExecution, holdOnDevice, noteExecution, readingExecution, subscribeExecutionSwitch } from "./device-controller.js";
+import { currentExecution, noteExecution, readingExecution, subscribeExecutionSwitch } from "./device-controller.js";
+import { holdOnDevice } from "./held-actualities-controller.js";
 
 export type { ActualitySource, TEventRecord, TActualityExtent } from "../ports.js";
 

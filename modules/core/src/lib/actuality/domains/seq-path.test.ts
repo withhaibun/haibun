@@ -3,7 +3,9 @@ import {
 	SEQ_PATH_FIELD,
 	RecordNameSchema,
 	SeqPathSchema,
+	actualityOf,
 	compareSeqPath,
+	executionOf,
 	extractSeqPathPrefix,
 	formatRecordName,
 	parseRecordName,
@@ -131,6 +133,18 @@ describe("the name of an execution's record", () => {
 	it("rejects a name with an extra field or a malformed execution", () => {
 		expect(RecordNameSchema.safeParse({ execution: "1700000000000-4", path: [0], suffix: "x" }).success).toBe(false);
 		expect(RecordNameSchema.safeParse({ execution: "[0.1]", path: [0] }).success).toBe(false);
+	});
+});
+
+describe("the actuality of an execution", () => {
+	it("is the key every feature's execution of one actuality takes, the synthetic feature's too", () => {
+		expect(actualityOf(executionOf({ key: "1700000000000", featureNum: 4 }))).toBe("1700000000000");
+		expect(actualityOf(executionOf({ key: "1700000000000", featureNum: 0 })), "the actuality's own record").toBe("1700000000000");
+		expect(actualityOf(executionOf({ key: "1700000000000", featureNum: -1 }))).toBe("1700000000000");
+	});
+
+	it("refuses an id that doesn't name an execution", () => {
+		expect(() => actualityOf("0.1.2")).toThrow("isn't an execution id");
 	});
 });
 

@@ -1,21 +1,18 @@
 /**
  * What the device holds of actuality, as the views read it: the graph the page reads (the site's, a report's, or another
- * actuality's the device holds), the executions the device holds and which one the page reads, an actuality a report carries,
- * and the device's store of the site's registry.
+ * actuality's the device holds), the execution the page reads, an actuality a report carries, and the device's store of
+ * the site's registry.
  */
 import { readDeclarationsOfCatalog, type TReadDeclarations } from "@haibun/core/lib/records/derivations/read-records.js";
-import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import type { TCachePayload } from "../../../domains/hydration.js";
 import { getConcernCatalog } from "../../controllers/catalog-controller.js";
-import { deviceQuads, deviceReport, graphSlot, heldDatabases, installMemoryDeviceStore, pageExecutions, servedDatabase } from "../root.js";
+import { deviceQuads, graphSlot, heldDatabases, installMemoryDeviceStore, pageExecutions, servedDatabase } from "../root.js";
 import type { TCachedGraph, TDeviceGraph, TGraphSaturation } from "../ports.js";
 import { DeviceGraph } from "../pipelines/device-graph.js";
-import * as Executions from "../pipelines/executions.js";
 import { readCarriedActuality } from "../pipelines/carried-actuality.js";
 import { EXECUTIONS_EVENT, readingOf } from "../machines/executions.js";
 
 export { followDeviceWrites, pageDeviceStore, deviceSummary } from "../root.js";
-export { EXECUTIONS_READ, type THeldExecution } from "../pipelines/executions.js";
 export { CACHE_SHAPE } from "../root.js";
 export type { TGraphSaturation, TStoredRegistry } from "../ports.js";
 export type { TIdbDatabaseSummary } from "../adapters/idb-summary.js";
@@ -95,29 +92,12 @@ export const subscribeExecutionSwitch = (fn: () => void): (() => void) =>
 		if (after.switches !== before.switches) fn();
 	});
 
-/** Reads a held execution, in the records of its actuality. */
-export function readHeldExecution(held: Executions.THeldExecution): void {
-	readHeldGraph(held.store);
-	readExecution(held.execution);
-}
-
 /** Follows the execution being recorded again, in the records the site serves: what takes a reader off an execution
  *  they chose and back to whatever is happening now. */
 export function followRecordedExecution(): void {
 	readHeldGraph(servedGraph());
 	readExecution(undefined);
 }
-
-/** The executions this device holds of every actuality, newest first, each named by the features it ran. */
-export const executionsHeld = async (): Promise<Executions.THeldExecution[]> => Executions.executionsHeld(await heldGraphs());
-
-/** Deletes every record of one execution this device holds, and returns how many went. */
-export const deleteExecution = (held: Executions.THeldExecution): Promise<number> => Executions.deleteExecution(held);
-
-/** Holds what a window read on this device, in one write, deleting the oldest actuality the reader isn't reading where the
- *  device is full. */
-export const holdOnDevice = (quads: TQuad[]): Promise<void> =>
-	Executions.holdOnDevice({ held: heldGraphs, served: servedGraph, reading: readingExecution, report: deviceReport }, quads);
 
 /** Reads what a report carries of an actuality, from then. */
 export const hydrateClientCache = (cache: TCachePayload): Promise<void> =>

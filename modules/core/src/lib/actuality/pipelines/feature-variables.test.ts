@@ -38,7 +38,7 @@ describe("FeatureVariables", () => {
 	});
 
 	describe("clear", () => {
-		it("removes the variables and the steps' records, and keeps the levels' records, so the store holds every feature's", async () => {
+		it("removes the variables and keeps the actuality's records, so the store holds every feature's levels and steps", async () => {
 			await variables.set({ term: "foo", value: "bar", domain: DOMAIN_STRING, origin: Origin.var }, { in: "test", seq: [1], when: "test.action" });
 			const store = variables.getStore();
 			await store.upsertIndividual(SEQ_PATH_LABEL, { id: "1-0.1.0", stepText: "a feature", actualityLevel: "feature", accessLevel: Access.public });
@@ -47,7 +47,7 @@ describe("FeatureVariables", () => {
 			expect(await variables.all()).toEqual({});
 			expect(await variables.get("foo")).toBeUndefined();
 			expect(await store.get("1-0.1.0", "stepText", SEQ_PATH_LABEL)).toBe("a feature");
-			expect(await store.get("1-0.1.1.1", "stepText", SEQ_PATH_LABEL)).toBeUndefined();
+			expect(await store.get("1-0.1.1.1", "stepText", SEQ_PATH_LABEL)).toBe("a step");
 		});
 	});
 

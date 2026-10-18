@@ -461,23 +461,12 @@
 		"anthropomorphic": 1,
 		"terminal-preposition": 1
 	},
-	"modules/shu/tests-profile/features/a-a-run-to-come-back-to.feature.ts": {
-		"negated-noun": 1,
-		"terminal-preposition": 2,
-		"the-run": 3
-	},
-	"modules/shu/tests-profile/features/b-reading-a-cached-run.feature.ts": {
-		"negated-noun": 1,
-		"relation-verb": 1
-	},
 	"modules/shu/tests-profile/features/c-reading-a-report.feature.ts": {
 		"anthropomorphic": 2,
-		"negated-noun": 3,
-		"the-run": 5
+		"negated-noun": 3
 	},
 	"modules/shu/tests-profile/features/d-two-origins.feature.ts": {
-		"negated-noun": 3,
-		"the-run": 2
+		"negated-noun": 3
 	},
 	"modules/shu/tests/features/monitor.feature.ts": {
 		"relation-verb": 2,

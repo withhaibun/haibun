@@ -116,6 +116,16 @@ export function executionOf(tag: { key: string; featureNum: number }): string {
 }
 
 /**
+ * Returns the key of the actuality that contains an execution: the part of the execution id before its feature's number.
+ * Every feature of one actuality takes that key, so a reader selects, lists and deletes an actuality's records by it.
+ * Throws for an id that executionOf didn't return.
+ */
+export function actualityOf(execution: string): string {
+	if (!RecordNameSchema.shape.execution.safeParse(execution).success) throw new Error(`"${execution}" isn't an execution id, which executionOf returns`);
+	return execution.slice(0, execution.indexOf("-"));
+}
+
+/**
  * The name of a record of an execution. It holds the execution, the step path within that execution, and the ordinal
  * of an item a step logged or produced. Every record name has this one form, so a reader parses one shape and doesn't
  * match several.
@@ -298,14 +308,14 @@ export function stepLine(record: Record<string, unknown>): TStepLine {
 export const seqPathDomainDefinition: TDomainDefinition = {
 	selectors: [SEQ_PATH_DOMAIN],
 	schema: SeqPathSchema,
-	description: "A run, feature, scenario or step.",
+	description: "An actuality, feature, scenario or step.",
 	// A step opens as the view of its record (CA4D9), as core declares the affordances panel's view.
 	ui: { component: "shu-step-detail" },
 	topology: {
 		persistedAs: SEQ_PATH_LABEL,
 		accessLevel: Access.private,
 		id: SEQ_PATH_FIELD.id,
-		// A record is titled by its heading or its step's text, so a graph of a run reads as its features, scenarios and steps.
+		// A record is titled by its heading or its step's text, so a graph of an actuality reads as its features, scenarios and steps.
 		displayLabel: SEQ_PATH_FIELD.stepText,
 		instrumentation: true,
 		properties: {

@@ -23,10 +23,10 @@ export const features: TKirejiExport = {
 		feature({ feature: "What a reader holds is held per address" }),
 		...testIdSetup,
 
-		scenario({ scenario: "A reader at one address holds the runs they read there" }),
+		scenario({ scenario: "A reader at one address holds the actualities they read there" }),
 
-		"What a reader holds of a run is held by their browser under the address they read it at, and a browser keeps one reader's storage apart from another's by that address. This is what keeps two readers of two deployments from seeing each other's runs, and it is the browser that does it rather than anything written here.",
-		"This run and the ones before it were all read at the same address on this profile, so the cache view there lists the earlier ones by what they ran.",
+		"What a reader holds of an actuality is held by their browser under the address they read it at, and a browser keeps one reader's storage apart from another's by that address. This is what keeps two readers of two deployments from seeing each other's actualities, and it is the browser that does it rather than anything written here.",
+		"This actuality and the one before it were both read at the same address on this profile, so the cache view there lists the earlier one by what it ran.",
 		"enable rpc",
 		serveShuApp({ path: '"/spa"' }),
 		'webserver is listening for "what a reader holds is held per address"',
@@ -36,19 +36,19 @@ export const features: TKirejiExport = {
 		"The device is read after the view opens, so the row of the actuality being read is what shows the list is there to be read.",
 		waitFor({ target: IDS.CLIENT_CACHE.HELD }),
 		`save text from ${IDS.CLIENT_CACHE.ROOT} to atFirstAddress`,
-		'matches atFirstAddress with "*A run to come back to*"',
+		'matches atFirstAddress with "*An actuality to come back to*"',
 
 		scenario({ scenario: "The same server at another of its addresses holds nothing of them" }),
 
-		"The same server, reached at another of its own addresses, is another address to the browser: what was read at the first is not there to be read. The reader is not shown an earlier run, because on this address they have read none. Nothing was moved or hidden to arrange that.",
+		"The same server, reached at another of its own addresses, is another address to the browser: what was read at the first is not there to be read. The reader is not shown an earlier actuality, because on this address they have read none. Nothing was moved or hidden to arrange that.",
 		gotoPage({ name: `"${otherAddress}/spa"` }),
 		"show monitor",
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
 		"show client cache",
 		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
 		`save text from ${IDS.CLIENT_CACHE.ROOT} to atOtherAddress`,
-		"The reader is reading here, and holds this run: what is absent is the earlier runs, not the view.",
+		"The reader is reading here, and holds this actuality: what is absent is the earlier one, not the view.",
 		'matches atOtherAddress with "*What a reader holds is held per address*"',
-		'not matches atOtherAddress with "*A run to come back to*"',
+		'not matches atOtherAddress with "*An actuality to come back to*"',
 	],
 };

@@ -1,48 +1,59 @@
 {
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
-		"5d988f677644e14a": {
-			"state": "a231d3de3aa00fbe4ce012f95c26eb0db31fe7ac79c0b4810d3a28703e1754fa",
-			"filter": "",
+		"0d38e6518415943c": {
+			"state": "8e713745b4ef1abf51a4983204f11a040c47f8cc181894cedf012c54d55ad5ba",
+			"filter": "features/[b-e]-",
 			"execution": {
 				"text": "modules/shu/tests-profile",
 				"status": "passed",
-				"tookMs": 29300
+				"tookMs": 17800
 			},
 			"features": {
-				"/features/a-a-run-to-come-back-to.feature.ts": {
-					"text": "A run to come back to",
-					"status": "passed",
-					"tookMs": 2700,
-					"steps": 207,
-					"declaredStepTextHash": "03463ac4b1f1bacfcfe99e47ae68cb50159d7ca47b1bfaa209dd3a09b8b35ad8"
-				},
-				"/features/b-reading-a-cached-run.feature.ts": {
-					"text": "Reading an execution this device holds",
+				"/features/b-reading-a-cached-actuality.feature.ts": {
+					"text": "Reading an actuality this device holds",
 					"status": "passed",
 					"tookMs": 3400,
 					"steps": 217,
-					"declaredStepTextHash": "8377bece1182ca1daaab38a551c7699d1c00f2de4cf8eaf89a64f34e26ccdadd"
+					"declaredStepTextHash": "4ba371d780a9cd5292252920a849cc8a299b596e88a9cbfc767ca7476cd8c2e3"
 				},
 				"/features/c-reading-a-report.feature.ts": {
-					"text": "Reading a report of this run",
+					"text": "Reading a report of this actuality",
 					"status": "passed",
-					"tookMs": 2400,
+					"tookMs": 2000,
 					"steps": 215,
-					"declaredStepTextHash": "7e31ccce239fa74edad64dfd124c776a8a90bdbd44eea1f31b432eed8e1731fd"
+					"declaredStepTextHash": "1d64e883f0b19ac46d337d9e9a7d25d46baab9f69671a899d275f2b3a7085ce5"
 				},
 				"/features/d-two-origins.feature.ts": {
 					"text": "What a reader holds is held per address",
 					"status": "passed",
-					"tookMs": 2000,
-					"steps": 216,
-					"declaredStepTextHash": "ba086e4dad6826cb6ab9b178bef0ed787a8997046fb210cbf16228ae9e6d25ff"
+					"tookMs": 2900,
+					"steps": 217,
+					"declaredStepTextHash": "f250865edd0cafe4217743b2448eaa80b592b8a1f2836f689c3c3a835bfd0bc6"
 				},
-				"/features/e-deleting-a-run.feature.ts": {
-					"text": "Deleting a run this device holds",
+				"/features/e-deleting-an-actuality.feature.ts": {
+					"text": "Deleting an actuality this device holds",
 					"status": "passed",
-					"tookMs": 17700,
+					"tookMs": 8600,
+					"steps": 208,
+					"declaredStepTextHash": "edb57585a3f2dc920e1bd50569a95f725e434dfc75032d8dc5b2d0df5eb0d7a2"
+				}
+			}
+		},
+		"7adb67a789bb28aa": {
+			"state": "8e713745b4ef1abf51a4983204f11a040c47f8cc181894cedf012c54d55ad5ba",
+			"filter": "features/a-",
+			"execution": {
+				"text": "modules/shu/tests-profile",
+				"status": "passed",
+				"tookMs": 3000
+			},
+			"features": {
+				"/features/a-an-actuality-to-come-back-to.feature.ts": {
+					"text": "An actuality to come back to",
+					"status": "passed",
+					"tookMs": 2800,
 					"steps": 207,
-					"declaredStepTextHash": "bb221a904f4102a45f405d8749b877fa1f2cba67c391375a4302b7c692c18129"
+					"declaredStepTextHash": "b7eda1a6cab3c3b1cecff38300672702acf8e7c82d46f6abd9dafae4b0136924"
 				}
 			}
 		}

@@ -18,25 +18,25 @@ const host = "http://localhost:8241";
 const IDS = SHU_TEST_IDS;
 const REPORT = "/tmp/haibun-shu-report.html";
 const testIdSetup = flattenTestIds(IDS).map((id) => setAs({ what: id, domain: "page-test-id", value: `"${id}"` }));
-const runEvents = Array.from({ length: 8 }, (_, i) => setAs({ what: `reportedEvent${i}`, domain: "page-test-id", value: `"r${i}"` }));
+const reportedEvents = Array.from({ length: 8 }, (_, i) => setAs({ what: `reportedEvent${i}`, domain: "page-test-id", value: `"r${i}"` }));
 
 export const features: TKirejiExport = {
-	"Reading a report of this run": [
-		feature({ feature: "Reading a report of this run" }),
+	"Reading a report of this actuality": [
+		feature({ feature: "Reading a report of this actuality" }),
 		...testIdSetup,
 
-		scenario({ scenario: "A report carries its run, and a page with no site reads it" }),
+		scenario({ scenario: "A report carries its actuality, and a page with no site reads it" }),
 
-		"A report is this page with the run it reports carried inside it: the graph the run wrote, which is the run, and the site's declarations. Opened from a file, with no site to read anything from, the monitor shows the run's rows because it reads them the way it reads any run.",
+		"A report is this page with the actuality it reports carried inside it: the graph the actuality wrote, which is the actuality, and the site's declarations. Opened from a file, with no site to read anything from, the monitor shows the actuality's rows because it reads them the way it reads any actuality.",
 		"enable rpc",
 		serveShuApp({ path: '"/spa"' }),
-		'webserver is listening for "reading a report of this run"',
+		'webserver is listening for "reading a report of this actuality"',
 		gotoPage({ name: `"${host}/spa"` }),
 		"show monitor",
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
 		"show client cache",
 		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
-		...runEvents,
+		...reportedEvents,
 		monitorHoldsRows({ n: "8" }),
 		`saves shu to "${REPORT}"`,
 
@@ -46,6 +46,6 @@ export const features: TKirejiExport = {
 		monitorHoldsRows({ n: "8" }),
 		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
 		`save text from ${IDS.CLIENT_CACHE.ROOT} to reportCache`,
-		'matches reportCache with "*Executions this device holds*"',
+		'matches reportCache with "*Actualities this device holds*"',
 	],
 };
