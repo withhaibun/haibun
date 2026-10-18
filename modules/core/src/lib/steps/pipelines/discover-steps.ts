@@ -18,8 +18,8 @@ import {
 } from "../domains/step-discovery.js";
 import { hostOfMethodName, hostScopedMethodName } from "../domains/step-method.js";
 import { containsText, domainSummary, stepDefinition, stepSummary, stepperStepsLink } from "../domains/step-discovery.js";
-import { heldPerEntries, recordEntries } from "./held-per-entries.js";
-import type { StepRegistry } from "../pipelines/step-registry.js";
+import { heldPerEntries, recordEntries } from "../derivations/held-per-entries.js";
+import type { StepRegistry } from "./step-registry.js";
 
 /** The concern catalog of a set of registered domains, built again only where a domain is added or replaced. */
 export const concernCatalogOf = heldPerEntries(recordEntries, (domains: Record<string, TRegisteredDomain>) => buildConcernCatalog(domains));

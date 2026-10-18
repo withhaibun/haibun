@@ -23,7 +23,7 @@ import type {
 	TRecordsPage,
 } from "../../steps/domains/quad-types.js";
 
-type TRemoteQuadStoreConfig = { url: string; sign: TRequestSigner; graphs: string[]; fetchImpl?: typeof fetch };
+export type TRemoteQuadStoreConfig = { url: string; sign: TRequestSigner; graphs: string[]; fetchImpl?: typeof fetch };
 
 export class RemoteQuadStore implements IQuadStore {
 	readonly isRemote = true;

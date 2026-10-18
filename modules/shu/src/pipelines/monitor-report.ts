@@ -8,7 +8,7 @@ import { errorDetail } from "@haibun/core/lib/util/index.js";
 import { obscuredText } from "@haibun/core/lib/steps/derivations/obscured.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { SEQ_PATH_FIELD, executionOf } from "@haibun/core/lib/seq-path.js";
-import { discoverSteps } from "@haibun/core/lib/steps/derivations/discover-steps.js";
+import { discoverSteps } from "@haibun/core/lib/steps/pipelines/discover-steps.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import { EVERY_DEFINITION } from "@haibun/core/lib/step-discovery.js";
 import { shownTo } from "@haibun/core/lib/capability-context.js";

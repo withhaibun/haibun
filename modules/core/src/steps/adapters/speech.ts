@@ -1,13 +1,15 @@
+/**
+ * Speech and screen capture through the host: transcripts rendered with kokoro-js and cached by their hash, audio played
+ * with ffplay, and the shell commands that start and stop a capture.
+ */
 import { execSync, spawn } from "child_process";
 import { createHash } from "crypto";
 import { existsSync, mkdirSync, readdirSync, cpSync, unlinkSync } from "fs";
 import * as nodePath from "path";
 import { createRequire } from "module";
 
-import { TResolvedFeature } from "../../lib/steps/domains/stepper.js";
-import { FEATURE_START } from "../../lib/domains/protocol.js";
-import { SCENARIO_START } from "../../lib/domains/protocol.js";
 import { itemAt } from "../../lib/util/item-at.js";
+import type { TRenderedAudioMap, TSpeech } from "../ports.js";
 
 /** The part of kokoro-js's KokoroTTS that synthesis calls: a model loaded by its id, which renders a transcript as audio. */
 type TKokoroTTS = {
@@ -17,25 +19,13 @@ type TKokoroTTS = {
 	): Promise<{ generate(text: string, options: { voice: string }): Promise<{ save(path: string): Promise<void> }> }>;
 };
 
-type TCachedAudio = { transcript: string; durationS: number; cachedPath: string };
-export type TRenderedAudioMap = { [hash: string]: TCachedAudio };
+type TCachedAudio = TRenderedAudioMap[string];
 
 const CACHE_DIR = nodePath.resolve("capture/.said");
 
-const SPOKEN_HEADINGS = [SCENARIO_START, FEATURE_START];
-
-export async function preRenderFeatureProse(feature: TResolvedFeature): Promise<TRenderedAudioMap> {
-	const proseTexts = new Set<string>();
-	for (const step of feature.featureSteps) {
-		if (step.action.step.prose || SPOKEN_HEADINGS.includes(step.action.actionName)) {
-			const text = step.in;
-			proseTexts.add(text);
-		}
-	}
-
-	if (proseTexts.size === 0) {
-		return {};
-	}
+/** The audio of each transcript, from the cache where a render of it is kept, and rendered and kept otherwise. */
+async function rendered(proseTexts: ReadonlySet<string>): Promise<TRenderedAudioMap> {
+	if (proseTexts.size === 0) return {};
 
 	const renderedAudio: TRenderedAudioMap = {};
 	mkdirSync(CACHE_DIR, { recursive: true });
@@ -147,7 +137,7 @@ async function renderAudio(hash: string, transcript: string, cacheDir: string): 
 	return { transcript, durationS, cachedPath: finalCachedPath };
 }
 
-export function copyPreRenderedAudio(dir: string, renderedAudio: TRenderedAudioMap, transcript: string) {
+function copyPreRenderedAudio(dir: string, renderedAudio: TRenderedAudioMap, transcript: string) {
 	const hash = createHash("sha1").update(transcript).digest("hex");
 	const audioInfo = renderedAudio[hash];
 
@@ -164,7 +154,7 @@ export function copyPreRenderedAudio(dir: string, renderedAudio: TRenderedAudioM
 }
 
 /** Play an audio file through the system speakers using ffplay. */
-export function playAudioFile(audioPath: string): Promise<void> {
+function playAudioFile(audioPath: string): Promise<void> {
 	return new Promise((resolve, reject) => {
 		try {
 			const proc = spawn("ffplay", ["-nodisp", "-autoexit", audioPath], { stdio: ["ignore", "pipe", "pipe"], detached: false });
@@ -186,7 +176,7 @@ export function playAudioFile(audioPath: string): Promise<void> {
 	});
 }
 
-export function doExec(command: string, throwOnError: boolean): string {
+function doExec(command: string, throwOnError: boolean): string {
 	try {
 		const stdout = execSync(command, { encoding: "utf8", stdio: "pipe" }).toString();
 		return stdout.trim();
@@ -201,7 +191,16 @@ export function doExec(command: string, throwOnError: boolean): string {
 	}
 }
 
-export function doSpawn(command: string) {
+function doSpawn(command: string) {
 	const captureProc = spawn(command, { shell: true, detached: true, stdio: "ignore" });
 	captureProc.unref();
 }
+
+export const speech: TSpeech = {
+	rendered,
+	copy: copyPreRenderedAudio,
+	play: playAudioFile,
+	exec: doExec,
+	spawn: doSpawn,
+	pause: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+};

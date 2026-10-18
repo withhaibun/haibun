@@ -3,7 +3,7 @@ import { z } from "zod";
 import { StepRegistry, type StepTool, createStepHandler, createStepTool } from "./step-registry.js";
 import { buildFeatureStepForTransport } from "./call-step.js";
 import { refusal } from "./gate.js";
-import { discoverSteps, steppersOf } from "../derivations/discover-steps.js";
+import { discoverSteps, steppersOf } from "./discover-steps.js";
 import { hostScopedMethodName } from "../domains/step-method.js";
 import { AStepper, type TFeatureStep } from "../domains/stepper.js";
 import { actionNotOK, actionOK } from "../../util/index.js";

@@ -14,7 +14,7 @@ import DebuggerStepper from "./steps/debugger-stepper.js";
 import GoalResolutionStepper from "./steps/goal-resolution-stepper.js";
 import Haibun from "./steps/haibun.js";
 import LogicStepper from "./steps/logic-stepper.js";
-import Narrator from "./steps/narrator.js";
+import Narrator from "./steps/narrator-stepper.js";
 import ResourcesStepper from "./steps/resources-stepper.js";
 import UrakataStepper from "./steps/urakata-stepper.js";
 import VariablesStepper from "./steps/variables-stepper.js";

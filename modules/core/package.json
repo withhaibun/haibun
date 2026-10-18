@@ -262,6 +262,10 @@
 			"haibun-source": "./src/lib/pipelines/step-validation.js",
 			"default": "./build/lib/pipelines/step-validation.js"
 		},
+		"./lib/steps/derivations/discover-steps.js": {
+			"haibun-source": "./src/lib/steps/pipelines/discover-steps.js",
+			"default": "./build/lib/steps/pipelines/discover-steps.js"
+		},
 		"./*": {
 			"haibun-source": "./src/*",
 			"default": "./build/*"

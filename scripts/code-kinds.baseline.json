@@ -142,12 +142,6 @@
 	"modules/core/src/steps/haibun.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/core/src/steps/lib/tts.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/steps/narrator.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/artifact-url.ts": {
 		"isn't in a kind position": 1
 	},

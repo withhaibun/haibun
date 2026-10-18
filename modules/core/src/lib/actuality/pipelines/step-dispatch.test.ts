@@ -5,7 +5,7 @@ import { dispatchStep } from "./step-dispatch.js";
 import { retainedProducts } from "../derivations/step-results.js";
 import { buildStepRegistry, createStepHandler, StepRegistry, type StepTool } from "../../steps/pipelines/step-registry.js";
 import { stepMethodName } from "../../steps/domains/step-method.js";
-import { discoverSteps } from "../../steps/derivations/discover-steps.js";
+import { discoverSteps } from "../../steps/pipelines/discover-steps.js";
 import { buildFeatureStepForTransport } from "../../steps/pipelines/call-step.js";
 import { authorizeToolCapability } from "../../steps/pipelines/gate.js";
 import { validateToolInput } from "../../steps/derivations/tool-validation.js";

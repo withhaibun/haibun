@@ -21,10 +21,10 @@ import {
 import { findFeatures } from "../lib/features.js";
 import { FlowRunner, inheritedMode } from "../lib/steps/pipelines/flow-runner.js";
 import { QuadStore } from "../lib/steps/pipelines/quad-store.js";
-import { RemoteQuadStore } from "../lib/transport/adapters/remote-quad-store.js";
+import { remoteQuadStore } from "./root.js";
 import { requestSigner } from "../lib/session-authority.js";
 import { SERVING } from "../lib/domains/serving.js";
-import { discoverSteps } from "../lib/steps/derivations/discover-steps.js";
+import { discoverSteps } from "../lib/steps/pipelines/discover-steps.js";
 import { runRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { stepMethodName } from "../lib/steps/domains/step-method.js";
 import { DOMAIN_STEP_DETAIL, SHOW_STEPS_ACTION, SHOW_STEPS_DESCRIPTION, StepDetailSchema, StepDiscoverySchema, type TStepsQuery } from "../lib/steps/domains/step-discovery.js";
@@ -134,7 +134,7 @@ class Haibun extends AStepper implements IHasCycles {
 			action: async ({ where, types: graphs }: { where: string; types: string[] }) => {
 				const store = this.getWorld().shared.getStore();
 				if (!(store instanceof QuadStore)) return actionNotOK("use store at: the world store does not support backing registration");
-				const remote = new RemoteQuadStore({ url: where, sign: requestSigner(this.getWorld().runtime), graphs });
+				const remote = remoteQuadStore({ url: where, sign: requestSigner(this.getWorld().runtime), graphs });
 				const site = await remote.connect();
 				await store.registerStore(remote, graphs);
 				return actionOKWithProducts({ site, types: graphs });

@@ -3,8 +3,10 @@ import { resolve } from "path";
 import type { TWorld } from "../lib/actuality/domains/world.js";
 import { Origin } from "../lib/domains/protocol.js";
 import { IHasCycles, IHasOptions, AStepper, TFeatureStep, IStepperCycles, TStartFeature, type TStepperSteps } from "../lib/steps/domains/stepper.js";
-import { actionNotOK, actionOK, getStepperOption, sleep, stringOrError } from "../lib/util/index.js";
-import { copyPreRenderedAudio, doExec, doSpawn, playAudioFile, preRenderFeatureProse, TRenderedAudioMap } from "./lib/tts.js";
+import { actionNotOK, actionOK, getStepperOption, stringOrError } from "../lib/util/index.js";
+import { narratedAudio } from "./pipelines/narration.js";
+import { hostSpeech } from "./root.js";
+import type { TRenderedAudioMap } from "./ports.js";
 import { captureLocator } from "../lib/domains/capture-locator.js";
 import { SpeechArtifact, VideoArtifact } from "../lib/domains/protocol.js";
 import { DOMAIN_TITLE } from "../lib/domains/domains.js";
@@ -14,15 +16,15 @@ const CAPTURE_TAIL_MS = 2000;
 
 const cycles = (narrator: Narrator): IStepperCycles => ({
 	async startFeature({ resolvedFeature }: TStartFeature) {
-		narrator.renderedAudio = await preRenderFeatureProse(resolvedFeature);
+		narrator.renderedAudio = await narratedAudio(narrator.speech, resolvedFeature);
 		if (narrator.captureStart) {
-			doSpawn(narrator.captureStart);
+			narrator.speech.spawn(narrator.captureStart);
 		}
 	},
 	async endFeature() {
 		if (narrator.captureStop) {
-			await sleep(CAPTURE_TAIL_MS);
-			await doExec(narrator.captureStop, false);
+			await narrator.speech.pause(CAPTURE_TAIL_MS);
+			narrator.speech.exec(narrator.captureStop, false);
 			const world = narrator.getWorld();
 			const path = captureLocator(world.options, world.tag);
 			const artifact = VideoArtifact.parse({ id: `narrator.video`, timestamp: Date.now(), kind: "artifact", artifactType: "video", path, mimetype: "video/webm" });
@@ -35,6 +37,7 @@ class Narrator extends AStepper implements IHasOptions, IHasCycles {
 	description = "Text-to-speech narration and screen capture for demos";
 
 	renderedAudio: TRenderedAudioMap = {};
+	readonly speech = hostSpeech();
 	options = {
 		CAPTURE_START: { desc: "Shell command to start screen capture", parse: (input: string) => stringOrError(input), required: false },
 		CAPTURE_STOP: { desc: "Shell command to stop screen capture", parse: (input: string) => stringOrError(input), required: false },
@@ -77,12 +80,12 @@ class Narrator extends AStepper implements IHasOptions, IHasCycles {
 		const transcript = featureStep.in;
 		const world = this.getWorld();
 		const dir = captureLocator(world.options, world.tag);
-		const { path, durationS } = copyPreRenderedAudio(dir, this.renderedAudio, transcript);
+		const { path, durationS } = this.speech.copy(dir, this.renderedAudio, transcript);
 		const runtimePath = resolve(dir);
 
 		try {
 			const audioFullPath = `${runtimePath}/${path}`;
-			await playAudioFile(audioFullPath);
+			await this.speech.play(audioFullPath);
 		} catch (error: unknown) {
 			const e = error as { message: string; stderr?: unknown };
 			const stderr = e.stderr ? String(e.stderr) : "";

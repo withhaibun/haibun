@@ -21,7 +21,7 @@
 		"test:shu-self-test": "HAIBUN_ENV=shu_test_password=ISECRET_shu_test haibun-cli shu-self-test",
 		"test": "npm run test:tests && npm run test:run-policy && npm run test:shu-self-test",
 		"test-debug": "npm run test:tests -- --with-steppers=debugger-stepper",
-		"test-narrator": "npm run test:tests -- --with-steppers=narrator",
+		"test-narrator": "npm run test:tests -- --with-steppers=narrator-stepper",
 		"help": "npm run test -- --help",
 		"policy:permissive": "haibun-cli -c policy-test/config.json policy-test --run-policy local smoke:w,api:w",
 		"policy:restricted:pass": "haibun-cli -c policy-test/config-no-prod-writes.json policy-test --run-policy prod smoke:r,api:r",
