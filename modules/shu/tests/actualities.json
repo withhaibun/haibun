@@ -1,53 +1,53 @@
 {
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
 		"037f5dccb6aecbf1": {
-			"state": "758004f92a49d5ad340e1a77a32ff3363fa5d6fcfeef8341cc2b7f0580a88c4a",
+			"state": "396e89853bc56ff3a94efb722c84aa4dc10bcec6467a6b291d5718e3fab3a700",
 			"filter": "",
 			"execution": {
 				"text": "modules/shu/tests",
 				"status": "passed",
-				"tookMs": 14000
+				"tookMs": 17900
 			},
 			"features": {
 				"/features/address.feature.ts": {
 					"text": "An address names a type",
 					"status": "passed",
-					"tookMs": 800,
+					"tookMs": 1000,
 					"steps": 199,
 					"declaredStepTextHash": "61b18ce0a42e63f5aefe7a724bab09ebf144c995f872e7f25cedf8833e721876"
 				},
 				"/features/federate.feature.ts": {
 					"text": "Federated graph reads from a sibling instance",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 1000,
 					"steps": 6,
 					"declaredStepTextHash": "ab37731cb50813b783e0aa872bb80a9b995c504e308a5603c48f254263f91584"
 				},
 				"/features/monitor-serves.feature.ts": {
 					"text": "The monitor serves shu on a port of its own",
 					"status": "passed",
-					"tookMs": 1200,
+					"tookMs": 1400,
 					"steps": 195,
 					"declaredStepTextHash": "f2179e90a8ba0ddc11874cee823c958ba9af79ed1a2d675b9b9309f175ea49cf"
 				},
 				"/features/monitor.feature.ts": {
 					"text": "Monitor view collects and displays execution events",
 					"status": "passed",
-					"tookMs": 7800,
-					"steps": 577,
+					"tookMs": 9800,
+					"steps": 578,
 					"declaredStepTextHash": "393454bf5334c0e4596961db49d85acaad2b729a3da77003b00982cc50e2ebfb"
 				},
 				"/features/remote-store.feature.ts": {
 					"text": "A satellite instance keeps its records in the main instance's store",
 					"status": "passed",
-					"tookMs": 1000,
+					"tookMs": 1100,
 					"steps": 8,
 					"declaredStepTextHash": "e72c51a4303f8c90b2629d72ca832ecc807fcfa3c405fea980dca36f601267e1"
 				},
 				"/features/voice-ui.feature.ts": {
 					"text": "UI extension propagation: domain ui → concern catalog → SPA actions bar",
 					"status": "passed",
-					"tookMs": 1300,
+					"tookMs": 1800,
 					"steps": 209,
 					"declaredStepTextHash": "7b1a76d4b7f2bac96f117475e06755e50510475834a6fa4c802f50358c798bc6"
 				}

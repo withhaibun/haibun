@@ -1,18 +1,18 @@
 {
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
 		"23ab4b344343e0c8": {
-			"state": "2868462890248eeef1328b46e14c86b1ace6783cf426c9dbabb10cbde81c2e4f",
+			"state": "a97a7ce8914125ef6551a2d309da25d21bfdae484906501544f61fd07b9c8182",
 			"filter": "",
 			"execution": {
 				"text": "e2e-tests/tests",
 				"status": "passed",
-				"tookMs": 15400
+				"tookMs": 17700
 			},
 			"features": {
 				"/features/a11y-fail.feature": {
 					"text": "/features/a11y-fail",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 800,
 					"steps": 12,
 					"declaredStepTextHash": "5a76c771445a220203a7eab76f27f428e25697d9a984395e5bc5ede0aa55ffef"
 				},
@@ -47,14 +47,14 @@
 				"/features/auth-basic.feature": {
 					"text": "/features/auth-basic",
 					"status": "passed",
-					"tookMs": 700,
+					"tookMs": 1000,
 					"steps": 42,
 					"declaredStepTextHash": "6a8788f30679ff0009508a4313b0895d2862e38b09df70793e7ea86ca1b6bb16"
 				},
 				"/features/auth-bearer.feature": {
 					"text": "/features/auth-bearer",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 800,
 					"steps": 65,
 					"declaredStepTextHash": "696befdc9ac2a5bc6164b827c8ba63f012da9b2d5b5daa4d570fe7e33ad1d838"
 				},
@@ -68,49 +68,49 @@
 				"/features/counter.feature": {
 					"text": "/features/counter",
 					"status": "passed",
-					"tookMs": 800,
+					"tookMs": 600,
 					"steps": 20,
 					"declaredStepTextHash": "c375ca3a2da5090c9704566e9175768ab6250de89aa9a0e5d4f8c79f27c27174"
 				},
 				"/features/counter.feature.ts": {
 					"text": "Counts feature",
 					"status": "passed",
-					"tookMs": 1300,
+					"tookMs": 900,
 					"steps": 20,
 					"declaredStepTextHash": "b8135dd4e89931d0dc6b7665fa064808d6723daea973b7cf54bc992f541d823a"
 				},
 				"/features/counts.feature.ts": {
 					"text": "Counts feature",
 					"status": "passed",
-					"tookMs": 400,
+					"tookMs": 500,
 					"steps": 22,
 					"declaredStepTextHash": "044398785f4c4e310f5a6db9af3f898b2ebd3f751ce6e65d63b9da9e1172d860"
 				},
 				"/features/elements.feature": {
 					"text": "/features/elements",
 					"status": "passed",
-					"tookMs": 400,
+					"tookMs": 500,
 					"steps": 8,
 					"declaredStepTextHash": "a6f7c8ba7695a91a26d5638c12d4542439cd090643058d1bfdf65115a1e6c275"
 				},
 				"/features/executor-rpc.feature.ts": {
 					"text": "Executor RPC dispatch",
 					"status": "passed",
-					"tookMs": 0,
+					"tookMs": 100,
 					"steps": 8,
 					"declaredStepTextHash": "f8158b5c1b1663093c32e8674fe9a5369b5f59e1f25662d46e2f3d8c4c10fbbd"
 				},
 				"/features/feature-variables.feature": {
 					"text": "/features/feature-variables",
 					"status": "passed",
-					"tookMs": 0,
+					"tookMs": 100,
 					"steps": 19,
 					"declaredStepTextHash": "21d12de51d05e0a188e3bb7b5c56f79a774c8a92bac1f5772ec1709125f2317d"
 				},
 				"/features/identity-and-capability.feature.ts": {
 					"text": "Identity and capability authorization",
 					"status": "passed",
-					"tookMs": 200,
+					"tookMs": 300,
 					"steps": 28,
 					"declaredStepTextHash": "67006159fc0445822858aa111a2a9191c669dc75c2a5e9acfd5b63768d8d61df"
 				},
@@ -124,21 +124,21 @@
 				"/features/not.feature": {
 					"text": "/features/not",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 600,
 					"steps": 9,
 					"declaredStepTextHash": "19319d61d4aefc9cb0f31275a41584382b21cbc1439888a263facb9b6bbb362d"
 				},
 				"/features/once.feature.ts": {
 					"text": "A group of features runs once per state of what it depends on",
 					"status": "passed",
-					"tookMs": 900,
+					"tookMs": 1200,
 					"steps": 20,
 					"declaredStepTextHash": "e9fbbbaca778b5d638d6359d648c1b65c4c48a6e50274ac870dce6fe36f01355"
 				},
 				"/features/page-visits.feature.ts": {
 					"text": "Visit pages",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 700,
 					"steps": 64,
 					"declaredStepTextHash": "b2e407c6ed2a4ab0bdd92877e35ee3a2c2ba1ae61e098a1c7da072358f2598ba"
 				},
@@ -152,7 +152,7 @@
 				"/features/qrcode.feature": {
 					"text": "/features/qrcode",
 					"status": "passed",
-					"tookMs": 2600,
+					"tookMs": 2900,
 					"steps": 19,
 					"declaredStepTextHash": "bb509c9c69bb9b40b0a8372c7b8edc21820c53199a8a2e8bffa026c3ad302437"
 				},
@@ -173,35 +173,35 @@
 				"/features/upload-verify.feature": {
 					"text": "/features/upload-verify",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 700,
 					"steps": 19,
 					"declaredStepTextHash": "92f57a2dc38d79bda306ab924a8c55b05a7ce5afb76435288e861b57fcaf3a78"
 				},
 				"/features/visited-pages.feature": {
 					"text": "/features/visited-pages",
 					"status": "passed",
-					"tookMs": 500,
+					"tookMs": 700,
 					"steps": 31,
 					"declaredStepTextHash": "8c89036d502541abe1895d75994a810d40ff013dfd6b58bb078591f2c99945ae"
 				},
 				"/features/walk-toward-a-goal.feature": {
 					"text": "/features/walk-toward-a-goal",
 					"status": "passed",
-					"tookMs": 0,
+					"tookMs": 100,
 					"steps": 17,
 					"declaredStepTextHash": "423b87fb62e3b26879565f24459e8474ab76e2eb6ff85bc3a5e49704ea336e08"
 				},
 				"/features/workflow.feature.ts": {
 					"text": "workflow",
 					"status": "passed",
-					"tookMs": 100,
+					"tookMs": 200,
 					"steps": 64,
 					"declaredStepTextHash": "f3ac4957d450aa3ddb11a031a7c15b355886712123f710fa051ef9eb97b36f7e"
 				},
 				"/features/xss.feature": {
 					"text": "/features/xss",
 					"status": "passed",
-					"tookMs": 600,
+					"tookMs": 700,
 					"steps": 11,
 					"declaredStepTextHash": "39b77120209071ad3649875917bb945e0bdbac8e66d4bfea6f8feb39290695cb"
 				}

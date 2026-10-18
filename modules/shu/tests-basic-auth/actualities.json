@@ -1,20 +1,20 @@
 {
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
 		"03d75cd4d387071b": {
-			"state": "38d231fd99e268e0a9e1a61f65dc9324b9981a43338eaf784394a296880fd2c3",
+			"state": "97f5f086deac0d6eab50fa141b9bef66665658f84f46d47e000aa8be9d3e3176",
 			"filter": "",
 			"execution": {
 				"text": "modules/shu/tests-basic-auth",
 				"status": "passed",
-				"tookMs": 1900
+				"tookMs": 2200
 			},
 			"features": {
 				"/features/behind-basic-auth.feature.ts": {
 					"text": "A page behind basic auth",
 					"status": "passed",
-					"tookMs": 1700,
+					"tookMs": 2000,
 					"steps": 212,
-					"declaredStepTextHash": "045652ba5f61d3fa7c1a6a2db088bc1e7baa8da64d2959be64a4769a279c7214"
+					"declaredStepTextHash": "a7cd8de3ab9bb793bdd6cdacc4ca24127e2bdb1d37d7ef28366e12345792f5ac"
 				}
 			}
 		}
