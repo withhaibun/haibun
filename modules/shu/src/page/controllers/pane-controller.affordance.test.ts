@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from "vitest";
-import { dispatchAffordanceFromResponse } from "./affordance-dispatch.js";
+import { dispatchAffordanceFromResponse } from "./pane-controller.js";
 import { HYPERMEDIA } from "@haibun/core/schema/protocol.js";
-import { ShuElement } from "./page/components/shu-element.js";
-import { installConduit } from "./page/root.js";
-import { TestConduit, newPage } from "./test/setup.js";
-import { activePane } from "./page/root.js";
-import { IMPORTED_VIEWS } from "./test/pane-requests.js";
-import { openStrip, shownPanes, showsPane } from "./page/controllers/pane-controller.js";
+import { ShuElement } from "../components/shu-element.js";
+import { installConduit } from "../root.js";
+import { TestConduit, newPage } from "../../test/setup.js";
+import { activePane } from "../root.js";
+import { IMPORTED_VIEWS } from "../../test/pane-requests.js";
+import { openStrip, shownPanes, showsPane } from "./pane-controller.js";
 
 describe("dispatchAffordanceFromResponse", () => {
 	beforeEach(() => {

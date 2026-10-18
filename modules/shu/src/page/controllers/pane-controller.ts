@@ -4,6 +4,7 @@ import * as Panes from "../pipelines/panes.js";
 import * as PageHash from "../pipelines/page-hash.js";
 import { heldCatalog, holdsCatalog } from "../pipelines/held-catalog.js";
 import { recordComponent, uiOfComponent } from "../derivations/catalog.js";
+import { parseAffordanceProduct } from "../derivations/affordances.js";
 import { storedSetting } from "../derivations/settings.js";
 import * as Kinds from "../derivations/pane-kinds.js";
 import { INITIAL_SHOWN_CONTROLS, ShownControlsSchema, shownControlsKey } from "../domains/settings.js";
@@ -94,3 +95,11 @@ export const showsPane = (id: string): boolean => pagePanes().state.get().desire
 
 /** Returns the pane a column entry names, or null for an entry that doesn't name one. */
 export const paneOfEntry = (raw: string): Kinds.DesiredPane | null => Kinds.parseColEntry(raw, PANE_CONTEXT);
+
+/** Opens the pane a step's response names: a response that names a component opens it with the step's products. Returns
+ *  what the response names. A step caller and the affordances panel both call this when a step returns. */
+export function dispatchAffordanceFromResponse(response: unknown): ReturnType<typeof parseAffordanceProduct> {
+	const action = parseAffordanceProduct(response);
+	if (action.kind === "open-component") requestPane({ paneType: "component", tag: action.component, label: action.label, data: action.products });
+	return action;
+}

@@ -10,7 +10,7 @@ import { defineElement } from "../controllers/element-controller.js";
 import { ShuElement, type TLinkedData } from "./shu-element.js";
 import { ComboboxSchema, type TComboboxOption } from "../../schemas.js";
 import { shuBaseStyles } from "./styles.js";
-import { revealInDocument } from "../../reveal.js";
+import { revealInDocument } from "./reveal.js";
 import { ClockController } from "../controllers/clock-controller.js";
 import { ComboboxController } from "../controllers/combobox-controller.js";
 

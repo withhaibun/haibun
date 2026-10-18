@@ -80,12 +80,6 @@
 		"negated-noun": 1,
 		"terminal-preposition": 3
 	},
-	"modules/shu/src/known-size-flow.test.ts": {
-		"anthropomorphic": 1
-	},
-	"modules/shu/src/known-size-flow.ts": {
-		"anthropomorphic": 5
-	},
 	"modules/shu/src/monitor-serves-actuality.integration.test.ts": {
 		"anthropomorphic": 1,
 		"negated-noun": 1
@@ -123,6 +117,12 @@
 		"relation-verb": 1,
 		"terminal-preposition": 4
 	},
+	"modules/shu/src/page/components/known-size-flow.test.ts": {
+		"anthropomorphic": 1
+	},
+	"modules/shu/src/page/components/known-size-flow.ts": {
+		"anthropomorphic": 5
+	},
 	"modules/shu/src/page/components/page-strip-corners.test.ts": {
 		"relation-verb": 1,
 		"the-run": 1
@@ -138,8 +138,14 @@
 	"modules/shu/src/page/components/pane-dock.ts": {
 		"anthropomorphic": 1
 	},
+	"modules/shu/src/page/components/recogito.ts": {
+		"relation-verb": 1
+	},
 	"modules/shu/src/page/components/ref-navigation.ts": {
 		"terminal-preposition": 2
+	},
+	"modules/shu/src/page/components/reveal.ts": {
+		"anthropomorphic": 1
 	},
 	"modules/shu/src/page/components/shu-actions-bar.test.ts": {
 		"anthropomorphic": 1,
@@ -408,15 +414,9 @@
 		"terminal-preposition": 1,
 		"the-run": 2
 	},
-	"modules/shu/src/recogito.ts": {
-		"relation-verb": 1
-	},
 	"modules/shu/src/remote-store.integration.test.ts": {
 		"anthropomorphic": 3,
 		"relation-verb": 1
-	},
-	"modules/shu/src/reveal.ts": {
-		"anthropomorphic": 1
 	},
 	"modules/shu/src/schemas.test.ts": {
 		"anthropomorphic": 1

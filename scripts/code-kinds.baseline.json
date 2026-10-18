@@ -262,12 +262,6 @@
 	"modules/out-junit/src/out-junit.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/shu/src/affordance-dispatch.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/annotation-rail.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/artifact-url.ts": {
 		"isn't in a kind position": 1
 	},
@@ -275,15 +269,6 @@
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/current-subject.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/known-size-flow.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/recogito.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/shu/src/reveal.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/schemas.ts": {

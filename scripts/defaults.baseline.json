@@ -166,9 +166,6 @@
 	"modules/shu/src/current-subject.ts": {
 		"fills an absent value with a constant through ??": 1
 	},
-	"modules/shu/src/known-size-flow.ts": {
-		"fills an absent value with a constant through ??": 1
-	},
 	"modules/shu/src/page/components/actions-bar-query.ts": {
 		"fills a falsy value with a constant through ||": 4,
 		"fills an absent value with a constant through ??": 6,
@@ -180,6 +177,9 @@
 	"modules/shu/src/page/components/json-disclosure.ts": {
 		"fills a falsy value with a constant through ||": 1,
 		"states a parameter's default value": 1
+	},
+	"modules/shu/src/page/components/known-size-flow.ts": {
+		"fills an absent value with a constant through ??": 1
 	},
 	"modules/shu/src/page/components/page-strip-corners.ts": {
 		"fills an absent value with a constant through ??": 1

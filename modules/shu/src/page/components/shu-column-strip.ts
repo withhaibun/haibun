@@ -12,7 +12,7 @@ import { defineElement } from "../controllers/element-controller.js";
 import { activePane, stripPanes } from "../controllers/page-cell-controller.js";
 import { shuBaseStyles } from "./styles.js";
 import type { ShuColumnPane } from "./shu-column-pane.js";
-import { revealInDocument } from "../../reveal.js";
+import { revealInDocument } from "./reveal.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { paneKeyOf } from "../derivations/pane-kinds.js";
 
