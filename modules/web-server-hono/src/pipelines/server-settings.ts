@@ -7,7 +7,7 @@ import type { TModuleOptions } from "@haibun/core/lib/world.js";
 import { getStepperOption } from "@haibun/core/lib/domains/util.js";
 import { actionList, EVERY_ACTION } from "@haibun/core/lib/domains/actions.js";
 import { basicAuthUsers, type TBasicAuthUser } from "@haibun/core/lib/domains/basic-auth.js";
-import { isLoopback } from "../ports.js";
+import { isLoopback } from "../domains/web-server.js";
 import { DEFAULT_PORT, WEB_SERVER_STEPPER } from "../domains/web-server.js";
 
 /** Where a server listens, what every caller may do without a delegation, and who its routes admit. An absent hostname

@@ -1,5 +1,5 @@
 import { answeringTheHandshake } from "../../test/rpc-answer.js";
-import { notFromActuality } from "../ports.js";
+import { notFromActuality } from "../domains/rpc-wire.js";
 import { describe, it, expect } from "vitest";
 import { RpcCallFailed, RpcClient } from "./rpc-client.js";
 import type { TOutgoingRequest, TRequestSigner } from "../../domains/authority-types.js";

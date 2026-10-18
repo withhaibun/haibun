@@ -38,7 +38,8 @@ import {
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { OK, Origin, type TActionResult, type TStepValue } from "@haibun/core/lib/domains/protocol.js";
 import type { AStorage } from "@haibun/domain-storage/domains/storage.js";
-import { WEBSERVER, type IWebServer } from "@haibun/web-server-hono/defs.js";
+import { WEBSERVER } from "@haibun/web-server-hono/domains/web-server.js";
+import type { IWebServer } from "@haibun/web-server-hono/defs.js";
 import type { Page } from "playwright";
 import { PAGE_READ, READS_THE_PAGE, WEB_PLAYWRIGHT_ACTIONS } from "./domains/actions.js";
 import { DOMAIN_BROWSER_TAB, DOMAIN_BROWSER_TABS, DOMAIN_BROWSER_TAB_TEXT, DOMAIN_RELAY_ATTACHMENT } from "./domains/relay.js";

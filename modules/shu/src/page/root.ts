@@ -31,7 +31,8 @@ import type {
 } from "./ports.js";
 import type { TDockedPane, TPageTypes, TStripPane } from "./domains/page-state.js";
 import { NOTHING_SELECTED_LABEL, type TPageContext } from "../domains/schemas.js";
-import { authorityFailed, isServerUnreachable, refusalCarried, type TProveRequest } from "@haibun/core/lib/rpc-wire.js";
+import { authorityFailed, isServerUnreachable, refusalCarried } from "@haibun/core/lib/rpc-wire.js";
+import type { TProveRequest } from "@haibun/core/lib/transport/ports.js";
 import { failFastOrLog, isDev } from "@haibun/core/lib/domains/dev-mode.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { acts } from "./domains/links.js";

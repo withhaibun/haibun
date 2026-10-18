@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ACTION_BEGIN, RPC_PROTOCOL, RpcRequestSchema, RpcResponseSchema, RpcStreamSchema, actualityRefusal, parseRpcRequest } from "./ports.js";
+import { ACTION_BEGIN, RPC_PROTOCOL, RpcRequestSchema, RpcResponseSchema, RpcStreamSchema, actualityRefusal, parseRpcRequest } from "./rpc-wire.js";
 
 const ACTUALITY = crypto.randomUUID();
 

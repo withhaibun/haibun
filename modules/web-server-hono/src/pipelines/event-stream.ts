@@ -25,7 +25,8 @@ import type { THaibunEvent } from "@haibun/core/lib/domains/protocol.js";
 import { serializedEvent } from "@haibun/core/lib/steps/derivations/serialized-event.js";
 import { capabilityAllows, FOLLOWS_THE_RUN, readAction } from "@haibun/core/lib/domains/actions.js";
 import type { AccessLevel } from "@haibun/core/lib/domains/resources.js";
-import { pathParam, type IWebServer, type TAuthorizedRequest, type TCapabilityVerifier } from "../ports.js";
+import { pathParam } from "../domains/web-server.js";
+import type { IWebServer, TAuthorizedRequest, TCapabilityVerifier } from "../ports.js";
 import type { IStepTransport, ITransport, TMessageHandler } from "../domains/transport.js";
 import { follower } from "../machines/follower.js";
 

@@ -11,15 +11,8 @@ import { capabilityAllows } from "@haibun/core/lib/domains/actions.js";
 import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import { getAuthority, heldAuthority } from "@haibun/core/lib/domains/session-authority.js";
 import { DELEGATIONS_READ_ACTION } from "@haibun/core/lib/domains/authority-types.js";
-import {
-	PRESENTED_AUTHORITY_HEADER,
-	type Context,
-	type TAuthorizedRequest,
-	type TCapabilityVerifier,
-	type TRequestAuthority,
-	type TRequestHeaders,
-	type TServed,
-} from "../ports.js";
+import { PRESENTED_AUTHORITY_HEADER } from "../domains/web-server.js";
+import type { Context, TAuthorizedRequest, TCapabilityVerifier, TRequestAuthority, TRequestHeaders, TServed } from "../ports.js";
 
 /**
  * What the caller of a request may do: the actions this deployment allows without a delegation, which form an empty list

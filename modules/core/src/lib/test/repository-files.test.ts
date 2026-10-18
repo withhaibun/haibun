@@ -42,16 +42,39 @@ describe("a repository's source files", () => {
 	it("resolve a relative or workspace specifier to a source file, and don't resolve an external one", () => {
 		const repository = aRepository({
 			"modules/one/package.json": '{ "name": "@example/one" }',
-			"modules/one/src/index.ts": "",
+			"modules/one/index.ts": "",
 			"modules/one/src/lib/a.ts": "",
 			"modules/one/src/lib/b.ts": "",
 		});
 		const packages = workspacePackages(repository, "modules");
-		expect(packages).toEqual({ "@example/one": "modules/one/src" });
+		expect(packages).toEqual({ "@example/one": { directory: "modules/one" } });
 		expect(resolvedSource(repository, "modules/one/src/lib/a.ts", "./b.js", packages)).toBe("modules/one/src/lib/b.ts");
-		expect(resolvedSource(repository, "modules/one/src/lib/a.ts", "@example/one/lib/b.js", packages)).toBe("modules/one/src/lib/b.ts");
-		expect(resolvedSource(repository, "modules/one/src/lib/a.ts", "@example/one", packages)).toBe("modules/one/src/index.ts");
+		expect(resolvedSource(repository, "modules/one/src/lib/a.ts", "@example/one/build/lib/b.js", packages)).toBe("modules/one/src/lib/b.ts");
+		expect(resolvedSource(repository, "modules/one/src/lib/a.ts", "@example/one", packages)).toBe("modules/one/index.ts");
 		expect(resolvedSource(repository, "modules/one/src/lib/a.ts", "zod", packages)).toBeUndefined();
+	});
+
+	it("resolve a workspace specifier through its package's export map, by the source condition, an exact subpath or the longest wildcard", () => {
+		const exports = {
+			".": "./build/main.js",
+			"./old/a.js": { types: "./build/types.d.ts", "haibun-source": "./src/lib/steps/a.js", default: "./build/lib/steps/a.js" },
+			"./lib/*": { "haibun-source": "./src/lib/*", default: "./build/lib/*" },
+			"./*": "./build/*",
+		};
+		const repository = aRepository({
+			"modules/one/package.json": JSON.stringify({ name: "@example/one", exports }),
+			"modules/one/src/main.ts": "",
+			"modules/one/src/lib/steps/a.ts": "",
+			"modules/one/src/lib/b.ts": "",
+			"modules/one/src/c.ts": "",
+		});
+		const packages = workspacePackages(repository, "modules");
+		const resolved = (specifier: string) => resolvedSource(repository, "modules/one/src/c.ts", specifier, packages);
+		expect(resolved("@example/one")).toBe("modules/one/src/main.ts");
+		expect(resolved("@example/one/old/a.js")).toBe("modules/one/src/lib/steps/a.ts");
+		expect(resolved("@example/one/lib/b.js")).toBe("modules/one/src/lib/b.ts");
+		expect(resolved("@example/one/c.js")).toBe("modules/one/src/c.ts");
+		expect(resolved("@example/one/lib/a.js")).toBeUndefined();
 	});
 
 	it("import modules statically, dynamically and by re-export, each stated as importing values or only types", () => {

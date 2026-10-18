@@ -14,7 +14,6 @@ import {
 	RefusedCall,
 	refusalCarried,
 	authorityFailed,
-	type TProveRequest,
 	RPC_PROTOCOL,
 	protocolRefusal,
 	HandshakeSchema,
@@ -24,11 +23,12 @@ import {
 	RpcStreamSchema,
 	callFailed,
 	refusalSaid,
-} from "./ports.js";
-import { buildRpcCall, handshakeAt, holdSignIn, releaseSignIn } from "./adapters/rpc-call.js";
+} from "./rpc-wire.js";
+import type { TProveRequest } from "../ports.js";
+import { buildRpcCall, handshakeAt, holdSignIn, releaseSignIn } from "../adapters/rpc-call.js";
 import { createHash } from "node:crypto";
 import { z } from "zod";
-import { hostHandshake, rpcAnswer } from "../test/rpc-answer.js";
+import { hostHandshake, rpcAnswer } from "../../test/rpc-answer.js";
 
 const BASE = "http://site.test:8123/instance/";
 const METHOD = "Stepper-act";

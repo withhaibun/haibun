@@ -14,6 +14,10 @@ const VIEW = "src/components/shu-list.ts";
 const CONTROLLER = "src/area/controllers/list-controller.ts";
 const FEATURE = "src/area/features/visit.ts";
 const PACKAGE = "@example/area";
+/** The package's export map: an old subpath that aliases its adapter through the source condition, and every other subpath as itself. */
+const PACKAGES = {
+	[PACKAGE]: { directory: "src/area", exports: { "./old/store.js": { "haibun-source": "./adapters/store.js", default: "./build/adapters/store.js" }, "./*": "./*" } },
+};
 
 const made: string[] = [];
 afterEach(() => {
@@ -28,7 +32,7 @@ function findingsOf(file: string, sources: Record<string, string>): string[] {
 		mkdirSync(join(repository, dirname(path)), { recursive: true });
 		writeFileSync(join(repository, path), source);
 	}
-	return codeKindFindings(repository, { sources: parsedSources(repository, [file]), packages: { [PACKAGE]: "src/area" } }).map(({ finding }) => finding);
+	return codeKindFindings(repository, { sources: parsedSources(repository, [file]), packages: PACKAGES }).map(({ finding }) => finding);
 }
 const withPorts = (sources: Record<string, string>) => ({ [PORTS]: "export type TStore = { read(): string };\n", [ADAPTER]: "export const store = 1;\n", ...sources });
 
@@ -165,6 +169,10 @@ describe("a file's findings against the kinds", () => {
 
 	it("resolve a workspace package's import to its source", () => {
 		expect(findingsOf(VIEW, withPorts({ [VIEW]: `import { store } from "${PACKAGE}/adapters/store.js";\n` }))).toEqual([`imports an adapter: ${PACKAGE}/adapters/store.js`]);
+	});
+
+	it("resolve an import through an alias of the package's export map to the file of the kind it names", () => {
+		expect(findingsOf(VIEW, withPorts({ [VIEW]: `import { store } from "${PACKAGE}/old/store.js";\n` }))).toEqual([`imports an adapter: ${PACKAGE}/old/store.js`]);
 	});
 
 	it("name I/O outside an adapter, and allow it in one", () => {

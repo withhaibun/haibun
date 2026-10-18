@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { SseSubscriber } from "./sse-subscriber.js";
 import type { THaibunEvent } from "../../domains/protocol.js";
-import { newActualityId } from "../ports.js";
+import { newActualityId } from "../domains/rpc-wire.js";
 import { itemAt } from "../../domains/item-at.js";
 
 const ACTUALITY = newActualityId();

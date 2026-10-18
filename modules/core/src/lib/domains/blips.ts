@@ -246,3 +246,10 @@ class BlipWatch {
 
 /** The one watch actuality holds. The blips stepper's steps start and stop it. */
 export const blipWatch = new BlipWatch();
+
+/** Renders one occurrence as a line: ordinal, name, value, step, attributes. */
+export function renderOccurrence(blip: TBlipEvent, index: number): string {
+	const detail = (blip.attributes === undefined ? [] : Object.entries(blip.attributes)).map(([k, v]) => `${k}=${String(v)}`);
+	const parts = [`${index + 1}`, blip.name, ...(blip.value === undefined ? [] : [`value=${blip.value}`]), ...(blip.seqPath ? [`step=${blip.seqPath}`] : []), ...detail];
+	return parts.join(" ");
+}

@@ -1,7 +1,8 @@
 import { stripTrailingSlash } from "../../domains/local-origin.js";
 import { errorDetail } from "../../domains/util.js";
 import { readingAt } from "../../domains/capability-context.js";
-import { provesNothing, readNdjson, readRpcAnswer, type TActualityId, type THandshake, type TProveRequest } from "../ports.js";
+import { provesNothing, readNdjson, readRpcAnswer, type TActualityId, type THandshake } from "../domains/rpc-wire.js";
+import type { TProveRequest } from "../ports.js";
 import { buildRpcCall, handshakeAt } from "./rpc-call.js";
 import type { TRequestSigner } from "../../domains/authority-types.js";
 

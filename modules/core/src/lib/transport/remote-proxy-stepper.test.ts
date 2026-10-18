@@ -18,7 +18,7 @@ import type { TWorld } from "../actuality/domains/world.js";
 import { SITE_DID_PREFIX } from "../domains/host-id.js";
 import { DOMAIN_STRING, asDomainKey, DOMAIN_TEXT } from "../domains/domains.js";
 import { OK, Origin, type TStepValue } from "../domains/protocol.js";
-import { ACTION_BEGIN, ANSWERED_WITHOUT_PRODUCTS, callFailed } from "./ports.js";
+import { ACTION_BEGIN, ANSWERED_WITHOUT_PRODUCTS, callFailed } from "./domains/rpc-wire.js";
 import { hostHandshake } from "../test/rpc-answer.js";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
@@ -129,8 +129,8 @@ describe("RemoteStepperProxy", () => {
 	it("fetches step descriptors from the remote host", async () => {
 		const proxy = new RemoteStepperProxy(`http://localhost:${port}`);
 		await proxy.setWorld(world, []);
-		expect(proxy.descriptors.length).toBeGreaterThan(0);
-		expect(proxy.descriptors.map((d) => d.method)).toContain("EchoStepper-echo");
+		expect(proxy.descriptors?.length).toBeGreaterThan(0);
+		expect(proxy.descriptors?.map((d) => d.method)).toContain("EchoStepper-echo");
 	});
 
 	it("injects proxy tools into registry under hostId-prefixed keys", async () => {

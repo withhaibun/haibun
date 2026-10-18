@@ -9,7 +9,6 @@
 	"exports": {
 		".": "./build/domains/storage.js",
 		"./AStorage.js": "./build/domains/storage.js",
-		"./image-artifact.js": "./build/pipelines/image-artifact.js",
 		"./*": "./build/*"
 	},
 	"scripts": {

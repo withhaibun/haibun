@@ -23,7 +23,7 @@ import { BrowserFactory } from "./adapters/browser-factory.js";
 import { ChromeOverCdp } from "./relay-client/chrome.test-fake.js";
 import { RelayConnection } from "./relay-client/root.js";
 import { openRelayChannel } from "./relay-client/adapters/relay-channel.js";
-import type { TProveRequest } from "@haibun/core/lib/rpc-wire.js";
+import type { TProveRequest } from "@haibun/core/lib/transport/ports.js";
 import { DOMAIN_LINK, DOMAIN_TEXT } from "@haibun/core/lib/domains/domains.js";
 
 const PAGE = `<title>attached</title><button onclick="this.textContent='pressed'">press me</button><input aria-label="note" oninput="document.getElementById('echo').textContent=this.value"><p id="echo"></p>`;

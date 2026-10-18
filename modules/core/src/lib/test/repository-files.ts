@@ -18,9 +18,24 @@ const SCRIPT_EXTENSION = /\.(?:js|jsx|ts|tsx)$/;
 const SOURCE_EXTENSIONS = [".ts", ".tsx"];
 export const RELATIVE = /^\.\.?\//;
 const SOURCE_DIRECTORY = "src";
+/** The directory that holds each package's TypeScript build of its source directory. */
+const BUILD_DIRECTORY = "build";
+/** The conditions that select a target of an export map, as haibun's tooling resolves a workspace package. `haibun-source` selects its source. */
+const EXPORT_CONDITIONS = new Set(["haibun-source", "import", "default"]);
+const PACKAGE_ROOT = ".";
+const SUBPATH_WILDCARD = "*";
+/** The file a package's root resolves to where its package.json doesn't state an export map. */
+const DEFAULT_ENTRY = "./index.js";
 
-/** A repository's workspace packages, each by its name and its source directory. */
-export type TPackages = Readonly<Record<string, string>>;
+/** A target in a package's export map: a path from the package's directory, or the targets by condition. */
+type TExportTarget = string | { [condition: string]: TExportTarget };
+const ExportTargetSchema: z.ZodType<TExportTarget> = z.lazy(() => z.union([z.string(), z.record(z.string(), ExportTargetSchema)]));
+/** A workspace package: its directory from the repository root, and its export map by subpath where its package.json states one. */
+export type TPackage = { directory: string; exports?: Readonly<Record<string, TExportTarget>> };
+/** A repository's workspace packages, each by its name. */
+export type TPackages = Readonly<Record<string, TPackage>>;
+/** The source directory of a workspace package. */
+export const sourceDirectoryOf = ({ directory }: TPackage): string => posix.join(directory, SOURCE_DIRECTORY);
 /** A module a source file imports or re-exports, whether it imports only types, and the line of its import. */
 export type TImport = { specifier: string; typeOnly: boolean; line: number };
 
@@ -50,18 +65,24 @@ export function sourceFiles(repository: string, roots: readonly string[]): strin
 		.sort();
 }
 
-const PackageSchema = z.object({ name: z.string().min(1) });
+const PackageSchema = z.object({ name: z.string().min(1), exports: ExportTargetSchema.optional() });
 
-/** The workspace packages in a directory of modules, each by the name its package.json states and its source directory. */
+/** An export map by subpath. A map whose keys aren't subpaths, or a single target, is the target of the package's root. */
+function bySubpath(exports: TExportTarget): Record<string, TExportTarget> {
+	return typeof exports === "object" && Object.keys(exports).every((key) => key.startsWith(PACKAGE_ROOT)) ? exports : { [PACKAGE_ROOT]: exports };
+}
+
+/** The workspace packages in a directory of modules, each by the name its package.json states, with its directory and export map. */
 export function workspacePackages(repository: string, modules: string): TPackages {
 	const sources = readdirSync(join(repository, modules), { withFileTypes: true }).filter(
 		(entry) => entry.isDirectory() && existsSync(join(repository, modules, entry.name, SOURCE_DIRECTORY)),
 	);
 	return Object.fromEntries(
-		sources.map((entry) => [
-			PackageSchema.parse(JSON.parse(readFileSync(join(repository, modules, entry.name, "package.json"), "utf-8"))).name,
-			`${modules}/${entry.name}/${SOURCE_DIRECTORY}`,
-		]),
+		sources.map((entry) => {
+			const directory = `${modules}/${entry.name}`;
+			const { name, exports } = PackageSchema.parse(JSON.parse(readFileSync(join(repository, directory, "package.json"), "utf-8")));
+			return [name, exports === undefined ? { directory } : { directory, exports: bySubpath(exports) }];
+		}),
 	);
 }
 
@@ -92,16 +113,47 @@ export function constInitializers(source: ts.SourceFile): Map<string, ts.Express
 	return consts;
 }
 
-/** The source file a specifier names in the repository, by its path from the repository root, where it names one. */
-export function resolvedSource(repository: string, importer: string, specifier: string, packages: TPackages): string | undefined {
+/** The path a target selects under the export conditions, where one of its conditions is active. */
+function conditionalPath(target: TExportTarget): string | undefined {
+	if (typeof target === "string") return target;
+	const selected = Object.entries(target).find(([condition]) => EXPORT_CONDITIONS.has(condition));
+	return selected === undefined ? undefined : conditionalPath(selected[1]);
+}
+
+/**
+ * The path from a package's directory that a subpath of it names: through the export map's exact subpath or its longest
+ * wildcard subpath, as Node resolves it, or the subpath itself where the package doesn't state an export map.
+ */
+function exportedPath({ exports }: TPackage, subpath: string): string | undefined {
+	if (exports === undefined) return subpath === PACKAGE_ROOT ? DEFAULT_ENTRY : subpath;
+	const exact = exports[subpath];
+	if (exact !== undefined) return conditionalPath(exact);
+	const [pattern] = Object.entries(exports)
+		.map(([key, target]) => ({ key, target, star: key.indexOf(SUBPATH_WILDCARD) }))
+		.filter(({ key, star }) => star >= 0 && subpath.startsWith(key.slice(0, star)) && subpath.endsWith(key.slice(star + 1)) && subpath.length >= key.length - 1)
+		.sort((a, b) => b.star - a.star);
+	if (pattern === undefined) return undefined;
+	const matched = subpath.slice(pattern.star, subpath.length - (pattern.key.length - pattern.star - 1));
+	return conditionalPath(pattern.target)?.replaceAll(SUBPATH_WILDCARD, matched);
+}
+
+/** The path from the repository root of what a workspace specifier names, with a build file read as the source file it compiles. */
+function packagedTarget(specifier: string, packages: TPackages): string | undefined {
 	const [owner] = Object.entries(packages)
 		.filter(([name]) => specifier === name || specifier.startsWith(`${name}/`))
 		.sort(([a], [b]) => b.length - a.length);
-	const target = RELATIVE.test(specifier)
-		? posix.join(posix.dirname(importer), specifier)
-		: owner === undefined
-			? undefined
-			: posix.join(owner[1], specifier === owner[0] ? "index.js" : specifier.slice(owner[0].length + 1));
+	if (owner === undefined) return undefined;
+	const [name, found] = owner;
+	const path = exportedPath(found, specifier === name ? PACKAGE_ROOT : `${PACKAGE_ROOT}${specifier.slice(name.length)}`);
+	if (path === undefined) return undefined;
+	const target = posix.join(found.directory, path);
+	const build = `${posix.join(found.directory, BUILD_DIRECTORY)}/`;
+	return target.startsWith(build) ? posix.join(sourceDirectoryOf(found), target.slice(build.length)) : target;
+}
+
+/** The source file a specifier names in the repository, by its path from the repository root, where it names one. */
+export function resolvedSource(repository: string, importer: string, specifier: string, packages: TPackages): string | undefined {
+	const target = RELATIVE.test(specifier) ? posix.join(posix.dirname(importer), specifier) : packagedTarget(specifier, packages);
 	if (target === undefined) return undefined;
 	const stem = target.replace(SCRIPT_EXTENSION, "");
 	return [...SOURCE_EXTENSIONS.map((extension) => `${stem}${extension}`), `${stem}/index.ts`].find((candidate) => existsSync(join(repository, candidate)));

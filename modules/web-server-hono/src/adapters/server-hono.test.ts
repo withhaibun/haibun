@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { ServerHono } from "./server-hono.js";
 import { QuadStore, newStoreChain } from "@haibun/core/lib/quad-store.js";
-import { EndpointLabels, REQUEST_BODY_LIMIT_BYTES } from "../ports.js";
+import { EndpointLabels, REQUEST_BODY_LIMIT_BYTES } from "../domains/web-server.js";
 import { whyNotSignedInOnly } from "./auth.js";
 import { basicAuthUsers } from "@haibun/core/lib/domains/basic-auth.js";
 import { eventHubOfTest, freePort } from "@haibun/core/lib/test/lib.js";

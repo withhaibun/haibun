@@ -16,21 +16,10 @@ import { esc } from "@haibun/core/lib/domains/document-content.js";
 import type { IEventLogger, IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { describePortOccupant, PROBE_TIMEOUT_MS } from "@haibun/core/lib/adapters/port-occupant.js";
 import { ENDPOINT_CLASS } from "@haibun/core/lib/domains/resources.js";
-import type { TRpcMethod } from "@haibun/core/lib/rpc-wire.js";
+import type { TRpcMethod } from "@haibun/core/lib/transport/ports.js";
 import type { TBasicAuthUser } from "@haibun/core/lib/domains/basic-auth.js";
-import {
-	type Context,
-	type IWebServer,
-	type MiddlewareHandler,
-	type TRouteMap,
-	type TRouteTypes,
-	type TRoutePurpose,
-	type TRequestHandler,
-	ROUTE_TYPES,
-	EndpointLabels,
-	isLoopback,
-	REQUEST_BODY_LIMIT_BYTES,
-} from "../ports.js";
+import { type TRouteTypes, ROUTE_TYPES, EndpointLabels, isLoopback, REQUEST_BODY_LIMIT_BYTES } from "../domains/web-server.js";
+import type { Context, IWebServer, MiddlewareHandler, TRouteMap, TRoutePurpose, TRequestHandler } from "../ports.js";
 
 const EMPTY_MOUNTS = (): TRouteMap => ROUTE_TYPES.reduce((acc, type) => ({ ...acc, [type]: {} }), {} as TRouteMap);
 

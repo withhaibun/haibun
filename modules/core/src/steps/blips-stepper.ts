@@ -7,7 +7,7 @@
  * observation sources.
  */
 import { AStepper, type IHasCycles, type IObservationSource, type IStepperCycles, type TStepperSteps } from "../lib/steps/domains/stepper.js";
-import { blipDeclarations, blipDeclared, blipRollup, blipWatch, WATCH_WINDOW, type TBlipSeries } from "../lib/domains/blips.js";
+import { blipDeclarations, blipDeclared, blipRollup, blipWatch, renderOccurrence, WATCH_WINDOW, type TBlipSeries } from "../lib/domains/blips.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/domains/util.js";
 import { OK } from "../lib/domains/protocol.js";
 import type { TBlipEvent } from "../lib/domains/protocol.js";
@@ -24,13 +24,6 @@ const DOMAIN_BLIP_WATCH = "blip-watch";
 const DOMAIN_BLIP_NAMES = "blip-names";
 const DOMAIN_WATCHED_BLIPS = "watched-blips";
 const DOMAIN_DECLARED_BLIPS = "declared-blips";
-
-/** Renders one occurrence as a line: ordinal, name, value, step, attributes. */
-export function renderOccurrence(blip: TBlipEvent, index: number): string {
-	const detail = (blip.attributes === undefined ? [] : Object.entries(blip.attributes)).map(([k, v]) => `${k}=${String(v)}`);
-	const parts = [`${index + 1}`, blip.name, ...(blip.value === undefined ? [] : [`value=${blip.value}`]), ...(blip.seqPath ? [`step=${blip.seqPath}`] : []), ...detail];
-	return parts.join(" ");
-}
 
 /** Rounds a shown value to a tenth. A reading of a total doesn't need a finer value. */
 const shown = (value: number) => Number(value.toFixed(1));

@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { emitQuadObservation, OBSERVATION_VALUE_MAX } from "../pipelines/quad-observation.js";
 import { extractQuadsFromEvents, eventsAffectLabel } from "../derivations/quad-events.js";
-import { type TQuad, matchesQuadPattern } from "./quad-types.js";
+import { type TQuad, matchesQuadPattern, OBSERVATION_VALUE_MAX, quadObservation } from "./quad-types.js";
 import { itemAt } from "../../domains/item-at.js";
 
 const quadEvent = (namedGraph: string) => ({
@@ -84,15 +83,12 @@ describe("eventsAffectLabel", () => {
 	});
 });
 
-describe("emitQuadObservation carries previews, never payloads", () => {
+describe("a quad observation carries previews, never payloads", () => {
 	it("bounds a long string value to OBSERVATION_VALUE_MAX, marks it a preview, and passes short values by reference", () => {
-		const emitted: Record<string, unknown>[] = [];
-		const logger = { emit: (e: Record<string, unknown>) => emitted.push(e) };
 		const body = "x".repeat(OBSERVATION_VALUE_MAX * 200);
 		const short: TQuad = { subject: "e1", predicate: "subject", object: "short", namedGraph: "Letter", timestamp: 2 };
-		emitQuadObservation(logger, "q1", { subject: "e1", predicate: "content", object: body, namedGraph: "Body", timestamp: 1 });
-		emitQuadObservation(logger, "q2", short);
-		const observations = emitted.map((e) => (e.json as { quadObservation: TQuad }).quadObservation);
+		const emitted = [quadObservation("q1", { subject: "e1", predicate: "content", object: body, namedGraph: "Body", timestamp: 1 }), quadObservation("q2", short)];
+		const observations = emitted.map((e) => e.json.quadObservation as TQuad);
 		const preview = itemAt(observations, 0);
 		expect(String(preview.object).length).toBe(OBSERVATION_VALUE_MAX);
 		expect(String(preview.object).endsWith("\u2026")).toBe(true);

@@ -18,10 +18,10 @@ import {
 	WITH_THE_SITES_SIGN_IN,
 	type TActualityId,
 	type THandshake,
-	type TProveRequest,
 	type TRpcCall,
 	type TRpcEnvelope,
-} from "../ports.js";
+} from "../domains/rpc-wire.js";
+import type { TProveRequest } from "../ports.js";
 
 /** The sign-ins this process holds by origin, as a browser holds a sign-in for a site. Every call to an origin carries
  *  its sign-in beside the call's own proof. The `Signature` header carries the proof. */

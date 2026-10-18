@@ -1,5 +1,5 @@
 import type { TWorld, TProtoOptions } from "../actuality/domains/world.js";
-import { newActualityId } from "../transport/ports.js";
+import { newActualityId } from "../transport/domains/rpc-wire.js";
 import { CStepper } from "../steps/domains/stepper.js";
 import { DEFAULT_DEST, TExecutorResult, TEST_BASE } from "../domains/protocol.js";
 import { getRunTag } from "../domains/ttag.js";

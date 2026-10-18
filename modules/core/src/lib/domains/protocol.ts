@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { AccessLevelSchema } from "./resources.js";
-import type { TRemedy } from "../transport/ports.js";
+import type { TRemedy } from "../transport/domains/rpc-wire.js";
 import type { TActuality } from "../actuality/machines/actuality.js";
 
 // ============================================================================

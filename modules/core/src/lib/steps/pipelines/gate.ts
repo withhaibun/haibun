@@ -4,7 +4,7 @@
  */
 import { withinAccess, type AccessLevel } from "../../domains/resources.js";
 import { lackedByCall, type TCallAuthority } from "../../domains/actions.js";
-import { RefusedCall, type TRemedy, type TRpcRefusal } from "../../transport/ports.js";
+import { RefusedCall, type TRemedy, type TRpcRefusal } from "../../transport/domains/rpc-wire.js";
 import type { TStepDescriptor } from "../domains/step-discovery.js";
 
 /** The remedy of a refusal that names the action a step requires: the caller requests that action from a key that holds it. */

@@ -5,17 +5,8 @@
  * which allocates its place in actuality's sequence, and a group's calls each take a part of the group's place.
  */
 import { z } from "zod";
-import {
-	ACTION_BEGIN,
-	readNdjson,
-	type TProveRequest,
-	type TActualityId,
-	type TRpcEnvelope,
-	ServerUnreachable,
-	answerBody,
-	authorityFailed,
-	refusalCarried,
-} from "@haibun/core/lib/rpc-wire.js";
+import { ACTION_BEGIN, readNdjson, type TActualityId, type TRpcEnvelope, ServerUnreachable, answerBody, authorityFailed, refusalCarried } from "@haibun/core/lib/rpc-wire.js";
+import type { TProveRequest } from "@haibun/core/lib/transport/ports.js";
 import { buildRpcCall } from "@haibun/core/lib/transport/adapters/rpc-call.js";
 import type { TConduit } from "../ports.js";
 import type { TLink, TRepresentation, TStreamChunk } from "../domains/links.js";

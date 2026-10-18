@@ -1,4 +1,4 @@
-import { PRESENTED_REQUEST_HEADERS } from "./ports.js";
+import { PRESENTED_REQUEST_HEADERS } from "./domains/web-server.js";
 import { describe, it, expect } from "vitest";
 import { passWithDefaults, DEF_PROTO_OPTIONS, freePort } from "@haibun/core/lib/test/lib.js";
 import McpStepper from "./mcp-stepper.js";

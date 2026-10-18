@@ -1,7 +1,7 @@
 /** The directories of this repository that the code checks read, by their paths from the repository root. */
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import { workspacePackages } from "@haibun/core/lib/test/repository-files.js";
+import { sourceDirectoryOf, workspacePackages } from "@haibun/core/lib/test/repository-files.js";
 
 export const REPOSITORY = join(import.meta.dirname, "..");
 const MODULES = "modules";
@@ -14,10 +14,10 @@ const directoriesIn = (path: string): string[] =>
 		.sort();
 const modules = directoriesIn(MODULES);
 
-/** Each module's package name and its source directory, through which one module imports another. */
+/** Each module's package by its name, through which one module imports another. */
 export const MODULE_PACKAGES = workspacePackages(REPOSITORY, MODULES);
 /** Each module's source directory. */
-export const MODULE_SOURCES = Object.values(MODULE_PACKAGES).sort();
+export const MODULE_SOURCES = Object.values(MODULE_PACKAGES).map(sourceDirectoryOf).sort();
 /** What the prose check reads: each module's source and feature directories, the end-to-end tests, the documents and the scripts. */
 export const PROSE_ROOTS = [
 	...MODULE_SOURCES,

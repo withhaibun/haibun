@@ -5,12 +5,12 @@
  */
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { importsOf, parsedSource, sourceFiles, workspacePackages } from "./test/repository-files.js";
+import { importsOf, parsedSource, sourceDirectoryOf, sourceFiles, workspacePackages } from "./test/repository-files.js";
 
 const REPOSITORY = fileURLToPath(new URL("../../../../", import.meta.url));
 /** An import that names a test module, whether a value or a type. */
 const NAMES_A_TEST_MODULE = /(\/test\/|\.test-fake\.js$|\.test\.js$)/;
-const production = sourceFiles(REPOSITORY, Object.values(workspacePackages(REPOSITORY, "modules")));
+const production = sourceFiles(REPOSITORY, Object.values(workspacePackages(REPOSITORY, "modules")).map(sourceDirectoryOf));
 
 describe("a module actuality runs", () => {
 	it("is found in every module's source, so the rule checks the modules", () => {

@@ -24,7 +24,7 @@ import { z } from "zod";
 import { itemAt } from "./item-at.js";
 import type { TPart, TQuoteAnchor, TRelRange } from "./resources.js";
 import { MEDIA_FRAGMENTS, isFragment, type TFragment } from "./media-fragments.js";
-import type { TRemedy } from "../transport/ports.js";
+import type { TRemedy } from "../transport/domains/rpc-wire.js";
 
 /**
  * What a reference denotes: one persisted individual or a type. Every surface that distinguishes the two uses these

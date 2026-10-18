@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { runEnvEntries, runEnvVariable, type TWorld } from "../lib/actuality/domains/world.js";
 import { OK, Origin, TProvenanceIdentifier, TOrigin, TActionResult, TStepValue, type TStepValueValue } from "../lib/domains/protocol.js";
-import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TStartScenario } from "../lib/steps/domains/stepper.js";
+import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TStartScenario, provenanceFromFeatureStep } from "../lib/steps/domains/stepper.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getStepTerm, errorDetail } from "../lib/domains/util.js";
 import { itemAt } from "../lib/domains/item-at.js";
 import { FlowRunner } from "../lib/steps/pipelines/flow-runner.js";
@@ -626,10 +626,6 @@ function parseHypermediaDeclProse(domain: string, spec: string): THypermediaCont
 			`set of ${domain}: the declaration doesn't state the storage level of its records. Add the clause "stored at <level>", where the level is one of ${AccessLevelSchema.options.join(", ")}.`,
 		);
 	return HypermediaContextSchema.parse({ "@context": context, ...(queryable.length ? { "@queryable": queryable } : {}), "@accessLevel": accessLevel });
-}
-
-export function provenanceFromFeatureStep(featureStep: TFeatureStep): TProvenanceIdentifier {
-	return { in: featureStep.in, seq: featureStep.seqPath, when: `${featureStep.action.stepperName}.steps.${featureStep.action.actionName}` };
 }
 
 const extractValuesFromFragments = (valueFragments?: TFeatureStep[], fallback?: string) => {

@@ -28,8 +28,7 @@ import { accessBound, readingAsStated, writeBound } from "../../domains/capabili
 import { EDGE, SEQ_PATH_LABEL, declaredAccessLevel } from "../../domains/resources.js";
 import { executionOf, formatRecordName } from "../domains/seq-path.js";
 import { IQuadStore } from "../../steps/ports.js";
-import { SHARED_GRAPH } from "../../steps/domains/quad-types.js";
-import { emitQuadObservation } from "../../steps/pipelines/quad-observation.js";
+import { quadObservation, SHARED_GRAPH } from "../../steps/domains/quad-types.js";
 
 export { SHARED_GRAPH };
 
@@ -169,7 +168,7 @@ export class FeatureVariables {
 		const held = stepsOf(await this.stepsThatSet([sv.term]), sv.term);
 		await this.writeRecord(sv.term, normalized, held.includes(setBy) ? [] : [setBy]);
 		for (const [index, quad] of (await this.store.query({ subject: sv.term, namedGraph: SHARED_GRAPH })).entries())
-			emitQuadObservation(this.world.eventLogger, `quad-${quad.timestamp}-${index}`, quad);
+			this.world.eventLogger.emit(quadObservation(`quad-${quad.timestamp}-${index}`, quad));
 	}
 
 	/** Look up a variable from store or dot-path. Shared by Origin.var, Origin.defined, Origin.quoted. */

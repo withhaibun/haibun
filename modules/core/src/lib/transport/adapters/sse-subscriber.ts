@@ -33,7 +33,7 @@
  * get the records of the events the stream didn't deliver during the break.
  */
 
-import { ACTUALITY_HEADER, type TActualityId } from "../ports.js";
+import { ACTUALITY_HEADER, type TActualityId } from "../domains/rpc-wire.js";
 import type { THaibunEvent } from "../../domains/protocol.js";
 import { REPLAY_BUFFER_LIMIT, StreamListeners } from "./stream-listeners.js";
 

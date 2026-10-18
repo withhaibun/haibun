@@ -26,10 +26,10 @@ function sources(dir: string, from = ""): string[] {
 describe("a graph observation is announced by what writes it", () => {
 	// The one place that defines the announcement, and the one that writes a variable's quad and announces that same
 	// quad. A store announces its own writes, which is the store's to declare (topology.announceWrites).
-	const ANNOUNCE = ["core/src/lib/steps/pipelines/quad-observation.ts", "core/src/lib/actuality/pipelines/feature-variables.ts"];
+	const ANNOUNCE = ["core/src/lib/steps/domains/quad-types.ts", "core/src/lib/actuality/pipelines/feature-variables.ts"];
 
 	it("is announced only where the same fact is written", () => {
-		const emitters = sources(MODULES).filter((f) => readFileSync(join(MODULES, f), "utf8").includes("emitQuadObservation("));
+		const emitters = sources(MODULES).filter((f) => readFileSync(join(MODULES, f), "utf8").includes("quadObservation("));
 		const unexpected = emitters.filter((f) => !ANNOUNCE.includes(f));
 		expect(
 			unexpected,

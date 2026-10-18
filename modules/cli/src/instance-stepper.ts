@@ -22,7 +22,7 @@
  *
  * Runs are held in their own map. endFeature terminates runs under the same condition as instances.
  */
-import type { THandshake } from "@haibun/core/lib/rpc-wire.js";
+import type { THandshake } from "@haibun/core/lib/transport/domains/rpc-wire.js";
 import type { ChildProcess } from "node:child_process";
 import path from "path";
 import { z } from "zod";
@@ -30,10 +30,10 @@ import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type 
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { actionNotOK, actionOKWithProducts, perProcessOptionNames } from "@haibun/core/lib/domains/util.js";
 import { localOrigin } from "@haibun/core/lib/domains/local-origin.js";
-import { RpcClient } from "@haibun/core/lib/rpc-client.js";
 import { instanceSignIns, supervisorPorts } from "./root.js";
 import type { TBasicAuthUser } from "@haibun/core/lib/domains/basic-auth.js";
-import { RemoteStepperProxy } from "@haibun/core/lib/remote-stepper-proxy.js";
+import { readRemoteHost, remoteTools } from "@haibun/core/lib/transport/pipelines/remote-host.js";
+import { requestSigner } from "@haibun/core/lib/domains/session-authority.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import { OK, ACTUALITY_LEVELS, RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
 import { LEVEL_STATUS } from "@haibun/core/lib/actuality/domains/level-status.js";
@@ -49,8 +49,6 @@ import { INSTANCE_PORT_ENV, KEY_ENV, RUN_DOMAIN, RunTail, SUPERVISOR_CAPABILITIE
 import { DOMAIN_FILE_PATH, DOMAIN_NUMBER } from "@haibun/core/lib/domains/domains.js";
 
 const READY_DEADLINE_MS = 30_000;
-/** The timeout of one handshake attempt. A starting child doesn't respond before it listens. It responds quickly once it listens, so a short attempt suffices. */
-const BEGIN_TIMEOUT_MS = 1_500;
 const READY_POLL_MS = 300;
 const STDERR_TAIL_CHARS = 4_000;
 /** The HAIBUN_ENV variable a launched instance reads to address its launcher: `use store at $LAUNCHED_FROM$ …`. */
@@ -93,9 +91,9 @@ const InstancesSchema = z.object({
 
 /** Returns an instance's response to the action.begin handshake, or undefined while the instance doesn't accept the call.
  *  A starting instance refuses the connection or doesn't respond until it listens, so a caller waiting on it calls again. */
-async function begins(rpc: RpcClient): Promise<THandshake | undefined> {
+async function begins(origin: string): Promise<THandshake | undefined> {
 	// A response that fails the handshake schema is rethrown. Any other failure means the instance doesn't accept calls yet.
-	return await rpc.handshake().catch((e: unknown) => {
+	return await supervisorPorts.hosts.begin(origin).catch((e: unknown) => {
 		if (e instanceof z.ZodError) throw e;
 		return undefined;
 	});
@@ -372,8 +370,8 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 	 * Registers a standing run's steps in this process under its host id, once it completes the handshake. Returns false
 	 * when it exits or the deadline passes first.
 	 *
-	 * A standing run is another host. RemoteStepperProxy reads the host id through the same handshake, fetches the
-	 * host's step descriptors, and injects them into this registry under `{hostId}:{method}`. A caller then calls one of
+	 * A standing run is another host. readRemoteHost reads the host id through the same handshake and fetches the host's
+	 * step descriptors, and their proxy tools are injected into this registry under `{hostId}:{method}`. A caller then calls one of
 	 * its steps as `on host {hostId}, <step>`, and it is dispatched and gated as a local step is. A run that doesn't serve
 	 * doesn't register steps, since it doesn't respond to a call.
 	 */
@@ -397,19 +395,17 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 	/** Registers the steps of the host at `url` in this process, under the host id from its handshake. */
 	private async registerHost(url: string): Promise<void> {
 		const world = this.getWorld();
-		const proxy = new RemoteStepperProxy(url);
-		await proxy.setWorld(world, []);
-		proxy.injectInto(runRegistry(world));
+		const rpc = supervisorPorts.hosts.steps(url, requestSigner(world.runtime));
+		runRegistry(world).inject(remoteTools(rpc, url, await readRemoteHost(rpc, url)));
 	}
 
 	/** Waits until a child responds to the action.begin handshake, or until the deadline passes. Every remote surface
 	 *  begins with that handshake. It calls `giveUp` between attempts, so a child that exits while starting ends the wait. */
 	private async awaitBegin(url: string, giveUp: () => boolean): Promise<boolean> {
-		const rpc = new RpcClient({ baseUrl: url, timeoutMs: BEGIN_TIMEOUT_MS, retry: { maxAttempts: 1 } });
 		const { clock } = this.getWorld();
 		const deadline = clock.now() + READY_DEADLINE_MS;
 		while (clock.now() < deadline) {
-			if (await begins(rpc)) return true;
+			if (await begins(url)) return true;
 			if (giveUp()) return false;
 			await clock.wait(READY_POLL_MS);
 		}
@@ -483,7 +479,6 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 
 		this.holdSignInAt(port, signInOf(supervisorPorts, dir, dir, env));
 		const url = localOrigin(port);
-		const rpc = new RpcClient({ baseUrl: url, timeoutMs: 1_500, retry: { maxAttempts: 1 } });
 		const { clock } = this.getWorld();
 		const deadline = clock.now() + READY_DEADLINE_MS;
 		while (clock.now() < deadline) {
@@ -491,7 +486,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 				const said = stderrTail.since(0).output;
 				return actionNotOK(`instance at ${dir} exited with code ${child.exitCode} before it served. Correct the cause its error output reports${said ? `\n${said}` : ""}`);
 			}
-			const begun = await begins(rpc);
+			const begun = await begins(url);
 			if (begun) {
 				// Ready means serving: the instance's feature has executed every step that sets it up. Its port responds before
 				// then, and a caller that treated that response as ready would race the steps the feature executes after listening.

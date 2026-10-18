@@ -6,6 +6,8 @@
 import { z } from "zod";
 import { AccessLevelSchema, AccessQueryLevelSchema, type AccessLevel } from "../../domains/resources.js";
 import { CountedFields, CountedSchema } from "../../domains/hypermedia.js";
+import type { TJsonArtifact } from "../../domains/protocol.js";
+import { ellipsize } from "../../domains/util.js";
 
 /**
  * The named graph of the variables actuality holds. The quad store reads it here, so it doesn't import feature-variables.
@@ -291,4 +293,28 @@ export interface TClusteredQuads {
 	clusters: TCluster[];
 	/** Site principal of the responding instance: the serving site of every sampled subject not overridden in `TCluster.sites`. */
 	site?: string;
+}
+
+/** The most of a string value a quad observation carries. Events carry references and previews, never payloads:
+ *  an emitted body would otherwise ride into every event buffer and SSE frame (a first-time index of a large
+ *  mailbox measured in gigabytes). The store keeps the full value; a consumer that needs it dereferences. */
+export const OBSERVATION_VALUE_MAX = 512;
+
+/** The quadObservation event of a quad a store wrote, the canonical envelope for all quad emissions. String values are
+ *  bounded to OBSERVATION_VALUE_MAX and marked `preview: true` (the store holds the payload: a consumer that needs
+ *  it dereferences deliberately, and a merge can prefer a full value over a preview). Untruncated quads pass by
+ *  reference: the write path doesn't clone per emission. */
+export function quadObservation(id: string, quad: TQuad): TJsonArtifact {
+	const bounded = typeof quad.object === "string" && quad.object.length > OBSERVATION_VALUE_MAX;
+	const observed = bounded ? { ...quad, object: ellipsize(quad.object as string, OBSERVATION_VALUE_MAX), properties: { ...quad.properties, preview: true } } : quad;
+	return {
+		id,
+		timestamp: quad.timestamp,
+		source: "haibun",
+		level: "debug",
+		kind: "artifact",
+		artifactType: "json",
+		mimetype: "application/json",
+		json: { quadObservation: observed },
+	};
 }

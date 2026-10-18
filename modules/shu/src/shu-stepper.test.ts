@@ -4,7 +4,7 @@ import { CONTEXT_DOCUMENT, HYDRATION_ID } from "./domains/elements.js";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { getStepperOptionName } from "@haibun/core/lib/domains/util.js";
-import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
+import { WEBSERVER } from "@haibun/web-server-hono/domains/web-server.js";
 import { SessionAuthority } from "@haibun/core/lib/pipelines/session-authority.js";
 import { AUTHORITY_KEY } from "@haibun/core/lib/domains/session-authority.js";
 import type { TWorld } from "@haibun/core/lib/world.js";

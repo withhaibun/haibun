@@ -9,7 +9,7 @@ import { trackHttpRequest } from "@haibun/core/lib/pipelines/http-observations.j
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { HttpTraceArtifact, Origin } from "@haibun/core/lib/domains/protocol.js";
-import { WEBSERVER } from "@haibun/web-server-hono/defs.js";
+import { WEBSERVER } from "@haibun/web-server-hono/domains/web-server.js";
 import { WEB_PLAYWRIGHT } from "../domains/actions.js";
 import { VISITED_PAGE_LABEL } from "../domains/web-playwright.js";
 import { isRecorded } from "../derivations/http-exchange.js";

@@ -4,7 +4,7 @@
  */
 import type { TDelegation } from "@haibun/core/lib/domains/actions.js";
 import type { TDelegations } from "@haibun/core/lib/domains/authority-types.js";
-import type { TProveRequest } from "@haibun/core/lib/rpc-wire.js";
+import type { TProveRequest } from "@haibun/core/lib/transport/ports.js";
 import { authorityScope, pageKeyStore } from "../root.js";
 import * as Authority from "../pipelines/page-authority.js";
 import type { TProvedRequest } from "../ports.js";

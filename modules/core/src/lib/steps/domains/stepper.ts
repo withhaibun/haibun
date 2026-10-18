@@ -5,7 +5,18 @@
 import type { FeatureVariables } from "../../actuality/pipelines/feature-variables.js";
 import type { TWorld, TEnvVariables } from "../../actuality/domains/world.js";
 import type { TOptionValue, TFeatures, TSourceLocation } from "../../actuality/domains/execution.js";
-import type { ExecutionIntent, TSeqPath, TActionResult, TStepArgs, TStepValue, TStepResult, TFeatureResult, TExecutorResult, THaibunEvent } from "../../domains/protocol.js";
+import type {
+	ExecutionIntent,
+	TSeqPath,
+	TActionResult,
+	TStepArgs,
+	TStepValue,
+	TStepResult,
+	TFeatureResult,
+	TExecutorResult,
+	THaibunEvent,
+	TProvenanceIdentifier,
+} from "../../domains/protocol.js";
 import type { TDomainDefinition } from "../../domains/resources.js";
 import type { TStepReads } from "../../domains/actions.js";
 import type { IQuadStore } from "../ports.js";
@@ -115,6 +126,11 @@ export type TFeatureStep = {
 };
 
 export type TStepAction = { actionName: string; stepperName: string; step: TStepperStep; stepValuesMap?: TStepValuesMap };
+
+/** The provenance of a value a feature step sets: the step's line, its seqPath, and the stepper action it called. */
+export function provenanceFromFeatureStep(featureStep: TFeatureStep): TProvenanceIdentifier {
+	return { in: featureStep.in, seq: featureStep.seqPath, when: `${featureStep.action.stepperName}.steps.${featureStep.action.actionName}` };
+}
 
 type TStepValuesMap = Record<string, TStepValue>;
 

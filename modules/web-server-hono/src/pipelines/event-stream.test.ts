@@ -10,7 +10,8 @@ import { LogEvent } from "@haibun/core/lib/domains/protocol.js";
 import { eventHubOfTest, getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { storeDeclaring } from "@haibun/core/lib/test/declared-types.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import { EndpointLabels, type TCapabilityVerifier } from "../ports.js";
+import { EndpointLabels } from "../domains/web-server.js";
+import type { TCapabilityVerifier } from "../ports.js";
 import { ServerHono } from "../adapters/server-hono.js";
 import { SSETransport } from "./event-stream.js";
 

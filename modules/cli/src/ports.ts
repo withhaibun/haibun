@@ -1,13 +1,16 @@
 /**
  * The ports of the cli: the file system it reads configurations, policies and environment files through, the source of the
  * features it runs, the steppers it loads, a group's actualities file, the processes a supervisor starts, and the clock,
- * prompter and event sink of the actuality it runs.
+ * prompter and event sink of the actuality it runs, and the hosts a supervisor calls.
  */
 import type { ChildProcess } from "node:child_process";
 import type { getSteppers, TFileSystem } from "@haibun/core/lib/adapters/workspace-lib.js";
 import type { TClock, TFeatureSource } from "@haibun/core/lib/actuality/ports.js";
 import type { IPrompter } from "@haibun/core/lib/prompts/ports.js";
 import type { TEventSink } from "@haibun/core/lib/steps/ports.js";
+import type { TRequestSigner } from "@haibun/core/lib/domains/authority-types.js";
+import type { THandshake } from "@haibun/core/lib/transport/domains/rpc-wire.js";
+import type { TRemoteSteps } from "@haibun/core/lib/transport/ports.js";
 import type * as actualities from "./adapters/actualities.js";
 
 /** A group's actualities file: an actuality's place in it, the outcome it records, and the records it writes and clears. */
@@ -31,5 +34,8 @@ export type TCliPorts = {
 	events: TEventSink;
 };
 
-/** The ports that fork the instances and runs of a supervisor, and read their configurations and actualities. */
-export type TSupervisorPorts = Pick<TCliPorts, "fs" | "actualities"> & { processes: TProcesses };
+/** The hosts a supervisor calls: one handshake attempt with an instance, and the steps of a host, each call signed through `sign`. */
+export type THosts = { begin(origin: string): Promise<THandshake>; steps(origin: string, sign: TRequestSigner): TRemoteSteps };
+
+/** The ports that fork the instances and runs of a supervisor, read their configurations and actualities, and call their hosts. */
+export type TSupervisorPorts = Pick<TCliPorts, "fs" | "actualities"> & { processes: TProcesses; hosts: THosts };

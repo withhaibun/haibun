@@ -1,4 +1,4 @@
-import { ACTION_BEGIN } from "../ports.js";
+import { ACTION_BEGIN } from "../domains/rpc-wire.js";
 import { hostHandshake } from "../../test/rpc-answer.js";
 import { describe, expect, it } from "vitest";
 import { QuadStore, newStoreChain } from "../../steps/pipelines/quad-store.js";

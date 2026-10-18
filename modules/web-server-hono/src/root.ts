@@ -4,7 +4,8 @@
  */
 import path from "path";
 import type { TWorld, TRuntime } from "@haibun/core/lib/world.js";
-import { WEBSERVER, type IWebServer } from "./ports.js";
+import { WEBSERVER } from "./domains/web-server.js";
+import type { IWebServer } from "./ports.js";
 import { ServerHono } from "./adapters/server-hono.js";
 import { unsignedRequest, whyNotSignedInOnly } from "./adapters/auth.js";
 import { stopProcessAfter } from "./adapters/process.js";

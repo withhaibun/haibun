@@ -7,7 +7,7 @@ import { discoverSteps, steppersOf } from "./discover-steps.js";
 import { hostScopedMethodName } from "../domains/step-method.js";
 import { AStepper, type TFeatureStep } from "../domains/stepper.js";
 import { actionNotOK, actionOK } from "../../domains/util.js";
-import { RefusedCall } from "../../transport/ports.js";
+import { RefusedCall } from "../../transport/domains/rpc-wire.js";
 import { typeCollectionRemedy } from "../../domains/typed-links.js";
 import { getDefaultWorld } from "../../test/lib.js";
 import type { TWorld } from "../../actuality/domains/world.js";

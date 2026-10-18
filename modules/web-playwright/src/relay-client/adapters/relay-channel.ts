@@ -6,7 +6,8 @@
  * refusal, as does an attachment the relay doesn't open within `RELAY_OPEN_MS`.
  */
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
-import { readNdjson, type TProveRequest } from "@haibun/core/lib/rpc-wire.js";
+import { readNdjson } from "@haibun/core/lib/rpc-wire.js";
+import type { TProveRequest } from "@haibun/core/lib/transport/ports.js";
 import { actualityAt, postRpc } from "@haibun/core/lib/transport/adapters/rpc-call.js";
 import type { TStreamChunk } from "@haibun/core/lib/step-stream-context.js";
 import { RELAY_ATTACHED, RELAY_METHOD_PREFIX, RELAY_OPEN_MS, type TRelayBatch, type TRelayCall, type TRelayMessage } from "../../adapters/relay-wire.js";

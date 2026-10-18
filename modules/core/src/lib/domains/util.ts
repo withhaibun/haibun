@@ -4,7 +4,7 @@ import type { TWorld, TRuntime, TModuleOptions } from "../actuality/domains/worl
 import { TActionResult, OK, TDebugSignal, MODULE_OPTION_PREFIX } from "./protocol.js";
 import { IHasOptions, AStepper, CStepper, TFeatureStep } from "../steps/domains/stepper.js";
 import { TArtifactEvent, type TJsonArtifact } from "./protocol.js";
-import type { TRemedy } from "../transport/ports.js";
+import type { TRemedy } from "../transport/domains/rpc-wire.js";
 
 /** Returns `s` where it fits in `max` characters. Otherwise returns its first `max - 1` characters and an ellipsis.
  *  Callers truncate with this function so each truncation has the same form. */
