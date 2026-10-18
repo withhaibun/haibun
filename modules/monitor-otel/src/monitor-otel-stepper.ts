@@ -13,14 +13,9 @@ import { stringOrError, getStepperOption } from "@haibun/core/lib/util/index.js"
 import { LEVEL_STATUS, actualityMachine, isActualityMove, runningFeature, type TActualityMove } from "@haibun/core/lib/actuality/machines/actuality.js";
 
 import { trace, Tracer, Span, SpanStatusCode, context } from "@opentelemetry/api";
-import { NodeTracerProvider, SimpleSpanProcessor } from "@opentelemetry/sdk-trace-node";
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
-import { resourceFromAttributes } from "@opentelemetry/resources";
-import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from "@opentelemetry/semantic-conventions";
-
-import { LoggerProvider, BatchLogRecordProcessor } from "@opentelemetry/sdk-logs";
-import { OTLPLogExporter } from "@opentelemetry/exporter-logs-otlp-http";
 import { logs, SeverityNumber } from "@opentelemetry/api-logs";
+import type { TOtelProviders } from "./ports.js";
+import { otelProviders } from "./root.js";
 
 /** The name of a custom span for the startSpan and endSpan steps. */
 const DOMAIN_SPAN_NAME = "otel-span-name";
@@ -29,8 +24,8 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 	description = "Exports actuality's features, steps and artifacts as OpenTelemetry spans and its logs as log records. startSpan and endSpan start and end custom spans.";
 	kind = StepperKinds.MONITOR;
 
-	private tracerProvider: NodeTracerProvider | undefined;
-	private loggerProvider: LoggerProvider | undefined;
+	private tracerProvider: TOtelProviders["tracerProvider"] | undefined;
+	private loggerProvider: TOtelProviders["loggerProvider"] | undefined;
 	private tracer: Tracer | undefined;
 	private featureSpan: Span | undefined;
 	private stepSpans: Map<string, Span> = new Map();
@@ -55,20 +50,8 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 	}
 
 	private initializeOtel(endpoint: string, serviceName: string) {
-		const resource = resourceFromAttributes({ [ATTR_SERVICE_NAME]: serviceName, [ATTR_SERVICE_VERSION]: "1.0.0" });
-
-		// SimpleSpanProcessor exports each span when it ends.
-		const traceExporter = new OTLPTraceExporter({ url: `${endpoint}/v1/traces` });
-		this.tracerProvider = new NodeTracerProvider({ resource, spanProcessors: [new SimpleSpanProcessor(traceExporter)] });
-		this.tracerProvider.register();
+		({ tracerProvider: this.tracerProvider, loggerProvider: this.loggerProvider } = otelProviders(endpoint, serviceName));
 		this.tracer = trace.getTracer("haibun-monitor-otel", "1.0.0");
-
-		const logExporter = new OTLPLogExporter({ url: `${endpoint}/v1/logs` });
-		const logProcessor = new BatchLogRecordProcessor(logExporter);
-		// LoggerProviderConfig takes its log record processors in the 'processors' array.
-		this.loggerProvider = new LoggerProvider({ resource, processors: [logProcessor] });
-		logs.setGlobalLoggerProvider(this.loggerProvider);
-
 		this.getWorld().eventLogger.info(`[monitor-otel] Initialized with endpoint: ${endpoint}, service: ${serviceName}`);
 	}
 

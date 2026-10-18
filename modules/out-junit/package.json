@@ -6,7 +6,7 @@
 	"files": [
 		"build/**"
 	],
-	"main": "build/out-junit.js",
+	"main": "build/out-junit-stepper.js",
 	"scripts": {
 		"build": "tsc -b .",
 		"prepublishOnly": "tsc -b .",
@@ -23,7 +23,8 @@
 	},
 	"gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5",
 	"exports": {
-		".": "./build/out-junit.js",
+		".": "./build/out-junit-stepper.js",
+		"./out-junit.js": "./build/out-junit-stepper.js",
 		"./*": "./build/*"
 	}
 }

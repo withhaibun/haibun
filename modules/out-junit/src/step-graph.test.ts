@@ -7,7 +7,7 @@ import path from "node:path";
 import { expectStepGraphAsRecorded } from "@haibun/core/lib/test/step-graph-baseline.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import StorageMem from "@haibun/storage-mem/storage-mem-stepper.js";
-import OutJUnit from "./out-junit.js";
+import OutJUnit from "./out-junit-stepper.js";
 
 describe("the typed step graph of out-junit's steppers", () => {
 	it("has only the findings its baseline records", { timeout: 60_000 }, async () => {

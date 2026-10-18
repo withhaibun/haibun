@@ -148,15 +148,6 @@
 	"modules/core/src/steps/narrator.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/monitor-otel/src/index.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/monitor-tui/src/index.tsx": {
-		"isn't in a kind position": 1
-	},
-	"modules/out-junit/src/out-junit.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/artifact-url.ts": {
 		"isn't in a kind position": 1
 	},

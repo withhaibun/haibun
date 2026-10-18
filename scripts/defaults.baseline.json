@@ -147,14 +147,14 @@
 		"fills a falsy value with a constant through ||": 1,
 		"states a parameter's default value": 1
 	},
-	"modules/monitor-otel/src/index.ts": {
+	"modules/monitor-otel/src/monitor-otel-stepper.ts": {
 		"fills a falsy value with a constant through ||": 8,
 		"fills an absent value with a constant through ??": 1
 	},
-	"modules/monitor-tui/src/index.tsx": {
+	"modules/monitor-tui/src/monitor-tui-stepper.tsx": {
 		"fills a falsy value with a constant through ||": 1
 	},
-	"modules/out-junit/src/out-junit.ts": {
+	"modules/out-junit/src/out-junit-stepper.ts": {
 		"fills a falsy value with a constant through ||": 1
 	},
 	"modules/recorder/src/recorder-stepper.ts": {

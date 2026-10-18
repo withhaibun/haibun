@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 
 import { convert } from "xmlbuilder2";
 
-import OutJUnit from "./out-junit.js";
+import OutJUnit from "./out-junit-stepper.js";
 import { failWithDefaults, passWithDefaults } from "@haibun/core/lib/test/lib.js";
 import TestSteps from "@haibun/core/lib/test/TestSteps.js";
 
