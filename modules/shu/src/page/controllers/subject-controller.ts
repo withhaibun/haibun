@@ -1,12 +1,15 @@
 import type { ReactiveControllerHost } from "lit";
-import type { TSubjectState } from "../machines/current-subject.js";
-import { currentSubjectState } from "../root.js";
+import { type TSubjectEvent, type TSubjectState, INITIAL_SUBJECT, transition } from "../machines/current-subject.js";
+import { sharedMachine } from "../root.js";
 import { activeEntry, currentSubject } from "../derivations/current-subject.js";
 import type { TRecord } from "../domains/current-subject.js";
 import { SignalController } from "./signal-controller.js";
 
-/** The page's current-subject state, as a view follows it, and the dispatch of a reader's act on it. */
-export { currentSubjectState, dispatchSubjectEvent } from "../root.js";
+/** The current-subject machine: one instance, shared across every component and bundle. A view follows its state and
+ *  dispatches a reader's act on it. */
+const subjectMachine = sharedMachine<TSubjectState, TSubjectEvent>("currentSubject", INITIAL_SUBJECT, transition);
+export const currentSubjectState = subjectMachine.state;
+export const dispatchSubjectEvent = (event: TSubjectEvent): TSubjectState => subjectMachine.dispatch(event);
 
 /**
  * SubjectController: the per-view handle to the active record. A view that dims, highlights or follows the active

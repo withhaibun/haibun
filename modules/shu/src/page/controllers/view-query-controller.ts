@@ -6,8 +6,41 @@ import { AccessQuery } from "@haibun/core/lib/domains/resources.js";
 import { ViewQuerySchema, QUERY_PARAMS, type TAccessQueryLevel, type TTypeNotHeld, type TViewQuery } from "../domains/view-query.js";
 import { parseViewQuery, queryParams } from "../derivations/view-query.js";
 import * as Address from "../derivations/address.js";
-import { viewQueryStore as store, type TViewQueryStore } from "../root.js";
+import { Signal } from "@lit-labs/signals";
+import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
+import { pageHeld } from "../root.js";
 import * as PageHash from "./hash-controller.js";
+
+const VIEW_QUERY_KEY = "__SHU_VIEW_QUERY__";
+
+/** The view query's signals: one for each query param, and the hash the page last wrote, which a hashchange listener reads to
+ *  skip the echo of its own write. */
+type TViewQueryStore = {
+	label: Signal.State<string | null>;
+	q: Signal.State<string | null>;
+	sort: Signal.State<string | null>;
+	order: Signal.State<"asc" | "desc">;
+	offset: Signal.State<number>;
+	access: Signal.State<TAccessQueryLevel>;
+	f: Signal.State<TSearchCondition[]>;
+	lastWrittenHash: string;
+};
+
+/** Returns the view query's signals, which the page holds once, so every importer on the page reads one instance. */
+const store = (): TViewQueryStore =>
+	pageHeld(VIEW_QUERY_KEY, () => {
+		const d = ViewQuerySchema.parse({});
+		return {
+			label: new Signal.State(d.label),
+			q: new Signal.State(d.q),
+			sort: new Signal.State(d.sort),
+			order: new Signal.State(d.order),
+			offset: new Signal.State(d.offset),
+			access: new Signal.State<TAccessQueryLevel>(d.access),
+			f: new Signal.State(d.f),
+			lastWrittenHash: "",
+		};
+	});
 
 /** Returns what a page shows for an address that names `label`, where actuality holds the types `held`. */
 export function typeNotHeld(label: string, held: readonly string[]): TTypeNotHeld {

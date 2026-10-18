@@ -63,10 +63,6 @@ import { INITIAL_REGISTRY, registryTransition, type TRegistryEvent, type TRegist
 import type { TReadStepsScope, TRegistryReads } from "./pipelines/read-steps.js";
 import type { TRecordStore } from "./pipelines/open-record.js";
 import { pageDeviceStore } from "./client-cache/root.js";
-import { Signal } from "@lit-labs/signals";
-import type { TSearchCondition } from "@haibun/core/lib/quad-types.js";
-import { ViewQuerySchema, type TAccessQueryLevel } from "./domains/view-query.js";
-import { INITIAL_SUBJECT, transition as subjectTransition, type TSubjectEvent, type TSubjectState } from "./machines/current-subject.js";
 
 const PREFERENCES_KEY = "__SHU_PREFERENCES__";
 const CLOCK_KEY = "__SHU_CLOCK__";
@@ -90,7 +86,6 @@ const PANES_KEY = "__SHU_PANES__";
 const PANES_HELD_KEY = "__SHU_PANES_HELD__";
 const REMEDIES_KEY = "__SHU_REMEDIES__";
 const RECORDS_KEY = "__SHU_ENTITY_STORE__";
-const VIEW_QUERY_KEY = "__SHU_VIEW_QUERY__";
 
 /** Returns the page's preferences, stored in the page's cookies. */
 export const pagePreferences = (): TPreferences => pagePinned(PREFERENCES_KEY, () => cookiePreferences(window));
@@ -370,39 +365,8 @@ export const embeddedPageView = new SharedCell<TEmbeddedPageView | null>("embedd
 /** The delegation the embedding page last gave shu's page key, or null where it hasn't given one. */
 export const givenDelegation = new SharedCell<TDelegation | null>("givenDelegation", null);
 
-/** The view query's signals: one for each query param, and the hash the page last wrote, which a hashchange listener reads to
- *  skip the echo of its own write. */
-export type TViewQueryStore = {
-	label: Signal.State<string | null>;
-	q: Signal.State<string | null>;
-	sort: Signal.State<string | null>;
-	order: Signal.State<"asc" | "desc">;
-	offset: Signal.State<number>;
-	access: Signal.State<TAccessQueryLevel>;
-	f: Signal.State<TSearchCondition[]>;
-	lastWrittenHash: string;
-};
-
-/** Returns the view query's signals, which the page holds once, so every importer on the page reads one instance. */
-export const viewQueryStore = (): TViewQueryStore =>
-	pagePinned(VIEW_QUERY_KEY, () => {
-		const d = ViewQuerySchema.parse({});
-		return {
-			label: new Signal.State(d.label),
-			q: new Signal.State(d.q),
-			sort: new Signal.State(d.sort),
-			order: new Signal.State(d.order),
-			offset: new Signal.State(d.offset),
-			access: new Signal.State<TAccessQueryLevel>(d.access),
-			f: new Signal.State(d.f),
-			lastWrittenHash: "",
-		};
-	});
-
-/** The current-subject machine: one instance, shared across every component and bundle. */
-const subjectMachine = sharedMachine<TSubjectState, TSubjectEvent>("currentSubject", INITIAL_SUBJECT, subjectTransition);
-export const currentSubjectState = subjectMachine.state;
-export const dispatchSubjectEvent = (event: TSubjectEvent): TSubjectState => subjectMachine.dispatch(event);
+/** Returns what the page holds once under `key`, made by `make` the first time, so every importer on the page reads one instance. */
+export const pageHeld = <T>(key: string, make: () => T): T => pagePinned(key, make);
 
 /** Whether the page is a report that carries actuality's records, rather than a page a site serves. */
 export const pageOffline = (): boolean => pageHydration().carried() !== undefined;
