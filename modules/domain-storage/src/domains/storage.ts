@@ -1,9 +1,14 @@
+/**
+ * The storage a stepper keeps files and artifacts in: the abstract storage stepper over the files port a concrete storage
+ * gives it, the location of actuality's captures, and the steps that create, read and list files.
+ */
 import { resolve, relative } from "path";
-
 import { z } from "zod";
 import { OK } from "@haibun/core/schema/protocol.js";
 import { captureLocator } from "@haibun/core/lib/capture-locator.js";
-import { IFile, TLocationOptions } from "./domain-storage.js";
+import type { TModuleOptions, TBaseOptions } from "@haibun/core/lib/world.js";
+import type { TTag } from "@haibun/core/lib/ttag.js";
+import type { IFile, TStorageFiles } from "../ports.js";
 import { AStepper, StepperKinds, type IHasCycles, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 import { DOMAIN_NUMBER, DOMAIN_FILE_PATH, DOMAIN_TEXT } from "@haibun/core/lib/domains.js";
@@ -24,8 +29,8 @@ export interface TSavedArtifact {
 	baseRelativePath: string;
 }
 
-/** The flag a write is made with where it must not replace a file: the write fails where the file exists. */
-export const CREATE_ONLY = "wx";
+/** What locates actuality's captures: its tag and its options. */
+export type TLocationOptions = { tag: TTag; options: TBaseOptions; moduleOptions: TModuleOptions };
 
 export abstract class AStorage extends AStepper implements IHasCycles {
 	cycles: IStepperCycles = {
@@ -35,11 +40,15 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 
 	kind = StepperKinds.STORAGE;
 
-	abstract readFile(path: string, coding?: BufferEncoding): string | Buffer;
-	abstract rm(path: string): void;
-	abstract readdir(dir: string): Promise<string[]>;
-	abstract lstatToIFile(file: string): Promise<IFile>;
-	abstract writeFileBuffer(file: string, contents: Buffer): void;
+	constructor(private readonly files: TStorageFiles) {
+		super();
+	}
+
+	readFile = (path: string, coding?: BufferEncoding): string | Buffer => this.files.readFile(path, coding);
+	rm = (path: string): void => this.files.rm(path);
+	readdir = (dir: string): Promise<string[]> => this.files.readdir(dir);
+	lstatToIFile = (file: string): Promise<IFile> => this.files.lstatToIFile(file);
+	writeFileBuffer = (file: string, contents: Buffer): void => this.files.writeFileBuffer(file, contents);
 
 	async readdirStat(dir: string): Promise<IFile[]> {
 		const files = await this.readdir(dir);
@@ -60,10 +69,10 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 
 	/** Write a file only its owner reads, making its directory where it doesn't exist. A file that exists is refused, so
 	 *  what is kept there, such as a key, isn't replaced. */
-	abstract writePrivateFile(file: string, contents: string): void;
-	abstract mkdir(dir: string): void;
-	abstract mkdirp(dir: string): void;
-	abstract exists(ntt: string): boolean;
+	writePrivateFile = (file: string, contents: string): void => this.files.writePrivateFile(file, contents);
+	mkdir = (dir: string): void => this.files.mkdir(dir);
+	mkdirp = (dir: string): void => this.files.mkdirp(dir);
+	exists = (path: string): boolean => this.files.exists(path);
 
 	locator = captureLocator;
 

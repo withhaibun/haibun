@@ -4,7 +4,7 @@ import { afterEach } from "node:test";
 vitest.useFakeTimers();
 import { OK } from "@haibun/core/schema/protocol.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
-import StorageMem from "./storage-mem.js";
+import StorageMem from "./storage-mem-stepper.js";
 import { describeStorage } from "@haibun/domain-storage/test/storage-conformance.js";
 
 // The capture key is the WORLD's own tag.key (getCaptureLocation reads loc.tag.key); assert against that, never a

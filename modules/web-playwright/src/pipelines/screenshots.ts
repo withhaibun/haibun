@@ -5,8 +5,8 @@ import { MEDIA_TYPE } from "@haibun/core/lib/media-types.js";
 import { artifactAddress } from "@haibun/core/lib/run-artifact.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import type { TStepResult } from "@haibun/core/schema/protocol.js";
-import type { AStorage } from "@haibun/domain-storage/AStorage.js";
-import { saveImageArtifact } from "@haibun/domain-storage/image-artifact.js";
+import type { AStorage } from "@haibun/domain-storage/domains/storage.js";
+import { saveImageArtifact } from "@haibun/domain-storage/pipelines/image-artifact.js";
 import type { BrowserSession } from "./browser-session.js";
 
 /** The media type of a saved screenshot. */

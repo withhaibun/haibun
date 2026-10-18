@@ -15,7 +15,7 @@ import { DEFAULT_DEST, OK, type TStepArgs } from "@haibun/core/schema/protocol.j
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import FakeAuthorityStepper, { FakeInvoker, fakeGrant, DOMAIN_FAKE_HOLDER } from "@haibun/core/lib/test/fake-authority.js";
-import StorageMem from "@haibun/storage-mem/storage-mem.js";
+import StorageMem from "@haibun/storage-mem/storage-mem-stepper.js";
 import WebServerStepper from "@haibun/web-server-hono/web-server-stepper.js";
 import WebPlaywright from "./web-playwright-stepper.js";
 import { WEB_PLAYWRIGHT_ACTIONS } from "./domains/actions.js";

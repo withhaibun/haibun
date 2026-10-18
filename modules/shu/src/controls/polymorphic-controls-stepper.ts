@@ -27,7 +27,7 @@ import { DOMAIN_PERSISTED_TYPE, type TDomainDefinition } from "@haibun/core/lib/
 import { DOMAIN_NUMBER, DOMAIN_PERSISTED_TYPES, individualRefInputSchema, listedSchema, NameSchema } from "@haibun/core/lib/domains.js";
 import { actionOK, actionNotOK, actionOKWithProducts } from "@haibun/core/lib/util/index.js";
 import type { TActionResult } from "@haibun/core/schema/protocol.js";
-import { saveImageArtifact } from "@haibun/domain-storage/image-artifact.js";
+import { saveImageArtifact } from "@haibun/domain-storage/pipelines/image-artifact.js";
 import type { Locator, Page } from "playwright";
 import { VIEW, VIEW_TYPES, isLaneView } from "../page/graph/domains/views.js";
 import { MEASURE_UNIT, PAN_DIRECTION, ZOOM_DIRECTION, type TMeasureUnit, type TPanDirection, type TZoomDirection } from "../page/graph/machines/camera.js";

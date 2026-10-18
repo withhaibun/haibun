@@ -13,7 +13,7 @@ import { dispatchStep } from "@haibun/core/lib/step-dispatch.js";
 import { answeredFor } from "@haibun/core/lib/call-step.js";
 import { allocateSyntheticSeqPath } from "@haibun/core/lib/host-id.js";
 import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
-import StorageMem from "@haibun/storage-mem/storage-mem.js";
+import StorageMem from "@haibun/storage-mem/storage-mem-stepper.js";
 import WebPlaywright from "./web-playwright-stepper.js";
 import { BrowserFactory } from "./adapters/browser-factory.js";
 import { READS_THE_PAGE } from "./domains/actions.js";

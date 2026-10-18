@@ -5,7 +5,7 @@
  */
 import { machine } from "@haibun/core/lib/machine.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import type { AStorage } from "@haibun/domain-storage/AStorage.js";
+import type { AStorage } from "@haibun/domain-storage/domains/storage.js";
 import type { IWebServer } from "@haibun/web-server-hono/defs.js";
 import { BrowserFactory } from "./adapters/browser-factory.js";
 import { BrowserRelay } from "./adapters/cdp-relay.js";

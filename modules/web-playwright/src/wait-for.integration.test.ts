@@ -6,7 +6,7 @@ import { failWithDefaults } from "@haibun/core/lib/test/lib.js";
 import { DEFAULT_DEST } from "@haibun/core/schema/protocol.js";
 import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
-import StorageMem from "@haibun/storage-mem/storage-mem.js";
+import StorageMem from "@haibun/storage-mem/storage-mem-stepper.js";
 import WebPlaywright from "./web-playwright-stepper.js";
 import { BrowserFactory } from "./adapters/browser-factory.js";
 

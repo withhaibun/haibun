@@ -17,7 +17,7 @@ import Haibun from "@haibun/core/steps/haibun.js";
 import ResourcesStepper from "@haibun/core/steps/resources-stepper.js";
 import UrakataStepper from "@haibun/core/steps/urakata-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
-import StorageMem from "@haibun/storage-mem/storage-mem.js";
+import StorageMem from "@haibun/storage-mem/storage-mem-stepper.js";
 import WebPlaywright from "@haibun/web-playwright";
 import WebServerStepper from "@haibun/web-server-hono/web-server-stepper.js";
 import ClientCacheStepper from "../client-cache-stepper.js";

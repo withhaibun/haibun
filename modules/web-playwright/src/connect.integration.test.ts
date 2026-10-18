@@ -11,7 +11,7 @@ import { getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import { itemAt } from "@haibun/core/lib/util/item-at.js";
 import { HTTP_REQUEST_LABEL } from "@haibun/core/lib/resources.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
-import StorageMem from "@haibun/storage-mem/storage-mem.js";
+import StorageMem from "@haibun/storage-mem/storage-mem-stepper.js";
 import WebPlaywright from "./web-playwright-stepper.js";
 import { BrowserFactory } from "./adapters/browser-factory.js";
 import { browserPorts } from "./root.js";

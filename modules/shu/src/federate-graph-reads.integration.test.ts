@@ -11,7 +11,7 @@ import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import FakeAuthorityStepper from "@haibun/core/lib/test/fake-authority.js";
 import ResourcesStepper from "@haibun/core/steps/resources-stepper.js";
 import WebServerStepper from "@haibun/web-server-hono/web-server-stepper.js";
-import StorageFS from "@haibun/storage-fs/storage-fs.js";
+import StorageFS from "@haibun/storage-fs/storage-fs-stepper.js";
 import InstanceStepper from "@haibun/cli/instance-stepper.js";
 import MonitorStepper from "./monitor-stepper.js";
 import GraphSourceStepper from "./graph-source-stepper.js";

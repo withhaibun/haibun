@@ -21,7 +21,7 @@ import { fromJsonText } from "@haibun/core/lib/json-text.js";
 import { TRANSPORT, type ITransport } from "@haibun/web-server-hono/sse-transport.js";
 import type WebServerStepper from "@haibun/web-server-hono/web-server-stepper.js";
 import { WEBSERVER, type IWebServer } from "@haibun/web-server-hono/defs.js";
-import { AStorage } from "@haibun/domain-storage/AStorage.js";
+import { AStorage } from "@haibun/domain-storage/domains/storage.js";
 import { Access } from "@haibun/core/lib/resources.js";
 import { CLIENT_RING, SHU_TAG } from "./domains/elements.js";
 import { MONITOR_OPENS_AT, reportHtml } from "./pipelines/monitor-report.js";

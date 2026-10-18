@@ -7,7 +7,7 @@ import { checkPage } from "./pipelines/check-page.js";
 import { axePorts } from "./root.js";
 import { executionOf, formatRecordName, formatSeqPath } from "@haibun/core/lib/seq-path.js";
 import { MEDIA_TYPE } from "@haibun/core/lib/media-types.js";
-import type { AStorage } from "@haibun/domain-storage/AStorage.js";
+import type { AStorage } from "@haibun/domain-storage/domains/storage.js";
 import { HtmlArtifact } from "@haibun/core/schema/protocol.js";
 
 type TGetsPage = { getPage: () => Promise<Page> };

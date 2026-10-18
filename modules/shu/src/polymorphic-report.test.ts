@@ -18,7 +18,7 @@ import { DOMAIN_GRAPH_QUERY } from "@haibun/core/lib/quad-types.js";
 import { QuadStore, newStoreChain } from "@haibun/core/lib/quad-store.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import MonitorStepper from "./monitor-stepper.js";
-import StorageMem from "@haibun/storage-mem/storage-mem.js";
+import StorageMem from "@haibun/storage-mem/storage-mem-stepper.js";
 import ShuStepper from "./shu-stepper.js";
 
 const GRAPH_VIEW = "shu-polymorphic-graph-view";

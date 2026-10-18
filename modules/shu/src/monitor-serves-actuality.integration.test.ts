@@ -14,7 +14,7 @@ import Haibun from "@haibun/core/steps/haibun.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import ResourcesStepper from "@haibun/core/steps/resources-stepper.js";
 import WebServerStepper from "@haibun/web-server-hono/web-server-stepper.js";
-import StorageFS from "@haibun/storage-fs/storage-fs.js";
+import StorageFS from "@haibun/storage-fs/storage-fs-stepper.js";
 import MonitorStepper, { MONITOR_PATH } from "./monitor-stepper.js";
 import { MONITOR_OPENS_AT } from "./pipelines/monitor-report.js";
 import GraphSourceStepper from "./graph-source-stepper.js";

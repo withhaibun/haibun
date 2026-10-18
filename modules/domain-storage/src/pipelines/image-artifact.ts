@@ -4,7 +4,7 @@
  * and the shu "save a graph still" step call this function, so the artifact id scheme and the event's fields are defined once.
  */
 import type { TWorld } from "@haibun/core/lib/world.js";
-import type { AStorage, TSavedArtifact } from "./AStorage.js";
+import type { AStorage, TSavedArtifact } from "../domains/storage.js";
 import { ImageArtifact } from "@haibun/core/schema/protocol.js";
 import type { TFeatureStep } from "@haibun/core/lib/astepper.js";
 

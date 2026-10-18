@@ -11,7 +11,7 @@
 import { describe, it, expect } from "vitest";
 import { CAPTURE, DEFAULT_DEST } from "@haibun/core/schema/protocol.js";
 import { getDefaultWorld, getTestWorldWithOptions } from "@haibun/core/lib/test/lib.js";
-import type { AStorage } from "../AStorage.js";
+import type { AStorage } from "../domains/storage.js";
 
 /**
  * Runs the specification against one storage. Each case calls `make` once and uses the storage it returns. The directory

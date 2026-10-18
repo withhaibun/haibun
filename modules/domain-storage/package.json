@@ -9,7 +9,7 @@
 		"build/**"
 	],
 	"exports": {
-		".": "./build/domain-storage.js",
+		".": "./build/domains/storage.js",
 		"./*": "./build/*"
 	},
 	"scripts": {

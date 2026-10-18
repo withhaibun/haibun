@@ -1,7 +1,7 @@
 import { create } from "xmlbuilder2";
 import { EOL } from "os";
 
-import { AStorage } from "@haibun/domain-storage/AStorage.js";
+import { AStorage } from "@haibun/domain-storage/domains/storage.js";
 import { findStepperFromOptionOrKind, getStepperOption, stringOrError } from "@haibun/core/lib/util/index.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import type { TExecutorResult } from "@haibun/core/schema/protocol.js";

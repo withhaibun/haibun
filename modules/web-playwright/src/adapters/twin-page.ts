@@ -1,7 +1,7 @@
 /** The twin of actuality's pages: a page in a browser of its own, which copies each element a step locates, and is written to a file at each new address. */
 import { chromium, type Locator, type Page } from "playwright";
 import { join } from "node:path";
-import type { AStorage } from "@haibun/domain-storage/AStorage.js";
+import type { AStorage } from "@haibun/domain-storage/domains/storage.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { actualURI } from "@haibun/core/lib/util/node/actualURI.js";
 import type { TTwin } from "../ports.js";

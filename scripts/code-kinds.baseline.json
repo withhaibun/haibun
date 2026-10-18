@@ -253,15 +253,6 @@
 	"modules/core/src/steps/narrator.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/domain-storage/src/AStorage.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/domain-storage/src/domain-storage.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/domain-storage/src/image-artifact.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/monitor-otel/src/index.ts": {
 		"isn't in a kind position": 1
 	},
@@ -299,12 +290,6 @@
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/view-query.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/storage-fs/src/storage-fs.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/storage-mem/src/storage-mem.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/utils/src/npm-link-haibuns.ts": {

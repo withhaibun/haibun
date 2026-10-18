@@ -5,7 +5,7 @@ import { join } from "node:path";
 
 import { CAPTURE } from "@haibun/core/schema/protocol.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
-import StorageFS from "./storage-fs.js";
+import StorageFS from "./storage-fs-stepper.js";
 import { describeStorage } from "@haibun/domain-storage/test/storage-conformance.js";
 
 // What this storage shares with every other is the specification below; what is here is its own: where an artifact

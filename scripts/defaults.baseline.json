@@ -146,7 +146,7 @@
 	"modules/core/src/steps/variables-stepper.ts": {
 		"fills an absent value with a constant through ??": 5
 	},
-	"modules/domain-storage/src/AStorage.ts": {
+	"modules/domain-storage/src/domains/storage.ts": {
 		"fills a falsy value with a constant through ||": 1,
 		"states a parameter's default value": 1
 	},

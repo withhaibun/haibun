@@ -13,7 +13,7 @@ import { hostScopedMethodName } from "@haibun/core/lib/steps/domains/step-method
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import Haibun from "@haibun/core/steps/haibun.js";
 import WebServerStepper from "@haibun/web-server-hono/web-server-stepper.js";
-import StorageFS from "@haibun/storage-fs/storage-fs.js";
+import StorageFS from "@haibun/storage-fs/storage-fs-stepper.js";
 import MonitorStepper from "../../monitor-stepper.js";
 import ShuStepper from "../../shu-stepper.js";
 import { installServedConduit } from "../root.js";

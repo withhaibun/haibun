@@ -37,7 +37,7 @@ import {
 } from "@haibun/core/lib/util/index.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { OK, Origin, type TActionResult, type TStepValue } from "@haibun/core/schema/protocol.js";
-import type { AStorage } from "@haibun/domain-storage/AStorage.js";
+import type { AStorage } from "@haibun/domain-storage/domains/storage.js";
 import { WEBSERVER, type IWebServer } from "@haibun/web-server-hono/defs.js";
 import type { Page } from "playwright";
 import { PAGE_READ, READS_THE_PAGE, WEB_PLAYWRIGHT_ACTIONS } from "./domains/actions.js";

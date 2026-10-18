@@ -6,7 +6,7 @@ import { describe, it } from "vitest";
 import path from "node:path";
 import { expectStepGraphAsRecorded } from "@haibun/core/lib/test/step-graph-baseline.js";
 import Haibun from "@haibun/core/steps/haibun.js";
-import StorageFS from "./storage-fs.js";
+import StorageFS from "./storage-fs-stepper.js";
 
 describe("the typed step graph of storage-fs's steppers", () => {
 	it("has only the findings its baseline records", { timeout: 60_000 }, async () => {
