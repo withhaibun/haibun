@@ -13,7 +13,7 @@ import { createSteppers, setStepperWorldsAndDomains } from "@haibun/core/lib/uti
 import { addStepperConcerns } from "@haibun/core/phases/Executor.js";
 import ActivitiesStepper from "@haibun/core/steps/activities-stepper.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
-import Haibun from "@haibun/core/steps/haibun.js";
+import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import ResourcesStepper from "@haibun/core/steps/resources-stepper.js";
 import UrakataStepper from "@haibun/core/steps/urakata-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";

@@ -1,7 +1,7 @@
 import { withAction, type TKirejiExport } from "@haibun/core/kireji/derivations/withAction.js";
 import WebPlaywright from "@haibun/web-playwright";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
-import Haibun from "@haibun/core/steps/haibun.js";
+import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import { localOrigin } from "@haibun/core/lib/local-origin.js";
 import { requiredModuleOption } from "@haibun/core/lib/held-module-options.js";
 import { MONITOR_PATH } from "../../build/monitor-stepper.js";

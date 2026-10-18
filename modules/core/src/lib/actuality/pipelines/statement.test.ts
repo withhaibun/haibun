@@ -5,7 +5,7 @@ import { passWithDefaults, DEF_PROTO_OPTIONS, failWithDefaults } from "../../tes
 import { actionNotOK } from "../../util/index.js";
 import { FlowRunner } from "../../steps/pipelines/flow-runner.js";
 import { DOMAIN_STATEMENT } from "../../domains/domains.js";
-import Haibun from "../../../steps/haibun.js";
+import Haibun from "../../../steps/haibun-stepper.js";
 
 class StatementTestStepper extends AStepper {
 	description = "Declares the steps alpha and beta and a step that executes its statement argument.";

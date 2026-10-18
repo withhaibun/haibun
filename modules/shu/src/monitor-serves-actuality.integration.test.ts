@@ -10,7 +10,7 @@ import { localOrigin } from "@haibun/core/lib/local-origin.js";
 import { Access, SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { executionOf } from "@haibun/core/lib/seq-path.js";
 import type { TClusteredQuads } from "@haibun/core/lib/quad-types.js";
-import Haibun from "@haibun/core/steps/haibun.js";
+import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import ResourcesStepper from "@haibun/core/steps/resources-stepper.js";
 import WebServerStepper from "@haibun/web-server-hono/web-server-stepper.js";

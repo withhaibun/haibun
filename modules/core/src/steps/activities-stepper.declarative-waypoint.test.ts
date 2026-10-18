@@ -12,7 +12,7 @@ import { describe, it, expect } from "vitest";
 import { passWithDefaults } from "../lib/test/lib.js";
 import VariablesStepper from "./variables-stepper.js";
 import { ActivitiesStepper } from "./activities-stepper.js";
-import Haibun from "./haibun.js";
+import Haibun from "./haibun-stepper.js";
 import AuthorityStepper from "./authority-stepper.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { actionOK, actionOKWithProducts } from "../lib/util/index.js";

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import ResourcesStepper from "./resources-stepper.js";
-import Haibun from "./haibun.js";
+import Haibun from "./haibun-stepper.js";
 import { getDefaultWorld, getTestWorldWithOptions, testWithWorld } from "../lib/test/lib.js";
 import { Access, BODY_LABEL, LinkRelations, READING_LABEL, SEQ_PATH_LABEL, SPECIFIC_RESOURCE_LABEL } from "../lib/resources.js";
 import { MEDIA_TYPE } from "../lib/domains/media-types.js";

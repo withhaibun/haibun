@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import { ActivitiesStepper } from "./activities-stepper.js";
 import { passWithDefaults } from "../lib/test/lib.js";
 import VariablesStepper from "./variables-stepper.js";
-import Haibun from "./haibun.js";
+import Haibun from "./haibun-stepper.js";
 
 describe("activities-stepper proof-first execution", () => {
 	it("should execute activity body when proof fails", async () => {

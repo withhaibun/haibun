@@ -1,6 +1,6 @@
 import type { TKirejiExport } from "@haibun/core/kireji/derivations/withAction.js";
 import { withAction } from "@haibun/core/kireji/derivations/withAction.js";
-import Haibun from "@haibun/core/steps/haibun.js";
+import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import { RPC_ROUTE } from "@haibun/core/lib/rpc-wire.js";
 import { localOrigin } from "@haibun/core/lib/local-origin.js";
 import { requiredModuleOption } from "@haibun/core/lib/held-module-options.js";

@@ -10,7 +10,7 @@ import { AStepper } from "@haibun/core/lib/astepper.js";
 import type { TFeature } from "@haibun/core/lib/execution.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import ActivitiesStepper from "@haibun/core/steps/activities-stepper.js";
-import Haibun from "@haibun/core/steps/haibun.js";
+import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { OUTSIDE_A_WORKSPACE } from "../domains/lsp.js";
 import type { TLspConnection, TLspHandlers, TLspLog, TWorkspace, TWorkspaces } from "../ports.js";

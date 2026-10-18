@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { passWithDefaults } from "../lib/test/lib.js";
 import VariablesStepper from "./variables-stepper.js";
 import LogicStepper from "./logic-stepper.js";
-import Haibun from "./haibun.js";
+import Haibun from "./haibun-stepper.js";
 import UrakataStepper from "./urakata-stepper.js";
 import { AStepper } from "../lib/steps/domains/stepper.js";
 import { actionOKWithProducts } from "../lib/util/index.js";

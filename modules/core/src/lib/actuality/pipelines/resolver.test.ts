@@ -8,7 +8,7 @@ import TestSteps from "../../test/TestSteps.js";
 import { createSteppers } from "../../util/index.js";
 import { itemAt } from "../../util/item-at.js";
 import { Resolver } from "./resolver.js";
-import Haibun from "../../../steps/haibun.js";
+import Haibun from "../../../steps/haibun-stepper.js";
 
 describe("resolve steps", () => {
 	it("resolves steps", async () => {

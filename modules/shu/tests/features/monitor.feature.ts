@@ -5,7 +5,7 @@ import ShuMonitorColumnControls, { RAIL_END } from "../../build/controls/monitor
 import ShuScrollbarControls from "../../build/controls/scrollbar-controls-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import BlipsStepper from "@haibun/core/steps/blips-stepper.js";
-import Haibun from "@haibun/core/steps/haibun.js";
+import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import { SHU_TEST_IDS } from "../../build/domains/test-ids.js";
 import { createStepUI, flattenTestIds } from "@haibun/shu/test/step-ui.js";
 import { SHU_TAG } from "@haibun/shu/domains/elements.js";

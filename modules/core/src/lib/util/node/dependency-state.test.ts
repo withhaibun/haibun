@@ -106,7 +106,12 @@ describe("the dependency roots of a group", () => {
 		const repo = aRepository({ "package.json": "{}", "tests/config.json": "{}", "tests/features/a.feature": "Feature: a\n", "fixtures/x.json": "{}" });
 		const configDir = path.join(repo, "tests");
 		// `haibun` and `variables-stepper` are two steppers of the core module. A remote stepper runs in another instance.
-		const roots = dependencyRoots({ steppers: ["haibun", "variables-stepper", { remote: "http://elsewhere" }], dependsOn: ["../fixtures"] }, [configDir], configDir, configDir);
+		const roots = dependencyRoots(
+			{ steppers: ["haibun-stepper", "variables-stepper", { remote: "http://elsewhere" }], dependsOn: ["../fixtures"] },
+			[configDir],
+			configDir,
+			configDir,
+		);
 		const core = roots.filter((r) => r.endsWith(path.join("modules", "core", "src")));
 		expect(core.length, "the core module's sources once for its two steppers").toBe(1);
 		expect(roots).toContain(configDir);

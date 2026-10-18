@@ -5,7 +5,7 @@ import { recordBlip } from "../lib/pipelines/record-blip.js";
 import BlipsStepper, { renderWatch } from "./blips-stepper.js";
 import LogicStepper from "./logic-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
-import Haibun from "./haibun.js";
+import Haibun from "./haibun-stepper.js";
 import { AStepper } from "../lib/steps/domains/stepper.js";
 import { OK } from "../lib/domains/protocol.js";
 import { eventHubOfTest, failWithDefaults, passWithDefaults } from "../lib/test/lib.js";

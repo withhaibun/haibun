@@ -12,7 +12,7 @@ import BlipsStepper from "./steps/blips-stepper.js";
 import ConsoleMonitorStepper from "./steps/console-monitor-stepper.js";
 import DebuggerStepper from "./steps/debugger-stepper.js";
 import GoalResolutionStepper from "./steps/goal-resolution-stepper.js";
-import Haibun from "./steps/haibun.js";
+import Haibun from "./steps/haibun-stepper.js";
 import LogicStepper from "./steps/logic-stepper.js";
 import Narrator from "./steps/narrator-stepper.js";
 import ResourcesStepper from "./steps/resources-stepper.js";

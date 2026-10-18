@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { failWithDefaults, getDefaultWorld, passWithDefaults } from "../test/lib.js";
 import VariablesStepper from "../../steps/variables-stepper.js";
-import Haibun from "../../steps/haibun.js";
+import Haibun from "../../steps/haibun-stepper.js";
 import LogicStepper from "../../steps/logic-stepper.js";
 import { z } from "zod";
 import {

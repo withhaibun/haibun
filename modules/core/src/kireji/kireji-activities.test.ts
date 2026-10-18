@@ -4,7 +4,7 @@ import { toBdd } from "./converter.js";
 import { ActivitiesStepper } from "../steps/activities-stepper.js";
 import VariablesStepper from "../steps/variables-stepper.js";
 import { failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
-import Haibun from "../steps/haibun.js";
+import Haibun from "../steps/haibun-stepper.js";
 
 describe("kireji activities", () => {
 	it("should convert multi-line proof template strings to BDD format correctly", () => {

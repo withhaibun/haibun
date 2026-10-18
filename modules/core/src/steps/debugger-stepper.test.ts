@@ -2,7 +2,7 @@ import { it, expect, describe, vi } from "vitest";
 
 import { DEF_PROTO_OPTIONS, getTestWorldWithOptions, testWithWorld } from "../lib/test/lib.js";
 import DebuggerStepper, { TDebuggingType } from "./debugger-stepper.js";
-import Haibun from "./haibun.js";
+import Haibun from "./haibun-stepper.js";
 import { IPrompter, TPrompt, TPromptResponse } from "../lib/prompter.js";
 import { ReadlinePrompter } from "../lib/readline-prompter.js";
 import { AStepper } from "../lib/steps/domains/stepper.js";

@@ -5,7 +5,7 @@ import { DEF_PROTO_OPTIONS, failWithDefaults, getTestWorldWithOptions, passWithD
 import { Resolver } from "../lib/actuality/pipelines/resolver.js";
 import { FlowRunner } from "../lib/steps/pipelines/flow-runner.js";
 import TestSteps from "../lib/test/TestSteps.js";
-import Haibun from "./haibun.js";
+import Haibun from "./haibun-stepper.js";
 import VariablesSteppers from "./variables-stepper.js";
 import LogicStepper from "./logic-stepper.js";
 import { ActivitiesStepper } from "./activities-stepper.js";

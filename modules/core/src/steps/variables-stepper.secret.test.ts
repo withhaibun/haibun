@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { DEF_PROTO_OPTIONS, getTestWorldWithOptions, testWithWorld } from "../lib/test/lib.js";
 import VariablesStepper from "./variables-stepper.js";
-import Haibun from "./haibun.js";
+import Haibun from "./haibun-stepper.js";
 import { OBSCURED_VALUE } from "../lib/steps/domains/secrets.js";
 import { SHARED_GRAPH } from "../lib/actuality/pipelines/feature-variables.js";
 import { readFacts } from "../lib/records/pipelines/facts.js";

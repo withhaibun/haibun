@@ -4,7 +4,7 @@
 		"@haibun/web-server-hono/web-server-stepper",
 		"@haibun/web-playwright/web-playwright",
 		"@haibun/storage-fs/storage-fs",
-		"haibun",
+		"haibun-stepper",
 		"@haibun/web-server-hono/mcp-stepper"
 	],
 	"moduleOptions": {

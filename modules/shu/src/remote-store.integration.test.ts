@@ -9,7 +9,7 @@ import { refusalSaid } from "@haibun/core/lib/rpc-wire.js";
 import { PRINCIPAL_LABEL } from "@haibun/core/lib/resources.js";
 import type { TRecordsPage } from "@haibun/core/lib/quad-types.js";
 import { recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
-import Haibun from "@haibun/core/steps/haibun.js";
+import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import FakeAuthorityStepper, { FakeInvoker } from "@haibun/core/lib/test/fake-authority.js";
 import ResourcesStepper from "@haibun/core/steps/resources-stepper.js";

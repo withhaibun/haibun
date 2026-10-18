@@ -11,7 +11,7 @@ import { actionOK, getStepperOptionName } from "@haibun/core/lib/util/index.js";
 import { DEF_PROTO_OPTIONS, freePort, getTestWorldWithOptions, testWithWorld } from "@haibun/core/lib/test/lib.js";
 import { hostScopedMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
-import Haibun from "@haibun/core/steps/haibun.js";
+import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import WebServerStepper from "@haibun/web-server-hono/web-server-stepper.js";
 import StorageFS from "@haibun/storage-fs/storage-fs-stepper.js";
 import MonitorStepper from "../../monitor-stepper.js";

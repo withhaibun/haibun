@@ -227,7 +227,13 @@ describe("resolveRunPolicy", () => {
 });
 
 describe("getConfigFromBase with extends", () => {
-	const BASE = { steppers: ["variables-stepper", "haibun"], options: { DEST: "base" }, moduleOptions: { [OTHER_OPTION]: "base" }, environments: ["model"], dependsOn: ["shared"] };
+	const BASE = {
+		steppers: ["variables-stepper", "haibun-stepper"],
+		options: { DEST: "base" },
+		moduleOptions: { [OTHER_OPTION]: "base" },
+		environments: ["model"],
+		dependsOn: ["shared"],
+	};
 	/** A directory holding the base config in its parent folder and the given config beside its own folder. */
 	const group = (own: Record<string, unknown>): string => {
 		const root = mkdtempSync(join(tmpdir(), "extends-"));
@@ -243,7 +249,7 @@ describe("getConfigFromBase with extends", () => {
 			[group({ extends: "../base.json", steppers: ["logic-stepper"], options: { DEST: "own" }, moduleOptions: { [`${OTHER_OPTION}2`]: "own" } })],
 			nodeFS,
 		);
-		expect(specl.steppers).toEqual(["variables-stepper", "haibun", "logic-stepper"]);
+		expect(specl.steppers).toEqual(["variables-stepper", "haibun-stepper", "logic-stepper"]);
 		expect(specl.options).toEqual({ DEST: "own" });
 		expect(specl.moduleOptions).toEqual({ [OTHER_OPTION]: "base", [`${OTHER_OPTION}2`]: "own" });
 		expect(specl).not.toHaveProperty("extends");
@@ -256,8 +262,8 @@ describe("getConfigFromBase with extends", () => {
 	});
 
 	it("refuses a stepper the base lists", () => {
-		expect(() => lib.getConfigFromBase([group({ extends: "../base.json", steppers: ["haibun"] })], nodeFS)).toThrow(
-			/lists "haibun", which its base .*base\.json lists\. Remove them from/,
+		expect(() => lib.getConfigFromBase([group({ extends: "../base.json", steppers: ["haibun-stepper"] })], nodeFS)).toThrow(
+			/lists "haibun-stepper", which its base .*base\.json lists\. Remove them from/,
 		);
 	});
 

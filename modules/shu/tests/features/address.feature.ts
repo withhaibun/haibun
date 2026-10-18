@@ -2,7 +2,7 @@ import { withAction, type TKirejiExport } from "@haibun/core/kireji/derivations/
 import WebPlaywright from "@haibun/web-playwright";
 import ShuStepper from "../../build/shu-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
-import Haibun from "@haibun/core/steps/haibun.js";
+import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/resources.js";
 import { SHU_TEST_IDS } from "../../build/domains/test-ids.js";
 import { typeNotHeld } from "../../build/view-query.js";

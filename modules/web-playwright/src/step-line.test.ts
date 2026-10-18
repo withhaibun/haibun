@@ -9,7 +9,7 @@ import { createSteppers } from "@haibun/core/lib/util/index.js";
 import { literalTerm, namedInterpolation, renderStepLine } from "@haibun/core/lib/namedVars.js";
 import { DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STATEMENT, domainParts } from "@haibun/core/lib/domains/domains.js";
 import type { AStepper } from "@haibun/core/lib/astepper.js";
-import Haibun from "@haibun/core/steps/haibun.js";
+import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import LogicStepper from "@haibun/core/steps/logic-stepper.js";
 import ResourcesStepper from "@haibun/core/steps/resources-stepper.js";

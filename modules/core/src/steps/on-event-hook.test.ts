@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { testWithWorld, getDefaultWorld } from "../lib/test/lib.js";
 import VariablesStepper from "./variables-stepper.js";
-import Haibun from "./haibun.js";
+import Haibun from "./haibun-stepper.js";
 
 describe("onEvent hook infrastructure", () => {
 	it("EventLogger emits events during step execution", async () => {

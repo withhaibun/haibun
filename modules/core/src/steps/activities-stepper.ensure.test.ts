@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { passWithDefaults } from "../lib/test/lib.js";
 import { ActivitiesStepper } from "./activities-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
-import Haibun from "./haibun.js";
+import Haibun from "./haibun-stepper.js";
 import type { TWorld } from "../lib/actuality/domains/world.js";
 import { AStepper } from "../lib/steps/domains/stepper.js";
 

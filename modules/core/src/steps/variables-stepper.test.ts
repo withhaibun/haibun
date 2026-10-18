@@ -3,7 +3,7 @@ import { it, expect, describe } from "vitest";
 import { DEF_PROTO_OPTIONS, failWithDefaults, getTestWorldWithOptions, passWithDefaults } from "../lib/test/lib.js";
 import VariablesStepper from "./variables-stepper.js";
 import { DEFAULT_DEST, Origin } from "../lib/domains/protocol.js";
-import Haibun from "./haibun.js";
+import Haibun from "./haibun-stepper.js";
 import LogicStepper from "./logic-stepper.js";
 import { OBSCURED_VALUE } from "../lib/steps/domains/secrets.js";
 import { SHARED_GRAPH } from "../lib/actuality/pipelines/feature-variables.js";

@@ -2,7 +2,7 @@
 	"$schema": "../../node_modules/@haibun/core/haibun-core-specl.schema.json",
 	"description": "A peer instance for federation: serves its own graph reads over RPC and stays up as a service. Launched by InstanceStepper (start a haibun instance from ...).",
 	"steppers": [
-		"haibun",
+		"haibun-stepper",
 		"variables-stepper",
 		"resources-stepper",
 		"authority-stepper",

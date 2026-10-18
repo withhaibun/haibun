@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { getDefaultWorld } from "../lib/test/lib.js";
 import VariablesStepper from "./variables-stepper.js";
-import Haibun from "./haibun.js";
+import Haibun from "./haibun-stepper.js";
 import ConsoleMonitorStepper from "./console-monitor-stepper.js";
 import { Runner } from "../lib/pipelines/runner.js";
 import { asFeatures } from "../lib/test/resolver-features.js";

@@ -4,7 +4,7 @@ import { DEF_PROTO_OPTIONS, failWithDefaults, passWithDefaults } from "../lib/te
 import TestSteps from "../lib/test/TestSteps.js";
 import LogicStepper from "./logic-stepper.js";
 import VariablesSteppers from "./variables-stepper.js";
-import Haibun from "./haibun.js";
+import Haibun from "./haibun-stepper.js";
 import { itemAt } from "../lib/util/item-at.js";
 
 describe("not", () => {

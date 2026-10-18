@@ -4,7 +4,7 @@ import { RemoteStepperProxy } from "./remote-proxy-stepper.js";
 import { buildFeatureStepForTransport } from "../steps/pipelines/call-step.js";
 import { hostScopedMethodName, stepMethodName } from "../steps/domains/step-method.js";
 import { openRunRegistry, StepRegistry } from "../steps/pipelines/step-registry.js";
-import Haibun from "../../steps/haibun.js";
+import Haibun from "../../steps/haibun-stepper.js";
 import { AStepper } from "../steps/domains/stepper.js";
 import { actionNotOK, actionOKWithProducts, errorDetail } from "../util/index.js";
 import { getDefaultWorld } from "../test/lib.js";
