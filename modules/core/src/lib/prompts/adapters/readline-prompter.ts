@@ -1,7 +1,7 @@
 import { Interface, createInterface } from "readline/promises";
 import { stdin as input, stdout as output } from "process";
 
-import { IPrompter, TPrompt, TPromptResponse } from "./prompter.js";
+import type { IPrompter, TPrompt, TPromptResponse } from "../ports.js";
 
 export class ReadlinePrompter implements IPrompter {
 	private rl?: Interface;

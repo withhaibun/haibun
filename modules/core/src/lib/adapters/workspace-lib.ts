@@ -1,12 +1,12 @@
 import path, { dirname } from "path";
 import nodeFS from "fs";
 
-import { type TStepperEntry } from "../../actuality/domains/execution.js";
-import { CStepper } from "../../steps/domains/stepper.js";
-import { createSteppers } from "../../domains/util.js";
+import { type TStepperEntry } from "../actuality/domains/execution.js";
+import { CStepper } from "../steps/domains/stepper.js";
+import { createSteppers } from "../domains/util.js";
 import { use } from "./module-loader.js";
 import { fileURLToPath } from "url";
-import { RemoteStepperProxy } from "../../transport/remote-proxy-stepper.js";
+import type { RemoteStepperProxy } from "../transport/remote-proxy-stepper.js";
 
 /** The file-system calls feature collection and workspace discovery make, which a test gives in place of node's. */
 export type TFileSystem = Pick<typeof nodeFS, "existsSync" | "readdirSync" | "statSync" | "readFileSync">;
@@ -30,8 +30,9 @@ export async function getSteppers(stepperEntries: TStepperEntry[]) {
 		} else {
 			// Remote stepper: create a factory that returns a pre-configured RemoteStepperProxy
 			const { remote } = entry;
+			const RemoteProxy = (await use(REMOTE_PROXY)) as unknown as typeof RemoteStepperProxy;
 			steppers.push(
-				class extends RemoteStepperProxy {
+				class extends RemoteProxy {
 					constructor() {
 						super(remote);
 					}
@@ -71,7 +72,9 @@ const pkgJsonCache = new Map<string, Record<string, unknown>>();
 /** Resolved at module init to avoid repeated fileURLToPath + path.resolve on every stepper load.
  *  Uses getPackageLocation so the path is correct whether core is a linked/installed dependency
  *  (build/steps) or the current workspace in src mode (src/steps). */
-const CORE_STEPS_DIR = path.resolve(getPackageLocation(import.meta), "../../../steps");
+const CORE_STEPS_DIR = path.resolve(getPackageLocation(import.meta), "../../steps");
+/** Where core's remote stepper proxy is, which the stepper of a remote entry extends. The loader reads it as it reads every stepper. */
+const REMOTE_PROXY = path.join(CORE_STEPS_DIR, "../lib/transport/remote-proxy-stepper");
 
 export function getModuleLocation(name: string) {
 	if (name.startsWith(".")) {

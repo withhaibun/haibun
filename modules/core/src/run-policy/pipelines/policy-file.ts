@@ -1,7 +1,7 @@
 import { z } from "zod";
-import { fromJsonText } from "../lib/domains/json-text.js";
-import { readFileSync } from "fs";
-import { RUN_ACCESS_LEVELS, type TRunPolicyConfig } from "./run-policy-types.js";
+import { fromJsonText } from "../../lib/domains/json-text.js";
+import { RUN_ACCESS_LEVELS, type TRunPolicyConfig } from "../domains/run-policy.js";
+import type { TFileSystem } from "../../lib/adapters/workspace-lib.js";
 
 // ============================================================================
 // Policy File Schema, Hierarchical JSON Schema
@@ -28,11 +28,11 @@ const PolicyFileSchema = z.looseObject({
 
 export type TRunPolicy = z.infer<typeof PolicyFileSchema>;
 
-/** Load and parse a policy file */
-function loadRunPolicy(schemaPath: string): TRunPolicy {
+/** Reads a policy file through the file system and parses it. */
+function loadRunPolicy(schemaPath: string, fs: Pick<TFileSystem, "readFileSync">): TRunPolicy {
 	let raw: string;
 	try {
-		raw = readFileSync(schemaPath, "utf-8");
+		raw = fs.readFileSync(schemaPath, "utf-8");
 	} catch (err) {
 		throw new Error(`Cannot read run policy "${schemaPath}": ${(err as Error).message}`);
 	}
@@ -262,9 +262,9 @@ export function validateRunPolicyConfig(config: TRunPolicyConfig, policy: TRunPo
 	return result.error.issues.map((err) => `${err.path.length ? "/" + err.path.join("/") + " " : ""}${err.message}`);
 }
 
-/** Load policy, validate config, throw on failure. */
-export function loadAndValidateRunPolicy(config: TRunPolicyConfig, schemaPath: string): TRunPolicy {
-	const policy = loadRunPolicy(schemaPath);
+/** Reads the policy through the file system and validates the config against it. Throws where the policy rejects the config. */
+export function loadAndValidateRunPolicy(config: TRunPolicyConfig, schemaPath: string, fs: Pick<TFileSystem, "readFileSync">): TRunPolicy {
+	const policy = loadRunPolicy(schemaPath, fs);
 	const errors = validateRunPolicyConfig(config, policy, schemaPath);
 	if (errors.length > 0) {
 		const jsonContext = JSON.stringify({ $schema: schemaPath, ...config }, null, 2);

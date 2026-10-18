@@ -46,34 +46,10 @@
 	"modules/core/src/lib/port-occupant.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/core/src/lib/prompter.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/readline-prompter.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/core/src/lib/session-authority.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/core/src/lib/urakata.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/util/node/dependency-state.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/util/node/module-loader.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/util/node/workspace-lib.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/lib/workspace-discovery.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/run-policy/run-policy-schema.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/core/src/run-policy/run-policy-types.ts": {
 		"isn't in a kind position": 1
 	},
 	"modules/shu/src/artifact-url.ts": {

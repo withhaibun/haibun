@@ -3,6 +3,8 @@ import * as TFileSystemJs from "./workspace-lib.js";
 
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
+import { RemoteStepperProxy } from "../transport/remote-proxy-stepper.js";
+import { itemAt } from "../domains/item-at.js";
 
 describe("workspace", () => {
 	it("finds workspace root", () => {
@@ -10,6 +12,13 @@ describe("workspace", () => {
 		expect(existsSync(pkgPath)).toBe(true);
 		const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
 		expect(pkg.name).toBe("haibun");
+	});
+});
+
+describe("getSteppers", () => {
+	it("loads a remote entry's stepper as a class that extends core's remote stepper proxy", async () => {
+		const Remote = itemAt(await TFileSystemJs.getSteppers([{ remote: "http://localhost:1" }]), 0);
+		expect(new Remote()).toBeInstanceOf(RemoteStepperProxy);
 	});
 });
 

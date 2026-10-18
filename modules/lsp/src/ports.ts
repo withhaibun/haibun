@@ -2,7 +2,7 @@
 import type { CompletionItem, Diagnostic, Hover, HoverParams, InitializeResult } from "vscode-languageserver/node.js";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { TFeature } from "@haibun/core/lib/execution.js";
-import type { findHaibunWorkspace } from "@haibun/core/lib/workspace-discovery.js";
+import type { findHaibunWorkspace } from "@haibun/core/lib/adapters/workspace-discovery.js";
 import type { TExecuteToolParams, TWorkspaceStatus } from "./domains/lsp.js";
 
 /** A painted span as the protocol encodes it: its line, where it starts, how long it is, and its type's index in the legend. */

@@ -1,13 +1,4 @@
-import { ReadlinePrompter } from "./readline-prompter.js";
-
-export type TPrompt = { id: string; message: string; context?: unknown; options?: string[] };
-export interface IPrompter {
-	prompt(prompt: TPrompt): Promise<TPromptResponse>;
-	cancel(id: string, reason?: string): void;
-	resolve(id: string, value: TPromptResponse): void;
-}
-
-export type TPromptResponse = string | object | undefined;
+import type { IPrompter, TPrompt, TPromptResponse } from "../ports.js";
 
 export class Prompter {
 	/**
@@ -17,7 +8,7 @@ export class Prompter {
 	private subscribers: IPrompter[];
 	private readonly defaultPrompter: IPrompter;
 
-	constructor(defaultPrompter: IPrompter = new ReadlinePrompter()) {
+	constructor(defaultPrompter: IPrompter) {
 		this.defaultPrompter = defaultPrompter;
 		this.subscribers = [defaultPrompter];
 	}

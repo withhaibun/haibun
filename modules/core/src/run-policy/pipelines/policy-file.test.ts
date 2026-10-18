@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { validateRunPolicyConfig } from "./run-policy-schema.js";
-import type { TRunPolicyConfig } from "./run-policy-types.js";
-import type { TRunPolicy } from "./run-policy-schema.js";
+import { validateRunPolicyConfig } from "./policy-file.js";
+import type { TRunPolicyConfig } from "../domains/run-policy.js";
+import type { TRunPolicy } from "./policy-file.js";
 
-import { RUN_ACCESS_LEVELS } from "./run-policy-types.js";
+import { RUN_ACCESS_LEVELS } from "../domains/run-policy.js";
 
 /** Helper: build a policy in hierarchical JSON Schema format */
 function makePolicy(envs: string[], dirs: string[], deny: Array<{ place?: string; dir?: string; access?: string }> = []): TRunPolicy {

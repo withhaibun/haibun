@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { IPrompter, Prompter, TPromptResponse } from "./prompter.js";
+import { Prompter } from "./prompter.js";
+import type { IPrompter, TPromptResponse } from "../ports.js";
+import { consolePrompter } from "../root.js";
 import { makePrompt } from "./prompter.js";
 
 class TestPrompter implements IPrompter {
@@ -17,7 +19,7 @@ class TestPrompter implements IPrompter {
 
 describe("Prompter", () => {
 	it("calls subscribers in order and returns first non-undefined result", async () => {
-		const prompter = new Prompter();
+		const prompter = new Prompter(consolePrompter());
 		class CallsPrompter implements IPrompter {
 			static calls = 0;
 			prompt = () => {
@@ -38,14 +40,14 @@ describe("Prompter", () => {
 		expect(CallsPrompter.calls).toBe(2);
 	});
 	it("returns undefined if all subscribers return undefined", async () => {
-		const prompter = new Prompter();
+		const prompter = new Prompter(consolePrompter());
 		prompter.subscribe(new TestPrompter(undefined));
 		prompter.subscribe(new TestPrompter(undefined));
 		const result = await prompter.prompt(makePrompt("What?"));
 		expect(result).toBeUndefined();
 	});
 	it("unsubscribes default prompter", () => {
-		const prompter = new Prompter();
+		const prompter = new Prompter(consolePrompter());
 		prompter.unsubscribe(prompter.getDefaultPrompter());
 		expect(prompter["subscribers"]).toHaveLength(0);
 	});

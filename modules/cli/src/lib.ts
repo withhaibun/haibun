@@ -14,16 +14,17 @@ import { resolveSitePrincipal } from "@haibun/core/lib/domains/host-id.js";
 import { holdModuleOptions } from "@haibun/core/lib/held-module-options.js";
 import { formattedSteppers, getPre, getDefaultOptions, basesFrom, verifyRequiredOptions, verifyExtraOptions, errorDetail } from "@haibun/core/lib/domains/util.js";
 import { BaseOptions } from "./BaseOptions.js";
-import { TFileSystem, getCreateSteppers, getSteppers } from "@haibun/core/lib/util/node/workspace-lib.js";
+import { TFileSystem, getCreateSteppers, getSteppers } from "@haibun/core/lib/adapters/workspace-lib.js";
 import { getDefaultTag } from "@haibun/core/lib/domains/ttag.js";
 import { Runner } from "@haibun/core/lib/pipelines/runner.js";
 import { FeatureVariables, secretsOf } from "@haibun/core/lib/feature-variables.js";
-import { Prompter } from "@haibun/core/lib/prompter.js";
+import { Prompter } from "@haibun/core/lib/prompts/pipelines/prompter.js";
+import { consolePrompter } from "@haibun/core/lib/prompts/root.js";
 import { getCoreDomains } from "@haibun/core/lib/core-domains.js";
 import { EventLogger } from "@haibun/core/lib/EventLogger.js";
 import { eventSink } from "@haibun/core/lib/steps/root.js";
-import { OPTION_RUN_POLICY, OPTION_DRY_RUN, HAIBUN_RUN_POLICY, parseRunPolicyArgs, parseRunPolicyEnv, type TRunPolicyConfig } from "@haibun/core/run-policy/run-policy-types.js";
-import { loadAndValidateRunPolicy } from "@haibun/core/run-policy/run-policy-schema.js";
+import { OPTION_RUN_POLICY, OPTION_DRY_RUN, HAIBUN_RUN_POLICY, parseRunPolicyArgs, parseRunPolicyEnv, type TRunPolicyConfig } from "@haibun/core/run-policy/domains/run-policy.js";
+import { loadAndValidateRunPolicy } from "@haibun/core/run-policy/pipelines/policy-file.js";
 import { PhaseRunner, PhaseBailError } from "@haibun/core/lib/PhaseRunner.js";
 import { withName } from "@haibun/core/lib/domains/features.js";
 import { forgetOutcome, outcomeAgainst, recordActuality, varianceLine, verificationOf } from "./verified.js";
@@ -168,7 +169,7 @@ export function resolveRunPolicy(cliPolicyConfig: TRunPolicyConfig | undefined, 
 			};
 		}
 
-		loadAndValidateRunPolicy(policyConfig, specl.runPolicy);
+		loadAndValidateRunPolicy(policyConfig, specl.runPolicy, nodeFS);
 	}
 	return policyConfig;
 }
@@ -232,7 +233,7 @@ function getCliWorld(protoOptions: TProtoOptions, bases: TBase): TWorld {
 			seqPaths: new Map(),
 			keys: { principal: resolveSitePrincipal() },
 		},
-		prompter: new Prompter(),
+		prompter: new Prompter(consolePrompter()),
 		...protoOptions,
 		clock: actualityClock(),
 		bases,

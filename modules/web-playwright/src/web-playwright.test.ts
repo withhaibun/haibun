@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import path from "path";
 
-import { getPackageLocation } from "@haibun/core/lib/util/node/workspace-lib.js";
+import { getPackageLocation } from "@haibun/core/lib/adapters/workspace-lib.js";
 
 import { getCreateSteppers } from "@haibun/core/lib/test/lib.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";

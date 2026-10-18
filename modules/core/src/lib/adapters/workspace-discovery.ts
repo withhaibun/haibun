@@ -1,5 +1,5 @@
 import path from "path";
-import { TFileSystem } from "./util/node/workspace-lib.js";
+import type { TFileSystem } from "./workspace-lib.js";
 
 interface HaibunWorkspace {
 	/** Base path - parent of features/ folder */

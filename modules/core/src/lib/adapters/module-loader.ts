@@ -1,10 +1,9 @@
 /**
  * Node-only module loader. Resolves package paths and imports stepper classes.
- * Kept under util/node/ because it pulls `fs` and `path`; not for browser bundles.
  */
 import nodeFS from "fs";
 import path from "path";
-import { itemAt } from "../../domains/item-at.js";
+import { itemAt } from "../domains/item-at.js";
 
 type TClass = { new <T>(...args: unknown[]): T };
 

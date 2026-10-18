@@ -1,7 +1,7 @@
 /**
  * The ports of actuality: the clock that times its events and its records, and the source of the features it executes.
  */
-import type { TRunPolicyConfig } from "../../run-policy/run-policy-types.js";
+import type { TRunPolicyConfig } from "../../run-policy/domains/run-policy.js";
 import type { TFeaturesBackgrounds } from "./domains/execution.js";
 import type { TBase } from "./domains/world.js";
 

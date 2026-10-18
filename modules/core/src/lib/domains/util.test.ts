@@ -1,7 +1,7 @@
 import { describe, it, test, expect, vi } from "vitest";
 
 import * as util from "../domains/util.js";
-import { checkModuleIsClass } from "../util/node/module-loader.js";
+import { checkModuleIsClass } from "../adapters/module-loader.js";
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, getCreateSteppers } from "../test/lib.js";
 import TestSteps from "../test/TestSteps.js";
 import TestStepsWithOptions from "../test/TestStepsWithOptions.js";

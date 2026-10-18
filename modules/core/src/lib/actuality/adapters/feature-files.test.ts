@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 import { basesFrom } from "../../domains/util.js";
-import { TFileSystem } from "../../util/node/workspace-lib.js";
+import { TFileSystem } from "../../adapters/workspace-lib.js";
 import { featureFiles, shouldProcess } from "./feature-files.js";
 
 /** The files of each directory, by name. */

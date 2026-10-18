@@ -13,11 +13,11 @@ import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 
 import { SpeclSchema, type TSpecl } from "@haibun/core/lib/execution.js";
 import type { TProtoOptions } from "@haibun/core/lib/world.js";
-import { OPTION_RUN_POLICY, OPTION_DRY_RUN, type TRunPolicyConfig } from "@haibun/core/run-policy/run-policy-types.js";
+import { OPTION_RUN_POLICY, OPTION_DRY_RUN, type TRunPolicyConfig } from "@haibun/core/run-policy/domains/run-policy.js";
 import * as lib from "./lib.js";
 
 // Mocks loadAndValidateRunPolicy so a test does not read test-policy.json.
-vitest.mock("@haibun/core/run-policy/run-policy-schema.js", () => ({ loadAndValidateRunPolicy: vitest.fn() }));
+vitest.mock("@haibun/core/run-policy/pipelines/policy-file.js", () => ({ loadAndValidateRunPolicy: vitest.fn() }));
 
 const s = (s: string) => s.split(" ");
 

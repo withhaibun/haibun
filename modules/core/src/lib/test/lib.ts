@@ -5,7 +5,7 @@ import { DEFAULT_DEST, TExecutorResult, TEST_BASE } from "../domains/protocol.js
 import { getRunTag } from "../domains/ttag.js";
 import { DEFAULT_HOST_ID } from "../domains/host-id.js";
 import { resolveSitePrincipal } from "../domains/host-id.js";
-import { getCreateSteppers } from "../util/node/workspace-lib.js";
+import { getCreateSteppers } from "../adapters/workspace-lib.js";
 export { getCreateSteppers };
 export { getDefaultTag } from "../domains/ttag.js";
 import { actualityClock } from "../actuality/root.js";
@@ -13,7 +13,8 @@ import { actualityMachine } from "../actuality/machines/actuality.js";
 import { asFeatures } from "./resolver-features.js";
 import { Runner } from "../pipelines/runner.js";
 import { FeatureVariables, secretsOf } from "../actuality/pipelines/feature-variables.js";
-import { Prompter } from "../prompter.js";
+import { Prompter } from "../prompts/pipelines/prompter.js";
+import { consolePrompter } from "../prompts/root.js";
 import { getCoreDomains } from "../core-domains.js";
 import assert from "assert";
 import { createServer } from "node:net";
@@ -104,7 +105,7 @@ export function getDefaultWorld(env: NodeJS.ProcessEnv = process.env): TWorld {
 	const world: Partial<TWorld> = {
 		clock: actualityClock(),
 		tag: getRunTag(0, undefined, {}, false, DEFAULT_HOST_ID),
-		prompter: new Prompter(),
+		prompter: new Prompter(consolePrompter()),
 		runtime: {
 			actualityId: newActualityId(),
 			actuality: actualityMachine(),

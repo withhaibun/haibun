@@ -29,7 +29,7 @@ import { QuadStore, newStoreChain } from "@haibun/core/lib/quad-store.js";
 import nodeFS from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { ACTUALITIES_FILE } from "@haibun/core/lib/util/node/dependency-state.js";
+import { ACTUALITIES_FILE } from "@haibun/core/lib/adapters/dependency-state.js";
 import { RUN_AUTHORITY, runAuthorizedWith } from "@haibun/core/lib/domains/capability-context.js";
 import { RUN_DOMAIN, SUPERVISOR_CAPABILITIES, runDomainDefinitions } from "./instance-stepper.js";
 

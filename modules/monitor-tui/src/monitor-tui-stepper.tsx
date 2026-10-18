@@ -8,7 +8,7 @@ import { AStepper, IHasCycles, StepperKinds, TStartFeature } from "@haibun/core/
 import { TWorld } from "@haibun/core/lib/world.js";
 import { shownLogLevel, type THaibunEvent, type TShownLogLevel } from "@haibun/core/lib/domains/protocol.js";
 import { EventFormatter } from "@haibun/core/lib/domains/protocol.js";
-import { IPrompter, TPrompt, TPromptResponse } from "@haibun/core/lib/prompter.js";
+import type { IPrompter, TPrompt, TPromptResponse } from "@haibun/core/lib/prompts/ports.js";
 
 const EventLine = ({ line }: { line: string }) => <Text>{line}</Text>;
 

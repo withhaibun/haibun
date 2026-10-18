@@ -113,3 +113,5 @@ export class RemoteStepperProxy extends AStepper {
 
 	steps = {};
 }
+
+export default RemoteStepperProxy;

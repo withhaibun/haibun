@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { TActualityId } from "../../transport/ports.js";
 import type { TTag } from "../../domains/ttag.js";
 import type { FeatureVariables } from "../pipelines/feature-variables.js";
-import type { Prompter } from "../../prompter.js";
+import type { Prompter } from "../../prompts/pipelines/prompter.js";
 import type { IEventLogger } from "../../steps/ports.js";
 import type { TStepResult, TFeatureSteps } from "../../domains/protocol.js";
 import { CONTINUE_AFTER_ERROR, NDJSON, ShownLogLevelSchema } from "../../domains/protocol.js";

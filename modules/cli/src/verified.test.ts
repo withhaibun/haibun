@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import nodeFS from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { ACTUALITIES_FILE } from "@haibun/core/lib/util/node/dependency-state.js";
+import { ACTUALITIES_FILE } from "@haibun/core/lib/adapters/dependency-state.js";
 import { RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
 import { forgetOutcome, forgetOutcomes, machineKey, outcomeAgainst, recordActuality, actualityConditions, varianceLine, verificationOf } from "./verified.js";
 

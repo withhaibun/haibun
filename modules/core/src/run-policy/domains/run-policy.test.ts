@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseDirFilters, parseRunPolicyArgs, parseRunPolicyEnv, accessLevelIncludes, getFeatureAccessPrefix, featureMatchesFilter } from "./run-policy-types.js";
+import { parseDirFilters, parseRunPolicyArgs, parseRunPolicyEnv, accessLevelIncludes, getFeatureAccessPrefix, featureMatchesFilter } from "./run-policy.js";
 
 describe("parseDirFilters", () => {
 	it("parses single pair", () => {

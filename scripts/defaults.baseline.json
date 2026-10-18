@@ -15,6 +15,16 @@
 	"modules/cli/src/verified.ts": {
 		"fills an absent value with a constant through ??": 2
 	},
+	"modules/core/src/lib/adapters/dependency-state.ts": {
+		"fills an absent value with a constant through ??": 2,
+		"states a parameter's default value": 1
+	},
+	"modules/core/src/lib/adapters/module-loader.ts": {
+		"fills a falsy value with a constant through ||": 1
+	},
+	"modules/core/src/lib/adapters/workspace-lib.ts": {
+		"states a parameter's default value": 1
+	},
 	"modules/core/src/lib/affordances.ts": {
 		"fills an absent value with a constant through ??": 1
 	},
@@ -90,10 +100,7 @@
 	"modules/core/src/lib/pipelines/step-validation.ts": {
 		"fills a falsy value with a constant through ||": 1
 	},
-	"modules/core/src/lib/prompter.ts": {
-		"states a parameter's default value": 1
-	},
-	"modules/core/src/lib/readline-prompter.ts": {
+	"modules/core/src/lib/prompts/adapters/readline-prompter.ts": {
 		"fills an absent value with a constant through ??": 1
 	},
 	"modules/core/src/lib/records/derivations/ontology.ts": {
@@ -109,17 +116,7 @@
 	"modules/core/src/lib/urakata.ts": {
 		"states a schema's default value through .default()": 1
 	},
-	"modules/core/src/lib/util/node/dependency-state.ts": {
-		"fills an absent value with a constant through ??": 2,
-		"states a parameter's default value": 1
-	},
-	"modules/core/src/lib/util/node/module-loader.ts": {
-		"fills a falsy value with a constant through ||": 1
-	},
-	"modules/core/src/lib/util/node/workspace-lib.ts": {
-		"states a parameter's default value": 1
-	},
-	"modules/core/src/run-policy/run-policy-schema.ts": {
+	"modules/core/src/run-policy/pipelines/policy-file.ts": {
 		"fills an absent value with a constant through ??": 3,
 		"states a schema's default value through .default()": 2
 	},

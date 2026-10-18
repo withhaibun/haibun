@@ -1,7 +1,7 @@
 import { AStepper, IHasCycles, IHasOptions, TStepperSteps, IStepperCycles, TBeforeStep, TAfterStep, TAfterStepResult, TFeatureStep } from "../lib/steps/domains/stepper.js";
 import type { TWorld } from "../lib/actuality/domains/world.js";
 import { TActionResult, OK, TDebugSignal } from "../lib/domains/protocol.js";
-import { makePrompt } from "../lib/prompter.js";
+import { makePrompt } from "../lib/prompts/pipelines/prompter.js";
 import { formatSeqPath } from "../lib/actuality/domains/seq-path.js";
 import { actionOK, getStepperOption, stringOrError, errorDetail } from "../lib/domains/util.js";
 import { FlowRunner } from "../lib/steps/pipelines/flow-runner.js";
