@@ -1,21 +1,17 @@
 /**
  * RecorderStepper - Captures browser interactions and generates .feature files
  */
-
-import { writeFile, appendFile } from "fs/promises";
-
-import { AStepper, IHasCycles, IHasOptions, CycleWhen, TStartFeature, type TStepperSteps } from "@haibun/core/lib/astepper.js";
+import { AStepper, IHasCycles, IHasOptions, CycleWhen, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { OK, TActionResult } from "@haibun/core/schema/protocol.js";
-import { stringOrError } from "@haibun/core/lib/util/index.js";
-import { WebPlaywright } from "@haibun/web-playwright";
-
-import { TInteraction, TRecordedStep } from "./types.js";
-import { interactionToStep } from "./interaction-mapper.js";
-import { instrumentPage } from "./page-instrumentor.js";
+import { errorDetail, stringOrError } from "@haibun/core/lib/util/index.js";
+import type { WebPlaywright } from "@haibun/web-playwright";
 import { DOMAIN_FILE_PATH } from "@haibun/core/lib/domains.js";
+import { startRecording, type TRecording } from "./pipelines/recording.js";
+import { recordingPorts } from "./root.js";
 
 const OUTPUT_OPTION = "OUTPUT";
 const TITLE_OPTION = "TITLE";
+const WEB_PLAYWRIGHT = "WebPlaywright";
 
 export class RecorderStepper extends AStepper implements IHasOptions, IHasCycles {
 	description = "Record browser interactions and generate Haibun .feature files";
@@ -27,93 +23,25 @@ export class RecorderStepper extends AStepper implements IHasOptions, IHasCycles
 
 	cyclesWhen = { startFeature: CycleWhen.LAST };
 
-	private recording = false;
-	private recordedSteps: TRecordedStep[] = [];
-	private outputPath?: string;
+	private recording?: TRecording;
 	private webPlaywright?: WebPlaywright;
-	private lastUrl?: string;
 
 	cycles = {
-		startFeature: async ({ resolvedFeature }: TStartFeature): Promise<void> => {
+		startFeature: async (): Promise<void> => {
 			if (!this.recording) return;
-
-			// Find WebPlaywright stepper to hook into its page
 			const steppers = this.getWorld().runtime.steppers as AStepper[] | undefined;
-			if (steppers) {
-				this.webPlaywright = steppers.find((s): s is WebPlaywright => s.constructor.name === "WebPlaywright");
-			}
-
-			if (this.webPlaywright) {
-				await this.instrumentCurrentPage();
-			}
+			this.webPlaywright = steppers?.find((s): s is WebPlaywright => s.constructor.name === WEB_PLAYWRIGHT);
+			await this.instrumentCurrentPage();
 		},
 	};
 
+	/** Captures the interactions of web-playwright's page, where web-playwright runs. */
 	private async instrumentCurrentPage(): Promise<void> {
-		if (!this.webPlaywright) return;
-
+		if (!this.webPlaywright || !this.recording) return;
 		try {
-			const page = await this.webPlaywright.getPage();
-
-			await instrumentPage(page, (interaction) => {
-				this.handleInteraction(interaction);
-			});
-
-			// Also capture navigation
-			page.on("framenavigated", (frame) => {
-				if (frame === page.mainFrame()) {
-					const url = frame.url();
-					// Avoid duplicate navigation events
-					if (url !== this.lastUrl && !url.startsWith("about:")) {
-						this.lastUrl = url;
-						this.handleInteraction({ type: "navigation", url });
-					}
-				}
-			});
-
-			this.getWorld().eventLogger.info("RecorderStepper: Page instrumented for recording");
+			await this.recording.instrument(await this.webPlaywright.getPage());
 		} catch (e) {
-			this.getWorld().eventLogger.error(`RecorderStepper: Failed to instrument page: ${e}`);
-		}
-	}
-
-	private handleInteraction(interaction: TInteraction): void {
-		const generatedStep = interactionToStep(interaction);
-
-		const recordedStep: TRecordedStep = { timestamp: Date.now(), interaction, generatedStep };
-
-		this.recordedSteps.push(recordedStep);
-
-		// Log to the event logger so a monitor view can display it
-		this.getWorld().eventLogger.info(`[RECORDED] ${generatedStep}`);
-
-		// Append to file in real-time if output path is set
-		if (this.outputPath) {
-			void this.appendStepToFile(generatedStep);
-		}
-	}
-
-	private async appendStepToFile(step: string): Promise<void> {
-		if (!this.outputPath) return;
-
-		try {
-			await appendFile(this.outputPath, step + "\n", "utf-8");
-		} catch (e) {
-			this.getWorld().eventLogger.error(`RecorderStepper: Failed to write step: ${e}`);
-		}
-	}
-
-	private async initOutputFile(): Promise<void> {
-		if (!this.outputPath) return;
-
-		const title = this.getWorld().moduleOptions[`RECORDERSTEPPER_${TITLE_OPTION}`] || "Recorded Session";
-		const header = `${title}.\n\n`;
-
-		try {
-			await writeFile(this.outputPath, header, "utf-8");
-			this.getWorld().eventLogger.info(`RecorderStepper: Recording to ${this.outputPath}`);
-		} catch (e) {
-			this.getWorld().eventLogger.error(`RecorderStepper: Failed to create output file: ${e}`);
+			this.getWorld().eventLogger.error(`RecorderStepper: Failed to instrument page: ${errorDetail(e)}`);
 		}
 	}
 
@@ -121,18 +49,9 @@ export class RecorderStepper extends AStepper implements IHasOptions, IHasCycles
 		startRecording: {
 			gwta: `record interactions to {file: ${DOMAIN_FILE_PATH}}`,
 			action: async ({ file }: { file: string }): Promise<TActionResult> => {
-				this.outputPath = String(file);
-				this.recording = true;
-				this.recordedSteps = [];
-				this.lastUrl = undefined;
-
-				await this.initOutputFile();
-
-				// Instrument page if WebPlaywright is already active
-				if (this.webPlaywright) {
-					await this.instrumentCurrentPage();
-				}
-
+				const title = this.getWorld().moduleOptions[`RECORDERSTEPPER_${TITLE_OPTION}`] || "Recorded Session";
+				this.recording = await startRecording(recordingPorts(this.getWorld().eventLogger), String(file), title);
+				await this.instrumentCurrentPage();
 				return OK;
 			},
 		},
@@ -140,11 +59,9 @@ export class RecorderStepper extends AStepper implements IHasOptions, IHasCycles
 		stopRecording: {
 			gwta: "stop recording",
 			action: (): Promise<TActionResult> => {
-				this.recording = false;
-
-				const count = this.recordedSteps.length;
+				const count = this.recording ? this.recording.steps.length : 0;
+				this.recording = undefined;
 				this.getWorld().eventLogger.info(`RecorderStepper: Stopped recording. ${count} steps captured.`);
-
 				return Promise.resolve(OK);
 			},
 		},

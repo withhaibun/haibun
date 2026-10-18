@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { interactionToStep } from "./interaction-mapper.js";
-import { TInteraction } from "./types.js";
+import { interactionToStep } from "./interaction-step.js";
+import { TInteraction } from "../domains/interaction.js";
 
 /**
  * A recorded interaction becomes the step a person would have written. The name an element is called by is whichever

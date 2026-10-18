@@ -2,7 +2,7 @@
  * Maps browser interactions to idiomatic Haibun step grammar
  */
 
-import { TInteraction, TClickInteraction, TInputInteraction } from "./types.js";
+import { TInteraction, TClickInteraction, TInputInteraction } from "../domains/interaction.js";
 
 /**
  * Get the best identifier for an element, prioritizing accessibility-friendly attributes

@@ -3,7 +3,7 @@
 	"version": "3.3.0",
 	"private": true,
 	"description": "Record browser interactions and generate Haibun .feature files",
-	"main": "build/index.js",
+	"main": "build/recorder-stepper.js",
 	"type": "module",
 	"files": [
 		"build"

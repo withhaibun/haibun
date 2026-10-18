@@ -1,11 +1,7 @@
-/**
- * Injects event capture scripts into browser pages
- */
-
-import { Page, BrowserContext } from "playwright";
-import { TInteraction } from "./types.js";
-
-type TInteractionCallback = (interaction: TInteraction) => void;
+/** A page's interactions captured by a script injected into it, and its main frame's navigations. */
+import type { Page } from "playwright";
+import type { TInteraction } from "../domains/interaction.js";
+import type { TPageRecorder } from "../ports.js";
 
 /**
  * The script that runs inside the browser page to capture interactions.
@@ -69,32 +65,13 @@ const CAPTURE_SCRIPT = `
 })();
 `;
 
-/**
- * Instruments a page to capture interactions
- */
-export const instrumentPage = async (page: Page, onInteraction: TInteractionCallback): Promise<void> => {
-	// Expose the capture function to the page
-	await page.exposeFunction("__haibunRecorderCapture", (interaction: TInteraction) => {
-		onInteraction(interaction);
-	});
-
-	// Inject the capture script (runs on every navigation)
-	await page.addInitScript(CAPTURE_SCRIPT);
-};
-
-/**
- * Instruments a browser context to capture interactions on all pages
- */
-export const instrumentContext = (context: BrowserContext, onInteraction: TInteractionCallback): Promise<void> => {
-	// Track navigation events at context level
-	context.on("page", async (page) => {
-		await instrumentPage(page, onInteraction);
-
+/** Exposes the capture function to `page`, injects the capture script on every navigation, and reports each navigation of the page's main frame. */
+export const pageRecorder: TPageRecorder = {
+	async instrument(page: Page, onInteraction: (interaction: TInteraction) => void): Promise<void> {
+		await page.exposeFunction("__haibunRecorderCapture", onInteraction);
+		await page.addInitScript(CAPTURE_SCRIPT);
 		page.on("framenavigated", (frame) => {
-			if (frame === page.mainFrame()) {
-				onInteraction({ type: "navigation", url: frame.url() });
-			}
+			if (frame === page.mainFrame()) onInteraction({ type: "navigation", url: frame.url() });
 		});
-	});
-	return Promise.resolve();
+	},
 };

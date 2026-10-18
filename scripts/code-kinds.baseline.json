@@ -271,21 +271,6 @@
 	"modules/out-junit/src/out-junit.ts": {
 		"isn't in a kind position": 1
 	},
-	"modules/recorder/src/index.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/recorder/src/interaction-mapper.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/recorder/src/page-instrumentor.ts": {
-		"isn't in a kind position": 1
-	},
-	"modules/recorder/src/recorder-stepper.ts": {
-		"performs I/O through fs/promises": 1
-	},
-	"modules/recorder/src/types.ts": {
-		"isn't in a kind position": 1
-	},
 	"modules/shu/src/affordance-dispatch.ts": {
 		"isn't in a kind position": 1
 	},
