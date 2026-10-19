@@ -41,7 +41,6 @@ Traces capture the full Haibun execution model:
 - **Child spans**: Each step with full context including:
   - Stepper name (`VariablesStepper`, `WebPlaywrightStepper`, etc.)
   - Action name (`set`, `click`, `navigate`, etc.)
-  - Execution mode (`authoritative` vs `speculative`)
   - Error details on failures
 
 Nested Haibun constructs create nested spans:
@@ -66,7 +65,7 @@ feature: haibun-execution
 | **Activities** | Parent span with child spans for each step in the Activity body |
 | **Waypoints with `ensure`** | Shows `ensure <Waypoint>` → `<Waypoint>` → body steps |
 | **Quantifiers (`every`/`some`)** | Parent span with repeated child spans for each iteration |
-| **Speculative steps** | Tagged with `haibun.intent.mode: speculative` |
+| **Nested calls** | A call nested in a line's proof that fails carries `haibun.error` without an error status, since its line's own span states whether the proof holds |
 | **Failed steps** | Red, with `status: ERROR` and error message in attributes |
 
 ## Span Attributes Reference
@@ -78,9 +77,7 @@ Click any span in Jaeger to see its attributes:
 | `haibun.stepper` | Which stepper handled this step | `VariablesStepper` |
 | `haibun.action` | The action name | `set`, `click`, `ensure` |
 | `haibun.event.id` | Step sequence path | `[1.1.3]` |
-| `haibun.intent.mode` | Execution mode | `authoritative` or `speculative` |
 | `haibun.error` | Error message (if failed) | `Element not found` |
-| `haibun.speculative.failed` | True if speculative step failed | `true` |
 
 For a comprehensive example demonstrating Activities, Waypoints, Quantifiers, and more, see [AGENTS.md](../../AGENTS.md) - run it with this monitor to see the corresponding trace structure in Jaeger.
 

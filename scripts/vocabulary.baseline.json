@@ -13,15 +13,6 @@
 		"names actuality as execution": 9,
 		"names running, ended as pending": 3
 	},
-	"docs/planning/schema-ink-monitor.md": {
-		"names actuality as execution": 6,
-		"names line as step text": 1,
-		"names passed, failed, untested as completed": 14,
-		"names proved, refuted, unknown, contradiction as authoritative": 10,
-		"names proved, refuted, unknown, contradiction as speculative": 60,
-		"names running, ended as pending": 2,
-		"names running, ended as skipped": 2
-	},
 	"docs/planning/test-filtering.md": {
 		"names actuality as execution": 2
 	},
