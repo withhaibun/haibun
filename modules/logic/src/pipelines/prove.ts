@@ -309,7 +309,14 @@ export function proverOf(engine: TLogicEngine): TProver {
 			const top = `q${proofs}`;
 			const proof = new Proof(ctx, line);
 			try {
-				const term = await proof.termOf(line);
+				let term: string;
+				try {
+					term = await proof.termOf(line);
+				} catch (caught) {
+					// A line whose term doesn't build ends unknown with the reason. Dispatch checks its caller's capability first,
+					// so a call its caller may not make returns only its refusal.
+					return await dispatchStep(ctx, line, () => Promise.resolve({ ok: false, errorMessage: errorDetail(caught), verdict: VERDICT.unknown }));
+				}
 				for (;;) {
 					const attempt = engine.attempt(top, term);
 					if ("verdict" in attempt) return proof.result();

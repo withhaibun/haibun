@@ -183,8 +183,8 @@ export class Resolver {
 	/**
 	 * Restores the outer quotes of a statement where its quoted text matches a step. A statement that a line passes in
 	 * quotes is matched without the quotes. A statement that starts and ends with a quoted term loses the quotes of its own
-	 * terms in the same way. `"Le Artiste" has "signed"` is such a statement. The statement keeps its outer quotes when its
-	 * text without them doesn't match a step and its text with them does.
+	 * terms in the same way. `"Le Artiste" is past negotiating on "signed"` is such a statement. The statement keeps its
+	 * outer quotes when its text without them doesn't match a step and its text with them does.
 	 */
 	private withStatementsAsWritten(action: TStepAction): TStepAction {
 		if (action.stepValuesMap === undefined) return action;

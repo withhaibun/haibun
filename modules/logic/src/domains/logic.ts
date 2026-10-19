@@ -72,7 +72,15 @@ export const DerivationSchema = z.object({
 });
 export type TDerivation = z.infer<typeof DerivationSchema>;
 
+/** A formula checked against the engine's fragment: its Unicode rendering, or why the fragment refuses it and the remedy. */
+export const FormulaCheckedSchema = z.discriminatedUnion("accepted", [
+	z.object({ accepted: z.literal(true), rendered: z.string() }),
+	z.object({ accepted: z.literal(false), reason: z.string(), remedy: z.string() }),
+]);
+export type TFormulaChecked = z.infer<typeof FormulaCheckedSchema>;
+
 export const DOMAIN_DERIVATION = "derivation";
+export const DOMAIN_FORMULA_CHECK = "formula-check";
 export const DOMAIN_LINE_TERM = "line-term";
 
 /** A line and the term it parses to, with the line the term renders as. */
@@ -81,6 +89,11 @@ export const LineTermSchema = z.object({ line: z.string(), term: z.string(), ren
 export const logicDomainDefinitions: TDomainDefinition[] = [
 	{ selectors: [DOMAIN_DERIVATION], schema: DerivationSchema, description: "A statement's verdict, the records its proof wrote, its calls and the first goal it couldn't prove" },
 	{ selectors: [DOMAIN_LINE_TERM], schema: LineTermSchema, description: "A line, the term the registry parses it to, and the line the term renders as" },
+	{
+		selectors: [DOMAIN_FORMULA_CHECK],
+		schema: FormulaCheckedSchema,
+		description: "A TPTP FOF formula checked against the engine's fragment: its Unicode rendering, or why it is refused and the remedy",
+	},
 ];
 
 /** The namespace of the IRIs a proof's N3 export names. */

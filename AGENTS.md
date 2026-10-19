@@ -461,11 +461,11 @@ A talent agency can have different types of clients, including artists and venue
     
     Activity: Foster a client
     increment {name}/{concern}
-    waypoint {name} has {concern} with variable {name}/{concern} is more than "negotiating"
+    waypoint {name} is past negotiating on {concern} with variable {name}/{concern} is more than "negotiating"
     
     ensure Engaged "Theatre Z"
     ensure Engaged "Le Artiste"
-    ensure "Le Artiste" has "signed"
+    ensure "Le Artiste" is past negotiating on "signed"
     
     variable Theatre Z/signed is "negotiating"
     variable Le Artiste/signed is "agreed"

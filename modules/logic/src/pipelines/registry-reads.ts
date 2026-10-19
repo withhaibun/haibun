@@ -1,6 +1,7 @@
 /**
  * Reads of a proof and of the predicate registry for the logic stepper's steps: a statement's derivation from the records its
- * proof wrote, a line's term and the line it renders as, and the term of a call a transport carries.
+ * proof wrote, a line's term and the line it renders as, the term of a call a transport carries, and a formula checked
+ * against the engine's fragment, and the refusal of steppers from whose declarations the registry doesn't derive each step once.
  */
 import type { DispatchContext } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
 import { nextSeqPath, proveStep } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
@@ -15,7 +16,9 @@ import type { TWorld } from "@haibun/core/lib/actuality/domains/world.js";
 import type { AStepper, TFeatureStep } from "@haibun/core/lib/steps/domains/stepper.js";
 import { derivationOf } from "../derivations/derivation.js";
 import { lineOfTerm, termOfAction, termText } from "../derivations/registry.js";
-import type { TDerivation } from "../domains/logic.js";
+import type { TDerivation, TFormulaChecked } from "../domains/logic.js";
+import { checkFormula, unicodeOf } from "../derivations/formula.js";
+import { declarationFindings } from "../derivations/declarations.js";
 
 /** Whether a record's call is of a step the engine proves by its reading, and so a node of a proof. */
 const isNodeOf =
@@ -50,4 +53,23 @@ export function callTerm(world: TWorld, method: string, input: Record<string, un
 	const { descriptor } = runRegistry(world).named(method);
 	const action = { stepperName: descriptor.stepperName, actionName: descriptor.stepName, stepValuesMap: mapInputToStepValues(input, descriptor.pattern) };
 	return termText(termOfAction(action, descriptor.pattern, world.domains));
+}
+
+/** A formula checked against the engine's fragment: its rendering in Unicode notation where the fragment holds it, or why it
+ *  doesn't and what to state in its place. */
+export function formulaChecked(text: string): TFormulaChecked {
+	const checked = checkFormula(text);
+	return "annotated" in checked ? { accepted: true, rendered: unicodeOf(checked.annotated.formula) } : { accepted: false, ...checked };
+}
+
+/** Refuses steppers whose declarations miss a face, repeat a pattern, or state a pattern whose own line parses two ways. */
+export function refuseDeclarations(steppers: AStepper[]): void {
+	const resolver = new Resolver(steppers, []);
+	const findings = declarationFindings(steppers, constructorName, (line) => resolver.findSingleStepAction(line));
+	if (findings.length > 0) {
+		const listed = findings.map(({ method, finding }) => `${method} ${finding}`).join("; ");
+		throw new Error(
+			`the steppers don't declare each step once with every face: ${listed}. Give each step a pattern and an action or a reading, and a pattern that only it parses, or a precludes that names the other step`,
+		);
+	}
 }

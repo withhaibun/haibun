@@ -974,7 +974,7 @@ function repositoryOf(dir: string): string {
 }
 
 /** The prose files under `dir`. A symbolic link isn't followed, since its target is another path's file. */
-function filesUnder(dir: string): string[] {
+export function filesUnder(dir: string): string[] {
 	return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
 		const path = join(dir, entry.name);
 		if (entry.isDirectory()) return SKIPPED_DIRECTORIES.has(entry.name) ? [] : filesUnder(path);

@@ -8,9 +8,9 @@ import { Access, SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { SEQ_PATH_FIELD, calledParts, executionOf } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { stepperContext } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
 import { proverOf } from "./pipelines/prove.js";
-import { callTerm, derivationUnder, lineTerm } from "./pipelines/registry-reads.js";
+import { callTerm, derivationUnder, formulaChecked, lineTerm, refuseDeclarations } from "./pipelines/registry-reads.js";
 import { logicEngine } from "./root.js";
-import { DOMAIN_DERIVATION, DOMAIN_LINE_TERM, logicDomainDefinitions } from "./domains/logic.js";
+import { DOMAIN_DERIVATION, DOMAIN_FORMULA_CHECK, DOMAIN_LINE_TERM, logicDomainDefinitions } from "./domains/logic.js";
 import { DOMAIN_ALTERNATIVES, DOMAIN_OBSERVATION_SOURCE, readingDomainDefinitions } from "./domains/readings.js";
 
 /** Counts the step records of the feature's execution by the step each called, as `Stepper.action`. */
@@ -46,6 +46,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
 		this.steppers = steppers;
+		refuseDeclarations(steppers);
 		if (world.runtime.prover === undefined) world.runtime.prover = proverOf(await logicEngine());
 	}
 
@@ -125,6 +126,26 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 				const world = this.getWorld();
 				const [call, written] = [callTerm(world, method, input), lineTerm(world, this.steppers, line).term];
 				return call === written ? actionOK() : actionNotOK(`the call ${method} parses to ${call}, and the line "${line}" parses to ${written}`);
+			},
+		},
+		checkFormula: {
+			read: true,
+			readsAt: Access.public,
+			gwta: `check the formula {formula: ${DOMAIN_TEXT}}`,
+			description:
+				"Parses a TPTP FOF formula and checks it against the engine's fragment. Returns its rendering in Unicode notation, or why the fragment refuses it and the remedy.",
+			productsDomain: DOMAIN_FORMULA_CHECK,
+			action: ({ formula }: { formula: string }) => actionOKWithProducts(formulaChecked(formula)),
+		},
+		formulaRendersAs: {
+			read: true,
+			readsAt: Access.public,
+			gwta: `formula {formula: ${DOMAIN_TEXT}} renders as {rendered: ${DOMAIN_TEXT}}`,
+			description: "Holds where a TPTP FOF formula in the engine's fragment renders in Unicode notation as stated.",
+			action: ({ formula, rendered }: { formula: string; rendered: string }) => {
+				const checked = formulaChecked(formula);
+				if (!checked.accepted) return actionNotOK(`the formula is refused: ${checked.reason}; ${checked.remedy}`);
+				return checked.rendered === rendered ? actionOK() : actionNotOK(`the formula renders as "${checked.rendered}"`);
 			},
 		},
 	} as const satisfies TStepperSteps;

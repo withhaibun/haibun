@@ -248,6 +248,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		},
 		waitRun: {
 			gwta: `wait for the haibun run {run: ${RUN_DOMAIN.name}} to end within {seconds: number} seconds`,
+			precludes: ["WebPlaywright.waitFor"],
 			capability: SUPERVISOR_CAPABILITIES.read,
 			description:
 				"Wait until a run exits or reports that its features finished, or until the timeout passes, then return. This process receives the child's exit event and its report that its features finished, so the step returns as soon as either arrives and the caller doesn't poll. The products have the same shape as readRun's. At the timeout the step returns the same products with a status of running. A timeout isn't a failure. The caller then waits again or stops it with `stop the haibun run`.",

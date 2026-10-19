@@ -440,3 +440,24 @@ them from `getConcerns` and names their keys in its step patterns.
   after `??` or `||`, a parameter's or a destructured initializer, a schema's `.default()`, or a compose variable's
   `${VAR:-value}`. A caller without a read action doesn't hold a read level, and a read, a write or an event without a level
   is refused.
+
+## One vocabulary
+
+One term names each concept, and the engine, the registry, the records and the prose don't use another. The last column
+names the synonyms each term replaces; `scripts/surface.test.ts` counts each synonym in backticks as a whole word, and its
+baseline only shrinks.
+
+| Concept | Term | IRI | Removed |
+| --- | --- | --- | --- |
+| the live system and its results | actuality | `prov:Activity` at the actuality level | `the run`, `execution` |
+| a level in progress or ended | running, ended | `schema:ActiveActionStatus`, `schema:CompletedActionStatus` | `pending`, `skipped` |
+| how a level ended | passed, failed, untested | `earl:passed`, `earl:failed`, `earl:untested` | `completed`, `TOutcome` |
+| how a goal ended | proved, refuted, unknown, contradiction | `earl:passed`, `earl:failed`, `earl:cantTell`, `hbn:contradiction` | `speculative`, `authoritative`, `maybe-outcome`, `satisfied`, `unreachable` |
+| a rule | waypoint, with a head, a proof and an activity | `hbn:Waypoint` | `virtual step`, `declarative waypoint`, `imperative waypoint` |
+| the calls a proof leaves to make | plan | `prov:Plan` | `michi` |
+| a declared step | step, named by its method | `hbn:` and the method | `stepper action` |
+| what a capability allows | action | `allowedAction` | `granted`, `invoked` |
+| who calls | principal | `prov:Agent` | `presenter`, `invoker` |
+| an asserted triple | fact | `rdf:Statement` with `prov:wasGeneratedBy` | `working memory` |
+| a call's record | record | `prov:Activity`, `SeqPath` | `step result` |
+| a written line | line | `hbn:stepText` | `step text` |

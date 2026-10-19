@@ -137,11 +137,11 @@ waypoint Engaged {name} with variable {name}/signed exists
 
 Activity: Foster a client
 increment {name}/{concern}
-waypoint {name} has {concern} with variable {name}/{concern} is more than "negotiating"
+waypoint {name} is past negotiating on {concern} with variable {name}/{concern} is more than "negotiating"
 
 Scenario: Dynamic domains
 ensure Engaged "Le Artiste"
-ensure "Le Artiste" has "signed"
+ensure "Le Artiste" is past negotiating on "signed"
 variable Le Artiste/signed is "agreed"`,
 			};
 

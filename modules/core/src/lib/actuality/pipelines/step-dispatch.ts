@@ -189,13 +189,6 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		return result;
 	};
 
-	const isLifecycle = action.actionName === FEATURE_START || action.actionName === SCENARIO_START;
-	if (isLifecycle) {
-		const started = await writeStepStart(world, featureStep, {}, { ranVia: "local" }, callOf(ctx));
-		await writeStepEnd(world, started, { status: RECORDED_STATUS.completed });
-		return stepResultOf({ ok: true }, action, start, Timer.since(), featureStep);
-	}
-
 	const bareMethod = stepMethodName(action.stepperName, action.actionName);
 	const method = featureStep.targetHostId !== undefined ? hostScopedMethodName(featureStep.targetHostId, bareMethod) : bareMethod;
 	const tool = registry.get(method);
@@ -212,6 +205,13 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	const refusal = refusalOf(() =>
 		authorizeToolCapability(tool.descriptor, { invoked: grantedCapability, held }, statedAt !== undefined && "ceiling" in statedAt ? statedAt.ceiling : undefined),
 	);
+	// A feature's or a scenario's start is recorded without the step's cycles, after its caller's capability is checked.
+	if (action.actionName === FEATURE_START || action.actionName === SCENARIO_START) {
+		if (refusal !== undefined) throw refusal;
+		const started = await writeStepStart(world, featureStep, {}, { ranVia: "local" }, callOf(ctx));
+		await writeStepEnd(world, started, { status: RECORDED_STATUS.completed });
+		return stepResultOf({ ok: true }, action, start, Timer.since(), featureStep);
+	}
 	// The authorization the step's own record states. The record states the invoked action that allows the step and the
 	// actions the caller held, where the caller isn't actuality acting as itself. It states the principal that proved its
 	// identity, where one did, and the delegation the call was made under, where the caller states one.

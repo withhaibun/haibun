@@ -2,7 +2,7 @@ import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TSte
 import type { TFeatures, TStepInput } from "../lib/actuality/domains/execution.js";
 import { runSteppers, type TWorld } from "../lib/actuality/domains/world.js";
 import { OK } from "../lib/domains/protocol.js";
-import { actionNotOK, actionOKWithProducts, getActionable, errorDetail, dePolite } from "../lib/domains/util.js";
+import { actionNotOK, actionOKWithProducts, getActionable, errorDetail, dePolite, constructorName } from "../lib/domains/util.js";
 import { itemAt } from "../lib/domains/item-at.js";
 import { DOMAIN_STATEMENT, DOMAIN_STATEMENT_LINES, DOMAIN_TITLE, DOMAIN_WAYPOINT_ARGUMENT } from "../lib/domains/domains.js";
 import { Resolver, findFeatureStepsFromStatement } from "../lib/actuality/pipelines/resolver.js";
@@ -231,7 +231,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 
 		waypointWithProof: {
 			gwta: `waypoint {outcome: ${DOMAIN_TITLE}} with {proof:${DOMAIN_STATEMENT}}`,
-			precludes: ["ActivitiesStepper.waypointLabel"],
+			precludes: [`${constructorName(this)}.waypointLabel`],
 			description: "States a waypoint's rule, whose head holds where its proof holds. Where a feature reaches the line, its proof is proved.",
 			reading: READING.waypoint,
 		},
