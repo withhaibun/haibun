@@ -19,11 +19,11 @@ export type TChainScope = { steppers: AStepper[]; domains: Record<string, TRegis
 export async function resolveGoals(
 	{ steppers, domains, store }: TChainScope,
 	goals: readonly string[],
-	inputs: Omit<TResolverInputs, "graph" | "facts">,
+	inputs: Omit<TResolverInputs, "graph" | "facts" | "domains">,
 ): Promise<TGoalResolution[]> {
 	const graph = buildDomainChain(steppers, domains);
 	const facts = await readFacts(store);
-	return goals.map((goal) => resolveGoal(goal, { graph, facts, ...inputs }));
+	return goals.map((goal) => resolveGoal(goal, { graph, facts, domains, ...inputs }));
 }
 
 /** The affordances that the facts the scope's store holds offer a caller, and the goal domains those facts satisfy. */

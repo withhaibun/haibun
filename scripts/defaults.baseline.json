@@ -38,7 +38,7 @@
 		"fills an absent value with a constant through ??": 1
 	},
 	"modules/core/src/lib/derivations/goal-resolver.ts": {
-		"fills an absent value with a constant through ??": 5
+		"fills an absent value with a constant through ??": 4
 	},
 	"modules/core/src/lib/derivations/quad-graph-model.ts": {
 		"fills an absent value with a constant through ??": 4,

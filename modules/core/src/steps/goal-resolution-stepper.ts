@@ -52,11 +52,6 @@ import { callerHolds, RUN_AUTHORITY, stepInFlight } from "../lib/domains/capabil
 import { Access } from "../lib/domains/resources.js";
 
 const SMOKE_GOALS = "SMOKE_GOALS";
-const COMPOSITE_DECOMPOSITION = "COMPOSITE_DECOMPOSITION";
-const COMPOSITE_MAX_DEPTH = "COMPOSITE_MAX_DEPTH";
-
-const COMPOSITE_DECOMPOSITION_DEFAULT = true;
-const COMPOSITE_MAX_DEPTH_DEFAULT = 4;
 
 // Product domains of steps that compute a view of current memory: affordances, goal resolution and chain lint. Such a
 // step doesn't change a record itself, so afterStep doesn't emit an `affordances.*` change signal for it. A step that
@@ -68,14 +63,6 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 
 	options: Record<string, TStepperOption> = {
 		[SMOKE_GOALS]: { desc: "Comma-separated list of domain keys to resolve at boot as a drift-detection signal", parse: (input: string) => stringOrError(input) },
-		[COMPOSITE_DECOMPOSITION]: {
-			desc: `Recurse into composite input domains via topology.ranges when resolving goals (haibun equivalent of sh:node/rdfs:range). "true" / "false". Default ${COMPOSITE_DECOMPOSITION_DEFAULT}.`,
-			parse: (input: string) => stringOrError(input),
-		},
-		[COMPOSITE_MAX_DEPTH]: {
-			desc: `Cap on composite recursion depth, independent of the producer-chain depth limit. Default ${COMPOSITE_MAX_DEPTH_DEFAULT}.`,
-			parse: (input: string) => stringOrError(input),
-		},
 	};
 
 	private steppers: AStepper[] = [];
@@ -96,7 +83,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 					.map((s: string) => s.trim())
 					.filter((s: string) => s.length > 0);
 				// Actuality makes this check with RUN_AUTHORITY, so the check reaches every step actuality offers.
-				const resolutions = await resolveGoals(this.chainScope(), goals, { held: RUN_AUTHORITY, ...this.compositeOptions() });
+				const resolutions = await resolveGoals(this.chainScope(), goals, { held: RUN_AUTHORITY });
 				const smokeFindings = resolutions.map(({ goal, finding }) => ({ goal, finding }));
 				world.eventLogger.emit({
 					id: "domain-chain.smoke.startup",
@@ -134,21 +121,6 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		},
 	};
 
-	/**
-	 * Returns the composite-decomposition resolver options from the stepper options. Decomposition defaults to enabled,
-	 * and a missing or invalid depth defaults to COMPOSITE_MAX_DEPTH_DEFAULT. startExecution's smoke-goal check and
-	 * runResolution pass these options to resolveGoal. computeAffordances passes them to buildAffordances.
-	 */
-	private compositeOptions(): { domains: import("../lib/actuality/domains/world.js").TWorld["domains"]; compositeDecomposition: boolean; compositeMaxDepth: number } {
-		const world = this.getWorld();
-		const decompositionRaw = getStepperOption(this, COMPOSITE_DECOMPOSITION, world.moduleOptions);
-		const compositeDecomposition = decompositionRaw === undefined ? COMPOSITE_DECOMPOSITION_DEFAULT : decompositionRaw !== "false";
-		const depthRaw = getStepperOption(this, COMPOSITE_MAX_DEPTH, world.moduleOptions);
-		const parsed = depthRaw === undefined ? Number.NaN : Number(depthRaw);
-		const compositeMaxDepth = Number.isInteger(parsed) && parsed > 0 ? parsed : COMPOSITE_MAX_DEPTH_DEFAULT;
-		return { domains: world.domains, compositeDecomposition, compositeMaxDepth };
-	}
-
 	/** The steppers and the domains whose chain this stepper reads, and the store that holds actuality's facts. */
 	private chainScope(): TChainScope {
 		const world = this.getWorld();
@@ -156,7 +128,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 	}
 
 	private async runResolution(goal: string): Promise<TGoalResolution> {
-		return itemAt(await resolveGoals(this.chainScope(), [goal], { held: callerHolds(), ...this.compositeOptions() }), 0);
+		return itemAt(await resolveGoals(this.chainScope(), [goal], { held: callerHolds() }), 0);
 	}
 
 	/** Runs a michi's steps in order. callStepByName calls each step with a synthetic seqPath, as other transports call steps.
@@ -183,8 +155,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 	 */
 	private async computeAffordances(asOf: number[] | undefined, featureStep: TFeatureStep) {
 		const world = this.getWorld();
-		const { compositeDecomposition, compositeMaxDepth } = this.compositeOptions();
-		const { affordances } = await affordancesOf(this.chainScope(), { held: callerHolds(), compositeDecomposition, compositeMaxDepth, asOfSeqPath: asOf });
+		const { affordances } = await affordancesOf(this.chainScope(), { held: callerHolds(), asOfSeqPath: asOf });
 		const waypoints: TWaypointEntry[] = [];
 		if (!asOf) {
 			for (const stepper of this.steppers) if (providesWaypoints(stepper)) waypoints.push(...(await stepper.waypointEntries(featureStep)));

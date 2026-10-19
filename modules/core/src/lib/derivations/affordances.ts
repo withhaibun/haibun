@@ -80,10 +80,6 @@ export interface TAffordancesInputs {
 	facts: TFact[];
 	/** The actions the caller holds. buildAffordances doesn't offer a step the caller may not run. */
 	held: string | string[] | undefined;
-	/** Makes the resolver decompose composite input domains through `topology.ranges` for the goal frontier. */
-	compositeDecomposition?: boolean;
-	/** The resolver's composite recursion depth limit. */
-	compositeMaxDepth?: number;
 	/**
 	 * Replays the affordances at an earlier seqPath. It limits the projection to the facts of the steps at or before this
 	 * path, and leaves out facts asserted later in actuality. A fact whose id doesn't name a step stays. The panel uses it
@@ -102,7 +98,7 @@ export function buildAffordances(inputs: TAffordancesInputs): TAffordances {
 	const satisfiedFacts = Object.fromEntries([...Map.groupBy(facts, (fact) => fact.domain)].map(([domain, held]) => [domain, held.map((fact) => fact.id)]));
 	return {
 		forward: buildForwardFrontier(graph, facts, inputs.held),
-		goals: buildGoalFrontier(graph, facts, inputs.held, inputs.domains, inputs.compositeDecomposition, inputs.compositeMaxDepth),
+		goals: buildGoalFrontier(graph, facts, inputs.held, inputs.domains),
 		satisfiedDomains,
 		satisfiedFacts,
 		composites: collectCompositeRanges(inputs.domains),
@@ -159,14 +155,7 @@ function buildForwardFrontier(graph: TDomainChainGraph, facts: TFact[], held: st
 	return out;
 }
 
-function buildGoalFrontier(
-	graph: TDomainChainGraph,
-	facts: TFact[],
-	held: string | string[] | undefined,
-	domains: Record<string, TRegisteredDomain>,
-	compositeDecomposition?: boolean,
-	compositeMaxDepth?: number,
-): TGoalAffordance[] {
+function buildGoalFrontier(graph: TDomainChainGraph, facts: TFact[], held: string | string[] | undefined, domains: Record<string, TRegisteredDomain>): TGoalAffordance[] {
 	const out: TGoalAffordance[] = [];
 	const producibleDomains = new Set<string>();
 	for (const step of graph.steps) for (const d of step.outputDomains) producibleDomains.add(d);
@@ -174,7 +163,7 @@ function buildGoalFrontier(
 		// A reference names a record of its target type. The goal frontier leaves the reference out, and lists the target
 		// type where a step produces it.
 		if (domains[domain] && refTargetOf(domains[domain], domains) !== undefined) continue;
-		const resolution = resolveGoal(domain, { graph, facts, held, domains, compositeDecomposition, compositeMaxDepth });
+		const resolution = resolveGoal(domain, { graph, facts, held, domains });
 		// A trivial goal duplicates the forward frontier. Each of its paths is one producer step whose bindings are all
 		// arguments. A path with a composite binding that holds a fact or a nested decomposition stays, even where it has
 		// one step.

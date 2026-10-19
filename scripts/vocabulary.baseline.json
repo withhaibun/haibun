@@ -253,7 +253,7 @@
 		"names proved, refuted, unknown, contradiction as unreachable": 1
 	},
 	"modules/core/src/lib/derivations/goal-resolver.composite.test.ts": {
-		"names plan as michi": 21,
+		"names plan as michi": 15,
 		"names proved, refuted, unknown, contradiction as unreachable": 1
 	},
 	"modules/core/src/lib/derivations/goal-resolver.test.ts": {
@@ -514,7 +514,7 @@
 		"names actuality as execution": 5,
 		"names fact as working memory": 1,
 		"names passed, failed, untested as completed": 1,
-		"names plan as michi": 11,
+		"names plan as michi": 9,
 		"names proved, refuted, unknown, contradiction as satisfied": 7,
 		"names proved, refuted, unknown, contradiction as unreachable": 4,
 		"names running, ended as pending": 1

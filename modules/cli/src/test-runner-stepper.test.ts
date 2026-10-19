@@ -385,7 +385,7 @@ describe("examining a finished test run", () => {
 			const graph = buildDomainChain([stepper as never], domains);
 			const producers = graph.edges.filter((e) => e.to === RUN_DOMAIN.started).map((e) => e.stepName);
 			expect(producers, "both steps that start a test run produce the record").toEqual(expect.arrayContaining(["runTest", "runAllTests"]));
-			const resolved = resolveGoal(RUN_DOMAIN.started, { graph, facts: [], held: ["Instance:run"] });
+			const resolved = resolveGoal(RUN_DOMAIN.started, { graph, facts: [], held: ["Instance:run"], domains });
 			expect(resolved.finding, "the resolver returns a michi to the goal").toBe(GOAL_FINDING.MICHI);
 			const steps = "michi" in resolved ? resolved.michi.flatMap((m) => m.steps.map((s) => s.stepName)) : [];
 			expect(steps).toContain("runTest");

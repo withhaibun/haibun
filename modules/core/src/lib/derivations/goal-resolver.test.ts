@@ -24,7 +24,7 @@ function singleProducerGraph(input: string, output: string, capability = "S:make
 
 /** What the resolver is given: a caller that holds what actuality holds, where the case isn't about what it holds. */
 function inputs(graph: TDomainChainGraph, facts: TFact[] = [], held: string[] = RUN_AUTHORITY): TResolverInputs {
-	return { graph, facts, held };
+	return { graph, facts, held, domains: {} };
 }
 
 describe("resolveGoal", () => {
@@ -102,7 +102,7 @@ describe("resolveGoal", () => {
 		const graph = singleProducerGraph("a", "b");
 		const f1: TFact = { id: "fact-1", domain: "b", value: { id: "x", role: "issuer" } };
 		const f2: TFact = { id: "fact-2", domain: "b", value: { id: "y", role: "verifier" } };
-		const result = resolveGoal("b", { graph, facts: [f1, f2], held: [], where: { role: "issuer" } });
+		const result = resolveGoal("b", { graph, facts: [f1, f2], held: [], domains: {}, where: { role: "issuer" } });
 		expect(result).toMatchObject({ finding: GOAL_FINDING.SATISFIED, factIds: ["fact-1"] });
 	});
 
@@ -154,7 +154,7 @@ describe("resolveGoal", () => {
 		const domains = [];
 		for (let i = 0; i <= stepCount; i++) domains.push({ key: `d${i}`, hasTopology: false });
 		const graph: TDomainChainGraph = { domains, steps, edges };
-		const result = resolveGoal(`d${stepCount}`, { graph, facts: [], held: RUN_AUTHORITY, depthLimit: 5 });
+		const result = resolveGoal(`d${stepCount}`, { graph, facts: [], held: RUN_AUTHORITY, domains: {}, depthLimit: 5 });
 		expect(result.finding).toBe(GOAL_FINDING.UNREACHABLE);
 	});
 
@@ -174,7 +174,7 @@ describe("resolveGoal", () => {
 
 	it("refuses when what the caller holds is missing entirely", () => {
 		const graph = singleProducerGraph("a", "b");
-		const result = resolveGoal("b", { graph, facts: [], held: undefined });
+		const result = resolveGoal("b", { graph, facts: [], held: undefined, domains: {} });
 		expect(result.finding).toBe(GOAL_FINDING.REFUSED);
 		if (result.finding === GOAL_FINDING.REFUSED) expect(result.refusalReason).toBe(REFUSAL_REASON.CAPABILITY_CONTEXT_REQUIRED);
 	});

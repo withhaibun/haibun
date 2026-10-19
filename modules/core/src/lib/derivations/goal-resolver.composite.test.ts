@@ -9,7 +9,7 @@ import { RUN_AUTHORITY } from "../domains/capability-context.js";
 
 /**
  * Tests the resolver's composite decomposition. The resolver recurses into the fields of an input domain that registers
- * `topology.ranges` where `compositeDecomposition` is true. It emits a `kind: "composite"` binding. A fact, an argument
+ * `topology.ranges`, within its depth limit and its cycle check. It emits a `kind: "composite"` binding. A fact, an argument
  * or a nested composite satisfies each entry of its `fields[]` independently.
  */
 
@@ -35,8 +35,8 @@ function makeDomains(): Record<string, TRegisteredDomain> {
 }
 
 function graphIssuingPermit(): TDomainChainGraph {
-	// One step produces signed-permit from permit. permit doesn't have a producer. The resolver decomposes permit as a
-	// composite leaf where composite decomposition is enabled.
+	// One step produces signed-permit from permit. permit doesn't have a producer, so the resolver decomposes it as a
+	// composite leaf.
 	return {
 		domains: [
 			{ key: "permit", hasTopology: true },
@@ -57,20 +57,11 @@ function graphIssuingPermit(): TDomainChainGraph {
 	};
 }
 
-function withComposite(inputs: TResolverInputs): TResolverInputs {
-	return { ...inputs, domains: makeDomains(), compositeDecomposition: true };
+function withComposite(inputs: Omit<TResolverInputs, "domains">): TResolverInputs {
+	return { ...inputs, domains: makeDomains() };
 }
 
 describe("resolveGoal, composite decomposition", () => {
-	it("emits a flat `argument` binding for the composite when decomposition isn't enabled", () => {
-		const graph = graphIssuingPermit();
-		const result = resolveGoal("signed-permit", { graph, facts: [], held: RUN_AUTHORITY });
-		if (result.finding !== GOAL_FINDING.MICHI) throw new Error(`expected MICHI, got ${result.finding}`);
-		const m = result.michi[0];
-		expect(m.bindings).toHaveLength(1);
-		expect(m.bindings[0]).toMatchObject({ kind: "argument", domain: "permit" });
-	});
-
 	it("emits a composite binding with an `argument` field binding for each field without a range", () => {
 		const graph = graphIssuingPermit();
 		const result = resolveGoal("signed-permit", withComposite({ graph, facts: [], held: RUN_AUTHORITY }));
@@ -91,7 +82,7 @@ describe("resolveGoal, composite decomposition", () => {
 		expect(issuer).toMatchObject({ kind: "fact", factId: "fact-issuer-1", fieldDomain: "issuer" });
 	});
 
-	it("respects compositeMaxDepth: recursion stops at the maximum depth, so the resolver terminates", () => {
+	it("ends the decomposition of a composite whose field ranges over itself at the cycle check", () => {
 		// Self-referential composite: deep.next ranges over deep itself.
 		const SelfSchema = z.object({ next: z.string() });
 		const domains: Record<string, TRegisteredDomain> = {
@@ -106,7 +97,7 @@ describe("resolveGoal, composite decomposition", () => {
 			steps: [{ stepperName: "S", stepName: "f", params: { what: "deep" }, inputDomains: ["deep"], outputDomains: ["leaf"], capability: "S:f" }],
 			edges: [{ from: "deep", to: "leaf", stepperName: "S", stepName: "f" }],
 		};
-		const result = resolveGoal("leaf", { graph, facts: [], held: RUN_AUTHORITY, domains, compositeDecomposition: true, compositeMaxDepth: 2 });
+		const result = resolveGoal("leaf", { graph, facts: [], held: RUN_AUTHORITY, domains });
 		// The resolver returns a finding without hanging or producing infinite michi.
 		expect(result.finding === GOAL_FINDING.MICHI || result.finding === GOAL_FINDING.UNREACHABLE).toBe(true);
 	});
@@ -134,18 +125,11 @@ describe("resolveGoal, composite decomposition", () => {
 				{ from: "string", to: "products", stepperName: "V", stepName: "verify" },
 			],
 		};
-		const result = resolveGoal("products", { graph, facts: [], held: RUN_AUTHORITY });
+		const result = resolveGoal("products", { graph, facts: [], held: RUN_AUTHORITY, domains: {} });
 		if (result.finding !== GOAL_FINDING.MICHI) throw new Error(`expected MICHI, got ${result.finding}`);
 		expect(result.michi).toHaveLength(1);
 		expect(result.michi[0].steps).toHaveLength(1);
 		expect(result.michi[0].bindings.length).toBeGreaterThanOrEqual(1);
-	});
-
-	it("emits a flat argument binding when the domains map is missing, even with the flag on", () => {
-		const graph = graphIssuingPermit();
-		const result = resolveGoal("signed-permit", { graph, facts: [], held: RUN_AUTHORITY, compositeDecomposition: true });
-		if (result.finding !== GOAL_FINDING.MICHI) throw new Error(`expected MICHI, got ${result.finding}`);
-		expect(result.michi[0].bindings[0]).toMatchObject({ kind: "argument", domain: "permit" });
 	});
 });
 

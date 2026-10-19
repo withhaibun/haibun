@@ -254,21 +254,7 @@ matches \`goalResolution.michi.0.bindings.0.kind\` with "composite"`,
 		expect(result.ok).toBe(true);
 	});
 
-	it("resolve emits a flat argument binding when COMPOSITE_DECOMPOSITION is disabled", async () => {
-		const feature = {
-			path: "/features/composite-resolve-disabled.feature",
-			content: `set goalResolution from resolve "${DOMAIN_COMPOSITE_GOAL}"
-variable goalResolution.finding is "michi"
-matches \`goalResolution.michi.0.bindings.0.kind\` with "argument"`,
-		};
-		const result = await passWithDefaults([feature], steppers, {
-			options: { DEST: "/dev/null", envVariables: { HAIBUN_LOG_LEVEL: "none" } },
-			moduleOptions: { HAIBUN_O_GOALRESOLUTIONSTEPPER_COMPOSITE_DECOMPOSITION: "false" },
-		});
-		expect(result.ok).toBe(true);
-	});
-
-	it("resolve returns michi for a non-composite goal (auth-session) with composite decomposition on", async () => {
+	it("resolve returns michi for a non-composite goal (auth-session)", async () => {
 		const feature = {
 			path: "/features/composite-non-disruptive.feature",
 			content: `set goalResolution from resolve "${DOMAIN_AUTH_SESSION}"

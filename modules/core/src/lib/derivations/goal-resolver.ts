@@ -45,7 +45,6 @@ type TPlanStep = {
  *   - kind: "composite"  → the input is a composite domain, and each of its fields has its own binding.
  *                          `fields[]` lists the schema's fields and leaves out an optional field that doesn't
  *                          resolve. A field's `topology.ranges` entry names its domain, and a field binding may recurse.
- *                          The resolver emits it only when the inputs enable composite decomposition.
  */
 export type TBinding = { domain: string } & ({ kind: "fact"; factId: string } | { kind: "argument" } | { kind: "composite"; fields: TFieldBinding[] });
 
@@ -114,20 +113,14 @@ export interface TResolverInputs {
 	/** Cap on enumerated michi per goal. Default MAX_MICHI. */
 	maxMichi?: number;
 	/**
-	 * Registered domains. The resolver reads each input domain's schema fields and `topology.ranges` from them when
-	 * `compositeDecomposition` is true. It recurses into the component fields instead of treating the domain as one
-	 * opaque argument. Every composite stays one argument when `domains` is absent.
+	 * Registered domains. The resolver reads each input domain's schema fields and `topology.ranges` from them, and
+	 * recurses into the component fields of a domain without a producer, within the depth limit and the cycle check.
 	 */
-	domains?: Record<string, TRegisteredDomain>;
-	/** Enables schema decomposition of composite input domains. Default false. */
-	compositeDecomposition?: boolean;
-	/** Cap on composite recursion depth. Default COMPOSITE_DEFAULT_DEPTH. */
-	compositeMaxDepth?: number;
+	domains: Record<string, TRegisteredDomain>;
 }
 
 const DEFAULT_DEPTH_LIMIT = 8;
 const MAX_MICHI = 64;
-const COMPOSITE_DEFAULT_DEPTH = 4;
 
 /** The most enumerate() calls one resolveGoal call makes. Cartesian fanout across composite fields can reach millions
  * of calls before depthLimit and maxMichi truncate it. enumerate() throws past this limit, so a resolution doesn't hang a
@@ -204,8 +197,7 @@ function keyForVisited(domain: string, path: string): string {
  * Enumerates every path from working memory to `target`, within depthLimit and maxMichi. Each producer step adds a
  * branch. Each fact of the target domain adds a fact binding. A domain without a producer or a fact becomes an argument
  * a person supplies, as isArgumentDomain in affordances.ts treats it. Such a domain gets a `kind: "composite"` binding
- * instead when its registered schema declares fields and composite decomposition is enabled. The resolver then recurses
- * into each field.
+ * instead when its registered schema declares fields. The resolver then recurses into each field.
  */
 function enumerate(target: string, walk: TWalk, depth: number, path: string): TEnumResult {
 	const { inputs, visited, missing, depthLimit, maxMichi } = walk;
@@ -233,8 +225,8 @@ function enumerate(target: string, walk: TWalk, depth: number, path: string): TE
 	}
 
 	// Branch 2: a target without a registered producer or a fact takes its value from a step argument.
-	// A target whose registered schema declares fields becomes a composite binding when composite decomposition is enabled.
-	// Each of its fields resolves independently.
+	// A target whose registered schema declares fields becomes a composite binding, and each of its fields resolves
+	// independently.
 	if (producers.length === 0 && factsOfTarget.length === 0) {
 		const composite = tryComposite(target, walk, depth, path);
 		if (composite) {
@@ -308,16 +300,11 @@ function enumerate(target: string, walk: TWalk, depth: number, path: string): TE
 
 /**
  * The composite-decomposition branch. Returns michi whose only binding is a `kind: "composite"` binding for the target.
- * The binding states how each field is satisfied. Returns `null` when decomposition is disabled, `domains` is absent,
- * the path reaches compositeMaxDepth, the target doesn't declare fields, or a required field doesn't resolve.
+ * The binding states how each field is satisfied. Each field recurses one level deeper, so the depth limit and the cycle
+ * check bound the decomposition. Returns `null` when the target doesn't declare fields or a required field doesn't resolve.
  */
 function tryComposite(target: string, walk: TWalk, depth: number, path: string): TEnumResult | null {
 	const { inputs, maxMichi } = walk;
-	if (!inputs.compositeDecomposition) return null;
-	if (!inputs.domains) return null;
-	const compositeMaxDepth = inputs.compositeMaxDepth ?? COMPOSITE_DEFAULT_DEPTH;
-	const compositeDepth = path.split(".").filter((s) => s.length > 0).length;
-	if (compositeDepth >= compositeMaxDepth) return null;
 	const fields = getCompositeFields(target, inputs.domains);
 	if (!fields || fields.length === 0) return null;
 
