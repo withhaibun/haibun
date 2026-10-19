@@ -198,8 +198,7 @@ function subPropertyOfRel(rel: string): string | string[] | undefined {
 import { AccessLevelSchema, DOMAIN_PERSISTED_TYPE, HAIBUN_NS, type TRegisteredDomain } from "./resources.js";
 import { DOMAIN_UNION, hypermediaDomainMap, refTargetOf } from "./domains.js";
 import { jsonSchemaFor } from "./json-schema-of.js";
-import { unwrap, unwrapToShape } from "./zod-unwrap.js";
-import { zodTypeLabel } from "./composite-domain.js";
+import { unwrap, unwrapToShape, zodTypeLabel } from "./zod-unwrap.js";
 import { ellipsize } from "./util.js";
 import { itemAt } from "./item-at.js";
 

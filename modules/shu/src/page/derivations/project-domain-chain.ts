@@ -1,26 +1,25 @@
 /**
- * Pure projection from the goal-resolver's affordances snapshot into the
+ * Pure projection from the affordances snapshot into the
  * renderer-agnostic `TGraph` shape consumed by `shu-graph`.
  *
  * The chain view is the type-centric variant: domains are nodes, steps are
  * labeled edges. Steps without inputs originate from a sentinel "no
  * preconditions" source node so they remain visible in the graph.
  *
- * Goal findings drive node `kind` via the built-in vocabulary:
- *   - satisfied  →  the resolver found a fact for the domain
- *   - reachable  →  a plan reaches the domain (UI label for `plans`)
- *   - unreachable / refused  →  the resolver's negative findings
+ * Goal verdicts drive node `kind` via the built-in vocabulary:
+ *   - satisfied  →  proved: a fact of the domain holds
+ *   - reachable  →  unknown: a plan would prove it
+ *   - unreachable  →  refuted: a fact doesn't hold and a plan doesn't prove it
  *
  * Step readiness drives edge `kind`:
  *   - ready      →  inputs satisfied; bold arrow
  *   - blocked    →  inputs unsatisfied; dashed arrow
- *   - capability-gated  →  step requires an unmet capability
+ * The forward steps are those the caller may call, so the capability a step requires doesn't mark its edge.
  */
-import { SOURCE_DOMAIN } from "@haibun/core/lib/derivations/domain-chain.js";
 import { AFFORDANCE_PARAM, SHU_TAG } from "../../domains/elements.js";
 import { hashWithColumns } from "./address.js";
-import { GOAL_FINDING, type TWaypointEntry } from "@haibun/core/lib/domains/goal-resolution.js";
-import type { TForwardAffordance, TCompositeRanges } from "@haibun/core/lib/derivations/affordances.js";
+import { SOURCE_DOMAIN, type TCompositeRanges, type TForwardAffordance, type TWaypointEntry } from "@haibun/core/lib/domains/goal-resolution.js";
+import { VERDICT } from "@haibun/core/lib/domains/protocol.js";
 import { EDGE_KIND, NODE_KIND, type TGraph, type TGraphEdge, type TGraphNode } from "../domains/graph.js";
 import { producingStepRecord } from "@haibun/core/lib/seq-path.js";
 import { stepLabelOf } from "./steps.js";
@@ -31,10 +30,10 @@ const affordancesAt = (param: (typeof AFFORDANCE_PARAM)[keyof typeof AFFORDANCE_
 /** The chain projection consumes the waypoint fields it renders: a subset of the core panel entry. */
 export type TWaypointSnapshot = Pick<TWaypointEntry, "outcome" | "method" | "ensured">;
 
-/** Forward affordance as the chain reads it, without the RPC `method`, which it doesn't route on (it uses stepperName/stepName). */
-type TForwardEdge = Omit<TForwardAffordance, "method">;
+/** A forward step as the chain reads it: its name, its pattern, the domains it takes and returns, and whether it is ready. */
+type TForwardEdge = Pick<TForwardAffordance, "stepperName" | "stepName" | "gwta" | "inputDomains" | "outputDomains" | "readyToRun">;
 
-/** Minimal goal-resolver path shape the projection consumes. The full TPlan
+/** Minimal plan shape the projection consumes. The full TPlan
  * carries bindings (composite / fact / argument trees) too; the chain projection
  * only needs the step list to tag schema edges. */
 type TPathStepRef = { stepperName: string; stepName: string };
@@ -42,7 +41,7 @@ type TGoalPathRef = { steps: TPathStepRef[] };
 
 export type TAffordancesSnapshot = {
 	forward: TForwardEdge[];
-	goals: Array<{ domain: string; resolution: { finding: string; plans?: TGoalPathRef[]; factIds?: string[] } }>;
+	goals: Array<{ domain: string; resolution: { verdict: string; plans?: TGoalPathRef[]; factIds?: string[] } }>;
 	/**
 	 * Per-domain field-range map carried from the server's `topology.ranges`
 	 * (haibun's SHACL `sh:node` / RDFS `rdfs:range` equivalent). When present,
@@ -85,18 +84,14 @@ export function waypointNodeId(outcome: string): string {
  *
  */
 
-function findingToKind(finding: string | undefined): string {
-	if (finding === GOAL_FINDING.SATISFIED) return NODE_KIND.satisfied;
-	if (finding === GOAL_FINDING.PLAN) return NODE_KIND.reachable;
-	if (finding === GOAL_FINDING.UNREACHABLE) return NODE_KIND.unreachable;
-	if (finding === GOAL_FINDING.REFUSED) return NODE_KIND.refused;
+function verdictToKind(verdict: string | undefined): string {
+	if (verdict === VERDICT.proved) return NODE_KIND.satisfied;
+	if (verdict === VERDICT.unknown) return NODE_KIND.reachable;
+	if (verdict === VERDICT.refuted) return NODE_KIND.unreachable;
 	return NODE_KIND.default;
 }
 
-function edgeKind(f: TForwardEdge): string {
-	if (f.capability) return EDGE_KIND.capabilityGated;
-	return f.readyToRun ? EDGE_KIND.ready : EDGE_KIND.blocked;
-}
+const edgeKind = (f: TForwardEdge): string => (f.readyToRun ? EDGE_KIND.ready : EDGE_KIND.blocked);
 
 /** Id of the synthetic field node for `${domain}.${fieldName}`. */
 function fieldNodeId(domain: string, fieldName: string): string {
@@ -104,17 +99,12 @@ function fieldNodeId(domain: string, fieldName: string): string {
 }
 
 export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
-	const goalFindings = new Map<string, string>();
-	const goalDomains = new Set<string>();
-	for (const g of a.goals) {
-		goalFindings.set(g.domain, g.resolution.finding);
-		goalDomains.add(g.domain);
-	}
+	const goalVerdicts = new Map(a.goals.map((g) => [g.domain, g.resolution.verdict]));
 	// Working-memory truth: a domain with a fact is satisfied, regardless of whether
 	// the goal-frontier kept it (trivial-filtered goals are absent from `goals[]` but
 	// their producing fact may still exist).
 	const satisfied = new Set(a.satisfiedDomains);
-	for (const d of satisfied) goalFindings.set(d, GOAL_FINDING.SATISFIED);
+	for (const d of satisfied) goalVerdicts.set(d, VERDICT.proved);
 
 	const domains = new Set<string>();
 	let hasSource = false;
@@ -144,7 +134,7 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 	/** A domain's node: its verdict as its kind, a link to it in the affordances panel, and its one producer, if one. */
 	const domainNode = (d: string): TGraphNode => {
 		if (d === SOURCE_DOMAIN) return { id: d, label: `${SOURCE_DOMAIN} without preconditions`, kind: NODE_KIND.default };
-		const node: TGraphNode = { id: d, label: d, kind: findingToKind(goalFindings.get(d)), link: { href: affordancesAt(AFFORDANCE_PARAM.GOAL, d) } };
+		const node: TGraphNode = { id: d, label: d, kind: verdictToKind(goalVerdicts.get(d)), link: { href: affordancesAt(AFFORDANCE_PARAM.GOAL, d) } };
 		const producer = producersByDomain.get(d);
 		if (producer) node.invokes = { stepperName: producer.stepperName, stepName: producer.stepName };
 		return node;
@@ -163,7 +153,7 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 	// would otherwise contribute N identical from→to edges, one per input position.
 	const edgeKeys = new Set<string>();
 	for (const f of a.forward) {
-		const label = stepLabelOf(f) + (f.capability ? " ⚷" : "");
+		const label = stepLabelOf(f);
 		const ins = f.inputDomains.length === 0 ? [SOURCE_DOMAIN] : f.inputDomains;
 		for (const from of ins) {
 			for (const to of f.outputDomains) {
@@ -203,7 +193,7 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 		}
 	}
 
-	// APG annotation pass, tag every schema edge with the goal-resolver paths that
+	// APG annotation pass, tag every schema edge with the plans that
 	// include it. The renderer reads `edge.paths` to style active edges
 	// (traversed by some goal-path) distinctly from potential edges (a runnable
 	// step without a current goal-path through it). One edge per step in the

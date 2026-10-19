@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type { TPlan } from "@haibun/core/lib/derivations/goal-resolver.js";
+import type { TPlan } from "@haibun/core/lib/domains/goal-resolution.js";
 import { pathId, projectGoalPaths } from "./project-goal-paths.js";
 
 const planA: TPlan = {
@@ -13,7 +13,7 @@ const planB: TPlan = { steps: [{ stepperName: "OrderStepper", stepName: "importO
 
 describe("projectGoalPaths", () => {
 	it("renders the goal as a single reachable node and connects every path to it", () => {
-		const g = projectGoalPaths({ goal: "order", finding: "plan", plans: [planA, planB] });
+		const g = projectGoalPaths({ goal: "order", verdict: "unknown", factIds: [], plans: [planA, planB] });
 		const goalNode = g.nodes.find((n) => n.id === "goal:order");
 		expect(goalNode?.kind).toBe("reachable");
 		const incomingToGoal = g.edges.filter((e) => e.to === "goal:order");
@@ -21,7 +21,7 @@ describe("projectGoalPaths", () => {
 	});
 
 	it("tags each path's edges with its own pathId so consumers can highlight one path at a time", () => {
-		const g = projectGoalPaths({ goal: "order", finding: "plan", plans: [planA, planB] });
+		const g = projectGoalPaths({ goal: "order", verdict: "unknown", factIds: [], plans: [planA, planB] });
 		const pathAEdges = g.edges.filter((e) => e.paths?.includes(pathId(0)));
 		const pathBEdges = g.edges.filter((e) => e.paths?.includes(pathId(1)));
 		expect(pathAEdges.length).toBeGreaterThan(0);
@@ -30,13 +30,13 @@ describe("projectGoalPaths", () => {
 
 	it("renders argument bindings as separate `argument`-kind nodes that share between paths if the domain matches", () => {
 		const sharedArg: TPlan = { steps: [{ stepperName: "OrderStepper", stepName: "noteOrder", productsDomain: "order" }], bindings: [{ kind: "argument", domain: "buyer" }] };
-		const g = projectGoalPaths({ goal: "order", finding: "plan", plans: [planA, sharedArg] });
+		const g = projectGoalPaths({ goal: "order", verdict: "unknown", factIds: [], plans: [planA, sharedArg] });
 		const argNodes = g.nodes.filter((n) => n.kind === "argument" && n.label === "buyer");
 		expect(argNodes.length).toBe(1);
 	});
 
-	it("flags satisfied goals with the satisfied kind so they render distinctly", () => {
-		const g = projectGoalPaths({ goal: "order", finding: "satisfied", plans: [] });
+	it("flags a proved goal with the satisfied kind so it renders distinctly", () => {
+		const g = projectGoalPaths({ goal: "order", verdict: "proved", factIds: [], plans: [] });
 		expect(g.nodes.find((n) => n.id === "goal:order")?.kind).toBe("satisfied");
 	});
 
@@ -54,7 +54,7 @@ describe("projectGoalPaths", () => {
 				},
 			],
 		};
-		const g = projectGoalPaths({ goal: "order", finding: "plan", plans: [compositePlan] });
+		const g = projectGoalPaths({ goal: "order", verdict: "unknown", factIds: [], plans: [compositePlan] });
 		expect(g.nodes.some((n) => n.id === "composite:order-input")).toBe(true);
 		expect(g.nodes.some((n) => n.id === "field:order-input#customer")).toBe(true);
 		expect(g.nodes.some((n) => n.id === "field:order-input#note")).toBe(true);
@@ -64,7 +64,7 @@ describe("projectGoalPaths", () => {
 	});
 
 	it("step nodes carry hbn:invoke metadata so a click handler can start a chain", () => {
-		const g = projectGoalPaths({ goal: "order", finding: "plan", plans: [planA] });
+		const g = projectGoalPaths({ goal: "order", verdict: "unknown", factIds: [], plans: [planA] });
 		const stepNode = g.nodes.find((n) => n.invokes?.stepperName === "CustomerStepper");
 		expect(stepNode?.invokes).toMatchObject({ stepperName: "CustomerStepper", stepName: "createCustomer" });
 	});

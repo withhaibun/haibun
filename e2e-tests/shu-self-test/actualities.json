@@ -24,6 +24,31 @@
 					"declaredStepTextHash": "07d43189276bbf61896c4199cd023404fffe9fe965896283167fc0e7af4e53e6"
 				}
 			}
+		},
+		"7f6eeae887869552": {
+			"state": "43b1a25d18f99c820286e3c513aed61ab4a18e71f7296411ee61d4f59fbde884",
+			"filter": "",
+			"execution": {
+				"text": "e2e-tests/shu-self-test",
+				"status": "passed",
+				"tookMs": 128500
+			},
+			"features": {
+				"/features/shu-self-test.feature.ts": {
+					"text": "Shu SPA Self-Test",
+					"status": "passed",
+					"tookMs": 126500,
+					"steps": 679,
+					"declaredStepTextHash": "aceaa1226def2105634a8bc21e33c02532f1da1d8bbef6ed4d331d79bffd525b"
+				},
+				"/features/z-post.feature.ts": {
+					"text": "Verify Shu Standalone Output Doesn't Hold Secrets",
+					"status": "passed",
+					"tookMs": 100,
+					"steps": 8,
+					"declaredStepTextHash": "07d43189276bbf61896c4199cd023404fffe9fe965896283167fc0e7af4e53e6"
+				}
+			}
 		}
 	}
 }

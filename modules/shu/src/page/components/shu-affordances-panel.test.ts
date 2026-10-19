@@ -19,7 +19,7 @@ import { Access } from "@haibun/core/lib/domains/resources.js";
 /** The step that reads the affordances on offer, as the show steps step describes it. */
 const AFFORDANCES_STEP = {
 	method: RPC_METHOD.AFFORDANCES_ON_OFFER,
-	stepperName: "GoalResolutionStepper",
+	stepperName: "LogicStepper",
 	stepName: "affordancesOnOffer",
 	pattern: "affordances on offer",
 	read: true,
@@ -73,7 +73,7 @@ describe("shu-affordances-panel", () => {
 			execution: EXECUTION,
 			satisfiedDomains: [],
 			forward: [{ method: "X-y", stepperName: "X", stepName: "y", inputDomains: [], outputDomains: ["g"], readyToRun: true }],
-			goals: [{ domain: "g", description: "Goal g", resolution: { finding: "satisfied", goal: "g", factIds: ["fact-1"] } }],
+			goals: [{ domain: "g", description: "Goal g", resolution: { verdict: "proved", goal: "g", factIds: ["fact-1"], plans: [] } }],
 		};
 		await applied(panel);
 		const root = panel.shadowRoot;
@@ -83,14 +83,14 @@ describe("shu-affordances-panel", () => {
 		expect(root?.querySelector('[data-testid="affordances-forward"]')).toBeNull();
 	});
 
-	it("renders satisfied goals with every matching fact id (plural)", async () => {
+	it("renders a proved goal with every fact that proves it", async () => {
 		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
 		panel.products = {
 			execution: EXECUTION,
 			satisfiedDomains: [],
 			forward: [],
-			goals: [{ domain: "session", description: "Session", resolution: { finding: "satisfied", goal: "session", factIds: ["s-1", "s-2", "s-3"] } }],
+			goals: [{ domain: "session", description: "Session", resolution: { verdict: "proved", goal: "session", factIds: ["s-1", "s-2", "s-3"], plans: [] } }],
 		};
 		await applied(panel);
 		const facts = panel.shadowRoot?.querySelector('[data-testid="goal-session-facts"]')?.textContent ?? "";
@@ -103,7 +103,7 @@ describe("shu-affordances-panel", () => {
 		expect(detail).toContain("already asserted: s-1");
 	});
 
-	it("renders plan findings as a picker with one card per enumerated path", async () => {
+	it("renders an unknown goal's plans as a picker with one card per plan", async () => {
 		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
 		panel.products = {
@@ -115,9 +115,9 @@ describe("shu-affordances-panel", () => {
 					domain: "vc",
 					description: "Verifiable credential",
 					resolution: {
-						finding: "plan",
+						verdict: "unknown",
 						goal: "vc",
-						truncated: false,
+						factIds: [],
 						plans: [
 							{ steps: [{ stepperName: "Issue", stepName: "issueCredential", gwta: "issue credential" }], bindings: [{ kind: "argument", domain: "issuer" }] },
 							{ steps: [{ stepperName: "Issue", stepName: "issueVc", gwta: "issue a credential" }], bindings: [] },
@@ -145,7 +145,7 @@ describe("shu-affordances-panel", () => {
 			execution: EXECUTION,
 			satisfiedDomains: [],
 			forward: [],
-			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { finding: "plan", goal: "vc", truncated: false, plans: [path] } }],
+			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { verdict: "unknown", goal: "vc", factIds: [], plans: [path] } }],
 		};
 		await applied(panel);
 		type TStepChoose = { method?: string; args?: Record<string, unknown>; auto?: boolean };
@@ -163,27 +163,6 @@ describe("shu-affordances-panel", () => {
 		expect(last?.args).toBeUndefined();
 	});
 
-	it("reports the truncated cap in the path heading when the resolver hit its enumeration limit", async () => {
-		const panel = new ShuAffordancesPanel();
-		document.body.appendChild(panel);
-		panel.products = {
-			execution: EXECUTION,
-			satisfiedDomains: [],
-			forward: [],
-			goals: [
-				{
-					domain: "vc",
-					description: "Verifiable credential",
-					resolution: { finding: "plan", goal: "vc", truncated: true, plans: [{ steps: [{ stepperName: "Issue", stepName: "issueCredential" }], bindings: [] }] },
-				},
-			],
-		};
-		await applied(panel);
-		(panel.shadowRoot?.querySelector('button[data-testid="goal-vc-toggle"]') as HTMLButtonElement | null)?.click();
-		await applied(panel);
-		expect(panel.shadowRoot?.querySelector(".path-heading")?.textContent).toContain("more exist");
-	});
-
 	it("draws an open goal's paths in the site's graph presenter, previews the path a reader points at, and opens a step node in the actions bar", async () => {
 		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
@@ -196,9 +175,9 @@ describe("shu-affordances-panel", () => {
 					domain: "vc",
 					description: "Verifiable credential",
 					resolution: {
-						finding: "plan",
+						verdict: "unknown",
 						goal: "vc",
-						truncated: false,
+						factIds: [],
 						plans: [{ steps: [{ stepperName: "Issue", stepName: "issueVc", gwta: "issue" }], bindings: [{ kind: "argument", domain: "issuer" }] }],
 					},
 				},
@@ -243,7 +222,7 @@ describe("shu-affordances-panel", () => {
 			execution: EXECUTION,
 			satisfiedDomains: [],
 			forward: [],
-			goals: [{ domain: "g", description: "Goal g", resolution: { finding: "satisfied", goal: "g", factIds: ["fact-x"] } }],
+			goals: [{ domain: "g", description: "Goal g", resolution: { verdict: "proved", goal: "g", factIds: ["fact-x"], plans: [] } }],
 		};
 		await applied(panel);
 		const explain = panel.shadowRoot?.querySelector('details[data-key="explanation"]') as HTMLDetailsElement | null;
@@ -255,8 +234,8 @@ describe("shu-affordances-panel", () => {
 			satisfiedDomains: [],
 			forward: [],
 			goals: [
-				{ domain: "g", description: "Goal g", resolution: { finding: "satisfied", goal: "g", factIds: ["fact-x"] } },
-				{ domain: "h", description: "Goal h", resolution: { finding: "satisfied", goal: "h", factIds: ["fact-y"] } },
+				{ domain: "g", description: "Goal g", resolution: { verdict: "proved", goal: "g", factIds: ["fact-x"], plans: [] } },
+				{ domain: "h", description: "Goal h", resolution: { verdict: "proved", goal: "h", factIds: ["fact-y"], plans: [] } },
 			],
 		};
 		await applied(panel);
@@ -285,7 +264,7 @@ describe("shu-affordances-panel", () => {
 			execution: EXECUTION,
 			satisfiedDomains: [],
 			forward: [],
-			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { finding: "plan", goal: "vc", truncated: false, plans: [compositePlan] } }],
+			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { verdict: "unknown", goal: "vc", factIds: [], plans: [compositePlan] } }],
 		};
 		await applied(panel);
 		(panel.shadowRoot?.querySelector('button[data-testid="goal-vc-toggle"]') as HTMLButtonElement | null)?.click();
@@ -298,14 +277,14 @@ describe("shu-affordances-panel", () => {
 			execution: EXECUTION,
 			satisfiedDomains: [],
 			forward: [],
-			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { finding: "plan", goal: "vc", truncated: false, plans: [compositePlan] } }],
+			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { verdict: "unknown", goal: "vc", factIds: [], plans: [compositePlan] } }],
 		};
 		await applied(panel);
 		const after = panel.shadowRoot?.querySelector<HTMLDetailsElement>('details[data-key="composite:vc"]');
 		expect(after?.open).toBe(true);
 	});
 
-	it("a satisfied goal that still has producer paths renders BOTH the existing-fact summary AND a Run-again section", async () => {
+	it("a proved goal that still has plans renders BOTH the existing-fact summary AND a Run-again section", async () => {
 		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
 		panel.products = {
@@ -317,11 +296,10 @@ describe("shu-affordances-panel", () => {
 					domain: "credential",
 					description: "Credential",
 					resolution: {
-						finding: "satisfied",
+						verdict: "proved",
 						goal: "credential",
 						factIds: ["fact-1"],
 						plans: [{ steps: [{ stepperName: "Issue", stepName: "issueVc", gwta: "issue" }], bindings: [{ kind: "argument", domain: "issuer" }] }],
-						truncated: false,
 					},
 				},
 			],
@@ -330,7 +308,7 @@ describe("shu-affordances-panel", () => {
 		expect(panel.shadowRoot?.querySelector('[data-testid="goal-credential-facts"]')?.textContent).toContain("fact-1");
 		(panel.shadowRoot?.querySelector('button[data-testid="goal-credential-toggle"]') as HTMLButtonElement | null)?.click();
 		await applied(panel);
-		// Once open: the inline fact summary keeps the existing fact id, and the heading on the run-again section uses the satisfied wording.
+		// Once open: the inline fact summary keeps the existing fact id, and the heading on the run-again section uses the proved wording.
 		expect(panel.shadowRoot?.querySelector('[data-testid="goal-credential-facts"]')?.textContent).toContain("fact-1");
 		expect(panel.shadowRoot?.querySelector(".path-heading")?.textContent).toContain("Run again to produce another");
 		expect(panel.shadowRoot?.querySelectorAll(".start-path").length).toBe(1);
@@ -361,10 +339,9 @@ describe("shu-affordances-panel", () => {
 		expect(panel.shadowRoot?.querySelector('[data-testid="waypoint-deliver-report"]')).toBeTruthy();
 	});
 
-	it("a burst of change signals coalesces to ONE snapshot refetch (without a spurious-RPC flood)", async () => {
-		// A run emits one `affordances.` change signal per step, and a new subscriber is replayed the whole history.
-		// Refetching per signal is the RPC flood (hundreds per run); the panel starts one timer per coalesce window
-		// (REFRESH_COALESCE_MS) and the burst rides it, exactly one read of the affordances on offer.
+	it("a burst of step ends coalesces to ONE snapshot refetch (without a spurious-RPC flood)", async () => {
+		// A new subscriber is replayed the whole history, one step end per past step. Refetching per step end is an RPC flood;
+		// the panel starts one timer per coalesce window (REFRESH_COALESCE_MS) and the burst rides it, exactly one read.
 		let snapshotCalls = 0;
 		installConduit(
 			new TestConduit((method: string) => {
@@ -378,7 +355,7 @@ describe("shu-affordances-panel", () => {
 		document.body.appendChild(panel); // subscribes via subscribeBatchedEvents
 		await new Promise((r) => setTimeout(r, 40)); // let the mount-time fetchInitial settle, then measure ONLY the burst
 		snapshotCalls = 0;
-		for (let i = 0; i < 30; i++) stream.emit({ id: `affordances.${i}` } as unknown as TEvent); // the whole history, one per past step
+		for (let i = 0; i < 30; i++) stream.emit({ id: `0.${i}`, kind: "lifecycle", type: "step", stage: "end" } as unknown as TEvent); // the whole history, one per past step
 		await new Promise((r) => requestAnimationFrame(() => r(undefined))); // drain the rAF batch
 		await new Promise((r) => setTimeout(r, 500)); // ride out the coalesce window; the single refetch fires within it
 		expect(snapshotCalls).toBe(1);

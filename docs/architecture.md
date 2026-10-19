@@ -276,7 +276,7 @@ ensure Navigate to haibunUrl
 | Haibun | `Backgrounds: name`, `Feature:`, `Scenario:`, `Pending scenario:`, `until statement within duration`, `after every StepperName, statement` |
 | VariablesStepper | `set var to "value"`, `variable var is "value"`, `set of domain is [values]`, `matches {var} with "pattern"`, `increment var` |
 | ActivitiesStepper | `Activity: name`, `waypoint Label with proof`, `ensure outcome` |
-| LogicStepper | `not statement`, `where condition, action`, `every x in domain is statement`, `some x in domain is statement`, `rule formula` |
+| LogicStepper | `not statement`, `where condition, action`, `every x in domain is statement`, `some x in domain is statement`, `rule formula`, `resolve goal`, `pursue goal`, `walk toward goal`, `show affordances`, `show chain lint` |
 | DebuggerStepper | `debug step by step`, `debug stepper StepperName`, `continue stepper StepperName`; debugger commands: `step`, `continue`, `retry`, `next`, `fail` |
 
 ### Web Steppers

@@ -4,36 +4,23 @@
  */
 import { describe, it } from "vitest";
 import path from "node:path";
-import { expectStepGraphAsRecorded } from "./lib/test/step-graph-baseline.js";
-import { RemoteStepperProxy } from "./lib/transport/remote-proxy-stepper.js";
-import ActivitiesStepper from "./steps/activities-stepper.js";
-import AuthorityStepper from "./steps/authority-stepper.js";
-import BlipsStepper from "./steps/blips-stepper.js";
-import ConsoleMonitorStepper from "./steps/console-monitor-stepper.js";
-import DebuggerStepper from "./steps/debugger-stepper.js";
-import GoalResolutionStepper from "./steps/goal-resolution-stepper.js";
-import Haibun from "./steps/haibun-stepper.js";
-import Narrator from "./steps/narrator-stepper.js";
-import ResourcesStepper from "./steps/resources-stepper.js";
-import UrakataStepper from "./steps/urakata-stepper.js";
-import VariablesStepper from "./steps/variables-stepper.js";
+import { expectStepGraphAsRecorded } from "@haibun/logic/test/step-graph-baseline.js";
+import { RemoteStepperProxy } from "@haibun/core/lib/transport/remote-proxy-stepper.js";
+import ActivitiesStepper from "@haibun/core/steps/activities-stepper.js";
+import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
+import BlipsStepper from "@haibun/core/steps/blips-stepper.js";
+import ConsoleMonitorStepper from "@haibun/core/steps/console-monitor-stepper.js";
+import DebuggerStepper from "@haibun/core/steps/debugger-stepper.js";
+import Haibun from "@haibun/core/steps/haibun-stepper.js";
+import Narrator from "@haibun/core/steps/narrator-stepper.js";
+import ResourcesStepper from "@haibun/core/steps/resources-stepper.js";
+import UrakataStepper from "@haibun/core/steps/urakata-stepper.js";
+import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 
 describe("the typed step graph of core's steppers", () => {
 	it("has only the findings its baseline records", { timeout: 60_000 }, async () => {
 		await expectStepGraphAsRecorded({
-			owned: [
-				ActivitiesStepper,
-				AuthorityStepper,
-				BlipsStepper,
-				ConsoleMonitorStepper,
-				DebuggerStepper,
-				GoalResolutionStepper,
-				Haibun,
-				Narrator,
-				ResourcesStepper,
-				UrakataStepper,
-				VariablesStepper,
-			],
+			owned: [ActivitiesStepper, AuthorityStepper, BlipsStepper, ConsoleMonitorStepper, DebuggerStepper, Haibun, Narrator, ResourcesStepper, UrakataStepper, VariablesStepper],
 			unloaded: [{ stepper: RemoteStepperProxy, why: "a proxy made for each remote host, whose steps are that host's" }],
 			baselineFile: path.join(import.meta.dirname, "step-graph.baseline.json"),
 			sourceDir: import.meta.dirname,

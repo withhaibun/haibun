@@ -34,12 +34,6 @@
 	"modules/core/src/lib/adapters/workspace-lib.ts": {
 		"states a parameter's default value": 1
 	},
-	"modules/core/src/lib/derivations/affordances.ts": {
-		"fills an absent value with a constant through ??": 1
-	},
-	"modules/core/src/lib/derivations/goal-resolver.ts": {
-		"fills an absent value with a constant through ??": 4
-	},
 	"modules/core/src/lib/derivations/quad-graph-model.ts": {
 		"fills an absent value with a constant through ??": 4,
 		"states a parameter's default value": 3
@@ -52,9 +46,6 @@
 	},
 	"modules/core/src/lib/domains/capture-locator.ts": {
 		"fills a falsy value with a constant through ||": 2
-	},
-	"modules/core/src/lib/domains/composite-domain.ts": {
-		"fills an absent value with a constant through ??": 2
 	},
 	"modules/core/src/lib/domains/document-content.ts": {
 		"fills a falsy value with a constant through ||": 7,
@@ -91,12 +82,6 @@
 	},
 	"modules/core/src/lib/domains/urakata.ts": {
 		"states a schema's default value through .default()": 1
-	},
-	"modules/core/src/lib/pipelines/chain-walker.ts": {
-		"fills an absent value with a constant through ??": 2
-	},
-	"modules/core/src/lib/pipelines/core-domains.ts": {
-		"states a schema's default value through .default()": 2
 	},
 	"modules/core/src/lib/pipelines/http-observations.ts": {
 		"fills an absent value with a constant through ??": 1,
@@ -136,9 +121,6 @@
 	},
 	"modules/core/src/steps/authority-stepper.ts": {
 		"fills an absent value with a constant through ??": 1
-	},
-	"modules/core/src/steps/goal-resolution-stepper.ts": {
-		"fills an absent value with a constant through ??": 4
 	},
 	"modules/core/src/steps/resources-stepper.ts": {
 		"fills an absent value with a constant through ??": 1

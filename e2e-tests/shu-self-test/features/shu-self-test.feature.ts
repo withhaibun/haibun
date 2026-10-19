@@ -147,31 +147,30 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "Invoke `show affordances` from Step mode and inspect the goals section" }),
 
-		"The affordances panel renders the goal resolver's verdict for each goal: satisfied, plan, unreachable or refused. The panel doesn't list forward-reachable steps. The actions bar's step picker lists them. The goals list mounts in the panel.",
+		"The affordances panel renders the logic engine's verdict for each goal: proved, unknown or refuted. The panel doesn't list forward-reachable steps. The actions bar's step picker lists them. The goals list mounts in the panel.",
 		...enterStepMode,
-		...passesStepExecution("GoalResolutionStepper-showAffordances"),
+		...passesStepExecution("LogicStepper-showAffordances"),
 		waitFor({ target: IDS.AFFORDANCES.ROOT }),
 		waitFor({ target: IDS.AFFORDANCES.GOALS_LIST }),
 
 		scenario({ scenario: "Invoke `show chain lint` and verify the domain chain renders as a graph" }),
 
-		"The chain-lint step returns the lint findings and the graph data. The findings include unsupplied steps, unreachable domains, unproduced domains and string parameters. The graph data holds the forward edges and the goal verdicts. The domain chain view draws the graph data with the graph view. The feature waits for the chain view, its graph slot and the canvas in that slot.",
-		...passesStepExecution("GoalResolutionStepper-showDomainChainLint"),
+		"The chain-lint step returns the lint findings and the graph data. The findings include unsupplied steps, unreachable domains and unproduced domains. The graph data holds the forward edges and the goal verdicts. The domain chain view draws the graph data with the graph view. The feature waits for the chain view, its graph slot and the canvas in that slot.",
+		...passesStepExecution("LogicStepper-showDomainChainLint"),
 		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
 		waitFor({ target: IDS.DOMAIN_CHAIN.GRAPH }),
 		setAs({ what: CHAIN_GRAPH_CANVAS, domain: "page-locator", value: `"${CHAIN_GRAPH_CANVAS_SELECTOR}"` }),
 		waitFor({ target: CHAIN_GRAPH_CANVAS }),
 
-		scenario({ scenario: "Goal resolution: `resolve` returns a verdict for a registered domain" }),
+		scenario({ scenario: "Goal resolution: `resolve` refutes a registered domain that a step doesn't return" }),
 
-		"The resolver returns a verdict for any registered domain key. The registry holds every locator domain, including page-alt-text. The steps don't produce page-alt-text, so the resolver returns unreachable. The feature stores the goal-resolution product in a variable and checks that the variable exists.",
-		setFromStatement({ what: "unproducedGoal", statement: `resolve "page-alt-text"` }),
-		exists({ what: "unproducedGoal" }),
+		"The engine proves a goal over any registered domain key. The registry holds every locator domain, including page-alt-text. A step doesn't return page-alt-text, so the engine refutes the goal and its step fails.",
+		'not resolve "page-alt-text"',
 
 		scenario({ scenario: "Repeated `show chain lint` invocations must not duplicate the pane" }),
 
 		"A view-open product is a request to mount a pane. Later steps don't chain from it as a fact. Running the same show step twice reuses the open pane. Each refresh of the affordances stream would add another pane without that reuse. The step dispatcher doesn't auto-assert the product of a view-only domain. This scenario invokes the step a second time and waits for the chain view's root and graph. Each wait reads the first match, so the scenario doesn't count the panes.",
-		...passesStepExecution("GoalResolutionStepper-showDomainChainLint"),
+		...passesStepExecution("LogicStepper-showDomainChainLint"),
 		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
 		waitFor({ target: IDS.DOMAIN_CHAIN.GRAPH }),
 
@@ -247,8 +246,8 @@ export const features: TKirejiExport = {
 		'saves shu uncompressed to "/tmp/shu-audit.html"',
 
 		"The affordances panel has been open since a step showed it. The panel reads the affordances on offer after each step to stay current. Actuality doesn't record a read as an act. Actuality's records name the step that showed the panel and don't name the panel's reads. The report holds actuality's records, so it names showAffordances and doesn't name affordancesOnOffer.",
-		'text at "/tmp/shu-audit.html" contains "GoalResolutionStepper.showAffordances"',
-		'not text at "/tmp/shu-audit.html" contains "GoalResolutionStepper.affordancesOnOffer"',
+		'text at "/tmp/shu-audit.html" contains "LogicStepper.showAffordances"',
+		'not text at "/tmp/shu-audit.html" contains "LogicStepper.affordancesOnOffer"',
 
 		scenario({ scenario: "A reload with the server unreachable reads actuality from the device" }),
 

@@ -377,18 +377,17 @@ describe("examining a finished test run", () => {
 			// The started test run is the step's declared product, so the goal graph holds a producer edge to it. Resolving
 			// `run-started` returns runTest or runAllTests as the plan. The resolver selects the step by its declared
 			// product and not by a naming convention.
-			const { buildDomainChain } = await import("@haibun/core/lib/derivations/domain-chain.js");
-			const { resolveGoal } = await import("@haibun/core/lib/derivations/goal-resolver.js");
-			const { GOAL_FINDING } = await import("@haibun/core/lib/domains/goal-resolution.js");
-			const stepper = new TestRunnerStepper();
+			const { producerRules, stepSignatures } = await import("@haibun/logic/derivations/goals.js");
+			const { logicEngine } = await import("@haibun/logic/root.js");
 			const domains = mapDefinitionsToDomains(runDomainDefinitions);
-			const graph = buildDomainChain([stepper as never], domains);
-			const producers = graph.edges.filter((e) => e.to === RUN_DOMAIN.started).map((e) => e.stepName);
+			const signatures = stepSignatures([new TestRunnerStepper() as never]);
+			const producers = signatures.filter((one) => one.outputDomains.includes(RUN_DOMAIN.started)).map((one) => one.stepName);
 			expect(producers, "both steps that start a test run produce the record").toEqual(expect.arrayContaining(["runTest", "runAllTests"]));
-			const resolved = resolveGoal(RUN_DOMAIN.started, { graph, facts: [], held: ["Instance:run"], domains });
-			expect(resolved.finding, "the resolver returns a plan to the goal").toBe(GOAL_FINDING.PLAN);
-			const steps = "plans" in resolved ? resolved.plans.flatMap((m) => m.steps.map((s) => s.stepName)) : [];
-			expect(steps).toContain("runTest");
+			const [proof] = (await logicEngine()).goals(producerRules(signatures, domains, [], ["Instance:run"]), [RUN_DOMAIN.started]);
+			expect(
+				proof?.plans.map((plan) => ("do" in plan ? plan.do : "")),
+				"the engine proves the goal with a plan",
+			).toContain("TestRunnerStepper-runTest");
 		});
 	});
 

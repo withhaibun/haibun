@@ -9,8 +9,7 @@
 		"@haibun/shu/graph-source-stepper",
 		"@haibun/shu/client-cache-stepper",
 		"@haibun/storage-fs/storage-fs",
-		"@haibun/monitor-tui",
-		"goal-resolution-stepper"
+		"@haibun/monitor-tui"
 	],
 	"moduleOptions": {
 		"HAIBUN_O_WEBSERVERSTEPPER_ALLOW_WITHOUT_DELEGATION": "*",

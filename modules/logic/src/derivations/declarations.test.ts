@@ -13,7 +13,7 @@ import NarratorStepper from "@haibun/core/steps/narrator-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import { refuseDeclarations } from "../pipelines/registry-reads.js";
 import LogicStepper from "../logic-stepper.js";
-import { DUPLICATE_PATTERN, MISSING_FUNCTOR, MISSING_PATTERN, PARSES_TWO_WAYS } from "./declarations.js";
+import { DUPLICATE_PATTERN, MISSING_FUNCTOR, MISSING_PATTERN, PARSES_TWO_WAYS, STRING_PARAMETER } from "./declarations.js";
 
 const action = async () => actionOK();
 
@@ -28,7 +28,12 @@ const REFUSED: [string, TStepperSteps[], string][] = [
 	["a step without a pattern", [{ open: { action } } as unknown as TStepperSteps], MISSING_PATTERN],
 	["a step without an action or a reading", [{ open: { gwta: "open the door" } } as unknown as TStepperSteps], MISSING_FUNCTOR],
 	["a pattern two steps declare", [{ open: { gwta: "open {door}", action } }, { unlock: { gwta: "open {gate}", action } }], DUPLICATE_PATTERN],
-	["a pattern whose own line parses to another step", [{ open: { gwta: "open the {door}", action } }, { any: { gwta: "open {what}", action } }], PARSES_TWO_WAYS],
+	[
+		"a pattern whose own line parses to another step",
+		[{ open: { gwta: "open the {door: page-locator}", action } }, { any: { gwta: "open {what: page-locator}", action } }],
+		PARSES_TWO_WAYS,
+	],
+	["a parameter whose domain is string", [{ open: { gwta: "open {door}", action } }], STRING_PARAMETER],
 ];
 
 describe("one declaration", () => {

@@ -18,7 +18,6 @@ export const NODE_KIND = {
 	satisfied: "satisfied",
 	reachable: "reachable",
 	unreachable: "unreachable",
-	refused: "refused",
 	argument: "argument",
 	current: "current",
 	field: "field",
@@ -29,7 +28,7 @@ export const NODE_KIND = {
 } as const;
 
 /** The built-in kinds that style an edge. */
-export const EDGE_KIND = { default: "default", ready: "ready", blocked: "blocked", capabilityGated: "capability-gated", context: "context", reply: "reply" } as const;
+export const EDGE_KIND = { default: "default", ready: "ready", blocked: "blocked", context: "context", reply: "reply" } as const;
 
 export type TGraphNode = {
 	/** Unique within the graph. */

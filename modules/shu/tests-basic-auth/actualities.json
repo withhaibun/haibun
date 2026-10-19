@@ -17,6 +17,24 @@
 					"declaredStepTextHash": "a7cd8de3ab9bb793bdd6cdacc4ca24127e2bdb1d37d7ef28366e12345792f5ac"
 				}
 			}
+		},
+		"ecde34e6cbbc188c": {
+			"state": "f690f1f42a3db9dfe32e5eef4276a976a2cc2af16df624e34e73ba428f19d738",
+			"filter": "",
+			"execution": {
+				"text": "modules/shu/tests-basic-auth",
+				"status": "passed",
+				"tookMs": 2200
+			},
+			"features": {
+				"/features/behind-basic-auth.feature.ts": {
+					"text": "A page behind basic auth",
+					"status": "passed",
+					"tookMs": 1900,
+					"steps": 212,
+					"declaredStepTextHash": "a7cd8de3ab9bb793bdd6cdacc4ca24127e2bdb1d37d7ef28366e12345792f5ac"
+				}
+			}
 		}
 	}
 }

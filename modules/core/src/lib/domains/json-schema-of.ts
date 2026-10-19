@@ -10,7 +10,7 @@
  * output. The memo doesn't hold a conversion that throws, so the next caller receives the same error.
  */
 import { z } from "zod";
-import { zodTypeLabel } from "./composite-domain.js";
+import { zodTypeLabel } from "./zod-unwrap.js";
 
 const held = new WeakMap<z.ZodType, Map<string, Record<string, unknown>>>();
 

@@ -1,31 +1,170 @@
 /**
- * The declarations of goal resolution that steppers and views read: the findings of a goal's resolution, the change signal
- * of the affordances, and the waypoint entries a stepper contributes to the affordances snapshot.
+ * The declarations of goals that the logic engine proves over producer rules and that views read: a goal's resolution and
+ * its plans, a walk toward a goal, the affordances on offer, the step graph's lint findings, and the waypoint entries a
+ * stepper contributes to the affordances.
  */
+import { z } from "zod";
 import type { TFeatureStep } from "../steps/domains/stepper.js";
+import type { TDomainDefinition } from "./resources.js";
+import { VERDICT } from "./protocol.js";
+import { NameSchema } from "./domains.js";
+import { EXECUTION_FIELD } from "../actuality/domains/seq-path.js";
 
-export const GOAL_FINDING = { SATISFIED: "satisfied", PLAN: "plan", UNREACHABLE: "unreachable", REFUSED: "refused" } as const;
+export const DOMAIN_GOAL_RESOLUTION = "goal-resolution";
+export const DOMAIN_AFFORDANCES = "affordances";
+export const DOMAIN_CHAIN_LINT = "domain-chain-lint";
+export const DOMAIN_CHAIN_WALK = "chain-walk";
+export const DOMAIN_WALK_ID = "walk-id";
 
-/** The event-id prefix of the `affordances.<seqPath>` change signal. The goal-resolution stepper emits it in afterStep for
- *  each step that isn't a read or a projection. SPA views filter the event stream on it and re-fetch the affordances
- *  snapshot after matching events. */
-export const AFFORDANCE_EVENT_PREFIX = "affordances.";
+/** The source of a step that doesn't take a domain, which the chain view draws as the origin of its edge. */
+export const SOURCE_DOMAIN = "∅";
 
-export type TWaypointEntry = {
-	outcome: string;
-	method: string;
-	paramSlots: string[];
-	proofStatements: string[];
-	/** True where this waypoint's proof holds now. */
-	ensured: boolean;
-	error?: string;
-	source: { path: string; lineNumber?: number };
-	isBackground: boolean;
-};
+/** A composite field's binding: a fact, a value a caller supplies, or the bindings of a composite's own fields. */
+const fieldBase = { fieldName: z.string(), fieldDomain: z.string(), fieldType: z.string(), optional: z.boolean() };
+type TFieldBase = { fieldName: string; fieldDomain: string; fieldType: string; optional: boolean };
+export type TFieldBinding = TFieldBase & ({ kind: "fact"; factId: string } | { kind: "argument" } | { kind: "composite"; fields: TFieldBinding[] });
+const FieldBindingSchema: z.ZodType<TFieldBinding> = z.discriminatedUnion("kind", [
+	z.object({ kind: z.literal("fact"), ...fieldBase, factId: z.string() }).strict(),
+	z.object({ kind: z.literal("argument"), ...fieldBase }).strict(),
+	z.object({ kind: z.literal("composite"), ...fieldBase, fields: z.array(z.lazy(() => FieldBindingSchema)) }).strict(),
+]);
 
-/** A stepper that contributes waypoint entries to the affordances snapshot. `show affordances` calls `waypointEntries` on
- * every registered stepper that implements it, and merges the results. */
+const BindingSchema = z.discriminatedUnion("kind", [
+	z.object({ kind: z.literal("fact"), domain: z.string(), factId: z.string() }).strict(),
+	z.object({ kind: z.literal("argument"), domain: z.string() }).strict(),
+	z.object({ kind: z.literal("composite"), domain: z.string(), fields: z.array(FieldBindingSchema) }).strict(),
+]);
+export type TBinding = z.infer<typeof BindingSchema>;
+
+/** A plan: the steps a proof of a goal leaves to call, in the order their products are taken, and how each input holds. */
+export const PlanSchema = z
+	.object({
+		steps: z.array(z.object({ stepperName: z.string(), stepName: z.string(), gwta: z.string().optional(), productsDomain: z.string() }).strict()),
+		bindings: z.array(BindingSchema),
+	})
+	.strict();
+export type TPlan = z.infer<typeof PlanSchema>;
+
+/** A goal's resolution: proved where a fact of its domain holds, unknown where only its plans would prove it, and refuted where
+ *  a fact doesn't hold and a plan doesn't prove it. A refuted goal states the sub-goals from it down to the first it couldn't
+ *  prove, and why that one isn't proved and what proves it. */
+export const GoalResolutionSchema = z
+	.object({
+		goal: z.string(),
+		verdict: z.enum([VERDICT.proved, VERDICT.unknown, VERDICT.refuted]),
+		factIds: z.array(z.string()),
+		plans: z.array(PlanSchema),
+		unmet: z.string().optional(),
+		unmetChain: z.array(z.string()).optional(),
+		/** A proved goal's proof as statements in proof order: the line that asserted its fact, then the goal's statement. */
+		statements: z.array(z.string()).optional(),
+	})
+	.strict();
+export type TGoalResolution = z.infer<typeof GoalResolutionSchema>;
+
+/** A walk's statuses: its goal isn't proved yet, or a fact of its goal holds. */
+export const WALK_STATUS = { running: "running", ended: "ended" } as const;
+
+/** A walk toward a goal, which calls one step of the goal's plan per advance: the step it calls next, the parameters that step
+ *  takes from the caller, and the facts its calls asserted. */
+export const ChainWalkSchema = z
+	.object({ walk: z.string(), goal: z.string(), status: z.enum(WALK_STATUS), next: z.string().optional(), needs: z.array(z.string()), factIds: z.array(z.string()) })
+	.strict();
+export type TChainWalk = z.infer<typeof ChainWalkSchema>;
+
+/** A step the caller may call that takes or returns a domain, with whether each domain it takes holds. */
+const ForwardSchema = z
+	.object({
+		method: z.string(),
+		stepperName: z.string(),
+		stepName: z.string(),
+		gwta: z.string().optional(),
+		inputDomains: z.array(z.string()),
+		outputDomains: z.array(z.string()),
+		readyToRun: z.boolean(),
+		capability: z.string(),
+	})
+	.strict();
+export type TForwardAffordance = z.infer<typeof ForwardSchema>;
+
+/** Each composite domain's fields, by the domain each ranges over, as `topology.ranges` declares them. */
+const CompositeRangesSchema = z.record(z.string(), z.record(z.string(), z.string()));
+export type TCompositeRanges = z.infer<typeof CompositeRangesSchema>;
+
+/** A waypoint a stepper offers, ensured where its proof holds now. */
+const WaypointEntrySchema = z
+	.object({
+		outcome: z.string(),
+		method: z.string(),
+		paramSlots: z.array(z.string()),
+		proofStatements: z.array(z.string()),
+		ensured: z.boolean(),
+		error: z.string().optional(),
+		source: z.object({ path: z.string(), lineNumber: z.number().optional() }).strict(),
+		isBackground: z.boolean(),
+	})
+	.strict();
+export type TWaypointEntry = z.infer<typeof WaypointEntrySchema>;
+
+/** Whether an event is a step's end, after which the facts the affordances read can differ. A read isn't recorded as
+ *  actuality's step, so a view's read of the affordances doesn't end a step. */
+export const isStepEnd = (event: { kind?: unknown; type?: unknown; stage?: unknown }): boolean => event.kind === "lifecycle" && event.type === "step" && event.stage === "end";
+
+/** A stepper that contributes waypoint entries to the affordances. */
 export interface ProvidesWaypoints {
 	waypointEntries(featureStep: TFeatureStep): Promise<TWaypointEntry[]>;
 }
-export const providesWaypoints = (s: unknown): s is ProvidesWaypoints => typeof (s as { waypointEntries?: unknown })?.waypointEntries === "function";
+export const providesWaypoints = <T>(s: T): s is T & ProvidesWaypoints => typeof (s as { waypointEntries?: unknown })?.waypointEntries === "function";
+
+/** The steps on offer, the resolution of each goal a step returns, the facts of each domain, the composites' fields, the
+ *  waypoints, and the actuality whose facts they read. A fact's id is the path of the step that asserted it. */
+const snapshot = {
+	forward: z.array(ForwardSchema),
+	goals: z.array(z.object({ domain: z.string(), description: z.string(), resolution: GoalResolutionSchema }).strict()),
+	satisfiedDomains: z.array(z.string()),
+	satisfiedFacts: z.record(z.string(), z.array(z.string())),
+	composites: CompositeRangesSchema,
+	[EXECUTION_FIELD]: z.string(),
+};
+export const AffordancesSchema = z.object({ ...snapshot, waypoints: z.array(WaypointEntrySchema) }).strict();
+export type TAffordances = z.infer<typeof AffordancesSchema>;
+
+/** The kinds of the step graph's lint findings, each a way the graph is incomplete. */
+export const LINT_FINDING = { UNSUPPLIED_STEP: "unsupplied-step", UNREACHABLE_DOMAIN: "unreachable-domain", UNPRODUCED_DOMAIN: "unproduced-domain" } as const;
+export const LintFindingSchema = z.discriminatedUnion("kind", [
+	z.object({ kind: z.literal(LINT_FINDING.UNSUPPLIED_STEP), stepperName: z.string(), stepName: z.string(), inputDomain: z.string() }).strict(),
+	z.object({ kind: z.literal(LINT_FINDING.UNREACHABLE_DOMAIN), domain: z.string() }).strict(),
+	z.object({ kind: z.literal(LINT_FINDING.UNPRODUCED_DOMAIN), domain: z.string() }).strict(),
+]);
+export type TLintFinding = z.infer<typeof LintFindingSchema>;
+
+/** A finding as one line: its kind, then the step or domain it names. */
+export const lintFindingLine = (finding: TLintFinding): string =>
+	finding.kind === LINT_FINDING.UNSUPPLIED_STEP
+		? `${finding.kind} ${finding.stepperName}.${finding.stepName} consumes ${finding.inputDomain}`
+		: `${finding.kind} ${finding.domain}`;
+
+export const ChainLintSchema = z.object({ ...snapshot, findings: z.array(LintFindingSchema) }).strict();
+export type TChainLint = z.infer<typeof ChainLintSchema>;
+
+export const goalDomainDefinitions: TDomainDefinition[] = [
+	{ selectors: [DOMAIN_WALK_ID], schema: NameSchema, description: "The id of a walk toward a goal. Each advance of the walk names this id." },
+	{
+		selectors: [DOMAIN_GOAL_RESOLUTION],
+		schema: GoalResolutionSchema,
+		description: "A goal's verdict over the producer rules, the facts that prove it, the plans that would prove it, and the statements of a failed proof.",
+	},
+	{
+		selectors: [DOMAIN_AFFORDANCES],
+		schema: AffordancesSchema,
+		description: "The steps the caller may call next, each with whether its inputs hold, and the resolution of each goal.",
+		ui: { component: "shu-affordances-panel", summary: "Affordances" },
+	},
+	{ selectors: [DOMAIN_CHAIN_WALK], schema: ChainWalkSchema, description: "A walk toward a goal, which calls one step of its plan per advance." },
+	{
+		selectors: [DOMAIN_CHAIN_LINT],
+		schema: ChainLintSchema,
+		description: "The step graph's lint findings: unsupplied steps, unreachable domains and unproduced domains, with the chain they read.",
+		ui: { component: "shu-domain-chain-view" },
+	},
+];

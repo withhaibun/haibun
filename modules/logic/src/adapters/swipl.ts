@@ -7,7 +7,9 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import SWIPL from "swipl-wasm";
-import { ProofStateSchema } from "../domains/logic.js";
+import { z } from "zod";
+import { LintFindingSchema } from "@haibun/core/lib/domains/goal-resolution.js";
+import { GoalProofSchema, ProofStateSchema } from "../domains/logic.js";
 import type { TLogicEngine } from "../ports.js";
 
 /** The program's file in the runtime's file system. */
@@ -35,5 +37,7 @@ export async function startSwipl(): Promise<TLogicEngine> {
 			once(runtime, "haibun:forget(Top)", { Top: top });
 		},
 		n3: (namespace, top) => String(once(runtime, "haibun:n3_export(Namespace, Top, Text)", { Namespace: namespace, Top: top }).Text),
+		goals: (rules, goals) => z.array(GoalProofSchema).parse(once(runtime, "haibun:goals(Rules, Goals, Proofs)", { Rules: rules, Goals: [...goals] }).Proofs),
+		lint: (graph) => z.array(LintFindingSchema).parse(once(runtime, "haibun:lint(Graph, Findings)", { Graph: graph }).Findings),
 	};
 }

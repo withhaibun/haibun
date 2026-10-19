@@ -13,10 +13,17 @@ import { hasConduit } from "../controllers/conduit-controller.js";
 import { affordancesOnOffer } from "../controllers/read-controller.js";
 import { LoadController } from "../controllers/load-controller.js";
 import "./shu-refusal.js";
-import { type TEvent } from "../ports.js";
-import type { TPlan, TBinding, TFieldBinding } from "@haibun/core/lib/derivations/goal-resolver.js";
-import { GOAL_FINDING, AFFORDANCE_EVENT_PREFIX, type TWaypointEntry } from "@haibun/core/lib/domains/goal-resolution.js";
-import { isArgumentDomain, type TForwardAffordance, type TGoalAffordance, satisfiedGoalDomains } from "@haibun/core/lib/derivations/affordances.js";
+import {
+	isStepEnd,
+	type TAffordances as TOffered,
+	type TBinding,
+	type TFieldBinding,
+	type TForwardAffordance,
+	type TPlan,
+	type TWaypointEntry,
+} from "@haibun/core/lib/domains/goal-resolution.js";
+import { VERDICT } from "@haibun/core/lib/domains/protocol.js";
+import { isPrimitiveDomain } from "@haibun/core/lib/domains/domains.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { SHU_EVENT, AFFORDANCE_PARAM, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
@@ -41,6 +48,8 @@ import "./shu-copy-button.js";
 /** The name of the delay before the panel reads its affordances again. */
 const REFRESH = "refresh";
 
+type TGoalAffordance = TOffered["goals"][number];
+
 /** The panel's read-projection of the affordances wire blob: forward steps + goal verdicts (+ optional waypoints). forward/goals reuse the core element types; the panel ignores composites/satisfied* that the chain view consumes. */
 type TAffordances = {
 	/** The actuality whose facts these are, which is where a fact's step is: a fact's id is that step's seqPath. */
@@ -64,20 +73,14 @@ function snapshotOf(p: Record<string, unknown>): TAffordances {
 	};
 }
 
-/** Human-readable label for a resolver finding. */
-function findingLabel(finding: string): string {
-	if (finding === GOAL_FINDING.PLAN) return "reachable";
-	return finding;
-}
-
 const ShuAffordancesPanelSchema = z.object({ openGoal: z.string().optional(), openWaypoint: z.string().optional() });
 
 /** The words before the links to the facts that satisfy a goal. */
 const ALREADY_ASSERTED = "already asserted: ";
 const AFF_GOAL_PARAM = AFFORDANCE_PARAM.GOAL;
 const AFF_WAYPOINT_PARAM = AFFORDANCE_PARAM.WAYPOINT;
-/** Coalesce the per-step change signals into at most one snapshot refetch per window: a run emits one signal per
- * step, and refetching per signal is the RPC flood (hundreds per run). */
+/** Coalesce the step ends into at most one snapshot refetch per window: refetching per step end is an RPC flood of
+ * hundreds of reads. */
 const REFRESH_COALESCE_MS = 400;
 
 /**
@@ -155,19 +158,10 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		// directly so real data shows instead of a forever-spinner. The setter path
 		// still wins when products are threaded through (step invocation).
 		if (this.affordances === null) this.fetchInitial();
-		// Every step end emits an `affordances.<seqPath>` artifact via the goal-resolution
-		// stepper's afterStep cycle. Subscribing keeps the panel current; the snapshot/restore
-		// helper preserves scroll, focus, and details-open state across re-renders.
-		// afterStep emits a lean `affordances.<seqPath>` change signal without a payload, so the panel reads the snapshot again.
-		// Batched (rAF), so the connect-time history replay (one event per past step) collapses to ONE re-fetch per
-		// frame rather than one RPC per replayed event: the spurious-RPC flood. Same batching primitive as the
-		// timeline, the graph, and the app's pane router.
-		this.autoTeardown(
-			this.subscribeBatched({
-				onBatch: () => this.scheduleRefresh(),
-				filter: (event: TEvent) => typeof event.id === "string" && (event.id as string).startsWith(AFFORDANCE_EVENT_PREFIX),
-			}),
-		);
+		// A step's end can change the facts the affordances read, so the panel reads the snapshot again after it. A read isn't
+		// recorded as actuality's step, so the panel's own read doesn't end a step. Batched (rAF), so the connect-time history
+		// replay collapses to one re-fetch per frame.
+		this.autoTeardown(this.subscribeBatched({ onBatch: () => this.scheduleRefresh(), filter: isStepEnd }));
 		// Back/forward navigation should re-sync the open goal / waypoint from the URL so the
 		// panel reflects the address bar. Storing in history rather than state means
 		// a copy-pasted URL also opens the right entry on first load.
@@ -181,8 +175,8 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	}
 
 	readonly #clock = new ClockController(this);
-	/** Reads the affordances again once per `REFRESH_COALESCE_MS`, however many change signals arrive: the first signal starts
-	 *  the delay, and the rest arrive within it. */
+	/** Reads the affordances again once per `REFRESH_COALESCE_MS`, however many steps end: the first step end starts the
+	 *  delay, and the rest arrive within it. */
 	private scheduleRefresh(): void {
 		this.#clock.coalesce(REFRESH, REFRESH_COALESCE_MS, () => this.fetchInitial(true));
 	}
@@ -226,7 +220,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		const held = this.affordances;
 		const waypoints = a.waypoints !== undefined ? a.waypoints : held === null ? undefined : held.waypoints;
 		noteExecution(a.execution);
-		this.assertedDomains = satisfiedGoalDomains(a.goals, GOAL_FINDING.SATISFIED);
+		this.assertedDomains = new Set(a.goals.filter((g) => g.resolution.verdict === VERDICT.proved).map((g) => g.domain));
 		return { ...a, waypoints };
 	}
 
@@ -274,10 +268,8 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	private renderBlockedReasonTpl(a: TForwardAffordance): TemplateResult | "" {
 		if (!this.affordances) return "";
 		const forward = this.affordances.forward;
-		const missingTyped = a.inputDomains.filter((d) => !isArgumentDomain(d, forward) && !this.assertedDomains.has(d));
-		if (missingTyped.length === 0 && a.capability) {
-			return html`<div class="blocked"><span class="blocked-label">Blocked:</span> requires capability ${actionRef(a.capability)}. The granted-capability set the resolver was given does not include it.</div>`;
-		}
+		const isArgument = (d: string) => isPrimitiveDomain(d) || !forward.some((f) => f.outputDomains.includes(d));
+		const missingTyped = a.inputDomains.filter((d) => !isArgument(d) && !this.assertedDomains.has(d));
 		if (missingTyped.length === 0) return "";
 		const producers = this.producersFor(missingTyped).filter((p) => p.readyToRun);
 		const producerTpl =
@@ -295,40 +287,20 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 
 	private renderResolutionTpl(g: TGoalAffordance, goalIdx: number): TemplateResult {
 		const r = g.resolution;
-		if (r.finding === GOAL_FINDING.SATISFIED) {
-			if (!Array.isArray(r.factIds))
-				throw new Error(`shu-affordances-panel: satisfied resolution for ${g.domain} doesn't have factIds[]. Got: ${JSON.stringify(r).slice(0, 200)}.`);
-			const factsTpl = html`<div class="resolution-detail">${ALREADY_ASSERTED}${r.factIds.map((id, i) => html`${i > 0 ? ", " : ""}${unsafeHTML(factIdRef(id))}`)}</div>`;
-			// Satisfied is not terminal, render the run-again paths to produce another instance.
-			if (Array.isArray(r.plans) && r.plans.length > 0) return html`${factsTpl}${this.renderPlansSectionTpl(r.plans, r.truncated, goalIdx, true)}`;
-			return factsTpl;
-		}
-		if (r.finding === GOAL_FINDING.PLAN) {
-			if (!Array.isArray(r.plans)) throw new Error(`shu-affordances-panel: plan resolution for ${g.domain} doesn't have plans[]. Got: ${JSON.stringify(r).slice(0, 200)}.`);
-			return this.renderPlansSectionTpl(r.plans, r.truncated, goalIdx, false);
-		}
-		if (r.finding === GOAL_FINDING.UNREACHABLE) {
-			if (!Array.isArray(r.missing))
-				throw new Error(`shu-affordances-panel: unreachable resolution for ${g.domain} doesn't have missing[]. Got: ${JSON.stringify(r).slice(0, 200)}.`);
-			return html`<span class="resolution-detail">a producer chain doesn't reach it. Missing leaves: ${r.missing.map((m, i) => html`${i > 0 ? ", " : ""}${domainRef(m)}`)}</span>`;
-		}
-		if (r.finding === GOAL_FINDING.REFUSED) {
-			if (typeof r.refusalReason !== "string" || typeof r.detail !== "string")
-				throw new Error(`shu-affordances-panel: refused resolution for ${g.domain} is missing refusalReason or detail. Got: ${JSON.stringify(r).slice(0, 200)}.`);
-			return html`<span class="resolution-detail">refused: ${r.refusalReason}, ${r.detail}</span>`;
-		}
-		throw new Error(
-			`shu-affordances-panel: unrecognised goal-resolution finding for ${g.domain}. Expected one of [${Object.values(GOAL_FINDING).join(", ")}]; got: ${JSON.stringify(r).slice(0, 200)}.`,
-		);
+		if (r.verdict === VERDICT.refuted) return html`<span class="resolution-detail">${r.unmetChain?.map((d, i) => html`${i > 0 ? " ← " : ""}${domainRef(d)}`)}: ${r.unmet}</span>`;
+		const plansTpl = r.plans.length > 0 ? this.renderPlansSectionTpl(r.plans, goalIdx, r.verdict === VERDICT.proved) : "";
+		// A proved goal can be produced again, so its plans render after the facts that prove it.
+		if (r.verdict === VERDICT.proved)
+			return html`<div class="resolution-detail">${ALREADY_ASSERTED}${r.factIds.map((id, i) => html`${i > 0 ? ", " : ""}${unsafeHTML(factIdRef(id))}`)}</div>${plansTpl}`;
+		return html`${plansTpl}`;
 	}
 
 	/** Render the run-again / run-for-the-first-time section: heading, embedded goal-graph, path cards. */
-	private renderPlansSectionTpl(plans: TPlan[], truncated: boolean, goalIdx: number, alreadySatisfied: boolean): TemplateResult {
+	private renderPlansSectionTpl(plans: TPlan[], goalIdx: number, proved: boolean): TemplateResult {
 		const count = plans.length === 1 ? "1 way to reach this" : `${plans.length} ways to reach this`;
-		const truncatedNote = truncated ? " (the resolver returned the first batch; more exist)" : "";
-		const action = alreadySatisfied ? "Run again to produce another." : "Pick one to start; the first step opens in the actions bar so you can supply any inputs.";
+		const action = proved ? "Run again to produce another." : "Pick one to start; the first step opens in the actions bar so you can supply any inputs.";
 		return html`<div class="resolution-detail">
-			<div class="path-heading">${count}${truncatedNote}. ${action}</div>
+			<div class="path-heading">${count}. ${action}</div>
 			<div class="goal-graph" data-testid=${goalGraphSlot(this.goalDomainAt(goalIdx))} data-goal-idx=${goalIdx}><slot name=${goalGraphSlot(this.goalDomainAt(goalIdx))}></slot></div>
 			<div class="path-list">${plans.map((m, i) => this.renderPathCardTpl(m, goalIdx, i))}</div>
 		</div>`;
@@ -438,10 +410,9 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		.blocked-producers .produce:hover { filter: brightness(1.05); }
 		.blocked-producers code { background: transparent; padding: 0; }
 		.goal { padding: var(--shu-space-4) var(--shu-space-5); margin: var(--shu-space-2) 0; border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); background: var(--shu-bg-soft); }
-		.goal-satisfied { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-success); }
-		.goal-plan { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-info); }
-		.goal-unreachable { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-error); }
-		.goal-refused { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-warn); }
+		.goal-proved { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-success); }
+		.goal-unknown { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-info); }
+		.goal-refuted { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-error); }
 		.goal-header { display: flex; justify-content: space-between; align-items: center; gap: var(--shu-space-4); width: 100%; padding: var(--shu-space-3) var(--shu-space-4); margin: calc(var(--shu-space-4) * -1) calc(var(--shu-space-5) * -1) 0; background: transparent; border: 0; cursor: pointer; font: inherit; color: inherit; text-align: left; -webkit-user-select: text; user-select: text; }
 		.goal-header * { -webkit-user-select: text; user-select: text; }
 		.goal-header:hover { background: var(--shu-bg-hover); }
@@ -449,10 +420,9 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		.goal-heading { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 		.goal-description { line-height: 1.3; }
 		.goal-name { font-size: var(--shu-font-xs); color: var(--shu-fg-faded); }
-		.goal-satisfied .finding { background: var(--shu-bg-success-soft); color: var(--shu-success); }
-		.goal-plan .finding { background: var(--shu-bg-info-soft); color: var(--shu-info); }
-		.goal-unreachable .finding { background: var(--shu-bg-error-soft); color: var(--shu-error); }
-		.goal-refused .finding { background: var(--shu-bg-warn-soft); color: var(--shu-warn); }
+		.goal-proved .finding { background: var(--shu-bg-success-soft); color: var(--shu-success); }
+		.goal-unknown .finding { background: var(--shu-bg-info-soft); color: var(--shu-info); }
+		.goal-refuted .finding { background: var(--shu-bg-error-soft); color: var(--shu-error); }
 		.finding { display: inline-block; padding: 0 var(--shu-space-3); border-radius: var(--shu-radius); font-size: var(--shu-font-sm); background: var(--shu-bg-elevated); color: var(--shu-fg-muted); }
 		.resolution-detail { display: block; margin-top: var(--shu-space-3); color: var(--shu-fg); }
 		.plan-steps { margin: var(--shu-space-2) 0 var(--shu-space-2) var(--shu-space-6); padding: 0; font-size: var(--shu-font-sm); }
@@ -544,17 +514,17 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 				`shu-affordances-panel: goal "${g.domain}" is missing a description. The goal-domain registry must declare one, see TRegisteredDomain.description. Got: ${JSON.stringify(g).slice(0, 200)}.`,
 			);
 		const isOpen = openGoal === g.domain;
-		const cls = `goal goal-${g.resolution.finding}${isOpen ? " goal-open" : ""}`;
-		const isSatisfied = g.resolution.finding === GOAL_FINDING.SATISFIED && Array.isArray(g.resolution.factIds) && g.resolution.factIds.length > 0;
+		const { verdict, factIds } = g.resolution;
+		const cls = `goal goal-${verdict}${isOpen ? " goal-open" : ""}`;
 		return html`<div class=${cls} data-testid=${`goal-${g.domain}`} data-goal-domain=${g.domain}>
 			<button class="goal-header" type="button" data-goal-domain=${g.domain} aria-expanded=${isOpen ? "true" : "false"} data-testid=${`goal-${g.domain}-toggle`} @click=${(e: Event): void => this.onGoalHeaderClick(e, g.domain)}>
 				<div class="goal-heading">
 					<span class="goal-description" data-testid=${`goal-${g.domain}-description`}>${g.description}</span>
 					<code class="goal-name" data-testid=${`goal-${g.domain}-name`}>${g.domain}</code>
 				</div>
-				<span class="finding" data-testid=${`goal-${g.domain}-finding`}>${findingLabel(g.resolution.finding)}</span>
+				<span class="finding" data-testid=${`goal-${g.domain}-finding`}>${verdict}</span>
 			</button>
-			${isSatisfied && "factIds" in g.resolution ? html`<div class="goal-fact-summary" data-testid=${`goal-${g.domain}-facts`}>${(g.resolution.factIds as string[]).map((id, i) => html`${i > 0 ? ", " : ""}${unsafeHTML(factIdRef(id))}`)}</div>` : ""}
+			${factIds.length > 0 ? html`<div class="goal-fact-summary" data-testid=${`goal-${g.domain}-facts`}>${factIds.map((id, i) => html`${i > 0 ? ", " : ""}${unsafeHTML(factIdRef(id))}`)}</div>` : ""}
 			${isOpen ? this.renderResolutionTpl(g, idx) : ""}
 		</div>`;
 	}
@@ -575,11 +545,8 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		for (const wrapper of Array.from(this.shadowRoot.querySelectorAll<HTMLElement>(".goal-graph"))) {
 			const goal = this.affordances?.goals[Number(wrapper.dataset.goalIdx)];
 			if (!goal) continue;
-			const r = goal.resolution;
-			if (r.finding !== GOAL_FINDING.PLAN && r.finding !== GOAL_FINDING.SATISFIED) continue;
-			const plans = "plans" in r && Array.isArray(r.plans) ? r.plans : [];
-			const factIds = r.finding === GOAL_FINDING.SATISFIED && Array.isArray(r.factIds) ? r.factIds : undefined;
-			const graph: TGraph = projectGoalPaths({ goal: goal.domain, finding: r.finding, plans, factIds });
+			if (goal.resolution.verdict === VERDICT.refuted) continue;
+			const graph: TGraph = projectGoalPaths(goal.resolution);
 			const slot = goalGraphSlot(goal.domain);
 			this.goalGraphs.set(slot, graph);
 			const presenter = presenterIn(this, slot);

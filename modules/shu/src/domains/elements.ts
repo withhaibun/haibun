@@ -234,8 +234,8 @@ export const CHAT_MESSAGE_MATCH = {
 export const RPC_METHOD = {
 	CLUSTERED_QUADS: "GraphSourceStepper-getClusteredQuads",
 	/** The affordances on offer, as a read. The panel and the chain view request it to stay current. */
-	AFFORDANCES_ON_OFFER: "GoalResolutionStepper-affordancesOnOffer",
-	AFFORDANCES_ON_OFFER_AS_OF: "GoalResolutionStepper-affordancesOnOfferAsOf",
+	AFFORDANCES_ON_OFFER: "LogicStepper-affordancesOnOffer",
+	AFFORDANCES_ON_OFFER_AS_OF: "LogicStepper-affordancesOnOfferAsOf",
 } as const;
 
 /** The classes a row takes against the time cursor: after it (dimmed), and the cursor's row. `SHU_BASE` styles both. */

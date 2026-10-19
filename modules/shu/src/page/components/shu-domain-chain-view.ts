@@ -13,8 +13,6 @@ import { z } from "zod";
 import { affordancesOnOffer } from "../controllers/read-controller.js";
 import { LoadController } from "../controllers/load-controller.js";
 import "./shu-refusal.js";
-import { type TEvent } from "../ports.js";
-import { AFFORDANCE_EVENT_PREFIX } from "@haibun/core/lib/domains/goal-resolution.js";
 import { producingStepOf, projectDomainChain, waypointNodeId, type TAffordancesSnapshot, type TWaypointSnapshot } from "../derivations/project-domain-chain.js";
 import { graphToQuads } from "../derivations/graph-quads.js";
 import { SHU_EVENT, AFFORDANCE_PARAM, SHU_TAG } from "../../domains/elements.js";
@@ -22,7 +20,7 @@ import { defineElement } from "../controllers/element-controller.js";
 import * as PageHash from "../controllers/hash-controller.js";
 import { deepLinkOf, followDeepLink, openRef } from "./ref-navigation.js";
 import { domainRef, stepRef } from "./shu-ref.js";
-import { LINT_FINDING, LintFindingSchema, type TLintFinding } from "@haibun/core/lib/derivations/domain-chain-lint.js";
+import { isStepEnd, LINT_FINDING, LintFindingSchema, type TLintFinding } from "@haibun/core/lib/domains/goal-resolution.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { noteExecution } from "../client-cache/controllers/device-controller.js";
@@ -115,15 +113,9 @@ export class ShuDomainChainView extends ShuElement<typeof EmptyStateSchema> {
 	protected override onConnected(): void {
 		if (!this.hasAttribute("data-testid")) this.setAttribute("data-testid", SHU_TEST_IDS.DOMAIN_CHAIN.ROOT);
 		if (this.affordances === null) void this.#chain.run();
-		// Batch the subscription: on reload the stream replays the whole `affordances.` history at once (thousands of
-		// events), and a re-fetch per event pins the page. subscribeBatched collapses the replay to one re-fetch per frame.
-		this.autoTeardown(
-			this.subscribeBatched({
-				// afterStep emits a lean change signal without a payload, so the view reads the snapshot again quietly, once per batch.
-				onBatch: () => void this.#chain.refresh(),
-				filter: (event: TEvent) => typeof event.id === "string" && (event.id as string).startsWith(AFFORDANCE_EVENT_PREFIX),
-			}),
-		);
+		// A step's end can change the facts the chain reads, so the view reads the snapshot again quietly, once per batch. On
+		// reload the stream replays the whole history at once, and subscribeBatched collapses the replay to one re-fetch per frame.
+		this.autoTeardown(this.subscribeBatched({ onBatch: () => void this.#chain.refresh(), filter: isStepEnd }));
 		this.autoListen(this, SHU_EVENT.GRAPH_NODE_CLICK, (e) => this.onNodeClick(e));
 		// The address names the goal or waypoint the reader is on, which the graph marks as its active node.
 		this.autoTeardown(PageHash.onHashChanged(() => presenterIn(this, CHAIN_GRAPH.slot)?.selectNode(this.addressedNode())));
@@ -154,8 +146,6 @@ export class ShuDomainChainView extends ShuElement<typeof EmptyStateSchema> {
 				return html`the steps don't take or return ${domainRef(f.domain)}`;
 			case LINT_FINDING.UNPRODUCED_DOMAIN:
 				return html`a step takes ${domainRef(f.domain)}, and the steps don't return it`;
-			case LINT_FINDING.STRING_PARAM:
-				return html`${step(f.stepperName, f.stepName)} takes ${f.param} as ${domainRef(f.domain)}, which doesn't state what the value is`;
 		}
 	}
 

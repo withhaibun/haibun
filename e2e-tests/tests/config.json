@@ -8,7 +8,6 @@
 		"@haibun/storage-fs/storage-fs",
 		"@haibun/web-accessibility-axe/a11y-axe-stepper",
 		"@haibun/monitor-tui",
-		"@haibun/core/steps/goal-resolution-stepper",
 		"activities-stepper",
 		"@haibun/core/steps/authority-stepper",
 		"@haibun/core/lib/test/fake-authority",

@@ -1,5 +1,4 @@
 import type { TWorld } from "../actuality/domains/world.js";
-import { MEDIA_TYPE } from "../domains/media-types.js";
 import { TExecutorResult } from "../domains/protocol.js";
 import { AStepper, StepperKinds, CStepper } from "../steps/domains/stepper.js";
 import { expand } from "../domains/features.js";
@@ -8,7 +7,6 @@ import type { TFeaturesBackgrounds } from "../actuality/domains/execution.js";
 import { Executor, addStepperConcerns } from "../actuality/pipelines/executor.js";
 import { Resolver } from "../actuality/pipelines/resolver.js";
 import { PhaseBailError, PhaseRunner } from "../steps/pipelines/phase-runner.js";
-import { DOMAIN_CHAIN_LINT_ARTIFACT, lintRunStepGraph } from "../derivations/domain-chain-lint.js";
 
 export class Runner {
 	steppers: AStepper[] = [];
@@ -23,24 +21,8 @@ export class Runner {
 
 			await phaseRunner.tryPhase("WorldsAndDomains", () => setStepperWorldsAndDomains(this.steppers, this.world));
 
-			// The StepGraph phase and execution read the domains that addStepperConcerns registers.
+			// Execution reads the domains that addStepperConcerns registers.
 			await phaseRunner.tryPhase("Concerns", () => addStepperConcerns(this.world, this.steppers));
-
-			// A blocking finding in the step graph prevents execution. lintRunStepGraph throws on it.
-			// The phase emits the report of non-blocking findings as a debug artifact.
-			await phaseRunner.tryPhase("StepGraph", () => {
-				const report = lintRunStepGraph(this.steppers, this.world.domains);
-				this.world.eventLogger.emit({
-					id: DOMAIN_CHAIN_LINT_ARTIFACT,
-					timestamp: Date.now(),
-					source: "haibun",
-					kind: "artifact",
-					artifactType: "json",
-					mimetype: MEDIA_TYPE.json,
-					level: "debug",
-					json: { domainChainLint: report },
-				});
-			});
 
 			// The phase sets suppressConsole when a monitor stepper is loaded. The event logger doesn't write NDJSON events to the console while suppressConsole is set.
 			// The phase doesn't set suppressConsole when ndjsonForced is true. The NDJSON option sets ndjsonForced for a calling process that reads the events.

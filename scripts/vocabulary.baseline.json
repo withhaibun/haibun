@@ -29,13 +29,6 @@
 		"names proved, refuted, unknown, contradiction as maybe-outcome": 1,
 		"names proved, refuted, unknown, contradiction as speculative": 1
 	},
-	"e2e-tests/requirements/features/05-goals.feature.ts": {
-		"names passed, failed, untested as \"completed\"": 1,
-		"names proved, refuted, unknown, contradiction as \"satisfied\"": 1
-	},
-	"e2e-tests/requirements/features/06-world-and-products.feature.ts": {
-		"names proved, refuted, unknown, contradiction as \"satisfied\"": 1
-	},
 	"e2e-tests/requirements/features/07-records.feature.ts": {
 		"names proved, refuted, unknown, contradiction as speculative": 2
 	},
@@ -47,10 +40,6 @@
 	},
 	"e2e-tests/tests/features/trauma_center.feature": {
 		"names running, ended as \"pending\"": 2
-	},
-	"e2e-tests/tests/features/walk-toward-a-goal.feature": {
-		"names passed, failed, untested as \"completed\"": 1,
-		"names running, ended as \"pending\"": 1
 	},
 	"modules/cli/src/adapters/actualities.test.ts": {
 		"names actuality as execution": 4
@@ -171,15 +160,6 @@
 	"modules/core/src/lib/adapters/workspace-lib.ts": {
 		"names actuality as execution": 1
 	},
-	"modules/core/src/lib/derivations/affordances.test.ts": {
-		"names actuality as execution": 3
-	},
-	"modules/core/src/lib/derivations/goal-resolver.test.ts": {
-		"names proved, refuted, unknown, contradiction as \"unreachable\"": 1
-	},
-	"modules/core/src/lib/derivations/goal-resolver.ts": {
-		"names actuality as execution": 1
-	},
 	"modules/core/src/lib/domains/actions.ts": {
 		"names action as granted": 8,
 		"names action as invoked": 9
@@ -207,10 +187,6 @@
 	},
 	"modules/core/src/lib/domains/features.ts": {
 		"names actuality as execution": 1
-	},
-	"modules/core/src/lib/domains/goal-resolution.ts": {
-		"names proved, refuted, unknown, contradiction as \"satisfied\"": 1,
-		"names proved, refuted, unknown, contradiction as \"unreachable\"": 1
 	},
 	"modules/core/src/lib/domains/hypermedia.ts": {
 		"names actuality as execution": 2
@@ -240,25 +216,11 @@
 	"modules/core/src/lib/logic.test.ts": {
 		"names actuality as execution": 1
 	},
-	"modules/core/src/lib/pipelines/chain-walker.test.ts": {
-		"names passed, failed, untested as \"completed\"": 6,
-		"names proved, refuted, unknown, contradiction as \"unreachable\"": 7
-	},
-	"modules/core/src/lib/pipelines/chain-walker.ts": {
-		"names actuality as execution": 1,
-		"names passed, failed, untested as \"completed\"": 3
-	},
-	"modules/core/src/lib/pipelines/core-domains.ts": {
-		"names actuality as execution": 6,
-		"names proved, refuted, unknown, contradiction as \"satisfied\"": 1,
-		"names proved, refuted, unknown, contradiction as \"unreachable\"": 1,
-		"names waypoint, with a head, a proof and an activity as virtual step": 1
-	},
 	"modules/core/src/lib/pipelines/http-observations.test.ts": {
 		"names actuality as execution": 1
 	},
 	"modules/core/src/lib/pipelines/runner.ts": {
-		"names actuality as execution": 4
+		"names actuality as execution": 3
 	},
 	"modules/core/src/lib/pipelines/step-validation.ts": {
 		"names actuality as execution": 1
@@ -317,16 +279,6 @@
 	},
 	"modules/core/src/steps/blips-stepper.ts": {
 		"names actuality as execution": 2
-	},
-	"modules/core/src/steps/goal-resolution-stepper.test.ts": {
-		"names actuality as execution": 5,
-		"names passed, failed, untested as \"completed\"": 1,
-		"names proved, refuted, unknown, contradiction as \"satisfied\"": 4,
-		"names proved, refuted, unknown, contradiction as \"unreachable\"": 1,
-		"names running, ended as \"pending\"": 1
-	},
-	"modules/core/src/steps/goal-resolution-stepper.ts": {
-		"names actuality as execution": 3
 	},
 	"modules/core/src/steps/haibun-stepper.ts": {
 		"names actuality as execution": 2
@@ -484,8 +436,7 @@
 		"names actuality as execution": 5
 	},
 	"modules/shu/src/page/components/shu-affordances-panel.test.ts": {
-		"names actuality as execution": 31,
-		"names proved, refuted, unknown, contradiction as \"satisfied\"": 6,
+		"names actuality as execution": 29,
 		"names proved, refuted, unknown, contradiction as \"unreachable\"": 2
 	},
 	"modules/shu/src/page/components/shu-affordances-panel.ts": {
@@ -544,9 +495,6 @@
 	"modules/shu/src/page/components/shu-step-detail.ts": {
 		"names actuality as execution": 1
 	},
-	"modules/shu/src/page/controllers/affordance-dispatch.test.ts": {
-		"names proved, refuted, unknown, contradiction as \"satisfied\"": 1
-	},
 	"modules/shu/src/page/controllers/authority-controller.ts": {
 		"names action as granted": 1
 	},
@@ -563,12 +511,9 @@
 		"names actuality as execution": 2
 	},
 	"modules/shu/src/page/derivations/project-domain-chain.test.ts": {
-		"names proved, refuted, unknown, contradiction as \"satisfied\"": 3
-	},
-	"modules/shu/src/page/derivations/project-goal-paths.test.ts": {
 		"names proved, refuted, unknown, contradiction as \"satisfied\"": 2
 	},
-	"modules/shu/src/page/derivations/project-goal-paths.ts": {
+	"modules/shu/src/page/derivations/project-goal-paths.test.ts": {
 		"names proved, refuted, unknown, contradiction as \"satisfied\"": 1
 	},
 	"modules/shu/src/page/derivations/step-input.test.ts": {

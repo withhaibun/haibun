@@ -10,8 +10,7 @@ import { ShuDomainChainView } from "./shu-domain-chain-view.js";
 import * as PageHash from "../controllers/hash-controller.js";
 import { AFFORDANCE_PARAM, SHU_TAG } from "../../domains/elements.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import { LINT_FINDING } from "@haibun/core/lib/derivations/domain-chain-lint.js";
-import { DOMAIN_AFFORDANCES, DOMAIN_STRING } from "@haibun/core/lib/domains/domains.js";
+import { DOMAIN_AFFORDANCES, LINT_FINDING } from "@haibun/core/lib/domains/goal-resolution.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { factIdOf } from "@haibun/core/lib/seq-path.js";
 import { readingExecution } from "../client-cache/controllers/device-controller.js";
@@ -79,7 +78,7 @@ describe("shu-domain-chain-view", () => {
 			execution: EXECUTION,
 			satisfiedDomains: [],
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: [], outputDomains: ["vc"], readyToRun: true }],
-			goals: [{ domain: "vc", resolution: { finding: "plan" } }],
+			goals: [{ domain: "vc", resolution: { verdict: "unknown" } }],
 		};
 		await view.updateComplete;
 		const presenter = await mountedPresenter(view, GRAPH);
@@ -97,7 +96,7 @@ describe("shu-domain-chain-view", () => {
 			execution: EXECUTION,
 			satisfiedDomains: [],
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: [], outputDomains: ["vc"], readyToRun: true }],
-			goals: [{ domain: "vc", resolution: { finding: "plan" } }],
+			goals: [{ domain: "vc", resolution: { verdict: "unknown" } }],
 		};
 		await view.updateComplete;
 		const presenter = await mountedPresenter(view, GRAPH);
@@ -163,7 +162,7 @@ describe("shu-domain-chain-view", () => {
 			forward: [],
 			goals: [],
 			findings: [
-				{ kind: LINT_FINDING.STRING_PARAM, stepperName: "S", stepName: "s", param: "p", domain: DOMAIN_STRING },
+				{ kind: LINT_FINDING.UNSUPPLIED_STEP, stepperName: "S", stepName: "s", inputDomain: "order" },
 				{ kind: LINT_FINDING.UNREACHABLE_DOMAIN, domain: "dead" },
 			],
 		};
@@ -174,7 +173,7 @@ describe("shu-domain-chain-view", () => {
 		]);
 		expect(refs).toEqual([
 			["step", { method: "S-s" }],
-			[REF_DENOTES.type, { domain: DOMAIN_STRING }],
+			[REF_DENOTES.type, { domain: "order" }],
 			[REF_DENOTES.type, { domain: "dead" }],
 		]);
 	});

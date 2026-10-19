@@ -49,7 +49,6 @@
 		"./lib/blips.js": { "haibun-source": "./src/lib/domains/blips.js", "default": "./build/lib/domains/blips.js" },
 		"./lib/zod-unwrap.js": { "haibun-source": "./src/lib/domains/zod-unwrap.js", "default": "./build/lib/domains/zod-unwrap.js" },
 		"./lib/taiwa.js": { "haibun-source": "./src/lib/domains/taiwa.js", "default": "./build/lib/domains/taiwa.js" },
-		"./lib/composite-domain.js": { "haibun-source": "./src/lib/domains/composite-domain.js", "default": "./build/lib/domains/composite-domain.js" },
 		"./lib/steps/derivations/discover-steps.js": { "haibun-source": "./src/lib/steps/pipelines/discover-steps.js", "default": "./build/lib/steps/pipelines/discover-steps.js" },
 		"./kireji/withAction.js": { "haibun-source": "./src/kireji/derivations/withAction.js", "default": "./build/kireji/derivations/withAction.js" },
 		"./lib/tunables.js": { "haibun-source": "./src/lib/derivations/tunables.js", "default": "./build/lib/derivations/tunables.js" },

@@ -77,7 +77,7 @@ export function refuseDeclarations(steppers: AStepper[]): void {
 	if (findings.length > 0) {
 		const listed = findings.map(({ method, finding }) => `${method} ${finding}`).join("; ");
 		throw new Error(
-			`the steppers don't declare each step once with every face: ${listed}. Give each step a pattern and an action or a reading, and a pattern that only it parses, or a precludes that names the other step`,
+			`the steppers don't declare each step once with every face: ${listed}. Give each step a pattern and an action or a reading, a pattern that only it parses or a precludes that names the other step, and a domain for each parameter that names what its value is`,
 		);
 	}
 }

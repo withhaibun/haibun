@@ -4,7 +4,7 @@
  */
 import { describe, it } from "vitest";
 import path from "node:path";
-import { expectStepGraphAsRecorded } from "@haibun/core/lib/test/step-graph-baseline.js";
+import { expectStepGraphAsRecorded } from "@haibun/logic/test/step-graph-baseline.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import RecorderStepper from "./recorder-stepper.js";
 

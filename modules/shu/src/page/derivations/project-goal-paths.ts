@@ -1,5 +1,5 @@
 /**
- * Pure projection from one goal's resolver finding into a combined `TGraph`.
+ * Pure projection from one goal's resolution into a combined `TGraph`.
  *
  * Each plan is a chain of steps: the last step produces the goal, and
  * any earlier step in `m.steps` produces a sub-domain that fills one of the
@@ -38,8 +38,8 @@
  * `pathId(i)` is the stable id used in `TGraphEdge.paths`: a consumer
  * emphasises a path by that id.
  */
-import type { TBinding, TFieldBinding, TPlan } from "@haibun/core/lib/derivations/goal-resolver.js";
-import { GOAL_FINDING } from "@haibun/core/lib/domains/goal-resolution.js";
+import type { TBinding, TFieldBinding, TGoalResolution } from "@haibun/core/lib/domains/goal-resolution.js";
+import { VERDICT } from "@haibun/core/lib/domains/protocol.js";
 import { EDGE_KIND, NODE_KIND, kindOfEdge, type TGraph, type TGraphEdge, type TGraphNode } from "../domains/graph.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { stepLabelOf } from "./steps.js";
@@ -172,35 +172,21 @@ function emitField(field: TFieldBinding, parentDomain: string, parentPath: strin
 	ctx.edges.add({ from: fieldId, to: parentNodeId, kind: EDGE_KIND.ready, paths: [ctx.pid], label: field.fieldName });
 }
 
-type TGoalPathsInput = {
-	goal: string;
-	finding: string;
-	plans: TPlan[];
-	/**
-	 * Fact ids that already satisfy the goal (only meaningful when
-	 * `finding === "satisfied"`). Rendered as fact nodes pointing at the
-	 * goal so the diagram shows *what* satisfies it even when the goal doesn't have
-	 * run-again paths. Without this, a satisfied goal with empty `plans`
-	 * would project to a single isolated goal node.
-	 */
-	factIds?: string[];
-};
+/** A goal's verdict, its plans, and the facts that prove it. Each fact renders as a node that points at the goal, so a proved
+ *  goal without plans doesn't project to a lone goal node. */
+type TGoalPathsInput = Pick<TGoalResolution, "goal" | "verdict" | "plans" | "factIds">;
 
 export function projectGoalPaths(input: TGoalPathsInput): TGraph {
 	const nodes = new Map<string, TGraphNode>();
 	const edges = new EdgeBag();
 	const goalId = `goal:${input.goal}`;
-	const goalKind = input.finding === GOAL_FINDING.SATISFIED ? NODE_KIND.satisfied : NODE_KIND.reachable;
+	const goalKind = input.verdict === VERDICT.proved ? NODE_KIND.satisfied : NODE_KIND.reachable;
 	nodes.set(goalId, { id: goalId, label: input.goal, kind: goalKind });
 
-	// Render satisfying facts as nodes pointing at the goal so a satisfied
-	// resolution always has a graph to show, not just a lone goal node.
-	if (input.factIds && input.factIds.length > 0) {
-		for (const factId of input.factIds) {
-			const id = `fact:${input.goal}#${factId}`;
-			if (!nodes.has(id)) nodes.set(id, { id, label: `${input.goal}#${factId}`, kind: NODE_KIND.satisfied, wasGeneratedBy: { factId, domain: input.goal } });
-			edges.add({ from: id, to: goalId, kind: EDGE_KIND.ready, label: "satisfies" });
-		}
+	for (const factId of input.factIds) {
+		const id = `fact:${input.goal}#${factId}`;
+		if (!nodes.has(id)) nodes.set(id, { id, label: `${input.goal}#${factId}`, kind: NODE_KIND.satisfied, wasGeneratedBy: { factId, domain: input.goal } });
+		edges.add({ from: id, to: goalId, kind: EDGE_KIND.ready, label: "satisfies" });
 	}
 
 	input.plans.forEach((m, pathIndex) => {

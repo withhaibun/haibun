@@ -71,7 +71,7 @@ describe("dispatchAffordanceFromResponse", () => {
 	it("opens a component pane when products carry _component markers", async () => {
 		const response = {
 			forward: [{ method: "X-y", stepperName: "X", stepName: "y", inputDomains: [], outputDomains: [], readyToRun: true }],
-			goals: [{ domain: "g", resolution: { finding: "satisfied", goal: "g", factIdentity: "f" } }],
+			goals: [{ domain: "g", resolution: { verdict: "proved", goal: "g", factIds: ["f"], plans: [] } }],
 			[HYPERMEDIA.TYPE]: "shu-affordances-panel",
 			[HYPERMEDIA.COMPONENT]: "shu-affordances-panel",
 			[HYPERMEDIA.SUMMARY]: "Affordances",

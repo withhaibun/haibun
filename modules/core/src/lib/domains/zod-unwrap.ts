@@ -51,3 +51,7 @@ export function unwrapToObject(zodType: z.ZodType): z.ZodObject | null {
 export function unwrapToShape(zodType: z.ZodType): Record<string, z.ZodType> | null {
 	return unwrapToObject(zodType)?.shape ?? null;
 }
+
+/** A Zod type's label, such as "string", "number", "date", "array", "object" or "enum", or undefined where the value doesn't
+ *  carry a Zod definition. A toJSONSchema override's ctx.zodSchema is such a value, so the parameter is unknown. */
+export const zodTypeLabel = (zodType: unknown): string | undefined => (zodType as { _zod?: { def?: { type?: string } } })?._zod?.def?.type;

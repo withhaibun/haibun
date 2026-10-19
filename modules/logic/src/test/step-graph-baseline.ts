@@ -1,24 +1,24 @@
 /**
  * Compares the typed step graph that a set of steppers declares with the findings a baseline file records. The chain
- * lint reports each way the graph is incomplete as a finding (`LINT_FINDING`). A finding that the file doesn't record
- * fails the test, and the error names the finding and its fix. A recorded finding that the graph doesn't have fails the
+ * lint, a query of the logic engine over the steps' signatures, reports each way the graph is incomplete as a finding
+ * (`LINT_FINDING`). A finding that the file doesn't record fails the test, and the error names the finding and its fix. A recorded finding that the graph doesn't have fails the
  * test too. That error names the finding. Removing it from the file records the improvement. The file holds the graph's
  * current findings, and the test rejects a new one. A stepper class in the source that `owned` and `unloaded` don't
  * list fails the test, and the error names it.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
-import type { AStepper, CStepper } from "../steps/domains/stepper.js";
-import { DEF_PROTO_OPTIONS, getTestWorldWithOptions } from "./lib.js";
-import { createSteppers, setStepperWorldsAndDomains } from "../domains/util.js";
-import { itemAt } from "../domains/item-at.js";
-import { addStepperConcerns } from "../actuality/pipelines/executor.js";
-import { buildDomainChain } from "../derivations/domain-chain.js";
-import { LINT_FINDING, lintDomainChain, lintFindingLine, type TLintFinding } from "../derivations/domain-chain-lint.js";
+import type { AStepper, CStepper } from "@haibun/core/lib/steps/domains/stepper.js";
+import { DEF_PROTO_OPTIONS, getTestWorldWithOptions } from "@haibun/core/lib/test/lib.js";
+import { createSteppers, setStepperWorldsAndDomains } from "@haibun/core/lib/domains/util.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
+import { addStepperConcerns } from "@haibun/core/lib/actuality/pipelines/executor.js";
+import { LINT_FINDING, lintFindingLine, type TLintFinding } from "@haibun/core/lib/domains/goal-resolution.js";
+import { lintFindings } from "../pipelines/goals.js";
+import { logicEngine } from "../root.js";
 
 /** What fixes each kind of finding. */
 const FIX: Record<TLintFinding["kind"], string> = {
-	[LINT_FINDING.STRING_PARAM]: "name the value's domain in the step's phrase",
 	[LINT_FINDING.UNSUPPLIED_STEP]: "declare the step that produces the domain",
 	[LINT_FINDING.UNREACHABLE_DOMAIN]: "declare a step that consumes or produces the domain, or remove it",
 	[LINT_FINDING.UNPRODUCED_DOMAIN]: "declare the step that produces the domain",
@@ -47,9 +47,8 @@ async function stepGraphFindings({ owned, alongside = [], moduleOptions = {} }: 
 	await setStepperWorldsAndDomains(steppers, world);
 	addStepperConcerns(world, steppers);
 	const names = new Set(owned.map((stepper) => stepper.name));
-	const report = lintDomainChain(buildDomainChain(steppers, world.domains), world.domains);
 	const about = (finding: TLintFinding) => ("stepperName" in finding ? finding.stepperName : world.domains[finding.domain]?.stepperName);
-	return report.findings
+	return lintFindings(await logicEngine(), steppers, world.domains)
 		.filter((finding) => names.has(about(finding) ?? ""))
 		.map(lintFindingLine)
 		.sort();

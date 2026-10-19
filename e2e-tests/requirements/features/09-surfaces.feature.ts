@@ -9,7 +9,7 @@ const MCP = `${localOrigin(Number(requiredModuleOption("HAIBUN_O_MCPSTEPPER_PORT
 export const features: TKirejiExport = {
 	"One path for every surface": [
 		feature({ feature: "One path for every surface" }),
-		`Every surface proves through one entry: the executor (executor.ts:216), RPC (dispatch-call.ts:141), MCP (mcp.ts:59), a call by name from a goal or a walk (call-step.ts:56), the remote stepper proxy (remote-proxy-stepper.ts:16), a model's tool call (spopg turns.ts:333), the LSP's resolver (language-server.ts:160), show steps and the affordances panel (discover-steps.ts, goal-resolution-stepper.ts:281), and the domain-chain lint (runner.ts:32).
+		`Every surface proves through one entry: the executor (executor.ts:216), RPC (dispatch-call.ts:141), MCP (mcp.ts:59), a call by name from a goal or a walk (call-step.ts:56), the remote stepper proxy (remote-proxy-stepper.ts:16), a model's tool call (spopg turns.ts:333), the LSP's resolver (language-server.ts:160), show steps and the affordances panel (discover-steps.ts, pipelines/goals.ts, affordancesAt), and the step graph's lint (pipelines/goals.ts, lintFindings).
 		Accidental, and replaced by the one entry: the transport builders that each validate and build a call (dispatch-call.ts:125, turns.ts:345), and a second matcher in the LSP.`,
 
 		scenario({ scenario: "Show steps lists only what the caller may call" }),
@@ -21,7 +21,7 @@ export const features: TKirejiExport = {
 		`mcp call to "${MCP}" with tool "TestServer-protectedRpcPing" succeeds when signed by "ranger" for "TestServer:protected"`,
 
 		scenario({ scenario: "The affordances on offer read the same rules" }),
-		"Essential, for the affordances panel. Source: goal-resolution-stepper.ts:270.",
+		"Essential, for the affordances panel. Source: pipelines/goals.ts, affordancesAt.",
 		"show affordances",
 
 		scenario({ scenario: "A model's tool call and a line reach the same term" }),

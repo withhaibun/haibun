@@ -16,22 +16,10 @@ import ResourcesStepper from "@haibun/core/steps/resources-stepper.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import ActivitiesStepper from "@haibun/core/steps/activities-stepper.js";
 import BlipsStepper from "@haibun/core/steps/blips-stepper.js";
-import GoalResolutionStepper from "@haibun/core/steps/goal-resolution-stepper.js";
 import UrakataStepper from "@haibun/core/steps/urakata-stepper.js";
 import WebPlaywright from "./web-playwright-stepper.js";
 
-const steppers = createSteppers([
-	Haibun,
-	VariablesStepper,
-	LogicStepper,
-	ResourcesStepper,
-	AuthorityStepper,
-	ActivitiesStepper,
-	BlipsStepper,
-	GoalResolutionStepper,
-	UrakataStepper,
-	WebPlaywright,
-]);
+const steppers = createSteppers([Haibun, VariablesStepper, LogicStepper, ResourcesStepper, AuthorityStepper, ActivitiesStepper, BlipsStepper, UrakataStepper, WebPlaywright]);
 const resolver = new Resolver(steppers, []);
 
 /** A step's parameters, by name, with the domain each takes. */

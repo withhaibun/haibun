@@ -10,7 +10,7 @@
 % and one that couldn't run is unknown. Negation is negation as failure scoped to the outcomes of its line: a query reads
 % only the outcome of the effect its own line performed. Each part of a proof, once it ends, is asserted as part/4, which only
 % the N3 export reads.
-:- module(haibun, [prove/3, resume/3, forget/1, n3_export/3]).
+:- module(haibun, [prove/3, resume/3, forget/1, n3_export/3, goals/3, lint/2]).
 :- use_module(library(lists)).
 :- use_module(library(apply)).
 :- use_module(library(pairs)).
@@ -174,6 +174,90 @@ plan(run, T, Proof, Activity, P, B, A, D, V, Why) :-
     ;   Activity == [] -> ( Proof == [] -> V = proved, Why = none ; V = V0, Why = W0 )
     ;   conj(T, activity(1), Activity, P, B, A, D, V, Why)
     ).
+
+% Goals over producer rules. A step the caller may call states the rule fact(D) ← fact(D₁) ∧ … ∧ do(s), where s returns D
+% and takes D₁ …. The rules are r(Producers, Produced, Composites, Facts): p(Method, D, Inputs) for each such step, the
+% domains any step returns, c(D, Fields) for a domain whose fields range over domains, and f(D, Id) for each fact. A goal
+% holds by a fact of its domain, by a producer whose inputs hold, by the fields of a composite domain no step returns, or as
+% an argument a caller supplies where no step returns its domain. The ancestor check and the depth limit bound each proof.
+% A proof leaves each do(s) unproved, so its plan is the steps it would call. Negation reads only the closed term a query
+% is given, through none/1.
+none(G) :- ( call(G) -> fail ; true ).
+
+% goals(+RulesText, +Goals, -Results): each goal's facts, a plan for each of its producers whose inputs hold, and, where it
+% has neither, the chain of sub-goals to the first it couldn't prove.
+goals(RulesText, Goals, Results) :- term_string(R, RulesText), maplist(atom_string, Atoms, Goals), maplist(goal_result(R), Atoms, Results).
+
+goal_result(R, G, _{goal: G, factIds: Ids, plans: Plans, unmet: Unmet}) :-
+    R = r(Ps, _, _, Fs),
+    findall(Id, member(f(G, Id), Fs), Ids),
+    findall(M-Ins, member(p(M, G, Ins), Ps), Producers),
+    findall(P, ( member(M-Ins, Producers), produced_by(R, G, M, Ins, [], 1, P), none(unmet_in(P)) ), Plans),
+    (   Ids == [], Plans == [] ->
+        ( Producers = [M-Ins|_] -> produced_by(R, G, M, Ins, [], 1, P0), chain(P0, Unmet) ; Unmet = [_{unmet: G, why: no_producer}] )
+    ;   Unmet = []
+    ).
+
+produced_by(R, D, M, Ins, Anc, Depth, _{do: M, domain: D, inputs: Ps}) :- Depth1 is Depth + 1, maplist(proof(R, [D|Anc], Depth1), Ins, Ps).
+
+proof(r(_, _, _, Fs), _, _, D, _{fact: Id, domain: D}) :- memberchk(f(D, Id), Fs), !.
+proof(_, Anc, _, D, _{unmet: D, why: cycle}) :- memberchk(D, Anc), !.
+proof(_, _, Depth, D, _{unmet: D, why: W}) :- max_depth(Max), Depth > Max, !, format(atom(W), 'depth(~w)', [Max]).
+proof(R, Anc, Depth, D, P) :-
+    R = r(Ps, Produced, _, _), memberchk(D, Produced), !,
+    findall(M-Ins, member(p(M, D, Ins), Ps), Producers),
+    (   Producers == [] -> P = _{unmet: D, why: no_producer}
+    ;   member(M-Ins, Producers), produced_by(R, D, M, Ins, Anc, Depth, P), none(unmet_in(P)) -> true
+    ;   Producers = [M-Ins|_], produced_by(R, D, M, Ins, Anc, Depth, P)
+    ).
+% A composite's required field that doesn't hold leaves the composite to a caller as an argument; an optional one is left out.
+proof(R, Anc, Depth, D, P) :-
+    R = r(_, _, Cs, _), memberchk(c(D, Fields), Cs), !, Depth1 is Depth + 1,
+    foldl(field(R, [D|Anc], Depth1), Fields, held([]), Held),
+    ( Held = held(Rev) -> reverse(Rev, Fs), P = _{composite: D, fields: Fs} ; P = _{argument: D} ).
+proof(_, _, _, D, _{argument: D}).
+
+field(_, _, _, _, unheld, unheld) :- !.
+field(_, _, _, f(N, '', T, O), held(Acc), held([_{name: N, domain: '', type: T, optional: O, proof: _{argument: N}}|Acc])) :- !.
+field(R, Anc, Depth, f(N, FD, T, O), held(Acc), Out) :-
+    proof(R, Anc, Depth, FD, FP),
+    (   unmet_in(FP) -> ( O == true -> Out = held(Acc) ; Out = unheld )
+    ;   Out = held([_{name: N, domain: FD, type: T, optional: O, proof: FP}|Acc])
+    ).
+
+unmet_in(P) :- get_dict(unmet, P, _), !.
+unmet_in(P) :- get_dict(inputs, P, Ps), member(Q, Ps), unmet_in(Q), !.
+
+% chain(+Proof, -Chain): the sub-goals from a proof down to the first it couldn't prove.
+chain(P, [P]) :- get_dict(unmet, P, _), !.
+chain(P, [_{domain: D, do: M}|Chain]) :- _{do: M, domain: D, inputs: Ps} :< P, member(Q, Ps), unmet_in(Q), !, chain(Q, Chain).
+
+% lint(+GraphText, -Findings): the step graph's findings as queries over the same declarations the producer rules read. The
+% graph is g(Steps, Domains, Refs, Parts, Ranges, Address): s(Stepper, Step, Inputs, Outputs) for each step, d(Key, Node,
+% Written, Beyond, Persisted) for each domain a step names or a stepper registers, ref(R, T) for a reference to a record of
+% T, part(U, P) for a union's part, range(C, D) for a composite's field, and the domain of an individual address, which
+% supplies a record of every persisted type.
+lint(GraphText, Findings) :- term_string(G, GraphText), findall(F, finding(G, F), Findings).
+
+finding(G, _{kind: 'unsupplied-step', stepperName: S, stepName: N, inputDomain: D}) :-
+    arg(1, G, Ss), member(s(S, N, Is, _), Ss), member(D, Is), none(produced(G, D)), none(domain_is(G, D, written)).
+finding(G, _{kind: 'unreachable-domain', domain: D}) :-
+    arg(2, G, Ds), member(d(D, true, _, false, _), Ds), none(consumed(G, D)), none(produced(G, D)).
+finding(G, _{kind: 'unproduced-domain', domain: D}) :-
+    arg(2, G, Ds), member(d(D, true, false, _, _), Ds), consumed(G, D), none(produced(G, D)).
+
+domain_is(G, D, written) :- arg(2, G, Ds), memberchk(d(D, _, true, _, _), Ds).
+returned(G, D) :- arg(1, G, Ss), member(s(_, _, _, Os), Ss), member(D, Os).
+supplied(G, D) :- returned(G, D).
+supplied(G, D) :- arg(6, G, A), returned(G, A), arg(2, G, Ds), member(d(D, _, _, _, true), Ds).
+produced(G, D) :- supplied(G, D), !.
+produced(G, D) :- arg(3, G, Refs), ( member(ref(D, T), Refs), supplied(G, T) ; member(ref(R, D), Refs), supplied(G, R) ), !.
+taken(G, D) :- arg(1, G, Ss), member(s(_, _, Is, _), Ss), member(D, Is).
+taken(G, D) :- arg(1, G, Ss), member(s(_, _, Is, _), Ss), member(U, Is), arg(4, G, Ps), member(part(U, D), Ps).
+named(G, D) :- taken(G, D).
+named(G, D) :- taken(G, C), arg(5, G, Rs), member(range(C, D), Rs).
+consumed(G, D) :- named(G, D), !.
+consumed(G, D) :- named(G, R), arg(3, G, Refs), member(ref(R, D), Refs), !.
 
 % Requests as JSON-ready dicts.
 request_json(call(N, B), _{node: N, bindings: Bs}) :- bindings_json(B, Bs).

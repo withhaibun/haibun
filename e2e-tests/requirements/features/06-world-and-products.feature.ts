@@ -19,7 +19,7 @@ export const features: TKirejiExport = {
 		"Essential, for goals and proofs. Source: step-dispatch.ts:261.",
 		"show var source",
 		'set found from resolve "var-snapshot"',
-		'variable found.finding is "satisfied"',
+		'variable found.verdict is "proved"',
 
 		pendingScenario({ scenario: "A fact states the record that generated it" }),
 		"Essential, for provenance. Source: facts.ts, the edge wasGeneratedBy.",

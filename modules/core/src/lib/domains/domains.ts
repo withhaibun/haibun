@@ -65,8 +65,6 @@ export const DOMAIN_STEP_PATH = "step-path";
 export const DOMAIN_DURATION = "duration";
 /** A step as a call names it, its stepper and step joined by a hyphen, such as `Haibun-showSteps`. */
 export const DOMAIN_STEP_METHOD = "step-method";
-/** The id of a walk begun toward a goal, which each advance of it names. */
-export const DOMAIN_WALK_ID = "walk-id";
 /** A link relation, by the name a predicate carries it under, such as `cites`. */
 export const DOMAIN_LINK_REL = "link-rel";
 /** A value a variable holds or is given, of whatever domain the variable's is, which that domain reads. */
@@ -133,11 +131,6 @@ export function registeredDomain(domains: Record<string, TRegisteredDomain> | un
 export const isWrittenByCaller = (domainKey: string, domains: Record<string, TRegisteredDomain>): boolean =>
 	isPrimitiveDomain(domainKey) ||
 	domainParts(domainKey).every((part) => domains[part] !== undefined && !isPersisted(domains[part].topology) && refTargetOf(domains[part], domains) === undefined);
-export const DOMAIN_GOAL_RESOLUTION = "goal-resolution";
-export const DOMAIN_PLAN = "plan";
-export const DOMAIN_AFFORDANCES = "affordances";
-export const DOMAIN_CHAIN_LINT = "domain-chain-lint";
-export const DOMAIN_CHAIN_WALK = "chain-walk";
 
 type TEnumDomainInput = { name: string; values: string[]; description?: string; ordered?: boolean };
 

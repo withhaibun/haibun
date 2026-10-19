@@ -36,6 +36,35 @@ export type TProofState = z.infer<typeof ProofStateSchema>;
 export type TNodeRequest = z.infer<typeof NodeRequestSchema>;
 export type TCloseRequest = z.infer<typeof CloseRequestSchema>;
 
+/** A node of a goal's proof over producer rules: a fact of its domain, a producer whose inputs are its nodes, a composite's
+ *  fields, an argument a caller supplies, or the sub-goal it couldn't prove with the reason. */
+export type TProofNode =
+	| { fact: string; domain: string }
+	| { argument: string }
+	| { do: string; domain: string; inputs: TProofNode[] }
+	| { composite: string; fields: { name: string; domain: string; type: string; optional: boolean; proof: TProofNode }[] }
+	| { unmet: string; why: string };
+const ProofNodeSchema: z.ZodType<TProofNode> = z.union([
+	z.object({ fact: z.string(), domain: z.string() }),
+	z.object({ argument: z.string() }),
+	z.object({ do: z.string(), domain: z.string(), inputs: z.array(z.lazy(() => ProofNodeSchema)) }),
+	z.object({
+		composite: z.string(),
+		fields: z.array(z.object({ name: z.string(), domain: z.string(), type: z.string(), optional: z.stringbool(), proof: z.lazy(() => ProofNodeSchema) })),
+	}),
+	z.object({ unmet: z.string(), why: z.string() }),
+]);
+
+/** A goal's proof: the facts of its domain, a proof for each producer whose inputs hold, and, where it doesn't have either, the
+ *  chain of sub-goals down to the first it couldn't prove. */
+export const GoalProofSchema = z.object({
+	goal: z.string(),
+	factIds: z.array(z.string()),
+	plans: z.array(ProofNodeSchema),
+	unmet: z.array(z.union([z.object({ domain: z.string(), do: z.string() }), z.object({ unmet: z.string(), why: z.string() })])),
+});
+export type TGoalProof = z.infer<typeof GoalProofSchema>;
+
 /** The outcome of a built-in call, as the engine reads it. */
 export const CALL_OUTCOME = { passed: "passed", failed: "failed", refused: "refused" } as const;
 

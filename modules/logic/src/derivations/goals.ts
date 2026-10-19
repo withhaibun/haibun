@@ -1,0 +1,159 @@
+/**
+ * The producer rules the registry derives from step signatures, and the step graph the lint reads. A step that returns a
+ * domain D and takes the domains D₁ … states the rule fact(D) ← fact(D₁) ∧ … ∧ do(s). This derivation writes the rules a
+ * caller may use and the facts that hold as the engine's terms, reads a goal's proof back as a plan, and renders a failed
+ * proof's sub-goals as the statements that state them.
+ */
+import type { AStepper } from "@haibun/core/lib/steps/domains/stepper.js";
+import type { TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
+import { isPersisted } from "@haibun/core/lib/domains/resources.js";
+import type { TFact } from "@haibun/core/lib/records/domains/facts.js";
+import { constructorName } from "@haibun/core/lib/domains/util.js";
+import { domainParts, fieldRangesOf, isPrimitiveDomain, isWrittenByCaller, normalizeDomainKey, refTargetOf } from "@haibun/core/lib/domains/domains.js";
+import { mayCall, requiredAction } from "@haibun/core/lib/domains/actions.js";
+import { stepParamDomains } from "@haibun/core/lib/steps/derivations/step-tools.js";
+import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
+import { unwrap, unwrapToShape } from "@haibun/core/lib/domains/zod-unwrap.js";
+import { DOMAIN_INDIVIDUAL_ADDRESS } from "@haibun/core/lib/domains/typed-links.js";
+import type { TBinding, TCompositeRanges, TFieldBinding, TForwardAffordance, TPlan } from "@haibun/core/lib/domains/goal-resolution.js";
+import type { TGoalProof, TProofNode } from "../domains/logic.js";
+import { atom, list } from "./terms.js";
+
+type TDomains = Record<string, TRegisteredDomain>;
+
+/** A step's signature: its method, the domains it takes other than primitives, the domains it returns, and the action it requires. */
+export type TStepSignature = Omit<TForwardAffordance, "readyToRun">;
+
+export function stepSignatures(steppers: readonly AStepper[]): TStepSignature[] {
+	return steppers.flatMap((stepper) => {
+		const stepperName = constructorName(stepper);
+		return Object.entries(stepper.steps).map(([stepName, step]) => {
+			const params = stepParamDomains(step);
+			const outputs = step.productsDomain !== undefined ? [step.productsDomain] : step.productsDomains === undefined ? [] : Object.values(step.productsDomains);
+			return {
+				method: stepMethodName(stepperName, stepName),
+				stepperName,
+				stepName,
+				...(step.gwta === undefined ? {} : { gwta: step.gwta }),
+				inputDomains: [...new Set([...params.values()].filter((domain) => !isPrimitiveDomain(domain)))],
+				outputDomains: outputs.map(normalizeDomainKey),
+				capability: requiredAction(stepperName, stepName, step),
+			};
+		});
+	});
+}
+
+/** The fields of a domain whose schema is an object, each with the domain `topology.ranges` names for it. */
+function compositeFields(domain: TRegisteredDomain | undefined, domains: TDomains): string[] {
+	const shape = domain === undefined ? null : unwrapToShape(domain.schema);
+	if (domain === undefined || shape === null) return [];
+	const ranges = domain.topology?.ranges;
+	return Object.entries(shape).map(([name, type]) => {
+		const { inner, optional } = unwrap(type);
+		const range = ranges?.[name];
+		return `f(${[atom(name), atom(range !== undefined && domains[range] !== undefined ? range : ""), atom(inner._zod.def.type), String(optional)].join(", ")})`;
+	});
+}
+
+/** The rules a caller holding `held` may use, with the facts that hold, as the engine's term. */
+export function producerRules(signatures: readonly TStepSignature[], domains: TDomains, facts: readonly TFact[], held: string | string[] | undefined): string {
+	const producers = signatures
+		.filter((one) => mayCall(held, one))
+		.flatMap((one) => one.outputDomains.map((out) => `p(${atom(one.method)}, ${atom(out)}, ${list(one.inputDomains.map(atom))})`));
+	const produced = [...new Set(signatures.flatMap((one) => one.outputDomains))].map(atom);
+	const composites = Object.keys(domains).flatMap((key) => {
+		const fields = compositeFields(domains[key], domains);
+		return fields.length === 0 ? [] : [`c(${atom(key)}, ${list(fields)})`];
+	});
+	return `r(${[list(producers), list(produced), list(composites), list(facts.map((fact) => `f(${atom(fact.domain)}, ${atom(fact.id)})`))].join(", ")})`;
+}
+
+/** The step graph the lint reads, as the engine's term. */
+export function stepGraph(signatures: readonly TStepSignature[], domains: TDomains): string {
+	const steps = signatures.map((one) => `s(${[atom(one.stepperName), atom(one.stepName), list(one.inputDomains.map(atom)), list(one.outputDomains.map(atom))].join(", ")})`);
+	const keys = [...new Set([...Object.keys(domains), ...signatures.flatMap((one) => one.inputDomains)])];
+	const described = keys.map((key) => {
+		const domain = domains[key];
+		const node = domain !== undefined && !isPrimitiveDomain(key);
+		const beyond = domain !== undefined && (isPersisted(domain.topology) || typeof domain.ui?.component === "string");
+		return `d(${[atom(key), node, isWrittenByCaller(key, domains), beyond, domain !== undefined && isPersisted(domain.topology)].join(", ")})`;
+	});
+	const refs = Object.entries(domains).flatMap(([key, domain]) => {
+		const target = refTargetOf(domain, domains);
+		return target === undefined ? [] : [`ref(${atom(key)}, ${atom(target)})`];
+	});
+	const parts = keys.flatMap((key) => (domainParts(key).length > 1 ? domainParts(key).map((part) => `part(${atom(key)}, ${atom(part)})`) : []));
+	const ranges = Object.entries(domains).flatMap(([key, domain]) => fieldRangesOf(domain, domains).map((range) => `range(${atom(key)}, ${atom(range)})`));
+	return `g(${[list(steps), list(described), list(refs), list(parts), list(ranges), atom(DOMAIN_INDIVIDUAL_ADDRESS)].join(", ")})`;
+}
+
+/** Each composite domain's fields by the domain each ranges over. A reference names a record of its target, so it is left out. */
+export const compositeRanges = (domains: TDomains): TCompositeRanges =>
+	Object.fromEntries(
+		Object.entries(domains).flatMap(([key, domain]) =>
+			refTargetOf(domain, domains) === undefined && domain.topology?.ranges !== undefined ? [[key, { ...domain.topology.ranges }]] : [],
+		),
+	);
+
+/** The steps on offer: each step the caller may call that takes or returns a domain, ready where each domain it takes holds,
+ *  is written by its caller, or isn't returned by a step. */
+export function forwardOf(signatures: readonly TStepSignature[], facts: readonly TFact[], held: string | string[] | undefined): TForwardAffordance[] {
+	const asserted = new Set(facts.map((fact) => fact.domain));
+	const produced = new Set(signatures.flatMap((one) => one.outputDomains));
+	return signatures
+		.filter((one) => mayCall(held, one) && one.inputDomains.length + one.outputDomains.length > 0)
+		.map((one) => ({ ...one, readyToRun: one.inputDomains.every((domain) => asserted.has(domain) || !produced.has(domain)) }));
+}
+
+type TFlat = { steps: TPlan["steps"]; bindings: TBinding[] };
+
+/** A proof that holds as a plan: the steps it leaves to call, in the order their products are taken, and how each input holds. */
+export function planOf(proof: TProofNode, byMethod: ReadonlyMap<string, TStepSignature>): TPlan {
+	const flat = (node: TProofNode): TFlat => {
+		if ("fact" in node) return { steps: [], bindings: [{ kind: "fact", domain: node.domain, factId: node.fact }] };
+		if ("argument" in node) return { steps: [], bindings: [{ kind: "argument", domain: node.argument }] };
+		if ("unmet" in node) throw new Error(`a plan holds the unmet goal ${node.unmet}; the engine returns a plan only where each sub-goal holds`);
+		if ("composite" in node) {
+			const fields = node.fields.map((field) => ({ field, sub: flat(field.proof) }));
+			const bound = fields.map(({ field, sub }): TFieldBinding => {
+				const base = { fieldName: field.name, fieldDomain: field.domain, fieldType: field.type, optional: field.optional };
+				const leaf = sub.bindings[0];
+				if (leaf?.kind === "fact") return { ...base, kind: "fact", factId: leaf.factId };
+				return leaf?.kind === "composite" ? { ...base, kind: "composite", fields: leaf.fields } : { ...base, kind: "argument" };
+			});
+			return { steps: fields.flatMap(({ sub }) => sub.steps), bindings: [{ kind: "composite", domain: node.composite, fields: bound }] };
+		}
+		const step = byMethod.get(node.do);
+		if (step === undefined) throw new Error(`the engine's plan calls ${node.do}, which the step signatures don't hold`);
+		const subs = node.inputs.map(flat);
+		const called = { stepperName: step.stepperName, stepName: step.stepName, ...(step.gwta === undefined ? {} : { gwta: step.gwta }), productsDomain: node.domain };
+		return { steps: [...subs.flatMap((sub) => sub.steps), called], bindings: subs.flatMap((sub) => sub.bindings) };
+	};
+	return flat(proof);
+}
+
+/** A goal proved alone returns its plans and its facts; a goal whose every plan is one step that takes only arguments repeats a
+ *  step on offer. */
+export const isTrivial = (plans: readonly TPlan[]): boolean =>
+	plans.every(
+		(plan) =>
+			plan.steps.length <= 1 &&
+			plan.bindings.every((binding) => binding.kind === "argument" || (binding.kind === "composite" && binding.fields.every((field) => field.kind === "argument"))),
+	);
+
+/** The domains a plan's steps take from a caller, including those a composite's fields take. */
+export function argumentsOf(plan: TPlan): string[] {
+	const fieldArguments = (fields: TFieldBinding[]): string[] =>
+		fields.flatMap((field) => (field.kind === "argument" ? [field.fieldName] : field.kind === "composite" ? fieldArguments(field.fields) : []));
+	return plan.bindings.flatMap((binding) => (binding.kind === "argument" ? [binding.domain] : binding.kind === "composite" ? fieldArguments(binding.fields) : []));
+}
+
+/** Why a goal's proof failed: the sub-goal it couldn't prove, why the engine couldn't prove it, and what proves it. */
+export function unmetReason(proof: TGoalProof): string {
+	const last = proof.unmet.at(-1);
+	if (last === undefined || !("why" in last)) throw new Error(`the engine refuted the goal ${proof.goal} without the sub-goal it couldn't prove`);
+	const { unmet: domain, why } = last;
+	if (why === "no_producer") return `a step the caller may call doesn't return ${domain}; declare a step that returns it, or request the action of a step that does`;
+	if (why === "cycle") return `${domain} is taken again below its own proof; state a step that returns it from other domains`;
+	return `the proof of ${domain} reached the engine's bound ${why}; state a step that returns it from fewer steps`;
+}

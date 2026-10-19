@@ -1,25 +1,25 @@
 import { describe, it, expect } from "vitest";
-import { SOURCE_DOMAIN } from "@haibun/core/lib/derivations/domain-chain.js";
+import { SOURCE_DOMAIN } from "@haibun/core/lib/domains/goal-resolution.js";
 import { projectDomainChain, waypointNodeId, factNodeId, type TAffordancesSnapshot } from "./project-domain-chain.js";
 import { graphToQuads } from "./graph-quads.js";
 
 describe("projectDomainChain", () => {
-	it("maps the satisfied finding to the satisfied node kind", () => {
+	it("maps the proved verdict to the satisfied node kind", () => {
 		const snap: TAffordancesSnapshot = {
 			satisfiedDomains: [],
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: ["a"], outputDomains: ["b"], readyToRun: true }],
-			goals: [{ domain: "b", resolution: { finding: "satisfied" } }],
+			goals: [{ domain: "b", resolution: { verdict: "proved" } }],
 		};
 		const g = projectDomainChain(snap);
 		const b = g.nodes.find((n) => n.id === "b");
 		expect(b?.kind).toBe("satisfied");
 	});
 
-	it("maps the resolver's `plans` finding to the user-facing `reachable` node kind", () => {
+	it("maps the unknown verdict, which a plan would prove, to the `reachable` node kind", () => {
 		const snap: TAffordancesSnapshot = {
 			satisfiedDomains: [],
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: ["a"], outputDomains: ["b"], readyToRun: false }],
-			goals: [{ domain: "b", resolution: { finding: "plan" } }],
+			goals: [{ domain: "b", resolution: { verdict: "unknown" } }],
 		};
 		const g = projectDomainChain(snap);
 		expect(g.nodes.find((n) => n.id === "b")?.kind).toBe("reachable");
@@ -67,30 +67,25 @@ describe("projectDomainChain", () => {
 		expect(() => graphToQuads(g)).not.toThrow();
 	});
 
-	it("flags capability-gated edges separately from ready / blocked", () => {
+	it("marks a ready step's edge apart from a blocked one", () => {
 		const snap: TAffordancesSnapshot = {
 			satisfiedDomains: [],
 			forward: [
 				{ stepperName: "A", stepName: "a", inputDomains: ["x"], outputDomains: ["y"], readyToRun: true },
 				{ stepperName: "B", stepName: "b", inputDomains: ["x"], outputDomains: ["z"], readyToRun: false },
-				{ stepperName: "C", stepName: "c", inputDomains: ["x"], outputDomains: ["w"], readyToRun: false, capability: "auth:signin" },
 			],
 			goals: [],
 		};
 		const g = projectDomainChain(snap);
-		const a = g.edges.find((e) => e.to === "y");
-		const b = g.edges.find((e) => e.to === "z");
-		const c = g.edges.find((e) => e.to === "w");
-		expect(a?.kind).toBe("ready");
-		expect(b?.kind).toBe("blocked");
-		expect(c?.kind).toBe("capability-gated");
+		expect(g.edges.find((e) => e.to === "y")?.kind).toBe("ready");
+		expect(g.edges.find((e) => e.to === "z")?.kind).toBe("blocked");
 	});
 
 	it("deep-links every non-source domain node to the affordances panel", () => {
 		const snap: TAffordancesSnapshot = {
 			satisfiedDomains: [],
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: ["a"], outputDomains: ["b"], readyToRun: true }],
-			goals: [{ domain: "b", resolution: { finding: "plan" } }],
+			goals: [{ domain: "b", resolution: { verdict: "unknown" } }],
 		};
 		const g = projectDomainChain(snap);
 		const b = g.nodes.find((n) => n.id === "b");
@@ -161,7 +156,7 @@ describe("projectDomainChain", () => {
 		const snap: TAffordancesSnapshot = {
 			satisfiedDomains: [],
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: ["a"], outputDomains: ["b"], readyToRun: true }],
-			goals: [{ domain: "b", resolution: { finding: "plan" } }],
+			goals: [{ domain: "b", resolution: { verdict: "unknown" } }],
 		};
 		const g = projectDomainChain(snap);
 		const b = g.nodes.find((n) => n.id === "b");
@@ -173,7 +168,7 @@ describe("projectDomainChain", () => {
 		const snap: TAffordancesSnapshot = {
 			satisfiedDomains: [],
 			forward: [{ stepperName: "Cred", stepName: "issue", inputDomains: [], outputDomains: ["vc"], readyToRun: true }],
-			goals: [{ domain: "vc", resolution: { finding: "plan" } }],
+			goals: [{ domain: "vc", resolution: { verdict: "unknown" } }],
 			waypoints: [
 				{ outcome: "VC issued", method: "ActivitiesStepper-VC issued", ensured: false },
 				{ outcome: "Logged in as admin", method: "ActivitiesStepper-Logged in as admin", ensured: true },
