@@ -20,10 +20,6 @@ export type TStepAuthorization = { invoked?: string; held?: string; controller?:
  *  call, where its caller names them. */
 export type TStepCall = { accessLevel: AccessLevel; askedIn?: string; attributedTo?: string };
 
-/** How many characters of a call's result its record holds. A result may hold a body the record must not copy, so the record
- *  holds the head of the result. */
-export const RESULT_RECORDED_CHARS = 4000;
-
 /** Returns the text of a step's products: their `text` where they hold one, else their JSON. */
 export const resultText = (products: Record<string, unknown>): string => (typeof products.text === "string" ? products.text : JSON.stringify(products));
 
@@ -82,7 +78,8 @@ export function startRecord(execution: string, featureStep: TFeatureStep, author
 }
 
 /** How a step ended, as its record states it: its status, its goal's verdict, why where it failed, the view it showed where it
- *  showed one, and the text a call carried by a transport read back where the step produced products. */
+ *  showed one, and the whole text a call carried by a transport read back where the step produced products, which the
+ *  record's result Body holds. */
 export type TStepEnded = { status: TRecordedStatus; verdict?: TVerdict; error?: string; showed?: string; result?: string };
 
 /** A step's record at its end, written at `at` (an ISO time): its start with how it ended. The record's time of writing is
@@ -95,7 +92,7 @@ export const endRecord = (start: TStepRecord, ended: TStepEnded, at: string): TS
 	...(ended.verdict === undefined ? {} : { [SEQ_PATH_FIELD.verdict]: ended.verdict }),
 	...(ended.error ? { [SEQ_PATH_FIELD.error]: ended.error } : {}),
 	...(ended.showed ? { [SEQ_PATH_FIELD.showed]: ended.showed } : {}),
-	...(ended.result === undefined ? {} : { [SEQ_PATH_FIELD.result]: ended.result.slice(0, RESULT_RECORDED_CHARS) }),
+	...(ended.result === undefined ? {} : { [SEQ_PATH_FIELD.result]: ended.result }),
 });
 
 /** What names an execution's levels: the key of the process that executes it, and the host that leads its step paths. */
