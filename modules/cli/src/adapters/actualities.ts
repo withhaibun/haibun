@@ -71,8 +71,8 @@ type TActualityConditions = {
 };
 
 /** Options that vary per actuality without changing what runs or what it reports. actualityConditions leaves them out of the key.
- *  KEY names an actuality, DESCRIPTION describes it, and STAY keeps the process up afterwards. */
-const PER_ACTUALITY_OPTIONS = new Set(["KEY", "DESCRIPTION", "STAY"]);
+ *  KEY names an actuality, and STAY keeps the process up afterwards. */
+const PER_ACTUALITY_OPTIONS = new Set(["KEY", "STAY"]);
 
 /** Serializes a value with its object keys sorted, so equal conditions produce equal text in any key order. */
 const stable = (value: unknown): string =>

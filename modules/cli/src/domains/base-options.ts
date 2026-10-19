@@ -18,8 +18,6 @@ import { boolOrError, intOrError, optionOrError, stringOrError } from "@haibun/c
 export class BaseOptions implements IHasOptions {
 	static options = {
 		KEY: { desc: "execution key (defaults to serialtime)", parse: (input: string) => stringOrError(input) },
-		DESCRIPTION: { desc: "description for reports", parse: (result: string) => ({ result }) },
-		SETTING: { desc: "execution setting (eg dev, prod)", parse: (result: string) => ({ result }) },
 		STAY: { desc: `stay running after execution: ${STAY_ALWAYS}, ${STAY_FAILURE}`, parse: (result: string) => optionOrError(result, [STAY_ALWAYS, STAY_FAILURE]) },
 		[ONCE]: {
 			desc: "run a group only when one of its dependencies changed since it last passed. This option applies --once to every run that a script chains",
@@ -30,7 +28,6 @@ export class BaseOptions implements IHasOptions {
 			parse: (input: string) => boolOrError(input),
 		},
 		[CONTINUE_AFTER_ERROR]: { desc: `continue after error`, parse: (input: string) => boolOrError(input) },
-		LOG_FOLLOW: { desc: "filter for output", parse: (result: string) => ({ result }) },
 		LOG_LEVEL: { desc: SHOWN_LOG_LEVELS.join(", "), parse: (result: string) => optionOrError(result, [...SHOWN_LOG_LEVELS]) },
 		ENV: {
 			desc: "pass variables: var=value[,var2=value]",

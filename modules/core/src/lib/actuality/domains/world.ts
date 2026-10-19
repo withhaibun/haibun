@@ -86,11 +86,8 @@ export const runEnvEntries = (world: TWorld): [string, string][] => (world.optio
 export const BaseOptionsSchema = z.strictObject({
 	DEST: z.string(),
 	KEY: z.string().optional(),
-	DESCRIPTION: z.string().optional(),
 	LOG_LEVEL: ShownLogLevelSchema.optional(),
-	LOG_FOLLOW: z.string().optional(),
 	STAY: z.string().optional(),
-	SETTING: z.string().optional(),
 	STEP_DELAY: z.number().optional(),
 	/** Run a group only when one of its dependencies changed since it last passed. */
 	ONCE: z.boolean().optional(),

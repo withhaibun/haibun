@@ -92,7 +92,7 @@ describe("how a group last ran against its state", () => {
 
 	it("gives one key to actualities that differ only in options that don't change what runs", () => {
 		const c = (options: Record<string, unknown>) => actualityConditions({ configPath: "c.json", specl, bases: ["."], cwd: ".", filter: [], options, moduleOptions: {} });
-		expect(c({ KEY: "1", DESCRIPTION: "x", STAY: "always", DEST: "d" })).toBe(c({ KEY: "2", DEST: "d" }));
+		expect(c({ KEY: "1", STAY: "always", DEST: "d" })).toBe(c({ KEY: "2", DEST: "d" }));
 		expect(c({ DEST: "d" })).not.toBe(c({ DEST: "e" }));
 	});
 
