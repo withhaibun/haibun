@@ -59,6 +59,8 @@ worse(W, _, W).
 
 % ev(+Top, +Group, +Term, +Path, +Bindings, +Ancestors, +Depth, -Verdict): Group names the part of its parent's reading the
 % term is proved in, which the N3 export reads.
+% all(Xs): the statements a step states, proved in order under the step's own record, which is open while its action runs.
+ev(T, G, all(Xs), P, B, A, D, V) :- !, conj(T, G, Xs, P-c(0), B, A, D, V, _).
 ev(T, G, call(N), P, B, _, _, V) :- !, effect(call, P, call(N, B), O), outcome_verdict(O, V), assertz(part(T, P, G, call(V))).
 ev(T, G, apply(M, W), P, B, A, D, V) :- !, applied(T, run, M, W, P, B, A, D, V), assertz(part(T, P, G, node(apply, V))).
 ev(T, G, Term, P, B, A, D, V) :-

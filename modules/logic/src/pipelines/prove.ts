@@ -6,7 +6,8 @@
  * runs once for its position in the proof, which fixes its step, its arguments and the capability it runs under.
  */
 import type { DispatchContext } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
-import { dispatchStep, runAsDispatched } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
+import { dispatchStep, nextSeqPath, runAsDispatched } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import type { TProver } from "@haibun/core/lib/actuality/ports.js";
 import { findFeatureStepsFromStatement } from "@haibun/core/lib/actuality/pipelines/resolver.js";
 import { argumentsOf } from "@haibun/core/lib/steps/pipelines/populate-action-args.js";
@@ -26,6 +27,10 @@ type TOpened = { close: (result: TActionResult) => void; dispatched: Promise<TSt
 
 const keyOf = (path: readonly number[]): string => path.join(".");
 
+/** Where a proof of a step's statements places them: the path segment each statement takes under the step, in order, and the
+ *  host whose steps prove them, where another host does. */
+type TPlaced = { segments: number[]; targetHostId?: number };
+
 /** One line's proof: its nodes, the results of its calls and nodes by position, and the contexts and members it opened. */
 class Proof {
 	private readonly nodes = new Map<string, TNode>();
@@ -42,6 +47,7 @@ class Proof {
 	constructor(
 		private readonly ctx: DispatchContext,
 		private readonly line: TFeatureStep,
+		private readonly placed?: TPlaced,
 	) {}
 
 	private add(node: TNode): string {
@@ -89,11 +95,14 @@ class Proof {
 	private instance(node: TNode, path: readonly number[], bindings: TBinding[]): TFeatureStep {
 		if (path.length === 0) return this.line;
 		const runtimeArgs = this.runtimeArgsOf(bindings);
-		const { line } = this;
+		const { line, placed } = this;
+		const [first, ...rest] = path;
+		const seqPath = placed === undefined || first === undefined ? [...line.seqPath, ...path] : [...line.seqPath, itemAt(placed.segments, first - 1), ...rest];
 		return {
 			...node.step,
-			seqPath: [...line.seqPath, ...path],
+			seqPath,
 			isSubStep: true,
+			...(placed?.targetHostId === undefined ? {} : { targetHostId: placed.targetHostId }),
 			source: node.step.source === undefined ? line.source : node.step.source,
 			...(Object.keys(runtimeArgs).length === 0 ? {} : { runtimeArgs }),
 			...(line.programmatic === true ? { programmatic: true } : {}),
@@ -314,6 +323,16 @@ class Proof {
 		return "again";
 	}
 
+	/** The result of a step's statements: the result of the first that isn't proved, or of the last. */
+	statementsResult(count: number): TStepResult {
+		for (let position = 1; position <= count; position++) {
+			const result = this.results.get(String(position));
+			if (result === undefined) throw new Error(`the proof of the statements of "${this.line.in}" ended without the result of statement ${position}`);
+			if (!result.ok || position === count) return result;
+		}
+		throw new Error(`the proof of the statements of "${this.line.in}" doesn't hold a statement`);
+	}
+
 	/** The line's result: the result of its own call, or of its node. */
 	result(): TStepResult {
 		const result = this.results.get("");
@@ -342,26 +361,42 @@ const refusedTerm = (reason: string): string => `refused(${atom(reason)})`;
 /** The prover of an engine. The engine holds each open proof under an id of its own until the proof completes. */
 export function proverOf(engine: TLogicEngine): TProver {
 	let proofs = 0;
+	/** Proves a term to its verdict, performing each effect it needs, and removes what the engine holds for it. */
+	const proved = async <T>(proof: Proof, term: string, result: () => T): Promise<T> => {
+		proofs += 1;
+		const top = `q${proofs}`;
+		try {
+			let outcome = engine.prove(top, term);
+			while ("need" in outcome) outcome = engine.resume(top, await proof.perform(outcome));
+			return result();
+		} finally {
+			engine.forget(top);
+		}
+	};
 	return {
 		prove: async (ctx, line) => {
-			proofs += 1;
-			const top = `q${proofs}`;
 			const proof = new Proof(ctx, line);
+			let term: string;
 			try {
-				let term: string;
-				try {
-					term = await proof.termOf(line);
-				} catch (caught) {
-					// A line whose term doesn't build ends unknown with the reason. Dispatch checks its caller's capability first,
-					// so a call its caller may not make returns only its refusal.
-					return await dispatchStep(ctx, line, () => Promise.resolve({ ok: false, errorMessage: errorDetail(caught), verdict: VERDICT.unknown }));
-				}
-				let outcome = engine.prove(top, term);
-				while ("need" in outcome) outcome = engine.resume(top, await proof.perform(outcome));
-				return proof.result();
-			} finally {
-				engine.forget(top);
+				term = await proof.termOf(line);
+			} catch (caught) {
+				// A line whose term doesn't build ends unknown with the reason. Dispatch checks its caller's capability first,
+				// so a call its caller may not make returns only its refusal.
+				return await dispatchStep(ctx, line, () => Promise.resolve({ ok: false, errorMessage: errorDetail(caught), verdict: VERDICT.unknown }));
 			}
+			return await proved(proof, term, () => proof.result());
+		},
+		proveStatements: async (ctx, parent, statements, targetHostId) => {
+			if (statements.length === 0) return { ok: true };
+			const segments = statements.map(() => itemAt(nextSeqPath(ctx.world, parent.seqPath), parent.seqPath.length));
+			const proof = new Proof(ctx, parent, { segments, ...(targetHostId === undefined ? {} : { targetHostId }) });
+			let terms: string[];
+			try {
+				terms = await Promise.all(statements.map((statement) => proof.termOf(statement)));
+			} catch (caught) {
+				return { ok: false, errorMessage: errorDetail(caught), verdict: VERDICT.unknown };
+			}
+			return await proved(proof, `all(${list(terms)})`, () => proof.statementsResult(statements.length));
 		},
 	};
 }

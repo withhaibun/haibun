@@ -97,11 +97,13 @@ function testProver(): TProver {
 		await new Logic().setWorld(scratch, []);
 		return proverOf(scratch);
 	};
+	const prover = (): Promise<TProver> => {
+		if (loaded === undefined) loaded = load();
+		return loaded;
+	};
 	return {
-		prove: async (ctx, featureStep) => {
-			if (loaded === undefined) loaded = load();
-			return (await loaded).prove(ctx, featureStep);
-		},
+		prove: async (ctx, featureStep) => (await prover()).prove(ctx, featureStep),
+		proveStatements: async (ctx, parent, statements, targetHostId) => (await prover()).proveStatements(ctx, parent, statements, targetHostId),
 	};
 }
 

@@ -85,27 +85,9 @@ export function nextSeqPath(world: TWorld, parent: TSeqPath): TSeqPath {
 /** The dispatch context of a stepper's own call: actuality's registry, its world and its steppers, under the caller's capability. */
 export const stepperContext = (world: TWorld, steppers: AStepper[]): DispatchContext => ({ registry: runRegistry(world), world, steppers });
 
-/**
- * Proves the statements a step states, in order, each under the step's record, and returns the result of the first that
- * isn't proved, or of the last. A statement without a step is proved. `targetHostId` names the host whose steps prove them,
- * where another host does.
- */
-export async function proveStatements(ctx: DispatchContext, parent: TFeatureStep, statements: TFeatureStep[], targetHostId?: number): Promise<TActionResult> {
-	let last: TActionResult = { ok: true };
-	for (const statement of statements) {
-		const runtimeArgs = { ...parent.runtimeArgs, ...statement.runtimeArgs };
-		last = await proveStep(ctx, {
-			...statement,
-			seqPath: nextSeqPath(ctx.world, parent.seqPath),
-			isSubStep: true,
-			...(Object.keys(runtimeArgs).length === 0 ? {} : { runtimeArgs }),
-			...(parent.isAfterEveryStep === true ? { isAfterEveryStep: true } : {}),
-			...(targetHostId === undefined ? {} : { targetHostId }),
-		});
-		if (!last.ok) return last;
-	}
-	return last;
-}
+/** Proves the statements a step states, in order, as one proof of the logic engine under the step's record. */
+export const proveStatements = (ctx: DispatchContext, parent: TFeatureStep, statements: TFeatureStep[], targetHostId?: number): Promise<TActionResult> =>
+	proverOf(ctx.world).proveStatements(ctx, parent, statements, targetHostId);
 
 /**
  * The authority a call runs under. A capability the dispatch context states takes precedence over callerHolds(). A step
