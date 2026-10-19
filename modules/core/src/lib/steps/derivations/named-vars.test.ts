@@ -33,15 +33,6 @@ describe("namedInterpolation regexes", () => {
 		expect(x?.groups?.t_0).toBe("this");
 		expect(x?.groups?.t_1).toBe("that");
 	});
-
-	test.each([
-		["a quote within a term at the end of the line", "set {what} to {value}", 'set Submit to "//*[@id="submit"]"', ["Submit", '//*[@id="submit"]']],
-		["two quoted terms, each to its own closing quote", "at {target}, {statement}", 'at "http://a", at "http://b", set x to "y"', ["http://a", 'at "http://b", set x to "y"']],
-		["an escaped quote that doesn't close its term", "at {target}, {statement}", 'at "a\\", b", c', ['a\\", b', "c"]],
-	])("a quoted term ends at the quote the rest of the line follows: %s", (_, phrase, line, terms) => {
-		const groups = new RegExp(`^${namedInterpolation(phrase).regexPattern}$`).exec(line)?.groups;
-		expect([groups?.q_0 ?? groups?.t_0, groups?.q_1 ?? groups?.t_1]).toEqual(terms);
-	});
 });
 
 describe("getNamedWithVars", () => {

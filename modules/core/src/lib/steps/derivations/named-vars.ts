@@ -17,10 +17,6 @@ const TYPE_ENV_OR_VAR_OR_LITERAL = "t_";
 const ORIGIN_DELIMITERS = ["$", "`", "<", '"'];
 /** The most placeholders one phrase holds. A phrase with more is refused. */
 const MOST_PLACEHOLDERS = 400;
-/** A quoted term: its text between two quotes. Its closing quote is the first quote after which the rest of the line matches
- *  the pattern: the end of the line or the pattern's next literal. A quote within the term doesn't need an escape, and an escaped
- *  quote, \", doesn't close it. A line with two quoted terms gives each its own text. */
-const quotedGroup = (name: string): string => `"(?<${name}>(?:[^\\\\]|\\\\.)*?)"`;
 
 /** A phrase as a pattern: the pattern's text, and each placeholder by name with its domain and its origin. A phrase without
  *  a placeholder doesn't hold a map. */
@@ -48,13 +44,13 @@ const inferOrigin = (char: string): TOrigin => {
 function groupOf(origin: TOrigin, matchIndex: number, nextChar: string): string {
 	if (origin === Origin.env) return `\\$(?<${TYPE_ENV}${matchIndex}>[A-Za-z_][A-Za-z0-9_]*)\\$`;
 	if (origin === Origin.var) return `\`(?<${TYPE_VAR}${matchIndex}>.+)\``;
-	if (origin === Origin.quoted) return quotedGroup(`${TYPE_QUOTED}${matchIndex}`);
+	if (origin === Origin.quoted) return `"(?<${TYPE_QUOTED}${matchIndex}>.*)"`;
 	// A bare literal may contain whitespace, and a quoted span inside it is atomic: `"foo with bar"` doesn't contribute its
 	// internal ` ` or `"` as a split point. A placeholder before a comma or a colon ends at that character.
 	const bare = nextChar === "," || nextChar === ":" ? `(?:[^"]|"[^"]*")+?(?=${nextChar.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})` : `(?:[^"]|"[^"]*")+?`;
 	// A plain placeholder accepts several syntaxes, each captured into a distinct named group, so a match states whether the
 	// value was quoted, backticked or a bare literal.
-	return `(?:${quotedGroup(`${TYPE_QUOTED}${matchIndex}`)}|\`(?<${TYPE_VAR}${matchIndex}>.+)\`|(?<${TYPE_ENV_OR_VAR_OR_LITERAL}${matchIndex}>${bare}))`;
+	return `(?:"(?<${TYPE_QUOTED}${matchIndex}>.*)"|\`(?<${TYPE_VAR}${matchIndex}>.+)\`|(?<${TYPE_ENV_OR_VAR_OR_LITERAL}${matchIndex}>${bare}))`;
 }
 
 /** Interpolates a phrase into its pattern. Throws for a placeholder without its closing brace. */
