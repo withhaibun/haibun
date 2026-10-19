@@ -1,4 +1,4 @@
-import { AStepper, IHasCycles, TFeatureStep, IStepperCycles, TStepperSteps, CycleWhen, READING, type TWaypointRule } from "../lib/steps/domains/stepper.js";
+import { AStepper, IHasCycles, TFeatureStep, IStepperCycles, TStepperSteps, CycleWhen, READING, ruleStatedAt, type TWaypointRule } from "../lib/steps/domains/stepper.js";
 import { runSteppers, type TWorld } from "../lib/actuality/domains/world.js";
 import { OK } from "../lib/domains/protocol.js";
 import { actionNotOK, actionOKWithProducts, getActionable, errorDetail, dePolite } from "../lib/domains/util.js";
@@ -87,9 +87,6 @@ function headOf(written: string): Pick<TWaypointRule, "head" | "pattern"> {
 	const head = dePolite(written);
 	return { head, pattern: head.replace(/\{([^}:]+)\}/g, (_, name: string) => `{${name}: ${DOMAIN_WAYPOINT_ARGUMENT}}`) };
 }
-
-/** Where a rule is stated: its source path and line. */
-const statedAt = ({ source }: TWaypointRule): string => (source.lineNumber === undefined ? source.path : `${source.path}:${source.lineNumber}`);
 
 /**
  * Holds a waypoint's rule from each `waypoint` line of an activity and from each saved waypoint. A line that unifies with a
@@ -234,7 +231,8 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	private state(rule: TWaypointRule): void {
 		const held = this.rules.find(({ head, scope }) => head === rule.head && (scope === undefined || rule.scope === undefined || scope === rule.scope));
 		if (held === undefined) this.rules.push(rule);
-		else if (statedAt(held) !== statedAt(rule)) throw new Error(`the waypoint "${rule.head}" is stated at ${statedAt(held)} and at ${statedAt(rule)}; state each waypoint once`);
+		else if (ruleStatedAt(held) !== ruleStatedAt(rule))
+			throw new Error(`the waypoint "${rule.head}" is stated at ${ruleStatedAt(held)} and at ${ruleStatedAt(rule)}; state each waypoint once`);
 	}
 
 	/** The rule a waypoint line of an activity states: its head, its proof, and the activity's lines before it that don't state

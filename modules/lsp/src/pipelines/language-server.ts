@@ -15,7 +15,7 @@ import { expand } from "@haibun/core/lib/domains/features.js";
 import { constructorName, errorDetail } from "@haibun/core/lib/domains/util.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { OUTSIDE_A_WORKSPACE, TOKEN_TYPES, type TExecuteToolParams, type TPlacedStep, type TToken, type TWorkspaceStatus } from "../domains/lsp.js";
-import { completionItem } from "../derivations/completion.js";
+import { completionItems } from "../derivations/completion.js";
 import { backgroundNotFound, unresolvedLine, unresolvedString } from "../derivations/diagnostics.js";
 import { fileNameOf, isBackgroundPath, isTypeScript, namesKirejiType, pathOf, samePath } from "../derivations/documents.js";
 import { hoverOf, stepAt } from "../derivations/hover.js";
@@ -84,12 +84,15 @@ export class LanguageServer {
 	listen(): void {
 		const handlers: TLspHandlers = {
 			initialize: () => CAPABILITIES,
-			// A step another process runs isn't listed: the editor completes the steps this process resolves.
-			completion: () =>
-				runRegistry(this.#world)
+			// A step another process runs isn't listed: the editor completes the steps this process resolves. The document's
+			// resolution starts first, so the waypoints it states complete beside the backgrounds' and the saved ones.
+			completion: ({ textDocument }) => {
+				this.#startResolution(pathOf(textDocument.uri));
+				return runRegistry(this.#world)
 					.list()
 					.filter((tool) => tool.transport === "local")
-					.map((tool) => completionItem(tool.descriptor)),
+					.flatMap((tool) => completionItems(tool.descriptor, tool.stepDef));
+			},
 			hover: ({ textDocument, position }) => {
 				const placed = this.#placed.get(pathOf(textDocument.uri));
 				const step = placed === undefined ? undefined : stepAt(placed, position.line, position.character);

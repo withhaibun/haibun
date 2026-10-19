@@ -1,5 +1,5 @@
 /** What the language server reads and writes through: the editor's connection and its documents, the workspace on disk, and a clock that runs a task later. */
-import type { CompletionItem, Diagnostic, Hover, HoverParams, InitializeResult } from "vscode-languageserver/node.js";
+import type { CompletionItem, CompletionParams, Diagnostic, Hover, HoverParams, InitializeResult } from "vscode-languageserver/node.js";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { TFeature } from "@haibun/core/lib/execution.js";
 import type { findHaibunWorkspace } from "@haibun/core/lib/adapters/workspace-discovery.js";
@@ -11,7 +11,7 @@ export type TEncodedToken = { line: number; char: number; length: number; typeIn
 /** The handlers of the editor's requests. */
 export type TLspHandlers = {
 	initialize(): InitializeResult;
-	completion(): CompletionItem[];
+	completion(params: CompletionParams): CompletionItem[];
 	hover(params: HoverParams): Hover | null;
 	/** The tokens a document paints, each type as its index in the legend `initialize` states. */
 	semanticTokens(uri: string): TEncodedToken[];

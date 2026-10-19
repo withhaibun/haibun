@@ -233,6 +233,9 @@ export type TWaypointRule = {
 	saved?: true;
 };
 
+/** Where a rule is stated: its source path, and its line where the source states one. */
+export const ruleStatedAt = ({ source }: TWaypointRule): string => (source.lineNumber === undefined ? source.path : `${source.path}:${source.lineNumber}`);
+
 /** A step that a stepper's action performs. Dispatch passes the action its arguments and the feature step being run. */
 type TActionStep = { action(args: TStepArgs, featureStep: TFeatureStep): Promise<TActionResult> | TActionResult; reading?: undefined; rule?: undefined; context?: undefined };
 /** The context a step opens around each call of the statements it states, such as a narrowed authority or an element of a

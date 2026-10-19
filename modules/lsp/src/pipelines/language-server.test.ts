@@ -1,6 +1,6 @@
 /**
- * The language server over fake ports: the diagnostics it sends, the steps it holds for a document, the backgrounds a
- * background document's change registers, the workspace status it counts once per document, the tool handler it
+ * The language server over fake ports: the diagnostics it sends, the steps it holds for a document, the waypoint heads it
+ * completes, the head its hover shows, the backgrounds a background document's change registers, the workspace status it counts once per document, the tool handler it
  * registers once, and the logger it writes to in place of standard output.
  */
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
@@ -9,7 +9,10 @@ import type { Diagnostic } from "vscode-languageserver/node.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import type { TFeature } from "@haibun/core/lib/execution.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
-import ActivitiesStepper from "@haibun/core/steps/activities-stepper.js";
+import { openRunRegistry } from "@haibun/core/lib/step-registry.js";
+import { registerDomains } from "@haibun/core/lib/domains.js";
+import type { TWorld } from "@haibun/core/lib/world.js";
+import ActivitiesStepper, { savedWaypointDomainDefinition } from "@haibun/core/steps/activities-stepper.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { OUTSIDE_A_WORKSPACE } from "../domains/lsp.js";
@@ -51,13 +54,13 @@ async function activities(): Promise<ActivitiesStepper> {
 /** The heads of the waypoints whose rules apply. */
 const heads = (stepper: ActivitiesStepper) => stepper.steps.apply.rules().map(({ head }) => head);
 
-function serverOver(steppers: AStepper[], options: { open?: TextDocument[]; workspaces?: TWorkspaces; backgrounds?: TFeature[]; log?: TLspLog } = {}) {
+function serverOver(steppers: AStepper[], options: { open?: TextDocument[]; workspaces?: TWorkspaces; backgrounds?: TFeature[]; log?: TLspLog; world?: TWorld } = {}) {
 	const fake = fakeConnection(options.open);
 	const later: (() => void)[] = [];
 	const log = options.log ?? quietLog();
 	const server = new LanguageServer({
 		ports: { connection: fake.connection, workspaces: options.workspaces ?? outsideAWorkspace, clock: { later: (task) => void later.push(task) } },
-		world: getDefaultWorld(),
+		world: options.world ?? getDefaultWorld(),
 		steppers,
 		backgrounds: options.backgrounds ?? [],
 		log,
@@ -123,6 +126,41 @@ describe("the language server's documents", () => {
 		const sentBefore = sent.length;
 		for (const task of later) task();
 		await vi.waitFor(() => expect(sent.slice(sentBefore).map(({ uri }) => uri)).toContain(other.uri));
+	});
+});
+
+describe("the language server's completion", () => {
+	it("completes the waypoint heads that the document, its backgrounds and the saved waypoints state, from the rules the resolver reads", async () => {
+		const world = getDefaultWorld();
+		const stepper = new ActivitiesStepper();
+		const steppers = [stepper, new SampleStepper()];
+		await stepper.setWorld(world, steppers);
+		registerDomains(world, [[savedWaypointDomainDefinition]]);
+		world.runtime.steppers = steppers;
+		openRunRegistry(world, steppers);
+		await stepper.saveWaypoint("Knocked twice", ['set knocks to "2"'], "a saved waypoint");
+		const document = featureDocument("/tmp/features/dinner.feature", "Activity: Cook\nwaypoint {m:meal} is ready with set meal to m");
+		const { server, registered } = serverOver(steppers, { open: [document], world });
+		await server.processDocument(featureDocument("/tmp/backgrounds/table.feature", "Activity: Lay\nwaypoint Table is laid"));
+		await server.processDocument(document);
+		const labels = registered[0]?.completion({ textDocument: { uri: document.uri }, position: { line: 0, character: 0 } }).map(({ label }) => label);
+		expect(labels).toEqual(expect.arrayContaining(["Knocked twice", "Table is laid", "{m:meal} is ready", "set {name} to {value}"]));
+		expect(labels).not.toContain("apply");
+		const elsewhere = registered[0]?.completion({ textDocument: { uri: "file:///tmp/features/other.feature" }, position: { line: 0, character: 0 } }).map(({ label }) => label);
+		expect(elsewhere).not.toContain("{m:meal} is ready");
+	});
+});
+
+describe("the language server's hover", () => {
+	it("hovers over a kireji line that applies a waypoint with the waypoint's head", async () => {
+		const stepper = await activities();
+		const path = "/tmp/features/hover.feature.ts";
+		const document = TextDocument.create(`file://${path}`, "typescript", 1, 'const steps: TKirejiStep = ["The table is laid"];');
+		const { server, registered } = serverOver([stepper], { open: [document] });
+		await server.processDocument(featureDocument("/tmp/backgrounds/table.feature", "Activity: Lay\nwaypoint The table is laid"));
+		await server.processDocument(document);
+		const hover = registered[0]?.hover({ textDocument: { uri: document.uri }, position: { line: 0, character: 30 } });
+		expect(hover?.contents).toMatchObject({ value: expect.stringContaining("`table is laid`") });
 	});
 });
 

@@ -3,11 +3,12 @@ import type { Hover } from "vscode-languageserver/node.js";
 import type { TStepperStep } from "@haibun/core/lib/astepper.js";
 import type { TPlacedStep } from "../domains/lsp.js";
 
-/** The pattern a step is written by: its words or its exact text. */
-function patternOf({ gwta, exact }: TStepperStep): string {
+/** The pattern a step is written by: the head of the waypoint rule it holds, its words or its exact text. */
+function patternOf({ rule, gwta, exact }: TStepperStep): string {
+	if (rule !== undefined) return rule.head;
 	if (gwta !== undefined) return gwta;
 	if (exact !== undefined) return exact;
-	throw new Error("a step is written by its words or its exact text, and this step lacks both");
+	throw new Error("a step is written by a waypoint's head, its words or its exact text, and this step lacks all three");
 }
 
 /** The first step placed at a line (numbered from zero) and a character: one with a column range holds the character within it, and one without spans its line. */
