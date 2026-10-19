@@ -11,17 +11,12 @@ export const GOAL_FINDING = { SATISFIED: "satisfied", MICHI: "michi", UNREACHABL
  *  snapshot after matching events. */
 export const AFFORDANCE_EVENT_PREFIX = "affordances.";
 
-export const WAYPOINT_KIND = { IMPERATIVE: "imperative", DECLARATIVE: "declarative" } as const;
-export type TWaypointKind = (typeof WAYPOINT_KIND)[keyof typeof WAYPOINT_KIND];
-
 export type TWaypointEntry = {
 	outcome: string;
-	kind: TWaypointKind;
 	method: string;
 	paramSlots: string[];
 	proofStatements: string[];
-	resolvesDomain?: string;
-	/** True where this waypoint is ensured: `ensure` ran its proof and the proof passed, or a fact satisfies its declarative goal. */
+	/** True where this waypoint's proof holds now. */
 	ensured: boolean;
 	error?: string;
 	source: { path: string; lineNumber?: number };
@@ -29,9 +24,8 @@ export type TWaypointEntry = {
 };
 
 /** A stepper that contributes waypoint entries to the affordances snapshot. `show affordances` calls `waypointEntries` on
- * every registered stepper that implements it, and merges the results. `satisfiedDomains` comes from the snapshot
- * already built, so a contributor doesn't derive it again. */
+ * every registered stepper that implements it, and merges the results. */
 export interface ProvidesWaypoints {
-	waypointEntries(featureStep: TFeatureStep, satisfiedDomains: Set<string>): Promise<TWaypointEntry[]>;
+	waypointEntries(featureStep: TFeatureStep): Promise<TWaypointEntry[]>;
 }
 export const providesWaypoints = (s: unknown): s is ProvidesWaypoints => typeof (s as { waypointEntries?: unknown })?.waypointEntries === "function";

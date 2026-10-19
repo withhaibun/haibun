@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { CLASS_LABEL, LinkRelations, PROPERTY_LABEL, SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
-import { EXECUTION_MODE, RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
+import { RECORDED_STATUS, SUBSTEP_LEVEL } from "@haibun/core/lib/domains/protocol.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { MARK_COLOUR } from "../../derivations/status-mark.js";
 import { colorForType } from "./type-colors.js";
@@ -34,8 +34,8 @@ describe("node presenters (per-@type, capability-driven default)", () => {
 		{ said: "a failed step", properties: { [LinkRelations.ACTION_STATUS.rel]: RECORDED_STATUS.failed }, color: MARK_COLOUR.fault },
 		{ said: "a running level", properties: { [LinkRelations.ACTION_STATUS.rel]: RECORDED_STATUS.running }, color: MARK_COLOUR.pending },
 		{
-			said: "a speculative try that failed",
-			properties: { [LinkRelations.ACTION_STATUS.rel]: RECORDED_STATUS.failed, [SEQ_PATH_FIELD.mode]: EXECUTION_MODE.speculative },
+			said: "a nested call that failed",
+			properties: { [LinkRelations.ACTION_STATUS.rel]: RECORDED_STATUS.failed, [SEQ_PATH_FIELD.level]: SUBSTEP_LEVEL },
 			color: MARK_COLOUR.undecided,
 		},
 		{ said: "a record that doesn't state an outcome", properties: {}, color: colorForType(SEQ_PATH_LABEL) },

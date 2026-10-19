@@ -2,7 +2,7 @@
  * A step's record: the SeqPath individual a step writes once at its start and once at its end. Its start states every
  * field a reader requires, and its end is its start with how it ended, so each is one write.
  */
-import { EXECUTION_MODE, RECORDED_STATUS, STATUS, stepLevel, type TActualityLevel, type TRecordedStatus } from "../../domains/protocol.js";
+import { RECORDED_STATUS, STATUS, stepLevel, type TActualityLevel, type TRecordedStatus, type TVerdict } from "../../domains/protocol.js";
 import type { TFeatureStep } from "../../steps/domains/stepper.js";
 import { LinkRelations, type AccessLevel } from "../../domains/resources.js";
 import { itemAt } from "../../domains/item-at.js";
@@ -57,9 +57,6 @@ export function startRecord(execution: string, featureStep: TFeatureStep, author
 		[SEQ_PATH_FIELD.called]: calledOf(featureStep.action.stepperName, featureStep.action.actionName),
 		[SEQ_PATH_FIELD.actionStatus]: RECORDED_STATUS.running,
 		[SEQ_PATH_FIELD.generatedAtTime]: at,
-		// Written for every step, including an authoritative one. A query for the steps that weren't speculative matches
-		// only where ordinary steps state their mode as well. A step whose intent doesn't state a mode is authoritative.
-		[SEQ_PATH_FIELD.mode]: featureStep.intent?.mode === EXECUTION_MODE.speculative ? EXECUTION_MODE.speculative : EXECUTION_MODE.authoritative,
 		[SEQ_PATH_FIELD.ranVia]: ran.ranVia,
 		// A call made into a running instance is a step actuality records. Its record has the same level as its events. That
 		// level is below the level of actuality's own steps, so a reader of actuality isn't shown the calls of other readers.
@@ -84,9 +81,9 @@ export function startRecord(execution: string, featureStep: TFeatureStep, author
 	return record;
 }
 
-/** How a step ended, as its record states it: its status, why where it failed, the view it showed where it showed one, and
- *  the text a call carried by a transport read back where the step produced products. */
-export type TStepEnded = { status: TRecordedStatus; error?: string; showed?: string; result?: string };
+/** How a step ended, as its record states it: its status, its goal's verdict, why where it failed, the view it showed where it
+ *  showed one, and the text a call carried by a transport read back where the step produced products. */
+export type TStepEnded = { status: TRecordedStatus; verdict?: TVerdict; error?: string; showed?: string; result?: string };
 
 /** A step's record at its end, written at `at` (an ISO time): its start with how it ended. The record's time of writing is
  *  its end, so a read of the records written since a given time returns the step's end. */
@@ -95,6 +92,7 @@ export const endRecord = (start: TStepRecord, ended: TStepEnded, at: string): TS
 	[SEQ_PATH_FIELD.actionStatus]: ended.status,
 	[SEQ_PATH_FIELD.endedAtTime]: at,
 	[SEQ_PATH_FIELD.recordedAtTime]: at,
+	...(ended.verdict === undefined ? {} : { [SEQ_PATH_FIELD.verdict]: ended.verdict }),
 	...(ended.error ? { [SEQ_PATH_FIELD.error]: ended.error } : {}),
 	...(ended.showed ? { [SEQ_PATH_FIELD.showed]: ended.showed } : {}),
 	...(ended.result === undefined ? {} : { [SEQ_PATH_FIELD.result]: ended.result.slice(0, RESULT_RECORDED_CHARS) }),
@@ -174,7 +172,6 @@ export function levelRecord(
 		[SEQ_PATH_FIELD.stepText]: heading,
 		[SEQ_PATH_FIELD.actionStatus]: RECORDED_STATUS.running,
 		[SEQ_PATH_FIELD.generatedAtTime]: at,
-		[SEQ_PATH_FIELD.mode]: EXECUTION_MODE.authoritative,
 		[SEQ_PATH_FIELD.level]: stepLevel(false),
 		[SEQ_PATH_FIELD.actualityLevel]: level,
 		[LinkRelations.ACCESS_LEVEL.rel]: accessLevel,

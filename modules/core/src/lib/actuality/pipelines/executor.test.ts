@@ -4,7 +4,6 @@ import { nextSeqPath } from "./step-dispatch.js";
 import { foldStep } from "../derivations/step-results.js";
 import { STAY_ALWAYS, STAY_FAILURE, type TFeatureResult, type TFeatureSteps, type TStepResult } from "../../domains/protocol.js";
 import { calculateShouldClose, executionFailure, staysAfterExecution } from "../derivations/execution-end.js";
-import { advanceSyntheticSeqPath, syntheticBranchSeqPath, syntheticSeqPathDirection } from "../domains/seq-path.js";
 import { passWithDefaults, failWithDefaults } from "../../test/lib.js";
 import { scenarioEventId } from "../derivations/lifecycle-events.js";
 import { readEvery } from "../../records/pipelines/record-reads.js";
@@ -16,71 +15,28 @@ import { actionNotOK, actionOK } from "../../domains/util.js";
 import { DOMAIN_TEXT } from "../../domains/domains.js";
 import { itemAt } from "../../domains/item-at.js";
 
-describe("syntheticSeqPathDirection", () => {
-	it("uses positive direction for authoritative branches", () => {
-		expect(syntheticSeqPathDirection(false)).toBe(1);
-	});
-
-	it("uses negative direction for speculative branches", () => {
-		expect(syntheticSeqPathDirection(true)).toBe(-1);
-	});
-});
-
-describe("syntheticBranchSeqPath", () => {
-	it("creates an authoritative branch under a parent step", () => {
-		expect(syntheticBranchSeqPath([1, 1, 2], 1)).toEqual([1, 1, 2, 1]);
-	});
-
-	it("creates a speculative branch under a parent step", () => {
-		expect(syntheticBranchSeqPath([1, 1, 2], -1)).toEqual([1, 1, 2, -1]);
-	});
-});
-
-describe("advanceSyntheticSeqPath", () => {
-	it("advances an authoritative synthetic branch", () => {
-		expect(advanceSyntheticSeqPath([1, 1, 2, 1], 1)).toEqual([1, 1, 2, 2]);
-	});
-
-	it("advances a speculative synthetic branch", () => {
-		expect(advanceSyntheticSeqPath([1, 1, 2, -1], -1)).toEqual([1, 1, 2, -2]);
-	});
-});
-
 describe("the path allocated under a parent step", () => {
 	const aWorld = () => ({ runtime: { seqPaths: new Map<string, number>() } }) as unknown as Parameters<typeof nextSeqPath>[0];
 
 	it("starts at one under a parent and advances by one for each allocation", () => {
 		const world = aWorld();
-		expect(nextSeqPath(world, [1, 2], 1)).toEqual([1, 2, 1]);
-		expect(nextSeqPath(world, [1, 2], 1)).toEqual([1, 2, 2]);
-		expect(nextSeqPath(world, [1, 2], 1)).toEqual([1, 2, 3]);
+		expect(nextSeqPath(world, [1, 2])).toEqual([1, 2, 1]);
+		expect(nextSeqPath(world, [1, 2])).toEqual([1, 2, 2]);
+		expect(nextSeqPath(world, [1, 2])).toEqual([1, 2, 3]);
 	});
 
 	it("counts each parent separately", () => {
 		const world = aWorld();
-		expect(nextSeqPath(world, [1], 1)).toEqual([1, 1]);
-		expect(nextSeqPath(world, [2], 1)).toEqual([2, 1]);
-		expect(nextSeqPath(world, [1], 1)).toEqual([1, 2]);
-	});
-
-	it("counts a speculative substep in the negative direction", () => {
-		const world = aWorld();
-		expect(nextSeqPath(world, [1, 2], -1)).toEqual([1, 2, -1]);
-		expect(nextSeqPath(world, [1, 2], -1)).toEqual([1, 2, -2]);
-	});
-
-	it("counts each direction under one parent separately", () => {
-		const world = aWorld();
-		expect(nextSeqPath(world, [3], 1)).toEqual([3, 1]);
-		expect(nextSeqPath(world, [3], -1)).toEqual([3, -1]);
-		expect(nextSeqPath(world, [3], 1)).toEqual([3, 2]);
+		expect(nextSeqPath(world, [1])).toEqual([1, 1]);
+		expect(nextSeqPath(world, [2])).toEqual([2, 1]);
+		expect(nextSeqPath(world, [1])).toEqual([1, 2]);
 	});
 
 	it("takes constant time however many steps the feature has executed, because it counts instead of searching", () => {
 		const world = aWorld();
-		for (let i = 0; i < 20000; i++) nextSeqPath(world, [1, i % 50], 1);
+		for (let i = 0; i < 20000; i++) nextSeqPath(world, [1, i % 50]);
 		const began = performance.now();
-		for (let i = 0; i < 1000; i++) nextSeqPath(world, [1, i % 50], 1);
+		for (let i = 0; i < 1000; i++) nextSeqPath(world, [1, i % 50]);
 		expect(performance.now() - began, "a thousand allocations after twenty thousand allocations").toBeLessThan(50);
 	});
 });

@@ -184,10 +184,10 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 	private async computeAffordances(asOf: number[] | undefined, featureStep: TFeatureStep) {
 		const world = this.getWorld();
 		const { compositeDecomposition, compositeMaxDepth } = this.compositeOptions();
-		const { affordances, satisfied } = await affordancesOf(this.chainScope(), { held: callerHolds(), compositeDecomposition, compositeMaxDepth, asOfSeqPath: asOf });
+		const { affordances } = await affordancesOf(this.chainScope(), { held: callerHolds(), compositeDecomposition, compositeMaxDepth, asOfSeqPath: asOf });
 		const waypoints: TWaypointEntry[] = [];
 		if (!asOf) {
-			for (const stepper of this.steppers) if (providesWaypoints(stepper)) waypoints.push(...(await stepper.waypointEntries(featureStep, satisfied)));
+			for (const stepper of this.steppers) if (providesWaypoints(stepper)) waypoints.push(...(await stepper.waypointEntries(featureStep)));
 		}
 		return actionOKWithProducts(affordancesSchema.parse({ ...affordances, waypoints, execution: executionOf(world.tag) }));
 	}

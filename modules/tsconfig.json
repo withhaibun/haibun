@@ -45,6 +45,9 @@
 			"path": "web-server-hono"
 		},
 		{
+			"path": "logic"
+		},
+		{
 			"path": "lsp"
 		},
 		{

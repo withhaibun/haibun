@@ -14,15 +14,14 @@ import {
 	ICON_DEFAULT,
 	ICON_ARTIFACT,
 	MAYBE_CHECK_NO,
-	MAYBE_CHECK_YES,
 	RETURNED_TO_CALLER,
 	isHandedOutEvent,
-	isSpeculativeEvent,
+	isNestedEvent,
 	RECORDED_STATUS,
 } from "@haibun/core/lib/domains/protocol.js";
 import { MARK_COLOUR, STATUS_MARKS, type TEventMarkerStyle } from "./status-mark.js";
 
-type TPartialEvent = { kind?: string; type?: string; status?: string; level?: string; stage?: string; id?: string; intent?: { mode?: string } };
+type TPartialEvent = { kind?: string; type?: string; status?: string; level?: string; stage?: string; id?: string };
 
 export function eventMarkerStyle(event: unknown): TEventMarkerStyle {
 	const e = event as TPartialEvent;
@@ -30,10 +29,10 @@ export function eventMarkerStyle(event: unknown): TEventMarkerStyle {
 		if (e.type === "feature") return { color: MARK_COLOUR.feature, icon: ICON_FEATURE };
 		if (e.type === "scenario") return { color: MARK_COLOUR.scenario, icon: ICON_SCENARIO };
 		if (e.type === "step") {
-			// A speculative statement's failure is expected. A handed-out call returns its failure to its caller.
-			// EventFormatter.getStatusIcon applies the same rule, so a mark doesn't show a failure where the log doesn't.
-			if (e.status !== RECORDED_STATUS.running && isSpeculativeEvent(e))
-				return { color: MARK_COLOUR.undecided, icon: e.status === RECORDED_STATUS.failed ? MAYBE_CHECK_NO : MAYBE_CHECK_YES };
+			// A nested call's failure is part of its line's proof, and its line's record states whether the proof holds. A
+			// handed-out call returns its failure to its caller. EventFormatter.getStatusIcon applies the same rule, so a mark
+			// doesn't show a failure where the log doesn't.
+			if (e.status === RECORDED_STATUS.failed && isNestedEvent(e)) return { color: MARK_COLOUR.undecided, icon: MAYBE_CHECK_NO };
 			if (e.status === RECORDED_STATUS.failed && isHandedOutEvent(e)) return { color: MARK_COLOUR.undecided, icon: RETURNED_TO_CALLER };
 			const marked = STATUS_MARKS.get(e.status);
 			return marked === undefined ? { color: MARK_COLOUR.undecided, icon: ICON_DEFAULT } : marked;

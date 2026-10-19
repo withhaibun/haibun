@@ -9,7 +9,7 @@
  * or joins it after an execution started, holds each level once.
  */
 import { z } from "zod";
-import { ACTUALITY_LEVELS, STATUS, isHandedOutEvent, isSpeculativeEvent, type TActualityLevel } from "../../domains/protocol.js";
+import { ACTUALITY_LEVELS, STATUS, isHandedOutEvent, isNestedEvent, type TActualityLevel } from "../../domains/protocol.js";
 import { machine, type Machine } from "../../machines/machine.js";
 import { LEVEL_STATUS, type TLevelStatus } from "../domains/level-status.js";
 import type { TStepFailure } from "../domains/step-failure.js";
@@ -32,7 +32,7 @@ export const ActualityMoveSchema = z.object({
 	scenarioName: z.string().optional(),
 	in: z.string().optional(),
 	error: z.string().optional(),
-	intent: z.object({ mode: z.string().optional() }).optional(),
+	level: z.string().optional(),
 });
 export type TActualityMove = z.infer<typeof ActualityMoveSchema>;
 
@@ -111,10 +111,10 @@ function scenarioMove(state: TActuality, move: TActualityMove): TActuality {
 	return withRunning(state, { ...feature, scenarios: [...feature.scenarios.slice(0, -1), { ...last, status: move.status }] });
 }
 
-/** The failure a step's end states, where it is the execution's own: a speculative step's failure is expected, and a
- *  handed-out call returns its failure to its caller. */
+/** The failure a step's end states, where it is the execution's own: a nested call's failure is part of its line's proof,
+ *  and a handed-out call returns its failure to its caller. */
 function failureOf(move: TActualityMove, id: string): TStepFailure | undefined {
-	if (move.status === LEVEL_STATUS.completed || isSpeculativeEvent(move) || isHandedOutEvent(move)) return undefined;
+	if (move.status === LEVEL_STATUS.completed || isNestedEvent(move) || isHandedOutEvent(move)) return undefined;
 	return { id, ...(move.in === undefined ? {} : { step: move.in }), ...(move.error === undefined ? {} : { message: move.error }) };
 }
 
@@ -146,10 +146,6 @@ const MOVES: Record<TActualityLevel, (state: TActuality, move: TActualityMove) =
 
 /** The next state from a lifecycle event of a level. */
 export const transition = (state: TActuality, move: TActualityMove): TActuality => MOVES[move.type](state, move);
-
-/** Whether a lifecycle event is a level's: the other lifecycle types, such as an activity or an ensure, aren't moves. */
-export const isActualityMove = (event: { kind?: unknown; type?: unknown; stage?: unknown }): event is TActualityMove =>
-	event.kind === "lifecycle" && (ACTUALITY_LEVELS as readonly unknown[]).includes(event.type) && (event.stage === "start" || event.stage === "end");
 
 export type TActualityMachine = Machine<TActuality, TActualityMove>;
 

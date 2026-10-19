@@ -2,13 +2,12 @@ import { z } from "zod";
 import { fromJsonText } from "../lib/domains/json-text.js";
 import { persistPrincipalIndividual } from "../lib/domains/principal-individual.js";
 import type { TWorld } from "../lib/actuality/domains/world.js";
-import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type TFeatureStep, type TStepperSteps } from "../lib/steps/domains/stepper.js";
+import { AStepper, READING, type IHasCycles, type IStepperCycles, type TCallContext, type TEndFeature, type TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/domains/util.js";
 import { SessionAuthority } from "../lib/pipelines/session-authority.js";
 import { AUTHORITY_KEY } from "../lib/domains/session-authority.js";
 import { DELEGATIONS_READ_ACTION, DOMAIN_HELD_CALLS, HeldCallsSchema, type IAuthority } from "../lib/domains/authority-types.js";
 import { DOMAIN_ACTIONS, DOMAIN_JSON, DOMAIN_LINK, DOMAIN_PRINCIPAL_REF } from "../lib/domains/domains.js";
-import { FlowRunner } from "../lib/steps/pipelines/flow-runner.js";
 import { actingAs, actingFor, callerHolds, runActingAs, runAuthorizedWith } from "../lib/domains/capability-context.js";
 import { AUTHORITY_CAPABILITIES, capabilityAllows, delegatedActions, readAction } from "../lib/domains/actions.js";
 import { activeSitePrincipal, SITE_DID_PREFIX } from "../lib/domains/host-id.js";
@@ -127,49 +126,47 @@ class AuthorityStepper extends AStepper implements IHasCycles {
 			gwta: `holding only {actions: ${DOMAIN_ACTIONS}}, {what: statement}`,
 			productsOf: "what",
 			description:
-				"Runs a statement as the same caller with only those of the listed actions that its caller holds. The actions are comma-separated. A statement can do less than its caller and never more, so a feature can state a caller that holds some actions and not others. A refusal names the action the caller lacks.",
-			action: ({ actions, what }: { actions: string[]; what: TFeatureStep[] }, featureStep: TFeatureStep) => {
+				"Proves a statement as the same caller with only those of the listed actions that its caller holds. The actions are comma-separated. A statement can do less than its caller and never more, so a feature can state a caller that holds some actions and not others. A refusal names the action the caller lacks.",
+			reading: READING.within,
+			context: ({ actions }) => {
 				const held = callerHolds();
-				return runAuthorizedWith(
-					actions.filter((action) => capabilityAllows(held, action)),
-					() => new FlowRunner(this.getWorld(), this.steppers).runSteps(what, { parentStep: featureStep }),
-				);
+				const narrowed = (actions as string[]).filter((action) => capabilityAllows(held, action));
+				return Promise.resolve(<T>(run: () => Promise<T>) => runAuthorizedWith(narrowed, run));
 			},
 		},
 		holdingCapability: {
 			gwta: `holding capability {cap: ${DOMAIN_JSON}} at {target: ${DOMAIN_LINK}}, {what: statement}`,
 			productsOf: "what",
-			action: ({ cap, target, what }: { cap: unknown; target: string; what: TFeatureStep[] }, featureStep: TFeatureStep) => this.runUnderCapability(cap, target, what, featureStep),
+			description: "Proves a statement under a signed capability that the registered verifier verifies, as the principal it names and with the actions it delegates.",
+			reading: READING.within,
+			context: ({ cap, target }) => this.underCapability(cap, String(target)),
 		},
 	} as const satisfies TStepperSteps;
 
 	/**
-	 * Runs `what` under a signed capability after the registered IAuthorityVerifier verifies the capability. haibun-core
-	 * doesn't implement cryptography, so verification depends on the registered verifier.
+	 * The context of a signed capability that the registered IAuthorityVerifier verifies. haibun-core doesn't implement
+	 * cryptography, so verification depends on the registered verifier. Refuses a document that doesn't parse, a caller that
+	 * doesn't prove a key, and evidence the verifier refuses.
 	 */
-	private async runUnderCapability(cap: unknown, target: string, what: TFeatureStep[], featureStep: TFeatureStep) {
+	private async underCapability(cap: unknown, target: string): Promise<TCallContext | { refused: string }> {
 		// A variable keeps its own domain. A record stores a signed document as JSON text, so `cap` can hold that text.
 		// fromJsonText parses the text as the document.
 		const parsed = fromJsonText(signedCapabilitySchema).safeParse(cap);
-		if (!parsed.success) {
-			return actionNotOK(`holding capability: invalid signed capability, ${parsed.error.issues.map((i) => i.message).join("; ")}`);
-		}
+		if (!parsed.success) return { refused: `holding capability: invalid signed capability, ${parsed.error.issues.map((i) => i.message).join("; ")}` };
 		const capability = parsed.data;
 		// The registered verifier checks the document for every action the document allows. It checks the presenter against
 		// the document's controller, since a copy of the document doesn't carry the key it names. The framework doesn't hold
 		// a key or implement a specification.
 		const presenter = actingFor();
 		if (!presenter)
-			return actionNotOK("holding capability: the caller isn't the root and doesn't prove a key, so the verifier can't check who presents the capability. Sign the call.");
+			return { refused: "holding capability: the caller isn't the root and doesn't prove a key, so the verifier can't check who presents the capability. Sign the call." };
 		const verified = await this.getAuthority().verifyEvidence({ kind: "document", document: capability, target, presenter });
-		if (!verified.ok) {
-			return actionNotOK(`holding capability: the evidence was refused, ${verified.error}`);
-		}
-		const runner = new FlowRunner(this.getWorld(), this.steppers);
-		const run = () => runner.runSteps(what, { parentStep: featureStep });
+		if (!verified.ok) return { refused: `holding capability: the evidence was refused, ${verified.error}` };
 		// The statements run with the actions the verifier allows, or the capability's delegated actions where the verifier
 		// doesn't list them. They run as the principal the verifier returns, or as the capability's controller.
-		return await runAuthorizedWith(verified.allowedAction ?? delegatedActions(capability), () => runActingAs(verified.principal ?? capability.controller, run, verified.restsOn));
+		const allowed = verified.allowedAction ?? delegatedActions(capability);
+		const principal = verified.principal ?? capability.controller;
+		return <T>(run: () => Promise<T>) => runAuthorizedWith(allowed, () => runActingAs(principal, run, verified.restsOn));
 	}
 
 	private getAuthority(): IAuthority {

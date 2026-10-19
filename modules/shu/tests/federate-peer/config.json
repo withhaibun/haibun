@@ -3,6 +3,7 @@
 	"description": "A peer instance for federation: serves its own graph reads over RPC and stays up as a service. Launched by InstanceStepper (start a haibun instance from ...).",
 	"steppers": [
 		"haibun-stepper",
+		"@haibun/logic/logic-stepper",
 		"variables-stepper",
 		"resources-stepper",
 		"authority-stepper",

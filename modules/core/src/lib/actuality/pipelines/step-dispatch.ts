@@ -1,11 +1,12 @@
 /**
- * A step's dispatch: authorization, the beforeStep and afterStep cycles, the step's lifecycle events as moves of the
- * actuality machine, its record, its facts and its result.
+ * A call's dispatch: authorization, the beforeStep and afterStep cycles, the call's lifecycle events as moves of the
+ * actuality machine, its record, its facts and its result. Every surface proves a step through `proveStep`, and the logic
+ * engine's prover dispatches each call and each node of the proof here.
  */
 import type { AStepper, TStepperStep, TFeatureStep, TBeforeStep, TAfterStep, TAfterStepResult } from "../../steps/domains/stepper.js";
 import type { TWorld } from "../domains/world.js";
 import type { TActionResult, TStepResult, TSeqPath } from "../../domains/protocol.js";
-import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, SUBSTEP_LEVEL, STATUS, RECORDED_STATUS, type TStepEnd } from "../../domains/protocol.js";
+import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, SUBSTEP_LEVEL, STATUS, RECORDED_STATUS, VERDICT, LOGIC_STEPPER, type TStepEnd } from "../../domains/protocol.js";
 import { streamContext } from "../../transport/domains/step-stream-context.js";
 import { actionNotOK } from "../../domains/util.js";
 import { isWrittenByCaller, normalizeDomainKey } from "../../domains/domains.js";
@@ -27,11 +28,12 @@ import {
 import { capabilityAllows } from "../../domains/actions.js";
 import { SEQ_PATH_LABEL } from "../../domains/resources.js";
 import { SEQ_PATH_ACCESS, executionOf, type TRecordName } from "../domains/seq-path.js";
-import type { StepRegistry } from "../../steps/pipelines/step-registry.js";
+import { runRegistry, type StepRegistry } from "../../steps/pipelines/step-registry.js";
 import { stepMethodName, hostScopedMethodName } from "../../steps/domains/step-method.js";
 import { authorizeToolCapability } from "../../steps/pipelines/gate.js";
 import { augmentViewHypermedia, isViewOnlyDomain } from "../../steps/derivations/step-hypermedia.js";
 import { RESULTS_READ_IN_FULL, afterStepOutcome, foldStep, retainedProducts, stepResultOf } from "../derivations/step-results.js";
+import type { TProver } from "../ports.js";
 import {
 	asRecorded,
 	endRecord,
@@ -47,9 +49,7 @@ import {
 import { stepEndEvent, stepStartEvent } from "../derivations/lifecycle-events.js";
 import { moveActuality } from "./move-actuality.js";
 
-const MAX_DISPATCH_SEQPATH = 50;
-
-/** How a step is dispatched. `grantedCapability` is the action the call invoked. `held` is what its caller holds, and it
+/** How a step is proved and its calls dispatched. `grantedCapability` is the action the call invoked. `held` is what its caller holds, and it
  *  bounds what the step reads. A holder in this process invokes from what it holds, so it passes one list for both.
  *  `delegation` is the delegation the call was made under, and `attributedTo` the agent the call is attributed to, such as
  *  the model whose turn made it, where the caller states them. The step's record states both. */
@@ -76,29 +76,69 @@ const shown = (showed: string | undefined): { showed?: string } => (showed === u
 const recordTime = (world: TWorld): string => new Date(world.clock.now()).toISOString();
 
 /**
- * Returns the next path under a parent step in the given direction.
+ * Returns the next path under a parent step.
  *
- * nextSeqPath allocates the path from a count held per parent and direction. A search of a feature's results would read
- * every result on every step. Actuality can service requests for weeks, so the number of results grows for weeks.
- * nextSeqPath returns in constant time. world.runtime.seqPaths holds one entry for each parent and direction.
+ * nextSeqPath allocates the path from a count held per parent. A search of a feature's results would read every result on
+ * every step. Actuality can service requests for weeks, so the number of results grows for weeks. nextSeqPath returns in
+ * constant time. world.runtime.seqPaths holds one entry for each parent.
  *
  * The count only advances, so a path is never allocated twice. An allocation that a step doesn't use leaves a gap in the
  * numbering. Readers read the numbering only for order and identity. A gap preserves both.
  */
-export function nextSeqPath(world: TWorld, parent: TSeqPath, dir: 1 | -1): TSeqPath {
+export function nextSeqPath(world: TWorld, parent: TSeqPath): TSeqPath {
 	const held = world.runtime.seqPaths;
-	const key = `${parent.join(".")}|${dir}`;
+	const key = parent.join(".");
 	const taken = held.get(key);
-	const index = taken === undefined ? dir : taken + dir;
+	const index = taken === undefined ? 1 : taken + 1;
 	held.set(key, index);
 	return [...parent, index];
 }
 
+/** The dispatch context of a stepper's own call: actuality's registry, its world and its steppers, under the caller's capability. */
+export const stepperContext = (world: TWorld, steppers: AStepper[]): DispatchContext => ({ registry: runRegistry(world), world, steppers });
+
 /**
- * Dispatches a step. Feature execution, FlowRunner, RPC and MCP call dispatchStep for every step. It applies capability
- * authorization, the beforeStep and afterStep cycles, event logging and result tracking to each step.
+ * Proves the statements a step states, in order, each under the step's record, and returns the result of the first that
+ * isn't proved, or of the last. A statement without a step is proved. `targetHostId` names the host whose steps prove them,
+ * where another host does.
  */
-export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureStep): Promise<TStepResult> {
+export async function proveStatements(ctx: DispatchContext, parent: TFeatureStep, statements: TFeatureStep[], targetHostId?: number): Promise<TActionResult> {
+	let last: TActionResult = { ok: true };
+	for (const statement of statements) {
+		const runtimeArgs = { ...parent.runtimeArgs, ...statement.runtimeArgs };
+		last = await proveStep(ctx, {
+			...statement,
+			seqPath: nextSeqPath(ctx.world, parent.seqPath),
+			isSubStep: true,
+			...(Object.keys(runtimeArgs).length === 0 ? {} : { runtimeArgs }),
+			...(parent.isAfterEveryStep === true ? { isAfterEveryStep: true } : {}),
+			...(targetHostId === undefined ? {} : { targetHostId }),
+		});
+		if (!last.ok) return last;
+	}
+	return last;
+}
+
+/** What a node of a proof performs in place of a step's action: the proof of its statements, which its caller resolves. */
+export type TPerform = () => Promise<TActionResult>;
+
+/** Returns the prover that a stepper of the configuration supplies. Throws where a stepper doesn't supply one, since every line is proved by
+ *  the logic engine. */
+export function proverOf(world: TWorld): TProver {
+	const prover = world.runtime.prover;
+	if (prover === undefined) throw new Error(`every step is proved by the logic engine, and a stepper doesn't supply it. List ${LOGIC_STEPPER} in the configuration's steppers.`);
+	return prover;
+}
+
+/** Proves a step: a feature's line, a statement a step states, or a call a transport carries. Every surface calls it. */
+export const proveStep = (ctx: DispatchContext, featureStep: TFeatureStep): Promise<TStepResult> => proverOf(ctx.world).prove(ctx, featureStep);
+
+/**
+ * Dispatches one call of a proof. It applies capability authorization, the beforeStep and afterStep cycles, event logging
+ * and result tracking. A built-in's call performs the step's action. A node of a proof, such as a negation or a waypoint,
+ * performs `perform`, whose result is the node's verdict.
+ */
+export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureStep, perform?: TPerform): Promise<TStepResult> {
 	const { registry, world, steppers } = ctx;
 	// A capability the dispatch context states takes precedence over callerHolds(). A step dispatched from inside another
 	// step invokes from what the caller holds, under the chain the caller presented. Its action is the one in that chain
@@ -148,17 +188,6 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		keep(result);
 		return result;
 	};
-
-	if (world.runtime.exhaustionError) {
-		return pushAndReturn(
-			stepResultOf(actionNotOK(`actuality halted every dispatch after an exhaustion: ${world.runtime.exhaustionError}`), action, start, Timer.since(), featureStep),
-		);
-	}
-	if (featureStep.seqPath.length > MAX_DISPATCH_SEQPATH) {
-		const msg = `Step depth ${featureStep.seqPath.length} exceeds the limit of ${MAX_DISPATCH_SEQPATH}. Check this step for infinite recursion: ${featureStep.in}`;
-		world.runtime.exhaustionError = msg;
-		return pushAndReturn(stepResultOf(actionNotOK(msg), action, start, Timer.since(), featureStep));
-	}
 
 	const isLifecycle = action.actionName === FEATURE_START || action.actionName === SCENARIO_START;
 	if (isLifecycle) {
@@ -236,14 +265,15 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 						}
 						// The handler validates the step's products against the step's domain. A tool of another host or process
 						// validates them where it runs.
-						actionResult = await tool.handler(featureStep, world);
+						actionResult = await (perform === undefined ? tool.handler(featureStep, world) : perform());
 						if (actionResult.ok) {
 							if (actionResult.products) actionResult = { ...actionResult, products: { ...actionResult.products, [TRACE_SEQ_PATH]: featureStep.seqPath } };
 							actionResult = augmentViewHypermedia(world, action.step, actionResult, steppers);
 							// A fact is a record of actuality. Actuality doesn't record a read over a transport as a step or assert its products.
 							if (recorded) await autoAssertProducts(world, { execution: executionOf(world.tag), path: featureStep.seqPath }, action.step, actionResult);
 						}
-						if (!actionResult.ok && featureStep.intent?.mode !== "speculative") {
+						// A nested call's failure is part of its line's proof, so only a line's failure is logged as an error.
+						if (!actionResult.ok && featureStep.isSubStep !== true) {
 							world.eventLogger.log(featureStep, "error", actionResult.errorMessage);
 						}
 						const placed = stepResultOf(actionResult, action, start, Timer.since(), stated);
@@ -274,7 +304,8 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	);
 	// A call a transport carries states what it read back, since its caller reads the result and not a line.
 	const result = featureStep.programmatic === true && actionResult.products !== undefined ? { result: resultText(actionResult.products) } : {};
-	await writeStepEnd(world, started, { status: RECORDED_STATUS[ended], ...(error === undefined ? {} : { error }), ...shown(viewShown(actionResult.products)), ...result });
+	const verdict = actionResult.verdict === undefined ? (ok ? VERDICT.proved : VERDICT.refuted) : actionResult.verdict;
+	await writeStepEnd(world, started, { status: RECORDED_STATUS[ended], verdict, ...(error === undefined ? {} : { error }), ...shown(viewShown(actionResult.products)), ...result });
 	return lastStepResult;
 }
 

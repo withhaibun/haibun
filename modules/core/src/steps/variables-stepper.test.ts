@@ -4,7 +4,6 @@ import { DEF_PROTO_OPTIONS, failWithDefaults, getTestWorldWithOptions, passWithD
 import VariablesStepper from "./variables-stepper.js";
 import { DEFAULT_DEST, Origin } from "../lib/domains/protocol.js";
 import Haibun from "./haibun-stepper.js";
-import LogicStepper from "./logic-stepper.js";
 import { OBSCURED_VALUE } from "../lib/steps/domains/secrets.js";
 import { SHARED_GRAPH } from "../lib/actuality/pipelines/feature-variables.js";
 import { recordWithEdges } from "../lib/records/pipelines/record-reads.js";
@@ -19,7 +18,7 @@ import { StepRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { addStepperConcerns } from "../lib/actuality/pipelines/executor.js";
 import { typeCollectionRemedy } from "../lib/domains/typed-links.js";
 
-const steppers = [VariablesStepper, Haibun, LogicStepper];
+const steppers = [VariablesStepper, Haibun];
 
 describe("vars", () => {
 	it("assigns", async () => {

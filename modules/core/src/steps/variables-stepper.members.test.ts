@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
-import LogicStepper from "./logic-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
 
 describe("every/some with member values", () => {
@@ -18,7 +17,7 @@ describe("every/some with member values", () => {
           every u in urls is {u} is in known
         `,
 			};
-			const result = await passWithDefaults([feature], [LogicStepper, VariablesStepper]);
+			const result = await passWithDefaults([feature], [VariablesStepper]);
 			expect(result.ok).toBe(true);
 		});
 
@@ -35,7 +34,7 @@ describe("every/some with member values", () => {
           not every u in urls is {u} is in known
         `,
 			};
-			const result = await passWithDefaults([feature], [LogicStepper, VariablesStepper]);
+			const result = await passWithDefaults([feature], [VariablesStepper]);
 			expect(result.ok).toBe(true);
 		});
 
@@ -50,7 +49,7 @@ describe("every/some with member values", () => {
           every u in urls is {u} is in known
         `,
 			};
-			const result = await passWithDefaults([feature], [LogicStepper, VariablesStepper]);
+			const result = await passWithDefaults([feature], [VariablesStepper]);
 			expect(result.ok).toBe(true);
 		});
 	});
@@ -69,7 +68,7 @@ describe("every/some with member values", () => {
           some u in urls is {u} is in known
         `,
 			};
-			const result = await passWithDefaults([feature], [LogicStepper, VariablesStepper]);
+			const result = await passWithDefaults([feature], [VariablesStepper]);
 			expect(result.ok).toBe(true);
 		});
 
@@ -86,7 +85,7 @@ describe("every/some with member values", () => {
           not some u in urls is {u} is in known
         `,
 			};
-			const result = await passWithDefaults([feature], [LogicStepper, VariablesStepper]);
+			const result = await passWithDefaults([feature], [VariablesStepper]);
 			expect(result.ok).toBe(true);
 		});
 	});
@@ -100,7 +99,7 @@ describe("every/some with member values", () => {
           "red" is in colors
         `,
 			};
-			const result = await passWithDefaults([feature], [LogicStepper, VariablesStepper]);
+			const result = await passWithDefaults([feature], [VariablesStepper]);
 			expect(result.ok).toBe(true);
 		});
 
@@ -112,7 +111,7 @@ describe("every/some with member values", () => {
           not "yellow" is in colors
         `,
 			};
-			const result = await passWithDefaults([feature], [LogicStepper, VariablesStepper]);
+			const result = await passWithDefaults([feature], [VariablesStepper]);
 			expect(result.ok).toBe(true);
 		});
 
@@ -126,13 +125,13 @@ describe("every/some with member values", () => {
           not red is in colors
         `,
 			};
-			const result = await passWithDefaults([feature], [LogicStepper, VariablesStepper]);
+			const result = await passWithDefaults([feature], [VariablesStepper]);
 			expect(result.ok).toBe(true);
 		});
 
 		it("refuses an unquoted value that doesn't name a variable", async () => {
 			const feature = { path: "/features/test.feature", content: `set of colors is ["red" "green" "blue"]\nrde is in colors` };
-			const result = await failWithDefaults([feature], [LogicStepper, VariablesStepper]);
+			const result = await failWithDefaults([feature], [VariablesStepper]);
 			expect(result.failure?.error.message).toContain("rde doesn't name a variable or an environment variable. Quote it to pass it as a literal.");
 		});
 
@@ -145,7 +144,7 @@ describe("every/some with member values", () => {
           "https://example.com" is in urls
         `,
 			};
-			const result = await passWithDefaults([feature], [LogicStepper, VariablesStepper]);
+			const result = await passWithDefaults([feature], [VariablesStepper]);
 			expect(result.ok).toBe(true);
 		});
 	});
@@ -161,7 +160,7 @@ describe("every/some with member values", () => {
           matches "https://test.com/login" with "https://test.com/*"
         `,
 			};
-			const result = await passWithDefaults([feature], [LogicStepper, VariablesStepper]);
+			const result = await passWithDefaults([feature], [VariablesStepper]);
 			expect(result.ok).toBe(true);
 		});
 
@@ -172,7 +171,7 @@ describe("every/some with member values", () => {
           not matches "https://other.com/page" with "https://test.com/*"
         `,
 			};
-			const result = await passWithDefaults([feature], [LogicStepper, VariablesStepper]);
+			const result = await passWithDefaults([feature], [VariablesStepper]);
 			expect(result.ok).toBe(true);
 		});
 
@@ -187,7 +186,7 @@ describe("every/some with member values", () => {
           every u in urls is matches {u} with "https://test.com/*"
         `,
 			};
-			const result = await passWithDefaults([feature], [LogicStepper, VariablesStepper]);
+			const result = await passWithDefaults([feature], [VariablesStepper]);
 			expect(result.ok).toBe(true);
 		});
 
@@ -202,7 +201,7 @@ describe("every/some with member values", () => {
           not every u in urls is matches {u} with "https://test.com/*"
         `,
 			};
-			const result = await passWithDefaults([feature], [LogicStepper, VariablesStepper]);
+			const result = await passWithDefaults([feature], [VariablesStepper]);
 			expect(result.ok).toBe(true);
 		});
 	});
@@ -224,7 +223,7 @@ describe("every/some with member values", () => {
           every page in urls is some pattern in Allowed patterns is matches {page} with {pattern}
         `,
 			};
-			const result = await passWithDefaults([feature], [LogicStepper, VariablesStepper]);
+			const result = await passWithDefaults([feature], [VariablesStepper]);
 			expect(result.ok).toBe(true);
 		});
 
@@ -241,7 +240,7 @@ describe("every/some with member values", () => {
           not every page in urls is some pattern in Allowed patterns is matches {page} with {pattern}
         `,
 			};
-			const result = await passWithDefaults([feature], [LogicStepper, VariablesStepper]);
+			const result = await passWithDefaults([feature], [VariablesStepper]);
 			expect(result.ok).toBe(true);
 		});
 
@@ -252,7 +251,7 @@ describe("every/some with member values", () => {
           matches "https://test.com/login" with "https://test.com/*"
         `,
 			};
-			const result = await passWithDefaults([feature], [LogicStepper, VariablesStepper]);
+			const result = await passWithDefaults([feature], [VariablesStepper]);
 			expect(result.ok).toBe(true);
 		});
 	});

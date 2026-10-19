@@ -1,20 +1,17 @@
 import { describe, it, expect } from "vitest";
 import { z } from "zod";
 
-import { DEF_PROTO_OPTIONS, failWithDefaults, getTestWorldWithOptions, passWithDefaults } from "../lib/test/lib.js";
+import { DEF_PROTO_OPTIONS, failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
 import { Resolver } from "../lib/actuality/pipelines/resolver.js";
-import { FlowRunner } from "../lib/steps/pipelines/flow-runner.js";
 import TestSteps from "../lib/test/TestSteps.js";
 import Haibun from "./haibun-stepper.js";
 import VariablesSteppers from "./variables-stepper.js";
-import LogicStepper from "./logic-stepper.js";
 import { ActivitiesStepper } from "./activities-stepper.js";
 import { AStepper } from "../lib/steps/domains/stepper.js";
 import { actionOK } from "../lib/domains/util.js";
 import { itemAt } from "../lib/domains/item-at.js";
 import { hostScopedMethodName } from "../lib/steps/domains/step-method.js";
-import { openRunRegistry, runRegistry, type StepRegistry } from "../lib/steps/pipelines/step-registry.js";
-import { addStepperConcerns } from "../lib/actuality/pipelines/executor.js";
+import { runRegistry, type StepRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { STEPS_CHANGED, type THaibunEvent } from "../lib/domains/protocol.js";
 import { STEP_DETAIL, type TStepDefinitions } from "../lib/steps/domains/step-discovery.js";
 import { readShownSteps } from "../lib/steps/domains/step-discovery.js";
@@ -34,7 +31,7 @@ describe("until", () => {
 		const feature = { path: "/features/test.feature", content: 'until fails within "50ms"' };
 		const result = await failWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(false);
-		expect(itemAt(result.featureResults, 0).stepResults.at(-1)).toMatchObject({ ok: false, errorMessage: expect.stringMatching(/didn't pass within 50ms/) });
+		expect(itemAt(result.featureResults, 0).stepResults.at(-1)).toMatchObject({ ok: false, errorMessage: expect.stringMatching(/didn't hold within 50ms/) });
 	});
 });
 
@@ -121,7 +118,7 @@ describe("seqPath ordering", () => {
 	// hostId: 0 by default; distinct per haibun instance for multi-host uniqueness
 	// featureNum: 1-based feature number
 	// scenarioNum: the scenario's ordinal among the feature's scenarios, 0 before the first scenario
-	// stepPath: hierarchical step numbering with negative numbers for conditions
+	// stepPath: a line's number, followed by each position of its proof
 
 	it("linear steps increment the last element of the seqPath", async () => {
 		const feature = { path: "/features/test.feature", content: "passes\npasses\npasses" };
@@ -130,33 +127,6 @@ describe("seqPath ordering", () => {
 		const seqs = itemAt(result.featureResults, 0).stepResults.map((r) => r.seqPath);
 		expect(seqs).toEqual([
 			[0, 1, 0, 1],
-			[0, 1, 0, 2],
-			[0, 1, 0, 3],
-		]);
-	});
-
-	it("not statement", async () => {
-		const feature = { path: "/features/test.feature", content: 'passes\nnot fails\nends with "OK"' };
-		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps]);
-		expect(result.ok).toBe(true);
-		const seqs = itemAt(result.featureResults, 0).stepResults.map((r) => r.seqPath);
-		expect(seqs).toEqual([
-			[0, 1, 0, 1],
-			[0, 1, 0, 2, -1],
-			[0, 1, 0, 2],
-			[0, 1, 0, 3],
-		]);
-	});
-
-	it("not not statement", async () => {
-		const feature = { path: "/features/test.feature", content: 'passes\nnot not passes\nends with "OK"' };
-		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps]);
-		expect(result.ok).toBe(true);
-		const seqs = itemAt(result.featureResults, 0).stepResults.map((r) => r.seqPath);
-		expect(seqs).toEqual([
-			[0, 1, 0, 1],
-			[0, 1, 0, 2, -1, -1],
-			[0, 1, 0, 2, -1],
 			[0, 1, 0, 2],
 			[0, 1, 0, 3],
 		]);
@@ -187,20 +157,20 @@ describe("afterEvery", () => {
 		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
 		const seqs = itemAt(result.featureResults, 0).stepResults.map((r) => r.seqPath);
-		// An afterEvery substep has a negative index, since it isn't a step of the feature.
+		// An afterEvery statement is proved under the step it follows.
 		// Step [0,1,0,4] "passes" doesn't run the after-every step, since the after-every step is the same action.
 		expect(seqs).toEqual([
 			[0, 1, 0, 1],
 			[0, 1, 0, 2],
 			[0, 1, 0, 3],
-			[0, 1, 0, 3, -1],
+			[0, 1, 0, 3, 1],
 			[0, 1, 0, 4],
 		]);
 	});
 
 	it("runs once after a step of the feature and doesn't run after its substeps", async () => {
 		const feature = { path: "/features/test.feature", content: ["have a test", 'after every "TestSteps", Noodles, man.', "passes", "not fails"].join("\n") };
-		const result = await passWithDefaults([feature], [Haibun, TestSteps, LogicStepper]);
+		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(true);
 		const said = itemAt(result.featureResults, 0).stepResults.filter((r) => r.in === "Noodles, man.").length;
 		expect(said, "the statement runs for the step the feature holds and doesn't run for the substep that another step ran").toBe(1);
@@ -210,13 +180,8 @@ describe("afterEvery", () => {
 describe("line comment", () => {
 	const NOTE = ";;unsetVariable is the text of a note";
 	it("resolves a `;;` statement to the comment step instead of prose, and passes without resolving the variable that its text names", async () => {
-		const world = getTestWorldWithOptions(DEF_PROTO_OPTIONS);
-		const haibun = new Haibun();
-		await haibun.setWorld(world, [haibun]);
-		addStepperConcerns(world, [haibun]);
-		openRunRegistry(world, [haibun]);
-		expect(new Resolver([haibun], []).findSingleStepAction(NOTE).actionName).toBe("comment");
-		expect((await runAuthorizedWith(RUN_AUTHORITY, () => new FlowRunner(world, [haibun]).runStatement(NOTE, { seqPath: [0, 1] }))).ok).toBe(true);
+		expect(new Resolver([new Haibun()], []).findSingleStepAction(NOTE).actionName).toBe("comment");
+		expect((await passWithDefaults(NOTE, [Haibun])).ok).toBe(true);
 	});
 });
 
@@ -361,14 +326,14 @@ describe("backgrounds", () => {
 	it("where with Backgrounds shows condition, directive, background steps, then parent", async () => {
 		const feature = { path: "/features/test.feature", content: "where passes, Backgrounds: bg" };
 		const background = { path: "/backgrounds/bg.feature", content: 'set ran to "true"\nends with "OK"' };
-		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		const result = await passWithDefaults([feature], [Haibun, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 		const seqs = itemAt(result.featureResults, 0).stepResults.map((r) => r.seqPath);
-		// Condition uses dir=-1, body uses dir=1: condition [0,1,0,1,-1], background steps [0,1,0,1,1] and [0,1,0,1,2], parent [0,1,0,1]
+		// The condition [0,1,0,1,1], the background's steps [0,1,0,1,2] and [0,1,0,1,3], and the line [0,1,0,1]
 		expect(seqs).toEqual([
-			[0, 1, 0, 1, -1],
 			[0, 1, 0, 1, 1],
 			[0, 1, 0, 1, 2],
+			[0, 1, 0, 1, 3],
 			[0, 1, 0, 1],
 		]);
 	});
@@ -376,14 +341,14 @@ describe("backgrounds", () => {
 	it("not with Backgrounds fails", async () => {
 		const feature = { path: "/features/test.feature", content: "not Backgrounds: bg" };
 		const background = { path: "/backgrounds/bg.feature", content: "fails" };
-		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		const result = await passWithDefaults([feature], [Haibun, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 	});
 
 	it("not with Backgrounds passes", async () => {
 		const feature = { path: "/features/test.feature", content: "not Backgrounds: bg" };
 		const background = { path: "/backgrounds/bg.feature", content: "passes" };
-		const result = await failWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		const result = await failWithDefaults([feature], [Haibun, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(false);
 	});
 
@@ -397,7 +362,7 @@ describe("backgrounds", () => {
 
 	it("not invalid Backgrounds fails during Resolve", async () => {
 		const feature = { path: "/features/test.feature", content: "not Backgrounds: nowhere" };
-		const result = await failWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, []);
+		const result = await failWithDefaults([feature], [Haibun, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, []);
 		expect(result.ok).toBe(false);
 		expect(result.failure?.stage).toBe("Resolve");
 		expect(result.failure?.error.message).toMatch(/can't find single "nowhere.feature"/);
@@ -406,7 +371,7 @@ describe("backgrounds", () => {
 	it("background steps have correct file path", async () => {
 		const feature = { path: "/features/test.feature", content: 'set ran to "false"\nwhere variable "ran" is "false", Backgrounds: bg' };
 		const background = { path: "/backgrounds/bg.feature", content: 'set ran to "true"\nends with "OK"' };
-		const result = await passWithDefaults([feature], [Haibun, LogicStepper, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
+		const result = await passWithDefaults([feature], [Haibun, TestSteps, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 
 		const paths = itemAt(result.featureResults, 0).stepResults.map((r) => r.path);
@@ -450,7 +415,7 @@ describe("backgrounds", () => {
 
 		const activityStep = itemAt(result.featureResults, 0).stepResults.find((r) => r.in === 'set x to "1"');
 		expect(activityStep).toBeDefined();
-		expect(activityStep?.lineNumber).toBe(3);
+		expect(activityStep?.lineNumber, "an activity's line states its own line").toBe(2);
 		expect(activityStep?.path).toBe("test_base/backgrounds/bg.feature");
 
 		// The waypoint record also carries its source location.

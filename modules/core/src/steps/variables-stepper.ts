@@ -5,7 +5,7 @@ import { OK, Origin, TProvenanceIdentifier, TOrigin, TActionResult, TStepValue, 
 import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TStartScenario, provenanceFromFeatureStep } from "../lib/steps/domains/stepper.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getStepTerm, errorDetail } from "../lib/domains/util.js";
 import { itemAt } from "../lib/domains/item-at.js";
-import { FlowRunner } from "../lib/steps/pipelines/flow-runner.js";
+import { proveStatements, stepperContext } from "../lib/actuality/pipelines/step-dispatch.js";
 import { FeatureVariables, statedValue } from "../lib/actuality/pipelines/feature-variables.js";
 import { OBSCURED_VALUE } from "../lib/steps/domains/secrets.js";
 import { sanitizeObjectSecrets } from "../lib/domains/secret-utils.js";
@@ -114,11 +114,9 @@ class VariablesStepper extends AStepper implements IHasCycles {
 
 	cycles = cycles(this);
 	steppers: AStepper[] = [];
-	private runner!: FlowRunner;
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		this.world = world;
 		this.steppers = steppers;
-		this.runner = new FlowRunner(world, steppers);
 		await Promise.resolve();
 	}
 	steps = {
@@ -177,7 +175,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 			gwta: `set {what: ${DOMAIN_VARIABLE_NAME}} from {statement: ${DOMAIN_STATEMENT}}`,
 			precludes: [`${VariablesStepper.name}.set`],
 			action: async ({ what, statement }: { what: string; statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
-				const result = await this.runner.runSteps(statement, { intent: { mode: "authoritative" }, parentStep: featureStep });
+				const result = await proveStatements(stepperContext(this.getWorld(), this.steppers), featureStep, statement);
 				if (!result.ok) return actionNotOK(`set from statement failed: ${result.errorMessage}`);
 				if (result.products === undefined)
 					return actionNotOK(`set ${what} from a statement: the statement returned without products to set. Use a statement that produces products`);

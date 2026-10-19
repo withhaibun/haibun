@@ -3,7 +3,6 @@ import { z } from "zod";
 import { declareBlips, blipWatch, WATCH_WINDOW } from "../lib/domains/blips.js";
 import { recordBlip } from "../lib/pipelines/record-blip.js";
 import BlipsStepper, { renderWatch } from "./blips-stepper.js";
-import LogicStepper from "./logic-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun-stepper.js";
 import { AStepper } from "../lib/steps/domains/stepper.js";
@@ -145,7 +144,7 @@ class Emitter extends AStepper {
 	};
 }
 
-const STEPPERS = [Haibun, BlipsStepper, LogicStepper, VariablesStepper, Emitter];
+const STEPPERS = [Haibun, BlipsStepper, VariablesStepper, Emitter];
 
 describe("the feature steps: watch blips, record occurrences, and read the watch", () => {
 	beforeEach(() => {

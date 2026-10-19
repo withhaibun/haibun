@@ -19,12 +19,12 @@ export type TStepDeclaration = { descriptor: TStepDescriptor; paramDomainKeys: M
 /** The domains of a parameter that names a record's type. */
 const TYPE_NAMING_DOMAINS: readonly string[] = [DOMAIN_PERSISTED_TYPE, DOMAIN_DOMAIN_KEY];
 
-/** The phrase a step's descriptor states: its gwta, its exact text or its match. A prose step and the step of an empty
- *  line don't state a phrase a caller writes, so the descriptor states the step's name. */
+/** The phrase a step's descriptor states: its gwta or its exact text. A prose step and the step of an empty line don't
+ *  state a phrase a caller writes, so the descriptor states the step's name. */
 const patternOf = (stepName: string, stepDef: TStepperStep): string => {
 	if (stepDef.gwta) return stepDef.gwta;
 	if (stepDef.exact) return stepDef.exact;
-	return stepDef.match === undefined ? stepName : stepDef.match.toString();
+	return stepName;
 };
 
 /** Returns a step's descriptor and the domain key of each of its parameters. Throws where the step names a statement, a

@@ -73,7 +73,7 @@ describe("DebuggerStepper", () => {
 });
 
 describe("DebuggerStepper sequence integration", () => {
-	it("beforeStep: increments seqPath with negative inc for debug prompts", async () => {
+	it("beforeStep: proves each command typed at the prompt under the line", async () => {
 		class SequenceTestPrompter implements IPrompter {
 			responses = [";;comment 1", ";;comment 2", "step", "step", "continue"];
 			idx = 0;
@@ -96,20 +96,20 @@ describe("DebuggerStepper sequence integration", () => {
 		const res = await testWithWorld(world, [feature], [DebuggerStepper, Haibun]);
 		expect(res.ok).toBe(true);
 		// seqPath format: [hostId, featureNum, scenarioNum, stepSeq, ...]
-		// [0,1,0,1] debug step by step, [0,1,0,2,-1] comment 1, [0,1,0,2,-2] comment 2, [0,1,0,2,-3] step (exits loop), [0,1,0,2] step 2, [0,1,0,3,-1] step (exits loop), [0,1,0,3] step 3
+		// [0,1,0,1] debug step by step, [0,1,0,2,1] comment 1, [0,1,0,2,2] comment 2, [0,1,0,2,3] step (exits loop), [0,1,0,2] step 2, [0,1,0,3,1] step (exits loop), [0,1,0,3] step 3
 		const seqs = itemAt(res.featureResults, 0).stepResults.map((r) => r.seqPath);
 		expect(seqs).toEqual([
 			[0, 1, 0, 1],
-			[0, 1, 0, 2, -1],
-			[0, 1, 0, 2, -2],
-			[0, 1, 0, 2, -3],
+			[0, 1, 0, 2, 1],
+			[0, 1, 0, 2, 2],
+			[0, 1, 0, 2, 3],
 			[0, 1, 0, 2],
-			[0, 1, 0, 3, -1],
+			[0, 1, 0, 3, 1],
 			[0, 1, 0, 3],
 		]);
 	});
 
-	it("afterStep: increments seqPath with positive inc for failure prompts", async () => {
+	it("afterStep: proves each command typed at the failure prompt under the line", async () => {
 		const TestSteps = (await import("../lib/test/TestSteps.js")).default;
 		class FailurePrompter implements IPrompter {
 			responses = [";;comment 1", ";;comment 2", "next"];
@@ -140,18 +140,16 @@ describe("DebuggerStepper sequence integration", () => {
 		]);
 	});
 
-	it("does not trigger debugger for speculative failures", async () => {
+	it("pauses before a line and not before a call nested in its proof", async () => {
 		const TestSteps = (await import("../lib/test/TestSteps.js")).default;
-		const LogicStepper = (await import("./logic-stepper.js")).default;
 
 		class LimitedPrompter implements IPrompter {
 			callCount = 0;
 			prompt = () => {
 				this.callCount++;
-				// Allow the first prompt (for 'not fails')
-				// but any additional prompts (like for speculative 'fails') should not happen
+				// The first prompt is for the line 'not fails', and the nested 'fails' doesn't prompt.
 				if (this.callCount > 1) {
-					throw new Error("Debugger should not be triggered for speculative failures");
+					throw new Error("the debugger paused before a call nested in a line's proof");
 				}
 				return Promise.resolve("step");
 			};
@@ -169,13 +167,11 @@ describe("DebuggerStepper sequence integration", () => {
 		vi.spyOn(testPrompter, "prompt");
 		world.prompter.subscribe(testPrompter);
 
-		// Use 'not fails' - the inner 'fails' step runs speculatively and fails, but 'not' succeeds
+		// 'not fails' holds: the nested 'fails' is refuted.
 		const feature = { path: "/features/test.feature", content: "debug step by step\nnot fails" };
-		const res = await testWithWorld(world, [feature], [DebuggerStepper, TestSteps, LogicStepper, Haibun]);
+		const res = await testWithWorld(world, [feature], [DebuggerStepper, TestSteps, Haibun]);
 
-		// Should succeed with exactly 1 debugger prompt (for 'not fails')
-		// but NOT for the inner speculative 'fails' step
-		// ('debug step by step' doesn't trigger a prompt, it just sets the mode)
+		// One prompt, for 'not fails'. 'debug step by step' sets the mode without a prompt.
 		expect(res.ok).toBe(true);
 		expect(testPrompter.prompt).toHaveBeenCalledTimes(1);
 	});

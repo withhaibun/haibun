@@ -182,11 +182,9 @@ export const affordancesSchema = z
 				z
 					.object({
 						outcome: z.string(),
-						kind: z.enum(["imperative", "declarative"]),
 						method: z.string(),
 						paramSlots: z.array(z.string()),
 						proofStatements: z.array(z.string()),
-						resolvesDomain: z.string().optional(),
 						ensured: z.boolean(),
 						error: z.string().optional(),
 						source: z.object({ path: z.string(), lineNumber: z.number().optional() }).strict(),
@@ -369,7 +367,7 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 			}
 			const label = statementSchema.parse(proto.value);
 			const seqStart = featureStep.seqPath;
-			return findFeatureStepsFromStatement(label, steppers, world, featureStep.source?.path, [...seqStart, 0], -1);
+			return findFeatureStepsFromStatement(label, steppers, world, featureStep.source?.path, [...seqStart, 0]);
 		},
 	},
 ];

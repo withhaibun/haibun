@@ -12,6 +12,6 @@ describe("playwrightWeb", () => {
 	it("sets up steps", async () => {
 		const steppers = await getCreateSteppers([me]);
 		expect(Object.keys(itemAt(steppers, 0).steps).length > 0).toBe(true);
-		expect(Object.values(itemAt(steppers, 0).steps).every((s) => !!s.action)).toBe(true);
+		expect(Object.values(itemAt(steppers, 0).steps).every((s) => s.action !== undefined || s.reading !== undefined)).toBe(true);
 	});
 });

@@ -7,10 +7,10 @@
 
 import { AStepper, IHasCycles, IHasOptions, StepperKinds, IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { NameSchema } from "@haibun/core/lib/domains/domains.js";
-import { OK, SPECULATIVE_FAILURE, STATUS, type TBlipEvent, THaibunEvent, EventFormatter } from "@haibun/core/lib/domains/protocol.js";
+import { OK, NESTED_FAILURE, STATUS, type TBlipEvent, THaibunEvent, EventFormatter } from "@haibun/core/lib/domains/protocol.js";
 import { LEVEL_STATUS } from "@haibun/core/lib/actuality/domains/level-status.js";
 import { stringOrError, getStepperOption } from "@haibun/core/lib/domains/util.js";
-import { actualityMachine, isActualityMove, runningFeature, type TActualityMove } from "@haibun/core/lib/actuality/machines/actuality.js";
+import { actualityMachine, runningFeature, type TActualityMove } from "@haibun/core/lib/actuality/machines/actuality.js";
 
 import { trace, Tracer, Span, SpanStatusCode, context } from "@opentelemetry/api";
 import { logs, SeverityNumber } from "@opentelemetry/api-logs";
@@ -103,7 +103,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 	private processEvent(event: THaibunEvent) {
 		const tracer = this.tracer;
 		// The machine takes every move, so it holds the levels whether or not the tracer has started.
-		if (event.kind === "lifecycle" && isActualityMove(event)) this.moveFeature(tracer, event);
+		if (event.kind === "lifecycle") this.moveFeature(tracer, event);
 		if (!tracer) return;
 
 		const logger = logs.getLogger("haibun-monitor-otel");
@@ -127,7 +127,6 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 								"haibun.event.id": event.id,
 								"haibun.stepper": event.stepperName || "unknown",
 								"haibun.action": event.actionName || "unknown",
-								"haibun.intent.mode": event.intent?.mode || "authoritative",
 							},
 						},
 						parentContext,
@@ -137,14 +136,13 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 				} else if (event.stage === "end") {
 					const stepSpan = this.stepSpans.get(event.id);
 					if (stepSpan) {
-						// getIndication separates a speculative failure from a failure.
+						// getIndication separates a nested call's failure, which its line's proof reads, from a line's failure.
 						const indication = EventFormatter.getIndication(event);
 						if (indication === STATUS.failed) {
 							stepSpan.setStatus({ code: SpanStatusCode.ERROR, message: event.error });
 							stepSpan.setAttribute("haibun.error", event.error || "unknown error");
-						} else if (indication === SPECULATIVE_FAILURE) {
-							stepSpan.setAttribute("haibun.speculative.failed", true);
-							stepSpan.setAttribute("haibun.error", event.error || "speculative failure");
+						} else if (indication === NESTED_FAILURE) {
+							stepSpan.setAttribute("haibun.error", event.error || "nested failure");
 						}
 						stepSpan.end();
 						this.stepSpans.delete(event.id);

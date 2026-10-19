@@ -8,7 +8,7 @@ import { ICON_STEP_COMPLETED, ICON_STEP_FAILED, ICON_STEP_RUNNING, ICON_STEP_STO
 export type TEventMarkerStyle = { color: string; icon: string };
 
 /** The mark palette. Each colour is named by what a mark shows rather than by its hue. Every surface that marks an event
- *  reads its colours here. `undecided` marks an outcome that isn't a fault or a success: a speculative try, a failed call
+ *  reads its colours here. `undecided` marks an outcome that isn't a fault or a success: a nested call's failure, a failed call
  *  actuality handed out, a stopped step or an event that doesn't match a case. */
 export const MARK_COLOUR = {
 	feature: "#c084fc",

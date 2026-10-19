@@ -16,7 +16,7 @@ import { hostOfMethodName, stepMethodName } from "../domains/step-method.js";
 import type { AStepper, TStepperStep, TFeatureStep } from "../domains/stepper.js";
 import { mapInputToStepValues, literalTerm, renderStepLine } from "../derivations/named-vars.js";
 import { actionNotOK } from "../../domains/util.js";
-import { dispatchStep, type DispatchContext } from "../../actuality/pipelines/step-dispatch.js";
+import { proveStep, type DispatchContext } from "../../actuality/pipelines/step-dispatch.js";
 import { allocateSyntheticSeqPath } from "../../domains/host-id.js";
 import type { TSeqPath, TStepResult } from "../../domains/protocol.js";
 
@@ -56,7 +56,7 @@ export const NO_INPUT: Readonly<Record<string, unknown>> = {};
 export async function callStepByName(ctx: DispatchContext, method: string, input: Readonly<Record<string, unknown>>): Promise<TStepCall> {
 	const tool = ctx.registry.named(method);
 	const seqPath = allocateSyntheticSeqPath(ctx.world);
-	const result = await dispatchStep(ctx, buildFeatureStepForTransport(tool, input, seqPath));
+	const result = await proveStep(ctx, buildFeatureStepForTransport(tool, input, seqPath));
 	return { seqPath, result };
 }
 

@@ -344,10 +344,7 @@ export function formattedSteppers(steppers: AStepper[]) {
 			const description = o.description || name;
 			return {
 				...acc,
-				[name]: {
-					description,
-					steps: Object.entries(o.steps).map(([stepperName, stepperMatch]) => stepperName + ": " + (stepperMatch.gwta || stepperMatch.exact || stepperMatch.match)),
-				},
+				[name]: { description, steps: Object.entries(o.steps).map(([stepperName, stepperMatch]) => stepperName + ": " + (stepperMatch.gwta || stepperMatch.exact)) },
 			};
 		},
 		{} as { [name: string]: { description: string; steps: string[] } },

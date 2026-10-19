@@ -1,4 +1,4 @@
 {
 	"$schema": "../../modules/core/haibun-core-specl.schema.json",
-	"steppers": ["haibun-stepper"]
+	"steppers": ["@haibun/logic/logic-stepper", "haibun-stepper"]
 }

@@ -12,7 +12,7 @@ import type { TFeature } from "./execution.js";
 import type { AStepper } from "../../steps/domains/stepper.js";
 import type { TActualityMachine } from "../machines/actuality.js";
 import type { TLevelRecords } from "../pipelines/move-actuality.js";
-import type { TClock } from "../ports.js";
+import type { TClock, TProver } from "../ports.js";
 
 export type TWorld = {
 	tag: TTag;
@@ -54,9 +54,8 @@ export type TRuntime = {
 	steppers?: AStepper[];
 	/** Shared step registry. Set by Executor, used for dynamic step registration. */
 	stepRegistry?: StepRegistry;
-	/** The cause of an exhaustion: a step depth or an ensure attempt count over its limit. While it is set, each dispatch
-	 *  fails with this cause. */
-	exhaustionError?: string;
+	/** The prover that proves every step. The stepper that supplies the logic engine sets it. */
+	prover?: TProver;
 	/**
 	 * Monotonic counter for synthetic seqPaths. `allocateSyntheticSeqPath` in host-id.ts
 	 * increments it for a call that doesn't carry a caller seqPath: an MCP tool call, an

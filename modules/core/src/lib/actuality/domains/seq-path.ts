@@ -13,7 +13,7 @@
  */
 import { itemAt } from "../../domains/item-at.js";
 import { z } from "zod";
-import { ACTUALITY_LEVELS, EXECUTION_MODES, HAIBUN_LOG_LEVELS, RECORDED_STATUS, type TActualityLevel } from "../../domains/protocol.js";
+import { ACTUALITY_LEVELS, HAIBUN_LOG_LEVELS, RECORDED_STATUS, VERDICT, type TActualityLevel } from "../../domains/protocol.js";
 import { MEDIA_TYPE } from "../../domains/media-types.js";
 import {
 	Access,
@@ -29,24 +29,9 @@ import {
 const SEQ_PATH_DOMAIN = "seq-path";
 
 // SeqPath conventions:
-// - Feature execution uses [hostId, feature, scenario, step, ...].
-// - A speculative or debug branch extends its parent step's path with a negative segment.
+// - Feature execution uses [hostId, feature, scenario, step, ...], and a line's proof extends the line's path with each
+//   position of the proof.
 // - An ad hoc transport call uses [hostId, SYNTHETIC_FEATURE_NUM, adHocSeq] (host-id.ts).
-
-/** The direction of a synthetic path: a speculative branch counts down from its parent, and other work counts up. */
-export function syntheticSeqPathDirection(speculative: boolean): 1 | -1 {
-	return speculative ? -1 : 1;
-}
-
-/** The first path of a branch under a parent step, in a direction. */
-export function syntheticBranchSeqPath(parentSeqPath: readonly number[], dir: 1 | -1): number[] {
-	return [...parentSeqPath, dir];
-}
-
-/** The next path after a synthetic path, in a direction. */
-export function advanceSyntheticSeqPath(seqPath: readonly number[], dir: 1 | -1): number[] {
-	return [...seqPath.slice(0, -1), itemAt(seqPath, seqPath.length - 1) + dir];
-}
 
 /** Format a hierarchical seqPath number array as the canonical string id (e.g. [0,1,2,5] → "0.1.2.5"). */
 export function formatSeqPath(seqPath: number[]): string {
@@ -211,10 +196,9 @@ export const SEQ_PATH_FIELD = {
 	generatedAtTime: "generatedAtTime",
 	endedAtTime: "endedAtTime",
 	path: "path",
-	/** Whether the step's outcome is authoritative or speculative. A speculative step's failure is expected, so a
-	 *  reader that looks for failures selects the authoritative steps. emitSeqPathStart writes the mode on every step's
-	 *  record because a query for the steps that aren't speculative matches only records that hold a mode. */
-	mode: "mode",
+	/** How the logic engine ended the step's goal: proved, refuted, unknown or a contradiction. A nested call that is
+	 *  refuted doesn't fail its line, so a reader that looks for failures reads the verdict of each line. */
+	verdict: "verdict",
 	/** Whether the step executed in this process (`local`) or on another host (`remote`). The step's record holds this
 	 *  fact about the step, and a separate trace doesn't. */
 	ranVia: "ranVia",
@@ -279,7 +263,7 @@ export const SeqPathSchema = PersistedVertexSchema.extend({
 	[SEQ_PATH_FIELD.generatedAtTime]: z.string(),
 	[SEQ_PATH_FIELD.endedAtTime]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.path]: OPTIONAL_TEXT,
-	[SEQ_PATH_FIELD.mode]: z.enum(EXECUTION_MODES).optional(),
+	[SEQ_PATH_FIELD.verdict]: z.enum(VERDICT).optional(),
 	[SEQ_PATH_FIELD.ranVia]: z.enum(RAN_VIA).optional(),
 	[SEQ_PATH_FIELD.ranOn]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.level]: z.enum(HAIBUN_LOG_LEVELS),
@@ -364,8 +348,7 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 			[SEQ_PATH_FIELD.generatedAtTime]: LinkRelations.GENERATED_AT_TIME.rel,
 			[SEQ_PATH_FIELD.endedAtTime]: LinkRelations.ENDED_AT_TIME.rel,
 			[SEQ_PATH_FIELD.path]: LinkRelations.SOURCE_PATH.rel,
-			// Grouped-as, so the type offers each mode as a sub-filter, and a reader doesn't type a condition on the field.
-			[SEQ_PATH_FIELD.mode]: LinkRelations.CONTEXT.rel,
+			[SEQ_PATH_FIELD.verdict]: LinkRelations.OUTCOME.rel,
 			// Grouped-as, so the type offers "the steps another host ran" as a filter, and a reader doesn't write a condition.
 			[SEQ_PATH_FIELD.ranVia]: LinkRelations.CONTEXT.rel,
 			[SEQ_PATH_FIELD.ranOn]: LinkRelations.RAN_ON.rel,

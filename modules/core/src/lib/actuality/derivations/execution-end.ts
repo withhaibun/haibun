@@ -19,7 +19,7 @@ export function calculateShouldClose({ thisFeatureOK, isLast, continueAfterError
 
 /**
  * The failure an execution reports: the feature step that failed the first failed feature. foldStep stores the first
- * failed feature step in `steps.failed` in place of an earlier failed synthetic dispatch or speculative step. A synthetic
+ * failed feature step in `steps.failed` in place of an earlier failed synthetic dispatch or nested call. A synthetic
  * dispatch has a negative seqPath segment. A model's tool call and an RPC dispatch are synthetic dispatches. The parent
  * step can recover from a failed synthetic dispatch, so naming the dispatch would report a recovered tool call as
  * actuality's failure. Undefined where every feature passed.

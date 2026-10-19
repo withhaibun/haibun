@@ -13,7 +13,7 @@ class DescribedSteps extends AStepper {
 		exactStep: { exact: "do something", action: async () => OK },
 		gwtaStep: { gwta: "set {name} to {value}", description: "Sets a value.", read: true, readsAt: Access.private, action: async () => OK },
 		numberStep: { gwta: "wait {seconds: number} seconds", capability: "DescribedSteps:wait", action: async () => OK },
-		matchStep: { match: /^do (.*) with (.*)$/, fallback: true, action: async () => OK },
+		fallbackStep: { gwta: "do {what} with {how}", fallback: true, action: async () => OK },
 	};
 }
 
@@ -37,19 +37,19 @@ describe("a step's description", () => {
 	it("states the step's line, whichever way the step declares it", () => {
 		expect(describedAs("exactStep").pattern).toBe("do something");
 		expect(describedAs("gwtaStep").pattern).toBe("set {name} to {value}");
-		expect(describedAs("matchStep").pattern).toContain("do (.*) with (.*)");
+		expect(describedAs("fallbackStep").pattern).toBe("do {what} with {how}");
 	});
 
 	it("states each parameter with its domain, and the schema of the arguments", () => {
 		expect(describedAs("gwtaStep").paramDomains).toEqual({ name: "string", value: "string" });
 		expect(describedAs("numberStep").paramDomains).toEqual({ seconds: "number" });
 		expect(describedAs("numberStep").inputSchema.required).toEqual(["seconds"]);
-		expect(describedAs("matchStep").paramDomains).toEqual({});
+		expect(describedAs("fallbackStep").paramDomains).toEqual({ what: "string", how: "string" });
 	});
 
 	it("states whether the step is a read and a fallback, and the capability it requires", () => {
 		expect(describedAs("gwtaStep")).toMatchObject({ read: true, fallback: false, description: "Sets a value." });
-		expect(describedAs("matchStep")).toMatchObject({ read: false, fallback: true });
+		expect(describedAs("fallbackStep")).toMatchObject({ read: false, fallback: true });
 		expect(describedAs("numberStep").capability).toBe("DescribedSteps:wait");
 	});
 });
@@ -65,7 +65,7 @@ describe("a step as a tool", () => {
 		expect(toolDefinition(describedAs("gwtaStep")).description, "a read that doesn't state its level requires a private read").toBe(
 			"set {name} to {value}\n\nSets a value.\n\nRequires capability Read:private.",
 		);
-		expect(describedAs("matchStep").capability, "and a step that doesn't declare an action requires its own name").toBe("DescribedSteps:matchStep");
+		expect(describedAs("fallbackStep").capability, "and a step that doesn't declare an action requires its own name").toBe("DescribedSteps:fallbackStep");
 		expect(
 			toolDefinition({ ...describedAs("gwtaStep"), remoteOrigin: "http://localhost:8331" }).description,
 			"and the instance it runs at, for a step another instance declares",

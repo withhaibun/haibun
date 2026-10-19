@@ -5,6 +5,7 @@ import { getDefaultWorld, passWithDefaults } from "../lib/test/lib.js";
 import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun-stepper.js";
 import { DOMAIN_WAYPOINT_ARGUMENT } from "../lib/domains/domains.js";
+import { READING } from "../lib/steps/domains/stepper.js";
 
 describe("ActivitiesStepper", () => {
 	describe("registerOutcome", () => {
@@ -18,8 +19,8 @@ describe("ActivitiesStepper", () => {
 			if (!step) throw new Error("the outcome isn't registered as a step");
 			expect(step.gwta, "each placeholder in the outcome pattern takes a waypoint argument").toBe(`Is logged in as {user: ${DOMAIN_WAYPOINT_ARGUMENT}}`);
 			expect(step.description).toContain("Is logged in as {user}");
-			expect(step.action).toBeDefined();
-			expect(typeof step.action).toBe("function");
+			expect(step.reading, "the engine proves the outcome by applying its rule").toBe(READING.apply);
+			expect(step.rule?.proof.map((line) => line.in)).toEqual(['set loggedIn to "true"']);
 		});
 
 		it("should prevent duplicate outcome registration", async () => {

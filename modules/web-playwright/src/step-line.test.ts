@@ -11,7 +11,7 @@ import { DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STATEMENT, domainParts } from "@haib
 import type { AStepper } from "@haibun/core/lib/astepper.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
-import LogicStepper from "@haibun/core/steps/logic-stepper.js";
+import LogicStepper from "@haibun/logic/logic-stepper.js";
 import ResourcesStepper from "@haibun/core/steps/resources-stepper.js";
 import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import ActivitiesStepper from "@haibun/core/steps/activities-stepper.js";

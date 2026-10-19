@@ -25,8 +25,7 @@ export const NODE_KIND = {
 	factInstance: "fact-instance",
 	resource: "resource",
 	waypointEnsured: "waypoint-ensured",
-	waypointDeclarative: "waypoint-declarative",
-	waypointImperative: "waypoint-imperative",
+	waypointPending: "waypoint-pending",
 } as const;
 
 /** The built-in kinds that style an edge. */

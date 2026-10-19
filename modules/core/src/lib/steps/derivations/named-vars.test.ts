@@ -1,10 +1,10 @@
 import { describe, it, test, expect } from "vitest";
 
 import { OK, TStepArgs, Origin, TEST_BASE } from "../../domains/protocol.js";
-import { AStepper, TStepperStep } from "../domains/stepper.js";
+import { AStepper } from "../domains/stepper.js";
 import { getNamedMatches, namedInterpolation } from "./named-vars.js";
 import { Resolver } from "../../actuality/pipelines/resolver.js";
-import { actionNotOK, createSteppers } from "../../domains/util.js";
+import { createSteppers } from "../../domains/util.js";
 import { getDefaultWorld } from "../../test/lib.js";
 import { asExpandedFeatures } from "../../test/resolver-features.js";
 import { withName } from "../../domains/features.js";
@@ -13,10 +13,8 @@ import { DOMAIN_STRING } from "../../domains/domains.js";
 import { itemAt } from "../../domains/item-at.js";
 
 describe("namedMatches", () => {
-	const step: TStepperStep = { match: /^(?<one>.*?) is (?<two>.*?)$/, action: async () => Promise.resolve(actionNotOK("test")) };
-
 	it("gets named matches", () => {
-		expect(getNamedMatches(step.match as RegExp, "It is set")).toEqual({ one: "It", two: "set" });
+		expect(getNamedMatches(/^(?<one>.*?) is (?<two>.*?)$/, "It is set")).toEqual({ one: "It", two: "set" });
 	});
 });
 

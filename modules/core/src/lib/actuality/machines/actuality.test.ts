@@ -1,6 +1,6 @@
 /** The actuality machine moves each level as its table states, and a reader of the stream holds the counts. */
 import { describe, expect, it } from "vitest";
-import { EXECUTION_MODE, STATUS } from "../../domains/protocol.js";
+import { SUBSTEP_LEVEL, STATUS } from "../../domains/protocol.js";
 import { assertTable, pickWith, runSequences, staying } from "../../test/machine-table.js";
 import { INITIAL_ACTUALITY, actualityMachine, runningFeature, transition, type TActuality, type TActualityMove } from "./actuality.js";
 import { LEVEL_STATUS } from "../domains/level-status.js";
@@ -166,7 +166,7 @@ describe("the step level", () => {
 			feature("f1", "start"),
 			step("0.1.1.1", "end", STATUS.completed),
 			step("0.1.1.2", "end", STATUS.failed, { error: "the answer is other" }),
-			step("0.1.1.3", "end", STATUS.failed, { intent: { mode: EXECUTION_MODE.speculative } }),
+			step("0.1.1.3", "end", STATUS.failed, { level: SUBSTEP_LEVEL }),
 			step("0.1.1.2.-1", "end", STATUS.failed),
 			step("0.1.1.4", "end", STATUS.failed),
 		]);

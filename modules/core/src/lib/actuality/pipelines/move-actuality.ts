@@ -9,7 +9,7 @@ import type { IQuadStore } from "../../steps/ports.js";
 import { SEQ_PATH_LABEL } from "../../domains/resources.js";
 import { writtenLevel } from "../../domains/capability-context.js";
 import { SEQ_PATH_ACCESS } from "../domains/seq-path.js";
-import { isActualityMove, type TActuality, type TActualityMove } from "../machines/actuality.js";
+import type { TActuality, TActualityMove } from "../machines/actuality.js";
 import { levelRecord, type TLevelNaming, type TStepRecord } from "../derivations/step-records.js";
 
 /** The records of an execution's levels by their events' id: a level's start writes its record, and its end extends it. */
@@ -29,11 +29,9 @@ export async function writeLevelRecord(store: IQuadStore, levels: TLevelRecords,
 	return written;
 }
 
-/** Moves the actuality machine with a level's event, writes the level's record, and emits the event. Throws where the event
- *  isn't a level's, or where the machine refuses it: the Executor moves each level in order, a start before its end, so a
- *  refused move is a fault. */
+/** Moves the actuality machine with a level's event, writes the level's record, and emits the event. Throws where the
+ *  machine refuses it: the Executor moves each level in order, a start before its end, so a refused move is a fault. */
 export async function moveActuality(world: TWorld, event: TLifecycleEvent): Promise<void> {
-	if (!isActualityMove(event)) throw new Error(`a ${event.type} event isn't a move of actuality's levels; emit it through the events hub`);
 	const held = world.runtime.actuality;
 	const before = held.state.get();
 	const after = held.dispatch(event);

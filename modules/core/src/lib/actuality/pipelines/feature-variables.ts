@@ -71,6 +71,9 @@ function stepsOf(stepsThatSet: ReadonlyMap<string, string[]>, name: string): str
 	return steps;
 }
 
+/** The domain of a binding: a metric that is a number is of the number domain, and every other binding is of the domain its term states. */
+const boundDomain = (bound: string | number, written: string): string => (typeof bound === "number" ? DOMAIN_NUMBER : written);
+
 export class FeatureVariables {
 	private store: QuadStore;
 	/** Each secret variable's value, by name, apart from the graph, which holds the obscured value. Resolution, `carried`
@@ -241,11 +244,16 @@ export class FeatureVariables {
 			resolved.origin = Origin.env;
 			resolved.secret = this.isSecret(lookupTerm);
 		} else if (input.origin === Origin.var) {
-			Object.assign(resolved, await this.lookupVariable(await this.filledName(input.term, featureStep)));
+			// A binding of a quantifier or a waypoint is a variable within the statement it binds.
+			const name = await this.filledName(input.term, featureStep);
+			const bound = featureStep?.runtimeArgs?.[name];
+			if (bound === undefined) Object.assign(resolved, await this.lookupVariable(name));
+			else Object.assign(resolved, { value: bound, domain: boundDomain(bound, writtenDomain), origin: Origin.var });
 		} else if (input.origin === Origin.defined) {
-			if (featureStep?.runtimeArgs?.[lookupTerm] !== undefined) {
-				resolved.value = featureStep.runtimeArgs[lookupTerm];
-				resolved.domain = writtenDomain;
+			const bound = featureStep?.runtimeArgs?.[lookupTerm];
+			if (bound !== undefined) {
+				resolved.value = bound;
+				resolved.domain = boundDomain(bound, writtenDomain);
 				resolved.origin = Origin.var;
 			} else if (runEnvVariable(this.world, lookupTerm)) {
 				resolved.value = runEnvVariable(this.world, lookupTerm);
@@ -264,9 +272,10 @@ export class FeatureVariables {
 			}
 		} else if (input.origin === Origin.quoted) {
 			if (input.term.startsWith("{") && input.term.endsWith("}") && !input.term.includes(":")) {
-				if (featureStep?.runtimeArgs?.[lookupTerm] !== undefined) {
-					resolved.value = featureStep.runtimeArgs[lookupTerm];
-					resolved.domain = writtenDomain;
+				const bound = featureStep?.runtimeArgs?.[lookupTerm];
+				if (bound !== undefined) {
+					resolved.value = bound;
+					resolved.domain = boundDomain(bound, writtenDomain);
 					resolved.origin = Origin.var;
 				} else {
 					Object.assign(resolved, await this.lookupVariable(lookupTerm));

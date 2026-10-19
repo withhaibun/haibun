@@ -39,9 +39,8 @@ export const CHECK_YES = "✅";
 export const CHECK_NO = "❌";
 export const CHECK_YIELD = "🔀";
 
-// Tried statements: `some ... is ...` runs until one matches, and `maybe` accepts either outcome. A tried statement's
-// failure isn't a fault, so these marks aren't verdict marks. They carry less weight than a verdict.
-export const MAYBE_CHECK_YES = "◆";
+// A nested call's failure is part of its line's proof, and the line's own verdict states whether the proof holds, so its
+// mark isn't a verdict mark. It carries less weight than a verdict.
 export const MAYBE_CHECK_NO = "◇";
 
 // Handed-out calls: a negative seqPath segment marks a call actuality handed out, such as a model's tool call or an RPC.
@@ -58,13 +57,10 @@ export const ICON_STEP_RUNNING = "⫸"; // Active flow (Clear direction)
 export const ICON_STEP_FAILED = CHECK_NO;
 export const ICON_STEP_STOPPED = "◼";
 
-/** The intent modes, which `EXECUTION_MODES` describes. */
-export const EXECUTION_MODE = { authoritative: "authoritative", speculative: "speculative" } as const;
-
-/** Returns whether the event's intent mode is `speculative`. A statement under `maybe` runs speculatively, and its failure
- *  isn't a fault. */
-export function isSpeculativeEvent(event: { intent?: { mode?: string } }): boolean {
-	return event.intent?.mode === EXECUTION_MODE.speculative;
+/** Returns whether a lifecycle event is of a call nested in a line's proof. A nested call that fails doesn't fail its line:
+ *  its line's own record states whether the proof holds, so a nested failure reads apart from a line's failure. */
+export function isNestedEvent(event: { level?: string }): boolean {
+	return event.level === SUBSTEP_LEVEL;
 }
 
 /** Returns whether the event's id has a negative seqPath segment. A negative segment marks a call actuality handed out,
@@ -193,11 +189,11 @@ export function shortenURI(uri: string): string {
 // Formatting
 // ============================================================================
 
-/** The indication of a speculative statement's failure. */
-export const SPECULATIVE_FAILURE = `${EXECUTION_MODE.speculative}-${STATUS.failed}` as const;
-/** A lifecycle event's indication: its status, read with its intent mode where it failed. A speculative statement's failure
- *  is expected, so it reads apart from an authoritative one. */
-export type TIndication = z.infer<typeof LIFECYCLE_STATUS_SCHEMA> | typeof SPECULATIVE_FAILURE;
+/** The indication of a nested call's failure, which its line's proof reads. */
+export const NESTED_FAILURE = `nested-${STATUS.failed}` as const;
+/** A lifecycle event's indication: its status, read with its level where it failed. A nested call's failure is part of its
+ *  line's proof, so it reads apart from a line's failure. */
+export type TIndication = z.infer<typeof LIFECYCLE_STATUS_SCHEMA> | typeof NESTED_FAILURE;
 
 export class EventFormatter {
 	static shouldDisplay(event: THaibunEvent, minLevel: TShownLogLevel): boolean {
@@ -230,8 +226,8 @@ export class EventFormatter {
 	}
 
 	static getStatusIcon(event: THaibunEvent & { kind: "lifecycle" }): string {
-		if (event.status === STATUS.completed) return isSpeculativeEvent(event) ? ` ${MAYBE_CHECK_YES}` : ICON_STEP_COMPLETED;
-		if (event.status === STATUS.failed) return isSpeculativeEvent(event) ? ` ${MAYBE_CHECK_NO}` : isHandedOutEvent(event) ? RETURNED_TO_CALLER : ICON_STEP_FAILED;
+		if (event.status === STATUS.completed) return ICON_STEP_COMPLETED;
+		if (event.status === STATUS.failed) return isNestedEvent(event) ? ` ${MAYBE_CHECK_NO}` : isHandedOutEvent(event) ? RETURNED_TO_CALLER : ICON_STEP_FAILED;
 		if (event.status === STATUS.running) return ICON_STEP_RUNNING;
 		if (event.status === STATUS.stopped) return ICON_STEP_STOPPED;
 		return ` ${ICON_DEFAULT}`;
@@ -239,7 +235,7 @@ export class EventFormatter {
 
 	/** Returns a lifecycle event's indication, or undefined where the event doesn't state a status. */
 	static getIndication(event: THaibunEvent & { kind: "lifecycle" }): TIndication | undefined {
-		return event.status === STATUS.failed && isSpeculativeEvent(event) ? SPECULATIVE_FAILURE : event.status;
+		return event.status === STATUS.failed && isNestedEvent(event) ? NESTED_FAILURE : event.status;
 	}
 
 	static formatLineElements(event: THaibunEvent, lastLevel?: string) {
@@ -295,25 +291,6 @@ export class EventFormatter {
 // Execution Protocol
 // ============================================================================
 
-/**
- * How actuality counts a statement's outcome. In `authoritative` mode a statement's failure is actuality failing. In
- * `speculative` mode the statement is a try whose failure is expected, so its failure isn't actuality failing. The mode
- * holds one of these two values, so code that reads it checks only which one it holds.
- *
- * The mode doesn't classify a line as prose. document-content classifies a line as prose or technical. A prose line
- * doesn't run a step, so it doesn't have an outcome or an execution mode.
- */
-export const EXECUTION_MODES = [EXECUTION_MODE.authoritative, EXECUTION_MODE.speculative] as const;
-const ExecutionIntentSchema = z.object({
-	mode: z.enum(EXECUTION_MODES).default(EXECUTION_MODE.authoritative),
-	usage: z.enum(["testing", "debugging", "background", "polling"]).optional(),
-	stepperOptions: z.record(z.string(), z.unknown()).optional(),
-});
-export type ExecutionIntent = z.infer<typeof ExecutionIntentSchema>;
-
-const SystemMessageSchema = z.object({ topic: z.string().optional(), intent: ExecutionIntentSchema });
-type SystemMessage = z.infer<typeof SystemMessageSchema>;
-
 /** Execution trace field on products. */
 export const TRACE_SEQ_PATH = "_seqPath";
 
@@ -360,9 +337,21 @@ export type THypermediaProducts = {
 };
 
 /**
- * The one result type of step execution. Step actions, FlowRunner, the feature loop and RPC transports use it.
+ * How the logic engine ended a goal, with its EARL outcome where EARL states one: proved (earl:passed), refuted by what a
+ * step returned or a stated falsity (earl:failed), unknown where a step doesn't prove or refute it (earl:cantTell), and a
+ * contradiction where it is both proved and refuted.
  */
-type TActionResultCarries = { products?: THypermediaProducts; controlSignal?: TDebugSignal; artifact?: TArtifactEvent; protocol?: SystemMessage };
+export const VERDICT = { proved: "proved", refuted: "refuted", unknown: "unknown", contradiction: "contradiction" } as const;
+export type TVerdict = (typeof VERDICT)[keyof typeof VERDICT];
+
+/** The stepper a configuration lists to supply the logic engine that proves every step. */
+export const LOGIC_STEPPER = "@haibun/logic/logic-stepper";
+
+/**
+ * The one result type of step execution. Step actions, the logic engine's proofs, the feature loop and RPC transports use
+ * it. A proof's result states the verdict of its goal.
+ */
+type TActionResultCarries = { products?: THypermediaProducts; controlSignal?: TDebugSignal; artifact?: TArtifactEvent; verdict?: TVerdict };
 /** A step passed or failed. A failure carries an `errorMessage` that states the reason, and the remedy a caller can act
  *  on where one exists, as data a page renders as a control. */
 export type TActionResult = (TActionResultCarries & { ok: true; errorMessage?: undefined }) | (TActionResultCarries & { ok: false; errorMessage: string; remedy?: TRemedy });
@@ -391,7 +380,8 @@ export type TStepResult = TActionResult & {
 	path?: string;
 	lineNumber?: number;
 	seqPath: TSeqPath;
-	intent?: ExecutionIntent;
+	/** True for a call nested in a line's proof. */
+	isSubStep?: boolean;
 	start?: number;
 	end?: number;
 };
@@ -411,9 +401,9 @@ export type TFeatureSteps = {
 	lastEnd?: number;
 	/**
 	 * The step that actuality reports as failed. A negative seqPath segment marks a synthetic dispatch, such as a model's
-	 * tool call or an RPC. A synthetic dispatch can fail, and the step that made it can recover. A speculative statement's
-	 * failure is expected. Actuality therefore reports the feature's own failed step ahead of either. Where every failure
-	 * is a synthetic dispatch or a speculative statement, actuality reports the first failure.
+	 * tool call or an RPC. A synthetic dispatch can fail, and the step that made it can recover. A nested call's failure
+	 * is part of its line's proof. Actuality therefore reports the feature's own failed line ahead of either. Where every
+	 * failure is a synthetic dispatch or a nested call, actuality reports the first failure.
 	 */
 	failed?: TStepResult;
 };
@@ -479,9 +469,6 @@ const LifecycleEventCommon = BaseEvent.extend({
 	// Execution Context
 	status: LIFECYCLE_STATUS_SCHEMA.optional(),
 	error: z.string().optional(),
-
-	// Execution Intent
-	intent: z.object({ mode: z.enum(EXECUTION_MODES).optional() }).optional(),
 });
 
 // Specific Events
@@ -505,9 +492,9 @@ const StepEvent = LifecycleEventCommon.extend({
 	featurePath: z.string().optional(),
 });
 
-// For other types (activity, waypoint, ensure, execution)
+// The execution's events
 const GenericLifecycleEvent = LifecycleEventCommon.extend({
-	type: z.enum(["activity", "waypoint", "ensure", "execution"]),
+	type: z.literal("execution"),
 	in: z.string().optional(),
 	products: z.record(z.string(), z.unknown()).optional(),
 	lineNumber: z.number().optional(),
@@ -586,19 +573,10 @@ export const HttpTraceArtifact = BaseArtifact.extend({
 	mimetype: z.string().default("application/json"),
 });
 
-const RegisteredOutcomeEntry = z.object({
-	proofStatements: z.array(z.string()).optional(),
-	proofPath: z.string().optional(),
-	isBackground: z.boolean().optional(),
-	activityBlockSteps: z.array(z.string()).optional(),
-});
-export type TRegisteredOutcomeEntry = z.infer<typeof RegisteredOutcomeEntry>;
-
 export const ResolvedFeaturesArtifact = BaseArtifact.extend({
 	artifactType: z.literal("resolvedFeatures"),
 	resolvedFeatures: z.array(z.unknown()),
 	index: z.number().optional(),
-	registeredOutcomes: z.record(z.string(), RegisteredOutcomeEntry).optional(),
 	mimetype: z.string().default("application/json"),
 });
 
@@ -625,14 +603,13 @@ export const STEPS_CHANGED = "steps-changed";
 export const ControlEvent = BaseEvent.extend({
 	kind: z.literal("control"),
 	// Debugger signals: fail, step, continue, retry, next
-	// System signals: graph-link, break, pause, resume, steps-changed
+	// System signals: break, pause, resume, steps-changed
 	signal: z.enum([
 		"fail", // fail execution
 		"step", // single-step mode
 		"continue", // continue without debug
 		"retry", // retry failed step (rerunStep)
 		"next", // skip to next step (nextStep)
-		"graph-link",
 		"break",
 		"pause",
 		"resume",

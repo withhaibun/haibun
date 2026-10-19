@@ -13,8 +13,8 @@ import {
 	ICON_LOG_ERROR,
 	ICON_LOG_INFO,
 	MAYBE_CHECK_NO,
-	MAYBE_CHECK_YES,
 	RETURNED_TO_CALLER,
+	SUBSTEP_LEVEL,
 	type THaibunEvent,
 } from "../lib/domains/protocol.js";
 
@@ -29,10 +29,10 @@ describe("what a mark indicates", () => {
 		expect(EventFormatter.getStatusIcon(step({ status: "failed" }))).toContain(CHECK_NO);
 	});
 
-	it("marks a claim actuality tried with the diamond, not a verdict", () => {
-		const tried = { intent: { mode: "speculative" } };
-		expect(EventFormatter.getStatusIcon(step({ status: "completed", ...tried }))).toContain(MAYBE_CHECK_YES);
-		const notHeld = EventFormatter.getStatusIcon(step({ status: "failed", ...tried }));
+	it("marks a nested call's failure with the diamond, not a verdict", () => {
+		const nested = { level: SUBSTEP_LEVEL };
+		expect(EventFormatter.getStatusIcon(step({ status: "completed", ...nested }))).toContain(CHECK_YES);
+		const notHeld = EventFormatter.getStatusIcon(step({ status: "failed", ...nested }));
 		expect(notHeld).toContain(MAYBE_CHECK_NO);
 		expect(notHeld).not.toContain(CHECK_NO);
 	});

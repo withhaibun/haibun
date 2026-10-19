@@ -1,5 +1,5 @@
 /**
- * The Executor: it executes resolved features, each step through dispatchStep, and moves the actuality machine at each
+ * The Executor: it executes resolved features, proving each line through the logic engine, and moves the actuality machine at each
  * level's start and end. The execution starts before the first feature and ends after the last; a feature starts before
  * its first step and ends after its failure cycle; a scenario starts at its heading and ends where the next scenario,
  * the next feature heading or the feature's last step ends it.
@@ -11,7 +11,7 @@ import { hasCycles, type AStepper, type TResolvedFeature, type TEndFeature, type
 import { STAY, STEP_DELAY, CONTINUE_AFTER_ERROR, FEATURE_START, SCENARIO_START, STATUS, ResolvedFeaturesArtifact } from "../../domains/protocol.js";
 import type { TExecutorResult, TFeatureResult, TStepResult, THaibunEvent } from "../../domains/protocol.js";
 import { setStepperWorldsAndDomains, constructorName } from "../../domains/util.js";
-import { dispatchStep } from "./step-dispatch.js";
+import { proveStep, proverOf } from "./step-dispatch.js";
 import { openRunRegistry, type StepRegistry } from "../../steps/pipelines/step-registry.js";
 import { featureAsData } from "../../domains/features.js";
 import { FeatureVariables } from "./feature-variables.js";
@@ -23,8 +23,8 @@ import { executionEvent, featureEvent, scenarioEvent } from "../derivations/life
 import { moveActuality } from "./move-actuality.js";
 
 /**
- * Releases the payloads of a finished feature's passing steps. A reader reads a passing step's products, artifact and
- * protocol while its feature executes. The caller that receives the feature's result reads them too. A reader doesn't
+ * Releases the payloads of a finished feature's passing steps. A reader reads a passing step's products and artifact while
+ * its feature executes. The caller that receives the feature's result reads them too. A reader doesn't
  * read them after actuality starts another feature. Holding them would hold every graph slice, response body and rendered
  * document that actuality produces. Over many features the process then exhausts the heap and exits without reporting a
  * failure. releasePayload doesn't clear a failed step, because the onFailure cycle and the verdict read it.
@@ -38,7 +38,6 @@ function releasePayload(step: TStepResult): void {
 	if (!step.ok) return;
 	step.products = undefined;
 	step.artifact = undefined;
-	step.protocol = undefined;
 }
 
 /** Clears the facts between features, so a feature doesn't read another feature's facts. The variables remain. */
@@ -71,6 +70,7 @@ export class Executor {
 	}
 
 	private static async runFeatures(steppers: AStepper[], world: TWorld, features: TResolvedFeature[]): Promise<TExecutorResult> {
+		proverOf(world);
 		world.runtime.steppers = steppers;
 		const stepRegistry = openRunRegistry(world, steppers);
 		// Every transport attaches to actuality's one registry. A remote proxy injects the remote host's steps into the
@@ -82,8 +82,6 @@ export class Executor {
 		};
 		world.eventLogger.subscribe(onEventHandler);
 
-		const outcomeResults = await doStepperCycle(steppers, "getRegisteredOutcomes", undefined);
-		const registeredOutcomes = outcomeResults.find(Boolean);
 		world.eventLogger.emit(
 			ResolvedFeaturesArtifact.parse({
 				id: `artifact.resolvedFeatures`,
@@ -91,7 +89,6 @@ export class Executor {
 				kind: "artifact",
 				artifactType: "resolvedFeatures",
 				resolvedFeatures: features.map(featureAsData),
-				...(registeredOutcomes ? { registeredOutcomes } : {}),
 				mimetype: "application/json",
 			}),
 		);
@@ -107,7 +104,6 @@ export class Executor {
 			featureNum++;
 			const isLast = featureNum === features.length;
 
-			world.runtime.exhaustionError = undefined;
 			const featureName = featureNameOf(feature);
 			const newWorld = { ...world, tag: { ...world.tag, featureNum, featureName } };
 			// The feature's variables are written by a store of the feature's world, so each names the step that set it under
@@ -126,7 +122,6 @@ export class Executor {
 			const featureResult = await featureExecutor.doFeature(feature);
 			// The next feature starts from the records this feature's store holds.
 			world.shared = newWorld.shared;
-			if (newWorld.runtime.exhaustionError) world.runtime.exhaustionError = newWorld.runtime.exhaustionError;
 			const thisFeatureOK = featureResult.ok;
 			if (!thisFeatureOK) {
 				const failedStep = featureResult.steps.failed;
@@ -213,7 +208,7 @@ export class FeatureExecutor {
 				seqPath: [world.tag.hostId, featureNum, ordinal, ...step.seqPath],
 			};
 
-			const result = await dispatchStep({ registry: this.registry, world, steppers: this.steppers }, augmentedStep);
+			const result = await proveStep({ registry: this.registry, world, steppers: this.steppers }, augmentedStep);
 			ok = ok && result.ok;
 			if (!ok) break;
 

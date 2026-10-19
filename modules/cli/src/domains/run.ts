@@ -39,7 +39,7 @@ const RUN_TAIL_CHARS = 200_000;
  * another step when it can't perform that action directly.
  * Grants are per action. "May start runs" and "may stop runs" are separate grants, and either can be revoked while the other remains.
  *
- * `dispatchStep` performs the check in the same way for a feature line, an RPC call, an MCP tool call and a model's tool call.
+ * `proveStep` performs the check in the same way for a feature line, an RPC call, an MCP tool call and a model's tool call.
  * The caller's capability comes from the authority the step executes under, so the steps here don't read one.
  */
 export const SUPERVISOR_CAPABILITIES = {

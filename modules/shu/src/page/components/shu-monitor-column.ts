@@ -204,7 +204,6 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		.log-row .msg { color: var(--shu-fg-muted); }
 		.log-row.error { background: var(--shu-bg-error-soft); }
 		.log-row.warn { background: var(--shu-bg-warn-soft); }
-		.log-row.speculative { opacity: 0.5; }
 		.empty { padding: var(--shu-space-6); color: var(--shu-fg-muted); text-align: center; }
 	`,
 	];

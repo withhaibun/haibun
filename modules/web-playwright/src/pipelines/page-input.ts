@@ -89,7 +89,7 @@ export const acceptDialogs = (session: BrowserSession, keep: (said: TDialogSays)
 
 /** Runs `run` within the element `container` locates, or within the document it shows where it is an iframe. Every caller
  *  of a running instance shares the container scope, so the scope ends however `run` ends. */
-export const withinContainer = (session: BrowserSession, container: string, run: () => Promise<TActionResult>): Promise<TActionResult> =>
+export const withinContainer = <T>(session: BrowserSession, container: string, run: () => Promise<T>): Promise<T> =>
 	session.withScope(async (scope) => {
 		// A CSS locator reaches into shadow roots, and a container nested in another is found within it.
 		const located = scope.locator(container);

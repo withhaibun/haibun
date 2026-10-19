@@ -14,7 +14,6 @@ import { buildStepRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { DELEGATIONS_READ_ACTION, DELEGATIONS_READ_METHOD } from "../lib/domains/authority-types.js";
 import { stubVerifier } from "../lib/test/fake-authority.js";
 import AuthorityStepper from "./authority-stepper.js";
-import LogicStepper from "./logic-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
 import { addStepperConcerns } from "../lib/actuality/pipelines/executor.js";
 import { DOMAIN_TEXT } from "../lib/domains/domains.js";
@@ -51,8 +50,7 @@ const HELD_ON = "urn:uuid:held-on";
 /** A variable that actuality sets. A narrowed statement names this variable. */
 const [KEPT_NAME, KEPT] = ["kept", "actuality's"];
 
-const holds = async (content: string) =>
-	(await passWithDefaults([{ path: "/features/holding.feature", content }], [AuthorityStepper, LogicStepper, VariablesStepper, PingStepper])).ok;
+const holds = async (content: string) => (await passWithDefaults([{ path: "/features/holding.feature", content }], [AuthorityStepper, VariablesStepper, PingStepper])).ok;
 
 describe("holding only", () => {
 	it("runs a statement with a listed action its caller holds", async () => {

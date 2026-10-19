@@ -1,6 +1,6 @@
 {
 	"$schema": "schemas/app-params.json",
-	"steppers": ["variables-stepper", "logic-stepper"],
+	"steppers": ["variables-stepper", "@haibun/logic/logic-stepper"],
 	"runPolicy": "policy-test/schemas/no-prod-writes.json",
 	"appParameters": {
 		"prod": {

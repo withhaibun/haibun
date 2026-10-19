@@ -1,0 +1,26 @@
+{
+	"name": "@haibun/logic",
+	"type": "module",
+	"version": "4.0.0-alpha.3",
+	"description": "The logic engine that proves every step: SWI-Prolog through swipl-wasm, with EYE as the N3 conformance check in tests",
+	"main": "build/logic-stepper.js",
+	"files": ["build/**"],
+	"exports": {
+		".": "./build/logic-stepper.js",
+		"./*": { "haibun-source": "./src/*", "default": "./build/*" }
+	},
+	"scripts": {
+		"build": "tsc -b . && node scripts/copy-program.mjs",
+		"build:watch": "tsc -b . --watch",
+		"prepublishOnly": "npm run build",
+		"test": "vitest run"
+	},
+	"keywords": ["haibun", "logic", "prolog"],
+	"author": "",
+	"license": "ISC",
+	"dependencies": {
+		"@haibun/core": "*",
+		"swipl-wasm": "8.2.3",
+		"zod": "4.6.7"
+	}
+}

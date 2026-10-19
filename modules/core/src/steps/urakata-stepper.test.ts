@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { passWithDefaults } from "../lib/test/lib.js";
 import VariablesStepper from "./variables-stepper.js";
-import LogicStepper from "./logic-stepper.js";
 import Haibun from "./haibun-stepper.js";
 import UrakataStepper from "./urakata-stepper.js";
 import { AStepper } from "../lib/steps/domains/stepper.js";
@@ -43,7 +42,7 @@ describe("urakata-stepper", () => {
 	it("`stop urakata` stops a ticker by the id that another stepper's step returns as a product", async () => {
 		const result = await passWithDefaults(
 			[{ path: "/features/main.feature", content: ["set t from start tick", 'pause for "30 ms"', "stop urakata t.id", 'pause for "30 ms"'].join("\n") }],
-			[VariablesStepper, LogicStepper, Haibun, UrakataStepper, TickHarnessStepper],
+			[VariablesStepper, Haibun, UrakataStepper, TickHarnessStepper],
 			{ options: { DEST: "default" }, moduleOptions: {} },
 		);
 		expect(result.ok).toBe(true);
@@ -57,7 +56,7 @@ describe("urakata-stepper", () => {
 	it("`forget urakata` stops the ticker and removes it from the registry", async () => {
 		const result = await passWithDefaults(
 			[{ path: "/features/main.feature", content: ["set t from start tick", "forget urakata t.id"].join("\n") }],
-			[VariablesStepper, LogicStepper, Haibun, UrakataStepper, TickHarnessStepper],
+			[VariablesStepper, Haibun, UrakataStepper, TickHarnessStepper],
 			{ options: { DEST: "default" }, moduleOptions: {} },
 		);
 		expect(result.ok).toBe(true);
@@ -66,7 +65,7 @@ describe("urakata-stepper", () => {
 	it("`show urakata` returns `urakata-list` products whose `urakata` array holds the registry list", async () => {
 		const result = await passWithDefaults(
 			[{ path: "/features/main.feature", content: ["set t from start tick", "show urakata"].join("\n") }],
-			[VariablesStepper, LogicStepper, Haibun, UrakataStepper, TickHarnessStepper],
+			[VariablesStepper, Haibun, UrakataStepper, TickHarnessStepper],
 			{ options: { DEST: "default" }, moduleOptions: {} },
 		);
 		expect(result.ok).toBe(true);

@@ -1,20 +1,16 @@
-import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TStepperStep, CycleWhen } from "../lib/steps/domains/stepper.js";
+import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TStepperStep, CycleWhen, READING } from "../lib/steps/domains/stepper.js";
 import type { TFeatures, TStepInput } from "../lib/actuality/domains/execution.js";
 import { runSteppers, type TWorld } from "../lib/actuality/domains/world.js";
-import { TStepArgs, TRegisteredOutcomeEntry, OK } from "../lib/domains/protocol.js";
-import { formatSeqPath } from "../lib/actuality/domains/seq-path.js";
-import { actionOK, actionNotOK, actionOKWithProducts, getActionable, errorDetail, dePolite } from "../lib/domains/util.js";
+import { OK } from "../lib/domains/protocol.js";
+import { actionNotOK, actionOKWithProducts, getActionable, errorDetail, dePolite } from "../lib/domains/util.js";
 import { itemAt } from "../lib/domains/item-at.js";
 import { DOMAIN_STATEMENT, DOMAIN_STATEMENT_LINES, DOMAIN_TITLE, DOMAIN_WAYPOINT_ARGUMENT } from "../lib/domains/domains.js";
-import { Resolver } from "../lib/actuality/pipelines/resolver.js";
-import { FlowRunner, inheritedMode } from "../lib/steps/pipelines/flow-runner.js";
-import { ControlEvent, LifecycleEvent, STATUS, type TStatus } from "../lib/domains/protocol.js";
-import { GOAL_FINDING, WAYPOINT_KIND, type TWaypointEntry, type TWaypointKind } from "../lib/domains/goal-resolution.js";
-import { resolveGoals } from "../lib/pipelines/goal-resolution.js";
+import { Resolver, findFeatureStepsFromStatement } from "../lib/actuality/pipelines/resolver.js";
+import { proveStatements, stepperContext } from "../lib/actuality/pipelines/step-dispatch.js";
+import type { TWaypointEntry } from "../lib/domains/goal-resolution.js";
 import { runRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { stepMethodName } from "../lib/steps/domains/step-method.js";
 import { phraseParameters } from "../lib/steps/domains/phrase.js";
-import { callerHolds } from "../lib/domains/capability-context.js";
 import { z } from "zod";
 import { Access, LinkRelations, PersistedVertexSchema, type TDomainDefinition } from "../lib/domains/resources.js";
 import { refDomainKey, type TIndividualRef } from "../lib/domains/domains.js";
@@ -67,16 +63,13 @@ export const savedWaypointDomainDefinition: TDomainDefinition = {
 };
 
 /**
- * Builds virtual steps from `waypoint` statements and saved waypoints. Each step implements P ∨ (¬P ∧ [A]P). Either the
- * proof P holds, or the activity A runs and then P holds.
+ * Declares a waypoint's rule from each `waypoint` statement and saved waypoint: a step whose reading applies the rule. The
+ * logic engine proves `ensure H` as P ∨ (¬P ∧ [A]P): either the proof P holds, or the activity A runs and then P holds.
  */
 export class ActivitiesStepper extends AStepper implements IHasCycles {
 	description = "Define and reuse activities with waypoints and proofs";
 
-	private held?: FlowRunner;
-	private get runner(): FlowRunner {
-		return this.madeWithWorld(this.held, "flow runner");
-	}
+	steppers: AStepper[] = [];
 	private backgroundOutcomePatterns: Set<string> = new Set();
 	private featureOutcomePatterns: Set<string> = new Set();
 	private outcomeToFeaturePath: Map<string, string> = new Map();
@@ -84,20 +77,11 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	private currentFeaturePath: string = "";
 	private lastFeaturePath: string = "";
 	private lastResolutionPath: string = "";
-	private ensuredInstances: Map<string, { proof: string[]; valid: boolean }> = new Map();
-	private ensureAttempts: Map<string, number> = new Map();
-	private registeredOutcomeMetadata: Map<
-		string,
-		{ proofStatements: string[]; proofPath: string; isBackground: boolean; activityBlockSteps?: TStepInput[]; lineNumber?: number; resolvesDomain?: string }
-	> = new Map();
 	private backgroundSteps: Record<string, TStepperStep> = {};
 	private inActivityBlock = false;
 
 	cycles: IStepperCycles = {
 		getConcerns: () => ({ domains: [savedWaypointDomainDefinition] }),
-		startExecution: () => {
-			this.sendGraphLinkMessages();
-		},
 		startFeature: (startFeature) => {
 			if (this.lastFeaturePath && this.lastFeaturePath !== startFeature.resolvedFeature.path) {
 				const previousSteps = this.featureSteps.get(this.lastFeaturePath);
@@ -123,14 +107,10 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		},
 		endFeature: () => {
 			this.lastFeaturePath = this.currentFeaturePath;
-			this.ensuredInstances.clear();
 			return Promise.resolve();
 		},
-		getRegisteredOutcomes: () => {
-			return this.getRegisteredOutcomes();
-		},
 	};
-	cyclesWhen = { startExecution: CycleWhen.FIRST, startFeature: CycleWhen.FIRST };
+	cyclesWhen = { startFeature: CycleWhen.FIRST };
 
 	/**
 	 * The resolver calls this before each feature resolves. It removes the previous feature's waypoint steps, so a feature's
@@ -194,7 +174,9 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			action: async ({ waypoint }: { waypoint: TIndividualRef }, featureStep: TFeatureStep) => {
 				// Every saved waypoint's step requires ACTIVITIES_ACTIONS.runSavedWaypoint, and other outcomes' steps don't.
 				if (this.steps[waypoint.id]?.capability !== ACTIVITIES_ACTIONS.runSavedWaypoint) return actionNotOK(`"${waypoint.id}" isn't a waypoint saved here`);
-				const ran = await this.runner.runStatements([{ in: waypoint.id, source: { path: SAVED_WAYPOINT_SOURCE } }], { parentStep: featureStep });
+				const world = this.getWorld();
+				const statement = findFeatureStepsFromStatement(waypoint.id, this.steppers, world, SAVED_WAYPOINT_SOURCE, [0]);
+				const ran = await proveStatements(stepperContext(world, this.steppers), featureStep, statement);
 				return ran.ok ? OK : actionNotOK(ran.errorMessage);
 			},
 		},
@@ -250,173 +232,46 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		waypointWithProof: {
 			gwta: `waypoint {outcome: ${DOMAIN_TITLE}} with {proof:${DOMAIN_STATEMENT}}`,
 			precludes: ["ActivitiesStepper.waypointLabel"],
-			action: async ({ proof }: { proof: TFeatureStep[] }, featureStep: TFeatureStep) => {
-				try {
-					const result = await this.runner.runSteps(proof, { intent: { mode: "authoritative" }, parentStep: featureStep });
-					if (!result.ok) {
-						return actionNotOK(`waypoint: failed to execute proof steps: ${result.errorMessage}`);
-					}
-					return actionOK();
-				} catch (err) {
-					const msg = errorDetail(err);
-					return actionNotOK(`waypoint: failed to execute proof steps: ${msg}`);
-				}
-			},
+			description: "States a waypoint's rule, whose head holds where its proof holds. Where a feature reaches the line, its proof is proved.",
+			reading: READING.waypoint,
 		},
 
-		waypointLabel: { gwta: `waypoint {outcome: ${DOMAIN_TITLE}}`, action: async () => actionOK() },
+		waypointLabel: { gwta: `waypoint {outcome: ${DOMAIN_TITLE}}`, description: "States a waypoint whose activity runs where its line is proved.", reading: READING.waypoint },
 
 		ensure: {
 			description:
-				"Runs a waypoint's proof, and on a failure runs the waypoint's activity and then the proof again. The step passes where a proof passes. The step checks working memory for a fact of a declarative waypoint's goal domain in place of a proof.",
+				"Proves a waypoint's head: where its proof doesn't hold, its activity runs and its proof is proved again, P ∨ (¬P ∧ [A]P). The record of the waypoint states each part of the proof.",
 			gwta: `ensure {outcome:${DOMAIN_STATEMENT}}`,
 			unique: true,
-			action: async ({ outcome }: { outcome: TFeatureStep[] }, featureStep: TFeatureStep) => {
-				const outcomeKey = outcome.map((step) => step.in).join(" ");
-
-				const attemptKey = outcomeKey;
-				const prevAttempts = this.ensureAttempts.get(attemptKey) ?? 0;
-				const MAX_ENSURE_ATTEMPTS = 10;
-				this.ensureAttempts.set(attemptKey, prevAttempts + 1);
-				if (prevAttempts + 1 > MAX_ENSURE_ATTEMPTS) {
-					if (this.getWorld().runtime) {
-						this.getWorld().runtime.exhaustionError = "ensure max attempts exceeded";
-					}
-					return actionNotOK(`ensure: max attempts exceeded for waypoint "${outcomeKey}"`);
-				}
-
-				// Emits the ensure start event for monitors.
-				this.emitEnsure(featureStep, outcomeKey, { stage: "start", status: STATUS.running });
-
-				const pattern = outcome[0]?.action?.actionName || outcomeKey;
-
-				const registeredWaypoint = this.steps[pattern];
-				if (!registeredWaypoint) {
-					this.emitEnsureEnd(featureStep, outcomeKey, false, `"${outcomeKey}" is not a registered waypoint`);
-					return actionNotOK(`ensure: "${outcomeKey}" is not a registered waypoint. ensure can only be used with waypoints.`);
-				}
-
-				const metadata = this.registeredOutcomeMetadata.get(pattern);
-				if (!metadata) {
-					this.emitEnsureEnd(featureStep, outcomeKey, false, "the waypoint doesn't have metadata");
-					return actionNotOK(`ensure: waypoint "${outcomeKey}" doesn't have metadata.`);
-				}
-
-				if (metadata.resolvesDomain) {
-					// P ∨ (¬P ∧ [A]P) for a declarative goal:
-					//   1. Ensure skips the activity where the goal is satisfied.
-					//   2. Ensure runs the imperative activity where the goal isn't satisfied. Its lines supply the parameter
-					//      values that the goal resolver doesn't compute. Step dispatch asserts each activity step's product as
-					//      a fact of the step's productsDomain.
-					//   3. Ensure checks the goal again.
-					const initial = await this.checkDeclarativeGoal(metadata.resolvesDomain);
-					if (initial.refused) {
-						// The resolver refuses where callerHolds() returns undefined. Ensure continues to the imperative proof
-						// below and fails where the waypoint doesn't declare a proof.
-					} else if (initial.satisfied) {
-						this.emitEnsureEnd(featureStep, outcomeKey, true);
-						this.ensureAttempts.delete(attemptKey);
-						return actionOK();
-					} else if (metadata.activityBlockSteps && metadata.activityBlockSteps.length > 0) {
-						try {
-							const activityResult = await this.runner.runStatements(metadata.activityBlockSteps, {
-								intent: { mode: "authoritative", usage: featureStep.intent?.usage },
-								parentStep: featureStep,
-							});
-							if (!activityResult.ok) {
-								this.emitEnsureEnd(featureStep, outcomeKey, false, activityResult.errorMessage);
-								return actionNotOK(`ensure: waypoint "${outcomeKey}" activity failed: ${activityResult.errorMessage}`);
-							}
-						} catch (err) {
-							const msg = errorDetail(err);
-							this.emitEnsureEnd(featureStep, outcomeKey, false, msg);
-							return actionNotOK(`ensure: waypoint "${outcomeKey}" activity error: ${msg}`);
-						}
-						const recheck = await this.checkDeclarativeGoal(metadata.resolvesDomain);
-						if (recheck.satisfied) {
-							this.emitEnsureEnd(featureStep, outcomeKey, true);
-							this.ensureAttempts.delete(attemptKey);
-							return actionOK();
-						}
-						this.emitEnsureEnd(featureStep, outcomeKey, false, `goal ${metadata.resolvesDomain} not asserted after activity`);
-						return actionNotOK(`ensure: the activity of waypoint "${outcomeKey}" didn't assert goal "${metadata.resolvesDomain}" as a fact. Add a step that produces the goal.`);
-					} else {
-						// The waypoint doesn't have an imperative activity body, so ensure runs the resolver's plan. A plan
-						// step runs without parameter values, so the plan completes only for producers that don't take a
-						// parameter (see runDeclarativeEnsure).
-						const planOutcome = await this.runDeclarativeEnsure(metadata.resolvesDomain, featureStep);
-						this.emitEnsureEnd(featureStep, outcomeKey, planOutcome.ok, planOutcome.errorMessage);
-						this.ensureAttempts.delete(attemptKey);
-						return planOutcome.ok ? actionOK() : actionNotOK(`ensure: waypoint "${outcomeKey}" goal resolution failed: ${planOutcome.errorMessage}`);
-					}
-				}
-
-				if (metadata.proofStatements.length === 0) {
-					this.emitEnsureEnd(featureStep, outcomeKey, false, "the waypoint doesn't have a proof");
-					return actionNotOK(`ensure: waypoint "${outcomeKey}" doesn't have a proof, and ensure takes only a waypoint with a proof.`);
-				}
-
-				try {
-					const flowResult = await this.runner.runSteps(outcome, {
-						intent: { mode: "authoritative", usage: featureStep.intent?.usage, stepperOptions: { isEnsure: true } },
-						parentStep: featureStep,
-					});
-
-					if (!flowResult.ok) {
-						this.emitEnsureEnd(featureStep, outcomeKey, false, flowResult.errorMessage);
-						return actionNotOK(`ensure: waypoint "${outcomeKey}" proof failed: ${flowResult.errorMessage}`);
-					}
-				} catch (err) {
-					const msg = errorDetail(err);
-					this.emitEnsureEnd(featureStep, outcomeKey, false, msg);
-					return actionNotOK(`ensure: waypoint "${outcomeKey}" proof execution error: ${msg}`);
-				}
-
-				this.ensuredInstances.set(outcomeKey, { proof: metadata.proofStatements, valid: true });
-				this.ensureAttempts.delete(attemptKey);
-
-				this.emitEnsureEnd(featureStep, outcomeKey, true);
-				return actionOK();
-			},
+			reading: READING.ensure,
 		},
 	} as const satisfies TActivitiesFixedSteps;
 
-	/** Returns the registered waypoints for the affordances snapshot (the ProvidesWaypoints capability). A declarative
-	 *  waypoint is ensured where its goal domain is satisfied. The proof of an imperative waypoint runs speculatively only
-	 *  after `ensure` passed for the waypoint in the current feature. A waypoint that wasn't ensured doesn't have its
-	 *  variables bound, so a speculative proof would fail with "<term> is not set". */
-	async waypointEntries(featureStep: TFeatureStep, satisfiedDomains: Set<string>): Promise<TWaypointEntry[]> {
+	/** Returns the registered waypoints for the affordances snapshot (the ProvidesWaypoints capability). A waypoint is
+	 *  ensured where its proof holds now, which this step proves beneath itself. */
+	async waypointEntries(featureStep: TFeatureStep): Promise<TWaypointEntry[]> {
+		const world = this.getWorld();
 		const waypoints: TWaypointEntry[] = [];
-		for (const [outcome, metadata] of this.registeredOutcomeMetadata.entries()) {
-			const kind: TWaypointKind = metadata.resolvesDomain ? WAYPOINT_KIND.DECLARATIVE : WAYPOINT_KIND.IMPERATIVE;
-			const paramSlots = phraseParameters(outcome);
-			const method = stepMethodName("ActivitiesStepper", outcome);
+		for (const [outcome, step] of Object.entries(this.steps)) {
+			if (step.reading !== READING.apply || step.rule === undefined || step.source === undefined) continue;
+			const proofStatements = step.rule.proof.map((line) => line.in);
 			let ensured = false;
 			let error: string | undefined;
-
-			if (metadata.resolvesDomain) {
-				ensured = satisfiedDomains.has(metadata.resolvesDomain);
-			} else if (this.ensuredInstances.has(outcome) && metadata.proofStatements.length > 0) {
-				try {
-					const result = await this.runner.runStatements(metadata.proofStatements, { intent: { mode: "speculative" }, parentStep: featureStep });
-					ensured = result.ok;
-					if (!result.ok && result.errorMessage) error = result.errorMessage;
-				} catch (err) {
-					error = errorDetail(err);
-				}
+			if (proofStatements.length > 0 && phraseParameters(outcome).length === 0) {
+				const proof = step.rule.proof.flatMap((line) => findFeatureStepsFromStatement(line.in, this.steppers, world, line.source?.path, [0]));
+				const proved = await proveStatements(stepperContext(world, this.steppers), featureStep, proof);
+				ensured = proved.ok;
+				if (!proved.ok) error = proved.errorMessage;
 			}
-
 			waypoints.push({
 				outcome,
-				kind,
-				method,
-				paramSlots,
-				proofStatements: metadata.proofStatements,
-				resolvesDomain: metadata.resolvesDomain,
+				method: stepMethodName("ActivitiesStepper", outcome),
+				paramSlots: phraseParameters(outcome),
+				proofStatements,
 				ensured,
-				error,
-				source: { path: metadata.proofPath, lineNumber: metadata.lineNumber },
-				isBackground: metadata.isBackground,
+				...(error === undefined ? {} : { error }),
+				source: step.source,
+				isBackground: this.backgroundOutcomePatterns.has(outcome),
 			});
 		}
 		return waypoints;
@@ -428,7 +283,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
-		this.held = new FlowRunner(world, steppers);
+		this.steppers = steppers;
 	}
 
 	/**
@@ -477,81 +332,11 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		if (saved.length > 0) runRegistry(world).refresh(steppers, world);
 	}
 
-	/** Resolves a goal domain against actuality's steppers and facts, for the steps the caller may call. */
-	private async resolveGoal(domainKey: string) {
-		const world = this.getWorld();
-		return itemAt(await resolveGoals({ steppers: runSteppers(world), domains: world.domains, store: world.shared.getStore() }, [domainKey], { held: callerHolds() }), 0);
-	}
-
 	/**
-	 * Checks whether working memory holds a fact of the goal domain. Returns `satisfied: true` where one exists. Returns
-	 * the reason and detail of the resolver's `refused` finding in `refused`.
+	 * Declares a waypoint's step: its pattern is the outcome, each placeholder of which takes a waypoint argument, and its
+	 * rule holds the lines of its proof and its activity. An outcome is declared once; the same line declared again is the
+	 * same waypoint.
 	 */
-	private async checkDeclarativeGoal(domainKey: string): Promise<{ satisfied: boolean; refused?: string }> {
-		const resolution = await this.resolveGoal(domainKey);
-		if (resolution.finding === GOAL_FINDING.SATISFIED) return { satisfied: true };
-		if (resolution.finding === GOAL_FINDING.REFUSED) return { satisfied: false, refused: `${resolution.refusalReason}: ${resolution.detail}` };
-		return { satisfied: false };
-	}
-
-	/**
-	 * Ensures a declarative waypoint through the goal resolver. Runs each step of the first michi the resolver returns.
-	 * Ensure calls this only where the waypoint doesn't have an imperative activity body. A plan step runs with an empty
-	 * stepValuesMap, because facts don't bind to step arguments. Declare an imperative activity for a producer that takes
-	 * a parameter.
-	 */
-	private async runDeclarativeEnsure(domainKey: string, featureStep: TFeatureStep): Promise<{ handled: boolean; ok: boolean; errorMessage?: string }> {
-		const world = this.getWorld();
-		const resolution = await this.resolveGoal(domainKey);
-
-		if (resolution.finding === GOAL_FINDING.SATISFIED) return { handled: true, ok: true };
-		if (resolution.finding === GOAL_FINDING.REFUSED) return { handled: false, ok: false, errorMessage: `goal-${resolution.refusalReason}: ${resolution.detail}` };
-		if (resolution.finding === GOAL_FINDING.UNREACHABLE) {
-			return { handled: true, ok: false, errorMessage: `goal-unreachable: ${domainKey} (missing: ${resolution.missing.join(", ")})` };
-		}
-
-		// The resolver returns a list of michi. This method runs every step of the first michi without stopping, so it
-		// completes only a michi whose steps don't take a supplied value. A michi that takes a value from a person runs
-		// through `walk toward` and `advance the walk`.
-		const registry = runRegistry(world);
-		const firstMichi = resolution.michi[0];
-		if (!firstMichi) return { handled: true, ok: false, errorMessage: `goal-unreachable: ${domainKey} (the resolver didn't return a michi)` };
-		for (const planStep of firstMichi.steps) {
-			const tool = registry.get(stepMethodName(planStep.stepperName, planStep.stepName));
-			if (!tool) return { handled: true, ok: false, errorMessage: `plan step not in registry: ${planStep.stepperName}.${planStep.stepName}` };
-			const syntheticSeqPath = [...featureStep.seqPath, 0];
-			const synthetic: TFeatureStep = {
-				in: planStep.gwta ?? `${planStep.stepperName}.${planStep.stepName}`,
-				seqPath: syntheticSeqPath,
-				source: featureStep.source,
-				action: { actionName: planStep.stepName, stepperName: planStep.stepperName, step: { action: () => actionOK() }, stepValuesMap: {} },
-			};
-			const result = await tool.handler(synthetic, world);
-			if (!result.ok) return { handled: true, ok: false, errorMessage: `plan step ${planStep.stepperName}.${planStep.stepName} failed: ${result.errorMessage}` };
-		}
-		return { handled: true, ok: true };
-	}
-
-	private emitEnsureEnd(featureStep: TFeatureStep, outcomeKey: string, ok: boolean, error?: string): void {
-		this.emitEnsure(featureStep, outcomeKey, { stage: "end", status: ok ? STATUS.completed : STATUS.failed, error });
-	}
-
-	/** Emits an ensure's lifecycle event at its start or its end, which monitors read: one event, built here once. */
-	private emitEnsure(featureStep: TFeatureStep, outcomeKey: string, at: { stage: "start" | "end"; status: TStatus; error?: string }): void {
-		const where = { lineNumber: featureStep.source?.lineNumber, featurePath: featureStep.source?.path };
-		this.getWorld().eventLogger.emit(
-			LifecycleEvent.parse({
-				id: `${formatSeqPath(featureStep.seqPath)}.ensure`,
-				timestamp: this.getWorld().clock.now(),
-				kind: "lifecycle",
-				type: "ensure",
-				in: outcomeKey,
-				...where,
-				...at,
-			}),
-		);
-	}
-
 	registerOutcome(
 		outcome: string,
 		proofStatements: string[],
@@ -561,126 +346,47 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			activityBlockSteps,
 			lineNumber,
 			actualSourcePath,
-			resolvesDomain,
 			capability,
 		}: {
 			isBackground?: boolean;
 			activityBlockSteps?: (string | TStepInput)[];
 			lineNumber?: number;
 			actualSourcePath?: string;
-			resolvesDomain?: string;
 			/** The action the outcome's step requires, where it isn't the step's own name. */
 			capability?: string;
 		} = {},
 	) {
-		if (this.steps[outcome]) {
-			const existing = this.steps[outcome];
-			if (existing.source?.path === (actualSourcePath || proofPath) && existing.source?.lineNumber === lineNumber) {
-				return;
-			}
+		const path = actualSourcePath || proofPath;
+		const existing = this.steps[outcome];
+		if (existing) {
+			if (existing.source?.path === path && existing.source?.lineNumber === lineNumber) return;
 			throw new Error(
-				`Outcome "${outcome}" is already registered. Each outcome can only be defined once. (Existing: ${existing.source?.path}:${existing.source?.lineNumber}, New: ${actualSourcePath || proofPath}:${lineNumber})`,
+				`Outcome "${outcome}" is already registered. Each outcome can only be defined once. (Existing: ${existing.source?.path}:${existing.source?.lineNumber}, New: ${path}:${lineNumber})`,
 			);
 		}
-
-		// Gives each activity and proof line a source path where the line doesn't have one.
-		const sourcePath = actualSourcePath || proofPath;
-		const normalizedActivitySteps: TStepInput[] =
-			activityBlockSteps?.map((s) => {
-				return typeof s === "string" ? { in: s, source: { path: sourcePath } } : s;
-			}) ?? [];
-
-		const normalizedProofSteps: TStepInput[] = proofStatements.map((s) => ({ in: s, source: { path: sourcePath } }));
-
-		this.registeredOutcomeMetadata.set(outcome, {
-			proofStatements,
-			proofPath,
-			isBackground: isBackground ?? false,
-			activityBlockSteps: normalizedActivitySteps,
-			lineNumber,
-			resolvesDomain,
-		});
-
-		if (isBackground) {
-			this.backgroundOutcomePatterns.add(outcome);
-		} else {
+		const lineOf = (line: string | TStepInput): TStepInput => (typeof line === "string" ? { in: line, source: { path } } : line);
+		const rule = { proof: proofStatements.map(lineOf), activity: (activityBlockSteps ?? []).map(lineOf) };
+		if (isBackground) this.backgroundOutcomePatterns.add(outcome);
+		else {
 			this.featureOutcomePatterns.add(outcome);
 			this.outcomeToFeaturePath.set(outcome, proofPath);
 		}
-
 		const step: TStepperStep = {
 			// Each placeholder in the outcome pattern takes a waypoint argument.
 			gwta: outcome.replace(/\{([^}:]+)\}/g, (_, name: string) => `{${name}: ${DOMAIN_WAYPOINT_ARGUMENT}}`),
 			virtual: true,
 			...(capability ? { capability } : {}),
-			source: { lineNumber, path: actualSourcePath || proofPath },
+			source: { lineNumber, path },
 			description: `Outcome: ${outcome}. Proof: ${proofStatements.join("; ")}`,
-			action: async (args: TStepArgs, featureStep: TFeatureStep) => {
-				const run = (steps: TStepInput[], intent: TFeatureStep["intent"]) =>
-					this.runner.runStatements(steps, { args: args as Record<string, string>, intent, parentStep: featureStep });
-				// An outcome whose proof already holds is reached.
-				if (normalizedProofSteps.length > 0 && (await run(normalizedProofSteps, { mode: "speculative" })).ok) return OK;
-				const ensuring = featureStep.intent?.stepperOptions?.isEnsure === true;
-				if (normalizedActivitySteps.length === 0) {
-					if (ensuring) return actionNotOK(`ActivitiesStepper: outcome "${outcome}" doesn't have an activity body to ensure it`);
-					return proofStatements.length > 0 ? actionNotOK(`ActivitiesStepper: proof failed for outcome "${outcome}"`) : OK;
-				}
-				const intent = { mode: inheritedMode(featureStep), usage: featureStep.intent?.usage };
-				const act = await run(normalizedActivitySteps, intent);
-				if (!act.ok) return actionNotOK(`ActivitiesStepper: activity body failed for outcome "${outcome}": ${act.errorMessage}`);
-				// `ensure` verifies the proof after the activity body runs.
-				if (!ensuring || normalizedProofSteps.length === 0) return OK;
-				const verify = await run(normalizedProofSteps, intent);
-				return verify.ok ? OK : actionNotOK(`ActivitiesStepper: proof verification failed after activity body for outcome "${outcome}": ${verify.errorMessage}`);
-			},
+			reading: READING.apply,
+			rule,
 		};
-
 		this.steps[outcome] = step;
-		if (!isBackground) {
-			if (!this.featureSteps.has(proofPath)) {
-				this.featureSteps.set(proofPath, {});
-			}
+		if (isBackground) this.backgroundSteps[outcome] = step;
+		else {
 			const steps = this.featureSteps.get(proofPath);
-			if (steps) {
-				steps[outcome] = step;
-			}
-		} else {
-			this.backgroundSteps[outcome] = step;
-		}
-	}
-
-	getRegisteredOutcomes(): Record<string, TRegisteredOutcomeEntry> {
-		const result: Record<string, TRegisteredOutcomeEntry> = {};
-		for (const [outcome, metadata] of this.registeredOutcomeMetadata.entries()) {
-			result[outcome] = {
-				proofStatements: metadata.proofStatements,
-				proofPath: metadata.proofPath,
-				isBackground: metadata.isBackground,
-				activityBlockSteps: metadata.activityBlockSteps?.map((s) => (typeof s === "string" ? s : s.in)),
-			};
-		}
-		return result;
-	}
-
-	sendGraphLinkMessages(): void {
-		for (const [outcome, metadata] of this.registeredOutcomeMetadata.entries()) {
-			this.getWorld().eventLogger.emit(
-				ControlEvent.parse({
-					id: `graph-link-${outcome}`,
-					timestamp: Date.now(),
-					kind: "control",
-					level: "debug",
-					signal: "graph-link",
-					args: {
-						outcome,
-						proofStatements: metadata.proofStatements,
-						proofPath: metadata.proofPath,
-						isBackground: metadata.isBackground,
-						activityBlockSteps: metadata.activityBlockSteps ?? null,
-						lineNumber: metadata.lineNumber,
-					},
-				}),
-			);
+			if (steps) steps[outcome] = step;
+			else this.featureSteps.set(proofPath, { [outcome]: step });
 		}
 	}
 
@@ -698,14 +404,8 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 
 		let written: string;
 		let proofStatements: string[] = [];
-		let resolvesDomain: string | undefined;
 
-		// Declarative form: `waypoint Outcome resolves <domain-key>`
-		const resolvesMatch = line.match(/^waypoint\s+(.+?)\s+resolves\s+(\S+)\s*$/i);
-		if (resolvesMatch) {
-			written = itemAt(resolvesMatch, 1).trim();
-			resolvesDomain = itemAt(resolvesMatch, 2).trim();
-		} else if (requireProof) {
+		if (requireProof) {
 			if (!line.match(/^waypoint\s+.+?\s+with\s+/i)) {
 				return false;
 			}
@@ -762,13 +462,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				activityBlockSteps = blockLines;
 			}
 		}
-		this.registerOutcome(outcome, proofStatements, path, {
-			isBackground,
-			activityBlockSteps,
-			lineNumber: lineIndex !== undefined ? lineIndex + 1 : undefined,
-			actualSourcePath,
-			resolvesDomain,
-		});
+		this.registerOutcome(outcome, proofStatements, path, { isBackground, activityBlockSteps, lineNumber: lineIndex !== undefined ? lineIndex + 1 : undefined, actualSourcePath });
 		return true;
 	}
 }

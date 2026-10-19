@@ -1,17 +1,19 @@
 import type { TWorld, TProtoOptions } from "../actuality/domains/world.js";
 import { newActualityId } from "../transport/domains/rpc-wire.js";
 import { CStepper } from "../steps/domains/stepper.js";
-import { DEFAULT_DEST, TExecutorResult, TEST_BASE } from "../domains/protocol.js";
+import { DEFAULT_DEST, LOGIC_STEPPER, TExecutorResult, TEST_BASE } from "../domains/protocol.js";
 import { getRunTag } from "../domains/ttag.js";
 import { DEFAULT_HOST_ID } from "../domains/host-id.js";
 import { resolveSitePrincipal } from "../domains/host-id.js";
-import { getCreateSteppers } from "../adapters/workspace-lib.js";
+import { getCreateSteppers, getSteppers } from "../adapters/workspace-lib.js";
 export { getCreateSteppers };
 export { getDefaultTag } from "../domains/ttag.js";
 import { actualityClock } from "../actuality/root.js";
 import { actualityMachine } from "../actuality/machines/actuality.js";
 import { asFeatures } from "./resolver-features.js";
 import { Runner } from "../pipelines/runner.js";
+import { proverOf } from "../actuality/pipelines/step-dispatch.js";
+import type { TProver } from "../actuality/ports.js";
 import { FeatureVariables, secretsOf } from "../actuality/pipelines/feature-variables.js";
 import { Prompter } from "../prompts/pipelines/prompter.js";
 import { consolePrompter } from "../prompts/root.js";
@@ -80,8 +82,34 @@ export async function testWithWorld(
 	const features = asFeatures(inFeatures.map(withBases));
 	const backgrounds = asFeatures(backgroundsIn.map(withBases));
 
-	const ran = await new Runner(world).runFeaturesAndBackgrounds(useSteppers, { features, backgrounds });
+	const ran = await new Runner(world).runFeaturesAndBackgrounds(await withLogic(useSteppers), { features, backgrounds });
 	return { ...ran, world };
+}
+
+/** The logic engine's prover of a world a test builds, loaded on its first proof from the stepper a configuration lists. A
+ *  test that builds its world and calls a step without running a feature proves the step through it. */
+function testProver(): TProver {
+	let loaded: Promise<TProver> | undefined;
+	const load = async (): Promise<TProver> => {
+		const [Logic] = await getSteppers([LOGIC_STEPPER]);
+		if (Logic === undefined) throw new Error(`${LOGIC_STEPPER} didn't load; install @haibun/logic`);
+		const scratch = { runtime: {} } as TWorld;
+		await new Logic().setWorld(scratch, []);
+		return proverOf(scratch);
+	};
+	return {
+		prove: async (ctx, featureStep) => {
+			if (loaded === undefined) loaded = load();
+			return (await loaded).prove(ctx, featureStep);
+		},
+	};
+}
+
+/** A test's steppers with the logic engine's stepper, which every configuration lists, as config.base.json does. */
+export async function withLogic(useSteppers: CStepper[]): Promise<CStepper[]> {
+	const logic = await getSteppers([LOGIC_STEPPER]);
+	const named = new Set(useSteppers.map((stepper) => stepper.name));
+	return [...useSteppers, ...logic.filter((stepper) => !named.has(stepper.name))];
 }
 
 export function getTestWorldWithOptions(protoOptions: TProtoOptions = DEF_PROTO_OPTIONS, env = { HAIBUN_LOG_LEVEL: "none" }) {
@@ -117,6 +145,7 @@ export function getDefaultWorld(env: NodeJS.ProcessEnv = process.env): TWorld {
 			feature: "test-feature",
 			stepUsage: new Map(),
 			keys: { principal: resolveSitePrincipal() },
+			prover: testProver(),
 		},
 		options: { DEST: DEFAULT_DEST, envVariables: Object.fromEntries(Object.entries(env).flatMap(([name, value]) => (value === undefined ? [] : [[name, value]]))) },
 		moduleOptions: {},

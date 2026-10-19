@@ -23,13 +23,13 @@ interface NodePresenter {
 }
 
 /** A node's colour: the mark colour of the outcome its record states as its action status, or its type's colour where the
- *  record doesn't state one. The record's id and mode read as its step's event does, so a node marks a speculative try or
- *  a handed-out call as its timeline row does, and not as a fault. */
+ *  record doesn't state one. The record's id and level read as its step's event does, so a node marks a nested call's
+ *  failure or a handed-out call as its timeline row does, and not as a fault. */
 const colourOf = (n: SceneNode): string => {
 	const status = n.properties?.[LinkRelations.ACTION_STATUS.rel];
 	if (typeof status !== "string") return colorForType(n.type);
-	const mode = n.properties?.[SEQ_PATH_FIELD.mode];
-	return eventMarkerStyle({ kind: "lifecycle", type: "step", status, id: n.id, intent: { mode } }).color;
+	const level = n.properties?.[SEQ_PATH_FIELD.level];
+	return eventMarkerStyle({ kind: "lifecycle", type: "step", status, id: n.id, level }).color;
 };
 
 /** The fallback presenter for any unregistered @type: capability-driven. A node placed as a calendar task renders as a

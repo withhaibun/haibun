@@ -2,7 +2,7 @@ import type { TExpandedFeature, TExpandedLine, TFeatures, TFeature } from "../do
 import type { TWorld } from "../domains/world.js";
 import { TStepValue, SCENARIO_START, Origin } from "../../domains/protocol.js";
 import { AStepper, TStepAction, TResolvedFeature, TStepperStep, TFeatureStep } from "../../steps/domains/stepper.js";
-import { matchGwtaToAction, getMatch } from "../../steps/derivations/named-vars.js";
+import { matchGwtaToAction } from "../../steps/derivations/named-vars.js";
 import { getActionable, dePolite, constructorName, actionNotOK, asError, errorDetail } from "../../domains/util.js";
 import { itemAt } from "../../domains/item-at.js";
 import { DOMAIN_STATEMENT } from "../../domains/domains.js";
@@ -283,8 +283,6 @@ export class Resolver {
 				return undefined;
 			}
 			return matchGwtaToAction(step.gwta, curt, actionName, stepperName, step);
-		} else if (step.match) {
-			return getMatch(actionable, step.match, actionName, stepperName, step);
 		} else if (step.exact === curt) {
 			return { actionName, stepperName, step };
 		}
@@ -301,7 +299,7 @@ function getActionableStatement(steppers: AStepper[], statement: string, path: s
 	return { featureStep, steppers };
 }
 
-export function findFeatureStepsFromStatement(statement: string, steppers: AStepper[], world: TWorld, base: string | undefined, seqStart: number[], inc: 1 | -1): TFeatureStep[] {
+export function findFeatureStepsFromStatement(statement: string, steppers: AStepper[], world: TWorld, base: string | undefined, seqStart: number[]): TFeatureStep[] {
 	const featureSteps: TFeatureStep[] = [];
 	if (!world.runtime.backgrounds) {
 		throw new Error("runtime.backgrounds is undefined, so an inline Backgrounds: line can't expand. Set world.runtime.backgrounds before resolving a statement.");
@@ -312,7 +310,7 @@ export function findFeatureStepsFromStatement(statement: string, steppers: AStep
 	// over RPC or MCP doesn't have a source file, so its base path is empty.
 	const contextFeature: TFeature = { path: "", base: base === undefined ? WITHOUT_SOURCE : base, name: "statement-context", content: statement };
 	const expanded = expandLine(statement, undefined, world.runtime.backgrounds, contextFeature);
-	// Increments the last segment of seqStart by inc for each expanded line that resolves to a step.
+	// Increments the last segment of seqStart for each expanded line that resolves to a step.
 	const prefix = seqStart.slice(0, -1);
 	let latest = itemAt(seqStart, seqStart.length - 1);
 	for (const x of expanded) {
@@ -320,7 +318,7 @@ export function findFeatureStepsFromStatement(statement: string, steppers: AStep
 		const fullPath = x.feature.base + x.feature.path;
 		try {
 			const { featureStep } = getActionableStatement(steppers, x.line, fullPath, seqPath, x.lineNumber);
-			latest += inc;
+			latest += 1;
 			featureSteps.push(featureStep);
 		} catch (e) {
 			const why = errorDetail(e);

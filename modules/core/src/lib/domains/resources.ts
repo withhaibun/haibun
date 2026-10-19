@@ -356,6 +356,8 @@ export const LinkRelations = {
 	MEASUREMENT_KIND: { rel: "measurementKind", uri: "hbn:measurementKind", range: "literal" },
 	SHAPE_DIGEST: { rel: "shapeDigest", uri: "hbn:shapeDigest", range: "container" },
 	OUTCOME_REASON: { rel: "outcomeReason", uri: "hbn:outcomeReason", range: "literal" },
+	// EARL: how a test or a goal ended. A record states its goal's verdict in this rel.
+	OUTCOME: { rel: "outcome", uri: "earl:outcome", range: "literal" },
 	// RDFS terms. Property nodes describe rels with them.
 	SUB_PROPERTY_OF: { rel: "subPropertyOf", uri: "rdfs:subPropertyOf", range: "iri" },
 	SUB_CLASS_OF: { rel: "subClassOf", uri: "rdfs:subClassOf", range: "iri" },

@@ -9,7 +9,7 @@ import { actionOK } from "../lib/domains/util.js";
 import { buildFeatureStepForTransport } from "../lib/steps/pipelines/call-step.js";
 import { runRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { stepMethodName } from "../lib/steps/domains/step-method.js";
-import { dispatchStep } from "../lib/actuality/pipelines/step-dispatch.js";
+import { proveStep } from "../lib/actuality/pipelines/step-dispatch.js";
 import ActivitiesStepper, { SAVED_WAYPOINT_LABEL } from "./activities-stepper.js";
 import AuthorityStepper from "./authority-stepper.js";
 import { ACTIVITIES_ACTIONS, ACTIVITIES_STEPPER } from "./domains/activities-actions.js";
@@ -40,9 +40,7 @@ class SavedWaypointProbe extends AStepper {
 				const tool = registry.get(stepMethodName(ActivitiesStepper.name, OUTCOME));
 				seen.offered = tool !== undefined;
 				if (tool)
-					seen.ran = (
-						await dispatchStep({ registry, world, steppers: world.runtime.steppers as AStepper[] }, buildFeatureStepForTransport(tool, {}, [...featureStep.seqPath, 1]))
-					).ok;
+					seen.ran = (await proveStep({ registry, world, steppers: world.runtime.steppers as AStepper[] }, buildFeatureStepForTransport(tool, {}, [...featureStep.seqPath, 1]))).ok;
 				return actionOK();
 			},
 		},

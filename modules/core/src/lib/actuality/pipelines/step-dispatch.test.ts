@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { z } from "zod";
 
-import { dispatchStep } from "./step-dispatch.js";
+import { dispatchStep, proveStatements, stepperContext } from "./step-dispatch.js";
 import { retainedProducts } from "../derivations/step-results.js";
 import { buildStepRegistry, createStepHandler, StepRegistry, type StepTool } from "../../steps/pipelines/step-registry.js";
 import { stepMethodName } from "../../steps/domains/step-method.js";
@@ -13,7 +13,6 @@ import { EVERY_DEFINITION } from "../../steps/domains/step-discovery.js";
 import { AStepper, type IHasCycles, type TFeatureStep, type TStepperStep } from "../../steps/domains/stepper.js";
 import { OK, RECORDED_STATUS } from "../../domains/protocol.js";
 import { itemAt } from "../../domains/item-at.js";
-import { FlowRunner } from "../../steps/pipelines/flow-runner.js";
 import { actionOKWithProducts, actionNotOK } from "../../domains/util.js";
 import { getDefaultWorld, testWithWorld } from "../../test/lib.js";
 import { TEST_DOMAIN, declaresTestDomains, testDomainDefinitions } from "../../test/test-domains.js";
@@ -94,12 +93,12 @@ const [COUNT, COUNT_UNNAMED, ANSWER_AS, PASS_ON, ANSWER_WRONGLY] = ["count", "co
 class PassesOn extends AStepper implements IHasCycles {
 	description = "Steps that return a count, steps that run a statement and return its products, and a step that returns other products.";
 	cycles = declaresTestDomains();
-	private runner!: FlowRunner;
+	private steppers: AStepper[] = [];
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
-		this.runner = new FlowRunner(world, steppers);
+		this.steppers = steppers;
 	}
-	private ran = ({ what }: { what: TFeatureStep[] }, featureStep: TFeatureStep) => this.runner.runSteps(what, { parentStep: featureStep });
+	private ran = ({ what }: { what: TFeatureStep[] }, featureStep: TFeatureStep) => proveStatements(stepperContext(this.getWorld(), this.steppers), featureStep, what);
 	steps = {
 		counts: { gwta: COUNT, productsDomain: TEST_DOMAIN.count, action: async () => actionOKWithProducts({ count: 1 }) },
 		unnamed: { gwta: COUNT_UNNAMED, action: async () => actionOKWithProducts({ count: 1 }) },
@@ -807,24 +806,8 @@ describe("step-dispatch", () => {
 				formatRecordName({ execution: executionOf(world.tag), path: [0, 3] }),
 			);
 			expect(byPredicate[SEQ_PATH_FIELD.stepText]).toEqual(expect.any(String));
-			// An authoritative step states its mode, so a query for the steps that weren't speculative matches it.
-			expect(byPredicate[SEQ_PATH_FIELD.mode]).toBe("authoritative");
-		});
-
-		it("records the mode of each step, so a reader can distinguish speculative and authoritative steps", async () => {
-			const stepper = new ProductStepper();
-			const steppers = [stepper];
-			const registry = new StepRegistry(steppers, world);
-			const tool = registry.get("ProductStepper-getCount");
-			if (!tool) throw new Error("Expected ProductStepper-getCount to be registered");
-
-			const featureStep = buildFeatureStepForTransport(tool, {}, [0, 4, 1]);
-			featureStep.intent = { mode: "speculative" };
-			await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, featureStep);
-
-			const store = world.shared.getStore();
-			const mode = await store.get(formatRecordName({ execution: executionOf(world.tag), path: [0, 4, 1] }), SEQ_PATH_FIELD.mode, SEQ_PATH_LABEL);
-			expect(mode, "a speculative step's record states its mode, since its failure isn't a failure of actuality").toBe("speculative");
+			// A step's end states its goal's verdict.
+			expect(byPredicate[SEQ_PATH_FIELD.verdict]).toBe("proved");
 		});
 
 		it("emits SeqPath quads with status=failed for a failing step", async () => {

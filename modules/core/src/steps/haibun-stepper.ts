@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { TFeatures } from "../lib/actuality/domains/execution.js";
 import type { TWorld } from "../lib/actuality/domains/world.js";
 import { OK } from "../lib/domains/protocol.js";
-import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TEndFeature, CycleWhen } from "../lib/steps/domains/stepper.js";
+import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TEndFeature, CycleWhen, READING } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts } from "../lib/domains/util.js";
 import { findFeatureStepsFromStatement } from "../lib/actuality/pipelines/resolver.js";
 import {
@@ -19,7 +19,7 @@ import {
 	createEnumDomainDefinition,
 } from "../lib/domains/domains.js";
 import { findFeatures } from "../lib/domains/features.js";
-import { FlowRunner, inheritedMode } from "../lib/steps/pipelines/flow-runner.js";
+import { nextSeqPath, proveStatements, proveStep, stepperContext } from "../lib/actuality/pipelines/step-dispatch.js";
 import { QuadStore } from "../lib/steps/pipelines/quad-store.js";
 import { remoteQuadStore } from "./root.js";
 import { requestSigner } from "../lib/domains/session-authority.js";
@@ -56,23 +56,16 @@ const EndedStepSchema = z.object({
 /** How `ends with` ends a feature. */
 const DOMAIN_ENDING = "ending";
 const ENDING = { ok: "OK", notOk: "not OK" } as const;
-/** How long `until` waits before it runs its statements again. */
-const UNTIL_RETRY_MS = 200;
 
 class Haibun extends AStepper implements IHasCycles {
 	description = "Core steps for features, scenarios, backgrounds, and prose";
 
 	afterEverySteps: { [stepperName: string]: TFeatureStep[] } = {};
 	steppers: AStepper[] = [];
-	private held?: FlowRunner;
-	private get runner(): FlowRunner {
-		return this.madeWithWorld(this.held, "flow runner");
-	}
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
 		this.steppers = steppers;
-		this.held = new FlowRunner(world, steppers);
 	}
 	cycles: IStepperCycles = {
 		getConcerns: () => ({
@@ -108,10 +101,9 @@ class Haibun extends AStepper implements IHasCycles {
 				const stepsToRun = afterEvery.filter((aeStep) => aeStep.action.actionName !== featureStep.action.actionName);
 
 				if (stepsToRun.length > 0) {
-					const mode = inheritedMode(featureStep);
 					// Marks these steps as afterEvery steps to prevent recursion.
 					const markedSteps = stepsToRun.map((s) => ({ ...s, isAfterEveryStep: true }));
-					const res = await this.runner.runSteps(markedSteps, { intent: { mode }, parentStep: featureStep });
+					const res = await proveStatements(stepperContext(this.getWorld(), this.steppers), featureStep, markedSteps);
 					if (!res.ok) {
 						failed = `a step run after every ${featureStep.action.stepperName} step failed: ${res.errorMessage}`;
 					}
@@ -144,10 +136,8 @@ class Haibun extends AStepper implements IHasCycles {
 		onHost: {
 			gwta: `on host {hostId: number}, {statement:${DOMAIN_STATEMENT}}`,
 			productsOf: "statement",
-			action: ({ hostId, statement }: { hostId: number; statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
-				const mode = inheritedMode(featureStep);
-				return this.runner.runSteps(statement, { intent: { mode }, parentStep: featureStep, targetHostId: hostId });
-			},
+			action: ({ hostId, statement }: { hostId: number; statement: TFeatureStep[] }, featureStep: TFeatureStep) =>
+				proveStatements(stepperContext(this.getWorld(), this.steppers), featureStep, statement, hostId),
 		},
 
 		showSteps: {
@@ -184,9 +174,10 @@ class Haibun extends AStepper implements IHasCycles {
 			productsDomain: DOMAIN_STEP_DURATION,
 			action: async ({ statement }: { statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
 				if (statement.length !== 1) return actionNotOK(`duration of: the statement holds ${statement.length} steps, and a duration is read from the record of one step`);
-				const ran = await this.runner.runStep(itemAt(statement, 0), { parentStep: featureStep });
-				if (!ran.ok) return actionNotOK(`duration of: the step failed: ${ran.errorMessage}`);
 				const world = this.getWorld();
+				const seqPath = nextSeqPath(world, featureStep.seqPath);
+				const ran = await proveStep(stepperContext(world, this.steppers), { ...itemAt(statement, 0), seqPath, isSubStep: true });
+				if (!ran.ok) return actionNotOK(`duration of: the step failed: ${ran.errorMessage}`);
 				const step = formatRecordName({ execution: executionOf(world.tag), path: ran.seqPath });
 				const record = await recordOf(world.shared.getStore(), SEQ_PATH_LABEL, step);
 				if (!record) return actionNotOK(`duration of: actuality doesn't hold the record ${step} of the step`);
@@ -197,18 +188,9 @@ class Haibun extends AStepper implements IHasCycles {
 		},
 
 		until: {
-			description: 'Run statements again until they pass, and fail when they haven\'t passed within the duration, e.g. `until passes within "2s"`.',
+			description: 'Proves the statements again until they hold, and is refuted where they haven\'t held within the duration, e.g. `until passes within "2s"`: ◇≤d P.',
 			gwta: `until {statements:${DOMAIN_STATEMENT}} within {duration: ${DOMAIN_DURATION}}`,
-			action: async ({ statements, duration }: { statements: TFeatureStep[]; duration: number }, featureStep: TFeatureStep) => {
-				const mode = inheritedMode(featureStep);
-				const ends = Date.now() + duration;
-				for (;;) {
-					const signal = await this.runner.runSteps(statements, { intent: { mode, usage: "polling" }, parentStep: featureStep });
-					if (signal.ok) return OK;
-					if (Date.now() >= ends) return actionNotOK(`the statements didn't pass within ${duration}ms: ${signal.errorMessage}`);
-					await this.getWorld().clock.wait(UNTIL_RETRY_MS);
-				}
-			},
+			reading: READING.until,
 		},
 
 		keepRunning: {
@@ -243,9 +225,8 @@ class Haibun extends AStepper implements IHasCycles {
 			action: async ({ names }: { names: string[] }, featureStep: TFeatureStep) => {
 				const world = this.getWorld();
 				// Prepends 'Backgrounds: ' so expandLine reads the line as a background directive.
-				const expanded = findFeatureStepsFromStatement(`Backgrounds: ${names.join(", ")}`, this.steppers, world, featureStep.source?.path, featureStep.seqPath, 1);
-				const mode = inheritedMode(featureStep);
-				const result = await this.runner.runSteps(expanded, { intent: { mode }, parentStep: featureStep });
+				const expanded = findFeatureStepsFromStatement(`Backgrounds: ${names.join(", ")}`, this.steppers, world, featureStep.source?.path, featureStep.seqPath);
+				const result = await proveStatements(stepperContext(world, this.steppers), featureStep, expanded);
 				return result.ok ? OK : actionNotOK(`backgrounds failed: ${result.errorMessage}`);
 			},
 		},

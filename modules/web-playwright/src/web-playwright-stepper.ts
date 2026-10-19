@@ -3,10 +3,19 @@
  * requests inside the page, and reaching a browser a person attached through the relay. Each step reads its input and
  * calls a pipeline over the session's page; the cycles start and end a feature's session.
  */
-import { AStepper, CycleWhen, StepperKinds, type IHasCycles, type IHasOptions, type IStepperCycles, type TFeatureStep, type TStepperSteps } from "@haibun/core/lib/astepper.js";
+import {
+	AStepper,
+	CycleWhen,
+	READING,
+	StepperKinds,
+	type IHasCycles,
+	type IHasOptions,
+	type IStepperCycles,
+	type TFeatureStep,
+	type TStepperSteps,
+} from "@haibun/core/lib/astepper.js";
 import { readAction } from "@haibun/core/lib/domains/actions.js";
 import { stepInFlight } from "@haibun/core/lib/domains/capability-context.js";
-import { FlowRunner } from "@haibun/core/lib/core/flow-runner.js";
 import { basicAuthorization } from "@haibun/core/lib/domains/basic-auth.js";
 import {
 	DOMAIN_BEARER_TOKEN,
@@ -399,12 +408,9 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		inElement: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.read,
 			gwta: `in {container: ${DOMAIN_PAGE_LOCATOR}}, {what: ${DOMAIN_STATEMENT}}`,
-			description: "Runs the statement within the element the locator finds, or within the document it shows where it is an iframe.",
-			action: ({ container, what }: { container: string; what: TFeatureStep[] }, featureStep: TFeatureStep) =>
-				withinContainer(this.session, container, async () => {
-					const flow = await new FlowRunner(this.getWorld(), [this]).runSteps(what, { parentStep: featureStep });
-					return flow.ok ? OK : actionNotOK(flow.errorMessage);
-				}),
+			description: "Proves the statement within the element the locator finds, or within the document it shows where it is an iframe.",
+			reading: READING.within,
+			context: ({ container }) => Promise.resolve(<T>(run: () => Promise<T>) => withinContainer(this.session, String(container), run)),
 		},
 		clickBy: {
 			precludes: [`${constructorName(this)}.click`],

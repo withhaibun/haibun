@@ -1,9 +1,13 @@
 /**
- * The ports of actuality: the clock that times its events and its records, and the source of the features it executes.
+ * The ports of actuality: the clock that times its events and its records, the source of the features it executes, and the
+ * prover that proves every step.
  */
 import type { TRunPolicyConfig } from "../../run-policy/domains/run-policy.js";
 import type { TFeaturesBackgrounds } from "./domains/execution.js";
 import type { TBase } from "./domains/world.js";
+import type { DispatchContext } from "./pipelines/step-dispatch.js";
+import type { TFeatureStep } from "../steps/domains/stepper.js";
+import type { TStepResult } from "../domains/protocol.js";
 
 /** The time of an event or a record in milliseconds since the epoch, a wait of a number of milliseconds, and a task after a
  *  number of milliseconds, which the returned function cancels. A task that doesn't hold the process lets it exit first. */
@@ -15,3 +19,8 @@ export const BASE_WITHOUT_FEATURES = "doesn't hold a feature or a background";
 /** The features and the backgrounds of a set of bases. A feature filter selects the features, and a run policy selects
  *  the directories a run may read; the backgrounds are read whatever the filter. */
 export type TFeatureSource = { collect: (bases: TBase, featureFilter: string[] | undefined, policyConfig: TRunPolicyConfig | undefined) => Promise<TFeaturesBackgrounds> };
+
+/** The logic engine's entry. Every surface proves a step through it: a feature's line, a statement a step states, and a call
+ *  a transport carries. The prover evaluates the step's formal reading, dispatches each call the proof needs, writes the
+ *  proof's records and returns the step's result with its verdict. A stepper of the configuration supplies it. */
+export type TProver = { prove: (ctx: DispatchContext, featureStep: TFeatureStep) => Promise<TStepResult> };

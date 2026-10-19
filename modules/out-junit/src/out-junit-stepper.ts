@@ -22,7 +22,7 @@ function testCaseOf(feature: TFeatureState): TTestCase {
 	const testCase: TTestCase = { "@name": feature.path ?? feature.id, "@id": feature.id };
 	if (feature.status !== LEVEL_STATUS.failed) return testCase;
 	const first = feature.firstFailure;
-	// A feature fails without a failure of its own where only a handed-out call or a speculative step failed in it.
+	// A feature fails without a failure of its own where only a handed-out call or a nested call failed in it.
 	const message =
 		first === undefined ? `${feature.id} failed without a failed step of its own` : [first.id, first.step, first.message].filter((part) => part !== undefined).join(": ");
 	return { ...testCase, failure: { "@message": message, "@type": "fail" } };

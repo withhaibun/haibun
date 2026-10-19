@@ -10,7 +10,7 @@ import type { TFeatureStep } from "@haibun/core/lib/astepper.js";
 import type { TStepResult } from "@haibun/core/lib/domains/protocol.js";
 import type { TRestsOn } from "@haibun/core/lib/domains/authority-types.js";
 import type { TRpcRefusal } from "@haibun/core/lib/rpc-wire.js";
-import { dispatchStep, type DispatchContext } from "@haibun/core/lib/step-dispatch.js";
+import { proveStep, type DispatchContext } from "@haibun/core/lib/step-dispatch.js";
 import { buildFeatureStepForTransport } from "@haibun/core/lib/call-step.js";
 import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import type { StepRegistry, StepTool } from "@haibun/core/lib/step-registry.js";
@@ -55,5 +55,5 @@ export const dispatchedAs = (within: TDispatchWithin, caller: TCaller): Dispatch
 /** Runs a call's step as whoever proved themselves at the boundary, so what the step records names the reader who called
  *  it rather than the process that carried it out. */
 export function dispatchCall(within: TDispatchWithin, caller: TCaller, featureStep: TFeatureStep): Promise<TStepResult> {
-	return runActingAs(caller.principal, () => dispatchStep(dispatchedAs(within, caller), featureStep), caller.restsOn);
+	return runActingAs(caller.principal, () => proveStep(dispatchedAs(within, caller), featureStep), caller.restsOn);
 }

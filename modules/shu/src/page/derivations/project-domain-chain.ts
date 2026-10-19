@@ -29,7 +29,7 @@ import { stepLabelOf } from "./steps.js";
 const affordancesAt = (param: (typeof AFFORDANCE_PARAM)[keyof typeof AFFORDANCE_PARAM], value: string): string => hashWithColumns([SHU_TAG.AFFORDANCES_PANEL], { [param]: value });
 
 /** The chain projection consumes the waypoint fields it renders: a subset of the core panel entry. */
-export type TWaypointSnapshot = Pick<TWaypointEntry, "outcome" | "kind" | "method" | "resolvesDomain" | "ensured">;
+export type TWaypointSnapshot = Pick<TWaypointEntry, "outcome" | "method" | "ensured">;
 
 /** Forward affordance as the chain reads it, without the RPC `method`, which it doesn't route on (it uses stepperName/stepName). */
 type TForwardEdge = Omit<TForwardAffordance, "method">;
@@ -193,18 +193,13 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 		}
 	}
 
-	// Waypoint nodes: registered ActivitiesStepper outcomes. Declarative waypoints
-	// link back to their resolvesDomain via a dashed edge so the chain shows that
-	// the waypoint depends on the goal being satisfied.
+	// Waypoint nodes: registered ActivitiesStepper outcomes, ensured where their proof holds now.
 	if (Array.isArray(a.waypoints)) {
 		for (const w of a.waypoints) {
 			const id = waypointNodeId(w.outcome);
-			const kind = w.ensured ? NODE_KIND.waypointEnsured : w.kind === "declarative" ? NODE_KIND.waypointDeclarative : NODE_KIND.waypointImperative;
+			const kind = w.ensured ? NODE_KIND.waypointEnsured : NODE_KIND.waypointPending;
 			const [stepperName, stepName] = w.method.includes("-") ? [w.method.slice(0, w.method.indexOf("-")), w.method.slice(w.method.indexOf("-") + 1)] : [w.method, w.method];
 			nodes.push({ id, label: `waypoint: ${w.outcome}`, kind, link: { href: affordancesAt(AFFORDANCE_PARAM.WAYPOINT, w.outcome) }, invokes: { stepperName, stepName } });
-			if (w.resolvesDomain && domains.has(w.resolvesDomain)) {
-				edges.push({ from: w.resolvesDomain, to: id, label: "ensures", kind: EDGE_KIND.default });
-			}
 		}
 	}
 

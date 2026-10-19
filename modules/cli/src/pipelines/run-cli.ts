@@ -204,7 +204,7 @@ async function reportAndExit(executorResult: TExecutorResult, world: TWorld, pro
 			console.info(`\n${CHECK_YES} All ${executorResult.featureResults.length} features passed.`);
 		}
 	} else {
-		const errorMessage = executorResult.failure?.error?.message || (world.runtime.exhaustionError && `Execution aborted: ${world.runtime.exhaustionError}`) || "Unknown error";
+		const errorMessage = executorResult.failure?.error?.message || "Unknown error";
 		const stage = executorResult.failure?.stage;
 
 		console.error(`\n${CHECK_NO} ${stage ? `${stage} Error: ` : ""}${errorMessage}`);

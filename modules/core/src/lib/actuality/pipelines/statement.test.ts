@@ -3,7 +3,7 @@ import { AStepper, TFeatureStep } from "../../steps/domains/stepper.js";
 import { OK, TStepArgs } from "../../domains/protocol.js";
 import { passWithDefaults, DEF_PROTO_OPTIONS, failWithDefaults } from "../../test/lib.js";
 import { actionNotOK } from "../../domains/util.js";
-import { FlowRunner } from "../../steps/pipelines/flow-runner.js";
+import { proveStatements, stepperContext } from "./step-dispatch.js";
 import { DOMAIN_STATEMENT } from "../../domains/domains.js";
 import Haibun from "../../../steps/haibun-stepper.js";
 
@@ -19,8 +19,7 @@ class StatementTestStepper extends AStepper {
 					const steps = args.steps as unknown;
 					if (!Array.isArray(steps)) throw new Error("steps must be feature steps");
 
-					const runner = new FlowRunner(this.getWorld(), [this as unknown as AStepper]);
-					const result = await runner.runSteps(steps as TFeatureStep[], { intent: { mode: "authoritative" }, parentStep: featureStep });
+					const result = await proveStatements(stepperContext(this.getWorld(), [this as unknown as AStepper]), featureStep, steps as TFeatureStep[]);
 
 					if (!result.ok) {
 						return actionNotOK(`statement failed: ${result.errorMessage}`);

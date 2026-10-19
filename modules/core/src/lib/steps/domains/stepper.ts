@@ -4,19 +4,8 @@
  */
 import type { FeatureVariables } from "../../actuality/pipelines/feature-variables.js";
 import type { TWorld, TEnvVariables } from "../../actuality/domains/world.js";
-import type { TOptionValue, TFeatures, TSourceLocation } from "../../actuality/domains/execution.js";
-import type {
-	ExecutionIntent,
-	TSeqPath,
-	TActionResult,
-	TStepArgs,
-	TStepValue,
-	TStepResult,
-	TFeatureResult,
-	TExecutorResult,
-	THaibunEvent,
-	TProvenanceIdentifier,
-} from "../../domains/protocol.js";
+import type { TOptionValue, TFeatures, TSourceLocation, TStepInput } from "../../actuality/domains/execution.js";
+import type { TSeqPath, TActionResult, TStepArgs, TStepValue, TStepResult, TFeatureResult, TExecutorResult, THaibunEvent, TProvenanceIdentifier } from "../../domains/protocol.js";
 import type { TDomainDefinition } from "../../domains/resources.js";
 import type { TStepReads } from "../../domains/actions.js";
 import type { IQuadStore } from "../ports.js";
@@ -112,9 +101,9 @@ export type TFeatureStep = {
 	isSubStep?: boolean;
 	/** True where an afterEvery hook triggered this step. It prevents a recursive afterEvery. */
 	isAfterEveryStep?: boolean;
-	intent?: ExecutionIntent;
-	/** Runtime args for variable binding in nested quantifier calls. */
-	runtimeArgs?: Record<string, string>;
+	/** The bindings of the statement a step is in: a quantifier's member and its metrics, and a waypoint's arguments, each a
+	 *  variable within the statement. A metric that is a number stays a number. */
+	runtimeArgs?: Record<string, string | number>;
 	/**
 	 * A routing hint. Dispatch resolves the tool of a step that sets it by the hostId-prefixed registry key
 	 * `${targetHostId}:${method}`, and the step runs against that remote host. The composition step
@@ -160,7 +149,6 @@ type TStepperStepBase = TStepReads & {
 	virtual?: boolean;
 	/** Source location metadata for a generated step, such as a waypoint. */
 	source?: { path: string; lineNumber?: number };
-	match?: RegExp;
 	gwta?: string;
 	exact?: string;
 	/** A prose line resolves to this step. The step doesn't declare a pattern. A line is prose where a step's pattern
@@ -210,10 +198,45 @@ type TStepperStepBase = TStepReads & {
 	retainProducts?: boolean | ((products: Record<string, unknown>) => Record<string, unknown> | undefined);
 };
 
-export type TStepperStep = TStepperStepBase & {
-	/** Dispatch passes every action its arguments and the feature step being run. */
-	action(args: TStepArgs, featureStep: TFeatureStep): Promise<TActionResult> | TActionResult;
+/**
+ * The formal readings the logic engine holds, by the step that declares each, with the engine's functor for it. A step
+ * that declares a reading doesn't hold an action: the engine proves it from its statements.
+ */
+export const READING = {
+	not: "not",
+	where: "where",
+	anyOf: "any_of",
+	maybe: "maybe",
+	some: "some",
+	every: "every",
+	whenever: "whenever",
+	until: "until",
+	ensure: "ensure",
+	waypoint: "waypoint",
+	apply: "apply",
+	within: "within",
+} as const;
+export type TReading = (typeof READING)[keyof typeof READING];
+
+/** A waypoint's rule: the lines of its proof, and the lines of its activity, the plan that makes the proof hold. */
+export type TWaypointRule = { proof: TStepInput[]; activity: TStepInput[] };
+
+/** A step that a stepper's action performs. Dispatch passes the action its arguments and the feature step being run. */
+type TActionStep = { action(args: TStepArgs, featureStep: TFeatureStep): Promise<TActionResult> | TActionResult; reading?: undefined; rule?: undefined; context?: undefined };
+/** The context a step opens around each call of the statements it states, such as a narrowed authority or an element of a
+ *  page: it runs a call inside the context and returns the call's result. */
+export type TCallContext = <T>(run: () => Promise<T>) => Promise<T>;
+
+/** A step that the logic engine proves by its reading. A waypoint's step holds its rule, and a step that reads as `within`
+ *  opens its context from its arguments, or refuses with the reason it can't open it. */
+type TReadingStep = {
+	reading: TReading;
+	rule?: TWaypointRule;
+	context?: (args: TStepArgs, featureStep: TFeatureStep) => Promise<TCallContext | { refused: string }>;
+	action?: undefined;
 };
+
+export type TStepperStep = TStepperStepBase & (TActionStep | TReadingStep);
 
 export interface CStepper {
 	new (): AStepper;
@@ -253,8 +276,6 @@ export interface IStepperConcerns {
 
 export interface IStepperCycles {
 	getConcerns?(): IStepperConcerns;
-	/** Returns registered outcome definitions for artifact emission. ActivitiesStepper calls it. */
-	getRegisteredOutcomes?(): Record<string, unknown>;
 	startExecution?(features: TStartExecution): Promise<void> | void;
 	startFeature?(startFeature: TStartFeature): Promise<void> | void;
 	startScenario?(startScenario: TStartScenario): Promise<void>;

@@ -6,7 +6,6 @@ import { runInStep } from "../lib/domains/capability-context.js";
 import { AStepper, type IHasCycles, type IStepperCycles, type TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { actionOKWithProducts } from "../lib/domains/util.js";
 import VariablesStepper from "./variables-stepper.js";
-import LogicStepper from "./logic-stepper.js";
 import { GoalResolutionStepper } from "./goal-resolution-stepper.js";
 import { executionOf } from "../lib/actuality/domains/seq-path.js";
 import { ActivitiesStepper } from "./activities-stepper.js";
@@ -76,7 +75,7 @@ class CompositeStepper extends AStepper implements IHasCycles {
 }
 
 describe("GoalResolutionStepper, integration via passWithDefaults", () => {
-	const steppers = [VariablesStepper, GoalResolutionStepper, AuthStepper, LogicStepper];
+	const steppers = [VariablesStepper, GoalResolutionStepper, AuthStepper];
 
 	it("resolve returns unreachable for a goal that a producer can't derive", async () => {
 		// The quoted domain is the value of DOMAIN_UNPRODUCED.
@@ -165,7 +164,7 @@ variable affordances exists`,
 			path: "/features/show-affordances-waypoints.feature",
 			content: `Activity: Sign in
 sign in as "alice"
-waypoint Logged in resolves ${DOMAIN_AUTH_SESSION}
+waypoint Logged in
 
 set affordances from show affordances
 variable affordances.waypoints.length is 1

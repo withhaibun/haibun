@@ -1,4 +1,4 @@
 {
 	"$schema": "schemas/app-params.json",
-	"steppers": ["variables-stepper", "resources-stepper", "logic-stepper"]
+	"steppers": ["variables-stepper", "resources-stepper", "@haibun/logic/logic-stepper"]
 }

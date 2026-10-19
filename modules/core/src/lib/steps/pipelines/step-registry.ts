@@ -156,18 +156,21 @@ export function createStepTool(stepper: AStepper, stepName: string, stepDef: TSt
 		paramDomainKeys,
 		stepDef,
 		transport: "local",
-		isAsync: stepDef.action.constructor.name === "AsyncFunction",
+		// A step the engine proves by its reading runs apart from its caller, as its proof awaits each of its calls.
+		isAsync: stepDef.action === undefined || stepDef.action.constructor.name === "AsyncFunction",
 		handler: createStepHandler(descriptor.stepperName, stepName, stepDef),
 	};
 }
 
 /**
  * Returns a handler that populates a step's arguments from featureStep.action.stepValuesMap, calls stepDef.action, and
- * returns its TActionResult. Every caller (the feature loop, FlowRunner, RPC, MCP) calls a step through this handler. An
- * external transport builds a feature step before it calls.
+ * returns its TActionResult. The logic engine's prover calls each built-in through this handler. A step that declares a
+ * reading doesn't have an action, and its handler refuses, since the prover performs its proof.
  */
 export function createStepHandler(stepperName: string, stepName: string, stepDef: TStepperStep): (featureStep: TFeatureStep, world: TWorld) => Promise<TActionResult> {
 	return async (featureStep: TFeatureStep, world: TWorld): Promise<TActionResult> => {
+		if (stepDef.action === undefined)
+			return actionNotOK(`${stepperName}.${stepName} is proved by the logic engine from its reading ${stepDef.reading}; prove it through proveStep`);
 		try {
 			const read = await argumentsOf(featureStep, world, runSteppers(world));
 			// A parameter that doesn't read is refused with the step, the parameter and the cause, which its refusal states.

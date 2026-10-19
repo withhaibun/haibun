@@ -22,10 +22,9 @@ describe("resolve steps", () => {
 
 describe("validate map steps", () => {
 	class TestStepper extends AStepper {
-		description = "Exact, match, gwta and interpolated steps for resolving lines.";
+		description = "Exact, gwta and interpolated steps for resolving lines.";
 		steps = {
 			exact: { exact: "exact1", action: async () => Promise.resolve(OK) },
-			match: { match: /match(?<num>1)/, action: async () => Promise.resolve(OK) },
 			gwta: { gwta: "gwta(?<num>.)", action: async () => Promise.resolve(OK) },
 			gwtaInterpolated: { gwta: "is {what}", action: async () => Promise.resolve(OK) },
 		};
@@ -43,14 +42,6 @@ describe("validate map steps", () => {
 			const { featureSteps } = itemAt(res, 0);
 			// exact steps don't have stepValuesMap
 			expect(itemAt(featureSteps, 0).action.stepValuesMap).toBeUndefined();
-		});
-	});
-	describe("match", () => {
-		test("match", async () => {
-			const features = asExpandedFeatures([{ path: "l1", content: `match1` }]);
-			const res = await getResolvedSteps(features);
-			const { featureSteps } = itemAt(res, 0);
-			expect(itemAt(featureSteps, 0).action.stepValuesMap).toEqual({});
 		});
 	});
 	describe("gwta regex", () => {

@@ -79,7 +79,7 @@ const FRAME_ORDINAL = /data-frame-ordinal="(\d+):(\d+)"/g;
 
 /** A mark on the rail for every step that failed, so a reader jumps to it in a long run without scrolling for it.
  *  The mark is placed on the step's own row (its start, which carries its blocks), found from the end that failed. Its
- *  glyph comes from the shared marker vocabulary, so a speculative try and a handed-out call are marked as what
+ *  glyph comes from the shared marker vocabulary, so a nested call's failure and a handed-out call are marked as what
  *  they are rather than as actuality failing. */
 function markersOf(rows: ReadonlyArray<{ index: number; event: TEventRecord }>): TScrollMarker[] {
 	const markers: TScrollMarker[] = [];

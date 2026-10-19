@@ -4,9 +4,10 @@ import { TActionResult, OK, TDebugSignal } from "../lib/domains/protocol.js";
 import { makePrompt } from "../lib/prompts/pipelines/prompter.js";
 import { formatSeqPath } from "../lib/actuality/domains/seq-path.js";
 import { actionOK, getStepperOption, stringOrError, errorDetail } from "../lib/domains/util.js";
-import { FlowRunner } from "../lib/steps/pipelines/flow-runner.js";
+import { nextSeqPath, proveStep, stepperContext } from "../lib/actuality/pipelines/step-dispatch.js";
+import { findFeatureStepsFromStatement } from "../lib/actuality/pipelines/resolver.js";
+import { itemAt } from "../lib/domains/item-at.js";
 import { DOMAIN_STEPPER_NAME } from "../lib/domains/domains.js";
-import { advanceSyntheticSeqPath, syntheticBranchSeqPath, syntheticSeqPathDirection } from "../lib/actuality/domains/seq-path.js";
 
 export enum TDebuggingType {
 	StepByStep = "stepByStep",
@@ -15,37 +16,25 @@ export enum TDebuggingType {
 
 const cycles = (debuggerStepper: DebuggerStepper): IStepperCycles => ({
 	async beforeStep({ featureStep }: TBeforeStep): Promise<void> {
-		if (featureStep.intent?.usage === "debugging") {
-			return;
-		}
-
-		if (featureStep.intent?.mode === "speculative" || featureStep.intent?.usage === "polling") {
-			return;
-		}
-
-		if (featureStep.programmatic) {
+		// The debugger pauses before each line. It doesn't pause on its own commands, which are proved as steps, or on a call
+		// nested in a line's proof.
+		if (debuggerStepper.prompting || featureStep.isSubStep === true || featureStep.programmatic) {
 			return;
 		}
 
 		const { action } = featureStep;
 		if (debuggerStepper.debuggingType === TDebuggingType.StepByStep || debuggerStepper.debugSteppers.includes(action.stepperName)) {
 			const prompt = debuggerStepper.debugSteppers.includes(action.stepperName) ? `Debugging ${action.stepperName}` : "Debug";
-			debuggerStepper.pendingDebugResult = await debuggerStepper.debugLoop(`${prompt}`, ["*", "step", "continue"], featureStep, -1);
+			debuggerStepper.pendingDebugResult = await debuggerStepper.debugLoop(`${prompt}`, ["*", "step", "continue"], featureStep);
 		}
 	},
 	async afterStep({ featureStep, actionResult }: TAfterStep): Promise<TAfterStepResult | undefined> {
-		if (featureStep.intent?.usage === "debugging") {
-			return;
-		}
-
-		if (!actionResult.ok && (featureStep.intent?.mode === "speculative" || featureStep.intent?.usage === "polling")) {
-			return;
-		}
-		if (!actionResult.ok && featureStep.programmatic) {
+		// A nested call's failure is part of its line's proof, so the debugger stops at the failure of the line.
+		if (debuggerStepper.prompting || featureStep.isSubStep === true || featureStep.programmatic) {
 			return;
 		}
 		if (!actionResult.ok) {
-			return await debuggerStepper.debugLoop(`[Failure]`, ["*", "retry", "next", "fail"], featureStep, 1);
+			return await debuggerStepper.debugLoop(`[Failure]`, ["*", "retry", "next", "fail"], featureStep);
 		}
 	},
 });
@@ -56,10 +45,8 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 	cycles: IStepperCycles = cycles(this);
 	steppers: AStepper[] = [];
 	debugSteppers: string[] = [];
-	private held?: FlowRunner;
-	get runner(): FlowRunner {
-		return this.madeWithWorld(this.held, "flow runner");
-	}
+	/** True while a command typed at the prompt is proved. */
+	prompting = false;
 	pendingDebugResult: TAfterStepResult | undefined;
 
 	options = { DEBUG_STEPPERS: { desc: "Comma-separated list of steppers to debug", parse: stringOrError } };
@@ -67,7 +54,6 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 	setWorld(world: TWorld, steppers: AStepper[]): Promise<void> {
 		this.steppers = steppers;
 		this.world = world;
-		this.held = new FlowRunner(world, steppers);
 		const debugSteppersStart = getStepperOption(this, "DEBUG_STEPPERS", world.moduleOptions) as string | undefined;
 		if (debugSteppersStart) {
 			for (const stepper of debugSteppersStart.split(",").map((name) => name.trim())) {
@@ -90,38 +76,29 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 		return Promise.resolve(actionOK({ controlSignal: "continue" }));
 	}
 
-	async debugLoop(prompt: string, prompts: string[], featureStep: TFeatureStep, inc: number): Promise<TAfterStepResult | undefined> {
-		const prefix = featureStep.seqPath;
-		const dir = syntheticSeqPathDirection(inc < 0);
-		let seqStart = syntheticBranchSeqPath(prefix, dir);
-		let promptResult: { controlSignal?: TDebugSignal } | undefined;
-		let continueLoop = true;
+	async debugLoop(prompt: string, prompts: string[], featureStep: TFeatureStep): Promise<TAfterStepResult | undefined> {
+		const world = this.getWorld();
 		let controlSignal: TDebugSignal | undefined;
 
-		while (continueLoop) {
-			const response = await this.getWorld().prompter.prompt(makePrompt(`${formatSeqPath(featureStep.seqPath)}-${prompt}`, undefined, prompts));
+		while (controlSignal === undefined) {
+			const response = await world.prompter.prompt(makePrompt(`${formatSeqPath(featureStep.seqPath)}-${prompt}`, undefined, prompts));
 
 			// If response is undefined (a prompter isn't available), default to 'continue'
 			const responseStr = response === undefined ? "continue" : response.toString();
 
+			this.prompting = true;
 			try {
-				promptResult = await this.runner.runStatement(responseStr, { intent: { mode: "authoritative", usage: "debugging" }, seqPath: seqStart, parentStep: featureStep });
-
-				// Check for controlSignal from TActionResult
+				const command = itemAt(findFeatureStepsFromStatement(responseStr, this.steppers, world, featureStep.source?.path, [0]), 0);
+				const promptResult = await proveStep(stepperContext(world, this.steppers), { ...command, seqPath: nextSeqPath(world, featureStep.seqPath), isSubStep: true });
 				controlSignal = promptResult.controlSignal;
-				if (controlSignal) {
-					continueLoop = false;
-				} else {
-					seqStart = advanceSyntheticSeqPath(seqStart, dir);
-				}
 			} catch (e) {
 				// Debug command failed - continue loop but show error
-				this.getWorld().eventLogger.error(`Debug command failed: ${errorDetail(e)}`);
+				world.eventLogger.error(`Debug command failed: ${errorDetail(e)}`);
+			} finally {
+				this.prompting = false;
 			}
 		}
 
-		// Convert controlSignal to TAfterStepResult
-		if (!controlSignal) return undefined;
 		return { rerunStep: controlSignal === "retry", nextStep: controlSignal === "next", failed: controlSignal === "fail" ? "failed at the debugger" : undefined };
 	}
 	steps = {

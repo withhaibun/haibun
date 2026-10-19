@@ -1,7 +1,7 @@
 import { withAction, type TKirejiExport } from "@haibun/core/kireji/derivations/withAction.js";
 import TestRunnerStepper from "@haibun/cli/test-runner-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
-import LogicStepper from "@haibun/core/steps/logic-stepper.js";
+import LogicStepper from "@haibun/logic/logic-stepper.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 
 const { noteEverythingChanged } = withAction(new TestRunnerStepper());

@@ -169,26 +169,22 @@ describe("projectDomainChain", () => {
 		expect(b?.kind).not.toBe("current");
 	});
 
-	it("merges waypoints into nodes with ensures edges from their resolvesDomain", () => {
+	it("merges waypoints into nodes, ensured where their proof holds", () => {
 		const snap: TAffordancesSnapshot = {
 			satisfiedDomains: [],
 			forward: [{ stepperName: "Cred", stepName: "issue", inputDomains: [], outputDomains: ["vc"], readyToRun: true }],
 			goals: [{ domain: "vc", resolution: { finding: "michi" } }],
 			waypoints: [
-				{ outcome: "VC issued", kind: "declarative", method: "ActivitiesStepper-VC issued", resolvesDomain: "vc", ensured: false },
-				{ outcome: "Logged in as admin", kind: "imperative", method: "ActivitiesStepper-Logged in as admin", ensured: true },
+				{ outcome: "VC issued", method: "ActivitiesStepper-VC issued", ensured: false },
+				{ outcome: "Logged in as admin", method: "ActivitiesStepper-Logged in as admin", ensured: true },
 			],
 		};
 		const g = projectDomainChain(snap);
-		const declarativeId = waypointNodeId("VC issued");
-		const imperativeId = waypointNodeId("Logged in as admin");
-		const declarative = g.nodes.find((n) => n.id === declarativeId);
-		const imperative = g.nodes.find((n) => n.id === imperativeId);
-		expect(declarative?.kind).toBe("waypoint-declarative");
-		expect(declarative?.link?.href).toBe("#?col=shu-affordances-panel&aff-waypoint=VC+issued");
-		expect(declarative?.invokes).toEqual({ stepperName: "ActivitiesStepper", stepName: "VC issued" });
-		expect(imperative?.kind).toBe("waypoint-ensured");
-		const ensures = g.edges.find((e) => e.from === "vc" && e.to === declarativeId);
-		expect(ensures?.label).toBe("ensures");
+		const pending = g.nodes.find((n) => n.id === waypointNodeId("VC issued"));
+		const ensured = g.nodes.find((n) => n.id === waypointNodeId("Logged in as admin"));
+		expect(pending?.kind).toBe("waypoint-pending");
+		expect(pending?.link?.href).toBe("#?col=shu-affordances-panel&aff-waypoint=VC+issued");
+		expect(pending?.invokes).toEqual({ stepperName: "ActivitiesStepper", stepName: "VC issued" });
+		expect(ensured?.kind).toBe("waypoint-ensured");
 	});
 });

@@ -43,7 +43,7 @@ export type TStepCalled = { stepperName: string; actionName: string; stepValuesM
 const safeValues = (stepValuesMap: Record<string, unknown> | undefined): Record<string, unknown> | undefined =>
 	stepValuesMap === undefined ? undefined : sanitizeObjectSecrets(stepValuesMap, isSecretName);
 
-/** The fields a step's events share: its id, its line and where it is stated, its level, its intent and what ran it. */
+/** The fields a step's events share: its id, its line and where it is stated, its level and what ran it. */
 const stepFields = (featureStep: TFeatureStep, called: TStepCalled, timestamp: number) => ({
 	id: formatSeqPath(featureStep.seqPath),
 	timestamp,
@@ -53,7 +53,6 @@ const stepFields = (featureStep: TFeatureStep, called: TStepCalled, timestamp: n
 	lineNumber: featureStep.source?.lineNumber,
 	featurePath: featureStep.source?.path,
 	level: stepLevel(featureStep.isSubStep),
-	intent: featureStep.intent ? { mode: featureStep.intent.mode } : undefined,
 	stepperName: called.stepperName,
 	actionName: called.actionName,
 	stepValuesMap: safeValues(called.stepValuesMap),

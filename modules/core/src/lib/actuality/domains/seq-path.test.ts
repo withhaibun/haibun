@@ -14,7 +14,7 @@ import {
 	stepLine,
 } from "./seq-path.js";
 import { LinkRelations, isPersisted } from "../../domains/resources.js";
-import { EXECUTION_MODES, RECORDED_STATUS } from "../../domains/protocol.js";
+import { VERDICT, RECORDED_STATUS } from "../../domains/protocol.js";
 import { queryableFields } from "../../domains/hypermedia.js";
 
 /** Returns the persisted topology a step's record declares. */
@@ -88,28 +88,15 @@ describe("extractSeqPathPrefix", () => {
 	});
 });
 
-describe("a step's execution mode", () => {
-	// A speculative step's failure is expected, so a person looking for a failure selects the authoritative steps. That
-	// selection requires the mode on each step's record. The type offers each mode as a sub-filter only where its topology
-	// declares the mode `groupedAs`.
-	it("is offered as a sub-filter because the topology declares it groupedAs", () => {
-		expect(seqPathTopology().properties[SEQ_PATH_FIELD.mode]).toBe(LinkRelations.CONTEXT.rel);
+describe("a step's verdict", () => {
+	it("states the EARL outcome of its goal", () => {
+		expect(seqPathTopology().properties[SEQ_PATH_FIELD.verdict]).toBe(LinkRelations.OUTCOME.rel);
 	});
 
-	it("accepts every execution mode and rejects any other value", () => {
-		for (const mode of EXECUTION_MODES) {
-			expect(
-				SeqPathSchema.safeParse({ id: "0.1", stepText: "a step", actionStatus: "passed", accessLevel: "private", level: "info", generatedAtTime: "now", mode }).success,
-				mode,
-			).toBe(true);
-		}
-		expect(
-			SeqPathSchema.safeParse({ id: "0.1", stepText: "a step", actionStatus: "passed", accessLevel: "private", level: "info", generatedAtTime: "now", mode: "invented" }).success,
-		).toBe(false);
-	});
-
-	it("includes speculative, so the filter can separate speculative steps from authoritative steps", () => {
-		expect(EXECUTION_MODES).toContain("speculative");
+	it("accepts every verdict and rejects any other value", () => {
+		const record = { id: "0.1", stepText: "a step", actionStatus: "passed", accessLevel: "private", level: "info", generatedAtTime: "now" };
+		for (const verdict of Object.values(VERDICT)) expect(SeqPathSchema.safeParse({ ...record, verdict }).success, verdict).toBe(true);
+		expect(SeqPathSchema.safeParse({ ...record, verdict: "invented" }).success).toBe(false);
 	});
 });
 

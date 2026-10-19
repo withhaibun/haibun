@@ -5,7 +5,7 @@
  * for a call it handed out and a statement it merely tried.
  */
 import { describe, expect, it } from "vitest";
-import { CHECK_NO, ICON_STEP_COMPLETED, MAYBE_CHECK_NO, RETURNED_TO_CALLER } from "@haibun/core/lib/domains/protocol.js";
+import { CHECK_NO, ICON_STEP_COMPLETED, MAYBE_CHECK_NO, RETURNED_TO_CALLER, SUBSTEP_LEVEL } from "@haibun/core/lib/domains/protocol.js";
 import { bucketMarkerStyle, eventMarkerStyle } from "./event-marker.js";
 import { MARK_COLOUR } from "./status-mark.js";
 
@@ -18,8 +18,8 @@ describe("what a mark shows about a step", () => {
 		expect(mark.color).toBe(MARK_COLOUR.fault);
 	});
 
-	it("marks a statement actuality merely tried with the diamond, in a colour that is not a fault", () => {
-		const mark = eventMarkerStyle(step({ status: "failed", intent: { mode: "speculative" } }));
+	it("marks a nested call's failure with the diamond, in a colour that is not a fault", () => {
+		const mark = eventMarkerStyle(step({ status: "failed", level: SUBSTEP_LEVEL }));
 		expect(mark.icon).toBe(MAYBE_CHECK_NO);
 		expect(mark.color).not.toBe(MARK_COLOUR.fault);
 	});
@@ -30,9 +30,9 @@ describe("what a mark shows about a step", () => {
 		expect(mark.color).not.toBe(MARK_COLOUR.fault);
 	});
 
-	it("marks a step that passed as passed, and a speculative one as merely held", () => {
+	it("marks a step that passed as passed, nested or not", () => {
 		expect(eventMarkerStyle(step({ status: "passed" })).icon, "the outcome a step's record states").toBe(ICON_STEP_COMPLETED);
-		expect(eventMarkerStyle(step({ status: "passed", intent: { mode: "speculative" } })).icon).not.toBe(ICON_STEP_COMPLETED);
+		expect(eventMarkerStyle(step({ status: "passed", level: SUBSTEP_LEVEL })).icon).toBe(ICON_STEP_COMPLETED);
 	});
 });
 
@@ -79,8 +79,8 @@ describe("the mark a division of actuality gets", () => {
 	});
 
 	it("does not report a failure the log would not, since it marks by the one rule an event marks by", () => {
-		// A speculative statement's failure is expected, which eventMarkerStyle already states.
-		const held = [{ event: { kind: "lifecycle", type: "step", stage: "end", status: "failed", intent: { mode: "speculative" } }, count: 1 }];
+		// A nested call's failure is part of its line's proof, which eventMarkerStyle already states.
+		const held = [{ event: { kind: "lifecycle", type: "step", stage: "end", status: "failed", level: SUBSTEP_LEVEL }, count: 1 }];
 		expect(bucketMarkerStyle(held)?.color).not.toBe(MARK_COLOUR.fault);
 	});
 });

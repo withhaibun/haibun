@@ -20,9 +20,10 @@ export function retainedProducts(
 	return retain(products);
 }
 
-/** Whether a failure is the feature's own. A speculative statement's failure is expected. A synthetic dispatch has a
- *  negative seqPath index, and its failure is the failure of the step that dispatched it. */
-const ownFailure = (result: TStepResult): boolean => result.intent?.mode !== "speculative" && !result.seqPath?.some((n) => n < 0);
+/** Whether a failure is the feature's own. A nested call's failure is part of its line's proof, and its line's record states
+ *  whether the proof holds. A synthetic dispatch has a negative seqPath index, and its failure is the failure of the step
+ *  that dispatched it. */
+const ownFailure = (result: TStepResult): boolean => result.isSubStep !== true && !result.seqPath?.some((n) => n < 0);
 
 /** Adds one finished step to its feature's step totals: the count, the first start, the last end and the failure. */
 export function foldStep(steps: TFeatureSteps, result: TStepResult): void {
@@ -37,14 +38,14 @@ export function foldStep(steps: TFeatureSteps, result: TStepResult): void {
  *  fails with that reason. A step that failed keeps its own reason. A cycle that returns `nextStep` passes the step. */
 export function afterStepOutcome(result: TActionResult, instructions: Array<TAfterStepResult | undefined>): TActionResult {
 	const failure = instructions.find((i) => i?.failed)?.failed;
-	const { products, controlSignal, artifact, protocol } = result;
-	if (failure) return result.ok ? { products, controlSignal, artifact, protocol, ok: false, errorMessage: failure } : result;
-	if (instructions.some((i) => i?.nextStep)) return { products, controlSignal, artifact, protocol, ok: true };
+	const { products, controlSignal, artifact } = result;
+	if (failure) return result.ok ? { products, controlSignal, artifact, ok: false, errorMessage: failure } : result;
+	if (instructions.some((i) => i?.nextStep)) return { products, controlSignal, artifact, ok: true };
 	return result;
 }
 
-/** A step's result from its action's result, with the step's line, where it is stated, its path and intent, and when it
- *  began and ended. */
+/** A step's result from its action's result, with the step's line, where it is stated, its path, whether it is nested in a
+ *  line's proof, and when it began and ended. */
 export function stepResultOf(actionResult: TActionResult, action: TStepAction, start: number, end: number, featureStep: TFeatureStep): TStepResult {
 	return {
 		...actionResult,
@@ -53,7 +54,7 @@ export function stepResultOf(actionResult: TActionResult, action: TStepAction, s
 		path: featureStep.source?.path,
 		lineNumber: featureStep.source?.lineNumber,
 		seqPath: featureStep.seqPath,
-		intent: featureStep.intent,
+		...(featureStep.isSubStep === true ? { isSubStep: true } : {}),
 		start,
 		end,
 	};

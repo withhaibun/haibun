@@ -3,7 +3,6 @@ import { passWithDefaults } from "./test/lib.js";
 import Haibun from "../steps/haibun-stepper.js";
 import VariablesSteppers from "../steps/variables-stepper.js";
 import ActivitiesStepper from "../steps/activities-stepper.js";
-import LogicStepper from "../steps/logic-stepper.js";
 import { DEF_PROTO_OPTIONS } from "./test/lib.js";
 
 describe("Logic system - dependency-based execution (waypoint/ensure)", () => {
@@ -130,7 +129,7 @@ waypoint Shared outcome with variable shared is "value"`,
 
 		const feature2 = { path: "/features/feature2.feature", content: 'ensure Shared outcome\nvariable shared is "value"' };
 
-		const result = await passWithDefaults([feature1, feature2], [ActivitiesStepper, Haibun, VariablesSteppers, LogicStepper], DEF_PROTO_OPTIONS, [background]);
+		const result = await passWithDefaults([feature1, feature2], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 	});
 });
@@ -158,7 +157,7 @@ set afterstep to "done"`,
 			not variable second exists`,
 		};
 
-		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers, LogicStepper], DEF_PROTO_OPTIONS, [background]);
+		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 	});
 
@@ -173,7 +172,7 @@ set afterstep to "done"`,
 			not variable afterstep exists`,
 		};
 
-		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers, LogicStepper], DEF_PROTO_OPTIONS, [background]);
+		const result = await passWithDefaults([feature], [ActivitiesStepper, Haibun, VariablesSteppers], DEF_PROTO_OPTIONS, [background]);
 		expect(result.ok).toBe(true);
 	});
 });
