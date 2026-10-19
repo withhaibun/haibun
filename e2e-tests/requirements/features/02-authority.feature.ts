@@ -6,6 +6,7 @@ import { localOrigin } from "@haibun/core/lib/domains/local-origin.js";
 
 const { feature, scenario } = withAction(new Haibun());
 const RPC = `${localOrigin(DEFAULT_PORT)}${RPC_ROUTE}`;
+const CAPABILITY = JSON.stringify({ id: "urn:capability:ranger-sets", controller: "ranger", allowedAction: ["VariablesStepper:set", "Read:private"], proof: { type: "stand-in" } });
 
 export const features: TKirejiExport = {
 	"Capabilities authorize every call": [
@@ -26,6 +27,13 @@ export const features: TKirejiExport = {
 		`rpc call to "${RPC}TestServer-protectedRpcPing" with method "TestServer-protectedRpcPing" without a capability invocation is refused`,
 		`rpc call to "${RPC}TestServer-protectedRpcPing" with method "TestServer-protectedRpcPing" succeeds when signed by "ranger" for "TestServer:protected"`,
 		`rpc call to "${RPC}TestServer-protectedAdminRpcPing" with method "TestServer-protectedAdminRpcPing" is denied for capability "TestServer:admin" when signed by "ranger" for "TestServer:protected"`,
+
+		scenario({ scenario: "A presented capability allows only the actions it delegates" }),
+		"Essential, for a page and another instance that present a capability. The verifier checks the presenter against the document's controller. Source: authority-stepper.ts, holdingCapability.",
+		'accept authority from "ranger" for "VariablesStepper:set,Read:private"',
+		`holding capability ${CAPABILITY} at "${localOrigin(DEFAULT_PORT)}", set presented to "yes"`,
+		'variable presented is "yes"',
+		`not holding capability ${CAPABILITY} at "${localOrigin(DEFAULT_PORT)}", variable presented is "yes"`,
 
 		scenario({ scenario: "A proof names the capability that allowed each call" }),
 		"Essential, for every surface. Source: step-records.ts, the fields capabilityAction and allowedAction.",

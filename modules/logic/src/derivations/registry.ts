@@ -3,7 +3,7 @@
  * renders as through the step's pattern. A line, a call a transport carries and a term state one step when their terms
  * are equal.
  */
-import { namedInterpolation, renderStepLine } from "@haibun/core/lib/steps/derivations/named-vars.js";
+import { literalTerm, namedInterpolation, renderStepLine } from "@haibun/core/lib/steps/derivations/named-vars.js";
 import { Origin, type TStepValue } from "@haibun/core/lib/domains/protocol.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import type { TStepAction } from "@haibun/core/lib/steps/domains/stepper.js";
@@ -46,7 +46,7 @@ export function lineOfTerm(gwta: string, term: TLineTerm, domains: TDomains): st
 	const stated = term.args.map(([name, arg]): [string, string] => {
 		const domain = placeholders?.[name]?.domain;
 		const written = domain !== undefined && domains[domain]?.written === true;
-		return [name, arg.literal && !written ? `"${arg.term}"` : arg.term];
+		return [name, arg.literal && !written ? literalTerm(arg.term, domain) : arg.term];
 	});
 	return renderStepLine(gwta, Object.fromEntries(stated));
 }

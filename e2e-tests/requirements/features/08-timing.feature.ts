@@ -21,5 +21,9 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "Two callers' proofs interleave at each call" }),
 		"Essential, for RPC, MCP and a page during a service feature. Source: docs/reasoner.md, q8-replay.",
 		'two callers prove "rpc ping" at once',
+
+		scenario({ scenario: "A call its caller stops ends as stopped" }),
+		"Essential, for a page or a model that leaves a streamed call. The caller stopped the call, so it didn't fail. Source: step-dispatch.ts, the stopped status.",
+		'a call to ends with "not OK" that its caller stops ends as stopped',
 	],
 };

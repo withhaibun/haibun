@@ -19,6 +19,20 @@ import { AStepper, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import { FakeInvoker, DOMAIN_FAKE_HOLDER } from "@haibun/core/lib/test/fake-authority.js";
 import { TEST_DOMAIN, testDomainDefinitions } from "@haibun/core/lib/test/test-domains.js";
 import { REFUSED_CALL_STATUS, REFUSED_INVOCATION, RPC_PROTOCOL } from "@haibun/core/lib/rpc-wire.js";
+import { z } from "zod";
+import type { TWorld } from "@haibun/core/lib/world.js";
+import { DOMAIN_JSON, DOMAIN_STATEMENT } from "@haibun/core/lib/domains/domains.js";
+import { RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
+import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
+import { SEQ_PATH_FIELD, calledOf, executionOf, formatRecordName } from "@haibun/core/lib/seq-path.js";
+import { readEvery, recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
+import { runRegistry } from "@haibun/core/lib/step-registry.js";
+import { nextSeqPath, proveStep, stepperContext } from "@haibun/core/lib/step-dispatch.js";
+import { streamContext, streamOver } from "@haibun/core/lib/step-stream-context.js";
+
+/** The times a step's record states once the step ended. */
+const EndedSchema = z.object({ generatedAtTime: z.string(), endedAtTime: z.string() });
 
 const TALLY = "tally";
 
@@ -31,7 +45,13 @@ const setTally = (value: number) => ({ term: TALLY, value: String(value), domain
 type TSigner = { holder: string; action: string } | undefined;
 
 /** Builds an RPC message that calls `method` with empty params. The message carries the actuality id that a handshake with the origin of `url` returns. */
-const rpcCall = async (url: string, id: string, method: string) => ({ protocol: RPC_PROTOCOL, id, method, params: {}, actualityId: await actualityAt(new URL(url).origin) });
+const rpcCall = async (url: string, id: string, method: string, params: Record<string, unknown> = {}) => ({
+	protocol: RPC_PROTOCOL,
+	id,
+	method,
+	params,
+	actualityId: await actualityAt(new URL(url).origin),
+});
 
 /** Posts a JSON-RPC message to `url`. FakeInvoker signs the request when `signer` is defined. */
 async function post(url: string, message: Record<string, unknown>, signer: TSigner): Promise<Response> {
@@ -108,9 +128,21 @@ const cycles = (ts: TestServer): IStepperCycles => ({
 	},
 });
 
+/** The records of the actuality's steps that called `called`, as `Stepper.action`. */
+const recordsCalling = async (world: TWorld, called: string) =>
+	(await readEvery(world.shared.getStore(), { label: SEQ_PATH_LABEL })).filter((record) => record[SEQ_PATH_FIELD.called] === called);
+
+/** The record of the step at `path` in the actuality's feature. */
+const recordAt = async (world: TWorld, path: number[]) => recordOf(world.shared.getStore(), SEQ_PATH_LABEL, formatRecordName({ execution: executionOf(world.tag), path }));
+
 class TestServer extends AStepper {
 	description = "Adds test routes to the web server and declares capability-protected steps. Its RPC and MCP steps call steps at a URL and check each response.";
 	cycles = cycles(this);
+	steppers: AStepper[] = [];
+	async setWorld(world: TWorld, steppers: AStepper[]) {
+		await super.setWorld(world, steppers);
+		this.steppers = steppers;
+	}
 	toDelete: { [name: string]: string } = {};
 
 	/** The auth scheme that the dynamic auth middleware applies to protected routes. The `make auth scheme` step sets it. The middleware responds 401 without a scheme. */
@@ -281,6 +313,47 @@ class TestServer extends AStepper {
 				if (!response.ok) return actionNotOK(`HTTP ${response.status}: ${await response.text()}`);
 				const data = (await response.json()) as Record<string, unknown>;
 				return data.error ? actionNotOK(String(data.error)) : actionOK();
+			},
+		},
+		readLeavesNoRecord: {
+			gwta: `read of {method: ${DOMAIN_STEP_METHOD}} with {params: ${DOMAIN_JSON}} over RPC at {url: ${DOMAIN_LINK}} leaves no record`,
+			action: async ({ method, params, url }: TStepArgs) => {
+				const world = this.getWorld();
+				const { stepperName, stepName } = runRegistry(world).named(String(method)).descriptor;
+				const called = calledOf(stepperName, stepName);
+				const before = (await recordsCalling(world, called)).length;
+				const response = await post(String(url), await rpcCall(String(url), "rpc-read", String(method), params as Record<string, unknown>), undefined);
+				if (!response.ok) return actionNotOK(`the read of ${String(method)} returned the status ${response.status}: ${await response.text()}`);
+				const after = (await recordsCalling(world, called)).length;
+				return after === before ? actionOK() : actionNotOK(`the read of ${String(method)} over RPC wrote ${after - before} records of actuality's steps`);
+			},
+		},
+		twoCallersProve: {
+			gwta: `two callers prove {statement: ${DOMAIN_STATEMENT}} at once`,
+			action: async ({ statement }: { statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
+				const world = this.getWorld();
+				const ctx = stepperContext(world, this.steppers);
+				const paths = [nextSeqPath(world, featureStep.seqPath), nextSeqPath(world, featureStep.seqPath)];
+				const proved = await Promise.all(paths.map((seqPath) => proveStep(ctx, { ...itemAt(statement, 0), seqPath, isSubStep: true })));
+				if (!proved.every((result) => result.ok)) return actionNotOK(`a caller's proof failed: ${proved.map((result) => result.errorMessage).join("; ")}`);
+				const [first, second] = await Promise.all(paths.map((path) => recordAt(world, path)));
+				const span = (record: unknown) => EndedSchema.parse(record);
+				const [a, b] = [span(first), span(second)];
+				const interleaved = a.generatedAtTime <= b.endedAtTime && b.generatedAtTime <= a.endedAtTime;
+				return interleaved ? actionOK() : actionNotOK(`the second caller's call started at ${b.generatedAtTime}, after the first caller's call ended at ${a.endedAtTime}`);
+			},
+		},
+		stoppedCall: {
+			gwta: `call to {statement: ${DOMAIN_STATEMENT}} that its caller stops ends as stopped`,
+			action: async ({ statement }: { statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
+				const world = this.getWorld();
+				const stopping = new AbortController();
+				const stream = streamOver(() => undefined, stopping);
+				stream.end("its caller left");
+				const seqPath = nextSeqPath(world, featureStep.seqPath);
+				const ran = await streamContext.run(stream, () => proveStep(stepperContext(world, this.steppers), { ...itemAt(statement, 0), seqPath, isSubStep: true }));
+				const status = (await recordAt(world, seqPath))?.[SEQ_PATH_FIELD.actionStatus];
+				return !ran.ok && status === RECORDED_STATUS.stopped ? actionOK() : actionNotOK(`the call its caller stopped ended as ${String(status)}`);
 			},
 		},
 		rpcDeniedSigned: {

@@ -281,7 +281,7 @@ export class FeatureVariables {
 					Object.assign(resolved, await this.lookupVariable(lookupTerm));
 				}
 			} else {
-				resolved.value = input.term.replace(/^"|"$/g, "");
+				resolved.value = input.term.replace(/^"(.*)"$/s, "$1");
 				resolved.domain = writtenDomain;
 			}
 		} else {

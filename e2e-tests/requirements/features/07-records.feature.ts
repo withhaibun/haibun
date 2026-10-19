@@ -1,7 +1,11 @@
 import { withAction, type TKirejiExport } from "@haibun/core/kireji/derivations/withAction.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
+import { RPC_ROUTE } from "@haibun/core/lib/rpc-wire.js";
+import { DEFAULT_PORT } from "@haibun/web-server-hono/domains/web-server.js";
+import { localOrigin } from "@haibun/core/lib/domains/local-origin.js";
 
 const { feature, scenario } = withAction(new Haibun());
+const RPC = `${localOrigin(DEFAULT_PORT)}${RPC_ROUTE}`;
 
 export const features: TKirejiExport = {
 	"Records, events and actualities": [
@@ -16,12 +20,17 @@ export const features: TKirejiExport = {
 		"variable timed.durationMs is less than 1000",
 
 		scenario({ scenario: "A read made from outside isn't recorded as actuality's step" }),
-		"Essential, for observation from outside. Only step-dispatch.test.ts holds it today. Source: step-dispatch.ts:88.",
-		'a read of "Haibun-showSteps" over RPC leaves no record',
+		`Essential, for observation from outside. A read a transport carries outside a step is the caller's, and a read a transport carries within a step, such as a model's tool call during a turn, is that step's act, which actuality records. Source: step-dispatch.ts, the recorded flag.`,
+		"enable rpc",
+		'webserver is listening for "records"',
+		`a read of "Haibun-validateStep" with {"text": "line x renders from its term as written"} over RPC at "${RPC}Haibun-validateStep" leaves no record`,
 
 		scenario({ scenario: "A proof writes its nodes as records under the line that requested it" }),
 		"Essential, for the monitor and graph view. Source: docs/reasoner.md, Proofs as SeqPath records.",
-		'set nodes from show derivation of "ensure Runs are counted"',
+		"Activity: Count a visit",
+		'set visits to "1"',
+		'waypoint Visits are counted with variable visits is "1"',
+		'set nodes from show derivation of "ensure Visits are counted"',
 		"variable nodes.records.0.isPartOf exists",
 	],
 };

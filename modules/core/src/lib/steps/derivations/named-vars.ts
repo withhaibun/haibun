@@ -145,12 +145,13 @@ export const getMatch = (
 	const { groups } = matched;
 	if (groups !== undefined && stepValuesMap !== undefined) {
 		for (const [i, ph] of Object.values(stepValuesMap).entries()) {
-			// A quoted capture is read first, then a backticked one, then an environment variable, then a bare literal.
+			// A quoted capture is read first, then a backticked one, then an environment variable, then a bare literal. A quoted
+			// term states a quote within it as \".
 			const q = groups[`${TYPE_QUOTED}${i}`];
 			const b = groups[`${TYPE_VAR}${i}`];
 			const e = groups[`${TYPE_ENV}${i}`];
 			const t = groups[`${TYPE_ENV_OR_VAR_OR_LITERAL}${i}`];
-			if (q !== undefined) Object.assign(ph, { term: q, origin: Origin.quoted });
+			if (q !== undefined) Object.assign(ph, { term: q.replace(/\\"/g, '"'), origin: Origin.quoted });
 			else if (b !== undefined) Object.assign(ph, { term: b, origin: Origin.var });
 			else if (e !== undefined) Object.assign(ph, { term: e, origin: Origin.env });
 			else if (t !== undefined) {
@@ -176,7 +177,7 @@ export function renderStepLine(gwta: string, terms: Record<string, string>): str
 export function literalTerm(value: unknown, domain: string | undefined): string {
 	if (domain === DOMAIN_STATEMENT || typeof value === "number" || typeof value === "boolean") return String(value);
 	if (typeof value === "object" && value !== null) return JSON.stringify(value);
-	return `"${String(value).replace(/\n/g, "\\n")}"`;
+	return `"${String(value).replace(/\n/g, "\\n").replace(/"/g, '\\"')}"`;
 }
 
 /** Each parameter of a call from a transport as a step value. A transport's input is already validated and coerced by

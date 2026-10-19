@@ -1,6 +1,7 @@
 /**
  * Implements a stand-in for a consumer's authority across a process boundary. Tests of how the framework calls an
- * authority use it. Its invoker signs a request with headers that present a holder and the invoked action. A further
+ * authority use it. Its invoker signs a request with headers that present a holder and the invoked action. Its verifier
+ * accepts a capability document its controller presents within the controller's grant. A further
  * header presents the body's digest where the request has a body. Its verifier rejects a request whose digest doesn't
  * match its body. It accepts the request when the actions a test granted the holder allow the invoked action. Core's
  * `capabilityAllows` determines whether a granted action allows the invoked one. Each holder's grant is one capability.
@@ -16,7 +17,7 @@ import type { TDomainDefinition } from "../domains/resources.js";
 import { OK } from "../domains/protocol.js";
 import { getAuthority, heldAuthority } from "../domains/session-authority.js";
 import { capabilityAllows } from "../domains/actions.js";
-import type { IAuthorityInvoker, IAuthorityVerifier, TAuthorityAct, TAuthorityEvidence, TDelegations, TOutgoingRequest, TVerdict } from "../domains/authority-types.js";
+import type { IAuthorityInvoker, IAuthorityVerifier, TActingFor, TAuthorityAct, TAuthorityEvidence, TDelegations, TOutgoingRequest, TVerdict } from "../domains/authority-types.js";
 
 const HOLDER_HEADER = "fake-holder";
 /** The domain of a holder's name. The stand-in invoker presents the name on each request it signs, and a test grants actions to it. */
@@ -50,7 +51,7 @@ class FakeVerifier implements IAuthorityVerifier {
 	constructor(private readonly grants: Map<string, string[]>) {}
 
 	verify(evidence: TAuthorityEvidence): Promise<TVerdict> {
-		if (evidence.kind !== "request") return Promise.resolve({ ok: false, error: "the fake authority verifies requests only" });
+		if (evidence.kind === "document") return Promise.resolve(this.verifyDocument(evidence.document, evidence.presenter));
 		const headers = Object.fromEntries(Object.entries(evidence.headers).map(([name, value]) => [name.toLowerCase(), value]));
 		const holder = headers[HOLDER_HEADER];
 		const action = headers[INVOCATION_HEADER]?.match(/action="([^"]+)"/)?.[1];
@@ -60,6 +61,19 @@ class FakeVerifier implements IAuthorityVerifier {
 		const granted = this.grants.get(holder);
 		if (!capabilityAllows(granted, action)) return Promise.resolve({ ok: false, error: `${holder} doesn't hold a grant for ${action}` });
 		return Promise.resolve({ ok: true, principal: holder, allowedAction: granted, invoked: action, restsOn: { capabilities: [fakeGrant(holder)] } });
+	}
+
+	/** Accepts a document that its controller or the root presents and that delegates only actions the controller's grant
+	 *  allows. The stand-in doesn't check a signature, since it doesn't hold keys. */
+	private verifyDocument(document: Record<string, unknown>, presenter: TActingFor): TVerdict {
+		const { id, controller, allowedAction } = document;
+		if (typeof controller !== "string" || (!presenter.root && controller !== presenter.controller))
+			return { ok: false, error: `the document's controller ${String(controller)} doesn't present it` };
+		const delegated = [allowedAction].flat().filter((action): action is string => typeof action === "string");
+		const granted = this.grants.get(controller);
+		const beyond = delegated.filter((action) => !capabilityAllows(granted, action));
+		if (beyond.length > 0) return { ok: false, error: `${controller} doesn't hold a grant for ${beyond.join(", ")}` };
+		return { ok: true, principal: controller, allowedAction: delegated, restsOn: { capabilities: [String(id)] } };
 	}
 
 	delegationsTo(): Promise<TDelegations> {

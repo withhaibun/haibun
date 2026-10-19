@@ -34,9 +34,18 @@ export const features: TKirejiExport = {
 		'waypoint It is set with variable left is "yes"',
 		"not ensure It is set",
 
+		scenario({ scenario: "A waypoint a step saves runs its lines" }),
+		"Essential, for a model's turn saved as a waypoint and run again. Source: activities-stepper.ts, saveWaypoint.",
+		'save waypoint "Knock twice" doing ["set knocks to \\"2\\""]',
+		'run the saved waypoint "Knock twice"',
+		'variable knocks is "2"',
+
 		scenario({ scenario: "A failed ensure states the first goal it couldn't prove" }),
 		"Essential, for people and models. Source: docs/reasoner.md, Proofs as SeqPath records.",
-		'set unmet from show derivation of "ensure It is set"',
-		'variable unmet.firstUnmet is "variable left is \\"yes\\""',
+		"Activity: Leave it open",
+		'set open to "no"',
+		'waypoint It is closed with variable open is "yes"',
+		'set unmet from show derivation of "ensure It is closed"',
+		'variable unmet.firstUnmet is "variable open is \\"yes\\""',
 	],
 };
