@@ -22,7 +22,7 @@ const iso = (n: number): string => new Date(n).toISOString();
 
 /** Writes a feature's execution: the step that declared it, a step, and what that step logged. */
 const aFeature = async (store: QuadStore, execution: string, feature: string, at: number): Promise<void> => {
-	const record = { actionStatus: "passed", level: "info" };
+	const record = { actionStatus: "passed", accessLevel: "private", level: "info" };
 	await store.upsertIndividual(SEQ_PATH_LABEL, { ...record, id: `${execution}.0`, stepText: `Feature: ${feature}`, called: "Haibun.feature", generatedAtTime: iso(at) });
 	await store.upsertIndividual(SEQ_PATH_LABEL, { ...record, id: `${execution}.0.1`, stepText: "a step", called: "Stepper.act", generatedAtTime: iso(at + 100) });
 	await store.upsertIndividual(LOG_MESSAGE_LABEL, { id: `${execution}.0.1@0`, message: "it said this", level: "info", generatedAtTime: iso(at + 200) });
@@ -40,6 +40,7 @@ const aDevice = async (): Promise<QuadStore> => {
 			id: executionOf({ key, featureNum: 0 }),
 			stepText: "tests",
 			actionStatus: "passed",
+			accessLevel: "private",
 			level: "info",
 			actualityLevel: "execution",
 			generatedAtTime: iso(at),
@@ -126,6 +127,7 @@ describe("what a device holds of the actualities it has read", () => {
 			[SEQ_PATH_FIELD.id]: `${NEWER}.0.2`,
 			stepText: "a later step",
 			actionStatus: "passed",
+			accessLevel: "private",
 			level: "info",
 			generatedAtTime: iso(20000),
 		});
@@ -144,6 +146,7 @@ describe("what a device holds of the actualities it has read", () => {
 			[SEQ_PATH_FIELD.id]: `${NEWER}.0.3`,
 			stepText: "a step nothing could hold",
 			actionStatus: "passed",
+			accessLevel: "private",
 			level: "info",
 			generatedAtTime: iso(30000),
 		});

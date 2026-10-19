@@ -40,6 +40,7 @@ const level = (actualityLevel: string, id: string, stepText: string, status: str
 	id,
 	stepText,
 	actionStatus: status,
+	accessLevel: "private",
 	level: "info",
 	actualityLevel,
 	generatedAtTime: new Date(0).toISOString(),

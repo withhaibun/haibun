@@ -37,6 +37,7 @@ const stepRecord = (i: number, over: Record<string, unknown> = {}): Record<strin
 	stepText: `step ${i}`,
 	called: "TestStepper.aStep",
 	actionStatus: "passed",
+	accessLevel: "private",
 	ranVia: "local",
 	level: "info",
 	generatedAtTime: iso(i),

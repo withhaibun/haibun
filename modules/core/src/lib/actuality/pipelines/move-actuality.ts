@@ -7,6 +7,8 @@ import type { TLifecycleEvent } from "../../domains/protocol.js";
 import type { TWorld } from "../domains/world.js";
 import type { IQuadStore } from "../../steps/ports.js";
 import { SEQ_PATH_LABEL } from "../../domains/resources.js";
+import { writtenLevel } from "../../domains/capability-context.js";
+import { SEQ_PATH_ACCESS } from "../domains/seq-path.js";
 import { isActualityMove, type TActuality, type TActualityMove } from "../machines/actuality.js";
 import { levelRecord, type TLevelNaming, type TStepRecord } from "../derivations/step-records.js";
 
@@ -16,10 +18,10 @@ export type TLevelRecords = Map<string, TStepRecord>;
 /** A move of the actuality machine, the state after it and when it happened, from which a level's record is written. */
 export type TLevelMoved = { move: TActualityMove; after: TActuality; timestamp: number };
 
-/** Writes the record of the level a move starts or ends, with the fields `stated` adds to the execution's record, and
- *  returns it. A step's move doesn't write a record here, since dispatchStep writes a step's record. */
+/** Writes the record of the level a move starts or ends, with the fields `stated` adds to the execution's record, at the level
+ *  the call in progress writes a SeqPath record at, and returns it. A step's move doesn't write a record here, since dispatchStep writes a step's record. */
 export async function writeLevelRecord(store: IQuadStore, levels: TLevelRecords, { move, after, timestamp }: TLevelMoved, naming: TLevelNaming, stated?: TStepRecord) {
-	const record = levelRecord(move, after, naming, move.stage === "end" ? levels.get(move.id) : undefined, timestamp);
+	const record = levelRecord(move, after, naming, move.stage === "end" ? levels.get(move.id) : undefined, timestamp, writtenLevel(SEQ_PATH_ACCESS));
 	if (record === undefined) return undefined;
 	const written = move.type === "execution" ? { ...record, ...stated } : record;
 	levels.set(move.id, written);

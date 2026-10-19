@@ -98,9 +98,14 @@ describe("a step's execution mode", () => {
 
 	it("accepts every execution mode and rejects any other value", () => {
 		for (const mode of EXECUTION_MODES) {
-			expect(SeqPathSchema.safeParse({ id: "0.1", stepText: "a step", actionStatus: "passed", level: "info", generatedAtTime: "now", mode }).success, mode).toBe(true);
+			expect(
+				SeqPathSchema.safeParse({ id: "0.1", stepText: "a step", actionStatus: "passed", accessLevel: "private", level: "info", generatedAtTime: "now", mode }).success,
+				mode,
+			).toBe(true);
 		}
-		expect(SeqPathSchema.safeParse({ id: "0.1", stepText: "a step", actionStatus: "passed", level: "info", generatedAtTime: "now", mode: "invented" }).success).toBe(false);
+		expect(
+			SeqPathSchema.safeParse({ id: "0.1", stepText: "a step", actionStatus: "passed", accessLevel: "private", level: "info", generatedAtTime: "now", mode: "invented" }).success,
+		).toBe(false);
 	});
 
 	it("includes speculative, so the filter can separate speculative steps from authoritative steps", () => {
@@ -160,6 +165,7 @@ describe("a step's line", () => {
 		stepText: "the gate checks the ticket",
 		called: "GateStepper.check",
 		actionStatus: RECORDED_STATUS.completed,
+		accessLevel: "private",
 		level: "info",
 		generatedAtTime: "2026-01-01T00:00:00.000Z",
 		endedAtTime: "2026-01-01T00:00:00.250Z",

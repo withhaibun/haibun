@@ -43,6 +43,7 @@ describe("shu-step-detail", () => {
 			stepText: "a step",
 			called: "S.does",
 			actionStatus: "passed",
+			accessLevel: "private",
 			ranVia: "remote",
 			level: "info",
 			generatedAtTime: new Date(1000).toISOString(),

@@ -36,6 +36,7 @@ const step = (execution: string, i: number, over: Record<string, unknown> = {}):
 	stepText: `step ${i}`,
 	called: "TestStepper.aStep",
 	actionStatus: "passed",
+	accessLevel: "private",
 	level: "info",
 	generatedAtTime: iso(1000 + i),
 	...over,

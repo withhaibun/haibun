@@ -14,7 +14,17 @@
 import { itemAt } from "../../domains/item-at.js";
 import { z } from "zod";
 import { ACTUALITY_LEVELS, EXECUTION_MODES, HAIBUN_LOG_LEVELS, RECORDED_STATUS, type TActualityLevel } from "../../domains/protocol.js";
-import { Access, COMMENT_LABEL, LinkRelations, PersistedVertexSchema, PRINCIPAL_LABEL, SEQ_PATH_LABEL, type TDomainDefinition } from "../../domains/resources.js";
+import { MEDIA_TYPE } from "../../domains/media-types.js";
+import {
+	Access,
+	AccessLevelSchema,
+	COMMENT_LABEL,
+	LinkRelations,
+	PersistedVertexSchema,
+	PRINCIPAL_LABEL,
+	SEQ_PATH_LABEL,
+	type TDomainDefinition,
+} from "../../domains/resources.js";
 
 const SEQ_PATH_DOMAIN = "seq-path";
 
@@ -222,7 +232,18 @@ export const SEQ_PATH_FIELD = {
 	/** The level of the execution the record is of: the execution, a feature, a scenario or a step. Every writer writes it.
 	 *  A record without one predates the field, and a reader can't select it by its level. */
 	actualityLevel: "actualityLevel",
+	/** The arguments a call carried by a transport sent, as JSON. A feature line states its arguments in its text. */
+	params: "params",
+	/** The head of the text a call carried by a transport read back, where the step produced products. */
+	result: "result",
+	/** The agent the call is attributed to, where its caller states one: the model whose turn made the call. */
+	attributedTo: "attributedTo",
+	/** The delegation the call was made under, where its caller states one. */
+	delegation: "delegation",
 } as const;
+
+/** The declared level of a SeqPath record. A call that a read ceiling bounds writes its record at that ceiling. */
+export const SEQ_PATH_ACCESS = Access.private;
 
 /** SeqPath edge names. */
 export const SEQ_PATH_EDGE = {
@@ -243,25 +264,37 @@ export const SEQ_PATH_EDGE = {
 /** Where a step ran: in this process, or on another host. */
 const RAN_VIA = ["local", "remote"] as const;
 
+/** A text field a record may not hold. */
+const OPTIONAL_TEXT = z.string().optional();
+
 export const SeqPathSchema = PersistedVertexSchema.extend({
 	[SEQ_PATH_FIELD.id]: z.string(),
 	[SEQ_PATH_FIELD.stepText]: z.string(),
-	[SEQ_PATH_FIELD.called]: z.string().optional(),
+	[SEQ_PATH_FIELD.called]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.actionStatus]: z.enum(RECORDED_STATUS),
-	[SEQ_PATH_FIELD.error]: z.string().optional(),
-	[SEQ_PATH_FIELD.showed]: z.string().optional(),
-	[SEQ_PATH_FIELD.capabilityAction]: z.string().optional(),
-	[SEQ_PATH_FIELD.allowedAction]: z.string().optional(),
+	[SEQ_PATH_FIELD.error]: OPTIONAL_TEXT,
+	[SEQ_PATH_FIELD.showed]: OPTIONAL_TEXT,
+	[SEQ_PATH_FIELD.capabilityAction]: OPTIONAL_TEXT,
+	[SEQ_PATH_FIELD.allowedAction]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.generatedAtTime]: z.string(),
-	[SEQ_PATH_FIELD.endedAtTime]: z.string().optional(),
-	[SEQ_PATH_FIELD.path]: z.string().optional(),
+	[SEQ_PATH_FIELD.endedAtTime]: OPTIONAL_TEXT,
+	[SEQ_PATH_FIELD.path]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.mode]: z.enum(EXECUTION_MODES).optional(),
 	[SEQ_PATH_FIELD.ranVia]: z.enum(RAN_VIA).optional(),
-	[SEQ_PATH_FIELD.ranOn]: z.string().optional(),
+	[SEQ_PATH_FIELD.ranOn]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.level]: z.enum(HAIBUN_LOG_LEVELS),
-	[SEQ_PATH_FIELD.execution]: z.string().optional(),
-	[SEQ_PATH_FIELD.recordedAtTime]: z.string().optional(),
+	[SEQ_PATH_FIELD.execution]: OPTIONAL_TEXT,
+	[SEQ_PATH_FIELD.recordedAtTime]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.actualityLevel]: z.enum(ACTUALITY_LEVELS).optional(),
+	// Every writer states the level, the read level of the record's call, so a record without one is refused.
+	[LinkRelations.ACCESS_LEVEL.rel]: AccessLevelSchema,
+	[SEQ_PATH_FIELD.params]: OPTIONAL_TEXT,
+	[SEQ_PATH_FIELD.result]: OPTIONAL_TEXT,
+	[SEQ_PATH_FIELD.attributedTo]: OPTIONAL_TEXT,
+	[SEQ_PATH_FIELD.delegation]: OPTIONAL_TEXT,
+	// A store that writes an edge for each edge field the schema declares writes the ask as an edge, so a read of the records
+	// that reply to an ask selects them.
+	[SEQ_PATH_EDGE.askedIn]: OPTIONAL_TEXT,
 });
 export type TSeqPath = z.infer<typeof SeqPathSchema>;
 
@@ -269,14 +302,14 @@ export type TSeqPath = z.infer<typeof SeqPathSchema>;
  *   ended and how long it took, how it reached what ran it, and the capability it required, what allowed it and who held it. */
 export const StepLineSchema = z.object({
 	text: z.string(),
-	called: z.string().optional(),
+	called: OPTIONAL_TEXT,
 	status: z.enum(RECORDED_STATUS),
-	error: z.string().optional(),
+	error: OPTIONAL_TEXT,
 	began: z.string(),
-	ended: z.string().optional(),
+	ended: OPTIONAL_TEXT,
 	tookMs: z.number().optional(),
-	dispatch: z.object({ via: z.enum(RAN_VIA), on: z.string().optional() }).optional(),
-	action: z.object({ required: z.string(), allowed: z.string().optional(), holder: z.string().optional() }).optional(),
+	dispatch: z.object({ via: z.enum(RAN_VIA), on: OPTIONAL_TEXT }).optional(),
+	action: z.object({ required: z.string(), allowed: OPTIONAL_TEXT, holder: OPTIONAL_TEXT }).optional(),
 });
 export type TStepLine = z.infer<typeof StepLineSchema>;
 
@@ -313,7 +346,7 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 	ui: { component: "shu-step-detail" },
 	topology: {
 		persistedAs: SEQ_PATH_LABEL,
-		accessLevel: Access.private,
+		accessLevel: SEQ_PATH_ACCESS,
 		id: SEQ_PATH_FIELD.id,
 		// A record is titled by its heading or its step's text, so a graph of an actuality reads as its features, scenarios and steps.
 		displayLabel: SEQ_PATH_FIELD.stepText,
@@ -341,6 +374,12 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 			[SEQ_PATH_FIELD.recordedAtTime]: LinkRelations.RECORDED_AT_TIME.rel,
 			// Grouped-as, so the type offers each level as a filter, such as "the executions" or "the scenarios".
 			[SEQ_PATH_FIELD.actualityLevel]: LinkRelations.CONTEXT.rel,
+			[SEQ_PATH_FIELD.params]: { rel: LinkRelations.CONTENT.rel, mediaType: MEDIA_TYPE.json },
+			// The result is a text of its own, so it is a Body of its own kind beside the parameters.
+			[SEQ_PATH_FIELD.result]: { rel: LinkRelations.CONTENT.rel, mediaType: MEDIA_TYPE.plain, kind: SEQ_PATH_FIELD.result },
+			[SEQ_PATH_FIELD.attributedTo]: LinkRelations.ATTRIBUTED_TO.rel,
+			// Grouped-as, so the type offers "the calls made under this delegation" as a filter.
+			[SEQ_PATH_FIELD.delegation]: LinkRelations.CONTEXT.rel,
 		},
 		edges: {
 			[SEQ_PATH_EDGE.isPartOf]: { rel: LinkRelations.PART_OF.rel, range: SEQ_PATH_LABEL },

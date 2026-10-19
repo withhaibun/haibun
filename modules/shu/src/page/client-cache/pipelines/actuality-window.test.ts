@@ -34,6 +34,7 @@ async function anActualityOf(steps: number, saying: string = "info"): Promise<Qu
 			id: `${RUN}.0.${i}`,
 			stepText: `step ${i}`,
 			actionStatus: "passed",
+			accessLevel: "private",
 			level: "info",
 			generatedAtTime: iso(1000 + i * 2),
 			endedAtTime: iso(1001 + i * 2),
@@ -121,7 +122,14 @@ describe("the order an actuality put its records in", () => {
 		const store = actualityStore();
 		// Written newest first, as a store reading the newest of an actuality returns them, and all within one millisecond.
 		for (const i of [30, 29, 28, 27, 26])
-			await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.${i}`, stepText: `step ${i}`, actionStatus: "passed", level: "info", generatedAtTime: iso(1000) });
+			await store.upsertIndividual(SEQ_PATH_LABEL, {
+				id: `${RUN}.0.${i}`,
+				stepText: `step ${i}`,
+				actionStatus: "passed",
+				accessLevel: "private",
+				level: "info",
+				generatedAtTime: iso(1000),
+			});
 		const graph = actualityGraphOf(store);
 		const window = await windowOn(graph, { size: 10 });
 		expect(
@@ -138,7 +146,14 @@ describe("what an actuality reports outside every step", () => {
 		const store = actualityStore();
 		const execution = RUN;
 		for (const i of [1, 2, 3])
-			await store.upsertIndividual(SEQ_PATH_LABEL, { id: `${execution}.0.${i}`, stepText: `step ${i}`, actionStatus: "passed", level: "info", generatedAtTime: iso(1000 + i) });
+			await store.upsertIndividual(SEQ_PATH_LABEL, {
+				id: `${execution}.0.${i}`,
+				stepText: `step ${i}`,
+				actionStatus: "passed",
+				accessLevel: "private",
+				level: "info",
+				generatedAtTime: iso(1000 + i),
+			});
 		await store.upsertIndividual(LOG_MESSAGE_LABEL, {
 			id: `${execution}.log.1700000009999`,
 			message: 'create: "ee" is not a declared type',
@@ -155,7 +170,14 @@ describe("what an actuality reports outside every step", () => {
 
 	it("is read even when it doesn't name an execution", async () => {
 		const store = actualityStore();
-		await store.upsertIndividual(SEQ_PATH_LABEL, { id: "1700000000000-1.0.1", stepText: "a step", actionStatus: "passed", level: "info", generatedAtTime: iso(1000) });
+		await store.upsertIndividual(SEQ_PATH_LABEL, {
+			id: "1700000000000-1.0.1",
+			stepText: "a step",
+			actionStatus: "passed",
+			accessLevel: "private",
+			level: "info",
+			generatedAtTime: iso(1000),
+		});
 		await store.upsertIndividual(LOG_MESSAGE_LABEL, { id: "log.1700000009999", message: "said by nothing in particular", level: "warn", generatedAtTime: iso(1010) });
 		const graph = actualityGraphOf(store);
 		const window = await windowOn(graph, { size: 10 });
@@ -171,6 +193,7 @@ describe("following an actuality that is still happening", () => {
 			id: `${RUN}.0.${i}`,
 			stepText: `step ${i}`,
 			actionStatus: "passed",
+			accessLevel: "private",
 			level: "info",
 			generatedAtTime: iso(at),
 			recordedAtTime: iso(recordedAt),
@@ -237,6 +260,7 @@ describe("following an actuality that is still happening", () => {
 			isPartOf: `${RUN}.0.1`,
 			stepText: "take a screenshot",
 			actionStatus: "passed",
+			accessLevel: "private",
 			level: "trace",
 			generatedAtTime: iso(1001),
 			recordedAtTime: iso(1001),
@@ -269,6 +293,7 @@ describe("following an actuality that is still happening", () => {
 			isPartOf: `${RUN}.0.1`,
 			stepText: "take a screenshot",
 			actionStatus: "passed",
+			accessLevel: "private",
 			level: "trace",
 			generatedAtTime: iso(1001),
 			recordedAtTime: iso(1001),

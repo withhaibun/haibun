@@ -11,24 +11,57 @@ import { actionNotOK } from "../../domains/util.js";
 import { isWrittenByCaller, normalizeDomainKey } from "../../domains/domains.js";
 import { assertFact, holdsFactOf } from "../../records/pipelines/facts.js";
 import { doStepperCycle } from "../../steps/pipelines/stepper-cycles.js";
-import { actingAs, callerHolds, readingAsStated, readScope, runInStep, runInvoking, runReadingAsHeld, runStatedAt } from "../../domains/capability-context.js";
+import {
+	actingAs,
+	askedIn,
+	callerHolds,
+	readingAsStated,
+	readScope,
+	runInStep,
+	runInvoking,
+	runReadingAsHeld,
+	runStatedAt,
+	stepInFlight,
+	writtenLevel,
+} from "../../domains/capability-context.js";
 import { capabilityAllows } from "../../domains/actions.js";
 import { SEQ_PATH_LABEL } from "../../domains/resources.js";
-import { executionOf, type TRecordName } from "../domains/seq-path.js";
+import { SEQ_PATH_ACCESS, executionOf, type TRecordName } from "../domains/seq-path.js";
 import type { StepRegistry } from "../../steps/pipelines/step-registry.js";
 import { stepMethodName, hostScopedMethodName } from "../../steps/domains/step-method.js";
 import { authorizeToolCapability } from "../../steps/pipelines/gate.js";
 import { augmentViewHypermedia, isViewOnlyDomain } from "../../steps/derivations/step-hypermedia.js";
 import { RESULTS_READ_IN_FULL, afterStepOutcome, foldStep, retainedProducts, stepResultOf } from "../derivations/step-results.js";
-import { asRecorded, endRecord, startRecord, viewShown, type TStepAuthorization, type TStepEnded, type TStepRan, type TStepRecord } from "../derivations/step-records.js";
+import {
+	asRecorded,
+	endRecord,
+	resultText,
+	startRecord,
+	viewShown,
+	type TStepAuthorization,
+	type TStepCall,
+	type TStepEnded,
+	type TStepRan,
+	type TStepRecord,
+} from "../derivations/step-records.js";
 import { stepEndEvent, stepStartEvent } from "../derivations/lifecycle-events.js";
 import { moveActuality } from "./move-actuality.js";
 
 const MAX_DISPATCH_SEQPATH = 50;
 
 /** How a step is dispatched. `grantedCapability` is the action the call invoked. `held` is what its caller holds, and it
- *  bounds what the step reads. A holder in this process invokes from what it holds, so it passes one list for both. */
-export type DispatchContext = { registry: StepRegistry; world: TWorld; steppers: AStepper[]; grantedCapability?: string | string[]; held?: string | string[] };
+ *  bounds what the step reads. A holder in this process invokes from what it holds, so it passes one list for both.
+ *  `delegation` is the delegation the call was made under, and `attributedTo` the agent the call is attributed to, such as
+ *  the model whose turn made it, where the caller states them. The step's record states both. */
+export type DispatchContext = {
+	registry: StepRegistry;
+	world: TWorld;
+	steppers: AStepper[];
+	grantedCapability?: string | string[];
+	held?: string | string[];
+	delegation?: string;
+	attributedTo?: string;
+};
 
 /** The actions a capability names: one, several, or an empty list where the call doesn't state a capability. */
 const actionsOf = (capability: string | string[] | undefined): string[] => (capability === undefined ? [] : [capability].flat());
@@ -84,8 +117,9 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	// Every transport marks the steps it carries programmatic. A read that a feature states in its own body is a step of
 	// actuality, whether the line reads directly or a combinator runs the read beneath it. In `set x from <a read>` the
 	// feature reads, and the read's result is the step's result. The rule tests `programmatic` and not `isSubStep`, because
-	// a read beneath a combinator is also a substep, and actuality records it.
-	const recorded = !(action.step.read === true && featureStep.programmatic === true);
+	// a read beneath a combinator is also a substep, and actuality records it. A read a transport carries within a step, such
+	// as a model's tool call during a turn, is that step's act, so actuality records it too.
+	const recorded = !(action.step.read === true && featureStep.programmatic === true && stepInFlight() === undefined);
 	// Actuality holds two records of the steps a feature has finished. `world.runtime.steps` holds how many ran, when they
 	// began and ended, and which one failed. foldStep updates it as each step settles. `world.runtime.stepResults` holds
 	// the most recent RESULTS_READ_IN_FULL results in full, since a reader of the result reads what those steps produced.
@@ -128,7 +162,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 
 	const isLifecycle = action.actionName === FEATURE_START || action.actionName === SCENARIO_START;
 	if (isLifecycle) {
-		const started = await writeStepStart(world, featureStep, {}, { ranVia: "local" });
+		const started = await writeStepStart(world, featureStep, {}, { ranVia: "local" }, callOf(ctx));
 		await writeStepEnd(world, started, { status: RECORDED_STATUS.completed });
 		return stepResultOf({ ok: true }, action, start, Timer.since(), featureStep);
 	}
@@ -146,16 +180,18 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	// The read scope in force where the statement was stated. Its arguments are read in this scope, and
 	// authorizeToolCapability refuses a step that reads above its ceiling.
 	const statedAt = readScope();
-	authorizeToolCapability(tool.descriptor, { invoked: grantedCapability, held }, statedAt !== undefined && "ceiling" in statedAt ? statedAt.ceiling : undefined);
+	const refusal = refusalOf(() =>
+		authorizeToolCapability(tool.descriptor, { invoked: grantedCapability, held }, statedAt !== undefined && "ceiling" in statedAt ? statedAt.ceiling : undefined),
+	);
 	// The authorization the step's own record states. The record states the invoked action that allows the step and the
 	// actions the caller held, where the caller isn't actuality acting as itself. It states the principal that proved its
-	// identity, where one did. authorizeToolCapability throws on a refusal, so a record with these fields records an
-	// allowed call.
+	// identity, where one did, and the delegation the call was made under, where the caller states one.
 	const authorization: TStepAuthorization = {
 		...(!capabilityAllows(grantedCapability, "*")
 			? { invoked: actionsOf(grantedCapability).find((action) => capabilityAllows(action, tool.descriptor.capability)), ...heldAs(actionsOf(held)) }
 			: {}),
 		controller: actingAs(),
+		...(ctx.delegation === undefined ? {} : { delegation: ctx.delegation }),
 	};
 	// The step as its records state it. A domain's `recordedAs` replaces a value too large to repeat in the records.
 	const stated = asRecorded(featureStep, world.domains);
@@ -163,7 +199,15 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	let started: TStepRecord | undefined;
 	if (recorded) {
 		await moveActuality(world, stepStartEvent(stated, called, tool.isAsync, world.clock.now()));
-		started = await writeStepStart(world, stated, authorization, { ranVia: tool.transport, ranOn: tool.descriptor.remoteOrigin });
+		started = await writeStepStart(world, stated, authorization, { ranVia: tool.transport, ranOn: tool.descriptor.remoteOrigin }, callOf(ctx));
+	}
+	// A refused call ends as failed with the refusal, so its record states why it didn't run, and the refusal reaches the caller.
+	if (refusal !== undefined) {
+		if (started) {
+			await moveActuality(world, stepEndEvent(stated, called, { status: STATUS.failed, error: refusal.message, products: undefined }, world.clock.now()));
+			await writeStepEnd(world, started, { status: RECORDED_STATUS.failed, error: refusal.message });
+		}
+		throw refusal;
 	}
 	// A log written while a substep runs doesn't report above the substep's level, except a warning or an error. The web
 	// server marks an RPC call into a running instance as a substep, so the caller's narration doesn't appear among
@@ -228,8 +272,32 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 		world,
 		stepEndEvent(stated, called, { status: ended, error, products: retainedProducts(actionResult.products, action.step.retainProducts) }, world.clock.now()),
 	);
-	await writeStepEnd(world, started, { status: RECORDED_STATUS[ended], ...(error === undefined ? {} : { error }), ...shown(viewShown(actionResult.products)) });
+	// A call a transport carries states what it read back, since its caller reads the result and not a line.
+	const result = featureStep.programmatic === true && actionResult.products !== undefined ? { result: resultText(actionResult.products) } : {};
+	await writeStepEnd(world, started, { status: RECORDED_STATUS[ended], ...(error === undefined ? {} : { error }), ...shown(viewShown(actionResult.products)), ...result });
 	return lastStepResult;
+}
+
+/** Returns the error `authorize` throws, or undefined where it doesn't throw. Throws what isn't an Error, since a refusal is one. */
+function refusalOf(authorize: () => void): Error | undefined {
+	try {
+		authorize();
+		return undefined;
+	} catch (err) {
+		if (err instanceof Error) return err;
+		throw err;
+	}
+}
+
+/** Returns the call a step's record states: the level at which the call writes a SeqPath record, which is its read level, the
+ *  ask that holds the call, and the agent that the dispatch context names. */
+function callOf(ctx: DispatchContext): TStepCall {
+	const asked = askedIn();
+	return {
+		accessLevel: writtenLevel(SEQ_PATH_ACCESS),
+		...(asked === undefined ? {} : { askedIn: asked }),
+		...(ctx.attributedTo === undefined ? {} : { attributedTo: ctx.attributedTo }),
+	};
 }
 
 /**
@@ -284,8 +352,8 @@ async function autoAssertProducts(world: TWorld, stepName: TRecordName, step: TS
  * generatedAtTime, which fails the SeqPath schema. getClusteredQuads on a polling tick is one such reader. Returns the
  * record, which the step's end writes again with how it ended.
  */
-async function writeStepStart(world: TWorld, featureStep: TFeatureStep, authorization: TStepAuthorization, ran: TStepRan): Promise<TStepRecord> {
-	const record = startRecord(executionOf(world.tag), featureStep, authorization, ran, recordTime(world));
+async function writeStepStart(world: TWorld, featureStep: TFeatureStep, authorization: TStepAuthorization, ran: TStepRan, call: TStepCall): Promise<TStepRecord> {
+	const record = startRecord(executionOf(world.tag), featureStep, authorization, ran, call, recordTime(world));
 	await world.shared.getStore().upsertIndividual(SEQ_PATH_LABEL, record);
 	return record;
 }

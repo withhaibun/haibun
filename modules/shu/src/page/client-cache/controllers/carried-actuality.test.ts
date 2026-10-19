@@ -29,6 +29,7 @@ const stepQuads = Array.from({ length: 12 }, (_, i) => [
 	{ subject: `${EXECUTION}.0.${i}`, predicate: "generatedAtTime", object: iso(2000 + i), namedGraph: SEQ_PATH_LABEL, timestamp: 1 },
 	{ subject: `${EXECUTION}.0.${i}`, predicate: "level", object: "info", namedGraph: SEQ_PATH_LABEL, timestamp: 1 },
 	{ subject: `${EXECUTION}.0.${i}`, predicate: "actionStatus", object: "passed", namedGraph: SEQ_PATH_LABEL, timestamp: 1 },
+	{ subject: `${EXECUTION}.0.${i}`, predicate: "accessLevel", object: "private", namedGraph: SEQ_PATH_LABEL, timestamp: 1 },
 ]).flat();
 
 const payload = (over: Partial<TCachePayload> = {}): TCachePayload => ({

@@ -32,6 +32,7 @@ async function anActuality(): Promise<void> {
 			id: `1700000000000-1.0.${i}`,
 			stepText: `step ${i}`,
 			actionStatus: "passed",
+			accessLevel: "private",
 			level: "info",
 			generatedAtTime: new Date(at).toISOString(),
 		});

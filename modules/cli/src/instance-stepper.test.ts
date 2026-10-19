@@ -44,6 +44,7 @@ const recordOutcome = (v: Parameters<typeof recordActuality>[0], status: string)
 					id: "1-0",
 					stepText: "a run",
 					actionStatus: status,
+					accessLevel: "private",
 					level: "info",
 					actualityLevel: "execution",
 					generatedAtTime: new Date(0).toISOString(),

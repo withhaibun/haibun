@@ -73,6 +73,7 @@ describeWindowedSource("the window of a run", async () => {
 			id: `${RUN}.0.${i}`,
 			stepText: shouldName(i),
 			actionStatus: "passed",
+			accessLevel: "private",
 			level: "info",
 			generatedAtTime: iso(1000 + i),
 			endedAtTime: iso(1000 + i),

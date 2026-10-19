@@ -20,11 +20,11 @@ import { TEST_DOMAIN, declaresTestDomains, testDomainDefinitions } from "../../t
 import { DOMAIN_DOMAIN_KEY, DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_RECORD_ID, DOMAIN_STRING, individualRefDomain, registerDomains } from "../../domains/domains.js";
 import type { TWorld } from "../domains/world.js";
 import { Access, DOMAIN_PERSISTED_TYPE, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "../../domains/resources.js";
-import { SEQ_PATH_FIELD, executionOf, factIdOf, formatRecordName } from "../domains/seq-path.js";
+import { SEQ_PATH_EDGE, SEQ_PATH_FIELD, executionOf, factIdOf, formatRecordName } from "../domains/seq-path.js";
 import { readFacts } from "../../records/pipelines/facts.js";
 import { streamContext, streamOver } from "../../transport/domains/step-stream-context.js";
 import { capabilityAllows } from "../../domains/actions.js";
-import { RUN_AUTHORITY, readingAt, runActingAs, runReadingAt, WITHOUT_READ_REFUSAL } from "../../domains/capability-context.js";
+import { RUN_AUTHORITY, readingAt, runActingAs, runAsking, runInStep, runReadingAt, WITHOUT_READ_REFUSAL } from "../../domains/capability-context.js";
 
 // --- Test Steppers ---
 
@@ -571,6 +571,32 @@ describe("step-dispatch", () => {
 			await expect(dispatchStep({ registry, world, steppers }, featureStep)).rejects.toThrow(/capability CapabilityStepper:protected required/);
 		});
 
+		it("records a call a transport carries with its parameters, its result, its ask, its agent, its delegation and its read level, and a refused call with the refusal", async () => {
+			const steppers = [new PlainStepper(), new ProductStepper(), new CapabilityStepper()];
+			const registry = new StepRegistry(steppers, world);
+			const toolOf = (method: string) => {
+				const tool = registry.get(method);
+				if (!tool) throw new Error(`Expected ${method} to be registered`);
+				return tool;
+			};
+			const fieldOf = (path: number[], field: string) => world.shared.getStore().get(formatRecordName({ execution: executionOf(world.tag), path }), field, SEQ_PATH_LABEL);
+			const caller = { registry, world, steppers, grantedCapability: RUN_AUTHORITY, delegation: "urn:uuid:a-delegation", attributedTo: "a-model" };
+			const greeting = buildFeatureStepForTransport(toolOf("PlainStepper-greet"), { name: "Ada" }, [0, 30, 1]);
+			await runReadingAt(Access.public, () => runAsking("cmt-ask-1", () => dispatchStep(caller, greeting)));
+			expect(await fieldOf([0, 30, 1], SEQ_PATH_FIELD.params), "the call's parameters").toBe('{"name":"Ada"}');
+			expect(await fieldOf([0, 30, 1], SEQ_PATH_EDGE.askedIn), "the ask it ran under").toBe("cmt-ask-1");
+			expect(await fieldOf([0, 30, 1], SEQ_PATH_FIELD.attributedTo), "the agent its caller names").toBe("a-model");
+			expect(await fieldOf([0, 30, 1], SEQ_PATH_FIELD.delegation), "the delegation its caller names").toBe("urn:uuid:a-delegation");
+			expect(await fieldOf([0, 30, 1], LinkRelations.ACCESS_LEVEL.rel), "the read level of the call").toBe(Access.public);
+			await dispatchStep(caller, buildFeatureStepForTransport(toolOf("ProductStepper-getCount"), {}, [0, 30, 2]));
+			expect(JSON.parse(String(await fieldOf([0, 30, 2], SEQ_PATH_FIELD.result))), "the result it read back").toMatchObject({ count: 42 });
+			expect(await fieldOf([0, 30, 2], LinkRelations.ACCESS_LEVEL.rel), "actuality's own call reads at private").toBe(Access.private);
+			const refused = buildFeatureStepForTransport(toolOf("CapabilityStepper-protectedPing"), {}, [0, 30, 3]);
+			await expect(dispatchStep({ registry, world, steppers }, refused)).rejects.toThrow(/capability CapabilityStepper:protected required/);
+			expect(await fieldOf([0, 30, 3], SEQ_PATH_FIELD.actionStatus), "a refused call is recorded as failed").toBe(RECORDED_STATUS.failed);
+			expect(await fieldOf([0, 30, 3], SEQ_PATH_FIELD.error), "with the refusal").toMatch(/capability CapabilityStepper:protected required/);
+		});
+
 		describe("what the caller holds", () => {
 			const NOTICE_LABEL = "HeldNotice";
 			const NOTICE_ID = "notice-1";
@@ -683,6 +709,11 @@ describe("step-dispatch", () => {
 			expect(await recordOf([0, 9, 1]), "a read over a transport doesn't leave a record").toEqual([]);
 			expect(await countFact(world, [0, 9, 1]), "and doesn't leave a fact of what it returned").toBeUndefined();
 			expect(world.runtime.stepResults?.length ?? 0, "the process doesn't keep a step result for it").toBe(kept);
+
+			// A read a transport carries within a step, such as a model's tool call during a turn, is that step's act.
+			const withinAStep = buildFeatureStepForTransport(tool, {}, [0, 9, 4]);
+			await runInStep({ seqPath: "0.9", reportsAt: undefined }, () => dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, withinAStep));
+			expect((await recordOf([0, 9, 4])).length, "a read a transport carries within a step is recorded").toBeGreaterThan(0);
 
 			// A read beneath a step the feature states is the feature reading through a combinator. `set x from <a read>` takes
 			// its result from the read's result, so the read is a step of actuality like the line that states it.

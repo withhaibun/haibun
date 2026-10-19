@@ -4,17 +4,36 @@
  */
 import { EXECUTION_MODE, RECORDED_STATUS, STATUS, stepLevel, type TActualityLevel, type TRecordedStatus } from "../../domains/protocol.js";
 import type { TFeatureStep } from "../../steps/domains/stepper.js";
-import { LinkRelations } from "../../domains/resources.js";
+import { LinkRelations, type AccessLevel } from "../../domains/resources.js";
 import { itemAt } from "../../domains/item-at.js";
 import type { TWorld } from "../domains/world.js";
-import { SEQ_PATH_FIELD, STEP_LEVEL, calledOf, executionOf, formatRecordName, type TRecordName } from "../domains/seq-path.js";
+import { SEQ_PATH_EDGE, SEQ_PATH_FIELD, STEP_LEVEL, calledOf, executionOf, formatRecordName, type TRecordName } from "../domains/seq-path.js";
 import type { TActuality, TActualityMove } from "../machines/actuality.js";
 import type { TStepFailure } from "../domains/step-failure.js";
 
 /** The authorization a step's own record states. A step actuality runs as itself holds every action, so its record
  *  doesn't state the invoked and held actions. The record of a caller's step states both. A record states the principal
- *  that proved its identity, where one did. */
-export type TStepAuthorization = { invoked?: string; held?: string; controller?: string };
+ *  that proved its identity, and the delegation the call was made under, where its caller states them. */
+export type TStepAuthorization = { invoked?: string; held?: string; controller?: string; delegation?: string };
+
+/** The call a step's record states: the read level of the call, the ask that holds the call, and the agent that made the
+ *  call, where its caller names them. */
+export type TStepCall = { accessLevel: AccessLevel; askedIn?: string; attributedTo?: string };
+
+/** How many characters of a call's result its record holds. A result may hold a body the record must not copy, so the record
+ *  holds the head of the result. */
+export const RESULT_RECORDED_CHARS = 4000;
+
+/** Returns the text of a step's products: their `text` where they hold one, else their JSON. */
+export const resultText = (products: Record<string, unknown>): string => (typeof products.text === "string" ? products.text : JSON.stringify(products));
+
+/** Returns the arguments a call carried by a transport sent, as JSON. A feature line states its arguments in its text, so its
+ *  record doesn't repeat them. */
+function paramsOf(featureStep: TFeatureStep): string | undefined {
+	const values = featureStep.action.stepValuesMap;
+	if (featureStep.programmatic !== true || values === undefined) return undefined;
+	return JSON.stringify(Object.fromEntries(Object.entries(values).flatMap(([name, { value }]) => (value === undefined ? [] : [[name, value]]))));
+}
 
 /** How a step reached what ran it: in this process, or on another instance at its origin. */
 export type TStepRan = { ranVia: string; ranOn?: string };
@@ -24,7 +43,8 @@ export type TStepRecord = Record<string, unknown>;
 
 /** A step's record at its start, written at `at` (an ISO time). It states every field the SeqPath schema requires, so a
  *  reader that reads the record during the step reads a whole record. */
-export function startRecord(execution: string, featureStep: TFeatureStep, authorization: TStepAuthorization, ran: TStepRan, at: string): TStepRecord {
+export function startRecord(execution: string, featureStep: TFeatureStep, authorization: TStepAuthorization, ran: TStepRan, call: TStepCall, at: string): TStepRecord {
+	const params = paramsOf(featureStep);
 	const record: TStepRecord = {
 		[SEQ_PATH_FIELD.id]: formatRecordName({ execution, path: featureStep.seqPath }),
 		// The execution that contains this step, as a field as well as the leading part of its id. A store filters on a
@@ -45,6 +65,11 @@ export function startRecord(execution: string, featureStep: TFeatureStep, author
 		// level is below the level of actuality's own steps, so a reader of actuality isn't shown the calls of other readers.
 		[SEQ_PATH_FIELD.level]: stepLevel(featureStep.isSubStep),
 		[SEQ_PATH_FIELD.actualityLevel]: STEP_LEVEL,
+		[LinkRelations.ACCESS_LEVEL.rel]: call.accessLevel,
+		...(params === undefined ? {} : { [SEQ_PATH_FIELD.params]: params }),
+		...(call.askedIn === undefined ? {} : { [SEQ_PATH_EDGE.askedIn]: call.askedIn }),
+		...(call.attributedTo === undefined ? {} : { [SEQ_PATH_FIELD.attributedTo]: call.attributedTo }),
+		...(authorization.delegation === undefined ? {} : { [SEQ_PATH_FIELD.delegation]: authorization.delegation }),
 		...(ran.ranOn === undefined ? {} : { [SEQ_PATH_FIELD.ranOn]: ran.ranOn }),
 		...(authorization.invoked === undefined ? {} : { [SEQ_PATH_FIELD.capabilityAction]: authorization.invoked }),
 		...(authorization.held === undefined ? {} : { [SEQ_PATH_FIELD.allowedAction]: authorization.held }),
@@ -59,8 +84,9 @@ export function startRecord(execution: string, featureStep: TFeatureStep, author
 	return record;
 }
 
-/** How a step ended, as its record states it: its status, why where it failed, and the view it showed where it showed one. */
-export type TStepEnded = { status: TRecordedStatus; error?: string; showed?: string };
+/** How a step ended, as its record states it: its status, why where it failed, the view it showed where it showed one, and
+ *  the text a call carried by a transport read back where the step produced products. */
+export type TStepEnded = { status: TRecordedStatus; error?: string; showed?: string; result?: string };
 
 /** A step's record at its end, written at `at` (an ISO time): its start with how it ended. The record's time of writing is
  *  its end, so a read of the records written since a given time returns the step's end. */
@@ -71,6 +97,7 @@ export const endRecord = (start: TStepRecord, ended: TStepEnded, at: string): TS
 	[SEQ_PATH_FIELD.recordedAtTime]: at,
 	...(ended.error ? { [SEQ_PATH_FIELD.error]: ended.error } : {}),
 	...(ended.showed ? { [SEQ_PATH_FIELD.showed]: ended.showed } : {}),
+	...(ended.result === undefined ? {} : { [SEQ_PATH_FIELD.result]: ended.result.slice(0, RESULT_RECORDED_CHARS) }),
 });
 
 /** What names an execution's levels: the key of the process that executes it, and the host that leads its step paths. */
@@ -120,7 +147,14 @@ function levelAt(move: TActualityMove, after: TActuality, naming: TLevelNaming):
  * feature or of the execution that failed. The move happened at `timestamp`. Returns undefined for a step's move,
  * whose record dispatchStep writes. Throws for an end without its start's record.
  */
-export function levelRecord(move: TActualityMove, after: TActuality, naming: TLevelNaming, started: TStepRecord | undefined, timestamp: number): TStepRecord | undefined {
+export function levelRecord(
+	move: TActualityMove,
+	after: TActuality,
+	naming: TLevelNaming,
+	started: TStepRecord | undefined,
+	timestamp: number,
+	accessLevel: AccessLevel,
+): TStepRecord | undefined {
 	if (move.type === "step") return undefined;
 	const at = new Date(timestamp).toISOString();
 	if (move.stage === "end") {
@@ -143,6 +177,7 @@ export function levelRecord(move: TActualityMove, after: TActuality, naming: TLe
 		[SEQ_PATH_FIELD.mode]: EXECUTION_MODE.authoritative,
 		[SEQ_PATH_FIELD.level]: stepLevel(false),
 		[SEQ_PATH_FIELD.actualityLevel]: level,
+		[LinkRelations.ACCESS_LEVEL.rel]: accessLevel,
 		...(source === undefined ? {} : { [SEQ_PATH_FIELD.path]: source }),
 		...(partOf === undefined ? {} : { [LinkRelations.PART_OF.rel]: formatRecordName(partOf) }),
 		...(precededBy === undefined ? {} : { [LinkRelations.PRECEDED_BY.rel]: formatRecordName(precededBy) }),
