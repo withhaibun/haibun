@@ -1,7 +1,8 @@
 import type { TExpandedFeature, TExpandedLine, TFeatures, TFeature } from "../domains/execution.js";
 import type { TWorld } from "../domains/world.js";
 import { TStepValue, SCENARIO_START, Origin } from "../../domains/protocol.js";
-import { AStepper, TStepAction, TResolvedFeature, TStepperStep, TFeatureStep } from "../../steps/domains/stepper.js";
+import { AStepper, TStepAction, TResolvedFeature, TStepperStep, TFeatureStep, hasCycles } from "../../steps/domains/stepper.js";
+import type { TDomainDefinition } from "../../domains/resources.js";
 import { matchGwtaToAction } from "../../steps/derivations/named-vars.js";
 import { getActionable, dePolite, constructorName, actionNotOK, asError, errorDetail } from "../../domains/util.js";
 import { itemAt } from "../../domains/item-at.js";
@@ -174,11 +175,41 @@ export class Resolver {
 	 * `type {text}` if a sentence could match a pattern that starts with a lowercase letter.
 	 */
 	findSingleStepAction(line: string): TStepAction {
+		return this.refusingWritten(line, this.parsedStepAction(line));
+	}
+
+	/** Returns the one step a line parses to, as findSingleStepAction does, without holding the terms it writes to their domains. */
+	parsedStepAction(line: string): TStepAction {
 		const sentence = SENTENCE.test(line);
 		const found = this.findActionableSteps(line).filter((a) => !sentence || writtenCapitalized(a.step));
 		if (found.length === 0 && (sentence || STARTS_WITH_NON_LETTER.test(line))) return this.selectStep(line, this.proseSteps());
 		return this.withStatementsAsWritten(this.selectStep(line, found));
 	}
+
+	/** Returns the action where each term its line writes is a value of its placeholder's domain. Throws the refusal of the
+	 *  first term a domain refuses, so the line doesn't resolve. */
+	private refusingWritten(line: string, action: TStepAction): TStepAction {
+		const refusing = this.refusingDomains(this.steppers);
+		for (const [name, value] of Object.entries(action.stepValuesMap === undefined ? {} : action.stepValuesMap)) {
+			const refusal = refusing.get(value.domain)?.(value.term, this.steppers);
+			if (refusal !== undefined) throw Error(`"${line}" doesn't resolve: {${name}} ${refusal}`);
+		}
+		return action;
+	}
+
+	/** The domains the steppers declare that refuse a written term, by name, derived again only where a stepper's steps change. */
+	private readonly refusingDomains = heldPerEntries(
+		(steppers: readonly AStepper[]) => steppers,
+		(steppers: readonly AStepper[]): Map<string, NonNullable<TDomainDefinition["refuses"]>> =>
+			new Map(
+				steppers.flatMap((stepper) => {
+					const declared = hasCycles(stepper) ? stepper.cycles.getConcerns?.()?.domains : undefined;
+					return (declared === undefined ? [] : declared).flatMap(({ selectors, refuses }) =>
+						refuses === undefined ? [] : selectors.map((selector) => [selector, refuses] as const),
+					);
+				}),
+			),
+	);
 
 	/**
 	 * Restores the outer quotes of a statement where its quoted text matches a step. A statement that a line passes in

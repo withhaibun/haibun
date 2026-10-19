@@ -1,7 +1,7 @@
 /**
  * A step's line as the one renderer states it. Every step core and web-playwright register renders, from a literal term
- * for each parameter, a line the resolver resolves back to that step with those terms, so the record of a call a
- * transport carries is a line that runs.
+ * for each parameter, a line the resolver parses back to that step with those terms, so the record of a call a transport
+ * carries is a line that runs.
  */
 import { describe, it, expect } from "vitest";
 import { Resolver } from "@haibun/core/phases/Resolver.js";
@@ -65,7 +65,7 @@ describe("a step's line, as the one renderer states it", () => {
 	});
 
 	it.each(rendered)("$stepperName.$stepName resolves back from $line", ({ stepperName, stepName, terms, line }) => {
-		const action = resolver.findSingleStepAction(line);
+		const action = resolver.parsedStepAction(line);
 		expect(`${action.stepperName}.${action.actionName}`).toBe(`${stepperName}.${stepName}`);
 		const captured = Object.fromEntries(Object.entries(action.stepValuesMap ?? {}).map(([name, value]) => [name, value.term]));
 		expect(captured).toEqual(Object.fromEntries(Object.entries(terms).map(([name, term]) => [name, term.replace(/^"(.*)"$/s, "$1")])));

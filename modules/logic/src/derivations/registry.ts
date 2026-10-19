@@ -6,7 +6,7 @@
 import { literalTerm, namedInterpolation, renderStepLine } from "@haibun/core/lib/steps/derivations/named-vars.js";
 import { Origin, type TStepValue } from "@haibun/core/lib/domains/protocol.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
-import type { TStepAction } from "@haibun/core/lib/steps/domains/stepper.js";
+import type { AStepper, TStepAction } from "@haibun/core/lib/steps/domains/stepper.js";
 import type { TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
 import { atom, list } from "./terms.js";
 
@@ -34,6 +34,20 @@ export function termOfAction(action: Pick<TStepAction, "stepperName" | "actionNa
 			return [name, { literal: isLiteral(value, domains), term: value.term }];
 		}),
 	};
+}
+
+/** The registry's predicates: each step's method by name, with the number of placeholders its pattern names as its arity. */
+export function registryPredicates(steppers: readonly AStepper[], nameOf: (stepper: AStepper) => string): Map<string, number> {
+	return new Map(
+		steppers.flatMap((stepper) =>
+			Object.entries(stepper.steps).flatMap(([actionName, step]) => {
+				const pattern = step.gwta === undefined ? step.exact : step.gwta;
+				if (pattern === undefined) return [];
+				const placeholders = namedInterpolation(pattern).stepValuesMap;
+				return [[stepMethodName(nameOf(stepper), actionName), placeholders === undefined ? 0 : Object.keys(placeholders).length] as const];
+			}),
+		),
+	);
 }
 
 /** A term as the engine's text. */

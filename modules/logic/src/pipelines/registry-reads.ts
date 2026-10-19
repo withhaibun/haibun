@@ -1,7 +1,8 @@
 /**
  * Reads of a proof and of the predicate registry for the logic stepper's steps: a statement's derivation from the records its
- * proof wrote, a line's term and the line it renders as, the term of a call a transport carries, and a formula checked
- * against the engine's fragment, and the refusal of steppers from whose declarations the registry doesn't derive each step once.
+ * proof wrote, a line's term and the line it renders as, the term of a call a transport carries, the rule a formula states
+ * and the refusal of a formula outside the fragment or the registry, and the refusal of steppers from whose declarations the
+ * registry doesn't derive each step once.
  */
 import type { DispatchContext } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
 import { nextSeqPath, proveStep } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
@@ -15,8 +16,8 @@ import { constructorName } from "@haibun/core/lib/domains/util.js";
 import type { TWorld } from "@haibun/core/lib/actuality/domains/world.js";
 import type { AStepper, TFeatureStep } from "@haibun/core/lib/steps/domains/stepper.js";
 import { derivationOf } from "../derivations/derivation.js";
-import { lineOfTerm, termOfAction, termText } from "../derivations/registry.js";
-import type { TDerivation, TFormulaChecked } from "../domains/logic.js";
+import { lineOfTerm, registryPredicates, termOfAction, termText } from "../derivations/registry.js";
+import type { TDerivation, TRule } from "../domains/logic.js";
 import { checkFormula, unicodeOf } from "../derivations/formula.js";
 import { declarationFindings } from "../derivations/declarations.js";
 
@@ -55,17 +56,24 @@ export function callTerm(world: TWorld, method: string, input: Record<string, un
 	return termText(termOfAction(action, descriptor.pattern, world.domains));
 }
 
-/** A formula checked against the engine's fragment: its rendering in Unicode notation where the fragment holds it, or why it
- *  doesn't and what to state in its place. */
-export function formulaChecked(text: string): TFormulaChecked {
-	const checked = checkFormula(text);
-	return "annotated" in checked ? { accepted: true, rendered: unicodeOf(checked.annotated.formula) } : { accepted: false, ...checked };
+/** The rule a formula states, or why the fragment or the registry doesn't hold the formula and what to write in its place. */
+export function ruleOf(text: string, steppers: readonly AStepper[]): TRule | { refused: string } {
+	const checked = checkFormula(text, registryPredicates(steppers, constructorName));
+	if (!("annotated" in checked)) return { refused: `the formula is refused: ${checked.reason}; ${checked.remedy}` };
+	const { name, role, formula } = checked.annotated;
+	return { name, role, rendered: unicodeOf(formula) };
+}
+
+/** Why a formula a line writes isn't held, with its remedy, or undefined where the fragment and the registry hold it. */
+export function formulaRefusal(text: string, steppers: readonly AStepper[]): string | undefined {
+	const rule = ruleOf(text, steppers);
+	return "refused" in rule ? rule.refused : undefined;
 }
 
 /** Refuses steppers whose declarations miss a face, repeat a pattern, or state a pattern whose own line parses two ways. */
 export function refuseDeclarations(steppers: AStepper[]): void {
 	const resolver = new Resolver(steppers, []);
-	const findings = declarationFindings(steppers, constructorName, (line) => resolver.findSingleStepAction(line));
+	const findings = declarationFindings(steppers, constructorName, (line) => resolver.parsedStepAction(line));
 	if (findings.length > 0) {
 		const listed = findings.map(({ method, finding }) => `${method} ${finding}`).join("; ");
 		throw new Error(

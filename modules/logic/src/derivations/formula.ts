@@ -2,7 +2,7 @@
  * TPTP FOF in the engine's fragment: the parse of one annotated formula to its tree, the refusal of a formula outside the
  * fragment with its remedy, and its rendering in standard Unicode notation. The grammar is the TPTP syntax BNF
  * (https://www.tptp.org/TPTP/SyntaxBNF.html) for `fof`, restricted to Horn rules, negation as failure in conditions, stated
- * falsities, and quantifiers over closed domains.
+ * falsities, quantifiers over closed domains, and predicates the registry holds.
  */
 
 /** A term: a variable (capitalized), or a constant or function applied to arguments. */
@@ -39,7 +39,11 @@ const REMEDY = {
 	connective: "restate the formula with ~, & and =>",
 	role: "state the formula as fof, with the role axiom for a fact or a rule and conjecture for a goal",
 	syntax: "write one annotated formula, fof(name, role, formula).",
+	predicate: "name a step by its method, quoted as 'Stepper-step', with its parameters in its pattern's order, or guard a variable with member_of(X, d)",
 } as const;
+
+/** The predicate that guards a variable with a closed domain, and its arity. */
+const GUARD = { name: "member_of", arity: 2 } as const;
 
 /** The connectives the fragment refuses, with the remedy for each. */
 const REFUSED_CONNECTIVES: Record<string, string> = { "<=>": REMEDY.equivalence, "<~>": REMEDY.connective, "~|": REMEDY.connective, "~&": REMEDY.connective };
@@ -190,10 +194,28 @@ function checkAxiom(formula: TFormula): void {
 	if (unbound.length > 0) throw new Refusal(`the variables ${unbound.join(", ")} range over a domain the conditions don't close`, REMEDY.guard);
 }
 
-/** Parses one annotated formula and holds it to the fragment, or states why the fragment doesn't hold it with its remedy. */
-export function checkFormula(text: string): TFormulaCheck {
+/** The atoms of a formula, with each quantified and connected part's atoms. */
+const atomsOf = (f: TFormula): Extract<TFormula, { atom: string }>[] =>
+	"atom" in f ? [f] : "not" in f ? atomsOf(f.not) : "quantifier" in f ? atomsOf(f.body) : "connective" in f ? [...atomsOf(f.left), ...atomsOf(f.right)] : [];
+
+/** A predicate's name without the quotes a quoted atom states. */
+const predicateName = (functor: string): string => functor.replace(/^'(.*)'$/, "$1");
+
+/** Holds each predicate of a formula to the registry: the guard, or a predicate `known` holds with the arity it holds. */
+function checkPredicates(formula: TFormula, known: ReadonlyMap<string, number>): void {
+	for (const { atom, args } of atomsOf(formula)) {
+		const name = predicateName(atom);
+		const arity = name === GUARD.name ? GUARD.arity : known.get(name);
+		if (arity !== args.length) throw new Refusal(`the predicate ${name}/${args.length} isn't an entry of the registry`, REMEDY.predicate);
+	}
+}
+
+/** Parses one annotated formula and holds it to the fragment and its predicates to `known`, the registry's predicates by name
+ *  with their arity, or states why the formula isn't held with its remedy. */
+export function checkFormula(text: string, known: ReadonlyMap<string, number>): TFormulaCheck {
 	try {
 		const annotated = new Parser(tokens(text)).annotated();
+		checkPredicates(annotated.formula, known);
 		if (annotated.role === "axiom") checkAxiom(annotated.formula);
 		return { annotated };
 	} catch (caught) {
