@@ -11,6 +11,7 @@
 	},
 	"scripts": {
 		"build": "tsc -b . && node scripts/copy-program.mjs",
+		"bench": "node scripts/q6-cost.mjs",
 		"build:watch": "tsc -b . --watch",
 		"prepublishOnly": "npm run build",
 		"test": "vitest run"

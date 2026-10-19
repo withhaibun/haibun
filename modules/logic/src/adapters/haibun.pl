@@ -11,7 +11,11 @@
 :- use_module(library(lists)).
 :- use_module(library(apply)).
 
-:- dynamic result/4, counter/3.
+:- dynamic result/5, counter/4.
+
+% key(+Top, +Kind, +Path, -Key): the hash a recorded outcome and a position's counter are indexed by, so a query reads each
+% in constant time however many outcomes its line recorded.
+key(T, K, P, Key) :- term_hash(t(T, K, P), Key).
 
 % within proves its statements inside the context its node opened, which each call below it reads from its bindings.
 % One bound holds every proof: the depth of nested readings, the repetitions of whenever and until, and a waypoint's
@@ -21,22 +25,22 @@ max_depth(1000).
 % attempt(+Top, +TermText, -Outcome): Outcome is done(Verdict, ProofJson) or need(Kind, Path, RequestJson).
 attempt(Top, TermText, Outcome) :-
     term_string(Term, TermText),
-    retractall(counter(Top, _, _)),
+    retractall(counter(_, Top, _, _)),
     catch(( ev(Top, Term, [], [], [], 0, V, Proof), proof_json(Proof, J), term_to_atom(Proof, PT), Outcome = _{verdict: V, proof: J, term: PT} ),
           need(K, Path, R),
           ( request_json(R, RJ), kind_text(K, KT), Outcome = _{need: KT, path: Path, request: RJ} )).
 
 % record(+Top, +KindText, +Path, +OutcomeText): the outcome of an effect at Path of the line Top.
-record(Top, KindText, Path, OutcomeText) :- term_string(K, KindText), term_string(O, OutcomeText), assertz(result(Top, K, Path, O)).
+record(Top, KindText, Path, OutcomeText) :- term_string(K, KindText), term_string(O, OutcomeText), key(Top, K, Path, Key), assertz(result(Key, Top, K, Path, O)).
 
 % forget(+Top): removes the outcomes of a line whose proof completed.
-forget(Top) :- retractall(result(Top, _, _, _)), retractall(counter(Top, _, _)).
+forget(Top) :- retractall(result(_, Top, _, _, _)), retractall(counter(_, Top, _, _)).
 
-effect(T, K, P, R, O) :- ( result(T, K, P, O0) -> O = O0 ; throw(need(K, P, R)) ).
+effect(T, K, P, R, O) :- key(T, K, P, Key), ( result(Key, T, K, P, O0) -> O = O0 ; throw(need(K, P, R)) ).
 
 % child(+Top, +Path, -Child): the next position under Path. Positions restart with each attempt, so a proof evaluated
 % again takes the same paths.
-child(T, P, C) :- ( retract(counter(T, P, N0)) -> N is N0 + 1 ; N = 1 ), assertz(counter(T, P, N)), append(P, [N], C).
+child(T, P, C) :- key(T, child, P, Key), ( retract(counter(Key, T, P, N0)) -> N is N0 + 1 ; N = 1 ), assertz(counter(Key, T, P, N)), append(P, [N], C).
 
 outcome_verdict(passed, proved).
 outcome_verdict(failed, refuted).
@@ -217,7 +221,7 @@ n3_parts(_, []) --> [].
 n3_parts(Ns, [X|Xs]) --> n3_proof(Ns, X), n3_parts(Ns, Xs).
 
 n3_reading(not, Ns, P, Ps) --> !, { paths(Ps, Cs), n3_rule(Ns, [notIncludes(Cs)], P, L) }, [L].
-n3_reading(maybe, Ns, P, _) --> !, { n3_holds(Ns, P, L) }, [L].
+n3_reading(maybe, Ns, P, _) --> !, { n3_rule(Ns, [], P, L) }, [L].
 n3_reading(where, Ns, P, [C|Xs]) --> !, { paths([C], Cs), paths(Xs, Ds), n3_rule(Ns, [notIncludes(Cs)], P, L1), append(Cs, Ds, All), n3_rule(Ns, All, P, L2) }, [L1, L2].
 n3_reading(F, Ns, P, Ps) --> { memberchk(F, [any_of, some]) }, !, n3_each(Ns, P, Ps).
 n3_reading(F, Ns, P, Ps) --> { memberchk(F, [apply, until]) }, !, { last_group(proof, Ps, Last), paths(Last, Cs), n3_rule(Ns, Cs, P, L) }, [L].

@@ -4,6 +4,7 @@
  * runs to completion without awaiting, so the proofs of several callers interleave at each effect.
  */
 import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import SWIPL from "swipl-wasm";
 import { AttemptSchema } from "../domains/logic.js";
 import type { TLogicEngine } from "../ports.js";
@@ -24,7 +25,7 @@ function once(runtime: TRuntime, goal: string, input?: Record<string, unknown>):
 export async function startSwipl(): Promise<TLogicEngine> {
 	const runtime = await SWIPL({ arguments: ["-q"] });
 	once(runtime, "set_prolog_flag(autoload, false)");
-	runtime.FS.writeFile(PROGRAM, readFileSync(new URL(`./${PROGRAM}`, import.meta.url), "utf8"));
+	runtime.FS.writeFile(PROGRAM, readFileSync(join(import.meta.dirname, PROGRAM), "utf8"));
 	once(runtime, `consult('${PROGRAM}')`);
 	return {
 		attempt: (top, term) => AttemptSchema.parse(once(runtime, "haibun:attempt(Top, Term, Outcome)", { Top: top, Term: term }).Outcome),
