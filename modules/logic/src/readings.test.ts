@@ -3,7 +3,8 @@
  * passes, and the path of each record a proof writes.
  */
 import { describe, expect, it } from "vitest";
-import { failWithDefaults, passWithDefaults } from "@haibun/core/lib/test/lib.js";
+import { failWithDefaults, getDefaultWorld, passWithDefaults, testWithWorld, withLogic } from "@haibun/core/lib/test/lib.js";
+import { UNTIL_RETRY_MS } from "./domains/readings.js";
 import TestSteps from "@haibun/core/lib/test/TestSteps.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
@@ -86,6 +87,15 @@ describe("the readings of the logic engine", () => {
 	it.each(READINGS)("%s", async (_, content, passes) => {
 		const result = passes ? await passWithDefaults(content, STEPPERS) : await failWithDefaults(content, STEPPERS);
 		expect(result.ok).toBe(passes);
+	});
+
+	it("ends until at its deadline, however many attempts the deadline allows", async () => {
+		const world = getDefaultWorld({ HAIBUN_LOG_LEVEL: "none" });
+		let now = 0;
+		world.clock = { ...world.clock, now: () => now, wait: (ms) => Promise.resolve(void (now += ms)) };
+		const withinMs = 1500 * UNTIL_RETRY_MS;
+		const result = await testWithWorld(world, `until variable ready is "never" within ${withinMs}ms`, await withLogic(STEPPERS));
+		expect(result.failure?.error.message).toContain(`didn't hold within ${withinMs}ms`);
 	});
 
 	it("proves a statement under a line, each part of the proof at its position", async () => {

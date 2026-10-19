@@ -17,8 +17,8 @@
 
 :- dynamic part/4.
 
-% One bound holds every proof: the depth of nested readings, the repetitions of whenever and until, and a waypoint's
-% recursion below the ancestor check.
+% One bound holds every proof but until's: the depth of nested readings, the repetitions of whenever, and a waypoint's
+% recursion below the ancestor check. until is bounded by its deadline alone.
 max_depth(1000).
 
 % prove(+Top, +TermText, -Outcome): Outcome is _{verdict} where the line's proof ended, or the effect it needs.
@@ -136,7 +136,6 @@ repeat_while(T, Cs, Xs, P, B, A, D, K, V, Why) :-
 attempts(T, N, Xs, P, B, A, D, K, V, Why) :-
     conj(T, proof(K), Xs, P, B, A, D, V0, _),
     (   V0 == proved -> V = proved, Why = none
-    ;   max_depth(Max), K >= Max -> V = unknown, Why = depth(Max)
     ;   P = Path-_, effect(wait, Path, wait(N, K), Waited),
         ( Waited == again -> K1 is K + 1, attempts(T, N, Xs, P, B, A, D, K1, V, Why) ; V = V0, Why = expired )
     ).
