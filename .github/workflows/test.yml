@@ -55,6 +55,10 @@ jobs:
         if: github.event_name != 'push'
         run: npm run test:e2e -w @haibun/shu
 
+      - name: Run the MCP server's and the language server's features
+        if: github.event_name != 'push'
+        run: node scripts/service-features.mjs
+
       - name: Run e2e tests
         if: github.event_name != 'push'
         run: |
