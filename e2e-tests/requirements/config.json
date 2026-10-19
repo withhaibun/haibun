@@ -1,0 +1,19 @@
+{
+	"$schema": "../../modules/core/haibun-core-specl.schema.json",
+	"extends": "../../config.base.json",
+	"steppers": [
+		"activities-stepper",
+		"@haibun/core/steps/goal-resolution-stepper",
+		"@haibun/core/steps/authority-stepper",
+		"@haibun/core/lib/test/fake-authority",
+		"@haibun/web-server-hono/web-server-stepper",
+		"@haibun/web-server-hono/mcp-stepper",
+		"@haibun/cli/instance-stepper",
+		"@haibun/cli/test-runner-stepper",
+		"./build-local/test-server"
+	],
+	"moduleOptions": {
+		"HAIBUN_O_WEBSERVERSTEPPER_ALLOW_WITHOUT_DELEGATION": "Read:public",
+		"HAIBUN_O_MCPSTEPPER_PORT": "8139"
+	}
+}
