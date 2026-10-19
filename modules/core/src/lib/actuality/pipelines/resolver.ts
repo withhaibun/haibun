@@ -218,7 +218,9 @@ export class Resolver {
 				stepActions = stepActions.filter((a) => !precludes.includes(`${a.stepperName}.${a.actionName}`));
 			}
 			if (stepActions.length !== 1) {
-				throw Error(`"${line}" doesn't resolve to one step. Candidate steps: ${JSON.stringify(stepActions.map((a) => a.actionName))}`);
+				throw Error(
+					`"${line}" parses to more than one step: ${stepActions.map((a) => `${a.stepperName}.${a.actionName}`).join(", ")}. Quote each term, escaping a quote within it as \\", or state the line as steps of their own`,
+				);
 			}
 		} else if (stepActions.length < 1) {
 			throw Error(`"${line}" doesn't match a step`);

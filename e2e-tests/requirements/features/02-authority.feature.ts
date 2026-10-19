@@ -6,7 +6,11 @@ import { localOrigin } from "@haibun/core/lib/domains/local-origin.js";
 
 const { feature, scenario } = withAction(new Haibun());
 const RPC = `${localOrigin(DEFAULT_PORT)}${RPC_ROUTE}`;
-const CAPABILITY = JSON.stringify({ id: "urn:capability:ranger-sets", controller: "ranger", allowedAction: ["VariablesStepper:set", "Read:private"], proof: { type: "stand-in" } });
+const capability = (id: string, allowedAction: string[]) => JSON.stringify({ id, controller: "ranger", allowedAction, proof: { type: "stand-in" } });
+const CAPABILITY = capability("urn:capability:ranger-sets", ["VariablesStepper:set", "Read:private"]);
+const NESTING = capability("urn:capability:ranger-nests", ["AuthorityStepper:holdingCapability", "VariablesStepper:set", "Read:private"]);
+const SETS_ONLY = capability("urn:capability:ranger-sets-only", ["VariablesStepper:set", "Read:private"]);
+const AT = `at "${localOrigin(DEFAULT_PORT)}"`;
 
 export const features: TKirejiExport = {
 	"Capabilities authorize every call": [
@@ -31,9 +35,16 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "A presented capability allows only the actions it delegates" }),
 		"Essential, for a page and another instance that present a capability. The verifier checks the presenter against the document's controller. Source: authority-stepper.ts, holdingCapability.",
 		'accept authority from "ranger" for "VariablesStepper:set,Read:private"',
-		`holding capability ${CAPABILITY} at "${localOrigin(DEFAULT_PORT)}", set presented to "yes"`,
+		`holding capability ${CAPABILITY} ${AT}, set presented to "yes"`,
 		'variable presented is "yes"',
-		`not holding capability ${CAPABILITY} at "${localOrigin(DEFAULT_PORT)}", variable presented is "yes"`,
+		`not holding capability ${CAPABILITY} ${AT}, variable presented is "yes"`,
+
+		scenario({ scenario: "A capability presented inside another parses one way and holds only what it delegates" }),
+		"Essential, for a page that presents a capability within a statement another capability allows. Each quoted term ends at its own closing quote, so the outer target doesn't take the inner capability. Source: named-vars.ts, quotedGroup.",
+		'accept authority from "ranger" for "AuthorityStepper:holdingCapability,VariablesStepper:set,Read:private"',
+		`holding capability ${NESTING} ${AT}, holding capability ${SETS_ONLY} ${AT}, set nested to "yes"`,
+		'variable nested is "yes"',
+		`not holding capability ${NESTING} ${AT}, holding capability ${SETS_ONLY} ${AT}, variable nested is "yes"`,
 
 		scenario({ scenario: "A proof names the capability that allowed each call" }),
 		"Essential, for every surface. Source: step-records.ts, the fields capabilityAction and allowedAction.",
