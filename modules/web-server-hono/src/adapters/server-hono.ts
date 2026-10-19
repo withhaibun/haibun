@@ -138,18 +138,22 @@ export class ServerHono implements IWebServer {
 		this.resetMounts();
 	}
 
-	close(): Promise<void> {
-		if (this.servers.size > 0) {
-			for (const [port, server] of this.servers) {
-				this.eventLogger.debug(`ServerHono closing on port ${port}`);
-				server.close();
-				ServerHono.listeningPorts.delete(port);
-			}
-			this.servers.clear();
-			this._port = undefined;
-			this.resetMounts();
-		}
-		return Promise.resolve();
+	/** Closes each server and ends its connections. It resolves after each server has closed and the event loop has polled
+	 *  once more, so a client in this process sees its pooled connections end and doesn't send a later server's first call
+	 *  on a socket the closed server ended ("other side closed"). */
+	async close(): Promise<void> {
+		const closing = [...this.servers].map(([port, server]) => {
+			this.eventLogger.debug(`ServerHono closing on port ${port}`);
+			ServerHono.listeningPorts.delete(port);
+			const closed = new Promise<void>((resolve) => server.close(() => resolve()));
+			if ("closeAllConnections" in server) server.closeAllConnections();
+			return closed;
+		});
+		this.servers.clear();
+		this._port = undefined;
+		this.resetMounts();
+		await Promise.all(closing);
+		await new Promise<void>((resolve) => setImmediate(resolve));
 	}
 
 	/** What is served ends with the feature that served it: its routes and its `/rpc` method families. */
