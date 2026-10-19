@@ -2,7 +2,7 @@
  * A step's result, and its feature's step totals: the result a step's action and its cycles determine, the products its
  * events and facts retain, and the totals that grow with each finished step.
  */
-import type { TActionResult, TFeatureSteps, TStepResult } from "../../domains/protocol.js";
+import { ownFailure, type TActionResult, type TFeatureSteps, type TStepResult } from "../../domains/protocol.js";
 import type { TAfterStepResult, TFeatureStep, TStepAction } from "../../steps/domains/stepper.js";
 
 /** The number of a feature's most recent finished steps whose results a reader can read in full. foldStep reduces every
@@ -19,11 +19,6 @@ export function retainedProducts(
 	if (retain === false || products === undefined) return undefined;
 	return retain(products);
 }
-
-/** Whether a failure is the feature's own. A nested call's failure is part of its line's proof, and its line's record states
- *  whether the proof holds. A synthetic dispatch has a negative seqPath index, and its failure is the failure of the step
- *  that dispatched it. */
-const ownFailure = (result: TStepResult): boolean => result.isSubStep !== true && !result.seqPath?.some((n) => n < 0);
 
 /** Adds one finished step to its feature's step totals: the count, the first start, the last end and the failure. */
 export function foldStep(steps: TFeatureSteps, result: TStepResult): void {

@@ -71,6 +71,10 @@ export function isHandedOutEvent(event: { id?: string }): boolean {
 		.split(".")
 		.some((n) => Number.parseInt(n, 10) < 0);
 }
+/** Whether a step's failure is the feature's own. A nested call's failure is part of its line's proof, and its line's record
+ *  states whether the proof holds. A synthetic dispatch has a negative seqPath index, and its failure is the failure of the
+ *  step that dispatched it. */
+export const ownFailure = (step: { isSubStep?: boolean; seqPath?: readonly number[] }): boolean => step.isSubStep !== true && !step.seqPath?.some((n) => n < 0);
 export const ICON_STEP_COMPLETED = CHECK_YES;
 
 // Log levels: info lines are frequent, so the info mark is a thin glyph. Warning and error lines are exceptional, so their
