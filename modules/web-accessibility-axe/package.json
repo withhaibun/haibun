@@ -27,6 +27,7 @@
 	},
 	"gitHead": "7cf9680bd922fb622fb59f1e6bf5b65284cb8fd5",
 	"devDependencies": {
+		"@haibun/logic": "*",
 		"@haibun/storage-mem": "*",
 		"@types/node": "^25.3.0"
 	}

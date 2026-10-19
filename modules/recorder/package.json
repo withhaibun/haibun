@@ -15,6 +15,7 @@
 		"@haibun/web-playwright": "*"
 	},
 	"devDependencies": {
+		"@haibun/logic": "*",
 		"@types/node": "^25.3.0"
 	}
 }

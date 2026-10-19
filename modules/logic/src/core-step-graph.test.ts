@@ -1,6 +1,7 @@
 /**
  * core's steppers held to the typed step graph their baseline records: each finding of the chain lint about them is
- * one the file names, and a finding fixed is removed from it.
+ * one the file names, and a finding fixed is removed from it. The test is logic's, since logic reads the graph and depends on
+ * core.
  */
 import { describe, it } from "vitest";
 import path from "node:path";
@@ -22,8 +23,8 @@ describe("the typed step graph of core's steppers", () => {
 		await expectStepGraphAsRecorded({
 			owned: [ActivitiesStepper, AuthorityStepper, BlipsStepper, ConsoleMonitorStepper, DebuggerStepper, Haibun, Narrator, ResourcesStepper, UrakataStepper, VariablesStepper],
 			unloaded: [{ stepper: RemoteStepperProxy, why: "a proxy made for each remote host, whose steps are that host's" }],
-			baselineFile: path.join(import.meta.dirname, "step-graph.baseline.json"),
-			sourceDir: import.meta.dirname,
+			baselineFile: path.join(import.meta.dirname, "core-step-graph.baseline.json"),
+			sourceDir: path.join(import.meta.dirname, "../../core/src"),
 		});
 	});
 });

@@ -14,7 +14,7 @@ import { literalTerm, renderStepLine } from "@haibun/core/lib/steps/derivations/
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { LOGIC_STEPPER_NAME, VERDICT, type TActionResult, type TStepResult } from "@haibun/core/lib/domains/protocol.js";
 import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/domains/util.js";
-import { itemAt } from "@haibun/core/lib/domains/item-at.js";
+import { itemAt, valueAt } from "@haibun/core/lib/domains/item-at.js";
 import { Access, SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { actingAs, readingAt } from "@haibun/core/lib/domains/capability-context.js";
 import { DOMAIN_DOMAIN_KEY, refTargetOf } from "@haibun/core/lib/domains/domains.js";
@@ -56,11 +56,13 @@ function resolutions(scope: TGoalScope, goals: readonly string[], facts: readonl
 	const { steppers, world } = scope.ctx;
 	const signatures = stepSignatures(steppers);
 	const byMethod = new Map(signatures.map((one) => [one.method, one]));
+	const factsOf = Map.groupBy(facts, (fact) => fact.domain);
 	return scope.engine.goals(producerRules(signatures, world.domains, facts, scope.held), goals).map((proof) => {
 		const plans = proof.plans.map((plan) => planOf(plan, byMethod));
-		const verdict = proof.factIds.length > 0 ? VERDICT.proved : plans.length > 0 ? VERDICT.unknown : VERDICT.refuted;
+		const verdict = proof.held ? VERDICT.proved : plans.length > 0 ? VERDICT.unknown : VERDICT.refuted;
 		const unmet = verdict === VERDICT.refuted ? { unmet: unmetReason(proof), unmetChain: proof.unmet.map((node) => ("do" in node ? node.domain : node.unmet)) } : {};
-		return GoalResolutionSchema.parse({ goal: proof.goal, verdict, factIds: proof.factIds, plans, ...unmet });
+		const factIds = proof.held ? valueAt(factsOf, proof.goal, "the facts of a goal the engine holds").map((fact) => fact.id) : [];
+		return GoalResolutionSchema.parse({ goal: proof.goal, verdict, factIds, plans, ...unmet });
 	});
 }
 

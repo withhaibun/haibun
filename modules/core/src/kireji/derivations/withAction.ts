@@ -2,9 +2,14 @@ import { AStepper, TStepperSteps } from "../../lib/steps/domains/stepper.js";
 import { namedInterpolation, renderStepLine } from "../../lib/steps/derivations/named-vars.js";
 
 type TStepWithGwta = TStepperSteps[keyof TStepperSteps] & { gwta: string };
+type TStepWithExact = TStepperSteps[keyof TStepperSteps] & { exact: string };
 
 const isStepWithGwta = (step: unknown): step is TStepWithGwta => {
 	return typeof (step as Partial<TStepWithGwta>).gwta === "string";
+};
+
+const isStepWithExact = (step: unknown): step is TStepWithExact => {
+	return typeof (step as Partial<TStepWithExact>).exact === "string";
 };
 
 // Type-level gwta placeholder extraction
@@ -59,7 +64,7 @@ export type TKirejiStep = string | TActionExecutor<string>;
 export type TKirejiExport = { [featureName: string]: TKirejiStep[] | string };
 
 type TActionsFromStepper<S extends TStepperSteps> = {
-	[K in keyof S]: S[K] extends { gwta: infer G } ? (G extends string ? TCurriedAction<G> : never) : never;
+	[K in keyof S]: S[K] extends { gwta: infer L extends string } ? TCurriedAction<L> : S[K] extends { exact: infer L extends string } ? TCurriedAction<L> : never;
 };
 
 type TActionFactory = (args: Record<string, TNestedArgValue>) => TActionExecutor<string>;
@@ -90,7 +95,8 @@ type TStepMap<T extends AStepper> = T extends { typedSteps: infer U } ? (U exten
 
 export const withAction = <T extends AStepper>(stepper: T): TActionsFromStepper<TStepMap<T>> => stepActions(stepper) as TActionsFromStepper<TStepMap<T>>;
 
-/** The action of each of a stepper's steps that declares a gwta, by the step's name. */
+/** The action of each of a stepper's steps that declares a gwta or an exact line, by the step's name. An exact line doesn't take
+ *  arguments, so its action is called with `{}`, as a gwta without placeholders is. */
 export const stepActions = (stepper: AStepper): Record<string, TActionFactory> => {
 	const actions: Record<string, TActionFactory> = {};
 
@@ -113,6 +119,8 @@ export const stepActions = (stepper: AStepper): Record<string, TActionFactory> =
 
 				return () => ({ actionName, args: normalizedArgs, gwta: renderStepLine(step.gwta, normalizedArgs) });
 			};
+		} else if (isStepWithExact(step)) {
+			actions[actionName] = () => () => ({ actionName, args: {}, gwta: step.exact });
 		}
 	}
 

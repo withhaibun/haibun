@@ -24,5 +24,8 @@
 		".": "./build/out-junit-stepper.js",
 		"./out-junit.js": "./build/out-junit-stepper.js",
 		"./*": "./build/*"
+	},
+	"devDependencies": {
+		"@haibun/logic": "*"
 	}
 }

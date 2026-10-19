@@ -55,7 +55,8 @@ function compositeFields(domain: TRegisteredDomain | undefined, domains: TDomain
 	});
 }
 
-/** The rules a caller holding `held` may use, with the facts that hold, as the engine's term. */
+/** The rules a caller holding `held` may use, with the first fact of each domain that holds, as the engine's term. A proof
+ *  cites only a domain's first fact, so the term's size follows the domains, not the facts. */
 export function producerRules(signatures: readonly TStepSignature[], domains: TDomains, facts: readonly TFact[], held: string | string[] | undefined): string {
 	const producers = signatures
 		.filter((one) => mayCall(held, one))
@@ -65,7 +66,7 @@ export function producerRules(signatures: readonly TStepSignature[], domains: TD
 		const fields = compositeFields(domains[key], domains);
 		return fields.length === 0 ? [] : [`c(${atom(key)}, ${list(fields)})`];
 	});
-	return `r(${[list(producers), list(produced), list(composites), list(facts.map((fact) => `f(${atom(fact.domain)}, ${atom(fact.id)})`))].join(", ")})`;
+	return `r(${[list(producers), list(produced), list(composites), list([...new Map(facts.toReversed().map((fact) => [fact.domain, fact.id]))].map(([domain, id]) => `f(${atom(domain)}, ${atom(id)})`))].join(", ")})`;
 }
 
 /** The step graph the lint reads, as the engine's term. */

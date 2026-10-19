@@ -58,7 +58,7 @@ const stepsOf = (proof: Awaited<ReturnType<typeof prove>>) => proof.plans.map((p
 describe("goals over producer rules", () => {
 	it("leaves a plan of the steps a goal takes, in the order their products are taken", async () => {
 		const proof = await prove("receipt", [], RUN_AUTHORITY);
-		expect(proof.factIds).toEqual([]);
+		expect(proof.held).toBe(false);
 		expect(stepsOf(proof)).toEqual([["fillCart", "placeOrder", "printReceipt"]]);
 	});
 
@@ -69,7 +69,7 @@ describe("goals over producer rules", () => {
 	});
 
 	it("proves a goal by a fact of its domain", async () => {
-		expect((await prove("receipt", [{ domain: "receipt", id: "r1" }], RUN_AUTHORITY)).factIds).toEqual(["r1"]);
+		expect((await prove("receipt", [{ domain: "receipt", id: "r1" }], RUN_AUTHORITY)).held).toBe(true);
 	});
 
 	it("refutes a goal whose producer the caller may not call, naming the sub-goal", async () => {

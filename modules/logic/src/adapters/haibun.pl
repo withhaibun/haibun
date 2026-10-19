@@ -177,23 +177,24 @@ plan(run, T, Proof, Activity, P, B, A, D, V, Why) :-
 
 % Goals over producer rules. A step the caller may call states the rule fact(D) ← fact(D₁) ∧ … ∧ do(s), where s returns D
 % and takes D₁ …. The rules are r(Producers, Produced, Composites, Facts): p(Method, D, Inputs) for each such step, the
-% domains any step returns, c(D, Fields) for a domain whose fields range over domains, and f(D, Id) for each fact. A goal
+% domains any step returns, c(D, Fields) for a domain whose fields range over domains, and f(D, Id) for the first fact of
+% each domain that holds, which a proof cites. A goal
 % holds by a fact of its domain, by a producer whose inputs hold, by the fields of a composite domain no step returns, or as
 % an argument a caller supplies where no step returns its domain. The ancestor check and the depth limit bound each proof.
 % A proof leaves each do(s) unproved, so its plan is the steps it would call. Negation reads only the closed term a query
 % is given, through none/1.
 none(G) :- ( call(G) -> fail ; true ).
 
-% goals(+RulesText, +Goals, -Results): each goal's facts, a plan for each of its producers whose inputs hold, and, where it
+% goals(+RulesText, +Goals, -Results): whether a fact of each goal holds, a plan for each of its producers whose inputs hold, and, where it
 % has neither, the chain of sub-goals to the first it couldn't prove.
 goals(RulesText, Goals, Results) :- term_string(R, RulesText), maplist(atom_string, Atoms, Goals), maplist(goal_result(R), Atoms, Results).
 
-goal_result(R, G, _{goal: G, factIds: Ids, plans: Plans, unmet: Unmet}) :-
+goal_result(R, G, _{goal: G, held: Held, plans: Plans, unmet: Unmet}) :-
     R = r(Ps, _, _, Fs),
-    findall(Id, member(f(G, Id), Fs), Ids),
+    ( memberchk(f(G, _), Fs) -> Held = true ; Held = false ),
     findall(M-Ins, member(p(M, G, Ins), Ps), Producers),
     findall(P, ( member(M-Ins, Producers), produced_by(R, G, M, Ins, [], 1, P), none(unmet_in(P)) ), Plans),
-    (   Ids == [], Plans == [] ->
+    (   Held == false, Plans == [] ->
         ( Producers = [M-Ins|_] -> produced_by(R, G, M, Ins, [], 1, P0), chain(P0, Unmet) ; Unmet = [_{unmet: G, why: no_producer}] )
     ;   Unmet = []
     ).

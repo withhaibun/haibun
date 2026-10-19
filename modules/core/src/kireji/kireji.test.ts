@@ -49,6 +49,7 @@ class TestStepper extends AStepper {
 	steps = {
 		set: { gwta: "set {what} to {value}", action: () => Promise.resolve(OK) },
 		doSomething: { gwta: "do something", action: () => Promise.resolve(OK) },
+		stayUp: { exact: "this feature stays up", action: () => Promise.resolve(OK) },
 		registerOutcome: { gwta: "outcome {outcome}", action: () => Promise.resolve(OK) },
 		not: { gwta: "not {statement}", action: () => Promise.resolve(OK) },
 	} as const satisfies TStepperSteps;
@@ -83,7 +84,7 @@ const executedSteps = (feature: Awaited<ReturnType<typeof fromBdd>>, name: strin
 };
 
 describe("withAction", () => {
-	const { set, doSomething, registerOutcome, not } = withAction(testStepper);
+	const { set, doSomething, stayUp, registerOutcome, not } = withAction(testStepper);
 	const { prose } = withAction(proseStepper);
 	const { activity, ensure } = withAction(activitiesStepper);
 
@@ -117,6 +118,10 @@ describe("withAction", () => {
 		const action = executor();
 		expect(action.actionName).toBe("doSomething");
 		expect(action.gwta).toBe("do something");
+	});
+
+	it("should handle a step that declares an exact line", () => {
+		expect(stayUp({})()).toEqual({ actionName: "stayUp", args: {}, gwta: "this feature stays up" });
 	});
 
 	it('should handle the "not" step generically', () => {

@@ -59,7 +59,7 @@ const ProofNodeSchema: z.ZodType<TProofNode> = z.union([
  *  chain of sub-goals down to the first it couldn't prove. */
 export const GoalProofSchema = z.object({
 	goal: z.string(),
-	factIds: z.array(z.string()),
+	held: z.stringbool(),
 	plans: z.array(ProofNodeSchema),
 	unmet: z.array(z.union([z.object({ domain: z.string(), do: z.string() }), z.object({ unmet: z.string(), why: z.string() })])),
 });
