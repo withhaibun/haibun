@@ -36,6 +36,12 @@ describe("ActivitiesStepper runs the steps after an ensure", () => {
 		// held, so the body's `set ran_steps` step was not skipped.
 	});
 
+	it.each(["The table is laid", "A table is laid"])("ensures a waypoint whose name starts with a leading word dePolite removes: %s", async (name) => {
+		const content = ["Activity: Lay the table", 'set laid to "yes"', `waypoint ${name} with variable laid is "yes"`, `ensure ${name}`].join("\n");
+		const result = await passWithDefaults([{ path: "/features/test.feature", content }], steppers);
+		expect(result.ok, result.failure?.error?.message).toBe(true);
+	});
+
 	it("should run steps following a satisfied ensure (when remediation ran)", async () => {
 		const bg = [
 			"Activity: Satisfy Precondition",

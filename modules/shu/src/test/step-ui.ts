@@ -1,7 +1,6 @@
 import { withAction, type TKirejiStep } from "@haibun/core/kireji/derivations/withAction.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import type WebPlaywright from "@haibun/web-playwright";
-import { dePolite } from "@haibun/core/lib/domains/util.js";
 import { BASIC_AUTH_OPTION, basicAuthUsers } from "@haibun/core/lib/domains/basic-auth.js";
 import { requiredModuleOption } from "@haibun/core/lib/held-module-options.js";
 import { MODULE_OPTION_PREFIX } from "@haibun/core/lib/domains/protocol.js";
@@ -54,10 +53,7 @@ function collectTestIds(idSets: Array<Record<string, unknown> | ReadonlyArray<st
 
 /** Wrap steps as an activity: they run as hidden substeps, surfaced as the single line `as` (a lowercase declarative outcome like "the recipe is created", unique per feature, shown after the steps run). Spread `setup` before the scenarios, `call` at the point of use. */
 export function activity(as: string, ...steps: TKirejiStep[]): { setup: TKirejiStep[]; call: TKirejiStep[] } {
-	// The resolver de-polites an actionable (strips a leading "the"/"a"/…) before matching, so the
-	// outcome is registered de-polited, otherwise a natural label like "the root recipe is created"
-	// never matches its invocation. The displayed lines keep the natural wording.
-	return { setup: [`Activity: ${as}`, ...steps, `waypoint ${dePolite(as).trim()}`], call: [as] };
+	return { setup: [`Activity: ${as}`, ...steps, `waypoint ${as}`], call: [as] };
 }
 
 export function flattenTestIds(obj: Record<string, unknown>): string[];

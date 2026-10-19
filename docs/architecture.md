@@ -151,7 +151,7 @@ For `every request observed in http-trace is variable {request}/status is less t
 
 ### Waypoint Resolution
 
-Waypoints are registered during resolution. When the resolver encounters an `Activity:` block, it collects the steps before `waypoint` statements as the activity body, then generates a dynamic step that matches the corresponding `ensure` call with a proof, or a statement call without a proof.
+Waypoints are registered during resolution. When the resolver encounters an `Activity:` block, it collects the steps before `waypoint` statements as the activity body, then generates a dynamic step that matches the corresponding `ensure` call with a proof, or a statement call without a proof. The step's pattern is the waypoint's name after `dePolite`, so `ensure The table is laid` matches `waypoint The table is laid with ...`.
 
 ## Phase 4: Executor
 

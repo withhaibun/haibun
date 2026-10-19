@@ -3,7 +3,7 @@ import type { TFeatures, TStepInput } from "../lib/actuality/domains/execution.j
 import { runSteppers, type TWorld } from "../lib/actuality/domains/world.js";
 import { TStepArgs, TRegisteredOutcomeEntry, OK } from "../lib/domains/protocol.js";
 import { formatSeqPath } from "../lib/actuality/domains/seq-path.js";
-import { actionOK, actionNotOK, actionOKWithProducts, getActionable, errorDetail } from "../lib/domains/util.js";
+import { actionOK, actionNotOK, actionOKWithProducts, getActionable, errorDetail, dePolite } from "../lib/domains/util.js";
 import { itemAt } from "../lib/domains/item-at.js";
 import { DOMAIN_STATEMENT, DOMAIN_STATEMENT_LINES, DOMAIN_TITLE, DOMAIN_WAYPOINT_ARGUMENT } from "../lib/domains/domains.js";
 import { Resolver } from "../lib/actuality/pipelines/resolver.js";
@@ -434,9 +434,10 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	/**
 	 * Registers a background waypoint whose activity is `lines`, so every feature has its step. Writes the waypoint as a
 	 * record. Refreshes actuality's registry, which calls its change listeners where the steps changed. `source` is the
-	 * source path the record holds.
+	 * source path the record holds. The outcome is `written` after dePolite, as a waypoint line's outcome is.
 	 */
-	async saveWaypoint(outcome: string, lines: string[], source: string): Promise<TSavedWaypoint> {
+	async saveWaypoint(written: string, lines: string[], source: string): Promise<TSavedWaypoint> {
+		const outcome = dePolite(written);
 		const store = this.getWorld().shared.getStore();
 		// The store holds a record for each saved waypoint. Saving an outcome again with the same lines returns the existing
 		// record. registerSavedWaypoints throws for every other outcome that is already registered.
@@ -695,14 +696,14 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			return false;
 		}
 
-		let outcome: string;
+		let written: string;
 		let proofStatements: string[] = [];
 		let resolvesDomain: string | undefined;
 
 		// Declarative form: `waypoint Outcome resolves <domain-key>`
 		const resolvesMatch = line.match(/^waypoint\s+(.+?)\s+resolves\s+(\S+)\s*$/i);
 		if (resolvesMatch) {
-			outcome = itemAt(resolvesMatch, 1).trim();
+			written = itemAt(resolvesMatch, 1).trim();
 			resolvesDomain = itemAt(resolvesMatch, 2).trim();
 		} else if (requireProof) {
 			if (!line.match(/^waypoint\s+.+?\s+with\s+/i)) {
@@ -712,7 +713,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			const lastWithIndex = withoutPrefix.lastIndexOf(" with ");
 			if (lastWithIndex === -1) return false;
 
-			outcome = withoutPrefix.substring(0, lastWithIndex).trim();
+			written = withoutPrefix.substring(0, lastWithIndex).trim();
 			const proofRaw = withoutPrefix.substring(lastWithIndex + 6).trim();
 			proofStatements = proofRaw
 				.split("\n")
@@ -724,8 +725,10 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			}
 			const match = line.match(/^waypoint\s+(.+?)$/i);
 			if (!match) return false;
-			outcome = itemAt(match, 1).trim();
+			written = itemAt(match, 1).trim();
 		}
+		// The resolver matches a line after dePolite removes its leading words, so the outcome is the written name after dePolite.
+		const outcome = dePolite(written);
 
 		if (this.backgroundOutcomePatterns.has(outcome) || this.featureOutcomePatterns.has(outcome)) {
 			return true;

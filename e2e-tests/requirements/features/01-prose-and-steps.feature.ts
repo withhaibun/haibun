@@ -32,7 +32,7 @@ export const features: TKirejiExport = {
 		'the line "set greeting to \\"hello\\"" renders from its term as written',
 
 		scenario({ scenario: "A waypoint whose name starts with a leading word resolves" }),
-		"Essential. It fails today: dePolite removes the leading word of the ensured statement and not of the waypoint, so the name doesn't match. Source: resolver.ts:255 and util.ts:336.",
+		"Essential. dePolite removes the leading word of the ensured statement and of the waypoint's name, so the names match. Source: resolver.ts:255, activities-stepper.ts:731 and util.ts:336.",
 		"Activity: Lay the table",
 		'set laid to "yes"',
 		'waypoint The table is laid with variable laid is "yes"',
