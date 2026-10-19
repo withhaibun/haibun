@@ -7,12 +7,12 @@ export const features: TKirejiExport = {
 	"Goals over producer rules": [
 		feature({ feature: "Goals over producer rules" }),
 		`A step that produces a domain is a producer rule. Resolving a goal proves a fact of its domain over those rules and returns the plan, pursuing calls the plan, and a walk calls one step at a time with the values a person supplies (goal-resolution-stepper.ts, goal-resolver.ts).
-		Accidental, and replaced by one depth limit and an ancestor check: the michi cap of 64, the depth of 8 and the enumeration limit of 200,000 (goal-resolver.ts:128-135), the smoke goals option (goal-resolution-stepper.ts:89), and the change signal after every step (goal-resolution-stepper.ts:113). A composite domain decomposes into its fields within the depth limit and the cycle check, without an option or a depth of its own.`,
+		Accidental, and replaced by one depth limit and an ancestor check: the plan cap of 64, the depth of 8 and the enumeration limit of 200,000 (goal-resolver.ts:128-135), the smoke goals option (goal-resolution-stepper.ts:89), and the change signal after every step (goal-resolution-stepper.ts:113). A composite domain decomposes into its fields within the depth limit and the cycle check, without an option or a depth of its own.`,
 
 		scenario({ scenario: "Resolving a goal returns a plan from the producers" }),
 		"Essential, for the affordances panel, a model and features. Source: goal-resolution-stepper.ts:196.",
 		'set plan from resolve "var-snapshot"',
-		'variable plan.finding is "michi"',
+		'variable plan.finding is "plan"',
 
 		scenario({ scenario: "A walk calls one step at a time with what a person supplies" }),
 		"Essential. Source: walk-toward-a-goal.feature.",

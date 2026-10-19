@@ -113,7 +113,7 @@ class CapabilityStepper extends AStepper {
 	steps = { protectedPing: { gwta: "protected ping", capability: "CapabilityStepper:protected", action: () => OK } };
 }
 
-/** Returns the value of the count fact of the step at `path`, or undefined where working memory doesn't hold one. */
+/** Returns the value of the count fact of the step at `path`, or undefined where the store doesn't hold one. */
 const countFact = async (world: TWorld, path: number[]) =>
 	(await readFacts(world.shared.getStore(), TEST_DOMAIN.count)).find((fact) => fact.id === factIdOf({ execution: executionOf(world.tag), path }))?.value;
 

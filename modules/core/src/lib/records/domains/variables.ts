@@ -1,5 +1,5 @@
 /**
- * Declares a variable: a named value a feature sets, held in working memory. The variable's record links each step
+ * Declares a variable: a named value a feature sets, held in core's in-memory store. The variable's record links each step
  * that set it through `prov:wasGeneratedBy`. A secret's record holds the obscured value.
  */
 import { z } from "zod";
@@ -38,7 +38,7 @@ export const variableDomainDefinition: TDomainDefinition = {
 		persistedAs: SHARED_GRAPH,
 		type: "prov:Entity",
 		id: VARIABLE_FIELD.name,
-		heldBy: HELD_BY.workingMemory,
+		heldBy: HELD_BY.inMemoryStore,
 		instrumentation: true,
 		accessLevel: Access.private,
 		displayLabel: VARIABLE_FIELD.name,

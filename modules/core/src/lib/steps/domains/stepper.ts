@@ -116,7 +116,7 @@ export type TFeatureStep = {
 
 export type TStepAction = { actionName: string; stepperName: string; step: TStepperStep; stepValuesMap?: TStepValuesMap };
 
-/** The provenance of a value a feature step sets: the step's line, its seqPath, and the stepper action it called. */
+/** The provenance of a value a feature step sets: the step's line, its seqPath, and the step it called. */
 export function provenanceFromFeatureStep(featureStep: TFeatureStep): TProvenanceIdentifier {
 	return { in: featureStep.in, seq: featureStep.seqPath, when: `${featureStep.action.stepperName}.steps.${featureStep.action.actionName}` };
 }

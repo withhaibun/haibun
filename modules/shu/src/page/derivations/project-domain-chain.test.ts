@@ -15,11 +15,11 @@ describe("projectDomainChain", () => {
 		expect(b?.kind).toBe("satisfied");
 	});
 
-	it("maps the resolver's `michi` finding to the user-facing `reachable` node kind", () => {
+	it("maps the resolver's `plans` finding to the user-facing `reachable` node kind", () => {
 		const snap: TAffordancesSnapshot = {
 			satisfiedDomains: [],
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: ["a"], outputDomains: ["b"], readyToRun: false }],
-			goals: [{ domain: "b", resolution: { finding: "michi" } }],
+			goals: [{ domain: "b", resolution: { finding: "plan" } }],
 		};
 		const g = projectDomainChain(snap);
 		expect(g.nodes.find((n) => n.id === "b")?.kind).toBe("reachable");
@@ -90,7 +90,7 @@ describe("projectDomainChain", () => {
 		const snap: TAffordancesSnapshot = {
 			satisfiedDomains: [],
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: ["a"], outputDomains: ["b"], readyToRun: true }],
-			goals: [{ domain: "b", resolution: { finding: "michi" } }],
+			goals: [{ domain: "b", resolution: { finding: "plan" } }],
 		};
 		const g = projectDomainChain(snap);
 		const b = g.nodes.find((n) => n.id === "b");
@@ -128,7 +128,7 @@ describe("projectDomainChain", () => {
 		// The affordances panel drops trivial single-step goals from `goals[]`, so an
 		// asserted domain (e.g. a created issuer) would be invisible to the chain view
 		// if it relied on `goals[]` alone. `satisfiedDomains` is the unfiltered set from
-		// working memory; the chain view colours by that.
+		// the facts; the chain view colours by that.
 		const snap: TAffordancesSnapshot = {
 			forward: [{ stepperName: "Cred", stepName: "createIssuer", inputDomains: [], outputDomains: ["maker-vertex"], readyToRun: true }],
 			goals: [],
@@ -161,7 +161,7 @@ describe("projectDomainChain", () => {
 		const snap: TAffordancesSnapshot = {
 			satisfiedDomains: [],
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: ["a"], outputDomains: ["b"], readyToRun: true }],
-			goals: [{ domain: "b", resolution: { finding: "michi" } }],
+			goals: [{ domain: "b", resolution: { finding: "plan" } }],
 		};
 		const g = projectDomainChain(snap);
 		const b = g.nodes.find((n) => n.id === "b");
@@ -173,7 +173,7 @@ describe("projectDomainChain", () => {
 		const snap: TAffordancesSnapshot = {
 			satisfiedDomains: [],
 			forward: [{ stepperName: "Cred", stepName: "issue", inputDomains: [], outputDomains: ["vc"], readyToRun: true }],
-			goals: [{ domain: "vc", resolution: { finding: "michi" } }],
+			goals: [{ domain: "vc", resolution: { finding: "plan" } }],
 			waypoints: [
 				{ outcome: "VC issued", method: "ActivitiesStepper-VC issued", ensured: false },
 				{ outcome: "Logged in as admin", method: "ActivitiesStepper-Logged in as admin", ensured: true },

@@ -135,7 +135,7 @@ describe("executionFailure", () => {
 	});
 });
 
-describe("the hash of a feature's declared step text", () => {
+describe("the hash of a feature's declared lines", () => {
 	class NotingStepper extends AStepper {
 		description = "Notes a text, and refuses.";
 		steps = {

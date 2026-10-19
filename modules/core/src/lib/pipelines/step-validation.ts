@@ -5,12 +5,12 @@ import { errorDetail } from "../domains/util.js";
 import { mayCall, requiredAction } from "../domains/actions.js";
 
 /**
- * Result of validating a step text against registered steppers.
+ * Result of validating a line against registered steppers.
  */
 type StepValidationResult = { valid: true; action: TStepAction } | { valid: false; error: string };
 
 /**
- * Validate a step text against the steps of the registered steppers that a caller holding `held` may call, so a line
+ * Validate a line against the steps of the registered steppers that a caller holding `held` may call, so a line
  * that names a step the caller doesn't hold is treated as one that doesn't name a step. Returns the matched action if valid, or
  * an error message if not.
  */

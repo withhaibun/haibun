@@ -8,7 +8,7 @@
  *
  * Goal findings drive node `kind` via the built-in vocabulary:
  *   - satisfied  →  the resolver found a fact for the domain
- *   - reachable  →  a michi path reaches the domain (UI label for `michi`)
+ *   - reachable  →  a plan reaches the domain (UI label for `plans`)
  *   - unreachable / refused  →  the resolver's negative findings
  *
  * Step readiness drives edge `kind`:
@@ -34,7 +34,7 @@ export type TWaypointSnapshot = Pick<TWaypointEntry, "outcome" | "method" | "ens
 /** Forward affordance as the chain reads it, without the RPC `method`, which it doesn't route on (it uses stepperName/stepName). */
 type TForwardEdge = Omit<TForwardAffordance, "method">;
 
-/** Minimal goal-resolver path shape the projection consumes. The full TMichi
+/** Minimal goal-resolver path shape the projection consumes. The full TPlan
  * carries bindings (composite / fact / argument trees) too; the chain projection
  * only needs the step list to tag schema edges. */
 type TPathStepRef = { stepperName: string; stepName: string };
@@ -42,7 +42,7 @@ type TGoalPathRef = { steps: TPathStepRef[] };
 
 export type TAffordancesSnapshot = {
 	forward: TForwardEdge[];
-	goals: Array<{ domain: string; resolution: { finding: string; michi?: TGoalPathRef[]; factIds?: string[] } }>;
+	goals: Array<{ domain: string; resolution: { finding: string; plans?: TGoalPathRef[]; factIds?: string[] } }>;
 	/**
 	 * Per-domain field-range map carried from the server's `topology.ranges`
 	 * (haibun's SHACL `sh:node` / RDFS `rdfs:range` equivalent). When present,
@@ -55,7 +55,7 @@ export type TAffordancesSnapshot = {
 	waypoints?: TWaypointSnapshot[];
 	/**
 	 * Every domain that currently has at least one asserted fact. Sourced
-	 * unfiltered from working memory, distinct from `goals[]` which the
+	 * unfiltered from the facts, distinct from `goals[]` which the
 	 * affordances panel filters down to non-trivial entries. Used by the chain
 	 * view to color satisfied domains even when their only producer is a
 	 * single-step argument-only path.
@@ -87,7 +87,7 @@ export function waypointNodeId(outcome: string): string {
 
 function findingToKind(finding: string | undefined): string {
 	if (finding === GOAL_FINDING.SATISFIED) return NODE_KIND.satisfied;
-	if (finding === GOAL_FINDING.MICHI) return NODE_KIND.reachable;
+	if (finding === GOAL_FINDING.PLAN) return NODE_KIND.reachable;
 	if (finding === GOAL_FINDING.UNREACHABLE) return NODE_KIND.unreachable;
 	if (finding === GOAL_FINDING.REFUSED) return NODE_KIND.refused;
 	return NODE_KIND.default;
@@ -218,9 +218,9 @@ export function projectDomainChain(a: TAffordancesSnapshot): TGraph {
 	}
 	for (const goal of a.goals) {
 		// A goal whose resolution doesn't state paths doesn't mark an edge.
-		const michi = goal.resolution.michi;
-		if (michi === undefined) continue;
-		michi.forEach((m, pathIdx) => {
+		const plans = goal.resolution.plans;
+		if (plans === undefined) continue;
+		plans.forEach((m, pathIdx) => {
 			const pid = `${goal.domain}/path-${pathIdx}`;
 			for (const step of m.steps) {
 				const bucket = edgesByStep.get(`${step.stepperName}.${step.stepName}`);

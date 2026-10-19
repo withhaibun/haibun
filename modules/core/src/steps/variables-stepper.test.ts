@@ -180,7 +180,7 @@ describe("the records of variables and facts", () => {
 			[SEQ_PATH_LABEL, SET_SECOND],
 		]);
 		const [fact, ...others] = await readFacts(store);
-		if (!fact) throw new Error("working memory doesn't hold the fact of show var");
+		if (!fact) throw new Error("the store doesn't hold the fact of show var");
 		expect(others).toEqual([]);
 		expect(generatedBy(await recordWithEdges(store, FACT_LABEL, fact.id))).toEqual([[SEQ_PATH_LABEL, SHOW]]);
 	});

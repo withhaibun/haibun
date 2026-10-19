@@ -137,7 +137,7 @@ describe("buildAffordances", () => {
 	it("lists a goal where its only reachable path chains more than one step", () => {
 		const result = buildAffordances({ steppers: [new EmailFromPerson(), new PersonSource()], domains: fixedDomains(), facts: [], held: RUN_AUTHORITY });
 		const emailGoal = result.goals.find((g) => g.domain === EMAIL);
-		expect(emailGoal?.resolution.finding).toBe("michi");
+		expect(emailGoal?.resolution.finding).toBe("plan");
 	});
 
 	it("filters out satisfied single-step goals, since satisfiedDomains lists the asserted domain and the goal doesn't chain steps", () => {

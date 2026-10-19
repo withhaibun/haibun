@@ -351,7 +351,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 
 	/** Scrubs to and reveals the row another view refers to, by a block element's `data-id` or an artifact frame's
 	 *  `data-step-id`. The row is the first cached row whose event id is in that id's ancestor list, the rule the document
-	 *  uses to attach an artifact. An expanded frame's caption is set to that row's step text. */
+	 *  uses to attach an artifact. An expanded frame's caption is set to that row's line. */
 	private jumpToRow(row: Element): void {
 		const named = row.getAttribute("data-step-id") ?? row.getAttribute("data-id") ?? "";
 		const rows = named === "" ? [] : this.#builtRows().filter((r) => r.blocks.length > 0);

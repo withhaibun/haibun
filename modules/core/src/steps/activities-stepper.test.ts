@@ -78,7 +78,7 @@ describe("ActivitiesStepper", () => {
 			});
 		});
 
-		it("should store sourceLineNumber and sourcePath on virtual step", async () => {
+		it("should store sourceLineNumber and sourcePath on a waypoint's step", async () => {
 			const stepper = new ActivitiesStepper();
 			await stepper.setWorld(getDefaultWorld(), []);
 

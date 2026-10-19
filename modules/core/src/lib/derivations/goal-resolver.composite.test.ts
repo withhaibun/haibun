@@ -65,8 +65,8 @@ describe("resolveGoal, composite decomposition", () => {
 	it("emits a composite binding with an `argument` field binding for each field without a range", () => {
 		const graph = graphIssuingPermit();
 		const result = resolveGoal("signed-permit", withComposite({ graph, facts: [], held: RUN_AUTHORITY }));
-		if (result.finding !== GOAL_FINDING.MICHI) throw new Error(`expected MICHI, got ${result.finding}`);
-		const composite = findComposite(result.michi[0].bindings);
+		if (result.finding !== GOAL_FINDING.PLAN) throw new Error(`expected PLAN, got ${result.finding}`);
+		const composite = findComposite(result.plans[0].bindings);
 		expect(composite).toBeTruthy();
 		const subject = composite?.fields.find((f) => f.fieldName === "subject");
 		expect(subject).toMatchObject({ kind: "argument", fieldDomain: "" });
@@ -76,8 +76,8 @@ describe("resolveGoal, composite decomposition", () => {
 		const graph = graphIssuingPermit();
 		const issuerFact: TFact = { id: "fact-issuer-1", domain: "issuer", value: { did: "did:example:alice" } };
 		const result = resolveGoal("signed-permit", withComposite({ graph, facts: [issuerFact], held: RUN_AUTHORITY }));
-		if (result.finding !== GOAL_FINDING.MICHI) throw new Error(`expected MICHI, got ${result.finding}`);
-		const composite = findComposite(result.michi[0].bindings);
+		if (result.finding !== GOAL_FINDING.PLAN) throw new Error(`expected PLAN, got ${result.finding}`);
+		const composite = findComposite(result.plans[0].bindings);
 		const issuer = composite?.fields.find((f) => f.fieldName === "issuer");
 		expect(issuer).toMatchObject({ kind: "fact", factId: "fact-issuer-1", fieldDomain: "issuer" });
 	});
@@ -98,13 +98,13 @@ describe("resolveGoal, composite decomposition", () => {
 			edges: [{ from: "deep", to: "leaf", stepperName: "S", stepName: "f" }],
 		};
 		const result = resolveGoal("leaf", { graph, facts: [], held: RUN_AUTHORITY, domains });
-		// The resolver returns a finding without hanging or producing infinite michi.
-		expect(result.finding === GOAL_FINDING.MICHI || result.finding === GOAL_FINDING.UNREACHABLE).toBe(true);
+		// The resolver returns a finding without hanging or producing infinite plans.
+		expect(result.finding === GOAL_FINDING.PLAN || result.finding === GOAL_FINDING.UNREACHABLE).toBe(true);
 	});
 
-	it("emits one michi for a step whose inputs share a domain, not one per edge", () => {
+	it("emits one plan for a step whose inputs share a domain, not one per edge", () => {
 		// Each input of `verify permit {id: string} as {verifierId: string}` has its own graph edge to the products
-		// domain. The resolver enumerates the step once, not once per edge, and the michi carries both bindings.
+		// domain. The resolver enumerates the step once, not once per edge, and the plan carries both bindings.
 		const graph: TDomainChainGraph = {
 			domains: [
 				{ key: "string", hasTopology: false },
@@ -126,10 +126,10 @@ describe("resolveGoal, composite decomposition", () => {
 			],
 		};
 		const result = resolveGoal("products", { graph, facts: [], held: RUN_AUTHORITY, domains: {} });
-		if (result.finding !== GOAL_FINDING.MICHI) throw new Error(`expected MICHI, got ${result.finding}`);
-		expect(result.michi).toHaveLength(1);
-		expect(result.michi[0].steps).toHaveLength(1);
-		expect(result.michi[0].bindings.length).toBeGreaterThanOrEqual(1);
+		if (result.finding !== GOAL_FINDING.PLAN) throw new Error(`expected PLAN, got ${result.finding}`);
+		expect(result.plans).toHaveLength(1);
+		expect(result.plans[0].steps).toHaveLength(1);
+		expect(result.plans[0].bindings.length).toBeGreaterThanOrEqual(1);
 	});
 });
 

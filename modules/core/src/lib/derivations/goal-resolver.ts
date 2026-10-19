@@ -1,10 +1,10 @@
 /**
  * The goal resolver chains backward over the domain-chain graph.
  *
- * resolveGoal reads the facts in working memory and searches for sequences of steps whose execution would assert a fact
+ * resolveGoal reads the facts and searches for sequences of steps whose execution would assert a fact
  * of the goal domain. It returns one of four findings:
- *   - `satisfied`: working memory already holds a matching fact.
- *   - `michi`: one or more step chains reach the goal.
+ *   - `satisfied`: the facts already hold a matching fact.
+ *   - `plans`: one or more step chains reach the goal.
  *   - `unreachable`: the search doesn't find a producer chain the caller may call.
  *   - `refused`: `held` is undefined, so the resolver can't select the steps the caller may call.
  *
@@ -13,7 +13,7 @@
  *   - The resolver requires `held`. It skips a producer step the caller may not call, and it returns `refused` when
  *     `held` is undefined.
  *   - A visited set and a depth limit stop cycles. A goal that only a cycle reaches is `unreachable`.
- *   - This module only searches, and it doesn't execute a michi. A step such as `pursue {goal}` executes one.
+ *   - This module only searches, and it doesn't execute a plan. A step such as `pursue {goal}` executes one.
  */
 import { z } from "zod";
 import { itemAt } from "../domains/item-at.js";
@@ -30,7 +30,7 @@ type TPlanStep = {
 	stepName: string;
 	gwta?: string;
 	/**
-	 * The domain this step produces in the enclosing michi. A consumer such as the goal-paths graph projection reads
+	 * The domain this step produces in the enclosing plan. A consumer such as the goal-paths graph projection reads
 	 * it to route a composite field's sub-binding through its producer step, instead of attaching the sub-fields to the
 	 * field's slot.
 	 */
@@ -38,8 +38,8 @@ type TPlanStep = {
 };
 
 /**
- * How a michi satisfies one of a step's inputs:
- *   - kind: "fact"       → an existing fact in working memory, identified by its subject (seqPath).
+ * How a plan satisfies one of a step's inputs:
+ *   - kind: "fact"       → an existing fact, identified by its subject (seqPath).
  *   - kind: "argument"   → a person supplies the value as a step argument when the step executes. This applies when
  *                          a producer chain doesn't exist, or when the input is a primitive, json or string.
  *   - kind: "composite"  → the input is a composite domain, and each of its fields has its own binding.
@@ -60,10 +60,10 @@ export type TFieldBinding = { fieldName: string; fieldDomain: string; fieldType:
 );
 
 /**
- * One path from working memory to the goal. It holds an ordered sequence of steps and a binding for every input.
- * Several michi may resolve one goal. The resolver returns up to `maxMichi` of them.
+ * One path from the facts to the goal. It holds an ordered sequence of steps and a binding for every input.
+ * Several plans may resolve one goal. The resolver returns up to `maxPlans` of them.
  */
-export type TMichi = { steps: TPlanStep[]; bindings: TBinding[] };
+export type TPlan = { steps: TPlanStep[]; bindings: TBinding[] };
 
 const ShibariBoundSchema = z.union([z.number(), z.string()]);
 
@@ -97,8 +97,8 @@ export const REFUSAL_REASON = { CAPABILITY_CONTEXT_REQUIRED: "capability-context
 type TRefusalReason = (typeof REFUSAL_REASON)[keyof typeof REFUSAL_REASON];
 
 export type TGoalResolution =
-	| { finding: typeof GOAL_FINDING.SATISFIED; goal: string; factIds: string[]; michi: TMichi[]; truncated: boolean }
-	| { finding: typeof GOAL_FINDING.MICHI; goal: string; michi: [TMichi, ...TMichi[]]; truncated: boolean }
+	| { finding: typeof GOAL_FINDING.SATISFIED; goal: string; factIds: string[]; plans: TPlan[]; truncated: boolean }
+	| { finding: typeof GOAL_FINDING.PLAN; goal: string; plans: [TPlan, ...TPlan[]]; truncated: boolean }
 	| { finding: typeof GOAL_FINDING.UNREACHABLE; goal: string; missing: string[] }
 	| { finding: typeof GOAL_FINDING.REFUSED; goal: string; refusalReason: TRefusalReason; detail: string };
 
@@ -110,8 +110,8 @@ export interface TResolverInputs {
 	depthLimit?: number;
 	/** Per-field filters over the goal fact's value. */
 	where?: Record<string, TShibari | unknown>;
-	/** Cap on enumerated michi per goal. Default MAX_MICHI. */
-	maxMichi?: number;
+	/** Cap on enumerated plans per goal. Default MAX_PLANS. */
+	maxPlans?: number;
 	/**
 	 * Registered domains. The resolver reads each input domain's schema fields and `topology.ranges` from them, and
 	 * recurses into the component fields of a domain without a producer, within the depth limit and the cycle check.
@@ -120,16 +120,16 @@ export interface TResolverInputs {
 }
 
 const DEFAULT_DEPTH_LIMIT = 8;
-const MAX_MICHI = 64;
+const MAX_PLANS = 64;
 
 /** The most enumerate() calls one resolveGoal call makes. Cartesian fanout across composite fields can reach millions
- * of calls before depthLimit and maxMichi truncate it. enumerate() throws past this limit, so a resolution doesn't hang a
+ * of calls before depthLimit and maxPlans truncate it. enumerate() throws past this limit, so a resolution doesn't hang a
  * test or an RPC call. A typical resolution makes fewer than 10,000 calls. */
 const ENUMERATE_LIMIT = 200_000;
 
-/** The state of one resolution: its inputs, the domains on the current path, the domains that didn't yield a michi, its
+/** The state of one resolution: its inputs, the domains on the current path, the domains that didn't yield a plan, its
  *  bounds and its count of enumerate() calls. */
-type TWalk = { inputs: TResolverInputs; visited: Set<string>; missing: string[]; depthLimit: number; maxMichi: number; calls: number };
+type TWalk = { inputs: TResolverInputs; visited: Set<string>; missing: string[]; depthLimit: number; maxPlans: number; calls: number };
 
 /**
  * Resolves a goal. Returns `refused` when `held` is undefined, since a search without the caller's capabilities can't
@@ -149,16 +149,16 @@ export function resolveGoal(goal: string, inputs: TResolverInputs): TGoalResolut
 		visited: new Set<string>([keyForVisited(goal, "")]),
 		missing: [],
 		depthLimit: inputs.depthLimit ?? DEFAULT_DEPTH_LIMIT,
-		maxMichi: inputs.maxMichi ?? MAX_MICHI,
+		maxPlans: inputs.maxPlans ?? MAX_PLANS,
 		calls: 0,
 	};
 	const t0 = Date.now();
-	const enumeration = hasProducerEdge ? enumerate(goal, walk, 0, "") : { michi: [], truncated: false };
+	const enumeration = hasProducerEdge ? enumerate(goal, walk, 0, "") : { plans: [], truncated: false };
 	const elapsed = Date.now() - t0;
-	if (elapsed > 500) console.warn(`[goal-resolver] resolveGoal(${goal}) took ${elapsed}ms, ${walk.calls} enumerate calls, ${enumeration.michi.length} michi`);
+	if (elapsed > 500) console.warn(`[goal-resolver] resolveGoal(${goal}) took ${elapsed}ms, ${walk.calls} enumerate calls, ${enumeration.plans.length} plans`);
 
 	if (matchingFacts.length > 0) {
-		return { finding: GOAL_FINDING.SATISFIED, goal, factIds: matchingFacts.map((fact) => fact.id), michi: enumeration.michi, truncated: enumeration.truncated };
+		return { finding: GOAL_FINDING.SATISFIED, goal, factIds: matchingFacts.map((fact) => fact.id), plans: enumeration.plans, truncated: enumeration.truncated };
 	}
 
 	// The goal itself must be produced by a registered step.
@@ -166,8 +166,8 @@ export function resolveGoal(goal: string, inputs: TResolverInputs): TGoalResolut
 		return { finding: GOAL_FINDING.UNREACHABLE, goal, missing: [goal] };
 	}
 
-	const [first, ...more] = enumeration.michi;
-	if (first) return { finding: GOAL_FINDING.MICHI, goal, michi: [first, ...more], truncated: enumeration.truncated };
+	const [first, ...more] = enumeration.plans;
+	if (first) return { finding: GOAL_FINDING.PLAN, goal, plans: [first, ...more], truncated: enumeration.truncated };
 	return { finding: GOAL_FINDING.UNREACHABLE, goal, missing: dedupe(walk.missing.length > 0 ? walk.missing : [goal]) };
 }
 
@@ -186,7 +186,7 @@ function checkResolverInvariants(inputs: TResolverInputs, goal: string): TGoalRe
 	return undefined;
 }
 
-type TEnumResult = { michi: TMichi[]; truncated: boolean };
+type TEnumResult = { plans: TPlan[]; truncated: boolean };
 
 /** Builds a visited-set key from a domain and its dot-path from the root goal. Two field paths can then reach one domain without a false cycle. */
 function keyForVisited(domain: string, path: string): string {
@@ -194,30 +194,30 @@ function keyForVisited(domain: string, path: string): string {
 }
 
 /**
- * Enumerates every path from working memory to `target`, within depthLimit and maxMichi. Each producer step adds a
+ * Enumerates every path from the facts to `target`, within depthLimit and maxPlans. Each producer step adds a
  * branch. Each fact of the target domain adds a fact binding. A domain without a producer or a fact becomes an argument
  * a person supplies, as isArgumentDomain in affordances.ts treats it. Such a domain gets a `kind: "composite"` binding
  * instead when its registered schema declares fields. The resolver then recurses into each field.
  */
 function enumerate(target: string, walk: TWalk, depth: number, path: string): TEnumResult {
-	const { inputs, visited, missing, depthLimit, maxMichi } = walk;
+	const { inputs, visited, missing, depthLimit, maxPlans } = walk;
 	if (++walk.calls > ENUMERATE_LIMIT) {
 		throw new Error(
 			`[goal-resolver] enumerate() limit of ${ENUMERATE_LIMIT} calls exceeded for target=${target} depth=${depth} path=${path}. The visited set doesn't detect a recursive field-domain reference or a cartesian product of composite fields, so one of these is the probable cause; check the target's field domains. visited=[${[...visited].slice(0, 10).join(", ")}${visited.size > 10 ? `, ...${visited.size} total` : ""}]`,
 		);
 	}
-	if (depth > depthLimit) return { michi: [], truncated: false };
-	if (target === SOURCE_DOMAIN) return { michi: [{ steps: [], bindings: [] }], truncated: false };
+	if (depth > depthLimit) return { plans: [], truncated: false };
+	if (target === SOURCE_DOMAIN) return { plans: [{ steps: [], bindings: [] }], truncated: false };
 
 	const factsOfTarget = inputs.facts.filter((fact) => fact.domain === target);
 	const producers = inputs.graph.edges.filter((e) => e.to === target);
 
-	const out: TMichi[] = [];
+	const out: TPlan[] = [];
 	let truncated = false;
 
 	// Branch 1: each matching fact is a leaf binding.
 	for (const fact of factsOfTarget) {
-		if (out.length >= maxMichi) {
+		if (out.length >= maxPlans) {
 			truncated = true;
 			break;
 		}
@@ -231,16 +231,16 @@ function enumerate(target: string, walk: TWalk, depth: number, path: string): TE
 		const composite = tryComposite(target, walk, depth, path);
 		if (composite) {
 			if (composite.truncated) truncated = true;
-			out.push(...composite.michi);
+			out.push(...composite.plans);
 		} else {
 			out.push({ steps: [], bindings: [{ kind: "argument", domain: target }] });
 		}
-		return { michi: out, truncated };
+		return { plans: out, truncated };
 	}
 
 	// Branch 3: each producer *step* expands recursively, as a cartesian product over the sub-paths of its inputs.
 	// A step with several inputs has one edge per input × output in `inputs.graph.edges`. Expanding each edge would
-	// enumerate the step once per input and emit identical michi. The edges are de-duplicated by stepperName.stepName,
+	// enumerate the step once per input and emit identical plans. The edges are de-duplicated by stepperName.stepName,
 	// so each producer step expands once.
 	const producerSteps = new Map<string, TDomainChainStep>();
 	for (const edge of producers) {
@@ -250,13 +250,13 @@ function enumerate(target: string, walk: TWalk, depth: number, path: string): TE
 		if (step) producerSteps.set(key, step);
 	}
 	for (const step of producerSteps.values()) {
-		if (out.length >= maxMichi) {
+		if (out.length >= maxPlans) {
 			truncated = true;
 			break;
 		}
 		if (!mayCall(inputs.held, step)) continue;
 
-		const inputMichi: TMichi[][] = [];
+		const inputPlans: TPlan[][] = [];
 		let anyDead = false;
 		for (const inputDomain of step.inputDomains) {
 			const visitKey = keyForVisited(inputDomain, path);
@@ -268,18 +268,18 @@ function enumerate(target: string, walk: TWalk, depth: number, path: string): TE
 			const sub = enumerate(inputDomain, walk, depth + 1, path);
 			visited.delete(visitKey);
 			if (sub.truncated) truncated = true;
-			if (sub.michi.length === 0) {
+			if (sub.plans.length === 0) {
 				anyDead = true;
 				break;
 			}
-			inputMichi.push(sub.michi);
+			inputPlans.push(sub.plans);
 		}
 		if (anyDead) continue;
 
-		// Cartesian product of input michi → one michi per combination, plus this step at the tail.
+		// Cartesian product of input plans → one plan per combination, plus this step at the tail.
 		const stepDescriptor: TPlanStep = { stepperName: step.stepperName, stepName: step.stepName, gwta: step.gwta, productsDomain: target };
-		for (const combo of cartesian(inputMichi, maxMichi - out.length)) {
-			if (out.length >= maxMichi) {
+		for (const combo of cartesian(inputPlans, maxPlans - out.length)) {
+			if (out.length >= maxPlans) {
 				truncated = true;
 				break;
 			}
@@ -295,16 +295,16 @@ function enumerate(target: string, walk: TWalk, depth: number, path: string): TE
 	}
 
 	if (out.length === 0) missing.push(target);
-	return { michi: out, truncated };
+	return { plans: out, truncated };
 }
 
 /**
- * The composite-decomposition branch. Returns michi whose only binding is a `kind: "composite"` binding for the target.
+ * The composite-decomposition branch. Returns plans whose only binding is a `kind: "composite"` binding for the target.
  * The binding states how each field is satisfied. Each field recurses one level deeper, so the depth limit and the cycle
  * check bound the decomposition. Returns `null` when the target doesn't declare fields or a required field doesn't resolve.
  */
 function tryComposite(target: string, walk: TWalk, depth: number, path: string): TEnumResult | null {
-	const { inputs, maxMichi } = walk;
+	const { inputs, maxPlans } = walk;
 	const fields = getCompositeFields(target, inputs.domains);
 	if (!fields || fields.length === 0) return null;
 
@@ -322,9 +322,9 @@ function tryComposite(target: string, walk: TWalk, depth: number, path: string):
 		perFieldOptions.push(options.options);
 	}
 
-	const michi: TMichi[] = [];
-	for (const combo of cartesian(perFieldOptions, maxMichi)) {
-		if (michi.length >= maxMichi) {
+	const plans: TPlan[] = [];
+	for (const combo of cartesian(perFieldOptions, maxPlans)) {
+		if (plans.length >= maxPlans) {
 			truncated = true;
 			break;
 		}
@@ -334,9 +334,9 @@ function tryComposite(target: string, walk: TWalk, depth: number, path: string):
 			stepsCombined.push(...opt.steps);
 			fieldsCombined.push(opt.field);
 		}
-		michi.push({ steps: stepsCombined, bindings: [{ kind: "composite", domain: target, fields: fieldsCombined }] });
+		plans.push({ steps: stepsCombined, bindings: [{ kind: "composite", domain: target, fields: fieldsCombined }] });
 	}
-	return { michi, truncated };
+	return { plans, truncated };
 }
 
 type TFieldOption = { field: TFieldBinding; steps: TPlanStep[] };
@@ -357,12 +357,12 @@ function resolveFieldOptions(field: TCompositeField, walk: TWalk, depth: number,
 	visited.delete(visitKey);
 
 	const options: TFieldOption[] = [];
-	for (const m of sub.michi) {
+	for (const m of sub.plans) {
 		const leaf = m.bindings[0];
 		// `leaf` is absent when the producer chain doesn't take graph-level inputs, such as a step whose gwta arguments are
 		// all primitive. The chain still produces the field's value. The field doesn't carry an upstream binding, and the
 		// steps in `m.steps` satisfy it. The field binding is an `argument` kind, so the consumer shows the whole field as a value to
-		// supply. The outer michi's `steps` carries the producing chain.
+		// supply. The outer plan's `steps` carries the producing chain.
 		const fieldBinding: TFieldBinding = leaf
 			? makeFieldBinding(field, leaf)
 			: { fieldName: field.fieldName, fieldDomain: field.fieldDomain ?? "", fieldType, optional: field.optional, kind: "argument" };

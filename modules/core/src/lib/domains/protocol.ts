@@ -482,7 +482,7 @@ const ScenarioEvent = LifecycleEventCommon.extend({ type: z.literal("scenario"),
 
 const StepEvent = LifecycleEventCommon.extend({
 	type: z.literal("step"),
-	in: z.string().describe("Step text"),
+	in: z.string().describe("The step's line"),
 	lineNumber: z.number().optional(),
 	stepperName: z.string().optional(),
 	actionName: z.string().optional(),

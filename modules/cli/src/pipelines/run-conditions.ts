@@ -7,7 +7,7 @@ import path from "node:path";
 import { parseEnv } from "node:util";
 import { BASIC_AUTH_OPTION, basicAuthUsers, type TBasicAuthUser } from "@haibun/core/lib/domains/basic-auth.js";
 import { processBaseEnvToOptionsAndErrors } from "../domains/base-options.js";
-import type { TOutcome } from "../adapters/actualities.js";
+import type { TGroupEnded } from "../adapters/actualities.js";
 import type { TSupervisorPorts } from "../ports.js";
 import { getConfigFromBase } from "./specl.js";
 
@@ -23,7 +23,7 @@ function environmentIn({ fs }: TSupervisorPorts, cwd: string, env: NodeJS.Proces
  *  It computes those conditions as a run does: from `cwd`, with the environment a run reads there.
  *  Returns undefined when the features haven't executed against that state, and throws where the configuration doesn't read.
  *  startRun forks the child where it returns undefined. */
-export function verifiedRun(ports: TSupervisorPorts, config: string, dir: string, filter: string, cwd: string, env: NodeJS.ProcessEnv): TOutcome | undefined {
+export function verifiedRun(ports: TSupervisorPorts, config: string, dir: string, filter: string, cwd: string, env: NodeJS.ProcessEnv): TGroupEnded | undefined {
 	const specl = getConfigFromBase([dir], ports.fs);
 	const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(environmentIn(ports, cwd, env), specl);
 	const v = ports.actualities.verificationOf({ configPath: config, specl, bases: [dir], cwd, filter: filter ? filter.split(",") : [], options, moduleOptions });

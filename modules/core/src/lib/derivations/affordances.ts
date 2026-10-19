@@ -6,8 +6,8 @@
  *   - forward: the forward-chaining frontier. It lists each step the caller may call that declares an input or output
  *     domain. `readyToRun` is true where each input domain is an argument, has an asserted fact, or is the source
  *     domain.
- *   - goals: the resolver's finding (satisfied, michi, unreachable or refused) for each domain a step produces. It leaves
- *     out reference domains and trivial single-step goals. A michi finding carries the plan, so a client can preview it.
+ *   - goals: the resolver's finding (satisfied, plan, unreachable or refused) for each domain a step produces. It leaves
+ *     out reference domains and trivial single-step goals. A plan finding carries the plans, so a client can preview it.
  *   - satisfiedDomains, satisfiedFacts and composites. TAffordances describes each.
  *
  * Affordances implement the HATEOAS step layer. A client that doesn't hold the registry requests them and receives
@@ -61,7 +61,7 @@ export type TAffordances = {
 	goals: TGoalAffordance[];
 	composites?: TCompositeRanges;
 	/**
-	 * Every domain that has at least one asserted fact in working memory. `goals` leaves out trivial single-step goals,
+	 * Every domain that has at least one asserted fact. `goals` leaves out trivial single-step goals,
 	 * so its satisfied findings don't list every asserted domain. This list includes the domains that argument-only
 	 * single-step paths produce. The chain view reads it to colour each node by whether its domain has a fact.
 	 */
@@ -167,7 +167,7 @@ function buildGoalFrontier(graph: TDomainChainGraph, facts: TFact[], held: strin
 		// A trivial goal duplicates the forward frontier. Each of its paths is one producer step whose bindings are all
 		// arguments. A path with a composite binding that holds a fact or a nested decomposition stays, even where it has
 		// one step.
-		if ((resolution.finding === GOAL_FINDING.MICHI || resolution.finding === GOAL_FINDING.SATISFIED) && Array.isArray(resolution.michi) && resolution.michi.every(isTrivialMichi))
+		if ((resolution.finding === GOAL_FINDING.PLAN || resolution.finding === GOAL_FINDING.SATISFIED) && Array.isArray(resolution.plans) && resolution.plans.every(isTrivialPlan))
 			continue;
 		// Every domain a step produces declares a description, and the goal index renders it as prose. The description is
 		// `description` on the domain definition, or else the schema's Zod `.describe(...)` metadata. The schema metadata is
@@ -186,11 +186,11 @@ function buildGoalFrontier(graph: TDomainChainGraph, facts: TFact[], held: strin
 }
 
 /**
- * A michi is trivial where it duplicates a forward-frontier entry. It doesn't have more than one step, and each binding
+ * A plan is trivial where it duplicates a forward-frontier entry. It doesn't have more than one step, and each binding
  * is an argument a person supplies. A composite binding counts as an argument where each of its fields is an argument,
  * since the form for that step renders those fields.
  */
-function isTrivialMichi(m: { steps: unknown[]; bindings: unknown[] }): boolean {
+function isTrivialPlan(m: { steps: unknown[]; bindings: unknown[] }): boolean {
 	if (m.steps.length > 1) return false;
 	return m.bindings.every(isArgumentBinding);
 }

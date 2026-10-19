@@ -70,7 +70,7 @@ export const features: TKirejiExport = {
 		'saves shu to "/tmp/shu.html"',
 		serveShuApp({ path: '"/haibun"' }),
 		`webserver is listening for "shu-self-test"`,
-		"The set steps write variables. Each comment step writes a Comment record and asserts a fact of its products domain. The graph view and the column browser show the Comment records. The affordances panel shows a goal as satisfied where working memory holds a fact of the goal's domain.",
+		"The set steps write variables. Each comment step writes a Comment record and asserts a fact of its products domain. The graph view and the column browser show the Comment records. The affordances panel shows a goal as satisfied where the store holds a fact of the goal's domain.",
 		set({ what: "secret-password", value: `"${SECRETS.TEST_PASSWORD}"` }),
 		set({ what: "test-subject-1", value: '"Haibun test subject"' }),
 		set({ what: "test-subject-2", value: '"Second test subject"' }),
@@ -147,7 +147,7 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "Invoke `show affordances` from Step mode and inspect the goals section" }),
 
-		"The affordances panel renders the goal resolver's verdict for each goal: satisfied, michi, unreachable or refused. The panel doesn't list forward-reachable steps. The actions bar's step picker lists them. The goals list mounts in the panel.",
+		"The affordances panel renders the goal resolver's verdict for each goal: satisfied, plan, unreachable or refused. The panel doesn't list forward-reachable steps. The actions bar's step picker lists them. The goals list mounts in the panel.",
 		...enterStepMode,
 		...passesStepExecution("GoalResolutionStepper-showAffordances"),
 		waitFor({ target: IDS.AFFORDANCES.ROOT }),

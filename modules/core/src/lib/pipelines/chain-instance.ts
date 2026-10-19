@@ -1,8 +1,8 @@
 /**
  * A chain instance holds the state of one walk for the chain-walker.
  *
- * A chain instance records one walk through a resolver michi: which
- * goal it targets, which michi (path) was chosen, the current step index,
+ * A chain instance records one walk through a resolver plan: which
+ * goal it targets, which plan (path) was chosen, the current step index,
  * the args supplied for each step, and the seqPaths of the facts each step
  * has produced. The working-memory quad store holds the instance in the
  * `CHAIN_INSTANCE_GRAPH` named graph. A quad store query reads the
@@ -20,7 +20,7 @@
  */
 import type { TWorld } from "../actuality/domains/world.js";
 import type { IQuadStore } from "../steps/ports.js";
-import type { TMichi } from "../derivations/goal-resolver.js";
+import type { TPlan } from "../derivations/goal-resolver.js";
 import { actingAs, readingAt } from "../domains/capability-context.js";
 import { Access } from "../domains/resources.js";
 import { STATUS } from "../domains/protocol.js";
@@ -31,7 +31,7 @@ export const CHAIN_INSTANCE_GRAPH = "chain/instance";
 /** Predicates used inside the chain-instance named graph. */
 const CHAIN_INSTANCE_PREDICATE = {
 	GOAL: "goal",
-	MICHI: "michi",
+	PLAN: "plan",
 	STEP_INDEX: "stepIndex",
 	STATUS: "status",
 	STEP_ARGS: "stepArgs",
@@ -48,7 +48,7 @@ export const CHAIN_INSTANCE_STATUS = {
 	PENDING: STATUS.pending,
 	/** A step is dispatched and hasn't returned its result yet. */
 	RUNNING: STATUS.running,
-	/** Every step in the chosen michi passed, and the walk is complete. */
+	/** Every step in the chosen plan passed, and the walk is complete. */
 	COMPLETED: STATUS.completed,
 	/** The step isn't registered, its arguments failed validation, or the step failed. The walk stops at the current step index. */
 	FAILED: STATUS.failed,
@@ -65,7 +65,7 @@ type TChainInstanceStatus = (typeof CHAIN_INSTANCE_STATUS)[keyof typeof CHAIN_IN
 export type TChainInstance = {
 	id: string;
 	goal: string;
-	michi: TMichi;
+	plan: TPlan;
 	stepIndex: number;
 	status: TChainInstanceStatus;
 	stepArgs: Array<Record<string, unknown>>;
@@ -96,11 +96,11 @@ async function writePredicate(store: IQuadStore, instanceId: string, predicate: 
 }
 
 /**
- * Creates a chain instance for the given goal and michi. It allocates an id,
+ * Creates a chain instance for the given goal and plan. It allocates an id,
  * writes every predicate of the initial state, and returns the assembled
  * `TChainInstance`.
  */
-export async function createChainInstance(world: TWorld, goal: string, michi: TMichi): Promise<TChainInstance> {
+export async function createChainInstance(world: TWorld, goal: string, plan: TPlan): Promise<TChainInstance> {
 	const store: IQuadStore = world.shared.getStore();
 	const id = newChainInstanceId();
 	const createdAt = nowMs();
@@ -110,17 +110,17 @@ export async function createChainInstance(world: TWorld, goal: string, michi: TM
 	const inst: TChainInstance = {
 		id,
 		goal,
-		michi,
+		plan,
 		stepIndex: 0,
 		status: CHAIN_INSTANCE_STATUS.PENDING,
-		stepArgs: michi.steps.map((): Record<string, unknown> => ({})),
-		stepFactIds: michi.steps.map((): string[] => []),
+		stepArgs: plan.steps.map((): Record<string, unknown> => ({})),
+		stepFactIds: plan.steps.map((): string[] => []),
 		createdAt,
 		updatedAt: createdAt,
 		...(owner === undefined ? {} : { owner }),
 	};
 	await writePredicate(store, id, CHAIN_INSTANCE_PREDICATE.GOAL, goal);
-	await writePredicate(store, id, CHAIN_INSTANCE_PREDICATE.MICHI, michi);
+	await writePredicate(store, id, CHAIN_INSTANCE_PREDICATE.PLAN, plan);
 	await writePredicate(store, id, CHAIN_INSTANCE_PREDICATE.STEP_INDEX, 0);
 	await writePredicate(store, id, CHAIN_INSTANCE_PREDICATE.STATUS, CHAIN_INSTANCE_STATUS.PENDING);
 	await writePredicate(store, id, CHAIN_INSTANCE_PREDICATE.STEP_ARGS, inst.stepArgs);
@@ -140,7 +140,7 @@ export async function getChainInstance(world: TWorld, id: string): Promise<TChai
 	const store: IQuadStore = world.shared.getStore();
 	const goal = await store.get(id, CHAIN_INSTANCE_PREDICATE.GOAL, CHAIN_INSTANCE_GRAPH);
 	if (goal === undefined) return undefined;
-	const michi = (await store.get(id, CHAIN_INSTANCE_PREDICATE.MICHI, CHAIN_INSTANCE_GRAPH)) as TMichi | undefined;
+	const plan = (await store.get(id, CHAIN_INSTANCE_PREDICATE.PLAN, CHAIN_INSTANCE_GRAPH)) as TPlan | undefined;
 	const stepIndex = (await store.get(id, CHAIN_INSTANCE_PREDICATE.STEP_INDEX, CHAIN_INSTANCE_GRAPH)) as number | undefined;
 	const status = (await store.get(id, CHAIN_INSTANCE_PREDICATE.STATUS, CHAIN_INSTANCE_GRAPH)) as TChainInstanceStatus | undefined;
 	const stepArgs = (await store.get(id, CHAIN_INSTANCE_PREDICATE.STEP_ARGS, CHAIN_INSTANCE_GRAPH)) as Array<Record<string, unknown>> | undefined;
@@ -149,7 +149,7 @@ export async function getChainInstance(world: TWorld, id: string): Promise<TChai
 	const updatedAt = (await store.get(id, CHAIN_INSTANCE_PREDICATE.UPDATED_AT, CHAIN_INSTANCE_GRAPH)) as number | undefined;
 	const owner = (await store.get(id, CHAIN_INSTANCE_PREDICATE.OWNER, CHAIN_INSTANCE_GRAPH)) as string | undefined;
 	if (
-		michi === undefined ||
+		plan === undefined ||
 		stepIndex === undefined ||
 		status === undefined ||
 		stepArgs === undefined ||
@@ -159,7 +159,7 @@ export async function getChainInstance(world: TWorld, id: string): Promise<TChai
 	) {
 		throw new Error(`chain instance ${id} is partially written in ${CHAIN_INSTANCE_GRAPH}: one or more required predicates are missing. Begin a new walk toward its goal.`);
 	}
-	return { id, goal: goal as string, michi, stepIndex, status, stepArgs, stepFactIds, createdAt, updatedAt, ...(owner === undefined ? {} : { owner }) };
+	return { id, goal: goal as string, plan, stepIndex, status, stepArgs, stepFactIds, createdAt, updatedAt, ...(owner === undefined ? {} : { owner }) };
 }
 
 /**
@@ -171,7 +171,7 @@ export async function updateChainInstance(world: TWorld, id: string, patch: Part
 	const store: IQuadStore = world.shared.getStore();
 	const updatedAt = nowMs();
 	if (patch.goal !== undefined) await writePredicate(store, id, CHAIN_INSTANCE_PREDICATE.GOAL, patch.goal);
-	if (patch.michi !== undefined) await writePredicate(store, id, CHAIN_INSTANCE_PREDICATE.MICHI, patch.michi);
+	if (patch.plan !== undefined) await writePredicate(store, id, CHAIN_INSTANCE_PREDICATE.PLAN, patch.plan);
 	if (patch.stepIndex !== undefined) await writePredicate(store, id, CHAIN_INSTANCE_PREDICATE.STEP_INDEX, patch.stepIndex);
 	if (patch.status !== undefined) await writePredicate(store, id, CHAIN_INSTANCE_PREDICATE.STATUS, patch.status);
 	if (patch.stepArgs !== undefined) await writePredicate(store, id, CHAIN_INSTANCE_PREDICATE.STEP_ARGS, patch.stepArgs);

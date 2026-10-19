@@ -79,7 +79,7 @@ describe("shu-domain-chain-view", () => {
 			execution: EXECUTION,
 			satisfiedDomains: [],
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: [], outputDomains: ["vc"], readyToRun: true }],
-			goals: [{ domain: "vc", resolution: { finding: "michi" } }],
+			goals: [{ domain: "vc", resolution: { finding: "plan" } }],
 		};
 		await view.updateComplete;
 		const presenter = await mountedPresenter(view, GRAPH);
@@ -97,7 +97,7 @@ describe("shu-domain-chain-view", () => {
 			execution: EXECUTION,
 			satisfiedDomains: [],
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: [], outputDomains: ["vc"], readyToRun: true }],
-			goals: [{ domain: "vc", resolution: { finding: "michi" } }],
+			goals: [{ domain: "vc", resolution: { finding: "plan" } }],
 		};
 		await view.updateComplete;
 		const presenter = await mountedPresenter(view, GRAPH);

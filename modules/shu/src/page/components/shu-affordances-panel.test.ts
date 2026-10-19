@@ -103,7 +103,7 @@ describe("shu-affordances-panel", () => {
 		expect(detail).toContain("already asserted: s-1");
 	});
 
-	it("renders michi findings as a picker with one card per enumerated path", async () => {
+	it("renders plan findings as a picker with one card per enumerated path", async () => {
 		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
 		panel.products = {
@@ -115,10 +115,10 @@ describe("shu-affordances-panel", () => {
 					domain: "vc",
 					description: "Verifiable credential",
 					resolution: {
-						finding: "michi",
+						finding: "plan",
 						goal: "vc",
 						truncated: false,
-						michi: [
+						plans: [
 							{ steps: [{ stepperName: "Issue", stepName: "issueCredential", gwta: "issue credential" }], bindings: [{ kind: "argument", domain: "issuer" }] },
 							{ steps: [{ stepperName: "Issue", stepName: "issueVc", gwta: "issue a credential" }], bindings: [] },
 						],
@@ -145,7 +145,7 @@ describe("shu-affordances-panel", () => {
 			execution: EXECUTION,
 			satisfiedDomains: [],
 			forward: [],
-			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { finding: "michi", goal: "vc", truncated: false, michi: [path] } }],
+			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { finding: "plan", goal: "vc", truncated: false, plans: [path] } }],
 		};
 		await applied(panel);
 		type TStepChoose = { method?: string; args?: Record<string, unknown>; auto?: boolean };
@@ -174,7 +174,7 @@ describe("shu-affordances-panel", () => {
 				{
 					domain: "vc",
 					description: "Verifiable credential",
-					resolution: { finding: "michi", goal: "vc", truncated: true, michi: [{ steps: [{ stepperName: "Issue", stepName: "issueCredential" }], bindings: [] }] },
+					resolution: { finding: "plan", goal: "vc", truncated: true, plans: [{ steps: [{ stepperName: "Issue", stepName: "issueCredential" }], bindings: [] }] },
 				},
 			],
 		};
@@ -196,10 +196,10 @@ describe("shu-affordances-panel", () => {
 					domain: "vc",
 					description: "Verifiable credential",
 					resolution: {
-						finding: "michi",
+						finding: "plan",
 						goal: "vc",
 						truncated: false,
-						michi: [{ steps: [{ stepperName: "Issue", stepName: "issueVc", gwta: "issue" }], bindings: [{ kind: "argument", domain: "issuer" }] }],
+						plans: [{ steps: [{ stepperName: "Issue", stepName: "issueVc", gwta: "issue" }], bindings: [{ kind: "argument", domain: "issuer" }] }],
 					},
 				},
 			],
@@ -268,7 +268,7 @@ describe("shu-affordances-panel", () => {
 	it("re-rendering preserves open state on a composite-binding tree", async () => {
 		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
-		const compositeMichi = {
+		const compositePlan = {
 			steps: [{ stepperName: "Cred", stepName: "issue" }],
 			bindings: [
 				{
@@ -285,7 +285,7 @@ describe("shu-affordances-panel", () => {
 			execution: EXECUTION,
 			satisfiedDomains: [],
 			forward: [],
-			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { finding: "michi", goal: "vc", truncated: false, michi: [compositeMichi] } }],
+			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { finding: "plan", goal: "vc", truncated: false, plans: [compositePlan] } }],
 		};
 		await applied(panel);
 		(panel.shadowRoot?.querySelector('button[data-testid="goal-vc-toggle"]') as HTMLButtonElement | null)?.click();
@@ -298,7 +298,7 @@ describe("shu-affordances-panel", () => {
 			execution: EXECUTION,
 			satisfiedDomains: [],
 			forward: [],
-			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { finding: "michi", goal: "vc", truncated: false, michi: [compositeMichi] } }],
+			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { finding: "plan", goal: "vc", truncated: false, plans: [compositePlan] } }],
 		};
 		await applied(panel);
 		const after = panel.shadowRoot?.querySelector<HTMLDetailsElement>('details[data-key="composite:vc"]');
@@ -320,7 +320,7 @@ describe("shu-affordances-panel", () => {
 						finding: "satisfied",
 						goal: "credential",
 						factIds: ["fact-1"],
-						michi: [{ steps: [{ stepperName: "Issue", stepName: "issueVc", gwta: "issue" }], bindings: [{ kind: "argument", domain: "issuer" }] }],
+						plans: [{ steps: [{ stepperName: "Issue", stepName: "issueVc", gwta: "issue" }], bindings: [{ kind: "argument", domain: "issuer" }] }],
 						truncated: false,
 					},
 				},

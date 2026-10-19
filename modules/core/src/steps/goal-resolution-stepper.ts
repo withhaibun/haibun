@@ -40,7 +40,7 @@ import {
 import { affordancesSchema, chainLintSchema, chainWalkSchema, goalResolutionSchema } from "../lib/pipelines/core-domains.js";
 import { createChainInstance, type TChainInstance } from "../lib/pipelines/chain-instance.js";
 import { advanceChainInstance } from "../lib/pipelines/chain-walker.js";
-import type { TGoalResolution, TMichi, TBinding } from "../lib/derivations/goal-resolver.js";
+import type { TGoalResolution, TPlan, TBinding } from "../lib/derivations/goal-resolver.js";
 import { GOAL_FINDING, providesWaypoints, AFFORDANCE_EVENT_PREFIX, type TWaypointEntry } from "../lib/domains/goal-resolution.js";
 import { itemAt } from "../lib/domains/item-at.js";
 import { affordancesOf, chainLintOf, resolveGoals, type TChainScope } from "../lib/pipelines/goal-resolution.js";
@@ -99,7 +99,7 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		},
 		afterStep: (after: TAfterStep): Promise<TAfterStepResult> => {
 			// Emits only a change signal. The affordances snapshot is large (forward edges, goals, their resolution trees
-			// and composite michi), so the event log doesn't carry it on every step. The affordances panel and the
+			// and composite plans), so the event log doesn't carry it on every step. The affordances panel and the
 			// domain-chain view re-fetch the current snapshot with `affordances on offer`.
 			// A read and a step that only computes a view of memory don't change a record, so afterStep doesn't emit a signal for them.
 			// The panel's re-fetch is a read, so a signal for it would trigger the re-fetch again over SSE without bound.
@@ -131,13 +131,13 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		return itemAt(await resolveGoals(this.chainScope(), [goal], { held: callerHolds() }), 0);
 	}
 
-	/** Runs a michi's steps in order. callStepByName calls each step with a synthetic seqPath, as other transports call steps.
-	 *  Returns the id of each call's fact. The first step that fails stops the michi, and its error is returned. */
-	private async executeMichi(goal: string, michi: TMichi): Promise<ReturnType<typeof actionOKWithProducts> | ReturnType<typeof actionNotOK>> {
+	/** Runs a plan's steps in order. callStepByName calls each step with a synthetic seqPath, as other transports call steps.
+	 *  Returns the id of each call's fact. The first step that fails stops the plan, and its error is returned. */
+	private async executePlan(goal: string, plan: TPlan): Promise<ReturnType<typeof actionOKWithProducts> | ReturnType<typeof actionNotOK>> {
 		const world = this.getWorld();
 		const registry = runRegistry(world);
 		const factIds: string[] = [];
-		for (const [i, step] of michi.steps.entries()) {
+		for (const [i, step] of plan.steps.entries()) {
 			const method = stepMethodName(step.stepperName, step.stepName);
 			const call = await callStepByName({ registry, world, steppers: this.steppers }, method, NO_INPUT);
 			if (!call.result.ok) return actionNotOK(`pursue ${goal}: step ${i} (${method}) failed: ${call.result.errorMessage}`);
@@ -177,8 +177,8 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 		 * A1 · `pursue {goal}` resolves a goal and runs the first path toward it. Pursuing a satisfied goal doesn't run a step.
 		 *
 		 *  satisfied   → doesn't run a step; returns the resolution with the satisfying factIds (as `ensure` skips a proven waypoint)
-		 *  michi (fact-only bindings) → runs each step of the first michi in order; returns the produced factIds
-		 *  michi with `kind: "argument"` bindings → refuses and names the domains to supply (`walk toward` takes their values one step at a time)
+		 *  plan (fact-only bindings) → runs each step of the first plan in order; returns the produced factIds
+		 *  plan with `kind: "argument"` bindings → refuses and names the domains to supply (`walk toward` takes their values one step at a time)
 		 *  unreachable → refuses with the list of missing producers
 		 *  refused     → refuses with the resolver's reason
 		 *
@@ -192,14 +192,14 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 				if (resolution.finding === GOAL_FINDING.SATISFIED) {
 					return actionOKWithProducts(goalResolutionSchema.parse(resolution));
 				}
-				const michi = firstPathToward("pursue", resolution);
-				const argBindings = collectArgumentBindings(michi.bindings);
+				const plan = firstPathToward("pursue", resolution);
+				const argBindings = collectArgumentBindings(plan.bindings);
 				if (argBindings.length > 0) {
 					return actionNotOK(
 						`pursue ${goal}: ${argBindings.length} argument binding(s) need a supplied value, in domains ${argBindings.join(", ")}. Supply them one step at a time with "walk toward", or start the path from the affordances panel.`,
 					);
 				}
-				return await this.executeMichi(goal, michi);
+				return await this.executePlan(goal, plan);
 			},
 		},
 
@@ -215,9 +215,9 @@ export class GoalResolutionStepper extends AStepper implements IHasOptions, IHas
 			action: async ({ goal }: { goal: string }) => {
 				const resolution = await this.runResolution(goal);
 				if (resolution.finding === GOAL_FINDING.SATISFIED) return actionNotOK(`walk toward ${goal}: already satisfied, so it doesn't need a path`);
-				const michi = firstPathToward("walk toward", resolution);
+				const plan = firstPathToward("walk toward", resolution);
 				const world = this.getWorld();
-				const instance = await createChainInstance(world, goal, michi);
+				const instance = await createChainInstance(world, goal, plan);
 				return actionOKWithProducts(walkProducts(instance, runRegistry(world)));
 			},
 		},
@@ -282,17 +282,17 @@ export default GoalResolutionStepper;
 
 /** Returns the resolver's first path toward a goal that isn't satisfied. Throws for an unreachable or a refused goal, with
  *  `doing` and the reason in the error. */
-function firstPathToward(doing: string, resolution: Exclude<TGoalResolution, { finding: typeof GOAL_FINDING.SATISFIED }>): TMichi {
+function firstPathToward(doing: string, resolution: Exclude<TGoalResolution, { finding: typeof GOAL_FINDING.SATISFIED }>): TPlan {
 	if (resolution.finding === GOAL_FINDING.UNREACHABLE) throw new Error(`${doing} ${resolution.goal}: unreachable (missing producers: ${resolution.missing.join(", ")})`);
 	if (resolution.finding === GOAL_FINDING.REFUSED) throw new Error(`${doing} ${resolution.goal}: refused (${resolution.refusalReason}: ${resolution.detail})`);
-	return resolution.michi[0];
+	return resolution.plans[0];
 }
 
 /** Returns a walk's products: its id, goal, status, step index and steps, the step that runs next, the parameters that
  *  step takes and the produced factIds. The parameters are read from the step's declaration, since an advance supplies
  *  them. */
 function walkProducts(instance: TChainInstance, registry: StepRegistry): z.infer<typeof chainWalkSchema> {
-	const steps = instance.michi.steps.map((step) => stepMethodName(step.stepperName, step.stepName));
+	const steps = instance.plan.steps.map((step) => stepMethodName(step.stepperName, step.stepName));
 	const next = steps[instance.stepIndex];
 	const takes = next === undefined ? [] : [...(registry.get(next)?.paramDomainKeys.keys() ?? [])];
 	return chainWalkSchema.parse({
@@ -308,7 +308,7 @@ function walkProducts(instance: TChainInstance, registry: StepRegistry): z.infer
 }
 
 /**
- * Returns the domains of a michi's argument bindings, including those nested in composite fields. `pursue` refuses
+ * Returns the domains of a plan's argument bindings, including those nested in composite fields. `pursue` refuses
  * with this list when a step takes a value that a fact doesn't supply.
  */
 function collectArgumentBindings(bindings: TBinding[]): string[] {

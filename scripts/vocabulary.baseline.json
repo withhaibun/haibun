@@ -1,17 +1,14 @@
 {
 	"docs/architecture.md": {
 		"names actuality as execution": 6,
-		"names passed, failed, untested as completed": 2,
-		"names running, ended as pending": 2,
-		"names step, named by its method as stepper action": 2
+		"names running, ended as \"pending\"": 2
 	},
 	"docs/planning/fol-in-haibun.md": {
-		"names action as granted": 2,
-		"names fact as working memory": 8
+		"names action as granted": 2
 	},
 	"docs/planning/improvements-plan.md": {
 		"names actuality as execution": 9,
-		"names running, ended as pending": 3
+		"names running, ended as \"pending\"": 3
 	},
 	"docs/planning/test-filtering.md": {
 		"names actuality as execution": 2
@@ -25,9 +22,6 @@
 	"docs/todo.md": {
 		"names actuality as execution": 1
 	},
-	"e2e-tests/requirements/features/02-authority.feature.ts": {
-		"names principal as presenter": 1
-	},
 	"e2e-tests/requirements/features/03-activities.feature.ts": {
 		"names waypoint, with a head, a proof and an activity as virtual step": 1
 	},
@@ -36,13 +30,11 @@
 		"names proved, refuted, unknown, contradiction as speculative": 1
 	},
 	"e2e-tests/requirements/features/05-goals.feature.ts": {
-		"names passed, failed, untested as completed": 1,
-		"names plan as michi": 2,
-		"names proved, refuted, unknown, contradiction as satisfied": 1
+		"names passed, failed, untested as \"completed\"": 1,
+		"names proved, refuted, unknown, contradiction as \"satisfied\"": 1
 	},
 	"e2e-tests/requirements/features/06-world-and-products.feature.ts": {
-		"names fact as working memory": 1,
-		"names proved, refuted, unknown, contradiction as satisfied": 1
+		"names proved, refuted, unknown, contradiction as \"satisfied\"": 1
 	},
 	"e2e-tests/requirements/features/07-records.feature.ts": {
 		"names proved, refuted, unknown, contradiction as speculative": 2
@@ -50,47 +42,31 @@
 	"e2e-tests/requirements/features/10-cli.feature.ts": {
 		"names actuality as execution": 1
 	},
-	"e2e-tests/shu-self-test/features/shu-self-test.feature.ts": {
-		"names fact as working memory": 1,
-		"names plan as michi": 1,
-		"names proved, refuted, unknown, contradiction as satisfied": 2,
-		"names proved, refuted, unknown, contradiction as unreachable": 7
-	},
-	"e2e-tests/shu-self-test/features/z-post.feature.ts": {
-		"names line as step text": 2
-	},
 	"e2e-tests/src/test-server.ts": {
 		"names actuality as execution": 1
 	},
 	"e2e-tests/tests/features/trauma_center.feature": {
-		"names running, ended as pending": 3
+		"names running, ended as \"pending\"": 2
 	},
 	"e2e-tests/tests/features/walk-toward-a-goal.feature": {
-		"names passed, failed, untested as completed": 1,
-		"names running, ended as pending": 1
+		"names passed, failed, untested as \"completed\"": 1,
+		"names running, ended as \"pending\"": 1
 	},
 	"modules/cli/src/adapters/actualities.test.ts": {
-		"names actuality as execution": 4,
-		"names line as step text": 1,
-		"names passed, failed, untested as completed": 14
+		"names actuality as execution": 4
 	},
 	"modules/cli/src/adapters/actualities.ts": {
-		"names actuality as execution": 15,
-		"names line as step text": 2,
-		"names passed, failed, untested as completed": 2,
-		"names passed, failed, untested as TOutcome": 2
+		"names actuality as execution": 15
 	},
 	"modules/cli/src/domains/base-options.ts": {
 		"names actuality as execution": 3
 	},
 	"modules/cli/src/domains/run.ts": {
-		"names actuality as execution": 4,
-		"names actuality as the run": 1
+		"names actuality as execution": 4
 	},
 	"modules/cli/src/instance-stepper.test.ts": {
 		"names actuality as execution": 11,
-		"names actuality as the run": 1,
-		"names passed, failed, untested as completed": 2
+		"names passed, failed, untested as \"completed\"": 2
 	},
 	"modules/cli/src/instance-stepper.ts": {
 		"names actuality as execution": 4
@@ -99,31 +75,17 @@
 		"names actuality as execution": 1
 	},
 	"modules/cli/src/pipelines/run-cli.ts": {
-		"names actuality as execution": 1,
-		"names passed, failed, untested as completed": 1
-	},
-	"modules/cli/src/pipelines/run-conditions.ts": {
-		"names actuality as the run": 1,
-		"names passed, failed, untested as TOutcome": 2
-	},
-	"modules/cli/src/pipelines/run-outcome.ts": {
-		"names running, ended as pending": 7,
-		"names running, ended as skipped": 1
+		"names actuality as execution": 1
 	},
 	"modules/cli/src/pipelines/specl.ts": {
 		"names actuality as execution": 1
 	},
 	"modules/cli/src/test-runner-stepper.test.ts": {
 		"names actuality as execution": 7,
-		"names actuality as the run": 3,
-		"names passed, failed, untested as completed": 3,
-		"names plan as michi": 5
+		"names passed, failed, untested as \"completed\"": 2
 	},
 	"modules/cli/src/test-runner-stepper.ts": {
-		"names actuality as execution": 16,
-		"names passed, failed, untested as completed": 2,
-		"names plan as michi": 1,
-		"names proved, refuted, unknown, contradiction as unreachable": 1
+		"names actuality as execution": 16
 	},
 	"modules/core/src/kireji/kireji-activities.test.ts": {
 		"names actuality as execution": 1
@@ -135,8 +97,7 @@
 		"names actuality as execution": 3
 	},
 	"modules/core/src/lib/actuality/derivations/lifecycle-events.test.ts": {
-		"names actuality as execution": 4,
-		"names passed, failed, untested as completed": 9
+		"names actuality as execution": 4
 	},
 	"modules/core/src/lib/actuality/derivations/lifecycle-events.ts": {
 		"names actuality as execution": 8
@@ -145,13 +106,8 @@
 		"names action as invoked": 4,
 		"names actuality as execution": 19
 	},
-	"modules/core/src/lib/actuality/domains/level-status.ts": {
-		"names passed, failed, untested as completed": 2,
-		"names running, ended as pending": 3
-	},
 	"modules/core/src/lib/actuality/domains/seq-path.test.ts": {
-		"names actuality as execution": 18,
-		"names passed, failed, untested as completed": 2
+		"names actuality as execution": 18
 	},
 	"modules/core/src/lib/actuality/domains/seq-path.ts": {
 		"names actuality as execution": 43
@@ -164,24 +120,20 @@
 	},
 	"modules/core/src/lib/actuality/machines/actuality.test.ts": {
 		"names actuality as execution": 19,
-		"names passed, failed, untested as completed": 36,
-		"names running, ended as pending": 4
+		"names passed, failed, untested as \"completed\"": 12,
+		"names running, ended as \"pending\"": 2
 	},
 	"modules/core/src/lib/actuality/machines/actuality.ts": {
-		"names actuality as execution": 10,
-		"names passed, failed, untested as completed": 2,
-		"names running, ended as pending": 2
+		"names actuality as execution": 10
 	},
 	"modules/core/src/lib/actuality/pipelines/executor.test.ts": {
 		"names actuality as execution": 3,
-		"names line as step text": 1,
-		"names passed, failed, untested as completed": 8,
+		"names passed, failed, untested as \"completed\"": 4,
 		"names record as step result": 1
 	},
 	"modules/core/src/lib/actuality/pipelines/executor.ts": {
 		"names action as invoked": 1,
-		"names actuality as execution": 2,
-		"names passed, failed, untested as completed": 2
+		"names actuality as execution": 2
 	},
 	"modules/core/src/lib/actuality/pipelines/feature-variables.test.ts": {
 		"names actuality as execution": 1
@@ -199,20 +151,16 @@
 		"names actuality as execution": 1
 	},
 	"modules/core/src/lib/actuality/pipelines/resolver.ts": {
-		"names actuality as execution": 1,
-		"names waypoint, with a head, a proof and an activity as virtual step": 2
+		"names actuality as execution": 1
 	},
 	"modules/core/src/lib/actuality/pipelines/step-dispatch.test.ts": {
 		"names action as invoked": 18,
 		"names actuality as execution": 11,
-		"names fact as working memory": 1,
-		"names passed, failed, untested as completed": 1,
 		"names record as step result": 1
 	},
 	"modules/core/src/lib/actuality/pipelines/step-dispatch.ts": {
 		"names action as invoked": 5,
-		"names actuality as execution": 1,
-		"names passed, failed, untested as completed": 2
+		"names actuality as execution": 1
 	},
 	"modules/core/src/lib/actuality/ports.ts": {
 		"names actuality as execution": 1
@@ -223,57 +171,24 @@
 	"modules/core/src/lib/adapters/workspace-lib.ts": {
 		"names actuality as execution": 1
 	},
-	"modules/core/src/lib/conversation/domains/conversation.ts": {
-		"names passed, failed, untested as completed": 3
-	},
 	"modules/core/src/lib/derivations/affordances.test.ts": {
-		"names actuality as execution": 3,
-		"names plan as michi": 1,
-		"names proved, refuted, unknown, contradiction as satisfied": 2
-	},
-	"modules/core/src/lib/derivations/affordances.ts": {
-		"names fact as working memory": 1,
-		"names plan as michi": 6,
-		"names proved, refuted, unknown, contradiction as satisfied": 3,
-		"names proved, refuted, unknown, contradiction as unreachable": 1
-	},
-	"modules/core/src/lib/derivations/domain-chain-lint.test.ts": {
-		"names proved, refuted, unknown, contradiction as unreachable": 11
-	},
-	"modules/core/src/lib/derivations/domain-chain-lint.ts": {
-		"names proved, refuted, unknown, contradiction as unreachable": 1
-	},
-	"modules/core/src/lib/derivations/goal-resolver.composite.test.ts": {
-		"names plan as michi": 15,
-		"names proved, refuted, unknown, contradiction as unreachable": 1
+		"names actuality as execution": 3
 	},
 	"modules/core/src/lib/derivations/goal-resolver.test.ts": {
-		"names plan as michi": 15,
-		"names proved, refuted, unknown, contradiction as satisfied": 9,
-		"names proved, refuted, unknown, contradiction as unreachable": 8
+		"names proved, refuted, unknown, contradiction as \"unreachable\"": 1
 	},
 	"modules/core/src/lib/derivations/goal-resolver.ts": {
-		"names actuality as execution": 1,
-		"names fact as working memory": 5,
-		"names plan as michi": 36,
-		"names proved, refuted, unknown, contradiction as satisfied": 6,
-		"names proved, refuted, unknown, contradiction as unreachable": 5
-	},
-	"modules/core/src/lib/derivations/tunables.ts": {
-		"names running, ended as skipped": 1
+		"names actuality as execution": 1
 	},
 	"modules/core/src/lib/domains/actions.ts": {
 		"names action as granted": 8,
 		"names action as invoked": 9
 	},
 	"modules/core/src/lib/domains/authority-types.ts": {
-		"names action as invoked": 2,
-		"names principal as invoker": 4,
-		"names principal as presenter": 3
+		"names action as invoked": 2
 	},
 	"modules/core/src/lib/domains/blips.test.ts": {
-		"names actuality as execution": 3,
-		"names passed, failed, untested as completed": 2
+		"names actuality as execution": 3
 	},
 	"modules/core/src/lib/domains/blips.ts": {
 		"names actuality as execution": 1
@@ -288,45 +203,33 @@
 		"names actuality as execution": 4
 	},
 	"modules/core/src/lib/domains/domains.ts": {
-		"names action as granted": 1,
-		"names plan as michi": 1
+		"names action as granted": 1
 	},
 	"modules/core/src/lib/domains/features.ts": {
 		"names actuality as execution": 1
 	},
 	"modules/core/src/lib/domains/goal-resolution.ts": {
-		"names plan as michi": 2,
-		"names proved, refuted, unknown, contradiction as satisfied": 2,
-		"names proved, refuted, unknown, contradiction as unreachable": 2
-	},
-	"modules/core/src/lib/domains/hypermedia.query-surface.test.ts": {
-		"names running, ended as skipped": 1
+		"names proved, refuted, unknown, contradiction as \"satisfied\"": 1,
+		"names proved, refuted, unknown, contradiction as \"unreachable\"": 1
 	},
 	"modules/core/src/lib/domains/hypermedia.ts": {
-		"names actuality as execution": 2,
-		"names proved, refuted, unknown, contradiction as authoritative": 1,
-		"names running, ended as skipped": 1
+		"names actuality as execution": 2
 	},
 	"modules/core/src/lib/domains/log-message.ts": {
 		"names actuality as execution": 5
 	},
 	"modules/core/src/lib/domains/protocol.ts": {
 		"names actuality as execution": 14,
-		"names line as step text": 1,
-		"names passed, failed, untested as completed": 8,
+		"names passed, failed, untested as \"completed\"": 1,
 		"names record as step result": 1,
-		"names running, ended as pending": 4,
-		"names running, ended as skipped": 4
+		"names running, ended as \"pending\"": 1,
+		"names running, ended as \"skipped\"": 1
 	},
 	"modules/core/src/lib/domains/resources.ts": {
-		"names actuality as execution": 1,
-		"names fact as working memory": 2
+		"names actuality as execution": 1
 	},
 	"modules/core/src/lib/domains/run-artifact.ts": {
 		"names actuality as execution": 5
-	},
-	"modules/core/src/lib/domains/session-authority.ts": {
-		"names principal as invoker": 2
 	},
 	"modules/core/src/lib/domains/urakata.ts": {
 		"names actuality as execution": 2
@@ -337,57 +240,28 @@
 	"modules/core/src/lib/logic.test.ts": {
 		"names actuality as execution": 1
 	},
-	"modules/core/src/lib/pipelines/chain-instance.test.ts": {
-		"names plan as michi": 2,
-		"names running, ended as pending": 1
-	},
-	"modules/core/src/lib/pipelines/chain-instance.ts": {
-		"names passed, failed, untested as completed": 2,
-		"names plan as michi": 20,
-		"names running, ended as pending": 4
-	},
 	"modules/core/src/lib/pipelines/chain-walker.test.ts": {
-		"names passed, failed, untested as completed": 9,
-		"names proved, refuted, unknown, contradiction as unreachable": 7,
-		"names running, ended as pending": 1
+		"names passed, failed, untested as \"completed\"": 6,
+		"names proved, refuted, unknown, contradiction as \"unreachable\"": 7
 	},
 	"modules/core/src/lib/pipelines/chain-walker.ts": {
 		"names actuality as execution": 1,
-		"names passed, failed, untested as completed": 9,
-		"names plan as michi": 3,
-		"names running, ended as pending": 2
+		"names passed, failed, untested as \"completed\"": 3
 	},
 	"modules/core/src/lib/pipelines/core-domains.ts": {
 		"names actuality as execution": 6,
-		"names fact as working memory": 1,
-		"names passed, failed, untested as completed": 1,
-		"names plan as michi": 6,
-		"names proved, refuted, unknown, contradiction as satisfied": 3,
-		"names proved, refuted, unknown, contradiction as unreachable": 3,
+		"names proved, refuted, unknown, contradiction as \"satisfied\"": 1,
+		"names proved, refuted, unknown, contradiction as \"unreachable\"": 1,
 		"names waypoint, with a head, a proof and an activity as virtual step": 1
-	},
-	"modules/core/src/lib/pipelines/goal-resolution.ts": {
-		"names proved, refuted, unknown, contradiction as satisfied": 2
 	},
 	"modules/core/src/lib/pipelines/http-observations.test.ts": {
 		"names actuality as execution": 1
 	},
-	"modules/core/src/lib/pipelines/http-observations.ts": {
-		"names passed, failed, untested as completed": 1
-	},
 	"modules/core/src/lib/pipelines/runner.ts": {
 		"names actuality as execution": 4
 	},
-	"modules/core/src/lib/pipelines/session-authority.test.ts": {
-		"names principal as invoker": 1,
-		"names principal as presenter": 1
-	},
-	"modules/core/src/lib/pipelines/session-authority.ts": {
-		"names principal as invoker": 9
-	},
 	"modules/core/src/lib/pipelines/step-validation.ts": {
-		"names actuality as execution": 1,
-		"names line as step text": 2
+		"names actuality as execution": 1
 	},
 	"modules/core/src/lib/pipelines/urakata.test.ts": {
 		"names actuality as execution": 5
@@ -395,24 +269,8 @@
 	"modules/core/src/lib/pipelines/urakata.ts": {
 		"names actuality as execution": 2
 	},
-	"modules/core/src/lib/records/domains/facts.ts": {
-		"names fact as working memory": 1
-	},
-	"modules/core/src/lib/records/domains/variables.ts": {
-		"names fact as working memory": 1
-	},
-	"modules/core/src/lib/records/pipelines/facts.ts": {
-		"names fact as working memory": 3
-	},
-	"modules/core/src/lib/steps/derivations/named-vars.ts": {
-		"names running, ended as skipped": 1
-	},
-	"modules/core/src/lib/steps/domains/quad-types.ts": {
-		"names proved, refuted, unknown, contradiction as authoritative": 1
-	},
 	"modules/core/src/lib/steps/domains/stepper.ts": {
-		"names actuality as execution": 1,
-		"names step, named by its method as stepper action": 1
+		"names actuality as execution": 1
 	},
 	"modules/core/src/lib/steps/pipelines/call-step.ts": {
 		"names action as granted": 1
@@ -420,36 +278,18 @@
 	"modules/core/src/lib/steps/pipelines/phase-runner.ts": {
 		"names actuality as execution": 1
 	},
-	"modules/core/src/lib/steps/pipelines/quad-store.ts": {
-		"names proved, refuted, unknown, contradiction as authoritative": 1
-	},
 	"modules/core/src/lib/steps/pipelines/statements.test.ts": {
-		"names actuality as execution": 1,
-		"names passed, failed, untested as completed": 2
+		"names actuality as execution": 1
 	},
 	"modules/core/src/lib/steps/pipelines/step-registry.ts": {
 		"names actuality as execution": 1
 	},
-	"modules/core/src/lib/steps/ports.ts": {
-		"names fact as working memory": 2,
-		"names proved, refuted, unknown, contradiction as authoritative": 1
-	},
 	"modules/core/src/lib/test/fake-authority.ts": {
 		"names action as granted": 7,
-		"names action as invoked": 4,
-		"names principal as invoker": 3,
-		"names principal as presenter": 4
+		"names action as invoked": 4
 	},
 	"modules/core/src/lib/test/prose-rules.test.ts": {
-		"names actuality as execution": 1,
-		"names actuality as the run": 20
-	},
-	"modules/core/src/lib/test/prose-rules.ts": {
-		"names actuality as the run": 1
-	},
-	"modules/core/src/lib/test/quad-store-conformance.ts": {
-		"names proved, refuted, unknown, contradiction as authoritative": 2,
-		"names running, ended as skipped": 3
+		"names actuality as execution": 1
 	},
 	"modules/core/src/lib/test/resolver-features.ts": {
 		"names actuality as execution": 1
@@ -457,17 +297,11 @@
 	"modules/core/src/lib/transport/adapters/remote-quad-store.test.ts": {
 		"names action as invoked": 3
 	},
-	"modules/core/src/lib/transport/adapters/rpc-client.ts": {
-		"names passed, failed, untested as completed": 2
-	},
-	"modules/core/src/lib/transport/adapters/sse-subscriber.ts": {
-		"names running, ended as pending": 7
-	},
 	"modules/core/src/run-policy/domains/run-policy.ts": {
 		"names action as granted": 3
 	},
 	"modules/core/src/schema/marks.test.ts": {
-		"names passed, failed, untested as completed": 2
+		"names passed, failed, untested as \"completed\"": 2
 	},
 	"modules/core/src/steps/activities-ensure-flow.test.ts": {
 		"names actuality as execution": 1
@@ -475,50 +309,27 @@
 	"modules/core/src/steps/activities-stepper.after-every.test.ts": {
 		"names actuality as execution": 1
 	},
-	"modules/core/src/steps/activities-stepper.ensure.test.ts": {
-		"names proved, refuted, unknown, contradiction as satisfied": 2,
-		"names running, ended as skipped": 1
-	},
 	"modules/core/src/steps/activities-stepper.proof-first.test.ts": {
 		"names actuality as execution": 1
 	},
-	"modules/core/src/steps/activities-stepper.test.ts": {
-		"names passed, failed, untested as completed": 2,
-		"names waypoint, with a head, a proof and an activity as virtual step": 1
-	},
 	"modules/core/src/steps/activities-stepper.ts": {
 		"names actuality as execution": 1
-	},
-	"modules/core/src/steps/authority-signed-capability.test.ts": {
-		"names principal as presenter": 3
-	},
-	"modules/core/src/steps/authority-stepper.ts": {
-		"names principal as presenter": 4
-	},
-	"modules/core/src/steps/blips-stepper.test.ts": {
-		"names passed, failed, untested as completed": 1
 	},
 	"modules/core/src/steps/blips-stepper.ts": {
 		"names actuality as execution": 2
 	},
 	"modules/core/src/steps/goal-resolution-stepper.test.ts": {
 		"names actuality as execution": 5,
-		"names fact as working memory": 1,
-		"names passed, failed, untested as completed": 1,
-		"names plan as michi": 9,
-		"names proved, refuted, unknown, contradiction as satisfied": 7,
-		"names proved, refuted, unknown, contradiction as unreachable": 4,
-		"names running, ended as pending": 1
+		"names passed, failed, untested as \"completed\"": 1,
+		"names proved, refuted, unknown, contradiction as \"satisfied\"": 4,
+		"names proved, refuted, unknown, contradiction as \"unreachable\"": 1,
+		"names running, ended as \"pending\"": 1
 	},
 	"modules/core/src/steps/goal-resolution-stepper.ts": {
-		"names actuality as execution": 3,
-		"names plan as michi": 16,
-		"names proved, refuted, unknown, contradiction as satisfied": 8,
-		"names proved, refuted, unknown, contradiction as unreachable": 6
+		"names actuality as execution": 3
 	},
 	"modules/core/src/steps/haibun-stepper.ts": {
-		"names actuality as execution": 2,
-		"names principal as invoker": 1
+		"names actuality as execution": 2
 	},
 	"modules/core/src/steps/on-event-hook.test.ts": {
 		"names actuality as execution": 1
@@ -528,9 +339,6 @@
 	},
 	"modules/core/src/steps/urakata-stepper.ts": {
 		"names actuality as execution": 4
-	},
-	"modules/core/src/steps/variables-stepper.test.ts": {
-		"names fact as working memory": 1
 	},
 	"modules/logic/src/derivations/derivation.ts": {
 		"names actuality as execution": 2
@@ -554,8 +362,7 @@
 		"names actuality as execution": 1
 	},
 	"modules/monitor-otel/src/monitor-otel-stepper.ts": {
-		"names actuality as execution": 1,
-		"names running, ended as pending": 1
+		"names actuality as execution": 1
 	},
 	"modules/out-junit/src/out-junit-stepper.ts": {
 		"names actuality as execution": 2
@@ -563,29 +370,14 @@
 	"modules/shu/src/adapters/remote-graph-source.ts": {
 		"names action as invoked": 1
 	},
-	"modules/shu/src/controls/polymorphic-controls-stepper.ts": {
-		"names running, ended as pending": 3,
-		"names running, ended as skipped": 1
-	},
 	"modules/shu/src/domains/blips.test.ts": {
-		"names action as invoked": 1,
-		"names principal as invoker": 2
-	},
-	"modules/shu/src/domains/blips.ts": {
-		"names principal as invoker": 3
-	},
-	"modules/shu/src/domains/elements.ts": {
-		"names passed, failed, untested as completed": 2
+		"names action as invoked": 1
 	},
 	"modules/shu/src/domains/hydration.ts": {
-		"names actuality as execution": 1,
-		"names proved, refuted, unknown, contradiction as unreachable": 2
+		"names actuality as execution": 1
 	},
 	"modules/shu/src/domains/test-ids.ts": {
 		"names action as granted": 1
-	},
-	"modules/shu/src/graph-presenter.test-fake.ts": {
-		"names principal as presenter": 7
 	},
 	"modules/shu/src/http-signature-zcap-invoke.d.ts": {
 		"names action as invoked": 1
@@ -596,63 +388,40 @@
 	"modules/shu/src/monitor-stepper.ts": {
 		"names actuality as execution": 1
 	},
-	"modules/shu/src/page/adapters/live-conduit.test.ts": {
-		"names proved, refuted, unknown, contradiction as unreachable": 7
-	},
-	"modules/shu/src/page/adapters/live-conduit.ts": {
-		"names proved, refuted, unknown, contradiction as unreachable": 1
-	},
-	"modules/shu/src/page/adapters/prefs-cookie.ts": {
-		"names running, ended as pending": 6
-	},
-	"modules/shu/src/page/adapters/presenter-mount.ts": {
-		"names principal as presenter": 8
-	},
 	"modules/shu/src/page/ask/components/chat-pane.test-fake.ts": {
-		"names passed, failed, untested as completed": 2
+		"names passed, failed, untested as \"completed\"": 1
 	},
 	"modules/shu/src/page/ask/components/shu-ask.conversation.test.ts": {
-		"names passed, failed, untested as completed": 2,
-		"names proved, refuted, unknown, contradiction as unreachable": 4,
-		"names running, ended as pending": 1
+		"names passed, failed, untested as \"completed\"": 2,
+		"names running, ended as \"pending\"": 1
 	},
 	"modules/shu/src/page/ask/components/shu-ask.test.ts": {
-		"names passed, failed, untested as completed": 1
-	},
-	"modules/shu/src/page/ask/components/shu-ask.ts": {
-		"names passed, failed, untested as completed": 2
+		"names passed, failed, untested as \"completed\"": 1
 	},
 	"modules/shu/src/page/ask/components/shu-chat-message.test.ts": {
-		"names passed, failed, untested as completed": 1
-	},
-	"modules/shu/src/page/ask/derivations/transcript.ts": {
-		"names running, ended as pending": 1
+		"names passed, failed, untested as \"completed\"": 1
 	},
 	"modules/shu/src/page/ask/domains/conversation.ts": {
-		"names passed, failed, untested as completed": 1,
-		"names running, ended as pending": 1
+		"names running, ended as \"pending\"": 1
 	},
 	"modules/shu/src/page/ask/machines/conversation.test.ts": {
-		"names passed, failed, untested as completed": 16,
-		"names running, ended as pending": 2
-	},
-	"modules/shu/src/page/ask/machines/conversation.ts": {
-		"names passed, failed, untested as completed": 1
+		"names passed, failed, untested as \"completed\"": 9,
+		"names running, ended as \"pending\"": 2
 	},
 	"modules/shu/src/page/authority/pipelines/page-authority.ts": {
 		"names action as invoked": 3
 	},
 	"modules/shu/src/page/client-cache/components/shu-client-cache-column.test.ts": {
 		"names actuality as execution": 5,
-		"names running, ended as pending": 2
+		"names running, ended as \"pending\"": 1
 	},
 	"modules/shu/src/page/client-cache/components/shu-client-cache-column.ts": {
 		"names actuality as execution": 6,
-		"names running, ended as pending": 2
+		"names running, ended as \"pending\"": 1
 	},
 	"modules/shu/src/page/client-cache/controllers/actuality-controller.test.ts": {
 		"names actuality as execution": 15,
-		"names passed, failed, untested as completed": 3
+		"names passed, failed, untested as \"completed\"": 2
 	},
 	"modules/shu/src/page/client-cache/controllers/actuality-controller.ts": {
 		"names actuality as execution": 1
@@ -688,8 +457,7 @@
 		"names actuality as execution": 8
 	},
 	"modules/shu/src/page/client-cache/pipelines/actuality-shape.test.ts": {
-		"names actuality as execution": 6,
-		"names running, ended as pending": 1
+		"names actuality as execution": 6
 	},
 	"modules/shu/src/page/client-cache/pipelines/actuality-sources.ts": {
 		"names actuality as execution": 20
@@ -703,9 +471,6 @@
 	"modules/shu/src/page/client-cache/pipelines/carried-actuality.ts": {
 		"names actuality as execution": 8
 	},
-	"modules/shu/src/page/client-cache/pipelines/device-graph.test.ts": {
-		"names proved, refuted, unknown, contradiction as authoritative": 1
-	},
 	"modules/shu/src/page/client-cache/root.ts": {
 		"names actuality as execution": 2
 	},
@@ -718,389 +483,131 @@
 	"modules/shu/src/page/components/ref-navigation.ts": {
 		"names actuality as execution": 5
 	},
-	"modules/shu/src/page/components/refused-read.test.ts": {
-		"names proved, refuted, unknown, contradiction as unreachable": 2
-	},
-	"modules/shu/src/page/components/shu-actions-bar.ts": {
-		"names proved, refuted, unknown, contradiction as unreachable": 1
-	},
 	"modules/shu/src/page/components/shu-affordances-panel.test.ts": {
 		"names actuality as execution": 31,
-		"names plan as michi": 14,
-		"names principal as presenter": 7,
-		"names proved, refuted, unknown, contradiction as satisfied": 9,
-		"names proved, refuted, unknown, contradiction as unreachable": 2
+		"names proved, refuted, unknown, contradiction as \"satisfied\"": 6,
+		"names proved, refuted, unknown, contradiction as \"unreachable\"": 2
 	},
 	"modules/shu/src/page/components/shu-affordances-panel.ts": {
-		"names actuality as execution": 7,
-		"names fact as working memory": 1,
-		"names passed, failed, untested as completed": 2,
-		"names plan as michi": 19,
-		"names principal as presenter": 11,
-		"names proved, refuted, unknown, contradiction as satisfied": 9,
-		"names proved, refuted, unknown, contradiction as unreachable": 3,
-		"names running, ended as pending": 2
-	},
-	"modules/shu/src/page/components/shu-annotated-body.preparing.test.ts": {
-		"names running, ended as pending": 1
+		"names actuality as execution": 7
 	},
 	"modules/shu/src/page/components/shu-annotated-body.ts": {
-		"names running, ended as pending": 19
-	},
-	"modules/shu/src/page/components/shu-column-pane.test.ts": {
-		"names running, ended as pending": 2
+		"names running, ended as \"pending\"": 1
 	},
 	"modules/shu/src/page/components/shu-document-column.ts": {
-		"names actuality as execution": 1,
-		"names line as step text": 1
+		"names actuality as execution": 1
 	},
 	"modules/shu/src/page/components/shu-domain-chain-view.test.ts": {
-		"names actuality as execution": 16,
-		"names plan as michi": 2,
-		"names principal as presenter": 15
+		"names actuality as execution": 16
 	},
 	"modules/shu/src/page/components/shu-domain-chain-view.ts": {
 		"names action as granted": 1,
-		"names actuality as execution": 6,
-		"names passed, failed, untested as completed": 1,
-		"names principal as presenter": 10,
-		"names proved, refuted, unknown, contradiction as satisfied": 1,
-		"names proved, refuted, unknown, contradiction as unreachable": 1,
-		"names running, ended as pending": 1
-	},
-	"modules/shu/src/page/components/shu-element.ts": {
-		"names running, ended as skipped": 1
-	},
-	"modules/shu/src/page/components/shu-entity-column.ts": {
-		"names running, ended as pending": 1
+		"names actuality as execution": 6
 	},
 	"modules/shu/src/page/components/shu-entity-column.type-and-fields.test.ts": {
 		"names action as invoked": 2
-	},
-	"modules/shu/src/page/components/shu-filter-column.ts": {
-		"names passed, failed, untested as completed": 2,
-		"names running, ended as pending": 1
 	},
 	"modules/shu/src/page/components/shu-monitor-column.ts": {
 		"names actuality as execution": 3
 	},
 	"modules/shu/src/page/components/shu-monitor-column.window.test.ts": {
-		"names passed, failed, untested as completed": 2,
-		"names running, ended as pending": 1
-	},
-	"modules/shu/src/page/components/shu-page.ts": {
-		"names passed, failed, untested as completed": 1
+		"names passed, failed, untested as \"completed\"": 1
 	},
 	"modules/shu/src/page/components/shu-permissions.test.ts": {
 		"names action as granted": 1
 	},
 	"modules/shu/src/page/components/shu-permissions.ts": {
-		"names action as granted": 1,
-		"names passed, failed, untested as completed": 1,
-		"names running, ended as pending": 1
+		"names action as granted": 1
 	},
 	"modules/shu/src/page/components/shu-playback.test.ts": {
-		"names actuality as execution": 2,
-		"names running, ended as pending": 2
+		"names actuality as execution": 2
 	},
 	"modules/shu/src/page/components/shu-playback.ts": {
 		"names actuality as execution": 1
 	},
-	"modules/shu/src/page/components/shu-product-view.ts": {
-		"names principal as presenter": 1
-	},
 	"modules/shu/src/page/components/shu-ref.ts": {
 		"names actuality as execution": 1
-	},
-	"modules/shu/src/page/components/shu-result-table.ts": {
-		"names running, ended as skipped": 1
 	},
 	"modules/shu/src/page/components/shu-scrollbar.test.ts": {
 		"names action as invoked": 1
 	},
 	"modules/shu/src/page/components/shu-search-summary.test.ts": {
-		"names proved, refuted, unknown, contradiction as unreachable": 1,
+		"names proved, refuted, unknown, contradiction as \"unreachable\"": 1,
 		"names record as step result": 1
 	},
 	"modules/shu/src/page/components/shu-search-summary.ts": {
 		"names record as step result": 1
 	},
-	"modules/shu/src/page/components/shu-spinner.ts": {
-		"names running, ended as pending": 1
-	},
-	"modules/shu/src/page/components/shu-step-caller.test.ts": {
-		"names plan as michi": 2
-	},
 	"modules/shu/src/page/components/shu-step-detail.test.ts": {
 		"names actuality as execution": 8
 	},
 	"modules/shu/src/page/components/shu-step-detail.ts": {
-		"names actuality as execution": 1,
-		"names passed, failed, untested as completed": 2,
-		"names running, ended as pending": 1
-	},
-	"modules/shu/src/page/components/shu-thread-column.ts": {
-		"names passed, failed, untested as completed": 1,
-		"names principal as presenter": 9,
-		"names running, ended as pending": 1
-	},
-	"modules/shu/src/page/components/shu-type-column.test.ts": {
-		"names principal as presenter": 3
-	},
-	"modules/shu/src/page/components/shu-type-column.ts": {
-		"names passed, failed, untested as completed": 2,
-		"names principal as presenter": 16,
-		"names running, ended as pending": 1
-	},
-	"modules/shu/src/page/components/shu-virtual-column.ts": {
-		"names proved, refuted, unknown, contradiction as unreachable": 2
+		"names actuality as execution": 1
 	},
 	"modules/shu/src/page/controllers/affordance-dispatch.test.ts": {
-		"names proved, refuted, unknown, contradiction as satisfied": 1
-	},
-	"modules/shu/src/page/controllers/artifact-controller.ts": {
-		"names running, ended as pending": 1
+		"names proved, refuted, unknown, contradiction as \"satisfied\"": 1
 	},
 	"modules/shu/src/page/controllers/authority-controller.ts": {
 		"names action as granted": 1
 	},
 	"modules/shu/src/page/controllers/catalog-controller.ts": {
-		"names actuality as execution": 3,
-		"names principal as presenter": 1
-	},
-	"modules/shu/src/page/controllers/entity-controller.records.test.ts": {
-		"names passed, failed, untested as completed": 2,
-		"names running, ended as pending": 4
-	},
-	"modules/shu/src/page/controllers/entity-controller.test.ts": {
-		"names passed, failed, untested as completed": 1
-	},
-	"modules/shu/src/page/controllers/entity-controller.ts": {
-		"names running, ended as pending": 2
-	},
-	"modules/shu/src/page/controllers/load-controller.ts": {
-		"names passed, failed, untested as completed": 12,
-		"names running, ended as pending": 5
-	},
-	"modules/shu/src/page/controllers/pane-controller.test.ts": {
-		"names running, ended as skipped": 2
-	},
-	"modules/shu/src/page/controllers/presenter-controller.ts": {
-		"names principal as presenter": 6
-	},
-	"modules/shu/src/page/controllers/scroll-follow-controller.ts": {
-		"names running, ended as pending": 2
+		"names actuality as execution": 3
 	},
 	"modules/shu/src/page/derivations/affordances.pane-ops.test.ts": {
-		"names passed, failed, untested as completed": 3
+		"names passed, failed, untested as \"completed\"": 2
 	},
 	"modules/shu/src/page/derivations/affordances.ts": {
-		"names passed, failed, untested as completed": 1
-	},
-	"modules/shu/src/page/derivations/event-marker.test.ts": {
-		"names running, ended as pending": 1
-	},
-	"modules/shu/src/page/derivations/event-marker.ts": {
-		"names running, ended as pending": 1
-	},
-	"modules/shu/src/page/derivations/graph-quads.test.ts": {
-		"names proved, refuted, unknown, contradiction as satisfied": 3
+		"names passed, failed, untested as \"completed\"": 1
 	},
 	"modules/shu/src/page/derivations/markdown.ts": {
 		"names actuality as execution": 2
 	},
 	"modules/shu/src/page/derivations/project-domain-chain.test.ts": {
-		"names fact as working memory": 1,
-		"names plan as michi": 5,
-		"names proved, refuted, unknown, contradiction as satisfied": 7,
-		"names running, ended as pending": 4
-	},
-	"modules/shu/src/page/derivations/project-domain-chain.ts": {
-		"names fact as working memory": 1,
-		"names plan as michi": 8,
-		"names proved, refuted, unknown, contradiction as satisfied": 9,
-		"names proved, refuted, unknown, contradiction as unreachable": 3
+		"names proved, refuted, unknown, contradiction as \"satisfied\"": 3
 	},
 	"modules/shu/src/page/derivations/project-goal-paths.test.ts": {
-		"names plan as michi": 11,
-		"names proved, refuted, unknown, contradiction as satisfied": 4
+		"names proved, refuted, unknown, contradiction as \"satisfied\"": 2
 	},
 	"modules/shu/src/page/derivations/project-goal-paths.ts": {
-		"names plan as michi": 7,
-		"names proved, refuted, unknown, contradiction as satisfied": 9
-	},
-	"modules/shu/src/page/derivations/status-mark.ts": {
-		"names passed, failed, untested as completed": 1,
-		"names running, ended as pending": 2
+		"names proved, refuted, unknown, contradiction as \"satisfied\"": 1
 	},
 	"modules/shu/src/page/derivations/step-input.test.ts": {
-		"names passed, failed, untested as completed": 2,
-		"names running, ended as pending": 2
-	},
-	"modules/shu/src/page/derivations/windowed-source.model.test.ts": {
-		"names passed, failed, untested as completed": 1,
-		"names running, ended as pending": 12
-	},
-	"modules/shu/src/page/derivations/windowed-source.test.ts": {
-		"names running, ended as pending": 4
-	},
-	"modules/shu/src/page/domains/entity.ts": {
-		"names running, ended as pending": 4
+		"names passed, failed, untested as \"completed\"": 1,
+		"names running, ended as \"pending\"": 1
 	},
 	"modules/shu/src/page/domains/graph.ts": {
-		"names principal as presenter": 2,
-		"names proved, refuted, unknown, contradiction as satisfied": 2,
-		"names proved, refuted, unknown, contradiction as unreachable": 2
-	},
-	"modules/shu/src/page/domains/load.ts": {
-		"names passed, failed, untested as completed": 4,
-		"names running, ended as pending": 5
-	},
-	"modules/shu/src/page/graph/adapters/frame-time.test.ts": {
-		"names running, ended as pending": 2
-	},
-	"modules/shu/src/page/graph/adapters/frame-time.ts": {
-		"names passed, failed, untested as completed": 1,
-		"names running, ended as pending": 13
-	},
-	"modules/shu/src/page/graph/components/node-shapes.ts": {
-		"names principal as presenter": 2
-	},
-	"modules/shu/src/page/graph/components/polymorphic-page.test-fake.ts": {
-		"names running, ended as pending": 1
-	},
-	"modules/shu/src/page/graph/components/render-type.test.ts": {
-		"names principal as presenter": 1
-	},
-	"modules/shu/src/page/graph/components/render-type.ts": {
-		"names principal as presenter": 2
-	},
-	"modules/shu/src/page/graph/components/renderer.test.ts": {
-		"names running, ended as skipped": 1
+		"names proved, refuted, unknown, contradiction as \"satisfied\"": 1,
+		"names proved, refuted, unknown, contradiction as \"unreachable\"": 1
 	},
 	"modules/shu/src/page/graph/components/scene.ts": {
-		"names action as granted": 1,
-		"names principal as presenter": 5,
-		"names proved, refuted, unknown, contradiction as authoritative": 1,
-		"names running, ended as pending": 6,
-		"names running, ended as skipped": 2
-	},
-	"modules/shu/src/page/graph/controllers/camera-controller.ts": {
-		"names running, ended as pending": 1
-	},
-	"modules/shu/src/page/graph/controllers/focus-controller.ts": {
-		"names running, ended as pending": 3
-	},
-	"modules/shu/src/page/graph/derivations/graph-layout.ts": {
-		"names principal as presenter": 1
-	},
-	"modules/shu/src/page/graph/derivations/node-presenters.test.ts": {
-		"names passed, failed, untested as completed": 1,
-		"names principal as presenter": 2,
-		"names running, ended as pending": 1
-	},
-	"modules/shu/src/page/graph/derivations/node-presenters.ts": {
-		"names principal as presenter": 4
-	},
-	"modules/shu/src/page/graph/derivations/polymorphic-layout.ts": {
-		"names running, ended as skipped": 1
-	},
-	"modules/shu/src/page/graph/derivations/type-presentation.ts": {
-		"names principal as presenter": 2
-	},
-	"modules/shu/src/page/graph/domains/graph-scene.ts": {
-		"names principal as presenter": 5
-	},
-	"modules/shu/src/page/graph/machines/camera.ts": {
-		"names proved, refuted, unknown, contradiction as authoritative": 1,
-		"names running, ended as pending": 2
-	},
-	"modules/shu/src/page/graph/ports.ts": {
-		"names passed, failed, untested as completed": 1,
-		"names running, ended as pending": 1
-	},
-	"modules/shu/src/page/machines/load.test.ts": {
-		"names passed, failed, untested as completed": 6,
-		"names running, ended as pending": 2
-	},
-	"modules/shu/src/page/machines/load.ts": {
-		"names passed, failed, untested as completed": 1
-	},
-	"modules/shu/src/page/pipelines/batched-events.ts": {
-		"names running, ended as pending": 6
-	},
-	"modules/shu/src/page/pipelines/client-blips.ts": {
-		"names running, ended as pending": 1
-	},
-	"modules/shu/src/page/pipelines/declared-component.ts": {
-		"names principal as presenter": 1
-	},
-	"modules/shu/src/page/pipelines/graph-presenter.ts": {
-		"names principal as presenter": 8
+		"names action as granted": 1
 	},
 	"modules/shu/src/page/pipelines/hydrate.test.ts": {
 		"names actuality as execution": 1
 	},
-	"modules/shu/src/page/pipelines/open-page.test.ts": {
-		"names proved, refuted, unknown, contradiction as unreachable": 3
-	},
-	"modules/shu/src/page/pipelines/open-record.ts": {
-		"names passed, failed, untested as completed": 2,
-		"names running, ended as pending": 3
-	},
 	"modules/shu/src/page/pipelines/read-steps.test.ts": {
-		"names actuality as execution": 1,
-		"names proved, refuted, unknown, contradiction as unreachable": 4
-	},
-	"modules/shu/src/page/pipelines/read-steps.ts": {
-		"names running, ended as pending": 9
-	},
-	"modules/shu/src/page/ports.ts": {
-		"names principal as presenter": 7
-	},
-	"modules/shu/src/page/root.ts": {
-		"names proved, refuted, unknown, contradiction as unreachable": 1,
-		"names running, ended as pending": 3
+		"names actuality as execution": 1
 	},
 	"modules/shu/src/pipelines/run-records.ts": {
 		"names actuality as execution": 5
 	},
 	"modules/shu/src/shu-stepper.ts": {
-		"names actuality as execution": 1,
-		"names principal as presenter": 2
+		"names actuality as execution": 1
 	},
 	"modules/shu/src/test/setup.ts": {
 		"names actuality as execution": 1
 	},
 	"modules/shu/src/test/step-ui.ts": {
-		"names actuality as execution": 1,
-		"names passed, failed, untested as completed": 1,
-		"names running, ended as skipped": 3
+		"names actuality as execution": 1
 	},
 	"modules/shu/tests/features/monitor.feature.ts": {
-		"names actuality as execution": 3,
-		"names actuality as the run": 1
+		"names actuality as execution": 3
 	},
 	"modules/web-accessibility-axe/src/a11y-axe-stepper.ts": {
 		"names actuality as execution": 1
 	},
-	"modules/web-playwright/src/adapters/cdp-relay-v2.ts": {
-		"names running, ended as pending": 1
-	},
-	"modules/web-playwright/src/adapters/cdp-relay.ts": {
-		"names running, ended as pending": 15
-	},
 	"modules/web-playwright/src/pipelines/page-observer.ts": {
 		"names actuality as execution": 1
-	},
-	"modules/web-playwright/src/relay-client/chrome.test-fake.ts": {
-		"names running, ended as pending": 7
-	},
-	"modules/web-playwright/src/web-playwright-stepper.ts": {
-		"names proved, refuted, unknown, contradiction as unreachable": 1
-	},
-	"modules/web-server-hono/src/adapters/process.ts": {
-		"names running, ended as skipped": 1
 	},
 	"modules/web-server-hono/src/pipelines/capability-verifier.test.ts": {
 		"names action as granted": 8,
@@ -1131,8 +638,5 @@
 	"modules/web-server-hono/src/ports.ts": {
 		"names action as granted": 2,
 		"names actuality as execution": 1
-	},
-	"scripts/publish-all.mjs": {
-		"names running, ended as skipped": 5
 	}
 }

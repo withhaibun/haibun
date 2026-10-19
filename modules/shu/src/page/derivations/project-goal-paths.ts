@@ -1,7 +1,7 @@
 /**
  * Pure projection from one goal's resolver finding into a combined `TGraph`.
  *
- * Each michi (path) is a chain of steps: the last step produces the goal, and
+ * Each plan is a chain of steps: the last step produces the goal, and
  * any earlier step in `m.steps` produces a sub-domain that fills one of the
  * goal-step's composite field slots. The projection mirrors this exactly:
  *
@@ -13,7 +13,7 @@
  *     `productsDomain`, so the projection builds a map
  *     `productsDomain → stepNodeId`.
  *   - Bindings flow into the LAST step (the goal producer). A composite-kind
- *     field whose `fieldDomain` has a producer step in this michi routes its
+ *     field whose `fieldDomain` has a producer step in this plan routes its
  *     sub-fields INTO that producer step instead of attaching them to the
  *     field slot; the producer step's output edge then fills the slot. So a
  *     sub-composite field whose domain is `B` and a step in the chain that
@@ -38,7 +38,7 @@
  * `pathId(i)` is the stable id used in `TGraphEdge.paths`: a consumer
  * emphasises a path by that id.
  */
-import type { TBinding, TFieldBinding, TMichi } from "@haibun/core/lib/derivations/goal-resolver.js";
+import type { TBinding, TFieldBinding, TPlan } from "@haibun/core/lib/derivations/goal-resolver.js";
 import { GOAL_FINDING } from "@haibun/core/lib/domains/goal-resolution.js";
 import { EDGE_KIND, NODE_KIND, kindOfEdge, type TGraph, type TGraphEdge, type TGraphNode } from "../domains/graph.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
@@ -156,7 +156,7 @@ function emitField(field: TFieldBinding, parentDomain: string, parentPath: strin
 			});
 		ctx.edges.add({ from: factId, to: fieldId, kind: EDGE_KIND.ready, paths: [ctx.pid], label: field.fieldName });
 	} else {
-		// Composite field. If a step in this michi produces the field's
+		// Composite field. If a step in this plan produces the field's
 		// domain, the field is satisfied by that step, route the sub-fields
 		// into the producer step and connect the step's output to the field
 		// slot. Otherwise the sub-fields attach directly to the slot
@@ -175,12 +175,12 @@ function emitField(field: TFieldBinding, parentDomain: string, parentPath: strin
 type TGoalPathsInput = {
 	goal: string;
 	finding: string;
-	michi: TMichi[];
+	plans: TPlan[];
 	/**
 	 * Fact ids that already satisfy the goal (only meaningful when
 	 * `finding === "satisfied"`). Rendered as fact nodes pointing at the
 	 * goal so the diagram shows *what* satisfies it even when the goal doesn't have
-	 * run-again paths. Without this, a satisfied goal with empty `michi`
+	 * run-again paths. Without this, a satisfied goal with empty `plans`
 	 * would project to a single isolated goal node.
 	 */
 	factIds?: string[];
@@ -203,7 +203,7 @@ export function projectGoalPaths(input: TGoalPathsInput): TGraph {
 		}
 	}
 
-	input.michi.forEach((m, pathIndex) => {
+	input.plans.forEach((m, pathIndex) => {
 		const pid = pathId(pathIndex);
 
 		// Emit every step in the path as a node, sharing across paths by
@@ -235,7 +235,7 @@ export function projectGoalPaths(input: TGoalPathsInput): TGraph {
 			edges.add({ from: sourceId, to: lastStepId, kind: EDGE_KIND.ready, paths: [pid], label: sourceDomain });
 		}
 
-		// A bindings-less michi (e.g. a step that doesn't take a graph-typed input)
+		// A bindings-less plan (e.g. a step that doesn't take a graph-typed input)
 		// still needs a visible connection from its first step to the goal.
 		edges.add({ from: lastStepId, to: goalId, kind: EDGE_KIND.ready, paths: [pid], label: input.goal });
 	});

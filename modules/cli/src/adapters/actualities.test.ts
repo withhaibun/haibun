@@ -121,7 +121,7 @@ describe("how a group last ran against its state", () => {
 });
 
 describe("how long a group's features took", () => {
-	it("holds the lines of an actuality's execution and features under this machine, each duration in tenths of a second, with a feature's steps and declared step text hash", () => {
+	it("holds the lines of an actuality's execution and features under this machine, each duration in tenths of a second, with a feature's steps and the hash of its declared lines", () => {
 		const { dir, config } = aGroup();
 		const v = verified(dir, config);
 		const { result, levels } = anActuality(RECORDED_STATUS.completed, { "/features/a.feature": 1234 });

@@ -375,7 +375,7 @@ describe("examining a finished test run", () => {
 	describe("running a test as a goal", () => {
 		it("resolves run-started to the steps that start a test run, so the resolver offers running a test as a step and not only as prose", async () => {
 			// The started test run is the step's declared product, so the goal graph holds a producer edge to it. Resolving
-			// `run-started` returns runTest or runAllTests as the michi. The resolver selects the step by its declared
+			// `run-started` returns runTest or runAllTests as the plan. The resolver selects the step by its declared
 			// product and not by a naming convention.
 			const { buildDomainChain } = await import("@haibun/core/lib/derivations/domain-chain.js");
 			const { resolveGoal } = await import("@haibun/core/lib/derivations/goal-resolver.js");
@@ -386,8 +386,8 @@ describe("examining a finished test run", () => {
 			const producers = graph.edges.filter((e) => e.to === RUN_DOMAIN.started).map((e) => e.stepName);
 			expect(producers, "both steps that start a test run produce the record").toEqual(expect.arrayContaining(["runTest", "runAllTests"]));
 			const resolved = resolveGoal(RUN_DOMAIN.started, { graph, facts: [], held: ["Instance:run"], domains });
-			expect(resolved.finding, "the resolver returns a michi to the goal").toBe(GOAL_FINDING.MICHI);
-			const steps = "michi" in resolved ? resolved.michi.flatMap((m) => m.steps.map((s) => s.stepName)) : [];
+			expect(resolved.finding, "the resolver returns a plan to the goal").toBe(GOAL_FINDING.PLAN);
+			const steps = "plans" in resolved ? resolved.plans.flatMap((m) => m.steps.map((s) => s.stepName)) : [];
 			expect(steps).toContain("runTest");
 		});
 	});

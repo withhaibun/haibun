@@ -1,5 +1,5 @@
 /**
- * Writes and reads facts: the products of steps, held in working memory. A fact's id is the record name of the step that
+ * Writes and reads facts: the products of steps, held in core's in-memory store. A fact's id is the record name of the step that
  * produced it, followed by the product's field where the step declares a domain for each field. So a step that runs again
  * replaces its fact. Each fact links its step's record through `prov:wasGeneratedBy`.
  */
@@ -29,13 +29,13 @@ export async function assertFact(store: Pick<IQuadStore, "upsertIndividual" | "c
 
 const factOf = (record: Record<string, unknown>): TFact => ({ id: String(record[FACT_FIELD.id]), domain: String(record[FACT_FIELD.domain]), value: record[FACT_FIELD.value] });
 
-/** Reads every fact working memory holds, or the facts of one domain. */
+/** Reads every fact the store holds, or the facts of one domain. */
 export async function readFacts(store: TRecordReader, domain?: string): Promise<TFact[]> {
 	const filters = domain === undefined ? [] : equalTo({ [FACT_FIELD.domain]: domain });
 	return (await readEvery(store, { label: FACT_LABEL, filters })).map(factOf);
 }
 
-/** Returns true where working memory holds a fact of a domain. */
+/** Returns true where the store holds a fact of a domain. */
 export async function holdsFactOf(store: TRecordReader, domain: string): Promise<boolean> {
 	const page = await store.readRecords(GraphQuerySchema.parse({ label: FACT_LABEL, filters: equalTo({ [FACT_FIELD.domain]: domain }), limit: 1, skipCount: true }));
 	return page.vertices.length > 0;

@@ -14,7 +14,7 @@ import { affordancesOnOffer } from "../controllers/read-controller.js";
 import { LoadController } from "../controllers/load-controller.js";
 import "./shu-refusal.js";
 import { type TEvent } from "../ports.js";
-import type { TMichi, TBinding, TFieldBinding } from "@haibun/core/lib/derivations/goal-resolver.js";
+import type { TPlan, TBinding, TFieldBinding } from "@haibun/core/lib/derivations/goal-resolver.js";
 import { GOAL_FINDING, AFFORDANCE_EVENT_PREFIX, type TWaypointEntry } from "@haibun/core/lib/domains/goal-resolution.js";
 import { isArgumentDomain, type TForwardAffordance, type TGoalAffordance, satisfiedGoalDomains } from "@haibun/core/lib/derivations/affordances.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
@@ -66,7 +66,7 @@ function snapshotOf(p: Record<string, unknown>): TAffordances {
 
 /** Human-readable label for a resolver finding. */
 function findingLabel(finding: string): string {
-	if (finding === GOAL_FINDING.MICHI) return "reachable";
+	if (finding === GOAL_FINDING.PLAN) return "reachable";
 	return finding;
 }
 
@@ -253,7 +253,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	 * arguments. After it runs and asserts its product, the resolver
 	 * sees the new fact and the next step becomes reachable through normal affordances.
 	 */
-	private startPath(path: TMichi): void {
+	private startPath(path: TPlan): void {
 		const first = path.steps[0];
 		if (!first) return;
 		this.chooseStep(stepMethodName(first.stepperName, first.stepName));
@@ -300,12 +300,12 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 				throw new Error(`shu-affordances-panel: satisfied resolution for ${g.domain} doesn't have factIds[]. Got: ${JSON.stringify(r).slice(0, 200)}.`);
 			const factsTpl = html`<div class="resolution-detail">${ALREADY_ASSERTED}${r.factIds.map((id, i) => html`${i > 0 ? ", " : ""}${unsafeHTML(factIdRef(id))}`)}</div>`;
 			// Satisfied is not terminal, render the run-again paths to produce another instance.
-			if (Array.isArray(r.michi) && r.michi.length > 0) return html`${factsTpl}${this.renderMichiSectionTpl(r.michi, r.truncated, goalIdx, true)}`;
+			if (Array.isArray(r.plans) && r.plans.length > 0) return html`${factsTpl}${this.renderPlansSectionTpl(r.plans, r.truncated, goalIdx, true)}`;
 			return factsTpl;
 		}
-		if (r.finding === GOAL_FINDING.MICHI) {
-			if (!Array.isArray(r.michi)) throw new Error(`shu-affordances-panel: michi resolution for ${g.domain} doesn't have michi[]. Got: ${JSON.stringify(r).slice(0, 200)}.`);
-			return this.renderMichiSectionTpl(r.michi, r.truncated, goalIdx, false);
+		if (r.finding === GOAL_FINDING.PLAN) {
+			if (!Array.isArray(r.plans)) throw new Error(`shu-affordances-panel: plan resolution for ${g.domain} doesn't have plans[]. Got: ${JSON.stringify(r).slice(0, 200)}.`);
+			return this.renderPlansSectionTpl(r.plans, r.truncated, goalIdx, false);
 		}
 		if (r.finding === GOAL_FINDING.UNREACHABLE) {
 			if (!Array.isArray(r.missing))
@@ -323,14 +323,14 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 	}
 
 	/** Render the run-again / run-for-the-first-time section: heading, embedded goal-graph, path cards. */
-	private renderMichiSectionTpl(michi: TMichi[], truncated: boolean, goalIdx: number, alreadySatisfied: boolean): TemplateResult {
-		const count = michi.length === 1 ? "1 way to reach this" : `${michi.length} ways to reach this`;
+	private renderPlansSectionTpl(plans: TPlan[], truncated: boolean, goalIdx: number, alreadySatisfied: boolean): TemplateResult {
+		const count = plans.length === 1 ? "1 way to reach this" : `${plans.length} ways to reach this`;
 		const truncatedNote = truncated ? " (the resolver returned the first batch; more exist)" : "";
 		const action = alreadySatisfied ? "Run again to produce another." : "Pick one to start; the first step opens in the actions bar so you can supply any inputs.";
 		return html`<div class="resolution-detail">
 			<div class="path-heading">${count}${truncatedNote}. ${action}</div>
 			<div class="goal-graph" data-testid=${goalGraphSlot(this.goalDomainAt(goalIdx))} data-goal-idx=${goalIdx}><slot name=${goalGraphSlot(this.goalDomainAt(goalIdx))}></slot></div>
-			<div class="path-list">${michi.map((m, i) => this.renderPathCardTpl(m, goalIdx, i))}</div>
+			<div class="path-list">${plans.map((m, i) => this.renderPathCardTpl(m, goalIdx, i))}</div>
 		</div>`;
 	}
 
@@ -342,7 +342,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		return domain;
 	}
 
-	private renderPathCardTpl(path: TMichi, goalIdx: number, pathIdx: number): TemplateResult {
+	private renderPathCardTpl(path: TPlan, goalIdx: number, pathIdx: number): TemplateResult {
 		if (!Array.isArray(path.steps)) throw new Error(`shu-affordances-panel: path[${pathIdx}] for goal ${goalIdx} doesn't have steps[]. Got: ${JSON.stringify(path).slice(0, 200)}`);
 		if (!Array.isArray(path.bindings))
 			throw new Error(`shu-affordances-panel: path[${pathIdx}] for goal ${goalIdx} doesn't have bindings[]. Got: ${JSON.stringify(path).slice(0, 200)}`);
@@ -439,7 +439,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		.blocked-producers code { background: transparent; padding: 0; }
 		.goal { padding: var(--shu-space-4) var(--shu-space-5); margin: var(--shu-space-2) 0; border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); background: var(--shu-bg-soft); }
 		.goal-satisfied { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-success); }
-		.goal-michi { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-info); }
+		.goal-plan { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-info); }
 		.goal-unreachable { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-error); }
 		.goal-refused { border-left: calc(var(--shu-border-w) * 4) solid var(--shu-warn); }
 		.goal-header { display: flex; justify-content: space-between; align-items: center; gap: var(--shu-space-4); width: 100%; padding: var(--shu-space-3) var(--shu-space-4); margin: calc(var(--shu-space-4) * -1) calc(var(--shu-space-5) * -1) 0; background: transparent; border: 0; cursor: pointer; font: inherit; color: inherit; text-align: left; -webkit-user-select: text; user-select: text; }
@@ -450,7 +450,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 		.goal-description { line-height: 1.3; }
 		.goal-name { font-size: var(--shu-font-xs); color: var(--shu-fg-faded); }
 		.goal-satisfied .finding { background: var(--shu-bg-success-soft); color: var(--shu-success); }
-		.goal-michi .finding { background: var(--shu-bg-info-soft); color: var(--shu-info); }
+		.goal-plan .finding { background: var(--shu-bg-info-soft); color: var(--shu-info); }
 		.goal-unreachable .finding { background: var(--shu-bg-error-soft); color: var(--shu-error); }
 		.goal-refused .finding { background: var(--shu-bg-warn-soft); color: var(--shu-warn); }
 		.finding { display: inline-block; padding: 0 var(--shu-space-3); border-radius: var(--shu-radius); font-size: var(--shu-font-sm); background: var(--shu-bg-elevated); color: var(--shu-fg-muted); }
@@ -508,7 +508,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 			<details class="explanation" data-key="explanation">
 				<summary>How this panel is computed</summary>
 				<div class="explanation-body">
-					<p>This view is a projection over the loaded steppers, registered domains, and the current working memory.</p>
+					<p>This view is a projection over the loaded steppers, registered domains, and the facts actuality holds.</p>
 					<ul>
 						<li><strong>Goals</strong> are the domains some step can produce. For each, the resolver reports one of: <em>satisfied</em> (a fact already exists), <em>reachable</em> (one or more paths exist from the current state, pick one to start), <em>unreachable</em> (a producer chain doesn't reach it), or <em>refused</em> (the resolver can't determine one without more information).</li>
 						<li>Clicking a step or <em>Start this path</em> opens the first step in the actions bar so you can supply any inputs and run it. Subsequent steps in a path become reachable through normal affordances after each step asserts its fact.</li>
@@ -576,10 +576,10 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 			const goal = this.affordances?.goals[Number(wrapper.dataset.goalIdx)];
 			if (!goal) continue;
 			const r = goal.resolution;
-			if (r.finding !== GOAL_FINDING.MICHI && r.finding !== GOAL_FINDING.SATISFIED) continue;
-			const michi = "michi" in r && Array.isArray(r.michi) ? r.michi : [];
+			if (r.finding !== GOAL_FINDING.PLAN && r.finding !== GOAL_FINDING.SATISFIED) continue;
+			const plans = "plans" in r && Array.isArray(r.plans) ? r.plans : [];
 			const factIds = r.finding === GOAL_FINDING.SATISFIED && Array.isArray(r.factIds) ? r.factIds : undefined;
-			const graph: TGraph = projectGoalPaths({ goal: goal.domain, finding: r.finding, michi, factIds });
+			const graph: TGraph = projectGoalPaths({ goal: goal.domain, finding: r.finding, plans, factIds });
 			const slot = goalGraphSlot(goal.domain);
 			this.goalGraphs.set(slot, graph);
 			const presenter = presenterIn(this, slot);

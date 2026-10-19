@@ -167,7 +167,7 @@ describe("shu-step-caller", () => {
 	});
 
 	it("renders a result's rows as one table whose columns are every row's fields, a field a row lacks an empty cell", async () => {
-		restore = siteAnswering(() => rpcAnswer({ goals: [{ goal: "issued", factIds: ["f1"] }, { goal: "revoked" }, { goal: "suspended", michi: 2 }] }, 200));
+		restore = siteAnswering(() => rpcAnswer({ goals: [{ goal: "issued", factIds: ["f1"] }, { goal: "revoked" }, { goal: "suspended", plans: 2 }] }, 200));
 		const caller = await aCaller({
 			method: "GoalStepper-showGoals",
 			stepperName: "GoalStepper",
@@ -177,7 +177,7 @@ describe("shu-step-caller", () => {
 		});
 		await called(caller, {});
 		const table = caller.shadowRoot?.querySelector("table");
-		expect([...(table?.querySelectorAll("th") ?? [])].map((th) => th.textContent)).toEqual(["goal", "factIds", "michi"]);
+		expect([...(table?.querySelectorAll("th") ?? [])].map((th) => th.textContent)).toEqual(["goal", "factIds", "plans"]);
 		expect([...(table?.querySelectorAll("tbody tr") ?? [])].map((tr) => [...tr.querySelectorAll("td")].map((td) => td.textContent))).toEqual([
 			["issued", '["f1"]', ""],
 			["revoked", "", ""],

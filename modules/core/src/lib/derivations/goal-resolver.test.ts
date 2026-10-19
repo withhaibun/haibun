@@ -44,8 +44,8 @@ describe("resolveGoal", () => {
 		expect(result.factIds).toEqual(["fact-1"]);
 		// `b` has a producer step that takes `a` as input; even though `b` is satisfied,
 		// the chain must still be runnable again.
-		expect(result.michi.length).toBeGreaterThan(0);
-		expect(itemAt(result.michi, 0).steps.map((s) => s.stepName)).toEqual(["make"]);
+		expect(result.plans.length).toBeGreaterThan(0);
+		expect(itemAt(result.plans, 0).steps.map((s) => s.stepName)).toEqual(["make"]);
 	});
 
 	it("returns satisfied with every matching fact id (multiple facts of the same goal)", () => {
@@ -63,15 +63,15 @@ describe("resolveGoal", () => {
 		if (result.finding === GOAL_FINDING.UNREACHABLE) expect(result.missing).toContain("z");
 	});
 
-	it("returns michi when a producer chain exists from current facts", () => {
+	it("returns a plan when a producer chain exists from current facts", () => {
 		const graph = singleProducerGraph("a", "b");
 		const fact: TFact = { id: "fact-1", domain: "a", value: { id: "x" } };
 		const result = resolveGoal("b", inputs(graph, [fact]));
-		expect(result.finding).toBe(GOAL_FINDING.MICHI);
-		if (result.finding === GOAL_FINDING.MICHI) {
-			expect(result.michi).toHaveLength(1);
-			expect(result.michi[0].steps.map((s) => s.stepName)).toEqual(["make"]);
-			expect(result.michi[0].bindings).toEqual([{ kind: "fact", domain: "a", factId: "fact-1" }]);
+		expect(result.finding).toBe(GOAL_FINDING.PLAN);
+		if (result.finding === GOAL_FINDING.PLAN) {
+			expect(result.plans).toHaveLength(1);
+			expect(result.plans[0].steps.map((s) => s.stepName)).toEqual(["make"]);
+			expect(result.plans[0].bindings).toEqual([{ kind: "fact", domain: "a", factId: "fact-1" }]);
 		}
 	});
 
@@ -92,9 +92,9 @@ describe("resolveGoal", () => {
 		};
 		const fact: TFact = { id: "fact-1", domain: "a", value: { id: "x" } };
 		const result = resolveGoal("b", inputs(graph, [fact]));
-		expect(result.finding).toBe(GOAL_FINDING.MICHI);
-		if (result.finding === GOAL_FINDING.MICHI) {
-			expect(result.michi.map((m) => itemAt(m.steps, 0).stepName).sort()).toEqual(["make1", "make2"]);
+		expect(result.finding).toBe(GOAL_FINDING.PLAN);
+		if (result.finding === GOAL_FINDING.PLAN) {
+			expect(result.plans.map((m) => itemAt(m.steps, 0).stepName).sort()).toEqual(["make1", "make2"]);
 		}
 	});
 
@@ -117,9 +117,9 @@ describe("resolveGoal", () => {
 			edges: [{ from: "a", to: "b", stepperName: "S", stepName: "make" }],
 		};
 		const result = resolveGoal("b", inputs(graph));
-		expect(result.finding).toBe(GOAL_FINDING.MICHI);
-		if (result.finding === GOAL_FINDING.MICHI) {
-			expect(result.michi[0].bindings).toEqual([{ kind: "argument", domain: "a" }]);
+		expect(result.finding).toBe(GOAL_FINDING.PLAN);
+		if (result.finding === GOAL_FINDING.PLAN) {
+			expect(result.plans[0].bindings).toEqual([{ kind: "argument", domain: "a" }]);
 		}
 	});
 
@@ -169,7 +169,7 @@ describe("resolveGoal", () => {
 		const graph = singleProducerGraph("a", "b", "auth:signin");
 		const fact: TFact = { id: "fact-1", domain: "a", value: { id: "x" } };
 		const result = resolveGoal("b", inputs(graph, [fact], ["auth:signin"]));
-		expect(result.finding).toBe(GOAL_FINDING.MICHI);
+		expect(result.finding).toBe(GOAL_FINDING.PLAN);
 	});
 
 	it("refuses when what the caller holds is missing entirely", () => {

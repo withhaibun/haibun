@@ -17,7 +17,7 @@ The name comes from the Japanese literary form that combines prose and haiku. In
 
 This case sensitivity rule creates self-documenting tests where prose and steps are visually distinct.
 
-**Actuality** is the live system and its results. The live system is the world (`TWorld`), its steppers and its step registry, from the Executor's first dispatched step until it ends. Its results are the record of each dispatched step, a `SeqPath` individual: the step's line, the stepper action it called, its status, its error where it failed, when it started and ended, and the read level its call ran under. The record of a step that runs under an ask names the ask. The record of a call a transport carries also holds the call's parameters and result, and the agent and the delegation that its caller names, such as the model of a turn. The messages a step logs and the products it returns are recorded against that individual. A feature states what is expected, and each of its steps passes or fails against actuality.
+**Actuality** is the live system and its results. The live system is the world (`TWorld`), its steppers and its step registry, from the Executor's first dispatched step until it ends. Its results are the record of each dispatched step, a `SeqPath` individual: the step's line, the step it called, its status, its error where it failed, when it started and ended, and the read level its call ran under. The record of a step that runs under an ask names the ask. The record of a call a transport carries also holds the call's parameters and result, and the agent and the delegation that its caller names, such as the model of a turn. The messages a step logs and the products it returns are recorded against that individual. A feature states what is expected, and each of its steps passes or fails against actuality.
 
 Much of actuality is outside a feature's control, such as the requests a page makes to third parties. Haibun includes first-order logic to provide a grounded and consistent way to reason about it (like ensuring every request in a trace meets a performance threshold) without the brittle complexity and error-prone loops of general-purpose programming.
 
@@ -130,7 +130,7 @@ Reads files from `features/` and `backgrounds/` directories (main features are s
 
 ## Phase 3: Resolver
 
-Resolution matches each line to a stepper action, building the complete execution plan before any steps run.
+Resolution matches each line to a step, building the complete execution plan before any steps run.
 
 ### Stop Word Stripping
 
@@ -445,19 +445,21 @@ them from `getConcerns` and names their keys in its step patterns.
 
 One term names each concept, and the engine, the registry, the records and the prose don't use another. The last column
 names the synonyms each term replaces; `scripts/surface.test.ts` counts each synonym in backticks as a whole word, and its
-baseline only shrinks.
+baseline only shrinks. A status or finding word is written with its quotes, so the test counts the value and not the same
+word in prose. A synonym without backticks is checked elsewhere or names another concept in this repository as well: the
+prose rules check "the run", the graph view's presenter is a view component, and the ZCAP invoker is the signer.
 
 | Concept | Term | IRI | Removed |
 | --- | --- | --- | --- |
-| the live system and its results | actuality | `prov:Activity` at the actuality level | `the run`, `execution` |
-| a level in progress or ended | running, ended | `schema:ActiveActionStatus`, `schema:CompletedActionStatus` | `pending`, `skipped` |
-| how a level ended | passed, failed, untested | `earl:passed`, `earl:failed`, `earl:untested` | `completed`, `TOutcome` |
-| how a goal ended | proved, refuted, unknown, contradiction | `earl:passed`, `earl:failed`, `earl:cantTell`, `hbn:contradiction` | `speculative`, `authoritative`, `maybe-outcome`, `satisfied`, `unreachable` |
+| the live system and its results | actuality | `prov:Activity` at the actuality level | "the run", `execution` |
+| a level in progress or ended | running, ended | `schema:ActiveActionStatus`, `schema:CompletedActionStatus` | `"pending"`, `"skipped"` |
+| how a level ended | passed, failed, untested | `earl:passed`, `earl:failed`, `earl:untested` | `"completed"`, `TOutcome` |
+| how a goal ended | proved, refuted, unknown, contradiction | `earl:passed`, `earl:failed`, `earl:cantTell`, `hbn:contradiction` | `speculative`, `"authoritative"`, `maybe-outcome`, `"satisfied"`, `"unreachable"` |
 | a rule | waypoint, with a head, a proof and an activity | `hbn:Waypoint` | `virtual step`, `declarative waypoint`, `imperative waypoint` |
 | the calls a proof leaves to make | plan | `prov:Plan` | `michi` |
 | a declared step | step, named by its method | `hbn:` and the method | `stepper action` |
 | what a capability allows | action | `allowedAction` | `granted`, `invoked` |
-| who calls | principal | `prov:Agent` | `presenter`, `invoker` |
+| who calls | principal | `prov:Agent` | presenter, invoker |
 | an asserted triple | fact | `rdf:Statement` with `prov:wasGeneratedBy` | `working memory` |
 | a call's record | record | `prov:Activity`, `SeqPath` | `step result` |
 | a written line | line | `hbn:stepText` | `step text` |

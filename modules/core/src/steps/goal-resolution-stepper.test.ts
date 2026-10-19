@@ -88,17 +88,17 @@ variable goalResolution.finding is "unreachable"`,
 		expect(result.ok).toBe(true);
 	});
 
-	it("resolve returns michi when a producer exists and each of its inputs has a binding", async () => {
+	it("resolve returns a plan when a producer exists and each of its inputs has a binding", async () => {
 		const feature = {
-			path: "/features/howto-michi.feature",
+			path: "/features/howto-plan.feature",
 			content: `set goalResolution from resolve "${DOMAIN_AUTH_SESSION}"
-variable goalResolution.finding is "michi"`,
+variable goalResolution.finding is "plan"`,
 		};
 		const result = await passWithDefaults([feature], steppers);
 		expect(result.ok).toBe(true);
 	});
 
-	it("resolve returns satisfied when a fact of the goal already exists in working memory", async () => {
+	it("resolve returns satisfied when a fact of the goal is already among the facts", async () => {
 		const feature = {
 			path: "/features/howto-satisfied.feature",
 			content: `sign in as "alice"
@@ -188,8 +188,8 @@ variable second.finding is "satisfied"`,
 			expect(result.ok).toBe(true);
 		});
 
-		it("pursue refuses when the michi has argument bindings that the caller hasn't supplied", async () => {
-			// AuthSession's producer (`sign in as {subject}`) takes a string argument that a fact doesn't supply, so a fresh world has finding=michi and pursue refuses.
+		it("pursue refuses when the plan has argument bindings that the caller hasn't supplied", async () => {
+			// AuthSession's producer (`sign in as {subject}`) takes a string argument that a fact doesn't supply, so a fresh world has finding=plan and pursue refuses.
 			const feature = { path: "/features/pursue-needs-arg.feature", content: `not pursue "${DOMAIN_AUTH_SESSION}"` };
 			const result = await passWithDefaults([feature], steppers);
 			expect(result.ok).toBe(true);
@@ -242,23 +242,23 @@ variable affordances.composites exists`,
 	});
 
 	it("resolve emits a composite binding for a goal whose only producer takes a composite input ranged over a producible domain", async () => {
-		// Composite decomposition is on by default, so the first michi's first binding is `kind: "composite"`. The resolver
+		// Composite decomposition is on by default, so the first plan's first binding is `kind: "composite"`. The resolver
 		// decomposed the input instead of flattening it into one argument.
 		const feature = {
 			path: "/features/composite-resolve.feature",
 			content: `set goalResolution from resolve "${DOMAIN_COMPOSITE_GOAL}"
-variable goalResolution.finding is "michi"
-matches \`goalResolution.michi.0.bindings.0.kind\` with "composite"`,
+variable goalResolution.finding is "plan"
+matches \`goalResolution.plans.0.bindings.0.kind\` with "composite"`,
 		};
 		const result = await passWithDefaults([feature], steppers);
 		expect(result.ok).toBe(true);
 	});
 
-	it("resolve returns michi for a non-composite goal (auth-session)", async () => {
+	it("resolve returns a plan for a non-composite goal (auth-session)", async () => {
 		const feature = {
 			path: "/features/composite-non-disruptive.feature",
 			content: `set goalResolution from resolve "${DOMAIN_AUTH_SESSION}"
-variable goalResolution.finding is "michi"`,
+variable goalResolution.finding is "plan"`,
 		};
 		const result = await passWithDefaults([feature], steppers);
 		expect(result.ok).toBe(true);

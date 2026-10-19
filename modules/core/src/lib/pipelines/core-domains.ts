@@ -19,7 +19,7 @@ import {
 	DOMAIN_CHAIN_WALK,
 	DOMAIN_DATE,
 	DOMAIN_GOAL_RESOLUTION,
-	DOMAIN_MICHI,
+	DOMAIN_PLAN,
 	DOMAIN_JSON,
 	DOMAIN_JSON_OBJECT,
 	DOMAIN_LINK,
@@ -106,11 +106,11 @@ const fieldBindingSchema: z.ZodType = z.discriminatedUnion("kind", [
 ]);
 
 /**
- * The shape of one resolved michi (path). `DOMAIN_MICHI` and the `michi` array of `DOMAIN_GOAL_RESOLUTION` both use it.
+ * The shape of one resolved plan. `DOMAIN_PLAN` and the `plans` array of `DOMAIN_GOAL_RESOLUTION` both use it.
  * The composite binding variant holds the per-field sub-bindings of one input domain. `topology.ranges` declares the
  * fields, as sh:node and rdfs:range do.
  */
-const michiSchema: z.ZodType = z
+const planSchema: z.ZodType = z
 	.object({
 		steps: z.array(z.object({ stepperName: z.string(), stepName: z.string(), gwta: z.string().optional(), productsDomain: z.string() }).strict()),
 		bindings: z.array(
@@ -125,8 +125,8 @@ const michiSchema: z.ZodType = z
 
 /** The DOMAIN_GOAL_RESOLUTION product shape holds one of the resolver's four findings. GoalResolutionStepper validates its products against this exported schema, and the domain registers the same schema. */
 export const goalResolutionSchema = z.discriminatedUnion("finding", [
-	z.object({ finding: z.literal("satisfied"), goal: z.string(), factIds: z.array(z.string()), michi: z.array(michiSchema), truncated: z.boolean() }),
-	z.object({ finding: z.literal("michi"), goal: z.string(), michi: z.array(michiSchema), truncated: z.boolean() }),
+	z.object({ finding: z.literal("satisfied"), goal: z.string(), factIds: z.array(z.string()), plans: z.array(planSchema), truncated: z.boolean() }),
+	z.object({ finding: z.literal("plan"), goal: z.string(), plans: z.array(planSchema), truncated: z.boolean() }),
 	z.object({ finding: z.literal("unreachable"), goal: z.string(), missing: z.array(z.string()) }),
 	z.object({ finding: z.literal("refused"), goal: z.string(), refusalReason: z.enum(["capability-context-required"]), detail: z.string() }),
 ]);
@@ -333,11 +333,11 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 	{ selectors: [DOMAIN_RECORD_ID], schema: recordIdInputSchema, description: "The id of a record, of the type another parameter of the same step names." },
 	{ selectors: [DOMAIN_JSON], schema: fromJsonText(z.json()), description: "A JSON value, given as its text or as the value." },
 	{ selectors: [DOMAIN_JSON_OBJECT], schema: JsonObjectTextSchema, description: "A JSON object, given as its text or as the object." },
-	{ selectors: [DOMAIN_MICHI], schema: michiSchema, description: "One path the resolver computed from working memory to a goal: its ordered steps and per-input bindings." },
+	{ selectors: [DOMAIN_PLAN], schema: planSchema, description: "One path the resolver computed from the facts to a goal: its ordered steps and per-input bindings." },
 	{
 		selectors: [DOMAIN_GOAL_RESOLUTION],
 		schema: goalResolutionSchema,
-		description: "One of the goal resolver's four findings: satisfied (existing facts and paths that produce more), michi (enumerated paths), unreachable or refused.",
+		description: "One of the goal resolver's four findings: satisfied (existing facts and paths that produce more), plan (enumerated paths), unreachable or refused.",
 	},
 	{
 		selectors: [DOMAIN_AFFORDANCES],

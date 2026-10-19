@@ -5,8 +5,8 @@ import { SECRETS } from "./shu-self-test.feature.ts";
 // The negative assertion below checks the full secret value (SECRETS.TEST_PASSWORD) and not the bare fragment
 // (SECRETS.FRAGMENT, "ISECRET"). Haibun loads every feature source at the start and includes the sources in the
 // standalone report's events. The redaction pass replaces each occurrence of each secret value with OBSCURED_VALUE in
-// the report's payload, so it also redacts the full value in this assertion's own step text. The bare fragment would
-// stay in that step text, and the check would fail although the secret didn't leak. A leak shows the full value, so
+// the report's payload, so it also redacts the full value in this assertion's own line. The bare fragment would
+// stay in that line, and the check would fail although the secret didn't leak. A leak shows the full value, so
 // the full value is the string to check.
 export const features: TKirejiExport = {
 	"Verify Shu Standalone Output Doesn't Hold Secrets": [

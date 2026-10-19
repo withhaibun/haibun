@@ -34,14 +34,14 @@ export async function advanceChainInstance(ctx: TChainWalkerContext, instanceId:
 	const acting = actingAs();
 	if (inst.owner !== acting) throw new Error(`chain instance ${instanceId} was begun by ${inst.owner ?? "an unnamed caller"}, and ${acting ?? "an unnamed caller"} is acting`);
 
-	if (inst.stepIndex >= inst.michi.steps.length) {
+	if (inst.stepIndex >= inst.plan.steps.length) {
 		if (inst.status !== CHAIN_INSTANCE_STATUS.COMPLETED) {
 			await updateChainInstance(world, inst.id, { status: CHAIN_INSTANCE_STATUS.COMPLETED });
 		}
 		return { kind: "completed", instance: { ...inst, status: CHAIN_INSTANCE_STATUS.COMPLETED } };
 	}
 
-	const step = itemAt(inst.michi.steps, inst.stepIndex);
+	const step = itemAt(inst.plan.steps, inst.stepIndex);
 	const method = stepMethodName(step.stepperName, step.stepName);
 	// What a step is given is held to what that step declares it takes, and coerced by the domains it names, exactly as
 	// for a caller reaching it over the wire. A walk that could hand a step anything would be a way past the validation
@@ -70,7 +70,7 @@ export async function advanceChainInstance(ctx: TChainWalkerContext, instanceId:
 	const factId = factIdOf({ execution: executionOf(world.tag), path: seqPath });
 	const nextFactIds = inst.stepFactIds.map((existing, i) => (i === inst.stepIndex ? [...existing, factId] : existing));
 	const nextStepIndex = inst.stepIndex + 1;
-	const nextStatus = nextStepIndex >= inst.michi.steps.length ? CHAIN_INSTANCE_STATUS.COMPLETED : CHAIN_INSTANCE_STATUS.PENDING;
+	const nextStatus = nextStepIndex >= inst.plan.steps.length ? CHAIN_INSTANCE_STATUS.COMPLETED : CHAIN_INSTANCE_STATUS.PENDING;
 	await updateChainInstance(world, inst.id, { stepIndex: nextStepIndex, status: nextStatus, stepFactIds: nextFactIds, stepArgs: nextArgs });
 	const advanced: TChainInstance = { ...inst, stepIndex: nextStepIndex, status: nextStatus, stepFactIds: nextFactIds, stepArgs: nextArgs };
 	if (nextStatus === CHAIN_INSTANCE_STATUS.COMPLETED) return { kind: "completed", instance: advanced };

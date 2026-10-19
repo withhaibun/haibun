@@ -1,6 +1,6 @@
 /**
  * The ports of the step infrastructure: the events hub and the sinks it writes through, the secrets it obscures, and the
- * store of quads that working memory and the backing stores implement.
+ * store of quads that core's in-memory store and the backing stores implement.
  */
 import type { THaibunEvent, TArtifactEvent, THaibunLogLevel, TEventKind } from "../domains/protocol.js";
 import type { TAccessBound } from "../domains/actions.js";
@@ -45,7 +45,7 @@ export interface IEventLogger {
  *  copy of what a site served, which was bounded where it was served. */
 export type TStoreLevels = { bound: () => TAccessBound; writeBound: () => TAccessBound; declared: (label: string) => AccessLevel | undefined };
 
-/** A store of quads: working memory, a backing store with a query engine, a page's copy of what a site served, or another
+/** A store of quads: core's in-memory store, a backing store with a query engine, a page's copy of what a site served, or another
  *  instance's store. Every method is async, so an in-memory store and a store with a database implement one port. */
 export interface IQuadStore {
 	/** True for a store that another instance serves (RemoteQuadStore). A read scoped `"own"` reads what this instance is

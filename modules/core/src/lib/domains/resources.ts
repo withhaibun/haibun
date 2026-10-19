@@ -687,7 +687,7 @@ export type THypermediaTopology = {
 	accessLevel: AccessLevel;
 	/**
 	 * Where core holds the records of a type that core writes or derives. A backing store registers each persisted type
-	 * that doesn't state `heldBy`. `working memory` states that core's in-memory store holds the records. `declarations`
+	 * that doesn't state `heldBy`. `in-memory store` states that core's in-memory store holds the records. `declarations`
 	 * states that core derives the records from the declarations and rejects a write.
 	 */
 	heldBy?: THeldBy;
@@ -716,7 +716,7 @@ export type THypermediaTopology = {
 };
 
 /** Where core holds the records of a type that core writes or derives (`THypermediaTopology.heldBy`). */
-export const HELD_BY = { workingMemory: "working memory", declarations: "declarations" } as const;
+export const HELD_BY = { inMemoryStore: "in-memory store", declarations: "declarations" } as const;
 export type THeldBy = (typeof HELD_BY)[keyof typeof HELD_BY];
 
 /** A call each record of a type offers: the step's method, the parameter that takes the record, and what the call does. */

@@ -2,7 +2,7 @@
 
 This document describes a plan to add a reasoner to haibun and a surface for stating logical claims and rules in feature prose. The reasoner derives conclusions from those claims. It reports the proof of each conclusion. The plan uses the terms of First-Order Logic. The typed-data side follows the Description Logic family more closely. RDF Schema, OWL and JSON-LD's `@context` build on Description Logic.
 
-The reasoner reads input from two sources. The first is typed-data documents such as JSON-LD. Their triples enter working memory as facts. The second is the step prose that authors write in feature files. The same prose declares predicates and rules, asserts facts, requests proofs and reads the results.
+The reasoner reads input from two sources. The first is typed-data documents such as JSON-LD. Their triples enter the fact store as facts. The second is the step prose that authors write in feature files. The same prose declares predicates and rules, asserts facts, requests proofs and reads the results.
 
 Most applications have three separate artifacts: a specification, an implementation and a test suite. The lines of a logical description serve as all three. The lines that state what holds are the lines the reasoner checks for truth. The reasoner that runs the application is the same one that derives its conclusions. The same description provides the instructions a person follows to use the system, the explanation of a particular result, and the criterion the tests check.
 
@@ -20,7 +20,7 @@ A **predicate** is a named relationship with typed parts. `signed_by(VerifiableC
 
 A **variable** stands for any individual: `x`, `y`. In haibun a variable is a step placeholder `{x}`. A variable lets one statement apply to every individual without naming each one.
 
-The set of asserted facts is the **ABox** (assertion box, from Description Logic). In haibun it is the working memory stored in `FACT_GRAPH`.
+The set of asserted facts is the **ABox** (assertion box, from Description Logic). In haibun it is the fact store in `FACT_GRAPH`.
 
 The declared vocabulary is the **TBox** (terminological box) or *signature*. It contains the domains, predicates and rules. Haibun doesn't have its own term for the whole TBox. The closest published form is the `ConcernCatalog`. A definition-detail result of the show steps step holds the catalog's matching concerns.
 
@@ -48,7 +48,7 @@ A step's line determines its logical role:
 
 A query step's truth value is whether the fact holds. An `ensure` step's truth value is whether the goal is provable. A `not` step's truth value is the inverse of its inner result. Every step receives a `seqPath`. Every fact a step asserts carries that `seqPath` as provenance.
 
-Sources other than authored steps add triples to working memory. Triples can be read in bulk from typed-data sources: a JSON-LD document under the predicates its `@context` declares, a hypermedia response under predicates that name its links and attributes, an HTTP observation stream as one triple per request. The dispatcher asserts a step's retained products as facts under the step's `productsDomain` or `productsDomains`. `FACT_GRAPH` stores all the resulting triples. Any rule can query them.
+Sources other than authored steps add triples to the fact store. Triples can be read in bulk from typed-data sources: a JSON-LD document under the predicates its `@context` declares, a hypermedia response under predicates that name its links and attributes, an HTTP observation stream as one triple per request. The dispatcher asserts a step's retained products as facts under the step's `productsDomain` or `productsDomains`. `FACT_GRAPH` stores all the resulting triples. Any rule can query them.
 
 ## The signature in feature prose
 
@@ -70,7 +70,7 @@ Activity: Get a meal ready
 waypoint {m:meal} is "ready" with {m} is "cooked" and {m} is "plated"
 ```
 
-This rule reads as `Ready(m) ← Cooked(m) ∧ Plated(m)` for any `m` of domain `meal`. The reasoner runs the activity body when the proof fails. The body's steps add facts to working memory. The reasoner rechecks the proof after those steps.
+This rule reads as `Ready(m) ← Cooked(m) ∧ Plated(m)` for any `m` of domain `meal`. The reasoner runs the activity body when the proof fails. The body's steps add facts to the fact store. The reasoner rechecks the proof after those steps.
 
 A universal rule is declared with `for every {x:D} where {body}, {head}`:
 
@@ -91,7 +91,7 @@ fact dinner is "ready"
 not fact dinner is "raw"
 ```
 
-Each fact carries its provenance as a quad property: the `seqPath` of the step that asserted it, the rule (if any) whose firing derived it, the parent goal (if any) that led to that derivation. A proof tree can be rebuilt from working memory.
+Each fact carries its provenance as a quad property: the `seqPath` of the step that asserted it, the rule (if any) whose firing derived it, the parent goal (if any) that led to that derivation. A proof tree can be rebuilt from the fact store.
 
 ## Goals and proofs
 
@@ -240,7 +240,7 @@ ensure dinner is "ready"
 fact dinner is "ready"
 ```
 
-`is(dinner, ready)` unifies with the waypoint head and binds `m ↦ dinner`. The sub-goal `is(dinner, cooked)` is in working memory. The sub-goal `is(dinner, plated)` isn't in working memory. A rule head doesn't match it either. The activity body runs and asserts it. The second check passes.
+`is(dinner, ready)` unifies with the waypoint head and binds `m ↦ dinner`. The sub-goal `is(dinner, cooked)` is in the fact store. The sub-goal `is(dinner, plated)` isn't in the fact store. A rule head doesn't match it either. The activity body runs and asserts it. The second check passes.
 
 ```
 is(dinner, ready)
@@ -315,4 +315,4 @@ How do existing `productsDomain` declarations migrate? The proposal is to derive
 
 ## Summary
 
-The plan has five parts. A signature declares domains, predicates and rules. A working memory holds per-subject facts. A reasoner runs in both directions. A proof tree records why each conclusion holds. A hypermedia surface publishes the signature to every client. Feature authors write all of it in haibun's step prose.
+The plan has five parts. A signature declares domains, predicates and rules. A fact store holds per-subject facts. A reasoner runs in both directions. A proof tree records why each conclusion holds. A hypermedia surface publishes the signature to every client. Feature authors write all of it in haibun's step prose.

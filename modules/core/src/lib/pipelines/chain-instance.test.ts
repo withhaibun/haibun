@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { getDefaultWorld } from "../test/lib.js";
 import type { TWorld } from "../actuality/domains/world.js";
-import type { TMichi } from "../derivations/goal-resolver.js";
+import type { TPlan } from "../derivations/goal-resolver.js";
 import {
 	CHAIN_INSTANCE_GRAPH,
 	CHAIN_INSTANCE_STATUS,
@@ -12,7 +12,7 @@ import {
 	updateChainInstance,
 } from "./chain-instance.js";
 
-const sampleMichi: TMichi = {
+const samplePlan: TPlan = {
 	steps: [
 		{ stepperName: "Issue", stepName: "issuePermit", gwta: "issue permit", productsDomain: "permit" },
 		{ stepperName: "Verify", stepName: "verifyPermit", gwta: "verify permit", productsDomain: "verified-permit" },
@@ -27,10 +27,10 @@ describe("chain-instance", () => {
 	});
 
 	it("seeds a new instance with one quad per declared predicate and returns the assembled value", async () => {
-		const inst = await createChainInstance(world, "permit-verified", sampleMichi);
+		const inst = await createChainInstance(world, "permit-verified", samplePlan);
 		expect(inst.id).toMatch(/^ci_/);
 		expect(inst.goal).toBe("permit-verified");
-		expect(inst.michi.steps).toHaveLength(2);
+		expect(inst.plan.steps).toHaveLength(2);
 		expect(inst.stepIndex).toBe(0);
 		expect(inst.status).toBe(CHAIN_INSTANCE_STATUS.PENDING);
 		expect(inst.stepArgs).toEqual([{}, {}]);
@@ -40,11 +40,11 @@ describe("chain-instance", () => {
 	});
 
 	it("reads an instance back from the quad store", async () => {
-		const created = await createChainInstance(world, "permit-verified", sampleMichi);
+		const created = await createChainInstance(world, "permit-verified", samplePlan);
 		const loaded = await getChainInstance(world, created.id);
 		expect(loaded).toBeDefined();
 		expect(loaded?.goal).toBe("permit-verified");
-		expect(loaded?.michi.steps[0]?.stepperName).toBe("Issue");
+		expect(loaded?.plan.steps[0]?.stepperName).toBe("Issue");
 	});
 
 	it("getChainInstance returns undefined for an unknown id (it doesn't throw)", async () => {
@@ -53,7 +53,7 @@ describe("chain-instance", () => {
 	});
 
 	it("updateChainInstance only writes the supplied predicates and refreshes updatedAt", async () => {
-		const inst = await createChainInstance(world, "permit-verified", sampleMichi);
+		const inst = await createChainInstance(world, "permit-verified", samplePlan);
 		const before = inst.updatedAt;
 		await new Promise((r) => setTimeout(r, 5));
 		await updateChainInstance(world, inst.id, { stepIndex: 1, status: CHAIN_INSTANCE_STATUS.RUNNING, stepFactIds: [["chain/ci_x/0"], []] });
@@ -66,15 +66,15 @@ describe("chain-instance", () => {
 	});
 
 	it("listChainInstances returns every instance the store carries", async () => {
-		const a = await createChainInstance(world, "goal-a", sampleMichi);
-		const b = await createChainInstance(world, "goal-b", sampleMichi);
+		const a = await createChainInstance(world, "goal-a", samplePlan);
+		const b = await createChainInstance(world, "goal-b", samplePlan);
 		const all = await listChainInstances(world);
 		const ids = all.map((i) => i.id).sort();
 		expect(ids).toEqual([a.id, b.id].sort());
 	});
 
 	it("deleteChainInstance removes every predicate for that instance", async () => {
-		const inst = await createChainInstance(world, "permit-verified", sampleMichi);
+		const inst = await createChainInstance(world, "permit-verified", samplePlan);
 		await deleteChainInstance(world, inst.id);
 		const remaining = await world.shared.getStore().query({ namedGraph: CHAIN_INSTANCE_GRAPH, subject: inst.id });
 		expect(remaining).toEqual([]);

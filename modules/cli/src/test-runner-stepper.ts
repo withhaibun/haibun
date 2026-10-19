@@ -262,7 +262,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			capability: SUPERVISOR_CAPABILITIES.run,
 			description:
 				"Start a test run of the named features. The products name it and the id of its execution's record, which the supervisor writes from the test run's moves, so later findings can reference it. One test run at a time: a start while a test run is in flight is refused with the id of that test run. Features that ran against the present state of their dependencies don't run again until a dependency changes or a caller notes a change.",
-			// The products are the started test run, so `run-started` is a goal. Resolving it selects this step as a michi,
+			// The products are the started test run, so `run-started` is a goal. Resolving it selects this step as a plan,
 			// so the resolver offers starting a test run as a step.
 			productsDomain: RUN_DOMAIN.started,
 			action: async ({ where, filter }: { where: string; filter: string }) => await this.askedToRun(where, filter),

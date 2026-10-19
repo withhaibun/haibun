@@ -4,7 +4,7 @@
  */
 import type { TFeatureStep } from "../steps/domains/stepper.js";
 
-export const GOAL_FINDING = { SATISFIED: "satisfied", MICHI: "michi", UNREACHABLE: "unreachable", REFUSED: "refused" } as const;
+export const GOAL_FINDING = { SATISFIED: "satisfied", PLAN: "plan", UNREACHABLE: "unreachable", REFUSED: "refused" } as const;
 
 /** The event-id prefix of the `affordances.<seqPath>` change signal. The goal-resolution stepper emits it in afterStep for
  *  each step that isn't a read or a projection. SPA views filter the event stream on it and re-fetch the affordances

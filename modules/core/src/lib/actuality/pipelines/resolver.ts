@@ -227,7 +227,7 @@ export class Resolver {
 	}
 
 	getFeatureStep(featureLine: TExpandedLine, seq: number, action: TStepAction): TFeatureStep {
-		// A virtual step uses its own source location when it has one. A waypoint is a virtual step.
+		// A waypoint's step uses its own source location when it has one.
 		const step = action.step;
 		const lineNumber = step?.source?.lineNumber ?? featureLine.lineNumber;
 		const path = step?.source?.path ?? featureLine.feature.base + featureLine.feature.path;

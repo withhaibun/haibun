@@ -15,7 +15,7 @@ export const features: TKirejiExport = {
 		"set snapshot from show var source",
 		'variable snapshot.value is "value"',
 
-		scenario({ scenario: "A step's products enter working memory as a fact of its domain" }),
+		scenario({ scenario: "A step's products enter the store as a fact of its domain" }),
 		"Essential, for goals and proofs. Source: step-dispatch.ts:261.",
 		"show var source",
 		'set found from resolve "var-snapshot"',

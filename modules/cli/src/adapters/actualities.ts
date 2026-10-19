@@ -24,7 +24,7 @@ import type { TLevelRecords } from "@haibun/core/lib/actuality/pipelines/move-ac
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 
 /** How a group ran, as the file stores it: every feature passed, or one didn't. */
-export type TOutcome = typeof RECORDED_STATUS.completed | typeof RECORDED_STATUS.failed;
+export type TGroupEnded = typeof RECORDED_STATUS.completed | typeof RECORDED_STATUS.failed;
 
 /** A level's record as the file holds it: its line without the instants it began and ended, its duration in tenths of a
  *  second, so two actualities whose durations round to the same tenth write the same line. */
@@ -137,7 +137,7 @@ function writeActualities(file: string, actualities: TActualityFile): void {
 
 /** Returns the outcome of the group's last actuality under these conditions on this machine against its present state, or
  *  undefined where the file doesn't hold that actuality. */
-export function outcomeAgainst(v: TVerification): TOutcome | undefined {
+export function outcomeAgainst(v: TVerification): TGroupEnded | undefined {
 	const held = readActualities(v.file)[v.machine]?.[v.conditions];
 	const status = held?.state === v.state ? held.execution.status : undefined;
 	return status === RECORDED_STATUS.completed || status === RECORDED_STATUS.failed ? status : undefined;
@@ -152,7 +152,7 @@ function levelLine(record: Record<string, unknown>) {
 }
 
 /** Returns an actuality's entry: the state it read, and the lines of its execution's record and of each feature's record by
- *  its path, with the feature's step count and declared step text hash from its result. The execution's line states its
+ *  its path, with the feature's step count and the hash of its declared lines from its result. The execution's line states its
  *  bases relative to the repository's top in place of the bases its caller named. */
 function entryOf(v: TVerification, result: TExecutorResult, levels: TLevelRecords): TActualityEntry {
 	const records = [...levels.values()];
@@ -208,7 +208,7 @@ const CHANGED_FRACTION = 0.2;
 const CHANGED_MS = 1000;
 
 /** A feature whose duration differs from the recorded actuality, in seconds. declaredStepsChanged is true where the hash of its
- *  declared step text differs from the recorded hash. */
+ *  declared lines differ from the recorded hash. */
 type TVariance = { feature: string; seconds: number; was: number; steps: number; wasSteps: number; declaredStepsChanged: boolean };
 
 /** Returns the features whose durations differ from the recorded actuality by at least CHANGED_FRACTION of the recorded duration
