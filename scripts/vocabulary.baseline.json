@@ -548,14 +548,10 @@
 		"names actuality as execution": 3
 	},
 	"modules/logic/src/pipelines/prove.ts": {
-		"names actuality as execution": 1,
-		"names passed, failed, untested as completed": 1
+		"names actuality as execution": 1
 	},
 	"modules/logic/src/pipelines/registry-reads.ts": {
 		"names actuality as execution": 4
-	},
-	"modules/logic/src/ports.ts": {
-		"names passed, failed, untested as completed": 2
 	},
 	"modules/lsp/src/pipelines/language-server.test.ts": {
 		"names actuality as execution": 1

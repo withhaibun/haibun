@@ -1,6 +1,6 @@
 /**
  * The engine's program in its runtime: it consults with autoload off, it negates only through naf/2, and the proofs of two
- * lines hold their outcomes apart, so they interleave at each effect.
+ * lines are held apart, so they interleave at each effect.
  */
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
@@ -13,19 +13,16 @@ describe("the engine's program", () => {
 		expect(bare).toEqual([]);
 	});
 
-	it("consults with autoload off, and holds the outcomes of two lines apart while both proofs are open", async () => {
+	it("consults with autoload off, and holds two lines' proofs apart while both are open", async () => {
 		const engine = await startSwipl();
-		expect(engine.attempt("first", "call(n1)")).toMatchObject({ need: "call", path: [] });
-		expect(engine.attempt("second", "not(n1, [call(n2)])")).toMatchObject({ need: "open", path: [] });
-		engine.record("second", "open", [], "opened");
-		expect(engine.attempt("second", "not(n1, [call(n2)])")).toMatchObject({ need: "call", path: [1] });
-		engine.record("first", "call", [], "passed");
-		expect(engine.attempt("first", "call(n1)")).toMatchObject({ verdict: "proved" });
-		engine.record("second", "call", [1], "failed");
-		engine.record("second", "close", [], "closed");
-		expect(engine.attempt("second", "not(n1, [call(n2)])")).toMatchObject({ verdict: "proved", proof: { reading: "not", parts: [{ verdict: "refuted" }] } });
+		expect(engine.prove("first", "call(n1)")).toMatchObject({ need: "call", path: [] });
+		expect(engine.prove("second", "not(n1, [call(n2)])")).toMatchObject({ need: "open", path: [] });
+		expect(engine.resume("second", "opened")).toMatchObject({ need: "call", path: [1] });
+		expect(engine.resume("first", "passed")).toEqual({ verdict: "proved" });
+		expect(engine.resume("second", "failed")).toMatchObject({ need: "close", request: { verdict: "proved", why: "none" } });
+		expect(engine.resume("second", "closed")).toEqual({ verdict: "proved" });
 		engine.forget("first");
 		engine.forget("second");
-		expect(engine.attempt("first", "call(n1)"), "a line's outcomes go once its proof completes").toMatchObject({ need: "call" });
+		expect(() => engine.resume("first", "passed"), "a line's proof goes once it completes").toThrow(/engine/);
 	});
 });

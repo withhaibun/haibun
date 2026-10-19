@@ -1,10 +1,9 @@
 /**
  * Proves a step through the logic engine. A line's term is the formula its step reads as: a built-in call, or a reading
- * over the terms of the statements it states. Each query evaluates the term against the effects performed so far for the
- * line. Where the proof reaches an effect without its outcome, this pipeline performs the effect, records its outcome in the
- * engine and queries again: a built-in call through step dispatch, the opening and closing of a node's record, a
- * quantifier's members, a waypoint's arguments and rule, and a wait of until. A built-in runs once for its position in the
- * proof, which fixes its step, its arguments and the capability it runs under, and a query again reads its recorded outcome.
+ * over the terms of the statements it states. One query starts the line's proof. Where the proof reaches an effect, this
+ * pipeline performs the effect and resumes the proof with its outcome: a built-in call through step dispatch, the opening
+ * and closing of a node's record, a quantifier's members, a waypoint's arguments and rule, and a wait of until. A built-in
+ * runs once for its position in the proof, which fixes its step, its arguments and the capability it runs under.
  */
 import type { DispatchContext } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
 import { dispatchStep } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
@@ -15,7 +14,7 @@ import { VERDICT, type TActionResult, type TStepResult } from "@haibun/core/lib/
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { hasCycles, READING, type TCallContext, type TFeatureStep, type TStepperStep } from "@haibun/core/lib/steps/domains/stepper.js";
 import type { TStepInput } from "@haibun/core/lib/actuality/domains/execution.js";
-import { CALL_OUTCOME, EFFECT, type TAttempt, type TBinding, type TCloseRequest, type TNodeRequest } from "../domains/logic.js";
+import { CALL_OUTCOME, EFFECT, type TProofState, type TBinding, type TCloseRequest, type TNodeRequest } from "../domains/logic.js";
 import { quantifierOf, alternativesOf, statementParams, UNTIL_RETRY_MS, type TQuantifier } from "../domains/readings.js";
 import { atom, list, whyText } from "../derivations/terms.js";
 import type { TLogicEngine } from "../ports.js";
@@ -32,6 +31,8 @@ class Proof {
 	private readonly nodes = new Map<string, TNode>();
 	private readonly rules = new Map<string, TStepperStep>();
 	private readonly results = new Map<string, TStepResult>();
+	/** The products of the last result under each position, where that result holds products. */
+	private readonly productsUnder = new Map<string, Record<string, unknown>>();
 	private readonly opened = new Map<string, TOpened>();
 	private readonly contexts = new Map<string, TCallContext>();
 	private readonly metrics = new Map<string, Record<string, Record<string, unknown>>>();
@@ -131,7 +132,7 @@ class Proof {
 	}
 
 	/** Performs the effect a query needs, and returns its outcome as the engine reads it. */
-	async perform(need: Extract<TAttempt, { need: string }>): Promise<string> {
+	async perform(need: Extract<TProofState, { need: string }>): Promise<string> {
 		const { path, request } = need;
 		if (need.need === EFFECT.call) return await this.call(path, request as TNodeRequest);
 		if (need.need === EFFECT.open) return await this.open(path, request as TNodeRequest);
@@ -155,13 +156,23 @@ class Proof {
 	 *  reports a refused call. */
 	private refused(path: readonly number[], step: TFeatureStep, caught: unknown): string {
 		if (path.length === 0) throw caught;
-		this.results.set(keyOf(path), { ok: false, errorMessage: errorDetail(caught), name: step.action.actionName, in: step.in, seqPath: step.seqPath, verdict: VERDICT.unknown });
+		this.hold(path, { ok: false, errorMessage: errorDetail(caught), name: step.action.actionName, in: step.in, seqPath: step.seqPath, verdict: VERDICT.unknown });
 		return CALL_OUTCOME.refused;
 	}
 
 	private held(path: readonly number[], result: TStepResult): string {
-		this.results.set(keyOf(path), result);
+		this.hold(path, result);
 		return result.ok ? CALL_OUTCOME.passed : CALL_OUTCOME.failed;
+	}
+
+	/** Holds a result at its position, and its products as the last products under each position above it. */
+	private hold(path: readonly number[], result: TStepResult): void {
+		this.results.set(keyOf(path), result);
+		for (let depth = 0; depth < path.length; depth++) {
+			const above = keyOf(path.slice(0, depth));
+			if (result.products === undefined) this.productsUnder.delete(above);
+			else this.productsUnder.set(above, result.products);
+		}
 	}
 
 	private async open(path: number[], request: TNodeRequest): Promise<string> {
@@ -183,7 +194,7 @@ class Proof {
 			return this.refused(path, step, caught);
 		}
 		if (first === "ended" || "refused" in opening) {
-			this.results.set(keyOf(path), await dispatched);
+			this.hold(path, await dispatched);
 			return CALL_OUTCOME.refused;
 		}
 		this.contexts.set(keyOf(path), opening.context);
@@ -204,21 +215,14 @@ class Proof {
 	private async close(path: number[], request: TCloseRequest): Promise<string> {
 		const opened = this.opened.get(keyOf(path));
 		if (opened === undefined) throw new Error(`the engine closed the node at ${keyOf(path)} of "${this.line.in}", which it didn't open`);
-		const products = this.lastProductsUnder(path);
+		const products = this.productsUnder.get(keyOf(path));
 		opened.close(
 			request.verdict === VERDICT.proved
 				? { ok: true, verdict: request.verdict, ...(products === undefined ? {} : { products }) }
 				: { ok: false, verdict: request.verdict, errorMessage: this.why(request) },
 		);
-		this.results.set(keyOf(path), await opened.dispatched);
+		this.hold(path, await opened.dispatched);
 		return "closed";
-	}
-
-	/** The products of the last call under a position: a node that opens a context returns its statement's products. */
-	private lastProductsUnder(path: readonly number[]): Record<string, unknown> | undefined {
-		const prefix = `${keyOf(path)}.`;
-		const under = [...this.results].filter(([key]) => (path.length === 0 ? key !== "" : key.startsWith(prefix)));
-		return under.at(-1)?.[1].products;
 	}
 
 	/** Why a node's verdict isn't proved: the part that determined it, with that part's own reason, or the reason the engine states. */
@@ -289,7 +293,7 @@ class Proof {
 	/** The line's result: the result of its own call, or of its node. */
 	result(): TStepResult {
 		const result = this.results.get("");
-		if (result === undefined) throw new Error(`the proof of "${this.line.in}" completed without the line's result`);
+		if (result === undefined) throw new Error(`the proof of "${this.line.in}" ended without the line's result`);
 		return result;
 	}
 }
@@ -300,7 +304,7 @@ function statementsOf(value: unknown, step: TFeatureStep): TFeatureStep[] {
 	return value as TFeatureStep[];
 }
 
-/** The prover of an engine. Each proof's outcomes are held in the engine under an id of its own until the proof completes. */
+/** The prover of an engine. The engine holds each open proof under an id of its own until the proof completes. */
 export function proverOf(engine: TLogicEngine): TProver {
 	let proofs = 0;
 	return {
@@ -317,11 +321,9 @@ export function proverOf(engine: TLogicEngine): TProver {
 					// so a call its caller may not make returns only its refusal.
 					return await dispatchStep(ctx, line, () => Promise.resolve({ ok: false, errorMessage: errorDetail(caught), verdict: VERDICT.unknown }));
 				}
-				for (;;) {
-					const attempt = engine.attempt(top, term);
-					if ("verdict" in attempt) return proof.result();
-					engine.record(top, attempt.need, attempt.path, await proof.perform(attempt));
-				}
+				let outcome = engine.prove(top, term);
+				while ("need" in outcome) outcome = engine.resume(top, await proof.perform(outcome));
+				return proof.result();
 			} finally {
 				engine.forget(top);
 			}

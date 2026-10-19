@@ -1,16 +1,16 @@
 /**
- * The logic engine's port: one query of a line's proof, the outcome of an effect the proof needed, the removal of a line's
- * outcomes once its proof completed, and a proof's export as N3.
+ * The logic engine's port: the query that starts a line's proof, the query that resumes it with the outcome of the effect
+ * it needed, the removal of what the engine holds for a line, and a line's proof as N3.
  */
-import type { TAttempt } from "./domains/logic.js";
+import type { TProofState } from "./domains/logic.js";
 
 export type TLogicEngine = {
-	/** Evaluates the term of a line against the outcomes recorded for it. Returns its verdict and proof, or the effect it needs. */
-	attempt: (top: string, term: string) => TAttempt;
-	/** Records the outcome of an effect at a position of a line's proof. */
-	record: (top: string, kind: string, path: readonly number[], outcome: string) => void;
-	/** Removes the outcomes of a line whose proof completed. */
+	/** Starts the proof of a line's term. Returns its verdict, or the effect it needs. */
+	prove: (top: string, term: string) => TProofState;
+	/** Resumes a line's proof with the outcome of the effect it needed. Returns its verdict, or the next effect it needs. */
+	resume: (top: string, outcome: string) => TProofState;
+	/** Removes what the engine holds for a line once its proof ended. */
 	forget: (top: string) => void;
-	/** A proof as N3: each proved call as a fact, and each node as the rules of its reading, under a namespace. */
-	n3: (namespace: string, proofTerm: string) => string;
+	/** A line's proof as N3, under a namespace: each proved call as a fact, and each node as the rules of its reading. */
+	n3: (namespace: string, top: string) => string;
 };

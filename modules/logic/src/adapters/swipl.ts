@@ -1,12 +1,13 @@
 /**
  * The logic engine's adapter: one SWI-Prolog runtime through swipl-wasm 8.2.3, which consults the engine's program once.
  * The runtime starts with autoload off, so a library the program calls without importing it fails at consult. Each query
- * runs to completion without awaiting, so the proofs of several callers interleave at each effect.
+ * runs until the proof completes or reaches an effect, without awaiting, so the proofs of several callers interleave at each
+ * effect.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import SWIPL from "swipl-wasm";
-import { AttemptSchema } from "../domains/logic.js";
+import { ProofStateSchema } from "../domains/logic.js";
 import type { TLogicEngine } from "../ports.js";
 
 /** The program's file in the runtime's file system. */
@@ -28,13 +29,11 @@ export async function startSwipl(): Promise<TLogicEngine> {
 	runtime.FS.writeFile(PROGRAM, readFileSync(join(import.meta.dirname, PROGRAM), "utf8"));
 	once(runtime, `consult('${PROGRAM}')`);
 	return {
-		attempt: (top, term) => AttemptSchema.parse(once(runtime, "haibun:attempt(Top, Term, Outcome)", { Top: top, Term: term }).Outcome),
-		record: (top, kind, path, outcome) => {
-			once(runtime, "haibun:record(Top, Kind, Path, Outcome)", { Top: top, Kind: kind, Path: [...path], Outcome: outcome });
-		},
+		prove: (top, term) => ProofStateSchema.parse(once(runtime, "haibun:prove(Top, Term, Outcome)", { Top: top, Term: term }).Outcome),
+		resume: (top, outcome) => ProofStateSchema.parse(once(runtime, "haibun:resume(Top, Outcome, Next)", { Top: top, Outcome: outcome }).Next),
 		forget: (top) => {
 			once(runtime, "haibun:forget(Top)", { Top: top });
 		},
-		n3: (namespace, proofTerm) => String(once(runtime, "haibun:n3_export(Namespace, Proof, Text)", { Namespace: namespace, Proof: proofTerm }).Text),
+		n3: (namespace, top) => String(once(runtime, "haibun:n3_export(Namespace, Top, Text)", { Namespace: namespace, Top: top }).Text),
 	};
 }

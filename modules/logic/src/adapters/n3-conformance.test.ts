@@ -6,7 +6,8 @@
 import { readFileSync } from "node:fs";
 import SWIPL from "swipl-wasm";
 import { beforeAll, describe, expect, it } from "vitest";
-import { PROOF_NAMESPACE, type TProofPart } from "../domains/logic.js";
+import { VERDICT } from "@haibun/core/lib/domains/protocol.js";
+import { EFFECT, PROOF_NAMESPACE } from "../domains/logic.js";
 import type { TLogicEngine } from "../ports.js";
 import { startSwipl } from "./swipl.js";
 
@@ -29,35 +30,28 @@ async function eyeDerives(n3: string): Promise<string[]> {
 		.filter((line) => line.includes(`${PROOF_NAMESPACE}is>`));
 }
 
-/** Proves a term with the outcome each call position states, as the pipeline performs effects. */
-function proved(engine: TLogicEngine, top: string, term: string, calls: Record<string, string>): { proof: TProofPart; term: string } {
-	for (;;) {
-		const attempt = engine.attempt(top, term);
-		if ("verdict" in attempt) {
-			engine.forget(top);
-			return attempt;
-		}
-		const outcome = {
-			call: calls[attempt.path.join(".")],
-			open: "opened",
-			close: "closed",
-			members: "members(['a', 'b'])",
-			args: "args([])",
-			rule: "rule([call(n3)], [call(n4)])",
-		}[attempt.need];
-		if (outcome === undefined) throw new Error(`the test doesn't state the outcome of ${attempt.need} at ${attempt.path.join(".")}`);
-		engine.record(top, attempt.need, attempt.path, outcome);
-	}
-}
+/** The N3 triple that states the node at a position proved, as the export names it. */
+const provedTriple = (path: number[]): string => `<${PROOF_NAMESPACE}p${["", ...path].join("_")}> <${PROOF_NAMESPACE}is> <${PROOF_NAMESPACE}proved>.`;
 
-/** The nodes a proof holds proved, as the triples N3 states them. */
-const provedNodes = (part: TProofPart): string[] =>
-	"parts" in part && part.parts !== undefined
-		? [
-				...("verdict" in part && part.verdict === "proved" ? [`<${PROOF_NAMESPACE}p${["", ...part.path].join("_")}> <${PROOF_NAMESPACE}is> <${PROOF_NAMESPACE}proved>.`] : []),
-				...part.parts.flatMap(provedNodes),
-			]
-		: [];
+/** The outcome of each effect but a call, which each proof states by position. */
+const EFFECTS: Record<string, string> = { open: "opened", close: "closed", members: "members(['a', 'b'])", args: "args([])", rule: "rule([call(n3)], [call(n4)])" };
+
+/** Proves a term with the outcome each call position states, as the pipeline performs effects, and returns the N3 export of
+ *  its proof and the triple of each node the engine closed as proved. */
+function proved(engine: TLogicEngine, top: string, term: string, calls: Record<string, string>): { n3: string; nodes: string[] } {
+	const nodes: string[] = [];
+	let outcome = engine.prove(top, term);
+	while ("need" in outcome) {
+		const { need, path, request } = outcome;
+		if (need === EFFECT.close && "verdict" in request && request.verdict === VERDICT.proved) nodes.push(provedTriple(path));
+		const performed = need === EFFECT.call ? calls[path.join(".")] : EFFECTS[need];
+		if (performed === undefined) throw new Error(`the test doesn't state the outcome of ${need} at ${path.join(".")}`);
+		outcome = engine.resume(top, performed);
+	}
+	const n3 = engine.n3(PROOF_NAMESPACE, top);
+	engine.forget(top);
+	return { n3, nodes };
+}
 
 /** Terms of each reading, with the outcome of each call by its position. */
 const PROOFS: [string, string, Record<string, string>][] = [
@@ -81,8 +75,7 @@ describe("the engine's readings in N3", () => {
 	});
 
 	it.each(PROOFS)("EYE derives the nodes the engine proves: %s", { timeout: 30_000 }, async (_, term, calls) => {
-		const { proof, term: proofTerm } = proved(engine, "conformance", term, calls);
-		const derived = await eyeDerives(engine.n3(PROOF_NAMESPACE, proofTerm));
-		expect(derived.sort()).toEqual(provedNodes(proof).sort());
+		const { n3, nodes } = proved(engine, "conformance", term, calls);
+		expect((await eyeDerives(n3)).sort()).toEqual(nodes.sort());
 	});
 });
