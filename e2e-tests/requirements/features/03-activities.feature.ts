@@ -20,12 +20,16 @@ export const features: TKirejiExport = {
 		'variable runs is "1"',
 
 		scenario({ scenario: "A waypoint binds its placeholder to the argument" }),
-		"Essential. Source: activities.feature and activities-stepper.ts:612.",
+		"Essential. Ensure applies the waypoint whose head the line matches, and runs only that waypoint's activity. Source: activities-stepper.ts:612.",
 		"Activity: Greet someone",
 		"set greeted to {who}",
 		"waypoint Greeted {who} with variable greeted is {who}",
+		"Activity: Wave to someone",
+		"set waved to {who}",
+		"waypoint Waved to {who} with variable waved is {who}",
 		'ensure Greeted "Ada"',
 		'variable greeted is "Ada"',
+		"not variable waved exists",
 
 		scenario({ scenario: "Ensure fails where the activity doesn't make the proof hold" }),
 		"Essential. Source: activities-stepper.ts:632.",
