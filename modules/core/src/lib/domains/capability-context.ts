@@ -19,6 +19,7 @@ import { Access, narrowerCeiling, type AccessLevel } from "./resources.js";
 import { capabilityAllows, EVERY_ACTION, readAction, readCeilingOf, writtenAt, type TAccessBound, type TCallAuthority } from "./actions.js";
 import type { TActingFor, TRestsOn } from "./authority-types.js";
 import type { THaibunLogLevel } from "./protocol.js";
+import { RefusedCall, refusalSaid, type TRpcRefusal } from "../transport/domains/rpc-wire.js";
 
 const capabilityStore = new AsyncLocalStorage<TCallAuthority>();
 
@@ -151,13 +152,18 @@ export function stepInFlight(): TStepInFlight | undefined {
 
 /** The read scope of a call. `ceiling` is the broadest level the call reads, and is undefined for the instance's own reads.
  *  A call whose caller doesn't hold a read action holds `refusal` in place of a ceiling. */
-export type TReadScope = { ceiling: AccessLevel | undefined } | { refusal: string };
+export type TReadScope = { ceiling: AccessLevel | undefined } | { refusal: TRpcRefusal };
 
 const readScopeStore = new AsyncLocalStorage<TReadScope>();
 
-/** The refusal of a read of records in a call whose caller doesn't hold a read action. It names the narrowest read action,
- *  which the caller requests from the key that delegates its actions. */
-export const WITHOUT_READ_REFUSAL = `reading records requires a read action, and the caller doesn't hold one: capability ${readAction(Access.public)} required. Request it from the key that delegates the caller's actions.`;
+/** The refusal of a read of records in a call whose caller doesn't hold a read action. Its remedy requests the narrowest read
+ *  action from a key that delegates it. */
+const WITHOUT_READ: TRpcRefusal = {
+	error: "reading records requires a read action, and the caller doesn't hold one",
+	remedy: { do: "request", action: readAction(Access.public) },
+};
+/** The message of the refusal of a read without a read action: its cause, then its remedy in words. */
+export const WITHOUT_READ_REFUSAL = refusalSaid(WITHOUT_READ);
 
 /**
  * Holds the broadest level a read may see, for the duration of the call that set it.
@@ -182,7 +188,7 @@ export function runReadingAt<T>(ceiling: AccessLevel | undefined, within: () => 
  *  within it throws `WITHOUT_READ_REFUSAL`, and its writes are written within `writeBound`. A step, a served method and a tick run under what their caller holds. */
 export function runReadingAsHeld<T>(held: string | string[] | undefined, within: () => Promise<T>): Promise<T> {
 	const ceiling = readCeilingOf(held);
-	return ceiling === undefined ? readScopeStore.run({ refusal: WITHOUT_READ_REFUSAL }, within) : runReadingAt(ceiling, within);
+	return ceiling === undefined ? readScopeStore.run({ refusal: WITHOUT_READ }, within) : runReadingAt(ceiling, within);
 }
 
 /** Returns the read scope in force, or undefined outside a call. Dispatch holds it as the scope of the statement. */
@@ -195,7 +201,7 @@ export function readScope(): TReadScope | undefined {
 export function readingAt(): AccessLevel | undefined {
 	const scope = readScopeStore.getStore();
 	if (scope === undefined) return undefined;
-	if ("refusal" in scope) throw new Error(scope.refusal);
+	if ("refusal" in scope) throw new RefusedCall(scope.refusal);
 	return scope.ceiling;
 }
 

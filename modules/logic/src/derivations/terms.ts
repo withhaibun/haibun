@@ -6,6 +6,9 @@ import type { TVerdict } from "@haibun/core/lib/domains/protocol.js";
 /** A Prolog atom that holds the text as it is. */
 export const atom = (text: string): string => `'${text.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
 
+/** The text a quoted Prolog atom holds, as `atom` quotes it. */
+const atomText = (quoted: string): string => quoted.replace(/\\(['\\])/g, "$1");
+
 /** A Prolog list of terms. */
 export const list = (terms: readonly string[]): string => `[${terms.join(", ")}]`;
 
@@ -24,7 +27,7 @@ export function whyText(line: string, verdict: TVerdict, reason: string): string
 	const depth = reason.match(/^depth\((\d+)\)$/);
 	if (depth !== null) return `${line} is ${verdict}: its proof reached the engine's bound of ${depth[1]}`;
 	const refused = reason.match(/^refused\('?(.*?)'?\)$/s);
-	if (refused !== null) return `${line} is ${verdict}: ${refused[1]}`;
+	if (refused !== null) return `${line} is ${verdict}: ${atomText(String(refused[1]))}`;
 	const known = REASONS[reason];
 	if (known === undefined) throw new Error(`the engine stated the reason ${reason} for "${line}", which the engine's program doesn't declare`);
 	return `${line} is ${verdict}: ${known}`;

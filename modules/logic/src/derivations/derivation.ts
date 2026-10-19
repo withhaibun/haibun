@@ -1,6 +1,6 @@
 /**
  * A statement's derivation from the records its proof wrote: the records under the statement's record in the order of their
- * paths, the calls among them, and the line of the first goal its proof couldn't prove.
+ * paths, the calls among them, and the line of the first goal its proof couldn't prove with the reason its record states.
  */
 import { compareSeqPath, parseRecordName, SEQ_PATH_EDGE, SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { VERDICT, type TVerdict } from "@haibun/core/lib/domains/protocol.js";
@@ -51,6 +51,13 @@ export function derivationOf(records: TRecord[], rootId: string, isNode: (called
 			capabilityAction: text(record, SEQ_PATH_FIELD.capabilityAction),
 			error: text(record, SEQ_PATH_FIELD.error),
 		}));
-	const firstUnmet = verdict === VERDICT.proved ? undefined : text(firstUnmetOf(root, under), SEQ_PATH_FIELD.stepText);
-	return DerivationSchema.parse({ verdict, records: under, calls, ...(firstUnmet === undefined ? {} : { firstUnmet }) });
+	const unmet = verdict === VERDICT.proved ? undefined : firstUnmetOf(root, under);
+	const reason = unmet === undefined ? undefined : text(unmet, SEQ_PATH_FIELD.error);
+	return DerivationSchema.parse({
+		verdict,
+		records: under,
+		calls,
+		...(unmet === undefined ? {} : { firstUnmet: text(unmet, SEQ_PATH_FIELD.stepText) }),
+		...(reason === undefined ? {} : { reason }),
+	});
 }

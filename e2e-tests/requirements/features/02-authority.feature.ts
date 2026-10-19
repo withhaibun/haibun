@@ -46,6 +46,12 @@ export const features: TKirejiExport = {
 		'variable nested is "yes"',
 		`not holding capability ${NESTING} ${AT}, holding capability ${SETS_ONLY} ${AT}, variable nested is "yes"`,
 
+		scenario({ scenario: "A source read above the held capability is refused with the read to request" }),
+		"Essential, for every surface. A quantifier reads its observation source under what its statement holds, and a statement that doesn't hold a read action doesn't read records. Source: prove.ts, members, and capability-context.ts, WITHOUT_READ.",
+		'set observed from show derivation of "holding only \\"LogicStepper:everyObserved,VariablesStepper:matches\\", every step observed in step usage is matches {step} with \\"*\\""',
+		'variable observed.verdict is "unknown"',
+		'matches observed.reason with "*(request Read:public from a key that delegates it)"',
+
 		scenario({ scenario: "A proof names the capability that allowed each call" }),
 		"Essential, for every surface. Source: step-records.ts, the fields capabilityAction and allowedAction.",
 		'set allowed from show derivation of "holding only \\"VariablesStepper:set\\", set narrowed to \\"yes\\""',

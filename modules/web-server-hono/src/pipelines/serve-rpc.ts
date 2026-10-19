@@ -7,7 +7,16 @@ import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import type { AStepper } from "@haibun/core/lib/astepper.js";
-import { ACTION_BEGIN, ANSWERED_WITHOUT_PRODUCTS, parseRpcRequest, authorityRefusal, callFailed, RPC_PROTOCOL, type THandshake } from "@haibun/core/lib/rpc-wire.js";
+import {
+	ACTION_BEGIN,
+	ANSWERED_WITHOUT_PRODUCTS,
+	parseRpcRequest,
+	authorityRefusal,
+	callFailed,
+	refusalCarried,
+	RPC_PROTOCOL,
+	type THandshake,
+} from "@haibun/core/lib/rpc-wire.js";
 import { runWithRequestContext, requestBaseIri } from "@haibun/core/lib/request-context.js";
 import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import { runRegistry, type StepRegistry } from "@haibun/core/lib/step-registry.js";
@@ -76,7 +85,7 @@ export function serveRpc({ world, steppers, webserver, transport, verifier, sess
 					runActingAs(principal, () => runReadingAsHeld(held, () => runReadingAt(msg.readingAt, () => served.handle(params))), restsOn),
 				);
 			} catch (err) {
-				return callFailed(method, `the served method failed: ${errorDetail(err)}`);
+				return callFailed(method, `the served method failed: ${errorDetail(err)}`, refusalCarried(err)?.remedy);
 			}
 		}
 

@@ -107,6 +107,29 @@ export async function proveStatements(ctx: DispatchContext, parent: TFeatureStep
 	return last;
 }
 
+/**
+ * The authority a call runs under. A capability the dispatch context states takes precedence over callerHolds(). A step
+ * dispatched from inside another step invokes from what the caller holds, under the chain the caller presented. Its action is
+ * the one in that chain that allows it. The route that dispatched the step doesn't change whether it is refused, and a step
+ * doesn't run beyond what that chain holds. A statement that narrows authority sets what its own statements hold in the same
+ * way. `holding only` is one such statement.
+ */
+function authorityOf(ctx: DispatchContext): { grantedCapability: string | string[] | undefined; held: string | string[] | undefined } {
+	const grantedCapability = ctx.grantedCapability ?? callerHolds();
+	return { grantedCapability, held: ctx.held ?? grantedCapability };
+}
+
+/**
+ * Runs `run` as a dispatched step's own work runs: under the authority of its call, with the read scope in force as the
+ * statement's scope, and at the broadest read its caller holds. A caller that doesn't hold a read action is refused each read
+ * and write of records, so a step doesn't read a record for a caller who couldn't read that record. The logic engine's prover
+ * reads a quantifier's members, a waypoint's arguments and a node's arguments through it.
+ */
+export function runAsDispatched<T>(ctx: DispatchContext, run: () => Promise<T>): Promise<T> {
+	const { grantedCapability, held } = authorityOf(ctx);
+	return runInvoking({ invoked: grantedCapability, held }, () => runStatedAt(readScope(), () => runReadingAsHeld(held, run)));
+}
+
 /** What a node of a proof performs in place of a step's action: the proof of its statements, which its caller resolves. */
 export type TPerform = () => Promise<TActionResult>;
 
@@ -128,13 +151,7 @@ export const proveStep = (ctx: DispatchContext, featureStep: TFeatureStep): Prom
  */
 export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureStep, perform?: TPerform): Promise<TStepResult> {
 	const { registry, world, steppers } = ctx;
-	// A capability the dispatch context states takes precedence over callerHolds(). A step dispatched from inside another
-	// step invokes from what the caller holds, under the chain the caller presented. Its action is the one in that chain
-	// that allows it. The route that dispatched the step doesn't change whether it is refused, and a step doesn't run
-	// beyond what that chain holds. A statement that narrows authority sets what its own statements hold in the same way.
-	// `holding only` is one such statement.
-	const grantedCapability = ctx.grantedCapability ?? callerHolds();
-	const held = ctx.held ?? grantedCapability;
+	const { grantedCapability, held } = authorityOf(ctx);
 	const { action } = featureStep;
 	const start = Timer.since();
 
@@ -233,39 +250,33 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	let actionResult: TActionResult | undefined;
 	let lastStepResult: TStepResult | undefined;
 	await runInStep(step, () =>
-		runInvoking({ invoked: grantedCapability, held }, () =>
-			runStatedAt(statedAt, () =>
-				// The step reads at the broadest read its caller holds. A caller that doesn't hold a read action is refused each
-				// read and write of records, so a step doesn't read a record for a caller who couldn't read that record.
-				runReadingAsHeld(held, async () => {
-					let doAction = true;
-					while (doAction) {
-						await doStepperCycle(steppers, "beforeStep", <TBeforeStep>{ featureStep });
-						// The handler validates the step's products against the step's domain. A tool of another host or process
-						// validates them where it runs.
-						actionResult = await (perform === undefined ? tool.handler(featureStep, world) : perform());
-						if (actionResult.ok) {
-							if (actionResult.products) actionResult = { ...actionResult, products: { ...actionResult.products, [TRACE_SEQ_PATH]: featureStep.seqPath } };
-							actionResult = augmentViewHypermedia(world, action.step, actionResult, steppers);
-							// A fact is a record of actuality. Actuality doesn't record a read over a transport as a step or assert its products.
-							if (recorded) await autoAssertProducts(world, { execution: executionOf(world.tag), path: featureStep.seqPath }, action.step, actionResult);
-						}
-						// A nested call's failure is part of its line's proof, so only a line's failure is logged as an error.
-						if (!actionResult.ok && featureStep.isSubStep !== true) {
-							world.eventLogger.log(featureStep, "error", actionResult.errorMessage);
-						}
-						const placed = stepResultOf(actionResult, action, start, Timer.since(), stated);
-						place(placed);
-						const instructions: Array<TAfterStepResult | undefined> = await doStepperCycle(steppers, "afterStep", <TAfterStep>{ featureStep, actionResult });
-						doAction = instructions.some((i) => i?.rerunStep);
-						// An afterStep cycle can fail a step that passed, so actuality counts the outcome afterStepOutcome computes.
-						actionResult = afterStepOutcome(actionResult, instructions);
-						lastStepResult = stepResultOf(actionResult, action, start, placed.end ?? Timer.since(), stated);
-						settle(placed, lastStepResult);
-					}
-				}),
-			),
-		),
+		runAsDispatched(ctx, async () => {
+			let doAction = true;
+			while (doAction) {
+				await doStepperCycle(steppers, "beforeStep", <TBeforeStep>{ featureStep });
+				// The handler validates the step's products against the step's domain. A tool of another host or process
+				// validates them where it runs.
+				actionResult = await (perform === undefined ? tool.handler(featureStep, world) : perform());
+				if (actionResult.ok) {
+					if (actionResult.products) actionResult = { ...actionResult, products: { ...actionResult.products, [TRACE_SEQ_PATH]: featureStep.seqPath } };
+					actionResult = augmentViewHypermedia(world, action.step, actionResult, steppers);
+					// A fact is a record of actuality. Actuality doesn't record a read over a transport as a step or assert its products.
+					if (recorded) await autoAssertProducts(world, { execution: executionOf(world.tag), path: featureStep.seqPath }, action.step, actionResult);
+				}
+				// A nested call's failure is part of its line's proof, so only a line's failure is logged as an error.
+				if (!actionResult.ok && featureStep.isSubStep !== true) {
+					world.eventLogger.log(featureStep, "error", actionResult.errorMessage);
+				}
+				const placed = stepResultOf(actionResult, action, start, Timer.since(), stated);
+				place(placed);
+				const instructions: Array<TAfterStepResult | undefined> = await doStepperCycle(steppers, "afterStep", <TAfterStep>{ featureStep, actionResult });
+				doAction = instructions.some((i) => i?.rerunStep);
+				// An afterStep cycle can fail a step that passed, so actuality counts the outcome afterStepOutcome computes.
+				actionResult = afterStepOutcome(actionResult, instructions);
+				lastStepResult = stepResultOf(actionResult, action, start, placed.end ?? Timer.since(), stated);
+				settle(placed, lastStepResult);
+			}
+		}),
 	);
 	if (!actionResult || !lastStepResult) {
 		throw new Error(`${action.stepperName}.${action.actionName} didn't record an action result`);

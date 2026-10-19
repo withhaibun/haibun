@@ -9,6 +9,7 @@ import TestSteps from "@haibun/core/lib/test/TestSteps.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import ActivitiesStepper from "@haibun/core/steps/activities-stepper.js";
+import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
@@ -87,6 +88,12 @@ describe("the readings of the logic engine", () => {
 	it.each(READINGS)("%s", async (_, content, passes) => {
 		const result = passes ? await passWithDefaults(content, STEPPERS) : await failWithDefaults(content, STEPPERS);
 		expect(result.ok).toBe(passes);
+	});
+
+	it("reads the items of an observation source under what holding only holds, and refuses a read above it with the read to request", async () => {
+		const content = 'passes\nholding only "LogicStepper:everyObserved,VariablesStepper:matches", every step observed in step usage is matches {step} with "*"';
+		const result = await failWithDefaults(content, [...STEPPERS, AuthorityStepper]);
+		expect(result.failure?.error.message).toContain("request Read:public from a key that delegates it");
 	});
 
 	it("ends until at its deadline, however many attempts the deadline allows", async () => {

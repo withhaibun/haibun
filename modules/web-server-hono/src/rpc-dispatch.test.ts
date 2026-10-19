@@ -522,7 +522,8 @@ class NoticeStepper extends AStepper {
 				});
 				const text = await res.text();
 				if (text.includes(NOTICE_ID) || text.includes('"count":1')) return actionNotOK(`a caller without a read action read the notice: ${res.status} ${text}`);
-				return text.includes(`capability ${READS_PUBLIC} required`) ? OK : actionNotOK(`the refusal doesn't name ${READS_PUBLIC}: ${res.status} ${text}`);
+				const remedy = RpcRefusalSchema.safeParse(JSON.parse(text)).data?.remedy;
+				return remedy?.do === "request" && remedy.action === READS_PUBLIC ? OK : actionNotOK(`the refusal doesn't request ${READS_PUBLIC}: ${res.status} ${text}`);
 			},
 		},
 	};

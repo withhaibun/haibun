@@ -51,12 +51,13 @@ const DerivationCallSchema = z.object({
 });
 
 /** A statement's derivation: its verdict, the records its proof wrote under the step that requested it, the calls among
- *  them, and the line of the first goal it couldn't prove, where its proof failed. */
+ *  them, and the line of the first goal it couldn't prove with the reason its record states, where its proof failed. */
 export const DerivationSchema = z.object({
 	verdict: VerdictSchema,
 	records: z.array(z.looseObject({ id: z.string(), isPartOf: z.string().optional() })),
 	calls: z.array(DerivationCallSchema),
 	firstUnmet: z.string().optional(),
+	reason: z.string().optional(),
 });
 export type TDerivation = z.infer<typeof DerivationSchema>;
 
@@ -75,7 +76,11 @@ export const DOMAIN_LINE_TERM = "line-term";
 export const LineTermSchema = z.object({ line: z.string(), term: z.string(), rendered: z.string() });
 
 export const logicDomainDefinitions: TDomainDefinition[] = [
-	{ selectors: [DOMAIN_DERIVATION], schema: DerivationSchema, description: "A statement's verdict, the records its proof wrote, its calls and the first goal it couldn't prove" },
+	{
+		selectors: [DOMAIN_DERIVATION],
+		schema: DerivationSchema,
+		description: "A statement's verdict, the records its proof wrote, its calls, and the first goal it couldn't prove with its reason",
+	},
 	{ selectors: [DOMAIN_LINE_TERM], schema: LineTermSchema, description: "A line, the term the registry parses it to, and the line the term renders as" },
 	{
 		selectors: [DOMAIN_FORMULA_CHECK],
