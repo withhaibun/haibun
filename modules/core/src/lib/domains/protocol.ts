@@ -350,6 +350,8 @@ export type TVerdict = (typeof VERDICT)[keyof typeof VERDICT];
 
 /** The stepper a configuration lists to supply the logic engine that proves every step. */
 export const LOGIC_STEPPER = "@haibun/logic/logic-stepper";
+/** The class name of the stepper `LOGIC_STEPPER` names. */
+export const LOGIC_STEPPER_NAME = "LogicStepper";
 
 /**
  * The one result type of step execution. Step actions, the logic engine's proofs, the feature loop and RPC transports use

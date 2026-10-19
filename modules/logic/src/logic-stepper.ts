@@ -47,7 +47,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 		await super.setWorld(world, steppers);
 		this.steppers = steppers;
 		refuseDeclarations(steppers);
-		if (world.runtime.prover === undefined) world.runtime.prover = proverOf(await logicEngine());
+		world.runtime.prover = proverOf(await logicEngine());
 	}
 
 	cycles: IStepperCycles = { getConcerns: () => ({ sources: builtInSources, domains: [...logicDomainDefinitions, ...readingDomainDefinitions] }) };

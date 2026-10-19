@@ -178,7 +178,8 @@ class Proof {
 	private async open(path: number[], request: TNodeRequest): Promise<string> {
 		const node = this.node(request.node);
 		const step = this.instance(node, path, request.bindings);
-		const opening = await this.contextOf(node, step);
+		// A context opens inside the contexts that enclose its node, so a statement holds less than its caller, and never more.
+		const opening = await this.withinContexts(request.bindings, () => this.contextOf(node, step));
 		const begun = Promise.withResolvers<"begun">();
 		const closed = Promise.withResolvers<TActionResult>();
 		const dispatched = this.withinContexts(request.bindings, () =>
