@@ -9,22 +9,10 @@ import type { TActionResult, TStepResult, TSeqPath } from "../../domains/protoco
 import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, SUBSTEP_LEVEL, STATUS, RECORDED_STATUS, VERDICT, LOGIC_STEPPER, type TStepEnd } from "../../domains/protocol.js";
 import { streamContext } from "../../transport/domains/step-stream-context.js";
 import { actionNotOK } from "../../domains/util.js";
-import { isWrittenByCaller, normalizeDomainKey } from "../../domains/domains.js";
-import { assertFact, holdsFactOf } from "../../records/pipelines/facts.js";
+import { normalizeDomainKey } from "../../domains/domains.js";
+import { assertFact } from "../../records/pipelines/facts.js";
 import { doStepperCycle } from "../../steps/pipelines/stepper-cycles.js";
-import {
-	actingAs,
-	askedIn,
-	callerHolds,
-	readingAsStated,
-	readScope,
-	runInStep,
-	runInvoking,
-	runReadingAsHeld,
-	runStatedAt,
-	stepInFlight,
-	writtenLevel,
-} from "../../domains/capability-context.js";
+import { actingAs, askedIn, callerHolds, readScope, runInStep, runInvoking, runReadingAsHeld, runStatedAt, stepInFlight, writtenLevel } from "../../domains/capability-context.js";
 import { capabilityAllows } from "../../domains/actions.js";
 import { SEQ_PATH_LABEL } from "../../domains/resources.js";
 import { SEQ_PATH_ACCESS, executionOf, type TRecordName } from "../domains/seq-path.js";
@@ -253,16 +241,6 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 					let doAction = true;
 					while (doAction) {
 						await doStepperCycle(steppers, "beforeStep", <TBeforeStep>{ featureStep });
-						const preconditionError = await checkInputPreconditions(world, tool.paramDomainKeys, featureStep);
-						if (preconditionError) {
-							actionResult = actionNotOK(preconditionError);
-							lastStepResult = stepResultOf(actionResult, action, start, Timer.since(), stated);
-							keep(lastStepResult);
-							// Each step that runs a beforeStep cycle also runs an afterStep cycle, so a stepper closes what it opened for that step.
-							await doStepperCycle(steppers, "afterStep", <TAfterStep>{ featureStep, actionResult });
-							doAction = false;
-							continue;
-						}
 						// The handler validates the step's products against the step's domain. A tool of another host or process
 						// validates them where it runs.
 						actionResult = await (perform === undefined ? tool.handler(featureStep, world) : perform());
@@ -329,25 +307,6 @@ function callOf(ctx: DispatchContext): TStepCall {
 		...(asked === undefined ? {} : { askedIn: asked }),
 		...(ctx.attributedTo === undefined ? {} : { attributedTo: ctx.attributedTo }),
 	};
-}
-
-/**
- * Checks that each parameter whose domain stands for a step's products has a term or at least one matching fact. A value
- * that a caller writes doesn't have a fact to stand for it. Its domain validates the value, including an empty value.
- * Returns an error message for the first unsatisfied precondition, else undefined.
- */
-async function checkInputPreconditions(world: TWorld, paramDomainKeys: ReadonlyMap<string, string>, featureStep: TFeatureStep): Promise<string | undefined> {
-	for (const [param, normalized] of paramDomainKeys) {
-		if (isWrittenByCaller(normalized, world.domains)) continue;
-		const stepValue = featureStep.action.stepValuesMap?.[param];
-		// A term the gwta captures satisfies the precondition. Argument population resolves and validates the term before the
-		// action runs.
-		if (stepValue?.term !== undefined && stepValue.term !== "") continue;
-		// The facts for an input are read at the statement's read ceiling, as its arguments are.
-		if (!(await readingAsStated(() => holdsFactOf(world.shared.getStore(), normalized))))
-			return `precondition-not-satisfied: domain "${normalized}" doesn't have an asserted fact or a resolved value for {${param}}. Run a step that produces this domain before this step, or give this parameter a value.`;
-	}
-	return undefined;
 }
 
 /**

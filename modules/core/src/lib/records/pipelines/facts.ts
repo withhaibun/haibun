@@ -4,7 +4,6 @@
  * replaces its fact. Each fact links its step's record through `prov:wasGeneratedBy`.
  */
 import { EDGE, FACT_LABEL, SEQ_PATH_LABEL } from "../../domains/resources.js";
-import { GraphQuerySchema } from "../../steps/domains/quad-types.js";
 import { type IQuadStore } from "../../steps/ports.js";
 import { factIdOf, formatRecordName, type TRecordName } from "../../actuality/domains/seq-path.js";
 import { FACT_FIELD, type TFact } from "../domains/facts.js";
@@ -33,10 +32,4 @@ const factOf = (record: Record<string, unknown>): TFact => ({ id: String(record[
 export async function readFacts(store: TRecordReader, domain?: string): Promise<TFact[]> {
 	const filters = domain === undefined ? [] : equalTo({ [FACT_FIELD.domain]: domain });
 	return (await readEvery(store, { label: FACT_LABEL, filters })).map(factOf);
-}
-
-/** Returns true where the store holds a fact of a domain. */
-export async function holdsFactOf(store: TRecordReader, domain: string): Promise<boolean> {
-	const page = await store.readRecords(GraphQuerySchema.parse({ label: FACT_LABEL, filters: equalTo({ [FACT_FIELD.domain]: domain }), limit: 1, skipCount: true }));
-	return page.vertices.length > 0;
 }
