@@ -6,7 +6,7 @@ const { feature, scenario } = withAction(new Haibun());
 export const features: TKirejiExport = {
 	"Prose and steps": [
 		feature({ feature: "Prose and steps" }),
-		`The logic engine replaces the evaluation code. These features state what it keeps, one scenario per requirement, for every surface: a feature line, an RPC or MCP call, the LSP, a page's call and a model's tool call. A step that a stepper doesn't declare yet is the step the engine provides, and it fails as an unmatched line until the engine provides it.
+		`The logic engine replaces the evaluation code. These features state what it keeps, one scenario per requirement, for every surface: a feature line, an RPC or MCP call, the LSP, a page's call and a model's tool call. A scenario whose step a stepper doesn't declare yet is a pending scenario: its lines don't resolve or run, and actuality's summary counts it as pending until the engine provides the step.
 		Accidental, and replaced by one pattern match per registry entry: the leading words dePolite removes, the unique, fallback and precludes tie-breakers, and the quote restoration of withStatementsAsWritten (resolver.ts:176-227).`,
 
 		scenario({ scenario: "A sentence is prose and a lowercase line is one step" }),

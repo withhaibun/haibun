@@ -52,7 +52,7 @@ function anActuality(status: string, features: Record<string, number>, declared 
 	const levels = new Map<string, Record<string, unknown>>([["execution", level("execution", "1-0", "tests", status, 9000)]]);
 	const featureResults = Object.entries(features).map(([featurePath, ms], at) => {
 		levels.set(`feat-${at + 1}`, level("feature", `1-${at + 1}.0.${at + 1}.0`, featurePath, status, ms, featurePath));
-		return { path: featurePath, ok: true, steps: { count: 2 }, declaredStepTextHash: `${declared} ${featurePath}`, stepResults: [] };
+		return { path: featurePath, ok: true, steps: { count: 2 }, declaredStepTextHash: `${declared} ${featurePath}`, stepResults: [], pending: [] };
 	});
 	return { result: { ok: status === RECORDED_STATUS.completed, featureResults } as never, levels };
 }

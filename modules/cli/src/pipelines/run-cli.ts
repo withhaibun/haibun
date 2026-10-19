@@ -199,11 +199,16 @@ function dryRunExit(featuresBackgrounds: TFeaturesBackgrounds, policyConfig?: TR
 async function reportAndExit(executorResult: TExecutorResult, world: TWorld, protoOptions: TProtoOptions, ports: TCliPorts): Promise<never> {
 	const showSummary = world.eventLogger.suppressConsole;
 
+	const { featureResults } = executorResult;
+	const failed = featureResults.filter(({ ok }) => !ok).length;
+	const pending = featureResults.flatMap((result) => result.pending).length;
+	const counted = `${featureResults.length - failed} features passed, ${failed} failed, and ${pending} scenarios are pending.`;
 	if (executorResult.ok) {
 		if (showSummary) {
-			console.info(`\n${CHECK_YES} All ${executorResult.featureResults.length} features passed.`);
+			console.info(`\n${CHECK_YES} ${pending === 0 ? `All ${featureResults.length} features passed.` : counted}`);
 		}
 	} else {
+		console.error(`\n${counted}`);
 		const errorMessage = executorResult.failure?.error?.message || "Unknown error";
 		const stage = executorResult.failure?.stage;
 

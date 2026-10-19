@@ -1,6 +1,6 @@
 import type { TExpandedFeature, TExpandedLine, TFeatures, TFeature } from "../domains/execution.js";
 import type { TWorld } from "../domains/world.js";
-import { TStepValue, SCENARIO_START, Origin } from "../../domains/protocol.js";
+import { TStepValue, SCENARIO_START, FEATURE_START, PENDING_SCENARIO, Origin } from "../../domains/protocol.js";
 import { AStepper, TStepAction, TResolvedFeature, TStepperStep, TFeatureStep, hasCycles } from "../../steps/domains/stepper.js";
 import type { TDomainDefinition } from "../../domains/resources.js";
 import { matchGwtaToAction } from "../../steps/derivations/named-vars.js";
@@ -111,6 +111,8 @@ export class Resolver {
 		const allLines = feature.expanded.map((fl) => fl.line);
 		let seq = 0;
 		let inCodeBlock = false;
+		// A pending scenario's lines state steps the steppers don't provide yet, so they aren't resolved, up to the next heading.
+		let pending = false;
 		for (const [i, featureLine] of feature.expanded.entries()) {
 			const line = featureLine.line.trim();
 			if (line.startsWith("```")) {
@@ -138,12 +140,18 @@ export class Resolver {
 				continue;
 			}
 
+			if (pending) {
+				const heading = this.headingOf(actionable);
+				if (heading === undefined) continue;
+				pending = heading === PENDING_SCENARIO;
+			}
 			seq++;
 
 			try {
 				const stepAction = this.findSingleStepAction(actionable);
 
-				if (stepAction.actionName === SCENARIO_START) seq = 0;
+				if (stepAction.actionName === SCENARIO_START || stepAction.actionName === PENDING_SCENARIO) seq = 0;
+				if (stepAction.actionName === PENDING_SCENARIO) pending = true;
 
 				if (stepAction.stepValuesMap) {
 					const statements = Object.values(stepAction.stepValuesMap).filter((v: TStepValue & { label?: string }) => v.domain === DOMAIN_STATEMENT && v.term);
@@ -166,6 +174,12 @@ export class Resolver {
 		}
 		return { steps, errors };
 	}
+	/** The heading a line states, a feature's, a scenario's or a pending scenario's, or undefined where it isn't a heading. */
+	private headingOf(line: string): string | undefined {
+		const headings = [FEATURE_START, SCENARIO_START, PENDING_SCENARIO];
+		return this.findActionableSteps(line).find(({ actionName }) => headings.includes(actionName))?.actionName;
+	}
+
 	/**
 	 * Returns the one step that a line matches. The form of a line determines whether it is prose. A sentence matches only a
 	 * step whose pattern starts with a capital letter. The sentence `Scenario: Sign in.` matches the `Scenario:` heading

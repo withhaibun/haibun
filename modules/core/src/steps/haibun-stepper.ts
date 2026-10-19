@@ -247,6 +247,12 @@ class Haibun extends AStepper implements IHasCycles {
 				return OK;
 			},
 		},
+		pendingScenario: {
+			gwta: `Pending scenario: {scenario: ${DOMAIN_TITLE}}`,
+			description:
+				"Heads a scenario that states a requirement the steppers don't provide yet. Its lines don't resolve or run, and actuality's summary counts the scenario as pending until its heading is Scenario:.",
+			action: () => OK,
+		},
 		endsWith: {
 			gwta: `ends with {result: ${DOMAIN_ENDING}}`,
 			action: ({ result }: { result: string }) => (result === ENDING.ok ? actionOK() : actionNotOK(`the feature states that it ends with ${result}, so this step fails`)),

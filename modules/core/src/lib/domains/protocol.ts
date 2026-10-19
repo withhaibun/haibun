@@ -116,6 +116,8 @@ export const ACTUALITY_LEVELS = ["execution", "feature", "scenario", "step"] as 
 export type TActualityLevel = (typeof ACTUALITY_LEVELS)[number];
 
 export const SCENARIO_START = "scenario";
+/** The heading of a scenario that states a requirement the steppers don't provide yet. Its lines don't resolve or run. */
+export const PENDING_SCENARIO = "pendingScenario";
 export const FEATURE_START = "feature";
 
 /** The prefixes that declare a feature and a scenario in a feature's text. `declaredName` returns the name after a prefix. */
@@ -428,6 +430,8 @@ export type TFeatureResult = {
 	declaredStepTextHash: string;
 	/** The full results of the most recent steps the feature ran, up to RESULTS_READ_IN_FULL. `steps` summarizes every step. */
 	stepResults: TStepResult[];
+	/** The name of each pending scenario the feature states, in order. */
+	pending: string[];
 };
 
 export type TExecutorResult = {

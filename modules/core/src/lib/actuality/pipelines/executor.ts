@@ -8,7 +8,7 @@ import { basename } from "path";
 import { RUN_AUTHORITY, runAuthorizedWith } from "../../domains/capability-context.js";
 import type { TWorld } from "../domains/world.js";
 import { hasCycles, type AStepper, type TResolvedFeature, type TEndFeature, type TEndExecution } from "../../steps/domains/stepper.js";
-import { STAY, STEP_DELAY, CONTINUE_AFTER_ERROR, FEATURE_START, SCENARIO_START, STATUS, ResolvedFeaturesArtifact } from "../../domains/protocol.js";
+import { STAY, STEP_DELAY, CONTINUE_AFTER_ERROR, FEATURE_START, SCENARIO_START, PENDING_SCENARIO, STATUS, ResolvedFeaturesArtifact } from "../../domains/protocol.js";
 import type { TExecutorResult, TFeatureResult, TStepResult, THaibunEvent } from "../../domains/protocol.js";
 import { setStepperWorldsAndDomains, constructorName } from "../../domains/util.js";
 import { proveStep, proverOf } from "./step-dispatch.js";
@@ -177,6 +177,7 @@ export class FeatureExecutor {
 		let running: { ordinal: number; name: string } | undefined;
 		let ordinal = 0;
 		let baseVars = new FeatureVariables(world, {});
+		const pending: string[] = [];
 		/** Ends the running scenario: its event, then the cycle that closes what its steppers opened for it. */
 		const endScenario = async (scenarioOk: boolean): Promise<void> => {
 			if (running === undefined) throw new Error(`feature ${feature.path} ended a scenario that didn't start; a scenario heading starts one`);
@@ -187,6 +188,13 @@ export class FeatureExecutor {
 
 		for (const step of feature.featureSteps) {
 			const { actionName } = step.action;
+			// A pending scenario doesn't start a level. Its heading ends the running scenario, takes the next ordinal and runs as a step.
+			if (actionName === PENDING_SCENARIO) {
+				if (running) await endScenario(true);
+				if (ordinal === 0) baseVars = new FeatureVariables(world, await world.shared.carried());
+				ordinal = ordinal + 1;
+				pending.push(step.in.replace(/^[\w ]+:\s*/, ""));
+			}
 			if (actionName === SCENARIO_START || (actionName === FEATURE_START && running)) {
 				if (running) await endScenario(true);
 				// The steps before the first scenario end where it starts: every scenario, and the next feature, starts from
@@ -218,7 +226,14 @@ export class FeatureExecutor {
 
 		if (running) await endScenario(ok);
 
-		return { path: feature.path, ok, steps: world.runtime.steps, declaredStepTextHash: declaredStepTextHash(feature.featureSteps), stepResults: world.runtime.stepResults };
+		return {
+			path: feature.path,
+			ok,
+			steps: world.runtime.steps,
+			declaredStepTextHash: declaredStepTextHash(feature.featureSteps),
+			stepResults: world.runtime.stepResults,
+			pending,
+		};
 	}
 }
 

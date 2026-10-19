@@ -14,6 +14,7 @@ import { AStepper } from "../../steps/domains/stepper.js";
 import { actionNotOK, actionOK } from "../../domains/util.js";
 import { DOMAIN_TEXT } from "../../domains/domains.js";
 import { itemAt } from "../../domains/item-at.js";
+import Haibun from "../../../steps/haibun-stepper.js";
 
 describe("the path allocated under a parent step", () => {
 	const aWorld = () => ({ runtime: { seqPaths: new Map<string, number>() } }) as unknown as Parameters<typeof nextSeqPath>[0];
@@ -227,5 +228,20 @@ describe("the actuality the Executor moves", () => {
 			[`${key}-2.0.2.0`, "feature", "/features/b", RECORDED_STATUS.failed, `${key}-0`],
 		]);
 		expect(levels.at(-1)?.[SEQ_PATH_FIELD.error], "a feature's record states its first failure").toMatch(/refuse here \(refused\)$/);
+	});
+});
+
+describe("a pending scenario", () => {
+	class CountingStepper extends AStepper {
+		description = "Passes.";
+		steps = { passes: { exact: "passes", action: () => Promise.resolve(actionOK()) } };
+	}
+
+	it("doesn't resolve or run its lines, and the feature's result names it as pending", async () => {
+		const content = "Scenario: Now\npasses\nPending scenario: Later\na line that names no step\nScenario: After\npasses";
+		const result = await passWithDefaults([{ path: "/features/pending.feature", content }], [Haibun, CountingStepper]);
+		const feature = itemAt(result.featureResults, 0);
+		expect(feature.pending).toEqual(["Later"]);
+		expect(feature.stepResults.map((step) => step.in)).not.toContain("a line that names no step");
 	});
 });
