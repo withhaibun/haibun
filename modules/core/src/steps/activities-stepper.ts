@@ -1,56 +1,47 @@
-import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TStepperStep, CycleWhen, READING } from "../lib/steps/domains/stepper.js";
-import type { TFeatures, TStepInput } from "../lib/actuality/domains/execution.js";
+import { AStepper, IHasCycles, TFeatureStep, IStepperCycles, TStepperSteps, CycleWhen, READING, type TWaypointRule } from "../lib/steps/domains/stepper.js";
 import { runSteppers, type TWorld } from "../lib/actuality/domains/world.js";
 import { OK } from "../lib/domains/protocol.js";
-import { actionNotOK, actionOKWithProducts, getActionable, errorDetail, dePolite, constructorName } from "../lib/domains/util.js";
-import { itemAt } from "../lib/domains/item-at.js";
+import { actionNotOK, actionOKWithProducts, getActionable, errorDetail, dePolite } from "../lib/domains/util.js";
 import { DOMAIN_STATEMENT, DOMAIN_STATEMENT_LINES, DOMAIN_TITLE, DOMAIN_WAYPOINT_ARGUMENT } from "../lib/domains/domains.js";
 import { Resolver, findFeatureStepsFromStatement } from "../lib/actuality/pipelines/resolver.js";
 import { proveStatements, stepperContext } from "../lib/actuality/pipelines/step-dispatch.js";
 import type { TWaypointEntry } from "../lib/domains/goal-resolution.js";
-import { runRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { stepMethodName } from "../lib/steps/domains/step-method.js";
 import { phraseParameters } from "../lib/steps/domains/phrase.js";
 import { z } from "zod";
 import { Access, LinkRelations, PersistedVertexSchema, type TDomainDefinition } from "../lib/domains/resources.js";
 import { refDomainKey, type TIndividualRef } from "../lib/domains/domains.js";
-import { ACTIVITIES_ACTIONS } from "./domains/activities-actions.js";
+import { ACTIVITIES_ACTIONS, ACTIVITIES_STEPPER } from "./domains/activities-actions.js";
 import { readEvery, recordOf } from "../lib/records/pipelines/record-reads.js";
 
-// The steps this stepper always has. The stepper adds a step for each waypoint a feature declares and for each saved waypoint.
-type TActivitiesFixedSteps = {
-	saveWaypoint: TStepperStep;
-	registerSavedWaypoints: TStepperStep;
-	runSavedWaypoint: TStepperStep;
-	activity: TStepperStep;
-	waypointWithProof: TStepperStep;
-	waypointLabel: TStepperStep;
-	ensure: TStepperStep;
-};
-
-type TActivitiesStepperSteps = TStepperSteps & TActivitiesFixedSteps;
-
-/** The source path a saved waypoint holds where the step that saves it doesn't have a source path. The statement that runs a
- *  saved waypoint also has this source path. */
+/** The source path a saved waypoint holds where the step that saves it doesn't have a source path. */
 const SAVED_WAYPOINT_SOURCE = "a saved waypoint";
+/** The directory of the backgrounds. A waypoint a background states applies in every feature. */
+const BACKGROUNDS = "backgrounds/";
+/** The line that opens an activity, the line that states a waypoint with its head and its proof, and a heading, which ends
+ *  an activity. */
+const ACTIVITY_LINE = /^Activity:/i;
+const WAYPOINT_LINE = /^waypoint\s+(.+?)(?:\s+with\s+(.+))?$/i;
+const HEADING_LINE = /^(Feature|Scenario|Pending scenario|Background|Activity):/i;
+/** The step that ensures a waypoint, which the affordances offer for each waypoint. */
+const ENSURE = stepMethodName(ACTIVITIES_STEPPER, "ensure");
 
 export const SAVED_WAYPOINT_LABEL = "SavedWaypoint";
 const SAVED_WAYPOINT_DOMAIN = "saved-waypoint";
 const SavedWaypointSchema = PersistedVertexSchema.extend({
-	/** The waypoint's outcome. The outcome is the waypoint's name. */
+	/** The waypoint's head. */
 	id: z.string(),
 	lines: z.array(z.string()),
 	source: z.string(),
 	generatedAtTime: z.string(),
 });
 type TSavedWaypoint = z.infer<typeof SavedWaypointSchema>;
-/** A saved waypoint's record. It holds the outcome, the lines of the activity in order, and the source path. The outcome is the
- *  waypoint's name. `register the saved waypoints` reads these records after a restart. The type is a schema.org HowTo
- *  whose steps are the lines. */
+/** A saved waypoint's record. It holds the head, the lines of the activity in order, and the source path. `register the
+ *  saved waypoints` reads these records after a restart. The type is a schema.org HowTo whose steps are the lines. */
 export const savedWaypointDomainDefinition: TDomainDefinition = {
 	selectors: [SAVED_WAYPOINT_DOMAIN],
 	schema: SavedWaypointSchema,
-	description: "A saved waypoint's outcome and the lines its activity runs. `register the saved waypoints` registers the waypoint again after a restart.",
+	description: "A saved waypoint's head and the lines its activity runs. `register the saved waypoints` states the waypoint's rule again after a restart.",
 	topology: {
 		persistedAs: SAVED_WAYPOINT_LABEL,
 		accessLevel: Access.private,
@@ -62,95 +53,81 @@ export const savedWaypointDomainDefinition: TDomainDefinition = {
 	},
 };
 
+/** An activity's lines by their index: its `Activity:` line, the waypoint lines that state its rules, and its last line. */
+type TActivityBlock = { start: number; waypoints: number[]; end: number };
+const blocksOfLines = new WeakMap<readonly string[], TActivityBlock[]>();
+
+/** Each activity that a feature's lines state, read once for each list of lines. An activity runs from its `Activity:` line to
+ *  its last waypoint, or to the line before the next heading where it doesn't state a waypoint. */
+function activityBlocks(lines: readonly string[]): TActivityBlock[] {
+	const held = blocksOfLines.get(lines);
+	if (held !== undefined) return held;
+	const blocks: TActivityBlock[] = [];
+	let open: { start: number; waypoints: number[] } | undefined;
+	const close = (before: number) => {
+		const last = open?.waypoints.at(-1);
+		if (open !== undefined) blocks.push({ ...open, end: last === undefined ? before : last });
+		open = undefined;
+	};
+	for (const [at, raw] of lines.entries()) {
+		const line = getActionable(raw);
+		if (HEADING_LINE.test(line)) {
+			close(at - 1);
+			if (ACTIVITY_LINE.test(line)) open = { start: at, waypoints: [] };
+		} else if (open !== undefined && WAYPOINT_LINE.test(line)) open.waypoints.push(at);
+	}
+	close(lines.length - 1);
+	blocksOfLines.set(lines, blocks);
+	return blocks;
+}
+
+/** A waypoint's head as written after dePolite, as a line's words are matched, and its pattern, in which each placeholder that
+ *  doesn't name a domain takes a waypoint argument. */
+function headOf(written: string): Pick<TWaypointRule, "head" | "pattern"> {
+	const head = dePolite(written);
+	return { head, pattern: head.replace(/\{([^}:]+)\}/g, (_, name: string) => `{${name}: ${DOMAIN_WAYPOINT_ARGUMENT}}`) };
+}
+
+/** Where a rule is stated: its source path and line. */
+const statedAt = ({ source }: TWaypointRule): string => (source.lineNumber === undefined ? source.path : `${source.path}:${source.lineNumber}`);
+
 /**
- * Declares a waypoint's rule from each `waypoint` statement and saved waypoint: a step whose reading applies the rule. The
- * logic engine proves `ensure H` as P ∨ (¬P ∧ [A]P): either the proof P holds, or the activity A runs and then P holds.
+ * Holds a waypoint's rule from each `waypoint` line of an activity and from each saved waypoint. A line that unifies with a
+ * rule's head resolves to the `apply` step, which holds the rule. The logic engine proves `ensure H` as P ∨ (¬P ∧ [A]P):
+ * either the proof P holds, or the activity A runs and then P holds.
  */
 export class ActivitiesStepper extends AStepper implements IHasCycles {
 	description = "Define and reuse activities with waypoints and proofs";
 
 	steppers: AStepper[] = [];
-	private backgroundOutcomePatterns: Set<string> = new Set();
-	private featureOutcomePatterns: Set<string> = new Set();
-	private outcomeToFeaturePath: Map<string, string> = new Map();
-	private featureSteps: Map<string, Record<string, TStepperStep>> = new Map();
-	private currentFeaturePath: string = "";
-	private lastFeaturePath: string = "";
-	private lastResolutionPath: string = "";
-	private backgroundSteps: Record<string, TStepperStep> = {};
-	private inActivityBlock = false;
+	/** Each rule a waypoint states. A feature's rule applies in that feature, and a background's or a saved one in every feature. */
+	private rules: TWaypointRule[] = [];
+	/** The feature whose lines resolve or run, whose rules apply. */
+	private feature = "";
 
 	cycles: IStepperCycles = {
 		getConcerns: () => ({ domains: [savedWaypointDomainDefinition] }),
-		startFeature: (startFeature) => {
-			if (this.lastFeaturePath && this.lastFeaturePath !== startFeature.resolvedFeature.path) {
-				const previousSteps = this.featureSteps.get(this.lastFeaturePath);
-				if (previousSteps) {
-					for (const outcome of Object.keys(previousSteps)) {
-						delete this.steps[outcome];
-					}
-				}
-			}
-
-			const currentSteps = this.featureSteps.get(startFeature.resolvedFeature.path);
-			if (currentSteps) {
-				for (const [outcome, step] of Object.entries(currentSteps)) {
-					this.steps[outcome] = step;
-				}
-			}
-			for (const [outcome, step] of Object.entries(this.backgroundSteps)) {
-				this.steps[outcome] = step;
-			}
-
-			this.currentFeaturePath = startFeature.resolvedFeature.path;
-			this.inActivityBlock = false;
-		},
-		endFeature: () => {
-			this.lastFeaturePath = this.currentFeaturePath;
-			return Promise.resolve();
+		startFeature: ({ resolvedFeature }) => {
+			this.feature = resolvedFeature.path;
 		},
 	};
 	cyclesWhen = { startFeature: CycleWhen.FIRST };
 
-	/**
-	 * The resolver calls this before each feature resolves. It removes the previous feature's waypoint steps, so a feature's
-	 * lines don't resolve to another feature's outcomes. It adds the current feature's waypoint steps and the background
-	 * waypoint steps.
-	 */
+	/** The resolver calls this before each feature resolves, so the feature's lines unify with its own rules and the rules of
+	 *  every feature. */
 	startFeatureResolution(path: string): void {
-		this.inActivityBlock = false;
-		if (this.lastResolutionPath && this.lastResolutionPath !== path) {
-			const previousSteps = this.featureSteps.get(this.lastResolutionPath);
-			if (previousSteps) {
-				for (const outcome of Object.keys(previousSteps)) {
-					delete this.steps[outcome];
-				}
-			}
-		}
-
-		const currentSteps = this.featureSteps.get(path);
-		if (currentSteps) {
-			for (const [outcome, step] of Object.entries(currentSteps)) {
-				this.steps[outcome] = step;
-			}
-		}
-
-		for (const [outcome, step] of Object.entries(this.backgroundSteps)) {
-			this.steps[outcome] = step;
-		}
-
-		this.lastResolutionPath = path;
+		this.feature = path;
 	}
 
-	clearAllBackgroundSteps(): void {
-		this.backgroundSteps = {};
-		this.backgroundOutcomePatterns.clear();
+	/** Removes the backgrounds' rules, so a background's current text states them again. */
+	forgetBackgroundRules(): void {
+		this.rules = this.rules.filter(({ scope, saved }) => scope !== undefined || saved === true);
 	}
 
-	readonly baseSteps = {
+	readonly steps = {
 		saveWaypoint: {
 			description:
-				"Registers a waypoint whose activity is these lines. Actuality offers the waypoint as a step after this step runs. The step refuses a line that doesn't resolve to one step and an outcome that is already registered, before it registers a waypoint. Saving an outcome again with the same lines returns the existing record.",
+				"Saves a waypoint whose activity is these lines, and states its rule, which then applies in every feature. The step refuses a line that doesn't resolve to one step and a head that is already a rule's, before it states the rule. Saving a head again with the same lines returns the existing record.",
 			gwta: `save waypoint {outcome: ${DOMAIN_TITLE}} doing {statements: ${DOMAIN_STATEMENT_LINES}}`,
 			capability: ACTIVITIES_ACTIONS.saveWaypoint,
 			productsDomain: SAVED_WAYPOINT_DOMAIN,
@@ -158,7 +135,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				actionOKWithProducts(await this.saveWaypoint(outcome, statements, featureStep.source?.path ?? SAVED_WAYPOINT_SOURCE)),
 		},
 		registerSavedWaypoints: {
-			description: "Registers each saved waypoint from its record, so actuality offers a waypoint saved before a restart again.",
+			description: "States each saved waypoint's rule from its record, so a waypoint saved before a restart applies again.",
 			gwta: "register the saved waypoints",
 			action: async () => {
 				const saved = await readEvery(this.getWorld().shared.getStore(), { label: SAVED_WAYPOINT_LABEL });
@@ -168,76 +145,37 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		},
 		runSavedWaypoint: {
 			description:
-				"Runs a saved waypoint by its outcome, as calling its step does. A line written before the waypoint was saved uses this step in place of the waypoint's step. A line resolved on a host where the waypoint isn't registered uses this step in the same way.",
+				"Runs a saved waypoint's lines in order under this step, by the waypoint's head. A line written before the waypoint was saved, or resolved on a host that doesn't hold the waypoint, uses this step in place of the head.",
 			gwta: `run the saved waypoint {waypoint: ${refDomainKey(SAVED_WAYPOINT_DOMAIN)}}`,
 			capability: ACTIVITIES_ACTIONS.runSavedWaypoint,
 			action: async ({ waypoint }: { waypoint: TIndividualRef }, featureStep: TFeatureStep) => {
-				// Every saved waypoint's step requires ACTIVITIES_ACTIONS.runSavedWaypoint, and other outcomes' steps don't.
-				if (this.steps[waypoint.id]?.capability !== ACTIVITIES_ACTIONS.runSavedWaypoint) return actionNotOK(`"${waypoint.id}" isn't a waypoint saved here`);
+				const rule = this.rules.find(({ head, saved }) => saved === true && head === waypoint.id);
+				if (rule === undefined) return actionNotOK(`"${waypoint.id}" isn't a waypoint saved here`);
 				const world = this.getWorld();
-				const statement = findFeatureStepsFromStatement(waypoint.id, this.steppers, world, SAVED_WAYPOINT_SOURCE, [0]);
-				const ran = await proveStatements(stepperContext(world, this.steppers), featureStep, statement);
+				const lines = rule.activity.flatMap((line) => findFeatureStepsFromStatement(line.in, this.steppers, world, line.source?.path, [0]));
+				const ran = await proveStatements(stepperContext(world, this.steppers), featureStep, lines);
 				return ran.ok ? OK : actionNotOK(ran.errorMessage);
 			},
 		},
 		activity: {
 			gwta: `Activity: {activity: ${DOMAIN_TITLE}}`,
 			action: () => OK,
-			resolveFeatureLine: (line: string, path: string, _stepper: AStepper, _backgrounds: TFeatures, allLines?: string[], lineIndex?: number, actualSourcePath?: string) => {
-				this.lastResolutionPath = path;
-
-				if (line.match(/^Activity:/i)) {
-					this.inActivityBlock = true;
-					return true;
-				}
-
-				if (this.inActivityBlock) {
-					if (line.match(/^(Feature|Scenario|Background|Activity):/i)) {
-						this.inActivityBlock = false;
-						return false;
-					}
-
-					if (line.match(/^waypoint\s+/i)) {
-						// resolveWaypointCommon registers the outcome under path and sets the step's source path to actualSourcePath.
-						this.resolveWaypointCommon(line, path, allLines, lineIndex, line.includes(" with "), actualSourcePath);
-
-						let hasMoreWaypoints = false;
-						if (allLines && lineIndex !== undefined) {
-							for (let i = lineIndex + 1; i < allLines.length; i++) {
-								const nextLine = (allLines[i] || "").trim();
-								if (nextLine.match(/^(Feature|Scenario|Background|Activity):/i)) {
-									break;
-								}
-								if (nextLine.match(/^waypoint\s+/i)) {
-									hasMoreWaypoints = true;
-									break;
-								}
-							}
-						}
-
-						if (!hasMoreWaypoints) {
-							this.inActivityBlock = false;
-						}
-
-						return true;
-					}
-
-					return true;
-				}
-
-				return false;
+			// An activity's lines are the activity of each waypoint it states, and don't run where the feature reaches them.
+			resolveFeatureLine: (line: string, path: string, _stepper: AStepper, _backgrounds: unknown, allLines?: string[], lineIndex?: number, actualSourcePath?: string) => {
+				if (allLines === undefined || lineIndex === undefined) return false;
+				const block = activityBlocks(allLines).find(({ start, end }) => start <= lineIndex && lineIndex <= end);
+				if (block === undefined) return false;
+				if (block.waypoints.includes(lineIndex)) this.state(this.ruleOf(line, path, allLines, block.start, lineIndex, actualSourcePath));
+				return true;
 			},
 		},
-
 		waypointWithProof: {
 			gwta: `waypoint {outcome: ${DOMAIN_TITLE}} with {proof:${DOMAIN_STATEMENT}}`,
-			precludes: [`${constructorName(this)}.waypointLabel`],
+			precludes: [`${ACTIVITIES_STEPPER}.waypointLabel`],
 			description: "States a waypoint's rule, whose head holds where its proof holds. Where a feature reaches the line, its proof is proved.",
 			reading: READING.waypoint,
 		},
-
 		waypointLabel: { gwta: `waypoint {outcome: ${DOMAIN_TITLE}}`, description: "States a waypoint whose activity runs where its line is proved.", reading: READING.waypoint },
-
 		ensure: {
 			description:
 				"Proves a waypoint's head: where its proof doesn't hold, its activity runs and its proof is proved again, P ∨ (¬P ∧ [A]P). The record of the waypoint states each part of the proof.",
@@ -245,57 +183,85 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			unique: true,
 			reading: READING.ensure,
 		},
-	} as const satisfies TActivitiesFixedSteps;
+		apply: {
+			description:
+				"Applies the rule of a waypoint whose head a line unifies with: the head's pattern parses the line, and each placeholder takes the line's term. The line alone proves the rule's proof and runs its activity where the proof doesn't hold, P ∨ [A]. In a proof, the line is a goal that the rule's proof proves.",
+			rules: () => this.inScope(),
+			capability: ACTIVITIES_ACTIONS.applyWaypoint,
+			reading: READING.apply,
+		},
+	} as const satisfies TStepperSteps;
 
-	/** Returns the registered waypoints for the affordances snapshot (the ProvidesWaypoints capability). A waypoint is
+	/** Returns the waypoints whose rules apply, for the affordances snapshot (the ProvidesWaypoints capability). A waypoint is
 	 *  ensured where its proof holds now, which this step proves beneath itself. */
 	async waypointEntries(featureStep: TFeatureStep): Promise<TWaypointEntry[]> {
 		const world = this.getWorld();
 		const waypoints: TWaypointEntry[] = [];
-		for (const [outcome, step] of Object.entries(this.steps)) {
-			if (step.reading !== READING.apply || step.rule === undefined || step.source === undefined) continue;
-			const proofStatements = step.rule.proof.map((line) => line.in);
-			let ensured = false;
-			let error: string | undefined;
-			if (proofStatements.length > 0 && phraseParameters(outcome).length === 0) {
-				const proof = step.rule.proof.flatMap((line) => findFeatureStepsFromStatement(line.in, this.steppers, world, line.source?.path, [0]));
-				const proved = await proveStatements(stepperContext(world, this.steppers), featureStep, proof);
-				ensured = proved.ok;
-				if (!proved.ok) error = proved.errorMessage;
-			}
+		for (const rule of this.inScope()) {
+			const paramSlots = phraseParameters(rule.head);
+			const proof = rule.proof.flatMap((line) => findFeatureStepsFromStatement(line.in, this.steppers, world, line.source?.path, [0]));
+			const proved = proof.length > 0 && paramSlots.length === 0 ? await proveStatements(stepperContext(world, this.steppers), featureStep, proof) : undefined;
+			const error = proved === undefined || proved.ok ? {} : { error: proved.errorMessage };
+			const { head, source } = rule;
+			const proofStatements = rule.proof.map((line) => line.in);
 			waypoints.push({
-				outcome,
-				method: stepMethodName("ActivitiesStepper", outcome),
-				paramSlots: phraseParameters(outcome),
+				outcome: head,
+				method: ENSURE,
+				args: { outcome: head },
+				paramSlots,
 				proofStatements,
-				ensured,
-				...(error === undefined ? {} : { error }),
-				source: step.source,
-				isBackground: this.backgroundOutcomePatterns.has(outcome),
+				ensured: proved?.ok === true,
+				...error,
+				source,
+				isBackground: rule.scope === undefined,
 			});
 		}
 		return waypoints;
 	}
-
-	readonly typedSteps = this.baseSteps;
-
-	steps: TActivitiesStepperSteps = { ...this.baseSteps };
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
 		await super.setWorld(world, steppers);
 		this.steppers = steppers;
 	}
 
+	/** The rules that apply in the feature whose lines resolve or run. */
+	private inScope(): TWaypointRule[] {
+		return this.rules.filter(({ scope }) => scope === undefined || scope === this.feature);
+	}
+
+	/** Holds a waypoint's rule. A rule stated again from the same line is the same rule. Throws where a rule of the same head
+	 *  applies in its features already. */
+	private state(rule: TWaypointRule): void {
+		const held = this.rules.find(({ head, scope }) => head === rule.head && (scope === undefined || rule.scope === undefined || scope === rule.scope));
+		if (held === undefined) this.rules.push(rule);
+		else if (statedAt(held) !== statedAt(rule)) throw new Error(`the waypoint "${rule.head}" is stated at ${statedAt(held)} and at ${statedAt(rule)}; state each waypoint once`);
+	}
+
+	/** The rule a waypoint line of an activity states: its head, its proof, and the activity's lines before it that don't state
+	 *  a waypoint. A background's rule applies in every feature, and a feature's in that feature. */
+	private ruleOf(line: string, path: string, lines: readonly string[], start: number, at: number, actualSourcePath: string | undefined): TWaypointRule {
+		const stated = WAYPOINT_LINE.exec(line);
+		const written = stated?.[1];
+		if (written === undefined) throw new Error(`"${line}" doesn't state a waypoint; state it as waypoint {head} with {proof}`);
+		const proof = stated?.[2];
+		const source = actualSourcePath === undefined ? path : actualSourcePath;
+		const activity = lines.slice(start + 1, at).flatMap((raw, offset) => {
+			const statement = getActionable(raw);
+			return statement === "" || WAYPOINT_LINE.test(statement) ? [] : [{ in: statement, source: { lineNumber: start + offset + 2, path: source } }];
+		});
+		const scope = path.includes(BACKGROUNDS) ? {} : { scope: path };
+		return { ...headOf(written), proof: proof === undefined ? [] : [{ in: proof, source: { path: source } }], activity, source: { path: source, lineNumber: at + 1 }, ...scope };
+	}
+
 	/**
-	 * Registers a background waypoint whose activity is `lines`, so every feature has its step. Writes the waypoint as a
-	 * record. Refreshes actuality's registry, which calls its change listeners where the steps changed. `source` is the
-	 * source path the record holds. The outcome is `written` after dePolite, as a waypoint line's outcome is.
+	 * Saves a waypoint whose activity is `lines`, which applies in every feature, and writes it as a record. `source` is the
+	 * source path the record holds. The head is `written` after dePolite, as a waypoint line's head is.
 	 */
 	async saveWaypoint(written: string, lines: string[], source: string): Promise<TSavedWaypoint> {
 		const outcome = dePolite(written);
 		const store = this.getWorld().shared.getStore();
-		// The store holds a record for each saved waypoint. Saving an outcome again with the same lines returns the existing
-		// record. registerSavedWaypoints throws for every other outcome that is already registered.
+		// The store holds a record for each saved waypoint. Saving a head again with the same lines returns the existing record.
+		// registerSavedWaypoints throws for every other head that is already a rule's.
 		const kept = await recordOf(store, SAVED_WAYPOINT_LABEL, outcome);
 		if (kept) {
 			const held = SavedWaypointSchema.parse(kept);
@@ -307,16 +273,13 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		return saved;
 	}
 
-	/** Registers saved waypoints as `saveWaypoint` does, without writing their records again, and refreshes actuality's
-	 *  registry once. Each step requires ACTIVITIES_ACTIONS.runSavedWaypoint. A delegation is made before the waypoint is
-	 *  saved, so a delegation can't name an action specific to one waypoint. Throws before it registers any waypoint where
-	 *  a line doesn't resolve to one step or an outcome is already registered. */
+	/** States the rules of saved waypoints as `saveWaypoint` does, without writing their records again. Applying one requires
+	 *  ACTIVITIES_ACTIONS.applyWaypoint, as applying any waypoint does, and running its lines ACTIVITIES_ACTIONS.runSavedWaypoint. Throws before it states any rule where a line doesn't
+	 *  resolve to one step or a rule already has the head. */
 	private registerSavedWaypoints(saved: Pick<TSavedWaypoint, "id" | "lines" | "source">[]): void {
-		const world = this.getWorld();
-		const steppers = runSteppers(world);
-		const resolver = new Resolver(steppers, []);
+		const resolver = new Resolver(runSteppers(this.getWorld()), []);
 		const refused = saved.flatMap(({ id, lines }) => [
-			...(this.steps[id] ? [`the outcome "${id}" is already registered`] : []),
+			...(this.inScope().some(({ head }) => head === id) ? [`the outcome "${id}" is already registered`] : []),
 			...lines.flatMap((line) => {
 				try {
 					resolver.findSingleStepAction(line);
@@ -328,142 +291,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		]);
 		if (refused.length > 0) throw new Error(refused.join("; "));
 		for (const { id, lines, source } of saved)
-			this.registerOutcome(id, [], source, { isBackground: true, activityBlockSteps: lines, capability: ACTIVITIES_ACTIONS.runSavedWaypoint });
-		if (saved.length > 0) runRegistry(world).refresh(steppers, world);
-	}
-
-	/**
-	 * Declares a waypoint's step: its pattern is the outcome, each placeholder of which takes a waypoint argument, and its
-	 * rule holds the lines of its proof and its activity. An outcome is declared once; the same line declared again is the
-	 * same waypoint.
-	 */
-	registerOutcome(
-		outcome: string,
-		proofStatements: string[],
-		proofPath: string,
-		{
-			isBackground,
-			activityBlockSteps,
-			lineNumber,
-			actualSourcePath,
-			capability,
-		}: {
-			isBackground?: boolean;
-			activityBlockSteps?: (string | TStepInput)[];
-			lineNumber?: number;
-			actualSourcePath?: string;
-			/** The action the outcome's step requires, where it isn't the step's own name. */
-			capability?: string;
-		} = {},
-	) {
-		const path = actualSourcePath || proofPath;
-		const existing = this.steps[outcome];
-		if (existing) {
-			if (existing.source?.path === path && existing.source?.lineNumber === lineNumber) return;
-			throw new Error(
-				`Outcome "${outcome}" is already registered. Each outcome can only be defined once. (Existing: ${existing.source?.path}:${existing.source?.lineNumber}, New: ${path}:${lineNumber})`,
-			);
-		}
-		const lineOf = (line: string | TStepInput): TStepInput => (typeof line === "string" ? { in: line, source: { path } } : line);
-		const rule = { proof: proofStatements.map(lineOf), activity: (activityBlockSteps ?? []).map(lineOf) };
-		if (isBackground) this.backgroundOutcomePatterns.add(outcome);
-		else {
-			this.featureOutcomePatterns.add(outcome);
-			this.outcomeToFeaturePath.set(outcome, proofPath);
-		}
-		const step: TStepperStep = {
-			// Each placeholder in the outcome pattern takes a waypoint argument.
-			gwta: outcome.replace(/\{([^}:]+)\}/g, (_, name: string) => `{${name}: ${DOMAIN_WAYPOINT_ARGUMENT}}`),
-			virtual: true,
-			...(capability ? { capability } : {}),
-			source: { lineNumber, path },
-			description: `Outcome: ${outcome}. Proof: ${proofStatements.join("; ")}`,
-			reading: READING.apply,
-			rule,
-		};
-		this.steps[outcome] = step;
-		if (isBackground) this.backgroundSteps[outcome] = step;
-		else {
-			const steps = this.featureSteps.get(proofPath);
-			if (steps) steps[outcome] = step;
-			else this.featureSteps.set(proofPath, { [outcome]: step });
-		}
-	}
-
-	private resolveWaypointCommon(
-		line: string,
-		path: string,
-		allLines: string[] | undefined,
-		lineIndex: number | undefined,
-		requireProof: boolean,
-		actualSourcePath?: string,
-	): boolean {
-		if (!line.match(/^waypoint\s+/i)) {
-			return false;
-		}
-
-		let written: string;
-		let proofStatements: string[] = [];
-
-		if (requireProof) {
-			if (!line.match(/^waypoint\s+.+?\s+with\s+/i)) {
-				return false;
-			}
-			const withoutPrefix = line.replace(/^waypoint\s+/i, "");
-			const lastWithIndex = withoutPrefix.lastIndexOf(" with ");
-			if (lastWithIndex === -1) return false;
-
-			written = withoutPrefix.substring(0, lastWithIndex).trim();
-			const proofRaw = withoutPrefix.substring(lastWithIndex + 6).trim();
-			proofStatements = proofRaw
-				.split("\n")
-				.map((s) => s.trim())
-				.filter((s) => s.length > 0);
-		} else {
-			if (line.match(/^waypoint\s+.+?\s+with\s+/i)) {
-				return false;
-			}
-			const match = line.match(/^waypoint\s+(.+?)$/i);
-			if (!match) return false;
-			written = itemAt(match, 1).trim();
-		}
-		// The resolver matches a line after dePolite removes its leading words, so the outcome is the written name after dePolite.
-		const outcome = dePolite(written);
-
-		if (this.backgroundOutcomePatterns.has(outcome) || this.featureOutcomePatterns.has(outcome)) {
-			return true;
-		}
-
-		const isBackground = path.includes("backgrounds/");
-
-		let activityBlockSteps: TStepInput[] | undefined;
-
-		if (allLines && lineIndex !== undefined) {
-			let activityStartLine = -1;
-			for (let i = lineIndex - 1; i >= 0; i--) {
-				const prevLine = getActionable(itemAt(allLines, i));
-				if (prevLine.match(/^Activity:/i)) {
-					activityStartLine = i;
-					break;
-				}
-				if (prevLine.match(/^(Feature|Scenario|Background):/i)) {
-					break;
-				}
-			}
-
-			if (activityStartLine !== -1) {
-				const blockLines: TStepInput[] = [];
-				for (let i = activityStartLine + 1; i < lineIndex; i++) {
-					const stepLine = getActionable(itemAt(allLines, i));
-					if (stepLine && !stepLine.match(/^waypoint\s+/i)) {
-						blockLines.push({ in: stepLine, source: { lineNumber: i + 1, path: actualSourcePath || path } });
-					}
-				}
-				activityBlockSteps = blockLines;
-			}
-		}
-		this.registerOutcome(outcome, proofStatements, path, { isBackground, activityBlockSteps, lineNumber: lineIndex !== undefined ? lineIndex + 1 : undefined, actualSourcePath });
-		return true;
+			this.state({ ...headOf(id), proof: [], activity: lines.map((line) => ({ in: line, source: { path: source } })), source: { path: source }, saved: true });
 	}
 }
 

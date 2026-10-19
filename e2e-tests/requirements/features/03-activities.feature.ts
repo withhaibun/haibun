@@ -6,8 +6,8 @@ const { feature, scenario } = withAction(new Haibun());
 export const features: TKirejiExport = {
 	"Waypoints and ensure": [
 		feature({ feature: "Waypoints and ensure" }),
-		`A waypoint is a rule: its head holds where its proof holds, and its activity is the plan that makes the proof hold. Ensure reads P or, failing P, the activity and then P (activities-stepper.ts:70).
-		Accidental, and replaced by rule clauses with unification: the attempt count of 10 (activities-stepper.ts:279), the virtual step per outcome and its pattern rewriting (activities-stepper.ts:612), the step swapping per feature (activities-stepper.ts:101-163), the line scanning (activities-stepper.ts:686-770), the declarative branch (activities-stepper.ts:305-352), and the ensure and graph-link events (activities-stepper.ts:534-552, 664-684).`,
+		`A waypoint is a rule: its head holds where its proof holds, and its activity is the plan that makes the proof hold. Ensure reads P or, failing P, the activity and then P. A line unifies with a rule's head through the head's pattern, and the logic engine applies the rule (activities-stepper.ts, apply; haibun.pl, applied).
+		Accidental, and replaced by the rules: a step for each waypoint and its pattern rewriting, the step swapping per feature, and the scanning of the lines around each waypoint.`,
 
 		scenario({ scenario: "Ensure runs the activity only where the proof fails" }),
 		"Essential, for features and saved waypoints. Source: activities-stepper.ts:269.",
@@ -30,6 +30,28 @@ export const features: TKirejiExport = {
 		'ensure Greeted "Ada"',
 		'variable greeted is "Ada"',
 		"not variable waved exists",
+
+		scenario({ scenario: "A goal unifies with a waypoint's head, whose placeholder names a domain" }),
+		"Essential, for the formal model. Source: docs/reasoner.md, Waypoints as rules with unification.",
+		'set of meal is ["dinner", "lunch"]',
+		"Activity: Make a meal ready",
+		'set {m} to "ready"',
+		'waypoint {m:meal} is ready with variable {m} is "ready"',
+		"ensure dinner is ready",
+		'variable dinner is "ready"',
+		"not variable lunch exists",
+
+		scenario({ scenario: "A waypoint's head in a proof is a goal that starts a sub-proof" }),
+		"Essential. The proof of the goal's rule is proved beneath it, and the rule's activity doesn't run. Source: haibun.pl, plan(prove).",
+		"Activity: Cook supper",
+		'set cooked to "yes"',
+		'waypoint Supper is cooked with variable cooked is "yes"',
+		"Activity: Serve supper",
+		'set served to "yes"',
+		"waypoint Supper is served with Supper is cooked",
+		"not ensure Supper is served",
+		'variable served is "yes"',
+		"not variable cooked exists",
 
 		scenario({ scenario: "Ensure fails where the activity doesn't make the proof hold" }),
 		"Essential. Source: activities-stepper.ts:632.",

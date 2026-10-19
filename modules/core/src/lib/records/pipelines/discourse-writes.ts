@@ -117,12 +117,12 @@ export async function readTypedLinks(
 	return { readingId, statements: stated.filter((d) => d.kind === "edge").length };
 }
 
-/** Reads a feature's prose line as a text: its links become facts about the prose step. Prose without a fact leaves the records
- *  as they are, and the facts parsed here pass to `readTypedLinks`, so the text is parsed once. */
-export async function readProseLinks(store: TReadingStore, vocab: TLinkVocabulary, source: { label: string; id: string }, prose: string, seqPath: string): Promise<void> {
+/** Reads a feature's prose line as a text: its links become facts about the prose step, whose record `step` names. Prose without
+ *  a fact leaves the records as they are, and the facts parsed here pass to `readTypedLinks`, so the text is parsed once. */
+export async function readProseLinks(store: TReadingStore, vocab: TLinkVocabulary, source: { label: string; id: string }, prose: string, step: string): Promise<void> {
 	const facts = typedLinkFacts(prose, vocab);
 	if (facts.length === 0) return;
-	await readTypedLinks(store, vocab, source, prose, { seqPath, facts });
+	await readTypedLinks(store, vocab, source, prose, { seqPath: step, facts });
 }
 
 /** The forms of the one Body a Comment's topology declares. */

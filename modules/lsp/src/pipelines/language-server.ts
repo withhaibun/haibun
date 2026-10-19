@@ -35,10 +35,10 @@ const CAPABILITIES: InitializeResult = {
 const FEATURE_EXTENSION = ".feature";
 const MCP_STEPPER = "McpStepper";
 
-/** A stepper that resolves a document's waypoints: the activities stepper. */
+/** A stepper that selects the waypoints a document's lines apply: the activities stepper. */
 type TResolvesFeatures = AStepper & { startFeatureResolution(path: string): void };
 /** A stepper that holds the backgrounds' waypoints: the activities stepper. */
-type THoldsBackgroundSteps = AStepper & { clearAllBackgroundSteps(): void };
+type THoldsBackgroundRules = AStepper & { forgetBackgroundRules(): void };
 /** A stepper that lists and calls tools: the MCP stepper. */
 type TCallsTools = AStepper & { getTools?(): unknown[]; executeTool?(name: string, args: Record<string, unknown>): Promise<unknown> };
 
@@ -49,7 +49,7 @@ function lineNumberOf({ lineNumber, line, feature }: TExpandedLine): number {
 }
 
 const resolvesFeatures = (stepper: AStepper): stepper is TResolvesFeatures => "startFeatureResolution" in stepper;
-const holdsBackgroundSteps = (stepper: AStepper): stepper is THoldsBackgroundSteps => "clearAllBackgroundSteps" in stepper;
+const holdsBackgroundRules = (stepper: AStepper): stepper is THoldsBackgroundRules => "forgetBackgroundRules" in stepper;
 
 export type TLanguageServerContext = {
 	ports: TLspPorts;
@@ -209,7 +209,7 @@ export class LanguageServer {
 		if (!isBackgroundPath(path) && !held) return false;
 		// The list holds one current version of each background.
 		this.#backgrounds = [...this.#backgrounds.filter((background) => !samePath(pathOf(background.path), path)), { base: "", name: fileNameOf(path), path, content }];
-		for (const stepper of this.#steppers) if (holdsBackgroundSteps(stepper)) stepper.clearAllBackgroundSteps();
+		for (const stepper of this.#steppers) if (holdsBackgroundRules(stepper)) stepper.forgetBackgroundRules();
 		// Each background's resolution registers its waypoints, in the list's order.
 		const resolver = new Resolver(this.#steppers, []);
 		for (const background of this.#backgrounds) {

@@ -15,6 +15,7 @@ import { itemAt } from "../../domains/item-at.js";
 import { z } from "zod";
 import { ACTUALITY_LEVELS, HAIBUN_LOG_LEVELS, RECORDED_STATUS, VERDICT, type TActualityLevel } from "../../domains/protocol.js";
 import { MEDIA_TYPE } from "../../domains/media-types.js";
+import { SYNTHETIC_FEATURE_NUM } from "../../domains/host-id.js";
 import {
 	Access,
 	AccessLevelSchema,
@@ -32,6 +33,15 @@ const SEQ_PATH_DOMAIN = "seq-path";
 // - Feature execution uses [hostId, feature, scenario, step, ...], and a line's proof extends the line's path with each
 //   position of the proof.
 // - An ad hoc transport call uses [hostId, SYNTHETIC_FEATURE_NUM, adHocSeq] (host-id.ts).
+
+/** The segments of a feature line's path, [hostId, feature, scenario, step], and of a call a transport carries, [hostId,
+ *  SYNTHETIC_FEATURE_NUM, adHocSeq]. */
+const FEATURE_LINE_SEGMENTS = 4;
+const TRANSPORTED_CALL_SEGMENTS = 3;
+
+/** The path of the line that contains a step: the outermost step whose path is a prefix of the step's. A step's record is
+ *  part of the record of its path's prefix, so the line's record is the outermost step's record. */
+export const linePathOf = (path: number[]): number[] => path.slice(0, path[1] === SYNTHETIC_FEATURE_NUM ? TRANSPORTED_CALL_SEGMENTS : FEATURE_LINE_SEGMENTS);
 
 /** Format a hierarchical seqPath number array as the canonical string id (e.g. [0,1,2,5] → "0.1.2.5"). */
 export function formatSeqPath(seqPath: number[]): string {

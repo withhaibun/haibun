@@ -8,6 +8,7 @@ import {
 	executionOf,
 	extractSeqPathPrefix,
 	formatRecordName,
+	linePathOf,
 	parseRecordName,
 	parseSeqPath,
 	seqPathDomainDefinition,
@@ -64,6 +65,14 @@ describe("compareSeqPath", () => {
 
 	it("orders a synthetic seqPath's negative segment before a non-negative segment", () => {
 		expect(compareSeqPath([0, -1, 5], [0, 0, 5])).toBe(-1);
+	});
+});
+
+describe("linePathOf", () => {
+	it("names the line that contains a step: a feature's line, or a call a transport carries", () => {
+		expect(linePathOf([0, 1, 2, 5, 1, 3])).toEqual([0, 1, 2, 5]);
+		expect(linePathOf([0, 1, 2, 5])).toEqual([0, 1, 2, 5]);
+		expect(linePathOf([0, -1, 7, 1])).toEqual([0, -1, 7]);
 	});
 });
 

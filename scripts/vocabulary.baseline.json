@@ -22,9 +22,6 @@
 	"docs/todo.md": {
 		"names actuality as execution": 1
 	},
-	"e2e-tests/requirements/features/03-activities.feature.ts": {
-		"names waypoint, with a head, a proof and an activity as virtual step": 1
-	},
 	"e2e-tests/requirements/features/04-combinators.feature.ts": {
 		"names proved, refuted, unknown, contradiction as maybe-outcome": 1,
 		"names proved, refuted, unknown, contradiction as speculative": 1
@@ -272,9 +269,6 @@
 		"names actuality as execution": 1
 	},
 	"modules/core/src/steps/activities-stepper.proof-first.test.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/core/src/steps/activities-stepper.ts": {
 		"names actuality as execution": 1
 	},
 	"modules/core/src/steps/blips-stepper.ts": {

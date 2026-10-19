@@ -6,7 +6,10 @@ import { RECORDED_STATUS } from "../../domains/protocol.js";
 import { storeDeclaring } from "../../test/declared-types.js";
 
 const REPORT = "FieldReport";
-import { SEQ_PATH_EDGE, SEQ_PATH_FIELD } from "../../actuality/domains/seq-path.js";
+/** A line's record, and the record of a statement of it, by their record names. */
+const LINE = "1-1.0.1.1.2";
+const STEP = `${LINE}.1`;
+import { SEQ_PATH_FIELD } from "../../actuality/domains/seq-path.js";
 import { statementsWith } from "./statements.js";
 import { itemAt } from "../../domains/item-at.js";
 import type { TLinkVocabulary } from "../../domains/typed-links.js";
@@ -21,32 +24,31 @@ describe("statementsWith", () => {
 
 	beforeEach(async () => {
 		store = storeDeclaring(Object.fromEntries([REPORT, SEQ_PATH_LABEL, READING_LABEL, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL].map((label) => [label, {}])));
-		// An execution: the feature's step `0.1` is part of the root step `0`. The root step passed.
-		await store.upsertIndividual(SEQ_PATH_LABEL, { [SEQ_PATH_FIELD.id]: "0", [SEQ_PATH_FIELD.actionStatus]: RECORDED_STATUS.completed, [SEQ_PATH_FIELD.stepText]: "a run" });
-		await store.upsertIndividual(SEQ_PATH_LABEL, { [SEQ_PATH_FIELD.id]: "0.1", [SEQ_PATH_FIELD.actionStatus]: RECORDED_STATUS.running, [SEQ_PATH_FIELD.stepText]: "prose" });
-		await store.createEdge(SEQ_PATH_LABEL, "0.1", SEQ_PATH_EDGE.isPartOf, SEQ_PATH_LABEL, "0");
+		// An execution: the line `1-1.0.1.1.2` passed, and its statement `1-1.0.1.1.2.1` is running.
+		await store.upsertIndividual(SEQ_PATH_LABEL, { [SEQ_PATH_FIELD.id]: LINE, [SEQ_PATH_FIELD.actionStatus]: RECORDED_STATUS.completed, [SEQ_PATH_FIELD.stepText]: "a line" });
+		await store.upsertIndividual(SEQ_PATH_LABEL, { [SEQ_PATH_FIELD.id]: STEP, [SEQ_PATH_FIELD.actionStatus]: RECORDED_STATUS.running, [SEQ_PATH_FIELD.stepText]: "prose" });
 		// The cited document. The statement references a record that exists.
 		await store.upsertIndividual(REPORT, { id: "spec-1", generatedAtTime: "2026-07-01T00:00:00.000Z" });
 		await readTypedLinks(
 			store,
 			vocab,
-			{ label: SEQ_PATH_LABEL, id: "0.1" },
+			{ label: SEQ_PATH_LABEL, id: STEP },
 			"This scenario [the clause it exercises:citesAsEvidence](#FieldReport:spec-1:~:text=shall%20be%20signed).",
-			{ seqPath: "0.1" },
+			{ seqPath: STEP },
 		);
 	});
 
 	it("reads a statement as its three parts, and the subject and the object are references", async () => {
 		const row = itemAt(await statementsWith(store, LinkRelations.CITES_AS_EVIDENCE.rel), 0);
-		expect(row.subject).toEqual({ "@id": "0.1", "@type": SEQ_PATH_LABEL });
+		expect(row.subject).toEqual({ "@id": STEP, "@type": SEQ_PATH_LABEL });
 		expect(row.predicate).toBe(LinkRelations.CITES_AS_EVIDENCE.rel);
 		expect(row.object["@type"]).toBe(SPECIFIC_RESOURCE_LABEL);
 	});
 
-	it("returns the reading that asserted it, the outermost step that contains the reading's step, and that step's status", async () => {
+	it("returns the reading that asserted it, the line that contains the reading's step, and that line's status", async () => {
 		const row = itemAt(await statementsWith(store, LinkRelations.CITES_AS_EVIDENCE.rel), 0);
-		expect(row.reading).toEqual({ "@id": "reading:SeqPath:0.1", "@type": "Reading" });
-		expect(row.assertedBy).toEqual({ "@id": "0", "@type": SEQ_PATH_LABEL });
+		expect(row.reading).toEqual({ "@id": `reading:SeqPath:${STEP}`, "@type": "Reading" });
+		expect(row.assertedBy).toEqual({ "@id": LINE, "@type": SEQ_PATH_LABEL });
 		expect(row.outcome).toBe(RECORDED_STATUS.completed);
 	});
 

@@ -2,26 +2,25 @@
  * Reads the statements the graph holds and the provenance of each.
  *
  * A statement is a subject, a predicate and an object. statementsWith reads the statements of one predicate. It returns
- * each statement with the reading that asserted it, the outermost recorded step that contains the reading's step, and
- * that outermost step's status. Each party in a row is a reference (`@id` + `@type`) and not a copied display string.
- * A view renders each cell as a link: the subject, the passage, the reading and the step of actuality.
+ * each statement with the reading that asserted it, the line that contains the reading's step, and that line's status.
+ * Each party in a row is a reference (`@id` + `@type`) and not a copied display string. A view renders each cell as a
+ * link: the subject, the passage, the reading and the step of actuality.
  *
  * This module doesn't store a record. It projects what the store holds as RDF reification (`rdf:Statement`, subject,
  * predicate, object) with provenance. A coverage table is this read with the citation predicate and not a separate
- * report. Each row of the table holds a cited requirement and the status of the outermost step that contains the
- * citing step.
+ * report. Each row of the table holds a cited requirement and the status of the line that contains the citing step.
  */
 import { READING_LABEL, SEQ_PATH_LABEL, StatedRecordSchema } from "../../domains/resources.js";
 import { fromJsonText } from "../../domains/json-text.js";
-import { SEQ_PATH_FIELD, SEQ_PATH_EDGE } from "../../actuality/domains/seq-path.js";
+import { SEQ_PATH_FIELD, formatRecordName, linePathOf, parseRecordName } from "../../actuality/domains/seq-path.js";
 import type { IQuadStore } from "../ports.js";
 import { readEvery, recordOf } from "../../records/pipelines/record-reads.js";
 
 /** A JSON-LD reference to an individual: its `@id` and its `@type`. */
 export type TReference = { "@id": string; "@type": string };
 
-/** One statement and its provenance. `assertedBy` is the outermost recorded step that contains the step of the
- *  asserting reading. `outcome` is that outermost step's status. */
+/** One statement and its provenance. `assertedBy` is the line that contains the step of the asserting reading. `outcome`
+ *  is that line's status. */
 export type TStatementRow = {
 	"@type": "rdf:Statement";
 	subject: TReference;
@@ -48,25 +47,22 @@ async function readingsByStatement(store: TStatementStore): Promise<Map<string, 
 	return byStatement;
 }
 
-/** Returns the outermost recorded ancestor of a step, or the step where a recorded parent doesn't exist. A walk over a
- *  cycle of `isPartOf` edges stops at a depth of 100. */
-async function runOf(store: TStatementStore, seqPathId: string): Promise<Record<string, unknown> | undefined> {
-	let current = await recordOf(store, SEQ_PATH_LABEL, seqPathId);
-	for (let depth = 0; current && depth < 100; depth++) {
-		const parent = (await store.query({ subject: String(current[SEQ_PATH_FIELD.id]), predicate: SEQ_PATH_EDGE.isPartOf })).map((q) => String(q.object))[0];
-		if (!parent) return current;
-		const next = await recordOf(store, SEQ_PATH_LABEL, parent);
-		if (!next) return current;
-		current = next;
-	}
-	return current;
+/** The line that contains a reading's step, by the record name the reading states, with the line's status where the
+ *  store holds its record. Throws where the reading doesn't state a step's record name. */
+async function lineOf(store: TStatementStore, readingId: string, seqPath: string): Promise<Pick<TStatementRow, "assertedBy" | "outcome">> {
+	const step = parseRecordName(seqPath);
+	if (step === undefined)
+		throw new Error(`the reading ${readingId} states the step ${seqPath}, which isn't a step's record name; read its passage again, so its reading states one`);
+	const line = formatRecordName({ ...step, path: linePathOf(step.path) });
+	const status = (await recordOf(store, SEQ_PATH_LABEL, line))?.[SEQ_PATH_FIELD.actionStatus];
+	return { assertedBy: { "@id": line, "@type": SEQ_PATH_LABEL }, ...(status === undefined ? {} : { outcome: String(status) }) };
 }
 
 /**
  * Returns each edge made with `predicate` as a statement, in the order the store returns its quads. A row references
- * the reading that asserted the statement and the outermost recorded step that contains the reading's step. It holds
- * that outermost step's status as `outcome`. A reading's `stated` records don't hold a statement asserted by hand. That
- * statement is still a row, and the row doesn't reference a reading.
+ * the reading that asserted the statement and the line that contains the reading's step. It holds that line's status as
+ * `outcome`. A reading's `stated` records don't hold a statement asserted by hand. That statement is still a row, and the
+ * row doesn't reference a reading.
  */
 export async function statementsWith(store: TStatementStore, predicate: string): Promise<TStatementRow[]> {
 	const quads = await store.query({ predicate });
@@ -85,12 +81,8 @@ export async function statementsWith(store: TStatementStore, predicate: string):
 		const readingId = readings.get(`${quad.subject}\u0000${predicate}\u0000${String(quad.object)}`);
 		if (readingId) {
 			row.reading = { "@id": readingId, "@type": READING_LABEL };
-			const seqPathId = (await recordOf(store, READING_LABEL, readingId))?.seqPath;
-			if (typeof seqPathId === "string") {
-				const run = await runOf(store, seqPathId);
-				row.assertedBy = { "@id": String(run?.[SEQ_PATH_FIELD.id] ?? seqPathId), "@type": SEQ_PATH_LABEL };
-				if (run?.[SEQ_PATH_FIELD.actionStatus]) row.outcome = String(run[SEQ_PATH_FIELD.actionStatus]);
-			}
+			const seqPath = (await recordOf(store, READING_LABEL, readingId))?.seqPath;
+			if (typeof seqPath === "string") Object.assign(row, await lineOf(store, readingId, seqPath));
 		}
 		rows.push(row);
 	}

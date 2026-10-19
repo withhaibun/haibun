@@ -13,7 +13,7 @@ import { stepParamDomains } from "@haibun/core/lib/steps/derivations/step-tools.
 type TDeclared = { stepperName: string; actionName: string; step: TStepperStep };
 export type TDeclarationFinding = { method: string; finding: string };
 
-export const MISSING_PATTERN = "doesn't declare a pattern, an exact line or prose";
+export const MISSING_PATTERN = "doesn't declare a pattern, an exact line, prose or rules";
 export const MISSING_FUNCTOR = "doesn't declare an action or a reading";
 export const DUPLICATE_PATTERN = "declares a pattern another step declares";
 export const PARSES_TWO_WAYS = "declares a pattern whose own line doesn't parse to it alone";
@@ -41,13 +41,13 @@ export function declarationFindings(steppers: readonly AStepper[], nameOf: (step
 	return declared.flatMap((one): TDeclarationFinding[] => {
 		const method = methodOf(one);
 		const { step } = one;
-		if (step.gwta === undefined && step.exact === undefined && step.prose !== true) return [{ method, finding: MISSING_PATTERN }];
+		if (step.gwta === undefined && step.exact === undefined && step.prose !== true && step.rules === undefined) return [{ method, finding: MISSING_PATTERN }];
 		if (step.action === undefined && step.reading === undefined) return [{ method, finding: MISSING_FUNCTOR }];
 		if (precluded.has(`${one.stepperName}.${one.actionName}`)) return [];
 		const shape = shapeOf(step);
 		const peers = shape === undefined ? undefined : byShape.get(shape);
 		if (peers !== undefined && peers.length > 1) return [{ method, finding: DUPLICATE_PATTERN }];
-		if (step.gwta === undefined || step.virtual === true) return [];
+		if (step.gwta === undefined) return [];
 		const untyped = [...stepParamDomains(step)].filter(([, domain]) => domainParts(domain).includes(DOMAIN_STRING)).map(([param]) => param);
 		if (untyped.length > 0) return [{ method, finding: `${STRING_PARAMETER}: ${untyped.join(", ")}` }];
 		try {

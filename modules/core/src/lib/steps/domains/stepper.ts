@@ -50,8 +50,8 @@ export abstract class AStepper {
 	}
 
 	/**
-	 * The Resolver calls this before it resolves each feature. A stepper implements it to clear feature-scoped steps, so a
-	 * step that one feature defines doesn't resolve in the next feature.
+	 * The Resolver calls this before it resolves each feature. A stepper implements it to select what applies in that feature,
+	 * so a waypoint that one feature states doesn't apply in the next feature.
 	 */
 	startFeatureResolution?(_path: string): void;
 }
@@ -146,11 +146,13 @@ type TStepperStepBase = TStepReads & {
 	 *  the step has work to do at that moment. A step offered where it can only refuse is one of the few
 	 *  steps a model reads, so the model calls it and the turn keeps receiving refusals. */
 	offeredBeforeDiscovery?: boolean | (() => boolean);
-	virtual?: boolean;
-	/** Source location metadata for a generated step, such as a waypoint. */
+	/** The source location of the line that states the step, where a feature states it, such as a waypoint's rule. */
 	source?: { path: string; lineNumber?: number };
 	gwta?: string;
 	exact?: string;
+	/** Each rule whose head a line unifies with resolves the line to this step. The pattern of the rule's head parses the line,
+	 *  and the step the line resolves to holds that rule. A step that states rules doesn't declare a pattern. */
+	rules?: () => readonly TWaypointRule[];
 	/** A prose line resolves to this step. The step doesn't declare a pattern. A line is prose where a step's pattern
 	 *  doesn't match it and the line is a sentence or starts with a character other than a letter
 	 *  (Resolver.findSingleStepAction). */
@@ -218,8 +220,18 @@ export const READING = {
 } as const;
 export type TReading = (typeof READING)[keyof typeof READING];
 
-/** A waypoint's rule: the lines of its proof, and the lines of its activity, the plan that makes the proof hold. */
-export type TWaypointRule = { proof: TStepInput[]; activity: TStepInput[] };
+/** A waypoint's rule: its head as written and as the pattern that parses a goal, the lines of its proof, the lines of its
+ *  activity, the plan that makes the proof hold, and the line that states it. A feature's rule applies in that feature alone,
+ *  its `scope`, and a background's or a saved rule applies in every feature. */
+export type TWaypointRule = {
+	head: string;
+	pattern: string;
+	proof: TStepInput[];
+	activity: TStepInput[];
+	source: { path: string; lineNumber?: number };
+	scope?: string;
+	saved?: true;
+};
 
 /** A step that a stepper's action performs. Dispatch passes the action its arguments and the feature step being run. */
 type TActionStep = { action(args: TStepArgs, featureStep: TFeatureStep): Promise<TActionResult> | TActionResult; reading?: undefined; rule?: undefined; context?: undefined };

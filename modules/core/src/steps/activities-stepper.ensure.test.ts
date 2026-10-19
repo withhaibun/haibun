@@ -3,8 +3,6 @@ import { passWithDefaults } from "../lib/test/lib.js";
 import { ActivitiesStepper } from "./activities-stepper.js";
 import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun-stepper.js";
-import type { TWorld } from "../lib/actuality/domains/world.js";
-import { AStepper } from "../lib/steps/domains/stepper.js";
 
 describe("ActivitiesStepper runs the steps after an ensure", () => {
 	const steppers = [Haibun, VariablesStepper, ActivitiesStepper];
@@ -62,27 +60,6 @@ describe("ActivitiesStepper runs the steps after an ensure", () => {
 		const feature = { path: "/features/test.feature", content: scenario };
 
 		const result = await passWithDefaults([feature], steppers, undefined, [{ path: "/backgrounds/bg.feature", content: bg }]);
-		expect(result.ok).toBe(true);
-	});
-
-	it("runs an outcome registered in code with its block's steps", async () => {
-		const feature = { path: "/features/test-manual.feature", content: "ensure Manual Outcome" };
-
-		class ManualRegStepper extends ActivitiesStepper {
-			async setWorld(world: TWorld, steppers: AStepper[]) {
-				await super.setWorld(world, steppers);
-				if (!this.steps["Manual Outcome"]) {
-					this.registerOutcome("Manual Outcome", ['variable manual_ran is "yes"'], "/manual.feature", {
-						isBackground: false,
-						activityBlockSteps: ['set manual_ran to "yes"', 'set other to "value"'],
-					});
-				}
-			}
-		}
-
-		const customSteppers = [Haibun, VariablesStepper, ManualRegStepper];
-		const result = await passWithDefaults([feature], customSteppers, undefined);
-
 		expect(result.ok).toBe(true);
 	});
 });

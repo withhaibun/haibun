@@ -14,7 +14,7 @@ import { stepperContext } from "@haibun/core/lib/step-dispatch.js";
 import { callStepByName, NO_INPUT } from "@haibun/core/lib/steps/pipelines/call-step.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { EVERY_DEFINITION } from "@haibun/core/lib/step-discovery.js";
-import { shownTo } from "@haibun/core/lib/domains/capability-context.js";
+import { actingAs, runActingAs, shownTo } from "@haibun/core/lib/domains/capability-context.js";
 import { SHU_TAG } from "../domains/elements.js";
 import type { THydration } from "../domains/hydration.js";
 import { hashOf, hashWithColumns } from "../page/derivations/address.js";
@@ -68,13 +68,14 @@ async function viewProductsOf(scope: TReportScope): Promise<Record<string, unkno
 	const viewProducts: Record<string, unknown> = {};
 	const toggles = await Promise.all(scope.viewSteps.map(async ([name, read]) => [name, await productsOf(world, name, read)] as const));
 	for (const [name, products] of toggles) if (products?.view) viewProducts[`MonitorStepper-${name}`] = products;
-	// Each read is called by name, as every caller's read is, outside actuality's steps, so actuality doesn't record it.
+	// Each read is called by name, as every caller's read is, outside the step that writes the report, so actuality doesn't
+	// record it.
 	const steppers = world.runtime.steppers as AStepper[];
 	const ctx = stepperContext(world, steppers);
 	for (const stepper of steppers) {
 		for (const name of REFRESHED_AT_THE_END.filter((one) => stepper.steps?.[one] !== undefined)) {
 			const key = stepMethodName(stepper, name);
-			const products = await productsOf(world, key, async () => (await callStepByName(ctx, key, NO_INPUT)).result);
+			const products = await productsOf(world, key, async () => (await runActingAs(actingAs(), () => callStepByName(ctx, key, NO_INPUT))).result);
 			if (products !== undefined) viewProducts[key] = products;
 		}
 	}

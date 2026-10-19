@@ -13,15 +13,15 @@ import { findFeatureStepsFromStatement } from "@haibun/core/lib/actuality/pipeli
 import { argumentsOf } from "@haibun/core/lib/steps/pipelines/populate-action-args.js";
 import { VERDICT, type TActionResult, type TStepArgs, type TStepResult } from "@haibun/core/lib/domains/protocol.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
-import { hasCycles, READING, type TCallContext, type TFeatureStep, type TStepperStep } from "@haibun/core/lib/steps/domains/stepper.js";
+import { hasCycles, READING, type TCallContext, type TFeatureStep, type TWaypointRule } from "@haibun/core/lib/steps/domains/stepper.js";
 import type { TStepInput } from "@haibun/core/lib/actuality/domains/execution.js";
 import { CALL_OUTCOME, EFFECT, type TProofState, type TBinding, type TCloseRequest, type TNodeRequest } from "../domains/logic.js";
 import { quantifierOf, alternativesOf, statementParams, UNTIL_RETRY_MS } from "../domains/readings.js";
 import { atom, list, whyText } from "../derivations/terms.js";
 import type { TLogicEngine } from "../ports.js";
 
-/** A node of a line's proof: the step it states, the variable a quantifier binds, and the rule a waypoint applies. */
-type TNode = { step: TFeatureStep; what?: string; rule?: string };
+/** A node of a line's proof: the step it states, and the variable a quantifier binds. */
+type TNode = { step: TFeatureStep; what?: string };
 /** A node whose record is open: the result its proof resolves, its dispatch, and when it opened. */
 type TOpened = { close: (result: TActionResult) => void; dispatched: Promise<TStepResult>; at: number };
 
@@ -34,7 +34,7 @@ type TPlaced = { segments: number[]; targetHostId?: number };
 /** One line's proof: its nodes, the results of its calls and nodes by position, and the contexts and members it opened. */
 class Proof {
 	private readonly nodes = new Map<string, TNode>();
-	private readonly rules = new Map<string, TStepperStep>();
+	private readonly rules = new Map<string, TWaypointRule>();
 	private readonly results = new Map<string, TStepResult>();
 	/** The products of the last result under each position, where that result holds products. */
 	private readonly productsUnder = new Map<string, Record<string, unknown>>();
@@ -78,9 +78,10 @@ class Proof {
 		const { reading } = declared;
 		if (reading === undefined) return `call(${this.add({ step })})`;
 		if (reading === READING.apply) {
-			const rule = step.action.actionName;
-			this.rules.set(rule, declared);
-			return `${reading}(${this.add({ step, rule })}, ${atom(rule)})`;
+			const { rule } = declared;
+			if (rule === undefined) throw new Error(`${step.in} doesn't unify with a waypoint's head; state a line that does, or ensure the waypoint by its head`);
+			this.rules.set(rule.head, rule);
+			return `${reading}(${this.add({ step })}, ${atom(rule.head)})`;
 		}
 		if (reading === READING.anyOf) {
 			const alternatives = await Promise.all(alternativesOf(writtenTerm(step, "alternatives")).map((text) => this.listOf(this.statementSteps(text, step))));
@@ -299,9 +300,9 @@ class Proof {
 	}
 
 	private async rule(name: string): Promise<string> {
-		const declared = this.rules.get(name);
-		if (declared?.rule === undefined) throw new Error(`the engine requested the rule of ${name}, which the proof of "${this.line.in}" doesn't hold`);
-		const { proof, activity } = declared.rule;
+		const rule = this.rules.get(name);
+		if (rule === undefined) throw new Error(`the engine requested the rule of ${name}, which the proof of "${this.line.in}" doesn't hold`);
+		const { proof, activity } = rule;
 		return `rule(${await this.linesTerm(proof)}, ${await this.linesTerm(activity)})`;
 	}
 

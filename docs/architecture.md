@@ -151,7 +151,7 @@ For `every request observed in http-trace is variable {request}/status is less t
 
 ### Waypoint Resolution
 
-Waypoints are registered during resolution. When the resolver encounters an `Activity:` block, it collects the steps before `waypoint` statements as the activity body, then generates a dynamic step that matches the corresponding `ensure` call with a proof, or a statement call without a proof. The step's pattern is the waypoint's name after `dePolite`, so `ensure The table is laid` matches `waypoint The table is laid with ...`.
+A waypoint is a rule, which ActivitiesStepper holds as resolution reaches its line. An `Activity:` runs to its last `waypoint` line, and each waypoint's activity is the activity's lines before it. A feature's rule applies in that feature, and a background's or a saved waypoint's in every feature. A line unifies with a rule's head where the head's pattern parses it: the head is the waypoint's name after `dePolite`, and each placeholder takes the line's term, so `ensure The table is laid` unifies with `waypoint The table is laid with ...`, and `ensure dinner is ready` with `waypoint {m:meal} is ready with ...`. Such a line resolves to ActivitiesStepper's `apply` step, which holds the rule, and the logic engine applies it. A line that states a head alone runs the activity where the proof doesn't hold, and in a proof a head is a goal that its rule's proof proves.
 
 ## Phase 4: Executor
 

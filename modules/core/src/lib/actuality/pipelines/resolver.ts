@@ -73,7 +73,7 @@ export class Resolver {
 	public async resolveStepsFromFeatures(features: TExpandedFeature[]) {
 		const steps: TResolvedFeature[] = [];
 		for (const feature of features) {
-			// Steppers clear feature-scoped steps before each feature resolves.
+			// Steppers select what applies in each feature before it resolves.
 			this.startFeatureResolution(feature.path);
 			const featureSteps = await this.findFeatureSteps(feature);
 			const { expanded: _expanded, ...resolved } = feature;
@@ -82,8 +82,8 @@ export class Resolver {
 		return steps;
 	}
 
-	/** Calls each stepper's startFeatureResolution before a feature resolves, so a stepper clears its feature-scoped steps. A
-	 *  feature-scoped step must not resolve in another feature. */
+	/** Calls each stepper's startFeatureResolution before a feature resolves, so a stepper selects what applies in that
+	 *  feature. A waypoint a feature states applies in that feature alone. */
 	private startFeatureResolution(path: string) {
 		for (const stepper of this.steppers) {
 			if (typeof stepper.startFeatureResolution === "function") {
@@ -281,8 +281,7 @@ export class Resolver {
 		return { source: { path, lineNumber }, in: featureLine.line, seqPath: [seq], action };
 	}
 
-	/** Each step that `offers` allows and the stepper that declares it, derived again only where a stepper's steps change,
-	 *  as a waypoint adds a step and a feature's end clears its steps. */
+	/** Each step that `offers` allows and the stepper that declares it, derived again only where a stepper's steps change. */
 	private readonly offered = heldPerEntries(
 		(steppers: readonly AStepper[]) => steppers.flatMap((stepper) => [stepper, ...Object.entries(stepper.steps).flat()]),
 		(steppers: readonly AStepper[]): TStepAction[] =>
@@ -300,15 +299,12 @@ export class Resolver {
 
 	private matchesAStep(actionable: string): boolean {
 		const curt = dePolite(actionable);
-		return this.offeredSteps().some(({ step, actionName, stepperName }) => this.stepApplies(step, actionable, curt, actionName, stepperName));
+		return this.offeredSteps().some(({ step, actionName, stepperName }) => this.stepApplies(step, curt, actionName, stepperName).length > 0);
 	}
 
 	private findActionableSteps(actionable: string): TStepAction[] {
 		const curt = dePolite(actionable);
-		return this.offeredSteps().flatMap(({ step, actionName, stepperName }) => {
-			const applied = this.stepApplies(step, actionable, curt, actionName, stepperName);
-			return applied === undefined ? [] : [applied];
-		});
+		return this.offeredSteps().flatMap(({ step, actionName, stepperName }) => this.stepApplies(step, curt, actionName, stepperName));
 	}
 
 	/** Returns the steps that declare `prose` in place of a pattern. A prose line resolves to one of them. */
@@ -316,24 +312,23 @@ export class Resolver {
 		return this.offeredSteps().filter(({ step }) => step.prose);
 	}
 
-	/** The step action a line resolves to under a step, or undefined where it doesn't. `curt` is the line after dePolite. */
-	private stepApplies(step: TStepperStep, actionable: string, curt: string, actionName: string, stepperName: string) {
-		if (step.gwta) {
-			// A line that starts with an uppercase letter after dePolite matches only a gwta that starts with an uppercase letter.
-			// Prose starts with an uppercase letter and a step starts with a lowercase letter, so this check separates them.
-			// A gwta that starts with a {variable} placeholder can match a line that starts with an uppercase letter.
-			const startsWithUpper = /^[A-Z]/.test(curt);
-			const gwtaStartsUpper = /^[A-Z]/.test(step.gwta);
-			const gwtaStartsWithPlaceholder = step.gwta.startsWith("{");
-
-			if (startsWithUpper && !gwtaStartsUpper && !gwtaStartsWithPlaceholder) {
-				return undefined;
-			}
-			return matchGwtaToAction(step.gwta, curt, actionName, stepperName, step);
-		} else if (step.exact === curt) {
-			return { actionName, stepperName, step };
-		}
+	/** The step actions a line resolves to under a step: one where its pattern or its exact text matches, and one for each of
+	 *  its rules whose head the line unifies with, which holds that rule. `curt` is the line after dePolite. */
+	private stepApplies(step: TStepperStep, curt: string, actionName: string, stepperName: string): TStepAction[] {
+		if (step.rules !== undefined && step.reading !== undefined)
+			return step.rules().flatMap((rule) => patternApplies(rule.pattern, curt, actionName, stepperName, { ...step, rule, source: rule.source }));
+		if (step.gwta) return patternApplies(step.gwta, curt, actionName, stepperName, step);
+		return step.exact === curt ? [{ actionName, stepperName, step }] : [];
 	}
+}
+
+/** The step action a line resolves to under a pattern, where the pattern matches it. A line that starts with an uppercase
+ *  letter after dePolite matches only a pattern that starts with an uppercase letter or a placeholder. Prose starts with an
+ *  uppercase letter and a step starts with a lowercase letter, so this check separates them. */
+function patternApplies(pattern: string, curt: string, actionName: string, stepperName: string, step: TStepperStep): TStepAction[] {
+	if (/^[A-Z]/.test(curt) && !/^[A-Z]/.test(pattern) && !pattern.startsWith("{")) return [];
+	const applied = matchGwtaToAction(pattern, curt, actionName, stepperName, step);
+	return applied === undefined ? [] : [applied];
 }
 
 function getActionableStatement(steppers: AStepper[], statement: string, path: string, seqPath: number[], lineNumber?: number) {

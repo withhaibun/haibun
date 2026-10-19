@@ -62,7 +62,8 @@ worse(W, _, W).
 % all(Xs): the statements a step states, proved in order under the step's own record, which is open while its action runs.
 ev(T, G, all(Xs), P, B, A, D, V) :- !, conj(T, G, Xs, P-c(0), B, A, D, V, _).
 ev(T, G, call(N), P, B, _, _, V) :- !, effect(call, P, call(N, B), O), outcome_verdict(O, V), assertz(part(T, P, G, call(V))).
-ev(T, G, apply(M, W), P, B, A, D, V) :- !, applied(T, run, M, W, P, B, A, D, V), assertz(part(T, P, G, node(apply, V))).
+ev(T, G, apply(M, W), P, B, A, D, V) :-
+    !, ( memberchk(proving, A) -> Mode = prove ; Mode = run ), applied(T, Mode, M, W, P, B, A, D, V), assertz(part(T, P, G, node(apply, V))).
 ev(T, G, Term, P, B, A, D, V) :-
     Term =.. [F, N | Args],
     effect(open, P, open(N, B), Opened),
@@ -91,7 +92,7 @@ reading(where, _, [Cs, Xs], T, P, B, A, D, V, Why) :-
 reading(any_of, _, [Alternatives], T, P, B, A, D, V, Why) :- any(T, Alternatives, P, B, A, D, refuted, none, V, Why).
 reading(maybe, _, [Xs], T, P, B, A, D, proved, none) :- conj(T, all, Xs, P, B, A, D, _, _).
 reading(waypoint, _, [], _, _, _, _, _, proved, none).
-reading(waypoint, _, [Xs], T, P, B, A, D, V, Why) :- conj(T, all, Xs, P, B, A, D, V, Why).
+reading(waypoint, _, [Xs], T, P, B, A, D, V, Why) :- conj(T, all, Xs, P, B, [proving|A], D, V, Why).
 reading(within, N, [Xs], T, Q, B, A, D, V, Why) :- Q = P-_, conj(T, all, Xs, Q, [N-within(P)|B], A, D, V, Why).
 reading(some, N, [Xs], T, P, B, A, D, V, Why) :-
     members(N, P, B, Found),
@@ -143,8 +144,9 @@ attempts(T, N, Xs, P, B, A, D, K, V, Why) :-
     ).
 
 % A waypoint's rule: its head holds where its proof holds, and its activity is the plan that makes the proof hold. ensure
-% reads P ∨ (¬P ∧ [A]P), and a waypoint line run alone reads P ∨ [A]. The ancestor check refuses a rule applied again
-% with the same arguments below itself.
+% reads P ∨ (¬P ∧ [A]P), and a waypoint line run alone reads P ∨ [A]. In a proof, a waypoint's head is a goal that starts a
+% sub-proof of its rule's proof, and its activity doesn't run: beneath a proof the ancestors hold `proving`, and beneath an
+% activity they don't. The ancestor check refuses a rule applied again with the same arguments below itself.
 applied(T, Mode, M, W, P, B, A, D, V) :-
     effect(open, P, open(M, B), Opened),
     (   Opened == refused -> V = unknown
@@ -161,15 +163,16 @@ applied(T, Mode, M, W, P, B, A, D, V) :-
         close(P, M, V, Why)
     ).
 
-plan(ensure, _, [], _, _, _, _, _, refuted, no_proof) :- !.
+plan(Mode, _, [], _, _, _, _, _, refuted, no_proof) :- Mode \== run, !.
+plan(prove, T, Proof, _, P, B, A, D, V, Why) :- conj(T, proof(1), Proof, P, B, [proving|A], D, V, Why).
 plan(ensure, T, Proof, Activity, P, B, A, D, V, Why) :-
-    conj(T, proof(1), Proof, P, B, A, D, V0, _),
+    conj(T, proof(1), Proof, P, B, [proving|A], D, V0, _),
     (   V0 == proved -> V = proved, Why = none
-    ;   conj(T, activity(1), Activity, P, B, A, D, VA, WA),
-        ( VA == proved -> conj(T, proof(2), Proof, P, B, A, D, V, Why) ; V = VA, Why = WA )
+    ;   exclude(==(proving), A, Acting), conj(T, activity(1), Activity, P, B, Acting, D, VA, WA),
+        ( VA == proved -> conj(T, proof(2), Proof, P, B, [proving|A], D, V, Why) ; V = VA, Why = WA )
     ).
 plan(run, T, Proof, Activity, P, B, A, D, V, Why) :-
-    ( Proof == [] -> V0 = refuted, W0 = none ; conj(T, proof(1), Proof, P, B, A, D, V0, W0) ),
+    ( Proof == [] -> V0 = refuted, W0 = none ; conj(T, proof(1), Proof, P, B, [proving|A], D, V0, W0) ),
     (   V0 == proved -> V = proved, Why = none
     ;   Activity == [] -> ( Proof == [] -> V = proved, Why = none ; V = V0, Why = W0 )
     ;   conj(T, activity(1), Activity, P, B, A, D, V, Why)

@@ -48,8 +48,8 @@ async function activities(): Promise<ActivitiesStepper> {
 	return stepper;
 }
 
-/** The waypoints the activities stepper holds from the backgrounds, which it keeps to itself. */
-const backgroundSteps = (stepper: ActivitiesStepper) => (stepper as unknown as { backgroundSteps: Record<string, unknown> }).backgroundSteps;
+/** The heads of the waypoints whose rules apply. */
+const heads = (stepper: ActivitiesStepper) => stepper.steps.apply.rules().map(({ head }) => head);
 
 function serverOver(steppers: AStepper[], options: { open?: TextDocument[]; workspaces?: TWorkspaces; backgrounds?: TFeature[]; log?: TLspLog } = {}) {
 	const fake = fakeConnection(options.open);
@@ -117,9 +117,9 @@ describe("the language server's documents", () => {
 		const { server, later, sent } = serverOver([stepper], { open: [other] });
 		const path = "/tmp/backgrounds/test.bg.feature";
 		await server.processDocument(featureDocument(path, "Activity: MyActivity\nwaypoint Foo"));
-		expect(Object.keys(backgroundSteps(stepper))).toContain("Foo");
+		expect(heads(stepper)).toContain("Foo");
 		await server.processDocument(featureDocument(path, "Activity: MyActivity\nwaypoint Bar"));
-		expect(Object.keys(backgroundSteps(stepper))).toEqual(["Bar"]);
+		expect(heads(stepper)).toEqual(["Bar"]);
 		const sentBefore = sent.length;
 		for (const task of later) task();
 		await vi.waitFor(() => expect(sent.slice(sentBefore).map(({ uri }) => uri)).toContain(other.uri));

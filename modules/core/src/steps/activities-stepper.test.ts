@@ -5,101 +5,48 @@ import { getDefaultWorld, passWithDefaults } from "../lib/test/lib.js";
 import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun-stepper.js";
 import { DOMAIN_WAYPOINT_ARGUMENT } from "../lib/domains/domains.js";
-import { READING } from "../lib/steps/domains/stepper.js";
+import { Resolver } from "../lib/actuality/pipelines/resolver.js";
 
 describe("ActivitiesStepper", () => {
-	describe("registerOutcome", () => {
-		it("should register an outcome and create a gwta step", async () => {
-			const stepper = new ActivitiesStepper();
-			await stepper.setWorld(getDefaultWorld(), []);
-
-			stepper.registerOutcome("Is logged in as {user}", ['set loggedIn to "true"'], "/test.feature");
-
-			const step = stepper.steps["Is logged in as {user}"];
-			if (!step) throw new Error("the outcome isn't registered as a step");
-			expect(step.gwta, "each placeholder in the outcome pattern takes a waypoint argument").toBe(`Is logged in as {user: ${DOMAIN_WAYPOINT_ARGUMENT}}`);
-			expect(step.description).toContain("Is logged in as {user}");
-			expect(step.reading, "the engine proves the outcome by applying its rule").toBe(READING.apply);
-			expect(step.rule?.proof.map((line) => line.in)).toEqual(['set loggedIn to "true"']);
-		});
-
-		it("should prevent duplicate outcome registration", async () => {
-			const stepper = new ActivitiesStepper();
-			await stepper.setWorld(getDefaultWorld(), []);
-
-			stepper.registerOutcome("Is logged in as {user}", ['set loggedIn to "true"'], "/test.feature");
-
-			expect(() => {
-				stepper.registerOutcome("Is logged in as {user}", ['set loggedIn to "false"'], "/another.feature");
-			}).toThrow(/already registered/);
-		});
-
-		it("should register multiple different outcomes", async () => {
-			const stepper = new ActivitiesStepper();
-			await stepper.setWorld(getDefaultWorld(), []);
-
-			stepper.registerOutcome("Outcome A", ["step 1"], "/test.feature");
-			stepper.registerOutcome("Outcome B", ["step 2"], "/test.feature");
-			stepper.registerOutcome("Outcome C {x}", ["step 3"], "/test.feature");
-
-			expect(stepper.steps["Outcome A"]).toBeDefined();
-			expect(stepper.steps["Outcome B"]).toBeDefined();
-			expect(stepper.steps["Outcome C {x}"]).toBeDefined();
-		});
-
-		it("should store proof statements and path in the action closure", async () => {
-			const stepper = new ActivitiesStepper();
-			await stepper.setWorld(getDefaultWorld(), []);
-			const proofStatements = ['set x to "1"', 'set y to "2"'];
-			const proofPath = "/backgrounds/test.feature";
-
-			stepper.registerOutcome("Test outcome", proofStatements, proofPath);
-
-			const step = stepper.steps["Test outcome"];
-			if (!step) throw new Error("the outcome isn't registered as a step");
-			expect(step.gwta).toBe("Test outcome");
-		});
-
-		it("should support multi-line proof statements", async () => {
-			const stepper = new ActivitiesStepper();
-			await stepper.setWorld(getDefaultWorld(), []);
-
-			const multiLineProof = ['set url to "https://example.com"', 'set page to "home"', "compose fullUrl with {url}{page}", "go to the fullUrl webpage"];
-
-			stepper.registerOutcome("Navigate to home", multiLineProof, "/test.feature");
-
-			const step = stepper.steps["Navigate to home"];
-			if (!step) throw new Error("the outcome isn't registered as a step");
-			expect(step.gwta).toBe("Navigate to home");
-			expect(step.description).toContain("Navigate to home");
-			// The description should contain all the proof statements
-			multiLineProof.forEach((proofStep) => {
-				expect(step.description).toContain(proofStep);
-			});
-		});
-
-		it("should store sourceLineNumber and sourcePath on a waypoint's step", async () => {
-			const stepper = new ActivitiesStepper();
-			await stepper.setWorld(getDefaultWorld(), []);
-
-			stepper.registerOutcome('Test outcome with variable x is "1"', ['variable x is "1"'], "/test/backgrounds/setup.feature", {
-				isBackground: false,
-				activityBlockSteps: ['set x to "1"'],
-				lineNumber: 7,
-			});
-
-			const step = stepper.steps['Test outcome with variable x is "1"'];
-			if (!step) throw new Error("the outcome isn't registered as a step");
-			expect(step.source?.lineNumber).toBe(7);
-			expect(step.source?.path).toBe("/test/backgrounds/setup.feature");
-		});
+	/** An activities stepper set in a world, as a run sets it. */
+	const activities = async (): Promise<ActivitiesStepper> => {
+		const stepper = new ActivitiesStepper();
+		await stepper.setWorld(getDefaultWorld(), [stepper]);
+		return stepper;
+	};
+	const background = (lines: string[]): ConstructorParameters<typeof Resolver>[1][number] => ({
+		base: "",
+		name: "login",
+		path: "/backgrounds/login.feature",
+		content: lines.join("\n"),
 	});
 
-	describe("steps initialization", () => {
-		it("should start with built-in steps (activity, ensure)", () => {
-			const stepper = new ActivitiesStepper();
-			expect(Object.keys(stepper.steps)).toContain("activity");
-			expect(Object.keys(stepper.steps)).toContain("ensure");
+	describe("a waypoint's rule", () => {
+		it("holds its head, its pattern, in which each placeholder that doesn't name a domain takes a waypoint argument, its proof, its activity and its line", async () => {
+			const stepper = await activities();
+			new Resolver([stepper], [background(["Activity: Log in", 'set loggedIn to "true"', 'waypoint Is logged in as {user} with variable loggedIn is "true"'])]);
+			const source = { path: "/backgrounds/login.feature" };
+			expect(stepper.steps.apply.rules()).toEqual([
+				{
+					head: "Is logged in as {user}",
+					pattern: `Is logged in as {user: ${DOMAIN_WAYPOINT_ARGUMENT}}`,
+					proof: [{ in: 'variable loggedIn is "true"', source }],
+					activity: [{ in: 'set loggedIn to "true"', source: { ...source, lineNumber: 2 } }],
+					source: { ...source, lineNumber: 3 },
+				},
+			]);
+		});
+
+		it("applies in the feature that states it, so two features state the same head", async () => {
+			const feature = (path: string) => ({ path, content: ["Activity: Set it", 'set it to "yes"', 'waypoint It is set with variable it is "yes"', "ensure It is set"].join("\n") });
+			const result = await passWithDefaults([feature("/features/a.feature"), feature("/features/b.feature")], [VariablesStepper, ActivitiesStepper]);
+			expect(result.ok, result.failure?.error?.message).toBe(true);
+		});
+
+		it("is refused where two lines state its head", async () => {
+			const stepper = await activities();
+			const twice = ["Activity: Log in", "waypoint Logged in", "Activity: Log in again", "waypoint Logged in"];
+			expect(() => new Resolver([stepper], [background(twice)])).toThrow('the waypoint "Logged in" is stated at /backgrounds/login.feature:2 and at /backgrounds/login.feature:4');
 		});
 	});
 

@@ -380,7 +380,7 @@ export class ShuAffordancesPanel extends ShuElement<typeof ShuAffordancesPanelSc
 			${w.paramSlots.length > 0 ? html`<div class="wp-slots">slots: ${w.paramSlots.map((s, i) => html`${i > 0 ? ", " : ""}<code>${s}</code>`)}</div>` : ""}
 			${w.proofStatements.length > 0 ? html`<div class="wp-proof">proof: ${w.proofStatements.map((p, i) => html`${i > 0 ? " · " : ""}<code>${p}</code>`)}</div>` : ""}
 			${w.error ? html`<div class="wp-error">${w.error}</div>` : ""}
-			<button class="wp-run" type="button" data-testid=${`waypoint-${w.outcome}-run`} @click=${(): void => this.chooseStep(w.method)}>Ensure</button>
+			<button class="wp-run" type="button" data-testid=${`waypoint-${w.outcome}-run`} @click=${(): void => this.chooseStep(w.method, w.args)}>Ensure</button>
 		</div>`;
 	}
 

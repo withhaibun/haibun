@@ -1,15 +1,13 @@
 /**
- * A waypoint that `save waypoint` saves. Actuality registers it as a step at once, and its activity runs the saved lines.
- * Saving is refused where a line doesn't resolve to a step or the outcome is already registered with other lines.
+ * A waypoint that `save waypoint` saves. Actuality states its rule at once, and its activity runs the saved lines. Saving is
+ * refused where a line doesn't resolve to a step or the head is already registered with other lines.
  */
 import { describe, it, expect } from "vitest";
 import { failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
 import { AStepper, type TFeatureStep } from "../lib/steps/domains/stepper.js";
 import { actionOK } from "../lib/domains/util.js";
-import { buildFeatureStepForTransport } from "../lib/steps/pipelines/call-step.js";
-import { runRegistry } from "../lib/steps/pipelines/step-registry.js";
-import { stepMethodName } from "../lib/steps/domains/step-method.js";
-import { proveStep } from "../lib/actuality/pipelines/step-dispatch.js";
+import { findFeatureStepsFromStatement } from "../lib/actuality/pipelines/resolver.js";
+import { proveStatements, stepperContext } from "../lib/actuality/pipelines/step-dispatch.js";
 import ActivitiesStepper, { SAVED_WAYPOINT_LABEL } from "./activities-stepper.js";
 import AuthorityStepper from "./authority-stepper.js";
 import { ACTIVITIES_ACTIONS, ACTIVITIES_STEPPER } from "./domains/activities-actions.js";
@@ -25,22 +23,21 @@ const RUN = ACTIVITIES_ACTIONS.runSavedWaypoint;
 const SET = requiredAction(VariablesStepper.name, "set", {});
 const READS_PUBLIC = readAction(Access.public);
 
-/** Holds whether actuality offered the saved waypoint, and whether a transport-style call to it passed. */
-const seen = { offered: false, ran: false };
+/** Holds whether a line resolved after the save applied the saved waypoint, and whether its proof passed. */
+const seen = { applied: false, ran: false };
 
-/** Calls the saved waypoint as a transport does. */
+/** Resolves the saved waypoint's head as a line and proves it, as a statement resolved after the save is. */
 class SavedWaypointProbe extends AStepper {
-	description = "Calls a saved waypoint as a transport does.";
+	description = "Resolves a saved waypoint's head as a line and proves it.";
 	steps = {
-		callTheSavedWaypoint: {
-			gwta: "call the saved waypoint",
+		applyTheSavedWaypoint: {
+			gwta: "apply the saved waypoint",
 			action: async (_: unknown, featureStep: TFeatureStep) => {
 				const world = this.getWorld();
-				const registry = runRegistry(world);
-				const tool = registry.get(stepMethodName(ActivitiesStepper.name, OUTCOME));
-				seen.offered = tool !== undefined;
-				if (tool)
-					seen.ran = (await proveStep({ registry, world, steppers: world.runtime.steppers as AStepper[] }, buildFeatureStepForTransport(tool, {}, [...featureStep.seqPath, 1]))).ok;
+				const steppers = world.runtime.steppers as AStepper[];
+				const statement = findFeatureStepsFromStatement(OUTCOME, steppers, world, undefined, [0]);
+				seen.applied = statement.every((step) => step.action.actionName === "apply");
+				seen.ran = (await proveStatements(stepperContext(world, steppers), featureStep, statement)).ok;
 				return actionOK();
 			},
 		},
@@ -49,10 +46,10 @@ class SavedWaypointProbe extends AStepper {
 const STEPPERS = [ActivitiesStepper, VariablesStepper, AuthorityStepper, SavedWaypointProbe];
 
 describe("a waypoint a step saves", () => {
-	it("is offered as a step at once, and runs its saved lines", async () => {
+	it("states its rule at once, so a line resolved after it applies the waypoint and runs its saved lines", async () => {
 		expect(ActivitiesStepper.name, "the stepper is named as its actions name it").toBe(ACTIVITIES_STEPPER);
-		await passWithDefaults(`${SAVE}\ncall the saved waypoint\nvariable knocks is "2"\n`, STEPPERS);
-		expect(seen.offered, "actuality offers the outcome without a restart").toBe(true);
+		await passWithDefaults(`${SAVE}\napply the saved waypoint\nvariable knocks is "2"\n`, STEPPERS);
+		expect(seen.applied, "actuality applies the head without a restart").toBe(true);
 		expect(seen.ran).toBe(true);
 	});
 
@@ -77,7 +74,7 @@ describe("a waypoint a step saves", () => {
 
 	it("is kept where it is saved again with the same lines", async () => {
 		seen.ran = false;
-		await passWithDefaults(`${SAVE}\n${SAVE}\ncall the saved waypoint\n`, STEPPERS);
+		await passWithDefaults(`${SAVE}\n${SAVE}\napply the saved waypoint\n`, STEPPERS);
 		expect(seen.ran).toBe(true);
 	});
 
