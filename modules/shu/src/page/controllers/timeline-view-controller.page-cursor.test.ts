@@ -61,6 +61,15 @@ describe("a view's place on the page's time cursor", () => {
 		expect(view.timeline.shownBy([{ timestamp: 99 }, { timestamp: 100 }, { timestamp: 101 }])).toEqual([{ timestamp: 99 }, { timestamp: 100 }]);
 	});
 
+	it("shows every record again once the cursor is cleared to the live edge", async () => {
+		const view = await mounted();
+		const records = [{ timestamp: 99 }, { timestamp: 100 }, { timestamp: 101 }];
+		view.timeline.movePage(99);
+		expect(view.timeline.shownBy(records)).toEqual([{ timestamp: 99 }]);
+		view.timeline.movePage(null);
+		expect(view.timeline.shownBy(records)).toEqual(records);
+	});
+
 	it("shows the moment a view is opened at, and doesn't follow or move the page's cursor", async () => {
 		const [pinned, live] = [await mounted("999"), await mounted()];
 		expect(pinned.timeline.cursor).toBe(999);

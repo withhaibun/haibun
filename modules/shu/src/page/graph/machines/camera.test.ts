@@ -364,3 +364,142 @@ describe("clearStripOffset, an overlay along the bottom of the canvas", () => {
 		expect(clearStripOffset(canvas, { left: 0, top: 400, right: 1000, bottom: 600 })).toBeNull();
 	});
 });
+
+/** A camera whose orbit, axes and canvas are live: its matrix is derived from where it stands and what it looks at, as three.js
+ *  derives a camera's, so a pan reads the camera's own screen axes and a resize changes the height on which the zoom is measured. */
+function liveHarness(nodes: XYZ[], view?: { mode: ReframeMode; extent: { cy: number; cz: number; halfW: number; halfH: number } }) {
+	const vec = (x: number, y: number, z: number) => ({
+		x,
+		y,
+		z,
+		set(nx: number, ny: number, nz: number) {
+			this.x = nx;
+			this.y = ny;
+			this.z = nz;
+		},
+	});
+	const target = vec(0, 0, 0);
+	const position = vec(0, 0, 400);
+	const up = vec(0, 1, 0);
+	const container = { clientWidth: 1000, clientHeight: 700 };
+	const unit = (v: XYZ): XYZ => {
+		const len = Math.hypot(v.x, v.y, v.z);
+		return { x: v.x / len, y: v.y / len, z: v.z / len };
+	};
+	const cross = (a: XYZ, b: XYZ): XYZ => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x });
+	const camera = {
+		fov: 80,
+		aspect: container.clientWidth / container.clientHeight,
+		position,
+		up,
+		updateProjectionMatrix: () => undefined,
+		get matrixWorld() {
+			const z = unit({ x: position.x - target.x, y: position.y - target.y, z: position.z - target.z });
+			const x = unit(cross(up, z));
+			const y = cross(z, x);
+			return { elements: [x.x, x.y, x.z, 0, y.x, y.y, y.z, 0, z.x, z.y, z.z, 0, position.x, position.y, position.z, 1] };
+		},
+	};
+	const deps = {
+		camera: () => camera,
+		controls: () => ({ target, object: { position }, update: () => undefined }),
+		container: () => container,
+		renderer: () => undefined,
+		canvas: () => undefined,
+		nodePositions: () => nodes,
+		hasNodes: () => nodes.length > 0,
+		reframeMode: () => view?.mode ?? REFRAME.front,
+		ganttExtent: () => (view?.mode === REFRAME.gantt ? view.extent : null),
+		sequenceExtent: () => null,
+		refreshPickBounds: () => undefined,
+	} as unknown as CameraDeps;
+	const cam = new PolymorphicCamera(deps);
+	const distance = (): number => Math.hypot(position.x - target.x, position.y - target.y, position.z - target.z);
+	return { cam, camera, target, position, container, distance };
+}
+
+const SPREAD_OUT: XYZ[] = [
+	{ x: -120, y: -60, z: 0 },
+	{ x: 110, y: 70, z: 300 },
+	{ x: 20, y: -90, z: 150 },
+	{ x: -40, y: 80, z: 600 },
+];
+
+describe("the gantt view's frame", () => {
+	it("aims along x at the lane plane, so time reads across the view", () => {
+		const { cam, position, target } = liveHarness(SPREAD_OUT, { mode: REFRAME.gantt, extent: { cy: 0, cz: 0, halfW: 110, halfH: 35 } });
+		expect(cam.frame(FRAME.gantt), "the gantt frame applies once its bars are placed").toBe(true);
+		expect(Math.abs(position.x - target.x), "the camera stands off along x").toBeGreaterThan(Math.abs(position.z - target.z));
+		expect(position.x).toBeLessThan(target.x);
+	});
+});
+
+describe("a reader's camera moves", () => {
+	it("zooming in brings the graph closer and zooming out takes it farther, measured as the world a pixel spans", () => {
+		const { cam } = liveHarness(SPREAD_OUT);
+		cam.frame(FRAME.front);
+		const resting = cam.worldPerPxAt({ x: 0, y: 0, z: 0 }) as number;
+		cam.zoomBy(40, "percent", "in");
+		const zoomedIn = cam.worldPerPxAt({ x: 0, y: 0, z: 0 }) as number;
+		expect(zoomedIn).toBeLessThan(resting * 0.99);
+		cam.zoomBy(40, "percent", "out");
+		expect(cam.worldPerPxAt({ x: 0, y: 0, z: 0 }) as number).toBeGreaterThan(zoomedIn * 1.01);
+	});
+
+	it("panning slides the camera and what it looks at together, keeping its aim around the target", () => {
+		const { cam, position, target } = liveHarness(SPREAD_OUT);
+		cam.frame(FRAME.front);
+		const [before, aim] = [{ ...position }, cam.azimuth()];
+		cam.panBy(120, "pixels", "left");
+		expect(Math.hypot(position.x - before.x, position.y - before.y, position.z - before.z), "the framing moved").toBeGreaterThan(1);
+		expect(target.x, "what it looks at moved with it").toBeLessThan(0);
+		expect(cam.azimuth()).toBeCloseTo(aim as number, 9);
+	});
+
+	it("orbiting turns the camera around what it looks at", () => {
+		const { cam, distance } = liveHarness(SPREAD_OUT);
+		cam.frame(FRAME.front);
+		const [aim, reach] = [cam.azimuth() as number, distance()];
+		cam.orbitBy(30, "left");
+		expect(Math.abs((cam.azimuth() as number) - aim)).toBeCloseTo(Math.PI / 6, 6);
+		expect(distance(), "an orbit holds the distance").toBeCloseTo(reach, 6);
+	});
+
+	it("fitting around a node and its neighbours frames them closer than fitting the whole graph", () => {
+		const { cam } = liveHarness(SPREAD_OUT);
+		cam.frame(FRAME.fit);
+		const whole = cam.worldPerPxAt({ x: 0, y: 0, z: 0 }) as number;
+		cam.fitPositions([itemAt(SPREAD_OUT, 0), itemAt(SPREAD_OUT, 2)]);
+		expect(cam.worldPerPxAt({ x: 0, y: 0, z: 0 }) as number).toBeLessThan(whole);
+	});
+});
+
+describe("what the camera doesn't change on its own", () => {
+	it("keeps the zoom a reader sees when the canvas becomes shorter, by narrowing the lens as the height shrinks", () => {
+		const { cam, container, target } = liveHarness(SPREAD_OUT);
+		cam.onContainerResize();
+		cam.frame(FRAME.front);
+		const before = cam.worldPerPxAt(target) as number;
+		container.clientHeight = 500;
+		cam.onContainerResize();
+		expect(cam.worldPerPxAt(target) as number).toBeCloseTo(before, 9);
+	});
+
+	it("frames the graph once as its first layout comes to rest, and a later rest, such as after an arrival, leaves the camera where it is", () => {
+		const nodes = [...SPREAD_OUT];
+		const { cam, position } = liveHarness(nodes);
+		cam.autoFitOnSettle(false);
+		const framed = { ...position };
+		nodes.push({ x: 400, y: 400, z: 0 });
+		cam.autoFitOnSettle(false);
+		expect(position).toMatchObject({ x: framed.x, y: framed.y, z: framed.z });
+	});
+
+	it("leaves the camera with the reader once they open a node, so the first layout's rest doesn't frame under them", () => {
+		const { cam, position } = liveHarness(SPREAD_OUT);
+		const before = { ...position };
+		cam.takeControl();
+		cam.autoFitOnSettle(false);
+		expect(position).toMatchObject({ x: before.x, y: before.y, z: before.z });
+	});
+});

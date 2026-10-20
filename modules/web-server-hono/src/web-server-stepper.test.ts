@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
 
-import { passWithDefaults, DEF_PROTO_OPTIONS } from "@haibun/core/lib/test/lib.js";
+import { passWithDefaults, DEF_PROTO_OPTIONS, freePort } from "@haibun/core/lib/test/lib.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
 import { OK, type TStepArgs } from "@haibun/core/lib/domains/protocol.js";
 import { getStepperOptionName, actionNotOK, perProcessOptionNames } from "@haibun/core/lib/domains/util.js";
@@ -104,7 +104,7 @@ describe("WebServerStepper Integration", () => {
 	});
 
 	it("refuses a served file to a caller that doesn't hold the read it requires, stating the cause and the remedy", async () => {
-		const port = 8134;
+		const port = await freePort();
 		const feature = {
 			path: "/features/refused.feature",
 			content: `

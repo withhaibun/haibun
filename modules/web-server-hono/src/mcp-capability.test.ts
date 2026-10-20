@@ -148,7 +148,7 @@ const signedSteppers = [WebServerStepper, McpStepper, AuthorityStepper, FakeAuth
 
 describe("McpStepper capability enforcement", () => {
 	it("denies a protected tool to a caller that doesn't present authority", async () => {
-		const port = 8134;
+		const port = await freePort();
 		const feature = {
 			path: "/features/mcp-capability-denied.feature",
 			content: `
