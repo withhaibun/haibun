@@ -6,7 +6,7 @@
  */
 import { describe, it, expect, vi } from "vitest";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
-import { A11yRenderer, type TA11yRendererDeps } from "./a11y-renderer.js";
+import { A11yRenderer, READ_STATE, type TA11yRendererDeps, type TReadingMarks } from "./a11y-renderer.js";
 import type { FGLink, FGNode } from "../domains/graph-types.js";
 import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
 
@@ -22,7 +22,8 @@ function harness(over: Partial<TA11yRendererDeps> = {}) {
 	document.body.append(region);
 	const onActivate = vi.fn();
 	const onFocus = vi.fn();
-	const deps: TA11yRendererDeps = { region: () => region, bars: () => null, badgeOf: () => undefined, onActivate, onFocus, ...over };
+	const marks: TReadingMarks = { active: null, tierOf: () => "resting", pinned: () => false };
+	const deps: TA11yRendererDeps = { region: () => region, bars: () => null, badgeOf: () => undefined, labelOf: (n) => n.name, marks: () => marks, onActivate, onFocus, ...over };
 	return { renderer: new A11yRenderer(deps), region, onActivate, onFocus };
 }
 
@@ -140,6 +141,49 @@ describe("A11yRenderer: the graph as an accessible document", () => {
 		renderer.draw({ nodes, links });
 		region.querySelector<HTMLElement>('[data-node-id="c2"]')?.focus();
 		renderer.draw({ nodes, links });
+		expect(document.activeElement?.getAttribute("data-node-id")).toBe("c2");
+	});
+
+	it("states the active node as the current entry, moves it to the next node made active, and doesn't state an entry current while the active node isn't drawn", () => {
+		let active: string | null = "c1";
+		const { renderer, region } = harness({ marks: () => ({ active, tierOf: () => "resting", pinned: () => false }) });
+		renderer.draw({ nodes, links });
+		const current = () => [...region.querySelectorAll('ol > li > [aria-current="true"]')].map((b) => b.getAttribute("data-node-id"));
+		expect(current()).toEqual(["c1"]);
+		active = "p1";
+		renderer.mark();
+		expect(current()).toEqual(["p1"]);
+		active = null;
+		renderer.mark();
+		expect(current()).toEqual([]);
+	});
+
+	it("states a node a focus or a preview dims, and a node the reader dropped, and stops stating either once it doesn't hold", () => {
+		let dimmed = new Set(["c2"]);
+		let pinned = new Set(["p1"]);
+		const { renderer, region } = harness({ marks: () => ({ active: null, tierOf: (n) => (dimmed.has(n.id) ? "dimmed" : "full"), pinned: (id) => pinned.has(id) }) });
+		renderer.draw({ nodes, links });
+		const entry = (id: string) => region.querySelector(`ol > li > [data-node-id="${id}"]`)?.textContent;
+		expect(entry("c2")).toBe(`a reply (Comment, ${READ_STATE.dimmed})`);
+		expect(entry("p1")).toBe(`the agent (Principal, ${READ_STATE.pinned})`);
+		expect(entry("c1")).toBe("a comment (Comment)");
+		[dimmed, pinned] = [new Set(), new Set()];
+		renderer.mark();
+		expect([entry("c2"), entry("p1")]).toEqual(["a reply (Comment)", "the agent (Principal)"]);
+	});
+
+	it("names each node by what its chip reads, which is the value that places its depth where chips read that", () => {
+		const { renderer, region } = harness({ labelOf: (n) => `${n.z}` });
+		renderer.draw({ nodes, links });
+		expect([...region.querySelectorAll("ol > li > [data-node-id]")].map((b) => b.textContent)).toEqual(["36 (Comment)", "72 (Comment)", "0 (Principal)"]);
+		expect(region.querySelector("ol ul li")?.textContent, "and the way to a node names it the same").toBe("attributedTo → 0");
+	});
+
+	it("keeps the reader's focus on their entry while it states what changed in the picture", () => {
+		const { renderer, region } = harness();
+		renderer.draw({ nodes, links });
+		region.querySelector<HTMLElement>('[data-node-id="c2"]')?.focus();
+		renderer.mark();
 		expect(document.activeElement?.getAttribute("data-node-id")).toBe("c2");
 	});
 

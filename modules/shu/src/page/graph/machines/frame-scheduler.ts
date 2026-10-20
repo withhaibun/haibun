@@ -23,8 +23,4 @@ export class FrameScheduler {
 			}
 		}
 	}
-
-	names(): string[] {
-		return this.jobs.map((j) => j.name);
-	}
 }

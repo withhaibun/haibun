@@ -32,7 +32,6 @@ import { SOURCE_FORMATS, SOURCE_FORMAT_IDS, sourceFormat } from "../domains/sour
 import { linesOfScene, sceneOfLine, type TDrawn, type TDrawnEdge, type TSceneSelection } from "../derivations/source-lines.js";
 import { termScene } from "../derivations/term-scene.js";
 import { linkEndId } from "../domains/graph-types.js";
-import type { TLoadState } from "../../domains/load.js";
 import "./shu-graph-source.js";
 import "../../components/shu-refusal.js";
 import type { TViewForces } from "./render-type.js";
@@ -43,12 +42,8 @@ import type { TSettingsGroup } from "../../../domains/elements.js";
 import { type FGInstance, type GraphSceneModel, type GraphSceneChangedDetail, type RescheduleUpdate, type ShuGraphScene, type TGraphState } from "./scene.js";
 import type { TReadCounts } from "../domains/snapshot.js";
 
-/** What a graph view's source states: its read's status, the reader's line, what that line lights in the scene, and the
- *  lines that state what the reader chose in the scene. */
-type TSourceState = { status: TLoadState<TProjection>["status"]; line: string | null; lights: TSceneSelection | null; lit: string[] };
-
-/** What a graph view states: what its scene draws, the reads the view started and settled (SH22), and its source. */
-export type TGraphViewState = TGraphState & { reads: TReadCounts; source: TSourceState };
+/** What a graph view states: what its scene draws, and the reads the view started and settled (SH22). */
+export type TGraphViewState = TGraphState & { reads: TReadCounts };
 import { GRAPH_SCENE_EVENT } from "../domains/graph-types.js";
 import type { TMeasureUnit, TPanDirection, TZoomDirection } from "../machines/camera.js";
 import { type TPaneOpen } from "../../derivations/pane-kinds.js";
@@ -237,12 +232,11 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	get fgCamera() {
 		return this.scene?.fgCamera;
 	}
-	/** What the graph draws, as its scene states it, with the reads the view started and settled and its source, or null before
-	 *  the scene mounts. */
+	/** What the graph draws, as its scene states it, with the reads the view started and settled, or null before the scene mounts. */
 	inspect(): TGraphViewState | null {
 		const scene = this.scene?.inspect();
 		if (scene === undefined) return null;
-		return { ...scene, reads: this.reads, source: { status: this.#source.state.status, line: this.#line, lights: this.#lights, lit: [...this.#lit] } };
+		return { ...scene, reads: this.reads };
 	}
 	/** The current graph as a self-contained SVG still: the report and still-image medium. */
 	still(): string {

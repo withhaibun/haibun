@@ -10,7 +10,7 @@
 // OWNS those, this controller only reads them and owns the magnify animation state. (lovely-finding-babbage.)
 
 import { focusStateFor, opacityFor, isFullContrast, previewLights, previewLightsLink, type FocusState, type KindTiers, type TGraphPreview } from "../derivations/focus-policy.js";
-import { type FGNode, type FGLink, type LabelVisual, type XYZ, isPlaced, linkEndId } from "../domains/graph-types.js";
+import { type FGNode, type FGLink, type LabelVisual, type XYZ, isPlaced, linkEndId, neighboursOf } from "../domains/graph-types.js";
 import { chipTextHeight } from "../derivations/layout-forces.js";
 import { FULL_BURN, NEWCOMER_GLOW_MS, RESTING_INTENSITY, glowColorAt, pulseAt } from "../derivations/highlight.js";
 /** The magnify multiplier of a chip at its natural size. */
@@ -143,6 +143,22 @@ export class PolymorphicFocus {
 		return `rgba(${rgb},${opacityFor(state, this.deps.lineTiers)})`;
 	}
 
+	/** Each node's focus tier: under a preview what it lights is full and the rest dimmed, under a focus the focused node and
+	 *  its neighbours are full and the rest dimmed, and without either every node rests. The drawn nodes and the reading of
+	 *  the graph both read it. */
+	tierOf(): (n: { id: string; type: string }) => FocusState {
+		const focus = this.deps.focusId();
+		const preview = this.deps.preview();
+		const neighbours = focus === null ? null : neighboursOf(focus, this.deps.currentLinks());
+		return (n) =>
+			focusStateFor({
+				focusActive: focus !== null,
+				isInFocus: neighbours !== null && neighbours.has(n.id),
+				previewActive: preview !== null,
+				matchesPreview: preview !== null && previewLights(preview, n),
+			});
+	}
+
 	/**
 	 * Dim every node/edge/label except the focus node and its immediate neighbours, which stay lit. Sizing is scoped
 	 * tightly: ONLY the focus node's chip pops, to a readable on-screen size, with an attention-getting overshoot:
@@ -152,7 +168,6 @@ export class PolymorphicFocus {
 	applyFocus(): void {
 		const focus = this.deps.focusId();
 		const nodeMap = this.deps.nodeMap();
-		const preview = this.deps.preview();
 		// A purely-visual focus must NOT move the layout. Re-pooling linkColor (below) makes the lib tick the sim once,
 		// and a force layout that froze before full convergence (a big graph capped by the warmup limit, so it happens
 		// only ~half the time, when the random layout didn't settle in limit) JUMPS on that one tick: "the graph
@@ -175,15 +190,8 @@ export class PolymorphicFocus {
 		const graph = this.deps.graph();
 		graph?.linkColor((l) => this.lineRgbaFor(l));
 		graph?.linkDirectionalArrowColor((l) => this.lineRgbaFor(l));
-		// One pass over links for the consumer-owned label sprites + to collect the focus neighbourhood for the nodes.
-		const neighbors: Set<string> | null = focus ? new Set([focus]) : null;
+		// One pass over links for the consumer-owned label sprites.
 		for (const l of this.deps.currentLinks()) {
-			const s = linkEndId(l.source);
-			const t = linkEndId(l.target);
-			if (focus !== null && (s === focus || t === focus) && neighbors) {
-				neighbors.add(s);
-				neighbors.add(t);
-			}
 			const state = this.linkFocusState(l);
 			const label = l.__label;
 			if (label) {
@@ -195,14 +203,9 @@ export class PolymorphicFocus {
 		const freshFocus = focus !== this.lastMagnifiedFocus; // a NEW focus fires the attention pop; a re-assert (theme/camera, same focus) does not
 		this.lastMagnifiedFocus = focus;
 		const selected = this.deps.selectedId(); // hoisted: it cannot change during the pass, and reading it takes a map lookup
+		const tierOf = this.tierOf();
 		for (const n of nodeMap.values()) {
-			const inFocus = neighbors !== null && neighbors.has(n.id);
-			const state = focusStateFor({
-				focusActive: focus !== null,
-				isInFocus: inFocus,
-				previewActive: preview !== null,
-				matchesPreview: preview !== null && previewLights(preview, n),
-			});
+			const state = tierOf(n);
 			if (n.__visual) n.__visual.opacity = opacityFor(state, this.deps.nodeTiers); // the visual owns how its concrete object dims (a chip's text fill, a sprite's material)
 			n.__visual?.setHighlighted(n.id === selected || this.freshGlows.has(n), FULL_BURN); // the glow: the ACTIVE node wears it always, a newcomer for its first moments
 			const isFocus = n.id === focus;

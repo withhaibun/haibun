@@ -126,6 +126,14 @@ describe("a focus", () => {
 		expect(links.map(lineAlpha)).toEqual([TIERS.full, TIERS.full, TIERS.dimmed]);
 	});
 
+	it("states each node's tier as the picture draws it, which the reading of the graph states", () => {
+		const { focus, state, nodes } = mailbox();
+		state.selected = "a";
+		focus.applyFocus();
+		const tierOf = focus.tierOf();
+		expect(nodes.map((n) => [n.id, tierOf(n)])).toEqual(nodes.map((n) => [n.id, n.__visual?.opacity === TIERS.dimmed ? "dimmed" : "full"]));
+	});
+
 	it("gives way to a preview of a type: that type lights and every other type dims, focus or not", () => {
 		const { focus, state, opacity } = mailbox();
 		state.selected = "c";

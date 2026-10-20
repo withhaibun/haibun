@@ -301,6 +301,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	readonly #observers = new ObserverController(this);
 	/** The scene's engine, frame jobs, profiler, layout tween and data pipeline, and the page's clock and frame timing. */
 	readonly #parts = new SceneController();
+	/** The graph as an accessible document, which states what the picture shows of each node. */
+	#reading?: A11yRenderer;
 	/** The host's time-filtered data slice; replaced whole via setModel. */
 	private model: GraphSceneModel = DEFAULT_MODEL;
 	/** The host's layout choices; patched via setConfig. */
@@ -592,6 +594,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 					this.userPins.set(id, { x, y });
 					n.x = x;
 					n.y = y;
+					this.#reading?.mark();
 				}
 				// Emit at drop so the host persists the pin now: the sole carrier of the pin set to the host.
 				this.emitSceneChanged();
@@ -746,21 +749,13 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const onScreen = this.pick.screenShare();
 		return {
 			nodes: nodes.length,
-			links: this.currentLinks.length,
-			pinned: nodes.filter((n) => n.fx !== undefined).length,
 			highlighted: nodes.filter((n) => n.__visual?.hasHighlight).length, // nodes wearing the active glow (exactly the active node)
-			focus: {
-				hover: this.hoverSubject,
-				selected: this.activeSubject,
-				preview: this.preview === null ? null : "type" in this.preview ? this.preview.type : [...this.preview.subjects],
-				litNodes: nodes.filter((n) => n.__visual === undefined || n.__visual.opacity > 0.9).length, // a node without its visual yet isn't dimmed
-			},
+			focus: { hover: this.hoverSubject, selected: this.activeSubject },
 			drag: this.pick.drag.draggedId ? { id: this.pick.drag.draggedId } : null,
 			// A press in progress that has not (yet) crossed the drag threshold, i.e. still a potential click (it
 			// becomes a node-open on release). Null once the pointer is up.
 			dragPending: this.pick.drag.pendingId,
 			tween: this.#parts.tween.running ? { elapsedMs: this.#parts.tween.elapsedMs(this.#parts.clock.now()) } : null,
-			pointerOverCanvas: this.pick.pointerOver,
 			engineMode: this.#parts.engine.mode,
 			// Render-on-demand state: the scene pauses when motion has ended and a recent discrete change isn't pending, and
 			// `ticks` counts the gate's frames whether or not one was drawn. A reader whose focus/highlight assertion
@@ -772,7 +767,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			render: {
 				paused: this.drawing !== undefined && !this.drawing.drawing && this.drawingReason(this.rafFrame + 1) === "rest",
 				ticks: this.rafFrame,
-				reason: this.drawingFor.reason,
 				welcoming: this.focusCtl.welcoming,
 				layingOut: nodes.filter((n) => n.__visual?.layingOut).length,
 			},
@@ -794,8 +788,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			// Render-stage timing accumulated since the last resetProfile(): how raising the per-type limit uses the
 			// main thread, split into compute / force-warmup / label-textures (the profiling control step reads this).
 			profile: this.#parts.profiler.profile,
-			frameJobs: this.#parts.frame.names(),
-			controlsLeft: this.cameraCtl.controls?.mouseButtons.LEFT ?? null,
 			grouped: this.groupingActive(),
 			viewType: this.viewType,
 			// The sequence-diagram ground truth, or null off-sequence: the participant actors, the time-ordered
@@ -823,20 +815,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			onScreen,
 			// Whether the camera frames the graph: nearly every node on screen, spread across the canvas.
 			framed: onScreen !== null && framesGraph(onScreen),
-			anchors: Object.fromEntries(this.enclosureCtl.anchors),
-			enclosures: [...this.enclosureCtl.enclosures.entries()].map(([k, e]) => ({
-				key: k,
-				// The container's RESOLVED title (the party's display name under role mode, the @type under type mode):
-				// the ground truth a role-grouping test asserts the four trust-triangle containers are named correctly.
-				title: e.label.text,
-				x: e.box.position.x,
-				y: e.box.position.y,
-				z: e.box.position.z,
-				sx: e.box.scale.x,
-				sy: e.box.scale.y,
-				sz: e.box.scale.z,
-				labelPos: { x: e.label.object.position.x, y: e.label.object.position.y, z: e.label.object.position.z },
-			})),
+			enclosures: [...this.enclosureCtl.enclosures.values()].map((e) => ({ title: e.label.text, x: e.box.position.x, y: e.box.position.y, sx: e.box.scale.x, sy: e.box.scale.y })),
 			gantt: this.renderType.axisLegend(),
 			sample: nodes.slice(0, 80).map((n) => ({
 				id: n.id,
@@ -851,22 +830,9 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				opacity: n.__visual?.opacity ?? null,
 				k: n.__k === undefined ? 1 : n.__k, // a node without its visual yet draws at its natural size
 			})),
-			// The resolved per-@type mark for each node: the headless render check: recomputed exactly as nodeObject
-			// paints it (via markFor), so a Playwright test asserts a task paints as a "box" on a "time" role with its
-			// duration zExtent and a plain node as a "chip"/"free", without a GPU.
-			marks: nodes.slice(0, 80).map((n) => {
-				const m = this.markFor(n);
-				return { id: n.id, type: n.type, kind: m.kind, role: m.role.kind, zExtent: m.zExtent ?? null };
-			}),
 			// lineOpacity is the lib-APPLIED opacity (global linkOpacity × the rgba alpha from lineRgbaFor), read off the
 			// live pooled material via the self-healing __lineObj handle: the ground truth a focus dim/highlight produced.
-			edges: this.currentLinks.map((l) => ({
-				s: linkEndId(l.source),
-				t: linkEndId(l.target),
-				predicate: l.predicate,
-				lineOpacity: l.__lineObj?.material?.opacity ?? null,
-				labelOpacity: l.__label === undefined ? null : l.__label.opacity,
-			})),
+			edges: this.currentLinks.map((l) => ({ s: linkEndId(l.source), t: linkEndId(l.target), predicate: l.predicate, lineOpacity: l.__lineObj?.material?.opacity ?? null })),
 		};
 	}
 
@@ -896,6 +862,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				shu-graph-scene #polymorphic-a11y { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
 				shu-graph-scene #polymorphic-a11y button { user-select: text; background: none; border: 0; padding: 0; margin: 0; font: inherit; text-align: left; color: var(--shu-accent); text-decoration: underline; cursor: pointer; }
 				shu-graph-scene #polymorphic-a11y button:hover, shu-graph-scene #polymorphic-a11y button:focus-visible { text-decoration-thickness: 2px; }
+				shu-graph-scene #polymorphic-a11y button[aria-current="true"] { font-weight: 600; }
 				shu-graph-scene #polymorphic-a11y ol { margin: 0; padding-left: 3em; }
 				shu-graph-scene #polymorphic-a11y ul { margin: 0 0 var(--shu-space-1); padding-left: var(--shu-space-4); list-style: none; opacity: 0.85; }
 				shu-graph-scene #polymorphic-a11y[data-shown] { user-select: text; }
@@ -969,15 +936,18 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.configureGraph(this.graph);
 		// One draw, two media: WebGL shows the graph, the accessible document reads it. The a11y entries drive the same
 		// scene entries a pointer does (activate opens, focus highlights), so keyboard and pointer take one path.
+		this.#reading = new A11yRenderer({
+			region: () => this.querySelector<HTMLElement>("#polymorphic-a11y"),
+			bars: () => this.actorBars(),
+			badgeOf: (type) => this.model.styles?.badges.get(type),
+			labelOf: (n) => this.chipLabelOf(n, this.markFor(n)),
+			marks: () => ({ active: this.activeSubject, tierOf: this.focusCtl.tierOf(), pinned: (id) => this.userPins.has(id) }),
+			onActivate: (id) => this.openNode(id),
+			onFocus: (id) => this.setHoveredNode(id),
+		});
 		this.renderer ??= compositeRenderer(
 			threeRenderer(this.graph, (n) => this.nodeObject(n)),
-			new A11yRenderer({
-				region: () => this.querySelector<HTMLElement>("#polymorphic-a11y"),
-				bars: () => this.actorBars(),
-				badgeOf: (type) => this.model.styles?.badges.get(type),
-				onActivate: (id) => this.openNode(id),
-				onFocus: (id) => this.setHoveredNode(id),
-			}),
+			this.#reading,
 		);
 		this.renderer.rebuildNodes(); // the node factory reaches the library through the renderer, initially and on every shape change
 		this.cameraCtl.fitFrame(container);
@@ -1026,7 +996,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			// label facing the camera. fontSize is the WORLD text height (chipTextHeight).
 			// "Label as z factor" labels each chip with the value that places its depth: the date under a time basis, the
 			// connection count under connections, so the z factor reads straight off the graph. Off (or without a value), the usual label.
-			const chipLabel = (this.labelAsZ ? this.zFactor(n).chip : undefined) ?? mark.label;
+			const chipLabel = this.chipLabelOf(n, mark);
 			n.__chipText = chipLabel; // what the chip shows, so a reader of inspect() sees what was drawn
 			// Every mark is built highlight-capable and the FOCUS pass glows the active node (visual.setHighlighted), so
 			// the highlight follows the selection without rebuilding a single object. A drag-pin doesn't carry a highlight: a
@@ -1066,6 +1036,11 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			if (this.hoverSubject || this.selectedSubject) this.requestFocusAtRest();
 			return obj;
 		});
+	}
+
+	/** What a node's chip reads: the value that places its depth where chips are labelled by it, else its mark's label. */
+	private chipLabelOf(n: FGNode, mark: NodeMark): string {
+		return (this.labelAsZ ? this.zFactor(n).chip : undefined) ?? mark.label;
 	}
 
 	/** Zero the render profiler so the next window (e.g. one per-type-limit change) is measured in isolation. */
@@ -1489,6 +1464,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  glow in one wake rather than a second one a beat later. */
 	private applyFocus(): void {
 		this.focusCtl.applyFocus();
+		this.#reading?.mark();
 		this.lastBreathAt = 0;
 	}
 

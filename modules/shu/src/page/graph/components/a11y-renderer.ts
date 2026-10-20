@@ -11,10 +11,14 @@
  * with what it points at beneath it and a way to each of those. It states a stretch at a time and
  * carries on from where it stopped, so a graph of any size is readable and a repaint doesn't build all of it. All text
  * lands via textContent, so node names don't need escaping.
+ *
+ * It states what the picture shows of each node as the picture shows it: a node by what its chip reads, the active node as
+ * the current entry, a node the reader dropped as pinned, and a node a focus or a preview dims as dimmed.
  */
 import { linkEndId, type FGNode } from "../domains/graph-types.js";
 import { graphSummary } from "./renderer.js";
 import type { TDrawn, TGraphRenderer } from "../ports.js";
+import type { FocusState } from "../derivations/focus-policy.js";
 import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
 
 /** What the medium needs from its host. */
@@ -27,13 +31,23 @@ export type TA11yRendererDeps = {
 	bars(): Array<{ id: string; label: string; nodeIds: string[] }> | null;
 	/** The badge a projection puts on a type's cluster, read before the type. */
 	badgeOf(type: string): string | undefined;
+	/** What a node's chip reads, which names its entry: its name, or the value that places its depth where chips read that. */
+	labelOf(n: FGNode): string;
+	/** What the picture shows of the nodes now. */
+	marks(): TReadingMarks;
 	/** Open the node: the same entry a pointer click drives. */
 	onActivate(id: string): void;
 	/** Highlight the node in the visual media: the same entry a pointer hover drives. */
 	onFocus(id: string): void;
 };
 
+/** What the picture shows of the nodes: the active node, each node's focus tier, and the nodes the reader dropped. */
+export type TReadingMarks = { active: string | null; tierOf: (n: FGNode) => FocusState; pinned: (id: string) => boolean };
+
 const NODE_ID_ATTR = "data-node-id";
+/** How an entry states a node the reader dropped, and one a focus or a preview dims. */
+export const READ_STATE = { pinned: "pinned", dimmed: "dimmed" } as const;
+const DIMMED: FocusState = "dimmed";
 
 /** A node's type as a reader reads it: after the badge its projection puts on the type's cluster, and unbound where the node
  *  is drawn hollow. The reading and the scene's hover state a node alike. */
@@ -137,7 +151,7 @@ export class A11yRenderer implements TGraphRenderer {
 			const key = `${l.predicate} → ${t.id}`;
 			const already = lines.get(key);
 			if (already) already.count++;
-			else lines.set(key, { predicate: l.predicate, targetId: t.id, targetName: t.name || t.id, count: 1 });
+			else lines.set(key, { predicate: l.predicate, targetId: t.id, targetName: this.deps.labelOf(t), count: 1 });
 		}
 
 		const ids = new Set(nodes.map((n) => n.id));
@@ -171,7 +185,6 @@ export class A11yRenderer implements TGraphRenderer {
 			const b = doc.createElement("button");
 			b.type = "button";
 			b.setAttribute(NODE_ID_ATTR, n.id);
-			b.textContent = `${n.name || n.id} (${kindRead(n, this.deps.badgeOf(n.type))})`;
 			if (n.id === focusedId) refocus = b;
 			li.append(b);
 			const { shown, rest } = linesFor(edgesOf.get(n.id));
@@ -218,7 +231,26 @@ export class A11yRenderer implements TGraphRenderer {
 			list.append(rest);
 		}
 		content.append(list);
+		this.mark();
 
 		refocus?.focus();
+	}
+
+	/** State on each entry what the picture shows of its node now, in place, so the entry a reader is on keeps their focus. */
+	mark(): void {
+		const drawn = this.lastDrawn;
+		const content = this.contentEl;
+		if (drawn === undefined || content === undefined) return;
+		const { active, tierOf, pinned } = this.deps.marks();
+		const byId = new Map(drawn.nodes.map((n) => [n.id, n]));
+		for (const entry of content.querySelectorAll<HTMLElement>(`ol > li > [${NODE_ID_ATTR}]`)) {
+			const id = entry.getAttribute(NODE_ID_ATTR);
+			const n = id === null ? undefined : byId.get(id);
+			if (n === undefined) throw new Error(`A11yRenderer: an entry names node ${id}, which the last draw doesn't hold`);
+			const states = [kindRead(n, this.deps.badgeOf(n.type)), ...(pinned(n.id) ? [READ_STATE.pinned] : []), ...(tierOf(n) === DIMMED ? [READ_STATE.dimmed] : [])];
+			entry.textContent = `${this.deps.labelOf(n)} (${states.join(", ")})`;
+			if (n.id === active) entry.setAttribute("aria-current", "true");
+			else entry.removeAttribute("aria-current");
+		}
 	}
 }
