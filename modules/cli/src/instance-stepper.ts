@@ -308,7 +308,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		const naming = { key: String(this.lastKey), hostId };
 		const env = { ...runEnvironment(process.env, port, standing, hostId, perProcessOptionNames(this.steppers)), [KEY_ENV]: naming.key };
 		// A run whose features have a recorded outcome against their present dependencies isn't started, since it would
-		// repeat that outcome. The child records each outcome with the conditions of its execution. verifiedRun computes
+		// repeat that outcome. The child records each outcome with the conditions it ran under. verifiedRun computes
 		// those conditions from the environment the child would receive, and looks up an outcome under them.
 		// A run's starting directory determines how its relative paths resolve, so the caller passes it. An empty `from`
 		// uses this process's directory.
@@ -341,7 +341,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 	}
 
 	/** Reads a chunk of a run's output: it keeps the chunk in its tail, moves its machine, writes the records of the levels
-	 *  the chunk moved, and wakes its waiters where the chunk ended its execution, whether or not it keeps serving. */
+	 *  the chunk moved, and wakes its waiters where the chunk ended its actuality, whether or not it keeps serving. */
 	protected take(held: TRun, text: string): void {
 		held.tail.append(text);
 		const wasFinished = executionEnded(held.outcome.actuality);
@@ -352,7 +352,8 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 	/** Writes the record of the actuality level that a run's move started or ended into this process's store, after the
 	 *  records of the moves before it. A read of a run awaits the writes, so a write that fails fails the read with its cause. */
 	private writeLevel(held: TRun, moved: TLevelMoved): void {
-		held.writing = held.writing.then(() => writeLevelRecord(this.getWorld().shared.getStore(), held.levels, moved, held.naming, held.stated));
+		const stated = moved.move.type === "execution" ? held.stated : undefined;
+		held.writing = held.writing.then(() => writeLevelRecord(this.getWorld().shared.getStore(), held.levels, moved, held.naming, stated));
 	}
 
 	/** Ends as stopped each level of a run's actuality that hasn't ended, innermost first, so the records of a stopped

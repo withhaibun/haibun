@@ -1,24 +1,26 @@
 /**
- * Computes the dependencies of a group of features and a digest of their present content. The digest is the state.
+ * Computes the dependencies of a group of features and the digest of the present content of each. The digests are the state.
  *
  * A group's dependencies are derived from its configuration and aren't declared a second time. The steppers a
  * configuration lists name the modules a run exercises. Each stepper resolves to a file. The file resolves to the module
  * that contains it. A module resolves to the source directory its tsconfig.json declares. A module also resolves to each
  * `@haibun/` module in the `dependencies` of its package.json. An application's configuration lists framework modules
  * and its own modules, so its dependencies include both without a separate declaration. A group adds its own paths
- * through `dependsOn` and lists the external environments it uses through `environments`.
+ * through `dependsOn`, and lists the external environments it uses through `environments`, which the conditions of its
+ * actuality hold as part of its configuration.
  *
- * The state is a digest of the content of every file under those paths that its repository tracks or would track.
- * It excludes ignored files. An ignored file is derived output. The state is read from the working tree, so it
+ * The state is the digest of each of those paths, over the content of every file under it that its repository tracks or would
+ * track. It excludes ignored files. An ignored file is derived output. The state is read from the working tree, so it
  * includes changes that aren't committed.
  */
 import { execFileSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import nodeFS from "node:fs";
 import path from "node:path";
 import type { TSpecl } from "../actuality/domains/execution.js";
 import { getModuleLocation } from "./workspace-lib.js";
 import { itemAt } from "../domains/item-at.js";
+import type { TDigest } from "../actuality/domains/seq-path.js";
+import { sha256 } from "../domains/sha256.js";
 
 /** The name of the file that records a group's actualities: the state each read, and the outcome and duration of each of its
  *  levels. The file is written beside the group's configuration. The state excludes every file with this name, because an
@@ -181,37 +183,28 @@ function repositoryFiles(dir: string): { rel: string; files: TRepositoryFile[] }
 				.split("\n")
 		: [];
 	const out = plain.map((file, i) => ({ file, digest: itemAt(digests, i) }));
-	for (const file of files.filter(unnameable))
-		out.push({
-			file,
-			digest: createHash("sha256")
-				.update(nodeFS.readFileSync(path.join(top, file)))
-				.digest("hex"),
-		});
+	for (const file of files.filter(unnameable)) out.push({ file, digest: sha256(nodeFS.readFileSync(path.join(top, file))) });
 	return { rel, files: [...out, ...links].sort((a, b) => (a.file < b.file ? -1 : 1)) };
 }
 
 /**
- * Returns one digest of the content of every file under every root and of the declared environments. The digest
- * includes each root's path relative to its repository's top, so the same content under another root path gives
- * another digest, and a checkout at another directory gives the same digest. The roots are taken in the order of those
- * paths and their content, and the environments are sorted, so the order of each doesn't change the digest. Throws where git fails
- * in a root for a reason other than a missing repository.
+ * Returns the digest of each root by its path relative to its repository's top: the SHA-256 of the path and the content
+ * digest of each file under it. A checkout at another directory gives the same digests. Throws where git fails in a root
+ * for a reason other than a missing repository, and where two roots have one path in their repositories.
  *
  * Returns undefined where a root's state can't be read. Undefined is an unknown state and differs from an empty state.
  * A root's state can't be read where the root isn't in a repository or doesn't contain a file its repository tracks or
  * would track. An installed module that the repository ignores is such a root. A group that depends on such a root
  * runs every time, rather than never.
  */
-export function dependencyState(roots: readonly string[], environments: readonly string[] = []): string | undefined {
-	const hash = createHash("sha256");
-	const stated: string[] = [];
+export function dependencyState(roots: readonly string[]): TDigest | undefined {
+	const digests: TDigest = {};
 	for (const root of roots) {
 		const held = repositoryFiles(root);
 		if (held === undefined || held.files.length === 0) return undefined;
-		stated.push(`root ${held.rel}\n${held.files.map(({ file, digest }) => `${digest} ${file}\n`).join("")}`);
+		const at = path.join(".", held.rel);
+		if (digests[at] !== undefined) throw new Error(`two dependency roots are at ${at} in their repositories, and one digest would replace the other. Move one root.`);
+		digests[at] = sha256(held.files.map(({ file, digest }) => `${digest} ${file}\n`).join(""));
 	}
-	for (const root of stated.sort()) hash.update(root);
-	for (const environment of [...environments].sort()) hash.update(`environment ${environment}\n`);
-	return hash.digest("hex");
+	return digests;
 }

@@ -18,9 +18,10 @@ import { FeatureVariables } from "./feature-variables.js";
 import { FACT_LABEL, type TDomainDefinition } from "../../domains/resources.js";
 import { registerDomains, registerStepperNames } from "../../domains/domains.js";
 import { doStepperCycle, doStepperCycleSync } from "../../steps/pipelines/stepper-cycles.js";
-import { calculateShouldClose, declaredStepTextHash, executionFailure, staysAfterExecution } from "../derivations/execution-end.js";
+import { calculateShouldClose, executionFailure, scenarioDigest, staysAfterExecution } from "../derivations/execution-end.js";
 import { executionEvent, featureEvent, scenarioEvent } from "../derivations/lifecycle-events.js";
 import { moveActuality } from "./move-actuality.js";
+import { SEQ_PATH_FIELD } from "../domains/seq-path.js";
 
 /**
  * Releases the payloads of a finished feature's passing steps. A reader reads a passing step's products and artifact while
@@ -93,7 +94,8 @@ export class Executor {
 			}),
 		);
 
-		await moveActuality(world, executionEvent({ stage: "start" }, world.clock.now(), [...new Set(features.map((feature) => feature.base))].join(", ")));
+		const heading = [...new Set(features.map((feature) => feature.base))].join(", ");
+		await moveActuality(world, executionEvent({ stage: "start" }, world.clock.now(), heading), world.runtime.digest && { [SEQ_PATH_FIELD.digest]: world.runtime.digest });
 		await doStepperCycle(steppers, "startExecution", features);
 		let okSoFar = true;
 		const featureResults: TFeatureResult[] = [];
@@ -186,7 +188,7 @@ export class FeatureExecutor {
 			await doStepperCycle(this.steppers, "endScenario", undefined);
 		};
 
-		for (const step of feature.featureSteps) {
+		for (const [at, step] of feature.featureSteps.entries()) {
 			const { actionName } = step.action;
 			// A pending scenario doesn't start a level. Its heading ends the running scenario, takes the next ordinal and runs as a step.
 			if (actionName === PENDING_SCENARIO) {
@@ -204,7 +206,8 @@ export class FeatureExecutor {
 				else if (actionName === FEATURE_START) world.shared = new FeatureVariables(world, await baseVars.carried());
 				ordinal = ordinal + 1;
 				running = { ordinal, name: step.in.replace(/^\w+:\s*/, "") };
-				await moveActuality(world, scenarioEvent(featureNum, running.ordinal, running.name, { stage: "start" }, world.clock.now()));
+				const started = scenarioEvent(featureNum, running.ordinal, running.name, { stage: "start" }, world.clock.now());
+				await moveActuality(world, started, { [SEQ_PATH_FIELD.digest]: scenarioDigest(feature.featureSteps, at) });
 				await doStepperCycle(this.steppers, "startScenario", { scopedVars: new FeatureVariables(world, await world.shared.carried()) });
 			}
 
@@ -226,14 +229,7 @@ export class FeatureExecutor {
 
 		if (running) await endScenario(ok);
 
-		return {
-			path: feature.path,
-			ok,
-			steps: world.runtime.steps,
-			declaredStepTextHash: declaredStepTextHash(feature.featureSteps),
-			stepResults: world.runtime.stepResults,
-			pending,
-		};
+		return { path: feature.path, ok, steps: world.runtime.steps, stepResults: world.runtime.stepResults, pending };
 	}
 }
 

@@ -1,6 +1,6 @@
 {
 	"modules/cli/src/adapters/actualities.ts": {
-		"fills an absent value with a constant through ??": 2
+		"fills an absent value with a constant through ??": 1
 	},
 	"modules/cli/src/domains/base-options.ts": {
 		"fills an absent value with a constant through ??": 1
@@ -25,8 +25,7 @@
 		"states a parameter's default value": 2
 	},
 	"modules/core/src/lib/adapters/dependency-state.ts": {
-		"fills an absent value with a constant through ??": 2,
-		"states a parameter's default value": 1
+		"fills an absent value with a constant through ??": 2
 	},
 	"modules/core/src/lib/adapters/module-loader.ts": {
 		"fills a falsy value with a constant through ||": 1

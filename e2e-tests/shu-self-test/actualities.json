@@ -1,7 +1,6 @@
 {
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
 		"1bbc2f4c652840fc": {
-			"state": "c10c7e5e978a30d5ab0eca0e321d3e9c4d45697d26b8cd87cf47d2b1c6c108c7",
 			"filter": "",
 			"execution": {
 				"text": "e2e-tests/shu-self-test",
@@ -13,20 +12,51 @@
 					"text": "Shu SPA Self-Test",
 					"status": "passed",
 					"tookMs": 120500,
-					"steps": 689,
-					"declaredStepTextHash": "1d05e68df0b5a00f31d6cc5f898a5660ef3d8830b60081359c8dfd20424de5f6"
+					"steps": 689
 				},
 				"/features/z-post.feature.ts": {
 					"text": "Verify Shu Standalone Output Doesn't Hold Secrets",
 					"status": "passed",
 					"tookMs": 100,
-					"steps": 8,
-					"declaredStepTextHash": "07d43189276bbf61896c4199cd023404fffe9fe965896283167fc0e7af4e53e6"
+					"steps": 8
+				}
+			}
+		},
+		"1f9dd601ecd395f3": {
+			"filter": "",
+			"execution": {
+				"text": "e2e-tests/shu-self-test",
+				"status": "passed",
+				"tookMs": 122300,
+				"digest": {
+					"e2e-tests/shu-self-test": "8a68371f17eb84454b06b4d4ae074ffd3318fde155f608ea6a8b9723ffd89836",
+					"modules/core/src": "19f345c63f0299d04818c279f528bf7294cd373131590c95d130c704a5417064",
+					"modules/domain-storage/src": "8555ea196220a75db0f69cfbf0f7374da5fc614ecf6b652c38d33cc7b11d92e9",
+					"modules/logic/src": "b5da2e29f4e6e0e7d38cb6ca70df1beec0a1d3bc8b23e02915cabca37d3ada53",
+					"modules/monitor-tui/src": "a827c8af8ca688c390637f2aa5bd5a343695fc199d15450e06fa6c9de0b9fc8b",
+					"modules/shu/src": "4ac2ff10df0c65314df0c87d5927249f6f41712b07ae7c51ec9eeae9107451ee",
+					"modules/storage-fs/src": "948755c17d4f877495d0018ea37b8a39a7bae31a28b3317c3adfcb9b2e9c79e7",
+					"modules/storage-mem/src": "764cfa313b43fa43bd52ab7fd10ce9d5ee1b3c033c58b2fc6a85d98c7f267206",
+					"modules/web-playwright/src": "2757b2df1c4cad4537a449e089cc0a35bdf1f09ca93de78e12bbbbb8c40bf50e",
+					"modules/web-server-hono/src": "cb6ad796c4e3aab9d63bc9ab196d3db565e8e2b19ff87ddcda1b4ba3e31967a4"
+				}
+			},
+			"features": {
+				"/features/shu-self-test.feature.ts": {
+					"text": "Shu SPA Self-Test",
+					"status": "passed",
+					"tookMs": 120100,
+					"steps": 678
+				},
+				"/features/z-post.feature.ts": {
+					"text": "Verify Shu Standalone Output Doesn't Hold Secrets",
+					"status": "passed",
+					"tookMs": 100,
+					"steps": 8
 				}
 			}
 		},
 		"7f6eeae887869552": {
-			"state": "43b1a25d18f99c820286e3c513aed61ab4a18e71f7296411ee61d4f59fbde884",
 			"filter": "",
 			"execution": {
 				"text": "e2e-tests/shu-self-test",
@@ -38,15 +68,13 @@
 					"text": "Shu SPA Self-Test",
 					"status": "passed",
 					"tookMs": 126500,
-					"steps": 679,
-					"declaredStepTextHash": "aceaa1226def2105634a8bc21e33c02532f1da1d8bbef6ed4d331d79bffd525b"
+					"steps": 679
 				},
 				"/features/z-post.feature.ts": {
 					"text": "Verify Shu Standalone Output Doesn't Hold Secrets",
 					"status": "passed",
 					"tookMs": 100,
-					"steps": 8,
-					"declaredStepTextHash": "07d43189276bbf61896c4199cd023404fffe9fe965896283167fc0e7af4e53e6"
+					"steps": 8
 				}
 			}
 		}

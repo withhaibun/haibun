@@ -355,6 +355,7 @@ export const LinkRelations = {
 	ACCESS_LEVEL: { rel: "accessLevel", uri: "hbn:accessLevel", range: "literal", presentation: "governance" as TRelPresentation },
 	MEASUREMENT_KIND: { rel: "measurementKind", uri: "hbn:measurementKind", range: "literal" },
 	SHAPE_DIGEST: { rel: "shapeDigest", uri: "hbn:shapeDigest", range: "container" },
+	DIGEST: { rel: "digest", uri: "hbn:digest", range: "literal" },
 	OUTCOME_REASON: { rel: "outcomeReason", uri: "hbn:outcomeReason", range: "literal" },
 	// EARL: how a test or a goal ended. A record states its goal's verdict in this rel.
 	OUTCOME: { rel: "outcome", uri: "earl:outcome", range: "literal" },

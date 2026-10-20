@@ -35,9 +35,9 @@ const OPTION_WITH_STEPPERS = "--with-steppers";
 /** Gives a statement on the command line. Each statement becomes one line of a feature. The option can be repeated.
  *  Statements run after any filtered features, or alone against the base's backgrounds. */
 const OPTION_STATEMENT = "--statement";
-/** Skips a group whose last run under the same conditions passed against the present dependency state. A run of
- *  features records its outcome against its dependency state whether or not this option is given. The CLI reads that
- *  record when this option or HAIBUN_ONCE is given. */
+/** Skips a group whose last run under the same conditions passed where every dependency holds the digest it held then. A run
+ *  of features records its outcome with those digests whether or not this option is given. The CLI reads that record when
+ *  this option or HAIBUN_ONCE is given. */
 const OPTION_ONCE = "--once";
 
 export async function runCli(args: string[], env: NodeJS.ProcessEnv, ports: TCliPorts) {
@@ -64,8 +64,8 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv, ports: TCli
 		const policyConfig = resolveRunPolicy(parsed.policyConfig, env, protoOptions, specl, ports.fs);
 		const featureFilter = parsed.params[1] ? parsed.params[1].split(",") : undefined;
 
-		// Holds the record file, the conditions key and the present dependency state of a run of features. It is undefined
-		// for a run of statements, a rehearsal, or a run whose dependency state can't be read.
+		// Holds the record file, the conditions key and the present digest of each dependency of a run of features, which the
+		// actuality's record states. It is undefined for a run of statements, a rehearsal, or a run whose dependencies can't be read.
 		verification =
 			parsed.statements.length === 0 && !parsed.dryRun
 				? ports.actualities.verificationOf({
@@ -80,13 +80,14 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv, ports: TCli
 						withSteppers: parsed.withSteppers,
 					})
 				: undefined;
+		if (verification) world.runtime.digest = verification.digest;
 		if (runsOnce(parsed, protoOptions.options)) {
 			if (!verification)
 				console.info(
 					`${OPTION_ONCE}: ${parsed.dryRun ? "a rehearsal" : parsed.statements.length ? "a run of statements" : "a run of features that depends on an untracked directory"} doesn't record a pass against its dependencies, so it runs`,
 				);
-			// A group whose last run passed against the present dependency state would pass again, so it exits as passed
-			// without running. A group whose last run failed runs again, so a person can retry a failure whose cause is
+			// A group whose last run passed where every dependency holds the digest it held then would pass again, so it exits as
+			// passed without running. A group whose last run failed runs again, so a person can retry a failure whose cause is
 			// outside the sources without changing anything.
 			else if (ports.actualities.outcomeAgainst(verification) === RECORDED_STATUS.completed) return verifiedExit(bases);
 		}

@@ -119,6 +119,8 @@ export const SCENARIO_START = "scenario";
 /** The heading of a scenario that states a requirement the steppers don't provide yet. Its lines don't resolve or run. */
 export const PENDING_SCENARIO = "pendingScenario";
 export const FEATURE_START = "feature";
+/** The actions of the headings: a feature's, a scenario's and a pending scenario's. */
+export const HEADINGS: readonly string[] = [FEATURE_START, SCENARIO_START, PENDING_SCENARIO];
 
 /** The prefixes that declare a feature and a scenario in a feature's text. `declaredName` returns the name after a prefix. */
 export const DECLARES = { feature: "Feature:", scenario: "Scenario:" } as const;
@@ -421,13 +423,6 @@ export type TFeatureResult = {
 	ok: boolean;
 	/** The summary of its steps. */
 	steps: TFeatureSteps;
-	/**
-	 * The SHA-256 of the text of every step the feature declares, in order. The text includes the steps of the feature's
-	 * expanded backgrounds and helpers.
-	 * Two runs that carry the same hash declared the same steps. A step dispatched from outside the feature and a loop that
-	 * repeated a step change what the feature ran, not what it declares, so they don't change the hash.
-	 */
-	declaredStepTextHash: string;
 	/** The full results of the most recent steps the feature ran, up to RESULTS_READ_IN_FULL. `steps` summarizes every step. */
 	stepResults: TStepResult[];
 	/** The name of each pending scenario the feature states, in order. */

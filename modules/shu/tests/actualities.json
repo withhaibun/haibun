@@ -1,7 +1,6 @@
 {
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
 		"037f5dccb6aecbf1": {
-			"state": "396e89853bc56ff3a94efb722c84aa4dc10bcec6467a6b291d5718e3fab3a700",
 			"filter": "",
 			"execution": {
 				"text": "modules/shu/tests",
@@ -13,48 +12,100 @@
 					"text": "An address names a type",
 					"status": "passed",
 					"tookMs": 1000,
-					"steps": 199,
-					"declaredStepTextHash": "61b18ce0a42e63f5aefe7a724bab09ebf144c995f872e7f25cedf8833e721876"
+					"steps": 199
 				},
 				"/features/federate.feature.ts": {
 					"text": "Federated graph reads from a sibling instance",
 					"status": "passed",
 					"tookMs": 1000,
-					"steps": 6,
-					"declaredStepTextHash": "ab37731cb50813b783e0aa872bb80a9b995c504e308a5603c48f254263f91584"
+					"steps": 6
 				},
 				"/features/monitor-serves.feature.ts": {
 					"text": "The monitor serves shu on a port of its own",
 					"status": "passed",
 					"tookMs": 1400,
-					"steps": 195,
-					"declaredStepTextHash": "f2179e90a8ba0ddc11874cee823c958ba9af79ed1a2d675b9b9309f175ea49cf"
+					"steps": 195
 				},
 				"/features/monitor.feature.ts": {
 					"text": "Monitor view collects and displays execution events",
 					"status": "passed",
 					"tookMs": 9800,
-					"steps": 578,
-					"declaredStepTextHash": "393454bf5334c0e4596961db49d85acaad2b729a3da77003b00982cc50e2ebfb"
+					"steps": 578
 				},
 				"/features/remote-store.feature.ts": {
 					"text": "A satellite instance keeps its records in the main instance's store",
 					"status": "passed",
 					"tookMs": 1100,
-					"steps": 8,
-					"declaredStepTextHash": "e72c51a4303f8c90b2629d72ca832ecc807fcfa3c405fea980dca36f601267e1"
+					"steps": 8
 				},
 				"/features/voice-ui.feature.ts": {
 					"text": "UI extension propagation: domain ui → concern catalog → SPA actions bar",
 					"status": "passed",
 					"tookMs": 1800,
-					"steps": 209,
-					"declaredStepTextHash": "7b1a76d4b7f2bac96f117475e06755e50510475834a6fa4c802f50358c798bc6"
+					"steps": 209
+				}
+			}
+		},
+		"c3ae834a35614390": {
+			"filter": "",
+			"execution": {
+				"text": "modules/shu/tests",
+				"status": "passed",
+				"tookMs": 16800,
+				"digest": {
+					"modules/cli/src": "ee03176180e04b05eace608d29b4b7367cbd007985f6544cc0d36b8fe618e6af",
+					"modules/core/src": "19f345c63f0299d04818c279f528bf7294cd373131590c95d130c704a5417064",
+					"modules/domain-storage/src": "8555ea196220a75db0f69cfbf0f7374da5fc614ecf6b652c38d33cc7b11d92e9",
+					"modules/logic/src": "b5da2e29f4e6e0e7d38cb6ca70df1beec0a1d3bc8b23e02915cabca37d3ada53",
+					"modules/monitor-tui/src": "a827c8af8ca688c390637f2aa5bd5a343695fc199d15450e06fa6c9de0b9fc8b",
+					"modules/shu/src": "4ac2ff10df0c65314df0c87d5927249f6f41712b07ae7c51ec9eeae9107451ee",
+					"modules/shu/tests": "48a11ec594619dffecf4564fe788e0e4326d57b0d78be308f56d26b09f5207b1",
+					"modules/storage-fs/src": "948755c17d4f877495d0018ea37b8a39a7bae31a28b3317c3adfcb9b2e9c79e7",
+					"modules/storage-mem/src": "764cfa313b43fa43bd52ab7fd10ce9d5ee1b3c033c58b2fc6a85d98c7f267206",
+					"modules/web-playwright/src": "2757b2df1c4cad4537a449e089cc0a35bdf1f09ca93de78e12bbbbb8c40bf50e",
+					"modules/web-server-hono/src": "cb6ad796c4e3aab9d63bc9ab196d3db565e8e2b19ff87ddcda1b4ba3e31967a4"
+				}
+			},
+			"features": {
+				"/features/address.feature.ts": {
+					"text": "An address names a type",
+					"status": "passed",
+					"tookMs": 1000,
+					"steps": 199
+				},
+				"/features/federate.feature.ts": {
+					"text": "Federated graph reads from a sibling instance",
+					"status": "passed",
+					"tookMs": 1300,
+					"steps": 6
+				},
+				"/features/monitor-serves.feature.ts": {
+					"text": "The monitor serves shu on a port of its own",
+					"status": "passed",
+					"tookMs": 1300,
+					"steps": 195
+				},
+				"/features/monitor.feature.ts": {
+					"text": "Monitor view collects and displays execution events",
+					"status": "passed",
+					"tookMs": 8300,
+					"steps": 577
+				},
+				"/features/remote-store.feature.ts": {
+					"text": "A satellite instance keeps its records in the main instance's store",
+					"status": "passed",
+					"tookMs": 1400,
+					"steps": 8
+				},
+				"/features/voice-ui.feature.ts": {
+					"text": "UI extension propagation: domain ui → concern catalog → SPA actions bar",
+					"status": "passed",
+					"tookMs": 1600,
+					"steps": 209
 				}
 			}
 		},
 		"d858c30588405f0e": {
-			"state": "2202f8ea1bd0db0193798dab83b2bb650c27410d7a2f58d0950384e0f2e1b23c",
 			"filter": "",
 			"execution": {
 				"text": "modules/shu/tests",
@@ -66,43 +117,37 @@
 					"text": "An address names a type",
 					"status": "passed",
 					"tookMs": 1100,
-					"steps": 199,
-					"declaredStepTextHash": "61b18ce0a42e63f5aefe7a724bab09ebf144c995f872e7f25cedf8833e721876"
+					"steps": 199
 				},
 				"/features/federate.feature.ts": {
 					"text": "Federated graph reads from a sibling instance",
 					"status": "passed",
 					"tookMs": 1300,
-					"steps": 6,
-					"declaredStepTextHash": "ab37731cb50813b783e0aa872bb80a9b995c504e308a5603c48f254263f91584"
+					"steps": 6
 				},
 				"/features/monitor-serves.feature.ts": {
 					"text": "The monitor serves shu on a port of its own",
 					"status": "passed",
 					"tookMs": 1400,
-					"steps": 195,
-					"declaredStepTextHash": "f2179e90a8ba0ddc11874cee823c958ba9af79ed1a2d675b9b9309f175ea49cf"
+					"steps": 195
 				},
 				"/features/monitor.feature.ts": {
 					"text": "Monitor view collects and displays execution events",
 					"status": "passed",
 					"tookMs": 9100,
-					"steps": 576,
-					"declaredStepTextHash": "94206ee93ab3b366aac10077f4ebf2d1649889a71c968221d356af1665a3973a"
+					"steps": 576
 				},
 				"/features/remote-store.feature.ts": {
 					"text": "A satellite instance keeps its records in the main instance's store",
 					"status": "passed",
 					"tookMs": 1400,
-					"steps": 8,
-					"declaredStepTextHash": "d52738bf4c8a5ec70a07fe3951f073fd5e6db552822231c62edd322148164818"
+					"steps": 8
 				},
 				"/features/voice-ui.feature.ts": {
 					"text": "UI extension propagation: domain ui → concern catalog → SPA actions bar",
 					"status": "passed",
 					"tookMs": 1900,
-					"steps": 209,
-					"declaredStepTextHash": "f603719c1d5b3a92f66780a62a11def811c2e987c7483c14641e1125f2f0d726"
+					"steps": 209
 				}
 			}
 		}

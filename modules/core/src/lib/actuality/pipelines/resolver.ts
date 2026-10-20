@@ -1,6 +1,6 @@
 import type { TExpandedFeature, TExpandedLine, TFeatures, TFeature } from "../domains/execution.js";
 import type { TWorld } from "../domains/world.js";
-import { TStepValue, SCENARIO_START, FEATURE_START, PENDING_SCENARIO, Origin } from "../../domains/protocol.js";
+import { TStepValue, SCENARIO_START, PENDING_SCENARIO, HEADINGS, Origin } from "../../domains/protocol.js";
 import { AStepper, TStepAction, TResolvedFeature, TStepperStep, TFeatureStep, hasCycles } from "../../steps/domains/stepper.js";
 import type { TDomainDefinition } from "../../domains/resources.js";
 import { matchGwtaToAction } from "../../steps/derivations/named-vars.js";
@@ -176,8 +176,7 @@ export class Resolver {
 	}
 	/** The heading a line states, a feature's, a scenario's or a pending scenario's, or undefined where it isn't a heading. */
 	private headingOf(line: string): string | undefined {
-		const headings = [FEATURE_START, SCENARIO_START, PENDING_SCENARIO];
-		return this.findActionableSteps(line).find(({ actionName }) => headings.includes(actionName))?.actionName;
+		return this.findActionableSteps(line).find(({ actionName }) => HEADINGS.includes(actionName))?.actionName;
 	}
 
 	/**

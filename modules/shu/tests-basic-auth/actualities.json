@@ -1,7 +1,6 @@
 {
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
 		"03d75cd4d387071b": {
-			"state": "97f5f086deac0d6eab50fa141b9bef66665658f84f46d47e000aa8be9d3e3176",
 			"filter": "",
 			"execution": {
 				"text": "modules/shu/tests-basic-auth",
@@ -13,13 +12,11 @@
 					"text": "A page behind basic auth",
 					"status": "passed",
 					"tookMs": 2000,
-					"steps": 212,
-					"declaredStepTextHash": "a7cd8de3ab9bb793bdd6cdacc4ca24127e2bdb1d37d7ef28366e12345792f5ac"
+					"steps": 212
 				}
 			}
 		},
 		"ecde34e6cbbc188c": {
-			"state": "f690f1f42a3db9dfe32e5eef4276a976a2cc2af16df624e34e73ba428f19d738",
 			"filter": "",
 			"execution": {
 				"text": "modules/shu/tests-basic-auth",
@@ -31,8 +28,34 @@
 					"text": "A page behind basic auth",
 					"status": "passed",
 					"tookMs": 1900,
-					"steps": 212,
-					"declaredStepTextHash": "a7cd8de3ab9bb793bdd6cdacc4ca24127e2bdb1d37d7ef28366e12345792f5ac"
+					"steps": 212
+				}
+			}
+		},
+		"fb237a4a5918553e": {
+			"filter": "",
+			"execution": {
+				"text": "modules/shu/tests-basic-auth",
+				"status": "passed",
+				"tookMs": 1900,
+				"digest": {
+					"modules/core/src": "19f345c63f0299d04818c279f528bf7294cd373131590c95d130c704a5417064",
+					"modules/domain-storage/src": "8555ea196220a75db0f69cfbf0f7374da5fc614ecf6b652c38d33cc7b11d92e9",
+					"modules/logic/src": "b5da2e29f4e6e0e7d38cb6ca70df1beec0a1d3bc8b23e02915cabca37d3ada53",
+					"modules/shu/src": "4ac2ff10df0c65314df0c87d5927249f6f41712b07ae7c51ec9eeae9107451ee",
+					"modules/shu/tests-basic-auth": "594c5f1c44166acad2d1330bf4f31882c5b167575f28d828b82c4cc36e5eeff2",
+					"modules/storage-fs/src": "948755c17d4f877495d0018ea37b8a39a7bae31a28b3317c3adfcb9b2e9c79e7",
+					"modules/storage-mem/src": "764cfa313b43fa43bd52ab7fd10ce9d5ee1b3c033c58b2fc6a85d98c7f267206",
+					"modules/web-playwright/src": "2757b2df1c4cad4537a449e089cc0a35bdf1f09ca93de78e12bbbbb8c40bf50e",
+					"modules/web-server-hono/src": "cb6ad796c4e3aab9d63bc9ab196d3db565e8e2b19ff87ddcda1b4ba3e31967a4"
+				}
+			},
+			"features": {
+				"/features/behind-basic-auth.feature.ts": {
+					"text": "A page behind basic auth",
+					"status": "passed",
+					"tookMs": 1700,
+					"steps": 212
 				}
 			}
 		}

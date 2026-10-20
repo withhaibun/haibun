@@ -42,7 +42,7 @@
 		"names actuality as execution": 4
 	},
 	"modules/cli/src/adapters/actualities.ts": {
-		"names actuality as execution": 15
+		"names actuality as execution": 14
 	},
 	"modules/cli/src/domains/base-options.ts": {
 		"names actuality as execution": 3
@@ -55,7 +55,7 @@
 		"names passed, failed, untested as \"completed\"": 2
 	},
 	"modules/cli/src/instance-stepper.ts": {
-		"names actuality as execution": 4
+		"names actuality as execution": 3
 	},
 	"modules/cli/src/pipelines/run-cli.test.ts": {
 		"names actuality as execution": 1
@@ -131,7 +131,7 @@
 		"names record as step result": 1
 	},
 	"modules/core/src/lib/actuality/pipelines/move-actuality.ts": {
-		"names actuality as execution": 4
+		"names actuality as execution": 2
 	},
 	"modules/core/src/lib/actuality/pipelines/resolver.test.ts": {
 		"names actuality as execution": 1

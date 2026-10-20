@@ -32,7 +32,7 @@ import { RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
 import type { ChildProcess } from "child_process";
 import { EventEmitter } from "node:events";
 
-/** Records an actuality of a group that ended as `status`, as an actuality records itself in the actualities file. */
+/** Records an actuality of a group that ended as `status`, with the digests `v` read, as an actuality records itself in the actualities file. */
 const recordOutcome = (v: Parameters<typeof recordActuality>[0], status: string) =>
 	recordActuality(
 		v,
@@ -49,6 +49,7 @@ const recordOutcome = (v: Parameters<typeof recordActuality>[0], status: string)
 					actualityLevel: "execution",
 					generatedAtTime: new Date(0).toISOString(),
 					endedAtTime: new Date(1).toISOString(),
+					digest: v.digest,
 				},
 			],
 		]),

@@ -1,16 +1,15 @@
 /**
  * The actualities file: a group's last actuality, written beside the group's configuration and committed with the code. For
- * each class of machine and each way of running the group, it holds the state of the group's dependencies that the
- * actuality read, and the lines of the records of its execution and its features, each duration in tenths of a second. An
+ * each class of machine and each way of running the group, it holds the lines of the records of its execution and its
+ * features, each duration in tenths of a second, and the actuality's own line holds the digest of each dependency it read. An
  * entry changes only where an outcome or a duration changes, so the file's git history holds the series of actualities and
  * their durations at each change.
  *
- * An actuality is evidence about the state it read. The CLI's --once option skips a group that passed against the present
- * state and runs a group that failed, so a person can retry a failure. InstanceStepper's startRun refuses a run in both
- * cases, because an agent's second run over unchanged features is a loop. An actuality of statements or a rehearsal doesn't
- * verify the group against a state, and doesn't read or write the file.
+ * An actuality is evidence about the state it read. The CLI's --once option skips a group whose last actuality passed where
+ * every dependency holds the digest it held then, and runs a group that failed, so a person can retry a failure.
+ * InstanceStepper's startRun refuses a run in both cases, because an agent's second run over unchanged features is a loop.
+ * An actuality of statements or a rehearsal doesn't verify the group against a state, and doesn't read or write the file.
  */
-import { createHash } from "node:crypto";
 import nodeFS from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -19,22 +18,22 @@ import type { TSpecl } from "@haibun/core/lib/execution.js";
 import type { TRunPolicyConfig } from "@haibun/core/run-policy/domains/run-policy.js";
 import { RECORDED_STATUS, type TExecutorResult } from "@haibun/core/lib/domains/protocol.js";
 import { ACTUALITIES_FILE, dependencyRoots, dependencyState, repositoryTop } from "@haibun/core/lib/adapters/dependency-state.js";
-import { SEQ_PATH_FIELD, StepLineSchema, stepLine } from "@haibun/core/lib/seq-path.js";
+import { DigestSchema, SEQ_PATH_FIELD, StepLineSchema, stepLine, type TDigest } from "@haibun/core/lib/seq-path.js";
 import type { TLevelRecords } from "@haibun/core/lib/actuality/pipelines/move-actuality.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
+import { sha256 } from "@haibun/core/lib/domains/sha256.js";
 
 /** How a group ran, as the file stores it: every feature passed, or one didn't. */
 export type TGroupEnded = typeof RECORDED_STATUS.completed | typeof RECORDED_STATUS.failed;
 
 /** A level's record as the file holds it: its line without the instants it began and ended, its duration in tenths of a
- *  second, so two actualities whose durations round to the same tenth write the same line. */
-const LevelLineSchema = StepLineSchema.omit({ began: true, ended: true }).extend({ tookMs: z.number() });
-/** A feature's line, with the number of steps it ran and the hash of the text of the steps it declares. The hash distinguishes a
- *  feature whose declared steps changed from one that ran the same steps slower. */
-const FeatureLineSchema = LevelLineSchema.extend({ steps: z.number().int(), declaredStepTextHash: z.string() });
-/** An actuality of a group: the state it read, which an actuality that didn't reach its features or whose outcome was
- *  cleared doesn't hold, its filter, and the lines of its execution and of each feature by its path. */
-const ActualityEntrySchema = z.object({ state: z.string().optional(), filter: z.string(), execution: LevelLineSchema, features: z.record(z.string(), FeatureLineSchema) });
+ *  second, so two actualities whose durations round to the same tenth write the same line, and its record's digests. The
+ *  line of an actuality that didn't reach its features or whose outcome was cleared doesn't hold its digests. */
+const LevelLineSchema = StepLineSchema.omit({ began: true, ended: true }).extend({ tookMs: z.number(), digest: DigestSchema.optional() });
+/** A feature's line, with the number of steps it ran. */
+const FeatureLineSchema = LevelLineSchema.extend({ steps: z.number().int() });
+/** An actuality of a group: its filter, and the lines of its execution and of each feature by its path. */
+const ActualityEntrySchema = z.object({ filter: z.string(), execution: LevelLineSchema, features: z.record(z.string(), FeatureLineSchema) });
 type TActualityEntry = z.infer<typeof ActualityEntrySchema>;
 /** The actualities of a group by the class of the machine they ran on, then by their conditions. An actuality on other
  *  hardware takes other durations, and a comparison across machines reports a difference a change didn't cause. */
@@ -93,13 +92,13 @@ export function actualityConditions(c: TActualityConditions): string {
 		policy: c.policy ?? null,
 		withSteppers: [...(c.withSteppers ?? [])],
 	};
-	return createHash("sha256").update(stable(keyed)).digest("hex").slice(0, 16);
+	return sha256(stable(keyed)).slice(0, 16);
 }
 
 /** An actuality's place in the actualities file: the file, the machine, the conditions, the filter comma-joined, the digest of the
- *  present content of every dependency, and the bases relative to the repository's top, comma-joined, which the
+ *  present content of each dependency, and the bases relative to the repository's top, comma-joined, which the
  *  execution's line states. */
-type TVerification = { file: string; machine: string; conditions: string; filter: string; state: string; bases: string };
+type TVerification = { file: string; machine: string; conditions: string; filter: string; digest: TDigest; bases: string };
 
 /** Returns the present state of a group's dependencies with an actuality's place in the actualities file. Returns undefined where the
  *  state can't be read. A caller then runs the group without consulting the file and doesn't record it. Every path the
@@ -107,11 +106,11 @@ type TVerification = { file: string; machine: string; conditions: string; filter
 export function verificationOf(c: TActualityConditions): TVerification | undefined {
 	const configDir = path.dirname(path.resolve(c.configPath));
 	const top = repositoryTop(configDir);
-	const state = dependencyState(dependencyRoots(c.specl, c.bases, configDir, c.cwd), c.specl.environments ?? []);
-	if (top === undefined || state === undefined) return undefined;
+	const digest = dependencyState(dependencyRoots(c.specl, c.bases, configDir, c.cwd));
+	if (top === undefined || digest === undefined) return undefined;
 	const fromTop = (at: string) => path.join(".", path.relative(top, path.resolve(c.cwd, at)));
 	const conditions = actualityConditions({ ...c, configPath: fromTop(c.configPath) });
-	return { file: path.join(configDir, ACTUALITIES_FILE), machine: machineKey(), conditions, filter: c.filter.join(","), state, bases: c.bases.map(fromTop).join(", ") };
+	return { file: path.join(configDir, ACTUALITIES_FILE), machine: machineKey(), conditions, filter: c.filter.join(","), digest, bases: c.bases.map(fromTop).join(", ") };
 }
 
 /** Reads the actualities file, or an empty record where the file doesn't exist. Throws where it doesn't parse, since
@@ -135,11 +134,14 @@ function writeActualities(file: string, actualities: TActualityFile): void {
 	nodeFS.writeFileSync(file, `${JSON.stringify(sorted(Object.fromEntries(Object.entries(actualities).map(([machine, entries]) => [machine, sorted(entries)]))), null, "\t")}\n`);
 }
 
-/** Returns the outcome of the group's last actuality under these conditions on this machine against its present state, or
- *  undefined where the file doesn't hold that actuality. */
+/** Returns each dependency whose digest differs between two states, or that one of them doesn't hold, in sorted order. */
+const changedDependencies = (held: TDigest, now: TDigest): string[] => [...new Set([...Object.keys(held), ...Object.keys(now)])].filter((at) => held[at] !== now[at]).sort();
+
+/** Returns the outcome of the group's last actuality under these conditions on this machine, where every dependency holds the
+ *  digest it held then, or undefined where the file doesn't hold that actuality. */
 export function outcomeAgainst(v: TVerification): TGroupEnded | undefined {
-	const held = readActualities(v.file)[v.machine]?.[v.conditions];
-	const status = held?.state === v.state ? held.execution.status : undefined;
+	const held = readActualities(v.file)[v.machine]?.[v.conditions]?.execution;
+	const status = held?.digest !== undefined && changedDependencies(held.digest, v.digest).length === 0 ? held.status : undefined;
 	return status === RECORDED_STATUS.completed || status === RECORDED_STATUS.failed ? status : undefined;
 }
 
@@ -148,12 +150,12 @@ export function outcomeAgainst(v: TVerification): TGroupEnded | undefined {
 function levelLine(record: Record<string, unknown>) {
 	const { began: _began, ended: _ended, tookMs, ...line } = stepLine(record);
 	if (tookMs === undefined) throw new Error(`the level ${record[SEQ_PATH_FIELD.id]} didn't end, and an actuality records itself once its levels have ended`);
-	return { ...line, tookMs: Math.round(tookMs / 100) * 100 };
+	return { ...line, tookMs: Math.round(tookMs / 100) * 100, digest: DigestSchema.optional().parse(record[SEQ_PATH_FIELD.digest]) };
 }
 
-/** Returns an actuality's entry: the state it read, and the lines of its execution's record and of each feature's record by
- *  its path, with the feature's step count and the hash of its declared lines from its result. The execution's line states its
- *  bases relative to the repository's top in place of the bases its caller named. */
+/** Returns an actuality's entry: the lines of its own record and of each feature's record by its path, with the feature's
+ *  step count from its result. Its own line states its bases relative to the repository's top in place of the bases its
+ *  caller named. */
 function entryOf(v: TVerification, result: TExecutorResult, levels: TLevelRecords): TActualityEntry {
 	const records = [...levels.values()];
 	const [execution, ...others] = records.filter((record) => record[SEQ_PATH_FIELD.actualityLevel] === "execution");
@@ -162,9 +164,9 @@ function entryOf(v: TVerification, result: TExecutorResult, levels: TLevelRecord
 		if (record[SEQ_PATH_FIELD.actualityLevel] !== "feature") return [];
 		const ran = result.featureResults.find((feature) => feature.path === record[SEQ_PATH_FIELD.path]);
 		if (ran === undefined) throw new Error(`the feature record ${record[SEQ_PATH_FIELD.id]} names ${record[SEQ_PATH_FIELD.path]}, which the results don't hold`);
-		return [[ran.path, { ...levelLine(record), steps: ran.steps.count, declaredStepTextHash: ran.declaredStepTextHash }]];
+		return [[ran.path, { ...levelLine(record), steps: ran.steps.count }]];
 	});
-	return { state: v.state, filter: v.filter, execution: { ...levelLine(execution), text: v.bases }, features: Object.fromEntries(features) };
+	return { filter: v.filter, execution: { ...levelLine(execution), text: v.bases }, features: Object.fromEntries(features) };
 }
 
 /** Writes an actuality under its conditions on this machine, and returns every feature whose duration differs from the
@@ -177,23 +179,19 @@ export function recordActuality(v: TVerification, result: TExecutorResult, level
 	return variances;
 }
 
-/** Clears the state of each actuality that `held` selects, so it isn't evidence about a state, and keeps its durations. */
+/** Clears the digests of each actuality that `held` selects, so it isn't evidence about a state, and keeps its durations. */
 function forgetWhere(file: string, held: (machine: string, conditions: string, entry: TActualityEntry) => boolean): void {
 	const actualities = readActualities(file);
-	const forgotten = Object.fromEntries(
-		Object.entries(actualities).map(([machine, entries]) => [
-			machine,
-			Object.fromEntries(Object.entries(entries).map(([conditions, entry]) => [conditions, held(machine, conditions, entry) ? { ...entry, state: undefined } : entry])),
-		]),
-	);
-	if (Object.keys(actualities).length > 0) writeActualities(file, forgotten);
+	for (const [machine, entries] of Object.entries(actualities))
+		for (const [conditions, entry] of Object.entries(entries)) if (held(machine, conditions, entry)) delete entry.execution.digest;
+	if (Object.keys(actualities).length > 0) writeActualities(file, actualities);
 }
 
-/** Clears the state of an actuality under these conditions on this machine. An actuality that didn't reach its features
+/** Clears the digests of an actuality under these conditions on this machine. An actuality that didn't reach its features
  *  isn't evidence about the state. */
 export const forgetOutcome = (v: TVerification): void => forgetWhere(v.file, (machine, conditions) => machine === v.machine && conditions === v.conditions);
 
-/** Clears the state of actualities so a group's features run again in any state. Without a filter, it clears every
+/** Clears the digests of actualities so a group's features run again in any state. Without a filter, it clears every
  *  actuality of the group. With a filter, it clears the actualities narrowed to that filter and the actualities of the whole
  *  group, because an actuality of the whole group includes those features. */
 export function forgetOutcomes(configDir: string, filter?: string): void {
@@ -207,36 +205,28 @@ export function forgetOutcomes(configDir: string, filter?: string): void {
 const CHANGED_FRACTION = 0.2;
 const CHANGED_MS = 1000;
 
-/** A feature whose duration differs from the recorded actuality, in seconds. declaredStepsChanged is true where the hash of its
- *  declared lines differ from the recorded hash. */
-type TVariance = { feature: string; seconds: number; was: number; steps: number; wasSteps: number; declaredStepsChanged: boolean };
+/** A feature whose duration differs from the recorded actuality, in seconds. */
+type TVariance = { feature: string; seconds: number; was: number; steps: number; wasSteps: number };
 
 /** Returns the features whose durations differ from the recorded actuality by at least CHANGED_FRACTION of the recorded duration
  *  and at least CHANGED_MS, largest difference first. It leaves out a feature that only one of the two actualities holds. An
  *  added or removed feature changes what runs, not how long an actuality takes. */
 export function variancesBetween(recorded: TActualityEntry | undefined, now: TActualityEntry): TVariance[] {
 	const changed: TVariance[] = [];
-	for (const [feature, { tookMs, steps, declaredStepTextHash }] of Object.entries(now.features)) {
+	for (const [feature, { tookMs, steps }] of Object.entries(now.features)) {
 		const before = recorded?.features[feature];
 		if (!before) continue;
 		const difference = Math.abs(tookMs - before.tookMs);
 		if (difference < CHANGED_MS || difference < before.tookMs * CHANGED_FRACTION) continue;
-		changed.push({
-			feature,
-			seconds: tookMs / 1000,
-			was: before.tookMs / 1000,
-			steps,
-			wasSteps: before.steps,
-			declaredStepsChanged: declaredStepTextHash !== before.declaredStepTextHash,
-		});
+		changed.push({ feature, seconds: tookMs / 1000, was: before.tookMs / 1000, steps, wasSteps: before.steps });
 	}
 	return changed.sort((a, b) => Math.abs(b.seconds - b.was) - Math.abs(a.seconds - a.was));
 }
 
 /** Formats a variance as one line: the feature, both durations, the change as a percentage where the recorded duration
- *  isn't zero, the step count, the recorded step count where it differs, and a note where the declared steps changed. */
+ *  isn't zero, the step count, and the recorded step count where it differs. */
 export function varianceLine(v: TVariance): string {
 	const percent = v.was === 0 ? "" : ` (${v.seconds > v.was ? "+" : "-"}${Math.round((Math.abs(v.seconds - v.was) / v.was) * 100)}%)`;
 	const steps = v.steps === v.wasSteps ? `${v.steps} steps` : `${v.steps} steps, was ${v.wasSteps}`;
-	return `${v.feature} took ${v.seconds}s, was ${v.was}s${percent}, ${steps}${v.declaredStepsChanged ? ", its declared steps changed" : ""}`;
+	return `${v.feature} took ${v.seconds}s, was ${v.was}s${percent}, ${steps}`;
 }

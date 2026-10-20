@@ -74,7 +74,7 @@ describe("the finished step results actuality holds", () => {
 	it("clears every passing step's payload and keeps a failed step's payload", () => {
 		const step = { name: "s", in: "a step", path: "/f", seqPath: [0, 1, 1], ok: true, products: { big: "x" } } as unknown as TStepResult;
 		const failed = { ...step, ok: false, products: { big: "y" } } as TStepResult;
-		releasePayloads({ path: "/f", ok: false, steps: { count: 2 }, declaredStepTextHash: "the hash of its steps", stepResults: [step, failed], pending: [] });
+		releasePayloads({ path: "/f", ok: false, steps: { count: 2 }, stepResults: [step, failed], pending: [] });
 		expect(step.products, "releasePayloads clears a passing step's products").toBeUndefined();
 		expect(failed.products, "a failed step keeps its products").toEqual({ big: "y" });
 	});

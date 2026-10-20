@@ -1,10 +1,11 @@
 /**
  * How a feature and an execution end: whether actuality stays after its features end, whether a feature's resources
- * close, the step that fails an execution, and the digest of the steps a feature declares.
+ * close, the step that fails an execution, and the digest of the lines a scenario declares.
  */
-import { createHash } from "node:crypto";
-import { STAY_ALWAYS, STAY_FAILURE, type TExecutorResult, type TFeatureResult } from "../../domains/protocol.js";
+import { HEADINGS, STAY_ALWAYS, STAY_FAILURE, type TExecutorResult, type TFeatureResult } from "../../domains/protocol.js";
 import type { TFeatureStep } from "../../steps/domains/stepper.js";
+import { DECLARED_LINES, type TDigest } from "../domains/seq-path.js";
+import { sha256 } from "../../domains/sha256.js";
 
 /** Returns whether actuality keeps serving after its features end. `HAIBUN_STAY` selects always or only after a failure. */
 export function staysAfterExecution(stay: unknown, ok: boolean): boolean {
@@ -31,9 +32,10 @@ export function executionFailure(featureResults: readonly TFeatureResult[]): TEx
 	return { stage: "Execute", error: { message: failedStep.errorMessage, details: { step: failedStep.in, path: failedStep.path, seqPath: failedStep.seqPath } } };
 }
 
-/** Joins a feature's declared step lines with newlines in declaration order and returns their SHA-256 hex digest. */
-export function declaredStepTextHash(featureSteps: readonly TFeatureStep[]): string {
-	return createHash("sha256")
-		.update(featureSteps.map((step) => step.in).join("\n"))
-		.digest("hex");
+/** Returns a scenario's digest: the SHA-256 of its heading at `at` and each line after it up to the next heading, joined with
+ *  newlines. The lines include those of expanded backgrounds, and the lines a failure leaves unrun. */
+export function scenarioDigest(featureSteps: readonly TFeatureStep[], at: number): TDigest {
+	const next = featureSteps.findIndex((step, i) => i > at && HEADINGS.includes(step.action.actionName));
+	const lines = featureSteps.slice(at, next < 0 ? undefined : next).map((step) => step.in);
+	return { [DECLARED_LINES]: sha256(lines.join("\n")) };
 }

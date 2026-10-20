@@ -12,8 +12,7 @@
 					"text": "/features/once",
 					"status": "passed",
 					"tookMs": 0,
-					"steps": 1,
-					"declaredStepTextHash": "080435f7ad399addae4b6213c903680b22bec53856d27c46955235770f486532"
+					"steps": 1
 				}
 			}
 		},
@@ -29,8 +28,7 @@
 					"text": "/features/once",
 					"status": "passed",
 					"tookMs": 0,
-					"steps": 1,
-					"declaredStepTextHash": "8791f58bb41a852e25455b6098dc0a9cd34adca1341af0d9987190b2b6905f78"
+					"steps": 1
 				}
 			}
 		},
@@ -46,13 +44,11 @@
 					"text": "/features/once",
 					"status": "passed",
 					"tookMs": 0,
-					"steps": 1,
-					"declaredStepTextHash": "080435f7ad399addae4b6213c903680b22bec53856d27c46955235770f486532"
+					"steps": 1
 				}
 			}
 		},
 		"b4cc0b9925aeadf9": {
-			"state": "357d99e72f289f7caa05892c58256c14dd10112e3cb6704524d50da46de20a7e",
 			"filter": "",
 			"execution": {
 				"text": "e2e-tests/once",
@@ -64,8 +60,28 @@
 					"text": "/features/once",
 					"status": "passed",
 					"tookMs": 0,
-					"steps": 1,
-					"declaredStepTextHash": "080435f7ad399addae4b6213c903680b22bec53856d27c46955235770f486532"
+					"steps": 1
+				}
+			}
+		},
+		"d2f7f24a6f426a64": {
+			"filter": "",
+			"execution": {
+				"text": "e2e-tests/once",
+				"status": "passed",
+				"tookMs": 0,
+				"digest": {
+					"e2e-tests/once": "a1629d031286963c15e77138da4626ceacdc095d94949102c133a3938458e73b",
+					"modules/core/src": "19f345c63f0299d04818c279f528bf7294cd373131590c95d130c704a5417064",
+					"modules/logic/src": "b5da2e29f4e6e0e7d38cb6ca70df1beec0a1d3bc8b23e02915cabca37d3ada53"
+				}
+			},
+			"features": {
+				"/features/once.feature": {
+					"text": "/features/once",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 1
 				}
 			}
 		}

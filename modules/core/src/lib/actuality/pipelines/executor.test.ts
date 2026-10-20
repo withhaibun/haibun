@@ -6,9 +6,9 @@ import { STAY_ALWAYS, STAY_FAILURE, type TFeatureResult, type TFeatureSteps, typ
 import { calculateShouldClose, executionFailure, staysAfterExecution } from "../derivations/execution-end.js";
 import { passWithDefaults, failWithDefaults } from "../../test/lib.js";
 import { scenarioEventId } from "../derivations/lifecycle-events.js";
-import { readEvery } from "../../records/pipelines/record-reads.js";
+import { equalTo, readEvery } from "../../records/pipelines/record-reads.js";
 import { SEQ_PATH_LABEL } from "../../domains/resources.js";
-import { SEQ_PATH_EDGE, SEQ_PATH_FIELD } from "../domains/seq-path.js";
+import { DECLARED_LINES, SEQ_PATH_EDGE, SEQ_PATH_FIELD } from "../domains/seq-path.js";
 import { RECORDED_STATUS, TEST_BASE } from "../../domains/protocol.js";
 import { AStepper } from "../../steps/domains/stepper.js";
 import { actionNotOK, actionOK } from "../../domains/util.js";
@@ -136,29 +136,34 @@ describe("executionFailure", () => {
 	});
 });
 
-describe("the hash of a feature's declared lines", () => {
+describe("the digest of a scenario's declared lines", () => {
 	class NotingStepper extends AStepper {
-		description = "Notes a text, and refuses.";
+		description = "Starts a scenario, notes a text, and refuses.";
 		steps = {
+			scenario: { gwta: `Scenario: {what: ${DOMAIN_TEXT}}`, action: () => Promise.resolve(actionOK()) },
 			note: { gwta: `note {what: ${DOMAIN_TEXT}}`, action: () => Promise.resolve(actionOK()) },
 			refuse: { gwta: "refuse here", action: () => Promise.resolve(actionNotOK("refused")) },
 		};
 	}
-	const hashOf = async (content: string): Promise<string> =>
-		itemAt((await passWithDefaults([{ path: "/features/noted.feature", content }], [NotingStepper])).featureResults, 0).declaredStepTextHash;
+	/** The digests each scenario's record states, in order. */
+	const digestsOf = async (content: string, passes = true) => {
+		const result = await (passes ? passWithDefaults : failWithDefaults)([{ path: "/features/noted.feature", content }], [NotingStepper]);
+		const records = await readEvery(result.world.shared.getStore(), { label: SEQ_PATH_LABEL, filters: equalTo({ [SEQ_PATH_FIELD.actualityLevel]: "scenario" }) });
+		return records.sort((a, b) => String(a[SEQ_PATH_FIELD.id]).localeCompare(String(b[SEQ_PATH_FIELD.id]))).map((record) => record[SEQ_PATH_FIELD.digest]);
+	};
 
-	it("is the same for two runs of the same declared steps, and differs when a step's text changes or a step is added", async () => {
-		const twice = await hashOf("note one\nnote two");
-		expect(twice).toMatch(/^[0-9a-f]{64}$/);
-		expect(await hashOf("note one\nnote two")).toBe(twice);
-		expect(await hashOf("note one\nnote three")).not.toBe(twice);
-		expect(await hashOf("note one\nnote two\nnote three")).not.toBe(twice);
+	it("is the same for the same declared lines, and differs for the scenario whose line changes", async () => {
+		const [a, b] = await digestsOf('Scenario: "a"\nnote "one"\nScenario: "b"\nnote "two"');
+		expect(a).toEqual({ [DECLARED_LINES]: expect.stringMatching(/^[0-9a-f]{64}$/) });
+		expect(await digestsOf('Scenario: "a"\nnote "one"\nScenario: "b"\nnote "two"')).toEqual([a, b]);
+		const [changedA, changedB] = await digestsOf('Scenario: "a"\nnote "one"\nScenario: "b"\nnote "three"');
+		expect([changedA, changedB === b], "b's line changed").toEqual([a, false]);
 	});
 
-	it("covers the steps a feature declares after a failed step, though they don't execute", async () => {
-		const hashAfterRefusal = async (last: string) =>
-			itemAt((await failWithDefaults([{ path: "/features/refused.feature", content: `note one\nrefuse here\n${last}` }], [NotingStepper])).featureResults, 0).declaredStepTextHash;
-		expect(await hashAfterRefusal("note three")).not.toBe(await hashAfterRefusal("note four"));
+	it("covers the lines a scenario declares after a failed line, though they don't run", async () => {
+		const [three] = await digestsOf('Scenario: "a"\nrefuse here\nnote "three"', false);
+		const [four] = await digestsOf('Scenario: "a"\nrefuse here\nnote "four"', false);
+		expect(three).not.toEqual(four);
 	});
 });
 

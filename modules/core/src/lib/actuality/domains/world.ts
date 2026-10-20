@@ -12,6 +12,7 @@ import type { TFeature } from "./execution.js";
 import type { AStepper } from "../../steps/domains/stepper.js";
 import type { TActualityMachine } from "../machines/actuality.js";
 import type { TLevelRecords } from "../pipelines/move-actuality.js";
+import type { TDigest } from "./seq-path.js";
 import type { TClock, TProver } from "../ports.js";
 
 export type TWorld = {
@@ -36,6 +37,8 @@ export type TRuntime = {
 	actuality: TActualityMachine;
 	/** The records of the execution's levels by their events' id. A level's end extends its start's record. */
 	levels: TLevelRecords;
+	/** The digest of each dependency root of the features, which the actuality's record states, where the caller read them. */
+	digest?: TDigest;
 	/** Generic keyed store for subsystem runtime state. */
 	keys?: Record<string, unknown>;
 	backgrounds?: TFeature[];

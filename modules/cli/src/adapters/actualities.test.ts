@@ -8,14 +8,15 @@ import { ACTUALITIES_FILE } from "@haibun/core/lib/adapters/dependency-state.js"
 import { RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
 import { forgetOutcome, forgetOutcomes, machineKey, outcomeAgainst, recordActuality, actualityConditions, varianceLine, verificationOf } from "./actualities.js";
 
-/** Creates a group of features in its own git repository. The group doesn't load steppers, so its only dependency is
- *  its own directory. */
+/** Creates a group of features and a library in its own git repository. The group doesn't load steppers, so its only
+ *  dependency is its own directory, or its features and its library where it names them as two roots. */
 function aGroup(): { dir: string; config: string } {
 	const dir = nodeFS.realpathSync(nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-verified-")));
 	execFileSync("git", ["init", "-q"], { cwd: dir });
 	nodeFS.writeFileSync(path.join(dir, "config.json"), JSON.stringify({ steppers: [] }));
-	nodeFS.mkdirSync(path.join(dir, "features"));
+	for (const dependency of ["features", "lib"]) nodeFS.mkdirSync(path.join(dir, dependency));
 	nodeFS.writeFileSync(path.join(dir, "features/a.feature"), "Feature: a\n");
+	nodeFS.writeFileSync(path.join(dir, "lib/a.ts"), "export {};\n");
 	return { dir, config: path.join(dir, "config.json") };
 }
 const specl = { steppers: [] };
@@ -36,7 +37,7 @@ const verified = (dir: string, config: string, more: Partial<Parameters<typeof v
 };
 
 /** A level's record as moveActuality writes it, begun at 0 and ended after `ms`. */
-const level = (actualityLevel: string, id: string, stepText: string, status: string, ms: number, featurePath?: string) => ({
+const level = (actualityLevel: string, id: string, stepText: string, status: string, ms: number, stated: Record<string, unknown> = {}) => ({
 	id,
 	stepText,
 	actionStatus: status,
@@ -45,34 +46,37 @@ const level = (actualityLevel: string, id: string, stepText: string, status: str
 	actualityLevel,
 	generatedAtTime: new Date(0).toISOString(),
 	endedAtTime: new Date(ms).toISOString(),
-	...(featurePath ? { path: featurePath } : {}),
+	...stated,
 });
-/** An actuality of features, each by its path and how long it took, with its result and the records of its levels. */
-function anActuality(status: string, features: Record<string, number>, declared = "declared") {
-	const levels = new Map<string, Record<string, unknown>>([["execution", level("execution", "1-0", "tests", status, 9000)]]);
+/** Records an actuality of features, each by its path and how long it took, whose own record states the digests `v` read,
+ *  and returns the features whose durations differ. */
+function recordFeatures(v: ReturnType<typeof verified>, status: string, features: Record<string, number>) {
+	const levels = new Map<string, Record<string, unknown>>([["execution", level("execution", "1-0", "tests", status, 9000, { digest: v.digest })]]);
 	const featureResults = Object.entries(features).map(([featurePath, ms], at) => {
-		levels.set(`feat-${at + 1}`, level("feature", `1-${at + 1}.0.${at + 1}.0`, featurePath, status, ms, featurePath));
-		return { path: featurePath, ok: true, steps: { count: 2 }, declaredStepTextHash: `${declared} ${featurePath}`, stepResults: [], pending: [] };
+		levels.set(`feat-${at + 1}`, level("feature", `1-${at + 1}.0.${at + 1}.0`, featurePath, status, ms, { path: featurePath }));
+		return { path: featurePath, ok: true, steps: { count: 2 }, stepResults: [], pending: [] };
 	});
-	return { result: { ok: status === RECORDED_STATUS.completed, featureResults } as never, levels };
+	return recordActuality(v, { ok: status === RECORDED_STATUS.completed, featureResults } as never, levels);
 }
 const actualitiesIn = (dir: string) => JSON.parse(nodeFS.readFileSync(path.join(dir, ACTUALITIES_FILE), "utf-8"));
 
 describe("how a group last ran against its state", () => {
-	it("doesn't return an actuality until one is recorded, returns it while the state is unchanged, and doesn't return it after a dependency changes", () => {
+	it("doesn't return an actuality until one is recorded, returns it while every dependency holds its digest, and doesn't return it once any changes", () => {
 		const { dir, config } = aGroup();
-		expect(outcomeAgainst(verified(dir, config))).toBeUndefined();
-		const { result, levels } = anActuality(RECORDED_STATUS.completed, { "/features/a.feature": 1000 });
-		recordActuality(verified(dir, config), result, levels);
-		expect(outcomeAgainst(verified(dir, config))).toBe(RECORDED_STATUS.completed);
-		nodeFS.writeFileSync(path.join(dir, "features/a.feature"), "Feature: a, changed\n");
-		expect(outcomeAgainst(verified(dir, config)), "a changed dependency is a new state, and the file doesn't hold an actuality against it").toBeUndefined();
+		const twoRoots = { specl: { steppers: [], dependsOn: ["lib"] }, bases: [path.join(dir, "features")] };
+		const before = verified(dir, config, twoRoots);
+		expect(outcomeAgainst(before)).toBeUndefined();
+		recordFeatures(before, RECORDED_STATUS.completed, { "/features/a.feature": 1000 });
+		expect(outcomeAgainst(verified(dir, config, twoRoots)), "every dependency holds the digest it held, so --once skips the group").toBe(RECORDED_STATUS.completed);
+		nodeFS.appendFileSync(path.join(dir, "lib/a.ts"), "// changed\n");
+		const now = verified(dir, config, twoRoots);
+		expect(now.digest.features, "the features hold their digest").toBe(before.digest.features);
+		expect(outcomeAgainst(now), "a change to the library alone reruns the group").toBeUndefined();
 	});
 
 	it("records a failure as an actuality against the state, so InstanceStepper refuses a second run over unchanged features", () => {
 		const { dir, config } = aGroup();
-		const { result, levels } = anActuality(RECORDED_STATUS.failed, { "/features/a.feature": 1000 });
-		recordActuality(verified(dir, config), result, levels);
+		recordFeatures(verified(dir, config), RECORDED_STATUS.failed, { "/features/a.feature": 1000 });
 		expect(outcomeAgainst(verified(dir, config))).toBe(RECORDED_STATUS.failed);
 	});
 
@@ -85,8 +89,7 @@ describe("how a group last ran against its state", () => {
 			{ policy: { place: "local", dirFilters: [{ dir: "smoke", access: "r" }] } as never },
 			{ withSteppers: ["debugger-stepper"] },
 		];
-		const { result, levels } = anActuality(RECORDED_STATUS.completed, { "/features/a.feature": 1000 });
-		recordActuality(plain, result, levels);
+		recordFeatures(plain, RECORDED_STATUS.completed, { "/features/a.feature": 1000 });
 		for (const other of others) expect(outcomeAgainst(verified(dir, config, other))).toBeUndefined();
 		expect(outcomeAgainst(plain)).toBe(RECORDED_STATUS.completed);
 	});
@@ -100,8 +103,7 @@ describe("how a group last ran against its state", () => {
 	it("clears the actualities of the named features and of the whole group that includes them, and an actuality that didn't reach its features, and keeps their durations", () => {
 		const { dir, config } = aGroup();
 		const [whole, a, b] = [verified(dir, config), verified(dir, config, { filter: ["a"] }), verified(dir, config, { filter: ["b"] })];
-		const { result, levels } = anActuality(RECORDED_STATUS.completed, { "/features/a.feature": 1000 });
-		for (const v of [whole, a, b]) recordActuality(v, result, levels);
+		for (const v of [whole, a, b]) recordFeatures(v, RECORDED_STATUS.completed, { "/features/a.feature": 1000 });
 		forgetOutcomes(dir, "a");
 		expect([outcomeAgainst(a), outcomeAgainst(whole), outcomeAgainst(b)], "the whole group includes a, and b wasn't named").toEqual([
 			undefined,
@@ -121,40 +123,33 @@ describe("how a group last ran against its state", () => {
 });
 
 describe("how long a group's features took", () => {
-	it("holds the lines of an actuality's execution and features under this machine, each duration in tenths of a second, with a feature's steps and the hash of its declared lines", () => {
+	it("holds the lines of an actuality's execution with its digests and of its features with their steps under this machine, each duration in tenths of a second", () => {
 		const { dir, config } = aGroup();
 		const v = verified(dir, config);
-		const { result, levels } = anActuality(RECORDED_STATUS.completed, { "/features/a.feature": 1234 });
-		recordActuality(v, result, levels);
+		recordFeatures(v, RECORDED_STATUS.completed, { "/features/a.feature": 1234 });
 		expect(actualitiesIn(dir)[machineKey()][v.conditions]).toEqual({
-			state: v.state,
 			filter: "",
-			execution: { text: ".", status: RECORDED_STATUS.completed, tookMs: 9000 },
-			features: {
-				"/features/a.feature": { text: "/features/a.feature", status: RECORDED_STATUS.completed, tookMs: 1200, steps: 2, declaredStepTextHash: "declared /features/a.feature" },
-			},
+			execution: { text: ".", status: RECORDED_STATUS.completed, tookMs: 9000, digest: v.digest },
+			features: { "/features/a.feature": { text: "/features/a.feature", status: RECORDED_STATUS.completed, tookMs: 1200, steps: 2 } },
 		});
 	});
 
 	it("is the same file for the same group checked out at another directory, its paths relative to the repository's top", () => {
 		const [one, other] = [aGroup(), aGroup()];
 		const [first, second] = [verified(one.dir, one.config), verified(other.dir, other.config, { cwd: path.dirname(other.dir), bases: [path.basename(other.dir)] })];
-		for (const v of [first, second]) {
-			const { result, levels } = anActuality(RECORDED_STATUS.completed, { "/features/a.feature": 1000 });
-			recordActuality(v, result, levels);
-		}
+		for (const v of [first, second]) recordFeatures(v, RECORDED_STATUS.completed, { "/features/a.feature": 1000 });
 		expect(nodeFS.readFileSync(path.join(other.dir, ACTUALITIES_FILE), "utf-8")).toBe(nodeFS.readFileSync(path.join(one.dir, ACTUALITIES_FILE), "utf-8"));
 	});
 
-	it("reports a feature whose duration differs from this machine's last actuality by both a fifth and a second, and whether its declared steps changed", () => {
+	it("reports a feature whose duration differs from this machine's last actuality by both a fifth and a second", () => {
 		const { dir, config } = aGroup();
-		const first = anActuality(RECORDED_STATUS.completed, { "/a.feature": 10_000, "/b.feature": 10_000, "/c.feature": 500 });
-		expect(recordActuality(verified(dir, config), first.result, first.levels), "a machine without a recorded actuality doesn't have times to compare").toEqual([]);
-		const second = anActuality(RECORDED_STATUS.completed, { "/a.feature": 20_000, "/b.feature": 11_000, "/c.feature": 1200, "/d.feature": 9000 }, "changed");
+		const first = recordFeatures(verified(dir, config), RECORDED_STATUS.completed, { "/a.feature": 10_000, "/b.feature": 10_000, "/c.feature": 500 });
+		expect(first, "a machine without a recorded actuality doesn't have times to compare").toEqual([]);
+		const second = recordFeatures(verified(dir, config), RECORDED_STATUS.completed, { "/a.feature": 20_000, "/b.feature": 11_000, "/c.feature": 1200, "/d.feature": 9000 });
 		expect(
-			recordActuality(verified(dir, config), second.result, second.levels).map((variance) => [variance.feature, variance.was, variance.seconds, variance.declaredStepsChanged]),
+			second.map((variance) => [variance.feature, variance.was, variance.seconds]),
 			"/b differs by less than a fifth, /c by less than a second, and /d wasn't in the last actuality",
-		).toEqual([["/a.feature", 10, 20, true]]);
+		).toEqual([["/a.feature", 10, 20]]);
 	});
 
 	it("names the class of machine by its processor, core count, architecture and platform, and doesn't include the host name", () => {
@@ -167,17 +162,14 @@ describe("how long a group's features took", () => {
 		]);
 	});
 
-	it("formats the feature, both durations, the percentage change, the step counts and a change to the declared steps", () => {
-		expect(varianceLine({ feature: "/a.feature", seconds: 20, was: 10, steps: 7, wasSteps: 5, declaredStepsChanged: true })).toBe(
-			"/a.feature took 20s, was 10s (+100%), 7 steps, was 5, its declared steps changed",
-		);
-		expect(varianceLine({ feature: "/a.feature", seconds: 5, was: 10, steps: 5, wasSteps: 5, declaredStepsChanged: false })).toBe("/a.feature took 5s, was 10s (-50%), 5 steps");
+	it("formats the feature, both durations, the percentage change and the step counts", () => {
+		expect(varianceLine({ feature: "/a.feature", seconds: 20, was: 10, steps: 7, wasSteps: 5 })).toBe("/a.feature took 20s, was 10s (+100%), 7 steps, was 5");
+		expect(varianceLine({ feature: "/a.feature", seconds: 5, was: 10, steps: 5, wasSteps: 5 })).toBe("/a.feature took 5s, was 10s (-50%), 5 steps");
 	});
 
 	it("refuses an actualities file that doesn't hold actualities by machine and conditions, since replacing it would lose them", () => {
 		const { dir, config } = aGroup();
 		nodeFS.writeFileSync(path.join(dir, ACTUALITIES_FILE), JSON.stringify({ [machineKey()]: { features: {} } }));
-		const { result, levels } = anActuality(RECORDED_STATUS.completed, { "/a.feature": 100 });
-		expect(() => recordActuality(verified(dir, config), result, levels)).toThrow("doesn't hold actualities by machine and conditions");
+		expect(() => recordFeatures(verified(dir, config), RECORDED_STATUS.completed, { "/a.feature": 100 })).toThrow("doesn't hold actualities by machine and conditions");
 	});
 });
