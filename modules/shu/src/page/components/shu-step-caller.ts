@@ -53,6 +53,11 @@ const REFERENCE_OPTIONS = 50;
 
 /** Whether an input property is a composite (an object schema with properties), which the form renders one field at a
  *  time rather than as JSON. */
+/** A value as the text it is written as: a string as it is, anything else as JSON. */
+function textOf(value: unknown): string {
+	return typeof value === "string" ? value : JSON.stringify(value);
+}
+
 function isCompositeProperty(prop: TInputProperty | undefined): prop is TInputProperty & { properties: Record<string, TInputProperty> } {
 	return prop?.type === "object" && prop.properties !== undefined && Object.keys(prop.properties).length > 0;
 }
@@ -159,13 +164,13 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 	#startWith(desc: TStepDefinition): void {
 		const properties = this.#inputSchemaOf(desc).properties;
 		for (const param of Object.keys(desc.paramDomains)) if (this.#referenceTarget(desc, param) !== undefined) this.#referenceIds.set(param, "");
+		const inputs: Record<string, string> = {};
 		for (const [param, value] of Object.entries(this.values)) {
 			if (this.#referenceIds.has(param)) this.#referenceIds.set(param, value);
-			else if (isCompositeProperty(properties?.[param])) {
-				const fields = Object.entries(JsonObjectTextSchema.parse(value)).map(([field, held]) => [`${param}.${field}`, typeof held === "string" ? held : JSON.stringify(held)]);
-				this.formValues = { ...this.formValues, ...Object.fromEntries(fields) };
-			} else this.formValues = { ...this.formValues, [param]: value };
+			else if (isCompositeProperty(properties?.[param])) for (const [field, held] of Object.entries(JsonObjectTextSchema.parse(value))) inputs[`${param}.${field}`] = textOf(held);
+			else inputs[param] = value;
 		}
+		this.formValues = { ...this.formValues, ...inputs };
 	}
 
 	/** The test id prefix: the step's key and the caller's number, which a test builds from the method too. */
@@ -398,7 +403,7 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 	/** A value as the text of its cell: a field a row leaves out is an empty cell. */
 	#cell(value: unknown): string {
 		if (value === undefined) return "";
-		return typeof value === "string" ? value : JSON.stringify(value);
+		return textOf(value);
 	}
 
 	render(): TemplateResult {

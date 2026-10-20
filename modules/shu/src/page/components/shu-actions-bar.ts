@@ -117,7 +117,7 @@ export class ShuActionsBar extends ShuElement<typeof ActionsBarSchema> {
 		this.setState({ mode: "step" });
 		this.openPane();
 		await this.updateComplete;
-		this.#steps.pick(method, args, auto);
+		this.#steps.pick(method, { args, auto });
 	}
 
 	/** Send a question from the history again, in the ask mode, through the ask pane. */

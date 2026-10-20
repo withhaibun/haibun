@@ -213,6 +213,8 @@ export function lastShownRow(last: number, count: number, rowSize: (index: numbe
  *  move steps `CONVERGE_STEP` rows at a time. */
 export const COARSE_GAP = 60;
 
+export const CONVERGE_STEP = 12;
+
 /** The passes a view takes to converge on a row, after which it gives up on a row the content can never reach. */
 export const MAX_CONVERGE = 40;
 
@@ -228,7 +230,6 @@ export function converged(convergence: TConvergence, rows: number, atEnd: boolea
 	const jump = !atEnd && passes < MAX_CONVERGE;
 	return { convergence: { rows, passes: jump ? passes + 1 : passes }, jump };
 }
-export const CONVERGE_STEP = 12;
 
 /**
  * Returns the row a move to the last row targets, for a virtualizer that places unmeasured rows by estimated heights.

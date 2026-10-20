@@ -43,7 +43,7 @@ import { recordOf } from "../lib/records/pipelines/record-reads.js";
 import { SEQ_PATH_FIELD, executionOf, formatRecordName } from "../lib/actuality/domains/seq-path.js";
 import { itemAt } from "../lib/domains/item-at.js";
 
-/** Whether a line resolves to one step, as `TStepValidation` states it. */
+/** Whether a line resolves to one step, as `TStepValidation` states it. The page reads that type only, so the schema stays here. */
 const StepValidationSchema = z.discriminatedUnion("valid", [
 	z.object({ valid: z.literal(true), method: z.string(), values: z.record(z.string(), z.string()) }),
 	z.object({ valid: z.literal(false), error: z.string() }),

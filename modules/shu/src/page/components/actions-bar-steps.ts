@@ -20,6 +20,9 @@ import "./shu-step-caller.js";
 import { prettifyGwta } from "../derivations/steps.js";
 import "./shu-combobox.js";
 
+/** What opens a step's caller: fixed arguments, whether it runs at once, and the starting values its inputs show. */
+type TStepOpening = { args?: Record<string, unknown>; auto?: boolean; values?: Record<string, string> };
+
 /** What marks a step offered for the selected type. */
 const FOR_THE_TYPE = "● ";
 
@@ -103,11 +106,11 @@ export class ActionsBarSteps implements ReactiveController {
 		this.#host.requestUpdate();
 	}
 
-	/** Select the step in the selector and open its caller, with fixed arguments, run at once, and starting values where given. */
-	pick(method: string, args?: Record<string, unknown>, auto?: boolean, values?: Record<string, string>): void {
+	/** Select the step in the selector and open its caller with the options given. */
+	pick(method: string, options: TStepOpening): void {
 		this.#chosen = method;
 		this.#host.requestUpdate();
-		this.open(method, args, auto, values);
+		this.open(method, options);
 	}
 
 	/**
@@ -115,7 +118,7 @@ export class ActionsBarSteps implements ReactiveController {
 	 * the new one doesn't carry fixed arguments, so a reader trying steps keeps one caller. A caller carries the method it
 	 * calls and its number among the callers of that method, which its test ids carry. The newest caller is kept in view.
 	 */
-	open(method: string, args?: Record<string, unknown>, auto?: boolean, values?: Record<string, string>): void {
+	open(method: string, { args, auto, values }: TStepOpening): void {
 		const history = this.#deps.history;
 		const last = history.querySelector<ShuStepCaller>(`${SHU_TAG.STEP_CALLER}:last-of-type`);
 		if (last && !last.executed && !args && !auto) last.remove();
@@ -136,7 +139,7 @@ export class ActionsBarSteps implements ReactiveController {
 		if (!resolved.ok) return this.#refuse(resolved.refusal);
 		const validation = resolved.value;
 		if (!validation.valid) return this.#refuse({ error: validation.error });
-		this.pick(validation.method, undefined, undefined, validation.values);
+		this.pick(validation.method, { values: validation.values });
 	}
 
 	/** States a refusal in the history, where the reader's step callers show theirs. */
@@ -180,7 +183,7 @@ export class ActionsBarSteps implements ReactiveController {
 		if (!method) return;
 		if (!this.#steps.some((step) => step.method === method)) return void this.#openStatement(method);
 		this.#chosen = method;
-		this.open(method);
+		this.open(method, {});
 	};
 
 	/** A caller's result lands after it was opened and grows it in place, so the newest output is kept in view. */

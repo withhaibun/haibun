@@ -112,7 +112,7 @@ describe("the actions bar's step mode", () => {
 	it("opens a caller for a picked step in the history, numbered among the callers of its method, and keeps it in view", async () => {
 		const { history, steps } = await aStepsPage();
 		await aCaller(history, SHOW.method, true);
-		steps.open(SHOW.method);
+		steps.open(SHOW.method, {});
 		const opened = callers(history).at(-1);
 		expect(opened?.getAttribute("method")).toBe(SHOW.method);
 		expect(opened?.getAttribute("call-index"), "the second caller of its method").toBe("1");
@@ -123,14 +123,14 @@ describe("the actions bar's step mode", () => {
 		const { history, steps } = await aStepsPage();
 		const waiting = await aCaller(history, LIST.method, false);
 		waiting.setAttribute("params", JSON.stringify({ name: "fixed" }));
-		steps.open(LIST.method);
+		steps.open(LIST.method, {});
 		expect(callers(history)).toHaveLength(1);
 		expect(waiting.isConnected, "the caller that had not run is gone, with what was fixed for it").toBe(false);
 		expect(itemAt(callers(history), 0).getAttribute("method")).toBe(LIST.method);
 		expect(itemAt(callers(history), 0).hasAttribute("params")).toBe(false);
 		expect(itemAt(callers(history), 0).getAttribute("call-index"), "numbered among the callers left").toBe("0");
-		steps.open(SHOW.method, { name: "all" });
-		steps.open(SHOW.method, undefined, true);
+		steps.open(SHOW.method, { args: { name: "all" } });
+		steps.open(SHOW.method, { auto: true });
 		expect(callers(history)).toHaveLength(3);
 		expect(itemAt(callers(history), 1).getAttribute("params")).toBe(JSON.stringify({ name: "all" }));
 		expect(itemAt(callers(history), 2).hasAttribute("auto")).toBe(true);

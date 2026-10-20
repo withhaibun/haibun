@@ -60,11 +60,12 @@ function siteAnswering(answer: (method: string) => Response): () => void {
 }
 
 /** A caller of `step`, once it has read the step's definition from the page's registry and drawn its form. */
-async function aCaller(step: TStepSpec, attributes: Record<string, string> = {}, concerns?: TConcernCatalog): Promise<ShuStepCaller> {
+async function aCaller(step: TStepSpec, attributes: Record<string, string> = {}, concerns?: TConcernCatalog, values: Record<string, string> = {}): Promise<ShuStepCaller> {
 	declareRegistry(concerns === undefined ? stepsShown([step]) : stepsShown([step], {}, concerns));
 	const caller = document.createElement("shu-step-caller") as ShuStepCaller;
 	caller.setAttribute("step", step.method);
 	for (const [name, value] of Object.entries(attributes)) caller.setAttribute(name, value);
+	caller.values = values;
 	document.body.appendChild(caller);
 	await new Promise((resolve) => setTimeout(resolve, 0));
 	await caller.updateComplete;
@@ -134,24 +135,12 @@ describe("shu-step-caller", () => {
 	});
 
 	it("starts its inputs with the values it is given, which a reader changes before the call", async () => {
-		declareRegistry(stepsShown([GREET]));
-		const caller = document.createElement("shu-step-caller") as ShuStepCaller;
-		caller.setAttribute("step", GREET.method);
-		caller.values = { name: "world" };
-		document.body.appendChild(caller);
-		await new Promise((resolve) => setTimeout(resolve, 0));
-		await caller.updateComplete;
+		const caller = await aCaller(GREET, {}, undefined, { name: "world" });
 		expect(caller.shadowRoot?.querySelector<HTMLInputElement>('input[name="name"]')?.value).toBe("world");
 	});
 
 	it("starts a composite parameter's inputs with the fields of the JSON object it is given", async () => {
-		declareRegistry(stepsShown([ISSUER]));
-		const caller = document.createElement("shu-step-caller") as ShuStepCaller;
-		caller.setAttribute("step", ISSUER.method);
-		caller.values = { issuer: '{"did":"did:key:z6MkAnn","name":"Ann"}' };
-		document.body.appendChild(caller);
-		await new Promise((resolve) => setTimeout(resolve, 0));
-		await caller.updateComplete;
+		const caller = await aCaller(ISSUER, {}, undefined, { issuer: '{"did":"did:key:z6MkAnn","name":"Ann"}' });
 		const field = (name: string) => caller.shadowRoot?.querySelector<HTMLInputElement>(`input[name="${name}"]`)?.value;
 		expect([field("issuer.did"), field("issuer.name")]).toEqual(["did:key:z6MkAnn", "Ann"]);
 	});
@@ -166,13 +155,7 @@ describe("shu-step-caller", () => {
 			paramDomains: { note: refDomainKey(NOTE.toLowerCase()) },
 			inputSchema: { type: "object", properties: { note: { type: "object", properties: { id: { type: "string" } }, required: ["id"] } }, required: ["note"] },
 		};
-		declareRegistry(stepsShown([READ_NOTE], {}, buildConcernCatalog(domains)));
-		const caller = document.createElement("shu-step-caller") as ShuStepCaller;
-		caller.setAttribute("step", READ_NOTE.method);
-		caller.values = { note: "note-not-yet-stored" };
-		document.body.appendChild(caller);
-		await new Promise((resolve) => setTimeout(resolve, 0));
-		await caller.updateComplete;
+		const caller = await aCaller(READ_NOTE, {}, buildConcernCatalog(domains), { note: "note-not-yet-stored" });
 		const combo = caller.shadowRoot?.querySelector("shu-combobox") as (HTMLElement & { updateComplete: Promise<unknown> }) | null;
 		if (!combo) throw new Error("the reference parameter doesn't render a picker");
 		await combo.updateComplete;
