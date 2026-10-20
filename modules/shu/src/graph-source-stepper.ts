@@ -1,7 +1,7 @@
 /**
  * GraphSourceStepper declares the steps that serve a page's reads of the graph. A page reads the site's graph the same
  * way whatever serves the read: a query, a count over a span, one individual with its edges, the clustered sample a
- * graph view draws, and the reads a federated peer serves.
+ * graph view draws, what a graph view shows as TPTP formulas, and the reads a federated peer serves.
  *
  * Each step reads the store this instance holds. The reads a consumer may serve for itself declare `fallback`, so a
  * consumer with an engine of its own serves those instead, and the page sends the same request.
@@ -25,7 +25,8 @@ import {
 } from "@haibun/core/lib/quad-types.js";
 import { recordWithEdges } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { DOMAIN_RECORD_ID, DOMAIN_LINK, DOMAIN_PRINCIPAL_REF, type TIndividualRef } from "@haibun/core/lib/domains/domains.js";
-import { clusteredQuads, federate, selectValues, servingSite } from "./pipelines/graph-source.js";
+import { clusteredQuads, federate, graphTptp, selectValues, servingSite, type TGraphView } from "./pipelines/graph-source.js";
+import { DOMAIN_FORMULA_PROJECTION, ProjectionSchema } from "@haibun/logic/domains/logic.js";
 import { openPeerGraphSource } from "./root.js";
 
 /** The values a filter offers for each field of a type that names one. */
@@ -52,6 +53,19 @@ const ClusteredQuadsSchema = z.object({
 	site: z.string().optional(),
 });
 
+/** What a graph view shows, which `show graph {view} as tptp` renders: as `TGraphView` states it. */
+const GraphViewSchema = z
+	.object({
+		perTypeLimit: z.number().int(),
+		accessLevel: AccessQueryLevelSchema,
+		overrides: z.record(z.string(), z.boolean()),
+		hiddenPredicates: z.array(z.string()),
+		prune: z.boolean(),
+		timeCursor: z.number().optional(),
+		goal: z.string().optional(),
+	})
+	.strict() satisfies z.ZodType<TGraphView>;
+
 /** What the graph a page reads returns: core's one shape for each, so a site serving its own store and a page
  *  reading what it holds return the same shape. */
 const DOMAIN_INDIVIDUAL_WITH_EDGES = "individual-with-edges";
@@ -61,6 +75,7 @@ const DOMAIN_SUBJECT_SERVED = "subject-served";
 const DOMAIN_SITE_FEDERATED = "site-federated";
 const DOMAIN_DENSITY = "density";
 const DOMAIN_GRAPH_ROWS = "graph-rows";
+const DOMAIN_GRAPH_VIEW = "graph-view";
 /** A subject the merged graph holds, and the site that serves it. */
 const SubjectServedSchema = z.object({ subject: z.string(), site: z.string() });
 /** The site from which a peer's reads were federated. */
@@ -73,6 +88,16 @@ const GRAPH_SOURCE_DOMAINS: TDomainDefinition[] = [
 	{ selectors: [DOMAIN_SITE_FEDERATED], schema: SiteFederatedSchema, description: "The site a peer's reads were federated from" },
 	{ selectors: [DOMAIN_DENSITY], schema: DensityResultSchema, description: "How many records fall in each division of a span" },
 	{ selectors: [DOMAIN_GRAPH_ROWS], schema: GraphQueryResultSchema, description: "The rows a graph query matched, and how many there are" },
+	{
+		selectors: [DOMAIN_GRAPH_VIEW],
+		schema: fromJsonText(GraphViewSchema),
+		description: "What a graph view shows: the records of each type it reads, the types and predicates it shows or hides, its prune, its time cursor and its goal",
+	},
+	{
+		selectors: [DOMAIN_FORMULA_PROJECTION],
+		schema: ProjectionSchema,
+		description: "Formulas as TPTP text a prover reads, as Unicode tokens with the statement and the record behind each, and as their term graph",
+	},
 ];
 
 /** The parameters a graph view sends `get clustered quads` over RPC. A value may arrive as its text. They state how many
@@ -134,6 +159,17 @@ export default class GraphSourceStepper extends AStepper implements IHasCycles {
 					return actionNotOK(`the clustered sample wasn't read: ${errorDetail(err)}`);
 				}
 			},
+		},
+		showGraphAsTptp: {
+			read: true,
+			readsAt: Access.public,
+			gwta: `show graph {view: ${DOMAIN_GRAPH_VIEW}} as tptp`,
+			description:
+				"Returns what a graph view shows as TPTP FOF: the text a prover reads, each formula's Unicode tokens with the statement and the record behind it, and the term graph. A record's type is a unary predicate and each literal property and edge a binary one, the producer rules and waypoint rules that apply to what it shows are quantified axioms, and its goal is a conjecture.",
+			productsDomain: DOMAIN_FORMULA_PROJECTION,
+			// The projection is the RPC response; keeping it on the event too holds a second copy of it per call.
+			retainProducts: false,
+			action: async ({ view }: { view: TGraphView }) => actionOKWithProducts(await graphTptp(this.getWorld(), view)),
 		},
 		clusteredGraphHoldsFromSite: {
 			gwta: `clustered graph holds {type: ${DOMAIN_PERSISTED_TYPE}} {subject: ${DOMAIN_RECORD_ID}} from site {site: ${DOMAIN_PRINCIPAL_REF}}`,

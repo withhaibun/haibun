@@ -1,9 +1,10 @@
 /**
  * The engine's fragment of TPTP FOF: each formula outside it, and each formula that names a predicate the registry doesn't hold,
- * is refused at parse time with its remedy, and each formula in it renders in Unicode notation.
+ * is refused at parse time with its remedy, and each formula in it renders in Unicode notation. The parser reads each formula
+ * that the TPTP rendering writes, and returns the tree that the rendering read.
  */
 import { describe, expect, it } from "vitest";
-import { checkFormula, unicodeOf } from "./formula.js";
+import { checkFormula, constantOf, literalOf, parseFormula, tptpOf, unicodeOf, type TAnnotated, type TFormula, type TTerm } from "./formula.js";
 
 /** The registry's predicates by name, with their arity, that the formulas of these cases name. */
 const KNOWN = new Map([
@@ -62,5 +63,54 @@ describe("the engine's fragment of TPTP FOF", () => {
 		const checked = checkFormula(formula, KNOWN);
 		if (!("annotated" in checked)) throw new Error(`the fragment refused ${formula}: ${checked.reason}`);
 		expect(unicodeOf(checked.annotated.formula)).toBe(rendered);
+	});
+});
+
+/** Names across TPTP's quoting: a lower word, an upper word, punctuation, ' and \, a JSON literal and a text beyond ASCII. */
+const NAMES = ["dinner", "isPartOf", "Email", "step-4", "it's", "a\\b", "two words", literalOf("Alice").functor, literalOf(3).functor, constantOf("Café").functor];
+const constant = (functor: string): TTerm => ({ functor, args: [] });
+const TERMS: TTerm[] = [...NAMES.map(constant), { variable: "X1" }, { functor: "Stepper-step", args: [{ variable: "X1" }, { functor: "f", args: [constant("Email")] }] }];
+const atomOf = (predicate: string, args: TTerm[]): TFormula => ({ atom: predicate, args });
+const ATOMS: TFormula[] = NAMES.map((name, at) => atomOf(name, [TERMS[at % TERMS.length] as TTerm, TERMS[(at + 3) % TERMS.length] as TTerm]));
+const [P, Q, R] = ATOMS as [TFormula, TFormula, TFormula];
+const binary = (connective: string, left: TFormula, right: TFormula): TFormula => ({ connective, left, right });
+/** A record's type as a unary predicate named by its label, a lower word or quoted, as a graph's axioms state it. */
+const TYPES: TFormula[] = ["email", "Email", "SeqPath", "observation/http-trace"].map((type) => atomOf(type, [constant("m1")]));
+const FORMULAS: TFormula[] = [
+	...ATOMS,
+	...TYPES,
+	atomOf("ready", []),
+	{ equal: true, left: { variable: "X1" }, right: constant("tea") },
+	{ equal: false, left: constant("it's"), right: constant("Email") },
+	{ not: P },
+	{ not: { not: P } },
+	{ not: binary("&", P, Q) },
+	...["&", "|", "=>", "<="].flatMap((connective) => [binary(connective, P, Q), binary(connective, binary(connective, P, Q), R), binary(connective, P, binary(connective, Q, R))]),
+	binary("=>", binary("&", P, binary("|", Q, R)), { not: R }),
+	{ quantifier: "!", variables: ["X1"], body: binary("=>", P, Q) },
+	{ quantifier: "?", variables: ["X1", "X2"], body: binary("&", P, Q) },
+	{ quantifier: "!", variables: ["X1"], body: { quantifier: "?", variables: ["X2"], body: P } },
+	binary("&", { quantifier: "!", variables: ["X1"], body: P }, { not: { equal: true, left: { variable: "X1" }, right: constant("dinner") } }),
+];
+const ANNOTATED: TAnnotated[] = FORMULAS.flatMap((formula, at) => ["axiom", "conjecture"].map((role) => ({ name: NAMES[at % NAMES.length] as string, role, formula })));
+
+describe("the TPTP rendering of a formula", () => {
+	it.each(ANNOTATED.map((annotated) => [tptpOf(annotated), annotated] as const))("parses %s back to the tree it was written from", (text, annotated) => {
+		expect(parseFormula(text)).toEqual({ annotated });
+	});
+
+	it.each([
+		[{ name: "e12", role: "axiom", formula: atomOf("isPartOf", [constant("step-4"), constant("scenario-1")]) }, "fof(e12, axiom, isPartOf('step-4', 'scenario-1'))."],
+		[{ name: "n3", role: "axiom", formula: atomOf("email", [constantOf("m1")]) }, "fof(n3, axiom, email(m1))."],
+		[{ name: "n4", role: "axiom", formula: atomOf("Email", [constantOf("m-1")]) }, "fof(n4, axiom, 'Email'('m-1'))."],
+		[{ name: "p1", role: "axiom", formula: atomOf("name", [constantOf("person-1"), literalOf("Café")]) }, "fof(p1, axiom, name('person-1', '\"Caf\\\\u00e9\"'))."],
+		[{ name: "p2", role: "axiom", formula: atomOf("count", [constantOf("it's"), literalOf(true)]) }, "fof(p2, axiom, count('it\\'s', true))."],
+	] satisfies [TAnnotated, string][])("writes %o as %s, quoting each name that isn't a lower word", (annotated, text) => {
+		expect(tptpOf(annotated)).toBe(text);
+	});
+
+	it("refuses a name TPTP's single quotes can't hold, and a quoted name the BNF doesn't define", () => {
+		expect(() => tptpOf({ name: "p", role: "axiom", formula: atomOf("name", [constant("Café")]) })).toThrow("name a text through nameOfText or literalOf");
+		expect(parseFormula("fof(p, axiom, name('Café')).")).toMatchObject({ remedy: "write one annotated formula, fof(name, role, formula)." });
 	});
 });

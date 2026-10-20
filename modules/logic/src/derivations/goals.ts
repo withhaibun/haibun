@@ -1,23 +1,28 @@
 /**
  * The producer rules the registry derives from step signatures, and the step graph the lint reads. A step that returns a
  * domain D and takes the domains D₁ … states the rule fact(D) ← fact(D₁) ∧ … ∧ do(s). This derivation writes the rules a
- * caller may use and the facts that hold as the engine's terms, reads a goal's proof back as a plan, and renders a failed
- * proof's sub-goals as the statements that state them.
+ * caller may use and the facts that hold as the engine's terms, writes the rules and a goal as TPTP formulas, reads a goal's
+ * proof back as a plan, and renders a failed proof's sub-goals as the statements that state them.
  */
 import type { AStepper } from "@haibun/core/lib/steps/domains/stepper.js";
 import type { TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
 import { isPersisted } from "@haibun/core/lib/domains/resources.js";
 import type { TFact } from "@haibun/core/lib/records/domains/facts.js";
 import { constructorName } from "@haibun/core/lib/domains/util.js";
-import { domainParts, fieldRangesOf, isPrimitiveDomain, isWrittenByCaller, normalizeDomainKey, refTargetOf } from "@haibun/core/lib/domains/domains.js";
+import { DOMAIN_DOMAIN_KEY, domainParts, fieldRangesOf, isPrimitiveDomain, isWrittenByCaller, normalizeDomainKey, refTargetOf } from "@haibun/core/lib/domains/domains.js";
 import { mayCall, requiredAction } from "@haibun/core/lib/domains/actions.js";
 import { stepParamDomains } from "@haibun/core/lib/steps/derivations/step-tools.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { unwrap, unwrapToShape } from "@haibun/core/lib/domains/zod-unwrap.js";
 import { DOMAIN_INDIVIDUAL_ADDRESS } from "@haibun/core/lib/domains/typed-links.js";
 import type { TBinding, TCompositeRanges, TFieldBinding, TForwardAffordance, TPlan } from "@haibun/core/lib/domains/goal-resolution.js";
+import { FACT_FIELD } from "@haibun/core/lib/records/domains/facts.js";
 import type { TGoalProof, TProofNode } from "../domains/logic.js";
 import { atom, list } from "./terms.js";
+import { literalTerm, renderStepLine } from "@haibun/core/lib/steps/derivations/named-vars.js";
+import { RESOLVE_STATEMENT } from "../domains/logic.js";
+import { conjunction, literalOf, nameOfText, variableAt, type TFormula, type TTerm } from "./formula.js";
+import type { TStatedFormula } from "./term-graph.js";
 
 type TDomains = Record<string, TRegisteredDomain>;
 
@@ -68,6 +73,38 @@ export function producerRules(signatures: readonly TStepSignature[], domains: TD
 	});
 	return `r(${[list(producers), list(produced), list(composites), list([...new Map(facts.toReversed().map((fact) => [fact.domain, fact.id]))].map(([domain, id]) => `f(${atom(domain)}, ${atom(id)})`))].join(", ")})`;
 }
+
+/** A fact of a domain as TPTP states it: the property by which a fact's record states its domain, over the fact and the domain
+ *  as the record's text holds it, so a rule reads the facts a graph's axioms state. */
+const factOf = (fact: TTerm, domain: string): TFormula => ({ atom: FACT_FIELD.domain, args: [fact, literalOf(domain)] });
+
+/**
+ * The producer rules a caller holding `held` may use that take or return a domain of `domains`, as TPTP axioms: the product of a
+ * step called with facts of the domains it takes is a fact of the domain it returns, named by the step's method over those
+ * facts, so a prover's proof of a goal names the steps a plan calls. Each states the step's pattern, the statement that calls it.
+ */
+export function producerAxioms(signatures: readonly TStepSignature[], held: string | string[] | undefined, domains: ReadonlySet<string>): TStatedFormula[] {
+	const applying = signatures.filter((one) => mayCall(held, one) && [...one.inputDomains, ...one.outputDomains].some((domain) => domains.has(domain)));
+	const formulas = applying.flatMap((one) =>
+		one.outputDomains.map((output): { formula: TFormula; statement: string } => {
+			const variables = one.inputDomains.map((_, at) => variableAt(at));
+			const product = factOf({ functor: nameOfText(one.method), args: variables.map((variable) => ({ variable })) }, output);
+			const statement = one.gwta === undefined ? one.method : one.gwta;
+			if (variables.length === 0) return { formula: product, statement };
+			const body = conjunction(one.inputDomains.map((domain, at) => factOf({ variable: variableAt(at) }, domain)));
+			return { formula: { quantifier: "!", variables, body: { connective: "=>", left: body, right: product } }, statement };
+		}),
+	);
+	return formulas.map((stated, at) => ({ name: `r${at + 1}`, role: "axiom", ...stated }));
+}
+
+/** A goal as a TPTP conjecture, which its resolve statement states: a fact of its domain exists. */
+export const goalConjecture = (goal: string): TStatedFormula => ({
+	name: "goal",
+	role: "conjecture",
+	formula: { quantifier: "?", variables: [variableAt(0)], body: factOf({ variable: variableAt(0) }, goal) },
+	statement: renderStepLine(RESOLVE_STATEMENT, { goal: literalTerm(goal, DOMAIN_DOMAIN_KEY) }),
+});
 
 /** The step graph the lint reads, as the engine's term. */
 export function stepGraph(signatures: readonly TStepSignature[], domains: TDomains): string {

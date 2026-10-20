@@ -30,7 +30,7 @@ import { stepperContext } from "@haibun/core/lib/actuality/pipelines/step-dispat
 import { proverOf } from "./pipelines/prove.js";
 import { callTerm, derivationUnder, formulaRefusal, lineTerm, refuseDeclarations, ruleOf } from "./pipelines/registry-reads.js";
 import { logicEngine } from "./root.js";
-import { DOMAIN_DERIVATION, DOMAIN_FORMULA, DOMAIN_LINE_TERM, DOMAIN_RULE, formulaDomainDefinition, logicDomainDefinitions } from "./domains/logic.js";
+import { DOMAIN_DERIVATION, DOMAIN_FORMULA, DOMAIN_LINE_TERM, DOMAIN_RULE, RESOLVE_STATEMENT, formulaDomainDefinition, logicDomainDefinitions } from "./domains/logic.js";
 import { DOMAIN_ALTERNATIVES, DOMAIN_OBSERVATION_SOURCE, readingDomainDefinitions } from "./domains/readings.js";
 
 /** Counts the step records of the feature's execution by the step each called, as `Stepper.action`. */
@@ -58,8 +58,6 @@ const builtInSources: IObservationSource[] = [
 /** The statements of a quantifier, as `some x in D is S` and `every x observed in S is P` state them. */
 const QUANTIFIED = `{what: ${DOMAIN_VARIABLE_NAME}} in {domain: ${DOMAIN_DOMAIN_NAME}} is {statement: ${DOMAIN_STATEMENT}}`;
 const OBSERVED = `{what: ${DOMAIN_VARIABLE_NAME}} observed in {source: ${DOMAIN_OBSERVATION_SOURCE}} is {statement: ${DOMAIN_STATEMENT}}`;
-/** The statement of a goal, which the resolve step's pattern renders in a proof. */
-const RESOLVE = `resolve {goal: ${DOMAIN_DOMAIN_KEY}}`;
 
 export default class LogicStepper extends AStepper implements IHasCycles {
 	description = "The logic engine that proves every step, and the readings it evaluates: negation, implication, disjunction, maybe, the quantifiers and repetition";
@@ -129,11 +127,11 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			reading: READING.every,
 		},
 		resolve: {
-			gwta: RESOLVE,
+			gwta: RESOLVE_STATEMENT,
 			description:
 				"Proves a goal over the producer rules that the steps' signatures state, without calling a step. Returns its verdict, the facts that prove it, the plans that would prove it, and a proved goal's proof as statements. A goal that a fact doesn't prove and a plan doesn't prove is refuted, and the first sub-goal it couldn't prove is refuted under it.",
 			productsDomain: DOMAIN_GOAL_RESOLUTION,
-			action: async ({ goal }: { goal: string }, featureStep: TFeatureStep) => resolved(await this.goalScope(), featureStep, goal, RESOLVE),
+			action: async ({ goal }: { goal: string }, featureStep: TFeatureStep) => resolved(await this.goalScope(), featureStep, goal, RESOLVE_STATEMENT),
 		},
 		pursue: {
 			gwta: `pursue {goal: ${DOMAIN_DOMAIN_KEY}}`,

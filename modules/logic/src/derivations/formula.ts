@@ -1,12 +1,14 @@
 /**
- * TPTP FOF in the engine's fragment: the parse of one annotated formula to its tree, the refusal of a formula outside the
- * fragment with its remedy, and its rendering in standard Unicode notation. The grammar is the TPTP syntax BNF
- * (https://www.tptp.org/TPTP/SyntaxBNF.html) for `fof`, restricted to Horn rules, negation as failure in conditions, stated
- * falsities, quantifiers over closed domains, and predicates the registry holds.
+ * TPTP FOF: the parse of one annotated formula to its tree, the refusal of a formula outside the engine's fragment with its
+ * remedy, and a tree's rendering as TPTP text and in standard Unicode notation. The grammar is the TPTP syntax BNF
+ * (https://www.tptp.org/TPTP/SyntaxBNF.html) for `fof`. The engine's fragment restricts it to Horn rules, negation as failure
+ * in conditions, stated falsities, quantifiers over closed domains, and predicates the registry holds. A tree holds each name
+ * without the single quotes TPTP writes around a name that isn't a lower word, so `'abc'` and `abc` are one name.
  */
+import { TOKEN_ROLE, type TTokenRole } from "../domains/logic.js";
 
 /** A term: a variable (capitalized), or a constant or function applied to arguments. */
-type TTerm = { variable: string } | { functor: string; args: TTerm[] };
+export type TTerm = { variable: string } | { functor: string; args: TTerm[] };
 /** A formula's tree. */
 export type TFormula =
 	| { atom: string; args: TTerm[] }
@@ -48,7 +50,16 @@ const GUARD = { name: "member_of", arity: 2 } as const;
 /** The connectives the fragment refuses, with the remedy for each. */
 const REFUSED_CONNECTIVES: Record<string, string> = { "<=>": REMEDY.equivalence, "<~>": REMEDY.connective, "~|": REMEDY.connective, "~&": REMEDY.connective };
 const CONNECTIVES = ["<=>", "<~>", "=>", "<=", "~|", "~&", "&", "|"];
-const TOKEN = /\s*(<=>|<~>|=>|<=|~\||~&|!=|[(),.:[\]~&|=!?]|[A-Za-z][A-Za-z0-9_]*|'[^']*')/y;
+/** A token: a connective, a punctuation mark, a word, or a single-quoted name whose characters are the BNF's sq_char, printable
+ *  ASCII with ' and \ escaped by \. */
+const TOKEN = /\s*(<=>|<~>|=>|<=|~\||~&|!=|[(),.:[\]~&|=!?]|[A-Za-z][A-Za-z0-9_]*|'(?:[\x20-\x26\x28-\x5b\x5d-\x7e]|\\['\\])+')/y;
+/** A name TPTP writes without quotes. */
+const LOWER_WORD = /^[a-z][A-Za-z0-9_]*$/;
+/** A name TPTP's single quotes hold once its ' and \ are escaped. */
+const QUOTABLE = /^[\x20-\x7e]+$/;
+
+/** A token's name, without its single quotes and the escapes of its ' and \. */
+const unquoted = (token: string): string => (token.startsWith("'") ? token.slice(1, -1).replace(/\\(['\\])/g, "$1") : token);
 
 function tokens(text: string): string[] {
 	const found: string[] = [];
@@ -80,7 +91,7 @@ class Parser {
 		const language = this.next();
 		if (language !== "fof") throw new Refusal(`the formula is ${language}, and the fragment reads fof`, REMEDY.role);
 		this.expect("(");
-		const name = this.next();
+		const name = unquoted(this.next());
 		this.expect(",");
 		const role = this.next();
 		if (role !== "axiom" && role !== "conjecture") throw new Refusal(`the role ${role} isn't axiom or conjecture`, REMEDY.role);
@@ -136,7 +147,8 @@ class Parser {
 	private term(): TTerm {
 		const name = this.next();
 		if (/^[A-Z]/.test(name)) return { variable: name };
-		if (this.peek() !== "(") return { functor: name, args: [] };
+		const functor = unquoted(name);
+		if (this.peek() !== "(") return { functor, args: [] };
 		this.next();
 		const args = [this.term()];
 		while (this.peek() === ",") {
@@ -144,7 +156,7 @@ class Parser {
 			args.push(this.term());
 		}
 		this.expect(")");
-		return { functor: name, args };
+		return { functor, args };
 	}
 }
 
@@ -198,63 +210,145 @@ function checkAxiom(formula: TFormula): void {
 const atomsOf = (f: TFormula): Extract<TFormula, { atom: string }>[] =>
 	"atom" in f ? [f] : "not" in f ? atomsOf(f.not) : "quantifier" in f ? atomsOf(f.body) : "connective" in f ? [...atomsOf(f.left), ...atomsOf(f.right)] : [];
 
-/** A predicate's name without the quotes a quoted atom states. */
-const predicateName = (functor: string): string => functor.replace(/^'(.*)'$/, "$1");
-
 /** Holds each predicate of a formula to the registry: the guard, or a predicate `known` holds with the arity it holds. */
 function checkPredicates(formula: TFormula, known: ReadonlyMap<string, number>): void {
 	for (const { atom, args } of atomsOf(formula)) {
-		const name = predicateName(atom);
-		const arity = name === GUARD.name ? GUARD.arity : known.get(name);
-		if (arity !== args.length) throw new Refusal(`the predicate ${name}/${args.length} isn't an entry of the registry`, REMEDY.predicate);
+		const arity = atom === GUARD.name ? GUARD.arity : known.get(atom);
+		if (arity !== args.length) throw new Refusal(`the predicate ${atom}/${args.length} isn't an entry of the registry`, REMEDY.predicate);
 	}
 }
 
-/** Parses one annotated formula and holds it to the fragment and its predicates to `known`, the registry's predicates by name
- *  with their arity, or states why the formula isn't held with its remedy. */
-export function checkFormula(text: string, known: ReadonlyMap<string, number>): TFormulaCheck {
+/** Returns the formula `read` returns, or why it refused the formula with its remedy. */
+function refusing(read: () => TAnnotated): TFormulaCheck {
 	try {
-		const annotated = new Parser(tokens(text)).annotated();
-		checkPredicates(annotated.formula, known);
-		if (annotated.role === "axiom") checkAxiom(annotated.formula);
-		return { annotated };
+		return { annotated: read() };
 	} catch (caught) {
 		if (caught instanceof Refusal) return { reason: caught.message, remedy: caught.remedy };
 		throw caught;
 	}
 }
 
-const UNICODE: Record<string, string> = { "&": "∧", "|": "∨", "=>": "→", "<=": "←" };
+/** Parses one annotated formula of TPTP FOF, or states why TPTP's grammar doesn't parse it with its remedy. */
+export const parseFormula = (text: string): TFormulaCheck => refusing(() => new Parser(tokens(text)).annotated());
 
-const termText = (t: TTerm): string => ("variable" in t ? t.variable : t.args.length === 0 ? t.functor : `${t.functor}(${t.args.map(termText).join(", ")})`);
-
-/** A formula in standard Unicode notation. A guard member_of(X, d) of a quantified rule renders as the bounded quantifier ∀X ∈ d. */
-export const unicodeOf = (formula: TFormula): string => rendered(formula, false);
-
-/** A formula in Unicode notation, in parentheses where it is a disjunction or an implication nested in another formula. */
-function rendered(formula: TFormula, nested: boolean): string {
-	if ("atom" in formula) return termText({ functor: formula.atom, args: formula.args });
-	if ("equal" in formula) return `${termText(formula.left)} ${formula.equal ? "=" : "≠"} ${termText(formula.right)}`;
-	if ("not" in formula) return `¬${rendered(formula.not, true)}`;
-	if ("quantifier" in formula) {
-		const symbol = formula.quantifier === "!" ? "∀" : "∃";
-		const [guard, rest] = guardOf(formula);
-		const bounded = guard === undefined ? formula.variables.join(", ") : `${formula.variables.join(", ")} ∈ ${guard}`;
-		return `${symbol}${bounded}. ${rendered(rest, false)}`;
-	}
-	const text = `${rendered(formula.left, true)} ${UNICODE[formula.connective]} ${rendered(formula.right, true)}`;
-	return nested && formula.connective !== "&" ? `(${text})` : text;
+/** Parses one annotated formula and holds it to the fragment and its predicates to `known`, the registry's predicates by name
+ *  with their arity, or states why the formula isn't held with its remedy. */
+export function checkFormula(text: string, known: ReadonlyMap<string, number>): TFormulaCheck {
+	const parsed = parseFormula(text);
+	if (!("annotated" in parsed)) return parsed;
+	const { annotated } = parsed;
+	return refusing(() => {
+		checkPredicates(annotated.formula, known);
+		if (annotated.role === "axiom") checkAxiom(annotated.formula);
+		return annotated;
+	});
 }
 
+/** A name as TPTP writes it: a lower word as it stands, and every other name in single quotes with its ' and \ escaped. Throws
+ *  for a name the quotes can't hold, which a caller names through `nameOfText` or `literalOf`. */
+function nameText(name: string): string {
+	if (LOWER_WORD.test(name)) return name;
+	if (!QUOTABLE.test(name)) throw new Error(`TPTP's single quotes hold printable ASCII, and the name "${name}" holds other text; name a text through nameOfText or literalOf`);
+	return `'${name.replace(/['\\]/g, "\\$&")}'`;
+}
+
+/** Each character outside printable ASCII, which a name escapes as JSON escapes it. */
+const BEYOND_ASCII = /[^\x20-\x7e]/g;
+/** A value as JSON writes it, with each character outside printable ASCII escaped as \uXXXX. */
+const jsonText = (value: string | number | boolean): string => JSON.stringify(value).replace(BEYOND_ASCII, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
+
+/** The name of a text, such as a record's id, a type, a predicate or a step's method: the text as JSON escapes it, so two texts
+ *  never share a name and TPTP's quotes hold each. */
+export const nameOfText = (text: string): string => jsonText(text).slice(1, -1);
+
+/** A term that applies a functor to arguments, which is a constant where it doesn't take an argument. */
+type TApplied = Extract<TTerm, { functor: string }>;
+
+/** The constant that names a text. */
+export const constantOf = (text: string): TApplied => ({ functor: nameOfText(text), args: [] });
+
+/** The constant that names a literal value: its JSON text, so the text "1", the number 1 and the boolean true are three
+ *  constants. */
+export const literalOf = (value: string | number | boolean): TApplied => ({ functor: jsonText(value), args: [] });
+
+/** The variable a rule names its term at `at` by, counted from 1. */
+export const variableAt = (at: number): string => `X${at + 1}`;
+
+/** The conjunction of one or more formulas, read from the left as the parser reads it. Throws for an empty list, which doesn't
+ *  state a formula. */
+export function conjunction(parts: readonly TFormula[]): TFormula {
+	const [first, ...rest] = parts;
+	if (first === undefined) throw new Error("a conjunction takes one formula or more; state the formulas it joins");
+	return rest.reduce((held: TFormula, part) => ({ connective: "&", left: held, right: part }), first);
+}
+
+const UNICODE: Record<string, string> = { "&": "∧", "|": "∨", "=>": "→", "<=": "←" };
+
+const termText = (t: TTerm): string => ("variable" in t ? t.variable : t.args.length === 0 ? nameText(t.functor) : `${nameText(t.functor)}(${t.args.map(termText).join(", ")})`);
+
+/** An annotated formula as TPTP text, which formula.ts's parser and a prover such as Vampire or E read. */
+export const tptpOf = ({ name, role, formula }: TAnnotated): string => `fof(${nameText(name)}, ${role}, ${tptpFormula(formula, false)}).`;
+
+/** A formula as TPTP text. A binary formula is in parentheses where it is a unitary formula's part: the operand of ~, a
+ *  quantifier's body, or a part of another binary formula other than the left part of a conjunction or disjunction, which
+ *  TPTP reads as associative and the parser reads from the left. */
+function tptpFormula(formula: TFormula, unitary: boolean): string {
+	if ("atom" in formula) return termText({ functor: formula.atom, args: formula.args });
+	if ("equal" in formula) return `${termText(formula.left)} ${formula.equal ? "=" : "!="} ${termText(formula.right)}`;
+	if ("not" in formula) return `~${tptpFormula(formula.not, true)}`;
+	if ("quantifier" in formula) return `${formula.quantifier}[${formula.variables.join(", ")}] : ${tptpFormula(formula.body, true)}`;
+	const { connective, left, right } = formula;
+	const chained = (connective === "&" || connective === "|") && "connective" in left && left.connective === connective;
+	const text = `${tptpFormula(left, !chained)} ${connective} ${tptpFormula(right, true)}`;
+	return unitary ? `(${text})` : text;
+}
+
+/** A token of a formula's Unicode rendering: its text, its role, and the term it renders, where it renders one. */
+export type TToken = { text: string; role: TTokenRole; term?: TTerm };
+
+const symbolOf = (text: string): TToken => ({ text, role: TOKEN_ROLE.symbol });
+
+/** A named thing applied to arguments, in parentheses after its name where it takes one or more. */
+const appliedTokens = (head: TToken, args: readonly TTerm[]): TToken[] =>
+	args.length === 0 ? [head] : [head, symbolOf("("), ...args.flatMap((arg, at) => [...(at === 0 ? [] : [symbolOf(", ")]), ...termTokens(arg)]), symbolOf(")")];
+
+/** A term's tokens: a variable, or a constant or a function with its arguments. */
+const termTokens = (term: TTerm): TToken[] =>
+	"variable" in term ? [{ text: term.variable, role: TOKEN_ROLE.variable, term }] : appliedTokens({ text: nameText(term.functor), role: TOKEN_ROLE.constant, term }, term.args);
+
+/** A formula in standard Unicode notation, as tokens. A guard member_of(X, d) of a quantified rule renders as the bounded
+ *  quantifier ∀X ∈ d. A disjunction or an implication nested in another formula is in parentheses. */
+function tokensOf(formula: TFormula, nested: boolean): TToken[] {
+	if ("atom" in formula) return appliedTokens({ text: nameText(formula.atom), role: TOKEN_ROLE.predicate }, formula.args);
+	if ("equal" in formula) return [...termTokens(formula.left), symbolOf(formula.equal ? " = " : " ≠ "), ...termTokens(formula.right)];
+	if ("not" in formula) return [symbolOf("¬"), ...tokensOf(formula.not, true)];
+	if ("quantifier" in formula) {
+		const [guard, rest] = guardOf(formula);
+		const variables = formula.variables.flatMap((variable, at) => [...(at === 0 ? [] : [symbolOf(", ")]), ...termTokens({ variable })]);
+		const bounded = guard === undefined ? variables : [...variables, symbolOf(" ∈ "), ...termTokens(guard)];
+		return [symbolOf(formula.quantifier === "!" ? "∀" : "∃"), ...bounded, symbolOf(". "), ...tokensOf(rest, false)];
+	}
+	const tokens = [...tokensOf(formula.left, true), symbolOf(` ${UNICODE[formula.connective]} `), ...tokensOf(formula.right, true)];
+	return nested && formula.connective !== "&" ? [symbolOf("("), ...tokens, symbolOf(")")] : tokens;
+}
+
+/** A formula in standard Unicode notation, as tokens. */
+export const unicodeTokens = (formula: TFormula): TToken[] => tokensOf(formula, false);
+
+/** A formula in standard Unicode notation. */
+export const unicodeOf = (formula: TFormula): string =>
+	unicodeTokens(formula)
+		.map(({ text }) => text)
+		.join("");
+
 /** The domain a quantifier's one variable is guarded by, and the formula without the guard. */
-function guardOf(formula: Extract<TFormula, { quantifier: string }>): [string | undefined, TFormula] {
+function guardOf(formula: Extract<TFormula, { quantifier: string }>): [TTerm | undefined, TFormula] {
 	const { body, variables } = formula;
 	if (variables.length !== 1 || !("connective" in body) || body.connective !== "=>") return [undefined, body];
 	const [first, ...others] = conjuncts(body.left);
-	const guarded = first !== undefined && "atom" in first && first.atom === "member_of" && termText(first.args[0] as TTerm) === variables[0];
+	const guarded = first !== undefined && "atom" in first && first.atom === GUARD.name && termText(first.args[0] as TTerm) === variables[0];
 	if (!guarded || first === undefined || !("atom" in first)) return [undefined, body];
-	const domain = termText(first.args[1] as TTerm);
+	const domain = first.args[1] as TTerm;
 	if (others.length === 0) return [domain, body.right];
-	const left = others.reduce((held: TFormula, part) => ({ connective: "&", left: held, right: part }));
-	return [domain, { connective: "=>", left, right: body.right }];
+	return [domain, { connective: "=>", left: conjunction(others), right: body.right }];
 }

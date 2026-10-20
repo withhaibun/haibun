@@ -1,6 +1,7 @@
 /**
  * The graph a page draws: the clustered sample of the store with the schema its terms use, the same sample as the report
- * carries it, the layout a feature reads as tokens, and a federated peer's graph merged into this instance's.
+ * carries it, the layout a feature reads as tokens, what a graph view shows as TPTP formulas, and a federated peer's graph
+ * merged into this instance's.
  */
 import { MAX_PAGE_ROWS, buildResourceRels, pageLimit, relOf } from "@haibun/core/lib/domains/hypermedia.js";
 import { hypermediaDomainMap } from "@haibun/core/lib/domains/domains.js";
@@ -20,6 +21,18 @@ import type { TOpenPeerGraphSource, TPeerCalls } from "../ports.js";
 import { RPC_METHOD } from "../domains/elements.js";
 import { AUTHORITY_CAPABILITIES } from "@haibun/core/lib/domains/actions.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
+import { callerHolds } from "@haibun/core/lib/domains/capability-context.js";
+import { runSteppers } from "@haibun/core/lib/actuality/domains/world.js";
+import { FACT_FIELD } from "@haibun/core/lib/records/domains/facts.js";
+import { FACT_LABEL, SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
+import { SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
+import { projected } from "@haibun/logic/derivations/term-graph.js";
+import type { TProjection } from "@haibun/logic/domains/logic.js";
+import { goalConjecture, producerAxioms, stepSignatures } from "@haibun/logic/derivations/goals.js";
+import { waypointAxioms } from "@haibun/logic/pipelines/registry-reads.js";
+import { graphAxioms } from "../derivations/graph-formulas.js";
+import { visibleGraphModel } from "../page/graph/derivations/scene-data.js";
+import { effectiveHiddenTypes } from "../page/graph/derivations/graph-filter.js";
 
 type TClusters = Awaited<ReturnType<NonNullable<IQuadStore["getClusteredQuads"]>>>["clusters"];
 
@@ -122,6 +135,45 @@ export async function clusteredQuads(world: TWorld, request: TClusteredRequest):
 		properties,
 	}));
 	return { ...(await withSchema(world, { quads, clusters: model.snapshot.clusters })), site: activeSitePrincipal(world) };
+}
+
+/** What a graph view shows: the records of each type it reads at a query level, the reader's choice of each type it shows or
+ *  hides, the predicates whose edges it hides, whether it prunes the nodes an edge doesn't connect, the moment its time cursor
+ *  stands at where it doesn't show the live edge, and the goal a reader selected where one is selected. */
+export type TGraphView = {
+	perTypeLimit: number;
+	accessLevel: AccessQueryLevel;
+	overrides: Record<string, boolean>;
+	hiddenPredicates: string[];
+	prune: boolean;
+	timeCursor?: number;
+	goal?: string;
+};
+
+/**
+ * What a graph view shows as TPTP FOF, projected as its text, its formulas and its term graph: the graph's axioms; the producer
+ * rules the caller may use that take or return the domain of a fact the view shows; the rules of the waypoints whose head the
+ * line of a step record the view shows applies; and the goal as a conjecture. The view hides the types and predicates the reader
+ * hid and the types a view hides by default, as the page does.
+ */
+export async function graphTptp(world: TWorld, view: TGraphView): Promise<TProjection> {
+	const { quads, clusters } = await clusteredQuads(world, { perTypeLimit: view.perTypeLimit, accessLevel: view.accessLevel });
+	const { timeCursor } = view;
+	const rels = resourceRels(world);
+	const types = new Set([...clusters.map((cluster) => cluster.type), ...quads.map((quad) => quad.namedGraph)]);
+	const hiddenGraphs = effectiveHiddenTypes(types, view.overrides, new Set([...types].filter((type) => rels.instrumentation(type))));
+	const shown = timeCursor === undefined ? quads : quads.filter((quad) => quad.timestamp <= timeCursor);
+	const model = visibleGraphModel({ quads: shown, clusters, hiddenGraphs, hiddenPredicates: view.hiddenPredicates, prune: view.prune, roleRels: [] });
+	const textsOf = (type: string, field: string): string[] =>
+		model.nodes.flatMap((node) => (node.type === type && typeof node.properties[field] === "string" ? [node.properties[field]] : []));
+	const steppers = runSteppers(world);
+	const formulas = [
+		...graphAxioms(model),
+		...producerAxioms(stepSignatures(steppers), callerHolds(), new Set(textsOf(FACT_LABEL, FACT_FIELD.domain))),
+		...waypointAxioms(world, steppers, textsOf(SEQ_PATH_LABEL, SEQ_PATH_FIELD.stepText)),
+		...(view.goal === undefined ? [] : [goalConjecture(view.goal)]),
+	];
+	return projected(formulas);
 }
 
 /** Whether this instance's merged sample, read at `level`, holds `subject`, and the site it names as serving it. A subject

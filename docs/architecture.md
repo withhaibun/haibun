@@ -217,6 +217,18 @@ predicate(X, Y)":
 every host observed in http-trace hosts is some domain in Allowed domains is matches {host} with "*{domain}"
 ```
 
+### Formulas
+
+`rule {formula}` enters one TPTP FOF formula. The logic module's grammar (`modules/logic/src/derivations/formula.ts`)
+parses it, refuses a formula outside the engine's fragment with its remedy, and renders it as TPTP text and as Unicode
+tokens. `modules/logic/src/derivations/term-graph.ts` projects formulas once for every surface: their ASCII TPTP text,
+which a prover such as Vampire or E reads unchanged, each formula's Unicode tokens with the statement and the record behind
+it, a summary of their kinds, and their term graph, whose constants, variables, hubs and classes name the formulas that
+state them. GraphSourceStepper's `show graph {view} as tptp` returns that projection for what a graph view shows under its
+filters, its limits and its time cursor: each record's type as a unary predicate and each literal property and edge as a
+binary one, all ground axioms, the producer rules and the waypoint rules that apply to what it shows as quantified axioms,
+and the goal a reader opened as a conjecture.
+
 ## Domains
 
 Domains are **safeguards**. They define exactly what values are allowed, preventing typos and invalid data from breaking tests. Often useful for observations.

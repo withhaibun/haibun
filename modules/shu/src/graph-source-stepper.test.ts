@@ -1,14 +1,24 @@
-// The graph a page reads, over the store this instance holds: the values a filter offers for a type, and one
-// individual with the edges its quads name.
+// The graph a page reads, over the store this instance holds: the values a filter offers for a type, one individual with the
+// edges its quads name, and what a graph view shows as TPTP formulas.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
-import { Access, AccessLevelSchema, LinkRelations, commentDomainDefinition } from "@haibun/core/lib/domains/resources.js";
+import { Access, AccessLevelSchema, FACT_LABEL, LinkRelations, SEQ_PATH_LABEL, commentDomainDefinition } from "@haibun/core/lib/domains/resources.js";
+import { AStepper, type TStepperSteps } from "@haibun/core/lib/steps/domains/stepper.js";
+import { OK } from "@haibun/core/lib/domains/protocol.js";
+import { RUN_AUTHORITY, runAuthorizedWith } from "@haibun/core/lib/domains/capability-context.js";
+import ActivitiesStepper from "@haibun/core/steps/activities-stepper.js";
+import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
+import { FACT_FIELD } from "@haibun/core/lib/records/domains/facts.js";
+import { SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
+import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { MAX_PAGE_ROWS } from "@haibun/core/lib/domains/hypermedia.js";
 import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
 import { distinctOf } from "@haibun/core/lib/records/derivations/read-records.js";
 import { z } from "zod";
 import GraphSourceStepper from "./graph-source-stepper.js";
+import type { TGraphView } from "./pipelines/graph-source.js";
+import { ProjectionSchema, type TProjection } from "@haibun/logic/domains/logic.js";
 
 function mockQuadStore(overrides: Partial<IQuadStore> = {}): IQuadStore {
 	return {
@@ -134,5 +144,120 @@ describe("the clustered sample a graph view reads", () => {
 		expect(refused).toMatchObject({ ok: false });
 		expect(refused.ok ? "" : refused.errorMessage).toContain(`getClusteredQuads rejects a limit of ${over} rows: a page holds 1 to ${MAX_PAGE_ROWS} rows`);
 		expect(getClusteredQuads).not.toHaveBeenCalled();
+	});
+});
+
+describe("what a graph view shows as TPTP formulas", () => {
+	const [EMAIL, A, B, C] = ["Email", "a@test.com", "b@test.com", "c@test.com"];
+	const quad = (subject: string, namedGraph: string, predicate: string, object: string, objectType?: string): TQuad => ({
+		subject,
+		namedGraph,
+		predicate,
+		object,
+		timestamp: subject === A ? 1 : 2,
+		...(objectType === undefined ? {} : { objectType }),
+	});
+	const QUADS = [
+		quad(A, EMAIL, "subject", "Roadmap"),
+		quad(B, EMAIL, "subject", "Re: Roadmap"),
+		quad(B, EMAIL, "inReplyTo", A, EMAIL),
+		quad(C, EMAIL, "_held", "beside its type, a record whose quads state neither a property nor an edge"),
+		quad("fact-1", FACT_LABEL, FACT_FIELD.domain, "cart"),
+		quad("step-1", SEQ_PATH_LABEL, SEQ_PATH_FIELD.stepText, "dinner is ready"),
+	];
+	const cluster = (type: string, subjects: string[]) => ({
+		type,
+		totalCount: subjects.length,
+		sampledCount: subjects.length,
+		omittedCount: 0,
+		sampledSubjects: subjects,
+		displayLabels: {},
+	});
+	const CLUSTERS = [cluster(EMAIL, [A, B, C]), cluster(FACT_LABEL, ["fact-1"]), cluster(SEQ_PATH_LABEL, ["step-1"])];
+
+	/** Fills a cart and places an order from one: the producer rules of the domain cart, which a fact of the graph states. */
+	class Kitchen extends AStepper {
+		description = "Fills a cart and places an order from it.";
+		steps: TStepperSteps = {
+			fillCart: { gwta: "fill a cart", productsDomain: "cart", action: async () => OK },
+			placeOrder: { gwta: "place an order from {cart: cart}", productsDomain: "order", action: async () => OK },
+		};
+	}
+
+	const projectedFor = async (view: Pick<TGraphView, "overrides"> & Partial<TGraphView>): Promise<TProjection> => {
+		const stepper = new GraphSourceStepper();
+		const world = getDefaultWorld();
+		const activities = new ActivitiesStepper();
+		const lines = ["Activity: Cook dinner", 'set dinner to "ready"', 'waypoint {meal} is ready with variable {meal} is "ready"'];
+		activities.steps.activity.resolveFeatureLine(lines[2] as string, "/backgrounds/kitchen.feature", activities, [], lines, 2);
+		world.runtime.steppers = [stepper, activities, new VariablesStepper(), new Kitchen()];
+		await stepper.setWorld(world, world.runtime.steppers);
+		world.shared.getStore = vi.fn(() => mockQuadStore({ getClusteredQuads: vi.fn(async () => ({ quads: QUADS, clusters: CLUSTERS })) }));
+		const result = await runAuthorizedWith(RUN_AUTHORITY, async () =>
+			stepper.steps.showGraphAsTptp.action({ view: { perTypeLimit: 10, accessLevel: Access.private, hiddenPredicates: [], prune: false, ...view } }),
+		);
+		if (!result.ok) throw new Error(result.errorMessage);
+		return ProjectionSchema.parse(result.products);
+	};
+	const shown = async (view: Pick<TGraphView, "overrides"> & Partial<TGraphView>): Promise<string> => (await projectedFor(view)).text;
+
+	it("states each record's type, its literal properties and its edges, the rules that apply to the facts and steps it shows, and its goal", async () => {
+		const text = await shown({ overrides: { [FACT_LABEL]: true, [SEQ_PATH_LABEL]: true }, goal: "order" });
+		expect(text.split("\n")).toEqual([
+			"fof(n1, axiom, 'Email'('a@test.com')).",
+			"fof(n2, axiom, 'Email'('b@test.com')).",
+			"fof(n3, axiom, 'Email'('c@test.com')).",
+			"fof(n4, axiom, facts('fact-1')).",
+			"fof(n5, axiom, 'SeqPath'('step-1')).",
+			"fof(p1, axiom, subject('a@test.com', '\"Roadmap\"')).",
+			"fof(p2, axiom, subject('b@test.com', '\"Re: Roadmap\"')).",
+			"fof(p3, axiom, domain('fact-1', '\"cart\"')).",
+			"fof(p4, axiom, stepText('step-1', '\"dinner is ready\"')).",
+			"fof(e1, axiom, inReplyTo('b@test.com', 'a@test.com')).",
+			"fof(r1, axiom, domain('Kitchen-fillCart', '\"cart\"')).",
+			"fof(r2, axiom, ![X1] : (domain(X1, '\"cart\"') => domain('Kitchen-placeOrder'(X1), '\"order\"'))).",
+			"fof(w1, axiom, ![X1] : ('VariablesStepper-is'(X1, '\"ready\"') => '{meal} is ready'(X1))).",
+			"fof(goal, conjecture, ?[X1] : domain(X1, '\"order\"')).",
+		]);
+	});
+
+	it("names the statement and the record behind each formula, and draws the formulas' term graph", async () => {
+		const { formulas, summary, nodes, edges, clusters } = await projectedFor({ overrides: { [FACT_LABEL]: true, [SEQ_PATH_LABEL]: true }, goal: "order" });
+		const about = (name: string) => {
+			const formula = formulas.find((one) => one.name === name);
+			return formula === undefined ? undefined : { statement: formula.statement, assertedBy: formula.assertedBy };
+		};
+		expect(about("e1"), "a record's axiom names the record").toEqual({ statement: "Email b@test.com", assertedBy: { persistedAs: EMAIL, id: B } });
+		expect(about("p4"), "a step's record states its line").toEqual({ statement: "dinner is ready", assertedBy: { persistedAs: SEQ_PATH_LABEL, id: "step-1" } });
+		expect(about("r2"), "a producer rule states the step's pattern").toEqual({ statement: "place an order from {cart: cart}", assertedBy: undefined });
+		expect(about("w1")?.statement, "a waypoint's rule states its line and where it is stated").toBe(
+			'waypoint {meal} is ready with variable {meal} is "ready" (/backgrounds/kitchen.feature:3)',
+		);
+		expect(about("goal")?.statement, "the goal states its resolve line").toBe('resolve "order"');
+		expect(summary).toEqual({ axioms: 11, rules: 2, conjectures: 1 });
+		expect(
+			nodes.find(({ id }) => id === C),
+			"a record without a property or an edge is drawn by its type",
+		).toEqual({ id: C, label: C, kind: EMAIL, classes: [EMAIL], formulas: ["n3"] });
+		expect(edges.find(({ label }) => label === "inReplyTo")).toEqual({ from: B, to: A, label: "inReplyTo", formula: "e1" });
+		expect(clusters).toEqual([
+			{ kind: "r2", badge: "∀" },
+			{ kind: "w1", badge: "∀" },
+		]);
+	});
+
+	it("hides the types a view hides and the predicates a reader hid, prunes, and stops at the time cursor", async () => {
+		expect(await shown({ overrides: {}, hiddenPredicates: ["inReplyTo"], timeCursor: 1 })).toBe(
+			["fof(n1, axiom, 'Email'('a@test.com')).", "fof(p1, axiom, subject('a@test.com', '\"Roadmap\"'))."].join("\n"),
+		);
+		expect(await shown({ overrides: { [EMAIL]: true }, prune: true })).toBe(
+			[
+				"fof(n1, axiom, 'Email'('a@test.com')).",
+				"fof(n2, axiom, 'Email'('b@test.com')).",
+				"fof(p1, axiom, subject('a@test.com', '\"Roadmap\"')).",
+				"fof(p2, axiom, subject('b@test.com', '\"Re: Roadmap\"')).",
+				"fof(e1, axiom, inReplyTo('b@test.com', 'a@test.com')).",
+			].join("\n"),
+		);
 	});
 });

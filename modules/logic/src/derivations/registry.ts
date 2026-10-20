@@ -1,14 +1,16 @@
 /**
- * The predicate registry's faces of a step: the term a resolved line parses to, the term's text, and the line a term
- * renders as through the step's pattern. A line, a call a transport carries and a term state one step when their terms
- * are equal.
+ * The predicate registry's faces of a step: the term a resolved line parses to, the term's text, the line a term renders as
+ * through the step's pattern, and a waypoint's rule as a TPTP axiom over the terms of its proof. A line, a call a transport
+ * carries and a term state one step when their terms are equal.
  */
 import { literalTerm, namedInterpolation, renderStepLine } from "@haibun/core/lib/steps/derivations/named-vars.js";
 import { Origin, type TStepValue } from "@haibun/core/lib/domains/protocol.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
-import type { AStepper, TStepAction } from "@haibun/core/lib/steps/domains/stepper.js";
+import { ruleStatedAt, type AStepper, type TStepAction, type TWaypointRule } from "@haibun/core/lib/steps/domains/stepper.js";
 import type { TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
 import { atom, list } from "./terms.js";
+import { conjunction, constantOf, literalOf, nameOfText, variableAt, type TFormula, type TTerm } from "./formula.js";
+import type { TStatedFormula } from "./term-graph.js";
 
 /** An argument of a line's term: a literal the line states, or a term the line resolves, such as a variable's name. */
 type TTermArg = { literal: boolean; term: string };
@@ -20,10 +22,15 @@ type TDomains = Record<string, TRegisteredDomain>;
 /** Whether a value is a literal: quoted, or of a domain whose term is written as it stands, such as a variable's name. */
 const isLiteral = (value: TStepValue, domains: TDomains): boolean => value.origin === Origin.quoted || domains[value.domain]?.written === true;
 
+/** The placeholders a pattern names, in its order. */
+const placeholdersOf = (pattern: string): string[] => {
+	const placeholders = namedInterpolation(pattern).stepValuesMap;
+	return placeholders === undefined ? [] : Object.keys(placeholders);
+};
+
 /** The term of a resolved line or of a call a transport built, with each argument in its pattern's order. */
 export function termOfAction(action: Pick<TStepAction, "stepperName" | "actionName" | "stepValuesMap">, gwta: string, domains: TDomains): TLineTerm {
-	const placeholders = namedInterpolation(gwta).stepValuesMap;
-	const names = placeholders === undefined ? [] : Object.keys(placeholders);
+	const names = placeholdersOf(gwta);
 	const values = action.stepValuesMap;
 	if (values === undefined && names.length > 0) throw new Error(`${action.stepperName}.${action.actionName} doesn't state the values its pattern names`);
 	return {
@@ -43,8 +50,7 @@ export function registryPredicates(steppers: readonly AStepper[], nameOf: (stepp
 			Object.entries(stepper.steps).flatMap(([actionName, step]) => {
 				const pattern = step.gwta === undefined ? step.exact : step.gwta;
 				if (pattern === undefined) return [];
-				const placeholders = namedInterpolation(pattern).stepValuesMap;
-				return [[stepMethodName(nameOf(stepper), actionName), placeholders === undefined ? 0 : Object.keys(placeholders).length] as const];
+				return [[stepMethodName(nameOf(stepper), actionName), placeholdersOf(pattern).length] as const];
 			}),
 		),
 	);
@@ -63,4 +69,23 @@ export function lineOfTerm(gwta: string, term: TLineTerm, domains: TDomains): st
 		return [name, arg.literal && !written ? literalTerm(arg.term, domain) : arg.term];
 	});
 	return renderStepLine(gwta, Object.fromEntries(stated));
+}
+
+/**
+ * A waypoint's rule as a TPTP axiom: its head holds where each line of its proof holds. The head is a predicate named by the head
+ * as written, over a variable for each placeholder of its pattern. Each line of the proof is the atom of its term, whose predicate
+ * is the term's functor and in which an argument that states a placeholder of the head is that placeholder's variable. It states
+ * the waypoint's line and where it is stated. Throws for a rule without a proof, which states its head only where its activity ran.
+ */
+export function waypointAxiom(name: string, rule: TWaypointRule, proof: readonly TLineTerm[]): TStatedFormula {
+	const placeholders = placeholdersOf(rule.pattern);
+	const variables = placeholders.map((_, at) => variableAt(at));
+	const argOf = ({ literal, term }: TTermArg): TTerm => {
+		const at = placeholders.findIndex((placeholder) => term === `{${placeholder}}`);
+		return at >= 0 ? { variable: variableAt(at) } : literal ? literalOf(term) : constantOf(term);
+	};
+	const body = conjunction(proof.map(({ functor, args }) => ({ atom: nameOfText(functor), args: args.map(([, arg]) => argOf(arg)) })));
+	const implication: TFormula = { connective: "=>", left: body, right: { atom: nameOfText(rule.head), args: variables.map((variable) => ({ variable })) } };
+	const statement = `waypoint ${rule.head} with ${rule.proof.map((line) => line.in).join(", ")} (${ruleStatedAt(rule)})`;
+	return { name, role: "axiom", formula: variables.length === 0 ? implication : { quantifier: "!", variables, body: implication }, statement };
 }

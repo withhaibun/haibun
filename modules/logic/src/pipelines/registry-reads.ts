@@ -1,24 +1,25 @@
 /**
  * Reads of a proof and of the predicate registry for the logic stepper's steps: a statement's derivation from the records its
  * proof wrote, a line's term and the line it renders as, the term of a call a transport carries, the rule a formula states
- * and the refusal of a formula outside the fragment or the registry, and the refusal of steppers from whose declarations the
- * registry doesn't derive each step once.
+ * and the refusal of a formula outside the fragment or the registry, the rules of waypoints that lines apply as TPTP axioms,
+ * and the refusal of steppers from whose declarations the registry doesn't derive each step once.
  */
 import type { DispatchContext } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
 import { nextSeqPath, proveStep } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
 import { Resolver } from "@haibun/core/lib/actuality/pipelines/resolver.js";
 import { readEvery, equalTo } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { runRegistry } from "@haibun/core/lib/steps/pipelines/step-registry.js";
-import { mapInputToStepValues } from "@haibun/core/lib/steps/derivations/named-vars.js";
+import { mapInputToStepValues, matchGwtaToAction } from "@haibun/core/lib/steps/derivations/named-vars.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { SEQ_PATH_FIELD, calledParts, executionOf, formatRecordName } from "@haibun/core/lib/actuality/domains/seq-path.js";
-import { constructorName } from "@haibun/core/lib/domains/util.js";
+import { constructorName, dePolite } from "@haibun/core/lib/domains/util.js";
 import type { TWorld } from "@haibun/core/lib/actuality/domains/world.js";
 import type { AStepper, TFeatureStep } from "@haibun/core/lib/steps/domains/stepper.js";
 import { derivationOf } from "../derivations/derivation.js";
-import { lineOfTerm, registryPredicates, termOfAction, termText } from "../derivations/registry.js";
+import { lineOfTerm, registryPredicates, termOfAction, termText, waypointAxiom, type TLineTerm } from "../derivations/registry.js";
 import type { TDerivation, TRule } from "../domains/logic.js";
 import { checkFormula, unicodeOf } from "../derivations/formula.js";
+import type { TStatedFormula } from "../derivations/term-graph.js";
 import { declarationFindings } from "../derivations/declarations.js";
 
 /** Whether a record's call is of a step the engine proves by its reading, and so a node of a proof. */
@@ -40,13 +41,42 @@ export async function derivationUnder(ctx: DispatchContext, parent: TFeatureStep
 	return derivationOf(records, formatRecordName({ execution, path: seqPath }), isNodeOf(steppers));
 }
 
+/** The term of the step a line resolves to, through the pattern that parses the line: the head of the waypoint the line
+ *  applies, or the step's own pattern. The functor of a line that applies a waypoint is the waypoint's head. */
+function resolvedTerm(world: TWorld, resolver: Resolver, line: string): { term: TLineTerm; pattern: string } {
+	const action = resolver.findSingleStepAction(line);
+	const { rule, gwta } = action.step;
+	const pattern = rule === undefined ? gwta : rule.pattern;
+	if (pattern === undefined) throw new Error(`"${line}" resolves to ${action.stepperName}.${action.actionName}, whose pattern doesn't state placeholders to render`);
+	const term = termOfAction(action, pattern, world.domains);
+	return { term: rule === undefined ? term : { ...term, functor: rule.head }, pattern };
+}
+
 /** A line's term through the step it resolves to, as text, and the line the term renders as. */
 export function lineTerm(world: TWorld, steppers: AStepper[], line: string): { term: string; rendered: string } {
-	const action = new Resolver(steppers, []).findSingleStepAction(line);
-	const { gwta } = action.step;
-	if (gwta === undefined) throw new Error(`"${line}" resolves to ${action.stepperName}.${action.actionName}, whose pattern doesn't state placeholders to render`);
-	const term = termOfAction(action, gwta, world.domains);
-	return { term: termText(term), rendered: lineOfTerm(gwta, term, world.domains) };
+	const { term, pattern } = resolvedTerm(world, new Resolver(steppers, []), line);
+	return { term: termText(term), rendered: lineOfTerm(pattern, term, world.domains) };
+}
+
+/** The rules of the waypoints whose head one of `lines` unifies with, as TPTP axioms over the terms of their proofs' lines. A
+ *  rule without a proof states its head only where its activity ran, so it isn't an axiom. */
+export function waypointAxioms(world: TWorld, steppers: AStepper[], lines: readonly string[]): TStatedFormula[] {
+	const stated = [...new Set(lines.map(dePolite))];
+	const applied = steppers.flatMap((stepper) =>
+		Object.entries(stepper.steps).flatMap(([actionName, step]) =>
+			(step.rules === undefined ? [] : step.rules()).filter(
+				(rule) => rule.proof.length > 0 && stated.some((line) => matchGwtaToAction(rule.pattern, line, actionName, constructorName(stepper), step) !== undefined),
+			),
+		),
+	);
+	const resolver = new Resolver(steppers, []);
+	return applied.map((rule, at) =>
+		waypointAxiom(
+			`w${at + 1}`,
+			rule,
+			rule.proof.map(({ in: line }) => resolvedTerm(world, resolver, line).term),
+		),
+	);
 }
 
 /** The term of a call a transport carries: a method with its named parameters, as text. */
