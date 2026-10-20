@@ -39,10 +39,10 @@ export class ShuPlayback extends ShuElement<typeof StateSchema> {
 	static styles = [
 		shuBaseStyles,
 		shuIconButtonStyles,
+		// The look of an icon button and of a select are the base's (shuIconButtonStyles, shuBaseStyles); only the glyph size and
+		// the tighter select padding are this control's own.
 		css`
 		:host { display: flex; align-items: center; gap: var(--shu-space-3); padding: var(--shu-space-1) var(--shu-space-3); font: var(--shu-font-sm) var(--shu-font-family); }
-		/* The look of an icon button and of a select are the base's (shuIconButtonStyles, shuBaseStyles); only the glyph
-		   size and the tighter select padding are this control's own. */
 		button.icon { font-size: var(--shu-font-lg); }
 		select { padding: 0 var(--shu-space-1); }
 	`,

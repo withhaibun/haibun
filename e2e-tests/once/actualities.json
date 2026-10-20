@@ -1,4 +1,27 @@
 {
+	"linux-x64-16x-amd-ryzen-7-pro-7840u-w-radeon-780m-graphics": {
+		"b4cc0b9925aeadf9": {
+			"filter": "",
+			"execution": {
+				"text": "e2e-tests/once",
+				"status": "passed",
+				"tookMs": 0,
+				"digest": {
+					"e2e-tests/once": "a1629d031286963c15e77138da4626ceacdc095d94949102c133a3938458e73b",
+					"modules/core/src": "55cb9a8b88f90ddfe5d843f6385fdce03a631eda385d2c776d9871efac5e97bd",
+					"modules/logic/src": "8c83176cd37dc52643eb24805524522c666774b882f995e79bae8b3e7571d01b"
+				}
+			},
+			"features": {
+				"/features/once.feature": {
+					"text": "/features/once",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 1
+				}
+			}
+		}
+	},
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
 		"00a39643087f9efb": {
 			"filter": "",
@@ -69,12 +92,7 @@
 			"execution": {
 				"text": "e2e-tests/once",
 				"status": "passed",
-				"tookMs": 0,
-				"digest": {
-					"e2e-tests/once": "a1629d031286963c15e77138da4626ceacdc095d94949102c133a3938458e73b",
-					"modules/core/src": "19f345c63f0299d04818c279f528bf7294cd373131590c95d130c704a5417064",
-					"modules/logic/src": "b5da2e29f4e6e0e7d38cb6ca70df1beec0a1d3bc8b23e02915cabca37d3ada53"
-				}
+				"tookMs": 0
 			},
 			"features": {
 				"/features/once.feature": {

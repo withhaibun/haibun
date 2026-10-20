@@ -29,10 +29,10 @@ export class ShuColumnStrip extends ShuElement<typeof EmptyStateSchema> {
 
 	static styles = [
 		shuBaseStyles,
+		// The strip uses the browser's default scrollbar behaviour: the horizontal scrollbar only appears when the panes overflow
+		// (rare: the accordion flex-shares them to fit). The strip doesn't reserve a gutter, so a scrollbar track never spans the
+		// columns when the panes don't overflow.
 		css`
-		/* The strip uses the browser's default scrollbar behaviour: the horizontal scrollbar only appears when the panes
- overflow (rare: the accordion flex-shares them to fit). The strip doesn't reserve a gutter, so a
-		   scrollbar track never spans the columns when the panes don't overflow. */
 		:host { display: flex; flex: 1; min-height: 0; overflow-x: auto; overflow-y: hidden; background: var(--shu-border); }
 		::slotted(shu-column-pane) { background: var(--shu-bg); }
 		@media (max-width: 600px), (orientation: portrait) {

@@ -93,6 +93,7 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 
 	static styles = [
 		shuBaseStyles,
+		// A value a reader can act on reads as the value, not as a control: the action is the value itself.
 		css`
 			:host {
 				display: block;
@@ -131,7 +132,6 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 				font-size: var(--shu-font-sm);
 				padding: 0 var(--shu-space-2) var(--shu-space-2);
 			}
-			/* A value a reader can act on reads as the value, not as a control: the action is the value itself. */
 			button.link {
 				font: inherit;
 				color: var(--shu-accent);

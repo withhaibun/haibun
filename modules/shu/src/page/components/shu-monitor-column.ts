@@ -171,6 +171,10 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	static styles = [
 		virtualColumnCss,
 		shuBaseStyles,
+		// The first column holds its own content: a long step path is shortened to the column's width rather than pushing the
+		// duration out of the column and over the words beside it.
+		// What a step produced, at the height of its own row: a reader reading actuality's steps sees what each one made, and
+		// follows the image itself to see it whole.
 		css`
 		:host { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: auto; font-family: var(--shu-font-family); font-size: var(--shu-font-md); }
 		:host(:not([data-show-controls])) .toolbar { display: none; }
@@ -181,16 +185,12 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 		.log-rows { flex: 1; overflow: auto; }
 		.log-row { display: grid; grid-template-columns: 130px 1fr; border-bottom: var(--shu-border-w) solid var(--shu-border); font-size: var(--shu-font-sm); line-height: 1.4; }
 		.log-row:hover { background: var(--shu-bg-hover); }
-		/* The first column holds its own content: a long step path is shortened to the column's width rather than pushing
-		   the duration out of the column and over the words beside it. */
 		.log-row .time-group { display: flex; gap: var(--shu-space-2); padding: 1px var(--shu-space-2); cursor: pointer; border-right: var(--shu-border-w) solid var(--shu-border); overflow: hidden; }
 		.log-row .time-group:hover { color: var(--shu-accent); }
 		.log-row .row-content { padding: 1px var(--shu-space-2); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 		.log-row .time { color: var(--shu-fg-muted); margin-left: auto; flex: 0 0 auto; }
 		.log-row .time-group:hover .time { color: var(--shu-accent); }
 		.log-row .seqpath { color: var(--shu-fg-muted); font-size: var(--shu-font-xs); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-		/* What a step produced, at the height of its own row: a reader reading actuality's steps sees what each one made,
-		   and follows the image itself to see it whole. */
 		.carried { display: none; }
 		.log-row .produced { display: inline-flex; gap: var(--shu-space-1); vertical-align: middle; margin-left: var(--shu-space-2); }
 		.log-row .produced img { height: 1.4em; width: auto; border: var(--shu-border-w) solid var(--shu-border); border-radius: 2px; display: block; }

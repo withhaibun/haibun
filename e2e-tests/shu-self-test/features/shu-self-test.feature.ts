@@ -214,6 +214,20 @@ export const features: TKirejiExport = {
 		"A second press closes the popover again.",
 		click({ target: IDS.APP.TIME_OFFSET }),
 
+		scenario({ scenario: "A closed affordances pane stays closed through a later step and a reload" }),
+
+		"A reader closes the affordances pane. A later step runs, and the page reloads. Both leave the pane closed. The server replays its event history to every page that connects, and a view shown in that history must not reopen itself.",
+		setAs({ what: "affordances-pane-close", domain: "page-locator", value: `"${SHU_TAG.COLUMN_PANE}[data-column-key='shu-affordances-panel'] .pane-close"` }),
+		click({ target: "affordances-pane-close" }),
+		"page has settled",
+		`not has test id ${IDS.AFFORDANCES.GOALS_LIST}`,
+		set({ what: "closed-pane-check", value: '"still closed"' }),
+		"page has settled",
+		`not has test id ${IDS.AFFORDANCES.GOALS_LIST}`,
+		reloadPage({}),
+		"page has settled",
+		`not has test id ${IDS.AFFORDANCES.GOALS_LIST}`,
+
 		scenario({ scenario: "Variable inspection: `show vars` should produce an entry per variable set above" }),
 
 		"`show vars` returns the current variables with secret values obscured. The feature stores the step's product in a variable and checks that the variable exists. That check shows that the step returns a product that a variable can hold.",

@@ -114,11 +114,15 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 	static styles = [
 		shuBaseStyles,
 		virtualColumnCss,
+		// Each block centres itself in a reading column (the old .document-body 80%-centred layout, per row now).
+		// An event that didn't render a block at this level doesn't take room; a page not yet cached caches one line.
+		// A run of per-step screenshots flows as a grid of TILE-SIZED thumbnails across the column width: fixed ~160px minimum
+		// tracks (auto-fill caches the unused tracks, so a lone screenshot stays a tile instead of blowing up to the whole
+		// column), each frame stretching only to its track, wrapping to new rows. The strip spans the column; the tiles stay
+		// thumbnails, and the fullscreen click expands one.
 		css`
 			:host { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; font-family: "Source Serif 4", Georgia, serif; font-size: 15px; line-height: 1.7; color: var(--shu-fg); }
-			/* Each block centres itself in a reading column (the old .document-body 80%-centred layout, per row now). */
 			.doc-block { max-width: 760px; margin: 0 auto; padding: 0 1.5rem; }
-			/* An event that didn't render a block at this level doesn't take room; a page not yet cached caches one line. */
 			.doc-block.doc-empty { padding: 0; }
 			.doc-block.doc-skeleton { min-height: 1.7em; }
 			h1 { font-size: 1.75rem; font-weight: 700; margin: 1.5rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 2px solid var(--shu-border); }
@@ -140,10 +144,6 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 			.json-block { font-family: "Source Code Pro", monospace; font-size: var(--shu-font-sm); background: var(--shu-bg-soft); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); padding: var(--shu-space-4) var(--shu-space-5); overflow-x: auto; max-height: 300px; overflow-y: auto; }
 			img { display: block; }
 			.feature-artifacts, .standalone-artifact { margin-left: 32px; }
-			/* A run of per-step screenshots flows as a grid of TILE-SIZED thumbnails across the column width: fixed ~160px
-			   minimum tracks (auto-fill caches the unused tracks, so a lone screenshot stays a tile instead of blowing up to
-			   the whole column), each frame stretching only to its track, wrapping to new rows. The strip spans the column;
-			   the tiles stay thumbnails, and the fullscreen click expands one. */
 			.thumb-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(160px, 100%), 1fr)); gap: var(--shu-space-2); margin-left: 32px; }
 			.thumb-row > * { margin: 0; }
 			shu-artifact-frame { margin: var(--shu-space-3) 0; }

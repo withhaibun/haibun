@@ -56,11 +56,11 @@ export class ShuTypeColumn extends ShuElement<typeof TypeColumnSchema> {
 
 	static styles = [
 		shuBaseStyles,
+		// The presenter fills all column height left by the header and description, scrolling any excess within its own box.
 		css`
 			:host { display: flex; flex-direction: column; height: 100%; overflow: auto; }
 			.type-desc { padding: var(--shu-space-3) var(--shu-space-4); margin: 0; color: var(--shu-fg-muted); }
 			.system-schema-note { padding: 0 var(--shu-space-4) var(--shu-space-2); margin: 0; color: var(--shu-fg-faded); font-size: 0.85em; font-style: italic; }
-			/* The presenter fills all column height left by the header and description, scrolling any excess within its own box. */
 			::slotted(shu-product-view) { display: block; flex: 1 1 auto; min-height: 160px; overflow: auto; border-bottom: var(--shu-border-w) solid var(--shu-border); }
 			.instances { flex: 0 0 auto; padding: var(--shu-space-3) var(--shu-space-4); }
 			.joins { padding: 0 var(--shu-space-4); margin: var(--shu-space-2) 0; }

@@ -74,6 +74,28 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 	static styles = [
 		shuBaseStyles,
 		shuIconButtonStyles,
+		// A view's own z-index, such as an embedded scene's enter-VR button, stays inside its pane, so it doesn't paint over a
+		// docked pane or press through its controls.
+		// The label runs from the top of the strip and the controls are placed at its bottom. Without this they pack against the
+		// label, which leaves them wherever the label's text happens to end. A header sized to its content (one with a spine below
+		// it) doesn't have free space, so this doesn't change its layout.
+		// A spine takes the height the rotated label does not, so the label stays readable at the top of the strip and the spine
+		// view gets the rest. Its own width governs the strip, which is why the collapsed cap lifts here.
+		// The spine box takes the height the header does not, but only once a column has a spine view to put in it. A column that
+		// doesn't declare one renders the slot (so one attached later still renders) without an element assigned to it, and an
+		// empty box claiming half the strip is what pushed that column's controls to the middle of it.
+		// Docked: the same pane along the bottom of the app, its axes transposed. It overlays the columns, is as tall as its
+		// remembered share of the app while open, and collapses to one row along the width.
+		// Above the page strip, whose height the strip publishes on the app.
+		// Closed, the elements of a column's strip lie in one row: the header's label, the spine, then the header's controls. The
+		// header doesn't draw a box of its own, so its label and controls lie in that row.
+		// Above the content it heads: a view that positions anything (the graph's canvas fills its box) would otherwise paint over
+		// the pane's own controls, and a reader could not press them.
+		// A spine is the width of the strip and doesn't grow wider: its view sizes to that rather than scrolling inside it, or a
+		// few pixels of spill, a slider knob's label for example, become native scrollbars in a strip too narrow to use them.
+		// A declared spine view is a line down the strip, so it keeps its own width and the box centres it. A column serving as
+		// its OWN spine keeps the stretch above: its rail must stay exactly where it is when the column is open, and centring a
+		// narrowed column would move it.
 		css`
 		:host {
 			display: flex; flex-direction: column;
@@ -81,8 +103,6 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 			min-height: 0; overflow: hidden; position: relative;
 			flex: 1;
 			background: var(--shu-bg);
-			/* A view's own z-index, such as an embedded scene's enter-VR button, stays inside its pane, so it doesn't paint
-			   over a docked pane or press through its controls. */
 			isolation: isolate;
 		}
 		:host([is-last]) .resize-handle { display: none; }
@@ -100,35 +120,22 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 			padding: var(--shu-space-4) var(--shu-space-2);
 			flex: 1;
 			align-items: center;
-			/* The label runs from the top of the strip and the controls are placed at its bottom. Without this they pack
-			   against the label, which leaves them wherever the label's text happens to end. A header sized to its
-			   content (one with a spine below it) doesn't have free space, so this doesn't change its layout. */
 			justify-content: space-between;
 		}
-		/* A spine takes the height the rotated label does not, so the label stays readable at the top of the strip and
-		   the spine view gets the rest. Its own width governs the strip, which is why the collapsed cap lifts here. */
 		:host([collapsed][has-spine]) {
 			min-width: var(--shu-spine-w);
 			max-width: var(--shu-spine-w);
 		}
 		:host([collapsed][has-spine]) .pane-header { flex: 0 0 auto; }
-		/* The spine box takes the height the header does not, but only once a column has a spine view to put in it. A
-		   column that doesn't declare one renders the slot (so one attached later still renders) without an element assigned to
-		   it, and an empty box claiming half the strip is what pushed that column's controls to the middle of it. */
 		.pane-spine { flex: 0 0 auto; min-height: 0; overflow: hidden; display: flex; justify-content: center; }
 		:host([has-spine]) .pane-spine { flex: 1; }
 		:host([collapsed]) .pane-controls-group { writing-mode: horizontal-tb; flex-direction: column; margin-left: 0; margin-top: var(--shu-space-3); }
-		/* Docked: the same pane along the bottom of the app, its axes transposed. It overlays the columns, is as tall as
-		   its remembered share of the app while open, and collapses to one row along the width. */
 		:host([docked]) {
-			/* Above the page strip, whose height the strip publishes on the app. */
 			position: absolute; left: 0; right: 0; bottom: var(${unsafeCSS(PAGE_STRIP_FOOTPRINT)}, 0px); z-index: 20;
 			flex: none; min-width: 0; max-width: none;
 			border-top: var(--shu-border-w) solid var(--shu-border);
 			box-shadow: none;
 		}
-		/* Closed, the elements of a column's strip lie in one row: the header's label, the spine, then the header's
-		   controls. The header doesn't draw a box of its own, so its label and controls lie in that row. */
 		:host([docked][collapsed]), :host([docked][collapsed][has-spine]) {
 			min-width: 0; max-width: none; cursor: default;
 			flex-direction: row; align-items: center; gap: var(--shu-space-2);
@@ -146,8 +153,6 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		:host([docked][collapsed]) .resize-handle { display: none; }
 		:host([column-type="query"]) { position: sticky; left: 0; z-index: 1; background: var(--shu-bg); }
 		.pane-header {
-			/* Above the content it heads: a view that positions anything (the graph's canvas fills its box) would
-			   otherwise paint over the pane's own controls, and a reader could not press them. */
 			position: relative; z-index: 1;
 			display: flex; align-items: center;
 			min-height: var(--shu-row-h);
@@ -179,12 +184,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		}
 		.pane-content { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
 		.pane-content ::slotted(*) { flex: 1; min-height: 0; overflow: auto; }
-		/* A spine is the width of the strip and doesn't grow wider: its view sizes to that rather than scrolling inside it, or a
-		   few pixels of spill, a slider knob's label for example, become native scrollbars in a strip too narrow to use them. */
 		.pane-spine ::slotted(*) { flex: 1; min-width: 0; min-height: 0; overflow: hidden; }
-		/* A declared spine view is a line down the strip, so it keeps its own width and the box centres it. A column
-		   serving as its OWN spine keeps the stretch above: its rail must stay exactly where it is when the column is
-		   open, and centring a narrowed column would move it. */
 		.pane-spine slot[name="spine"]::slotted(*) { flex: 0 1 auto; }
 		.resize-handle {
 			position: absolute; top: 0; right: 0;

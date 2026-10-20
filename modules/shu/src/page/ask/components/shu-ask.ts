@@ -156,22 +156,23 @@ export class ShuAsk extends ShuElement<typeof ChatSchema> {
 
 	static styles = [
 		shuBaseStyles,
+		// The settings stand above the transcript, which scrolls under them, and the input line stands below it.
+		// The row wraps rather than overflowing: the host clips what does not fit, and Send, Stop and the model the turn runs
+		// under are the controls a reader reaches for while a turn is in flight.
+		// Input/textarea visuals come from SHU_BASE. The ask only adjusts layout (flex basis, height cap).
+		// The files a question carries, above its input line: an image as a thumbnail, another file by its name.
 		css`
 		:host { display: flex; flex-direction: column; min-width: 0; min-height: 0; flex: 1 1 auto; }
-		/* The settings stand above the transcript, which scrolls under them, and the input line stands below it. */
 		.chat-settings {
 			display: flex; flex-wrap: wrap; gap: var(--shu-space-2); align-items: center;
 			padding: var(--shu-space-2) var(--shu-space-4); flex: 0 0 auto; min-width: 0;
 			background: var(--shu-bg-soft); border-bottom: var(--shu-border-w) solid var(--shu-border);
 		}
 		.transcript { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; min-width: 0; }
-		/* The row wraps rather than overflowing: the host clips what does not fit, and Send, Stop and the model the turn
-		   runs under are the controls a reader reaches for while a turn is in flight. */
 		.input-line {
 			display: flex; flex-wrap: wrap; gap: var(--shu-space-2); align-items: center;
 			padding: var(--shu-space-3) var(--shu-space-4); flex-shrink: 0; min-width: 0;
 		}
-		/* Input/textarea visuals come from SHU_BASE. The ask only adjusts layout (flex basis, height cap). */
 		.chat-input {
 			flex: 1 1 0; min-width: 16ch; resize: none;
 			max-height: calc(var(--shu-input-h) * 4);
@@ -186,7 +187,6 @@ export class ShuAsk extends ShuElement<typeof ChatSchema> {
 		}
 		.tool-limit { width: 4em; font-size: var(--shu-font-sm); }
 		.refusal { flex-basis: 100%; font-size: var(--shu-font-sm); color: var(--shu-error); }
-		/* The files a question carries, above its input line: an image as a thumbnail, another file by its name. */
 		.ask-files img { max-height: 4rem; }
 		.turn-authority { flex: 0 0 auto; padding: 0 var(--shu-space-4); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); }
 		.send-btn, .stop-btn {

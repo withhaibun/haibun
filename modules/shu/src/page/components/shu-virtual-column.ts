@@ -41,13 +41,13 @@ type TVirtualRow = (index: number, row: unknown) => TemplateResult;
 /** Layout the element needs, for the HOST column to include in its own `static styles`: the element renders in light DOM
  *  (so it doesn't have shadow styles of its own), and the host's shadow holds its subtree, where these rules and the host's
  *  own row rules both apply. */
+// The virtualizer owns scrolling; its native scrollbar is hidden because the custom rail drives and reads it.
+// Serving as a column's spine: the rail takes the strip's height, caches its own width, and stays flush against the
+// column's edge: the same width at the same place as when the column is open, so collapsing does not move it.
 export const virtualColumnCss: CSSResultGroup = css`
 	shu-virtual-column { display: flex; min-height: 0; flex: 1; }
-	/* The virtualizer owns scrolling; its native scrollbar is hidden because the custom rail drives and reads it. */
 	shu-virtual-column lit-virtualizer { flex: 1; min-height: 0; overflow: auto; scrollbar-width: none; -ms-overflow-style: none; }
 	shu-virtual-column lit-virtualizer::-webkit-scrollbar { width: 0; height: 0; }
-	/* Serving as a column's spine: the rail takes the strip's height, caches its own width, and stays flush against the
-	   column's edge: the same width at the same place as when the column is open, so collapsing does not move it. */
 	shu-virtual-column[spine] .spine-rail { display: flex; flex: 1; min-height: 0; justify-content: flex-end; }
 `;
 

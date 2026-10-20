@@ -61,9 +61,12 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 
 	static styles = [
 		shuBaseStyles,
+		// It shares the corner popover with the level control, so it takes only the room it needs: a section a reader opens
+		// scrolls within the panel rather than growing it past what is behind it.
+		// The level reads on one line with what it bounds, since it is the first thing this panel shows.
+		// An alert a reader cannot miss: the accent as its ground rather than its text, so it reads as a state of the panel and
+		// not another line in it.
 		css`
-		/* It shares the corner popover with the level control, so it takes only the room it needs: a section a
-		   reader opens scrolls within the panel rather than growing it past what is behind it. */
 		:host { display: block; color: var(--shu-fg); font-size: var(--shu-font-sm); width: 20rem; max-width: 100%; max-height: 40vh; overflow-y: auto; user-select: text; }
 		h3 { font-size: var(--shu-font-sm); margin: var(--shu-space-2) 0 var(--shu-space-1); }
 		ul { margin: 0; padding-left: var(--shu-space-4); }
@@ -71,11 +74,8 @@ export class ShuPermissions extends ShuElement<typeof PermissionsSchema> {
 		.holds { list-style: none; padding-left: 0; }
 		.action { border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); padding: 0 var(--shu-space-2); font: inherit; font-size: var(--shu-font-sm); color: inherit; background: none; cursor: pointer; }
 		.action:hover { background: var(--shu-bg-hover); }
-		/* The level reads on one line with what it bounds, since it is the first thing this panel shows. */
 		.level { display: flex; align-items: center; gap: var(--shu-space-2); }
 		.level label { color: var(--shu-fg-muted); }
-		/* An alert a reader cannot miss: the accent as its ground rather than its text, so it reads as a state of the
-		   panel and not another line in it. */
 		.awaiting-row { display: flex; align-items: center; gap: var(--shu-space-2); margin-top: var(--shu-space-2); padding: var(--shu-space-2) var(--shu-space-3); border-radius: var(--shu-radius); background: var(--shu-accent); color: var(--shu-bg); font-weight: 600; }
 		.awaiting-row .awaiting-count { font-size: 1.2em; }
 		.awaiting-row shu-ref { --shu-accent: var(--shu-bg); }

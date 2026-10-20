@@ -69,22 +69,27 @@ export class ShuScrollbar extends ShuElement<typeof EmptyStateSchema> {
 
 	static styles = [
 		shuBaseStyles,
+		// The rail takes the WHOLE width of the control, because that is the target at which a reader aims: a 14px track requires
+		// a precision a reader shouldn't need, least of all in a collapsed column where this is the only control there is. What is
+		// drawn stays narrow, the track below is the visible band, while every pixel across is live.
+		// The in-view thumb needs clear contrast against the rail track so the reader sees where they are at a glance.
+		// Above the marks, so a press on the thumb is a drag: the marks come after it in the DOM and would otherwise take it,
+		// which on a densely marked rail means the thumb can barely be grabbed at all. Translucent so the marks it covers still
+		// show through: they are the rows on screen, and the reader should still see what is among them.
+		// A LINE ACROSS the rail, not a block on it. Everything else here is a block: the thumb is a bar down the track, every
+		// event is a chip on it, so a cursor drawn as one more block reads as one more of them however it is coloured. Crossing
+		// the rail is a shape the other marks don't use, which is what makes it findable at a glance down a dense rail, and it is
+		// drawn above the marks so a chip can never hide it. The caret at the left end gives the line a definite anchor, and the
+		// shadow keeps both readable where they cross a bright chip.
 		css`
 			:host { display: flex; flex-direction: column; align-items: center; width: var(--shu-scrollbar-w); flex-shrink: 0; user-select: none; touch-action: none; }
 			.pos { font-size: var(--shu-font-sm); color: var(--shu-fg-muted); padding: var(--shu-space-1) 0; line-height: 1; font-weight: 500; font-variant-numeric: tabular-nums; cursor: pointer; min-height: 1em; }
 			.pos-bottom { margin-top: auto; }
-			/* The rail takes the WHOLE width of the control, because that is the target at which a reader aims: a 14px track requires
-			   a precision a reader shouldn't need, least of all in a collapsed column where this is the only control there
-			   is. What is drawn stays narrow, the track below is the visible band, while every pixel across is live. */
 			.rail { position: relative; flex: 1; width: 100%; cursor: pointer; }
 			.track {
 				position: absolute; top: 0; bottom: 0; left: 50%; transform: translateX(-50%);
 				width: var(--shu-rail-track-w); background: var(--shu-bg-input); border-radius: var(--shu-radius); pointer-events: none;
 			}
-			/* The in-view thumb needs clear contrast against the rail track so the reader sees where they are at a glance. */
-			/* Above the marks, so a press on the thumb is a drag: the marks come after it in the DOM and would otherwise take
-			   it, which on a densely marked rail means the thumb can barely be grabbed at all. Translucent so the marks it
-			   covers still show through: they are the rows on screen, and the reader should still see what is among them. */
 			.thumb {
 				position: absolute; left: 50%; transform: translateX(-50%); width: var(--shu-rail-track-w);
 				background: var(--shu-fg-muted); min-height: 16px; border-radius: var(--shu-radius); cursor: grab;
@@ -92,11 +97,6 @@ export class ShuScrollbar extends ShuElement<typeof EmptyStateSchema> {
 			}
 			.thumb:hover { background: var(--shu-fg); opacity: 0.8; }
 			.thumb:active { cursor: grabbing; }
-			/* A LINE ACROSS the rail, not a block on it. Everything else here is a block: the thumb is a bar down the
-			   track, every event is a chip on it, so a cursor drawn as one more block reads as one more of them however
-			   it is coloured. Crossing the rail is a shape the other marks don't use, which is what makes it findable at a glance
-			   down a dense rail, and it is drawn above the marks so a chip can never hide it. The caret at the left end gives
-			   the line a definite anchor, and the shadow keeps both readable where they cross a bright chip. */
 			.cursor {
 				position: absolute; left: 0; right: 0;
 				height: 0; transform: translateY(-50%); pointer-events: none; z-index: 3;

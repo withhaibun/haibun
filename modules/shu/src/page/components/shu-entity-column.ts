@@ -97,11 +97,23 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	static styles = [
 		shuBaseStyles,
 		shuIconButtonStyles,
+		// A statement about where the view came from, not a control: it doesn't have a border, background or radius, which read as
+		// a button.
+		// The view-settings surface shows only when the pane's ⚙ controls toggle is on (sets data-show-controls), like the
+		// document column.
+		// The annotate toggle is a pane-icon (min/max/pin/settings look; aria-pressed = the accent-fill highlight the pane toggles
+		// use). The pencil glyph reads greyscale until the record carries annotations, then colour, so annotation presence is
+		// visible independently of whether the gutter is currently open.
+		// The field table collapsed behind a disclosure: the summary line names how many fields it holds, and the table opens on
+		// demand. A reader reads the summary first and opens the table when a field is the question.
+		// A reference group collapsed the same way: the first few targets stay visible, and the rest open on demand.
+		// Provenance mark (from the served @context): a standard/consumer vocabulary shows its prefix; haibun's own reads faint.
+		// Locally-rendered (black-on-white) bodies invert in dark themes so they read natively; a text/html body is the original
+		// document with its own colours and never inverts (see renderContentIframe).
 		css`
 		:host { display: flex; flex-direction: column; height: 100%; overflow: auto; padding: var(--shu-space-3) var(--shu-space-4); font-family: inherit; color: var(--shu-fg); }
 		.entity-content { display: flex; flex-direction: column; flex: 1; min-height: 0; }
 		.entity-header { padding: var(--shu-space-2) 0; }
-		/* A statement about where the view came from, not a control: it doesn't have a border, background or radius, which read as a button. */
 		.entity-from-store { align-self: flex-start; margin-bottom: var(--shu-space-1); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); }
 		.body-reading { padding: var(--shu-space-3); color: var(--shu-fg-muted); font-style: italic; }
 		.entity-type { font-weight: 600; color: var(--shu-accent); font-size: 0.85em; letter-spacing: 0.5px; margin-right: var(--shu-space-4); }
@@ -117,13 +129,9 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		.role-phrase { color: var(--shu-fg-muted); min-width: 90px; }
 		.ref-count { color: var(--shu-fg-faded); }
 		.entity-detail { margin: var(--shu-space-1) 0; font-size: 0.9em; }
-		/* The view-settings surface shows only when the pane's ⚙ controls toggle is on (sets data-show-controls), like the document column. */
 		.entity-controls { padding: var(--shu-space-1) 0 var(--shu-space-2); border-bottom: var(--shu-border-w) solid var(--shu-border); margin-bottom: var(--shu-space-2); }
 		:host(:not([data-show-controls])) .entity-controls { display: none; }
 		.annotation-toggle { display: flex; gap: var(--shu-space-2); align-items: center; color: var(--shu-fg-muted); font-size: var(--shu-font-sm); cursor: pointer; }
-		/* The annotate toggle is a pane-icon (min/max/pin/settings look; aria-pressed = the accent-fill highlight the pane
-		 * toggles use). The pencil glyph reads greyscale until the record carries annotations, then colour, so annotation
-		 * presence is visible independently of whether the gutter is currently open. */
 		.annotate-enter .anno-glyph { display: inline-flex; color: var(--shu-fg-muted); opacity: 0.75; transition: color 0.15s, opacity 0.15s; }
 		.annotate-enter.has-annotations .anno-glyph { color: var(--shu-accent); opacity: 1; }
 		.content-toolbar { display: flex; gap: var(--shu-space-2); padding: var(--shu-space-1) 0; align-items: center; }
@@ -134,25 +142,19 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 		.detail-table { width: 100%; border-collapse: collapse; }
 		.detail-table td { padding: 1px var(--shu-space-2); vertical-align: top; overflow-wrap: anywhere; }
 		.fields-table { margin: var(--shu-space-1) 0 var(--shu-space-2); }
-		/* The field table collapsed behind a disclosure: the summary line names how many fields it holds, and the table
-		   opens on demand. A reader reads the summary first and opens the table when a field is the question. */
 		.fields-disclosure { margin: var(--shu-space-1) 0 var(--shu-space-2); }
 		.fields-disclosure > summary { color: var(--shu-fg-muted); font-size: 0.85em; cursor: pointer; padding: 2px 0; list-style-position: inside; }
 		.fields-disclosure[open] > summary { margin-bottom: var(--shu-space-1); }
-		/* A reference group collapsed the same way: the first few targets stay visible, and the rest open on demand. */
 		.ref-more > summary { color: var(--shu-fg-faded); font-size: 0.85em; cursor: pointer; }
 		.field-json { margin: 0; padding: var(--shu-space-2); background: var(--shu-bg-soft); border-radius: var(--shu-radius); font-size: 0.8em; white-space: pre-wrap; word-break: break-word; overflow-x: auto; }
 		.literal-body { margin: var(--shu-space-2) 0 0; padding: var(--shu-space-2); background: var(--shu-bg-soft); border-radius: var(--shu-radius); white-space: pre-wrap; word-break: break-word; overflow-x: auto; }
 		.field-name { white-space: nowrap; color: var(--shu-fg-faded); width: 80px; font-size: 0.85em; }
-		/* Provenance mark (from the served @context): a standard/consumer vocabulary shows its prefix; haibun's own reads faint. */
 		.vocab { font-size: 0.7em; margin-left: 2px; padding: 0 2px; border-radius: 2px; vertical-align: super; }
 		.vocab-standard { color: var(--shu-accent); background: var(--shu-accent-soft); }
 		.vocab-haibun { color: var(--shu-fg-faded); }
 		.body-container { display: flex; flex-direction: column; flex: 1; min-height: 200px; }
 		.body-iframe { width: 100%; height: 100%; min-height: 200px; border: none; background: #fff; }
 		.body-refs { padding: var(--shu-space-2) 0; font-size: var(--shu-font-sm); }
-		/* Locally-rendered (black-on-white) bodies invert in dark themes so they read natively; a text/html body is
-		   the original document with its own colours and never inverts (see renderContentIframe). */
 		.body-iframe.invertible { filter: invert(var(--shu-invert, 0)) hue-rotate(calc(var(--shu-invert, 0) * 180deg)); }
 		.loading, .empty { color: var(--shu-fg-faded); padding: var(--shu-space-4); }
 		`,

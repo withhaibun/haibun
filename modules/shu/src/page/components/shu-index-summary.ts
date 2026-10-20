@@ -38,8 +38,8 @@ export class ShuIndexSummary extends ShuElement<typeof EmptyStateSchema> {
 
 	static styles = [
 		shuBaseStyles,
+		// Down the strip, the same turn the pane gives its label, so the summary reads as a continuation of it.
 		css`
-		/* Down the strip, the same turn the pane gives its label, so the summary reads as a continuation of it. */
 		:host {
 			display: block; writing-mode: vertical-lr; text-orientation: mixed;
 			padding: var(--shu-space-2) 0;

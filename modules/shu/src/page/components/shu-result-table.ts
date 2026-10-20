@@ -55,15 +55,15 @@ export class ShuResultTable extends ShuElement<typeof ResultTableSchema> {
 	static styles = [
 		shuBaseStyles,
 		virtualColumnCss,
+		// Columns keep a readable width instead of being squeezed to fit: past the column's width the table scrolls sideways,
+		// header and rows together, since both take the grid's natural width.
+		// Header and every row share one grid template (one track per visible column) so columns line up; the header reserves the
+		// scrollbar's width on the right so its tracks match the virtualized rows' width.
 		css`
 			:host { display: flex; flex-direction: column; height: 100%; overflow: hidden; position: relative; }
 			.results-wrapper { display: flex; flex: 1; min-height: 0; }
-			/* Columns keep a readable width instead of being squeezed to fit: past the column's width the table scrolls
-			   sideways, header and rows together, since both take the grid's natural width. */
 			.results-area { flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0; overflow-x: auto; }
 			.grid-header, shu-virtual-column { min-width: max-content; }
-			/* Header and every row share one grid template (one track per visible column) so columns line up; the header
-			   reserves the scrollbar's width on the right so its tracks match the virtualized rows' width. */
 			.grid-header, .clickable-row { display: grid; grid-template-columns: var(--result-cols, 1fr); align-items: center; }
 			.grid-header { margin-right: var(--shu-scrollbar-w); background: var(--shu-bg-soft); flex-shrink: 0; }
 			.grid-header > .th {

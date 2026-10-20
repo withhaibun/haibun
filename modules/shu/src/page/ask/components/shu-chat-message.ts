@@ -25,10 +25,12 @@ import { proseText, renderRefAnswer, renderRefProse } from "../../derivations/ma
 
 /** Styles for a light-DOM chat message, exported for the shadow scope that hosts the activity history: the message
  *  renders in light DOM, so the scope that contains it declares the rules. */
+// The message the reader is on: the same mark a page gives the current item of any list.
+// The records the question carries, each a link to its record or type.
+// What the turn was made of, each closed until a reader opens it: the context it sent, and the calls it made.
 export const chatMessageStyles = css`
 	shu-chat-message { display: block; }
 	shu-chat-message .msg { cursor: pointer; }
-	/* The message the reader is on: the same mark a page gives the current item of any list. */
 	shu-chat-message[aria-current="true"] .msg { outline: 1px solid var(--shu-accent); outline-offset: 2px; border-radius: var(--shu-radius); }
 	shu-chat-message .msg { display: grid; grid-template-columns: var(--shu-space-6) 1fr; }
 	shu-chat-message .msg-label {
@@ -40,7 +42,6 @@ export const chatMessageStyles = css`
 	shu-chat-message[data-role="llm"] { background: var(--shu-bg-soft); }
 	shu-chat-message .msg-content { min-width: 0; padding: var(--shu-space-2) var(--shu-space-3); }
 	shu-chat-message .chat-prompt { font-weight: 600; padding: var(--shu-space-1) 0; white-space: pre-wrap; }
-	/* The records the question carries, each a link to its record or type. */
 	shu-chat-message .chat-carries { display: flex; flex-wrap: wrap; gap: var(--shu-space-2); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); }
 	shu-chat-message .chat-text { font-size: inherit; overflow-wrap: break-word; word-break: break-word; }
 	shu-chat-message .chat-text p { margin: var(--shu-space-2) 0; }
@@ -51,7 +52,6 @@ export const chatMessageStyles = css`
 	}
 	shu-chat-message .chat-text pre { padding: var(--shu-space-2) var(--shu-space-3); overflow-x: auto; }
 	shu-chat-message .chat-error { color: var(--shu-error); font-size: inherit; white-space: pre-wrap; padding: var(--shu-space-2) 0; }
-	/* What the turn was made of, each closed until a reader opens it: the context it sent, and the calls it made. */
 	shu-chat-message .chat-made-of { font-size: var(--shu-font-sm); color: var(--shu-fg-muted); }
 	shu-chat-message .chat-made-of summary { cursor: pointer; }
 	shu-chat-message .chat-made-of ol { margin: var(--shu-space-1) 0; padding-inline-start: var(--shu-space-4); }

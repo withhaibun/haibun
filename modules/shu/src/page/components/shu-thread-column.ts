@@ -69,6 +69,9 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 
 	static styles = [
 		shuBaseStyles,
+		// The item's @type, so a mixed thread (a Comment replying to a File, etc.) reads its kinds at a glance.
+		// The badge's background is a THEME surface, not a type-colour swatch, so its text is the ordinary foreground: the swatch
+		// colour is dark in both themes and would be dark-on-dark here.
 		css`
 			:host { display: flex; flex-direction: column; height: 100%; overflow: hidden; font-family: var(--shu-font-family); font-size: var(--shu-font-md); }
 			.toolbar { display: flex; gap: var(--shu-space-3); align-items: center; padding: var(--shu-space-2) var(--shu-space-4); flex: 0 0 auto; font-size: var(--shu-font-md);
@@ -83,9 +86,6 @@ export class ShuThreadColumn extends ShuElement<typeof ThreadColumnSchema> {
 				border: var(--shu-border-w) solid var(--shu-border); }
 			.thread-card:hover { background: var(--shu-bg-hover); border-color: var(--shu-border-strong); }
 			.thread-card.current { background: var(--shu-accent-soft); border-color: var(--shu-accent); }
-			/* The item's @type, so a mixed thread (a Comment replying to a File, etc.) reads its kinds at a glance. */
-			/* The badge's background is a THEME surface, not a type-colour swatch, so its text is the ordinary foreground:
-			   the swatch colour is dark in both themes and would be dark-on-dark here. */
 			.thread-card .type-badge { display: inline-block; font-size: var(--shu-font-sm); color: var(--shu-fg); background: var(--shu-bg-soft); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); padding: 0 var(--shu-space-2); margin-bottom: var(--shu-space-1); }
 			.thread-card .meta { display: flex; gap: var(--shu-space-4); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); }
 			.thread-card .sender { color: var(--shu-fg); font-weight: 500; }
