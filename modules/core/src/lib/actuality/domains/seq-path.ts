@@ -234,15 +234,9 @@ export const SEQ_PATH_FIELD = {
 	attributedTo: "attributedTo",
 	/** The delegation the call was made under, where its caller states one. */
 	delegation: "delegation",
-	/** The SHA-256 of each part of what a level depends on, by the part's name: on the actuality's record, each dependency root
-	 *  of its features by its path in its repository, and on a scenario's record, its declared lines. */
+	/** A level's digests as JSON text (digest.ts): the actuality's of each dependency root, and a scenario's of its declared lines. */
 	digest: "digest",
 } as const;
-
-export const DigestSchema = z.record(z.string(), z.string());
-export type TDigest = z.infer<typeof DigestSchema>;
-/** The part of a scenario's digest that holds its declared lines. */
-export const DECLARED_LINES = "lines";
 
 /** The declared level of a SeqPath record. A call that a read ceiling bounds writes its record at that ceiling. */
 export const SEQ_PATH_ACCESS = Access.private;
@@ -294,7 +288,7 @@ export const SeqPathSchema = PersistedVertexSchema.extend({
 	[SEQ_PATH_FIELD.result]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.attributedTo]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.delegation]: OPTIONAL_TEXT,
-	[SEQ_PATH_FIELD.digest]: DigestSchema.optional(),
+	[SEQ_PATH_FIELD.digest]: OPTIONAL_TEXT,
 	// A store that writes an edge for each edge field the schema declares writes the ask as an edge, so a read of the records
 	// that reply to an ask selects them.
 	[SEQ_PATH_EDGE.askedIn]: OPTIONAL_TEXT,
@@ -382,7 +376,8 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 			[SEQ_PATH_FIELD.attributedTo]: LinkRelations.ATTRIBUTED_TO.rel,
 			// Grouped-as, so the type offers "the calls made under this delegation" as a filter.
 			[SEQ_PATH_FIELD.delegation]: LinkRelations.CONTEXT.rel,
-			[SEQ_PATH_FIELD.digest]: LinkRelations.DIGEST.rel,
+			// Grouped-as, so the type offers the records of one state as a filter, such as the scenarios that declare the same lines.
+			[SEQ_PATH_FIELD.digest]: LinkRelations.CONTEXT.rel,
 		},
 		edges: {
 			[SEQ_PATH_EDGE.isPartOf]: { rel: LinkRelations.PART_OF.rel, range: SEQ_PATH_LABEL },

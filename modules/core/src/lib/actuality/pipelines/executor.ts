@@ -21,7 +21,7 @@ import { doStepperCycle, doStepperCycleSync } from "../../steps/pipelines/steppe
 import { calculateShouldClose, executionFailure, scenarioDigest, staysAfterExecution } from "../derivations/execution-end.js";
 import { executionEvent, featureEvent, scenarioEvent } from "../derivations/lifecycle-events.js";
 import { moveActuality } from "./move-actuality.js";
-import { SEQ_PATH_FIELD } from "../domains/seq-path.js";
+import { digestFields } from "../../domains/digest.js";
 
 /**
  * Releases the payloads of a finished feature's passing steps. A reader reads a passing step's products and artifact while
@@ -94,8 +94,7 @@ export class Executor {
 			}),
 		);
 
-		const heading = [...new Set(features.map((feature) => feature.base))].join(", ");
-		await moveActuality(world, executionEvent({ stage: "start" }, world.clock.now(), heading), world.runtime.digest && { [SEQ_PATH_FIELD.digest]: world.runtime.digest });
+		await moveActuality(world, executionEvent({ stage: "start" }, world.clock.now(), [...new Set(features.map((f) => f.base))].join(", ")), digestFields(world.runtime.digest));
 		await doStepperCycle(steppers, "startExecution", features);
 		let okSoFar = true;
 		const featureResults: TFeatureResult[] = [];
@@ -207,7 +206,7 @@ export class FeatureExecutor {
 				ordinal = ordinal + 1;
 				running = { ordinal, name: step.in.replace(/^\w+:\s*/, "") };
 				const started = scenarioEvent(featureNum, running.ordinal, running.name, { stage: "start" }, world.clock.now());
-				await moveActuality(world, started, { [SEQ_PATH_FIELD.digest]: scenarioDigest(feature.featureSteps, at) });
+				await moveActuality(world, started, digestFields(scenarioDigest(feature.featureSteps, at)));
 				await doStepperCycle(this.steppers, "startScenario", { scopedVars: new FeatureVariables(world, await world.shared.carried()) });
 			}
 

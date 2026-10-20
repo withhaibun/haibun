@@ -8,7 +8,8 @@ import { passWithDefaults, failWithDefaults } from "../../test/lib.js";
 import { scenarioEventId } from "../derivations/lifecycle-events.js";
 import { equalTo, readEvery } from "../../records/pipelines/record-reads.js";
 import { SEQ_PATH_LABEL } from "../../domains/resources.js";
-import { DECLARED_LINES, SEQ_PATH_EDGE, SEQ_PATH_FIELD } from "../domains/seq-path.js";
+import { SEQ_PATH_EDGE, SEQ_PATH_FIELD } from "../domains/seq-path.js";
+import { DECLARED_LINES } from "../../domains/digest.js";
 import { RECORDED_STATUS, TEST_BASE } from "../../domains/protocol.js";
 import { AStepper } from "../../steps/domains/stepper.js";
 import { actionNotOK, actionOK } from "../../domains/util.js";
@@ -154,7 +155,7 @@ describe("the digest of a scenario's declared lines", () => {
 
 	it("is the same for the same declared lines, and differs for the scenario whose line changes", async () => {
 		const [a, b] = await digestsOf('Scenario: "a"\nnote "one"\nScenario: "b"\nnote "two"');
-		expect(a).toEqual({ [DECLARED_LINES]: expect.stringMatching(/^[0-9a-f]{64}$/) });
+		expect(JSON.parse(String(a))).toEqual({ [DECLARED_LINES]: expect.stringMatching(/^[0-9a-f]{64}$/) });
 		expect(await digestsOf('Scenario: "a"\nnote "one"\nScenario: "b"\nnote "two"')).toEqual([a, b]);
 		const [changedA, changedB] = await digestsOf('Scenario: "a"\nnote "one"\nScenario: "b"\nnote "three"');
 		expect([changedA, changedB === b], "b's line changed").toEqual([a, false]);

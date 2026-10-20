@@ -18,10 +18,10 @@ import type { TSpecl } from "@haibun/core/lib/execution.js";
 import type { TRunPolicyConfig } from "@haibun/core/run-policy/domains/run-policy.js";
 import { RECORDED_STATUS, type TExecutorResult } from "@haibun/core/lib/domains/protocol.js";
 import { ACTUALITIES_FILE, dependencyRoots, dependencyState, repositoryTop } from "@haibun/core/lib/adapters/dependency-state.js";
-import { DigestSchema, SEQ_PATH_FIELD, StepLineSchema, stepLine, type TDigest } from "@haibun/core/lib/seq-path.js";
+import { SEQ_PATH_FIELD, StepLineSchema, stepLine } from "@haibun/core/lib/seq-path.js";
 import type { TLevelRecords } from "@haibun/core/lib/actuality/pipelines/move-actuality.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
-import { sha256 } from "@haibun/core/lib/domains/sha256.js";
+import { DigestSchema, DigestTextSchema, sha256, type TDigest } from "@haibun/core/lib/domains/digest.js";
 
 /** How a group ran, as the file stores it: every feature passed, or one didn't. */
 export type TGroupEnded = typeof RECORDED_STATUS.completed | typeof RECORDED_STATUS.failed;
@@ -150,7 +150,7 @@ export function outcomeAgainst(v: TVerification): TGroupEnded | undefined {
 function levelLine(record: Record<string, unknown>) {
 	const { began: _began, ended: _ended, tookMs, ...line } = stepLine(record);
 	if (tookMs === undefined) throw new Error(`the level ${record[SEQ_PATH_FIELD.id]} didn't end, and an actuality records itself once its levels have ended`);
-	return { ...line, tookMs: Math.round(tookMs / 100) * 100, digest: DigestSchema.optional().parse(record[SEQ_PATH_FIELD.digest]) };
+	return { ...line, tookMs: Math.round(tookMs / 100) * 100, digest: DigestTextSchema.optional().parse(record[SEQ_PATH_FIELD.digest]) };
 }
 
 /** Returns an actuality's entry: the lines of its own record and of each feature's record by its path, with the feature's

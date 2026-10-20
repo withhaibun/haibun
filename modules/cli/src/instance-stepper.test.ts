@@ -29,6 +29,7 @@ import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { SEQ_PATH_EDGE, SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
 import { RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
+import { digestFields } from "@haibun/core/lib/domains/digest.js";
 import type { ChildProcess } from "child_process";
 import { EventEmitter } from "node:events";
 
@@ -49,7 +50,7 @@ const recordOutcome = (v: Parameters<typeof recordActuality>[0], status: string)
 					actualityLevel: "execution",
 					generatedAtTime: new Date(0).toISOString(),
 					endedAtTime: new Date(1).toISOString(),
-					digest: v.digest,
+					...digestFields(v.digest),
 				},
 			],
 		]),

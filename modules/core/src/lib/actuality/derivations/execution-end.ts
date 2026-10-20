@@ -4,8 +4,7 @@
  */
 import { HEADINGS, STAY_ALWAYS, STAY_FAILURE, type TExecutorResult, type TFeatureResult } from "../../domains/protocol.js";
 import type { TFeatureStep } from "../../steps/domains/stepper.js";
-import { DECLARED_LINES, type TDigest } from "../domains/seq-path.js";
-import { sha256 } from "../../domains/sha256.js";
+import { DECLARED_LINES, sha256, type TDigest } from "../../domains/digest.js";
 
 /** Returns whether actuality keeps serving after its features end. `HAIBUN_STAY` selects always or only after a failure. */
 export function staysAfterExecution(stay: unknown, ok: boolean): boolean {

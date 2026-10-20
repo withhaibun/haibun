@@ -12,7 +12,7 @@ import type { TFeature } from "./execution.js";
 import type { AStepper } from "../../steps/domains/stepper.js";
 import type { TActualityMachine } from "../machines/actuality.js";
 import type { TLevelRecords } from "../pipelines/move-actuality.js";
-import type { TDigest } from "./seq-path.js";
+import type { TDigest } from "../../domains/digest.js";
 import type { TClock, TProver } from "../ports.js";
 
 export type TWorld = {

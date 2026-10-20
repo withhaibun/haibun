@@ -19,8 +19,7 @@ import path from "node:path";
 import type { TSpecl } from "../actuality/domains/execution.js";
 import { getModuleLocation } from "./workspace-lib.js";
 import { itemAt } from "../domains/item-at.js";
-import type { TDigest } from "../actuality/domains/seq-path.js";
-import { sha256 } from "../domains/sha256.js";
+import { sha256, type TDigest } from "../domains/digest.js";
 
 /** The name of the file that records a group's actualities: the state each read, and the outcome and duration of each of its
  *  levels. The file is written beside the group's configuration. The state excludes every file with this name, because an

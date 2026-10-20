@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import { ACTUALITIES_FILE } from "@haibun/core/lib/adapters/dependency-state.js";
 import { RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
+import { digestFields } from "@haibun/core/lib/domains/digest.js";
 import { forgetOutcome, forgetOutcomes, machineKey, outcomeAgainst, recordActuality, actualityConditions, varianceLine, verificationOf } from "./actualities.js";
 
 /** Creates a group of features and a library in its own git repository. The group doesn't load steppers, so its only
@@ -51,7 +52,7 @@ const level = (actualityLevel: string, id: string, stepText: string, status: str
 /** Records an actuality of features, each by its path and how long it took, whose own record states the digests `v` read,
  *  and returns the features whose durations differ. */
 function recordFeatures(v: ReturnType<typeof verified>, status: string, features: Record<string, number>) {
-	const levels = new Map<string, Record<string, unknown>>([["execution", level("execution", "1-0", "tests", status, 9000, { digest: v.digest })]]);
+	const levels = new Map<string, Record<string, unknown>>([["execution", level("execution", "1-0", "tests", status, 9000, digestFields(v.digest))]]);
 	const featureResults = Object.entries(features).map(([featurePath, ms], at) => {
 		levels.set(`feat-${at + 1}`, level("feature", `1-${at + 1}.0.${at + 1}.0`, featurePath, status, ms, { path: featurePath }));
 		return { path: featurePath, ok: true, steps: { count: 2 }, stepResults: [], pending: [] };
