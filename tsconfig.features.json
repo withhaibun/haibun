@@ -12,6 +12,6 @@
 		"lib": ["es2022", "DOM"],
 		"paths": {}
 	},
-	"include": ["e2e-tests/*/features/**/*.ts", "e2e-tests/*/backgrounds/**/*.ts", "modules/*/tests*/**/*.ts", "modules/*/test/**/*.feature.ts"],
+	"include": ["e2e-tests/*/features/**/*.ts", "e2e-tests/*/backgrounds/**/*.ts", "modules/*/tests*/**/*.ts", "modules/*/waypoints/**/*.ts", "modules/*/test/**/*.feature.ts"],
 	"exclude": ["**/node_modules/**", "**/build/**", "**/capture/**"]
 }

@@ -1,6 +1,20 @@
 import { describe, it, expect } from "vitest";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
-import { thumbHeightPx, thumbTopPx, firstAtPointer, markerTopPx, clusterMarkers, pressTarget, indexAtMarkerPx, MARK_SNAP_PX, MARK_INSET_PX, type TScrollMarker } from "./rail.js";
+import {
+	thumbHeightPx,
+	thumbTopPx,
+	firstAtPointer,
+	markerTopPx,
+	clusterMarkers,
+	pressTarget,
+	indexAtMarkerPx,
+	railPosition,
+	viewportShare,
+	MARK_SNAP_PX,
+	MARK_INSET_PX,
+	RAIL_POSITION_MAX,
+	type TScrollMarker,
+} from "./rail.js";
 
 const RAIL = 400;
 /** A representative thumb height: geometry below takes it as a pixel input, whatever produced it. */
@@ -33,6 +47,41 @@ describe("thumb size and position", () => {
 		expect(markerTopPx(0, total, RAIL)).toBeLessThan(MARK_INSET_PX + 1);
 		expect(markerTopPx(total - 1, total, RAIL), "the last row reaches the foot of the rail").toBeGreaterThan(RAIL - MARK_INSET_PX - 1);
 		expect(thumbTopPx(total, { first: 0, visible: 30 }, RAIL, 40), "while the thumb keeps its own scale").toBe(0);
+	});
+});
+
+describe("the thumb's size across a scroll", () => {
+	// A column of a screen of prose and a screen of screenshots: the share is the scroller's own pixels, so how many rows a
+	// screen holds doesn't size the thumb.
+	const SCREEN = 600;
+	const COLUMN = 7_300;
+
+	it("is the viewport's share of the column's pixels, whatever rows are on screen", () => {
+		expect(viewportShare(SCREEN, COLUMN)).toBeCloseTo(SCREEN / COLUMN, 2);
+	});
+
+	it("holds while the column's estimated height is revised by less than a step, so the thumb doesn't resize as a reader scrolls", () => {
+		expect(viewportShare(SCREEN, COLUMN + 4)).toBe(viewportShare(SCREEN, COLUMN));
+	});
+
+	it("follows a revision large enough to move the thumb", () => {
+		expect(viewportShare(SCREEN, COLUMN * 2)).not.toBe(viewportShare(SCREEN, COLUMN));
+	});
+
+	it("is undefined for an empty column, whose thumb fills the rail", () => {
+		expect(viewportShare(SCREEN, 0)).toBeUndefined();
+	});
+});
+
+describe("the position the rail states to assistive technology", () => {
+	it("is 0 at the first window and the maximum only where the window holds the last row", () => {
+		expect(railPosition(231, { first: 0, visible: 20 })).toBe(0);
+		expect(railPosition(231, { first: 210, visible: 20 })).toBeLessThan(RAIL_POSITION_MAX);
+		expect(railPosition(231, { first: 211, visible: 20 })).toBe(RAIL_POSITION_MAX);
+	});
+
+	it("is 0 where every row is in the window", () => {
+		expect(railPosition(10, { first: 0, visible: 20 })).toBe(0);
 	});
 });
 

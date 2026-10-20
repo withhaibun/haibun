@@ -5,7 +5,8 @@ import { sourceDirectoryOf, workspacePackages } from "@haibun/core/lib/test/repo
 
 export const REPOSITORY = join(import.meta.dirname, "..");
 const MODULES = "modules";
-const FEATURES = /^tests/;
+/** A module's feature directories: its test groups, and the backgrounds of the waypoints it holds for other groups. */
+const FEATURES = /^(tests|waypoints)/;
 
 const directoriesIn = (path: string): string[] =>
 	readdirSync(join(REPOSITORY, path), { withFileTypes: true })

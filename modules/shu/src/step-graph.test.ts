@@ -15,9 +15,7 @@ import ClientCacheStepper from "./client-cache-stepper.js";
 import ShuActivityHistoryControls from "./controls/activity-history-controls-stepper.js";
 import ShuColumnStripControls from "./controls/column-strip-controls-stepper.js";
 import ShuGraphQueryControls from "./controls/graph-query-controls-stepper.js";
-import ShuMonitorColumnControls from "./controls/monitor-controls-stepper.js";
 import ShuPolymorphicGraphViewControls from "./controls/polymorphic-controls-stepper.js";
-import ShuScrollbarControls from "./controls/scrollbar-controls-stepper.js";
 import GraphSourceStepper from "./graph-source-stepper.js";
 import MonitorStepper from "./monitor-stepper.js";
 import ShuStepper from "./shu-stepper.js";
@@ -30,9 +28,7 @@ describe("the typed step graph of shu's steppers", () => {
 				ShuActivityHistoryControls,
 				ShuColumnStripControls,
 				ShuGraphQueryControls,
-				ShuMonitorColumnControls,
 				ShuPolymorphicGraphViewControls,
-				ShuScrollbarControls,
 				GraphSourceStepper,
 				MonitorStepper,
 				ShuStepper,

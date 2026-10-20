@@ -30,16 +30,12 @@ import { VIEW_THUMB_BLIP, VIEW_SCROLL_BLIP, VIEW_WINDOW_BLIP, READER_INPUT_WINDO
 import { SCROLL_TO_INDEX } from "./shu-scrollbar.js";
 import type { WindowedSource } from "../derivations/windowed-source.js";
 import type { TScrollMarker, TWindow } from "../derivations/rail.js";
-import { visibleWindow, convergeTarget } from "../derivations/rail.js";
+import { visibleWindow, convergeTarget, lastShownRow, viewportShare } from "../derivations/rail.js";
 import { ScrollFollowController } from "../controllers/scroll-follow-controller.js";
 import { FOLLOW_EDGE_SLACK_PX } from "../domains/scroll-follow.js";
 
 /** Cap on re-issuing the jump-to-edge as the virtualizer measures its way down to the last row: a handful of passes closes
  *  the height-estimate gap; the bound stops an unreachable target (a row that can't fit) from re-jumping forever. */
-/** Resolution the viewport share is cached at, finer than a pixel on any rail that draws, so the thumb only resizes
- *  when the resize is visible. */
-const FRACTION_STEPS = 512;
-
 const MAX_CONVERGE = 40;
 
 /** Paint one row: the absolute `index` and its data (`undefined` when the source has not fetched it yet, return a
@@ -276,7 +272,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 	#pressedAway = false;
 
 	#onVisibility = (e: VisibilityChangedEvent): void => {
-		this.#window = visibleWindow(e.first, e.last);
+		this.#window = visibleWindow(e.first, e.last < e.first ? e.last : lastShownRow(e.last, this.#rowCount(), (i) => this.source?.rowSize?.(i)));
 		if (this.#wantedFirst !== null) {
 			// Deferred, never called from inside this notification: the virtualizer is mid-update here and the row being
 			// requested may not have an element yet, which throws inside its own scrollIntoView. The follow kit waits for the
@@ -334,7 +330,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 			const { total, window } = railTotalAndWindow(scroller);
 			// Quantised: the virtualizer revises its total-height estimate continuously while a reader scrolls, and a
 			// revision too small to move the thumb a whole pixel must not re-render the rail (the thumb would twitch).
-			const fraction = total > 0 ? Math.round((window.visible / total) * FRACTION_STEPS) / FRACTION_STEPS : undefined;
+			const fraction = viewportShare(window.visible, total);
 			// Every raw movement records, before quantisation determines whether the thumb redraws: the revisions
 			// quantisation absorbs are where a jitter hides. `rendered` marks the ones that reached the screen.
 			const raw = total > 0 ? window.visible / total : undefined;

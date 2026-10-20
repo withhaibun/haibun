@@ -266,6 +266,17 @@ ensure Navigate to mainUrl
 ensure Navigate to haibunUrl
 ```
 
+A module holds waypoints that every group uses in a base of its own, a directory of backgrounds that a group names beside its
+own base, such as `haibun-cli -c tests/config.json tests,../shu/waypoints`. shu's `waypoints` base holds the waypoints of its
+views. Each head names the view whose page it reads by its tag, and each activity calls only web-playwright's steps within
+that view, reading the view's accessible document and the test ids every view shares:
+
+```gherkin
+scroll view "shu-monitor-column" to its end
+view "shu-monitor-column" doesn't show row 1 first
+view "shu-document-column" is scrolled to its end
+```
+
 
 ## Steppers
 

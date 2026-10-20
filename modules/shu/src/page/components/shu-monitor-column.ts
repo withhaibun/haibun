@@ -15,7 +15,7 @@ import "./shu-virtual-column.js";
 import { virtualColumnCss } from "./shu-virtual-column.js";
 import { atLiveEdge, ActualityController, type ActualitySource } from "../client-cache/controllers/actuality-controller.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import { SCROLL_TO_INDEX, type TSeekBy } from "./shu-scrollbar.js";
+import { SCROLL_TO_INDEX, type TSeekBy, type TSeekEdge } from "./shu-scrollbar.js";
 import { SHU_EVENT, SHU_TAG, TIME_SYNC_CLASS } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import type { WindowedSource } from "../derivations/windowed-source.js";
@@ -232,8 +232,11 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	};
 
 	#onRailSeek = (e: Event): void => {
-		const { index, by } = (e as CustomEvent<{ index: number; by: TSeekBy }>).detail;
+		const { index, by, edge } = (e as CustomEvent<{ index: number; by: TSeekBy; edge?: TSeekEdge }>).detail;
 		if (by !== "press") return; // a wheel over the rail is reading, the same as wheeling the rows
+		// The rail's foot is actuality's live end, past the rows the column holds yet, so the cursor leaves any moment and
+		// the column tails again.
+		if (edge === "end") return this.#timeline.movePage(null), this.#onGoLive();
 		const event = typeof index === "number" ? this.#run.rowAt(index) : undefined;
 		if (event) this.#cursorTo((event.timestamp as number) || 0); // a cached row is a moment; a page not yet landed lands first
 	};
@@ -430,7 +433,7 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 				? html`<span class="seqpath">[${r.path.join(".")}] </span>`
 				: "";
 		return html`<div class="log-row${cls}" data-testid=${testId}>
-			<span class="time-group" @click=${this.onTimeClick(r.timestamp)}>${stepPath}<span class="time">${r.time}</span></span>
+			<span class="time-group" data-testid=${SHU_TEST_IDS.TIME_CURSOR.MOMENT} @click=${this.onTimeClick(r.timestamp)}>${stepPath}<span class="time">${r.time}</span></span>
 			<span class="row-content" @click=${this.onRowClick(r)}>${r.status === RECORDED_STATUS.running ? html`<span class="loader"></span>` : html`<span class="icon">${r.icon}</span>`} <span class="step">${r.step}</span> <span class="msg">${r.message}</span>${dispatchText ? html` <span class="dispatch">${dispatchText}</span>` : ""}${capability ? html` <span class="capability${capabilityRefused ? " refused" : ""}" title="capability required to run this step">${capability}</span>` : ""}${produced}</span>
 		</div>`;
 	};

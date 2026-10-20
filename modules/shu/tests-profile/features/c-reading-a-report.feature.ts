@@ -5,14 +5,14 @@ import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import ShuStepper from "@haibun/shu/shu-stepper.js";
 import { SHU_TEST_IDS } from "@haibun/shu/domains/test-ids.js";
 import { flattenTestIds } from "@haibun/shu/test/step-ui.js";
-import ShuMonitorColumnControls from "../../build/controls/monitor-controls-stepper.js";
+import { SHU_TAG } from "@haibun/shu/domains/elements.js";
+import { views } from "../../waypoints/backgrounds/views.feature.ts";
 
 const wp = new WebPlaywright();
 const { waitFor, gotoPage } = withAction(wp);
 const { serveShuApp } = withAction(new ShuStepper());
 const { setAs } = withAction(new VariablesStepper());
 const { feature, scenario } = withAction(new Haibun());
-const { monitorHoldsRows } = withAction(new ShuMonitorColumnControls());
 
 const host = "http://localhost:8241";
 const IDS = SHU_TEST_IDS;
@@ -37,13 +37,13 @@ export const features: TKirejiExport = {
 		"show client cache",
 		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
 		...reportedEvents,
-		monitorHoldsRows({ n: "8" }),
+		views.showsRowContaining(`"${SHU_TAG.MONITOR_COLUMN}"`, '"reportedEvent7"'),
 		`saves shu to "${REPORT}"`,
 
 		"The same page, opened as a file: a site doesn't serve any of its requests, and actuality is still there to read. The views it had open come back with it, and what the page carries is what they read.",
 		gotoPage({ name: `"file://${REPORT}"` }),
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
-		monitorHoldsRows({ n: "8" }),
+		views.showsRowContaining(`"${SHU_TAG.MONITOR_COLUMN}"`, '"reportedEvent7"'),
 		waitFor({ target: IDS.CLIENT_CACHE.ROOT }),
 		`save text from ${IDS.CLIENT_CACHE.ROOT} to reportCache`,
 		'matches reportCache with "*Actualities this device holds*"',

@@ -33,13 +33,33 @@ export function thumbHeightPx(fraction: number, railPx: number): number {
 	return Math.min(railPx, Math.max(MIN_THUMB_PX, Math.round(Math.min(1, Math.max(0, fraction)) * railPx)));
 }
 
+/** Returns how far the window is through the column by row index: 0 at the first window, 1 at the last, and 0 where every
+ *  row is in the window. */
+export function scrollFraction(total: number, win: TWindow): number {
+	const maxFirst = Math.max(0, total - win.visible);
+	return maxFirst === 0 ? 0 : Math.min(1, Math.max(0, win.first / maxFirst));
+}
+
+/** The scale of the position a rail states to assistive technology, from its first window to its last. */
+export const RAIL_POSITION_MAX = 100;
+
+/** Returns the position a rail states to assistive technology: the scroll fraction on a scale of 0 to `RAIL_POSITION_MAX`,
+ *  rounded down, so the rail states its maximum only where the window holds the column's last row. */
+export const railPosition = (total: number, win: TWindow): number => Math.floor(scrollFraction(total, win) * RAIL_POSITION_MAX);
+
+/** The steps the viewport's share of the column is quantised to: finer than a pixel on any rail that draws, so the thumb
+ *  resizes only where the resize is visible. */
+const SHARE_STEPS = 512;
+
+/** Returns the viewport's share of a column `total` pixels long that shows `visible` of them, quantised, so a revision of a
+ *  height estimate too small to move the thumb a whole pixel leaves the share the same; undefined where the column is empty. */
+export const viewportShare = (visible: number, total: number): number | undefined => (total > 0 ? Math.round((visible / total) * SHARE_STEPS) / SHARE_STEPS : undefined);
+
 /** Returns the thumb's top on a `railPx` rail: the scroll fraction by row index, across the travel the thumb's height
  *  leaves. */
 export function thumbTopPx(total: number, win: TWindow, railPx: number, heightPx: number): number {
 	if (total <= 0 || railPx <= 0) return 0;
-	const maxFirst = Math.max(0, total - win.visible);
-	const scrollFrac = maxFirst === 0 ? 0 : Math.min(1, Math.max(0, win.first / maxFirst));
-	return Math.round(scrollFrac * (railPx - heightPx));
+	return Math.round(scrollFraction(total, win) * (railPx - heightPx));
 }
 
 /** Returns the first visible row that a pointer at `pointerPx` from the top of a `railPx` rail selects, within the first
@@ -179,6 +199,14 @@ export function momentAt(fraction: number, span: TActualitySpan, focus: TActuali
  *  renders through it, and `ScrollFollowController` determines whether the column follows the last row. */
 export function visibleWindow(first: number, last: number): TWindow {
 	return { first, visible: Math.max(0, last - first + 1) };
+}
+
+/** Returns the last row a window shows: the last visible row, and each row after it that the source reports as empty. An
+ *  empty row doesn't take room, so a window that shows a row shows the empty rows between it and the next row with content. */
+export function lastShownRow(last: number, count: number, rowSize: (index: number) => number | undefined): number {
+	let shown = last;
+	while (shown + 1 < count && rowSize(shown + 1) === 0) shown++;
+	return shown;
 }
 
 /** The rows between the window's end and the last row above which a move to the last row jumps to it. At or below it, the

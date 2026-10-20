@@ -9,7 +9,7 @@
  * It doesn't scroll the column itself: it emits `scroll-to-index` and the column (which owns the virtualizer) scrolls. Input is
  * unified through Pointer Events so mouse, touch, and pen behave identically on every device.
  */
-import { SHU_TAG } from "../../domains/elements.js";
+import { RAIL_EDGE_TITLE, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
 import { html, css, nothing, type TemplateResult } from "lit";
 import { property } from "lit/decorators.js";
@@ -18,7 +18,18 @@ import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { shuBaseStyles } from "./styles.js";
 import { startPointerDrag } from "./pointer-drag.js";
 import { formatCount, readerZone } from "../derivations/time-format.js";
-import { thumbHeightPx, thumbTopPx, firstAtPointer, clusterMarkers, markerTopPx, pressTarget, type TScrollMarker, type TWindow } from "../derivations/rail.js";
+import {
+	thumbHeightPx,
+	thumbTopPx,
+	firstAtPointer,
+	clusterMarkers,
+	markerTopPx,
+	pressTarget,
+	railPosition,
+	RAIL_POSITION_MAX,
+	type TScrollMarker,
+	type TWindow,
+} from "../derivations/rail.js";
 
 /** Emitted (bubbling, composed) with `{ index }` when the reader drags the thumb, clicks the rail, wheels, or clicks a
  *  marker: the column should scroll so `index` is the first visible row. */
@@ -30,7 +41,7 @@ export const SCROLL_TO_INDEX = "scroll-to-index";
 export type TSeekBy = "press" | "wheel";
 /** A press on one of the rail's position glyphs: the top one requests the START of actuality, the bottom one its live
  *  END: beyond what the rail's rows hold, which a host that pages its data serves by loading to that edge. */
-type TSeekEdge = "start" | "end";
+export type TSeekEdge = "start" | "end";
 
 export class ShuScrollbar extends ShuElement<typeof EmptyStateSchema> {
 	constructor() {
@@ -151,8 +162,8 @@ export class ShuScrollbar extends ShuElement<typeof EmptyStateSchema> {
 		const topPx = thumbTopPx(this.total, this.window, railPx, heightPx);
 		const marks = this.#marks(railPx);
 		return html`
-			<span class="pos pos-top" data-testid=${SHU_TEST_IDS.SCROLLBAR.POS_TOP} title="To the start" @click=${() => this.#emit(0, "press", "start")}>${this.showPosition && this.total ? formatCount(this.window.first + 1, readerZone().locale) : "⤒"}</span>
-			<div class="rail" data-testid=${SHU_TEST_IDS.SCROLLBAR.RAIL} @pointerdown=${this.#onRailDown} @wheel=${this.#onWheel}>
+			<span class="pos pos-top" data-testid=${SHU_TEST_IDS.SCROLLBAR.POS_TOP} title=${RAIL_EDGE_TITLE.start} @click=${() => this.#emit(0, "press", "start")}>${this.showPosition && this.total ? formatCount(this.window.first + 1, readerZone().locale) : "⤒"}</span>
+			<div class="rail" data-testid=${SHU_TEST_IDS.SCROLLBAR.RAIL} role="scrollbar" aria-orientation="vertical" aria-valuemin="0" aria-valuemax=${RAIL_POSITION_MAX} aria-valuenow=${railPosition(this.total, this.window)} @pointerdown=${this.#onRailDown} @wheel=${this.#onWheel}>
 				<div class="track"></div>
 				${
 					// A thumb shows how much of the column is on screen. A collapsed column doesn't show rows, and before the first
@@ -176,7 +187,7 @@ export class ShuScrollbar extends ShuElement<typeof EmptyStateSchema> {
 						>`,
 				)}
 			</div>
-			<span class="pos pos-bottom" data-testid=${SHU_TEST_IDS.SCROLLBAR.POS_BOTTOM} title="To the end" @click=${() => this.#emit(Math.max(0, this.total - 1), "press", "end")}>${this.showPosition && this.total ? formatCount(this.total, readerZone().locale) : "⤓"}</span>
+			<span class="pos pos-bottom" data-testid=${SHU_TEST_IDS.SCROLLBAR.POS_BOTTOM} title=${RAIL_EDGE_TITLE.end} @click=${() => this.#emit(Math.max(0, this.total - 1), "press", "end")}>${this.showPosition && this.total ? formatCount(this.total, readerZone().locale) : "⤓"}</span>
 		`;
 	}
 

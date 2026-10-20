@@ -14,8 +14,6 @@
 		"@haibun/shu/monitor-stepper",
 		"@haibun/shu/graph-source-stepper",
 		"@haibun/shu/client-cache-stepper",
-		"./build/controls/scrollbar-controls-stepper",
-		"./build/controls/monitor-controls-stepper",
 		"./build/test/voice-ui-test-stepper",
 		"@haibun/monitor-tui"
 	],

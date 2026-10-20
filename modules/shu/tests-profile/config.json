@@ -2,6 +2,7 @@
 	"$schema": "../node_modules/@haibun/core/haibun-core-specl.schema.json",
 	"extends": "../../../config.base.json",
 	"steppers": [
+		"activities-stepper",
 		"@haibun/web-server-hono/web-server-stepper",
 		"@haibun/web-playwright/web-playwright",
 		"@haibun/storage-fs/storage-fs",
@@ -9,8 +10,6 @@
 		"@haibun/shu/monitor-stepper",
 		"@haibun/shu/graph-source-stepper",
 		"@haibun/shu/client-cache-stepper",
-		"./build/controls/scrollbar-controls-stepper",
-		"./build/controls/monitor-controls-stepper",
 		"@haibun/monitor-tui"
 	],
 	"moduleOptions": {

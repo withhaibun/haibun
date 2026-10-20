@@ -351,16 +351,19 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 
 	/** Scrubs to and reveals the row another view refers to, by a block element's `data-id` or an artifact frame's
 	 *  `data-step-id`. The row is the first cached row whose event id is in that id's ancestor list, the rule the document
-	 *  uses to attach an artifact. An expanded frame's caption is set to that row's line. */
+	 *  uses to attach an artifact. An expanded frame's caption is set to that row's line, and the cursor moves to the row. */
 	private jumpToRow(row: Element): void {
 		const named = row.getAttribute("data-step-id") ?? row.getAttribute("data-id") ?? "";
 		const rows = named === "" ? [] : this.#builtRows().filter((r) => r.blocks.length > 0);
 		const id = stepAncestors(named).find((a) => rows.some((r) => String(r.event.id ?? "") === a));
 		const hit = rows.find((r) => String(r.event.id ?? "") === id);
 		if (!hit) return;
+		// An expanded frame covers the column and is shown already, so its step's row is scrubbed to and not scrolled to: a
+		// scroll would take the frame's own row out of the rendered window, and the frame with it.
+		if (!(row instanceof ShuArtifactFrame)) return this.#revealRow(hit, "center");
 		const own = hit.blocks.find((b) => b.id === id);
-		if (row instanceof ShuArtifactFrame && own) row.showStep(blockText(own));
-		this.#revealRow(hit, "center");
+		if (own) row.showStep(blockText(own));
+		this.cursorToRow(this.#rawTimeOf(hit));
 	}
 
 	/** The thumbnail frames a page of rows caches, in order, each with the row it is in: stamped `page:ordinal` when the page was built. */
@@ -422,7 +425,7 @@ export class ShuDocumentColumn extends ShuElement<typeof DocumentColumnSchema> {
 		const t = rowTimeClass(ts, i, this.#timeline.cursor, this.#currentIdx);
 		const cls = `doc-block${t === "future" ? ` ${TIME_SYNC_CLASS.FUTURE}` : t === "current" ? ` ${TIME_SYNC_CLASS.CURRENT}` : ""}`;
 		const rawTime = ts - this.#first;
-		return html`<div class=${cls} data-id=${id} @click=${(e: Event) => this.onBlockClick(e, rawTime)}>
+		return html`<div class=${cls} data-id=${id} data-testid=${SHU_TEST_IDS.TIME_CURSOR.MOMENT} @click=${(e: Event) => this.onBlockClick(e, rawTime)}>
 			${unsafeHTML(r.blocks.map((b) => b.html).join(""))}
 		</div>`;
 	};

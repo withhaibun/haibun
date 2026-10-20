@@ -80,3 +80,90 @@ describe("shu-artifact-frame cursor and navigation events", () => {
 		document.removeEventListener(SHU_EVENT.FRAME_NAV, onNav);
 	});
 });
+
+describe("shu-artifact-frame expanded over its column", () => {
+	/** The document column's box on screen, beside other panes. */
+	const COLUMN = { top: 40, left: 300, width: 500, height: 700 };
+	/** A frame inside a column's shadow root, whose host is the column the frame expands over. */
+	async function frameInColumn(): Promise<ShuArtifactFrame> {
+		document.body.innerHTML = "<div></div>";
+		const column = document.body.firstElementChild as HTMLElement;
+		column.getBoundingClientRect = () => ({
+			...COLUMN,
+			right: COLUMN.left + COLUMN.width,
+			bottom: COLUMN.top + COLUMN.height,
+			x: COLUMN.left,
+			y: COLUMN.top,
+			toJSON: () => COLUMN,
+		});
+		const root = column.attachShadow({ mode: "open" });
+		root.innerHTML = stamped;
+		const frame = root.querySelector("shu-artifact-frame") as ShuArtifactFrame;
+		await frame.updateComplete;
+		return frame;
+	}
+
+	it("takes the column's whole box on screen, from its left edge", async () => {
+		const frame = await frameInColumn();
+		await toggleFullscreen(frame);
+		expect(["--fs-top", "--fs-left", "--fs-width", "--fs-height"].map((v) => frame.style.getPropertyValue(v))).toEqual(
+			[COLUMN.top, COLUMN.left, COLUMN.width, COLUMN.height].map((px) => `${px}px`),
+		);
+	});
+
+	/** The element of the frame that enters the top layer, with its popover calls recorded. */
+	const topLayerOf = (frame: ShuArtifactFrame) => {
+		const shown = vi.fn();
+		const hidden = vi.fn();
+		const content = (frame.shadowRoot as ShadowRoot).querySelector(".frame") as HTMLElement;
+		Object.assign(content, { showPopover: shown, hidePopover: hidden });
+		return { content, shown, hidden };
+	};
+
+	it("shows its content in the top layer as a popover, which a later row's tiles don't paint over, and leaves it on exit", async () => {
+		const frame = await frameInColumn();
+		const { content, shown, hidden } = topLayerOf(frame);
+		await toggleFullscreen(frame);
+		expect([content.getAttribute("popover"), shown.mock.calls.length]).toEqual(["manual", 1]);
+		await toggleFullscreen(frame);
+		expect([content.hasAttribute("popover"), hidden.mock.calls.length]).toEqual([false, 1]);
+	});
+
+	it("keeps the height it had in its row while expanded, so the rows after it keep their places", async () => {
+		const frame = await frameInColumn();
+		frame.getBoundingClientRect = () => ({ top: 0, left: 0, right: 200, bottom: 125, x: 0, y: 0, width: 200, height: 125, toJSON: () => ({}) });
+		await toggleFullscreen(frame);
+		expect(frame.style.height).toBe("125px");
+		await toggleFullscreen(frame);
+		expect(frame.style.height).toBe("");
+	});
+
+	it("enters the top layer again where a virtualizer moves its row, which takes it out of the document", async () => {
+		const frame = await frameInColumn();
+		const { shown } = topLayerOf(frame);
+		await toggleFullscreen(frame);
+		(frame.parentElement as HTMLElement).append(frame);
+		expect(shown.mock.calls.length).toBe(2);
+	});
+});
+
+describe("a thumbnail's tile in the document", () => {
+	/** The text of a component's styles, as the page adopts them. */
+	const stylesOf = (styles: unknown): string =>
+		[styles]
+			.flat(Number.POSITIVE_INFINITY)
+			.map((sheet) => (sheet as { cssText: string }).cssText)
+			.join("\n");
+
+	it("stretches to its grid track and its image fills it, rather than shrinking to the image", async () => {
+		const { ShuArtifactFrame } = await import("./shu-artifact-frame.js");
+		const styles = stylesOf(ShuArtifactFrame.styles);
+		expect(styles).toMatch(/:host\(\.thumb\) \{ display: block;/);
+		expect(styles).toMatch(/:host\(\.thumb:not\(\.fullscreen\)\) ::slotted\(img\) \{ display: block; width: 100%; aspect-ratio: 16 \/ 10;/);
+	});
+
+	it("is a track of the column's grid, at least a tile wide and never wider than the column", async () => {
+		const { ShuDocumentColumn } = await import("./shu-document-column.js");
+		expect(stylesOf(ShuDocumentColumn.styles)).toMatch(/\.thumb-row \{ display: grid; grid-template-columns: repeat\(auto-fill, minmax\(min\(160px, 100%\), 1fr\)\);/);
+	});
+});

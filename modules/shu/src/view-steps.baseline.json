@@ -1,0 +1,15 @@
+{
+	"modules/shu/src/controls/activity-history-controls-stepper.ts": { "imports a page driver": 1, "waits for a length of time": 1 },
+	"modules/shu/src/controls/adapters/controlled-page.ts": { "imports a page driver": 1 },
+	"modules/shu/src/controls/column-strip-controls-stepper.ts": { "imports a page driver": 1 },
+	"modules/shu/src/controls/graph-query-controls-stepper.ts": { "imports a page driver": 1 },
+	"modules/shu/src/controls/pipelines/page-reads.ts": { "imports a page driver": 1, "waits for a length of time": 1 },
+	"modules/shu/src/controls/polymorphic-controls-stepper.ts": { "calls a view's inspect()": 16, "imports a page driver": 1, "waits for a length of time": 3 },
+	"modules/shu/src/controls/ports.ts": { "imports a page driver": 1 },
+	"modules/shu/src/page/graph/components/external.integration.test.ts": { "calls a view's inspect()": 3 },
+	"modules/shu/src/page/graph/components/follow.integration.test.ts": { "calls a view's inspect()": 1 },
+	"modules/shu/src/page/graph/components/pick.integration.test.ts": { "calls a view's inspect()": 1 },
+	"modules/shu/src/page/graph/components/polymorphic-page.test-fake.ts": { "calls a view's inspect()": 6 },
+	"modules/shu/src/page/graph/components/scene-end.integration.test.ts": { "calls a view's inspect()": 1 },
+	"modules/shu/src/page/graph/derivations/regulation.integration.test.ts": { "calls a view's inspect()": 2 }
+}

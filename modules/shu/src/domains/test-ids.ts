@@ -125,6 +125,8 @@ export const SHU_TEST_IDS = {
 		POS_TOP: "scrollbar-pos-top",
 		POS_BOTTOM: "scrollbar-pos-bottom",
 	},
+	/** What every view that follows the time cursor shares. MOMENT: a row's control that moves the cursor to the row's moment. */
+	TIME_CURSOR: { MOMENT: "time-cursor-moment" },
 	SETTINGS: { WINDOW_SIZE: "settings-window-size" },
 	/** A type's or a domain's view: what it is, its schema, its individuals, and the steps that return and take it. */
 	TYPE_COLUMN: {
