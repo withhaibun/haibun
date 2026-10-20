@@ -20,6 +20,13 @@ export const SHOW_STEPS_METHOD = "Haibun-showSteps";
  *  declaration, so a caller names this action without a prior read. */
 export const SHOW_STEPS_ACTION = readAction(Access.public);
 
+/** The method of the step that resolves a line to one of the steps a caller may call. */
+export const VALIDATE_STEP_METHOD = "Haibun-validateStep";
+
+/** Whether a line resolves to one step: the method of that step and each of its parameters' terms as the line states them,
+ *  or why the line doesn't resolve to exactly one. */
+export type TStepValidation = { valid: true; method: string; values: Record<string, string> } | { valid: false; error: string };
+
 /** The domain of the detail that a read of actuality's declarations returns for each declaration. */
 export const DOMAIN_STEP_DETAIL = "step-detail";
 /** A summary names each declaration, states what it does and links its definition. A definition adds the schemas and

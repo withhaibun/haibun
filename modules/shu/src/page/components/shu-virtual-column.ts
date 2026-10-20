@@ -30,13 +30,9 @@ import { VIEW_THUMB_BLIP, VIEW_SCROLL_BLIP, VIEW_WINDOW_BLIP, READER_INPUT_WINDO
 import { SCROLL_TO_INDEX } from "./shu-scrollbar.js";
 import type { WindowedSource } from "../derivations/windowed-source.js";
 import type { TScrollMarker, TWindow } from "../derivations/rail.js";
-import { visibleWindow, convergeTarget, lastShownRow, viewportShare } from "../derivations/rail.js";
+import { visibleWindow, convergeTarget, converged, lastShownRow, viewportShare, MAX_CONVERGE, type TConvergence } from "../derivations/rail.js";
 import { ScrollFollowController } from "../controllers/scroll-follow-controller.js";
 import { FOLLOW_EDGE_SLACK_PX } from "../domains/scroll-follow.js";
-
-/** Cap on re-issuing the jump-to-edge as the virtualizer measures its way down to the last row: a handful of passes closes
- *  the height-estimate gap; the bound stops an unreachable target (a row that can't fit) from re-jumping forever. */
-const MAX_CONVERGE = 40;
 
 /** Paint one row: the absolute `index` and its data (`undefined` when the source has not fetched it yet, return a
  *  skeleton). */
@@ -102,8 +98,8 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 	#window: TWindow = { first: 0, visible: 0 };
 	#viewportFraction: number | undefined;
 	#measureQueued = false;
-	#convergeFor = -1; // the row count the convergence passes below are chasing
-	#convergeCount = 0; // passes used chasing it, bounded by MAX_CONVERGE
+	/** The live edge's convergence: the row count it chases and the jumps issued for it since the last row showed. */
+	#convergence: TConvergence = { rows: -1, passes: 0 };
 	#items: unknown[] = [];
 	#itemCount = -1;
 	#unsub: (() => void) | null = null;
@@ -296,18 +292,16 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 			new CustomEvent<WindowChangedDetail>(WINDOW_CHANGED, { detail: { first: this.#window.first, visible: this.#window.visible, total: count }, bubbles: true, composed: true }),
 		);
 		if (this.follow && count > 0) {
-			if (this.#window.first + this.#window.visible >= count && !this.#pressedAway) {
-				// The last row is inside the reported window: the reader is at (or scrolled back to) the live edge. Resume (the
-				// follow's own scroll also lands here, keeping follow engaged) and end this target's convergence.
-				this.#follow.setAtBottom(true);
-				this.#convergeFor = count;
-				this.#convergeCount = MAX_CONVERGE;
-			} else if (this.#follow.isFollowing) {
-				// Following but short of the last row, including the very first report of a view that opened parked at the top,
-				// whose source filled before this element subscribed. Re-issue the jump: this pass measured further down, so the
-				// next lands closer, bounded per target so an unreachable last row can't re-jump forever.
-				if (this.#convergeFor !== count) (this.#convergeFor = count), (this.#convergeCount = 0);
-				if (this.#convergeCount < MAX_CONVERGE) (this.#convergeCount += 1), void this.updateComplete.then(() => this.#follow.stick());
+			// The last row inside the reported window is the live edge: the reader is at it, or scrolled back to it, and the follow's
+			// own scroll lands here too, which keeps the follow engaged. Short of it while following, including the first report of
+			// a view that opened parked at the top, the jump is issued again: each pass measured further down, so the next lands
+			// closer, within the bound `converged` keeps.
+			const atEnd = this.#window.first + this.#window.visible >= count && !this.#pressedAway;
+			if (atEnd || this.#follow.isFollowing) {
+				const next = converged(this.#convergence, count, atEnd);
+				this.#convergence = next.convergence;
+				if (atEnd) this.#follow.setAtBottom(true);
+				else if (next.jump) void this.updateComplete.then(() => this.#follow.stick());
 			}
 		}
 		this.requestUpdate(); // reposition the rail thumb and glyphs

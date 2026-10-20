@@ -6,7 +6,7 @@
  */
 import { describe, it, expect, beforeAll, beforeEach, afterEach } from "vitest";
 import { buildConcernCatalog, type TConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
-import { mapDefinitionsToDomains } from "@haibun/core/lib/domains/domains.js";
+import { deriveNamingDomains, mapDefinitionsToDomains, refDomainKey } from "@haibun/core/lib/domains/domains.js";
 import { LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { rpcAnswer, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
 import { declareRegistry } from "../../test/catalog-fixture.js";
@@ -33,6 +33,16 @@ const ISSUER: TStepSpec = {
 		properties: { issuer: { type: "object", properties: { did: { type: "string" }, name: { type: "string" } }, required: ["did"] } },
 		required: ["issuer"],
 	},
+};
+
+/** A step of one text parameter. */
+const GREET: TStepSpec = {
+	method: "GreetStepper-greet",
+	stepperName: "GreetStepper",
+	stepName: "greet",
+	pattern: "greet {name}",
+	paramDomains: { name: "string" },
+	inputSchema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] },
 };
 
 /** Returns `answer(method)` for each call of a step, as the site's RPC does. */
@@ -121,6 +131,52 @@ describe("shu-step-caller", () => {
 		await caller.updateComplete;
 		expect(shown(caller), "the chosen type's fields").toContain('name="data.title"');
 		expect(shown(caller)).toContain('name="data.id"');
+	});
+
+	it("starts its inputs with the values it is given, which a reader changes before the call", async () => {
+		declareRegistry(stepsShown([GREET]));
+		const caller = document.createElement("shu-step-caller") as ShuStepCaller;
+		caller.setAttribute("step", GREET.method);
+		caller.values = { name: "world" };
+		document.body.appendChild(caller);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		await caller.updateComplete;
+		expect(caller.shadowRoot?.querySelector<HTMLInputElement>('input[name="name"]')?.value).toBe("world");
+	});
+
+	it("starts a composite parameter's inputs with the fields of the JSON object it is given", async () => {
+		declareRegistry(stepsShown([ISSUER]));
+		const caller = document.createElement("shu-step-caller") as ShuStepCaller;
+		caller.setAttribute("step", ISSUER.method);
+		caller.values = { issuer: '{"did":"did:key:z6MkAnn","name":"Ann"}' };
+		document.body.appendChild(caller);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		await caller.updateComplete;
+		const field = (name: string) => caller.shadowRoot?.querySelector<HTMLInputElement>(`input[name="${name}"]`)?.value;
+		expect([field("issuer.did"), field("issuer.name")]).toEqual(["did:key:z6MkAnn", "Ann"]);
+	});
+
+	it("shows the id it is given for a reference parameter, though the store doesn't hold that record", async () => {
+		const domains = deriveNamingDomains(mapDefinitionsToDomains([persistedTypeDefinition(NOTE)]));
+		const READ_NOTE: TStepSpec = {
+			method: "NoteStepper-readNote",
+			stepperName: "NoteStepper",
+			stepName: "readNote",
+			pattern: "read note {note}",
+			paramDomains: { note: refDomainKey(NOTE.toLowerCase()) },
+			inputSchema: { type: "object", properties: { note: { type: "object", properties: { id: { type: "string" } }, required: ["id"] } }, required: ["note"] },
+		};
+		declareRegistry(stepsShown([READ_NOTE], {}, buildConcernCatalog(domains)));
+		const caller = document.createElement("shu-step-caller") as ShuStepCaller;
+		caller.setAttribute("step", READ_NOTE.method);
+		caller.values = { note: "note-not-yet-stored" };
+		document.body.appendChild(caller);
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		await caller.updateComplete;
+		const combo = caller.shadowRoot?.querySelector("shu-combobox") as (HTMLElement & { updateComplete: Promise<unknown> }) | null;
+		if (!combo) throw new Error("the reference parameter doesn't render a picker");
+		await combo.updateComplete;
+		expect(combo.shadowRoot?.querySelector<HTMLInputElement>(".combo-input")?.value).toBe("note-not-yet-stored");
 	});
 
 	it("carries its number among its step's callers in its inputs' test ids, joined with `-` so a variable doesn't read them as paths", async () => {

@@ -279,12 +279,17 @@ describe("show steps", () => {
 	});
 
 	it("states whether a line resolves to one step, and which", async () => {
-		const feature = { path: "/features/test.feature", content: 'validate step "passes"\nvalidate step "no step reads this"' };
-		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
+		const feature = { path: "/features/test.feature", content: 'validate step "passes"\nvalidate step "no step reads this"\nvalidate step "set greeting to hello"' };
+		const result = await passWithDefaults([feature], [Haibun, TestSteps, VariablesSteppers]);
 		expect(result.ok).toBe(true);
 		const validations = (result.world.runtime.stepResults as TStepResult[]).map((stepResult) => stepResult.products).filter((products) => products?.valid !== undefined);
-		expect(validations[0]).toMatchObject({ valid: true, method: "TestSteps-passes" });
+		expect(validations[0]).toMatchObject({ valid: true, method: "TestSteps-passes", values: {} });
 		expect(validations[1]).toMatchObject({ valid: false });
+		expect(validations[2], "each parameter's term as the line states it").toMatchObject({
+			valid: true,
+			method: "VariablesStepper-set",
+			values: { what: "greeting", value: "hello" },
+		});
 	});
 
 	it("treats a line naming a step its caller doesn't hold as one that doesn't name a step, so validating doesn't map a step it may not call", () => {

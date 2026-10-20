@@ -100,6 +100,23 @@ describe("the combobox", () => {
 		expect(await offered(combo)).toEqual(["The text doesn't match an option"]);
 	});
 
+	it("offers the text a reader enters as a new value first where it accepts one, and holds it once picked", async () => {
+		const combo = await aCombobox();
+		combo.accepts = true;
+		const changes: string[] = [];
+		combo.addEventListener("combo-change", (e) => changes.push((e as CustomEvent<{ value: string }>).detail.value));
+		combo.enter("did:key:z6MkNew");
+		expect(await offered(combo), "the text, marked as new").toEqual(["did:key:z6MkNewnew"]);
+		combo.enter("file-domain");
+		expect(await offered(combo), "an option's own value isn't offered again as new").toEqual(["File"]);
+		combo.enter("did:key:z6MkNew");
+		await combo.updateComplete;
+		input(combo).dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", cancelable: true }));
+		await combo.updateComplete;
+		expect(changes, "Enter picks the one value offered").toEqual(["did:key:z6MkNew"]);
+		expect(input(combo).value, "and the control shows it").toBe("did:key:z6MkNew");
+	});
+
 	it("shows the text its holder states for what it holds, and the chosen option's label where its holder doesn't state one", async () => {
 		const combo = await aCombobox();
 		expect(input(combo).value, "the chosen option").toBe("Email");

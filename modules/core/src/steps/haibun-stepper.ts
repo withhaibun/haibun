@@ -27,7 +27,15 @@ import { SERVING } from "../lib/domains/serving.js";
 import { discoverSteps } from "../lib/steps/pipelines/discover-steps.js";
 import { runRegistry } from "../lib/steps/pipelines/step-registry.js";
 import { stepMethodName } from "../lib/steps/domains/step-method.js";
-import { DOMAIN_STEP_DETAIL, SHOW_STEPS_ACTION, SHOW_STEPS_DESCRIPTION, StepDetailSchema, StepDiscoverySchema, type TStepsQuery } from "../lib/steps/domains/step-discovery.js";
+import {
+	DOMAIN_STEP_DETAIL,
+	SHOW_STEPS_ACTION,
+	SHOW_STEPS_DESCRIPTION,
+	StepDetailSchema,
+	StepDiscoverySchema,
+	type TStepValidation,
+	type TStepsQuery,
+} from "../lib/steps/domains/step-discovery.js";
 import { shownTo } from "../lib/domains/capability-context.js";
 import { validateStep } from "../lib/pipelines/step-validation.js";
 import { Access, SEQ_PATH_LABEL } from "../lib/domains/resources.js";
@@ -35,8 +43,12 @@ import { recordOf } from "../lib/records/pipelines/record-reads.js";
 import { SEQ_PATH_FIELD, executionOf, formatRecordName } from "../lib/actuality/domains/seq-path.js";
 import { itemAt } from "../lib/domains/item-at.js";
 
-/** Whether a line resolves to one step, and the method of that step or why it doesn't resolve to exactly one. */
-const StepValidationSchema = z.discriminatedUnion("valid", [z.object({ valid: z.literal(true), method: z.string() }), z.object({ valid: z.literal(false), error: z.string() })]);
+/** Whether a line resolves to one step, as `TStepValidation` states it. */
+const StepValidationSchema = z.discriminatedUnion("valid", [
+	z.object({ valid: z.literal(true), method: z.string(), values: z.record(z.string(), z.string()) }),
+	z.object({ valid: z.literal(false), error: z.string() }),
+]) satisfies z.ZodType<TStepValidation>;
+
 /** The store `use store at` mounts: the site that serves it, and the types routed to it. */
 const StoreInUseSchema = z.object({ site: z.string(), types: z.array(z.string()) });
 /** Product domains of Haibun's own steps. */
@@ -161,9 +173,10 @@ class Haibun extends AStepper implements IHasCycles {
 			productsDomain: DOMAIN_STEP_VALIDATION,
 			action: ({ text }: { text: string }) => {
 				const validation = validateStep(text, this.steppers, shownTo());
-				return actionOKWithProducts(
-					"error" in validation ? { valid: false, error: validation.error } : { valid: true, method: stepMethodName(validation.action.stepperName, validation.action.actionName) },
-				);
+				if ("error" in validation) return actionOKWithProducts({ valid: false, error: validation.error });
+				const { stepperName, actionName, stepValuesMap } = validation.action;
+				const values = stepValuesMap === undefined ? {} : Object.fromEntries(Object.entries(stepValuesMap).map(([name, value]) => [name, value.term]));
+				return actionOKWithProducts({ valid: true, method: stepMethodName(stepperName, actionName), values });
 			},
 		},
 

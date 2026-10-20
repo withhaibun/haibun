@@ -52,6 +52,8 @@ export const ComboboxSchema = z.object({
 	/** What the control shows for the value it holds, where its holder states it: the page strip shows the search and
 	 *  what it found. Empty, the control shows the chosen option's label. */
 	shown: z.string(),
+	/** Whether the control takes text that doesn't name an option as a value of its own, offered first as a new entry. */
+	accepts: z.boolean(),
 });
 
 // --- Search conditions ---

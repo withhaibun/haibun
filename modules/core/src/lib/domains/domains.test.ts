@@ -137,6 +137,24 @@ describe("a reference to a record of a type", () => {
 		expect(refTargetOf(ref, world.domains)).toBe(RECIPE);
 		expect(ref.schema.parse("hummus")).toEqual({ id: "hummus" });
 	});
+
+	it("takes an id the type's own id field accepts, whether or not the store holds a record of it, and refuses another", () => {
+		const TICKET = "ticket";
+		const world = getDefaultWorld();
+		registerDomains(world, [
+			[
+				{
+					selectors: [TICKET],
+					schema: z.object({ id: z.string().regex(/^ticket-/, "isn't a ticket id, which starts with ticket-") }),
+					description: "a ticket",
+					topology: { persistedAs: "Ticket", accessLevel: Access.private, id: "id", properties: { id: LinkRelations.IDENTIFIER.rel } },
+				},
+			],
+		]);
+		const ref = registeredDomain(world.domains, refDomainKey(TICKET), "the test");
+		expect(ref.schema.parse("ticket-7")).toEqual({ id: "ticket-7" });
+		expect(() => ref.schema.parse("7")).toThrow(/isn't a ticket id/);
+	});
 });
 
 describe("a list a caller gives", () => {

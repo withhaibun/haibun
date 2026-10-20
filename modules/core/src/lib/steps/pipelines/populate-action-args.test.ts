@@ -64,7 +64,7 @@ describe("a parameter's domain", () => {
 		registerDomains(world, [
 			[
 				{ selectors: ["thing"], schema: z.object({ id: z.string(), name: z.string() }), description: "a thing" },
-				individualRefDomain("thing-ref", "thing"),
+				individualRefDomain("thing-ref", "thing", z.string(), "a reference to a thing"),
 				{ selectors: ["other"], schema: z.object({ id: z.string() }), description: "another thing" },
 				{ selectors: ["pair"], schema: fromJsonText(z.object({ a: z.number(), b: z.number() })), description: "two numbers" },
 			],

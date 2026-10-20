@@ -6,7 +6,10 @@
  */
 import { html, nothing, type ReactiveController, type TemplateResult } from "lit";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
-import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
+import { VALIDATE_STEP_METHOD, type TStepDefinition, type TStepValidation } from "@haibun/core/lib/step-discovery.js";
+import { callStep } from "../controllers/read-controller.js";
+import type { TPageRefusal } from "../domains/refusal.js";
+import type { ShuRefusal } from "./shu-refusal.js";
 import { conversationSteps, getAvailableSteps, stepsForContext, StepsChangedController } from "../controllers/registry-controller.js";
 import type { TComboboxOption } from "../../domains/schemas.js";
 import type { TControllerHost } from "./controller-host.js";
@@ -100,11 +103,11 @@ export class ActionsBarSteps implements ReactiveController {
 		this.#host.requestUpdate();
 	}
 
-	/** Select the step in the selector and open its caller, with fixed arguments and run at once where given. */
-	pick(method: string, args?: Record<string, unknown>, auto?: boolean): void {
+	/** Select the step in the selector and open its caller, with fixed arguments, run at once, and starting values where given. */
+	pick(method: string, args?: Record<string, unknown>, auto?: boolean, values?: Record<string, string>): void {
 		this.#chosen = method;
 		this.#host.requestUpdate();
-		this.open(method, args, auto);
+		this.open(method, args, auto, values);
 	}
 
 	/**
@@ -112,17 +115,35 @@ export class ActionsBarSteps implements ReactiveController {
 	 * the new one doesn't carry fixed arguments, so a reader trying steps keeps one caller. A caller carries the method it
 	 * calls and its number among the callers of that method, which its test ids carry. The newest caller is kept in view.
 	 */
-	open(method: string, args?: Record<string, unknown>, auto?: boolean): void {
+	open(method: string, args?: Record<string, unknown>, auto?: boolean, values?: Record<string, string>): void {
 		const history = this.#deps.history;
 		const last = history.querySelector<ShuStepCaller>(`${SHU_TAG.STEP_CALLER}:last-of-type`);
 		if (last && !last.executed && !args && !auto) last.remove();
-		const caller = document.createElement(SHU_TAG.STEP_CALLER);
+		const caller = document.createElement(SHU_TAG.STEP_CALLER) as ShuStepCaller;
 		caller.setAttribute("step", method);
 		caller.setAttribute("method", method);
 		caller.setAttribute("call-index", String(history.querySelectorAll(`${SHU_TAG.STEP_CALLER}[method="${method}"]`).length));
 		if (args) caller.setAttribute("params", JSON.stringify(args));
 		if (auto) caller.setAttribute("auto", "");
+		if (values) caller.values = values;
 		history.append(caller);
+	}
+
+	/** Resolves a statement a reader typed to the step it states, and opens that step's caller with the statement's values,
+	 *  which the reader checks before the call. A statement that doesn't resolve to one step states why in the history. */
+	async #openStatement(text: string): Promise<void> {
+		const resolved = await callStep<TStepValidation>(VALIDATE_STEP_METHOD, { text }, "resolve a typed statement");
+		if (!resolved.ok) return this.#refuse(resolved.refusal);
+		const validation = resolved.value;
+		if (!validation.valid) return this.#refuse({ error: validation.error });
+		this.pick(validation.method, undefined, undefined, validation.values);
+	}
+
+	/** States a refusal in the history, where the reader's step callers show theirs. */
+	#refuse(refusal: TPageRefusal): void {
+		const shown = document.createElement(SHU_TAG.REFUSAL) as ShuRefusal;
+		shown.refusal = refusal;
+		this.#deps.history.append(shown);
 	}
 
 	/** The step mode's input line: the mode toggle, and the step selector once actuality offers steps, those for the selected
@@ -133,9 +154,10 @@ export class ActionsBarSteps implements ReactiveController {
 			this.#steps.length > 0
 				? html`<shu-combobox class="step-combo"
 					testid=${`${this.#deps.testIdPrefix()}step-select`}
-					placeholder="type to filter steps..."
+					placeholder="type a step or a statement"
 					.options=${stepOptions(this.#steps, label ? stepsForContext(label) : [])}
 					.value=${this.#chosen}
+					.accepts=${true}
 					@combo-change=${this.#onComboChange}></shu-combobox>`
 				: nothing;
 		return html`
@@ -152,9 +174,11 @@ export class ActionsBarSteps implements ReactiveController {
 		selector.enter(text);
 	}
 
+	/** A pick of a step opens its caller; text that doesn't name a step is a statement, resolved to the step it states. */
 	#onComboChange = (e: CustomEvent): void => {
 		const method = e.detail?.value;
 		if (!method) return;
+		if (!this.#steps.some((step) => step.method === method)) return void this.#openStatement(method);
 		this.#chosen = method;
 		this.open(method);
 	};

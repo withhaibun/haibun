@@ -212,6 +212,22 @@ export function lastShownRow(last: number, count: number, rowSize: (index: numbe
 /** The rows between the window's end and the last row above which a move to the last row jumps to it. At or below it, the
  *  move steps `CONVERGE_STEP` rows at a time. */
 export const COARSE_GAP = 60;
+
+/** The passes a view takes to converge on a row, after which it gives up on a row the content can never reach. */
+export const MAX_CONVERGE = 40;
+
+/** A following view's convergence on its last row: the row count it chases, and the jumps it has issued for that count since
+ *  it last showed the last row. */
+export type TConvergence = { rows: number; passes: number };
+
+/** Returns a following view's convergence after a report of its window, and whether it jumps to its last row again. Showing
+ *  the last row starts the passes over, so a row that grows after, moving the last row out of view without a change of count,
+ *  starts a new convergence. Short of the last row, it jumps while its passes for this row count are under MAX_CONVERGE. */
+export function converged(convergence: TConvergence, rows: number, atEnd: boolean): { convergence: TConvergence; jump: boolean } {
+	const passes = atEnd || convergence.rows !== rows ? 0 : convergence.passes;
+	const jump = !atEnd && passes < MAX_CONVERGE;
+	return { convergence: { rows, passes: jump ? passes + 1 : passes }, jump };
+}
 export const CONVERGE_STEP = 12;
 
 /**

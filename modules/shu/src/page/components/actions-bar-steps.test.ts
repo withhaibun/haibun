@@ -2,11 +2,12 @@
 /**
  * The actions bar's step mode, held apart from the bar: the step options with those for the selected type first, a
  * caller opened in the history or the last one retargeted, the Ask mode offered only with the step an ask runs, and the
- * newest output kept in view as a step settles.
+ * newest output kept in view as a step settles. A statement typed in the selector opens the step it states, holding its terms.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
-import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
+import { SHOW_STEPS_METHOD, VALIDATE_STEP_METHOD, type TStepDefinition } from "@haibun/core/lib/step-discovery.js";
+import { html, render } from "lit";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { CHAT_DECLARED, CHAT_DOMAINS, CHAT_STEP, CHAT_STEPPER } from "../ask/components/chat-pane.test-fake.js";
 import { ActionsBarSteps, stepDetails, stepOptions, stepSecondary } from "./actions-bar-steps.js";
@@ -140,5 +141,45 @@ describe("the actions bar's step mode", () => {
 		host.dispatchEvent(new CustomEvent(SHU_EVENT.STEP_SUCCESS));
 		host.dispatchEvent(new CustomEvent(SHU_EVENT.STEP_ERROR));
 		expect(history.keepNewestInView).toHaveBeenCalledTimes(2);
+	});
+});
+
+describe("a statement typed in step mode", () => {
+	const VALIDATE = step(VALIDATE_STEP_METHOD, "validate step {text}", { paramDomains: { text: "text" }, read: true, readsAt: "public" });
+	const STATED = "show graph all";
+	let t: TShuTestHandle;
+	beforeEach(() => {
+		provideLayout();
+		offered.splice(0, offered.length, SHOW, VALIDATE);
+		t = setupShuTest({
+			dispatch: (method, params) => {
+				if (method === SHOW_STEPS_METHOD) return stepsShown(offered, CHAT_DOMAINS);
+				if (method !== VALIDATE_STEP_METHOD) throw new Error(`unexpected ${method}`);
+				return params.text === STATED ? { valid: true, method: SHOW.method, values: { name: "all" } } : { valid: false, error: `"${String(params.text)}" doesn't match a step` };
+			},
+		});
+	});
+	afterEach(() => t.teardown());
+
+	/** Types `text` in the step selector and picks it as the new value it offers. */
+	async function typed(text: string) {
+		const page = await aStepsPage();
+		render(page.steps.template(html``), page.host);
+		page.host.querySelector(".step-combo")?.dispatchEvent(new CustomEvent("combo-change", { detail: { value: text } }));
+		await vi.waitFor(() => expect(page.history.children.length).toBe(1));
+		return page;
+	}
+
+	it("opens a caller for the step the statement states, its inputs starting with the statement's terms", async () => {
+		const { history } = await typed(STATED);
+		const caller = itemAt(callers(history), 0) as ShuStepCaller;
+		expect(caller.getAttribute("method")).toBe(SHOW.method);
+		expect(caller.values).toEqual({ name: "all" });
+	});
+
+	it("states why in the history where the statement doesn't resolve to one step", async () => {
+		const { history } = await typed("show nothing at all");
+		expect(callers(history)).toEqual([]);
+		expect(history.querySelector(SHU_TAG.REFUSAL)).not.toBeNull();
 	});
 });

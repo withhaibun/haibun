@@ -94,6 +94,8 @@ export const views = {
 	pointAtGraphHead: (view: string) => `point at the head of graph ${view}`,
 	graphDrawsSourceTerms: (view: string) => `graph ${view} draws the terms of its source beside the source`,
 	sourceLineLights: (view: string, line: string) => `line ${line} of the source of graph ${view} lights what it states`,
+	enterInStepInput: (statement: string) => `enter ${statement} in the actions bar's step input`,
+	runLastStepForm: () => "run the last step form in the actions bar",
 };
 
 /** The steps an activity runs on the locator it composes, each written before the locator but the scroll and the wait until gone. */
@@ -113,8 +115,26 @@ const within = (activity: string, view: string, selector: string, step: TOnTarge
 	`waypoint ${head}`,
 ];
 
+/** The element of the actions bar's last step form whose test id ends with `suffix`. */
+const lastStepForm = (suffix: string): string => `${SHU_TAG.STEP_CALLER}:last-of-type [data-testid$="-${suffix}"]`;
+
 export const backgrounds: TKirejiExport = {
 	"Shu views": [
+		"The actions bar's step input takes a whole statement, such as set greeting to hello. It opens the form of the step the statement names, with the statement's values in its inputs, and the form runs that step.",
+		"Activity: Enter a statement in the step input",
+		`compose ${TARGET} as page-locator with ${testId(SHU_TEST_IDS.APP.STEP_SELECT)}`,
+		`enter {statement} into ${TARGET}`,
+		'press "Enter"',
+		`compose ${TARGET} as page-locator with ${lastStepForm("step-run")}`,
+		`wait for ${TARGET}`,
+		`waypoint ${views.enterInStepInput("{statement}")}`,
+		"Activity: Run the last step form",
+		`compose ${TARGET} as page-locator with ${lastStepForm("step-run")}`,
+		`click ${TARGET}`,
+		`compose ${TARGET} as page-locator with ${lastStepForm("step-result")}`,
+		`wait for ${TARGET}`,
+		`waypoint ${views.runLastStepForm()}`,
+
 		"A view's rail states the first row on screen at its head, which a reader reads as where the view is in the column.",
 		...within("Read the first row on screen", "{view}", `${testId(SHU_TEST_IDS.SCROLLBAR.POS_TOP)}:text-is("{row}")`, "wait for", views.showsRowFirst(VIEW, "{row}")),
 		...within("Read a later first row", "{view}", `${testId(SHU_TEST_IDS.SCROLLBAR.POS_TOP)}:not(:text-is("{row}"))`, "wait for", views.showsLaterRowFirst(VIEW, "{row}")),

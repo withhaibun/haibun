@@ -61,7 +61,7 @@ export function augmentViewHypermedia(world: TWorld, step: TStepperStep, actionR
  * A parameter matches in one of two ways:
  *   1. Direct: the parameter's domain is the product's domain.
  *   2. Reference: the parameter's domain is a ref domain whose `topology.ranges.id` names the product's domain.
- *      `individualRefDomain(refKey, targetKey)` declares this range for a reference to a targetKey individual. The
+ *      `individualRefDomain(refKey, targetKey, id, description)` declares this range for a reference to a targetKey individual. The
  *      derivation follows the range, so a product links each step that takes a reference to it. Revoke, suspend and
  *      recover take a reference to the individual that issue produces.
  *

@@ -15,6 +15,7 @@ import {
 import type { TLinkVocabulary } from "./typed-links.js";
 import { parseJsonText } from "./json-text.js";
 import { actionList } from "./actions.js";
+import { unwrapToShape } from "./zod-unwrap.js";
 import type { TWorld } from "../actuality/domains/world.js";
 
 export const DOMAIN_STATEMENT = "statement";
@@ -181,8 +182,12 @@ export function refDomainKey(domainKey: string): string {
  */
 export const deriveNamingDomains = (domains: Record<string, TRegisteredDomain>) => {
 	for (const [key, domain] of Object.entries(domains)) {
+		if (!isPersisted(domain.topology)) continue;
 		const ref = refDomainKey(key);
-		if (isPersisted(domain.topology)) domains[ref] = toRegisteredDomain(individualRefDomain(ref, key, `A reference to a ${domain.topology.persistedAs} by its id`));
+		// A reference checks its id by the type's id field, so a record not yet stored is named by an id the type would hold.
+		const id = unwrapToShape(domain.schema)?.[domain.topology.id];
+		if (id === undefined) throw new Error(`${key}'s schema doesn't state its id field ${domain.topology.id}`);
+		domains[ref] = toRegisteredDomain(individualRefDomain(ref, key, id as z.ZodType<string>, `A reference to a ${domain.topology.persistedAs} by its id`));
 	}
 	const types = new Set(getPersistedDomains(domains).map((domain) => domain.topology.persistedAs));
 	domains[DOMAIN_PERSISTED_TYPE] = toRegisteredDomain({
@@ -306,16 +311,20 @@ const individualRefSchema = z.object({ id: z.string() }).strict();
 export type TIndividualRef = z.infer<typeof individualRefSchema>;
 
 /**
- * A reference to an individual as a feature line or a call gives it: its id, a reference or its JSON text, or the
- * individual itself, whose id it takes. Each is `{ id }` to the step that takes it. Text that opens as JSON is read as
- * JSON, and refused where it isn't.
+ * A reference to an individual whose id `id` checks, as a feature line or a call gives it: its id, a reference or its JSON
+ * text, or the individual itself, whose id it takes. Each is `{ id }` to the step that takes it. Text that opens as JSON is
+ * read as JSON, and refused where it isn't.
  */
-export const individualRefInputSchema = z.preprocess((value, ctx) => {
-	const given = typeof value === "string" && value.trimStart().startsWith("{") ? parseJsonText(value, ctx) : value;
-	if (typeof given === "string") return { id: given };
-	if (given && typeof given === "object" && typeof (given as { id?: unknown }).id === "string") return { id: (given as { id: string }).id };
-	return given;
-}, individualRefSchema);
+const refInputSchema = (id: z.ZodType<string>) =>
+	z.preprocess((value, ctx) => {
+		const given = typeof value === "string" && value.trimStart().startsWith("{") ? parseJsonText(value, ctx) : value;
+		if (typeof given === "string") return { id: given };
+		if (given && typeof given === "object" && typeof (given as { id?: unknown }).id === "string") return { id: (given as { id: string }).id };
+		return given;
+	}, z.object({ id }).strict());
+
+/** A reference to an individual of any type, whose id is any text. */
+export const individualRefInputSchema = refInputSchema(z.string());
 
 /** A list as a caller gives it: an array, its JSON text, or text separated by commas, each member read by `member`. An
  *  empty list is refused. */
@@ -352,11 +361,11 @@ export const recordIdInputSchema = individualRefInputSchema.transform((ref) => r
 
 /**
  * A reusable "reference to individual X" input domain: a composite with one `id` field whose range is `targetKey`, a
- * registered persisted domain. The composite-decomposition layer treats the field as either a fact-binding (an existing
- * X) or a chain through X's producer steps.
+ * registered persisted domain, and which `id` checks. The composite-decomposition layer treats the field as either a
+ * fact-binding (an existing X) or a chain through X's producer steps.
  */
-export function individualRefDomain(refKey: string, targetKey: string, description?: string): TDomainDefinition {
-	return { selectors: [refKey], schema: individualRefInputSchema, description: description ?? `Reference to a ${targetKey} by id`, topology: { ranges: { id: targetKey } } };
+export function individualRefDomain(refKey: string, targetKey: string, id: z.ZodType<string>, description: string): TDomainDefinition {
+	return { selectors: [refKey], schema: refInputSchema(id), description, topology: { ranges: { id: targetKey } } };
 }
 
 /** Build a Map from persistedAs → TRegisteredDomain for all persisted domains. Returned domains carry a THypermediaTopology so consumers can read id/properties/edges without narrowing. */

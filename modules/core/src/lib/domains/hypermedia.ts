@@ -266,7 +266,7 @@ type THypermediaConcern = z.infer<typeof HypermediaConcernSchema>;
  * Reference-domain concern: a non-persisted composite whose `topology.ranges.id`
  * points at a persisted domain. The client uses this to recognise inputs that
  * should render as a persisted-individual picker instead of a typed-from-scratch composite.
- * Built by `individualRefDomain(refKey, targetKey)` in `domains.ts`.
+ * Built by `individualRefDomain(refKey, targetKey, id, description)` in `domains.ts`.
  */
 const ReferenceConcernSchema = z.object({ refDomain: z.string(), targetDomain: z.string(), targetPersistedAs: z.string().optional() });
 type TReferenceConcern = z.infer<typeof ReferenceConcernSchema>;

@@ -1,4 +1,102 @@
 {
+	"linux-x64-16x-amd-ryzen-7-pro-7840u-w-radeon-780m-graphics": {
+		"0f4abb40d6b8cdd0": {
+			"filter": "monitor",
+			"execution": {
+				"text": "modules/shu/tests, modules/shu/waypoints",
+				"status": "passed",
+				"tookMs": 9000,
+				"digest": {
+					"modules/cli/src": "fdce861f02447d58a40e9cfd79e61b007ae9e902efbba1f9a8cc46e8cbd834e2",
+					"modules/core/src": "06c34edaaccaf9be09c69149b4dd277fd9fd2bf64b24865bffdbaff16f5e551e",
+					"modules/domain-storage/src": "8555ea196220a75db0f69cfbf0f7374da5fc614ecf6b652c38d33cc7b11d92e9",
+					"modules/logic/src": "2aee7c0238daa9cb8a662f3292c5c59d399792ef044e708c4552cc4b49391567",
+					"modules/monitor-tui/src": "a827c8af8ca688c390637f2aa5bd5a343695fc199d15450e06fa6c9de0b9fc8b",
+					"modules/shu/src": "a3a4f9e961f561a104fef5020d8f61937abe392d37a02fc03bf62c946524c95b",
+					"modules/shu/tests": "88eb6e07b82076053ff6f8c425c43c341ffec8612bd7509b9836d02f05663715",
+					"modules/shu/waypoints": "0afc701f4acc81b15fb787821d6de83ab262a19ee6da7107e7b9c7132c732738",
+					"modules/storage-fs/src": "948755c17d4f877495d0018ea37b8a39a7bae31a28b3317c3adfcb9b2e9c79e7",
+					"modules/storage-mem/src": "764cfa313b43fa43bd52ab7fd10ce9d5ee1b3c033c58b2fc6a85d98c7f267206",
+					"modules/web-playwright/src": "ed443dcb8073bbe0768e9aa6469ae596203b584bfa208beb177ece707685549d",
+					"modules/web-server-hono/src": "cb6ad796c4e3aab9d63bc9ab196d3db565e8e2b19ff87ddcda1b4ba3e31967a4"
+				}
+			},
+			"features": {
+				"/features/monitor-serves.feature.ts": {
+					"text": "The monitor serves shu on a port of its own",
+					"status": "passed",
+					"tookMs": 1400,
+					"steps": 198
+				},
+				"/features/monitor.feature.ts": {
+					"text": "Monitor view collects and displays execution events",
+					"status": "passed",
+					"tookMs": 7100,
+					"steps": 645
+				}
+			}
+		},
+		"3a9f9c86e6cd495d": {
+			"filter": "",
+			"execution": {
+				"text": "modules/shu/tests, modules/shu/waypoints",
+				"status": "passed",
+				"tookMs": 12500,
+				"digest": {
+					"modules/cli/src": "fdce861f02447d58a40e9cfd79e61b007ae9e902efbba1f9a8cc46e8cbd834e2",
+					"modules/core/src": "06c34edaaccaf9be09c69149b4dd277fd9fd2bf64b24865bffdbaff16f5e551e",
+					"modules/domain-storage/src": "8555ea196220a75db0f69cfbf0f7374da5fc614ecf6b652c38d33cc7b11d92e9",
+					"modules/logic/src": "2aee7c0238daa9cb8a662f3292c5c59d399792ef044e708c4552cc4b49391567",
+					"modules/monitor-tui/src": "a827c8af8ca688c390637f2aa5bd5a343695fc199d15450e06fa6c9de0b9fc8b",
+					"modules/shu/src": "c72e666a50280e4101c6bff537a7a160679861da6237f26d031d4e0ffb19395a",
+					"modules/shu/tests": "88eb6e07b82076053ff6f8c425c43c341ffec8612bd7509b9836d02f05663715",
+					"modules/shu/waypoints": "0afc701f4acc81b15fb787821d6de83ab262a19ee6da7107e7b9c7132c732738",
+					"modules/storage-fs/src": "948755c17d4f877495d0018ea37b8a39a7bae31a28b3317c3adfcb9b2e9c79e7",
+					"modules/storage-mem/src": "764cfa313b43fa43bd52ab7fd10ce9d5ee1b3c033c58b2fc6a85d98c7f267206",
+					"modules/web-playwright/src": "ed443dcb8073bbe0768e9aa6469ae596203b584bfa208beb177ece707685549d",
+					"modules/web-server-hono/src": "cb6ad796c4e3aab9d63bc9ab196d3db565e8e2b19ff87ddcda1b4ba3e31967a4"
+				}
+			},
+			"features": {
+				"/features/address.feature.ts": {
+					"text": "An address names a type",
+					"status": "passed",
+					"tookMs": 700,
+					"steps": 202
+				},
+				"/features/federate.feature.ts": {
+					"text": "Federated graph reads from a sibling instance",
+					"status": "passed",
+					"tookMs": 1000,
+					"steps": 6
+				},
+				"/features/monitor-serves.feature.ts": {
+					"text": "The monitor serves shu on a port of its own",
+					"status": "passed",
+					"tookMs": 1000,
+					"steps": 198
+				},
+				"/features/monitor.feature.ts": {
+					"text": "Monitor view collects and displays execution events",
+					"status": "passed",
+					"tookMs": 6200,
+					"steps": 646
+				},
+				"/features/remote-store.feature.ts": {
+					"text": "A satellite instance keeps its records in the main instance's store",
+					"status": "passed",
+					"tookMs": 1000,
+					"steps": 8
+				},
+				"/features/voice-ui.feature.ts": {
+					"text": "UI extension propagation: domain ui → concern catalog → SPA actions bar",
+					"status": "passed",
+					"tookMs": 1200,
+					"steps": 212
+				}
+			}
+		}
+	},
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
 		"037f5dccb6aecbf1": {
 			"filter": "",

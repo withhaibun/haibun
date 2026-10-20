@@ -14,6 +14,8 @@ import {
 	MARK_INSET_PX,
 	RAIL_POSITION_MAX,
 	type TScrollMarker,
+	converged,
+	MAX_CONVERGE,
 } from "./rail.js";
 
 const RAIL = 400;
@@ -247,5 +249,26 @@ describe("what a press on the rail means", () => {
 		expect(pressTarget(0, marks, 100, RAIL), "the very head is the first row").toBe(0);
 		expect(pressTarget(RAIL, marks, 100, RAIL), "the very foot is the last").toBe(99);
 		expect(pressTarget(markerTopPx(7, 100, RAIL) + 3, marks, 100, RAIL), "and inside the rail a mark is still taken").toBe(7);
+	});
+});
+
+describe("a following view's convergence on its last row", () => {
+	it("jumps again while short of the last row, up to its passes for a row count, and again for a new count", () => {
+		let state = { rows: -1, passes: 0 };
+		for (let pass = 1; pass <= MAX_CONVERGE; pass++) {
+			const next = converged(state, 10, false);
+			expect(next.jump, `pass ${pass}`).toBe(true);
+			state = next.convergence;
+		}
+		expect(converged(state, 10, false).jump, "a row it can't reach stops the jumps").toBe(false);
+		expect(converged(state, 11, false).jump, "a new row to reach jumps again").toBe(true);
+	});
+
+	it("jumps again for a row that grows after the last row showed, moving it out of view at the same count", () => {
+		let state = { rows: -1, passes: 0 };
+		for (let pass = 1; pass <= MAX_CONVERGE; pass++) state = converged(state, 10, false).convergence;
+		const shown = converged(state, 10, true);
+		expect(shown.jump).toBe(false);
+		expect(converged(shown.convergence, 10, false).jump).toBe(true);
 	});
 });

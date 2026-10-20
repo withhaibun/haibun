@@ -14,7 +14,7 @@ import { property, state } from "lit/decorators.js";
 import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { JsonObjectTextSchema, RecordSchema, RecordsSchema } from "@haibun/core/lib/domains/json-text.js";
-import { itemAt } from "@haibun/core/lib/domains/item-at.js";
+import { itemAt, valueAt } from "@haibun/core/lib/domains/item-at.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
@@ -102,6 +102,8 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 	@property({ attribute: "call-index" }) accessor callIndex = "0";
 	@property({ type: Boolean }) accessor auto = false;
 	@property() accessor params = "";
+	/** The values its inputs start with, by parameter, each a term a statement gave it, which a reader changes before the call. */
+	@property({ attribute: false }) accessor values: Record<string, string> = {};
 
 	readonly #call = new StepCallController(this);
 	@state() private accessor definition: TStepDefinition | undefined = undefined;
@@ -113,7 +115,7 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 	@state() private accessor referenceOptions: Record<string, TComboboxOption[]> = {};
 	@state() private accessor referenceRefusals: Record<string, TPageRefusal> = {};
 	/** The id a reader picked or typed for each reference parameter, by parameter. */
-	#referenceIds: Record<string, string> = {};
+	readonly #referenceIds = new Map<string, string>();
 
 	constructor() {
 		super(EmptyStateSchema);
@@ -140,13 +142,30 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 	async #open(): Promise<void> {
 		if (this.step === "") throw new Error("<shu-step-caller> connects without the step it calls");
 		try {
-			this.definition = await this.#call.definitionOf(this.step);
-			this.#loadReferences(this.definition);
+			const definition = await this.#call.definitionOf(this.step);
+			this.#startWith(definition);
+			this.definition = definition;
+			this.#loadReferences(definition);
 		} catch (err) {
 			this.unshown = { error: errorDetail(err) };
 			return;
 		}
 		if (this.auto) await this.callStep({});
+	}
+
+	/** Starts the form's inputs with its `values`: a reference's as its id, empty where `values` doesn't name it, a composite's
+	 *  JSON as the input of each of its fields, and any other's as its input's text. Throws for a composite's value that isn't
+	 *  a JSON object. */
+	#startWith(desc: TStepDefinition): void {
+		const properties = this.#inputSchemaOf(desc).properties;
+		for (const param of Object.keys(desc.paramDomains)) if (this.#referenceTarget(desc, param) !== undefined) this.#referenceIds.set(param, "");
+		for (const [param, value] of Object.entries(this.values)) {
+			if (this.#referenceIds.has(param)) this.#referenceIds.set(param, value);
+			else if (isCompositeProperty(properties?.[param])) {
+				const fields = Object.entries(JsonObjectTextSchema.parse(value)).map(([field, held]) => [`${param}.${field}`, typeof held === "string" ? held : JSON.stringify(held)]);
+				this.formValues = { ...this.formValues, ...Object.fromEntries(fields) };
+			} else this.formValues = { ...this.formValues, [param]: value };
+		}
 	}
 
 	/** The test id prefix: the step's key and the caller's number, which a test builds from the method too. */
@@ -253,7 +272,7 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 	#valuesOf(form: HTMLFormElement): Record<string, string> {
 		const values: Record<string, string> = {};
 		for (const input of form.querySelectorAll<HTMLInputElement | HTMLSelectElement>("input[name], select[name]")) if (input.value !== "") values[input.name] = input.value;
-		for (const [param, id] of Object.entries(this.#referenceIds)) if (id !== "") values[`${param}.id`] = id;
+		for (const [param, id] of this.#referenceIds) if (id !== "") values[`${param}.id`] = id;
 		return values;
 	}
 
@@ -307,9 +326,9 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 		if (target !== undefined) {
 			const refusal = this.referenceRefusals[paramName];
 			// The combobox carries its test id to its input, so a driver fills it as a text input. A typed id is the value until a pick.
-			return html`<span class="ref-input"><shu-combobox testid=${this.#testId(`step-input-${paramName}`)} placeholder=${`${paramName} (pick or type id)`} .options=${this.referenceOptions[paramName] ?? []}
-					@combo-change=${(e: CustomEvent<{ value: string }>) => (this.#referenceIds[paramName] = e.detail.value)}
-					@input=${(e: Event) => (this.#referenceIds[paramName] = (e.composedPath()[0] as HTMLInputElement).value)}></shu-combobox>${refusal === undefined ? nothing : html`<shu-refusal .refusal=${refusal}></shu-refusal>`}</span>`;
+			return html`<span class="ref-input"><shu-combobox testid=${this.#testId(`step-input-${paramName}`)} placeholder=${`${paramName} (pick or type id)`} .accepts=${true} .value=${valueAt(this.#referenceIds, paramName, "the id a reference holds")} .options=${this.referenceOptions[paramName] ?? []}
+					@combo-change=${(e: CustomEvent<{ value: string }>) => this.#referenceIds.set(paramName, e.detail.value)}
+					@input=${(e: Event) => this.#referenceIds.set(paramName, (e.composedPath()[0] as HTMLInputElement).value)}></shu-combobox>${refusal === undefined ? nothing : html`<shu-refusal .refusal=${refusal}></shu-refusal>`}</span>`;
 		}
 		if (!isCompositeProperty(prop)) return this.#textInput(paramName, paramName, paramName, "text");
 		const required = new Set(prop.required ?? []);

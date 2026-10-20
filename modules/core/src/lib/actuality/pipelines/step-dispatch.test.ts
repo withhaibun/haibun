@@ -268,7 +268,7 @@ describe("step-dispatch", () => {
 
 		it("takes a reference given as an id, an object or JSON text, and refuses a number and text that isn't JSON", () => {
 			const w = getDefaultWorld();
-			registerDomains(w, [[individualRefDomain("test-ref", "test-target")]]);
+			registerDomains(w, [[individualRefDomain("test-ref", "test-target", z.string(), "a reference to a test target")]]);
 			const stepper = new (class extends AStepper {
 				description = "A step that revokes a record by its reference.";
 				steps = { revoke: { gwta: "revoke {what: test-ref}", action: async () => OK } };

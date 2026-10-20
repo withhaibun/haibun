@@ -6,6 +6,7 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { importsOf, parsedSource, sourceDirectoryOf, sourceFiles, workspacePackages } from "./test/repository-files.js";
+import { REPOSITORY_SCAN_MS } from "./test/baseline.js";
 
 const REPOSITORY = fileURLToPath(new URL("../../../../", import.meta.url));
 /** An import that names a test module, whether a value or a type. */
@@ -17,12 +18,16 @@ describe("a module actuality runs", () => {
 		expect(production.length).toBeGreaterThan(300);
 	});
 
-	it("doesn't import a test module", () => {
-		const importing = production.flatMap((file) =>
-			importsOf(parsedSource(REPOSITORY, file))
-				.filter(({ specifier }) => NAMES_A_TEST_MODULE.test(specifier))
-				.map(({ specifier }) => `${file} imports ${specifier}`),
-		);
-		expect(importing).toEqual([]);
-	});
+	it(
+		"doesn't import a test module",
+		() => {
+			const importing = production.flatMap((file) =>
+				importsOf(parsedSource(REPOSITORY, file))
+					.filter(({ specifier }) => NAMES_A_TEST_MODULE.test(specifier))
+					.map(({ specifier }) => `${file} imports ${specifier}`),
+			);
+			expect(importing).toEqual([]);
+		},
+		REPOSITORY_SCAN_MS,
+	);
 });

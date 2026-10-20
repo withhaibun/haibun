@@ -20,6 +20,8 @@ const BLUR_MS = 150;
 const BLUR = "blur";
 /** The least width of the list, which is as wide as the input where the input is wider. */
 const LIST_MIN_WIDTH = 200;
+/** The line under typed text the control offers as a value of its own. */
+const NEW_ENTRY = "new";
 
 export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 	/** A control doesn't contribute to a conversation's context, since it isn't a view of data. */
@@ -54,7 +56,7 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 	@state() private accessor hovered: number | undefined = undefined;
 
 	constructor() {
-		super(ComboboxSchema, { value: "", options: [], placeholder: "", shown: "" });
+		super(ComboboxSchema, { value: "", options: [], placeholder: "", shown: "", accepts: false });
 	}
 
 	protected override onAttributeChanged(name: string, _old: string | null, val: string | null): void {
@@ -80,6 +82,11 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 	}
 	get options(): TComboboxOption[] {
 		return this.state.options;
+	}
+
+	/** Whether text that doesn't name an option is a value of its own, such as the id of a record not yet stored. */
+	set accepts(accepts: boolean) {
+		this.setState({ accepts });
 	}
 
 	/** Holds `value` and closes the list. */
@@ -109,14 +116,16 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 		return chosen === undefined ? this.state.value : chosen.label;
 	}
 
-	/** The options the open list offers for its filter: those whose label holds the text, then those whose value or
-	 *  secondary text holds it. */
+	/** The options the open list offers for its filter: the text itself first where the control accepts it and the text isn't
+	 *  an option's value, then the options whose label holds the text, then those whose value or secondary text holds it. */
 	get #offered(): TComboboxOption[] {
-		const q = this.#list.filter.toLowerCase();
+		const text = this.#list.filter.trim();
+		const q = text.toLowerCase();
 		if (q === "") return this.state.options;
+		const entered = this.state.accepts && !this.state.options.some((o) => o.value === text) ? [{ value: text, label: text, secondary: NEW_ENTRY }] : [];
 		const labelled = this.state.options.filter((o) => o.label.toLowerCase().includes(q));
 		const other = this.state.options.filter((o) => !o.label.toLowerCase().includes(q) && (o.value.toLowerCase().includes(q) || o.secondary?.toLowerCase().includes(q) === true));
-		return [...labelled, ...other];
+		return [...entered, ...labelled, ...other];
 	}
 
 	#offer = (e: Event): void => {
@@ -162,7 +171,7 @@ export class ShuCombobox extends ShuElement<typeof ComboboxSchema> {
 		e.preventDefault();
 		const item = (e.target as HTMLElement).closest<HTMLLIElement>("li[data-value]");
 		if (item === null) return;
-		const option = this.state.options.find((o) => o.value === item.dataset.value);
+		const option = this.#offered.find((o) => o.value === item.dataset.value);
 		if (option === undefined) throw new Error(`the combobox offers ${item.dataset.value}, which its options don't hold`);
 		this.#pick(option);
 	};

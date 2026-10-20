@@ -1,4 +1,33 @@
 {
+	"linux-x64-16x-amd-ryzen-7-pro-7840u-w-radeon-780m-graphics": {
+		"ecde34e6cbbc188c": {
+			"filter": "",
+			"execution": {
+				"text": "modules/shu/tests-basic-auth",
+				"status": "passed",
+				"tookMs": 1900,
+				"digest": {
+					"modules/core/src": "06c34edaaccaf9be09c69149b4dd277fd9fd2bf64b24865bffdbaff16f5e551e",
+					"modules/domain-storage/src": "8555ea196220a75db0f69cfbf0f7374da5fc614ecf6b652c38d33cc7b11d92e9",
+					"modules/logic/src": "2aee7c0238daa9cb8a662f3292c5c59d399792ef044e708c4552cc4b49391567",
+					"modules/shu/src": "c72e666a50280e4101c6bff537a7a160679861da6237f26d031d4e0ffb19395a",
+					"modules/shu/tests-basic-auth": "594c5f1c44166acad2d1330bf4f31882c5b167575f28d828b82c4cc36e5eeff2",
+					"modules/storage-fs/src": "948755c17d4f877495d0018ea37b8a39a7bae31a28b3317c3adfcb9b2e9c79e7",
+					"modules/storage-mem/src": "764cfa313b43fa43bd52ab7fd10ce9d5ee1b3c033c58b2fc6a85d98c7f267206",
+					"modules/web-playwright/src": "ed443dcb8073bbe0768e9aa6469ae596203b584bfa208beb177ece707685549d",
+					"modules/web-server-hono/src": "cb6ad796c4e3aab9d63bc9ab196d3db565e8e2b19ff87ddcda1b4ba3e31967a4"
+				}
+			},
+			"features": {
+				"/features/behind-basic-auth.feature.ts": {
+					"text": "A page behind basic auth",
+					"status": "passed",
+					"tookMs": 1700,
+					"steps": 215
+				}
+			}
+		}
+	},
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
 		"03d75cd4d387071b": {
 			"filter": "",

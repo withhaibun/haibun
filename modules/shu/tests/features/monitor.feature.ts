@@ -52,6 +52,12 @@ export const features: TKirejiExport = {
 		gotoPage({ name: `"${host}/spa"` }),
 		...enterStepMode,
 
+		scenario({ scenario: "A statement entered in the step input opens its step's form with its values" }),
+		"A whole statement entered in the actions bar's step input opens the form of the set step, holding typed greeting and hello. Running the form sets the variable.",
+		views.enterInStepInput('"set typed greeting to hello"'),
+		views.runLastStepForm(),
+		'variable typed greeting is "hello"',
+
 		scenario({ scenario: "Open monitor column via step" }),
 		"The show monitor step triggers the SPA to open a monitor log stream column.",
 		...passesStepExecution("MonitorStepper-showMonitor", {}),
