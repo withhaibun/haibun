@@ -567,7 +567,7 @@ export class ShuColumnPane extends ShuElement<typeof ColumnPaneSchema> {
 		</div>`;
 		return html`
 			<div class=${CLASS.HEADER} data-testid=${columnType !== "query" ? TEST_ID.BROWSER_COLUMN : ""}>
-				<span class=${CLASS.LABEL} title=${label}>${label}</span>
+				<span class=${CLASS.LABEL} data-testid=${SHU_TEST_IDS.COLUMN_PANE.LABEL} title=${label}>${label}</span>
 				${controlsGroup}
 			</div>
 			${collapsed ? spine : html`<div class=${CLASS.CONTENT}><slot @slotchange=${this.onSlotChange}></slot></div>`}

@@ -51,4 +51,30 @@ describe("wait for", () => {
 			server.close();
 		}
 	});
+
+	it("turns the wheel over a target as a reader reading back does, and waits until a target is gone", { timeout: 20_000 }, async () => {
+		const page = `<div data-testid=log style="height:100px;overflow:auto"><div style="height:1000px"></div></div><p data-testid=latest>The newest line</p>
+<script>const log = document.querySelector("[data-testid=log]"); log.scrollTop = 900; log.addEventListener("wheel", () => document.querySelector("[data-testid=latest]").hidden = true);</script>`;
+		const server = createServer((_request, response) => response.end(page));
+		await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+		const { port } = server.address() as AddressInfo;
+		const gone = "wait until latest is gone";
+		const content = [
+			`go to the "http://127.0.0.1:${port}/" webpage`,
+			`set log as page-test-id to "log"`,
+			`set latest as page-test-id to "latest"`,
+			"wait for latest",
+			"scroll log up a screen",
+			gone,
+		].join("\n");
+		try {
+			const res = await failWithDefaults([{ path: "/features/gone.feature", content }], [WebPlaywright, VariablesStepper, StorageMem], {
+				options: { DEST: DEFAULT_DEST },
+				moduleOptions,
+			});
+			expect(res.featureResults?.[0]?.stepResults.findLast((step) => step.in === gone)?.ok, "the wheel reached the log, and the line it hid is gone").toBe(true);
+		} finally {
+			server.close();
+		}
+	});
 });

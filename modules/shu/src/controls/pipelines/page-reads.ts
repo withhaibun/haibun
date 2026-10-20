@@ -4,8 +4,6 @@
  * an argument, since the page runs it apart from this module.
  */
 import type { Locator, Page } from "playwright";
-import { SHU_TAG } from "../../domains/elements.js";
-import { INPUT_EVENT } from "../domains/waits.js";
 import { objectId } from "../../page/derivations/record-fields.js";
 
 /** A fraction as a percentage to `digits` places, for a refusal to state. */
@@ -51,42 +49,6 @@ export async function until<E extends HTMLElement, A>(locator: Locator, state: s
 
 /** Waits until `locator` finds an element in the page, shown or not. */
 export const attached = (locator: Locator, timeout: number): Promise<void> => locator.waitFor({ state: "attached", timeout });
-
-/** Whether `locator` comes to find at least `count` elements within `timeout`. */
-export function findsAtLeast(locator: Locator, count: number, timeout: number): Promise<boolean> {
-	return attached(locator.nth(count - 1), timeout).then(
-		() => true,
-		() => false,
-	);
-}
-
-/** The actions bar's history. */
-export const historyOf = (page: Page): Locator => page.locator(SHU_TAG.ACTIVITY_HISTORY).first();
-
-/** How many pixels above its newest turn the history is scrolled. */
-export const historyShortOfNewest = (history: Locator): Promise<number> => history.evaluate((el) => el.scrollHeight - (el.scrollTop + el.clientHeight));
-
-/** Scrolls the history to its first turn as a reader does, with the wheel event that pauses the follow. Returns true, or
- *  why the history didn't scroll. */
-export const scrollHistoryToStart = (history: Locator): Promise<true | string> =>
-	history.evaluate((el, wheel) => {
-		if (el.scrollHeight <= el.clientHeight) return `the history holds one screen: ${el.scrollHeight} of ${el.clientHeight}`;
-		el.dispatchEvent(new WheelEvent(wheel, { deltaY: -100, bubbles: true }));
-		el.scrollTop = 0;
-		return el.scrollTop === 0 ? true : "the history didn't scroll";
-	}, INPUT_EVENT.wheel);
-
-/** The panes whose column key holds `match`, and are active where `active` states it. */
-export const panesMatching = (page: Page, match: string, active: boolean): Locator =>
-	page.locator(`${SHU_TAG.COLUMN_PANE}${active ? "[active]" : ""}[data-column-key*=${JSON.stringify(match)}]`);
-
-/** Every pane's column key, the active one marked, for a refusal to state. */
-export const columnKeys = (page: Page): Promise<string[]> =>
-	page.locator(SHU_TAG.COLUMN_PANE).evaluateAll((panes) => panes.map((p) => `${(p as HTMLElement).dataset.columnKey}${p.hasAttribute("active") ? " (active)" : ""}`));
-
-/** How an element scrolls: its overflow, and the width of a native scrollbar's gutter. */
-export const scrollingOf = (region: Locator): Promise<{ overflowY: string; gutter: number }> =>
-	region.evaluate((el: HTMLElement) => ({ overflowY: getComputedStyle(el).overflowY, gutter: el.offsetWidth - el.clientWidth }));
 
 /** A node of a graph as a control reads it: its id, its type, and its name where it has one. */
 export type TNodeRead = { id: string; type: string; name?: string };

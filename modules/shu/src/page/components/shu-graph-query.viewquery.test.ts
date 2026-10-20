@@ -9,6 +9,7 @@
 import { newPage } from "../../test/setup.js";
 import { beforeEach, describe, expect, it } from "vitest";
 import { viewQuery } from "../controllers/view-query-controller.js";
+import { ViewQuerySchema } from "../domains/view-query.js";
 import { ShuGraphQuery } from "./shu-graph-query.js";
 
 const make = () => new ShuGraphQuery();
@@ -48,12 +49,9 @@ describe("shu-graph-query → viewQuery", () => {
 		expect(viewQuery.current.sort).toBeNull();
 	});
 
-	it("set products applies a view-query control product, stripping the dispatch hypermedia markers", () => {
+	it("restoring a recorded search sets the store to its query", () => {
 		const el = make();
-		// the shape a `search for {q}` control step emits after dispatch augments it with hypermedia markers.
-		el.products = { q: "INBOX", _component: "shu-graph-query", _type: "view-query", _summary: "view-query", id: "view-query", view: "view-query" };
-		expect(viewQuery.current.q).toBe("INBOX");
-		el.products = { label: "Person" };
-		expect(viewQuery.current.label).toBe("Person");
+		el.restoreSearch(ViewQuerySchema.parse({ q: "INBOX", label: "Email" }));
+		expect([viewQuery.current.q, viewQuery.current.label]).toEqual(["INBOX", "Email"]);
 	});
 });

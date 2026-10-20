@@ -47,7 +47,6 @@ export const SHU_TEST_IDS = {
 		/** In the chat's settings where actuality doesn't offer a model: that it doesn't offer one. */
 		NO_MODELS: "app-no-models",
 		TYPE_SELECT: "app-type-select",
-		FOLDER_SELECT: "app-folder-select",
 		TEXT_SEARCH: "app-text-search",
 		ADD_FILTER: "app-add-filter",
 		SEARCH_GO: "app-search-go",
@@ -126,7 +125,7 @@ export const SHU_TEST_IDS = {
 		POS_BOTTOM: "scrollbar-pos-bottom",
 	},
 	/** What every view that follows the time cursor shares. MOMENT: a row's control that moves the cursor to the row's moment. */
-	TIME_CURSOR: { MOMENT: "time-cursor-moment" },
+	TIME_CURSOR: { MOMENT: "moment" },
 	SETTINGS: { WINDOW_SIZE: "settings-window-size" },
 	/** A type's or a domain's view: what it is, its schema, its individuals, and the steps that return and take it. */
 	TYPE_COLUMN: {
@@ -165,6 +164,8 @@ export const SHU_TEST_IDS = {
 		CONTROLS_TOGGLE: "pane-controls-toggle",
 		CLOSE: "pane-close",
 		SPINE: "pane-spine",
+		/** The column's label in its header. A press on it activates the column. */
+		LABEL: "pane-label",
 	},
 	/** What the index reports about itself in the strip it collapses to: which search, and how many it found. */
 	INDEX_SUMMARY: { ROOT: "index-summary" },

@@ -52,6 +52,16 @@ export async function waitForTarget(session: BrowserSession, target: TStepValue)
 	}
 }
 
+/** Waits until a target is gone: its first element is detached from the document or hidden. */
+export async function waitUntilGone(session: BrowserSession, target: TStepValue): Promise<TActionResult> {
+	try {
+		await session.withScope((scope) => locateByDomain(scope, target).first().waitFor({ state: "hidden" }));
+		return OK;
+	} catch (e) {
+		return actionNotOK(`${String(target.value)} is still shown: ${errorDetail(e)}`);
+	}
+}
+
 /** Waits until the page's address is `name`. */
 export async function isOnPage(session: BrowserSession, name: string): Promise<TActionResult> {
 	const address = await session.withPage(async (page) => {

@@ -1,7 +1,7 @@
 /**
  * <shu-search-summary>: one committed search, recorded into the shared activity history. It holds the exact
  * `viewQuery` snapshot that produced the results; clicking it dispatches SEARCH_RESTORE and the app re-applies
- * that snapshot through shu-graph-query's `products` entry, restoring the search exactly (type, text,
+ * that snapshot through shu-graph-query's `restoreSearch`, restoring the search exactly (type, text,
  * filters, sort, access), the same round-trip the URL hash already proves out.
  *
  * Light DOM (an activity-history entry must be visible to test-id walks and text capture).

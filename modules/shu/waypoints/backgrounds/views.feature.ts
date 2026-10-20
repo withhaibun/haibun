@@ -9,6 +9,9 @@ const VIEW = "{view}";
 const TARGET = "shu view target";
 const testId = (id: string): string => `[data-testid="${id}"]`;
 const FRAME = SHU_TAG.ARTIFACT_FRAME;
+const PANE = SHU_TAG.COLUMN_PANE;
+/** An activity that reads the whole page rather than one view. */
+const PAGE = "the page";
 /** The document column, quoted as a literal container. */
 const DOCUMENT = `"${SHU_TAG.DOCUMENT_COLUMN}"`;
 
@@ -28,13 +31,24 @@ export const views = {
 	expandedScreenshotShowsItsStep: () => "expanded screenshot shows the step that took it",
 	arrowKeyMovesExpandedScreenshot: () => "arrow key moves the expanded screenshot to the next",
 	expandedScreenshotTakesAPress: () => "expanded screenshot takes a press, which closes it",
+	columnIsActive: (match: string) => `column ${match} is active`,
+	activateColumn: (match: string) => `activate column ${match}`,
+	closeColumn: (match: string) => `close column ${match}`,
+	queryLists: (type: string, id: string) => `query lists the ${type} individual ${id}`,
+	readAnEarlierTurn: () => "read an earlier turn in the chat",
+	chatShowsItsNewestTurn: () => "chat shows its newest turn",
 };
 
-/** An activity that composes a locator from `selector` and runs `step` on it within `view`, stated as the waypoint `head`. */
-const within = (activity: string, view: string, selector: string, step: "wait for" | "click", head: string): string[] => [
+/** The steps an activity runs on the locator it composes, each written before the locator but the scroll. */
+type TOnTarget = "wait for" | "click" | "scroll up a screen";
+const onTarget = (step: TOnTarget): string => (step === "scroll up a screen" ? `scroll ${TARGET} up a screen` : `${step} ${TARGET}`);
+
+/** An activity that composes a locator from `selector` and runs `step` on it within `view`, or within the page, stated as the
+ *  waypoint `head`. */
+const within = (activity: string, view: string, selector: string, step: TOnTarget, head: string): string[] => [
 	`Activity: ${activity}`,
 	`compose ${TARGET} as page-locator with ${selector}`,
-	`in ${view}, ${step} ${TARGET}`,
+	view === PAGE ? onTarget(step) : `in ${view}, ${onTarget(step)}`,
 	`waypoint ${head}`,
 ];
 
@@ -77,5 +91,24 @@ export const backgrounds: TKirejiExport = {
 		`in ${DOCUMENT}, wait for ${TARGET}`,
 		`waypoint ${views.arrowKeyMovesExpandedScreenshot()}`,
 		...within("Press the expanded screenshot", DOCUMENT, `${FRAME}.fullscreen img`, "click", views.expandedScreenshotTakesAPress()),
+
+		"Every view shows in a column of the strip, which its address segment names. A press on a column's label makes it the active column, and its close control removes it from the strip.",
+		...within("Read the active column", PAGE, `${PANE}[active][data-column-key*="{match}"]`, "wait for", views.columnIsActive("{match}")),
+		...within("Press a column's label", PAGE, `${PANE}[data-column-key*="{match}"] ${testId(SHU_TEST_IDS.COLUMN_PANE.LABEL)} >> nth=0`, "click", views.activateColumn("{match}")),
+		"Activity: Close a column",
+		`compose ${TARGET} as page-locator with ${PANE}[data-column-key*="{match}"]`,
+		`in ${TARGET}, click "${SHU_TEST_IDS.COLUMN_PANE.CLOSE}" by test id`,
+		`wait until ${TARGET} is gone`,
+		`waypoint ${views.closeColumn("{match}")}`,
+
+		"The query lists each individual it matches as a row that carries the individual's type and id.",
+		...within("Read a listed individual", PAGE, `[data-persisted-as="{type}"][data-individual-id="{id}"]`, "wait for", views.queryLists("{type}", "{id}")),
+
+		"A reader who scrolls back through the chat's history leaves its newest turn, and the control that states what arrived meanwhile returns them to it and hides once they are there.",
+		...within("Scroll the history back", PAGE, SHU_TAG.ACTIVITY_HISTORY, "scroll up a screen", views.readAnEarlierTurn()),
+		"Activity: Read the newest turn",
+		`compose ${TARGET} as page-locator with ${testId(SHU_TEST_IDS.APP.CHAT_ARRIVED)}`,
+		`wait until ${TARGET} is gone`,
+		`waypoint ${views.chatShowsItsNewestTurn()}`,
 	],
 };

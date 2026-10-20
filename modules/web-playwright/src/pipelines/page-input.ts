@@ -34,6 +34,16 @@ export const selectOption = (session: BrowserSession, option: string, field: TSt
 export const click = (session: BrowserSession, target: TStepValue, force: boolean): Promise<TActionResult> =>
 	attempted(`click ${String(target.value)}`, () => session.withScope((scope) => locateByDomain(scope, target).click({ force })));
 
+/** Turns the mouse wheel over the element a target locates, up by the element's own height, as a reader reading back does. */
+export const scrollUpAScreen = (session: BrowserSession, target: TStepValue): Promise<TActionResult> =>
+	attempted(`scroll ${String(target.value)} up a screen`, () =>
+		session.withScope(async (scope) => {
+			const located = locateByDomain(scope, target).first();
+			await located.hover();
+			await located.page().mouse.wheel(0, -(await located.evaluate((element) => element.clientHeight)));
+		}),
+	);
+
 /** The locator of each way to find what a click presses. */
 const FINDS: Record<TFindWay, (scope: TPageScope, target: string) => Locator> = {
 	"alt text": (scope, target) => scope.getByAltText(target),

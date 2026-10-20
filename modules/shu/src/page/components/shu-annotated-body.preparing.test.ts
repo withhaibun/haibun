@@ -44,6 +44,15 @@ describe("shu-annotated-body preparing indicator", () => {
 		vi.useRealTimers();
 	});
 
+	it("scrolls its content in a region of its own whose native scrollbar is hidden, so its rail is the one scroll control", async () => {
+		el = mount("Anyone up for hiking this weekend?");
+		await el.updateComplete;
+		const styles = el.querySelector("style")?.textContent;
+		expect(styles).toMatch(/\.annotated-scroll \{[^}]*overflow-y: auto; scrollbar-width: none;/);
+		expect(styles).toMatch(/\.annotated-scroll::-webkit-scrollbar \{ width: 0; height: 0; \}/);
+		expect(el.querySelector(".annotated-scroll")).not.toBeNull();
+	});
+
 	it("renders a small body inline at once, without an indicator to flash", async () => {
 		el = mount("Anyone up for hiking this weekend?");
 		await el.updateComplete;

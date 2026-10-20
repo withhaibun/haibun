@@ -29,6 +29,7 @@ import { reportFailure } from "../controllers/client-log-controller.js";
 import type { ShuColumnStrip } from "./shu-column-strip.js";
 import type { ShuGraphQuery } from "./shu-graph-query.js";
 import { appAccessLevel } from "../controllers/view-query-controller.js";
+import { ViewQuerySchema } from "../domains/view-query.js";
 import { PANE_ATTACH, activatePane, dismissPane, openStrip, requestPane, requestPaneFrom, restorePanes } from "../controllers/pane-controller.js";
 import { PaneOpenSchema } from "../derivations/pane-kinds.js";
 import "./shu-page-key.js";
@@ -193,7 +194,7 @@ export class ShuPage extends ShuElement<typeof EmptyStateSchema> {
 		this.autoListen(this, SHU_EVENT.SEARCH_RESTORE, ((e: CustomEvent) => {
 			const query = this.#query();
 			if (!query) throw new Error("search-restore: the page doesn't hold a shu-graph-query, so the search isn't restored");
-			query.products = e.detail.query;
+			query.restoreSearch(ViewQuerySchema.parse(e.detail.query));
 		}) as EventListener);
 		// A breadcrumb activates the pane at its index, and index 0 also deselects the query's rows.
 		this.autoListen(this, "breadcrumb-nav", ((e: CustomEvent) => {

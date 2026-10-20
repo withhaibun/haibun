@@ -294,7 +294,7 @@ view "shu-document-column" is scrolled to its end
 
 | Stepper | Example Steps |
 |---------|---------------|
-| WebPlaywright | `go to the {uri} webpage`, `click "{target}"`, `click "{target}" by "placeholder"`, `input {what} for {field}`, `wait for "{target}"`, `see "{text}"`, `cookie {name} is {value}`, `take a screenshot` |
+| WebPlaywright | `go to the {uri} webpage`, `click "{target}"`, `click "{target}" by "placeholder"`, `input {what} for {field}`, `wait for "{target}"`, `wait until {target} is gone`, `scroll {target} up a screen`, `in {container}, {statement}`, `see "{text}"`, `cookie {name} is {value}`, `take a screenshot` |
 | WebServerStepper | `serve files at /path from "dir"`: a served file requires `Read:public`, which a deployment serving a site allows without a delegation |
 | A11yStepper | `page is accessible accepting serious {N} and moderate {N}` |
 | WebHttp | `fetch from {url} is "{expected}"` |

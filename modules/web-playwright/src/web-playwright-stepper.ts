@@ -102,6 +102,7 @@ import {
 	resizeToScreen,
 	resizeWindow,
 	routeRequests,
+	scrollUpAScreen,
 	selectOption,
 	setTimeouts,
 	typeText,
@@ -122,6 +123,7 @@ import {
 	textOf,
 	waitForAddress,
 	waitForTarget,
+	waitUntilGone,
 } from "./pipelines/page-reads.js";
 import { listTabs, openTab, readTab } from "./pipelines/relay-tabs.js";
 import {
@@ -325,6 +327,12 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			...ANSWERED_BY_THE_PAGE,
 			action: ({ what, field }: { what: string; field: TStepValue }) => enterInto(this.session, what, field),
 		},
+		scrollUpAScreen: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.act,
+			gwta: `scroll {target: ${DOMAIN_PAGE_TARGET}} up a screen`,
+			...ANSWERED_BY_THE_PAGE,
+			action: ({ target }: { target: TStepValue }) => scrollUpAScreen(this.session, target),
+		},
 		selectionOption: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,
 			gwta: `select {option: ${DOMAIN_PAGE_TEXT}} for {field: ${DOMAIN_PAGE_TARGET}}`,
@@ -350,6 +358,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		shouldSeeTestId: { ...PAGE_READ, gwta: `has test id {testId: ${DOMAIN_PAGE_TEST_ID}}`, action: ({ testId }: { testId: string }) => hasTestId(this.session, testId) },
 		seeText: { ...PAGE_READ, gwta: `see {text: ${DOMAIN_TEXT}}`, action: ({ text }: { text: string }) => sees(this.session, text, "body") },
 		waitFor: { gwta: `wait for {target: ${DOMAIN_PAGE_TARGET}}`, action: ({ target }: { target: TStepValue }) => waitForTarget(this.session, target) },
+		waitUntilGone: { gwta: `wait until {target: ${DOMAIN_PAGE_TARGET}} is gone`, action: ({ target }: { target: TStepValue }) => waitUntilGone(this.session, target) },
 
 		// TABS
 		onNewTab: {
