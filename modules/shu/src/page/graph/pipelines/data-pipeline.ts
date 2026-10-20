@@ -1,6 +1,6 @@
 // The polymorphic's data-flow subsystem: it turns the (time-filtered, type-gated) quad model into the {nodes, links}
 // the force engine renders, and owns the layout-stable bookkeeping that flow needs: the per-id FGNode map (reused
-// across repaints so a node's three.js visual and scale refs survive), the FGLink map (reused so __lineObj/__label
+// across repaints so a node's three.js visual and scale refs survive), the FGLink map (reused so __label
 // refs are never orphaned), the parked positions of nodes that left the visible set, and the one-per-lifetime sqrt-age
 // depth scale (re-derived only at the coarse-tick moments, never on a plain streaming merge). The component calls
 // toGraphData from repaint/repaintLayout and delegates capturePositions/hashCurrentModel/extractTimes to it.
@@ -71,7 +71,7 @@ export type DataPipelineDeps = {
 export class DataPipeline {
 	constructor(private deps: DataPipelineDeps) {}
 
-	// Reused across repaints so a node's three.js visual and scale refs survive and link __lineObj/__label refs are
+	// Reused across repaints so a node's three.js visual and scale refs survive and link __label refs are
 	// never orphaned. The component reads these through delegating getters; the pipeline is their sole writer.
 	nodeMap = new Map<string, FGNode>();
 	linkMap = new Map<string, FGLink>();
@@ -318,8 +318,8 @@ export class DataPipeline {
 		}
 		this.nodeMap = nextMap;
 		const ids = new Set(fgNodes.map((n) => n.id));
-		// Reuse existing FGLink objects so __lineObj / __label are never orphaned by a repaint, losing
-		// those refs forces applyFocus to retry 30 frames before it can highlight incident edges.
+		// Reuse existing FGLink objects so __label is never orphaned by a repaint, losing
+		// that ref forces applyFocus to retry 30 frames before it can highlight incident edges.
 		// Fresh = absent from the previous linkMap; detecting here avoids a second pass.
 		const prevLinkMap = this.linkMap;
 		const freshLinks: FGLink[] = [];

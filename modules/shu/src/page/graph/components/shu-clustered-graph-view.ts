@@ -14,7 +14,7 @@ import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { extractQuadsFromEvents } from "@haibun/core/lib/steps/derivations/quad-events.js";
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { getRels, instrumentationTypes } from "../../controllers/catalog-controller.js";
-import { DEFAULT_PER_TYPE_LIMIT, MAX_PER_TYPE_LIMIT, type TReadCounts } from "../domains/snapshot.js";
+import { DEFAULT_PER_TYPE_LIMIT, MAX_PER_TYPE_LIMIT } from "../domains/snapshot.js";
 import { GraphDataController, currentSnapshot, mergeIntoSnapshots } from "../controllers/graph-data-controller.js";
 import { SubjectController } from "../../controllers/subject-controller.js";
 import { MAIN_GRAPH_SCOPE, ShuGraphFilter } from "./shu-graph-filter.js";
@@ -108,11 +108,6 @@ export abstract class ShuClusteredGraphView<T extends z.ZodObject<typeof cluster
 	/** The view's data: its scope's snapshot, a record's neighbourhood, and the count of the reads it started and settled.
 	 *  A subclass states its scope as a constant through its getter, which the initialiser reads. */
 	protected readonly data = new GraphDataController(this.snapshotScope);
-
-	/** The scoped reads this view started and those that settled, which match while a read isn't in flight (SH22). */
-	get reads(): TReadCounts {
-		return this.data.reads;
-	}
 
 	protected get cgState(): TClusteredGraphState {
 		return this.state;
@@ -335,12 +330,8 @@ export abstract class ShuClusteredGraphView<T extends z.ZodObject<typeof cluster
 		this.commitHidden(hidden, visibleTypes.length > 0 ? visibleTypes : undefined, perTypeLimit);
 	}
 
-	/** Read the scope's snapshot again and draw it, counted as one read that settles once the view holds what it returned. */
-	protected refetchSnapshot(opts: { perTypeLimit: number; types?: string[] }): Promise<void> {
-		return this.data.counted(() => this.#refetch(opts));
-	}
-
-	async #refetch(opts: { perTypeLimit: number; types?: string[] }): Promise<void> {
+	/** Read the scope's snapshot again and draw it. */
+	protected async refetchSnapshot(opts: { perTypeLimit: number; types?: string[] }): Promise<void> {
 		try {
 			const snap = await this.data.readSnapshot(opts.perTypeLimit, opts.types);
 			for (const c of snap.clusters) this.knownClusters.set(c.type, c);
@@ -366,15 +357,11 @@ export abstract class ShuClusteredGraphView<T extends z.ZodObject<typeof cluster
 		this.onGraphData();
 	}
 
-	/** Reveal a selected subject's bounded neighborhood (both directions, pinned), once per view lifetime, counted as one read. */
+	/** Reveal a selected subject's bounded neighborhood (both directions, pinned), once per view lifetime. */
 	protected async fetchIfMissing(subject: string, label: string): Promise<void> {
 		if (this.fetchedSubjects.has(subject)) return;
 		if (!getRels(label)) return; // non-individual graphs (facts, observation/*, variables) don't have a neighborhood
 		this.fetchedSubjects.add(subject);
-		await this.data.counted(() => this.#expand(subject, label));
-	}
-
-	async #expand(subject: string, label: string): Promise<void> {
 		try {
 			const types = await this.data.expand(label, subject);
 			if (types.size === 0) return;

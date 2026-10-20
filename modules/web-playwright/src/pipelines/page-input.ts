@@ -34,6 +34,10 @@ export const selectOption = (session: BrowserSession, option: string, field: TSt
 export const click = (session: BrowserSession, target: TStepValue, force: boolean): Promise<TActionResult> =>
 	attempted(`click ${String(target.value)}`, () => session.withScope((scope) => locateByDomain(scope, target).click({ force })));
 
+/** Moves the pointer over the element a target locates, as a reader pointing at it does; the pointer leaves it for the next target. */
+export const hoverOver = (session: BrowserSession, target: TStepValue): Promise<TActionResult> =>
+	attempted(`hover over ${String(target.value)}`, () => session.withScope((scope) => locateByDomain(scope, target).first().hover()));
+
 /** Turns the mouse wheel over the element a target locates, up by the element's own height, as a reader reading back does. */
 export const scrollUpAScreen = (session: BrowserSession, target: TStepValue): Promise<TActionResult> =>
 	attempted(`scroll ${String(target.value)} up a screen`, () =>

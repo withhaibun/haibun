@@ -9,7 +9,8 @@ import { describe, it, expect } from "vitest";
 import { PolymorphicCamera, clearStripOffset, coveredTogether, type CameraDeps } from "./camera.js";
 import { FRAME, REFRAME, type ReframeMode } from "../domains/views.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
-import { FRAMED_SPAN, NDC_SPAN, screenShare, type TProjected } from "../derivations/project.js";
+import { NDC_SPAN } from "../derivations/project.js";
+import { FRAMED_SPAN, screenShare, type TProjected } from "../../../test/screen-share.js";
 
 type XYZ = { x: number; y: number; z: number };
 
@@ -44,59 +45,6 @@ function harness(nodes: Array<{ x: number; y: number; z: number }>) {
 	};
 	return { cam: new PolymorphicCamera(deps), getCameraZ: () => cameraZ };
 }
-
-/** A live target + position, as zooming needs them: zoomBy reads the offset between the two and rewrites the position. */
-function zoomHarness(startZ: number) {
-	const target = { x: 0, y: 0, z: 0, set: () => undefined };
-	const position = {
-		x: 0,
-		y: 0,
-		z: startZ,
-		set(x: number, y: number, z: number) {
-			this.x = x;
-			this.y = y;
-			this.z = z;
-		},
-	};
-	const deps = {
-		camera: () => ({ fov: 80, aspect: 1, position, updateProjectionMatrix: () => undefined }),
-		controls: () => ({ target, object: { position }, update: () => undefined }),
-		container: () => ({ clientHeight: 600, clientWidth: 800 }),
-		renderer: () => undefined,
-		canvas: () => undefined,
-		nodePositions: () => [],
-		hasNodes: () => true,
-		reframeMode: () => REFRAME.front,
-		ganttExtent: () => null,
-		sequenceExtent: () => null,
-		refreshPickBounds: () => undefined,
-	} as unknown as CameraDeps;
-	return { cam: new PolymorphicCamera(deps), distance: () => position.z };
-}
-
-describe("PolymorphicCamera.zoomBy doesn't limit how near or far the camera goes", () => {
-	it("keeps closing in past any fixed distance, so zooming in never stops working", () => {
-		const { cam, distance } = zoomHarness(100);
-		for (let i = 0; i < 40; i++) cam.zoomBy(50, "percent", "in");
-		expect(distance()).toBeLessThan(0.001);
-		expect(distance()).toBeGreaterThan(0);
-	});
-
-	it("never reaches what it looks at, so it can always zoom back out", () => {
-		const { cam, distance } = zoomHarness(10);
-		cam.zoomBy(100, "percent", "in"); // a step that would land exactly on the target
-		expect(distance()).toBeGreaterThan(0);
-		const closest = distance();
-		cam.zoomBy(50, "percent", "out");
-		expect(distance()).toBeGreaterThan(closest);
-	});
-
-	it("keeps backing off without bound", () => {
-		const { cam, distance } = zoomHarness(1);
-		for (let i = 0; i < 20; i++) cam.zoomBy(100, "percent", "out");
-		expect(distance()).toBeGreaterThan(1000);
-	});
-});
 
 describe("PolymorphicCamera.frame(fit), time-deep framing", () => {
 	it("frames a z-deep, XY-clustered graph by its XY extent + z depth, not the loose 3D sphere", () => {
@@ -434,37 +382,7 @@ describe("the gantt view's frame", () => {
 	});
 });
 
-describe("a reader's camera moves", () => {
-	it("zooming in brings the graph closer and zooming out takes it farther, measured as the world a pixel spans", () => {
-		const { cam } = liveHarness(SPREAD_OUT);
-		cam.frame(FRAME.front);
-		const resting = cam.worldPerPxAt({ x: 0, y: 0, z: 0 }) as number;
-		cam.zoomBy(40, "percent", "in");
-		const zoomedIn = cam.worldPerPxAt({ x: 0, y: 0, z: 0 }) as number;
-		expect(zoomedIn).toBeLessThan(resting * 0.99);
-		cam.zoomBy(40, "percent", "out");
-		expect(cam.worldPerPxAt({ x: 0, y: 0, z: 0 }) as number).toBeGreaterThan(zoomedIn * 1.01);
-	});
-
-	it("panning slides the camera and what it looks at together, keeping its aim around the target", () => {
-		const { cam, position, target } = liveHarness(SPREAD_OUT);
-		cam.frame(FRAME.front);
-		const [before, aim] = [{ ...position }, cam.azimuth()];
-		cam.panBy(120, "pixels", "left");
-		expect(Math.hypot(position.x - before.x, position.y - before.y, position.z - before.z), "the framing moved").toBeGreaterThan(1);
-		expect(target.x, "what it looks at moved with it").toBeLessThan(0);
-		expect(cam.azimuth()).toBeCloseTo(aim as number, 9);
-	});
-
-	it("orbiting turns the camera around what it looks at", () => {
-		const { cam, distance } = liveHarness(SPREAD_OUT);
-		cam.frame(FRAME.front);
-		const [aim, reach] = [cam.azimuth() as number, distance()];
-		cam.orbitBy(30, "left");
-		expect(Math.abs((cam.azimuth() as number) - aim)).toBeCloseTo(Math.PI / 6, 6);
-		expect(distance(), "an orbit holds the distance").toBeCloseTo(reach, 6);
-	});
-
+describe("fitting a few of the nodes", () => {
 	it("fitting around a node and its neighbours frames them closer than fitting the whole graph", () => {
 		const { cam } = liveHarness(SPREAD_OUT);
 		cam.frame(FRAME.fit);

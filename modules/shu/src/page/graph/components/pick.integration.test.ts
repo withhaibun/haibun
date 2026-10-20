@@ -1,97 +1,88 @@
 /**
  * Real-browser pick/projection agreement for shu-polymorphic-graph-view (jsdom doesn't prove THREE picking).
  *
- * The invariant: pickAt(projectedCentre(node)) === node: the pick and the projection must match AT ANY INSTANT,
- * including between an engine tick and the next render frame. The camera side of this held after pointerRay began
- * forcing a fresh camera matrix; this test pins the OBJECT side: when the engine's node coordinates have moved and
- * a frame hasn't rendered yet, every sprite's transform is one frame stale, and a pick raycast against those stale
- * transforms misses at the freshly-projected centre: the e2e drag flake's exact "N nodes, none pickable at centre"
- * signature. The moved-coordinates state is created and picked inside ONE page.evaluate, so a render frame can't
- * re-sync the sprites in between: the intermittent between-frames window, made deterministic.
+ * The invariant: a press and a click where a node draws open that node, AT ANY INSTANT, including between an engine tick
+ * and the next render frame. Where the node draws is read through the library's own camera and projection, apart from
+ * the scene's code, so the pick is held to what the reader sees. The camera side of this held after pointerRay began
+ * forcing a fresh camera matrix; this test pins the OBJECT side: when the engine's node coordinates have moved and a frame
+ * hasn't rendered yet, every sprite's transform is one frame stale, and a pick raycast against those stale transforms
+ * misses at the freshly projected centre: the e2e drag flake's exact "N nodes, none pickable at centre" signature. The
+ * moved coordinates are set and each node pressed inside ONE page.evaluate, so a render frame can't re-sync the sprites
+ * in between: the intermittent between-frames window, made deterministic.
  */
-import type { Page } from "playwright";
-import { openPolymorphicPage, type TOpenedPage } from "./polymorphic-page.test-fake.js";
 import { afterAll, beforeAll, expect, test } from "vitest";
+import { SHU_EVENT } from "../../../domains/elements.js";
+import type { TPaneOpen } from "../../derivations/pane-kinds.js";
+import { mountPolymorphicPage, quadsNamed, type TMountedPage } from "../../../test/polymorphic-page.js";
 
-/** Pinned, well-separated node positions so the layout holds them exactly where the test expects. */
-const NODES = [
-	{ id: "n-a", x: -60, y: -40 },
-	{ id: "n-b", x: 60, y: -40 },
-	{ id: "n-c", x: -60, y: 40 },
-	{ id: "n-d", x: 60, y: 40 },
-];
+const IDS = ["n-a", "n-b", "n-c", "n-d"];
+/** How far the engine moves every node, in world units, before a frame draws it there. */
+const MOVED = { x: 25, y: 15 };
 
-type PickRow = { id: string; x: number; y: number; picked: string | null };
+type TPicked = { id: string; x: number; y: number; opened: string | null };
 
-let opened: TOpenedPage;
-let page: Page;
+let mounted: TMountedPage;
 
-/** In-page: read from the view where it draws each node, then probe the production pick at that pixel. Both sides are the
- * production pair: a copy of the projection here could only ever match itself, never catch the two drifting.
- * Runs synchronously, so a frame can't re-sync the sprites between the projection and the pick. */
-const PICK_ALL = `(() => {
-	const el = document.querySelector("shu-polymorphic-graph-view");
-	return [...el.nodeMap.values()].map((n) => {
-		const at = el.projectNodeToScreen(n.id);
-		return { id: n.id, x: at.x, y: at.y, picked: el.pickAt(at.x, at.y) };
+/** In-page: move every node's engine coordinates by `moved`, then press and click each where the library's camera draws it,
+ *  and note the node each click opened. Runs synchronously, so a frame can't re-sync the sprites between the move and the
+ *  picks. */
+const pressEach = ({ moved, opening }: { moved: { x: number; y: number }; opening: string }): TPicked[] => {
+	type TVector = { x: number; y: number; project(camera: unknown): TVector };
+	const view = document.querySelector("shu-polymorphic-graph-view");
+	const scene = view?.querySelector("a-scene") as (Element & { camera: { updateMatrixWorld(force: boolean): void } }) | null;
+	const engine = view?.querySelector("[forcegraph]") as Element & {
+		components: { forcegraph: { forceGraph: { graphData(): { nodes: Array<{ id: string; x: number; y: number; z: number; fx?: number; fy?: number }> } } } };
+	};
+	const canvas = view?.querySelector("canvas");
+	if (!scene || !canvas) throw new Error("the view lacks a scene or a canvas to press on");
+	const THREE = (globalThis as unknown as { AFRAME: { THREE: { Vector3: new (x: number, y: number, z: number) => TVector } } }).AFRAME.THREE;
+	const nodes = engine.components.forcegraph.forceGraph.graphData().nodes;
+	for (const n of nodes) {
+		n.x += moved.x;
+		n.y += moved.y;
+		n.fx = n.x;
+		n.fy = n.y;
+	}
+	let opened: string | null = null;
+	const heard = (e: Event) => {
+		const { pane } = (e as CustomEvent<TPaneOpen>).detail;
+		opened = pane.paneType === "entity" ? pane.id : null;
+	};
+	document.addEventListener(opening, heard);
+	scene.camera.updateMatrixWorld(true);
+	const shown = canvas.getBoundingClientRect();
+	const picked = nodes.map((n) => {
+		const ndc = new THREE.Vector3(n.x, n.y, n.z).project(scene.camera);
+		const at = { clientX: shown.left + ((ndc.x + 1) / 2) * shown.width, clientY: shown.top + ((1 - ndc.y) / 2) * shown.height, button: 0, bubbles: true };
+		opened = null;
+		canvas.dispatchEvent(new PointerEvent("pointerdown", at));
+		canvas.dispatchEvent(new PointerEvent("pointerup", at));
+		canvas.dispatchEvent(new MouseEvent("click", at));
+		return { id: n.id, x: at.clientX, y: at.clientY, opened };
 	});
-})()`;
+	document.removeEventListener(opening, heard);
+	return picked;
+};
 
 beforeAll(async () => {
-	opened = await openPolymorphicPage({ external: false, box: { width: 700, height: 500 }, deviceScaleFactor: 1 });
-	page = opened.page;
-	// The page starts as the app's does, so the view paints its first (empty) model; nodes written into the graph before that
-	// paint lands would be replaced by it.
-	await page.waitForFunction(
-		() => {
-			const i = (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { repaintPending: boolean; followPending: boolean; tween: unknown } }).inspect();
-			return !i.repaintPending && !i.followPending && i.tween === null;
-		},
-		undefined,
-		{ timeout: 30_000 },
-	);
-	// Feed pinned nodes straight into the force-graph and frame them: the pick geometry under test is independent
-	// of the store pipeline. fx/fy/fz pin each node so the engine holds it exactly at its coordinates. The lib
-	// decorates these SAME objects (nodeThreeObject → __visual/__baseScale), so pointing the pipeline's nodeMap at
-	// them gives pickNodeAt its real node set without the store.
-	await page.evaluate((nodes) => {
-		const el = document.querySelector("shu-polymorphic-graph-view") as unknown as {
-			graph: { graphData(d?: { nodes: unknown[]; links: unknown[] }): { nodes: Array<{ id: string }> } };
-			pipeline: { nodeMap: Map<string, unknown> };
-			fitGraph(): void;
-		};
-		el.graph.graphData({ nodes: nodes.map((n) => ({ id: n.id, name: n.id, type: "Email", x: n.x, y: n.y, z: 0, fx: n.x, fy: n.y, fz: 0 })), links: [] });
-		el.pipeline.nodeMap = new Map(el.graph.graphData().nodes.map((n) => [n.id, n]));
-		el.fitGraph();
-	}, NODES);
-	// Wait until every node has its sprite and a rendered frame has synced the transforms (baseline picks succeed).
-	await page.waitForFunction(
-		(count) => {
-			const el = document.querySelector("shu-polymorphic-graph-view") as unknown as { nodeMap?: Map<string, { __visual?: unknown }> };
-			return el.nodeMap?.size === count && [...el.nodeMap.values()].every((n) => n.__visual);
-		},
-		NODES.length,
-		{ timeout: 30_000 },
-	);
-	await page.waitForTimeout(1200); // let the fit tween finish framing before the baseline reads projections
-}, 60_000);
+	mounted = await mountPolymorphicPage({ box: { width: 700, height: 500 } });
+	await mounted.feed(quadsNamed(IDS));
+	await mounted.scene((scene) => scene.fitGraph());
+	await mounted.atRest();
+}, 90_000);
 
-afterAll(() => opened.close());
+afterAll(() => mounted?.close());
 
-test("baseline: with rendered frames in sync, every node picks at its projected centre", { timeout: 30_000 }, async () => {
-	const rows = (await page.evaluate(PICK_ALL)) as PickRow[];
-	expect(opened.errors(), `page errors: ${opened.errors().join("; ")}`).toEqual([]);
-	for (const row of rows) expect(row.picked, `${row.id} at (${row.x.toFixed(0)},${row.y.toFixed(0)})`).toBe(row.id);
+test("baseline: with rendered frames in sync, a press where each node draws opens it", { timeout: 30_000 }, async () => {
+	const picked = await mounted.page.evaluate(pressEach, { moved: { x: 0, y: 0 }, opening: SHU_EVENT.PANE_OPEN });
+	expect(mounted.errors(), `page errors: ${mounted.errors().join("; ")}`).toEqual([]);
+	expect(picked.map((p) => p.id).sort()).toEqual([...IDS].sort());
+	for (const p of picked) expect(p.opened, `${p.id} at (${p.x.toFixed(0)},${p.y.toFixed(0)})`).toBe(p.id);
 });
 
-test("between frames: after the engine moves nodes and before any render, the pick still finds each node at its freshly-projected centre", { timeout: 30_000 }, async () => {
-	// Move every node's engine coordinates and pick in the SAME synchronous evaluate: the state a pick sees when it
-	// runs between an engine tick and the next render frame, when sprite transforms are one frame stale.
-	const rows = (await page.evaluate(`(() => {
-		const el = document.querySelector("shu-polymorphic-graph-view");
-		for (const n of el.nodeMap.values()) { n.x += 25; n.y += 15; n.fx = n.x; n.fy = n.y; }
-		return ${PICK_ALL};
-	})()`)) as PickRow[];
-	expect(opened.errors(), `page errors: ${opened.errors().join("; ")}`).toEqual([]);
-	for (const row of rows) expect(row.picked, `${row.id} at (${row.x.toFixed(0)},${row.y.toFixed(0)}), stale sprite transform?`).toBe(row.id);
+test("between frames: after the engine moves nodes and before any render, a press where each node now draws still opens it", { timeout: 30_000 }, async () => {
+	await mounted.atRest();
+	const picked = await mounted.page.evaluate(pressEach, { moved: MOVED, opening: SHU_EVENT.PANE_OPEN });
+	expect(mounted.errors(), `page errors: ${mounted.errors().join("; ")}`).toEqual([]);
+	for (const p of picked) expect(p.opened, `${p.id} at (${p.x.toFixed(0)},${p.y.toFixed(0)}), stale sprite transform?`).toBe(p.id);
 });

@@ -7,7 +7,7 @@
  * a layout.
  */
 import { afterAll, beforeAll, expect, test } from "vitest";
-import { mountPolymorphicPage, quadsNamed, type TMountedPage } from "./polymorphic-page.test-fake.js";
+import { modelIn, mountPolymorphicPage, quadsNamed, type TMountedPage, type TQuadFed, type TViewElement } from "../../../test/polymorphic-page.js";
 
 /** Animation frames the page runs after a scene's end, over which the ended scene mustn't draw. */
 const FRAMES_AFTER_END = 60;
@@ -75,24 +75,21 @@ test("a scene that ends before it loads doesn't draw a frame", { timeout: 60_000
 
 test("a model set as a scene is made is drawn once the library laid out its first data", { timeout: 60_000 }, async () => {
 	const fed = quadsNamed(["early-1", "early-2", "early-3"]);
-	await mounted.page.evaluate((quads) => {
+	const madeAndFed = (quads: TQuadFed[], model: typeof modelIn) => {
 		const box = document.querySelector("#box") as HTMLElement;
 		box.replaceChildren();
-		const view = document.createElement("shu-polymorphic-graph-view") as HTMLElement & { scene?: { setModel(model: unknown): void } };
+		const view: TViewElement = document.createElement("shu-polymorphic-graph-view");
 		view.setAttribute("style", "display:block;width:100%;height:100%");
 		box.appendChild(view);
 		// The model is set on the first frame the view holds its scene element, before the scene loads.
 		const feedOnceMade = () => {
 			if (!view.scene) return requestAnimationFrame(feedOnceMade);
-			view.scene.setModel({ quads, visibleQuads: quads, clusters: [], knownClusters: new Map(), hiddenGraphs: [], hiddenPredicates: [], perTypeLimit: 1000, timeCursor: null });
+			view.scene.setModel(model(quads));
 		};
 		feedOnceMade();
-	}, fed);
-	await mounted.page.waitForFunction(
-		(n) => (document.querySelector("shu-polymorphic-graph-view") as unknown as { inspect(): { nodes: number } } | null)?.inspect().nodes === n,
-		fed.length,
-		{ timeout: 45_000 },
-	);
+	};
+	await mounted.page.evaluate(`(${madeAndFed})(${JSON.stringify(fed)}, ${modelIn})`);
+	await mounted.draws(fed.length);
 	await mounted.atRest();
 	expect(mounted.errors(), "page errors").toEqual([]);
 });

@@ -98,6 +98,7 @@ import {
 	click,
 	clickBy,
 	enterInto,
+	hoverOver,
 	press,
 	resizeToScreen,
 	resizeWindow,
@@ -326,6 +327,12 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			gwta: `enter {what: ${DOMAIN_TEXT}} into {field: ${DOMAIN_PAGE_TARGET}}`,
 			...ANSWERED_BY_THE_PAGE,
 			action: ({ what, field }: { what: string; field: TStepValue }) => enterInto(this.session, what, field),
+		},
+		hoverOver: {
+			capability: WEB_PLAYWRIGHT_ACTIONS.act,
+			gwta: `hover over {target: ${DOMAIN_PAGE_TARGET}}`,
+			...ANSWERED_BY_THE_PAGE,
+			action: ({ target }: { target: TStepValue }) => hoverOver(this.session, target),
 		},
 		scrollUpAScreen: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.act,

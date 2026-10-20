@@ -1,6 +1,6 @@
 /**
- * The graph snapshot's vocabulary: the per-type sample's limits, the snapshot a scope holds, the view context that
- * travels beside it, and the counts of a view's reads (SH22).
+ * The graph snapshot's vocabulary: the per-type sample's limits, the snapshot a scope holds, and the view context that
+ * travels beside it.
  */
 import type { TClusteredQuads } from "@haibun/core/lib/quad-types.js";
 
@@ -20,7 +20,3 @@ export type TSnapshotListener = (snapshot: TGraphSnapshot | null, context: TView
 
 /** What a snapshot was read under: the per-type limit, the types, and the visibility ceiling. A change of any reads it again. */
 export type TSnapshotKey = { perTypeLimit: number; types: string; accessLevel: string };
-
-/** A view's scoped reads: each it started and each that settled, whether it returned or failed. The two match while a
- *  read isn't in flight, so a control waits until they match. */
-export type TReadCounts = { started: number; settled: number };

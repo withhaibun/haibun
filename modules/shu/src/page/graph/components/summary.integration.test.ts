@@ -3,7 +3,7 @@
  * and how many the view draws, so a type the view draws in part, or hides, isn't read as a type without records.
  */
 import { afterAll, beforeAll, expect, test } from "vitest";
-import { mountPolymorphicPage, type TMountedPage } from "./polymorphic-page.test-fake.js";
+import { mountPolymorphicPage, type TMountedPage } from "../../../test/polymorphic-page.js";
 
 const [DRAWN, HIDDEN] = ["Email", "LogMessage"];
 const quad = (subject: string, namedGraph: string) => ({ subject, namedGraph, predicate: "name", object: subject, timestamp: 0 });

@@ -76,7 +76,6 @@ export type FGNode = {
 	__visual?: NodeVisual; // the uniform handle for pick/billboard/focus/opacity: the one place that names the render object's type
 	__baseScale?: { x: number; y: number }; // the visual's object's scale as built; magnify multiplies it
 	__k?: number; // current magnify multiplier
-	__chipText?: string; // what the chip the factory built shows: the label-as-depth read, and the observable inspect reports
 	properties?: Record<string, unknown>; // carried from the model node, including the merged HypermediaRole that groupKeyOf(n, "role") reads
 };
 
@@ -87,7 +86,6 @@ export type FGLink = {
 	// Read-only handle to the lib's current line mesh, refreshed every tick in linkPositionUpdate (never cached-once,
 	// so it can't go stale). The line's colour AND opacity are owned by the lib via linkColor (see lineRgbaFor); this
 	// is only read, by inspect() and the behaviour tests, never mutated.
-	__lineObj?: { material?: { opacity: number } };
 	__label?: LabelVisual; // the edge's predicate, drawn at its midpoint
 	__curve?: { getPoint(t: number): { x: number; y: number; z: number } };
 };

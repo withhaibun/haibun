@@ -1,13 +1,12 @@
 /**
- * What a scene element runs on, built for one scene: the engine that paces its graph, the frame scheduler, the profiler,
- * the layout tween and the data pipeline, the scene's clock, and the page's frame loop and frame timing. The scene is a view,
+ * What a scene element runs on, built for one scene: the engine that paces its graph, the frame scheduler, the layout
+ * tween and the data pipeline, the scene's clock, and the page's frame loop and frame timing. The scene is a view,
  * which reads machines, pipelines and ports through this controller alone (CA3D3, CA3D5).
  */
 import { reportFailure } from "../../controllers/client-log-controller.js";
 import { pageClock } from "../../root.js";
 import { graphEngine, graphFrameLoop, graphFrameTime } from "../root.js";
 import { FrameScheduler } from "../machines/frame-scheduler.js";
-import { PolymorphicProfiler } from "../machines/profiler.js";
 import { LayoutTween } from "../machines/layout-tween.js";
 import { DataPipeline, type DataPipelineDeps } from "../pipelines/data-pipeline.js";
 import { easeInOutCubic } from "../derivations/grouping.js";
@@ -22,7 +21,6 @@ const TWEEN_MS = 700;
 export class SceneController {
 	readonly engine: TGraphEngine = graphEngine();
 	readonly frame = new FrameScheduler((name, err) => reportFailure("polymorphic-frame", `the frame job "${name}" failed and is disabled`, err));
-	readonly profiler = new PolymorphicProfiler();
 	readonly tween = new LayoutTween(TWEEN_MS, easeInOutCubic);
 
 	/** The scene's connections, counted: a request calls its callback only in the connection that made it. */

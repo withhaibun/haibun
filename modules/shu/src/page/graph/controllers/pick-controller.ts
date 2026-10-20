@@ -5,7 +5,7 @@
  * pins; this controller owns the pointer's events and the ray geometry it hands that machine (SH21, CA3D5).
  */
 import { NodeDrag, DRAG_THRESHOLD_PX, type NodeDragDeps } from "../machines/node-drag.js";
-import { clientToNdc, ndcToClient, screenShare, type TClientPoint, type TScreenShare } from "../derivations/project.js";
+import { clientToNdc, ndcToClient, type TClientPoint } from "../derivations/project.js";
 import { isPlaced, type FGLink, type FGNode } from "../domains/graph-types.js";
 import type { TWakeCause } from "../../../domains/graph-blips.js";
 import type { RenderContext } from "../components/render-context.js";
@@ -167,12 +167,6 @@ export class PickController {
 		});
 	}
 
-	/** Which node a press at these client pixels picks, without a pointer's side effects. */
-	pickAt(clientX: number, clientY: number): string | null {
-		const picked = this.#pickNodeAt({ clientX, clientY } as MouseEvent);
-		return picked === undefined ? null : picked.id;
-	}
-
 	/** The pixel a node is drawn at, through the camera with its matrix current, as the pick's ray is. Null before the scene
 	 *  holds a camera and a canvas, or for an id the graph lacks. */
 	project(id: string): TClientPoint | null {
@@ -182,15 +176,6 @@ export class PickController {
 		if (!T || !camera || !canvas || n === undefined || !isPlaced(n)) return null;
 		camera.updateMatrixWorld?.(true);
 		return ndcToClient(new T.Vector3(n.x, n.y, n.z).project(camera), canvas.getBoundingClientRect());
-	}
-
-	/** The share of the nodes the camera shows inside the canvas, or null before the scene holds a camera. */
-	screenShare(): TScreenShare | null {
-		const T = this.deps.three();
-		const camera = this.deps.world.camera;
-		if (!T || !camera) return null;
-		camera.updateMatrixWorld?.(true);
-		return screenShare([...this.deps.world.nodeMap.values()].filter(isPlaced).map((n) => new T.Vector3(n.x, n.y, n.z).project(camera)));
 	}
 
 	/**

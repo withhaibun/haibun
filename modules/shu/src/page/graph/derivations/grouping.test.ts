@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
-import { groupKeyOf, containerLabelOf, ringAnchors, shelfPack, groupBounds, ENCLOSURE_MIN_THICK, easeInOutCubic, UNATTRIBUTED_ROLE } from "./grouping.js";
+import { groupKeyOf, containerLabelOf, groupTitles, ringAnchors, shelfPack, groupBounds, ENCLOSURE_MIN_THICK, easeInOutCubic, UNATTRIBUTED_ROLE } from "./grouping.js";
 import { isPlaced } from "../domains/graph-types.js";
-import { SITE_KEY, HYPERMEDIA_ROLE_KEY } from "../../../domains/graph-model.js";
+import { SITE_KEY, HYPERMEDIA_ROLE_KEY, HYPERMEDIA_ROLE_REL_KEY } from "../../../domains/graph-model.js";
 
 describe("groupKeyOf", () => {
 	it("keys a node by its type (the default axis)", () => {
@@ -45,6 +45,28 @@ describe("containerLabelOf", () => {
 	});
 	it("reads the key where the graph holds the agent without a label", () => {
 		expect(containerLabelOf("did:web:x", "role", new Map())).toBe("did:web:x");
+	});
+});
+
+describe("groupTitles", () => {
+	const maker = { id: "did:web:maker", type: "Principal", name: "The Maker", properties: { [HYPERMEDIA_ROLE_REL_KEY]: "made" } };
+	const keeper = { id: "did:web:keeper", type: "Principal", name: "The Keeper" };
+	const record = { id: "r1", type: "Record", name: "a record", properties: { [HYPERMEDIA_ROLE_KEY]: maker.id } };
+	const nouns = (rel: unknown): string | undefined => (rel === "made" ? "Maker" : undefined);
+
+	it("titles a box by the type under the type axis, after the badge a projection puts on the type's cluster", () => {
+		const titles = groupTitles([record, maker], "type", (type) => (type === "Record" ? "∀" : undefined), nouns);
+		expect([...titles]).toEqual([
+			["Record", "∀ Record"],
+			["Principal", "Principal"],
+		]);
+	});
+
+	it("titles a party's box by its role and its name under the role axis, by its type where its role lacks a noun", () => {
+		const keepers = { ...record, id: "r2", properties: { [HYPERMEDIA_ROLE_KEY]: keeper.id } };
+		const titles = groupTitles([record, keepers, maker, keeper], "role", () => undefined, nouns);
+		expect(titles.get(maker.id)).toBe("Maker, The Maker");
+		expect(titles.get(keeper.id)).toBe("Principal, The Keeper");
 	});
 });
 

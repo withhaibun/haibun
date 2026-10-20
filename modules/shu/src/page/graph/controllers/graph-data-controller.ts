@@ -1,7 +1,6 @@
 /**
  * A graph view's data: the snapshot of its scope, read through the snapshot pipeline and extended by the live stream,
- * and the neighbourhood of a record a reader chooses. A view counts each scoped read it starts and each that settles, and
- * its readout states both, so a control waits until they match rather than for a fixed time (SH22, CA3D7).
+ * and the neighbourhood of a record a reader chooses (CA3D7).
  */
 import { QuadGraphModel } from "@haibun/core/lib/derivations/quad-graph-model.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
@@ -11,7 +10,7 @@ import { pageGraphSnapshots } from "../root.js";
 import { readSteps } from "../../pipelines/read-steps.js";
 import { readSnapshot, snapshotKey } from "../pipelines/snapshot.js";
 import { INCOMING_LIMIT, neighbourhoodOf } from "../derivations/neighbourhood.js";
-import { DEFAULT_PER_TYPE_LIMIT, type TGraphSnapshot, type TReadCounts, type TSnapshotListener, type TViewContext } from "../domains/snapshot.js";
+import { DEFAULT_PER_TYPE_LIMIT, type TGraphSnapshot, type TSnapshotListener, type TViewContext } from "../domains/snapshot.js";
 import { getRels, getTitledBy } from "../../controllers/catalog-controller.js";
 import { idOf } from "../../controllers/record-controller.js";
 import { incomingEdges, readIndividual } from "../../controllers/read-controller.js";
@@ -48,26 +47,8 @@ export function mergeIntoSnapshots(quads: readonly TQuad[]): void {
 export const pinSubjects = (subjects: Iterable<string>, scope: string): void => pageGraphSnapshots().pin(scope, subjects, fresh);
 
 export class GraphDataController {
-	#started = 0;
-	#settled = 0;
-
 	/** `scope` names the snapshot the view reads: "" for the shared main graph, or a view's own. */
 	constructor(private readonly scope: string) {}
-
-	/** The scoped reads this view started and those that settled. */
-	get reads(): TReadCounts {
-		return { started: this.#started, settled: this.#settled };
-	}
-
-	/** Count `work`, a scoped read and what the view does with what it returns, as one read that settles when `work` does. */
-	async counted<T>(work: () => Promise<T>): Promise<T> {
-		this.#started++;
-		try {
-			return await work();
-		} finally {
-			this.#settled++;
-		}
-	}
 
 	/** Read the scope's snapshot again, at `perTypeLimit`, of `types` or of every type. */
 	readSnapshot(perTypeLimit: number, types: readonly string[] | undefined): Promise<TGraphSnapshot> {

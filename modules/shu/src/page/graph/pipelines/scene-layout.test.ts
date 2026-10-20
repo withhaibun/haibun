@@ -9,7 +9,7 @@ import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { CLASS_LABEL, PROPERTY_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { FORCE_LAYOUT, MAILBOX, MESSAGE, PERSON, SceneLayout, mailboxQuads, messageQuads, type TLayoutOptions } from "../../../test/scene-layout.js";
 import { PolymorphicCamera, type CameraDeps } from "../machines/camera.js";
-import { framesGraph, screenShare, type TProjected } from "../derivations/project.js";
+import { framesGraph, screenShare, type TProjected } from "../../../test/screen-share.js";
 import { FRAME, REFRAME, VIEW } from "../domains/views.js";
 import type { GroupBox } from "../derivations/grouping.js";
 import type { XYZ } from "../domains/graph-types.js";

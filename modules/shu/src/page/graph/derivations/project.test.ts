@@ -6,7 +6,8 @@
  * The raycast itself needs a real browser (a feature test covers it); this is the arithmetic under it.
  */
 import { describe, it, expect } from "vitest";
-import { ndcToClient, clientToNdc, ndcOnScreen, NDC_EDGE, type TCanvasRect, type TNdc, type TClientPoint } from "./project.js";
+import { ndcToClient, clientToNdc, NDC_EDGE, type TCanvasRect, type TNdc, type TClientPoint } from "./project.js";
+import { ndcOnScreen } from "../../../test/screen-share.js";
 
 /** The round trip is arithmetic, not measurement: it holds to floating-point precision, not to a tolerance. */
 const EXACT_DIGITS = 10;

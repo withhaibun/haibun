@@ -19,16 +19,26 @@ const links: FGLink[] = [{ source: "c1", target: "p1", predicate: "attributedTo"
 
 function harness(over: Partial<TA11yRendererDeps> = {}) {
 	const region = document.createElement("nav");
-	document.body.append(region);
+	document.body.replaceChildren(region);
 	const onActivate = vi.fn();
 	const onFocus = vi.fn();
 	const marks: TReadingMarks = { active: null, tierOf: () => "resting", pinned: () => false };
-	const deps: TA11yRendererDeps = { region: () => region, bars: () => null, badgeOf: () => undefined, labelOf: (n) => n.name, marks: () => marks, onActivate, onFocus, ...over };
+	const deps: TA11yRendererDeps = {
+		region: () => region,
+		bars: () => null,
+		badgeOf: () => undefined,
+		labelOf: (n) => n.name,
+		marks: () => marks,
+		groups: () => [],
+		onActivate,
+		onFocus,
+		...over,
+	};
 	return { renderer: new A11yRenderer(deps), region, onActivate, onFocus };
 }
 
 describe("A11yRenderer: the graph as an accessible document", () => {
-	it("reads as one script, in the order things were made, each line naming its actor", () => {
+	it("reads as one script, in the order things were made, each line naming its actor, after the lifelines the view draws", () => {
 		// A reading is a script, not a filing: the same events grouped into piles left a reader to reassemble them, and
 		// what a reader wants is what happened, in order.
 		const dated: FGNode[] = [
@@ -36,8 +46,16 @@ describe("A11yRenderer: the graph as an accessible document", () => {
 			{ id: "p1", name: "the agent", type: "Principal", __created: 100 },
 			{ id: "c1", name: "a comment", type: "Comment", __created: 200 },
 		];
-		const { renderer, region } = harness({ bars: () => [{ id: "p1", label: "the agent", nodeIds: ["c1", "c2"] }] });
+		const bars = [
+			{ id: "p1", label: "the agent", nodeIds: ["c1", "c2"] },
+			{ id: "p2", label: "the registry", nodeIds: [] },
+		];
+		const { renderer, region } = harness({ bars: () => bars });
 		renderer.draw({ nodes: dated, links: [{ source: "c1", target: "p1", predicate: "attributedTo" }] });
+		expect(
+			[...region.querySelectorAll(`[data-testid="${SHU_TEST_IDS.POLYMORPHIC_VIEW.A11Y_LANES}"] li`)].map((li) => li.textContent),
+			"each lifeline the picture draws, a lifeline that a line doesn't stand on too",
+		).toEqual(["the agent", "the registry"]);
 		const lists = region.querySelectorAll("ol");
 		expect(lists.length, "one reading, not a pile per type").toBe(1);
 		const speaker = (li: Element) => [...li.childNodes].filter((n) => n.nodeType === Node.TEXT_NODE).map((n) => n.textContent?.trim() ?? "")[0] ?? "";
@@ -127,6 +145,19 @@ describe("A11yRenderer: the graph as an accessible document", () => {
 		expect(onFocus).toHaveBeenCalledWith("c1");
 	});
 
+	it("opens the node a press lands on without highlighting it first, so the entries don't reflow from under the press", () => {
+		const { renderer, region, onActivate, onFocus } = harness();
+		renderer.draw({ nodes, links });
+		const entry = region.querySelector<HTMLElement>('ol > li > [data-node-id="c2"]');
+		entry?.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+		entry?.focus();
+		entry?.click();
+		expect(onFocus).not.toHaveBeenCalled();
+		expect(onActivate).toHaveBeenCalledWith("c2");
+		region.querySelector<HTMLElement>('ol > li > [data-node-id="c1"]')?.focus();
+		expect(onFocus, "a keyboard reader's focus after the press highlights its node").toHaveBeenCalledWith("c1");
+	});
+
 	it("the status line announces the whole graph first, then only what changed", () => {
 		const { renderer, region } = harness();
 		renderer.draw({ nodes, links });
@@ -142,6 +173,22 @@ describe("A11yRenderer: the graph as an accessible document", () => {
 		region.querySelector<HTMLElement>('[data-node-id="c2"]')?.focus();
 		renderer.draw({ nodes, links });
 		expect(document.activeElement?.getAttribute("data-node-id")).toBe("c2");
+	});
+
+	it("keeps a node's entry on the document through a repaint, so a press a repaint lands within still opens the node", () => {
+		const { renderer, region, onActivate } = harness();
+		renderer.draw({ nodes, links });
+		const entry = region.querySelector<HTMLElement>('ol > li > [data-node-id="c2"]');
+		const watch = new MutationObserver(() => undefined);
+		watch.observe(region, { childList: true, subtree: true });
+		renderer.draw({ nodes: [...nodes, { id: "p2", name: "a second agent", type: "Principal", z: 10 }], links });
+		const removed = watch.takeRecords().flatMap((record) => [...record.removedNodes]);
+		expect(
+			removed.filter((node) => node.contains(entry)),
+			"the entry and the elements holding it stay on the document",
+		).toEqual([]);
+		entry?.click();
+		expect(onActivate).toHaveBeenCalledWith("c2");
 	});
 
 	it("states the active node as the current entry, moves it to the next node made active, and doesn't state an entry current while the active node isn't drawn", () => {
@@ -177,6 +224,25 @@ describe("A11yRenderer: the graph as an accessible document", () => {
 		renderer.draw({ nodes, links });
 		expect([...region.querySelectorAll("ol > li > [data-node-id]")].map((b) => b.textContent)).toEqual(["36 (Comment)", "72 (Comment)", "0 (Principal)"]);
 		expect(region.querySelector("ol ul li")?.textContent, "and the way to a node names it the same").toBe("attributedTo → 0");
+	});
+
+	it("states the title of each box the picture draws around a group, and doesn't state a title while the view doesn't group", () => {
+		let groups = ["Comment", "Principal"];
+		const { renderer, region } = harness({ groups: () => groups });
+		renderer.draw({ nodes, links });
+		const titles = () => [...region.querySelectorAll(`[data-testid="${SHU_TEST_IDS.POLYMORPHIC_VIEW.A11Y_GROUPS}"] li`)].map((li) => li.textContent);
+		expect(titles()).toEqual(groups);
+		groups = [];
+		renderer.draw({ nodes, links });
+		expect(titles()).toEqual([]);
+	});
+
+	it("states the graph busy while what it shows still changes, and at rest otherwise", () => {
+		const { renderer, region } = harness();
+		renderer.busy(true);
+		expect(region.getAttribute("aria-busy")).toBe("true");
+		renderer.busy(false);
+		expect(region.getAttribute("aria-busy")).toBe("false");
 	});
 
 	it("keeps the reader's focus on their entry while it states what changed in the picture", () => {

@@ -234,6 +234,12 @@ export const SHU_TEST_IDS = {
 		A11Y: "polymorphic-a11y",
 		/** The control that carries the reading on from where it stopped. */
 		A11Y_READ_ON: "polymorphic-a11y-read-on",
+		/** The reading's list of the titles of the boxes drawn around groups. */
+		A11Y_GROUPS: "polymorphic-a11y-groups",
+		/** The reading's list of the lifelines a view built on actors draws. */
+		A11Y_LANES: "polymorphic-a11y-lanes",
+		/** What the axes mean where a view gives them a meaning: the gantt's calendar span and how many tasks it places. */
+		AXIS_LEGEND: "polymorphic-axis-legend",
 		CAMERA: "polymorphic-main-cam",
 		VIEW_TYPE: "polymorphic-view-type",
 		FLATTEN: "polymorphic-flatten",

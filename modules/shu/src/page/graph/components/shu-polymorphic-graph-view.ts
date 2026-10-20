@@ -11,7 +11,6 @@ import { conduit } from "../../controllers/conduit-controller.js";
 import type { TPresenterNodeClick } from "../../ports.js";
 import { applyScene, captureScene, listScenes, readScene, saveScene } from "../controllers/scenes-controller.js";
 import { sceneType, type TSceneState } from "../derivations/scenes.js";
-import { SCHEMA_TYPES } from "../../../domains/ontology.js";
 
 /** The time a reader is looking at, held in a scene beside the views' own options. It is not an element's option but the shared time signal, so it is recorded under its own key. */
 const TIME_CURSOR_KEY = "time-cursor";
@@ -39,13 +38,8 @@ import "./shu-polymorphic-settings.js";
 import { viewHeadCss, viewActions, rotateControls, SETTINGS_GROUP_NAMES } from "./view-head.js";
 import type { TSettingsGroup } from "../../../domains/elements.js";
 
-import { type FGInstance, type GraphSceneModel, type GraphSceneChangedDetail, type RescheduleUpdate, type ShuGraphScene, type TGraphState } from "./scene.js";
-import type { TReadCounts } from "../domains/snapshot.js";
-
-/** What a graph view states: what its scene draws, and the reads the view started and settled (SH22). */
-export type TGraphViewState = TGraphState & { reads: TReadCounts };
+import { type GraphSceneModel, type GraphSceneChangedDetail, type RescheduleUpdate, type ShuGraphScene } from "./scene.js";
 import { GRAPH_SCENE_EVENT } from "../domains/graph-types.js";
-import type { TMeasureUnit, TPanDirection, TZoomDirection } from "../machines/camera.js";
 import { type TPaneOpen } from "../../derivations/pane-kinds.js";
 import { persistScopeOf } from "./shu-graph-filter.js";
 import "./scene.js";
@@ -129,10 +123,6 @@ const POLYMORPHIC_INITIAL_STATE: z.input<typeof PolymorphicStateSchema> = {
  * config, relays the scene's neutral outputs to the app's SHU_EVENTs, and re-renders its control bar from the scene's
  * graph-scene-changed. The scene owns the WebGL scene, camera, render loop, focus, drag, enclosures, and axes.
  *
- * Delegation surface: the e2e steppers and unit tests read the scene's live objects off THIS element, so every scene
- * accessor/method the tests use is forwarded 1:1 to this.scene (nodeMap/pipeline/graph/fgCamera, inspect/pickAt/openNode/
- * setHoveredNode/fitGraph/fitGraphAround/zoomBy/panBy/orbitBy/resetProfile).
- *
  * Light DOM (createRenderRoot returns this): the scene resolves its A-Frame camera through document.querySelector, and
  * the child scene chrome is positioned against this host; a shadow root would hide both.
  */
@@ -150,10 +140,10 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	/** The page's clock, which holds the coalesced read of the source and cancels it as the view leaves the page. */
 	readonly #clock = new ClockController(this);
 	/** The graph's source, which the source pane shows and the terms choice draws: the projection that the chosen format's step
-	 *  returns of what the graph shows, counted among the view's reads. */
+	 *  returns of what the graph shows. */
 	readonly #source = new LoadController<TProjection>(this, () => {
 		const format = sourceFormat(this.state.sourceFormat);
-		return this.data.counted(() => callStep<TProjection>(format.step, { view: this.shownView() }, `the graph as ${format.label}`));
+		return callStep<TProjection>(format.step, { view: this.shownView() }, `the graph as ${format.label}`);
 	});
 	/** The term graph of the projection the scene draws, built once per projection read. */
 	#terms?: { of: TProjection; scene: ReturnType<typeof termScene> };
@@ -219,63 +209,15 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		return this.scene?.summarizeForContext() ?? null;
 	}
 
-	/* Delegation surface: the tests read the scene's live objects off THIS element; forward each 1:1 (same object). */
-	get nodeMap() {
-		return this.scene?.nodeMap;
-	}
-	get pipeline() {
-		return this.scene?.pipeline;
-	}
-	get graph(): FGInstance | undefined {
-		return this.scene?.graph;
-	}
-	get fgCamera() {
-		return this.scene?.fgCamera;
-	}
-	/** What the graph draws, as its scene states it, with the reads the view started and settled, or null before the scene mounts. */
-	inspect(): TGraphViewState | null {
-		const scene = this.scene?.inspect();
-		if (scene === undefined) return null;
-		return { ...scene, reads: this.reads };
-	}
-	/** The current graph as a self-contained SVG still: the report and still-image medium. */
-	still(): string {
-		return this.mountedScene.still();
-	}
-	resetProfile(): void {
-		this.scene?.resetProfile();
-	}
-	pickAt(clientX: number, clientY: number): string | null {
-		return this.scene?.pickAt(clientX, clientY) ?? null;
-	}
-	projectNodeToScreen(id: string): { x: number; y: number } | null {
-		return this.scene?.projectNodeToScreen(id) ?? null;
-	}
-	openNode(id: string): boolean {
-		return this.mountedScene.openNode(id);
-	}
-	setHoveredNode(id: string | null): void {
-		this.scene?.setHoveredNode(id);
-	}
 	/** Fit ends following: the two state opposite framings (the whole graph vs the active node's context), and a fit
 	 *  under an active follow would be undone at the next settle. A request for the whole graph is a request to stop following. */
-	fitGraph(): void {
+	private fitGraph(): void {
 		this.endFollow();
 		this.scene?.fitGraph();
 	}
-	fitGraphAround(nodeId: string): void {
-		this.scene?.fitGraphAround(nodeId);
-	}
-	zoomBy(amount: number, unit: TMeasureUnit, dir: TZoomDirection): void {
-		this.scene?.zoomBy(amount, unit, dir);
-	}
-	panBy(amount: number, unit: TMeasureUnit, dir: TPanDirection): void {
-		this.scene?.panBy(amount, unit, dir);
-	}
-	orbitBy(degrees: number, dir: TPanDirection): void {
-		this.scene?.orbitBy(degrees, dir);
-	}
-	rotateTo(aim: "xy" | "z"): void {
+
+	/** A head-on aim ends following too: `xy` faces the layout plane, `z` faces the depth axis. */
+	private rotateTo(aim: "xy" | "z"): void {
 		this.endFollow();
 		this.scene?.rotateTo(aim);
 	}
@@ -287,15 +229,9 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	}
 
 	/** Scrub the shared time cursor (the same global signal the timeline drives): nodes recorded after `ms` are hidden;
-	 * null means live/now (all shown). A real "show the graph as of T" capability, and the interface the time-cursor test drives. */
-	setTimeCursor(ms: number | null): void {
+	 * null means live/now (all shown). */
+	private setTimeCursor(ms: number | null): void {
 		this.timeline.movePage(ms);
-	}
-
-	/** Reveal or hide the included ontology SCHEMA (Class + Property) via the filter, exactly as ticking their chips does:
-	 *  the schema is default-hidden and revealed ALONGSIDE the instance data. A real capability + the interface a control step drives. */
-	revealSchema(visible: boolean): void {
-		this.filterEl?.setTypeVisibility(SCHEMA_TYPES, visible);
 	}
 
 	/**
@@ -499,15 +435,6 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 
 	protected override async onGraphConnected(): Promise<void> {
 		await super.onGraphConnected();
-		// Devtools handle for the layout query: `shuPolymorphic.inspect()`: the method name alone collides with the console's
-		// built-in inspect(). The main graph's: a graph a host embeds draws the host's data, not the page's.
-		if (!this.usesExternalData) {
-			(globalThis as { shuPolymorphic?: ShuPolymorphicGraphView }).shuPolymorphic = this;
-			this.autoTeardown(() => {
-				const g = globalThis as { shuPolymorphic?: ShuPolymorphicGraphView };
-				if (g.shuPolymorphic === this) g.shuPolymorphic = undefined;
-			});
-		}
 		// The scene outputs this view relays beyond the ones every host does.
 		this.autoListen(this, GRAPH_SCENE_EVENT.CLUSTER_EXPAND, ((e: CustomEvent<{ type: string }>) => {
 			this.dispatchEvent(new CustomEvent(SHU_EVENT.GRAPH_CLUSTER_EXPAND, { detail: e.detail, bubbles: true, composed: true }));

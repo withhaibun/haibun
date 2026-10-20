@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { HYPERMEDIA_ROLE_REL_KEY } from "../../../domains/graph-model.js";
 import { GANTT_ROW_H } from "./gantt-layout.js";
-import { SEQ_LANE_SPACING, actorBars, seqLabelOf, seqNodesOf, sequenceExtentOf, type SeqLayout } from "./sequence-model.js";
+import { SEQ_LANE_SPACING, actorBars, mapGraphToSeq, seqLabelOf, seqNodesOf, sequenceExtentOf, type SeqLayout } from "./sequence-model.js";
 
 describe("the sequence's reading of the visible model", () => {
 	it("carries each node's identity, type, label and properties, and its recorded time where the times hold one", () => {
@@ -31,6 +31,28 @@ describe("the sequence's reading of the visible model", () => {
 			]),
 		} as SeqLayout;
 		expect(sequenceExtentOf(layout)).toEqual({ cy: 5, cz: 10, halfH: 5 + SEQ_LANE_SPACING, halfW: 10 + GANTT_ROW_H });
+	});
+});
+
+describe("the messages a sequence reads between its parties", () => {
+	const ACTOR_EDGES = { from: new Set(["sentBy"]), to: new Set(["sentTo"]) };
+	/** A credential's lifecycle: the issuer issues it to the holder, the holder presents it to the verifier, and the verifier resolves the issuer's key. */
+	const steps = [
+		{ id: "permit", type: "VerifiableCredential", from: "issuer", to: "holder", t: 1 },
+		{ id: "shown", type: "VerifiablePresentation", from: "holder", to: "verifier", t: 2 },
+		{ id: "lookup", type: "DidResolution", from: "verifier", to: "issuer", t: 3 },
+	];
+	const parties = ["issuer", "holder", "verifier"].map((id) => ({ id, type: "Principal", __t: 0 }));
+	const nodes = [...parties, ...steps.map(({ id, type, t }) => ({ id, type, __t: t }))];
+	const edges = steps.flatMap(({ id, from, to }) => [
+		{ from: id, to: from, predicate: "sentBy" },
+		{ from: id, to, predicate: "sentTo" },
+	]);
+
+	it("stands each party on a lifeline, and reads each step of a credential's lifecycle as a message from one party to another, labelled by its type, in time order", () => {
+		const model = mapGraphToSeq(nodes, edges, { labelOf: (id) => id, actorEdges: ACTOR_EDGES });
+		expect(model.actors.map((a) => a.id)).toEqual(["holder", "issuer", "verifier"]);
+		expect(model.messages).toEqual(steps.map(({ from, to, type }) => ({ from, to, label: type, kind: "call" })));
 	});
 });
 

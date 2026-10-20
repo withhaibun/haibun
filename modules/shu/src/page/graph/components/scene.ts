@@ -22,20 +22,18 @@ import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
 import { PAGE_TERMS, type TCounted } from "@haibun/core/lib/domains/hypermedia.js";
 import { isSubPropertyOf } from "@haibun/core/lib/domains/resources.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
-import { type GroupKeyMode, groupKeyOf } from "../derivations/grouping.js";
+import { type GroupKeyMode, groupKeyOf, groupTitles } from "../derivations/grouping.js";
 import { linkKey, type KindTiers, type TGraphPreview } from "../derivations/focus-policy.js";
 import { quadsToGanttModel, cascadeReschedule } from "../derivations/gantt-model.js";
 import { availablePaints } from "../derivations/paint-select.js";
 import { ganttBarSpan, ganttExtentOf, type GanttTarget } from "../derivations/gantt-layout.js";
 import type { Adornment } from "../derivations/graph-layout.js";
-import type { TMeasureUnit, TPanDirection, TZoomDirection } from "../machines/camera.js";
 import { CameraController } from "../controllers/camera-controller.js";
 import { PickController, type TPickThree } from "../controllers/pick-controller.js";
 import { GanttOverlay, type GanttThree } from "./gantt-overlay.js";
 import { sceneDataHash, visibleGraphModel, type TSceneData } from "../derivations/scene-data.js";
 import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../../domains/elements.js";
 import { defineElement } from "../../controllers/element-controller.js";
-import { framesGraph, type TClientPoint } from "../derivations/project.js";
 import { RenderContext } from "./render-context.js";
 import { SceneController } from "../controllers/scene-controller.js";
 import { type RenderType, type TViewForces, buildRenderTypeRegistry } from "./render-type.js";
@@ -49,12 +47,11 @@ import { ObserverController } from "../../controllers/observer-controller.js";
 import { pageAddress } from "../../controllers/hash-controller.js";
 import { carriedLabelFont } from "../../controllers/hydration-controller.js";
 import { LABEL_FONT_FALLBACKS } from "../../../domains/serving.js";
-import { DEFAULT_REGULATION_THRESHOLDS, evaluateRegulation, medianOf, newRegulationState, recordFrameTime } from "../derivations/regulation.js";
+import { DEFAULT_REGULATION_THRESHOLDS, evaluateRegulation, newRegulationState, recordFrameTime } from "../derivations/regulation.js";
 import { GRAPH_DRAWING_BLIP, GRAPH_FRAME_BLIP, GRAPH_REGULATION_BLIP, type TDrawingReason, type TWakeCause } from "../../../domains/graph-blips.js";
-import { actorBars, seqLabelOf, seqNodesOf, sequenceExtentOf, type SeqNode, type TSeqModel } from "../derivations/sequence-model.js";
-import { type FGNode, type FGLink, type XYZ, GRAPH_SCENE_EVENT, isPlaced, linkEndId } from "../domains/graph-types.js";
+import { actorBars, seqLabelOf, seqNodesOf, sequenceExtentOf, type SeqNode } from "../derivations/sequence-model.js";
+import { type FGNode, type FGLink, type XYZ, GRAPH_SCENE_EVENT, linkEndId } from "../domains/graph-types.js";
 import { forceLayout, type IGraphLayout } from "../derivations/polymorphic-layout.js";
-import { SvgRenderer } from "./svg-renderer.js";
 import { NODE_TEXT_COLOR, chipTextHeight } from "../derivations/layout-forces.js";
 import { paintMarkScene, type ShapeThree } from "./node-shapes.js";
 import { PolymorphicFocus, NODE_RENDER_ORDER } from "../controllers/focus-controller.js";
@@ -294,12 +291,9 @@ const FORCEGRAPH_OBJECT = "forcegraphGroup";
 type TForcegraphElement = Element & { components?: { forcegraph?: { forceGraph?: TGraphEnginePacing } }; getObject3D(type: string): unknown };
 type TSceneElement = HTMLElement & TAframeScene & { renderer?: TSceneRenderer; camera?: TSceneCamera; emit(name: string, detail?: unknown, bubbles?: boolean): void };
 
-/** What a graph scene draws, as its `inspect()` states it. */
-export type TGraphState = ReturnType<ShuGraphScene["inspect"]>;
-
 export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	readonly #observers = new ObserverController(this);
-	/** The scene's engine, frame jobs, profiler, layout tween and data pipeline, and the page's clock and frame timing. */
+	/** The scene's engine, frame jobs, layout tween and data pipeline, and the page's clock and frame timing. */
 	readonly #parts = new SceneController();
 	/** The graph as an accessible document, which states what the picture shows of each node. */
 	#reading?: A11yRenderer;
@@ -544,7 +538,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private get parkedPositions(): Map<string, { x: number; y: number }> {
 		return this.pipeline.parkedPositions;
 	}
-	// Public so the host delegates its `nodeMap` accessor 1:1 (the control stepper reads nodeMap.values() to resolve nodes).
+	/** The nodes the scene draws, by id, by which a host names what the scene draws. */
 	get nodeMap(): Map<string, FGNode> {
 		return this.pipeline.nodeMap;
 	}
@@ -738,104 +732,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.emitSceneChanged();
 	}
 
-	/**
-	 * THE layout query: a JSON-safe snapshot of the scene's observable state, node positions, group boxes,
-	 * focus/drag/tween/engine state, for the behaviour suite and for humans in devtools. Tests assert layout
-	 * quality against this surface, never against private fields. `sample` carries every node's actual x/y/z. The host
-	 * delegates its own `inspect()` to this and registers itself on globalThis as `shuPolymorphic` for devtools.
-	 */
-	inspect() {
-		const nodes = [...this.nodeMap.values()];
-		const onScreen = this.pick.screenShare();
-		return {
-			nodes: nodes.length,
-			highlighted: nodes.filter((n) => n.__visual?.hasHighlight).length, // nodes wearing the active glow (exactly the active node)
-			focus: { hover: this.hoverSubject, selected: this.activeSubject },
-			drag: this.pick.drag.draggedId ? { id: this.pick.drag.draggedId } : null,
-			// A press in progress that has not (yet) crossed the drag threshold, i.e. still a potential click (it
-			// becomes a node-open on release). Null once the pointer is up.
-			dragPending: this.pick.drag.pendingId,
-			tween: this.#parts.tween.running ? { elapsedMs: this.#parts.tween.elapsedMs(this.#parts.clock.now()) } : null,
-			engineMode: this.#parts.engine.mode,
-			// Render-on-demand state: the scene pauses when motion has ended and a recent discrete change isn't pending, and
-			// `ticks` counts the gate's frames whether or not one was drawn. A reader whose focus/highlight assertion
-			// depends on a redraw can tell a paused scene from a live one, and can count ticks over which a frame wasn't drawn.
-			// A change made since the last tick is drawn from the next one, so the scene is paused only while that tick doesn't
-			// draw either.
-			// `welcoming` and `layingOut` count the changes a paused scene has scheduled: newcomers whose welcome glow is still to
-			// end, and chips whose measured text is still to land.
-			render: {
-				paused: this.drawing !== undefined && !this.drawing.drawing && this.drawingReason(this.rafFrame + 1) === "rest",
-				ticks: this.rafFrame,
-				welcoming: this.focusCtl.welcoming,
-				layingOut: nodes.filter((n) => n.__visual?.layingOut).length,
-			},
-			// What a drawn frame takes the renderer (the median of the last few, null before the first measurement) and
-			// whether the breath rests on it. A reader can tell a scene that regulated itself from one that has not measured.
-			regulation: {
-				resting: this.regulation.resting,
-				frameTimeMs: this.regulation.frameTimes.length > 0 ? medianOf(this.regulation.frameTimes) : null,
-				samples: this.regulation.frameTimes.length,
-			},
-			// A data or layout repaint is debounced and still to run: the scene shows the PREVIOUS feed's placement, so a
-			// reader of this snapshot has not yet seen the effect of the change that scheduled it (a z-basis switch, a
-			// grouping toggle). The engine is idle in that window, so engineMode alone would call it settled.
-			repaintPending: this.repaintTimer !== undefined || this.layoutTimer !== undefined,
-			// The camera moved and has not rested yet, or the column resized and the frame has not been fitted to it, so
-			// following has not checked the node is still in view. A reader of this snapshot has not seen where following
-			// puts the camera.
-			followPending: this.cameraCtl.pending,
-			// Render-stage timing accumulated since the last resetProfile(): how raising the per-type limit uses the
-			// main thread, split into compute / force-warmup / label-textures (the profiling control step reads this).
-			profile: this.#parts.profiler.profile,
-			grouped: this.groupingActive(),
-			viewType: this.viewType,
-			// The sequence-diagram ground truth, or null off-sequence: the participant actors, the time-ordered
-			// cross-participant messages, and each placed node's lane (y) + time (z), so a test asserts the diagram and
-			// that participants hold distinct lanes at their times, all from the graph (without hand-applied labels).
-			sequence: this.sequenceInspect(),
-			// The td/lr layered ground truth (null off those views): per-node pinned target + rendered position + flow axis,
-			// so a test asserts the flow reads monotonically by layer and the pins held.
-			layered: this.layeredInspect(),
-			// Camera framing, so a resize/click can be asserted not to zoom or re-frame (fov + position + aim target).
-			camera: this.fgCamera?.position
-				? { fov: this.fgCamera.fov ?? null, x: this.fgCamera.position.x, y: this.fgCamera.position.y, z: this.fgCamera.position.z, target: this.cameraCtl.camera.targetPoint() }
-				: null,
-			follow: this.config.follow,
-			// Azimuth of the camera around its target (radians): a pan translates camera+target together so this holds; an
-			// orbit changes it. Lets a test distinguish a sanctioned orbit gesture from a pan without spelunking OrbitControls.
-			azimuth: this.cameraCtl.camera.azimuth(),
-			// worldPerPx is THE zoom level the user sees (world units per screen pixel at the graph centre): a function
-			// of fov, camera distance AND viewport height. It must change ONLY on a user dolly/fit; never on a click,
-			// focus, data feed, or a column-open resize. A canvas-height change moves it even with fov/pos fixed.
-			viewport: this.cameraCtl.camera.zoomMetric(),
-			// Visibility: the fraction of nodes whose world position projects inside the canvas (NDC within [-1,1], in front
-			// of the camera). 1 = the whole graph is framed; a low value means the camera is not framing the graph (the
-			// "rendered but not visible" failure). Computed through the real camera projection, so it tracks any fov/dolly.
-			onScreen,
-			// Whether the camera frames the graph: nearly every node on screen, spread across the canvas.
-			framed: onScreen !== null && framesGraph(onScreen),
-			enclosures: [...this.enclosureCtl.enclosures.values()].map((e) => ({ title: e.label.text, x: e.box.position.x, y: e.box.position.y, sx: e.box.scale.x, sy: e.box.scale.y })),
-			gantt: this.renderType.axisLegend(),
-			sample: nodes.slice(0, 80).map((n) => ({
-				id: n.id,
-				type: n.type,
-				x: n.x,
-				y: n.y,
-				z: n.z,
-				fx: n.fx ?? null,
-				t: n.__t ?? null,
-				degree: n.__degree ?? null,
-				chip: n.__chipText ?? null,
-				opacity: n.__visual?.opacity ?? null,
-				k: n.__k === undefined ? 1 : n.__k, // a node without its visual yet draws at its natural size
-			})),
-			// lineOpacity is the lib-APPLIED opacity (global linkOpacity × the rgba alpha from lineRgbaFor), read off the
-			// live pooled material via the self-healing __lineObj handle: the ground truth a focus dim/highlight produced.
-			edges: this.currentLinks.map((l) => ({ s: linkEndId(l.source), t: linkEndId(l.target), predicate: l.predicate, lineOpacity: l.__lineObj?.material?.opacity ?? null })),
-		};
-	}
-
 	override render(): TemplateResult {
 		const legend = this.renderType.axisLegend();
 		// The orbit compass is a minimal wire XYZ indicator in the upper-left, transparent to pointer events. The axis legend
@@ -865,6 +761,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				shu-graph-scene #polymorphic-a11y button[aria-current="true"] { font-weight: 600; }
 				shu-graph-scene #polymorphic-a11y ol { margin: 0; padding-left: 3em; }
 				shu-graph-scene #polymorphic-a11y ul { margin: 0 0 var(--shu-space-1); padding-left: var(--shu-space-4); list-style: none; opacity: 0.85; }
+				shu-graph-scene #polymorphic-a11y > div > ul { padding-left: 0; opacity: 1; }
 				shu-graph-scene #polymorphic-a11y[data-shown] { user-select: text; }
 				shu-graph-scene #polymorphic-a11y:focus-within, shu-graph-scene #polymorphic-a11y[data-shown] { width: auto; height: auto; clip-path: none; top: var(--shu-space-5); left: var(--shu-space-5); max-width: 70%; max-height: 80%; overflow: auto; z-index: 13; background: color-mix(in srgb, var(--shu-bg-elevated) 82%, transparent); backdrop-filter: blur(6px); padding: var(--shu-space-3) var(--shu-space-4); user-select: text; border-left: 3px solid var(--shu-accent); border-radius: var(--shu-radius); font-size: var(--shu-font-sm); color: var(--shu-fg); }
 			</style>
@@ -874,7 +771,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			<canvas id="polymorphic-compass" aria-hidden="true"></canvas>
 			${
 				legend
-					? html`<div id="polymorphic-axis-legend" data-testid="polymorphic-axis-legend">
+					? html`<div id="polymorphic-axis-legend" data-testid=${SHU_TEST_IDS.POLYMORPHIC_VIEW.AXIS_LEGEND}>
 							<div class="axis-row"><span class="axis-key">time</span><span>${legend.from} → ${legend.to}</span></div>
 							<div class="axis-row"><span class="axis-key">rows</span><span>${legend.count} tasks</span></div>
 						</div>`
@@ -936,12 +833,14 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.configureGraph(this.graph);
 		// One draw, two media: WebGL shows the graph, the accessible document reads it. The a11y entries drive the same
 		// scene entries a pointer does (activate opens, focus highlights), so keyboard and pointer take one path.
+		const badgeOf = (type: string): string | undefined => this.model.styles?.badges.get(type);
 		this.#reading = new A11yRenderer({
 			region: () => this.querySelector<HTMLElement>("#polymorphic-a11y"),
 			bars: () => this.actorBars(),
-			badgeOf: (type) => this.model.styles?.badges.get(type),
+			badgeOf,
 			labelOf: (n) => this.chipLabelOf(n, this.markFor(n)),
 			marks: () => ({ active: this.activeSubject, tierOf: this.focusCtl.tierOf(), pinned: (id) => this.userPins.has(id) }),
+			groups: () => (this.groupingActive() ? [...groupTitles(this.nodeMap.values(), this.groupBy, badgeOf, roleNounFor).values()] : []),
 			onActivate: (id) => this.openNode(id),
 			onFocus: (id) => this.setHoveredNode(id),
 		});
@@ -973,8 +872,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	}
 
 	/** Hand a node off to its @type presenter for a backend-neutral mark: the single place the calendar placement (the
-	 *  bar's span) becomes presenter context. nodeObject paints it; inspect() reports it, so the headless render check
-	 *  asserts exactly what's drawn. */
+	 *  bar's span) becomes presenter context. nodeObject paints it, and the reading names it as its chip reads. */
 	private markFor(n: FGNode): NodeMark {
 		const t = this.renderType.markTime(n.id); // the active view's calendar context for the presenter (a gantt bar's span); undefined → a point-in-time chip
 		return presentationForType(n.type).mark(n, t ? { time: t } : {});
@@ -983,59 +881,54 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	/** Build a node's 3D object: hand the node off to its @type presenter for a backend-neutral mark, then paint it for
 	 *  the polymorphic view. The presenter chooses shape/colour/label/role; this view supplies only the medium config. */
 	private nodeObject(n: FGNode): unknown {
-		// The per-node build is timed into the profiler's label total: its canvas raster + GPU texture upload is the
-		// dominant per-node time when the per-type limit is raised (the profiler step reads the accumulated split).
-		return this.#parts.profiler.node(() => {
-			const three = aframeThree();
-			if (!three) throw new Error("shu-graph-scene: a node's object is built from A-Frame's THREE, which this page doesn't hold");
-			const mark = this.markFor(n);
-			// The common instance node (a "chip") renders as an SDF glyph-atlas chip (troika), dark text on a solid
-			// type-coloured background, all labels sharing one atlas texture and one background geometry, so a node doesn't take
-			// a per-node canvas raster + GPU texture upload; a schema Class's square token is a chip too. The gantt box and the
-			// ontology lozenge are painted, the box carrying its troika label as a child. The billboard frame job keeps every
-			// label facing the camera. fontSize is the WORLD text height (chipTextHeight).
-			// "Label as z factor" labels each chip with the value that places its depth: the date under a time basis, the
-			// connection count under connections, so the z factor reads straight off the graph. Off (or without a value), the usual label.
-			const chipLabel = this.chipLabelOf(n, mark);
-			n.__chipText = chipLabel; // what the chip shows, so a reader of inspect() sees what was drawn
-			// Every mark is built highlight-capable and the FOCUS pass glows the active node (visual.setHighlighted), so
-			// the highlight follows the selection without rebuilding a single object. A drag-pin doesn't carry a highlight: a
-			// pin is a position the reader chose, not a state to advertise, and the pin set persists across queries, so
-			// highlighting pins would mark nodes unrelated to what is being read.
-			const visual =
-				mark.kind === "chip" || mark.kind === "square"
-					? makeTroikaChip(chipLabel, mark.color, three, {
-							fontSize: chipTextHeight(mark),
-							renderOrder: NODE_RENDER_ORDER,
-							// A hollow chip doesn't fill, so its label stands on the scene as an edge label does.
-							textColor: mark.hollow ? this.sceneTextColor : this.chipTextColor,
-							hollow: mark.hollow,
+		const three = aframeThree();
+		if (!three) throw new Error("shu-graph-scene: a node's object is built from A-Frame's THREE, which this page doesn't hold");
+		const mark = this.markFor(n);
+		// The common instance node (a "chip") renders as an SDF glyph-atlas chip (troika), dark text on a solid
+		// type-coloured background, all labels sharing one atlas texture and one background geometry, so a node doesn't take
+		// a per-node canvas raster + GPU texture upload; a schema Class's square token is a chip too. The gantt box and the
+		// ontology lozenge are painted, the box carrying its troika label as a child. The billboard frame job keeps every
+		// label facing the camera. fontSize is the WORLD text height (chipTextHeight).
+		// "Label as z factor" labels each chip with the value that places its depth: the date under a time basis, the
+		// connection count under connections, so the z factor reads straight off the graph. Off (or without a value), the usual label.
+		const chipLabel = this.chipLabelOf(n, mark);
+		// Every mark is built highlight-capable and the FOCUS pass glows the active node (visual.setHighlighted), so
+		// the highlight follows the selection without rebuilding a single object. A drag-pin doesn't carry a highlight: a
+		// pin is a position the reader chose, not a state to advertise, and the pin set persists across queries, so
+		// highlighting pins would mark nodes unrelated to what is being read.
+		const visual =
+			mark.kind === "chip" || mark.kind === "square"
+				? makeTroikaChip(chipLabel, mark.color, three, {
+						fontSize: chipTextHeight(mark),
+						renderOrder: NODE_RENDER_ORDER,
+						// A hollow chip doesn't fill, so its label stands on the scene as an edge label does.
+						textColor: mark.hollow ? this.sceneTextColor : this.chipTextColor,
+						hollow: mark.hollow,
+						borderColor: NODE_BORDER_COLOR,
+						highlightColor: this.activeHighlightColor,
+						avatar: typeAvatar(mark.type),
+						laidOut: () => this.markDirty("label"),
+					})
+				: spriteVisual(
+						paintMarkScene(mark, {
+							three,
+							makeLabel: (text, h, color, anchor) => makeTroikaText(text, { fontSize: h, color, renderOrder: NODE_RENDER_ORDER, anchor, emphasis: false }),
+							textColor: this.chipTextColor, // on a chip: dark on the light type colour
+							sceneTextColor: this.sceneTextColor, // off a chip (box label): foreground on the scene bg
 							borderColor: NODE_BORDER_COLOR,
-							highlightColor: this.activeHighlightColor,
-							avatar: typeAvatar(mark.type),
-							laidOut: () => this.markDirty("label"),
-						})
-					: spriteVisual(
-							paintMarkScene(mark, {
-								three,
-								makeLabel: (text, h, color, anchor) => makeTroikaText(text, { fontSize: h, color, renderOrder: NODE_RENDER_ORDER, anchor, emphasis: false }),
-								textColor: this.chipTextColor, // on a chip: dark on the light type colour
-								sceneTextColor: this.sceneTextColor, // off a chip (box label): foreground on the scene bg
-								borderColor: NODE_BORDER_COLOR,
-								renderOrder: NODE_RENDER_ORDER,
-								headerLabel: this.renderType.capsNodeLabels,
-							}),
-							{ three, color: this.activeHighlightColor, renderOrder: NODE_RENDER_ORDER - 1 },
-						);
-			const obj = visual.object;
-			n.__visual = visual;
-			visual.setHighlighted(n.id === this.activeSubject, FULL_BURN); // a rebuilt object re-wears the glow if it is the active node
-			n.__baseScale = { x: obj.scale.x, y: obj.scale.y };
-			n.__k = 1;
-			// A visual built after the focus was applied wears it from the next pass at rest, however late the library builds it.
-			if (this.hoverSubject || this.selectedSubject) this.requestFocusAtRest();
-			return obj;
-		});
+							renderOrder: NODE_RENDER_ORDER,
+							headerLabel: this.renderType.capsNodeLabels,
+						}),
+						{ three, color: this.activeHighlightColor, renderOrder: NODE_RENDER_ORDER - 1 },
+					);
+		const obj = visual.object;
+		n.__visual = visual;
+		visual.setHighlighted(n.id === this.activeSubject, FULL_BURN); // a rebuilt object re-wears the glow if it is the active node
+		n.__baseScale = { x: obj.scale.x, y: obj.scale.y };
+		n.__k = 1;
+		// A visual built after the focus was applied wears it from the next pass at rest, however late the library builds it.
+		if (this.hoverSubject || this.selectedSubject) this.requestFocusAtRest();
+		return obj;
 	}
 
 	/** What a node's chip reads: the value that places its depth where chips are labelled by it, else its mark's label. */
@@ -1043,9 +936,12 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		return (this.labelAsZ ? this.zFactor(n).chip : undefined) ?? mark.label;
 	}
 
-	/** Zero the render profiler so the next window (e.g. one per-type-limit change) is measured in isolation. */
-	resetProfile(): void {
-		this.#parts.profiler.reset();
+	/** Whether what the scene shows still changes: something moves or is drawn, a repaint or a relayout is scheduled, the
+	 *  camera hasn't rested, a newcomer's welcome is still to end, or a chip's text is still to land. */
+	private changing(reason: TDrawingReason): boolean {
+		if (reason !== "rest" || this.repaintTimer !== undefined || this.layoutTimer !== undefined || this.cameraCtl.pending || this.focusCtl.welcoming > 0) return true;
+		for (const n of this.nodeMap.values()) if (n.__visual?.layingOut) return true;
+		return false;
 	}
 
 	/** Orient the node visuals to face the camera (each visual billboards itself: a troika chip group turns, a native
@@ -1098,7 +994,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				// (groupOrder 0) whatever the sprites' own flags state. Zero it; the secondary renderOrder then
 				// layers line (0) → edge label (15) → node chip (20), back to front.
 				if (sprite.parent && sprite.parent.renderOrder !== 0) sprite.parent.renderOrder = 0;
-				if (sprite.parent?.children) link.__lineObj = sprite.parent.children[0] as { material?: { opacity: number } }; // refresh every tick, read-only handle for inspect()/tests; never cached-once, so never stale
 				const mid = link.__curve ? link.__curve.getPoint(0.5) : { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2, z: (start.z + end.z) / 2 };
 				sprite.position.set(mid.x, mid.y, mid.z);
 			})
@@ -1445,6 +1340,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  (see `drawingReason`). */
 	private markDirty(cause: TWakeCause, grace?: number): void {
 		this.drawingFor.wakes++;
+		this.#reading?.busy(true); // a reader waiting for the rest after a change waits for the change to be drawn
 		// A discrete change that doesn't name its own grace holds the loop for the frames a plain repaint takes.
 		const until = this.rafFrame + (grace === undefined ? DIRTY_GRACE_FRAMES : grace);
 		if (until < this.dirtyUntilFrame) return;
@@ -1567,6 +1463,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			// yet), and either can lag a selection made mid-build. Sleeping before then would leave the dim undrawn.
 			const reason = this.drawingReason(this.rafFrame);
 			this.drawFor(reason, now);
+			this.#reading?.busy(this.changing(reason));
 			const active = reason !== "rest";
 			drawing.moving(active);
 			if (active) {
@@ -1604,6 +1501,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  the visible model (an observation of the page's own request, with instrumentation hidden) leaves the scene at rest. */
 	private scheduleData(): void {
 		if (this.repaintTimer !== undefined) return;
+		this.#reading?.busy(true);
 		this.repaintTimer = this.#parts.clock.after(DATA_DEBOUNCE_MS, () => {
 			this.repaintTimer = undefined;
 			this.repaint();
@@ -1639,7 +1537,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.invalidateModelCache(); // a fresh repaint: rebuild the model + seqNodes once, so the render-type caches re-key
 		const firstFeed = this.lastModelHash === undefined; // the from-scratch layout (springy); later feeds are incremental clumps (damped)
 		const existingIds = new Set(this.nodeMap.keys()); // before toGraphData rebuilds the map
-		const { nodes, links, freshLinks } = this.#parts.profiler.compute(() => this.pipeline.toGraphData(false));
+		const { nodes, links, freshLinks } = this.pipeline.toGraphData(false);
 		// Re-feeding graphData reheats the layout (visible jitter), so a model the changed inputs left as it was isn't fed,
 		// such as a property that the chips leave unshown. In gantt the time z is part of the model, so a reschedule repaints.
 		const hash = this.pipeline.hashCurrentModel(nodes, links);
@@ -1664,10 +1562,10 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		// Place before the feed: existing nodes are pinned above, so only newcomers move, from their seeds, damped, so a
 		// streamed clump settles near its neighbours. The first feed places from scratch and rests at equilibrium, so a
 		// later hover/focus repool moves an at-rest layout by zero. The renderer then only displays these positions.
-		this.#parts.profiler.compute(() => this.layoutForFeed().place(nodes, links, { damped: !firstFeed }));
+		this.layoutForFeed().place(nodes, links, { damped: !firstFeed });
 		this.#parts.engine.settle();
 		if (this.nodeRebuildPending) this.forceNodeObjectRebuild(); // re-run the shape factory for every node this feed
-		this.#parts.profiler.set(nodes.length, () => this.renderer?.draw({ nodes, links }));
+		this.renderer?.draw({ nodes, links });
 		this.animateFreshLinks(freshLinks);
 		// Re-assert any active focus once the lib has (re)built the sprites for the new data.
 		if (this.hoverSubject || this.selectedSubject) this.reassertFocus();
@@ -1733,7 +1631,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private repaintLayout(): void {
 		if (!this.libraryLaidOut) return;
 		this.parkedPositions.clear(); // layout changes move everything; parked positions would be stale
-		this.linkMap.clear(); // layout rebuilds all link objects; old __lineObj refs point at orphaned meshes
+		this.linkMap.clear(); // layout rebuilds all link objects; old __label refs point at orphaned meshes
 		// The model doesn't hold a node to lay out yet (e.g. a persisted grouping restored before any data): bail rather than run an
 		// empty solve: its engine-stop would consume the one-time initial warmup on which the FIRST real feed relies.
 		if (this.nodeMap.size === 0 && this.model.quads.length === 0) return;
@@ -1757,7 +1655,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		// Place the final layout now, the pins the pipeline set hold lanes and groups; the force fills in the rest, and
 		// glide every surviving node from where it is to where it lands over one eased tween. Positions exist before the
 		// feed, so the tween starts immediately; the feed only gives the renderer the new set to display.
-		this.#parts.profiler.compute(() => this.layoutForFeed().place(nodes, links, { damped: false }));
+		this.layoutForFeed().place(nodes, links, { damped: false });
 		this.beginLayoutTween(from, nodes);
 		if (this.nodeRebuildPending) this.forceNodeObjectRebuild(); // chip↔box on a view switch, or resized gantt bars
 		this.renderer?.draw({ nodes, links });
@@ -1891,31 +1789,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		return layout && layout.actors.length > 0 ? actorBars(layout) : null;
 	}
 
-	/** The sequence-diagram ground truth for inspect()/tests, or null off-sequence: the participant actors, the
-	 *  time-ordered cross-participant messages, and each placed node's lane (y) + time (z) on its lifeline. */
-	private sequenceInspect(): { actors: TSeqModel["actors"]; messages: TSeqModel["messages"]; nodes: Array<{ id: string; y: number; z: number }> } | null {
-		const rt = this.renderType;
-		if (!rt.seqModel || !rt.seqLayout) return null;
-		const model = rt.seqModel();
-		const placement = rt.seqLayout().placement;
-		return { actors: model.actors, messages: model.messages, nodes: [...placement.entries()].map(([id, p]) => ({ id, y: p.y, z: p.z })) };
-	}
-
-	/** The layered (td/lr) ground truth for inspect()/tests, or null off-td/lr: each node's pinned target (the layered
-	 *  {x,y} the cohesion force holds it at) and its rendered position, plus which axis the DAG flows along, so a test
-	 *  asserts the flow reads monotonically along that axis and the pins held (the render IS the layered structure). */
-	private layeredInspect(): { direction: "td" | "lr"; flowAxis: "x" | "y"; nodes: Array<{ id: string; tx: number; ty: number; x: number; y: number; z: number }> } | null {
-		const rt = this.renderType;
-		const flow = rt.layeredFlow();
-		if (!flow) return null;
-		// Only a node the layered layout holds a target for and the scene has placed reports, so a target is never invented.
-		const nodes = [...this.nodeMap.values()].flatMap((n) => {
-			const lp = rt.lanePlacement(n.id);
-			return lp?.x === undefined || !isPlaced(n) ? [] : [{ id: n.id, tx: lp.x, ty: lp.y, x: n.x, y: n.y, z: n.z }];
-		});
-		return { ...flow, nodes };
-	}
-
 	private onNodeClick(n: FGNode, e?: MouseEvent): void {
 		if (n.isCluster) {
 			this.dispatchEvent(new CustomEvent(GRAPH_SCENE_EVENT.CLUSTER_EXPAND, { detail: { type: n.type }, bubbles: true, composed: true }));
@@ -1989,28 +1862,13 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		return true;
 	}
 
-	/** Which node a press at these client pixels would pick, pickNodeAt without any pointer side effects (without a hover
-	 * change). Lets a test prove the press-pick reads the chip's RESTING footprint, so a magnified focus chip never
-	 * widens its own grab zone (the "focused node blocks the graph" guard at pickNodeAt). */
-	pickAt(clientX: number, clientY: number): string | null {
-		return this.pick.pickAt(clientX, clientY);
-	}
-
-	/** The pixel a node is drawn at: its engine coordinates through the render camera, with the matrix forced current
-	 *  (`pointerRay` forces the same, so aiming here and picking there match between frames). Null when the scene doesn't have a
-	 *  camera or canvas yet, or the id doesn't name a node. The graph's ONE projection: whatever aims at a node reads it here
-	 *  rather than repeating the arithmetic, which is what lets a pick land on the node a projection targeted. */
-	projectNodeToScreen(id: string): TClientPoint | null {
-		return this.pick.project(id);
-	}
-
-	/** Set or clear the hovered node programmatically, runs the real focus pass (the same effect a pointer hover
-	 * has, minus the lib raycaster). For external highlight and for tests of the un-hover/move-off path. */
+	/** Set or clear the hovered node as a keyboard reader's focus on an entry of the reading does: the real focus pass, the
+	 *  same effect a pointer hover has, minus the library's raycaster. */
 	setHoveredNode(id: string | null): void {
 		const n = id ? (this.nodeMap.get(id) ?? null) : null;
 		this.hoverSubject = n?.id ?? null;
 		this.updateHoverInfo(n);
-		this.requestFocusAtRest(); // a programmatic hover (external/test) without a pointer over the canvas must still wake the paused loop
+		this.requestFocusAtRest(); // a hover without a pointer over the canvas must still wake the paused loop
 		this.applyFocus();
 	}
 
@@ -2052,8 +1910,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		this.scheduleLayout();
 	}
 
-	/* Visual-graph navigation, exposed imperatively so a control step, a keyboard shortcut, or a button all drive ONE
-	 * path. These are the ONLY sanctioned camera changes: the explicit, user-initiated re-framing. Another change (a
+	/* Visual-graph navigation, exposed imperatively so a keyboard shortcut or a button drives ONE path. These are the ONLY
+	 * sanctioned camera changes: the explicit, user-initiated re-framing. Another change (a
 	 * node click, focus, data feed, or a resize) may not reset the zoom: the graph never auto-determines its framing. */
 
 	/** Re-frame so the whole graph fits the viewport: the "fit" button/step, view-relative: the render type declares
@@ -2062,12 +1920,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  frame where the nodes are, not where they stop. Delegates to the camera controller, the sole owner of framing. */
 	fitGraph(): void {
 		this.cameraCtl.fit();
-	}
-
-	/** Frame a node and its 1-hop neighbours, so a doc/tour step can jump straight to a node's local context rather than
-	 *  the whole graph; a no-op when the node isn't in the graph. */
-	fitGraphAround(nodeId: string): void {
-		this.cameraCtl.fitAround(nodeId);
 	}
 
 	/** Frame the nodes a host points at, such as the nodes of the lines a reader chose in a source; a no-op for ids the graph
@@ -2096,21 +1948,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	private updateLaneAxis(): void {
 		if (this.renderType.drawsCalendarAxis) this.ganttOverlay.drawAxis(this.ganttAdornment);
 		else this.ganttOverlay.clearAxis();
-	}
-
-	/* Visual-graph navigation, the ONLY sanctioned camera changes: the explicit, user-initiated re-framing. Public
-	 * entries (a control step, key, or button all drive ONE path) that delegate to the camera controller, which owns
-	 * the math and latches the camera away from the load-time auto-fit. */
-	zoomBy(amount: number, unit: TMeasureUnit, dir: TZoomDirection): void {
-		this.cameraCtl.zoomBy(amount, unit, dir);
-	}
-
-	panBy(amount: number, unit: TMeasureUnit, dir: TPanDirection): void {
-		this.cameraCtl.panBy(amount, unit, dir);
-	}
-
-	orbitBy(degrees: number, dir: TPanDirection): void {
-		this.cameraCtl.orbitBy(degrees, dir);
 	}
 
 	/** Rotate to a head-on aim: `xy` faces the layout plane (the front default), `z` faces the depth axis (time reads left→right). */
@@ -2142,15 +1979,6 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	/** The host's copy-graph button copies the same JSON-LD a model reads, pretty-printed. */
 	graphCopyText(): string {
 		return JSON.stringify(this.graphJsonLd(), null, 2);
-	}
-
-	/** The current graph as a self-contained SVG still: the SAME placed nodes and links the WebGL renderer displays,
-	 *  drawn by another renderer, for a report, a print, a saved image. Positions are the scene's own (layoutForFeed),
-	 *  so a position isn't computed twice and a still always matches what is on screen. */
-	still(): string {
-		const svg = new SvgRenderer({ timeIsHorizontal: () => this.renderType.timeIsHorizontal });
-		svg.draw({ nodes: [...this.nodeMap.values()], links: this.currentLinks });
-		return svg.markup;
 	}
 
 	/** What a reader is looking at, for a reader who is not looking at it: the statements about the node they are on

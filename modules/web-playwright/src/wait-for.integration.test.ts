@@ -52,6 +52,34 @@ describe("wait for", () => {
 		}
 	});
 
+	it("points at a target as a reader does, and leaves it for the next target pointed at", { timeout: 20_000 }, async () => {
+		const page = `<button data-testid=chip>a chip</button><button data-testid=elsewhere>elsewhere</button><p data-testid=preview hidden>The preview</p>
+<script>const chip = document.querySelector("[data-testid=chip]"), preview = document.querySelector("[data-testid=preview]");
+chip.addEventListener("mouseenter", () => preview.hidden = false); chip.addEventListener("mouseleave", () => preview.hidden = true);</script>`;
+		const server = createServer((_request, response) => response.end(page));
+		await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+		const { port } = server.address() as AddressInfo;
+		const [shown, gone] = ["wait for preview", "wait until preview is gone"];
+		const content = [
+			`go to the "http://127.0.0.1:${port}/" webpage`,
+			...["chip", "elsewhere", "preview"].map((id) => `set ${id} as page-test-id to "${id}"`),
+			"hover over chip",
+			shown,
+			"hover over elsewhere",
+			gone,
+		].join("\n");
+		try {
+			const res = await failWithDefaults([{ path: "/features/hover.feature", content }], [WebPlaywright, VariablesStepper, StorageMem], {
+				options: { DEST: DEFAULT_DEST },
+				moduleOptions,
+			});
+			const outcome = (line: string) => res.featureResults?.[0]?.stepResults.findLast((step) => step.in === line)?.ok;
+			expect([outcome(shown), outcome(gone)], "the preview shows while the pointer is on the chip, and goes when it leaves").toEqual([true, true]);
+		} finally {
+			server.close();
+		}
+	});
+
 	it("turns the wheel over a target as a reader reading back does, and waits until a target is gone", { timeout: 20_000 }, async () => {
 		const page = `<div data-testid=log style="height:100px;overflow:auto"><div style="height:1000px"></div></div><p data-testid=latest>The newest line</p>
 <script>const log = document.querySelector("[data-testid=log]"); log.scrollTop = 900; log.addEventListener("wheel", () => document.querySelector("[data-testid=latest]").hidden = true);</script>`;

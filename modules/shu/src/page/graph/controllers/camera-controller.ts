@@ -9,8 +9,8 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { pageClock } from "../../root.js";
 import { SHU_ATTR } from "../../../domains/elements.js";
 import { FRAME, type FrameMove, type ReframeMode } from "../domains/views.js";
-import { isPlaced, neighboursOf, type FGLink, type FGNode, type XYZ } from "../domains/graph-types.js";
-import { PolymorphicCamera, clearStripOffset, coveredTogether, type GanttExtent, type TMeasureUnit, type TPanDirection, type TZoomDirection } from "../machines/camera.js";
+import { isPlaced, type FGLink, type FGNode } from "../domains/graph-types.js";
+import { PolymorphicCamera, clearStripOffset, coveredTogether, type GanttExtent } from "../machines/camera.js";
 import type { TClientPoint } from "../derivations/project.js";
 import type { TWakeCause } from "../../../domains/graph-blips.js";
 import type { TSceneCamera } from "../ports.js";
@@ -208,18 +208,6 @@ export class CameraController {
 		else this.camera.queueFrame(move);
 	}
 
-	/** Frame a node and the nodes one link away. A node the graph lacks leaves the camera where it is. */
-	fitAround(nodeId: string): void {
-		const { nodeMap, linkMap } = this.deps.world;
-		if (!nodeMap.has(nodeId)) return;
-		const positions: XYZ[] = [];
-		for (const id of neighboursOf(nodeId, linkMap.values())) {
-			const n = nodeMap.get(id);
-			if (n !== undefined && isPlaced(n)) positions.push(n);
-		}
-		this.camera.fitPositions(positions);
-	}
-
 	/** Frame the nodes `ids` names that the graph holds and has placed; the camera stays where the graph hasn't placed any of them. */
 	fitNodes(ids: readonly string[]): void {
 		const { nodeMap } = this.deps.world;
@@ -228,18 +216,6 @@ export class CameraController {
 			return n !== undefined && isPlaced(n) ? [n] : [];
 		});
 		if (positions.length > 0) this.camera.fitPositions(positions);
-	}
-
-	zoomBy(amount: number, unit: TMeasureUnit, dir: TZoomDirection): void {
-		this.camera.zoomBy(amount, unit, dir);
-	}
-
-	panBy(amount: number, unit: TMeasureUnit, dir: TPanDirection): void {
-		this.camera.panBy(amount, unit, dir);
-	}
-
-	orbitBy(degrees: number, dir: TPanDirection): void {
-		this.camera.orbitBy(degrees, dir);
 	}
 
 	/** Rotate to a head-on aim: `xy` faces the layout plane, `z` faces the depth axis, so time reads left to right. */

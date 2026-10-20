@@ -7,7 +7,7 @@
  * at mount AND after a container resize. RPC/SSE against the stub 404s; the geometry doesn't need data.
  */
 import type { Page } from "playwright";
-import { openPolymorphicPage, type TOpenedPage } from "./polymorphic-page.test-fake.js";
+import { openPolymorphicPage, type TOpenedPage } from "../../../test/polymorphic-page.js";
 import { afterAll, beforeAll, expect, test } from "vitest";
 
 type Fit = {

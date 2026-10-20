@@ -9,10 +9,10 @@
 // accessors) and delegates the enclosure concern entirely. (lovely-finding-babbage, step 2.)
 
 import { roleNounFor } from "../../controllers/catalog-controller.js";
+import { valueAt } from "@haibun/core/lib/domains/item-at.js";
 import { makeTroikaText } from "./troika-label.js";
 import { colorForType } from "../derivations/type-colors.js";
-import { groupKeyOf, containerLabelOf, shelfPack, groupBounds, type GroupAnchor, type GroupKeyMode, ENCLOSURE_PAD, GROUP_GAP } from "../derivations/grouping.js";
-import { HYPERMEDIA_ROLE_REL_KEY } from "../../../domains/graph-model.js";
+import { groupKeyOf, groupTitles, shelfPack, groupBounds, type GroupAnchor, type GroupKeyMode, ENCLOSURE_PAD, GROUP_GAP } from "../derivations/grouping.js";
 import { type FGNode, type LabelVisual, isPlaced } from "../domains/graph-types.js";
 import { chipTextHeight, collideRadius } from "../derivations/layout-forces.js";
 import { groupCellSize } from "../derivations/group-grid.js";
@@ -188,35 +188,18 @@ export class EnclosureController {
 		if (!T || !this.ensureEnclosureRoot() || !this.enclosureGroup) return;
 		const groupBy = this.deps.groupBy();
 		const byKey = new Map<string, FGNode[]>();
-		const labelById = new Map<string, string>(); // id → display label, so a role container reads the party's name not its DID
-		const typeById = new Map<string, string>(); // id → vertex type, the fallback designation when a party doesn't have a role rel
-		const roleRelById = new Map<string, unknown>(); // id → the role rel a party plays, so its container reads that role not its type
 		for (const n of this.deps.nodeMap().values()) {
 			const arr = byKey.get(groupKeyOf(n, groupBy));
 			if (arr) arr.push(n);
 			else byKey.set(groupKeyOf(n, groupBy), [n]);
-			if (n.name) labelById.set(n.id, n.name);
-			if (n.type) typeById.set(n.id, n.type);
-			if (n.properties?.[HYPERMEDIA_ROLE_REL_KEY] !== undefined) roleRelById.set(n.id, n.properties[HYPERMEDIA_ROLE_REL_KEY]);
 		}
-		// Under the role axis a container reads "<role>, <party>" (e.g. "Issuer, Coastal Fisheries Authority"). The role
-		// is the party's role designation, named from the role rel by which nodes attribute to it, not the party's vertex
-		// type (one Principal per DID). Under the type axis the plain type key (containerLabelOf) stands, after the badge a
-		// projection puts on the type's cluster.
-		const containerLabel = (k: string): string => {
-			const badge = groupBy === "type" ? this.deps.badgeOf(k) : undefined;
-			if (badge !== undefined) return `${badge} ${containerLabelOf(k, groupBy, labelById)}`;
-			if (groupBy !== "role") return containerLabelOf(k, groupBy, labelById);
-			const party = labelById.get(k) ?? k;
-			const role = roleNounFor(roleRelById.get(k)) ?? typeById.get(k);
-			return role && role !== party ? `${role}, ${party}` : party;
-		};
+		const titles = groupTitles(this.deps.nodeMap().values(), groupBy, this.deps.badgeOf, roleNounFor);
 		for (const [key, members] of byKey) {
 			// Chips are centred on the node (sprite.center = (0.5, 0.5)), so the footprint is symmetric (± rx about node.x)
 			// groupBounds' own ± rx computation covers it directly, without a per-member x shift.
 			const b = groupBounds(members.filter(isPlaced), ENCLOSURE_PAD, (n) => ({ rx: collideRadius(n), ry: chipTextHeight(n) }));
 			if (!b) continue;
-			const title = containerLabel(key);
+			const title = valueAt(titles, key, "the group titles");
 			let e = this.enclosuresMap.get(key);
 			if (!e) {
 				e = this.createEnclosure(T, key, title);

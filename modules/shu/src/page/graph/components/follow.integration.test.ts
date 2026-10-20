@@ -2,16 +2,22 @@
  * Following, held to one rule in a real browser: while follow is on, the current subject's node is inside the canvas
  * and clear of whatever covers it, at the zoom the reader set. The rule is asserted after each way the node can leave
  * the view, since each reaches the scene by a different path and a rule stated per path is what let one path go
- * unstated. A reader's own zoom is theirs: following restores the view around it and never changes it.
+ * unstated. A reader's own zoom is theirs: following restores the view around it and never changes it. The reader pans
+ * with a drag and zooms with the wheel, as on the page, and the zoom is read as how many pixels a world unit at the
+ * followed node spans.
  */
 import { afterAll, beforeAll, expect, test } from "vitest";
-import { BOX, mountPolymorphicPage, quadsNamed, type TMountedPage } from "./polymorphic-page.test-fake.js";
+import { BOX, mountPolymorphicPage, quadsNamed, type TMountedPage } from "../../../test/polymorphic-page.js";
 
 const NODES = Array.from({ length: 144 }, (_, i) => `n-${i}`);
 const QUADS = quadsNamed(NODES);
 const FOLLOWED = "n-100";
-/** A pan of more than the view is wide takes any node off it. */
-const OFF_THE_VIEW_PX = BOX.width + 200;
+/** A pan of most of the view's width takes its centre off it. */
+const OFF_THE_VIEW_PX = BOX.width * 0.9;
+/** A turn of the wheel that brings the camera four times closer. */
+const ZOOM_IN_WHEEL = -2700;
+/** The decimal places two reads of the zoom, in pixels per world unit, share to count as the same zoom. */
+const SAME_ZOOM = 2;
 
 let mounted: TMountedPage;
 
@@ -30,11 +36,16 @@ async function following(id = FOLLOWED): Promise<void> {
 		scene.setSelectedSubject(null);
 		scene.fitGraph();
 	});
-	await mounted.settle();
+	await mounted.atRest();
 	await mounted.scene((scene) => scene.setConfig({ follow: true }));
 	await mounted.select(id);
-	await mounted.projection(id);
-	await mounted.settle();
+	await mounted.atRest();
+}
+
+/** Pan the view left by `px`, pressing on empty space on its right, as a reader drags it. */
+async function panLeft(px: number): Promise<void> {
+	await mounted.drag(await mounted.emptyPixel("right"), -px);
+	await mounted.atRest();
 }
 
 /** Whether the node draws inside the central half of the view, which is the position following guarantees. */
@@ -55,70 +66,62 @@ test("a record another view states is centred while the graph follows", { timeou
 
 test("a pan that takes the followed node off the view is followed by its return, at the same zoom", { timeout: 60_000 }, async () => {
 	await following();
-	const zoom = await mounted.distance();
-	await mounted.scene((scene, px: number) => scene.panBy(px, "pixels", "left"), OFF_THE_VIEW_PX);
+	const zoom = await mounted.zoomAt(FOLLOWED);
+	await panLeft(OFF_THE_VIEW_PX);
 	const back = await centred(FOLLOWED);
 	expect(back.centred, `the node came back into view at (${back.at.x.toFixed(0)},${back.at.y.toFixed(0)})`).toBe(true);
-	expect(await mounted.distance(), "the reader's zoom is untouched").toBeCloseTo(zoom, 3);
+	expect(await mounted.zoomAt(FOLLOWED), "the reader's zoom is untouched").toBeCloseTo(zoom, SAME_ZOOM);
 });
 
 test("a pan that leaves the node on the view is left alone", { timeout: 60_000 }, async () => {
 	// Following moves the camera only to restore the rule: a reader who pans the node toward an edge,
 	// still in view, has put it where they want it.
 	await following();
-	await mounted.scene((scene) => scene.panBy(200, "pixels", "left"));
+	const centre = await mounted.projection(FOLLOWED);
+	await panLeft(200);
 	const moved = await mounted.projection(FOLLOWED);
-	await mounted.page.waitForTimeout(600); // longer than the camera rest a re-aim waits for
-	const later = await mounted.projection(FOLLOWED);
-	expect(Math.abs(later.x - moved.x) + Math.abs(later.y - moved.y), "following didn't move it back").toBeLessThan(2);
+	expect(centre.x - moved.x, `following left it where the pan put it, at (${moved.x.toFixed(0)},${moved.y.toFixed(0)})`).toBeGreaterThan(150);
 });
 
 test("a zoom that pushes the node out is followed by its return, at the zoom the reader chose", { timeout: 60_000 }, async () => {
 	await following();
 	// Off-centre first, so zooming in on the view's middle carries the node outward and off the view.
-	await mounted.scene((scene) => scene.panBy(300, "pixels", "left"));
-	await mounted.projection(FOLLOWED);
-	await mounted.page.waitForTimeout(600);
-	const chosen = await mounted.scene((scene) => {
-		scene.zoomBy(75, "percent", "in");
-		const c = scene.inspect().camera;
-		if (!c) throw new Error("the scene lacks a camera after the zoom");
-		return Math.hypot(c.x - c.target.x, c.y - c.target.y, c.z - c.target.z);
-	});
+	await panLeft(300);
+	const before = await mounted.zoomAt(FOLLOWED);
+	await mounted.wheel(ZOOM_IN_WHEEL);
 	const back = await centred(FOLLOWED);
 	expect(back.centred, `the node came back into view at (${back.at.x.toFixed(0)},${back.at.y.toFixed(0)})`).toBe(true);
-	expect(await mounted.distance(), "at the distance the reader zoomed to, not the one before").toBeCloseTo(chosen, 3);
+	// A pan doesn't change the zoom, so following's return leaves the wheel's four times closer.
+	expect((await mounted.zoomAt(FOLLOWED)) / before, "at the zoom the reader chose, not the one before").toBeCloseTo(4, 0);
 });
 
 test("a view narrowed until the node falls off it is followed by its return", { timeout: 60_000 }, async () => {
 	await following();
-	await mounted.scene((scene) => scene.panBy(350, "pixels", "left"));
-	await mounted.projection(FOLLOWED);
-	await mounted.page.waitForTimeout(600);
-	const zoom = await mounted.distance();
+	await panLeft(350);
+	const zoom = await mounted.zoomAt(FOLLOWED);
 	await mounted.page.evaluate(() => {
 		(document.querySelector("#box") as HTMLElement).style.width = "320px";
 	});
 	try {
 		const back = await centred(FOLLOWED);
 		expect(back.centred, `the node came back into the narrowed view at (${back.at.x.toFixed(0)},${back.at.y.toFixed(0)})`).toBe(true);
-		expect(await mounted.distance(), "a resize does not change the zoom").toBeCloseTo(zoom, 3);
+		expect(await mounted.zoomAt(FOLLOWED), "a resize does not change the zoom").toBeCloseTo(zoom, SAME_ZOOM);
 	} finally {
 		await mounted.page.evaluate((w) => {
 			(document.querySelector("#box") as HTMLElement).style.width = `${w}px`;
 		}, BOX.width);
-		await mounted.settle();
+		await mounted.atRest();
 	}
 });
 
 test("a layout that moves the followed node, from records arriving, is followed by its return", { timeout: 90_000 }, async () => {
 	await following();
-	const zoom = await mounted.distance();
+	const zoom = await mounted.zoomAt(FOLLOWED);
 	// Twice the nodes: the force layout spreads again, and the followed node lands somewhere new.
 	await mounted.feed([...QUADS, ...quadsNamed(Array.from({ length: 144 }, (_, i) => `n-${200 + i}`))]);
 	const back = await centred(FOLLOWED);
 	expect(back.centred, `the node is in view after the layout at (${back.at.x.toFixed(0)},${back.at.y.toFixed(0)})`).toBe(true);
-	expect(await mounted.distance(), "records arriving do not change the zoom").toBeCloseTo(zoom, 3);
+	expect(await mounted.zoomAt(FOLLOWED), "records arriving do not change the zoom").toBeCloseTo(zoom, SAME_ZOOM);
 	await mounted.feed(QUADS);
 });
 
@@ -179,7 +182,7 @@ test("a click on empty space makes the page's entry empty, so a record isn't act
 	// Empty space is the reader choosing an empty entry on the page: the scene activates an empty entry in the page scope, and
 	// the views that read the active record receive the news that a record isn't active.
 	await following();
-	expect(await mounted.click(await mounted.emptyPixel()), "the click didn't open a node").toBeNull();
+	expect(await mounted.click(await mounted.emptyPixel("left")), "the click didn't open a node").toBeNull();
 	const state = await mounted.subjectState();
 	expect(state.scopes.page?.entry.record, "the page's entry doesn't name a record").toBeNull();
 	expect(state.scopes.page?.entry.bundle.patterns).toEqual([]);

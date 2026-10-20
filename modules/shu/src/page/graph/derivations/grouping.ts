@@ -3,7 +3,7 @@
  * transition easing. Each paint maps these to its own rendering constants (opacity, render order, etc.).
  */
 
-import { HYPERMEDIA_ROLE_KEY } from "../../../domains/graph-model.js";
+import { HYPERMEDIA_ROLE_KEY, HYPERMEDIA_ROLE_REL_KEY } from "../../../domains/graph-model.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import type { XYZ } from "../domains/graph-types.js";
 
@@ -34,6 +34,32 @@ export const containerLabelOf = (key: string, axis: GroupKeyMode, labelById: Rea
 	const label = axis === "type" ? undefined : labelById.get(key);
 	return label === undefined ? key : label;
 };
+
+/** A node as a group's title reads it: its id, type, name and the role rel by which others attribute to it. */
+type TTitled = { id: string; type: string; name?: string; properties?: Record<string, unknown> };
+
+/** The title of each group's box, by the group's key. Under the role axis a box reads "<role>, <party>", where the role is the
+ *  noun of the rel by which nodes attribute to the party, else the party's type, and the party is its name. Under the type axis
+ *  the type reads after the badge a projection puts on the type's cluster, and under another actor axis the agent's name. */
+export function groupTitles(
+	nodes: Iterable<TTitled>,
+	axis: GroupKeyMode,
+	badgeOf: (type: string) => string | undefined,
+	roleNoun: (roleRel: unknown) => string | undefined,
+): Map<string, string> {
+	const all = [...nodes];
+	const byId = new Map(all.map((n) => [n.id, n]));
+	const labelById = new Map(all.flatMap((n) => (n.name ? [[n.id, n.name] as const] : [])));
+	const titleOf = (key: string): string => {
+		const badge = axis === "type" ? badgeOf(key) : undefined;
+		if (badge !== undefined) return `${badge} ${containerLabelOf(key, axis, labelById)}`;
+		if (axis !== "role") return containerLabelOf(key, axis, labelById);
+		const party = labelById.get(key) ?? key;
+		const role = roleNoun(byId.get(key)?.properties?.[HYPERMEDIA_ROLE_REL_KEY]) ?? byId.get(key)?.type;
+		return role && role !== party ? `${role}, ${party}` : party;
+	};
+	return new Map(all.map((n) => groupKeyOf(n, axis)).map((key) => [key, titleOf(key)]));
+}
 
 // Cohesion: how hard a group's members are pulled toward their ring anchor in XY (the "exclusive area" comes from
 // this, not the border alone). Depth is not cohesion's to control, z maps to each object's generatedAtTime.

@@ -6,7 +6,7 @@ import type { XYZ } from "../domains/graph-types.js";
 
 /** Sole owner of camera CONTROL for the polymorphic view: every framing, viewport, and navigation move that mutates the
  * three.js camera + OrbitControls is here, so the zoom has one owner. The component keeps the leaf
- * refs (camera/controls/canvas/renderer/container, set late at scene-load and read by inspect/the drag/the compass)
+ * refs (camera/controls/canvas/renderer/container, set late at scene-load and read by the drag and the compass)
  * and hands them in as accessors read at call time; this controller only READS them and is the only thing that moves
  * the camera. It also owns the load-time auto-fit state (the growth-gated frame that ends the moment the user takes
  * the camera) and the queued view-type re-aim. The decomposition's first subsystem (see lovely-finding-babbage). */
@@ -26,14 +26,6 @@ type FgCamera = {
 type FgRenderer = { setSize(w: number, h: number, updateStyle: boolean): void; getPixelRatio(): number; xr?: { isPresenting?: boolean } };
 /** The placed-gantt extent the camera frames, computed by the active gantt view from its bars, kept out of here so
  *  the controller never reaches into render-type state. */
-/** How a camera move measures its amount: screen pixels, or a percentage of the canvas or of the distance to the target. */
-export const MEASURE_UNIT = { pixels: "pixels", percent: "percent" } as const;
-export type TMeasureUnit = (typeof MEASURE_UNIT)[keyof typeof MEASURE_UNIT];
-export const ZOOM_DIRECTION = { in: "in", out: "out" } as const;
-export type TZoomDirection = (typeof ZOOM_DIRECTION)[keyof typeof ZOOM_DIRECTION];
-/** The directions a camera pans or orbits in, on the screen's axes. */
-export const PAN_DIRECTION = { left: "left", right: "right", up: "up", down: "down" } as const;
-export type TPanDirection = (typeof PAN_DIRECTION)[keyof typeof PAN_DIRECTION];
 const RAD_PER_DEG = Math.PI / 180;
 
 export type GanttExtent = { cy: number; cz: number; halfH: number; halfW: number };
@@ -55,8 +47,6 @@ export type CameraDeps = {
 	refreshPickBounds: () => void;
 };
 
-/** A zoom step that would reach the target closes this fraction of what remains instead, so it never arrives. */
-const ZOOM_APPROACH = 0.1;
 /** A fit places the node with the widest projection at 1/FIT_MARGIN of the way from the canvas centre to its edge. */
 const FIT_MARGIN = 1.1;
 /** The world distance a fit keeps between the lens and the nearest node. A single node is framed at this distance. */
@@ -70,8 +60,6 @@ function finite(move: string, values: Record<string, number>): void {
 		if (!Number.isFinite(value)) throw new Error(`camera ${move}: ${name} is ${value}, refusing a write that would leave the camera unable to move`);
 	}
 }
-
-const azimuthOf = (refs: { t: Vec3; p: Vec3 } | null): number | null => (refs ? Math.atan2(refs.p.x - refs.t.x, refs.p.z - refs.t.z) : null);
 
 const cross = (a: XYZ, b: XYZ): XYZ => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x });
 const dot = (a: XYZ, b: XYZ): number => a.x * b.x + a.y * b.y + a.z * b.z;
@@ -150,13 +138,13 @@ const SEQUENCE_AIM: Aim = { dir: { x: -1, y: 0, z: 0 }, up: { x: 0, y: 0, z: -1 
 
 export class PolymorphicCamera {
 	private lastViewH = 0; // genuine viewport height baseline (onContainerResize only), adjusts fov on a height change to hold the zoom level. Per-instance (resets on reload) so a transient boot height never seeds a wrong fov.
-	private userControlled = false; // a zoom/pan/orbit gesture OR opening a node latches this, from then on only the user (or the fit button) re-frames; a hover never latches.
+	private userControlled = false; // opening a node latches this, from then on only the user (or the fit button) re-frames; a hover never latches.
 	private framedOnce = false; // the load-time auto-fit fires EXACTLY once (the warmup makes the first stop the final layout); a full clear rearms it.
 	private pendingFrame: FrameMove | null = null;
 
 	constructor(private deps: CameraDeps) {}
 
-	/** Hand the camera to the user (a node open, exactly as a zoom/pan/orbit does), ends the load-time auto-fit. */
+	/** Hand the camera to the user (a node open), ends the load-time auto-fit. */
 	takeControl(): void {
 		this.userControlled = true;
 	}
@@ -373,90 +361,6 @@ export class PolymorphicCamera {
 		if (this.frame(this.pendingFrame)) this.pendingFrame = null;
 	}
 
-	/**
-	 * Move the camera toward or away from its target. It doesn't limit how near or far: a graph is laid out in whatever
-	 * units its data implies, so a fixed floor is arbitrary. A world-unit floor stopped zoom-in dead, and since pan and
-	 * orbit scale with the distance to the target, it reduced those too.
-	 *
-	 * A step must not REACH the target (a camera on it doesn't have a direction to zoom back out along), so a step that would
-	 * reach or pass it closes a fraction of what remains instead.
-	 */
-	zoomBy(amount: number, unit: TMeasureUnit, dir: TZoomDirection): void {
-		const refs = this.orbitRefs();
-		if (!refs) return;
-		this.userControlled = true; // the camera is now the user's, end the load-time auto-fit
-		const { t, p } = refs;
-		const ox = p.x - t.x,
-			oy = p.y - t.y,
-			oz = p.z - t.z;
-		const dist = Math.hypot(ox, oy, oz);
-		// A zoom never reaches the target and a fit keeps the lens clear of it, so a camera on its target is a fault.
-		if (dist === 0) throw new Error("camera zoom: the camera is on its target, so a zoom lacks a direction");
-		const delta = unit === MEASURE_UNIT.percent ? dist * (amount / 100) : this.pixelsToWorld(amount, t);
-		if (delta === null) return; // a zoom in pixels waits for a sized canvas
-		const reached = dir === ZOOM_DIRECTION.in ? dist - delta : dist + delta;
-		const k = (reached > 0 ? reached : dist * ZOOM_APPROACH) / dist;
-		finite("zoom", { k, x: t.x + ox * k, y: t.y + oy * k, z: t.z + oz * k });
-		p.set(t.x + ox * k, t.y + oy * k, t.z + oz * k);
-		this.deps.controls()?.update();
-	}
-
-	/** Slide the view (camera + target together, look direction unchanged). `pixels` = screen travel; `percent` = a
-	 * fraction of the canvas width (left/right) or height (up/down). left/down translate negative along the screen axes. */
-	panBy(amount: number, unit: TMeasureUnit, dir: TPanDirection): void {
-		const m = this.deps.camera()?.matrixWorld?.elements;
-		const refs = this.orbitRefs();
-		const container = this.deps.container();
-		if (!m || !refs || container === undefined) return;
-		const wpp = this.worldPerPxAt(refs.t);
-		if (wpp === null) return; // a pan waits for a sized canvas
-		this.userControlled = true; // the camera is now the user's, end the load-time auto-fit
-		const { t, p } = refs;
-		const horizontal = dir === PAN_DIRECTION.left || dir === PAN_DIRECTION.right; // matrixWorld columns 0/1 are the camera's orthonormal right/up axes
-		const ax = horizontal ? m[0] : m[4],
-			ay = horizontal ? m[1] : m[5],
-			az = horizontal ? m[2] : m[6];
-		const dimPx = horizontal ? container.clientWidth : container.clientHeight;
-		const sign = dir === PAN_DIRECTION.left || dir === PAN_DIRECTION.down ? -1 : 1;
-		const d = (unit === MEASURE_UNIT.percent ? (amount / 100) * dimPx : amount) * wpp * sign;
-		finite("pan", { d, ax, ay, az });
-		t.set(t.x + ax * d, t.y + ay * d, t.z + az * d);
-		p.set(p.x + ax * d, p.y + ay * d, p.z + az * d);
-		this.deps.controls()?.update();
-	}
-
-	/** Orbit the camera around the target: left/right swing the azimuth (around world-up), up/down the pitch (around the
-	 * camera's right axis). Rodrigues rotation of the camera→target offset by `degrees`. */
-	orbitBy(degrees: number, dir: TPanDirection): void {
-		const m = this.deps.camera()?.matrixWorld?.elements;
-		const refs = this.orbitRefs();
-		if (!m || !refs) return;
-		this.userControlled = true; // the camera is now the user's, end the load-time auto-fit
-		const { t, p } = refs;
-		const ox = p.x - t.x,
-			oy = p.y - t.y,
-			oz = p.z - t.z;
-		const horizontal = dir === PAN_DIRECTION.left || dir === PAN_DIRECTION.right;
-		const kx = horizontal ? 0 : m[0],
-			ky = horizontal ? 1 : m[1],
-			kz = horizontal ? 0 : m[2]; // world-up for azimuth; camera-right for pitch (both unit)
-		const angle = (dir === PAN_DIRECTION.left || dir === PAN_DIRECTION.up ? 1 : -1) * (degrees * RAD_PER_DEG);
-		const c = Math.cos(angle),
-			s = Math.sin(angle),
-			dot = kx * ox + ky * oy + kz * oz;
-		const crx = ky * oz - kz * oy,
-			cry = kz * ox - kx * oz,
-			crz = kx * oy - ky * ox;
-		p.set(t.x + ox * c + crx * s + kx * dot * (1 - c), t.y + oy * c + cry * s + ky * dot * (1 - c), t.z + oz * c + crz * s + kz * dot * (1 - c));
-		this.deps.controls()?.update();
-	}
-
-	/** `px` screen pixels in world units at `pos`, or null before the canvas is sized. */
-	private pixelsToWorld(px: number, pos: XYZ): number | null {
-		const wpp = this.worldPerPxAt(pos);
-		return wpp === null ? null : px * wpp;
-	}
-
 	/** World units per screen pixel at `pos`: the zoom signal. A function of fov, camera distance, AND viewport height. */
 	worldPerPxAt(pos: XYZ): number | null {
 		const cam = this.deps.camera();
@@ -466,27 +370,5 @@ export class PolymorphicCamera {
 		const dist = Math.hypot(pos.x - cam.position.x, pos.y - cam.position.y, pos.z - cam.position.z);
 		const fov = cam.fov * RAD_PER_DEG;
 		return (2 * dist * Math.tan(fov / 2)) / viewH;
-	}
-
-	/** The zoom level + framing the eye sees, for inspect()/tests: world-per-pixel at the graph centre plus the canvas
-	 * box. A column-open changes WIDTH (expected) but must never change HEIGHT or worldPerPx (auto-zoom). */
-	zoomMetric(): { h: number; w: number; worldPerPx: number; calibratedH: number } | null {
-		const worldPerPx = this.worldPerPxAt({ x: 0, y: 0, z: 0 });
-		const c = this.deps.container();
-		if (worldPerPx === null || c === undefined) return null;
-		// `calibratedH` is the height the fov was last adjusted to: while it lags `h`, a resize has landed and the
-		// compensation has not, so a reader of worldPerPx waits for the two to match.
-		return { h: c.clientHeight, w: c.clientWidth, worldPerPx, calibratedH: this.lastViewH };
-	}
-
-	/** Azimuth of the camera around its target (radians): a pan holds it, an orbit changes it. For inspect()/tests. */
-	azimuth(): number | null {
-		return azimuthOf(this.orbitRefs());
-	}
-
-	/** The point the camera looks at (the orbit target), for inspect()/tests, with `camera` position it names the aim. */
-	targetPoint(): { x: number; y: number; z: number } | null {
-		const refs = this.orbitRefs();
-		return refs ? { x: refs.t.x, y: refs.t.y, z: refs.t.z } : null;
 	}
 }

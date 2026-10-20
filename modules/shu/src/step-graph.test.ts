@@ -12,7 +12,6 @@ import WebServerStepper from "@haibun/web-server-hono/web-server-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import WebPlaywright from "@haibun/web-playwright";
 import ClientCacheStepper from "./client-cache-stepper.js";
-import ShuPolymorphicGraphViewControls from "./controls/polymorphic-controls-stepper.js";
 import GraphSourceStepper from "./graph-source-stepper.js";
 import MonitorStepper from "./monitor-stepper.js";
 import ShuStepper from "./shu-stepper.js";
@@ -20,7 +19,7 @@ import ShuStepper from "./shu-stepper.js";
 describe("the typed step graph of shu's steppers", () => {
 	it("has only the findings its baseline records", { timeout: 60_000 }, async () => {
 		await expectStepGraphAsRecorded({
-			owned: [ClientCacheStepper, ShuPolymorphicGraphViewControls, GraphSourceStepper, MonitorStepper, ShuStepper],
+			owned: [ClientCacheStepper, GraphSourceStepper, MonitorStepper, ShuStepper],
 			alongside: [Haibun, AuthorityStepper, StorageMem, VariablesStepper, WebServerStepper, WebPlaywright],
 			baselineFile: path.join(import.meta.dirname, "step-graph.baseline.json"),
 			sourceDir: import.meta.dirname,

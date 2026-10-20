@@ -7,10 +7,10 @@
  * pointer resting over the canvas doesn't draw a frame. Each is a frame count over stated states, never a time.
  */
 import { afterAll, beforeAll, expect, test } from "vitest";
-import { mountPolymorphicPage, quadsNamed, type TMountedPage } from "./polymorphic-page.test-fake.js";
+import { mountPolymorphicPage, quadsNamed, type TMountedPage } from "../../../test/polymorphic-page.js";
 
 const NAMES = Array.from({ length: 24 }, (_, i) => `n-${i}`);
-const REST_TICKS = 120;
+const REST_FRAMES = 120;
 /** What three new records may take to draw: the tick that places them, their labels as their text is laid out, their
  *  welcome glow on and off. A scene that drew for a grace after every change drew over seventy. */
 const FEED_FRAMES = 10;
@@ -37,6 +37,6 @@ test("a pointer resting over the canvas doesn't draw a frame", { timeout: 60_000
 	const box = await mounted.box();
 	await mounted.page.mouse.move(box.x + box.w / 2, box.y + box.h / 2);
 	await mounted.atRest();
-	expect(await mounted.framesOver(REST_TICKS), `frames drawn over ${REST_TICKS} gate ticks with the pointer at rest over the canvas`).toBe(0);
+	expect(await mounted.framesOver(REST_FRAMES), `frames drawn over ${REST_FRAMES} animation frames with the pointer at rest over the canvas`).toBe(0);
 	expect(mounted.errors(), "page errors").toEqual([]);
 });

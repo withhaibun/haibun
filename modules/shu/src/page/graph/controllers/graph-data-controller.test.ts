@@ -334,17 +334,3 @@ describe("an individual the page holds a copy of", () => {
 		expect((await readIndividual("Email", "a", "private")).vertex).toMatchObject({ folder: "INBOX" });
 	});
 });
-
-describe("the reads a view counts (SH22)", () => {
-	it("counts a read as started at once and as settled once its work ends, whether it returns or fails", async () => {
-		const data = new GraphDataController("counted");
-		let finish: (value: string) => void = () => undefined;
-		const returned = data.counted(() => new Promise<string>((resolve) => (finish = resolve)));
-		expect(data.reads).toEqual({ started: 1, settled: 0 });
-		finish("read");
-		await expect(returned).resolves.toBe("read");
-		expect(data.reads).toEqual({ started: 1, settled: 1 });
-		await expect(data.counted(() => Promise.reject(new Error("refused")))).rejects.toThrow("refused");
-		expect(data.reads).toEqual({ started: 2, settled: 2 });
-	});
-});

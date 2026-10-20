@@ -300,6 +300,23 @@ view "shu-monitor-column" doesn't show row 1 first
 view "shu-document-column" is scrolled to its end
 ```
 
+A graph view's heads read its accessible document, the reading beside the picture, which names each node it draws as its
+chip reads and states the active node, a dimmed node and a pinned node as the picture shows them, the title of each group
+box, and each lifeline a lane view draws, and is busy while what the graph shows still changes. A head that
+every view benefits from, such as reading a control's value, is general; a head for what only the graph draws names the
+graph:
+
+```gherkin
+open node "a@test.com" in graph "shu-column-pane[column-type='shu-polymorphic-graph-view']"
+node "a@test.com" of graph "shu-column-pane[column-type='shu-polymorphic-graph-view']" is active
+graph "shu-column-pane[column-type='shu-polymorphic-graph-view']" shows group "Email"
+control "polymorphic-z-time" of view "shu-column-pane[column-type='shu-polymorphic-graph-view']" shows "connections"
+```
+
+The graph's layout, camera and pointer invariants are unit tests of the scene's parts against a real layout, without a
+browser, and what only a drawn frame shows, such as when the scene draws and where a pick lands, is an integration test of
+the page.
+
 
 ## Steppers
 
@@ -317,7 +334,7 @@ view "shu-document-column" is scrolled to its end
 
 | Stepper | Example Steps |
 |---------|---------------|
-| WebPlaywright | `go to the {uri} webpage`, `click "{target}"`, `click "{target}" by "placeholder"`, `input {what} for {field}`, `wait for "{target}"`, `wait until {target} is gone`, `scroll {target} up a screen`, `in {container}, {statement}`, `see "{text}"`, `cookie {name} is {value}`, `take a screenshot` |
+| WebPlaywright | `go to the {uri} webpage`, `click "{target}"`, `click "{target}" by "placeholder"`, `input {what} for {field}`, `wait for "{target}"`, `wait until {target} is gone`, `hover over {target}`, `scroll {target} up a screen`, `in {container}, {statement}`, `see "{text}"`, `cookie {name} is {value}`, `take a screenshot` |
 | WebServerStepper | `serve files at /path from "dir"`: a served file requires `Read:public`, which a deployment serving a site allows without a delegation |
 | A11yStepper | `page is accessible accepting serious {N} and moderate {N}` |
 | WebHttp | `fetch from {url} is "{expected}"` |
