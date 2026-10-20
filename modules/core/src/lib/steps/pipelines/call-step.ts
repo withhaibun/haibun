@@ -14,7 +14,8 @@ import type { TWorld } from "../../actuality/domains/world.js";
 import { runRegistry, type StepTool } from "./step-registry.js";
 import { hostOfMethodName, stepMethodName } from "../domains/step-method.js";
 import type { AStepper, TStepperStep, TFeatureStep } from "../domains/stepper.js";
-import { mapInputToStepValues, literalTerm, renderStepLine } from "../derivations/named-vars.js";
+import { mapInputToStepValues } from "../derivations/named-vars.js";
+import { lineOfCall } from "../derivations/predicate-registry.js";
 import { actionNotOK } from "../../domains/util.js";
 import { proveStep, type DispatchContext } from "../../actuality/pipelines/step-dispatch.js";
 import { allocateSyntheticSeqPath } from "../../domains/host-id.js";
@@ -40,7 +41,7 @@ export function buildFeatureStepForTransport(tool: StepTool, input: Readonly<Rec
 	return {
 		...(targetHostId === undefined ? {} : { targetHostId }),
 		// `in` holds the feature line that states this call, so the record of a call from outside actuality is a line a feature can run.
-		in: renderStepLine(descriptor.pattern, Object.fromEntries(Object.entries(input).map(([name, value]) => [name, literalTerm(value, descriptor.paramDomains[name])]))),
+		in: lineOfCall(descriptor.pattern, input),
 		action: { stepperName: descriptor.stepperName, actionName: descriptor.stepName, step, stepValuesMap: mapInputToStepValues(input, descriptor.pattern) },
 		seqPath,
 		programmatic: true,

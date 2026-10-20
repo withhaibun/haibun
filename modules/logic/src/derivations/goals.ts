@@ -8,10 +8,10 @@ import type { AStepper } from "@haibun/core/lib/steps/domains/stepper.js";
 import type { TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
 import { isPersisted } from "@haibun/core/lib/domains/resources.js";
 import type { TFact } from "@haibun/core/lib/records/domains/facts.js";
-import { constructorName } from "@haibun/core/lib/domains/util.js";
 import { DOMAIN_DOMAIN_KEY, domainParts, fieldRangesOf, isPrimitiveDomain, isWrittenByCaller, normalizeDomainKey, refTargetOf } from "@haibun/core/lib/domains/domains.js";
 import { mayCall, requiredAction } from "@haibun/core/lib/domains/actions.js";
-import { stepParamDomains } from "@haibun/core/lib/steps/derivations/step-tools.js";
+import { declaredSteps } from "@haibun/core/lib/steps/derivations/predicate-registry.js";
+import { stepParts } from "@haibun/core/lib/steps/domains/phrase.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { unwrap, unwrapToShape } from "@haibun/core/lib/domains/zod-unwrap.js";
 import { DOMAIN_INDIVIDUAL_ADDRESS } from "@haibun/core/lib/domains/typed-links.js";
@@ -30,21 +30,17 @@ type TDomains = Record<string, TRegisteredDomain>;
 export type TStepSignature = Omit<TForwardAffordance, "readyToRun">;
 
 export function stepSignatures(steppers: readonly AStepper[]): TStepSignature[] {
-	return steppers.flatMap((stepper) => {
-		const stepperName = constructorName(stepper);
-		return Object.entries(stepper.steps).map(([stepName, step]) => {
-			const params = stepParamDomains(step);
-			const outputs = step.productsDomain !== undefined ? [step.productsDomain] : step.productsDomains === undefined ? [] : Object.values(step.productsDomains);
-			return {
-				method: stepMethodName(stepperName, stepName),
-				stepperName,
-				stepName,
-				...(step.gwta === undefined ? {} : { gwta: step.gwta }),
-				inputDomains: [...new Set([...params.values()].filter((domain) => !isPrimitiveDomain(domain)))],
-				outputDomains: outputs.map(normalizeDomainKey),
-				capability: requiredAction(stepperName, stepName, step),
-			};
-		});
+	return declaredSteps(steppers).map(({ stepperName, actionName: stepName, step }) => {
+		const outputs = step.productsDomain !== undefined ? [step.productsDomain] : step.productsDomains === undefined ? [] : Object.values(step.productsDomains);
+		return {
+			method: stepMethodName(stepperName, stepName),
+			stepperName,
+			stepName,
+			...(step.gwta === undefined ? {} : { gwta: step.gwta }),
+			inputDomains: [...new Set(stepParts(step).flatMap(({ domain }) => (isPrimitiveDomain(domain) ? [] : [domain])))],
+			outputDomains: outputs.map(normalizeDomainKey),
+			capability: requiredAction(stepperName, stepName, step),
+		};
 	});
 }
 

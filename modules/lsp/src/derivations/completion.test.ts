@@ -51,5 +51,6 @@ describe("LSP completion", () => {
 		expect(patternToSnippet("set {name} to {value}")).toBe("set ${1:name} to ${2:value}");
 		expect(patternToSnippet("wait {seconds: number} seconds")).toBe("wait ${1:seconds} seconds");
 		expect(patternToSnippet("click the submit button")).toBe("click the submit button");
+		expect(patternToSnippet("set( empty)? {what: variable-name} to {value: variable-value}"), "a hyphenated domain and an optional word").toBe("set ${1:what} to ${2:value}");
 	});
 });

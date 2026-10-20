@@ -2,12 +2,13 @@
 import { CompletionItemKind, InsertTextFormat, type CompletionItem } from "vscode-languageserver/node.js";
 import { ruleStatedAt, type TStepperStep } from "@haibun/core/lib/astepper.js";
 import type { TStepDescriptor } from "@haibun/core/lib/step-discovery.js";
+import { renderStepLine } from "@haibun/core/lib/steps/derivations/named-vars.js";
+import { phraseParts } from "@haibun/core/lib/steps/domains/phrase.js";
 
-/** Converts a step's pattern to a snippet. Each placeholder becomes a numbered tab stop: `{name}` and `{name: number}` become `${1:name}`. */
-export function patternToSnippet(pattern: string): string {
-	let stop = 0;
-	return pattern.replace(/\{(\w+)(?::\s*\w+)?\}/g, (_, name) => `\${${++stop}:${name}}`);
-}
+/** Converts a step's pattern to a snippet: its line with each part a numbered tab stop, so `{name}` and `{name: number}` become
+ *  `${1:name}`. */
+export const patternToSnippet = (pattern: string): string =>
+	renderStepLine(pattern, Object.fromEntries(phraseParts(pattern).map(({ name }, at) => [name, `\${${at + 1}:${name}}`])));
 
 /** A phrase as a completion item. The label is the phrase and the insert text is the phrase as a snippet. The detail names the step's stepper. */
 function completionItem(phrase: string, { stepperName }: TStepDescriptor, documentation: string): CompletionItem {

@@ -221,8 +221,13 @@ every host observed in http-trace hosts is some domain in Allowed domains is mat
 
 `rule {formula}` enters one TPTP FOF formula. The logic module's grammar (`modules/logic/src/derivations/formula.ts`)
 parses it, refuses a formula outside the engine's fragment with its remedy, and renders it as TPTP text and as Unicode
-tokens. `modules/logic/src/derivations/term-graph.ts` projects formulas once for every surface: their ASCII TPTP text,
-which a prover such as Vampire or E reads unchanged, each formula's Unicode tokens with the statement and the record behind
+tokens. Each predicate a formula names is an entry of the predicate registry
+(`modules/core/src/lib/steps/derivations/predicate-registry.ts`) with its arity: a step by its method, a waypoint by its
+head, `member_of(V, D)`, which the step `{value} is in {domain}` proves, `precedes(D, A, B)`, the order an ordered domain
+declares, or a record's type or field. Show steps lists the predicates of the steps its caller may call, each with its parts
+and the line that states it, and every surface reads a step's parts from the registry: the tools MCP and a model receive,
+the affordances and the line a call renders as. `modules/logic/src/derivations/term-graph.ts` projects formulas once for
+every surface: their ASCII TPTP text, which a prover such as Vampire or E reads unchanged, each formula's Unicode tokens with the statement and the record behind
 it, a summary of their kinds, and their term graph, whose constants, variables, hubs and classes name the formulas that
 state them. GraphSourceStepper's `show graph {view} as tptp` returns that projection for what a graph view shows under its
 filters, its limits and its time cursor: each record's type as a unary predicate and each literal property and edge as a
@@ -253,7 +258,8 @@ not set severity as Log levels to "error"  ;; would fail
 not set response as json to {woops  ;; would fail: malformed json
 ```
 
-Ordered domains enable comparisons and state transitions, often useful for waypoints. 
+A domain's membership, `{value} is in {domain}`, is the predicate `member_of(V, D)`. Ordered domains enable comparisons and
+state transitions, often useful for waypoints, and a comparison reads the order the declaration states, `precedes(D, A, B)`.
 ```
 ordered set of Request status is ["pending", "loading", "complete", "error"]
 set api_state as Request status to "pending"
@@ -325,7 +331,7 @@ the page.
 | Stepper | Example Steps |
 |---------|---------------|
 | Haibun | `Backgrounds: name`, `Feature:`, `Scenario:`, `Pending scenario:`, `until statement within duration`, `after every StepperName, statement` |
-| VariablesStepper | `set var to "value"`, `variable var is "value"`, `set of domain is [values]`, `matches {var} with "pattern"`, `increment var` |
+| VariablesStepper | `set var to "value"`, `variable var is "value"`, `set of domain is [values]`, `{value} is in {domain}`, `variable var is less than "value"`, `matches {var} with "pattern"`, `increment var` |
 | ActivitiesStepper | `Activity: name`, `waypoint Label with proof`, `ensure outcome` |
 | LogicStepper | `not statement`, `where condition, action`, `every x in domain is statement`, `some x in domain is statement`, `rule formula`, `resolve goal`, `pursue goal`, `walk toward goal`, `show affordances`, `show chain lint` |
 | DebuggerStepper | `debug step by step`, `debug stepper StepperName`, `continue stepper StepperName`; debugger commands: `step`, `continue`, `retry`, `next`, `fail` |

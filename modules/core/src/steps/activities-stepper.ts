@@ -7,7 +7,7 @@ import { Resolver, findFeatureStepsFromStatement } from "../lib/actuality/pipeli
 import { proveStatements, stepperContext } from "../lib/actuality/pipelines/step-dispatch.js";
 import type { TWaypointEntry } from "../lib/domains/goal-resolution.js";
 import { stepMethodName } from "../lib/steps/domains/step-method.js";
-import { phraseParameters } from "../lib/steps/domains/phrase.js";
+import { phraseParts } from "../lib/steps/domains/phrase.js";
 import { z } from "zod";
 import { Access, LinkRelations, PersistedVertexSchema, type TDomainDefinition } from "../lib/domains/resources.js";
 import { refDomainKey, type TIndividualRef } from "../lib/domains/domains.js";
@@ -195,7 +195,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		const world = this.getWorld();
 		const waypoints: TWaypointEntry[] = [];
 		for (const rule of this.inScope()) {
-			const paramSlots = phraseParameters(rule.head);
+			const paramSlots = phraseParts(rule.pattern).map(({ name }) => name);
 			const proof = rule.proof.flatMap((line) => findFeatureStepsFromStatement(line.in, this.steppers, world, line.source?.path, [0]));
 			const proved = proof.length > 0 && paramSlots.length === 0 ? await proveStatements(stepperContext(world, this.steppers), featureStep, proof) : undefined;
 			const error = proved === undefined || proved.ok ? {} : { error: proved.errorMessage };

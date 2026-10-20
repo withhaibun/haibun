@@ -1,5 +1,6 @@
 /**
- * A step as a tool every transport reads: its descriptor and the domain of each parameter.
+ * A step as a tool every transport reads: its descriptor and the domain of each parameter, which the predicate registry's parts
+ * of the step state.
  */
 import { jsonSchemaFor } from "../../domains/json-schema-of.js";
 import type { AStepper, TStepperStep } from "../domains/stepper.js";
@@ -7,9 +8,9 @@ import { DOMAIN_PERSISTED_TYPE } from "../../domains/resources.js";
 import { requiredAction } from "../../domains/actions.js";
 import { constructorName } from "../../domains/util.js";
 import { stepMethodName } from "../domains/step-method.js";
-import { namedInterpolation } from "./named-vars.js";
+import { stepParts } from "../domains/phrase.js";
 import type { TWorld } from "../../actuality/domains/world.js";
-import { DOMAIN_DOMAIN_KEY, DOMAIN_RECORD_ID, DOMAIN_STATEMENT, paramDomainKey, registeredDomain } from "../../domains/domains.js";
+import { DOMAIN_DOMAIN_KEY, DOMAIN_RECORD_ID, DOMAIN_STATEMENT, registeredDomain } from "../../domains/domains.js";
 import type { TInputSchema, TStepDescriptor } from "../domains/step-discovery.js";
 import { resolveOutputSchema } from "./tool-validation.js";
 
@@ -87,26 +88,13 @@ function assertRecordPairings(step: string, stepDef: TStepperStep, paramDomainKe
 }
 
 /**
- * The domain of each parameter that a step's phrase names, as `{name: domain}`. A parameter whose domain the phrase doesn't
- * name takes `string`. A step's schemas, the typed step graph and dispatch all read its input domains through this function.
- */
-export function stepParamDomains(stepDef: TStepperStep): Map<string, string> {
-	const domains = new Map<string, string>();
-	if (!stepDef.gwta) return domains;
-	const { stepValuesMap } = namedInterpolation(stepDef.gwta);
-	if (stepValuesMap === undefined) return domains;
-	for (const v of Object.values(stepValuesMap)) domains.set(v.term, paramDomainKey(v.domain));
-	return domains;
-}
-
-/**
  * The JSON Schema of a step's input parameters, which discovery, MCP and a page read, and each parameter's domain key.
  * jsonSchemaFor converts each Zod domain schema into a full JSON Schema: its enums, its object structure and its
  * descriptions. Validation reads each domain by its key when a call arrives.
  */
 function inputSchemaOf(step: string, stepDef: TStepperStep, world: TWorld): { inputSchema: TInputSchema; paramDomainKeys: Map<string, string> } {
 	const properties: TInputSchema["properties"] = {};
-	const paramDomainKeys = stepParamDomains(stepDef);
+	const paramDomainKeys = new Map(stepParts(stepDef).map(({ name, domain }) => [name, domain]));
 	for (const [term, domainKey] of paramDomainKeys) {
 		const domain = registeredDomain(world.domains, domainKey, `${step}: {${term}}`);
 		// The schema describes what a caller supplies, so a field the domain fills is optional.

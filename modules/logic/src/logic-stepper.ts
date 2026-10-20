@@ -1,5 +1,6 @@
 import { AStepper, READING, type IHasCycles, type IObservationSource, type IStepperCycles, type TFeatureStep, type TStepperSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 import type { TWorld } from "@haibun/core/lib/actuality/domains/world.js";
+import type { TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 import {
 	DOMAIN_STATEMENT,
 	DOMAIN_TEXT,
@@ -70,11 +71,11 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 		world.runtime.prover = proverOf(await logicEngine());
 	}
 
+	/** The formula domain, whose refusal holds a written formula to the registry of the steppers and the world's domains. */
+	private readonly formulaDomain: TDomainDefinition = { ...formulaDomainDefinition, refuses: (text, steppers) => formulaRefusal(text, steppers, this.getWorld().domains) };
+
 	cycles: IStepperCycles = {
-		getConcerns: () => ({
-			sources: builtInSources,
-			domains: [...logicDomainDefinitions, ...readingDomainDefinitions, ...goalDomainDefinitions, { ...formulaDomainDefinition, refuses: formulaRefusal }],
-		}),
+		getConcerns: () => ({ sources: builtInSources, domains: [...logicDomainDefinitions, ...readingDomainDefinitions, ...goalDomainDefinitions, this.formulaDomain] }),
 	};
 
 	/** What a goal's proof reads, under the caller's authority. */
@@ -228,7 +229,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 				"Enters one TPTP FOF formula for a complex single-purpose rule, and returns its name, its role and its rendering in Unicode notation. A line resolves only where the formula parses, is in the engine's fragment and names entries of the registry; other lines name the rule.",
 			productsDomain: DOMAIN_RULE,
 			action: ({ formula }: { formula: string }) => {
-				const rule = ruleOf(formula, this.steppers);
+				const rule = ruleOf(formula, this.steppers, this.getWorld().domains);
 				return "refused" in rule ? actionNotOK(rule.refused) : actionOKWithProducts(rule);
 			},
 		},

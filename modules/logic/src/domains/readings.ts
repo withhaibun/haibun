@@ -4,9 +4,9 @@
  */
 import { z } from "zod";
 import { DOMAIN_STATEMENT } from "@haibun/core/lib/domains/domains.js";
-import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import type { TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 import type { TStepperStep } from "@haibun/core/lib/steps/domains/stepper.js";
+import { stepParts } from "@haibun/core/lib/steps/domains/phrase.js";
 import type { TStepArgs } from "@haibun/core/lib/domains/protocol.js";
 
 /** How long until waits before it proves its statements again. */
@@ -26,9 +26,6 @@ export const readingDomainDefinitions: TDomainDefinition[] = [
 	},
 ];
 
-/** A placeholder of a step's phrase, with its name and its domain. */
-const PLACEHOLDER = /\{([^}:]+):\s*([^}]+)\}/g;
-
 /** A quantifier's variable and its range: a domain's members, or the items an observation source returns. */
 export type TQuantifier = { what: string } & ({ domain: string } | { source: string });
 
@@ -42,5 +39,4 @@ export function quantifierOf(args: TStepArgs): TQuantifier {
 export const alternativesOf = (text: string): string[] => text.split(",").map((one) => one.trim());
 
 /** The parameters of a step whose domain is a statement, in the order its phrase names them. */
-export const statementParams = (step: TStepperStep): string[] =>
-	[...(step.gwta === undefined ? [] : step.gwta.matchAll(PLACEHOLDER))].filter((match) => itemAt(match, 2).trim() === DOMAIN_STATEMENT).map((match) => itemAt(match, 1).trim());
+export const statementParams = (step: TStepperStep): string[] => stepParts(step).flatMap(({ name, domain }) => (domain === DOMAIN_STATEMENT ? [name] : []));

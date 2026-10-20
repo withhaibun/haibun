@@ -140,6 +140,8 @@ type TStepperStepBase = TStepReads & {
 	 *  read's result after this step runs, so the model doesn't request the read next. `answeredFor` in call-step.ts states
 	 *  how a failed step combines with the read. */
 	answeredBy?: string;
+	/** The predicate of the registry the step proves where its method doesn't name it: member_of, which a domain's membership proves. */
+	predicate?: typeof PREDICATE.memberOf;
 	/** Offers this step to a model before the model requests discovery. A request to a model lists a small set of steps
 	 *  first, so it doesn't carry the whole manifest. A step marked here is in that set, because it serves a request that can
 	 *  open a conversation. Mark only a step that is the only way to perform its operation. A predicate returns whether
@@ -219,6 +221,10 @@ export const READING = {
 	within: "within",
 } as const;
 export type TReading = (typeof READING)[keyof typeof READING];
+
+/** The predicates of the registry that a step's method doesn't name: member_of(V, D), which a domain's membership step proves
+ *  and a formula's guard states, and precedes(D, A, B), which holds where the order of an ordered domain D puts A before B. */
+export const PREDICATE = { memberOf: "member_of", precedes: "precedes" } as const;
 
 /** A waypoint's rule: its head as written and as the pattern that parses a goal, the lines of its proof, the lines of its
  *  activity, the plan that makes the proof hold, and the line that states it. A feature's rule applies in that feature alone,

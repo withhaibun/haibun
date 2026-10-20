@@ -28,5 +28,13 @@ export const features: TKirejiExport = {
 		`Essential, for a model and the page. Source: docs/reasoner.md, For a model.
 		Done for the record: a call writes one SeqPath record, which holds the call's parameters and result, the model and the ask of its turn, its delegation and the read level it ran under (step-records.ts). spopg's ToolCall record is gone, and spopg's update writes each stored ToolCall into its step record.`,
 		'the call "VariablesStepper-set" with {"what": "x", "value": "1"} is the line "set x to \\"1\\""',
+
+		scenario({ scenario: "Show steps lists the registry's predicates, and a domain's membership is member_of" }),
+		"Essential, for a model and a person writing a formula. Source: predicate-registry.ts and discover-steps.ts.",
+		'set shown from show steps matching "member_of" as "definition"',
+		'variable shown.predicates.0.name is "member_of"',
+		'variable shown.predicates.0.method is "VariablesStepper-isIn"',
+		'set membership from the line "\\"soup\\" is in courses" renders from its term as written',
+		"matches membership.term with \"'member_of'(*\"",
 	],
 };

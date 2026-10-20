@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { runEnvEntries, runEnvVariable, type TWorld } from "../lib/actuality/domains/world.js";
 import { OK, Origin, TProvenanceIdentifier, TOrigin, TActionResult, TStepValue, type TStepValueValue } from "../lib/domains/protocol.js";
-import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TStartScenario, provenanceFromFeatureStep } from "../lib/steps/domains/stepper.js";
+import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TStartScenario, provenanceFromFeatureStep, PREDICATE } from "../lib/steps/domains/stepper.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getStepTerm, errorDetail } from "../lib/domains/util.js";
 import { itemAt } from "../lib/domains/item-at.js";
 import { proveStatements, stepperContext } from "../lib/actuality/pipelines/step-dispatch.js";
@@ -194,21 +194,13 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					return actionNotOK(`the variable ${term} isn't set; set it before this step reads it`);
 				}
 
-				// If domain is an ordered enum, advance to the next enum value
-				const domainKey = effectiveDomain ? normalizeDomainKey(effectiveDomain) : undefined;
-				const registered = domainKey ? this.getWorld().domains[domainKey] : undefined;
-				if (registered?.comparator && Array.isArray(registered.values) && registered.values.length) {
-					const enumValues = registered.values;
-					const idx = enumValues.indexOf(String(presentVal));
-					if (idx === -1) {
-						return actionNotOK(`${term} has value "${presentVal}" which is not in domain values`);
-					}
-					const nextIdx = Math.min(enumValues.length - 1, idx + 1);
-					const nextVal = enumValues[nextIdx];
-					if (nextVal === presentVal) {
-						return OK;
-					}
-					await this.getWorld().shared.set({ term, value: nextVal, domain: effectiveDomain, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
+				// A variable of an ordered set advances to the value its order puts next, and stays at the last.
+				const registered = this.getWorld().domains[normalizeDomainKey(effectiveDomain)];
+				if (registered?.comparator !== undefined && registered.values !== undefined) {
+					const at = registered.values.indexOf(String(presentVal));
+					if (at === -1) return actionNotOK(`${term} has value "${presentVal}" which is not in domain values`);
+					const next = registered.values[at + 1];
+					if (next !== undefined) await this.getWorld().shared.set({ term, value: next, domain: effectiveDomain, origin: Origin.var }, provenanceFromFeatureStep(featureStep));
 					return OK;
 				}
 
@@ -324,16 +316,14 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		isLessThan: {
 			gwta: `variable {what: ${DOMAIN_VARIABLE_NAME}} is less than {value: ${DOMAIN_VARIABLE_VALUE}}`,
 			precludes: ["VariablesStepper.is"],
-			action: ({ what, value }: { what: string; value: TStepValue }, featureStep: TFeatureStep) => {
-				return this.compareValues(featureStep, what, value, "<");
-			},
+			description: "Holds where the order of the variable's domain puts its value before the value, precedes(D, x, v): an ordered set's order, a number's or a date's.",
+			action: ({ what, value }: { what: string; value: TStepValue }, featureStep: TFeatureStep) => this.ordered(featureStep, what, value, (order) => order < 0),
 		},
 		isMoreThan: {
 			gwta: `variable {what: ${DOMAIN_VARIABLE_NAME}} is more than {value: ${DOMAIN_VARIABLE_VALUE}}`,
 			precludes: ["VariablesStepper.is"],
-			action: ({ what, value }: { what: string; value: TStepValue }, featureStep: TFeatureStep) => {
-				return this.compareValues(featureStep, what, value, ">");
-			},
+			description: "Holds where the order of the variable's domain puts the value before its value, precedes(D, v, x): an ordered set's order, a number's or a date's.",
+			action: ({ what, value }: { what: string; value: TStepValue }, featureStep: TFeatureStep) => this.ordered(featureStep, what, value, (order) => order > 0),
 		},
 		exists: {
 			gwta: `variable {what: ${DOMAIN_VARIABLE_NAME}} exists`,
@@ -408,33 +398,16 @@ class VariablesStepper extends AStepper implements IHasCycles {
 				});
 			},
 		},
-		// Membership check: a value is in a domain, by its listed values or by the variables set in it. The value resolves
-		// as any term does: quoted is its text, unquoted names a variable. fallback: true lets quantifiers (every/some) win
-		// on the full line.
 		isIn: {
 			gwta: `{value: ${DOMAIN_VARIABLE_VALUE}} is in {domain: ${DOMAIN_DOMAIN_KEY}}`,
+			predicate: PREDICATE.memberOf,
+			// A quantifier's line, such as every x in D is S, matches this pattern too, and a quantifier takes the line.
 			fallback: true,
-			action: async ({ value, domain: domainName }: { value: TStepValue; domain: string }) => {
-				const actualValue = String(value.value);
-				const domainKey = normalizeDomainKey(domainName);
-				const domainDef = this.getWorld().domains[domainKey];
-
-				if (!domainDef) {
-					return actionNotOK(`the domain "${domainName}" isn't registered; declare it with set of, or load the stepper that declares it`);
-				}
-
-				// Check enum values first
-				if (Array.isArray(domainDef.values) && domainDef.values.includes(actualValue)) {
-					return OK;
-				}
-
-				// Check member values
-				const allVars = await this.getWorld().shared.all();
-				const memberValues = Object.values(allVars)
-					.filter((v) => v.domain && normalizeDomainKey(v.domain) === domainKey)
-					.map((v) => String(v.value));
-
-				return memberValues.includes(actualValue) ? OK : actionNotOK(`"${statedValue(actualValue, value.secret)}" is not in ${domainName}`);
+			description: "Holds where the value is one of the values the domain's set of declaration lists, or a variable set in it holds: member_of(V, D).",
+			action: async ({ value, domain }: { value: TStepValue; domain: string }) => {
+				const members = await this.getWorld().shared.getDomainValues(domain);
+				if (members.error !== undefined) return actionNotOK(members.error);
+				return members.values.map(String).includes(String(value.value)) ? OK : actionNotOK(`"${statedValue(String(value.value), value.secret)}" is not in ${domain}`);
 			},
 		},
 		// Pattern matching: glob-style patterns for human-readable matching
@@ -473,24 +446,18 @@ class VariablesStepper extends AStepper implements IHasCycles {
 
 	readonly typedSteps = this.steps;
 
-	async compareValues(featureStep: TFeatureStep, term: string, value: TStepValue, operator: string) {
+	/** Holds where `holds` reads the order of the variable's domain between its value and the value: below zero where the order
+	 *  puts the variable's value first. Refuses a variable whose domain doesn't order its values. */
+	private async ordered(featureStep: TFeatureStep, term: string, value: TStepValue, holds: (order: number) => boolean): Promise<TActionResult> {
 		const stored = await this.getWorld().shared.resolveVariable({ term, origin: Origin.var }, featureStep, this.steppers, { secure: true });
-		if (!stored) {
-			return actionNotOK(await this.getWorld().shared.unsetReason(term));
-		}
+		if (stored.value === undefined) return actionNotOK(await this.getWorld().shared.unsetReason(term));
 		const domainKey = normalizeDomainKey(stored.domain);
-		const domainEntry = registeredDomain(this.getWorld().domains, domainKey, `the value of ${term}`);
-		const left = domainEntry.coerce({ ...stored, domain: domainKey }, featureStep, this.steppers);
-
-		const right = domainEntry.coerce({ term: `${term}__comparison`, value: String(value.value), domain: domainKey, origin: Origin.quoted }, featureStep, this.steppers);
-		const comparison = compareDomainValues(domainEntry, left, right, stored.domain);
-		if (operator === ">") {
-			return comparison > 0 ? OK : actionNotOK(mismatch(term, { ...stored, value: left }, right, value));
-		}
-		if (operator === "<") {
-			return comparison < 0 ? OK : actionNotOK(mismatch(term, { ...stored, value: left }, right, value));
-		}
-		return actionNotOK(`the comparison ${operator} isn't one a variable takes; compare with is, is less than or is more than`);
+		const domain = registeredDomain(this.getWorld().domains, domainKey, `the value of ${term}`);
+		if (domain.comparator === undefined)
+			return actionNotOK(`the domain ${domainKey} of ${term} doesn't order its values; compare a variable of an ordered set, a number or a date`);
+		const left = domain.coerce({ ...stored, domain: domainKey }, featureStep, this.steppers);
+		const right = domain.coerce({ term: `${term}__comparison`, value: String(value.value), domain: domainKey, origin: Origin.quoted }, featureStep, this.steppers);
+		return holds(domain.comparator(left, right)) ? OK : actionNotOK(mismatch(term, { ...stored, value: left }, right, value));
 	}
 
 	private registerSubdomainFromStatement(domain: string, superdomains: TFeatureStep[] | undefined, featureStep: TFeatureStep) {
@@ -659,19 +626,6 @@ const parseBracketedValues = (raw: string) => {
 	}
 	const inner = trimmed.substring(start + 1, end).trim();
 	return parseQuotedOrWordList(inner);
-};
-
-const compareDomainValues = (domain: { comparator?: (a: unknown, b: unknown) => number }, left: unknown, right: unknown, domainName: string): number => {
-	if (domain.comparator) {
-		return domain.comparator(left, right);
-	}
-	if (typeof left === "number" && typeof right === "number") {
-		return left - right;
-	}
-	if (left instanceof Date && right instanceof Date) {
-		return left.getTime() - right.getTime();
-	}
-	throw new Error(`Domain ${domainName} does not support magnitude comparison`);
 };
 
 // ======== Helpers ========

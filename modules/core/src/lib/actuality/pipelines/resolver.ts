@@ -4,10 +4,11 @@ import { TStepValue, SCENARIO_START, PENDING_SCENARIO, HEADINGS, Origin } from "
 import { AStepper, TStepAction, TResolvedFeature, TStepperStep, TFeatureStep, hasCycles } from "../../steps/domains/stepper.js";
 import type { TDomainDefinition } from "../../domains/resources.js";
 import { matchGwtaToAction } from "../../steps/derivations/named-vars.js";
-import { getActionable, dePolite, constructorName, actionNotOK, asError, errorDetail } from "../../domains/util.js";
+import { getActionable, dePolite, actionNotOK, asError, errorDetail } from "../../domains/util.js";
 import { itemAt } from "../../domains/item-at.js";
 import { DOMAIN_STATEMENT } from "../../domains/domains.js";
 import { heldPerEntries } from "../../steps/derivations/held-per-entries.js";
+import { declaredSteps } from "../../steps/derivations/predicate-registry.js";
 import { expandLine } from "../../domains/features.js";
 
 /** Matches a line written as a sentence. A sentence starts with a capital letter and ends with `.`, `!`, `?`, `:` or `;`. */
@@ -284,12 +285,7 @@ export class Resolver {
 	private readonly offered = heldPerEntries(
 		(steppers: readonly AStepper[]) => steppers.flatMap((stepper) => [stepper, ...Object.entries(stepper.steps).flat()]),
 		(steppers: readonly AStepper[]): TStepAction[] =>
-			steppers.flatMap((stepper) => {
-				const stepperName = constructorName(stepper);
-				return Object.entries(stepper.steps)
-					.filter(([actionName, step]) => !this.offers || this.offers(stepperName, actionName, step))
-					.map(([actionName, step]) => ({ actionName, stepperName, step }));
-			}),
+			declaredSteps(steppers).filter(({ stepperName, actionName, step }) => !this.offers || this.offers(stepperName, actionName, step)),
 	);
 
 	private offeredSteps(): TStepAction[] {

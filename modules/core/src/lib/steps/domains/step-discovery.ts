@@ -123,6 +123,13 @@ const DomainSummarySchema = z.object({ description: z.string().optional(), [HYPE
 const StepDefinitionSchema = StepDescriptorSchema.extend({ [HYPERMEDIA.LINKS]: z.object({ call: z.object({ method: z.string() }).strict() }).strict() });
 export type TStepDefinition = z.infer<typeof StepDefinitionSchema>;
 
+/** A predicate of the registry as a definition states it: its name, its parts with their domains, and, where a line states it,
+ *  the line and the step whose method proves it. A formula names a predicate by its name, with its parts in order. */
+const PredicateSchema = z
+	.object({ name: z.string(), parts: z.array(z.object({ name: z.string(), domain: z.string() }).strict()).readonly(), line: z.string().optional(), method: z.string().optional() })
+	.strict();
+export type TPredicate = z.infer<typeof PredicateSchema>;
+
 /** What a read of actuality's declarations returns at each detail. Both details key their domains by name. */
 const StepSummariesSchema = z
 	.object({
@@ -139,6 +146,7 @@ const StepDefinitionsSchema = z
 		steps: z.array(StepDefinitionSchema),
 		domains: z.record(z.string(), DomainDiscoveryInfoSchema),
 		concerns: ConcernCatalogSchema,
+		predicates: z.array(PredicateSchema),
 	})
 	.strict();
 export const StepDiscoverySchema = z.discriminatedUnion("detail", [StepSummariesSchema, StepDefinitionsSchema]);
@@ -147,7 +155,7 @@ export type TStepDefinitions = z.infer<typeof StepDefinitionsSchema>;
 type TStepDiscovery = z.infer<typeof StepDiscoverySchema>;
 
 /** What the show steps step does, which its definition states. */
-export const SHOW_STEPS_DESCRIPTION = `Reads actuality's declarations: the steps its caller may call, and every domain. The text is compared with each step's method, pattern and description, and with each domain's name and description. The comparison ignores case. An empty text matches every step and domain. A method names its stepper and a hyphen first, so the text GraphStepper- matches the steps of GraphStepper and of any stepper whose name ends in GraphStepper. The ${STEP_DETAIL.summary} detail names each match, states what it does and links its definition. The ${STEP_DETAIL.definition} detail adds each step's argument and product schemas and links its call. A step whose definition you read is one you may call. Every result lists the steppers whose steps matched.`;
+export const SHOW_STEPS_DESCRIPTION = `Reads actuality's declarations: the steps its caller may call, and every domain. The text is compared with each step's method, pattern and description, and with each domain's name and description. The comparison ignores case. An empty text matches every step and domain. A method names its stepper and a hyphen first, so the text GraphStepper- matches the steps of GraphStepper and of any stepper whose name ends in GraphStepper. The ${STEP_DETAIL.summary} detail names each match, states what it does and links its definition. The ${STEP_DETAIL.definition} detail adds each step's argument and product schemas and links its call, and the registry's predicates, which a formula names. A step whose definition you read is one you may call. Every result lists the steppers whose steps matched.`;
 
 /** A tool as MCP defines it. A model provider sends the same fields under its own field names. */
 export type TToolDefinition = { name: string; description: string; inputSchema: TInputSchema };

@@ -114,6 +114,14 @@ describe("what a read of actuality's declarations shows", () => {
 		).toEqual(["LocalSteps", "host9_RemoteSteps"]);
 	});
 
+	it("shows a caller the predicates of the registry that the steps it may call prove, and precedes, and not a predicate of another host", () => {
+		const registry = new StepRegistry([new LocalSteps()], emptyWorld);
+		registry.inject([remoteTool("write", "write {data}", "Remote:write")]);
+		const named = (held: string[]) => definitionsOf(emptyWorld, registry, "", held).predicates.map(({ name }) => name);
+		expect(named(RUN_AUTHORITY)).toEqual(["LocalSteps-passes", "precedes"]);
+		expect(named([]), "a caller that doesn't hold an action is shown precedes alone").toEqual(["precedes"]);
+	});
+
 	it("shows the steps and domains whose text contains the text without regard to case, and the steppers of the steps that matched", () => {
 		class ManySteps extends AStepper {
 			description = "steps that read and write records";

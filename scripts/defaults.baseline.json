@@ -52,7 +52,6 @@
 		"states a parameter's default value": 3
 	},
 	"modules/core/src/lib/domains/domains.ts": {
-		"fills a falsy value with a constant through ||": 1,
 		"fills an absent value with a constant through ??": 2
 	},
 	"modules/core/src/lib/domains/features.ts": {

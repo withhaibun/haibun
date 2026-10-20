@@ -16,6 +16,7 @@ const KNOWN = new Map([
 	["served", 1],
 	["side", 2],
 	["Stepper-step", 1],
+	["member_of", 2],
 ]);
 
 const REFUSED: [string, string, string][] = [
@@ -23,12 +24,12 @@ const REFUSED: [string, string, string][] = [
 	[
 		"a predicate the registry doesn't hold",
 		"fof(r, axiom, burnt(lunch)).",
-		"name a step by its method, quoted as 'Stepper-step', with its parameters in its pattern's order, or guard a variable with member_of(X, d)",
+		"name a predicate of the registry, which show steps lists: a step's method quoted as 'Stepper-step' or a waypoint's head, with its parts in order, member_of(X, d) or precedes(d, A, B)",
 	],
 	[
 		"a predicate with another arity than the registry holds",
 		"fof(r, axiom, side(lunch)).",
-		"name a step by its method, quoted as 'Stepper-step', with its parameters in its pattern's order, or guard a variable with member_of(X, d)",
+		"name a predicate of the registry, which show steps lists: a step's method quoted as 'Stepper-step' or a waypoint's head, with its parts in order, member_of(X, d) or precedes(d, A, B)",
 	],
 	["a disjunction in a conclusion", "fof(r, axiom, ![X] : (member_of(X, meal) => (cooked(X) | raw(X)))).", "split the rule into one rule per disjunct"],
 	[

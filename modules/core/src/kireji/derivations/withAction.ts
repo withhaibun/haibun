@@ -1,5 +1,6 @@
 import { AStepper, TStepperSteps } from "../../lib/steps/domains/stepper.js";
-import { namedInterpolation, renderStepLine } from "../../lib/steps/derivations/named-vars.js";
+import { renderStepLine } from "../../lib/steps/derivations/named-vars.js";
+import { phraseParts } from "../../lib/steps/domains/phrase.js";
 
 type TStepWithGwta = TStepperSteps[keyof TStepperSteps] & { gwta: string };
 type TStepWithExact = TStepperSteps[keyof TStepperSteps] & { exact: string };
@@ -104,10 +105,7 @@ export const stepActions = (stepper: AStepper): Record<string, TActionFactory> =
 		const step = stepper.steps[actionName];
 
 		if (isStepWithGwta(step)) {
-			// Strip optional patterns before extracting placeholders to match type-level behavior
-			const strippedGwta = step.gwta.replace(/\([^)]*\)\?/g, "");
-			const { stepValuesMap } = namedInterpolation(strippedGwta);
-			const argNames = stepValuesMap ? Object.keys(stepValuesMap) : [];
+			const argNames = phraseParts(step.gwta).map(({ name }) => name);
 
 			actions[actionName] = (args: Record<string, TNestedArgValue>) => {
 				const normalizedArgs: Record<string, string> = {};

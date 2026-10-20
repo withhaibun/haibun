@@ -232,7 +232,7 @@ export function stepsShown(
 		fallback: step.fallback === true,
 		answersTheTurn: step.answersTheTurn === true,
 	}));
-	const shown = { detail: STEP_DETAIL.definition, steppers: steppersOf(described), steps: described.map(stepDefinition), domains, concerns };
+	const shown = { detail: STEP_DETAIL.definition, steppers: steppersOf(described), steps: described.map(stepDefinition), domains, concerns, predicates: [] };
 	return readShownSteps(shown, STEP_DETAIL.definition);
 }
 

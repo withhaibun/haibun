@@ -346,6 +346,10 @@ variable point is less than "finished"`;
 		const res = await failWithDefaults(content, steppers);
 		expect(res.ok).toBe(false);
 	});
+	it("refuses to compare a variable whose domain doesn't order its values, and names the domains that do", async () => {
+		const res = await failWithDefaults(`set of phase is ["required" "started"]\nset point as phase to "started"\nvariable point is less than "required"`, steppers);
+		expect(res.failure?.error?.message).toContain("the domain phase of point doesn't order its values; compare a variable of an ordered set, a number or a date");
+	});
 });
 
 describe("enum domains", () => {

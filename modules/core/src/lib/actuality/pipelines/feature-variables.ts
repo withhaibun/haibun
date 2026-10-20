@@ -370,7 +370,7 @@ export class FeatureVariables {
 	async getDomainValues(domainName: string): Promise<{ values: unknown[]; error?: string }> {
 		const domainKey = normalizeDomainKey(domainName);
 		const domainDef = this.world.domains[domainKey];
-		if (!domainDef) return { values: [], error: `Domain "${domainName}" is not defined` };
+		if (!domainDef) return { values: [], error: `the domain "${domainName}" isn't registered; declare it with set of, or load the stepper that declares it` };
 		if (Array.isArray(domainDef.values) && domainDef.values.length > 0) return { values: domainDef.values };
 		const allVars = await this.all();
 		const memberValues = Object.values(allVars)

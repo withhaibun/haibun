@@ -1,6 +1,6 @@
 /**
- * What actuality declares to a caller: the steps a caller may call, the domains, the concern catalog, and the steppers of
- * the steps that matched. The catalog is built once for each set of registered domains.
+ * What actuality declares to a caller: the steps a caller may call, the domains, the concern catalog, the predicates of the
+ * registry, and the steppers of the steps that matched. The catalog is built once for each set of registered domains.
  */
 import { jsonSchemaFor } from "../../domains/json-schema-of.js";
 import type { TWorld } from "../../actuality/domains/world.js";
@@ -20,6 +20,7 @@ import { hostOfMethodName, hostScopedMethodName } from "../domains/step-method.j
 import { containsText, domainSummary, stepDefinition, stepSummary, stepperStepsLink } from "../domains/step-discovery.js";
 import { heldPerEntries, recordEntries } from "../derivations/held-per-entries.js";
 import type { StepRegistry } from "./step-registry.js";
+import { predicatesOf } from "../derivations/predicate-registry.js";
 
 /** The concern catalog of a set of registered domains, built again only where a domain is added or replaced. */
 export const concernCatalogOf = heldPerEntries(recordEntries, (domains: Record<string, TRegisteredDomain>) => buildConcernCatalog(domains));
@@ -64,7 +65,8 @@ export function discoverSteps(
 ): TStepDefinitions;
 export function discoverSteps(world: TWorld, registry: StepRegistry, query: TStepsQuery, held: string | string[] | undefined): TStepSummaries | TStepDefinitions;
 export function discoverSteps(world: TWorld, registry: StepRegistry, query: TStepsQuery, held: string | string[] | undefined): TStepSummaries | TStepDefinitions {
-	const steps = registry.heldBy(held).filter((step) => containsText([step.method, step.pattern, step.description], query.text));
+	const callable = registry.heldBy(held);
+	const steps = callable.filter((step) => containsText([step.method, step.pattern, step.description], query.text));
 	const steppers = steppersOf(steps);
 	const domains = Object.entries(world.domains).filter(([key, domain]) => containsText([key, domain.description], query.text));
 	if (query.detail === STEP_DETAIL.summary) {
@@ -85,6 +87,14 @@ export function discoverSteps(world: TWorld, registry: StepRegistry, query: TSte
 			persisted: Object.fromEntries(Object.entries(catalog.persisted).filter(([label, concern]) => containsText([label, concern.description], query.text))),
 			references: Object.fromEntries(Object.entries(catalog.references).filter(([key, reference]) => containsText([key, reference.targetDomain], query.text))),
 		},
+		// A predicate a step proves is shown to a caller that may call the step, as the step is. A step another host runs proves
+		// that host's predicates.
+		predicates: predicatesOf(
+			callable.flatMap(({ method, stepperName, stepName }) => {
+				const { stepDef } = registry.named(method);
+				return stepDef === undefined ? [] : [{ stepperName, actionName: stepName, step: stepDef }];
+			}),
+		).filter(({ name, line }) => containsText([name, line], query.text)),
 	};
 }
 

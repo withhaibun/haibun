@@ -5,6 +5,7 @@
  * in conditions, stated falsities, quantifiers over closed domains, and predicates the registry holds. A tree holds each name
  * without the single quotes TPTP writes around a name that isn't a lower word, so `'abc'` and `abc` are one name.
  */
+import { PREDICATE } from "@haibun/core/lib/steps/domains/stepper.js";
 import { TOKEN_ROLE, type TTokenRole } from "../domains/tokens.js";
 
 /** A term: a variable (capitalized), or a constant or function applied to arguments. */
@@ -41,11 +42,9 @@ const REMEDY = {
 	connective: "restate the formula with ~, & and =>",
 	role: "state the formula as fof, with the role axiom for a fact or a rule and conjecture for a goal",
 	syntax: "write one annotated formula, fof(name, role, formula).",
-	predicate: "name a step by its method, quoted as 'Stepper-step', with its parameters in its pattern's order, or guard a variable with member_of(X, d)",
+	predicate:
+		"name a predicate of the registry, which show steps lists: a step's method quoted as 'Stepper-step' or a waypoint's head, with its parts in order, member_of(X, d) or precedes(d, A, B)",
 } as const;
-
-/** The predicate that guards a variable with a closed domain, and its arity. */
-const GUARD = { name: "member_of", arity: 2 } as const;
 
 /** The connectives the fragment refuses, with the remedy for each by its name. */
 const REFUSED_CONNECTIVES: Readonly<Record<string, keyof typeof REMEDY>> = { "<=>": "equivalence", "<~>": "connective", "~|": "connective", "~&": "connective" };
@@ -210,12 +209,10 @@ function checkAxiom(formula: TFormula): void {
 const atomsOf = (f: TFormula): Extract<TFormula, { atom: string }>[] =>
 	"atom" in f ? [f] : "not" in f ? atomsOf(f.not) : "quantifier" in f ? atomsOf(f.body) : "connective" in f ? [...atomsOf(f.left), ...atomsOf(f.right)] : [];
 
-/** Holds each predicate of a formula to the registry: the guard, or a predicate `known` holds with the arity it holds. */
+/** Holds each predicate of a formula to the registry: a predicate `known` holds, with the arity it holds. */
 function checkPredicates(formula: TFormula, known: ReadonlyMap<string, number>): void {
-	for (const { atom, args } of atomsOf(formula)) {
-		const arity = atom === GUARD.name ? GUARD.arity : known.get(atom);
-		if (arity !== args.length) throw new Refusal(`the predicate ${atom}/${args.length} isn't an entry of the registry`, REMEDY.predicate);
-	}
+	for (const { atom, args } of atomsOf(formula))
+		if (known.get(atom) !== args.length) throw new Refusal(`the predicate ${atom}/${args.length} isn't an entry of the registry`, REMEDY.predicate);
 }
 
 /** Returns the formula `read` returns, or why it refused the formula with its remedy. */
@@ -346,7 +343,7 @@ function guardOf(formula: Extract<TFormula, { quantifier: string }>): [TTerm | u
 	const { body, variables } = formula;
 	if (variables.length !== 1 || !("connective" in body) || body.connective !== "=>") return [undefined, body];
 	const [first, ...others] = conjuncts(body.left);
-	const guarded = first !== undefined && "atom" in first && first.atom === GUARD.name && termText(first.args[0] as TTerm) === variables[0];
+	const guarded = first !== undefined && "atom" in first && first.atom === PREDICATE.memberOf && termText(first.args[0] as TTerm) === variables[0];
 	if (!guarded || first === undefined || !("atom" in first)) return [undefined, body];
 	const domain = first.args[1] as TTerm;
 	if (others.length === 0) return [domain, body.right];

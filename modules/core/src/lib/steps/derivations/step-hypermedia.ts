@@ -4,8 +4,9 @@ import { AStepper, type TStepperStep } from "../domains/stepper.js";
 import type { TWorld } from "../../actuality/domains/world.js";
 import type { TActionResult } from "../../domains/protocol.js";
 import { HYPERMEDIA } from "../../domains/protocol.js";
-import { namedInterpolation } from "./named-vars.js";
-import { constructorName } from "../../domains/util.js";
+import { stepParts } from "../domains/phrase.js";
+import { stepMethodName } from "../domains/step-method.js";
+import { declaredSteps } from "./predicate-registry.js";
 import { normalizeDomainKey } from "../../domains/domains.js";
 
 /**
@@ -78,36 +79,13 @@ function deriveActionLinks(
 ): Record<string, { method: string; params?: Record<string, unknown> }> {
 	const out: Record<string, { method: string; params?: Record<string, unknown> }> = {};
 	const productId = typeof products.id === "string" ? products.id : undefined;
-	const matchesProduct = (paramDomain: string): boolean => {
-		if (paramDomain === productsDomain) return true;
-		// A gwta parameter can declare a union domain, such as a page target. A union domain doesn't declare a single-domain topology, so it doesn't match. normalizeDomainKey throws on a misordered union, and the catch returns false, so one such parameter doesn't stop link derivation for every product.
-		let refDomain: { topology?: { ranges?: { id?: string } } } | undefined;
-		try {
-			refDomain = world.domains?.[normalizeDomainKey(paramDomain)];
-		} catch {
-			return false;
-		}
-		const ranges = refDomain?.topology && "ranges" in refDomain.topology ? refDomain.topology.ranges : undefined;
-		return ranges?.id === productsDomain;
-	};
-	for (const stepper of steppers) {
-		const stepperName = constructorName(stepper);
-		for (const [stepName, stepDef] of Object.entries(stepper.steps)) {
-			if (!stepDef.gwta) continue;
-			const { stepValuesMap } = namedInterpolation(stepDef.gwta);
-			if (!stepValuesMap) continue;
-			const matching: string[] = [];
-			for (const v of Object.values(stepValuesMap)) {
-				if (v.domain && matchesProduct(v.domain)) matching.push(v.term);
-			}
-			if (matching.length === 0) continue;
-			const method = `${stepperName}-${stepName}`;
-			const params: Record<string, unknown> = {};
-			if (productId !== undefined) {
-				for (const paramName of matching) params[paramName] = { id: productId };
-			}
-			out[stepName] = Object.keys(params).length > 0 ? { method, params } : { method };
-		}
+	// A part's domain key states a union's parts in order, and a union domain doesn't declare a single-domain topology, so it
+	// doesn't match.
+	const matchesProduct = (paramDomain: string): boolean => paramDomain === productsDomain || world.domains[paramDomain]?.topology?.ranges?.id === productsDomain;
+	for (const { stepperName, actionName, step } of declaredSteps(steppers)) {
+		const matching = stepParts(step).flatMap(({ name, domain }) => (matchesProduct(domain) ? [name] : []));
+		const method = stepMethodName(stepperName, actionName);
+		if (matching.length > 0) out[actionName] = productId === undefined ? { method } : { method, params: Object.fromEntries(matching.map((name) => [name, { id: productId }])) };
 	}
 	return out;
 }

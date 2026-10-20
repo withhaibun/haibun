@@ -16,7 +16,8 @@ import { constructorName, dePolite } from "@haibun/core/lib/domains/util.js";
 import type { TWorld } from "@haibun/core/lib/actuality/domains/world.js";
 import type { AStepper, TFeatureStep } from "@haibun/core/lib/steps/domains/stepper.js";
 import { derivationOf } from "../derivations/derivation.js";
-import { lineOfTerm, registryPredicates, termOfAction, termText, waypointAxiom, type TLineTerm } from "../derivations/registry.js";
+import { lineOfTerm, termOfAction, termText, waypointAxiom, type TLineTerm } from "../derivations/registry.js";
+import { declaredSteps, predicateArities, predicateOf } from "@haibun/core/lib/steps/derivations/predicate-registry.js";
 import type { TDerivation, TRule } from "../domains/logic.js";
 import { checkFormula, unicodeOf } from "../derivations/formula.js";
 import type { TStatedFormula } from "../derivations/term-graph.js";
@@ -44,12 +45,12 @@ export async function derivationUnder(ctx: DispatchContext, parent: TFeatureStep
 /** The term of the step a line resolves to, through the pattern that parses the line: the head of the waypoint the line
  *  applies, or the step's own pattern. The functor of a line that applies a waypoint is the waypoint's head. */
 function resolvedTerm(world: TWorld, resolver: Resolver, line: string): { term: TLineTerm; pattern: string } {
-	const action = resolver.findSingleStepAction(line);
-	const { rule, gwta } = action.step;
+	const { stepperName, actionName, step, stepValuesMap } = resolver.findSingleStepAction(line);
+	const { rule, gwta } = step;
 	const pattern = rule === undefined ? gwta : rule.pattern;
-	if (pattern === undefined) throw new Error(`"${line}" resolves to ${action.stepperName}.${action.actionName}, whose pattern doesn't state placeholders to render`);
-	const term = termOfAction(action, pattern, world.domains);
-	return { term: rule === undefined ? term : { ...term, functor: rule.head }, pattern };
+	if (pattern === undefined) throw new Error(`"${line}" resolves to ${stepperName}.${actionName}, whose pattern doesn't state placeholders to render`);
+	const functor = rule === undefined ? predicateOf({ stepperName, actionName, step }) : rule.head;
+	return { term: termOfAction(functor, stepValuesMap, pattern, world.domains), pattern };
 }
 
 /** A line's term through the step it resolves to, as text, and the line the term renders as. */
@@ -62,11 +63,9 @@ export function lineTerm(world: TWorld, steppers: AStepper[], line: string): { t
  *  rule without a proof states its head only where its activity ran, so it isn't an axiom. */
 export function waypointAxioms(world: TWorld, steppers: AStepper[], lines: readonly string[]): TStatedFormula[] {
 	const stated = [...new Set(lines.map(dePolite))];
-	const applied = steppers.flatMap((stepper) =>
-		Object.entries(stepper.steps).flatMap(([actionName, step]) =>
-			(step.rules === undefined ? [] : step.rules()).filter(
-				(rule) => rule.proof.length > 0 && stated.some((line) => matchGwtaToAction(rule.pattern, line, actionName, constructorName(stepper), step) !== undefined),
-			),
+	const applied = declaredSteps(steppers).flatMap(({ stepperName, actionName, step }) =>
+		(step.rules === undefined ? [] : step.rules()).filter(
+			(rule) => rule.proof.length > 0 && stated.some((line) => matchGwtaToAction(rule.pattern, line, actionName, stepperName, step) !== undefined),
 		),
 	);
 	const resolver = new Resolver(steppers, []);
@@ -79,31 +78,33 @@ export function waypointAxioms(world: TWorld, steppers: AStepper[], lines: reado
 	);
 }
 
-/** The term of a call a transport carries: a method with its named parameters, as text. */
+/** The term of a call a transport carries: a method with its named parameters, as text. A step another host runs proves that
+ *  host's predicate, so its call doesn't have a term here. */
 export function callTerm(world: TWorld, method: string, input: Record<string, unknown>): string {
-	const { descriptor } = runRegistry(world).named(method);
-	const action = { stepperName: descriptor.stepperName, actionName: descriptor.stepName, stepValuesMap: mapInputToStepValues(input, descriptor.pattern) };
-	return termText(termOfAction(action, descriptor.pattern, world.domains));
+	const { descriptor, stepDef } = runRegistry(world).named(method);
+	if (stepDef === undefined) throw new Error(`${method} runs at another host, which holds its predicate; state a call of a step this process runs`);
+	const functor = predicateOf({ stepperName: descriptor.stepperName, actionName: descriptor.stepName, step: stepDef });
+	return termText(termOfAction(functor, mapInputToStepValues(input, descriptor.pattern), descriptor.pattern, world.domains));
 }
 
 /** The rule a formula states, or why the fragment or the registry doesn't hold the formula and what to write in its place. */
-export function ruleOf(text: string, steppers: readonly AStepper[]): TRule | { refused: string } {
-	const checked = checkFormula(text, registryPredicates(steppers, constructorName));
+export function ruleOf(text: string, steppers: readonly AStepper[], domains: TWorld["domains"]): TRule | { refused: string } {
+	const checked = checkFormula(text, predicateArities(steppers, domains));
 	if (!("annotated" in checked)) return { refused: `the formula is refused: ${checked.reason}; ${checked.remedy}` };
 	const { name, role, formula } = checked.annotated;
 	return { name, role, rendered: unicodeOf(formula) };
 }
 
 /** Why a formula a line writes isn't held, with its remedy, or undefined where the fragment and the registry hold it. */
-export function formulaRefusal(text: string, steppers: readonly AStepper[]): string | undefined {
-	const rule = ruleOf(text, steppers);
+export function formulaRefusal(text: string, steppers: readonly AStepper[], domains: TWorld["domains"]): string | undefined {
+	const rule = ruleOf(text, steppers, domains);
 	return "refused" in rule ? rule.refused : undefined;
 }
 
 /** Refuses steppers whose declarations miss a face, repeat a pattern, or state a pattern whose own line parses two ways. */
 export function refuseDeclarations(steppers: AStepper[]): void {
 	const resolver = new Resolver(steppers, []);
-	const findings = declarationFindings(steppers, constructorName, (line) => resolver.parsedStepAction(line));
+	const findings = declarationFindings(steppers, (line) => resolver.parsedStepAction(line));
 	if (findings.length > 0) {
 		const listed = findings.map(({ method, finding }) => `${method} ${finding}`).join("; ");
 		throw new Error(

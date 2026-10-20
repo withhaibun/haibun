@@ -213,9 +213,8 @@ export const registerStepperNames = (world: TWorld, names: string[]) => {
 
 export const asDomainKey = (domains: string[]) => domains?.sort().join(DOMAIN_UNION);
 
-/** The domain key a step parameter takes: the domain its phrase names, or `string` where it doesn't name one. A union's
- *  parts are in order. */
-export const paramDomainKey = (declared: string | undefined): string => normalizeDomainKey(asDomainKey(domainParts(declared || DOMAIN_STRING)));
+/** The domain key a step parameter takes: the domain its phrase names, with a union's parts in order. */
+export const paramDomainKey = (declared: string): string => normalizeDomainKey(asDomainKey(domainParts(declared)));
 
 export const normalizeDomainKey = (domain: string) => {
 	// Split on the union separator, not on '/' which is used in variable names

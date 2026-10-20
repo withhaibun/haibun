@@ -7,10 +7,10 @@
 import type { AStepper, TStepAction, TStepperStep } from "@haibun/core/lib/steps/domains/stepper.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { DOMAIN_STRING, domainParts } from "@haibun/core/lib/domains/domains.js";
-import { stepParamDomains } from "@haibun/core/lib/steps/derivations/step-tools.js";
+import { declaredSteps } from "@haibun/core/lib/steps/derivations/predicate-registry.js";
+import { stepParts } from "@haibun/core/lib/steps/domains/phrase.js";
+import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 
-/** A step of a stepper, by its stepper's name and its own name. */
-type TDeclared = { stepperName: string; actionName: string; step: TStepperStep };
 export type TDeclarationFinding = { method: string; finding: string };
 
 export const MISSING_PATTERN = "doesn't declare a pattern, an exact line, prose or rules";
@@ -30,16 +30,15 @@ const sampleLine = (gwta: string): string =>
 		.replace(/(")?\{[^}]*\}/g, (_, quoted: string | undefined) => (quoted === undefined ? '"x"' : '"x'));
 
 /** The findings of the steppers' declarations. `resolve` returns the step a line parses to, and throws where it doesn't parse to one. */
-export function declarationFindings(steppers: readonly AStepper[], nameOf: (stepper: AStepper) => string, resolve: (line: string) => TStepAction): TDeclarationFinding[] {
-	const declared: TDeclared[] = steppers.flatMap((stepper) => Object.entries(stepper.steps).map(([actionName, step]) => ({ stepperName: nameOf(stepper), actionName, step })));
-	const methodOf = ({ stepperName, actionName }: TDeclared) => `${stepperName}-${actionName}`;
+export function declarationFindings(steppers: readonly AStepper[], resolve: (line: string) => TStepAction): TDeclarationFinding[] {
+	const declared = declaredSteps(steppers);
 	const precluded = new Set(declared.flatMap(({ step }) => (step.precludes === undefined ? [] : step.precludes)));
 	const byShape = Map.groupBy(
 		declared.filter(({ step, stepperName, actionName }) => shapeOf(step) !== undefined && !precluded.has(`${stepperName}.${actionName}`)),
 		({ step }) => shapeOf(step),
 	);
 	return declared.flatMap((one): TDeclarationFinding[] => {
-		const method = methodOf(one);
+		const method = stepMethodName(one.stepperName, one.actionName);
 		const { step } = one;
 		if (step.gwta === undefined && step.exact === undefined && step.prose !== true && step.rules === undefined) return [{ method, finding: MISSING_PATTERN }];
 		if (step.action === undefined && step.reading === undefined) return [{ method, finding: MISSING_FUNCTOR }];
@@ -48,7 +47,7 @@ export function declarationFindings(steppers: readonly AStepper[], nameOf: (step
 		const peers = shape === undefined ? undefined : byShape.get(shape);
 		if (peers !== undefined && peers.length > 1) return [{ method, finding: DUPLICATE_PATTERN }];
 		if (step.gwta === undefined) return [];
-		const untyped = [...stepParamDomains(step)].filter(([, domain]) => domainParts(domain).includes(DOMAIN_STRING)).map(([param]) => param);
+		const untyped = stepParts(step).flatMap(({ name, domain }) => (domainParts(domain).includes(DOMAIN_STRING) ? [name] : []));
 		if (untyped.length > 0) return [{ method, finding: `${STRING_PARAMETER}: ${untyped.join(", ")}` }];
 		try {
 			const parsed = resolve(sampleLine(step.gwta));
