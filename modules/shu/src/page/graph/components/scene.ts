@@ -31,7 +31,7 @@ import type { Adornment } from "../derivations/graph-layout.js";
 import { CameraController } from "../controllers/camera-controller.js";
 import { PickController, type TPickThree } from "../controllers/pick-controller.js";
 import { GanttOverlay, type GanttThree } from "./gantt-overlay.js";
-import { sceneDataHash, visibleGraphModel, type TSceneData } from "../derivations/scene-data.js";
+import { sceneDataHash, visibleGraph, type TSceneData } from "../derivations/scene-data.js";
 import { SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../../domains/elements.js";
 import { defineElement } from "../../controllers/element-controller.js";
 import { RenderContext } from "./render-context.js";
@@ -131,7 +131,7 @@ export interface GraphSceneChangedDetail {
 	/** The options the active view forces, so a host offers only the ones this view honours. */
 	forces: TViewForces;
 	paintOptions: Array<{ id: string; label: string }>;
-	counts: { nodes: number; edges: number; relTypes: number; omitted: TCounted };
+	counts: { nodes: number; edges: number; relTypes: number; omitted: TCounted; pruned: number };
 	latestStep: string | null;
 	axisLegend: { from: string; to: string; count: number } | null;
 	/** The user's drag-pins (id → [x,y]) so the host can persist them across reloads. */
@@ -558,6 +558,8 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	// array every call, so those caches never hit and the layout was recomputed ~once per node per feed. Cleared at each
 	// repaint entry (invalidateModelCache), so the reference is stable within a repaint and fresh across repaints.
 	private modelCache?: GraphModel;
+	/** The nodes prune took out of the visible model last built. */
+	private prunedCount = 0;
 	private seqNodesCache?: SeqNode[];
 	// The ghost tween of a layout change: each frame the node pins ease from where they were toward where they land.
 	// Picking and dragging: which node a press, a click or a projection names, and a node's drag, whose machine holds the
@@ -1610,11 +1612,13 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		const left = this.model.clusters.map(omittedOf);
 		const omitted = { total: left.reduce((sum, c) => sum + c.total, 0), saturated: left.some((c) => c.saturated) };
 		const relTypes = new Set(links.map((l) => l.predicate)).size;
+		// Building the visible model sets the prune count, so the count matches the nodes drawn.
+		this.visibleModel();
 		const detail: GraphSceneChangedDetail = {
 			groupByAxes: this.groupByAxes,
 			forces: this.renderType.forces,
 			paintOptions: availablePaints(this.model.visibleQuads, relationOfPredicate),
-			counts: { nodes: this.nodeMap.size, edges: links.length, relTypes, omitted },
+			counts: { nodes: this.nodeMap.size, edges: links.length, relTypes, omitted, pruned: this.prunedCount },
 			latestStep: latestStepLabel(this.model.clusters, this.model.visibleQuads),
 			axisLegend: this.renderType.axisLegend(),
 			pins: this.getUserPins(),
@@ -1759,8 +1763,10 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 
 	private visibleModel(): GraphModel {
 		if (this.modelCache) return this.modelCache;
-		this.modelCache = visibleGraphModel(this.sceneData());
-		return this.modelCache;
+		const { model, pruned } = visibleGraph(this.sceneData());
+		this.modelCache = model;
+		this.prunedCount = pruned;
+		return model;
 	}
 
 	/** The visible model's nodes as sequence-mapper input (id, @type, derived role via properties, recorded time). The

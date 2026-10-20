@@ -31,12 +31,15 @@ export type TSceneData = TVisibleModelInput & {
 	timeCursor: number | null;
 };
 
+/** The visible model and how many nodes prune took out of it. */
+export type TVisibleGraph = { model: GraphModel; pruned: number };
+
 /**
  * The one derivation of what is shown, in the order the filters compose: hidden types out, hidden predicates out,
  * then the prune over what is left. Every consumer reads it (the draw, the sequence mapper, the still image, the
  * JSON-LD, the accessible document), so one filter shows the same graph in every medium.
  */
-export function visibleGraphModel({ quads, clusters, hiddenGraphs, hiddenPredicates, prune, site, roleRels }: TVisibleModelInput): GraphModel {
+export function visibleGraph({ quads, clusters, hiddenGraphs, hiddenPredicates, prune, site, roleRels }: TVisibleModelInput): TVisibleGraph {
 	const hidden = new Set(hiddenGraphs);
 	let built = buildGraphModelFromQuads(
 		quads.filter((q) => !hidden.has(q.namedGraph)),
@@ -46,16 +49,22 @@ export function visibleGraphModel({ quads, clusters, hiddenGraphs, hiddenPredica
 		const hiddenPred = new Set(hiddenPredicates);
 		built = { ...built, edges: built.edges.filter((e) => !hiddenPred.has(e.predicate)) };
 	}
+	let pruned = 0;
 	if (prune) {
 		const linked = new Set<string>();
 		for (const e of built.edges) {
 			linked.add(e.from);
 			linked.add(e.to);
 		}
-		built = { ...built, nodes: built.nodes.filter((n) => linked.has(n.id)) };
+		const kept = built.nodes.filter((n) => linked.has(n.id));
+		pruned = built.nodes.length - kept.length;
+		built = { ...built, nodes: kept };
 	}
-	return built;
+	return { model: built, pruned };
 }
+
+/** The visible model of `visibleGraph`, without the count of the nodes prune took out. */
+export const visibleGraphModel = (input: TVisibleModelInput): GraphModel => visibleGraph(input).model;
 
 /** The hash of the scene's inputs, over the quads and clusters of the types shown, so a batch that brings only quads of a
  *  hidden type hashes as the scene it leaves unchanged. */

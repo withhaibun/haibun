@@ -4,7 +4,7 @@
  * derivation, so a chip put away has to disappear from the drawing, the still image and the accessible reading alike.
  */
 import { describe, it, expect } from "vitest";
-import { sceneDataHash, visibleGraphModel, type TSceneData } from "./scene-data.js";
+import { sceneDataHash, visibleGraph, visibleGraphModel, type TSceneData } from "./scene-data.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 
 const quad = (subject: string, predicate: string, object: string, namedGraph: string, objectType?: string): TQuad => ({
@@ -90,5 +90,14 @@ describe("the hash a repaint compares before it builds a model (PF31)", () => {
 			{ timeCursor: 5 },
 		])
 			expect(sceneDataHash(data(over))).not.toBe(base);
+	});
+});
+
+describe("how many nodes prune takes out", () => {
+	it("counts the nodes without an edge, and counts zero when prune is off", () => {
+		expect(visibleGraph({ quads, clusters: [], hiddenGraphs: [], hiddenPredicates: [], prune: false, roleRels: [] }).pruned).toBe(0);
+		const pruned = visibleGraph({ quads, clusters: [], hiddenGraphs: ["Email", "File"], hiddenPredicates: [], prune: true, roleRels: [] });
+		expect(ids(pruned.model), "the one linked node is the Principal, whose edges went with the hidden types").toEqual([]);
+		expect(pruned.pruned).toBe(1);
 	});
 });

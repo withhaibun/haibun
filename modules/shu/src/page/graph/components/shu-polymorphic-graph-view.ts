@@ -135,6 +135,8 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	private groupByAxes: string[] = ["type", "role"];
 	private forces: TViewForces = {};
 	private countsText = "";
+	/** The nodes prune removes, shown in the prune control's label. */
+	private prunedCount = 0;
 	private latestStep: string | null = null;
 	private sceneConfig!: TPolymorphicOptions;
 	/** The page's clock, which holds the coalesced read of the source and cancels it as the view leaves the page. */
@@ -319,7 +321,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 							{
 								id: POLYMORPHIC_IDS.PRUNE,
 								glyph: "⊘",
-								label: "prune",
+								label: this.state.prune ? `prune (${this.prunedCount})` : "prune",
 								title: "prune nodes without an edge",
 								on: this.state.prune,
 								onToggle: (on) => this.setOption({ prune: on }),
@@ -496,6 +498,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		const c = d.counts;
 		const edgePart = `${c.edges} edges (${c.relTypes} ${c.relTypes === 1 ? "type" : "types"})`;
 		this.countsText = `${c.nodes} nodes · ${edgePart}${c.omitted.total > 0 ? ` · ${statedTotal(c.omitted)} omitted` : ""}`;
+		this.prunedCount = c.pruned;
 		this.latestStep = d.latestStep;
 		// Persist the user's drag-pins (a page-wide layout choice) whenever they change: a dragged layout then survives a reload.
 		if (JSON.stringify(d.pins) !== JSON.stringify(this.state.pins)) this.setState({ pins: d.pins });
