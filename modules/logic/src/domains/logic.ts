@@ -6,6 +6,7 @@ import { z } from "zod";
 import { VERDICT } from "@haibun/core/lib/domains/protocol.js";
 import type { TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 import { DOMAIN_DOMAIN_KEY } from "@haibun/core/lib/domains/domains.js";
+import { TOKEN_ROLE } from "./tokens.js";
 
 /** The statement of a goal, which the resolve step's pattern parses and a goal's proof and conjecture render. */
 export const RESOLVE_STATEMENT = `resolve {goal: ${DOMAIN_DOMAIN_KEY}}`;
@@ -113,10 +114,6 @@ export const formulaDomainDefinition: TDomainDefinition = {
 	written: true,
 	description: "One annotated TPTP FOF formula in the engine's fragment, whose predicates are entries of the registry",
 };
-
-/** What a token of a formula's Unicode rendering is: a predicate, a constant or a function, a variable, or a symbol. */
-export const TOKEN_ROLE = { predicate: "predicate", constant: "constant", variable: "variable", symbol: "symbol" } as const;
-export type TTokenRole = (typeof TOKEN_ROLE)[keyof typeof TOKEN_ROLE];
 
 /** The record a formula's statement names: its type and its id. */
 const AssertedBySchema = z.object({ persistedAs: z.string(), id: z.string() }).strict();

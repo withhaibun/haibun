@@ -168,6 +168,7 @@ export const SHU_TAG = {
 	CHIP_GROUP: "shu-chip-group",
 	CLASS_BROWSER: "shu-class-browser",
 	GRAPH_SCENE: "shu-graph-scene",
+	GRAPH_SOURCE: "shu-graph-source",
 	SCROLLBAR: "shu-scrollbar",
 	ARTIFACT_FRAME: "shu-artifact-frame",
 	VIRTUAL_COLUMN: "shu-virtual-column",

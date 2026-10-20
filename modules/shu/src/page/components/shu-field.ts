@@ -27,15 +27,15 @@ class ShuField extends ShuElement<z.ZodObject> {
 	/** Put the name after the control: the reading a checkbox takes. */
 	declare trailing: boolean;
 
+	/** The slot doesn't carry a box of its own, so each slotted control is a flex item that takes the gap between them, and a
+	 *  name, its box and its button read as three things. A control keeps its own look and only its alignment is set, so a row of
+	 *  fields shares one centre line. */
 	static styles = [
 		shuBaseStyles,
 		css`
 			:host { display: inline-flex; align-items: center; gap: var(--shu-space-1); font-size: var(--shu-font-sm); color: var(--shu-fg); }
 			.name { color: var(--shu-fg-muted); white-space: nowrap; }
-			/* The slot doesn't carry a box of its own, so several slotted controls are each a flex item here and take the gap
-			   between them: a name, its box and its button read as three things, not one run. */
 			slot { display: contents; }
-			/* The control keeps its own look; only its alignment is set here, so a row of fields shares one centre line. */
 			::slotted(*) { vertical-align: middle; margin: 0; }
 		`,
 	];

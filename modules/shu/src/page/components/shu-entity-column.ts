@@ -58,21 +58,13 @@ import type { TPageRefusal } from "../domains/refusal.js";
 import "./shu-refusal.js";
 import "./shu-spinner.js";
 import { ObserverController } from "../controllers/observer-controller.js";
+import { saveFile } from "../controllers/file-controller.js";
 
 /** The name of the delay after which the copy button reads Copy again. */
 const COPY_RESULT = "copy-result";
 
 /** The links a record carries, by rel. */
 const OfferedLinksSchema = z.record(z.string(), CallLinkSchema);
-/** A file saved rather than opened: its bytes, typed as bytes, under the name with which it was sent. */
-function saveFile(blob: Blob, name: string): void {
-	const anchor = document.createElement("a");
-	anchor.href = URL.createObjectURL(new Blob([blob], { type: MEDIA_TYPE.bytes }));
-	anchor.download = name;
-	anchor.click();
-	URL.revokeObjectURL(anchor.href);
-}
-
 type VertexData = Record<string, unknown>;
 type EdgeData = { type: string; target: VertexData; direction?: "out" | "in" };
 

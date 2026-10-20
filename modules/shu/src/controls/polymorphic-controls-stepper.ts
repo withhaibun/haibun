@@ -29,7 +29,7 @@ import { actionOK, actionNotOK, actionOKWithProducts } from "@haibun/core/lib/do
 import type { TActionResult } from "@haibun/core/lib/domains/protocol.js";
 import { saveImageArtifact } from "@haibun/domain-storage/pipelines/image-artifact.js";
 import type { Locator, Page } from "playwright";
-import { VIEW, VIEW_TYPES, isLaneView } from "../page/graph/domains/views.js";
+import { VIEW, VIEW_CHOICES, VIEW_TYPES, isLaneView } from "../page/graph/domains/views.js";
 import { MEASURE_UNIT, PAN_DIRECTION, ZOOM_DIRECTION, type TMeasureUnit, type TPanDirection, type TZoomDirection } from "../page/graph/machines/camera.js";
 import type { ShuGraphScene, TGraphState } from "../page/graph/components/scene.js";
 
@@ -1056,7 +1056,7 @@ export default class ShuPolymorphicGraphViewControls extends AStepper implements
 							.getByTestId(POLYMORPHIC_IDS.VIEW_TYPE)
 							.locator("option")
 							.evaluateAll((options) => options.map((o) => (o as HTMLOptionElement).value));
-						if (views.join(",") !== VIEW_TYPES.join(",")) return actionNotOK(`the view control offers [${views.join(", ")}], not the full catalog [${VIEW_TYPES.join(", ")}]`);
+						if (views.join(",") !== VIEW_CHOICES.join(",")) return actionNotOK(`the view control offers [${views.join(", ")}], not the full catalog [${VIEW_CHOICES.join(", ")}]`);
 					}
 					closed = itemAt(ids, 0);
 				}

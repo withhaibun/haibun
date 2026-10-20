@@ -23,6 +23,8 @@ type TSvgRendererDeps = {
 
 const PAD = 40; // world units of margin around the drawn extent
 const NODE_R = 6;
+/** The width of a hollow node's ring. */
+const RING = 1.5;
 const LABEL_MAX = 40;
 const PAPER = "#ffffff";
 const LINE = "#9aa0a6";
@@ -68,10 +70,15 @@ export class SvgRenderer implements TGraphRenderer {
 			const label = xml(l.predicate);
 			return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${LINE}" stroke-width="0.6"/><text x="${round((x1 + x2) / 2)}" y="${round((y1 + y2) / 2)}" font-size="5" fill="${LINE}" text-anchor="middle">${label}</text>`;
 		});
+		// A hollow node is an outlined ring in its type's colour, unbound as its title states, as the live view draws it.
 		const chips = placed.map((n) => {
 			const label = xml(ellipsize(n.name ?? n.id, LABEL_MAX));
 			const [x, y] = [round(h(n)), round(v(n))];
-			return `<circle cx="${x}" cy="${y}" r="${NODE_R}" fill="${colorForType(n.type)}" stroke="${NODE_TEXT_COLOR}" stroke-width="0.5"/><text x="${round(x + NODE_R + 2)}" y="${round(y + 2)}" font-size="6" fill="${NODE_TEXT_COLOR}">${label}</text>`;
+			const colour = colorForType(n.type);
+			const mark = n.hollow
+				? `fill="none" stroke="${colour}" stroke-width="${RING}"><title>unbound</title></circle>`
+				: `fill="${colour}" stroke="${NODE_TEXT_COLOR}" stroke-width="0.5"/>`;
+			return `<circle cx="${x}" cy="${y}" r="${NODE_R}" ${mark}<text x="${round(x + NODE_R + 2)}" y="${round(y + 2)}" font-size="6" fill="${NODE_TEXT_COLOR}">${label}</text>`;
 		});
 
 		this.markup = [

@@ -100,6 +100,7 @@ const placementDeps = (over: Partial<DataPipelineDeps>): DataPipelineDeps =>
 		visibleQuads: () => [],
 		hiddenGraphs: () => [],
 		visibleModel: () => ({ nodes: [{ id: "n1", type: "Comment" }], edges: [] }) as unknown as ReturnType<DataPipelineDeps["visibleModel"]>,
+		hollow: () => false,
 		lastModelHash: () => 1,
 		timeCursor: () => null,
 		zBasis: () => "valid",
@@ -180,5 +181,18 @@ describe("where a node the user dropped is placed", () => {
 		const pipeline = new DataPipeline(placementDeps({ viewType: () => "td", lanePinXY: () => ({ x: 300, y: 300 }) }));
 		const { nodes } = pipeline.toGraphData(false);
 		expect({ x: itemAt(nodes, 0).x, y: itemAt(nodes, 0).y }).toEqual({ x: 300, y: 300 });
+	});
+});
+
+describe("a node its projection requests hollow", () => {
+	it("is drawn hollow, and a change of the style is a node of its own, which the library draws afresh at the place the node held", () => {
+		let hollow = true;
+		const pipeline = new DataPipeline(placementDeps({ hollow: () => hollow, userPinXY: () => ({ x: 40, y: -25 }) }));
+		const [drawn] = pipeline.toGraphData(false).nodes;
+		expect(drawn?.hollow).toBe(true);
+		expect(itemAt(pipeline.toGraphData(false).nodes, 0), "the same style keeps the node the library holds").toBe(drawn);
+		hollow = false;
+		const [filled] = pipeline.toGraphData(false).nodes;
+		expect({ same: filled === drawn, hollow: filled?.hollow, x: filled?.x }).toEqual({ same: false, hollow: undefined, x: 40 });
 	});
 });

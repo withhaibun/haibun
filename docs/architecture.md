@@ -229,6 +229,17 @@ filters, its limits and its time cursor: each record's type as a unary predicate
 binary one, all ground axioms, the producer rules and the waypoint rules that apply to what it shows as quantified axioms,
 and the goal a reader opened as a conjecture.
 
+The graph view reads that projection as a source format, which `modules/shu/src/page/graph/domains/sources.ts` declares as
+data: a step that returns the projection, its label and its file's extension. Its source pane
+(`modules/shu/src/page/graph/components/shu-graph-source.ts`) shows the source beside the scene, for every view choice: each
+line in Unicode notation with the statement and the record behind it on hover, the summary of its kinds, a copy and a
+download of its ASCII text, and the arrow keys, Home and End to move through the lines. A line and the scene select each other
+through `modules/shu/src/page/graph/derivations/source-lines.ts`: a line lights and frames the nodes and edges it states, and
+a node or an edge a reader chooses lights the lines that state it. The terms choice draws the source's term graph with the same
+renderer (`modules/shu/src/page/graph/derivations/term-scene.ts`), so a node the records and the terms share keeps its place
+as the reader switches. A projection requests styles of the scene beside its quads: a hollow node, drawn as an outlined ring
+and read as unbound, the badge on a cluster, and the statement behind each node and edge, which a hover shows.
+
 ## Domains
 
 Domains are **safeguards**. They define exactly what values are allowed, preventing typos and invalid data from breaking tests. Often useful for observations.

@@ -245,6 +245,9 @@ export const SHU_TEST_IDS = {
 		FOLLOW: "polymorphic-follow",
 		PRUNE: "polymorphic-prune",
 		READ: "polymorphic-read",
+		/** The head toggle that holds the graph's source open beside the scene, and the source's lines. */
+		SOURCE: "polymorphic-source",
+		SOURCE_LINES: "polymorphic-source-lines",
 		/** Each settings group's head icon, keyed by the group it opens (see view-head's SETTINGS_GROUPS): the component
 		 *  renders from this map and a driver presses from it, so the two cannot name different controls. */
 		SETTINGS: { layout: "polymorphic-settings-layout", filters: "polymorphic-settings-filters", scenes: "polymorphic-settings-scenes" },

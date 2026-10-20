@@ -101,6 +101,12 @@ const DARK_PALETTE = `
  *  - `<html data-theme="dark">` / `<shu-app data-theme="dark">` for explicit choice
  *  - `prefers-color-scheme: dark` for OS preference (falls through when the page doesn't make an explicit choice)
  *  - `<html style="--shu-scale: 1.25">` for a user-set zoom multiplier (every size derives from `--shu-scale`).
+ *
+ *  A collapsed column that shows a spine view takes `--shu-spine-w`, more than the rotated label's sliver. A scroll rail's
+ *  track is drawn `--shu-rail-track-w` wide, narrower than the control's own press target. `--shu-fg-on-swatch` is the text
+ *  drawn on a type-colour swatch or chip: the palette is light pastels, so it stays dark in both themes, the dark palette
+ *  doesn't set it, and it is only for text whose own background is a swatch. The palettes state the colour scheme the browser
+ *  paints its own parts in, a scrollbar, a spinner, a date picker and a control's focus ring, so those follow the theme.
  */
 export const SHU_TOKENS = `
 	:host, :root {
@@ -122,20 +128,10 @@ export const SHU_TOKENS = `
 		--shu-input-h: calc(22px * var(--shu-scale));
 		--shu-resize-w: 10px;
 		--shu-scrollbar-w: 32px;
-		/* A collapsed column that shows a spine view, which needs more than the rotated label's sliver. */
 		--shu-spine-w: calc(44px * var(--shu-scale));
-		/* The band DRAWN as a scroll rail's track. The control's own width is the press target, and is wider. */
 		--shu-rail-track-w: calc(14px * var(--shu-scale));
-
-		/* Text drawn ON a type-colour swatch/chip (graph node chips, filter type labels). The palette is always light
-		   pastels, so this stays dark in BOTH themes. It is declared only here, and the dark palette doesn't set it.
-		   ONLY for text whose own background is a swatch: on any themed background it is dark-on-dark in the dark theme. */
 		--shu-fg-on-swatch: #1a1a1a;
 		--shu-font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-
-		/* What the browser paints its own parts in: a scrollbar, a spinner, a date picker, a form control's focus ring.
-		   Declared beside the tokens rather than restyled, so the parts follow the theme the way the browser renders
-		   them. Without it a dark page keeps light scrollbars, which is what a white bar down a dark panel is. */
 ${LIGHT_PALETTE}
 	}
 

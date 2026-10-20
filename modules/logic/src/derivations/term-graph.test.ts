@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from "vitest";
 import { constantOf, literalOf, parseFormula, unicodeOf, type TAnnotated, type TFormula, type TTerm } from "./formula.js";
-import { CONSTANT_KIND, RULE_BADGE, projected, type TStatedFormula } from "./term-graph.js";
+import { CONSTANT_KIND, RULE_BADGE, edgeKey, formulasStating, projected, statedBy, type TStatedFormula } from "./term-graph.js";
 
 const [A, B] = [constantOf("a@test.com"), constantOf("b@test.com")];
 const X1 = { variable: "X1" };
@@ -90,13 +90,12 @@ describe("formulas projected once", () => {
 	});
 
 	it("selects the formulas of a node or an edge, and the nodes and edges of a formula", () => {
-		const formulasOf = (id: string) => node(id)?.formulas;
-		const ofFormula = (name: string) => ({
-			nodes: projection.nodes.filter(({ formulas }) => formulas.includes(name)).map(({ id }) => id),
-			edges: projection.edges.filter(({ formula }) => formula === name),
-		});
-		expect(formulasOf("b@test.com")).toEqual(["n2", "e1", "h1", "q1"]);
-		expect(ofFormula("e1")).toEqual({ nodes: ["a@test.com", "b@test.com"], edges: [{ from: "b@test.com", to: "a@test.com", label: "inReplyTo", formula: "e1" }] });
+		const replied = edgeKey("b@test.com", "inReplyTo", "a@test.com");
+		expect(formulasStating(projection, new Set(["b@test.com"]), new Set())).toEqual(["n2", "e1", "h1", "q1"]);
+		expect(formulasStating(projection, new Set(), new Set([replied])), "an edge selects the formula that states it alone").toEqual(["e1"]);
+		expect(formulasStating(projection, new Set(["r1:X1", "goal:X1"]), new Set([replied])), "formulas keep the projection's order").toEqual(["e1", "r1", "goal"]);
+		expect(statedBy(projection, "e1")).toEqual({ nodes: ["a@test.com", "b@test.com"], edges: [replied] });
+		expect(statedBy(projection, "h2"), "a proposition states its hub").toEqual({ nodes: ["h2#1"], edges: [] });
 	});
 
 	it("counts the ground axioms, the rules and the conjectures, and joins the ASCII TPTP a line a formula", () => {

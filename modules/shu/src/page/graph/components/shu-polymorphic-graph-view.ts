@@ -4,7 +4,7 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import { ShuClusteredGraphView, clusteredGraphInitialState, clusteredGraphStateShape } from "./shu-clustered-graph-view.js";
 import { statedTotal, type TLinkedData } from "@haibun/core/lib/domains/hypermedia.js";
-import { SHU_EVENT, SHU_TAG } from "../../../domains/elements.js";
+import { AFFORDANCE_PARAM, SHU_EVENT, SHU_TAG } from "../../../domains/elements.js";
 import { defineElement } from "../../controllers/element-controller.js";
 import { acts } from "../../domains/links.js";
 import { conduit } from "../../controllers/conduit-controller.js";
@@ -18,18 +18,37 @@ const TIME_CURSOR_KEY = "time-cursor";
 
 const POLYMORPHIC_IDS = SHU_TEST_IDS.POLYMORPHIC_VIEW;
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
-import { VIEW, VIEW_TYPES } from "../domains/views.js";
-import { type TPolymorphicOptionChange } from "./shu-polymorphic-settings.js";
+import { VIEW, VIEW_CHOICES, VIEW_TYPES, sceneViewOf } from "../domains/views.js";
+import type { TPolymorphicOptionChange, TPolymorphicOptions } from "./shu-polymorphic-settings.js";
+import { nameOfText } from "@haibun/logic/derivations/formula.js";
+import type { TProjection } from "@haibun/logic/domains/logic.js";
+import type { TGraphView } from "../../../pipelines/graph-source.js";
+import { LoadController } from "../../controllers/load-controller.js";
+import { callStep } from "../../controllers/read-controller.js";
+import { appAccessLevel } from "../../controllers/view-query-controller.js";
+import { hashParam, onHashChanged } from "../../controllers/hash-controller.js";
+import { ClockController } from "../../controllers/clock-controller.js";
+import { SOURCE_FORMATS, SOURCE_FORMAT_IDS, sourceFormat } from "../domains/sources.js";
+import { linesOfScene, sceneOfLine, type TDrawn, type TDrawnEdge, type TSceneSelection } from "../derivations/source-lines.js";
+import { termScene } from "../derivations/term-scene.js";
+import { linkEndId } from "../domains/graph-types.js";
+import type { TLoadState } from "../../domains/load.js";
+import "./shu-graph-source.js";
+import "../../components/shu-refusal.js";
 import type { TViewForces } from "./render-type.js";
 import "./shu-polymorphic-settings.js";
 import { viewHeadCss, viewActions, rotateControls, SETTINGS_GROUP_NAMES } from "./view-head.js";
 import type { TSettingsGroup } from "../../../domains/elements.js";
 
-import { type FGInstance, type GraphSceneModel, type GraphSceneConfig, type GraphSceneChangedDetail, type RescheduleUpdate, type TGraphState } from "./scene.js";
+import { type FGInstance, type GraphSceneModel, type GraphSceneChangedDetail, type RescheduleUpdate, type ShuGraphScene, type TGraphState } from "./scene.js";
 import type { TReadCounts } from "../domains/snapshot.js";
 
-/** What a graph view states: what its scene draws, and the reads the view started and settled (SH22). */
-export type TGraphViewState = TGraphState & { reads: TReadCounts };
+/** What a graph view's source states: its read's status, the reader's line, what that line lights in the scene, and the
+ *  lines that state what the reader chose in the scene. */
+type TSourceState = { status: TLoadState<TProjection>["status"]; line: string | null; lights: TSceneSelection | null; lit: string[] };
+
+/** What a graph view states: what its scene draws, the reads the view started and settled (SH22), and its source. */
+export type TGraphViewState = TGraphState & { reads: TReadCounts; source: TSourceState };
 import { GRAPH_SCENE_EVENT } from "../domains/graph-types.js";
 import type { TMeasureUnit, TPanDirection, TZoomDirection } from "../machines/camera.js";
 import { type TPaneOpen } from "../../derivations/pane-kinds.js";
@@ -39,28 +58,32 @@ import "./scene.js";
 // A cursor move re-styles (depth re-place, positions pinned), fast, so it paints promptly. NOT the streamed-data
 // window (which would stack to ~1s); the base coalesces continuous scrubbing to this before it reaches onTimeCursorPaint.
 const CURSOR_COALESCE_MS = 100;
+/** A change of what the graph shows reads its source again once per this window, so a stream of batches or a scrub reads it
+ *  once rather than once a batch. A reader's own choice reads it at once. */
+const SOURCE_COALESCE_MS = 500;
+/** The name the coalesced read of the source is held under. */
+const SOURCE_READ = "source-read";
 
 // Composed statically and rendered via unsafeHTML: lit leaves bindings inside a <style> element uninterpolated,
-// so the shared view-head rules cannot be interpolated in the template itself.
+// so the shared view-head rules cannot be interpolated in the template itself. The view is positioned, so the scene's canvas
+// (absolute, inset 0) is bounded by it, since otherwise the nearest positioned ancestor is the column and the canvas covers the
+// controls of the pane that holds the graph. The latest step is inline in the head after the counts, hidden where a SeqPath
+// isn't visible.
 const FISHEYE_CSS = `
-	/* Positioned, so the scene's canvas (absolute, inset 0) is bounded by this view. Without it the nearest positioned
-	   ancestor is the column, and the canvas covers the column's own header: a reader could not press the controls of
-	   the pane that holds the graph. */
 	shu-polymorphic-graph-view { display: block; position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--shu-bg); }
 	shu-polymorphic-graph-view shu-graph-filter { flex: 0 0 auto; }
 	${viewHeadCss("shu-polymorphic-graph-view")}
 	shu-polymorphic-graph-view #polymorphic-counts { color: var(--shu-fg-muted); }
-	/* Latest step: inline in the head after the counts. Hidden when a SeqPath isn't visible. */
 	shu-polymorphic-graph-view #polymorphic-step { max-width: 30ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--shu-fg); color: var(--shu-bg); padding: var(--shu-space-1) var(--shu-space-3); border-radius: var(--shu-radius); font-weight: 600; }
 	shu-polymorphic-graph-view #polymorphic-step[hidden] { display: none; }
-	/* Saved views are about the whole view, so they take their own line under the options rather than trailing them. */
-	shu-polymorphic-graph-view .polymorphic-scenes { flex-basis: 100%; display: flex; align-items: center; gap: var(--shu-space-2); margin-top: var(--shu-space-1); }
-	shu-polymorphic-graph-view .polymorphic-scenes .error { color: var(--shu-fg-error); }
+	shu-polymorphic-graph-view shu-graph-source { flex: 0 0 38%; }
+	shu-polymorphic-graph-view .source-note { margin: 0; padding: var(--shu-space-2) var(--shu-space-3); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); background: var(--shu-bg); }
+	shu-polymorphic-graph-view .graph-area .source-note { position: absolute; top: 0; left: 0; right: 0; }
 `;
 
 const PolymorphicStateSchema = z.object({
 	...clusteredGraphStateShape,
-	viewType: z.enum(VIEW_TYPES),
+	viewType: z.enum(VIEW_CHOICES),
 	flatten: z.boolean(),
 	grouped: z.boolean(),
 	groupBy: z.string(), // axis: "type" (@type), "role" (highest-priority actor), or an actor predicate (a rel)
@@ -76,6 +99,10 @@ const PolymorphicStateSchema = z.object({
 	prune: z.boolean(),
 	/** Hold the accessible reading of the graph open beside the scene. */
 	readAsDocument: z.boolean(),
+	/** Hold the graph's source open beside the scene. */
+	source: z.boolean(),
+	/** The format the source reads the graph as. */
+	sourceFormat: z.enum(SOURCE_FORMAT_IDS),
 	/** Which settings group's row is open under the head, exclusive; null keeps the head to one row. Transient
 	 *  disclosure: not persisted, a reload starts with the head alone. */
 	openSettings: z.enum(SETTINGS_GROUP_NAMES).nullable(),
@@ -94,6 +121,8 @@ const POLYMORPHIC_INITIAL_STATE: z.input<typeof PolymorphicStateSchema> = {
 	follow: false,
 	prune: false,
 	readAsDocument: false,
+	source: false,
+	sourceFormat: SOURCE_FORMATS[0].id,
 	openSettings: null,
 };
 
@@ -114,7 +143,7 @@ const POLYMORPHIC_INITIAL_STATE: z.input<typeof PolymorphicStateSchema> = {
  */
 export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof PolymorphicStateSchema> {
 	/** Layout choices persist across reloads (ShuElement.persistFields; singleton key). */
-	static persistFields = ["viewType", "flatten", "grouped", "groupBy", "zBasis", "labelAsZ", "pins", "follow", "prune", "readAsDocument"] as const;
+	static persistFields = ["viewType", "flatten", "grouped", "groupBy", "zBasis", "labelAsZ", "pins", "follow", "prune", "readAsDocument", "source", "sourceFormat"] as const;
 
 	// Control-bar inputs the scene derives from its data/layout (via graph-scene-changed): the axes that vary with the
 	// data. type + role are always offered, so they seed the pre-data render; suppressesGrouping is false in the force view.
@@ -122,7 +151,25 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	private forces: TViewForces = {};
 	private countsText = "";
 	private latestStep: string | null = null;
-	private sceneConfig!: GraphSceneConfig;
+	private sceneConfig!: TPolymorphicOptions;
+	/** The page's clock, which holds the coalesced read of the source and cancels it as the view leaves the page. */
+	readonly #clock = new ClockController(this);
+	/** The graph's source, which the source pane shows and the terms choice draws: the projection that the chosen format's step
+	 *  returns of what the graph shows, counted among the view's reads. */
+	readonly #source = new LoadController<TProjection>(this, () => {
+		const format = sourceFormat(this.state.sourceFormat);
+		return this.data.counted(() => callStep<TProjection>(format.step, { view: this.shownView() }, `the graph as ${format.label}`));
+	});
+	/** The term graph of the projection the scene draws, built once per projection read. */
+	#terms?: { of: TProjection; scene: ReturnType<typeof termScene> };
+	/** What the reader chose in the scene, by the scene's ids, and the lines that state it. */
+	#chosen: { nodes: string[]; edges: TDrawnEdge[] } = { nodes: [], edges: [] };
+	#lit: ReadonlySet<string> = new Set();
+	/** The line the reader is on in the source, and what it lights in the scene. */
+	#line: string | null = null;
+	#lights: TSceneSelection | null = null;
+	/** The goal the last read of the source stated as its conjecture, which an address that names another goal reads again. */
+	#goal: string | undefined;
 	/** The saved scenes offered in the settings, fetched by this host (the settings element doesn't call an RPC of its own). */
 	private sceneNames: string[] = [];
 	/** What went wrong with the last scene a reader asked to save or return to, shown beside the controls; null when the last one succeeded. */
@@ -190,10 +237,12 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	get fgCamera() {
 		return this.scene?.fgCamera;
 	}
-	/** What the graph draws, as its scene states it, with the reads the view started and settled, or null before the scene mounts. */
+	/** What the graph draws, as its scene states it, with the reads the view started and settled and its source, or null before
+	 *  the scene mounts. */
 	inspect(): TGraphViewState | null {
 		const scene = this.scene?.inspect();
-		return scene === undefined ? null : { ...scene, reads: this.reads };
+		if (scene === undefined) return null;
+		return { ...scene, reads: this.reads, source: { status: this.#source.state.status, line: this.#line, lights: this.#lights, lit: [...this.#lit] } };
 	}
 	/** The current graph as a self-contained SVG still: the report and still-image medium. */
 	still(): string {
@@ -271,8 +320,9 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		const { [TIME_CURSOR_KEY]: cursor, ...views } = state;
 		applyScene([this, ...(this.filterEl ? [this.filterEl] : [])], views);
 		this.scene?.setUserPins(this.state.pins);
-		this.scene?.setConfig(this.buildSceneConfig());
+		this.configureScene();
 		if (cursor) this.setTimeCursor(typeof cursor.timeCursor === "number" ? cursor.timeCursor : null);
+		this.readSource();
 		this.pushSceneModel();
 		// A scene records what the graph shows, not where the camera stood: what it shows is about to be laid out afresh,
 		// so the view frames it. The fit is deferred until that layout has come to rest.
@@ -351,6 +401,18 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 								on: this.state.readAsDocument,
 								onToggle: (on) => this.setOption({ readAsDocument: on }),
 							},
+							// A host's own graph doesn't have a source the store projects: only the main graph reads one.
+							...(this.usesExternalData
+								? []
+								: [
+										{
+											id: POLYMORPHIC_IDS.SOURCE,
+											glyph: "¶",
+											title: "source: the graph as text, each line linked to the nodes and edges it states",
+											on: this.state.source,
+											onToggle: (on: boolean) => this.setOption({ source: on }),
+										},
+									]),
 						],
 						settings: { openGroup: open, idFor: (group) => POLYMORPHIC_IDS.SETTINGS[group], onGroup: (group) => this.openGroup(group) },
 					})}
@@ -360,9 +422,38 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 			</div>
 			${this.renderSettingsRow(open)}
 			<shu-graph-filter data-persist-scope=${this.persistKey}></shu-graph-filter>
-			<div class="graph-area"><shu-graph-scene></shu-graph-scene></div>
+			<div class="graph-area"><shu-graph-scene></shu-graph-scene>${this.drawsTerms && !this.state.source ? this.sourceNote() : ""}</div>
+			${this.readsSource && this.state.source ? this.renderSource() : ""}
 			</div>
 		`;
+	}
+
+	/** The source beside the scene: its lines once read, or the note of a read under way or refused. */
+	private renderSource(): TemplateResult | string {
+		const projection = this.#source.page;
+		if (projection === undefined) return this.sourceNote();
+		return html`<shu-graph-source
+			.projection=${projection}
+			.format=${sourceFormat(this.state.sourceFormat)}
+			.lit=${this.#lit}
+			.line=${this.#line}
+			.lights=${this.#lights}
+			.onLine=${this.chooseLine}
+			.onFormat=${this.chooseFormat}
+		></shu-graph-source>`;
+	}
+
+	/** What the source's read states while it doesn't hold a source: that it reads, or why it was refused with a control that
+	 *  reads it again. Once it holds one, the note is empty. */
+	private sourceNote(): TemplateResult | string {
+		const { label } = sourceFormat(this.state.sourceFormat);
+		const reading = (): TemplateResult => html`<p class="source-note">reading the graph as ${label}…</p>`;
+		return this.#source.render<TemplateResult | string>({
+			pending: reading,
+			running: reading,
+			completed: () => "",
+			failed: (refusal) => html`<div class="source-note"><shu-refusal .refusal=${refusal} .readAgain=${() => this.readSource()}></shu-refusal></div>`,
+		});
 	}
 
 	/** The open group's controls, on their own row under the head. Rendered only while open: what a reader can reach
@@ -377,6 +468,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 			<shu-polymorphic-settings
 				.group=${open}
 				.options=${this.sceneConfig}
+				.choices=${this.usesExternalData ? VIEW_TYPES : VIEW_CHOICES}
 				.groupByAxes=${this.groupByAxes}
 				.forces=${this.forces}
 				.scenes=${this.sceneNames}
@@ -438,7 +530,25 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		// just-restored state.pins (and persist the clobber). Seeding first makes that emit carry the restored pins.
 		this.scene?.setUserPins(this.state.pins);
 		// Seed the persisted layout choices; the base's first refetch (below onGraphConnected) then pushes the initial model.
-		this.scene?.setConfig(this.buildSceneConfig());
+		this.configureScene();
+		// An edge a reader chooses lights the lines of the source that state it, as a node the reader chooses does.
+		this.autoListen(this, GRAPH_SCENE_EVENT.EDGE_CHOSEN, ((e: CustomEvent<TDrawnEdge>) => this.chooseInScene({ nodes: [], edges: [e.detail] })) as EventListener);
+		if (!this.usesExternalData) {
+			// The goal the source states as its conjecture is the one the reader opened, which the address holds.
+			this.autoTeardown(
+				onHashChanged(() => {
+					if (hashParam(AFFORDANCE_PARAM.GOAL) !== this.#goal) this.readSource();
+				}),
+			);
+			// A term isn't a record a pane opens: a reader who opens one chooses it, which lights the lines that state it.
+			this.autoListen(this, SHU_EVENT.PANE_OPEN, ((e: CustomEvent<TPaneOpen>) => {
+				const { pane } = e.detail;
+				if (!this.drawsTerms || pane.paneType !== "entity") return;
+				e.stopPropagation();
+				this.scene?.setSelectedSubject(pane.id);
+				this.chooseInScene({ nodes: [pane.id], edges: [] });
+			}) as EventListener);
+		}
 		if (this.usesExternalData) {
 			this.scene?.setSelectedSubject(this.hostSelection);
 			this.previewNodes(this.hostPreview);
@@ -473,6 +583,13 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 
 	/** Assemble the scene's data slice from the base state (the time-filtered visibleQuads is the base's one time pathway). */
 	protected override buildSceneModel(): GraphSceneModel {
+		const terms = this.termsDrawn;
+		if (terms !== undefined) {
+			// The source's read applied the reader's filter, prune and time cursor, so the terms are drawn as read.
+			const { quads, clusters, styles } = terms;
+			const knownClusters = new Map(clusters.map((cluster) => [cluster.type, cluster]));
+			return { quads, visibleQuads: quads, clusters, knownClusters, hiddenGraphs: [], hiddenPredicates: [], perTypeLimit: this.cgState.perTypeLimit, timeCursor: null, styles };
+		}
 		return {
 			quads: this.cgState.quads,
 			visibleQuads: this.visibleQuads,
@@ -491,7 +608,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	 * same object and dirty-checks it by identity, so a fresh literal per render would re-render every control on every
 	 * scene repaint, ten times a second under a time-cursor scrub, re-committing selects the reader may have open.
 	 */
-	private buildSceneConfig(): GraphSceneConfig {
+	private buildSceneConfig(): TPolymorphicOptions {
 		const s = this.state;
 		this.sceneConfig = {
 			viewType: s.viewType,
@@ -507,10 +624,127 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		return this.sceneConfig;
 	}
 
+	/** Passes the layout choices to the scene, which lays the terms of a source out in the force layout. */
+	private configureScene(): void {
+		const options = this.buildSceneConfig();
+		this.scene?.setConfig({ ...options, viewType: sceneViewOf(options.viewType) });
+	}
+
 	protected override onGraphData(): void {
 		this.pushSceneModel();
 		this.offerNewScenes();
+		this.scheduleSourceRead();
 	}
+
+	/** A cursor move changes what the source states, as a change of the data does. */
+	protected override onTimeCursorPaint(): void {
+		super.onTimeCursorPaint();
+		this.scheduleSourceRead();
+	}
+
+	/** The main graph's reader chose a record in a pane or in the scene: the lines that state it light in the source. */
+	protected override onGraphSelection(subject: string | null, label: string | null): void {
+		super.onGraphSelection(subject, label);
+		this.chooseInScene({ nodes: subject === null ? [] : [subject], edges: [] });
+	}
+
+	/** Whether the main graph draws the terms of its source in place of its records. */
+	private get drawsTerms(): boolean {
+		return !this.usesExternalData && this.state.viewType === VIEW.terms;
+	}
+
+	/** Whether the main graph reads its source: to show it beside the scene, or to draw its terms. */
+	private get readsSource(): boolean {
+		return !this.usesExternalData && (this.state.source || this.state.viewType === VIEW.terms);
+	}
+
+	/** The term graph the scene draws, once the source is read while the reader chooses the terms; built once per read. */
+	private get termsDrawn(): ReturnType<typeof termScene> | undefined {
+		const projection = this.drawsTerms ? this.#source.page : undefined;
+		if (projection === undefined) return undefined;
+		if (this.#terms?.of !== projection) this.#terms = { of: projection, scene: termScene(projection) };
+		return this.#terms.scene;
+	}
+
+	/** How the scene names the source's terms: as the source names them where it draws them, or by each record's and each
+	 *  predicate's id, whose text the source's constant or predicate names. */
+	private get naming(): (id: string) => string {
+		return this.termsDrawn === undefined ? nameOfText : (id) => id;
+	}
+
+	/** What the scene draws, by its ids. */
+	private drawnBy(scene: ShuGraphScene): TDrawn {
+		return { nodes: [...scene.nodeMap.keys()], edges: scene.links.map((l) => ({ from: linkEndId(l.source), predicate: l.predicate, to: linkEndId(l.target) })) };
+	}
+
+	/** What this graph view shows, as its source's read takes it: the records of each type it reads, the reader's filter
+	 *  choices, its prune, its time cursor where it isn't at the live edge, and the goal the reader opened in the affordances. */
+	private shownView(): TGraphView {
+		const cursor = this.timeline.cursor;
+		const goal = hashParam(AFFORDANCE_PARAM.GOAL);
+		this.#goal = goal;
+		return {
+			perTypeLimit: this.cgState.perTypeLimit,
+			accessLevel: appAccessLevel(),
+			overrides: this.filterOverrides,
+			hiddenPredicates: this.cgState.hiddenPredicates,
+			prune: this.state.prune,
+			...(cursor === null ? {} : { timeCursor: cursor }),
+			...(goal === undefined ? {} : { goal }),
+		};
+	}
+
+	/** Reads the source again where the graph reads it, keeping what it shows until the read completes; the lines lit and the
+	 *  terms drawn follow the new read. */
+	private readSource(): void {
+		if (!this.readsSource) return;
+		void this.#source.refresh().then(() => this.sourceRead());
+	}
+
+	/** Reads the source again once per window, for a change of what the graph shows that a stream or a scrub repeats. */
+	private scheduleSourceRead(): void {
+		if (this.readsSource) this.#clock.coalesce(SOURCE_READ, SOURCE_COALESCE_MS, () => this.readSource());
+	}
+
+	/** A read of the source completed: the terms are drawn, and the reader's choice and line light what they state in it. */
+	private sourceRead(): void {
+		if (this.drawsTerms) this.pushSceneModel();
+		this.relight();
+	}
+
+	/** The reader chose nodes or an edge in the scene: the lines that state them light in the source, and the reader's line is
+	 *  let go, since the scene shows the reader's choice now. */
+	private chooseInScene(chosen: { nodes: string[]; edges: TDrawnEdge[] }): void {
+		this.#chosen = chosen;
+		this.#line = null;
+		this.relight();
+	}
+
+	/** The reader moved to a line of the source, or let it go: the nodes and edges it states light in the scene, framed, and the
+	 *  rest dims. */
+	private chooseLine = (line: string | null): void => {
+		this.#line = line;
+		this.relight();
+		if (this.#lights !== null) this.scene?.fitGraphTo(this.#lights.nodes);
+	};
+
+	/** The lines that state the reader's choice in the scene, and what the reader's line lights there, read from the source and
+	 *  the scene as they are now. A line the source doesn't hold any longer is let go. */
+	private relight(): void {
+		const projection = this.#source.page;
+		const scene = this.scene;
+		if (this.#line !== null && !projection?.formulas.some(({ name }) => name === this.#line)) this.#line = null;
+		this.#lit = new Set(projection === undefined ? [] : linesOfScene(projection, this.naming, this.#chosen));
+		const [line, lit] = [this.#line, this.#lights];
+		this.#lights = line === null || projection === undefined || scene === null ? null : sceneOfLine(projection, this.naming, line, this.drawnBy(scene));
+		// The preview is the line's while the reader is on one; a type a reader hovers in the filter previews its own otherwise.
+		if (this.#lights !== null) scene?.setPreview({ subjects: new Set(this.#lights.nodes), edges: new Set(this.#lights.edges) });
+		else if (lit !== null) scene?.setPreview(null);
+		this.requestUpdate();
+	}
+
+	/** The reader chose the format the source reads as. */
+	private chooseFormat = (id: string): void => this.setOption({ sourceFormat: sourceFormat(id).id });
 
 	/**
 	 * A scene saved anywhere (this view, another column, a step, another session) arrives here as live data, so the
@@ -541,8 +775,17 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	/** ONE path for every layout/view option: the settings element's changes and the head toggles alike: the host holds
 	 *  the (persisted) state and pushes the whole config to the scene. */
 	private setOption(change: Partial<z.infer<typeof PolymorphicStateSchema>>): void {
+		const [read, drewTerms, showed] = [this.readsSource, this.drawsTerms, this.state.source];
 		this.setState(change);
-		this.scene?.setConfig(this.buildSceneConfig());
+		this.configureScene();
+		// A source the graph starts to read is read at once, as is one whose format or prune changes what it states.
+		if (this.readsSource && (!read || "sourceFormat" in change || "prune" in change)) this.readSource();
+		// The terms and the records name a node apart, so the lines lit follow what the scene draws, and a reader's line lets go.
+		if (this.drawsTerms !== drewTerms) {
+			this.pushSceneModel();
+			this.chooseInScene(this.#chosen);
+		}
+		if (showed && !this.state.source) this.chooseLine(null);
 	}
 
 	/** The settings element reports which option the reader touched. */

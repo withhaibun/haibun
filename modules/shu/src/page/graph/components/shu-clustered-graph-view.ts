@@ -87,8 +87,9 @@ export abstract class ShuClusteredGraphView<T extends z.ZodObject<typeof cluster
 	private graphInitialized = false;
 	// The user's explicit per-type visibility choices (from <shu-graph-filter>, persisted there). hiddenGraphs is DERIVED
 	// from these + the instrumentation-default predicate via effectiveHiddenTypes, never stored as the truth, so
-	// instrumentation's default-hidden is re-applied every load and a toggle is the only thing that sticks.
-	private filterOverrides: Record<string, boolean> = {};
+	// instrumentation's default-hidden is re-applied every load and a toggle is the only thing that sticks. A host reads them
+	// for a read of its own that hides what the reader hid.
+	protected filterOverrides: Record<string, boolean> = {};
 
 	/** The persistence scope of this view's filter choices: the main graph's shared store by default; a scoped host
 	 *  (a class browser) overrides with its own name and sets the same value as `data-persist-scope` on its filter. */

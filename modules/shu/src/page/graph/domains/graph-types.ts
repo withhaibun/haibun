@@ -56,6 +56,8 @@ export type FGNode = {
 	name: string;
 	type: string;
 	isCluster?: boolean;
+	/** Drawn hollow, as the projection that drew the node requests (see TSceneStyles). */
+	hollow?: true;
 	x?: number;
 	y?: number;
 	z?: number;
@@ -98,6 +100,8 @@ export const GRAPH_SCENE_EVENT = {
 	RESCHEDULE_REQUEST: "graph-reschedule-request",
 	/** Emitted at each repaint end so the host can re-render its control bar. */
 	SCENE_CHANGED: "graph-scene-changed",
+	/** An edge a reader chose: {key}, its linkKey. */
+	EDGE_CHOSEN: "graph-edge-chosen",
 	/** An embed scope that shows the schema chips: {types}. */
 	SCOPE_REVEALED: "graph-scope-revealed",
 } as const;

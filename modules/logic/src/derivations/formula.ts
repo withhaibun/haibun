@@ -5,7 +5,7 @@
  * in conditions, stated falsities, quantifiers over closed domains, and predicates the registry holds. A tree holds each name
  * without the single quotes TPTP writes around a name that isn't a lower word, so `'abc'` and `abc` are one name.
  */
-import { TOKEN_ROLE, type TTokenRole } from "../domains/logic.js";
+import { TOKEN_ROLE, type TTokenRole } from "../domains/tokens.js";
 
 /** A term: a variable (capitalized), or a constant or function applied to arguments. */
 export type TTerm = { variable: string } | { functor: string; args: TTerm[] };
@@ -47,8 +47,8 @@ const REMEDY = {
 /** The predicate that guards a variable with a closed domain, and its arity. */
 const GUARD = { name: "member_of", arity: 2 } as const;
 
-/** The connectives the fragment refuses, with the remedy for each. */
-const REFUSED_CONNECTIVES: Record<string, string> = { "<=>": REMEDY.equivalence, "<~>": REMEDY.connective, "~|": REMEDY.connective, "~&": REMEDY.connective };
+/** The connectives the fragment refuses, with the remedy for each by its name. */
+const REFUSED_CONNECTIVES: Readonly<Record<string, keyof typeof REMEDY>> = { "<=>": "equivalence", "<~>": "connective", "~|": "connective", "~&": "connective" };
 const CONNECTIVES = ["<=>", "<~>", "=>", "<=", "~|", "~&", "&", "|"];
 /** A token: a connective, a punctuation mark, a word, or a single-quoted name whose characters are the BNF's sq_char, printable
  *  ASCII with ' and \ escaped by \. */
@@ -108,7 +108,7 @@ class Parser {
 		for (let tok = this.peek(); tok !== undefined && CONNECTIVES.includes(tok); tok = this.peek()) {
 			this.next();
 			const refused = REFUSED_CONNECTIVES[tok];
-			if (refused !== undefined) throw new Refusal(`the formula states ${tok}, which the fragment doesn't read`, refused);
+			if (refused !== undefined) throw new Refusal(`the formula states ${tok}, which the fragment doesn't read`, REMEDY[refused]);
 			left = { connective: tok, left, right: this.unitary() };
 		}
 		return left;

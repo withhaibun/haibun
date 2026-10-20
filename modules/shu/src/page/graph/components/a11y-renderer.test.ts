@@ -22,7 +22,7 @@ function harness(over: Partial<TA11yRendererDeps> = {}) {
 	document.body.append(region);
 	const onActivate = vi.fn();
 	const onFocus = vi.fn();
-	const deps: TA11yRendererDeps = { region: () => region, bars: () => null, onActivate, onFocus, ...over };
+	const deps: TA11yRendererDeps = { region: () => region, bars: () => null, badgeOf: () => undefined, onActivate, onFocus, ...over };
 	return { renderer: new A11yRenderer(deps), region, onActivate, onFocus };
 }
 
@@ -48,6 +48,21 @@ describe("A11yRenderer: the graph as an accessible document", () => {
 		const edge = itemAt(lists, 0).querySelector("ul li");
 		expect(edge?.textContent, "and what a line links to, under it").toBe("attributedTo → the agent");
 		expect(edge?.querySelector("[data-node-id]")?.getAttribute("data-node-id"), "which is the way to that node: a reader follows the graph by its own relationships").toBe("p1");
+	});
+
+	it("reads a node its projection draws hollow as unbound, after the badge its projection puts on its cluster", () => {
+		const { renderer, region } = harness({ badgeOf: (type) => (type === "r1" ? "∀" : undefined) });
+		renderer.draw({
+			nodes: [
+				{ id: "r1:X1", name: "X1", type: "r1", hollow: true },
+				{ id: "m1", name: "m1", type: "Email" },
+			],
+			links: [],
+		});
+		expect(
+			[...region.querySelectorAll("[data-node-id]")].map((b) => b.textContent),
+			"undated nodes read by name",
+		).toEqual(["m1 (Email)", "X1 (∀ r1, unbound)"]);
 	});
 
 	it("summarises a fan instead of transcribing it, and reports a repeated edge once with its count", () => {

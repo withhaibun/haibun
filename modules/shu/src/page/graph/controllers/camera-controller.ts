@@ -220,6 +220,16 @@ export class CameraController {
 		this.camera.fitPositions(positions);
 	}
 
+	/** Frame the nodes `ids` names that the graph holds and has placed; the camera stays where the graph hasn't placed any of them. */
+	fitNodes(ids: readonly string[]): void {
+		const { nodeMap } = this.deps.world;
+		const positions = ids.flatMap((id) => {
+			const n = nodeMap.get(id);
+			return n !== undefined && isPlaced(n) ? [n] : [];
+		});
+		if (positions.length > 0) this.camera.fitPositions(positions);
+	}
+
 	zoomBy(amount: number, unit: TMeasureUnit, dir: TZoomDirection): void {
 		this.camera.zoomBy(amount, unit, dir);
 	}

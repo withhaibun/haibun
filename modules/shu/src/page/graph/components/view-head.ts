@@ -27,22 +27,22 @@ export const SETTINGS_GROUPS: ReadonlyArray<{ group: TSettingsGroup; glyph: stri
  *  restating them. */
 export const SETTINGS_GROUP_NAMES = SETTINGS_GROUPS.map((g) => g.group) as [TSettingsGroup, ...TSettingsGroup[]];
 
+/** The head's rules for a host. A control that carries a word keeps the row's own button face, and its pressed state is the
+ *  shared accent fill. A control whose face is a glyph is the shu icon button: the same square, hover and pressed fill as the
+ *  pane's own minimize, maximize and settings controls, so an active control looks the same wherever it is. Every control on a
+ *  settings row shares one centre line whatever its intrinsic height, and <shu-field> names them. The open group's controls
+ *  take a row of their own under the head. */
 export function viewHeadCss(host: string): string {
 	return `
 	${host} .view-root { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
 	${host} .view-head { flex: 0 0 auto; display: flex; align-items: flex-end; justify-content: space-between; gap: var(--shu-space-2); padding: var(--shu-space-2) var(--shu-space-3) 0; border-bottom: var(--shu-border-w) solid var(--shu-border); }
 	${host} .view-controls { display: flex; align-items: center; gap: var(--shu-space-2); font-size: var(--shu-font-sm); color: var(--shu-fg); padding-bottom: var(--shu-space-1); }
 	${host} .view-controls button, ${host} .view-controls select, ${host} .settings-row button, ${host} .settings-row select { background: var(--shu-bg-soft); color: var(--shu-fg); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); font: inherit; font-size: var(--shu-font-sm); padding: var(--shu-space-1) var(--shu-space-3); cursor: pointer; }
-	/* A control that carries a word keeps the row's own button face; its pressed state is the shared accent fill. */
 	${host} .view-controls button[aria-pressed="true"] { background: var(--shu-accent); color: var(--shu-accent-fg); }
-	/* A control whose face is a GLYPH is the shu icon button: the same square, hover and pressed fill the pane's own
-	   min/max/settings controls use, so an active control looks the same wherever it is. */
 	${SHU_ICON_BUTTON}
 	${host} .view-controls label, ${host} .settings-row label { display: inline-flex; align-items: center; gap: var(--shu-space-1); }
-	/* Every control on a settings row shares one centre line whatever its intrinsic height is; <shu-field> names them. */
 	${host} .settings-row input, ${host} .settings-row shu-field { vertical-align: middle; }
 	${shuRowSeparated(`${host} .settings-row`)}
-	/* The open group's controls, on their own row under the head. */
 	${host} .settings-row { flex: 0 0 auto; display: flex; align-items: center; flex-wrap: wrap; gap: var(--shu-space-3); font-size: var(--shu-font-sm); color: var(--shu-fg); padding: var(--shu-space-2) var(--shu-space-3); border-bottom: var(--shu-border-w) solid var(--shu-border); background: var(--shu-bg-soft); }
 	${host} .graph-area { position: relative; flex: 1 1 auto; min-height: 0; }
 	${host} .graph-area shu-graph-scene { position: absolute; inset: 0; display: block; }

@@ -35,13 +35,13 @@ class ShuChipGroup extends ShuElement<z.ZodObject> {
 	/** Reports a chip hovered (id) or the hover ending (null). Optional: a group without a preview doesn't pass one. */
 	declare onPreview?: (id: string | null) => void;
 
+	/** A swatch chip carries its type colour, and its text is the on-swatch ink, dark in both themes on the light palette. */
 	static styles = [
 		shuBaseStyles,
 		css`
 			:host { display: flex; align-items: center; gap: var(--shu-space-3); flex-wrap: wrap; font-size: var(--shu-font-md); }
 			.name { color: var(--shu-fg-muted); }
 			label.chip { display: inline-flex; align-items: center; gap: var(--shu-space-1); cursor: pointer; font-size: var(--shu-font-sm); padding: var(--shu-space-1) var(--shu-space-2); border-radius: var(--shu-radius); border: var(--shu-border-w) solid var(--shu-border); color: var(--shu-fg); }
-			/* A swatch chip carries its type colour; its text is the on-swatch ink, dark in both themes on the light palette. */
 			label.chip[data-swatch] { color: var(--shu-fg-on-swatch); border-color: transparent; }
 			label.chip:hover { filter: brightness(0.95); }
 			label.chip input[type="checkbox"] { margin: 0; flex-shrink: 0; }

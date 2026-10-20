@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { focusStateFor, opacityFor, isFullContrast, type FocusState, type KindTiers } from "./focus-policy.js";
+import { focusStateFor, opacityFor, isFullContrast, linkKey, previewLightsLink, type FocusState, type KindTiers } from "./focus-policy.js";
 
 describe("focusStateFor: the one focus/dim decision", () => {
 	// Exhaustive truth table over the 4 booleans. previewActive wins; then focus; then resting.
@@ -43,5 +43,21 @@ describe("opacityFor / isFullContrast, per-kind mapping", () => {
 		expect(isFullContrast("full")).toBe(true);
 		expect(isFullContrast("dimmed")).toBe(false);
 		expect(isFullContrast("resting")).toBe(false);
+	});
+});
+
+describe("previewLightsLink: the links a preview lights", () => {
+	const link = { source: "a", target: "b", predicate: "knows" };
+	const lit = (id: string): boolean => id === "a" || id === "b";
+	it("lights a link between two lit nodes where the preview doesn't name links", () => {
+		expect(previewLightsLink({ subjects: new Set(["a", "b"]) }, link, lit)).toBe(true);
+		expect(previewLightsLink({ subjects: new Set(["a"]) }, link, (id) => id === "a")).toBe(false);
+	});
+	it("lights the links a preview names, by key, and leaves any other link between its nodes dim", () => {
+		expect(previewLightsLink({ subjects: new Set(["a", "b"]), edges: new Set([linkKey(link)]) }, link, lit)).toBe(true);
+		expect(previewLightsLink({ subjects: new Set(["a", "b"]), edges: new Set() }, link, lit)).toBe(false);
+	});
+	it("lights a link whose ends a type preview lights", () => {
+		expect(previewLightsLink({ type: "Person" }, link, lit)).toBe(true);
 	});
 });

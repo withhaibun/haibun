@@ -64,6 +64,7 @@ type EnclosureDeps = {
 	groupBy: () => GroupKeyMode;
 	grouped: () => boolean;
 	edgeLabelColor: () => string;
+	badgeOf: (type: string) => string | undefined; // the badge a projection puts on a type's cluster, which titles its box under the type axis
 	enclosureParent: () => Obj3D | undefined; // the forcegraph object3D the box group parents into (shared node coordinate space)
 	applyEnclosureFocus: () => void; // re-assert the active dim state on boxes created this pass
 };
@@ -200,8 +201,11 @@ export class EnclosureController {
 		}
 		// Under the role axis a container reads "<role>, <party>" (e.g. "Issuer, Coastal Fisheries Authority"). The role
 		// is the party's role designation, named from the role rel by which nodes attribute to it, not the party's vertex
-		// type (one Principal per DID). Under the type axis the plain type key (containerLabelOf) stands.
+		// type (one Principal per DID). Under the type axis the plain type key (containerLabelOf) stands, after the badge a
+		// projection puts on the type's cluster.
 		const containerLabel = (k: string): string => {
+			const badge = groupBy === "type" ? this.deps.badgeOf(k) : undefined;
+			if (badge !== undefined) return `${badge} ${containerLabelOf(k, groupBy, labelById)}`;
 			if (groupBy !== "role") return containerLabelOf(k, groupBy, labelById);
 			const party = labelById.get(k) ?? k;
 			const role = roleNounFor(roleRelById.get(k)) ?? typeById.get(k);
@@ -212,12 +216,13 @@ export class EnclosureController {
 			// groupBounds' own ± rx computation covers it directly, without a per-member x shift.
 			const b = groupBounds(members.filter(isPlaced), ENCLOSURE_PAD, (n) => ({ rx: collideRadius(n), ry: chipTextHeight(n) }));
 			if (!b) continue;
+			const title = containerLabel(key);
 			let e = this.enclosuresMap.get(key);
 			if (!e) {
-				e = this.createEnclosure(T, key, containerLabel(key));
+				e = this.createEnclosure(T, key, title);
 				this.enclosuresMap.set(key, e);
 				for (const o of [e.box, e.edges, e.label.object]) this.enclosureGroup.add(o);
-			}
+			} else e.label.text = title; // a party's name or a cluster's badge that arrives later retitles its box
 			e.box.position.set(b.cx, b.cy, b.cz);
 			e.box.scale.set(b.sx, b.sy, b.sz);
 			e.edges.position.set(b.cx, b.cy, b.cz);

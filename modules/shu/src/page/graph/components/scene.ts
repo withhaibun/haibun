@@ -23,7 +23,7 @@ import { PAGE_TERMS, type TCounted } from "@haibun/core/lib/domains/hypermedia.j
 import { isSubPropertyOf } from "@haibun/core/lib/domains/resources.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { type GroupKeyMode, groupKeyOf } from "../derivations/grouping.js";
-import type { KindTiers, TGraphPreview } from "../derivations/focus-policy.js";
+import { linkKey, type KindTiers, type TGraphPreview } from "../derivations/focus-policy.js";
 import { quadsToGanttModel, cascadeReschedule } from "../derivations/gantt-model.js";
 import { availablePaints } from "../derivations/paint-select.js";
 import { ganttBarSpan, ganttExtentOf, type GanttTarget } from "../derivations/gantt-layout.js";
@@ -43,7 +43,7 @@ import { type ViewType, FRAME, VIEW, isLaneView, viewChangeRebuildsNodes } from 
 import { SCHEMA_TERM, holdsSchema, isSchemaType, schemaHoverText, schemaTermOf, schemaTypes } from "../../../derivations/ontology-projection.js";
 import { actorTypesFor, fromActorEdgeLabels, relationOfPredicate, roleEdgeLabels, roleNounFor, toActorEdgeLabels, validTimeFieldOf } from "../../controllers/catalog-controller.js";
 import { compositeRenderer, threeRenderer } from "./renderer.js";
-import { A11yRenderer } from "./a11y-renderer.js";
+import { A11yRenderer, kindRead } from "./a11y-renderer.js";
 import type { TFenceGl } from "../adapters/frame-time.js";
 import { ObserverController } from "../../controllers/observer-controller.js";
 import { pageAddress } from "../../controllers/hash-controller.js";
@@ -60,7 +60,7 @@ import { paintMarkScene, type ShapeThree } from "./node-shapes.js";
 import { PolymorphicFocus, NODE_RENDER_ORDER } from "../controllers/focus-controller.js";
 import { EnclosureController, type EnclosureThree, ENCLOSURE_FILL_OPACITY, ENCLOSURE_EDGE_OPACITY, type Obj3D } from "./enclosure.js";
 import { presentationForType } from "../derivations/type-presentation.js";
-import { EVERY_FRAME, type NodeMark } from "../domains/graph-scene.js";
+import { EVERY_FRAME, type NodeMark, type TSceneStyles } from "../domains/graph-scene.js";
 import { appAccessLevel } from "../../controllers/view-query-controller.js";
 import { PaneOpenSchema, addsToSelection, type DesiredPane, type TPaneOpen } from "../../derivations/pane-kinds.js";
 
@@ -73,7 +73,8 @@ import { PaneOpenSchema, addsToSelection, type DesiredPane, type TPaneOpen } fro
  *   setConfig(patch): the layout choices (view type, flatten, grouping, z basis, label-as-z)
  *   setTimeCursorValue(ms): the depth-basis cursor (a re-style, not a data change)
  *   setSelectedSubject(id): the highlighted node (pins it, dims the rest)
- *   setPreview(preview): a type hovered in a legend, or nodes a host points at (dims the rest)
+ *   setPreview(preview): a type hovered in a legend, or nodes and edges a host points at (dims the rest)
+ *   fitGraphTo(ids): frame the nodes a host points at
  *   scopeToType(type): an embedded schema view: fit around one type's node
  *
  * It emits (bubbles, composed) the constants in GRAPH_SCENE_EVENT. The host (a data-feeding wrapper such as
@@ -97,6 +98,8 @@ export interface GraphSceneModel {
 	site?: string;
 	perTypeLimit: number;
 	timeCursor: number | null;
+	/** What the projection that drew the quads requests beside them; a graph of records doesn't request styles. */
+	styles?: TSceneStyles;
 }
 
 /** The layout choices, owned and persisted by the host, pushed down as a plain object so the scene doesn't hold persisted state. */
@@ -235,6 +238,8 @@ export interface FGInstance {
 	showNavInfo(v: boolean): FGInstance;
 	onNodeClick(fn: (n: FGNode, e?: MouseEvent) => void): FGInstance;
 	onNodeHover(fn: (n: FGNode | null, prev: FGNode | null) => void): FGInstance;
+	onLinkHover(fn: (l: FGLink | null, prev: FGLink | null) => void): FGInstance;
+	onLinkClick(fn: (l: FGLink) => void): FGInstance;
 	linkDirectionalParticleWidth(w: number): FGInstance;
 	linkDirectionalParticleColor(fn: (l: FGLink) => string): FGInstance;
 	emitParticle(l: FGLink): FGInstance;
@@ -428,6 +433,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		visibleQuads: () => this.model.visibleQuads,
 		hiddenGraphs: () => this.model.hiddenGraphs,
 		visibleModel: () => this.visibleModel(),
+		hollow: (id) => this.model.styles?.hollow.has(id) === true,
 		lastModelHash: () => this.lastModelHash,
 		timeCursor: () => this.model.timeCursor, // the pinning-aware cursor the host resolved (a snapshot-pinned view reads its frozen instant)
 		zBasis: () => this.config.zBasis,
@@ -496,6 +502,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		groupBy: () => this.groupBy,
 		grouped: () => this.groupingActive(), // a lane/2D view (gantt/sequence) suppresses enclosures: its lanes/actors ARE the grouping
 		edgeLabelColor: () => this.edgeLabelColor,
+		badgeOf: (type) => this.model.styles?.badges.get(type),
 		enclosureParent: () => this.enclosureParent(),
 		applyEnclosureFocus: () => this.focusCtl.applyEnclosureFocus(),
 	});
@@ -865,32 +872,30 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 
 	override render(): TemplateResult {
 		const legend = this.renderType.axisLegend();
+		// The orbit compass is a minimal wire XYZ indicator in the upper-left, transparent to pointer events. The axis legend
+		// shows only where the layout gives the axes meaning (gantt: x is the time span, y the task rows). The canvas is pinned
+		// to the column box and clipped: A-Frame may size its buffer larger, but it never overflows or pushes scrollbars, and
+		// the frame loop keeps the buffer and camera matched to this box without stretch or blur. Its stacking is set as well as
+		// its position: the VR library treats its scene as fullscreen and gives the canvas a z-index of its own, which painted
+		// it over every control on the page, the graph column's own header among them. The guide is visually hidden until a
+		// keyboard reader tabs into it or the head's 🧭 opens it, then a readable overlay panel: a focused entry is visible
+		// (WCAG focus visible), not clipped away, and both ways in land on one shown state. A reading is a document: its text
+		// selects and copies by hand, and each entry is also the way to its node, so it is written as a link is, underlined in
+		// the accent. A list's marker is drawn in its left padding, which, sized in em, holds three digits at any size.
 		return html`
 			<style>
 				shu-graph-scene { display: contents; }
 				shu-graph-scene #polymorphic-info { position: absolute; bottom: var(--shu-space-5); left: var(--shu-space-5); z-index: 12; max-width: 70%; min-height: 20px; background: var(--shu-bg-elevated); padding: var(--shu-space-3) var(--shu-space-4); border-left: 3px solid var(--shu-accent); border-radius: var(--shu-radius); font-family: var(--shu-mono, monospace); font-size: var(--shu-font-sm); color: var(--shu-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 				shu-graph-scene #polymorphic-info[hidden] { display: none; }
-				/* Orbit compass: a minimal wire XYZ indicator in the upper-left, transparent to pointer events. */
 				shu-graph-scene #polymorphic-compass { position: absolute; top: var(--shu-space-5); left: var(--shu-space-5); width: 72px; height: 72px; z-index: 9; pointer-events: none; opacity: 0.9; }
-				/* Axis legend: shown only when the layout gives the axes meaning (gantt: x = time span, y = task rows). */
 				shu-graph-scene #polymorphic-axis-legend { position: absolute; top: var(--shu-space-5); right: var(--shu-space-5); z-index: 10; pointer-events: none; background: var(--shu-bg-elevated); padding: var(--shu-space-2) var(--shu-space-4); border-right: 3px solid var(--shu-accent); border-radius: var(--shu-radius); font-family: var(--shu-mono, monospace); font-size: var(--shu-font-sm); color: var(--shu-fg); }
 				shu-graph-scene #polymorphic-axis-legend .axis-row { display: flex; gap: var(--shu-space-2); align-items: baseline; }
 				shu-graph-scene #polymorphic-axis-legend .axis-key { color: var(--shu-fg-muted); min-width: 3.5em; }
-				/* Pin the scene/canvas to the column box and clip: A-Frame may size its buffer larger, but it can never overflow or push scrollbars. The rAF loop keeps the buffer+camera matched to this box (without stretch or blur). */
 				shu-graph-scene #polymorphic-canvas { position: absolute; inset: 0; overflow: hidden; }
-				/* Stacking as well as position: the VR lib treats its scene as fullscreen and gives the canvas a z-index of
-				   its own, which painted it over every control on the page, the graph column's own header among them. */
 				shu-graph-scene #polymorphic-canvas a-scene, shu-graph-scene #polymorphic-canvas canvas { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important; z-index: 0 !important; display: block; }
-				/* The guide: visually hidden until a keyboard reader tabs into it or the head's 🧭 opens it, then a
-				   readable overlay panel: a focused entry must be visible (WCAG focus visible), not
-				   clipped away. Both ways in land on the same shown state, so there is one appearance to maintain. */
 				shu-graph-scene #polymorphic-a11y { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-				/* A reading is a document: its text selects and copies by hand. Each entry is also the way to that node,
-				   so it is written as a link is, underlined, in the accent, rather than as plain text that doesn't show it is a link. */
 				shu-graph-scene #polymorphic-a11y button { user-select: text; background: none; border: 0; padding: 0; margin: 0; font: inherit; text-align: left; color: var(--shu-accent); text-decoration: underline; cursor: pointer; }
 				shu-graph-scene #polymorphic-a11y button:hover, shu-graph-scene #polymorphic-a11y button:focus-visible { text-decoration-thickness: 2px; }
-				/* A marker is drawn in the list's own left padding, so the padding has to hold the widest one: at a fixed
-				   step a two-digit line ran back over the region's edge. Sized in em, it holds three digits at any size. */
 				shu-graph-scene #polymorphic-a11y ol { margin: 0; padding-left: 3em; }
 				shu-graph-scene #polymorphic-a11y ul { margin: 0 0 var(--shu-space-1); padding-left: var(--shu-space-4); list-style: none; opacity: 0.85; }
 				shu-graph-scene #polymorphic-a11y[data-shown] { user-select: text; }
@@ -969,6 +974,7 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 			new A11yRenderer({
 				region: () => this.querySelector<HTMLElement>("#polymorphic-a11y"),
 				bars: () => this.actorBars(),
+				badgeOf: (type) => this.model.styles?.badges.get(type),
 				onActivate: (id) => this.openNode(id),
 				onFocus: (id) => this.setHoveredNode(id),
 			}),
@@ -1031,7 +1037,9 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 					? makeTroikaChip(chipLabel, mark.color, three, {
 							fontSize: chipTextHeight(mark),
 							renderOrder: NODE_RENDER_ORDER,
-							textColor: this.chipTextColor,
+							// A hollow chip doesn't fill, so its label stands on the scene as an edge label does.
+							textColor: mark.hollow ? this.sceneTextColor : this.chipTextColor,
+							hollow: mark.hollow,
 							borderColor: NODE_BORDER_COLOR,
 							highlightColor: this.activeHighlightColor,
 							avatar: typeAvatar(mark.type),
@@ -1160,7 +1168,14 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 				this.hoverSubject = n?.id ?? null;
 				this.updateHoverInfo(n ?? null);
 				this.applyFocus();
-			});
+			})
+			// An edge under the pointer states what is behind it, under the guards a node's hover takes; choosing one is the
+			// host's to act on, as a host shows the lines that state it.
+			.onLinkHover((l) => {
+				if (this.#parts.tween.running || this.pick.drag.dragging || !this.pick.pointerOver || this.#parts.engine.mode === "settling") return;
+				this.showInfo(l === null ? null : this.linkInfo(l));
+			})
+			.onLinkClick((l) => this.dispatchEvent(new CustomEvent(GRAPH_SCENE_EVENT.EDGE_CHOSEN, { detail: { key: linkKey(l) }, bubbles: true, composed: true })));
 	}
 
 	/**
@@ -1204,18 +1219,30 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 		return { display: `${n.__tField} ${date}`, chip: date };
 	}
 
-	/** Essentials for the node under the pointer, overlaid above the controls: label · type · what its depth encodes. */
+	/** Essentials for the node under the pointer, overlaid above the controls: the statement its projection states behind it,
+	 *  or its label · its type, with its cluster's badge · what its depth encodes. */
 	private updateHoverInfo(n: FGNode | null): void {
-		const el = this.infoEl;
-		if (!el) return;
-		if (!n || n.isCluster) {
-			el.hidden = true;
-			return;
-		}
+		if (!n || n.isCluster) return this.showInfo(null);
 		// Ontology terms are timeless, so the z/time factor is meaningless for them: show the vocabulary that declares a Property
 		// (haibun's own vs a standard's prefix) and whether the type's data uses it, in place of the time.
-		el.textContent = isSchemaType(n.type) ? schemaHoverText(n) : `${n.name} · ${n.type} · ${this.zFactor(n).display}`;
-		el.hidden = false;
+		const read = isSchemaType(n.type) ? schemaHoverText(n) : `${n.name} · ${kindRead(n, this.model.styles?.badges.get(n.type))} · ${this.zFactor(n).display}`;
+		this.showInfo(this.model.styles?.behind.get(n.id) ?? read);
+	}
+
+	/** An edge as a hover states it: the statement its projection states behind it, or its ends and its predicate. */
+	private linkInfo(l: FGLink): string {
+		const behind = this.model.styles?.behind.get(linkKey(l));
+		if (behind !== undefined) return behind;
+		const nameOf = (end: string | FGNode): string => this.nodeMap.get(linkEndId(end))?.name ?? linkEndId(end);
+		return `${nameOf(l.source)} ${l.predicate} ${nameOf(l.target)}`;
+	}
+
+	/** Shows `text` overlaid above the controls, or hides the overlay. */
+	private showInfo(text: string | null): void {
+		const el = this.infoEl;
+		if (!el) return;
+		el.hidden = text === null;
+		if (text !== null) el.textContent = text;
 	}
 
 	/** Re-bind the node-three-object accessor with a fresh reference so three-forcegraph drops its cached __threeObj and
@@ -2065,6 +2092,17 @@ export class ShuGraphScene extends ShuElement<typeof SceneStateSchema> {
 	 *  the whole graph; a no-op when the node isn't in the graph. */
 	fitGraphAround(nodeId: string): void {
 		this.cameraCtl.fitAround(nodeId);
+	}
+
+	/** Frame the nodes a host points at, such as the nodes of the lines a reader chose in a source; a no-op for ids the graph
+	 *  doesn't hold. */
+	fitGraphTo(ids: readonly string[]): void {
+		this.cameraCtl.fitNodes(ids);
+	}
+
+	/** The links the scene draws, by which a host names an edge it points at (linkKey). */
+	get links(): readonly FGLink[] {
+		return this.currentLinks;
 	}
 
 	/** The one "layout has come to rest" hook: both settle paths (a no-tween engine stop and a tween's completion) call

@@ -4,10 +4,21 @@
  * filter legend, or the nodes of a path a reader points at) takes precedence over node focus: while a preview is
  * active only what it lights stays full.
  */
+import { edgeKey } from "@haibun/logic/derivations/term-graph.js";
+import { linkEndId, type FGLink } from "../domains/graph-types.js";
+
 export type FocusState = "full" | "dimmed" | "resting";
 
-/** What a preview lights: every node of a type, or a set of nodes. */
-export type TGraphPreview = { type: string } | { subjects: ReadonlySet<string> };
+/** What a preview lights: every node of a type, or a set of nodes with the edges between them, or with the edges it names by
+ *  their keys (linkKey). */
+export type TGraphPreview = { type: string } | { subjects: ReadonlySet<string>; edges?: ReadonlySet<string> };
+
+/** The key of a link, by its ends and its predicate, which names an edge as a selection names it. */
+export const linkKey = (l: FGLink): string => edgeKey(linkEndId(l.source), l.predicate, linkEndId(l.target));
+
+/** Whether a preview lights a link: the link it names, or a link between two nodes it lights where it doesn't name links. */
+export const previewLightsLink = (preview: TGraphPreview, l: FGLink, lit: (id: string) => boolean): boolean =>
+	"subjects" in preview && preview.edges !== undefined ? preview.edges.has(linkKey(l)) : lit(linkEndId(l.source)) && lit(linkEndId(l.target));
 
 /** Whether a preview lights a node. */
 export const previewLights = (preview: TGraphPreview, node: { id: string; type: string }): boolean =>

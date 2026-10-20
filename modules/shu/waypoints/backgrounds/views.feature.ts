@@ -2,6 +2,7 @@ import type { TKirejiExport } from "@haibun/core/kireji/derivations/withAction.j
 import { RAIL_EDGE_TITLE, SHU_TAG, TIME_SYNC_CLASS } from "@haibun/shu/domains/elements.js";
 import { SHU_TEST_IDS } from "@haibun/shu/domains/test-ids.js";
 import { RAIL_POSITION_MAX } from "@haibun/shu/page/derivations/rail.js";
+import { VIEW_LABELS } from "@haibun/shu/page/graph/domains/views.js";
 
 /** A waypoint's placeholder for the view whose page it reads, which a feature names by its tag, quoted. */
 const VIEW = "{view}";
@@ -14,6 +15,7 @@ const PANE = SHU_TAG.COLUMN_PANE;
 const PAGE = "the page";
 /** The document column, quoted as a literal container. */
 const DOCUMENT = `"${SHU_TAG.DOCUMENT_COLUMN}"`;
+const GRAPH = SHU_TEST_IDS.POLYMORPHIC_VIEW;
 
 /** The heads of shu's view waypoints, which a feature states and each waypoint below declares. */
 export const views = {
@@ -37,6 +39,8 @@ export const views = {
 	queryLists: (type: string, id: string) => `query lists the ${type} individual ${id}`,
 	readAnEarlierTurn: () => "read an earlier turn in the chat",
 	chatShowsItsNewestTurn: () => "chat shows its newest turn",
+	graphDrawsSourceTerms: (view: string) => `graph ${view} draws the terms of its source beside the source`,
+	sourceLineLights: (view: string, line: string) => `line ${line} of the source of graph ${view} lights what it states`,
 };
 
 /** The steps an activity runs on the locator it composes, each written before the locator but the scroll. */
@@ -103,6 +107,23 @@ export const backgrounds: TKirejiExport = {
 
 		"The query lists each individual it matches as a row that carries the individual's type and id.",
 		...within("Read a listed individual", PAGE, `[data-persisted-as="{type}"][data-individual-id="{id}"]`, "wait for", views.queryLists("{type}", "{id}")),
+
+		"A graph view reads its source as text beside the scene, through the step that projects what the graph shows on the server, and draws the terms of that source in place of its records.",
+		"Activity: Draw a graph's terms beside its source",
+		`in {view}, click "${GRAPH.SETTINGS.layout}" by test id`,
+		`compose ${TARGET} as page-locator with ${testId(GRAPH.VIEW_TYPE)}`,
+		`in {view}, select "${VIEW_LABELS.terms}" for ${TARGET}`,
+		`in {view}, click "${GRAPH.SOURCE}" by test id`,
+		`compose ${TARGET} as page-locator with ${testId(GRAPH.SOURCE_LINES)} [role="option"] >> nth=0`,
+		`in {view}, wait for ${TARGET}`,
+		`waypoint ${views.graphDrawsSourceTerms(VIEW)}`,
+		"A line of the source lights the nodes and edges it states in the scene and frames them, and states what it lights to a reader who isn't looking at the scene.",
+		"Activity: Press a line of a graph's source",
+		`compose ${TARGET} as page-locator with ${testId(GRAPH.SOURCE_LINES)} [data-name="{line}"]`,
+		`in {view}, click ${TARGET}`,
+		`compose ${TARGET} as page-locator with [role="status"]:text-matches("^{line} lights [1-9]")`,
+		`in {view}, wait for ${TARGET}`,
+		`waypoint ${views.sourceLineLights(VIEW, "{line}")}`,
 
 		"A reader who scrolls back through the chat's history leaves its newest turn, and the control that states what arrived meanwhile returns them to it and hides once they are there.",
 		...within("Scroll the history back", PAGE, SHU_TAG.ACTIVITY_HISTORY, "scroll up a screen", views.readAnEarlierTurn()),

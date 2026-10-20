@@ -29,6 +29,11 @@ describe("the graph as a still", () => {
 		expect(markup).toContain(`fill="${colorForType("Email")}"`);
 	});
 
+	it("draws a hollow node as an outlined ring in its type's colour, titled unbound", () => {
+		const markup = still([{ ...node("X1", 0, 0, 0, "r1"), hollow: true }]);
+		expect(markup).toContain(`<circle cx="0" cy="0" r="6" fill="none" stroke="${colorForType("r1")}" stroke-width="1.5"><title>unbound</title></circle>`);
+	});
+
 	it("draws an edge between the nodes its link names, labelled by its predicate", () => {
 		const a = node("a", 0, 0);
 		const b = node("b", 100, 0);

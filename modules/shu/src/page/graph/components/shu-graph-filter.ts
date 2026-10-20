@@ -72,6 +72,8 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 		return null;
 	}
 
+	/** A rule sets the view settings off the chips, so the graph's own options read as their own thing rather than the tail of
+	 *  the legend. The limit slider takes a width, which a range input needs to be dragged; every other control sizes itself. */
 	static styles = [
 		shuBaseStyles,
 		css`
@@ -80,10 +82,8 @@ export class ShuGraphFilter extends ShuElement<typeof StateSchema> {
 			:host(:not([show-controls])) { display: none; }
 			.row { display: flex; gap: var(--shu-space-3); align-items: center; flex-wrap: wrap; }
 			${unsafeCSS(shuRowSeparated(".row"))}
-			/* A rule off the chips, so the graph's own options read as their own thing rather than the tail of the legend. */
 			.row.view-settings { margin-top: var(--shu-space-2); padding-top: var(--shu-space-2); border-top: var(--shu-border-w) solid var(--shu-border); }
 			.row[hidden] { display: none; }
-			/* The limit slider needs a width to be draggable; every other control sizes itself. */
 			input[type=range] { width: 120px; }
 			.quad-count { color: var(--shu-fg-faded); }
 			.solo { cursor: pointer; background: var(--shu-bg); color: var(--shu-fg); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); padding: var(--shu-space-1) var(--shu-space-2); line-height: 1; }

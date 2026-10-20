@@ -27,6 +27,24 @@ const NEGATED = "~";
 /** Whether a formula is a rule: quantified, or an implication. A ground literal is an axiom of a fact. */
 const isRule = (formula: TFormula): boolean => "quantifier" in formula || ("connective" in formula && (formula.connective === "=>" || formula.connective === "<="));
 
+/** The key of an edge, from its ends and its label, by which a selection names it. */
+export const edgeKey = (from: string, label: string, to: string): string => JSON.stringify([from, label, to]);
+
+/** The names of the formulas that state any of the nodes or edges, by their ids and keys, in the projection's order. */
+export function formulasStating({ formulas, nodes, edges }: TProjection, nodeIds: ReadonlySet<string>, edgeKeys: ReadonlySet<string>): string[] {
+	const stating = new Set(nodes.filter(({ id }) => nodeIds.has(id)).flatMap((node) => node.formulas));
+	for (const { from, label, to, formula } of edges) if (edgeKeys.has(edgeKey(from, label, to))) stating.add(formula);
+	return formulas.filter(({ name }) => stating.has(name)).map(({ name }) => name);
+}
+
+/** The nodes and edges a formula states, by their ids and keys. */
+export function statedBy({ nodes, edges }: TProjection, formula: string): { nodes: string[]; edges: string[] } {
+	return {
+		nodes: nodes.filter(({ formulas }) => formulas.includes(formula)).map(({ id }) => id),
+		edges: edges.filter((edge) => edge.formula === formula).map(({ from, label, to }) => edgeKey(from, label, to)),
+	};
+}
+
 /** The formulas projected: their text, summary, formulas, term graph and badged clusters. */
 export function projected(stated: readonly TStatedFormula[]): TProjection {
 	const nodes = new Map<string, TTermNode>();

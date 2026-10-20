@@ -25,6 +25,8 @@ export type TA11yRendererDeps = {
 	/** The actor bars the active view draws, each with the nodes attached to it in appearance order, null when the
 	 *  view is not built on actors. The document then reads as the picture does: one section per bar. */
 	bars(): Array<{ id: string; label: string; nodeIds: string[] }> | null;
+	/** The badge a projection puts on a type's cluster, read before the type. */
+	badgeOf(type: string): string | undefined;
 	/** Open the node: the same entry a pointer click drives. */
 	onActivate(id: string): void;
 	/** Highlight the node in the visual media: the same entry a pointer hover drives. */
@@ -32,6 +34,11 @@ export type TA11yRendererDeps = {
 };
 
 const NODE_ID_ATTR = "data-node-id";
+
+/** A node's type as a reader reads it: after the badge its projection puts on the type's cluster, and unbound where the node
+ *  is drawn hollow. The reading and the scene's hover state a node alike. */
+export const kindRead = (n: { type: string; hollow?: true }, badge: string | undefined): string =>
+	`${badge === undefined ? "" : `${badge} `}${n.type}${n.hollow ? ", unbound" : ""}`;
 
 const idOfEvent = (e: Event): string | null => (e.target as Element | null)?.closest?.(`[${NODE_ID_ATTR}]`)?.getAttribute(NODE_ID_ATTR) ?? null;
 
@@ -164,7 +171,7 @@ export class A11yRenderer implements TGraphRenderer {
 			const b = doc.createElement("button");
 			b.type = "button";
 			b.setAttribute(NODE_ID_ATTR, n.id);
-			b.textContent = `${n.name || n.id} (${n.type})`;
+			b.textContent = `${n.name || n.id} (${kindRead(n, this.deps.badgeOf(n.type))})`;
 			if (n.id === focusedId) refocus = b;
 			li.append(b);
 			const { shown, rest } = linesFor(edgesOf.get(n.id));

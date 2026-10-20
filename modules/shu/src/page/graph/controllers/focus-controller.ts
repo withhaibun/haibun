@@ -9,7 +9,7 @@
 // instance, a per-repaint-refreshed nodeMap, or a theme-recoloured colour field is always current; the component still
 // OWNS those, this controller only reads them and owns the magnify animation state. (lovely-finding-babbage.)
 
-import { focusStateFor, opacityFor, isFullContrast, previewLights, type FocusState, type KindTiers, type TGraphPreview } from "../derivations/focus-policy.js";
+import { focusStateFor, opacityFor, isFullContrast, previewLights, previewLightsLink, type FocusState, type KindTiers, type TGraphPreview } from "../derivations/focus-policy.js";
 import { type FGNode, type FGLink, type LabelVisual, type XYZ, isPlaced, linkEndId } from "../domains/graph-types.js";
 import { chipTextHeight } from "../derivations/layout-forces.js";
 import { FULL_BURN, NEWCOMER_GLOW_MS, RESTING_INTENSITY, glowColorAt, pulseAt } from "../derivations/highlight.js";
@@ -131,7 +131,7 @@ export class PolymorphicFocus {
 			const n = nodeMap.get(id);
 			return preview !== null && n !== undefined && previewLights(preview, n);
 		};
-		const matchesPreview = lit(s) && lit(t);
+		const matchesPreview = preview !== null && previewLightsLink(preview, l, lit);
 		return focusStateFor({ focusActive: focus !== null, isInFocus: incident, previewActive: preview !== null, matchesPreview });
 	}
 
