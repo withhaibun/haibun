@@ -16,7 +16,7 @@ import type { TWorld } from "@haibun/core/lib/actuality/domains/world.js";
 import type { AStepper, TFeatureStep } from "@haibun/core/lib/steps/domains/stepper.js";
 import { derivationOf } from "../derivations/derivation.js";
 import { lineOfTerm, termOfAction, termText, waypointAxiom, type TLineTerm } from "../derivations/registry.js";
-import { declaredSteps, predicateArities, predicateOf } from "@haibun/core/lib/steps/derivations/predicate-registry.js";
+import { declaredSteps, predicateArities, predicateOf, predicatesOf } from "@haibun/core/lib/steps/derivations/predicate-registry.js";
 import type { TDerivation, TRule } from "../domains/logic.js";
 import { checkFormula, unicodeOf } from "../derivations/formula.js";
 import type { TStatedFormula } from "../derivations/term-graph.js";
@@ -101,8 +101,10 @@ export function formulaRefusal(text: string, steppers: readonly AStepper[], doma
 	return "refused" in rule ? rule.refused : undefined;
 }
 
-/** Refuses steppers whose declarations miss a face, repeat a pattern, or state a pattern whose own line parses two ways. */
+/** Refuses steppers from whose declarations the registry doesn't build, or whose declarations miss a face, repeat a pattern, or
+ *  state a pattern whose own line parses two ways. */
 export function refuseDeclarations(steppers: AStepper[]): void {
+	predicatesOf(declaredSteps(steppers));
 	const resolver = new Resolver(steppers, []);
 	const findings = declarationFindings(steppers, (line) => resolver.parsedStepAction(line));
 	if (findings.length > 0) {

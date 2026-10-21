@@ -11,7 +11,9 @@ import { Access, LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { RUN_AUTHORITY } from "@haibun/core/lib/domains/capability-context.js";
 import { LINT_FINDING } from "@haibun/core/lib/domains/goal-resolution.js";
-import { FACTS_HELD, planOf, producerRules, stepSignatures, unmetReason } from "../derivations/goals.js";
+import { FACTS_HELD, goalConjecture, planOf, producerAxioms, producerRules, stepSignatures, unmetReason } from "../derivations/goals.js";
+import { predicateArities } from "@haibun/core/lib/steps/derivations/predicate-registry.js";
+import { FACT_FIELD, factDomainDefinition } from "@haibun/core/lib/records/domains/facts.js";
 import { atom, factsTerm } from "../derivations/terms.js";
 import { logicEngine } from "../root.js";
 import { lintFindings } from "./goals.js";
@@ -98,5 +100,16 @@ describe("goals over producer rules", () => {
 			]),
 		);
 		expect(found.filter((finding) => "domain" in finding && finding.domain === "cart")).toEqual([]);
+	});
+});
+
+describe("the producer rules and a goal as TPTP axioms", () => {
+	it("state a fact's domain by the registry's predicate, and are refused by a registry that doesn't hold it", () => {
+		const holding = predicateArities([new Shop()], { ...domains, ...mapDefinitionsToDomains([factDomainDefinition]) });
+		expect(producerAxioms(signatures, RUN_AUTHORITY, new Set(["cart"]), holding)[0]?.formula).toMatchObject({ atom: FACT_FIELD.domain });
+		expect(goalConjecture("order", holding).formula).toMatchObject({ body: { atom: FACT_FIELD.domain } });
+		const without = predicateArities([new Shop()], domains);
+		expect(() => producerAxioms(signatures, RUN_AUTHORITY, new Set(["cart"]), without)).toThrow(`the predicate ${FACT_FIELD.domain}/2 isn't an entry of the registry`);
+		expect(() => goalConjecture("order", without)).toThrow(`the predicate ${FACT_FIELD.domain}/2 isn't an entry of the registry`);
 	});
 });

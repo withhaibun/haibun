@@ -31,6 +31,7 @@ import type { TProjection } from "@haibun/logic/domains/logic.js";
 import { goalConjecture, producerAxioms, stepSignatures } from "@haibun/logic/derivations/goals.js";
 import { waypointAxioms } from "@haibun/logic/pipelines/registry-reads.js";
 import { graphAxioms } from "../derivations/graph-formulas.js";
+import { predicateArities } from "@haibun/core/lib/steps/derivations/predicate-registry.js";
 import { visibleGraphModel } from "../page/graph/derivations/scene-data.js";
 import { effectiveHiddenTypes } from "../page/graph/derivations/graph-filter.js";
 
@@ -167,11 +168,12 @@ export async function graphTptp(world: TWorld, view: TGraphView): Promise<TProje
 	const textsOf = (type: string, field: string): string[] =>
 		model.nodes.flatMap((node) => (node.type === type && typeof node.properties[field] === "string" ? [node.properties[field]] : []));
 	const steppers = runSteppers(world);
+	const arities = predicateArities(steppers, world.domains);
 	const formulas = [
-		...graphAxioms(model),
-		...producerAxioms(stepSignatures(steppers), callerHolds(), new Set(textsOf(FACT_LABEL, FACT_FIELD.domain))),
+		...graphAxioms(model, arities),
+		...producerAxioms(stepSignatures(steppers), callerHolds(), new Set(textsOf(FACT_LABEL, FACT_FIELD.domain)), arities),
 		...waypointAxioms(world, steppers, textsOf(SEQ_PATH_LABEL, SEQ_PATH_FIELD.stepText)),
-		...(view.goal === undefined ? [] : [goalConjecture(view.goal)]),
+		...(view.goal === undefined ? [] : [goalConjecture(view.goal, arities)]),
 	];
 	return projected(formulas);
 }

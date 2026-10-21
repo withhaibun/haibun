@@ -22,20 +22,29 @@ const PRECEDES: TPredicate = { name: PREDICATE.precedes, parts: [{ name: "domain
 export const declaredSteps = (steppers: readonly AStepper[]): TStepAction[] =>
 	steppers.flatMap((stepper) => Object.entries(stepper.steps).map(([actionName, step]) => ({ stepperName: constructorName(stepper), actionName, step })));
 
+/** The method of a step, which names it in the registry. */
+const methodOf = ({ stepperName, actionName }: TStepAction): string => stepMethodName(stepperName, actionName);
+
 /** The name of the predicate a step proves: the predicate it declares, or its method. */
-export const predicateOf = ({ stepperName, actionName, step }: TStepAction): string => (step.predicate === undefined ? stepMethodName(stepperName, actionName) : step.predicate);
+export const predicateOf = (declared: TStepAction): string => (declared.step.predicate === undefined ? methodOf(declared) : declared.step.predicate);
 
 /** The predicates a step proves: the head of each rule it holds, or its own where it declares a pattern or an exact line. */
 function stepPredicates(declared: TStepAction): TPredicate[] {
 	const { step } = declared;
-	const method = stepMethodName(declared.stepperName, declared.actionName);
+	const method = methodOf(declared);
 	if (step.rules !== undefined) return step.rules().map(({ head, pattern }) => ({ name: head, parts: phraseParts(pattern), line: head, method }));
 	const line = step.gwta === undefined ? step.exact : step.gwta;
 	return line === undefined ? [] : [{ name: predicateOf(declared), parts: stepParts(step), line, method }];
 }
 
-/** The predicates of the registry: each step's and each rule head's, and precedes. */
-export const predicatesOf = (steps: readonly TStepAction[]): TPredicate[] => [...steps.flatMap(stepPredicates), PRECEDES];
+/** The predicates of the registry: each step's and each rule head's, and precedes. Throws where two steps declare one predicate,
+ *  such as member_of, and names both. */
+export function predicatesOf(steps: readonly TStepAction[]): TPredicate[] {
+	const declaring = steps.filter(({ step }) => step.predicate !== undefined);
+	for (const [name, both] of Map.groupBy(declaring, predicateOf))
+		if (both.length > 1) throw new Error(`${both.map(methodOf).join(" and ")} each declare the predicate ${name}; declare it on one step`);
+	return [...steps.flatMap(stepPredicates), PRECEDES];
+}
 
 /** The arity of each predicate a record states, as the graph's axioms state it: a persisted type over its record, and each
  *  property and edge the type's topology declares over the record and its value. */
@@ -47,3 +56,13 @@ const recordArities = (domains: Record<string, TRegisteredDomain>): [string, num
 /** The registry's predicates by name, with their arity, which a formula's predicates are held to: the records' and the steps'. */
 export const predicateArities = (steppers: readonly AStepper[], domains: Record<string, TRegisteredDomain>): Map<string, number> =>
 	new Map([...recordArities(domains), ...predicatesOf(declaredSteps(steppers)).map(({ name, parts }): [string, number] => [name, parts.length])]);
+
+/** The name of the predicate `name` that an axiom states over `arity` terms, as the registry's `arities` hold it. Throws for a
+ *  predicate the registry doesn't hold at that arity. */
+export function registeredPredicate(arities: ReadonlyMap<string, number>, name: string, arity: number): string {
+	if (arities.get(name) !== arity)
+		throw new Error(
+			`the predicate ${name}/${arity} isn't an entry of the registry; declare it as a persisted type, a property or an edge of a persisted type's topology, a step's predicate or a waypoint's head`,
+		);
+	return name;
+}

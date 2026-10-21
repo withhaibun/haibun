@@ -174,6 +174,19 @@ describe("what a graph view shows as TPTP formulas", () => {
 		displayLabels: {},
 	});
 	const CLUSTERS = [cluster(EMAIL, [A, B, C]), cluster(FACT_LABEL, ["fact-1"]), cluster(SEQ_PATH_LABEL, ["step-1"])];
+	/** The emails' type, which declares the property and the edge their quads state, so the registry holds their predicates. */
+	const EMAIL_TYPE = {
+		selectors: ["test-email"],
+		schema: z.looseObject({ id: z.string() }),
+		description: "An email a test reads",
+		topology: {
+			persistedAs: EMAIL,
+			id: "id",
+			accessLevel: Access.private,
+			properties: { subject: LinkRelations.NAME.rel },
+			edges: { inReplyTo: { rel: LinkRelations.IN_REPLY_TO.rel, range: EMAIL } },
+		},
+	};
 
 	/** Fills a cart and places an order from one: the producer rules of the domain cart, which a fact of the graph states. */
 	class Kitchen extends AStepper {
@@ -184,15 +197,16 @@ describe("what a graph view shows as TPTP formulas", () => {
 		};
 	}
 
-	const projectedFor = async (view: Pick<TGraphView, "overrides"> & Partial<TGraphView>): Promise<TProjection> => {
+	const projectedFor = async (view: Pick<TGraphView, "overrides"> & Partial<TGraphView>, quads = QUADS): Promise<TProjection> => {
 		const stepper = new GraphSourceStepper();
 		const world = getDefaultWorld();
+		world.domains = { ...world.domains, ...mapDefinitionsToDomains([EMAIL_TYPE]) };
 		const activities = new ActivitiesStepper();
 		const lines = ["Activity: Cook dinner", 'set dinner to "ready"', 'waypoint {meal} is ready with variable {meal} is "ready"'];
 		activities.steps.activity.resolveFeatureLine(lines[2] as string, "/backgrounds/kitchen.feature", activities, [], lines, 2);
 		world.runtime.steppers = [stepper, activities, new VariablesStepper(), new Kitchen()];
 		await stepper.setWorld(world, world.runtime.steppers);
-		world.shared.getStore = vi.fn(() => mockQuadStore({ getClusteredQuads: vi.fn(async () => ({ quads: QUADS, clusters: CLUSTERS })) }));
+		world.shared.getStore = vi.fn(() => mockQuadStore({ getClusteredQuads: vi.fn(async () => ({ quads, clusters: CLUSTERS })) }));
 		const result = await runAuthorizedWith(RUN_AUTHORITY, async () =>
 			stepper.steps.showGraphAsTptp.action({ view: { perTypeLimit: 10, accessLevel: Access.private, hiddenPredicates: [], prune: false, ...view } }),
 		);
@@ -244,6 +258,12 @@ describe("what a graph view shows as TPTP formulas", () => {
 			{ kind: "r2", badge: "∀" },
 			{ kind: "w1", badge: "∀" },
 		]);
+	});
+
+	it("refuses a record's predicate the registry doesn't hold, and names it", async () => {
+		await expect(projectedFor({ overrides: {} }, [...QUADS, quad(A, EMAIL, "undeclared", "a field the type doesn't declare")])).rejects.toThrow(
+			"the predicate undeclared/2 isn't an entry of the registry",
+		);
 	});
 
 	it("hides the types a view hides and the predicates a reader hid, prunes, and stops at the time cursor", async () => {
