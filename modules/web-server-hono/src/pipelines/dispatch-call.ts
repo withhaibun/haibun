@@ -11,11 +11,10 @@ import type { TStepResult } from "@haibun/core/lib/domains/protocol.js";
 import type { TRestsOn } from "@haibun/core/lib/domains/authority-types.js";
 import type { TRpcRefusal } from "@haibun/core/lib/rpc-wire.js";
 import { proveStep, type DispatchContext } from "@haibun/core/lib/step-dispatch.js";
-import { buildFeatureStepForTransport } from "@haibun/core/lib/call-step.js";
+import { validatedFeatureStep } from "@haibun/core/lib/call-step.js";
 import { refusal } from "@haibun/core/lib/steps/pipelines/gate.js";
 import type { StepRegistry, StepTool } from "@haibun/core/lib/step-registry.js";
 import { lackedByCall } from "@haibun/core/lib/domains/actions.js";
-import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
 import { allocateSyntheticSeqPath } from "@haibun/core/lib/domains/host-id.js";
 import { runActingAs } from "@haibun/core/lib/domains/capability-context.js";
 import { notARead } from "../domains/web-server.js";
@@ -38,14 +37,14 @@ export type TDispatchWithin = { registry: StepRegistry; world: TWorld; steppers:
  * step requires, and where it requests a read of a step that doesn't declare itself one. A caller without a seqPath, such
  * as an external caller or MCP, runs at a seqPath this host allocates. Throws where the input doesn't validate.
  */
-export function calledStep({ registry, world }: TDispatchWithin, call: TStepCall, caller: TCaller): TCalledStep {
+export function calledStep({ registry, world, steppers }: TDispatchWithin, call: TStepCall, caller: TCaller): TCalledStep {
 	const { method, params, asks, seqPath } = call;
 	const tool = registry.get(method);
 	const lacked = tool && lackedByCall({ invoked: caller.granted, held: caller.held }, tool.descriptor);
 	if (!tool || lacked) return { refused: refusal(method, lacked, caller.delegate) };
 	if (asks === "read" && !tool.descriptor.read) return { refused: { error: notARead(method) } };
 	const at = seqPath !== undefined && seqPath.length > 0 ? seqPath : allocateSyntheticSeqPath(world);
-	return { tool, featureStep: buildFeatureStepForTransport(tool, validateToolInput(at, tool, params, world), at) };
+	return { tool, featureStep: validatedFeatureStep(tool, params, at, world, steppers) };
 }
 
 /** The dispatch of a call's step as its caller, holding only what the request presented: the server was started inside a

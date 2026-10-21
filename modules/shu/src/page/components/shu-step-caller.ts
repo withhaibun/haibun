@@ -7,7 +7,9 @@
  *   step: the method of the step the form calls
  *   call-index: the caller's number among the callers of its step, which its test ids carry
  *   auto: the form calls the step when it connects, without showing its inputs
- *   params: JSON of fixed parameters, which the form shows and merges with its values
+ *   params: JSON of fixed parameters, which the form shows and merges with its values. A fixed statement that holds
+ *     placeholders, such as a waypoint's head, shows as its sentence with an input for each placeholder, and the call
+ *     states the statement with each input's term.
  */
 import { html, css, nothing, type TemplateResult } from "lit";
 import { property, state } from "lit/decorators.js";
@@ -15,6 +17,9 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import type { TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { JsonObjectTextSchema, RecordSchema, RecordsSchema } from "@haibun/core/lib/domains/json-text.js";
 import { itemAt, valueAt } from "@haibun/core/lib/domains/item-at.js";
+import { DOMAIN_STATEMENT } from "@haibun/core/lib/domains/domains.js";
+import { phraseParts } from "@haibun/core/lib/steps/domains/phrase.js";
+import { lineOfCall } from "@haibun/core/lib/steps/derivations/named-vars.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
@@ -51,13 +56,13 @@ const NAME_FIELDS = ["name", "title", "label", "subject"];
 /** How many records a reference's options offer. */
 const REFERENCE_OPTIONS = 50;
 
-/** Whether an input property is a composite (an object schema with properties), which the form renders one field at a
- *  time rather than as JSON. */
 /** A value as the text it is written as: a string as it is, anything else as JSON. */
 function textOf(value: unknown): string {
 	return typeof value === "string" ? value : JSON.stringify(value);
 }
 
+/** Whether an input property is a composite (an object schema with properties), which the form renders one field at a
+ *  time rather than as JSON. */
 function isCompositeProperty(prop: TInputProperty | undefined): prop is TInputProperty & { properties: Record<string, TInputProperty> } {
 	return prop?.type === "object" && prop.properties !== undefined && Object.keys(prop.properties).length > 0;
 }
@@ -137,6 +142,14 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 		const parsed = JsonObjectTextSchema.safeParse(this.params);
 		if (!parsed.success) throw new Error(`<shu-step-caller> params ${this.params} isn't a JSON object`);
 		return parsed.data;
+	}
+
+	/** The fixed statements that hold placeholders, by parameter. The form fills each placeholder before the call. */
+	#phrases(desc: TStepDefinition): Map<string, string> {
+		const phrases = new Map<string, string>();
+		for (const [param, value] of Object.entries(this.#fixed))
+			if (desc.paramDomains[param] === DOMAIN_STATEMENT && typeof value === "string" && phraseParts(value).length > 0) phrases.set(param, value);
+		return phrases;
 	}
 
 	protected override onConnected(): void {
@@ -236,6 +249,8 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 		this.formValues = { ...values };
 		const schema = this.#inputSchemaOf(desc);
 		const params: Record<string, unknown> = { ...this.#fixed };
+		const phrases = this.#phrases(desc);
+		const terms = new Map<string, Record<string, string>>([...phrases.keys()].map((param) => [param, {}]));
 		try {
 			for (const [key, value] of Object.entries(values)) {
 				const dot = key.indexOf(".");
@@ -245,6 +260,11 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 				}
 				const parent = key.slice(0, dot);
 				const sub = key.slice(dot + 1);
+				const phraseTerms = terms.get(parent);
+				if (phraseTerms !== undefined) {
+					phraseTerms[sub] = value;
+					continue;
+				}
 				const parentSchema = schema.properties?.[parent];
 				if (value === "" && parentSchema?.required?.includes(sub) !== true) continue;
 				params[parent] = { ...RecordSchema.optional().parse(params[parent]), [sub]: typedValue(value, parentSchema?.properties?.[sub]?.type) };
@@ -252,6 +272,13 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 		} catch (err) {
 			return this.#refuseInput(`invalid input: ${errorDetail(err)}`, {});
 		}
+		const unfilled: Record<string, string> = {};
+		for (const [param, phrase] of phrases) {
+			const phraseTerms = valueAt(terms, param, "the terms of a fixed statement");
+			for (const { name } of phraseParts(phrase)) if (phraseTerms[name] === undefined) unfilled[`${param}.${name}`] = "required";
+			params[param] = lineOfCall(phrase, phraseTerms);
+		}
+		if (Object.keys(unfilled).length > 0) return this.#refuseInput(`invalid input: fill ${Object.keys(unfilled).join(", ")}`, unfilled);
 		// The schema is the one the server exposes through the step's definition, so the form states each field's cause before a call.
 		const fieldErrors = validateStepInput(params, schema as Parameters<typeof validateStepInput>[1]);
 		if (fieldErrors.length > 0) return this.#refuseInput(`invalid input: ${fieldErrors.map((e) => `${e.field} ${e.message}`).join("; ")}`, collectFieldErrors(fieldErrors));
@@ -317,6 +344,8 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 	/** The input of one parameter, by what its schema and domain declare. */
 	#paramInput(desc: TStepDefinition, properties: Record<string, TInputProperty>, paramName: string): TemplateResult {
 		const fixed = this.#fixed;
+		const phrase = this.#phrases(desc).get(paramName);
+		if (phrase !== undefined) return html`${this.#sentence(phrase, (name) => this.#textInput(`${paramName}.${name}`, `${paramName}-${name}`, name, "text"))}`;
 		if (paramName in fixed) return html`<span class="step-fixed">${String(fixed[paramName])}</span>`;
 		const prop = properties[paramName];
 		// A parameter naming the type of a record's fields offers the types the catalog declares.
@@ -351,18 +380,24 @@ export class ShuStepCaller extends ShuElement<typeof EmptyStateSchema> {
 		return html`<span class="composite-input">${fields}</span>`;
 	}
 
+	/** A pattern as a sentence, with the input `inputOf` returns in place of each parameter. */
+	#sentence(pattern: string, inputOf: (name: string) => TemplateResult): TemplateResult[] {
+		const prettified = prettifyGwta(pattern);
+		const parts: TemplateResult[] = [];
+		let last = 0;
+		for (const match of prettified.matchAll(PARAM)) {
+			if (match.index > last) parts.push(html`<span class="step-text">${prettified.slice(last, match.index)}</span>`);
+			parts.push(inputOf(itemAt(match, 1)));
+			last = match.index + match[0].length;
+		}
+		if (last < prettified.length) parts.push(html`<span class="step-text">${prettified.slice(last)}</span>`);
+		return parts;
+	}
+
 	/** The form: the step's pattern as a sentence, with an input in place of each parameter. */
 	#renderForm(desc: TStepDefinition): TemplateResult {
 		const properties = this.#inputSchemaOf(desc).properties ?? {};
-		const pattern = prettifyGwta(desc.pattern);
-		const parts: TemplateResult[] = [];
-		let last = 0;
-		for (const match of pattern.matchAll(PARAM)) {
-			if (match.index > last) parts.push(html`<span class="step-text">${pattern.slice(last, match.index)}</span>`);
-			parts.push(this.#paramInput(desc, properties, itemAt(match, 1)));
-			last = match.index + match[0].length;
-		}
-		if (last < pattern.length) parts.push(html`<span class="step-text">${pattern.slice(last)}</span>`);
+		const parts = this.#sentence(desc.pattern, (name) => this.#paramInput(desc, properties, name));
 		const executed = this.#call.executed;
 		return html`<form class="step-form step-sentence" @submit=${this.#onSubmit}>${parts}
 			<button type="submit" class=${executed ? "run-inline rerun" : "run-inline"} title=${executed ? "Re-run" : "Run"} data-testid=${this.#testId("step-run")}>${executed ? "⟳▶" : "▶"}</button></form>`;

@@ -6,8 +6,7 @@ import { extractSeqPathPrefix, parseSeqPath, seqPathDomainDefinition } from "../
 import { factDomainDefinition } from "../records/domains/facts.js";
 import { variableDomainDefinition } from "../records/domains/variables.js";
 import { classDomainDefinition, propertyDomainDefinition } from "../records/domains/ontology.js";
-import { AStepper, TFeatureStep } from "../steps/domains/stepper.js";
-import { TDomainDefinition } from "../domains/resources.js";
+import type { TCoercionSite, TDomainDefinition } from "../domains/resources.js";
 import type { TWorld } from "../actuality/domains/world.js";
 import { TStepValue } from "../domains/protocol.js";
 import { DOMAIN_INDIVIDUAL_ADDRESS, IndividualAddressSchema } from "../domains/typed-links.js";
@@ -195,13 +194,9 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		schema: statementSchema,
 		written: true,
 		description: "A reference to another Haibun statement.",
-		coerce: (proto: TStepValue, featureStep?: TFeatureStep, steppers?: AStepper[]) => {
-			if (!featureStep || !steppers) {
-				throw new Error("statement domain coercion requires a feature step and the steppers");
-			}
-			const label = statementSchema.parse(proto.value);
-			const seqStart = featureStep.seqPath;
-			return findFeatureStepsFromStatement(label, steppers, world, featureStep.source?.path, [...seqStart, 0]);
+		coerce: (proto: TStepValue, site?: TCoercionSite) => {
+			if (site === undefined) throw new Error("a statement is coerced at the step it fills, and this coercion doesn't state the seqPath and the steppers of one");
+			return findFeatureStepsFromStatement(statementSchema.parse(proto.value), site.steppers, world, site.path, [...site.seqPath, 0]);
 		},
 	},
 ];

@@ -1,8 +1,9 @@
 import { z } from "zod";
-import type { TStepperStep } from "../domains/stepper.js";
+import type { AStepper, TStepperStep } from "../domains/stepper.js";
 import type { TWorld } from "../../actuality/domains/world.js";
 import { Origin, productData, type THypermediaProducts, type TSeqPath, type TStepArgs } from "../../domains/protocol.js";
 import { normalizeDomainKey, registeredDomain } from "../../domains/domains.js";
+import type { TCoercionSite } from "../../domains/resources.js";
 import type { StepTool } from "../pipelines/step-registry.js";
 import { errorDetail } from "../../domains/util.js";
 
@@ -16,12 +17,14 @@ const statedValue = (value: unknown): string => {
 
 /**
  * Returns a call's input as the domain of each parameter takes it. Each value is validated by its domain's schema as registered
- * when the call arrives. A domain that coerces then coerces the value, as it coerces a feature line's value. Each domain's
- * schema accepts the forms of its value that a feature line may give, so a call may give them too. Throws an error that
- * names every required parameter the input doesn't hold and every refused value.
+ * when the call arrives. The domain then coerces the value at the call's seqPath with `steppers`, as it coerces a feature
+ * line's value. A call doesn't have a feature, so a statement it gives resolves without a feature's path. Each domain's schema
+ * accepts the forms of its value that a feature line may give, so a call may give them too. Throws an error that names every
+ * required parameter the input doesn't hold and every refused value.
  */
-export function validateToolInput(fromSeqPath: TSeqPath, tool: StepTool, input: Record<string, unknown>, world: TWorld): Record<string, unknown> {
+export function validateToolInput(fromSeqPath: TSeqPath, tool: StepTool, input: Record<string, unknown>, world: TWorld, steppers: AStepper[]): Record<string, unknown> {
 	const validated: Record<string, unknown> = { ...input };
+	const site: TCoercionSite = { seqPath: fromSeqPath, path: undefined, steppers };
 	const errors: string[] = [];
 
 	const required = tool.descriptor.inputSchema.required;
@@ -40,7 +43,7 @@ export function validateToolInput(fromSeqPath: TSeqPath, tool: StepTool, input: 
 			errors.push(`"${key}" (value: ${statedValue(value)}): ${errorDetail(result.error)}`);
 			continue;
 		}
-		validated[key] = domain.coerce ? domain.coerce({ value: result.data, domain: domainKey, term: key, origin: Origin.defined }) : result.data;
+		validated[key] = domain.coerce({ value: result.data, domain: domainKey, term: key, origin: Origin.defined }, site);
 	}
 
 	if (errors.length) {

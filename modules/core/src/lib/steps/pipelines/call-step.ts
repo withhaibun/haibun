@@ -14,19 +14,32 @@ import type { TWorld } from "../../actuality/domains/world.js";
 import { runRegistry, type StepTool } from "./step-registry.js";
 import { hostOfMethodName, stepMethodName } from "../domains/step-method.js";
 import type { AStepper, TStepperStep, TFeatureStep } from "../domains/stepper.js";
-import { mapInputToStepValues } from "../derivations/named-vars.js";
-import { lineOfCall } from "../derivations/predicate-registry.js";
+import { lineOfCall, mapInputToStepValues } from "../derivations/named-vars.js";
+import { validateToolInput } from "../derivations/tool-validation.js";
 import { actionNotOK } from "../../domains/util.js";
 import { proveStep, type DispatchContext } from "../../actuality/pipelines/step-dispatch.js";
 import { allocateSyntheticSeqPath } from "../../domains/host-id.js";
 import type { TSeqPath, TStepResult } from "../../domains/protocol.js";
 
 /**
- * Returns the feature step that a call from a transport (RPC, MCP) runs as. A feature line holds its feature step; a call
- * from outside actuality builds one from the tool and its input. It reads the registered step definition, so dispatch
- * (augment, autoAssert, preconditions) receives the same shape from both paths.
+ * Returns the feature step that a call from a transport (RPC, MCP) runs as, with input that holds each value as the step
+ * takes it. A feature line holds its feature step; a call from outside actuality builds one from the tool and its input. It
+ * reads the registered step definition, so dispatch (augment, autoAssert, preconditions) receives the same shape from both
+ * paths.
  */
-export function buildFeatureStepForTransport(tool: StepTool, input: Readonly<Record<string, unknown>>, seqPath: TSeqPath): TFeatureStep {
+export const buildFeatureStepForTransport = (tool: StepTool, input: Readonly<Record<string, unknown>>, seqPath: TSeqPath): TFeatureStep =>
+	featureStepOfCall(tool, input, input, seqPath);
+
+/**
+ * Returns the feature step that a call from a transport runs as, with its input validated and coerced by each parameter's
+ * domain. The step's line and terms state the input as the call gave it, so the line states a statement as its text rather
+ * than as its resolved steps. Throws where the input doesn't validate.
+ */
+export const validatedFeatureStep = (tool: StepTool, input: Record<string, unknown>, seqPath: TSeqPath, world: TWorld, steppers: AStepper[]): TFeatureStep =>
+	featureStepOfCall(tool, input, validateToolInput(seqPath, tool, input, world, steppers), seqPath);
+
+/** The feature step of a call whose line states `stated` and whose values are `values`. */
+function featureStepOfCall(tool: StepTool, stated: Readonly<Record<string, unknown>>, values: Readonly<Record<string, unknown>>, seqPath: TSeqPath): TFeatureStep {
 	// A proxy tool (RemoteStepperProxy) dispatches out of process and doesn't hold a step definition in this process. The
 	// carrier holds the step's pattern and an action that refuses, so the handler runs.
 	const { descriptor } = tool;
@@ -41,8 +54,8 @@ export function buildFeatureStepForTransport(tool: StepTool, input: Readonly<Rec
 	return {
 		...(targetHostId === undefined ? {} : { targetHostId }),
 		// `in` holds the feature line that states this call, so the record of a call from outside actuality is a line a feature can run.
-		in: lineOfCall(descriptor.pattern, input),
-		action: { stepperName: descriptor.stepperName, actionName: descriptor.stepName, step, stepValuesMap: mapInputToStepValues(input, descriptor.pattern) },
+		in: lineOfCall(descriptor.pattern, stated),
+		action: { stepperName: descriptor.stepperName, actionName: descriptor.stepName, step, stepValuesMap: mapInputToStepValues(stated, values, descriptor.pattern) },
 		seqPath,
 		programmatic: true,
 	};
@@ -54,12 +67,16 @@ type TStepCall = { seqPath: TSeqPath; result: TStepResult };
 /** The input of a step that doesn't take an argument. */
 export const NO_INPUT: Readonly<Record<string, unknown>> = {};
 
-export async function callStepByName(ctx: DispatchContext, method: string, input: Readonly<Record<string, unknown>>): Promise<TStepCall> {
+/** Proves the feature step `stepOf` builds for the tool of `method`, at a seqPath this host allocates. */
+async function proveCall(ctx: DispatchContext, method: string, stepOf: (tool: StepTool, seqPath: TSeqPath) => TFeatureStep): Promise<TStepCall> {
 	const tool = ctx.registry.named(method);
 	const seqPath = allocateSyntheticSeqPath(ctx.world);
-	const result = await proveStep(ctx, buildFeatureStepForTransport(tool, input, seqPath));
+	const result = await proveStep(ctx, stepOf(tool, seqPath));
 	return { seqPath, result };
 }
+
+export const callStepByName = (ctx: DispatchContext, method: string, input: Readonly<Record<string, unknown>>): Promise<TStepCall> =>
+	proveCall(ctx, method, (tool, seqPath) => buildFeatureStepForTransport(tool, input, seqPath));
 
 /**
  * Calls a step by name from a stepper. A stepper holds its world and its steppers but doesn't hold a registry, so the
@@ -69,6 +86,15 @@ export async function callStepByName(ctx: DispatchContext, method: string, input
 export async function callStepFrom(from: { getWorld: () => TWorld; steppers: AStepper[] }, method: string, input: Readonly<Record<string, unknown>>): Promise<TStepCall> {
 	const world = from.getWorld();
 	return await callStepByName({ registry: runRegistry(world), world, steppers: from.steppers }, method, input);
+}
+
+/** Calls a step by name from a stepper with input as a caller states it. Each value is validated and coerced by its
+ *  parameter's domain, as a call over RPC is, so a statement given as text resolves to its steps. Throws where the input
+ *  doesn't validate. */
+export async function callStatedStepFrom(from: { getWorld: () => TWorld; steppers: AStepper[] }, method: string, input: Record<string, unknown>): Promise<TStepCall> {
+	const world = from.getWorld();
+	const ctx = { registry: runRegistry(world), world, steppers: from.steppers };
+	return await proveCall(ctx, method, (tool, seqPath) => validatedFeatureStep(tool, input, seqPath, world, from.steppers));
 }
 
 /** Returns the result of `tool` for a caller that reads what the step changed. It calls the read step that the

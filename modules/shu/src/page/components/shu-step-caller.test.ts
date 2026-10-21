@@ -45,14 +45,24 @@ const GREET: TStepSpec = {
 	inputSchema: { type: "object", properties: { name: { type: "string" } }, required: ["name"] },
 };
 
-/** Returns `answer(method)` for each call of a step, as the site's RPC does. */
-function siteAnswering(answer: (method: string) => Response): () => void {
+/** A step that takes a statement. */
+const ENSURE: TStepSpec = {
+	method: "ActivitiesStepper-ensure",
+	stepperName: "ActivitiesStepper",
+	stepName: "ensure",
+	pattern: "ensure {outcome: statement}",
+	paramDomains: { outcome: "statement" },
+	inputSchema: { type: "object", properties: { outcome: { type: "string" } }, required: ["outcome"] },
+};
+
+/** Returns `answer(method, params)` for each call of a step, as the site's RPC does. */
+function siteAnswering(answer: (method: string, params: unknown) => Response): () => void {
 	const realFetch = globalThis.fetch;
-	globalThis.fetch = (input: unknown): Promise<Response> => {
+	globalThis.fetch = (input: unknown, init?: RequestInit): Promise<Response> => {
 		const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
 		if (url.endsWith(HANDSHAKE_PATH)) return Promise.resolve(rpcAnswer({ seqPath: [0, -1, 1] }, 200));
 		const method = url.slice(url.lastIndexOf("/rpc/") + "/rpc/".length);
-		return Promise.resolve(answer(method));
+		return Promise.resolve(answer(method, typeof init?.body === "string" ? JSON.parse(init.body).params : undefined));
 	};
 	return () => {
 		globalThis.fetch = realFetch;
@@ -186,6 +196,22 @@ describe("shu-step-caller", () => {
 		expect(errorText(caller)).toMatch(/invalid input/i);
 		expect(calls, "the step isn't called").toBe(0);
 		expect(caller.executed).toBe(true);
+	});
+
+	it("shows a fixed statement that holds placeholders as its sentence, and calls the statement with each placeholder's term", async () => {
+		const sent: unknown[] = [];
+		restore = siteAnswering((method, params) => {
+			if (method === ENSURE.method) sent.push(params);
+			return rpcAnswer({}, 200);
+		});
+		const caller = await aCaller(ENSURE, { params: JSON.stringify({ outcome: "greet {name} on {day: weekday}" }) });
+		expect(shown(caller)).toContain('data-testid="ensure-0-step-input-outcome-name"');
+		expect(shown(caller)).toContain('data-testid="ensure-0-step-input-outcome-day"');
+		await called(caller, { "outcome.name": "Ada" });
+		expect(errorText(caller), "a placeholder left empty").toMatch(/fill outcome\.day/);
+		expect(sent, "the step isn't called").toEqual([]);
+		await called(caller, { "outcome.name": "Ada", "outcome.day": "Monday" });
+		expect(sent).toEqual([{ outcome: 'greet "Ada" on "Monday"' }]);
 	});
 
 	it("shows the site's refusal of a call, and stops showing that it calls", async () => {

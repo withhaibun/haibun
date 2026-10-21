@@ -6,7 +6,7 @@ import { retainedProducts } from "../derivations/step-results.js";
 import { buildStepRegistry, createStepHandler, StepRegistry, type StepTool } from "../../steps/pipelines/step-registry.js";
 import { stepMethodName } from "../../steps/domains/step-method.js";
 import { discoverSteps } from "../../steps/pipelines/discover-steps.js";
-import { buildFeatureStepForTransport } from "../../steps/pipelines/call-step.js";
+import { buildFeatureStepForTransport, validatedFeatureStep } from "../../steps/pipelines/call-step.js";
 import { authorizeToolCapability } from "../../steps/pipelines/gate.js";
 import { validateToolInput } from "../../steps/derivations/tool-validation.js";
 import { EVERY_DEFINITION } from "../../steps/domains/step-discovery.js";
@@ -16,7 +16,7 @@ import { itemAt } from "../../domains/item-at.js";
 import { actionOKWithProducts, actionNotOK } from "../../domains/util.js";
 import { getDefaultWorld, testWithWorld } from "../../test/lib.js";
 import { TEST_DOMAIN, declaresTestDomains, testDomainDefinitions } from "../../test/test-domains.js";
-import { DOMAIN_DOMAIN_KEY, DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_RECORD_ID, DOMAIN_STRING, individualRefDomain, registerDomains } from "../../domains/domains.js";
+import { DOMAIN_DOMAIN_KEY, DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_RECORD_ID, DOMAIN_STATEMENT, DOMAIN_STRING, individualRefDomain, registerDomains } from "../../domains/domains.js";
 import type { TWorld } from "../domains/world.js";
 import { Access, DOMAIN_PERSISTED_TYPE, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "../../domains/resources.js";
 import { SEQ_PATH_EDGE, SEQ_PATH_FIELD, executionOf, factIdOf, formatRecordName } from "../domains/seq-path.js";
@@ -218,17 +218,17 @@ describe("step-dispatch", () => {
 
 		it("passes valid input", () => {
 			const w = getDefaultWorld();
-			expect(validateToolInput([], toolTaking(`test {x: ${DOMAIN_STRING}}`, w), { x: "hello" }, w).x).toBe("hello");
+			expect(validateToolInput([], toolTaking(`test {x: ${DOMAIN_STRING}}`, w), { x: "hello" }, w, []).x).toBe("hello");
 		});
 
 		it("throws on missing required input", () => {
 			const w = getDefaultWorld();
-			expect(() => validateToolInput([], toolTaking(`test {x: ${DOMAIN_STRING}}`, w), {}, w)).toThrow(/validation failed.*"x": required/);
+			expect(() => validateToolInput([], toolTaking(`test {x: ${DOMAIN_STRING}}`, w), {}, w, [])).toThrow(/validation failed.*"x": required/);
 		});
 
 		it("throws on invalid type", () => {
 			const w = getDefaultWorld();
-			expect(() => validateToolInput([], toolTaking(`test {x: ${DOMAIN_NUMBER}}`, w), { x: "not-a-number" }, w)).toThrow(/validation failed/);
+			expect(() => validateToolInput([], toolTaking(`test {x: ${DOMAIN_NUMBER}}`, w), { x: "not-a-number" }, w, [])).toThrow(/validation failed/);
 		});
 
 		it("takes a domain registered after the registry was built", () => {
@@ -236,9 +236,9 @@ describe("step-dispatch", () => {
 			registerDomains(w, []);
 			const tool = toolTaking(`test {x: ${DOMAIN_DOMAIN_KEY}}`, w);
 			const LATER = "declared-later";
-			expect(() => validateToolInput([], tool, { x: LATER }, w), "before it is declared").toThrow(/validation failed/);
+			expect(() => validateToolInput([], tool, { x: LATER }, w, []), "before it is declared").toThrow(/validation failed/);
 			registerDomains(w, [[{ selectors: [LATER], schema: z.string(), description: "a domain a feature declares" }]]);
-			expect(validateToolInput([], tool, { x: LATER }, w).x).toBe(LATER);
+			expect(validateToolInput([], tool, { x: LATER }, w, []).x).toBe(LATER);
 		});
 
 		it("doesn't list the domains or types that a domain or type parameter takes, and refuses an unregistered domain", () => {
@@ -248,8 +248,8 @@ describe("step-dispatch", () => {
 			if (!key || !type) throw new Error("Expected the key and type parameters");
 			expect(key.enum, "the key doesn't list a domain key").toBeUndefined();
 			expect(type.enum, "the type doesn't list a type").toBeUndefined();
-			expect(validateToolInput([], tool, { key: DOMAIN_NUMBER, type: "Anything" }, w).key).toBe(DOMAIN_NUMBER);
-			expect(() => validateToolInput([], tool, { key: "no-such-domain", type: "Anything" }, w)).toThrow(/`show domains` lists them/);
+			expect(validateToolInput([], tool, { key: DOMAIN_NUMBER, type: "Anything" }, w, []).key).toBe(DOMAIN_NUMBER);
+			expect(() => validateToolInput([], tool, { key: "no-such-domain", type: "Anything" }, w, [])).toThrow(/`show domains` lists them/);
 		});
 
 		it("applies domain.coerce() when world is provided", () => {
@@ -262,8 +262,24 @@ describe("step-dispatch", () => {
 			const registry = buildStepRegistry([stepper], w);
 			const tool = registry.get(`${stepper.constructor.name}-doIt`);
 			if (!tool) throw new Error("Expected tool to be registered");
-			const result = validateToolInput([], tool, { val: "hello" }, w);
+			const result = validateToolInput([], tool, { val: "hello" }, w, []);
 			expect(result.val).toBe("HELLO");
+		});
+
+		it("resolves a statement to its steps at the call's seqPath, and states the statement as its text in the call's line", () => {
+			const w = getDefaultWorld();
+			w.runtime.backgrounds = [];
+			const stepper = new (class extends AStepper {
+				description = "A step that runs a statement, and a step a statement states.";
+				steps = { run: { gwta: `run {what: ${DOMAIN_STATEMENT}}`, action: async () => OK }, wave: { gwta: "wave", action: async () => OK } };
+			})();
+			const steppers = [stepper];
+			const tool = buildStepRegistry(steppers, w).get(`${stepper.constructor.name}-run`);
+			if (!tool) throw new Error("Expected tool to be registered");
+			const [step] = z.array(z.custom<TFeatureStep>()).parse(validateToolInput([0, 3], tool, { what: "wave" }, w, steppers).what);
+			expect(step?.action.actionName).toBe("wave");
+			expect(step?.seqPath).toEqual([0, 3, 0]);
+			expect(validatedFeatureStep(tool, { what: "wave" }, [0, 3], w, steppers).in).toBe("run wave");
 		});
 
 		it("takes a reference given as an id, an object or JSON text, and refuses a number and text that isn't JSON", () => {
@@ -275,11 +291,11 @@ describe("step-dispatch", () => {
 			})();
 			const tool = buildStepRegistry([stepper], w).get(`${stepper.constructor.name}-revoke`);
 			if (!tool) throw new Error("Expected tool to be registered");
-			expect(validateToolInput([], tool, { what: "urn:uuid:1" }, w).what, "an id").toEqual({ id: "urn:uuid:1" });
-			expect(validateToolInput([], tool, { what: { id: "urn:uuid:1" } }, w).what, "a reference").toEqual({ id: "urn:uuid:1" });
-			expect(validateToolInput([], tool, { what: '{"id":"urn:uuid:1"}' }, w).what, "its JSON text").toEqual({ id: "urn:uuid:1" });
-			expect(() => validateToolInput([], tool, { what: 7 }, w), "a number").toThrow(/"what" \(value: 7\): Invalid input: expected object/);
-			expect(() => validateToolInput([], tool, { what: '{"id":' }, w), "text that isn't JSON").toThrow(/"what" \(value: .*\): is text that isn't JSON \(.+\): \{"id":/);
+			expect(validateToolInput([], tool, { what: "urn:uuid:1" }, w, []).what, "an id").toEqual({ id: "urn:uuid:1" });
+			expect(validateToolInput([], tool, { what: { id: "urn:uuid:1" } }, w, []).what, "a reference").toEqual({ id: "urn:uuid:1" });
+			expect(validateToolInput([], tool, { what: '{"id":"urn:uuid:1"}' }, w, []).what, "its JSON text").toEqual({ id: "urn:uuid:1" });
+			expect(() => validateToolInput([], tool, { what: 7 }, w, []), "a number").toThrow(/"what" \(value: 7\): Invalid input: expected object/);
+			expect(() => validateToolInput([], tool, { what: '{"id":' }, w, []), "text that isn't JSON").toThrow(/"what" \(value: .*\): is text that isn't JSON \(.+\): \{"id":/);
 		});
 	});
 
@@ -391,8 +407,7 @@ describe("step-dispatch", () => {
 			const tool = registry.get(`${stepper.constructor.name}-protectedEcho`);
 			if (!tool) throw new Error("Expected protected tool to be registered");
 
-			const validatedParams = validateToolInput([0, 7], tool, { message: "hello" }, world);
-			const featureStep = buildFeatureStepForTransport(tool, validatedParams, [0, 7]);
+			const featureStep = validatedFeatureStep(tool, { message: "hello" }, [0, 7], world, steppers);
 			const result = await dispatchStep({ registry, world, steppers, grantedCapability: ["Remote:invoke"] }, featureStep);
 
 			expect(result.ok).toBe(true);
@@ -490,10 +505,7 @@ describe("step-dispatch", () => {
 			const registry = new StepRegistry(steppers, world);
 			const tool = registry.get(`${reads.constructor.name}-readsRecord`) as StepTool;
 			const read = (id: unknown, path: number[]) =>
-				dispatchStep(
-					{ registry, world, steppers, grantedCapability: RUN_AUTHORITY },
-					buildFeatureStepForTransport(tool, validateToolInput(path, tool, { label: "Letter", id }, world), path),
-				);
+				dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, validatedFeatureStep(tool, { label: "Letter", id }, path, world, steppers));
 			for (const [given, path] of [
 				["e1", [0, 31, 1]],
 				[{ id: "e1" }, [0, 31, 2]],
@@ -553,7 +565,7 @@ describe("step-dispatch", () => {
 				if (event.kind === "log") logged.push({ id: event.id, message: event.message });
 			});
 			const say = (what: string, path: number[]) =>
-				dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, buildFeatureStepForTransport(tool, validateToolInput(path, tool, { what }, world), path));
+				dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, validatedFeatureStep(tool, { what }, path, world, steppers));
 			await Promise.all([say("first", [0, 8, 1]), say("second", [0, 8, 2])]);
 			expect(logged.find((log) => log.message === "first")?.id, "the first call's log names the first step").toMatch(/^0\.8\.1\.log\./);
 			expect(logged.find((log) => log.message === "second")?.id, "and the second's the second").toMatch(/^0\.8\.2\.log\./);

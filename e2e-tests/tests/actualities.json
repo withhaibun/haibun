@@ -1,4 +1,191 @@
 {
+	"linux-x64-16x-amd-ryzen-7-pro-7840u-w-radeon-780m-graphics": {
+		"a408f5c9be2ff9a6": {
+			"filter": "",
+			"execution": {
+				"text": "e2e-tests/tests",
+				"status": "passed",
+				"tookMs": 16000,
+				"digest": {
+					"e2e-tests/src": "fb54401ba52a544ad166f4327c0dda191c8ea1613c86c8e016ec9a90700878bc",
+					"e2e-tests/tests": "b023717e5dd5d93ae978f6491202486199ccb832d0d1d9e8d26cc74c06b789ca",
+					"modules/cli/src": "fdce861f02447d58a40e9cfd79e61b007ae9e902efbba1f9a8cc46e8cbd834e2",
+					"modules/core/src": "1ccee45b963257084be3786a769386393881792286491043c791944067db52d5",
+					"modules/domain-storage/src": "8555ea196220a75db0f69cfbf0f7374da5fc614ecf6b652c38d33cc7b11d92e9",
+					"modules/logic/src": "b4e2077ea30b6098341731b07f24db97a6ef9227290304a3533ac65b403783bf",
+					"modules/monitor-otel/src": "94b4eea8217dc6803a9d04eb2e989b22258374a2fe11a211ddfcd888be31c99b",
+					"modules/monitor-tui/src": "a827c8af8ca688c390637f2aa5bd5a343695fc199d15450e06fa6c9de0b9fc8b",
+					"modules/out-junit/src": "0463cad4b361a5c74fd84222ffb68cadcb91255b6d2c34fb78083a139f60af66",
+					"modules/recorder/src": "4e1f4c42c968bc4a395d7bca41861260dabef7681811a2022ffabc6394916eeb",
+					"modules/shu/src": "55e6fe263d572c1d94a5281048515afced3af34d321621ba6b89001b79ed65aa",
+					"modules/storage-fs/src": "948755c17d4f877495d0018ea37b8a39a7bae31a28b3317c3adfcb9b2e9c79e7",
+					"modules/storage-mem/src": "764cfa313b43fa43bd52ab7fd10ce9d5ee1b3c033c58b2fc6a85d98c7f267206",
+					"modules/utils/src": "128195b8e9b52a9197bfd78e93a19be17009af4fc3fa03d78930236c955079c4",
+					"modules/web-accessibility-axe/src": "526c6768edf0e5c08f0b8e357e6e2d33a8e9187288ba3cae3a438b0fafc0c279",
+					"modules/web-playwright/src": "d06bf1844d870832f67c17dfe0d3263d1f0ea4fd6a26930ea393cec73da9718a",
+					"modules/web-server-hono/src": "66211aa59f9af2b6079a1203a9e8241c2296f2bad1adef650e4e78be40a7a963"
+				}
+			},
+			"features": {
+				"/features/a11y-fail.feature": {
+					"text": "/features/a11y-fail",
+					"status": "passed",
+					"tookMs": 600,
+					"steps": 12
+				},
+				"/features/a11y-pass.feature": {
+					"text": "/features/a11y-pass",
+					"status": "passed",
+					"tookMs": 600,
+					"steps": 12
+				},
+				"/features/after-every.feature": {
+					"text": "/features/after-every",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 9
+				},
+				"/features/agents-examples.feature": {
+					"text": "/features/agents-examples",
+					"status": "passed",
+					"tookMs": 300,
+					"steps": 360
+				},
+				"/features/auth-basic.feature": {
+					"text": "/features/auth-basic",
+					"status": "passed",
+					"tookMs": 700,
+					"steps": 42
+				},
+				"/features/auth-bearer.feature": {
+					"text": "/features/auth-bearer",
+					"status": "passed",
+					"tookMs": 500,
+					"steps": 65
+				},
+				"/features/auth-form.feature": {
+					"text": "/features/auth-form",
+					"status": "passed",
+					"tookMs": 800,
+					"steps": 24
+				},
+				"/features/counter.feature": {
+					"text": "/features/counter",
+					"status": "passed",
+					"tookMs": 1700,
+					"steps": 20
+				},
+				"/features/counter.feature.ts": {
+					"text": "Counts feature",
+					"status": "passed",
+					"tookMs": 1000,
+					"steps": 20
+				},
+				"/features/counts.feature.ts": {
+					"text": "Counts feature",
+					"status": "passed",
+					"tookMs": 400,
+					"steps": 22
+				},
+				"/features/elements.feature": {
+					"text": "/features/elements",
+					"status": "passed",
+					"tookMs": 400,
+					"steps": 8
+				},
+				"/features/executor-rpc.feature.ts": {
+					"text": "Executor RPC dispatch",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 8
+				},
+				"/features/feature-variables.feature": {
+					"text": "/features/feature-variables",
+					"status": "passed",
+					"tookMs": 100,
+					"steps": 19
+				},
+				"/features/identity-and-capability.feature.ts": {
+					"text": "Identity and capability authorization",
+					"status": "passed",
+					"tookMs": 200,
+					"steps": 28
+				},
+				"/features/if-set.feature": {
+					"text": "/features/if-set",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 13
+				},
+				"/features/not.feature": {
+					"text": "/features/not",
+					"status": "passed",
+					"tookMs": 500,
+					"steps": 9
+				},
+				"/features/once.feature.ts": {
+					"text": "A group of features runs once per state of what it depends on",
+					"status": "passed",
+					"tookMs": 1400,
+					"steps": 20
+				},
+				"/features/page-visits.feature.ts": {
+					"text": "Visit pages",
+					"status": "passed",
+					"tookMs": 600,
+					"steps": 64
+				},
+				"/features/popup.feature": {
+					"text": "/features/popup",
+					"status": "passed",
+					"tookMs": 600,
+					"steps": 13
+				},
+				"/features/qrcode.feature": {
+					"text": "/features/qrcode",
+					"status": "passed",
+					"tookMs": 2500,
+					"steps": 19
+				},
+				"/features/recurse.feature": {
+					"text": "/features/recurse",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 3
+				},
+				"/features/trauma_center.feature": {
+					"text": "/features/trauma_center",
+					"status": "passed",
+					"tookMs": 100,
+					"steps": 93
+				},
+				"/features/upload-verify.feature": {
+					"text": "/features/upload-verify",
+					"status": "passed",
+					"tookMs": 500,
+					"steps": 19
+				},
+				"/features/visited-pages.feature": {
+					"text": "/features/visited-pages",
+					"status": "passed",
+					"tookMs": 500,
+					"steps": 31
+				},
+				"/features/workflow.feature.ts": {
+					"text": "workflow",
+					"status": "passed",
+					"tookMs": 200,
+					"steps": 64
+				},
+				"/features/xss.feature": {
+					"text": "/features/xss",
+					"status": "passed",
+					"tookMs": 600,
+					"steps": 11
+				}
+			}
+		}
+	},
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
 		"23ab4b344343e0c8": {
 			"filter": "",

@@ -6,7 +6,7 @@ import type { FeatureVariables } from "../../actuality/pipelines/feature-variabl
 import type { TWorld, TEnvVariables } from "../../actuality/domains/world.js";
 import type { TOptionValue, TFeatures, TSourceLocation, TStepInput } from "../../actuality/domains/execution.js";
 import type { TSeqPath, TActionResult, TStepArgs, TStepValue, TStepResult, TFeatureResult, TExecutorResult, THaibunEvent, TProvenanceIdentifier } from "../../domains/protocol.js";
-import type { TDomainDefinition } from "../../domains/resources.js";
+import type { TCoercionSite, TDomainDefinition } from "../../domains/resources.js";
 import type { TStepReads } from "../../domains/actions.js";
 import type { IQuadStore } from "../ports.js";
 import { constructorName } from "../../domains/util.js";
@@ -113,6 +113,9 @@ export type TFeatureStep = {
 	/** True for a dispatch that doesn't run a feature for a person. `buildFeatureStepForTransport` sets it for an RPC or MCP call. A lifecycle hook that would call `world.prompter.prompt()` skips the prompt where this is set. */
 	programmatic?: boolean;
 };
+
+/** The site at which a feature step's values are coerced: its seqPath, the path of its feature, and the steppers. */
+export const coercionSite = (featureStep: TFeatureStep, steppers: AStepper[]): TCoercionSite => ({ seqPath: featureStep.seqPath, path: featureStep.source?.path, steppers });
 
 export type TStepAction = { actionName: string; stepperName: string; step: TStepperStep; stepValuesMap?: TStepValuesMap };
 

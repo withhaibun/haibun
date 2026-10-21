@@ -8,7 +8,7 @@ import { actionOK } from "../../domains/util.js";
 import { LinkRelations, type TRegisteredDomain } from "../../domains/resources.js";
 import { AStepper, PREDICATE, READING, type TWaypointRule } from "../domains/stepper.js";
 import { phraseParts } from "../domains/phrase.js";
-import { declaredSteps, lineOfCall, predicateArities, predicatesOf } from "./predicate-registry.js";
+import { declaredSteps, predicateArities, predicatesOf } from "./predicate-registry.js";
 
 const action = () => actionOK();
 const RULE: TWaypointRule = { head: "{m: meal} is ready", pattern: "{m: meal} is ready", proof: [], activity: [], source: { path: "kitchen.feature" } };
@@ -51,11 +51,6 @@ describe("the predicate registry", () => {
 		const topology = { persistedAs: "Recipe", properties: { id: LinkRelations.IDENTIFIER.rel }, edges: { uses: { rel: LinkRelations.PART_OF.rel, range: "Pantry" } } };
 		const arities = predicateArities([new Kitchen()], { recipe: { topology } as unknown as TRegisteredDomain });
 		expect(["Recipe", "id", "uses", "Kitchen-plate", PREDICATE.precedes].map((name) => arities.get(name))).toEqual([1, 2, 2, 2, 3]);
-	});
-
-	it("renders a call as its step's pattern with each value it states written literally, and leaves a part it doesn't state as the pattern names it", () => {
-		expect(lineOfCall("plate {dish: meal} on {plate: number}", { dish: "soup", plate: 2 })).toBe('plate "soup" on 2');
-		expect(lineOfCall("plate {dish: meal} on {plate: number}", { dish: "soup" })).toBe('plate "soup" on {plate: number}');
 	});
 
 	it("reads each placeholder of a phrase once, in its order, with a union's parts in order", () => {

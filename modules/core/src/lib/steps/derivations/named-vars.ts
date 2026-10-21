@@ -7,7 +7,7 @@ import type { TStepperStep, TStepAction } from "../domains/stepper.js";
 import { type TStepValue, type TOrigin, Origin } from "../../domains/protocol.js";
 import { DOMAIN_DURATION, DOMAIN_STATEMENT, DOMAIN_STRING, DURATION_TERM } from "../../domains/domains.js";
 import { itemAt } from "../../domains/item-at.js";
-import { placeholderOf } from "../domains/phrase.js";
+import { phraseParts, placeholderOf } from "../domains/phrase.js";
 
 const TYPE_QUOTED = "q_";
 const TYPE_ENV = "e_";
@@ -180,14 +180,22 @@ export function literalTerm(value: unknown, domain: string | undefined): string 
 	return `"${String(value).replace(/\n/g, "\\n").replace(/"/g, '\\"')}"`;
 }
 
-/** Each parameter of a call from a transport as a step value. A transport's input is already validated and coerced by
- *  validateToolInput, so each value is carried through and populateActionArgs doesn't resolve it again. A key the phrase
- *  names keeps its declared domain, and any other key is added as a quoted string. */
-export function mapInputToStepValues(input: Readonly<Record<string, unknown>>, gwta: string): Record<string, TStepValue> {
+/** The line a call renders as: its step's pattern with each value the call states written as a line states it literally for its
+ *  part's domain. A part the call doesn't state stays as the pattern names it, so the line doesn't resolve, and dispatch refuses
+ *  the call after its gate. */
+export const lineOfCall = (pattern: string, input: Readonly<Record<string, unknown>>): string =>
+	renderStepLine(pattern, Object.fromEntries(phraseParts(pattern).flatMap(({ name, domain }) => (input[name] === undefined ? [] : [[name, literalTerm(input[name], domain)]]))));
+
+/** Each parameter of a call from a transport as a step value: its term the value the call states, and its value the one
+ *  `values` holds. A validated call's values are validated and coerced by validateToolInput, so each value is carried
+ *  through and populateActionArgs doesn't resolve it again. A key the phrase names keeps its declared domain, and any other
+ *  key is added as a quoted string. */
+export function mapInputToStepValues(stated: Readonly<Record<string, unknown>>, values: Readonly<Record<string, unknown>>, gwta: string): Record<string, TStepValue> {
 	const { stepValuesMap } = namedInterpolation(gwta);
 	const updatedMap: Record<string, TStepValue> = stepValuesMap === undefined ? {} : stepValuesMap;
-	for (const [key, val] of Object.entries(input)) {
-		const term = typeof val === "object" && val !== null ? JSON.stringify(val) : String(val);
+	for (const [key, val] of Object.entries(values)) {
+		const written = stated[key];
+		const term = typeof written === "object" && written !== null ? JSON.stringify(written) : String(written);
 		const existing = updatedMap[key];
 		updatedMap[key] = existing ? { ...existing, term, value: val, origin: Origin.quoted } : { term, value: val, origin: Origin.quoted, domain: DOMAIN_STRING };
 	}

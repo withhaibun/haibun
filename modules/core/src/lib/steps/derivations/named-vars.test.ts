@@ -2,7 +2,7 @@ import { describe, it, test, expect } from "vitest";
 
 import { OK, TStepArgs, Origin, TEST_BASE } from "../../domains/protocol.js";
 import { AStepper } from "../domains/stepper.js";
-import { getNamedMatches, namedInterpolation } from "./named-vars.js";
+import { getNamedMatches, lineOfCall, namedInterpolation } from "./named-vars.js";
 import { Resolver } from "../../actuality/pipelines/resolver.js";
 import { createSteppers } from "../../domains/util.js";
 import { getDefaultWorld } from "../../test/lib.js";
@@ -63,5 +63,12 @@ describe("a compiled phrase", () => {
 		if (first.stepValuesMap?.what === undefined) throw new Error("the phrase names {what}");
 		first.stepValuesMap.what.term = "changed";
 		expect(namedInterpolation("set {what} to {value}").stepValuesMap?.what?.term).toBe("what");
+	});
+});
+
+describe("lineOfCall", () => {
+	it("renders a call as its step's pattern with each value it states written literally, and leaves a part it doesn't state as the pattern names it", () => {
+		expect(lineOfCall("plate {dish: meal} on {plate: number}", { dish: "soup", plate: 2 })).toBe('plate "soup" on 2');
+		expect(lineOfCall("plate {dish: meal} on {plate: number}", { dish: "soup" })).toBe('plate "soup" on {plate: number}');
 	});
 });

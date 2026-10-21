@@ -84,7 +84,7 @@ export function callTerm(world: TWorld, method: string, input: Record<string, un
 	const { descriptor, stepDef } = runRegistry(world).named(method);
 	if (stepDef === undefined) throw new Error(`${method} runs at another host, which holds its predicate; state a call of a step this process runs`);
 	const functor = predicateOf({ stepperName: descriptor.stepperName, actionName: descriptor.stepName, step: stepDef });
-	return termText(termOfAction(functor, mapInputToStepValues(input, descriptor.pattern), descriptor.pattern, world.domains));
+	return termText(termOfAction(functor, mapInputToStepValues(input, input, descriptor.pattern), descriptor.pattern, world.domains));
 }
 
 /** The rule a formula states, or why the fragment or the registry doesn't hold the formula and what to write in its place. */

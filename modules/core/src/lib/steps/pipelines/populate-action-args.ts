@@ -2,7 +2,7 @@
  * A step's arguments: each parameter resolved from its term and coerced to its domain. A term that doesn't resolve, or a
  * value its domain refuses, is a refusal that names the step, the parameter and the cause.
  */
-import type { AStepper, TFeatureStep } from "../domains/stepper.js";
+import { coercionSite, type AStepper, type TFeatureStep } from "../domains/stepper.js";
 import type { TWorld } from "../../actuality/domains/world.js";
 import type { TStepArgs, TStepValue } from "../../domains/protocol.js";
 import { DOMAIN_STRING, DOMAIN_VARIABLE_VALUE, domainParts, isPrimitiveDomain, paramDomainKey, registeredDomain } from "../../domains/domains.js";
@@ -98,7 +98,7 @@ function readInDomain(
 	const domain = registeredDomain(world.domains, takes, inStep);
 	if (!isPrimitiveDomain(holds) && domain.topology?.ranges?.id !== holds) return { refused: `${inStep} takes ${takes}, and ${resolved.term} holds ${holds}` };
 	try {
-		return { value: domain.coerce({ ...resolved, domain: takes }, featureStep, steppers) };
+		return { value: domain.coerce({ ...resolved, domain: takes }, coercionSite(featureStep, steppers)) };
 	} catch (e) {
 		return { refused: `${inStep} takes ${takes}, and refuses ${resolved.term}: ${errorDetail(e)}` };
 	}

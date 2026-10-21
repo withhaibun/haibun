@@ -760,12 +760,13 @@ export const DOMAIN_PERSISTED_TYPE = "persisted-type";
 // Domain registration shape
 // ============================================================================
 
-/** Parses a step value, or another proto, into the domain's native representation. */
-type TDomainCoercer = (
-	proto: import("./protocol.js").TStepValue,
-	featureStep?: import("../steps/domains/stepper.js").TFeatureStep,
-	steppers?: import("../steps/domains/stepper.js").AStepper[],
-) => import("./protocol.js").TStepValueValue;
+/** Where a value is coerced: the seqPath of the step it fills, the path of the feature that states it, and the steppers. A
+ *  call from a transport doesn't have a feature, so its path is undefined. */
+export type TCoercionSite = { seqPath: import("./protocol.js").TSeqPath; path: string | undefined; steppers: import("../steps/domains/stepper.js").AStepper[] };
+
+/** Parses a step value, or another proto, into the domain's native representation. A domain whose value depends on the
+ *  step it fills, as `statement`'s does, reads the site. */
+type TDomainCoercer = (proto: import("./protocol.js").TStepValue, site?: TCoercionSite) => import("./protocol.js").TStepValueValue;
 
 /** Comparator between two coerced domain values. */
 type TDomainComparator = (value: import("./protocol.js").TStepValueValue, baseline: import("./protocol.js").TStepValueValue) => number;

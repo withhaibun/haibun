@@ -13,7 +13,6 @@ import { PREDICATE, type AStepper, type TStepAction } from "../domains/stepper.j
 import { stepMethodName } from "../domains/step-method.js";
 import { phraseParts, stepParts, type TPart } from "../domains/phrase.js";
 import type { TPredicate } from "../domains/step-discovery.js";
-import { literalTerm, renderStepLine } from "./named-vars.js";
 
 /** A part that takes a member of a domain. */
 const member = (name: string): TPart => ({ name, domain: DOMAIN_VARIABLE_VALUE });
@@ -48,9 +47,3 @@ const recordArities = (domains: Record<string, TRegisteredDomain>): [string, num
 /** The registry's predicates by name, with their arity, which a formula's predicates are held to: the records' and the steps'. */
 export const predicateArities = (steppers: readonly AStepper[], domains: Record<string, TRegisteredDomain>): Map<string, number> =>
 	new Map([...recordArities(domains), ...predicatesOf(declaredSteps(steppers)).map(({ name, parts }): [string, number] => [name, parts.length])]);
-
-/** The line a call renders as: its step's pattern with each value the call states written as a line states it literally for its
- *  part's domain. A part the call doesn't state stays as the pattern names it, so the line doesn't resolve, and dispatch refuses
- *  the call after its gate. */
-export const lineOfCall = (pattern: string, input: Readonly<Record<string, unknown>>): string =>
-	renderStepLine(pattern, Object.fromEntries(phraseParts(pattern).flatMap(({ name, domain }) => (input[name] === undefined ? [] : [[name, literalTerm(input[name], domain)]]))));

@@ -8,8 +8,7 @@
 import type { AStepper, TFeatureStep } from "@haibun/core/lib/steps/domains/stepper.js";
 import type { TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
 import { nextSeqPath, proveStep, type DispatchContext } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
-import { buildFeatureStepForTransport } from "@haibun/core/lib/steps/pipelines/call-step.js";
-import { validateToolInput } from "@haibun/core/lib/steps/derivations/tool-validation.js";
+import { validatedFeatureStep } from "@haibun/core/lib/steps/pipelines/call-step.js";
 import { literalTerm, renderStepLine } from "@haibun/core/lib/steps/derivations/named-vars.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { LOGIC_STEPPER_NAME, VERDICT, type TActionResult, type TStepResult } from "@haibun/core/lib/domains/protocol.js";
@@ -75,7 +74,7 @@ async function proveUnder(ctx: DispatchContext, parent: TFeatureStep, method: st
 	const { world } = ctx;
 	const tool = ctx.registry.named(method);
 	const seqPath = nextSeqPath(world, parent.seqPath);
-	const result = await proveStep(ctx, { ...buildFeatureStepForTransport(tool, validateToolInput(seqPath, tool, input, world), seqPath), isSubStep: true });
+	const result = await proveStep(ctx, { ...validatedFeatureStep(tool, input, seqPath, world, ctx.steppers), isSubStep: true });
 	return { result, fact: factIdOf({ [EXECUTION_FIELD]: executionOf(world.tag), path: seqPath }) };
 }
 

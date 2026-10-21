@@ -9,9 +9,11 @@ import { SHU_TAG } from "@haibun/shu/domains/elements.js";
 import { createStepUI, flattenTestIds } from "@haibun/shu/test/step-ui.js";
 import { COMMENT_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { headingAnchor } from "@haibun/core/lib/domains/document-content.js";
+import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
+import { ACTIVITIES_STEPPER } from "@haibun/core/steps/activities-actions.js";
 
 const wp = new WebPlaywright();
-const { waitFor, click, gotoPage, reloadPage, inElement } = withAction(wp);
+const { waitFor, click, gotoPage, reloadPage, inElement, setValue } = withAction(wp);
 const { serveShuApp } = withAction(new ShuStepper());
 const { set, setAs, exists, setFromStatement } = withAction(new VariablesStepper());
 const { comment } = withAction(new ResourcesStepper());
@@ -39,6 +41,8 @@ const MONITOR_PANE = `shu-column-pane[column-type="${SHU_TAG.MONITOR_COLUMN}"]`;
 const CHAIN_PANE = `shu-column-pane:has(${SHU_TAG.DOMAIN_CHAIN_VIEW})`;
 const MAIN_GRAPH_PANE = `shu-column-pane:has(${SHU_TAG.POLYMORPHIC_GRAPH_VIEW}:not([data-external]))`;
 /** The canvas of the graph view that the domain chain view mounts in its graph slot. */
+/** The form of the ensure step, which a waypoint's Ensure opens. */
+const ENSURE_CALLER = `${SHU_TAG.STEP_CALLER}[step='${stepMethodName(ACTIVITIES_STEPPER, "ensure")}']`;
 const CHAIN_GRAPH_CANVAS = "chain-graph-canvas";
 const CHAIN_GRAPH_CANVAS_SELECTOR = `${SHU_TAG.DOMAIN_CHAIN_VIEW} > [slot='${IDS.DOMAIN_CHAIN.GRAPH}'] [data-testid='${IDS.POLYMORPHIC_VIEW.SCENE}'] canvas`;
 /** The views picker's list of declared views, and its row that opens the monitor column. */
@@ -152,6 +156,21 @@ export const features: TKirejiExport = {
 		...passesStepExecution("LogicStepper-showAffordances"),
 		waitFor({ target: IDS.AFFORDANCES.ROOT }),
 		waitFor({ target: IDS.AFFORDANCES.GOALS_LIST }),
+
+		scenario({ scenario: "Ensure on a waypoint whose head holds a placeholder takes the placeholder's value" }),
+		"A waypoint's head can hold a placeholder. The waypoint's Ensure opens the ensure form with the head as a sentence and an input for the placeholder. The form calls ensure with the head and the value entered, and the waypoint's activity runs for that value.",
+		"Activity: Greet someone",
+		"set greeted to {who}",
+		"waypoint Greeted {who} with variable greeted is {who}",
+		setAs({ what: "greeted-ensure", domain: "page-locator", value: `"[data-testid^='waypoint-Greeted '][data-testid$='-run']"` }),
+		click({ target: "greeted-ensure" }),
+		setAs({ what: "greeted-who", domain: "page-locator", value: `"${ENSURE_CALLER} [data-testid$='-step-input-outcome-who']"` }),
+		setValue({ what: '"Ada"', field: "greeted-who" }),
+		setAs({ what: "greeted-run", domain: "page-locator", value: `"${ENSURE_CALLER} [data-testid$='-step-run']"` }),
+		click({ target: "greeted-run" }),
+		setAs({ what: "greeted-result", domain: "page-locator", value: `"${ENSURE_CALLER}[data-testid$='-step-result']"` }),
+		waitFor({ target: "greeted-result" }),
+		'variable greeted is "Ada"',
 
 		scenario({ scenario: "Invoke `show chain lint` and verify the domain chain renders as a graph" }),
 

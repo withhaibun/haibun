@@ -5,19 +5,7 @@
 			"execution": {
 				"text": "e2e-tests/shu-self-test",
 				"status": "passed",
-				"tookMs": 69600,
-				"digest": {
-					"e2e-tests/shu-self-test": "359b77f7d11315dddc19d1484dd6e727fcc237d98417a430cacd726928184ffb",
-					"modules/core/src": "55cb9a8b88f90ddfe5d843f6385fdce03a631eda385d2c776d9871efac5e97bd",
-					"modules/domain-storage/src": "8555ea196220a75db0f69cfbf0f7374da5fc614ecf6b652c38d33cc7b11d92e9",
-					"modules/logic/src": "8c83176cd37dc52643eb24805524522c666774b882f995e79bae8b3e7571d01b",
-					"modules/monitor-tui/src": "a827c8af8ca688c390637f2aa5bd5a343695fc199d15450e06fa6c9de0b9fc8b",
-					"modules/shu/src": "e1cad4acda4532e548119e9a096e37b34a7b38af08716b2448ab883fa2c93777",
-					"modules/storage-fs/src": "948755c17d4f877495d0018ea37b8a39a7bae31a28b3317c3adfcb9b2e9c79e7",
-					"modules/storage-mem/src": "764cfa313b43fa43bd52ab7fd10ce9d5ee1b3c033c58b2fc6a85d98c7f267206",
-					"modules/web-playwright/src": "2dfae50edae1c9b7860948459115c83bf757ad884183eaabc15a578cff508333",
-					"modules/web-server-hono/src": "71e2eacbc506cee1ea4eca295e9efea1a31ca4c801cab736e1fc6c03f1b6c7b4"
-				}
+				"tookMs": 69600
 			},
 			"features": {
 				"/features/shu-self-test.feature.ts": {
@@ -25,6 +13,40 @@
 					"status": "passed",
 					"tookMs": 68100,
 					"steps": 707
+				},
+				"/features/z-post.feature.ts": {
+					"text": "Verify Shu Standalone Output Doesn't Hold Secrets",
+					"status": "passed",
+					"tookMs": 100,
+					"steps": 8
+				}
+			}
+		},
+		"e3c27ce2db2947b3": {
+			"filter": "",
+			"execution": {
+				"text": "e2e-tests/shu-self-test",
+				"status": "passed",
+				"tookMs": 58700,
+				"digest": {
+					"e2e-tests/shu-self-test": "399b0e15a03bca9ebaba3935153fab910036658c5c8c2bdc7157fe1601cd4459",
+					"modules/core/src": "1ccee45b963257084be3786a769386393881792286491043c791944067db52d5",
+					"modules/domain-storage/src": "8555ea196220a75db0f69cfbf0f7374da5fc614ecf6b652c38d33cc7b11d92e9",
+					"modules/logic/src": "b4e2077ea30b6098341731b07f24db97a6ef9227290304a3533ac65b403783bf",
+					"modules/monitor-tui/src": "a827c8af8ca688c390637f2aa5bd5a343695fc199d15450e06fa6c9de0b9fc8b",
+					"modules/shu/src": "55e6fe263d572c1d94a5281048515afced3af34d321621ba6b89001b79ed65aa",
+					"modules/storage-fs/src": "948755c17d4f877495d0018ea37b8a39a7bae31a28b3317c3adfcb9b2e9c79e7",
+					"modules/storage-mem/src": "764cfa313b43fa43bd52ab7fd10ce9d5ee1b3c033c58b2fc6a85d98c7f267206",
+					"modules/web-playwright/src": "d06bf1844d870832f67c17dfe0d3263d1f0ea4fd6a26930ea393cec73da9718a",
+					"modules/web-server-hono/src": "66211aa59f9af2b6079a1203a9e8241c2296f2bad1adef650e4e78be40a7a963"
+				}
+			},
+			"features": {
+				"/features/shu-self-test.feature.ts": {
+					"text": "Shu SPA Self-Test",
+					"status": "passed",
+					"tookMs": 57100,
+					"steps": 733
 				},
 				"/features/z-post.feature.ts": {
 					"text": "Verify Shu Standalone Output Doesn't Hold Secrets",

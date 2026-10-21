@@ -5,32 +5,32 @@
 			"execution": {
 				"text": "modules/shu/tests-profile, modules/shu/waypoints",
 				"status": "passed",
-				"tookMs": 13700,
+				"tookMs": 12900,
 				"digest": {
-					"modules/core/src": "8cabea362feeea9a17a9487498ca640e1da2b400d29209a66e90af9d2a6aa491",
+					"modules/core/src": "1ccee45b963257084be3786a769386393881792286491043c791944067db52d5",
 					"modules/domain-storage/src": "8555ea196220a75db0f69cfbf0f7374da5fc614ecf6b652c38d33cc7b11d92e9",
-					"modules/logic/src": "8c83176cd37dc52643eb24805524522c666774b882f995e79bae8b3e7571d01b",
+					"modules/logic/src": "b4e2077ea30b6098341731b07f24db97a6ef9227290304a3533ac65b403783bf",
 					"modules/monitor-tui/src": "a827c8af8ca688c390637f2aa5bd5a343695fc199d15450e06fa6c9de0b9fc8b",
-					"modules/shu/src": "786eb027f2d6a54d28c89f76083b5d26955e513a7cbde643659a4234a2030491",
+					"modules/shu/src": "55e6fe263d572c1d94a5281048515afced3af34d321621ba6b89001b79ed65aa",
 					"modules/shu/tests-profile": "0d4628daca2780f6baeb336f4d3cb2eae465e407aaaa1ed03fbe46b352782293",
 					"modules/shu/waypoints": "964b6d2b1b5f56ba704b2bc4add806a702cb4148ab0044abb7931c815306d04d",
 					"modules/storage-fs/src": "948755c17d4f877495d0018ea37b8a39a7bae31a28b3317c3adfcb9b2e9c79e7",
 					"modules/storage-mem/src": "764cfa313b43fa43bd52ab7fd10ce9d5ee1b3c033c58b2fc6a85d98c7f267206",
-					"modules/web-playwright/src": "2dfae50edae1c9b7860948459115c83bf757ad884183eaabc15a578cff508333",
-					"modules/web-server-hono/src": "71e2eacbc506cee1ea4eca295e9efea1a31ca4c801cab736e1fc6c03f1b6c7b4"
+					"modules/web-playwright/src": "d06bf1844d870832f67c17dfe0d3263d1f0ea4fd6a26930ea393cec73da9718a",
+					"modules/web-server-hono/src": "66211aa59f9af2b6079a1203a9e8241c2296f2bad1adef650e4e78be40a7a963"
 				}
 			},
 			"features": {
 				"/features/b-reading-a-cached-actuality.feature.ts": {
 					"text": "Reading an actuality this device holds",
 					"status": "passed",
-					"tookMs": 2600,
+					"tookMs": 2400,
 					"steps": 223
 				},
 				"/features/c-reading-a-report.feature.ts": {
 					"text": "Reading a report of this actuality",
 					"status": "passed",
-					"tookMs": 1800,
+					"tookMs": 1600,
 					"steps": 227
 				},
 				"/features/d-two-origins.feature.ts": {
@@ -42,7 +42,7 @@
 				"/features/e-deleting-an-actuality.feature.ts": {
 					"text": "Deleting an actuality this device holds",
 					"status": "passed",
-					"tookMs": 5800,
+					"tookMs": 5400,
 					"steps": 214
 				}
 			}
@@ -54,17 +54,17 @@
 				"status": "passed",
 				"tookMs": 2200,
 				"digest": {
-					"modules/core/src": "8cabea362feeea9a17a9487498ca640e1da2b400d29209a66e90af9d2a6aa491",
+					"modules/core/src": "1ccee45b963257084be3786a769386393881792286491043c791944067db52d5",
 					"modules/domain-storage/src": "8555ea196220a75db0f69cfbf0f7374da5fc614ecf6b652c38d33cc7b11d92e9",
-					"modules/logic/src": "8c83176cd37dc52643eb24805524522c666774b882f995e79bae8b3e7571d01b",
+					"modules/logic/src": "b4e2077ea30b6098341731b07f24db97a6ef9227290304a3533ac65b403783bf",
 					"modules/monitor-tui/src": "a827c8af8ca688c390637f2aa5bd5a343695fc199d15450e06fa6c9de0b9fc8b",
-					"modules/shu/src": "786eb027f2d6a54d28c89f76083b5d26955e513a7cbde643659a4234a2030491",
+					"modules/shu/src": "55e6fe263d572c1d94a5281048515afced3af34d321621ba6b89001b79ed65aa",
 					"modules/shu/tests-profile": "0d4628daca2780f6baeb336f4d3cb2eae465e407aaaa1ed03fbe46b352782293",
 					"modules/shu/waypoints": "964b6d2b1b5f56ba704b2bc4add806a702cb4148ab0044abb7931c815306d04d",
 					"modules/storage-fs/src": "948755c17d4f877495d0018ea37b8a39a7bae31a28b3317c3adfcb9b2e9c79e7",
 					"modules/storage-mem/src": "764cfa313b43fa43bd52ab7fd10ce9d5ee1b3c033c58b2fc6a85d98c7f267206",
-					"modules/web-playwright/src": "2dfae50edae1c9b7860948459115c83bf757ad884183eaabc15a578cff508333",
-					"modules/web-server-hono/src": "71e2eacbc506cee1ea4eca295e9efea1a31ca4c801cab736e1fc6c03f1b6c7b4"
+					"modules/web-playwright/src": "d06bf1844d870832f67c17dfe0d3263d1f0ea4fd6a26930ea393cec73da9718a",
+					"modules/web-server-hono/src": "66211aa59f9af2b6079a1203a9e8241c2296f2bad1adef650e4e78be40a7a963"
 				}
 			},
 			"features": {

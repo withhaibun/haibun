@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AStepper, TFeatureStep } from "../../steps/domains/stepper.js";
+import { AStepper, TFeatureStep, coercionSite } from "../../steps/domains/stepper.js";
 import { fromJsonText } from "../../domains/json-text.js";
 import { parseDotPath, navigateValue } from "../../domains/dot-path.js";
 import { itemAt } from "../../domains/item-at.js";
@@ -298,7 +298,10 @@ export class FeatureVariables {
 			const isUnion = parts.length > 1;
 			const domainKey = this.world.domains[sortedKey] ? sortedKey : isUnion ? DOMAIN_STRING : sortedKey;
 			const domain = registeredDomain(this.world.domains, domainKey, `variable "${input.term}"`);
-			resolved.value = domain.coerce({ ...(resolved as TStepValue), domain: domainKey }, featureStep, steppers);
+			resolved.value = domain.coerce(
+				{ ...(resolved as TStepValue), domain: domainKey },
+				featureStep === undefined || steppers === undefined ? undefined : coercionSite(featureStep, steppers),
+			);
 			resolved.domain = domainKey;
 			const isSecretValue = resolved.secret === true || this.isSecret(lookupTerm);
 			if (options?.secure !== true && (resolved.origin === Origin.env || resolved.origin === Origin.var) && isSecretValue) resolved.value = OBSCURED_VALUE;

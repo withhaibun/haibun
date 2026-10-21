@@ -2,7 +2,17 @@ import { z } from "zod";
 
 import { runEnvEntries, runEnvVariable, type TWorld } from "../lib/actuality/domains/world.js";
 import { OK, Origin, TProvenanceIdentifier, TOrigin, TActionResult, TStepValue, type TStepValueValue } from "../lib/domains/protocol.js";
-import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TStartScenario, provenanceFromFeatureStep, PREDICATE } from "../lib/steps/domains/stepper.js";
+import {
+	AStepper,
+	IHasCycles,
+	TStepperSteps,
+	TFeatureStep,
+	IStepperCycles,
+	TStartScenario,
+	provenanceFromFeatureStep,
+	PREDICATE,
+	coercionSite,
+} from "../lib/steps/domains/stepper.js";
 import { actionOK, actionNotOK, actionOKWithProducts, getStepTerm, errorDetail } from "../lib/domains/util.js";
 import { itemAt } from "../lib/domains/item-at.js";
 import { proveStatements, stepperContext } from "../lib/actuality/pipelines/step-dispatch.js";
@@ -308,7 +318,7 @@ class VariablesStepper extends AStepper implements IHasCycles {
 
 				const domainKey = normalizeDomainKey(resolved.domain);
 				const compared = registeredDomain(this.getWorld().domains, domainKey, `the value of ${term}`);
-				const compareVal = compared.coerce({ term: "_cmp", value: String(value.value), domain: domainKey, origin: Origin.quoted }, featureStep, this.steppers);
+				const compareVal = compared.coerce({ term: "_cmp", value: String(value.value), domain: domainKey, origin: Origin.quoted }, coercionSite(featureStep, this.steppers));
 
 				return JSON.stringify(resolved.value) === JSON.stringify(compareVal) ? OK : actionNotOK(mismatch(term, resolved, compareVal, value));
 			},
@@ -455,8 +465,8 @@ class VariablesStepper extends AStepper implements IHasCycles {
 		const domain = registeredDomain(this.getWorld().domains, domainKey, `the value of ${term}`);
 		if (domain.comparator === undefined)
 			return actionNotOK(`the domain ${domainKey} of ${term} doesn't order its values; compare a variable of an ordered set, a number or a date`);
-		const left = domain.coerce({ ...stored, domain: domainKey }, featureStep, this.steppers);
-		const right = domain.coerce({ term: `${term}__comparison`, value: String(value.value), domain: domainKey, origin: Origin.quoted }, featureStep, this.steppers);
+		const left = domain.coerce({ ...stored, domain: domainKey }, coercionSite(featureStep, this.steppers));
+		const right = domain.coerce({ term: `${term}__comparison`, value: String(value.value), domain: domainKey, origin: Origin.quoted }, coercionSite(featureStep, this.steppers));
 		return holds(domain.comparator(left, right)) ? OK : actionNotOK(mismatch(term, { ...stored, value: left }, right, value));
 	}
 

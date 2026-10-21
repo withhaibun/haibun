@@ -1,6 +1,6 @@
 {
 	"linux-x64-16x-amd-ryzen-7-pro-7840u-w-radeon-780m-graphics": {
-		"b4cc0b9925aeadf9": {
+		"73542931e2cae9e0": {
 			"filter": "",
 			"execution": {
 				"text": "e2e-tests/once",
@@ -8,9 +8,25 @@
 				"tookMs": 0,
 				"digest": {
 					"e2e-tests/once": "a1629d031286963c15e77138da4626ceacdc095d94949102c133a3938458e73b",
-					"modules/core/src": "55cb9a8b88f90ddfe5d843f6385fdce03a631eda385d2c776d9871efac5e97bd",
-					"modules/logic/src": "8c83176cd37dc52643eb24805524522c666774b882f995e79bae8b3e7571d01b"
+					"modules/core/src": "1ccee45b963257084be3786a769386393881792286491043c791944067db52d5",
+					"modules/logic/src": "b4e2077ea30b6098341731b07f24db97a6ef9227290304a3533ac65b403783bf"
 				}
+			},
+			"features": {
+				"/features/once.feature": {
+					"text": "/features/once",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 1
+				}
+			}
+		},
+		"b4cc0b9925aeadf9": {
+			"filter": "",
+			"execution": {
+				"text": "e2e-tests/once",
+				"status": "passed",
+				"tookMs": 0
 			},
 			"features": {
 				"/features/once.feature": {

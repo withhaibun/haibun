@@ -6,13 +6,12 @@ import { AStepper } from "@haibun/core/lib/astepper.js";
 import { actionOK, actionNotOK, getStepperOptionName } from "@haibun/core/lib/domains/util.js";
 import { failWithDefaults } from "@haibun/core/lib/test/lib.js";
 import { DEFAULT_DEST, type TStepResult } from "@haibun/core/lib/domains/protocol.js";
-import { buildFeatureStepForTransport } from "@haibun/core/lib/call-step.js";
+import { validatedFeatureStep } from "@haibun/core/lib/call-step.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { dispatchStep } from "@haibun/core/lib/step-dispatch.js";
 import { answeredFor } from "@haibun/core/lib/call-step.js";
 import { allocateSyntheticSeqPath } from "@haibun/core/lib/domains/host-id.js";
-import { validateToolInput } from "@haibun/core/lib/tool-validation.js";
 import StorageMem from "@haibun/storage-mem/storage-mem-stepper.js";
 import WebPlaywright from "./web-playwright-stepper.js";
 import { BrowserFactory } from "./adapters/browser-factory.js";
@@ -41,7 +40,7 @@ class CallerProbe extends AStepper {
 				const call = async (step: string, input: Record<string, unknown>) => {
 					const tool = ctx.registry.named(stepMethodName(WebPlaywright.name, step));
 					const seqPath = allocateSyntheticSeqPath(world);
-					return { tool, result: await dispatchStep(ctx, buildFeatureStepForTransport(tool, validateToolInput(seqPath, tool, input, world), seqPath)) };
+					return { tool, result: await dispatchStep(ctx, validatedFeatureStep(tool, input, seqPath, world, ctx.steppers)) };
 				};
 				const read = await call(READS_THE_PAGE, {});
 				const ref = String(read.result.products?.snapshot).match(new RegExp(`button "Press" ${REFERENCE.source}`))?.[1];
