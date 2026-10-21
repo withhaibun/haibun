@@ -47,9 +47,9 @@ Scenario: Login and verify domain compliance
     
     every host observed in http-trace hosts is some domain in Allowed domains is matches {host} with "*{domain}"
     
-    every request observed in http-trace is variable {request}/status is less than 400
+    every request observed in http-trace is variable request/status is less than 400
     
-    every request observed in http-trace is variable {request}/time is less than 5000
+    every request observed in http-trace is variable request/durationMs is less than 5000
 ```
 
 ### Observability-Driven Verification
@@ -71,7 +71,7 @@ For example, to verify that console errors didn't occur:
 
 ```gherkin
 set of Allowed levels is ["log", "info", "warn"]
-every entry observed in console-log is variable {entry}/level is some level in Allowed levels
+every entry observed in console-log is variable entry/level is some level in Allowed levels
 ```
 
 This pattern generalizes to other observation sources:
@@ -100,7 +100,7 @@ And the dashboard request completed in under 5000ms
 The observation pattern replaces these with a constraint over all captured data, which can be inspected using logging levels:
 
 ```gherkin
-every request observed in http-trace is variable {request}/status is less than 400
+every request observed in http-trace is variable request/status is less than 400
 ```
 
 # Phases
@@ -145,9 +145,9 @@ For `go to the https://example.com/login webpage`:
 - Pattern: `go to the { name } webpage`
 - Captures: `{name}` = portal's value `https://example.com/login`
 
-For `every request observed in http-trace is variable {request}/status is less than 400`:
+For `every request observed in http-trace is variable request/status is less than 400`:
 - Pattern: LogicStepper's universal quantifier (see Logic System below)
-- Parses: iteration source (`http-trace`), bound variable (`{request}`), nested statement
+- Parses: iteration source (`http-trace`), bound variable (`request`), nested statement
 
 ### Waypoint Resolution
 
@@ -175,7 +175,7 @@ For example, when `click "Sign In"` executes:
 1. `beforeStep` debugger can pause here
 4. `onEvent` broadcasts the step start to monitors
 2. WebPlaywright's `click` step action runs
-3. `afterStep` monitors record the result, `after every` hooks run
+3. `afterStep` monitors record the result, and each rule over step records that `after every` states proves its statement
 4. `onEvent` broadcasts the step completion to monitors
 
 ## Logic System
@@ -203,9 +203,11 @@ Quantifiers check **collections** of data without writing loops:
 - `every x in domain is statement`: Universal quantifier (∀). Passes if statement succeeds for all values.
 - `some x in domain is statement`: Existential quantifier (∃). Passes if statement succeeds for at least one value.
 
-The bound variable `{x}` is available within the nested statement. From the example:
+The bound variable `{x}` is available within the nested statement. An observation source returns facts about its items, and
+each fact's predicate is a function of its item, which a statement reads as the variable and the function joined by `/`:
+`request/status` is status(request). From the example:
 ```
-every request observed in http-trace is variable {request}/status is less than 400
+every request observed in http-trace is variable request/status is less than 400
 ```
 
 This reads: "for every request captured in http-trace, verify that its status is less than 400."
@@ -216,6 +218,24 @@ predicate(X, Y)":
 ```
 every host observed in http-trace hosts is some domain in Allowed domains is matches {host} with "*{domain}"
 ```
+
+### Rules, falsities and equality
+
+A waypoint states a rule H ← P, and `for every {x: D} where B, H` states the same rule with x ranging over the domain D:
+```
+for every {meal: Meals} where variable {meal} is "cooked", {meal} is edible
+```
+`after every StepperName, statement` states a rule over step records: after each step of that stepper that a feature's line
+states, the statement is proved under the step, apart from a step of the statement's own action.
+
+`absent goal` states the falsity of a goal, a line that unifies with a waypoint's head. A goal whose proof doesn't hold is
+refuted where a falsity of its head and arguments is stated, and unknown without one. A goal whose proof holds and whose
+falsity is stated is a contradiction, and its step fails naming the record that stated the falsity and the record of its
+proof. `maybe statement` holds whatever the statement's verdict and returns it. `"a" is the same as "b"` states that two
+individuals are one, and a goal reads each argument as its canonical representative.
+
+The engine doesn't hold facts. A proof reads the facts it needs through one read request, a read of the store within the
+line's authority, once for each pattern in a proof. Actions and views read and write the store directly.
 
 ### Formulas
 
@@ -330,10 +350,10 @@ the page.
 
 | Stepper | Example Steps |
 |---------|---------------|
-| Haibun | `Backgrounds: name`, `Feature:`, `Scenario:`, `Pending scenario:`, `until statement within duration`, `after every StepperName, statement` |
+| Haibun | `Backgrounds: name`, `Feature:`, `Scenario:`, `Pending scenario:`, `until statement within duration` |
 | VariablesStepper | `set var to "value"`, `variable var is "value"`, `set of domain is [values]`, `{value} is in {domain}`, `variable var is less than "value"`, `matches {var} with "pattern"`, `increment var` |
-| ActivitiesStepper | `Activity: name`, `waypoint Label with proof`, `ensure outcome` |
-| LogicStepper | `not statement`, `where condition, action`, `every x in domain is statement`, `some x in domain is statement`, `rule formula`, `resolve goal`, `pursue goal`, `walk toward goal`, `show affordances`, `show chain lint` |
+| ActivitiesStepper | `Activity: name`, `waypoint Label with proof`, `ensure outcome`, `for every {x: domain} where body, head`, `after every StepperName, statement` |
+| LogicStepper | `not statement`, `where condition, action`, `maybe statement`, `every x in domain is statement`, `some x in domain is statement`, `absent goal`, `"a" is the same as "b"`, `rule formula`, `resolve goal`, `pursue goal`, `walk toward goal`, `show affordances`, `show chain lint` |
 | DebuggerStepper | `debug step by step`, `debug stepper StepperName`, `continue stepper StepperName`; debugger commands: `step`, `continue`, `retry`, `next`, `fail` |
 
 ### Web Steppers
@@ -354,15 +374,16 @@ the page.
 
 ## Observations
 
-Observation sources provide runtime metrics for quantifier iteration via `observed in`:
+An observation source returns the facts it holds at one step, which a quantifier reads via `observed in`: its items are the
+subjects of its facts, and each predicate is a function of an item, such as `step/duration`. The source doesn't store them.
 
-| Source | Items | Provider |
-|--------|-------|----------|
-| `step usage` | Step names executed | Core |
-| `stepper usage` | Stepper names active | Core |
-| `http-trace` | HTTP request IDs | WebPlaywright |
-| `http-trace hosts` | Hostnames contacted | Core (shared) |
-| `visited pages` | URLs navigated | WebPlaywright |
+| Source | Items | Functions | Provider |
+|--------|-------|-----------|----------|
+| `steps` | The feature's step records | each field of the record, `stepper` and `duration` in milliseconds | LogicStepper |
+| `http-trace` | HTTP request IDs | each field of the request's record, such as `status` and `durationMs` | WebPlaywright |
+| `http-trace hosts` | Hostnames contacted | `requestCount` | WebPlaywright |
+| `visited pages` | URLs navigated | `index` | WebPlaywright |
+| `blips`, `watched blips` | Blip names, watched occurrences | `count`; a watched occurrence's attributes | BlipsStepper |
 
 Steppers register sources via `getConcerns()` in their cycles.
 
@@ -436,7 +457,7 @@ export const features: TKirejiExport = {
 | New Steppers | Extend `AStepper`, define `steps` object with `gwta`/`match`/`exact` patterns |
 | Lifecycle Hooks | Implement `IStepperCycles` (`startFeature`, `afterStep`, `onEvent`, etc.) |
 | Domains | Declare `TDomainDefinition` in the cycles' `getConcerns`: a schema that takes each form of the value and yields it |
-| Observation Sources | Implement `IObservationSource` for quantifier iteration (`observed in source`) |
+| Observation Sources | Implement `IObservationSource`, whose `observe` returns facts about its items, for quantifier iteration (`observed in source`) |
 | Monitors | Implement `onEvent` to receive execution telemetry |
 
 # How code is organized

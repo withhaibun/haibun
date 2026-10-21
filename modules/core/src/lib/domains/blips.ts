@@ -16,6 +16,7 @@
 import { z } from "zod";
 import type { THaibunEvent, TBlipEvent } from "./protocol.js";
 import type { IEventLogger } from "../steps/ports.js";
+import type { TObserved } from "../steps/domains/stepper.js";
 
 /** How a blip maps onto an OpenTelemetry signal. A discrete occurrence maps to a span event, and a rate or distribution
  *  maps to a metric instrument. Traces give order and identity, and metrics give frequency. */
@@ -134,11 +135,9 @@ export class BlipRollup {
 		this.counts.clear();
 	}
 
-	/** Observation-source shape: items are the names recorded, each with a `count` metric. */
-	observe(): { items: string[]; metrics: Record<string, Record<string, unknown>> } {
-		const metrics: Record<string, Record<string, unknown>> = {};
-		for (const [name, count] of this.counts) metrics[name] = { count };
-		return { items: [...this.counts.keys()], metrics };
+	/** The facts of an observation source: each name recorded, with the function `count`. */
+	observe(): TObserved[] {
+		return [...this.counts].map(([name, count]) => ({ subject: name, predicate: "count", object: count }));
 	}
 }
 

@@ -1,16 +1,17 @@
 % The logic engine's program. A line's proof is one query, and each effect it reaches is one more. prove/3 starts a
-% Prolog engine, named by the line, that evaluates the line's term. Where the proof reaches an effect (a built-in call, a
-% record's opening or closing, a quantifier's members, a waypoint's arguments or rule, or a wait), effect/4 yields the
-% request and the query returns it. The pipeline performs the effect, and resume/3 posts its outcome to the line's engine,
-% which continues from the effect. The engine holds its own stacks between queries, so a query never holds the runtime
+% Prolog engine, named by the line, that evaluates the line's term or proves goals over producer rules. Where the proof
+% reaches an effect (a built-in call, a record's opening or closing, a read, a waypoint's rule, or a wait), effect/4 yields
+% the request and the query returns it. The pipeline performs the effect, and resume/3 posts its outcome to the line's
+% engine, which continues from the effect. The engine holds its own stacks between queries, so a query never holds the runtime
 % across an await, the proofs of several callers interleave at each effect, and a query evaluates only the part of the
 % proof after the effect it resumes, however many effects its line performed.
 %
 % A verdict is proved, refuted, unknown or contradiction. A built-in that passed is proved, one that failed is refuted,
 % and one that couldn't run is unknown. Negation is negation as failure scoped to the outcomes of its line: a query reads
-% only the outcome of the effect its own line performed. Each part of a proof, once it ends, is asserted as part/4, which only
-% the N3 export reads.
-:- module(haibun, [prove/3, resume/3, forget/1, n3_export/3, goals/3, lint/2]).
+% only the outcome of the effect its own line performed. The engine doesn't hold facts: a proof reads them through read/5,
+% and TypeScript answers each read from the store within the line's authority. Each part of a proof, once it ends, is
+% asserted as part/4, which only the N3 export reads.
+:- module(haibun, [prove/3, resume/3, forget/1, n3_export/3, lint/2]).
 :- use_module(library(lists)).
 :- use_module(library(apply)).
 :- use_module(library(pairs)).
@@ -21,16 +22,21 @@
 % recursion below the ancestor check. until is bounded by its deadline alone.
 max_depth(1000).
 
-% prove(+Top, +TermText, -Outcome): Outcome is _{verdict} where the line's proof ended, or the effect it needs.
+% prove(+Top, +TermText, -Outcome): Outcome is _{verdict} where the line's proof ended, _{goals} where the proof of goals
+% ended, or the effect it needs.
 prove(Top, TermText, Outcome) :-
     term_string(Term, TermText),
-    engine_create(done(V), ev(Top, top, Term, [], [], [], 0, V), _, [alias(Top)]),
+    engine_create(Done, top(Top, Term, Done), _, [alias(Top)]),
     engine_next(Top, Answer),
     outcome(Answer, Outcome).
+
+top(_, goals(Rules, Goals), done(goals(Results))) :- !, goals(Rules, Goals, Results).
+top(T, Term, done(V)) :- ev(T, top, Term, [], [], [], 0, V).
 
 % resume(+Top, +OutcomeText, -Outcome): continues the line's proof with the outcome of the effect it needed.
 resume(Top, OutcomeText, Outcome) :- term_string(O, OutcomeText), engine_post(Top, O, Answer), outcome(Answer, Outcome).
 
+outcome(done(goals(Rs)), _{goals: Rs}) :- !.
 outcome(done(V), _{verdict: V}) :- !.
 outcome(need(K, P, R), _{need: K, path: P, request: RJ}) :- request_json(R, RJ).
 
@@ -38,6 +44,15 @@ outcome(need(K, P, R), _{need: K, path: P, request: RJ}) :- request_json(R, RJ).
 forget(Top) :- ( is_engine(Top) -> engine_destroy(Top) ; true ), retractall(part(Top, _, _, _)).
 
 effect(K, P, R, O) :- engine_yield(need(K, P, R)), engine_fetch(O).
+
+% read(+Path, +Bindings, +Patterns, +Template, -Found): Found is rows(Ts), each Template where every pattern q(S, P, O, G)
+% matches a fact, or refused(Reason). A pattern's unbound positions are its variables: the read returns the values they take
+% in each fact that holds the pattern's constants, and the engine joins the patterns by unification. The named graph node
+% holds a node's own facts: a quantifier's members and a waypoint's arguments.
+read(P, B, Ps, T, Found) :-
+    maplist(variables_of, Ps, Vss), effect(read, P, read(Ps, B), Read),
+    ( Read = facts(Rss) -> findall(T, maplist(member, Vss, Rss), Ts), Found = rows(Ts) ; Found = Read ).
+variables_of(Q, Vs) :- Q =.. [q|Ts], include(var, Ts, Vs).
 
 % child(+Parent, -Child): the next position under a node, Path-Counter, so a reading that proves its statements again takes
 % new positions. The counter is a term in the node's frame.
@@ -96,13 +111,13 @@ reading(waypoint, _, [Xs], T, P, B, A, D, V, Why) :- conj(T, all, Xs, P, B, [pro
 reading(within, N, [Xs], T, Q, B, A, D, V, Why) :- Q = P-_, conj(T, all, Xs, Q, [N-within(P)|B], A, D, V, Why).
 reading(some, N, [Xs], T, P, B, A, D, V, Why) :-
     members(N, P, B, Found),
-    (   Found = members([]) -> V = refuted, Why = empty
-    ;   Found = members(Ms) -> exists(T, N, Ms, Xs, P, B, A, D, refuted, none, V, Why)
+    (   Found = rows([]) -> V = refuted, Why = empty
+    ;   Found = rows(Ms) -> exists(T, N, Ms, Xs, P, B, A, D, refuted, none, V, Why)
     ;   V = unknown, Why = Found
     ).
 reading(every, N, [Xs], T, P, B, A, D, V, Why) :-
     members(N, P, B, Found),
-    ( Found = members(Ms) -> for_all(T, N, Ms, Xs, P, B, A, D, V, Why) ; V = unknown, Why = Found ).
+    ( Found = rows(Ms) -> for_all(T, N, Ms, Xs, P, B, A, D, V, Why) ; V = unknown, Why = Found ).
 reading(whenever, _, [Cs, Xs], T, P, B, A, D, V, Why) :- repeat_while(T, Cs, Xs, P, B, A, D, 1, V, Why).
 reading(until, N, [Xs], T, P, B, A, D, V, Why) :- attempts(T, N, Xs, P, B, A, D, 1, V, Why).
 reading(ensure, _, [[apply(M, W)]], T, P, B, A, D, V, C) :- !, child(P, C), applied(T, ensure, M, W, C, B, A, D, V), assertz(part(T, C, all, node(apply, V))).
@@ -113,7 +128,7 @@ any(T, [Xs|Rest], P, B, A, D, W, _, V, Why) :-
     conj(T, all, Xs, P, B, A, D, V0, W0),
     ( V0 == proved -> V = proved, Why = none ; worse(W, V0, W1), any(T, Rest, P, B, A, D, W1, W0, V, Why) ).
 
-members(N, P-_, B, Found) :- effect(members, P, members(N, B), Found).
+members(N, P-_, B, Found) :- read(P, B, [q(N, member, M, node)], M, Found).
 
 exists(_, _, [], _, _, _, _, _, W, Why, W, Why).
 exists(T, N, [M|Ms], Xs, P, B, A, D, W, _, V, Why) :-
@@ -150,20 +165,34 @@ attempts(T, N, Xs, P, B, A, D, K, V, Why) :-
 applied(T, Mode, M, W, P, B, A, D, V) :-
     effect(open, P, open(M, B), Opened),
     (   Opened == refused -> V = unknown
-    ;   effect(args, P, args(M, B), Args),
-        (   Args = args(Pairs) ->
+    ;   read(P, B, [q(M, K, X, node)], K-X, Read),
+        (   Read = rows(Pairs) ->
             effect(rule, P, rule(W), rule(Proof, Activity)),
             Key = W-Pairs,
             (   memberchk(Key, A) -> V = unknown, Why = cycle
             ;   D1 is D + 1, max_depth(Max),
-                ( D1 > Max -> V = unknown, Why = depth(Max) ; plan(Mode, T, Proof, Activity, P-c(0), [M-args(Pairs)|B], [Key|A], D1, V, Why) )
+                (   D1 > Max -> V = unknown, Why = depth(Max)
+                ;   plan(Mode, T, Proof, Activity, P-c(0), [M-args(Pairs)|B], [Key|A], D1, V0, Why0), stated(Mode, P, B, Key, V0, Why0, V, Why)
+                )
             )
-        ;   V = unknown, Why = Args
+        ;   V = unknown, Why = Read
         ),
         close(P, M, V, Why)
     ).
 
-plan(Mode, _, [], _, _, _, _, _, refuted, no_proof) :- Mode \== run, !.
+% stated(+Mode, +Path, +Bindings, +Key, +Verdict, +Why, -Stated, -StatedWhy): a goal is refuted by a falsity stated of its head
+% and arguments, and unknown without one where its proof isn't proved. A goal both proved and refuted is a contradiction,
+% whose reason names the record that stated the falsity. A waypoint's line run alone states an act and not a goal.
+stated(run, _, _, _, V, Why, V, Why) :- !.
+stated(_, P, B, W-Pairs, V0, Why0, V, Why) :-
+    maplist(falsity_of(F), Pairs, Qs), read(P, B, [q(F, head, W, falsity)|Qs], F, Read),
+    (   Read = rows([R|_]) -> Why = falsity(R), ( V0 == proved -> V = contradiction ; V = refuted )
+    ;   V0 == refuted -> V = unknown, Why = Why0
+    ;   V = V0, Why = Why0
+    ).
+falsity_of(F, K-X, q(F, K, X, falsity)).
+
+plan(Mode, _, [], Activity, _, _, _, _, refuted, no_proof) :- ( Mode \== run ; Activity == [] ), !.
 plan(prove, T, Proof, _, P, B, A, D, V, Why) :- conj(T, proof(1), Proof, P, B, [proving|A], D, V, Why).
 plan(ensure, T, Proof, Activity, P, B, A, D, V, Why) :-
     conj(T, proof(1), Proof, P, B, [proving|A], D, V0, _),
@@ -174,27 +203,28 @@ plan(ensure, T, Proof, Activity, P, B, A, D, V, Why) :-
 plan(run, T, Proof, Activity, P, B, A, D, V, Why) :-
     ( Proof == [] -> V0 = refuted, W0 = none ; conj(T, proof(1), Proof, P, B, [proving|A], D, V0, W0) ),
     (   V0 == proved -> V = proved, Why = none
-    ;   Activity == [] -> ( Proof == [] -> V = proved, Why = none ; V = V0, Why = W0 )
+    ;   Activity == [] -> V = V0, Why = W0
     ;   conj(T, activity(1), Activity, P, B, A, D, V, Why)
     ).
 
 % Goals over producer rules. A step the caller may call states the rule fact(D) ← fact(D₁) ∧ … ∧ do(s), where s returns D
-% and takes D₁ …. The rules are r(Producers, Produced, Composites, Facts): p(Method, D, Inputs) for each such step, the
-% domains any step returns, c(D, Fields) for a domain whose fields range over domains, and f(D, Id) for the first fact of
-% each domain that holds, which a proof cites. A goal
-% holds by a fact of its domain, by a producer whose inputs hold, by the fields of a composite domain no step returns, or as
-% an argument a caller supplies where no step returns its domain. The ancestor check and the depth limit bound each proof.
-% A proof leaves each do(s) unproved, so its plan is the steps it would call. Negation reads only the closed term a query
-% is given, through none/1.
+% and takes D₁ …. The rules are r(Producers, Produced, Composites, Read): p(Method, D, Inputs) for each such step, the
+% domains any step returns, c(D, Fields) for a domain whose fields range over domains, and the read whose rows are the
+% domains a fact holds of, which goals/3 replaces with those domains. A goal holds by a fact of its domain, by a producer
+% whose inputs hold, by the fields of a composite domain no step returns, or as an argument a caller supplies where no step
+% returns its domain. The ancestor check and the depth limit bound each proof. A proof leaves each do(s) unproved, so its
+% plan is the steps it would call. Negation reads only the closed term a query is given, through none/1.
 none(G) :- ( call(G) -> fail ; true ).
 
-% goals(+RulesText, +Goals, -Results): whether a fact of each goal holds, a plan for each of its producers whose inputs hold, and, where it
-% has neither, the chain of sub-goals to the first it couldn't prove.
-goals(RulesText, Goals, Results) :- term_string(R, RulesText), maplist(atom_string, Atoms, Goals), maplist(goal_result(R), Atoms, Results).
+% goals(+Rules, +Goals, -Results): reads the domains a fact holds of once, and returns whether a fact of each goal holds,
+% a plan for each of its producers whose inputs hold, and, where it has neither, the chain of sub-goals to the first it
+% couldn't prove.
+goals(r(Ps, Produced, Cs, Read), Goals, Results) :-
+    Read = q(_, _, D, _), read([], [], [Read], D, rows(Ds)), sort(Ds, Domains), maplist(goal_result(r(Ps, Produced, Cs, Domains)), Goals, Results).
 
 goal_result(R, G, _{goal: G, held: Held, plans: Plans, unmet: Unmet}) :-
-    R = r(Ps, _, _, Fs),
-    ( memberchk(f(G, _), Fs) -> Held = true ; Held = false ),
+    R = r(Ps, _, _, Domains),
+    ( memberchk(G, Domains) -> Held = true ; Held = false ),
     findall(M-Ins, member(p(M, G, Ins), Ps), Producers),
     findall(P, ( member(M-Ins, Producers), produced_by(R, G, M, Ins, [], 1, P), none(unmet_in(P)) ), Plans),
     (   Held == false, Plans == [] ->
@@ -204,7 +234,7 @@ goal_result(R, G, _{goal: G, held: Held, plans: Plans, unmet: Unmet}) :-
 
 produced_by(R, D, M, Ins, Anc, Depth, _{do: M, domain: D, inputs: Ps}) :- Depth1 is Depth + 1, maplist(proof(R, [D|Anc], Depth1), Ins, Ps).
 
-proof(r(_, _, _, Fs), _, _, D, _{fact: Id, domain: D}) :- memberchk(f(D, Id), Fs), !.
+proof(r(_, _, _, Domains), _, _, D, _{fact: D}) :- memberchk(D, Domains), !.
 proof(_, Anc, _, D, _{unmet: D, why: cycle}) :- memberchk(D, Anc), !.
 proof(_, _, Depth, D, _{unmet: D, why: W}) :- max_depth(Max), Depth > Max, !, format(atom(W), 'depth(~w)', [Max]).
 proof(R, Anc, Depth, D, P) :-
@@ -266,11 +296,14 @@ consumed(G, D) :- named(G, R), arg(3, G, Refs), member(ref(R, D), Refs), !.
 % Requests as JSON-ready dicts.
 request_json(call(N, B), _{node: N, bindings: Bs}) :- bindings_json(B, Bs).
 request_json(open(N, B), _{node: N, bindings: Bs}) :- bindings_json(B, Bs).
-request_json(members(N, B), _{node: N, bindings: Bs}) :- bindings_json(B, Bs).
-request_json(args(N, B), _{node: N, bindings: Bs}) :- bindings_json(B, Bs).
+request_json(read(Ps, B), _{patterns: Js, bindings: Bs}) :- maplist(pattern_json, Ps, Js), bindings_json(B, Bs).
+request_json(close(N, V, falsity(R)), _{node: N, verdict: V, why: _{falsity: R}}) :- !.
 request_json(close(N, V, Why), _{node: N, verdict: V, why: W}) :- ( is_list(Why) -> W = Why ; term_to_atom(Why, W) ).
 request_json(rule(W), _{rule: W}).
 request_json(wait(N, K), _{node: N, attempt: K}).
+
+% A pattern states each of its constants, and leaves out each position that is its variable.
+pattern_json(q(S, P, O, G), J) :- findall(K-X, ( member(K-X, [subject-S, predicate-P, object-O, namedGraph-G]), nonvar(X) ), Pairs), dict_pairs(J, _, Pairs).
 
 % A binding is a quantifier's member, a waypoint's arguments or the position of a context a node opened, innermost first.
 bindings_json(B, Bs) :- maplist(binding_json, B, Bs).

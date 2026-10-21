@@ -6,7 +6,7 @@
 import type { AStepper, TStepperStep, TFeatureStep, TBeforeStep, TAfterStep, TAfterStepResult } from "../../steps/domains/stepper.js";
 import type { TWorld } from "../domains/world.js";
 import type { TActionResult, TStepResult, TSeqPath } from "../../domains/protocol.js";
-import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, SUBSTEP_LEVEL, STATUS, RECORDED_STATUS, VERDICT, LOGIC_STEPPER, type TStepEnd } from "../../domains/protocol.js";
+import { TRACE_SEQ_PATH, Timer, FEATURE_START, SCENARIO_START, SUBSTEP_LEVEL, STATUS, RECORDED_STATUS, LOGIC_STEPPER, verdictOf, type TStepEnd } from "../../domains/protocol.js";
 import { streamContext } from "../../transport/domains/step-stream-context.js";
 import { actionNotOK } from "../../domains/util.js";
 import { normalizeDomainKey } from "../../domains/domains.js";
@@ -275,7 +275,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 	);
 	// A call a transport carries states what it read back, since its caller reads the result and not a line.
 	const result = featureStep.programmatic === true && actionResult.products !== undefined ? { result: resultText(actionResult.products) } : {};
-	const verdict = actionResult.verdict === undefined ? (ok ? VERDICT.proved : VERDICT.refuted) : actionResult.verdict;
+	const verdict = verdictOf(actionResult);
 	await writeStepEnd(world, started, { status: RECORDED_STATUS[ended], verdict, ...(error === undefined ? {} : { error }), ...shown(viewShown(actionResult.products)), ...result });
 	return lastStepResult;
 }

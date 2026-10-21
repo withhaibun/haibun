@@ -2,8 +2,8 @@
  * Proves a step through the logic engine. A line's term is the formula its step reads as: a built-in call, or a reading
  * over the terms of the statements it states. One query starts the line's proof. Where the proof reaches an effect, this
  * pipeline performs the effect and resumes the proof with its outcome: a built-in call through step dispatch, the opening
- * and closing of a node's record, a quantifier's members, a waypoint's arguments and rule, and a wait of until. A built-in
- * runs once for its position in the proof, which fixes its step, its arguments and the capability it runs under.
+ * and closing of a node's record, a read of facts, a waypoint's rule, and a wait of until. A built-in runs once for its
+ * position in the proof, which fixes its step, its arguments and the capability it runs under.
  */
 import type { DispatchContext } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
 import { dispatchStep, nextSeqPath, runAsDispatched } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
@@ -11,19 +11,33 @@ import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import type { TProver } from "@haibun/core/lib/actuality/ports.js";
 import { findFeatureStepsFromStatement } from "@haibun/core/lib/actuality/pipelines/resolver.js";
 import { argumentsOf } from "@haibun/core/lib/steps/pipelines/populate-action-args.js";
-import { VERDICT, type TActionResult, type TStepArgs, type TStepResult } from "@haibun/core/lib/domains/protocol.js";
+import { VERDICT, verdictOf, type TActionResult, type TStepArgs, type TStepResult } from "@haibun/core/lib/domains/protocol.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
-import { hasCycles, READING, type TCallContext, type TFeatureStep, type TWaypointRule } from "@haibun/core/lib/steps/domains/stepper.js";
+import { hasCycles, READING, type TCallContext, type TFeatureStep, type TObserved, type TWaypointRule } from "@haibun/core/lib/steps/domains/stepper.js";
+import { matchesQuadPattern, type TQuadPattern } from "@haibun/core/lib/steps/domains/quad-types.js";
+import { stepRecordOf } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import type { TStepInput } from "@haibun/core/lib/actuality/domains/execution.js";
-import { CALL_OUTCOME, EFFECT, type TProofState, type TBinding, type TCloseRequest, type TNodeRequest } from "../domains/logic.js";
+import {
+	CALL_OUTCOME,
+	EFFECT,
+	READ_GRAPH,
+	READ_PREDICATE,
+	type TFact,
+	type TProofState,
+	type TBinding,
+	type TCloseRequest,
+	type TNodeRequest,
+	type TReadRequest,
+} from "../domains/logic.js";
 import { quantifierOf, alternativesOf, statementParams, UNTIL_RETRY_MS } from "../domains/readings.js";
-import { atom, list, whyText } from "../derivations/terms.js";
+import { atom, factsTerm, list, whyText } from "../derivations/terms.js";
 import type { TLogicEngine } from "../ports.js";
+import { canonicalOf, readerOf } from "./reads.js";
 
 /** A node of a line's proof: the step it states, and the variable a quantifier binds. */
 type TNode = { step: TFeatureStep; what?: string };
-/** A node whose record is open: the result its proof resolves, its dispatch, and when it opened. */
-type TOpened = { close: (result: TActionResult) => void; dispatched: Promise<TStepResult>; at: number };
+/** A node whose record is open: its step, the result its proof resolves, its dispatch, and when it opened. */
+type TOpened = { step: TFeatureStep; close: (result: TActionResult) => void; dispatched: Promise<TStepResult>; at: number };
 
 const keyOf = (path: readonly number[]): string => path.join(".");
 
@@ -31,7 +45,8 @@ const keyOf = (path: readonly number[]): string => path.join(".");
  *  host whose steps prove them, where another host does. */
 type TPlaced = { segments: number[]; targetHostId?: number };
 
-/** One line's proof: its nodes, the results of its calls and nodes by position, and the contexts and members it opened. */
+/** One line's proof: its nodes, the results of its calls and nodes by position, the contexts it opened, the facts of the
+ *  observation sources its quantifiers read, and its reads. */
 class Proof {
 	private readonly nodes = new Map<string, TNode>();
 	private readonly rules = new Map<string, TWaypointRule>();
@@ -42,13 +57,17 @@ class Proof {
 	private readonly contexts = new Map<string, TCallContext>();
 	/** The arguments each open node read when it opened, by position. */
 	private readonly argsAt = new Map<string, TStepArgs>();
-	private readonly metrics = new Map<string, Record<string, Record<string, unknown>>>();
+	/** The facts of each quantifier's observation source by their item, by the quantifier's node. */
+	private readonly observed = new Map<string, Map<string, TObserved[]>>();
+	private readonly reader;
 
 	constructor(
 		private readonly ctx: DispatchContext,
 		private readonly line: TFeatureStep,
 		private readonly placed?: TPlaced,
-	) {}
+	) {
+		this.reader = readerOf(ctx.world.shared.getStore());
+	}
 
 	private add(node: TNode): string {
 		const id = `n${this.nodes.size + 1}`;
@@ -107,12 +126,11 @@ class Proof {
 			source: node.step.source === undefined ? line.source : node.step.source,
 			...(Object.keys(runtimeArgs).length === 0 ? {} : { runtimeArgs }),
 			...(line.programmatic === true ? { programmatic: true } : {}),
-			...(line.isAfterEveryStep === true ? { isAfterEveryStep: true } : {}),
 		};
 	}
 
-	/** The arguments a call reads from its bindings: each quantifier's member and its metrics, and each waypoint's arguments,
-	 *  outermost first, over the line's own. */
+	/** The arguments a call reads from its bindings, outermost first, over the line's own: each waypoint's arguments, and each
+	 *  quantifier's member with each function of the member its source's facts state, as `variable/function`. */
 	private runtimeArgsOf(bindings: TBinding[]): Record<string, string | number> {
 		const args: Record<string, string | number> = { ...this.line.runtimeArgs };
 		for (const binding of [...bindings].reverse()) {
@@ -120,21 +138,11 @@ class Proof {
 				const { what } = this.node(binding.node);
 				if (what === undefined) throw new Error(`the node ${binding.node} binds a member without a quantifier`);
 				args[what] = binding.member;
-				const metrics = this.metrics.get(binding.node)?.[binding.member];
-				for (const [metric, value] of metrics === undefined ? [] : Object.entries(metrics)) args[`${what}/${metric}`] = typeof value === "number" ? value : String(value);
+				const facts = this.observed.get(binding.node)?.get(binding.member);
+				for (const { predicate, object } of facts === undefined ? [] : facts) args[`${what}/${predicate}`] = typeof object === "number" ? object : String(object);
 			} else if ("args" in binding) for (const { name, value } of binding.args) args[name] = value;
 		}
 		return args;
-	}
-
-	/** Runs a read a node makes beside its calls inside each context its bindings name, under the authority and read scope a
-	 *  dispatched step runs under. Returns the read's outcome, or its refusal as the engine reads it. */
-	private async readWithin(bindings: TBinding[], read: () => Promise<string>): Promise<string> {
-		try {
-			return await this.withinContexts(bindings, () => runAsDispatched(this.ctx, read));
-		} catch (caught) {
-			return refusedTerm(errorDetail(caught));
-		}
 	}
 
 	/** Runs a call inside each context its bindings name, outermost first. */
@@ -155,8 +163,7 @@ class Proof {
 		if (need.need === EFFECT.call) return await this.call(path, request as TNodeRequest);
 		if (need.need === EFFECT.open) return await this.open(path, request as TNodeRequest);
 		if (need.need === EFFECT.close) return await this.close(path, request as TCloseRequest);
-		if (need.need === EFFECT.members) return await this.members(path, request as TNodeRequest);
-		if (need.need === EFFECT.args) return await this.args(path, request as TNodeRequest);
+		if (need.need === EFFECT.read) return await this.read(path, request as TReadRequest);
 		if (need.need === EFFECT.rule) return await this.rule((request as { rule: string }).rule);
 		return await this.wait(path, request as { node: string });
 	}
@@ -221,7 +228,7 @@ class Proof {
 		}
 		this.contexts.set(keyOf(path), opening.context);
 		this.argsAt.set(keyOf(path), opening.args);
-		this.opened.set(keyOf(path), { close: closed.resolve, dispatched, at: this.ctx.world.clock.now() });
+		this.opened.set(keyOf(path), { step, close: closed.resolve, dispatched, at: this.ctx.world.clock.now() });
 		return "opened";
 	}
 
@@ -246,57 +253,81 @@ class Proof {
 	private async close(path: number[], request: TCloseRequest): Promise<string> {
 		const opened = this.opened.get(keyOf(path));
 		if (opened === undefined) throw new Error(`the engine closed the node at ${keyOf(path)} of "${this.line.in}", which it didn't open`);
-		const products = this.productsUnder.get(keyOf(path));
+		const products = this.node(request.node).step.action.step.reading === READING.maybe ? { verdict: verdictOf(this.lastPart(path)) } : this.productsUnder.get(keyOf(path));
 		opened.close(
 			request.verdict === VERDICT.proved
 				? { ok: true, verdict: request.verdict, ...(products === undefined ? {} : { products }) }
-				: { ok: false, verdict: request.verdict, errorMessage: this.why(path, request) },
+				: { ok: false, verdict: request.verdict, errorMessage: this.why(path, request, opened.step) },
 		);
 		this.hold(path, await opened.dispatched);
 		return "closed";
 	}
 
-	/** Why a node's verdict isn't proved: the part that determined it, with that part's own reason, or the reason the engine states. */
-	private why(path: readonly number[], request: TCloseRequest): string {
+	/** Why a node's verdict isn't proved: the part that determined it, with that part's own reason, the record that stated its
+	 *  falsity with the node's own record where its proof holds as well, or the reason the engine states. */
+	private why(path: readonly number[], request: TCloseRequest, step: TFeatureStep): string {
 		const { node, verdict, why } = request;
 		const line = this.node(node).step.in;
 		if (why === "expired") return `${line} is ${verdict}: its statements didn't hold within ${durationOf(this.openedArgs(path))}ms`;
 		if (typeof why === "string") return whyText(line, verdict, why);
+		if (!Array.isArray(why)) {
+			const proved = verdict === VERDICT.contradiction ? `, and its proof at ${stepRecordOf(this.ctx.world.tag, step.seqPath)} holds` : "";
+			return `${line} is ${verdict}: the record ${why.falsity} states it is absent${proved}`;
+		}
 		const part = this.results.get(keyOf(why));
 		if (part === undefined) return `${line} is ${verdict}`;
-		return `${line} is ${verdict}, since ${part.in} is ${part.verdict === undefined ? (part.ok ? VERDICT.proved : VERDICT.refuted) : part.verdict}${part.ok ? "" : `: ${part.errorMessage}`}`;
+		return `${line} is ${verdict}, since ${part.in} is ${verdictOf(part)}${part.ok ? "" : `: ${part.errorMessage}`}`;
 	}
 
-	/** A quantifier's members: the items its observation source returns, or the values of its domain, read as its node reads. */
-	private members(path: readonly number[], request: TNodeRequest): Promise<string> {
+	/** The result of a node's last part, at which the proof of its statements ended. */
+	private lastPart(path: readonly number[]): TStepResult {
+		let at = 1;
+		while (this.results.has(keyOf([...path, at + 1]))) at += 1;
+		const part = this.results.get(keyOf([...path, at]));
+		if (part === undefined) throw new Error(`the proof of "${this.line.in}" closed the node at ${keyOf(path)} without the result of a part`);
+		return part;
+	}
+
+	/** Performs a read inside each context its bindings name, under the authority and read scope of a dispatched step. A pattern
+	 *  of the node graph reads a node's own facts, and every other pattern the store's facts through the proof's reader. Returns
+	 *  the values each pattern's variables take in each fact that holds its constants, or the read's refusal. */
+	private async read(path: readonly number[], { patterns, bindings }: TReadRequest): Promise<string> {
+		const factsOf = async (pattern: TQuadPattern): Promise<TFact[]> =>
+			pattern.namedGraph === READ_GRAPH.node
+				? (await this.nodeFacts(path, pattern)).filter((fact) => matchesQuadPattern({ ...fact, timestamp: 0 }, pattern))
+				: this.reader.facts(pattern);
+		try {
+			return factsTerm(patterns, await this.withinContexts(bindings, () => runAsDispatched(this.ctx, () => Promise.all(patterns.map(factsOf)))));
+		} catch (caught) {
+			return `refused(${atom(errorDetail(caught))})`;
+		}
+	}
+
+	/** A node's own facts: a waypoint's arguments as it read them when it opened, each individual as its canonical
+	 *  representative, and a quantifier's members, the values of its domain or the items its observation source's facts state. */
+	private async nodeFacts(path: readonly number[], { subject: id }: TQuadPattern): Promise<TFact[]> {
+		if (id === undefined) throw new Error(`the engine read a node's facts without naming the node in the proof of "${this.line.in}"`);
+		const fact = (predicate: string, object: unknown): TFact => ({ subject: id, predicate, object, namedGraph: READ_GRAPH.node });
+		if (this.node(id).step.action.step.reading === READING.apply) {
+			const canonical = await canonicalOf(this.reader);
+			return Object.entries(this.openedArgs(path)).map(([name, value]) => fact(name, canonical(String(value))));
+		}
 		const quantifier = quantifierOf(this.openedArgs(path));
 		const { world, steppers } = this.ctx;
-		return this.readWithin(request.bindings, async () => {
-			if ("source" in quantifier) {
-				const sources = steppers.flatMap((stepper) => {
-					const declared = hasCycles(stepper) ? stepper.cycles.getConcerns?.().sources : undefined;
-					return declared === undefined ? [] : declared;
-				});
-				const source = sources.find((one) => one.name.toLowerCase() === quantifier.source.toLowerCase());
-				if (source === undefined) return refusedTerm(`the observation source "${quantifier.source}" isn't declared; declare it in a stepper's concerns`);
-				const { items, metrics } = await source.observe(world);
-				this.metrics.set(request.node, metrics);
-				return `members(${list(items.map(atom))})`;
-			}
+		if ("domain" in quantifier) {
 			const found = await world.shared.getDomainValues(quantifier.domain);
-			if (found.error !== undefined) return refusedTerm(found.error);
-			return `members(${list(found.values.map((value) => atom(String(value))))})`;
+			if (found.error !== undefined) throw new Error(found.error);
+			return found.values.map((value) => fact(READ_PREDICATE.member, value));
+		}
+		const sources = steppers.flatMap((stepper) => {
+			const declared = hasCycles(stepper) ? stepper.cycles.getConcerns?.().sources : undefined;
+			return declared === undefined ? [] : declared;
 		});
-	}
-
-	/** A waypoint's arguments, read as its node reads. */
-	private args(path: number[], request: TNodeRequest): Promise<string> {
-		const step = this.instance(this.node(request.node), path, request.bindings);
-		return this.readWithin(request.bindings, async () => {
-			const read = await argumentsOf(step, this.ctx.world, this.ctx.steppers);
-			if ("refused" in read) return refusedTerm(read.refused);
-			return `args(${list(Object.entries(read.args).map(([name, value]) => `${atom(name)}-${atom(String(value))}`))})`;
-		});
+		const source = sources.find((one) => one.name.toLowerCase() === quantifier.source.toLowerCase());
+		if (source === undefined) throw new Error(`the observation source "${quantifier.source}" isn't declared; declare it in a stepper's concerns`);
+		const byItem = Map.groupBy(await source.observe(world), ({ subject }) => subject);
+		this.observed.set(id, byItem);
+		return [...byItem.keys()].map((item) => fact(READ_PREDICATE.member, item));
 	}
 
 	private async rule(name: string): Promise<string> {
@@ -356,24 +387,24 @@ function durationOf(args: TStepArgs): number {
 	return ms;
 }
 
-/** A read's refusal as the engine reads it. */
-const refusedTerm = (reason: string): string => `refused(${atom(reason)})`;
+/** The proofs the engine of this process has started, so each holds an id of its own until it completes. */
+let proofs = 0;
 
-/** The prover of an engine. The engine holds each open proof under an id of its own until the proof completes. */
+/** Proves a term to its end, performing each effect it needs, and removes what the engine holds for it. Returns how it ended. */
+export async function proved(engine: TLogicEngine, term: string, perform: (need: Extract<TProofState, { need: string }>) => Promise<string>): Promise<TProofState> {
+	proofs += 1;
+	const top = `q${proofs}`;
+	try {
+		let outcome = engine.prove(top, term);
+		while ("need" in outcome) outcome = engine.resume(top, await perform(outcome));
+		return outcome;
+	} finally {
+		engine.forget(top);
+	}
+}
+
+/** The prover of an engine. */
 export function proverOf(engine: TLogicEngine): TProver {
-	let proofs = 0;
-	/** Proves a term to its verdict, performing each effect it needs, and removes what the engine holds for it. */
-	const proved = async <T>(proof: Proof, term: string, result: () => T): Promise<T> => {
-		proofs += 1;
-		const top = `q${proofs}`;
-		try {
-			let outcome = engine.prove(top, term);
-			while ("need" in outcome) outcome = engine.resume(top, await proof.perform(outcome));
-			return result();
-		} finally {
-			engine.forget(top);
-		}
-	};
 	return {
 		prove: async (ctx, line) => {
 			const proof = new Proof(ctx, line);
@@ -385,7 +416,8 @@ export function proverOf(engine: TLogicEngine): TProver {
 				// so a call its caller may not make returns only its refusal.
 				return await dispatchStep(ctx, line, () => Promise.resolve({ ok: false, errorMessage: errorDetail(caught), verdict: VERDICT.unknown }));
 			}
-			return await proved(proof, term, () => proof.result());
+			await proved(engine, term, (need) => proof.perform(need));
+			return proof.result();
 		},
 		proveStatements: async (ctx, parent, statements, targetHostId) => {
 			if (statements.length === 0) return { ok: true };
@@ -397,7 +429,8 @@ export function proverOf(engine: TLogicEngine): TProver {
 			} catch (caught) {
 				return { ok: false, errorMessage: errorDetail(caught), verdict: VERDICT.unknown };
 			}
-			return await proved(proof, `all(${list(terms)})`, () => proof.statementsResult(statements.length));
+			await proved(engine, `all(${list(terms)})`, (need) => proof.perform(need));
+			return proof.statementsResult(statements.length);
 		},
 	};
 }

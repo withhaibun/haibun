@@ -39,6 +39,8 @@ import {
 	DURATION_TERM,
 	DOMAIN_TEMPLATE,
 	DOMAIN_WAYPOINT_ARGUMENT,
+	DOMAIN_UNIVERSAL,
+	UNIVERSAL,
 	DOMAIN_LINE_COMMENT,
 	DOMAIN_HYPERMEDIA_DECLARATION,
 	DOMAIN_SET_VALUES,
@@ -107,6 +109,7 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		description:
 			"An argument in a call to a waypoint, for a placeholder in the waypoint's outcome pattern. It is quoted text, or the value of the variable that an unquoted name references. The activity and the proof read it as a runtime argument.",
 	},
+	{ selectors: [DOMAIN_UNIVERSAL], schema: z.string().regex(UNIVERSAL), written: true, description: "A universal rule, {x: D} where B, H, as written in the line." },
 	{
 		selectors: [DOMAIN_LINE_COMMENT],
 		schema: z.string(),

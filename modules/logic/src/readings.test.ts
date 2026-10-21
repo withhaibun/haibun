@@ -52,18 +52,38 @@ const READINGS: [string, string, boolean][] = [
 		true,
 	],
 	["a quantifier's variable doesn't stay set after it", 'set of Meals is ["dinner"]\nevery meal in Meals is passes\nnot variable meal exists', true],
-	["existence over an observation source", "passes\nsome step observed in step usage is variable step/count is more than 0", true],
-	["universal over an observation source", "passes\nevery stepper observed in stepper usage is variable stepper/count is more than 0", true],
-	["a quoted statement under a quantifier is proved", 'passes\nsome step observed in step usage is "variable step/count is more than 999999"', false],
-	["a quoted statement under every is proved", 'passes\nevery step observed in step usage is "variable step/count is more than 999999"', false],
+	["existence over an observation source", 'passes\nsome step observed in steps is variable step/called is "TestSteps.passes"', true],
+	["universal over an observation source", "passes\nevery step observed in steps is variable step/stepText exists", true],
+	["a quoted statement under a quantifier is proved", 'passes\nsome step observed in steps is "variable step/duration is more than 999999"', false],
+	["a quoted statement under every is proved", 'passes\nevery step observed in steps is "variable step/duration is more than 999999"', false],
 	[
-		"an item keeps its dots while its metrics resolve",
-		'passes\nsome step observed in step usage is matches {step} with "*.*"\nsome step observed in step usage is variable step/count is more than 0',
+		"an item keeps its dots while its functions resolve",
+		'passes\nsome step observed in steps is matches {step} with "*.*"\nsome step observed in steps is variable step/duration is less than 999999',
 		true,
 	],
 	[
-		"the step usage source counts the records by step",
-		'passes\npasses\npasses\nsome step observed in step usage is "variable step/count is more than 2"\nevery step observed in step usage is "variable step/count is less than 4"',
+		"the steps source states each record's stepper and its duration",
+		'passes\nsome step observed in steps is variable step/stepper is "TestSteps"\nevery step observed in steps is where variable step/called is "TestSteps.passes", variable step/duration is less than 1000',
+		true,
+	],
+	[
+		"a step's duration is a function of its record",
+		'pause for 30ms\nevery step observed in steps is where variable step/called is "Haibun.pause", variable step/duration is more than 29',
+		true,
+	],
+	[
+		"a universal states a rule whose head a line proves where its body holds",
+		'set of Meals is ["dinner", "lunch"]\nset dinner to "cooked"\nfor every {meal: Meals} where variable {meal} is "cooked", {meal} is edible\n"dinner" is edible\nnot "lunch" is edible',
+		true,
+	],
+	[
+		"a stated falsity refutes a goal, and a goal without one is unknown",
+		'set of Meals is ["dinner", "lunch"]\nActivity: Prepare a meal\nwaypoint {meal: Meals} is raw\nabsent dinner is raw\nset dinner status from maybe ensure dinner is raw\nvariable dinner status.verdict is "refuted"\nset lunch status from maybe ensure lunch is raw\nvariable lunch status.verdict is "unknown"',
+		true,
+	],
+	[
+		"an individual stated the same as another is read as their canonical representative",
+		'Activity: Prepare a meal\nwaypoint {meal} is raw\n"supper" is the same as "dinner"\nabsent "dinner" is raw\nset status from maybe ensure "supper" is raw\nvariable status.verdict is "refuted"',
 		true,
 	],
 	["an observation source that isn't declared", "every x observed in unknown source is passes", false],
@@ -91,9 +111,16 @@ describe("the readings of the logic engine", () => {
 	});
 
 	it("reads the items of an observation source under what holding only holds, and refuses a read above it with the read to request", async () => {
-		const content = 'passes\nholding only "LogicStepper:everyObserved,VariablesStepper:matches", every step observed in step usage is matches {step} with "*"';
+		const content = 'passes\nholding only "LogicStepper:everyObserved,VariablesStepper:matches", every step observed in steps is matches {step} with "*"';
 		const result = await failWithDefaults(content, [...STEPPERS, AuthorityStepper]);
 		expect(result.failure?.error.message).toContain("request Read:public from a key that delegates it");
+	});
+
+	it("fails a goal both proved and stated absent as a contradiction, naming the record of each", async () => {
+		const content =
+			'Activity: Serve dinner\nset served to "yes"\nwaypoint Dinner is served with variable served is "yes"\nset served to "yes"\nabsent Dinner is served\nensure Dinner is served';
+		const result = await failWithDefaults(content, STEPPERS);
+		expect(result.failure?.error.message).toMatch(/Dinner is served is contradiction: the record \S+\.0\.1\.0\.2 states it is absent, and its proof at \S+\.0\.1\.0\.3\.1 holds/);
 	});
 
 	it("ends until at its deadline, however many attempts the deadline allows", async () => {

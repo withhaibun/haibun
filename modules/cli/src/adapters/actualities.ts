@@ -169,14 +169,10 @@ function entryOf(v: TVerification, result: TExecutorResult, levels: TLevelRecord
 	return { filter: v.filter, execution: { ...levelLine(execution), text: v.bases }, features: Object.fromEntries(features) };
 }
 
-/** Writes an actuality under its conditions on this machine, and returns every feature whose duration differs from the
- *  entry it replaces. */
-export function recordActuality(v: TVerification, result: TExecutorResult, levels: TLevelRecords): TVariance[] {
+/** Writes an actuality under its conditions on this machine, in place of the entry it held. */
+export function recordActuality(v: TVerification, result: TExecutorResult, levels: TLevelRecords): void {
 	const actualities = readActualities(v.file);
-	const now = entryOf(v, result, levels);
-	const variances = variancesBetween(actualities[v.machine]?.[v.conditions], now);
-	writeActualities(v.file, { ...actualities, [v.machine]: { ...actualities[v.machine], [v.conditions]: now } });
-	return variances;
+	writeActualities(v.file, { ...actualities, [v.machine]: { ...actualities[v.machine], [v.conditions]: entryOf(v, result, levels) } });
 }
 
 /** Clears the digests of each actuality that `held` selects, so it isn't evidence about a state, and keeps its durations. */
@@ -196,37 +192,4 @@ export const forgetOutcome = (v: TVerification): void => forgetWhere(v.file, (ma
  *  group, because an actuality of the whole group includes those features. */
 export function forgetOutcomes(configDir: string, filter?: string): void {
 	forgetWhere(path.join(configDir, ACTUALITIES_FILE), (_machine, _conditions, entry) => !filter || entry.filter === filter || entry.filter === "");
-}
-
-/** The smallest change to report. A feature is reported where its duration differs from the recorded actuality by at least
- *  a fifth of the recorded duration and by at least a second. Three actualities of one group recorded 6.2, 6.3 and 6.3 seconds
- *  for its largest feature, so a fifth exceeds the spread between actualities of unchanged code. The one-second minimum keeps
- *  a short feature's small changes out of the report. */
-const CHANGED_FRACTION = 0.2;
-const CHANGED_MS = 1000;
-
-/** A feature whose duration differs from the recorded actuality, in seconds. */
-type TVariance = { feature: string; seconds: number; was: number; steps: number; wasSteps: number };
-
-/** Returns the features whose durations differ from the recorded actuality by at least CHANGED_FRACTION of the recorded duration
- *  and at least CHANGED_MS, largest difference first. It leaves out a feature that only one of the two actualities holds. An
- *  added or removed feature changes what runs, not how long an actuality takes. */
-export function variancesBetween(recorded: TActualityEntry | undefined, now: TActualityEntry): TVariance[] {
-	const changed: TVariance[] = [];
-	for (const [feature, { tookMs, steps }] of Object.entries(now.features)) {
-		const before = recorded?.features[feature];
-		if (!before) continue;
-		const difference = Math.abs(tookMs - before.tookMs);
-		if (difference < CHANGED_MS || difference < before.tookMs * CHANGED_FRACTION) continue;
-		changed.push({ feature, seconds: tookMs / 1000, was: before.tookMs / 1000, steps, wasSteps: before.steps });
-	}
-	return changed.sort((a, b) => Math.abs(b.seconds - b.was) - Math.abs(a.seconds - a.was));
-}
-
-/** Formats a variance as one line: the feature, both durations, the change as a percentage where the recorded duration
- *  isn't zero, the step count, and the recorded step count where it differs. */
-export function varianceLine(v: TVariance): string {
-	const percent = v.was === 0 ? "" : ` (${v.seconds > v.was ? "+" : "-"}${Math.round((Math.abs(v.seconds - v.was) / v.was) * 100)}%)`;
-	const steps = v.steps === v.wasSteps ? `${v.steps} steps` : `${v.steps} steps, was ${v.wasSteps}`;
-	return `${v.feature} took ${v.seconds}s, was ${v.was}s${percent}, ${steps}`;
 }

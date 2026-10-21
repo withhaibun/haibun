@@ -1,7 +1,7 @@
 import { withAction, type TKirejiExport } from "@haibun/core/kireji/derivations/withAction.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 
-const { feature, scenario, pendingScenario } = withAction(new Haibun());
+const { feature, scenario } = withAction(new Haibun());
 
 export const features: TKirejiExport = {
 	"Combinators and quantifiers": [
@@ -38,10 +38,16 @@ export const features: TKirejiExport = {
 		'whenever variable tally is less than "two", increment tally',
 		'variable tally is "two"',
 
-		pendingScenario({ scenario: "A negation states whether its statement is refuted or unknown" }),
-		"Essential, for the open world. Source: docs/reasoner.md, step 7.",
-		'absent dinner is "raw"',
-		'set status from the status of dinner is "raw"',
-		'variable status is "refuted"',
+		scenario({ scenario: "A negation states whether its statement is refuted or unknown" }),
+		"Essential, for the open world. A goal is refuted by a stated falsity, and unknown without one. Source: docs/reasoner.md, step 7.",
+		'set of Courses is ["soup", "salad"]',
+		"Activity: Prepare a course",
+		"waypoint {course: Courses} is raw",
+		"absent soup is raw",
+		"not ensure soup is raw",
+		"set soup status from maybe ensure soup is raw",
+		'variable soup status.verdict is "refuted"',
+		"set salad status from maybe ensure salad is raw",
+		'variable salad status.verdict is "unknown"',
 	],
 };

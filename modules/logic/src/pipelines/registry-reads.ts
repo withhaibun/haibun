@@ -7,7 +7,6 @@
 import type { DispatchContext } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
 import { nextSeqPath, proveStep } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
 import { Resolver } from "@haibun/core/lib/actuality/pipelines/resolver.js";
-import { readEvery, equalTo } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { runRegistry } from "@haibun/core/lib/steps/pipelines/step-registry.js";
 import { mapInputToStepValues, matchGwtaToAction } from "@haibun/core/lib/steps/derivations/named-vars.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
@@ -22,6 +21,7 @@ import type { TDerivation, TRule } from "../domains/logic.js";
 import { checkFormula, unicodeOf } from "../derivations/formula.js";
 import type { TStatedFormula } from "../derivations/term-graph.js";
 import { declarationFindings } from "../derivations/declarations.js";
+import { recordsWhere } from "./reads.js";
 
 /** Whether a record's call is of a step the engine proves by its reading, and so a node of a proof. */
 const isNodeOf =
@@ -38,7 +38,7 @@ export async function derivationUnder(ctx: DispatchContext, parent: TFeatureStep
 	const seqPath = nextSeqPath(world, parent.seqPath);
 	await proveStep(ctx, { ...statement, seqPath, isSubStep: true, ...(parent.runtimeArgs === undefined ? {} : { runtimeArgs: parent.runtimeArgs }) });
 	const execution = executionOf(world.tag);
-	const records = await readEvery(world.shared.getStore(), { label: SEQ_PATH_LABEL, filters: equalTo({ [SEQ_PATH_FIELD.execution]: execution }) });
+	const records = await recordsWhere(world.shared.getStore(), SEQ_PATH_LABEL, SEQ_PATH_FIELD.execution, execution);
 	return derivationOf(records, formatRecordName({ execution, path: seqPath }), isNodeOf(steppers));
 }
 

@@ -1,4 +1,13 @@
-import { AStepper, READING, type IHasCycles, type IObservationSource, type IStepperCycles, type TFeatureStep, type TStepperSteps } from "@haibun/core/lib/steps/domains/stepper.js";
+import {
+	AStepper,
+	READING,
+	observedOf,
+	type IHasCycles,
+	type IObservationSource,
+	type IStepperCycles,
+	type TFeatureStep,
+	type TStepperSteps,
+} from "@haibun/core/lib/steps/domains/stepper.js";
 import type { TWorld } from "@haibun/core/lib/actuality/domains/world.js";
 import type { TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 import {
@@ -11,12 +20,14 @@ import {
 	DOMAIN_DOMAIN_KEY,
 	DOMAIN_JSON_OBJECT,
 	DOMAIN_STEP_PATH,
+	DOMAIN_WAYPOINT_ARGUMENT,
 } from "@haibun/core/lib/domains/domains.js";
+import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { actionNotOK, actionOK, actionOKWithProducts } from "@haibun/core/lib/domains/util.js";
+import { argumentsOf } from "@haibun/core/lib/steps/pipelines/populate-action-args.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
-import { readEvery, equalTo } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { Access, SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
-import { SEQ_PATH_FIELD, calledParts, executionOf } from "@haibun/core/lib/actuality/domains/seq-path.js";
+import { SEQ_PATH_FIELD, calledParts, executionOf, stepRecordOf } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { callerHolds } from "@haibun/core/lib/domains/capability-context.js";
 import {
 	DOMAIN_AFFORDANCES,
@@ -29,32 +40,34 @@ import {
 import { affordancesAt, chainLint, pursued, resolved, walkAdvanced, walkBegun, type TGoalScope } from "./pipelines/goals.js";
 import { stepperContext } from "@haibun/core/lib/actuality/pipelines/step-dispatch.js";
 import { proverOf } from "./pipelines/prove.js";
+import { canonicalOf, readerOf, recordsWhere, writeFacts } from "./pipelines/reads.js";
 import { callTerm, derivationUnder, formulaRefusal, lineTerm, refuseDeclarations, ruleOf } from "./pipelines/registry-reads.js";
 import { logicEngine } from "./root.js";
-import { DOMAIN_DERIVATION, DOMAIN_FORMULA, DOMAIN_LINE_TERM, DOMAIN_RULE, RESOLVE_STATEMENT, formulaDomainDefinition, logicDomainDefinitions } from "./domains/logic.js";
-import { DOMAIN_ALTERNATIVES, DOMAIN_OBSERVATION_SOURCE, readingDomainDefinitions } from "./domains/readings.js";
+import {
+	DOMAIN_DERIVATION,
+	DOMAIN_FORMULA,
+	DOMAIN_LINE_TERM,
+	DOMAIN_RULE,
+	READ_GRAPH,
+	READ_PREDICATE,
+	RESOLVE_STATEMENT,
+	formulaDomainDefinition,
+	logicDomainDefinitions,
+} from "./domains/logic.js";
+import { DOMAIN_ALTERNATIVES, DOMAIN_OBSERVATION_SOURCE, DOMAIN_STATUS, readingDomainDefinitions } from "./domains/readings.js";
 
-/** Counts the step records of the feature's execution by the step each called, as `Stepper.action`. */
-async function stepCounts(world: TWorld): Promise<Map<string, number>> {
-	const steps = await readEvery(world.shared.getStore(), { label: SEQ_PATH_LABEL, filters: equalTo({ [SEQ_PATH_FIELD.execution]: executionOf(world.tag) }) });
-	const called = steps.map((step) => step[SEQ_PATH_FIELD.called]).filter((one): one is string => typeof one === "string");
-	return new Map([...Map.groupBy(called, (one) => one)].map(([one, held]) => [one, held.length]));
-}
-
-/** Returns each counted item and its count as a source's items and metrics. */
-const observedCounts = (counts: Map<string, number>) => ({ items: [...counts.keys()], metrics: Object.fromEntries([...counts].map(([item, count]) => [item, { count }])) });
-
-/** The built-in observation sources count the step records of the feature's execution: by step, and by stepper. */
-const builtInSources: IObservationSource[] = [
-	{ name: "step usage", observe: async (world: TWorld) => observedCounts(await stepCounts(world)) },
-	{
-		name: "stepper usage",
-		observe: async (world: TWorld) => {
-			const calls = [...(await stepCounts(world))].map(([called, count]) => ({ stepperName: calledParts(called).stepperName, count }));
-			return observedCounts(new Map([...Map.groupBy(calls, ({ stepperName }) => stepperName)].map(([name, held]) => [name, held.reduce((sum, { count }) => sum + count, 0)])));
-		},
-	},
-];
+/** The feature's step records as an observation source: each record's fields, the stepper of the step it called, and its
+ *  duration, from its start to its end in milliseconds, where it ended. */
+const steps: IObservationSource = {
+	name: "steps",
+	observe: async (world: TWorld) =>
+		(await recordsWhere(world.shared.getStore(), SEQ_PATH_LABEL, SEQ_PATH_FIELD.execution, executionOf(world.tag))).flatMap((record) => {
+			const { [SEQ_PATH_FIELD.called]: called, [SEQ_PATH_FIELD.generatedAtTime]: started, [SEQ_PATH_FIELD.endedAtTime]: ended } = record;
+			const stepper = typeof called === "string" ? calledParts(called).stepperName : undefined;
+			const duration = typeof ended === "string" && typeof started === "string" ? Date.parse(ended) - Date.parse(started) : undefined;
+			return observedOf(String(record[SEQ_PATH_FIELD.id]), { ...record, stepper, duration });
+		}),
+};
 
 /** The statements of a quantifier, as `some x in D is S` and `every x observed in S is P` state them. */
 const QUANTIFIED = `{what: ${DOMAIN_VARIABLE_NAME}} in {domain: ${DOMAIN_DOMAIN_NAME}} is {statement: ${DOMAIN_STATEMENT}}`;
@@ -75,7 +88,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 	private readonly formulaDomain: TDomainDefinition = { ...formulaDomainDefinition, refuses: (text, steppers) => formulaRefusal(text, steppers, this.getWorld().domains) };
 
 	cycles: IStepperCycles = {
-		getConcerns: () => ({ sources: builtInSources, domains: [...logicDomainDefinitions, ...readingDomainDefinitions, ...goalDomainDefinitions, this.formulaDomain] }),
+		getConcerns: () => ({ sources: [steps], domains: [...logicDomainDefinitions, ...readingDomainDefinitions, ...goalDomainDefinitions, this.formulaDomain] }),
 	};
 
 	/** What a goal's proof reads, under the caller's authority. */
@@ -102,8 +115,36 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 		},
 		maybe: {
 			gwta: `maybe {statements:${DOMAIN_STATEMENT}}`,
-			description: "Proves the statement and holds whatever its verdict, which its record states: P ∨ ⊤.",
+			description: "Proves the statement and holds whatever its verdict, which its record states and it returns: P ∨ ⊤.",
+			productsDomain: DOMAIN_STATUS,
 			reading: READING.maybe,
+		},
+		absent: {
+			gwta: `absent {statement: ${DOMAIN_STATEMENT}}`,
+			description:
+				"States the falsity of a goal, a line that unifies with a waypoint's head: the goal is refuted where its proof doesn't hold, and a contradiction where its proof holds.",
+			action: async ({ statement }: { statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
+				const [goal] = statement;
+				const head = goal?.action.step.rule?.head;
+				if (statement.length !== 1 || goal === undefined || head === undefined)
+					return actionNotOK(`absent states the falsity of a goal; state one line that unifies with a waypoint's head`);
+				const world = this.getWorld();
+				const read = await argumentsOf(goal, world, this.steppers);
+				if ("refused" in read) return actionNotOK(read.refused);
+				const store = world.shared.getStore();
+				const canonical = await canonicalOf(readerOf(store));
+				const args = Object.fromEntries(Object.entries(read.args).map(([name, value]) => [name, canonical(String(value))]));
+				await writeFacts(store, stepRecordOf(world.tag, featureStep.seqPath), READ_GRAPH.falsity, { [READ_PREDICATE.head]: head, ...args });
+				return OK;
+			},
+		},
+		sameAs: {
+			gwta: `{individual: ${DOMAIN_WAYPOINT_ARGUMENT}} is the same as {other: ${DOMAIN_WAYPOINT_ARGUMENT}}`,
+			description: "States that two individuals are one, so a goal reads each as its canonical representative: the first in order of the individuals stated the same.",
+			action: async ({ individual, other }: { individual: string; other: string }) => {
+				await writeFacts(this.getWorld().shared.getStore(), individual, READ_GRAPH.same, { [READ_PREDICATE.sameAs]: other });
+				return OK;
+			},
 		},
 		someObserved: {
 			gwta: `some ${OBSERVED}`,

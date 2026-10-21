@@ -110,8 +110,7 @@ export async function runCli(args: string[], env: NodeJS.ProcessEnv, ports: TCli
 		// actualities file. Otherwise the file holds its outcome against the state and each feature's duration, and the commit
 		// holds the file, so its history holds the durations at each commit.
 		if (verification && result.featureResults.length === 0) ports.actualities.forgetOutcome(verification);
-		else if (verification)
-			for (const variance of ports.actualities.recordActuality(verification, result, world.runtime.levels)) console.info(`timings: ${ports.actualities.varianceLine(variance)}`);
+		else if (verification) ports.actualities.recordActuality(verification, result, world.runtime.levels);
 
 		await reportAndExit(result, world, protoOptions, ports);
 	} catch (error) {

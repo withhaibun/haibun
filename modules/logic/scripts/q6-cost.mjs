@@ -15,7 +15,7 @@ const startupMs = round(performance.now() - started);
 
 /** Proves `every` over `members` records with each call's outcome, and returns its queries and timings. */
 function proveEvery(top, members, outcomeOf) {
-	const performed = { open: () => "opened", close: () => "closed", members: () => `members([${members.map((m) => `'${m}'`).join(", ")}])`, call: outcomeOf };
+	const performed = { open: () => "opened", close: () => "closed", read: () => `facts([[${members.map((m) => `['${m}']`).join(", ")}]])`, call: outcomeOf };
 	const callMs = [];
 	let queries = 1;
 	const began = performance.now();

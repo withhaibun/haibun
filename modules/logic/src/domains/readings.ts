@@ -7,7 +7,7 @@ import { DOMAIN_STATEMENT } from "@haibun/core/lib/domains/domains.js";
 import type { TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 import type { TStepperStep } from "@haibun/core/lib/steps/domains/stepper.js";
 import { stepParts } from "@haibun/core/lib/steps/domains/phrase.js";
-import type { TStepArgs } from "@haibun/core/lib/domains/protocol.js";
+import { VERDICT, type TStepArgs } from "@haibun/core/lib/domains/protocol.js";
 
 /** How long until waits before it proves its statements again. */
 export const UNTIL_RETRY_MS = 200;
@@ -15,6 +15,8 @@ export const UNTIL_RETRY_MS = 200;
 /** The comma-separated statements of a disjunction, and the name of an observation source a quantifier ranges over. */
 export const DOMAIN_ALTERNATIVES = "statement-alternatives";
 export const DOMAIN_OBSERVATION_SOURCE = "observation-source";
+/** The verdict a statement's proof ended with, which maybe returns. */
+export const DOMAIN_STATUS = "status";
 
 export const readingDomainDefinitions: TDomainDefinition[] = [
 	{ selectors: [DOMAIN_ALTERNATIVES], schema: z.string().min(1), written: true, description: "The comma-separated statements of a disjunction" },
@@ -24,6 +26,7 @@ export const readingDomainDefinitions: TDomainDefinition[] = [
 		written: true,
 		description: "The name of an observation source a stepper declares, which a quantifier ranges over",
 	},
+	{ selectors: [DOMAIN_STATUS], schema: z.object({ verdict: z.enum(VERDICT) }), description: "The verdict of a statement's proof: proved, refuted, unknown or contradiction" },
 ];
 
 /** A quantifier's variable and its range: a domain's members, or the items an observation source returns. */

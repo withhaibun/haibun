@@ -1,13 +1,12 @@
 /**
- * Writes and reads facts: the products of steps, held in core's in-memory store. A fact's id is the record name of the step that
+ * Writes facts: the products of steps, held in core's in-memory store. A fact's id is the record name of the step that
  * produced it, followed by the product's field where the step declares a domain for each field. So a step that runs again
  * replaces its fact. Each fact links its step's record through `prov:wasGeneratedBy`.
  */
 import { EDGE, FACT_LABEL, SEQ_PATH_LABEL } from "../../domains/resources.js";
 import { type IQuadStore } from "../../steps/ports.js";
 import { factIdOf, formatRecordName, type TRecordName } from "../../actuality/domains/seq-path.js";
-import { FACT_FIELD, type TFact } from "../domains/facts.js";
-import { equalTo, readEvery, type TRecordReader } from "./record-reads.js";
+import { FACT_FIELD } from "../domains/facts.js";
 
 /** One product of a step: its domain, its value, the field of the product where the step declares a domain for each field, and when it was produced. */
 export type TProduct = { domain: string; value: unknown; field?: string; generatedAtTime: string };
@@ -24,12 +23,4 @@ export async function assertFact(store: Pick<IQuadStore, "upsertIndividual" | "c
 	});
 	await store.createEdge(FACT_LABEL, id, EDGE.wasGeneratedBy, SEQ_PATH_LABEL, formatRecordName(step));
 	return id;
-}
-
-const factOf = (record: Record<string, unknown>): TFact => ({ id: String(record[FACT_FIELD.id]), domain: String(record[FACT_FIELD.domain]), value: record[FACT_FIELD.value] });
-
-/** Reads every fact the store holds, or the facts of one domain. */
-export async function readFacts(store: TRecordReader, domain?: string): Promise<TFact[]> {
-	const filters = domain === undefined ? [] : equalTo({ [FACT_FIELD.domain]: domain });
-	return (await readEvery(store, { label: FACT_LABEL, filters })).map(factOf);
 }

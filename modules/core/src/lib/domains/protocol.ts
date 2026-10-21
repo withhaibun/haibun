@@ -368,6 +368,9 @@ export type TActionResult = (TActionResultCarries & { ok: true; errorMessage?: u
 
 export const OK: TActionResult = { ok: true };
 
+/** A result's verdict: the verdict it states, or proved where it passed and refuted where it failed. */
+export const verdictOf = (result: TActionResult): TVerdict => (result.verdict === undefined ? (result.ok ? VERDICT.proved : VERDICT.refuted) : result.verdict);
+
 export type TStepValueValue = unknown;
 export type TStepArgs = Record<string, TStepValueValue>;
 

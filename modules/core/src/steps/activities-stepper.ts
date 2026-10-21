@@ -1,8 +1,8 @@
 import { AStepper, IHasCycles, TFeatureStep, IStepperCycles, TStepperSteps, CycleWhen, READING, ruleStatedAt, type TWaypointRule } from "../lib/steps/domains/stepper.js";
 import { runSteppers, type TWorld } from "../lib/actuality/domains/world.js";
 import { OK } from "../lib/domains/protocol.js";
-import { actionNotOK, actionOKWithProducts, getActionable, errorDetail, dePolite } from "../lib/domains/util.js";
-import { DOMAIN_STATEMENT, DOMAIN_STATEMENT_LINES, DOMAIN_TITLE, DOMAIN_WAYPOINT_ARGUMENT } from "../lib/domains/domains.js";
+import { actionNotOK, actionOKWithProducts, getActionable, errorDetail, dePolite, getStepTerm } from "../lib/domains/util.js";
+import { DOMAIN_STATEMENT, DOMAIN_STATEMENT_LINES, DOMAIN_STEPPER_NAME, DOMAIN_TITLE, DOMAIN_UNIVERSAL, DOMAIN_WAYPOINT_ARGUMENT, UNIVERSAL } from "../lib/domains/domains.js";
 import { Resolver, findFeatureStepsFromStatement } from "../lib/actuality/pipelines/resolver.js";
 import { proveStatements, stepperContext } from "../lib/actuality/pipelines/step-dispatch.js";
 import type { TWaypointEntry } from "../lib/domains/goal-resolution.js";
@@ -22,6 +22,8 @@ const BACKGROUNDS = "backgrounds/";
  *  an activity. */
 const ACTIVITY_LINE = /^Activity:/i;
 const WAYPOINT_LINE = /^waypoint\s+(.+?)(?:\s+with\s+(.+))?$/i;
+/** The line that states a universal rule. */
+const UNIVERSAL_LINE = new RegExp(`^for every ${UNIVERSAL.source.slice(1)}`);
 const HEADING_LINE = /^(Feature|Scenario|Pending scenario|Background|Activity):/i;
 /** The step that ensures a waypoint, which the affordances offer for each waypoint. */
 const ENSURE = stepMethodName(ACTIVITIES_STEPPER, "ensure");
@@ -89,9 +91,9 @@ function headOf(written: string): Pick<TWaypointRule, "head" | "pattern"> {
 }
 
 /**
- * Holds a waypoint's rule from each `waypoint` line of an activity and from each saved waypoint. A line that unifies with a
- * rule's head resolves to the `apply` step, which holds the rule. The logic engine proves `ensure H` as P ∨ (¬P ∧ [A]P):
- * either the proof P holds, or the activity A runs and then P holds.
+ * Holds a waypoint's rule from each `waypoint` line of an activity, each universal and each saved waypoint, and the rules over
+ * step records that `after every` states. A line that unifies with a rule's head resolves to the `apply` step, which holds the
+ * rule. The logic engine proves `ensure H` as P ∨ (¬P ∧ [A]P): either the proof P holds, or the activity A runs and then P holds.
  */
 export class ActivitiesStepper extends AStepper implements IHasCycles {
 	description = "Define and reuse activities with waypoints and proofs";
@@ -106,6 +108,18 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		getConcerns: () => ({ domains: [savedWaypointDomainDefinition] }),
 		startFeature: ({ resolvedFeature }) => {
 			this.feature = resolvedFeature.path;
+		},
+		// A rule over step records reads the record of each step a feature's line states, so a substep doesn't apply it.
+		afterStep: async ({ featureStep }) => {
+			const { stepperName, actionName } = featureStep.action;
+			if (featureStep.isSubStep === true) return undefined;
+			const world = this.getWorld();
+			const statements = this.inScope()
+				.flatMap(({ after, proof }) => (after === stepperName ? proof.flatMap((line) => findFeatureStepsFromStatement(line.in, this.steppers, world, line.source?.path, [0])) : []))
+				.filter((step) => step.action.actionName !== actionName);
+			if (statements.length === 0) return undefined;
+			const proved = await proveStatements(stepperContext(world, this.steppers), featureStep, statements);
+			return proved.ok ? undefined : { failed: `a step run after every ${stepperName} step failed: ${proved.errorMessage}` };
 		},
 	};
 	cyclesWhen = { startFeature: CycleWhen.FIRST };
@@ -173,6 +187,32 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			reading: READING.waypoint,
 		},
 		waypointLabel: { gwta: `waypoint {outcome: ${DOMAIN_TITLE}}`, description: "States a waypoint whose activity runs where its line is proved.", reading: READING.waypoint },
+		forEvery: {
+			gwta: `for every {universal: ${DOMAIN_UNIVERSAL}}`,
+			description: "States the rule H ← B, for every {x: D} where B, H: a line that unifies with the head H proves the body B, with x a member of D.",
+			reading: READING.waypoint,
+			// A universal states the rule of the waypoint line it reads as, its head's variable ranging over the domain.
+			resolveFeatureLine: (line: string, path: string, _stepper: AStepper, _backgrounds: unknown, _allLines?: string[], at?: number, actualSourcePath?: string) => {
+				const rule = line.replace(
+					UNIVERSAL_LINE,
+					(_, x: string, domain: string, body: string, head: string) => `waypoint ${head.replaceAll(`{${x}}`, `{${x}: ${domain}}`)} with ${body}`,
+				);
+				if (rule !== line && at !== undefined) this.state(this.ruleOf(rule, path, [], at, at, actualSourcePath));
+				return false;
+			},
+		},
+		afterEvery: {
+			gwta: `after every {stepperName: ${DOMAIN_STEPPER_NAME}}, {statement: ${DOMAIN_STATEMENT}}`,
+			description:
+				"States a rule over step records: after each step of the stepper that a feature's line states, the statement is proved under that step, apart from a step of the statement's own action.",
+			action: ({ stepperName }: { stepperName: string }, featureStep: TFeatureStep) => {
+				const statement = getStepTerm(featureStep, "statement");
+				if (statement === undefined) return actionNotOK(`${featureStep.in} doesn't state the statement its rule proves`);
+				const source = featureStep.source === undefined ? { path: this.feature } : featureStep.source;
+				this.state({ head: `after every ${stepperName}`, pattern: "", proof: [{ in: statement, source }], activity: [], source, scope: this.feature, after: stepperName });
+				return OK;
+			},
+		},
 		ensure: {
 			description:
 				"Proves a waypoint's head: where its proof doesn't hold, its activity runs and its proof is proved again, P ∨ (¬P ∧ [A]P). The record of the waypoint states each part of the proof.",
@@ -183,7 +223,9 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		apply: {
 			description:
 				"Applies the rule of a waypoint whose head a line unifies with: the head's pattern parses the line, and each placeholder takes the line's term. The line alone proves the rule's proof and runs its activity where the proof doesn't hold, P ∨ [A]. In a proof, the line is a goal that the rule's proof proves.",
-			rules: () => this.inScope(),
+			rules: () => this.inScope().filter(({ after }) => after === undefined),
+			// A step's own pattern takes a line that a head starting with a placeholder also parses, such as not {head}.
+			fallback: true,
 			capability: ACTIVITIES_ACTIONS.applyWaypoint,
 			reading: READING.apply,
 		},
@@ -194,7 +236,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	async waypointEntries(featureStep: TFeatureStep): Promise<TWaypointEntry[]> {
 		const world = this.getWorld();
 		const waypoints: TWaypointEntry[] = [];
-		for (const rule of this.inScope()) {
+		for (const rule of this.inScope().filter(({ after }) => after === undefined)) {
 			const paramSlots = phraseParts(rule.pattern).map(({ name }) => name);
 			const proof = rule.proof.flatMap((line) => findFeatureStepsFromStatement(line.in, this.steppers, world, line.source?.path, [0]));
 			const proved = proof.length > 0 && paramSlots.length === 0 ? await proveStatements(stepperContext(world, this.steppers), featureStep, proof) : undefined;

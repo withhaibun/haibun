@@ -10,7 +10,8 @@ import { AStepper } from "@haibun/core/lib/astepper.js";
 import type { TFeature } from "@haibun/core/lib/execution.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { openRunRegistry } from "@haibun/core/lib/step-registry.js";
-import { registerDomains } from "@haibun/core/lib/domains.js";
+import { registerDomains, registerStepperNames } from "@haibun/core/lib/domains.js";
+import { constructorName } from "@haibun/core/lib/domains/util.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import ActivitiesStepper, { savedWaypointDomainDefinition } from "@haibun/core/steps/activities-stepper.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
@@ -136,6 +137,7 @@ describe("the language server's completion", () => {
 		const steppers = [stepper, new SampleStepper()];
 		await stepper.setWorld(world, steppers);
 		registerDomains(world, [[savedWaypointDomainDefinition]]);
+		registerStepperNames(world, steppers.map(constructorName));
 		world.runtime.steppers = steppers;
 		openRunRegistry(world, steppers);
 		await stepper.saveWaypoint("Knocked twice", ['set knocks to "2"'], "a saved waypoint");

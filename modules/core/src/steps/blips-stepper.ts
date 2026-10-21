@@ -6,7 +6,7 @@
  * in order. The counts state how many occurrences each name had. The window states their order. `observed in` reads both
  * observation sources.
  */
-import { AStepper, type IHasCycles, type IObservationSource, type IStepperCycles, type TStepperSteps } from "../lib/steps/domains/stepper.js";
+import { AStepper, observedOf, type IHasCycles, type IObservationSource, type IStepperCycles, type TStepperSteps } from "../lib/steps/domains/stepper.js";
 import { blipDeclarations, blipDeclared, blipRollup, blipWatch, renderOccurrence, WATCH_WINDOW, type TBlipSeries } from "../lib/domains/blips.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/domains/util.js";
 import { OK } from "../lib/domains/protocol.js";
@@ -60,26 +60,16 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 			observe: () => Promise.resolve(blipRollup.observe()),
 		},
 		{
-			// Returns the watched occurrences in order. Each item starts with its position, so repeated occurrences stay distinct items.
-			// The declared attributes become metrics, so a quantifier binds occurrence/view and occurrence/reason, for example.
+			// The watched occurrences in order, each item starting with its position, so repeated occurrences stay distinct items.
+			// Its functions are the declared attributes, so a quantifier reads occurrence/view and occurrence/reason, for example.
 			// A reserved key that the occurrence carries replaces an attribute of the same name.
 			name: "watched blips",
-			observe: () => {
-				const held = blipWatch.occurrences();
-				const metrics: Record<string, Record<string, unknown>> = {};
-				const items = held.map((blip, i) => {
-					const item = renderOccurrence(blip, i);
-					metrics[item] = {
-						...blip.attributes,
-						index: i + 1,
-						name: blip.name,
-						...(blip.seqPath ? { step: blip.seqPath } : {}),
-						...(blip.value === undefined ? {} : { value: blip.value }),
-					};
-					return item;
-				});
-				return Promise.resolve({ items, metrics });
-			},
+			observe: () =>
+				Promise.resolve(
+					blipWatch
+						.occurrences()
+						.flatMap((blip, i) => observedOf(renderOccurrence(blip, i), { ...blip.attributes, index: i + 1, name: blip.name, step: blip.seqPath, value: blip.value })),
+				),
 		},
 	];
 

@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { TFeatures } from "../lib/actuality/domains/execution.js";
 import type { TWorld } from "../lib/actuality/domains/world.js";
 import { OK } from "../lib/domains/protocol.js";
-import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TEndFeature, CycleWhen, READING } from "../lib/steps/domains/stepper.js";
+import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TEndFeature, READING } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts } from "../lib/domains/util.js";
 import { findFeatureStepsFromStatement } from "../lib/actuality/pipelines/resolver.js";
 import {
@@ -12,14 +12,13 @@ import {
 	DOMAIN_LINK,
 	DOMAIN_PERSISTED_TYPES,
 	DOMAIN_STATEMENT,
-	DOMAIN_STEPPER_NAME,
 	DOMAIN_TEXT,
 	DOMAIN_TITLE,
 	backgroundNamesSchema,
 	createEnumDomainDefinition,
 } from "../lib/domains/domains.js";
 import { findFeatures } from "../lib/domains/features.js";
-import { nextSeqPath, proveStatements, proveStep, stepperContext } from "../lib/actuality/pipelines/step-dispatch.js";
+import { proveStatements, stepperContext } from "../lib/actuality/pipelines/step-dispatch.js";
 import { QuadStore } from "../lib/steps/pipelines/quad-store.js";
 import { remoteQuadStore } from "./root.js";
 import { requestSigner } from "../lib/domains/session-authority.js";
@@ -38,10 +37,7 @@ import {
 } from "../lib/steps/domains/step-discovery.js";
 import { shownTo } from "../lib/domains/capability-context.js";
 import { validateStep } from "../lib/pipelines/step-validation.js";
-import { Access, SEQ_PATH_LABEL } from "../lib/domains/resources.js";
-import { recordOf } from "../lib/records/pipelines/record-reads.js";
-import { SEQ_PATH_FIELD, executionOf, formatRecordName } from "../lib/actuality/domains/seq-path.js";
-import { itemAt } from "../lib/domains/item-at.js";
+import { Access } from "../lib/domains/resources.js";
 
 /** Whether a line resolves to one step, as `TStepValidation` states it. The page reads that type only, so the schema stays here. */
 const StepValidationSchema = z.discriminatedUnion("valid", [
@@ -55,15 +51,6 @@ const StoreInUseSchema = z.object({ site: z.string(), types: z.array(z.string())
 const DOMAIN_STEP_DISCOVERY = "step-discovery";
 const DOMAIN_STEP_VALIDATION = "step-validation";
 const DOMAIN_STORE_IN_USE = "store-in-use";
-const DOMAIN_STEP_DURATION = "step-duration";
-/** A step's duration as its record states it: from the record's generation time to its end time. */
-const StepDurationSchema = z.object({ step: z.string(), called: z.string(), durationMs: z.number().nonnegative() });
-/** The fields of an ended step's record that its duration reads. */
-const EndedStepSchema = z.object({
-	[SEQ_PATH_FIELD.called]: z.string(),
-	[SEQ_PATH_FIELD.generatedAtTime]: z.iso.datetime({ offset: true }),
-	[SEQ_PATH_FIELD.endedAtTime]: z.iso.datetime({ offset: true }),
-});
 
 /** How `ends with` ends a feature. */
 const DOMAIN_ENDING = "ending";
@@ -72,7 +59,6 @@ const ENDING = { ok: "OK", notOk: "not OK" } as const;
 class Haibun extends AStepper implements IHasCycles {
 	description = "Core steps for features, scenarios, backgrounds, and prose";
 
-	afterEverySteps: { [stepperName: string]: TFeatureStep[] } = {};
 	steppers: AStepper[] = [];
 
 	async setWorld(world: TWorld, steppers: AStepper[]) {
@@ -86,13 +72,9 @@ class Haibun extends AStepper implements IHasCycles {
 				{ selectors: [DOMAIN_STEP_DISCOVERY], schema: StepDiscoverySchema, description: "The steps, domains and steppers actuality declares that a read matched" },
 				{ selectors: [DOMAIN_STEP_VALIDATION], schema: StepValidationSchema, description: "Whether a line resolves to exactly one step, and which" },
 				{ selectors: [DOMAIN_STORE_IN_USE], schema: StoreInUseSchema, description: "The store `use store at` mounts, and the types routed to it" },
-				{ selectors: [DOMAIN_STEP_DURATION], schema: StepDurationSchema, description: "A step's record, the action it called, and its duration in milliseconds" },
 				createEnumDomainDefinition({ name: DOMAIN_ENDING, values: Object.values(ENDING), description: "How `ends with` ends a feature: OK or not OK" }),
 			],
 		}),
-		startFeature: () => {
-			this.afterEverySteps = {};
-		},
 		endFeature: (endFeature?: TEndFeature) => {
 			// A federated source or a mounted remote store (`use store at`, `federate graph reads`) holds a connection scoped
 			// to the feature. The world store drops each one when the feature closes, so the next feature's reads don't call a closed peer.
@@ -101,31 +83,7 @@ class Haibun extends AStepper implements IHasCycles {
 			if (store instanceof QuadStore) store.dropRemoteConnections();
 			return Promise.resolve();
 		},
-		afterStep: async ({ featureStep }: { featureStep: TFeatureStep }) => {
-			// The after-every statement runs after each step of the feature. A substep is part of one step, so running after
-			// each substep would run the statement several times for one feature line.
-			if (featureStep.isAfterEveryStep || featureStep.isSubStep) {
-				return Promise.resolve({});
-			}
-			const afterEvery = this.afterEverySteps[featureStep.action.stepperName];
-			let failed: string | undefined;
-			if (afterEvery) {
-				const stepsToRun = afterEvery.filter((aeStep) => aeStep.action.actionName !== featureStep.action.actionName);
-
-				if (stepsToRun.length > 0) {
-					// Marks these steps as afterEvery steps to prevent recursion.
-					const markedSteps = stepsToRun.map((s) => ({ ...s, isAfterEveryStep: true }));
-					const res = await proveStatements(stepperContext(this.getWorld(), this.steppers), featureStep, markedSteps);
-					if (!res.ok) {
-						failed = `a step run after every ${featureStep.action.stepperName} step failed: ${res.errorMessage}`;
-					}
-				}
-			}
-			return Promise.resolve({ failed });
-		},
 	};
-
-	cyclesWhen = { startExecution: CycleWhen.LAST, startFeature: CycleWhen.LAST };
 
 	steps = {
 		useStoreAt: {
@@ -177,26 +135,6 @@ class Haibun extends AStepper implements IHasCycles {
 				const { stepperName, actionName, stepValuesMap } = validation.action;
 				const values = stepValuesMap === undefined ? {} : Object.fromEntries(Object.entries(stepValuesMap).map(([name, value]) => [name, value.term]));
 				return actionOKWithProducts({ valid: true, method: stepMethodName(stepperName, actionName), values });
-			},
-		},
-
-		stepDuration: {
-			gwta: `duration of {statement: ${DOMAIN_STATEMENT}}`,
-			description:
-				"Runs a statement of one step, and returns the step's duration in milliseconds from the step's record: from its generation time to its end time. A statement that fails fails this step.",
-			productsDomain: DOMAIN_STEP_DURATION,
-			action: async ({ statement }: { statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
-				if (statement.length !== 1) return actionNotOK(`duration of: the statement holds ${statement.length} steps, and a duration is read from the record of one step`);
-				const world = this.getWorld();
-				const seqPath = nextSeqPath(world, featureStep.seqPath);
-				const ran = await proveStep(stepperContext(world, this.steppers), { ...itemAt(statement, 0), seqPath, isSubStep: true });
-				if (!ran.ok) return actionNotOK(`duration of: the step failed: ${ran.errorMessage}`);
-				const step = formatRecordName({ execution: executionOf(world.tag), path: ran.seqPath });
-				const record = await recordOf(world.shared.getStore(), SEQ_PATH_LABEL, step);
-				if (!record) return actionNotOK(`duration of: actuality doesn't hold the record ${step} of the step`);
-				const ended = EndedStepSchema.parse(record);
-				const durationMs = Date.parse(ended[SEQ_PATH_FIELD.endedAtTime]) - Date.parse(ended[SEQ_PATH_FIELD.generatedAtTime]);
-				return actionOKWithProducts({ step, called: ended[SEQ_PATH_FIELD.called], durationMs });
 			},
 		},
 
@@ -279,13 +217,6 @@ class Haibun extends AStepper implements IHasCycles {
 			},
 		},
 		comment: { gwta: `;;{comment: ${DOMAIN_LINE_COMMENT}}`, action: () => OK },
-		afterEveryStepper: {
-			gwta: `after every {stepperName: ${DOMAIN_STEPPER_NAME}}, {statement: ${DOMAIN_STATEMENT}}`,
-			action: ({ stepperName, statement }: { stepperName: string; statement: TFeatureStep[] }) => {
-				this.afterEverySteps[stepperName] = statement;
-				return OK;
-			},
-		},
 	} as const satisfies TStepperSteps;
 }
 export default Haibun;

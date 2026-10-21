@@ -153,6 +153,9 @@ export function formatRecordName(name: TRecordName): string {
 	return name.ordinal === undefined ? under : `${under}@${name.ordinal}`;
 }
 
+/** The id of the record of the step at a path of the feature a tag names. */
+export const stepRecordOf = (tag: { key: string; featureNum: number }, path: number[]): string => formatRecordName({ [EXECUTION_FIELD]: executionOf(tag), path });
+
 /** Parses a record's id into its name. Returns undefined where the id doesn't name a record of an execution. */
 export function parseRecordName(id: string): TRecordName | undefined {
 	const parts = id.split("@");

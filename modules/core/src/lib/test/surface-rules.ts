@@ -1,7 +1,8 @@
 /**
- * Two rules of the logic engine, read from a repository's files. A call reaches step dispatch or a step's action only
- * through the logic engine's prover, so every surface has one path (one path). A file doesn't name a concept by a synonym
- * the vocabulary table removes (one vocabulary).
+ * Three rules of the logic engine, read from a repository's files. A call reaches step dispatch or a step's action only
+ * through the logic engine's prover, so every surface has one path (one path). The logic engine reads the store only through
+ * its read request's reader (one read). A file doesn't name a concept by a synonym the vocabulary table removes (one
+ * vocabulary).
  */
 import { readFileSync } from "node:fs";
 import { join, relative, sep } from "node:path";
@@ -30,6 +31,42 @@ export function onePathFindings(sources: TSources): TFound[] {
 						const named = callee.name.text;
 						if (named === "handler" || (named === "action" && /step/i.test(callee.expression.getText(source)))) found.push({ file, finding: REACHES_ACTION, line: lineOf(node) });
 					}
+				}
+				ts.forEachChild(node, visit);
+			};
+			visit(source);
+			return found;
+		});
+}
+
+/** The logic engine's source, and its reader, the one file of it that reads the store. */
+const LOGIC_SOURCE = /^modules\/logic\/src\//;
+const LOGIC_READER = /^modules\/logic\/src\/pipelines\/reads\.ts$/;
+/** The store's reads by the number of arguments each takes, and the modules of core's reads of records. */
+const STORE_READS: Record<string, (count: number) => boolean> = {
+	query: (count) => count === 1,
+	get: (count) => count >= 2,
+	all: (count) => count === 0,
+	readRecords: () => true,
+	distinctPropertyValues: () => true,
+	density: () => true,
+	getClusteredQuads: () => true,
+};
+const RECORD_READ_MODULES = /\/records\/pipelines\/(record-reads|facts)\.js$/;
+export const READS_STORE = "reads the store outside the logic engine's reader";
+
+/** Each read of the store in the logic engine's source outside its reader: a call of a store's read, or an import of core's reads of records. */
+export function oneReadFindings(sources: TSources): TFound[] {
+	return [...sources]
+		.filter(([file]) => LOGIC_SOURCE.test(file) && !LOGIC_READER.test(file))
+		.flatMap(([file, source]) => {
+			const found: TFound[] = [];
+			const visit = (node: ts.Node): void => {
+				if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier) && RECORD_READ_MODULES.test(node.moduleSpecifier.text))
+					found.push({ file, finding: READS_STORE, line: lineOf(node) });
+				if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
+					const reads = STORE_READS[node.expression.name.text];
+					if (reads?.(node.arguments.length) === true) found.push({ file, finding: READS_STORE, line: lineOf(node) });
 				}
 				ts.forEachChild(node, visit);
 			};

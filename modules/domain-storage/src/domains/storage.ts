@@ -165,13 +165,6 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 				return text.toString().indexOf(what) > -1 ? OK : actionNotOK(`text at ${where} does not contain ${what}; it's ${text}`);
 			},
 		},
-		testNotContains: {
-			gwta: `text at {where: ${DOMAIN_FILE_PATH}} does not contain {what: ${DOMAIN_TEXT}}`,
-			action: ({ where, what }: { where: string; what: string }) => {
-				const text = this.readFile(where, "utf-8");
-				return text.toString().indexOf(what) === -1 ? OK : actionNotOK(`text at ${where} contains ${what}`);
-			},
-		},
 		listFiles: {
 			gwta: `list files from {where: ${DOMAIN_FILE_PATH}}`,
 			action: async ({ where }: { where: string }) => {
@@ -188,7 +181,7 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 			},
 		},
 		isTheSame: {
-			gwta: `{what: ${DOMAIN_FILE_PATH}} is the same as {where: ${DOMAIN_FILE_PATH}}`,
+			gwta: `{what: ${DOMAIN_FILE_PATH}} has the contents of {where: ${DOMAIN_FILE_PATH}}`,
 			action: ({ what, where }: { what: string; where: string }) => {
 				const c1 = this.readFile(what, "binary");
 				const c2 = this.readFile(where, "binary");

@@ -5,10 +5,9 @@ import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun-stepper.js";
 import { OBSCURED_VALUE } from "../lib/steps/domains/secrets.js";
 import { SHARED_GRAPH } from "../lib/actuality/pipelines/feature-variables.js";
-import { readFacts } from "../lib/records/pipelines/facts.js";
 import { readEvery } from "../lib/records/pipelines/record-reads.js";
 import { VARIABLE_FIELD } from "../lib/records/domains/variables.js";
-import { Access, SEQ_PATH_LABEL } from "../lib/domains/resources.js";
+import { Access, FACT_LABEL, SEQ_PATH_LABEL } from "../lib/domains/resources.js";
 import type { THaibunEvent } from "../lib/domains/protocol.js";
 
 const SECRET = "pg-pass-456";
@@ -55,7 +54,7 @@ describe("a secret variable's value", () => {
 		expect(events.length).toBeGreaterThan(0);
 		expect.soft(holdsSecret(events), "the emitted observations and lifecycle events hold the obscured value").toBe(false);
 
-		const facts = await readFacts(store);
+		const facts = await readEvery(store, { label: FACT_LABEL });
 		expect(facts).toHaveLength(SHOW_SECRETS.length);
 		expect.soft(holdsSecret(facts), "the facts of show var hold the obscured value").toBe(false);
 

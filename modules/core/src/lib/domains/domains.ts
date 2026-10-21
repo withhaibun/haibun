@@ -54,6 +54,9 @@ export const DOMAIN_GLOB = "glob";
 export const DOMAIN_TITLE = "title";
 /** An argument in a call to a waypoint, for a placeholder in the waypoint's outcome pattern. */
 export const DOMAIN_WAYPOINT_ARGUMENT = "waypoint-argument";
+/** A universal rule, `{x: D} where B, H`: its variable, its domain, its body and its head. */
+export const DOMAIN_UNIVERSAL = "universal";
+export const UNIVERSAL = /^\{(\w+):\s*([^}]+)\} where (.+), (.+)$/;
 /** The text of a line comment, after `;;`. */
 export const DOMAIN_LINE_COMMENT = "line-comment";
 /** A file or directory's path, as a storage or the file system reads it. */
@@ -107,6 +110,7 @@ const PRIMITIVE_DOMAINS: ReadonlySet<string> = new Set<string>([
 	DOMAIN_FILE_PATH,
 	DOMAIN_ROUTE,
 	DOMAIN_TITLE,
+	DOMAIN_UNIVERSAL,
 ]);
 
 /** A glob as the source of an anchored regular expression that matches what it matches. */

@@ -99,10 +99,8 @@ export type TFeatureStep = {
 	action: TStepAction;
 	source?: TSourceLocation["source"];
 	isSubStep?: boolean;
-	/** True where an afterEvery hook triggered this step. It prevents a recursive afterEvery. */
-	isAfterEveryStep?: boolean;
-	/** The bindings of the statement a step is in: a quantifier's member and its metrics, and a waypoint's arguments, each a
-	 *  variable within the statement. A metric that is a number stays a number. */
+	/** The bindings of the statement a step is in: a quantifier's member and each function of it, `variable/function`, and a
+	 *  waypoint's arguments, each a variable within the statement. A function's value that is a number stays a number. */
 	runtimeArgs?: Record<string, string | number>;
 	/**
 	 * A routing hint. Dispatch resolves the tool of a step that sets it by the hostId-prefixed registry key
@@ -231,7 +229,8 @@ export const PREDICATE = { memberOf: "member_of", precedes: "precedes" } as cons
 
 /** A waypoint's rule: its head as written and as the pattern that parses a goal, the lines of its proof, the lines of its
  *  activity, the plan that makes the proof hold, and the line that states it. A feature's rule applies in that feature alone,
- *  its `scope`, and a background's or a saved rule applies in every feature. */
+ *  its `scope`, and a background's or a saved rule applies in every feature. A rule over step records names the stepper whose
+ *  steps it reads `after`: its proof is proved after each step of that stepper that a feature's line states. */
 export type TWaypointRule = {
 	head: string;
 	pattern: string;
@@ -240,6 +239,7 @@ export type TWaypointRule = {
 	source: { path: string; lineNumber?: number };
 	scope?: string;
 	saved?: true;
+	after?: string;
 };
 
 /** Where a rule is stated: its source path, and its line where the source states one. */
@@ -281,16 +281,22 @@ export const CycleWhen = { FIRST: -999, UNSTATED: 0, LAST: 999 } as const;
 // Observation, concerns, cycles
 // ============================================================================
 
+/** A fact an observation source holds: an item it observes, a function of the item, and the function's value. */
+export type TObserved = { subject: string; predicate: string; object: unknown };
+
 /**
- * An observation source for the `observed in` quantifier pattern. It provides runtime metrics for one iteration and
- * doesn't store them.
- *
- * An implementation can read the quad store through `queryFacts`, so `observe` is async.
+ * An observation source for the `observed in` quantifier pattern: the facts it holds at one step, which it doesn't store. A
+ * quantifier ranges over its items, the subjects of its facts, and a statement reads a function of an item, a fact's
+ * predicate, as `variable/function`.
  */
 export interface IObservationSource {
 	name: string;
-	observe(world: TWorld): Promise<{ items: string[]; metrics: Record<string, Record<string, unknown>> }>;
+	observe(world: TWorld): Promise<TObserved[]>;
 }
+
+/** An item's facts: each field that holds a value, as a function of the item. */
+export const observedOf = (subject: string, fields: Record<string, unknown>): TObserved[] =>
+	Object.entries(fields).flatMap(([predicate, object]) => (object === undefined ? [] : [{ subject, predicate, object }]));
 
 export interface IStepperConcerns {
 	domains?: TDomainDefinition[];

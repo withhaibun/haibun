@@ -1,13 +1,15 @@
 /**
  * The producer rules the registry derives from step signatures, and the step graph the lint reads. A step that returns a
  * domain D and takes the domains D₁ … states the rule fact(D) ← fact(D₁) ∧ … ∧ do(s). This derivation writes the rules a
- * caller may use and the facts that hold as the engine's terms, writes the rules and a goal as TPTP formulas, reads a goal's
- * proof back as a plan, and renders a failed proof's sub-goals as the statements that state them.
+ * caller may use and the read of the domains a fact holds of as the engine's terms, writes the rules and a goal as TPTP formulas,
+ * reads a goal's proof back as a plan, and renders a failed proof's sub-goals as the statements that state them.
  */
 import type { AStepper } from "@haibun/core/lib/steps/domains/stepper.js";
 import type { TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
-import { isPersisted } from "@haibun/core/lib/domains/resources.js";
-import type { TFact } from "@haibun/core/lib/records/domains/facts.js";
+import { FACT_LABEL, isPersisted } from "@haibun/core/lib/domains/resources.js";
+import { FACT_FIELD, type TFact } from "@haibun/core/lib/records/domains/facts.js";
+import type { TQuadPattern } from "@haibun/core/lib/steps/domains/quad-types.js";
+import { valueAt } from "@haibun/core/lib/domains/item-at.js";
 import { DOMAIN_DOMAIN_KEY, domainParts, fieldRangesOf, isPrimitiveDomain, isWrittenByCaller, normalizeDomainKey, refTargetOf } from "@haibun/core/lib/domains/domains.js";
 import { mayCall, requiredAction } from "@haibun/core/lib/domains/actions.js";
 import { declaredSteps } from "@haibun/core/lib/steps/derivations/predicate-registry.js";
@@ -16,7 +18,6 @@ import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { unwrap, unwrapToShape } from "@haibun/core/lib/domains/zod-unwrap.js";
 import { DOMAIN_INDIVIDUAL_ADDRESS } from "@haibun/core/lib/domains/typed-links.js";
 import type { TBinding, TCompositeRanges, TFieldBinding, TForwardAffordance, TPlan } from "@haibun/core/lib/domains/goal-resolution.js";
-import { FACT_FIELD } from "@haibun/core/lib/records/domains/facts.js";
 import type { TGoalProof, TProofNode } from "../domains/logic.js";
 import { atom, list } from "./terms.js";
 import { literalTerm, renderStepLine } from "@haibun/core/lib/steps/derivations/named-vars.js";
@@ -25,6 +26,10 @@ import { conjunction, literalOf, nameOfText, variableAt, type TFormula, type TTe
 import type { TStatedFormula } from "./term-graph.js";
 
 type TDomains = Record<string, TRegisteredDomain>;
+/** A fact as a goal's proof reads it: its id and its domain. */
+export type THeldFact = Pick<TFact, "id" | "domain">;
+/** The read of each fact's domain, which a fact's record states by its property `domain`. */
+export const FACTS_HELD = { predicate: FACT_FIELD.domain, namedGraph: FACT_LABEL } satisfies TQuadPattern;
 
 /** A step's signature: its method, the domains it takes other than primitives, the domains it returns, and the action it requires. */
 export type TStepSignature = Omit<TForwardAffordance, "readyToRun">;
@@ -56,9 +61,9 @@ function compositeFields(domain: TRegisteredDomain | undefined, domains: TDomain
 	});
 }
 
-/** The rules a caller holding `held` may use, with the first fact of each domain that holds, as the engine's term. A proof
- *  cites only a domain's first fact, so the term's size follows the domains, not the facts. */
-export function producerRules(signatures: readonly TStepSignature[], domains: TDomains, facts: readonly TFact[], held: string | string[] | undefined): string {
+/** The rules a caller holding `held` may use, with the read of the domains a fact holds of, as the engine's term. A proof reads
+ *  the facts once, so the term's size follows the domains, not the facts. */
+export function producerRules(signatures: readonly TStepSignature[], domains: TDomains, held: string | string[] | undefined): string {
 	const producers = signatures
 		.filter((one) => mayCall(held, one))
 		.flatMap((one) => one.outputDomains.map((out) => `p(${atom(one.method)}, ${atom(out)}, ${list(one.inputDomains.map(atom))})`));
@@ -67,7 +72,7 @@ export function producerRules(signatures: readonly TStepSignature[], domains: TD
 		const fields = compositeFields(domains[key], domains);
 		return fields.length === 0 ? [] : [`c(${atom(key)}, ${list(fields)})`];
 	});
-	return `r(${[list(producers), list(produced), list(composites), list([...new Map(facts.toReversed().map((fact) => [fact.domain, fact.id]))].map(([domain, id]) => `f(${atom(domain)}, ${atom(id)})`))].join(", ")})`;
+	return `r(${[list(producers), list(produced), list(composites), `q(_, ${atom(FACTS_HELD.predicate)}, _, ${atom(FACTS_HELD.namedGraph)})`].join(", ")})`;
 }
 
 /** A fact of a domain as TPTP states it: the property by which a fact's record states its domain, over the fact and the domain
@@ -131,7 +136,7 @@ export const compositeRanges = (domains: TDomains): TCompositeRanges =>
 
 /** The steps on offer: each step the caller may call that takes or returns a domain, ready where each domain it takes holds,
  *  is written by its caller, or isn't returned by a step. */
-export function forwardOf(signatures: readonly TStepSignature[], facts: readonly TFact[], held: string | string[] | undefined): TForwardAffordance[] {
+export function forwardOf(signatures: readonly TStepSignature[], facts: readonly THeldFact[], held: string | string[] | undefined): TForwardAffordance[] {
 	const asserted = new Set(facts.map((fact) => fact.domain));
 	const produced = new Set(signatures.flatMap((one) => one.outputDomains));
 	return signatures
@@ -141,10 +146,11 @@ export function forwardOf(signatures: readonly TStepSignature[], facts: readonly
 
 type TFlat = { steps: TPlan["steps"]; bindings: TBinding[] };
 
-/** A proof that holds as a plan: the steps it leaves to call, in the order their products are taken, and how each input holds. */
-export function planOf(proof: TProofNode, byMethod: ReadonlyMap<string, TStepSignature>): TPlan {
+/** A proof that holds as a plan: the steps it leaves to call, in the order their products are taken, and how each input holds,
+ *  a domain a fact holds of by the latest fact of that domain. */
+export function planOf(proof: TProofNode, byMethod: ReadonlyMap<string, TStepSignature>, latest: ReadonlyMap<string, string>): TPlan {
 	const flat = (node: TProofNode): TFlat => {
-		if ("fact" in node) return { steps: [], bindings: [{ kind: "fact", domain: node.domain, factId: node.fact }] };
+		if ("fact" in node) return { steps: [], bindings: [{ kind: "fact", domain: node.fact, factId: valueAt(latest, node.fact, "the latest fact of a domain the engine read") }] };
 		if ("argument" in node) return { steps: [], bindings: [{ kind: "argument", domain: node.argument }] };
 		if ("unmet" in node) throw new Error(`a plan holds the unmet goal ${node.unmet}; the engine returns a plan only where each sub-goal holds`);
 		if ("composite" in node) {

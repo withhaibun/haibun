@@ -379,13 +379,16 @@ describe("examining a finished test run", () => {
 			// product and not by a naming convention.
 			const { producerRules, stepSignatures } = await import("@haibun/logic/derivations/goals.js");
 			const { logicEngine } = await import("@haibun/logic/root.js");
+			const { proved } = await import("@haibun/logic/pipelines/prove.js");
 			const domains = mapDefinitionsToDomains(runDomainDefinitions);
 			const signatures = stepSignatures([new TestRunnerStepper() as never]);
 			const producers = signatures.filter((one) => one.outputDomains.includes(RUN_DOMAIN.started)).map((one) => one.stepName);
 			expect(producers, "both steps that start a test run produce the record").toEqual(expect.arrayContaining(["runTest", "runAllTests"]));
-			const [proof] = (await logicEngine()).goals(producerRules(signatures, domains, [], ["Instance:run"]), [RUN_DOMAIN.started]);
+			const ended = await proved(await logicEngine(), `goals(${producerRules(signatures, domains, ["Instance:run"])}, ['${RUN_DOMAIN.started}'])`, () =>
+				Promise.resolve("facts([[]])"),
+			);
 			expect(
-				proof?.plans.map((plan) => ("do" in plan ? plan.do : "")),
+				("goals" in ended ? ended.goals : []).flatMap((proof) => proof.plans.map((plan) => ("do" in plan ? plan.do : ""))),
 				"the engine proves the goal with a plan",
 			).toContain("TestRunnerStepper-runTest");
 		});

@@ -6,6 +6,7 @@ import { z } from "zod";
 import { VERDICT } from "@haibun/core/lib/domains/protocol.js";
 import type { TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 import { DOMAIN_DOMAIN_KEY } from "@haibun/core/lib/domains/domains.js";
+import type { TQuad } from "@haibun/core/lib/steps/domains/quad-types.js";
 import { TOKEN_ROLE } from "./tokens.js";
 
 /** The statement of a goal, which the resolve step's pattern parses and a goal's proof and conjecture render. */
@@ -23,34 +24,39 @@ const BindingSchema = z.union([
 export type TBinding = z.infer<typeof BindingSchema>;
 
 /** The effects a proof requests, by kind. */
-export const EFFECT = { call: "call", open: "open", close: "close", members: "members", args: "args", rule: "rule", wait: "wait" } as const;
+export const EFFECT = { call: "call", open: "open", close: "close", read: "read", rule: "rule", wait: "wait" } as const;
+
+/** A fact a read returns: its subject, predicate, object and named graph. */
+export type TFact = Pick<TQuad, "subject" | "predicate" | "object" | "namedGraph">;
+/** The positions of a fact, in the order a pattern's variables take their values. */
+export const FACT_POSITIONS = ["subject", "predicate", "object", "namedGraph"] as const;
+/** A read's pattern: the constants of its subject, predicate, object and named graph. A position it doesn't state is its variable. */
+const PatternSchema = z.object({ subject: z.string(), predicate: z.string(), object: z.string(), namedGraph: z.string() }).partial();
+/** The named graphs a proof reads beside the store's types, and their predicates: a node's own facts, a quantifier's members
+ *  and a waypoint's arguments by their names; the falsities `absent` states, each a record's goal head and arguments; and
+ *  the individuals `is the same as` states equal. */
+export const READ_GRAPH = { node: "node", falsity: "falsity", same: "same" } as const;
+export const READ_PREDICATE = { member: "member", head: "head", sameAs: "sameAs" } as const;
 
 const NodeRequestSchema = z.object({ node: z.string(), bindings: z.array(BindingSchema) });
-const CloseRequestSchema = z.object({ node: z.string(), verdict: VerdictSchema, why: z.union([z.array(z.number()), z.string()]) });
+const ReadRequestSchema = z.object({ patterns: z.array(PatternSchema), bindings: z.array(BindingSchema) });
+/** A node's close: its verdict and what determined it, the position of a part, the reason the engine states, or the record that stated its falsity. */
+const CloseRequestSchema = z.object({ node: z.string(), verdict: VerdictSchema, why: z.union([z.array(z.number()), z.string(), z.object({ falsity: z.string() })]) });
 
-/** The state of a line's proof after one query: its verdict where the proof ended, or the effect it needs. */
-export const ProofStateSchema = z.union([
-	z.object({ verdict: VerdictSchema }),
-	z.object({
-		need: z.string(),
-		path: z.array(z.number()),
-		request: z.union([NodeRequestSchema, CloseRequestSchema, z.object({ rule: z.string() }), z.object({ node: z.string(), attempt: z.number() })]),
-	}),
-]);
-export type TProofState = z.infer<typeof ProofStateSchema>;
 export type TNodeRequest = z.infer<typeof NodeRequestSchema>;
+export type TReadRequest = z.infer<typeof ReadRequestSchema>;
 export type TCloseRequest = z.infer<typeof CloseRequestSchema>;
 
-/** A node of a goal's proof over producer rules: a fact of its domain, a producer whose inputs are its nodes, a composite's
- *  fields, an argument a caller supplies, or the sub-goal it couldn't prove with the reason. */
+/** A node of a goal's proof over producer rules: the domain a fact holds of, a producer whose inputs are its nodes, a
+ *  composite's fields, an argument a caller supplies, or the sub-goal it couldn't prove with the reason. */
 export type TProofNode =
-	| { fact: string; domain: string }
+	| { fact: string }
 	| { argument: string }
 	| { do: string; domain: string; inputs: TProofNode[] }
 	| { composite: string; fields: { name: string; domain: string; type: string; optional: boolean; proof: TProofNode }[] }
 	| { unmet: string; why: string };
 const ProofNodeSchema: z.ZodType<TProofNode> = z.union([
-	z.object({ fact: z.string(), domain: z.string() }),
+	z.object({ fact: z.string() }),
 	z.object({ argument: z.string() }),
 	z.object({ do: z.string(), domain: z.string(), inputs: z.array(z.lazy(() => ProofNodeSchema)) }),
 	z.object({
@@ -69,6 +75,18 @@ export const GoalProofSchema = z.object({
 	unmet: z.array(z.union([z.object({ domain: z.string(), do: z.string() }), z.object({ unmet: z.string(), why: z.string() })])),
 });
 export type TGoalProof = z.infer<typeof GoalProofSchema>;
+
+/** The state of a proof after one query: a line's verdict or the proofs of goals where the proof ended, or the effect it needs. */
+export const ProofStateSchema = z.union([
+	z.object({ verdict: VerdictSchema }),
+	z.object({ goals: z.array(GoalProofSchema) }),
+	z.object({
+		need: z.string(),
+		path: z.array(z.number()),
+		request: z.union([NodeRequestSchema, ReadRequestSchema, CloseRequestSchema, z.object({ rule: z.string() }), z.object({ node: z.string(), attempt: z.number() })]),
+	}),
+]);
+export type TProofState = z.infer<typeof ProofStateSchema>;
 
 /** The outcome of a built-in call, as the engine reads it. */
 export const CALL_OUTCOME = { passed: "passed", failed: "failed", refused: "refused" } as const;

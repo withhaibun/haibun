@@ -6,8 +6,7 @@ import { DEFAULT_DEST, Origin } from "../lib/domains/protocol.js";
 import Haibun from "./haibun-stepper.js";
 import { OBSCURED_VALUE } from "../lib/steps/domains/secrets.js";
 import { SHARED_GRAPH } from "../lib/actuality/pipelines/feature-variables.js";
-import { recordWithEdges } from "../lib/records/pipelines/record-reads.js";
-import { readFacts } from "../lib/records/pipelines/facts.js";
+import { readEvery, recordWithEdges } from "../lib/records/pipelines/record-reads.js";
 import { Access, EDGE, FACT_LABEL, SEQ_PATH_LABEL } from "../lib/domains/resources.js";
 import { readAction } from "../lib/domains/actions.js";
 import { SEQ_PATH_FIELD } from "../lib/actuality/domains/seq-path.js";
@@ -179,10 +178,10 @@ describe("the records of variables and facts", () => {
 			[SEQ_PATH_LABEL, SET_FIRST],
 			[SEQ_PATH_LABEL, SET_SECOND],
 		]);
-		const [fact, ...others] = await readFacts(store);
+		const [fact, ...others] = await readEvery(store, { label: FACT_LABEL });
 		if (!fact) throw new Error("the store doesn't hold the fact of show var");
 		expect(others).toEqual([]);
-		expect(generatedBy(await recordWithEdges(store, FACT_LABEL, fact.id))).toEqual([[SEQ_PATH_LABEL, SHOW]]);
+		expect(generatedBy(await recordWithEdges(store, FACT_LABEL, String(fact.id)))).toEqual([[SEQ_PATH_LABEL, SHOW]]);
 	});
 });
 

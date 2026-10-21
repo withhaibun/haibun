@@ -36,10 +36,13 @@ export const features: TKirejiExport = {
 		'set lunch to "cooked"',
 		'variable dinner is "cooked" or variable lunch is "cooked"',
 
-		pendingScenario({ scenario: "A relative clause states a universal over a closed domain" }),
+		scenario({ scenario: "A relative clause states a universal over a closed domain" }),
 		"Essential, for the formal model. Source: docs/reasoner.md, Combined statements.",
-		'set of Meals is ["dinner", "lunch"]',
-		"every meal in Meals that is cooked is edible",
+		'set of Dishes is ["stew", "salad"]',
+		'set stew to "cooked"',
+		'for every {dish: Dishes} where variable {dish} is "cooked", {dish} is edible',
+		'"stew" is edible',
+		'not "salad" is edible',
 
 		pendingScenario({ scenario: "A proof renders as its statements in proof order, the goal last" }),
 		"Essential, for people and models. The verdict of each statement is in its record. Source: docs/reasoner.md, Proofs as SeqPath records.",

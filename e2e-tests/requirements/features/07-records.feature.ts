@@ -14,10 +14,10 @@ export const features: TKirejiExport = {
 		Accidental, and replaced by the parent predicate of a record: the speculative mode, its negative path segments and the mode field (49 references in 18 files, seq-path.ts:27), and the OTel attribute haibun.speculative.failed (monitor-otel-stepper.ts:146). A scenario's record states the digest of its declared lines (execution-end.ts).`,
 
 		scenario({ scenario: "A call's record states what it called and how long it took" }),
-		"Essential, for every view. Source: haibun-stepper.ts:180 and step-records.ts.",
-		'set timed from duration of set recorded to "yes"',
-		'variable timed.called is "VariablesStepper.set"',
-		"variable timed.durationMs is less than 1000",
+		"Essential, for every view. A step's duration is a function of its record. Source: step-records.ts and logic-stepper.ts, the steps source.",
+		"set recorded to 1",
+		'every step observed in steps is where variable step/stepText is "set recorded to 1", variable step/called is "VariablesStepper.set"',
+		'every step observed in steps is where variable step/stepText is "set recorded to 1", variable step/duration is less than 1000',
 
 		scenario({ scenario: "A read made from outside isn't recorded as actuality's step" }),
 		`Essential, for observation from outside. A read a transport carries outside a step is the caller's, and a read a transport carries within a step, such as a model's tool call during a turn, is that step's act, which actuality records. Source: step-dispatch.ts, the recorded flag.`,

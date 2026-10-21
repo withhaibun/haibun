@@ -11,9 +11,11 @@ import { Access, LinkRelations } from "@haibun/core/lib/domains/resources.js";
 import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { RUN_AUTHORITY } from "@haibun/core/lib/domains/capability-context.js";
 import { LINT_FINDING } from "@haibun/core/lib/domains/goal-resolution.js";
-import { planOf, producerRules, stepSignatures, unmetReason } from "../derivations/goals.js";
+import { FACTS_HELD, planOf, producerRules, stepSignatures, unmetReason } from "../derivations/goals.js";
+import { atom, factsTerm } from "../derivations/terms.js";
 import { logicEngine } from "../root.js";
 import { lintFindings } from "./goals.js";
+import { proved } from "./prove.js";
 
 const action = async () => OK;
 const value = (selector: string) => ({ selectors: [selector], schema: z.object({ id: z.string() }), description: selector });
@@ -40,20 +42,22 @@ class Shop extends AStepper {
 
 const signatures = stepSignatures([new Shop()]);
 const byMethod = new Map(signatures.map((one) => [one.method, one]));
-const prove = async (goal: string, facts: { domain: string; id: string }[], held: string[]) => {
-	const [proof] = (await logicEngine()).goals(
-		producerRules(
-			signatures,
-			domains,
-			facts.map((fact) => ({ ...fact, value: {} })),
-			held,
-		),
-		[goal],
-	);
+/** Proves a goal where a fact holds of each domain given, which the proof reads once. */
+const prove = async (goal: string, domainsHeld: string[], held: string[]) => {
+	let reads = 0;
+	const ended = await proved(await logicEngine(), `goals(${producerRules(signatures, domains, held)}, [${atom(goal)}])`, () => {
+		reads += 1;
+		return Promise.resolve(
+			factsTerm([FACTS_HELD], [domainsHeld.map((domain) => ({ subject: `fact-${domain}`, predicate: FACTS_HELD.predicate, object: domain, namedGraph: FACTS_HELD.namedGraph }))]),
+		);
+	});
+	expect(reads).toBe(1);
+	const proof = "goals" in ended ? ended.goals[0] : undefined;
 	if (proof === undefined) throw new Error(`the engine didn't return a proof of ${goal}`);
 	return proof;
 };
-const stepsOf = (proof: Awaited<ReturnType<typeof prove>>) => proof.plans.map((plan) => planOf(plan, byMethod).steps.map((step) => step.stepName));
+const latest = new Map([["order", "o1"]]);
+const stepsOf = (proof: Awaited<ReturnType<typeof prove>>) => proof.plans.map((plan) => planOf(plan, byMethod, latest).steps.map((step) => step.stepName));
 
 describe("goals over producer rules", () => {
 	it("leaves a plan of the steps a goal takes, in the order their products are taken", async () => {
@@ -63,13 +67,13 @@ describe("goals over producer rules", () => {
 	});
 
 	it("binds a fact that holds and leaves only the steps after it", async () => {
-		const proof = await prove("receipt", [{ domain: "order", id: "o1" }], RUN_AUTHORITY);
+		const proof = await prove("receipt", ["order"], RUN_AUTHORITY);
 		expect(stepsOf(proof)).toEqual([["printReceipt"]]);
-		expect(planOf(proof.plans[0] ?? { argument: "" }, byMethod).bindings).toEqual([{ kind: "fact", domain: "order", factId: "o1" }]);
+		expect(planOf(proof.plans[0] ?? { argument: "" }, byMethod, latest).bindings).toEqual([{ kind: "fact", domain: "order", factId: "o1" }]);
 	});
 
 	it("proves a goal by a fact of its domain", async () => {
-		expect((await prove("receipt", [{ domain: "receipt", id: "r1" }], RUN_AUTHORITY)).held).toBe(true);
+		expect((await prove("receipt", ["receipt"], RUN_AUTHORITY)).held).toBe(true);
 	});
 
 	it("refutes a goal whose producer the caller may not call, naming the sub-goal", async () => {

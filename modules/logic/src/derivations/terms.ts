@@ -1,7 +1,10 @@
 /**
- * The engine's terms as text: an atom, a list, and the reason a node's verdict isn't proved, as its line states it.
+ * The engine's terms as text: an atom, a list, the facts a read matched, and the reason a node's verdict isn't proved, as its line states it.
  */
 import type { TVerdict } from "@haibun/core/lib/domains/protocol.js";
+import type { TQuadPattern } from "@haibun/core/lib/steps/domains/quad-types.js";
+import { itemAt } from "@haibun/core/lib/domains/item-at.js";
+import { FACT_POSITIONS, type TFact } from "../domains/logic.js";
 
 /** A Prolog atom that holds the text as it is. */
 export const atom = (text: string): string => `'${text.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
@@ -12,12 +15,21 @@ const atomText = (quoted: string): string => quoted.replace(/\\(['\\])/g, "$1");
 /** A Prolog list of terms. */
 export const list = (terms: readonly string[]): string => `[${terms.join(", ")}]`;
 
+/** A value a read returns as an atom of its text: a string as it is, and any other value as its JSON text. */
+const atomOf = (value: unknown): string => atom(typeof value === "string" ? value : JSON.stringify(value));
+
+/** The facts each pattern of a read matched as the engine reads them: the values each pattern's variables take in each fact. */
+export function factsTerm(patterns: readonly TQuadPattern[], matched: readonly (readonly TFact[])[]): string {
+	const variables = (pattern: TQuadPattern) => FACT_POSITIONS.filter((position) => pattern[position] === undefined);
+	return `facts(${list(matched.map((facts, at) => list(facts.map((fact) => list(variables(itemAt(patterns, at)).map((position) => atomOf(fact[position])))))))})`;
+}
+
 /** What each reason the engine states means, as a line reads. */
 const REASONS: Record<string, string> = {
 	empty: "its domain doesn't have members to check",
 	cycle: "its waypoint is applied again with the same arguments below itself",
 	refused: "its step was refused",
-	no_proof: "its waypoint doesn't have a proof, and ensure takes a waypoint with a proof",
+	no_proof: "its waypoint doesn't have a proof, and a falsity of it isn't stated",
 	not_waypoint: "ensure takes a waypoint, and its statement isn't one",
 	none: "its parts don't prove it",
 };

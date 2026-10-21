@@ -1,9 +1,9 @@
 /**
  * Goals as proofs over producer rules. The registry derives the rules from the steps' signatures, the engine proves each goal
- * within its depth limit and ancestor check, and a proof that holds is read back as a plan: the steps it leaves to call. The
- * affordances and the step graph's lint read the same rules. A walk holds between its calls as facts of its own graph: its
- * goal, the principal that began it, and the facts its calls asserted. Its plan is proved again at each call, from the facts
- * that hold then.
+ * within its depth limit and ancestor check, and a proof that holds is read back as a plan: the steps it leaves to call. A
+ * proof reads the facts through its reader, once for every goal it proves. The affordances and the step graph's lint read the
+ * same rules. A walk holds between its calls as facts of its own graph: its goal, the principal that began it, and the facts
+ * its calls asserted. Its plan is proved again at each call, from the facts that hold then.
  */
 import type { AStepper, TFeatureStep } from "@haibun/core/lib/steps/domains/stepper.js";
 import type { TRegisteredDomain } from "@haibun/core/lib/domains/resources.js";
@@ -14,23 +14,11 @@ import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { LOGIC_STEPPER_NAME, VERDICT, type TActionResult, type TStepResult } from "@haibun/core/lib/domains/protocol.js";
 import { actionNotOK, actionOKWithProducts } from "@haibun/core/lib/domains/util.js";
 import { itemAt, valueAt } from "@haibun/core/lib/domains/item-at.js";
-import { Access, SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
-import { actingAs, readingAt } from "@haibun/core/lib/domains/capability-context.js";
+import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
+import { actingAs } from "@haibun/core/lib/domains/capability-context.js";
 import { DOMAIN_DOMAIN_KEY, refTargetOf } from "@haibun/core/lib/domains/domains.js";
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
-import type { TFact } from "@haibun/core/lib/records/domains/facts.js";
-import { readFacts } from "@haibun/core/lib/records/pipelines/facts.js";
-import { recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
-import {
-	EXECUTION_FIELD,
-	SEQ_PATH_FIELD,
-	compareSeqPath,
-	executionOf,
-	factIdOf,
-	factSeqPath,
-	formatRecordName,
-	producingStepRecord,
-} from "@haibun/core/lib/actuality/domains/seq-path.js";
+import { EXECUTION_FIELD, SEQ_PATH_FIELD, executionOf, factIdOf, producingStepRecord, stepRecordOf } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import {
 	AffordancesSchema,
 	ChainLintSchema,
@@ -41,8 +29,24 @@ import {
 	type TGoalResolution,
 	type TLintFinding,
 } from "@haibun/core/lib/domains/goal-resolution.js";
-import { argumentsOf, compositeRanges, forwardOf, isTrivial, planOf, producerRules, stepGraph, stepSignatures, unmetReason } from "../derivations/goals.js";
+import {
+	argumentsOf,
+	compositeRanges,
+	FACTS_HELD,
+	forwardOf,
+	isTrivial,
+	planOf,
+	producerRules,
+	stepGraph,
+	stepSignatures,
+	unmetReason,
+	type THeldFact,
+} from "../derivations/goals.js";
+import { EFFECT, type TReadRequest } from "../domains/logic.js";
+import { atom, factsTerm, list } from "../derivations/terms.js";
 import type { TLogicEngine } from "../ports.js";
+import { proved } from "./prove.js";
+import { readerOf, writeFacts, type TReader } from "./reads.js";
 
 /** What a goal's proof reads: the context whose steps and domains state the rules and whose store holds the facts, the engine,
  *  and what the caller holds. */
@@ -50,23 +54,37 @@ export type TGoalScope = { ctx: DispatchContext; engine: TLogicEngine; held: str
 
 const storeOf = ({ ctx }: TGoalScope): IQuadStore => ctx.world.shared.getStore();
 
-/** Proves each goal over the facts, and returns its resolution. */
-function resolutions(scope: TGoalScope, goals: readonly string[], facts: readonly TFact[]): TGoalResolution[] {
+/** The facts a reader reads, the latest first, as a read of records orders them. */
+const factsOf = async (reader: TReader): Promise<THeldFact[]> =>
+	(await reader.facts(FACTS_HELD)).map(({ subject, object }) => ({ id: subject, domain: String(object) })).toReversed();
+
+/** Proves each goal over the facts its reader reads, and returns its resolution. */
+async function resolutions(scope: TGoalScope, reader: TReader, goals: readonly string[], facts: readonly THeldFact[]): Promise<TGoalResolution[]> {
 	const { steppers, world } = scope.ctx;
 	const signatures = stepSignatures(steppers);
 	const byMethod = new Map(signatures.map((one) => [one.method, one]));
-	const factsOf = Map.groupBy(facts, (fact) => fact.domain);
-	return scope.engine.goals(producerRules(signatures, world.domains, facts, scope.held), goals).map((proof) => {
-		const plans = proof.plans.map((plan) => planOf(plan, byMethod));
+	const byDomain = Map.groupBy(facts, (fact) => fact.domain);
+	const latest = new Map(facts.toReversed().map((fact) => [fact.domain, fact.id]));
+	const ended = await proved(scope.engine, `goals(${producerRules(signatures, world.domains, scope.held)}, ${list(goals.map(atom))})`, async ({ need, request }) => {
+		if (need !== EFFECT.read) throw new Error(`the proof of goals requested ${need}; a proof of goals requests only reads`);
+		const { patterns } = request as TReadRequest;
+		return factsTerm(patterns, await Promise.all(patterns.map(reader.facts)));
+	});
+	if (!("goals" in ended)) throw new Error(`the proof of goals ended without their proofs: ${JSON.stringify(ended)}`);
+	return ended.goals.map((proof) => {
+		const plans = proof.plans.map((plan) => planOf(plan, byMethod, latest));
 		const verdict = proof.held ? VERDICT.proved : plans.length > 0 ? VERDICT.unknown : VERDICT.refuted;
 		const unmet = verdict === VERDICT.refuted ? { unmet: unmetReason(proof), unmetChain: proof.unmet.map((node) => ("do" in node ? node.domain : node.unmet)) } : {};
-		const factIds = proof.held ? valueAt(factsOf, proof.goal, "the facts of a goal the engine holds").map((fact) => fact.id) : [];
+		const factIds = proof.held ? valueAt(byDomain, proof.goal, "the facts of a goal the engine holds").map((fact) => fact.id) : [];
 		return GoalResolutionSchema.parse({ goal: proof.goal, verdict, factIds, plans, ...unmet });
 	});
 }
 
 /** Proves a goal over the facts the store holds now. */
-const resolutionOf = async (scope: TGoalScope, goal: string): Promise<TGoalResolution> => itemAt(resolutions(scope, [goal], await readFacts(storeOf(scope))), 0);
+async function resolutionOf(scope: TGoalScope, goal: string): Promise<TGoalResolution> {
+	const reader = readerOf(storeOf(scope));
+	return itemAt(await resolutions(scope, reader, [goal], await factsOf(reader)), 0);
+}
 
 /** Proves a step of a plan under the step that calls it, through the path every surface proves a step by, with the input its
  *  declaration validates. Returns its result and the id of its products' fact. */
@@ -91,8 +109,8 @@ export async function resolved(scope: TGoalScope, parent: TFeatureStep, goal: st
 	const [fact] = resolution.factIds;
 	if (fact === undefined) return actionOKWithProducts(resolution);
 	const record = producingStepRecord(fact);
-	const asserted = await recordOf(storeOf(scope), SEQ_PATH_LABEL, record);
-	const line = asserted?.[SEQ_PATH_FIELD.stepText];
+	const [stated] = await readerOf(storeOf(scope)).facts({ subject: record, predicate: SEQ_PATH_FIELD.stepText, namedGraph: SEQ_PATH_LABEL });
+	const line = stated?.object;
 	if (typeof line !== "string") throw new Error(`the fact ${fact} of ${goal} names the record ${record}, which the store doesn't hold with its line`);
 	return actionOKWithProducts({ ...resolution, statements: [line, renderStepLine(pattern, { goal: literalTerm(goal, DOMAIN_DOMAIN_KEY) })] });
 }
@@ -120,19 +138,16 @@ const WALK = { goal: "goal", owner: "owner", factIds: "factIds" } as const;
 /** A walk's facts: its goal, the principal that began it, where one did, and the facts its calls asserted. */
 type TWalk = { goal: string; owner?: string; factIds: string[] };
 
-/** Writes a walk's facts at the read level of its caller, so its owner reads them back. A walk outside a call is actuality's
- *  own, which reads at private. */
+/** Writes a walk's facts in place of the facts it held, at the read level of its caller, so its owner reads them back. */
 async function writeWalk(store: IQuadStore, walk: string, { goal, owner, factIds }: TWalk): Promise<void> {
-	const ceiling = readingAt();
-	const accessLevel = ceiling === undefined ? Access.private : ceiling;
 	await store.remove({ subject: walk, namedGraph: WALK_GRAPH });
-	for (const [predicate, object] of Object.entries({ [WALK.goal]: goal, [WALK.factIds]: factIds, ...(owner === undefined ? {} : { [WALK.owner]: owner }) }))
-		await store.add({ subject: walk, predicate, object, namedGraph: WALK_GRAPH, accessLevel });
+	await writeFacts(store, walk, WALK_GRAPH, { [WALK.goal]: goal, [WALK.factIds]: factIds, [WALK.owner]: owner });
 }
 
 /** Reads a walk's facts. Refuses a walk the store doesn't hold. */
 async function readWalk(store: IQuadStore, walk: string): Promise<TWalk> {
-	const [goal, owner, factIds] = await Promise.all([WALK.goal, WALK.owner, WALK.factIds].map((predicate) => store.get(walk, predicate, WALK_GRAPH)));
+	const held = new Map((await readerOf(store).facts({ subject: walk, namedGraph: WALK_GRAPH })).map(({ predicate, object }) => [predicate, object]));
+	const [goal, owner, factIds] = [WALK.goal, WALK.owner, WALK.factIds].map((predicate) => held.get(predicate));
 	if (typeof goal !== "string" || !Array.isArray(factIds)) throw new Error(`the store doesn't hold the walk ${walk}; begin a walk toward its goal with walk toward`);
 	return { goal, factIds: factIds.map(String), ...(typeof owner === "string" ? { owner } : {}) };
 }
@@ -151,7 +166,7 @@ async function walkProducts(scope: TGoalScope, walk: string, goal: string, factI
 /** Begins a walk toward a goal that isn't proved, under the principal that begins it, named by the record of the step. */
 export async function walkBegun(scope: TGoalScope, parent: TFeatureStep, goal: string): Promise<TActionResult> {
 	if ((await resolutionOf(scope, goal)).verdict === VERDICT.proved) return actionNotOK(`walk toward ${goal}: a fact of ${goal} holds, so it doesn't need a walk`);
-	const walk = formatRecordName({ [EXECUTION_FIELD]: executionOf(scope.ctx.world.tag), path: parent.seqPath });
+	const walk = stepRecordOf(scope.ctx.world.tag, parent.seqPath);
 	const owner = actingAs();
 	await writeWalk(storeOf(scope), walk, { goal, factIds: [], ...(owner === undefined ? {} : { owner }) });
 	return await walkProducts(scope, walk, goal, []);
@@ -180,13 +195,13 @@ export async function walkAdvanced(scope: TGoalScope, parent: TFeatureStep, walk
  *  goal whose every plan is one step on offer is left out, and a fact whose id doesn't name a step holds at every step. */
 async function snapshotOf(scope: TGoalScope, asOf: number[] | undefined) {
 	const { steppers, world } = scope.ctx;
-	const heldAt = (path: number[] | null) => path === null || asOf === undefined || compareSeqPath(path, asOf) <= 0;
-	const facts = (await readFacts(storeOf(scope))).filter((fact) => heldAt(factSeqPath(fact.id)));
+	const reader = readerOf(storeOf(scope), asOf);
+	const facts = await factsOf(reader);
 	const signatures = stepSignatures(steppers);
 	// A reference names a record of its target, so the goal is the target where a step returns it.
 	const isReference = (domain: string) => world.domains[domain] !== undefined && refTargetOf(world.domains[domain], world.domains) !== undefined;
 	const goals = [...new Set(signatures.flatMap((one) => one.outputDomains))].filter((domain) => !isReference(domain));
-	const goalsOf = resolutions(scope, goals, facts).flatMap((resolution) => {
+	const goalsOf = (await resolutions(scope, reader, goals, facts)).flatMap((resolution) => {
 		if (resolution.verdict !== VERDICT.refuted && isTrivial(resolution.plans)) return [];
 		const domain = world.domains[resolution.goal];
 		const description = domain?.description ?? domain?.schema.description;

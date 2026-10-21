@@ -7,7 +7,7 @@ import { readFileSync } from "node:fs";
 import SWIPL from "swipl-wasm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { VERDICT } from "@haibun/core/lib/domains/protocol.js";
-import { EFFECT, PROOF_NAMESPACE } from "../domains/logic.js";
+import { EFFECT, PROOF_NAMESPACE, READ_PREDICATE, type TReadRequest } from "../domains/logic.js";
 import type { TLogicEngine } from "../ports.js";
 import { startSwipl } from "./swipl.js";
 
@@ -34,7 +34,10 @@ async function eyeDerives(n3: string): Promise<string[]> {
 const provedTriple = (path: number[]): string => `<${PROOF_NAMESPACE}p${["", ...path].join("_")}> <${PROOF_NAMESPACE}is> <${PROOF_NAMESPACE}proved>.`;
 
 /** The outcome of each effect but a call, which each proof states by position. */
-const EFFECTS: Record<string, string> = { open: "opened", close: "closed", members: "members(['a', 'b'])", args: "args([])", rule: "rule([call(n3)], [call(n4)])" };
+const EFFECTS: Record<string, string> = { open: "opened", close: "closed", rule: "rule([call(n3)], [call(n4)])" };
+/** A quantifier reads the members a and b, and a waypoint reads that it doesn't take arguments and isn't stated absent. */
+const readOf = (request: TReadRequest): string =>
+	`facts([${request.patterns.map((pattern) => (pattern.predicate === READ_PREDICATE.member ? "[['a'], ['b']]" : "[]")).join(", ")}])`;
 
 /** Proves a term with the outcome each call position states, as the pipeline performs effects, and returns the N3 export of
  *  its proof and the triple of each node the engine closed as proved. */
@@ -44,7 +47,7 @@ function proved(engine: TLogicEngine, top: string, term: string, calls: Record<s
 	while ("need" in outcome) {
 		const { need, path, request } = outcome;
 		if (need === EFFECT.close && "verdict" in request && request.verdict === VERDICT.proved) nodes.push(provedTriple(path));
-		const performed = need === EFFECT.call ? calls[path.join(".")] : EFFECTS[need];
+		const performed = need === EFFECT.call ? calls[path.join(".")] : need === EFFECT.read ? readOf(request as TReadRequest) : EFFECTS[need];
 		if (performed === undefined) throw new Error(`the test doesn't state the outcome of ${need} at ${path.join(".")}`);
 		outcome = engine.resume(top, performed);
 	}

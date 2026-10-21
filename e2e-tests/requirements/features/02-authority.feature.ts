@@ -48,7 +48,7 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "A source read above the held capability is refused with the read to request" }),
 		"Essential, for every surface. A quantifier reads its observation source under what its statement holds, and a statement that doesn't hold a read action doesn't read records. Source: prove.ts, members, and capability-context.ts, WITHOUT_READ.",
-		'set observed from show derivation of "holding only \\"LogicStepper:everyObserved,VariablesStepper:matches\\", every step observed in step usage is matches {step} with \\"*\\""',
+		'set observed from show derivation of "holding only \\"LogicStepper:everyObserved,VariablesStepper:matches\\", every step observed in steps is matches {step} with \\"*\\""',
 		'variable observed.verdict is "unknown"',
 		'matches observed.reason with "*(request Read:public from a key that delegates it)"',
 

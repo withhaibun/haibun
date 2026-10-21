@@ -1,5 +1,4 @@
 import { describe, it, expect } from "vitest";
-import { z } from "zod";
 
 import { DEF_PROTO_OPTIONS, failWithDefaults, passWithDefaults } from "../lib/test/lib.js";
 import { Resolver } from "../lib/actuality/pipelines/resolver.js";
@@ -18,8 +17,6 @@ import { readShownSteps } from "../lib/steps/domains/step-discovery.js";
 import type { TStepResult } from "../lib/domains/protocol.js";
 import { validateStep } from "../lib/pipelines/step-validation.js";
 import { RUN_AUTHORITY, runAuthorizedWith, runShowing } from "../lib/domains/capability-context.js";
-import { recordOf } from "../lib/records/pipelines/record-reads.js";
-import { SEQ_PATH_LABEL } from "../lib/domains/resources.js";
 
 describe("until", () => {
 	it("passes once its statements pass", async () => {
@@ -32,41 +29,6 @@ describe("until", () => {
 		const result = await failWithDefaults([feature], [Haibun, TestSteps]);
 		expect(result.ok).toBe(false);
 		expect(itemAt(result.featureResults, 0).stepResults.at(-1)).toMatchObject({ ok: false, errorMessage: expect.stringMatching(/didn't hold within 50ms/) });
-	});
-});
-
-describe("duration of", () => {
-	const PAUSED = '"30ms"';
-	const PAUSED_MS = 30;
-	const StepDurationSchema = z.object({ step: z.string(), called: z.string(), durationMs: z.number() });
-	const EndedSchema = z.object({ called: z.string(), generatedAtTime: z.string(), endedAtTime: z.string() });
-	/** The result of the feature's `duration of` step. A substep's result precedes it. */
-	const durationStep = (result: { featureResults?: Array<{ stepResults: TStepResult[] }> }): TStepResult => {
-		const found = itemAt(result.featureResults ?? [], 0).stepResults.find((stepResult) => stepResult.in.startsWith("duration of"));
-		if (!found) throw new Error("the feature's results don't hold the duration of step");
-		return found;
-	};
-
-	it("returns the duration of the statement's step from the step's record", async () => {
-		const result = await passWithDefaults(`duration of pause for ${PAUSED}`, [Haibun]);
-		const { step, called, durationMs } = StepDurationSchema.parse(durationStep(result).products);
-		const ended = EndedSchema.parse(await recordOf(result.world.shared.getStore(), SEQ_PATH_LABEL, step));
-		expect(called).toBe(ended.called);
-		expect(durationMs).toBe(Date.parse(ended.endedAtTime) - Date.parse(ended.generatedAtTime));
-		expect(durationMs).toBeGreaterThanOrEqual(PAUSED_MS);
-	});
-
-	it("sets a variable that a comparison reads", async () => {
-		const result = await passWithDefaults([`set timed from duration of pause for ${PAUSED}`, `variable timed.durationMs is more than "${PAUSED_MS - 1}"`].join("\n"), [
-			Haibun,
-			VariablesSteppers,
-		]);
-		expect(result.ok).toBe(true);
-	});
-
-	it("fails where the statement's step fails", async () => {
-		const result = await failWithDefaults("duration of fails", [Haibun, TestSteps]);
-		expect(durationStep(result).errorMessage).toBe("duration of: the step failed: test fail");
 	});
 });
 
@@ -133,50 +95,6 @@ describe("seqPath ordering", () => {
 	});
 });
 
-describe("afterEvery", () => {
-	it("afterEvery effect injects step", async () => {
-		const feature = { path: "/features/test.feature", content: 'have a test\nafter every "TestSteps", Noodles, man.\npasses\npasses' };
-		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
-		expect(result.ok).toBe(true);
-		const ins = itemAt(result.featureResults, 0).stepResults.map((r) => r.in);
-		expect(ins).toEqual(["have a test", 'after every "TestSteps", Noodles, man.', "passes", "Noodles, man.", "passes", "Noodles, man."]);
-	});
-
-	it("fails a step whose after-every step fails, states why, and records the step before its after-every step", async () => {
-		const feature = { path: "/features/test.feature", content: 'after every "TestSteps", fails\npasses' };
-		const result = await failWithDefaults([feature], [Haibun, TestSteps]);
-		const results = itemAt(result.featureResults, 0).stepResults;
-		const passes = results.find((r) => r.in === "passes");
-		expect(passes?.ok, "a cycle fails a step that passed").toBe(false);
-		expect(passes?.errorMessage).toMatch(/a step run after every TestSteps step failed: /);
-		expect(results.map((r) => r.in).slice(-2), "the step is recorded before the step its cycle ran").toEqual(["passes", "fails"]);
-	});
-
-	it("afterEvery effect injects hierarchical step with parent seqPath extended", async () => {
-		const feature = { path: "/features/test.feature", content: 'have a test\nafter every "TestSteps", passes\nhave a test\npasses' };
-		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
-		expect(result.ok).toBe(true);
-		const seqs = itemAt(result.featureResults, 0).stepResults.map((r) => r.seqPath);
-		// An afterEvery statement is proved under the step it follows.
-		// Step [0,1,0,4] "passes" doesn't run the after-every step, since the after-every step is the same action.
-		expect(seqs).toEqual([
-			[0, 1, 0, 1],
-			[0, 1, 0, 2],
-			[0, 1, 0, 3],
-			[0, 1, 0, 3, 1],
-			[0, 1, 0, 4],
-		]);
-	});
-
-	it("runs once after a step of the feature and doesn't run after its substeps", async () => {
-		const feature = { path: "/features/test.feature", content: ["have a test", 'after every "TestSteps", Noodles, man.', "passes", "not fails"].join("\n") };
-		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
-		expect(result.ok).toBe(true);
-		const said = itemAt(result.featureResults, 0).stepResults.filter((r) => r.in === "Noodles, man.").length;
-		expect(said, "the statement runs for the step the feature holds and doesn't run for the substep that another step ran").toBe(1);
-	});
-});
-
 describe("line comment", () => {
 	const NOTE = ";;unsetVariable is the text of a note";
 	it("resolves a `;;` statement to the comment step instead of prose, and passes without resolving the variable that its text names", async () => {
@@ -199,21 +117,6 @@ Prose sections are indicated by the presence of punctuation at the end of paragr
 		expect(result.ok).toBe(true);
 
 		expect(result.featureResults?.length).toBe(1);
-	});
-
-	it("process effect callback", async () => {
-		const feature = { path: "/features/test.feature", content: 'have a test\nafter every "TestSteps", passes' };
-		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
-		expect(result.ok).toBe(true);
-		expect(itemAt(result.featureResults, 0).stepResults.length).toBe(2);
-	});
-
-	it("process multiple effect callbacks", async () => {
-		const feature = { path: "/features/test.feature", content: 'have a test\nafter every "TestSteps", passes\nhave a test' };
-		const result = await passWithDefaults([feature], [Haibun, TestSteps]);
-		expect(result.ok).toBe(true);
-		const rfzs = itemAt(result.featureResults, 0).stepResults;
-		expect(rfzs.length).toBe(4);
 	});
 });
 

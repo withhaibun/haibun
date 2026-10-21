@@ -292,8 +292,9 @@ Available observation sources:
 | `visited pages` | URLs navigated during browser session | Verifying the session didn't access unexpected domains |
 | `http-trace hosts` | Hostnames from all HTTP requests | Allowlist/blocklist verification |
 | `http-trace` | Individual HTTP request IDs | Checking status codes, timing |
-| `step usage` | Step names | Coverage reporting |
-| `stepper usage` | Stepper names | Integration verification |
+| `steps` | The feature's step records | Coverage and timing, through `step/called`, `step/stepper` and `step/duration` |
+
+A source states functions of its items, which a statement reads as the variable and the function joined by `/`, such as `request/status`.
 
 Observations are automatically collected by steppers and cleared between features.
 

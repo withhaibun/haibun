@@ -165,7 +165,7 @@ describe("blips: fine-grained occurrences that actuality doesn't retain", () => 
 describe("blip rollup: the aggregating listener", () => {
 	const HTTP = { name: "haibun.test.http.request", instrument: "span-event" as const, description: "An observed request completed." };
 
-	it("counts occurrences per name while attached, in observation-source shape", () => {
+	it("counts occurrences per name while attached, as an observation source's facts", () => {
 		declareBlips(SCROLL, HTTP);
 		const { world, eventLogger } = make();
 		const rollup = new BlipRollup();
@@ -173,10 +173,10 @@ describe("blip rollup: the aggregating listener", () => {
 		recordBlip(world, SCROLL.name, 1, { view: "a" });
 		recordBlip(world, SCROLL.name, 2, { view: "a" });
 		recordBlip(world, HTTP.name);
-		const { items, metrics } = rollup.observe();
-		expect(items.sort()).toEqual([HTTP.name, SCROLL.name].sort());
-		expect(metrics[SCROLL.name]).toEqual({ count: 2 });
-		expect(metrics[HTTP.name]).toEqual({ count: 1 });
+		expect(rollup.observe()).toEqual([
+			{ subject: SCROLL.name, predicate: "count", object: 2 },
+			{ subject: HTTP.name, predicate: "count", object: 1 },
+		]);
 	});
 
 	it("subscribes to the logger it is given and unsubscribes from the earlier one, so an execution that didn't detach doesn't stop the next one's counts", () => {
@@ -189,9 +189,9 @@ describe("blip rollup: the aggregating listener", () => {
 		const second = make();
 		rollup.attach(second.eventLogger);
 		expect(first.eventLogger.hasSubscribers("blip")).toBe(false);
-		expect(rollup.observe().items).toEqual([]); // the counts start empty and don't include the previous execution's counts
+		expect(rollup.observe()).toEqual([]); // the counts start empty and don't include the previous execution's counts
 		recordBlip(second.world, SCROLL.name, 1, { view: "a" });
-		expect(rollup.observe().metrics[SCROLL.name]).toEqual({ count: 1 });
+		expect(rollup.observe()).toEqual([{ subject: SCROLL.name, predicate: "count", object: 1 }]);
 	});
 
 	it("clears on reset and stops counting on detach, so recording returns after one check again", () => {
@@ -200,12 +200,12 @@ describe("blip rollup: the aggregating listener", () => {
 		const rollup = new BlipRollup();
 		rollup.attach(eventLogger);
 		recordBlip(world, SCROLL.name, 1, { view: "a" });
-		expect(rollup.observe().metrics[SCROLL.name]).toEqual({ count: 1 });
+		expect(rollup.observe()).toEqual([{ subject: SCROLL.name, predicate: "count", object: 1 }]);
 		rollup.reset();
-		expect(rollup.observe().items).toEqual([]);
+		expect(rollup.observe()).toEqual([]);
 		rollup.detach();
 		expect(eventLogger.hasSubscribers("blip")).toBe(false);
 		recordBlip(world, SCROLL.name, 2, { view: "a" });
-		expect(rollup.observe().items).toEqual([]);
+		expect(rollup.observe()).toEqual([]);
 	});
 });

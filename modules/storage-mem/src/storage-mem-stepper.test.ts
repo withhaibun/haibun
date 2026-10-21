@@ -67,7 +67,7 @@ describe("AStorage steppers", () => {
 		expect(res).toEqual(OK);
 	});
 
-	it("testContains and testNotContains verify file content", async () => {
+	it("testContains verifies file content", async () => {
 		const storageMem = new StorageMem();
 		const world = getDefaultWorld();
 		await storageMem.setWorld(world, []);
@@ -78,12 +78,6 @@ describe("AStorage steppers", () => {
 		expect(res).toEqual(OK);
 
 		res = await storageMem.steps.testContains?.action({ where: "/test.txt", what: "missing" });
-		expect(res.ok).toBe(false);
-
-		res = await storageMem.steps.testNotContains?.action({ where: "/test.txt", what: "missing" });
-		expect(res).toEqual(OK);
-
-		res = await storageMem.steps.testNotContains?.action({ where: "/test.txt", what: "hello" });
 		expect(res.ok).toBe(false);
 	});
 });

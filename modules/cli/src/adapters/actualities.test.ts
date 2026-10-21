@@ -7,7 +7,7 @@ import path from "node:path";
 import { ACTUALITIES_FILE } from "@haibun/core/lib/adapters/dependency-state.js";
 import { RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
 import { digestFields } from "@haibun/core/lib/domains/digest.js";
-import { forgetOutcome, forgetOutcomes, machineKey, outcomeAgainst, recordActuality, actualityConditions, varianceLine, verificationOf } from "./actualities.js";
+import { forgetOutcome, forgetOutcomes, machineKey, outcomeAgainst, recordActuality, actualityConditions, verificationOf } from "./actualities.js";
 
 /** Creates a group of features and a library in its own git repository. The group doesn't load steppers, so its only
  *  dependency is its own directory, or its features and its library where it names them as two roots. */
@@ -49,8 +49,7 @@ const level = (actualityLevel: string, id: string, stepText: string, status: str
 	endedAtTime: new Date(ms).toISOString(),
 	...stated,
 });
-/** Records an actuality of features, each by its path and how long it took, whose own record states the digests `v` read,
- *  and returns the features whose durations differ. */
+/** Records an actuality of features, each by its path and how long it took, whose own record states the digests `v` read. */
 function recordFeatures(v: ReturnType<typeof verified>, status: string, features: Record<string, number>) {
 	const levels = new Map<string, Record<string, unknown>>([["execution", level("execution", "1-0", "tests", status, 9000, digestFields(v.digest))]]);
 	const featureResults = Object.entries(features).map(([featurePath, ms], at) => {
@@ -142,17 +141,6 @@ describe("how long a group's features took", () => {
 		expect(nodeFS.readFileSync(path.join(other.dir, ACTUALITIES_FILE), "utf-8")).toBe(nodeFS.readFileSync(path.join(one.dir, ACTUALITIES_FILE), "utf-8"));
 	});
 
-	it("reports a feature whose duration differs from this machine's last actuality by both a fifth and a second", () => {
-		const { dir, config } = aGroup();
-		const first = recordFeatures(verified(dir, config), RECORDED_STATUS.completed, { "/a.feature": 10_000, "/b.feature": 10_000, "/c.feature": 500 });
-		expect(first, "a machine without a recorded actuality doesn't have times to compare").toEqual([]);
-		const second = recordFeatures(verified(dir, config), RECORDED_STATUS.completed, { "/a.feature": 20_000, "/b.feature": 11_000, "/c.feature": 1200, "/d.feature": 9000 });
-		expect(
-			second.map((variance) => [variance.feature, variance.was, variance.seconds]),
-			"/b differs by less than a fifth, /c by less than a second, and /d wasn't in the last actuality",
-		).toEqual([["/a.feature", 10, 20]]);
-	});
-
 	it("names the class of machine by its processor, core count, architecture and platform, and doesn't include the host name", () => {
 		const key = machineKey();
 		expect([key.includes(os.platform()), key.includes(os.arch()), key.includes(`${os.cpus().length}x`), key.includes(os.hostname().toLowerCase())]).toEqual([
@@ -161,11 +149,6 @@ describe("how long a group's features took", () => {
 			true,
 			false,
 		]);
-	});
-
-	it("formats the feature, both durations, the percentage change and the step counts", () => {
-		expect(varianceLine({ feature: "/a.feature", seconds: 20, was: 10, steps: 7, wasSteps: 5 })).toBe("/a.feature took 20s, was 10s (+100%), 7 steps, was 5");
-		expect(varianceLine({ feature: "/a.feature", seconds: 5, was: 10, steps: 5, wasSteps: 5 })).toBe("/a.feature took 5s, was 10s (-50%), 5 steps");
 	});
 
 	it("refuses an actualities file that doesn't hold actualities by machine and conditions, since replacing it would lose them", () => {
