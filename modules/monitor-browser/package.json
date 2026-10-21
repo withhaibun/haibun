@@ -31,7 +31,7 @@
     "hono": "^4.13.8",
     "html-react-parser": "^6.1.7",
     "lucide-react": "^1.46.0",
-    "markdown-it": "^15.0.2",
+    "markdown-it": "^15.0.3",
     "mermaid": "^11.17.2",
     "tailwind-merge": "^3.7.0",
     "tailwindcss-animate": "^1.0.7",
