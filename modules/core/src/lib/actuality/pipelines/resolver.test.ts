@@ -9,6 +9,8 @@ import { createSteppers } from "../../domains/util.js";
 import { itemAt } from "../../domains/item-at.js";
 import { Resolver } from "./resolver.js";
 import Haibun from "../../../steps/haibun-stepper.js";
+import ActivitiesStepper from "../../../steps/activities-stepper.js";
+import { getDefaultWorld } from "../../test/lib.js";
 
 describe("resolve steps", () => {
 	it("resolves steps", async () => {
@@ -153,5 +155,18 @@ describe("the steps a resolver offers", () => {
 		expect(resolver.findSingleStepAction("added step").actionName).toBe("added");
 		delete itemAt(steppers, 0).steps.added;
 		expect(() => resolver.findSingleStepAction("added step"), "and a step removed doesn't resolve").toThrow(`"added step" doesn't match a step`);
+	});
+});
+
+describe("a line that applies a waypoint", () => {
+	it("is recorded at its own line, and its step holds the rule stated at the waypoint's line", async () => {
+		const activities = new ActivitiesStepper();
+		await activities.setWorld(getDefaultWorld(), [activities]);
+		const background = { base: "", name: "kitchen", path: "/backgrounds/kitchen.feature", content: "Activity: Cook\nwaypoint dinner is ready" };
+		const feature = itemAt(asExpandedFeatures([{ path: "/features/dinner.feature", content: "Scenario: Dinner\n\ndinner is ready" }]), 0);
+		const steps = await new Resolver([new Haibun(), activities], [background]).findFeatureSteps(feature);
+		const applying = itemAt(steps, steps.length - 1);
+		expect(applying.source).toEqual({ path: `${feature.base}/features/dinner.feature`, lineNumber: 3 });
+		expect(applying.action.step.rule?.source).toEqual({ path: "/backgrounds/kitchen.feature", lineNumber: 2 });
 	});
 });

@@ -273,12 +273,9 @@ export class Resolver {
 		return itemAt(stepActions, 0);
 	}
 
+	/** The step of a feature's line, recorded at that line, whether its step is its own or a waypoint's rule it applies. */
 	getFeatureStep(featureLine: TExpandedLine, seq: number, action: TStepAction): TFeatureStep {
-		// A waypoint's step uses its own source location when it has one.
-		const step = action.step;
-		const lineNumber = step?.source?.lineNumber ?? featureLine.lineNumber;
-		const path = step?.source?.path ?? featureLine.feature.base + featureLine.feature.path;
-		return { source: { path, lineNumber }, in: featureLine.line, seqPath: [seq], action };
+		return { source: { path: featureLine.feature.base + featureLine.feature.path, lineNumber: featureLine.lineNumber }, in: featureLine.line, seqPath: [seq], action };
 	}
 
 	/** Each step that `offers` allows and the stepper that declares it, derived again only where a stepper's steps change. */
@@ -311,7 +308,7 @@ export class Resolver {
 	 *  its rules whose head the line unifies with, which holds that rule. `curt` is the line after dePolite. */
 	private stepApplies(step: TStepperStep, curt: string, actionName: string, stepperName: string): TStepAction[] {
 		if (step.rules !== undefined && step.reading !== undefined)
-			return step.rules().flatMap((rule) => patternApplies(rule.pattern, curt, actionName, stepperName, { ...step, rule, source: rule.source }));
+			return step.rules().flatMap((rule) => patternApplies(rule.pattern, curt, actionName, stepperName, { ...step, rule }));
 		if (step.gwta) return patternApplies(step.gwta, curt, actionName, stepperName, step);
 		return step.exact === curt ? [{ actionName, stepperName, step }] : [];
 	}
@@ -324,16 +321,6 @@ function patternApplies(pattern: string, curt: string, actionName: string, stepp
 	if (/^[A-Z]/.test(curt) && !/^[A-Z]/.test(pattern) && !pattern.startsWith("{")) return [];
 	const applied = matchGwtaToAction(pattern, curt, actionName, stepperName, step);
 	return applied === undefined ? [] : [applied];
-}
-
-function getActionableStatement(steppers: AStepper[], statement: string, path: string, seqPath: number[], lineNumber?: number) {
-	const resolver = new Resolver(steppers, []);
-	const action = resolver.findSingleStepAction(statement);
-	const step = action.step;
-
-	const featureStep: TFeatureStep = { source: { path: step?.source?.path || path, lineNumber: step?.source?.lineNumber ?? lineNumber }, in: statement, seqPath, action };
-
-	return { featureStep, steppers };
 }
 
 export function findFeatureStepsFromStatement(statement: string, steppers: AStepper[], world: TWorld, base: string | undefined, seqStart: number[]): TFeatureStep[] {
@@ -354,9 +341,9 @@ export function findFeatureStepsFromStatement(statement: string, steppers: AStep
 		const seqPath = [...prefix, latest];
 		const fullPath = x.feature.base + x.feature.path;
 		try {
-			const { featureStep } = getActionableStatement(steppers, x.line, fullPath, seqPath, x.lineNumber);
+			const action = new Resolver(steppers, []).findSingleStepAction(x.line);
 			latest += 1;
-			featureSteps.push(featureStep);
+			featureSteps.push({ source: { path: fullPath, lineNumber: x.lineNumber }, in: x.line, seqPath, action });
 		} catch (e) {
 			const why = errorDetail(e);
 			featureSteps.push({

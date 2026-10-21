@@ -326,10 +326,8 @@ describe("backgrounds", () => {
 		expect(activityStep?.lineNumber, "an activity's line states its own line").toBe(2);
 		expect(activityStep?.path).toBe("test_base/backgrounds/bg.feature");
 
-		// The waypoint record also carries its source location.
 		const waypointStep = itemAt(result.featureResults, 0).stepResults.find((r) => r.in === "Test Activity");
-		expect(waypointStep).toBeDefined();
-		expect(waypointStep?.lineNumber).toBe(3);
-		expect(waypointStep?.path).toBe("test_base/backgrounds/bg.feature");
+		expect(waypointStep?.lineNumber, "the record of the head an ensure line states names that line").toBe(3);
+		expect(waypointStep?.path).toBe("test_base/features/test.feature");
 	});
 });

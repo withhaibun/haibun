@@ -1,6 +1,6 @@
 /**
  * The language server over fake ports: the diagnostics it sends, the steps it holds for a document, the waypoint heads it
- * completes, the head its hover shows, the backgrounds a background document's change registers, the workspace status it counts once per document, the tool handler it
+ * completes, the head its hover shows at the line that applies it, the backgrounds a background document's change registers, the workspace status it counts once per document, the tool handler it
  * registers once, and the logger it writes to in place of standard output.
  */
 import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
@@ -163,6 +163,16 @@ describe("the language server's hover", () => {
 		await server.processDocument(document);
 		const hover = registered[0]?.hover({ textDocument: { uri: document.uri }, position: { line: 0, character: 30 } });
 		expect(hover?.contents).toMatchObject({ value: expect.stringContaining("`table is laid`") });
+	});
+
+	it("hovers over a feature's line that applies a waypoint with the waypoint's head, and paints that line as the call", async () => {
+		const stepper = await activities();
+		const document = featureDocument("/tmp/features/dinner.feature", "Activity: Cook\nwaypoint dinner is ready\n\ndinner is ready");
+		const { server, registered } = serverOver([stepper], { open: [document] });
+		await server.processDocument(document);
+		const hover = registered[0]?.hover({ textDocument: { uri: document.uri }, position: { line: 3, character: 0 } });
+		expect(hover?.contents).toMatchObject({ value: expect.stringContaining("`dinner is ready`") });
+		expect(server.semanticTokens(document.uri).filter(({ line }) => line === 3)).toEqual([{ line: 3, char: 0, length: "dinner is ready".length, type: "function" }]);
 	});
 });
 

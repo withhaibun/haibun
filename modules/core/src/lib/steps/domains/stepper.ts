@@ -149,8 +149,6 @@ type TStepperStepBase = TStepReads & {
 	 *  the step has work to do at that moment. A step offered where it can only refuse is one of the few
 	 *  steps a model reads, so the model calls it and the turn keeps receiving refusals. */
 	offeredBeforeDiscovery?: boolean | (() => boolean);
-	/** The source location of the line that states the step, where a feature states it, such as a waypoint's rule. */
-	source?: { path: string; lineNumber?: number };
 	gwta?: string;
 	exact?: string;
 	/** Each rule whose head a line unifies with resolves the line to this step. The pattern of the rule's head parses the line,

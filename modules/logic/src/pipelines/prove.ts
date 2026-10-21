@@ -41,6 +41,11 @@ type TOpened = { step: TFeatureStep; close: (result: TActionResult) => void; dis
 
 const keyOf = (path: readonly number[]): string => path.join(".");
 
+/** The steps a line's text resolves to, each stated at the line's source where the text is one step. A text that expands a
+ *  background states each background line's source. */
+const statedAt = (steps: TFeatureStep[], source: TFeatureStep["source"]): TFeatureStep[] =>
+	steps.length === 1 && source !== undefined ? steps.map((step) => ({ ...step, source })) : steps;
+
 /** Where a proof of a step's statements places them: the path segment each statement takes under the step, in order, and the
  *  host whose steps prove them, where another host does. */
 type TPlaced = { segments: number[]; targetHostId?: number };
@@ -83,7 +88,7 @@ class Proof {
 
 	/** Resolves a statement's text to its steps, as a statement parameter is resolved. */
 	private statementSteps(text: string, step: TFeatureStep): TFeatureStep[] {
-		return findFeatureStepsFromStatement(text, this.ctx.steppers, this.ctx.world, step.source?.path, [...step.seqPath, 0]);
+		return statedAt(findFeatureStepsFromStatement(text, this.ctx.steppers, this.ctx.world, step.source?.path, [...step.seqPath, 0]), step.source);
 	}
 
 	private async listOf(steps: TFeatureStep[]): Promise<string> {
@@ -338,12 +343,7 @@ class Proof {
 	}
 
 	private async linesTerm(lines: TStepInput[]): Promise<string> {
-		// A line that expands to one step states the line's own source; a line that expands a background states each background line's.
-		const steps = lines.flatMap((input) => {
-			const expanded = findFeatureStepsFromStatement(input.in, this.ctx.steppers, this.ctx.world, input.source?.path, [0]);
-			return expanded.length === 1 && input.source !== undefined ? expanded.map((step) => ({ ...step, source: input.source })) : expanded;
-		});
-		return await this.listOf(steps);
+		return await this.listOf(lines.flatMap((input) => statedAt(findFeatureStepsFromStatement(input.in, this.ctx.steppers, this.ctx.world, input.source.path, [0]), input.source)));
 	}
 
 	private async wait(path: number[], request: { node: string }): Promise<string> {
