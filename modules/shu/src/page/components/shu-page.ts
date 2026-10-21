@@ -39,24 +39,11 @@ import "./shu-graph-query.js";
 import "./shu-index-summary.js";
 import "./shu-page-strip.js";
 
-const LAYOUT_STYLE = `
-  .app-container {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    height: 100dvh;
-    overflow: hidden;
-    /* the containing block for a docked pane, which overlays the columns above the page strip and doesn't take layout space. */
-    position: relative;
-  }
-  .app-container > shu-column-strip {
-    flex: 1;
-    min-height: 0;
-    /* PaneDock sets this footprint to the docked pane's closed height, so the columns end above the pane. It is 0 where a
-       pane isn't docked. */
-    margin-bottom: var(${DOCK_FOOTPRINT}, 0px);
-  }
-`;
+/** The page's layout. The app container is the containing block for a docked pane, which overlays the columns above the page
+ *  strip and doesn't take layout space. PaneDock sets the strip's footprint to the docked pane's closed height, so the columns
+ *  end above the pane; it is 0 where a pane isn't docked. */
+const LAYOUT_STYLE = `.app-container { display: flex; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; position: relative; }
+.app-container > shu-column-strip { flex: 1; min-height: 0; margin-bottom: var(${DOCK_FOOTPRINT}, 0px); }`;
 
 /** The id of the page's layout stylesheet in the document. */
 const LAYOUT_STYLE_ID = "shu-page-layout";

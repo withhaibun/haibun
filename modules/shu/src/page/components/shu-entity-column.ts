@@ -58,7 +58,7 @@ import type { TPageRefusal } from "../domains/refusal.js";
 import "./shu-refusal.js";
 import "./shu-spinner.js";
 import { ObserverController } from "../controllers/observer-controller.js";
-import { saveFile } from "../controllers/file-controller.js";
+import { saveFile, showFile } from "../controllers/file-controller.js";
 
 /** The name of the delay after which the copy button reads Copy again. */
 const COPY_RESULT = "copy-result";
@@ -379,8 +379,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 	/** Follow a call the record offers. A call that returns a file of a type a browser shows as it is
 	 *  (`viewedInBrowser`) opens it in a tab of its own: a PDF in its own viewer, at the fragment a reference named, as its
 	 *  page. A file of any other type is saved under its name, since its sender chose its type, and a browser runs a page of
-	 *  that type, as HTML or SVG, with this page's origin. A browser opens a tab only shortly after a click, so a file read
-	 *  for longer is refused, stating so; the tab doesn't hold a reference to this page. */
+	 *  that type, as HTML or SVG, with this page's origin. */
 	private readonly followOffer = async (link: TCallLink): Promise<void> => {
 		try {
 			const { name, file } = SentFileSchema.parse(await this.entity.follow(link));
@@ -388,10 +387,7 @@ export class ShuEntityColumn extends ShuElement<typeof EntityColumnSchema> {
 			if (!viewedInBrowser(blob.type)) return saveFile(blob, name);
 			const at = this.fragment ?? this.pageOfRevealedPassage(blob.type);
 			if (at) assertFragmentReads(at, blob.type);
-			const opened = window.open("", "_blank");
-			if (!opened) throw new Error(`the browser didn't open a tab for ${name}: it opens one only shortly after a click, and reading the file took longer`);
-			opened.opener = null;
-			opened.location.href = `${URL.createObjectURL(blob)}${at ? `#${at.value}` : ""}`;
+			showFile(blob, name, at?.value);
 		} catch (err) {
 			reportFailure(SHU_TAG.ENTITY_COLUMN, `following "${link.summary}"`, err);
 		}

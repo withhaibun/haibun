@@ -79,40 +79,50 @@ function openDb(name: string, connections: TDeviceConnections, replacesFormer: b
 	return opening;
 }
 
-/** Clears what was cached under a different shape, and records the shape this build reads. */
+/** Clears what was cached under a different shape, and records the shape this build reads. The shape is read first, and the
+ *  read and the clear each commit as they issue their requests, as every transaction here does. The database opens once the
+ *  read ends and the clear is issued: the browser starts a later transaction over the same stores only after the clear ends. */
 function clearIfIncompatible(db: IDBDatabase, report: TDeviceReport): Promise<void> {
 	return new Promise((resolve) => {
-		const tx = db.transaction([DEVICE_STORES.META, DEVICE_STORES.QUADS], "readwrite");
-		const meta = tx.objectStore(DEVICE_STORES.META);
-		const found = meta.get(META_KEY.SHAPE);
+		const read = db.transaction(DEVICE_STORES.META);
+		const found = read.objectStore(DEVICE_STORES.META).get(META_KEY.SHAPE);
+		read.commit();
+		found.onerror = () => resolve();
 		found.onsuccess = () => {
-			if (found.result === CACHE_SHAPE) return;
+			if (found.result === CACHE_SHAPE) return resolve();
 			if (found.result !== undefined) report.warn(`what this device holds was written as ${String(found.result)}; this build reads ${CACHE_SHAPE}, so it is cleared`);
+			const tx = db.transaction([DEVICE_STORES.META, DEVICE_STORES.QUADS], "readwrite");
 			tx.objectStore(DEVICE_STORES.QUADS).clear();
-			meta.clear();
-			meta.put(CACHE_SHAPE, META_KEY.SHAPE);
+			tx.objectStore(DEVICE_STORES.META).clear();
+			tx.objectStore(DEVICE_STORES.META).put(CACHE_SHAPE, META_KEY.SHAPE);
+			tx.commit();
+			resolve();
 		};
-		tx.oncomplete = () => resolve();
-		tx.onerror = () => resolve();
 	});
 }
 
-/** Returns the database `name` names, opened once through `connections`. */
+/** Returns the database `name` names, opened once through `connections`. A read or a write issues each of its requests in
+ *  the task that opens its transaction and commits it there, so the browser ends the transaction without waiting for the page
+ *  to take each result. Chromium aborts a transaction that waits on a page busy for 60 s while another transaction waits on
+ *  it. */
 export function deviceDatabase(name: string, connections: TDeviceConnections, replacesFormer: boolean): TDeviceDatabase {
-	return {
-		name,
-		async within<T>(mode: IDBTransactionMode, stores: string[], fn: (tx: IDBTransaction) => T | Promise<T>): Promise<T | undefined> {
-			const db = await openDb(name, connections, replacesFormer);
-			if (db === null) return undefined;
-			const tx = db.transaction(stores, mode);
-			const result = await fn(tx);
-			await new Promise<void>((resolve, reject) => {
-				tx.oncomplete = () => resolve();
-				tx.onerror = () => reject(tx.error);
-			});
-			return result;
-		},
+	/** Runs `fn` in a transaction over `stores` and commits the requests it issues, and resolves with its result once the
+	 *  transaction commits, or rejects with why it aborted; resolves undefined without IndexedDB. */
+	const within = async <T>(mode: IDBTransactionMode, stores: string[], fn: (tx: IDBTransaction) => T | Promise<T>): Promise<T | undefined> => {
+		const db = await openDb(name, connections, replacesFormer);
+		if (db === null) return undefined;
+		const tx = db.transaction(stores, mode);
+		const committed = new Promise<void>((resolve, reject) => {
+			tx.oncomplete = () => resolve();
+			tx.onabort = () => reject(tx.error);
+		});
+		const issued = (async () => fn(tx))();
+		tx.commit();
+		// Awaited together, so the abort that follows a failure of `fn` doesn't reject a second time, unhandled.
+		const [result] = await Promise.all([issued, committed]);
+		return result;
 	};
+	return { name, read: (stores, fn) => within("readonly", stores, fn), write: (stores, fn) => within("readwrite", stores, fn) };
 }
 
 /** The site's registry and the clearing of what is cached, in one actuality's database. `wrote` calls the page's readers
@@ -124,18 +134,18 @@ export class IndexedDbDeviceStore implements TDeviceStore {
 	) {}
 
 	async registry(): Promise<TStoredRegistry | undefined> {
-		const found = await this.database.within("readonly", [DEVICE_STORES.META], (tx) => done(tx.objectStore(DEVICE_STORES.META).get(META_KEY.REGISTRY)));
+		const found = await this.database.read([DEVICE_STORES.META], (tx) => done(tx.objectStore(DEVICE_STORES.META).get(META_KEY.REGISTRY)));
 		return found !== undefined && found !== null && typeof found === "object" ? (found as TStoredRegistry) : undefined;
 	}
 
 	async setRegistry(response: unknown): Promise<void> {
 		const cached: TStoredRegistry = { savedAt: Date.now(), response };
-		await this.database.within("readwrite", [DEVICE_STORES.META], (tx) => tx.objectStore(DEVICE_STORES.META).put(cached, META_KEY.REGISTRY));
+		await this.database.write([DEVICE_STORES.META], (tx) => tx.objectStore(DEVICE_STORES.META).put(cached, META_KEY.REGISTRY));
 		this.wrote();
 	}
 
 	async clear(): Promise<void> {
-		await this.database.within("readwrite", [DEVICE_STORES.META, DEVICE_STORES.QUADS], (tx) => {
+		await this.database.write([DEVICE_STORES.META, DEVICE_STORES.QUADS], (tx) => {
 			tx.objectStore(DEVICE_STORES.META).clear();
 			tx.objectStore(DEVICE_STORES.QUADS).clear();
 		});

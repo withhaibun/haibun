@@ -38,6 +38,9 @@ import { FOLLOW_EDGE_SLACK_PX } from "../domains/scroll-follow.js";
  *  skeleton). */
 type TVirtualRow = (index: number, row: unknown) => TemplateResult;
 
+/** The reason lit-virtualizer gives as it rejects its pending layout, once it leaves the document. */
+const VIRTUALIZER_LEFT = "disconnected";
+
 /** Layout the element needs, for the HOST column to include in its own `static styles`: the element renders in light DOM
  *  (so it doesn't have shadow styles of its own), and the host's shadow holds its subtree, where these rules and the host's
  *  own row rules both apply. */
@@ -118,6 +121,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 		// instantly via the window-reaches-last resume, so a direction check isn't needed.
 		this.autoListen(this, "wheel", this.#onUserScroll, { passive: true });
 		this.autoListen(this, "touchmove", this.#onUserScroll, { passive: true });
+		this.autoListen(this, "pointerdown", this.#onPress);
 		// Scroll does not bubble but is capturable, so one listener here sees the virtualizer scroller move.
 		this.autoListen(this, "scroll", this.#onAnyScroll, { passive: true, capture: true });
 	}
@@ -237,11 +241,36 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 		return true;
 	}
 
-	/** The virtualizer took in rows, which it reports as a changed range. The follow kit issues again a jump that targeted
-	 *  a row the virtualizer didn't hold. Deferred until the update settles, as #onVisibility defers its jumps. */
+	/** The virtualizer took in rows, which it reports as a changed range. They are taken in once this element's update
+	 *  settles, as #showWindow defers its jumps, and again once the virtualizer has laid them out: a jump issued before the
+	 *  virtualizer places a row it took in lands short of that row, and the virtualizer doesn't report the window again. A
+	 *  virtualizer that leaves the document rejects its layout as VIRTUALIZER_LEFT, and the window doesn't take its rows. */
 	#onRange = (): void => {
-		void this.updateComplete.then(() => this.#follow.rowsArrived());
+		void this.updateComplete.then(() => this.#rowsTakenIn());
+		void this.#virt.value?.layoutComplete?.then(
+			() => this.#rowsTakenIn(),
+			(reason: unknown) => {
+				if (reason !== VIRTUALIZER_LEFT) throw reason;
+			},
+		);
 	};
+
+	/** Adds the rows the virtualizer took to the window. A row after the last row shown that doesn't take room doesn't change
+	 *  what the virtualizer shows, so the virtualizer doesn't report the window again, and the window adds the row here. A following
+	 *  window short of the last row jumps again, within the bound `converged` keeps, and the follow kit issues again a jump
+	 *  that targeted a row the virtualizer didn't hold. */
+	#rowsTakenIn(): void {
+		const { first, visible } = this.#window;
+		const last = first + visible - 1;
+		const short = this.follow && this.#follow.isFollowing && last < this.#rowCount() - 1;
+		if (visible > 0 && (short || this.#lastShown(last) > last)) this.#showWindow(first, last);
+		this.#follow.rowsArrived();
+	}
+
+	/** The last row a window whose last visible row is `last` shows: that row, and each row after it that doesn't take room. */
+	#lastShown(last: number): number {
+		return lastShownRow(last, this.#rowCount(), (i) => this.source?.rowSize?.(i));
+	}
 
 	/** The placeholder items array of length `count`, memoized so scrolling a million-row column never rebuilds it; the
 	 *  virtualizer reads only the visible indices, so a sparse array of that length is small. */
@@ -263,12 +292,15 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 	#wantedFirst: number | null = null;
 	#wantedCount = 0;
 
-	/** Set while the reader has pressed the rail to a moment of their choosing, so arriving at the last row does not read
-	 *  as "scrolled back to the live edge" and quietly resume the tail. Cleared by a scroll, or by going live. */
+	/** Set while the reader has pressed a row or the rail to a moment of their choosing, so arriving at the last row does not
+	 *  read as "scrolled back to the live edge" and quietly resume the tail. Cleared by a scroll, or by going live. */
 	#pressedAway = false;
 
-	#onVisibility = (e: VisibilityChangedEvent): void => {
-		this.#window = visibleWindow(e.first, e.last < e.first ? e.last : lastShownRow(e.last, this.#rowCount(), (i) => this.source?.rowSize?.(i)));
+	#onVisibility = (e: VisibilityChangedEvent): void => this.#showWindow(e.first, e.last);
+
+	/** Shows the window from its first visible row to its last, `last` before `first` where the viewport is empty. */
+	#showWindow(first: number, last: number): void {
+		this.#window = visibleWindow(first, last < first ? last : this.#lastShown(last));
 		if (this.#wantedFirst !== null) {
 			// Deferred, never called from inside this notification: the virtualizer is mid-update here and the row being
 			// requested may not have an element yet, which throws inside its own scrollIntoView. The follow kit waits for the
@@ -281,7 +313,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 				});
 			}
 		}
-		if (this.source && e.last >= e.first) void this.source.ensureRange(e.first, e.last + 1);
+		if (this.source && last >= first) void this.source.ensureRange(first, last + 1);
 		const count = this.#rowCount();
 		const short = Math.max(0, count - (this.#window.first + this.#window.visible));
 		if (short !== this.#lastWindowShort) {
@@ -306,7 +338,7 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 		}
 		this.requestUpdate(); // reposition the rail thumb and glyphs
 		this.#scheduleMeasure();
-	};
+	}
 
 	/** The viewport's share of the column, for the rail's thumb: rows here can differ in height (a run document caches both
 	 *  a line of prose and a screenshot), so the scroller's own pixels are what "how much is on screen" means.
@@ -358,15 +390,24 @@ export class ShuVirtualColumn extends ShuElement<typeof EmptyStateSchema> {
 		if (this.follow) this.#follow.setAtBottom(false);
 	};
 
-	#onScrollTo = (e: Event): void => {
+	/** The reader picks a row, by a press on it or on the rail, and the follow pauses: the convergence otherwise jumps a window
+	 *  short of the last row back to the bottom. The follow stays paused where the row picked is the last one, so a later press
+	 *  isn't undone by a jump back to the live edge. A scroll or a request to go live resumes it. */
+	#readerPicks(): void {
 		this.#readerInputAt = Date.now();
-		// A rail press or drag is the reader navigating to a specific row: an explicit move away from the live edge, so
-		// pause the follow. Otherwise the convergence, seeing the seeked window short of the last row, would re-jump the
-		// tail back to the bottom and conflict with the seek. It also has to STAY paused when the row picked happens to be the
-		// last one: reading that as "scrolled back to the live edge" re-engaged the tail, and every later press was then
-		// undone by a jump back to the edge. Scrolling resumes it, and so does a request to go live.
 		if (this.follow) this.#follow.setAtBottom(false);
 		this.#pressedAway = true;
+	}
+
+	/** A press on a row picks it, as a press on the rail picks the row it names (#onScrollTo). A row that arrives while the
+	 *  press is down then doesn't move the pressed row from under the pointer, which would end the press on another row and
+	 *  lose its click. */
+	#onPress = (e: Event): void => {
+		if (this.#virt.value?.contains(e.target as Node)) this.#readerPicks();
+	};
+
+	#onScrollTo = (e: Event): void => {
+		this.#readerPicks();
 		const index = (e as CustomEvent<{ index: number }>).detail.index;
 		// A source whose rows are a window of something longer states the rail: a press names a place in the whole of it,
 		// which the source serves (a source reads around the moment that place names, and every view of it

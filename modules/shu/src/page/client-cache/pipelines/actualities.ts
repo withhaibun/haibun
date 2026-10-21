@@ -21,8 +21,9 @@ export type THeldActuality = { actuality: string; store: TCachedGraph; features:
 export const FEATURES_READ = 500;
 
 /** What holding an actuality reads and writes: the graphs of every actuality the device holds, the graph of the one the
- *  site serves, the execution the page reads, and the report of what the device couldn't hold. */
-export type THoldScope = { held: () => Promise<TCachedGraph[]>; served: () => TCachedGraph; reading: () => string | undefined; report: TDeviceReport };
+ *  site serves, whether the page reads another graph the device holds, the execution the page reads, and the report of
+ *  what the device couldn't hold. */
+export type THoldScope = { held: () => Promise<TCachedGraph[]>; served: () => TCachedGraph; readsHeld: () => boolean; reading: () => string | undefined; report: TDeviceReport };
 
 /** The actualities of every graph, newest first, each named by the features it ran. */
 export async function actualitiesHeld(graphs: TCachedGraph[]): Promise<THeldActuality[]> {
@@ -93,10 +94,11 @@ const storageIsFull = (err: unknown): boolean => err instanceof DOMException && 
  * that point the oldest actuality the reader isn't reading is deleted and the write is tried once more, so what is kept is
  * the actualities nearest to what a reader reads rather than whichever ones were written first. A device without an
  * actuality it can delete reports so: reading carries on against the site, and a reader who loses the site loses what
- * this write would have held.
+ * this write would have held. A window read from another graph the device holds is held in that graph already, so it isn't
+ * written to the graph of the actuality the site serves, which holds that actuality's records alone.
  */
 export async function holdOnDevice(scope: THoldScope, quads: TQuad[]): Promise<void> {
-	if (quads.length === 0) return;
+	if (quads.length === 0 || scope.readsHeld()) return;
 	try {
 		await scope.served().setMany(quads);
 	} catch (err: unknown) {

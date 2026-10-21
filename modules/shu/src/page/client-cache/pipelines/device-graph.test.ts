@@ -12,6 +12,7 @@ import { DeviceGraph } from "./device-graph.js";
 import { deviceQuads, heldDatabases, servedDatabase } from "../root.js";
 import { IndexedDbQuads } from "../adapters/quad-store.js";
 import { deviceDatabase } from "../adapters/device-store.js";
+import { CACHE_SHAPE, DEVICE_STORES, META_KEY } from "../ports.js";
 import { GraphQuerySchema } from "@haibun/core/lib/quad-types.js";
 import { equalTo, readEvery, recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { declaredTypes } from "@haibun/core/lib/test/declared-types.js";
@@ -156,15 +157,66 @@ describe("a clustered read of named types", () => {
 	});
 });
 
+/** A database's graph, new for each test, that holds at most `bound` quads. */
+const boundedQuads = (bound: number) =>
+	new IndexedDbQuads(deviceDatabase(`bound-${crypto.randomUUID()}`, { opened: new Map(), report: { warn: () => undefined, failure: () => undefined } }, false), bound);
+/** The shape of a database an earlier build wrote. */
+const EARLIER_SHAPE = "an earlier shape";
+const fact = (n: number) => ({ subject: `s${n}`, predicate: "content", object: `text ${n}`, namedGraph: "Comment", timestamp: 1000 + n });
+
 describe("the bound of a database's graph", () => {
 	it("drops the oldest quads past its bound, and states how full it is and how many it dropped", async () => {
-		const name = `bound-${crypto.randomUUID()}`;
-		const quads = new IndexedDbQuads(deviceDatabase(name, { opened: new Map(), report: { warn: () => undefined, failure: () => undefined } }, false), 5);
-		const fact = (n: number) => ({ subject: `s${n}`, predicate: "content", object: `text ${n}`, namedGraph: "Comment", timestamp: 1000 + n });
+		const quads = boundedQuads(5);
 		await quads.setMany([1, 2, 3, 4, 5, 6, 7, 8].map(fact));
 		expect(await quads.saturation()).toEqual({ held: 5, bound: 5, dropped: 3 });
 		expect((await quads.all()).map((q) => q.subject).sort(), "the oldest three are the ones dropped").toEqual(["s4", "s5", "s6", "s7", "s8"]);
 		await quads.setMany([fact(9)]);
 		expect(await quads.saturation(), "the count dropped adds up across writes").toEqual({ held: 5, bound: 5, dropped: 4 });
+	});
+});
+
+describe("the transactions of a database's graph", () => {
+	it("issue each request in the task that opens the transaction, so a busy page doesn't leave a transaction idle", async () => {
+		// Chromium aborts a transaction its page leaves idle for 60 s while another waits on it: a transaction that awaits a
+		// result before its next request waits on the page, and a page busy that long had its transaction aborted. A request
+		// issued after the transaction delivered a result is such a wait.
+		const waits: string[] = [];
+		const answered = new WeakSet<IDBTransaction>();
+		const watched = (proto: IDBObjectStore | IDBIndex, methods: string[]) => {
+			for (const method of methods) {
+				const issue = Reflect.get(proto, method) as (...args: unknown[]) => IDBRequest;
+				vi.spyOn(proto as unknown as Record<string, (...args: unknown[]) => IDBRequest>, method).mockImplementation(function (this: IDBObjectStore | IDBIndex, ...args: unknown[]) {
+					const tx = this instanceof IDBIndex ? this.objectStore.transaction : this.transaction;
+					if (answered.has(tx)) waits.push(`${tx.mode} ${method}`);
+					const request = issue.apply(this, args);
+					request.addEventListener("success", () => answered.add(tx));
+					return request;
+				});
+			}
+		};
+		watched(IDBObjectStore.prototype, ["add", "put", "delete", "clear", "get", "getAll", "getAllKeys", "count", "openCursor"]);
+		watched(IDBIndex.prototype, ["get", "getAll", "getAllKeys", "count", "openCursor"]);
+		const quads = boundedQuads(3);
+		await quads.setMany([1, 2, 3].map(fact));
+		await quads.set("s1", "content", "text 1, again", "Comment");
+		await quads.add(fact(4));
+		await quads.remove({ subject: "s2" });
+		await quads.clear("Comment");
+		const saturation = await quads.saturation();
+		vi.restoreAllMocks();
+		expect(waits).toEqual([]);
+		expect(saturation, "the writes held and dropped as they state").toEqual({ held: 0, bound: 3, dropped: 1 });
+	});
+});
+
+describe("a database written under another shape", () => {
+	it("opens cleared, so the first read after it opens doesn't return what the other shape held", async () => {
+		const name = `shape-${crypto.randomUUID()}`;
+		const warned: string[] = [];
+		const opened = () => deviceDatabase(name, { opened: new Map(), report: { warn: (message) => warned.push(message), failure: () => undefined } }, false);
+		await new IndexedDbQuads(opened(), 10).setMany([fact(1)]);
+		await opened().write([DEVICE_STORES.META], (tx) => tx.objectStore(DEVICE_STORES.META).put(EARLIER_SHAPE, META_KEY.SHAPE));
+		expect(await new IndexedDbQuads(opened(), 10).all()).toEqual([]);
+		expect(warned).toEqual([`what this device holds was written as ${EARLIER_SHAPE}; this build reads ${CACHE_SHAPE}, so it is cleared`]);
 	});
 });

@@ -20,6 +20,9 @@ const heldOrEmpty = (rows: TQuad[] | undefined): TQuad[] => (rows === undefined 
 /** The most quads a database of one actuality holds (CA4D13). A write past it drops the oldest quads by the time each was held. */
 export const GRAPH_BOUND = 100_000;
 
+/** The rows a database holds under a quad's subject, predicate and graph: their keys, and the rows. */
+type THeld = { keys: IDBValidKey[]; rows: StoredQuad[] };
+
 export class IndexedDbQuads implements TDeviceQuads {
 	readonly database: string;
 
@@ -31,52 +34,81 @@ export class IndexedDbQuads implements TDeviceQuads {
 		this.database = db.name;
 	}
 
-	/** Run `fn` in one transaction over the quads, and resolve once it commits; `undefined` when IndexedDB is unavailable. */
-	private withStore<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => T | Promise<T>): Promise<T | undefined> {
-		return this.db.within(mode, [DEVICE_STORES.QUADS], (tx) => fn(tx.objectStore(DEVICE_STORES.QUADS)));
+	/** Reads the quads in one transaction; `undefined` when IndexedDB is unavailable. */
+	private read<T>(fn: (store: IDBObjectStore) => Promise<T>): Promise<T | undefined> {
+		return this.db.read([DEVICE_STORES.QUADS], (tx) => fn(tx.objectStore(DEVICE_STORES.QUADS)));
 	}
 
-	/** Drops the oldest quads past the bound, and adds the count dropped to what the database states it dropped. */
-	private async keepWithinBound(): Promise<void> {
-		await this.db.within("readwrite", [DEVICE_STORES.QUADS, DEVICE_STORES.META], async (tx) => {
-			const quads = tx.objectStore(DEVICE_STORES.QUADS);
-			const over = (await done(quads.count())) - this.bound;
-			if (over <= 0) return;
-			let dropped = 0;
-			await new Promise<void>((resolve, reject) => {
-				const req = quads.index(QUAD_INDEX.TIME).openCursor();
-				req.onsuccess = () => {
-					const cursor = req.result;
-					if (cursor === null || dropped >= over) return resolve();
-					cursor.delete();
-					dropped += 1;
-					cursor.continue();
-				};
-				req.onerror = () => reject(req.error);
-			});
-			const meta = tx.objectStore(DEVICE_STORES.META);
-			const before = await done(meta.get(META_KEY.DROPPED));
-			meta.put((typeof before === "number" ? before : 0) + dropped, META_KEY.DROPPED);
+	/** Writes the quads in one transaction, whose requests `fn` issues without awaiting a result. */
+	private write(fn: (store: IDBObjectStore) => void): Promise<void> {
+		return this.db.write([DEVICE_STORES.QUADS], (tx) => fn(tx.objectStore(DEVICE_STORES.QUADS)));
+	}
+
+	/** The rows the database holds under each quad's subject, predicate and graph, read in one transaction. */
+	private held(quads: readonly Omit<TQuad, "timestamp">[]): Promise<THeld[] | undefined> {
+		return this.read((store) =>
+			Promise.all(
+				quads.map(async ({ namedGraph, subject, predicate }) => {
+					const index = store.index(QUAD_INDEX.SPG);
+					const spg = spgKey(namedGraph, subject, predicate);
+					const [keys, rows] = await Promise.all([done(index.getAllKeys(spg)), done(index.getAll(spg))]);
+					return { keys, rows: rows as StoredQuad[] };
+				}),
+			),
+		);
+	}
+
+	/** Holds each of `quads` that `writes` selects in place of the rows held under its subject, predicate and graph, and drops
+	 *  the oldest quads past the bound. Without IndexedDB, the quads drop. */
+	private async replace(quads: readonly TQuad[], writes: (quad: TQuad, held: THeld) => boolean): Promise<void> {
+		if (quads.length === 0) return;
+		const held = await this.held(quads);
+		if (held === undefined) return;
+		const changed = quads.flatMap((quad, at) => (writes(quad, itemAt(held, at)) ? [{ quad, keys: itemAt(held, at).keys }] : []));
+		if (changed.length === 0) return;
+		await this.write((store) => {
+			for (const { quad, keys } of changed) {
+				for (const key of keys) store.delete(key);
+				store.add({ ...quad, spg: spgKey(quad.namedGraph, quad.subject, quad.predicate) } satisfies StoredQuad);
+			}
 		});
+		await this.keepWithinBound();
+	}
+
+	/** The latest pass that keeps the bound. The next pass starts once it ends, so two of this page's writes don't drop the same
+	 *  quads and count them twice. */
+	private bounded: Promise<void> = Promise.resolve();
+
+	/** Drops the oldest quads past the bound, and adds the count dropped to what the database states it dropped. */
+	private keepWithinBound(): Promise<void> {
+		const pass = async (): Promise<void> => {
+			const { held, dropped } = await this.saturation();
+			const excess = held - this.bound;
+			if (excess <= 0) return;
+			const oldest = await this.read((store) => done(store.index(QUAD_INDEX.TIME).getAllKeys(null, excess)));
+			if (oldest === undefined) return;
+			await this.db.write([DEVICE_STORES.QUADS, DEVICE_STORES.META], (tx) => {
+				for (const key of oldest) tx.objectStore(DEVICE_STORES.QUADS).delete(key);
+				tx.objectStore(DEVICE_STORES.META).put(dropped + oldest.length, META_KEY.DROPPED);
+			});
+		};
+		// A pass starts whether the one before it held or failed: a failure reaches the caller of its own pass.
+		this.bounded = this.bounded.then(pass, pass);
+		return this.bounded;
 	}
 
 	/** Returns how full the database's graph is: what it holds, its bound, and how many quads it dropped to stay within it. */
 	async saturation(): Promise<TGraphSaturation> {
-		const counted = await this.db.within("readonly", [DEVICE_STORES.QUADS, DEVICE_STORES.META], async (tx) => ({
-			held: await done(tx.objectStore(DEVICE_STORES.QUADS).count()),
-			dropped: await done(tx.objectStore(DEVICE_STORES.META).get(META_KEY.DROPPED)),
-		}));
+		const counted = await this.db.read([DEVICE_STORES.QUADS, DEVICE_STORES.META], (tx) =>
+			Promise.all([done(tx.objectStore(DEVICE_STORES.QUADS).count()), done(tx.objectStore(DEVICE_STORES.META).get(META_KEY.DROPPED))]),
+		);
 		if (counted === undefined) return { held: 0, bound: this.bound, dropped: 0 };
-		return { held: counted.held, bound: this.bound, dropped: typeof counted.dropped === "number" ? counted.dropped : 0 };
+		const [held, dropped] = counted;
+		return { held, bound: this.bound, dropped: typeof dropped === "number" ? dropped : 0 };
 	}
 
-	async set(subject: string, predicate: string, object: unknown, namedGraph: string, properties?: Record<string, unknown>): Promise<void> {
-		const spg = spgKey(namedGraph, subject, predicate);
-		await this.withStore("readwrite", async (store) => {
-			for (const key of await done(store.index(QUAD_INDEX.SPG).getAllKeys(spg))) store.delete(key);
-			store.add({ subject, predicate, object, namedGraph, timestamp: Date.now(), properties, spg } satisfies StoredQuad);
-		});
-		await this.keepWithinBound();
+	set(subject: string, predicate: string, object: unknown, namedGraph: string, properties?: Record<string, unknown>): Promise<void> {
+		return this.replace([{ subject, predicate, object, namedGraph, timestamp: Date.now(), properties }], () => true);
 	}
 
 	async get(subject: string, predicate: string, namedGraph?: string): Promise<unknown | undefined> {
@@ -85,14 +117,14 @@ export class IndexedDbQuads implements TDeviceQuads {
 	}
 
 	async add(quad: Omit<TQuad, "timestamp">): Promise<void> {
-		await this.withStore("readwrite", (store) => {
+		await this.write((store) => {
 			store.add({ ...quad, timestamp: Date.now(), spg: spgKey(quad.namedGraph, quad.subject, quad.predicate) } satisfies StoredQuad);
 		});
 		await this.keepWithinBound();
 	}
 
 	async query(pattern: TQuadPattern): Promise<TQuad[]> {
-		const rows = await this.withStore("readonly", async (store) => {
+		const rows = await this.read(async (store) => {
 			// Narrow with the most selective index the pattern names, then filter the remaining fields. An object is an
 			// index key where it names an individual (an id); any other value is matched after the widest read.
 			const keyed = typeof pattern.object === "string" || typeof pattern.object === "number";
@@ -111,66 +143,29 @@ export class IndexedDbQuads implements TDeviceQuads {
 	}
 
 	async clear(namedGraph?: string): Promise<void> {
-		await this.withStore("readwrite", async (store) => {
-			if (namedGraph === undefined) {
-				store.clear();
-				return;
-			}
-			for (const key of await done(store.index(QUAD_INDEX.NAMED_GRAPH).getAllKeys(namedGraph))) store.delete(key);
-		});
+		if (namedGraph === undefined) return this.write((store) => store.clear());
+		const keys = await this.read((store) => done(store.index(QUAD_INDEX.NAMED_GRAPH).getAllKeys(namedGraph)));
+		if (keys !== undefined) await this.write((store) => keys.forEach((key) => store.delete(key)));
 	}
 
 	async remove(pattern: TQuadPattern): Promise<void> {
-		await this.withStore("readwrite", async (store) => {
-			await new Promise<void>((resolve, reject) => {
-				const req = store.openCursor();
-				req.onsuccess = () => {
-					const cursor = req.result;
-					if (!cursor) {
-						resolve();
-						return;
-					}
-					if (matchesQuadPattern(cursor.value as StoredQuad, pattern)) cursor.delete();
-					cursor.continue();
-				};
-				req.onerror = () => reject(req.error);
-			});
+		const matching = await this.read(async (store) => {
+			const [keys, rows] = await Promise.all([done(store.getAllKeys()), done(store.getAll())]);
+			return keys.filter((_, at) => matchesQuadPattern(itemAt(rows as StoredQuad[], at), pattern));
 		});
+		if (matching !== undefined) await this.write((store) => matching.forEach((key) => store.delete(key)));
 	}
 
 	async all(): Promise<TQuad[]> {
-		const rows = await this.withStore("readonly", async (store) => ((await done(store.getAll())) as StoredQuad[]).map(strip));
+		const rows = await this.read(async (store) => ((await done(store.getAll())) as StoredQuad[]).map(strip));
 		return heldOrEmpty(rows);
 	}
 
-	/** Hold each fact, replacing what is held under its subject, predicate and graph. A fact the device holds as it is
-	 *  is not written again, and which it holds is found in a read, which doesn't hold back another reader: a page reloaded
-	 *  over what it held otherwise rewrote every fact, and the device's other reads queued behind the rewrite. */
-	async setMany(quads: TQuad[]): Promise<void> {
-		const changed = await this.notHeld(quads);
-		if (changed.length === 0) return;
-		await this.withStore("readwrite", async (store) => {
-			for (const quad of changed) {
-				const spg = spgKey(quad.namedGraph, quad.subject, quad.predicate);
-				for (const key of await done(store.index(QUAD_INDEX.SPG).getAllKeys(spg))) store.delete(key);
-				store.add({ ...quad, spg } satisfies StoredQuad);
-			}
-		});
-		await this.keepWithinBound();
-	}
-
-	/** The facts the device doesn't hold as they are: one it holds under the same subject, predicate and graph, with the
-	 *  same object, is held, whenever it was held. Without IndexedDB a fact isn't held, and isn't written either. */
-	private async notHeld(quads: TQuad[]): Promise<TQuad[]> {
-		if (quads.length === 0) return [];
-		const held = await this.withStore("readonly", (store) =>
-			Promise.all(quads.map((quad) => done(store.index(QUAD_INDEX.SPG).getAll(spgKey(quad.namedGraph, quad.subject, quad.predicate))) as Promise<StoredQuad[]>)),
-		);
-		if (!held) return quads;
-		// An object is compared as the JSON it is held as, so a record read back from the device compares as what was held.
-		return quads.filter((quad, at) => {
-			const stored = itemAt(held, at);
-			return !(stored.length === 1 && JSON.stringify(itemAt(stored, 0).object) === JSON.stringify(quad.object));
-		});
+	/** Hold each fact, replacing what is held under its subject, predicate and graph. A fact the device holds as it is isn't
+	 *  written again: an object is compared as the JSON it is held as, so a record read back from the device compares as what
+	 *  was held, whenever it was held. A page reloaded over what it held otherwise rewrote every fact, and the device's other
+	 *  reads queued behind the rewrite. */
+	setMany(quads: TQuad[]): Promise<void> {
+		return this.replace(quads, (quad, { rows }) => !(rows.length === 1 && JSON.stringify(itemAt(rows, 0).object) === JSON.stringify(quad.object)));
 	}
 }

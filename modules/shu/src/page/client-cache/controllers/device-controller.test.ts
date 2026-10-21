@@ -9,7 +9,7 @@ import { LOG_MESSAGE_LABEL } from "@haibun/core/lib/domains/log-message.js";
 import { SEQ_PATH_FIELD, executionOf } from "@haibun/core/lib/seq-path.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { individualAsQuads } from "../derivations/quads.js";
-import { followRecordedExecution, noteExecution, readExecution, readingExecution, installGraph, subscribeExecutionSwitch } from "./device-controller.js";
+import { followRecordedExecution, noteExecution, readExecution, readHeldGraph, readingExecution, installGraph, subscribeExecutionSwitch } from "./device-controller.js";
 import { actualitiesHeld, deleteActuality, holdOnDevice, type THeldActuality } from "./held-actualities-controller.js";
 import { actualityStore } from "../actuality-store.test-fake.js";
 
@@ -135,6 +135,25 @@ describe("what a device holds of the actualities it has read", () => {
 		expect(await heldOf(store, OLDER_ACTUALITY), "the actuality it was not reading is what made room").toBe(0);
 		expect(setMany, "what it was given is written once the room is there").toHaveBeenCalledTimes(2);
 		expect(await heldOf(store, NEWER_ACTUALITY), "the actuality of the execution being read, with every feature's records").toBe(8);
+	});
+
+	it("doesn't copy a window it read from another graph the device holds into the graph of the actuality the site serves", async () => {
+		const served = await aDevice();
+		const setMany = vi.spyOn(served, "setMany");
+		readHeldGraph(actualityStore());
+		const [, quads] = individualAsQuads(SEQ_PATH_LABEL, {
+			[SEQ_PATH_FIELD.id]: `${OLDER}.0.2`,
+			stepText: "a step of the held actuality",
+			actionStatus: "passed",
+			accessLevel: "private",
+			level: "info",
+			generatedAtTime: iso(2000),
+		});
+		await holdOnDevice(quads);
+		expect(setMany).not.toHaveBeenCalled();
+		readHeldGraph(served);
+		await holdOnDevice(quads);
+		expect(setMany, "a window read from the site is held").toHaveBeenCalledWith(quads);
 	});
 
 	it("reports a device is full when it can't free a record there, and goes on reading", async () => {

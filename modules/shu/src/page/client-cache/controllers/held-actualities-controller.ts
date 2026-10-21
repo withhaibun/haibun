@@ -6,7 +6,7 @@
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { deviceReport } from "../root.js";
 import * as Actualities from "../pipelines/actualities.js";
-import { heldGraphs, readExecution, readHeldGraph, readingExecution, servedGraph } from "./device-controller.js";
+import { heldGraphs, readExecution, readHeldGraph, readingExecution, readsHeldGraph, servedGraph } from "./device-controller.js";
 
 export { FEATURES_READ, type THeldActuality } from "../pipelines/actualities.js";
 
@@ -23,6 +23,6 @@ export function readHeldActuality(held: Actualities.THeldActuality): void {
 }
 
 /** Holds what a window read on this device, in one write, deleting the oldest actuality the reader isn't reading where the
- *  device is full. */
+ *  device is full. A window read from another graph the device holds isn't written again. */
 export const holdOnDevice = (quads: TQuad[]): Promise<void> =>
-	Actualities.holdOnDevice({ held: heldGraphs, served: servedGraph, reading: readingExecution, report: deviceReport }, quads);
+	Actualities.holdOnDevice({ held: heldGraphs, served: servedGraph, readsHeld: readsHeldGraph, reading: readingExecution, report: deviceReport }, quads);

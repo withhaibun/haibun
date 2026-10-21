@@ -1,10 +1,7 @@
 import { readFileSync } from "node:fs";
-import { build } from "esbuild";
-import { createServer, type Server } from "node:http";
-import type { AddressInfo } from "node:net";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { chromium, type Browser, type Page } from "playwright";
+import type { Page } from "playwright";
 import { SHU_EVENT } from "../domains/elements.js";
 import { SHU_TEST_IDS } from "../domains/test-ids.js";
 import { SHARED_CELLS_KEY } from "../page/adapters/shared-cell.js";
@@ -17,6 +14,7 @@ import { LABEL_FONT, LABEL_FONT_FALLBACKS } from "../domains/serving.js";
 import { labelFontResponse } from "../pipelines/served-page.js";
 import { bundleFile } from "../adapters/bundle-file.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
+import { builtEntry, openTestPage } from "./test-page.js";
 
 /**
  * A real page with the polymorphic graph view mounted on it, drawn by a headless browser through a software rasterizer.
@@ -33,11 +31,7 @@ const ENTRY_PATH = join(HERE, "polymorphic-page-entry.ts");
 /** The page's entry, built once per test file: it starts the page and then loads the view's bundle. */
 let entry: Promise<string> | undefined;
 const pageEntry = (): Promise<string> => {
-	entry ??= build({ entryPoints: [ENTRY_PATH], bundle: true, write: false, format: "esm", platform: "browser", target: "es2022", conditions: ["haibun-source"] }).then((built) => {
-		const [file] = built.outputFiles;
-		if (file === undefined) throw new Error(`esbuild wrote an empty set of files for ${ENTRY_PATH}`);
-		return file.text;
-	});
+	entry ??= builtEntry(ENTRY_PATH);
 	return entry;
 };
 
@@ -188,37 +182,23 @@ export async function openPolymorphicPage(opts: { external: boolean; box: TBox; 
 	const html = pageWith(opts.external, opts.box);
 	const bundle = readFileSync(BUNDLE_PATH, "utf-8"); // throws if not built: run `npm run bundle:polymorphic` first
 	const started = await pageEntry();
-	const server: Server = createServer((req, res) => {
-		if (req.url === "/") res.writeHead(200, { "Content-Type": "text/html" }).end(html);
-		else if (req.url === POLYMORPHIC_ROUTE.entry) res.writeHead(200, { "Content-Type": "application/javascript" }).end(started);
-		else if (req.url === POLYMORPHIC_ROUTE.bundle) res.writeHead(200, { "Content-Type": "application/javascript" }).end(bundle);
-		else if (req.url === LABEL_FONT) res.writeHead(200, { "Content-Type": "font/woff" }).end(Buffer.from(bundleFile().labelFont()));
-		else if (req.url?.startsWith(`${LABEL_FONT_FALLBACKS}/`)) {
-			const response = labelFontResponse(bundleFile(), req.url.slice(LABEL_FONT_FALLBACKS.length + 1));
-			if (response === undefined) res.writeHead(404).end();
-			else if ("json" in response) res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify(response.json));
-			else res.writeHead(200, { "Content-Type": "font/woff" }).end(Buffer.from(response.font));
-		} else res.writeHead(404).end();
-	});
-	await new Promise<void>((res) => server.listen(0, "127.0.0.1", res));
-	const browser: Browser = await chromium.launch({ args: ["--enable-unsafe-swiftshader"] });
-	const page = await browser.newPage({ viewport: { width: 1400, height: 900 }, deviceScaleFactor: opts.deviceScaleFactor });
-	const pageErrors: string[] = [];
-	const consoleErrors: string[] = [];
-	const failedRequests: string[] = [];
-	page.on("pageerror", (e) => pageErrors.push(e.message));
-	page.on("console", (message) => {
-		if (message.type() === "error") consoleErrors.push(message.text());
-	});
-	page.on("requestfailed", (request) => failedRequests.push(`${request.method()} ${request.url()}: ${request.failure()?.errorText}`));
-	page.on("response", (response) => {
-		if (response.status() >= 400) failedRequests.push(`${response.request().method()} ${response.url()}: ${response.status()}`);
-	});
-	const close = async () => {
-		await browser.close();
-		await new Promise<void>((res) => server.close(() => res()));
-	};
-	const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/`;
+	const opened = await openTestPage(
+		(url, res) => {
+			if (url === "/") res.writeHead(200, { "Content-Type": "text/html" }).end(html);
+			else if (url === POLYMORPHIC_ROUTE.entry) res.writeHead(200, { "Content-Type": "application/javascript" }).end(started);
+			else if (url === POLYMORPHIC_ROUTE.bundle) res.writeHead(200, { "Content-Type": "application/javascript" }).end(bundle);
+			else if (url === LABEL_FONT) res.writeHead(200, { "Content-Type": "font/woff" }).end(Buffer.from(bundleFile().labelFont()));
+			else if (url.startsWith(`${LABEL_FONT_FALLBACKS}/`)) {
+				const response = labelFontResponse(bundleFile(), url.slice(LABEL_FONT_FALLBACKS.length + 1));
+				if (response === undefined) return false;
+				if ("json" in response) res.writeHead(200, { "Content-Type": "application/json" }).end(JSON.stringify(response.json));
+				else res.writeHead(200, { "Content-Type": "font/woff" }).end(Buffer.from(response.font));
+			} else return false;
+			return true;
+		},
+		{ viewport: { width: 1400, height: 900 }, deviceScaleFactor: opts.deviceScaleFactor, args: ["--enable-unsafe-swiftshader"] },
+	);
+	const { url, page, pageErrors, failures, close } = opened;
 	try {
 		await page.goto(url);
 		await page.waitForFunction(
@@ -233,10 +213,8 @@ export async function openPolymorphicPage(opts: { external: boolean; box: TBox; 
 		);
 	} catch (cause) {
 		await close();
-		const listed = (held: string[]) => (held.length > 0 ? held.join(" | ") : "(empty)");
 		throw new Error(
-			`the polymorphic page at ${url} didn't mount a scene with a camera and a sized canvas within ${PAGE_OPEN_TIMEOUT_MS} ms (${errorDetail(cause)}). ` +
-				`Page errors: ${listed(pageErrors)}. Console errors: ${listed(consoleErrors)}. Failed requests: ${listed(failedRequests)}. ` +
+			`the polymorphic page at ${url} didn't mount a scene with a camera and a sized canvas within ${PAGE_OPEN_TIMEOUT_MS} ms (${errorDetail(cause)}). ${failures()} ` +
 				"Fix the first error listed; where the lists are empty or hold only the stub's expected 404s, the page was short of CPU, so run the file alone to confirm.",
 			{ cause },
 		);

@@ -66,17 +66,22 @@ const HEAVY_CONTENT_CHARS = 20000;
 
 /** This component is light DOM (createRenderRoot → this), so lit `static styles` do not apply: all styling ships in a
  *  rendered `<style>` node, which scopes to wherever the element is mounted (including a host shadow root). The `.r6o-*`
- *  positioning rules are sourced from `@recogito/text-annotator`'s spans renderer; the rest is this view's own layout. */
+ *  positioning rules are sourced from `@recogito/text-annotator`'s spans renderer; the rest is this view's own layout.
+ *  - The annotator makes the content focusable for keyboard nav; the focus outline is suppressed so the reading area doesn't
+ *    show a border.
+ *  - The body is a row: the content in its OWN scroll region, and the glyph rail beside it. The region's native scrollbar
+ *    is hidden so the rail is the ONLY scroll control: a reader never sees two bars, and the marks line up with the one
+ *    rail. The body fills the height its host gives it (a flex child of the entity column's content column).
+ *  - The annotation glyph rail is the body's only scroll control, a full-height strip beside the scroll region marking each
+ *    note. It stretches to the body height (it is outside the scroll region, so it stays put as the content scrolls).
+ *  - The authoring affordance floats over the content at the selection (top/left set inline), so it appears at the selection
+ *    whether or not the document has annotations. */
 const ANNOTATED_BODY_STYLE = `
 	.r6o-annotatable { position: relative; -webkit-tap-highlight-color: transparent; }
-	/* The annotator makes the content focusable for keyboard nav; suppress the focus outline so the reading area doesn't show a border. */
 	.r6o-annotatable:focus, .r6o-annotatable:focus-visible { outline: none; }
 	.r6o-span-highlight-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; mix-blend-mode: multiply; pointer-events: none; overflow: hidden; user-select: none; -webkit-user-select: none; z-index: 1; }
 	.r6o-span-highlight-layer.hidden { display: none; }
 	.r6o-span-highlight-layer .r6o-annotation { position: absolute; display: block; border-style: solid; border-width: 0; box-sizing: content-box; background: var(--shu-accent-soft, rgba(0, 128, 255, 0.28)); }
-	/* The body is a row: the content in its OWN scroll region, and the glyph rail beside it. The region's native scrollbar
-	   is hidden so the rail is the ONLY scroll control: a reader never sees two bars, and the marks line up with the one
-	   rail. The body fills the height its host gives it (a flex child of the entity column's content column). */
 	shu-annotated-body { display: flex; flex-direction: row; align-items: stretch; flex: 1 1 auto; min-height: 0; gap: var(--shu-space-2); }
 	shu-annotated-body .annotated-scroll { flex: 1 1 auto; min-width: 0; min-height: 0; overflow-y: auto; scrollbar-width: none; -ms-overflow-style: none; }
 	shu-annotated-body .annotated-scroll::-webkit-scrollbar { width: 0; height: 0; }
@@ -91,11 +96,8 @@ const ANNOTATED_BODY_STYLE = `
 	shu-annotated-body .annotation-card-author { color: var(--shu-fg-faded); margin-top: var(--shu-space-1); }
 	shu-annotated-body .annotation-card-link { display: inline-block; margin-top: var(--shu-space-1); color: var(--shu-link, #0a58ca); cursor: pointer; }
 	shu-annotated-body .annotated-content .quote-flash { background: var(--shu-warn-soft, rgba(255, 196, 0, 0.5)); transition: background 1.2s; }
-	/* The annotation glyph rail: the body's only scroll control, a full-height strip beside the scroll region marking each
-	   note. Stretches to the body height (it is outside the scroll region, so it stays put as the content scrolls). */
 	shu-annotated-body .annotation-glyph-rail { flex: 0 0 auto; align-self: stretch; }
 	shu-annotated-body .annotation-preparing { position: absolute; top: 0; left: 0; right: 0; padding: var(--shu-space-3); color: var(--shu-fg-muted); font-style: italic; text-align: center; z-index: 2; }
-	/* The authoring affordance floats over the content at the selection (top/left set inline), so it appears at the selection whether or not the document has annotations. */
 	shu-annotated-body .annotation-add { position: absolute; margin-top: 2px; padding: 2px var(--shu-space-2); font-size: var(--shu-font-sm); border: var(--shu-border-w) solid var(--shu-accent, #0080ff); border-radius: var(--shu-radius); background: var(--shu-bg-elevated); color: var(--shu-accent, #0080ff); cursor: pointer; z-index: 3; box-shadow: 0 1px 4px rgba(0,0,0,0.2); white-space: nowrap; }
 	shu-annotated-body .annotation-compose { position: absolute; margin-top: 2px; z-index: 3; }
 	shu-annotated-body .annotation-compose input { width: 240px; box-sizing: border-box; padding: var(--shu-space-1) var(--shu-space-2); border: var(--shu-border-w) solid var(--shu-accent, #0080ff); border-radius: var(--shu-radius); font-size: var(--shu-font-sm); background: var(--shu-bg-elevated); color: var(--shu-fg); box-shadow: 0 1px 4px rgba(0,0,0,0.2); }
