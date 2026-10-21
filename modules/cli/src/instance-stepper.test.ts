@@ -7,10 +7,10 @@
  * A caller starts a run, reads its output from a cursor while it executes, and stops it. The caller doesn't await a
  * run. RunTail holds a run's output. A read returns the cursor for the next read, so a reader doesn't re-read output.
  * RunTail counts the characters it drops. A read returns the number of requested characters that RunTail dropped.
- * These tests cover RunTail, runEnvironment, verifiedRun and the steps against a held run. The feature tests fork a
- * real cli.
+ * These tests cover RunTail, runEnvironment, verifiedRun, the steps against a held run, and a launch against a child that
+ * writes events, which ends where the child stops before it serves. The feature tests fork a real cli.
  */
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { z } from "zod";
 import InstanceStepper, { type TRun } from "./instance-stepper.js";
 import { RunTail, featureFilterDomainDefinition, runEnvironment, runReadSchema } from "./domains/run.js";
@@ -28,10 +28,12 @@ import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { SEQ_PATH_EDGE, SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
-import { RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
+import { ACTUALITY_LEVELS, RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
+import { LEVEL_STATUS } from "@haibun/core/lib/actuality/domains/level-status.js";
 import { digestFields } from "@haibun/core/lib/domains/digest.js";
 import type { ChildProcess } from "child_process";
 import { EventEmitter } from "node:events";
+import { newActualityId, RPC_PROTOCOL, type THandshake } from "@haibun/core/lib/transport/domains/rpc-wire.js";
 
 /** Records an actuality of a group that ended as `status`, with the digests `v` read, as an actuality records itself in the actualities file. */
 const recordOutcome = (v: Parameters<typeof recordActuality>[0], status: string) =>
@@ -362,5 +364,46 @@ describe("a run's feature filter", () => {
 		expect(schema.safeParse("graph,a.*b").success).toBe(true);
 		expect(schema.safeParse("").success, "an empty filter selects every feature").toBe(true);
 		expect(schema.safeParse("graph,*").error?.issues[0]?.message).toMatch(/has a part that isn't a regular expression/);
+	});
+});
+
+describe("launching an instance", () => {
+	afterEach(() => vi.restoreAllMocks());
+	const HOST_ID = 9;
+	const event = (fields: Record<string, unknown>) => Buffer.from(`${JSON.stringify({ kind: "lifecycle", timestamp: 1700000000000, ...fields })}\n`);
+	/** The level of actuality as a whole, whose start and end a child's events state. */
+	const [ACTUALITY] = ACTUALITY_LEVELS;
+	const STARTED = { id: ACTUALITY, type: ACTUALITY, stage: "start", status: LEVEL_STATUS.running, in: "/service" };
+
+	/** Starts an instance whose child writes what a test sends on its output and doesn't exit, and whose handshake `begin` returns. */
+	const launching = (begin: () => Promise<THandshake>) => {
+		const stdout = new EventEmitter();
+		const child = Object.assign(new EventEmitter(), { stdout, stderr: new EventEmitter(), exitCode: null }) as unknown as ChildProcess;
+		vi.spyOn(supervisorPorts.processes, "forkCli").mockReturnValue(child);
+		vi.spyOn(supervisorPorts.hosts, "begin").mockImplementation(begin);
+		const where = nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-launch-"));
+		nodeFS.writeFileSync(path.join(where, "config.json"), JSON.stringify({ steppers: [] }));
+		const started = (stepper().steps.startInstance.action as (a: { where: string; port: number; hostId: number }) => Promise<TResult>)({ where, port: 8297, hostId: HOST_ID });
+		return { started, say: (fields: Record<string, unknown>) => stdout.emit("data", event(fields)) };
+	};
+	const notListening = () => Promise.reject(new Error("connect ECONNREFUSED"));
+
+	it("refuses a child whose step fails before it serves, naming the step and its message, without waiting for a deadline", async () => {
+		const { started, say } = launching(notListening);
+		say(STARTED);
+		say({ id: "0.1.0.1", type: "step", stage: "end", status: "failed", in: "index the files in t", error: "t doesn't exist" });
+		expect((await started).errorMessage).toContain("failed before it served, at 0.1.0.1: index the files in t (t doesn't exist)");
+	});
+
+	it("refuses a child whose features end before it serves", async () => {
+		const { started, say } = launching(notListening);
+		say(STARTED);
+		say({ id: ACTUALITY, type: ACTUALITY, stage: "end", status: LEVEL_STATUS.completed });
+		expect((await started).errorMessage).toContain("ended its features before it served");
+	});
+
+	it("returns the instance once its handshake states that it serves", async () => {
+		const { started } = launching(() => Promise.resolve({ protocol: RPC_PROTOCOL, hostId: HOST_ID, site: "did:key:site", actualityId: newActualityId(), serving: true }));
+		expect(await started).toMatchObject({ ok: true, products: { url: "http://localhost:8297", site: "did:key:site", hostId: HOST_ID } });
 	});
 });

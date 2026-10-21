@@ -11,6 +11,7 @@ import { z } from "zod";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { ActualityMoveSchema, INITIAL_ACTUALITY, transition, type TActuality } from "@haibun/core/lib/actuality/machines/actuality.js";
 import type { TLevelMoved } from "@haibun/core/lib/actuality/pipelines/move-actuality.js";
+import { failureText } from "@haibun/core/lib/actuality/derivations/step-records.js";
 
 /**
  * One event from a supervised run's output, as the fields a reader of its outcome reads.
@@ -50,6 +51,9 @@ export function runEvents(output: string): TRunEvent[] {
 export type TRunOutcome = { actuality: TActuality; report?: string; pending: string };
 
 export const emptyOutcome = (): TRunOutcome => ({ actuality: INITIAL_ACTUALITY, pending: "" });
+
+/** The first step of a run's actuality that failed as the actuality's own failure, as its id, its text and why it failed. */
+export const firstFailure = ({ failures }: TActuality): string | undefined => (failures[0] === undefined ? undefined : failureText(failures[0]));
 
 /**
  * Reads a chunk of a run's output into its outcome, and returns each move of a level above a step that the machine took.

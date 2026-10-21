@@ -3,7 +3,8 @@
  * `start a haibun instance from {where} on port {port} as host {hostId}` forks the cli.js that an operator runs.
  * The child reads the config directory that a deployment uses.
  * The child serves because its feature ends with `this feature runs as a service until stopped`.
- * Readiness is the action.begin handshake. Federation and remote steppers use the same handshake.
+ * Readiness is the action.begin handshake. Federation and remote steppers use the same handshake. The child's exit and its
+ * events end the wait where it stops first, with the step that failed, so a launch doesn't wait out a deadline.
  * The step's products carry the instance's url, site principal and hostId.
  * The operator assigns hostIds: the feature states the id, and the handshake verifies that the child took it.
  * endFeature terminates the children when the feature closes, and a child the supervisor forks ends with this process.
@@ -38,8 +39,8 @@ import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import { OK, ACTUALITY_LEVELS, RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
 import { LEVEL_STATUS } from "@haibun/core/lib/actuality/domains/level-status.js";
 import { DEFAULT_HOST_ID } from "@haibun/core/lib/domains/host-id.js";
-import { type TRunOutcome, emptyOutcome, readRunOutput } from "./pipelines/run-outcome.js";
-import { executionEnded, transition, type TActualityMove } from "@haibun/core/lib/actuality/machines/actuality.js";
+import { type TRunOutcome, emptyOutcome, firstFailure, readRunOutput } from "./pipelines/run-outcome.js";
+import { executionEnded, transition, type TActuality, type TActualityMove } from "@haibun/core/lib/actuality/machines/actuality.js";
 import { writeLevelRecord, type TLevelMoved, type TLevelRecords } from "@haibun/core/lib/actuality/pipelines/move-actuality.js";
 import type { TLevelNaming, TStepRecord } from "@haibun/core/lib/actuality/derivations/step-records.js";
 import { SEQ_PATH_EDGE, SEQ_PATH_FIELD, executionOf, formatRecordName } from "@haibun/core/lib/seq-path.js";
@@ -47,8 +48,8 @@ import { actingAs, askedIn } from "@haibun/core/lib/domains/capability-context.j
 import { signInOf, verifiedRun } from "./pipelines/run-conditions.js";
 import { INSTANCE_PORT_ENV, KEY_ENV, RUN_DOMAIN, RunTail, SUPERVISOR_CAPABILITIES, runDomainDefinitions, runEnvironment } from "./domains/run.js";
 import { DOMAIN_FILE_PATH, DOMAIN_NUMBER } from "@haibun/core/lib/domains/domains.js";
+import { SERVE_UNTIL_STOPPED } from "@haibun/core/lib/domains/serving.js";
 
-const READY_DEADLINE_MS = 30_000;
 const READY_POLL_MS = 300;
 const STDERR_TAIL_CHARS = 4_000;
 /** The HAIBUN_ENV variable a launched instance reads to address its launcher: `use store at $LAUNCHED_FROM$ …`. */
@@ -98,6 +99,22 @@ async function begins(origin: string): Promise<THandshake | undefined> {
 		return undefined;
 	});
 }
+
+/** Why a launched instance stopped before it served, or undefined while it starts: it exited, a step of its actuality failed,
+ *  or its features ended. `said` holds its error output. */
+function stoppedBeforeServing(dir: string, child: ChildProcess, actuality: TActuality, said: RunTail): string | undefined {
+	const { output } = said.since(0);
+	const shown = output ? `\n${output}` : "";
+	if (child.exitCode !== null) return `instance at ${dir} exited with code ${child.exitCode} before it served. Correct the cause its error output reports${shown}`;
+	const failed = firstFailure(actuality);
+	if (failed !== undefined) return `instance at ${dir} failed before it served, at ${failed}. Correct that step, then start the instance again`;
+	if (executionEnded(actuality)) return `instance at ${dir} ended its features before it served. End its feature with the step "${SERVE_UNTIL_STOPPED}"`;
+	return undefined;
+}
+
+/** Why a standing run stopped before it responded to the handshake, or undefined while it starts: it exited, or its features ended. */
+const runStopped = (held: TRun): string | undefined =>
+	held.ended !== null ? `it exited with code ${held.ended}` : executionEnded(held.outcome.actuality) ? "its features ended" : undefined;
 
 /** Returns the resolved directory and its config.json. Throws with `doing` as the prefix when the directory doesn't hold a config.json. */
 function configIn(doing: string, where: string): { dir: string; config: string } {
@@ -207,17 +224,15 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 				if (!started.ok || !standing) return started;
 				// Callers call a standing run's steps. A standing run whose steps don't register fails at start rather than at a
 				// later call. The child is terminated so it doesn't hold a port that a caller can't reach.
-				const registered = await this.registerRunHost(run, port);
-				if (!registered) {
-					const held = this.runs.get(run);
-					const said = held ? held.tail.since(0).output.slice(-STDERR_TAIL_CHARS) : "";
-					if (held) await supervisorPorts.processes.terminate(held.child);
-					this.runs.delete(run);
-					return actionNotOK(
-						`start run: "${run}" didn't complete the handshake as host ${hostId} on port ${port}. This process stopped it. Correct the cause its output reports${said ? `\n${said}` : ""}`,
-					);
-				}
-				return started;
+				const held = this.startedRun("start run", run);
+				const unregistered = await this.registerRunHost(held, port);
+				if (unregistered === undefined) return started;
+				const said = held.tail.since(0).output.slice(-STDERR_TAIL_CHARS);
+				await supervisorPorts.processes.terminate(held.child);
+				this.runs.delete(run);
+				return actionNotOK(
+					`start run: "${run}" didn't complete the handshake as host ${hostId} on port ${port}: ${unregistered}. This process stopped it. Correct the cause its output reports${said ? `\n${said}` : ""}`,
+				);
 			},
 		},
 		showInstances: {
@@ -369,20 +384,20 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 	}
 
 	/**
-	 * Registers a standing run's steps in this process under its host id, once it completes the handshake. Returns false
-	 * when it exits or the deadline passes first.
+	 * Registers a standing run's steps in this process under its host id, once it completes the handshake. Returns why the
+	 * steps weren't registered where the child exits, or its features end, before it responds.
 	 *
 	 * A standing run is another host. readRemoteHost reads the host id through the same handshake and fetches the host's
 	 * step descriptors, and their proxy tools are injected into this registry under `{hostId}:{method}`. A caller then calls one of
 	 * its steps as `on host {hostId}, <step>`, and it is dispatched and gated as a local step is. A run that doesn't serve
 	 * doesn't register steps, since it doesn't respond to a call.
 	 */
-	private async registerRunHost(run: string, port: number): Promise<boolean> {
+	private async registerRunHost(held: TRun, port: number): Promise<string | undefined> {
 		const url = localOrigin(port);
-		const answered = await this.awaitBegin(url, () => this.runs.get(run)?.ended !== null);
-		if (!answered) return false;
+		const begun = await this.awaitBegin(url, false, () => runStopped(held));
+		if ("stopped" in begun) return begun.stopped;
 		await this.registerHost(url);
-		return true;
+		return undefined;
 	}
 
 	/** Holds the sign-in of `user` for the origin of `port`, and records the origin for endFeature to release.
@@ -401,17 +416,19 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		runRegistry(world).inject(remoteTools(rpc, url, await readRemoteHost(rpc, url)));
 	}
 
-	/** Waits until a child responds to the action.begin handshake, or until the deadline passes. Every remote surface
-	 *  begins with that handshake. It calls `giveUp` between attempts, so a child that exits while starting ends the wait. */
-	private async awaitBegin(url: string, giveUp: () => boolean): Promise<boolean> {
+	/** Waits until a child responds to the action.begin handshake, and returns its response. Every remote surface begins with
+	 *  that handshake. Where `serving` is true, a response is ready only once it states that the child serves. `stopped` reads
+	 *  the child's exit and its events, and returns why it stopped before it responded. The wait returns that reason where an
+	 *  attempt made after the child stopped doesn't respond as ready. */
+	private async awaitBegin(url: string, serving: boolean, stopped: () => string | undefined): Promise<THandshake | { stopped: string }> {
 		const { clock } = this.getWorld();
-		const deadline = clock.now() + READY_DEADLINE_MS;
-		while (clock.now() < deadline) {
-			if (await begins(url)) return true;
-			if (giveUp()) return false;
+		for (;;) {
+			const reason = stopped();
+			const begun = await begins(url);
+			if (begun !== undefined && (begun.serving || !serving)) return begun;
+			if (reason !== undefined) return { stopped: reason };
 			await clock.wait(READY_POLL_MS);
 		}
-		return false;
 	}
 
 	/** Returns when a run exits or reports that its features finished, or after `seconds`. The child's exit event and that
@@ -472,42 +489,23 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			process.stderr.write(`[instance:${hostId}] ${data.toString()}`);
 			stderrTail.append(data.toString());
 		});
-		// An instance that doesn't become ready usually logs the cause to stdout rather than stderr. Without that output,
-		// a timeout message would leave the caller to start the instance by hand to find the cause. This process keeps
-		// the stdout tail without echoing it, since stdout carries the instance's event stream and the message needs only its last lines.
-		const saidTail = new RunTail(STDERR_TAIL_CHARS);
-		child.stdout?.on("data", (data: Buffer) => saidTail.append(data.toString()));
+		// The child writes its events on its output, as a run does, and its actuality holds the step that fails before it serves.
+		// This process doesn't echo that output, since it carries the instance's event stream.
+		const outcome = emptyOutcome();
+		child.stdout?.on("data", (data: Buffer) => void readRunOutput(outcome, data.toString()));
 		this.children.push({ child, label: `${dir} host ${hostId}`, launch: { dir, config, port, hostId } });
 
 		this.holdSignInAt(port, signInOf(supervisorPorts, dir, dir, env));
 		const url = localOrigin(port);
-		const { clock } = this.getWorld();
-		const deadline = clock.now() + READY_DEADLINE_MS;
-		while (clock.now() < deadline) {
-			if (child.exitCode !== null) {
-				const said = stderrTail.since(0).output;
-				return actionNotOK(`instance at ${dir} exited with code ${child.exitCode} before it served. Correct the cause its error output reports${said ? `\n${said}` : ""}`);
-			}
-			const begun = await begins(url);
-			if (begun) {
-				// Ready means serving: the instance's feature has executed every step that sets it up. Its port responds before
-				// then, and a caller that treated that response as ready would race the steps the feature executes after listening.
-				if (begun.serving !== true) {
-					await clock.wait(READY_POLL_MS);
-					continue;
-				}
-				// The handshake verifies that the child took the assigned host id. An unchecked wrong hostId would break seqPath and site uniqueness.
-				if (begun.hostId !== hostId)
-					return actionNotOK(
-						`instance at ${url} reports hostId ${begun.hostId} instead of the assigned ${hostId}. Another process may hold that port. Stop that process, or choose another port`,
-					);
-				if (typeof begun.site !== "string" || begun.site.length === 0)
-					return actionNotOK(`instance at ${url} didn't return a site principal in its handshake. Another process may hold that port. Stop that process, or choose another port`);
-				return actionOKWithProducts({ url, site: begun.site, hostId });
-			}
-			await clock.wait(READY_POLL_MS);
-		}
-		const lastSaid = stderrTail.since(0).output || saidTail.since(0).output;
-		return actionNotOK(`instance at ${dir} didn't serve on ${url} within ${READY_DEADLINE_MS}ms. Correct the cause its output reports${lastSaid ? `\n${lastSaid}` : ""}`);
+		// Ready means serving: the instance's feature has executed every step that sets it up. Its port responds before then, and
+		// a caller that treated that response as ready would race the steps the feature executes after listening.
+		const begun = await this.awaitBegin(url, true, () => stoppedBeforeServing(dir, child, outcome.actuality, stderrTail));
+		if ("stopped" in begun) return actionNotOK(begun.stopped);
+		// The handshake verifies that the child took the assigned host id. An unchecked wrong hostId would break seqPath and site uniqueness.
+		if (begun.hostId !== hostId)
+			return actionNotOK(
+				`instance at ${url} reports hostId ${begun.hostId} instead of the assigned ${hostId}. Another process may hold that port. Stop that process, or choose another port`,
+			);
+		return actionOKWithProducts({ url, site: begun.site, hostId });
 	}
 }
