@@ -1,11 +1,9 @@
 name: 'Haibun unit tests'
 
-# A push builds, lints and runs the unit tests; a pull request and a dispatch also run the end-to-end tests. A pull request
+# A pull request and a dispatch build, lint and run the unit and end-to-end tests. A push doesn't start a run. A pull request
 # that changes only documents still runs, since the prose check reads them.
 on:
   workflow_dispatch:
-  push:
-    paths-ignore: ['docs/**', '**/*.md']
   pull_request:
 
 permissions:
@@ -52,15 +50,12 @@ jobs:
         run: npm test
 
       - name: Run shu e2e tests
-        if: github.event_name != 'push'
         run: npm run test:e2e -w @haibun/shu
 
       - name: Run the MCP server's and the language server's features
-        if: github.event_name != 'push'
         run: node scripts/service-features.mjs
 
       - name: Run e2e tests
-        if: github.event_name != 'push'
         run: |
           cd e2e-tests
           npm ci

@@ -1,12 +1,7 @@
 name: Release
 
+# A dispatch on a release branch (main, alpha, beta or rc) releases it. A push doesn't start a run.
 on:
-  push:
-    branches:
-      - main
-      - alpha
-      - beta
-      - rc
   workflow_dispatch:
 
 permissions:

@@ -1,6 +1,6 @@
 # Versioning
 
-Releases are automated by [semantic-release](https://semantic-release.gitbook.io/). Version numbers come from commit messages; CI publishes. You never type a version number.
+Releases are automated by [semantic-release](https://semantic-release.gitbook.io/). Version numbers come from commit messages; the Release workflow publishes. You never type a version number.
 
 ## How to ship a change
 
@@ -17,7 +17,7 @@ Releases are automated by [semantic-release](https://semantic-release.gitbook.io
    ```
    BREAKING CHANGE: kireji withAction signature changed
    ```
-6. Squash-merge. CI runs semantic-release, which bumps all modules, publishes to npm, updates `CHANGELOG.md`, tags, and creates a GitHub release.
+6. Squash-merge, then run the Release workflow on the release branch (Actions → Release → Run workflow). A push doesn't start a workflow. The Release workflow runs semantic-release, which bumps all modules, publishes to npm, updates `CHANGELOG.md`, tags, and creates a GitHub release.
 
 ## Branches and npm dist-tags
 
