@@ -1,0 +1,109 @@
+{
+	"linux-x64-16x-amd-ryzen-7-pro-7840u-w-radeon-780m-graphics": {
+		"3ee7e6c72e2003cb": {
+			"filter": "",
+			"execution": {
+				"text": "e2e-tests/policy-test",
+				"status": "passed",
+				"tookMs": 100,
+				"digest": {
+					"e2e-tests/policy-test": "06495ce736817be3153244382897d76c9e8844a442e845481aa51b89466b4a73",
+					"modules/core/src": "1ccee45b963257084be3786a769386393881792286491043c791944067db52d5",
+					"modules/logic/src": "b4e2077ea30b6098341731b07f24db97a6ef9227290304a3533ac65b403783bf"
+				}
+			},
+			"features": {
+				"/features/api/a_profile.feature": {
+					"text": "/features/api/a_profile",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				},
+				"/features/api/r_list.feature": {
+					"text": "/features/api/r_list",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				},
+				"/features/api/w_create.feature": {
+					"text": "/features/api/w_create",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				},
+				"/features/smoke/a_auth_check.feature": {
+					"text": "/features/smoke/a_auth_check",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				},
+				"/features/smoke/r_health.feature": {
+					"text": "/features/smoke/r_health",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 11
+				},
+				"/features/smoke/w_write_check.feature": {
+					"text": "/features/smoke/w_write_check",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				}
+			}
+		},
+		"6779795d8d84fed3": {
+			"filter": "",
+			"execution": {
+				"text": "e2e-tests/policy-test",
+				"status": "passed",
+				"tookMs": 0,
+				"digest": {
+					"e2e-tests/policy-test": "06495ce736817be3153244382897d76c9e8844a442e845481aa51b89466b4a73",
+					"modules/core/src": "1ccee45b963257084be3786a769386393881792286491043c791944067db52d5",
+					"modules/logic/src": "b4e2077ea30b6098341731b07f24db97a6ef9227290304a3533ac65b403783bf"
+				}
+			},
+			"features": {
+				"/features/api/r_list.feature": {
+					"text": "/features/api/r_list",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				},
+				"/features/smoke/r_health.feature": {
+					"text": "/features/smoke/r_health",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 11
+				}
+			}
+		},
+		"811625a23a6e9c6d": {
+			"filter": "",
+			"execution": {
+				"text": "e2e-tests/policy-test",
+				"status": "passed",
+				"tookMs": 0,
+				"digest": {
+					"e2e-tests/policy-test": "06495ce736817be3153244382897d76c9e8844a442e845481aa51b89466b4a73",
+					"modules/core/src": "1ccee45b963257084be3786a769386393881792286491043c791944067db52d5",
+					"modules/logic/src": "b4e2077ea30b6098341731b07f24db97a6ef9227290304a3533ac65b403783bf"
+				}
+			},
+			"features": {
+				"/features/api/r_list.feature": {
+					"text": "/features/api/r_list",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 2
+				},
+				"/features/smoke/r_health.feature": {
+					"text": "/features/smoke/r_health",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 12
+				}
+			}
+		}
+	}
+}

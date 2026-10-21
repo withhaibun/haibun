@@ -1,0 +1,123 @@
+{
+	"linux-x64-16x-amd-ryzen-7-pro-7840u-w-radeon-780m-graphics": {
+		"107800233c1c944e": {
+			"filter": "",
+			"execution": {
+				"text": "e2e-tests/requirements",
+				"status": "passed",
+				"tookMs": 1900,
+				"digest": {
+					"e2e-tests/requirements": "e6ed05b8d457b5e9ff167466ab6b5b83af6cd0891b67dc3c2d3fa4d5b314c0d8",
+					"e2e-tests/src": "fb54401ba52a544ad166f4327c0dda191c8ea1613c86c8e016ec9a90700878bc",
+					"modules/cli/src": "fdce861f02447d58a40e9cfd79e61b007ae9e902efbba1f9a8cc46e8cbd834e2",
+					"modules/core/src": "55cb9a8b88f90ddfe5d843f6385fdce03a631eda385d2c776d9871efac5e97bd",
+					"modules/domain-storage/src": "8555ea196220a75db0f69cfbf0f7374da5fc614ecf6b652c38d33cc7b11d92e9",
+					"modules/logic/src": "8c83176cd37dc52643eb24805524522c666774b882f995e79bae8b3e7571d01b",
+					"modules/monitor-otel/src": "94b4eea8217dc6803a9d04eb2e989b22258374a2fe11a211ddfcd888be31c99b",
+					"modules/monitor-tui/src": "a827c8af8ca688c390637f2aa5bd5a343695fc199d15450e06fa6c9de0b9fc8b",
+					"modules/out-junit/src": "0463cad4b361a5c74fd84222ffb68cadcb91255b6d2c34fb78083a139f60af66",
+					"modules/recorder/src": "4e1f4c42c968bc4a395d7bca41861260dabef7681811a2022ffabc6394916eeb",
+					"modules/shu/src": "e1cad4acda4532e548119e9a096e37b34a7b38af08716b2448ab883fa2c93777",
+					"modules/storage-fs/src": "948755c17d4f877495d0018ea37b8a39a7bae31a28b3317c3adfcb9b2e9c79e7",
+					"modules/storage-mem/src": "764cfa313b43fa43bd52ab7fd10ce9d5ee1b3c033c58b2fc6a85d98c7f267206",
+					"modules/utils/src": "128195b8e9b52a9197bfd78e93a19be17009af4fc3fa03d78930236c955079c4",
+					"modules/web-accessibility-axe/src": "526c6768edf0e5c08f0b8e357e6e2d33a8e9187288ba3cae3a438b0fafc0c279",
+					"modules/web-playwright/src": "2dfae50edae1c9b7860948459115c83bf757ad884183eaabc15a578cff508333",
+					"modules/web-server-hono/src": "71e2eacbc506cee1ea4eca295e9efea1a31ca4c801cab736e1fc6c03f1b6c7b4"
+				}
+			},
+			"features": {
+				"/features/01-prose-and-steps.feature.ts": {
+					"text": "Prose and steps",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 24
+				},
+				"/features/02-authority.feature.ts": {
+					"text": "Capabilities authorize every call",
+					"status": "passed",
+					"tookMs": 100,
+					"steps": 42
+				},
+				"/features/03-activities.feature.ts": {
+					"text": "Waypoints and ensure",
+					"status": "passed",
+					"tookMs": 100,
+					"steps": 65
+				},
+				"/features/04-combinators.feature.ts": {
+					"text": "Combinators and quantifiers",
+					"status": "passed",
+					"tookMs": 100,
+					"steps": 46
+				},
+				"/features/05-goals.feature.ts": {
+					"text": "Goals over producer rules",
+					"status": "passed",
+					"tookMs": 100,
+					"steps": 32
+				},
+				"/features/06-world-and-products.feature.ts": {
+					"text": "The world's data and a step's products",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 18
+				},
+				"/features/07-records.feature.ts": {
+					"text": "Records, events and actualities",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 21
+				},
+				"/features/08-timing.feature.ts": {
+					"text": "Time and concurrent callers",
+					"status": "passed",
+					"tookMs": 400,
+					"steps": 19
+				},
+				"/features/09-surfaces.feature.ts": {
+					"text": "One path for every surface",
+					"status": "passed",
+					"tookMs": 100,
+					"steps": 22
+				},
+				"/features/10-cli.feature.ts": {
+					"text": "The command line",
+					"status": "passed",
+					"tookMs": 600,
+					"steps": 12
+				},
+				"/features/11-performance.feature.ts": {
+					"text": "Performance",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 7
+				},
+				"/features/12-conversations.feature.ts": {
+					"text": "Conversations as features",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 3
+				},
+				"/features/13-formulas.feature.ts": {
+					"text": "Formula notation",
+					"status": "passed",
+					"tookMs": 100,
+					"steps": 45
+				},
+				"/features/14-model-loop.feature.ts": {
+					"text": "A model proposes lines and the engine proves them",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 4
+				},
+				"/features/15-combined-statements.feature.ts": {
+					"text": "Combined statements",
+					"status": "passed",
+					"tookMs": 0,
+					"steps": 19
+				}
+			}
+		}
+	}
+}
