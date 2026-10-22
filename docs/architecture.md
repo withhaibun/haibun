@@ -433,6 +433,11 @@ after years as after a day, and each thing it holds has a bound.
 - **What a process holds has a bound.** A stream's replay buffer holds 5,000 events. The counts of the paths under a call
   this host allocated a seqPath for, and under a ticker's tick, are released as it ends (`releaseSeqPaths`), so the counts
   hold the calls in progress and the features' own steps.
+- **A page writes its device database one write at a time.** The page's device store of quads (shu `IndexedDbQuads`)
+  starts each write once the one before it ends, and the facts that arrive while a write runs wait together for the next
+  one, each in place of a waiting fact with its subject, predicate and graph. Writes that overlapped held one fact more than
+  once and each later write read and removed every copy, and the browser runs each origin's databases through one queue, so
+  the work a page queued grew with each write and outlasted the page.
 
 ## Variable Resolution
 

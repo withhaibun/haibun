@@ -1,5 +1,5 @@
 // Tests the actualities file: a group's last actuality against the state of its dependencies, and how long each feature took.
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { execFileSync } from "node:child_process";
 import nodeFS from "node:fs";
 import os from "node:os";
@@ -149,6 +149,22 @@ describe("how long a group's features took", () => {
 			true,
 			false,
 		]);
+	});
+
+	it("is read whole while it is written, and a write that stops partway leaves it as it was", () => {
+		// Runs of one group read and write the file at once, and a run that read it while another wrote it read it half written.
+		const { dir, config } = aGroup();
+		const v = verified(dir, config);
+		recordFeatures(v, RECORDED_STATUS.completed, { "/features/a.feature": 1000 });
+		const before = nodeFS.readFileSync(path.join(dir, ACTUALITIES_FILE), "utf-8");
+		const write = nodeFS.writeFileSync;
+		const stopped = vi.spyOn(nodeFS, "writeFileSync").mockImplementation((file, contents) => {
+			write(file, String(contents).slice(0, 10));
+			throw new Error("the write stopped partway");
+		});
+		expect(() => recordFeatures(v, RECORDED_STATUS.failed, { "/features/a.feature": 2000 })).toThrow("the write stopped partway");
+		stopped.mockRestore();
+		expect(nodeFS.readFileSync(path.join(dir, ACTUALITIES_FILE), "utf-8")).toBe(before);
 	});
 
 	it("refuses an actualities file that doesn't hold actualities by machine and conditions, since replacing it would lose them", () => {

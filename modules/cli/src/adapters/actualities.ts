@@ -123,7 +123,8 @@ function readActualities(file: string): TActualityFile {
 }
 
 /** Writes the actualities file with its machines and conditions in sorted order, so the file changes only when an entry
- *  changes. */
+ *  changes. It writes the file beside itself and renames it over the file, so a run that reads it while another run of the
+ *  group writes it reads the whole file, as it was before or after, and a write that stops partway leaves it as it was. */
 function writeActualities(file: string, actualities: TActualityFile): void {
 	const sorted = <T>(record: Record<string, T>) =>
 		Object.fromEntries(
@@ -131,7 +132,9 @@ function writeActualities(file: string, actualities: TActualityFile): void {
 				.sort()
 				.map((key) => [key, record[key] as T]),
 		);
-	nodeFS.writeFileSync(file, `${JSON.stringify(sorted(Object.fromEntries(Object.entries(actualities).map(([machine, entries]) => [machine, sorted(entries)]))), null, "\t")}\n`);
+	const beside = `${file}.${process.pid}`;
+	nodeFS.writeFileSync(beside, `${JSON.stringify(sorted(Object.fromEntries(Object.entries(actualities).map(([machine, entries]) => [machine, sorted(entries)]))), null, "\t")}\n`);
+	nodeFS.renameSync(beside, file);
 }
 
 /** Returns each dependency whose digest differs between two states, or that one of them doesn't hold, in sorted order. */

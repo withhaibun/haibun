@@ -42,8 +42,8 @@ export const servedDatabase = (): string => databaseOf(pageHydration().actuality
 /** The names of the databases this device holds, one per actuality. */
 export const heldDatabases = (): Promise<string[]> => heldDatabaseNames();
 
-/** The database `name` names. The served database replaces the databases an earlier build kept. */
-const databaseNamed = (name: string): TDeviceDatabase => deviceDatabase(name, connections(), name === servedDatabase());
+/** The database `name` names. */
+const databaseNamed = (name: string): TDeviceDatabase => deviceDatabase(name, connections());
 
 /** The readers told of each write to the device. */
 const deviceWrites = (): Set<() => void> => pagePinned(WRITE_LISTENERS_KEY, () => new Set<() => void>());

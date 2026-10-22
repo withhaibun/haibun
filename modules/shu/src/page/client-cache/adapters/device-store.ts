@@ -10,8 +10,6 @@ import { CACHE_SHAPE, DEVICE_STORES, META_KEY, QUAD_INDEX, type TDeviceDatabase,
 
 /** The device keeps each actuality's records in a database of its own, so a page never reads one actuality's records as another's. */
 const DB_PREFIX = "shu-client-cache/";
-/** The databases these replace, dropped once on open so a device doesn't keep them beside them. */
-const FORMER_DB_NAMES = ["shu-events", "shu-graph", "shu-client-cache"];
 /** Bumped when the shape changes. An upgrade creates what is missing and keeps what is cached, and a page holding an
  *  earlier version closes its connection as soon as another page upgrades, so a page doesn't wait on another. */
 const VERSION = 7;
@@ -30,11 +28,10 @@ export const done = <T>(req: IDBRequest<T>): Promise<T> =>
 		req.onerror = () => reject(req.error);
 	});
 
-/** The page's one connection to each database, which every bundle on the page shares. `replacesFormer` drops the
- *  databases these replace once the database opens. */
+/** The page's one connection to each database, which every bundle on the page shares. */
 export type TDeviceConnections = { opened: Map<string, Promise<IDBDatabase | null>>; report: TDeviceReport };
 
-function openDb(name: string, connections: TDeviceConnections, replacesFormer: boolean): Promise<IDBDatabase | null> {
+function openDb(name: string, connections: TDeviceConnections): Promise<IDBDatabase | null> {
 	const opened = connections.opened.get(name);
 	if (opened) return opened;
 	const opening = new Promise<IDBDatabase | null>((resolve) => {
@@ -65,7 +62,6 @@ function openDb(name: string, connections: TDeviceConnections, replacesFormer: b
 				db.close();
 				connections.opened.delete(name);
 			};
-			if (replacesFormer) for (const former of FORMER_DB_NAMES) indexedDB.deleteDatabase(former);
 			void clearIfIncompatible(db, connections.report).then(() => resolve(db));
 		};
 		req.onerror = () => {
@@ -103,11 +99,11 @@ function clearIfIncompatible(db: IDBDatabase, report: TDeviceReport): Promise<vo
  *  the task that opens its transaction and commits it there, so the browser ends the transaction without waiting for the page
  *  to take each result. Chromium aborts a transaction that waits on a page busy for 60 s while another transaction waits on
  *  it. */
-export function deviceDatabase(name: string, connections: TDeviceConnections, replacesFormer: boolean): TDeviceDatabase {
+export function deviceDatabase(name: string, connections: TDeviceConnections): TDeviceDatabase {
 	/** Runs `fn` in a transaction over `stores` and commits the requests it issues, and resolves with its result once the
 	 *  transaction commits, or rejects with why it aborted; resolves undefined without IndexedDB. */
 	const within = async <T>(mode: IDBTransactionMode, stores: string[], fn: (tx: IDBTransaction) => T | Promise<T>): Promise<T | undefined> => {
-		const db = await openDb(name, connections, replacesFormer);
+		const db = await openDb(name, connections);
 		if (db === null) return undefined;
 		const tx = db.transaction(stores, mode);
 		const committed = new Promise<void>((resolve, reject) => {

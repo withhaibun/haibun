@@ -159,7 +159,7 @@ describe("a clustered read of named types", () => {
 
 /** A database's graph, new for each test, that holds at most `bound` quads. */
 const boundedQuads = (bound: number) =>
-	new IndexedDbQuads(deviceDatabase(`bound-${crypto.randomUUID()}`, { opened: new Map(), report: { warn: () => undefined, failure: () => undefined } }, false), bound);
+	new IndexedDbQuads(deviceDatabase(`bound-${crypto.randomUUID()}`, { opened: new Map(), report: { warn: () => undefined, failure: () => undefined } }), bound);
 /** The shape of a database an earlier build wrote. */
 const EARLIER_SHAPE = "an earlier shape";
 const fact = (n: number) => ({ subject: `s${n}`, predicate: "content", object: `text ${n}`, namedGraph: "Comment", timestamp: 1000 + n });
@@ -209,11 +209,46 @@ describe("the transactions of a database's graph", () => {
 	});
 });
 
+describe("the writes of a database's graph", () => {
+	it("run one at a time, and the facts that arrive before a write starts are held in it, so each fact is held once", async () => {
+		// The browser runs every database of an origin through one queue. A page that wrote each batch of facts as it arrived
+		// held a fact two writes upserted at once twice, and queued writes that a page opened again after a reload waited behind.
+		const quads = boundedQuads(1000);
+		expect(await quads.saturation(), "the database opens before the writes are watched").toMatchObject({ held: 0 });
+		let open = 0;
+		let most = 0;
+		let written = 0;
+		const begin = IDBDatabase.prototype.transaction;
+		vi.spyOn(IDBDatabase.prototype, "transaction").mockImplementation(function (this: IDBDatabase, ...args: Parameters<IDBDatabase["transaction"]>) {
+			const tx = begin.apply(this, args);
+			if (tx.mode === "readwrite" && tx.objectStoreNames.contains(DEVICE_STORES.QUADS)) {
+				written++;
+				most = Math.max(most, ++open);
+				const ended = () => open--;
+				tx.addEventListener("complete", ended);
+				tx.addEventListener("abort", ended);
+			}
+			return tx;
+		});
+		const versions = Array.from({ length: 30 }, (_, n) => n);
+		await Promise.all(versions.map((n) => quads.setMany([{ ...fact(1), object: `text 1, version ${n}` }, fact(100 + n)])));
+		const afterOne = written;
+		await Promise.all([quads.setMany([fact(2)]), quads.set("s3", "content", "text 3", "Comment"), quads.add(fact(4)), quads.setMany([fact(5)])]);
+		vi.restoreAllMocks();
+		expect(most, "a write of the page at a time").toBe(1);
+		expect(afterOne, "the facts that arrived before the first write started are held in it").toBe(1);
+		expect(await quads.query({ subject: "s1" }), "and a fact upserted by every one of them is held once, as the last set it").toEqual([
+			expect.objectContaining({ object: "text 1, version 29" }),
+		]);
+		expect((await quads.all()).length).toBe(versions.length + 5);
+	});
+});
+
 describe("a database written under another shape", () => {
 	it("opens cleared, so the first read after it opens doesn't return what the other shape held", async () => {
 		const name = `shape-${crypto.randomUUID()}`;
 		const warned: string[] = [];
-		const opened = () => deviceDatabase(name, { opened: new Map(), report: { warn: (message) => warned.push(message), failure: () => undefined } }, false);
+		const opened = () => deviceDatabase(name, { opened: new Map(), report: { warn: (message) => warned.push(message), failure: () => undefined } });
 		await new IndexedDbQuads(opened(), 10).setMany([fact(1)]);
 		await opened().within("readwrite", [DEVICE_STORES.META], (tx) => tx.objectStore(DEVICE_STORES.META).put(EARLIER_SHAPE, META_KEY.SHAPE));
 		expect(await new IndexedDbQuads(opened(), 10).all()).toEqual([]);
