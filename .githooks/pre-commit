@@ -1,5 +1,5 @@
 #!/bin/sh
-# Lint and the unit tests, which a commit must pass. `npm run verify` runs every lane.
+# Lint and the unit tests, which a commit must pass. `npm run verify` runs every check.
 set -e
 npm run lint
 npx vitest run --project unit

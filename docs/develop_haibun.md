@@ -20,9 +20,9 @@ runs alone. Their browsers come from Playwright: `npx playwright install chromiu
 
 ## Verifying a change
 
-`npm run verify` runs each lane that the root package.json lists under `verify`, one after another, and stops at the first that
+`npm run verify` runs each check that the root package.json lists under `verify`, one after another, and stops at the first that
 fails: the build, lint, the unit and integration tests, and the end-to-end features of `e2e-tests` and shu. It runs the features with
-`HAIBUN_ONCE`, so a group whose last pass holds against its present dependencies isn't run again. It prints each lane's duration
+`HAIBUN_ONCE`, so a group whose last pass holds against its present dependencies isn't run again. It prints each check's duration
 and the lines the working tree changes.
 
 `npm install` points git at `.githooks`, whose pre-commit hook runs lint and the unit tests, so a commit passes them.

@@ -71,27 +71,27 @@
 	},
 	"verify": [
 		{
-			"lane": "build",
+			"check": "build",
 			"command": "npm run build"
 		},
 		{
-			"lane": "lint",
+			"check": "lint",
 			"command": "npm run lint"
 		},
 		{
-			"lane": "unit",
+			"check": "unit",
 			"command": "npx vitest run --project unit"
 		},
 		{
-			"lane": "integration",
+			"check": "integration",
 			"command": "npx vitest run --project integration"
 		},
 		{
-			"lane": "e2e",
+			"check": "e2e",
 			"command": "npm run test:e2e"
 		},
 		{
-			"lane": "shu e2e",
+			"check": "shu e2e",
 			"command": "npm run test:e2e -w @haibun/shu"
 		}
 	]
