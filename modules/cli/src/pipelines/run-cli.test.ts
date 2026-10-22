@@ -15,7 +15,7 @@ import { SpeclSchema, type TSpecl } from "@haibun/core/lib/actuality.js";
 import type { TProtoOptions } from "@haibun/core/lib/world.js";
 import { OPTION_RUN_POLICY, OPTION_DRY_RUN, type TRunPolicyConfig } from "@haibun/core/run-policy/domains/run-policy.js";
 import * as lib from "./run-cli.js";
-import { getConfigFromBase } from "./specl.js";
+import { getConfigFromBase, readsDotenv } from "./specl.js";
 import { processBaseEnvToOptionsAndErrors } from "../domains/base-options.js";
 import { cliPorts } from "../root.js";
 
@@ -262,6 +262,11 @@ describe("getConfigFromBase with extends", () => {
 		const specl = getConfigFromBase([group({ extends: "../base.json", steppers: [], environments: ["mail"] })], nodeFS);
 		expect(specl.dependsOn).toEqual(["../shared"]);
 		expect(specl.environments).toEqual(["model", "mail"]);
+	});
+
+	it("reads the .env file of a run's directory only where the config or its base declares an environment", () => {
+		expect(readsDotenv(getConfigFromBase([group({ extends: "../base.json", steppers: [] })], nodeFS))).toBe(true);
+		expect(readsDotenv(NO_CONFIG)).toBe(false);
 	});
 
 	it("refuses a stepper the base lists", () => {

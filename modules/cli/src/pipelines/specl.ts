@@ -9,6 +9,13 @@ import { DEFAULT_DEST } from "@haibun/core/lib/domains/protocol.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import type { TFileSystem } from "@haibun/core/lib/adapters/workspace-lib.js";
 
+/** The file of a run's starting directory that holds the values of the external environments its configuration declares. */
+export const DOTENV = ".env";
+
+/** Returns whether a run reads the .env file of its starting directory: where its configuration declares an external environment,
+ *  whose values that file holds. A configuration that doesn't declare one runs the same with or without the file. */
+export const readsDotenv = (specl: TSpecl): boolean => specl.environments !== undefined && specl.environments.length > 0;
+
 /** Returns the configuration file a run reads. The first base that is an existing JSON file or a directory that
  *  contains config.json gives that file. The working directory's config.json is the fallback. */
 export function configFileFrom(bases: TBase, fs: TFileSystem): string {

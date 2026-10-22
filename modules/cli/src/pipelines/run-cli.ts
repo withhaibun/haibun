@@ -25,7 +25,7 @@ import { OPTION_RUN_POLICY, OPTION_DRY_RUN, HAIBUN_RUN_POLICY, parseRunPolicyArg
 import { loadAndValidateRunPolicy } from "@haibun/core/run-policy/pipelines/policy-file.js";
 import { PhaseRunner, PhaseBailError } from "@haibun/core/lib/PhaseRunner.js";
 import { withName } from "@haibun/core/lib/domains/features.js";
-import { configFileFrom, getConfigFromBase } from "./specl.js";
+import { configFileFrom, DOTENV, getConfigFromBase, readsDotenv } from "./specl.js";
 import type { TCliPorts } from "../ports.js";
 
 const OPTION_CONFIG = "--config";
@@ -41,11 +41,11 @@ const OPTION_STATEMENT = "--statement";
 const OPTION_ONCE = "--once";
 
 export async function runCli(args: string[], env: NodeJS.ProcessEnv, ports: TCliPorts) {
-	if (ports.fs.existsSync(".env")) process.loadEnvFile();
 	const parsed = processArgs(args);
 	const bases = basesFrom(parsed.params[0]?.replace(/\/$/, ""));
 	const configBases = parsed.configLoc ? [parsed.configLoc] : bases;
 	const specl = await getSpeclOrExit(configBases, ports);
+	if (readsDotenv(specl) && ports.fs.existsSync(DOTENV)) process.loadEnvFile(DOTENV);
 
 	if (parsed.showHelp) return await usageThenExit(specl, ports.steppers);
 	if (parsed.showSteppers) return await showSteppersAndExit(specl, ports.steppers);

@@ -57,6 +57,11 @@ Adding `--help` to a folder lists the command's own options, followed by the opt
 `config.json` loads, each as the environment variable that sets it. A folder without a `config.json` lists only the
 command's own options.
 
+A folder's `config.json` states the options its features need in `moduleOptions`, and an environment variable states an
+option over it. The command reads the `.env` file of its directory only where `config.json` lists `environments`, the
+external services its features use, such as a mail server or a model, whose values that file holds. A folder that doesn't
+list one runs the same with or without a `.env` file.
+
 The end-to-end tests in [e2e-tests](e2e-tests) are folders of this kind, `tests` and `shu-self-test`. From that
 directory, this lists the options available to the `tests` features:
 

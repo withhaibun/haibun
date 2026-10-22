@@ -222,10 +222,12 @@ describe("restarting an instance", () => {
 });
 
 describe("whether a run would repeat the outcome of an earlier run", () => {
-	/** Creates a group of features in its own git repository, so its state depends only on its own files. */
+	/** Creates a group of features in its own git repository, so its state depends only on its own files. The repository ignores
+	 *  its .env file, as a repository that holds a group does. */
 	const aGroup = () => {
 		const dir = nodeFS.realpathSync(nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-verified-run-")));
 		execFileSync("git", ["init", "-q"], { cwd: dir });
+		nodeFS.writeFileSync(path.join(dir, ".gitignore"), ".env\n");
 		const config = path.join(dir, "config.json");
 		nodeFS.writeFileSync(config, JSON.stringify({ steppers: [] }));
 		nodeFS.mkdirSync(path.join(dir, "features"));
@@ -249,13 +251,22 @@ describe("whether a run would repeat the outcome of an earlier run", () => {
 		expect(verifiedRun(supervisorPorts, config, dir, "", dir, env), "a changed dependency makes a new state that doesn't have a recorded outcome").toBeUndefined();
 	});
 
-	it("reads the .env file in a run's starting directory as the child does, so an option set there changes the conditions verifiedRun compares", () => {
+	it("reads the .env file in a run's starting directory where its config declares an environment, as the child does", () => {
 		const { dir, config } = aGroup();
 		const env = runEnvironment({}, 0, false);
-		const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env, getConfigFromBase([dir], nodeFS));
-		recordOutcome(verificationOf({ configPath: config, specl: getConfigFromBase([dir], nodeFS), bases: [dir], cwd: dir, filter: [], options, moduleOptions }) as never, "passed");
+		const passed = () => {
+			const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env, getConfigFromBase([dir], nodeFS));
+			recordOutcome(verificationOf({ configPath: config, specl: getConfigFromBase([dir], nodeFS), bases: [dir], cwd: dir, filter: [], options, moduleOptions }) as never, "passed");
+		};
+		const dotenv = path.join(dir, ".env");
+		passed();
+		nodeFS.writeFileSync(dotenv, "HAIBUN_O_WEBSERVERSTEPPER_PORT=8399\n");
+		expect(verifiedRun(supervisorPorts, config, dir, "", dir, env), "a config without an environment doesn't read the file, so its conditions stay the same").toBe("passed");
+		nodeFS.rmSync(dotenv);
+		nodeFS.writeFileSync(config, JSON.stringify({ steppers: [], environments: ["mail"] }));
+		passed();
 		expect(verifiedRun(supervisorPorts, config, dir, "", dir, env)).toBe("passed");
-		nodeFS.writeFileSync(path.join(dir, ".env"), "HAIBUN_O_WEBSERVERSTEPPER_PORT=8399\n");
+		nodeFS.writeFileSync(dotenv, "HAIBUN_O_WEBSERVERSTEPPER_PORT=8399\n");
 		expect(verifiedRun(supervisorPorts, config, dir, "", dir, env), "the child would read that file, so its conditions differ from the recorded conditions").toBeUndefined();
 	});
 });
