@@ -42,14 +42,14 @@ const recordOutcome = (v: Parameters<typeof recordActuality>[0], status: string)
 		{ ok: true, featureResults: [] } as never,
 		new Map([
 			[
-				"execution",
+				"actuality",
 				{
 					id: "1-0",
 					stepText: "a run",
 					actionStatus: status,
 					accessLevel: "private",
 					level: "info",
-					actualityLevel: "execution",
+					actualityLevel: "actuality",
 					generatedAtTime: new Date(0).toISOString(),
 					endedAtTime: new Date(1).toISOString(),
 					...digestFields(v.digest),
@@ -320,14 +320,14 @@ describe("waiting for a run", () => {
 });
 
 describe("a run left standing", () => {
-	it("is done when its execution ends, since its process doesn't exit", async () => {
+	it("is done when its actuality ends, since its process doesn't exit", async () => {
 		const s = stepper();
 		const { say } = s.hold("standing-run", "");
 		const waited = (s.steps.waitRun.action as (a: { run: string; seconds: number; cursor: number }) => Promise<TRead>)({ run: "standing-run", seconds: 30, cursor: 0 });
-		say('{"id":"execution","timestamp":1,"kind":"lifecycle","stage":"start","status":"running","type":"execution","in":"/tests"}\n');
-		setTimeout(() => say('{"id":"execution","timestamp":2,"kind":"lifecycle","stage":"end","status":"completed","type":"execution"}\n'), 5);
+		say('{"id":"actuality","timestamp":1,"kind":"lifecycle","stage":"start","status":"running","type":"actuality","in":"/tests"}\n');
+		setTimeout(() => say('{"id":"actuality","timestamp":2,"kind":"lifecycle","stage":"end","status":"completed","type":"actuality"}\n'), 5);
 		const result = await waited;
-		expect(result.products?.execution, "the child reported its execution ended, and its process kept serving").toBe("completed");
+		expect(result.products?.actuality, "the child reported its actuality ended, and its process kept serving").toBe("completed");
 		expect(result.products?.status, "the process didn't exit, so it is still running").toBe("running");
 	});
 });
@@ -338,7 +338,7 @@ describe("the records of a run's levels", () => {
 	it("are written in this process's store from a run's moves, and a stopped run's levels that hadn't ended state that they stopped", async () => {
 		const s = stepper();
 		const { say } = s.hold("a-run");
-		say(event({ id: "execution", type: "execution", stage: "start", status: "running", in: "/tests" }));
+		say(event({ id: "actuality", type: "actuality", stage: "start", status: "running", in: "/tests" }));
 		say(event({ id: "feat-1", type: "feature", stage: "start", status: "running", featurePath: "/features/a.feature", featureName: "a" }));
 		say(event({ id: "0.1.0.1", type: "step", stage: "end", status: "failed", in: "a step", error: "it failed" }));
 		say(event({ id: "feat-1", type: "feature", stage: "end", status: "failed", featurePath: "/features/a.feature", featureName: "a" }));

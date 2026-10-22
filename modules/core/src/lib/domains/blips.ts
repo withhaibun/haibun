@@ -114,7 +114,7 @@ export class BlipRollup {
 	private counts = new Map<string, number>();
 	private detachFn: (() => void) | undefined;
 
-	/** Subscribes to `eventLogger`. It first unsubscribes from any earlier logger and clears the counts, so an execution
+	/** Subscribes to `eventLogger`. It first unsubscribes from any earlier logger and clears the counts, so an actuality
 	 *  that ends without detaching doesn't leave the next one subscribed to a discarded logger. */
 	attach(eventLogger: IEventLogger): void {
 		this.detach();

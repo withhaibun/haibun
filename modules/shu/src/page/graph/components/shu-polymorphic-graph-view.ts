@@ -71,7 +71,7 @@ const FISHEYE_CSS = `
 	shu-polymorphic-graph-view { display: block; position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--shu-bg); }
 	shu-polymorphic-graph-view shu-graph-filter { flex: 0 0 auto; }
 	${viewHeadCss("shu-polymorphic-graph-view")}
-	shu-polymorphic-graph-view .view-status { flex-basis: 100%; min-width: 0; display: flex; align-items: center; gap: var(--shu-space-2); min-height: calc(1lh + 2 * var(--shu-space-1)); white-space: nowrap; }
+	shu-polymorphic-graph-view .view-status { width: 100%; min-width: 0; display: flex; align-items: center; gap: var(--shu-space-2); min-height: calc(1lh + 2 * var(--shu-space-1)); white-space: nowrap; }
 	shu-polymorphic-graph-view .view-status > * { overflow: hidden; text-overflow: ellipsis; }
 	shu-polymorphic-graph-view #polymorphic-counts { color: var(--shu-fg-muted); }
 	shu-polymorphic-graph-view #polymorphic-step { max-width: 30ch; background: var(--shu-fg); color: var(--shu-bg); padding: var(--shu-space-1) var(--shu-space-3); border-radius: var(--shu-radius); font-weight: 600; }

@@ -30,7 +30,7 @@ describe("TuiMonitorStepper", () => {
 	it("handles prompt and resolve", async () => {
 		const prompt = { id: "p1", message: "test prompt" };
 
-		// prompt() sets promptResolver. resolve() doesn't depend on the ink render that startExecution creates.
+		// prompt() sets promptResolver. resolve() doesn't depend on the ink render that startActuality creates.
 
 		const promptPromise = stepper.prompt(prompt);
 

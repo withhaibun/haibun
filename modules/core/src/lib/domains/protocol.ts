@@ -52,7 +52,7 @@ export const RETURNED_TO_CALLER = "↩️";
 export const ICON_FEATURE = "⧇"; // Root container (High visibility)
 export const ICON_SCENARIO = "⬢"; // Concrete logic node (Solid Hex)
 
-// Step execution status uses the verdict marks. A running step carries a flow mark, a stopped step carries a square, and a
+// A step's status uses the verdict marks. A running step carries a flow mark, a stopped step carries a square, and a
 // step whose process ended before it did carries a broken arrow.
 export const ICON_STEP_RUNNING = "⫸"; // Active flow (Clear direction)
 export const ICON_STEP_FAILED = CHECK_NO;
@@ -112,9 +112,9 @@ const STEP_LEVEL: THaibunLogLevel = "info";
  *  have the same level. */
 export const stepLevel = (isSubStep?: boolean): THaibunLogLevel => (isSubStep ? SUBSTEP_LEVEL : STEP_LEVEL);
 
-/** The levels of an execution, outermost first. A lifecycle event of a level is a move of the actuality machine, and the
+/** The levels of actuality, outermost first. A lifecycle event of a level is a move of the actuality machine, and the
  *  record of each level states its level. */
-export const ACTUALITY_LEVELS = ["execution", "feature", "scenario", "step"] as const;
+export const ACTUALITY_LEVELS = ["actuality", "feature", "scenario", "step"] as const;
 export type TActualityLevel = (typeof ACTUALITY_LEVELS)[number];
 
 export const SCENARIO_START = "scenario";
@@ -314,10 +314,10 @@ export class EventFormatter {
 }
 
 // ============================================================================
-// Execution Protocol
+// Step results
 // ============================================================================
 
-/** Execution trace field on products. */
+/** The field of products that holds the trace of the step that returned them. */
 export const TRACE_SEQ_PATH = "_seqPath";
 
 /** Hypermedia product field keys. Use these constants instead of string literals. */
@@ -376,7 +376,7 @@ export const LOGIC_STEPPER = "@haibun/logic/logic-stepper";
 export const LOGIC_STEPPER_NAME = "LogicStepper";
 
 /**
- * The one result type of step execution. Step actions, the logic engine's proofs, the feature loop and RPC transports use
+ * The one result type of a step's action. Step actions, the logic engine's proofs, the feature loop and RPC transports use
  * it. A proof's result states the verdict of its goal.
  */
 type TActionResultCarries = { products?: THypermediaProducts; controlSignal?: TDebugSignal; artifact?: TArtifactEvent; verdict?: TVerdict };
@@ -401,8 +401,8 @@ export type TProvenanceIdentifier = { in?: string; seq: number[]; when: string }
 export type TSeqPath = number[];
 
 /**
- * Step result with execution trace metadata.
- * Extends TActionResult with context about where/when the step ran.
+ * An action's result with the trace of its step.
+ * Extends TActionResult with where and when the step ran.
  */
 export type TStepResult = TActionResult & {
 	name: string;
@@ -452,8 +452,8 @@ export type TFeatureResult = {
 
 export type TExecutorResult = {
 	ok: boolean;
-	/** The execution's levels as the actuality machine holds them once the execution ended, or as they stood where a phase
-	 *  before the execution failed. */
+	/** Actuality's levels as the actuality machine holds them once the actuality ended, or as they stood where a phase
+	 *  before the actuality failed. */
 	actuality: TActuality;
 	tag: unknown;
 	shared: unknown;
@@ -492,7 +492,7 @@ const LifecycleEventCommon = BaseEvent.extend({
 	kind: z.literal("lifecycle"),
 	stage: z.enum(["start", "end"]),
 
-	// Execution Context
+	// How the level stands
 	status: LIFECYCLE_STATUS_SCHEMA.optional(),
 	error: z.string().optional(),
 });
@@ -518,9 +518,9 @@ const StepEvent = LifecycleEventCommon.extend({
 	featurePath: z.string().optional(),
 });
 
-// The execution's events
+// The actuality's events
 const GenericLifecycleEvent = LifecycleEventCommon.extend({
-	type: z.literal("execution"),
+	type: z.literal("actuality"),
 	in: z.string().optional(),
 	products: z.record(z.string(), z.unknown()).optional(),
 	lineNumber: z.number().optional(),
@@ -631,7 +631,7 @@ export const ControlEvent = BaseEvent.extend({
 	// Debugger signals: fail, step, continue, retry, next
 	// System signals: break, pause, resume, steps-changed
 	signal: z.enum([
-		"fail", // fail execution
+		"fail", // fail the step
 		"step", // single-step mode
 		"continue", // continue without debug
 		"retry", // retry failed step (rerunStep)

@@ -22,7 +22,7 @@ import {
 	inActualityOrder,
 	instant,
 	levelsFrom,
-	newestExecution,
+	newestActualityFeature,
 	oneEach,
 	rowOfRecord,
 	windowOf,
@@ -128,17 +128,17 @@ async function instantAt(
  */
 export async function actualityWindow(
 	graph: TActualityGraph,
-	{ at, since, size, minLevel, execution, substeps }: { at?: number; since?: number; size: number; minLevel: THaibunLogLevel; execution?: string; substeps: boolean },
+	{ at, since, size, minLevel, actuality, substeps }: { at?: number; since?: number; size: number; minLevel: THaibunLogLevel; actuality?: string; substeps: boolean },
 ): Promise<TActualityWindow> {
 	const shown = levelsFrom(minLevel);
-	// A window shows one execution. Records are read by time, and a device holds the records of more than one execution, so
-	// what makes a window one execution is the execution its ids name: the one requested, else the newest record's, which is
-	// the execution a reader following the newest follows. A row that doesn't name an execution is a row of whichever
-	// execution is being read: it is kept, and it never names that execution.
-	let ofOne = execution;
+	// A window shows one actuality feature. Records are read by time, and a device holds the records of more than one, so what
+	// makes a window one actuality feature is the actuality feature its ids name: the one requested, else the newest record's,
+	// which is the one a reader following the newest follows. A row that doesn't name an actuality feature is a row of whichever
+	// actuality feature is being read: it is kept, and it never names that actuality feature.
+	let ofOne = actuality;
 	const boundToOne = (rows: TActualityRow[]): TActualityRow[] => {
-		if (ofOne === undefined) ofOne = newestExecution(rows);
-		const named = (row: TActualityRow): string | undefined => row.name?.execution;
+		if (ofOne === undefined) ofOne = newestActualityFeature(rows);
+		const named = (row: TActualityRow): string | undefined => row.name?.actuality;
 		return ofOne === undefined ? rows : rows.filter((row) => named(row) === undefined || named(row) === ofOne);
 	};
 	const read = async (direction: "before" | "after", limit: number): Promise<TActualityRow[]> => {

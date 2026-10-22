@@ -8,7 +8,7 @@ import { ARTIFACT_POLICY, artifactAddress } from "@haibun/core/lib/domains/run-a
 import { RpcClient } from "@haibun/core/lib/rpc-client.js";
 import { localOrigin } from "@haibun/core/lib/domains/local-origin.js";
 import { Access, SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
-import { executionOf } from "@haibun/core/lib/seq-path.js";
+import { actualityFeatureOf } from "@haibun/core/lib/seq-path.js";
 import type { TClusteredQuads } from "@haibun/core/lib/quad-types.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
@@ -78,11 +78,11 @@ describe("the monitor serves the shu views of actuality on its own port", () => 
 
 		expect(page?.status).toBe(200);
 		expect(page?.body).toContain(world.runtime.actualityId);
-		expect(page?.body, "a reader who arrives without an address is shown the monitor beside the executions this device holds").toContain(`"viewHash":"${MONITOR_OPENS_AT}"`);
+		expect(page?.body, "a reader who arrives without an address is shown the monitor beside the actualities this device holds").toContain(`"viewHash":"${MONITOR_OPENS_AT}"`);
 		// The monitor's server started before the first feature and outlasts it: the second feature's reader reaches it, and
 		// reads that feature's steps through it.
 		const steps = read?.quads.filter((quad) => quad.namedGraph === SEQ_PATH_LABEL).map((quad) => String(quad.subject)) ?? [];
-		expect(steps.some((id) => id.startsWith(`${executionOf({ ...world.tag, featureNum: 2 })}.`))).toBe(true);
+		expect(steps.some((id) => id.startsWith(`${actualityFeatureOf({ ...world.tag, featureNum: 2 })}.`))).toBe(true);
 
 		// An artifact opened by its address doesn't run a script here, as one in a frame of the page doesn't.
 		expect(artifactPolicy).toBe(ARTIFACT_POLICY);

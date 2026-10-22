@@ -18,7 +18,7 @@ const { serveShuApp } = withAction(new ShuStepper());
 const { set, setAs, exists, setFromStatement } = withAction(new VariablesStepper());
 const { comment } = withAction(new ResourcesStepper());
 const { feature, scenario } = withAction(new Haibun());
-const { enterStepMode, passesStepExecution, chooseGraphLabel } = createStepUI(wp);
+const { enterStepMode, passesStepForm, chooseGraphLabel } = createStepUI(wp);
 
 const host = "http://localhost:8239";
 const IDS = SHU_TEST_IDS;
@@ -153,7 +153,7 @@ export const features: TKirejiExport = {
 
 		"The affordances panel renders the logic engine's verdict for each goal: proved, unknown or refuted. The panel doesn't list forward-reachable steps. The actions bar's step picker lists them. The goals list mounts in the panel.",
 		...enterStepMode,
-		...passesStepExecution("LogicStepper-showAffordances"),
+		...passesStepForm("LogicStepper-showAffordances"),
 		waitFor({ target: IDS.AFFORDANCES.ROOT }),
 		waitFor({ target: IDS.AFFORDANCES.GOALS_LIST }),
 
@@ -175,7 +175,7 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "Invoke `show chain lint` and verify the domain chain renders as a graph" }),
 
 		"The chain-lint step returns the lint findings and the graph data. The findings include unsupplied steps, unreachable domains and unproduced domains. The graph data holds the forward edges and the goal verdicts. The domain chain view draws the graph data with the graph view. The feature waits for the chain view, its graph slot and the canvas in that slot.",
-		...passesStepExecution("LogicStepper-showDomainChainLint"),
+		...passesStepForm("LogicStepper-showDomainChainLint"),
 		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
 		waitFor({ target: IDS.DOMAIN_CHAIN.GRAPH }),
 		setAs({ what: CHAIN_GRAPH_CANVAS, domain: "page-locator", value: `"${CHAIN_GRAPH_CANVAS_SELECTOR}"` }),
@@ -189,7 +189,7 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "Repeated `show chain lint` invocations must not duplicate the pane" }),
 
 		"A view-open product is a request to mount a pane. Later steps don't chain from it as a fact. Running the same show step twice reuses the open pane. Each refresh of the affordances stream would add another pane without that reuse. The step dispatcher doesn't auto-assert the product of a view-only domain. This scenario invokes the step a second time and waits for the chain view's root and graph. Each wait reads the first match, so the scenario doesn't count the panes.",
-		...passesStepExecution("LogicStepper-showDomainChainLint"),
+		...passesStepForm("LogicStepper-showDomainChainLint"),
 		waitFor({ target: IDS.DOMAIN_CHAIN.ROOT }),
 		waitFor({ target: IDS.DOMAIN_CHAIN.GRAPH }),
 

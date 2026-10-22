@@ -4,7 +4,7 @@
  */
 import nodeFS from "fs";
 import path from "path";
-import type { TFeature, TFeaturesBackgrounds } from "../domains/execution.js";
+import type { TFeature, TFeaturesBackgrounds } from "../domains/actuality.js";
 import type { TBase } from "../domains/world.js";
 import { BASE_WITHOUT_FEATURES, type TFeatureSource } from "../ports.js";
 import { withName } from "../../domains/features.js";

@@ -1,5 +1,5 @@
 import { itemAt } from "./item-at.js";
-import { TExpandedFeature, TExpandedLine, TFeature, TFeatures } from "../actuality/domains/execution.js";
+import { TExpandedFeature, TExpandedLine, TFeature, TFeatures } from "../actuality/domains/actuality.js";
 import type { TResolvedFeature } from "../steps/domains/stepper.js";
 import { backgroundNamesSchema } from "./domains.js";
 

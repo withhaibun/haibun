@@ -7,7 +7,7 @@ import type { TWorld } from "@haibun/core/lib/world.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { obscuredText } from "@haibun/core/lib/steps/derivations/obscured.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
-import { SEQ_PATH_FIELD, executionOf } from "@haibun/core/lib/seq-path.js";
+import { SEQ_PATH_FIELD, actualityFeatureOf } from "@haibun/core/lib/seq-path.js";
 import { discoverSteps } from "@haibun/core/lib/steps/pipelines/discover-steps.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import { stepperContext } from "@haibun/core/lib/step-dispatch.js";
@@ -28,7 +28,7 @@ import type { TBundleFile } from "../ports.js";
 /** The hash parameter that names the type a graph query reads. */
 const LABEL_PARAM = "label";
 
-/** What the monitor's page shows a reader who arrives without an address: the monitor, beside the executions this device
+/** What the monitor's page shows a reader who arrives without an address: the monitor, beside the actuality features this device
  *  holds, where the reader opens an earlier feature. */
 export const MONITOR_OPENS_AT = hashWithColumns([SHU_TAG.MONITOR_COLUMN, SHU_TAG.CLIENT_CACHE_COLUMN]);
 
@@ -110,7 +110,7 @@ export async function reportHtml(scope: TReportScope): Promise<string> {
 		viewProducts,
 		viewHash: reportOpensAt(scope.queriedLabel),
 		actualityId: world.runtime.actualityId,
-		cache: carriedActuality(executionOf(world.tag), registry, graph === undefined ? [] : graph.quads),
+		cache: carriedActuality(actualityFeatureOf(world.tag), registry, graph === undefined ? [] : graph.quads),
 		labelFont: carriedLabelFont(scope.bundles.labelFont(), scope.bundles.labelFontRanges()),
 	} satisfies THydration);
 	const bundle = scope.bundles.whole(bundleFileName(BUNDLE_NAMES.report));

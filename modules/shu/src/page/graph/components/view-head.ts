@@ -34,7 +34,7 @@ export const SETTINGS_GROUP_NAMES = SETTINGS_GROUPS.map((g) => g.group) as [TSet
  *  take a row of their own under the head. */
 export function viewHeadCss(host: string): string {
 	return `
-	${host} .view-root { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+	${host} .view-root { display: flex; flex-flow: column; height: 100%; overflow: hidden; }
 	${host} .view-head { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--shu-space-2); font-size: var(--shu-font-sm); padding: var(--shu-space-2) var(--shu-space-3) 0; border-bottom: var(--shu-border-w) solid var(--shu-border); }
 	${host} .view-controls { display: flex; align-items: center; gap: var(--shu-space-2); color: var(--shu-fg); padding-bottom: var(--shu-space-1); }
 	${host} :is(.view-controls, .settings-row) :is(button, select) { background: var(--shu-bg-soft); color: var(--shu-fg); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); font: inherit; font-size: var(--shu-font-sm); padding: var(--shu-space-1) var(--shu-space-3); cursor: pointer; }

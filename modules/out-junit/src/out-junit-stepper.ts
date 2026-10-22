@@ -35,7 +35,7 @@ export default class OutJUnit extends AStepper implements IHasOptions, IHasCycle
 	description = "Generate JUnit XML reports from test results";
 
 	cycles: IStepperCycles = {
-		endExecution: async (results: TExecutorResult) => {
+		endActuality: async (results: TExecutorResult) => {
 			const junit = await this.featureResultAsJunit(results);
 			if (this.storage && this.outputFile) {
 				await this.storage.writeFileBuffer(this.outputFile, Buffer.from(junit));
@@ -62,7 +62,7 @@ export default class OutJUnit extends AStepper implements IHasOptions, IHasCycle
 		await Promise.resolve();
 	}
 
-	/** The report of an execution's features, as the actuality machine held them once the execution ended: a test case for
+	/** The report of an actuality's features, as the actuality machine held them once the actuality ended: a test case for
 	 *  each feature that ran, failed where the feature failed, with its first failed step. */
 	featureResultAsJunit(result: TExecutorResult) {
 		const { features } = result.actuality;

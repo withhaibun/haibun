@@ -3,7 +3,7 @@ import { TExecutorResult } from "../domains/protocol.js";
 import { AStepper, StepperKinds, CStepper } from "../steps/domains/stepper.js";
 import { expand } from "../domains/features.js";
 import { createSteppers, setStepperWorldsAndDomains } from "../domains/util.js";
-import type { TFeaturesBackgrounds } from "../actuality/domains/execution.js";
+import type { TFeaturesBackgrounds } from "../actuality/domains/actuality.js";
 import { Executor, addStepperConcerns } from "../actuality/pipelines/executor.js";
 import { Resolver } from "../actuality/pipelines/resolver.js";
 import { PhaseBailError, PhaseRunner } from "../steps/pipelines/phase-runner.js";
@@ -21,7 +21,7 @@ export class Runner {
 
 			await phaseRunner.tryPhase("WorldsAndDomains", () => setStepperWorldsAndDomains(this.steppers, this.world));
 
-			// Execution reads the domains that addStepperConcerns registers.
+			// The Executor reads the domains that addStepperConcerns registers.
 			await phaseRunner.tryPhase("Concerns", () => addStepperConcerns(this.world, this.steppers));
 
 			// The phase sets suppressConsole when a monitor stepper is loaded. The event logger doesn't write NDJSON events to the console while suppressConsole is set.
@@ -30,7 +30,7 @@ export class Runner {
 				if (this.steppers.some((s) => s.kind === StepperKinds.MONITOR) && this.world.eventLogger && !this.world.eventLogger.ndjsonForced) {
 					this.world.eventLogger.suppressConsole = true;
 				}
-				// findFeatureStepsFromStatement reads runtime.backgrounds to expand an inline `Backgrounds:` line during execution.
+				// findFeatureStepsFromStatement reads runtime.backgrounds to expand an inline `Backgrounds:` line while a feature runs.
 				this.world.runtime.backgrounds = featuresBackgrounds.backgrounds;
 			});
 

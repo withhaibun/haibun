@@ -173,7 +173,7 @@ const READING_DOMAIN = "reading";
 /**
  * A SeqPath is the hierarchical step identifier reified as a graph node.
  *
- * `featureStep.seqPath: number[]` is the per-execution hierarchical id, such as [0,1,2,10] → "0.1.2.10". Step dispatch
+ * `featureStep.seqPath: number[]` is the hierarchical id within an actuality feature, such as [0,1,2,10] → "0.1.2.10". Step dispatch
  * emits SeqPath quads on step entry and exit, so any structured emission within a step's context can link back to it
  * through LinkRelations.SEQ_PATH.
  */
@@ -676,7 +676,7 @@ export type THypermediaTopology = {
 	 */
 	announceWrites?: boolean;
 	/**
-	 * Whether the type records actuality's own execution and not a feature's data. A step path, a log line and an HTTP
+	 * Whether the type records actuality itself and not a feature's data. A step path, a log line and an HTTP
 	 * exchange are examples. A search for a reader's records doesn't read the type. A conversation's context excludes
 	 * its records. A view hides it until a reader shows it. Absent means a feature's data.
 	 */

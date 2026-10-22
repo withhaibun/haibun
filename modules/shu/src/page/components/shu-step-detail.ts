@@ -51,7 +51,7 @@ export class ShuStepDetail extends ShuElement<typeof StateSchema> {
 		return {
 			"@id": `view:step-${this.state.record?.id}`,
 			"@type": "prov:Activity",
-			name: "a step execution detail",
+			name: "a step's detail",
 			step: data.step,
 			...(data.variablesSet.length ? { variablesSet: data.variablesSet } : {}),
 		};

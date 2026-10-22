@@ -3,7 +3,7 @@
  * system it is given.
  */
 import path from "node:path";
-import { SpeclSchema, type TSpecl, type TStepperEntry } from "@haibun/core/lib/execution.js";
+import { SpeclSchema, type TSpecl, type TStepperEntry } from "@haibun/core/lib/actuality.js";
 import type { TBase } from "@haibun/core/lib/world.js";
 import { DEFAULT_DEST } from "@haibun/core/lib/domains/protocol.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";

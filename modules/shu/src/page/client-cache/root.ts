@@ -1,6 +1,6 @@
 /**
  * The client cache's composition root: the page's one connection to each device database, the device's store and graph
- * of each actuality, the readers told of a write to the device, the execution the page reads, and the readings of
+ * of each actuality, the readers told of a write to the device, the actuality feature the page reads, and the readings of
  * actuality the views share. Each is held on the page by key, so every bundle on the page shares it.
  */
 import { machine, type Machine } from "@haibun/core/lib/machines/machine.js";
@@ -9,7 +9,7 @@ import { pageHydration, pageLog } from "../root.js";
 import { databaseOf, deviceDatabase, heldDatabaseNames, IndexedDbDeviceStore, MemoryDeviceStore, type TDeviceConnections } from "./adapters/device-store.js";
 import { GRAPH_BOUND, IndexedDbQuads } from "./adapters/quad-store.js";
 import { indexedDbSummary, type TIdbDatabaseSummary } from "./adapters/idb-summary.js";
-import { INITIAL_EXECUTIONS, executionsTransition, type TExecutionsEvent, type TExecutionsState } from "./machines/executions.js";
+import { INITIAL_ACTUALITY_FEATURES, actualityFeaturesTransition, type TActualityFeaturesEvent, type TActualityFeaturesState } from "./machines/actuality-features.js";
 import type { TCachedGraph, TDeviceDatabase, TDeviceQuads, TDeviceReport, TDeviceStore, TActualityRegistry } from "./ports.js";
 
 export { CACHE_SHAPE } from "./ports.js";
@@ -23,7 +23,7 @@ const ACTUALITY_SOURCE = "actuality-source";
 const CONNECTIONS_KEY = "__SHU_DEVICE_DB__";
 const WRITE_LISTENERS_KEY = "__SHU_CLIENT_CACHE_WRITE_LISTENERS__";
 const STORE_KEY = "__SHU_DEVICE_STORE__";
-const EXECUTIONS_KEY = "__SHU_READING_EXECUTION__";
+const ACTUALITY_FEATURES_KEY = "__SHU_READING_ACTUALITY_FEATURE__";
 const ACTUALITY_REGISTRY_KEY = "__SHU_READINGS__";
 const ACTUALITY_SOURCES_KEY = "__SHU_ACTUALITY_SOURCES__";
 const GRAPH_SLOT_KEY = "__SHU_CACHED_GRAPH_STORE__";
@@ -91,8 +91,9 @@ export const graphSlot = (): TGraphSlot => pagePinned(GRAPH_SLOT_KEY, (): TGraph
 /** What IndexedDB holds for this origin: each database, its stores and their counts. */
 export const deviceSummary = (): Promise<TIdbDatabaseSummary[]> => indexedDbSummary();
 
-/** The execution the page reads. */
-export const pageExecutions = (): Machine<TExecutionsState, TExecutionsEvent> => pagePinned(EXECUTIONS_KEY, () => machine(INITIAL_EXECUTIONS, executionsTransition));
+/** The actuality feature the page reads. */
+export const pageActualityFeatures = (): Machine<TActualityFeaturesState, TActualityFeaturesEvent> =>
+	pagePinned(ACTUALITY_FEATURES_KEY, () => machine(INITIAL_ACTUALITY_FEATURES, actualityFeaturesTransition));
 
 /** The readings of actuality the views share. */
 export const actualityRegistry = (): TActualityRegistry =>

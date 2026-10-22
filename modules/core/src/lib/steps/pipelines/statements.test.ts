@@ -24,7 +24,7 @@ describe("statementsWith", () => {
 
 	beforeEach(async () => {
 		store = storeDeclaring(Object.fromEntries([REPORT, SEQ_PATH_LABEL, READING_LABEL, SPECIFIC_RESOURCE_LABEL, TEXT_QUOTE_SELECTOR_LABEL].map((label) => [label, {}])));
-		// An execution: the line `1-1.0.1.1.2` passed, and its statement `1-1.0.1.1.2.1` is running.
+		// A feature of an actuality: the line `1-1.0.1.1.2` passed, and its statement `1-1.0.1.1.2.1` is running.
 		await store.upsertIndividual(SEQ_PATH_LABEL, { [SEQ_PATH_FIELD.id]: LINE, [SEQ_PATH_FIELD.actionStatus]: RECORDED_STATUS.completed, [SEQ_PATH_FIELD.stepText]: "a line" });
 		await store.upsertIndividual(SEQ_PATH_LABEL, { [SEQ_PATH_FIELD.id]: STEP, [SEQ_PATH_FIELD.actionStatus]: RECORDED_STATUS.running, [SEQ_PATH_FIELD.stepText]: "prose" });
 		// The cited document. The statement references a record that exists.

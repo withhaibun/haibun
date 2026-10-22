@@ -40,10 +40,10 @@ import { OK, ACTUALITY_LEVELS, RECORDED_STATUS } from "@haibun/core/lib/domains/
 import { LEVEL_STATUS } from "@haibun/core/lib/actuality/domains/level-status.js";
 import { DEFAULT_HOST_ID } from "@haibun/core/lib/domains/host-id.js";
 import { type TRunOutcome, emptyOutcome, firstFailure, readRunOutput } from "./pipelines/run-outcome.js";
-import { executionEnded, transition, type TActuality, type TActualityMove } from "@haibun/core/lib/actuality/machines/actuality.js";
+import { actualityEnded, transition, type TActuality, type TActualityMove } from "@haibun/core/lib/actuality/machines/actuality.js";
 import { writeLevelRecord, type TLevelMoved, type TLevelRecords } from "@haibun/core/lib/actuality/pipelines/move-actuality.js";
 import type { TLevelNaming, TStepRecord } from "@haibun/core/lib/actuality/derivations/step-records.js";
-import { SEQ_PATH_EDGE, SEQ_PATH_FIELD, executionOf, formatRecordName } from "@haibun/core/lib/seq-path.js";
+import { SEQ_PATH_EDGE, SEQ_PATH_FIELD, actualityFeatureOf, formatRecordName } from "@haibun/core/lib/seq-path.js";
 import { actingAs, askedIn } from "@haibun/core/lib/domains/capability-context.js";
 import { signInOf, verifiedRun } from "./pipelines/run-conditions.js";
 import { INSTANCE_PORT_ENV, KEY_ENV, RUN_DOMAIN, RunTail, SUPERVISOR_CAPABILITIES, runDomainDefinitions, runEnvironment } from "./domains/run.js";
@@ -108,13 +108,13 @@ function stoppedBeforeServing(dir: string, child: ChildProcess, actuality: TActu
 	if (child.exitCode !== null) return `instance at ${dir} exited with code ${child.exitCode} before it served. Correct the cause its error output reports${shown}`;
 	const failed = firstFailure(actuality);
 	if (failed !== undefined) return `instance at ${dir} failed before it served, at ${failed}. Correct that step, then start the instance again`;
-	if (executionEnded(actuality)) return `instance at ${dir} ended its features before it served. End its feature with the step "${SERVE_UNTIL_STOPPED}"`;
+	if (actualityEnded(actuality)) return `instance at ${dir} ended its features before it served. End its feature with the step "${SERVE_UNTIL_STOPPED}"`;
 	return undefined;
 }
 
 /** Why a standing run stopped before it responded to the handshake, or undefined while it starts: it exited, or its features ended. */
 const runStopped = (held: TRun): string | undefined =>
-	held.ended !== null ? `it exited with code ${held.ended}` : executionEnded(held.outcome.actuality) ? "its features ended" : undefined;
+	held.ended !== null ? `it exited with code ${held.ended}` : actualityEnded(held.outcome.actuality) ? "its features ended" : undefined;
 
 /** Returns the resolved directory and its config.json. Throws with `doing` as the prefix when the directory doesn't hold a config.json. */
 function configIn(doing: string, where: string): { dir: string; config: string } {
@@ -316,7 +316,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		// A port above zero makes a run addressable. A standing run also gets STAY, so its endpoint stays up after its
 		// features finish. Port 0 leaves a run on the ports its features declare. A feature that asserts a default port
 		// needs port 0. A run that isn't standing ends when its features end.
-		// A run's key names the child's actuality and the executions of its features, so this process writes the records of
+		// A run's key names the child's actuality and each of its actuality features, so this process writes the records of
 		// the actuality's levels under the names the child's own records take. A key is the time a run started, later than
 		// every key this process gave before.
 		this.lastKey = Math.max(this.getWorld().clock.now(), this.lastKey + 1);
@@ -352,22 +352,22 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			held.ended = typeof code === "number" ? code : -1;
 		});
 		this.runs.set(run, held);
-		return actionOKWithProducts({ run, where: dir, filter, record: formatRecordName({ execution: executionOf({ key: naming.key, featureNum: 0 }), path: [] }) });
+		return actionOKWithProducts({ run, where: dir, filter, record: formatRecordName({ actuality: actualityFeatureOf({ key: naming.key, featureNum: 0 }), path: [] }) });
 	}
 
 	/** Reads a chunk of a run's output: it keeps the chunk in its tail, moves its machine, writes the records of the levels
 	 *  the chunk moved, and wakes its waiters where the chunk ended its actuality, whether or not it keeps serving. */
 	protected take(held: TRun, text: string): void {
 		held.tail.append(text);
-		const wasFinished = executionEnded(held.outcome.actuality);
+		const wasFinished = actualityEnded(held.outcome.actuality);
 		for (const moved of readRunOutput(held.outcome, text)) this.writeLevel(held, moved);
-		if (!wasFinished && executionEnded(held.outcome.actuality)) for (const wake of held.waiters.splice(0)) wake();
+		if (!wasFinished && actualityEnded(held.outcome.actuality)) for (const wake of held.waiters.splice(0)) wake();
 	}
 
 	/** Writes the record of the actuality level that a run's move started or ended into this process's store, after the
 	 *  records of the moves before it. A read of a run awaits the writes, so a write that fails fails the read with its cause. */
 	private writeLevel(held: TRun, moved: TLevelMoved): void {
-		const stated = moved.move.type === "execution" ? held.stated : undefined;
+		const stated = moved.move.type === "actuality" ? held.stated : undefined;
 		held.writing = held.writing.then(() => writeLevelRecord(this.getWorld().shared.getStore(), held.levels, moved, held.naming, stated));
 	}
 
@@ -435,7 +435,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 	 *  report wake the wait, so this step doesn't poll. */
 	private async waitRun(run: string, seconds: number, cursor: number) {
 		const held = this.startedRun("wait for run", run);
-		if (held.ended === null && !executionEnded(held.outcome.actuality)) {
+		if (held.ended === null && !actualityEnded(held.outcome.actuality)) {
 			await new Promise<void>((resolve) => {
 				const done = () => {
 					cancel();
@@ -464,7 +464,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			exitCode: held.ended,
 			...held.tail.since(cursor),
 			features: actuality.features.length,
-			execution: actuality.status,
+			actuality: actuality.status,
 			steps: actuality.steps,
 			failures: actuality.failures,
 			...(report === undefined ? {} : { report }),

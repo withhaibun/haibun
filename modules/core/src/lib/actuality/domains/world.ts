@@ -8,7 +8,7 @@ import type { TStepResult, TFeatureSteps } from "../../domains/protocol.js";
 import { CONTINUE_AFTER_ERROR, NDJSON, ShownLogLevelSchema } from "../../domains/protocol.js";
 import type { TRegisteredDomain } from "../../domains/resources.js";
 import type { StepRegistry } from "../../steps/pipelines/step-registry.js";
-import type { TFeature } from "./execution.js";
+import type { TFeature } from "./actuality.js";
 import type { AStepper } from "../../steps/domains/stepper.js";
 import type { TActualityMachine } from "../machines/actuality.js";
 import type { TLevelRecords } from "../pipelines/move-actuality.js";
@@ -33,9 +33,9 @@ export type TRuntime = {
 	/** The id of the actuality that owns the records in the store. Each call to this instance after the handshake states
 	 *  this id. A stepper whose store keeps its records across processes replaces this id with the id that the store holds. */
 	actualityId: TActualityId;
-	/** The levels of the execution: every lifecycle event of a level that actuality emits is a move of this machine. */
+	/** The levels of actuality: every lifecycle event of a level that actuality emits is a move of this machine. */
 	actuality: TActualityMachine;
-	/** The records of the execution's levels by their events' id. A level's end extends its start's record. */
+	/** The records of actuality's levels by their events' id. A level's end extends its start's record. */
 	levels: TLevelRecords;
 	/** The digest of each dependency root of the features, which the actuality's record states, where the caller read them. */
 	digest?: TDigest;
@@ -44,7 +44,7 @@ export type TRuntime = {
 	backgrounds?: TFeature[];
 	scenario?: string;
 	feature?: string;
-	/** Current feature file path (for dynamic statement execution) */
+	/** The path of the feature file in progress, which a statement resolved while a feature runs reads. */
 	currentFeaturePath?: string;
 	/** The steps a reader can still read in full: the most recent the feature has run. */
 	stepResults: TStepResult[];
@@ -53,7 +53,7 @@ export type TRuntime = {
 	steps: TFeatureSteps;
 	/** The last index allocated under each parent path, per direction. The next path under that parent counts from it. */
 	seqPaths: Map<string, number>;
-	/** Active steppers for this execution. Set by Executor, used by populateActionArgs / domain coercion. */
+	/** The steppers of this actuality. The Executor sets them, and populateActionArgs and domain coercion read them. */
 	steppers?: AStepper[];
 	/** Shared step registry. Set by Executor, used for dynamic step registration. */
 	stepRegistry?: StepRegistry;

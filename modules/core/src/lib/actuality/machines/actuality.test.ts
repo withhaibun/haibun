@@ -6,10 +6,10 @@ import { INITIAL_ACTUALITY, actualityMachine, runningFeature, transition, type T
 import { LEVEL_STATUS } from "../domains/level-status.js";
 
 const fold = (moves: readonly TActualityMove[], from: TActuality = INITIAL_ACTUALITY): TActuality => moves.reduce(transition, from);
-const execution = (stage: "start" | "end", status?: string): TActualityMove => ({
-	type: "execution",
+const actuality = (stage: "start" | "end", status?: string): TActualityMove => ({
+	type: "actuality",
 	stage,
-	id: `execution-${stage}`,
+	id: `actuality-${stage}`,
 	...(status === undefined ? {} : { status }),
 });
 const feature = (id: string, stage: "start" | "end", status?: string): TActualityMove => ({
@@ -36,14 +36,14 @@ const step = (id: string, stage: "start" | "end", status?: string, more: Partial
 	...more,
 });
 
-describe("the execution level", () => {
+describe("the actuality level", () => {
 	const EVENTS = ["start", "completed", "failed", "featureStart", "stepFailed"] as const;
 	type TEvent = (typeof EVENTS)[number];
 	type TStatus = "pending" | "running" | "completed" | "failed";
 	const MOVE: Record<TEvent, TActualityMove> = {
-		start: execution("start"),
-		completed: execution("end", STATUS.completed),
-		failed: execution("end", STATUS.failed),
+		start: actuality("start"),
+		completed: actuality("end", STATUS.completed),
+		failed: actuality("end", STATUS.failed),
 		featureStart: feature("f1", "start"),
 		stepFailed: step("0.1.1.1", "end", STATUS.failed),
 	};
@@ -64,14 +64,14 @@ describe("the execution level", () => {
 		assertTable(TABLE, AT, { events: EVENTS, statusOf: (state) => state.status as TStatus, event: (type) => MOVE[type], transition });
 	});
 
-	it("starts a second execution afresh once the first has ended", () => {
+	it("starts a second actuality afresh once the first has ended", () => {
 		const second = fold([feature("f1", "start"), step("0.1.1.1", "end", STATUS.completed), MOVE.completed, MOVE.start]);
 		expect(second).toEqual({ ...INITIAL_ACTUALITY, status: LEVEL_STATUS.running });
 	});
 });
 
 describe("the feature level", () => {
-	const EVENTS = ["start", "completed", "failed", "otherStart", "executionEnd"] as const;
+	const EVENTS = ["start", "completed", "failed", "otherStart", "actualityEnd"] as const;
 	type TEvent = (typeof EVENTS)[number];
 	type TStatus = "absent" | "running" | "completed" | "failed";
 	const MOVE: Record<TEvent, TActualityMove> = {
@@ -79,7 +79,7 @@ describe("the feature level", () => {
 		completed: feature("f1", "end", STATUS.completed),
 		failed: feature("f1", "end", STATUS.failed),
 		otherStart: feature("f2", "start"),
-		executionEnd: execution("end", STATUS.failed),
+		actualityEnd: actuality("end", STATUS.failed),
 	};
 	const TABLE: Record<TStatus, Record<TEvent, TStatus>> = {
 		absent: staying(EVENTS, "absent", { start: "running" }),
@@ -87,7 +87,7 @@ describe("the feature level", () => {
 		completed: staying(EVENTS, "completed", {}),
 		failed: staying(EVENTS, "failed", {}),
 	};
-	const started = fold([execution("start")]);
+	const started = fold([actuality("start")]);
 	const AT: Record<TStatus, TActuality> = {
 		absent: started,
 		running: fold([MOVE.start], started),
@@ -103,8 +103,8 @@ describe("the feature level", () => {
 		assertTable(TABLE, AT, { events: EVENTS, statusOf, event: (type) => MOVE[type], transition });
 	});
 
-	it("doesn't start a feature after its execution ended", () => {
-		expect(fold([execution("end", STATUS.completed), feature("f3", "start")], started).features).toEqual([]);
+	it("doesn't start a feature after its actuality ended", () => {
+		expect(fold([actuality("end", STATUS.completed), feature("f3", "start")], started).features).toEqual([]);
 	});
 });
 
@@ -123,7 +123,7 @@ describe("the scenario level", () => {
 		running: staying(EVENTS, "running", { end: "completed" }),
 		completed: staying(EVENTS, "completed", {}),
 	};
-	const inFeature = fold([execution("start"), feature("f1", "start")]);
+	const inFeature = fold([actuality("start"), feature("f1", "start")]);
 	const AT: Record<TStatus, TActuality> = { absent: inFeature, running: fold([MOVE.start], inFeature), completed: fold([MOVE.start, MOVE.end], inFeature) };
 	const statusOf = (state: TActuality): TStatus => {
 		const held = state.features.at(-1)?.scenarios.find((s) => s.id === "s1");
@@ -135,7 +135,7 @@ describe("the scenario level", () => {
 	});
 
 	it("doesn't start a scenario outside a running feature", () => {
-		expect(fold([MOVE.start], fold([execution("start")])).features).toEqual([]);
+		expect(fold([MOVE.start], fold([actuality("start")])).features).toEqual([]);
 	});
 });
 
@@ -160,9 +160,9 @@ describe("the step level", () => {
 		assertTable(TABLE, AT, { events: EVENTS, statusOf, event: (type) => MOVE[type], transition });
 	});
 
-	it("counts each step that ends within its feature, and lists the execution's own failures", () => {
+	it("counts each step that ends within its feature, and lists the actuality's own failures", () => {
 		const state = fold([
-			execution("start"),
+			actuality("start"),
 			feature("f1", "start"),
 			step("0.1.1.1", "end", STATUS.completed),
 			step("0.1.1.2", "end", STATUS.failed, { error: "the answer is other" }),
@@ -178,8 +178,8 @@ describe("the step level", () => {
 });
 
 describe("the actuality machine", () => {
-	it("moves on every step, and holds as many steps as ended since its execution started, with each open count above zero, after any sequence", () => {
-		const MOVES = [execution("start"), feature("f1", "start"), feature("f1", "end", STATUS.completed), step("1", "start"), step("1", "end", STATUS.completed), step("2", "start")];
+	it("moves on every step, and holds as many steps as ended since its actuality started, with each open count above zero, after any sequence", () => {
+		const MOVES = [actuality("start"), feature("f1", "start"), feature("f1", "end", STATUS.completed), step("1", "start"), step("1", "end", STATUS.completed), step("2", "start")];
 		runSequences(
 			() => ({ held: actualityMachine(), ended: 0 }),
 			(context, random, label) => {
@@ -191,8 +191,8 @@ describe("the actuality machine", () => {
 					if (move.stage === "end") context.ended += 1;
 				} else {
 					label(`${move.type} ${move.stage}`);
-					// An execution that starts after another ended starts its counts afresh.
-					if (move.type === "execution" && move.stage === "start" && before.status !== LEVEL_STATUS.running) context.ended = 0;
+					// An actuality that starts after another ended starts its counts afresh.
+					if (move.type === "actuality" && move.stage === "start" && before.status !== LEVEL_STATUS.running) context.ended = 0;
 				}
 				expect(after.steps).toBe(context.ended);
 				expect([...after.open.values()].every((count) => count > 0)).toBe(true);

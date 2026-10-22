@@ -7,7 +7,7 @@ import type { TFeatureStep } from "../../steps/domains/stepper.js";
 import { LinkRelations, type AccessLevel } from "../../domains/resources.js";
 import { itemAt } from "../../domains/item-at.js";
 import type { TWorld } from "../domains/world.js";
-import { SEQ_PATH_EDGE, SEQ_PATH_FIELD, STEP_LEVEL, calledOf, executionOf, formatRecordName, type TRecordName } from "../domains/seq-path.js";
+import { SEQ_PATH_EDGE, SEQ_PATH_FIELD, STEP_LEVEL, calledOf, actualityFeatureOf, formatRecordName, type TRecordName } from "../domains/seq-path.js";
 import type { TActuality, TActualityMove } from "../machines/actuality.js";
 import type { TStepFailure } from "../domains/step-failure.js";
 
@@ -39,13 +39,13 @@ export type TStepRecord = Record<string, unknown>;
 
 /** A step's record at its start, written at `at` (an ISO time). It states every field the SeqPath schema requires, so a
  *  reader that reads the record during the step reads a whole record. */
-export function startRecord(execution: string, featureStep: TFeatureStep, authorization: TStepAuthorization, ran: TStepRan, call: TStepCall, at: string): TStepRecord {
+export function startRecord(actualityFeature: string, featureStep: TFeatureStep, authorization: TStepAuthorization, ran: TStepRan, call: TStepCall, at: string): TStepRecord {
 	const params = paramsOf(featureStep);
 	const record: TStepRecord = {
-		[SEQ_PATH_FIELD.id]: formatRecordName({ execution, path: featureStep.seqPath }),
-		// The execution that contains this step, as a field as well as the leading part of its id. A store filters on a
-		// field, so one execution's steps can be read, counted and spanned together.
-		[SEQ_PATH_FIELD.execution]: execution,
+		[SEQ_PATH_FIELD.id]: formatRecordName({ actuality: actualityFeature, path: featureStep.seqPath }),
+		// The actuality feature that contains this step, as a field as well as the leading part of its id. A store filters on a
+		// field, so the steps of one feature of an actuality can be read, counted and spanned together.
+		[SEQ_PATH_FIELD.actuality]: actualityFeature,
 		[SEQ_PATH_FIELD.recordedAtTime]: at,
 		[SEQ_PATH_FIELD.stepText]: featureStep.in,
 		// The stepper and action that ran, beside the line's text. Without this field a step's record states only the
@@ -70,9 +70,9 @@ export function startRecord(execution: string, featureStep: TFeatureStep, author
 		...(featureStep.source?.path ? { [SEQ_PATH_FIELD.path]: featureStep.source.path } : {}),
 	};
 	if (featureStep.seqPath.length > 1) {
-		record[LinkRelations.PART_OF.rel] = formatRecordName({ execution, path: featureStep.seqPath.slice(0, -1) });
+		record[LinkRelations.PART_OF.rel] = formatRecordName({ actuality: actualityFeature, path: featureStep.seqPath.slice(0, -1) });
 		const lastIndex = itemAt(featureStep.seqPath, featureStep.seqPath.length - 1);
-		if (lastIndex > 0) record[LinkRelations.PRECEDED_BY.rel] = formatRecordName({ execution, path: [...featureStep.seqPath.slice(0, -1), lastIndex - 1] });
+		if (lastIndex > 0) record[LinkRelations.PRECEDED_BY.rel] = formatRecordName({ actuality: actualityFeature, path: [...featureStep.seqPath.slice(0, -1), lastIndex - 1] });
 	}
 	return record;
 }
@@ -95,27 +95,27 @@ export const endRecord = (start: TStepRecord, ended: TStepEnded, at: string): TS
 	...(ended.result === undefined ? {} : { [SEQ_PATH_FIELD.result]: ended.result }),
 });
 
-/** What names an execution's levels: the key of the process that executes it, and the host that leads its step paths. */
+/** What names actuality's levels: the key of the process that runs it, and the host that leads its step paths. */
 export type TLevelNaming = { key: string; hostId: number };
 
 /** A failed step as one line: its id, and its text and its message where its end states them. */
 export const failureText = (failure: TStepFailure): string =>
 	[`${failure.id}:`, failure.step, failure.message === undefined ? undefined : `(${failure.message})`].filter((part) => part !== undefined).join(" ");
 
-/** The name of a level's record: the execution's, the `featureNum`th feature's, or a scenario of it by its ordinal. A
+/** The name of a level's record: the actuality's, the `featureNum`th feature's, or a scenario of it by its ordinal. A
  *  feature's record is at the path its steps outside every scenario name, with scenario segment 0. */
 const levelName = (naming: TLevelNaming, featureNum: number, scenario: number): TRecordName =>
 	featureNum === 0
-		? { execution: executionOf({ key: naming.key, featureNum }), path: [] }
-		: { execution: executionOf({ key: naming.key, featureNum }), path: [naming.hostId, featureNum, scenario] };
+		? { actuality: actualityFeatureOf({ key: naming.key, featureNum }), path: [] }
+		: { actuality: actualityFeatureOf({ key: naming.key, featureNum }), path: [naming.hostId, featureNum, scenario] };
 
 /** Where a level's record is: its name, its heading, the feature file it states, and the records it is part of and follows. */
 type TLevelAt = { name: TRecordName; heading: string; source?: string; partOf?: TRecordName; precededBy?: TRecordName };
 
 function levelAt(move: TActualityMove, after: TActuality, naming: TLevelNaming): TLevelAt {
 	const featureNum = after.features.length;
-	if (move.type === "execution") {
-		if (move.in === undefined) throw new Error("the execution's start doesn't state its heading; the Executor states the base of its features");
+	if (move.type === "actuality") {
+		if (move.in === undefined) throw new Error("the actuality's start doesn't state its heading; the Executor states the base of its features");
 		return { name: levelName(naming, 0, 0), heading: move.in };
 	}
 	const feature = itemAt(after.features, featureNum - 1);
@@ -137,9 +137,9 @@ function levelAt(move: TActualityMove, after: TActuality, naming: TLevelNaming):
 
 /**
  * The record of the level a move of the actuality machine starts or ends, from the state after the move: the
- * execution's, a feature's or a scenario's. Its start states the level's heading, the record it is part of and the
+ * actuality's, a feature's or a scenario's. Its start states the level's heading, the record it is part of and the
  * record of the level before it. Its end is its start with how the level ended, and with the first failure of a
- * feature or of the execution that failed. The move happened at `timestamp`. Returns undefined for a step's move,
+ * feature or of the actuality that failed. The move happened at `timestamp`. Returns undefined for a step's move,
  * whose record dispatchStep writes. Throws for an end without its start's record.
  */
 export function levelRecord(
@@ -157,14 +157,14 @@ export function levelRecord(
 		const status = Object.entries(RECORDED_STATUS).find(([word]) => word === move.status && word !== STATUS.running)?.[1];
 		if (status === undefined) throw new Error(`the ${move.type} ${move.id} ended as ${move.status}, which doesn't end a level`);
 		const failed = status === RECORDED_STATUS.failed ? after : undefined;
-		const failure = move.type === "execution" ? failed?.failures[0] : move.type === "feature" ? failed?.features.at(-1)?.firstFailure : undefined;
+		const failure = move.type === "actuality" ? failed?.failures[0] : move.type === "feature" ? failed?.features.at(-1)?.firstFailure : undefined;
 		return endRecord(started, { status, ...(failure === undefined ? {} : { error: failureText(failure) }) }, at);
 	}
 	const { name, heading, source, partOf, precededBy } = levelAt(move, after, naming);
 	const level: TActualityLevel = move.type;
 	return {
 		[SEQ_PATH_FIELD.id]: formatRecordName(name),
-		[SEQ_PATH_FIELD.execution]: name.execution,
+		[SEQ_PATH_FIELD.actuality]: name.actuality,
 		[SEQ_PATH_FIELD.recordedAtTime]: at,
 		[SEQ_PATH_FIELD.stepText]: heading,
 		[SEQ_PATH_FIELD.actionStatus]: RECORDED_STATUS.running,

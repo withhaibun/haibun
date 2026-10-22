@@ -30,7 +30,7 @@ Stop (ignored) words can be used at the start of statements and include given, w
 
 A line written as a sentence, which starts with a capital and ends with `.`, `!`, `?`, `:` or `;`, is prose, even where removing a stop word such as "A" leaves a step's words. A heading such as `Scenario:` whose title ends with punctuation is still its heading. A line that starts with a symbol runs the step whose pattern matches it, and is prose where the step patterns don't match it.
 
-Steps can also be written as Typescript modules, analogous to kireji, identified with .feature.ts. They can be mixed with text form and are displayed in text form during execution. Kireji provides syntax checking and code-based navigation. See [examples in e2e-tests](e2e-tests/tests/features/).
+Steps can also be written as Typescript modules, analogous to kireji, identified with .feature.ts. They can be mixed with text form and are displayed in text form as they run. Kireji provides syntax checking and code-based navigation. See [examples in e2e-tests](e2e-tests/tests/features/).
 
 ### Comments
 
@@ -278,7 +278,7 @@ Variables bound in outer quantifiers (`{page}`) flow through to inner predicates
 
 #### Observations
 
-Observations capture runtime data that isn't explicitly set via `set` statements. They enable verification of emergent behaviors like network traffic, visited pages, and step execution patterns.
+Observations capture runtime data that isn't explicitly set via `set` statements. They enable verification of emergent behaviors like network traffic, visited pages, and the patterns of the steps that ran.
 
 Use `observed in` to iterate over observation sources:
 

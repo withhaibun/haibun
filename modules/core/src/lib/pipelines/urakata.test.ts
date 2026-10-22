@@ -325,7 +325,7 @@ describe("UrakataRegistry persistence of transitions", () => {
 		});
 		await sleep(0); // let the registration upsert flush
 		const atStart = await readTask(world, u.id);
-		expect(atStart?.execution).toBe(world.tag.key);
+		expect(atStart?.actuality).toBe(world.tag.key);
 		expect(atStart?.stoppedAt).toBeUndefined();
 		expect(atStart?.errorCount).toBe(0);
 
@@ -349,7 +349,7 @@ describe("UrakataRegistry persistence of transitions", () => {
 			.upsertIndividual(URAKATA_LABEL, {
 				id: "imap.idle.acct/INBOX",
 				description: "from a prior instance",
-				execution: "OTHER-INSTANCE",
+				actuality: "OTHER-INSTANCE",
 				seqPath: [0],
 				startedAt: new Date().toISOString(),
 				tickIndex: 5,
@@ -360,10 +360,10 @@ describe("UrakataRegistry persistence of transitions", () => {
 		const fresh = registry.register({ needs: [], id: "different.task", description: "new", intervalMs: 1000, tick: () => undefined });
 		await sleep(0);
 		const prior = await readTask(world, "imap.idle.acct/INBOX");
-		expect(prior?.execution).toBe("OTHER-INSTANCE"); // untouched
+		expect(prior?.actuality).toBe("OTHER-INSTANCE"); // untouched
 		expect(prior?.stoppedAt).toBeUndefined();
 		const freshRow = await readTask(world, fresh.id);
-		expect(freshRow?.execution).toBe(world.tag.key);
+		expect(freshRow?.actuality).toBe(world.tag.key);
 		await registry.stopAll();
 
 		// A restart registers the prior id again. The registration overwrites the row with the current instance and leaves
@@ -372,7 +372,7 @@ describe("UrakataRegistry persistence of transitions", () => {
 		registry2.register({ needs: [], id: "imap.idle.acct/INBOX", description: "restarted", intervalMs: 1000, tick: () => undefined });
 		await sleep(0);
 		const restarted = await readTask(world, "imap.idle.acct/INBOX");
-		expect(restarted?.execution).toBe(world.tag.key);
+		expect(restarted?.actuality).toBe(world.tag.key);
 		expect(restarted?.stoppedAt).toBeUndefined();
 		await registry2.stopAll();
 	});

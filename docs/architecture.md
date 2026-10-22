@@ -130,7 +130,7 @@ Reads files from `features/` and `backgrounds/` directories (main features are s
 
 ## Phase 3: Resolver
 
-Resolution matches each line to a step, building the complete execution plan before any steps run.
+Resolution matches each line to a step before any step runs, so every line of every feature is resolved before actuality starts.
 
 ### Stop Word Stripping
 
@@ -155,10 +155,10 @@ A waypoint is a rule, which ActivitiesStepper holds as resolution reaches its li
 
 ## Phase 4: Executor
 
-The Executor runs resolved features through stepper lifecycle methods. Actuality starts here: from this phase on there is a live system, and each step it performs adds to its results. Steppers that implement `IStepperCycles` can hook into execution at various points:
+The Executor runs resolved features through stepper lifecycle methods. Actuality starts here: from this phase on there is a live system, and each step it performs adds to its results. Steppers that implement `IStepperCycles` take part in actuality through these cycles:
 
 ```
-startExecution(features)     
+startActuality(features)     
   startFeature(feature)      
     startScenario(scopedVars)
       beforeStep(step)       
@@ -166,10 +166,10 @@ startExecution(features)
       afterStep(step, result)
     endScenario()
   endFeature()
-endExecution(results)
+endActuality(results)
 ```
 
-Throughout execution, `onEvent(event)` is called for each lifecycle event, log, or artifact. Monitors use this to observe and record execution.
+Throughout actuality, `onEvent(event)` is called for each lifecycle event, log, or artifact. Monitors use this to observe and record actuality.
 
 For example, when `click "Sign In"` executes:
 1. `beforeStep` debugger can pause here
@@ -390,7 +390,7 @@ Steppers register sources via `getConcerns()` in their cycles.
 
 ## Monitors
 
-Monitors receive `THaibunEvent` via `onEvent` during execution. They track progress, emit telemetry, and generate reports.
+Monitors receive `THaibunEvent` via `onEvent` throughout actuality. They track progress, emit telemetry, and generate reports.
 
 | Monitor | Purpose |
 |---------|---------|
@@ -500,7 +500,7 @@ export const features: TKirejiExport = {
 | Lifecycle Hooks | Implement `IStepperCycles` (`startFeature`, `afterStep`, `onEvent`, etc.) |
 | Domains | Declare `TDomainDefinition` in the cycles' `getConcerns`: a schema that takes each form of the value and yields it |
 | Observation Sources | Implement `IObservationSource`, whose `observe` returns facts about its items, for quantifier iteration (`observed in source`) |
-| Monitors | Implement `onEvent` to receive execution telemetry |
+| Monitors | Implement `onEvent` to receive actuality's telemetry |
 
 # How code is organized
 

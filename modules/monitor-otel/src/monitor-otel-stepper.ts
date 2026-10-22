@@ -30,7 +30,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 	private featureSpan: Span | undefined;
 	private stepSpans: Map<string, Span> = new Map();
 	private detachBlips: (() => void) | undefined;
-	/** The execution's levels, moved by the lifecycle events this stepper receives: a feature's span starts where the
+	/** Actuality's levels, moved by the lifecycle events this stepper receives: a feature's span starts where the
 	 *  machine starts the feature, and ends where the machine ends it. */
 	private readonly actuality = actualityMachine();
 
@@ -57,7 +57,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 
 	cycles: IStepperCycles = {
 		getConcerns: () => ({ domains: [{ selectors: [DOMAIN_SPAN_NAME], schema: NameSchema, description: "The name of a custom span for the startSpan and endSpan steps" }] }),
-		startExecution: async () => {
+		startActuality: async () => {
 			await Promise.resolve();
 			this.initializeIfNeeded();
 			// Actuality doesn't retain a blip. recordBlip adds each blip as a span event on its step span. A trace backend can
@@ -76,7 +76,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 			await Promise.resolve();
 			this.processEvent(event);
 		},
-		endExecution: async () => {
+		endActuality: async () => {
 			await Promise.resolve();
 			this.detachBlips?.();
 			this.detachBlips = undefined;
@@ -113,7 +113,7 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 				if (event.stage === "start") {
 					// Starts a feature span when this stepper didn't receive a feature start event.
 					if (!this.featureSpan) {
-						this.featureSpan = tracer.startSpan("feature: haibun-execution", { attributes: { "haibun.event.type": "feature", "haibun.auto.created": true } });
+						this.featureSpan = tracer.startSpan("feature: haibun-actuality", { attributes: { "haibun.event.type": "feature", "haibun.auto.created": true } });
 					}
 
 					// Each step span is a child of the feature span.

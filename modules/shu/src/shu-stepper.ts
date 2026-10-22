@@ -142,7 +142,7 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 						presents: "schema",
 					},
 				},
-				{ selectors: [SHU_TAG.MONITOR_COLUMN], schema: z.object({}), description: "Execution monitor and event log", ui: { component: SHU_TAG.MONITOR_COLUMN } },
+				{ selectors: [SHU_TAG.MONITOR_COLUMN], schema: z.object({}), description: "Actuality's monitor and event log", ui: { component: SHU_TAG.MONITOR_COLUMN } },
 				{ selectors: [SHU_TAG.DOCUMENT_COLUMN], schema: z.object({}), description: "Document/artifact viewer", ui: { component: SHU_TAG.DOCUMENT_COLUMN } },
 				{ selectors: [DOMAIN_SHU_APPS], schema: ShuAppsSchema, description: "Where an instance serves shu" },
 				{ selectors: [DOMAIN_GRAPH_LAYOUT], schema: GraphLayoutSchema, description: "Where a graph view placed each node" },

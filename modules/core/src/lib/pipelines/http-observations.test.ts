@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { trackHttpRequest, classifyHttpPath } from "./http-observations.js";
 import { ENDPOINT_CLASS, ENDPOINT_LABEL, HTTP_REQUEST_LABEL, HTTP_CLIENT_LABEL, HTTP_HOST_LABEL } from "../domains/resources.js";
 import { activeSitePrincipal } from "../domains/host-id.js";
-import { registeredPaths, type IRouteRegistry } from "../actuality/domains/execution.js";
+import { registeredPaths, type IRouteRegistry } from "../actuality/domains/actuality.js";
 import type { TWorld } from "../actuality/domains/world.js";
 import type { TQuad } from "../steps/domains/quad-types.js";
 import type { QuadStore } from "../steps/pipelines/quad-store.js";

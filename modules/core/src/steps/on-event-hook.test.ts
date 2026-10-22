@@ -4,7 +4,7 @@ import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun-stepper.js";
 
 describe("onEvent hook infrastructure", () => {
-	it("EventLogger emits events during step execution", async () => {
+	it("EventLogger emits events while a step runs", async () => {
 		const world = getDefaultWorld({ HAIBUN_LOG_LEVEL: "none" });
 		const feature = { path: "/features/test", content: 'set x to "1"' };
 

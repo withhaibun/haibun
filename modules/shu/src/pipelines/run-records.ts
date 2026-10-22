@@ -6,7 +6,7 @@
 import type { TTag } from "@haibun/core/lib/domains/ttag.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import type { TArtifactEvent, THaibunEvent } from "@haibun/core/lib/domains/protocol.js";
-import { executionOf, extractSeqPathPrefix, formatRecordName, parseSeqPath } from "@haibun/core/lib/seq-path.js";
+import { actualityFeatureOf, extractSeqPathPrefix, formatRecordName, parseSeqPath } from "@haibun/core/lib/seq-path.js";
 import { LOG_MESSAGE_EDGE, LOG_MESSAGE_FIELD, LOG_MESSAGE_LABEL } from "@haibun/core/lib/domains/log-message.js";
 import { RUN_ARTIFACT_EDGE, RUN_ARTIFACT_FIELD, RUN_ARTIFACT_LABEL } from "@haibun/core/lib/domains/run-artifact.js";
 
@@ -22,11 +22,11 @@ function stepOf(e: THaibunEvent): number[] {
 /** The record name of the step an event happened in, or undefined where the event doesn't name a step. */
 function underStep(tag: TTag, e: THaibunEvent): string | undefined {
 	const path = stepOf(e);
-	return path.length === 0 ? undefined : formatRecordName({ execution: executionOf(tag), path });
+	return path.length === 0 ? undefined : formatRecordName({ actuality: actualityFeatureOf(tag), path });
 }
 
-/** A record's name: its execution, the step it came from, and which of that step's records it is. */
-const recordName = (tag: TTag, e: THaibunEvent, ordinal: number): string => formatRecordName({ execution: executionOf(tag), path: stepOf(e), ordinal });
+/** A record's name: its actuality feature, the step it came from, and which of that step's records it is. */
+const recordName = (tag: TTag, e: THaibunEvent, ordinal: number): string => formatRecordName({ actuality: actualityFeatureOf(tag), path: stepOf(e), ordinal });
 
 /** Writes what actuality logged as the `ordinal`th statement of the feature. A log event without a message text isn't a statement. */
 export async function recordSaid(world: TWorld, e: Extract<THaibunEvent, { kind: "log" }>, ordinal: number): Promise<void> {
@@ -36,7 +36,7 @@ export async function recordSaid(world: TWorld, e: Extract<THaibunEvent, { kind:
 		.getStore()
 		.upsertIndividual(LOG_MESSAGE_LABEL, {
 			[LOG_MESSAGE_FIELD.id]: recordName(world.tag, e, ordinal),
-			[LOG_MESSAGE_FIELD.execution]: executionOf(world.tag),
+			[LOG_MESSAGE_FIELD.actuality]: actualityFeatureOf(world.tag),
 			[LOG_MESSAGE_FIELD.recordedAtTime]: new Date().toISOString(),
 			[LOG_MESSAGE_FIELD.message]: e.message,
 			[LOG_MESSAGE_FIELD.level]: e.level,
@@ -57,7 +57,7 @@ export async function recordProduced(world: TWorld, e: TArtifactEvent, ordinal: 
 		.getStore()
 		.upsertIndividual(RUN_ARTIFACT_LABEL, {
 			[RUN_ARTIFACT_FIELD.id]: recordName(world.tag, e, ordinal),
-			[RUN_ARTIFACT_FIELD.execution]: executionOf(world.tag),
+			[RUN_ARTIFACT_FIELD.actuality]: actualityFeatureOf(world.tag),
 			[RUN_ARTIFACT_FIELD.recordedAtTime]: new Date().toISOString(),
 			[RUN_ARTIFACT_FIELD.artifactType]: e.artifactType,
 			[RUN_ARTIFACT_FIELD.path]: e.path,

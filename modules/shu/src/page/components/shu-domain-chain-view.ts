@@ -23,7 +23,7 @@ import { domainRef, stepRef } from "./shu-ref.js";
 import { isStepEnd, LINT_FINDING, LintFindingSchema, type TLintFinding } from "@haibun/core/lib/domains/goal-resolution.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
-import { noteExecution } from "../client-cache/controllers/device-controller.js";
+import { noteActualityFeature } from "../client-cache/controllers/device-controller.js";
 import { ShuElement, EmptyStateSchema, type TLinkedData } from "./shu-element.js";
 import { NODE_KIND, nodeIn, type TGraph, type TGraphNode } from "../domains/graph.js";
 import { graphPresenterTag, mountGraphPresenter, presenterIn } from "../controllers/presenter-controller.js";
@@ -36,13 +36,13 @@ import "./shu-spinner.js";
  *  settings under. */
 const CHAIN_GRAPH = { slot: SHU_TEST_IDS.DOMAIN_CHAIN.GRAPH, scope: "domain-chain" } as const;
 
-/** Returns a snapshot of actuality's affordances, as a step's products or a read of them give it, and notes the execution it
- *  is of: its facts are that execution's, so the page reads that execution, and a fact's step opens there. Throws for products
+/** Returns a snapshot of actuality's affordances, as a step's products or a read of them give it, and notes the actuality feature it
+ *  is of: its facts are that actuality feature's, so the page reads that actuality feature, and a fact's step opens there. Throws for products
  *  that don't carry the snapshot. */
 function snapshotOf(p: Record<string, unknown>): TAffordancesSnapshot {
-	if (!Array.isArray(p.forward) || !Array.isArray(p.goals) || !Array.isArray(p.satisfiedDomains) || typeof p.execution !== "string") {
+	if (!Array.isArray(p.forward) || !Array.isArray(p.goals) || !Array.isArray(p.satisfiedDomains) || typeof p.actuality !== "string") {
 		throw new Error(
-			`shu-domain-chain-view takes \`forward\`, \`goals\` and \`satisfiedDomains\` arrays and the \`execution\` that holds them. Received keys: [${Object.keys(p).join(", ")}].`,
+			`shu-domain-chain-view takes \`forward\`, \`goals\` and \`satisfiedDomains\` arrays and the \`actuality\` that holds them. Received keys: [${Object.keys(p).join(", ")}].`,
 		);
 	}
 	const snapshot: TAffordancesSnapshot = {
@@ -53,7 +53,7 @@ function snapshotOf(p: Record<string, unknown>): TAffordancesSnapshot {
 		satisfiedDomains: p.satisfiedDomains as string[],
 		satisfiedFacts: typeof p.satisfiedFacts === "object" && p.satisfiedFacts !== null ? (p.satisfiedFacts as Record<string, string[]>) : undefined,
 	};
-	noteExecution(p.execution);
+	noteActualityFeature(p.actuality);
 	return snapshot;
 }
 

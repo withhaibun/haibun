@@ -9,12 +9,12 @@ This document outlines the next stage of Haibun development. The aim is a **tran
 Views are projections over the event hierarchy in the Upper Ontology. They replace hardcoded "Developer" and "User" logs.
 -   **Mechanism:** The system emits a linear stream of events. Views **filter** this stream by abstract types the ontology defines.
     -   **System User View:** Filters for `SystemUserEvent`. Any event that *is-a* `SystemUserEvent` (e.g., `PatientAdmitted`, `PaymentProcessed`) appears in this view.
-    -   **Debug View:** Filters for `ExecutionEvent`. `ExecutionEvent` includes `TraceEvent`, `StateChange` and `Error`.
+    -   **Debug View:** Filters for `ActualityEvent`. `ActualityEvent` includes `TraceEvent`, `StateChange` and `Error`.
     -   **Machine View:** Reads the raw stream (`Root` type) for analysis.
 
 ### 1.2. Consistent Identifiers
-**Requirement:** All events and updates reference execution elements by the same identifiers.
--   **seqPath:** The `seqPath` (Sequence Path) is the canonical identifier for any step or block in the execution tree.
+**Requirement:** All events and updates reference the parts of actuality by the same identifiers.
+-   **seqPath:** The `seqPath` (Sequence Path) is the canonical identifier for any step or block in actuality's tree.
 -   **Message Erasure/Updates:** Updates (like progress bars or status changes) must reference the `seqPath` of the originating step.
     -   *Example:* `UpdateEvent { subject: seqPath(1.2.3), status: "Running" }`
 
@@ -28,10 +28,10 @@ Views are projections over the event hierarchy in the Upper Ontology. They repla
 -   **Support LSP interface** (for code completion, etc.)
 
 ### 2.2. Static Resolution (Resolve Time)
-**Goal:** Every step is fully resolved *before* execution begins. Compound statements and activities are resolved too.
--   **Resolve Phase:** A distinct phase where the parser expands all `activities`, `waypoints`, and compound steps (`whenever`, `anyOf`) into a static execution tree.
--   **Determinism:** The resolve phase determines the whole execution path before any step runs. The path includes every possible branch and can be validated in advance.
--   **Logic Isn't Hidden:** The resolve phase links activities. Execution doesn't search for them at runtime.
+**Goal:** Every step is fully resolved *before* actuality begins. Compound statements and activities are resolved too.
+-   **Resolve Phase:** A distinct phase where the parser expands all `activities`, `waypoints`, and compound steps (`whenever`, `anyOf`) into a static tree of steps.
+-   **Determinism:** The resolve phase determines every path through the steps before any step runs. The paths include every possible branch and can be validated in advance.
+-   **Logic Isn't Hidden:** The resolve phase links activities. Actuality doesn't search for them at runtime.
 
 ### 2.3. Unified Parsing & Cycles
 -   **Unified Parser:** Use one argument parsing mechanism.
@@ -92,13 +92,13 @@ Types are defined with Haibun compound statements and sets in place of raw JSON.
 3.  **Activity Feature:** Create `features/self/activities.feature`.
     -   Scenario: "Resolving a waypoint"
     -   Steps: Define an activity in a background, trigger it via `ensure` in the feature, verify the activity ran.
-4.  **Execution:** These features become the primary CI check.
+4.  **Verification:** These features become the primary CI check.
 
 ## 5. General Maintenance
--   **Declarative & Deterministic:** Ensure all execution paths are resolvable statically.
+-   **Declarative & Deterministic:** Ensure every path through the steps is resolvable statically.
 -   **Mermaid Diagrams:** Generate diagrams from the *resolved* static tree. Each diagram shows every path.
-    -   **Animation:** The diagram view should support animation to visualize the execution flow step-by-step.
--   **Terminology:** Avoid generic terms. Use specific terms like `executionScope`, `schemaDefinition`, and `subject`.
+    -   **Animation:** The diagram view should support animation to visualize each step as it runs.
+-   **Terminology:** Avoid generic terms. Use specific terms like `actualityScope`, `schemaDefinition`, and `subject`.
 
 ## 6. Support Markdown
 **Goal:** Enable "Literate Testing" by allowing feature files to be written in Markdown (`.md`).

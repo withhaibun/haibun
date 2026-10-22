@@ -132,7 +132,7 @@ describe("a call a host parses", () => {
 
 /** The wire's shape at each protocol version. A change to the fields of a call, a response, a stream chunk, a refusal or
  *  the handshake response requires a higher RPC_PROTOCOL. Record the new shape here under the new version. */
-const WIRE_AT: Record<number, string> = { 1: "8779e89c5a24b9f7", 2: "f60f4cdcf2dc2f1f", 3: "b95945aa161ad49b" };
+const WIRE_AT: Record<number, string> = { 1: "8779e89c5a24b9f7", 2: "f60f4cdcf2dc2f1f", 3: "b95945aa161ad49b", 4: "8f3f6bf3f612ea57" };
 const wireShape = (): string =>
 	createHash("sha256")
 		.update(

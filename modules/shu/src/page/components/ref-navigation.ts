@@ -11,7 +11,7 @@ import { mergeHashParams } from "../controllers/hash-controller.js";
 import { DEEP_LINK_PREFIX } from "../../domains/elements.js";
 import { PartSchema } from "@haibun/core/lib/domains/resources.js";
 import { formatRecordName } from "@haibun/core/lib/seq-path.js";
-import { readingExecution } from "../client-cache/controllers/device-controller.js";
+import { readingActualityFeature } from "../client-cache/controllers/device-controller.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { esc, escAttr, stepPathOf, type TRefKind } from "../derivations/markdown.js";
@@ -23,13 +23,15 @@ import { SHU_TAG } from "../../domains/elements.js";
 /** The pane a reference opens. ONE reading of (kind, linkTarget), so what a ref's href addresses is what clicking it
  *  opens: a second reading would drift, and the href would then advertise the wrong destination. */
 export function desiredPaneFor(kind: TRefKind, linkTarget: Record<string, unknown>): DesiredPane | null {
-	// A step is a record, named by the execution being read and its path, and opens as its record's view (CA4D9). A typed
+	// A step is a record, named by the actuality feature being read and its path, and opens as its record's view (CA4D9). A typed
 	// fact's subject is its step's path, so a reference to a fact's step opens the step that produced it. Before the page
-	// reads an execution, a step's path doesn't name a record.
+	// reads an actuality feature, a step's path doesn't name a record.
 	const path = stepPathOf(kind, linkTarget);
 	if (path !== undefined) {
-		const execution = readingExecution();
-		return execution === undefined ? null : { paneType: "entity", persistedAs: typeShownIn(SHU_TAG.STEP_DETAIL), id: formatRecordName({ execution, path }) };
+		const actualityFeature = readingActualityFeature();
+		return actualityFeature === undefined
+			? null
+			: { paneType: "entity", persistedAs: typeShownIn(SHU_TAG.STEP_DETAIL), id: formatRecordName({ actuality: actualityFeature, path }) };
 	}
 	if (kind === REF_DENOTES.individual && typeof linkTarget.persistedAs === "string" && typeof linkTarget.id === "string") {
 		// A part addresses a passage or a fragment of media INSIDE the individual; the pane identity stays the individual:

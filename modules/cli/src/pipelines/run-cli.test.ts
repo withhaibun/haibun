@@ -11,7 +11,7 @@ import TestStepsWithOptions from "@haibun/core/lib/test/TestStepsWithOptions.js"
 import { getDefaultOptions } from "@haibun/core/lib/domains/util.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 
-import { SpeclSchema, type TSpecl } from "@haibun/core/lib/execution.js";
+import { SpeclSchema, type TSpecl } from "@haibun/core/lib/actuality.js";
 import type { TProtoOptions } from "@haibun/core/lib/world.js";
 import { OPTION_RUN_POLICY, OPTION_DRY_RUN, type TRunPolicyConfig } from "@haibun/core/run-policy/domains/run-policy.js";
 import * as lib from "./run-cli.js";

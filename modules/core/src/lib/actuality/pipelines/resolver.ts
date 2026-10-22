@@ -1,4 +1,4 @@
-import type { TExpandedFeature, TExpandedLine, TFeatures, TFeature } from "../domains/execution.js";
+import type { TExpandedFeature, TExpandedLine, TFeatures, TFeature } from "../domains/actuality.js";
 import type { TWorld } from "../domains/world.js";
 import { TStepValue, SCENARIO_START, PENDING_SCENARIO, HEADINGS, Origin } from "../../domains/protocol.js";
 import { AStepper, TStepAction, TResolvedFeature, TStepperStep, TFeatureStep, hasCycles } from "../../steps/domains/stepper.js";

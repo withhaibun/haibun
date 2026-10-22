@@ -1,12 +1,12 @@
 /**
- * The actuality machine. It holds an execution's levels, the execution, its features, each feature's scenarios and the
+ * The actuality machine. It holds actuality's levels, the actuality, its features, each feature's scenarios and the
  * steps in flight, each with a start and an end. Its moves are lifecycle events: the Executor dispatches each one before
  * it emits it, so the stream carries only the machine's moves, and a reader that passes each event to `transition`
  * holds the same state from the events alone.
  *
  * A move the state doesn't accept leaves the state unchanged: a second start of a level that is running, an end of a
- * level that isn't running, and a feature or a scenario after its execution ended. A reader that reads a stream twice,
- * or joins it after an execution started, holds each level once.
+ * level that isn't running, and a feature or a scenario after its actuality ended. A reader that reads a stream twice,
+ * or joins it after an actuality started, holds each level once.
  */
 import { z } from "zod";
 import { ACTUALITY_LEVELS, STATUS, isHandedOutEvent, isNestedEvent, type TActualityLevel } from "../../domains/protocol.js";
@@ -50,8 +50,8 @@ export type TFeatureState = {
 	firstFailure?: TStepFailure;
 };
 
-/** An execution's levels. `open` counts each step id in flight, since two callers may carry one id. `steps` counts the
- *  steps that ended, within a feature or outside every feature, and `failures` lists the execution's own failures. */
+/** Actuality's levels. `open` counts each step id in flight, since two callers may carry one id. `steps` counts the
+ *  steps that ended, within a feature or outside every feature, and `failures` lists the actuality's own failures. */
 export type TActuality = { status: TLevelStatus; features: readonly TFeatureState[]; open: ReadonlyMap<string, number>; steps: number; failures: readonly TStepFailure[] };
 
 export const INITIAL_ACTUALITY: TActuality = { status: LEVEL_STATUS.pending, features: [], open: new Map(), steps: 0, failures: [] };
@@ -62,8 +62,8 @@ export function runningFeature(state: TActuality): TFeatureState | undefined {
 	return last?.status === LEVEL_STATUS.running ? last : undefined;
 }
 
-/** Whether the execution has ended. */
-export const executionEnded = (state: TActuality): boolean => isLevelEnd(state.status);
+/** Whether the actuality has ended. */
+export const actualityEnded = (state: TActuality): boolean => isLevelEnd(state.status);
 
 /** A level's name, where its start states one. */
 const named = (name: string | undefined): { name?: string } => (name === undefined ? {} : { name });
@@ -71,13 +71,13 @@ const named = (name: string | undefined): { name?: string } => (name === undefin
 /** The state with its running feature replaced. */
 const withRunning = (state: TActuality, feature: TFeatureState): TActuality => ({ ...state, features: [...state.features.slice(0, -1), feature] });
 
-function executionMove(state: TActuality, move: TActualityMove): TActuality {
+function actualityMove(state: TActuality, move: TActualityMove): TActuality {
 	if (move.stage === "start") return state.status === LEVEL_STATUS.running ? state : { ...INITIAL_ACTUALITY, status: LEVEL_STATUS.running };
-	return isLevelEnd(move.status) && !executionEnded(state) ? { ...state, status: move.status } : state;
+	return isLevelEnd(move.status) && !actualityEnded(state) ? { ...state, status: move.status } : state;
 }
 
 function featureMove(state: TActuality, move: TActualityMove): TActuality {
-	if (executionEnded(state)) return state;
+	if (actualityEnded(state)) return state;
 	const { id } = move;
 	if (move.stage === "start") {
 		if (state.features.some((feature) => feature.id === id) || runningFeature(state) !== undefined) return state;
@@ -111,7 +111,7 @@ function scenarioMove(state: TActuality, move: TActualityMove): TActuality {
 	return withRunning(state, { ...feature, scenarios: [...feature.scenarios.slice(0, -1), { ...last, status: move.status }] });
 }
 
-/** The failure a step's end states, where it is the execution's own: a nested call's failure is part of its line's proof,
+/** The failure a step's end states, where it is the actuality's own: a nested call's failure is part of its line's proof,
  *  and a handed-out call returns its failure to its caller. */
 function failureOf(move: TActualityMove, id: string): TStepFailure | undefined {
 	if (move.status === LEVEL_STATUS.completed || isNestedEvent(move) || isHandedOutEvent(move)) return undefined;
@@ -138,7 +138,7 @@ function stepMove(state: TActuality, move: TActualityMove): TActuality {
 }
 
 const MOVES: Record<TActualityLevel, (state: TActuality, move: TActualityMove) => TActuality> = {
-	execution: executionMove,
+	actuality: actualityMove,
 	feature: featureMove,
 	scenario: scenarioMove,
 	step: stepMove,
@@ -149,5 +149,5 @@ export const transition = (state: TActuality, move: TActualityMove): TActuality 
 
 export type TActualityMachine = Machine<TActuality, TActualityMove>;
 
-/** A machine at the initial state: an execution that hasn't started. */
+/** A machine at the initial state: an actuality that hasn't started. */
 export const actualityMachine = (): TActualityMachine => machine(INITIAL_ACTUALITY, transition);

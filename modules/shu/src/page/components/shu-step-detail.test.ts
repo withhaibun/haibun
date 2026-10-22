@@ -17,11 +17,11 @@ import { SHARED_GRAPH } from "@haibun/core/lib/quad-types.js";
 import { VARIABLE_FIELD } from "@haibun/core/lib/records/domains/variables.js";
 import { installServedConduit } from "../root.js";
 import { installCarriedEventStream } from "../root.js";
-import { installGraph, noteExecution } from "../client-cache/controllers/device-controller.js";
+import { installGraph, noteActualityFeature } from "../client-cache/controllers/device-controller.js";
 import { rpcAnswer, HANDSHAKE_PATH } from "@haibun/core/lib/test/rpc-answer.js";
 
-const EXECUTION = "1700000000000-1";
-const STEP = `${EXECUTION}.0.1`;
+const ACTUALITY_FEATURE = "1700000000000-1";
+const STEP = `${ACTUALITY_FEATURE}.0.1`;
 /** The record of a variable the step set: its value, and its edge to the step's record. */
 const SET_BY_STEP = [
 	{ subject: "myVar", predicate: VARIABLE_FIELD.value, object: "42", namedGraph: SHARED_GRAPH, timestamp: 1 },
@@ -36,7 +36,7 @@ describe("shu-step-detail", () => {
 		serveThePage();
 		installCarriedEventStream();
 		if (!customElements.get("shu-spinner")) customElements.define("shu-spinner", class extends HTMLElement {});
-		// One step of the execution being read: what it requested, what ran, how it went and where.
+		// One step of the actuality feature being read: what it requested, what ran, how it went and where.
 		const store = actualityStore();
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
 			id: STEP,
@@ -51,7 +51,7 @@ describe("shu-step-detail", () => {
 		});
 		installGraph(store);
 		declareGraphSpec({ types: [SEQ_PATH_LABEL], ui: { [SEQ_PATH_LABEL]: { component: SHU_TAG.STEP_DETAIL } } });
-		noteExecution(EXECUTION);
+		noteActualityFeature(ACTUALITY_FEATURE);
 		globalThis.fetch = (input: unknown): Promise<Response> => {
 			const url = typeof input === "string" ? input : input instanceof URL ? input.href : (input as Request).url;
 			if (url.endsWith(HANDSHAKE_PATH)) return Promise.resolve(rpcAnswer({ seqPath: [0, -1, 1] }, 200));
@@ -68,7 +68,7 @@ describe("shu-step-detail", () => {
 	it("renders the step's record and the variables it set", async () => {
 		const el = document.createElement("shu-step-detail") as ShuStepDetail;
 		document.body.appendChild(el);
-		await el.open(`${EXECUTION}.0.1`, SEQ_PATH_LABEL);
+		await el.open(`${ACTUALITY_FEATURE}.0.1`, SEQ_PATH_LABEL);
 		await el.updateComplete;
 		const t = text(el);
 		expect(t).toContain("Step [0.1]");
@@ -81,10 +81,10 @@ describe("shu-step-detail", () => {
 	it("re-keys the read when the step changes, dropping the previous step's data", async () => {
 		const el = document.createElement("shu-step-detail") as ShuStepDetail;
 		document.body.appendChild(el);
-		await el.open(`${EXECUTION}.0.1`, SEQ_PATH_LABEL);
+		await el.open(`${ACTUALITY_FEATURE}.0.1`, SEQ_PATH_LABEL);
 		await el.updateComplete;
 		expect(text(el)).toContain("myVar");
-		await el.open(`${EXECUTION}.0.2`, SEQ_PATH_LABEL); // the page doesn't hold a record of this step, and it doesn't have a site to call
+		await el.open(`${ACTUALITY_FEATURE}.0.2`, SEQ_PATH_LABEL); // the page doesn't hold a record of this step, and it doesn't have a site to call
 		await el.updateComplete;
 		const t = text(el);
 		expect(t, "a step the page cannot read reports that, rather than claiming that the step doesn't exist").toContain("Step [0.2] wasn't read.");
@@ -100,7 +100,7 @@ describe("shu-step-detail", () => {
 		};
 		const el = document.createElement("shu-step-detail") as ShuStepDetail;
 		document.body.appendChild(el);
-		await el.open(`${EXECUTION}.0.3`, SEQ_PATH_LABEL);
+		await el.open(`${ACTUALITY_FEATURE}.0.3`, SEQ_PATH_LABEL);
 		await el.updateComplete;
 		expect(text(el)).toContain("Step [0.3] wasn't read.");
 		expect(refusalOf(el)?.textContent, "the site's refusal, as the site stated it").toContain("boom");

@@ -104,7 +104,7 @@ describe("the registry cached on the device", () => {
 
 	it("reads the steps of a page that carries a record from the registry the record carries, without a site's settings", async () => {
 		handle = setupShuTest({ dispatch: unreachable });
-		setHydration({ actualityId: PAGE_ACTUALITY, cache: { shape: CACHE_SHAPE, execution: "r1", registry: ANSWER, quads: [] } });
+		setHydration({ actualityId: PAGE_ACTUALITY, cache: { shape: CACHE_SHAPE, actuality: "r1", registry: ANSWER, quads: [] } });
 		hydrateFromDom();
 		const carried = hydratedCache();
 		if (carried === undefined) throw new Error("the test page doesn't carry a record");

@@ -165,7 +165,7 @@ const dialogSays = (kept: unknown, field: TDialogField) => (typeof kept === "obj
 export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	static PERSISTENT_DIRECTORY = "PERSISTENT_DIRECTORY";
 	description = "Navigate pages, click elements, fill forms, capture screenshots, and make REST API calls";
-	cyclesWhen = { startExecution: CycleWhen.FIRST - 1, startFeature: CycleWhen.FIRST - 1 };
+	cyclesWhen = { startActuality: CycleWhen.FIRST - 1, startFeature: CycleWhen.FIRST - 1 };
 	options = {
 		TWIN: { desc: "copy each element a step locates into a twin page", parse: (input: string) => boolOrError(input) },
 		HEADLESS: { desc: "run browsers without a window (true, false)", parse: (input: string) => boolOrError(input) },
@@ -276,7 +276,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			this.getWorld().eventLogger.log(featureStep, "error", failed);
 			return { failed };
 		},
-		startExecution: async () => {
+		startActuality: async () => {
 			if (this.twin) this.#twinPage = await this.#browser.twin(this.storage, this.headless);
 		},
 		startFeature: async ({ resolvedFeature, index }) => {

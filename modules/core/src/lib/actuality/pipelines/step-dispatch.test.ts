@@ -19,7 +19,7 @@ import { TEST_DOMAIN, declaresTestDomains, testDomainDefinitions } from "../../t
 import { DOMAIN_DOMAIN_KEY, DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_RECORD_ID, DOMAIN_STATEMENT, DOMAIN_STRING, individualRefDomain, registerDomains } from "../../domains/domains.js";
 import type { TWorld } from "../domains/world.js";
 import { Access, DOMAIN_PERSISTED_TYPE, FACT_LABEL, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "../../domains/resources.js";
-import { SEQ_PATH_EDGE, SEQ_PATH_FIELD, executionOf, factIdOf, formatRecordName } from "../domains/seq-path.js";
+import { SEQ_PATH_EDGE, SEQ_PATH_FIELD, actualityFeatureOf, factIdOf, formatRecordName } from "../domains/seq-path.js";
 import { readEvery, equalTo } from "../../records/pipelines/record-reads.js";
 import { streamContext, streamOver } from "../../transport/domains/step-stream-context.js";
 import { capabilityAllows } from "../../domains/actions.js";
@@ -116,7 +116,7 @@ class CapabilityStepper extends AStepper {
 /** Returns the value of the count fact of the step at `path`, or undefined where the store doesn't hold one. */
 const countFact = async (world: TWorld, path: number[]) =>
 	(await readEvery(world.shared.getStore(), { label: FACT_LABEL, filters: equalTo({ domain: TEST_DOMAIN.count }) })).find(
-		(fact) => fact.id === factIdOf({ execution: executionOf(world.tag), path }),
+		(fact) => fact.id === factIdOf({ actuality: actualityFeatureOf(world.tag), path }),
 	)?.value;
 
 describe("the counts of a call's paths", () => {
@@ -606,7 +606,7 @@ describe("step-dispatch", () => {
 				if (!tool) throw new Error(`Expected ${method} to be registered`);
 				return tool;
 			};
-			const fieldOf = (path: number[], field: string) => world.shared.getStore().get(formatRecordName({ execution: executionOf(world.tag), path }), field, SEQ_PATH_LABEL);
+			const fieldOf = (path: number[], field: string) => world.shared.getStore().get(formatRecordName({ actuality: actualityFeatureOf(world.tag), path }), field, SEQ_PATH_LABEL);
 			const caller = { registry, world, steppers, grantedCapability: RUN_AUTHORITY, delegation: "urn:uuid:a-delegation", attributedTo: "a-model" };
 			const greeting = buildFeatureStepForTransport(toolOf("PlainStepper-greet"), { name: "Ada" }, [0, 30, 1]);
 			await runReadingAt(Access.public, () => runAsking("cmt-ask-1", () => dispatchStep(caller, greeting)));
@@ -660,7 +660,7 @@ describe("step-dispatch", () => {
 				};
 				return {
 					call,
-					fieldOf: (path: number[], field: string) => world.shared.getStore().get(formatRecordName({ execution: executionOf(world.tag), path }), field, SEQ_PATH_LABEL),
+					fieldOf: (path: number[], field: string) => world.shared.getStore().get(formatRecordName({ actuality: actualityFeatureOf(world.tag), path }), field, SEQ_PATH_LABEL),
 				};
 			};
 
@@ -724,7 +724,7 @@ describe("step-dispatch", () => {
 			const tool = registry.get(`${stepper.constructor.name}-howMany`);
 			if (!tool) throw new Error("Expected the read to be registered");
 			const store = world.shared.getStore();
-			const recordOf = (path: number[]) => store.query({ subject: formatRecordName({ execution: executionOf(world.tag), path }), namedGraph: SEQ_PATH_LABEL });
+			const recordOf = (path: number[]) => store.query({ subject: formatRecordName({ actuality: actualityFeatureOf(world.tag), path }), namedGraph: SEQ_PATH_LABEL });
 
 			// A page reads actuality over a transport. Every transport marks its step programmatic.
 			const overATransport = buildFeatureStepForTransport(tool, {}, [0, 9, 1]);
@@ -796,7 +796,8 @@ describe("step-dispatch", () => {
 			world.eventLogger.subscribe((event) => {
 				if (event.kind === "lifecycle" && event.type === "step" && event.stage === "end") ended.push(String(event.status));
 			});
-			const statusOf = (path: number[]) => world.shared.getStore().get(formatRecordName({ execution: executionOf(world.tag), path }), SEQ_PATH_FIELD.actionStatus, SEQ_PATH_LABEL);
+			const statusOf = (path: number[]) =>
+				world.shared.getStore().get(formatRecordName({ actuality: actualityFeatureOf(world.tag), path }), SEQ_PATH_FIELD.actionStatus, SEQ_PATH_LABEL);
 			const stop = new AbortController();
 			stop.abort();
 			await streamContext.run(
@@ -824,14 +825,14 @@ describe("step-dispatch", () => {
 			expect(result.ok).toBe(true);
 
 			const store = world.shared.getStore();
-			const id = formatRecordName({ execution: executionOf(world.tag), path: [0, 3, 5] });
+			const id = formatRecordName({ actuality: actualityFeatureOf(world.tag), path: [0, 3, 5] });
 			const quads = await store.query({ subject: id, namedGraph: SEQ_PATH_LABEL });
 			const byPredicate = Object.fromEntries(quads.map((q) => [q.predicate, q.object]));
 			expect(byPredicate[SEQ_PATH_FIELD.actionStatus]).toBe(RECORDED_STATUS.completed);
 			expect(byPredicate[SEQ_PATH_FIELD.generatedAtTime]).toEqual(expect.any(String));
 			expect(byPredicate[SEQ_PATH_FIELD.endedAtTime]).toEqual(expect.any(String));
-			expect(byPredicate[LinkRelations.PART_OF.rel], "a step is part of its parent step of the same execution").toBe(
-				formatRecordName({ execution: executionOf(world.tag), path: [0, 3] }),
+			expect(byPredicate[LinkRelations.PART_OF.rel], "a step is part of its parent step of the same actuality feature").toBe(
+				formatRecordName({ actuality: actualityFeatureOf(world.tag), path: [0, 3] }),
 			);
 			expect(byPredicate[SEQ_PATH_FIELD.stepText]).toEqual(expect.any(String));
 			// A step's end states its goal's verdict.
@@ -850,7 +851,7 @@ describe("step-dispatch", () => {
 			expect(result.ok).toBe(false);
 
 			const store = world.shared.getStore();
-			const status = await store.get(formatRecordName({ execution: executionOf(world.tag), path: [0, 9] }), SEQ_PATH_FIELD.actionStatus, SEQ_PATH_LABEL);
+			const status = await store.get(formatRecordName({ actuality: actualityFeatureOf(world.tag), path: [0, 9] }), SEQ_PATH_FIELD.actionStatus, SEQ_PATH_LABEL);
 			expect(status).toBe(RECORDED_STATUS.failed);
 		});
 
@@ -871,7 +872,9 @@ describe("step-dispatch", () => {
 			store.get = (subject, predicate, namedGraph) => (namedGraph === SEQ_PATH_LABEL && stepWrites.push("get"), get(subject, predicate, namedGraph));
 			await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, buildFeatureStepForTransport(tool, {}, [0, 9, 2]));
 			expect(stepWrites).toEqual(["upsert", "upsert"]);
-			const record = (await store.query({ subject: formatRecordName({ execution: executionOf(world.tag), path: [0, 9, 2] }), namedGraph: SEQ_PATH_LABEL })).map((q) => q.predicate);
+			const record = (await store.query({ subject: formatRecordName({ actuality: actualityFeatureOf(world.tag), path: [0, 9, 2] }), namedGraph: SEQ_PATH_LABEL })).map(
+				(q) => q.predicate,
+			);
 			expect(record, "the end's write holds the start's fields with how it ended").toEqual(
 				expect.arrayContaining([SEQ_PATH_FIELD.stepText, SEQ_PATH_FIELD.generatedAtTime, SEQ_PATH_FIELD.endedAtTime, SEQ_PATH_FIELD.error]),
 			);
@@ -920,7 +923,7 @@ describe("step-dispatch", () => {
 			if (!tool) throw new Error("Expected ShowsAView-showIt to be registered");
 			const featureStep = buildFeatureStepForTransport(tool, {}, [0, 7, 1]);
 			await dispatchStep({ registry, world, steppers, grantedCapability: RUN_AUTHORITY }, featureStep);
-			const showed = await world.shared.getStore().get(formatRecordName({ execution: executionOf(world.tag), path: [0, 7, 1] }), SEQ_PATH_FIELD.showed, SEQ_PATH_LABEL);
+			const showed = await world.shared.getStore().get(formatRecordName({ actuality: actualityFeatureOf(world.tag), path: [0, 7, 1] }), SEQ_PATH_FIELD.showed, SEQ_PATH_LABEL);
 			expect(showed, "the record names the domain of the view the step showed, and a document embeds the view by that name").toBe("test-view");
 		});
 

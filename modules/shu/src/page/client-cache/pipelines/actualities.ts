@@ -1,7 +1,7 @@
 /**
  * The actualities this device holds, and what it deletes to hold another.
  *
- * A record's id names its execution, and an execution names the actuality whose feature it ran, so the ids themselves
+ * A record's id names its actuality feature, and an actuality feature names the actuality whose feature it ran, so the ids themselves
  * separate what a device holds of many actualities, rather than a second index beside them. The actualities are read from
  * the step records: a step that declared a feature names a feature of an actuality for a reader.
  */
@@ -13,7 +13,7 @@ import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import type { TCachedGraph, TDeviceReport } from "../ports.js";
 import { ACTUALITY_TYPES } from "../derivations/actuality-rows.js";
 
-/** An actuality as this device holds it: its key, the graph of its records, the features it ran, the execution of its
+/** An actuality as this device holds it: its key, the graph of its records, the features it ran, the actuality feature of its
  *  newest feature, and the moments its features span. */
 export type THeldActuality = { actuality: string; store: TCachedGraph; features: string[]; newest: string; first: number; last: number };
 
@@ -21,7 +21,7 @@ export type THeldActuality = { actuality: string; store: TCachedGraph; features:
 export const FEATURES_READ = 500;
 
 /** What holding an actuality reads and writes: the graphs of every actuality the device holds, the graph of the one the
- *  site serves, whether the page reads another graph the device holds, the execution the page reads, and the report of
+ *  site serves, whether the page reads another graph the device holds, the actuality feature the page reads, and the report of
  *  what the device couldn't hold. */
 export type THoldScope = { held: () => Promise<TCachedGraph[]>; served: () => TCachedGraph; readsHeld: () => boolean; reading: () => string | undefined; report: TDeviceReport };
 
@@ -43,14 +43,14 @@ async function actualitiesIn(store: TCachedGraph): Promise<THeldActuality[]> {
 	const byActuality = new Map<string, THeldActuality>();
 	for (const step of declared) {
 		const name = parseRecordName(step.id);
-		if (name === undefined) throw new Error(`the step ${step.id} declared a feature, and its id doesn't name the execution it ran in`);
+		if (name === undefined) throw new Error(`the step ${step.id} declared a feature, and its id doesn't name the actuality feature it ran in`);
 		const at = Date.parse(step[SEQ_PATH_FIELD.generatedAtTime]);
 		if (Number.isNaN(at)) throw new Error(`the step ${step.id} states when it began as ${step[SEQ_PATH_FIELD.generatedAtTime]}, not an instant`);
 		const feature = declaredName(step[SEQ_PATH_FIELD.stepText], "feature");
-		const actuality = actualityOf(name.execution);
+		const actuality = actualityOf(name.actuality);
 		const held = byActuality.get(actuality);
 		// The newest declaration comes first, so each later one is of an earlier feature.
-		if (held === undefined) byActuality.set(actuality, { actuality, store, features: feature ? [feature] : [], newest: name.execution, first: at, last: at });
+		if (held === undefined) byActuality.set(actuality, { actuality, store, features: feature ? [feature] : [], newest: name.actuality, first: at, last: at });
 		else {
 			if (feature && !held.features.includes(feature)) held.features.unshift(feature);
 			held.first = at;
@@ -69,7 +69,7 @@ export async function deleteActuality({ actuality, store }: THeldActuality): Pro
 			.map((record) => recordId(record, type.label))
 			.filter((id) => {
 				const name = parseRecordName(id);
-				return name !== undefined && actualityOf(name.execution) === actuality;
+				return name !== undefined && actualityOf(name.actuality) === actuality;
 			});
 		for (const id of ids) await store.deleteIndividual(type.label, id);
 		gone += ids.length;

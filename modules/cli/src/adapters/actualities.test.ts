@@ -51,7 +51,7 @@ const level = (actualityLevel: string, id: string, stepText: string, status: str
 });
 /** Records an actuality of features, each by its path and how long it took, whose own record states the digests `v` read. */
 function recordFeatures(v: ReturnType<typeof verified>, status: string, features: Record<string, number>) {
-	const levels = new Map<string, Record<string, unknown>>([["execution", level("execution", "1-0", "tests", status, 9000, digestFields(v.digest))]]);
+	const levels = new Map<string, Record<string, unknown>>([["actuality", level("actuality", "1-0", "tests", status, 9000, digestFields(v.digest))]]);
 	const featureResults = Object.entries(features).map(([featurePath, ms], at) => {
 		levels.set(`feat-${at + 1}`, level("feature", `1-${at + 1}.0.${at + 1}.0`, featurePath, status, ms, { path: featurePath }));
 		return { path: featurePath, ok: true, steps: { count: 2 }, stepResults: [], pending: [] };
@@ -123,13 +123,13 @@ describe("how a group last ran against its state", () => {
 });
 
 describe("how long a group's features took", () => {
-	it("holds the lines of an actuality's execution with its digests and of its features with their steps under this machine, each duration in tenths of a second", () => {
+	it("holds the lines of an actuality's own record with its digests and of its features with their steps under this machine, each duration in tenths of a second", () => {
 		const { dir, config } = aGroup();
 		const v = verified(dir, config);
 		recordFeatures(v, RECORDED_STATUS.completed, { "/features/a.feature": 1234 });
 		expect(actualitiesIn(dir)[machineKey()][v.conditions]).toEqual({
 			filter: "",
-			execution: { text: ".", status: RECORDED_STATUS.completed, tookMs: 9000, digest: v.digest },
+			actuality: { text: ".", status: RECORDED_STATUS.completed, tookMs: 9000, digest: v.digest },
 			features: { "/features/a.feature": { text: "/features/a.feature", status: RECORDED_STATUS.completed, tookMs: 1200, steps: 2 } },
 		});
 	});

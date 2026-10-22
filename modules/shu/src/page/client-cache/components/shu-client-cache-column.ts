@@ -27,12 +27,12 @@ import { actualityOf } from "@haibun/core/lib/seq-path.js";
 import { actualitiesHeld, deleteActuality, FEATURES_READ, readHeldActuality, type THeldActuality } from "../controllers/held-actualities-controller.js";
 import {
 	CACHE_SHAPE,
-	currentExecution,
+	currentActualityFeature,
 	deviceSummary,
 	followDeviceWrites,
 	graphSaturations,
 	pageDeviceStore,
-	subscribeExecutionSwitch,
+	subscribeActualityFeatureSwitch,
 	type TGraphSaturation,
 	type TIdbDatabaseSummary,
 	type TStoredRegistry,
@@ -50,7 +50,7 @@ const IDS = SHU_TEST_IDS.CLIENT_CACHE;
 const DEVICE_READ_DELAY_MS = 150;
 
 const at = (t: number | undefined): string => (t === undefined || !Number.isFinite(t) ? "" : new Date(t).toISOString().slice(11, 23));
-/** The feature the execution being read declared, from its first rows a view has read. An execution declares its feature at
+/** The feature the actuality feature being read declared, from its first rows a view has read. An actuality feature declares its feature at
  *  its start, so this reads the first rows rather than actuality. */
 function featureBeingRead(sources: ActualitySource[]): string {
 	for (const source of sources) {
@@ -64,7 +64,7 @@ function featureBeingRead(sources: ActualitySource[]): string {
 	return "";
 }
 
-/** How far into an execution its feature declaration is looked for: an execution declares it at its start. */
+/** How far into an actuality feature its feature declaration is looked for: an actuality feature declares it at its start. */
 const FEATURE_WITHIN_ROWS = 20;
 
 /** What a source is doing, one word a reader waits for: not yet read, cut off from actuality, behind what actuality has
@@ -176,8 +176,8 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 		void this.#readDevice(); // the device at once on open; after changes, at the bounded cadence
 		// A source made from now on (a view opened at another level) is watched from the moment it exists.
 		this.autoTeardown(subscribeActualitySources(() => this.#changed()));
-		// An execution the reader chose, or a new one the server began: both change what every view reads.
-		this.autoTeardown(subscribeExecutionSwitch(() => this.#changed()));
+		// An actuality feature the reader chose, or a new one the server began: both change what every view reads.
+		this.autoTeardown(subscribeActualityFeatureSwitch(() => this.#changed()));
 		// The sources persist what they read after they report it, so what the device caches is read again when it is written.
 		this.autoTeardown(followDeviceWrites(() => this.#changed()));
 		// Every live batch: counted by level and shown, whether or not any source takes it (a page without an open event view doesn't take a batch).
@@ -305,9 +305,9 @@ export class ShuClientCacheColumn extends ShuElement<typeof EmptyStateSchema> {
 		// The moment every source reads around, which is the cursor once a reader has moved it: what is read is what a
 		// reader is looking at, and this shows it rather than leaving it to be inferred from the rows.
 		const readingMoment = actualityReadingAt();
-		// The actuality being read: the one of the execution a reader chose, else the newest this device holds, which is the
+		// The actuality being read: the one of the actuality feature a reader chose, else the newest this device holds, which is the
 		// one being recorded while a site is recording one.
-		const chosen = currentExecution();
+		const chosen = currentActualityFeature();
 		const reading = chosen === undefined ? this.#held[0]?.actuality : actualityOf(chosen);
 		const earlier = this.#held.find((a) => a.actuality !== reading);
 		const registry = registryOrigin();

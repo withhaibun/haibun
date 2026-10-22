@@ -1,26 +1,12 @@
 {
 	"docs/architecture.md": {
-		"names actuality as execution": 6,
 		"names running, ended as \"pending\"": 2
 	},
 	"docs/planning/fol-in-haibun.md": {
 		"names action as granted": 2
 	},
 	"docs/planning/improvements-plan.md": {
-		"names actuality as execution": 9,
 		"names running, ended as \"pending\"": 3
-	},
-	"docs/planning/test-filtering.md": {
-		"names actuality as execution": 2
-	},
-	"docs/run-policy.md": {
-		"names actuality as execution": 1
-	},
-	"docs/stepping.md": {
-		"names actuality as execution": 1
-	},
-	"docs/todo.md": {
-		"names actuality as execution": 1
 	},
 	"e2e-tests/requirements/features/04-combinators.feature.ts": {
 		"names proved, refuted, unknown, contradiction as maybe-outcome": 1,
@@ -29,133 +15,38 @@
 	"e2e-tests/requirements/features/07-records.feature.ts": {
 		"names proved, refuted, unknown, contradiction as speculative": 2
 	},
-	"e2e-tests/requirements/features/10-cli.feature.ts": {
-		"names actuality as execution": 1
-	},
-	"e2e-tests/src/test-server.ts": {
-		"names actuality as execution": 1
-	},
 	"e2e-tests/tests/features/trauma_center.feature": {
 		"names running, ended as \"pending\"": 2
 	},
-	"modules/cli/src/adapters/actualities.test.ts": {
-		"names actuality as execution": 4
-	},
-	"modules/cli/src/adapters/actualities.ts": {
-		"names actuality as execution": 14
-	},
-	"modules/cli/src/domains/base-options.ts": {
-		"names actuality as execution": 3
-	},
-	"modules/cli/src/domains/run.ts": {
-		"names actuality as execution": 4
-	},
 	"modules/cli/src/instance-stepper.test.ts": {
-		"names actuality as execution": 11,
 		"names passed, failed, untested as \"completed\"": 2
-	},
-	"modules/cli/src/instance-stepper.ts": {
-		"names actuality as execution": 3
-	},
-	"modules/cli/src/pipelines/run-cli.test.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/cli/src/pipelines/run-cli.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/cli/src/pipelines/specl.ts": {
-		"names actuality as execution": 1
 	},
 	"modules/cli/src/test-runner-stepper.test.ts": {
-		"names actuality as execution": 7,
 		"names passed, failed, untested as \"completed\"": 2
 	},
-	"modules/cli/src/test-runner-stepper.ts": {
-		"names actuality as execution": 16
-	},
-	"modules/core/src/kireji/kireji-activities.test.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/core/src/lib/actuality/adapters/feature-files.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/core/src/lib/actuality/derivations/execution-end.ts": {
-		"names actuality as execution": 3
-	},
-	"modules/core/src/lib/actuality/derivations/lifecycle-events.test.ts": {
-		"names actuality as execution": 4
-	},
-	"modules/core/src/lib/actuality/derivations/lifecycle-events.ts": {
-		"names actuality as execution": 8
-	},
 	"modules/core/src/lib/actuality/derivations/step-records.ts": {
-		"names action as invoked": 4,
-		"names actuality as execution": 19
-	},
-	"modules/core/src/lib/actuality/domains/seq-path.test.ts": {
-		"names actuality as execution": 18
-	},
-	"modules/core/src/lib/actuality/domains/seq-path.ts": {
-		"names actuality as execution": 43
-	},
-	"modules/core/src/lib/actuality/domains/step-failure.ts": {
-		"names actuality as execution": 2
-	},
-	"modules/core/src/lib/actuality/domains/world.ts": {
-		"names actuality as execution": 5
+		"names action as invoked": 4
 	},
 	"modules/core/src/lib/actuality/machines/actuality.test.ts": {
-		"names actuality as execution": 19,
 		"names passed, failed, untested as \"completed\"": 12,
 		"names running, ended as \"pending\"": 2
 	},
-	"modules/core/src/lib/actuality/machines/actuality.ts": {
-		"names actuality as execution": 10
-	},
 	"modules/core/src/lib/actuality/pipelines/executor.test.ts": {
-		"names actuality as execution": 3,
 		"names passed, failed, untested as \"completed\"": 4,
 		"names record as step result": 1
 	},
 	"modules/core/src/lib/actuality/pipelines/executor.ts": {
-		"names action as invoked": 1,
-		"names actuality as execution": 2
-	},
-	"modules/core/src/lib/actuality/pipelines/feature-variables.test.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/core/src/lib/actuality/pipelines/feature-variables.ts": {
-		"names actuality as execution": 1
+		"names action as invoked": 1
 	},
 	"modules/core/src/lib/actuality/pipelines/finished-payloads.test.ts": {
 		"names record as step result": 1
 	},
-	"modules/core/src/lib/actuality/pipelines/move-actuality.ts": {
-		"names actuality as execution": 2
-	},
-	"modules/core/src/lib/actuality/pipelines/resolver.test.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/core/src/lib/actuality/pipelines/resolver.ts": {
-		"names actuality as execution": 1
-	},
 	"modules/core/src/lib/actuality/pipelines/step-dispatch.test.ts": {
 		"names action as invoked": 18,
-		"names actuality as execution": 11,
 		"names record as step result": 1
 	},
 	"modules/core/src/lib/actuality/pipelines/step-dispatch.ts": {
-		"names action as invoked": 5,
-		"names actuality as execution": 1
-	},
-	"modules/core/src/lib/actuality/ports.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/core/src/lib/adapters/dependency-state.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/core/src/lib/adapters/workspace-lib.ts": {
-		"names actuality as execution": 1
+		"names action as invoked": 5
 	},
 	"modules/core/src/lib/domains/actions.ts": {
 		"names action as granted": 8,
@@ -164,94 +55,23 @@
 	"modules/core/src/lib/domains/authority-types.ts": {
 		"names action as invoked": 2
 	},
-	"modules/core/src/lib/domains/blips.test.ts": {
-		"names actuality as execution": 3
-	},
-	"modules/core/src/lib/domains/blips.ts": {
-		"names actuality as execution": 1
-	},
 	"modules/core/src/lib/domains/capability-context.ts": {
 		"names action as invoked": 3
-	},
-	"modules/core/src/lib/domains/dev-mode.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/core/src/lib/domains/document-content.ts": {
-		"names actuality as execution": 4
 	},
 	"modules/core/src/lib/domains/domains.ts": {
 		"names action as granted": 1
 	},
-	"modules/core/src/lib/domains/features.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/core/src/lib/domains/hypermedia.ts": {
-		"names actuality as execution": 2
-	},
-	"modules/core/src/lib/domains/log-message.ts": {
-		"names actuality as execution": 5
-	},
 	"modules/core/src/lib/domains/protocol.ts": {
-		"names actuality as execution": 14,
 		"names passed, failed, untested as \"completed\"": 1,
-		"names record as step result": 1,
 		"names running, ended as \"pending\"": 1,
 		"names running, ended as \"skipped\"": 1
-	},
-	"modules/core/src/lib/domains/resources.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/core/src/lib/domains/run-artifact.ts": {
-		"names actuality as execution": 5
-	},
-	"modules/core/src/lib/domains/urakata.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/core/src/lib/domains/util.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/core/src/lib/logic.test.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/core/src/lib/pipelines/http-observations.test.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/core/src/lib/pipelines/runner.ts": {
-		"names actuality as execution": 3
-	},
-	"modules/core/src/lib/pipelines/step-validation.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/core/src/lib/pipelines/urakata.test.ts": {
-		"names actuality as execution": 5
-	},
-	"modules/core/src/lib/pipelines/urakata.ts": {
-		"names actuality as execution": 2
-	},
-	"modules/core/src/lib/steps/domains/stepper.ts": {
-		"names actuality as execution": 1
 	},
 	"modules/core/src/lib/steps/pipelines/call-step.ts": {
 		"names action as granted": 1
 	},
-	"modules/core/src/lib/steps/pipelines/phase-runner.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/core/src/lib/steps/pipelines/statements.test.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/core/src/lib/steps/pipelines/step-registry.ts": {
-		"names actuality as execution": 1
-	},
 	"modules/core/src/lib/test/fake-authority.ts": {
 		"names action as granted": 7,
 		"names action as invoked": 4
-	},
-	"modules/core/src/lib/test/prose-rules.test.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/core/src/lib/test/resolver-features.ts": {
-		"names actuality as execution": 1
 	},
 	"modules/core/src/lib/transport/adapters/remote-quad-store.test.ts": {
 		"names action as invoked": 3
@@ -262,77 +82,17 @@
 	"modules/core/src/schema/marks.test.ts": {
 		"names passed, failed, untested as \"completed\"": 2
 	},
-	"modules/core/src/steps/activities-ensure-flow.test.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/core/src/steps/activities-stepper.after-every.test.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/core/src/steps/activities-stepper.proof-first.test.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/core/src/steps/blips-stepper.ts": {
-		"names actuality as execution": 2
-	},
-	"modules/core/src/steps/haibun-stepper.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/core/src/steps/on-event-hook.test.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/core/src/steps/resources-stepper.ts": {
-		"names actuality as execution": 2
-	},
-	"modules/core/src/steps/urakata-stepper.ts": {
-		"names actuality as execution": 2
-	},
-	"modules/logic/src/derivations/derivation.ts": {
-		"names actuality as execution": 2
-	},
-	"modules/logic/src/logic-stepper.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/logic/src/pipelines/prove.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/logic/src/pipelines/registry-reads.ts": {
-		"names actuality as execution": 4
-	},
-	"modules/lsp/src/pipelines/language-server.test.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/lsp/src/pipelines/language-server.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/lsp/src/ports.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/monitor-otel/src/monitor-otel-stepper.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/out-junit/src/out-junit-stepper.ts": {
-		"names actuality as execution": 2
-	},
 	"modules/shu/src/adapters/remote-graph-source.ts": {
 		"names action as invoked": 1
 	},
 	"modules/shu/src/domains/blips.test.ts": {
 		"names action as invoked": 1
 	},
-	"modules/shu/src/domains/hydration.ts": {
-		"names actuality as execution": 1
-	},
 	"modules/shu/src/domains/test-ids.ts": {
 		"names action as granted": 1
 	},
 	"modules/shu/src/http-signature-zcap-invoke.d.ts": {
 		"names action as invoked": 1
-	},
-	"modules/shu/src/monitor-stepper.said.test.ts": {
-		"names actuality as execution": 5
-	},
-	"modules/shu/src/monitor-stepper.ts": {
-		"names actuality as execution": 1
 	},
 	"modules/shu/src/page/ask/components/chat-pane.test-fake.ts": {
 		"names passed, failed, untested as \"completed\"": 1
@@ -358,102 +118,28 @@
 		"names action as invoked": 3
 	},
 	"modules/shu/src/page/client-cache/components/shu-client-cache-column.test.ts": {
-		"names actuality as execution": 5,
 		"names running, ended as \"pending\"": 1
 	},
 	"modules/shu/src/page/client-cache/components/shu-client-cache-column.ts": {
-		"names actuality as execution": 6,
 		"names running, ended as \"pending\"": 1
 	},
 	"modules/shu/src/page/client-cache/controllers/actuality-controller.test.ts": {
-		"names actuality as execution": 15,
 		"names passed, failed, untested as \"completed\"": 2
-	},
-	"modules/shu/src/page/client-cache/controllers/actuality-controller.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/shu/src/page/client-cache/controllers/carried-actuality.test.ts": {
-		"names actuality as execution": 16
-	},
-	"modules/shu/src/page/client-cache/controllers/device-controller.test.ts": {
-		"names actuality as execution": 22
-	},
-	"modules/shu/src/page/client-cache/controllers/device-controller.ts": {
-		"names actuality as execution": 13
-	},
-	"modules/shu/src/page/client-cache/controllers/held-actualities-controller.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/shu/src/page/client-cache/derivations/actuality-graph.ts": {
-		"names actuality as execution": 10
-	},
-	"modules/shu/src/page/client-cache/derivations/actuality-rows.ts": {
-		"names actuality as execution": 7
-	},
-	"modules/shu/src/page/client-cache/derivations/rendered-rows.ts": {
-		"names actuality as execution": 2
-	},
-	"modules/shu/src/page/client-cache/machines/executions.test.ts": {
-		"names actuality as execution": 10
-	},
-	"modules/shu/src/page/client-cache/machines/executions.ts": {
-		"names actuality as execution": 14
-	},
-	"modules/shu/src/page/client-cache/pipelines/actualities.ts": {
-		"names actuality as execution": 8
-	},
-	"modules/shu/src/page/client-cache/pipelines/actuality-shape.test.ts": {
-		"names actuality as execution": 6
-	},
-	"modules/shu/src/page/client-cache/pipelines/actuality-sources.ts": {
-		"names actuality as execution": 20
-	},
-	"modules/shu/src/page/client-cache/pipelines/actuality-window.test.ts": {
-		"names actuality as execution": 5
-	},
-	"modules/shu/src/page/client-cache/pipelines/actuality-window.ts": {
-		"names actuality as execution": 12
-	},
-	"modules/shu/src/page/client-cache/pipelines/carried-actuality.ts": {
-		"names actuality as execution": 8
-	},
-	"modules/shu/src/page/client-cache/root.ts": {
-		"names actuality as execution": 2
 	},
 	"modules/shu/src/page/components/actions-bar-styles.ts": {
 		"names record as step result": 1
 	},
-	"modules/shu/src/page/components/ref-navigation.test.ts": {
-		"names actuality as execution": 2
-	},
-	"modules/shu/src/page/components/ref-navigation.ts": {
-		"names actuality as execution": 5
-	},
 	"modules/shu/src/page/components/shu-affordances-panel.test.ts": {
-		"names actuality as execution": 29,
 		"names proved, refuted, unknown, contradiction as \"unreachable\"": 2
-	},
-	"modules/shu/src/page/components/shu-affordances-panel.ts": {
-		"names actuality as execution": 7
 	},
 	"modules/shu/src/page/components/shu-annotated-body.ts": {
 		"names running, ended as \"pending\"": 1
 	},
-	"modules/shu/src/page/components/shu-document-column.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/shu/src/page/components/shu-domain-chain-view.test.ts": {
-		"names actuality as execution": 16
-	},
 	"modules/shu/src/page/components/shu-domain-chain-view.ts": {
-		"names action as granted": 1,
-		"names actuality as execution": 6
+		"names action as granted": 1
 	},
 	"modules/shu/src/page/components/shu-entity-column.type-and-fields.test.ts": {
 		"names action as invoked": 2
-	},
-	"modules/shu/src/page/components/shu-monitor-column.ts": {
-		"names actuality as execution": 3
 	},
 	"modules/shu/src/page/components/shu-monitor-column.window.test.ts": {
 		"names passed, failed, untested as \"completed\"": 1
@@ -463,15 +149,6 @@
 	},
 	"modules/shu/src/page/components/shu-permissions.ts": {
 		"names action as granted": 1
-	},
-	"modules/shu/src/page/components/shu-playback.test.ts": {
-		"names actuality as execution": 2
-	},
-	"modules/shu/src/page/components/shu-playback.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/shu/src/page/components/shu-ref.ts": {
-		"names actuality as execution": 1
 	},
 	"modules/shu/src/page/components/shu-scrollbar.test.ts": {
 		"names action as invoked": 1
@@ -483,26 +160,14 @@
 	"modules/shu/src/page/components/shu-search-summary.ts": {
 		"names record as step result": 1
 	},
-	"modules/shu/src/page/components/shu-step-detail.test.ts": {
-		"names actuality as execution": 8
-	},
-	"modules/shu/src/page/components/shu-step-detail.ts": {
-		"names actuality as execution": 1
-	},
 	"modules/shu/src/page/controllers/authority-controller.ts": {
 		"names action as granted": 1
-	},
-	"modules/shu/src/page/controllers/catalog-controller.ts": {
-		"names actuality as execution": 3
 	},
 	"modules/shu/src/page/derivations/affordances.pane-ops.test.ts": {
 		"names passed, failed, untested as \"completed\"": 2
 	},
 	"modules/shu/src/page/derivations/affordances.ts": {
 		"names passed, failed, untested as \"completed\"": 1
-	},
-	"modules/shu/src/page/derivations/markdown.ts": {
-		"names actuality as execution": 2
 	},
 	"modules/shu/src/page/derivations/project-domain-chain.test.ts": {
 		"names proved, refuted, unknown, contradiction as \"satisfied\"": 2
@@ -520,33 +185,6 @@
 	},
 	"modules/shu/src/page/graph/components/scene.ts": {
 		"names action as granted": 1
-	},
-	"modules/shu/src/page/pipelines/hydrate.test.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/shu/src/page/pipelines/read-steps.test.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/shu/src/pipelines/run-records.ts": {
-		"names actuality as execution": 5
-	},
-	"modules/shu/src/shu-stepper.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/shu/src/test/setup.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/shu/src/test/step-ui.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/shu/tests/features/monitor.feature.ts": {
-		"names actuality as execution": 3
-	},
-	"modules/web-accessibility-axe/src/a11y-axe-stepper.ts": {
-		"names actuality as execution": 1
-	},
-	"modules/web-playwright/src/pipelines/page-observer.ts": {
-		"names actuality as execution": 1
 	},
 	"modules/web-server-hono/src/pipelines/capability-verifier.test.ts": {
 		"names action as granted": 8,
@@ -575,7 +213,6 @@
 		"names action as invoked": 1
 	},
 	"modules/web-server-hono/src/ports.ts": {
-		"names action as granted": 2,
-		"names actuality as execution": 1
+		"names action as granted": 2
 	}
 }

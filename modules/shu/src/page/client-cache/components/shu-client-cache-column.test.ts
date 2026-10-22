@@ -16,7 +16,7 @@ import { SHU_TEST_IDS } from "../../../domains/test-ids.js";
 import { setupShuTest, stepsShown, type TShuTestHandle } from "../../../test/setup.js";
 import { ACTUALITY_DOMAIN_DEFINITIONS, actualityStore } from "../actuality-store.test-fake.js";
 import { timeCursor } from "../../controllers/page-cell-controller.js";
-import { currentExecution, deviceGraph, installGraph } from "../controllers/device-controller.js";
+import { currentActualityFeature, deviceGraph, installGraph } from "../controllers/device-controller.js";
 import { servedDatabase } from "../root.js";
 import { GRAPH_BOUND } from "../adapters/quad-store.js";
 import { graphActualitySource } from "../controllers/actuality-controller.js";
@@ -30,9 +30,9 @@ const iso = (n: number): string => new Date(n).toISOString();
 const RUN = "1700000000000-1";
 const EARLIER = "1600000000000-1";
 
-/** A step of an execution, as its record. */
-const step = (execution: string, i: number, over: Record<string, unknown> = {}): Record<string, unknown> => ({
-	id: `${execution}.0.${i}`,
+/** A step of an actuality feature, as its record. */
+const step = (actualityFeature: string, i: number, over: Record<string, unknown> = {}): Record<string, unknown> => ({
+	id: `${actualityFeature}.0.${i}`,
 	stepText: `step ${i}`,
 	called: "TestStepper.aStep",
 	actionStatus: "passed",
@@ -52,7 +52,7 @@ describe("the client cache view", () => {
 				throw new ServerUnreachable("/rpc", new Error("the views read actuality's records"));
 			},
 		});
-		// The execution being recorded, and an earlier actuality's this device still holds, each named by the feature it ran.
+		// The actuality feature being recorded, and an earlier actuality's this device still holds, each named by the feature it ran.
 		const store = actualityStore();
 		await store.upsertIndividual(SEQ_PATH_LABEL, step(EARLIER, 0, { stepText: "Feature: An earlier actuality", called: "Haibun.feature", generatedAtTime: iso(500) }));
 		await store.upsertIndividual(SEQ_PATH_LABEL, step(RUN, 0, { stepText: "Feature: The actuality being recorded", called: "Haibun.feature" }));
@@ -143,7 +143,7 @@ describe("the client cache view", () => {
 		(row.querySelector(`[data-testid="${earlier}-read"]`) as HTMLButtonElement).click();
 		await flush();
 		await settle();
-		expect(currentExecution(), "the reader's actuality is read from its newest feature's execution").toBe(EARLIER);
+		expect(currentActualityFeature(), "the reader's actuality is read from its newest actuality feature").toBe(EARLIER);
 		expect(value(view, `${earlier}-reading`)).toBe("reading");
 		expect(value(view, `${earlier}-features`), "an actuality is presented by the features it ran").toBe("An earlier actuality");
 	});

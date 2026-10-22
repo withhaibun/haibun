@@ -1,12 +1,12 @@
 /**
- * The declarations of urakata, step execution outside the feature flow: the record of a registered ticker, its id's domain,
+ * The declarations of urakata, the steps that run outside the feature flow: the record of a registered ticker, its id's domain,
  * and the ticker and registry a stepper implements and reads.
  */
 import { z } from "zod";
 import { NameSchema } from "./domains.js";
 import { RECORDED_STATUS, type TSeqPath } from "./protocol.js";
 import { PersistedVertexSchema, type TDomainDefinition } from "./resources.js";
-import { ENDED_BY_FIELD, EXECUTION_FIELD } from "../actuality/domains/seq-path.js";
+import { ENDED_BY_FIELD, ACTUALITY_FIELD } from "../actuality/domains/seq-path.js";
 
 export const URAKATA = "urakata";
 export const URAKATA_ID_DOMAIN = "urakata-id";
@@ -17,7 +17,7 @@ export const UrakataSchema = PersistedVertexSchema.extend({
 	id: z.string(),
 	description: z.string(),
 	/** The actuality instance (world.tag.key) that ran this task. A persisted row from another instance is never running. */
-	[EXECUTION_FIELD]: z.string(),
+	[ACTUALITY_FIELD]: z.string(),
 	seqPath: z.array(z.number()),
 	startedAt: z.string(),
 	lastTickAt: z.string().optional(),

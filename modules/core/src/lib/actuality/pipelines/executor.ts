@@ -1,13 +1,13 @@
 /**
  * The Executor: it executes resolved features, proving each line through the logic engine, and moves the actuality machine at each
- * level's start and end. The execution starts before the first feature and ends after the last; a feature starts before
+ * level's start and end. The actuality starts before the first feature and ends after the last; a feature starts before
  * its first step and ends after its failure cycle; a scenario starts at its heading and ends where the next scenario,
  * the next feature heading or the feature's last step ends it.
  */
 import { basename } from "path";
 import { RUN_AUTHORITY, runAuthorizedWith } from "../../domains/capability-context.js";
 import type { TWorld } from "../domains/world.js";
-import { hasCycles, type AStepper, type TResolvedFeature, type TEndFeature, type TEndExecution } from "../../steps/domains/stepper.js";
+import { hasCycles, type AStepper, type TResolvedFeature, type TEndFeature, type TEndActuality } from "../../steps/domains/stepper.js";
 import { STAY, STEP_DELAY, CONTINUE_AFTER_ERROR, FEATURE_START, SCENARIO_START, PENDING_SCENARIO, STATUS, ResolvedFeaturesArtifact } from "../../domains/protocol.js";
 import type { TExecutorResult, TFeatureResult, TStepResult, THaibunEvent } from "../../domains/protocol.js";
 import { setStepperWorldsAndDomains, constructorName } from "../../domains/util.js";
@@ -18,8 +18,8 @@ import { FeatureVariables } from "./feature-variables.js";
 import { FACT_LABEL, type TDomainDefinition } from "../../domains/resources.js";
 import { registerDomains, registerStepperNames } from "../../domains/domains.js";
 import { doStepperCycle, doStepperCycleSync } from "../../steps/pipelines/stepper-cycles.js";
-import { calculateShouldClose, executionFailure, scenarioDigest, staysAfterExecution } from "../derivations/execution-end.js";
-import { executionEvent, featureEvent, scenarioEvent } from "../derivations/lifecycle-events.js";
+import { calculateShouldClose, actualityFailure, scenarioDigest, staysAfterActuality } from "../derivations/actuality-end.js";
+import { actualityEvent, featureEvent, scenarioEvent } from "../derivations/lifecycle-events.js";
 import { moveActuality } from "./move-actuality.js";
 import { digestFields } from "../../domains/digest.js";
 
@@ -94,8 +94,8 @@ export class Executor {
 			}),
 		);
 
-		await moveActuality(world, executionEvent({ stage: "start" }, world.clock.now(), [...new Set(features.map((f) => f.base))].join(", ")), digestFields(world.runtime.digest));
-		await doStepperCycle(steppers, "startExecution", features);
+		await moveActuality(world, actualityEvent({ stage: "start" }, world.clock.now(), [...new Set(features.map((f) => f.base))].join(", ")), digestFields(world.runtime.digest));
+		await doStepperCycle(steppers, "startActuality", features);
 		let okSoFar = true;
 		const featureResults: TFeatureResult[] = [];
 		let featureNum = 0;
@@ -107,8 +107,8 @@ export class Executor {
 
 			const featureName = featureNameOf(feature);
 			const newWorld = { ...world, tag: { ...world.tag, featureNum, featureName } };
-			// The feature's variables are written by a store of the feature's world, so each names the step that set it under
-			// the feature's execution.
+			// The feature's variables are written by a store of the feature's world, so each names the step that set it within
+			// this feature of the actuality.
 			newWorld.shared = new FeatureVariables(newWorld, await world.shared.carried());
 
 			await initFeatureRuntime(newWorld);
@@ -141,14 +141,14 @@ export class Executor {
 			if (!okSoFar && !continueAfterError && !isLast) break;
 		}
 
-		await moveActuality(world, executionEvent(endOf(okSoFar), world.clock.now()));
-		const failure = okSoFar ? undefined : executionFailure(featureResults);
+		await moveActuality(world, actualityEvent(endOf(okSoFar), world.clock.now()));
+		const failure = okSoFar ? undefined : actualityFailure(featureResults);
 		const results: TExecutorResult = { ok: okSoFar, featureResults, actuality: world.runtime.actuality.state.get(), tag: world.tag, shared: world.shared, steppers, failure };
 
 		// HAIBUN_STAY keeps the process serving requests after executeFeatures returns. Unsubscribing would stop routing
 		// events to consumers while the server emits them, so the handler stays subscribed while actuality stays.
-		const stays = staysAfterExecution(world.options[STAY], okSoFar);
-		await doStepperCycle(steppers, "endExecution", <TEndExecution>{ ...results, stays });
+		const stays = staysAfterActuality(world.options[STAY], okSoFar);
+		await doStepperCycle(steppers, "endActuality", <TEndActuality>{ ...results, stays });
 		if (!stays) world.eventLogger.unsubscribe(onEventHandler);
 		return results;
 	}

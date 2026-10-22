@@ -25,7 +25,7 @@ export default class ConsoleMonitorStepper extends AStepper implements IHasCycle
 	private minLevel: TShownLogLevel = shownLogLevel({});
 
 	cycles = {
-		startExecution: () => {
+		startActuality: () => {
 			const { options, moduleOptions } = this.getWorld();
 			this.verbose = getStepperOption(this, "CONSOLE_MONITOR_VERBOSE", moduleOptions) === "true";
 			this.showLogEvents = getStepperOption(this, "CONSOLE_MONITOR_LOGS", moduleOptions) !== "false";

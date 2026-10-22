@@ -25,7 +25,7 @@ import { DOMAIN_JSON, DOMAIN_STATEMENT } from "@haibun/core/lib/domains/domains.
 import { RECORDED_STATUS } from "@haibun/core/lib/domains/protocol.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
-import { SEQ_PATH_FIELD, calledOf, executionOf, formatRecordName } from "@haibun/core/lib/seq-path.js";
+import { SEQ_PATH_FIELD, calledOf, actualityFeatureOf, formatRecordName } from "@haibun/core/lib/seq-path.js";
 import { readEvery, recordOf } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import { nextSeqPath, proveStep, stepperContext } from "@haibun/core/lib/step-dispatch.js";
@@ -133,7 +133,7 @@ const recordsCalling = async (world: TWorld, called: string) =>
 	(await readEvery(world.shared.getStore(), { label: SEQ_PATH_LABEL })).filter((record) => record[SEQ_PATH_FIELD.called] === called);
 
 /** The record of the step at `path` in the actuality's feature. */
-const recordAt = async (world: TWorld, path: number[]) => recordOf(world.shared.getStore(), SEQ_PATH_LABEL, formatRecordName({ execution: executionOf(world.tag), path }));
+const recordAt = async (world: TWorld, path: number[]) => recordOf(world.shared.getStore(), SEQ_PATH_LABEL, formatRecordName({ actuality: actualityFeatureOf(world.tag), path }));
 
 class TestServer extends AStepper {
 	description = "Adds test routes to the web server and declares capability-protected steps. Its RPC and MCP steps call steps at a URL and check each response.";

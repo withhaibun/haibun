@@ -7,7 +7,7 @@
 import { TextDocumentSyncKind, type Diagnostic, type InitializeResult } from "vscode-languageserver/node.js";
 import type { TextDocument } from "vscode-languageserver-textdocument";
 import type { AStepper, TFeatureStep } from "@haibun/core/lib/astepper.js";
-import type { TExpandedFeature, TExpandedLine, TFeature } from "@haibun/core/lib/execution.js";
+import type { TExpandedFeature, TExpandedLine, TFeature } from "@haibun/core/lib/actuality.js";
 import { runRegistry } from "@haibun/core/lib/step-registry.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { Resolver } from "@haibun/core/phases/Resolver.js";

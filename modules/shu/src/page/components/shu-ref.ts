@@ -77,7 +77,7 @@ const refSeqPath = (path: number[], text?: string): string => {
 	return renderRef(ref.kind, ref.target, text ?? path.join("."));
 };
 
-/** A reference to the step at `path` within the execution the page reads. */
+/** A reference to the step at `path` within the actuality feature the page reads. */
 export const stepPathTpl = (path: readonly number[], text: string, testId?: string): TemplateResult => {
 	const ref = stepPathRef(path);
 	return refTpl(ref.kind, ref.target, text, testId);

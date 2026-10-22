@@ -5,7 +5,7 @@ import { passWithDefaults } from "../lib/test/lib.js";
 import VariablesStepper from "./variables-stepper.js";
 import Haibun from "./haibun-stepper.js";
 
-describe("activities-stepper proof-first execution", () => {
+describe("activities-stepper proves the proof first", () => {
 	it("should execute activity body when proof fails", async () => {
 		const feature = `Feature: Activity body runs when proof fails
 

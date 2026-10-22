@@ -62,10 +62,10 @@ export const isSystemSchemaType = (label: string): boolean => Catalog.isSystemSc
 /** Returns the property or edge that titles a type, where it declares one. */
 export const getTitledBy = (label: string): TTitledBy | undefined => catalog(`the title of ${label}`).titledBy[label];
 
-/** Whether a type records actuality's own execution. */
-export const isInstrumentationType = (label: string): boolean => catalog(`whether ${label} records execution`).instrumentationTypes.has(label);
+/** Whether a type records actuality itself. */
+export const isInstrumentationType = (label: string): boolean => catalog(`whether ${label} records actuality itself`).instrumentationTypes.has(label);
 
-/** The types whose declaration states they record execution, which a graph hides until a reader shows them. */
+/** The types whose declaration states they record actuality itself, which a graph hides until a reader shows them. */
 export const instrumentationTypes = (): ReadonlySet<string> => catalog("the instrumentation types").instrumentationTypes;
 
 /** The link relation of a stored predicate in a graph, through the catalog the page holds (`browserRelOf`). */

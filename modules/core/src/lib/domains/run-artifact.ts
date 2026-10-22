@@ -7,7 +7,7 @@
  */
 import { z } from "zod";
 import { HAIBUN_LOG_LEVELS } from "./protocol.js";
-import { EXECUTION_FIELD, RECORDED_AT_TIME_FIELD } from "../actuality/domains/seq-path.js";
+import { ACTUALITY_FIELD, RECORDED_AT_TIME_FIELD } from "../actuality/domains/seq-path.js";
 import { Access, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "./resources.js";
 
 const RUN_ARTIFACT_DOMAIN = "run-artifact";
@@ -42,8 +42,8 @@ export const RUN_ARTIFACT_FIELD = {
 	 *  internal operations has a lower level. */
 	level: "level",
 	generatedAtTime: "generatedAtTime",
-	/** The execution that produced it. */
-	execution: EXECUTION_FIELD,
+	/** The actuality feature that produced it. */
+	actuality: ACTUALITY_FIELD,
 	/** When this record was written. */
 	recordedAtTime: RECORDED_AT_TIME_FIELD,
 } as const;
@@ -63,7 +63,7 @@ export const RunArtifactSchema = PersistedVertexSchema.extend({
 	[RUN_ARTIFACT_FIELD.mediaType]: z.string().optional(),
 	[RUN_ARTIFACT_FIELD.level]: z.enum(HAIBUN_LOG_LEVELS),
 	[RUN_ARTIFACT_FIELD.generatedAtTime]: z.string(),
-	[RUN_ARTIFACT_FIELD.execution]: z.string().optional(),
+	[RUN_ARTIFACT_FIELD.actuality]: z.string().optional(),
 	[RUN_ARTIFACT_FIELD.recordedAtTime]: z.string().optional(),
 });
 /** An artifact as a reader names and finds it: its kind, the path under which actuality serves it, and its path relative to
@@ -107,12 +107,12 @@ export const runArtifactDomainDefinition: TDomainDefinition = {
 			[RUN_ARTIFACT_FIELD.featureRelativePath]: LinkRelations.SOURCE_PATH.rel,
 			[RUN_ARTIFACT_FIELD.mediaType]: LinkRelations.MEDIA_TYPE.rel,
 			[RUN_ARTIFACT_FIELD.level]: LinkRelations.CONTEXT.rel,
-			[RUN_ARTIFACT_FIELD.execution]: LinkRelations.CONTEXT.rel,
+			[RUN_ARTIFACT_FIELD.actuality]: LinkRelations.CONTEXT.rel,
 			[RUN_ARTIFACT_FIELD.generatedAtTime]: LinkRelations.GENERATED_AT_TIME.rel,
 			[RUN_ARTIFACT_FIELD.recordedAtTime]: LinkRelations.RECORDED_AT_TIME.rel,
 		},
 		edges: { [RUN_ARTIFACT_EDGE.isPartOf]: { rel: LinkRelations.PART_OF.rel, range: SEQ_PATH_LABEL } },
 		// The path is a column, so a store that removes an artifact's record reads by key whether another record names its file.
-		sortColumns: { [RUN_ARTIFACT_FIELD.recordedAtTime]: "TIMESTAMPTZ", [RUN_ARTIFACT_FIELD.execution]: "TEXT", [RUN_ARTIFACT_FIELD.path]: "TEXT" },
+		sortColumns: { [RUN_ARTIFACT_FIELD.recordedAtTime]: "TIMESTAMPTZ", [RUN_ARTIFACT_FIELD.actuality]: "TEXT", [RUN_ARTIFACT_FIELD.path]: "TEXT" },
 	},
 };

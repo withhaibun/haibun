@@ -1,16 +1,16 @@
 /**
  * What the device holds of actuality, as the views read it: the graph the page reads (the site's, a report's, or another
- * actuality's the device holds), the execution the page reads, an actuality a report carries, and the device's store of
+ * actuality's the device holds), the actuality feature the page reads, an actuality a report carries, and the device's store of
  * the site's registry.
  */
 import { readDeclarationsOfCatalog, type TReadDeclarations } from "@haibun/core/lib/records/derivations/read-records.js";
 import type { TCachePayload } from "../../../domains/hydration.js";
 import { getConcernCatalog } from "../../controllers/catalog-controller.js";
-import { deviceQuads, graphSlot, heldDatabases, installMemoryDeviceStore, pageExecutions, servedDatabase } from "../root.js";
+import { deviceQuads, graphSlot, heldDatabases, installMemoryDeviceStore, pageActualityFeatures, servedDatabase } from "../root.js";
 import type { TCachedGraph, TDeviceGraph, TGraphSaturation } from "../ports.js";
 import { DeviceGraph } from "../pipelines/device-graph.js";
 import { readCarriedActuality } from "../pipelines/carried-actuality.js";
-import { EXECUTIONS_EVENT, readingOf } from "../machines/executions.js";
+import { ACTUALITY_FEATURES_EVENT, readingOf } from "../machines/actuality-features.js";
 
 export { followDeviceWrites, pageDeviceStore, deviceSummary } from "../root.js";
 export { CACHE_SHAPE } from "../root.js";
@@ -69,36 +69,36 @@ export async function heldGraphs(): Promise<TCachedGraph[]> {
 	return [served, ...others];
 }
 
-/** The execution a reader chose, or undefined while the page follows whichever one is being recorded. */
-export const currentExecution = (): string | undefined => pageExecutions().state.get().chosen;
+/** The actuality feature a reader chose, or undefined while the page follows whichever one is being recorded. */
+export const currentActualityFeature = (): string | undefined => pageActualityFeatures().state.get().chosen;
 
-/** The execution being read: the one chosen, else the one the last window read. Undefined before any has been read. */
-export const readingExecution = (): string | undefined => readingOf(pageExecutions().state.get());
+/** The actuality feature being read: the one chosen, else the one the last window read. Undefined before any has been read. */
+export const readingActualityFeature = (): string | undefined => readingOf(pageActualityFeatures().state.get());
 
-/** Notes the execution whose records a window last read: what the page is looking at when a reader hasn't chosen one. */
-export function noteExecution(execution: string): void {
-	pageExecutions().dispatch({ type: EXECUTIONS_EVENT.OBSERVE, execution });
+/** Notes the actuality feature whose records a window last read: what the page is looking at when a reader hasn't chosen one. */
+export function noteActualityFeature(actualityFeature: string): void {
+	pageActualityFeatures().dispatch({ type: ACTUALITY_FEATURES_EVENT.OBSERVE, actuality: actualityFeature });
 }
 
-/** Reads an execution this device holds rather than the one being recorded. Undefined follows the recorded one again. */
-export function readExecution(execution: string | undefined): void {
-	pageExecutions().dispatch({ type: EXECUTIONS_EVENT.CHOOSE, execution });
+/** Reads an actuality feature this device holds rather than the one being recorded. Undefined follows the recorded one again. */
+export function readActualityFeature(actualityFeature: string | undefined): void {
+	pageActualityFeatures().dispatch({ type: ACTUALITY_FEATURES_EVENT.CHOOSE, actuality: actualityFeature });
 }
 
-/** Calls `fn` each time the execution being read changes, whether a reader chose it or an execution that started while the
+/** Calls `fn` each time the actuality feature being read changes, whether a reader chose it or an actuality feature that started while the
  *  page followed the one before it became the one being read. Returns the unsubscribe. */
-export const subscribeExecutionSwitch = (fn: () => void): (() => void) =>
-	pageExecutions().follow(({ before, after }) => {
+export const subscribeActualityFeatureSwitch = (fn: () => void): (() => void) =>
+	pageActualityFeatures().follow(({ before, after }) => {
 		if (after.switches !== before.switches) fn();
 	});
 
-/** Follows the execution being recorded again, in the records the site serves: what takes a reader off an execution
+/** Follows the actuality feature being recorded again, in the records the site serves: what takes a reader off an actuality feature
  *  they chose and back to whatever is happening now. */
-export function followRecordedExecution(): void {
+export function followRecordedActualityFeature(): void {
 	readHeldGraph(servedGraph());
-	readExecution(undefined);
+	readActualityFeature(undefined);
 }
 
 /** Reads what a report carries of an actuality, from then. */
 export const hydrateClientCache = (cache: TCachePayload): Promise<void> =>
-	readCarriedActuality({ installDeviceStore: installMemoryDeviceStore, installGraph, readExecution, declarations: pageReadDeclarations }, cache);
+	readCarriedActuality({ installDeviceStore: installMemoryDeviceStore, installGraph, readActuality: readActualityFeature, declarations: pageReadDeclarations }, cache);

@@ -2,7 +2,7 @@
 	"linux-x64-16x-amd-ryzen-7-pro-7840u-w-radeon-780m-graphics": {
 		"0f4abb40d6b8cdd0": {
 			"filter": "monitor",
-			"execution": {
+			"actuality": {
 				"text": "modules/shu/tests, modules/shu/waypoints",
 				"status": "passed",
 				"tookMs": 9000,
@@ -29,7 +29,7 @@
 					"steps": 198
 				},
 				"/features/monitor.feature.ts": {
-					"text": "Monitor view collects and displays execution events",
+					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
 					"tookMs": 7100,
 					"steps": 645
@@ -38,7 +38,7 @@
 		},
 		"3a9f9c86e6cd495d": {
 			"filter": "",
-			"execution": {
+			"actuality": {
 				"text": "modules/shu/tests, modules/shu/waypoints",
 				"status": "passed",
 				"tookMs": 12300,
@@ -77,7 +77,7 @@
 					"steps": 201
 				},
 				"/features/monitor.feature.ts": {
-					"text": "Monitor view collects and displays execution events",
+					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
 					"tookMs": 6000,
 					"steps": 649
@@ -100,7 +100,7 @@
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
 		"037f5dccb6aecbf1": {
 			"filter": "",
-			"execution": {
+			"actuality": {
 				"text": "modules/shu/tests",
 				"status": "passed",
 				"tookMs": 17900
@@ -125,7 +125,7 @@
 					"steps": 195
 				},
 				"/features/monitor.feature.ts": {
-					"text": "Monitor view collects and displays execution events",
+					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
 					"tookMs": 9800,
 					"steps": 578
@@ -146,7 +146,7 @@
 		},
 		"c3ae834a35614390": {
 			"filter": "",
-			"execution": {
+			"actuality": {
 				"text": "modules/shu/tests",
 				"status": "passed",
 				"tookMs": 16800,
@@ -184,7 +184,7 @@
 					"steps": 195
 				},
 				"/features/monitor.feature.ts": {
-					"text": "Monitor view collects and displays execution events",
+					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
 					"tookMs": 8300,
 					"steps": 577
@@ -205,7 +205,7 @@
 		},
 		"d858c30588405f0e": {
 			"filter": "",
-			"execution": {
+			"actuality": {
 				"text": "modules/shu/tests",
 				"status": "passed",
 				"tookMs": 18400
@@ -230,7 +230,7 @@
 					"steps": 195
 				},
 				"/features/monitor.feature.ts": {
-					"text": "Monitor view collects and displays execution events",
+					"text": "Monitor view collects and displays actuality's events",
 					"status": "passed",
 					"tookMs": 9100,
 					"steps": 576

@@ -8,7 +8,7 @@ import type { TFeatureStep } from "../steps/domains/stepper.js";
 import type { TDomainDefinition } from "./resources.js";
 import { VERDICT } from "./protocol.js";
 import { NameSchema } from "./domains.js";
-import { EXECUTION_FIELD } from "../actuality/domains/seq-path.js";
+import { ACTUALITY_FIELD } from "../actuality/domains/seq-path.js";
 
 export const DOMAIN_GOAL_RESOLUTION = "goal-resolution";
 export const DOMAIN_AFFORDANCES = "affordances";
@@ -125,7 +125,7 @@ const snapshot = {
 	satisfiedDomains: z.array(z.string()),
 	satisfiedFacts: z.record(z.string(), z.array(z.string())),
 	composites: CompositeRangesSchema,
-	[EXECUTION_FIELD]: z.string(),
+	[ACTUALITY_FIELD]: z.string(),
 };
 export const AffordancesSchema = z.object({ ...snapshot, waypoints: z.array(WaypointEntrySchema) }).strict();
 export type TAffordances = z.infer<typeof AffordancesSchema>;

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { TFeatureStep } from "../../steps/domains/stepper.js";
 import { OBSCURED_VALUE } from "../../steps/domains/secrets.js";
 import { STATUS } from "../../domains/protocol.js";
-import { executionEvent, featureEvent, scenarioEvent, stepEndEvent, stepStartEvent } from "./lifecycle-events.js";
+import { actualityEvent, featureEvent, scenarioEvent, stepEndEvent, stepStartEvent } from "./lifecycle-events.js";
 
 // The step is partial, so it is cast through unknown to TFeatureStep.
 const featureStep = { source: { path: "/test/feature.ts", lineNumber: 1 }, in: 'set password to "secret123"', seqPath: [1, 1, 1] } as unknown as TFeatureStep;
@@ -49,9 +49,9 @@ describe("a level's lifecycle events", () => {
 			scenarioName: "signs in",
 			status: STATUS.completed,
 		});
-		expect([executionEvent({ stage: "start" }, 4, "/tests"), executionEvent({ stage: "end", status: STATUS.completed }, 5)]).toMatchObject([
-			{ id: "execution", type: "execution", status: STATUS.running, in: "/tests" },
-			{ id: "execution", type: "execution", status: STATUS.completed },
+		expect([actualityEvent({ stage: "start" }, 4, "/tests"), actualityEvent({ stage: "end", status: STATUS.completed }, 5)]).toMatchObject([
+			{ id: "actuality", type: "actuality", status: STATUS.running, in: "/tests" },
+			{ id: "actuality", type: "actuality", status: STATUS.completed },
 		]);
 	});
 });

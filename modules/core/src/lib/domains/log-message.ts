@@ -11,7 +11,7 @@
  */
 import { z } from "zod";
 import { HAIBUN_LOG_LEVELS } from "./protocol.js";
-import { EXECUTION_FIELD, RECORDED_AT_TIME_FIELD } from "../actuality/domains/seq-path.js";
+import { ACTUALITY_FIELD, RECORDED_AT_TIME_FIELD } from "../actuality/domains/seq-path.js";
 import { Access, LinkRelations, PersistedVertexSchema, SEQ_PATH_LABEL, type TDomainDefinition } from "./resources.js";
 
 const LOG_MESSAGE_DOMAIN = "log-message";
@@ -23,8 +23,8 @@ export const LOG_MESSAGE_FIELD = {
 	message: "message",
 	level: "level",
 	generatedAtTime: "generatedAtTime",
-	/** The id of the feature execution that logged this message. */
-	execution: EXECUTION_FIELD,
+	/** The actuality feature that logged this message. */
+	actuality: ACTUALITY_FIELD,
 	/** When this record was written. */
 	recordedAtTime: RECORDED_AT_TIME_FIELD,
 } as const;
@@ -42,7 +42,7 @@ export const LogMessageSchema = PersistedVertexSchema.extend({
 	[LOG_MESSAGE_FIELD.message]: z.string(),
 	[LOG_MESSAGE_FIELD.level]: z.enum(HAIBUN_LOG_LEVELS),
 	[LOG_MESSAGE_FIELD.generatedAtTime]: z.string(),
-	[LOG_MESSAGE_FIELD.execution]: z.string().optional(),
+	[LOG_MESSAGE_FIELD.actuality]: z.string().optional(),
 	[LOG_MESSAGE_FIELD.recordedAtTime]: z.string().optional(),
 });
 export const logMessageDomainDefinition: TDomainDefinition = {
@@ -54,7 +54,7 @@ export const logMessageDomainDefinition: TDomainDefinition = {
 		accessLevel: Access.private,
 		id: LOG_MESSAGE_FIELD.id,
 		instrumentation: true,
-		countedBy: [LOG_MESSAGE_FIELD.level, EXECUTION_FIELD],
+		countedBy: [LOG_MESSAGE_FIELD.level, ACTUALITY_FIELD],
 		// A reader receives a logged message as a log event. This record is the durable copy of that event, so announcing
 		// the write would report the message a second time, once per field.
 		announceWrites: false,
@@ -62,11 +62,11 @@ export const logMessageDomainDefinition: TDomainDefinition = {
 			[LOG_MESSAGE_FIELD.id]: LinkRelations.IDENTIFIER.rel,
 			[LOG_MESSAGE_FIELD.message]: LinkRelations.CONTENT.rel,
 			[LOG_MESSAGE_FIELD.level]: LinkRelations.CONTEXT.rel,
-			[LOG_MESSAGE_FIELD.execution]: LinkRelations.CONTEXT.rel,
+			[LOG_MESSAGE_FIELD.actuality]: LinkRelations.CONTEXT.rel,
 			[LOG_MESSAGE_FIELD.generatedAtTime]: LinkRelations.GENERATED_AT_TIME.rel,
 			[LOG_MESSAGE_FIELD.recordedAtTime]: LinkRelations.RECORDED_AT_TIME.rel,
 		},
 		edges: { [LOG_MESSAGE_EDGE.isPartOf]: { rel: LinkRelations.PART_OF.rel, range: SEQ_PATH_LABEL } },
-		sortColumns: { [LOG_MESSAGE_FIELD.recordedAtTime]: "TIMESTAMPTZ", [LOG_MESSAGE_FIELD.execution]: "TEXT" },
+		sortColumns: { [LOG_MESSAGE_FIELD.recordedAtTime]: "TIMESTAMPTZ", [LOG_MESSAGE_FIELD.actuality]: "TEXT" },
 	},
 };

@@ -15,7 +15,7 @@ const { click, waitFor, gotoPage, takeScreenshot } = withAction(wp);
 const { setAs } = withAction(new VariablesStepper());
 const { watchBlips } = withAction(new BlipsStepper());
 const { feature, scenario } = withAction(new Haibun());
-const { enterStepMode, passesStepExecution } = createStepUI(wp);
+const { enterStepMode, passesStepForm } = createStepUI(wp);
 const host = "http://localhost:8237";
 const IDS = SHU_TEST_IDS;
 const MONITOR = `"${SHU_TAG.MONITOR_COLUMN}"`;
@@ -32,19 +32,19 @@ const burstEvents = Array.from({ length: BURST_EVENTS }, (_, i) => setAs({ what:
 const docStreamEvents = Array.from({ length: 12 }, (_, i) => setAs({ what: `docStream${i}`, domain: "page-test-id", value: `"ds${i}"` }));
 
 export const features: TKirejiExport = {
-	"Monitor view collects and displays execution events": [
+	"Monitor view collects and displays actuality's events": [
 		feature({ feature: "Monitor stepper with live log stream and run document" }),
 
 		...testIdSetup,
 
 		scenario({ scenario: "Start shu with monitor stepper" }),
-		"The monitor stepper buffers execution events and serves them via RPC.",
+		"The monitor stepper buffers actuality's events and serves them via RPC.",
 		"The show monitor step opens a log stream column in the SPA.",
 		"enable rpc",
 		serveShuApp({ path: '"/spa"' }),
 		'webserver is listening for "monitor-test"',
 
-		scenario({ scenario: "Buffer many execution events" }),
+		scenario({ scenario: "Buffer many events of actuality" }),
 		"These buffered events fill the log so a small data window has something to truncate.",
 		...bulkEvents,
 
@@ -60,7 +60,7 @@ export const features: TKirejiExport = {
 
 		scenario({ scenario: "Open monitor column via step" }),
 		"The show monitor step triggers the SPA to open a monitor log stream column.",
-		...passesStepExecution("MonitorStepper-showMonitor", {}),
+		...passesStepForm("MonitorStepper-showMonitor", {}),
 		waitFor({ target: IDS.MONITOR.LOG_STREAM }),
 		"The docked actions pane stands over the foot of the columns while it is open, so the reader closes it to reach the whole of the monitor's column.",
 		click({ target: IDS.APP.DOCK_TOGGLE }),
@@ -109,7 +109,7 @@ export const features: TKirejiExport = {
 		"The document reads the same events as prose, showing what a reader can see of a long run rather than all of it, with every earlier event still reachable.",
 		"The reader opens the docked actions pane again to run the document's step.",
 		click({ target: IDS.APP.DOCK_TOGGLE }),
-		...passesStepExecution("MonitorStepper-showDocument", {}),
+		...passesStepForm("MonitorStepper-showDocument", {}),
 		"The reader closes the docked actions pane again to read the whole of the document's column.",
 		click({ target: IDS.APP.DOCK_TOGGLE }),
 

@@ -5,7 +5,7 @@ import {
 	SeqPathSchema,
 	actualityOf,
 	compareSeqPath,
-	executionOf,
+	actualityFeatureOf,
 	extractSeqPathPrefix,
 	formatRecordName,
 	linePathOf,
@@ -109,43 +109,43 @@ describe("a step's verdict", () => {
 	});
 });
 
-describe("the name of an execution's record", () => {
-	it("has one form: its execution, the step path within that execution, and the record's ordinal within that step", () => {
-		expect(formatRecordName({ execution: "1700000000000-4", path: [0, 1, 2] })).toBe("1700000000000-4.0.1.2");
-		expect(formatRecordName({ execution: "1700000000000-4", path: [0, 1, 2], ordinal: 3 })).toBe("1700000000000-4.0.1.2@3");
-		expect(formatRecordName({ execution: "1700000000000-4", path: [] }), "what an execution logged outside every step").toBe("1700000000000-4");
+describe("the name of a record of an actuality", () => {
+	it("has one form: its actuality feature, the step path within that feature, and the record's ordinal within that step", () => {
+		expect(formatRecordName({ actuality: "1700000000000-4", path: [0, 1, 2] })).toBe("1700000000000-4.0.1.2");
+		expect(formatRecordName({ actuality: "1700000000000-4", path: [0, 1, 2], ordinal: 3 })).toBe("1700000000000-4.0.1.2@3");
+		expect(formatRecordName({ actuality: "1700000000000-4", path: [] }), "what a feature of an actuality logged outside every step").toBe("1700000000000-4");
 	});
 
 	it("parses a formatted name back to the same name", () => {
 		for (const name of [
-			{ execution: "1700000000000-4", path: [0, 1, 2] },
-			{ execution: "1700000000000-4", path: [0, -1, 5], ordinal: 0 },
-			{ execution: "1700000000000-1", path: [] },
+			{ actuality: "1700000000000-4", path: [0, 1, 2] },
+			{ actuality: "1700000000000-4", path: [0, -1, 5], ordinal: 0 },
+			{ actuality: "1700000000000-1", path: [] },
 		])
 			expect(parseRecordName(formatRecordName(name))).toEqual(name);
 	});
 
 	it("returns undefined for an id that doesn't name a record", () => {
-		expect(parseRecordName("0.1.2"), "a step path on its own doesn't name an execution").toBeUndefined();
+		expect(parseRecordName("0.1.2"), "a step path on its own doesn't name an actuality feature").toBeUndefined();
 		expect(parseRecordName("log.1700000000000")).toBeUndefined();
 		expect(parseRecordName("")).toBeUndefined();
 	});
 
-	it("rejects a name with an extra field or a malformed execution", () => {
-		expect(RecordNameSchema.safeParse({ execution: "1700000000000-4", path: [0], suffix: "x" }).success).toBe(false);
-		expect(RecordNameSchema.safeParse({ execution: "[0.1]", path: [0] }).success).toBe(false);
+	it("rejects a name with an extra field or a malformed actuality feature", () => {
+		expect(RecordNameSchema.safeParse({ actuality: "1700000000000-4", path: [0], suffix: "x" }).success).toBe(false);
+		expect(RecordNameSchema.safeParse({ actuality: "[0.1]", path: [0] }).success).toBe(false);
 	});
 });
 
-describe("the actuality of an execution", () => {
-	it("is the key every feature's execution of one actuality takes, the synthetic feature's too", () => {
-		expect(actualityOf(executionOf({ key: "1700000000000", featureNum: 4 }))).toBe("1700000000000");
-		expect(actualityOf(executionOf({ key: "1700000000000", featureNum: 0 })), "the actuality's own record").toBe("1700000000000");
-		expect(actualityOf(executionOf({ key: "1700000000000", featureNum: -1 }))).toBe("1700000000000");
+describe("the actuality of an actuality feature", () => {
+	it("is the key every feature of one actuality takes, the synthetic feature too", () => {
+		expect(actualityOf(actualityFeatureOf({ key: "1700000000000", featureNum: 4 }))).toBe("1700000000000");
+		expect(actualityOf(actualityFeatureOf({ key: "1700000000000", featureNum: 0 })), "the actuality's own record").toBe("1700000000000");
+		expect(actualityOf(actualityFeatureOf({ key: "1700000000000", featureNum: -1 }))).toBe("1700000000000");
 	});
 
-	it("refuses an id that doesn't name an execution", () => {
-		expect(() => actualityOf("0.1.2")).toThrow("isn't an execution id");
+	it("refuses an id that doesn't name an actuality feature", () => {
+		expect(() => actualityOf("0.1.2")).toThrow("isn't an actuality feature");
 	});
 });
 

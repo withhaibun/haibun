@@ -52,7 +52,7 @@ export type TDeploymentSettings = z.infer<typeof DeploymentSettingsSchema>;
 
 /** What a page carries of the actuality it records: the graph actuality wrote, and the site's registry as it stood. `shape`
  *  names the rule that wrote the record. */
-export const CachePayloadSchema = z.object({ shape: z.string(), execution: z.string(), registry: z.unknown().optional(), quads: z.array(QuadSchema) }).strict();
+export const CachePayloadSchema = z.object({ shape: z.string(), actuality: z.string(), registry: z.unknown().optional(), quads: z.array(QuadSchema) }).strict();
 export type TCachePayload = z.infer<typeof CachePayloadSchema>;
 
 /** The font a page that carries a record of actuality draws its labels with, as a data URL, and the source of a pattern that

@@ -97,7 +97,7 @@ export default class TuiMonitorStepper extends AStepper implements IHasCycles, I
 	private promptRejecter: ((reason?: unknown) => void) | null = null;
 	featurePath?: string;
 
-	/** True when stdout is a terminal. startExecution doesn't render the ink app when stdout isn't a terminal.
+	/** True when stdout is a terminal. startActuality doesn't render the ink app when stdout isn't a terminal.
 	 *  onEvent then prints each line with console.log. EventFormatter.formatLine formats the line, as in ConsoleMonitorStepper.
 	 *  A redraw per event would write escape codes between the lines of piped output. Each redraw runs a React render. */
 	private readonly terminal = process.stdout.isTTY === true;
@@ -146,7 +146,7 @@ export default class TuiMonitorStepper extends AStepper implements IHasCycles, I
 	}
 
 	cycles = {
-		startExecution: () => {
+		startActuality: () => {
 			this.minLevel = shownLogLevel(this.getWorld().options);
 			if (!this.terminal) return;
 			const onResolve = (val: string) => {
@@ -191,7 +191,7 @@ export default class TuiMonitorStepper extends AStepper implements IHasCycles, I
 			this.updateRender();
 		},
 
-		endExecution: () => {
+		endActuality: () => {
 			this.finished = true;
 			this.updateRender();
 			return Promise.resolve();

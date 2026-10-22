@@ -4,7 +4,7 @@
  * `@haibun/web-server-hono/defs.js`, and the values it states through `domains/web-server.ts`.
  */
 import type { Context, MiddlewareHandler, Hono } from "hono";
-import type { IRouteRegistry } from "@haibun/core/lib/execution.js";
+import type { IRouteRegistry } from "@haibun/core/lib/actuality.js";
 import type { TRpcMethod } from "@haibun/core/lib/transport/ports.js";
 import type { TRestsOn } from "@haibun/core/lib/domains/authority-types.js";
 import type { TRouteTypes } from "./domains/web-server.js";

@@ -76,7 +76,7 @@ ensure Knows about Wikipedia
 		expect(result.ok).toBe(true);
 	});
 
-	it("should fail if proof fails after activity body execution", async () => {
+	it("should fail if proof fails after the activity's body runs", async () => {
 		const background = {
 			path: "/backgrounds/test.feature",
 			content: `

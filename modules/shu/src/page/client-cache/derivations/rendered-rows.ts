@@ -22,7 +22,7 @@ const recordOf = (row: TActualityRow): { persistedAs: string; id: string } => ({
 
 /** A row as a view renders it. A step carries how it went and how long it took; what was logged carries its own level. */
 export function asRendered(row: TActualityRow): TEventRecord {
-	// The step path a view shows and navigates by is the path within the execution: the execution separates the records
+	// The step path a view shows and navigates by is the path within the actuality feature: the actuality feature separates the records
 	// of different actualities, and a reader of one actuality isn't shown it on every row.
 	const seqPath = row.under.length ? row.under : undefined;
 	if (row.kind === "said") return { id: row.step, kind: "log", level: row.level, message: row.text, timestamp: row.at, seqPath, record: recordOf(row) };

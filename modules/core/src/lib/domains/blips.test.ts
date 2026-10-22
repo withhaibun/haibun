@@ -179,17 +179,17 @@ describe("blip rollup: the aggregating listener", () => {
 		]);
 	});
 
-	it("subscribes to the logger it is given and unsubscribes from the earlier one, so an execution that didn't detach doesn't stop the next one's counts", () => {
+	it("subscribes to the logger it is given and unsubscribes from the earlier one, so an actuality that didn't detach doesn't stop the next one's counts", () => {
 		declareBlips(SCROLL);
 		const first = make();
 		const rollup = new BlipRollup();
 		rollup.attach(first.eventLogger);
 		recordBlip(first.world, SCROLL.name, 1, { view: "a" });
-		// The execution ends without detaching, as a throw out of the feature loop would leave it.
+		// The actuality ends without detaching, as a throw out of the feature loop would leave it.
 		const second = make();
 		rollup.attach(second.eventLogger);
 		expect(first.eventLogger.hasSubscribers("blip")).toBe(false);
-		expect(rollup.observe()).toEqual([]); // the counts start empty and don't include the previous execution's counts
+		expect(rollup.observe()).toEqual([]); // the counts start empty and don't include the previous actuality's counts
 		recordBlip(second.world, SCROLL.name, 1, { view: "a" });
 		expect(rollup.observe()).toEqual([{ subject: SCROLL.name, predicate: "count", object: 1 }]);
 	});

@@ -1,5 +1,5 @@
 /**
- * <shu-monitor-column>: Live execution log stream in a miller column.
+ * <shu-monitor-column>: actuality's live log in a miller column.
  * A ShuEventConsumer: the base owns the shared event log (one backfill + live merge + dedup); this view only derives
  * its rows from it. Clickable time values dispatch TIME_SYNC for cross-view synchronization.
  */
@@ -141,13 +141,13 @@ export class ShuMonitorColumn extends ShuElement<typeof MonitorColumnSchema> {
 	 *  pane writes re-renders this column the way any other attribute-bound property does. */
 	@property({ type: Boolean }) accessor spine = false;
 
-	/** The live execution log as an ordered collection of rows (time, level, step, message). */
+	/** Actuality's live log as an ordered collection of rows (time, level, step, message). */
 	summarizeForContext(): TLinkedData | null {
 		if (this.rows.length === 0) return null;
 		return {
 			"@id": "view:monitor",
 			"@type": "as:OrderedCollection",
-			name: "the live execution log",
+			name: "actuality's live log",
 			totalItems: this.rows.length,
 			items: this.rows.map((r) => ({ time: r.time, level: r.level, step: r.step, message: r.message })),
 		};

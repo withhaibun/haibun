@@ -38,7 +38,7 @@ export class PhaseRunner {
 	private createFailureResult(stage: string, error: unknown): TExecutorResult {
 		return {
 			ok: false,
-			// A phase that fails before the world is built fails before an execution starts.
+			// A phase that fails before the world is built fails before an actuality starts.
 			actuality: this.world === undefined ? INITIAL_ACTUALITY : this.world.runtime.actuality.state.get(),
 			shared: this.world?.shared,
 			tag: this.world?.tag,

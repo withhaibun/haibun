@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { TFeatures } from "../lib/actuality/domains/execution.js";
+import type { TFeatures } from "../lib/actuality/domains/actuality.js";
 import type { TWorld } from "../lib/actuality/domains/world.js";
 import { OK } from "../lib/domains/protocol.js";
 import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TEndFeature, READING } from "../lib/steps/domains/stepper.js";

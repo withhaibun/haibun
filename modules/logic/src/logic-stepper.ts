@@ -27,7 +27,7 @@ import { actionNotOK, actionOK, actionOKWithProducts } from "@haibun/core/lib/do
 import { argumentsOf } from "@haibun/core/lib/steps/pipelines/populate-action-args.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { Access, SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
-import { SEQ_PATH_FIELD, calledParts, executionOf, stepRecordOf } from "@haibun/core/lib/actuality/domains/seq-path.js";
+import { SEQ_PATH_FIELD, calledParts, actualityFeatureOf, stepRecordOf } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { callerHolds } from "@haibun/core/lib/domains/capability-context.js";
 import {
 	DOMAIN_AFFORDANCES,
@@ -61,7 +61,7 @@ import { DOMAIN_ALTERNATIVES, DOMAIN_OBSERVATION_SOURCE, DOMAIN_STATUS, readingD
 const steps: IObservationSource = {
 	name: "steps",
 	observe: async (world: TWorld) =>
-		(await recordsWhere(world.shared.getStore(), SEQ_PATH_LABEL, SEQ_PATH_FIELD.execution, executionOf(world.tag))).flatMap((record) => {
+		(await recordsWhere(world.shared.getStore(), SEQ_PATH_LABEL, SEQ_PATH_FIELD.actuality, actualityFeatureOf(world.tag))).flatMap((record) => {
 			const { [SEQ_PATH_FIELD.called]: called, [SEQ_PATH_FIELD.generatedAtTime]: started, [SEQ_PATH_FIELD.endedAtTime]: ended } = record;
 			const stepper = typeof called === "string" ? calledParts(called).stepperName : undefined;
 			const duration = typeof ended === "string" && typeof started === "string" ? Date.parse(ended) - Date.parse(started) : undefined;

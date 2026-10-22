@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 /**
- * An actuality carried in a page: what a standalone report embeds is the graph its execution wrote, filled into a store of the
+ * An actuality carried in a page: what a standalone report embeds is the graph its actuality feature wrote, filled into a store of the
  * page's own at boot, and the window then reads that actuality exactly as it reads one a site is recording. A payload written to
  * another rule is refused rather than read wrongly.
  */
@@ -11,7 +11,7 @@ import { itemAt } from "@haibun/core/lib/domains/item-at.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { CACHE_SHAPE } from "../ports.js";
 import type { TCachePayload } from "../../../domains/hydration.js";
-import { cachedGraph, currentExecution, hydrateClientCache, pageDeviceStore } from "./device-controller.js";
+import { cachedGraph, currentActualityFeature, hydrateClientCache, pageDeviceStore } from "./device-controller.js";
 import { actualityWindow } from "../pipelines/actuality-window.js";
 import { ACTUALITY_WINDOW_SIZE } from "../derivations/actuality-rows.js";
 import { buildConcernCatalog } from "@haibun/core/lib/domains/hypermedia.js";
@@ -20,21 +20,21 @@ import { ACTUALITY_DOMAIN_DEFINITIONS } from "../actuality-store.test-fake.js";
 import { setupShuTest, stepsShown, type TShuTestHandle } from "../../../test/setup.js";
 import { pageActualityGraph } from "../../controllers/read-controller.js";
 
-const EXECUTION = "1700000000000-1";
+const ACTUALITY_FEATURE = "1700000000000-1";
 const iso = (n: number): string => new Date(n).toISOString();
 /** The steps of the reported actuality, as the quads a report carries. */
 const stepQuads = Array.from({ length: 12 }, (_, i) => [
-	{ subject: `${EXECUTION}.0.${i}`, predicate: "id", object: `${EXECUTION}.0.${i}`, namedGraph: SEQ_PATH_LABEL, timestamp: 1 },
-	{ subject: `${EXECUTION}.0.${i}`, predicate: "stepText", object: `step ${i}`, namedGraph: SEQ_PATH_LABEL, timestamp: 1 },
-	{ subject: `${EXECUTION}.0.${i}`, predicate: "generatedAtTime", object: iso(2000 + i), namedGraph: SEQ_PATH_LABEL, timestamp: 1 },
-	{ subject: `${EXECUTION}.0.${i}`, predicate: "level", object: "info", namedGraph: SEQ_PATH_LABEL, timestamp: 1 },
-	{ subject: `${EXECUTION}.0.${i}`, predicate: "actionStatus", object: "passed", namedGraph: SEQ_PATH_LABEL, timestamp: 1 },
-	{ subject: `${EXECUTION}.0.${i}`, predicate: "accessLevel", object: "private", namedGraph: SEQ_PATH_LABEL, timestamp: 1 },
+	{ subject: `${ACTUALITY_FEATURE}.0.${i}`, predicate: "id", object: `${ACTUALITY_FEATURE}.0.${i}`, namedGraph: SEQ_PATH_LABEL, timestamp: 1 },
+	{ subject: `${ACTUALITY_FEATURE}.0.${i}`, predicate: "stepText", object: `step ${i}`, namedGraph: SEQ_PATH_LABEL, timestamp: 1 },
+	{ subject: `${ACTUALITY_FEATURE}.0.${i}`, predicate: "generatedAtTime", object: iso(2000 + i), namedGraph: SEQ_PATH_LABEL, timestamp: 1 },
+	{ subject: `${ACTUALITY_FEATURE}.0.${i}`, predicate: "level", object: "info", namedGraph: SEQ_PATH_LABEL, timestamp: 1 },
+	{ subject: `${ACTUALITY_FEATURE}.0.${i}`, predicate: "actionStatus", object: "passed", namedGraph: SEQ_PATH_LABEL, timestamp: 1 },
+	{ subject: `${ACTUALITY_FEATURE}.0.${i}`, predicate: "accessLevel", object: "private", namedGraph: SEQ_PATH_LABEL, timestamp: 1 },
 ]).flat();
 
 const payload = (over: Partial<TCachePayload> = {}): TCachePayload => ({
 	shape: CACHE_SHAPE,
-	execution: EXECUTION,
+	actuality: ACTUALITY_FEATURE,
 	registry: { steps: [], domains: {}, concerns: { persisted: {} } },
 	quads: stepQuads,
 	...over,
@@ -57,14 +57,14 @@ describe("an actuality carried in a page", () => {
 		handle.teardown();
 	});
 
-	it("is read as any actuality is read: the window over the records its execution wrote", async () => {
+	it("is read as any actuality is read: the window over the records its actuality feature wrote", async () => {
 		await hydrateClientCache(payload({ registry: undefined }));
 		// A page carrying an actuality reads it through the page's own graph, which this case asserts.
-		const window = await actualityWindow(pageActualityGraph(), { execution: EXECUTION, size: ACTUALITY_WINDOW_SIZE, minLevel: "info", substeps: false });
+		const window = await actualityWindow(pageActualityGraph(), { actuality: ACTUALITY_FEATURE, size: ACTUALITY_WINDOW_SIZE, minLevel: "info", substeps: false });
 		expect(window.rows.length, "actuality the page carries").toBe(12);
 		expect(itemAt(window.rows, 0).text).toBe("step 0");
 		expect(itemAt(window.rows, 11).text).toBe("step 11");
-		expect(currentExecution(), "the execution the page carries is the one being read").toBe(EXECUTION);
+		expect(currentActualityFeature(), "the actuality feature the page carries is the one being read").toBe(ACTUALITY_FEATURE);
 	});
 
 	it("carries the registry, so the page holds the site's declarations without a site to read", async () => {

@@ -6,7 +6,7 @@
  * browser console, and the bug then stays unfixed.
  *
  * `failFastOrLog` re-throws the error in DEV, so the developer sees the failure immediately. In PROD it logs the error,
- * and execution continues. A caller wraps the protected code in a try/catch and calls this helper in the catch.
+ * and the code after the catch runs. A caller wraps the protected code in a try/catch and calls this helper in the catch.
  *
  * Detection
  *   - Where `process.env.NODE_ENV` is set: DEV unless it is "production".

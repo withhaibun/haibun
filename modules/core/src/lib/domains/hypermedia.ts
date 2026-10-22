@@ -23,7 +23,7 @@ import {
 	type THypermediaTopology,
 	PersistedVertexSchema,
 } from "./resources.js";
-import { EXECUTION_FIELD } from "../actuality/domains/seq-path.js";
+import { ACTUALITY_FIELD } from "../actuality/domains/seq-path.js";
 
 /** Resolve a property def to its rel, regardless of plain-string or object (content / term) form. */
 export function relOf(def: TPropertyDef): TRel {
@@ -254,7 +254,7 @@ const HypermediaConcernSchema = z.object({
 	displayLabel: z.string().optional(),
 	/** True when declared at runtime (`set of {domain} by …`) vs by a compiled stepper. */
 	declared: z.boolean().default(false),
-	/** True when the type records actuality's own execution (`topology.instrumentation`), which a view hides by default. */
+	/** True when the type records actuality itself (`topology.instrumentation`), which a view hides by default. */
 	instrumentation: z.boolean().default(false),
 	/** UI metadata: slot, component, JS source, etc. */
 	ui: z.record(z.string(), z.unknown()).optional(),
@@ -595,7 +595,7 @@ export type ResourceRels = {
 	contentField(type: string): string | undefined;
 	/** The property or edge that titles this type, where it declares one. */
 	titledBy(type: string): TTitledBy | undefined;
-	/** Whether the type records actuality's own execution (`topology.instrumentation`). */
+	/** Whether the type records actuality itself (`topology.instrumentation`). */
 	instrumentation(type: string): boolean;
 	/** The fields a store counts the type's removed records by (`topology.countedBy`), empty where it doesn't declare them.
 	 *  Throws for a type that isn't declared. */
@@ -609,7 +609,7 @@ export type ResourceRels = {
 
 /** What a start-up writes in a record that an interrupted actuality left without an end: the time it ended, the status that
  *  states it was interrupted, the start-up step that ended it, and the time of writing where the type states one. `actuality`
- *  is the field that names the record's actuality, by the id `executionOf` returns. */
+ *  is the field that names the record's actuality, by the id `actualityFeatureOf` returns. */
 export type TEnding = { end: string; status: string; endedBy: string; actuality: string; recordedAt?: string };
 
 /** Returns the ending of an instrumentation type that maps a property to `prov:endedAtTime`, or undefined where it doesn't
@@ -620,10 +620,10 @@ function endingOf(type: string, topology: THypermediaTopology, fieldByRel: (rel:
 	if (!topology.instrumentation || end === undefined) return undefined;
 	const status = fieldByRel(LinkRelations.ACTION_STATUS.rel);
 	const endedBy = fieldByRel(LinkRelations.WAS_ENDED_BY.rel);
-	const actuality = topology.properties[EXECUTION_FIELD] === undefined ? undefined : EXECUTION_FIELD;
+	const actuality = topology.properties[ACTUALITY_FIELD] === undefined ? undefined : ACTUALITY_FIELD;
 	if (status === undefined || endedBy === undefined || actuality === undefined)
 		throw new Error(
-			`${type} states its end in ${end}, and doesn't map a property to each of ${LinkRelations.ACTION_STATUS.rel}, ${LinkRelations.WAS_ENDED_BY.rel} and ${EXECUTION_FIELD}. A start-up ends a record that an interrupted actuality left open by its status, the step that ended it and its actuality; declare the three`,
+			`${type} states its end in ${end}, and doesn't map a property to each of ${LinkRelations.ACTION_STATUS.rel}, ${LinkRelations.WAS_ENDED_BY.rel} and ${ACTUALITY_FIELD}. A start-up ends a record that an interrupted actuality left open by its status, the step that ended it and its actuality; declare the three`,
 		);
 	const recordedAt = fieldByRel(LinkRelations.RECORDED_AT_TIME.rel);
 	return { end, status, endedBy, actuality, ...(recordedAt === undefined ? {} : { recordedAt }) };

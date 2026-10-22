@@ -8,7 +8,7 @@ import { type TEvent } from "../ports.js";
 import * as PageHash from "../controllers/hash-controller.js";
 import { AFFORDANCE_PARAM } from "../../domains/elements.js";
 import { RPC_METHOD } from "../../domains/elements.js";
-import { readingExecution } from "../client-cache/controllers/device-controller.js";
+import { readingActualityFeature } from "../client-cache/controllers/device-controller.js";
 import { declareFakeGraphPresenter, mountedPresenter } from "../../graph-presenter.test-fake.js";
 import { presenterIn } from "../controllers/presenter-controller.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
@@ -27,7 +27,7 @@ const AFFORDANCES_STEP = {
 };
 
 /** The actuality from which a snapshot records its facts. */
-const EXECUTION = "1790000000000-1";
+const ACTUALITY_FEATURE = "1790000000000-1";
 
 /** `products` applies synchronously (app.ts coalesces the replay upstream), so just await the lit render. */
 const applied = async (panel: { updateComplete: Promise<unknown> }): Promise<void> => {
@@ -70,7 +70,7 @@ describe("shu-affordances-panel", () => {
 		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
 		panel.products = {
-			execution: EXECUTION,
+			actuality: ACTUALITY_FEATURE,
 			satisfiedDomains: [],
 			forward: [{ method: "X-y", stepperName: "X", stepName: "y", inputDomains: [], outputDomains: ["g"], readyToRun: true }],
 			goals: [{ domain: "g", description: "Goal g", resolution: { verdict: "proved", goal: "g", factIds: ["fact-1"], plans: [] } }],
@@ -87,7 +87,7 @@ describe("shu-affordances-panel", () => {
 		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
 		panel.products = {
-			execution: EXECUTION,
+			actuality: ACTUALITY_FEATURE,
 			satisfiedDomains: [],
 			forward: [],
 			goals: [{ domain: "session", description: "Session", resolution: { verdict: "proved", goal: "session", factIds: ["s-1", "s-2", "s-3"], plans: [] } }],
@@ -107,7 +107,7 @@ describe("shu-affordances-panel", () => {
 		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
 		panel.products = {
-			execution: EXECUTION,
+			actuality: ACTUALITY_FEATURE,
 			satisfiedDomains: [],
 			forward: [],
 			goals: [
@@ -142,7 +142,7 @@ describe("shu-affordances-panel", () => {
 		document.body.appendChild(panel);
 		const path = { steps: [{ stepperName: "Issue", stepName: "issueCredential" }], bindings: [{ kind: "argument", domain: "issuer" }] };
 		panel.products = {
-			execution: EXECUTION,
+			actuality: ACTUALITY_FEATURE,
 			satisfiedDomains: [],
 			forward: [],
 			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { verdict: "unknown", goal: "vc", factIds: [], plans: [path] } }],
@@ -167,7 +167,7 @@ describe("shu-affordances-panel", () => {
 		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
 		panel.products = {
-			execution: EXECUTION,
+			actuality: ACTUALITY_FEATURE,
 			satisfiedDomains: [],
 			forward: [],
 			goals: [
@@ -219,7 +219,7 @@ describe("shu-affordances-panel", () => {
 		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
 		panel.products = {
-			execution: EXECUTION,
+			actuality: ACTUALITY_FEATURE,
 			satisfiedDomains: [],
 			forward: [],
 			goals: [{ domain: "g", description: "Goal g", resolution: { verdict: "proved", goal: "g", factIds: ["fact-x"], plans: [] } }],
@@ -230,7 +230,7 @@ describe("shu-affordances-panel", () => {
 		if (!explain) throw new Error("unreachable");
 		explain.open = true;
 		panel.products = {
-			execution: EXECUTION,
+			actuality: ACTUALITY_FEATURE,
 			satisfiedDomains: [],
 			forward: [],
 			goals: [
@@ -261,7 +261,7 @@ describe("shu-affordances-panel", () => {
 			],
 		};
 		panel.products = {
-			execution: EXECUTION,
+			actuality: ACTUALITY_FEATURE,
 			satisfiedDomains: [],
 			forward: [],
 			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { verdict: "unknown", goal: "vc", factIds: [], plans: [compositePlan] } }],
@@ -274,7 +274,7 @@ describe("shu-affordances-panel", () => {
 		if (!composite) throw new Error("unreachable");
 		composite.open = true;
 		panel.products = {
-			execution: EXECUTION,
+			actuality: ACTUALITY_FEATURE,
 			satisfiedDomains: [],
 			forward: [],
 			goals: [{ domain: "vc", description: "Verifiable credential", resolution: { verdict: "unknown", goal: "vc", factIds: [], plans: [compositePlan] } }],
@@ -288,7 +288,7 @@ describe("shu-affordances-panel", () => {
 		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
 		panel.products = {
-			execution: EXECUTION,
+			actuality: ACTUALITY_FEATURE,
 			satisfiedDomains: [],
 			forward: [],
 			goals: [
@@ -332,7 +332,7 @@ describe("shu-affordances-panel", () => {
 		const wp = { outcome: "deliver-report", kind: "declarative", ensured: false, method: "Acts-ensure", resolvesDomain: "report", paramSlots: [], proofStatements: [] };
 		installConduit(new TestConduit(async () => ({})));
 		const panel = new ShuAffordancesPanel();
-		panel.products = { execution: EXECUTION, satisfiedDomains: [], forward: [], goals: [], waypoints: [wp] };
+		panel.products = { actuality: ACTUALITY_FEATURE, satisfiedDomains: [], forward: [], goals: [], waypoints: [wp] };
 		document.body.appendChild(panel);
 		await applied(panel);
 		expect(panel.shadowRoot?.querySelector('[data-testid="affordances-waypoints"]')).toBeTruthy();
@@ -346,7 +346,7 @@ describe("shu-affordances-panel", () => {
 		installConduit(
 			new TestConduit((method: string) => {
 				if (method === RPC_METHOD.AFFORDANCES_ON_OFFER) snapshotCalls++;
-				return { execution: EXECUTION, waypoints: [], satisfiedDomains: [], forward: [], goals: [] };
+				return { actuality: ACTUALITY_FEATURE, waypoints: [], satisfiedDomains: [], forward: [], goals: [] };
 			}),
 		);
 		declareRegistry(stepsShown([AFFORDANCES_STEP]));
@@ -364,10 +364,10 @@ describe("shu-affordances-panel", () => {
 	it("takes the actuality its snapshot names as the actuality the page reads, where a fact's step opens, and refuses one that doesn't name an actuality", () => {
 		const panel = new ShuAffordancesPanel();
 		document.body.appendChild(panel);
-		panel.products = { execution: EXECUTION, satisfiedDomains: [], forward: [], goals: [] };
-		expect(readingExecution()).toBe(EXECUTION);
+		panel.products = { actuality: ACTUALITY_FEATURE, satisfiedDomains: [], forward: [], goals: [] };
+		expect(readingActualityFeature()).toBe(ACTUALITY_FEATURE);
 		expect(() => {
 			panel.products = { satisfiedDomains: [], forward: [], goals: [] };
-		}).toThrow(/the `execution` that holds them/);
+		}).toThrow(/the `actuality` that holds them/);
 	});
 });

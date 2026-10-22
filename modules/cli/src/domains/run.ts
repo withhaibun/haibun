@@ -16,7 +16,7 @@ import type { TDomainDefinition } from "@haibun/core/lib/domains/resources.js";
 const STAY_ENV = `${BASE_PREFIX}${STAY}`;
 const ONCE_ENV = `${BASE_PREFIX}${ONCE}`;
 const NDJSON_ENV = `${BASE_PREFIX}${NDJSON}`;
-/** The environment name of a process's key, which names its executions and so its records. */
+/** The environment name of a process's key, which names its actuality and so its records. */
 export const KEY_ENV = `${BASE_PREFIX}KEY`;
 
 /**
@@ -66,10 +66,10 @@ export const runReadSchema = z.object({
 	// stay complete when the output exceeds the tail.
 	features: z.number(),
 	steps: z.number(),
-	/** The status of a run's execution, as the actuality machine that read its events holds it. A standing run's
-	 *  execution ends and its process keeps serving without exiting, so a caller waits on this status rather than on an exit. */
-	execution: z.enum(LEVEL_STATUS),
-	/** The steps that failed as the execution's own failures, each as its id, its text and its failure message. */
+	/** The status of a run's actuality, as the actuality machine that read its events holds it. A standing run's
+	 *  actuality ends and its process keeps serving without exiting, so a caller waits on this status rather than on an exit. */
+	actuality: z.enum(LEVEL_STATUS),
+	/** The steps that failed as the actuality's own failures, each as its id, its text and its failure message. */
 	failures: z.array(StepFailureSchema),
 	/** Where a run wrote its report, where it wrote one. */
 	report: z.string().optional(),

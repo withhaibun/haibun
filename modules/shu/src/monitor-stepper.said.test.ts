@@ -2,7 +2,7 @@
 // the way they ask for anything else. The record is the durable copy of a statement the reader was already told over
 // the stream, which is why writing it isn't announced.
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { executionOf, formatRecordName } from "@haibun/core/lib/seq-path.js";
+import { actualityFeatureOf, formatRecordName } from "@haibun/core/lib/seq-path.js";
 import type { QuadStore } from "@haibun/core/lib/quad-store.js";
 import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { storeDeclaring } from "@haibun/core/lib/test/declared-types.js";
@@ -15,7 +15,7 @@ import MonitorStepper from "./monitor-stepper.js";
 const said = (over: Partial<THaibunEvent> = {}): THaibunEvent =>
 	({ id: "0.1.2", timestamp: 1700, kind: "log", level: "warn", message: "what it said", ...over }) as unknown as THaibunEvent;
 
-/** The actuality that holds these records: one feature of one process, which is what an execution is. */
+/** The actuality that holds these records: one feature of one process, which is what an actuality feature is. */
 const TAG = { key: "1700000000000", featureNum: 1 };
 
 /** What the monitor's event logger does with a warning: `IGNORED` drops it, and `LOGGED` emits it as a log event to the
@@ -54,7 +54,7 @@ describe("what a run logged, as a record", () => {
 		expect(record?.[LOG_MESSAGE_FIELD.message]).toBe("what it said");
 		expect(record?.[LOG_MESSAGE_FIELD.level]).toBe("warn");
 		expect(record?.[LOG_MESSAGE_FIELD.generatedAtTime]).toBe(new Date(1700).toISOString());
-		expect(record?.isPartOf, "the step it was logged during").toBe(formatRecordName({ execution: executionOf(TAG), path: [0, 1, 2] }));
+		expect(record?.isPartOf, "the step it was logged during").toBe(formatRecordName({ actuality: actualityFeatureOf(TAG), path: [0, 1, 2] }));
 	});
 
 	it("keeps two statements of one step apart, including two logged in the same millisecond, which a clock doesn't separate", async () => {
@@ -79,8 +79,10 @@ describe("what a run logged, as a record", () => {
 		monitor.onEvent(said({ id: "0.-1.525", message: "what went wrong" }));
 		await monitor.ended();
 		const [record] = await readEvery(store, { label: LOG_MESSAGE_LABEL });
-		expect(record?.isPartOf).toBe(formatRecordName({ execution: executionOf(TAG), path: [0, -1, 525] }));
-		expect(record?.id, "its own name is that step's, and which of what it logged this is").toBe(formatRecordName({ execution: executionOf(TAG), path: [0, -1, 525], ordinal: 0 }));
+		expect(record?.isPartOf).toBe(formatRecordName({ actuality: actualityFeatureOf(TAG), path: [0, -1, 525] }));
+		expect(record?.id, "its own name is that step's, and which of what it logged this is").toBe(
+			formatRecordName({ actuality: actualityFeatureOf(TAG), path: [0, -1, 525], ordinal: 0 }),
+		);
 	});
 
 	it("ends the feature with every record written, since the store closes as the feature ends", async () => {
@@ -155,7 +157,7 @@ describe("what a run produced, as a record", () => {
 			[RUN_ARTIFACT_FIELD.path]: "/artifacts/shot.png",
 			[RUN_ARTIFACT_FIELD.featureRelativePath]: "./image/shot.png",
 			[RUN_ARTIFACT_FIELD.mediaType]: "image/png",
-			isPartOf: formatRecordName({ execution: executionOf(TAG), path: [0, 1, 2] }),
+			isPartOf: formatRecordName({ actuality: actualityFeatureOf(TAG), path: [0, 1, 2] }),
 		});
 	});
 

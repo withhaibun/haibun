@@ -84,7 +84,7 @@ class InstanceStepper extends AStepper implements IHasCycles {
 						output: this.output,
 						dropped: 0,
 						features: actuality.features.length,
-						execution: actuality.status,
+						actuality: actuality.status,
 						steps: actuality.steps,
 						failures: actuality.failures,
 						...(report === undefined ? {} : { report }),
@@ -168,7 +168,7 @@ describe("the test-runner agent's limits", () => {
 
 	it("clears the state of every actuality of a base's features when a change to every feature is noted, so the features run again in any state", () => {
 		const dir = nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-noted-"));
-		const actuality = { state: "s", filter: "", execution: { text: "an actuality", status: "passed", tookMs: 0 }, features: {} };
+		const actuality = { state: "s", filter: "", actuality: { text: "an actuality", status: "passed", tookMs: 0 }, features: {} };
 		nodeFS.writeFileSync(path.join(dir, ACTUALITIES_FILE), JSON.stringify({ machine: { conditions: actuality } }));
 		h.stepper.noteApplied("", dir);
 		expect(JSON.parse(nodeFS.readFileSync(path.join(dir, ACTUALITIES_FILE), "utf-8")).machine.conditions.state, "the supervisor doesn't refuse the test run").toBeUndefined();
@@ -203,7 +203,7 @@ describe("who a test run names as its starter", () => {
 
 	it("starts the test run as the agent where the call didn't verify a principal, so the run's record names the agent", async () => {
 		const started = await h.run("tests", "polymorphic");
-		expect(started.products?.record, "the products name the execution record of the test run, which a finding can reference").toBe("1700000000000-0");
+		expect(started.products?.record, "the products name the actuality record of the test run, which a finding can reference").toBe("1700000000000-0");
 		expect(h.supervisor.calls.find((c) => c.step === "startRun")?.actingAs, "the supervisor writes the run's record as the principal that started it").toBe(TEST_RUNNER_AUTHOR);
 		expect(
 			h.written.some((w) => w.data.id === TEST_RUNNER_AUTHOR),
@@ -310,7 +310,7 @@ describe("what a test run reports", () => {
 		'{"id":"0.1.1.1","timestamp":1,"kind":"lifecycle","stage":"end","status":"completed","type":"step","in":"set answer to ready"}',
 		'{"id":"0.1.1.2","timestamp":2,"kind":"lifecycle","stage":"end","status":"failed","type":"step","in":"variable answer is other","error":"answer is ready, not other"}',
 		'{"id":"log.1","kind":"log","level":"info","message":"shu standalone report: file:///tmp/capture/featn-1/shu.html"}',
-		'{"id":"execution","timestamp":3,"kind":"lifecycle","stage":"end","status":"failed","type":"execution"}',
+		'{"id":"actuality","timestamp":3,"kind":"lifecycle","stage":"end","status":"failed","type":"actuality"}',
 		"not json {",
 	].join("\n");
 
@@ -360,7 +360,7 @@ describe("examining a finished test run", () => {
 			'{"id":"0.1.1.1","timestamp":2,"kind":"lifecycle","stage":"end","status":"completed","type":"step","in":"a step"}',
 			'{"id":"0.1.1.2","timestamp":3,"kind":"lifecycle","stage":"end","status":"failed","type":"step","in":"another","error":"it logged no"}',
 			'{"id":"feat-1","timestamp":4,"kind":"lifecycle","stage":"end","status":"failed","type":"feature"}',
-			'{"id":"execution","timestamp":5,"kind":"lifecycle","stage":"end","status":"failed","type":"execution"}',
+			'{"id":"actuality","timestamp":5,"kind":"lifecycle","stage":"end","status":"failed","type":"actuality"}',
 		].join("\n");
 		await h.waitFor(30);
 		const examined = await h.asRun(() => (h.stepper.steps.examineTestRun.action as () => Promise<TResult & { products?: Record<string, unknown> }>)());

@@ -29,7 +29,7 @@ variable verifyCount is 1
 		// But NOT for the increment itself (same actionName filter)
 	});
 
-	it("after every hook triggers during ensure outcome execution (substeps)", async () => {
+	it("after every hook triggers while an ensure outcome's substeps run", async () => {
 		const feature = {
 			path: "/features/test.feature",
 			content: `Activity: Setup

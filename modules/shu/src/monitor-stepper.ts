@@ -1,5 +1,5 @@
 /**
- * MonitorStepper: Buffers execution events and forwards them via SSE transport.
+ * MonitorStepper: Buffers actuality's events and forwards them via SSE transport.
  * Works with any config that has @haibun/web-server-hono (shared transport).
  * The shu frontend receives events via SSE for live updates and fetches history via RPC.
  * At endFeature, writes a standalone HTML file with embedded events, quads, and concerns.
@@ -125,7 +125,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 	private async serveMonitor(port: number): Promise<void> {
 		const webServer = findStepper<WebServerStepper>(this.steppers, "WebServerStepper");
 		const shu = findStepper<ShuStepper>(this.steppers, "ShuStepper");
-		this.monitorTransport = await webServer.serveForExecution("monitor", port, (server) => {
+		this.monitorTransport = await webServer.serveForActuality("monitor", port, (server) => {
 			shu.serveApp(server, MONITOR_PATH, MONITOR_OPENS_AT);
 			this.serveArtifacts(server);
 		});
@@ -153,7 +153,7 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 				runArtifactDomainDefinition,
 			],
 		}),
-		startExecution: async () => {
+		startActuality: async () => {
 			const port = getStepperOption(this, "PORT", this.getWorld().moduleOptions);
 			if (port) await this.serveMonitor(Number(port));
 		},

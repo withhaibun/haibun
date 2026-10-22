@@ -2,7 +2,7 @@
 	"linux-x64-16x-amd-ryzen-7-pro-7840u-w-radeon-780m-graphics": {
 		"3ee7e6c72e2003cb": {
 			"filter": "",
-			"execution": {
+			"actuality": {
 				"text": "e2e-tests/policy-test",
 				"status": "passed",
 				"tookMs": 100,
@@ -53,7 +53,7 @@
 		},
 		"6779795d8d84fed3": {
 			"filter": "",
-			"execution": {
+			"actuality": {
 				"text": "e2e-tests/policy-test",
 				"status": "passed",
 				"tookMs": 0,
@@ -80,7 +80,7 @@
 		},
 		"811625a23a6e9c6d": {
 			"filter": "",
-			"execution": {
+			"actuality": {
 				"text": "e2e-tests/policy-test",
 				"status": "passed",
 				"tookMs": 0,

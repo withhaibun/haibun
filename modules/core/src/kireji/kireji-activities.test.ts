@@ -34,7 +34,7 @@ set z to 3`,
 		expect(waypointLine).toBeDefined();
 	});
 
-	it("should handle single-line proofs in actual feature execution", async () => {
+	it("should handle single-line proofs in a feature that runs", async () => {
 		const background = {
 			path: "/backgrounds/setup.feature",
 			content: `Activity: Setup

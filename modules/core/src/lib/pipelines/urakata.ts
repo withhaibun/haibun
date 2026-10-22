@@ -1,5 +1,5 @@
 /**
- * Urakata: step execution outside the feature flow.
+ * Urakata: the steps that run outside the feature flow.
  *
  * A stepper registers its tickers here and doesn't implement its own timer or
  * AbortController. The registry:
@@ -85,7 +85,7 @@ export class UrakataRegistry implements IUrakataRegistry {
 		const urakata: TUrakata = {
 			id: spec.id,
 			description: spec.description,
-			execution: this.world.tag.key,
+			actuality: this.world.tag.key,
 			actionStatus: RECORDED_STATUS.running,
 			seqPath,
 			startedAt: new Date().toISOString(),

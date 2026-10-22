@@ -1,5 +1,5 @@
 import { BaseOptionsSchema, type TEnvVariables, type TModuleOptions, type TProtoOptions } from "@haibun/core/lib/world.js";
-import type { TSpecl } from "@haibun/core/lib/execution.js";
+import type { TSpecl } from "@haibun/core/lib/actuality.js";
 import { HAIBUN_RUN_POLICY } from "@haibun/core/run-policy/domains/run-policy.js";
 import {
 	BASE_PREFIX,
@@ -17,8 +17,8 @@ import { boolOrError, intOrError, optionOrError, stringOrError } from "@haibun/c
 
 export class BaseOptions implements IHasOptions {
 	static options = {
-		KEY: { desc: "execution key (defaults to serialtime)", parse: (input: string) => stringOrError(input) },
-		STAY: { desc: `stay running after execution: ${STAY_ALWAYS}, ${STAY_FAILURE}`, parse: (result: string) => optionOrError(result, [STAY_ALWAYS, STAY_FAILURE]) },
+		KEY: { desc: "actuality key (defaults to serialtime)", parse: (input: string) => stringOrError(input) },
+		STAY: { desc: `stay running after actuality's features end: ${STAY_ALWAYS}, ${STAY_FAILURE}`, parse: (result: string) => optionOrError(result, [STAY_ALWAYS, STAY_FAILURE]) },
 		[ONCE]: {
 			desc: "run a group only when one of its dependencies changed since it last passed. This option applies --once to every run that a script chains",
 			parse: (input: string) => boolOrError(input),

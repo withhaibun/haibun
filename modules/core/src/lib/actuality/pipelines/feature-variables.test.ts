@@ -7,7 +7,7 @@ import { TStepValue, Origin } from "../../domains/protocol.js";
 import { getDefaultWorld } from "../../test/lib.js";
 import { DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STRING, registerDomains } from "../../domains/domains.js";
 import { Access, DOMAIN_PERSISTED_TYPE, SEQ_PATH_LABEL } from "../../domains/resources.js";
-import { STEP_LEVEL, executionOf, formatRecordName } from "../domains/seq-path.js";
+import { STEP_LEVEL, actualityFeatureOf, formatRecordName } from "../domains/seq-path.js";
 import { QuadStore, newStoreChain } from "../../steps/pipelines/quad-store.js";
 
 /** A named graph a backing store holds. */
@@ -138,7 +138,7 @@ describe("FeatureVariables", () => {
 			const all = await variables.all();
 			expect(all.foo?.value).toBe("baz");
 			expect(all.foo?.origin).toBe(Origin.var);
-			const setBy = [provenance1, provenance2].map(({ seq }) => formatRecordName({ execution: executionOf(world.tag), path: seq }));
+			const setBy = [provenance1, provenance2].map(({ seq }) => formatRecordName({ actuality: actualityFeatureOf(world.tag), path: seq }));
 			const carried = await variables.carried();
 			expect(carried.foo?.generatedBy).toEqual(setBy);
 			expect((await new FeatureVariables(world, carried).carried()).foo?.generatedBy, "the next scope keeps the steps").toEqual(setBy);

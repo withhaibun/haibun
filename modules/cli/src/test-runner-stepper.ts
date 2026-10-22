@@ -1,7 +1,7 @@
 /**
  * TestRunnerStepper implements the development-flow agent. It starts a named test run, follows it, examines its output,
  * and calls steps of a standing test run. The supervisor writes each test run's records: the SeqPath records of its
- * execution, its features and its scenarios. The agent reports its findings in the discourse, where a person replies.
+ * actuality, its features and its scenarios. The agent reports its findings in the discourse, where a person replies.
  *
  * The agent's tools are this stepper's steps. A feature line, an RPC request or another agent calls each tool the same way.
  * The same capabilities gate each call, and each call is recorded as the same individuals. This stepper doesn't add a
@@ -149,7 +149,7 @@ export const TEST_RUNNER_AUTHOR = "agent:test-runner";
 export const RUNNER_DEFAULTS = { maxRuns: 3, port: 0, maxStanding: 2, hostId: 9 } as const;
 
 /** A test run this stepper started, as it is tracked between tool calls. The supervisor holds the process. This holds
- *  the filter, the id of its execution's record, and how far its output has been read. */
+ *  the filter, the id of its actuality's record, and how far its output has been read. */
 type TTrackedRun = {
 	id: string;
 	filter: string;
@@ -160,9 +160,9 @@ type TTrackedRun = {
 	host: number;
 };
 
-/** How a test run ended, as its record states it: from its exit code where it exited, else from its execution's end. */
+/** How a test run ended, as its record states it: from its exit code where it exited, else from its actuality's end. */
 const outcomeOf = (read: z.infer<typeof runReadSchema>): TRecordedStatus =>
-	read.status === "ended" || !isLevelEnd(read.execution) ? (read.exitCode === 0 ? RECORDED_STATUS.completed : RECORDED_STATUS.failed) : RECORDED_STATUS[read.execution];
+	read.status === "ended" || !isLevelEnd(read.actuality) ? (read.exitCode === 0 ? RECORDED_STATUS.completed : RECORDED_STATUS.failed) : RECORDED_STATUS[read.actuality];
 
 /** The products of readTestRun and awaitTestRun: the test run's output since the last read, and its status. */
 const TestRunReadSchema = z.object({ run: z.string(), status: z.string(), exitCode: z.number().nullable(), output: z.string() });
@@ -261,7 +261,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			gwta: `run the tests in {where: ${DOMAIN_FILE_PATH}} matching {filter: ${RUN_DOMAIN.featureFilter}}`,
 			capability: SUPERVISOR_CAPABILITIES.run,
 			description:
-				"Start a test run of the named features. The products name it and the id of its execution's record, which the supervisor writes from the test run's moves, so later findings can reference it. One test run at a time: a start while a test run is in flight is refused with the id of that test run. Features that ran against the present state of their dependencies don't run again until a dependency changes or a caller notes a change.",
+				"Start a test run of the named features. The products name it and the id of its actuality's record, which the supervisor writes from the test run's moves, so later findings can reference it. One test run at a time: a start while a test run is in flight is refused with the id of that test run. Features that ran against the present state of their dependencies don't run again until a dependency changes or a caller notes a change.",
 			// The products are the started test run, so `run-started` is a goal. Resolving it selects this step as a plan,
 			// so the resolver offers starting a test run as a step.
 			productsDomain: RUN_DOMAIN.started,
@@ -271,7 +271,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			gwta: `run all the tests in {where: ${DOMAIN_FILE_PATH}}`,
 			capability: SUPERVISOR_CAPABILITIES.run,
 			description:
-				"Start a test run of every feature in a directory. The products name it and its execution's record. The limits of a filtered test run apply: one at a time, and not again until a dependency of the features changes.",
+				"Start a test run of every feature in a directory. The products name it and its actuality's record. The limits of a filtered test run apply: one at a time, and not again until a dependency of the features changes.",
 			productsDomain: RUN_DOMAIN.started,
 			action: async ({ where }: { where: string }) => await this.askedToRun(where, ""),
 		},
@@ -279,16 +279,16 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 			gwta: `read the test run`,
 			capability: SUPERVISOR_CAPABILITIES.read,
 			description:
-				"Read the output of the test run in flight since the last read, and its status. This step clears the test run in flight when the test run has exited or its execution has ended, so the next test run can start. The status comes from the exit code, or from the execution's status of a standing test run.",
+				"Read the output of the test run in flight since the last read, and its status. This step clears the test run in flight when the test run has exited or its actuality has ended, so the next test run can start. The status comes from the exit code, or from the actuality's status of a standing test run.",
 			productsDomain: DOMAIN_TEST_RUN_READ,
 			action: async () => {
 				const tracked = this.inFlight;
 				if (!tracked) return actionNotOK(this.nothingToRead("read"));
 				const read = await this.callSupervisor(runReadSchema, SUPERVISOR.read, { run: tracked.id, cursor: tracked.cursor });
 				if (read.ok === false) return actionNotOK(read.why);
-				const { status, exitCode, cursor, output, execution } = read.products;
+				const { status, exitCode, cursor, output, actuality } = read.products;
 				tracked.cursor = cursor;
-				if (status === "ended" || isLevelEnd(execution)) this.finishRun();
+				if (status === "ended" || isLevelEnd(actuality)) this.finishRun();
 				return actionOKWithProducts({ run: tracked.id, status, exitCode: exitCode ?? null, output });
 			},
 		},
@@ -307,10 +307,10 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 				const seen = waited.products;
 				tracked.cursor = seen.cursor;
 				const said = lastOf(seen.output);
-				// A standing test run's execution ends and its process keeps serving, so it is done without an exit. Its status then
-				// comes from its execution's status, not from an exit code.
-				const { execution } = seen;
-				if (seen.status !== "ended" && !isLevelEnd(execution))
+				// A standing test run's actuality ends and its process keeps serving, so it is done without an exit. Its status then
+				// comes from its actuality's status, not from an exit code.
+				const { actuality } = seen;
+				if (seen.status !== "ended" && !isLevelEnd(actuality))
 					return actionNotOK(`the test run "${tracked.filter}" had not ended after ${seconds} seconds; read it or stop it instead of waiting again`);
 				const status = outcomeOf(seen);
 				this.finishRun();
@@ -515,7 +515,7 @@ export default class TestRunnerStepper extends AStepper implements IHasOptions, 
 	}
 
 	/** Starts a test run through the supervisor, as the principal that the call's boundary verified or else as this agent,
-	 *  so the record of the test run's execution names who started it. */
+	 *  so the record of the test run's actuality names who started it. */
 	private async startRun(where: string, filter: string): Promise<{ ok: true; started: z.infer<typeof runStartedSchema> } | { ok: false; why: string }> {
 		await this.ensureAgentPrincipal();
 		const port = this.cap("RUN_PORT", RUNNER_DEFAULTS.port, { zeroMeans: "the ports the test run's features declare" });

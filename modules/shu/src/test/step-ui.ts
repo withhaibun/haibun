@@ -250,7 +250,7 @@ export function createStepUI(wp: WebPlaywright) {
 		const errorTarget = stepError(method, callIndex);
 		const inputTargets = [...Object.keys(chosen), ...expandedEntries.map(([name]) => name)].map((name) => stepInput(method, callIndex, name));
 		const branchTarget = passes ? resultTarget : errorTarget;
-		// The step-caller emits `step-done` once execution settles (success or
+		// The step-caller emits `step-done` once the step's call settles (success or
 		// error). Waiting for `step-done` returns as soon as the outcome lands;
 		// `has test id <branchTarget>` then asserts which branch fired,
 		// failing fast with the on-screen error text when the wrong one shows.
@@ -283,12 +283,12 @@ export function createStepUI(wp: WebPlaywright) {
 	}
 
 	/** Run a step from its form and see it pass. `chosen` names the options chosen first, each by its parameter. */
-	function passesStepExecution(method: string, params: Record<string, unknown> = {}, chosen: Record<string, string> = {}): TKirejiStep[] {
+	function passesStepForm(method: string, params: Record<string, unknown> = {}, chosen: Record<string, string> = {}): TKirejiStep[] {
 		return runStep(method, true, params, chosen);
 	}
 
 	/** Run a step from its form and see it refused. `chosen` names the options chosen first, each by its parameter. */
-	function failsStepExecution(method: string, params: Record<string, unknown> = {}, chosen: Record<string, string> = {}): TKirejiStep[] {
+	function failsStepForm(method: string, params: Record<string, unknown> = {}, chosen: Record<string, string> = {}): TKirejiStep[] {
 		return runStep(method, false, params, chosen);
 	}
 
@@ -297,11 +297,11 @@ export function createStepUI(wp: WebPlaywright) {
 		return activity(as, ...enterStepMode, ...buildStepBody(method, passes, params));
 	}
 
-	function willPassStepExecution(as: string, method: string, params: Record<string, unknown> = {}) {
+	function willPassStepForm(as: string, method: string, params: Record<string, unknown> = {}) {
 		return stepActivity(as, method, true, params);
 	}
 
-	function willFailStepExecution(as: string, method: string, params: Record<string, unknown> = {}) {
+	function willFailStepForm(as: string, method: string, params: Record<string, unknown> = {}) {
 		return stepActivity(as, method, false, params);
 	}
 
@@ -354,10 +354,10 @@ export function createStepUI(wp: WebPlaywright) {
 		selectQueryFirstRow,
 		registerTestIds,
 		runStep,
-		passesStepExecution,
-		failsStepExecution,
-		willPassStepExecution,
-		willFailStepExecution,
+		passesStepForm,
+		failsStepForm,
+		willPassStepForm,
+		willFailStepForm,
 		chooseGraphLabel,
 		selectGraphLabel,
 		pickFromCombobox,

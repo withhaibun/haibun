@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } fr
 import { TextDocument } from "vscode-languageserver-textdocument";
 import type { Diagnostic } from "vscode-languageserver/node.js";
 import { AStepper } from "@haibun/core/lib/astepper.js";
-import type { TFeature } from "@haibun/core/lib/execution.js";
+import type { TFeature } from "@haibun/core/lib/actuality.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { openRunRegistry } from "@haibun/core/lib/step-registry.js";
 import { registerDomains, registerStepperNames } from "@haibun/core/lib/domains.js";

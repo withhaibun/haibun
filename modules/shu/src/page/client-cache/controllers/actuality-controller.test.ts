@@ -54,7 +54,7 @@ describe("the actuality a view reads, over the records it wrote", () => {
 		declareGraphSpec({ types: [SEQ_PATH_LABEL, LOG_MESSAGE_LABEL, RUN_ARTIFACT_LABEL] });
 		store = actualityStore();
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
-			execution: RUN,
+			actuality: RUN,
 			id: `${RUN}.0.1`,
 			stepText: "a step",
 			actionStatus: "passed",
@@ -65,7 +65,7 @@ describe("the actuality a view reads, over the records it wrote", () => {
 			recordedAtTime: iso(1300),
 		});
 		await store.upsertIndividual(LOG_MESSAGE_LABEL, {
-			execution: RUN,
+			actuality: RUN,
 			id: `${RUN}.0.1@0`,
 			message: "it said this",
 			level: "warn",
@@ -74,7 +74,7 @@ describe("the actuality a view reads, over the records it wrote", () => {
 			isPartOf: `${RUN}.0.1`,
 		});
 		await store.upsertIndividual(LOG_MESSAGE_LABEL, {
-			execution: RUN,
+			actuality: RUN,
 			id: `${RUN}.0.1@1`,
 			message: "the detail of it",
 			level: "debug",
@@ -83,7 +83,7 @@ describe("the actuality a view reads, over the records it wrote", () => {
 			isPartOf: `${RUN}.0.1`,
 		});
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
-			execution: RUN,
+			actuality: RUN,
 			id: `${RUN}.0.2`,
 			stepText: "another step",
 			actionStatus: "failed",
@@ -188,7 +188,7 @@ describe("the actuality a view reads, over the records it wrote", () => {
 		const each = 1000;
 		for (let i = 0; i < PAST_THE_WINDOW; i++) {
 			await store.upsertIndividual(LOG_MESSAGE_LABEL, {
-				execution: RUN,
+				actuality: RUN,
 				id: `${RUN}.1.${i}@0`,
 				message: `record ${i}`,
 				level: "info",
@@ -220,7 +220,7 @@ describe("the actuality a view reads, over the records it wrote", () => {
 		await source.ready();
 		expect(source.count()).toBe(4);
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
-			execution: RUN,
+			actuality: RUN,
 			id: `${RUN}.0.3`,
 			stepText: "a later step",
 			actionStatus: "passed",
@@ -253,7 +253,7 @@ describe("the actuality a view reads, over the records it wrote", () => {
 
 	it("reads a step again while it is still running, so its row shows how it went once it ends", async () => {
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
-			execution: RUN,
+			actuality: RUN,
 			id: `${RUN}.0.3`,
 			stepText: "a running step",
 			actionStatus: "running",
@@ -266,7 +266,7 @@ describe("the actuality a view reads, over the records it wrote", () => {
 		await source.ready();
 		expect(source.rowAt(4)).toMatchObject({ in: "a running step", status: "running" });
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
-			execution: RUN,
+			actuality: RUN,
 			id: `${RUN}.0.3`,
 			stepText: "a running step",
 			actionStatus: "passed",
@@ -287,7 +287,7 @@ describe("the actuality a view reads, over the records it wrote", () => {
 		await source.ready();
 		expect(source.count()).toBe(4);
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
-			execution: RUN,
+			actuality: RUN,
 			id: `${RUN}.0.3`,
 			stepText: "a step nobody was told about",
 			actionStatus: "passed",
@@ -314,18 +314,18 @@ describe("the actuality a view reads, over the records it wrote", () => {
 		expect(source.behind, "the read the announcement scheduled has finished").toBe(false);
 	});
 
-	it("is ended once the stream carries its execution's end, as the actuality machine holds it", async () => {
+	it("is ended once the stream carries its actuality's end, as the actuality machine holds it", async () => {
 		const source = graphActualitySource("debug", { reReadAfterMs: 0 });
 		await source.ready();
 		const lifecycle = (type: string, stage: string, id: string, status: string) => ({ level: "info", kind: "lifecycle", type, stage, id, status, timestamp: 1600 }) as never;
-		handle.eventStream.emit(lifecycle("execution", "start", "execution-start", "running"));
+		handle.eventStream.emit(lifecycle("actuality", "start", "actuality-start", "running"));
 		handle.eventStream.emit(lifecycle("feature", "start", "feat-1", "running"));
 		await new Promise((r) => requestAnimationFrame(() => r(undefined)));
-		expect(source.ended, "the execution has started and hasn't ended").toBe(false);
+		expect(source.ended, "the actuality has started and hasn't ended").toBe(false);
 		handle.eventStream.emit(lifecycle("feature", "end", "feat-1", "completed"));
-		handle.eventStream.emit(lifecycle("execution", "end", "execution-end", "completed"));
+		handle.eventStream.emit(lifecycle("actuality", "end", "actuality-end", "completed"));
 		await new Promise((r) => requestAnimationFrame(() => r(undefined)));
-		expect(source.ended, "the execution's end moved the machine to completed").toBe(true);
+		expect(source.ended, "the actuality's end moved the machine to completed").toBe(true);
 	});
 
 	it("reports it is cut off while the stream is down, and behind from the stream's return until it has read again", async () => {
@@ -357,7 +357,7 @@ describe("the actuality a view reads, over the records it wrote", () => {
 	});
 
 	describe("the rail of actuality's rows", () => {
-		it("carries all of the execution, so a place on it names a moment the window does not hold", async () => {
+		it("carries all of the actuality feature, so a place on it names a moment the window does not hold", async () => {
 			const source = graphActualitySource("debug");
 			await source.ready();
 			const rail = source.rail;

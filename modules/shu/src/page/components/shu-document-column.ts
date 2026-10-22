@@ -1,5 +1,5 @@
 /**
- * <shu-document-column>: actuality as an academic-paper document: execution events rendered as headings, step lines,
+ * <shu-document-column>: actuality as an academic-paper document: the events of its levels rendered as headings, step lines,
  * prose, and embedded artifacts. It reads actuality the way every event view does (event-source): one source per level,
  * spanning all of actuality by index, paged in as the reader reaches for a region, bounded in what it caches, live events
  * taking their place at the edge. One row per event. An event's blocks (document-blocks) are generated a page at a time

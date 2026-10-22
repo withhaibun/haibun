@@ -7,7 +7,7 @@
  * reads only what has happened since it last read, which is what keeps an actuality of years readable.
  */
 import { machine } from "@haibun/core/lib/machines/machine.js";
-import { ActualityMoveSchema, actualityMachine, executionEnded } from "@haibun/core/lib/actuality/machines/actuality.js";
+import { ActualityMoveSchema, actualityMachine, actualityEnded } from "@haibun/core/lib/actuality/machines/actuality.js";
 import type { TQuad } from "@haibun/core/lib/quad-types.js";
 import { EventLevelSchema, HAIBUN_LOG_LEVELS, type THaibunLogLevel } from "@haibun/core/lib/domains/protocol.js";
 import type { TClock, TEvent, TEventStream } from "../../ports.js";
@@ -15,7 +15,7 @@ import { batchedEvents } from "../../pipelines/batched-events.js";
 import { railAt, momentAt, type Range, type TActualityFocus, type TActualitySpan, type TScrollMarker } from "../../derivations/rail.js";
 import type { ActualitySource, TEventRecord, TActualityExtent, TActualityGraph, TActualityRegistry } from "../ports.js";
 import { inActualityOrder, producedUnderSteps, type TActualityRow } from "../derivations/actuality-rows.js";
-import { ofExecution } from "../derivations/actuality-graph.js";
+import { ofActualityFeature } from "../derivations/actuality-graph.js";
 import { individualAsQuads } from "../derivations/quads.js";
 import { asRendered, renderedAt } from "../derivations/rendered-rows.js";
 import { INITIAL_READING, READING_EVENT, READING_STATUS, readingStatus, readingTransition, type TReadingEvent, type TReadingState } from "../machines/reading.js";
@@ -110,13 +110,13 @@ const RAIL_PLACES = 1000;
 
 export type TGraphActualitySource = ActualitySource & { close(): void };
 
-/** What a reading of actuality reads and writes: the page's readings, the graph of actuality's records, the execution the
+/** What a reading of actuality reads and writes: the page's readings, the graph of actuality's records, the actuality feature the
  *  page reads, the device that holds what a window read, the stream of what actuality announces, the clock, the time
  *  cursor, the page size, and the report of a failure. */
 export type TActualitySourceScope = {
 	registry: TActualityRegistry;
 	graph: () => TActualityGraph;
-	executions: { chosen(): string | undefined; reading(): string | undefined; observe(execution: string): void; onSwitch(fn: () => void): () => void };
+	actualities: { chosen(): string | undefined; reading(): string | undefined; observe(actualityFeature: string): void; onSwitch(fn: () => void): () => void };
 	hold: (quads: TQuad[]) => Promise<void>;
 	events: TEventStream;
 	clock: TClock;
@@ -148,8 +148,8 @@ export function makeGraphActualitySource(
 	// every announcement numbered so far once it finishes, and the stream is down or not. Numbers rather than clocks,
 	// so an announcement and a read in the same instant are still ordered. A view waits on these, never on time.
 	const currency = machine<TReadingState, TReadingEvent>(INITIAL_READING, readingTransition);
-	// The execution's levels, moved by the lifecycle events the stream carries: actuality is finished where the machine
-	// holds its execution ended. A source that joins after the execution ended reads the records and not that end.
+	// Actuality's levels, moved by the lifecycle events the stream carries: actuality is finished where the machine
+	// holds that it ended. A source that joins after the actuality ended reads the records and not that end.
 	const actuality = actualityMachine();
 	const subs = new Set<() => void>();
 	// Each change of what the source holds or states increments its version, so a view derives from the source again
@@ -202,8 +202,8 @@ export function makeGraphActualitySource(
 		const done = (): void => {
 			currency.dispatch({ type: READING_EVENT.SETTLE, readFor });
 		};
-		const execution = scope.executions.chosen();
-		const of = { size, minLevel: level, substeps, ...(execution === undefined ? {} : { execution }) };
+		const actualityFeature = scope.actualities.chosen();
+		const of = { size, minLevel: level, substeps, ...(actualityFeature === undefined ? {} : { actuality: actualityFeature }) };
 		const following = at === undefined && window.length > 0;
 		const answer = await actualityWindow(scope.graph(), following ? { ...of, since: recordedThrough(window) } : { ...of, ...(at === undefined ? {} : { at }) });
 		if (following) {
@@ -222,7 +222,7 @@ export function makeGraphActualitySource(
 		// it, so a read that finds the shot alone would leave it unclaimed.
 		producedUnderSteps(window);
 		// What a page has read, it holds: the records are what a reader without a site reads back, and what lets this
-		// device return to an execution. Only what is new to the window is written,
+		// device return to an actuality feature. Only what is new to the window is written,
 		// and every new record in one write, so reading a window is one write rather than one per record.
 		void hold(window.filter((row) => !held.has(renderKey(row))));
 		rows = window.map(same);
@@ -236,14 +236,14 @@ export function makeGraphActualitySource(
 		loaded = true;
 		noteActualitySpan(scope.registry, from, to);
 		done();
-		// The rail carries all of the execution, so it is read where the window is: what the execution reaches, and what
+		// The rail carries all of the actuality feature, so it is read where the window is: what the actuality feature reaches, and what
 		// its divisions hold. A rail read that fails leaves the rail as it was rather than emptying it under a reader.
 		await readRail().catch((err: unknown) => scope.report("actuality's rail could not be read", err));
 		notify();
-		// Last of all: recording the execution this window shows can report a change of the execution being read, and the
+		// Last of all: recording the actuality feature this window shows can report a change of the actuality feature being read, and the
 		// source that reads again on that change is this same source. A read that announced before it had finished would
 		// return the window that change leaves.
-		if (newest) scope.executions.observe(newest.execution);
+		if (newest) scope.actualities.observe(newest.actuality);
 	};
 
 	// What actuality reports has changed is what makes the window stale, and a burst of changes reads it once. Only a change
@@ -267,13 +267,13 @@ export function makeGraphActualitySource(
 	};
 	const unsubscribe = batchedEvents(scope.events, scope.clock, {
 		onBatch: (events) => {
-			const wasEnded = executionEnded(actuality.state.get());
+			const wasEnded = actualityEnded(actuality.state.get());
 			for (const event of events) {
 				const move = event.kind === "lifecycle" ? ActualityMoveSchema.safeParse(event) : undefined;
 				if (move?.success) actuality.dispatch(move.data);
 			}
 			if (events.some((e) => shows.has(levelOf(e)))) announce();
-			else if (wasEnded !== executionEnded(actuality.state.get())) notify();
+			else if (wasEnded !== actualityEnded(actuality.state.get())) notify();
 		},
 		// What actuality recorded while the stream was down didn't arrive in a batch: the stream coming back is the same
 		// reason to read again, on the same schedule, and until that read has finished the reading is behind.
@@ -292,9 +292,9 @@ export function makeGraphActualitySource(
 	// divisions rather than actuality. Both are read where the window is read, so they move with it.
 	let reach: TActualitySpan = { first: 0, last: 0 };
 	let railMarks: TScrollMarker[] = [];
-	/** The graph of the execution being read. A device holds more than one execution, so a rail over every record it
-	 *  holds would span executions the reader is not reading. */
-	const runGraph = (): TActualityGraph => ofExecution(scope.graph(), scope.executions.reading());
+	/** The graph of the actuality feature being read. A device holds more than one actuality feature, so a rail over every record it
+	 *  holds would span actuality features the reader is not reading. */
+	const runGraph = (): TActualityGraph => ofActualityFeature(scope.graph(), scope.actualities.reading());
 	let shape = actualityShape(runGraph(), { minLevel: level, divisions: ACTUALITY_DIVISIONS });
 	/** Where the reader is on the rail, and the window held around them: the moment they are reading around, else the
 	 *  newest record read. */
@@ -309,7 +309,7 @@ export function makeGraphActualitySource(
 			railMarks = [];
 			return;
 		}
-		// The rail spans all of the execution, so what it reaches is what every view scrubbing it reads.
+		// The rail spans all of the actuality feature, so what it reaches is what every view scrubbing it reads.
 		noteActualitySpan(scope.registry, reach.first, reach.last);
 		// The counting is of actuality, so it is held across reads and only the stretch actuality has grown by is counted.
 		// Where it is drawn is of the reader, so the places are computed again on every read: a reader who moves changes
@@ -318,12 +318,12 @@ export function makeGraphActualitySource(
 		railMarks = shape.marks.map((mark) => ({ color: mark.color, icon: mark.icon, index: placeFor(mark.at), id: `run-${mark.at}` }));
 	};
 
-	// Another execution is another window over the same records, so the source reads again rather than being remade.
-	const stopWatchingSwitch = scope.executions.onSwitch(() => {
+	// Another actuality feature is another window over the same records, so the source reads again rather than being remade.
+	const stopWatchingSwitch = scope.actualities.onSwitch(() => {
 		at = undefined;
 		window = [];
 		held.clear();
-		// The counts are of the execution read before, so another execution is counted from zero rather than added.
+		// The counts are of the actuality feature read before, so another actuality feature is counted from zero rather than added.
 		shape = actualityShape(runGraph(), { minLevel: level, divisions: ACTUALITY_DIVISIONS });
 		reach = { first: 0, last: 0 };
 		void read();
@@ -358,7 +358,7 @@ export function makeGraphActualitySource(
 			return null;
 		},
 		get ended() {
-			return executionEnded(actuality.state.get());
+			return actualityEnded(actuality.state.get());
 		},
 		get disconnected() {
 			return readingStatus(currency.state.get()) === READING_STATUS.CUT_OFF;

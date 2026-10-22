@@ -2,7 +2,7 @@
 	"linux-x64-16x-amd-ryzen-7-pro-7840u-w-radeon-780m-graphics": {
 		"73542931e2cae9e0": {
 			"filter": "",
-			"execution": {
+			"actuality": {
 				"text": "e2e-tests/once",
 				"status": "passed",
 				"tookMs": 0,
@@ -23,7 +23,7 @@
 		},
 		"b4cc0b9925aeadf9": {
 			"filter": "",
-			"execution": {
+			"actuality": {
 				"text": "e2e-tests/once",
 				"status": "passed",
 				"tookMs": 0
@@ -41,7 +41,7 @@
 	"linux-x64-4x-intel-xeon-processor-2-10ghz": {
 		"00a39643087f9efb": {
 			"filter": "",
-			"execution": {
+			"actuality": {
 				"text": "e2e-tests/once",
 				"status": "passed",
 				"tookMs": 0
@@ -57,7 +57,7 @@
 		},
 		"094ccee3765feb90": {
 			"filter": "",
-			"execution": {
+			"actuality": {
 				"text": "e2e-tests/once",
 				"status": "passed",
 				"tookMs": 0
@@ -73,7 +73,7 @@
 		},
 		"73542931e2cae9e0": {
 			"filter": "",
-			"execution": {
+			"actuality": {
 				"text": "e2e-tests/once",
 				"status": "passed",
 				"tookMs": 0
@@ -89,7 +89,7 @@
 		},
 		"b4cc0b9925aeadf9": {
 			"filter": "",
-			"execution": {
+			"actuality": {
 				"text": "e2e-tests/once",
 				"status": "passed",
 				"tookMs": 0
@@ -105,7 +105,7 @@
 		},
 		"d2f7f24a6f426a64": {
 			"filter": "",
-			"execution": {
+			"actuality": {
 				"text": "e2e-tests/once",
 				"status": "passed",
 				"tookMs": 0

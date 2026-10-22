@@ -4,7 +4,7 @@
  */
 import type { FeatureVariables } from "../../actuality/pipelines/feature-variables.js";
 import type { TWorld, TEnvVariables } from "../../actuality/domains/world.js";
-import type { TOptionValue, TFeatures, TSourceLocation, TStepInput } from "../../actuality/domains/execution.js";
+import type { TOptionValue, TFeatures, TSourceLocation, TStepInput } from "../../actuality/domains/actuality.js";
 import type { TSeqPath, TActionResult, TStepArgs, TStepValue, TStepResult, TFeatureResult, TExecutorResult, THaibunEvent, TProvenanceIdentifier } from "../../domains/protocol.js";
 import type { TCoercionSite, TDomainDefinition } from "../../domains/resources.js";
 import type { TStepReads } from "../../domains/actions.js";
@@ -304,7 +304,7 @@ export interface IStepperConcerns {
 
 export interface IStepperCycles {
 	getConcerns?(): IStepperConcerns;
-	startExecution?(features: TStartExecution): Promise<void> | void;
+	startActuality?(features: TStartActuality): Promise<void> | void;
 	startFeature?(startFeature: TStartFeature): Promise<void> | void;
 	startScenario?(startScenario: TStartScenario): Promise<void>;
 	beforeStep?(beforeStep: TBeforeStep): Promise<void>;
@@ -313,15 +313,15 @@ export interface IStepperCycles {
 	endScenario?(): Promise<void>;
 	endFeature?(endedWith: TEndFeature): Promise<void>;
 	onFailure?(result: TFailureArgs): Promise<void>;
-	endExecution?(results: TEndExecution): Promise<void>;
+	endActuality?(results: TEndActuality): Promise<void>;
 	onEvent?(event: THaibunEvent): Promise<void> | void;
 }
 
-export type TStartExecution = TResolvedFeature[];
+export type TStartActuality = TResolvedFeature[];
 export type TEndFeature = { featurePath: string; shouldClose: boolean; isLast: boolean; okSoFar: boolean; continueAfterError: boolean; thisFeatureOK: boolean };
 /** Actuality's result when its features end. `stays` is true where actuality keeps serving after them.
- *  `staysAfterExecution` computes it from `HAIBUN_STAY`. */
-export type TEndExecution = TExecutorResult & { stays: boolean };
+ *  `staysAfterActuality` computes it from `HAIBUN_STAY`. */
+export type TEndActuality = TExecutorResult & { stays: boolean };
 export type TStartFeature = { resolvedFeature: TResolvedFeature; index: number };
 export type TStartScenario = { scopedVars: FeatureVariables };
 export type TBeforeStep = { featureStep: TFeatureStep };

@@ -5,7 +5,7 @@ import VariablesSteppers from "../steps/variables-stepper.js";
 import ActivitiesStepper from "../steps/activities-stepper.js";
 import { DEF_PROTO_OPTIONS } from "./test/lib.js";
 
-describe("Logic system - dependency-based execution (waypoint/ensure)", () => {
+describe("Logic system - steps that run on their dependencies (waypoint/ensure)", () => {
 	it("should only execute the requested Activity from multiple in one background", async () => {
 		// Background file with multiple Activities - only one should execute
 		const multipleOutcomes = {

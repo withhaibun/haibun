@@ -93,7 +93,7 @@ const DOC_HEADING_TEST_ID = "doc-heading-";
 
 /** Returns a heading's anchor for a link: lower case, with each sequence of characters other than a-z and 0-9 replaced by
  *  one hyphen, and without leading or trailing hyphens. A feature that lists its own scenarios links to them by anchor.
- *  An author writes an anchor before actuality exists. Actuality assigns block ids during execution, so an author can't
+ *  An author writes an anchor before actuality exists. Actuality assigns block ids as its steps run, so an author can't
  *  write them in advance. */
 export function headingAnchor(title: string): string {
 	return title
@@ -218,8 +218,8 @@ export function generateDocumentMarkdown(
 						if (next.id && le.id && !next.id.startsWith(le.id)) break;
 					}
 
-					// A step's depth is the length of its path within the execution. The execution id that leads the record
-					// name identifies the execution, so it doesn't count toward the depth.
+					// A step's depth is the length of its path within its actuality feature. The actuality feature that leads the
+					// record name identifies the feature, so it doesn't count toward the depth.
 					const depth = parseRecordName(String(step.id ?? ""))?.path.length ?? 0;
 					const isNested = depth > 3;
 					const time = ((step.timestamp - baseTime) / 1000).toFixed(3);

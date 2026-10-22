@@ -136,11 +136,11 @@ export function activate(context: ExtensionContext) {
 			try {
 				const result = await client.sendRequest("haibun/executeTool", { name: tool.name, arguments: args });
 				const resultStr = typeof result === "string" ? result : JSON.stringify(result, null, 2);
-				outputChannel.appendLine(`[Haibun] Execution Result: ${resultStr}`);
+				outputChannel.appendLine(`[Haibun] Result: ${resultStr}`);
 				configProvider.setToolOutput(tool.name, resultStr, false);
 			} catch (e) {
 				const errorStr = String(e);
-				outputChannel.appendLine(`[Haibun] Execution Error: ${errorStr}`);
+				outputChannel.appendLine(`[Haibun] Error: ${errorStr}`);
 				configProvider.setToolOutput(tool.name, errorStr, true);
 			}
 		}),

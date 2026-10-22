@@ -10,7 +10,7 @@ import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { deepLinkOf, desiredPaneFor, followPaneLink, paneHref, refHref } from "./ref-navigation.js";
 import { hashWithColumns } from "../derivations/address.js";
 import { declareSpec } from "../../test/catalog-fixture.js";
-import { readExecution } from "../client-cache/controllers/device-controller.js";
+import { readActualityFeature } from "../client-cache/controllers/device-controller.js";
 import { SHU_TAG } from "../../domains/elements.js";
 import { addsToSelection, type DesiredPane } from "../derivations/pane-kinds.js";
 import { followPaneRequests } from "../../test/pane-requests.js";
@@ -22,14 +22,14 @@ describe("refHref", () => {
 		expect(href?.match(/col=/g)).toHaveLength(1);
 	});
 
-	it("addresses an individual, and a step as its record in the execution the page reads (CA4D9)", () => {
+	it("addresses an individual, and a step as its record in the actuality feature the page reads (CA4D9)", () => {
 		expect(refHref("entity", { persistedAs: "Person", id: "ada@test.com" })).toContain("col=");
 		declareSpec({ types: ["SeqPath"], ui: { SeqPath: { component: SHU_TAG.STEP_DETAIL } } });
-		readExecution(undefined);
-		expect(desiredPaneFor("seqPath", { seqPath: [0, 1, 2] }), "a step's path doesn't name a record before the page reads an execution").toBeNull();
-		readExecution("1790000000000-1");
+		readActualityFeature(undefined);
+		expect(desiredPaneFor("seqPath", { seqPath: [0, 1, 2] }), "a step's path doesn't name a record before the page reads an actuality feature").toBeNull();
+		readActualityFeature("1790000000000-1");
 		expect(desiredPaneFor("seqPath", { seqPath: [0, 1, 2] })).toEqual({ paneType: "entity", persistedAs: "SeqPath", id: "1790000000000-1.0.1.2" });
-		readExecution(undefined);
+		readActualityFeature(undefined);
 	});
 
 	it("addresses exactly the pane a click opens: one reading of (kind, target) serves both, so they cannot drift", () => {

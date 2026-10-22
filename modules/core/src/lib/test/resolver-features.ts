@@ -1,4 +1,4 @@
-import { TExpandedLine, TExpandedFeature } from "../actuality/domains/execution.js";
+import { TExpandedLine, TExpandedFeature } from "../actuality/domains/actuality.js";
 
 import { TEST_BASE } from "../domains/protocol.js";
 import { featureSplit, withName } from "../domains/features.js";

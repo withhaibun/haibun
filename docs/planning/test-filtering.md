@@ -17,9 +17,9 @@ w - writes
 
 Each is a superset of the previous.
 
-Features are named using corresponding prefixes, r_, a_, and w_. During execution, tests without a prefix are not run.
+Features are named using corresponding prefixes, r_, a_, and w_. While a group runs, tests without a prefix are not run.
 
-On execution, a schema is generated based on the environment and filter combinations and validated (using Zod) against the passed schema. 
+As a group starts, a schema is generated based on the environment and filter combinations and validated (using Zod) against the passed schema. 
 This would typically be used to prevent write tests from running in the prod enviornment.
 
 Task:

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { nextSeqPath } from "./step-dispatch.js";
 import { foldStep } from "../derivations/step-results.js";
 import { STAY_ALWAYS, STAY_FAILURE, type TFeatureResult, type TFeatureSteps, type TStepResult } from "../../domains/protocol.js";
-import { calculateShouldClose, executionFailure, staysAfterExecution } from "../derivations/execution-end.js";
+import { calculateShouldClose, actualityFailure, staysAfterActuality } from "../derivations/actuality-end.js";
 import { passWithDefaults, failWithDefaults } from "../../test/lib.js";
 import { scenarioEventId } from "../derivations/lifecycle-events.js";
 import { equalTo, readEvery } from "../../records/pipelines/record-reads.js";
@@ -43,14 +43,14 @@ describe("the path allocated under a parent step", () => {
 	});
 });
 
-describe("staysAfterExecution", () => {
+describe("staysAfterActuality", () => {
 	it("stays under STAY_ALWAYS, and under STAY_FAILURE only after a failure", () => {
 		expect([
-			staysAfterExecution(STAY_ALWAYS, true),
-			staysAfterExecution(STAY_ALWAYS, false),
-			staysAfterExecution(STAY_FAILURE, false),
-			staysAfterExecution(STAY_FAILURE, true),
-			staysAfterExecution(undefined, false),
+			staysAfterActuality(STAY_ALWAYS, true),
+			staysAfterActuality(STAY_ALWAYS, false),
+			staysAfterActuality(STAY_FAILURE, false),
+			staysAfterActuality(STAY_FAILURE, true),
+			staysAfterActuality(undefined, false),
 		]).toEqual([true, true, true, false, false]);
 	});
 });
@@ -78,7 +78,7 @@ describe("calculateShouldClose", () => {
 		});
 
 		it("closes after a failed feature that isn't last when continueAfterError is false", () => {
-			// Execution stops on the failure, so the feature is effectively last.
+			// The Executor stops at the failure, so the feature is effectively last.
 			const result = calculateShouldClose({ ...defaults, thisFeatureOK: false, isLast: false, continueAfterError: false });
 			expect(result).toBe(true);
 		});
@@ -89,7 +89,7 @@ describe("calculateShouldClose", () => {
 		});
 
 		it("stays open on a failed feature that isn't last when actuality stays on failure and continueAfterError is false", () => {
-			// Execution stops on the failure, so the feature is effectively last.
+			// The Executor stops at the failure, so the feature is effectively last.
 			const result = calculateShouldClose({ ...defaults, thisFeatureOK: false, isLast: false, continueAfterError: false, stay: STAY_FAILURE });
 			expect(result).toBe(false); // stays open for debugging
 		});
@@ -114,7 +114,7 @@ describe("calculateShouldClose", () => {
 	});
 });
 
-describe("executionFailure", () => {
+describe("actualityFailure", () => {
 	const step = (seqPath: number[], ok: boolean, errorMessage?: string) => ({ ok, errorMessage, in: `step ${seqPath.join(".")}`, seqPath }) as unknown as TStepResult;
 	// The helper reduces each step result with foldStep. dispatchStep calls foldStep in actuality.
 	const feature = (stepResults: TStepResult[]) => {
@@ -126,13 +126,13 @@ describe("executionFailure", () => {
 	it("names the failed feature step instead of an earlier failed synthetic dispatch", () => {
 		// A synthetic dispatch carries a negative seqPath segment. A model's tool call and an RPC dispatch are synthetic
 		// dispatches. The step that made the dispatch can handle its failure. A handled failure doesn't fail actuality.
-		const failure = executionFailure(feature([step([0, -1, 1], false, "tool call failed"), step([0, 2, 4], false, "the real failure")]));
+		const failure = actualityFailure(feature([step([0, -1, 1], false, "tool call failed"), step([0, 2, 4], false, "the real failure")]));
 		expect(failure?.error.message).toBe("the real failure");
 		expect(failure?.error.details.seqPath).toEqual([0, 2, 4]);
 	});
 
 	it("names a failed synthetic dispatch when a feature step didn't fail, so actuality still reports a failure", () => {
-		const failure = executionFailure(feature([step([0, -1, 1], false, "only this failed")]));
+		const failure = actualityFailure(feature([step([0, -1, 1], false, "only this failed")]));
 		expect(failure?.error.message).toBe("only this failed");
 	});
 });
@@ -226,7 +226,7 @@ describe("the actuality the Executor moves", () => {
 				record[SEQ_PATH_EDGE.isPartOf],
 			]),
 		).toEqual([
-			[`${key}-0`, "execution", TEST_BASE, RECORDED_STATUS.failed, undefined],
+			[`${key}-0`, "actuality", TEST_BASE, RECORDED_STATUS.failed, undefined],
 			[`${key}-1.0.1.0`, "feature", "/features/a", RECORDED_STATUS.completed, `${key}-0`],
 			[`${key}-1.0.1.1`, "scenario", '"a"', RECORDED_STATUS.completed, `${key}-1.0.1.0`],
 			[`${key}-1.0.1.2`, "scenario", '"b"', RECORDED_STATUS.completed, `${key}-1.0.1.0`],

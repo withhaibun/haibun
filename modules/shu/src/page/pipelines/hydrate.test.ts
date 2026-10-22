@@ -19,7 +19,7 @@ import { RESPONSE_TIMEOUT_MS } from "../../domains/hydration.js";
 import { CACHE_SHAPE } from "../client-cache/ports.js";
 
 /** A record of actuality a test page carries. */
-const CARRIED = { shape: CACHE_SHAPE, execution: "r1", quads: [] };
+const CARRIED = { shape: CACHE_SHAPE, actuality: "r1", quads: [] };
 
 function setHydration(payload: unknown): void {
 	document.head.innerHTML = "";

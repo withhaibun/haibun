@@ -27,7 +27,7 @@ export function utf8ToBase64(str: string): string {
 	return btoa(binary);
 }
 
-/** The kind of a reference to a step by its path within the execution the page reads. */
+/** The kind of a reference to a step by its path within the actuality feature the page reads. */
 const STEP_PATH_KIND = "seqPath";
 /** The kinds of reference a `<shu-ref>` names. */
 export const REF_KIND = [STEP_PATH_KIND, REF_DENOTES.individual, REF_DENOTES.type, "step", "action"] as const;
@@ -36,7 +36,7 @@ export type TRefKind = (typeof REF_KIND)[number];
 /** Whether `v` names a kind of reference. */
 export const isRefKind = (v: string | null | undefined): v is TRefKind => typeof v === "string" && (REF_KIND as readonly string[]).includes(v);
 
-/** A reference to the step at `path` within the execution the page reads: its kind and its target. */
+/** A reference to the step at `path` within the actuality feature the page reads: its kind and its target. */
 export const stepPathRef = (path: readonly number[]): { kind: TRefKind; target: Record<string, unknown> } => ({ kind: STEP_PATH_KIND, target: { seqPath: [...path] } });
 
 /** Returns the step path a reference names, where it is a reference to a step by its path. */

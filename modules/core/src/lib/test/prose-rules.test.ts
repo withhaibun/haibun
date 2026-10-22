@@ -146,7 +146,7 @@ describe("allowed forms", () => {
 	});
 
 	it("allows `who` as a person's subject, and `a reader who chose it` before its verb", () => {
-		expect(violationsIn(MARKDOWN, "A person who decides holds it. A reader who chose an execution goes back to it. Someone who else lives there.")).toEqual([]);
+		expect(violationsIn(MARKDOWN, "A person who decides holds it. A reader who chose an actuality goes back to it. Someone who else lives there.")).toEqual([]);
 		expect(rulesOf(violationsIn(MARKDOWN, "A caller had to state who it was and could forget."))).toEqual([ANTHROPOMORPHIC]);
 	});
 

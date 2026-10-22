@@ -16,7 +16,7 @@ import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { hasCycles, READING, type TCallContext, type TFeatureStep, type TObserved, type TWaypointRule } from "@haibun/core/lib/steps/domains/stepper.js";
 import { matchesQuadPattern, type TQuadPattern } from "@haibun/core/lib/steps/domains/quad-types.js";
 import { stepRecordOf } from "@haibun/core/lib/actuality/domains/seq-path.js";
-import type { TStepInput } from "@haibun/core/lib/actuality/domains/execution.js";
+import type { TStepInput } from "@haibun/core/lib/actuality/domains/actuality.js";
 import {
 	CALL_OUTCOME,
 	EFFECT,

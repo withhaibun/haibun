@@ -25,7 +25,7 @@ export type TActualityGraph = {
 /** What the cached data means, apart from the database's structure. Change it whenever data written by an earlier build
  *  would be read wrongly by this one: the device then clears what it cached rather than serving it, and a report written
  *  by another build isn't read. */
-export const CACHE_SHAPE = "actuality-records/1";
+export const CACHE_SHAPE = "actuality-records/2";
 
 /** The stores of one actuality's database on the device. */
 export const DEVICE_STORES = { META: "meta", QUADS: "quads" } as const;

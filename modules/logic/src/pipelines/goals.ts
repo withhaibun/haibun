@@ -18,7 +18,7 @@ import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { actingAs } from "@haibun/core/lib/domains/capability-context.js";
 import { DOMAIN_DOMAIN_KEY, refTargetOf } from "@haibun/core/lib/domains/domains.js";
 import type { IQuadStore } from "@haibun/core/lib/steps/ports.js";
-import { EXECUTION_FIELD, SEQ_PATH_FIELD, executionOf, factIdOf, producingStepRecord, stepRecordOf } from "@haibun/core/lib/actuality/domains/seq-path.js";
+import { ACTUALITY_FIELD, SEQ_PATH_FIELD, actualityFeatureOf, factIdOf, producingStepRecord, stepRecordOf } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import {
 	AffordancesSchema,
 	ChainLintSchema,
@@ -93,7 +93,7 @@ async function proveUnder(ctx: DispatchContext, parent: TFeatureStep, method: st
 	const tool = ctx.registry.named(method);
 	const seqPath = nextSeqPath(world, parent.seqPath);
 	const result = await proveStep(ctx, { ...validatedFeatureStep(tool, input, seqPath, world, ctx.steppers), isSubStep: true });
-	return { result, fact: factIdOf({ [EXECUTION_FIELD]: executionOf(world.tag), path: seqPath }) };
+	return { result, fact: factIdOf({ [ACTUALITY_FIELD]: actualityFeatureOf(world.tag), path: seqPath }) };
 }
 
 /** Proves a goal under the step `pattern` states. A proved goal returns its proof as statements in proof order: the line that
@@ -215,7 +215,7 @@ async function snapshotOf(scope: TGoalScope, asOf: number[] | undefined) {
 		satisfiedDomains: [...new Set(facts.map((fact) => fact.domain))].sort(),
 		satisfiedFacts: Object.fromEntries([...Map.groupBy(facts, (fact) => fact.domain)].map(([domain, held]) => [domain, held.map((fact) => fact.id)])),
 		composites: compositeRanges(world.domains),
-		[EXECUTION_FIELD]: executionOf(world.tag),
+		[ACTUALITY_FIELD]: actualityFeatureOf(world.tag),
 	};
 }
 

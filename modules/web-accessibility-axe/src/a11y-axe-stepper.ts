@@ -5,7 +5,7 @@ import { stringOrError, findStepper, actionNotOK, actionOK, findStepperFromOptio
 import { earlDomainDefinitions } from "./domains/earl.js";
 import { checkPage } from "./pipelines/check-page.js";
 import { axePorts } from "./root.js";
-import { executionOf, formatRecordName, formatSeqPath } from "@haibun/core/lib/seq-path.js";
+import { actualityFeatureOf, formatRecordName, formatSeqPath } from "@haibun/core/lib/seq-path.js";
 import { MEDIA_TYPE } from "@haibun/core/lib/domains/media-types.js";
 import type { AStorage } from "@haibun/domain-storage/domains/storage.js";
 import { HtmlArtifact } from "@haibun/core/lib/domains/protocol.js";
@@ -41,7 +41,7 @@ class A11yStepper extends AStepper implements IHasOptions, IHasCycles {
 	 *  the page's serious and moderate violations are within the counts accepted. A check that fails to run fails the
 	 *  step, stating why. */
 	async checkA11y(page: Page, serious: number, moderate: number, featureStep: TFeatureStep) {
-		const step = formatRecordName({ execution: executionOf(this.getWorld().tag), path: featureStep.seqPath });
+		const step = formatRecordName({ actuality: actualityFeatureOf(this.getWorld().tag), path: featureStep.seqPath });
 		const { evaluation, report } = await checkPage(axePorts(this.getWorld().shared.getStore()), page, { serious, moderate }, step);
 		const artifact = await this.saveReport(report, featureStep);
 		if (evaluation.ok) return actionOK({ artifact });

@@ -25,7 +25,7 @@ export type StepTool = {
 	stepDef?: TStepperStep;
 	/** Where the step runs: in this process or at a remote host. */
 	transport: "local" | "remote";
-	/** True if the step action is an async function. The step start event carries it, since an async action's execution time is observable. */
+	/** True if the step action is an async function. The step start event carries it, since an async action's running time is observable. */
 	isAsync: boolean;
 	handler: (featureStep: TFeatureStep, world: TWorld) => Promise<TActionResult>;
 };

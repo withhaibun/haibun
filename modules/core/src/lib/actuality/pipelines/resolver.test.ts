@@ -1,6 +1,6 @@
 import { describe, it, test, expect } from "vitest";
 
-import type { TExpandedFeature } from "../domains/execution.js";
+import type { TExpandedFeature } from "../domains/actuality.js";
 import { OK } from "../../domains/protocol.js";
 import { AStepper, type CStepper } from "../../steps/domains/stepper.js";
 import { asExpandedFeatures } from "../../test/resolver-features.js";

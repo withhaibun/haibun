@@ -34,7 +34,7 @@ export const ACTION_BEGIN = "action.begin";
 /** The RPC protocol version this code implements. Every call states it. The handshake response holds it. An instance
  *  refuses a call at another version. A client refuses a handshake response at another version. A change to the wire
  *  requires a higher version. rpc-wire.test.ts compares the wire's shape with the shape recorded for this version. */
-export const RPC_PROTOCOL = 3;
+export const RPC_PROTOCOL = 4;
 
 /** What every call's envelope holds. */
 export const RpcEnvelopeSchema = z.object({

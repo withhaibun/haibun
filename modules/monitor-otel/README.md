@@ -1,26 +1,26 @@
 # @haibun/monitor-otel
 
-OpenTelemetry monitor for Haibun - exports test execution traces to observability platforms.
+OpenTelemetry monitor for Haibun - exports the traces of actuality to observability platforms.
 
 ## What Does This Module Do?
 
-This monitor captures every step of your test execution and sends it to an observability platform like Jaeger. With it you can:
+This monitor captures every step of actuality and sends it to an observability platform like Jaeger. With it you can:
 
-- **See your tests visually** - View the execution flow as a timeline/graph
+- **See your tests visually** - View the order of the steps as a timeline/graph
 - **Debug failures** - Identify exactly which step failed and why
 - **Measure performance** - See how long each step takes
 - **Understand nesting** - See how Activities, Waypoints, and Quantifiers expand into their component steps
 
 ## What You'll See in Jaeger
 
-When you open Jaeger after running tests, you'll see **traces** - visual representations of your test execution.
+When you open Jaeger after running tests, you'll see **traces** - visual representations of actuality's steps.
 
 ### For Casual Users
 
 A trace looks like a timeline showing each step of your test:
 
 ```
-┌─ feature: haibun-execution ────────────────────────────────────────┐
+┌─ feature: haibun-actuality ────────────────────────────────────────┐
 │                                                                     │
 │  ├─ step: set username to "alice"           [5ms]                  │
 │  ├─ step: go to the login page              [150ms]                │
@@ -35,9 +35,9 @@ Each bar shows a step, its name, and how long it took. Longer bars = slower step
 
 ### For Technical Users
 
-Traces capture the full Haibun execution model:
+Traces capture the levels of Haibun's actuality:
 
-- **Root span**: The entire feature execution
+- **Root span**: The whole feature
 - **Child spans**: Each step with full context including:
   - Stepper name (`VariablesStepper`, `WebPlaywrightStepper`, etc.)
   - Action name (`set`, `click`, `navigate`, etc.)
@@ -46,7 +46,7 @@ Traces capture the full Haibun execution model:
 Nested Haibun constructs create nested spans:
 
 ```
-feature: haibun-execution
+feature: haibun-actuality
 ├─ step: ensure User is authenticated           ← ensure Waypoint
 │   └─ step: User is authenticated              ← Waypoint body
 │       ├─ step: go to login page

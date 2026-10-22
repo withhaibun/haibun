@@ -47,7 +47,7 @@ import { readEvery, recordOf } from "../lib/records/pipelines/record-reads.js";
 import { bodiesByMediaType, markdownOf } from "../lib/records/pipelines/body-reads.js";
 import { createComment, readProseLinks, writeAnnotation } from "../lib/records/pipelines/discourse-writes.js";
 import { DOMAIN_LINK_REL, DOMAIN_RECORD_ID, DOMAIN_TEXT, linkVocabularyFor } from "../lib/domains/domains.js";
-import { executionOf, formatRecordName } from "../lib/actuality/domains/seq-path.js";
+import { actualityFeatureOf, formatRecordName } from "../lib/actuality/domains/seq-path.js";
 import { logMessageDomainDefinition } from "../lib/domains/log-message.js";
 import { runArtifactDomainDefinition } from "../lib/domains/run-artifact.js";
 import { statementsWith, type TStatementRow } from "../lib/steps/pipelines/statements.js";
@@ -146,8 +146,8 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 	async readFeatureProse({ featureStep }: TBeforeStep): Promise<void> {
 		if (!featureStep.action.step.prose) return;
 		const text = featureStep.in;
-		// The prose step's record id: its path under its execution.
-		const named = formatRecordName({ execution: executionOf(this.getWorld().tag), path: featureStep.seqPath });
+		// The prose step's record id: its path within its actuality feature.
+		const named = formatRecordName({ actuality: actualityFeatureOf(this.getWorld().tag), path: featureStep.seqPath });
 		await readProseLinks(this.getWorld().shared.getStore(), this.linkVocabulary, { label: SEQ_PATH_LABEL, id: named }, text, named);
 	}
 

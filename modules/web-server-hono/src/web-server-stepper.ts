@@ -1,7 +1,7 @@
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOptionName, intOrError, errorDetail } from "@haibun/core/lib/domains/util.js";
-import { AStepper, type IHasCycles, type IHasOptions, type TEndExecution, type TEndFeature, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
+import { AStepper, type IHasCycles, type IHasOptions, type TEndActuality, type TEndFeature, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { actionList } from "@haibun/core/lib/domains/actions.js";
 import { DOMAIN_TEXT, DOMAIN_FILE_PATH, DOMAIN_ROUTE, DOMAIN_LINK } from "@haibun/core/lib/domains/domains.js";
@@ -61,10 +61,10 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 		await Promise.resolve();
 	},
 	// A server that lasts the whole of actuality closes as it ends, unless actuality stays.
-	async endExecution({ stays }: TEndExecution) {
+	async endActuality({ stays }: TEndActuality) {
 		if (stays) return;
-		await Promise.all(wss.executionServers.map((server) => server.close()));
-		wss.executionServers = [];
+		await Promise.all(wss.actualityServers.map((server) => server.close()));
+		wss.actualityServers = [];
 	},
 	async endFeature(wtw: TEndFeature) {
 		if (!wtw.shouldClose) return;
@@ -232,17 +232,17 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 	}
 
 	/** The servers that last the whole of actuality, apart from each feature's. */
-	executionServers: IWebServer[] = [];
+	actualityServers: IWebServer[] = [];
 
 	/** A server of this instance that lasts the whole of actuality, apart from each feature's: it serves RPC, carries its
 	 *  own event stream, serves what `mount` adds, and closes as actuality ends unless actuality stays. */
-	async serveForExecution(why: string, port: number, mount: (server: IWebServer) => void): Promise<ITransport> {
+	async serveForActuality(why: string, port: number, mount: (server: IWebServer) => void): Promise<ITransport> {
 		const server = this.newServer();
 		const transport = this.eventStream(server);
 		this.serveRpc(server, transport);
 		mount(server);
 		await server.listen(why, port, this.hostname);
-		this.executionServers.push(server);
+		this.actualityServers.push(server);
 		return transport;
 	}
 

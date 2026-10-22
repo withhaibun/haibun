@@ -14,15 +14,15 @@ import { timeCursor } from "../controllers/page-cell-controller.js";
 import { setupShuTest, type TShuTestHandle } from "../../test/setup.js";
 import { actualityStore } from "../client-cache/actuality-store.test-fake.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
-import { currentExecution, installGraph, readExecution } from "../client-cache/controllers/device-controller.js";
+import { currentActualityFeature, installGraph, readActualityFeature } from "../client-cache/controllers/device-controller.js";
 import { graphActualitySource } from "../client-cache/controllers/actuality-controller.js";
 
 import { SHU_EVENT } from "../../domains/elements.js";
 import { endPage } from "../adapters/page-held.js";
 
 const FIRST = 1_000_000;
-/** An execution a reader chose over the one being recorded. */
-const EARLIER_EXECUTION = "1600000000000-1";
+/** An actuality feature a reader chose over the one being recorded. */
+const EARLIER_ACTUALITY_FEATURE = "1600000000000-1";
 const LAST = 1_000_500;
 /** The actuality this control plays through: two steps, the first and the last of it. */
 async function anActuality(): Promise<void> {
@@ -184,10 +184,10 @@ describe("going back to now", () => {
 		expect(asked, "and the views that tail receive it").toEqual(["go-live"]);
 	});
 
-	it("takes a reader who chose an earlier execution back to the one being recorded", async () => {
+	it("takes a reader who chose an earlier actuality feature back to the one being recorded", async () => {
 		const el = await playing();
-		readExecution(EARLIER_EXECUTION);
+		readActualityFeature(EARLIER_ACTUALITY_FEATURE);
 		await click(el, "playback-live");
-		expect(currentExecution(), "the reader follows actuality again").toBeUndefined();
+		expect(currentActualityFeature(), "the reader follows actuality again").toBeUndefined();
 	});
 });

@@ -8,7 +8,7 @@ import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/seq-path.js";
 import { DensityQuerySchema, type TDensityQuery } from "@haibun/core/lib/quad-types.js";
 import { MARK_COLOUR } from "../../derivations/status-mark.js";
-import { ofExecution, actualityGraphOf } from "../derivations/actuality-graph.js";
+import { ofActualityFeature, actualityGraphOf } from "../derivations/actuality-graph.js";
 import type { TActualityGraph } from "../ports.js";
 import { actualityShape as shapeOver } from "./actuality-shape.js";
 import { ACTUALITY_TYPES } from "../derivations/actuality-rows.js";
@@ -25,9 +25,9 @@ const anActuality = async (steps: Array<{ at: number; status: string }> = [], sa
 	const store = actualityStore();
 	const counted: TDensityQuery[] = [];
 	const addStep = async (at: number, status: string, i: number) =>
-		store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.${i}`, execution: RUN, stepText: `step ${i}`, actionStatus: status, level: "info", generatedAtTime: iso(at) });
+		store.upsertIndividual(SEQ_PATH_LABEL, { id: `${RUN}.0.${i}`, actuality: RUN, stepText: `step ${i}`, actionStatus: status, level: "info", generatedAtTime: iso(at) });
 	const addSaid = async (at: number, level: string, i: number) =>
-		store.upsertIndividual(LOG_MESSAGE_LABEL, { id: `${RUN}.0.${i}@${i}`, execution: RUN, message: `said ${i}`, level, generatedAtTime: iso(at) });
+		store.upsertIndividual(LOG_MESSAGE_LABEL, { id: `${RUN}.0.${i}@${i}`, actuality: RUN, message: `said ${i}`, level, generatedAtTime: iso(at) });
 	for (const [i, s] of steps.entries()) await addStep(s.at, s.status, i);
 	for (const [i, m] of said.entries()) await addSaid(m.at, m.level, 100 + i);
 	const over = actualityGraphOf(store, () => true);
@@ -111,7 +111,7 @@ describe("the shape of an actuality, by division", () => {
 		expect(itemAt(shape.marks, 0).color).toBe(MARK_COLOUR.fault);
 	});
 
-	it("is the shape of one execution, over a store holding more than one", async () => {
+	it("is the shape of one actuality feature, over a store holding more than one", async () => {
 		const { graph, store } = await anActuality([
 			{ at: 1000, status: "passed" },
 			{ at: 3000, status: "passed" },
@@ -120,17 +120,17 @@ describe("the shape of an actuality, by division", () => {
 		for (const at of [1500, 2000, 2500])
 			await store.upsertIndividual(SEQ_PATH_LABEL, {
 				[SEQ_PATH_FIELD.id]: `${other}.0.${at}`,
-				[SEQ_PATH_FIELD.execution]: other,
-				stepText: "another execution's step",
+				[SEQ_PATH_FIELD.actuality]: other,
+				stepText: "another actuality feature's step",
 				actionStatus: "failed",
 				level: "info",
 				generatedAtTime: iso(at),
 			});
-		const shape = actualityShape(ofExecution(graph, RUN), { divisions: 3 });
+		const shape = actualityShape(ofActualityFeature(graph, RUN), { divisions: 3 });
 		await shape.update(3000);
 		expect(
 			shape.marks.map((m) => m.at),
-			"the divisions the other execution wrote in don't hold a record of this one",
+			"the divisions the other actuality feature wrote in don't hold a record of this one",
 		).toEqual([shape.beginningOf(0), shape.beginningOf(2)]);
 	});
 

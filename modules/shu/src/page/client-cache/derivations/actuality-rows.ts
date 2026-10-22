@@ -15,8 +15,8 @@ export const ACTUALITY_WINDOW_SIZE = 10000;
 /** One thing that happened: a step, something logged while it ran, or something it produced. */
 export type TActualityRow = {
 	kind: "step" | "said" | "produced";
-	/** The step this row is, or the step it was logged during, and its path within the execution: empty for a record that
-	 *  doesn't name a step, which is a record of its execution itself. */
+	/** The step this row is, or the step it was logged during, and its path within the actuality feature: empty for a record that
+	 *  doesn't name a step, which is a record of its actuality feature itself. */
 	step: string;
 	under: number[];
 	at: number;
@@ -35,7 +35,7 @@ export type TActualityRow = {
 	 *  draws it there and doesn't give this row room; a view reading actuality's own document places it by its own reading. */
 	carriedBy?: string;
 	/** The step this one was run to carry out, on a substep: the step that established it, as its path within the
-	 *  execution. A reader shown a substep is shown which step ran it, and reads that step from here. */
+	 *  actuality feature. A reader shown a substep is shown which step ran it, and reads that step from here. */
 	partOf?: number[];
 	/** A step's outcome, why it failed where it did, and when it reached it. */
 	status?: string;
@@ -89,7 +89,7 @@ const recorded = (at: string | undefined): { recordedAt?: number } => {
 };
 
 /** The step a logged or produced record names as its own, else the record itself: what is logged outside every step,
- *  which is where an actuality reports what went wrong after a step ended, is a record of its execution by its own name. */
+ *  which is where an actuality reports what went wrong after a step ended, is a record of its actuality feature by its own name. */
 const stepOf = (record: Record<string, unknown>, id: string): string => {
 	const partOf = record.isPartOf;
 	if (partOf === undefined) return id;
@@ -244,11 +244,11 @@ export function windowOf(rows: TActualityRow[]): TActualityWindow {
 	return { rows, ...(rows.length ? { from: itemAt(rows, 0).at, to: itemAt(rows, rows.length - 1).at } : {}) };
 }
 
-/** The execution of the newest row that names one, which is the execution a window of these rows shows. */
-export function newestExecution(rows: TActualityRow[]): string | undefined {
+/** The actuality feature of the newest row that names one, which is the actuality feature a window of these rows shows. */
+export function newestActualityFeature(rows: TActualityRow[]): string | undefined {
 	for (let i = rows.length - 1; i >= 0; i--) {
 		const { name } = itemAt(rows, i);
-		if (name) return name.execution;
+		if (name) return name.actuality;
 	}
 	return undefined;
 }

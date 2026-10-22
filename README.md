@@ -113,7 +113,7 @@ As it starts, the command logs the page's address:
 `the monitor shows actuality at http://localhost:7777/monitor`
 
 That address shows two views side by side. The monitor has one line for each step, with its time and whether it
-passed. "Executions this device holds" lists each feature the page has read, and a feature's name there opens that
+passed. "Actualities this device holds" lists each feature the page has read, and a feature's name there opens that
 feature again.
 
 Each view also has an address of its own:
@@ -123,10 +123,10 @@ Each view also has an address of its own:
 | `http://localhost:7777/monitor#?col=shu-document-column` | The feature as a document: its prose and steps in order, with what each step saved beneath the step. The accessibility report is shown there, under the step that checked the page. |
 | `http://localhost:7777/monitor#?col=shu-monitor-column` | The monitor alone. |
 | `http://localhost:7777/monitor#?label=TestResult` | The records of one type, here each accessibility result with its outcome. Another type's name in place of `TestResult` shows that type. |
-| `http://localhost:7777/monitor#?col=shu-client-cache-column` | "Executions this device holds" alone. |
+| `http://localhost:7777/monitor#?col=shu-client-cache-column` | "Actualities this device holds" alone. |
 
 The page shows the feature that is running. With several features, the page moves to each feature as it starts, and
-"Executions this device holds" opens an earlier one. `tests a11y` in place of `tests a11y-pass` runs two, `a11y-fail` and then
+"Actualities this device holds" opens an earlier one. `tests a11y` in place of `tests a11y-pass` runs two, `a11y-fail` and then
 `a11y-pass`. The page lists a feature only where the page was open while that feature ran. To go back to the feature
 that is running, open the time control at the bottom right of the page, which reads `now`, and press "Back to now,
 and follow".

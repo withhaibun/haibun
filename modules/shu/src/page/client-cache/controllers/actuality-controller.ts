@@ -15,7 +15,7 @@ import type { ActualitySource } from "../ports.js";
 import { ACTUALITY_WINDOW_SIZE } from "../derivations/actuality-rows.js";
 import * as Sources from "../pipelines/actuality-sources.js";
 import * as ViewsShown from "../pipelines/views-shown.js";
-import { currentExecution, noteExecution, readingExecution, subscribeExecutionSwitch } from "./device-controller.js";
+import { currentActualityFeature, noteActualityFeature, readingActualityFeature, subscribeActualityFeatureSwitch } from "./device-controller.js";
 import { holdOnDevice } from "./held-actualities-controller.js";
 
 export type { ActualitySource, TEventRecord, TActualityExtent } from "../ports.js";
@@ -27,7 +27,7 @@ const RE_READ_AFTER_MS = 250;
 export const actualitySourceScope = (): Sources.TActualitySourceScope => ({
 	registry: actualityRegistry(),
 	graph: pageActualityGraph,
-	executions: { chosen: currentExecution, reading: readingExecution, observe: noteExecution, onSwitch: subscribeExecutionSwitch },
+	actualities: { chosen: currentActualityFeature, reading: readingActualityFeature, observe: noteActualityFeature, onSwitch: subscribeActualityFeatureSwitch },
 	hold: holdOnDevice,
 	events: pageEventStream(),
 	clock: pageClock(),
@@ -81,7 +81,7 @@ export const atLiveEdge = (instant: number): boolean => Sources.atLiveEdge(actua
 /** Reads actuality around a moment on every reading a view reads by; `null` follows the newest records again. */
 export const readActualityAt = (at: number | null): Promise<void> => Sources.readActualityAt(actualityRegistry(), at);
 
-/** The elements of the views the execution being read has shown, in the order the site declares the views. */
+/** The elements of the views the actuality feature being read has shown, in the order the site declares the views. */
 export const viewsShown = (): Promise<string[]> => ViewsShown.viewsShown({ selectValues: selectValuesFor, declared: declaredViews, componentOf: componentOfView });
 
 /**

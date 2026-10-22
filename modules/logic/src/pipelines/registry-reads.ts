@@ -10,7 +10,7 @@ import { Resolver } from "@haibun/core/lib/actuality/pipelines/resolver.js";
 import { runRegistry } from "@haibun/core/lib/steps/pipelines/step-registry.js";
 import { mapInputToStepValues, matchGwtaToAction } from "@haibun/core/lib/steps/derivations/named-vars.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
-import { SEQ_PATH_FIELD, calledParts, executionOf, formatRecordName } from "@haibun/core/lib/actuality/domains/seq-path.js";
+import { SEQ_PATH_FIELD, calledParts, actualityFeatureOf, formatRecordName } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import { constructorName, dePolite } from "@haibun/core/lib/domains/util.js";
 import type { TWorld } from "@haibun/core/lib/actuality/domains/world.js";
 import type { AStepper, TFeatureStep } from "@haibun/core/lib/steps/domains/stepper.js";
@@ -37,9 +37,9 @@ export async function derivationUnder(ctx: DispatchContext, parent: TFeatureStep
 	const { world, steppers } = ctx;
 	const seqPath = nextSeqPath(world, parent.seqPath);
 	await proveStep(ctx, { ...statement, seqPath, isSubStep: true, ...(parent.runtimeArgs === undefined ? {} : { runtimeArgs: parent.runtimeArgs }) });
-	const execution = executionOf(world.tag);
-	const records = await recordsWhere(world.shared.getStore(), SEQ_PATH_LABEL, SEQ_PATH_FIELD.execution, execution);
-	return derivationOf(records, formatRecordName({ execution, path: seqPath }), isNodeOf(steppers));
+	const actualityFeature = actualityFeatureOf(world.tag);
+	const records = await recordsWhere(world.shared.getStore(), SEQ_PATH_LABEL, SEQ_PATH_FIELD.actuality, actualityFeature);
+	return derivationOf(records, formatRecordName({ actuality: actualityFeature, path: seqPath }), isNodeOf(steppers));
 }
 
 /** The term of the step a line resolves to, through the pattern that parses the line: the head of the waypoint the line

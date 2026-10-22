@@ -1,7 +1,7 @@
 /** What the language server reads and writes through: the editor's connection and its documents, the workspace on disk, and a clock that runs a task later. */
 import type { CompletionItem, CompletionParams, Diagnostic, Hover, HoverParams, InitializeResult } from "vscode-languageserver/node.js";
 import type { TextDocument } from "vscode-languageserver-textdocument";
-import type { TFeature } from "@haibun/core/lib/execution.js";
+import type { TFeature } from "@haibun/core/lib/actuality.js";
 import type { findHaibunWorkspace } from "@haibun/core/lib/adapters/workspace-discovery.js";
 import type { TExecuteToolParams, TWorkspaceStatus } from "./domains/lsp.js";
 

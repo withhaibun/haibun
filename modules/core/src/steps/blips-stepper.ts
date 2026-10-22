@@ -1,8 +1,8 @@
 /**
  * Steps and observation sources for blips. `lib/domains/blips.ts` implements recording.
  *
- * The rollup counts occurrences per name. The stepper attaches it when an execution starts, clears it at the end of each
- * feature and detaches it when the execution ends. A watch names blips and holds a bounded window of their occurrences
+ * The rollup counts occurrences per name. The stepper attaches it when an actuality starts, clears it at the end of each
+ * feature and detaches it when the actuality ends. A watch names blips and holds a bounded window of their occurrences
  * in order. The counts state how many occurrences each name had. The window states their order. `observed in` reads both
  * observation sources.
  */
@@ -55,7 +55,7 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 
 	private sources: IObservationSource[] = [
 		{
-			// Counts occurrences per name, with one counter per recorded name. The rollup stays attached from startExecution to endExecution.
+			// Counts occurrences per name, with one counter per recorded name. The rollup stays attached from startActuality to endActuality.
 			name: "blips",
 			observe: () => Promise.resolve(blipRollup.observe()),
 		},
@@ -87,7 +87,7 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 				{ selectors: [DOMAIN_DECLARED_BLIPS], schema: DeclaredSchema, description: "The blips actuality declares" },
 			],
 		}),
-		startExecution: async () => {
+		startActuality: async () => {
 			await Promise.resolve();
 			blipRollup.attach(this.getWorld().eventLogger);
 		},
@@ -95,7 +95,7 @@ export default class BlipsStepper extends AStepper implements IHasCycles {
 			await Promise.resolve();
 			blipRollup.reset();
 		},
-		endExecution: async () => {
+		endActuality: async () => {
 			await Promise.resolve();
 			blipRollup.detach();
 			blipWatch.stop();

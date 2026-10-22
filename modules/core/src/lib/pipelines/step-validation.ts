@@ -1,5 +1,5 @@
 import { AStepper, type TStepAction } from "../steps/domains/stepper.js";
-import type { TFeatures } from "../actuality/domains/execution.js";
+import type { TFeatures } from "../actuality/domains/actuality.js";
 import { Resolver } from "../actuality/pipelines/resolver.js";
 import { errorDetail } from "../domains/util.js";
 import { mayCall, requiredAction } from "../domains/actions.js";

@@ -5,7 +5,7 @@ A number of features are built in to help debugging steppers, which can be used 
 
 `HAIBUN_O_WEBPLAYWRIGHT_HEADLESS=false HAIBUN_STAY=failure npm run test`
 
-`HAIBUN_STAY=failure` will leave haibun and any current steppers running after execution.
+`HAIBUN_STAY=failure` will leave haibun and any current steppers running after actuality's features end.
 
 Another technique, when debugging browser selectors,
 is to try the selector in the browser console,

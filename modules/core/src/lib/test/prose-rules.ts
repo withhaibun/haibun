@@ -141,7 +141,7 @@ const NO_MORE_CLOSING = /^\s+more\s*(?:[,.;:)]|$)/i;
 /** `to` alone between a person's possessive and the verb: `the reader's to decide`. */
 const TO_BETWEEN = /^\s+to\s+$/;
 /** A block that names the record of a test run or the supervision of one, where `the run` names that run rather than actuality. */
-const SUPERVISED_RUN = /\b(?:FeatureExecution|feature-execution|test\s+runs?|supervis\w*|SUPERVISOR\w*)\b/i;
+const SUPERVISED_RUN = /\b(?:test\s+runs?|supervis\w*|SUPERVISOR\w*)\b/i;
 const VERB_PREFIX = /^(?:re|half|mid)-/i;
 const PLURAL_ENDING = /s$/;
 const ADVERB_ENDING = /ly$/;

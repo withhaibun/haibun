@@ -3,7 +3,7 @@
  * prover that proves every step.
  */
 import type { TRunPolicyConfig } from "../../run-policy/domains/run-policy.js";
-import type { TFeaturesBackgrounds } from "./domains/execution.js";
+import type { TFeaturesBackgrounds } from "./domains/actuality.js";
 import type { TBase } from "./domains/world.js";
 import type { DispatchContext } from "./pipelines/step-dispatch.js";
 import type { TFeatureStep } from "../steps/domains/stepper.js";

@@ -11,7 +11,7 @@ export const features: TKirejiExport = {
 	"Records, events and actualities": [
 		feature({ feature: "Records, events and actualities" }),
 		`Every call writes a SeqPath record at its start and end, each level writes a record, the lifecycle events move the actuality machine, and actualities.json holds each group's outcome against the state it read (step-dispatch.ts:287-296, lifecycle-events.ts, actualities.ts). Monitor-otel, JUnit, the monitor and the graph view read them. A comparison runs the same features before and after the engine and compares the records' called, stepText and actionStatus by path, the events' kinds and statuses, the JUnit test cases and the actualities entries without durations.
-		Accidental, and replaced by the parent predicate of a record: the speculative mode, its negative path segments and the mode field (49 references in 18 files, seq-path.ts:27), and the OTel attribute haibun.speculative.failed (monitor-otel-stepper.ts:146). A scenario's record states the digest of its declared lines (execution-end.ts).`,
+		Accidental, and replaced by the parent predicate of a record: the speculative mode, its negative path segments and the mode field (49 references in 18 files, seq-path.ts:27), and the OTel attribute haibun.speculative.failed (monitor-otel-stepper.ts:146). A scenario's record states the digest of its declared lines (actuality-end.ts).`,
 
 		scenario({ scenario: "A call's record states what it called and how long it took" }),
 		"Essential, for every view. A step's duration is a function of its record. Source: step-records.ts and logic-stepper.ts, the steps source.",

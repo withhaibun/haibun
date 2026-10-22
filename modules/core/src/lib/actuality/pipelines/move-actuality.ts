@@ -12,7 +12,7 @@ import { SEQ_PATH_ACCESS } from "../domains/seq-path.js";
 import type { TActuality, TActualityMove } from "../machines/actuality.js";
 import { levelRecord, type TLevelNaming, type TStepRecord } from "../derivations/step-records.js";
 
-/** The records of an execution's levels by their events' id: a level's start writes its record, and its end extends it. */
+/** The records of actuality's levels by their events' id: a level's start writes its record, and its end extends it. */
 export type TLevelRecords = Map<string, TStepRecord>;
 
 /** A move of the actuality machine, the state after it and when it happened, from which a level's record is written. */
@@ -36,7 +36,7 @@ export async function moveActuality(world: TWorld, event: TLifecycleEvent, state
 	const before = held.state.get();
 	const after = held.dispatch(event);
 	if (after === before)
-		throw new Error(`actuality refused the ${event.type} ${event.stage} of ${event.id} while the execution is ${before.status}; start a level before its end, and end it once`);
+		throw new Error(`actuality refused the ${event.type} ${event.stage} of ${event.id} while the actuality is ${before.status}; start a level before its end, and end it once`);
 	await writeLevelRecord(world.shared.getStore(), world.runtime.levels, { move: event, after, timestamp: event.timestamp }, world.tag, stated);
 	world.eventLogger.emit(event);
 }

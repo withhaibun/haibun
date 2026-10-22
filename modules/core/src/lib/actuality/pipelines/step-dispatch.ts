@@ -15,7 +15,7 @@ import { doStepperCycle } from "../../steps/pipelines/stepper-cycles.js";
 import { actingAs, askedIn, callerHolds, readScope, runInStep, runInvoking, runReadingAsHeld, runStatedAt, stepInFlight, writtenLevel } from "../../domains/capability-context.js";
 import { capabilityAllows } from "../../domains/actions.js";
 import { SEQ_PATH_LABEL } from "../../domains/resources.js";
-import { SEQ_PATH_ACCESS, executionOf, type TRecordName } from "../domains/seq-path.js";
+import { SEQ_PATH_ACCESS, actualityFeatureOf, type TRecordName } from "../domains/seq-path.js";
 import { runRegistry, type StepRegistry } from "../../steps/pipelines/step-registry.js";
 import { stepMethodName, hostScopedMethodName } from "../../steps/domains/step-method.js";
 import { authorizeToolCapability } from "../../steps/pipelines/gate.js";
@@ -263,7 +263,7 @@ export async function dispatchStep(ctx: DispatchContext, featureStep: TFeatureSt
 					if (actionResult.products) actionResult = { ...actionResult, products: { ...actionResult.products, [TRACE_SEQ_PATH]: featureStep.seqPath } };
 					actionResult = augmentViewHypermedia(world, action.step, actionResult, steppers);
 					// A fact is a record of actuality. Actuality doesn't record a read over a transport as a step or assert its products.
-					if (recorded) await autoAssertProducts(world, { execution: executionOf(world.tag), path: featureStep.seqPath }, action.step, actionResult);
+					if (recorded) await autoAssertProducts(world, { actuality: actualityFeatureOf(world.tag), path: featureStep.seqPath }, action.step, actionResult);
 				}
 				// A nested call's failure is part of its line's proof, so only a line's failure is logged as an error.
 				if (!actionResult.ok && featureStep.isSubStep !== true) {
@@ -356,7 +356,7 @@ async function autoAssertProducts(world: TWorld, stepName: TRecordName, step: TS
  * record, which the step's end writes again with how it ended.
  */
 async function writeStepStart(world: TWorld, featureStep: TFeatureStep, authorization: TStepAuthorization, ran: TStepRan, call: TStepCall): Promise<TStepRecord> {
-	const record = startRecord(executionOf(world.tag), featureStep, authorization, ran, call, recordTime(world));
+	const record = startRecord(actualityFeatureOf(world.tag), featureStep, authorization, ran, call, recordTime(world));
 	await world.shared.getStore().upsertIndividual(SEQ_PATH_LABEL, record);
 	return record;
 }

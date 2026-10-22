@@ -11,7 +11,7 @@ type TRecord = Record<string, unknown>;
 const text = (record: TRecord, field: string): string | undefined => (typeof record[field] === "string" ? (record[field] as string) : undefined);
 const pathOf = (record: TRecord): number[] => {
 	const name = parseRecordName(String(record[SEQ_PATH_FIELD.id]));
-	if (name === undefined) throw new Error(`the record ${String(record[SEQ_PATH_FIELD.id])} doesn't name a step of an execution`);
+	if (name === undefined) throw new Error(`the record ${String(record[SEQ_PATH_FIELD.id])} doesn't name a step of an actuality feature`);
 	return name.path;
 };
 const verdictOf = (record: TRecord): TVerdict | undefined => {
@@ -27,7 +27,7 @@ function firstUnmetOf(record: TRecord, under: TRecord[]): TRecord {
 	return unmet === undefined ? record : firstUnmetOf(unmet, under);
 }
 
-/** The derivation of the statement whose record is `rootId`, from an execution's records. `isNode` states whether a record
+/** The derivation of the statement whose record is `rootId`, from the records of its actuality feature. `isNode` states whether a record
  *  is of a node of a proof, such as a negation or a waypoint, and not of a call. */
 export function derivationOf(records: TRecord[], rootId: string, isNode: (called: string | undefined) => boolean): TDerivation {
 	const under = records

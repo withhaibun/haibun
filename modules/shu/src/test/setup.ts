@@ -302,7 +302,7 @@ export function installTestMediaQueries(): void {
 }
 
 /** The actuality a test page carries. */
-const CARRIED_RUN = { shape: CACHE_SHAPE, execution: "r1", quads: [] };
+const CARRIED_RUN = { shape: CACHE_SHAPE, actuality: "r1", quads: [] };
 
 /** Give the page the hydration a deployment writes, in place of any it carried. The page reads it at `hydrateFromDom`. */
 export function hydrate(payload: unknown): HTMLScriptElement {

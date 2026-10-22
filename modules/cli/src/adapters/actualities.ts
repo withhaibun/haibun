@@ -1,6 +1,6 @@
 /**
  * The actualities file: a group's last actuality, written beside the group's configuration and committed with the code. For
- * each class of machine and each way of running the group, it holds the lines of the records of its execution and its
+ * each class of machine and each way of running the group, it holds the lines of the records of the actuality and its
  * features, each duration in tenths of a second, and the actuality's own line holds the digest of each dependency it read. An
  * entry changes only where an outcome or a duration changes, so the file's git history holds the series of actualities and
  * their durations at each change.
@@ -14,7 +14,7 @@ import nodeFS from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { z } from "zod";
-import type { TSpecl } from "@haibun/core/lib/execution.js";
+import type { TSpecl } from "@haibun/core/lib/actuality.js";
 import type { TRunPolicyConfig } from "@haibun/core/run-policy/domains/run-policy.js";
 import { RECORDED_STATUS, type TExecutorResult } from "@haibun/core/lib/domains/protocol.js";
 import { ACTUALITIES_FILE, dependencyRoots, dependencyState, repositoryTop } from "@haibun/core/lib/adapters/dependency-state.js";
@@ -32,8 +32,8 @@ export type TGroupEnded = typeof RECORDED_STATUS.completed | typeof RECORDED_STA
 const LevelLineSchema = StepLineSchema.omit({ began: true, ended: true }).extend({ tookMs: z.number(), digest: DigestSchema.optional() });
 /** A feature's line, with the number of steps it ran. */
 const FeatureLineSchema = LevelLineSchema.extend({ steps: z.number().int() });
-/** An actuality of a group: its filter, and the lines of its execution and of each feature by its path. */
-const ActualityEntrySchema = z.object({ filter: z.string(), execution: LevelLineSchema, features: z.record(z.string(), FeatureLineSchema) });
+/** An actuality of a group: its filter, and the lines of its own record and of each feature by its path. */
+const ActualityEntrySchema = z.object({ filter: z.string(), actuality: LevelLineSchema, features: z.record(z.string(), FeatureLineSchema) });
 type TActualityEntry = z.infer<typeof ActualityEntrySchema>;
 /** The actualities of a group by the class of the machine they ran on, then by their conditions. An actuality on other
  *  hardware takes other durations, and a comparison across machines reports a difference a change didn't cause. */
@@ -97,7 +97,7 @@ export function actualityConditions(c: TActualityConditions): string {
 
 /** An actuality's place in the actualities file: the file, the machine, the conditions, the filter comma-joined, the digest of the
  *  present content of each dependency, and the bases relative to the repository's top, comma-joined, which the
- *  execution's line states. */
+ *  actuality's line states. */
 type TVerification = { file: string; machine: string; conditions: string; filter: string; digest: TDigest; bases: string };
 
 /** Returns the present state of a group's dependencies with an actuality's place in the actualities file. Returns undefined where the
@@ -143,7 +143,7 @@ const changedDependencies = (held: TDigest, now: TDigest): string[] => [...new S
 /** Returns the outcome of the group's last actuality under these conditions on this machine, where every dependency holds the
  *  digest it held then, or undefined where the file doesn't hold that actuality. */
 export function outcomeAgainst(v: TVerification): TGroupEnded | undefined {
-	const held = readActualities(v.file)[v.machine]?.[v.conditions]?.execution;
+	const held = readActualities(v.file)[v.machine]?.[v.conditions]?.actuality;
 	const status = held?.digest !== undefined && changedDependencies(held.digest, v.digest).length === 0 ? held.status : undefined;
 	return status === RECORDED_STATUS.completed || status === RECORDED_STATUS.failed ? status : undefined;
 }
@@ -161,15 +161,15 @@ function levelLine(record: Record<string, unknown>) {
  *  caller named. */
 function entryOf(v: TVerification, result: TExecutorResult, levels: TLevelRecords): TActualityEntry {
 	const records = [...levels.values()];
-	const [execution, ...others] = records.filter((record) => record[SEQ_PATH_FIELD.actualityLevel] === "execution");
-	if (execution === undefined || others.length > 0) throw new Error(`an actuality records one execution, and its levels hold ${others.length + (execution ? 1 : 0)}`);
+	const [own, ...others] = records.filter((record) => record[SEQ_PATH_FIELD.actualityLevel] === "actuality");
+	if (own === undefined || others.length > 0) throw new Error(`an actuality records one record of its own, and its levels hold ${others.length + (own ? 1 : 0)}`);
 	const features = records.flatMap((record) => {
 		if (record[SEQ_PATH_FIELD.actualityLevel] !== "feature") return [];
 		const ran = result.featureResults.find((feature) => feature.path === record[SEQ_PATH_FIELD.path]);
 		if (ran === undefined) throw new Error(`the feature record ${record[SEQ_PATH_FIELD.id]} names ${record[SEQ_PATH_FIELD.path]}, which the results don't hold`);
 		return [[ran.path, { ...levelLine(record), steps: ran.steps.count }]];
 	});
-	return { filter: v.filter, execution: { ...levelLine(execution), text: v.bases }, features: Object.fromEntries(features) };
+	return { filter: v.filter, actuality: { ...levelLine(own), text: v.bases }, features: Object.fromEntries(features) };
 }
 
 /** Writes an actuality under its conditions on this machine, in place of the entry it held. */
@@ -182,7 +182,7 @@ export function recordActuality(v: TVerification, result: TExecutorResult, level
 function forgetWhere(file: string, held: (machine: string, conditions: string, entry: TActualityEntry) => boolean): void {
 	const actualities = readActualities(file);
 	for (const [machine, entries] of Object.entries(actualities))
-		for (const [conditions, entry] of Object.entries(entries)) if (held(machine, conditions, entry)) delete entry.execution.digest;
+		for (const [conditions, entry] of Object.entries(entries)) if (held(machine, conditions, entry)) delete entry.actuality.digest;
 	if (Object.keys(actualities).length > 0) writeActualities(file, actualities);
 }
 

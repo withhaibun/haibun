@@ -141,13 +141,13 @@ describe("the order an actuality put its records in", () => {
 
 describe("what an actuality reports outside every step", () => {
 	// A step that fails is reported after it ends, so what actuality reports about it is outside every step. Such a
-	// statement must not name the execution a window shows, or a reader watching a step fail loses what they were reading.
+	// statement must not name the actuality feature a window shows, or a reader watching a step fail loses what they were reading.
 	it("keeps the actuality it is read with, rather than emptying the window", async () => {
 		const store = actualityStore();
-		const execution = RUN;
+		const actualityFeature = RUN;
 		for (const i of [1, 2, 3])
 			await store.upsertIndividual(SEQ_PATH_LABEL, {
-				id: `${execution}.0.${i}`,
+				id: `${actualityFeature}.0.${i}`,
 				stepText: `step ${i}`,
 				actionStatus: "passed",
 				accessLevel: "private",
@@ -155,7 +155,7 @@ describe("what an actuality reports outside every step", () => {
 				generatedAtTime: iso(1000 + i),
 			});
 		await store.upsertIndividual(LOG_MESSAGE_LABEL, {
-			id: `${execution}.log.1700000009999`,
+			id: `${actualityFeature}.log.1700000009999`,
 			message: 'create: "ee" is not a declared type',
 			level: "error",
 			generatedAtTime: iso(1010),
@@ -168,7 +168,7 @@ describe("what an actuality reports outside every step", () => {
 		).toEqual(["step 1", "step 2", "step 3", 'create: "ee" is not a declared type']);
 	});
 
-	it("is read even when it doesn't name an execution", async () => {
+	it("is read even when it doesn't name an actuality feature", async () => {
 		const store = actualityStore();
 		await store.upsertIndividual(SEQ_PATH_LABEL, {
 			id: "1700000000000-1.0.1",

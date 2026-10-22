@@ -13,7 +13,7 @@ import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { DOMAIN_AFFORDANCES, LINT_FINDING } from "@haibun/core/lib/domains/goal-resolution.js";
 import { REF_DENOTES } from "@haibun/core/lib/domains/typed-links.js";
 import { factIdOf } from "@haibun/core/lib/seq-path.js";
-import { readingExecution } from "../client-cache/controllers/device-controller.js";
+import { readingActualityFeature } from "../client-cache/controllers/device-controller.js";
 import { declareFakeGraphPresenter, mountedPresenter } from "../../graph-presenter.test-fake.js";
 import { reportedErrors, setupShuTest, type TShuTestHandle } from "../../test/setup.js";
 import { NODE_KIND, type TGraphNode } from "../domains/graph.js";
@@ -21,7 +21,7 @@ import { followPaneRequests } from "../../test/pane-requests.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 
 /** The actuality from which a snapshot records its facts. */
-const EXECUTION = "1790000000000-1";
+const ACTUALITY_FEATURE = "1790000000000-1";
 const GRAPH = SHU_TEST_IDS.DOMAIN_CHAIN.GRAPH;
 
 const deepLink = (name: string): string | undefined => PageHash.hashParam(name);
@@ -29,7 +29,7 @@ const clearDeepLink = (): void => PageHash.mergeHashParams({ [AFFORDANCE_PARAM.G
 
 /** A snapshot with N forward entries, as a step's products or a read of them give it. */
 const mkSnap = (n: number): Record<string, unknown> => ({
-	execution: EXECUTION,
+	actuality: ACTUALITY_FEATURE,
 	satisfiedDomains: [],
 	forward: Array.from({ length: n }, (_, i) => ({ stepperName: "S", stepName: `s${i}`, inputDomains: [], outputDomains: [`d${i}`], readyToRun: true })),
 	goals: [],
@@ -75,7 +75,7 @@ describe("shu-domain-chain-view", () => {
 	it("draws the chain in the site's graph presenter, a light-DOM child shown through its slot, with settings of its own", async () => {
 		const view = mount();
 		view.products = {
-			execution: EXECUTION,
+			actuality: ACTUALITY_FEATURE,
 			satisfiedDomains: [],
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: [], outputDomains: ["vc"], readyToRun: true }],
 			goals: [{ domain: "vc", resolution: { verdict: "unknown" } }],
@@ -93,7 +93,7 @@ describe("shu-domain-chain-view", () => {
 	it("opens the affordances panel at a domain a reader opens in the graph", async () => {
 		const view = mount();
 		view.products = {
-			execution: EXECUTION,
+			actuality: ACTUALITY_FEATURE,
 			satisfiedDomains: [],
 			forward: [{ stepperName: "S", stepName: "s", inputDomains: [], outputDomains: ["vc"], readyToRun: true }],
 			goals: [{ domain: "vc", resolution: { verdict: "unknown" } }],
@@ -135,10 +135,10 @@ describe("shu-domain-chain-view", () => {
 	it("takes the actuality it names as the actuality the page reads, where a fact's step opens, and refuses one that doesn't name an actuality", () => {
 		const view = mount();
 		view.products = mkSnap(1);
-		expect(readingExecution()).toBe(EXECUTION);
+		expect(readingActualityFeature()).toBe(ACTUALITY_FEATURE);
 		expect(() => {
 			view.products = { satisfiedDomains: [], forward: [], goals: [] };
-		}).toThrow(/the `execution` that holds them/);
+		}).toThrow(/the `actuality` that holds them/);
 	});
 
 	it("marks the goal or waypoint the address names as the graph's active node", async () => {
@@ -157,7 +157,7 @@ describe("shu-domain-chain-view", () => {
 	it("lists a lint report's findings, each step and domain a link to its view", async () => {
 		const view = mount();
 		view.products = {
-			execution: EXECUTION,
+			actuality: ACTUALITY_FEATURE,
 			satisfiedDomains: [],
 			forward: [],
 			goals: [],
@@ -182,13 +182,13 @@ describe("shu-domain-chain-view", () => {
 		const view = mount();
 		const opened = followPaneRequests();
 		const initialAffGoal = deepLink(AFFORDANCE_PARAM.GOAL);
-		const whole = factIdOf({ execution: EXECUTION, path: [0, 1, 3, 2] });
-		const field = factIdOf({ execution: EXECUTION, path: [0, 1, 4] }, "issuer");
+		const whole = factIdOf({ actuality: ACTUALITY_FEATURE, path: [0, 1, 3, 2] });
+		const field = factIdOf({ actuality: ACTUALITY_FEATURE, path: [0, 1, 4] }, "issuer");
 		view.routeNodeClick(chainNode({ id: `fact:${whole}`, kind: NODE_KIND.factInstance, wasGeneratedBy: { factId: whole, domain: "issuer" } }));
 		view.routeNodeClick(chainNode({ id: `fact:${field}`, kind: NODE_KIND.factInstance, wasGeneratedBy: { factId: field, domain: "issuer" } }));
 		expect(opened.requested).toEqual([
 			{ paneType: "entity", persistedAs: SEQ_PATH_LABEL, id: whole },
-			{ paneType: "entity", persistedAs: SEQ_PATH_LABEL, id: `${EXECUTION}.0.1.4` },
+			{ paneType: "entity", persistedAs: SEQ_PATH_LABEL, id: `${ACTUALITY_FEATURE}.0.1.4` },
 		]);
 		expect(deepLink(AFFORDANCE_PARAM.GOAL)).toBe(initialAffGoal);
 		expect(() => view.routeNodeClick(chainNode({ id: "f", kind: NODE_KIND.factInstance, wasGeneratedBy: { factId: "issuer-1", domain: "issuer" } }))).toThrow(

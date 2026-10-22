@@ -26,7 +26,7 @@ import { OBSCURED_VALUE, isSecretName } from "../../steps/domains/secrets.js";
 import type { TSecrets } from "../../steps/ports.js";
 import { accessBound, readingAsStated, writeBound } from "../../domains/capability-context.js";
 import { EDGE, SEQ_PATH_LABEL, declaredAccessLevel } from "../../domains/resources.js";
-import { executionOf, formatRecordName } from "../domains/seq-path.js";
+import { actualityFeatureOf, formatRecordName } from "../domains/seq-path.js";
 import { IQuadStore } from "../../steps/ports.js";
 import { quadObservation, SHARED_GRAPH } from "../../steps/domains/quad-types.js";
 
@@ -165,7 +165,7 @@ export class FeatureVariables {
 		if (domain === undefined) throw Error(`the variable "${sv.term}" names the domain "${sv.domain}", which isn't registered; declare it with set of or load its stepper`);
 		const normalized = { ...sv, domain: domainKey };
 		domain.coerce(normalized);
-		const setBy = formatRecordName({ execution: executionOf(this.world.tag), path: provenance.seq });
+		const setBy = formatRecordName({ actuality: actualityFeatureOf(this.world.tag), path: provenance.seq });
 		// A record's write keeps its edges, so only an edge to a step that hadn't set the variable is written.
 		const held = stepsOf(await this.stepsThatSet([sv.term]), sv.term);
 		await this.writeRecord(sv.term, normalized, held.includes(setBy) ? [] : [setBy]);

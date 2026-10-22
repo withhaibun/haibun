@@ -16,7 +16,7 @@ import { shuBaseStyles, shuIconButtonStyles } from "./styles.js";
 import { SHU_TEST_IDS } from "../../domains/test-ids.js";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
 import { defineElement } from "../controllers/element-controller.js";
-import { followRecordedExecution } from "../client-cache/controllers/device-controller.js";
+import { followRecordedActualityFeature } from "../client-cache/controllers/device-controller.js";
 import { actualitySpan } from "../client-cache/controllers/actuality-controller.js";
 import { TimelineViewController } from "../controllers/timeline-view-controller.js";
 
@@ -119,9 +119,9 @@ export class ShuPlayback extends ShuElement<typeof StateSchema> {
 	};
 
 	/** Back to the live edge, and tailing again. A press on a rail is meant to stay put, so this is what takes a reader
-	 *  off a moment they picked, or an earlier execution they chose, and back to whatever is happening now. */
+	 *  off a moment they picked, or an earlier actuality feature they chose, and back to whatever is happening now. */
 	private onLive = (): void => {
-		followRecordedExecution();
+		followRecordedActualityFeature();
 		this.#timeline.movePage(null);
 		this.dispatchEvent(new CustomEvent(SHU_EVENT.GO_LIVE, { bubbles: true, composed: true }));
 	};
