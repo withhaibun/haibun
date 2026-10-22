@@ -13,6 +13,7 @@ export function memoryFiles(base: DirectoryJSON): TStorageFiles & { volume: IFs 
 	return {
 		volume,
 		exists: (path) => volume.existsSync(path),
+		realpath: (path) => volume.realpathSync(path).toString(),
 		mkdir: (dir) => volume.mkdirSync(dir),
 		mkdirp,
 		readFile: (file, coding) => volume.readFileSync(file, coding),

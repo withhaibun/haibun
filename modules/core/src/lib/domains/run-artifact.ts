@@ -112,6 +112,7 @@ export const runArtifactDomainDefinition: TDomainDefinition = {
 			[RUN_ARTIFACT_FIELD.recordedAtTime]: LinkRelations.RECORDED_AT_TIME.rel,
 		},
 		edges: { [RUN_ARTIFACT_EDGE.isPartOf]: { rel: LinkRelations.PART_OF.rel, range: SEQ_PATH_LABEL } },
-		sortColumns: { [RUN_ARTIFACT_FIELD.recordedAtTime]: "TIMESTAMPTZ", [RUN_ARTIFACT_FIELD.execution]: "TEXT" },
+		// The path is a column, so a store that removes an artifact's record reads by key whether another record names its file.
+		sortColumns: { [RUN_ARTIFACT_FIELD.recordedAtTime]: "TIMESTAMPTZ", [RUN_ARTIFACT_FIELD.execution]: "TEXT", [RUN_ARTIFACT_FIELD.path]: "TEXT" },
 	},
 };

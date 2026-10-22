@@ -2,9 +2,9 @@
  * The storage a stepper keeps files and artifacts in: the abstract storage stepper over the files port a concrete storage
  * gives it, the location of actuality's captures, and the steps that create, read and list files.
  */
-import { resolve, relative } from "path";
+import { isAbsolute, resolve, relative, sep } from "path";
 import { z } from "zod";
-import { OK } from "@haibun/core/lib/domains/protocol.js";
+import { CAPTURE, DEFAULT_DEST, OK } from "@haibun/core/lib/domains/protocol.js";
 import { captureLocator } from "@haibun/core/lib/domains/capture-locator.js";
 import type { TModuleOptions, TBaseOptions } from "@haibun/core/lib/world.js";
 import type { TTag } from "@haibun/core/lib/domains/ttag.js";
@@ -31,6 +31,16 @@ export interface TSavedArtifact {
 
 /** What locates actuality's captures: its tag and its options. */
 export type TLocationOptions = { tag: TTag; options: TBaseOptions; moduleOptions: TModuleOptions };
+
+/** What removing the file an artifact's record names did: removed it, found it already gone, or refused it, with why. Each
+ *  states the file's path. */
+export type TArtifactRemoval = { removed: string } | { gone: string } | { refused: string };
+
+/** Returns whether `path` is inside the directory `dir`, both absolute: below it, and not the directory itself. */
+function inside(dir: string, path: string): boolean {
+	const below = relative(dir, path);
+	return below !== "" && below !== ".." && !below.startsWith(`..${sep}`) && !isAbsolute(below);
+}
 
 export abstract class AStorage extends AStepper implements IHasCycles {
 	cycles: IStepperCycles = {
@@ -83,13 +93,35 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 		return Promise.resolve(location);
 	}
 
+	/** Returns the instance's artifact directory (capture/DEST), which holds the directory of each actuality's artifacts. */
+	getArtifactRoot(): string {
+		return `./${CAPTURE}/${this.getWorld().options.DEST || DEFAULT_DEST}`;
+	}
+
 	/**
 	 * Get base artifact path (capture/DEST/key) without seq/featn.
 	 * Used for HTTP servers that serve artifacts from all features.
 	 */
 	getArtifactBasePath(): string {
-		const { tag, options } = this.getWorld();
-		return `./capture/${options.DEST || "default"}/${tag.key}`;
+		return `${this.getArtifactRoot()}/${this.getWorld().tag.key}`;
+	}
+
+	/**
+	 * Removes the file at `path` in the artifact directory of the actuality `actuality` names, as an artifact's record states
+	 * them. It removes the file only where the file is inside the instance's artifact directory: the path, resolved against
+	 * the actuality's directory, is below that directory, and so is its real path with each link followed. A file outside it
+	 * is refused and stays. A file that is already gone isn't an error.
+	 */
+	removeArtifactFile(actuality: string, path: string): TArtifactRemoval {
+		const root = resolve(this.getArtifactRoot());
+		const file = resolve(root, actuality, path);
+		const outside = (where: string): TArtifactRemoval => ({ refused: `${where} is outside the instance's artifact directory ${root}` });
+		if (!inside(root, file)) return outside(file);
+		if (!this.exists(file)) return { gone: file };
+		const real = this.files.realpath(file);
+		if (!inside(this.files.realpath(root), real)) return outside(real);
+		this.rm(file);
+		return { removed: file };
 	}
 
 	/**

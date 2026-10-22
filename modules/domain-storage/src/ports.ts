@@ -21,4 +21,6 @@ export type TStorageFiles = {
 	mkdir(dir: string): void;
 	mkdirp(dir: string): void;
 	exists(path: string): boolean;
+	/** Returns the path with each link in it followed. Throws where the path doesn't exist. */
+	realpath(path: string): string;
 };

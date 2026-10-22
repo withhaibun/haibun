@@ -422,6 +422,11 @@ after years as after a day, and each thing it holds has a bound.
   status is `interrupted`, it names the start-up's step as what ended it, and its end is the latest time a record of its
   actuality states, the last moment a record shows its process running, so the record doesn't state that it ran longer than
   its process did. The running actuality's records stay as they are.
+- **An artifact's file goes with its record.** `AStorage.removeArtifactFile` removes the file a RunArtifact record names in
+  the artifact directory of the actuality that wrote it, where the file is inside the instance's artifact directory
+  (`capture/DEST`): the path, resolved against the actuality's directory, and its real path with each link followed are both
+  below it. A file outside is refused and stays, and a file already gone isn't an error. A store's retention removes the
+  file with the last record that names it, in the same pass.
 - **A repeating condition is reported as it starts and as it ends.** `Conditions` (lib/machines/conditions.ts) holds a
   condition by its key from its first occurrence to its end, with how often it occurred. The urakata registry reports a
   ticker that fails each tick once as it starts failing and once as it recovers, through its `TTickReporter`.

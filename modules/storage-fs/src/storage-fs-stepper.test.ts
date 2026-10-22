@@ -1,7 +1,7 @@
 import { describe, it, expect, afterAll } from "vitest";
-import { mkdtempSync, rmSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, statSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 
 import { CAPTURE } from "@haibun/core/lib/domains/protocol.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
@@ -23,6 +23,28 @@ describe("a private file on the filesystem", () => {
 		new StorageFS().writePrivateFile(file, "kept");
 		expect(statSync(file).mode & 0o777, "the file").toBe(0o600);
 		expect(statSync(join(scratch, "private")).mode & 0o777, "the directory it made").toBe(0o700);
+	});
+});
+
+describe("an artifact's file reached through a link on the filesystem", () => {
+	it("is refused where the link leads outside the instance's artifact directory, and stays", () => {
+		const storageFS = new StorageFS();
+		storageFS.world = getDefaultWorld();
+		const elsewhere = join(scratch, "elsewhere");
+		mkdirSync(elsewhere, { recursive: true });
+		writeFileSync(join(elsewhere, "linked.png"), "not an artifact");
+		const base = resolve(storageFS.getArtifactBasePath());
+		mkdirSync(base, { recursive: true });
+		const link = join(base, "linked");
+		symlinkSync(elsewhere, link);
+		try {
+			expect(storageFS.removeArtifactFile(storageFS.world.tag.key, "linked/linked.png")).toEqual({
+				refused: `${realpathSync(join(elsewhere, "linked.png"))} is outside the instance's artifact directory ${resolve(storageFS.getArtifactRoot())}`,
+			});
+			expect(existsSync(join(elsewhere, "linked.png"))).toBe(true);
+		} finally {
+			unlinkSync(link);
+		}
 	});
 });
 

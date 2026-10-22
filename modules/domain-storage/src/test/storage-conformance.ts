@@ -11,6 +11,7 @@
 import { describe, it, expect } from "vitest";
 import { CAPTURE, DEFAULT_DEST } from "@haibun/core/lib/domains/protocol.js";
 import { getDefaultWorld, getTestWorldWithOptions } from "@haibun/core/lib/test/lib.js";
+import { relative, resolve } from "path";
 import type { AStorage } from "../domains/storage.js";
 
 /**
@@ -85,5 +86,31 @@ export function describeStorage(name: string, make: () => AStorage, root: string
 			expect(listed.find((f) => f.name.endsWith("within"))?.isDirectory, "readdirStat reports the directory").toBe(true);
 			expect(listed.find((f) => f.name.endsWith("one.txt"))?.isFile, "readdirStat reports the file").toBe(true);
 		});
+
+		it("removes the file an artifact's record names in the instance's artifact directory, and finds a file already gone", async () => {
+			const storage = withWorld(make());
+			const saved = await storage.saveArtifact("removed.png", Buffer.from("an artifact"), "image");
+			const key = storage.getWorld().tag.key;
+			expect(storage.removeArtifactFile(key, saved.baseRelativePath)).toEqual({ removed: resolve(saved.absolutePath) });
+			expect(storage.exists(saved.absolutePath)).toBe(false);
+			expect(storage.removeArtifactFile(key, saved.baseRelativePath), "a file already gone isn't an error").toEqual({ gone: resolve(saved.absolutePath) });
+		});
+
+		it("refuses a file an artifact's record names outside the instance's artifact directory, and leaves it", () => {
+			const storage = withWorld(make());
+			storage.writeFileBuffer(at("outside.png"), Buffer.from("not an artifact"));
+			const outsideFile = resolve(at("outside.png"));
+			const escaping = relative(resolve(storage.getArtifactBasePath()), outsideFile);
+			const refusal = { refused: `${outsideFile} is outside the instance's artifact directory ${resolve(storage.getArtifactRoot())}` };
+			expect(storage.removeArtifactFile(storage.getWorld().tag.key, escaping), "a path that climbs out of the directory").toEqual(refusal);
+			expect(storage.removeArtifactFile(storage.getWorld().tag.key, outsideFile), "an absolute path").toEqual(refusal);
+			expect(storage.exists(outsideFile)).toBe(true);
+		});
 	});
+}
+
+/** Returns `storage` with a world, whose options and tag locate the artifact directory. */
+function withWorld(storage: AStorage): AStorage {
+	storage.world = getDefaultWorld();
+	return storage;
 }

@@ -11,6 +11,7 @@ const OWNER_ONLY_DIRECTORY = 0o700;
 export const fileSystemFiles: TStorageFiles = {
 	readFile: (file, coding) => fs.readFileSync(file, coding),
 	exists: (path) => fs.existsSync(path),
+	realpath: (path) => fs.realpathSync(path),
 	writeFileBuffer: (file, contents) => fs.writeFileSync(file, new Uint8Array(contents)),
 	lstatToIFile(file) {
 		const l = fs.lstatSync(file);
