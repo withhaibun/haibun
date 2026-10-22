@@ -5,7 +5,7 @@
  * for a call it handed out and a statement it merely tried.
  */
 import { describe, expect, it } from "vitest";
-import { CHECK_NO, ICON_STEP_COMPLETED, MAYBE_CHECK_NO, RETURNED_TO_CALLER, SUBSTEP_LEVEL } from "@haibun/core/lib/domains/protocol.js";
+import { CHECK_NO, ICON_STEP_COMPLETED, ICON_STEP_INTERRUPTED, MAYBE_CHECK_NO, RECORDED_STATUS, RETURNED_TO_CALLER, SUBSTEP_LEVEL } from "@haibun/core/lib/domains/protocol.js";
 import { bucketMarkerStyle, eventMarkerStyle } from "./event-marker.js";
 import { MARK_COLOUR } from "./status-mark.js";
 
@@ -28,6 +28,12 @@ describe("what a mark shows about a step", () => {
 		const mark = eventMarkerStyle(step({ status: "failed", id: "0.-1.2" }));
 		expect(mark.icon).toBe(RETURNED_TO_CALLER);
 		expect(mark.color).not.toBe(MARK_COLOUR.fault);
+	});
+
+	it("marks a step whose process ended before it did as interrupted, in a colour that is not a fault", () => {
+		const mark = eventMarkerStyle(step({ status: RECORDED_STATUS.interrupted }));
+		expect(mark.icon).toBe(ICON_STEP_INTERRUPTED);
+		expect(mark.color).toBe(MARK_COLOUR.undecided);
 	});
 
 	it("marks a step that passed as passed, nested or not", () => {

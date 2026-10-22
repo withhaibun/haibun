@@ -52,10 +52,12 @@ export const RETURNED_TO_CALLER = "↩️";
 export const ICON_FEATURE = "⧇"; // Root container (High visibility)
 export const ICON_SCENARIO = "⬢"; // Concrete logic node (Solid Hex)
 
-// Step execution status uses the verdict marks. A running step carries a flow mark, and a stopped step carries a square.
+// Step execution status uses the verdict marks. A running step carries a flow mark, a stopped step carries a square, and a
+// step whose process ended before it did carries a broken arrow.
 export const ICON_STEP_RUNNING = "⫸"; // Active flow (Clear direction)
 export const ICON_STEP_FAILED = CHECK_NO;
 export const ICON_STEP_STOPPED = "◼";
+export const ICON_STEP_INTERRUPTED = "↯";
 
 /** Returns whether a lifecycle event is of a call nested in a line's proof. A nested call that fails doesn't fail its line:
  *  its line's own record states whether the proof holds, so a nested failure reads apart from a line's failure. */
@@ -134,10 +136,20 @@ export const declaresScenario = (called: string | undefined): boolean => called?
 export const declaredName = (text: string, of: keyof typeof DECLARES): string => text.replace(new RegExp(`^${DECLARES[of]}\\s*`), "").trim();
 
 /** The status words, stated once. `pending` marks work that hasn't started, `running` work in progress, and `completed`,
- *  `failed` and `stopped` how it ended. `stopped` marks work whose caller aborted it; a stop isn't a fault, so it doesn't count
- *  as a failure or a pass. `skipped` marks a step that isn't run. Every other status set is a subset of these words or a
- *  mapping of them. */
-export const STATUS = { pending: "pending", running: "running", completed: "completed", failed: "failed", stopped: "stopped", skipped: "skipped" } as const;
+ *  `failed`, `stopped` and `interrupted` how it ended. `stopped` marks work whose caller aborted it; a stop isn't a fault, so it
+ *  doesn't count as a failure or a pass. `interrupted` marks work whose process ended before the work did, by a crash, a kill
+ *  or a restart. The process can't state it, so the next start of the store that holds the work's record states it, and it
+ *  doesn't count as a failure or a pass either. `skipped` marks a step that isn't run. Every other status set is a subset of
+ *  these words or a mapping of them. */
+export const STATUS = {
+	pending: "pending",
+	running: "running",
+	completed: "completed",
+	failed: "failed",
+	stopped: "stopped",
+	interrupted: "interrupted",
+	skipped: "skipped",
+} as const;
 export type TStatus = (typeof STATUS)[keyof typeof STATUS];
 /** The statuses of a lifecycle event: every word but `pending`, since an event marks a lifecycle that started. */
 const LIFECYCLE_STATUS_SCHEMA = z.enum([STATUS.running, STATUS.completed, STATUS.failed, STATUS.stopped, STATUS.skipped]);
@@ -146,7 +158,13 @@ export type TStepEnd = typeof STATUS.completed | typeof STATUS.failed | typeof S
 /** The word a persisted record or file stores for each status it holds: a step's SeqPath record, a test run's record and
  *  the run-once file. Each has stored `passed` for `completed` since it began, and stores, pages, features and files read
  *  that word, so a record keeps it; the other words are the vocabulary's own. */
-export const RECORDED_STATUS = { running: STATUS.running, completed: "passed", failed: STATUS.failed, stopped: STATUS.stopped } as const satisfies Partial<Record<TStatus, string>>;
+export const RECORDED_STATUS = {
+	running: STATUS.running,
+	completed: "passed",
+	failed: STATUS.failed,
+	stopped: STATUS.stopped,
+	interrupted: STATUS.interrupted,
+} as const satisfies Partial<Record<TStatus, string>>;
 export type TRecordedStatus = (typeof RECORDED_STATUS)[keyof typeof RECORDED_STATUS];
 
 export const STAY_ALWAYS = "always";

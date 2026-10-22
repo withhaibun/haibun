@@ -18,9 +18,9 @@
  * The registry schedules them. A long-lived task is a ticker whose tick blocks until there
  * is work or the signal fires.
  *
- * The registry doesn't store a running state. A live entry without a stoppedAt is running,
- * and stop() records stoppedAt. A persisted row records only past transitions, so it stays
- * accurate after its process ends.
+ * A task's record states it running from its registration, and stop() records its stoppedAt and its stopped status. A
+ * process that ends first leaves its tasks' records running, and the next start of a persistent store ends them as
+ * interrupted.
  */
 
 import { allocateSyntheticSeqPath } from "../domains/host-id.js";
@@ -33,7 +33,7 @@ import { URAKATA_LABEL, type IUrakataRegistry, type IUrakataTicker, type TUrakat
 import { errorDetail } from "../domains/util.js";
 import type { TWorld } from "../actuality/domains/world.js";
 import type { TClock } from "../actuality/ports.js";
-import type { TSeqPath } from "../domains/protocol.js";
+import { RECORDED_STATUS, type TSeqPath } from "../domains/protocol.js";
 import { Conditions, type THeldCondition } from "../machines/conditions.js";
 
 /** The registry persists a failing ticker's first error and every Nth error after it. errorCount stays exact in memory, and stop() persists the exact count. */
@@ -86,6 +86,7 @@ export class UrakataRegistry implements IUrakataRegistry {
 			id: spec.id,
 			description: spec.description,
 			execution: this.world.tag.key,
+			actionStatus: RECORDED_STATUS.running,
 			seqPath,
 			startedAt: new Date().toISOString(),
 			tickIndex: 0,
@@ -192,6 +193,7 @@ export class UrakataRegistry implements IUrakataRegistry {
 					await inflight.settled;
 				}
 				urakata.stoppedAt = new Date().toISOString();
+				urakata.actionStatus = RECORDED_STATUS.stopped;
 				this.persist(urakata);
 			},
 		};

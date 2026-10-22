@@ -10,14 +10,16 @@ import { Access, LinkRelations } from "../lib/domains/resources.js";
 import { EVENT_ATTRIBUTE, STEP_FAILURE_EVENT } from "../lib/domains/protocol.js";
 import { UrakataRegistry } from "../lib/pipelines/urakata.js";
 import { URAKATA, URAKATA_ID_DOMAIN, URAKATA_LABEL, UrakataSchema, type IHasUrakata, type IUrakataRegistry, urakataIdDomainDefinition } from "../lib/domains/urakata.js";
+import { ENDED_BY_FIELD, EXECUTION_FIELD } from "../lib/actuality/domains/seq-path.js";
 
 const DOMAIN_URAKATA_LIST = "urakata-list";
 const UrakataListSchema = z.object({ urakata: z.array(UrakataSchema) });
 
 /**
  * The persisted Urakata type: a task's lifecycle facts, queryable like any other individual. `execution` is a CONTEXT
- * facet so "what ran in instance E" is a stored query; the numeric counts derive their own columns. The stepper doesn't store or
- * serve a "running" claim: a reader concludes it from the facts (the record doesn't have a stoppedAt, and execution is the current instance).
+ * facet so "what ran in instance E" is a stored query; the numeric counts derive their own columns. The task's status and
+ * its stoppedAt state how it stands; a start-up reads the records whose process ended before they stopped by the column of
+ * stoppedAt, and ends each as interrupted.
  */
 const DOMAIN_URAKATA_TASK = "urakata-task";
 export const urakataTaskDomainDefinition = {
@@ -33,17 +35,20 @@ export const urakataTaskDomainDefinition = {
 		properties: {
 			id: LinkRelations.IDENTIFIER.rel,
 			description: LinkRelations.NAME.rel,
-			execution: LinkRelations.CONTEXT.rel,
+			[EXECUTION_FIELD]: LinkRelations.CONTEXT.rel,
 			seqPath: LinkRelations.SEQ_PATH.rel,
 			startedAt: LinkRelations.STARTED_AT_TIME.rel,
 			lastTickAt: LinkRelations.UPDATED.rel,
 			tickIndex: LinkRelations.TAG.rel,
 			errorCount: LinkRelations.TAG.rel,
+			actionStatus: LinkRelations.ACTION_STATUS.rel,
 			stoppedAt: LinkRelations.ENDED_AT_TIME.rel,
+			[ENDED_BY_FIELD]: LinkRelations.WAS_ENDED_BY.rel,
 			startedBy: LinkRelations.PERFORMED_BY.rel,
 			holds: LinkRelations.ALLOWED_ACTION.rel,
 			stopReason: LinkRelations.OUTCOME_REASON.rel,
 		},
+		sortColumns: { stoppedAt: "TIMESTAMPTZ" },
 	},
 };
 

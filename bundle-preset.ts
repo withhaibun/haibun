@@ -152,6 +152,18 @@ const gzipAlone: Plugin = {
 	},
 };
 
+/** Resolves `entities`, which markdown-it decodes a character reference with, to its decoding half, so a bundle doesn't hold
+ *  the encoding tables a page doesn't call, about 23 KiB. A package that imports `entities` for more than decoding resolves
+ *  it whole. */
+const decodeAlone: Plugin = {
+	name: "decode-alone",
+	setup(builder) {
+		builder.onResolve({ filter: /^entities$/ }, (args) =>
+			args.importer.includes(`${sep}markdown-it${sep}`) ? builder.resolve("entities/lib/decode.js", { kind: args.kind, resolveDir: args.resolveDir }) : undefined,
+		);
+	},
+};
+
 /** The options that build a bundle of the repository at `root` for a browser. */
 export const bundleOptions = (root: string, bundle: TBundle): BuildOptions & { metafile: true; plugins: Plugin[] } => ({
 	absWorkingDir: root,
@@ -166,7 +178,7 @@ export const bundleOptions = (root: string, bundle: TBundle): BuildOptions & { m
 	target: "es2022",
 	minify: true,
 	conditions: [HAIBUN_SOURCE],
-	plugins: [onePackageCopy(root), zodEnglishLocale, d3EngineAlone, oneColourLibrary, extrasControlsAlone, gzipAlone],
+	plugins: [onePackageCopy(root), zodEnglishLocale, d3EngineAlone, oneColourLibrary, extrasControlsAlone, gzipAlone, decodeAlone],
 	metafile: true,
 	logLevel: "warning",
 });

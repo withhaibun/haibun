@@ -105,11 +105,18 @@ export function extractSeqPathPrefix(id: string): string | null {
  *  times through this field. */
 export const EXECUTION_FIELD = "execution";
 
+/** The field that names the start-up step that ended a record as interrupted, in each instrumentation type that states an end. */
+export const ENDED_BY_FIELD = "endedBy";
+
 /** The field that holds the time a record was written. Each later write of the record sets it
  *  again. A record is written after the moment it describes. A reader that follows an execution requests the records
  *  written since its last read, and that selection is exact. A selection by the moment a record describes misses a
  *  record written late. */
 export const RECORDED_AT_TIME_FIELD = "recordedAtTime";
+
+/** Separates the actuality key from the feature's number in the id `executionOf` returns. A store reads an actuality's records
+ *  by the part of that id before it. */
+export const EXECUTION_SEPARATOR = "-";
 
 /**
  * Returns the id of one feature's execution: the key of the process start and the feature's number. Two executions of
@@ -117,7 +124,7 @@ export const RECORDED_AT_TIME_FIELD = "recordedAtTime";
  * execution of a feature from another. A reader that returns to an execution reads by this id.
  */
 export function executionOf(tag: { key: string; featureNum: number }): string {
-	return `${tag.key}-${tag.featureNum}`;
+	return `${tag.key}${EXECUTION_SEPARATOR}${tag.featureNum}`;
 }
 
 /**
@@ -127,7 +134,7 @@ export function executionOf(tag: { key: string; featureNum: number }): string {
  */
 export function actualityOf(execution: string): string {
 	if (!RecordNameSchema.shape.execution.safeParse(execution).success) throw new Error(`"${execution}" isn't an execution id, which executionOf returns`);
-	return execution.slice(0, execution.indexOf("-"));
+	return execution.slice(0, execution.indexOf(EXECUTION_SEPARATOR));
 }
 
 /**
@@ -239,6 +246,8 @@ export const SEQ_PATH_FIELD = {
 	delegation: "delegation",
 	/** A level's digests as JSON text (digest.ts): the actuality's of each dependency root, and a scenario's of its declared lines. */
 	digest: "digest",
+	/** The record of the start-up step that ended this record as interrupted, where its process ended before it did. */
+	endedBy: ENDED_BY_FIELD,
 } as const;
 
 /** The declared level of a SeqPath record. A call that a read ceiling bounds writes its record at that ceiling. */
@@ -292,6 +301,7 @@ export const SeqPathSchema = PersistedVertexSchema.extend({
 	[SEQ_PATH_FIELD.attributedTo]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.delegation]: OPTIONAL_TEXT,
 	[SEQ_PATH_FIELD.digest]: OPTIONAL_TEXT,
+	[SEQ_PATH_FIELD.endedBy]: OPTIONAL_TEXT,
 	// A store that writes an edge for each edge field the schema declares writes the ask as an edge, so a read of the records
 	// that reply to an ask selects them.
 	[SEQ_PATH_EDGE.askedIn]: OPTIONAL_TEXT,
@@ -382,6 +392,7 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 			[SEQ_PATH_FIELD.delegation]: LinkRelations.CONTEXT.rel,
 			// Grouped-as, so the type offers the records of one state as a filter, such as the scenarios that declare the same lines.
 			[SEQ_PATH_FIELD.digest]: LinkRelations.CONTEXT.rel,
+			[SEQ_PATH_FIELD.endedBy]: LinkRelations.WAS_ENDED_BY.rel,
 		},
 		edges: {
 			[SEQ_PATH_EDGE.isPartOf]: { rel: LinkRelations.PART_OF.rel, range: SEQ_PATH_LABEL },

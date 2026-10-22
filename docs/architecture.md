@@ -414,6 +414,14 @@ after years as after a day, and each thing it holds has a bound.
   store counts each removed day by, which are the fields a density groups and filters by, so a rail still marks a day
   whose records are removed. A count is added to and isn't computed again; a rename of a counted type or field is a
   recorded update that renames it in the counts too.
+- **A start-up ends what an interrupted actuality left open.** A process that stops before a step ends, by a crash, a kill or
+  a restart, leaves the step's record and each record it is part of without an end, and the retention keeps them. An
+  instrumentation type that states an end (`prov:endedAtTime`) also states its status (`schema:actionStatus`), the step that
+  ended it (`prov:wasEndedBy`) and its actuality, which `ResourceRels.ending` returns and the registry requires. A persistent
+  store's start-up ends each such record that another actuality left open, a page at a time by the index of the end: its
+  status is `interrupted`, it names the start-up's step as what ended it, and its end is the latest time a record of its
+  actuality states, the last moment a record shows its process running, so the record doesn't state that it ran longer than
+  its process did. The running actuality's records stay as they are.
 - **A repeating condition is reported as it starts and as it ends.** `Conditions` (lib/machines/conditions.ts) holds a
   condition by its key from its first occurrence to its end, with how often it occurred. The urakata registry reports a
   ticker that fails each tick once as it starts failing and once as it recovers, through its `TTickReporter`.

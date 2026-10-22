@@ -205,7 +205,7 @@
 		"names actuality as execution": 5
 	},
 	"modules/core/src/lib/domains/urakata.ts": {
-		"names actuality as execution": 2
+		"names actuality as execution": 1
 	},
 	"modules/core/src/lib/domains/util.ts": {
 		"names actuality as execution": 1
@@ -284,7 +284,7 @@
 		"names actuality as execution": 2
 	},
 	"modules/core/src/steps/urakata-stepper.ts": {
-		"names actuality as execution": 4
+		"names actuality as execution": 2
 	},
 	"modules/logic/src/derivations/derivation.ts": {
 		"names actuality as execution": 2

@@ -296,6 +296,8 @@ export const LinkRelations = {
 	WAS_INFORMED_BY: { rel: "wasInformedBy", uri: "prov:wasInformedBy", range: "iri", subPropertyOf: "inReplyTo" },
 	INVALIDATED: { rel: "invalidated", uri: "prov:invalidated", range: "iri", subPropertyOf: "inReplyTo" },
 	WAS_STARTED_BY: { rel: "wasStartedBy", uri: "prov:wasStartedBy", range: "iri", subPropertyOf: "inReplyTo" },
+	// The activity that ended another: the step of a start-up that ended a record an interrupted actuality left without an end.
+	WAS_ENDED_BY: { rel: "wasEndedBy", uri: "prov:wasEndedBy", range: "iri", subPropertyOf: "inReplyTo" },
 	STARTED_AT_TIME: { rel: "startedAtTime", uri: "prov:startedAtTime", range: "literal", subPropertyOf: "ganttStart" },
 	ENDED_AT_TIME: { rel: "endedAtTime", uri: "prov:endedAtTime", range: "literal", subPropertyOf: "ganttEnd" },
 	// The time the system generated this entity's representation. Every persisted object requires it. as:published holds the content's own time.

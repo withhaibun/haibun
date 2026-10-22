@@ -23,6 +23,7 @@ import {
 	type THypermediaTopology,
 	PersistedVertexSchema,
 } from "./resources.js";
+import { EXECUTION_FIELD } from "../actuality/domains/seq-path.js";
 
 /** Resolve a property def to its rel, regardless of plain-string or object (content / term) form. */
 export function relOf(def: TPropertyDef): TRel {
@@ -599,9 +600,34 @@ export type ResourceRels = {
 	/** The fields a store counts the type's removed records by (`topology.countedBy`), empty where it doesn't declare them.
 	 *  Throws for a type that isn't declared. */
 	countedBy(type: string): readonly string[];
+	/** The fields a start-up writes in a record of an instrumentation type that an interrupted actuality left without an end,
+	 *  or undefined where the type doesn't state an end. */
+	ending(type: string): TEnding | undefined;
 	fields(type: string): Record<string, string>;
 	schema(type: string): z.ZodType;
 };
+
+/** What a start-up writes in a record that an interrupted actuality left without an end: the time it ended, the status that
+ *  states it was interrupted, the start-up step that ended it, and the time of writing where the type states one. `actuality`
+ *  is the field that names the record's actuality, by the id `executionOf` returns. */
+export type TEnding = { end: string; status: string; endedBy: string; actuality: string; recordedAt?: string };
+
+/** Returns the ending of an instrumentation type that maps a property to `prov:endedAtTime`, or undefined where it doesn't
+ *  map one. Throws where it doesn't also state its status, the step that ended it and its actuality, since a start-up ends
+ *  a record an interrupted actuality left open by those fields. */
+function endingOf(type: string, topology: THypermediaTopology, fieldByRel: (rel: string) => string | undefined): TEnding | undefined {
+	const end = fieldByRel(LinkRelations.ENDED_AT_TIME.rel);
+	if (!topology.instrumentation || end === undefined) return undefined;
+	const status = fieldByRel(LinkRelations.ACTION_STATUS.rel);
+	const endedBy = fieldByRel(LinkRelations.WAS_ENDED_BY.rel);
+	const actuality = topology.properties[EXECUTION_FIELD] === undefined ? undefined : EXECUTION_FIELD;
+	if (status === undefined || endedBy === undefined || actuality === undefined)
+		throw new Error(
+			`${type} states its end in ${end}, and doesn't map a property to each of ${LinkRelations.ACTION_STATUS.rel}, ${LinkRelations.WAS_ENDED_BY.rel} and ${EXECUTION_FIELD}. A start-up ends a record that an interrupted actuality left open by its status, the step that ended it and its actuality; declare the three`,
+		);
+	const recordedAt = fieldByRel(LinkRelations.RECORDED_AT_TIME.rel);
+	return { end, status, endedBy, actuality, ...(recordedAt === undefined ? {} : { recordedAt }) };
+}
 
 /** Returns `fields`, which `type` declares in `topology.countedBy`. Throws where the type isn't instrumentation, since a
  *  store removes only instrumentation records past its retention, or where a field isn't one a read compares, since a
@@ -625,6 +651,15 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 	const titledBy = new Map<string, TTitledBy>();
 	const instrumentation = new Set<string>();
 	const countedBy = new Map<string, readonly string[]>();
+	const endings = new Map<string, TEnding>();
+	const fieldByRel = (type: string, rel: string): string | undefined => {
+		const rels = relMaps.get(type);
+		if (!rels) return undefined;
+		for (const [field, r] of Object.entries(rels)) {
+			if (r === rel) return field;
+		}
+		return undefined;
+	};
 
 	for (const domain of Object.values(domains)) {
 		if (!isPersisted(domain.topology)) continue;
@@ -646,16 +681,9 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 		// type doesn't declare a `label` field and doesn't already map another field to rdfs:label; inert until a vertex sets it.
 		if (rels.label === undefined && !Object.values(rels).includes(LinkRelations.LABEL.rel)) rels.label = LinkRelations.LABEL.rel;
 		relMaps.set(type, rels);
+		const ending = endingOf(type, topology, (rel) => fieldByRel(type, rel));
+		if (ending !== undefined) endings.set(type, ending);
 	}
-
-	const fieldByRel = (type: string, rel: string): string | undefined => {
-		const rels = relMaps.get(type);
-		if (!rels) return undefined;
-		for (const [field, r] of Object.entries(rels)) {
-			if (r === rel) return field;
-		}
-		return undefined;
-	};
 
 	return {
 		types,
@@ -679,6 +707,7 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 			if (fields === undefined) throw new Error(`${type} isn't a declared resource type, so it isn't counted by a field; declare the type`);
 			return fields;
 		},
+		ending: (type) => endings.get(type),
 		fields: (type) => relMaps.get(type) ?? {},
 		schema: (type) => {
 			const s = schemas.get(type);
