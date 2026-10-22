@@ -35,13 +35,13 @@ export const SETTINGS_GROUP_NAMES = SETTINGS_GROUPS.map((g) => g.group) as [TSet
 export function viewHeadCss(host: string): string {
 	return `
 	${host} .view-root { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
-	${host} .view-head { flex: 0 0 auto; display: flex; align-items: flex-end; justify-content: space-between; gap: var(--shu-space-2); padding: var(--shu-space-2) var(--shu-space-3) 0; border-bottom: var(--shu-border-w) solid var(--shu-border); }
-	${host} .view-controls { display: flex; align-items: center; gap: var(--shu-space-2); font-size: var(--shu-font-sm); color: var(--shu-fg); padding-bottom: var(--shu-space-1); }
-	${host} .view-controls button, ${host} .view-controls select, ${host} .settings-row button, ${host} .settings-row select { background: var(--shu-bg-soft); color: var(--shu-fg); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); font: inherit; font-size: var(--shu-font-sm); padding: var(--shu-space-1) var(--shu-space-3); cursor: pointer; }
+	${host} .view-head { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--shu-space-2); font-size: var(--shu-font-sm); padding: var(--shu-space-2) var(--shu-space-3) 0; border-bottom: var(--shu-border-w) solid var(--shu-border); }
+	${host} .view-controls { display: flex; align-items: center; gap: var(--shu-space-2); color: var(--shu-fg); padding-bottom: var(--shu-space-1); }
+	${host} :is(.view-controls, .settings-row) :is(button, select) { background: var(--shu-bg-soft); color: var(--shu-fg); border: var(--shu-border-w) solid var(--shu-border); border-radius: var(--shu-radius); font: inherit; font-size: var(--shu-font-sm); padding: var(--shu-space-1) var(--shu-space-3); cursor: pointer; }
 	${host} .view-controls button[aria-pressed="true"] { background: var(--shu-accent); color: var(--shu-accent-fg); }
 	${SHU_ICON_BUTTON}
-	${host} .view-controls label, ${host} .settings-row label { display: inline-flex; align-items: center; gap: var(--shu-space-1); }
-	${host} .settings-row input, ${host} .settings-row shu-field { vertical-align: middle; }
+	${host} :is(.view-controls, .settings-row) label { display: inline-flex; align-items: center; gap: var(--shu-space-1); }
+	${host} .settings-row :is(input, shu-field) { vertical-align: middle; }
 	${shuRowSeparated(`${host} .settings-row`)}
 	${host} .settings-row { flex: 0 0 auto; display: flex; align-items: center; flex-wrap: wrap; gap: var(--shu-space-3); font-size: var(--shu-font-sm); color: var(--shu-fg); padding: var(--shu-space-2) var(--shu-space-3); border-bottom: var(--shu-border-w) solid var(--shu-border); background: var(--shu-bg-soft); }
 	${host} .graph-area { position: relative; flex: 1 1 auto; min-height: 0; }

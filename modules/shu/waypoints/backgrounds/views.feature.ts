@@ -1,5 +1,5 @@
 import type { TKirejiExport } from "@haibun/core/kireji/derivations/withAction.js";
-import { RAIL_EDGE_TITLE, SETTINGS_GROUP, SHU_TAG, TIME_SYNC_CLASS } from "@haibun/shu/domains/elements.js";
+import { RAIL_EDGE_TITLE, SETTINGS_GROUP, SHU_ATTR, SHU_TAG, TIME_SYNC_CLASS } from "@haibun/shu/domains/elements.js";
 import { SHU_TEST_IDS } from "@haibun/shu/domains/test-ids.js";
 import { RAIL_POSITION_MAX } from "@haibun/shu/page/derivations/rail.js";
 import { VIEW_LABELS } from "@haibun/shu/page/graph/domains/views.js";
@@ -28,10 +28,20 @@ const SCENE_OFFERED = `${testId(GRAPH.SCENE_PICKER)}:has(option[value="{name}"])
 const CHIP = `${SHU_TAG.CHIP_GROUP} label.chip:text-matches("^{name}( |$)")`;
 /** What an entry states of a node a focus or a preview dims. */
 const DIMMED = `:has-text(", ${READ_STATE.dimmed})")`;
+/** An activity that presses a toggle of `view` that `selector` locates while it states `from`, and waits for it to state the
+ *  other, stated as the waypoint `head`. A press that doesn't reach the toggle fails the activity. */
+const toggled = (activity: string, selector: string, from: boolean, head: string): string[] => [
+	`Activity: ${activity}`,
+	`compose ${TARGET} as page-locator with ${selector}[aria-pressed="${from}"]`,
+	`in {view}, click ${TARGET}`,
+	`compose ${TARGET} as page-locator with ${selector}[aria-pressed="${!from}"]`,
+	`in {view}, wait for ${TARGET}`,
+	`waypoint ${head}`,
+];
 /** The waypoints of a settings group, opened and closed by its icon on the graph's head. */
 const settingsGroup = (group: (typeof SETTINGS_GROUP)[keyof typeof SETTINGS_GROUP]): string[] => [
-	...within(`Open the graph's ${group} settings`, "{view}", `${testId(GRAPH.SETTINGS[group])}[aria-pressed="false"]`, "click", views.openGraphSettings(VIEW, group)),
-	...within(`Close the graph's ${group} settings`, "{view}", `${testId(GRAPH.SETTINGS[group])}[aria-pressed="true"]`, "click", views.closeGraphSettings(VIEW, group)),
+	...toggled(`Open the graph's ${group} settings`, testId(GRAPH.SETTINGS[group]), false, views.openGraphSettings(VIEW, group)),
+	...toggled(`Close the graph's ${group} settings`, testId(GRAPH.SETTINGS[group]), true, views.closeGraphSettings(VIEW, group)),
 ];
 
 /** The heads of shu's view waypoints, which a feature states and each waypoint below declares. */
@@ -244,7 +254,7 @@ export const backgrounds: TKirejiExport = {
 		...within("Read that a graph doesn't follow", "{view}", `${testId(GRAPH.FOLLOW)}[aria-pressed="false"]`, "wait for", views.graphDoesntFollow(VIEW)),
 		...Object.values(SETTINGS_GROUP).flatMap(settingsGroup),
 
-		"A graph's scenes group saves the way the graph is set up under a name, offers each scene saved anywhere, and returns the graph to the one a reader picks.",
+		"A graph's scenes group saves the way the graph is set up under a name, offers each scene saved anywhere, and returns the graph to the one a reader picks. The graph states the scene it was returned to once the return lands.",
 		"Activity: Save a graph's scene",
 		`compose ${TARGET} as page-locator with ${testId(GRAPH.SCENE_NAME)}`,
 		`in {view}, enter "{name}" into ${TARGET}`,
@@ -256,6 +266,8 @@ export const backgrounds: TKirejiExport = {
 		"Activity: Return a graph to a scene",
 		`compose ${TARGET} as page-locator with ${testId(GRAPH.SCENE_PICKER)}`,
 		`in {view}, enter "{name}" into ${TARGET}`,
+		`compose ${TARGET} as page-locator with ${SHU_TAG.POLYMORPHIC_GRAPH_VIEW}[${SHU_ATTR.SCENE}="{name}"]`,
+		`in {view}, wait for ${TARGET}`,
 		`waypoint ${views.returnGraphToScene(VIEW, "{name}")}`,
 
 		"A graph's filter shows a chip for each type and predicate it draws, which a press toggles and the pointer previews, lighting what it names and dimming the rest.",

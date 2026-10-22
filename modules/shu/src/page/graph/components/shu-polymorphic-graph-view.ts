@@ -4,7 +4,7 @@ import { unsafeHTML } from "lit/directives/unsafe-html.js";
 import { z } from "zod";
 import { ShuClusteredGraphView, clusteredGraphInitialState, clusteredGraphStateShape } from "./shu-clustered-graph-view.js";
 import { statedTotal, type TLinkedData } from "@haibun/core/lib/domains/hypermedia.js";
-import { AFFORDANCE_PARAM, SHU_EVENT, SHU_TAG } from "../../../domains/elements.js";
+import { AFFORDANCE_PARAM, SHU_ATTR, SHU_EVENT, SHU_TAG } from "../../../domains/elements.js";
 import { defineElement } from "../../controllers/element-controller.js";
 import { acts } from "../../domains/links.js";
 import { conduit } from "../../controllers/conduit-controller.js";
@@ -14,6 +14,14 @@ import { sceneType, type TSceneState } from "../derivations/scenes.js";
 
 /** The time a reader is looking at, held in a scene beside the views' own options. It is not an element's option but the shared time signal, so it is recorded under its own key. */
 const TIME_CURSOR_KEY = "time-cursor";
+
+/** What the status line states of what the graph shows: its nodes, its edges and their types, what it omits, and the nodes
+ *  that prune removes where prune is set. */
+function countsText(c: GraphSceneChangedDetail["counts"], prune: boolean): string {
+	const omitted = c.omitted.total > 0 ? [`${statedTotal(c.omitted)} omitted`] : [];
+	const pruned = prune ? [`${c.pruned} pruned`] : [];
+	return [`${c.nodes} nodes`, `${c.edges} edges (${c.relTypes} ${c.relTypes === 1 ? "type" : "types"})`, ...omitted, ...pruned].join(" · ");
+}
 
 const POLYMORPHIC_IDS = SHU_TEST_IDS.POLYMORPHIC_VIEW;
 import type { TCluster, TQuad } from "@haibun/core/lib/quad-types.js";
@@ -56,18 +64,20 @@ const SOURCE_READ = "source-read";
 // Composed statically and rendered via unsafeHTML: lit leaves bindings inside a <style> element uninterpolated,
 // so the shared view-head rules cannot be interpolated in the template itself. The view is positioned, so the scene's canvas
 // (absolute, inset 0) is bounded by it, since otherwise the nearest positioned ancestor is the column and the canvas covers the
-// controls of the pane that holds the graph. The latest step is inline in the head after the counts, hidden where a SeqPath
-// isn't visible.
+// controls of the pane that holds the graph. What the graph states of itself, its counts and its latest step, is on a line of
+// the head of its own under the icons, one line high whatever it states, so a change of it doesn't move a control under a
+// press. The latest step is hidden where a SeqPath isn't visible.
 const FISHEYE_CSS = `
 	shu-polymorphic-graph-view { display: block; position: relative; width: 100%; height: 100%; overflow: hidden; background: var(--shu-bg); }
 	shu-polymorphic-graph-view shu-graph-filter { flex: 0 0 auto; }
 	${viewHeadCss("shu-polymorphic-graph-view")}
+	shu-polymorphic-graph-view .view-status { flex-basis: 100%; min-width: 0; display: flex; align-items: center; gap: var(--shu-space-2); min-height: calc(1lh + 2 * var(--shu-space-1)); white-space: nowrap; }
+	shu-polymorphic-graph-view .view-status > * { overflow: hidden; text-overflow: ellipsis; }
 	shu-polymorphic-graph-view #polymorphic-counts { color: var(--shu-fg-muted); }
-	shu-polymorphic-graph-view #polymorphic-step { max-width: 30ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--shu-fg); color: var(--shu-bg); padding: var(--shu-space-1) var(--shu-space-3); border-radius: var(--shu-radius); font-weight: 600; }
-	shu-polymorphic-graph-view #polymorphic-step[hidden] { display: none; }
+	shu-polymorphic-graph-view #polymorphic-step { max-width: 30ch; background: var(--shu-fg); color: var(--shu-bg); padding: var(--shu-space-1) var(--shu-space-3); border-radius: var(--shu-radius); font-weight: 600; }
 	shu-polymorphic-graph-view shu-graph-source { flex: 0 0 38%; }
 	shu-polymorphic-graph-view .source-note { margin: 0; padding: var(--shu-space-2) var(--shu-space-3); font-size: var(--shu-font-sm); color: var(--shu-fg-muted); background: var(--shu-bg); }
-	shu-polymorphic-graph-view .graph-area .source-note { position: absolute; top: 0; left: 0; right: 0; }
+	shu-polymorphic-graph-view .graph-area .source-note { position: absolute; inset: 0 0 auto; }
 `;
 
 const PolymorphicStateSchema = z.object({
@@ -134,9 +144,8 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	// data. type + role are always offered, so they seed the pre-data render; suppressesGrouping is false in the force view.
 	private groupByAxes: string[] = ["type", "role"];
 	private forces: TViewForces = {};
-	private countsText = "";
-	/** The nodes prune removes, shown in the prune control's label. */
-	private prunedCount = 0;
+	/** What the graph shows, as the scene last counted it, which the status line states. */
+	private counts: GraphSceneChangedDetail["counts"] | null = null;
 	private latestStep: string | null = null;
 	private sceneConfig!: TPolymorphicOptions;
 	/** The page's clock, which holds the coalesced read of the source and cancels it as the view leaves the page. */
@@ -275,10 +284,11 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		this.requestUpdate();
 	}
 
-	/** Return this view to the scene saved under a name. The view then shows which scene it is showing, so a reader (or a
-	 *  step) can see that the return has landed rather than guess at a moment. */
+	/** Return this view to the scene saved under a name. The view states which scene it shows once the return has landed, and
+	 *  doesn't state one while the return is under way, so a reader (or a step) reads that the return landed. */
 	private async applySavedScene(name: string): Promise<void> {
 		if (!name) return;
+		this.removeAttribute(SHU_ATTR.SCENE);
 		const scene = await readScene(name, "polymorphic: return to a saved scene");
 		if (!scene) {
 			this.sceneError = `a scene isn't saved as "${name}"`;
@@ -287,7 +297,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		}
 		this.sceneError = null;
 		this.applyScene(scene.state);
-		this.setAttribute("data-scene", name);
+		this.setAttribute(SHU_ATTR.SCENE, name);
 	}
 
 	/** The saved scenes a reader can return to, fetched by the host and handed down to the settings; a control never reaches the RPC. */
@@ -321,7 +331,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 							{
 								id: POLYMORPHIC_IDS.PRUNE,
 								glyph: "⊘",
-								label: this.state.prune ? `prune (${this.prunedCount})` : "prune",
+								label: "prune",
 								title: "prune nodes without an edge",
 								on: this.state.prune,
 								onToggle: (on) => this.setOption({ prune: on }),
@@ -348,7 +358,9 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 						],
 						settings: { openGroup: open, idFor: (group) => POLYMORPHIC_IDS.SETTINGS[group], onGroup: (group) => this.openGroup(group) },
 					})}
-					<span id="polymorphic-counts">${this.countsText}</span>
+				</div>
+				<div class="view-status">
+					<span id="polymorphic-counts">${this.counts === null ? "" : countsText(this.counts, this.state.prune)}</span>
 					<span id="polymorphic-step" data-testid=${POLYMORPHIC_IDS.LATEST_STEP} ?hidden=${!this.latestStep}>${this.latestStep}</span>
 				</div>
 			</div>
@@ -495,10 +507,7 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 		// dirty-checks a new array each repaint and re-renders its controls without a change.
 		if (d.groupByAxes.join("\0") !== this.groupByAxes.join("\0")) this.groupByAxes = d.groupByAxes;
 		this.forces = d.forces;
-		const c = d.counts;
-		const edgePart = `${c.edges} edges (${c.relTypes} ${c.relTypes === 1 ? "type" : "types"})`;
-		this.countsText = `${c.nodes} nodes · ${edgePart}${c.omitted.total > 0 ? ` · ${statedTotal(c.omitted)} omitted` : ""}`;
-		this.prunedCount = c.pruned;
+		this.counts = d.counts;
 		this.latestStep = d.latestStep;
 		// Persist the user's drag-pins (a page-wide layout choice) whenever they change: a dragged layout then survives a reload.
 		if (JSON.stringify(d.pins) !== JSON.stringify(this.state.pins)) this.setState({ pins: d.pins });
@@ -700,6 +709,8 @@ export class ShuPolymorphicGraphView extends ShuClusteredGraphView<typeof Polymo
 	 *  the (persisted) state and pushes the whole config to the scene. */
 	private setOption(change: Partial<z.infer<typeof PolymorphicStateSchema>>): void {
 		const [read, drewTerms, showed] = [this.readsSource, this.drawsTerms, this.state.source];
+		// A reader who changes an option moves the view away from the scene of its last return.
+		this.removeAttribute(SHU_ATTR.SCENE);
 		this.setState(change);
 		this.configureScene();
 		// A source the graph starts to read is read at once, as is one whose format or prune changes what it states.

@@ -217,6 +217,9 @@ export const SHU_ATTR = {
 	DATA_ROLE: "data-role",
 	DATA_STATUS: "data-status",
 	DATA_RECORD: "data-record",
+	/** On a graph view a reader returned to a saved scene: the scene's name, from when the return lands until a reader changes
+	 *  an option. */
+	SCENE: "data-scene",
 } as const;
 
 /** The selectors a transcript's chat message matches, by the attributes it reflects. A selector places one of them in
