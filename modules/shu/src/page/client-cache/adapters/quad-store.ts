@@ -36,12 +36,12 @@ export class IndexedDbQuads implements TDeviceQuads {
 
 	/** Reads the quads in one transaction; `undefined` when IndexedDB is unavailable. */
 	private read<T>(fn: (store: IDBObjectStore) => Promise<T>): Promise<T | undefined> {
-		return this.db.read([DEVICE_STORES.QUADS], (tx) => fn(tx.objectStore(DEVICE_STORES.QUADS)));
+		return this.db.within("readonly", [DEVICE_STORES.QUADS], (tx) => fn(tx.objectStore(DEVICE_STORES.QUADS)));
 	}
 
 	/** Writes the quads in one transaction, whose requests `fn` issues without awaiting a result. */
-	private write(fn: (store: IDBObjectStore) => void): Promise<void> {
-		return this.db.write([DEVICE_STORES.QUADS], (tx) => fn(tx.objectStore(DEVICE_STORES.QUADS)));
+	private async write(fn: (store: IDBObjectStore) => void): Promise<void> {
+		await this.db.within("readwrite", [DEVICE_STORES.QUADS], (tx) => fn(tx.objectStore(DEVICE_STORES.QUADS)));
 	}
 
 	/** The rows the database holds under each quad's subject, predicate and graph, read in one transaction. */
@@ -87,7 +87,7 @@ export class IndexedDbQuads implements TDeviceQuads {
 			if (excess <= 0) return;
 			const oldest = await this.read((store) => done(store.index(QUAD_INDEX.TIME).getAllKeys(null, excess)));
 			if (oldest === undefined) return;
-			await this.db.write([DEVICE_STORES.QUADS, DEVICE_STORES.META], (tx) => {
+			await this.db.within("readwrite", [DEVICE_STORES.QUADS, DEVICE_STORES.META], (tx) => {
 				for (const key of oldest) tx.objectStore(DEVICE_STORES.QUADS).delete(key);
 				tx.objectStore(DEVICE_STORES.META).put(dropped + oldest.length, META_KEY.DROPPED);
 			});
@@ -99,7 +99,7 @@ export class IndexedDbQuads implements TDeviceQuads {
 
 	/** Returns how full the database's graph is: what it holds, its bound, and how many quads it dropped to stay within it. */
 	async saturation(): Promise<TGraphSaturation> {
-		const counted = await this.db.read([DEVICE_STORES.QUADS, DEVICE_STORES.META], (tx) =>
+		const counted = await this.db.within("readonly", [DEVICE_STORES.QUADS, DEVICE_STORES.META], (tx) =>
 			Promise.all([done(tx.objectStore(DEVICE_STORES.QUADS).count()), done(tx.objectStore(DEVICE_STORES.META).get(META_KEY.DROPPED))]),
 		);
 		if (counted === undefined) return { held: 0, bound: this.bound, dropped: 0 };

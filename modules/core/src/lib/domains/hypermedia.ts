@@ -596,9 +596,25 @@ export type ResourceRels = {
 	titledBy(type: string): TTitledBy | undefined;
 	/** Whether the type records actuality's own execution (`topology.instrumentation`). */
 	instrumentation(type: string): boolean;
+	/** The fields a store counts the type's removed records by (`topology.countedBy`), empty where it doesn't declare them.
+	 *  Throws for a type that isn't declared. */
+	countedBy(type: string): readonly string[];
 	fields(type: string): Record<string, string>;
 	schema(type: string): z.ZodType;
 };
+
+/** Returns `fields`, which `type` declares in `topology.countedBy`. Throws where the type isn't instrumentation, since a
+ *  store removes only instrumentation records past its retention, or where a field isn't one a read compares, since a
+ *  density reads the counts by its group and filter fields. */
+function countedFields(type: string, schema: z.ZodType | undefined, topology: THypermediaTopology, fields: readonly string[]): readonly string[] {
+	if (!topology.instrumentation)
+		throw new Error(`${type} declares countedBy, and a store counts only the instrumentation records it removes; declare instrumentation or remove countedBy`);
+	const queryable = queryableFields({ schema, topology });
+	const uncompared = fields.filter((field) => !queryable.includes(field));
+	if (uncompared.length > 0)
+		throw new Error(`${type} is counted by ${uncompared.join(", ")}, which a read doesn't compare; count it by its queryable fields: ${queryable.join(", ")}`);
+	return fields;
+}
 
 /** Build ResourceRels from world.domains concern metadata. */
 export function buildResourceRels(domains: Record<string, TRegisteredDomain>): ResourceRels {
@@ -608,6 +624,7 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 	const schemas = new Map<string, z.ZodType>();
 	const titledBy = new Map<string, TTitledBy>();
 	const instrumentation = new Set<string>();
+	const countedBy = new Map<string, readonly string[]>();
 
 	for (const domain of Object.values(domains)) {
 		if (!isPersisted(domain.topology)) continue;
@@ -619,6 +636,7 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 		const title = titledByOf(topology);
 		if (title) titledBy.set(type, title);
 		if (topology.instrumentation) instrumentation.add(type);
+		countedBy.set(type, topology.countedBy === undefined ? [] : countedFields(type, domain.schema, topology, topology.countedBy));
 		const rels: Record<string, string> = {};
 		for (const [field, def] of topology.properties === undefined ? [] : Object.entries(topology.properties)) {
 			rels[field] = relOf(def);
@@ -656,6 +674,11 @@ export function buildResourceRels(domains: Record<string, TRegisteredDomain>): R
 		contentField: (type) => fieldByRel(type, LinkRelations.CONTENT.rel),
 		titledBy: (type) => titledBy.get(type),
 		instrumentation: (type) => instrumentation.has(type),
+		countedBy: (type) => {
+			const fields = countedBy.get(type);
+			if (fields === undefined) throw new Error(`${type} isn't a declared resource type, so it isn't counted by a field; declare the type`);
+			return fields;
+		},
 		fields: (type) => relMaps.get(type) ?? {},
 		schema: (type) => {
 			const s = schemas.get(type);

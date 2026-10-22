@@ -398,6 +398,29 @@ Monitors receive `THaibunEvent` via `onEvent` during execution. They track progr
 | ConsoleMonitorStepper | Simple console output. |
 | MonitorTuiStepper | Terminal UI showing live progress. |
 
+## Running for years
+
+An actuality that serves requests runs until it is stopped, so each thing it does again and again touches as many rows
+after years as after a day, and each thing it holds has a bound.
+
+- **A store reads by a key or in pages.** `IQuadStore.query` names a subject, or a relation and the record it reaches. A
+  backing store that holds every record of a type refuses a pattern without a key, and refuses `all()`; the quad store
+  conformance suite checks both for a store that declares itself `keyed`. A type's records are read in pages through
+  `readRecords`, whose limit is 1 to `MAX_PAGE_ROWS`. `FeatureVariables.clear` clears the graphs of its own layer and
+  doesn't read a backing store's types.
+- **Instrumentation has a retention.** A type that records actuality itself (`topology.instrumentation`) is kept
+  by a persistent backing store for the days the store states, and the store removes the records past them that ended,
+  that don't have a kept part, and that a record of a feature's data doesn't cite. `topology.countedBy` names the fields the
+  store counts each removed day by, which are the fields a density groups and filters by, so a rail still marks a day
+  whose records are removed. A count is added to and isn't computed again; a rename of a counted type or field is a
+  recorded update that renames it in the counts too.
+- **A repeating condition is reported as it starts and as it ends.** `Conditions` (lib/machines/conditions.ts) holds a
+  condition by its key from its first occurrence to its end, with how often it occurred. The urakata registry reports a
+  ticker that fails each tick once as it starts failing and once as it recovers, through its `TTickReporter`.
+- **What a process holds has a bound.** A stream's replay buffer holds 5,000 events. The counts of the paths under a call
+  this host allocated a seqPath for, and under a ticker's tick, are released as it ends (`releaseSeqPaths`), so the counts
+  hold the calls in progress and the features' own steps.
+
 ## Variable Resolution
 
 `FeatureVariables.resolveVariable()` resolves values based on origin. A parameter of a written domain (`statement`, `variable-name`, `domain-name`) takes the term the line writes, whatever its origin: `set x to 1` names the variable x, and never reads a variable called x. A variable's name has each `{name}` in it filled, so `set {who} greeted to "yes"` names a variable after the value of `who`.

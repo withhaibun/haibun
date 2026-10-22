@@ -17,7 +17,7 @@ import type { AStepper, TStepperStep, TFeatureStep } from "../domains/stepper.js
 import { lineOfCall, mapInputToStepValues } from "../derivations/named-vars.js";
 import { validateToolInput } from "../derivations/tool-validation.js";
 import { actionNotOK } from "../../domains/util.js";
-import { proveStep, type DispatchContext } from "../../actuality/pipelines/step-dispatch.js";
+import { proveAllocated, type DispatchContext } from "../../actuality/pipelines/step-dispatch.js";
 import { allocateSyntheticSeqPath } from "../../domains/host-id.js";
 import type { TSeqPath, TStepResult } from "../../domains/protocol.js";
 
@@ -71,7 +71,7 @@ export const NO_INPUT: Readonly<Record<string, unknown>> = {};
 async function proveCall(ctx: DispatchContext, method: string, stepOf: (tool: StepTool, seqPath: TSeqPath) => TFeatureStep): Promise<TStepCall> {
 	const tool = ctx.registry.named(method);
 	const seqPath = allocateSyntheticSeqPath(ctx.world);
-	const result = await proveStep(ctx, stepOf(tool, seqPath));
+	const result = await proveAllocated(ctx, stepOf(tool, seqPath));
 	return { seqPath, result };
 }
 

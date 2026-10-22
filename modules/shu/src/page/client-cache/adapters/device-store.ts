@@ -56,8 +56,6 @@ function openDb(name: string, connections: TDeviceConnections, replacesFormer: b
 			index(quads, QUAD_INDEX.OBJECT, "object");
 			index(quads, QUAD_INDEX.TIME, "timestamp");
 			store(DEVICE_STORES.META);
-			// What an earlier build kept its events in: an actuality is records now, and they are read from the graph.
-			if (db.objectStoreNames.contains("events")) db.deleteObjectStore("events");
 		};
 		// Another page of this origin is upgrading: this connection closes at once so it isn't the reason that page waits.
 		req.onblocked = () => connections.report.warn("another page of this origin holds an earlier version open; waiting for it to close");
@@ -122,7 +120,7 @@ export function deviceDatabase(name: string, connections: TDeviceConnections, re
 		const [result] = await Promise.all([issued, committed]);
 		return result;
 	};
-	return { name, read: (stores, fn) => within("readonly", stores, fn), write: (stores, fn) => within("readwrite", stores, fn) };
+	return { name, within };
 }
 
 /** The site's registry and the clearing of what is cached, in one actuality's database. `wrote` calls the page's readers
@@ -134,18 +132,18 @@ export class IndexedDbDeviceStore implements TDeviceStore {
 	) {}
 
 	async registry(): Promise<TStoredRegistry | undefined> {
-		const found = await this.database.read([DEVICE_STORES.META], (tx) => done(tx.objectStore(DEVICE_STORES.META).get(META_KEY.REGISTRY)));
+		const found = await this.database.within("readonly", [DEVICE_STORES.META], (tx) => done(tx.objectStore(DEVICE_STORES.META).get(META_KEY.REGISTRY)));
 		return found !== undefined && found !== null && typeof found === "object" ? (found as TStoredRegistry) : undefined;
 	}
 
 	async setRegistry(response: unknown): Promise<void> {
 		const cached: TStoredRegistry = { savedAt: Date.now(), response };
-		await this.database.write([DEVICE_STORES.META], (tx) => tx.objectStore(DEVICE_STORES.META).put(cached, META_KEY.REGISTRY));
+		await this.database.within("readwrite", [DEVICE_STORES.META], (tx) => tx.objectStore(DEVICE_STORES.META).put(cached, META_KEY.REGISTRY));
 		this.wrote();
 	}
 
 	async clear(): Promise<void> {
-		await this.database.write([DEVICE_STORES.META, DEVICE_STORES.QUADS], (tx) => {
+		await this.database.within("readwrite", [DEVICE_STORES.META, DEVICE_STORES.QUADS], (tx) => {
 			tx.objectStore(DEVICE_STORES.META).clear();
 			tx.objectStore(DEVICE_STORES.QUADS).clear();
 		});

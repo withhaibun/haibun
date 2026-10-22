@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { z } from "zod";
 
-import { dispatchStep, proveStatements, stepperContext } from "./step-dispatch.js";
+import { dispatchStep, nextSeqPath, proveStatements, releaseSeqPaths, stepperContext } from "./step-dispatch.js";
 import { retainedProducts } from "../derivations/step-results.js";
 import { buildStepRegistry, createStepHandler, StepRegistry, type StepTool } from "../../steps/pipelines/step-registry.js";
 import { stepMethodName } from "../../steps/domains/step-method.js";
@@ -118,6 +118,20 @@ const countFact = async (world: TWorld, path: number[]) =>
 	(await readEvery(world.shared.getStore(), { label: FACT_LABEL, filters: equalTo({ domain: TEST_DOMAIN.count }) })).find(
 		(fact) => fact.id === factIdOf({ execution: executionOf(world.tag), path }),
 	)?.value;
+
+describe("the counts of a call's paths", () => {
+	it("are released under the call's seqPath once it ends, and a call whose path shares its digits keeps its own", () => {
+		const world = getDefaultWorld();
+		const [ended, sharing] = [
+			[-7, 1],
+			[-7, 10],
+		];
+		nextSeqPath(world, nextSeqPath(world, ended));
+		nextSeqPath(world, sharing);
+		releaseSeqPaths(world, ended);
+		expect([...world.runtime.seqPaths.keys()]).toEqual(["-7.10"]);
+	});
+});
 
 describe("step-dispatch", () => {
 	let world: TWorld;

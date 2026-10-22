@@ -104,8 +104,8 @@ export async function reportHtml(scope: TReportScope): Promise<string> {
 	const graph = clusters(world) ? await graphSource(world) : undefined;
 	if (graph === undefined) world.eventLogger.warn(`[shu report] ${NOT_CLUSTERED}, so a page that reads this report doesn't show a graph`);
 	// Which views were open, the page reads from the records it carries. The report inlines the code those views need.
-	const shown = await world.shared.getStore().query({ predicate: SEQ_PATH_FIELD.showed, namedGraph: SEQ_PATH_LABEL });
-	const components = new Set(shown.map((quad) => componentOfView(world.domains, String(quad.object))));
+	const shown = await world.shared.getStore().distinctPropertyValues(SEQ_PATH_LABEL, SEQ_PATH_FIELD.showed);
+	const components = new Set(shown.values.map((view) => componentOfView(world.domains, view)));
 	const hydration = JSON.stringify({
 		viewProducts,
 		viewHash: reportOpensAt(scope.queriedLabel),

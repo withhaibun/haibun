@@ -37,14 +37,10 @@ export const META_KEY = { REGISTRY: "registry", SHAPE: "shape", DROPPED: "droppe
  *  the time each was held. */
 export const QUAD_INDEX = { SPG: "by-spg", SUBJECT: "by-subject", NAMED_GRAPH: "by-named-graph", OBJECT: "by-object", TIME: "by-time" } as const;
 
-/** One actuality's database on the device: a read and a write, each one transaction over the stores it names, resolving once
- *  it commits. Each issues its requests before it awaits a result, and commits as it issues them. A read resolves
- *  undefined, and a write drops, where the browser doesn't offer IndexedDB. */
-export type TDeviceDatabase = {
-	readonly name: string;
-	read<T>(stores: string[], fn: (tx: IDBTransaction) => Promise<T>): Promise<T | undefined>;
-	write(stores: string[], fn: (tx: IDBTransaction) => void): Promise<void>;
-};
+/** One actuality's database on the device: a transaction over the stores it names, read-only or read-write, resolving with
+ *  what `fn` returns once it commits. `fn` issues each request before it awaits a result, and the transaction commits as
+ *  `fn` issues them. It resolves undefined where the browser doesn't offer IndexedDB. */
+export type TDeviceDatabase = { readonly name: string; within<T>(mode: IDBTransactionMode, stores: string[], fn: (tx: IDBTransaction) => T | Promise<T>): Promise<T | undefined> };
 
 /** How the device reports what a reader doesn't see otherwise: a warning, and a failure with its cause. */
 export type TDeviceReport = { warn(message: string): void; failure(message: string, err: unknown): void };

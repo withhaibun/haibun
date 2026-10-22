@@ -68,7 +68,8 @@ const recordTime = (world: TWorld): string => new Date(world.clock.now()).toISOS
  *
  * nextSeqPath allocates the path from a count held per parent. A search of a feature's results would read every result on
  * every step. Actuality can service requests for weeks, so the number of results grows for weeks. nextSeqPath returns in
- * constant time. world.runtime.seqPaths holds one entry for each parent.
+ * constant time. world.runtime.seqPaths holds one entry for each parent, and a call's entries go once it ends
+ * (`releaseSeqPaths`).
  *
  * The count only advances, so a path is never allocated twice. An allocation that a step doesn't use leaves a gap in the
  * numbering. Readers read the numbering only for order and identity. A gap preserves both.
@@ -80,6 +81,25 @@ export function nextSeqPath(world: TWorld, parent: TSeqPath): TSeqPath {
 	const index = taken === undefined ? 1 : taken + 1;
 	held.set(key, index);
 	return [...parent, index];
+}
+
+/**
+ * Releases the counts of the paths under `root`, a seqPath this host allocated for a call that ended. A call doesn't
+ * allocate a path under its seqPath after it ends, and the counts otherwise hold one entry for each parent of every call
+ * for as long as actuality runs, so the counts hold the parents of the calls in progress and of the features' own steps.
+ */
+export function releaseSeqPaths(world: TWorld, root: TSeqPath): void {
+	const key = root.join(".");
+	for (const held of world.runtime.seqPaths.keys()) if (held === key || held.startsWith(`${key}.`)) world.runtime.seqPaths.delete(held);
+}
+
+/** Proves `featureStep` at the seqPath this host allocated for its call, and releases the counts under it once it ends. */
+export async function proveAllocated(ctx: DispatchContext, featureStep: TFeatureStep): Promise<TStepResult> {
+	try {
+		return await proveStep(ctx, featureStep);
+	} finally {
+		releaseSeqPaths(ctx.world, featureStep.seqPath);
+	}
 }
 
 /** The dispatch context of a stepper's own call: actuality's registry, its world and its steppers, under the caller's capability. */

@@ -55,6 +55,11 @@ export class QuadLayer implements Iterable<TQuad> {
 		unindexed(this.#byPredicate, quad.predicate, quad);
 	}
 
+	/** The named graphs of the quads the layer holds. */
+	graphs(): string[] {
+		return [...this.#byGraph.keys()];
+	}
+
 	/** The quads of `namedGraph`, in the order they were written. */
 	ofGraph(namedGraph: string): ReadonlySet<TQuad> {
 		return heldOrEmpty(this.#byGraph.get(namedGraph));

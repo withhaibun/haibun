@@ -8,6 +8,7 @@
  * It also implements the reads of what a text states. It reads a feature's prose as facts, checks that every cited
  * passage still resolves, and reads the statements made with a predicate.
  */
+import { itemAt } from "../lib/domains/item-at.js";
 import { z } from "zod";
 import { AStepper, IHasCycles, TStepperSteps, IStepperCycles, type TBeforeStep } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOKWithProducts } from "../lib/domains/util.js";
@@ -273,21 +274,32 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			productsDomain: DOMAIN_ANNOTATIONS,
 			action: async ({ id }: { label: string; id: string }) => {
 				const store = this.getWorld().shared.getStore();
-				// Walks the W3C Web Annotation chain backward from the annotated individual with bulk reads scoped by label,
-				// then joins the results in memory. An unscoped or per-note quad query on a property-graph store reloads every
-				// type and every body, including this document's own, so a per-note walk takes note count × document size.
-				// This walk takes eight scoped reads: five of the chain, the matched comments by id, and their bodies' edges and bodies.
+				// Walks the W3C Web Annotation chain backward from the annotated individual, each read keyed by the record it
+				// starts from, so the walk reads the records of this individual's annotations and not every record of a type.
 				// SpecificResource: hasSource → id, hasSelector → TextQuoteSelector.
 				// Comment: hasTarget → SpecificResource, and optionally linksTo → another SpecificResource.
-				const srIds = new Set((await store.query({ predicate: LinkRelations.HAS_SOURCE.rel, object: id, namedGraph: SPECIFIC_RESOURCE_LABEL })).map((q) => String(q.subject)));
-				if (srIds.size === 0) return actionOKWithProducts({ annotations: [], total: 0 });
-				const selectorOfSr = new Map<string, string>();
-				for (const q of await store.query({ predicate: LinkRelations.HAS_SELECTOR.rel, namedGraph: SPECIFIC_RESOURCE_LABEL }))
-					selectorOfSr.set(String(q.subject), String(q.object));
-				const linkQuads = await store.query({ predicate: LinkRelations.LINKS_TO.rel, namedGraph: COMMENT_LABEL });
-				const linkSrsOfComment = new Map([...Map.groupBy(linkQuads, (q) => String(q.subject))].map(([comment, held]) => [comment, held.map((q) => String(q.object))]));
+				const srIds = [...new Set((await store.query({ predicate: LinkRelations.HAS_SOURCE.rel, object: id, namedGraph: SPECIFIC_RESOURCE_LABEL })).map((q) => String(q.subject)))];
+				if (srIds.length === 0) return actionOKWithProducts({ annotations: [], total: 0 });
+				const objectsOf = async (subject: string, predicate: string, namedGraph: string): Promise<string[]> =>
+					(await store.query({ subject, predicate, namedGraph })).map((q) => String(q.object));
+				const targeting = await Promise.all(
+					srIds.map(async (srId) => ({
+						srId,
+						comments: (await store.query({ predicate: LinkRelations.TARGET.rel, object: srId, namedGraph: COMMENT_LABEL })).map((q) => String(q.subject)),
+					})),
+				);
+				const targetingIds = [...new Set(targeting.flatMap(({ comments }) => comments))];
+				const linkSrsOfComment = new Map(
+					await Promise.all(targetingIds.map(async (comment) => [comment, await objectsOf(comment, LinkRelations.LINKS_TO.rel, COMMENT_LABEL)] as const)),
+				);
+				const quotedSrIds = [...new Set([...srIds, ...[...linkSrsOfComment.values()].flat()])];
+				const selectorOfSr = new Map(
+					(await Promise.all(quotedSrIds.map(async (srId) => [srId, await objectsOf(srId, LinkRelations.HAS_SELECTOR.rel, SPECIFIC_RESOURCE_LABEL)] as const))).flatMap(
+						([srId, selectors]) => (selectors.length === 0 ? [] : [[srId, itemAt(selectors, 0)] as const]),
+					),
+				);
 				const selectorById = new Map<string, Record<string, unknown>>();
-				for (const s of await readEvery(store, { label: TEXT_QUOTE_SELECTOR_LABEL })) selectorById.set(String(s.id), s);
+				for (const s of await readEvery(store, { label: TEXT_QUOTE_SELECTOR_LABEL, named: [...new Set(selectorOfSr.values())] })) selectorById.set(String(s.id), s);
 				const quoteOf = (srId: string | undefined): TQuoteAnchor | undefined => {
 					const selectorId = srId ? selectorOfSr.get(srId) : undefined;
 					const sel = selectorId === undefined ? undefined : selectorById.get(selectorId);
@@ -298,11 +310,10 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 						...(sel.suffix !== undefined ? { suffix: String(sel.suffix) } : {}),
 					};
 				};
-				const anchored = (await store.query({ predicate: LinkRelations.TARGET.rel, namedGraph: COMMENT_LABEL })).flatMap((tq) => {
-					const specificResourceId = String(tq.object);
+				const anchored = targeting.flatMap(({ srId, comments }) => {
 					// A target without a selector doesn't anchor a passage.
-					const quote = srIds.has(specificResourceId) ? quoteOf(specificResourceId) : undefined;
-					return quote ? [{ commentId: String(tq.subject), specificResourceId, quote }] : [];
+					const quote = quoteOf(srId);
+					return quote ? comments.map((commentId) => ({ commentId, specificResourceId: srId, quote })) : [];
 				});
 				if (anchored.length === 0) return actionOKWithProducts({ annotations: [], total: 0 });
 				const commentIds = [...new Set(anchored.map(({ commentId }) => commentId))];

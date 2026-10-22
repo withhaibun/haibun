@@ -351,6 +351,7 @@ export const seqPathDomainDefinition: TDomainDefinition = {
 		// A record is titled by its heading or its step's text, so a graph of an actuality reads as its features, scenarios and steps.
 		displayLabel: SEQ_PATH_FIELD.stepText,
 		instrumentation: true,
+		countedBy: [SEQ_PATH_FIELD.actionStatus, SEQ_PATH_FIELD.level, EXECUTION_FIELD],
 		properties: {
 			[SEQ_PATH_FIELD.id]: LinkRelations.IDENTIFIER.rel,
 			[SEQ_PATH_FIELD.stepText]: LinkRelations.CONTENT.rel,

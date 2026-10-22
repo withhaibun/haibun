@@ -92,6 +92,11 @@ export class QuadStore implements IQuadStore {
 		return declared === undefined ? UNDECLARED_ID_FIELD : declared;
 	}
 
+	/** The named graphs of the quads this store's own layer holds. A backing store's graphs aren't read. */
+	ownGraphs(): string[] {
+		return this.quads.graphs();
+	}
+
 	/** The chain this store shares. The next store of the chain is built with it. */
 	storeChain(): TStoreChain {
 		return this.chain;

@@ -122,12 +122,11 @@ export class FeatureVariables {
 		return Object.fromEntries(variables.map((variable) => [variable.term, { ...variable, value: this.valueOf(variable), generatedBy: stepsOf(generatedBy, variable.term) }]));
 	}
 
-	/** Removes every record but the SeqPath records, and every secret's value. The store then holds the records of the
-	 *  actuality and of every feature, scenario and step it ran, and an observation such as a feature's requests reads only
-	 *  that feature's records. */
+	/** Removes every record of this store's own layer but the SeqPath records, and every secret's value. The store then holds
+	 *  the records of the actuality and of every feature, scenario and step it ran, and an observation such as a feature's
+	 *  requests reads only that feature's records. A backing store holds what persists, so the clear doesn't read it. */
 	async clear(): Promise<void> {
-		const graphs = new Set((await this.store.all()).map((quad) => quad.namedGraph));
-		for (const graph of graphs) if (graph !== SEQ_PATH_LABEL) await this.store.clear(graph);
+		for (const graph of this.store.ownGraphs()) if (graph !== SEQ_PATH_LABEL) await this.store.clear(graph);
 		this.secretValues.clear();
 	}
 

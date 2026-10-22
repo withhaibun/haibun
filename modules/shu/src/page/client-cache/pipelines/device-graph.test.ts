@@ -215,7 +215,7 @@ describe("a database written under another shape", () => {
 		const warned: string[] = [];
 		const opened = () => deviceDatabase(name, { opened: new Map(), report: { warn: (message) => warned.push(message), failure: () => undefined } }, false);
 		await new IndexedDbQuads(opened(), 10).setMany([fact(1)]);
-		await opened().write([DEVICE_STORES.META], (tx) => tx.objectStore(DEVICE_STORES.META).put(EARLIER_SHAPE, META_KEY.SHAPE));
+		await opened().within("readwrite", [DEVICE_STORES.META], (tx) => tx.objectStore(DEVICE_STORES.META).put(EARLIER_SHAPE, META_KEY.SHAPE));
 		expect(await new IndexedDbQuads(opened(), 10).all()).toEqual([]);
 		expect(warned).toEqual([`what this device holds was written as ${EARLIER_SHAPE}; this build reads ${CACHE_SHAPE}, so it is cleared`]);
 	});

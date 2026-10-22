@@ -680,6 +680,12 @@ export type THypermediaTopology = {
 	 */
 	instrumentation?: boolean;
 	/**
+	 * The fields a store counts an instrumentation type's records by, each day, as it removes the records older than its
+	 * retention: the fields the density reads group and filter by, so a rail still marks a day whose records are removed.
+	 * Absent means the store counts the records of each day by their type alone.
+	 */
+	countedBy?: readonly string[];
+	/**
 	 * The level a record of this type is stored at when the record doesn't state one. A type declares the least sharing
 	 * under which its records remain useful, so a writer that omits the level doesn't publish a record. A record shared
 	 * more widely states its level on the record itself. Registration refuses a persisted type that doesn't state it.

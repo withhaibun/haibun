@@ -27,8 +27,7 @@ import { ACTUALITY_HEADER, actualityRefusal, refusalSaid } from "@haibun/core/li
 import { PRESENTED_REQUEST_HEADERS } from "../domains/web-server.js";
 import type { Context, IWebServer, TCapabilityVerifier } from "../ports.js";
 import { actionsOf } from "../derivations/actions.js";
-import { proveStep } from "@haibun/core/lib/step-dispatch.js";
-import { calledStep, dispatchedAs, type TCaller, type TDispatchWithin } from "./dispatch-call.js";
+import { calledStep, dispatchedAs, provedCall, type TCaller, type TDispatchWithin } from "./dispatch-call.js";
 import { refuseInvocation } from "./capability-verifier.js";
 
 /** The name this MCP server states to its callers. */
@@ -56,7 +55,7 @@ async function callTool(parts: TMcpParts, name: string, args: Record<string, unk
 		const called = calledStep(within, { method: name, params: args, asks: undefined, seqPath: undefined }, caller);
 		if ("refused" in called) return failedTool(refusalSaid(called.refused));
 		const dispatched = dispatchedAs(within, caller);
-		const result = await runActingAs(caller.principal, async () => answeredFor(dispatched, called.tool, await proveStep(dispatched, called.featureStep)), caller.restsOn);
+		const result = await runActingAs(caller.principal, async () => answeredFor(dispatched, called.tool, await provedCall(dispatched, called)), caller.restsOn);
 		if (!result.ok) return failedTool(result.errorMessage === undefined ? `the step ${name} failed without stating why` : result.errorMessage);
 		return { content: [{ type: "text", text: JSON.stringify(result.products === undefined ? {} : result.products, null, 2) }] };
 	} catch (err: unknown) {

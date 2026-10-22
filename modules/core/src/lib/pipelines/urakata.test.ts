@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { UrakataRegistry } from "./urakata.js";
+import { UrakataRegistry, type TTickReporter } from "./urakata.js";
 import { URAKATA_LABEL, type IUrakataTicker } from "../domains/urakata.js";
 import { getDefaultWorld } from "../test/lib.js";
 import { accessBound, actingAs, runActingAs, runAuthorizedWith } from "../domains/capability-context.js";
@@ -12,12 +12,14 @@ import { recordOf } from "../records/pipelines/record-reads.js";
 import { mapDefinitionsToDomains } from "../domains/domains.js";
 import { urakataTaskDomainDefinition } from "../../steps/urakata-stepper.js";
 import { actualityClock } from "../actuality/root.js";
+import { nextSeqPath } from "../actuality/pipelines/step-dispatch.js";
 
-const noOpErrorHandler = () => undefined;
+/** A reporter that receives each failing start and recovery, or ignores them. */
+const reporting = (failed: TTickReporter["failed"] = () => undefined, recovered: TTickReporter["recovered"] = () => undefined): TTickReporter => ({ failed, recovered });
 const STARTER = "did:example:starter";
 
-function makeRegistry(onError: ConstructorParameters<typeof UrakataRegistry>[1] = noOpErrorHandler) {
-	return new UrakataRegistry(getDefaultWorld(), onError);
+function makeRegistry(failed?: TTickReporter["failed"], recovered?: TTickReporter["recovered"]) {
+	return new UrakataRegistry(getDefaultWorld(), reporting(failed, recovered));
 }
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -55,6 +57,26 @@ describe("UrakataRegistry", () => {
 		expect(tickSuffixes).toEqual([...tickSuffixes].sort((a, b) => a - b));
 	});
 
+	it("releases the counts of the paths a tick allocated under its seqPath once the tick ends", async () => {
+		const world = getDefaultWorld();
+		const registry = new UrakataRegistry(world, reporting());
+		const allocated: number[][] = [];
+		const ticker: IUrakataTicker = {
+			needs: [],
+			id: "allocates",
+			description: "allocates a path under each tick and one under that",
+			intervalMs: 5,
+			tick: ({ seqPath }) => {
+				const child = nextSeqPath(world, seqPath);
+				allocated.push(nextSeqPath(world, child));
+			},
+		};
+		registry.register(ticker);
+		await until(() => expect(allocated.length).toBeGreaterThan(2));
+		await registry.stop("allocates");
+		expect([...world.runtime.seqPaths.keys()]).toEqual([]);
+	});
+
 	it("runs each tick with its ticker's needs, at the read ceiling those actions grant and as its starter", async () => {
 		const registry = makeRegistry();
 		const bounds: ReturnType<typeof accessBound>[] = [];
@@ -89,7 +111,7 @@ describe("UrakataRegistry", () => {
 		const world = getDefaultWorld();
 		const authority = new SessionAuthority(actualityClock());
 		world.runtime.keys = { ...world.runtime.keys, [AUTHORITY_KEY]: authority };
-		const registry = new UrakataRegistry(world, noOpErrorHandler);
+		const registry = new UrakataRegistry(world, reporting());
 		const ticker: IUrakataTicker = { id: "resting", description: "test", intervalMs: 5, needs: [readAction(Access.private)], tick: () => undefined };
 		const restsOn = { capabilities: ["urn:cap:starter"] };
 		const u = await runAuthorizedWith([readAction(Access.private)], () => runActingAs(STARTER, () => Promise.resolve(registry.register(ticker)), restsOn));
@@ -122,7 +144,7 @@ describe("UrakataRegistry", () => {
 		expect(maxInFlight).toBe(1);
 	});
 
-	it("wraps tick errors, increments errorCount, calls the error reporter, and continues scheduling", async () => {
+	it("wraps tick errors, increments errorCount, reports the failing once as it starts, and continues scheduling", async () => {
 		const reported: Array<{ id: string; message: string }> = [];
 		const registry = makeRegistry((id, _seq, err) => reported.push({ id, message: err.message }));
 		let calls = 0;
@@ -141,7 +163,33 @@ describe("UrakataRegistry", () => {
 		await registry.stop(u.id);
 		expect(calls).toBeGreaterThan(1);
 		expect(registry.get(u.id).errorCount).toBe(calls);
-		expect(reported.every((r) => r.message === "boom")).toBe(true);
+		expect(reported).toEqual([{ id: "bad", message: "boom" }]);
+	});
+
+	it("reports a task that succeeds after failing ticks once, with how many failed", async () => {
+		const failed: string[] = [];
+		const recovered: Array<{ id: string; occurrences: number; latest: string }> = [];
+		const registry = makeRegistry(
+			(id, _seq, err) => failed.push(`${id}: ${err.message}`),
+			(id, _seq, held) => recovered.push({ id, occurrences: held.occurrences, latest: held.latest }),
+		);
+		let calls = 0;
+		const ticker: IUrakataTicker = {
+			needs: [],
+			id: "flaky",
+			description: "fails twice, then succeeds",
+			intervalMs: 5,
+			tick: () => {
+				calls++;
+				if (calls <= 2) throw new Error(`failure ${calls}`);
+			},
+		};
+		const u = registry.register(ticker);
+		await until(() => expect(calls).toBeGreaterThan(3));
+		await registry.stop(u.id);
+		expect(failed).toEqual(["flaky: failure 1"]);
+		expect(recovered).toEqual([{ id: "flaky", occurrences: 2, latest: "failure 2" }]);
+		expect(registry.get(u.id).errorCount).toBe(2);
 	});
 
 	it("on tickTimeoutMs: aborts the tick, counts one error, and never overlaps the next tick with the aborted one", async () => {
@@ -182,8 +230,9 @@ describe("UrakataRegistry", () => {
 		expect(calls).toBeGreaterThan(1);
 		expect(sawAbort).toBe(true);
 		expect(maxInFlight).toBe(1);
-		// This tick resolves on the abort, so the registry counts one error per timed-out tick.
-		expect(registry.get(u.id).errorCount).toBe(reported.length);
+		// This tick resolves on the abort, so the registry counts one error per timed-out tick and reports the failing once.
+		expect(reported).toHaveLength(1);
+		expect(registry.get(u.id).errorCount).toBeGreaterThanOrEqual(reported.length);
 		expect(reported.every((m) => m.includes("exceeded 10ms"))).toBe(true);
 	});
 
@@ -262,7 +311,7 @@ describe("UrakataRegistry persistence of transitions", () => {
 
 	it("persists the individual on registration, on an error and on stop, and keeps one row per id with the latest transition", async () => {
 		const world = taskWorld();
-		const registry = new UrakataRegistry(world, () => undefined);
+		const registry = new UrakataRegistry(world, reporting());
 		// The task fails only after the row is read at registration, so a tick that runs before that read doesn't count an error.
 		let fail = false;
 		const u = registry.register({
@@ -307,7 +356,7 @@ describe("UrakataRegistry persistence of transitions", () => {
 				errorCount: 0,
 				generatedAtTime: new Date(),
 			});
-		const registry = new UrakataRegistry(world, () => undefined);
+		const registry = new UrakataRegistry(world, reporting());
 		const fresh = registry.register({ needs: [], id: "different.task", description: "new", intervalMs: 1000, tick: () => undefined });
 		await sleep(0);
 		const prior = await readTask(world, "imap.idle.acct/INBOX");
@@ -319,7 +368,7 @@ describe("UrakataRegistry persistence of transitions", () => {
 
 		// A restart registers the prior id again. The registration overwrites the row with the current instance and leaves
 		// stoppedAt unset.
-		const registry2 = new UrakataRegistry(world, () => undefined);
+		const registry2 = new UrakataRegistry(world, reporting());
 		registry2.register({ needs: [], id: "imap.idle.acct/INBOX", description: "restarted", intervalMs: 1000, tick: () => undefined });
 		await sleep(0);
 		const restarted = await readTask(world, "imap.idle.acct/INBOX");

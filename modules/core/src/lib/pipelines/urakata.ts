@@ -8,8 +8,8 @@
  *     and awaits its settlement, so ticks don't overlap on any path.
  *   - wraps every tick in a try/catch, so an exception isn't left unhandled.
  *   - allocates a synthetic seqPath root per registration, so each ticker's trace has its own root.
- *   - passes the error of each failed or timed-out tick to onTickError. UrakataStepper's
- *     handler logs it as a step.failure warning.
+ *   - reports a task's failing ticks once as they start failing, with the first error, and once as a tick succeeds again,
+ *     with how many failed. UrakataStepper's reporter logs the start as a step.failure warning.
  *
  * UrakataStepper calls stopAll() on endFeature(shouldClose). A ticker's timer doesn't hold the
  * process open unless the ticker sets keepAlive.
@@ -24,6 +24,7 @@
  */
 
 import { allocateSyntheticSeqPath } from "../domains/host-id.js";
+import { releaseSeqPaths } from "../actuality/pipelines/step-dispatch.js";
 import { actingAs, callerHolds, restingOn, runAsTicking } from "../domains/capability-context.js";
 import { capabilityAllows } from "../domains/actions.js";
 import type { TRestsOn } from "../domains/authority-types.js";
@@ -33,9 +34,16 @@ import { errorDetail } from "../domains/util.js";
 import type { TWorld } from "../actuality/domains/world.js";
 import type { TClock } from "../actuality/ports.js";
 import type { TSeqPath } from "../domains/protocol.js";
+import { Conditions, type THeldCondition } from "../machines/conditions.js";
 
 /** The registry persists a failing ticker's first error and every Nth error after it. errorCount stays exact in memory, and stop() persists the exact count. */
 const URAKATA_ERROR_PERSIST_EVERY = 10;
+/** The most tasks whose failing the registry holds at once, one per registered task. */
+const FAILING_TASKS_HELD = 1_000;
+
+/** Receives a task's failing ticks: `failed` as they start, with the first error, and `recovered` as a tick succeeds after
+ *  them, with what the failing held. A tick that fails while the task fails already counts and isn't reported. */
+export type TTickReporter = { failed(urakataId: string, seqPath: TSeqPath, err: Error): void; recovered(urakataId: string, seqPath: TSeqPath, held: THeldCondition): void };
 
 interface RuntimeEntry {
 	urakata: TUrakata;
@@ -44,10 +52,24 @@ interface RuntimeEntry {
 
 export class UrakataRegistry implements IUrakataRegistry {
 	private entries = new Map<string, RuntimeEntry>();
+	private readonly failing = new Conditions(FAILING_TASKS_HELD);
 	constructor(
 		private world: TWorld,
-		private onTickError: (urakataId: string, seqPath: TSeqPath, err: Error) => void,
+		private reporter: TTickReporter,
 	) {}
+
+	/** Counts a failed tick, persists the task's first error and every Nth, and reports the error where the task starts failing. */
+	private tickFailed(urakata: TUrakata, seqPath: TSeqPath, err: Error): void {
+		urakata.errorCount++;
+		if (this.failing.occurs(urakata.id, err.message, this.world.clock.now())) this.reporter.failed(urakata.id, seqPath, err);
+		if (urakata.errorCount === 1 || urakata.errorCount % URAKATA_ERROR_PERSIST_EVERY === 0) this.persist(urakata);
+	}
+
+	/** Reports a task's recovery where a tick succeeds after failing ticks. */
+	private tickHeld(urakata: TUrakata, seqPath: TSeqPath): void {
+		const ended = this.failing.ends(urakata.id);
+		if (ended !== undefined) this.reporter.recovered(urakata.id, seqPath, ended);
+	}
 
 	register(spec: IUrakataTicker): TUrakata {
 		if (this.entries.has(spec.id)) throw new Error(`an urakata of id "${spec.id}" is already registered; stop it or register another id`);
@@ -131,11 +153,12 @@ export class UrakataRegistry implements IUrakataRegistry {
 			const settled: Promise<void> = runAsTicking(spec.needs, urakata.startedBy, restsOn, async () => {
 				try {
 					await Promise.resolve(spec.tick({ seqPath: tickSeqPath, tickIndex: urakata.tickIndex - 1, signal: controller.signal }));
+					if (!controller.signal.aborted) this.tickHeld(urakata, tickSeqPath);
 				} catch (err) {
 					if (stopped && controller.signal.aborted) return;
-					urakata.errorCount++;
-					this.onTickError(spec.id, tickSeqPath, err instanceof Error ? err : new Error(String(err)));
-					if (urakata.errorCount === 1 || urakata.errorCount % URAKATA_ERROR_PERSIST_EVERY === 0) this.persist(urakata);
+					this.tickFailed(urakata, tickSeqPath, err instanceof Error ? err : new Error(String(err)));
+				} finally {
+					releaseSeqPaths(this.world, tickSeqPath);
 				}
 			});
 			inflight = { controller, settled };
@@ -143,9 +166,7 @@ export class UrakataRegistry implements IUrakataRegistry {
 				const timeout = timeoutHandle(this.world.clock, spec.tickTimeoutMs);
 				const outcome = await Promise.race([settled.then(() => "settled" as const), timeout.fired.then(() => "timeout" as const)]);
 				if (outcome === "timeout") {
-					urakata.errorCount++;
-					this.onTickError(spec.id, tickSeqPath, new Error(`urakata "${spec.id}" tick exceeded ${spec.tickTimeoutMs}ms`));
-					if (urakata.errorCount === 1 || urakata.errorCount % URAKATA_ERROR_PERSIST_EVERY === 0) this.persist(urakata);
+					this.tickFailed(urakata, tickSeqPath, new Error(`urakata "${spec.id}" tick exceeded ${spec.tickTimeoutMs}ms`));
 					controller.abort();
 					// Awaits the tick's settlement so the next tick never overlaps the aborted one. settled never rejects,
 					// because its body catches every error. The timeout counts one error. The registry counts a second error

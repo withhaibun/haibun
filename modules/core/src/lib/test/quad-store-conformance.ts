@@ -73,6 +73,9 @@ type TStoreNature = {
 	discards?: boolean;
 	/** True for a store that searches text. A store that doesn't search refuses a term. */
 	searches?: boolean;
+	/** True for a store that reads quads only by a key: a subject, or a relation and the record it reaches. It refuses a
+	 *  pattern without one and a read of every quad, since it holds every record of every type. */
+	keyed?: boolean;
 };
 
 const sorted = (quads: TQuad[]): string[] => quads.map((q) => `${q.namedGraph}|${q.subject}|${q.predicate}=${JSON.stringify(q.object)}`).sort();
@@ -95,6 +98,7 @@ export function describeQuadStore(
 	const GRAPH = COMMENT;
 	const OTHER = ISSUE;
 	const discards = hooks.nature?.discards !== false;
+	const keyed = hooks.nature?.keyed === true;
 	describe(`the quad store (${name})`, () => {
 		let store: IQuadStore;
 		beforeEach(async () => {
@@ -115,7 +119,7 @@ export function describeQuadStore(
 			expect(sorted(await store.query({ subject: "c1", namedGraph: GRAPH }))).toEqual(
 				expect.arrayContaining([`${GRAPH}|c1|author="did:example:a"`, `${GRAPH}|c1|content="hello"`]),
 			);
-			expect((await store.query({ namedGraph: GRAPH, predicate: "content" })).length).toBe(1);
+			expect((await store.query({ subject: "c1", namedGraph: GRAPH, predicate: "content" })).length).toBe(1);
 		});
 
 		it("replaces a fact set again, and doesn't add a second row for it", async () => {
@@ -137,14 +141,34 @@ export function describeQuadStore(
 			expect(await store.query({ subject: "missing", namedGraph: GRAPH })).toEqual([]);
 		});
 
-		it("matches a pattern on any of subject, predicate, object and named graph", async () => {
-			await store.set("a", "content", "one", GRAPH);
-			await store.set("a", "author", "did:example:a", GRAPH);
-			await store.set("b", "content", "one", OTHER);
-			expect((await store.query({ predicate: "content" })).length).toBe(2);
-			expect((await store.query({ object: "one" })).length).toBe(2);
-			expect((await store.query({ subject: "a", predicate: "author" })).length).toBe(1);
-			expect((await store.query({ namedGraph: OTHER, predicate: "content" })).length).toBe(1);
+		it(
+			keyed ? "matches a pattern by its key, and refuses one without a key or a read of every quad" : "matches a pattern on any of subject, predicate, object and named graph",
+			async () => {
+				await store.set("a", "content", "one", GRAPH);
+				await store.set("a", "author", "did:example:a", GRAPH);
+				await store.set("b", "content", "one", OTHER);
+				expect((await store.query({ subject: "a", predicate: "author" })).length).toBe(1);
+				expect((await store.query({ subject: "b", namedGraph: OTHER, predicate: "content" })).length).toBe(1);
+				if (keyed) {
+					await expect(store.query({ predicate: "content" })).rejects.toThrow("reads quads by a key");
+					await expect(store.query({ object: "one" })).rejects.toThrow("reads quads by a key");
+					await expect(store.all()).rejects.toThrow("in pages through readRecords");
+					return;
+				}
+				expect((await store.query({ predicate: "content" })).length).toBe(2);
+				expect((await store.query({ object: "one" })).length).toBe(2);
+				expect((await store.query({ namedGraph: OTHER, predicate: "content" })).length).toBe(1);
+			},
+		);
+
+		it("reads the records whose relation reaches a record, by that record's id", async () => {
+			await store.upsertIndividual(ISSUE, { id: "i1", accessLevel: Access.public });
+			await store.upsertIndividual(COMMENT, { id: "c1", content: "about it", accessLevel: Access.public });
+			await store.upsertIndividual(COMMENT, { id: "c2", content: "about something else", accessLevel: Access.public });
+			await (store.createEdge
+				? store.createEdge(COMMENT, "c1", ABOUT, ISSUE, "i1")
+				: store.add({ subject: "c1", predicate: ABOUT, object: "i1", namedGraph: COMMENT, objectType: ISSUE }));
+			expect((await store.query({ predicate: ABOUT, object: "i1", namedGraph: COMMENT })).map((q) => q.subject)).toEqual(["c1"]);
 		});
 
 		describe("how many records fall in each division of a span", () => {

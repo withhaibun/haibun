@@ -67,14 +67,20 @@ class UrakataStepper extends AStepper implements IHasCycles, IHasUrakata {
 		}),
 		startFeature: () => {
 			const world = this.getWorld();
-			this.registry = new UrakataRegistry(world, (id, seqPath, err) => {
-				world.eventLogger.warn(`[urakata] tick failed in "${id}": ${err.message}`, {
-					[EVENT_ATTRIBUTE.event]: STEP_FAILURE_EVENT,
-					[EVENT_ATTRIBUTE.seqPath]: seqPath.join("."),
-					"haibun.urakata.id": id,
-					"exception.type": err.name || "Error",
-					"exception.message": err.message,
-				});
+			this.registry = new UrakataRegistry(world, {
+				failed: (id, seqPath, err) =>
+					world.eventLogger.warn(`[urakata] ticks fail in "${id}": ${err.message}`, {
+						[EVENT_ATTRIBUTE.event]: STEP_FAILURE_EVENT,
+						[EVENT_ATTRIBUTE.seqPath]: seqPath.join("."),
+						"haibun.urakata.id": id,
+						"exception.type": err.name || "Error",
+						"exception.message": err.message,
+					}),
+				recovered: (id, seqPath, held) =>
+					world.eventLogger.info(`[urakata] ticks succeed again in "${id}" after ${held.occurrences} failed, the latest with: ${held.latest}`, {
+						[EVENT_ATTRIBUTE.seqPath]: seqPath.join("."),
+						"haibun.urakata.id": id,
+					}),
 			});
 			world.runtime[URAKATA] = this.registry;
 		},

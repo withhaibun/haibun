@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { z } from "zod";
 import { FeatureVariables } from "./feature-variables.js";
 import type { TWorld } from "../domains/world.js";
@@ -8,6 +8,10 @@ import { getDefaultWorld } from "../../test/lib.js";
 import { DOMAIN_JSON, DOMAIN_NUMBER, DOMAIN_STRING, registerDomains } from "../../domains/domains.js";
 import { Access, DOMAIN_PERSISTED_TYPE, SEQ_PATH_LABEL } from "../../domains/resources.js";
 import { STEP_LEVEL, executionOf, formatRecordName } from "../domains/seq-path.js";
+import { QuadStore, newStoreChain } from "../../steps/pipelines/quad-store.js";
+
+/** A named graph a backing store holds. */
+const BACKED = "Backed";
 
 describe("FeatureVariables", () => {
 	let world: TWorld;
@@ -48,6 +52,18 @@ describe("FeatureVariables", () => {
 			expect(await variables.get("foo")).toBeUndefined();
 			expect(await store.get("1-0.1.0", "stepText", SEQ_PATH_LABEL)).toBe("a feature");
 			expect(await store.get("1-0.1.1.1", "stepText", SEQ_PATH_LABEL)).toBe("a step");
+		});
+
+		it("clears its own layer without reading a backing store, which holds what persists", async () => {
+			const backing = new QuadStore(newStoreChain());
+			const store = variables.getStore();
+			if (!(store instanceof QuadStore)) throw new Error("the variables' store isn't a QuadStore");
+			await store.registerStore(backing, [BACKED]);
+			await store.set("held", "content", "kept", BACKED);
+			const reads = [vi.spyOn(backing, "all"), vi.spyOn(backing, "query"), vi.spyOn(backing, "readRecords")];
+			await variables.clear();
+			expect(reads.map((read) => read.mock.calls.length)).toEqual([0, 0, 0]);
+			expect(await backing.get("held", "content", BACKED)).toBe("kept");
 		});
 	});
 
