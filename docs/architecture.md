@@ -237,6 +237,10 @@ individuals are one, and a goal reads each argument as its canonical representat
 The engine doesn't hold facts. A proof reads the facts it needs through one read request, a read of the store within the
 line's authority, once for each pattern in a proof. Actions and views read and write the store directly.
 
+A line that reads as until states how long it proves its statements again, or it doesn't resolve. A proof that stops on an
+exception, such as a wait for a node that isn't the until open at its position, fails its line with the line and the cause,
+ends each record it opened, and the features after it run as `HAIBUN_CONTINUE_AFTER_ERROR` states.
+
 ### Formulas
 
 `rule {formula}` enters one TPTP FOF formula. The logic module's grammar (`modules/logic/src/derivations/formula.ts`)

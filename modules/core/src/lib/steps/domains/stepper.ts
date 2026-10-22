@@ -221,6 +221,9 @@ export const READING = {
 } as const;
 export type TReading = (typeof READING)[keyof typeof READING];
 
+/** The parameter in which a step that reads as until states how long it proves its statements again. */
+export const UNTIL_DURATION = "duration";
+
 /** The predicates of the registry that a step's method doesn't name: member_of(V, D), which a domain's membership step proves
  *  and a formula's guard states, and precedes(D, A, B), which holds where the order of an ordered domain D puts A before B. */
 export const PREDICATE = { memberOf: "member_of", precedes: "precedes" } as const;

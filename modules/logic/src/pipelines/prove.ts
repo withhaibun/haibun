@@ -13,7 +13,7 @@ import { findFeatureStepsFromStatement } from "@haibun/core/lib/actuality/pipeli
 import { argumentsOf } from "@haibun/core/lib/steps/pipelines/populate-action-args.js";
 import { VERDICT, verdictOf, type TActionResult, type TStepArgs, type TStepResult } from "@haibun/core/lib/domains/protocol.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
-import { hasCycles, READING, type TCallContext, type TFeatureStep, type TObserved, type TWaypointRule } from "@haibun/core/lib/steps/domains/stepper.js";
+import { hasCycles, READING, UNTIL_DURATION, type TCallContext, type TFeatureStep, type TObserved, type TWaypointRule } from "@haibun/core/lib/steps/domains/stepper.js";
 import { matchesQuadPattern, type TQuadPattern } from "@haibun/core/lib/steps/domains/quad-types.js";
 import { stepRecordOf } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import type { TStepInput } from "@haibun/core/lib/actuality/domains/actuality.js";
@@ -36,8 +36,8 @@ import { canonicalOf, readerOf } from "./reads.js";
 
 /** A node of a line's proof: the step it states, and the variable a quantifier binds. */
 type TNode = { step: TFeatureStep; what?: string };
-/** A node whose record is open: its step, the result its proof resolves, its dispatch, and when it opened. */
-type TOpened = { step: TFeatureStep; close: (result: TActionResult) => void; dispatched: Promise<TStepResult>; at: number };
+/** A node whose record is open: the node, its step, the result its proof resolves, its dispatch, and when it opened. */
+type TOpened = { node: string; step: TFeatureStep; close: (result: TActionResult) => void; dispatched: Promise<TStepResult>; at: number };
 
 const keyOf = (path: readonly number[]): string => path.join(".");
 
@@ -170,7 +170,8 @@ class Proof {
 		if (need.need === EFFECT.close) return await this.close(path, request as TCloseRequest);
 		if (need.need === EFFECT.read) return await this.read(path, request as TReadRequest);
 		if (need.need === EFFECT.rule) return await this.rule((request as { rule: string }).rule);
-		return await this.wait(path, request as { node: string });
+		if (need.need === EFFECT.wait) return await this.wait(path, request as { node: string });
+		throw new Error(`the engine needs ${need.need} at ${keyOf(path)} of "${this.line.in}", which a proof doesn't perform`);
 	}
 
 	private async call(path: number[], request: TNodeRequest): Promise<string> {
@@ -233,7 +234,7 @@ class Proof {
 		}
 		this.contexts.set(keyOf(path), opening.context);
 		this.argsAt.set(keyOf(path), opening.args);
-		this.opened.set(keyOf(path), { step, close: closed.resolve, dispatched, at: this.ctx.world.clock.now() });
+		this.opened.set(keyOf(path), { node: request.node, step, close: closed.resolve, dispatched, at: this.ctx.world.clock.now() });
 		return "opened";
 	}
 
@@ -346,9 +347,13 @@ class Proof {
 		return await this.listOf(lines.flatMap((input) => statedAt(findFeatureStepsFromStatement(input.in, this.ctx.steppers, this.ctx.world, input.source.path, [0]), input.source)));
 	}
 
+	/** Waits once for an until whose statements don't hold yet. Throws where the node the engine names isn't the until open at
+	 *  its position, since the engine and the proof then disagree about the proof. */
 	private async wait(path: number[], request: { node: string }): Promise<string> {
 		const opened = this.opened.get(keyOf(path));
-		if (opened === undefined) throw new Error(`the engine waits at ${keyOf(path)} of "${this.line.in}" for ${request.node}, which isn't open`);
+		const { reading } = this.node(request.node).step.action.step;
+		if (opened?.node !== request.node || reading !== READING.until)
+			throw new Error(`the engine waits at [${keyOf(path)}] of "${this.line.in}" for ${request.node}, which isn't an until open there`);
 		const { clock } = this.ctx.world;
 		if (clock.now() >= opened.at + durationOf(this.openedArgs(path))) return "expired";
 		await clock.wait(UNTIL_RETRY_MS);
@@ -363,6 +368,24 @@ class Proof {
 			if (!result.ok || position === count) return result;
 		}
 		throw new Error(`the proof of the statements of "${this.line.in}" doesn't hold a statement`);
+	}
+
+	/** Whether the line's own node is open, so a proof that stops ends the line's record with its cause. */
+	lineOpen(): boolean {
+		return this.opened.has(keyOf([])) && !this.results.has(keyOf([]));
+	}
+
+	/** Ends each record the proof left open when it stopped on an exception, innermost first, as unknown with the cause, which
+	 *  names the line, and returns the cause. */
+	async stopped(caught: unknown): Promise<string> {
+		const errorMessage = `the proof of "${this.line.in}" stopped: ${errorDetail(caught)}`;
+		const depth = (key: string): number => (key === "" ? 0 : key.split(".").length);
+		const open = [...this.opened.entries()].filter(([key]) => !this.results.has(key)).sort(([a], [b]) => depth(b) - depth(a));
+		for (const [key, opened] of open) {
+			opened.close({ ok: false, verdict: VERDICT.unknown, errorMessage });
+			this.results.set(key, await opened.dispatched);
+		}
+		return errorMessage;
 	}
 
 	/** The line's result: the result of its own call, or of its node. */
@@ -382,8 +405,8 @@ function writtenTerm(step: TFeatureStep, name: string): string {
 
 /** The length of time an until's arguments state, in milliseconds. */
 function durationOf(args: TStepArgs): number {
-	const ms = Number(args.duration);
-	if (!Number.isFinite(ms)) throw new Error(`until states the duration ${String(args.duration)}, which isn't a length of time`);
+	const ms = Number(args[UNTIL_DURATION]);
+	if (!Number.isFinite(ms)) throw new Error(`until states the duration ${String(args[UNTIL_DURATION])}, which isn't a length of time`);
 	return ms;
 }
 
@@ -416,7 +439,14 @@ export function proverOf(engine: TLogicEngine): TProver {
 				// so a call its caller may not make returns only its refusal.
 				return await dispatchStep(ctx, line, () => Promise.resolve({ ok: false, errorMessage: errorDetail(caught), verdict: VERDICT.unknown }));
 			}
-			await proved(engine, term, (need) => proof.perform(need));
+			try {
+				await proved(engine, term, (need) => proof.perform(need));
+			} catch (caught) {
+				// A refusal of the line's own call reaches the line's caller. An exception within a node the line opened fails the
+				// line with its cause, and the features after it run.
+				if (!proof.lineOpen()) throw caught;
+				await proof.stopped(caught);
+			}
 			return proof.result();
 		},
 		proveStatements: async (ctx, parent, statements, targetHostId) => {
@@ -429,7 +459,11 @@ export function proverOf(engine: TLogicEngine): TProver {
 			} catch (caught) {
 				return { ok: false, errorMessage: errorDetail(caught), verdict: VERDICT.unknown };
 			}
-			await proved(engine, `all(${list(terms)})`, (need) => proof.perform(need));
+			try {
+				await proved(engine, `all(${list(terms)})`, (need) => proof.perform(need));
+			} catch (caught) {
+				return { ok: false, errorMessage: await proof.stopped(caught), verdict: VERDICT.unknown };
+			}
 			return proof.statementsResult(statements.length);
 		},
 	};

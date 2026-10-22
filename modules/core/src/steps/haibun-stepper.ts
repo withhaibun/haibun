@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { TFeatures } from "../lib/actuality/domains/actuality.js";
 import type { TWorld } from "../lib/actuality/domains/world.js";
 import { OK } from "../lib/domains/protocol.js";
-import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TEndFeature, READING } from "../lib/steps/domains/stepper.js";
+import { AStepper, IHasCycles, TStepperSteps, TFeatureStep, IStepperCycles, TEndFeature, READING, UNTIL_DURATION } from "../lib/steps/domains/stepper.js";
 import { actionNotOK, actionOK, actionOKWithProducts } from "../lib/domains/util.js";
 import { findFeatureStepsFromStatement } from "../lib/actuality/pipelines/resolver.js";
 import {
@@ -140,7 +140,7 @@ class Haibun extends AStepper implements IHasCycles {
 
 		until: {
 			description: 'Proves the statements again until they hold, and is refuted where they haven\'t held within the duration, e.g. `until passes within "2s"`: ◇≤d P.',
-			gwta: `until {statements:${DOMAIN_STATEMENT}} within {duration: ${DOMAIN_DURATION}}`,
+			gwta: `until {statements:${DOMAIN_STATEMENT}} within {${UNTIL_DURATION}: ${DOMAIN_DURATION}}`,
 			reading: READING.until,
 		},
 

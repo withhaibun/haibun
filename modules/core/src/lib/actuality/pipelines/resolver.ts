@@ -1,7 +1,7 @@
 import type { TExpandedFeature, TExpandedLine, TFeatures, TFeature } from "../domains/actuality.js";
 import type { TWorld } from "../domains/world.js";
 import { TStepValue, SCENARIO_START, PENDING_SCENARIO, HEADINGS, Origin } from "../../domains/protocol.js";
-import { AStepper, TStepAction, TResolvedFeature, TStepperStep, TFeatureStep, hasCycles } from "../../steps/domains/stepper.js";
+import { AStepper, READING, TStepAction, TResolvedFeature, TStepperStep, TFeatureStep, UNTIL_DURATION, hasCycles } from "../../steps/domains/stepper.js";
 import type { TDomainDefinition } from "../../domains/resources.js";
 import { matchGwtaToAction } from "../../steps/derivations/named-vars.js";
 import { getActionable, dePolite, actionNotOK, asError, errorDetail } from "../../domains/util.js";
@@ -189,7 +189,7 @@ export class Resolver {
 	 * `type {text}` if a sentence could match a pattern that starts with a lowercase letter.
 	 */
 	findSingleStepAction(line: string): TStepAction {
-		return this.refusingWritten(line, this.parsedStepAction(line));
+		return this.refusingWritten(line, statingDuration(line, this.parsedStepAction(line)));
 	}
 
 	/** Returns the one step a line parses to, as findSingleStepAction does, without holding the terms it writes to their domains. */
@@ -312,6 +312,15 @@ export class Resolver {
 		if (step.gwta) return patternApplies(step.gwta, curt, actionName, stepperName, step);
 		return step.exact === curt ? [{ actionName, stepperName, step }] : [];
 	}
+}
+
+/** Returns the action where a line that reads as until states how long it proves its statements again. Throws the line's
+ *  refusal otherwise, so a step that declares until without a duration doesn't resolve, rather than end actuality at its
+ *  first wait. */
+function statingDuration(line: string, action: TStepAction): TStepAction {
+	if (action.step.reading === READING.until && action.stepValuesMap?.[UNTIL_DURATION] === undefined)
+		throw Error(`"${line}" reads as until and doesn't state how long it proves its statements again: declare until with {${UNTIL_DURATION}}, such as within "2s"`);
+	return action;
 }
 
 /** The step action a line resolves to under a pattern, where the pattern matches it. A line that starts with an uppercase
