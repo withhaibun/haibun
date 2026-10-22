@@ -1,12 +1,12 @@
 import { describe, it, test, expect } from "vitest";
 
-import { OK, TStepArgs, Origin, TEST_BASE } from "../../domains/protocol.js";
+import { OK, TStepArgs, Origin } from "../../domains/protocol.js";
 import { AStepper } from "../domains/stepper.js";
 import { getNamedMatches, lineOfCall, namedInterpolation } from "./named-vars.js";
 import { Resolver } from "../../actuality/pipelines/resolver.js";
 import { createSteppers } from "../../domains/util.js";
 import { getDefaultWorld } from "../../test/lib.js";
-import { asExpandedFeatures } from "../../test/resolver-features.js";
+import { asExpandedFeatures, TEST_BASE } from "../../test/resolver-features.js";
 import { withName } from "../../domains/features.js";
 import { populateActionArgs } from "../pipelines/populate-action-args.js";
 import { DOMAIN_STRING } from "../../domains/domains.js";

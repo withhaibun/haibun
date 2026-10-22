@@ -1,5 +1,6 @@
 import { withAction, type TKirejiExport } from "@haibun/core/kireji/derivations/withAction.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
+import { testRuns } from "@haibun/cli/waypoints/backgrounds/test-runs.feature.ts";
 
 const { feature, scenario } = withAction(new Haibun());
 const GROUP = '"once"';
@@ -12,9 +13,7 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "A group runs once per state of what it depends on" }),
 		"Essential, for --once and an agent's runs. Source: actualities.ts:142 and once.feature.ts.",
 		`note that the tests in ${GROUP} have changed`,
-		`run all the tests in ${GROUP}`,
-		"set ended from wait until the test run ends within 120 seconds",
-		'variable ended.status is "passed"',
+		testRuns.pass(GROUP, "120"),
 		`not run all the tests in ${GROUP}`,
 	],
 };

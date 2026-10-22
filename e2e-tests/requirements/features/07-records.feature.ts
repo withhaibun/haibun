@@ -1,5 +1,6 @@
 import { withAction, type TKirejiExport } from "@haibun/core/kireji/derivations/withAction.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
+import { steps } from "@haibun/logic/waypoints/backgrounds/steps.feature.ts";
 import { RPC_ROUTE } from "@haibun/core/lib/rpc-wire.js";
 import { DEFAULT_PORT } from "@haibun/web-server-hono/domains/web-server.js";
 import { localOrigin } from "@haibun/core/lib/domains/local-origin.js";
@@ -16,8 +17,8 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "A call's record states what it called and how long it took" }),
 		"Essential, for every view. A step's duration is a function of its record. Source: step-records.ts and logic-stepper.ts, the steps source.",
 		"set recorded to 1",
-		'every step observed in steps is where variable step/stepText is "set recorded to 1", variable step/called is "VariablesStepper.set"',
-		'every step observed in steps is where variable step/stepText is "set recorded to 1", variable step/duration is less than 1000',
+		steps.called('"set recorded to 1"', '"VariablesStepper.set"'),
+		steps.tookLessThan('"set recorded to 1"', "1000"),
 
 		scenario({ scenario: "A read made from outside isn't recorded as actuality's step" }),
 		`Essential, for observation from outside. A read a transport carries outside a step is the caller's, and a read a transport carries within a step, such as a model's tool call during a turn, is that step's act, which actuality records. Source: step-dispatch.ts, the recorded flag.`,

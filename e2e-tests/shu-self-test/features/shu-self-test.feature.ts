@@ -11,6 +11,7 @@ import { COMMENT_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { headingAnchor } from "@haibun/core/lib/domains/document-content.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { ACTIVITIES_STEPPER } from "@haibun/core/steps/activities-actions.js";
+import { page } from "@haibun/web-playwright/waypoints/backgrounds/page.feature.ts";
 
 const wp = new WebPlaywright();
 const { waitFor, click, gotoPage, reloadPage, inElement, setValue } = withAction(wp);
@@ -239,13 +240,13 @@ export const features: TKirejiExport = {
 		setAs({ what: "affordances-pane-close", domain: "page-locator", value: `"${SHU_TAG.COLUMN_PANE}[data-column-key='shu-affordances-panel'] .pane-close"` }),
 		click({ target: "affordances-pane-close" }),
 		"page has settled",
-		`not has test id ${IDS.AFFORDANCES.GOALS_LIST}`,
+		page.testIdIsGone(`"${IDS.AFFORDANCES.GOALS_LIST}"`),
 		set({ what: "closed-pane-check", value: '"still closed"' }),
 		"page has settled",
-		`not has test id ${IDS.AFFORDANCES.GOALS_LIST}`,
+		page.testIdIsGone(`"${IDS.AFFORDANCES.GOALS_LIST}"`),
 		reloadPage({}),
 		"page has settled",
-		`not has test id ${IDS.AFFORDANCES.GOALS_LIST}`,
+		page.testIdIsGone(`"${IDS.AFFORDANCES.GOALS_LIST}"`),
 
 		scenario({ scenario: "Variable inspection: `show vars` should produce an entry per variable set above" }),
 

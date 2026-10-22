@@ -5,10 +5,11 @@
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, normalize, resolve } from "node:path";
 import { z } from "zod";
 import { itemAt } from "../domains/item-at.js";
 import type { TFound } from "./baseline.js";
+import { TEST_MODULE } from "./repository-files.js";
 
 const HAIBUN_CLI = /\bhaibun-cli\b/;
 const MODULE_OPTION_ASSIGNMENT = /\bHAIBUN_O_[A-Z0-9_]+(?==)/g;
@@ -22,6 +23,10 @@ const GENERATED = /(?:^|\/)(?:build|build-local|node_modules|capture)\//;
 const PARENT_PATH = /"([^"]*\.\.\/[^"]*)"/g;
 /** The mode git records for a symbolic link. */
 const LINK_MODE = "120000";
+/** A kireji feature or background of a group or a service, and a package's code, which a feature names by its package. */
+const FEATURE_SOURCE = /\.feature\.ts$|\/(features|backgrounds)\/[^/]+\.ts$/;
+const PACKAGE_CODE = /(^|\/)(src|build)\//;
+const IMPORTED = /\bfrom\s+["']([^"']+)["']/g;
 /** A config of a group, which lists the steppers it loads. */
 const GroupConfigSchema = z.object({ steppers: z.array(z.unknown()) });
 
@@ -39,8 +44,9 @@ export function moduleOptionAssignments(repository: string, groupPackages: reado
 	);
 }
 
-/** Each symbolic link a repository commits, each parent path that a group's config names, and each script of a package.json that
- *  names a parent path. A group names a stepper, a base config, a waypoint base and a dependency by its package, and a script calls
+/** Each symbolic link a repository commits, each parent path that a group's config names, each script of a package.json that
+ *  names a parent path, and each import by a parent path of a package's code from a group's or a service's feature. A group names a
+ *  stepper, a base config, a waypoint base, a dependency and the code its features import by its package, and a script calls
  *  `haibun-cli`, which npm puts on the path, so the group runs the same wherever the repository is checked out. */
 export function linksAndParentPaths(repository: string): TFound[] {
 	const links = execFileSync("git", ["ls-files", "-s"], { cwd: repository, encoding: "utf-8" })
@@ -57,7 +63,15 @@ export function linksAndParentPaths(repository: string): TFound[] {
 			.filter(([, script]) => script.includes("../"))
 			.map(([name]) => ({ file, finding: `script ${name} names a parent path` })),
 	);
-	return [...links, ...configs, ...scripts];
+	const imports = trackedFiles(repository, "*.ts")
+		.filter((file) => FEATURE_SOURCE.test(file) && !PACKAGE_CODE.test(file) && !TEST_MODULE.test(file))
+		.flatMap((file) =>
+			[...readFileSync(join(repository, file), "utf-8").matchAll(IMPORTED)]
+				.map((m) => itemAt(m, 1))
+				.filter((specifier) => specifier.startsWith("../") && PACKAGE_CODE.test(normalize(join(dirname(file), specifier))))
+				.map((specifier) => ({ file, finding: `imports ${specifier}, a package's code, by a parent path` })),
+		);
+	return [...links, ...configs, ...scripts, ...imports];
 }
 
 /** Each relative link and each quoted path of the markdown documents, by their paths from the repository root, that names a path

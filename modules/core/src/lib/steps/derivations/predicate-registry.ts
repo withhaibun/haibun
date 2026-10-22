@@ -2,7 +2,7 @@
  * The predicate registry: each predicate a line and a formula name, derived from the steppers' declarations. A step proves the
  * predicate its method names, or the one it declares, such as member_of for a domain's membership; its parts are its pattern's
  * placeholders in order, each with its domain, and its pattern is the line that states it. A step that holds rules proves the
- * predicate of each rule's head, named by the head as written. precedes(D, A, B) holds where the order of the domain D puts A
+ * predicate of each rule's head, named by the head as written, with the library that states the rule. precedes(D, A, B) holds where the order of the domain D puts A
  * before B, as `ordered set of` declares it, and a line doesn't state it. A record states the predicates of its persisted type
  * and of the fields the type's topology declares, which the graph's TPTP axioms state.
  */
@@ -32,7 +32,7 @@ export const predicateOf = (declared: TStepAction): string => (declared.step.pre
 function stepPredicates(declared: TStepAction): TPredicate[] {
 	const { step } = declared;
 	const method = methodOf(declared);
-	if (step.rules !== undefined) return step.rules().map(({ head, pattern }) => ({ name: head, parts: phraseParts(pattern), line: head, method }));
+	if (step.rules !== undefined) return step.rules().map(({ head, pattern, library }) => ({ name: head, parts: phraseParts(pattern), line: head, method, waypoint: library }));
 	const line = step.gwta === undefined ? step.exact : step.gwta;
 	return line === undefined ? [] : [{ name: predicateOf(declared), parts: stepParts(step), line, method }];
 }

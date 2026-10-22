@@ -320,11 +320,38 @@ ensure Navigate to mainUrl
 ensure Navigate to haibunUrl
 ```
 
-A module holds waypoints that every group uses in a base of its own, a directory of backgrounds that a group names by its
-package beside its own base, such as `haibun-cli -c tests/config.json tests,@haibun/shu/waypoints`. A group's config names a
-stepper, the config it extends and a `dependsOn` path by its package in the same way, such as `@haibun/cli/config.base.json`, and
-the cli finds the package from the group's directory as Node does, so a group doesn't name a parent path. shu's `waypoints` base holds the waypoints of its
-views. Each head names the view whose page it reads by its tag, and each activity calls only web-playwright's steps within
+### Waypoint libraries
+
+A step is a general-purpose primitive, and a combination of primitives that a feature states as one outcome is a waypoint. A
+module ships its waypoints as a library, `@haibun/<module>/waypoints`: the module's `waypoints/backgrounds` directory, which its
+package.json exports as `./waypoints` and `./waypoints/*` and lists in `files`. Each background exports the heads it declares as
+functions, such as `testRuns.pass(where, seconds)` in `@haibun/cli/waypoints/backgrounds/test-runs.feature.ts`, and a feature
+imports them to state a head, so the head's text is written once. The libraries are `@haibun/logic/waypoints` (what the
+records of a feature's steps state), `@haibun/cli/waypoints` (test runs), `@haibun/web-playwright/waypoints` (web pages),
+`@haibun/web-server-hono/waypoints` (served files), `@haibun/shu/waypoints` (views) and, in spopg, `@haibun/spopg/waypoints`
+(mail). Core's steps don't hold a combination that features repeat, so core doesn't ship a library.
+
+A group names a library by its package beside its own base, such as `haibun-cli -c tests/config.json tests,@haibun/shu/waypoints`,
+and an instance's launch names it after the instance's directory in the same way, such as `start a haibun instance from
+"service,@haibun/spopg/waypoints" on port 8737 as host 3`. A group's config names a stepper, the config it extends and a
+`dependsOn` path by its package in the same way, such as `@haibun/cli/config.base.json`, and the cli finds the package from the
+group's directory as Node does, so a group doesn't name a parent path.
+
+What a feature needs running before its first step is the work of a stepper's start cycle where an option states it, rather
+than a step without a parameter: GraphStepper opens its store as each feature starts, ends what an interrupted process left open
+and starts the retention its INSTRUMENTATION_RETENTION_DAYS states; LlmStepper discovers each provider's models once the store
+opens; BROWSER_RELAY serves web-playwright's relay on the feature's web server; HEALTH_TICK_MS starts spopg's health monitor.
+
+A person finds a head where a step is found. The actions bar's step input lists each head with the steps, ranked as a step is,
+marked `waypoint · <library>`, where the library is the package whose background states it, the feature that states it, or
+`saved`, and choosing one opens the sentence form of `ensure <head>`, which is recorded and gated as every step is. The language
+server completes a head with the same mark, and `show steps matching {text} as "definition"` lists each head as a predicate whose `waypoint` names its library.
+
+Each repository holds its steps to three rules in `scripts/steps.test.ts`, with a baseline in `scripts/steps.baseline.json` that
+only shrinks: a step that starts or keeps something takes a parameter, a step has more than one call site, and a step's pattern
+isn't another step's with a word more or less.
+
+shu's `waypoints` base holds the waypoints of its views. Each head names the view whose page it reads by its tag, and each activity calls only web-playwright's steps within
 that view, reading the view's accessible document and the test ids every view shares:
 
 ```gherkin

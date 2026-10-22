@@ -102,67 +102,12 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 		return { rerunStep: controlSignal === "retry", nextStep: controlSignal === "next", failed: controlSignal === "fail" ? "failed at the debugger" : undefined };
 	}
 	steps = {
-		f: {
-			exact: "f",
-			action: async (): Promise<TActionResult> => {
-				return await this.fail();
-			},
-		},
-		fail: {
-			exact: "fail",
-			action: async (): Promise<TActionResult> => {
-				return await this.fail();
-			},
-		},
-		n: {
-			exact: "n",
-			action: async (): Promise<TActionResult> => {
-				return await this.next();
-			},
-		},
-		next: {
-			exact: "next",
-			action: async (): Promise<TActionResult> => {
-				return await this.next();
-			},
-		},
-		r: {
-			exact: "r",
-			action: async (): Promise<TActionResult> => {
-				return await this.retry();
-			},
-		},
-		retry: {
-			exact: "retry",
-			action: async (): Promise<TActionResult> => {
-				return await this.retry();
-			},
-		},
-
-		s: {
-			exact: "s",
-			action: async (): Promise<TActionResult> => {
-				return await this.step();
-			},
-		},
-		step: {
-			exact: "step",
-			action: async (): Promise<TActionResult> => {
-				return await this.step();
-			},
-		},
-		c: {
-			exact: "c",
-			action: async (): Promise<TActionResult> => {
-				return await this.continue();
-			},
-		},
-		continue: {
-			exact: "continue",
-			action: async (): Promise<TActionResult> => {
-				return await this.continue();
-			},
-		},
+		// Each command reads as its word or its first letter, as a person types it at the prompt.
+		fail: { gwta: "f(ail)?", action: () => this.fail() },
+		next: { gwta: "n(ext)?", action: () => this.next() },
+		retry: { gwta: "r(etry)?", action: () => this.retry() },
+		step: { gwta: "s(tep)?", action: () => this.step() },
+		continue: { gwta: "c(ontinue)?", action: () => this.continue() },
 		debugStepByStep: {
 			exact: "debug step by step",
 			action: (): Promise<TActionResult> => {

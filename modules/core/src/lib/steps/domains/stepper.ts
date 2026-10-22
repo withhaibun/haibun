@@ -230,14 +230,16 @@ export const PREDICATE = { memberOf: "member_of", precedes: "precedes" } as cons
 
 /** A waypoint's rule: its head as written and as the pattern that parses a goal, the lines of its proof, the lines of its
  *  activity, the plan that makes the proof hold, and the line that states it. A feature's rule applies in that feature alone,
- *  its `scope`, and a background's or a saved rule applies in every feature. A rule over step records names the stepper whose
- *  steps it reads `after`: its proof is proved after each step of that stepper that a feature's line states. */
+ *  its `scope`, and a background's or a saved rule applies in every feature. Its `library` names where it is stated: the
+ *  package whose background states it, the feature that states it, or `saved`. A rule over step records names the stepper
+ *  whose steps it reads `after`: its proof is proved after each step of that stepper that a feature's line states. */
 export type TWaypointRule = {
 	head: string;
 	pattern: string;
 	proof: TStepInput[];
 	activity: TStepInput[];
 	source: { path: string; lineNumber?: number };
+	library: string;
 	scope?: string;
 	saved?: true;
 	after?: string;

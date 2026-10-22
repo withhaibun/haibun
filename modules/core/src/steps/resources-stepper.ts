@@ -2,7 +2,7 @@
  * ResourcesStepper implements generic graph-resource steps.
  *
  * It implements `comment on …` and the `annotate …` steps over any graph resource, and the `get annotations for …` read.
- * The `annotate …` steps quote a passage, link one passage to another, or anchor a passage with its surrounding context.
+ * The `annotate …` steps quote a passage or link one passage to another, and `annotate note …` states a passage with its context.
  * records/pipelines/discourse-writes.ts implements the writes (createComment, writeAnnotation), so other callers reuse them with any store.
  *
  * It also implements the reads of what a text states. It reads a feature's prose as facts, checks that every cited
@@ -20,9 +20,7 @@ import {
 	LinkRelations,
 	SPECIFIC_RESOURCE_LABEL,
 	TEXT_QUOTE_SELECTOR_LABEL,
-	ANNOTATION_PLACEMENT_DOMAIN,
 	ANNOTATION_NOTE_DOMAIN,
-	type TAnnotationPlacement,
 	type TAnnotationNote,
 	annotationNoteDomainDefinition,
 	bodyDomainDefinition,
@@ -33,7 +31,6 @@ import {
 	specificResourceDomainDefinition,
 	textQuoteSelectorDomainDefinition,
 	fragmentSelectorDomainDefinition,
-	annotationPlacementDomainDefinition,
 	writeEdge,
 	conversationRoot,
 	assertCommentGrounded,
@@ -122,7 +119,6 @@ const cycles = (stepper: ResourcesStepper): IStepperCycles => ({
 			specificResourceDomainDefinition,
 			textQuoteSelectorDomainDefinition,
 			fragmentSelectorDomainDefinition,
-			annotationPlacementDomainDefinition,
 			annotationNoteDomainDefinition,
 		],
 	}),
@@ -234,29 +230,6 @@ class ResourcesStepper extends AStepper implements IHasCycles {
 			productsDomain: DOMAIN_ANNOTATION_CREATED,
 			action: async ({ label, id, exact, linkExact, text }: { label: string; id: string; exact: string; linkExact: string; text: string }) =>
 				this.runAnnotate({ label, id, exact, text, links: [{ exact: linkExact }] }),
-		},
-		annotateAnchored: {
-			// {context} holds the quote's surrounding text, and {placement} states its side. "preceded by" makes the context
-			// the TextQuoteSelector prefix, and "followed by" makes it the suffix, so a short or repeated quote resolves to the
-			// intended occurrence. `anchoring` follows the id directly, so the annotate gwtas stay unambiguous.
-			gwta: `annotate {label: ${DOMAIN_PERSISTED_TYPE}} {id: ${DOMAIN_RECORD_ID}} anchoring {exact: ${DOMAIN_TEXT}} {placement: ${ANNOTATION_PLACEMENT_DOMAIN}} {context: ${DOMAIN_TEXT}} with {text: ${DOMAIN_TEXT}}`,
-			recordIds: { id: "label" },
-			productsDomain: DOMAIN_ANNOTATION_CREATED,
-			action: async ({
-				label,
-				id,
-				exact,
-				placement,
-				context,
-				text,
-			}: {
-				label: string;
-				id: string;
-				exact: string;
-				placement: TAnnotationPlacement;
-				context: string;
-				text: string;
-			}) => this.runAnnotate({ label, id, exact, ...(placement === "preceded by" ? { prefix: context } : { suffix: context }), text }),
 		},
 		annotateNote: {
 			// Takes the passage, note, time and cross-reference links in one value. It writes notes the prose forms can't

@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { ACTION_BEGIN, RPC_PROTOCOL, RpcRequestSchema, RpcResponseSchema, RpcStreamSchema, actualityRefusal, parseRpcRequest } from "./rpc-wire.js";
+import { ACTION_BEGIN, ActualityIdSchema, RPC_PROTOCOL, actualityRefusal, parseRpcRequest, rpcRequestSchema } from "./rpc-wire.js";
 
 const ACTUALITY = crypto.randomUUID();
+/** A request as a host of any actuality parses it. */
+const RpcRequestSchema = rpcRequestSchema(ActualityIdSchema);
 
 describe("JSON-RPC 2.0 schema compliance", () => {
 	it("accepts valid jsonrpc 2.0 request", () => {
@@ -58,15 +60,5 @@ describe("JSON-RPC 2.0 schema compliance", () => {
 	it("refuses a call that doesn't state its params, since a call to a step without arguments states an empty record", () => {
 		expect(RpcRequestSchema.safeParse({ jsonrpc: "2.0", protocol: RPC_PROTOCOL, id: "1", method: "test", actualityId: ACTUALITY }).success).toBe(false);
 		expect(RpcRequestSchema.safeParse({ jsonrpc: "2.0", protocol: RPC_PROTOCOL, id: "1", method: "test", params: {}, actualityId: ACTUALITY }).success).toBe(true);
-	});
-
-	it("validates response schema", () => {
-		const result = RpcResponseSchema.safeParse({ jsonrpc: "2.0", protocol: RPC_PROTOCOL, id: "1", result: { rels: { messageId: "item" } } });
-		expect(result.success).toBe(true);
-	});
-
-	it("validates stream chunk schema", () => {
-		const result = RpcStreamSchema.safeParse({ jsonrpc: "2.0", protocol: RPC_PROTOCOL, id: "1", stream: true, data: { chunk: "text" } });
-		expect(result.success).toBe(true);
 	});
 });

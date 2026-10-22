@@ -12,9 +12,11 @@
 		"./BrowserFactory.js": "./build/adapters/browser-factory.js",
 		"./relay-client/relay-channel.js": "./build/relay-client/adapters/relay-channel.js",
 		"./relay-client/relayConnection.js": "./build/relay-client/root.js",
+		"./waypoints": "./waypoints",
+		"./waypoints/*": "./waypoints/*",
 		"./*": "./build/*"
 	},
-	"files": ["build/"],
+	"files": ["build/", "waypoints/**"],
 	"scripts": {
 		"build": "tsc -b .",
 		"build:watch": "tsc -b . --watch",

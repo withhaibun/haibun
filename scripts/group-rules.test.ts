@@ -14,7 +14,7 @@ describe("the groups and first-read documents of this repository", () => {
 		expect(described(moduleOptionAssignments(REPOSITORY, GROUP_PACKAGES)), "move each option to the moduleOptions of the config its script names").toEqual([]);
 	});
 
-	it("doesn't commit a symbolic link, or name a parent path in a group's config or a package's script", () => {
+	it("doesn't commit a symbolic link, or name a parent path in a group's config, a package's script or a feature's import of a package's code", () => {
 		expect(described(linksAndParentPaths(REPOSITORY)), "name what the path names by its package, or move it into the group").toEqual([]);
 	});
 

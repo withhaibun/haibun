@@ -131,11 +131,21 @@ const StepDefinitionSchema = StepDescriptorSchema.extend({ [HYPERMEDIA.LINKS]: z
 export type TStepDefinition = z.infer<typeof StepDefinitionSchema>;
 
 /** A predicate of the registry as a definition states it: its name, its parts with their domains, and, where a line states it,
- *  the line and the step whose method proves it. A formula names a predicate by its name, with its parts in order. */
+ *  the line and the step whose method proves it. A waypoint's head names the library that states its rule. A formula names a
+ *  predicate by its name, with its parts in order. */
 const PredicateSchema = z
-	.object({ name: z.string(), parts: z.array(z.object({ name: z.string(), domain: z.string() }).strict()).readonly(), line: z.string().optional(), method: z.string().optional() })
+	.object({
+		name: z.string(),
+		parts: z.array(z.object({ name: z.string(), domain: z.string() }).strict()).readonly(),
+		line: z.string().optional(),
+		method: z.string().optional(),
+		waypoint: z.string().optional(),
+	})
 	.strict();
 export type TPredicate = z.infer<typeof PredicateSchema>;
+
+/** How an offer of a waypoint's head marks it: as a waypoint, with the library that states its rule. */
+export const waypointMark = (library: string): string => `waypoint · ${library}`;
 
 /** What a read of actuality's declarations returns at each detail. Both details key their domains by name. */
 const StepSummariesSchema = z

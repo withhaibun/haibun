@@ -24,17 +24,17 @@ function environmentIn({ fs }: TSupervisorPorts, cwd: string, env: NodeJS.Proces
  *  It computes those conditions as a run does: from `cwd`, with the environment a run reads there.
  *  Returns undefined when the features haven't executed against that state, and throws where the configuration doesn't read.
  *  startRun forks the child where it returns undefined. */
-export function verifiedRun(ports: TSupervisorPorts, config: string, dir: string, filter: string, cwd: string, env: NodeJS.ProcessEnv): TGroupEnded | undefined {
-	const specl = getConfigFromBase([dir], ports.fs);
+export function verifiedRun(ports: TSupervisorPorts, config: string, bases: string[], filter: string, cwd: string, env: NodeJS.ProcessEnv): TGroupEnded | undefined {
+	const specl = getConfigFromBase(bases, ports.fs);
 	const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(environmentIn(ports, cwd, env, specl), specl);
-	const v = ports.actualities.verificationOf({ configPath: config, specl, bases: [dir], cwd, filter: filter ? filter.split(",") : [], options, moduleOptions });
+	const v = ports.actualities.verificationOf({ configPath: config, specl, bases, cwd, filter: filter ? filter.split(",") : [], options, moduleOptions });
 	return v === undefined ? undefined : ports.actualities.outcomeAgainst(v);
 }
 
-/** Returns the first user that the BASIC_AUTH option lists for the web server of a run in `dir`, or undefined when the option is unset.
+/** Returns the first user that the BASIC_AUTH option lists for the web server of a run of `bases`, or undefined when the option is unset.
  *  It reads the option as a run does: from `env`, the .env file in `cwd`, and the config. */
-export function signInOf(ports: TSupervisorPorts, dir: string, cwd: string, env: NodeJS.ProcessEnv): TBasicAuthUser | undefined {
-	const specl = getConfigFromBase([dir], ports.fs);
+export function signInOf(ports: TSupervisorPorts, bases: string[], cwd: string, env: NodeJS.ProcessEnv): TBasicAuthUser | undefined {
+	const specl = getConfigFromBase(bases, ports.fs);
 	const listed = processBaseEnvToOptionsAndErrors(environmentIn(ports, cwd, env, specl), specl).moduleOptions[BASIC_AUTH_OPTION];
 	return listed ? basicAuthUsers(String(listed))[0] : undefined;
 }

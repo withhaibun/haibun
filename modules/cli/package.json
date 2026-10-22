@@ -7,11 +7,13 @@
 		"haibun-cli": "build/cli.js"
 	},
 	"main": "build/cli.js",
-	"files": ["build/**", "config.base.json"],
+	"files": ["build/**", "config.base.json", "waypoints/**"],
 	"exports": {
 		".": "./build/cli.js",
 		"./config.base.json": "./config.base.json",
 		"./lib.js": "./build/pipelines/specl.js",
+		"./waypoints": "./waypoints",
+		"./waypoints/*": "./waypoints/*",
 		"./*": "./build/*"
 	},
 	"scripts": {

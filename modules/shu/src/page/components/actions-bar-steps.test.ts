@@ -3,14 +3,15 @@
  * The actions bar's step mode, held apart from the bar: the step options with those for the selected type first, a
  * caller opened in the history or the last one retargeted, the Ask mode offered only with the step an ask runs, and the
  * newest output kept in view as a step settles. A statement typed in the selector opens the step it states, holding its terms.
+ * A waypoint's head is offered beside the steps, marked with the library that states it, and opens the step that ensures it.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
-import { SHOW_STEPS_METHOD, VALIDATE_STEP_METHOD, type TStepDefinition } from "@haibun/core/lib/step-discovery.js";
+import { SHOW_STEPS_METHOD, VALIDATE_STEP_METHOD, type TPredicate, type TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { html, render } from "lit";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { CHAT_DECLARED, CHAT_DOMAINS, CHAT_STEP, CHAT_STEPPER } from "../ask/components/chat-pane.test-fake.js";
-import { ActionsBarSteps, stepDetails, stepOptions, stepSecondary } from "./actions-bar-steps.js";
+import { ActionsBarSteps, stepDetails, stepOptions, stepSecondary, waypointOptions } from "./actions-bar-steps.js";
 import type { ShuStepCaller } from "./shu-step-caller.js";
 import { provideLayout } from "../../test/jsdom-layout.js";
 import { aControllerHost } from "./controller-host.test-fake.js";
@@ -181,5 +182,34 @@ describe("a statement typed in step mode", () => {
 		const { history } = await typed("show nothing at all");
 		expect(callers(history)).toEqual([]);
 		expect(history.querySelector(SHU_TAG.REFUSAL)).not.toBeNull();
+	});
+});
+
+describe("a waypoint's head in step mode", () => {
+	const ENSURE = step("ActivitiesStepper-ensure", "ensure {outcome}", { paramDomains: { outcome: "statement" } });
+	const HEAD = "view {view} is scrolled to its end";
+	const RULE: TPredicate = { name: HEAD, parts: [{ name: "view", domain: "waypoint-argument" }], line: HEAD, method: "ActivitiesStepper-apply", waypoint: "@haibun/shu" };
+	const STEP: TPredicate = { name: SHOW.method, parts: [{ name: "name", domain: "string" }], line: SHOW.pattern, method: SHOW.method };
+	let t: TShuTestHandle;
+	beforeEach(() => {
+		provideLayout();
+		offered.splice(0, offered.length, SHOW, ENSURE);
+		t = setupShuTest({ dispatch: declaringSteps(() => ({ ...stepsShown(offered, CHAT_DOMAINS), predicates: [STEP, RULE] })) });
+	});
+	afterEach(() => t.teardown());
+
+	it("offers each waypoint's head as a sentence, marked as a waypoint with the library that states it, and not a step's predicate", () => {
+		expect(waypointOptions([STEP, RULE])).toEqual([{ value: HEAD, label: HEAD, secondary: "waypoint · @haibun/shu" }]);
+	});
+
+	it("offers the heads beside the steps, and opens a pick of one as the statement of the step that ensures it", async () => {
+		const page = await aStepsPage();
+		render(page.steps.template(html``), page.host);
+		const selector = page.host.querySelector(".step-combo") as HTMLElement & { options: { value: string; secondary?: string }[] };
+		expect(selector.options.map((o) => [o.value, o.secondary])).toContainEqual([HEAD, "waypoint · @haibun/shu"]);
+		selector.dispatchEvent(new CustomEvent("combo-change", { detail: { value: HEAD } }));
+		const caller = itemAt(callers(page.history), 0);
+		expect(caller.getAttribute("method")).toBe(ENSURE.method);
+		expect(caller.getAttribute("params")).toBe(JSON.stringify({ outcome: HEAD }));
 	});
 });

@@ -37,7 +37,6 @@ export const shownLogLevel = (options: { LOG_LEVEL?: TShownLogLevel }): TShownLo
 // Verdicts: the outcome actuality determined. A verdict has emoji weight because a reader looks for it.
 export const CHECK_YES = "✅";
 export const CHECK_NO = "❌";
-export const CHECK_YIELD = "🔀";
 
 // A nested call's failure is part of its line's proof, and the line's own verdict states whether the proof holds, so its
 // mark isn't a verdict mark. It carries less weight than a verdict.
@@ -179,7 +178,6 @@ export const ONCE = "ONCE";
 
 export const STEP_DELAY = "STEP_DELAY";
 export const DEFAULT_DEST = "default";
-export const TEST_BASE = "test_base";
 export const CONTINUE_AFTER_ERROR = "CONTINUE_AFTER_ERROR";
 
 export const HAIBUN = "HAIBUN";

@@ -5,8 +5,8 @@
  */
 import type { TStepDefinitions } from "@haibun/core/lib/step-discovery.js";
 
-/** What the page reads of actuality's steps: the steps, the domains and the concern catalog. */
-export type TStepList = Pick<TStepDefinitions, "steps" | "domains" | "concerns">;
+/** What the page reads of actuality's steps: the steps, the domains, the concern catalog and the predicates the steps prove. */
+export type TStepList = Pick<TStepDefinitions, "steps" | "domains" | "concerns" | "predicates">;
 
 /** Where a read came from: the site, or the device's copy of the site's response, saved at `savedAt`. */
 export type TRegistryOrigin = { from: "site" } | { from: "device"; savedAt: number };

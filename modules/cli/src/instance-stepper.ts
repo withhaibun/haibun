@@ -1,7 +1,7 @@
 /**
  * InstanceStepper supervises sibling haibun processes of two kinds. An instance serves, and a run executes features.
  * `start a haibun instance from {where} on port {port} as host {hostId}` forks the cli.js that an operator runs.
- * The child reads the config directory that a deployment uses.
+ * The child reads the config directory that a deployment uses, and the waypoint libraries `where` names after it, as a command line does.
  * The child serves because its feature ends with `this feature runs as a service until stopped`.
  * Readiness is the action.begin handshake. Federation and remote steppers use the same handshake. The child's exit and its
  * events end the wait where it stops first, with the step that failed, so a launch doesn't wait out a deadline.
@@ -29,7 +29,8 @@ import path from "path";
 import { z } from "zod";
 import { AStepper, type IHasCycles, type IStepperCycles, type TEndFeature, type TStepperSteps } from "@haibun/core/lib/astepper.js";
 import type { TWorld } from "@haibun/core/lib/world.js";
-import { actionNotOK, actionOKWithProducts, perProcessOptionNames } from "@haibun/core/lib/domains/util.js";
+import { actionNotOK, actionOKWithProducts, basesFrom, perProcessOptionNames } from "@haibun/core/lib/domains/util.js";
+import { namesPackage } from "@haibun/core/lib/actuality.js";
 import { localOrigin } from "@haibun/core/lib/domains/local-origin.js";
 import { instanceSignIns, supervisorPorts } from "./root.js";
 import type { TBasicAuthUser } from "@haibun/core/lib/domains/basic-auth.js";
@@ -73,7 +74,9 @@ export type TRun = {
 };
 
 /** The arguments with which an instance was launched. restartInstance launches the same instance again from them. */
-type TLaunch = { dir: string; config: string; port: number; hostId: number };
+/** The directory a child starts in, the config.json it reads and the bases it runs. */
+type TBases = { dir: string; config: string; bases: string[] };
+type TLaunch = TBases & { port: number; hostId: number };
 
 /** Whether a run is running or ended. */
 const runStatus = (held: TRun): string => (held.ended === null ? "running" : "ended");
@@ -116,12 +119,16 @@ function stoppedBeforeServing(dir: string, child: ChildProcess, actuality: TActu
 const runStopped = (held: TRun): string | undefined =>
 	held.ended !== null ? `it exited with code ${held.ended}` : actualityEnded(held.outcome.actuality) ? "its features ended" : undefined;
 
-/** Returns the resolved directory and its config.json. Throws with `doing` as the prefix when the directory doesn't hold a config.json. */
-function configIn(doing: string, where: string): { dir: string; config: string } {
-	const dir = path.resolve(String(where));
+/** Returns the bases `where` names, comma-separated as a command line names them: the first a directory that holds the config.json
+ *  the child reads, and each after it a waypoint library by its path or its package, which is found from that directory. Each is
+ *  resolved, so the child reads the bases this process names. Throws with `doing` as the prefix when the directory doesn't hold a
+ *  config.json. */
+function configIn(doing: string, where: string): TBases {
+	const [first, ...libraries] = basesFrom(where);
+	const dir = path.resolve(String(first));
 	const config = path.join(dir, "config.json");
 	if (!supervisorPorts.fs.existsSync(config)) throw new Error(`${doing}: ${dir} doesn't hold a config.json`);
-	return { dir, config };
+	return { dir, config, bases: [dir, ...libraries.map((l) => (namesPackage(l) ? supervisorPorts.fs.packageLocation(l, dir) : path.resolve(l)))] };
 }
 
 export default class InstanceStepper extends AStepper implements IHasCycles {
@@ -192,7 +199,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			gwta: `restart the haibun instance on port {port: number}`,
 			capability: SUPERVISOR_CAPABILITIES.launch,
 			description:
-				"Stop an instance this process launched, and launch it again with the same directory, config, port and host id. The step waits until the instance serves. An instance serves its source as it was when the instance started, so a change to that source takes effect after a restart. The process that restarts an instance is never the instance it restarts.",
+				"Stop an instance this process launched, and launch it again with the same bases, config, port and host id. The step waits until the instance serves. An instance serves its source as it was when the instance started, so a change to that source takes effect after a restart. The process that restarts an instance is never the instance it restarts.",
 			productsDomain: DOMAIN_INSTANCE_STARTED,
 			action: async ({ port }: { port: number }) => {
 				const held = this.launchedInstance("restart instance", port);
@@ -306,7 +313,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		hostId: number;
 	}) {
 		if (this.runs.has(run)) return actionNotOK(`start run: this process already holds a run named "${run}". Read it, stop it, or choose another name`);
-		const { dir, config } = configIn("start run", where);
+		const { dir, config, bases } = configIn("start run", where);
 		// A run given a port in use fails at boot, and its own output holds the EADDRINUSE error. This refusal describes
 		// the process on the port and the remedy instead.
 		if (port > 0) {
@@ -329,14 +336,14 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		// uses this process's directory.
 		const cwd = from ? path.resolve(from) : process.cwd();
 		if (!supervisorPorts.fs.existsSync(cwd)) return actionNotOK(`start run: the starting directory ${cwd} doesn't exist. Pass an existing starting directory`);
-		const ran = verifiedRun(supervisorPorts, config, dir, filter, cwd, env);
+		const ran = verifiedRun(supervisorPorts, config, bases, filter, cwd, env);
 		if (ran)
 			return actionNotOK(
 				`start run: ${filter || "every feature"} in ${dir} ${ran} against its present dependencies. A new run would repeat that outcome. Change a dependency to run it again, or note that the group has changed.`,
 			);
-		if (port > 0) this.holdSignInAt(port, signInOf(supervisorPorts, dir, cwd, env));
+		if (port > 0) this.holdSignInAt(port, signInOf(supervisorPorts, bases, cwd, env));
 		// A standing run can outlive its feature, but not this process.
-		const child = supervisorPorts.processes.forkCli(["-c", config, dir, filter], { cwd, env });
+		const child = supervisorPorts.processes.forkCli(["-c", config, bases.join(","), filter], { cwd, env });
 		const performedBy = actingAs();
 		const ask = askedIn();
 		const stated = {
@@ -473,7 +480,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 
 	/** Forks the CLI and waits for the action.begin handshake. startInstance and restartInstance both call it, so a
 	 *  restarted instance is launched as it was first launched. */
-	private async launch({ dir, config, port, hostId }: TLaunch) {
+	private async launch({ dir, config, bases, port, hostId }: TLaunch) {
 		// The child inherits this process's environment with its own port, so it can't read the launcher's port from it.
 		// This process passes the launcher's origin as LAUNCHED_FROM in HAIBUN_ENV. A launched instance reads it as
 		// $LAUNCHED_FROM$ to mount the launcher's store and report to the launcher without naming a port in its source.
@@ -483,7 +490,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		// The child's cwd is its base, since a base's config paths are relative to that base. A launched instance whose
 		// stepper paths resolved against the launcher's directory couldn't load its own steppers. The child ends with this
 		// process: a staying session that ends by signal terminates its children.
-		const child = supervisorPorts.processes.forkCli(["-c", config, dir], { cwd: dir, env });
+		const child = supervisorPorts.processes.forkCli(["-c", config, bases.join(",")], { cwd: dir, env });
 		const stderrTail = new RunTail(STDERR_TAIL_CHARS);
 		child.stderr?.on("data", (data: Buffer) => {
 			process.stderr.write(`[instance:${hostId}] ${data.toString()}`);
@@ -493,9 +500,9 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 		// This process doesn't echo that output, since it carries the instance's event stream.
 		const outcome = emptyOutcome();
 		child.stdout?.on("data", (data: Buffer) => void readRunOutput(outcome, data.toString()));
-		this.children.push({ child, label: `${dir} host ${hostId}`, launch: { dir, config, port, hostId } });
+		this.children.push({ child, label: `${dir} host ${hostId}`, launch: { dir, config, bases, port, hostId } });
 
-		this.holdSignInAt(port, signInOf(supervisorPorts, dir, dir, env));
+		this.holdSignInAt(port, signInOf(supervisorPorts, bases, dir, env));
 		const url = localOrigin(port);
 		// Ready means serving: the instance's feature has executed every step that sets it up. Its port responds before then, and
 		// a caller that treated that response as ready would race the steps the feature executes after listening.

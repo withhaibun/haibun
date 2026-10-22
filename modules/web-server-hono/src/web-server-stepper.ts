@@ -1,7 +1,16 @@
 import type { TWorld } from "@haibun/core/lib/world.js";
 import { OK } from "@haibun/core/lib/domains/protocol.js";
 import { actionNotOK, actionOKWithProducts, getFromRuntime, getStepperOptionName, intOrError, errorDetail } from "@haibun/core/lib/domains/util.js";
-import { AStepper, type IHasCycles, type IHasOptions, type TEndActuality, type TEndFeature, type IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
+import {
+	AStepper,
+	CycleWhen,
+	type IHasCycles,
+	type IHasOptions,
+	type TEndActuality,
+	type TEndFeature,
+	type IStepperCycles,
+	type TStepperSteps,
+} from "@haibun/core/lib/astepper.js";
 import type { StepRegistry } from "@haibun/core/lib/step-registry.js";
 import { actionList } from "@haibun/core/lib/domains/actions.js";
 import { DOMAIN_TEXT, DOMAIN_FILE_PATH, DOMAIN_ROUTE, DOMAIN_LINK } from "@haibun/core/lib/domains/domains.js";
@@ -77,6 +86,8 @@ const cycles = (wss: WebServerStepper): IStepperCycles => ({
 
 class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 	description = "Serve static files, create directory indexes, and host web content";
+	/** Each feature's server is made before another stepper starts its feature, so a stepper serves on it as its feature starts. */
+	cyclesWhen = { startFeature: CycleWhen.FIRST - 2 };
 
 	webserver: IWebServer | undefined;
 	steppers: AStepper[] = [];
@@ -163,11 +174,6 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 				return OK;
 			},
 		},
-		serveFiles: {
-			gwta: `serve files from {loc: ${DOMAIN_FILE_PATH}}`,
-			action: ({ loc }: { loc: string }) =>
-				this.mounting(`the files of ${loc}`, (server) => server.checkAddStaticFolder(loc, "/", filesFrom(loc), ...this.servedFolderGates(server))),
-		},
 		serveFilesAt: {
 			gwta: `serve files at {where: ${DOMAIN_ROUTE}} from {loc: ${DOMAIN_FILE_PATH}}`,
 			action: ({ where, loc }: { where: string; loc: string }) =>
@@ -184,15 +190,6 @@ class WebServerStepper extends AStepper implements IHasOptions, IHasCycles {
 			gwta: "enable rpc",
 			action: () => {
 				this.stepRegistry = this.serveRpc(this.server(), getFromRuntime(this.getWorld().runtime, TRANSPORT) as ITransport);
-				return OK;
-			},
-		},
-		refreshSteppers: {
-			gwta: "refresh steppers",
-			action: () => {
-				if (!this.stepRegistry) return OK;
-				this.stepRegistry.refresh(this.steppers, this.getWorld());
-				this.getWorld().eventLogger.info(`[RPC] steppers refreshed: ${this.steppers.length} steppers, ${this.stepRegistry.size} tools`);
 				return OK;
 			},
 		},

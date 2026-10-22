@@ -9,6 +9,6 @@ Scenario: Handle popup window
     click "Open popup"
 
     until current tab is 1 within "5s"
-    be on the popped up webpage
+    wait until URI matches popped up
     see "Congratulations"
 

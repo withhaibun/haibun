@@ -1,7 +1,7 @@
 import type { TWorld, TProtoOptions } from "../actuality/domains/world.js";
 import { newActualityId } from "../transport/domains/rpc-wire.js";
 import { CStepper } from "../steps/domains/stepper.js";
-import { DEFAULT_DEST, LOGIC_STEPPER, LOGIC_STEPPER_NAME, TExecutorResult, TEST_BASE } from "../domains/protocol.js";
+import { DEFAULT_DEST, LOGIC_STEPPER, LOGIC_STEPPER_NAME, TExecutorResult } from "../domains/protocol.js";
 import { getRunTag } from "../domains/ttag.js";
 import { DEFAULT_HOST_ID } from "../domains/host-id.js";
 import { resolveSitePrincipal } from "../domains/host-id.js";
@@ -10,7 +10,7 @@ export { getCreateSteppers };
 export { getDefaultTag } from "../domains/ttag.js";
 import { actualityClock } from "../actuality/root.js";
 import { actualityMachine } from "../actuality/machines/actuality.js";
-import { asFeatures } from "./resolver-features.js";
+import { asFeatures, TEST_BASE } from "./resolver-features.js";
 import { Runner } from "../pipelines/runner.js";
 import { proverOf } from "../actuality/pipelines/step-dispatch.js";
 import type { TProver } from "../actuality/ports.js";

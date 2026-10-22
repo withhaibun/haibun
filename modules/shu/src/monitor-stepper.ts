@@ -7,7 +7,17 @@
 import { resolve } from "node:path";
 import { z } from "zod";
 
-import { AStepper, type IHasCycles, type IHasOptions, type TStepperSteps, StepperKinds, CycleWhen, type TEndFeature, type IStepperCycles } from "@haibun/core/lib/astepper.js";
+import {
+	AStepper,
+	type IHasCycles,
+	type IHasOptions,
+	type TStepperSteps,
+	StepperKinds,
+	CycleWhen,
+	type TEndFeature,
+	type IStepperCycles,
+	type TFeatureStep,
+} from "@haibun/core/lib/astepper.js";
 import { recordBlip } from "@haibun/core/lib/pipelines/record-blip.js";
 // The view vocabulary declares itself at import, so an arriving batch finds its names already declared here.
 import "./domains/blips.js";
@@ -82,6 +92,9 @@ const ClientBlipsSchema = z.object({
 	recorded: z.number().optional(),
 });
 type TClientBlips = z.infer<typeof ClientBlipsSchema>;
+
+/** The wording of a report written with its payload as plain JSON. */
+const UNCOMPRESSED = /\bshu uncompressed to\b/i;
 
 export default class MonitorStepper extends AStepper implements IHasCycles, IHasOptions {
 	description = "Records what a run logs and produces, and serves the shu views what it holds";
@@ -251,23 +264,14 @@ export default class MonitorStepper extends AStepper implements IHasCycles, IHas
 
 	steps = {
 		savesShuTo: {
-			gwta: `saves shu to {where: ${DOMAIN_FILE_PATH}}`,
+			gwta: `saves shu( uncompressed)? to {where: ${DOMAIN_FILE_PATH}}`,
 			description:
-				"Write the standalone shu HTML report to the given path. Invokable any time during a feature; endFeature writes once more so the final file always reflects all of actuality.",
+				"Write the standalone shu HTML report to the given path. Invokable any time during a feature; endFeature writes once more so the final file always reflects all of actuality. Uncompressed, the report's payload is plain JSON, so the redacted text can be read and audited directly, and the write is a one-off that doesn't become the feature's output.",
 			productsDomain: DOMAIN_SHU_REPORT,
-			action: async ({ where }: { where: string }) => {
-				this.outputPath = where;
-				const written = await this.writeStandaloneReport({ fixedPath: where, compressed: true });
-				return actionOKWithProducts({ path: written });
-			},
-		},
-		savesShuUncompressedTo: {
-			gwta: `saves shu uncompressed to {where: ${DOMAIN_FILE_PATH}}`,
-			description:
-				"Write the standalone shu report with an uncompressed plain-JSON payload, so the redacted text can be read and audited directly, same content as the compressed report, just larger. A one-off write that does not become the feature's canonical output.",
-			productsDomain: DOMAIN_SHU_REPORT,
-			action: async ({ where }: { where: string }) => {
-				const written = await this.writeStandaloneReport({ fixedPath: where, compressed: false });
+			action: async ({ where }: { where: string }, featureStep: TFeatureStep) => {
+				const compressed = !UNCOMPRESSED.test(featureStep.in);
+				if (compressed) this.outputPath = where;
+				const written = await this.writeStandaloneReport({ fixedPath: where, compressed });
 				return actionOKWithProducts({ path: written });
 			},
 		},

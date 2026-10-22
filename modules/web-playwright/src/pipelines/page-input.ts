@@ -71,10 +71,6 @@ export const uploadFile = (session: BrowserSession, file: string, selector: TSte
 
 export const resizeWindow = (session: BrowserSession, width: number, height: number): Promise<void> => session.withPage((page) => page.setViewportSize({ width, height }));
 
-/** Sizes the page's viewport to the screen's available area. */
-export const resizeToScreen = (session: BrowserSession): Promise<void> =>
-	session.withPage(async (page) => page.setViewportSize(await page.evaluate(() => ({ width: window.screen.availWidth, height: window.screen.availHeight }))));
-
 /** Blocks, holds without a response, or allows the page's requests to a URL glob, on the page rather than its context, so
  *  other pages of the context keep their requests. A held request is taken and left, as a page reading a site that stopped
  *  responding sees it. */

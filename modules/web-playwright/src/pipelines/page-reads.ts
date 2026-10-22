@@ -62,15 +62,6 @@ export async function waitUntilGone(session: BrowserSession, target: TStepValue)
 	}
 }
 
-/** Waits until the page's address is `name`. */
-export async function isOnPage(session: BrowserSession, name: string): Promise<TActionResult> {
-	const address = await session.withPage(async (page) => {
-		await page.waitForURL(name);
-		return page.url();
-	});
-	return address === name ? OK : actionNotOK(`expected ${name} but on ${address}`);
-}
-
 /** Whether the feature's context holds the cookie with the value. */
 export async function cookieIs(session: BrowserSession, featureNum: number, name: string, value: string): Promise<TActionResult> {
 	const context = session.pages?.context(featureNum);

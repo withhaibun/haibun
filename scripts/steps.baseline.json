@@ -1,0 +1,148 @@
+{
+	"modules/cli/src/instance-stepper.ts": {
+		"has at most one call site: InstanceStepper.reachInstance": 1,
+		"has at most one call site: InstanceStepper.readRun": 1,
+		"has at most one call site: InstanceStepper.restartInstance": 1,
+		"has at most one call site: InstanceStepper.showInstances": 1,
+		"has at most one call site: InstanceStepper.stopRun": 1,
+		"has at most one call site: InstanceStepper.waitRun": 1
+	},
+	"modules/cli/src/test-runner-stepper.ts": {
+		"has at most one call site: TestRunnerStepper.askTestRun": 1,
+		"has at most one call site: TestRunnerStepper.awaitTestRun": 1,
+		"has at most one call site: TestRunnerStepper.examineTestRun": 1,
+		"has at most one call site: TestRunnerStepper.noteSourceChanged": 1,
+		"has at most one call site: TestRunnerStepper.readTestRun": 1,
+		"has at most one call site: TestRunnerStepper.runTest": 1,
+		"has at most one call site: TestRunnerStepper.stopTestRun": 1
+	},
+	"modules/core/src/steps/activities-stepper.ts": {
+		"has at most one call site: ActivitiesStepper.registerSavedWaypoints": 1,
+		"has at most one call site: ActivitiesStepper.runSavedWaypoint": 1,
+		"has at most one call site: ActivitiesStepper.saveWaypoint": 1,
+		"starts or keeps something without a parameter: ActivitiesStepper.registerSavedWaypoints": 1
+	},
+	"modules/core/src/steps/authority-stepper.ts": {
+		"has at most one call site: AuthorityStepper.holdingCapability": 1,
+		"has at most one call site: AuthorityStepper.showHeldCalls": 1
+	},
+	"modules/core/src/steps/blips-stepper.ts": {
+		"has at most one call site: BlipsStepper.showDeclaredBlips": 1,
+		"has at most one call site: BlipsStepper.showWatchedBlips": 1,
+		"has at most one call site: BlipsStepper.stopWatchingBlips": 1,
+		"has at most one call site: BlipsStepper.watchBlips": 1
+	},
+	"modules/core/src/steps/debugger-stepper.ts": {
+		"has at most one call site: DebuggerStepper.continueStepper": 1,
+		"has at most one call site: DebuggerStepper.debugStepByStep": 1,
+		"has at most one call site: DebuggerStepper.debugStepper": 1
+	},
+	"modules/core/src/steps/haibun-stepper.ts": {
+		"has at most one call site: Haibun.onHost": 1,
+		"has at most one call site: Haibun.useStoreAt": 1,
+		"starts or keeps something without a parameter: Haibun.keepRunning": 1,
+		"states another step's pattern with a word more or less: Haibun.pendingScenario ~ Haibun.scenario": 1,
+		"states another step's pattern with a word more or less: Haibun.pendingScenario ~ Narrator.scenario": 1
+	},
+	"modules/core/src/steps/resources-stepper.ts": {
+		"has at most one call site: ResourcesStepper.annotateLinking": 1,
+		"has at most one call site: ResourcesStepper.annotateNote": 1,
+		"has at most one call site: ResourcesStepper.checkCitations": 1
+	},
+	"modules/core/src/steps/urakata-stepper.ts": {
+		"has at most one call site: UrakataStepper.forgetUrakata": 1,
+		"has at most one call site: UrakataStepper.showUrakata": 1,
+		"has at most one call site: UrakataStepper.stopUrakata": 1,
+		"has at most one call site: UrakataStepper.urakataIsRunning": 1
+	},
+	"modules/core/src/steps/variables-stepper.ts": {
+		"has at most one call site: VariablesStepper.defineHypermediaDomain": 1,
+		"has at most one call site: VariablesStepper.showDomain": 1,
+		"has at most one call site: VariablesStepper.showDomains": 1,
+		"has at most one call site: VariablesStepper.showEnv": 1,
+		"has at most one call site: VariablesStepper.unset": 1
+	},
+	"modules/logic/src/logic-stepper.ts": {
+		"has at most one call site: LogicStepper.advanceWalk": 1,
+		"has at most one call site: LogicStepper.affordancesOnOfferAsOf": 1,
+		"has at most one call site: LogicStepper.showAffordancesAsOf": 1,
+		"has at most one call site: LogicStepper.showDomainChainLint": 1,
+		"has at most one call site: LogicStepper.walkToward": 1
+	},
+	"modules/lsp/src/lsp-stepper.ts": {
+		"has at most one call site: LspStepper.lspIsReady": 1
+	},
+	"modules/monitor-otel/src/monitor-otel-stepper.ts": {
+		"has at most one call site: MonitorOtelStepper.endSpan": 1,
+		"has at most one call site: MonitorOtelStepper.startSpan": 1
+	},
+	"modules/recorder/src/recorder-stepper.ts": {
+		"has at most one call site: RecorderStepper.startRecording": 1,
+		"has at most one call site: RecorderStepper.stopRecording": 1
+	},
+	"modules/shu/src/graph-source-stepper.ts": {
+		"has at most one call site: GraphSourceStepper.federateGraphReads": 1,
+		"has at most one call site: GraphSourceStepper.getIndividualWithEdges": 1,
+		"has at most one call site: GraphSourceStepper.getSelectValues": 1,
+		"has at most one call site: GraphSourceStepper.showGraphAsTptp": 1
+	},
+	"modules/shu/src/monitor-stepper.ts": {
+		"has at most one call site: MonitorStepper.logClient": 1,
+		"has at most one call site: MonitorStepper.recordClientBlips": 1,
+		"has at most one call site: MonitorStepper.showDocument": 1
+	},
+	"modules/shu/src/shu-stepper.ts": {
+		"has at most one call site: ShuStepper.getGraphLayout": 1,
+		"has at most one call site: ShuStepper.showPolymorphicGraphView": 1,
+		"has at most one call site: ShuStepper.showShuApps": 1,
+		"has at most one call site: ShuStepper.showViews": 1
+	},
+	"modules/storage-fs/src/storage-fs-stepper.ts": {
+		"has at most one call site: AStorage.createDirectory": 1,
+		"has at most one call site: AStorage.createFile": 1,
+		"has at most one call site: AStorage.fileExists": 1,
+		"has at most one call site: AStorage.fileIsRecent": 1,
+		"has at most one call site: AStorage.filesCount": 1,
+		"has at most one call site: AStorage.testIs": 1
+	},
+	"modules/web-playwright/src/web-playwright-stepper.ts": {
+		"has at most one call site: WebPlaywright.addAuthBearerToken": 1,
+		"has at most one call site: WebPlaywright.addBasicAuthCredentials": 1,
+		"has at most one call site: WebPlaywright.captureDialog": 1,
+		"has at most one call site: WebPlaywright.closeBrowserTab": 1,
+		"has at most one call site: WebPlaywright.connectToBrowser": 1,
+		"has at most one call site: WebPlaywright.currentTabIs": 1,
+		"has at most one call site: WebPlaywright.expectDownload": 1,
+		"has at most one call site: WebPlaywright.getPageContents": 1,
+		"has at most one call site: WebPlaywright.goBack": 1,
+		"has at most one call site: WebPlaywright.hoverOver": 1,
+		"has at most one call site: WebPlaywright.listBrowserTabs": 1,
+		"has at most one call site: WebPlaywright.loadBrowserExtension": 1,
+		"has at most one call site: WebPlaywright.onNewTab": 1,
+		"has at most one call site: WebPlaywright.onTabX": 1,
+		"has at most one call site: WebPlaywright.openBrowserTab": 1,
+		"has at most one call site: WebPlaywright.readBrowserTab": 1,
+		"has at most one call site: WebPlaywright.receiveDownload": 1,
+		"has at most one call site: WebPlaywright.resizeWindow": 1,
+		"has at most one call site: WebPlaywright.restEndpointRequestWithPayload": 1,
+		"has at most one call site: WebPlaywright.restResponseIs": 1,
+		"has at most one call site: WebPlaywright.restResponsePropertyIs": 1,
+		"has at most one call site: WebPlaywright.restTokenLogout": 1,
+		"has at most one call site: WebPlaywright.scrollUpAScreen": 1,
+		"has at most one call site: WebPlaywright.selectionOption": 1,
+		"has at most one call site: WebPlaywright.shouldSeeTestId": 1,
+		"has at most one call site: WebPlaywright.showBrowserExtension": 1,
+		"has at most one call site: WebPlaywright.showBrowserRelay": 1,
+		"has at most one call site: WebPlaywright.takeAccessibilitySnapshot": 1,
+		"has at most one call site: WebPlaywright.takeScreenshotOf": 1,
+		"has at most one call site: WebPlaywright.uploadFile": 1,
+		"has at most one call site: WebPlaywright.waitForURIMatch": 1
+	},
+	"modules/web-server-hono/src/web-server-stepper.ts": {
+		"has at most one call site: WebServerStepper.asksToSignIn": 1,
+		"has at most one call site: WebServerStepper.indexFiles": 1,
+		"has at most one call site: WebServerStepper.showPorts": 1,
+		"has at most one call site: WebServerStepper.stopInstance": 1,
+		"starts or keeps something without a parameter: WebServerStepper.enableRpc": 1
+	}
+}

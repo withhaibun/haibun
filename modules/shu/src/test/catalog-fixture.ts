@@ -65,7 +65,7 @@ export function catalogOf(spec: TCatalogSpec): TConcernCatalog {
 /** Declares `concerns` and `domains` as the page's step registry, read from the site, with the steps the registry holds. */
 export function declareCatalog(concerns: TConcernCatalog, domains: Record<string, TDomainDiscoveryInfo> = {}): void {
 	const held = pageRegistry().state.get();
-	declareRegistry({ steps: held.status === REGISTRY_STATUS.READ ? held.read.list.steps : [], domains, concerns });
+	declareRegistry({ steps: held.status === REGISTRY_STATUS.READ ? held.read.list.steps : [], domains, concerns, predicates: [] });
 }
 
 /** Declares `list` as the page's step registry, read from the site: the steps, the domains and the catalog one read holds. */
@@ -92,4 +92,5 @@ export const GRAPH_READ_STEPS = (["graphQuery", "density", "getClusteredQuads", 
 }));
 
 /** Declares the catalog `spec` states, with the graph source's reads, as the registry of a page that reads a run. */
-export const declareGraphSpec = (spec: TCatalogSpec): void => declareRegistry({ steps: stepsShown(GRAPH_READ_STEPS).steps, domains: domainsOf(spec), concerns: catalogOf(spec) });
+export const declareGraphSpec = (spec: TCatalogSpec): void =>
+	declareRegistry({ steps: stepsShown(GRAPH_READ_STEPS).steps, domains: domainsOf(spec), concerns: catalogOf(spec), predicates: [] });

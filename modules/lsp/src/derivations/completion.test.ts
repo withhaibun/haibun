@@ -32,8 +32,15 @@ describe("LSP completion", () => {
 		expect(completions()[0]).toMatchObject({ insertText: "navigate to ${1:url}", insertTextFormat: 2, detail: "From SampleStepper", documentation: "Internal Name: navigateTo" });
 	});
 
-	it("offers a step that holds rules as the head of each rule, with where the waypoint is stated", () => {
-		const rule = { head: "{m:meal} is ready", pattern: "{m: waypoint-argument} is ready", proof: [], activity: [], source: { path: "/b/meals.feature", lineNumber: 3 } };
+	it("offers a step that holds rules as the head of each rule, marked as a waypoint with its library, with where the waypoint is stated", () => {
+		const rule = {
+			head: "{m:meal} is ready",
+			pattern: "{m: waypoint-argument} is ready",
+			proof: [],
+			activity: [],
+			source: { path: "/b/meals.feature", lineNumber: 3 },
+			library: "/b/meals.feature",
+		};
 		const tool = itemAt([...buildStepRegistry([new RuleStepper([rule])], getDefaultWorld()).values()], 0);
 		expect(completionItems(tool.descriptor, tool.stepDef)).toEqual([
 			{
@@ -41,7 +48,7 @@ describe("LSP completion", () => {
 				kind: 15,
 				insertText: "${1:m} is ready",
 				insertTextFormat: 2,
-				detail: "From RuleStepper",
+				detail: "waypoint · /b/meals.feature",
 				documentation: "Waypoint stated at /b/meals.feature:3",
 			},
 		]);

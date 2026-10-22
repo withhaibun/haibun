@@ -4,7 +4,7 @@
 	"version": "4.0.0-alpha.3",
 	"description": "Hono-based web server for haibun with MCP support",
 	"main": "build/web-server-stepper.js",
-	"files": ["build/**"],
+	"files": ["build/**", "waypoints/**"],
 	"exports": {
 		".": "./build/web-server-stepper.js",
 		"./defs.js": {
@@ -31,6 +31,8 @@
 			"haibun-source": "./src/pipelines/served-folder.js",
 			"default": "./build/pipelines/served-folder.js"
 		},
+		"./waypoints": "./waypoints",
+		"./waypoints/*": "./waypoints/*",
 		"./*": {
 			"haibun-source": "./src/*",
 			"default": "./build/*"

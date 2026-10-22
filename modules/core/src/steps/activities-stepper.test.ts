@@ -29,6 +29,7 @@ describe("ActivitiesStepper", () => {
 			expect(stepper.steps.apply.rules()).toEqual([
 				{
 					head: "Is logged in as {user}",
+					library: "/backgrounds/login.feature",
 					pattern: `Is logged in as {user: ${DOMAIN_WAYPOINT_ARGUMENT}}`,
 					proof: [{ in: 'variable loggedIn is "true"', source }],
 					activity: [{ in: 'set loggedIn to "true"', source: { ...source, lineNumber: 2 } }],

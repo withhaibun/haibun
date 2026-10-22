@@ -63,8 +63,8 @@ export const rpcRequestSchema = (actualityId: z.ZodType<TActualityId>) =>
 		// Reports the first issue of the last branch. That branch parses every call except the handshake.
 		error: (issue) => issue.errors?.at(-1)?.[0]?.message,
 	});
-export const RpcRequestSchema = rpcRequestSchema(ActualityIdSchema);
-type TRpcRequest = z.infer<typeof RpcRequestSchema>;
+type TRpcRequestSchema = ReturnType<typeof rpcRequestSchema>;
+type TRpcRequest = z.infer<TRpcRequestSchema>;
 
 /** The body of a host's handshake response. */
 export const HandshakeSchema = z.object({ protocol: z.literal(RPC_PROTOCOL), hostId: z.number(), site: z.string().min(1), actualityId: ActualityIdSchema, serving: z.boolean() });
@@ -125,10 +125,6 @@ const heldActuality = (actualityId: TActualityId) => z.literal(actualityId, { er
  *  the step returns products. This result doesn't state that. */
 export const ANSWERED_WITHOUT_PRODUCTS = { ok: true } as const;
 
-/** Outgoing JSON-RPC 2.0 response to client. */
-export const RpcResponseSchema = z.object({ jsonrpc: z.literal("2.0"), id: z.string(), result: z.unknown().optional(), error: z.string().optional() });
-/** Outgoing JSON-RPC 2.0 stream chunk to client. */
-export const RpcStreamSchema = z.object({ jsonrpc: z.literal("2.0"), id: z.string(), stream: z.literal(true), data: z.unknown() });
 /** A host's response to a call it didn't serve. `error` states why. `remedy` states what the person can do, where a remedy exists. */
 export const RpcRefusalSchema = z.object({ error: z.string().min(1), remedy: RemedySchema.optional() });
 export type TRpcRefusal = z.infer<typeof RpcRefusalSchema>;
@@ -236,7 +232,7 @@ export function parseRpcRequest(raw: unknown, actualityId: TActualityId): { succ
 	if (notHeld) return { success: false, refusal: notHeld };
 	return { success: false, refusal: { error: z.prettifyError(parsed.error) } };
 }
-let held: { actualityId: TActualityId; schema: ReturnType<typeof rpcRequestSchema> } | undefined;
+let held: { actualityId: TActualityId; schema: TRpcRequestSchema } | undefined;
 
 /** Serializes a JSON-RPC request body in the shape the server parses. JSON.stringify drops undefined fields, so the body holds only the fields the caller stated. */
 export function rpcEnvelope(e: TRpcEnvelope): string {
@@ -244,7 +240,7 @@ export function rpcEnvelope(e: TRpcEnvelope): string {
 }
 
 /** The fields of a call's envelope that its caller states, as the schema reads them. `rpcEnvelope` adds `jsonrpc` and `protocol`. */
-export type TRpcEnvelope = z.input<typeof RpcRequestSchema> extends infer R ? (R extends unknown ? Omit<R, "jsonrpc" | "protocol"> : never) : never;
+export type TRpcEnvelope = z.input<TRpcRequestSchema> extends infer R ? (R extends unknown ? Omit<R, "jsonrpc" | "protocol"> : never) : never;
 
 /** The fetch credentials mode under which a browser sends its sign-in for the target site with each call. That sign-in
  *  can be a proxy's basic auth. The call carries its own proof beside it. A page on the same site sends that sign-in

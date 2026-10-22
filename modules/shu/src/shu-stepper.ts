@@ -204,7 +204,6 @@ export default class ShuStepper extends AStepper implements IHasOptions {
 			productsDomain: DOMAIN_SHU_APPS,
 			action: () => actionOKWithProducts({ apps: [...this.appPaths] }),
 		},
-		maximizeView: { gwta: "maximize view", action: () => actionOK() },
 		showViews: {
 			gwta: "show views",
 			productsDomain: DOMAIN_SHU_VIEW_COLLECTION,

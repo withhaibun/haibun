@@ -89,6 +89,19 @@ function packageJsonAt(dir: string, fs: Pick<TFileSystem, "existsSync" | "readFi
 	return read;
 }
 
+/** Returns the name of the nearest package at or above the directory of the file `at`, or undefined where a directory at or
+ *  above it doesn't hold a package that names itself. */
+export function packageNameAt(at: string, fs: Pick<TFileSystem, "existsSync" | "readFileSync">): string | undefined {
+	for (let dir = path.dirname(path.resolve(at)); ; dir = path.dirname(dir)) {
+		const name = packageJsonAt(dir, fs)?.name;
+		if (name !== undefined) return name;
+		if (path.dirname(dir) === dir) return undefined;
+	}
+}
+
+/** Returns the name of the nearest package at or above the directory of the file `at`, read from this process's file system. */
+export const packageNameOf = (at: string): string | undefined => packageNameAt(at, nodeFS);
+
 /** Returns the directory of the package `pkgName`, as Node finds it from `from`: the nearest directory at or above `from` that is that
  *  package, since a package names itself from inside it, or that holds it in its node_modules. Throws where a directory at or above
  *  `from` doesn't hold it. */

@@ -13,9 +13,12 @@ import { Access, LinkRelations, PersistedVertexSchema, type TDomainDefinition } 
 import { refDomainKey, type TIndividualRef } from "../lib/domains/domains.js";
 import { ACTIVITIES_ACTIONS, ACTIVITIES_STEPPER } from "./domains/activities-actions.js";
 import { readEvery, recordOf } from "../lib/records/pipelines/record-reads.js";
+import { packageOf } from "./root.js";
 
 /** The source path a saved waypoint holds where the step that saves it doesn't have a source path. */
 const SAVED_WAYPOINT_SOURCE = "a saved waypoint";
+/** The library of a saved waypoint's rule. */
+const SAVED = "saved";
 /** The directory of the backgrounds. A waypoint a background states applies in every feature. */
 const BACKGROUNDS = "backgrounds/";
 /** The line that opens an activity, the line that states a waypoint with its head and its proof, and a heading, which ends
@@ -209,7 +212,16 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 				const statement = getStepTerm(featureStep, "statement");
 				if (statement === undefined) return actionNotOK(`${featureStep.in} doesn't state the statement its rule proves`);
 				const source = featureStep.source === undefined ? { path: this.feature } : featureStep.source;
-				this.state({ head: `after every ${stepperName}`, pattern: "", proof: [{ in: statement, source }], activity: [], source, scope: this.feature, after: stepperName });
+				this.state({
+					head: `after every ${stepperName}`,
+					pattern: "",
+					proof: [{ in: statement, source }],
+					activity: [],
+					source,
+					library: this.feature,
+					scope: this.feature,
+					after: stepperName,
+				});
 				return OK;
 			},
 		},
@@ -289,8 +301,9 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 			const statement = getActionable(raw);
 			return statement === "" || WAYPOINT_LINE.test(statement) ? [] : [{ in: statement, source: { lineNumber: start + offset + 2, path: source } }];
 		});
-		const scope = path.includes(BACKGROUNDS) ? {} : { scope: path };
-		return { ...headOf(written), proof: proof === undefined ? [] : [{ in: proof, source: { path: source } }], activity, source: { path: source, lineNumber: at + 1 }, ...scope };
+		// A background's rule is the library's whose package holds it, or its file's where a package doesn't hold it.
+		const where = path.includes(BACKGROUNDS) ? { library: packageOf(source) ?? source } : { library: path, scope: path };
+		return { ...headOf(written), proof: proof === undefined ? [] : [{ in: proof, source: { path: source } }], activity, source: { path: source, lineNumber: at + 1 }, ...where };
 	}
 
 	/**
@@ -331,7 +344,7 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 		]);
 		if (refused.length > 0) throw new Error(refused.join("; "));
 		for (const { id, lines, source } of saved)
-			this.state({ ...headOf(id), proof: [], activity: lines.map((line) => ({ in: line, source: { path: source } })), source: { path: source }, saved: true });
+			this.state({ ...headOf(id), proof: [], activity: lines.map((line) => ({ in: line, source: { path: source } })), source: { path: source }, library: SAVED, saved: true });
 	}
 }
 

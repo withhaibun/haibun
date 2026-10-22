@@ -239,17 +239,17 @@ describe("whether a run would repeat the outcome of an earlier run", () => {
 	it("starts features that haven't run against their present state, and refuses features that have, whether they passed or failed", () => {
 		const { dir, config } = aGroup();
 		const env = runEnvironment({}, 0, false);
-		expect(verifiedRun(supervisorPorts, config, dir, "", dir, env)).toBeUndefined();
+		expect(verifiedRun(supervisorPorts, config, [dir], "", dir, env)).toBeUndefined();
 		// v() computes the verification that the child would record from the same environment.
 		const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env, getConfigFromBase([dir], fileSystem));
 		const v = () => verificationOf({ configPath: config, specl: getConfigFromBase([dir], fileSystem), bases: [dir], cwd: dir, filter: [], options, moduleOptions }) as never;
 		recordOutcome(v(), "failed");
-		expect(verifiedRun(supervisorPorts, config, dir, "", dir, env), "a run that failed against this state would fail the same way").toBe("failed");
+		expect(verifiedRun(supervisorPorts, config, [dir], "", dir, env), "a run that failed against this state would fail the same way").toBe("failed");
 		recordOutcome(v(), "passed");
-		expect(verifiedRun(supervisorPorts, config, dir, "", dir, env), "verifiedRun returns the recorded pass for the same features, state and conditions").toBe("passed");
-		expect(verifiedRun(supervisorPorts, config, dir, "a", dir, env), "a run narrowed to some of the features is a different run").toBeUndefined();
+		expect(verifiedRun(supervisorPorts, config, [dir], "", dir, env), "verifiedRun returns the recorded pass for the same features, state and conditions").toBe("passed");
+		expect(verifiedRun(supervisorPorts, config, [dir], "a", dir, env), "a run narrowed to some of the features is a different run").toBeUndefined();
 		nodeFS.writeFileSync(path.join(dir, "features/a.feature"), "Feature: a, changed\n");
-		expect(verifiedRun(supervisorPorts, config, dir, "", dir, env), "a changed dependency makes a new state that doesn't have a recorded outcome").toBeUndefined();
+		expect(verifiedRun(supervisorPorts, config, [dir], "", dir, env), "a changed dependency makes a new state that doesn't have a recorded outcome").toBeUndefined();
 	});
 
 	it("reads the .env file in a run's starting directory where its config declares an environment, as the child does", () => {
@@ -265,13 +265,13 @@ describe("whether a run would repeat the outcome of an earlier run", () => {
 		const dotenv = path.join(dir, ".env");
 		passed();
 		nodeFS.writeFileSync(dotenv, "HAIBUN_O_WEBSERVERSTEPPER_PORT=8399\n");
-		expect(verifiedRun(supervisorPorts, config, dir, "", dir, env), "a config without an environment doesn't read the file, so its conditions stay the same").toBe("passed");
+		expect(verifiedRun(supervisorPorts, config, [dir], "", dir, env), "a config without an environment doesn't read the file, so its conditions stay the same").toBe("passed");
 		nodeFS.rmSync(dotenv);
 		nodeFS.writeFileSync(config, JSON.stringify({ steppers: [], environments: ["mail"] }));
 		passed();
-		expect(verifiedRun(supervisorPorts, config, dir, "", dir, env)).toBe("passed");
+		expect(verifiedRun(supervisorPorts, config, [dir], "", dir, env)).toBe("passed");
 		nodeFS.writeFileSync(dotenv, "HAIBUN_O_WEBSERVERSTEPPER_PORT=8399\n");
-		expect(verifiedRun(supervisorPorts, config, dir, "", dir, env), "the child would read that file, so its conditions differ from the recorded conditions").toBeUndefined();
+		expect(verifiedRun(supervisorPorts, config, [dir], "", dir, env), "the child would read that file, so its conditions differ from the recorded conditions").toBeUndefined();
 	});
 });
 
@@ -390,16 +390,18 @@ describe("launching an instance", () => {
 	const [ACTUALITY] = ACTUALITY_LEVELS;
 	const STARTED = { id: ACTUALITY, type: ACTUALITY, stage: "start", status: LEVEL_STATUS.running, in: "/service" };
 
-	/** Starts an instance whose child writes what a test sends on its output and doesn't exit, and whose handshake `begin` returns. */
-	const launching = (begin: () => Promise<THandshake>) => {
+	/** Starts an instance of a directory and the waypoint libraries `named` after it, whose child writes what a test sends on its
+	 *  output and doesn't exit, and whose handshake `begin` returns. */
+	const launching = (begin: () => Promise<THandshake>, named = (_where: string): string[] => []) => {
 		const stdout = new EventEmitter();
 		const child = Object.assign(new EventEmitter(), { stdout, stderr: new EventEmitter(), exitCode: null }) as unknown as ChildProcess;
-		vi.spyOn(supervisorPorts.processes, "forkCli").mockReturnValue(child);
+		const forked = vi.spyOn(supervisorPorts.processes, "forkCli").mockReturnValue(child);
 		vi.spyOn(supervisorPorts.hosts, "begin").mockImplementation(begin);
 		const where = nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-launch-"));
 		nodeFS.writeFileSync(path.join(where, "config.json"), JSON.stringify({ steppers: [] }));
-		const started = (stepper().steps.startInstance.action as (a: { where: string; port: number; hostId: number }) => Promise<TResult>)({ where, port: 8297, hostId: HOST_ID });
-		return { started, say: (fields: Record<string, unknown>) => stdout.emit("data", event(fields)) };
+		const action = stepper().steps.startInstance.action as (a: { where: string; port: number; hostId: number }) => Promise<TResult>;
+		const started = action({ where: [where, ...named(where)].join(","), port: 8297, hostId: HOST_ID });
+		return { started, where, forked, say: (fields: Record<string, unknown>) => stdout.emit("data", event(fields)) };
 	};
 	const notListening = () => Promise.reject(new Error("connect ECONNREFUSED"));
 
@@ -415,6 +417,23 @@ describe("launching an instance", () => {
 		say(STARTED);
 		say({ id: ACTUALITY, type: ACTUALITY, stage: "end", status: LEVEL_STATUS.completed });
 		expect((await started).errorMessage).toContain("ended its features before it served");
+	});
+
+	it("runs the child with the waypoint libraries named after its directory, a package's found from that directory", async () => {
+		const LIBRARY = "@haibun/launched-library";
+		const installed = (where: string) => {
+			const at = path.join(where, "node_modules", LIBRARY);
+			nodeFS.mkdirSync(at, { recursive: true });
+			nodeFS.writeFileSync(path.join(at, "package.json"), JSON.stringify({ name: LIBRARY, exports: { "./waypoints": "./waypoints" } }));
+			return [`${LIBRARY}/waypoints`, path.join(where, "own-waypoints")];
+		};
+		const { started, where, forked } = launching(
+			() => Promise.resolve({ protocol: RPC_PROTOCOL, hostId: HOST_ID, site: "did:key:site", actualityId: newActualityId(), serving: true }),
+			installed,
+		);
+		await started;
+		const bases = [where, path.join(where, "node_modules", LIBRARY, "waypoints"), path.join(where, "own-waypoints")];
+		expect(forked.mock.calls[0]?.[0]).toEqual(["-c", path.join(where, "config.json"), bases.join(",")]);
 	});
 
 	it("returns the instance once its handshake states that it serves", async () => {

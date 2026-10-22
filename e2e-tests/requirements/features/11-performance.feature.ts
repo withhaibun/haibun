@@ -1,5 +1,6 @@
 import { withAction, type TKirejiExport } from "@haibun/core/kireji/derivations/withAction.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
+import { steps } from "@haibun/logic/waypoints/backgrounds/steps.feature.ts";
 
 const { feature, scenario, pendingScenario } = withAction(new Haibun());
 
@@ -11,7 +12,7 @@ export const features: TKirejiExport = {
 		scenario({ scenario: "A step takes milliseconds of its own" }),
 		"Essential. Source: logic-stepper.ts, the steps source.",
 		"set fast to 1",
-		'every step observed in steps is where variable step/stepText is "set fast to 1", variable step/duration is less than 50',
+		steps.tookLessThan('"set fast to 1"', "50"),
 
 		pendingScenario({ scenario: "A proof over a thousand facts takes under a millisecond" }),
 		"Essential. Source: docs/reasoner.md, q6-cost.",

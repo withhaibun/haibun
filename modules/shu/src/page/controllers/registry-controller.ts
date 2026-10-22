@@ -4,7 +4,7 @@
  * `StepsChangedController`, which reads again each time the page reads them again.
  */
 import type { ReactiveController, ReactiveControllerHost } from "lit";
-import type { TDomainDiscoveryInfo, TStepDefinition } from "@haibun/core/lib/step-discovery.js";
+import type { TDomainDiscoveryInfo, TPredicate, TStepDefinition } from "@haibun/core/lib/step-discovery.js";
 import { SHOW_STEPS_ACTION, SHOW_STEPS_METHOD } from "@haibun/core/lib/step-discovery.js";
 import { PAGE_CALL_ACTIONS } from "../domains/page-calls.js";
 import { pageRegistry, registryScope } from "../root.js";
@@ -32,6 +32,9 @@ function readList(what: string): TStepList {
 
 /** Returns actuality's steps, read where the page doesn't hold them. */
 export const getAvailableSteps = async (): Promise<TStepDefinition[]> => (await stepList()).steps;
+
+/** Returns the predicates actuality's steps prove, read where the page doesn't hold them. */
+export const getAvailablePredicates = async (): Promise<TPredicate[]> => (await stepList()).predicates;
 
 /** Returns actuality's domains, read where the page doesn't hold them. */
 export const getAvailableDomains = async (): Promise<Record<string, TDomainDiscoveryInfo>> => (await stepList()).domains;

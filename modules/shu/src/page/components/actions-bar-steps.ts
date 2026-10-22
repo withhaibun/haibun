@@ -6,11 +6,11 @@
  */
 import { html, nothing, type ReactiveController, type TemplateResult } from "lit";
 import { SHU_EVENT, SHU_TAG } from "../../domains/elements.js";
-import { VALIDATE_STEP_METHOD, type TStepDefinition, type TStepValidation } from "@haibun/core/lib/step-discovery.js";
+import { VALIDATE_STEP_METHOD, waypointMark, type TPredicate, type TStepDefinition, type TStepValidation } from "@haibun/core/lib/step-discovery.js";
 import { callStep } from "../controllers/read-controller.js";
 import type { TPageRefusal } from "../domains/refusal.js";
 import type { ShuRefusal } from "./shu-refusal.js";
-import { conversationSteps, getAvailableSteps, stepsForContext, StepsChangedController } from "../controllers/registry-controller.js";
+import { conversationSteps, getAvailablePredicates, getAvailableSteps, requireStep, stepsForContext, StepsChangedController } from "../controllers/registry-controller.js";
 import type { TComboboxOption } from "../../domains/schemas.js";
 import type { TControllerHost } from "./controller-host.js";
 import type { ShuActivityHistory } from "./shu-activity-history.js";
@@ -63,6 +63,14 @@ export function stepOptions(steps: readonly TStepDefinition[], forTheType: reado
 	return [...forTheType.map((step) => option(step, true)), ...steps.filter((step) => !typeMethods.has(step.method)).map((step) => option(step, false))];
 }
 
+/** The step that ensures a waypoint, which a pick of a waypoint's head opens with the head as its statement. */
+const ENSURE = "ensure";
+
+/** The options of the waypoints actuality holds: each head as a sentence, marked as a waypoint with the library that states
+ *  its rule. Each option's value is the head, which a pick opens as the statement of the step that ensures it. */
+export const waypointOptions = (predicates: readonly TPredicate[]): TComboboxOption[] =>
+	predicates.flatMap(({ name, waypoint }) => (waypoint === undefined ? [] : [{ value: name, label: prettifyGwta(name), secondary: waypointMark(waypoint) }]));
+
 /** What the steps read from the bar: its test-id prefix, the selected type, and the history in which callers open. */
 type TActionsBarStepsDeps = { testIdPrefix: () => string; selectedLabel: () => string; history: ShuActivityHistory };
 
@@ -72,6 +80,8 @@ export class ActionsBarSteps implements ReactiveController {
 	readonly #host: TControllerHost;
 	readonly #deps: TActionsBarStepsDeps;
 	#steps: TStepDefinition[] = [];
+	/** The heads of the waypoints actuality holds, offered beside the steps. */
+	#heads: TComboboxOption[] = [];
 	/** Whether the steps read last declare a step that sends a turn. A mode chosen before the steps are read waits for them. */
 	#asks = false;
 	/** The step the selector shows as chosen. */
@@ -102,6 +112,7 @@ export class ActionsBarSteps implements ReactiveController {
 	/** Read the steps actuality offers, and render with them. */
 	async load(): Promise<void> {
 		this.#steps = await getAvailableSteps();
+		this.#heads = waypointOptions(await getAvailablePredicates());
 		this.#asks = conversationSteps() !== undefined;
 		this.#host.requestUpdate();
 	}
@@ -158,7 +169,7 @@ export class ActionsBarSteps implements ReactiveController {
 				? html`<shu-combobox class="step-combo"
 					testid=${`${this.#deps.testIdPrefix()}step-select`}
 					placeholder="type a step or a statement"
-					.options=${stepOptions(this.#steps, label ? stepsForContext(label) : [])}
+					.options=${[...stepOptions(this.#steps, label ? stepsForContext(label) : []), ...this.#heads]}
 					.value=${this.#chosen}
 					.accepts=${true}
 					@combo-change=${this.#onComboChange}></shu-combobox>`
@@ -177,10 +188,12 @@ export class ActionsBarSteps implements ReactiveController {
 		selector.enter(text);
 	}
 
-	/** A pick of a step opens its caller; text that doesn't name a step is a statement, resolved to the step it states. */
+	/** A pick of a step opens its caller, and a pick of a waypoint's head the caller of the step that ensures it; text that doesn't
+	 *  name either is a statement, resolved to the step it states. */
 	#onComboChange = (e: CustomEvent): void => {
 		const method = e.detail?.value;
 		if (!method) return;
+		if (this.#heads.some((head) => head.value === method)) return this.open(requireStep(ENSURE), { args: { outcome: method } });
 		if (!this.#steps.some((step) => step.method === method)) return void this.#openStatement(method);
 		this.#chosen = method;
 		this.open(method, {});

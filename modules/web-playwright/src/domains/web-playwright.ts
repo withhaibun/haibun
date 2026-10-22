@@ -112,11 +112,6 @@ export const DOMAIN_FIND_WAY = "page-find-way";
 /** The fate of the requests a page makes to a URL: refused, held without a response, or allowed. */
 export const REQUEST_STATE = { blocked: "blocked", unanswered: "unanswered", allowed: "allowed" } as const;
 export const DOMAIN_REQUEST_STATE = "request-state";
-/** What a dialog a page opened holds, as the step that accepts it keeps it. */
-export const DialogSaysSchema = z.object({ defaultValue: z.string(), message: z.string(), type: z.string() });
-const DIALOG_FIELDS = DialogSaysSchema.keyof().options;
-export type TDialogField = (typeof DIALOG_FIELDS)[number];
-export const DOMAIN_DIALOG_FIELD = "dialog-field";
 /** The browsers actuality drives. */
 export const BROWSER_TYPES = ["firefox", "chromium", "webkit"] as const;
 export type TBrowserTypes = (typeof BROWSER_TYPES)[number];
@@ -159,11 +154,6 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 		name: DOMAIN_REQUEST_STATE,
 		values: Object.values(REQUEST_STATE),
 		description: "Whether the requests a page makes are refused, held without a response, or allowed",
-	}),
-	createEnumDomainDefinition({
-		name: DOMAIN_DIALOG_FIELD,
-		values: [...DIALOG_FIELDS],
-		description: "What a dialog a page opened holds: its default value, its message or its type",
 	}),
 	createEnumDomainDefinition({ name: DOMAIN_BROWSER_TYPE, values: [...BROWSER_TYPES], description: "A browser actuality drives" }),
 	createEnumDomainDefinition({

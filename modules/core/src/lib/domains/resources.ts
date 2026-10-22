@@ -1231,17 +1231,6 @@ export const sceneDomainDefinition: TDomainDefinition = {
 	},
 };
 
-/** The side of an annotated quote that holds its context. "preceded by" makes the context the TextQuoteSelector prefix
- *  and "followed by" makes it the suffix, so a short or repeated quote resolves to the intended occurrence. */
-export const ANNOTATION_PLACEMENT_DOMAIN = "annotation-placement";
-const AnnotationPlacementSchema = z.enum(["preceded by", "followed by"]);
-export type TAnnotationPlacement = z.infer<typeof AnnotationPlacementSchema>;
-export const annotationPlacementDomainDefinition: TDomainDefinition = {
-	selectors: [ANNOTATION_PLACEMENT_DOMAIN],
-	schema: AnnotationPlacementSchema,
-	description: "The side of an annotated quote that holds its context: preceded by (the prefix) or followed by (the suffix).",
-};
-
 export const ANNOTATION_NOTE_DOMAIN = "annotation-note";
 
 const AnnotationNoteSchema = z

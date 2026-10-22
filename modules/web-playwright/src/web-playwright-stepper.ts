@@ -41,6 +41,7 @@ import {
 	errorDetail,
 	findStepperFromOptionOrKind,
 	getStepperOption,
+	getStepperOptionName,
 	intOrError,
 	stringOrError,
 } from "@haibun/core/lib/domains/util.js";
@@ -57,7 +58,6 @@ import {
 	DOMAIN_BROWSER_EXTENSION,
 	DOMAIN_BROWSER_TYPE,
 	DOMAIN_COOKIE_NAME,
-	DOMAIN_DIALOG_FIELD,
 	DOMAIN_FIND_WAY,
 	DOMAIN_HTTP_METHOD,
 	DOMAIN_HTTP_METHOD_WITH_BODY,
@@ -76,11 +76,9 @@ import {
 	DOMAIN_RESPONSE_LIST,
 	DOMAIN_RUNNING_BROWSER_EXTENSION,
 	DOMAIN_URL_GLOB,
-	DialogSaysSchema,
 	REQUEST_STATE,
 	WebPlaywrightDomains,
 	type TBrowserTypes,
-	type TDialogField,
 	type TFindWay,
 	type TResponseList,
 } from "./domains/web-playwright.js";
@@ -100,7 +98,6 @@ import {
 	enterInto,
 	hoverOver,
 	press,
-	resizeToScreen,
 	resizeWindow,
 	routeRequests,
 	scrollUpAScreen,
@@ -113,12 +110,11 @@ import {
 import {
 	canvasIsEmpty,
 	cookieIs,
-	hasTestId,
-	isOnPage,
 	pageAddress,
 	pageContents,
 	queryParameter,
 	readThePage,
+	hasTestId,
 	screenshotOf,
 	sees,
 	textOf,
@@ -159,8 +155,8 @@ const ARGS_SEPARATOR = ";";
 /** A click that ignores whether its target is visible and takes the click. */
 const FORCED_CLICK = /^click invisible| with force$/;
 
-/** What a dialog kept in a variable holds in `field`. A variable that doesn't keep a record doesn't keep a dialog. */
-const dialogSays = (kept: unknown, field: TDialogField) => (typeof kept === "object" && kept !== null ? DialogSaysSchema.parse(kept)[field] : undefined);
+/** The option that serves the relay through which a person's browser attaches. */
+const BROWSER_RELAY = "BROWSER_RELAY";
 
 export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 	static PERSISTENT_DIRECTORY = "PERSISTENT_DIRECTORY";
@@ -179,8 +175,14 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		CAPTURE_VIDEO: { desc: "capture video for every agent", parse: (input: string) => boolOrError(input), dependsOn: [StepperKinds.STORAGE] },
 		TIMEOUT: { desc: "browser timeout for each step, in milliseconds (unset, Playwright's)", parse: (input: string) => intOrError(input) },
 		[StepperKinds.STORAGE]: { desc: "Storage for output", parse: (input: string) => stringOrError(input) },
+		[BROWSER_RELAY]: {
+			desc: "serve the relay a person's extension attaches their browser through on each feature's web server, over `/rpc` as `relay.attach` and `relay.send`, which require `WebPlaywright:attach`, and drive that browser from the feature's first page (true, false). Actuality never closes the attached browser's pages or context, and a step that needs the browser is refused while one isn't attached",
+			parse: (input: string) => boolOrError(input),
+		},
 	};
 	captureVideo = false;
+	/** Whether each feature serves the relay through which a person's browser attaches. */
+	servesRelay = false;
 	twin = false;
 	headless = true;
 	#storage: AStorage | undefined;
@@ -216,6 +218,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		this.headless = option("HEADLESS") !== "false";
 		this.twin = option("TWIN") === "true";
 		this.captureVideo = option("CAPTURE_VIDEO") === "true";
+		this.servesRelay = option(BROWSER_RELAY) === "true";
 		const devtools = option("DEVTOOLS") === "true";
 		const given = option("ARGS");
 		const args = [...(given === undefined ? [] : given.split(ARGS_SEPARATOR).filter((arg) => arg !== "")), ...(devtools ? DEVTOOLS_ARGS : [])];
@@ -281,6 +284,7 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		},
 		startFeature: async ({ resolvedFeature, index }) => {
 			this.session.startFeature();
+			if (this.servesRelay) this.#serveRelay();
 			await writeFeatureArtifact(this.storage, index, resolvedFeature);
 		},
 		endFeature: async ({ shouldClose }) => {
@@ -301,9 +305,22 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		return OK;
 	}
 
+	/** Serves the relay on the feature's web server, which its start cycle made, and drives the attached browser from the
+	 *  feature's first page. Throws where actuality doesn't hold a web server, since the relay is reached over its `/rpc`. */
+	#serveRelay(): void {
+		const world = this.getWorld();
+		const webserver = world.runtime[WEBSERVER] as IWebServer | undefined;
+		if (webserver === undefined)
+			throw new Error(`${BROWSER_RELAY} serves the browser relay on each feature's web server, and actuality doesn't hold one: load @haibun/web-server-hono/web-server-stepper`);
+		const relay = serveRelay(webserver, WEB_PLAYWRIGHT_ACTIONS.attach, (error) => world.eventLogger.error(`browser relay: ${errorDetail(error)}`));
+		this.#relay = relay;
+		const connected = this.#connectTo(() => relay.transport());
+		if (!connected.ok) throw new Error(connected.errorMessage);
+	}
+
 	/** Runs `use` with the relay a person's browser attaches through, or refuses where actuality doesn't serve one. */
 	#withRelay(use: (relay: TBrowserRelay) => Promise<TActionResult>): Promise<TActionResult> {
-		return this.#relay === undefined ? Promise.resolve(actionNotOK("the browser relay is not served: `serve the browser relay` serves it")) : use(this.#relay);
+		return this.#relay === undefined ? Promise.resolve(actionNotOK(`the browser relay is not served: set ${getStepperOptionName(this, BROWSER_RELAY)} to true`)) : use(this.#relay);
 	}
 
 	readonly typedSteps = {
@@ -346,22 +363,6 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			...ANSWERED_BY_THE_PAGE,
 			action: ({ option, field }: { option: string; field: TStepValue }) => selectOption(this.session, option, field),
 		},
-		dialogIs: {
-			...PAGE_READ,
-			gwta: `dialog {what: ${DOMAIN_VARIABLE_NAME}} {type: ${DOMAIN_DIALOG_FIELD}} says {value: ${DOMAIN_TEXT}}`,
-			action: async ({ what, type, value }: { what: string; type: TDialogField; value: string }) => {
-				const said = dialogSays(await this.getWorld().shared.get(what, true), type);
-				return said === value ? OK : actionNotOK(`${what} is ${said}`);
-			},
-		},
-		dialogIsUnset: {
-			...PAGE_READ,
-			gwta: `dialog {what: ${DOMAIN_VARIABLE_NAME}} {type: ${DOMAIN_DIALOG_FIELD}} not set`,
-			action: async ({ what, type }: { what: string; type: TDialogField }) => {
-				const said = dialogSays(await this.getWorld().shared.get(what, true), type);
-				return said ? actionNotOK(`${what} is ${said}`) : OK;
-			},
-		},
 		shouldSeeTestId: { ...PAGE_READ, gwta: `has test id {testId: ${DOMAIN_PAGE_TEST_ID}}`, action: ({ testId }: { testId: string }) => hasTestId(this.session, testId) },
 		seeText: { ...PAGE_READ, gwta: `see {text: ${DOMAIN_TEXT}}`, action: ({ text }: { text: string }) => sees(this.session, text, "body") },
 		waitFor: { gwta: `wait for {target: ${DOMAIN_PAGE_TARGET}}`, action: ({ target }: { target: TStepValue }) => waitForTarget(this.session, target) },
@@ -391,7 +392,6 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 		},
 
 		// ADDRESS AND COOKIES
-		beOnPage: { ...PAGE_READ, gwta: `be on the {name: ${DOMAIN_LINK}} ${WEB_PAGE}`, action: ({ name }: { name: string }) => isOnPage(this.session, name) },
 		cookieIs: {
 			...PAGE_READ,
 			gwta: `cookie {name: ${DOMAIN_COOKIE_NAME}} is {value: ${DOMAIN_TEXT}}`,
@@ -540,19 +540,6 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			description: "Closes a tab of the browser a person attached through the relay. Closing the last tab the relay may act in ends the attachment.",
 			action: ({ tabId }: { tabId: number }) => this.#withRelay((relay) => relay.closeTab(tabId).then(() => OK)),
 		},
-		serveBrowserRelay: {
-			gwta: "serve the browser relay",
-			description:
-				"Serves the relay a person's extension attaches their browser through, over `/rpc` as `relay.attach` and `relay.send`, which require `WebPlaywright:attach`, and drives that browser from the next page actuality opens. Actuality never closes the attached browser's pages or context. A step that needs the browser is refused while a browser isn't attached, and the refusal states so.",
-			action: () => {
-				const world = this.getWorld();
-				const webserver = world.runtime[WEBSERVER] as IWebServer | undefined;
-				if (webserver === undefined) return actionNotOK("the browser relay is served by the web server, and a web server isn't running: start one before serving the relay");
-				const relay = serveRelay(webserver, WEB_PLAYWRIGHT_ACTIONS.attach, (error) => world.eventLogger.error(`browser relay: ${errorDetail(error)}`));
-				this.#relay = relay;
-				return this.#connectTo(() => relay.transport());
-			},
-		},
 
 		// FILES
 		uploadFile: {
@@ -628,14 +615,6 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			gwta: `resize window to {width: ${DOMAIN_NUMBER}}x{height: ${DOMAIN_NUMBER}}`,
 			action: async ({ width, height }: { width: number; height: number }) => {
 				await resizeWindow(this.session, width, height);
-				return OK;
-			},
-		},
-		resizeAvailable: {
-			capability: WEB_PLAYWRIGHT_ACTIONS.act,
-			gwta: "resize window to largest dimensions",
-			action: async () => {
-				await resizeToScreen(this.session);
 				return OK;
 			},
 		},

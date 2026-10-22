@@ -17,10 +17,9 @@ import {
 	RPC_PROTOCOL,
 	protocolRefusal,
 	HandshakeSchema,
-	RpcRequestSchema,
 	RpcRefusalSchema,
-	RpcResponseSchema,
-	RpcStreamSchema,
+	rpcRequestSchema,
+	ActualityIdSchema,
 	callFailed,
 	refusalSaid,
 } from "./rpc-wire.js";
@@ -130,6 +129,10 @@ describe("a call a host parses", () => {
 	});
 });
 
+/** The JSON-RPC 2.0 response and stream chunk a host sends, which the wire's shape holds beside the call it parses. */
+const RpcResponseSchema = z.object({ jsonrpc: z.literal("2.0"), id: z.string(), result: z.unknown().optional(), error: z.string().optional() });
+const RpcStreamSchema = z.object({ jsonrpc: z.literal("2.0"), id: z.string(), stream: z.literal(true), data: z.unknown() });
+
 /** The wire's shape at each protocol version. A change to the fields of a call, a response, a stream chunk, a refusal or
  *  the handshake response requires a higher RPC_PROTOCOL. Record the new shape here under the new version. */
 const WIRE_AT: Record<number, string> = { 1: "8779e89c5a24b9f7", 2: "f60f4cdcf2dc2f1f", 3: "b95945aa161ad49b", 4: "8f3f6bf3f612ea57" };
@@ -137,7 +140,9 @@ const wireShape = (): string =>
 	createHash("sha256")
 		.update(
 			JSON.stringify(
-				[RpcRequestSchema, HandshakeSchema, RpcRefusalSchema, RpcResponseSchema, RpcStreamSchema].map((schema) => z.toJSONSchema(schema, { io: "input", unrepresentable: "any" })),
+				[rpcRequestSchema(ActualityIdSchema), HandshakeSchema, RpcRefusalSchema, RpcResponseSchema, RpcStreamSchema].map((schema) =>
+					z.toJSONSchema(schema, { io: "input", unrepresentable: "any" }),
+				),
 			),
 		)
 		.digest("hex")

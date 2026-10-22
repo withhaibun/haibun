@@ -7,7 +7,7 @@ import type { TFeatureStep } from "../../steps/domains/stepper.js";
 import { LinkRelations, type AccessLevel } from "../../domains/resources.js";
 import { itemAt } from "../../domains/item-at.js";
 import type { TWorld } from "../domains/world.js";
-import { SEQ_PATH_EDGE, SEQ_PATH_FIELD, STEP_LEVEL, calledOf, actualityFeatureOf, formatRecordName, type TRecordName } from "../domains/seq-path.js";
+import { SEQ_PATH_EDGE, SEQ_PATH_FIELD, STEP_LEVEL, calledOf, actualityFeatureOf, formatRecordName, levelPath, type TRecordName } from "../domains/seq-path.js";
 import type { TActuality, TActualityMove } from "../machines/actuality.js";
 import type { TStepFailure } from "../domains/step-failure.js";
 
@@ -102,12 +102,11 @@ export type TLevelNaming = { key: string; hostId: number };
 export const failureText = (failure: TStepFailure): string =>
 	[`${failure.id}:`, failure.step, failure.message === undefined ? undefined : `(${failure.message})`].filter((part) => part !== undefined).join(" ");
 
-/** The name of a level's record: the actuality's, the `featureNum`th feature's, or a scenario of it by its ordinal. A
- *  feature's record is at the path its steps outside every scenario name, with scenario segment 0. */
+/** The name of a level's record: the actuality's, the `featureNum`th feature's, or a scenario of it by its ordinal. */
 const levelName = (naming: TLevelNaming, featureNum: number, scenario: number): TRecordName =>
 	featureNum === 0
 		? { actuality: actualityFeatureOf({ key: naming.key, featureNum }), path: [] }
-		: { actuality: actualityFeatureOf({ key: naming.key, featureNum }), path: [naming.hostId, featureNum, scenario] };
+		: { actuality: actualityFeatureOf({ key: naming.key, featureNum }), path: levelPath(naming.hostId, featureNum, scenario) };
 
 /** Where a level's record is: its name, its heading, the feature file it states, and the records it is part of and follows. */
 type TLevelAt = { name: TRecordName; heading: string; source?: string; partOf?: TRecordName; precededBy?: TRecordName };

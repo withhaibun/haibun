@@ -4,7 +4,7 @@
 // beside it, and the component bundles of the views that were open. It doesn't carry the responses a live page happened to
 // receive, since every read a view makes is served from what the page holds.
 import { describe, it, expect } from "vitest";
-import type { IStepperCycles } from "@haibun/core/lib/astepper.js";
+import type { IStepperCycles, TFeatureStep } from "@haibun/core/lib/astepper.js";
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
 import { tmpdir } from "node:os";
@@ -85,7 +85,8 @@ async function generateReport(finalView: string | undefined, writes = 1, queries
 	for (const q of queries) await monitor.cycles.onEvent?.(q as unknown as Parameters<NonNullable<typeof monitor.cycles.onEvent>>[0]);
 	const out = join(tmpdir(), `polymorphic-report-${process.pid}-${finalView ?? "none"}.html`);
 	// Actuality writes its report as itself, as its feature line and its end do.
-	for (let i = 0; i < writes; i++) await runAuthorizedWith(RUN_AUTHORITY, () => (monitor.steps.savesShuTo.action as (a: { where: string }) => Promise<unknown>)({ where: out }));
+	const line = { in: `saves shu to "${out}"` } as TFeatureStep;
+	for (let i = 0; i < writes; i++) await runAuthorizedWith(RUN_AUTHORITY, () => monitor.steps.savesShuTo.action({ where: out }, line));
 	return readFileSync(out, "utf-8");
 }
 
