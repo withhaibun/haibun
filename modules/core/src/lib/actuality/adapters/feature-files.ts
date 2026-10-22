@@ -1,6 +1,7 @@
 /**
  * The feature files of a set of bases: each base's `features` and `backgrounds` directories, read from a file system. A
- * kireji file is imported and converted, and each of its top-level keys is a feature of its own.
+ * kireji file is imported and converted, and each of its top-level keys is a feature of its own. A base that names a file
+ * is one feature, whatever its extension, so a document whose lowercase lines are steps runs as written.
  */
 import nodeFS from "fs";
 import path from "path";
@@ -65,6 +66,10 @@ async function getFeaturesAndBackgrounds(
 ): Promise<TFeaturesBackgrounds> {
 	const ret: TFeaturesBackgrounds = { features: [], backgrounds: [] };
 	for (const abase of bases) {
+		if (fs.existsSync(abase) && !fs.statSync(abase).isDirectory()) {
+			if (shouldProcess(abase, undefined, featureFilter)) ret.features.push(withName(path.dirname(abase), `/${path.basename(abase)}`, String(fs.readFileSync(abase, "utf-8"))));
+			continue;
+		}
 		// Only filter features, not backgrounds - backgrounds should always be loaded
 		const ff: Record<string, string[] | undefined> = { feature: featureFilter, background: [] };
 

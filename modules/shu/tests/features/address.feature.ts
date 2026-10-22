@@ -1,11 +1,11 @@
 import { withAction, type TKirejiExport } from "@haibun/core/kireji/derivations/withAction.js";
 import WebPlaywright from "@haibun/web-playwright";
-import ShuStepper from "../../build/shu-stepper.js";
+import ShuStepper from "@haibun/shu/shu-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
-import { SHU_TEST_IDS } from "../../build/domains/test-ids.js";
-import { typeNotHeld } from "../../build/page/controllers/view-query-controller.js";
+import { SHU_TEST_IDS } from "@haibun/shu/domains/test-ids.js";
+import { typeNotHeld } from "@haibun/shu/page/controllers/view-query-controller.js";
 import { flattenTestIds } from "@haibun/shu/test/step-ui.js";
 
 const wp = new WebPlaywright();

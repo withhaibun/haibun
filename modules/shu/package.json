@@ -12,6 +12,7 @@
 			"haibun-source": "./src/page/domains/current-subject.js",
 			"default": "./build/page/domains/current-subject.js"
 		},
+		"./waypoints": "./waypoints",
 		"./waypoints/*": "./waypoints/*",
 		"./*": {
 			"haibun-source": "./src/*",

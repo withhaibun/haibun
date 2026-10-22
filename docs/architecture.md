@@ -320,8 +320,10 @@ ensure Navigate to mainUrl
 ensure Navigate to haibunUrl
 ```
 
-A module holds waypoints that every group uses in a base of its own, a directory of backgrounds that a group names beside its
-own base, such as `haibun-cli -c tests/config.json tests,../shu/waypoints`. shu's `waypoints` base holds the waypoints of its
+A module holds waypoints that every group uses in a base of its own, a directory of backgrounds that a group names by its
+package beside its own base, such as `haibun-cli -c tests/config.json tests,@haibun/shu/waypoints`. A group's config names a
+stepper, the config it extends and a `dependsOn` path by its package in the same way, such as `@haibun/cli/config.base.json`, and
+the cli finds the package from the group's directory as Node does, so a group doesn't name a parent path. shu's `waypoints` base holds the waypoints of its
 views. Each head names the view whose page it reads by its tag, and each activity calls only web-playwright's steps within
 that view, reading the view's accessible document and the test ids every view shares:
 

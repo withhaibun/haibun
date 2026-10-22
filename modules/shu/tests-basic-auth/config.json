@@ -1,6 +1,5 @@
 {
-	"$schema": "../node_modules/@haibun/core/haibun-core-specl.schema.json",
-	"extends": "../../../config.base.json",
+	"extends": "@haibun/cli/config.base.json",
 	"steppers": [
 		"@haibun/web-server-hono/web-server-stepper",
 		"@haibun/web-playwright/web-playwright",

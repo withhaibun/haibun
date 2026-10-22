@@ -12,7 +12,7 @@
 		"build:watch": "tsc --watch",
 		"build": "tsc",
 		"record": "haibun-cli record",
-		"test:tests": "HAIBUN_ENV=fromenv=envvalue HAIBUN_KEY=test haibun-cli tests",
+		"test:tests": "HAIBUN_KEY=test haibun-cli tests",
 		"test:shu-self-test": "HAIBUN_ENV=shu_test_password=ISECRET_shu_test haibun-cli shu-self-test",
 		"test": "npm run test:tests && npm run test:run-policy && npm run test:shu-self-test",
 		"test:requirements": "HAIBUN_CONTINUE_AFTER_ERROR=true haibun-cli requirements",

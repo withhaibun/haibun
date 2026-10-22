@@ -1,6 +1,6 @@
 # Haibun agents guide
 
-This document is designed for human and AI developers. It can be verified from [e2e-tests](e2e-tests/tests/features/agents-examples.feature).
+This document is designed for human and AI developers. It runs as a feature, with the steppers [e2e-tests/agents/config.json](e2e-tests/agents/config.json) names.
 
 ## What is Haibun?
 
@@ -8,7 +8,7 @@ Haibun is an orchestrator that extends behaviour-driven developmen with literary
 
 The same file serves three purposes: defining expected behavior, verifying systems to that specification, and explaining the system to readers with up to date proof and artifacts such as screenshots and videos. All statements are reusable, built on a tested core and array of specialized steppers. Provided steppers usually wrap a widely used testing tool, such as Playwright.
 
-> 👉 This document can be verified; lines starting with lowercase letters are steps. Run `npm test -- agents` in the e2e-tests directory to execute all examples.
+> 👉 This document can be verified; lines starting with lowercase letters are steps. Run `npm run test:agents` in the repository's root to execute all examples.
 
 ## What can be tested?
 

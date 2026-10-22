@@ -3,7 +3,8 @@
  * system it is given.
  */
 import path from "node:path";
-import { SpeclSchema, type TSpecl, type TStepperEntry } from "@haibun/core/lib/actuality.js";
+import { namesPackage, SpeclSchema, type TSpecl, type TStepperEntry } from "@haibun/core/lib/actuality.js";
+import type { TConfigFiles } from "../ports.js";
 import type { TBase } from "@haibun/core/lib/world.js";
 import { DEFAULT_DEST } from "@haibun/core/lib/domains/protocol.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
@@ -30,12 +31,13 @@ const withoutExtends = (specl: TSpecl): TSpecl => Object.fromEntries(Object.entr
 /** Returns the configuration `own` states with the configuration `base` that it extends. The base's steppers come first, then the
  *  config's own. The other keys the config states replace the base's, apart from the options, module options and parameters, which
  *  add to the base's, and the `dependsOn` paths and environments, which join the base's. A base's `dependsOn` path is read from the
- *  config that extends it. Throws where the config lists a stepper that its base lists. */
+ *  config that extends it, and a dependency named by its package stays as it is named. Throws where the config lists a stepper that
+ *  its base lists. */
 function extendedSpecl(base: TSpecl, own: TSpecl, ownFile: string, baseFile: string): TSpecl {
 	const repeated = own.steppers.filter((added) => base.steppers.some((held) => sameEntry(held, added)));
 	if (repeated.length > 0)
 		throw new Error(`the configuration ${ownFile} lists ${repeated.map((s) => JSON.stringify(s)).join(", ")}, which its base ${baseFile} lists. Remove them from ${ownFile}.`);
-	const fromHere = (dep: string): string => path.relative(path.dirname(ownFile), path.resolve(path.dirname(baseFile), dep));
+	const fromHere = (dep: string): string => (namesPackage(dep) ? dep : path.relative(path.dirname(ownFile), path.resolve(path.dirname(baseFile), dep)));
 	const joined = <T>(held: T[] | undefined, added: T[] | undefined): T[] | undefined =>
 		held === undefined ? added : added === undefined ? held : [...new Set([...held, ...added])];
 	const merged = {
@@ -50,9 +52,10 @@ function extendedSpecl(base: TSpecl, own: TSpecl, ownFile: string, baseFile: str
 	return merged;
 }
 
-/** Returns the configuration a file states, with the configuration it extends. Throws where a configuration doesn't read or parse,
- *  or where the extends chain returns to a file already in the chain. */
-function readSpecl(file: string, fs: TFileSystem, passed: readonly string[]): TSpecl {
+/** Returns the configuration a file states, with the configuration it extends: a config named by its path from the file, or by a
+ *  package's export, such as `@haibun/cli/config.base.json`, which is found from the file's directory as Node finds a package. Throws
+ *  where a configuration doesn't read or parse, or where the extends chain returns to a file already in the chain. */
+function readSpecl(file: string, fs: TConfigFiles, passed: readonly string[]): TSpecl {
 	const at = path.resolve(file);
 	if (passed.includes(at)) throw new Error(`the configuration ${file} extends itself through ${[...passed, at].join(" -> ")}. Remove one extends from the chain.`);
 	let own: TSpecl;
@@ -62,13 +65,13 @@ function readSpecl(file: string, fs: TFileSystem, passed: readonly string[]): TS
 		throw new Error(`the configuration ${file} doesn't read or parse: ${errorDetail(e)}`);
 	}
 	if (own.extends === undefined) return own;
-	const baseFile = path.resolve(path.dirname(file), own.extends);
+	const baseFile = namesPackage(own.extends) ? fs.packageLocation(own.extends, path.dirname(file)) : path.resolve(path.dirname(file), own.extends);
 	return extendedSpecl(readSpecl(baseFile, fs, [...passed, at]), own, file, baseFile);
 }
 
 /** Returns the configuration the bases name: a JSON config file, or the config.json of a directory. Throws where the bases
  *  name more than one configuration, or where the configuration doesn't read or parse. */
-export function getConfigFromBase(bases: TBase, fs: TFileSystem): TSpecl {
+export function getConfigFromBase(bases: TBase, fs: TConfigFiles): TSpecl {
 	const found = bases?.filter((b) => (b.endsWith("json") && fs.existsSync(b)) || fs.existsSync(`${b}/config.json`));
 	if (found?.length > 1) throw new Error(`the bases name several configurations: ${found.join(", ")}. Name one of them with --config.`);
 	const f = configFileFrom(bases, fs);

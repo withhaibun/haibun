@@ -87,6 +87,17 @@ describe("the state of a group's dependencies", () => {
 		expect(dependencyState([repo]), "a link with another target changes the state").not.toEqual(before);
 	});
 
+	it("reads a root that is a file alone, so a change beside it doesn't change its state", () => {
+		const repo = aRepository({ "GUIDE.md": "# A guide\n", "other.md": "# Another\n" });
+		const guide = path.join(repo, "GUIDE.md");
+		const before = dependencyState([guide]);
+		expect(Object.keys({ ...before })).toEqual(["GUIDE.md"]);
+		nodeFS.writeFileSync(path.join(repo, "other.md"), "changed");
+		expect(dependencyState([guide])).toEqual(before);
+		nodeFS.writeFileSync(guide, "changed");
+		expect(dependencyState([guide])).not.toEqual(before);
+	});
+
 	it("throws when git can't run in a directory, rather than treating the failure as a missing repository", () => {
 		const repo = aRepository({ "a.feature": "Feature: a\n" });
 		const gone = path.join(repo, "gone");
@@ -154,6 +165,12 @@ describe("the dependency roots of a group", () => {
 		const repo = aRepository({ "package.json": "{}", "tsconfig.json": "{ not json", "build/x-stepper.js": "", "tests/config.json": "{}" });
 		const configDir = path.join(repo, "tests");
 		expect(() => dependencyRoots({ steppers: ["../build/x-stepper"] }, [configDir], configDir, configDir)).toThrow(/tsconfig\.json could not be read/);
+	});
+
+	it("finds a dependsOn named by its package from the config's directory", () => {
+		const repo = aRepository({ "package.json": JSON.stringify({ name: "@scope/app" }), "tests/config.json": "{}", "fixtures/x.json": "{}" });
+		const configDir = path.join(repo, "tests");
+		expect(dependencyRoots({ steppers: [], dependsOn: ["@scope/app/fixtures"] }, [configDir], configDir, configDir)).toContain(path.join(repo, "fixtures"));
 	});
 
 	it("throws for a dependsOn path that doesn't exist, rather than verifying without it", () => {

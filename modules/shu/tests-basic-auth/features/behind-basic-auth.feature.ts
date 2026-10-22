@@ -4,8 +4,8 @@ import WebServerStepper from "@haibun/web-server-hono/web-server-stepper.js";
 import VariablesStepper from "@haibun/core/steps/variables-stepper.js";
 import Haibun from "@haibun/core/steps/haibun-stepper.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
-import ShuStepper from "../../build/shu-stepper.js";
-import { SHU_TEST_IDS } from "../../build/domains/test-ids.js";
+import ShuStepper from "@haibun/shu/shu-stepper.js";
+import { SHU_TEST_IDS } from "@haibun/shu/domains/test-ids.js";
 import { configuredServiceHost, createStepUI, flattenTestIds, signedInAddress } from "@haibun/shu/test/step-ui.js";
 
 const webPlaywright = new WebPlaywright();

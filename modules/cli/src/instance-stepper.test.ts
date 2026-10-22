@@ -23,6 +23,7 @@ import path from "node:path";
 import { getConfigFromBase } from "./pipelines/specl.js";
 import { processBaseEnvToOptionsAndErrors } from "./domains/base-options.js";
 import { recordActuality, verificationOf } from "./adapters/actualities.js";
+import { fileSystem } from "./adapters/processes.js";
 import { emptyOutcome } from "./pipelines/run-outcome.js";
 import { getDefaultWorld } from "@haibun/core/lib/test/lib.js";
 import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
@@ -240,8 +241,8 @@ describe("whether a run would repeat the outcome of an earlier run", () => {
 		const env = runEnvironment({}, 0, false);
 		expect(verifiedRun(supervisorPorts, config, dir, "", dir, env)).toBeUndefined();
 		// v() computes the verification that the child would record from the same environment.
-		const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env, getConfigFromBase([dir], nodeFS));
-		const v = () => verificationOf({ configPath: config, specl: getConfigFromBase([dir], nodeFS), bases: [dir], cwd: dir, filter: [], options, moduleOptions }) as never;
+		const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env, getConfigFromBase([dir], fileSystem));
+		const v = () => verificationOf({ configPath: config, specl: getConfigFromBase([dir], fileSystem), bases: [dir], cwd: dir, filter: [], options, moduleOptions }) as never;
 		recordOutcome(v(), "failed");
 		expect(verifiedRun(supervisorPorts, config, dir, "", dir, env), "a run that failed against this state would fail the same way").toBe("failed");
 		recordOutcome(v(), "passed");
@@ -255,8 +256,11 @@ describe("whether a run would repeat the outcome of an earlier run", () => {
 		const { dir, config } = aGroup();
 		const env = runEnvironment({}, 0, false);
 		const passed = () => {
-			const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env, getConfigFromBase([dir], nodeFS));
-			recordOutcome(verificationOf({ configPath: config, specl: getConfigFromBase([dir], nodeFS), bases: [dir], cwd: dir, filter: [], options, moduleOptions }) as never, "passed");
+			const { options, moduleOptions } = processBaseEnvToOptionsAndErrors(env, getConfigFromBase([dir], fileSystem));
+			recordOutcome(
+				verificationOf({ configPath: config, specl: getConfigFromBase([dir], fileSystem), bases: [dir], cwd: dir, filter: [], options, moduleOptions }) as never,
+				"passed",
+			);
 		};
 		const dotenv = path.join(dir, ".env");
 		passed();

@@ -6,7 +6,7 @@ import ShuStepper from "@haibun/shu/shu-stepper.js";
 import { SHU_TEST_IDS } from "@haibun/shu/domains/test-ids.js";
 import { flattenTestIds } from "@haibun/shu/test/step-ui.js";
 import { SHU_TAG } from "@haibun/shu/domains/elements.js";
-import { views } from "../../waypoints/backgrounds/views.feature.ts";
+import { views } from "@haibun/shu/waypoints/backgrounds/views.feature.ts";
 
 const wp = new WebPlaywright();
 const { waitFor, gotoPage } = withAction(wp);

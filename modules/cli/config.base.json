@@ -1,0 +1,4 @@
+{
+	"description": "The steppers every group of features loads, which a group's config names as @haibun/cli/config.base.json in extends.",
+	"steppers": ["variables-stepper", "resources-stepper", "@haibun/logic/logic-stepper", "haibun-stepper"]
+}

@@ -16,8 +16,8 @@
 import { execFileSync } from "node:child_process";
 import nodeFS from "node:fs";
 import path from "node:path";
-import type { TSpecl } from "../actuality/domains/actuality.js";
-import { getModuleLocation } from "./workspace-lib.js";
+import { namesPackage, type TSpecl } from "../actuality/domains/actuality.js";
+import { getModuleLocation, packageLocation } from "./workspace-lib.js";
 import { itemAt } from "../domains/item-at.js";
 import { sha256, type TDigest } from "../domains/digest.js";
 
@@ -96,13 +96,14 @@ function sourcesOf(moduleDir: string): string {
 }
 
 /**
- * Returns the directories that contain a group's dependencies. They are the feature bases, the source directory of each
+ * Returns the paths that contain a group's dependencies. They are the feature bases, the source directory of each
  * listed stepper's module, the source directory of each `@haibun/` module in those modules' `dependencies` transitively,
- * and each `dependsOn` path. Each directory appears once as an absolute real path, in sorted order. A relative base and a
+ * and each `dependsOn` path. Each path appears once as an absolute real path, in sorted order. A relative base and a
  * stepper named by a relative path resolve against `cwd`. A run started in `cwd` resolves a relative stepper path the
- * same way. A `dependsOn` path resolves against `configDir`. A caller that computes the roots for a run started in
- * another directory passes that directory as `cwd`. Throws where a `dependsOn` path doesn't exist, where a module's
- * tsconfig.json isn't valid JSON, or where a declared rootDir doesn't exist.
+ * same way. A `dependsOn` path resolves against `configDir`, and a `dependsOn` export named by its package is found from
+ * `configDir`. A caller that computes the roots for a run started in another directory passes that directory as `cwd`.
+ * Throws where a `dependsOn` path doesn't exist, where a module's tsconfig.json isn't valid JSON, or where a declared
+ * rootDir doesn't exist.
  */
 export function dependencyRoots(specl: TSpecl, bases: readonly string[], configDir: string, cwd: string): string[] {
 	const roots = new Set<string>();
@@ -120,7 +121,7 @@ export function dependencyRoots(specl: TSpecl, bases: readonly string[], configD
 		if (root !== undefined) follow(root);
 	}
 	for (const dep of specl.dependsOn ?? []) {
-		const at = path.resolve(configDir, dep);
+		const at = namesPackage(dep) ? packageLocation(dep, configDir, nodeFS) : path.resolve(configDir, dep);
 		if (!nodeFS.existsSync(at)) throw new Error(`dependsOn names ${dep}, and ${at} doesn't exist. Create the path or remove the entry from dependsOn.`);
 		roots.add(nodeFS.realpathSync(at));
 	}
@@ -153,19 +154,20 @@ type TRepositoryFile = { file: string; digest: string };
  *  line and unquotes a line that begins with a quotation mark. */
 const unnameable = (file: string): boolean => file.includes("\n") || file.startsWith('"');
 
-/** Returns the directory's path relative to its repository's top, and the path and the working-tree content digest of
- *  each file under the directory that its repository tracks or would track. A symbolic link's digest is its target path. A listed directory is a nested repository or a submodule.
+/** Returns the root's path relative to its repository's top, and the path and the working-tree content digest of each file
+ *  at or under the root, a file or a directory, that its repository tracks or would track. A symbolic link's digest is its target path. A listed directory is a nested repository or a submodule.
  *  The result skips it, because that directory's own repository holds its content. The result excludes the files an actuality
- *  writes about itself. Returns undefined where the directory isn't in a repository. */
-function repositoryFiles(dir: string): { rel: string; files: TRepositoryFile[] } | undefined {
+ *  writes about itself. Returns undefined where the root isn't in a repository. */
+function repositoryFiles(root: string): { rel: string; files: TRepositoryFile[] } | undefined {
+	const dir = nodeFS.existsSync(root) && !nodeFS.statSync(root).isDirectory() ? path.dirname(root) : root;
 	const top = repositoryTop(dir);
 	if (top === undefined) return undefined;
-	const rel = path.relative(top, dir);
+	const rel = path.relative(top, root);
 	const files: string[] = [];
 	const links: TRepositoryFile[] = [];
-	for (const listed of git(dir, ["ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", "."]).split("\0")) {
+	for (const listed of git(dir, ["ls-files", "-z", "--cached", "--others", "--exclude-standard", "--", dir === root ? "." : path.basename(root)]).split("\0")) {
 		if (listed.length === 0 || path.basename(listed) === ACTUALITIES_FILE) continue;
-		const file = path.join(rel, listed);
+		const file = path.join(path.relative(top, dir), listed);
 		let stat: nodeFS.Stats;
 		try {
 			stat = nodeFS.lstatSync(path.join(top, file));
@@ -188,7 +190,7 @@ function repositoryFiles(dir: string): { rel: string; files: TRepositoryFile[] }
 
 /**
  * Returns the digest of each root by its path relative to its repository's top: the SHA-256 of the path and the content
- * digest of each file under it. A checkout at another directory gives the same digests. Throws where git fails in a root
+ * digest of each file at or under it. A checkout at another directory gives the same digests. Throws where git fails in a root
  * for a reason other than a missing repository, and where two roots have one path in their repositories.
  *
  * Returns undefined where a root's state can't be read. Undefined is an unknown state and differs from an empty state.

@@ -13,9 +13,9 @@ export type TStepperEntry = z.infer<typeof StepperEntrySchema>;
 
 export const SpeclSchema = zr.looseObject({
 	$schema: zr.string().optional(),
-	/** The config, by its path from this config, which this config extends: it adds its steppers, options, module options,
-	 *  parameters, `dependsOn` paths and environments to the base's. A stepper the base lists isn't listed again here, and a
-	 *  key this config states replaces the base's. */
+	/** The config this config extends, by its path from this config or by a package's export, such as
+	 *  `@haibun/cli/config.base.json`: it adds its steppers, options, module options, parameters, `dependsOn` paths and
+	 *  environments to the base's. A stepper the base lists isn't listed again here, and a key this config states replaces the base's. */
 	extends: zr.string().optional(),
 	steppers: zr.array(StepperEntrySchema),
 	runPolicy: zr.string().optional(),
@@ -24,17 +24,21 @@ export const SpeclSchema = zr.looseObject({
 	/** The steppers' options a base states for every run of it, by the name the environment gives them. The environment
 	 *  states an option over what the config states, so a deployment's `.env` or a caller changes it without an edit. */
 	moduleOptions: zr.record(zr.string().startsWith(MODULE_OPTION_PREFIX, `a module option is named ${MODULE_OPTION_PREFIX}{STEPPER}_{OPTION}`), zr.string()).optional(),
-	/** Paths, relative to this config, whose content the features depend on beyond the modules their steppers name:
-	 *  an application's own sources, fixtures a feature reads. A pass is recorded against their content, so a change
-	 *  to any of them runs the features again and a change elsewhere does not. */
+	/** Paths, relative to this config or named by a package's export, whose content the features depend on beyond the modules
+	 *  their steppers name: an application's own sources, fixtures a feature reads. A pass is recorded against their content, so
+	 *  a change to any of them runs the features again and a change elsewhere does not. */
 	dependsOn: zr.array(zr.string()).optional(),
 	/** External environments the features use, by name: a mail server, a model, a network service. A pass is recorded
 	 *  against the declaration, so the features run again when what speaks to the environment changed or on request;
-	 *  the environment's own state is not read. */
+	 *  the environment's own state is not read. A run reads the .env file of its starting directory, which holds the
+	 *  environments' values, only where its configuration declares one. */
 	environments: zr.array(zr.string()).optional(),
 });
 
 export type TSpecl = z.infer<typeof SpeclSchema>;
+
+/** Whether a name in a config, a base or a dependency names a package's export, such as `@haibun/shu/waypoints`, rather than a path. */
+export const namesPackage = (name: string): boolean => name.startsWith("@");
 
 // ============================================================================
 // Feature content (the .feature file shape)

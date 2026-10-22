@@ -1,6 +1,5 @@
 {
-	"$schema": "../node_modules/@haibun/core/haibun-core-specl.schema.json",
-	"extends": "../../../config.base.json",
+	"extends": "@haibun/cli/config.base.json",
 	"steppers": [
 		"authority-stepper",
 		"@haibun/core/lib/test/fake-authority",

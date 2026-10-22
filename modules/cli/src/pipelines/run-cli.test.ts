@@ -1,4 +1,4 @@
-import nodeFS, { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
+import nodeFS, { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { vitest, describe, it, expect } from "vitest";
@@ -18,6 +18,7 @@ import * as lib from "./run-cli.js";
 import { getConfigFromBase, readsDotenv } from "./specl.js";
 import { processBaseEnvToOptionsAndErrors } from "../domains/base-options.js";
 import { cliPorts } from "../root.js";
+import { fileSystem } from "../adapters/processes.js";
 
 // Mocks loadAndValidateRunPolicy so a test does not read test-policy.json.
 vitest.mock("@haibun/core/run-policy/pipelines/policy-file.js", () => ({ loadAndValidateRunPolicy: vitest.fn() }));
@@ -229,6 +230,12 @@ describe("resolveRunPolicy", () => {
 	});
 });
 
+describe("runBases", () => {
+	it("names a base by its path, or by a package's export, which it finds from the working directory", () => {
+		expect(lib.runBases("tests,@haibun/shu/waypoints/", fileSystem)).toEqual(["tests", join(process.cwd(), "node_modules/@haibun/shu/waypoints")]);
+	});
+});
+
 describe("getConfigFromBase with extends", () => {
 	const BASE = {
 		steppers: ["variables-stepper", "haibun-stepper"],
@@ -250,7 +257,7 @@ describe("getConfigFromBase with extends", () => {
 	it("adds the config's steppers after the base's, and lets the config's keys replace the base's", () => {
 		const specl = getConfigFromBase(
 			[group({ extends: "../base.json", steppers: ["logic-stepper"], options: { DEST: "own" }, moduleOptions: { [`${OTHER_OPTION}2`]: "own" } })],
-			nodeFS,
+			fileSystem,
 		);
 		expect(specl.steppers).toEqual(["variables-stepper", "haibun-stepper", "logic-stepper"]);
 		expect(specl.options).toEqual({ DEST: "own" });
@@ -259,23 +266,36 @@ describe("getConfigFromBase with extends", () => {
 	});
 
 	it("reads a base's dependsOn path from the config that extends it, and joins the environments", () => {
-		const specl = getConfigFromBase([group({ extends: "../base.json", steppers: [], environments: ["mail"] })], nodeFS);
+		const specl = getConfigFromBase([group({ extends: "../base.json", steppers: [], environments: ["mail"] })], fileSystem);
 		expect(specl.dependsOn).toEqual(["../shared"]);
 		expect(specl.environments).toEqual(["model", "mail"]);
 	});
 
 	it("reads the .env file of a run's directory only where the config or its base declares an environment", () => {
-		expect(readsDotenv(getConfigFromBase([group({ extends: "../base.json", steppers: [] })], nodeFS))).toBe(true);
+		expect(readsDotenv(getConfigFromBase([group({ extends: "../base.json", steppers: [] })], fileSystem))).toBe(true);
 		expect(readsDotenv(NO_CONFIG)).toBe(false);
 	});
 
 	it("refuses a stepper the base lists", () => {
-		expect(() => getConfigFromBase([group({ extends: "../base.json", steppers: ["haibun-stepper"] })], nodeFS)).toThrow(
+		expect(() => getConfigFromBase([group({ extends: "../base.json", steppers: ["haibun-stepper"] })], fileSystem)).toThrow(
 			/lists "haibun-stepper", which its base .*base\.json lists\. Remove them from/,
 		);
 	});
 
+	it("extends a config named by its package's export, which it finds from its own directory", () => {
+		const dir = group({ extends: "@haibun/cli/config.base.json", steppers: ["activities-stepper"] });
+		mkdirSync(join(dir, "node_modules", "@haibun"), { recursive: true });
+		symlinkSync(join(import.meta.dirname, "..", ".."), join(dir, "node_modules", "@haibun", "cli"));
+		expect(getConfigFromBase([dir], fileSystem).steppers).toEqual([
+			"variables-stepper",
+			"resources-stepper",
+			"@haibun/logic/logic-stepper",
+			"haibun-stepper",
+			"activities-stepper",
+		]);
+	});
+
 	it("refuses a config that extends itself", () => {
-		expect(() => getConfigFromBase([group({ extends: "config.json", steppers: [] })], nodeFS)).toThrow(/extends itself through/);
+		expect(() => getConfigFromBase([group({ extends: "config.json", steppers: [] })], fileSystem)).toThrow(/extends itself through/);
 	});
 });

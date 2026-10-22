@@ -23,9 +23,13 @@ export type TProcesses = {
 	occupant(port: number): Promise<string | undefined>;
 };
 
+/** The file system a run reads its configurations, policies and environment files through, and where a package's export is, which
+ *  a config names as the config it extends and a command line names as a base. */
+export type TConfigFiles = TFileSystem & { packageLocation(name: string, from: string): string };
+
 /** The ports a run of the cli reads and writes. */
 export type TCliPorts = {
-	fs: TFileSystem;
+	fs: TConfigFiles;
 	features: TFeatureSource;
 	steppers: typeof getSteppers;
 	actualities: TActualities;

@@ -1,3 +1,6 @@
+import nodeFS, { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, it, expect } from "vitest";
 
 import { basesFrom } from "../../domains/util.js";
@@ -37,9 +40,9 @@ describe("the feature files of a file system", () => {
 
 	it.each([
 		["the directory does not exist", ["/"], { existsSync: () => false }],
-		["it doesn't hold features or backgrounds", ["/"], { existsSync: () => true, readdirSync: () => [] }],
+		["it doesn't hold features or backgrounds", ["/"], { existsSync: () => true, statSync: () => ({ isDirectory: () => true }), readdirSync: () => [] }],
 		["it holds backgrounds and doesn't hold features", ["/0"], nfs({ "/0/backgrounds": { "a.feature": "#" } })],
-		["the bases don't hold a file", ["/,x"], { existsSync: () => true, readdirSync: () => [] }],
+		["the bases don't hold a file", ["/,x"], { existsSync: () => true, statSync: () => ({ isDirectory: () => true }), readdirSync: () => [] }],
 		["the bases don't hold a feature", basesFrom("/0,/1"), nfs({ "/0/backgrounds": { "a.feature": "#" }, "/1/backgrounds": { "a.feature": "#" } })],
 		["the first base doesn't hold a file", basesFrom("/0,/1"), nfs({ "/1/backgrounds": { "a.feature": "#" } })],
 		["the second base doesn't hold a file", basesFrom("/0,/1"), nfs({ "/0/backgrounds": { "a.feature": "#" } })],
@@ -69,6 +72,17 @@ describe("the feature files of a file system", () => {
 		],
 	])("collects %s", async (_, bases, files, expected) => {
 		expect(await featureFiles(nfs(files)).collect(bases as string[], [], undefined)).toEqual(expected);
+	});
+
+	it("collects a base that names a file as one feature, whatever its extension, where the filter takes it", async () => {
+		const dir = mkdtempSync(join(tmpdir(), "file-base-"));
+		const guide = join(dir, "GUIDE.md");
+		writeFileSync(guide, '# A guide\n\n    set example to "test"\n');
+		const collected = await featureFiles(nodeFS).collect([guide], ["GUIDE"], undefined);
+		expect(collected.features.map(({ base, path, content }) => ({ base, path, content }))).toEqual([{ base: dir, path: "/GUIDE.md", content: readFileSync(guide, "utf-8") }]);
+		await expect(featureFiles(nodeFS).collect([guide], ["other"], undefined), "a filter that doesn't take the file doesn't collect a feature").rejects.toThrow(
+			"doesn't hold a feature",
+		);
 	});
 });
 

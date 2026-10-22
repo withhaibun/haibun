@@ -3,7 +3,7 @@
  * features or statements, each through the ports the program's entry point builds.
  */
 import { newActualityId } from "@haibun/core/lib/rpc-wire.js";
-import type { TSpecl, TFeaturesBackgrounds } from "@haibun/core/lib/actuality.js";
+import { namesPackage, type TSpecl, type TFeaturesBackgrounds } from "@haibun/core/lib/actuality.js";
 import { BASE_WITHOUT_FEATURES } from "@haibun/core/lib/actuality/ports.js";
 import type { TBase, TBaseOptions, TProtoOptions, TWorld } from "@haibun/core/lib/world.js";
 import { BASE_PREFIX, CHECK_NO, CHECK_YES, NDJSON, RECORDED_STATUS, STAY, Timer, TExecutorResult } from "@haibun/core/lib/domains/protocol.js";
@@ -26,7 +26,7 @@ import { loadAndValidateRunPolicy } from "@haibun/core/run-policy/pipelines/poli
 import { PhaseRunner, PhaseBailError } from "@haibun/core/lib/PhaseRunner.js";
 import { withName } from "@haibun/core/lib/domains/features.js";
 import { configFileFrom, DOTENV, getConfigFromBase, readsDotenv } from "./specl.js";
-import type { TCliPorts } from "../ports.js";
+import type { TCliPorts, TConfigFiles } from "../ports.js";
 
 const OPTION_CONFIG = "--config";
 const OPTION_HELP = "--help";
@@ -42,7 +42,7 @@ const OPTION_ONCE = "--once";
 
 export async function runCli(args: string[], env: NodeJS.ProcessEnv, ports: TCliPorts) {
 	const parsed = processArgs(args);
-	const bases = basesFrom(parsed.params[0]?.replace(/\/$/, ""));
+	const bases = runBases(parsed.params[0], ports.fs);
 	const configBases = parsed.configLoc ? [parsed.configLoc] : bases;
 	const specl = await getSpeclOrExit(configBases, ports);
 	if (readsDotenv(specl) && ports.fs.existsSync(DOTENV)) process.loadEnvFile(DOTENV);
@@ -333,6 +333,12 @@ export async function collect(
 	const holdsNothing = !fs.existsSync(bases[0] ?? ".");
 	const backgrounds = holdsNothing ? [] : (await features.collect(bases, [NO_FEATURE_MATCHES], policyConfig).catch(emptyIfNoFeatures)).backgrounds;
 	return { features: [statementFeature], backgrounds };
+}
+
+/** Returns the bases a command line names, comma-separated: each a directory by its path, or by a package's export, such as
+ *  `@haibun/shu/waypoints`, which is found from the working directory as Node finds a package. */
+export function runBases(named: string | undefined, fs: TConfigFiles): TBase {
+	return basesFrom(named?.replace(/\/$/, "")).map((base) => (namesPackage(base) ? fs.packageLocation(base, process.cwd()) : base));
 }
 
 /** Returns whether the CLI reads the record of a group's last run before it runs the group. `--once` sets this for one

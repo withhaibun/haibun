@@ -13,8 +13,8 @@ A module's own `build` and `test` scripts run the same tools for that module alo
 
 `npm run lint` runs biome and type-checks the features and the tests.
 
-The end-to-end features run from `e2e-tests` with `npm run test:e2e`. Their browsers come from Playwright:
-`npx playwright install chromium`.
+`npm run test:e2e` runs the end-to-end features of `e2e-tests`, then the examples of `AGENTS.md`, which `npm run test:agents`
+runs alone. Their browsers come from Playwright: `npx playwright install chromium`.
 
 `npm run depcruise` writes `dependency-graph.html`, a graph of the modules' imports, which needs Graphviz's `dot`.
 
