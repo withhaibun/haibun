@@ -7,7 +7,6 @@ import { actionOK, getStepperOption, stringOrError, errorDetail } from "../lib/d
 import { nextSeqPath, proveStep, stepperContext } from "../lib/actuality/pipelines/step-dispatch.js";
 import { findFeatureStepsFromStatement } from "../lib/actuality/pipelines/resolver.js";
 import { itemAt } from "../lib/domains/item-at.js";
-import { DOMAIN_STEPPER_NAME } from "../lib/domains/domains.js";
 
 export enum TDebuggingType {
 	StepByStep = "stepByStep",
@@ -112,20 +111,6 @@ export class DebuggerStepper extends AStepper implements IHasCycles, IHasOptions
 			exact: "debug step by step",
 			action: (): Promise<TActionResult> => {
 				this.debuggingType = TDebuggingType.StepByStep;
-				return Promise.resolve(OK);
-			},
-		},
-		debugStepper: {
-			gwta: `debug stepper {stepperName: ${DOMAIN_STEPPER_NAME}}`,
-			action: ({ stepperName }: { stepperName: string }) => {
-				this.debugSteppers.push(stepperName);
-				return Promise.resolve(OK);
-			},
-		},
-		continueStepper: {
-			gwta: `continue stepper {stepperName: ${DOMAIN_STEPPER_NAME}}`,
-			action: ({ stepperName }: { stepperName: string }) => {
-				this.debugSteppers = this.debugSteppers.filter((name) => name !== stepperName);
 				return Promise.resolve(OK);
 			},
 		},

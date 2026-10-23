@@ -388,7 +388,7 @@ the page.
 | VariablesStepper | `set var to "value"`, `variable var is "value"`, `set of domain is [values]`, `{value} is in {domain}`, `variable var is less than "value"`, `matches {var} with "pattern"`, `increment var` |
 | ActivitiesStepper | `Activity: name`, `waypoint Label with proof`, `ensure outcome`, `for every {x: domain} where body, head`, `after every StepperName, statement` |
 | LogicStepper | `not statement`, `where condition, action`, `maybe statement`, `every x in domain is statement`, `some x in domain is statement`, `absent goal`, `"a" is the same as "b"`, `rule formula`, `resolve goal`, `pursue goal`, `walk toward goal`, `show affordances`, `show chain lint` |
-| DebuggerStepper | `debug step by step`, `debug stepper StepperName`, `continue stepper StepperName`; debugger commands: `step`, `continue`, `retry`, `next`, `fail` |
+| DebuggerStepper | `debug step by step`; debugger commands: `step`, `continue`, `retry`, `next`, `fail`; `DEBUG_STEPPERS` names the steppers it pauses before as actuality starts |
 
 ### Web Steppers
 

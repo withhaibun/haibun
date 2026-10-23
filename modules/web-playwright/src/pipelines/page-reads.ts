@@ -124,9 +124,6 @@ export async function screenshotOf(session: BrowserSession, what: TStepValue, wh
 	}
 }
 
-/** The page's markup. */
-export const pageContents = (session: BrowserSession): Promise<string> => session.withPage((page) => page.content());
-
 /** The text of an element: its text, trimmed, or a form field's value where the element lacks a text node, as a void
  *  element or a custom element without light-DOM text does. An empty element's text is empty rather than absent. */
 export const textOf = (session: BrowserSession, element: TStepValue): Promise<string> =>

@@ -16,20 +16,7 @@ import {
 } from "@haibun/core/lib/astepper.js";
 import { readAction } from "@haibun/core/lib/domains/actions.js";
 import { stepInFlight } from "@haibun/core/lib/domains/capability-context.js";
-import { basicAuthorization } from "@haibun/core/lib/domains/basic-auth.js";
-import {
-	DOMAIN_BEARER_TOKEN,
-	DOMAIN_FILE_PATH,
-	DOMAIN_GLOB,
-	DOMAIN_JSON,
-	DOMAIN_LINK,
-	DOMAIN_NUMBER,
-	DOMAIN_PASSWORD,
-	DOMAIN_STATEMENT,
-	DOMAIN_TEXT,
-	DOMAIN_USER_NAME,
-	DOMAIN_VARIABLE_NAME,
-} from "@haibun/core/lib/domains/domains.js";
+import { DOMAIN_FILE_PATH, DOMAIN_GLOB, DOMAIN_JSON, DOMAIN_LINK, DOMAIN_NUMBER, DOMAIN_STATEMENT, DOMAIN_TEXT, DOMAIN_VARIABLE_NAME } from "@haibun/core/lib/domains/domains.js";
 import { DOMAIN_IMAGE_REFERENCE } from "@haibun/core/lib/domains/media-object.js";
 import { Access } from "@haibun/core/lib/domains/resources.js";
 import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
@@ -59,6 +46,8 @@ import {
 	DOMAIN_BROWSER_TYPE,
 	DOMAIN_COOKIE_NAME,
 	DOMAIN_FIND_WAY,
+	DOMAIN_AUTHORIZATION_CREDENTIALS,
+	DOMAIN_AUTHORIZATION_SCHEME,
 	DOMAIN_HTTP_METHOD,
 	DOMAIN_HTTP_METHOD_WITH_BODY,
 	DOMAIN_HTTP_METHOD_WITHOUT_BODY,
@@ -66,7 +55,6 @@ import {
 	DOMAIN_JSON_RESPONSE_COUNT,
 	DOMAIN_KEYBOARD_KEY,
 	DOMAIN_MEDIA_TYPE,
-	DOMAIN_PAGE_CONTENTS,
 	DOMAIN_PAGE_LOCATOR,
 	DOMAIN_PAGE_TARGET,
 	DOMAIN_PAGE_TEST_ID,
@@ -80,6 +68,7 @@ import {
 	WebPlaywrightDomains,
 	type TBrowserTypes,
 	type TFindWay,
+	type TAuthorizationScheme,
 	type TResponseList,
 } from "./domains/web-playwright.js";
 import { BrowserSession, type TPageAction } from "./pipelines/browser-session.js";
@@ -111,7 +100,6 @@ import {
 	canvasIsEmpty,
 	cookieIs,
 	pageAddress,
-	pageContents,
 	queryParameter,
 	readThePage,
 	hasTestId,
@@ -125,6 +113,7 @@ import {
 import { listTabs, openTab, readTab } from "./pipelines/relay-tabs.js";
 import {
 	AUTHORIZATION,
+	authorization,
 	filterResponse,
 	logout,
 	request,
@@ -132,8 +121,6 @@ import {
 	requestToken,
 	responseCount,
 	responseLengthIs,
-	responsePropertyIs,
-	responseTextIs,
 	setExtraHTTPHeaders,
 	statusIs,
 	type TRestContext,
@@ -587,14 +574,6 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 					await captureScreenshot(this.session, this.getWorld(), this.storage, "action", { seqPath: featureStep.seqPath, path: featureStep.source?.path, in: featureStep.in }),
 				),
 		},
-		getPageContents: {
-			...PAGE_READ,
-			gwta: "get page contents",
-			productsDomain: DOMAIN_PAGE_CONTENTS,
-			// The page's markup is the action's result; keeping it on the event too can take many megabytes per call.
-			retainProducts: false,
-			action: async () => actionOKWithProducts({ html: await pageContents(this.session) }),
-		},
 		takeAccessibilitySnapshot: {
 			...PAGE_READ,
 			gwta: "take an accessibility snapshot",
@@ -644,19 +623,11 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 				return OK;
 			},
 		},
-		addBasicAuthCredentials: {
+		useAuthorization: {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: `use Authorization Basic header with {username: ${DOMAIN_USER_NAME}}, {password: ${DOMAIN_PASSWORD}}`,
-			action: async ({ username, password }: { username: string; password: string }) => {
-				await setExtraHTTPHeaders(this.session, { [AUTHORIZATION]: basicAuthorization({ username, password }) });
-				return OK;
-			},
-		},
-		addAuthBearerToken: {
-			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: `use Authorization Bearer header with {token: ${DOMAIN_BEARER_TOKEN}}`,
-			action: async ({ token }: { token: string }) => {
-				await setExtraHTTPHeaders(this.session, { [AUTHORIZATION]: `Bearer ${token}` });
+			gwta: `use Authorization {scheme: ${DOMAIN_AUTHORIZATION_SCHEME}} header with {credentials: ${DOMAIN_AUTHORIZATION_CREDENTIALS}}`,
+			action: async ({ scheme, credentials }: { scheme: TAuthorizationScheme; credentials: string }) => {
+				await setExtraHTTPHeaders(this.session, { [AUTHORIZATION]: authorization(scheme, credentials) });
 				return OK;
 			},
 		},
@@ -715,16 +686,6 @@ export class WebPlaywright extends AStepper implements IHasOptions, IHasCycles {
 			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
 			gwta: `${HTTP} status is {status: ${DOMAIN_NUMBER}}`,
 			action: ({ status }: { status: number }) => statusIs(this.getWorld(), status),
-		},
-		restResponsePropertyIs: {
-			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: `${HTTP} response property {property: ${DOMAIN_JSON_PROPERTY}} is {value: ${DOMAIN_TEXT}}`,
-			action: ({ property, value }: { property: string; value: string }) => responsePropertyIs(this.getWorld(), property, value),
-		},
-		restResponseIs: {
-			capability: WEB_PLAYWRIGHT_ACTIONS.fetch,
-			gwta: `${HTTP} text response is {value: ${DOMAIN_TEXT}}`,
-			action: ({ value }: { value: string }) => responseTextIs(this.getWorld(), value),
 		},
 	} as const satisfies TStepperSteps;
 	steps: TStepperSteps = this.typedSteps;

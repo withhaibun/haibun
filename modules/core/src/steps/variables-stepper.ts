@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { runEnvEntries, runEnvVariable, type TWorld } from "../lib/actuality/domains/world.js";
+import { runEnvVariable, type TWorld } from "../lib/actuality/domains/world.js";
 import { OK, Origin, TProvenanceIdentifier, TOrigin, TActionResult, TStepValue, type TStepValueValue } from "../lib/domains/protocol.js";
 import {
 	AStepper,
@@ -18,7 +18,6 @@ import { itemAt } from "../lib/domains/item-at.js";
 import { proveStatements, stepperContext } from "../lib/actuality/pipelines/step-dispatch.js";
 import { FeatureVariables, statedValue } from "../lib/actuality/pipelines/feature-variables.js";
 import { OBSCURED_VALUE } from "../lib/steps/domains/secrets.js";
-import { sanitizeObjectSecrets } from "../lib/domains/secret-utils.js";
 import {
 	DOMAIN_DOMAIN_KEY,
 	DOMAIN_DOMAIN_NAME,
@@ -46,13 +45,11 @@ const clearVars = (vars: VariablesStepper) => async () => {
 	await vars.getWorld().shared.clear();
 };
 
-const DOMAIN_ENV_SNAPSHOT = "env-snapshot";
 const DOMAIN_VARS_SNAPSHOT = "vars-snapshot";
 const DOMAIN_VAR_SNAPSHOT = "var-snapshot";
 const DOMAIN_DOMAINS_SNAPSHOT = "domains-snapshot";
 const DOMAIN_DOMAIN_SNAPSHOT = "domain-snapshot";
 
-const EnvSnapshotSchema = z.object({ env: z.record(z.string(), z.string()) });
 const VarsSnapshotSchema = z.object({ vars: z.record(z.string(), z.unknown()) });
 const VarSnapshotSchema = z.object({ term: z.string(), value: z.unknown(), domain: z.string().optional(), secret: z.boolean().optional() });
 const DomainEdgeSchema = z.object({ type: z.string(), targetId: z.string() });
@@ -76,11 +73,6 @@ const DomainSnapshotSchema = z.object({
 	topology: z.record(z.string(), z.unknown()).optional(),
 	members: z.record(z.string(), z.unknown()),
 });
-
-const envSummary = (p: Record<string, unknown>) => {
-	const count = Object.keys(EnvSnapshotSchema.parse(p).env).length;
-	return `${count} environment variable${count === 1 ? "" : "s"}`;
-};
 
 const varsSummary = (p: Record<string, unknown>) => {
 	const count = Object.keys(VarsSnapshotSchema.parse(p).vars).length;
@@ -110,7 +102,6 @@ const cycles = (variablesStepper: VariablesStepper): IStepperCycles => ({
 	},
 	getConcerns: () => ({
 		domains: [
-			{ selectors: [DOMAIN_ENV_SNAPSHOT], schema: EnvSnapshotSchema, description: "Snapshot of environment variables", ui: { summary: envSummary } },
 			{ selectors: [DOMAIN_VARS_SNAPSHOT], schema: VarsSnapshotSchema, description: "Snapshot of feature variables", ui: { summary: varsSummary } },
 			{ selectors: [DOMAIN_VAR_SNAPSHOT], schema: VarSnapshotSchema, description: "Snapshot of a single variable", ui: { summary: varSummary } },
 			{ selectors: [DOMAIN_DOMAINS_SNAPSHOT], schema: DomainsSnapshotSchema, description: "Snapshot of every registered domain", ui: { summary: domainsSummary } },
@@ -228,15 +219,6 @@ class VariablesStepper extends AStepper implements IHasCycles {
 					operation: "increment",
 				});
 				return OK;
-			},
-		},
-		showEnv: {
-			gwta: "show env",
-			productsDomain: DOMAIN_ENV_SNAPSHOT,
-			action: () => {
-				const shared = this.getWorld().shared;
-				const safeEnv = sanitizeObjectSecrets(Object.fromEntries(runEnvEntries(this.getWorld())), (key) => shared.isSecret(key));
-				return actionOKWithProducts({ env: safeEnv });
 			},
 		},
 		showVars: {

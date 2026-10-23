@@ -54,7 +54,7 @@ Feature: Auth-bearer Authentication
     Scenario: Create authentication token
         request OAuth 2.0 access token from Authorization Server
         HTTP status is OK
-        HTTP response property "access_token" is "newToken"
+        variable HTTP response.json.access_token is "newToken"
         make an HTTP GET to Profile API
         HTTP status is OK
 
@@ -68,7 +68,7 @@ Feature: Auth-bearer Authentication
         HTTP status is OK
         make an HTTP GET to Resources API
         HTTP status is Unauthorized
-        HTTP text response is "Must use application/json, not */*"
+        variable HTTP response.text is "Must use application/json, not */*"
 
     Scenario: filter list of resources
         request OAuth 2.0 access token from Authorization Server

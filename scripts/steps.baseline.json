@@ -32,9 +32,7 @@
 		"has at most one call site: BlipsStepper.watchBlips": 1
 	},
 	"modules/core/src/steps/debugger-stepper.ts": {
-		"has at most one call site: DebuggerStepper.continueStepper": 1,
-		"has at most one call site: DebuggerStepper.debugStepByStep": 1,
-		"has at most one call site: DebuggerStepper.debugStepper": 1
+		"has at most one call site: DebuggerStepper.debugStepByStep": 1
 	},
 	"modules/core/src/steps/haibun-stepper.ts": {
 		"has at most one call site: Haibun.onHost": 1,
@@ -58,7 +56,6 @@
 		"has at most one call site: VariablesStepper.defineHypermediaDomain": 1,
 		"has at most one call site: VariablesStepper.showDomain": 1,
 		"has at most one call site: VariablesStepper.showDomains": 1,
-		"has at most one call site: VariablesStepper.showEnv": 1,
 		"has at most one call site: VariablesStepper.unset": 1
 	},
 	"modules/logic/src/logic-stepper.ts": {
@@ -70,10 +67,6 @@
 	},
 	"modules/lsp/src/lsp-stepper.ts": {
 		"has at most one call site: LspStepper.lspIsReady": 1
-	},
-	"modules/monitor-otel/src/monitor-otel-stepper.ts": {
-		"has at most one call site: MonitorOtelStepper.endSpan": 1,
-		"has at most one call site: MonitorOtelStepper.startSpan": 1
 	},
 	"modules/recorder/src/recorder-stepper.ts": {
 		"has at most one call site: RecorderStepper.startRecording": 1,
@@ -94,21 +87,17 @@
 	},
 	"modules/storage-fs/src/storage-fs-stepper.ts": {
 		"has at most one call site: AStorage.createDirectory": 1,
-		"has at most one call site: AStorage.createFile": 1,
 		"has at most one call site: AStorage.fileExists": 1,
 		"has at most one call site: AStorage.fileIsRecent": 1,
 		"has at most one call site: AStorage.filesCount": 1,
 		"has at most one call site: AStorage.testIs": 1
 	},
 	"modules/web-playwright/src/web-playwright-stepper.ts": {
-		"has at most one call site: WebPlaywright.addAuthBearerToken": 1,
-		"has at most one call site: WebPlaywright.addBasicAuthCredentials": 1,
 		"has at most one call site: WebPlaywright.captureDialog": 1,
 		"has at most one call site: WebPlaywright.closeBrowserTab": 1,
 		"has at most one call site: WebPlaywright.connectToBrowser": 1,
 		"has at most one call site: WebPlaywright.currentTabIs": 1,
 		"has at most one call site: WebPlaywright.expectDownload": 1,
-		"has at most one call site: WebPlaywright.getPageContents": 1,
 		"has at most one call site: WebPlaywright.goBack": 1,
 		"has at most one call site: WebPlaywright.hoverOver": 1,
 		"has at most one call site: WebPlaywright.listBrowserTabs": 1,
@@ -120,8 +109,6 @@
 		"has at most one call site: WebPlaywright.receiveDownload": 1,
 		"has at most one call site: WebPlaywright.resizeWindow": 1,
 		"has at most one call site: WebPlaywright.restEndpointRequestWithPayload": 1,
-		"has at most one call site: WebPlaywright.restResponseIs": 1,
-		"has at most one call site: WebPlaywright.restResponsePropertyIs": 1,
 		"has at most one call site: WebPlaywright.restTokenLogout": 1,
 		"has at most one call site: WebPlaywright.scrollUpAScreen": 1,
 		"has at most one call site: WebPlaywright.selectionOption": 1,

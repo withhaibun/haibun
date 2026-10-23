@@ -62,7 +62,6 @@ export const DOMAIN_MEDIA_TYPE = "media-type";
 export const DOMAIN_JSON_PROPERTY = "json-property";
 
 const locatorSchema = z.string().min(1, "locator cannot be empty");
-const PageContentsSchema = z.object({ html: z.string() });
 const AccessibilitySnapshotSchema = z.object({
 	url: z.string(),
 	title: z.string(),
@@ -71,7 +70,6 @@ const AccessibilitySnapshotSchema = z.object({
 });
 const RestJsonCountSchema = z.object({ summary: z.string(), details: z.object({ count: z.number() }) });
 /** The domains of what reading a page and a JSON response return. */
-export const DOMAIN_PAGE_CONTENTS = "page-contents";
 export const DOMAIN_ACCESSIBILITY_SNAPSHOT = "accessibility-snapshot";
 export const DOMAIN_JSON_RESPONSE_COUNT = "json-response-count";
 /** The domain of an extension loaded into the browser actuality launches: its id and the origin of its pages. */
@@ -137,6 +135,11 @@ export const CapturedResponseSchema = z.object({
 export type TCapturedResponse = z.infer<typeof CapturedResponseSchema>;
 
 /** The lists of the last response a step counts: its JSON body, or the members a filter kept. */
+/** The schemes an Authorization header sends credentials under: Basic, as user:password (RFC 7617), and Bearer, as a token (RFC 6750). */
+export const AUTHORIZATION_SCHEMES = { basic: "Basic", bearer: "Bearer" } as const;
+export type TAuthorizationScheme = (typeof AUTHORIZATION_SCHEMES)[keyof typeof AUTHORIZATION_SCHEMES];
+export const DOMAIN_AUTHORIZATION_SCHEME = "authorization-scheme";
+export const DOMAIN_AUTHORIZATION_CREDENTIALS = "authorization-credentials";
 export const RESPONSE_LISTS = { json: "JSON", filtered: "filtered" } as const;
 export type TResponseList = (typeof RESPONSE_LISTS)[keyof typeof RESPONSE_LISTS];
 export const DOMAIN_RESPONSE_LIST = "response-list";
@@ -161,8 +164,17 @@ export const WebPlaywrightDomains: TDomainDefinition[] = [
 		values: Object.values(RESPONSE_LISTS),
 		description: "A list of the last response: its JSON body, or the members a filter kept",
 	}),
+	createEnumDomainDefinition({
+		name: DOMAIN_AUTHORIZATION_SCHEME,
+		values: Object.values(AUTHORIZATION_SCHEMES),
+		description: "The scheme an Authorization header sends credentials under",
+	}),
+	{
+		selectors: [DOMAIN_AUTHORIZATION_CREDENTIALS],
+		schema: NameSchema,
+		description: "The credentials an Authorization header sends: user:password under Basic, and the token under Bearer. They grant their holder the access they carry.",
+	},
 	{ selectors: [DOMAIN_URL_GLOB], schema: NameSchema, description: "A URL pattern as a page routes requests by it: * within a path segment, ** across segments" },
-	{ selectors: [DOMAIN_PAGE_CONTENTS], schema: PageContentsSchema, description: "A page's markup, as the browser holds it" },
 	{ selectors: [DOMAIN_ACCESSIBILITY_SNAPSHOT], schema: AccessibilitySnapshotSchema, description: "A page as its accessibility tree reads, with the steps that act on it" },
 	{ selectors: [DOMAIN_JSON_RESPONSE_COUNT], schema: RestJsonCountSchema, description: "How many entries the last JSON response held" },
 	{

@@ -27,8 +27,6 @@ import {
 	DOMAIN_FILE_PATH,
 	DOMAIN_ROUTE,
 	DOMAIN_BEARER_TOKEN,
-	DOMAIN_USER_NAME,
-	DOMAIN_PASSWORD,
 	DOMAIN_PERSISTED_TYPES,
 	DOMAIN_BACKGROUND_NAMES,
 	DOMAIN_STEP_PATH,
@@ -118,7 +116,6 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 	},
 	{ selectors: [DOMAIN_ROUTE], schema: NameSchema, description: "The path at which a web server serves a resource, such as /shu." },
 	{ selectors: [DOMAIN_BEARER_TOKEN], schema: NameSchema, description: "A token sent as `Authorization: Bearer` (RFC 6750). It grants its holder the access it carries." },
-	{ selectors: [DOMAIN_USER_NAME], schema: NameSchema, description: "The name that identifies an account at sign-in." },
 	{ selectors: [DOMAIN_PERSISTED_TYPES], schema: listedSchema(NameSchema, "type"), description: "The persisted types of records, given as a list or as text separated by commas." },
 	{
 		selectors: [DOMAIN_BACKGROUND_NAMES],
@@ -126,7 +123,6 @@ const getCoreDomainDefinitions = (world: TWorld): TDomainDefinition[] => [
 		written: true,
 		description: "The names of the backgrounds a feature includes, given as a list or as text separated by commas, as written in the line.",
 	},
-	{ selectors: [DOMAIN_PASSWORD], schema: NameSchema, description: "The secret that authenticates an account at sign-in." },
 	{
 		selectors: [DOMAIN_STEP_PATH],
 		schema: stepPathSchema,

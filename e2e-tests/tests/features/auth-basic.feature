@@ -38,7 +38,7 @@ Feature: Auth-basic Authentication
 
     Scenario: Pass authentication
         API user agent is "curl/8.5.0"
-        use Authorization Basic header with "foo", "bar"
+        use Authorization Basic header with "foo:bar"
         go to the REST Home webpage
         make an HTTP GET to Profile API
         HTTP status is OK

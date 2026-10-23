@@ -18,9 +18,9 @@ const step = (name: string) => {
 describe("what a delegation names to use the browser", () => {
 	it("groups reading the page, acting on it and fetching from it, each under one action", () => {
 		expect(wp.constructor.name, "the name its steps' methods begin with").toBe(WEB_PLAYWRIGHT);
-		for (const name of [READS_THE_PAGE, "takeScreenshot", "saveTextFrom", "seeText", "getPageContents"]) expect(step(name).capability, name).toBe(WEB_PLAYWRIGHT_ACTIONS.read);
+		for (const name of [READS_THE_PAGE, "takeScreenshot", "saveTextFrom", "seeText"]) expect(step(name).capability, name).toBe(WEB_PLAYWRIGHT_ACTIONS.read);
 		for (const name of ["click", "gotoPage", "setValue", "onNewTab"]) expect(step(name).capability, name).toBe(WEB_PLAYWRIGHT_ACTIONS.act);
-		for (const name of ["restEndpointRequest", "addAuthBearerToken", "restResponseIs"]) expect(step(name).capability, name).toBe(WEB_PLAYWRIGHT_ACTIONS.fetch);
+		for (const name of ["restEndpointRequest", "useAuthorization", "restLastStatusIs"]) expect(step(name).capability, name).toBe(WEB_PLAYWRIGHT_ACTIONS.fetch);
 	});
 
 	it("lets a party that may read the page do only that with it, and doesn't let a read of records reach it", () => {

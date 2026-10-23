@@ -6,8 +6,7 @@
  */
 
 import { AStepper, IHasCycles, IHasOptions, StepperKinds, IStepperCycles, type TStepperSteps } from "@haibun/core/lib/astepper.js";
-import { NameSchema } from "@haibun/core/lib/domains/domains.js";
-import { OK, NESTED_FAILURE, STATUS, type TBlipEvent, THaibunEvent, EventFormatter } from "@haibun/core/lib/domains/protocol.js";
+import { NESTED_FAILURE, STATUS, type TBlipEvent, THaibunEvent, EventFormatter } from "@haibun/core/lib/domains/protocol.js";
 import { LEVEL_STATUS } from "@haibun/core/lib/actuality/domains/level-status.js";
 import { stringOrError, getStepperOption } from "@haibun/core/lib/domains/util.js";
 import { actualityMachine, runningFeature, type TActualityMove } from "@haibun/core/lib/actuality/machines/actuality.js";
@@ -17,11 +16,8 @@ import { logs, SeverityNumber } from "@opentelemetry/api-logs";
 import type { TOtelProviders } from "./ports.js";
 import { otelProviders } from "./root.js";
 
-/** The name of a custom span for the startSpan and endSpan steps. */
-const DOMAIN_SPAN_NAME = "otel-span-name";
-
 export default class MonitorOtelStepper extends AStepper implements IHasCycles, IHasOptions {
-	description = "Exports actuality's features, steps and artifacts as OpenTelemetry spans and its logs as log records. startSpan and endSpan start and end custom spans.";
+	description = "Exports actuality's features, steps and artifacts as OpenTelemetry spans and its logs as log records.";
 	kind = StepperKinds.MONITOR;
 
 	private tracerProvider: TOtelProviders["tracerProvider"] | undefined;
@@ -56,7 +52,6 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 	}
 
 	cycles: IStepperCycles = {
-		getConcerns: () => ({ domains: [{ selectors: [DOMAIN_SPAN_NAME], schema: NameSchema, description: "The name of a custom span for the startSpan and endSpan steps" }] }),
 		startActuality: async () => {
 			await Promise.resolve();
 			this.initializeIfNeeded();
@@ -241,31 +236,5 @@ export default class MonitorOtelStepper extends AStepper implements IHasCycles, 
 		this.getWorld().eventLogger.info("[monitor-otel] Shutdown complete");
 	}
 
-	steps = {
-		// A named custom span is a child of the feature span. startSpan doesn't start one when the feature span isn't open.
-		startSpan: {
-			gwta: `start otel span {name: ${DOMAIN_SPAN_NAME}}`,
-			action: async ({ name }: { name: string }) => {
-				await Promise.resolve();
-				if (this.tracer && this.featureSpan) {
-					const parentContext = trace.setSpan(context.active(), this.featureSpan);
-					const span = this.tracer.startSpan(`custom: ${name}`, {}, parentContext);
-					this.stepSpans.set(`custom-${name}`, span);
-				}
-				return OK;
-			},
-		},
-		endSpan: {
-			gwta: `end otel span {name: ${DOMAIN_SPAN_NAME}}`,
-			action: async ({ name }: { name: string }) => {
-				await Promise.resolve();
-				const span = this.stepSpans.get(`custom-${name}`);
-				if (span) {
-					span.end();
-					this.stepSpans.delete(`custom-${name}`);
-				}
-				return OK;
-			},
-		},
-	} as const satisfies TStepperSteps;
+	steps = {} as const satisfies TStepperSteps;
 }

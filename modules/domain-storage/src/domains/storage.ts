@@ -162,13 +162,6 @@ export abstract class AStorage extends AStepper implements IHasCycles {
 	}
 
 	steps = {
-		createFile: {
-			gwta: `create file at {where: ${DOMAIN_FILE_PATH}} with {what: ${DOMAIN_TEXT}}`,
-			action: async ({ where, what }: { where: string; what: string }) => {
-				await this.writeFile(where, what);
-				return OK;
-			},
-		},
 		createDirectory: {
 			gwta: `create directory at {where: ${DOMAIN_FILE_PATH}}`,
 			action: async ({ where }: { where: string }) => {
