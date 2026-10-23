@@ -1,9 +1,11 @@
 import nodeFS, { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { vitest, describe, it, expect } from "vitest";
+import { vitest, describe, it, expect, onTestFinished } from "vitest";
 
-import { CONTINUE_AFTER_ERROR, DEFAULT_DEST, MODULE_OPTION_PREFIX, STAY, STAY_ALWAYS, STEP_DELAY } from "@haibun/core/lib/domains/protocol.js";
+import { createServer } from "node:http";
+import type { AddressInfo } from "node:net";
+import { CONTINUE_AFTER_ERROR, DEFAULT_DEST, MODULE_OPTION_PREFIX, NDJSON, STAY, STAY_ALWAYS, STEP_DELAY } from "@haibun/core/lib/domains/protocol.js";
 
 const OTHER_OPTION = `${MODULE_OPTION_PREFIX}TESTSTEPSWITHOPTIONS_OTHER`;
 import { HAIBUN_O_TESTSTEPSWITHOPTIONS_EXISTS, passWithDefaults } from "@haibun/core/lib/test/lib.js";
@@ -19,6 +21,9 @@ import { getConfigFromBase, readsDotenv } from "./specl.js";
 import { processBaseEnvToOptionsAndErrors } from "../domains/base-options.js";
 import { cliPorts } from "../root.js";
 import { fileSystem } from "../adapters/processes.js";
+import type { TCliPorts } from "../ports.js";
+import { emptyOutcome, firstFailure, readRunOutput } from "./run-outcome.js";
+import { AStepper, type CStepper, type IHasCycles, type IStepperCycles } from "@haibun/core/lib/astepper.js";
 
 // Mocks loadAndValidateRunPolicy so a test does not read test-policy.json.
 vitest.mock("@haibun/core/run-policy/pipelines/policy-file.js", () => ({ loadAndValidateRunPolicy: vitest.fn() }));
@@ -193,6 +198,50 @@ describe("processArgs", () => {
 	});
 });
 
+/** The body of each response from the service of a run. */
+const SERVED = "served";
+/** The service of a run, which starts with actuality, and which a run that stays keeps serving. */
+const service = createServer((_request, response) => response.end(SERVED));
+/** Why each feature's start fails in these tests, as a stepper that verifies its option as each feature starts fails. */
+const REFUSED = "the store its option names doesn't answer. Correct the option, then run again";
+
+/** A stepper whose service starts with actuality and whose feature's start fails, so a phase fails before the features end. */
+class ServesThenRefuses extends AStepper implements IHasCycles {
+	description = "Serves from actuality's start, and refuses each feature's start";
+	steps = {};
+	cycles: IStepperCycles = {
+		startActuality: () => new Promise<void>((resolve) => service.listen(0, "127.0.0.1", resolve)),
+		startFeature: () => {
+			throw new Error(REFUSED);
+		},
+	};
+}
+
+/** Runs a statement where HAIBUN_STAY states always, writing its events as NDJSON, with `steppers` beside its config's. Its wait to
+ *  stay is held until `release`, `stays` settles as that wait starts, and `outcome` reads its events as a launcher reads a child's. */
+function stayingRun(env: NodeJS.ProcessEnv, steppers: CStepper[] = []) {
+	vitest.spyOn(process, "exit").mockImplementationOnce(expectExitAndThrow(1));
+	const written: string[] = [];
+	const held = Promise.withResolvers<void>();
+	const stays = Promise.withResolvers<void>();
+	const ports = cliPorts();
+	const wait = () => {
+		stays.resolve();
+		return held.promise;
+	};
+	const loaded = async (names: Parameters<TCliPorts["steppers"]>[0]) => [...(await ports.steppers(names)), ...steppers];
+	const events = { write: (serialized: string) => void written.push(`${serialized}\n`) };
+	const args = ["--config", "modules/cli/test", "modules/cli/test/tests", "--statement", 'set one to "1"'];
+	const staying = { ...env, [`HAIBUN_${STAY}`]: STAY_ALWAYS, [`HAIBUN_${NDJSON}`]: "true" };
+	const exited = lib.runCli(args, staying, { ...ports, clock: { ...ports.clock, wait }, steppers: loaded, events });
+	const outcome = () => {
+		const read = emptyOutcome();
+		readRunOutput(read, written.join(""));
+		return read.actuality;
+	};
+	return { stays: stays.promise, release: held.resolve, exited, outcome };
+}
+
 describe("runCli", () => {
 	it("runs with --show-steppers", async () => {
 		vitest.spyOn(process, "exit").mockImplementationOnce(expectExitAndThrow(0));
@@ -202,10 +251,25 @@ describe("runCli", () => {
 		vitest.spyOn(process, "exit").mockImplementationOnce(expectExitAndThrow(1));
 		await expect(lib.runCli(s("--config nowhere/noway"), {}, cliPorts())).rejects.toThrow("exit with code 1");
 	});
-	it("exits where a phase before its features fails, even where HAIBUN_STAY states always, since its features didn't start", async () => {
-		vitest.spyOn(process, "exit").mockImplementationOnce(expectExitAndThrow(1));
-		const unresolved = ["--config", "modules/cli/test", "modules/cli/test/tests", "--statement", "no step states this line"];
-		await expect(lib.runCli(unresolved, { [`HAIBUN_${STAY}`]: STAY_ALWAYS }, cliPorts())).rejects.toThrow("exit with code 1");
+	it("stays where HAIBUN_STAY states always after an option fails verification before actuality starts, its events ending actuality with the failure", async () => {
+		const run = stayingRun({ [`${MODULE_OPTION_PREFIX}VARIABLESSTEPPER_UNDECLARED`]: "1" });
+		await run.stays;
+		expect(process.exit, "it stays rather than exiting").not.toHaveBeenCalled();
+		expect(firstFailure(run.outcome()), "as a launcher reads a child's events").toBe(
+			"actuality: Steppers (VariablesStepper doesn't declare options. Remove the options that start with its prefix.)",
+		);
+		run.release();
+		await expect(run.exited, "and exits once it stops staying").rejects.toThrow("exit with code 1");
+	});
+	it("stays where HAIBUN_STAY states always after a phase fails within the features, and what actuality started responds", async () => {
+		onTestFinished(() => void service.close());
+		const run = stayingRun({}, [ServesThenRefuses]);
+		await run.stays;
+		const { port } = service.address() as AddressInfo;
+		expect(await (await fetch(`http://127.0.0.1:${port}/`)).text()).toBe(SERVED);
+		expect(firstFailure(run.outcome())).toBe(`actuality: Execute (${REFUSED})`);
+		run.release();
+		await expect(run.exited).rejects.toThrow("exit with code 1");
 	});
 	it("runs a basic test", async () => {
 		vitest.spyOn(process, "exit").mockImplementationOnce(expectExitAndThrow(0));

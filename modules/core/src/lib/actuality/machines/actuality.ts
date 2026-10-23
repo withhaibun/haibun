@@ -71,9 +71,14 @@ const named = (name: string | undefined): { name?: string } => (name === undefin
 /** The state with its running feature replaced. */
 const withRunning = (state: TActuality, feature: TFeatureState): TActuality => ({ ...state, features: [...state.features.slice(0, -1), feature] });
 
+/** The actuality's own failures, with `failure` after them where there is one. */
+const withFailure = (failures: readonly TStepFailure[], failure: TStepFailure | undefined): readonly TStepFailure[] => (failure === undefined ? failures : [...failures, failure]);
+
 function actualityMove(state: TActuality, move: TActualityMove): TActuality {
 	if (move.stage === "start") return state.status === LEVEL_STATUS.running ? state : { ...INITIAL_ACTUALITY, status: LEVEL_STATUS.running };
-	return isLevelEnd(move.status) && !actualityEnded(state) ? { ...state, status: move.status } : state;
+	if (!isLevelEnd(move.status) || actualityEnded(state)) return state;
+	// An end that states an error is a phase's failure before the features ended, which is the actuality's own.
+	return { ...state, status: move.status, failures: withFailure(state.failures, move.error === undefined ? undefined : failureOf(move)) };
 }
 
 function featureMove(state: TActuality, move: TActualityMove): TActuality {
@@ -111,11 +116,11 @@ function scenarioMove(state: TActuality, move: TActualityMove): TActuality {
 	return withRunning(state, { ...feature, scenarios: [...feature.scenarios.slice(0, -1), { ...last, status: move.status }] });
 }
 
-/** The failure a step's end states, where it is the actuality's own: a nested call's failure is part of its line's proof,
- *  and a handed-out call returns its failure to its caller. */
-function failureOf(move: TActualityMove, id: string): TStepFailure | undefined {
+/** The failure a step's end, or the actuality's end at a phase's failure, states, where it is the actuality's own: a nested
+ *  call's failure is part of its line's proof, and a handed-out call returns its failure to its caller. */
+function failureOf(move: TActualityMove): TStepFailure | undefined {
 	if (move.status === LEVEL_STATUS.completed || isNestedEvent(move) || isHandedOutEvent(move)) return undefined;
-	return { id, ...(move.in === undefined ? {} : { step: move.in }), ...(move.error === undefined ? {} : { message: move.error }) };
+	return { id: move.id, ...(move.in === undefined ? {} : { step: move.in }), ...(move.error === undefined ? {} : { message: move.error }) };
 }
 
 function stepMove(state: TActuality, move: TActualityMove): TActuality {
@@ -128,8 +133,8 @@ function stepMove(state: TActuality, move: TActualityMove): TActuality {
 	}
 	if (held !== undefined && held > 1) open.set(id, held - 1);
 	else open.delete(id);
-	const failure = failureOf(move, id);
-	const ended: TActuality = { ...state, open, steps: state.steps + 1, failures: failure === undefined ? state.failures : [...state.failures, failure] };
+	const failure = failureOf(move);
+	const ended: TActuality = { ...state, open, steps: state.steps + 1, failures: withFailure(state.failures, failure) };
 	const feature = runningFeature(state);
 	if (feature === undefined) return ended;
 	const counted: TFeatureState = { ...feature, steps: feature.steps + 1 };

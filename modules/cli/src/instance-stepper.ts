@@ -2,9 +2,9 @@
  * InstanceStepper supervises sibling haibun processes of two kinds. An instance serves, and a run executes features.
  * `start a haibun instance from {where} on port {port} as host {hostId}` forks the cli.js that an operator runs.
  * The child reads the config directory that a deployment uses, and the waypoint libraries `where` names after it, as a command line does.
- * The child stays after its features end, as HAIBUN_STAY states, and serves once they passed.
+ * The child stays after its features end, or after a phase fails before they end, as HAIBUN_STAY states, and serves once they passed.
  * Readiness is the action.begin handshake. Federation and remote steppers use the same handshake. The child's exit and its
- * events end the wait where it stops first, with the step that failed, so a launch doesn't wait out a deadline.
+ * events end the wait where it stops first, with the step or the phase that failed, so a launch doesn't wait out a deadline.
  * The step's products carry the instance's url, site principal and hostId.
  * The operator assigns hostIds: the feature states the id, and the handshake verifies that the child took it.
  * endFeature terminates the children when the feature closes, and a child the supervisor forks ends with this process.
@@ -18,7 +18,7 @@
  * Each chunk moves the actuality machine whose state a caller reads: the features that ran, the step count, the
  * failures, and whether the child's actuality has ended.
  * This process also keeps the child's process output as a bounded tail that a caller reads from a cursor.
- * That output is the only record of a run that fails before it serves. The bound keeps a long run's output from growing without limit.
+ * That output is the only record of a run that exits before it writes its events. The bound keeps a long run's output from growing without limit.
  * `SseSubscriber` subscribes to a serving run that this process didn't fork.
  *
  * Runs are held in their own map. endFeature terminates runs under the same condition as instances.
@@ -102,14 +102,14 @@ async function begins(origin: string): Promise<THandshake | undefined> {
 	});
 }
 
-/** Why a launched instance stopped before it served, or undefined while it starts: it exited, a step of its actuality failed,
- *  or its features ended without its handshake stating that it serves. `said` holds its error output. */
+/** Why a launched instance stopped before it served, or undefined while it starts: it exited, a step or a phase of its actuality
+ *  failed, or its features ended without its handshake stating that it serves. `said` holds its error output. */
 function stoppedBeforeServing(dir: string, child: ChildProcess, actuality: TActuality, said: RunTail): string | undefined {
 	const { output } = said.since(0);
 	const shown = output ? `\n${output}` : "";
 	if (child.exitCode !== null) return `instance at ${dir} exited with code ${child.exitCode} before it served. Correct the cause its error output reports${shown}`;
 	const failed = firstFailure(actuality);
-	if (failed !== undefined) return `instance at ${dir} failed before it served, at ${failed}. Correct that step, then start the instance again`;
+	if (failed !== undefined) return `instance at ${dir} failed before it served, at ${failed}. Correct that failure, then start the instance again`;
 	if (actualityEnded(actuality)) return `instance at ${dir} ended its features before it served. Correct the cause its error output reports${shown}`;
 	return undefined;
 }
@@ -263,7 +263,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			// writing the text again.
 			retainProducts: (products: Record<string, unknown>) => ({ ...products, output: `${String(products.output ?? "").length} chars` }),
 			description:
-				"A run's process output since a cursor, whether it is still running, and the counts and first failure accrued from its events. The process output is the only record of a run that fails before it serves. A serving run's events carry seqPaths and outcomes. The returned cursor is where the next read starts, so a read doesn't return the same output twice.",
+				"A run's process output since a cursor, whether it is still running, and the counts and first failure accrued from its events. The process output is the only record of a run that exits before it writes its events. A serving run's events carry seqPaths and outcomes. The returned cursor is where the next read starts, so a read doesn't return the same output twice.",
 			productsDomain: RUN_DOMAIN.read,
 			action: ({ run, cursor }: { run: string; cursor: number }) => this.readRun(run, cursor),
 		},
@@ -496,7 +496,7 @@ export default class InstanceStepper extends AStepper implements IHasCycles {
 			process.stderr.write(`[instance:${hostId}] ${data.toString()}`);
 			stderrTail.append(data.toString());
 		});
-		// The child writes its events on its output, as a run does, and its actuality holds the step that fails before it serves.
+		// The child writes its events on its output, as a run does, and its actuality holds the step or the phase that fails before it serves.
 		// This process doesn't echo that output, since it carries the instance's event stream.
 		const outcome = emptyOutcome();
 		child.stdout?.on("data", (data: Buffer) => void readRunOutput(outcome, data.toString()));

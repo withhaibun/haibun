@@ -8,7 +8,7 @@
  * run. RunTail holds a run's output. A read returns the cursor for the next read, so a reader doesn't re-read output.
  * RunTail counts the characters it drops. A read returns the number of requested characters that RunTail dropped.
  * These tests cover RunTail, runEnvironment, verifiedRun, the steps against a held run, and a launch against a child that
- * writes events, which ends where the child stops before it serves. The feature tests fork a real cli.
+ * writes events, which ends where the child stops or fails before it serves. The feature tests fork a real cli.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { z } from "zod";
@@ -35,6 +35,7 @@ import { digestFields } from "@haibun/core/lib/domains/digest.js";
 import type { ChildProcess } from "child_process";
 import { EventEmitter } from "node:events";
 import { newActualityId, RPC_PROTOCOL, type THandshake } from "@haibun/core/lib/transport/domains/rpc-wire.js";
+import { phaseFailureEvent } from "@haibun/core/lib/actuality/derivations/lifecycle-events.js";
 
 /** Records an actuality of a group that ended as `status`, with the digests `v` read, as an actuality records itself in the actualities file. */
 const recordOutcome = (v: Parameters<typeof recordActuality>[0], status: string) =>
@@ -399,9 +400,10 @@ describe("launching an instance", () => {
 		vi.spyOn(supervisorPorts.hosts, "begin").mockImplementation(begin);
 		const where = nodeFS.mkdtempSync(path.join(os.tmpdir(), "haibun-launch-"));
 		nodeFS.writeFileSync(path.join(where, "config.json"), JSON.stringify({ steppers: [] }));
-		const action = stepper().steps.startInstance.action as (a: { where: string; port: number; hostId: number }) => Promise<TResult>;
+		const supervisor = stepper();
+		const action = supervisor.steps.startInstance.action as (a: { where: string; port: number; hostId: number }) => Promise<TResult>;
 		const started = action({ where: [where, ...named(where)].join(","), port: 8297, hostId: HOST_ID });
-		return { started, where, forked, say: (fields: Record<string, unknown>) => stdout.emit("data", event(fields)) };
+		return { started, where, forked, supervisor, child, say: (fields: Record<string, unknown>) => stdout.emit("data", event(fields)) };
 	};
 	const notListening = () => Promise.reject(new Error("connect ECONNREFUSED"));
 
@@ -410,6 +412,17 @@ describe("launching an instance", () => {
 		say(STARTED);
 		say({ id: "0.1.0.1", type: "step", stage: "end", status: "failed", in: "index the files in t", error: "t doesn't exist" });
 		expect((await started).errorMessage).toContain("failed before it served, at 0.1.0.1: index the files in t (t doesn't exist)");
+	});
+
+	it("refuses a child whose phase fails before its features start, as its events state while it stays, and stops it as the feature closes", async () => {
+		const terminated = vi.spyOn(supervisorPorts.processes, "terminate").mockResolvedValue();
+		const { started, say, supervisor, child } = launching(notListening);
+		const refused = "WebServerStepper doesn't declare the option NOSUCH. Correct the option name or remove the option.";
+		say(phaseFailureEvent("Steppers", refused, Date.now()));
+		expect((await started).errorMessage).toContain(`failed before it served, at actuality: Steppers (${refused})`);
+		expect(terminated, "the child stays until the feature that launched it closes").not.toHaveBeenCalled();
+		await supervisor.cycles.endFeature?.({ featurePath: "/launch", shouldClose: true, isLast: true, okSoFar: false, continueAfterError: false, thisFeatureOK: false });
+		expect(terminated).toHaveBeenCalledWith(child);
 	});
 
 	it("refuses a child whose features end before it serves", async () => {

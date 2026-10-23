@@ -18,7 +18,7 @@ import { boolOrError, intOrError, optionOrError, stringOrError } from "@haibun/c
 export class BaseOptions implements IHasOptions {
 	static options = {
 		KEY: { desc: "actuality key (defaults to serialtime)", parse: (input: string) => stringOrError(input) },
-		STAY: { desc: `stay running after actuality's features end: ${STAY_ALWAYS}, ${STAY_FAILURE}`, parse: (result: string) => optionOrError(result, [STAY_ALWAYS, STAY_FAILURE]) },
+		STAY: { desc: `stay running after actuality ends: ${STAY_ALWAYS}, ${STAY_FAILURE}`, parse: (result: string) => optionOrError(result, [STAY_ALWAYS, STAY_FAILURE]) },
 		[ONCE]: {
 			desc: "run a group only when one of its dependencies changed since it last passed. This option applies --once to every run that a script chains",
 			parse: (input: string) => boolOrError(input),
