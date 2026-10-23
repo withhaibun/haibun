@@ -107,15 +107,21 @@ export class ActivitiesStepper extends AStepper implements IHasCycles {
 	private rules: TWaypointRule[] = [];
 	/** The feature whose lines resolve or run, whose rules apply. */
 	private feature = "";
+	/** Whether the saved waypoints' rules are stated. The first feature's start states them from their records, and a waypoint
+	 *  saved after that states its rule as it is saved. */
+	private savedStated = false;
 
 	cycles: IStepperCycles = {
 		getConcerns: () => ({ domains: [savedWaypointDomainDefinition] }),
-		// States each saved waypoint's rule from its record. A store opens as its feature starts, so this cycle runs last.
+		// States each saved waypoint's rule from its record once, as the first feature starts, so a read of every record doesn't
+		// grow each later feature's start with the records the store holds. A store opens as its feature starts, so this cycle
+		// runs last.
 		startFeature: async ({ resolvedFeature }) => {
 			this.feature = resolvedFeature.path;
-			const held = new Set(this.rules.filter(({ saved }) => saved === true).map(({ head }) => head));
-			const saved = (await readEvery(this.getWorld().shared.getStore(), { label: SAVED_WAYPOINT_LABEL })).map((record) => SavedWaypointSchema.parse(record));
-			this.registerSavedWaypoints(saved.filter(({ id }) => !held.has(headOf(id).head)));
+			if (this.savedStated) return;
+			this.savedStated = true;
+			const saved = await readEvery(this.getWorld().shared.getStore(), { label: SAVED_WAYPOINT_LABEL });
+			this.registerSavedWaypoints(saved.map((record) => SavedWaypointSchema.parse(record)));
 		},
 		// A rule over step records reads the record of each step a feature's line states, so a substep doesn't apply it.
 		afterStep: async ({ featureStep }) => {

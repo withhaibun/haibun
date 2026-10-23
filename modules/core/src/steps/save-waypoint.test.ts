@@ -15,6 +15,8 @@ import { readAction, requiredAction } from "../lib/domains/actions.js";
 import { Access } from "../lib/domains/resources.js";
 import VariablesStepper from "./variables-stepper.js";
 import { readEvery } from "../lib/records/pipelines/record-reads.js";
+import { QuadStore, newStoreChain } from "../lib/steps/pipelines/quad-store.js";
+import { readDeclarationsOf } from "../lib/records/derivations/read-records.js";
 
 const OUTCOME = "Knock twice";
 const KNOCK_LINE = 'set knocks to "2"';
@@ -70,6 +72,30 @@ describe("a waypoint a step saves", () => {
 	it("isn't run where the outcome isn't a waypoint saved here", async () => {
 		const unsaved = await failWithDefaults(`run the saved waypoint "${OUTCOME}"\n`, STEPPERS);
 		expect(JSON.stringify(unsaved.featureResults?.[0]?.stepResults)).toContain(`\\"${OUTCOME}\\" isn't a waypoint saved here`);
+	});
+
+	it("states its rule from its record as a later actuality's first feature starts, and every later feature keeps it", async () => {
+		const { world } = await passWithDefaults(SAVE, STEPPERS);
+		const [record] = await readEvery(world.shared.getStore(), { label: SAVED_WAYPOINT_LABEL });
+		/** Keeps saved waypoints in a store that outlasts each feature's, holding the record as actuality starts, as the store a
+		 *  later process opens holds it. */
+		class HoldsTheRecord extends AStepper {
+			description = "Keeps saved waypoints in a store that outlasts each feature's, and holds a record in it as actuality starts.";
+			steps = {};
+			cycles = {
+				startActuality: async () => {
+					const store = this.getWorld().shared.getStore();
+					if (!(store instanceof QuadStore)) throw new Error("the world's store isn't a QuadStore, which routes a graph to a backing store");
+					const { domains } = this.getWorld();
+					await store.registerStore(new QuadStore(newStoreChain(), undefined, () => readDeclarationsOf(domains)), [SAVED_WAYPOINT_LABEL]);
+					await store.upsertIndividual(SAVED_WAYPOINT_LABEL, record as Record<string, unknown>);
+				},
+			};
+		}
+		const applying = { path: "/features/apply", content: "apply the saved waypoint" };
+		seen.applied = false;
+		await passWithDefaults([applying, { ...applying, path: "/features/apply-again" }], [...STEPPERS, HoldsTheRecord]);
+		expect(seen.applied, "the second feature applies the waypoint the first feature's start stated").toBe(true);
 	});
 
 	it("is kept where it is saved again with the same lines", async () => {
