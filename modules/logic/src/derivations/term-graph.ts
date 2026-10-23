@@ -54,29 +54,32 @@ export function projected(stated: readonly TStatedFormula[]): TProjection {
 		const { name } = about;
 		let hubs = 0;
 		/** The node of a term: a constant shared by every formula, or a variable or a function's term of this formula. */
-		const nodeOf = (term: TTerm): string => {
+		const termNode = (term: TTerm): TTermNode => {
 			const id = "variable" in term ? `${name}:${term.variable}` : term.args.length === 0 ? term.functor : `${name}:${term.functor}(${term.args.map(nodeOf).join(", ")})`;
 			const held = nodes.get(id);
-			if (held === undefined) {
-				const ofFormula = "variable" in term || term.args.length > 0;
-				nodes.set(id, {
-					id,
-					label: "variable" in term ? term.variable : term.functor,
-					kind: ofFormula ? name : CONSTANT_KIND,
-					classes: [],
-					formulas: [name],
-					...("variable" in term ? { hollow: true } : {}),
-				});
-				if ("functor" in term) term.args.forEach((arg, at) => edges.push({ from: id, to: nodeOf(arg), label: String(at + 1), formula: name }));
-			} else if (!held.formulas.includes(name)) held.formulas.push(name);
-			return id;
+			if (held !== undefined) {
+				if (!held.formulas.includes(name)) held.formulas.push(name);
+				return held;
+			}
+			const ofFormula = "variable" in term || term.args.length > 0;
+			const node: TTermNode = {
+				id,
+				label: "variable" in term ? term.variable : term.functor,
+				kind: ofFormula ? name : CONSTANT_KIND,
+				classes: [],
+				formulas: [name],
+				...("variable" in term ? { hollow: true } : {}),
+			};
+			nodes.set(id, node);
+			if ("functor" in term) term.args.forEach((arg, at) => edges.push({ from: id, to: nodeOf(arg), label: String(at + 1), formula: name }));
+			return node;
 		};
+		const nodeOf = (term: TTerm): string => termNode(term).id;
 		const stateAtom = (atom: Extract<TFormula, { atom: string }>, negated: boolean): void => {
 			const label = negated ? `${NEGATED}${atom.atom}` : atom.atom;
 			const [first, second] = atom.args;
 			if (atom.args.length === 1 && first !== undefined && !negated) {
-				const node = nodes.get(nodeOf(first));
-				if (node === undefined) throw new Error(`the term graph doesn't hold the node of ${label}'s argument, which nodeOf holds`);
+				const node = termNode(first);
 				if (!node.classes.includes(label)) node.classes.push(label);
 				if (node.kind === CONSTANT_KIND && node.classes.length === 1) node.kind = label;
 			} else if (atom.args.length === 2 && first !== undefined && second !== undefined) edges.push({ from: nodeOf(first), to: nodeOf(second), label, formula: name });

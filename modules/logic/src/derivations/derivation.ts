@@ -10,8 +10,9 @@ type TRecord = Record<string, unknown>;
 
 const text = (record: TRecord, field: string): string | undefined => (typeof record[field] === "string" ? (record[field] as string) : undefined);
 const pathOf = (record: TRecord): number[] => {
-	const name = parseRecordName(String(record[SEQ_PATH_FIELD.id]));
-	if (name === undefined) throw new Error(`the record ${String(record[SEQ_PATH_FIELD.id])} doesn't name a step of an actuality feature`);
+	const id = text(record, SEQ_PATH_FIELD.id);
+	const name = id === undefined ? undefined : parseRecordName(id);
+	if (name === undefined) throw new Error("A step record of this feature doesn't name its step by its position. Show the derivation in an actuality this build of haibun records.");
 	return name.path;
 };
 const verdictOf = (record: TRecord): TVerdict | undefined => {
@@ -37,9 +38,10 @@ export function derivationOf(records: TRecord[], rootId: string, isNode: (called
 		})
 		.sort((a, b) => compareSeqPath(pathOf(a), pathOf(b)));
 	const root = under.find((record) => record[SEQ_PATH_FIELD.id] === rootId);
-	if (root === undefined) throw new Error(`the records don't hold ${rootId}, the record of the statement whose derivation was requested`);
+	if (root === undefined)
+		throw new Error(`The store doesn't hold ${rootId}, the record of the statement the derivation proves. Show the derivation where the store keeps step records.`);
 	const verdict = verdictOf(root);
-	if (verdict === undefined) throw new Error(`the record ${rootId} doesn't state a verdict; its proof didn't end`);
+	if (verdict === undefined) throw new Error(`The record ${rootId} doesn't state a verdict, since its proof didn't end. Show the derivation once the proof ends.`);
 	const calls = under
 		.filter((record) => !isNode(text(record, SEQ_PATH_FIELD.called)))
 		.map((record) => ({

@@ -18,7 +18,7 @@ import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 import { unwrap, unwrapToShape } from "@haibun/core/lib/domains/zod-unwrap.js";
 import { DOMAIN_INDIVIDUAL_ADDRESS } from "@haibun/core/lib/domains/typed-links.js";
 import type { TBinding, TCompositeRanges, TFieldBinding, TForwardAffordance, TPlan } from "@haibun/core/lib/domains/goal-resolution.js";
-import type { TGoalProof, TProofNode } from "../domains/logic.js";
+import { DIFFERENT_BUILDS, type TGoalProof, type TProofNode } from "../domains/logic.js";
 import { atom, list } from "./terms.js";
 import { literalTerm, renderStepLine } from "@haibun/core/lib/steps/derivations/named-vars.js";
 import { RESOLVE_STATEMENT } from "../domains/logic.js";
@@ -155,7 +155,7 @@ export function planOf(proof: TProofNode, byMethod: ReadonlyMap<string, TStepSig
 	const flat = (node: TProofNode): TFlat => {
 		if ("fact" in node) return { steps: [], bindings: [{ kind: "fact", domain: node.fact, factId: valueAt(latest, node.fact, "the latest fact of a domain the engine read") }] };
 		if ("argument" in node) return { steps: [], bindings: [{ kind: "argument", domain: node.argument }] };
-		if ("unmet" in node) throw new Error(`a plan holds the unmet goal ${node.unmet}; the engine returns a plan only where each sub-goal holds`);
+		if ("unmet" in node) throw new Error(`A plan the step program returned holds the unmet goal ${node.unmet}. ${DIFFERENT_BUILDS}`);
 		if ("composite" in node) {
 			const fields = node.fields.map((field) => ({ field, sub: flat(field.proof) }));
 			const bound = fields.map(({ field, sub }): TFieldBinding => {
@@ -167,7 +167,7 @@ export function planOf(proof: TProofNode, byMethod: ReadonlyMap<string, TStepSig
 			return { steps: fields.flatMap(({ sub }) => sub.steps), bindings: [{ kind: "composite", domain: node.composite, fields: bound }] };
 		}
 		const step = byMethod.get(node.do);
-		if (step === undefined) throw new Error(`the engine's plan calls ${node.do}, which the step signatures don't hold`);
+		if (step === undefined) throw new Error(`A plan the step program returned calls ${node.do}, which this process doesn't declare. ${DIFFERENT_BUILDS}`);
 		const subs = node.inputs.map(flat);
 		const called = { stepperName: step.stepperName, stepName: step.stepName, ...(step.gwta === undefined ? {} : { gwta: step.gwta }), productsDomain: node.domain };
 		return { steps: [...subs.flatMap((sub) => sub.steps), called], bindings: subs.flatMap((sub) => sub.bindings) };
@@ -194,9 +194,11 @@ export function argumentsOf(plan: TPlan): string[] {
 /** Why a goal's proof failed: the sub-goal it couldn't prove, why the engine couldn't prove it, and what proves it. */
 export function unmetReason(proof: TGoalProof): string {
 	const last = proof.unmet.at(-1);
-	if (last === undefined || !("why" in last)) throw new Error(`the engine refuted the goal ${proof.goal} without the sub-goal it couldn't prove`);
+	if (last === undefined || !("why" in last)) throw new Error(`The step program refuted the goal ${proof.goal} without the goal it couldn't prove. ${DIFFERENT_BUILDS}`);
 	const { unmet: domain, why } = last;
-	if (why === "no_producer") return `a step the caller may call doesn't return ${domain}; declare a step that returns it, or request the action of a step that does`;
-	if (why === "cycle") return `${domain} is taken again below its own proof; state a step that returns it from other domains`;
-	return `the proof of ${domain} reached the engine's bound ${why}; state a step that returns it from fewer steps`;
+	if (why === "no_producer") return `a step the caller may call doesn't return ${domain}. Declare a step that returns it, or request the action of a step that does.`;
+	if (why === "cycle") return `${domain} is taken again below its own proof. State a step that returns it from other domains.`;
+	const depth = /^depth\((\d+)\)$/.exec(why)?.[1];
+	if (depth === undefined) throw new Error(`The step program refuted the goal ${proof.goal} for a reason the TypeScript prover doesn't read. ${DIFFERENT_BUILDS}`);
+	return `the proof of ${domain} went past ${depth} steps, the bound of a proof. State a step that returns it from fewer steps.`;
 }

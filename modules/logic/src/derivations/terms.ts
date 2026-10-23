@@ -4,7 +4,7 @@
 import type { TVerdict } from "@haibun/core/lib/domains/protocol.js";
 import type { TQuadPattern } from "@haibun/core/lib/steps/domains/quad-types.js";
 import { itemAt } from "@haibun/core/lib/domains/item-at.js";
-import { FACT_POSITIONS, type TFact } from "../domains/logic.js";
+import { DIFFERENT_BUILDS, FACT_POSITIONS, type TFact } from "../domains/logic.js";
 
 /** A Prolog atom that holds the text as it is. */
 export const atom = (text: string): string => `'${text.replace(/\\/g, "\\\\").replace(/'/g, "\\'")}'`;
@@ -26,21 +26,21 @@ export function factsTerm(patterns: readonly TQuadPattern[], matched: readonly (
 
 /** What each reason the engine states means, as a line reads. */
 const REASONS: Record<string, string> = {
-	empty: "its domain doesn't have members to check",
-	cycle: "its waypoint is applied again with the same arguments below itself",
+	empty: "its domain doesn't hold a value to check",
+	cycle: "its waypoint applies itself again with the same values",
 	refused: "its step was refused",
 	no_proof: "its waypoint doesn't have a proof, and a falsity of it isn't stated",
-	not_waypoint: "ensure takes a waypoint, and its statement isn't one",
+	not_waypoint: "its statement isn't a waypoint's head. State a waypoint's head to ensure it",
 	none: "its parts don't prove it",
 };
 
 /** The reason a node's verdict isn't proved, where the engine states a reason in place of a part. */
 export function whyText(line: string, verdict: TVerdict, reason: string): string {
 	const depth = reason.match(/^depth\((\d+)\)$/);
-	if (depth !== null) return `${line} is ${verdict}: its proof reached the engine's bound of ${depth[1]}`;
+	if (depth !== null) return `\`${line}\` is ${verdict}: its proof went past ${depth[1]} steps, the bound of a proof`;
 	const refused = reason.match(/^refused\('?(.*?)'?\)$/s);
-	if (refused !== null) return `${line} is ${verdict}: ${atomText(String(refused[1]))}`;
+	if (refused !== null) return `\`${line}\` is ${verdict}: ${atomText(String(refused[1]))}`;
 	const known = REASONS[reason];
-	if (known === undefined) throw new Error(`the engine stated the reason ${reason} for "${line}", which the engine's program doesn't declare`);
-	return `${line} is ${verdict}: ${known}`;
+	if (known === undefined) throw new Error(`The proof of \`${line}\` states a reason the TypeScript prover doesn't read. ${DIFFERENT_BUILDS}`);
+	return `\`${line}\` is ${verdict}: ${known}`;
 }

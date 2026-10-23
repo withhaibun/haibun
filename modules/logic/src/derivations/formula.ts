@@ -33,17 +33,17 @@ class Refusal extends Error {
 }
 
 const REMEDY = {
-	disjunction: "split the rule into one rule per disjunct",
-	existential: "name the individual that the conclusion states exists, as a constant or as a function of its variables",
-	guard: "close the domain with set of, and guard the variable with member_of(X, d)",
-	negatedConclusion: "state the falsity as a negated ground axiom",
-	negatedFormula: "state the formula as a rule of its own, and negate that rule's atom",
-	equivalence: "state each direction as a rule",
-	connective: "restate the formula with ~, & and =>",
-	role: "state the formula as fof, with the role axiom for a fact or a rule and conjecture for a goal",
-	syntax: "write one annotated formula, fof(name, role, formula).",
+	disjunction: "Split the rule into one rule per disjunct.",
+	existential: "Name the individual that the conclusion states exists, as a constant or as a function of its variables.",
+	guard: "Close the domain with set of, and guard the variable with member_of(X, d).",
+	negatedConclusion: "State the falsity as a negated ground axiom.",
+	negatedFormula: "State the formula as a rule of its own, and negate that rule's atom.",
+	equivalence: "State each direction as a rule.",
+	connective: "Restate the formula with ~, & and =>.",
+	role: "State the formula as fof, with the role axiom for a fact or a rule and conjecture for a goal.",
+	syntax: "Write one annotated formula, fof(name, role, formula).",
 	predicate:
-		"name a predicate of the registry, which show steps lists: a step's method quoted as 'Stepper-step' or a waypoint's head, with its parts in order, member_of(X, d) or precedes(d, A, B)",
+		"Name a predicate of the registry, which show steps lists: a step's method quoted as 'Stepper-step' or a waypoint's head, with its parts in order, member_of(X, d) or precedes(d, A, B).",
 } as const;
 
 /** The connectives the fragment refuses, with the remedy for each by its name. */
@@ -64,8 +64,10 @@ function tokens(text: string): string[] {
 	const found: string[] = [];
 	TOKEN.lastIndex = 0;
 	while (TOKEN.lastIndex < text.trimEnd().length) {
+		// A sticky expression that doesn't match sets its lastIndex back to 0, so the refusal reads the position before the match.
+		const at = TOKEN.lastIndex;
 		const match = TOKEN.exec(text);
-		if (match === null) throw new Refusal(`the formula holds text TPTP doesn't define at ${TOKEN.lastIndex}`, REMEDY.syntax);
+		if (match === null) throw new Refusal(`the formula holds text TPTP doesn't define at character ${at + text.slice(at).search(/\S/) + 1}`, REMEDY.syntax);
 		found.push(match[1] as string);
 	}
 	return found;
@@ -167,7 +169,7 @@ const isLiteral = (f: TFormula): boolean => "atom" in f || "equal" in f || ("not
 function checkBody(body: TFormula): void {
 	for (const part of conjuncts(body)) {
 		if ("quantifier" in part && part.quantifier === "?") checkBody(part.body);
-		else if ("not" in part && !isLiteral(part)) throw new Refusal("~ stands before a formula that isn't an atom", REMEDY.negatedFormula);
+		else if ("not" in part && !isLiteral(part)) throw new Refusal("a formula that isn't an atom is negated with ~", REMEDY.negatedFormula);
 		else if ("connective" in part && part.connective === "|") throw new Refusal("a rule's conditions hold a disjunction", REMEDY.disjunction);
 		else if (!isLiteral(part) && !("quantifier" in part)) throw new Refusal("a rule's conditions hold a formula that isn't a literal", REMEDY.negatedFormula);
 	}
@@ -177,7 +179,7 @@ function checkBody(body: TFormula): void {
 function checkHead(head: TFormula): void {
 	if ("connective" in head && head.connective === "|") throw new Refusal("the conclusion is a disjunction", REMEDY.disjunction);
 	if ("quantifier" in head && head.quantifier === "?") throw new Refusal("the conclusion states an existential", REMEDY.existential);
-	if ("not" in head) throw new Refusal("~ stands before the conclusion", REMEDY.negatedConclusion);
+	if ("not" in head) throw new Refusal("the conclusion is negated with ~", REMEDY.negatedConclusion);
 	if (!("atom" in head)) throw new Refusal("the conclusion isn't one atom", REMEDY.disjunction);
 }
 
@@ -195,7 +197,7 @@ function checkAxiom(formula: TFormula): void {
 	const variables = "quantifier" in formula && formula.quantifier === "!" ? formula.variables : [];
 	if ("quantifier" in formula && formula.quantifier === "?") throw new Refusal("an axiom states an existential", REMEDY.existential);
 	if (!("connective" in rule) || (rule.connective !== "=>" && rule.connective !== "<=")) {
-		if ("not" in rule) throw new Refusal("~ stands before a formula that isn't an atom", REMEDY.negatedFormula);
+		if ("not" in rule) throw new Refusal("a formula that isn't an atom is negated with ~", REMEDY.negatedFormula);
 		throw new Refusal(`the variables ${variables.join(", ")} range over a domain the formula doesn't close`, REMEDY.guard);
 	}
 	const [body, head] = rule.connective === "=>" ? [rule.left, rule.right] : [rule.right, rule.left];
@@ -245,7 +247,8 @@ export function checkFormula(text: string, known: ReadonlyMap<string, number>): 
  *  for a name the quotes can't hold, which a caller names through `nameOfText` or `literalOf`. */
 function nameText(name: string): string {
 	if (LOWER_WORD.test(name)) return name;
-	if (!QUOTABLE.test(name)) throw new Error(`TPTP's single quotes hold printable ASCII, and the name "${name}" holds other text; name a text through nameOfText or literalOf`);
+	if (!QUOTABLE.test(name))
+		throw new Error(`The name "${name}" holds text besides printable ASCII, which TPTP's single quotes can't hold. Name the text through nameOfText or literalOf.`);
 	return `'${name.replace(/['\\]/g, "\\$&")}'`;
 }
 
@@ -275,7 +278,7 @@ export const variableAt = (at: number): string => `X${at + 1}`;
  *  state a formula. */
 export function conjunction(parts: readonly TFormula[]): TFormula {
 	const [first, ...rest] = parts;
-	if (first === undefined) throw new Error("a conjunction takes one formula or more; state the formulas it joins");
+	if (first === undefined) throw new Error("A conjunction joins one formula or more. State the formulas it joins.");
 	return rest.reduce((held: TFormula, part) => ({ connective: "&", left: held, right: part }), first);
 }
 

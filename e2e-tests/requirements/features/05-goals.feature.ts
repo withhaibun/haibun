@@ -13,6 +13,8 @@ export const features: TKirejiExport = {
 		"Essential, for the affordances panel, a model and features. Source: pipelines/goals.ts, resolved.",
 		'set plan from resolve "var-snapshot"',
 		'variable plan.verdict is "unknown"',
+		"Pursuing the goal refuses its plan, which takes a value from the caller.",
+		'not pursue "var-snapshot"',
 
 		scenario({ scenario: "A walk calls one step at a time with what a person supplies" }),
 		"Essential. Source: pipelines/goals.ts, walkBegun and walkAdvanced.",
@@ -32,6 +34,9 @@ export const features: TKirejiExport = {
 		'set again from resolve "var-snapshot"',
 		'variable again.verdict is "proved"',
 		'variable again.statements.1 is "resolve \\"var-snapshot\\""',
+		"Pursuing a proved goal returns its proof without a call.",
+		'set pursued from pursue "var-snapshot"',
+		'variable pursued.verdict is "proved"',
 
 		scenario({ scenario: "The chain of producers doesn't hold a blocking finding" }),
 		"Essential, for the declarations check at start, which refuses a parameter whose domain is string. Source: declarations.ts and haibun.pl lint/2.",

@@ -13,7 +13,7 @@ import AuthorityStepper from "@haibun/core/steps/authority-stepper.js";
 import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
-import { AStepper, READING, type TStepperSteps } from "@haibun/core/lib/steps/domains/stepper.js";
+import { AStepper, READING, untilWithoutDuration, type TStepperSteps } from "@haibun/core/lib/steps/domains/stepper.js";
 import { DOMAIN_STATEMENT } from "@haibun/core/lib/domains/domains.js";
 
 const STEPPERS = [Haibun, TestSteps, VariablesStepper, ActivitiesStepper];
@@ -128,13 +128,13 @@ describe("the readings of the logic engine", () => {
 		const content =
 			'Activity: Serve dinner\nset served to "yes"\nwaypoint Dinner is served with variable served is "yes"\nset served to "yes"\nabsent Dinner is served\nensure Dinner is served';
 		const result = await failWithDefaults(content, STEPPERS);
-		expect(result.failure?.error.message).toMatch(/Dinner is served is contradiction: the record \S+\.0\.1\.0\.2 states it is absent, and its proof at \S+\.0\.1\.0\.3\.1 holds/);
+		expect(result.failure?.error.message).toMatch(/`Dinner is served` is contradiction: the record \S+\.0\.1\.0\.2 states it is absent, and its proof at \S+\.0\.1\.0\.3\.1 holds/);
 	});
 
 	it("refuses a line that reads as until without a duration where it resolves, naming the line, rather than end actuality at its first wait", async () => {
 		const result = await failWithDefaults("retry fails", [...STEPPERS, UntilWithoutDuration]);
 		expect(result.failure?.stage).toBe("Resolve");
-		expect(result.failure?.error.message).toContain(`"retry fails" reads as until and doesn't state how long it proves its statements again`);
+		expect(result.failure?.error.message).toContain(untilWithoutDuration("retry fails"));
 	});
 
 	it("ends until at its deadline, however many attempts the deadline allows", async () => {

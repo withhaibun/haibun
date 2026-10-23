@@ -127,7 +127,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 				const [goal] = statement;
 				const head = goal?.action.step.rule?.head;
 				if (statement.length !== 1 || goal === undefined || head === undefined)
-					return actionNotOK(`absent states the falsity of a goal; state one line that unifies with a waypoint's head`);
+					return actionNotOK(`\`${featureStep.in}\` doesn't state one waypoint's head to deny. State one line that matches a waypoint's head after absent.`);
 				const world = this.getWorld();
 				const read = await argumentsOf(goal, world, this.steppers);
 				if ("refused" in read) return actionNotOK(read.refused);
@@ -236,7 +236,7 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 				"Proves a statement of one step under this step, and returns its verdict, the records its proof wrote, the calls among them with the actions that allowed each, and the line of the first goal it couldn't prove.",
 			productsDomain: DOMAIN_DERIVATION,
 			action: async ({ statement }: { statement: TFeatureStep[] }, featureStep: TFeatureStep) => {
-				if (statement.length !== 1) return actionNotOK(`show derivation of: the statement holds ${statement.length} steps; state one step`);
+				if (statement.length !== 1) return actionNotOK(`\`${featureStep.in}\` states ${statement.length} steps. State one step to show its derivation.`);
 				return actionOKWithProducts(await derivationUnder(stepperContext(this.getWorld(), this.steppers), featureStep, itemAt(statement, 0)));
 			},
 		},
@@ -248,7 +248,8 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			productsDomain: DOMAIN_LINE_TERM,
 			action: ({ line }: { line: string }) => {
 				const { term, rendered } = lineTerm(this.getWorld(), this.steppers, line);
-				return rendered === line ? actionOKWithProducts({ line, term, rendered }) : actionNotOK(`the line "${line}" renders from its term ${term} as "${rendered}"`);
+				if (rendered === line) return actionOKWithProducts({ line, term, rendered });
+				return actionNotOK(`\`${line}\` renders from its term ${term} as \`${rendered}\`. Give its step a pattern that renders the line as written.`);
 			},
 		},
 		callIsLine: {
@@ -259,7 +260,8 @@ export default class LogicStepper extends AStepper implements IHasCycles {
 			action: ({ method, input, line }: { method: string; input: Record<string, unknown>; line: string }) => {
 				const world = this.getWorld();
 				const [call, written] = [callTerm(world, method, input), lineTerm(world, this.steppers, line).term];
-				return call === written ? actionOK() : actionNotOK(`the call ${method} parses to ${call}, and the line "${line}" parses to ${written}`);
+				if (call === written) return actionOK();
+				return actionNotOK(`The call ${method} parses to ${call}, and \`${line}\` parses to ${written}. Give the call the values the line states.`);
 			},
 		},
 		rule: {

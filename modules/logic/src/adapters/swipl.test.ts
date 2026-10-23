@@ -23,6 +23,6 @@ describe("the engine's program", () => {
 		expect(engine.resume("second", "closed")).toEqual({ verdict: "proved" });
 		engine.forget("first");
 		engine.forget("second");
-		expect(() => engine.resume("first", "passed"), "a line's proof goes once it completes").toThrow(/engine/);
+		expect(() => engine.resume("first", "passed"), "a line's proof goes once it completes").toThrow(/failed in the step program/);
 	});
 });

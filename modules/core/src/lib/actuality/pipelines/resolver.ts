@@ -1,7 +1,7 @@
 import type { TExpandedFeature, TExpandedLine, TFeatures, TFeature } from "../domains/actuality.js";
 import type { TWorld } from "../domains/world.js";
 import { TStepValue, SCENARIO_START, PENDING_SCENARIO, HEADINGS, Origin } from "../../domains/protocol.js";
-import { AStepper, READING, TStepAction, TResolvedFeature, TStepperStep, TFeatureStep, UNTIL_DURATION, hasCycles } from "../../steps/domains/stepper.js";
+import { AStepper, READING, TStepAction, TResolvedFeature, TStepperStep, TFeatureStep, UNTIL_DURATION, hasCycles, untilWithoutDuration } from "../../steps/domains/stepper.js";
 import type { TDomainDefinition } from "../../domains/resources.js";
 import { matchGwtaToAction } from "../../steps/derivations/named-vars.js";
 import { getActionable, dePolite, actionNotOK, asError, errorDetail } from "../../domains/util.js";
@@ -97,7 +97,8 @@ export class Resolver {
 		const { steps, errors } = await this.findFeatureStepsTolerant(feature);
 		const [firstError] = errors;
 		if (firstError) {
-			throw Error(`findFeatureStep for "${firstError.featureLine.line}": ${firstError.error.message} in ${feature.path}\nUse --show-steppers for more details`);
+			const { featureLine, error } = firstError;
+			throw Error(`${feature.path}:${featureLine.lineNumber}: ${error.message}\nRun with --show-steppers to list each step and its pattern.`);
 		}
 		return steps.filter((s) => s.action.stepperName !== "Directive");
 	}
@@ -318,8 +319,7 @@ export class Resolver {
  *  refusal otherwise, so a step that declares until without a duration doesn't resolve, rather than end actuality at its
  *  first wait. */
 function statingDuration(line: string, action: TStepAction): TStepAction {
-	if (action.step.reading === READING.until && action.stepValuesMap?.[UNTIL_DURATION] === undefined)
-		throw Error(`"${line}" reads as until and doesn't state how long it proves its statements again: declare until with {${UNTIL_DURATION}}, such as within "2s"`);
+	if (action.step.reading === READING.until && action.stepValuesMap?.[UNTIL_DURATION] === undefined) throw Error(untilWithoutDuration(line));
 	return action;
 }
 

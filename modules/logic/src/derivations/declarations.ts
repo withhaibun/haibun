@@ -5,7 +5,6 @@
  * settles it, a pattern whose own line parses to another step or to more than one, or a parameter whose domain is string.
  */
 import type { AStepper, TStepAction, TStepperStep } from "@haibun/core/lib/steps/domains/stepper.js";
-import { errorDetail } from "@haibun/core/lib/domains/util.js";
 import { DOMAIN_STRING, domainParts } from "@haibun/core/lib/domains/domains.js";
 import { declaredSteps } from "@haibun/core/lib/steps/derivations/predicate-registry.js";
 import { stepParts } from "@haibun/core/lib/steps/domains/phrase.js";
@@ -13,10 +12,12 @@ import { stepMethodName } from "@haibun/core/lib/steps/domains/step-method.js";
 
 export type TDeclarationFinding = { method: string; finding: string };
 
-export const MISSING_PATTERN = "doesn't declare a pattern, an exact line, prose or rules";
-export const MISSING_FUNCTOR = "doesn't declare an action or a reading";
-export const DUPLICATE_PATTERN = "declares a pattern another step declares";
+export const MISSING_PATTERN = "doesn't declare a pattern, an exact line, prose or rules. Give it a pattern or an exact line.";
+export const MISSING_FUNCTOR = "doesn't declare an action or a reading. Give it an action, or a reading the engine proves.";
+export const DUPLICATE_PATTERN = "declares the pattern of another step. Change one pattern, or name the other step in precludes.";
 export const PARSES_TWO_WAYS = "declares a pattern whose own line doesn't parse to it alone";
+/** The remedy of a pattern whose own line parses to another step, or doesn't parse to one step. */
+const PARSES_ALONE = "Change the pattern so only this step parses its line, or name the other step in precludes.";
 export const STRING_PARAMETER = "takes a parameter whose domain is string, which doesn't state what its value is";
 
 /** A pattern with each placeholder's name and domain left out, so two patterns that parse the same lines compare equal. */
@@ -48,14 +49,15 @@ export function declarationFindings(steppers: readonly AStepper[], resolve: (lin
 		if (peers !== undefined && peers.length > 1) return [{ method, finding: DUPLICATE_PATTERN }];
 		if (step.gwta === undefined) return [];
 		const untyped = stepParts(step).flatMap(({ name, domain }) => (domainParts(domain).includes(DOMAIN_STRING) ? [name] : []));
-		if (untyped.length > 0) return [{ method, finding: `${STRING_PARAMETER}: ${untyped.join(", ")}` }];
+		if (untyped.length > 0) return [{ method, finding: `${STRING_PARAMETER}: ${untyped.join(", ")}. Give each a domain that names its value.` }];
+		const line = sampleLine(step.gwta);
 		try {
-			const parsed = resolve(sampleLine(step.gwta));
+			const parsed = resolve(line);
 			return parsed.stepperName === one.stepperName && parsed.actionName === one.actionName
 				? []
-				: [{ method, finding: `${PARSES_TWO_WAYS}: it parses to ${parsed.stepperName}.${parsed.actionName}` }];
-		} catch (caught) {
-			return [{ method, finding: `${PARSES_TWO_WAYS}: ${errorDetail(caught)}` }];
+				: [{ method, finding: `${PARSES_TWO_WAYS}: \`${line}\` parses to ${parsed.stepperName}.${parsed.actionName}. ${PARSES_ALONE}` }];
+		} catch {
+			return [{ method, finding: `${PARSES_TWO_WAYS}: \`${line}\` doesn't parse to one step. ${PARSES_ALONE}` }];
 		}
 	});
 }

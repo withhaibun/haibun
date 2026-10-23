@@ -20,30 +20,30 @@ const KNOWN = new Map([
 ]);
 
 const REFUSED: [string, string, string][] = [
-	["a formula that doesn't parse", "fof(r, axiom", "write one annotated formula, fof(name, role, formula)."],
+	["a formula that doesn't parse", "fof(r, axiom", "Write one annotated formula, fof(name, role, formula)."],
 	[
 		"a predicate the registry doesn't hold",
 		"fof(r, axiom, burnt(lunch)).",
-		"name a predicate of the registry, which show steps lists: a step's method quoted as 'Stepper-step' or a waypoint's head, with its parts in order, member_of(X, d) or precedes(d, A, B)",
+		"Name a predicate of the registry, which show steps lists: a step's method quoted as 'Stepper-step' or a waypoint's head, with its parts in order, member_of(X, d) or precedes(d, A, B).",
 	],
 	[
 		"a predicate with another arity than the registry holds",
 		"fof(r, axiom, side(lunch)).",
-		"name a predicate of the registry, which show steps lists: a step's method quoted as 'Stepper-step' or a waypoint's head, with its parts in order, member_of(X, d) or precedes(d, A, B)",
+		"Name a predicate of the registry, which show steps lists: a step's method quoted as 'Stepper-step' or a waypoint's head, with its parts in order, member_of(X, d) or precedes(d, A, B).",
 	],
-	["a disjunction in a conclusion", "fof(r, axiom, ![X] : (member_of(X, meal) => (cooked(X) | raw(X)))).", "split the rule into one rule per disjunct"],
+	["a disjunction in a conclusion", "fof(r, axiom, ![X] : (member_of(X, meal) => (cooked(X) | raw(X)))).", "Split the rule into one rule per disjunct."],
 	[
 		"an existential in a conclusion",
 		"fof(r, axiom, ![X] : (member_of(X, meal) => ?[Y] : side(X, Y))).",
-		"name the individual that the conclusion states exists, as a constant or as a function of its variables",
+		"Name the individual that the conclusion states exists, as a constant or as a function of its variables.",
 	],
-	["a quantifier without a guard", "fof(r, axiom, ![X] : edible(X)).", "close the domain with set of, and guard the variable with member_of(X, d)"],
-	["~ before a conclusion", "fof(r, axiom, ![X] : (member_of(X, meal) => ~raw(X))).", "state the falsity as a negated ground axiom"],
-	["~ before a formula that isn't an atom", "fof(r, axiom, ~(cooked(lunch) & raw(lunch))).", "state the formula as a rule of its own, and negate that rule's atom"],
-	["an equivalence", "fof(r, axiom, ![X] : (cooked(X) <=> edible(X))).", "state each direction as a rule"],
-	["a connective outside the fragment", "fof(r, axiom, cooked(lunch) <~> raw(lunch)).", "restate the formula with ~, & and =>"],
-	["a role other than axiom and conjecture", "fof(r, hypothesis, cooked(lunch)).", "state the formula as fof, with the role axiom for a fact or a rule and conjecture for a goal"],
-	["a language other than fof", "cnf(r, axiom, cooked(lunch)).", "state the formula as fof, with the role axiom for a fact or a rule and conjecture for a goal"],
+	["a quantifier without a guard", "fof(r, axiom, ![X] : edible(X)).", "Close the domain with set of, and guard the variable with member_of(X, d)."],
+	["~ before a conclusion", "fof(r, axiom, ![X] : (member_of(X, meal) => ~raw(X))).", "State the falsity as a negated ground axiom."],
+	["~ before a formula that isn't an atom", "fof(r, axiom, ~(cooked(lunch) & raw(lunch))).", "State the formula as a rule of its own, and negate that rule's atom."],
+	["an equivalence", "fof(r, axiom, ![X] : (cooked(X) <=> edible(X))).", "State each direction as a rule."],
+	["a connective outside the fragment", "fof(r, axiom, cooked(lunch) <~> raw(lunch)).", "Restate the formula with ~, & and =>."],
+	["a role other than axiom and conjecture", "fof(r, hypothesis, cooked(lunch)).", "State the formula as fof, with the role axiom for a fact or a rule and conjecture for a goal."],
+	["a language other than fof", "cnf(r, axiom, cooked(lunch)).", "State the formula as fof, with the role axiom for a fact or a rule and conjecture for a goal."],
 ];
 
 const RENDERED: [string, string][] = [
@@ -111,7 +111,12 @@ describe("the TPTP rendering of a formula", () => {
 	});
 
 	it("refuses a name TPTP's single quotes can't hold, and a quoted name the BNF doesn't define", () => {
-		expect(() => tptpOf({ name: "p", role: "axiom", formula: atomOf("name", [constant("Café")]) })).toThrow("name a text through nameOfText or literalOf");
-		expect(parseFormula("fof(p, axiom, name('Café')).")).toMatchObject({ remedy: "write one annotated formula, fof(name, role, formula)." });
+		expect(() => tptpOf({ name: "p", role: "axiom", formula: atomOf("name", [constant("Café")]) })).toThrow("Name the text through nameOfText or literalOf.");
+		expect(parseFormula("fof(p, axiom, name('Café')).")).toMatchObject({ remedy: "Write one annotated formula, fof(name, role, formula)." });
+	});
+
+	it("names the character where a formula's text stops being TPTP", () => {
+		const text = "fof(r, axiom, cooked(lunch) # raw(lunch)).";
+		expect(parseFormula(text)).toMatchObject({ reason: `the formula holds text TPTP doesn't define at character ${text.indexOf("#") + 1}` });
 	});
 });

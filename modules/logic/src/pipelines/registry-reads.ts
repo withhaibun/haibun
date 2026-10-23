@@ -48,7 +48,8 @@ function resolvedTerm(world: TWorld, resolver: Resolver, line: string): { term: 
 	const { stepperName, actionName, step, stepValuesMap } = resolver.findSingleStepAction(line);
 	const { rule, gwta } = step;
 	const pattern = rule === undefined ? gwta : rule.pattern;
-	if (pattern === undefined) throw new Error(`"${line}" resolves to ${stepperName}.${actionName}, whose pattern doesn't state placeholders to render`);
+	if (pattern === undefined)
+		throw new Error(`\`${line}\` resolves to ${stepperName}.${actionName}, which states an exact line rather than a pattern to render. Give the step a pattern.`);
 	const functor = rule === undefined ? predicateOf({ stepperName, actionName, step }) : rule.head;
 	return { term: termOfAction(functor, stepValuesMap, pattern, world.domains), pattern };
 }
@@ -82,7 +83,7 @@ export function waypointAxioms(world: TWorld, steppers: AStepper[], lines: reado
  *  host's predicate, so its call doesn't have a term here. */
 export function callTerm(world: TWorld, method: string, input: Record<string, unknown>): string {
 	const { descriptor, stepDef } = runRegistry(world).named(method);
-	if (stepDef === undefined) throw new Error(`${method} runs at another host, which holds its predicate; state a call of a step this process runs`);
+	if (stepDef === undefined) throw new Error(`${method} runs at another host, which holds its term. State a call of a step this process runs.`);
 	const functor = predicateOf({ stepperName: descriptor.stepperName, actionName: descriptor.stepName, step: stepDef });
 	return termText(termOfAction(functor, mapInputToStepValues(input, input, descriptor.pattern), descriptor.pattern, world.domains));
 }
@@ -90,7 +91,7 @@ export function callTerm(world: TWorld, method: string, input: Record<string, un
 /** The rule a formula states, or why the fragment or the registry doesn't hold the formula and what to write in its place. */
 export function ruleOf(text: string, steppers: readonly AStepper[], domains: TWorld["domains"]): TRule | { refused: string } {
 	const checked = checkFormula(text, predicateArities(steppers, domains));
-	if (!("annotated" in checked)) return { refused: `the formula is refused: ${checked.reason}; ${checked.remedy}` };
+	if (!("annotated" in checked)) return { refused: `The formula \`${text}\` is refused: ${checked.reason}. ${checked.remedy}` };
 	const { name, role, formula } = checked.annotated;
 	return { name, role, rendered: unicodeOf(formula) };
 }
@@ -109,8 +110,6 @@ export function refuseDeclarations(steppers: AStepper[]): void {
 	const findings = declarationFindings(steppers, (line) => resolver.parsedStepAction(line));
 	if (findings.length > 0) {
 		const listed = findings.map(({ method, finding }) => `${method} ${finding}`).join("; ");
-		throw new Error(
-			`the steppers don't declare each step once with every face: ${listed}. Give each step a pattern and an action or a reading, a pattern that only it parses or a precludes that names the other step, and a domain for each parameter that names what its value is`,
-		);
+		throw new Error(`Correct each of these step declarations: ${listed}`);
 	}
 }

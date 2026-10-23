@@ -25,6 +25,9 @@ export type TBinding = z.infer<typeof BindingSchema>;
 
 /** The effects a proof requests, by kind. */
 export const EFFECT = { call: "call", open: "open", close: "close", read: "read", rule: "rule", wait: "wait" } as const;
+/** The remedy where a proof reaches a request or a result the TypeScript prover doesn't hold, which a step program from another
+ *  build of haibun makes. */
+export const DIFFERENT_BUILDS = "The step program and the TypeScript prover are from different builds; run `npm run build` in haibun.";
 
 /** A fact a read returns: its subject, predicate, object and named graph. */
 export type TFact = Pick<TQuad, "subject" | "predicate" | "object" | "namedGraph">;

@@ -13,12 +13,22 @@ import { findFeatureStepsFromStatement } from "@haibun/core/lib/actuality/pipeli
 import { argumentsOf } from "@haibun/core/lib/steps/pipelines/populate-action-args.js";
 import { VERDICT, verdictOf, type TActionResult, type TStepArgs, type TStepResult } from "@haibun/core/lib/domains/protocol.js";
 import { errorDetail } from "@haibun/core/lib/domains/util.js";
-import { hasCycles, READING, UNTIL_DURATION, type TCallContext, type TFeatureStep, type TObserved, type TWaypointRule } from "@haibun/core/lib/steps/domains/stepper.js";
+import {
+	hasCycles,
+	READING,
+	UNTIL_DURATION,
+	untilWithoutDuration,
+	type TCallContext,
+	type TFeatureStep,
+	type TObserved,
+	type TWaypointRule,
+} from "@haibun/core/lib/steps/domains/stepper.js";
 import { matchesQuadPattern, type TQuadPattern } from "@haibun/core/lib/steps/domains/quad-types.js";
 import { stepRecordOf } from "@haibun/core/lib/actuality/domains/seq-path.js";
 import type { TStepInput } from "@haibun/core/lib/actuality/domains/actuality.js";
 import {
 	CALL_OUTCOME,
+	DIFFERENT_BUILDS,
 	EFFECT,
 	READ_GRAPH,
 	READ_PREDICATE,
@@ -40,6 +50,9 @@ type TNode = { step: TFeatureStep; what?: string };
 type TOpened = { node: string; step: TFeatureStep; close: (result: TActionResult) => void; dispatched: Promise<TStepResult>; at: number };
 
 const keyOf = (path: readonly number[]): string => path.join(".");
+
+/** The error where a proof reaches a request or a result the prover doesn't hold. Its message names the line's proof. */
+class DifferentBuilds extends Error {}
 
 /** The steps a line's text resolves to, each stated at the line's source where the text is one step. A text that expands a
  *  background states each background line's source. */
@@ -82,7 +95,7 @@ class Proof {
 
 	private node(id: string): TNode {
 		const node = this.nodes.get(id);
-		if (node === undefined) throw new Error(`the engine requested the node ${id}, which the proof of "${this.line.in}" doesn't hold`);
+		if (node === undefined) throw this.differentBuilds("reaches a part it didn't build");
 		return node;
 	}
 
@@ -103,7 +116,7 @@ class Proof {
 		if (reading === undefined) return `call(${this.add({ step })})`;
 		if (reading === READING.apply) {
 			const { rule } = declared;
-			if (rule === undefined) throw new Error(`${step.in} doesn't unify with a waypoint's head; state a line that does, or ensure the waypoint by its head`);
+			if (rule === undefined) throw new Error(`\`${step.in}\` doesn't match a waypoint's head. State a line that matches one, or ensure the waypoint by its head.`);
 			this.rules.set(rule.head, rule);
 			return `${reading}(${this.add({ step })}, ${atom(rule.head)})`;
 		}
@@ -141,7 +154,7 @@ class Proof {
 		for (const binding of [...bindings].reverse()) {
 			if ("member" in binding) {
 				const { what } = this.node(binding.node);
-				if (what === undefined) throw new Error(`the node ${binding.node} binds a member without a quantifier`);
+				if (what === undefined) throw this.differentBuilds("gives a value to a variable outside the line's quantifiers");
 				args[what] = binding.member;
 				const facts = this.observed.get(binding.node)?.get(binding.member);
 				for (const { predicate, object } of facts === undefined ? [] : facts) args[`${what}/${predicate}`] = typeof object === "number" ? object : String(object);
@@ -158,7 +171,7 @@ class Proof {
 
 	private contextAt(path: readonly number[]): TCallContext {
 		const context = this.contexts.get(keyOf(path));
-		if (context === undefined) throw new Error(`the proof of "${this.line.in}" reads a context at ${keyOf(path)}, which its node didn't open`);
+		if (context === undefined) throw this.differentBuilds("runs a call inside a context it didn't open");
 		return context;
 	}
 
@@ -171,7 +184,12 @@ class Proof {
 		if (need.need === EFFECT.read) return await this.read(path, request as TReadRequest);
 		if (need.need === EFFECT.rule) return await this.rule((request as { rule: string }).rule);
 		if (need.need === EFFECT.wait) return await this.wait(path, request as { node: string });
-		throw new Error(`the engine needs ${need.need} at ${keyOf(path)} of "${this.line.in}", which a proof doesn't perform`);
+		throw this.differentBuilds("makes a request the TypeScript prover doesn't handle");
+	}
+
+	/** The error where the proof of the line reaches what the prover doesn't hold, as `what` states it. */
+	private differentBuilds(what: string): DifferentBuilds {
+		return new DifferentBuilds(`The proof of \`${this.line.in}\` ${what}. ${DIFFERENT_BUILDS}`);
 	}
 
 	private async call(path: number[], request: TNodeRequest): Promise<string> {
@@ -252,13 +270,13 @@ class Proof {
 	/** The arguments the node at a position read when it opened. */
 	private openedArgs(path: readonly number[]): TStepArgs {
 		const args = this.argsAt.get(keyOf(path));
-		if (args === undefined) throw new Error(`the proof of "${this.line.in}" reads the arguments at ${keyOf(path)}, which its node didn't open`);
+		if (args === undefined) throw this.differentBuilds("reads the values of a step it didn't open");
 		return args;
 	}
 
 	private async close(path: number[], request: TCloseRequest): Promise<string> {
 		const opened = this.opened.get(keyOf(path));
-		if (opened === undefined) throw new Error(`the engine closed the node at ${keyOf(path)} of "${this.line.in}", which it didn't open`);
+		if (opened === undefined) throw this.differentBuilds("ends a step it didn't open");
 		const products = this.node(request.node).step.action.step.reading === READING.maybe ? { verdict: verdictOf(this.lastPart(path)) } : this.productsUnder.get(keyOf(path));
 		opened.close(
 			request.verdict === VERDICT.proved
@@ -274,15 +292,15 @@ class Proof {
 	private why(path: readonly number[], request: TCloseRequest, step: TFeatureStep): string {
 		const { node, verdict, why } = request;
 		const line = this.node(node).step.in;
-		if (why === "expired") return `${line} is ${verdict}: its statements didn't hold within ${durationOf(this.openedArgs(path))}ms`;
+		if (why === "expired") return `\`${line}\` is ${verdict}: its statements didn't hold within ${durationOf(step, this.openedArgs(path))}ms`;
 		if (typeof why === "string") return whyText(line, verdict, why);
 		if (!Array.isArray(why)) {
 			const proved = verdict === VERDICT.contradiction ? `, and its proof at ${stepRecordOf(this.ctx.world.tag, step.seqPath)} holds` : "";
-			return `${line} is ${verdict}: the record ${why.falsity} states it is absent${proved}`;
+			return `\`${line}\` is ${verdict}: the record ${why.falsity} states it is absent${proved}`;
 		}
 		const part = this.results.get(keyOf(why));
-		if (part === undefined) return `${line} is ${verdict}`;
-		return `${line} is ${verdict}, since ${part.in} is ${verdictOf(part)}${part.ok ? "" : `: ${part.errorMessage}`}`;
+		if (part === undefined) return `\`${line}\` is ${verdict}`;
+		return `\`${line}\` is ${verdict}, since \`${part.in}\` is ${verdictOf(part)}${part.ok ? "" : `: ${part.errorMessage}`}`;
 	}
 
 	/** The result of a node's last part, at which the proof of its statements ended. */
@@ -290,7 +308,7 @@ class Proof {
 		let at = 1;
 		while (this.results.has(keyOf([...path, at + 1]))) at += 1;
 		const part = this.results.get(keyOf([...path, at]));
-		if (part === undefined) throw new Error(`the proof of "${this.line.in}" closed the node at ${keyOf(path)} without the result of a part`);
+		if (part === undefined) throw this.differentBuilds("ends a step without the result of its last part");
 		return part;
 	}
 
@@ -312,7 +330,7 @@ class Proof {
 	/** A node's own facts: a waypoint's arguments as it read them when it opened, each individual as its canonical
 	 *  representative, and a quantifier's members, the values of its domain or the items its observation source's facts state. */
 	private async nodeFacts(path: readonly number[], { subject: id }: TQuadPattern): Promise<TFact[]> {
-		if (id === undefined) throw new Error(`the engine read a node's facts without naming the node in the proof of "${this.line.in}"`);
+		if (id === undefined) throw this.differentBuilds("reads the facts of a step without naming the step");
 		const fact = (predicate: string, object: unknown): TFact => ({ subject: id, predicate, object, namedGraph: READ_GRAPH.node });
 		if (this.node(id).step.action.step.reading === READING.apply) {
 			const canonical = await canonicalOf(this.reader);
@@ -330,7 +348,8 @@ class Proof {
 			return declared === undefined ? [] : declared;
 		});
 		const source = sources.find((one) => one.name.toLowerCase() === quantifier.source.toLowerCase());
-		if (source === undefined) throw new Error(`the observation source "${quantifier.source}" isn't declared; declare it in a stepper's concerns`);
+		if (source === undefined)
+			throw new Error(`\`${this.node(id).step.in}\` reads the observation source "${quantifier.source}", which the steppers don't declare. Declare it in a stepper's concerns.`);
 		const byItem = Map.groupBy(await source.observe(world), ({ subject }) => subject);
 		this.observed.set(id, byItem);
 		return [...byItem.keys()].map((item) => fact(READ_PREDICATE.member, item));
@@ -338,7 +357,7 @@ class Proof {
 
 	private async rule(name: string): Promise<string> {
 		const rule = this.rules.get(name);
-		if (rule === undefined) throw new Error(`the engine requested the rule of ${name}, which the proof of "${this.line.in}" doesn't hold`);
+		if (rule === undefined) throw this.differentBuilds(`requests the rule of the waypoint "${name}", which the line doesn't apply`);
 		const { proof, activity } = rule;
 		return `rule(${await this.linesTerm(proof)}, ${await this.linesTerm(activity)})`;
 	}
@@ -352,10 +371,9 @@ class Proof {
 	private async wait(path: number[], request: { node: string }): Promise<string> {
 		const opened = this.opened.get(keyOf(path));
 		const { reading } = this.node(request.node).step.action.step;
-		if (opened?.node !== request.node || reading !== READING.until)
-			throw new Error(`the engine waits at [${keyOf(path)}] of "${this.line.in}" for ${request.node}, which isn't an until open there`);
+		if (opened?.node !== request.node || reading !== READING.until) throw this.differentBuilds("tries again a step that doesn't read as until");
 		const { clock } = this.ctx.world;
-		if (clock.now() >= opened.at + durationOf(this.openedArgs(path))) return "expired";
+		if (clock.now() >= opened.at + durationOf(opened.step, this.openedArgs(path))) return "expired";
 		await clock.wait(UNTIL_RETRY_MS);
 		return "again";
 	}
@@ -364,10 +382,10 @@ class Proof {
 	statementsResult(count: number): TStepResult {
 		for (let position = 1; position <= count; position++) {
 			const result = this.results.get(String(position));
-			if (result === undefined) throw new Error(`the proof of the statements of "${this.line.in}" ended without the result of statement ${position}`);
+			if (result === undefined) throw this.differentBuilds(`ends without the result of its statement ${position}`);
 			if (!result.ok || position === count) return result;
 		}
-		throw new Error(`the proof of the statements of "${this.line.in}" doesn't hold a statement`);
+		throw this.differentBuilds("ends before its first statement");
 	}
 
 	/** Whether the line's own node is open, so a proof that stops ends the line's record with its cause. */
@@ -378,7 +396,7 @@ class Proof {
 	/** Ends each record the proof left open when it stopped on an exception, innermost first, as unknown with the cause, which
 	 *  names the line, and returns the cause. */
 	async stopped(caught: unknown): Promise<string> {
-		const errorMessage = `the proof of "${this.line.in}" stopped: ${errorDetail(caught)}`;
+		const errorMessage = caught instanceof DifferentBuilds ? caught.message : `The proof of \`${this.line.in}\` stopped: ${errorDetail(caught)}`;
 		const depth = (key: string): number => (key === "" ? 0 : key.split(".").length);
 		const open = [...this.opened.entries()].filter(([key]) => !this.results.has(key)).sort(([a], [b]) => depth(b) - depth(a));
 		for (const [key, opened] of open) {
@@ -391,7 +409,7 @@ class Proof {
 	/** The line's result: the result of its own call, or of its node. */
 	result(): TStepResult {
 		const result = this.results.get("");
-		if (result === undefined) throw new Error(`the proof of "${this.line.in}" ended without the line's result`);
+		if (result === undefined) throw this.differentBuilds("ends without the line's result");
 		return result;
 	}
 }
@@ -399,14 +417,15 @@ class Proof {
 /** The term a step's line writes for a parameter of a written domain, such as a statement or a quantifier's variable. */
 function writtenTerm(step: TFeatureStep, name: string): string {
 	const value = step.action.stepValuesMap?.[name];
-	if (value === undefined) throw new Error(`${step.in} doesn't state {${name}}, which its reading reads`);
+	if (value === undefined)
+		throw new Error(`\`${step.in}\` doesn't state {${name}}, which its step's reading proves. State it in the line, and in the step's pattern where the pattern doesn't take it.`);
 	return value.term;
 }
 
-/** The length of time an until's arguments state, in milliseconds. */
-function durationOf(args: TStepArgs): number {
+/** The length of time the line of an until states, in milliseconds, from the values its step read. */
+function durationOf(step: TFeatureStep, args: TStepArgs): number {
 	const ms = Number(args[UNTIL_DURATION]);
-	if (!Number.isFinite(ms)) throw new Error(`until states the duration ${String(args[UNTIL_DURATION])}, which isn't a length of time`);
+	if (!Number.isFinite(ms)) throw new Error(untilWithoutDuration(step.in));
 	return ms;
 }
 

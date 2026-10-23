@@ -29,7 +29,7 @@ export function termOfAction(functor: string, values: Record<string, TStepValue>
 		functor,
 		args: phraseParts(gwta).map(({ name }) => {
 			const value = values?.[name];
-			if (value === undefined) throw new Error(`the line of ${functor} doesn't state {${name}}, which its pattern names`);
+			if (value === undefined) throw new Error(`A line of the pattern \`${gwta}\` doesn't state {${name}}. State a value for {${name}} in the line.`);
 			return [name, { literal: isLiteral(value, domains), term: value.term }];
 		}),
 	};

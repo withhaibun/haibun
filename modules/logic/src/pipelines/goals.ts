@@ -42,7 +42,7 @@ import {
 	unmetReason,
 	type THeldFact,
 } from "../derivations/goals.js";
-import { EFFECT, type TReadRequest } from "../domains/logic.js";
+import { DIFFERENT_BUILDS, EFFECT, type TReadRequest } from "../domains/logic.js";
 import { atom, factsTerm, list } from "../derivations/terms.js";
 import type { TLogicEngine } from "../ports.js";
 import { proved } from "./prove.js";
@@ -66,11 +66,11 @@ async function resolutions(scope: TGoalScope, reader: TReader, goals: readonly s
 	const byDomain = Map.groupBy(facts, (fact) => fact.domain);
 	const latest = new Map(facts.toReversed().map((fact) => [fact.domain, fact.id]));
 	const ended = await proved(scope.engine, `goals(${producerRules(signatures, world.domains, scope.held)}, ${list(goals.map(atom))})`, async ({ need, request }) => {
-		if (need !== EFFECT.read) throw new Error(`the proof of goals requested ${need}; a proof of goals requests only reads`);
+		if (need !== EFFECT.read) throw new Error(`A proof of goals makes a request besides a read of facts. ${DIFFERENT_BUILDS}`);
 		const { patterns } = request as TReadRequest;
 		return factsTerm(patterns, await Promise.all(patterns.map(reader.facts)));
 	});
-	if (!("goals" in ended)) throw new Error(`the proof of goals ended without their proofs: ${JSON.stringify(ended)}`);
+	if (!("goals" in ended)) throw new Error(`A proof of goals ended without the proof of each goal. ${DIFFERENT_BUILDS}`);
 	return ended.goals.map((proof) => {
 		const plans = proof.plans.map((plan) => planOf(plan, byMethod, latest));
 		const verdict = proof.held ? VERDICT.proved : plans.length > 0 ? VERDICT.unknown : VERDICT.refuted;
@@ -79,6 +79,9 @@ async function resolutions(scope: TGoalScope, reader: TReader, goals: readonly s
 		return GoalResolutionSchema.parse({ goal: proof.goal, verdict, factIds, plans, ...unmet });
 	});
 }
+
+/** Why a goal doesn't hold, as its resolution states it: the goal it couldn't prove, or a plan without a step to take. */
+const unmetOf = ({ goal, unmet }: TGoalResolution): string => (unmet === undefined ? `its plan for ${goal} doesn't hold a step to take` : unmet);
 
 /** Proves a goal over the facts the store holds now. */
 async function resolutionOf(scope: TGoalScope, goal: string): Promise<TGoalResolution> {
@@ -104,14 +107,17 @@ export async function resolved(scope: TGoalScope, parent: TFeatureStep, goal: st
 	if (resolution.verdict === VERDICT.refuted) {
 		const unmet = resolution.unmetChain?.at(-1);
 		if (unmet !== undefined && unmet !== goal) await proveUnder(scope.ctx, parent, stepMethodName(LOGIC_STEPPER_NAME, "resolve"), { goal: unmet });
-		return actionNotOK(`resolve ${goal}: ${resolution.unmet}`);
+		return actionNotOK(`\`${parent.in}\` doesn't hold: ${unmetOf(resolution)}`);
 	}
 	const [fact] = resolution.factIds;
 	if (fact === undefined) return actionOKWithProducts(resolution);
 	const record = producingStepRecord(fact);
 	const [stated] = await readerOf(storeOf(scope)).facts({ subject: record, predicate: SEQ_PATH_FIELD.stepText, namedGraph: SEQ_PATH_LABEL });
 	const line = stated?.object;
-	if (typeof line !== "string") throw new Error(`the fact ${fact} of ${goal} names the record ${record}, which the store doesn't hold with its line`);
+	if (typeof line !== "string")
+		throw new Error(
+			`The fact ${fact} that proves \`${parent.in}\` names the record ${record}, which the store doesn't hold with its line. Run the line that states the fact again.`,
+		);
 	return actionOKWithProducts({ ...resolution, statements: [line, renderStepLine(pattern, { goal: literalTerm(goal, DOMAIN_DOMAIN_KEY) })] });
 }
 
@@ -120,15 +126,17 @@ export async function pursued(scope: TGoalScope, parent: TFeatureStep, goal: str
 	const resolution = await resolutionOf(scope, goal);
 	if (resolution.verdict === VERDICT.proved) return actionOKWithProducts(resolution);
 	const [plan] = resolution.plans;
-	if (plan === undefined) return actionNotOK(`pursue ${goal}: ${resolution.unmet}`);
+	if (plan === undefined) return actionNotOK(`\`${parent.in}\` doesn't hold: ${unmetOf(resolution)}`);
 	const supplied = argumentsOf(plan);
-	if (supplied.length > 0) return actionNotOK(`pursue ${goal}: its plan takes ${supplied.join(", ")} from the caller; walk toward ${goal} to supply each`);
+	if (supplied.length > 0)
+		return actionNotOK(`\`${parent.in}\` needs ${supplied.join(", ")} from the caller, which its plan takes. Supply each through \`walk toward "${goal}"\`.`);
 	for (const step of plan.steps) {
 		const { result } = await proveUnder(scope.ctx, parent, stepMethodName(step.stepperName, step.stepName), {});
-		if (!result.ok) return actionNotOK(`pursue ${goal}: ${result.in} failed: ${result.errorMessage}`);
+		if (!result.ok) return actionNotOK(`\`${parent.in}\` stopped at \`${result.in}\`, which failed: ${result.errorMessage}`);
 	}
 	const again = await resolutionOf(scope, goal);
-	return again.verdict === VERDICT.proved ? actionOKWithProducts(again) : actionNotOK(`pursue ${goal}: its plan's steps passed, and a fact of ${goal} doesn't hold`);
+	if (again.verdict === VERDICT.proved) return actionOKWithProducts(again);
+	return actionNotOK(`The steps of the plan for \`${parent.in}\` passed, and a fact of ${goal} still doesn't hold. Declare ${goal} as the products of the plan's last step.`);
 }
 
 /** The graph that holds each walk's facts. */
@@ -148,15 +156,17 @@ async function writeWalk(store: IQuadStore, walk: string, { goal, owner, factIds
 async function readWalk(store: IQuadStore, walk: string): Promise<TWalk> {
 	const held = new Map((await readerOf(store).facts({ subject: walk, namedGraph: WALK_GRAPH })).map(({ predicate, object }) => [predicate, object]));
 	const [goal, owner, factIds] = [WALK.goal, WALK.owner, WALK.factIds].map((predicate) => held.get(predicate));
-	if (typeof goal !== "string" || !Array.isArray(factIds)) throw new Error(`the store doesn't hold the walk ${walk}; begin a walk toward its goal with walk toward`);
+	if (typeof goal !== "string" || !Array.isArray(factIds))
+		throw new Error(`The store doesn't hold the walk ${walk}. Begin a walk with \`walk toward\` and its goal, and advance the walk it returns.`);
 	return { goal, factIds: factIds.map(String), ...(typeof owner === "string" ? { owner } : {}) };
 }
 
 /** A walk's products: the step its next advance calls and the parameters that step takes, from its goal's plan as it holds now. */
-async function walkProducts(scope: TGoalScope, walk: string, goal: string, factIds: string[]): Promise<TActionResult> {
+async function walkProducts(scope: TGoalScope, line: string, walk: string, goal: string, factIds: string[]): Promise<TActionResult> {
 	const resolution = await resolutionOf(scope, goal);
 	const next = resolution.verdict === VERDICT.proved ? undefined : resolution.plans[0]?.steps[0];
-	if (resolution.verdict === VERDICT.refuted || (resolution.verdict === VERDICT.unknown && next === undefined)) return actionNotOK(`walk toward ${goal}: ${resolution.unmet}`);
+	if (resolution.verdict === VERDICT.refuted || (resolution.verdict === VERDICT.unknown && next === undefined))
+		return actionNotOK(`\`${line}\` can't reach ${goal}: ${unmetOf(resolution)}`);
 	if (next === undefined) return actionOKWithProducts(ChainWalkSchema.parse({ walk, goal, status: WALK_STATUS.ended, needs: [], factIds }));
 	const method = stepMethodName(next.stepperName, next.stepName);
 	const needs = [...scope.ctx.registry.named(method).paramDomainKeys.keys()];
@@ -165,11 +175,12 @@ async function walkProducts(scope: TGoalScope, walk: string, goal: string, factI
 
 /** Begins a walk toward a goal that isn't proved, under the principal that begins it, named by the record of the step. */
 export async function walkBegun(scope: TGoalScope, parent: TFeatureStep, goal: string): Promise<TActionResult> {
-	if ((await resolutionOf(scope, goal)).verdict === VERDICT.proved) return actionNotOK(`walk toward ${goal}: a fact of ${goal} holds, so it doesn't need a walk`);
+	if ((await resolutionOf(scope, goal)).verdict === VERDICT.proved)
+		return actionNotOK(`\`${parent.in}\` doesn't need a walk: a fact of ${goal} already holds. Read it with \`resolve "${goal}"\`.`);
 	const walk = stepRecordOf(scope.ctx.world.tag, parent.seqPath);
 	const owner = actingAs();
 	await writeWalk(storeOf(scope), walk, { goal, factIds: [], ...(owner === undefined ? {} : { owner }) });
-	return await walkProducts(scope, walk, goal, []);
+	return await walkProducts(scope, parent.in, walk, goal, []);
 }
 
 /** Proves the next step of a walk's plan, as it holds now, under the step with the values given, and holds the fact it asserted.
@@ -179,16 +190,16 @@ export async function walkAdvanced(scope: TGoalScope, parent: TFeatureStep, walk
 	const held = await readWalk(store, walk);
 	if (held.owner !== actingAs()) {
 		const began = held.owner === undefined ? "a caller without a principal" : held.owner;
-		return actionNotOK(`advance the walk ${walk}: ${began} began it; begin a walk of your own with walk toward ${held.goal}`);
+		return actionNotOK(`\`${parent.in}\` advances a walk that ${began} began. Begin a walk of your own with \`walk toward "${held.goal}"\`.`);
 	}
 	const resolution = await resolutionOf(scope, held.goal);
 	const next = resolution.plans[0]?.steps[0];
-	if (resolution.verdict !== VERDICT.unknown || next === undefined) return await walkProducts(scope, walk, held.goal, held.factIds);
+	if (resolution.verdict !== VERDICT.unknown || next === undefined) return await walkProducts(scope, parent.in, walk, held.goal, held.factIds);
 	const { result, fact } = await proveUnder(scope.ctx, parent, stepMethodName(next.stepperName, next.stepName), args);
-	if (!result.ok) return actionNotOK(`advance the walk ${walk}: ${result.in} failed: ${result.errorMessage}`);
+	if (!result.ok) return actionNotOK(`\`${parent.in}\` stopped at \`${result.in}\`, which failed: ${result.errorMessage}`);
 	const factIds = [...held.factIds, fact];
 	await writeWalk(store, walk, { ...held, factIds });
-	return await walkProducts(scope, walk, held.goal, factIds);
+	return await walkProducts(scope, parent.in, walk, held.goal, factIds);
 }
 
 /** The steps on offer and the resolution of each goal a step returns, over the facts that held at `asOf` where it is stated. A
@@ -206,7 +217,7 @@ async function snapshotOf(scope: TGoalScope, asOf: number[] | undefined) {
 		const domain = world.domains[resolution.goal];
 		const description = domain?.description ?? domain?.schema.description;
 		if (description === undefined)
-			throw new Error(`the goal ${resolution.goal} doesn't have a description; describe its schema with .describe("…") or set description on its domain definition`);
+			throw new Error(`The goal ${resolution.goal} doesn't have a description. Describe its schema with .describe("…"), or set description on its domain definition.`);
 		return [{ domain: resolution.goal, description, resolution }];
 	});
 	return {

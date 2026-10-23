@@ -9,7 +9,7 @@ import { join } from "node:path";
 import SWIPL from "swipl-wasm";
 import { z } from "zod";
 import { LintFindingSchema } from "@haibun/core/lib/domains/goal-resolution.js";
-import { ProofStateSchema } from "../domains/logic.js";
+import { DIFFERENT_BUILDS, ProofStateSchema } from "../domains/logic.js";
 import type { TLogicEngine } from "../ports.js";
 
 /** The program's file in the runtime's file system. */
@@ -20,7 +20,11 @@ type TRuntime = Awaited<ReturnType<typeof SWIPL>>;
 /** Runs a goal once and returns its bindings. Throws with the goal and the runtime's result where the goal doesn't succeed. */
 function once(runtime: TRuntime, goal: string, input?: Record<string, unknown>): Record<string, unknown> {
 	const answer = runtime.prolog.query(goal, input).once() as Record<string, unknown> | null;
-	if (answer === null || answer.success !== true) throw new Error(`the logic engine didn't prove ${goal}: ${JSON.stringify(answer)}`);
+	if (answer === null || answer.success !== true) {
+		const cause = answer?.error;
+		const error = cause === undefined ? "" : `: ${typeof cause === "string" ? cause : JSON.stringify(cause)}`;
+		throw new Error(`The query \`${goal}\` failed in the step program${error}. ${DIFFERENT_BUILDS}`);
+	}
 	return answer;
 }
 

@@ -1,8 +1,8 @@
 /**
  * A proof that stops on an exception fails its line with the line and the cause, ends each record it opened, and leaves the
  * features after it to run. The engine below yields until's wait for the line that applies a waypoint once the line's node
- * opens, as an engine that reads the line as until yields it: the record of AGENTS.md's scoping example that ended an
- * actuality with "until states the duration undefined".
+ * opens, as an engine that reads the line as until yields it: the record of AGENTS.md's scoping example, which once ended
+ * actuality with a duration it couldn't read. The step program and the prover then come from different builds.
  */
 import { describe, expect, it } from "vitest";
 import { DEF_PROTO_OPTIONS, failWithDefaults } from "@haibun/core/lib/test/lib.js";
@@ -15,7 +15,7 @@ import { CONTINUE_AFTER_ERROR, RECORDED_STATUS } from "@haibun/core/lib/domains/
 import { readEvery } from "@haibun/core/lib/records/pipelines/record-reads.js";
 import { SEQ_PATH_LABEL } from "@haibun/core/lib/domains/resources.js";
 import { SEQ_PATH_FIELD } from "@haibun/core/lib/actuality/domains/seq-path.js";
-import { EFFECT } from "../domains/logic.js";
+import { DIFFERENT_BUILDS, EFFECT } from "../domains/logic.js";
 import { atom } from "../derivations/terms.js";
 import type { TLogicEngine } from "../ports.js";
 import { logicEngine } from "../root.js";
@@ -60,7 +60,7 @@ describe("a proof that stops on an exception", () => {
 		];
 		const options = { ...DEF_PROTO_OPTIONS, options: { ...DEF_PROTO_OPTIONS.options, [CONTINUE_AFTER_ERROR]: true } };
 		const result = await failWithDefaults(features, [Haibun, TestSteps, VariablesStepper, ActivitiesStepper, WaitingEngine], options);
-		expect(result.failure?.error.message).toContain(`the proof of "${HEAD}" stopped: the engine waits at [] of "${HEAD}" for n1, which isn't an until open there`);
+		expect(result.failure?.error.message).toContain(`The proof of \`${HEAD}\` tries again a step that doesn't read as until. ${DIFFERENT_BUILDS}`);
 		const ran = result.featureResults?.map(({ ok }) => ok);
 		expect(ran, "the features after it run").toEqual([false, true]);
 		const steps = await readEvery(result.world.shared.getStore(), { label: SEQ_PATH_LABEL });
